@@ -1,0 +1,47 @@
+# Module 9: Payroll & Compensation
+
+Covers: `PayrollRun` — the final processed salary sheet (PRD §5.3, glossary "PAYROLL"). Added after auditing the ERD set against PRD §5.3 and finding no entity behind the Accountant's "generates final PAYROLL sheet" responsibility.
+
+## Diagram
+
+```mermaid
+erDiagram
+    USER {
+        uuid id PK
+        string name "full User entity defined in Module 1 - FIELD role only"
+    }
+    PAY_BAND {
+        uuid id PK
+        decimal base_salary "full PayBand entity defined in Module 1"
+    }
+
+    PAYROLL_RUN {
+        uuid id PK
+        uuid user_id FK
+        string month "e.g. 2026-10"
+        decimal base_salary "snapshot of PayBand.base_salary at generation time"
+        decimal total_ta_da "sum of that month's PAID Expense rows (Module 4)"
+        decimal leave_deduction "computed from unpaid Leave days that month (Module 7)"
+        decimal net_payable "base_salary + total_ta_da - leave_deduction"
+        string status "DRAFT, FINALIZED"
+        uuid generated_by FK "Accountant"
+        timestamp generated_at
+        timestamp finalized_at "nullable"
+    }
+
+    USER ||--o{ PAYROLL_RUN : "user_id"
+    PAY_BAND ||--o{ PAYROLL_RUN : "pay_band (via user, for base_salary snapshot)"
+    USER ||--o{ PAYROLL_RUN : "generated_by (Accountant)"
+```
+
+## Design decisions locked for this module
+
+- **Payroll is FIELD-role only**, consistent with Module 1's decision that `PayBand` (and therefore `base_salary`) only applies to FIELD-role users. Admin/HR/Accountant compensation is assumed handled by a separate, external company payroll system outside this SFA tool.
+- **`PayrollRun` is a stored, finalized record — not a live-computed report.** Same treatment as `DCR`/Tour Plans: once Accountant generates and finalizes a run, its numbers are locked in, even if a later edit touches the underlying `Expense` or `Leave` data for that month. This matches "generates final PAYROLL sheet" as a deliberate, one-time action per PRD's glossary — not an always-live dashboard figure (unlike `Target`'s achieved/rollup figures, which stay derived).
+- **`base_salary` is snapshotted at generation time**, not re-read from `PayBand` later — if the grade's base salary changes next quarter, past `PayrollRun` rows for prior months must stay accurate to what was actually paid.
+- **`total_ta_da` only sums `Expense` rows with `payment_status = PAID`** (Module 4) — an approved-but-unpaid expense claim doesn't count toward payroll yet. This is what actually connects the Accountant's two responsibilities from PRD §5.3: "marks as paid" (Module 4) happens first, "generates final PAYROLL sheet" (this module) reads the result.
+- **`leave_deduction` is computed, not itself a stored breakdown.** It's derived from that month's unpaid `Leave` days (Module 7, `LeaveType.is_paid = false`) at generation time, then baked into the snapshot as a single number on `PayrollRun` — the detailed leave ledger stays in Module 7, not duplicated here.
+
+## Status
+
+This closes the gap found when auditing HR/Accountant coverage before starting the HLD. With this module, all of PRD §5.3's HR/Accountant responsibilities now have a modeled entity behind them. See `README.md` for the full index.
