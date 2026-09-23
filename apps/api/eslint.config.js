@@ -66,12 +66,15 @@ export default [
     /*
      * `src/container.ts` is the composition root — building every module container and
      * wiring contracts between them IS its job. `src/app.ts`/`server.ts` bootstrap it.
+     * `src/scripts/seed.ts` is a SECOND composition root (docs/engineering/module-anatomy.md's
+     * "a worker process, a script" case) — it builds the same containers `container.ts` does,
+     * just to run their seed methods instead of serving HTTP.
      *
      * `src/routes.ts` is deliberately NOT exempted: it only mounts routers it's handed and
      * needs no module internals, so the boundary rule keeps watching the file most likely
      * to grow a shortcut.
      */
-    files: ['src/container.ts', 'src/app.ts', 'src/server.ts', 'src/worker.ts'],
+    files: ['src/container.ts', 'src/app.ts', 'src/server.ts', 'src/worker.ts', 'src/scripts/seed.ts'],
     rules: { 'no-restricted-imports': 'off' },
   },
 ];

@@ -18,6 +18,7 @@ import { LogoutUseCase } from './application/usecases/logout.usecase.js';
 import { LogoutAllSessionsUseCase } from './application/usecases/logoutAllSessions.usecase.js';
 import { RefreshSessionUseCase } from './application/usecases/refreshSession.usecase.js';
 import { RemoveUserDocumentUseCase } from './application/usecases/removeUserDocument.usecase.js';
+import type { BootstrapAdminInput } from './application/usecases/seedBootstrapAdmin.usecase.js';
 import { SeedBootstrapAdminUseCase } from './application/usecases/seedBootstrapAdmin.usecase.js';
 import { SeedDefaultRolesUseCase } from './application/usecases/seedDefaultRoles.usecase.js';
 import { UnblockUserUseCase } from './application/usecases/unblockUser.usecase.js';
@@ -60,8 +61,16 @@ import type { IdentityPublicContract } from './identity.public.js';
 export interface IdentityContainer {
   contract: IdentityPublicContract;
   buildRouter: () => Router;
-  /** Idempotent — seeds the 4 fixed Role rows, then the bootstrap Admin if none exists. Call once at boot. */
-  seedBootstrapAdmin: () => Promise<void>;
+  /**
+   * These three exist for `scripts/seed.ts` (a second composition root — see
+   * `docs/engineering/module-anatomy.md`), never called from the HTTP boot path. Split apart
+   * rather than one combined method so the script can check `hasAdmin()` BEFORE prompting an
+   * operator for admin details, instead of prompting unconditionally and silently discarding
+   * the input when one already exists.
+   */
+  seedRoles: () => Promise<void>;
+  hasAdmin: () => Promise<boolean>;
+  seedBootstrapAdmin: (input: BootstrapAdminInput) => Promise<void>;
 }
 
 export function buildIdentityContainer(configProvider: ConfigProviderPort): IdentityContainer {
@@ -181,33 +190,8 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       return router;
     },
 
-    seedBootstrapAdmin: async () => {
-      await seedDefaultRoles.execute();
-
-      const {
-        BOOTSTRAP_ADMIN_EMPLOYEE_CODE,
-        BOOTSTRAP_ADMIN_NAME,
-        BOOTSTRAP_ADMIN_EMAIL,
-        BOOTSTRAP_ADMIN_PHONE,
-        BOOTSTRAP_ADMIN_PASSWORD,
-      } = env;
-
-      const input =
-        BOOTSTRAP_ADMIN_EMPLOYEE_CODE &&
-        BOOTSTRAP_ADMIN_NAME &&
-        BOOTSTRAP_ADMIN_EMAIL &&
-        BOOTSTRAP_ADMIN_PHONE &&
-        BOOTSTRAP_ADMIN_PASSWORD
-          ? {
-              employeeCode: BOOTSTRAP_ADMIN_EMPLOYEE_CODE,
-              name: BOOTSTRAP_ADMIN_NAME,
-              email: BOOTSTRAP_ADMIN_EMAIL,
-              phone: BOOTSTRAP_ADMIN_PHONE,
-              password: BOOTSTRAP_ADMIN_PASSWORD,
-            }
-          : undefined;
-
-      await seedBootstrapAdminUseCase.execute(input);
-    },
+    seedRoles: () => seedDefaultRoles.execute(),
+    hasAdmin: () => userRepository.existsAdmin(),
+    seedBootstrapAdmin: (input) => seedBootstrapAdminUseCase.execute(input),
   };
 }

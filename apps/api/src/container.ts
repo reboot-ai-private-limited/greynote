@@ -8,15 +8,18 @@ export interface AppContainers {
   identity: ReturnType<typeof buildIdentityContainer>;
 }
 
-export async function buildContainers(): Promise<AppContainers> {
+/**
+ * Pure composition — no DB writes here. Seeding (SystemConfig defaults, the fixed Role rows, the
+ * bootstrap Admin) is an explicit, operator-triggered action via `pnpm --filter @greynote/api
+ * seed` (see `scripts/seed.ts`), not an implicit side effect of the server starting.
+ */
+export function buildContainers(): AppContainers {
   // Tier 0 — Health and Config depend on no other modules.
   const health = buildHealthContainer();
   const config = buildConfigContainer();
-  await config.seed();
 
   // Tier 1 — Identity depends only on Config's public contract, per MODULE_TIERS.
   const identity = buildIdentityContainer(config.contract);
-  await identity.seedBootstrapAdmin();
 
   return { health, config, identity };
 }

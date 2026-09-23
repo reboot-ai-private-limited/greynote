@@ -22,7 +22,12 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 const external = Object.keys(pkg.dependencies ?? {}).filter((d) => !d.startsWith('@greynote/'));
 
 await esbuild.build({
-    entryPoints: ['src/server.ts'],
+    // Two entry points, one build: `scripts/seed.ts` is the manual DB-seeding script
+    // (docs/decision-log.md — it must run in prod too, via `node dist/scripts/seed.js` inside
+    // the container, not just `tsx` in dev). No `outbase` needed — esbuild's default output
+    // layout uses each entry's path relative to the lowest common ancestor of all entry points
+    // (`src/`), so this lands at `dist/scripts/seed.js` alongside `dist/server.js`.
+    entryPoints: ['src/server.ts', 'src/scripts/seed.ts'],
     bundle: true,
     platform: 'node',
     format: 'esm',

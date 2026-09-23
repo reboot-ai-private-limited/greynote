@@ -10,7 +10,8 @@
         "typecheck": "tsc --noEmit",
         "lint": "eslint src && pnpm lint:deps",
         "lint:deps": "depcruise src --config .dependency-cruiser.cjs --output-type err-long",
-        "test": "vitest run"
+        "test": "vitest run",
+        "seed": "tsx src/scripts/seed.ts"
     },
     "dependencies": {
         "@asteasolutions/zod-to-openapi": "^7.3.4",
@@ -27,6 +28,7 @@
         "multer": "^1.4.5-lts.1",
         "pino": "^9.6.0",
         "pino-http": "^10.4.0",
+        "prompts": "^2.4.2",
         "swagger-ui-express": "^5.0.1",
         "uuid": "^11.0.5",
         "zod": "^3.24.1"
@@ -39,6 +41,7 @@
         "@types/express": "^4.17.21",
         "@types/jsonwebtoken": "^9.0.7",
         "@types/multer": "^1.4.12",
+        "@types/prompts": "^2.4.9",
         "@types/swagger-ui-express": "^4.1.8",
         "dependency-cruiser": "^16.9.0",
         "esbuild": "^0.24.2",

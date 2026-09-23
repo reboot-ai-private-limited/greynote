@@ -11,7 +11,7 @@ import { errorHandler, notFoundHandler } from '@/shared/http/error-handler.js';
 import { requestIdMiddleware } from '@/shared/http/request-id.middleware.js';
 import { mountSwagger } from '@/shared/http/swagger.util.js';
 
-export async function createApp(): Promise<Express> {
+export function createApp(): Express {
     const app = express();
 
     app.disable('x-powered-by');
@@ -29,7 +29,7 @@ export async function createApp(): Promise<Express> {
     // 1. Build all the Clean Architecture modules. Importing a module's route file (inside
     // buildRouter, called below) registers its OpenAPI paths as a side effect, so containers
     // MUST be built — and their routers built — before mountSwagger reads the registry.
-    const containers = await buildContainers();
+    const containers = buildContainers();
 
     // 2. Wire their routes into Express at /api
     app.use('/api', buildApiRouter(containers));

@@ -14,7 +14,7 @@ async function start() {
     }
     logger.info('connected to MongoDB');
 
-    const app = await createApp();
+    const app = createApp();
 
     const server = app.listen(env.PORT, () => {
         logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Greynote API listening');

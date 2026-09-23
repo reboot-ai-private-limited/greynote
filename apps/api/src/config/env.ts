@@ -33,19 +33,6 @@ const schema = z.object({
   BCRYPT_COST_FACTOR: z.coerce.number().int().min(10).max(15).default(12),
 
   /**
-   * Solves the chicken-and-egg problem of the very first login on an empty DB: creating a `User`
-   * normally requires an authenticated Admin, so `identity`'s boot sequence seeds exactly one
-   * Admin from these vars if (and only if) no ADMIN-role user exists yet. All optional — every
-   * Admin/HR/Accountant after the first is created the ordinary way, through an authenticated
-   * `POST /api/identity/users` call by that first Admin.
-   */
-  BOOTSTRAP_ADMIN_EMPLOYEE_CODE: z.string().min(1).optional(),
-  BOOTSTRAP_ADMIN_NAME: z.string().min(1).optional(),
-  BOOTSTRAP_ADMIN_EMAIL: z.string().email().optional(),
-  BOOTSTRAP_ADMIN_PHONE: z.string().min(1).optional(),
-  BOOTSTRAP_ADMIN_PASSWORD: z.string().min(8).optional(),
-
-  /**
    * Backs Identity's document-upload endpoint. Optional at boot — every other route works fine
    * without it — and only actually required the moment `POST /users/:id/documents` is called;
    * that request fails with a clear error if these are unset, rather than the whole process
