@@ -17,6 +17,7 @@ import {
 openApiRegistry.registerPath({
   method: 'get',
   path: '/api/identity/pay-bands',
+  tags: ['Identity / Pay Bands'],
   summary: 'Admin: list pay bands',
   security: [{ bearerAuth: [] }],
   responses: { 200: { description: 'Pay bands listed' } },
@@ -24,6 +25,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/pay-bands',
+  tags: ['Identity / Pay Bands'],
   summary: 'Admin: create a pay band',
   security: [{ bearerAuth: [] }],
   request: { body: { content: { 'application/json': { schema: createPayBandBodySchema } } } },
@@ -32,6 +34,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'patch',
   path: '/api/identity/pay-bands/{id}',
+  tags: ['Identity / Pay Bands'],
   summary: 'Admin: update a pay band',
   security: [{ bearerAuth: [] }],
   request: {

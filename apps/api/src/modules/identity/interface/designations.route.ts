@@ -17,6 +17,7 @@ import {
 openApiRegistry.registerPath({
   method: 'get',
   path: '/api/identity/designations',
+  tags: ['Identity / Designations'],
   summary: 'Admin: list designations',
   security: [{ bearerAuth: [] }],
   responses: { 200: { description: 'Designations listed' } },
@@ -24,6 +25,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/designations',
+  tags: ['Identity / Designations'],
   summary: 'Admin: create a designation',
   security: [{ bearerAuth: [] }],
   request: { body: { content: { 'application/json': { schema: createDesignationBodySchema } } } },
@@ -32,6 +34,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'patch',
   path: '/api/identity/designations/{id}',
+  tags: ['Identity / Designations'],
   summary: 'Admin: update a designation',
   security: [{ bearerAuth: [] }],
   request: {

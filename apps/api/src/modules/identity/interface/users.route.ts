@@ -44,6 +44,7 @@ function uploadMiddleware(req: Request, res: Response, next: NextFunction): void
 openApiRegistry.registerPath({
   method: 'get',
   path: '/api/identity/users',
+  tags: ['Identity / Users'],
   summary: 'List/search users',
   security: [{ bearerAuth: [] }],
   request: { query: listUsersQuerySchema },
@@ -53,6 +54,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/users',
+  tags: ['Identity / Users'],
   summary: 'Create a user (FIELD onboarding, or ADMIN/HR/ACCOUNTANT "user master")',
   security: [{ bearerAuth: [] }],
   request: { body: { content: { 'application/json': { schema: createUserBodySchema } } } },
@@ -62,6 +64,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'get',
   path: '/api/identity/users/{id}',
+  tags: ['Identity / Users'],
   summary: 'Full user detail — account + onboarding profile + current compliance block, if any',
   security: [{ bearerAuth: [] }],
   request: { params: userIdParamsSchema },
@@ -71,6 +74,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'patch',
   path: '/api/identity/users/{id}',
+  tags: ['Identity / Users'],
   summary: 'Incremental onboarding update (basic details, bank details, designation, pay band, manager)',
   security: [{ bearerAuth: [] }],
   request: {
@@ -83,6 +87,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/users/{id}/documents',
+  tags: ['Identity / Users'],
   summary: 'Upload a document to Cloudinary and attach it to the user',
   security: [{ bearerAuth: [] }],
   request: {
@@ -101,6 +106,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'delete',
   path: '/api/identity/users/{id}/documents/{documentId}',
+  tags: ['Identity / Users'],
   summary: 'Remove a document from Cloudinary and the user record',
   security: [{ bearerAuth: [] }],
   request: { params: documentParamsSchema },
@@ -110,6 +116,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/users/{id}/unblock',
+  tags: ['Identity / Users'],
   summary: 'Admin: clear a compliance block',
   security: [{ bearerAuth: [] }],
   request: { params: userIdParamsSchema },

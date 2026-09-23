@@ -19,6 +19,7 @@ import type {
 openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/auth/login',
+  tags: ['Identity / Auth'],
   summary: 'Log in with employee code + password',
   request: { body: { content: { 'application/json': { schema: loginBodySchema } } } },
   responses: {
@@ -31,6 +32,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/auth/refresh',
+  tags: ['Identity / Auth'],
   summary: 'Rotate a session using its refresh token',
   request: { body: { content: { 'application/json': { schema: refreshBodySchema } } } },
   responses: {
@@ -42,6 +44,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/auth/logout',
+  tags: ['Identity / Auth'],
   summary: "Revoke the caller's own session",
   security: [{ bearerAuth: [] }],
   request: { body: { content: { 'application/json': { schema: logoutBodySchema } } } },
@@ -51,6 +54,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/auth/logout-all',
+  tags: ['Identity / Auth'],
   summary: 'Admin: revoke every session for a target user (offboarding)',
   security: [{ bearerAuth: [] }],
   request: { body: { content: { 'application/json': { schema: logoutAllBodySchema } } } },

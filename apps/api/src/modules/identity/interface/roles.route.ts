@@ -14,6 +14,7 @@ import { createRoleBodySchema, masterDataIdParamsSchema, updateRoleBodySchema } 
 openApiRegistry.registerPath({
   method: 'get',
   path: '/api/identity/roles',
+  tags: ['Identity / Roles'],
   summary: 'Admin: list roles',
   security: [{ bearerAuth: [] }],
   responses: { 200: { description: 'Roles listed' } },
@@ -21,6 +22,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/roles',
+  tags: ['Identity / Roles'],
   summary: 'Admin: create a role',
   security: [{ bearerAuth: [] }],
   request: { body: { content: { 'application/json': { schema: createRoleBodySchema } } } },
@@ -29,6 +31,7 @@ openApiRegistry.registerPath({
 openApiRegistry.registerPath({
   method: 'patch',
   path: '/api/identity/roles/{id}',
+  tags: ['Identity / Roles'],
   summary: 'Admin: update a role',
   security: [{ bearerAuth: [] }],
   request: {

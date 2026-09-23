@@ -5,6 +5,7 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 openApiRegistry.registerPath({
   method: 'get',
   path: '/api/health',
+  tags: ['Health'],
   summary: 'Report service health',
   responses: {
     200: { description: 'Service is healthy' },

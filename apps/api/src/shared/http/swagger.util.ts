@@ -29,11 +29,27 @@ openApiRegistry.registerComponent('securitySchemes', 'bearerAuth', {
   bearerFormat: 'JWT',
 });
 
+/**
+ * Declared explicitly, in this order, so Swagger UI groups routes by module instead of one flat
+ * list — without a top-level `tags` array it falls back to alphabetical-by-first-appearance,
+ * which reads oddly here (`Auth, Designations, Pay Bands, Roles, Users`). Each route file's
+ * `registerPath` call sets a matching `tags: ['...']` next to the route it documents.
+ */
+const TAGS = [
+  { name: 'Health', description: 'Service health check.' },
+  { name: 'Identity / Auth', description: 'Login, refresh, logout.' },
+  { name: 'Identity / Users', description: 'User accounts and FIELD onboarding.' },
+  { name: 'Identity / Roles', description: 'Role master data.' },
+  { name: 'Identity / Designations', description: 'Designation master data.' },
+  { name: 'Identity / Pay Bands', description: 'Pay band master data.' },
+];
+
 function buildOpenApiDocument() {
   const generator = new OpenApiGeneratorV3(openApiRegistry.definitions);
   return generator.generateDocument({
     openapi: '3.0.0',
     info: { title: 'Greynote API', version: '1.0.0' },
+    tags: TAGS,
   });
 }
 
