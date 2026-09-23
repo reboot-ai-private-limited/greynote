@@ -1,12 +1,14 @@
-import { Types, type FilterQuery } from 'mongoose';
+import { Types, type ClientSession, type FilterQuery } from 'mongoose';
 import { AppError } from '@/shared/errors/AppError.js';
 import { toSkipLimit } from '@/shared/http/pagination.js';
+import type { TransactionContext } from '../domain/transactionRunner.port.js';
 import type { User } from '../domain/user.entity.js';
 import type {
   UserListFilters,
   UserListPagination,
   UserRepositoryPort,
 } from '../domain/user.repository.port.js';
+import { EmployeeProfileModel } from './employeeProfile.schema.js';
 import { RoleModel } from './role.schema.js';
 import { UserModel, type UserDoc } from './user.schema.js';
 
@@ -22,26 +24,11 @@ function toUser(doc: UserDoc & { _id: unknown }): User {
     name: doc.name,
     email: doc.email,
     phone: doc.phone,
-    mobileNumber: doc.mobileNumber,
-    guardianName: doc.guardianName,
-    dateOfBirth: doc.dateOfBirth,
-    address: doc.address,
-    qualification: doc.qualification,
-    bankDetails: doc.bankDetails,
-    documents: doc.documents,
     status: doc.status,
     roleId: String(doc.roleId),
-    designationId: doc.designationId ? String(doc.designationId) : null,
-    payBandId: doc.payBandId ? String(doc.payBandId) : null,
-    managerId: doc.managerId ? String(doc.managerId) : null,
     passwordHash: doc.passwordHash,
-    dateOfJoining: doc.dateOfJoining,
     lastLoginAt: doc.lastLoginAt,
     isBlocked: doc.isBlocked,
-    blockedReason: doc.blockedReason,
-    blockedAt: doc.blockedAt,
-    unblockedBy: doc.unblockedBy ? String(doc.unblockedBy) : null,
-    unblockedAt: doc.unblockedAt,
   };
 }
 
@@ -49,18 +36,6 @@ function toUser(doc: UserDoc & { _id: unknown }): User {
 function toDocFields(input: Partial<Omit<User, 'id'>>): Record<string, unknown> {
   const doc: Record<string, unknown> = { ...input };
   if (input.roleId !== undefined) doc.roleId = new Types.ObjectId(input.roleId);
-  if (input.designationId !== undefined) {
-    doc.designationId = input.designationId ? new Types.ObjectId(input.designationId) : null;
-  }
-  if (input.payBandId !== undefined) {
-    doc.payBandId = input.payBandId ? new Types.ObjectId(input.payBandId) : null;
-  }
-  if (input.managerId !== undefined) {
-    doc.managerId = input.managerId ? new Types.ObjectId(input.managerId) : null;
-  }
-  if (input.unblockedBy !== undefined) {
-    doc.unblockedBy = input.unblockedBy ? new Types.ObjectId(input.unblockedBy) : null;
-  }
   return doc;
 }
 
@@ -92,8 +67,21 @@ export class MongoUserAdapter implements UserRepositoryPort {
       // instead of accidentally matching everything.
       query.roleId = role ? role._id : new Types.ObjectId();
     }
-    if (filters.designationId) query.designationId = new Types.ObjectId(filters.designationId);
-    if (filters.managerId) query.managerId = new Types.ObjectId(filters.managerId);
+    if (filters.designationId || filters.managerId) {
+      // designationId/managerId live on EmployeeProfile now — resolve which users match there
+      // first, then constrain the User query by _id. Simpler than an aggregation $lookup for a
+      // filter combination this infrequent (Admin-driven queries, not a hot path).
+      const profileFilter: { designationId?: string; managerId?: string } = {};
+      if (filters.designationId) profileFilter.designationId = filters.designationId;
+      if (filters.managerId) profileFilter.managerId = filters.managerId;
+      const matchingUserIds = await EmployeeProfileModel.find({
+        ...(profileFilter.designationId && { designationId: new Types.ObjectId(profileFilter.designationId) }),
+        ...(profileFilter.managerId && { managerId: new Types.ObjectId(profileFilter.managerId) }),
+      })
+        .select('userId')
+        .lean();
+      query._id = { $in: matchingUserIds.map((doc) => doc.userId) };
+    }
     if (filters.status) query.status = filters.status;
     if (filters.isBlocked !== undefined) query.isBlocked = filters.isBlocked;
     if (filters.search) {
@@ -118,8 +106,11 @@ export class MongoUserAdapter implements UserRepositoryPort {
     return toUser(doc);
   }
 
-  async update(id: string, input: Partial<Omit<User, 'id'>>): Promise<User> {
-    const doc = await UserModel.findByIdAndUpdate(id, toDocFields(input), { new: true }).lean();
+  async update(id: string, input: Partial<Omit<User, 'id'>>, ctx?: TransactionContext): Promise<User> {
+    const doc = await UserModel.findByIdAndUpdate(id, toDocFields(input), {
+      new: true,
+      ...(ctx ? { session: ctx as ClientSession } : {}),
+    }).lean();
     if (!doc) throw AppError.internal('INTERNAL', { reason: 'USER_NOT_FOUND', id });
     return toUser(doc);
   }

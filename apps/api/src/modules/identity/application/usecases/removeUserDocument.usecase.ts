@@ -1,6 +1,6 @@
 import { AppError } from '@/shared/errors/AppError.js';
 import type { DocumentStoragePort } from '../../domain/documentStorage.port.js';
-import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
+import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
 
 /**
  * Removes a document from Cloudinary before touching the DB record (decision 17) — a DB-only
@@ -10,20 +10,20 @@ import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
  */
 export class RemoveUserDocumentUseCase {
   constructor(
-    private readonly userRepository: UserRepositoryPort,
+    private readonly employeeProfileRepository: EmployeeProfileRepositoryPort,
     private readonly documentStorage: DocumentStoragePort,
   ) {}
 
   async execute(targetUserId: string, documentId: string): Promise<void> {
-    const user = await this.userRepository.findById(targetUserId);
-    if (!user) throw AppError.notFound();
+    const profile = await this.employeeProfileRepository.findByUserId(targetUserId);
+    if (!profile) throw AppError.notFound();
 
-    const document = user.documents.find((d) => d.id === documentId);
+    const document = profile.documents.find((d) => d.id === documentId);
     if (!document) throw AppError.notFound();
 
     await this.documentStorage.remove(document.publicId);
 
-    const documents = user.documents.filter((d) => d.id !== documentId);
-    await this.userRepository.update(targetUserId, { documents });
+    const documents = profile.documents.filter((d) => d.id !== documentId);
+    await this.employeeProfileRepository.upsert(targetUserId, { documents });
   }
 }

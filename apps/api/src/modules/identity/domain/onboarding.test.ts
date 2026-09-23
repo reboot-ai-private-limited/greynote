@@ -1,13 +1,25 @@
 import { describe, expect, it } from 'vitest';
+import type { EmployeeProfile } from './employeeProfile.entity.js';
 import { computeUserStatus } from './onboarding.js';
 import type { User } from './user.entity.js';
 
-function baseFieldUser(overrides: Partial<Omit<User, 'id'>> = {}): Omit<User, 'id'> {
+function baseUser(overrides: Partial<Pick<User, 'status' | 'name'>> = {}): Pick<User, 'status' | 'name'> {
   return {
-    employeeCode: 'MR001',
+    status: 'pending',
     name: 'Jane MR',
-    email: null,
-    phone: null,
+    ...overrides,
+  };
+}
+
+function baseProfile(overrides: Partial<Omit<EmployeeProfile, 'id' | 'userId'>> = {}): Omit<
+  EmployeeProfile,
+  'id' | 'userId'
+> {
+  return {
+    designationId: 'designation-mr',
+    payBandId: 'payband-g1',
+    managerId: 'manager-1',
+    dateOfJoining: new Date('2024-01-01'),
     mobileNumber: '9999999999',
     guardianName: null,
     dateOfBirth: new Date('1995-01-01'),
@@ -21,64 +33,45 @@ function baseFieldUser(overrides: Partial<Omit<User, 'id'>> = {}): Omit<User, 'i
       branchName: null,
     },
     documents: [],
-    status: 'pending',
-    roleId: 'role-field',
-    designationId: 'designation-mr',
-    payBandId: 'payband-g1',
-    managerId: 'manager-1',
-    passwordHash: 'hash',
-    dateOfJoining: new Date('2024-01-01'),
-    lastLoginAt: null,
-    isBlocked: false,
-    blockedReason: null,
-    blockedAt: null,
-    unblockedBy: null,
-    unblockedAt: null,
     ...overrides,
   };
 }
 
 describe('computeUserStatus', () => {
-  it('is always active for non-FIELD roles, even with nothing filled in', () => {
-    const admin = baseFieldUser({
-      mobileNumber: null,
-      dateOfBirth: null,
-      address: null,
-      designationId: null,
-      payBandId: null,
-      managerId: null,
-      bankDetails: null,
-    });
-    expect(computeUserStatus(admin, 'ADMIN')).toBe('active');
+  it('is always active for non-FIELD roles, even with no EmployeeProfile at all', () => {
+    expect(computeUserStatus(baseUser(), null, 'ADMIN')).toBe('active');
+  });
+
+  it('is pending for a FIELD user with no EmployeeProfile row yet', () => {
+    expect(computeUserStatus(baseUser(), null, 'FIELD')).toBe('pending');
   });
 
   it('is active for a FIELD user once every required field is present', () => {
-    expect(computeUserStatus(baseFieldUser(), 'FIELD')).toBe('active');
+    expect(computeUserStatus(baseUser(), baseProfile(), 'FIELD')).toBe('active');
   });
 
   it('is pending for a FIELD user missing a manager', () => {
-    expect(computeUserStatus(baseFieldUser({ managerId: null }), 'FIELD')).toBe('pending');
+    expect(computeUserStatus(baseUser(), baseProfile({ managerId: null }), 'FIELD')).toBe('pending');
   });
 
   it('is pending for a FIELD user with an incomplete address', () => {
-    const user = baseFieldUser({ address: { district: 'Pune', state: '', pincode: '411001', country: 'India' } });
-    expect(computeUserStatus(user, 'FIELD')).toBe('pending');
+    const profile = baseProfile({ address: { district: 'Pune', state: '', pincode: '411001', country: 'India' } });
+    expect(computeUserStatus(baseUser(), profile, 'FIELD')).toBe('pending');
   });
 
   it('is pending for a FIELD user missing required bank details', () => {
-    const user = baseFieldUser({
+    const profile = baseProfile({
       bankDetails: { bankName: 'SBI', ifsc: '', accountNumber: '123', accountHolderName: 'Jane', branchName: null },
     });
-    expect(computeUserStatus(user, 'FIELD')).toBe('pending');
+    expect(computeUserStatus(baseUser(), profile, 'FIELD')).toBe('pending');
   });
 
-  it('does not require guardianName, qualification, branchName, or documents', () => {
-    // baseFieldUser already leaves these unset — 'active' proves they're not in the required set.
-    expect(computeUserStatus(baseFieldUser(), 'FIELD')).toBe('active');
+  it('does not require guardianName, qualification, branchName, documents, or dateOfJoining', () => {
+    const profile = baseProfile({ guardianName: null, qualification: null, dateOfJoining: null });
+    expect(computeUserStatus(baseUser(), profile, 'FIELD')).toBe('active');
   });
 
   it('never upgrades an inactive (offboarded) user back to active, even if every field is present', () => {
-    const user = baseFieldUser({ status: 'inactive' });
-    expect(computeUserStatus(user, 'FIELD')).toBe('inactive');
+    expect(computeUserStatus(baseUser({ status: 'inactive' }), baseProfile(), 'FIELD')).toBe('inactive');
   });
 });

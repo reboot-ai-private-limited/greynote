@@ -1,4 +1,5 @@
 import type { RoleName } from '@greynote/contracts';
+import type { EmployeeProfile } from './employeeProfile.entity.js';
 import type { User, UserStatus } from './user.entity.js';
 
 /**
@@ -10,33 +11,43 @@ import type { User, UserStatus } from './user.entity.js';
  * `active`/`pending` here — deactivation is a separate, explicit action, not something a PATCH
  * to an onboarding field should silently undo.
  *
+ * `profile` is `null` for a FIELD user with no `EmployeeProfile` row yet (onboarding hasn't
+ * started) — reads exactly like one with every profile field null.
+ *
  * Required for activation (FIELD only) — flagged as a default assumption in
  * docs/decision-log.md, not fully pinned by the PRD/ERD: name, mobileNumber, dateOfBirth, a
  * complete address, designationId, payBandId, managerId, and the bank details needed to actually
  * pay someone (bankName/ifsc/accountNumber/accountHolderName). NOT required: guardianName,
- * qualification, bankDetails.branchName, documents.
+ * qualification, bankDetails.branchName, documents, dateOfJoining.
  */
-export function computeUserStatus(user: Omit<User, 'id'>, role: RoleName): UserStatus {
+export function computeUserStatus(
+  user: Pick<User, 'status' | 'name'>,
+  profile: Omit<EmployeeProfile, 'id' | 'userId'> | null,
+  role: RoleName,
+): UserStatus {
   if (user.status === 'inactive') return 'inactive';
   if (role !== 'FIELD') return 'active';
 
   const hasCompleteAddress =
-    !!user.address?.district && !!user.address.state && !!user.address.pincode && !!user.address.country;
+    !!profile?.address?.district &&
+    !!profile.address.state &&
+    !!profile.address.pincode &&
+    !!profile.address.country;
 
   const hasRequiredBankDetails =
-    !!user.bankDetails?.bankName &&
-    !!user.bankDetails.ifsc &&
-    !!user.bankDetails.accountNumber &&
-    !!user.bankDetails.accountHolderName;
+    !!profile?.bankDetails?.bankName &&
+    !!profile.bankDetails.ifsc &&
+    !!profile.bankDetails.accountNumber &&
+    !!profile.bankDetails.accountHolderName;
 
   const isComplete =
     !!user.name &&
-    !!user.mobileNumber &&
-    !!user.dateOfBirth &&
+    !!profile?.mobileNumber &&
+    !!profile.dateOfBirth &&
     hasCompleteAddress &&
-    !!user.designationId &&
-    !!user.payBandId &&
-    !!user.managerId &&
+    !!profile.designationId &&
+    !!profile.payBandId &&
+    !!profile.managerId &&
     hasRequiredBankDetails;
 
   return isComplete ? 'active' : 'pending';

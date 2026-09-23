@@ -1,16 +1,20 @@
 import { AppError } from '@/shared/errors/AppError.js';
 import { computeUserStatus } from '../../domain/onboarding.js';
+import type { Address, BankDetails, EmployeeProfile } from '../../domain/employeeProfile.entity.js';
+import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
 import type { DesignationRepositoryPort } from '../../domain/designation.repository.port.js';
 import type { PayBandRepositoryPort } from '../../domain/payBand.repository.port.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
-import type { Address, BankDetails, User, UserSummary } from '../../domain/user.entity.js';
+import type { User, UserSummary } from '../../domain/user.entity.js';
 import { toUserSummary } from '../../domain/user.entity.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
 
 /**
- * Every section optional — this is the incremental-onboarding PATCH (decision 13). Each call
- * fills in one section (a *complete* `address`/`bankDetails` object, not field-by-field), and
- * `status` is recomputed from the merged result after applying whichever sections were sent.
+ * Every section optional — this is the incremental-onboarding PATCH (decision 13), and now the
+ * ONLY place `designationId`/`payBandId`/`managerId`/`dateOfJoining` ever get set (they moved off
+ * `User` onto `EmployeeProfile` and are no longer accepted at creation). Each call fills in one
+ * section (a *complete* `address`/`bankDetails` object, not field-by-field), and `status` is
+ * recomputed from the merged result after applying whichever sections were sent.
  * `status: 'inactive'` may be set explicitly (deactivation/offboarding) — once set, it's sticky:
  * `computeUserStatus` never upgrades an `inactive` user back to `active`/`pending` as a side
  * effect of a later onboarding PATCH.
@@ -21,6 +25,7 @@ export interface UpdateUserInput {
     mobileNumber?: string;
     guardianName?: string;
     dateOfBirth?: Date;
+    dateOfJoining?: Date;
     qualification?: string;
     address?: Address;
   };
@@ -37,6 +42,7 @@ export class UpdateUserUseCase {
     private readonly roleRepository: RoleRepositoryPort,
     private readonly designationRepository: DesignationRepositoryPort,
     private readonly payBandRepository: PayBandRepositoryPort,
+    private readonly employeeProfileRepository: EmployeeProfileRepositoryPort,
   ) {}
 
   async execute(targetUserId: string, input: UpdateUserInput): Promise<UserSummary> {
@@ -61,37 +67,45 @@ export class UpdateUserUseCase {
       if (!manager) throw AppError.badRequest('Unknown manager.', { field: 'managerId' });
     }
 
-    const merged: Omit<User, 'id'> = {
-      ...existing,
-      name: input.basicDetails?.name ?? existing.name,
-      mobileNumber: input.basicDetails?.mobileNumber ?? existing.mobileNumber,
-      guardianName: input.basicDetails?.guardianName ?? existing.guardianName,
-      dateOfBirth: input.basicDetails?.dateOfBirth ?? existing.dateOfBirth,
-      qualification: input.basicDetails?.qualification ?? existing.qualification,
-      address: input.basicDetails?.address ?? existing.address,
-      bankDetails: input.bankDetails ?? existing.bankDetails,
-      designationId: input.designationId ?? existing.designationId,
-      payBandId: input.payBandId ?? existing.payBandId,
-      managerId: input.managerId ?? existing.managerId,
-      status: input.status ?? existing.status,
+    const existingProfile = await this.employeeProfileRepository.findByUserId(targetUserId);
+
+    const mergedProfile: Omit<EmployeeProfile, 'id' | 'userId'> = {
+      designationId: input.designationId ?? existingProfile?.designationId ?? null,
+      payBandId: input.payBandId ?? existingProfile?.payBandId ?? null,
+      managerId: input.managerId ?? existingProfile?.managerId ?? null,
+      dateOfJoining: input.basicDetails?.dateOfJoining ?? existingProfile?.dateOfJoining ?? null,
+      mobileNumber: input.basicDetails?.mobileNumber ?? existingProfile?.mobileNumber ?? null,
+      guardianName: input.basicDetails?.guardianName ?? existingProfile?.guardianName ?? null,
+      dateOfBirth: input.basicDetails?.dateOfBirth ?? existingProfile?.dateOfBirth ?? null,
+      address: input.basicDetails?.address ?? existingProfile?.address ?? null,
+      qualification: input.basicDetails?.qualification ?? existingProfile?.qualification ?? null,
+      bankDetails: input.bankDetails ?? existingProfile?.bankDetails ?? null,
+      documents: existingProfile?.documents ?? [],
     };
 
-    const status = computeUserStatus(merged, role.name);
+    const mergedName = input.basicDetails?.name ?? existing.name;
+    const status = computeUserStatus(
+      { status: input.status ?? existing.status, name: mergedName },
+      mergedProfile,
+      role.name,
+    );
 
-    const updated = await this.userRepository.update(targetUserId, {
-      name: merged.name,
-      mobileNumber: merged.mobileNumber,
-      guardianName: merged.guardianName,
-      dateOfBirth: merged.dateOfBirth,
-      qualification: merged.qualification,
-      address: merged.address,
-      bankDetails: merged.bankDetails,
-      designationId: merged.designationId,
-      payBandId: merged.payBandId,
-      managerId: merged.managerId,
-      status,
-    });
+    const touchesProfile =
+      input.basicDetails !== undefined ||
+      input.bankDetails !== undefined ||
+      input.designationId !== undefined ||
+      input.payBandId !== undefined ||
+      input.managerId !== undefined;
 
-    return toUserSummary(updated, role.name);
+    if (touchesProfile) {
+      await this.employeeProfileRepository.upsert(targetUserId, mergedProfile);
+    }
+
+    const userPatch: Partial<Omit<User, 'id'>> = { status };
+    if (input.basicDetails?.name !== undefined) userPatch.name = input.basicDetails.name;
+
+    const updated = await this.userRepository.update(targetUserId, userPatch);
+
+    return toUserSummary(updated, role.name, touchesProfile ? mergedProfile : existingProfile);
   }
 }

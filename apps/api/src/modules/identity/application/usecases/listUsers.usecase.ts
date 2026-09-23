@@ -1,5 +1,6 @@
 import { buildPaginatedResult, type PaginatedResult, type PaginationQuery } from '@/shared/http/pagination.js';
 import { AppError } from '@/shared/errors/AppError.js';
+import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
 import { toUserSummary, type UserSummary } from '../../domain/user.entity.js';
 import type {
@@ -11,6 +12,7 @@ export class ListUsersUseCase {
   constructor(
     private readonly userRepository: UserRepositoryPort,
     private readonly roleRepository: RoleRepositoryPort,
+    private readonly employeeProfileRepository: EmployeeProfileRepositoryPort,
   ) {}
 
   async execute(
@@ -24,10 +26,14 @@ export class ListUsersUseCase {
     const roles = await Promise.all(roleIds.map((id) => this.roleRepository.findById(id)));
     const roleNameById = new Map(roles.filter((r) => r !== null).map((r) => [r.id, r.name]));
 
+    // One batched query for the whole page's profiles, not one per user.
+    const profiles = await this.employeeProfileRepository.findByUserIds(items.map((u) => u.id));
+    const profileByUserId = new Map(profiles.map((p) => [p.userId, p]));
+
     const summaries = items.map((user) => {
       const roleName = roleNameById.get(user.roleId);
       if (!roleName) throw AppError.internal('INTERNAL', { reason: 'ROLE_NOT_FOUND', roleId: user.roleId });
-      return toUserSummary(user, roleName);
+      return toUserSummary(user, roleName, profileByUserId.get(user.id) ?? null);
     });
 
     return buildPaginatedResult(summaries, total, pagination);

@@ -3,67 +3,32 @@ import type { RoleName } from '@greynote/contracts';
 /** `pending` = onboarding incomplete (FIELD role only), `inactive` = deactivated/offboarded. */
 export type UserStatus = 'active' | 'pending' | 'inactive';
 
-export interface Address {
-  district: string;
-  state: string;
-  pincode: string;
-  /** Defaults to 'India' at the DTO layer — domain just stores whatever it's given. */
-  country: string;
-}
-
-export interface BankDetails {
-  bankName: string;
-  ifsc: string;
-  accountNumber: string;
-  accountHolderName: string;
-  branchName: string | null;
-}
-
-export interface UserDocument {
-  /**
-   * Internal uuid v7, separate from Cloudinary's `publicId` — routing a DELETE by `publicId`
-   * would break on Cloudinary public IDs that contain slashes (folder-style paths); routing by
-   * our own opaque id doesn't.
-   */
-  id: string;
-  type: string;
-  url: string;
-  publicId: string;
-  uploadedAt: Date;
-}
-
+/**
+ * The lean account/org-identity record — every role. Personal details, bank details, documents,
+ * designation, pay band, manager, and joining date are FIELD-only and live in `EmployeeProfile`
+ * instead (`employeeProfile.entity.ts`) — mixing unbounded/FIELD-only data into this record was
+ * the exact coupling worth avoiding before real data existed. Compliance-block history lives in
+ * `ComplianceBlock` (`complianceBlock.entity.ts`); only the fast `isBlocked` flag stays here.
+ */
 export interface User {
   id: string;
   employeeCode: string;
   name: string;
   email: string | null;
   phone: string | null;
-  mobileNumber: string | null;
-  guardianName: string | null;
-  dateOfBirth: Date | null;
-  address: Address | null;
-  qualification: string | null;
-  bankDetails: BankDetails | null;
-  documents: UserDocument[];
   status: UserStatus;
   roleId: string;
-  /** FIELD-role only — must be null for ADMIN/HR/ACCOUNTANT, enforced at write time. */
-  designationId: string | null;
-  /** FIELD-role only — must be null for ADMIN/HR/ACCOUNTANT, enforced at write time. */
-  payBandId: string | null;
-  managerId: string | null;
   passwordHash: string;
-  dateOfJoining: Date;
   lastLoginAt: Date | null;
   isBlocked: boolean;
-  blockedReason: string | null;
-  blockedAt: Date | null;
-  /** Must resolve to an ADMIN-role user — never the target's manager. */
-  unblockedBy: string | null;
-  unblockedAt: Date | null;
 }
 
-/** What most other modules/consumers need for display or authorization — never `passwordHash`. */
+/**
+ * What most other modules/consumers need for display or authorization — never `passwordHash`.
+ * `designationId`/`managerId` come from `EmployeeProfile`, not `User` — `toUserSummary` takes it
+ * as an optional argument since a FIELD user may not have one yet (still onboarding) and a
+ * non-FIELD user never will.
+ */
 export interface UserSummary {
   id: string;
   employeeCode: string;
@@ -74,14 +39,18 @@ export interface UserSummary {
   status: UserStatus;
 }
 
-export function toUserSummary(user: User, role: RoleName): UserSummary {
+export function toUserSummary(
+  user: User,
+  role: RoleName,
+  profile?: { designationId: string | null; managerId: string | null } | null,
+): UserSummary {
   return {
     id: user.id,
     employeeCode: user.employeeCode,
     name: user.name,
     role,
-    designationId: user.designationId,
-    managerId: user.managerId,
+    designationId: profile?.designationId ?? null,
+    managerId: profile?.managerId ?? null,
     status: user.status,
   };
 }

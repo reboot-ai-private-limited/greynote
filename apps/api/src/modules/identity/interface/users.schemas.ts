@@ -17,38 +17,27 @@ export const bankDetailsSchema = z.object({
   branchName: z.string().min(1).optional(),
 });
 
-const createFieldUserSchema = z.object({
-  role: z.literal('FIELD'),
-  employeeCode: z.string().min(1),
-  name: z.string().min(1),
-  password: passwordSchema,
-  email: z.string().email().optional(),
-  phone: z.string().min(1).optional(),
-  designationId: z.string().min(1).optional(),
-  payBandId: z.string().min(1).optional(),
-  managerId: z.string().min(1).optional(),
-});
-
-const createNonFieldUserSchema = z.object({
-  role: z.enum(['ADMIN', 'HR', 'ACCOUNTANT']),
+/**
+ * One shape now, for every role — decision 12's split was about who's ALLOWED to submit which
+ * `role` value (enforced in `CreateUserUseCase`, not here), not a difference in fields.
+ * `designationId`/`payBandId`/`managerId` moved to `EmployeeProfile` and are only ever set via
+ * the incremental onboarding PATCH below, never at creation.
+ */
+export const createUserBodySchema = z.object({
+  role: z.enum(['ADMIN', 'HR', 'ACCOUNTANT', 'FIELD']),
   employeeCode: z.string().min(1),
   name: z.string().min(1),
   password: passwordSchema,
   email: z.string().email().optional(),
   phone: z.string().min(1).optional(),
 });
-
-/** Decision 12: one endpoint, discriminated on `role` — the "user master" short form vs. the full onboarding shape. */
-export const createUserBodySchema = z.discriminatedUnion('role', [
-  createFieldUserSchema,
-  createNonFieldUserSchema,
-]);
 
 const basicDetailsPatchSchema = z.object({
   name: z.string().min(1).optional(),
   mobileNumber: z.string().min(1).optional(),
   guardianName: z.string().min(1).optional(),
   dateOfBirth: z.coerce.date().optional(),
+  dateOfJoining: z.coerce.date().optional(),
   qualification: z.string().min(1).optional(),
   address: addressSchema.optional(),
 });

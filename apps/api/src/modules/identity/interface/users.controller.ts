@@ -5,6 +5,7 @@ import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { PaginationQuery } from '@/shared/http/pagination.js';
 import type { ListUsersUseCase } from '../application/usecases/listUsers.usecase.js';
+import type { GetUserDetailUseCase } from '../application/usecases/getUserDetail.usecase.js';
 import type { CreateUserUseCase } from '../application/usecases/createUser.usecase.js';
 import type { UpdateUserUseCase } from '../application/usecases/updateUser.usecase.js';
 import type { UploadUserDocumentUseCase } from '../application/usecases/uploadUserDocument.usecase.js';
@@ -25,6 +26,13 @@ export function makeListUsersController(useCase: ListUsersUseCase): RequestHandl
     };
     const result = await useCase.execute(query, filters);
     sendSuccess(req, res, result, 'Users listed.', 200);
+  });
+}
+
+export function makeGetUserDetailController(useCase: GetUserDetailUseCase): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    const result = await useCase.execute(requiredParam(req.params, 'id'));
+    sendSuccess(req, res, result, 'User detail fetched.', 200);
   });
 }
 

@@ -39,33 +39,17 @@ export class SeedBootstrapAdminUseCase {
     }
 
     const passwordHash = await this.passwordHasher.hash(input.password);
-    const now = new Date();
 
     const draft: Omit<User, 'id'> = {
       employeeCode: input.employeeCode,
       name: input.name,
       email: input.email,
       phone: input.phone,
-      mobileNumber: null,
-      guardianName: null,
-      dateOfBirth: null,
-      address: null,
-      qualification: null,
-      bankDetails: null,
-      documents: [],
       status: 'active',
       roleId: role.id,
-      designationId: null,
-      payBandId: null,
-      managerId: null,
       passwordHash,
-      dateOfJoining: now,
       lastLoginAt: null,
       isBlocked: false,
-      blockedReason: null,
-      blockedAt: null,
-      unblockedBy: null,
-      unblockedAt: null,
     };
 
     await this.userRepository.create(draft);

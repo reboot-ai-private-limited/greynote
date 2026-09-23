@@ -17,6 +17,7 @@ import {
 } from './users.schemas.js';
 import type {
   makeCreateUserController,
+  makeGetUserDetailController,
   makeListUsersController,
   makeRemoveUserDocumentController,
   makeUnblockUserController,
@@ -56,6 +57,15 @@ openApiRegistry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { body: { content: { 'application/json': { schema: createUserBodySchema } } } },
   responses: { 201: { description: 'User created' }, 409: { description: 'Duplicate employee code/email' } },
+});
+
+openApiRegistry.registerPath({
+  method: 'get',
+  path: '/api/identity/users/{id}',
+  summary: 'Full user detail — account + onboarding profile + current compliance block, if any',
+  security: [{ bearerAuth: [] }],
+  request: { params: userIdParamsSchema },
+  responses: { 200: { description: 'User detail' } },
 });
 
 openApiRegistry.registerPath({
@@ -108,6 +118,7 @@ openApiRegistry.registerPath({
 
 export function buildUsersRouter(controllers: {
   list: ReturnType<typeof makeListUsersController>;
+  detail: ReturnType<typeof makeGetUserDetailController>;
   create: ReturnType<typeof makeCreateUserController>;
   update: ReturnType<typeof makeUpdateUserController>;
   uploadDocument: ReturnType<typeof makeUploadUserDocumentController>;
@@ -122,6 +133,13 @@ export function buildUsersRouter(controllers: {
     requireRole('ADMIN', 'HR'),
     validate({ query: listUsersQuerySchema }),
     controllers.list,
+  );
+  router.get(
+    '/:id',
+    authenticate(),
+    requireRole('ADMIN', 'HR'),
+    validate({ params: userIdParamsSchema }),
+    controllers.detail,
   );
   router.post(
     '/',

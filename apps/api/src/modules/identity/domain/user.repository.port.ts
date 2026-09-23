@@ -1,4 +1,5 @@
 import type { RoleName } from '@greynote/contracts';
+import type { TransactionContext } from './transactionRunner.port.js';
 import type { User, UserStatus } from './user.entity.js';
 
 /**
@@ -9,6 +10,7 @@ import type { User, UserStatus } from './user.entity.js';
  */
 export interface UserListFilters {
   role?: RoleName | undefined;
+  /** Resolved via `EmployeeProfile` — these two live there, not on `User`. */
   designationId?: string | undefined;
   managerId?: string | undefined;
   status?: UserStatus | undefined;
@@ -33,7 +35,8 @@ export interface UserRepositoryPort {
     filters: UserListFilters,
   ): Promise<{ items: User[]; total: number }>;
   create(input: Omit<User, 'id'>): Promise<User>;
-  update(id: string, input: Partial<Omit<User, 'id'>>): Promise<User>;
+  /** `ctx` participates in a transaction (only `unblockUser` needs this) — omit for a plain single-document write. */
+  update(id: string, input: Partial<Omit<User, 'id'>>, ctx?: TransactionContext): Promise<User>;
   existsByEmployeeCode(employeeCode: string): Promise<boolean>;
   existsByEmail(email: string): Promise<boolean>;
   /** Backs the bootstrap-admin seed's idempotency check. */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DocumentStoragePort } from '../../domain/documentStorage.port.js';
-import type { User, UserDocument } from '../../domain/user.entity.js';
-import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
+import type { EmployeeProfile, UserDocument } from '../../domain/employeeProfile.entity.js';
+import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
 import { RemoveUserDocumentUseCase } from './removeUserDocument.usecase.js';
 
 const DOCUMENT: UserDocument = {
@@ -12,13 +12,14 @@ const DOCUMENT: UserDocument = {
   uploadedAt: new Date(),
 };
 
-function makeUser(documents: UserDocument[]): User {
+function makeProfile(documents: UserDocument[]): EmployeeProfile {
   return {
-    id: 'user-1',
-    employeeCode: 'MR001',
-    name: 'Jane MR',
-    email: null,
-    phone: null,
+    id: 'profile-1',
+    userId: 'user-1',
+    designationId: null,
+    payBandId: null,
+    managerId: null,
+    dateOfJoining: null,
     mobileNumber: null,
     guardianName: null,
     dateOfBirth: null,
@@ -26,43 +27,30 @@ function makeUser(documents: UserDocument[]): User {
     qualification: null,
     bankDetails: null,
     documents,
-    status: 'pending',
-    roleId: 'role-field',
-    designationId: null,
-    payBandId: null,
-    managerId: null,
-    passwordHash: 'x',
-    dateOfJoining: new Date('2024-01-01'),
-    lastLoginAt: null,
-    isBlocked: false,
-    blockedReason: null,
-    blockedAt: null,
-    unblockedBy: null,
-    unblockedAt: null,
   };
 }
 
-class FakeUserRepository implements Pick<UserRepositoryPort, 'findById' | 'update'> {
-  updates: Array<{ id: string; input: Partial<User> }> = [];
-  constructor(private user: User | null) {}
-  async findById(): Promise<User | null> {
-    return this.user;
+class FakeEmployeeProfileRepository implements Pick<EmployeeProfileRepositoryPort, 'findByUserId' | 'upsert'> {
+  updates: Array<{ userId: string; input: Partial<EmployeeProfile> }> = [];
+  constructor(private profile: EmployeeProfile | null) {}
+  async findByUserId(): Promise<EmployeeProfile | null> {
+    return this.profile;
   }
-  async update(id: string, input: Partial<User>): Promise<User> {
-    this.updates.push({ id, input });
-    this.user = { ...(this.user as User), ...input };
-    return this.user;
+  async upsert(userId: string, input: Partial<EmployeeProfile>): Promise<EmployeeProfile> {
+    this.updates.push({ userId, input });
+    this.profile = { ...(this.profile as EmployeeProfile), ...input };
+    return this.profile;
   }
 }
 
 describe('RemoveUserDocumentUseCase', () => {
   it('removes from storage before touching the DB record, then clears the document from the array', async () => {
     const calls: string[] = [];
-    const userRepository = new FakeUserRepository(makeUser([DOCUMENT]));
-    const originalUpdate = userRepository.update.bind(userRepository);
-    userRepository.update = async (id, input) => {
+    const employeeProfileRepository = new FakeEmployeeProfileRepository(makeProfile([DOCUMENT]));
+    const originalUpsert = employeeProfileRepository.upsert.bind(employeeProfileRepository);
+    employeeProfileRepository.upsert = async (userId, input) => {
       calls.push('db.update');
-      return originalUpdate(id, input);
+      return originalUpsert(userId, input);
     };
     const documentStorage: Pick<DocumentStoragePort, 'remove'> = {
       remove: async () => {
@@ -70,40 +58,51 @@ describe('RemoveUserDocumentUseCase', () => {
       },
     };
     const useCase = new RemoveUserDocumentUseCase(
-      userRepository as unknown as UserRepositoryPort,
+      employeeProfileRepository as unknown as EmployeeProfileRepositoryPort,
       documentStorage as DocumentStoragePort,
     );
 
     await useCase.execute('user-1', 'doc-1');
 
     expect(calls).toEqual(['storage.remove', 'db.update']);
-    expect(userRepository.updates[0]?.input.documents).toEqual([]);
+    expect(employeeProfileRepository.updates[0]?.input.documents).toEqual([]);
   });
 
   it('does not touch the DB record when storage removal fails', async () => {
-    const userRepository = new FakeUserRepository(makeUser([DOCUMENT]));
+    const employeeProfileRepository = new FakeEmployeeProfileRepository(makeProfile([DOCUMENT]));
     const documentStorage: Pick<DocumentStoragePort, 'remove'> = {
       remove: async () => {
         throw new Error('Cloudinary is down');
       },
     };
     const useCase = new RemoveUserDocumentUseCase(
-      userRepository as unknown as UserRepositoryPort,
+      employeeProfileRepository as unknown as EmployeeProfileRepositoryPort,
       documentStorage as DocumentStoragePort,
     );
 
     await expect(useCase.execute('user-1', 'doc-1')).rejects.toThrow('Cloudinary is down');
-    expect(userRepository.updates).toHaveLength(0);
+    expect(employeeProfileRepository.updates).toHaveLength(0);
   });
 
-  it('404s when the document id does not exist on the user', async () => {
-    const userRepository = new FakeUserRepository(makeUser([]));
+  it('404s when the document id does not exist on the profile', async () => {
+    const employeeProfileRepository = new FakeEmployeeProfileRepository(makeProfile([]));
     const documentStorage: Pick<DocumentStoragePort, 'remove'> = { remove: async () => {} };
     const useCase = new RemoveUserDocumentUseCase(
-      userRepository as unknown as UserRepositoryPort,
+      employeeProfileRepository as unknown as EmployeeProfileRepositoryPort,
       documentStorage as DocumentStoragePort,
     );
 
     await expect(useCase.execute('user-1', 'missing-doc')).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('404s when the user has no EmployeeProfile at all yet', async () => {
+    const employeeProfileRepository = new FakeEmployeeProfileRepository(null);
+    const documentStorage: Pick<DocumentStoragePort, 'remove'> = { remove: async () => {} };
+    const useCase = new RemoveUserDocumentUseCase(
+      employeeProfileRepository as unknown as EmployeeProfileRepositoryPort,
+      documentStorage as DocumentStoragePort,
+    );
+
+    await expect(useCase.execute('user-1', 'doc-1')).rejects.toMatchObject({ statusCode: 404 });
   });
 });

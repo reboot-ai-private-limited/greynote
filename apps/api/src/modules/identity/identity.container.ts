@@ -7,6 +7,7 @@ import { CreateUserUseCase } from './application/usecases/createUser.usecase.js'
 import { GetActiveDeviceCountUseCase } from './application/usecases/getActiveDeviceCount.usecase.js';
 import { GetManagerChainUseCase } from './application/usecases/getManagerChain.usecase.js';
 import { GetPayBandRatesUseCase } from './application/usecases/getPayBandRates.usecase.js';
+import { GetUserDetailUseCase } from './application/usecases/getUserDetail.usecase.js';
 import { GetUserSummaryUseCase } from './application/usecases/getUserSummary.usecase.js';
 import { IsFieldRoleUseCase } from './application/usecases/isFieldRole.usecase.js';
 import { ListDesignationsUseCase } from './application/usecases/listDesignations.usecase.js';
@@ -32,11 +33,14 @@ import { BcryptPasswordHasher } from './infrastructure/bcryptPasswordHasher.adap
 import { CloudinaryDocumentStorage } from './infrastructure/cloudinaryDocumentStorage.adapter.js';
 import { CryptoRefreshTokenGenerator } from './infrastructure/cryptoRefreshTokenGenerator.adapter.js';
 import { JwtAccessTokenSigner } from './infrastructure/jwtAccessTokenSigner.adapter.js';
+import { MongoComplianceBlockAdapter } from './infrastructure/mongoComplianceBlock.adapter.js';
 import { MongoDesignationAdapter } from './infrastructure/mongoDesignation.adapter.js';
+import { MongoEmployeeProfileAdapter } from './infrastructure/mongoEmployeeProfile.adapter.js';
 import { MongoPayBandAdapter } from './infrastructure/mongoPayBand.adapter.js';
 import { MongoRoleAdapter } from './infrastructure/mongoRole.adapter.js';
 import { MongoUserAdapter } from './infrastructure/mongoUser.adapter.js';
 import { MongoUserSessionAdapter } from './infrastructure/mongoUserSession.adapter.js';
+import { MongooseTransactionRunner } from './infrastructure/mongooseTransactionRunner.adapter.js';
 import {
   makeLoginController,
   makeLogoutAllController,
@@ -49,6 +53,7 @@ import { buildPayBandsRouter } from './interface/payBands.route.js';
 import { buildRolesRouter } from './interface/roles.route.js';
 import {
   makeCreateUserController,
+  makeGetUserDetailController,
   makeListUsersController,
   makeRemoveUserDocumentController,
   makeUnblockUserController,
@@ -79,11 +84,14 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const designationRepository = new MongoDesignationAdapter();
   const payBandRepository = new MongoPayBandAdapter();
   const userRepository = new MongoUserAdapter();
+  const employeeProfileRepository = new MongoEmployeeProfileAdapter();
+  const complianceBlockRepository = new MongoComplianceBlockAdapter();
   const userSessionRepository = new MongoUserSessionAdapter();
   const passwordHasher = new BcryptPasswordHasher(env.BCRYPT_COST_FACTOR);
   const accessTokenSigner = new JwtAccessTokenSigner();
   const refreshTokenGenerator = new CryptoRefreshTokenGenerator();
   const documentStorage = new CloudinaryDocumentStorage();
+  const transactionRunner = new MongooseTransactionRunner();
 
   const tokenOpts = {
     accessTokenTtlSeconds: env.JWT_ACCESS_TOKEN_TTL_SECONDS,
@@ -112,18 +120,24 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const logout = new LogoutUseCase(userSessionRepository, refreshTokenGenerator);
   const logoutAllSessions = new LogoutAllSessionsUseCase(userRepository, userSessionRepository);
 
-  const createUser = new CreateUserUseCase(
+  const createUser = new CreateUserUseCase(userRepository, roleRepository, passwordHasher);
+  const updateUser = new UpdateUserUseCase(
     userRepository,
     roleRepository,
     designationRepository,
     payBandRepository,
-    passwordHasher,
+    employeeProfileRepository,
   );
-  const updateUser = new UpdateUserUseCase(userRepository, roleRepository, designationRepository, payBandRepository);
-  const listUsers = new ListUsersUseCase(userRepository, roleRepository);
-  const uploadUserDocument = new UploadUserDocumentUseCase(userRepository, roleRepository, documentStorage);
-  const removeUserDocument = new RemoveUserDocumentUseCase(userRepository, documentStorage);
-  const unblockUser = new UnblockUserUseCase(userRepository);
+  const listUsers = new ListUsersUseCase(userRepository, roleRepository, employeeProfileRepository);
+  const uploadUserDocument = new UploadUserDocumentUseCase(userRepository, employeeProfileRepository, documentStorage);
+  const removeUserDocument = new RemoveUserDocumentUseCase(employeeProfileRepository, documentStorage);
+  const unblockUser = new UnblockUserUseCase(userRepository, complianceBlockRepository, transactionRunner);
+  const getUserDetail = new GetUserDetailUseCase(
+    userRepository,
+    roleRepository,
+    employeeProfileRepository,
+    complianceBlockRepository,
+  );
 
   const createRole = new CreateRoleUseCase(roleRepository);
   const listRoles = new ListRolesUseCase(roleRepository);
@@ -137,10 +151,10 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const listPayBands = new ListPayBandsUseCase(payBandRepository);
   const updatePayBand = new UpdatePayBandUseCase(payBandRepository);
 
-  const getUserSummary = new GetUserSummaryUseCase(userRepository, roleRepository);
-  const getManagerChain = new GetManagerChainUseCase(userRepository, roleRepository);
+  const getUserSummary = new GetUserSummaryUseCase(userRepository, roleRepository, employeeProfileRepository);
+  const getManagerChain = new GetManagerChainUseCase(userRepository, roleRepository, employeeProfileRepository);
   const isFieldRole = new IsFieldRoleUseCase(userRepository, roleRepository);
-  const getPayBandRates = new GetPayBandRatesUseCase(userRepository, payBandRepository);
+  const getPayBandRates = new GetPayBandRatesUseCase(userRepository, employeeProfileRepository, payBandRepository);
   const getActiveDeviceCount = new GetActiveDeviceCountUseCase(userRepository, userSessionRepository);
 
   const seedDefaultRoles = new SeedDefaultRolesUseCase(roleRepository);
@@ -155,6 +169,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   };
   const usersControllers = {
     list: makeListUsersController(listUsers),
+    detail: makeGetUserDetailController(getUserDetail),
     create: makeCreateUserController(createUser),
     update: makeUpdateUserController(updateUser),
     uploadDocument: makeUploadUserDocumentController(uploadUserDocument),
