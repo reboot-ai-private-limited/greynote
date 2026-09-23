@@ -62,7 +62,7 @@ graph TD
     HR --> Payroll
 ```
 
-**Why `Config` had to split out of the ERD's "Planning" grouping:** in the ERD discussion, `SystemConfig` was introduced alongside Module 5 (Planning) because the daily/monthly cutoffs were the first two examples. But `Identity` needs it too (`MAX_ACTIVE_DEVICES_FIELD` at login) and `Field Activity` needs it too (`GEO_FENCE_RADIUS_METERS`) — and neither of those can depend on a "Planning" module without breaking the tier order (Identity is Tier 1, Planning would be Tier 3). So in the actual code, `Config` is its own Tier 0 module with zero dependencies, exposing a `contract.get(key)` that every other module calls through its `PublicContract` — the ERD module numbering reflects *discussion order*, not the code's dependency graph.
+**Why `Config` had to split out of the ERD's "Planning" grouping:** in the ERD discussion, `SystemConfig` was introduced alongside Module 5 (Planning) because the daily/monthly cutoffs were the first two examples. But `Identity` needs it too (`MAX_ACTIVE_DEVICES_FIELD` at login) and `Field Activity` needs it too (`GEO_FENCE_RADIUS_METERS`) — and neither of those can depend on a "Planning" module without breaking the tier order (Identity is Tier 1, Planning would be Tier 3). So in the actual code, `Config` is its own Tier 0 module with zero dependencies, exposing a `contract.get(key)` that every other module calls through its `PublicContract` — the ERD module numbering reflects _discussion order_, not the code's dependency graph.
 
 ## 4. Relational ERD → MongoDB mapping
 

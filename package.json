@@ -10,7 +10,6 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
-
   },
   "keywords": [],
   "author": "",
@@ -24,13 +23,15 @@
   },
   "type": "module",
   "devDependencies": {
+    "@eslint/js": "^9.19.0",
     "@types/node": "^26.6.2",
     "@typescript-eslint/eslint-plugin": "^8.70.0",
     "@typescript-eslint/parser": "^8.70.0",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
+    "globals": "^15.14.0",
     "prettier": "^3.9.8",
     "turbo": "^2.11.2",
-    "typescript": "^7.0.2"
+    "typescript": "^5.7.2"
   }
 }

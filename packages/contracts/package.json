@@ -1,0 +1,17 @@
+{
+  "name": "@greynote/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "devDependencies": {
+    "@greynote/config": "workspace:*",
+    "typescript": "^5.7.2"
+  }
+}

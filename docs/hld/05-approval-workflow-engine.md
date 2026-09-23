@@ -4,7 +4,7 @@ The generalized two-stage (Nearest-Manager → Admin) + read-only-escalation mec
 
 ## 1. Shared shape
 
-Every "approvable" entity carries the same fields: `user_id` (submitter), `status` (`SUBMITTED`/`MANAGER_APPROVED`/`REJECTED`), `reviewed_by` (nullable until acted on), `reviewed_at`. Rather than duplicating the approve/reject logic once per module, each module's use case delegates to a small shared **Approval** helper (a plain function/service in `packages/shared`, not a network call — it's logic, not a module with its own data) that both resolves the approver and validates the transition. Each module still owns its own collection and status field; only the *logic* is shared.
+Every "approvable" entity carries the same fields: `user_id` (submitter), `status` (`SUBMITTED`/`MANAGER_APPROVED`/`REJECTED`), `reviewed_by` (nullable until acted on), `reviewed_at`. Rather than duplicating the approve/reject logic once per module, each module's use case delegates to a small shared **Approval** helper (a plain function/service in `packages/shared`, not a network call — it's logic, not a module with its own data) that both resolves the approver and validates the transition. Each module still owns its own collection and status field; only the _logic_ is shared.
 
 ## 2. Resolving the approver — and the edge case it exposes
 

@@ -1,5 +1,5 @@
-import { env } from '@/config/env';
-import { logger } from '@/shared/logging/logger';
+import { env } from '@/config/env.js';
+import { logger } from '@/shared/logging/logger.js';
 import { createApp } from './app.js';
 
 const SHUTDOWN_TIMEOUT_MS = 15_000;
@@ -8,7 +8,7 @@ function start() {
     const app = createApp();
 
     const server = app.listen(env.PORT, () => {
-        logger.info({ port: env.PORT, env: env.NODE_ENV }, 'api listening');
+        logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Greynote API listening');
     });
 
     const shutdown = (signal: string) => {

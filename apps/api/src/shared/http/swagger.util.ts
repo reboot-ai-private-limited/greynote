@@ -1,7 +1,7 @@
 import { OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import swaggerUi from 'swagger-ui-express';
 import type { Express } from 'express';
-import { env } from '@/config/env';
+import { env } from '@/config/env.js';
 
 export const openApiRegistry = new OpenAPIRegistry();
 

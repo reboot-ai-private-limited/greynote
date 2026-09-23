@@ -1,5 +1,5 @@
-import type { HealthReport } from '@/modules/health/domain/health.entity';
+import type { HealthReport } from './domain/health.entity.js';
 
 export interface HealthPublicContract {
-    report(): Promise<HealthReport>;
+  report(): Promise<HealthReport>;
 }

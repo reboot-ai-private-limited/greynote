@@ -6,7 +6,7 @@ How `Route.distance_km` actually gets populated (PRD §5.1: "an external API cal
 
 Admin types each waypoint as a place name/address, in order (matching the PRD's "From Matigara via Medical More via Darj to Fulbari" example). A typed label alone has no coordinates and is inherently ambiguous — a place name can exist in more than one district — so text input alone isn't enough to resolve a waypoint.
 
-The Admin UI pairs a **search box with a map preview**: typing queries a Geocoding/Places API for candidate matches, and each candidate drops a pin on an embedded map so Admin can *see* exactly where it is before picking it — not just read a text suggestion and guess. Selecting a candidate is what actually gets stored — `{label, latitude, longitude, place_id}` — not the raw typed string. This removes the ambiguity at the source: by the time a waypoint is added to the route, Admin has visually confirmed the exact point, so the coordinates feeding the distance calculation (below) are never a guess.
+The Admin UI pairs a **search box with a map preview**: typing queries a Geocoding/Places API for candidate matches, and each candidate drops a pin on an embedded map so Admin can _see_ exactly where it is before picking it — not just read a text suggestion and guess. Selecting a candidate is what actually gets stored — `{label, latitude, longitude, place_id}` — not the raw typed string. This removes the ambiguity at the source: by the time a waypoint is added to the route, Admin has visually confirmed the exact point, so the coordinates feeding the distance calculation (below) are never a guess.
 
 ## 2. Distance calculation flow
 

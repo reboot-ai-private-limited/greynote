@@ -59,11 +59,12 @@ sequenceDiagram
 `DCR_MISS_GRACE_DAYS` (ERD Module 5, default `1`) is the number of consecutive missed days tolerated before the block fires — the job only blocks once a user has exceeded that count with no covering Leave.
 
 **While `is_blocked = true`:**
+
 - `DailyPlan`/`MonthlyPlan` Submit — rejected.
 - `DCR` Final Submission — rejected.
 - Creating any DCR child — rejected (same use-case-level check as the DailyPlan-approval gate above, just keyed off `is_blocked` instead of `DailyPlan.status`).
 
-**Still available while blocked:** requesting `Leave` and viewing historical reports — the block only stops *new*, forward-looking submissions, so the MR can still retroactively explain the gap (e.g. file the missing Leave request) rather than being locked out of every screen.
+**Still available while blocked:** requesting `Leave` and viewing historical reports — the block only stops _new_, forward-looking submissions, so the MR can still retroactively explain the gap (e.g. file the missing Leave request) rather than being locked out of every screen.
 
 **Clearing the block is Admin-only** (ERD Module 1: `unblocked_by` must resolve to an `ADMIN`-role user), from the Web Portal — the Nearest Manager cannot clear it, even though the Nearest Manager is the Stage 1 approver for everything else this user submits (PRD §7.1). This mirrors Admin's existing role as the top-of-chain authority (HLD 5 §4) but is a deliberate exception: this is a compliance/punitive action, not a routine approval, so it's scoped to Admin alone.
 

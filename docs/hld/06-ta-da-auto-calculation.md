@@ -4,7 +4,7 @@ How the `AUTO`-sourced `Expense` rows (TA, DA) actually get computed (PRD glossa
 
 ## 1. Computed server-side, never trusted from the client
 
-**TA/DA amounts are always computed on the server**, ignoring whatever the client payload might carry for those fields. The mobile app *may* show the MR a local estimate for UX, but that number is non-authoritative — a compromised or buggy client must never be able to inflate a travel-allowance claim by sending a pre-computed amount the server just accepts. Consistent with HLD 1's "never trust the offline payload outright" stance.
+**TA/DA amounts are always computed on the server**, ignoring whatever the client payload might carry for those fields. The mobile app _may_ show the MR a local estimate for UX, but that number is non-authoritative — a compromised or buggy client must never be able to inflate a travel-allowance claim by sending a pre-computed amount the server just accepts. Consistent with HLD 1's "never trust the offline payload outright" stance.
 
 ## 2. Trigger: DCR approval, not submission
 
@@ -44,7 +44,7 @@ sequenceDiagram
 
 ## 3. No manual override for the generated amount
 
-Unlike `Route.distance_km` (HLD 2, which Admin *can* override), the `AUTO` `Expense` amount itself is not manually editable once generated. Since generation now happens exactly once, after Manager approval, from already-verified inputs — a correction belongs at the source: if the underlying route distance was wrong, Admin fixes it via `Route`'s own override (HLD 2), which then applies to *future* approvals. It doesn't retroactively touch `Expense` rows already generated for past approvals — same "locked snapshot" principle as `PayrollRun` (HLD 7) and the Financial Year Toggle (HLD 9).
+Unlike `Route.distance_km` (HLD 2, which Admin _can_ override), the `AUTO` `Expense` amount itself is not manually editable once generated. Since generation now happens exactly once, after Manager approval, from already-verified inputs — a correction belongs at the source: if the underlying route distance was wrong, Admin fixes it via `Route`'s own override (HLD 2), which then applies to _future_ approvals. It doesn't retroactively touch `Expense` rows already generated for past approvals — same "locked snapshot" principle as `PayrollRun` (HLD 7) and the Financial Year Toggle (HLD 9).
 
 ## 4. Edge cases
 

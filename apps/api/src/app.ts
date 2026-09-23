@@ -3,13 +3,13 @@ import type { Express } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { env } from '@/config/env';
+import { env } from '@/config/env.js';
 import { buildContainers } from './container.js';
 import { buildApiRouter } from './routes.js';
-import { requestIdMiddleware } from '@/shared/http/request-id.middleware';
-import { accessLogMiddleware } from '@/shared/http/access-log.middleware';
-import { mountSwagger } from '@/shared/http/swagger.util';
-import { notFoundHandler, errorHandler } from '@/shared/http/error-handler';
+import { accessLogMiddleware } from '@/shared/http/access-log.middleware.js';
+import { errorHandler, notFoundHandler } from '@/shared/http/error-handler.js';
+import { requestIdMiddleware } from '@/shared/http/request-id.middleware.js';
+import { mountSwagger } from '@/shared/http/swagger.util.js';
 
 export function createApp(): Express {
     const app = express();
@@ -17,8 +17,8 @@ export function createApp(): Express {
     app.disable('x-powered-by');
     app.set('trust proxy', 1);
 
-    // Cross-cutting middleware, registered before anything else so even
-    // rejected requests are traceable and protected.
+    // Request-id FIRST, ahead of everything else, so even a request rejected by helmet/cors is
+    // still traceable.
     app.use(requestIdMiddleware());
     app.use(accessLogMiddleware());
     app.use(helmet());
@@ -34,6 +34,7 @@ export function createApp(): Express {
     // 2. Wire their routes into Express at /api
     app.use('/api', buildApiRouter(containers));
 
+    // Anything unmatched, then any error thrown along the way — in that order, both last.
     app.use(notFoundHandler);
     app.use(errorHandler);
 
