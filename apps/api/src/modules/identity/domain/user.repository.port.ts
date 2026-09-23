@@ -1,0 +1,41 @@
+import type { RoleName } from '@greynote/contracts';
+import type { User, UserStatus } from './user.entity.js';
+
+/**
+ * Optional fields are widened to `| undefined` (not just `?:`) to match the shape Zod's
+ * `.optional()` infers on the DTO these are built from — under `exactOptionalPropertyTypes`,
+ * `field?: T` and `field?: T | undefined` are different types, and the Zod-parsed source object
+ * is the latter.
+ */
+export interface UserListFilters {
+  role?: RoleName | undefined;
+  designationId?: string | undefined;
+  managerId?: string | undefined;
+  status?: UserStatus | undefined;
+  isBlocked?: boolean | undefined;
+  /** Free-text match over employeeCode/name/email. */
+  search?: string | undefined;
+}
+
+export interface UserListPagination {
+  page: number;
+  pageSize: number;
+  sortBy?: string | undefined;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface UserRepositoryPort {
+  findById(id: string): Promise<User | null>;
+  findByEmployeeCode(employeeCode: string): Promise<User | null>;
+  findByEmail(email: string): Promise<User | null>;
+  list(
+    pagination: UserListPagination,
+    filters: UserListFilters,
+  ): Promise<{ items: User[]; total: number }>;
+  create(input: Omit<User, 'id'>): Promise<User>;
+  update(id: string, input: Partial<Omit<User, 'id'>>): Promise<User>;
+  existsByEmployeeCode(employeeCode: string): Promise<boolean>;
+  existsByEmail(email: string): Promise<boolean>;
+  /** Backs the bootstrap-admin seed's idempotency check. */
+  existsAdmin(): Promise<boolean>;
+}

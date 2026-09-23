@@ -1,11 +1,20 @@
+import mongoose from 'mongoose';
 import { env } from '@/config/env.js';
 import { logger } from '@/shared/logging/logger.js';
 import { createApp } from './app.js';
 
 const SHUTDOWN_TIMEOUT_MS = 15_000;
 
-function start() {
-    const app = createApp();
+async function start() {
+    try {
+        await mongoose.connect(env.MONGO_URI);
+    } catch (cause) {
+        logger.fatal({ err: String(cause) }, 'failed to connect to MongoDB');
+        process.exit(1);
+    }
+    logger.info('connected to MongoDB');
+
+    const app = await createApp();
 
     const server = app.listen(env.PORT, () => {
         logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Greynote API listening');
@@ -21,8 +30,13 @@ function start() {
         force.unref();
 
         server.close(() => {
-            logger.info('shutdown complete');
-            process.exit(0);
+            mongoose
+                .disconnect()
+                .catch((cause: unknown) => logger.error({ err: String(cause) }, 'error disconnecting MongoDB'))
+                .finally(() => {
+                    logger.info('shutdown complete');
+                    process.exit(0);
+                });
         });
     };
 

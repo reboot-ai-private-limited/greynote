@@ -19,20 +19,30 @@ import { getRequestId } from '@/shared/http/request-context.js';
 /**
  * Fields that must never reach a log, whatever wraps them. `*.x` covers one level of nesting,
  * which is where these actually appear — inside a request body or a mapped entity.
+ *
+ * camelCase, matching this codebase's actual field naming (`passwordHash`, `refreshTokenHash`,
+ * `mobileNumber`) — NOT the ERD docs' snake_case (`password_hash`), which describes the schema
+ * in prose, not the TypeScript property names pino actually sees.
  */
 const REDACTED_PATHS = [
   'phone',
   '*.phone',
+  'mobileNumber',
+  '*.mobileNumber',
   'password',
-  'password_hash',
+  'passwordHash',
   '*.password',
-  '*.password_hash',
+  '*.passwordHash',
   'token',
-  'refresh_token',
-  'refresh_token_hash',
+  'accessToken',
+  'refreshToken',
+  'refreshTokenHash',
   '*.token',
-  '*.refresh_token',
-  '*.refresh_token_hash',
+  '*.accessToken',
+  '*.refreshToken',
+  '*.refreshTokenHash',
+  'bankDetails',
+  '*.bankDetails',
   'req.headers.authorization',
   'headers.authorization',
 ];
