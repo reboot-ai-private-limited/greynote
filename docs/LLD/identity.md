@@ -15,8 +15,10 @@ other module depends on it, directly or through the Approval Workflow Engine —
   ([`payroll.md`](payroll.md)).
 - **`User`** — the account: `employee_code`, `password_hash`, role/designation/pay-band FKs, a
   self-referencing `manager_id` (single-manager tree, no separate Team table — a manager's
-  downline is derived by walking it, never stored separately), and the compliance-block fields
-  (`is_blocked`, `blocked_reason`, `blocked_at`, `unblocked_by`, `unblocked_at`).
+  downline is derived by walking it, never stored separately), the compliance-block fields
+  (`is_blocked`, `blocked_reason`, `blocked_at`, `unblocked_by`, `unblocked_at`), and — for a
+  FIELD user — onboarding fields (personal details, bank details, uploaded documents) filled in
+  incrementally after creation; see "Onboarding" in `../erd/01-identity-hierarchy.md`.
 - **`UserSession`** — one row per logged-in device: `device_id`, `refresh_token_hash`,
   `issued_at`/`expires_at`/`last_active_at`/`revoked_at`. This is what makes per-device
   revocation and the device-count limit possible; access tokens themselves are never persisted.
@@ -94,11 +96,16 @@ Summary at LLD depth:
 | `POST` | `/api/identity/auth/refresh` | any (via refresh token) | Rotate a session |
 | `POST` | `/api/identity/auth/logout` | any | Revoke the calling session |
 | `POST` | `/api/identity/auth/logout-all` | Admin (on behalf of a user) | Revoke every session for a user — offboarding |
-| `GET` | `/api/identity/users` | Admin, HR (read) | List/search users |
-| `POST` | `/api/identity/users` | Admin, HR | Create a user (HR: field-force only, per PRD §5.3) |
-| `PATCH` | `/api/identity/users/:id` | Admin, HR | Update role/designation/pay-band/manager |
+| `GET` | `/api/identity/users` | Admin, HR (read) | List/search/paginate/filter users |
+| `POST` | `/api/identity/users` | Admin, HR | Create a user — body discriminated on `role`: a FIELD payload accepts the onboarding shape (minimal at creation, `status: pending`); an ADMIN/HR/ACCOUNTANT payload is the short "user master" form, `status: active` immediately. HR may only submit `role: FIELD` (PRD §5.3); non-FIELD creation is Admin-only. |
+| `PATCH` | `/api/identity/users/:id` | Admin, HR | Incremental onboarding update — any of `basicDetails`, `bankDetails`, `designationId`, `payBandId`, `managerId` (each optional per call); `status` is recomputed automatically after each call, not set directly (except `status: 'inactive'` for explicit deactivation) |
+| `POST` | `/api/identity/users/:id/documents` | Admin, HR | Upload a document (`multipart/form-data`, field `file` + `documentType`) to Cloudinary and attach it to the user |
+| `DELETE` | `/api/identity/users/:id/documents/:documentId` | Admin, HR | Remove a document from Cloudinary **and** the user record |
 | `POST` | `/api/identity/users/:id/unblock` | Admin only | Clear a compliance block |
 | `GET`/`POST`/`PATCH` | `/api/identity/roles`, `/designations`, `/pay-bands` | Admin | Master-data CRUD |
+
+Passwords are capped at 72 bytes (UTF-8) and rejected, not truncated, above that — bcrypt's own
+input limit; see `docs/decision-log.md`, 2026-09-23.
 
 ## Edge cases
 

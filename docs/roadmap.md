@@ -15,7 +15,8 @@ must land before the module that needs it.
   logging, `dependency-cruiser` tiers — **done**
 - `health` module — the reference implementation every business module copies — **done**
 - `Config` module (Tier 0): the `SystemConfig` key-value store backing every Admin-editable cutoff
-  and limit in PRD §2 (submission deadlines, device limits, geofence radius)
+  and limit in PRD §2 (submission deadlines, device limits, geofence radius) — **done**, internal
+  `get(key)` contract only, no HTTP surface yet (deferred to the Phase 9 web portal)
 
 **Done when:** `pnpm dev` gives a working API with a seeded `SystemConfig` collection, `GET
 /api/health` returns `200`, and `pnpm check` is green.

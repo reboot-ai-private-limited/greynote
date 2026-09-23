@@ -30,19 +30,20 @@ sets `isExpected: false`, which is what should eventually drive alerting.
 
 ## Money
 
-**Not yet decided.** The ERD (`docs/erd/01-identity-hierarchy.md`, `09-payroll.md`,
+**Decided (provisionally): Mongoose `Decimal128`, converted to/from a decimal string at the
+domain boundary.** The ERD (`docs/erd/01-identity-hierarchy.md`, `09-payroll.md`,
 `04-field-activity.md`) types every money field as `decimal` — `base_salary`, `da_amount`,
 `Expense.amount`, `PayrollRun.net_payable` — which already rules out a JavaScript `number`/float
 for storage or arithmetic (floats cannot represent currency exactly, and repeated addition across
-a payroll run compounds the error). What's still open: whether that's Mongoose's `Decimal128`
-end to end, or a fixed-precision integer-subunit convention the way `../driverzone` uses integer
-paise (its `docs/decision-log.md` explains why float money specifically bit that project). Decide
-this **before** Phase 1 (Identity's `PayBand.base_salary`) lands — it's expensive to change once
-payroll math depends on it — and record the decision here and in `../decision-log.md`.
+a payroll run compounds the error). `PayBand.base_salary/ta_per_km_rate/da_amount` (Phase 1) are
+the first fields to use this: `Decimal128` in `infrastructure/payBand.schema.ts`, plain decimal
+strings everywhere else (`domain/` never imports Mongoose). Flagged **provisional** in
+`../decision-log.md`, 2026-09-23 — Payroll (Phase 7) is where this either gets ratified against
+real payroll-math requirements or deliberately overridden in favor of `../driverzone`'s
+integer-subunit convention; it should not silently inherit this choice unexamined.
 
-Until decided: never use a plain `number` for a money field in new code: prefer `Decimal128` (or
-an equivalent fixed-precision type) so the eventual convention is a formatting/parsing change,
-not a data migration.
+Never use a plain `number` for a money field in new code: use `Decimal128` (domain-side: a decimal
+string) so a later change of convention is a formatting/parsing change, not a data migration.
 
 ## Naming
 

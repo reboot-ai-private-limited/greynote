@@ -17,6 +17,105 @@ old one.
 
 ---
 
+## 2026-09-23 — Identity's `User` gains onboarding fields, a `pending` status, and defers Zone/HQ
+
+**Decision:** `User` (ERD Module 1) grows beyond `docs/erd/01-identity-hierarchy.md`'s original
+field list to support a step-by-step Admin onboarding flow for FIELD employees: personal details
+(`mobile_number`, `guardian_name`, `date_of_birth`, `address`, `qualification`), bank details
+(`bank_name`, `ifsc`, `account_number`, `account_holder_name`, `branch_name`), and an array of
+uploaded documents. `status` widens from `active/inactive` to `active/pending/inactive` —
+`pending` means onboarding incomplete, kept distinct from `inactive` (deactivated/offboarded) so a
+future Payroll query for "active FIELD employees" can't accidentally include someone
+mid-onboarding. `status` is auto-computed (not a separate "activate" action) every time
+`PATCH /api/identity/users/:id` changes one of the required-for-activation fields — see
+`domain/onboarding.ts`'s `computeUserStatus`, which never upgrades an already-`inactive` user back
+to `active`/`pending` as a side effect. Zone→HQ is deliberately **not** added here — Territory
+(Phase 2, one tier above Identity) doesn't exist yet, and ERD-01's own "Next" section already
+planned for that FK to land with Module 2, not Module 1.
+
+**Why:** the PRD/ERD didn't originally specify these fields, but real Admin onboarding needs them,
+and a FIELD employee shouldn't be usable (assignable, able to submit) until the record is actually
+complete. Auto-computing status (rather than a manual activate call) means every onboarding PATCH
+naturally converges on `active` the moment the last required field lands.
+
+**Consequences:** `docs/erd/01-identity-hierarchy.md` needs its `User` entity and `status` field
+updated to match this. `docs/LLD/identity.md`'s HTTP surface table gains
+`POST /users/:id/documents` and `DELETE /users/:id/documents/:documentId`, and its create-user
+row should note the discriminated payload shape (decision below).
+
+**Refs:** `apps/api/src/modules/identity/domain/{user.entity,onboarding}.ts`
+
+---
+
+## 2026-09-23 — One `POST /api/identity/users`, discriminated by role
+
+**Decision:** the LLD's single `POST /api/identity/users` endpoint takes a Zod discriminated
+union on `role`: a `FIELD` payload accepts the full onboarding shape (minimal at creation,
+filled in incrementally via `PATCH`); an `ADMIN`/`HR`/`ACCOUNTANT` payload — the "user master"
+path — is the short form (`employeeCode, name, email, phone, password, role` only), created
+`active` immediately. Creating a non-FIELD user is Admin-only; creating a FIELD user is Admin or
+HR, per the LLD's existing HR-field-force-only restriction. Enforced in `CreateUserUseCase`, not
+just at the route.
+
+**Why:** keeps the one HTTP surface the LLD already documents rather than adding a second
+endpoint, while still giving Admin/HR/Accountant creation ("user master") a genuinely simpler
+shape than FIELD onboarding — none of designation/pay-band/bank/manager/documents applies to them.
+
+**Refs:** `apps/api/src/modules/identity/application/usecases/createUser.usecase.ts`,
+`interface/users.schemas.ts`
+
+---
+
+## 2026-09-23 — Password hashing: bcrypt, with its 72-byte limit enforced not truncated
+
+**Decision:** `bcrypt` (the `bcrypt` npm package, cost factor from `BCRYPT_COST_FACTOR`, default
+12) hashes every `User.passwordHash`. Its 72-byte input limit is enforced at the Zod DTO layer
+(`Buffer.byteLength(password, 'utf8') <= 72`, rejected with 400) on both password creation and
+login — not silently truncated, which would otherwise let two different passwords sharing the
+same first-72-byte prefix hash (and authenticate) identically.
+
+**Why:** `docs/engineering/tech-choices.md` and `.env.example` had left bcrypt vs. argon2 open.
+bcrypt ships prebuilt native bindings for common deploy targets (no build-toolchain risk the way
+`argon2`'s native addon can carry) and is the specific standard for password hashing.
+
+**Refs:** `apps/api/src/modules/identity/infrastructure/bcryptPasswordHasher.adapter.ts`,
+`interface/password.schema.ts`
+
+---
+
+## 2026-09-23 — Bootstrap Admin seeded from env vars, exactly once
+
+**Decision:** `identity`'s boot sequence seeds exactly one `ADMIN`-role `User` from
+`BOOTSTRAP_ADMIN_*` env vars, gated on "does any ADMIN-role user exist" (not a one-time flag, so
+it self-heals if the DB is ever reset) rather than a fixed run-once marker. Every Admin/HR/
+Accountant after that first one is created the ordinary way — through that Admin's own
+authenticated `POST /api/identity/users` call.
+
+**Why:** creating a `User` normally requires an authenticated Admin, which is impossible on a
+genuinely empty DB — this is the one exception, solving the chicken-and-egg problem without a
+second, permanently-open creation path.
+
+**Refs:** `apps/api/src/modules/identity/application/usecases/seedBootstrapAdmin.usecase.ts`
+
+---
+
+## 2026-09-23 — Money storage: `Decimal128`, provisional pending Payroll
+
+**Decision:** `PayBand.base_salary/ta_per_km_rate/da_amount` (the first money fields to land) use
+Mongoose `Decimal128` in `infrastructure/payBand.schema.ts`. The domain entity keeps them as
+decimal **strings** — `domain/` never imports Mongoose (2026-09-19 decision) — so the conversion
+lives only in `infrastructure/mongoPayBand.adapter.ts`.
+
+**Why:** `docs/engineering/coding-standards.md#money` flagged this as undecided but required
+before Phase 1, and named `Decimal128` as its own standing fallback pending a final choice against
+driverzone's integer-subunit convention. Deliberately **provisional** — this entry exists so
+Payroll (Phase 7) either ratifies or deliberately overrides it, not silently inherits it.
+
+**Refs:** `docs/engineering/coding-standards.md#money`,
+`apps/api/src/modules/identity/infrastructure/{payBand.schema,mongoPayBand.adapter}.ts`
+
+---
+
 ## 2026-09-23 — MongoDB Atlas in every environment; no local Mongo container
 
 **Decision:** `MONGO_URI` points at a MongoDB Atlas cluster in both development and production.

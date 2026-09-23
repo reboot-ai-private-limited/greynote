@@ -26,14 +26,21 @@ erDiagram
         uuid id PK
         string employee_code UQ
         string name
-        string email UQ
+        string email UQ "nullable - not required for a FIELD user at creation"
         string phone
-        string status "active, inactive"
+        string mobile_number "nullable - onboarding basic details"
+        string guardian_name "nullable, optional - not required for activation"
+        date date_of_birth "nullable - onboarding basic details"
+        string qualification "nullable, optional - not required for activation"
+        json address "nullable - {district, state, pincode, country}, country default India"
+        json bank_details "nullable - {bank_name, ifsc, account_number, account_holder_name, branch_name}"
+        json documents "array - [{id, type, url, publicId, uploadedAt}], uploaded to Cloudinary"
+        string status "active, pending, inactive - pending = FIELD onboarding incomplete"
         date date_of_joining
         uuid role_id FK
         uuid designation_id FK "nullable - FIELD role only"
         uuid pay_band_id FK "nullable - FIELD role only"
-        uuid manager_id FK "self-referencing, nullable - null = top of chain"
+        uuid manager_id FK "self-referencing, nullable - null = top of chain, required for FIELD activation"
         string password_hash
         timestamp last_login_at
         boolean is_blocked "default false - see HLD 10, compliance block"
@@ -64,6 +71,25 @@ erDiagram
     USER |o--o{ USER : "unblocked_by (Admin, optional)"
     USER ||--o{ USER_SESSION : "device sessions"
 ```
+
+## Onboarding (added 2026-09-23, `docs/decision-log.md`)
+
+A FIELD `User` is created with minimal fields (`employee_code`, `name`, `password`) and starts
+`status: pending`. An Admin/HR fills in the rest incrementally — personal details, bank details,
+`designation_id`/`pay_band_id`/`manager_id`, and uploaded documents (Cloudinary) — and `status`
+recomputes to `active` automatically the moment every required field is present: `name`,
+`mobile_number`, `date_of_birth`, a complete `address`, `designation_id`, `pay_band_id`,
+`manager_id`, and the bank details needed to actually pay someone (`bank_name`/`ifsc`/
+`account_number`/`account_holder_name`). `guardian_name`, `qualification`, `bank_details.
+branch_name`, and `documents` are **not** required for activation. An `inactive` (deactivated/
+offboarded) `User` is never auto-upgraded back to `active`/`pending` by this recomputation —
+deactivation is a separate, explicit action.
+
+An `ADMIN`/`HR`/`ACCOUNTANT` `User` (the "user master" creation path) skips onboarding entirely —
+`status: active` immediately, since none of designation/pay-band/bank/manager/documents applies.
+
+Zone/HQ assignment is **not** part of this onboarding flow — see "Next" below; it lands with
+Territory (Module 2), one tier above Identity, not here.
 
 ## Design decisions locked for this module
 
