@@ -50,7 +50,7 @@ sequenceDiagram
             Job->>FA: DCR with status IN (SUBMITTED, MANAGER_APPROVED) for yesterday?
             Job->>HR: APPROVED Leave covering yesterday?
             alt neither found
-                Job->>ID: set is_blocked=true, blocked_reason=DCR_MISSED_NO_LEAVE, blocked_at=now
+                Job->>ID: create ComplianceBlock{reason: DCR_MISSED_NO_LEAVE, blocked_at: now}, set User.is_blocked=true
             end
         end
     end

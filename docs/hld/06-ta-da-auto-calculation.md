@@ -25,8 +25,8 @@ sequenceDiagram
     FA->>Identity: contract.getUser(user_id) -> pay_band
     alt working_type == FIELD_WORK
         FA->>Territory: contract.getRoutes(route_ids)
-        Territory-->>FA: [{ distance_km, distance_status }, ...]
-        FA->>FA: ta_amount = sum(distance_km where CALCULATED) x pay_band.ta_per_km_rate
+        Territory-->>FA: [{ distance_km, distance_status, ta_per_km_rate_override }, ...]
+        FA->>FA: ta_amount = sum over routes where CALCULATED of distance_km x (ta_per_km_rate_override ?? pay_band.ta_per_km_rate)
         FA->>FA: da_amount = pay_band.da_amount
         FA->>DB: Create AUTO Expense rows (TA + DA) on this DCR
     else working_type in (MEETING, CONFERENCE)
@@ -40,11 +40,18 @@ sequenceDiagram
 - **TA only applies to `FIELD_WORK`.** It's the one working type where a route is actually required in that day's `DailyPlan` — no route, nothing to compute a distance from, so `MEETING`/`CONFERENCE` never get a TA row at all, regardless of pay band.
 - **DA applies to `FIELD_WORK`, `MEETING`, and `CONFERENCE`.** It's grade-based (`pay_band.da_amount`), not route-dependent — any day actually spent working earns it. Only `STRIKE` (not working) excludes it.
 - **Route source (when TA applies):** the day's `DailyPlan.route_ids` for that `user_id` + date — not routes pulled from individual `DoctorCall` rows. `DailyPlan` is what explicitly captures "Select Routes" for the day (PRD §6.2 A).
-- **Rates** (`ta_per_km_rate`, `da_amount`) come from the user's current `PayBand` (Module 1) at approval time.
+- **Rates:** `da_amount` always comes from the user's current `PayBand` (Module 1) at approval
+  time. The TA rate resolves **per route**, not once for the whole day — added 2026-09-23,
+  `docs/decision-log.md`: each route in the sum can carry its own `ta_per_km_rate_override`
+  (ERD-02), and only falls back to `pay_band.ta_per_km_rate` when that route has none set. A
+  `DailyPlan` with multiple routes for `FIELD_WORK` can therefore mix a negotiated rate on one
+  route with the pay-band default on another in the same day's TA total — this is why the rate
+  resolution happens **inside** the sum, applied per route, rather than once after summing every
+  route's distance.
 
 ## 3. No manual override for the generated amount
 
-Unlike `Route.distance_km` (HLD 2, which Admin _can_ override), the `AUTO` `Expense` amount itself is not manually editable once generated. Since generation now happens exactly once, after Manager approval, from already-verified inputs — a correction belongs at the source: if the underlying route distance was wrong, Admin fixes it via `Route`'s own override (HLD 2), which then applies to _future_ approvals. It doesn't retroactively touch `Expense` rows already generated for past approvals — same "locked snapshot" principle as `PayrollRun` (HLD 7) and the Financial Year Toggle (HLD 9).
+Unlike `Route.distance_km` or `Route.ta_per_km_rate_override` (both Admin-editable, ERD 02), the `AUTO` `Expense` amount itself is not manually editable once generated. Since generation now happens exactly once, after Manager approval, from already-verified inputs — a correction belongs at the source: if the underlying route distance or rate override was wrong, Admin fixes it on the `Route` itself, which then applies to _future_ approvals. It doesn't retroactively touch `Expense` rows already generated for past approvals — same "locked snapshot" principle as `PayrollRun` (HLD 7) and the Financial Year Toggle (HLD 9).
 
 ## 4. Edge cases
 

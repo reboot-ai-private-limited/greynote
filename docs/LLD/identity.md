@@ -13,12 +13,19 @@ other module depends on it, directly or through the Approval Workflow Engine —
 - **`PayBand`** — `G1`/`G2`/`G3`, carrying `base_salary`, `ta_per_km_rate`, `da_amount`. FIELD-role
   only; feeds TA/DA auto-calculation ([`hld/06`](../hld/06-ta-da-auto-calculation.md)) and Payroll
   ([`payroll.md`](payroll.md)).
-- **`User`** — the account: `employee_code`, `password_hash`, role/designation/pay-band FKs, a
-  self-referencing `manager_id` (single-manager tree, no separate Team table — a manager's
-  downline is derived by walking it, never stored separately), the compliance-block fields
-  (`is_blocked`, `blocked_reason`, `blocked_at`, `unblocked_by`, `unblocked_at`), and — for a
-  FIELD user — onboarding fields (personal details, bank details, uploaded documents) filled in
-  incrementally after creation; see "Onboarding" in `../erd/01-identity-hierarchy.md`.
+- **`User`** — the lean account, every role: `employee_code`, `password_hash`, `role_id`, `status`,
+  and `is_blocked` (a fast top-level flag; the historical detail lives in `ComplianceBlock`).
+  Personal details, bank details, designation/pay-band/manager, and joining date are **not**
+  here — see `EmployeeProfile` below.
+- **`EmployeeProfile`** — FIELD-only, one per `User`, created lazily on the first onboarding
+  `PATCH`: `designation_id`/`pay_band_id` FKs, a self-referencing `manager_id` (pointing at
+  another `User` — single-manager tree, no separate Team table, a manager's downline is derived by
+  walking it, never stored separately), `date_of_joining`, and onboarding personal/bank details
+  and uploaded documents; see "Onboarding" in `../erd/01-identity-hierarchy.md`.
+- **`ComplianceBlock`** — one row per block **event** (not a single overwritable field), FK to
+  `User`: `reason`, `blocked_at`, `unblocked_by`, `unblocked_at`. Retention is indefinite (no
+  TTL). `User.is_blocked` is kept in sync with whether an "open" row (`unblocked_at: null`)
+  exists for that user.
 - **`UserSession`** — one row per logged-in device: `device_id`, `refresh_token_hash`,
   `issued_at`/`expires_at`/`last_active_at`/`revoked_at`. This is what makes per-device
   revocation and the device-count limit possible; access tokens themselves are never persisted.
@@ -33,8 +40,9 @@ same shape as `health.public.ts`, just with real methods:
   modules directly.
 - `getUserSummary(userId)` — id, name, role, designation, manager id. What most other modules
   need for display or authorization checks without pulling the whole entity.
-- **`getManagerChain(userId)`** — walks `manager_id` upward and returns the ordered chain: the
-  Nearest Higher Manager first, then everyone above them, up to the top (`manager_id: null`).
+- **`getManagerChain(userId)`** — walks `EmployeeProfile.manager_id` upward and returns the
+  ordered chain: the Nearest Higher Manager first, then everyone above them, up to the top
+  (`manager_id: null`).
   This is Identity's most-consumed method: the Approval Workflow Engine
   ([`hld/05`](../hld/05-approval-workflow-engine.md), [`roadmap.md`](../roadmap.md) phase 3) calls
   it to resolve both the Stage-1 approver (chain[0]) and the read-only-visibility set (chain[1:])
@@ -47,8 +55,9 @@ same shape as `health.public.ts`, just with real methods:
 
 ## Write-path rules & invariants
 
-- **Designation and Pay Band are `null` for non-FIELD roles**, enforced at write time, not just
-  by convention — creating an `ADMIN`/`HR`/`ACCOUNTANT` user with either set is rejected.
+- **Designation, Pay Band, manager, and joining date only apply to FIELD role**, enforced at write
+  time, not just by convention — attempting to set designation/pay-band on a non-FIELD user is
+  rejected, and an `ADMIN`/`HR`/`ACCOUNTANT` user never gets an `EmployeeProfile` row at all.
   Consequently Payroll only ever processes FIELD-role users.
 - **One auth mechanism for every role**: `employee_code` + `password_hash`, web and mobile alike.
   No OTP, no separate mPIN for field-force login — both were considered and dropped (ERD Module
@@ -60,12 +69,16 @@ same shape as `health.public.ts`, just with real methods:
 - **Re-login on an already-active device doesn't count against the limit.** Logging in again
   from the same `device_id` just revokes and replaces that device's own session — this is the
   ordinary "token expired, log back in" path, not a new device.
-- **The compliance block is system-set, Admin-only to clear.** `is_blocked` is written by a
-  background job ([`hld/10`](../hld/10-submission-gating-and-compliance-block.md)), never by a
-  person — so there's no `blocked_by`. Clearing it (`unblocked_by`/`unblocked_at`) is restricted
-  to an `ADMIN` user specifically, **not** the blocked user's Nearest Higher Manager, even though
-  that manager is otherwise the Stage-1 approver for everything else this user submits. This is a
-  deliberate carve-out: the block is punitive/compliance-driven, not a routine approval.
+- **The compliance block is system-set, Admin-only to clear.** A background job
+  ([`hld/10`](../hld/10-submission-gating-and-compliance-block.md)) creates a new `ComplianceBlock`
+  row and sets `User.is_blocked = true` — never a person, so there's no `blocked_by` on the row.
+  Clearing it (closing the open row with `unblocked_by`/`unblocked_at`, plus flipping
+  `is_blocked` back to `false`) is restricted to an `ADMIN` user specifically, **not** the blocked
+  user's Nearest Higher Manager, even though that manager is otherwise the Stage-1 approver for
+  everything else this user submits. This is a deliberate carve-out: the block is
+  punitive/compliance-driven, not a routine approval. The close-the-row-and-flip-the-flag pair
+  happens inside a single MongoDB transaction — the first in this codebase — since either
+  succeeding without the other would leave `is_blocked` disagreeing with the block history.
 - **Passwords are hashed, never stored or logged in plain text** — check
   [`../engineering/coding-standards.md#logging`](../engineering/coding-standards.md#logging)
   before adding any log line touching a login request.
@@ -101,9 +114,10 @@ dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-l
 | `POST` | `/api/identity/auth/refresh` | any (via refresh token) | Rotate a session |
 | `POST` | `/api/identity/auth/logout` | any | Revoke the calling session |
 | `POST` | `/api/identity/auth/logout-all` | Admin (on behalf of a user) | Revoke every session for a user — offboarding |
-| `GET` | `/api/identity/users` | Admin, HR (read) | List/search/paginate/filter users |
-| `POST` | `/api/identity/users` | Admin, HR | Create a user — body discriminated on `role`: a FIELD payload accepts the onboarding shape (minimal at creation, `status: pending`); an ADMIN/HR/ACCOUNTANT payload is the short "user master" form, `status: active` immediately. HR may only submit `role: FIELD` (PRD §5.3); non-FIELD creation is Admin-only. |
-| `PATCH` | `/api/identity/users/:id` | Admin, HR | Incremental onboarding update — any of `basicDetails`, `bankDetails`, `designationId`, `payBandId`, `managerId` (each optional per call); `status` is recomputed automatically after each call, not set directly (except `status: 'inactive'` for explicit deactivation) |
+| `GET` | `/api/identity/users` | Admin, HR (read) | List/search/paginate/filter users — summary shape only, no personal/bank details |
+| `GET` | `/api/identity/users/:id` | Admin, HR | Full detail — `User` + `EmployeeProfile` (if any) + the current open `ComplianceBlock` (if any). The only place personal/bank details are ever returned. |
+| `POST` | `/api/identity/users` | Admin, HR | Create a user — `{role, employeeCode, name, password, email?, phone?}`, identical shape for every role now (decision 12's split is about who's allowed to submit which `role`, enforced in the use case, not a field difference). Always writes only `User`; `status: active` for non-FIELD, `pending` for FIELD (no `EmployeeProfile` yet). HR may only submit `role: FIELD` (PRD §5.3); non-FIELD creation is Admin-only. |
+| `PATCH` | `/api/identity/users/:id` | Admin, HR | Incremental onboarding update — any of `basicDetails` (now including `dateOfJoining`), `bankDetails`, `designationId`, `payBandId`, `managerId` (each optional per call); upserts `EmployeeProfile` into existence on the first call. `status` is recomputed automatically after each call, not set directly (except `status: 'inactive'` for explicit deactivation, a direct `User` field toggle) |
 | `POST` | `/api/identity/users/:id/documents` | Admin, HR | Upload a document (`multipart/form-data`, field `file` + `documentType`) to Cloudinary and attach it to the user |
 | `DELETE` | `/api/identity/users/:id/documents/:documentId` | Admin, HR | Remove a document from Cloudinary **and** the user record |
 | `POST` | `/api/identity/users/:id/unblock` | Admin only | Clear a compliance block |

@@ -17,6 +17,84 @@ old one.
 
 ---
 
+## 2026-09-23 — `Route.ta_per_km_rate_override`: a per-route default override for TA
+
+**Decision:** `Route` (Territory, Module 2 — not yet built) gains an optional
+`ta_per_km_rate_override: decimal, nullable` field. `PayBand.ta_per_km_rate` (Module 1) remains
+the default; when a route has this set, it takes precedence for travel on that specific route.
+TA/DA auto-calculation (`hld/06` §2) resolves the rate **per route**, not once for the whole day —
+`ta_amount = sum over routes where CALCULATED of distance_km × (ta_per_km_rate_override ??
+pay_band.ta_per_km_rate)` — since a `DailyPlan` can carry multiple routes, each potentially with
+its own override. Unlike `Route.distance_km`'s `MANUAL_OVERRIDE`, this does **not** reset on a
+waypoint edit (it's a negotiated fact, unrelated to geography) and needs no `_source`/`_status`
+provenance pair — it's simply present or absent.
+
+**Why:** lets Admin set a higher rate for a specific remote/difficult route without creating a
+whole new `PayBand` grade just for it, matching how real per-km reimbursement negotiations
+actually work.
+
+**Consequences:** documentation-only for now — `Territory`/`Route` isn't code yet (roadmap Phase
+2), and TA/DA calculation is Phase 6. Recorded ahead of both landing so neither implements the
+old single-rate-per-day formula.
+
+**Refs:** `docs/erd/02-territory-master.md`, `docs/hld/06-ta-da-auto-calculation.md` §2
+
+---
+
+## 2026-09-23 — Split `User` into a lean account + `EmployeeProfile`/`ComplianceBlock`
+
+**Decision:** **Reverses** (per this log's append-only rule, the two entries below stay as
+history, not edited) both the "Identity's `User` gains onboarding fields..." entry and the
+"compliance block history embedded on `User`" direction from earlier the same day. `User` shrinks
+to a lean account/org-identity record for every role: `employeeCode`, `name`, `email`, `phone`,
+`status`, `roleId`, `passwordHash`, `lastLoginAt`, `isBlocked`. Two new collections take
+everything else:
+
+- **`EmployeeProfile`** — FIELD-only, one per `User`, created **lazily** on the first onboarding
+  `PATCH` (not at `User` creation — `POST /users` never touches it). Holds
+  `designationId`/`payBandId`/`managerId`/`dateOfJoining` (moved off `User` — all four were
+  already FIELD-only in practice) plus the personal/bank/document onboarding bundle from the
+  earlier entry.
+- **`ComplianceBlock`** — one document per block **event**, not a single overwritable set of
+  fields — a second block later in an employee's tenure no longer erases the first one's reason
+  and timestamps. `User.isBlocked` stays as a fast top-level flag; the row is where the detail
+  lives. Retention is **indefinite** — no TTL — matching how the rest of the system treats
+  history (`hld/09`'s FY toggle only ever scopes what's shown, never deletes).
+
+**Why:** `User` had accumulated a pile of fields that are always null for 3 of the 4 roles
+(`ADMIN`/`HR`/`ACCOUNTANT` never touch onboarding data), and compliance-block history is
+open-ended over an employee's whole career — both are exactly the kind of data worth separating
+from an auth-critical record (`passwordHash`, `roleId`) before real data exists, the same
+"decide before it's expensive to change" reasoning as the `Decimal128` money decision. Discussed
+and confirmed along the way: dangling references aren't a new risk this split introduces —
+nothing in this system is ever hard-deleted (`Role`/`Designation`/`PayBand` have no `DELETE`
+endpoint, `User` is soft-deactivated, `UserSession` is soft-revoked) — and the two places
+stale-value drift actually matters financially (`PayrollRun.base_salary`, generated TA/DA
+`Expense` amounts) already have their own documented locked-snapshot rule, unaffected by this.
+
+**Consequences:**
+- `CreateUserInput` simplifies to one shape for every role
+  (`{role, employeeCode, name, password, email?, phone?}`) — `designationId`/`payBandId`/
+  `managerId` are no longer accepted at creation, only via the onboarding `PATCH`. `createUser`
+  goes back to a single-collection write.
+- `unblockUser` now writes to two collections (close the open `ComplianceBlock`, flip
+  `User.isBlocked`) and does so inside **this codebase's first MongoDB transaction**
+  (`TransactionRunnerPort`/`MongooseTransactionRunner`) — every other write in this system remains
+  a single-document update, which MongoDB already makes atomic on its own.
+- `listUsers`'s designation/manager filters and `UserSummary`'s designation/manager fields now
+  require resolving `EmployeeProfile` — handled as a two-phase query (resolve matching `userId`s
+  from `EmployeeProfile` first, then filter `User` by `_id`), not a `$lookup` aggregation —
+  simpler to reason about and sufficient for this filter's low, Admin-driven query volume.
+- A new `GET /api/identity/users/:id` endpoint exists now, since `UserSummary` never carried
+  personal/bank details and nothing else exposed a user's full onboarding profile.
+- `docs/erd/01-identity-hierarchy.md` and `docs/LLD/identity.md` are rewritten to describe the new
+  shape rather than the one from earlier today.
+
+**Refs:** `apps/api/src/modules/identity/domain/{user.entity,employeeProfile.entity,complianceBlock.entity,transactionRunner.port}.ts`,
+`apps/api/src/modules/identity/application/usecases/{createUser,updateUser,unblockUser}.usecase.ts`
+
+---
+
 ## 2026-09-23 — Bootstrap Admin via an interactive seed script, not env vars
 
 **Decision:** **Reverses** the "Bootstrap Admin seeded from env vars, exactly once" entry below,

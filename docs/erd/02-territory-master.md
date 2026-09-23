@@ -28,6 +28,7 @@ erDiagram
         string distance_source "AUTO_CALCULATED, MANUAL_OVERRIDE"
         string distance_status "PENDING, CALCULATED, FAILED"
         timestamp distance_calculated_at "nullable"
+        decimal ta_per_km_rate_override "nullable - overrides the assigned MR's PayBand.ta_per_km_rate for travel on this route - see HLD 06"
         string status "active, inactive"
     }
     ROUTE_ASSIGNMENT {
@@ -49,7 +50,8 @@ erDiagram
 - **Three-level hierarchy, no Area.** `Zone → HQ → Route`, matching the PRD exactly. No intermediate `Area` entity — it was considered and dropped since nothing in the PRD currently needs a grouping level below HQ.
 - **Waypoints stay a single ordered `json` array on `Route`, not a separate table** — but each entry is now a resolved `{label, latitude, longitude, place_id}` object, not a bare label. Admin types each waypoint as text; the coordinates behind it come from a geocoding step at entry time (full flow in HLD 02). Still not normalized into its own table — no requirement yet to render the route on a map; revisit if that need shows up.
 - **`distance_km` carries provenance and status, not just a number.** `distance_source` (`AUTO_CALCULATED`/`MANUAL_OVERRIDE`) records whether Admin's own edit is the current value; `distance_status` (`PENDING`/`CALCULATED`/`FAILED`) gates anything downstream that depends on a real distance — a `Route` can be saved before its distance resolves, but Expense/TA generation must not silently treat a `PENDING`/`FAILED` route as zero distance. Editing waypoints always re-triggers calculation and resets `distance_source` back to `AUTO_CALCULATED`, since a changed route makes any prior manual override stale. Full flow in HLD 02.
-- **Many-to-many MR ↔ Route via `RouteAssignment`.** A route can have multiple MRs (shared coverage) and an MR can cover multiple routes. The join table also gives a lightweight assignment history (`assigned_at`, `status`) instead of silently overwriting a single FK on reassignment.
+- **Many-to-many MR ↔ Route via `RouteAssignment`.** A route can have multiple MRs (shared coverage) and an MR can cover multiple routes. The join table also gives a lightweight assignment history (`assigned_at`, `status`) instead of silently overwriting a single FK on reassignment. Creating a `RouteAssignment` should validate its `user_id` resolves to a `FIELD`-role user via Identity's `isFieldRole` contract method — the same FIELD-only-check pattern Identity itself already uses.
+- **`ta_per_km_rate_override` is a plain nullable field, not a provenance pair like `distance_km`'s.** `PayBand.ta_per_km_rate` (Module 1) is the default; when set, this overrides it for travel on this specific route (e.g. a remote/difficult route negotiated at a higher rate) — added 2026-09-23, `docs/decision-log.md`. Unlike `distance_km`'s `MANUAL_OVERRIDE`, it does **not** reset on a waypoint edit — a negotiated rate is unrelated to the route's geography, so editing waypoints has no bearing on it — and needs no `distance_source`/`distance_status`-style pair, since there's no "auto-calculated" rate to fall out of sync with; it's simply present (use it) or absent (fall back to the pay band). See `hld/06-ta-da-auto-calculation.md` §2 for how this resolves per route when a `DailyPlan` carries more than one.
 - **Doctor/Chemist attachment to routes is deferred.** PRD §5.1 says Admin "attaches Doctors/Chemists to those routes" — that join can't be modeled until those entities exist, so it's added in Module 3.
 
 ## Next
