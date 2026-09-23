@@ -94,6 +94,21 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 The first `--build` compiles the image and takes a few minutes.
 
+## Step 8 — Seed the database (first deploy only)
+
+Server boot does no database writes — `SystemConfig`/`Role` defaults and the first Admin are
+seeded by an explicit script instead (`docs/decision-log.md`), run once inside the now-running
+container:
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/seed.js
+```
+
+It seeds Config/Role defaults (safe to re-run anytime — never overwrites an edited value), then,
+only if no `ADMIN` user exists yet, prompts interactively for the first Admin's details (password
+entry masked, typed twice). `docker compose exec` allocates a terminal for this automatically when
+run from an interactive shell, so the prompts appear normally.
+
 ## Verification
 
 ```bash

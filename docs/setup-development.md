@@ -51,9 +51,8 @@ corepack enable && corepack prepare pnpm@11.18.0 --activate
 pnpm install
 
 cp apps/api/.env.example apps/api/.env
-# edit apps/api/.env — set MONGO_URI to your dev Atlas connection string, JWT_ACCESS_SECRET and
-# JWT_REFRESH_SECRET (openssl rand -base64 48, separately for each), and BOOTSTRAP_ADMIN_* so
-# there's a first Admin to log in as — see the comments in .env.example for all of these.
+# edit apps/api/.env — set MONGO_URI to your dev Atlas connection string, and JWT_ACCESS_SECRET/
+# JWT_REFRESH_SECRET (openssl rand -base64 48, separately for each) — see .env.example's comments.
 
 pnpm dev            # apps/api, watch mode, :3000
 ```
@@ -67,16 +66,25 @@ curl localhost:3000/api/health
 `200` means healthy. `503` means the API is up but a dependency is down — the `dependencies`
 array in the response names which one.
 
-Then confirm the bootstrap Admin was seeded and can log in:
+Server boot does **no** database writes — Config defaults, the fixed Role rows, and the first
+Admin are all seeded by an explicit script, not implicitly on startup (`docs/decision-log.md`).
+Run it once, in a separate terminal (the server can be running or not, either works):
+
+```bash
+pnpm --filter @greynote/api seed
+```
+
+It seeds `SystemConfig`/`Role` defaults (safe to re-run anytime — never overwrites an edited
+value), then, only if no `ADMIN` user exists yet, prompts you for one interactively (password
+entry is masked, typed twice to confirm). Then confirm it can log in:
 
 ```bash
 curl -s -X POST localhost:3000/api/identity/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"employeeCode":"<your BOOTSTRAP_ADMIN_EMPLOYEE_CODE>","password":"<your BOOTSTRAP_ADMIN_PASSWORD>","deviceId":"local","deviceName":"dev","deviceModel":"n/a","platform":"WEB"}'
+  -d '{"employeeCode":"<what you entered>","password":"<what you entered>","deviceId":"local","deviceName":"dev","deviceModel":"n/a","platform":"WEB"}'
 ```
 
-A `200` with `accessToken`/`refreshToken` means it worked — unset the `BOOTSTRAP_ADMIN_*` vars
-afterward, they're only needed once (see `docs/decision-log.md`).
+A `200` with `accessToken`/`refreshToken` means it worked.
 
 That's the whole setup. `pnpm dev` runs `tsx watch src/server.ts` — a saved file reloads in
 under a second, no rebuild.
@@ -167,10 +175,10 @@ guards against (a workspace package bundled incorrectly builds clean and crashes
 apps/api/.env`, then set it. Every variable is parsed through Zod at boot
 (`apps/api/src/config/env.ts`), so a missing one fails immediately with its name.
 
-**No ADMIN user exists and BOOTSTRAP_ADMIN_\* env vars are unset** (a `logger.fatal` line, not a
-crash — the process still starts and serves `/api/health`)
-Set the five `BOOTSTRAP_ADMIN_*` vars in `.env` and restart. See `docs/decision-log.md` for why
-this is a one-time env-var seed rather than a permanent second creation path.
+**Login fails with `401` even though I set up `.env` correctly**
+Nothing seeds the database on boot anymore (`docs/decision-log.md`). Run
+`pnpm --filter @greynote/api seed` — it seeds Config/Role defaults and, if no `ADMIN` user exists
+yet, prompts you to create one interactively.
 
 **`MongooseServerSelectionError` / connection timeout**
 Almost always one of: the Atlas connection string's password is wrong or URL-unescaped

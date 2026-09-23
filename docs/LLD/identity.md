@@ -88,6 +88,11 @@ Summary at LLD depth:
 - **The device-limit check reads its threshold from `Config` at request time** (`Config`, Tier 0),
   never hardcoded — consistent with the tier order (`hld/03-system-architecture.md`).
 
+The 4 fixed `Role` rows and the very first `ADMIN` user are **not** created through this HTTP
+surface at all — no endpoint for either exists. Both are seeded by `apps/api/src/scripts/seed.ts`,
+a deploy-time script an operator runs explicitly (`pnpm --filter @greynote/api seed` / `node
+dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-log.md`.
+
 ## HTTP surface
 
 | Method | Path | Role | Purpose |

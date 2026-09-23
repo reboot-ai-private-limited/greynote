@@ -17,6 +17,44 @@ old one.
 
 ---
 
+## 2026-09-23 — Bootstrap Admin via an interactive seed script, not env vars
+
+**Decision:** **Reverses** the "Bootstrap Admin seeded from env vars, exactly once" entry below,
+from the same day. `BOOTSTRAP_ADMIN_EMPLOYEE_CODE`/`_NAME`/`_EMAIL`/`_PHONE`/`_PASSWORD` are
+removed from `env.ts`'s schema entirely. In their place, `apps/api/src/scripts/seed.ts` — a
+second composition root alongside `container.ts`, exactly the shape
+`docs/engineering/module-anatomy.md` anticipated for "a worker process, a script" — seeds
+`SystemConfig` defaults and the 4 fixed `Role` rows, then, only if no `ADMIN` user exists yet,
+**interactively prompts** an operator for the first Admin's details (password entry masked, typed
+twice) rather than reading them from environment configuration. Run via `pnpm --filter
+@greynote/api seed` in dev, or `node dist/scripts/seed.js` inside the running container in prod
+(`docker compose exec`). `buildContainers()` in `container.ts` no longer calls any seed method —
+server boot does zero DB writes as a side effect of starting.
+
+**Why:** the env-var approach meant a plaintext admin password had to sit in `apps/api/.env.prod`
+for the entire life of a deployment, readable by anything with host/container access, long after
+it served its one purpose. It also meant every server process did DB write queries on boot as an
+implicit side effect of starting up. Neither is a correctness bug — the seeding itself was
+already idempotent (`$setOnInsert` for Config, existence-checks for Role and the bootstrap Admin),
+so a restart never clobbered an Admin's edits — but "seed the database" deserves to be an
+explicit, operator-triggered action, the same way a schema migration is, not invisible behavior
+baked into `npm start`.
+
+**Consequences:** `apps/api/.env.example` and `.env.prod.example` lose the `BOOTSTRAP_ADMIN_*`
+block. A fresh environment (dev or prod) needs one manual `pnpm --filter @greynote/api seed` /
+`node dist/scripts/seed.js` run before the first login attempt — documented in
+`setup-development.md` and `manual_deploy.md`. `esbuild.config.mjs` gained a second entry point
+(`src/scripts/seed.ts` → `dist/scripts/seed.js`) so the script ships in the prod image alongside
+`dist/server.js`. New runtime dependency: `prompts` (masked password input) — a real
+`dependencies` entry, not `devDependencies`, since the script must run from the prod image's
+`pnpm deploy --prod` node_modules, not just via `tsx` in dev.
+
+**Refs:** `apps/api/src/scripts/seed.ts`, `apps/api/src/container.ts`,
+`apps/api/src/modules/identity/identity.container.ts`,
+`docs/engineering/module-anatomy.md`
+
+---
+
 ## 2026-09-23 — Identity's `User` gains onboarding fields, a `pending` status, and defers Zone/HQ
 
 **Decision:** `User` (ERD Module 1) grows beyond `docs/erd/01-identity-hierarchy.md`'s original
