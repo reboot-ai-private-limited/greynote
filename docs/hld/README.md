@@ -13,3 +13,4 @@ High-level design, built the same way the ERD was — one cross-cutting mechanis
 | 7 | Payroll Generation Flow | [07-payroll-generation.md](./07-payroll-generation.md) | Done |
 | 8 | Target Rollup Query | [08-target-rollup.md](./08-target-rollup.md) | Done |
 | 9 | Financial Year Toggle | [09-financial-year-toggle.md](./09-financial-year-toggle.md) | Done |
+| 10 | Submission Gating & Compliance Block | [10-submission-gating-and-compliance-block.md](./10-submission-gating-and-compliance-block.md) | Done |

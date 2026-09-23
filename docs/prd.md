@@ -86,11 +86,12 @@ The core operational flow for the field force. All menu items open dedicated pag
 *   **Dr Call:** View list / Add new. Select Doctor → Select Working Type (`Field Work`, `Meeting`, `Conference`, `Strike`) → Work With → Remarks → Doctor Sample Provided (Yes/No, Name, Qty array) → Submit. The app captures the MR's GPS location at submission for the location-verification check described in Section 5.1.
 *   **Dr Followup:** Select Doctor → Add Remarks.
 *   **Chemist Call & Followup:** Similar flow to Doctor calls (including Working Type and location capture), tailored for primary/secondary order taking.
+*   **Gated on today's Tour Plan:** Dr Call, Dr Followup, Chemist Call, Chemist Followup, and Expenses can't be logged until today's Daily Plan (Tour Plan) has been Manager-Approved — see Section 7.5. A Daily Plan can still be *saved* offline for UX; both its Submit and the DCR's Final Submission below require an active connection.
 *   **Doctor Samples:** Samples are not something the MR logs freely — Admin allocates a specific quantity of a product to a specific Doctor from the Web Portal. Only the MR(s) directly assigned to that doctor (Section 5.1) can see the remaining allocation and draw against it via the Dr Call's "Doctor Sample Provided" field.
 *   **Add Doctor:** Capture Category, Name, Address, Email, Specialty, and Qualification (class).
 *   **Expenses:** Log daily transit, meals, or miscellaneous costs.
 *   **Leave Management:** Request leave or view balances.
-*   **Summary & Final Submission:** The final daily step. Aggregates all Dr Calls, Chemist Calls, Followups, added Doctors, and Expenses into a single view. Submitting this syncs the offline payload to the server.
+*   **Summary & Final Submission:** The final daily step. Aggregates all Dr Calls, Chemist Calls, Followups, added Doctors, and Expenses into a single view. Submitting this syncs the offline payload to the server, and — like Tour Plan Submit — requires an active connection at the moment of submission.
 
 #### B. Marketing
 *   **Sales & Orders:** Capture Stockist/Distributor Orders and Chemist Orders as a standalone action (not tied to a specific Chemist Call), itemized by product. Orders move through a Placed → Done/Cancelled lifecycle. Distributor and Chemist Monthly Opening/Closing stock counts are also captured here; Secondary Sales figures (Section 3 glossary) are derived from these counts rather than logged directly. None of this requires manager approval.
@@ -138,6 +139,9 @@ Every employee — including managers themselves (ASM, RSM, ZSM, NSM) — submit
 ### 7.4 Financial Settlement
 Once Admin has the approved expense record, it becomes available in the Accountant's web portal for final payout processing and inclusion in the PAYROLL sheet. As superuser, Admin can also perform this financial settlement step directly.
 
+### 7.5 Compliance Blocking
+If a field employee goes without submitting DCR for more than `DCR_MISS_GRACE_DAYS` (Section 8) and has no Manager-Approved Leave covering the missed day(s), the system automatically blocks them from further Daily/Monthly Plan submission, DCR Final Submission, and logging any new Dr Call, Dr Followup, Chemist Call, Chemist Followup, or Expense. They can still request Leave (e.g. to retroactively cover the gap) and view historical reports. Unlike every other approval/rejection in this section, this block can **only be lifted by Admin** — not the Nearest Manager — since it's a compliance action rather than a routine approval.
+
 ---
 
 ## 8. Configurable Business Rules
@@ -148,5 +152,6 @@ A number of operational thresholds are Admin-editable at runtime rather than har
 | Daily Plan submission cutoff | 10:00 AM | Time by which the day's Daily Plan must be submitted. |
 | Monthly Plan submission cutoff | 28th (of the prior month) | Deadline for submitting next month's day-by-day Tour Plan. |
 | Max concurrent active devices (Field role) | 2 | See Section 2 — login is blocked, not auto-evicted, beyond this. |
+| DCR-miss grace period before compliance block | 1 day | See Section 7.5 — days without a submitted DCR and without covering approved Leave, before the account is auto-blocked. |
 | Location-verification radius (Dr Call / Chemist Call) | TBD (e.g. 200m) | Allowed GPS deviation from a Doctor/Chemist's registered location before a call is flagged. |
 | Weekly off day | Sunday | Treated as a non-working day platform-wide without being listed as an individual Holiday. |

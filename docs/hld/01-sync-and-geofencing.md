@@ -13,6 +13,8 @@ The mobile app's local DB mirrors two different kinds of data, handled different
 ### 1.2 The submit boundary is explicit
 Per PRD §2, nothing transactional leaves the device automatically. A record only moves from `DRAFT` to `QUEUED` when the user taps "Submit" (per-call, or the DCR's "Final Submission"). Network availability is checked at that point and continuously afterward for anything still `QUEUED`.
 
+**Exception: `DailyPlan`/`MonthlyPlan`/`DCR` Submit requires a live connection at tap time.** Unlike an individual `DoctorCall`/`ChemistCall`/`Expense`, which queue normally and sync whenever connectivity returns, the Submit button on these three envelopes is disabled offline — there's no `QUEUED` fallback for the submit action itself (saving as `DRAFT` is still fully offline-capable). See HLD 10 for why: Submit is what triggers the DailyPlan-approval gate and the missed-DCR compliance check, both of which need a synchronous server answer rather than an eventually-consistent one.
+
 ### 1.3 Push flow
 
 ```mermaid

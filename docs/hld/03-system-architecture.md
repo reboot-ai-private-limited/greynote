@@ -5,7 +5,7 @@ How the Modular Monolith (PRD §2) is actually structured in code, and how the 9
 ## 1. Stack
 
 - **Backend:** Node.js + TypeScript + Express, in a pnpm/Turborepo monorepo (`apps/api`, `packages/config`).
-- **Database:** MongoDB. No ODM (e.g. no Mongoose) — the native driver sits behind repository **ports**, same as `HealthProbePort` today, keeping domain entities framework-agnostic. Schema validation lives in the domain/application layers, not in a schema-aware ODM layer.
+- **Database:** MongoDB via **Mongoose**. Mongoose schemas/models are defined and used only inside each module's `infrastructure/` adapter, implementing the same repository **ports** used today (`HealthProbePort`-shaped) — `domain/` and `application/` never import Mongoose, so domain entities stay plain TS types and framework-agnostic. Mongoose's own schema validation is the primary validation layer at the persistence boundary.
 - **Mobile:** React Native + SQLite for the local offline store (op-sqlite or a similar sync-friendly layer, with Drizzle for local query building). A `packages/shared` workspace package holds types/validation shared between `apps/api` and the future `apps/mobile`.
 - **External APIs:** Geocoding/Places + Directions (HLD 2).
 

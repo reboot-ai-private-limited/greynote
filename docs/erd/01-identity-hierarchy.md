@@ -36,6 +36,11 @@ erDiagram
         uuid manager_id FK "self-referencing, nullable - null = top of chain"
         string password_hash
         timestamp last_login_at
+        boolean is_blocked "default false - see HLD 10, compliance block"
+        string blocked_reason "nullable, e.g. DCR_MISSED_NO_LEAVE"
+        timestamp blocked_at "nullable"
+        uuid unblocked_by FK "nullable, self-referencing - must be an ADMIN user"
+        timestamp unblocked_at "nullable"
     }
 
     USER_SESSION {
@@ -56,6 +61,7 @@ erDiagram
     DESIGNATION |o--o{ USER : "designation_id (optional)"
     PAY_BAND |o--o{ USER : "pay_band_id (optional)"
     USER |o--o{ USER : "manager_id (reports to, optional)"
+    USER |o--o{ USER : "unblocked_by (Admin, optional)"
     USER ||--o{ USER_SESSION : "device sessions"
 ```
 
@@ -67,6 +73,7 @@ erDiagram
 - **One auth mechanism.** `password_hash` is shared by every role, web and mobile alike. mPIN was considered for field-force mobile login and dropped — not needed.
 - **Access tokens are stateless (short-lived JWTs) — not persisted.** Only refresh tokens are stored, one row per logged-in device, in `UserSession`. This is also what makes per-device revocation and the device-count limit possible.
 - **Device limit: FIELD role only, hard-blocked at login.** A field employee logging in on a device beyond the limit gets an explicit "log out from another device first" rejection — no silent auto-kick of an older session. Web-portal roles (Admin/HR/Accountant) have no device limit. The limit value itself (`MAX_ACTIVE_DEVICES_FIELD`, default `2`) lives in the `SystemConfig` rule table (Module 5), not hardcoded here — enforced by counting a user's `UserSession` rows where `revoked_at IS NULL AND expires_at > now()`.
+- **Compliance block (`is_blocked`) is system-triggered but Admin-only to clear.** A background job (HLD 10) sets `is_blocked`/`blocked_reason`/`blocked_at` — there's no `blocked_by`, since no person initiates it. Clearing it (`unblocked_by`/`unblocked_at`) is restricted to an `ADMIN`-role user, never the Nearest Manager, even though the Nearest Manager is otherwise the Stage 1 approver for everything this user submits (PRD §7.1) — this is a deliberate carve-out because the block is punitive/compliance-driven, not a routine approval.
 
 ## Next
 
