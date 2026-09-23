@@ -1,0 +1,140 @@
+# Marketing
+
+Visuals (e-detailing content), Campaigns, and Targets (PRD §6.2.B, ERD
+[Module 8](../erd/08-marketing.md)) — the module behind the mobile app's "Marketing" home-tab
+quadrant and a manager's target-vs-achieved reporting.
+
+## What it owns
+
+- **`Visual`** — e-detailing content, optionally tied to a `Product` (nullable FK — general/
+  branding visuals have no single product behind them), uploaded by Admin.
+- **`Campaign`** — company-wide, no Zone/HQ scoping. Every active campaign is visible to every
+  field worker; there is no `CampaignZone`/`CampaignHQ` join table the way `Holiday` (Module 7)
+  has one.
+- **`Target`** — per `User` per month, optionally narrowed by `Product` and/or `Campaign` (both
+  nullable FKs). One shape covers a general monthly target, a product-specific target, and a
+  campaign-tied target.
+
+Full fields: [`../erd/08-marketing.md`](../erd/08-marketing.md).
+
+**No approval workflow.** Visuals and Campaigns are Admin-authored; Targets are set by Admin or a
+manager for someone in their reporting line. None of the three is submitted-for-approval —
+Marketing does not call the [Approval Workflow Engine](../hld/05-approval-workflow-engine.md) at
+all, unlike Planning or Field Activity.
+
+## Public contract
+
+Following the `.public.ts` pattern in
+[`../engineering/module-anatomy.md`](../engineering/module-anatomy.md) (shape:
+`apps/api/src/modules/health/health.public.ts`), `MarketingPublicContract` exposes read access to
+active Visuals/Campaigns for the mobile app's Marketing tab, and a Target-rollup read for the
+Team tab / manager dashboard. It does not need to expose a write surface to other modules — every
+write to `Visual`/`Campaign`/`Target` originates from Marketing's own `interface/` layer (Admin
+or manager actions), not from another module reacting to something.
+
+## Write-path rules & invariants
+
+- **`Visual.product_id` and `Target.product_id`/`campaign_id` are independently nullable** — a
+  write validates a non-null FK resolves via Field Master Data's (Product) or this module's own
+  (Campaign) contract, but never requires one.
+- **`Target` has no uniqueness constraint stopping two rows for the same `(user_id, month,
+  product_id, campaign_id)`** per the ERD as written — if the intent is "at most one Target per
+  that combination," add the constraint before this module's first build; the ERD doc doesn't
+  state one either way, so treat this as a question to close in review, not an assumption to
+  silently make.
+- **`Target.created_by`** — the ERD notes "Admin or manager who set it." A manager setting a
+  Target is presumably limited to their own reports (mirroring the approval engine's
+  nearest-manager scoping elsewhere), but Marketing has no approval engine to inherit that check
+  from — this module's own write path must enforce "a manager can only set a Target for someone
+  in their downline" itself, via Identity's downline contract (see below).
+- **`achieved_amount` is never stored.** Per the ERD's explicit decision: it's derived by
+  aggregating `OrderItem` rows (Sales & Orders, Module 6) for the matching user/month/product,
+  computed at read time — never a column that can drift out of sync with the orders it's summing.
+
+## Target rollup
+
+Full design: [`../hld/08-target-rollup.md`](../hld/08-target-rollup.md). Summary at LLD depth:
+
+A manager's **effective target** for a month (± product/campaign filter) is their own `Target`
+row, if any, plus the sum of every `Target` row belonging to their downline. The downline walk
+reuses Identity's `contract.getDownline(managerId)` — the same `$graphLookup` built for the
+Approval Engine's read-only-visibility rule (HLD 5) — flattening direct and indirect reports into
+one set, since rollup doesn't need the distinction the approval engine cares about. The achieved
+side sums `OrderItem` amounts for `{managerId} ∪ downlineIds` over the same scope, via Sales &
+Orders' contract.
+
+**Computed live, not cached or materialized**, same reasoning as HLD 5's read-only visibility:
+the hierarchy is shallow (≤5 levels) and a sum over a handful of rows is cheap. HLD 8 flags a
+nightly-materialized cache as the escape hatch if a Target dashboard's check-frequency ever makes
+this a real load concern — not needed at first build.
+
+### Open question this module's build must resolve: the Sales dependency crosses tiers sideways
+
+`hld/08-target-rollup.md`'s sequence diagram has Marketing call **Sales & Orders'**
+`contract.sumOrderAmount(...)` directly. But `apps/api/.dependency-cruiser.cjs`'s `MODULE_TIERS`
+places `sales` and `marketing` in the **same tier** (Tier 4:
+`['field-activity', 'sales', 'marketing']`), and same-tier imports are forbidden by the boundary
+rules just as upward ones are (see
+[`../engineering/boundaries-and-enforcement.md`](../engineering/boundaries-and-enforcement.md)) —
+a genuine same-tier dependency is a sign one of the two modules is mis-tiered, not a case to
+special-case around.
+
+This needs resolving **before** Phase 6 implementation, not discovered when `lint:deps` fails on
+it. Options, roughly in order of how little they disturb the existing tier graph:
+
+1. **Move `sales` below `marketing`** in `MODULE_TIERS` (Sales & Orders doesn't appear to depend
+   on Marketing for anything, based on the ERD/HLD read so far — confirm before doing this).
+2. **Marketing computes the achieved figure from a read model Sales publishes**, rather than
+   calling Sales synchronously — e.g. Sales writes a denormalized per-user/month order-total
+   Field Activity or a shared collection reads, sidestepping the direct contract call.
+3. **Split target rollup's "achieved" computation into its own reporting layer** above both
+   modules, rather than having either call the other.
+
+Record whichever is chosen in [`../decision-log.md`](../decision-log.md) when this phase starts.
+
+## HTTP surface
+
+| Method | Path | Role | Purpose |
+|---|---|---|---|
+| `POST` | `/api/marketing/visuals` | Admin | Upload/create a Visual |
+| `GET` | `/api/marketing/visuals` | Admin, FIELD | List active Visuals, optionally filtered by product |
+| `PATCH` | `/api/marketing/visuals/:id` | Admin | Update status (active/inactive) |
+| `POST` | `/api/marketing/campaigns` | Admin | Create a Campaign |
+| `GET` | `/api/marketing/campaigns` | Admin, FIELD | List Campaigns, optionally filtered by status |
+| `PATCH` | `/api/marketing/campaigns/:id` | Admin | Update status (active/inactive/completed) |
+| `POST` | `/api/marketing/targets` | Admin, manager (FIELD) | Set a Target for self or a downline member |
+| `GET` | `/api/marketing/targets/:userId` | Admin, manager (FIELD, own downline), self | Effective target + achieved, for a month |
+
+## Edge cases
+
+- **A manager's rollup when a downline member has no Target set.** That member contributes `0`
+  to the sum, not an error and not an exclusion — the rollup is a sum over whatever rows exist,
+  not a completeness check.
+- **A `Target` scoped to a `Product` that's later discontinued/deactivated in Field Master Data.**
+  The Target row and its historical `achieved_amount` computation must keep resolving against
+  past `OrderItem` rows for that product — deactivating a Product must not make past Targets
+  un-renderable. Validate the FK on write, not on every read.
+- **A `Visual` with no `Product` tie.** Renders in the general/company-wide section of the
+  Visuals list rather than being excluded — this is the documented purpose of the nullable FK,
+  not a degraded case.
+- **A downline walk during an org change.** If a manager's `manager_id` chain changes mid-month
+  (a transfer), the rollup reflects the **current** hierarchy at read time, not the hierarchy as
+  of when a Target was set — consistent with "computed live, not cached."
+
+## Dependencies
+
+- **Identity** (Tier 1) — `contract.getDownline(managerId)` for rollup, and resolving
+  `Target.user_id`/`created_by` against real users.
+- **Field Master Data** (Tier 3) — resolving `Visual.product_id`/`Target.product_id` against real
+  Products.
+- **Sales & Orders** (Tier 4, same tier — see the open question above) — `achieved_amount`
+  aggregation from `OrderItem`.
+
+## Deliberately deferred
+
+- Regional/Zone-scoped campaigns (`CampaignZone`/`CampaignHQ`-style join table) — explicitly
+  ruled out for the first build by the ERD; revisit only if a real requirement appears.
+- A materialized/cached rollup — the live query is the first build; the nightly-cache escape
+  hatch from HLD 8 is not built unless load actually demands it.
+- Any notion of a Target "status" (met/missed) beyond rendering `effective_target` alongside
+  `achieved_amount` — PRD doesn't ask for a stored verdict, only the two numbers.

@@ -1,0 +1,133 @@
+# Identity
+
+The Tier 1 module: who a user is, what they're allowed to do, and who they report to. Every
+other module depends on it, directly or through the Approval Workflow Engine — see PRD §4
+(personas), §5.2 (Designation/Pay Band), and §7.1 (approval routing). Full schema:
+[`../erd/01-identity-hierarchy.md`](../erd/01-identity-hierarchy.md).
+
+## What it owns
+
+- **`Role`** — `ADMIN`, `HR`, `ACCOUNTANT`, `FIELD`. One row per role name.
+- **`Designation`** — `MR`, `ASM`, `RSM`, `ZSM`, `NSM`, with a `level` used to validate the
+  reporting chain. FIELD-role only.
+- **`PayBand`** — `G1`/`G2`/`G3`, carrying `base_salary`, `ta_per_km_rate`, `da_amount`. FIELD-role
+  only; feeds TA/DA auto-calculation ([`hld/06`](../hld/06-ta-da-auto-calculation.md)) and Payroll
+  ([`payroll.md`](payroll.md)).
+- **`User`** — the account: `employee_code`, `password_hash`, role/designation/pay-band FKs, a
+  self-referencing `manager_id` (single-manager tree, no separate Team table — a manager's
+  downline is derived by walking it, never stored separately), and the compliance-block fields
+  (`is_blocked`, `blocked_reason`, `blocked_at`, `unblocked_by`, `unblocked_at`).
+- **`UserSession`** — one row per logged-in device: `device_id`, `refresh_token_hash`,
+  `issued_at`/`expires_at`/`last_active_at`/`revoked_at`. This is what makes per-device
+  revocation and the device-count limit possible; access tokens themselves are never persisted.
+
+## Public contract
+
+`IdentityPublicContract` (`identity.public.ts`), the only thing another module may import —
+same shape as `health.public.ts`, just with real methods:
+
+- `login(employeeCode, password, device)` / `refresh(refreshToken)` / `logout(refreshToken)` —
+  the auth flows below, exposed for `interface/` to call, not typically consumed by other
+  modules directly.
+- `getUserSummary(userId)` — id, name, role, designation, manager id. What most other modules
+  need for display or authorization checks without pulling the whole entity.
+- **`getManagerChain(userId)`** — walks `manager_id` upward and returns the ordered chain: the
+  Nearest Higher Manager first, then everyone above them, up to the top (`manager_id: null`).
+  This is Identity's most-consumed method: the Approval Workflow Engine
+  ([`hld/05`](../hld/05-approval-workflow-engine.md), [`roadmap.md`](../roadmap.md) phase 3) calls
+  it to resolve both the Stage-1 approver (chain[0]) and the read-only-visibility set (chain[1:])
+  for every approvable submission in Planning, Field Activity and Marketing. Returning the full
+  chain rather than just the nearest manager means the approval engine never has to call back
+  into Identity recursively per level.
+- `isFieldRole(userId)` / `getPayBandRates(userId)` — used by TA/DA auto-calculation and Payroll.
+- `getActiveDeviceCount(userId)` — used by the login flow itself, exposed in case a future admin
+  screen wants to show a user's active sessions without duplicating the count logic.
+
+## Write-path rules & invariants
+
+- **Designation and Pay Band are `null` for non-FIELD roles**, enforced at write time, not just
+  by convention — creating an `ADMIN`/`HR`/`ACCOUNTANT` user with either set is rejected.
+  Consequently Payroll only ever processes FIELD-role users.
+- **One auth mechanism for every role**: `employee_code` + `password_hash`, web and mobile alike.
+  No OTP, no separate mPIN for field-force login — both were considered and dropped (ERD Module
+  1's design notes).
+- **Device limit is FIELD-role only, and it blocks rather than evicts.** A field employee's
+  login beyond `MAX_ACTIVE_DEVICES_FIELD` (read from `Config`, default `2`) is rejected with
+  `409` and an explicit "log out from another device first" message — never a silent kick of the
+  oldest session (PRD §2). Web-portal roles have no limit at all; the check doesn't run for them.
+- **Re-login on an already-active device doesn't count against the limit.** Logging in again
+  from the same `device_id` just revokes and replaces that device's own session — this is the
+  ordinary "token expired, log back in" path, not a new device.
+- **The compliance block is system-set, Admin-only to clear.** `is_blocked` is written by a
+  background job ([`hld/10`](../hld/10-submission-gating-and-compliance-block.md)), never by a
+  person — so there's no `blocked_by`. Clearing it (`unblocked_by`/`unblocked_at`) is restricted
+  to an `ADMIN` user specifically, **not** the blocked user's Nearest Higher Manager, even though
+  that manager is otherwise the Stage-1 approver for everything else this user submits. This is a
+  deliberate carve-out: the block is punitive/compliance-driven, not a routine approval.
+- **Passwords are hashed, never stored or logged in plain text** — check
+  [`../engineering/coding-standards.md#logging`](../engineering/coding-standards.md#logging)
+  before adding any log line touching a login request.
+
+## Auth & session design
+
+Full sequence diagrams: [`hld/04-authentication-and-sessions.md`](../hld/04-authentication-and-sessions.md).
+Summary at LLD depth:
+
+- **Access token**: short-lived JWT (~15 min), stateless — verified per request by signature and
+  expiry, no DB lookup.
+- **Refresh token**: long-lived opaque random string, stored only as a hash
+  (`refresh_token_hash`) on its `UserSession` row.
+- **Rotation + reuse detection**: every refresh revokes the old `UserSession` row and issues a
+  new one for the same device. A refresh token presented after it's already been rotated is
+  treated as theft and revokes **every** session for that user, not just the one in use.
+- **Logout** revokes one `UserSession` row (`revoked_at = now()`). Admin can force-revoke every
+  row for a user in one call — the same mechanism, not a separate feature, useful for
+  offboarding.
+- **The device-limit check reads its threshold from `Config` at request time** (`Config`, Tier 0),
+  never hardcoded — consistent with the tier order (`hld/03-system-architecture.md`).
+
+## HTTP surface
+
+| Method | Path | Role | Purpose |
+|---|---|---|---|
+| `POST` | `/api/identity/auth/login` | any | `{employee_code, password, device_id, device_name, device_model, platform}` → tokens, or `409` at the device limit |
+| `POST` | `/api/identity/auth/refresh` | any (via refresh token) | Rotate a session |
+| `POST` | `/api/identity/auth/logout` | any | Revoke the calling session |
+| `POST` | `/api/identity/auth/logout-all` | Admin (on behalf of a user) | Revoke every session for a user — offboarding |
+| `GET` | `/api/identity/users` | Admin, HR (read) | List/search users |
+| `POST` | `/api/identity/users` | Admin, HR | Create a user (HR: field-force only, per PRD §5.3) |
+| `PATCH` | `/api/identity/users/:id` | Admin, HR | Update role/designation/pay-band/manager |
+| `POST` | `/api/identity/users/:id/unblock` | Admin only | Clear a compliance block |
+| `GET`/`POST`/`PATCH` | `/api/identity/roles`, `/designations`, `/pay-bands` | Admin | Master-data CRUD |
+
+## Edge cases
+
+- **A 3rd concurrent FIELD-role device login** → `409`, the documented prompt, no session
+  created. Retrying from an already-active device still succeeds (re-login path).
+- **A manager with no manager above them** (`manager_id: null`, the NSM-equivalent top of the
+  chain) — `getManagerChain` returns an empty chain, and their own submissions route straight to
+  Admin per PRD §7.1.4's top-of-chain exception. The approval engine, not Identity, decides what
+  an empty chain means; Identity just reports the fact.
+- **An Admin/HR/Accountant user with a `designation_id` or `pay_band_id` set** — rejected at
+  write time, not silently ignored.
+- **A blocked user attempting login** — login itself should still succeed (blocking affects
+  *submission*, per `hld/10`, not authentication) unless PRD/HLD later says otherwise; this LLD
+  flags it because `hld/10`'s exact interaction with login isn't fully specified yet — confirm
+  before implementing.
+- **A refresh token reuse after rotation** — revokes every session for the user, including the
+  device that's currently, legitimately, mid-use. This is the intended trade-off (`hld/04` §1),
+  not a bug to work around.
+
+## Dependencies
+
+None upstream — Tier 1, the lowest real module. Depends only on `Config` (Tier 0) for the
+device-limit value.
+
+## Deliberately deferred
+
+- Self-service password reset (nothing in the PRD specifies one; likely Admin-assisted only for
+  the first build).
+- Any second factor beyond password — considered and dropped for mPIN specifically; not
+  reconsidered here.
+- Session-list / "log out from here" self-service UI — the API (`logout-all`) supports the
+  underlying mechanism, but a user-facing device-management screen isn't in PRD scope for phase 1.

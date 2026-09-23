@@ -1,0 +1,32 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PRODUCTION — the API, built the way a deployed host builds it.
+#
+#   cp apps/api/.env.prod.example apps/api/.env.prod   # then edit it
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# There is no `mongo` service here. MongoDB is Atlas-hosted in every environment
+# (docs/decision-log.md, 2026-09-23) — apps/api/.env.prod's MONGO_URI is an Atlas connection
+# string, and the deploy host's egress IP must be allowlisted on that Atlas project first; see
+# docs/manual_deploy.md.
+#
+# Note what is also NOT here yet: `web`. apps/web (Next.js admin portal) is not scaffolded —
+# see docs/roadmap.md phase 9. This file grows a `web` service, its own Dockerfile and build-arg
+# wiring the same shape as ../driverzone/docker-compose.prod.yml's `web` service, once it lands.
+#
+# On a real host, nginx terminates TLS in front of api:3000 — see
+# docs/engineering/build-and-deploy.md.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file: [apps/api/.env.prod]
+    ports: ['3000:3000']
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
+      interval: 15s
+      timeout: 5s
+      retries: 5

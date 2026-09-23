@@ -1,0 +1,24 @@
+# The Docker build context is the repo root (see apps/api/Dockerfile). None of this needs to
+# reach the daemon: node_modules is reinstalled inside the image from the lockfile, build output
+# is regenerated, docs are never shipped, and a stray .env must never end up baked into a layer.
+
+**/node_modules
+**/dist
+**/.turbo
+**/.next
+
+docs
+*.md
+!apps/**/README.md
+
+.git
+.gitignore
+
+.env
+.env.*
+!.env.example
+!**/.env.*.example
+
+.vscode
+.idea
+*.log
