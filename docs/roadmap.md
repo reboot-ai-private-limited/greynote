@@ -25,11 +25,18 @@ must land before the module that needs it.
 
 [`LLD/identity.md`](LLD/identity.md) · [`hld/04-authentication-and-sessions.md`](hld/04-authentication-and-sessions.md)
 
-- `User`, `Role`, `Designation`, `PayBand` (ERD Module 1)
-- Login: token model (access + refresh), `UserSession` per device
+- `User`, `Role`, `Designation`, `PayBand` (ERD Module 1) — **done**
+- Login: token model (access + refresh), `UserSession` per device — **done**
 - The 2-concurrent-device limit for FIELD roles — blocked with a prompt, never silent eviction
-  (PRD §2)
-- Admin/HR/Accountant have no device limit
+  (PRD §2) — **done**
+- Admin/HR/Accountant have no device limit — **done**
+
+**Status (2026-09-24): done against the PRD.** Unit tests cover login, refresh, logout,
+logout-all and the auth middleware, and a live run against the dev API passed 32/32 checks for
+every role (login, role gating, FIELD-only device limit, refresh rotation and reuse detection,
+logout, Admin revoke-all). The client's rules propose OTP login, a 1-device limit and Admin
+approval for new devices instead; that's question group A in
+[`client-sign-off.md`](client-sign-off.md), and may reopen this phase.
 
 Everything past this phase needs a logged-in, role-known user, so it goes first and alone —
 there is no module to parallelize it against yet.
@@ -37,6 +44,25 @@ there is no module to parallelize it against yet.
 **Done when:** every role can log in and refresh a session, a 3rd concurrent FIELD-role device
 login is rejected with the documented prompt (not silently evicting device 1), and the JWT/
 session design in `hld/04` has full test coverage.
+
+## Sign-off gate — client business rules
+
+[`client-sign-off.md`](client-sign-off.md)
+
+Not a build phase. The client's `RULES BY GREYNOTE.docx` is still a questionnaire, and its §31
+lists the rules that "cannot be changed casually after development" — most unanswered. Send
+`client-sign-off.md` now and collect answers **before** the phase each group feeds:
+
+| Group | Blocks |
+|---|---|
+| A. Login & devices | Reopens Phase 1 if the answer is OTP or Admin-approved devices |
+| D. Territory, TA & DA | Phase 2 (Area types, D5) and Phase 6 (TA/DA engine) |
+| B, C, F | Phase 4 (Planning, Field Master Data, HR) |
+| E | Phase 6 (Sales & Orders) |
+
+Phase 2 can start in parallel: Zone → HQ → Area → Route is confirmed by the client's Master spec.
+A row the client doesn't answer can still be built, but only with its "Today" assumption
+accepted explicitly, and recorded in `decision-log.md`.
 
 ## Phase 2 — Territory
 
@@ -227,5 +253,9 @@ you have, the same discipline driverzone's own roadmap holds to for its pilot ph
    a Plan→DCR→approval flow that doesn't work yet means rebuilding the UI once it does.
 5. **Payroll last among backend phases**, because it is the aggregation of Identity, HR and Field
    Activity — there is nothing for it to compute until those three exist.
-6. **Pilot small.** One Zone, a real manager chain, real money in the TA/DA sense even if not a
+6. **Client rules before the code that depends on them.** A phase doesn't start while a
+   `client-sign-off.md` row it depends on is unanswered, unless the "Today" assumption is
+   explicitly accepted. Phase 1 was built from the PRD before the client's rules were read, and
+   may need rework because of it.
+7. **Pilot small.** One Zone, a real manager chain, real money in the TA/DA sense even if not a
    payment gateway. Every assumption in the PRD/ERD/HLD meets reality there.
