@@ -46,6 +46,7 @@ const TAGS = [
   { name: 'Territory / Zones', description: 'Top level of Zone → HQ → Area → Route.' },
   { name: 'Territory / HQs', description: 'Headquarters within a Zone.' },
   { name: 'Territory / Areas', description: 'Areas within an HQ; the Area type drives DA.' },
+  { name: 'Territory / Routes', description: 'Routes, their road distance, and place search for waypoints.' },
 ];
 
 function buildOpenApiDocument() {

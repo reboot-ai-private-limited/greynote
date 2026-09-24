@@ -17,7 +17,7 @@ in [`../hld/02-route-distance-calculation.md`](../hld/02-route-distance-calculat
 - **`Route`** — belongs to one `Area`. An ordered sequence of geocoded waypoints
   (`{label, latitude, longitude, place_id}`), a computed road distance (`distance_km`), and that
   distance's provenance/status (`distance_source`: `AUTO_CALCULATED` | `MANUAL_OVERRIDE`;
-  `distance_status`: `CALCULATED` | `FAILED`; `distance_calculated_at`; `waypoints_version`).
+  `distance_status`: `CALCULATED` | `FAILED`; `distance_calculated_at`; `revision`).
   Always uses its Area's `type` — no per-Route override (client sign-off D5).
 - **`RouteAssignment`** — the MR ↔ `Route` join. Many-to-many: a route can have several MRs
   (shared coverage), an MR can cover several routes. Carries `assigned_at` and `status`
@@ -113,10 +113,17 @@ against `IdentityPublicContract`, never against `identity`'s Mongoose model dire
 
 ## Route-distance integration
 
-Google Maps, behind two ports — `PlaceSearch` (Places autocomplete + details) and
-`DistanceProvider` (Directions, `optimizeWaypoints: false`) — with fake adapters for tests, so
-swapping providers is one adapter (decision-log 2026-09-24). Needs `GOOGLE_MAPS_API_KEY`; without
-it the API boots, place search returns `503`, and routes save as `FAILED`.
+Google Maps Platform's current APIs (new projects can no longer enable the legacy Directions /
+Places APIs), behind two ports so swapping providers is one adapter (decision-log 2026-09-24):
+
+- `PlaceSearchPort` → **Places API (New)** Text Search, India-biased, 10 candidates; one call
+  returns coordinates, so no separate Place Details lookup.
+- `DistanceProviderPort` → **Routes API** `computeRoutes`, `DRIVE`, `optimizeWaypointOrder:
+  false`, field mask `routes.distanceMeters` (cheapest SKU). Never throws: any failure (HTTP
+  error, no drivable route, 5 s timeout) is logged and the route is saved `FAILED`.
+
+Needs `GOOGLE_MAPS_API_KEY` with both APIs enabled; without it the API boots, place search
+returns `503 SERVICE_UNAVAILABLE`, and routes save as `FAILED`. Unit tests use a fake provider.
 
 Full sequence diagrams and failure-handling rationale:
 [`../hld/02-route-distance-calculation.md`](../hld/02-route-distance-calculation.md). Summary at
@@ -163,10 +170,12 @@ this module's depth:
   specifically — must check this status and **flag** it rather than silently treat a null
   distance as zero. This is the one failure mode every consumer of `getRouteDistance` must
   handle explicitly.
-- **Two Admins edit the same Route's waypoints at once.** Every waypoint edit sends the
-  `waypointsVersion` it was based on; the write is conditional on that version and bumps it. A
-  stale version gets `409 Conflict` instead of silently overwriting the other edit (or racing two
-  Directions responses).
+- **Two Admins edit the same Route at once, or an edit races a slow recalculation.** Every write
+  that changes waypoints or distance (waypoint edit, recalculate, override) is conditional on the
+  `revision` it started from and bumps it. A waypoint edit sends the `revision` the Admin's screen
+  showed; recalculate and override use the one read at the start of the request. A stale revision
+  gets `409 Conflict` (with `currentRevision`) instead of silently overwriting the newer write.
+  Rename, status and the TA rate override don't touch distance and aren't revision-checked.
 - **An MR is assigned to overlapping or geographically nonsensical routes.** Nothing in the ERD
   or PRD constrains this — shared coverage is explicitly allowed ("a route may have more than one
   MR assigned"), and Territory has no reason to reject it.

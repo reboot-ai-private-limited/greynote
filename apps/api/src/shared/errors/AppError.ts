@@ -73,6 +73,14 @@ export class AppError extends Error {
   }
 
   /**
+   * An external dependency is unconfigured or down. Expected (not paged): the fix is on the
+   * provider's side or in config, and the caller can retry.
+   */
+  static unavailable(message: string, details?: unknown, cause?: unknown): AppError {
+    return new AppError({ statusCode: 503, code: 'SERVICE_UNAVAILABLE', message, details, cause });
+  }
+
+  /**
    * A fault that should be impossible — a violated invariant rather than bad input.
    *
    * `isExpected: false` is what routes it to an alert. The customer-facing message is

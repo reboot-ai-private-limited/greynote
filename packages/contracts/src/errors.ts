@@ -14,6 +14,8 @@ export const FAULT_CODES = [
   'FORBIDDEN',
   'NOT_FOUND',
   'CONFLICT',
+  /** An external dependency (e.g. Google Maps) is unconfigured or down — retry later. */
+  'SERVICE_UNAVAILABLE',
   'INTERNAL',
 ] as const;
 

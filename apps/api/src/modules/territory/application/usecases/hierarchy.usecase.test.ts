@@ -3,6 +3,7 @@ import type { Area } from '../../domain/area.entity.js';
 import type { AreaRepositoryPort } from '../../domain/area.repository.port.js';
 import type { Hq } from '../../domain/hq.entity.js';
 import type { HqRepositoryPort } from '../../domain/hq.repository.port.js';
+import type { RouteRepositoryPort } from '../../domain/route.repository.port.js';
 import type { Zone } from '../../domain/zone.entity.js';
 import type { ZoneRepositoryPort } from '../../domain/zone.repository.port.js';
 import { CreateAreaUseCase } from './createArea.usecase.js';
@@ -76,6 +77,9 @@ class FakeAreas extends FakeTable<Area> implements AreaRepositoryPort {
   }
 }
 
+/** Areas here never have routes; route-dependent rules are in route.usecase.test.ts. */
+const noRoutes = { countActiveInArea: async () => 0 } as unknown as RouteRepositoryPort;
+
 let zones: FakeZones;
 let hqs: FakeHqs;
 let areas: FakeAreas;
@@ -114,7 +118,7 @@ describe('names', () => {
   it('rejects renaming an Area onto a sibling name, but allows re-saving its own name', async () => {
     const { hq, area } = await seedChain();
     await new CreateAreaUseCase(areas, hqs).execute({ hqId: hq.id, name: 'Fulbari', type: 'EX_STATION' });
-    const update = new UpdateAreaUseCase(areas, hqs);
+    const update = new UpdateAreaUseCase(areas, hqs, noRoutes);
 
     await expect(update.execute(area.id, { name: 'FULBARI' })).rejects.toMatchObject({ statusCode: 409 });
     await expect(update.execute(area.id, { name: 'MATIGARA' })).resolves.toMatchObject({ name: 'MATIGARA' });
@@ -141,7 +145,7 @@ describe('parents', () => {
 
   it('rejects reactivating an HQ whose Zone is inactive', async () => {
     const { zone, hq, area } = await seedChain();
-    await new UpdateAreaUseCase(areas, hqs).execute(area.id, { status: 'inactive' });
+    await new UpdateAreaUseCase(areas, hqs, noRoutes).execute(area.id, { status: 'inactive' });
     await new UpdateHqUseCase(hqs, zones, areas).execute(hq.id, { status: 'inactive' });
     await new UpdateZoneUseCase(zones, hqs).execute(zone.id, { status: 'inactive' });
 
@@ -165,7 +169,7 @@ describe('deactivation', () => {
     const updateHq = new UpdateHqUseCase(hqs, zones, areas);
 
     await expect(updateHq.execute(hq.id, { status: 'inactive' })).rejects.toMatchObject({ statusCode: 409 });
-    await new UpdateAreaUseCase(areas, hqs).execute(area.id, { status: 'inactive' });
+    await new UpdateAreaUseCase(areas, hqs, noRoutes).execute(area.id, { status: 'inactive' });
     await expect(updateHq.execute(hq.id, { status: 'inactive' })).resolves.toMatchObject({ status: 'inactive' });
   });
 

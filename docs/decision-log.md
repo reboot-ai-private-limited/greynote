@@ -21,7 +21,8 @@ old one.
 
 **Decision:** Agreed with the product owner before building Territory:
 
-- **Google Maps** (Places for search, Directions for distance), behind `PlaceSearch` /
+- **Google Maps** (Places API (New) for search, Routes API for distance — the legacy Places /
+  Directions APIs can't be enabled on new projects), behind `PlaceSearch` /
   `DistanceProvider` ports so a cheaper provider (Ola Maps, OSRM) is one adapter away. Tests use a
   fake adapter. Directions caps a request at 25 waypoints, so a Route accepts at most 25
   (origin + destination + 23 via).
@@ -30,8 +31,9 @@ old one.
 - **Distance is calculated during the save**, with a timeout (~5 s). Failure saves the Route as
   `FAILED`; Admin retries with `POST /api/territory/routes/:id/recalculate`. `PENDING` is dropped
   from `distance_status`: nothing runs in the background, so nothing is ever pending. A
-  `waypointsVersion` counter makes concurrent waypoint edits last-write-safe (a stale version is
-  rejected, not silently overwritten).
+  `revision` counter, bumped by every waypoint/distance write, makes concurrent edits safe (a
+  stale revision is rejected, not silently overwritten). *(Planned as `waypointsVersion`; widened
+  while building so a slow recalculation can't overwrite a manual override made meanwhile.)*
 - **`distance_km` is used as-is for TA — no ×2 for the return trip.** Admin defines the route (or
   overrides the distance) to cover the full travel the company pays for.
 - **Names are unique within their parent**, case-insensitive (Zone globally, HQ per Zone, Area

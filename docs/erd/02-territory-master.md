@@ -35,7 +35,7 @@ erDiagram
         decimal distance_km "drives TA calculation"
         string distance_source "AUTO_CALCULATED, MANUAL_OVERRIDE"
         string distance_status "CALCULATED, FAILED"
-        int waypoints_version "bumped on every waypoint edit - guards concurrent edits"
+        int revision "bumped by every waypoint/distance write - guards concurrent edits"
         timestamp distance_calculated_at "nullable"
         decimal ta_per_km_rate_override "nullable - overrides the assigned MR's PayBand.ta_per_km_rate for travel on this route - see HLD 06"
         string status "active, inactive"
