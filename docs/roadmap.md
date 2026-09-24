@@ -75,12 +75,14 @@ accepted explicitly, and recorded in `decision-log.md`.
   manual Admin override that itself doesn't survive the next edit (`hld/02` §3)
 - `RouteAssignment` (MR ↔ Route, many-to-many)
 
-**Status (2026-09-24): in progress.** Steps 1–2 of 5 done — Zone / HQ / Area CRUD; Routes with
+**Status (2026-09-24): done.** Steps 1–2 done — Zone / HQ / Area CRUD; Routes with
 waypoints, Google place search and road distance (Routes API), manual override, recalculate and
 revision-checked writes. Live-checked against real Google (Matigara → Medical More → Fulbari:
 10.67 km; reversed order 12.34 km). Step 3 done — Route assignments (history kept), `my-routes`
 for field employees, and `TerritoryPublicContract` (`getRoute`, `listRoutesForUser`,
-`getRoutePath`). Next: CSV import for Zone / HQ / Area.
+`getRoutePath`). Step 4 done — CSV import of Zone / HQ / Area with dry run. Unit tests cover
+the hierarchy rules, route distance/override/revision rules, assignments, the contract reads and
+the CSV reader/import; live runs against the dev API (real Google key) passed every check.
 
 Tier 2, and the only thing tier 3 as a whole depends on besides Identity. Building it alone
 (rather than starting tier 3 in parallel) keeps the external-API integration — the one genuinely

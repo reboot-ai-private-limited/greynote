@@ -11,6 +11,7 @@ import { UpdateHqUseCase } from './application/usecases/updateHq.usecase.js';
 import { UpdateZoneUseCase } from './application/usecases/updateZone.usecase.js';
 import { CreateRouteUseCase } from './application/usecases/createRoute.usecase.js';
 import { GetRouteUseCase } from './application/usecases/getRoute.usecase.js';
+import { ImportHierarchyUseCase } from './application/usecases/importHierarchy.usecase.js';
 import { GetRoutePathUseCase } from './application/usecases/getRoutePath.usecase.js';
 import { GetRouteSummaryUseCase } from './application/usecases/getRouteSummary.usecase.js';
 import { ListRouteAssignmentsUseCase } from './application/usecases/listRouteAssignments.usecase.js';
@@ -32,6 +33,7 @@ import { MongoRouteAssignmentAdapter } from './infrastructure/mongoRouteAssignme
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import { makeHierarchyController } from './interface/hierarchy.controller.js';
 import { buildHierarchyRouter } from './interface/hierarchy.route.js';
+import { buildImportRouter } from './interface/import.route.js';
 import {
   makeAssignRouteController,
   makeGetRouteController,
@@ -107,6 +109,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
   const listRoutesForUser = new ListRoutesForUserUseCase(assignmentRepository, routeRepository, areaRepository);
   const getRouteSummary = new GetRouteSummaryUseCase(routeRepository, areaRepository);
   const getRoutePath = new GetRoutePathUseCase(routeRepository, areaRepository, hqRepository);
+  const importHierarchy = new ImportHierarchyUseCase(zoneRepository, hqRepository, areaRepository);
   const searchPlaces = makeSearchPlacesController(new SearchPlacesUseCase(placeSearch));
 
   return {
@@ -120,6 +123,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
       const router = buildHierarchyRouter({ zones, hqs, areas });
       router.use('/routes', buildRoutesRouter(routeControllers));
       router.use('/places', buildPlacesRouter(searchPlaces));
+      router.use('/import', buildImportRouter(importHierarchy));
       router.use('/my-routes', buildMyRoutesRouter(makeMyRoutesController(listRoutesForUser)));
       return router;
     },

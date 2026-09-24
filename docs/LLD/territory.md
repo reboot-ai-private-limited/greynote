@@ -174,8 +174,34 @@ this module's depth:
 | `POST` | `/api/territory/routes/:id/recalculate` | Admin | Retry the Directions call (e.g. after `FAILED`); resets any manual override like a waypoint edit |
 | `PATCH` | `/api/territory/zones/:id`, `/hqs/:id`, `/routes/:id` | Admin | Rename, deactivate/reactivate (and Route's `ta_per_km_rate_override`) |
 | `GET` | `/api/territory/places/search?q=` | Admin | Proxy to Google Places — candidates with `{label, latitude, longitude, place_id}`; the API key never leaves the server |
-| `POST` | `/api/territory/import` | Admin | CSV bulk import of Zone / HQ / Area rows (not Routes — waypoints need confirmed pins) |
+| `POST` | `/api/territory/import` | Admin | CSV bulk import of Zone / HQ / Area rows (not Routes — waypoints need confirmed pins); `?dryRun=true` previews. See CSV import below |
 | `GET` | `/api/territory/my-routes` | FIELD roles | The calling MR's own assigned Routes — consumed by Planning's route picker |
+
+## CSV import
+
+`POST /api/territory/import`, multipart `file` (≤ 1 MB, ≤ 2000 rows). One row per path:
+
+```csv
+zone,hq,area,area_type
+West Bengal,Siliguri,Matigara,HQ
+West Bengal,Siliguri,Sevoke,Out Station
+West Bengal,Jalpaiguri,,
+Sikkim,,,
+```
+
+- `zone` is required; `hq` and `area` are optional, but an `area` needs an `hq` on the same row
+  and an `area_type` (`HQ` / `EX_STATION` / `OUT_STATION`; `Ex Station`, `ex-station` accepted).
+  Headers are case-insensitive. Excel's BOM, quoted fields and CRLF are handled.
+- **Existing names are reused, never changed** (same case-insensitive match as the API), so
+  re-uploading a file is a no-op and a write interrupted part-way can be re-run.
+- **All or nothing on validation.** The whole file is checked first — row shape, inactive
+  parents, an existing Area whose type differs from the file's, the same new Area given two types
+  — and any problem returns `400` with `errors: [{ line, message }]` for every problem and
+  nothing written. Line numbers are the file's own (blank lines counted).
+- `?dryRun=true` returns the same `{ created, existing }` report without writing — the web
+  portal's preview step.
+- An Area's type is never changed by import; that stays a deliberate edit in the app, because it
+  changes DA.
 
 ## Edge cases
 

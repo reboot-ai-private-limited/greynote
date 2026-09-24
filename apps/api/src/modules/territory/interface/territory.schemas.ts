@@ -8,7 +8,7 @@ import { TERRITORY_STATUSES } from '../domain/territoryStatus.js';
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
 
 /** Trimmed, inner whitespace collapsed — so "Siliguri  HQ" can't sit beside "Siliguri HQ". */
-const nameSchema = z
+export const nameSchema = z
   .string()
   .trim()
   .min(1)
