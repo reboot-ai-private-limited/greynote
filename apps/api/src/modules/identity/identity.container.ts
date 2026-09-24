@@ -11,6 +11,8 @@ import { CreatePayBandUseCase } from './application/usecases/createPayBand.useca
 import { CreateRoleUseCase } from './application/usecases/createRole.usecase.js';
 import { CreateUserUseCase } from './application/usecases/createUser.usecase.js';
 import { GetActiveDeviceCountUseCase } from './application/usecases/getActiveDeviceCount.usecase.js';
+import { GetDirectReportsUseCase } from './application/usecases/getDirectReports.usecase.js';
+import { GetDownlineUseCase } from './application/usecases/getDownline.usecase.js';
 import { GetManagerChainUseCase } from './application/usecases/getManagerChain.usecase.js';
 import { GetPayBandRatesUseCase } from './application/usecases/getPayBandRates.usecase.js';
 import { GetUserDetailUseCase } from './application/usecases/getUserDetail.usecase.js';
@@ -181,6 +183,8 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
 
   const getUserSummary = new GetUserSummaryUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getManagerChain = new GetManagerChainUseCase(userRepository, roleRepository, employeeProfileRepository);
+  const getDirectReports = new GetDirectReportsUseCase(userRepository, roleRepository, employeeProfileRepository);
+  const getDownline = new GetDownlineUseCase(userRepository, roleRepository, employeeProfileRepository);
   const isFieldRole = new IsFieldRoleUseCase(userRepository, roleRepository);
   const getPayBandRates = new GetPayBandRatesUseCase(userRepository, employeeProfileRepository, payBandRepository);
   const getActiveDeviceCount = new GetActiveDeviceCountUseCase(userRepository, userSessionRepository);
@@ -223,6 +227,8 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       findUserSummary: async (userId) =>
         (await userRepository.findById(userId)) ? getUserSummary.execute(userId) : null,
       getManagerChain: (userId) => getManagerChain.execute(userId),
+      getDirectReports: (managerId) => getDirectReports.execute(managerId),
+      getDownline: (managerId) => getDownline.execute(managerId),
       isFieldRole: (userId) => isFieldRole.execute(userId),
       getPayBandRates: (userId) => getPayBandRates.execute(userId),
       getActiveDeviceCount: (userId) => getActiveDeviceCount.execute(userId),

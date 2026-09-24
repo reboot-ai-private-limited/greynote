@@ -45,6 +45,12 @@ export class MongoUserAdapter implements UserRepositoryPort {
     return doc ? toUser(doc) : null;
   }
 
+  async findByIds(ids: string[]): Promise<User[]> {
+    if (ids.length === 0) return [];
+    const docs = await UserModel.find({ _id: { $in: ids.map((id) => new Types.ObjectId(id)) } }).lean();
+    return docs.map(toUser);
+  }
+
   async findByEmployeeCode(employeeCode: string): Promise<User | null> {
     const doc = await UserModel.findOne({ employeeCode }).lean();
     return doc ? toUser(doc) : null;

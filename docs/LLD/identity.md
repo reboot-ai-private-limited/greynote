@@ -58,6 +58,15 @@ same shape as `health.public.ts`, just with real methods:
   for every approvable submission in Planning, Field Activity and Marketing. Returning the full
   chain rather than just the nearest manager means the approval engine never has to call back
   into Identity recursively per level.
+- **`getDirectReports(managerId)`** — everyone whose `manager_id` is this user, by name: the
+  people whose submissions this manager approves at Stage 1 (HLD 05).
+- **`getDownline(managerId)`** — everyone below at any depth, each with `depth` (1 = direct
+  report), sorted by depth then name. One `$graphLookup` over `EmployeeProfile.manager_id`
+  (indexed), then one batched query each for users, profiles and roles — never one query per
+  member, since a top manager's downline is the whole field force. Computed live, never stored
+  (HLD 05 §3); cycles in bad data terminate and never include the manager themselves. Consumers:
+  the approval module (read-only visibility), the Team tab, Marketing's target rollup.
+  Both include inactive and pending users; callers filter.
 - `isFieldRole(userId)` / `getPayBandRates(userId)` — used by TA/DA auto-calculation and Payroll.
 - `getActiveDeviceCount(userId)` — number of active sessions (not registered devices). No
   consumer yet.

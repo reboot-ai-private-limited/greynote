@@ -3,6 +3,9 @@ import type { EmployeeProfile } from '../domain/employeeProfile.entity.js';
 import type { EmployeeProfileRepositoryPort } from '../domain/employeeProfile.repository.port.js';
 import { EmployeeProfileModel, type EmployeeProfileDoc } from './employeeProfile.schema.js';
 
+/** Real chains are ~5 levels (MR→ASM→RSM→ZSM→NSM); this only bounds a corrupted, looping tree. */
+const MAX_DOWNLINE_DEPTH = 50;
+
 function toEmployeeProfile(doc: EmployeeProfileDoc & { _id: unknown }): EmployeeProfile {
   return {
     id: String(doc._id),
@@ -58,6 +61,45 @@ export class MongoEmployeeProfileAdapter implements EmployeeProfileRepositoryPor
     ).lean();
     // `doc` is never null here: upsert:true + new:true always returns the (created-or-updated) document.
     return toEmployeeProfile(doc as EmployeeProfileDoc & { _id: unknown });
+  }
+
+  async findDownline(managerId: string): Promise<Array<{ userId: string; managerId: string; depth: number }>> {
+    const rootId = new Types.ObjectId(managerId);
+    // Start at the direct reports, then let $graphLookup walk managerId downward from each. Its
+    // depthField counts from 0 at the first hop below the start document, hence the +2 below.
+    const rows = await EmployeeProfileModel.aggregate<{
+      userId: Types.ObjectId;
+      managerId: Types.ObjectId;
+      below: Array<{ userId: Types.ObjectId; managerId: Types.ObjectId; depth: number }>;
+    }>([
+      { $match: { managerId: rootId } },
+      {
+        $graphLookup: {
+          from: EmployeeProfileModel.collection.name,
+          startWith: '$userId',
+          connectFromField: 'userId',
+          connectToField: 'managerId',
+          as: 'below',
+          depthField: 'depth',
+          maxDepth: MAX_DOWNLINE_DEPTH,
+        },
+      },
+      { $project: { userId: 1, managerId: 1, 'below.userId': 1, 'below.managerId': 1, 'below.depth': 1 } },
+    ]);
+
+    // Keep the shallowest depth per user; drop the root in case bad data loops back to it.
+    const byUser = new Map<string, { userId: string; managerId: string; depth: number }>();
+    const add = (userId: Types.ObjectId, manager: Types.ObjectId, depth: number) => {
+      const id = String(userId);
+      if (id === managerId) return;
+      const seen = byUser.get(id);
+      if (!seen || depth < seen.depth) byUser.set(id, { userId: id, managerId: String(manager), depth });
+    };
+    for (const row of rows) {
+      add(row.userId, row.managerId, 1);
+      for (const below of row.below) add(below.userId, below.managerId, below.depth + 2);
+    }
+    return [...byUser.values()];
   }
 
   async findUserIdsByFilter(filter: { designationId?: string; managerId?: string }): Promise<string[]> {

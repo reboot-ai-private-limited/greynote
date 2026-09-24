@@ -28,6 +28,8 @@ export interface UserListPagination {
 
 export interface UserRepositoryPort {
   findById(id: string): Promise<User | null>;
+  /** Batched — one query for a whole team instead of one per member. Missing ids are skipped. */
+  findByIds(ids: string[]): Promise<User[]>;
   findByEmployeeCode(employeeCode: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
   list(

@@ -105,7 +105,7 @@ Manager → Admin (HR or Admin for Leave), with read-only visibility for manager
 Built before its first real consumer because Planning, HR, Field Master Data, Field Activity and
 Marketing all need the identical state machine — writing it five times is how the copies drift.
 
-1. Identity: `getDirectReports` / `getDownline`
+1. Identity: `getDirectReports` / `getDownline` — **done** (2026-09-24)
 2. `ApprovalRequest` + history, the state machine, approver resolution, Admin override
 3. Per-kind workflow config (`MANAGER_THEN_FINAL` / `MANAGER_ONLY`), withdraw, resubmit, reopen,
    decision callbacks to the owning module

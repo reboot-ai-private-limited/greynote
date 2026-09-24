@@ -85,4 +85,8 @@ const employeeProfileSchema = new Schema<EmployeeProfileDoc>({
   documents: { type: [userDocumentSchema], default: [] },
 });
 
+// "Who reports to X" (listUsers' manager filter, getDirectReports) and every hop of the
+// getDownline traversal look profiles up by managerId.
+employeeProfileSchema.index({ managerId: 1 });
+
 export const EmployeeProfileModel = model<EmployeeProfileDoc>('EmployeeProfile', employeeProfileSchema);
