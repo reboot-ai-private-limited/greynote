@@ -53,6 +53,22 @@ the contract starts narrow and grows on demand (per
   or MonthlyStock row is visible and actionable the moment it's written.
 - **`MonthlyStock` is one row per (outlet, product, month)** — a second submission for the same
   key is an update, not a new row (see Edge cases).
+- **Monthly stock has a submission deadline set in `SystemConfig`.** Field staff enter each
+  Distributor's per-product opening/closing stock once a month (client rules §14–15; client
+  `sales.docx` S6: "Monthly One Time Entry"). The cut-off is Admin-configurable, not hard-coded:
+  - `MONTHLY_STOCK_SUBMISSION_DAY` — day of the **following** month by which month *M*'s counts
+    must be in. The client's proposed value is "within 5 days" (§15.4), so the seed default is
+    `5`, pending their final answer.
+  - After the cut-off, a create/update for month *M* is rejected (`409`), unless Admin has
+    re-opened it. The client spec says re-open goes "only through Approval (if enabled)"; until
+    that approval exists, it's an Admin-only unlock.
+  - Late or missing submissions notify the Manager (Secondary, §15.5) / Admin (Primary, §14.5).
+    That's a notification, not a DCR block, unlike HLD 10's compliance block.
+- **Who may submit or order for a Distributor:** a user for whom
+  `FieldMasterDataPublicContract.canActOnDistributor` is true — the Distributor's
+  `assigned_mr_id`, or an MR whose `RouteAssignment` covers its Route — plus anyone above them in
+  the reporting chain (client `sales.docx` S6: "MR → own Distributor, Manager → team Distributor,
+  Admin → all"). Chemist orders use the same Route-coverage rule.
 - **Secondary Sales is never written directly.** It's a derived report:
   `opening_qty + primary sales received during the month − closing_qty`, computed at read time
   from `MonthlyStock` plus that period's `Order` rows for the same outlet/product. This module
@@ -95,11 +111,12 @@ surface, if any beyond Admin reporting, is Admin-only by default until stated ot
   reflects the most recent submitter. If auditability of who-changed-it-when later matters, that's
   an addition to this rule, not a reason to allow duplicate rows now.
 - **An Order for a Distributor/Chemist outside the submitting MR's assigned territory or direct
-  assignment.** The ERD does not link `Order` back to `RouteAssignment` or `DoctorAssignment` —
-  it's intentionally standalone. Whether to gate Order creation by territory coverage (the way
-  Field Activity gates calls) is an open product question, not a schema one; the first build
-  should **not** silently assume the ERD's lack of a link means "no restriction is wanted" — flag
-  it for a product decision before shipping, or gate it and document the choice here once made.
+  assignment.** Rejected with `403`. Resolved 2026-09-24 from client rules §17.3 — see the
+  "Who may submit or order" rule above. `Order` still stores no link to `RouteAssignment`; the
+  check runs at write time only.
+- **A month's counts arriving after `MONTHLY_STOCK_SUBMISSION_DAY`.** Rejected unless re-opened.
+  If Admin changes the config value mid-month, the new value applies to any month not yet
+  closed. A month already past its old cut-off doesn't silently re-open.
 - **Money precision drift between `unit_price × quantity` and `amount`.** Compute `amount`
   server-side from `unit_price` and `quantity` rather than trusting a client-supplied value —
   otherwise a rounding or unit mismatch on the client silently corrupts `total_amount`.
@@ -110,8 +127,8 @@ surface, if any beyond Admin reporting, is Admin-only by default until stated ot
   `OrderItem`/`MonthlyStock`. This is the load-bearing dependency; see
   [`field-master-data.md`](field-master-data.md).
 - **Identity** (Tier 1) — the submitting/completing `User` (`user_id`, `completed_by`,
-  `recorded_by`). A lighter dependency than Field Master Data's — no assignment or hierarchy
-  logic is consumed, just the user reference itself.
+  `recorded_by`), plus the reporting-chain lookup for manager access.
+- **Config** (Tier 0) — `MONTHLY_STOCK_SUBMISSION_DAY`.
 
 Not a dependency: the Approval Workflow Engine, Offline Sync & Geofencing (Orders/stock counts
 are not stated as geofenced the way Doctor/Chemist Calls are in PRD §5.1 — they're captured, not
@@ -121,7 +138,8 @@ location-verified).
 
 - **Return/adjustment handling for a `DONE` order.** Out of scope for the first build; see the
   cancel-after-done edge case above.
-- **Territory/assignment gating on Order creation.** Genuinely open — see Edge cases.
+- **The approval-based re-open of a closed stock month.** The client spec mentions it "if
+  enabled"; until then it's an Admin-only unlock.
 - **Any auditing of `MonthlyStock` overwrites** beyond `recorded_by`/`recorded_at` reflecting the
   latest write.
 - **The Secondary Sales computation's exact formula and edge handling** (multiple orders in a

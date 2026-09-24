@@ -42,7 +42,7 @@ session design in `hld/04` has full test coverage.
 
 [`LLD/territory.md`](LLD/territory.md) · [`hld/02-route-distance-calculation.md`](hld/02-route-distance-calculation.md)
 
-- `Zone → HQ → Route` spatial hierarchy (ERD Module 2)
+- `Zone → HQ → Area → Route` spatial hierarchy (ERD Module 2), with `Area.type` feeding DA
 - Route-distance external API integration — auto-recalculated on every waypoint edit, with a
   manual Admin override that itself doesn't survive the next edit (`hld/02` §3)
 - `RouteAssignment` (MR ↔ Route, many-to-many)

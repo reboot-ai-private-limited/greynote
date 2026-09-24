@@ -123,7 +123,10 @@ implementing, don't re-derive it from this summary alone.
   pay_band.ta_per_km_rate`, reading `Route.distance_km` through Territory's contract as it stands
   at approval time — Territory keeps that figure current on every waypoint edit
   ([`territory.md`](territory.md)); Field Activity only reads it, never recomputes or freezes it.
-- **DA** (`FIELD_WORK`, `MEETING`, `CONFERENCE` — not `STRIKE`) = `pay_band.da_amount`, flat.
+- **DA** (`FIELD_WORK`, `MEETING`, `CONFERENCE` — not `STRIKE`) = the pay band's DA rate for the
+  day's Area type (`HQ`/`EX_STATION`/`OUT_STATION`, read via Territory's `getRoutePath`). One
+  amount per day, not per route. Full rule and tie-breaks in
+  [`../hld/06-ta-da-auto-calculation.md`](../hld/06-ta-da-auto-calculation.md) §2.
 - Both are created as `source: AUTO` `Expense` rows on that `DCR`. **Never trust a client-supplied
   amount for these** — the server always computes them itself.
 - Generation happens **exactly once per DCR** (tied to the one-way `SUBMITTED →

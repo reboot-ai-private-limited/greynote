@@ -14,17 +14,20 @@ Doctor. ERD: [`../erd/03-field-master-data.md`](../erd/03-field-master-data.md).
   registered `latitude`/`longitude` captured once at creation.
 - **Chemist** — the same shape minus specialty/qualification, its own registered
   `latitude`/`longitude`.
-- **Distributor** — attaches at the `hq_id` level, not the route level (a stockist supplies an
-  HQ area, not one route). No registered location — there is no call/check-in flow against a
-  distributor in the PRD, only orders and stock counts (Sales & Orders module).
+- **Distributor** — attaches at the `route_id` level, same as Doctor/Chemist (client rules
+  §17.2). Zone/HQ/Area are resolved through the Route (`TerritoryPublicContract.getRoutePath`),
+  never stored. Carries GST number, contact person, mobile, address, a registered
+  `latitude`/`longitude`, single-value `assigned_mr_id`/`assigned_asm_id`, and
+  `primary_sales_enabled`/`secondary_sales_enabled` flags (client Master spec M6). Orders and
+  monthly stock counts against it live in Sales & Orders.
 - **Product** — the single catalog for both orderable items and sample-eligible items; there is
   no separate sample catalog. `sku` unique.
 - **DoctorSampleAllocation** — Admin issues a `quantity_allocated` of a `Product` to a `Doctor`;
   `quantity_remaining` decrements as the field side draws against it (that draw is a Field
   Activity transaction, not owned here — see Dependencies below).
-- **DoctorAssignment** — a direct many-to-many Doctor↔User link, deliberately independent of
+- **DoctorAssignment** — the Doctor↔MR responsibility link, deliberately independent of
   `Doctor.route_id`. A doctor sits on exactly one route (location); who is *responsible* for that
-  doctor is this table.
+  doctor is this table. **At most one active row per doctor**; older rows are history.
 
 Full fields, types and the ER diagram: [`../erd/03-field-master-data.md`](../erd/03-field-master-data.md).
 
@@ -42,6 +45,7 @@ call, not the full CRUD surface:
 | `listAssignedDoctors(userId)` → `Doctor[]` | Field Activity, Marketing | An MR's "my doctors" list — what a mobile Home-tab screen and a Target scoped to a doctor's assignee both need. |
 | `getSampleAllocation(doctorId, productId)` → `DoctorSampleAllocation \| null` and a paired `decrementRemaining(allocationId, qty)` | Field Activity | The sample-given transaction on a Dr Call reads remaining quantity and decrements it; this module owns the row, Field Activity owns the event that triggers the write. |
 | `getDoctor(id)` / `getChemist(id)` / `getDistributor(id)` / `getProduct(id)` | Sales & Orders, Marketing | Order line items and Visual/Campaign/Target scoping reference these by id; each consumer resolves the reference through the contract rather than reading the collection directly. |
+| `canActOnDistributor(userId, distributorId)` → `boolean` | Sales & Orders | Gates Order/MonthlyStock creation: true if the user is the Distributor's `assigned_mr_id`, or a `RouteAssignment` covers its Route. Manager access is resolved by the caller through the reporting chain, not here. |
 
 Doctor/Chemist/Distributor/Product **CRUD itself is not exposed to other modules** — it's
 Admin-only, reached through this module's own HTTP surface (below), not through the contract.
@@ -55,8 +59,14 @@ Admin-only, reached through this module's own HTTP surface (below), not through 
 - **Direct assignment vs. route coverage are two independent relationships, and neither implies
   the other.** `RouteAssignment` (Territory module) covering a route does not grant visibility
   into every Doctor/Chemist on it — sample/gift/service actions require the specific
-  `DoctorAssignment` row. A Doctor can be assigned to more than one MR (shared coverage, same
-  shape as `RouteAssignment`).
+  `DoctorAssignment` row.
+- **One active `DoctorAssignment` per Doctor.** Assigning a doctor who already has an active row
+  deactivates that row and inserts the new one in the same write. Enforce it with a partial unique
+  index on `doctor_id` where `status = active`, not a read-then-write check, so two concurrent
+  Admin reassignments can't both leave an active row. The MR's managers get access through the
+  reporting chain, not through extra assignment rows.
+- **Distributor `assigned_mr_id`/`assigned_asm_id` must reference a FIELD-role user**, validated
+  via Identity's `isFieldRole`, same check `RouteAssignment` uses.
 - **`DoctorSampleAllocation` is Admin-issued master data, not something an MR requests or
   creates.** The MR-side "gave 3 units" event lives in Field Activity as a Dr Call field
   (`Doctor Sample Provided`); this module's job stops at exposing `quantity_remaining` and
@@ -78,12 +88,13 @@ All Admin-only (Web Portal, `../roadmap.md` phase 9) unless noted.
 | `GET` | `/field-master-data/doctors` | Admin | List/search, filterable by route |
 | `GET` | `/field-master-data/doctors/:id` | Admin, assigned MR | Detail |
 | `PATCH` | `/field-master-data/doctors/:id` | Admin | Edit, including correcting a registered location |
-| `POST` | `/field-master-data/doctors/:id/assignments` | Admin | Assign an MR directly to this Doctor |
+| `POST` | `/field-master-data/doctors/:id/assignments` | Admin | Assign an MR to this Doctor, replacing any current active assignment |
 | `DELETE` | `/field-master-data/doctors/:id/assignments/:userId` | Admin | Remove a direct assignment |
 | `POST` | `/field-master-data/chemists` | Admin | Create a Chemist |
 | `GET`/`PATCH` | `/field-master-data/chemists`, `/chemists/:id` | Admin | List/detail/edit |
-| `POST` | `/field-master-data/distributors` | Admin | Create a Distributor under an HQ |
-| `GET`/`PATCH` | `/field-master-data/distributors`, `/distributors/:id` | Admin | List/detail/edit |
+| `POST` | `/field-master-data/distributors` | Admin | Create a Distributor on a Route (portal picks Zone → HQ → Area → Route using Territory's filtered list endpoints) |
+| `GET` | `/field-master-data/distributors` | Admin | List, filterable by `routeId`, `areaId`, `hqId`, `zoneId` (upper levels resolved to route ids via Territory), and `assignedMrId` |
+| `GET`/`PATCH` | `/field-master-data/distributors/:id` | Admin | Detail/edit, including reassigning MR/ASM |
 | `POST` | `/field-master-data/products` | Admin | Create a Product |
 | `GET`/`PATCH` | `/field-master-data/products`, `/products/:id` | Admin | List/detail/edit |
 | `POST` | `/field-master-data/doctors/:id/sample-allocations` | Admin | Allocate a Product quantity to a Doctor |
@@ -104,6 +115,10 @@ this phase, not assumed here.
   `null` must mean "geofence check cannot run" to Field Activity, not "check passed" — this
   module's contract should make that distinction unambiguous in its return type rather than
   leaving Field Activity to infer it from a missing field.
+- **A Distributor's `assigned_mr_id` points at an MR who is later deactivated or moved.** Nothing
+  cascades automatically (same as Identity's `manager_id`); the Distributor stays visible through
+  Route coverage and to managers, and Admin reassigns it. A list filter for "Distributors whose
+  assigned MR is inactive" is the likely admin tool, not an automatic rewrite.
 - **An MR assigned to a Doctor both directly and via the Doctor's route being covered by that
   MR's `RouteAssignment`.** No conflict — direct assignment is a superset grant for
   sample/gift/service visibility; route coverage alone (without direct assignment) does not grant
@@ -127,7 +142,7 @@ this phase, not assumed here.
 
 - **Identity** (Tier 1) — `User` ids for `DoctorSampleAllocation.allocated_by` and
   `DoctorAssignment.user_id`.
-- **Territory** (Tier 2) — `Route.id` for Doctor/Chemist, `HQ.id` for Distributor; `RouteAssignment`
+- **Territory** (Tier 2) — `Route.id` for Doctor/Chemist/Distributor, `getRoutePath` for the Zone/HQ/Area breadcrumb; `RouteAssignment`
   is read (not written) here only insofar as the "route coverage ≠ direct assignment" distinction
   needs Territory's contract to explain the difference in documentation and, likely, in a combined
   "who can see this doctor" query on the Field Activity side rather than in this module.

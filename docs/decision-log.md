@@ -17,6 +17,60 @@ old one.
 
 ---
 
+## 2026-09-24 — Territory, Distributor, Doctor assignment and DA re-aligned to the client's Master spec
+
+**Decision:** **Reverses** four earlier design calls. None had a decision-log entry of its own;
+each lived as a "locked" bullet in an ERD/LLD doc:
+
+- **`Area` added: `Zone → HQ → Area → Route`.** Reverses ERD-02's "Three-level hierarchy, no
+  Area" and `LLD/territory.md`'s "Area... considered and dropped". `Route.hq_id` becomes
+  `Route.area_id`. `Area` carries `type: HQ | EX_STATION | OUT_STATION`.
+- **DA is per Area type, not flat.** Reverses HLD-06's `da_amount = pay_band.da_amount`. Each
+  grade has `hq_da`/`ex_station_da`/`out_station_da`, and a day's DA uses the rate for its routes'
+  Area type (highest type wins if mixed; `MEETING`/`CONFERENCE` default to HQ — both provisional,
+  see HLD-06 §2).
+- **Distributor attaches to a Route, not an HQ.** Reverses ERD-03's "Distributor attaches at the
+  HQ level". Also gains `latitude`/`longitude` (reversing "Distributor doesn't get this"),
+  `gst_number`, `contact_person`, `mobile`, single-value `assigned_mr_id`/`assigned_asm_id`, and
+  primary/secondary-sales flags. An MR can act on a Distributor if it's their `assigned_mr_id` or
+  their `RouteAssignment` covers its Route. This resolves `LLD/sales-and-orders.md`'s open
+  "territory gating on Order creation" question.
+- **One active `DoctorAssignment` per Doctor.** Reverses ERD-03's "a doctor can have more than
+  one MR assigned". The table stays, as history plus a partial unique index on active rows.
+  Managers reach the doctor through the reporting chain, not extra rows.
+
+Also added: `SystemConfig.MONTHLY_STOCK_SUBMISSION_DAY` (seed default `5`) as the Admin-set
+cut-off for monthly Distributor stock entry.
+
+Considered and **rejected** on the way: an `AreaAssignment` (MR↔Area) and `DistributorArea` join
+to gate Distributor access by Area. The client spec gates by Route + a direct assigned MR, so a
+second assignment mechanism would duplicate `RouteAssignment`. Also rejected: scoping each
+manager designation to a territory level (ASM→Area, ZSM→Zone, NSM→national). Client rules §18
+define manager visibility purely by reporting chain, which `getDownline` already does. Orgs
+missing a level (no ZSM/NSM) are already covered by HLD-05 §2/§5's Admin fallback.
+
+**Why:** the ERD/LLD were first written from the PRD alone. The client's own Master spec
+(`MASTER V2.docx` M1/M2/M4/M6, `RULES BY GREYNOTE.docx` §8/§14–18/§31, `sales.docx` S6) is more
+specific and disagreed on each point. The one-doctor-one-MR rule was answered directly by the
+product owner in this discussion, not taken from the spec, where it's still an open question.
+
+**Consequences:**
+- **Code mismatch, not fixed yet:** `PayBand` (Identity, Phase 1, shipped) has one flat
+  `daAmount`. It must become three per-area-type rates (plus Night Stay once its trigger is
+  defined) before Phase 6 builds DA. The 2026-09-23 "`Decimal128`, provisional" entry already
+  flagged `PayBand`'s money fields as revisable; this adds a concrete reason.
+- Territory and Field Master Data aren't code yet, so their reshaping costs nothing now.
+- Still open with the client, left unresolved in the docs rather than guessed: Night Stay DA
+  trigger, holiday/weekly-off effect on DA, the mixed-area-type tie-break, whether a Route can
+  override its Area's type, and approval-based re-open of a closed stock month.
+
+**Refs:** `docs/erd/02-territory-master.md`, `docs/LLD/territory.md`,
+`docs/erd/03-field-master-data.md`, `docs/LLD/field-master-data.md`,
+`docs/hld/06-ta-da-auto-calculation.md`, `docs/LLD/sales-and-orders.md`,
+`apps/api/src/modules/identity/domain/payBand.entity.ts`
+
+---
+
 ## 2026-09-24 — `SystemConfig` gets an Admin write path; Admin gets blanket Stage-1 approval override
 
 **Decision:** Two additions to the not-yet-built Planning/Approval design, both scoped ahead of

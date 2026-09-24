@@ -1,6 +1,6 @@
 # Territory
 
-The spatial hierarchy field operations are organized against — `Zone → HQ → Route` — and the
+The spatial hierarchy field operations are organized against — `Zone → HQ → Area → Route` — and the
 mechanism that turns a route into a travel-allowance figure: an admin-drawn sequence of waypoints
 resolved into a real road distance. PRD §5.1; full entity model in
 [`../erd/02-territory-master.md`](../erd/02-territory-master.md); the distance algorithm in full
@@ -11,7 +11,10 @@ in [`../hld/02-route-distance-calculation.md`](../hld/02-route-distance-calculat
 - **`Zone`** — top of the hierarchy (e.g. West Bengal Zone). Name only at this tier; nothing
   spatial is stored on it directly.
 - **`HQ`** — belongs to one `Zone`. A headquarters grouping (e.g. Siliguri HQ).
-- **`Route`** — belongs to one `HQ`. An ordered sequence of geocoded waypoints
+- **`Area`** — belongs to one `HQ` (e.g. Matigara, Fulbari, Sevoke under Siliguri HQ). Carries a
+  `type`: `HQ` | `EX_STATION` | `OUT_STATION`, which decides which of a grade's DA rates applies
+  to a day worked there (HLD 06 §2).
+- **`Route`** — belongs to one `Area`. An ordered sequence of geocoded waypoints
   (`{label, latitude, longitude, place_id}`), a computed road distance (`distance_km`), and that
   distance's provenance/status (`distance_source`: `AUTO_CALCULATED` | `MANUAL_OVERRIDE`;
   `distance_status`: `PENDING` | `CALCULATED` | `FAILED`; `distance_calculated_at`).
@@ -23,9 +26,15 @@ in [`../hld/02-route-distance-calculation.md`](../hld/02-route-distance-calculat
 Full field list: [`../erd/02-territory-master.md`](../erd/02-territory-master.md).
 
 **Explicitly not owned here.** PRD §5.1 also describes Admin "attaching Doctors/Chemists to
-routes" and directly assigning MRs to specific Doctors — both of those joins belong to Field
-Master Data (ERD Module 3), deferred there because `Doctor`/`Chemist` don't exist as entities
-yet at this tier. Territory's own `RouteAssignment` is MR ↔ Route only.
+routes" (client rules §17.2 add Distributors) and directly assigning MRs to specific Doctors —
+those joins belong to Field Master Data (ERD Module 3), deferred there because
+`Doctor`/`Chemist`/`Distributor` don't exist as entities yet at this tier. Territory's own
+`RouteAssignment` is MR ↔ Route only.
+
+**No per-designation territory scope.** Managers (ASM/RSM/ZSM/NSM) are not assigned to an
+Area/HQ/Zone here. Client rules §18 define manager visibility purely by reporting chain, which
+Identity's `manager_id` + `getDownline` (HLD 05 §3) already covers, whatever a manager's
+geography is and however many levels an org actually has.
 
 ## Public contract
 
@@ -39,28 +48,32 @@ interface TerritoryPublicContract {
   getRoute(routeId: string): Promise<RouteSummary | null>;
   getRouteDistance(routeId: string): Promise<RouteDistance | null>; // { km, status } — see below
   listRoutesForUser(userId: string): Promise<RouteSummary[]>;       // from RouteAssignment
-  getHqZonePath(hqId: string): Promise<{ hqId: string; zoneId: string } | null>;
+  getRoutePath(routeId: string): Promise<{
+    routeId: string; areaId: string; areaType: AreaType; hqId: string; zoneId: string;
+  } | null>;
 }
 ```
 
 Consumers, per [`../roadmap.md`](../roadmap.md):
 
-- **Field Master Data** (Tier 3) — a `Doctor`/`Chemist`'s territory attachment needs to validate
-  a `Route`/`HQ` id exists.
+- **Field Master Data** (Tier 3) — a `Doctor`/`Chemist`/`Distributor`'s territory attachment
+  needs to validate a `Route` id exists, and list screens resolve its Area/HQ/Zone breadcrumb via
+  `getRoutePath`.
 - **Planning** (Tier 3) — a Daily Plan's route selection (PRD §6.2.A) reads `listRoutesForUser`
   to offer only routes the submitting MR is actually assigned.
-- **Field Activity** (Tier 4) — TA auto-calculation
+- **Field Activity** (Tier 4) — TA/DA auto-calculation
   ([`../hld/06-ta-da-auto-calculation.md`](../hld/06-ta-da-auto-calculation.md)) reads
-  `getRouteDistance` and must handle a non-`CALCULATED` status as a flag, not a silent zero (see
-  Edge cases below).
+  `getRouteDistance` for TA, and must handle a non-`CALCULATED` status as a flag, not a silent
+  zero (see Edge cases below). It reads `getRoutePath(...).areaType` for DA.
 
 Territory itself depends only on Identity (Tier 1) — a `RouteAssignment.user_id` is validated
 against `IdentityPublicContract`, never against `identity`'s Mongoose model directly.
 
 ## Write-path rules & invariants
 
-- **A `Route` always belongs to exactly one `HQ`, which always belongs to exactly one `Zone`.**
-  No orphaned routes; creating a `Route` requires a valid `hq_id`.
+- **A `Route` always belongs to exactly one `Area`, which belongs to exactly one `HQ`, which
+  belongs to exactly one `Zone`.** No orphaned routes; creating a `Route` requires a valid
+  `area_id`, and creating an `Area` requires a valid `hq_id` and a `type`.
 - **Waypoints are entered as resolved points, never raw text.** Per HLD 02 §1, Admin searches a
   Geocoding/Places API and confirms a pin on a map preview; what gets stored is
   `{label, latitude, longitude, place_id}`, not the typed string. A waypoint with no confirmed
@@ -109,8 +122,11 @@ this module's depth:
 | `GET` | `/api/territory/zones` | Admin | List Zones |
 | `POST` | `/api/territory/hqs` | Admin | Create an HQ under a Zone |
 | `GET` | `/api/territory/hqs` | Admin | List HQs, optionally filtered by Zone |
-| `POST` | `/api/territory/routes` | Admin | Create a Route under an HQ — triggers waypoint geocoding + distance calculation |
-| `GET` | `/api/territory/routes` | Admin | List Routes, optionally filtered by HQ |
+| `POST` | `/api/territory/areas` | Admin | Create an Area (with `type`) under an HQ |
+| `GET` | `/api/territory/areas` | Admin | List Areas, optionally filtered by HQ |
+| `PATCH` | `/api/territory/areas/:id` | Admin | Edit an Area's name, `type` or status |
+| `POST` | `/api/territory/routes` | Admin | Create a Route under an Area — triggers waypoint geocoding + distance calculation |
+| `GET` | `/api/territory/routes` | Admin | List Routes, optionally filtered by Area or HQ |
 | `GET` | `/api/territory/routes/:id` | Admin, assigned MR/manager | Route detail, including current `distance_status` |
 | `PATCH` | `/api/territory/routes/:id/waypoints` | Admin | Edit waypoints — re-triggers distance recalculation |
 | `PATCH` | `/api/territory/routes/:id/distance` | Admin | Manually override `distance_km` |
@@ -133,7 +149,10 @@ this module's depth:
 - **An MR is assigned to overlapping or geographically nonsensical routes.** Nothing in the ERD
   or PRD constrains this — shared coverage is explicitly allowed ("a route may have more than one
   MR assigned"), and Territory has no reason to reject it.
-- **A Route's `HQ` (or an `HQ`'s `Zone`) is reassigned after Routes/HQs already exist under it.**
+- **An Area's `type` is edited after DA has already been generated for days worked there.** Past
+  `AUTO` DA `Expense` rows stay as generated (the locked-snapshot rule in HLD 06 §3); only future
+  approvals use the new type.
+- **A Route's `Area` (or an Area's `HQ`, or an `HQ`'s `Zone`) is reassigned after children already exist under it.**
   Not addressed by the ERD; treat as deliberately deferred (see below) rather than inventing a
   cascade/reparenting rule that isn't asked for.
 - **Manual override, then the same admin "re-saves" waypoints unchanged.** Per the ERD's `status`
@@ -147,15 +166,17 @@ this module's depth:
 
 ## Deliberately deferred
 
-- **Doctor/Chemist ↔ Route attachment.** PRD §5.1 describes it; the ERD explicitly defers it to
-  Field Master Data (Module 3) because `Doctor`/`Chemist` don't exist yet at this tier. Do not
-  add this join to Territory when Module 3 lands — it belongs on the other side.
+- **Doctor/Chemist/Distributor ↔ Route attachment.** PRD §5.1 describes it; the ERD explicitly
+  defers it to Field Master Data (Module 3) because those entities don't exist yet at this tier.
+  Do not add this join to Territory when Module 3 lands — it belongs on the other side.
   *(`docs/roadmap.md`'s Phase 2 "done when" line currently reads "Admin can assign … Routes to a
   Doctor/Chemist's covering territory," which is this module's Phase 3-onward dependent, not
   something Territory itself does — worth correcting there to avoid implying this module owns
   that join.)*
-- **An `Area` grouping level between `HQ` and `Route`.** Considered and dropped — nothing in the
-  PRD needs it. Revisit only if a real requirement for it shows up.
+- **A per-Route override of its Area's `type`.** The client spec lists "Area Type" among Route's
+  fields too; for now a Route inherits its Area's type. Add an override only if the client
+  confirms a Route can differ from its Area. (The earlier "no `Area` level" deferral here was
+  reversed 2026-09-24, see `../decision-log.md`.)
 - **Route geometry / map rendering.** Waypoints are stored as an ordered array of points, not
   normalized into their own table, because nothing yet needs to render the route on a map (only
   the distance matters). Revisit if that need appears.

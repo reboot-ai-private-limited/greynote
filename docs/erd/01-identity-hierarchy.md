@@ -126,7 +126,7 @@ Territory (Module 2), one tier above Identity, not here.
 
 ## Next
 
-**Module 2 — Territory Master.** Zone → HQ → Route will add a territory FK (e.g. `hq_id` or
+**Module 2 — Territory Master.** Zone → HQ → Area → Route will add a territory FK (e.g. `hq_id` or
 `route_id`) onto `EmployeeProfile` (not `User` — the FK would be FIELD-only, same as
 `designation_id`/`pay_band_id`), plus Route → Doctor/Chemist assignment. Route assignment itself
 (`ROUTE_ASSIGNMENT`, ERD-02) should validate its target `user_id` resolves to a `FIELD`-role user
