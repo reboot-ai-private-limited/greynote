@@ -39,7 +39,8 @@ The top-level `container.ts` already builds modules in explicit tiers (the `heal
 graph TD
     Config["Tier 0: Config<br/>(SystemConfig)"]
     Identity["Tier 1: Identity<br/>(User, Role, Designation, PayBand, UserSession)"]
-    Territory["Tier 2: Territory<br/>(Zone, HQ, Route, RouteAssignment)"]
+    Territory["Tier 2: Territory<br/>(Zone, HQ, Area, Route, RouteAssignment)"]
+    Approval["Tier 2: Approval<br/>(ApprovalRequest)"]
     FMD["Tier 3: Field Master Data<br/>(Doctor, Chemist, Distributor, Product,<br/>DoctorSampleAllocation, DoctorAssignment)"]
     Planning["Tier 3: Planning<br/>(DailyPlan, MonthlyPlan)"]
     HR["Tier 3: HR Ops<br/>(LeavePolicy, LeaveBalance, Leave, Holiday)"]
@@ -50,6 +51,12 @@ graph TD
 
     Config --> Identity
     Identity --> Territory
+    Identity --> Approval
+    Config --> Approval
+    Approval --> Planning
+    Approval --> HR
+    Approval --> FMD
+    Approval --> FieldActivity
     Territory --> FMD
     Territory --> Planning
     Territory --> HR

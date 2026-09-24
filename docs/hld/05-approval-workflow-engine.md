@@ -1,77 +1,167 @@
 # HLD 5: Approval Workflow Engine
 
-> **Being revised (2026-09-24).** Phase 3 builds this as an `approval` **module** with a real
-> Admin (or HR, for Leave) second stage, per-kind workflow config, and an approval history —
-> see `../decision-log.md`, "Phase 3: the approval engine becomes a module". §2–§5's approver,
-> top-of-chain, visibility and Admin-override rules still hold; §1's "library, not a module"
-> and its three-state status do not. This doc is rewritten as part of the Phase 3 build.
+The one mechanism every "submit → get approved" flow in the system goes through — Daily and
+Monthly Plans, DCR & Expenses, Leave, Doctor creation, Doctor Service and whatever else the
+client's final list adds (PRD §7.1; client `RULES BY GREYNOTE.docx` §19). Built in Phase 3 as the
+`approval` module (`apps/api/src/modules/approval/`). Module-level detail — contract, HTTP
+surface, edge cases — is in [`../LLD/approval.md`](../LLD/approval.md).
 
-The generalized two-stage (Nearest-Manager → Admin) + read-only-escalation mechanism (PRD §7.1) that `DCR`, `DailyPlan`/`MonthlyPlan`, and MR-submitted `DoctorService` all share — instead of four copies of the same logic.
+## 1. A module, not a shared library
 
-## 1. Shared shape
+The first design (kept in `../decision-log.md`) was a helper each module called, with each
+module storing `status` / `reviewed_by` on its own records. It was dropped because the client
+asks for **one common approval screen** across every kind (§19.6), and Admin needs one org-wide
+queue of everything pending: with state spread over five modules' collections, both would query
+and merge them all.
 
-Every "approvable" entity carries the same fields: `user_id` (submitter), `status` (`SUBMITTED`/`MANAGER_APPROVED`/`REJECTED`), `reviewed_by` (nullable until acted on), `reviewed_at`. Rather than duplicating the approve/reject logic once per module, each module's use case delegates to a small shared **Approval** helper (a plain function/service in `packages/shared`, not a network call — it's logic, not a module with its own data) that both resolves the approver and validates the transition. Each module still owns its own collection and status field; only the _logic_ is shared.
+So approval state lives in one place — an `ApprovalRequest` per approvable record, owned by the
+`approval` module (tier 2, beside Territory; depends only on Identity and Config). The owning
+module keeps its record (the Plan, the Leave); the request is the workflow around it.
 
-## 2. Resolving the approver — and the edge case it exposes
+```mermaid
+flowchart LR
+    Owner["Owning module<br/>(Planning, HR, …)"] -- "registerKind at boot<br/>submit(record)<br/>getForRecord" --> Approval["approval module<br/>ApprovalRequest + history"]
+    Approval -- "onStatusChange(change, ctx)<br/>same transaction" --> Owner
+    Approval -- "current manager,<br/>direct reports, downline,<br/>names" --> Identity["Identity"]
+    Approval -- "APPROVAL_MANAGER_ONLY_KINDS" --> Config["Config"]
+    Screens["Web portal / app Team tab"] -- "/api/approvals/*" --> Approval
+```
 
-The nearest-higher-manager approver is just `submitter.manager_id` — a single-hop lookup, not a walk, since only the direct manager approves (PRD §7.1).
+## 2. The request
 
-**Edge case this surfaces:** the top of the FIELD hierarchy (an NSM, or whoever has `manager_id = NULL`) still submits their own DCR/Plan per PRD §7.1 ("every employee — including managers themselves"). But `NULL.manager_id` means there's no nearest higher manager to approve it. **Resolution:** when `submitter.manager_id IS NULL`, the submission routes directly to Admin, who acts as the sole approver for that one record — there's no separate Stage 2 in that case, since Admin already handled it in Stage 1.
+One `ApprovalRequest` per `(kind, recordId)`, ever — a resubmission reuses it.
 
-## 3. Read-only visibility — computed via downline lookup, not stored
+| Field | Meaning |
+|---|---|
+| `kind` | e.g. `DAILY_PLAN`, `LEAVE` — registered by the owning module |
+| `recordId` | the owning module's record |
+| `submitterId` | who submitted |
+| `status` | see §3 |
+| `workflow` | `MANAGER_THEN_FINAL` or `MANAGER_ONLY`, snapshotted at each (re)submission (§6) |
+| `cycle` | 1, then +1 per resubmission |
+| `submittedAt` / `decidedAt` | the current cycle's submission; when it was decided |
+| `history[]` | every action: `action`, `authority`, `actorId`, `actorRole`, `comment`, `at`, `resultingStatus`, `cycle` |
 
-Anyone strictly above the approver in the chain gets read-only visibility (PRD §7.1, §7.2, §7.3). Rather than storing that visibility set on every record, it's computed live by asking the Identity module for a manager's downline:
+The history is the audit trail: nothing is overwritten, and each entry records *why* the actor
+was allowed to act (§4), so "Admin approved over the manager's head" is visible, not inferred.
+
+## 3. States
+
+```mermaid
+stateDiagram-v2
+    [*] --> SUBMITTED: submit (cycle 1)
+    SUBMITTED --> MANAGER_APPROVED: manager approves (MANAGER_THEN_FINAL)
+    SUBMITTED --> APPROVED: manager approves (MANAGER_ONLY) / Admin override / top-of-chain final approver
+    SUBMITTED --> REJECTED: manager / Admin / top-of-chain final approver rejects
+    SUBMITTED --> WITHDRAWN: submitter withdraws
+    MANAGER_APPROVED --> APPROVED: final approver approves
+    MANAGER_APPROVED --> REJECTED: final approver rejects
+    APPROVED --> REOPENED: Admin reopens (reason required)
+    REJECTED --> SUBMITTED: submitter resubmits (cycle + 1)
+    WITHDRAWN --> SUBMITTED: submitter resubmits (cycle + 1)
+    REOPENED --> SUBMITTED: submitter resubmits (cycle + 1)
+```
+
+- **Open** = `SUBMITTED` or `MANAGER_APPROVED` (someone must decide).
+- **Editable by the submitter** = `REJECTED`, `WITHDRAWN`, `REOPENED` only. Pending means
+  withdraw first; **approved means locked** — only Admin can reopen it (product owner,
+  2026-09-24). Owning modules enforce this on their own edit endpoints via
+  `isEditableBySubmitter(status)`.
+- A rejection and a reopen need a reason; approval comments are optional.
+- Each owning module decides which status unlocks what *for it* — HLD 10's DCR gate needs only
+  a `MANAGER_APPROVED` (or `APPROVED`) Daily Plan; Payroll will count only `APPROVED` expenses.
+
+## 4. Who may act
+
+Resolved on every action by one pure function (`domain/approvalRules.ts#resolveAuthority`):
+
+| Status | Actor | Authority | Approve leads to |
+|---|---|---|---|
+| `SUBMITTED` | the submitter's **current** manager | `MANAGER` | `MANAGER_APPROVED`, or `APPROVED` if `MANAGER_ONLY` |
+| `SUBMITTED` | a final approver, when the submitter has **no manager** | `TOP_OF_CHAIN` | `APPROVED` |
+| `SUBMITTED` | any Admin, at any time | `ADMIN_OVERRIDE` | `APPROVED` |
+| `MANAGER_APPROVED` | a final approver | `FINAL` | `APPROVED` |
+
+- **Final approvers** are fixed per kind by the owning module: always `ADMIN`; Leave adds `HR`.
+  HR has no Stage-1 override — HR acts at the final stage, or directly only on a top-of-chain
+  submission.
+- **Nobody acts on their own request** — including an HR user's own leave, which Admin decides.
+- **Admin's override is final in one step.** When the manager can't act (resigned, inactive, on
+  leave, simply hasn't) Admin approves directly — no per-reason detection, one standing rule.
+  It goes straight to `APPROVED` rather than `MANAGER_APPROVED`, since Admin would otherwise
+  approve the same request twice (decision-log 2026-09-24).
+- **Top of chain** (an NSM, or any submitter without a manager) has no Stage 1: the final
+  approver decides alone (PRD §7.1.4).
+
+## 5. The approver is resolved live
+
+The Stage-1 approver is `submitter.managerId` **at the moment someone acts**, not a value
+stored at submission. If an employee is moved to a new manager, their pending requests move
+with them — no reconciliation job. Admin's override covers the gap when the current manager is
+inactive.
+
+**Read-only visibility** is the same idea one level out: a manager sees the requests of their
+whole downline (`Identity.getDownline`, one `$graphLookup`, computed live — never stored on the
+request). Direct reports' Stage-1 requests are actionable; everyone deeper is read-only
+(PRD §7.1.3). Admin sees everything by role; HR sees the kinds where HR is a final approver.
+
+## 6. Turning the final stage off per kind
+
+`SystemConfig.APPROVAL_MANAGER_ONLY_KINDS` (seeded `NONE`) lists kinds that end at the manager —
+e.g. `DAILY_PLAN` if Admin approving every daily plan for every MR is too much. Every other kind
+goes manager → final approver (client §19.3). It is read at each submission and resubmission
+and snapshotted on the request, so a change applies from the next cycle and never re-routes a
+request already in flight. One list key rather than a key per kind, because kinds register at
+runtime and `SystemConfig` only lets Admin edit keys that were seeded.
+
+## 7. How an owning module plugs in
 
 ```mermaid
 sequenceDiagram
+    participant MR as MR (app)
+    participant Owner as Owning module (e.g. Planning)
+    participant Appr as approval module
     participant Mgr as Manager (Team tab)
-    participant FA as Field Activity / Planning module
-    participant ID as Identity module
 
-    Mgr->>FA: View Team tab
-    FA->>ID: contract.getDownline(managerId)
-    ID->>ID: $graphLookup on users (walk manager_id downward)
-    ID-->>FA: { directReports: [...], indirectReports: [...] }
-    FA->>FA: Query SUBMITTED records where user_id IN directReports -> "pending my approval"
-    FA->>FA: Query SUBMITTED/MANAGER_APPROVED records where user_id IN indirectReports -> "read-only"
-    FA-->>Mgr: Team tab, split into actionable vs view-only
+    Note over Owner,Appr: at boot: registerKind({ kind, finalApproverRoles, onStatusChange })
+    MR->>Owner: submit Daily Plan
+    Owner->>Owner: validate, save plan
+    Owner->>Appr: contract.submit({ kind, recordId, submitterId }, ctx)
+    Appr-->>Owner: request (SUBMITTED)
+    Mgr->>Appr: POST /api/approvals/:id/approve
+    Appr->>Appr: resolveAuthority (current manager) → MANAGER_APPROVED
+    rect rgb(240, 240, 240)
+    Note over Appr,Owner: one MongoDB transaction
+    Appr->>Appr: conditional status write + history
+    Appr->>Owner: onStatusChange(change, ctx)
+    Owner->>Owner: react through ctx (e.g. unlock the day's DCR)
+    end
+    Appr-->>Mgr: 200 MANAGER_APPROVED
 ```
 
-`getDownline` uses MongoDB's `$graphLookup` (a native recursive-traversal aggregation stage — the closest equivalent to a SQL recursive CTE) starting from the manager and walking `manager_id` downward, then partitions the result into **direct reports** (can approve) vs **everyone else in the downline** (read-only). This runs live, at Team-tab view time — not snapshotted onto each record — since the hierarchy is shallow (at most MR→ASM→RSM→ZSM→NSM, 5 levels) and this isn't a hot path; it only runs when a manager opens the tab, not on every read of every record.
+- **`registerKind`** once at boot: the kind name, its final approver roles (must include
+  `ADMIN`), and optionally `onStatusChange`.
+- **`submit(input, ctx?)`** for the first submission and every resubmission; `ctx` lets the
+  owning module save its record and submit in one transaction. No callback fires for a submit —
+  the owning module started it.
+- **`onStatusChange(change, ctx)`** fires on every decision, withdrawal and reopen, **inside the
+  same transaction** as the status change. The owning module writes through `ctx`; if it throws,
+  the status change rolls back too, so the approval can never say "approved" while, say, the
+  leave balance was never deducted. It may run twice on a transient-error retry, so it keeps to
+  database writes on `ctx` — notifications go elsewhere (client sign-off F8, still open).
+- **`getForRecord(kind, recordId)`** is the source of truth for a record's approval state.
+  Owning modules should read it rather than keep their own copy of the status.
 
-**Trade-off, noted but not chosen:** a materialized `visible_to_manager_ids` array snapshotted onto each record at submission time would be cheaper to query but risks going stale if someone's manager changes between submission and review. Given the shallow hierarchy and low view frequency, the live query is simpler and doesn't need a reconciliation job — revisit only if this ever shows up as a real performance problem.
+The transaction plumbing (`TransactionRunnerPort`, the Mongoose runner) lives in
+`apps/api/src/shared/db/` because a transaction here spans two modules.
 
-## 4. Admin visibility is role-based, not hierarchy-based
+## 8. Concurrency
 
-Once `status = MANAGER_APPROVED`, **any** user with `Role = ADMIN` can see the record — this is a plain role check, not a hierarchy walk to "whoever sits above the top manager." This matches Module 1: `manager_id = NULL` means top-of-chain, not "reports to Admin" — there's no requirement that an NSM's chain literally terminates at a specific Admin user, and multiple Admins can all see the same approved record.
-
-## 5. Admin override — Stage-1 approval when the nearest manager can't act
-
-§2's `manager_id IS NULL` case is one instance of a broader problem: sometimes there's a
-`manager_id` on file, but that manager can't actually approve — deactivated (`User.status =
-'inactive'`), on leave, unreachable, or simply hasn't gotten to it. Nothing in Identity reassigns
-a report's `manager_id` when their manager goes inactive (`UpdateUserUseCase` never cascades that
-write), so without a fallback, that report's submissions would sit `SUBMITTED` indefinitely.
-
-**Resolution: Admin can approve or reject any `SUBMITTED` record directly, at any time**, whether
-or not the nearest manager is available — not a detection mechanism for *why* the manager can't
-act, just a standing override. This deliberately covers every case (resignation, leave, forgetting,
-being unreachable) with one rule instead of building separate handling — and matching detection
-logic — for each. It's the same role-based-not-hierarchy-based principle §4 already establishes
-for read visibility on `MANAGER_APPROVED` records, just extended one stage earlier to
-approve/reject action on `SUBMITTED` ones. The shared Approval helper (§1) exposes this as
-`approveAsAdmin(recordId, actingUserId, actingRole)` / `rejectAsAdmin(...)`, gated on
-`actingRole === 'ADMIN'`, applying the same `SUBMITTED → MANAGER_APPROVED` / `SUBMITTED →
-REJECTED` transition as the manager path and stamping `reviewed_by` with the acting Admin's own
-`user_id` — no new field needed to mark the record as an override; `reviewed_by` resolving to an
-ADMIN-role user already says so.
-
-To act on these, Admin needs org-wide visibility into everything currently `SUBMITTED` — not just
-the `manager_id IS NULL` records §2 already routes to them. A dedicated "pending approvals" view,
-filterable by manager and date range, gives Admin that visibility regardless of which manager a
-record is currently assigned to. See `LLD/planning.md`'s HTTP surface table for the concrete
-endpoints.
+Every status change is a conditional write — "move to X *if still* in Y". Two approvers acting at
+once: one wins, the other gets `409` and nothing of theirs is committed. The same guard covers a
+resubmit racing a reopen, and a decision racing a withdrawal.
 
 ## Next
 
-This is HLD topic 5. See `README.md` for the index.
+This is HLD topic 5. See `README.md` for the index; the module's contract, HTTP surface and edge
+cases are in [`../LLD/approval.md`](../LLD/approval.md).

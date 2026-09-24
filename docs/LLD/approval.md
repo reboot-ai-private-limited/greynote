@@ -1,0 +1,116 @@
+# Approval
+
+The workflow around every approvable record — who approves what, in which order, and the full
+history of it. The mechanism, its states and the reasoning are in
+[`../hld/05-approval-workflow-engine.md`](../hld/05-approval-workflow-engine.md); this doc is the
+module-level contract. Code: `apps/api/src/modules/approval/`. Tier 2, beside Territory.
+
+## What it owns
+
+- **`ApprovalRequest`** — one per `(kind, recordId)`, with its status, workflow, cycle and an
+  embedded, append-only `history` (HLD 05 §2). Collection `approvalrequests`, indexed on
+  `(kind, recordId)` unique, `(submitterId, status, submittedAt)` and `(status, kind,
+  submittedAt)`.
+- **The kind registry** — in memory, filled at boot by owning modules. The module knows no kind
+  of its own.
+
+**Not owned here:** the records being approved (Plans, Leaves, …), what an approval *means* for
+them (unlocking a DCR, deducting leave balance) — that's the owning module's `onStatusChange` —
+and notifications (F8 still open).
+
+## Public contract
+
+```ts
+interface ApprovalPublicContract {
+  registerKind(definition: ApprovalKindDefinition): void;
+  submit(input: { kind: string; recordId: string; submitterId: string }, ctx?: TransactionContext): Promise<ApprovalRequest>;
+  getForRecord(kind: string, recordId: string): Promise<ApprovalRequest | null>;
+}
+
+interface ApprovalKindDefinition {
+  kind: string;                                  // e.g. 'DAILY_PLAN'
+  finalApproverRoles: RoleName[];                // must include 'ADMIN'; Leave: ['HR', 'ADMIN']
+  onStatusChange?: (change: ApprovalStatusChange, ctx: TransactionContext) => Promise<void>;
+}
+```
+
+Also exported: `isEditableBySubmitter(status)` — true for `REJECTED` / `WITHDRAWN` / `REOPENED`;
+owning modules gate their own edit endpoints on it.
+
+**How a consumer uses it** (Planning, HR, Field Master Data, Field Activity — Phase 4 onward):
+
+1. In its container, `approval.contract.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles:
+   ['ADMIN'], onStatusChange })`. The top-level `container.ts` passes `approval.contract` in,
+   the same way Identity's contract reaches Territory.
+2. On its own submit endpoint: validate and save the record, then `submit(...)` — in one
+   transaction if both writes must land together.
+3. On its own edit endpoint: refuse unless `isEditableBySubmitter(request.status)` (or the caller
+   is Admin — Admin can edit approved records directly).
+4. Read status with `getForRecord` — don't mirror it onto the record.
+5. React to decisions in `onStatusChange`, writing only through `ctx`.
+
+The owning module's tier must be above 2 (it imports `approval.public.ts`); approval never
+imports it back — the callback is how it's told.
+
+## Dependencies
+
+- **Identity** (tier 1), through `UserDirectoryPort`: `findUserSummary` (the submitter's current
+  manager), `getUserSummaries` (names on lists, batched), `getDirectReports` (a manager's inbox,
+  Admin's manager filter), `getDownline` (the Team view), `getManagerChain` (who may view a
+  request).
+- **Config** (tier 0): `APPROVAL_MANAGER_ONLY_KINDS` — comma-separated kinds with no final stage,
+  or `NONE` (HLD 05 §6).
+
+## HTTP surface
+
+All under `/api/approvals`, all authenticated. Every list returns the same row shape — `id`,
+`kind`, `recordId`, `status`, `workflow`, `cycle`, `submittedAt`, `decidedAt`, `submitter
+{id, employeeCode, name}`, `lastAction` (with actor), and **`canAct`** for the caller — so the
+web portal and the app's Team tab can share one approval screen (client §19.6).
+
+| Method | Path | Role | Purpose |
+|---|---|---|---|
+| `GET` | `/inbox` | FIELD, HR, ADMIN | What I can act on now, oldest first. Manager: direct reports at Stage 1. HR: open requests of kinds where HR is a final approver that HR can act on. Admin: every open request. Filters: `kind`, `status`, `submitterId`, `managerId` (Admin), `from`, `to`; paginated |
+| `GET` | `/team` | FIELD | My downline's requests, any status, newest first; `scope=direct\|indirect\|all`. Direct reports' Stage-1 requests have `canAct: true`, deeper levels are read-only |
+| `GET` | `/mine` | any | My own requests, newest first |
+| `GET` | `/:id` | submitter, their manager chain, Admin, the kind's final approvers | Detail with the full named `history`, plus `canAct`, `canWithdraw`, `canReopen`. Anyone else: `404` |
+| `POST` | `/:id/approve` | whoever `resolveAuthority` allows | Optional `comment` |
+| `POST` | `/:id/reject` | same | `comment` required |
+| `POST` | `/bulk` | FIELD, HR, ADMIN | `{ decision, requestIds (≤100), comment? }` — each decided independently in its own transaction; `results[]` per id (`ok` + `status`, or `statusCode` + `message`) |
+| `POST` | `/:id/withdraw` | the submitter | Only while `SUBMITTED` |
+| `POST` | `/:id/reopen` | ADMIN | Only from `APPROVED`; `comment` required |
+
+Submitting is not an HTTP endpoint here — it happens through the owning module's own submit
+endpoint, which calls `contract.submit`.
+
+## Write-path rules & invariants
+
+- One request per `(kind, recordId)`; a resubmission is a new **cycle** on it, never a new
+  request. Only the original submitter can resubmit.
+- Every status change is conditional on the status it started from (HLD 05 §8) → `409` on a
+  lost race, with nothing committed.
+- Decisions, withdrawals and reopens run the kind's `onStatusChange` in the same transaction.
+- The workflow is re-read from config at each (re)submission and fixed for that cycle.
+- `history` is append-only.
+
+## Edge cases
+
+- **The submitter's manager changes while a request is pending** — the new manager can act, the
+  old one can't (resolved live). Nothing to migrate.
+- **The manager is inactive or never acts** — Admin approves or rejects from `/inbox` (override,
+  final in one step). No timeout or auto-escalation; F8's notifications may add reminders later.
+- **HR submits their own leave** — HR has no manager, so it's top-of-chain; HR can't act on
+  their own request, so another HR user or Admin decides.
+- **A request's kind is no longer registered** (a module removed a kind) — it still lists and
+  shows, with `canAct: false`; acting on it is a server error, since that's a wiring bug.
+- **Reopen after payroll** — once Payroll exists (Phase 7), reopening an expense in a Finalized
+  month must be refused; that check belongs to the owning module's reaction or a guard added
+  then, noted here so it isn't forgotten.
+- **HR's inbox** filters open HR-kind requests in memory (top-of-chain needs each submitter's
+  manager), capped at the 2000 oldest — far above the open leaves at any moment.
+
+## Deliberately deferred
+
+- **Notifications** on submit/decision (client sign-off F8).
+- **Delegation** ("my deputy approves while I'm on leave") — Admin's override covers it for now.
+- **Per-kind SLAs / auto-escalation** after N days — not asked for.

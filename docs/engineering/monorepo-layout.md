@@ -52,10 +52,12 @@ Where new code goes:
 
 - **A new ERD module** (Identity, Territory, …) → `apps/api/src/modules/<name>/`, following
   `module-anatomy.md` and `adding-a-module.md`.
-- **A cross-cutting mechanism used by more than one module** (the Approval Workflow Engine,
-  offline-sync payload validation) → `apps/api/src/shared/` for now; graduates to
-  `packages/shared` the moment `apps/mobile` needs the identical logic client-side too — see
-  `docs/roadmap.md` phase 3's note on this.
+- **A cross-cutting mechanism used by more than one module** that owns no data of its own
+  (transactions in `shared/db/`, offline-sync payload validation) → `apps/api/src/shared/` for
+  now; graduates to `packages/shared` the moment `apps/mobile` needs the identical logic
+  client-side too. A mechanism that **owns data** is a module instead — the approval workflow
+  started as a shared helper and became the `approval` module once it needed its own collection
+  (`docs/decision-log.md`, 2026-09-24).
 - **A wire type used across modules or across apps** → `packages/contracts`.
 - **Tooling config** (tsconfig, eslint) shared across packages → `packages/config`.
 

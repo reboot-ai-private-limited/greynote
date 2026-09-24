@@ -14,8 +14,9 @@ Activity as their first, and in most cases only, real consumer.
 
 Full fields in [`../erd/04-field-activity.md`](../erd/04-field-activity.md).
 
-- **`DCR`** — the daily envelope. One row per user per `report_date`. Carries the two-stage
-  approval state (`status`/`reviewed_by`/`reviewed_at`) that every child below attaches under.
+- **`DCR`** — the daily envelope. One row per user per `report_date`, that every child below
+  attaches under. Its two-stage approval is a `DCR` `ApprovalRequest` in the `approval` module
+  ([`approval.md`](approval.md)), not fields on this row (an earlier draft stored them here).
 - **`DoctorCall`** / **`ChemistCall`** — `working_type`, `work_with`, remarks, captured GPS
   (`captured_latitude`/`captured_longitude`), and `geofence_status` (`PASS`/`FAIL`/`OVERRIDE`).
 - **`DoctorSampleGiven`** — one row per product+quantity given during a `DoctorCall`, each
@@ -135,12 +136,11 @@ implementing, don't re-derive it from this summary alone.
 
 ## Write-path rules & invariants
 
-- **`DoctorService` goes through the shared Approval Workflow Engine**
-  ([`hld/05-approval-workflow-engine.md`](../hld/05-approval-workflow-engine.md)) exactly like
-  `DCR` and Planning's `DailyPlan`/`MonthlyPlan` — MR-submitted rows get `reviewed_by` set to the
-  Nearest Higher Manager; Admin-created rows are auto-approved (`status` set straight to
-  `MANAGER_APPROVED`, `reviewed_by`/`reviewed_at` stay null) with the covering MR auto-selected
-  from that doctor's `DoctorAssignment` (Field Master Data).
+- **`DoctorService` goes through the `approval` module** ([`approval.md`](approval.md)) exactly
+  like `DCR` and Planning's Plans — an MR-submitted Service is submitted as a `DOCTOR_SERVICE`
+  request. Admin-created rows skip approval entirely (no request is created; the Service is
+  effective immediately) with the covering MR auto-selected from that doctor's
+  `DoctorAssignment` (Field Master Data).
 - **`DoctorGift` never touches the approval engine.** Admin allocates it directly; the assigned
   MR's only action is `PENDING → DONE`.
 - **`Expense.payment_status` is independent of `DCR.status`.** A `MANAGER_APPROVED` DCR's
@@ -214,7 +214,8 @@ All under `/api/field-activity`, scoped by the authenticated user's role.
   `DoctorSampleAllocation` for sample decrement.
 - **Planning** — `DailyPlan.status`/`working_type`/`route_ids`, consumed both for the submission
   gate and for TA/DA generation.
-- **Approval Workflow Engine** (`hld/05`) — for `DCR` and `DoctorService`, not `DoctorGift`.
+- **Approval** (Tier 2, [`approval.md`](approval.md)) — for `DCR`, Expenses and `DoctorService`,
+  not `DoctorGift`.
 - **Offline Sync & Geofencing** (`hld/01`) — the transactional-record sync protocol and the
   on-device/server geofence check, both consumed rather than reimplemented.
 

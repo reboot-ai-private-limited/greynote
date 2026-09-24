@@ -125,8 +125,9 @@ In order:
 1. **Is the data genuinely needed by another module?** Add it to the owning module's
    `.public.ts` contract. This is the design working, not a workaround.
 2. **Is the logic genuinely cross-cutting** (needed identically by several modules, like the
-   Approval Workflow Engine)? It belongs in `shared/`, not duplicated per module and not reached
-   into from one module to another.
+   transaction runner in `shared/db/`)? It belongs in `shared/`, not duplicated per module and
+   not reached into from one module to another. If it also owns data, it's a module with a
+   contract instead — as the approval workflow became.
 3. **Does the import point sideways or upward across tiers?** The dependency is backwards, or
    one of the two modules is mis-tiered — resolve which, deliberately, before editing
    `MODULE_TIERS`.

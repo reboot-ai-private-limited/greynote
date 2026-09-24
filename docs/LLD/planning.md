@@ -15,8 +15,9 @@ even if it wanted to enforce anything there.
 
 - **`DailyPlan`** — one row per user per date: `working_type` (`FIELD_WORK`/`MEETING`/
   `CONFERENCE`/`STRIKE`), `work_with` (array of accompanying `user_id`s), `route_ids` (array —
-  a day can cover more than one Route), `remarks`, and the shared approval fields (`status`,
-  `submitted_at`, `reviewed_by`, `reviewed_at`).
+  a day can cover more than one Route), `remarks`. Its approval state (status, who reviewed it,
+  history) is **not** stored here — it's the `DAILY_PLAN` `ApprovalRequest` in the `approval`
+  module ([`approval.md`](approval.md)); an earlier draft carried `status`/`reviewed_by` fields.
 - **`MonthlyPlan`** — the envelope: one row per user per month, carrying only the approval
   fields. Its `MonthlyPlanEntry` children hold the day-by-day detail (same shape as `DailyPlan`:
   `working_type`, `work_with`, `route_ids`, `remarks`, one per planned date).
@@ -80,21 +81,27 @@ needs Route or Work-With detail is a reason to extend the contract, not to reach
 
 ## Approval workflow
 
-Both `DailyPlan` and `MonthlyPlan` route through the shared Approval helper described in
-[`../hld/05-approval-workflow-engine.md`](../hld/05-approval-workflow-engine.md) — this doc does
-not re-derive that state machine. In short, as it applies here:
+Both `DailyPlan` and `MonthlyPlan` go through the `approval` module (built in Phase 3 —
+[`approval.md`](approval.md), [`../hld/05-approval-workflow-engine.md`](../hld/05-approval-workflow-engine.md));
+this doc does not re-derive that state machine. As it applies here:
 
-- **Approver resolution**: a single-hop lookup, `submitter.manager_id` via Identity's contract —
-  never a chain walk. If `manager_id` is `NULL` (top-of-chain, e.g. an NSM), the submission
-  routes directly to Admin as the sole approver.
-- **Transition**: `DRAFT → SUBMITTED → MANAGER_APPROVED` (forwarded to any Admin automatically,
-  by role check, not a hierarchy walk) or `SUBMITTED → REJECTED`.
-- **Read-only visibility**: any manager strictly above the Nearest Higher Manager sees the Plan
-  and its status via the Team tab, computed live off Identity's `getDownline`, never stored on
-  the Plan row itself.
-- Planning's use cases **delegate** to this shared helper for the transition and approver logic —
-  they own only the `DailyPlan`/`MonthlyPlan` collections and the fields specific to a Plan
-  (`working_type`, `route_ids`, etc.), not a second copy of the approve/reject state machine.
+- Planning registers kinds `DAILY_PLAN` and `MONTHLY_PLAN` (final approver: `ADMIN`) and calls
+  `approval.contract.submit` from its own submit endpoints. A Plan is `DRAFT` until then —
+  `DRAFT` is Planning's own state, before any `ApprovalRequest` exists.
+- Flow: `SUBMITTED → MANAGER_APPROVED → APPROVED` (or `REJECTED` at either stage); the approver
+  is the submitter's current manager; top-of-chain and Admin override are final in one step.
+  If the client finds Admin approving every Daily Plan too heavy, `DAILY_PLAN` goes into
+  `APPROVAL_MANAGER_ONLY_KINDS` and ends at the manager — no code change.
+- Once submitted, the employee can't edit a Plan (client §2.5) unless it's `REJECTED`,
+  `WITHDRAWN` or Admin-`REOPENED` — Planning's edit endpoints check `isEditableBySubmitter`.
+  **Open for Phase 4:** client §2.6 wants in-day changes to an approved Plan approved by the
+  *manager*, but only Admin can reopen an approved request. Likely answer: a separate
+  `DAILY_PLAN_CHANGE` kind (the change is its own approvable record, manager-approved); decide
+  when Planning is built.
+- Planning reads a Plan's status with `getForRecord`; its `onStatusChange` handles anything that
+  must happen on a decision, in the same transaction.
+- Approve/reject, the team view, Admin's org-wide queue and history are the approval module's
+  `/api/approvals/*` endpoints — Planning has none of its own.
 
 ## HTTP surface
 
@@ -106,14 +113,7 @@ not re-derive that state machine. In short, as it applies here:
 | `GET` | `/planning/daily/:id` | FIELD, manager (read-only per visibility rules) | Fetch one |
 | `POST` | `/planning/monthly` | FIELD | Save/update a Monthly Plan and its entries |
 | `POST` | `/planning/monthly/:id/submit` | FIELD | Submit the whole month |
-| `GET` | `/planning/team/pending` | Manager | Plans awaiting this manager's approval (direct reports only) |
-| `GET` | `/planning/team` | Manager | Full downline view, split actionable vs. read-only |
-| `POST` | `/planning/:id/approve` | Manager (Nearest Higher Manager only) | Approve |
-| `POST` | `/planning/:id/reject` | Manager (Nearest Higher Manager only) | Reject |
-| `GET` | `/admin/planning` | Admin | All `MANAGER_APPROVED` Plans |
-| `GET` | `/admin/approvals/pending` | Admin | All `SUBMITTED` Plans org-wide, filterable by `managerId` and date range (`hld/05` §5) |
-| `POST` | `/admin/approvals/:id/approve` | Admin | Approve any `SUBMITTED` Plan directly, independent of the nearest manager (`hld/05` §5) |
-| `POST` | `/admin/approvals/:id/reject` | Admin | Reject any `SUBMITTED` Plan directly (`hld/05` §5) |
+| — | `/api/approvals/*` | Manager, Admin | Pending queue, team view (actionable vs read-only), approve/reject, Admin's org-wide queue and override — the approval module's endpoints ([`approval.md`](approval.md)), filtered with `kind=DAILY_PLAN` / `MONTHLY_PLAN` |
 
 Exact paths are illustrative — finalize against whatever URL convention the Identity module's
 first endpoints establish, and keep Daily/Monthly symmetric.
@@ -126,29 +126,25 @@ first endpoints establish, and keep Daily/Monthly symmetric.
 - **Submit attempted with no connectivity.** Must fail clearly and immediately (not silently
   queue) — the client-side UX needs to distinguish this from every other offline-tolerant write
   in the app, since a user's mental model everywhere else is "it'll sync later."
-- **Top-of-chain submitter** (`manager_id IS NULL`): routes straight to Admin, single stage, per
-  `hld/05` §2 — Planning's use case must not attempt a Nearest-Higher-Manager lookup that will
-  never resolve.
-- **A rejected Plan.** PRD doesn't specify a resubmit path explicitly; the natural read is the
-  employee edits and resubmits, moving `REJECTED → SUBMITTED` again — confirm this against
-  Field Activity's DCR module, which shares the same question, before diverging between the two.
+- **Top-of-chain submitter** (`manager_id IS NULL`): handled by the approval module — Admin
+  decides alone, in one step. Planning does nothing special.
+- **A rejected Plan.** The employee edits and resubmits; the approval module records it as a new
+  cycle on the same request, history kept (HLD 05 §3).
 - **Compliance block active** (PRD §7.5): a user blocked for missed DCR cannot submit a new
   Daily/Monthly Plan at all. This module doesn't own the block state (Field Activity/`hld/10`
   does) but its submit use cases must check it before accepting a submission.
 - **Nearest manager can't act** (deactivated, on leave, forgot, unreachable) — no per-reason
-  detection; Admin can approve or reject the `SUBMITTED` Plan directly at any time via
-  `/admin/approvals/:id/approve`/`reject` (`hld/05` §5). Same rule for every reason, not a
-  different path for "manager on leave" vs. "manager deactivated" vs. "manager forgot."
+  detection; Admin approves or rejects from the approval inbox at any time (HLD 05 §4). Same
+  rule for every reason.
 
 ## Dependencies
 
-- **Identity** (Tier 1): submitter identity, role, `manager_id` for approver resolution,
-  `getDownline` for Team-tab visibility.
+- **Identity** (Tier 1): submitter identity and role.
 - **Territory** (Tier 2): `route_ids` reference Territory's `Route` entities — Planning validates
   a referenced route exists and is one the submitter is assigned to, via Territory's contract.
 - **Config** (Tier 0): submit-cutoff values.
-- **Approval Workflow Engine** ([`hld/05`](../hld/05-approval-workflow-engine.md), shared logic,
-  not a module): the transition/approver/visibility mechanics.
+- **Approval** (Tier 2, [`approval.md`](approval.md)): the whole approve/reject workflow,
+  approver resolution and team visibility.
 
 ## Deliberately deferred
 

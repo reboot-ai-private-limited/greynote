@@ -111,7 +111,12 @@ Marketing all need the identical state machine — writing it five times is how 
    decision callbacks to the owning module — **done**
 4. HTTP: my approvals (manager), Admin/HR queue, team (read-only), approve / reject (bulk),
    withdraw, reopen, request detail with history — **done**
-5. Tests, live run, HLD 05 rewrite
+5. Tests, live run, HLD 05 rewrite — **done**
+
+**Status (2026-09-24): done.** Unit tests cover every stage rule, override, top-of-chain, HR on
+Leave, live manager changes, withdraw / resubmit / reopen, the transactional callback (including
+rollback), every list and bulk decisions; live runs against the dev database (real Mongo
+transactions, real HTTP) passed every check. Design: `hld/05`, `LLD/approval.md`.
 
 **Done when:** for a test kind registered only in tests, a request moves `SUBMITTED →
 MANAGER_APPROVED → APPROVED` (or `REJECTED` at either stage) with the right actor at each stage;

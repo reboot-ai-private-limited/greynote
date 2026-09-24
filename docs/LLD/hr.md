@@ -13,7 +13,9 @@ Holiday List). ERD: [`../erd/07-hr-ops.md`](../erd/07-hr-ops.md). Roadmap:
 - **`LeaveBalance`** — the live, per-user, per-year ledger: `allocated_days` (seeded from
   `LeavePolicy`, independently HR-editable) and `used_days`.
 - **`Leave`** — a request: `start_date`/`end_date`/`days_count`/`reason`, `status`
-  (`PENDING`/`APPROVED`/`REJECTED`), `reviewed_by` (an HR user, never a manager).
+  and its approval — a `LEAVE` `ApprovalRequest` (Employee → Manager → HR or Admin) in the
+  `approval` module, not `status`/`reviewed_by` fields on the row (see the superseded section
+  below and [`approval.md`](approval.md)).
 - **`Holiday`** (+ `HolidayZone`, `HolidayHQ` join tables) — a dated event scoped `NATIONAL`,
   `ZONE`, or `HQ`.
 

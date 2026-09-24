@@ -27,10 +27,11 @@ undefined yet.
 |---|---|---|---|---|
 | 1 | Identity | [`identity.md`](identity.md) | [`01-identity-hierarchy`](../erd/01-identity-hierarchy.md) | — |
 | 2 | Territory | [`territory.md`](territory.md) | [`02-territory-master`](../erd/02-territory-master.md) | Identity |
+| 2b | Approval | [`approval.md`](approval.md) | — (HLD [`05`](../hld/05-approval-workflow-engine.md)) | Identity, Config |
 | 3 | Field Master Data | [`field-master-data.md`](field-master-data.md) | [`03-field-master-data`](../erd/03-field-master-data.md) | Identity, Territory |
-| 4 | Planning | [`planning.md`](planning.md) | [`05-planning-and-rules`](../erd/05-planning-and-rules.md) | Identity, Territory, Approval Engine |
+| 4 | Planning | [`planning.md`](planning.md) | [`05-planning-and-rules`](../erd/05-planning-and-rules.md) | Identity, Territory, Approval |
 | 5 | HR | [`hr.md`](hr.md) | [`07-hr-ops`](../erd/07-hr-ops.md) | Identity, Territory |
-| 6 | Field Activity | [`field-activity.md`](field-activity.md) | [`04-field-activity`](../erd/04-field-activity.md) | Identity, Territory, Field Master Data, Approval Engine, Sync & Geofencing |
+| 6 | Field Activity | [`field-activity.md`](field-activity.md) | [`04-field-activity`](../erd/04-field-activity.md) | Identity, Territory, Field Master Data, Approval, Sync & Geofencing |
 | 7 | Sales & Orders | [`sales-and-orders.md`](sales-and-orders.md) | [`06-sales-and-orders`](../erd/06-sales-and-orders.md) | Field Master Data |
 | 8 | Marketing | [`marketing.md`](marketing.md) | [`08-marketing`](../erd/08-marketing.md) | Identity, Field Master Data |
 | 9 | Payroll | [`payroll.md`](payroll.md) | [`09-payroll`](../erd/09-payroll.md) | Identity, HR, Field Activity |
@@ -49,7 +50,8 @@ design.
 - **IDs**: whatever `apps/api/src/shared/ids.ts` generates — check that file rather than assume.
 - **Roles**: `ADMIN`, `HR`, `ACCOUNTANT` (Web Portal); `MR`/manager designations `ASM → RSM → ZSM
   → NSM` (Mobile, "FIELD" roles) — PRD §4.
-- **Two-stage approval**: Nearest Higher Manager → Admin, with read-only visibility for anyone in
-  between — PRD §7.1, mechanism in [`../hld/05-approval-workflow-engine.md`](../hld/05-approval-workflow-engine.md).
-  Every LLD doc for a module with an approval workflow says so explicitly rather than
-  re-describing the state machine.
+- **Two-stage approval**: Nearest Higher Manager → Admin (HR or Admin for Leave), with read-only
+  visibility for anyone above — PRD §7.1, client §19. One `approval` module owns it
+  ([`approval.md`](approval.md), [`../hld/05-approval-workflow-engine.md`](../hld/05-approval-workflow-engine.md));
+  approvable records carry no status fields of their own. Every LLD doc for a module with an
+  approval workflow says so explicitly rather than re-describing the state machine.
