@@ -43,6 +43,9 @@ const TAGS = [
   { name: 'Identity / Roles', description: 'Role master data.' },
   { name: 'Identity / Designations', description: 'Designation master data.' },
   { name: 'Identity / Pay Bands', description: 'Pay band master data.' },
+  { name: 'Territory / Zones', description: 'Top level of Zone → HQ → Area → Route.' },
+  { name: 'Territory / HQs', description: 'Headquarters within a Zone.' },
+  { name: 'Territory / Areas', description: 'Areas within an HQ; the Area type drives DA.' },
 ];
 
 function buildOpenApiDocument() {

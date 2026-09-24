@@ -75,6 +75,11 @@ accepted explicitly, and recorded in `decision-log.md`.
   manual Admin override that itself doesn't survive the next edit (`hld/02` §3)
 - `RouteAssignment` (MR ↔ Route, many-to-many)
 
+**Status (2026-09-24): in progress.** Step 1 of 5 done — Zone / HQ / Area CRUD (create, list with
+search/filters, rename, Area type change, deactivate/reactivate with the parent/child rules).
+Next: Routes with a fake distance provider, then the Google adapter, assignments + public
+contract, CSV import.
+
 Tier 2, and the only thing tier 3 as a whole depends on besides Identity. Building it alone
 (rather than starting tier 3 in parallel) keeps the external-API integration — the one genuinely
 risky piece here — isolated and testable before three modules build assignment/location features

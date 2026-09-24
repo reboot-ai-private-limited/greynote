@@ -89,6 +89,8 @@ against `IdentityPublicContract`, never against `identity`'s Mongoose model dire
   per HQ, Route per Area.
 - **Nothing is hard-deleted.** A Zone/HQ/Area can't be deactivated while it has an active child;
   a Route can't be deactivated while it has an active `RouteAssignment`.
+  Nothing can be created or reactivated under an inactive parent. A node's parent can't be
+  changed (no reparenting; see Deliberately deferred).
 - **`distance_km` is used as-is for TA — never doubled for a return trip.** Admin enters the
   route (or overrides the distance) to cover the full paid travel (decision-log 2026-09-24).
 - **Distance is recalculated, not frozen, on every waypoint edit.** Any add/remove/reorder of a
@@ -138,7 +140,7 @@ this module's depth:
 | `POST` | `/api/territory/hqs` | Admin | Create an HQ under a Zone |
 | `GET` | `/api/territory/hqs` | Admin | List HQs, optionally filtered by Zone |
 | `POST` | `/api/territory/areas` | Admin | Create an Area (with `type`) under an HQ |
-| `GET` | `/api/territory/areas` | Admin | List Areas, optionally filtered by HQ |
+| `GET` | `/api/territory/areas` | Admin | List Areas, optionally filtered by HQ and `type` |
 | `PATCH` | `/api/territory/areas/:id` | Admin | Edit an Area's name, `type` or status |
 | `POST` | `/api/territory/routes` | Admin | Create a Route under an Area — triggers waypoint geocoding + distance calculation |
 | `GET` | `/api/territory/routes` | Admin | List Routes, optionally filtered by Area or HQ |

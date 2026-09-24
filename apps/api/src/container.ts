@@ -1,11 +1,13 @@
 import { buildConfigContainer } from '@/modules/config/config.container.js';
 import { buildHealthContainer } from '@/modules/health/health.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
+import { buildTerritoryContainer } from '@/modules/territory/territory.container.js';
 
 export interface AppContainers {
   health: ReturnType<typeof buildHealthContainer>;
   config: ReturnType<typeof buildConfigContainer>;
   identity: ReturnType<typeof buildIdentityContainer>;
+  territory: ReturnType<typeof buildTerritoryContainer>;
 }
 
 /**
@@ -21,5 +23,9 @@ export function buildContainers(): AppContainers {
   // Tier 1 — Identity depends only on Config's public contract, per MODULE_TIERS.
   const identity = buildIdentityContainer(config.contract);
 
-  return { health, config, identity };
+  // Tier 2 — Territory. Zone/HQ/Area need no other module yet; Identity's contract arrives with
+  // RouteAssignment.
+  const territory = buildTerritoryContainer();
+
+  return { health, config, identity, territory };
 }

@@ -8,6 +8,7 @@ export function buildApiRouter(containers: AppContainers): Router {
   router.use('/health', containers.health.buildRouter());
   router.use('/config', containers.config.buildRouter());
   router.use('/identity', containers.identity.buildRouter());
+  router.use('/territory', containers.territory.buildRouter());
 
   return router;
 }
