@@ -4,14 +4,26 @@ export type PayBandName = (typeof PAY_BAND_NAMES)[number];
 /**
  * Money fields are decimal STRINGS here — domain/ never imports Mongoose (2026-09-19 decision),
  * so the `Decimal128` conversion happens only in `infrastructure/mongoPayBand.adapter.ts`.
+ *
+ * DA has one rate per Area type (`HQ` / `EX_STATION` / `OUT_STATION`, see hld/06 §2).
  */
 export interface PayBand {
   id: string;
   name: PayBandName;
   baseSalary: string;
   taPerKmRate: string;
-  daAmount: string;
+  hqDa: string;
+  exStationDa: string;
+  outStationDa: string;
 }
+
+export const PAY_BAND_MONEY_FIELDS = [
+  'baseSalary',
+  'taPerKmRate',
+  'hqDa',
+  'exStationDa',
+  'outStationDa',
+] as const satisfies readonly (keyof PayBand)[];
 
 /** Non-negative, up to 2 decimal places — what `Decimal128` can represent losslessly for money. */
 export function isValidDecimalString(value: string): boolean {

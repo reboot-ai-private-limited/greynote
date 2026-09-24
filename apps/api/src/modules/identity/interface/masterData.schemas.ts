@@ -18,7 +18,9 @@ export const createPayBandBodySchema = z.object({
   // schema only checks shape, not the money-specific decimal rule, so there's one place that rule lives.
   baseSalary: z.string().min(1),
   taPerKmRate: z.string().min(1),
-  daAmount: z.string().min(1),
+  hqDa: z.string().min(1),
+  exStationDa: z.string().min(1),
+  outStationDa: z.string().min(1),
 });
 export const updatePayBandBodySchema = createPayBandBodySchema.partial();
 

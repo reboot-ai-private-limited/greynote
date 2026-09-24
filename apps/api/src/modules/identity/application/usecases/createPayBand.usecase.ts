@@ -1,11 +1,9 @@
 import { AppError } from '@/shared/errors/AppError.js';
-import { isValidDecimalString, type PayBand } from '../../domain/payBand.entity.js';
+import { isValidDecimalString, PAY_BAND_MONEY_FIELDS, type PayBand } from '../../domain/payBand.entity.js';
 import type { PayBandRepositoryPort } from '../../domain/payBand.repository.port.js';
 
-const MONEY_FIELDS = ['baseSalary', 'taPerKmRate', 'daAmount'] as const;
-
-function assertValidMoney(input: Pick<PayBand, 'baseSalary' | 'taPerKmRate' | 'daAmount'>): void {
-  for (const field of MONEY_FIELDS) {
+function assertValidMoney(input: Omit<PayBand, 'id'>): void {
+  for (const field of PAY_BAND_MONEY_FIELDS) {
     if (!isValidDecimalString(input[field])) {
       throw AppError.badRequest(`${field} must be a non-negative decimal with up to 2 places.`, { field });
     }

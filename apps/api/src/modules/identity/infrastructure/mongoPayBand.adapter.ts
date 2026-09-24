@@ -1,16 +1,13 @@
 import { Types } from 'mongoose';
 import { AppError } from '@/shared/errors/AppError.js';
-import type { PayBand, PayBandName } from '../domain/payBand.entity.js';
+import { PAY_BAND_MONEY_FIELDS, type PayBand, type PayBandName } from '../domain/payBand.entity.js';
 import type { PayBandRepositoryPort } from '../domain/payBand.repository.port.js';
 import { PayBandModel } from './payBand.schema.js';
 
-interface PayBandDoc {
-  _id: unknown;
-  name: PayBandName;
-  baseSalary: Types.Decimal128;
-  taPerKmRate: Types.Decimal128;
-  daAmount: Types.Decimal128;
-}
+type PayBandDoc = { _id: unknown; name: PayBandName } & Record<
+  (typeof PAY_BAND_MONEY_FIELDS)[number],
+  Types.Decimal128
+>;
 
 /** Domain keeps money as decimal strings (no Mongoose in domain/) — conversion lives only here. */
 function toPayBand(doc: PayBandDoc): PayBand {
@@ -19,15 +16,18 @@ function toPayBand(doc: PayBandDoc): PayBand {
     name: doc.name,
     baseSalary: doc.baseSalary.toString(),
     taPerKmRate: doc.taPerKmRate.toString(),
-    daAmount: doc.daAmount.toString(),
+    hqDa: doc.hqDa.toString(),
+    exStationDa: doc.exStationDa.toString(),
+    outStationDa: doc.outStationDa.toString(),
   };
 }
 
 function toDecimalFields(input: Partial<Omit<PayBand, 'id' | 'name'>>) {
   const fields: Record<string, Types.Decimal128> = {};
-  if (input.baseSalary !== undefined) fields.baseSalary = Types.Decimal128.fromString(input.baseSalary);
-  if (input.taPerKmRate !== undefined) fields.taPerKmRate = Types.Decimal128.fromString(input.taPerKmRate);
-  if (input.daAmount !== undefined) fields.daAmount = Types.Decimal128.fromString(input.daAmount);
+  for (const field of PAY_BAND_MONEY_FIELDS) {
+    const value = input[field];
+    if (value !== undefined) fields[field] = Types.Decimal128.fromString(value);
+  }
   return fields;
 }
 
