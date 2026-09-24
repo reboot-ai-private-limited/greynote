@@ -17,7 +17,8 @@ in [`../hld/02-route-distance-calculation.md`](../hld/02-route-distance-calculat
 - **`Route`** — belongs to one `Area`. An ordered sequence of geocoded waypoints
   (`{label, latitude, longitude, place_id}`), a computed road distance (`distance_km`), and that
   distance's provenance/status (`distance_source`: `AUTO_CALCULATED` | `MANUAL_OVERRIDE`;
-  `distance_status`: `PENDING` | `CALCULATED` | `FAILED`; `distance_calculated_at`).
+  `distance_status`: `CALCULATED` | `FAILED`; `distance_calculated_at`; `waypoints_version`).
+  Always uses its Area's `type` — no per-Route override (client sign-off D5).
 - **`RouteAssignment`** — the MR ↔ `Route` join. Many-to-many: a route can have several MRs
   (shared coverage), an MR can cover several routes. Carries `assigned_at` and `status`
   (`active`/`inactive`) as a lightweight assignment history, rather than a single FK that
@@ -79,8 +80,17 @@ against `IdentityPublicContract`, never against `identity`'s Mongoose model dire
   `{label, latitude, longitude, place_id}`, not the typed string. A waypoint with no confirmed
   coordinates cannot be added to a route.
 - **A `Route` may save before its distance resolves.** Master-data entry is never blocked on an
-  external API being up — a route with `distance_status: PENDING` (still calculating) or
-  `FAILED` (geocoding or the Directions call errored) is a valid, saved `Route`. See Edge cases.
+  external API being up — a route with `distance_status: FAILED` (the Directions call errored
+  or timed out, ~5 s) is a valid, saved `Route`. Admin retries with `POST
+  /routes/:id/recalculate`. See Edge cases.
+- **At most 25 waypoints per Route** (origin + destination + 23 via) — Google Directions' limit
+  for one request.
+- **Names are unique within their parent**, case-insensitive: Zone globally, HQ per Zone, Area
+  per HQ, Route per Area.
+- **Nothing is hard-deleted.** A Zone/HQ/Area can't be deactivated while it has an active child;
+  a Route can't be deactivated while it has an active `RouteAssignment`.
+- **`distance_km` is used as-is for TA — never doubled for a return trip.** Admin enters the
+  route (or overrides the distance) to cover the full paid travel (decision-log 2026-09-24).
 - **Distance is recalculated, not frozen, on every waypoint edit.** Any add/remove/reorder of a
   waypoint immediately triggers a fresh Directions-API call (blocking — the web portal is not
   offline-first, so this is acceptable at save time) and resets `distance_source` back to
@@ -100,6 +110,11 @@ against `IdentityPublicContract`, never against `identity`'s Mongoose model dire
   overwrite prior assignment history.
 
 ## Route-distance integration
+
+Google Maps, behind two ports — `PlaceSearch` (Places autocomplete + details) and
+`DistanceProvider` (Directions, `optimizeWaypoints: false`) — with fake adapters for tests, so
+swapping providers is one adapter (decision-log 2026-09-24). Needs `GOOGLE_MAPS_API_KEY`; without
+it the API boots, place search returns `503`, and routes save as `FAILED`.
 
 Full sequence diagrams and failure-handling rationale:
 [`../hld/02-route-distance-calculation.md`](../hld/02-route-distance-calculation.md). Summary at
@@ -132,20 +147,24 @@ this module's depth:
 | `PATCH` | `/api/territory/routes/:id/distance` | Admin | Manually override `distance_km` |
 | `POST` | `/api/territory/routes/:id/assignments` | Admin | Assign an MR to this Route |
 | `DELETE` | `/api/territory/routes/:id/assignments/:userId` | Admin | Deactivate an MR's assignment to this Route |
+| `POST` | `/api/territory/routes/:id/recalculate` | Admin | Retry the Directions call (e.g. after `FAILED`); resets any manual override like a waypoint edit |
+| `PATCH` | `/api/territory/zones/:id`, `/hqs/:id`, `/routes/:id` | Admin | Rename, deactivate/reactivate (and Route's `ta_per_km_rate_override`) |
+| `GET` | `/api/territory/places/search?q=` | Admin | Proxy to Google Places — candidates with `{label, latitude, longitude, place_id}`; the API key never leaves the server |
+| `POST` | `/api/territory/import` | Admin | CSV bulk import of Zone / HQ / Area rows (not Routes — waypoints need confirmed pins) |
 | `GET` | `/api/territory/my-routes` | FIELD roles | The calling MR's own assigned Routes — consumed by Planning's route picker |
 
 ## Edge cases
 
 - **Geocoding fails for a waypoint, or the Directions call errors/times out.** The `Route` still
   saves (master-data entry is never blocked on an external dependency); `distance_status` stays
-  `FAILED` or `PENDING` and `distance_km` stays null. Anything downstream — TA auto-calculation
+  `FAILED` and `distance_km` stays null. Anything downstream — TA auto-calculation
   specifically — must check this status and **flag** it rather than silently treat a null
   distance as zero. This is the one failure mode every consumer of `getRouteDistance` must
   handle explicitly.
-- **A waypoint edit lands while a prior calculation is still in flight.** The write path should
-  serialize per-route (last edit wins, not a race between two Directions responses writing over
-  each other) — a concrete locking/versioning strategy is left to implementation, flagged here
-  rather than specified, since the ERD doesn't commit to one.
+- **Two Admins edit the same Route's waypoints at once.** Every waypoint edit sends the
+  `waypointsVersion` it was based on; the write is conditional on that version and bumps it. A
+  stale version gets `409 Conflict` instead of silently overwriting the other edit (or racing two
+  Directions responses).
 - **An MR is assigned to overlapping or geographically nonsensical routes.** Nothing in the ERD
   or PRD constrains this — shared coverage is explicitly allowed ("a route may have more than one
   MR assigned"), and Territory has no reason to reject it.
@@ -173,10 +192,6 @@ this module's depth:
   Doctor/Chemist's covering territory," which is this module's Phase 3-onward dependent, not
   something Territory itself does — worth correcting there to avoid implying this module owns
   that join.)*
-- **A per-Route override of its Area's `type`.** The client spec lists "Area Type" among Route's
-  fields too; for now a Route inherits its Area's type. Add an override only if the client
-  confirms a Route can differ from its Area. (The earlier "no `Area` level" deferral here was
-  reversed 2026-09-24, see `../decision-log.md`.)
 - **Route geometry / map rendering.** Waypoints are stored as an ordered array of points, not
   normalized into their own table, because nothing yet needs to render the route on a map (only
   the distance matters). Revisit if that need appears.

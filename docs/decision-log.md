@@ -17,6 +17,45 @@ old one.
 
 ---
 
+## 2026-09-24 — Phase 2 (Territory) build decisions
+
+**Decision:** Agreed with the product owner before building Territory:
+
+- **Google Maps** (Places for search, Directions for distance), behind `PlaceSearch` /
+  `DistanceProvider` ports so a cheaper provider (Ola Maps, OSRM) is one adapter away. Tests use a
+  fake adapter. Directions caps a request at 25 waypoints, so a Route accepts at most 25
+  (origin + destination + 23 via).
+- **The API proxies place search**: `GET /api/territory/places/search?q=`. The Google key never
+  leaves the server, and waypoint entry is testable from Swagger before the web portal exists.
+- **Distance is calculated during the save**, with a timeout (~5 s). Failure saves the Route as
+  `FAILED`; Admin retries with `POST /api/territory/routes/:id/recalculate`. `PENDING` is dropped
+  from `distance_status`: nothing runs in the background, so nothing is ever pending. A
+  `waypointsVersion` counter makes concurrent waypoint edits last-write-safe (a stale version is
+  rejected, not silently overwritten).
+- **`distance_km` is used as-is for TA — no ×2 for the return trip.** Admin defines the route (or
+  overrides the distance) to cover the full travel the company pays for.
+- **Names are unique within their parent**, case-insensitive (Zone globally, HQ per Zone, Area
+  per HQ, Route per Area). **Nothing is hard-deleted**: a Zone/HQ/Area can't be deactivated while
+  it has active children, and a Route can't be deactivated while it has active assignments.
+- **CSV bulk import for Zone / HQ / Area** (not Routes — each waypoint needs a confirmed map pin).
+- **Client sign-off D5 answered: a Route always uses its Area's type.** No per-Route override.
+
+**Why:** these were the points the LLD/HLD left open or contradicted (HLD 02 describes a blocking
+call yet the ERD had a `PENDING` status; the LLD had no edit/deactivate endpoints and no retry for
+a failed calculation). Round-trip handling was raised because TA money depends on it; the owner
+chose to keep it an Admin data-entry concern rather than a rule in code.
+
+**Consequences:**
+- Admin must remember the no-×2 rule when entering or overriding distances; the system won't
+  catch a one-way figure for a round-trip route.
+- A `GOOGLE_MAPS_API_KEY` is needed in every environment that creates or edits Routes; without it
+  routes still save, as `FAILED`.
+
+**Refs:** `docs/LLD/territory.md`, `docs/hld/02-route-distance-calculation.md`,
+`docs/erd/02-territory-master.md`, `docs/client-sign-off.md` D5
+
+---
+
 ## 2026-09-24 — Field devices need Admin approval; Admin device actions and password reset
 
 **Decision:** The client answered sign-off group A: password login for now, 2 devices for field

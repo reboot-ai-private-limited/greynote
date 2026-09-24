@@ -56,8 +56,9 @@ cheapest to change before the listed phase starts.
 | D2 | Night Stay allowance: when does it apply, and is it per grade? | Not modeled | Open |
 | D3 | If one day's plan covers routes in different Area types (e.g. HQ and Out Station), which DA applies? | The highest (Out Station > Ex Station > HQ) | Designed |
 | D4 | DA on Meeting / Conference days (no route). | HQ DA rate | Designed |
-| D5 | Can a Route have a different Area Type from its Area? | No — a Route uses its Area's type | Designed |
+| D5 | Can a Route have a different Area Type from its Area? | **Answered 2026-09-24:** No — a Route always uses its Area's type | Confirmed |
 | D6 | Is TA/DA paid on holidays / weekly offs (§8.5, §25.3)? | Not decided | Open |
+| D7 | Is TA paid on a Route's one-way distance, or doubled for the return trip? | **Answered 2026-09-24:** used as-is, no ×2 — Admin enters the distance to cover the full paid travel | Confirmed |
 
 ## E. Sales & Distributors (Phase 6)
 

@@ -58,7 +58,7 @@ lists the rules that "cannot be changed casually after development" — most una
 | Group | Blocks |
 |---|---|
 | A. Login & devices | Answered 2026-09-24 and built into Phase 1 |
-| D. Territory, TA & DA | Phase 2 (Area types, D5) and Phase 6 (TA/DA engine) |
+| D. Territory, TA & DA | D5, D7 answered 2026-09-24 (Phase 2); the rest block Phase 6 (TA/DA engine) |
 | B, C, F | Phase 4 (Planning, Field Master Data, HR) |
 | E | Phase 6 (Sales & Orders) |
 
@@ -83,7 +83,7 @@ defers it to Field Master Data (Phase 4), since `Doctor`/`Chemist` don't exist a
 
 **Done when:** editing a Route's waypoints recalculates `distance_km` from the external API, a
 manual override is possible and is correctly cleared by the next waypoint edit, a route whose
-distance API call fails still saves master data (flagged `FAILED`/`PENDING`, not blocking), and
+distance API call fails still saves master data (flagged `FAILED`, not blocking, retryable), and
 Admin can assign MRs to Routes.
 
 ## Phase 3 — Approval Workflow Engine

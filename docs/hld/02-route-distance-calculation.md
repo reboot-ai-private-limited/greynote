@@ -59,7 +59,7 @@ sequenceDiagram
 
 ## 4. Failure handling
 
-If a waypoint can't be geocoded, or the Directions API call fails/errors, the `Route` still saves — Admin isn't blocked from entering master data — but `distance_status` stays `FAILED`/`PENDING` and `distance_km` stays null. This status is what anything downstream must check: **Expense/TA generation for a route with `distance_status != CALCULATED` must flag it rather than silently compute a TA of zero.** Blocking master-data entry on an external API being up would be too strict; blocking the financial calculation that depends on it is the right place for that constraint.
+If a waypoint can't be geocoded, or the Directions API call fails/errors, the `Route` still saves — Admin isn't blocked from entering master data — but `distance_status` is `FAILED` and `distance_km` stays null. The call has a ~5 s timeout; Admin retries with `POST /routes/:id/recalculate`. This status is what anything downstream must check: **Expense/TA generation for a route with `distance_status != CALCULATED` must flag it rather than silently compute a TA of zero.** Blocking master-data entry on an external API being up would be too strict; blocking the financial calculation that depends on it is the right place for that constraint.
 
 ## Next
 
