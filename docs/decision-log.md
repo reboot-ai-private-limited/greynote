@@ -17,6 +17,23 @@ old one.
 
 ---
 
+## 2026-09-24 — `PayBand.daAmount` split into `hqDa` / `exStationDa` / `outStationDa`
+
+**Decision:** Closes the code mismatch flagged in the entry below. `PayBand` now stores three DA
+rates, one per `Area.type`, all `Decimal128` and all required on create. `daAmount` is removed
+outright, not kept as an alias.
+
+**Why:** Phase 6's DA calculation (HLD-06 §2) needs a rate per Area type, and the mismatch was
+cheapest to fix now, while only Admin master data depends on `PayBand`.
+
+**Consequences:** existing `PayBand` rows that only have `daAmount` can't be read by the new
+adapter and need the three fields backfilled. Night Stay is still not a field, because its
+trigger is still undefined.
+
+**Refs:** `apps/api/src/modules/identity/{domain/payBand.entity,infrastructure/payBand.schema,infrastructure/mongoPayBand.adapter}.ts`
+
+---
+
 ## 2026-09-24 — Territory, Distributor, Doctor assignment and DA re-aligned to the client's Master spec
 
 **Decision:** **Reverses** four earlier design calls. None had a decision-log entry of its own;

@@ -28,7 +28,9 @@ erDiagram
         string name "G1, G2, G3"
         decimal base_salary "monthly base salary for this grade - feeds Payroll (Module 9)"
         decimal ta_per_km_rate "feeds auto TA calculation - see HLD 06"
-        decimal da_amount "flat daily allowance - feeds auto DA calculation - see HLD 06"
+        decimal hq_da "DA when the day's Area type is HQ - see HLD 06"
+        decimal ex_station_da "DA for EX_STATION areas"
+        decimal out_station_da "DA for OUT_STATION areas"
     }
     USER {
         uuid id PK
@@ -116,7 +118,7 @@ Territory (Module 2), one tier above Identity, not here.
 
 ## Design decisions locked for this module
 
-- **Designation, Pay Band, manager, and joining date are field-force only, and live on `EmployeeProfile`, not `User`.** All four apply to `FIELD` employees only — `ADMIN`/`HR`/`ACCOUNTANT` never get an `EmployeeProfile` row at all, so there's nothing to leave null for them. This also means **Payroll (Module 9) only processes FIELD-role employees** — Admin/HR/Accountant salary and joining date are assumed handled by a separate, external company payroll system outside this SFA tool. `PayBand.base_salary`, `ta_per_km_rate`, and `da_amount` are all flat figures per grade (G1/G2/G3), not individually negotiated per user — matching PRD §5.2's "same designation, different Pay Band, different rates" logic.
+- **Designation, Pay Band, manager, and joining date are field-force only, and live on `EmployeeProfile`, not `User`.** All four apply to `FIELD` employees only — `ADMIN`/`HR`/`ACCOUNTANT` never get an `EmployeeProfile` row at all, so there's nothing to leave null for them. This also means **Payroll (Module 9) only processes FIELD-role employees** — Admin/HR/Accountant salary and joining date are assumed handled by a separate, external company payroll system outside this SFA tool. `PayBand.base_salary`, `ta_per_km_rate`, and the three DA rates (`hq_da`/`ex_station_da`/`out_station_da`) are all figures per grade (G1/G2/G3), not individually negotiated per user — matching PRD §5.2's "same designation, different Pay Band, different rates" logic.
 - **Single-manager tree, not a matrix.** One self-referencing `EmployeeProfile.manager_id` (pointing at another `User`) is enough — matches the MR → ASM → RSM → ZSM → NSM chain and is exactly what the approval routing in PRD §7.1 walks (nearest higher manager approves, everyone above that is read-only).
 - **No separate Team table.** A manager's team, and the read-only-visibility set for higher managers, are both derived by recursively walking `EmployeeProfile.manager_id` — storing that separately risks it drifting out of sync with reality.
 - **One auth mechanism.** `password_hash` is shared by every role, web and mobile alike. mPIN was considered for field-force mobile login and dropped — not needed.

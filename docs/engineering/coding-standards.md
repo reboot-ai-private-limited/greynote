@@ -32,10 +32,10 @@ sets `isExpected: false`, which is what should eventually drive alerting.
 
 **Decided (provisionally): Mongoose `Decimal128`, converted to/from a decimal string at the
 domain boundary.** The ERD (`docs/erd/01-identity-hierarchy.md`, `09-payroll.md`,
-`04-field-activity.md`) types every money field as `decimal` — `base_salary`, `da_amount`,
+`04-field-activity.md`) types every money field as `decimal` — `base_salary`, `hq_da`,
 `Expense.amount`, `PayrollRun.net_payable` — which already rules out a JavaScript `number`/float
 for storage or arithmetic (floats cannot represent currency exactly, and repeated addition across
-a payroll run compounds the error). `PayBand.base_salary/ta_per_km_rate/da_amount` (Phase 1) are
+a payroll run compounds the error). `PayBand.base_salary/ta_per_km_rate/hq_da/ex_station_da/out_station_da` (Phase 1) are
 the first fields to use this: `Decimal128` in `infrastructure/payBand.schema.ts`, plain decimal
 strings everywhere else (`domain/` never imports Mongoose). Flagged **provisional** in
 `../decision-log.md`, 2026-09-23 — Payroll (Phase 7) is where this either gets ratified against

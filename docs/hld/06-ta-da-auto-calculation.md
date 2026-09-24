@@ -46,10 +46,7 @@ sequenceDiagram
 - **Holiday/weekly-off impact on DA** is an open client question (client rules §8.5, §25.3). Not handled until answered.
 - **Route source (when TA applies):** the day's `DailyPlan.route_ids` for that `user_id` + date — not routes pulled from individual `DoctorCall` rows. `DailyPlan` is what explicitly captures "Select Routes" for the day (PRD §6.2 A).
 - **Rates:** the DA rate always comes from the user's current `PayBand` (Module 1) at approval
-  time. **Code mismatch, known:** today's `PayBand` entity
-  (`apps/api/src/modules/identity/domain/payBand.entity.ts`) has one flat `daAmount`. It needs
-  migrating to the three per-area-type rates before Phase 6 builds this. Recorded in
-  `docs/decision-log.md` 2026-09-24. The TA rate resolves **per route**, not once for the whole day — added 2026-09-23,
+  time, from its `hqDa` / `exStationDa` / `outStationDa` fields. The TA rate resolves **per route**, not once for the whole day — added 2026-09-23,
   `docs/decision-log.md`: each route in the sum can carry its own `ta_per_km_rate_override`
   (ERD-02), and only falls back to `pay_band.ta_per_km_rate` when that route has none set. A
   `DailyPlan` with multiple routes for `FIELD_WORK` can therefore mix a negotiated rate on one
