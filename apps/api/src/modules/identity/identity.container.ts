@@ -25,6 +25,7 @@ import { LogoutUseCase } from './application/usecases/logout.usecase.js';
 import { LogoutAllSessionsUseCase } from './application/usecases/logoutAllSessions.usecase.js';
 import { RefreshSessionUseCase } from './application/usecases/refreshSession.usecase.js';
 import { RemoveUserDocumentUseCase } from './application/usecases/removeUserDocument.usecase.js';
+import { ResetPasswordUseCase } from './application/usecases/resetPassword.usecase.js';
 import type { BootstrapAdminInput } from './application/usecases/seedBootstrapAdmin.usecase.js';
 import { SeedBootstrapAdminUseCase } from './application/usecases/seedBootstrapAdmin.usecase.js';
 import { SeedDefaultRolesUseCase } from './application/usecases/seedDefaultRoles.usecase.js';
@@ -72,6 +73,7 @@ import {
   makeGetUserDetailController,
   makeListUsersController,
   makeRemoveUserDocumentController,
+  makeResetPasswordController,
   makeUnblockUserController,
   makeUpdateUserController,
   makeUploadUserDocumentController,
@@ -157,6 +159,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const uploadUserDocument = new UploadUserDocumentUseCase(userRepository, employeeProfileRepository, documentStorage);
   const removeUserDocument = new RemoveUserDocumentUseCase(employeeProfileRepository, documentStorage);
   const unblockUser = new UnblockUserUseCase(userRepository, complianceBlockRepository, transactionRunner);
+  const resetPassword = new ResetPasswordUseCase(userRepository, userSessionRepository, passwordHasher);
   const getUserDetail = new GetUserDetailUseCase(
     userRepository,
     roleRepository,
@@ -200,6 +203,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     uploadDocument: makeUploadUserDocumentController(uploadUserDocument),
     removeDocument: makeRemoveUserDocumentController(removeUserDocument),
     unblock: makeUnblockUserController(unblockUser),
+    resetPassword: makeResetPasswordController(resetPassword),
   };
   const devicesControllers = {
     listPending: makeListPendingDevicesController(listPendingDevices),

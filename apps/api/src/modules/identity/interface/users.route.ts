@@ -12,6 +12,7 @@ import {
   documentParamsSchema,
   documentTypeBodySchema,
   listUsersQuerySchema,
+  resetPasswordBodySchema,
   updateUserBodySchema,
   userIdParamsSchema,
 } from './users.schemas.js';
@@ -20,6 +21,7 @@ import type {
   makeGetUserDetailController,
   makeListUsersController,
   makeRemoveUserDocumentController,
+  makeResetPasswordController,
   makeUnblockUserController,
   makeUpdateUserController,
   makeUploadUserDocumentController,
@@ -123,6 +125,19 @@ openApiRegistry.registerPath({
   responses: { 200: { description: 'Block cleared' } },
 });
 
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/identity/users/{id}/reset-password',
+  tags: ['Identity / Users'],
+  summary: "Admin: set a user's new password and end all their sessions",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: userIdParamsSchema,
+    body: { content: { 'application/json': { schema: resetPasswordBodySchema } } },
+  },
+  responses: { 200: { description: 'Password reset' } },
+});
+
 export function buildUsersRouter(controllers: {
   list: ReturnType<typeof makeListUsersController>;
   detail: ReturnType<typeof makeGetUserDetailController>;
@@ -131,6 +146,7 @@ export function buildUsersRouter(controllers: {
   uploadDocument: ReturnType<typeof makeUploadUserDocumentController>;
   removeDocument: ReturnType<typeof makeRemoveUserDocumentController>;
   unblock: ReturnType<typeof makeUnblockUserController>;
+  resetPassword: ReturnType<typeof makeResetPasswordController>;
 }): Router {
   const router = Router();
 
@@ -184,6 +200,13 @@ export function buildUsersRouter(controllers: {
     requireRole('ADMIN'),
     validate({ params: userIdParamsSchema }),
     controllers.unblock,
+  );
+  router.post(
+    '/:id/reset-password',
+    authenticate(),
+    requireRole('ADMIN'),
+    validate({ params: userIdParamsSchema, body: resetPasswordBodySchema }),
+    controllers.resetPassword,
   );
 
   return router;

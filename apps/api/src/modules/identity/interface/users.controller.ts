@@ -10,6 +10,7 @@ import type { CreateUserUseCase } from '../application/usecases/createUser.useca
 import type { UpdateUserUseCase } from '../application/usecases/updateUser.usecase.js';
 import type { UploadUserDocumentUseCase } from '../application/usecases/uploadUserDocument.usecase.js';
 import type { RemoveUserDocumentUseCase } from '../application/usecases/removeUserDocument.usecase.js';
+import type { ResetPasswordUseCase } from '../application/usecases/resetPassword.usecase.js';
 import type { UnblockUserUseCase } from '../application/usecases/unblockUser.usecase.js';
 import type { UserListFilters } from '../domain/user.repository.port.js';
 
@@ -76,5 +77,12 @@ export function makeUnblockUserController(useCase: UnblockUserUseCase): RequestH
     if (!req.user) throw AppError.unauthenticated();
     await useCase.execute(req.user.sub, req.user.role, requiredParam(req.params, 'id'));
     sendSuccess(req, res, {}, 'User unblocked.', 200);
+  });
+}
+
+export function makeResetPasswordController(useCase: ResetPasswordUseCase): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    await useCase.execute(requiredParam(req.params, 'id'), req.body.newPassword);
+    sendSuccess(req, res, {}, 'Password reset. The user has been logged out everywhere.', 200);
   });
 }

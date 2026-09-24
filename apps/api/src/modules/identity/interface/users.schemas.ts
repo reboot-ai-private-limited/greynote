@@ -60,6 +60,8 @@ export const listUsersQuerySchema = paginationQuerySchema.extend({
   isBlocked: z.coerce.boolean().optional(),
 });
 
+export const resetPasswordBodySchema = z.object({ newPassword: passwordSchema });
+
 export const userIdParamsSchema = z.object({
   id: z.string().min(1),
 });
