@@ -42,7 +42,7 @@ cheapest to change before the listed phase starts.
 | C1 | Confirm one Doctor = one MR at a time; the MR's managers still see the Doctor (§4.5–4.6). | Yes | Designed |
 | C2 | Confirm a Distributor has one assigned MR and one assigned ASM at a time. | Yes (assumed by analogy with C1) | Designed |
 | C3 | When an MR's Route changes, does their Doctor visibility change automatically (§17.5)? | Not decided | Open |
-| C4 | MR-created Doctors need Admin approval before becoming active (§4.2) — confirm, and what fields can the MR fill? | Not decided | Open |
+| C4 | MR-created Doctors need Admin approval before becoming active (§4.2) — confirm, and what fields can the MR fill? | **Approval answered 2026-09-24:** Employee → Manager → Admin. Fields the MR can fill: still open | Partly answered |
 | C5 | GPS validation radius (§5.5). Your document says **100 m**. | **200 m** (*config*) — will change to 100 m on confirmation | Designed |
 | C6 | Doctor location captured by the MR on first visit then approved by ASM/Admin (§5.4, Master M4) — confirm this over "Admin enters it at creation". | Admin enters at creation | Designed |
 | C7 | New-Doctor waiting period before visits count toward coverage (§4.9, proposed 8 days). | Not decided | Open |
@@ -75,13 +75,15 @@ cheapest to change before the listed phase starts.
 
 | # | Question | Today | Status |
 |---|---|---|---|
-| F1 | Final list of activities that need approval (§19.3). | Plans and DCR: immediate manager → Admin; Leave: HR; Orders & stock: none | Designed |
+| F1 | Final list of activities that need approval (§19.3). | Plans, DCR, Leave, Doctor creation: immediate manager → Admin (Leave: → HR or Admin). Orders & stock: none. Whether each kind needs the Admin stage is *config* per kind | Partly answered |
 | F2 | Expense categories and per-category limits (§9.2). | Not provided | Open |
 | F3 | Leave entitlement per grade and probation rule (§11). | Per-grade defaults set by HR | Designed |
 | F4 | Employee statuses: Active / Inactive / Resigned / Suspended / Terminated — what does each allow (login, payroll)? | Active / Pending (onboarding) / Inactive | Built (partly) |
 | F5 | Are grades fixed (G1–G3), or can Admin add more? | Fixed G1–G3 | Built |
 | F6 | Per-grade PF %, ESIC %, Medical — confirm and give values. | Not modeled | Open |
 | F7 | Salary override policy for Payroll (§21.5). | Not decided | Open |
+| F9 | Leave approval: straight to HR, or through the manager (§11.2)? | **Answered 2026-09-24:** Employee → Manager → HR or Admin | Confirmed |
+| F10 | After approval, can the employee edit? | **Answered 2026-09-24:** No — locked; Admin can override (reopen or edit) | Confirmed |
 | F8 | Notifications: which go to the employee, their manager, and Admin (§23.3)? | Not decided | Open |
 
 ---

@@ -17,6 +17,59 @@ old one.
 
 ---
 
+## 2026-09-24 — Phase 3: the approval engine becomes a module; Admin is a real second stage
+
+**Decision:** Agreed with the product owner before building Phase 3, after reading the client's
+`RULES BY GREYNOTE.docx` §19 against HLD 05:
+
+- **An `approval` module (tier 2), not a shared library.** Reverses HLD 05 §1 and the roadmap's
+  "not a module, not a tier". It owns an `ApprovalRequest` collection: kind, the owning module's
+  record id, submitter, current stage/status, and a full action history (who, when, comment). The
+  owning module (Planning, HR, …) creates the request and is called back on each decision through
+  a handler registered at the composition root, so the lower tier never imports the higher one.
+- **Stage 2 is a real approval, not record-keeping.** Status runs `SUBMITTED →
+  MANAGER_APPROVED → APPROVED`, with `REJECTED` possible at either stage (client §19.3:
+  "first immediate manager & then Admin"). Each owning module decides which status unlocks what
+  for it (e.g. HLD 10's DCR gate needs only a Manager-approved Plan).
+- **Per-kind workflow in `SystemConfig`**: `MANAGER_THEN_FINAL` (default) or `MANAGER_ONLY`, so
+  the client can drop the second stage for high-volume kinds (e.g. Daily Plans) without a
+  release — and the still-open F1 list doesn't block the build. Who may act at the final stage is
+  fixed per kind in code: **ADMIN**, or **HR or ADMIN for Leave**.
+- **Leave goes Employee → Manager → HR/Admin** (product owner, matching client §11.2). Reverses
+  PRD §5.3 / `LLD/hr.md`'s "HR approves directly, bypassing the manager chain" — Leave now uses
+  the engine like everything else.
+- **Doctor creation goes Employee → Manager → Admin** (product owner; client §4.2, sign-off C4).
+- **Approved means locked for the employee; Admin can override.** Once `APPROVED` (or
+  `MANAGER_APPROVED` on its way there) the submitter can't edit or withdraw. Admin can reopen an
+  approved request (reason required, history kept), and each owning module lets Admin edit its
+  own approved records.
+- **The approver is resolved when someone acts, from the submitter's *current* manager** — not
+  snapshotted at submission — so a reassigned employee's pending items move to the new manager.
+  Admin's standing Stage-1 override (entry below, 2026-09-23) still covers an inactive/absent
+  manager. Needs Identity `getDirectReports` / `getDownline` (the Team tab needs them anyway).
+- **Engine-wide rules:** a rejection needs a reason; the submitter can withdraw until the
+  manager acts (client §11.4); a rejected request can be resubmitted as a new cycle on the same
+  request, history kept; nobody approves their own request; managers and Admin can bulk-approve;
+  decisions emit an event where notifications will plug in (F8 still open).
+
+**Why:** the client wants one common approval screen (§19.6) across many kinds (§19.3: DCR,
+Expense, Leave, Doctor Service, Doctor Creation/Location, Sample, Gift, Order, change requests).
+A library leaves each kind's status in its own collection, so that screen and Admin's org-wide
+queue (HLD 05 §5) would have to query and merge every module's collection; a module with one
+collection answers both with one query and gives a uniform audit trail.
+
+**Consequences:**
+- HLD 05, `LLD/hr.md` (leave approval), the roadmap's Phase 3/4 text and the PRD §5.3 leave
+  wording are superseded; HLD 05 is rewritten as part of the Phase 3 build.
+- `.dependency-cruiser.cjs` `MODULE_TIERS` gains `approval` in tier 2 beside `territory`.
+- Reopening an approved request must later respect a Finalized PayrollRun (Phase 7): a month
+  already paid stays locked.
+
+**Refs:** `docs/hld/05-approval-workflow-engine.md`, `docs/LLD/hr.md`, `docs/roadmap.md`,
+`docs/client-sign-off.md` C4/F1/F9, client `RULES BY GREYNOTE.docx` §4.2, §11.2, §11.4, §19
+
+---
+
 ## 2026-09-24 — Phase 2 (Territory) build decisions
 
 **Decision:** Agreed with the product owner before building Territory:

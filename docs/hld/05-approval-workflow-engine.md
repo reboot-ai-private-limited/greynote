@@ -1,5 +1,11 @@
 # HLD 5: Approval Workflow Engine
 
+> **Being revised (2026-09-24).** Phase 3 builds this as an `approval` **module** with a real
+> Admin (or HR, for Leave) second stage, per-kind workflow config, and an approval history —
+> see `../decision-log.md`, "Phase 3: the approval engine becomes a module". §2–§5's approver,
+> top-of-chain, visibility and Admin-override rules still hold; §1's "library, not a module"
+> and its three-state status do not. This doc is rewritten as part of the Phase 3 build.
+
 The generalized two-stage (Nearest-Manager → Admin) + read-only-escalation mechanism (PRD §7.1) that `DCR`, `DailyPlan`/`MonthlyPlan`, and MR-submitted `DoctorService` all share — instead of four copies of the same logic.
 
 ## 1. Shared shape

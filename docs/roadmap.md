@@ -99,17 +99,26 @@ Admin can assign MRs to Routes.
 
 [`hld/05-approval-workflow-engine.md`](hld/05-approval-workflow-engine.md)
 
-Not a module, not a tier — a shared library (`packages/shared` once the mobile app exists;
-`apps/api/src/shared/` until then) implementing PRD §7.1's two-stage
-nearest-manager-then-Admin flow with read-only escalation once. Built here, deliberately before
-its first real consumer, because Planning, Field Activity and (part of) Marketing all need the
-identical state machine in Phase 4 onward — writing it three times is how the three copies drift.
+An `approval` module in tier 2 (beside Territory; decision-log 2026-09-24 — originally planned
+as a shared library) implementing PRD §7.1 / client §19's flow once: Employee → Nearest Higher
+Manager → Admin (HR or Admin for Leave), with read-only visibility for managers further up.
+Built before its first real consumer because Planning, HR, Field Master Data, Field Activity and
+Marketing all need the identical state machine — writing it five times is how the copies drift.
 
-**Done when:** the shared `Approval` helper resolves a submitter's Nearest Higher Manager,
-enforces the two-stage transition (`SUBMITTED → MANAGER_APPROVED → ` forwarded to Admin, or
-`REJECTED`), grants read-only visibility to managers above the Nearest Higher Manager, and
-handles the top-of-chain exception (NSM-equivalent routes straight to Admin) — all with no
-knowledge of which module is calling it.
+1. Identity: `getDirectReports` / `getDownline`
+2. `ApprovalRequest` + history, the state machine, approver resolution, Admin override
+3. Per-kind workflow config (`MANAGER_THEN_FINAL` / `MANAGER_ONLY`), withdraw, resubmit, reopen,
+   decision callbacks to the owning module
+4. HTTP: my approvals (manager), Admin/HR queue, team (read-only), approve / reject (bulk),
+   withdraw, reopen, request detail with history
+5. Tests, live run, HLD 05 rewrite
+
+**Done when:** for a test kind registered only in tests, a request moves `SUBMITTED →
+MANAGER_APPROVED → APPROVED` (or `REJECTED` at either stage) with the right actor at each stage;
+the approver follows the submitter's *current* manager; top-of-chain goes straight to the final
+stage; Admin can act at any stage; managers above the approver see it read-only; withdraw,
+resubmit and reopen work with history kept; `MANAGER_ONLY` config ends at the manager; and the
+owning module's callback fires on each decision — with no knowledge of which module is calling.
 
 ## Phase 4 — Field Master Data, Planning, HR
 
@@ -123,9 +132,9 @@ Territory exist. Each depends only on tiers 0–2 and, where noted, the Phase 3 
 - **Field Master Data** (ERD Module 3): Doctor, Chemist, Distributor, Product, Sample/Gift
   allocation, `DoctorAssignment` (direct MR↔Doctor, independent of route coverage)
 - **Planning** (ERD Module 5): Daily/Monthly Tour Plan, submitted through the approval engine
-- **HR** (ERD Module 7): Leave Master (grade-wise default allocation), Leave requests — approval
-  bypasses the Nearest-Manager chain and goes straight to HR (PRD §5.3), so this module does
-  *not* call the Phase 3 engine for leave; Holiday Calendar (National/Zone/HQ scoping)
+- **HR** (ERD Module 7): Leave Master (grade-wise default allocation), Leave requests — approved
+  Employee → Manager → HR or Admin through the Phase 3 approval module (client §11.2; decision-log
+  2026-09-24); Holiday Calendar (National/Zone/HQ scoping)
 
 **Done when:** Admin can populate Doctors/Chemists/Distributors/Products and assign MRs to them;
 an MR can submit a Daily/Monthly Plan and see it move through Nearest-Manager approval; HR can

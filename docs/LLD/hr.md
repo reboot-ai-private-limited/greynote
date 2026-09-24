@@ -67,6 +67,11 @@ never reaches into either module's internals.
 
 ## Approval workflow — deliberately NOT the shared engine
 
+> **Superseded 2026-09-24** (`../decision-log.md`, "Phase 3: the approval engine becomes a
+> module"): Leave now goes Employee → Manager → HR or Admin through the approval module, per the
+> client's §11.2. This section is rewritten when HR is built (Phase 4); kept below as the record
+> of the earlier design.
+
 Every other approvable entity in this system (`Planning`'s Tour Plans, `Field Activity`'s Doctor
 Service) routes through the shared Approval Workflow Engine
 ([`../hld/05-approval-workflow-engine.md`](../hld/05-approval-workflow-engine.md)): submitter →
