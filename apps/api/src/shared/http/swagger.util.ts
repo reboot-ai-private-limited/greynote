@@ -37,6 +37,7 @@ openApiRegistry.registerComponent('securitySchemes', 'bearerAuth', {
  */
 const TAGS = [
   { name: 'Health', description: 'Service health check.' },
+  { name: 'Config', description: 'Admin-editable system configuration values.' },
   { name: 'Identity / Auth', description: 'Login, refresh, logout.' },
   { name: 'Identity / Users', description: 'User accounts and FIELD onboarding.' },
   { name: 'Identity / Roles', description: 'Role master data.' },
