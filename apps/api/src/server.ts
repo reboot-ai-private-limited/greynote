@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
-import { env } from '@/config/env.js';
+import { env, isProduction } from '@/config/env.js';
 import { logger } from '@/shared/logging/logger.js';
+import { SWAGGER_DOCS_PATH } from '@/shared/http/swagger.util.js';
 import { createApp } from './app.js';
 
 const SHUTDOWN_TIMEOUT_MS = 15_000;
@@ -18,6 +19,10 @@ async function start() {
 
     const server = app.listen(env.PORT, () => {
         logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Greynote API listening');
+
+        if (!isProduction) {
+            logger.info({ url: `http://localhost:${env.PORT}${SWAGGER_DOCS_PATH}` }, 'Swagger docs available');
+        }
     });
 
     const shutdown = (signal: string) => {

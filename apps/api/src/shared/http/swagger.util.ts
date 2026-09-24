@@ -2,7 +2,7 @@ import { OpenAPIRegistry, OpenApiGeneratorV3, extendZodWithOpenApi } from '@aste
 import swaggerUi from 'swagger-ui-express';
 import type { Express } from 'express';
 import { z } from 'zod';
-import { env } from '@/config/env.js';
+import { isProduction } from '@/config/env.js';
 
 // Patches Zod's prototype with `.openapi(...)` — must run before any route file's module-scope
 // `registerPath` call uses it or a Zod schema as a request body/query/params shape. Every route
@@ -53,8 +53,10 @@ function buildOpenApiDocument() {
   });
 }
 
-export function mountSwagger(app: Express): void {
-  if (env.NODE_ENV === 'production') return;
+export const SWAGGER_DOCS_PATH = '/api/docs';
 
-  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(buildOpenApiDocument()));
+export function mountSwagger(app: Express): void {
+  if (isProduction) return;
+
+  app.use(SWAGGER_DOCS_PATH, swaggerUi.serve, swaggerUi.setup(buildOpenApiDocument()));
 }
