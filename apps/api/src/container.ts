@@ -1,3 +1,4 @@
+import { buildApprovalContainer } from '@/modules/approval/approval.container.js';
 import { buildConfigContainer } from '@/modules/config/config.container.js';
 import { buildHealthContainer } from '@/modules/health/health.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
@@ -8,6 +9,7 @@ export interface AppContainers {
   config: ReturnType<typeof buildConfigContainer>;
   identity: ReturnType<typeof buildIdentityContainer>;
   territory: ReturnType<typeof buildTerritoryContainer>;
+  approval: ReturnType<typeof buildApprovalContainer>;
 }
 
 /**
@@ -26,5 +28,8 @@ export function buildContainers(): AppContainers {
   // Tier 2 — Territory depends only on Identity's public contract (RouteAssignment's user checks).
   const territory = buildTerritoryContainer(identity.contract);
 
-  return { health, config, identity, territory };
+  // Tier 2 — Approval also depends only on Identity (who manages the submitter, right now).
+  const approval = buildApprovalContainer(identity.contract);
+
+  return { health, config, identity, territory, approval };
 }

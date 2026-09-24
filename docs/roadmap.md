@@ -106,7 +106,7 @@ Built before its first real consumer because Planning, HR, Field Master Data, Fi
 Marketing all need the identical state machine — writing it five times is how the copies drift.
 
 1. Identity: `getDirectReports` / `getDownline` — **done** (2026-09-24)
-2. `ApprovalRequest` + history, the state machine, approver resolution, Admin override
+2. `ApprovalRequest` + history, the state machine, approver resolution, Admin override — **done**
 3. Per-kind workflow config (`MANAGER_THEN_FINAL` / `MANAGER_ONLY`), withdraw, resubmit, reopen,
    decision callbacks to the owning module
 4. HTTP: my approvals (manager), Admin/HR queue, team (read-only), approve / reject (bulk),

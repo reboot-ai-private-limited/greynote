@@ -17,6 +17,26 @@ old one.
 
 ---
 
+## 2026-09-24 — An Admin override at Stage 1 is a final approval
+
+**Decision:** When Admin approves a request still waiting on the submitter's manager
+(`SUBMITTED`), it goes straight to `APPROVED`, recorded with authority `ADMIN_OVERRIDE`.
+**Reverses** HLD 05 §5, where the override applied only the Stage-1 transition (`SUBMITTED →
+MANAGER_APPROVED`). A top-of-chain request (no manager) likewise ends in one step at the final
+approver (`TOP_OF_CHAIN`), as PRD §7.1.4 already said. Only the manager's own approval stops at
+`MANAGER_APPROVED` (and only when the kind's workflow has a final stage).
+
+**Why:** Admin is the final authority on every kind. Under the old rule Admin would approve the
+same request twice in a row — a second click, not a second check.
+
+**Consequences:** HR gets no Stage-1 override, even on Leave — HR acts at the final stage, or
+directly only when the submitter has no manager. The history's `authority` field always shows
+which path a decision took.
+
+**Refs:** `apps/api/src/modules/approval/domain/approvalRules.ts`, `docs/hld/05-approval-workflow-engine.md` §5
+
+---
+
 ## 2026-09-24 — Phase 3: the approval engine becomes a module; Admin is a real second stage
 
 **Decision:** Agreed with the product owner before building Phase 3, after reading the client's
