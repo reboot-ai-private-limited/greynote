@@ -1,4 +1,4 @@
-import type { TransactionContext } from './transactionRunner.port.js';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { RevokedReason, UserSession } from './userSession.entity.js';
 
 export interface UserSessionRepositoryPort {

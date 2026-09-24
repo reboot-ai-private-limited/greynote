@@ -108,7 +108,7 @@ Marketing all need the identical state machine — writing it five times is how 
 1. Identity: `getDirectReports` / `getDownline` — **done** (2026-09-24)
 2. `ApprovalRequest` + history, the state machine, approver resolution, Admin override — **done**
 3. Per-kind workflow config (`MANAGER_THEN_FINAL` / `MANAGER_ONLY`), withdraw, resubmit, reopen,
-   decision callbacks to the owning module
+   decision callbacks to the owning module — **done**
 4. HTTP: my approvals (manager), Admin/HR queue, team (read-only), approve / reject (bulk),
    withdraw, reopen, request detail with history
 5. Tests, live run, HLD 05 rewrite

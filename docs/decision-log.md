@@ -17,6 +17,35 @@ old one.
 
 ---
 
+## 2026-09-24 — Approval workflow switch is one list key; decision callbacks are transactional
+
+**Decision:** Two refinements while building Phase 3 step 3:
+
+- **One config key, not one per kind.** `APPROVAL_MANAGER_ONLY_KINDS` (seeded `NONE`) lists the
+  kinds that end at the manager; every other kind is Manager → final. The planned per-kind
+  setting (and a per-kind `defaultWorkflow` on registration) is dropped. Read at each
+  (re)submission and snapshotted onto the request, so a change applies from the next cycle.
+- **`onStatusChange` runs inside the same MongoDB transaction** as the status change it reports
+  (decide, withdraw, reopen). The owning module writes through the passed context; if it
+  throws, the approval change rolls back too. Submit/resubmit accept an optional context the
+  other way round, so an owning module can save its record and submit in one transaction.
+  `TransactionRunnerPort` / `TransactionContext` and the Mongoose runner move from Identity to
+  `src/shared/db/` so a transaction can span modules.
+
+**Why:** Kinds are registered at runtime by owning modules, but `SystemConfig` only lets Admin
+edit keys that were seeded — a key per kind would have to be seeded before its kind exists. And
+an after-commit callback could leave the approval saying "approved" while, say, the leave
+balance was never deducted; one transaction makes that impossible.
+
+**Consequences:** handlers must keep to database writes on the context (a transient-error retry
+can run them twice); notifications go elsewhere (F8). Owning modules should read status from the
+approval module (`getForRecord`) rather than keep their own copy.
+
+**Refs:** `apps/api/src/modules/approval/application/applyTransition.ts`,
+`apps/api/src/shared/db/`, `apps/api/src/modules/config/application/usecases/seedDefaultConfig.usecase.ts`
+
+---
+
 ## 2026-09-24 — An Admin override at Stage 1 is a final approval
 
 **Decision:** When Admin approves a request still waiting on the submitter's manager

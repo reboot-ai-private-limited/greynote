@@ -1,5 +1,5 @@
 import type { ComplianceBlockEvent } from './complianceBlock.entity.js';
-import type { TransactionContext } from './transactionRunner.port.js';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
 
 export interface ComplianceBlockRepositoryPort {
   findOpenByUserId(userId: string): Promise<ComplianceBlockEvent | null>;

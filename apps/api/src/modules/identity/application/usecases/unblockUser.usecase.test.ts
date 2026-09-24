@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ComplianceBlockEvent } from '../../domain/complianceBlock.entity.js';
 import type { ComplianceBlockRepositoryPort } from '../../domain/complianceBlock.repository.port.js';
-import type { TransactionContext, TransactionRunnerPort } from '../../domain/transactionRunner.port.js';
+import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { User } from '../../domain/user.entity.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
 import { UnblockUserUseCase } from './unblockUser.usecase.js';

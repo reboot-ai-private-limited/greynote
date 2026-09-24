@@ -2,9 +2,10 @@ import type { SystemConfigSeed } from '../../domain/systemConfig.entity.js';
 import type { SystemConfigRepositoryPort } from '../../domain/systemConfig.repository.port.js';
 
 /**
- * The known keys named in docs/erd/05-planning-and-rules.md. Seeded all six now even though only
- * `identity` reads one of them today — `Config`'s whole point is being the one source of truth,
- * and seeding the rest costs nothing.
+ * Every known key, seeded even before the module that reads it exists (most are named in
+ * docs/erd/05-planning-and-rules.md) — `Config`'s whole point is being the one source of truth,
+ * and seeding early costs nothing. `upsertSeed` only adds missing keys, never overwrites a value
+ * Admin has changed.
  */
 const DEFAULT_CONFIG: SystemConfigSeed[] = [
   {
@@ -48,6 +49,14 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = [
     value: '1',
     module: 'FIELD_ACTIVITY',
     description: 'Grace days before a missed DCR triggers the compliance block.',
+  },
+  {
+    key: 'APPROVAL_MANAGER_ONLY_KINDS',
+    value: 'NONE',
+    module: 'APPROVAL',
+    description:
+      'Comma-separated approval kinds that end at the manager (no Admin/HR final stage), e.g. ' +
+      '"DAILY_PLAN". NONE = every kind goes manager, then final approver. Applies from the next submission.',
   },
 ];
 

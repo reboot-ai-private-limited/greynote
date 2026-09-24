@@ -1,7 +1,7 @@
 import { Types, type ClientSession, type FilterQuery } from 'mongoose';
 import { AppError } from '@/shared/errors/AppError.js';
 import { toSkipLimit } from '@/shared/http/pagination.js';
-import type { TransactionContext } from '../domain/transactionRunner.port.js';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { User } from '../domain/user.entity.js';
 import type {
   UserListFilters,

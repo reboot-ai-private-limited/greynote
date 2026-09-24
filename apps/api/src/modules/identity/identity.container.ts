@@ -50,7 +50,7 @@ import { MongoRoleAdapter } from './infrastructure/mongoRole.adapter.js';
 import { MongoUserAdapter } from './infrastructure/mongoUser.adapter.js';
 import { MongoUserDeviceAdapter } from './infrastructure/mongoUserDevice.adapter.js';
 import { MongoUserSessionAdapter } from './infrastructure/mongoUserSession.adapter.js';
-import { MongooseTransactionRunner } from './infrastructure/mongooseTransactionRunner.adapter.js';
+import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import {
   makeLoginController,
   makeLogoutAllController,

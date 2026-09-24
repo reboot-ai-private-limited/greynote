@@ -1,5 +1,5 @@
 import { Types, type ClientSession } from 'mongoose';
-import type { TransactionContext } from '../domain/transactionRunner.port.js';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { RevokedReason, UserSession } from '../domain/userSession.entity.js';
 import type { UserSessionRepositoryPort } from '../domain/userSession.repository.port.js';
 import { UserSessionModel, type UserSessionDoc } from './userSession.schema.js';

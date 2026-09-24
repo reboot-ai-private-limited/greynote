@@ -1,9 +1,11 @@
+import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import { isOpen, type ApprovalRequest, type ApprovalStatus } from '../../domain/approvalRequest.entity.js';
 import type { ApprovalRequestRepositoryPort } from '../../domain/approvalRequest.repository.port.js';
 import { resolveAuthority, statusAfterApproval, type Actor } from '../../domain/approvalRules.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { ApprovalKindRegistry } from '../approvalKindRegistry.js';
+import { applyTransition } from '../applyTransition.js';
 
 export interface DecideApprovalInput {
   requestId: string;
@@ -18,6 +20,7 @@ export class DecideApprovalUseCase {
     private readonly requests: ApprovalRequestRepositoryPort,
     private readonly users: UserDirectoryPort,
     private readonly kinds: ApprovalKindRegistry,
+    private readonly transactions: TransactionRunnerPort,
   ) {}
 
   async execute(input: DecideApprovalInput): Promise<ApprovalRequest> {
@@ -40,7 +43,7 @@ export class DecideApprovalUseCase {
       input.decision === 'REJECT' ? 'REJECTED' : statusAfterApproval(authority, request.workflow);
     const now = new Date();
 
-    const updated = await this.requests.transition(request.id, request.status, {
+    return applyTransition({ requests: this.requests, kinds: this.kinds, transactions: this.transactions }, request, {
       status,
       decidedAt: isOpen(status) ? null : now,
       action: {
@@ -51,9 +54,8 @@ export class DecideApprovalUseCase {
         comment,
         at: now,
         resultingStatus: status,
+        cycle: request.cycle,
       },
     });
-    if (!updated) throw AppError.conflict('Someone else acted on this request first. Reload it.');
-    return updated;
   }
 }

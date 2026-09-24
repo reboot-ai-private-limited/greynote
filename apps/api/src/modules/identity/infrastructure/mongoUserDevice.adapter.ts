@@ -1,6 +1,6 @@
 import { Types, type ClientSession } from 'mongoose';
 import { AppError } from '@/shared/errors/AppError.js';
-import type { TransactionContext } from '../domain/transactionRunner.port.js';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { DeviceStatus, UserDevice } from '../domain/userDevice.entity.js';
 import type { UserDeviceRepositoryPort } from '../domain/userDevice.repository.port.js';
 import { UserDeviceModel, type UserDeviceDoc } from './userDevice.schema.js';

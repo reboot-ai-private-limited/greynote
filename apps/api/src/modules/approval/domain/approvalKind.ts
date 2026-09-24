@@ -1,5 +1,19 @@
 import type { RoleName } from '@greynote/contracts';
-import type { ApprovalWorkflow } from './approvalRequest.entity.js';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
+import type { ApprovalAction, ApprovalRequest, ApprovalStatus } from './approvalRequest.entity.js';
+
+/** What the owning module is told after every status change it didn't initiate itself. */
+export interface ApprovalStatusChange {
+  requestId: string;
+  kind: string;
+  recordId: string;
+  submitterId: string;
+  previousStatus: ApprovalStatus;
+  status: ApprovalStatus;
+  /** The action that caused the change, as appended to the history. */
+  action: ApprovalAction;
+  request: ApprovalRequest;
+}
 
 /** What an owning module declares about one kind of request when it registers it. */
 export interface ApprovalKindDefinition {
@@ -9,6 +23,12 @@ export interface ApprovalKindDefinition {
    * workflow); Leave adds `HR`.
    */
   finalApproverRoles: RoleName[];
-  /** Used until the per-kind `SystemConfig` switch exists (Phase 3 step 3). */
-  defaultWorkflow: ApprovalWorkflow;
+  /**
+   * Runs inside the same MongoDB transaction as the status change, on every decision, withdrawal
+   * and reopen — not on submit/resubmit, which the owning module starts itself. Write through
+   * `ctx` so both commit or neither does; throwing rolls the status change back too. May run
+   * more than once on a transient-error retry, so keep it to database writes on `ctx` — no
+   * notifications or other external side effects here.
+   */
+  onStatusChange?: (change: ApprovalStatusChange, ctx: TransactionContext) => Promise<void>;
 }

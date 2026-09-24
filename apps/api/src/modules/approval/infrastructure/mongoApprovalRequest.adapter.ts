@@ -1,7 +1,11 @@
-import { Types } from 'mongoose';
+import { Types, type ClientSession } from 'mongoose';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalAction, ApprovalRequest, ApprovalStatus } from '../domain/approvalRequest.entity.js';
-import type { ApprovalRequestRepositoryPort } from '../domain/approvalRequest.repository.port.js';
+import type {
+  ApprovalRequestRepositoryPort,
+  ApprovalTransition,
+} from '../domain/approvalRequest.repository.port.js';
 import { ApprovalRequestModel, type ApprovalRequestDoc } from './approvalRequest.schema.js';
 
 function toRequest(doc: ApprovalRequestDoc & { _id: unknown }): ApprovalRequest {
@@ -12,6 +16,7 @@ function toRequest(doc: ApprovalRequestDoc & { _id: unknown }): ApprovalRequest 
     submitterId: String(doc.submitterId),
     status: doc.status,
     workflow: doc.workflow,
+    cycle: doc.cycle,
     submittedAt: doc.submittedAt,
     decidedAt: doc.decidedAt,
     history: doc.history.map((a) => ({
@@ -22,11 +27,15 @@ function toRequest(doc: ApprovalRequestDoc & { _id: unknown }): ApprovalRequest 
       comment: a.comment,
       at: a.at,
       resultingStatus: a.resultingStatus,
+      cycle: a.cycle,
     })),
   };
 }
 
 const toActionDoc = (a: ApprovalAction) => ({ ...a, actorId: new Types.ObjectId(a.actorId) });
+
+/** The opaque context is a Mongoose session — only adapters know that. */
+const session = (ctx?: TransactionContext) => (ctx as ClientSession | undefined) ?? null;
 
 export class MongoApprovalRequestAdapter implements ApprovalRequestRepositoryPort {
   async findById(id: string): Promise<ApprovalRequest | null> {
@@ -39,13 +48,13 @@ export class MongoApprovalRequestAdapter implements ApprovalRequestRepositoryPor
     return doc ? toRequest(doc) : null;
   }
 
-  async create(input: Omit<ApprovalRequest, 'id'>): Promise<ApprovalRequest> {
+  async create(input: Omit<ApprovalRequest, 'id'>, ctx?: TransactionContext): Promise<ApprovalRequest> {
     try {
-      const doc = await ApprovalRequestModel.create({
-        ...input,
-        submitterId: new Types.ObjectId(input.submitterId),
-        history: input.history.map(toActionDoc),
-      });
+      const [doc] = await ApprovalRequestModel.create(
+        [{ ...input, submitterId: new Types.ObjectId(input.submitterId), history: input.history.map(toActionDoc) }],
+        { session: session(ctx) },
+      );
+      if (!doc) throw AppError.internal('INTERNAL', { reason: 'APPROVAL_CREATE_RETURNED_NOTHING' });
       return toRequest(doc.toObject());
     } catch (err) {
       // Two submits of the same record at once: the unique (kind, recordId) index lets one win.
@@ -59,15 +68,16 @@ export class MongoApprovalRequestAdapter implements ApprovalRequestRepositoryPor
   async transition(
     id: string,
     expectedStatus: ApprovalStatus,
-    change: { status: ApprovalStatus; decidedAt: Date | null; action: ApprovalAction },
+    change: ApprovalTransition,
+    ctx?: TransactionContext,
   ): Promise<ApprovalRequest | null> {
     const doc = await ApprovalRequestModel.findOneAndUpdate(
       { _id: id, status: expectedStatus },
       {
-        $set: { status: change.status, decidedAt: change.decidedAt },
+        $set: { status: change.status, decidedAt: change.decidedAt, ...change.newCycle },
         $push: { history: toActionDoc(change.action) },
       },
-      { new: true },
+      { new: true, session: session(ctx) },
     ).lean();
     return doc ? toRequest(doc) : null;
   }

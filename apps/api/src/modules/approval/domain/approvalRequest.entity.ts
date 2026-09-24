@@ -3,16 +3,28 @@ import type { RoleName } from '@greynote/contracts';
 /**
  * `SUBMITTED` waits on the submitter's manager; `MANAGER_APPROVED` waits on the kind's final
  * approvers (Admin, or HR/Admin for Leave). `APPROVED` and `REJECTED` are decided. `WITHDRAWN`
- * is the submitter pulling it back (Phase 3 step 3).
+ * is the submitter pulling it back before the manager acted; `REOPENED` is Admin unlocking an
+ * approved request for changes. From `REJECTED`, `WITHDRAWN` or `REOPENED` the submitter can
+ * resubmit, which starts a new cycle on the same request.
  */
-export const APPROVAL_STATUSES = ['SUBMITTED', 'MANAGER_APPROVED', 'APPROVED', 'REJECTED', 'WITHDRAWN'] as const;
+export const APPROVAL_STATUSES = [
+  'SUBMITTED',
+  'MANAGER_APPROVED',
+  'APPROVED',
+  'REJECTED',
+  'WITHDRAWN',
+  'REOPENED',
+] as const;
 export type ApprovalStatus = (typeof APPROVAL_STATUSES)[number];
 
-/** Whether a kind needs its final stage at all — per-kind, Admin-editable (decision-log 2026-09-24). */
+/**
+ * Whether a request needs the final stage at all. Per kind, Admin-editable through the
+ * `APPROVAL_MANAGER_ONLY_KINDS` config key; every kind not listed there is `MANAGER_THEN_FINAL`.
+ */
 export const APPROVAL_WORKFLOWS = ['MANAGER_THEN_FINAL', 'MANAGER_ONLY'] as const;
 export type ApprovalWorkflow = (typeof APPROVAL_WORKFLOWS)[number];
 
-export const APPROVAL_ACTIONS = ['SUBMIT', 'APPROVE', 'REJECT'] as const;
+export const APPROVAL_ACTIONS = ['SUBMIT', 'APPROVE', 'REJECT', 'WITHDRAW', 'RESUBMIT', 'REOPEN'] as const;
 export type ApprovalActionType = (typeof APPROVAL_ACTIONS)[number];
 
 /**
@@ -32,6 +44,8 @@ export interface ApprovalAction {
   at: Date;
   /** The status the request moved to. */
   resultingStatus: ApprovalStatus;
+  /** Which submission round this action belongs to (1 = the first submission). */
+  cycle: number;
 }
 
 /**
@@ -48,9 +62,20 @@ export interface ApprovalRequest {
   status: ApprovalStatus;
   /** Snapshotted at submission, so a later config change never re-routes a request in flight. */
   workflow: ApprovalWorkflow;
+  /** 1 on first submission, +1 on each resubmission. */
+  cycle: number;
+  /** When the current cycle was submitted. */
   submittedAt: Date;
   decidedAt: Date | null;
   history: ApprovalAction[];
 }
 
+/** Waiting on someone to decide. */
 export const isOpen = (status: ApprovalStatus): boolean => status === 'SUBMITTED' || status === 'MANAGER_APPROVED';
+
+/**
+ * Whether the submitter may change the underlying record and resubmit. Everything else is
+ * locked for them: pending (withdraw first) or approved (only Admin can reopen it).
+ */
+export const isEditableBySubmitter = (status: ApprovalStatus): boolean =>
+  status === 'REJECTED' || status === 'WITHDRAWN' || status === 'REOPENED';

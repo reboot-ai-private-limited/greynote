@@ -1,4 +1,4 @@
-import type { TransactionRunnerPort } from '../../domain/transactionRunner.port.js';
+import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { UserDeviceRepositoryPort } from '../../domain/userDevice.repository.port.js';
 import type { UserSessionRepositoryPort } from '../../domain/userSession.repository.port.js';
 import { loadOwnedDevice } from './ownedDevice.js';

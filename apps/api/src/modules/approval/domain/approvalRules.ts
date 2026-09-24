@@ -48,3 +48,12 @@ export function statusAfterApproval(
 ): ApprovalStatus {
   return authority === 'MANAGER' && workflow === 'MANAGER_THEN_FINAL' ? 'MANAGER_APPROVED' : 'APPROVED';
 }
+
+/** `APPROVAL_MANAGER_ONLY_KINDS` → the set of kinds that skip the final stage. */
+export function parseManagerOnlyKinds(value: string): Set<string> {
+  const kinds = value
+    .split(',')
+    .map((k) => k.trim().toUpperCase())
+    .filter((k) => k !== '' && k !== 'NONE');
+  return new Set(kinds);
+}

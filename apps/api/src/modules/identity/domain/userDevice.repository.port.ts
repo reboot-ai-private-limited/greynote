@@ -1,4 +1,4 @@
-import type { TransactionContext } from './transactionRunner.port.js';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { DeviceStatus, UserDevice } from './userDevice.entity.js';
 
 export interface UserDeviceRepositoryPort {

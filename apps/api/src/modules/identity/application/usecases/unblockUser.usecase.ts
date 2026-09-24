@@ -1,7 +1,7 @@
 import type { RoleName } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ComplianceBlockRepositoryPort } from '../../domain/complianceBlock.repository.port.js';
-import type { TransactionRunnerPort } from '../../domain/transactionRunner.port.js';
+import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
 
 /**

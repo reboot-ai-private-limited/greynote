@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
-import type { TransactionContext, TransactionRunnerPort } from '../../domain/transactionRunner.port.js';
+import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { User } from '../../domain/user.entity.js';
 import type { DeviceStatus, UserDevice } from '../../domain/userDevice.entity.js';
 import type { UserDeviceRepositoryPort } from '../../domain/userDevice.repository.port.js';

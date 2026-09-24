@@ -2,7 +2,7 @@ import { Types, type ClientSession } from 'mongoose';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ComplianceBlockEvent } from '../domain/complianceBlock.entity.js';
 import type { ComplianceBlockRepositoryPort } from '../domain/complianceBlock.repository.port.js';
-import type { TransactionContext } from '../domain/transactionRunner.port.js';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { ComplianceBlockModel, type ComplianceBlockDoc } from './complianceBlock.schema.js';
 
 function toComplianceBlockEvent(doc: ComplianceBlockDoc & { _id: unknown }): ComplianceBlockEvent {

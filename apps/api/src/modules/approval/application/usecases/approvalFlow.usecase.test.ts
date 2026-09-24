@@ -3,15 +3,18 @@ import type { ApprovalKindDefinition } from '../../domain/approvalKind.js';
 import type { ApprovalRequest, ApprovalStatus } from '../../domain/approvalRequest.entity.js';
 import type { ApprovalRequestRepositoryPort } from '../../domain/approvalRequest.repository.port.js';
 import type { Actor } from '../../domain/approvalRules.js';
+import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
+import type { ApprovalStatusChange } from '../../domain/approvalKind.js';
+import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { ApprovalKindRegistry } from '../approvalKindRegistry.js';
 import { DecideApprovalUseCase } from './decideApproval.usecase.js';
+import { ReopenApprovalUseCase } from './reopenApproval.usecase.js';
 import { SubmitApprovalUseCase } from './submitApproval.usecase.js';
+import { WithdrawApprovalUseCase } from './withdrawApproval.usecase.js';
 
 class FakeRequests implements ApprovalRequestRepositoryPort {
   rows = new Map<string, ApprovalRequest>();
-  /** Runs inside `transition` before the status check — lets a test land a competing decision. */
-  beforeTransition: (() => Promise<void>) | undefined;
   async findById(id: string) {
     return this.rows.get(id) ?? null;
   }
@@ -24,14 +27,39 @@ class FakeRequests implements ApprovalRequestRepositoryPort {
     return row;
   }
   async transition(id: string, expected: ApprovalStatus, change: Parameters<ApprovalRequestRepositoryPort['transition']>[2]) {
-    const hook = this.beforeTransition;
-    this.beforeTransition = undefined;
-    await hook?.();
     const row = this.rows.get(id);
     if (!row || row.status !== expected) return null;
-    const updated = { ...row, status: change.status, decidedAt: change.decidedAt, history: [...row.history, change.action] };
+    const updated = {
+      ...row,
+      ...change.newCycle,
+      status: change.status,
+      decidedAt: change.decidedAt,
+      history: [...row.history, change.action],
+    };
     this.rows.set(id, updated);
     return updated;
+  }
+}
+
+/** Commits by keeping the rows; a throw inside `fn` restores them, like an aborted transaction. */
+class FakeTransactions implements TransactionRunnerPort {
+  /**
+   * Runs once, before the next transaction starts — i.e. after the use case read the request but
+   * before its conditional write: a competing decision committing in its own transaction.
+   */
+  beforeNextRun: (() => Promise<void>) | undefined;
+  constructor(private readonly requests: FakeRequests) {}
+  async run<T>(fn: (ctx: unknown) => Promise<T>): Promise<T> {
+    const hook = this.beforeNextRun;
+    this.beforeNextRun = undefined;
+    await hook?.();
+    const snapshot = new Map(this.requests.rows);
+    try {
+      return await fn('tx');
+    } catch (err) {
+      this.requests.rows = snapshot;
+      throw err;
+    }
   }
 }
 
@@ -43,21 +71,42 @@ const users: UserDirectoryPort = {
 };
 const as = (id: string): Actor => ({ id, role: ROLE[id]! });
 
-const PLAN: ApprovalKindDefinition = { kind: 'TEST_PLAN', finalApproverRoles: ['ADMIN'], defaultWorkflow: 'MANAGER_THEN_FINAL' };
-const QUICK: ApprovalKindDefinition = { kind: 'TEST_QUICK', finalApproverRoles: ['ADMIN'], defaultWorkflow: 'MANAGER_ONLY' };
-const LEAVE: ApprovalKindDefinition = { kind: 'TEST_LEAVE', finalApproverRoles: ['HR', 'ADMIN'], defaultWorkflow: 'MANAGER_THEN_FINAL' };
+/** Everything the owning module was told, and a switch to make its handler fail. */
+let changes: Array<{ change: ApprovalStatusChange; ctx: unknown }>;
+let handlerFails: boolean;
+const onStatusChange = async (change: ApprovalStatusChange, ctx: unknown) => {
+  if (handlerFails) throw new Error('owning module write failed');
+  changes.push({ change, ctx });
+};
+
+const PLAN: ApprovalKindDefinition = { kind: 'TEST_PLAN', finalApproverRoles: ['ADMIN'], onStatusChange };
+const QUICK: ApprovalKindDefinition = { kind: 'TEST_QUICK', finalApproverRoles: ['ADMIN'] };
+const LEAVE: ApprovalKindDefinition = { kind: 'TEST_LEAVE', finalApproverRoles: ['HR', 'ADMIN'] };
+
+/** The `APPROVAL_MANAGER_ONLY_KINDS` value; TEST_QUICK skips the final stage. */
+let managerOnlyKinds: string;
+const config: ConfigProviderPort = { get: async () => managerOnlyKinds };
 
 let requests: FakeRequests;
+let transactions: FakeTransactions;
 let submit: SubmitApprovalUseCase;
 let decide: DecideApprovalUseCase;
+let withdraw: WithdrawApprovalUseCase;
+let reopen: ReopenApprovalUseCase;
 
 beforeEach(() => {
   managerOf = { mr: 'asm', asm: 'nsm', asm2: 'nsm', nsm: null };
+  managerOnlyKinds = ' test_quick , NONE';
+  changes = [];
+  handlerFails = false;
   requests = new FakeRequests();
+  transactions = new FakeTransactions(requests);
   const kinds = new ApprovalKindRegistry();
   [PLAN, QUICK, LEAVE].forEach((k) => kinds.register(k));
-  submit = new SubmitApprovalUseCase(requests, users, kinds);
-  decide = new DecideApprovalUseCase(requests, users, kinds);
+  submit = new SubmitApprovalUseCase(requests, users, kinds, config);
+  decide = new DecideApprovalUseCase(requests, users, kinds, transactions);
+  withdraw = new WithdrawApprovalUseCase(requests, kinds, transactions);
+  reopen = new ReopenApprovalUseCase(requests, kinds, transactions);
 });
 
 const submitAs = (submitterId: string, kind = PLAN.kind, recordId = `rec-${submitterId}`) =>
@@ -137,8 +186,9 @@ describe('special routes', () => {
     expect(done.history.at(-1)?.authority).toBe('ADMIN_OVERRIDE');
   });
 
-  it('MANAGER_ONLY kinds end at the manager', async () => {
+  it('kinds listed in APPROVAL_MANAGER_ONLY_KINDS end at the manager (case/space-insensitive)', async () => {
     const req = await submitAs('mr', QUICK.kind);
+    expect(req.workflow).toBe('MANAGER_ONLY');
     expect((await approve(req.id, 'asm')).status).toBe('APPROVED');
   });
 
@@ -169,7 +219,7 @@ describe('integrity', () => {
 
   it('when two approvers race, the second gets a 409 and the first decision stands', async () => {
     const req = await submitAs('mr');
-    requests.beforeTransition = async () => {
+    transactions.beforeNextRun = async () => {
       await reject(req.id, 'admin', 'Rejected first');
     };
     await expect(approve(req.id, 'asm')).rejects.toMatchObject({ statusCode: 409 });
@@ -178,8 +228,115 @@ describe('integrity', () => {
 
   it('a kind must include ADMIN as a final approver, and can only be registered once', () => {
     const kinds = new ApprovalKindRegistry();
-    expect(() => kinds.register({ kind: 'X', finalApproverRoles: ['HR'], defaultWorkflow: 'MANAGER_ONLY' })).toThrow();
+    expect(() => kinds.register({ kind: 'X', finalApproverRoles: ['HR'] })).toThrow();
     kinds.register(PLAN);
     expect(() => kinds.register(PLAN)).toThrow();
+  });
+});
+
+describe('withdraw', () => {
+  it('the submitter can withdraw until the manager acts, then edit and resubmit', async () => {
+    const req = await submitAs('mr');
+    const withdrawn = await withdraw.execute(req.id, as('mr'), 'Wrong date');
+    expect(withdrawn).toMatchObject({ status: 'WITHDRAWN' });
+    expect(withdrawn.history.at(-1)).toMatchObject({ action: 'WITHDRAW', authority: 'SUBMITTER', comment: 'Wrong date' });
+  });
+
+  it('only the submitter, and not once the manager has approved', async () => {
+    const req = await submitAs('mr');
+    await expect(withdraw.execute(req.id, as('asm'))).rejects.toMatchObject({ statusCode: 403 });
+    await approve(req.id, 'asm');
+    await expect(withdraw.execute(req.id, as('mr'))).rejects.toMatchObject({ statusCode: 409 });
+  });
+});
+
+describe('resubmit', () => {
+  it('after a rejection, starts cycle 2 on the same request with the full history kept', async () => {
+    const first = await submitAs('mr');
+    await reject(first.id, 'asm', 'Add the second route');
+    const again = await submitAs('mr');
+
+    expect(again).toMatchObject({ id: first.id, status: 'SUBMITTED', cycle: 2, decidedAt: null });
+    expect(again.history.map((h) => [h.action, h.cycle])).toEqual([
+      ['SUBMIT', 1],
+      ['REJECT', 1],
+      ['RESUBMIT', 2],
+    ]);
+    expect((await approve(again.id, 'asm')).history.at(-1)?.cycle).toBe(2);
+  });
+
+  it('picks up a workflow config change from the next cycle, never mid-cycle', async () => {
+    const req = await submitAs('mr');
+    managerOnlyKinds = 'TEST_PLAN';
+    expect((await approve(req.id, 'asm')).status).toBe('MANAGER_APPROVED'); // still this cycle's workflow
+    await reject(req.id, 'admin', 'Redo');
+    const again = await submitAs('mr');
+    expect(again.workflow).toBe('MANAGER_ONLY');
+  });
+
+  it('is refused while pending or approved, and for anyone but the submitter', async () => {
+    const req = await submitAs('mr');
+    await expect(submitAs('mr')).rejects.toMatchObject({ statusCode: 409 });
+    await approve(req.id, 'admin');
+    await expect(submitAs('mr')).rejects.toMatchObject({ statusCode: 409, message: expect.stringContaining('reopen') });
+    await expect(submit.execute({ kind: PLAN.kind, recordId: 'rec-mr', submitterId: 'asm' })).rejects.toMatchObject({
+      statusCode: 403,
+    });
+  });
+});
+
+describe('reopen', () => {
+  it('Admin can reopen an approved request (reason required); the submitter can then resubmit', async () => {
+    const req = await submitAs('mr');
+    await approve(req.id, 'asm');
+    await approve(req.id, 'admin');
+
+    await expect(reopen.execute(req.id, as('admin'), ' ')).rejects.toMatchObject({ statusCode: 400 });
+    const reopened = await reopen.execute(req.id, as('admin'), 'Wrong doctor listed');
+    expect(reopened).toMatchObject({ status: 'REOPENED', decidedAt: null });
+    expect(reopened.history.at(-1)).toMatchObject({ action: 'REOPEN', authority: 'ADMIN_OVERRIDE' });
+    expect((await submitAs('mr')).cycle).toBe(2);
+  });
+
+  it('only Admin, and only from APPROVED', async () => {
+    const req = await submitAs('mr');
+    await expect(reopen.execute(req.id, as('admin'), 'x')).rejects.toMatchObject({ statusCode: 409 });
+    await approve(req.id, 'admin');
+    await expect(reopen.execute(req.id, as('asm'), 'x')).rejects.toMatchObject({ statusCode: 403 });
+    await expect(reopen.execute(req.id, as('hr'), 'x')).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+describe('owning-module callback', () => {
+  it('fires on every decision, withdraw and reopen — inside the transaction — but not on submit', async () => {
+    const a = await submitAs('mr', PLAN.kind, 'a');
+    expect(changes).toHaveLength(0);
+    await approve(a.id, 'asm');
+    await approve(a.id, 'admin');
+    await reopen.execute(a.id, as('admin'), 'fix');
+    const b = await submitAs('mr', PLAN.kind, 'b');
+    await withdraw.execute(b.id, as('mr'));
+
+    expect(changes.map(({ change }) => [change.recordId, change.previousStatus, change.status])).toEqual([
+      ['a', 'SUBMITTED', 'MANAGER_APPROVED'],
+      ['a', 'MANAGER_APPROVED', 'APPROVED'],
+      ['a', 'APPROVED', 'REOPENED'],
+      ['b', 'SUBMITTED', 'WITHDRAWN'],
+    ]);
+    expect(changes.every(({ ctx }) => ctx === 'tx')).toBe(true);
+    expect(changes[1]?.change.action).toMatchObject({ actorId: 'admin', authority: 'FINAL' });
+  });
+
+  it("a failing handler rolls the status change back, so the two can't disagree", async () => {
+    const req = await submitAs('mr');
+    handlerFails = true;
+    await expect(approve(req.id, 'asm')).rejects.toThrow('owning module write failed');
+    expect(requests.rows.get(req.id)).toMatchObject({ status: 'SUBMITTED' });
+    expect(requests.rows.get(req.id)?.history).toHaveLength(1);
+  });
+
+  it('kinds without a handler work the same', async () => {
+    const req = await submitAs('mr', LEAVE.kind);
+    await expect(approve(req.id, 'asm')).resolves.toMatchObject({ status: 'MANAGER_APPROVED' });
   });
 });

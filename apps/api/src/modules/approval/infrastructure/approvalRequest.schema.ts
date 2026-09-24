@@ -19,6 +19,7 @@ interface ApprovalActionDoc {
   comment: string | null;
   at: Date;
   resultingStatus: ApprovalStatus;
+  cycle: number;
 }
 
 export interface ApprovalRequestDoc {
@@ -27,6 +28,7 @@ export interface ApprovalRequestDoc {
   submitterId: Types.ObjectId;
   status: ApprovalStatus;
   workflow: ApprovalWorkflow;
+  cycle: number;
   submittedAt: Date;
   decidedAt: Date | null;
   history: ApprovalActionDoc[];
@@ -42,6 +44,7 @@ const actionSchema = new Schema<ApprovalActionDoc>(
     comment: { type: String, default: null },
     at: { type: Date, required: true },
     resultingStatus: { type: String, required: true, enum: APPROVAL_STATUSES },
+    cycle: { type: Number, required: true },
   },
   { _id: false },
 );
@@ -53,6 +56,7 @@ const approvalRequestSchema = new Schema<ApprovalRequestDoc>({
   submitterId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   status: { type: String, required: true, enum: APPROVAL_STATUSES },
   workflow: { type: String, required: true, enum: APPROVAL_WORKFLOWS },
+  cycle: { type: Number, required: true },
   submittedAt: { type: Date, required: true },
   decidedAt: { type: Date, default: null },
   history: { type: [actionSchema], required: true },

@@ -1,5 +1,5 @@
 import type { RoleName } from '@greynote/contracts';
-import type { TransactionContext } from './transactionRunner.port.js';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { User, UserStatus } from './user.entity.js';
 
 /**
