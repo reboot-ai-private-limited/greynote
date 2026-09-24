@@ -39,6 +39,7 @@ import { MongoEmployeeProfileAdapter } from './infrastructure/mongoEmployeeProfi
 import { MongoPayBandAdapter } from './infrastructure/mongoPayBand.adapter.js';
 import { MongoRoleAdapter } from './infrastructure/mongoRole.adapter.js';
 import { MongoUserAdapter } from './infrastructure/mongoUser.adapter.js';
+import { MongoUserDeviceAdapter } from './infrastructure/mongoUserDevice.adapter.js';
 import { MongoUserSessionAdapter } from './infrastructure/mongoUserSession.adapter.js';
 import { MongooseTransactionRunner } from './infrastructure/mongooseTransactionRunner.adapter.js';
 import {
@@ -87,6 +88,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const employeeProfileRepository = new MongoEmployeeProfileAdapter();
   const complianceBlockRepository = new MongoComplianceBlockAdapter();
   const userSessionRepository = new MongoUserSessionAdapter();
+  const userDeviceRepository = new MongoUserDeviceAdapter();
   const passwordHasher = new BcryptPasswordHasher(env.BCRYPT_COST_FACTOR);
   const accessTokenSigner = new JwtAccessTokenSigner();
   const refreshTokenGenerator = new CryptoRefreshTokenGenerator();
@@ -103,6 +105,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     userRepository,
     roleRepository,
     userSessionRepository,
+    userDeviceRepository,
     passwordHasher,
     accessTokenSigner,
     refreshTokenGenerator,

@@ -20,10 +20,16 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = [
     description: 'Day of the month by which a Monthly Plan must be submitted.',
   },
   {
-    key: 'MAX_ACTIVE_DEVICES_FIELD',
+    key: 'MAX_REGISTERED_DEVICES_FIELD',
     value: '2',
     module: 'AUTH',
-    description: 'Max concurrent logged-in devices for a FIELD-role user.',
+    description: 'Max devices (registered + awaiting approval) for a FIELD-role user.',
+  },
+  {
+    key: 'REJECTED_DEVICE_TTL_DAYS',
+    value: '7',
+    module: 'AUTH',
+    description: 'Days a device rejected by Admin stays blocked before it can request approval again.',
   },
   {
     key: 'GEO_FENCE_RADIUS_METERS',

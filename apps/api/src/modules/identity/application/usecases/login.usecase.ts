@@ -4,7 +4,8 @@ import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
 import type { PasswordHasherPort } from '../../domain/passwordHasher.port.js';
 import type { RefreshTokenGeneratorPort } from '../../domain/refreshTokenGenerator.port.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
-import { toUserSummary, type UserSummary } from '../../domain/user.entity.js';
+import { toUserSummary, type User, type UserSummary } from '../../domain/user.entity.js';
+import type { UserDeviceRepositoryPort } from '../../domain/userDevice.repository.port.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
 import type { Platform } from '../../domain/userSession.entity.js';
 import type { UserSessionRepositoryPort } from '../../domain/userSession.repository.port.js';
@@ -25,11 +26,15 @@ export interface LoginOutput {
   user: UserSummary;
 }
 
+/** Sent in `publicDetails.reason` so the app can show the right screen, not a generic error. */
+export type DeviceBlockReason = 'DEVICE_APPROVAL_PENDING' | 'DEVICE_REJECTED' | 'DEVICE_LIMIT_REACHED';
+
 export class LoginUseCase {
   constructor(
     private readonly userRepository: UserRepositoryPort,
     private readonly roleRepository: RoleRepositoryPort,
     private readonly userSessionRepository: UserSessionRepositoryPort,
+    private readonly userDeviceRepository: UserDeviceRepositoryPort,
     private readonly passwordHasher: PasswordHasherPort,
     private readonly accessTokenSigner: AccessTokenSignerPort,
     private readonly refreshTokenGenerator: RefreshTokenGeneratorPort,
@@ -52,23 +57,12 @@ export class LoginUseCase {
     // A blocked user's login still succeeds — the compliance block gates future submissions
     // (hld/10), not authentication. Flagged in docs/LLD/identity.md as needing confirmation.
 
-    if (role.name === 'FIELD') {
-      const existingSession = await this.userSessionRepository.findActiveByDeviceId(
-        user.id,
-        input.deviceId,
-      );
-      if (existingSession) {
-        // Re-login on an already-active device: replace, doesn't count against the limit.
-        await this.userSessionRepository.revoke(existingSession.id, 'ROTATED');
-      } else {
-        const limit = Number(await this.configProvider.get('MAX_ACTIVE_DEVICES_FIELD'));
-        const activeCount = await this.userSessionRepository.countActive(user.id);
-        if (activeCount >= limit) {
-          throw AppError.conflict('Log out from another device first.');
-        }
-      }
-    }
-    // Web-portal roles (ADMIN/HR/ACCOUNTANT) have no device limit — this branch doesn't run.
+    // Only after the password check, so only a real employee can ever create a device request.
+    if (role.name === 'FIELD') await this.assertDeviceAllowed(user, input);
+    // Web-portal roles (ADMIN/HR/ACCOUNTANT) have no device registry or limit.
+
+    const existingSession = await this.userSessionRepository.findActiveByDeviceId(user.id, input.deviceId);
+    if (existingSession) await this.userSessionRepository.revoke(existingSession.id, 'ROTATED');
 
     const refreshToken = this.refreshTokenGenerator.generate();
     const now = new Date();
@@ -101,4 +95,53 @@ export class LoginUseCase {
       user: toUserSummary(user, role.name),
     };
   }
+
+  /** hld/04 §2: every new phone needs Admin approval; at the limit no request is created. */
+  private async assertDeviceAllowed(user: User, input: LoginInput): Promise<void> {
+    const device = await this.userDeviceRepository.findLive(user.id, input.deviceId);
+
+    if (device?.status === 'REGISTERED') return;
+    if (device?.status === 'PENDING') {
+      throw deviceBlocked(409, 'DEVICE_APPROVAL_PENDING', 'Waiting for Admin to approve this device.');
+    }
+    if (device?.status === 'REJECTED') {
+      const until = device.expiresAt ? ` You can request again after ${device.expiresAt.toISOString().slice(0, 10)}.` : '';
+      throw deviceBlocked(403, 'DEVICE_REJECTED', `Admin rejected this device.${until}`, {
+        retryAfter: device.expiresAt,
+      });
+    }
+
+    const limit = Number(await this.configProvider.get('MAX_REGISTERED_DEVICES_FIELD'));
+    if ((await this.userDeviceRepository.countSlotsUsed(user.id)) >= limit) {
+      throw deviceBlocked(
+        409,
+        'DEVICE_LIMIT_REACHED',
+        `You already have ${limit} devices. Ask Admin to remove an old device first.`,
+        { limit },
+      );
+    }
+
+    await this.userDeviceRepository.createPending({
+      userId: user.id,
+      deviceId: input.deviceId,
+      deviceName: input.deviceName,
+      deviceModel: input.deviceModel,
+      platform: input.platform,
+    });
+    throw deviceBlocked(409, 'DEVICE_APPROVAL_PENDING', 'Request sent. Waiting for Admin to approve this device.');
+  }
+}
+
+function deviceBlocked(
+  statusCode: 403 | 409,
+  reason: DeviceBlockReason,
+  message: string,
+  extra: Record<string, unknown> = {},
+): AppError {
+  return new AppError({
+    statusCode,
+    code: statusCode === 403 ? 'FORBIDDEN' : 'CONFLICT',
+    message,
+    publicDetails: { reason, ...extra },
+  });
 }

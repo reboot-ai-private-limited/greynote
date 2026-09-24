@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { AccessTokenSignerPort } from '../../domain/accessTokenSigner.port.js';
 import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
 import type { PasswordHasherPort } from '../../domain/passwordHasher.port.js';
@@ -6,8 +6,10 @@ import type { RefreshTokenGeneratorPort } from '../../domain/refreshTokenGenerat
 import type { Role } from '../../domain/role.entity.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
 import type { User } from '../../domain/user.entity.js';
+import type { UserDevice } from '../../domain/userDevice.entity.js';
+import type { UserDeviceRepositoryPort } from '../../domain/userDevice.repository.port.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
-import type { UserSession } from '../../domain/userSession.entity.js';
+import type { RevokedReason, UserSession } from '../../domain/userSession.entity.js';
 import type { UserSessionRepositoryPort } from '../../domain/userSession.repository.port.js';
 import { LoginUseCase } from './login.usecase.js';
 
@@ -30,46 +32,77 @@ function makeUser(overrides: Partial<User> = {}): User {
   };
 }
 
+function makeDevice(overrides: Partial<UserDevice> = {}): UserDevice {
+  return {
+    id: 'device-row-1',
+    userId: 'user-1',
+    deviceId: 'phone-1',
+    deviceName: 'Redmi',
+    deviceModel: 'Xiaomi Note 12',
+    platform: 'ANDROID',
+    status: 'REGISTERED',
+    requestedAt: new Date(),
+    decidedAt: new Date(),
+    decidedBy: 'admin-1',
+    expiresAt: null,
+    ...overrides,
+  };
+}
+
 class FakeUserRepository implements Pick<UserRepositoryPort, 'findByEmployeeCode' | 'update'> {
-  updates: Array<{ id: string; input: Partial<User> }> = [];
   constructor(private readonly user: User | null) {}
   async findByEmployeeCode(): Promise<User | null> {
     return this.user;
   }
-  async update(id: string, input: Partial<User>): Promise<User> {
-    this.updates.push({ id, input });
+  async update(_id: string, input: Partial<User>): Promise<User> {
     return { ...(this.user as User), ...input };
   }
 }
 
 class FakeRoleRepository implements Pick<RoleRepositoryPort, 'findById'> {
-  constructor(private readonly role: Role | null) {}
-  async findById(): Promise<Role | null> {
+  constructor(private readonly role: Role) {}
+  async findById(): Promise<Role> {
     return this.role;
   }
 }
 
+type NewSession = Omit<UserSession, 'id' | 'revokedAt' | 'revokedReason'>;
+
 class FakeUserSessionRepository
-  implements Pick<UserSessionRepositoryPort, 'findActiveByDeviceId' | 'countActive' | 'revoke' | 'create'>
+  implements Pick<UserSessionRepositoryPort, 'findActiveByDeviceId' | 'revoke' | 'create'>
 {
-  revoked: string[] = [];
-  created: Array<Omit<UserSession, 'id' | 'revokedAt' | 'revokedReason'>> = [];
-  constructor(
-    private readonly existingSession: UserSession | null,
-    private readonly activeCount: number,
-  ) {}
+  revoked: Array<{ sessionId: string; reason: RevokedReason }> = [];
+  created: NewSession[] = [];
+  constructor(private readonly existingSession: UserSession | null = null) {}
   async findActiveByDeviceId(): Promise<UserSession | null> {
     return this.existingSession;
   }
-  async countActive(): Promise<number> {
-    return this.activeCount;
+  async revoke(sessionId: string, reason: RevokedReason): Promise<void> {
+    this.revoked.push({ sessionId, reason });
   }
-  async revoke(sessionId: string): Promise<void> {
-    this.revoked.push(sessionId);
-  }
-  async create(input: Omit<UserSession, 'id' | 'revokedAt' | 'revokedReason'>): Promise<UserSession> {
+  async create(input: NewSession): Promise<UserSession> {
     this.created.push(input);
     return { ...input, id: 'session-new', revokedAt: null, revokedReason: null };
+  }
+}
+
+class FakeUserDeviceRepository implements Pick<UserDeviceRepositoryPort, 'findLive' | 'countSlotsUsed' | 'createPending'> {
+  pendingCreated: string[] = [];
+  lookups = 0;
+  constructor(
+    private readonly live: UserDevice | null,
+    private readonly slotsUsed = 0,
+  ) {}
+  async findLive(): Promise<UserDevice | null> {
+    this.lookups += 1;
+    return this.live;
+  }
+  async countSlotsUsed(): Promise<number> {
+    return this.slotsUsed;
+  }
+  async createPending(input: Pick<UserDevice, 'deviceId'>): Promise<UserDevice> {
+    this.pendingCreated.push(input.deviceId);
+    return makeDevice({ status: 'PENDING', deviceId: input.deviceId });
   }
 }
 
@@ -77,161 +110,130 @@ const passwordHasher: PasswordHasherPort = {
   hash: async (p) => `hashed:${p}`,
   verify: async (plain, hash) => hash === 'correct-hash' && plain === 'correct-password',
 };
-
 const accessTokenSigner: AccessTokenSignerPort = { sign: () => 'signed-jwt' };
 const refreshTokenGenerator: RefreshTokenGeneratorPort = {
   generate: () => 'raw-refresh-token',
   hash: (t) => `hash(${t})`,
 };
+const config: ConfigProviderPort = { get: async () => '2' };
 
-function makeConfigProvider(maxDevices: string): ConfigProviderPort {
-  return { get: async () => maxDevices };
-}
-
-const opts = { accessTokenTtlSeconds: 900, refreshTokenTtlDays: 30 };
 const loginInput = {
   employeeCode: 'MR001',
   password: 'correct-password',
-  deviceId: 'device-new',
+  deviceId: 'phone-1',
   deviceName: 'Redmi',
-  deviceModel: 'Note 12',
+  deviceModel: 'Xiaomi Note 12',
   platform: 'ANDROID' as const,
 };
 
-describe('LoginUseCase', () => {
-  let userRepository: FakeUserRepository;
+function build(opts: {
+  user?: User | null;
+  role?: Role;
+  sessions?: FakeUserSessionRepository;
+  devices?: FakeUserDeviceRepository;
+}) {
+  const sessions = opts.sessions ?? new FakeUserSessionRepository();
+  const devices = opts.devices ?? new FakeUserDeviceRepository(makeDevice());
+  const useCase = new LoginUseCase(
+    new FakeUserRepository(opts.user === undefined ? makeUser() : opts.user) as unknown as UserRepositoryPort,
+    new FakeRoleRepository(opts.role ?? FIELD_ROLE) as unknown as RoleRepositoryPort,
+    sessions as unknown as UserSessionRepositoryPort,
+    devices as unknown as UserDeviceRepositoryPort,
+    passwordHasher,
+    accessTokenSigner,
+    refreshTokenGenerator,
+    config,
+    { accessTokenTtlSeconds: 900, refreshTokenTtlDays: 30 },
+  );
+  return { useCase, sessions, devices };
+}
 
-  beforeEach(() => {
-    userRepository = new FakeUserRepository(makeUser());
-  });
-
+describe('LoginUseCase — credentials', () => {
   it('rejects an unknown employee code without revealing which field was wrong', async () => {
-    const useCase = new LoginUseCase(
-      new FakeUserRepository(null) as unknown as UserRepositoryPort,
-      new FakeRoleRepository(FIELD_ROLE) as unknown as RoleRepositoryPort,
-      new FakeUserSessionRepository(null, 0) as unknown as UserSessionRepositoryPort,
-      passwordHasher,
-      accessTokenSigner,
-      refreshTokenGenerator,
-      makeConfigProvider('2'),
-      opts,
-    );
+    const { useCase } = build({ user: null });
     await expect(useCase.execute(loginInput)).rejects.toMatchObject({ statusCode: 401 });
   });
 
-  it('rejects a wrong password with the same message as an unknown employee code', async () => {
-    const useCase = new LoginUseCase(
-      userRepository as unknown as UserRepositoryPort,
-      new FakeRoleRepository(FIELD_ROLE) as unknown as RoleRepositoryPort,
-      new FakeUserSessionRepository(null, 0) as unknown as UserSessionRepositoryPort,
-      passwordHasher,
-      accessTokenSigner,
-      refreshTokenGenerator,
-      makeConfigProvider('2'),
-      opts,
-    );
+  it('rejects a wrong password with the same message, before any device lookup', async () => {
+    const { useCase, devices } = build({});
     await expect(useCase.execute({ ...loginInput, password: 'wrong' })).rejects.toMatchObject({
       statusCode: 401,
       message: 'Invalid employee code or password.',
     });
-  });
-
-  it('rejects a FIELD login on a genuinely new device once the device limit is reached', async () => {
-    const sessions = new FakeUserSessionRepository(null, 2); // already at the limit
-    const useCase = new LoginUseCase(
-      userRepository as unknown as UserRepositoryPort,
-      new FakeRoleRepository(FIELD_ROLE) as unknown as RoleRepositoryPort,
-      sessions as unknown as UserSessionRepositoryPort,
-      passwordHasher,
-      accessTokenSigner,
-      refreshTokenGenerator,
-      makeConfigProvider('2'),
-      opts,
-    );
-    await expect(useCase.execute(loginInput)).rejects.toMatchObject({ statusCode: 409, code: 'CONFLICT' });
-    expect(sessions.created).toHaveLength(0);
-  });
-
-  it('allows a FIELD login on a genuinely new device under the limit', async () => {
-    const sessions = new FakeUserSessionRepository(null, 1); // one below the limit of 2
-    const useCase = new LoginUseCase(
-      userRepository as unknown as UserRepositoryPort,
-      new FakeRoleRepository(FIELD_ROLE) as unknown as RoleRepositoryPort,
-      sessions as unknown as UserSessionRepositoryPort,
-      passwordHasher,
-      accessTokenSigner,
-      refreshTokenGenerator,
-      makeConfigProvider('2'),
-      opts,
-    );
-    const result = await useCase.execute(loginInput);
-    expect(result.accessToken).toBe('signed-jwt');
-    expect(sessions.created).toHaveLength(1);
-  });
-
-  it('replaces the session on re-login from an already-active device, without checking the limit', async () => {
-    const existing: UserSession = {
-      id: 'session-old',
-      userId: 'user-1',
-      deviceId: loginInput.deviceId,
-      deviceName: 'Redmi',
-      deviceModel: 'Note 12',
-      platform: 'ANDROID',
-      refreshTokenHash: 'old-hash',
-      issuedAt: new Date(),
-      expiresAt: new Date(Date.now() + 1000),
-      lastActiveAt: new Date(),
-      revokedAt: null,
-      revokedReason: null,
-    };
-    // Deliberately AT the limit — a re-login on the same device must not be blocked by this.
-    const sessions = new FakeUserSessionRepository(existing, 2);
-    const useCase = new LoginUseCase(
-      userRepository as unknown as UserRepositoryPort,
-      new FakeRoleRepository(FIELD_ROLE) as unknown as RoleRepositoryPort,
-      sessions as unknown as UserSessionRepositoryPort,
-      passwordHasher,
-      accessTokenSigner,
-      refreshTokenGenerator,
-      makeConfigProvider('2'),
-      opts,
-    );
-    const result = await useCase.execute(loginInput);
-    expect(result.accessToken).toBe('signed-jwt');
-    expect(sessions.revoked).toEqual(['session-old']);
-    expect(sessions.created).toHaveLength(1);
-  });
-
-  it('never checks the device limit for a non-FIELD role', async () => {
-    userRepository = new FakeUserRepository(makeUser({ roleId: ADMIN_ROLE.id }));
-    const sessions = new FakeUserSessionRepository(null, 999); // would fail any limit check
-    const useCase = new LoginUseCase(
-      userRepository as unknown as UserRepositoryPort,
-      new FakeRoleRepository(ADMIN_ROLE) as unknown as RoleRepositoryPort,
-      sessions as unknown as UserSessionRepositoryPort,
-      passwordHasher,
-      accessTokenSigner,
-      refreshTokenGenerator,
-      makeConfigProvider('2'),
-      opts,
-    );
-    const result = await useCase.execute(loginInput);
-    expect(result.accessToken).toBe('signed-jwt');
+    expect(devices.lookups).toBe(0);
   });
 
   it('succeeds for a blocked user — the compliance block gates submissions, not authentication', async () => {
-    userRepository = new FakeUserRepository(makeUser({ isBlocked: true }));
-    const sessions = new FakeUserSessionRepository(null, 0);
-    const useCase = new LoginUseCase(
-      userRepository as unknown as UserRepositoryPort,
-      new FakeRoleRepository(FIELD_ROLE) as unknown as RoleRepositoryPort,
-      sessions as unknown as UserSessionRepositoryPort,
-      passwordHasher,
-      accessTokenSigner,
-      refreshTokenGenerator,
-      makeConfigProvider('2'),
-      opts,
-    );
+    const { useCase } = build({ user: makeUser({ isBlocked: true }) });
     await expect(useCase.execute(loginInput)).resolves.toMatchObject({ accessToken: 'signed-jwt' });
+  });
+});
+
+describe('LoginUseCase — FIELD device registry', () => {
+  it('logs in on a REGISTERED device', async () => {
+    const { useCase, sessions } = build({});
+    const result = await useCase.execute(loginInput);
+    expect(result.accessToken).toBe('signed-jwt');
+    expect(sessions.created).toHaveLength(1);
+  });
+
+  it('replaces the existing session on re-login from the same registered device', async () => {
+    const existing = { id: 'session-old' } as UserSession;
+    const { useCase, sessions } = build({ sessions: new FakeUserSessionRepository(existing) });
+    await useCase.execute(loginInput);
+    expect(sessions.revoked).toEqual([{ sessionId: 'session-old', reason: 'ROTATED' }]);
+    expect(sessions.created).toHaveLength(1);
+  });
+
+  it('turns a brand-new phone into a PENDING request, even the very first one, and does not log in', async () => {
+    const devices = new FakeUserDeviceRepository(null, 0);
+    const { useCase, sessions } = build({ devices });
+    await expect(useCase.execute(loginInput)).rejects.toMatchObject({
+      statusCode: 409,
+      publicDetails: { reason: 'DEVICE_APPROVAL_PENDING' },
+    });
+    expect(devices.pendingCreated).toEqual(['phone-1']);
+    expect(sessions.created).toHaveLength(0);
+  });
+
+  it('does not create a duplicate request for a phone that is already PENDING', async () => {
+    const devices = new FakeUserDeviceRepository(makeDevice({ status: 'PENDING' }), 1);
+    const { useCase } = build({ devices });
+    await expect(useCase.execute(loginInput)).rejects.toMatchObject({
+      statusCode: 409,
+      publicDetails: { reason: 'DEVICE_APPROVAL_PENDING' },
+    });
+    expect(devices.pendingCreated).toHaveLength(0);
+  });
+
+  it('refuses a REJECTED phone with 403 and tells it when it can retry', async () => {
+    const retryAfter = new Date('2026-10-01T00:00:00Z');
+    const devices = new FakeUserDeviceRepository(makeDevice({ status: 'REJECTED', expiresAt: retryAfter }));
+    const { useCase, sessions } = build({ devices });
+    await expect(useCase.execute(loginInput)).rejects.toMatchObject({
+      statusCode: 403,
+      publicDetails: { reason: 'DEVICE_REJECTED', retryAfter },
+    });
+    expect(devices.pendingCreated).toHaveLength(0);
+    expect(sessions.created).toHaveLength(0);
+  });
+
+  it('at the limit, refuses a new phone WITHOUT creating a request', async () => {
+    const devices = new FakeUserDeviceRepository(null, 2);
+    const { useCase } = build({ devices });
+    await expect(useCase.execute(loginInput)).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'You already have 2 devices. Ask Admin to remove an old device first.',
+      publicDetails: { reason: 'DEVICE_LIMIT_REACHED', limit: 2 },
+    });
+    expect(devices.pendingCreated).toHaveLength(0);
+  });
+
+  it('never consults the device registry for a non-FIELD role', async () => {
+    const devices = new FakeUserDeviceRepository(null, 999);
+    const { useCase } = build({ user: makeUser({ roleId: ADMIN_ROLE.id }), role: ADMIN_ROLE, devices });
+    await expect(useCase.execute(loginInput)).resolves.toMatchObject({ accessToken: 'signed-jwt' });
+    expect(devices.lookups).toBe(0);
+    expect(devices.pendingCreated).toHaveLength(0);
   });
 });
