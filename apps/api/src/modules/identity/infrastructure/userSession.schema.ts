@@ -1,5 +1,5 @@
 import { Schema, model, type Types } from 'mongoose';
-import { PLATFORMS, type Platform } from '../domain/userSession.entity.js';
+import { PLATFORMS, REVOKED_REASONS, type Platform, type RevokedReason } from '../domain/userSession.entity.js';
 
 export interface UserSessionDoc {
   userId: Types.ObjectId;
@@ -12,6 +12,7 @@ export interface UserSessionDoc {
   expiresAt: Date;
   lastActiveAt: Date;
   revokedAt: Date | null;
+  revokedReason: RevokedReason | null;
 }
 
 const userSessionSchema = new Schema<UserSessionDoc>({
@@ -25,6 +26,7 @@ const userSessionSchema = new Schema<UserSessionDoc>({
   expiresAt: { type: Date, required: true },
   lastActiveAt: { type: Date, required: true },
   revokedAt: { type: Date, default: null },
+  revokedReason: { type: String, enum: [...REVOKED_REASONS, null], default: null },
 });
 
 // Backs `findActiveByDeviceId`/`countActive` — always filtered by userId first.

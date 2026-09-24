@@ -27,10 +27,14 @@ export class RefreshSessionUseCase {
     if (!session) throw AppError.unauthenticated();
 
     if (session.revokedAt) {
-      // Reuse of an already-rotated token is a theft signal — revoke EVERYTHING for this user,
-      // including the device currently, legitimately, mid-use. Intended trade-off (hld/04 §1).
-      await this.userSessionRepository.revokeAllForUser(session.userId);
-      throw AppError.unauthenticated('Session invalidated, please log in again.');
+      if (session.revokedReason === 'ROTATED') {
+        // Reuse of an already-rotated token is a theft signal — revoke EVERYTHING for this user,
+        // including the device currently, legitimately, mid-use. Intended trade-off (hld/04 §1).
+        await this.userSessionRepository.revokeAllForUser(session.userId, 'THEFT');
+        throw AppError.unauthenticated('Session invalidated, please log in again.');
+      }
+      // Logged out, removed by Admin, or password reset: just dead, not theft.
+      throw AppError.unauthenticated('Please log in again.');
     }
 
     if (session.expiresAt.getTime() <= Date.now()) {
@@ -43,7 +47,7 @@ export class RefreshSessionUseCase {
     const role = await this.roleRepository.findById(user.roleId);
     if (!role) throw AppError.internal('INTERNAL', { reason: 'ROLE_NOT_FOUND', roleId: user.roleId });
 
-    await this.userSessionRepository.revoke(session.id);
+    await this.userSessionRepository.revoke(session.id, 'ROTATED');
 
     const newRefreshToken = this.refreshTokenGenerator.generate();
     const now = new Date();
@@ -59,7 +63,6 @@ export class RefreshSessionUseCase {
       issuedAt: now,
       expiresAt,
       lastActiveAt: now,
-      revokedAt: null,
     });
 
     const accessToken = this.accessTokenSigner.sign({

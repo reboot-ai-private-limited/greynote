@@ -13,6 +13,6 @@ export class LogoutAllSessionsUseCase {
     const user = await this.userRepository.findById(targetUserId);
     if (!user) throw AppError.notFound();
 
-    await this.userSessionRepository.revokeAllForUser(targetUserId);
+    await this.userSessionRepository.revokeAllForUser(targetUserId, 'ADMIN');
   }
 }

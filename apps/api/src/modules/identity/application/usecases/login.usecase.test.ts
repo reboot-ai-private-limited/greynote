@@ -53,7 +53,7 @@ class FakeUserSessionRepository
   implements Pick<UserSessionRepositoryPort, 'findActiveByDeviceId' | 'countActive' | 'revoke' | 'create'>
 {
   revoked: string[] = [];
-  created: Array<Omit<UserSession, 'id'>> = [];
+  created: Array<Omit<UserSession, 'id' | 'revokedAt' | 'revokedReason'>> = [];
   constructor(
     private readonly existingSession: UserSession | null,
     private readonly activeCount: number,
@@ -67,9 +67,9 @@ class FakeUserSessionRepository
   async revoke(sessionId: string): Promise<void> {
     this.revoked.push(sessionId);
   }
-  async create(input: Omit<UserSession, 'id'>): Promise<UserSession> {
+  async create(input: Omit<UserSession, 'id' | 'revokedAt' | 'revokedReason'>): Promise<UserSession> {
     this.created.push(input);
-    return { ...input, id: 'session-new' };
+    return { ...input, id: 'session-new', revokedAt: null, revokedReason: null };
   }
 }
 
@@ -182,6 +182,7 @@ describe('LoginUseCase', () => {
       expiresAt: new Date(Date.now() + 1000),
       lastActiveAt: new Date(),
       revokedAt: null,
+      revokedReason: null,
     };
     // Deliberately AT the limit — a re-login on the same device must not be blocked by this.
     const sessions = new FakeUserSessionRepository(existing, 2);

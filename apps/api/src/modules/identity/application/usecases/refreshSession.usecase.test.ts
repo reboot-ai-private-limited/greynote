@@ -5,7 +5,7 @@ import type { Role } from '../../domain/role.entity.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
 import type { User } from '../../domain/user.entity.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
-import type { UserSession } from '../../domain/userSession.entity.js';
+import type { RevokedReason, UserSession } from '../../domain/userSession.entity.js';
 import type { UserSessionRepositoryPort } from '../../domain/userSession.repository.port.js';
 import { RefreshSessionUseCase } from './refreshSession.usecase.js';
 
@@ -36,30 +36,33 @@ function makeSession(overrides: Partial<UserSession> = {}): UserSession {
     expiresAt: new Date(Date.now() + 1000 * 60 * 60),
     lastActiveAt: new Date(),
     revokedAt: null,
+    revokedReason: null,
     ...overrides,
   };
 }
+
+type NewSession = Omit<UserSession, 'id' | 'revokedAt' | 'revokedReason'>;
 
 class FakeUserSessionRepository
   implements
     Pick<UserSessionRepositoryPort, 'findByRefreshTokenHash' | 'revoke' | 'revokeAllForUser' | 'create'>
 {
-  revoked: string[] = [];
-  revokedAllFor: string[] = [];
-  created: Array<Omit<UserSession, 'id'>> = [];
+  revoked: Array<{ sessionId: string; reason: RevokedReason }> = [];
+  revokedAllFor: Array<{ userId: string; reason: RevokedReason }> = [];
+  created: NewSession[] = [];
   constructor(private readonly session: UserSession | null) {}
   async findByRefreshTokenHash(): Promise<UserSession | null> {
     return this.session;
   }
-  async revoke(sessionId: string): Promise<void> {
-    this.revoked.push(sessionId);
+  async revoke(sessionId: string, reason: RevokedReason): Promise<void> {
+    this.revoked.push({ sessionId, reason });
   }
-  async revokeAllForUser(userId: string): Promise<void> {
-    this.revokedAllFor.push(userId);
+  async revokeAllForUser(userId: string, reason: RevokedReason): Promise<void> {
+    this.revokedAllFor.push({ userId, reason });
   }
-  async create(input: Omit<UserSession, 'id'>): Promise<UserSession> {
+  async create(input: NewSession): Promise<UserSession> {
     this.created.push(input);
-    return { ...input, id: 'session-new' };
+    return { ...input, id: 'session-new', revokedAt: null, revokedReason: null };
   }
 }
 
@@ -90,12 +93,22 @@ describe('RefreshSessionUseCase', () => {
   });
 
   it('treats a reused (already-rotated) refresh token as theft and revokes every session for the user', async () => {
-    const sessions = new FakeUserSessionRepository(makeSession({ revokedAt: new Date() }));
+    const sessions = new FakeUserSessionRepository(makeSession({ revokedAt: new Date(), revokedReason: 'ROTATED' }));
     const useCase = buildUseCase(sessions);
     await expect(useCase.execute('raw-token')).rejects.toMatchObject({ statusCode: 401 });
-    expect(sessions.revokedAllFor).toEqual([USER.id]);
+    expect(sessions.revokedAllFor).toEqual([{ userId: USER.id, reason: 'THEFT' }]);
     expect(sessions.created).toHaveLength(0);
   });
+
+  it.each(['LOGOUT', 'ADMIN', 'PASSWORD_RESET', 'THEFT'] as const)(
+    'rejects a token revoked for %s with 401 but does NOT revoke the user\'s other sessions',
+    async (reason) => {
+      const sessions = new FakeUserSessionRepository(makeSession({ revokedAt: new Date(), revokedReason: reason }));
+      await expect(buildUseCase(sessions).execute('raw-token')).rejects.toMatchObject({ statusCode: 401 });
+      expect(sessions.revokedAllFor).toHaveLength(0);
+      expect(sessions.created).toHaveLength(0);
+    },
+  );
 
   it('rejects a naturally expired token without revoking every session (not theft)', async () => {
     const sessions = new FakeUserSessionRepository(makeSession({ expiresAt: new Date(Date.now() - 1000) }));
@@ -109,7 +122,7 @@ describe('RefreshSessionUseCase', () => {
     const useCase = buildUseCase(sessions);
     const result = await useCase.execute('raw-token');
 
-    expect(sessions.revoked).toEqual(['session-1']);
+    expect(sessions.revoked).toEqual([{ sessionId: 'session-1', reason: 'ROTATED' }]);
     expect(sessions.created).toHaveLength(1);
     expect(sessions.created[0]).toMatchObject({ deviceId: 'device-1', userId: USER.id });
     expect(result).toEqual({ accessToken: 'new-jwt', refreshToken: 'new-raw-token', expiresIn: 900 });

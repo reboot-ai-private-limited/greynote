@@ -59,7 +59,7 @@ export class LoginUseCase {
       );
       if (existingSession) {
         // Re-login on an already-active device: replace, doesn't count against the limit.
-        await this.userSessionRepository.revoke(existingSession.id);
+        await this.userSessionRepository.revoke(existingSession.id, 'ROTATED');
       } else {
         const limit = Number(await this.configProvider.get('MAX_ACTIVE_DEVICES_FIELD'));
         const activeCount = await this.userSessionRepository.countActive(user.id);
@@ -84,7 +84,6 @@ export class LoginUseCase {
       issuedAt: now,
       expiresAt,
       lastActiveAt: now,
-      revokedAt: null,
     });
 
     await this.userRepository.update(user.id, { lastLoginAt: now });

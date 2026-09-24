@@ -1,5 +1,6 @@
-import { Types } from 'mongoose';
-import type { UserSession } from '../domain/userSession.entity.js';
+import { Types, type ClientSession } from 'mongoose';
+import type { TransactionContext } from '../domain/transactionRunner.port.js';
+import type { RevokedReason, UserSession } from '../domain/userSession.entity.js';
 import type { UserSessionRepositoryPort } from '../domain/userSession.repository.port.js';
 import { UserSessionModel, type UserSessionDoc } from './userSession.schema.js';
 
@@ -16,12 +17,20 @@ function toUserSession(doc: UserSessionDoc & { _id: unknown }): UserSession {
     expiresAt: doc.expiresAt,
     lastActiveAt: doc.lastActiveAt,
     revokedAt: doc.revokedAt,
+    revokedReason: doc.revokedReason ?? null,
   };
 }
 
+const activeFilter = () => ({ revokedAt: null, expiresAt: { $gt: new Date() } });
+
 export class MongoUserSessionAdapter implements UserSessionRepositoryPort {
-  async create(input: Omit<UserSession, 'id'>): Promise<UserSession> {
-    const doc = await UserSessionModel.create({ ...input, userId: new Types.ObjectId(input.userId) });
+  async create(input: Omit<UserSession, 'id' | 'revokedAt' | 'revokedReason'>): Promise<UserSession> {
+    const doc = await UserSessionModel.create({
+      ...input,
+      userId: new Types.ObjectId(input.userId),
+      revokedAt: null,
+      revokedReason: null,
+    });
     return toUserSession(doc);
   }
 
@@ -29,18 +38,20 @@ export class MongoUserSessionAdapter implements UserSessionRepositoryPort {
     const doc = await UserSessionModel.findOne({
       userId: new Types.ObjectId(userId),
       deviceId,
-      revokedAt: null,
-      expiresAt: { $gt: new Date() },
+      ...activeFilter(),
     }).lean();
     return doc ? toUserSession(doc) : null;
   }
 
+  async findActiveForUser(userId: string): Promise<UserSession[]> {
+    const docs = await UserSessionModel.find({ userId: new Types.ObjectId(userId), ...activeFilter() })
+      .sort({ lastActiveAt: -1 })
+      .lean();
+    return docs.map(toUserSession);
+  }
+
   async countActive(userId: string): Promise<number> {
-    return UserSessionModel.countDocuments({
-      userId: new Types.ObjectId(userId),
-      revokedAt: null,
-      expiresAt: { $gt: new Date() },
-    });
+    return UserSessionModel.countDocuments({ userId: new Types.ObjectId(userId), ...activeFilter() });
   }
 
   async findByRefreshTokenHash(hash: string): Promise<UserSession | null> {
@@ -48,14 +59,30 @@ export class MongoUserSessionAdapter implements UserSessionRepositoryPort {
     return doc ? toUserSession(doc) : null;
   }
 
-  async revoke(sessionId: string): Promise<void> {
-    await UserSessionModel.updateOne({ _id: sessionId }, { revokedAt: new Date() });
+  async revoke(sessionId: string, reason: RevokedReason): Promise<void> {
+    await UserSessionModel.updateOne(
+      { _id: sessionId, revokedAt: null },
+      { revokedAt: new Date(), revokedReason: reason },
+    );
   }
 
-  async revokeAllForUser(userId: string): Promise<void> {
+  async revokeAllForUser(userId: string, reason: RevokedReason): Promise<void> {
     await UserSessionModel.updateMany(
       { userId: new Types.ObjectId(userId), revokedAt: null },
-      { revokedAt: new Date() },
+      { revokedAt: new Date(), revokedReason: reason },
+    );
+  }
+
+  async revokeActiveForDevice(
+    userId: string,
+    deviceId: string,
+    reason: RevokedReason,
+    ctx?: TransactionContext,
+  ): Promise<void> {
+    await UserSessionModel.updateMany(
+      { userId: new Types.ObjectId(userId), deviceId, revokedAt: null },
+      { revokedAt: new Date(), revokedReason: reason },
+      { ...(ctx ? { session: ctx as ClientSession } : {}) },
     );
   }
 }

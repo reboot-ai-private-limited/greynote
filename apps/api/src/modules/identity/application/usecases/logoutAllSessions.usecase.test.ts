@@ -26,8 +26,10 @@ class FakeUserRepository implements Pick<UserRepositoryPort, 'findById'> {
 
 class FakeUserSessionRepository implements Pick<UserSessionRepositoryPort, 'revokeAllForUser'> {
   revokedForUsers: string[] = [];
-  async revokeAllForUser(userId: string): Promise<void> {
+  reasons: string[] = [];
+  async revokeAllForUser(userId: string, reason: string): Promise<void> {
     this.revokedForUsers.push(userId);
+    this.reasons.push(reason);
   }
 }
 
@@ -45,6 +47,7 @@ describe('LogoutAllSessionsUseCase', () => {
     await makeUseCase(TARGET, sessions).execute('user-1');
 
     expect(sessions.revokedForUsers).toEqual(['user-1']);
+    expect(sessions.reasons).toEqual(['ADMIN']);
   });
 
   it('404s for an unknown user and revokes nothing', async () => {

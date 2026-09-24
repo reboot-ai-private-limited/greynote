@@ -17,6 +17,6 @@ export class LogoutUseCase {
 
     if (session.userId !== callerUserId) throw AppError.forbidden();
 
-    await this.userSessionRepository.revoke(session.id);
+    await this.userSessionRepository.revoke(session.id, 'LOGOUT');
   }
 }

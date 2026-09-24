@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RefreshTokenGeneratorPort } from '../../domain/refreshTokenGenerator.port.js';
-import type { UserSession } from '../../domain/userSession.entity.js';
+import type { RevokedReason, UserSession } from '../../domain/userSession.entity.js';
 import type { UserSessionRepositoryPort } from '../../domain/userSession.repository.port.js';
 import { LogoutUseCase } from './logout.usecase.js';
 
@@ -17,20 +17,21 @@ function makeSession(overrides: Partial<UserSession> = {}): UserSession {
     expiresAt: new Date('2026-10-01T00:00:00Z'),
     lastActiveAt: new Date('2026-09-01T00:00:00Z'),
     revokedAt: null,
+    revokedReason: null,
     ...overrides,
   };
 }
 
 class FakeUserSessionRepository implements Pick<UserSessionRepositoryPort, 'findByRefreshTokenHash' | 'revoke'> {
   lookedUpHashes: string[] = [];
-  revoked: string[] = [];
+  revoked: Array<{ sessionId: string; reason: RevokedReason }> = [];
   constructor(private readonly session: UserSession | null) {}
   async findByRefreshTokenHash(hash: string): Promise<UserSession | null> {
     this.lookedUpHashes.push(hash);
     return this.session;
   }
-  async revoke(sessionId: string): Promise<void> {
-    this.revoked.push(sessionId);
+  async revoke(sessionId: string, reason: RevokedReason): Promise<void> {
+    this.revoked.push({ sessionId, reason });
   }
 }
 
@@ -50,7 +51,7 @@ describe('LogoutUseCase', () => {
     await makeUseCase(sessions).execute('user-1', 'raw-token');
 
     expect(sessions.lookedUpHashes).toEqual(['hash(raw-token)']);
-    expect(sessions.revoked).toEqual(['session-1']);
+    expect(sessions.revoked).toEqual([{ sessionId: 'session-1', reason: 'LOGOUT' }]);
   });
 
   it('is an idempotent no-op when no session matches the token', async () => {
