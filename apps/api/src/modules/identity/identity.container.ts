@@ -1,5 +1,11 @@
 import { Router } from 'express';
 import { env } from '@/config/env.js';
+import { ApproveDeviceUseCase } from './application/usecases/approveDevice.usecase.js';
+import { ListPendingDevicesUseCase } from './application/usecases/listPendingDevices.usecase.js';
+import { ListUserDevicesUseCase } from './application/usecases/listUserDevices.usecase.js';
+import { LogoutDeviceUseCase } from './application/usecases/logoutDevice.usecase.js';
+import { RejectDeviceUseCase } from './application/usecases/rejectDevice.usecase.js';
+import { RemoveDeviceUseCase } from './application/usecases/removeDevice.usecase.js';
 import { CreateDesignationUseCase } from './application/usecases/createDesignation.usecase.js';
 import { CreatePayBandUseCase } from './application/usecases/createPayBand.usecase.js';
 import { CreateRoleUseCase } from './application/usecases/createRole.usecase.js';
@@ -50,6 +56,15 @@ import {
 } from './interface/auth.controller.js';
 import { buildAuthRouter } from './interface/auth.route.js';
 import { buildDesignationsRouter } from './interface/designations.route.js';
+import {
+  makeApproveDeviceController,
+  makeListPendingDevicesController,
+  makeListUserDevicesController,
+  makeLogoutDeviceController,
+  makeRejectDeviceController,
+  makeRemoveDeviceController,
+} from './interface/devices.controller.js';
+import { buildDevicesRouter } from './interface/devices.route.js';
 import { buildPayBandsRouter } from './interface/payBands.route.js';
 import { buildRolesRouter } from './interface/roles.route.js';
 import {
@@ -123,6 +138,13 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const logout = new LogoutUseCase(userSessionRepository, refreshTokenGenerator);
   const logoutAllSessions = new LogoutAllSessionsUseCase(userRepository, userSessionRepository);
 
+  const listPendingDevices = new ListPendingDevicesUseCase(userDeviceRepository, userRepository);
+  const listUserDevices = new ListUserDevicesUseCase(userRepository, userDeviceRepository, userSessionRepository);
+  const approveDevice = new ApproveDeviceUseCase(userDeviceRepository, configProvider);
+  const rejectDevice = new RejectDeviceUseCase(userDeviceRepository, configProvider);
+  const removeDevice = new RemoveDeviceUseCase(userDeviceRepository, userSessionRepository, transactionRunner);
+  const logoutDevice = new LogoutDeviceUseCase(userDeviceRepository, userSessionRepository);
+
   const createUser = new CreateUserUseCase(userRepository, roleRepository, passwordHasher);
   const updateUser = new UpdateUserUseCase(
     userRepository,
@@ -179,6 +201,14 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     removeDocument: makeRemoveUserDocumentController(removeUserDocument),
     unblock: makeUnblockUserController(unblockUser),
   };
+  const devicesControllers = {
+    listPending: makeListPendingDevicesController(listPendingDevices),
+    listForUser: makeListUserDevicesController(listUserDevices),
+    approve: makeApproveDeviceController(approveDevice),
+    reject: makeRejectDeviceController(rejectDevice),
+    remove: makeRemoveDeviceController(removeDevice),
+    logout: makeLogoutDeviceController(logoutDevice),
+  };
 
   return {
     contract: {
@@ -195,6 +225,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     buildRouter: () => {
       const router = Router();
       router.use('/auth', buildAuthRouter(authControllers));
+      router.use(buildDevicesRouter(devicesControllers));
       router.use('/users', buildUsersRouter(usersControllers));
       router.use('/roles', buildRolesRouter({ list: listRoles, create: createRole, update: updateRole }));
       router.use(
