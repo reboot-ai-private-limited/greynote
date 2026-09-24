@@ -17,6 +17,48 @@ old one.
 
 ---
 
+## 2026-09-24 — `SystemConfig` gets an Admin write path; Admin gets blanket Stage-1 approval override
+
+**Decision:** Two additions to the not-yet-built Planning/Approval design, both scoped ahead of
+that module's implementation so neither gets built the old way first:
+
+- **`SystemConfig` (Module 5, `hld/03` §3) gains an Admin-facing write path.** Today it only has a
+  seed step and a read-only `getConfigValue` use case — nothing lets Admin actually change
+  `DCR_MISS_GRACE_DAYS` from its default of `1` to `2` or `3`. A `PATCH` on a config key, ADMIN-only,
+  closes that gap. No schema change — `SystemConfig.value` was already a plain string.
+- **Admin gains a blanket override on Stage-1 approval** (`hld/05`), not just the existing
+  `manager_id IS NULL` case. Any `SUBMITTED` record — Daily Plan, Monthly Plan, DCR — can be
+  approved or rejected directly by any ADMIN-role user, regardless of who the nearest manager is
+  or whether that manager can currently act.
+
+**Why:** the second decision is the direct answer to "what happens when the nearest manager can't
+approve" — resigned/deactivated, on leave, forgot, or simply unreachable. Detecting *which* of
+those applies would mean new state on `User`/`EmployeeProfile` (an unavailability flag, a delegate
+field, leave-calendar integration) and separate handling per case. A blanket, always-on Admin
+override needs none of that: it's the same one mechanism regardless of reason, and it's already
+consistent with `hld/05` §4's existing principle that Admin visibility is role-based, not
+hierarchy-based — this just extends that principle one stage earlier, from read access on
+`MANAGER_APPROVED` records to approve/reject action on `SUBMITTED` ones. The config write path is
+bundled into the same entry because it's what makes the first, already-designed rule
+(`DCR_MISS_GRACE_DAYS`) actually operable instead of a seed-only default.
+
+**Consequences:**
+- `hld/05` gains a `§5 Admin override` section; `LLD/planning.md`'s HTTP surface table gains
+  `GET /admin/approvals/pending` (org-wide, filterable by `managerId` and date range — reusing
+  `EmployeeProfileRepositoryPort.findUserIdsByFilter`, defined but unused today) and
+  `POST /admin/approvals/:id/approve` / `/reject`.
+- No new field on `DailyPlan`/`MonthlyPlan`/`DCR` to flag "admin override" — `reviewed_by` already
+  points at whichever `User` acted, and that user's `roleId` being `ADMIN` is itself the signal.
+  Revisit only if a future report needs to isolate overrides without that join.
+- Documentation-only for now — Planning/Approval isn't code yet (only `config`, `health`,
+  `identity` are real modules under `apps/api/src/modules/`). Recorded ahead of that build so it
+  isn't designed without either rule.
+
+**Refs:** `docs/hld/05-approval-workflow-engine.md` §5, `docs/hld/10-submission-gating-and-compliance-block.md` §2,
+`docs/erd/05-planning-and-rules.md`, `docs/LLD/planning.md`
+
+---
+
 ## 2026-09-23 — `Route.ta_per_km_rate_override`: a per-route default override for TA
 
 **Decision:** `Route` (Territory, Module 2 — not yet built) gains an optional

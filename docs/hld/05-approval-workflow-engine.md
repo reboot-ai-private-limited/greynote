@@ -39,6 +39,33 @@ sequenceDiagram
 
 Once `status = MANAGER_APPROVED`, **any** user with `Role = ADMIN` can see the record — this is a plain role check, not a hierarchy walk to "whoever sits above the top manager." This matches Module 1: `manager_id = NULL` means top-of-chain, not "reports to Admin" — there's no requirement that an NSM's chain literally terminates at a specific Admin user, and multiple Admins can all see the same approved record.
 
+## 5. Admin override — Stage-1 approval when the nearest manager can't act
+
+§2's `manager_id IS NULL` case is one instance of a broader problem: sometimes there's a
+`manager_id` on file, but that manager can't actually approve — deactivated (`User.status =
+'inactive'`), on leave, unreachable, or simply hasn't gotten to it. Nothing in Identity reassigns
+a report's `manager_id` when their manager goes inactive (`UpdateUserUseCase` never cascades that
+write), so without a fallback, that report's submissions would sit `SUBMITTED` indefinitely.
+
+**Resolution: Admin can approve or reject any `SUBMITTED` record directly, at any time**, whether
+or not the nearest manager is available — not a detection mechanism for *why* the manager can't
+act, just a standing override. This deliberately covers every case (resignation, leave, forgetting,
+being unreachable) with one rule instead of building separate handling — and matching detection
+logic — for each. It's the same role-based-not-hierarchy-based principle §4 already establishes
+for read visibility on `MANAGER_APPROVED` records, just extended one stage earlier to
+approve/reject action on `SUBMITTED` ones. The shared Approval helper (§1) exposes this as
+`approveAsAdmin(recordId, actingUserId, actingRole)` / `rejectAsAdmin(...)`, gated on
+`actingRole === 'ADMIN'`, applying the same `SUBMITTED → MANAGER_APPROVED` / `SUBMITTED →
+REJECTED` transition as the manager path and stamping `reviewed_by` with the acting Admin's own
+`user_id` — no new field needed to mark the record as an override; `reviewed_by` resolving to an
+ADMIN-role user already says so.
+
+To act on these, Admin needs org-wide visibility into everything currently `SUBMITTED` — not just
+the `manager_id IS NULL` records §2 already routes to them. A dedicated "pending approvals" view,
+filterable by manager and date range, gives Admin that visibility regardless of which manager a
+record is currently assigned to. See `LLD/planning.md`'s HTTP surface table for the concrete
+endpoints.
+
 ## Next
 
 This is HLD topic 5. See `README.md` for the index.

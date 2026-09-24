@@ -111,6 +111,9 @@ not re-derive that state machine. In short, as it applies here:
 | `POST` | `/planning/:id/approve` | Manager (Nearest Higher Manager only) | Approve |
 | `POST` | `/planning/:id/reject` | Manager (Nearest Higher Manager only) | Reject |
 | `GET` | `/admin/planning` | Admin | All `MANAGER_APPROVED` Plans |
+| `GET` | `/admin/approvals/pending` | Admin | All `SUBMITTED` Plans org-wide, filterable by `managerId` and date range (`hld/05` §5) |
+| `POST` | `/admin/approvals/:id/approve` | Admin | Approve any `SUBMITTED` Plan directly, independent of the nearest manager (`hld/05` §5) |
+| `POST` | `/admin/approvals/:id/reject` | Admin | Reject any `SUBMITTED` Plan directly (`hld/05` §5) |
 
 Exact paths are illustrative — finalize against whatever URL convention the Identity module's
 first endpoints establish, and keep Daily/Monthly symmetric.
@@ -132,6 +135,10 @@ first endpoints establish, and keep Daily/Monthly symmetric.
 - **Compliance block active** (PRD §7.5): a user blocked for missed DCR cannot submit a new
   Daily/Monthly Plan at all. This module doesn't own the block state (Field Activity/`hld/10`
   does) but its submit use cases must check it before accepting a submission.
+- **Nearest manager can't act** (deactivated, on leave, forgot, unreachable) — no per-reason
+  detection; Admin can approve or reject the `SUBMITTED` Plan directly at any time via
+  `/admin/approvals/:id/approve`/`reject` (`hld/05` §5). Same rule for every reason, not a
+  different path for "manager on leave" vs. "manager deactivated" vs. "manager forgot."
 
 ## Dependencies
 
