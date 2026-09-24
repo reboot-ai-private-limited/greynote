@@ -47,6 +47,8 @@ same shape as `health.public.ts`, just with real methods:
   modules directly.
 - `getUserSummary(userId)` — id, name, role, designation, manager id. What most other modules
   need for display or authorization checks without pulling the whole entity.
+- `findUserSummary(userId)` — the same, but `null` for an unknown id instead of a 404, for a
+  caller validating an id it was given (Territory's route assignment turns it into a 400).
 - **`getManagerChain(userId)`** — walks `EmployeeProfile.manager_id` upward and returns the
   ordered chain: the Nearest Higher Manager first, then everyone above them, up to the top
   (`manager_id: null`).

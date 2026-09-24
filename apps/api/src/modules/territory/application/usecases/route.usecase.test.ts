@@ -5,12 +5,19 @@ import type { DistanceProviderPort, DistanceResult, GeoPoint } from '../../domai
 import type { Hq } from '../../domain/hq.entity.js';
 import type { HqRepositoryPort } from '../../domain/hq.repository.port.js';
 import type { Route, Waypoint } from '../../domain/route.entity.js';
+import type { RouteAssignment } from '../../domain/routeAssignment.entity.js';
+import type { RouteAssignmentRepositoryPort } from '../../domain/routeAssignment.repository.port.js';
+import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { RouteRepositoryPort } from '../../domain/route.repository.port.js';
+import { AssignRouteUseCase } from './assignRoute.usecase.js';
 import { CreateRouteUseCase } from './createRoute.usecase.js';
+import { GetRoutePathUseCase } from './getRoutePath.usecase.js';
+import { ListRoutesForUserUseCase } from './listRoutesForUser.usecase.js';
 import { OverrideRouteDistanceUseCase } from './overrideRouteDistance.usecase.js';
 import { RecalculateRouteDistanceUseCase } from './recalculateRouteDistance.usecase.js';
 import { UpdateAreaUseCase } from './updateArea.usecase.js';
 import { UpdateRouteUseCase } from './updateRoute.usecase.js';
+import { UnassignRouteUseCase } from './unassignRoute.usecase.js';
 import { UpdateRouteWaypointsUseCase } from './updateRouteWaypoints.usecase.js';
 
 const wp = (label: string, latitude: number): Waypoint => ({ label, latitude, longitude: 88.4, placeId: `place-${label}` });
@@ -34,6 +41,9 @@ class FakeRoutes implements RouteRepositoryPort {
   private nextId = 1;
   async findById(id: string) {
     return this.rows.get(id) ?? null;
+  }
+  async findByIds(ids: string[]) {
+    return ids.flatMap((id) => this.rows.get(id) ?? []);
   }
   async findByName(areaId: string, name: string) {
     return [...this.rows.values()].find((r) => r.areaId === areaId && r.name.toLowerCase() === name.toLowerCase()) ?? null;
@@ -63,6 +73,48 @@ class FakeRoutes implements RouteRepositoryPort {
   }
 }
 
+class FakeAssignments implements RouteAssignmentRepositoryPort {
+  rows: RouteAssignment[] = [];
+  async findActive(routeId: string, userId: string) {
+    return this.rows.find((a) => a.routeId === routeId && a.userId === userId && a.status === 'active') ?? null;
+  }
+  async listForRoute(routeId: string) {
+    return this.rows.filter((a) => a.routeId === routeId);
+  }
+  async listActiveForUser(userId: string) {
+    return this.rows.filter((a) => a.userId === userId && a.status === 'active');
+  }
+  async countActiveForRoute(routeId: string) {
+    return this.rows.filter((a) => a.routeId === routeId && a.status === 'active').length;
+  }
+  async create(input: { routeId: string; userId: string; assignedBy: string }) {
+    const row: RouteAssignment = {
+      ...input,
+      id: `assignment-${this.rows.length + 1}`,
+      status: 'active',
+      assignedAt: new Date(),
+      unassignedAt: null,
+      unassignedBy: null,
+    };
+    this.rows.push(row);
+    return row;
+  }
+  async deactivate(id: string, unassignedBy: string) {
+    const row = this.rows.find((a) => a.id === id) as RouteAssignment;
+    Object.assign(row, { status: 'inactive', unassignedAt: new Date(), unassignedBy });
+    return row;
+  }
+}
+
+type UserRow = NonNullable<Awaited<ReturnType<UserDirectoryPort['findUserSummary']>>>;
+const USERS: UserRow[] = [
+  { id: 'mr-1', employeeCode: 'MR001', name: 'Asha', role: 'FIELD', status: 'active' },
+  { id: 'mr-new', employeeCode: 'MR002', name: 'Bikram', role: 'FIELD', status: 'pending' },
+  { id: 'mr-left', employeeCode: 'MR003', name: 'Chandan', role: 'FIELD', status: 'inactive' },
+  { id: 'hr-1', employeeCode: 'HR001', name: 'Dipa', role: 'HR', status: 'active' },
+];
+const users: UserDirectoryPort = { findUserSummary: async (id) => USERS.find((u) => u.id === id) ?? null };
+
 const hq: Hq = { id: 'hq-1', zoneId: 'zone-1', name: 'Siliguri', status: 'active' };
 let areaRow: Area;
 const areas = {
@@ -74,11 +126,13 @@ const hqs = { findById: async () => hq } as unknown as HqRepositoryPort;
 
 let routes: FakeRoutes;
 let distance: FakeDistance;
+let assignments: FakeAssignments;
 
 beforeEach(() => {
   areaRow = { id: 'area-1', hqId: hq.id, name: 'Matigara', type: 'HQ', status: 'active' };
   routes = new FakeRoutes();
   distance = new FakeDistance();
+  assignments = new FakeAssignments();
 });
 
 const createRoute = (overrides: Partial<Parameters<CreateRouteUseCase['execute']>[0]> = {}) =>
@@ -161,7 +215,7 @@ describe('manual override', () => {
   it('survives a rename and a TA rate change, which leave distance alone', async () => {
     const route = await createRoute();
     await new OverrideRouteDistanceUseCase(routes).execute(route.id, { distanceKm: '18.50' });
-    const updated = await new UpdateRouteUseCase(routes, areas).execute(route.id, {
+    const updated = await new UpdateRouteUseCase(routes, areas, assignments).execute(route.id, {
       name: 'Renamed',
       taPerKmRateOverride: '4.50',
     });
@@ -215,7 +269,85 @@ describe('Area deactivation', () => {
       statusCode: 409,
       publicDetails: { activeChildren: 1 },
     });
-    await new UpdateRouteUseCase(routes, areas).execute(route.id, { status: 'inactive' });
+    await new UpdateRouteUseCase(routes, areas, assignments).execute(route.id, { status: 'inactive' });
     await expect(updateArea.execute(areaRow.id, { status: 'inactive' })).resolves.toMatchObject({ status: 'inactive' });
+  });
+});
+
+describe('assignments', () => {
+  const assign = (routeId: string, userId: string) =>
+    new AssignRouteUseCase(routes, assignments, users).execute(routeId, userId, 'admin-1');
+
+  it('assigns a FIELD employee, including one still onboarding', async () => {
+    const route = await createRoute();
+    await expect(assign(route.id, 'mr-1')).resolves.toMatchObject({ status: 'active', assignedBy: 'admin-1' });
+    await expect(assign(route.id, 'mr-new')).resolves.toMatchObject({ userId: 'mr-new' });
+  });
+
+  it('refuses unknown, non-FIELD and inactive employees, and a second active assignment', async () => {
+    const route = await createRoute();
+    await expect(assign(route.id, 'nobody')).rejects.toMatchObject({ statusCode: 400, publicDetails: { field: 'userId' } });
+    await expect(assign(route.id, 'hr-1')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(assign(route.id, 'mr-left')).rejects.toMatchObject({ statusCode: 409 });
+    await assign(route.id, 'mr-1');
+    await expect(assign(route.id, 'mr-1')).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('refuses assigning to an inactive route', async () => {
+    const route = await createRoute();
+    await new UpdateRouteUseCase(routes, areas, assignments).execute(route.id, { status: 'inactive' });
+    await expect(assign(route.id, 'mr-1')).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('keeps history: unassign marks the row inactive, a re-assign adds a new row', async () => {
+    const route = await createRoute();
+    await assign(route.id, 'mr-1');
+    const ended = await new UnassignRouteUseCase(assignments).execute(route.id, 'mr-1', 'admin-2');
+    expect(ended).toMatchObject({ status: 'inactive', unassignedBy: 'admin-2' });
+
+    await assign(route.id, 'mr-1');
+    expect(assignments.rows.map((a) => a.status)).toEqual(['inactive', 'active']);
+    await expect(new UnassignRouteUseCase(assignments).execute(route.id, 'mr-new', 'admin-1')).rejects.toMatchObject({
+      statusCode: 404,
+    });
+  });
+
+  it('blocks deactivating a route that still has an active assignment', async () => {
+    const route = await createRoute();
+    await assign(route.id, 'mr-1');
+    const update = new UpdateRouteUseCase(routes, areas, assignments);
+
+    await expect(update.execute(route.id, { status: 'inactive' })).rejects.toMatchObject({ statusCode: 409 });
+    await new UnassignRouteUseCase(assignments).execute(route.id, 'mr-1', 'admin-1');
+    await expect(update.execute(route.id, { status: 'inactive' })).resolves.toMatchObject({ status: 'inactive' });
+  });
+});
+
+describe('contract reads', () => {
+  it("lists an employee's active routes with the Area type that drives DA, sorted by name", async () => {
+    const b = await createRoute({ name: 'B route' });
+    const a = await createRoute({ name: 'A route' });
+    const ended = await createRoute({ name: 'Ended route' });
+    const assign = new AssignRouteUseCase(routes, assignments, users);
+    for (const r of [b, a, ended]) await assign.execute(r.id, 'mr-1', 'admin-1');
+    await new UnassignRouteUseCase(assignments).execute(ended.id, 'mr-1', 'admin-1');
+
+    const mine = await new ListRoutesForUserUseCase(assignments, routes, areas).execute('mr-1');
+    expect(mine.map((r) => r.name)).toEqual(['A route', 'B route']);
+    expect(mine[0]).toMatchObject({ areaName: 'Matigara', areaType: 'HQ', distanceKm: '12.35', distanceStatus: 'CALCULATED' });
+    expect(mine[0]).not.toHaveProperty('waypoints');
+  });
+
+  it("resolves a route's Area / HQ / Zone path, and null for an unknown route", async () => {
+    const route = await createRoute();
+    const getPath = new GetRoutePathUseCase(routes, areas, hqs);
+    await expect(getPath.execute(route.id)).resolves.toEqual({
+      routeId: route.id,
+      areaId: 'area-1',
+      areaType: 'HQ',
+      hqId: 'hq-1',
+      zoneId: 'zone-1',
+    });
+    await expect(getPath.execute('missing')).resolves.toBeNull();
   });
 });

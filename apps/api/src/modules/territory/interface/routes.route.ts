@@ -5,7 +5,10 @@ import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import {
+  assignRouteBodySchema,
   createRouteBodySchema,
+  listRouteAssignmentsQuerySchema,
+  routeAssignmentParamsSchema,
   listRoutesQuerySchema,
   overrideRouteDistanceBodySchema,
   searchPlacesQuerySchema,
@@ -91,6 +94,42 @@ openApiRegistry.registerPath({
   responses: { 200: { description: 'Recalculated (check distanceStatus)' } },
 });
 
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/territory/routes/{id}/assignments',
+  tags: [ROUTES_TAG],
+  summary: 'Admin: assign a field employee to this route',
+  security: bearer,
+  request: { params: territoryIdParamsSchema, body: json(assignRouteBodySchema) },
+  responses: { 201: { description: 'Assigned' }, 409: { description: 'Already assigned, or route/employee inactive' } },
+});
+openApiRegistry.registerPath({
+  method: 'get',
+  path: '/api/territory/routes/{id}/assignments',
+  tags: [ROUTES_TAG],
+  summary: 'Admin: who covers this route (all history unless filtered by status)',
+  security: bearer,
+  request: { params: territoryIdParamsSchema, query: listRouteAssignmentsQuerySchema },
+  responses: { 200: { description: 'Assignments listed' } },
+});
+openApiRegistry.registerPath({
+  method: 'delete',
+  path: '/api/territory/routes/{id}/assignments/{userId}',
+  tags: [ROUTES_TAG],
+  summary: 'Admin: end an employee\'s assignment (kept as history)',
+  security: bearer,
+  request: { params: routeAssignmentParamsSchema },
+  responses: { 200: { description: 'Unassigned' }, 404: { description: 'Not currently assigned' } },
+});
+openApiRegistry.registerPath({
+  method: 'get',
+  path: '/api/territory/my-routes',
+  tags: [ROUTES_TAG],
+  summary: 'Field employee: my active routes (for the Daily Plan route picker)',
+  security: bearer,
+  responses: { 200: { description: 'Routes with Area name/type and distance' } },
+});
+
 export function buildRoutesRouter(controllers: {
   list: RequestHandler;
   create: RequestHandler;
@@ -99,6 +138,9 @@ export function buildRoutesRouter(controllers: {
   updateWaypoints: RequestHandler;
   overrideDistance: RequestHandler;
   recalculate: RequestHandler;
+  assign: RequestHandler;
+  listAssignments: RequestHandler;
+  unassign: RequestHandler;
 }): Router {
   const router = Router();
   router.use(authenticate(), requireRole('ADMIN'));
@@ -112,11 +154,24 @@ export function buildRoutesRouter(controllers: {
   router.patch('/:id/waypoints', withId(updateRouteWaypointsBodySchema), controllers.updateWaypoints);
   router.patch('/:id/distance', withId(overrideRouteDistanceBodySchema), controllers.overrideDistance);
   router.post('/:id/recalculate', withId(), controllers.recalculate);
+  router.post('/:id/assignments', withId(assignRouteBodySchema), controllers.assign);
+  router.get(
+    '/:id/assignments',
+    validate({ params: territoryIdParamsSchema, query: listRouteAssignmentsQuerySchema }),
+    controllers.listAssignments,
+  );
+  router.delete('/:id/assignments/:userId', validate({ params: routeAssignmentParamsSchema }), controllers.unassign);
   return router;
 }
 
 export function buildPlacesRouter(search: RequestHandler): Router {
   const router = Router();
   router.get('/search', authenticate(), requireRole('ADMIN'), validate({ query: searchPlacesQuerySchema }), search);
+  return router;
+}
+
+export function buildMyRoutesRouter(myRoutes: RequestHandler): Router {
+  const router = Router();
+  router.get('/', authenticate(), requireRole('FIELD'), myRoutes);
   return router;
 }

@@ -220,6 +220,8 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       refresh: (refreshToken) => refreshSession.execute(refreshToken),
       logout: (callerUserId, refreshToken) => logout.execute(callerUserId, refreshToken),
       getUserSummary: (userId) => getUserSummary.execute(userId),
+      findUserSummary: async (userId) =>
+        (await userRepository.findById(userId)) ? getUserSummary.execute(userId) : null,
       getManagerChain: (userId) => getManagerChain.execute(userId),
       isFieldRole: (userId) => isFieldRole.execute(userId),
       getPayBandRates: (userId) => getPayBandRates.execute(userId),

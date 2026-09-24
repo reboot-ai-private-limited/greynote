@@ -41,6 +41,12 @@ export class MongoRouteAdapter implements RouteRepositoryPort {
     return doc ? toRoute(doc) : null;
   }
 
+  async findByIds(ids: string[]): Promise<Route[]> {
+    if (ids.length === 0) return [];
+    const docs = await RouteModel.find({ _id: { $in: ids.map((id) => new Types.ObjectId(id)) } }).lean();
+    return docs.map(toRoute);
+  }
+
   async findByName(areaId: string, name: string): Promise<Route | null> {
     const doc = await RouteModel.findOne({ areaId: new Types.ObjectId(areaId), nameKey: toNameKey(name) }).lean();
     return doc ? toRoute(doc) : null;

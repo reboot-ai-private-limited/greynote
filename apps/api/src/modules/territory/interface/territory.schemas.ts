@@ -86,3 +86,7 @@ export const listRoutesQuerySchema = listQuerySchema.extend({
 });
 
 export const searchPlacesQuerySchema = z.object({ q: z.string().trim().min(2).max(200) });
+
+export const assignRouteBodySchema = z.object({ userId: objectIdSchema });
+export const routeAssignmentParamsSchema = z.object({ id: objectIdSchema, userId: objectIdSchema });
+export const listRouteAssignmentsQuerySchema = z.object({ status: z.enum(TERRITORY_STATUSES).optional() });

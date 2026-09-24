@@ -44,8 +44,11 @@ erDiagram
         uuid id PK
         uuid route_id FK
         uuid user_id FK
-        date assigned_at
-        string status "active, inactive"
+        string status "active, inactive - at most one active row per route+user"
+        timestamp assigned_at
+        uuid assigned_by FK "Admin"
+        timestamp unassigned_at "nullable"
+        uuid unassigned_by FK "nullable - Admin"
     }
 
     ZONE ||--o{ HQ : "zone_id"

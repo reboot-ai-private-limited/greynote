@@ -8,6 +8,7 @@ export type RouteListQuery = TerritoryListQuery & {
 
 export interface RouteRepositoryPort {
   findById(id: string): Promise<Route | null>;
+  findByIds(ids: string[]): Promise<Route[]>;
   /** Case-insensitive, within one Area. */
   findByName(areaId: string, name: string): Promise<Route | null>;
   list(query: RouteListQuery): Promise<{ items: Route[]; total: number }>;

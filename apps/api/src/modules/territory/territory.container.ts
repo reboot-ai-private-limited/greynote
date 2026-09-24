@@ -1,4 +1,5 @@
 import type { Router } from 'express';
+import { AssignRouteUseCase } from './application/usecases/assignRoute.usecase.js';
 import { CreateAreaUseCase } from './application/usecases/createArea.usecase.js';
 import { CreateHqUseCase } from './application/usecases/createHq.usecase.js';
 import { CreateZoneUseCase } from './application/usecases/createZone.usecase.js';
@@ -10,6 +11,11 @@ import { UpdateHqUseCase } from './application/usecases/updateHq.usecase.js';
 import { UpdateZoneUseCase } from './application/usecases/updateZone.usecase.js';
 import { CreateRouteUseCase } from './application/usecases/createRoute.usecase.js';
 import { GetRouteUseCase } from './application/usecases/getRoute.usecase.js';
+import { GetRoutePathUseCase } from './application/usecases/getRoutePath.usecase.js';
+import { GetRouteSummaryUseCase } from './application/usecases/getRouteSummary.usecase.js';
+import { ListRouteAssignmentsUseCase } from './application/usecases/listRouteAssignments.usecase.js';
+import { ListRoutesForUserUseCase } from './application/usecases/listRoutesForUser.usecase.js';
+import { UnassignRouteUseCase } from './application/usecases/unassignRoute.usecase.js';
 import { ListRoutesUseCase } from './application/usecases/listRoutes.usecase.js';
 import { OverrideRouteDistanceUseCase } from './application/usecases/overrideRouteDistance.usecase.js';
 import { RecalculateRouteDistanceUseCase } from './application/usecases/recalculateRouteDistance.usecase.js';
@@ -22,31 +28,37 @@ import { MongoZoneAdapter } from './infrastructure/mongoZone.adapter.js';
 import { GooglePlaceSearchAdapter } from './infrastructure/googlePlaceSearch.adapter.js';
 import { GoogleRoutesDistanceAdapter } from './infrastructure/googleRoutesDistance.adapter.js';
 import { MongoRouteAdapter } from './infrastructure/mongoRoute.adapter.js';
+import { MongoRouteAssignmentAdapter } from './infrastructure/mongoRouteAssignment.adapter.js';
+import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import { makeHierarchyController } from './interface/hierarchy.controller.js';
 import { buildHierarchyRouter } from './interface/hierarchy.route.js';
 import {
+  makeAssignRouteController,
   makeGetRouteController,
+  makeListRouteAssignmentsController,
+  makeMyRoutesController,
+  makeUnassignRouteController,
   makeOverrideRouteDistanceController,
   makeRecalculateRouteDistanceController,
   makeSearchPlacesController,
   makeUpdateRouteWaypointsController,
 } from './interface/routes.controller.js';
-import { buildPlacesRouter, buildRoutesRouter } from './interface/routes.route.js';
+import { buildMyRoutesRouter, buildPlacesRouter, buildRoutesRouter } from './interface/routes.route.js';
+import type { TerritoryPublicContract } from './territory.public.js';
 
-/**
- * Zone → HQ → Area → Route so far. No public contract yet: it arrives with RouteAssignment,
- * later in Phase 2 (docs/LLD/territory.md), when the first consumer-facing reads exist.
- */
 export interface TerritoryContainer {
+  contract: TerritoryPublicContract;
   buildRouter: () => Router;
 }
 
-export function buildTerritoryContainer(): TerritoryContainer {
+/** `users` is Identity's public contract, passed in by the top-level composition root. */
+export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryContainer {
   // 1. Adapters
   const zoneRepository = new MongoZoneAdapter();
   const hqRepository = new MongoHqAdapter();
   const areaRepository = new MongoAreaAdapter();
   const routeRepository = new MongoRouteAdapter();
+  const assignmentRepository = new MongoRouteAssignmentAdapter();
   const distanceProvider = new GoogleRoutesDistanceAdapter();
   const placeSearch = new GooglePlaceSearchAdapter();
 
@@ -74,7 +86,7 @@ export function buildTerritoryContainer(): TerritoryContainer {
     {
       list: new ListRoutesUseCase(routeRepository),
       create: new CreateRouteUseCase(routeRepository, areaRepository, distanceProvider),
-      update: new UpdateRouteUseCase(routeRepository, areaRepository),
+      update: new UpdateRouteUseCase(routeRepository, areaRepository, assignmentRepository),
     },
     'Route',
   );
@@ -86,14 +98,29 @@ export function buildTerritoryContainer(): TerritoryContainer {
     recalculate: makeRecalculateRouteDistanceController(
       new RecalculateRouteDistanceUseCase(routeRepository, distanceProvider),
     ),
+    assign: makeAssignRouteController(new AssignRouteUseCase(routeRepository, assignmentRepository, users)),
+    listAssignments: makeListRouteAssignmentsController(
+      new ListRouteAssignmentsUseCase(routeRepository, assignmentRepository, users),
+    ),
+    unassign: makeUnassignRouteController(new UnassignRouteUseCase(assignmentRepository)),
   };
+  const listRoutesForUser = new ListRoutesForUserUseCase(assignmentRepository, routeRepository, areaRepository);
+  const getRouteSummary = new GetRouteSummaryUseCase(routeRepository, areaRepository);
+  const getRoutePath = new GetRoutePathUseCase(routeRepository, areaRepository, hqRepository);
   const searchPlaces = makeSearchPlacesController(new SearchPlacesUseCase(placeSearch));
 
   return {
+    contract: {
+      getRoute: (routeId) => getRouteSummary.execute(routeId),
+      listRoutesForUser: (userId) => listRoutesForUser.execute(userId),
+      getRoutePath: (routeId) => getRoutePath.execute(routeId),
+    },
+
     buildRouter: () => {
       const router = buildHierarchyRouter({ zones, hqs, areas });
       router.use('/routes', buildRoutesRouter(routeControllers));
       router.use('/places', buildPlacesRouter(searchPlaces));
+      router.use('/my-routes', buildMyRoutesRouter(makeMyRoutesController(listRoutesForUser)));
       return router;
     },
   };

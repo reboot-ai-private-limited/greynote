@@ -47,13 +47,25 @@ is the only thing another module may import, shaped like `health.public.ts`'s
 ```ts
 interface TerritoryPublicContract {
   getRoute(routeId: string): Promise<RouteSummary | null>;
-  getRouteDistance(routeId: string): Promise<RouteDistance | null>; // { km, status } — see below
-  listRoutesForUser(userId: string): Promise<RouteSummary[]>;       // from RouteAssignment
-  getRoutePath(routeId: string): Promise<{
-    routeId: string; areaId: string; areaType: AreaType; hqId: string; zoneId: string;
-  } | null>;
+  listRoutesForUser(userId: string): Promise<RouteSummary[]>;  // active assignments, active routes
+  getRoutePath(routeId: string): Promise<RoutePath | null>;
 }
+
+// No waypoints — consumers need the TA/DA inputs, not the geometry.
+interface RouteSummary {
+  id: string; name: string; areaId: string; areaName: string;
+  areaType: AreaType;                  // decides DA
+  distanceKm: string | null;           // null exactly when distanceStatus is FAILED; never doubled
+  distanceStatus: 'CALCULATED' | 'FAILED';
+  taPerKmRateOverride: string | null;
+  status: 'active' | 'inactive';
+}
+interface RoutePath { routeId: string; areaId: string; areaType: AreaType; hqId: string; zoneId: string }
 ```
+
+The planned separate `getRouteDistance` was folded into `getRoute`: `RouteSummary` already
+carries the distance, its status and the TA rate override, so a second method would only mean a
+second round trip for Field Activity.
 
 Consumers, per [`../roadmap.md`](../roadmap.md):
 
@@ -64,11 +76,13 @@ Consumers, per [`../roadmap.md`](../roadmap.md):
   to offer only routes the submitting MR is actually assigned.
 - **Field Activity** (Tier 4) — TA/DA auto-calculation
   ([`../hld/06-ta-da-auto-calculation.md`](../hld/06-ta-da-auto-calculation.md)) reads
-  `getRouteDistance` for TA, and must handle a non-`CALCULATED` status as a flag, not a silent
-  zero (see Edge cases below). It reads `getRoutePath(...).areaType` for DA.
+  `getRoute` for TA (`distanceKm`, `taPerKmRateOverride`), and must handle a `FAILED` status as a
+  flag, not a silent zero (see Edge cases below). `areaType` on the same summary gives DA.
 
 Territory itself depends only on Identity (Tier 1) — a `RouteAssignment.user_id` is validated
-against `IdentityPublicContract`, never against `identity`'s Mongoose model directly.
+through `IdentityPublicContract.findUserSummary` (the user must exist, be `FIELD`, and not be
+`inactive`; a `pending` user still onboarding can be assigned), never against `identity`'s
+Mongoose model directly.
 
 ## Write-path rules & invariants
 
@@ -151,11 +165,12 @@ this module's depth:
 | `PATCH` | `/api/territory/areas/:id` | Admin | Edit an Area's name, `type` or status |
 | `POST` | `/api/territory/routes` | Admin | Create a Route under an Area — triggers waypoint geocoding + distance calculation |
 | `GET` | `/api/territory/routes` | Admin | List Routes, optionally filtered by Area or HQ |
-| `GET` | `/api/territory/routes/:id` | Admin, assigned MR/manager | Route detail, including current `distance_status` |
+| `GET` | `/api/territory/routes/:id` | Admin | Route detail, including current `distance_status` (an MR sees their routes via `my-routes`; manager views of a downline's routes come with the Team tab) |
 | `PATCH` | `/api/territory/routes/:id/waypoints` | Admin | Edit waypoints — re-triggers distance recalculation |
 | `PATCH` | `/api/territory/routes/:id/distance` | Admin | Manually override `distance_km` |
-| `POST` | `/api/territory/routes/:id/assignments` | Admin | Assign an MR to this Route |
-| `DELETE` | `/api/territory/routes/:id/assignments/:userId` | Admin | Deactivate an MR's assignment to this Route |
+| `POST` | `/api/territory/routes/:id/assignments` | Admin | Assign a FIELD employee to this Route |
+| `GET` | `/api/territory/routes/:id/assignments` | Admin | Who covers this Route, with employee code/name; full history unless `?status=` |
+| `DELETE` | `/api/territory/routes/:id/assignments/:userId` | Admin | End an employee's assignment — the row becomes `inactive` history, not deleted |
 | `POST` | `/api/territory/routes/:id/recalculate` | Admin | Retry the Directions call (e.g. after `FAILED`); resets any manual override like a waypoint edit |
 | `PATCH` | `/api/territory/zones/:id`, `/hqs/:id`, `/routes/:id` | Admin | Rename, deactivate/reactivate (and Route's `ta_per_km_rate_override`) |
 | `GET` | `/api/territory/places/search?q=` | Admin | Proxy to Google Places — candidates with `{label, latitude, longitude, place_id}`; the API key never leaves the server |

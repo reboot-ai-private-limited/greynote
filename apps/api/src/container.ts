@@ -23,9 +23,8 @@ export function buildContainers(): AppContainers {
   // Tier 1 — Identity depends only on Config's public contract, per MODULE_TIERS.
   const identity = buildIdentityContainer(config.contract);
 
-  // Tier 2 — Territory. Zone/HQ/Area need no other module yet; Identity's contract arrives with
-  // RouteAssignment.
-  const territory = buildTerritoryContainer();
+  // Tier 2 — Territory depends only on Identity's public contract (RouteAssignment's user checks).
+  const territory = buildTerritoryContainer(identity.contract);
 
   return { health, config, identity, territory };
 }
