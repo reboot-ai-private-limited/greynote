@@ -1,20 +1,42 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ApprovalKindDefinition } from '../../domain/approvalKind.js';
 import type { ApprovalRequest, ApprovalStatus } from '../../domain/approvalRequest.entity.js';
-import type { ApprovalRequestRepositoryPort } from '../../domain/approvalRequest.repository.port.js';
+import type {
+  ApprovalListFilter,
+  ApprovalListPage,
+  ApprovalRequestRepositoryPort,
+} from '../../domain/approvalRequest.repository.port.js';
 import type { Actor } from '../../domain/approvalRules.js';
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { ApprovalStatusChange } from '../../domain/approvalKind.js';
 import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
-import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
+import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { ApprovalKindRegistry } from '../approvalKindRegistry.js';
+import { BulkDecideApprovalUseCase } from './bulkDecideApproval.usecase.js';
 import { DecideApprovalUseCase } from './decideApproval.usecase.js';
+import { GetApprovalDetailUseCase } from './getApprovalDetail.usecase.js';
+import { ListApprovalsUseCase } from './listApprovals.usecase.js';
 import { ReopenApprovalUseCase } from './reopenApproval.usecase.js';
 import { SubmitApprovalUseCase } from './submitApproval.usecase.js';
 import { WithdrawApprovalUseCase } from './withdrawApproval.usecase.js';
 
 class FakeRequests implements ApprovalRequestRepositoryPort {
   rows = new Map<string, ApprovalRequest>();
+  async list(filter: ApprovalListFilter, page: ApprovalListPage) {
+    const matches = [...this.rows.values()]
+      .filter(
+        (r) =>
+          (!filter.statuses || filter.statuses.includes(r.status)) &&
+          (!filter.kinds || filter.kinds.includes(r.kind)) &&
+          (!filter.submitterIds || filter.submitterIds.includes(r.submitterId)),
+      )
+      .sort((a, b) => (a.submittedAt.getTime() - b.submittedAt.getTime()) * (page.sortOrder === 'asc' ? 1 : -1));
+    const items =
+      page.page !== undefined && page.pageSize !== undefined
+        ? matches.slice((page.page - 1) * page.pageSize, page.page * page.pageSize)
+        : matches;
+    return { items, total: matches.length };
+  }
   async findById(id: string) {
     return this.rows.get(id) ?? null;
   }
@@ -66,8 +88,28 @@ class FakeTransactions implements TransactionRunnerPort {
 /** nsm (top) → asm → mr; plus an HR user and an Admin. Mutable, to reassign managers mid-test. */
 let managerOf: Record<string, string | null>;
 const ROLE: Record<string, Actor['role']> = { nsm: 'FIELD', asm: 'FIELD', asm2: 'FIELD', mr: 'FIELD', hr: 'HR', admin: 'ADMIN' };
+const person = (id: string): DirectoryUser => ({
+  id,
+  employeeCode: id.toUpperCase(),
+  name: id,
+  role: ROLE[id]!,
+  managerId: managerOf[id] ?? null,
+});
+const chainOf = (id: string): DirectoryUser[] => {
+  const chain: DirectoryUser[] = [];
+  for (let m = managerOf[id]; m; m = managerOf[m]) chain.push(person(m));
+  return chain;
+};
 const users: UserDirectoryPort = {
-  findUserSummary: async (id) => (id in ROLE ? { id, role: ROLE[id]!, managerId: managerOf[id] ?? null } : null),
+  findUserSummary: async (id) => (id in ROLE ? person(id) : null),
+  getUserSummaries: async (ids) => ids.filter((id) => id in ROLE).map(person),
+  getDirectReports: async (managerId) => Object.keys(managerOf).filter((id) => managerOf[id] === managerId).map(person),
+  getDownline: async (managerId) =>
+    Object.keys(managerOf)
+      .map((id) => ({ id, depth: chainOf(id).findIndex((m) => m.id === managerId) + 1 }))
+      .filter((m) => m.depth > 0)
+      .map((m) => ({ ...person(m.id), depth: m.depth })),
+  getManagerChain: async (id) => chainOf(id),
 };
 const as = (id: string): Actor => ({ id, role: ROLE[id]! });
 
@@ -93,6 +135,9 @@ let submit: SubmitApprovalUseCase;
 let decide: DecideApprovalUseCase;
 let withdraw: WithdrawApprovalUseCase;
 let reopen: ReopenApprovalUseCase;
+let lists: ListApprovalsUseCase;
+let detail: GetApprovalDetailUseCase;
+let bulk: BulkDecideApprovalUseCase;
 
 beforeEach(() => {
   managerOf = { mr: 'asm', asm: 'nsm', asm2: 'nsm', nsm: null };
@@ -107,6 +152,9 @@ beforeEach(() => {
   decide = new DecideApprovalUseCase(requests, users, kinds, transactions);
   withdraw = new WithdrawApprovalUseCase(requests, kinds, transactions);
   reopen = new ReopenApprovalUseCase(requests, kinds, transactions);
+  lists = new ListApprovalsUseCase(requests, users, kinds);
+  detail = new GetApprovalDetailUseCase(requests, users, kinds);
+  bulk = new BulkDecideApprovalUseCase(decide);
 });
 
 const submitAs = (submitterId: string, kind = PLAN.kind, recordId = `rec-${submitterId}`) =>
@@ -338,5 +386,99 @@ describe('owning-module callback', () => {
   it('kinds without a handler work the same', async () => {
     const req = await submitAs('mr', LEAVE.kind);
     await expect(approve(req.id, 'asm')).resolves.toMatchObject({ status: 'MANAGER_APPROVED' });
+  });
+});
+
+describe('lists', () => {
+  const PAGE = { page: 1, pageSize: 20 };
+  /** A request per (submitter, kind), submitted a millisecond apart so ordering is deterministic. */
+  async function seed() {
+    const out: Record<string, ApprovalRequest> = {};
+    for (const [key, submitter, kind] of [
+      ['mrPlan', 'mr', PLAN.kind],
+      ['mrLeave', 'mr', LEAVE.kind],
+      ['asmPlan', 'asm', PLAN.kind],
+      ['nsmLeave', 'nsm', LEAVE.kind],
+    ] as const) {
+      out[key] = await submitAs(submitter, kind, key);
+      requests.rows.set(out[key]!.id, { ...out[key]!, submittedAt: new Date(Date.UTC(2026, 8, 1, 0, 0, Object.keys(out).length)) });
+    }
+    return out;
+  }
+
+  it("a manager's inbox is their direct reports' Stage-1 requests, with names and canAct", async () => {
+    const r = await seed();
+    const inbox = await lists.inbox(as('asm'), {}, PAGE);
+    expect(inbox.items.map((i) => i.recordId)).toEqual(['mrPlan', 'mrLeave']);
+    expect(inbox.items[0]).toMatchObject({ canAct: true, submitter: { id: 'mr', employeeCode: 'MR' } });
+    await approve(r.mrPlan!.id, 'asm');
+    expect((await lists.inbox(as('asm'), {}, PAGE)).items.map((i) => i.recordId)).toEqual(['mrLeave']);
+  });
+
+  it("HR's inbox is Leave only: manager-approved, or from a submitter with no manager", async () => {
+    const r = await seed();
+    expect((await lists.inbox(as('hr'), {}, PAGE)).items.map((i) => i.recordId)).toEqual(['nsmLeave']);
+    await approve(r.mrLeave!.id, 'asm');
+    await approve(r.mrPlan!.id, 'asm');
+    expect((await lists.inbox(as('hr'), {}, PAGE)).items.map((i) => i.recordId)).toEqual(['mrLeave', 'nsmLeave']);
+  });
+
+  it("Admin's inbox is everything open, oldest first, filterable by status, kind and manager", async () => {
+    const r = await seed();
+    await approve(r.mrPlan!.id, 'asm');
+    const all = await lists.inbox(as('admin'), {}, PAGE);
+    expect(all.items.map((i) => i.recordId)).toEqual(['mrPlan', 'mrLeave', 'asmPlan', 'nsmLeave']);
+    expect(all.items.every((i) => i.canAct)).toBe(true);
+    expect((await lists.inbox(as('admin'), { status: 'MANAGER_APPROVED' }, PAGE)).items.map((i) => i.recordId)).toEqual(['mrPlan']);
+    expect((await lists.inbox(as('admin'), { kind: LEAVE.kind }, PAGE)).total).toBe(2);
+    expect((await lists.inbox(as('admin'), { managerId: 'asm' }, PAGE)).items.map((i) => i.recordId)).toEqual(['mrPlan', 'mrLeave']);
+    expect((await lists.inbox(as('admin'), { status: 'APPROVED' }, PAGE)).total).toBe(0);
+  });
+
+  it('team: direct reports are actionable, deeper levels read-only', async () => {
+    await seed();
+    const team = await lists.team(as('nsm'), 'all', {}, PAGE);
+    expect(team.items.map((i) => [i.recordId, i.canAct])).toEqual([
+      ['asmPlan', true],
+      ['mrLeave', false],
+      ['mrPlan', false],
+    ]);
+    expect((await lists.team(as('nsm'), 'indirect', {}, PAGE)).total).toBe(2);
+  });
+
+  it('mine: only my own, newest first', async () => {
+    await seed();
+    expect((await lists.mine(as('mr'), {}, PAGE)).items.map((i) => i.recordId)).toEqual(['mrLeave', 'mrPlan']);
+  });
+
+  it('detail: named history; visible to submitter, their chain, Admin and HR-for-Leave; 404 for anyone else', async () => {
+    const r = await seed();
+    await approve(r.mrPlan!.id, 'asm', 'ok');
+    const d = await detail.execute(r.mrPlan!.id, as('nsm'));
+    expect(d.history.map((h) => [h.action, h.actor?.name])).toEqual([
+      ['SUBMIT', 'mr'],
+      ['APPROVE', 'asm'],
+    ]);
+    expect(d).toMatchObject({ canAct: false, canWithdraw: false, canReopen: false });
+    await expect(detail.execute(r.mrPlan!.id, as('asm2'))).rejects.toMatchObject({ statusCode: 404 });
+    await expect(detail.execute(r.mrPlan!.id, as('hr'))).rejects.toMatchObject({ statusCode: 404 });
+    await expect(detail.execute(r.mrLeave!.id, as('hr'))).resolves.toMatchObject({ canAct: false });
+    expect(await detail.execute(r.mrLeave!.id, as('mr'))).toMatchObject({ canWithdraw: true });
+  });
+});
+
+describe('bulk', () => {
+  it('decides each independently and reports per item', async () => {
+    const a = await submitAs('mr', PLAN.kind, 'a');
+    const b = await submitAs('mr', PLAN.kind, 'b');
+    const other = await submitAs('asm', PLAN.kind, 'c');
+    await reject(b.id, 'asm', 'no');
+
+    const results = await bulk.execute({ requestIds: [a.id, b.id, other.id, a.id], actor: as('asm'), decision: 'APPROVE' });
+    expect(results).toEqual([
+      { requestId: a.id, ok: true, status: 'MANAGER_APPROVED' },
+      { requestId: b.id, ok: false, statusCode: 409, message: expect.any(String) },
+      { requestId: other.id, ok: false, statusCode: 403, message: expect.any(String) },
+    ]);
   });
 });

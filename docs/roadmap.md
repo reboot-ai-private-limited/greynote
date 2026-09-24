@@ -110,7 +110,7 @@ Marketing all need the identical state machine — writing it five times is how 
 3. Per-kind workflow config (`MANAGER_THEN_FINAL` / `MANAGER_ONLY`), withdraw, resubmit, reopen,
    decision callbacks to the owning module — **done**
 4. HTTP: my approvals (manager), Admin/HR queue, team (read-only), approve / reject (bulk),
-   withdraw, reopen, request detail with history
+   withdraw, reopen, request detail with history — **done**
 5. Tests, live run, HLD 05 rewrite
 
 **Done when:** for a test kind registered only in tests, a request moves `SUBMITTED →

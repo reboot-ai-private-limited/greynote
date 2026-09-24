@@ -16,6 +16,7 @@ import { GetDownlineUseCase } from './application/usecases/getDownline.usecase.j
 import { GetManagerChainUseCase } from './application/usecases/getManagerChain.usecase.js';
 import { GetPayBandRatesUseCase } from './application/usecases/getPayBandRates.usecase.js';
 import { GetUserDetailUseCase } from './application/usecases/getUserDetail.usecase.js';
+import { GetUserSummariesUseCase } from './application/usecases/getUserSummaries.usecase.js';
 import { GetUserSummaryUseCase } from './application/usecases/getUserSummary.usecase.js';
 import { IsFieldRoleUseCase } from './application/usecases/isFieldRole.usecase.js';
 import { ListDesignationsUseCase } from './application/usecases/listDesignations.usecase.js';
@@ -183,6 +184,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
 
   const getUserSummary = new GetUserSummaryUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getManagerChain = new GetManagerChainUseCase(userRepository, roleRepository, employeeProfileRepository);
+  const getUserSummaries = new GetUserSummariesUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getDirectReports = new GetDirectReportsUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getDownline = new GetDownlineUseCase(userRepository, roleRepository, employeeProfileRepository);
   const isFieldRole = new IsFieldRoleUseCase(userRepository, roleRepository);
@@ -224,6 +226,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       refresh: (refreshToken) => refreshSession.execute(refreshToken),
       logout: (callerUserId, refreshToken) => logout.execute(callerUserId, refreshToken),
       getUserSummary: (userId) => getUserSummary.execute(userId),
+      getUserSummaries: (userIds) => getUserSummaries.execute(userIds),
       findUserSummary: async (userId) =>
         (await userRepository.findById(userId)) ? getUserSummary.execute(userId) : null,
       getManagerChain: (userId) => getManagerChain.execute(userId),

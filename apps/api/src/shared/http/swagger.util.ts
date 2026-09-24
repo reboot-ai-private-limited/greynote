@@ -48,6 +48,7 @@ const TAGS = [
   { name: 'Territory / Areas', description: 'Areas within an HQ; the Area type drives DA.' },
   { name: 'Territory / Routes', description: 'Routes, their road distance, and place search for waypoints.' },
   { name: 'Territory / Import', description: 'CSV bulk import of Zones, HQs and Areas.' },
+  { name: 'Approvals', description: 'The common approval screen: queues, team view, decisions, history.' },
 ];
 
 function buildOpenApiDocument() {

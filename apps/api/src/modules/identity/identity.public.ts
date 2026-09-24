@@ -12,6 +12,8 @@ export interface IdentityPublicContract {
   refresh(refreshToken: string): Promise<RefreshSessionOutput>;
   logout(callerUserId: string, refreshToken: string): Promise<void>;
   getUserSummary(userId: string): Promise<UserSummary>;
+  /** Batched summaries in three queries; unknown ids are skipped. */
+  getUserSummaries(userIds: string[]): Promise<UserSummary[]>;
   /** Like `getUserSummary`, but `null` for an unknown id — for callers validating an id they were given. */
   findUserSummary(userId: string): Promise<UserSummary | null>;
   /** Nearest Higher Manager first, then everyone above, `[]` at the top of chain. */

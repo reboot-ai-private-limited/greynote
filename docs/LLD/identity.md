@@ -47,6 +47,8 @@ same shape as `health.public.ts`, just with real methods:
   modules directly.
 - `getUserSummary(userId)` — id, name, role, designation, manager id. What most other modules
   need for display or authorization checks without pulling the whole entity.
+- `getUserSummaries(userIds)` — batched `getUserSummary` (three queries for any number of ids),
+  for list screens such as the approval queues' submitter names.
 - `findUserSummary(userId)` — the same, but `null` for an unknown id instead of a 404, for a
   caller validating an id it was given (Territory's route assignment turns it into a 400).
 - **`getManagerChain(userId)`** — walks `EmployeeProfile.manager_id` upward and returns the

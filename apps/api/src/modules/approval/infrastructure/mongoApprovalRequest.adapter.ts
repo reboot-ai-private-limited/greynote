@@ -3,6 +3,8 @@ import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalAction, ApprovalRequest, ApprovalStatus } from '../domain/approvalRequest.entity.js';
 import type {
+  ApprovalListFilter,
+  ApprovalListPage,
   ApprovalRequestRepositoryPort,
   ApprovalTransition,
 } from '../domain/approvalRequest.repository.port.js';
@@ -38,6 +40,26 @@ const toActionDoc = (a: ApprovalAction) => ({ ...a, actorId: new Types.ObjectId(
 const session = (ctx?: TransactionContext) => (ctx as ClientSession | undefined) ?? null;
 
 export class MongoApprovalRequestAdapter implements ApprovalRequestRepositoryPort {
+  async list(filter: ApprovalListFilter, page: ApprovalListPage): Promise<{ items: ApprovalRequest[]; total: number }> {
+    const query: Record<string, unknown> = {};
+    if (filter.statuses) query['status'] = { $in: filter.statuses };
+    if (filter.kinds) query['kind'] = { $in: filter.kinds };
+    if (filter.submitterIds) query['submitterId'] = { $in: filter.submitterIds.map((id) => new Types.ObjectId(id)) };
+    if (filter.submittedFrom || filter.submittedTo) {
+      query['submittedAt'] = {
+        ...(filter.submittedFrom && { $gte: filter.submittedFrom }),
+        ...(filter.submittedTo && { $lte: filter.submittedTo }),
+      };
+    }
+
+    let find = ApprovalRequestModel.find(query).sort({ submittedAt: page.sortOrder === 'asc' ? 1 : -1, _id: 1 });
+    if (page.page !== undefined && page.pageSize !== undefined) {
+      find = find.skip((page.page - 1) * page.pageSize).limit(page.pageSize);
+    }
+    const [docs, total] = await Promise.all([find.lean(), ApprovalRequestModel.countDocuments(query)]);
+    return { items: docs.map(toRequest), total };
+  }
+
   async findById(id: string): Promise<ApprovalRequest | null> {
     const doc = await ApprovalRequestModel.findById(id).lean();
     return doc ? toRequest(doc) : null;
