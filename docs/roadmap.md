@@ -27,16 +27,18 @@ must land before the module that needs it.
 
 - `User`, `Role`, `Designation`, `PayBand` (ERD Module 1) — **done**
 - Login: token model (access + refresh), `UserSession` per device — **done**
-- The 2-concurrent-device limit for FIELD roles — blocked with a prompt, never silent eviction
-  (PRD §2) — **done**
+- FIELD device approval: every new phone needs Admin approval, max 2 (registered + pending),
+  logout doesn't free a slot, rejected phones blocked for a configurable TTL (client sign-off A) —
+  **done**
+- Admin device actions (approve, reject, remove, log out one phone) and Admin-only password
+  reset — **done**
 - Admin/HR/Accountant have no device limit — **done**
 
-**Status (2026-09-24): done against the PRD.** Unit tests cover login, refresh, logout,
-logout-all and the auth middleware, and a live run against the dev API passed 32/32 checks for
-every role (login, role gating, FIELD-only device limit, refresh rotation and reuse detection,
-logout, Admin revoke-all). The client's rules propose OTP login, a 1-device limit and Admin
-approval for new devices instead; that's question group A in
-[`client-sign-off.md`](client-sign-off.md), and may reopen this phase.
+**Status (2026-09-24): done, and matches the client's answers to sign-off group A**
+([`client-sign-off.md`](client-sign-off.md)). Unit tests cover login (every device case),
+refresh, logout, logout-all, every Admin device action, password reset and the auth middleware.
+Live runs against the dev API passed 32/32 checks for every role's login and sessions, and 32/32
+for the device-approval and password-reset flows.
 
 Everything past this phase needs a logged-in, role-known user, so it goes first and alone —
 there is no module to parallelize it against yet.
@@ -55,7 +57,7 @@ lists the rules that "cannot be changed casually after development" — most una
 
 | Group | Blocks |
 |---|---|
-| A. Login & devices | Reopens Phase 1 if the answer is OTP or Admin-approved devices |
+| A. Login & devices | Answered 2026-09-24 and built into Phase 1 |
 | D. Territory, TA & DA | Phase 2 (Area types, D5) and Phase 6 (TA/DA engine) |
 | B, C, F | Phase 4 (Planning, Field Master Data, HR) |
 | E | Phase 6 (Sales & Orders) |

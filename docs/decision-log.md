@@ -17,6 +17,41 @@ old one.
 
 ---
 
+## 2026-09-24 — Field devices need Admin approval; Admin device actions and password reset
+
+**Decision:** The client answered sign-off group A: password login for now, 2 devices for field
+employees, Admin approval for new devices, Admin can remove / log out a device, no limit for
+Admin/HR/Accountant, Admin-only password reset. **Reverses** the Phase 1 device rule ("count
+active sessions; at the limit, block with 'log out from another device first'"):
+
+- New `UserDevice` registry (FIELD only). **Every** new phone, the first included, becomes a
+  `PENDING` request and can't log in until Admin approves it.
+- `MAX_REGISTERED_DEVICES_FIELD` (replaces `MAX_ACTIVE_DEVICES_FIELD`, default `2`) counts
+  pending + registered phones. At the limit a new phone is refused and **no** request is
+  created; Admin must remove an old phone first. Logging out never frees a slot.
+- A rejected phone is blocked for `REJECTED_DEVICE_TTL_DAYS` (default `7`); a MongoDB TTL index
+  then deletes the rejection and the phone counts as new.
+- `UserSession.revokedReason`: only reuse of a `ROTATED` refresh token counts as theft.
+- Admin-only endpoints: pending queue, per-employee device list, approve, reject, remove, log out
+  one phone, reset password.
+
+**Why:** the client's rules (§20.3) want new devices controlled by Admin. Counting sessions let
+an employee swap phones freely just by logging out. The revocation reason is needed because
+without it, the first background refresh from a phone Admin removed would have been treated as
+theft and logged the employee out of their other, legitimate phone.
+
+**Consequences:**
+- Existing field users (none in dev) would need their phones approved once after deploy.
+- Two new phones logging in at the same instant could both pass the limit check before either
+  request is written (limit + 1 pending). Not guarded; Admin simply rejects the extra one.
+- The Android app must send `ANDROID_ID` etc. in the login body — documented in
+  `LLD/identity.md` "Where `device_id` and `device_name` come from".
+
+**Refs:** `apps/api/src/modules/identity/{domain/userDevice.entity,application/usecases/login.usecase,interface/devices.route}.ts`,
+`docs/hld/04-authentication-and-sessions.md`, `docs/LLD/identity.md`, `docs/client-sign-off.md` A
+
+---
+
 ## 2026-09-24 — `PayBand.daAmount` split into `hqDa` / `exStationDa` / `outStationDa`
 
 **Decision:** Closes the code mismatch flagged in the entry below. `PayBand` now stores three DA

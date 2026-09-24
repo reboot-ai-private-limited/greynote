@@ -82,6 +82,20 @@ erDiagram
         timestamp expires_at
         timestamp last_active_at
         timestamp revoked_at "nullable - null = active"
+        string revoked_reason "nullable - ROTATED, LOGOUT, ADMIN, PASSWORD_RESET, THEFT"
+    }
+    USER_DEVICE {
+        uuid id PK
+        uuid user_id FK "FIELD users only"
+        string device_id "ANDROID_ID from the app"
+        string device_name
+        string device_model
+        string platform
+        string status "PENDING, REGISTERED, REJECTED, REMOVED"
+        timestamp requested_at
+        timestamp decided_at "nullable"
+        uuid decided_by FK "nullable - the Admin"
+        timestamp expires_at "nullable - set on REJECTED, TTL-deleted after"
     }
 
     ROLE ||--o{ USER : "role_id (required)"
@@ -92,6 +106,7 @@ erDiagram
     USER ||--o{ COMPLIANCE_BLOCK : "block history"
     USER |o--o{ COMPLIANCE_BLOCK : "unblocked_by (Admin, optional)"
     USER ||--o{ USER_SESSION : "device sessions"
+    USER ||--o{ USER_DEVICE : "approved phones (FIELD)"
 ```
 
 ## Onboarding (added 2026-09-23, revised 2026-09-23, `docs/decision-log.md`)
@@ -123,7 +138,7 @@ Territory (Module 2), one tier above Identity, not here.
 - **No separate Team table.** A manager's team, and the read-only-visibility set for higher managers, are both derived by recursively walking `EmployeeProfile.manager_id` — storing that separately risks it drifting out of sync with reality.
 - **One auth mechanism.** `password_hash` is shared by every role, web and mobile alike. mPIN was considered for field-force mobile login and dropped — not needed.
 - **Access tokens are stateless (short-lived JWTs) — not persisted.** Only refresh tokens are stored, one row per logged-in device, in `UserSession`. This is also what makes per-device revocation and the device-count limit possible.
-- **Device limit: FIELD role only, hard-blocked at login.** A field employee logging in on a device beyond the limit gets an explicit "log out from another device first" rejection — no silent auto-kick of an older session. Web-portal roles (Admin/HR/Accountant) have no device limit. The limit value itself (`MAX_ACTIVE_DEVICES_FIELD`, default `2`) lives in the `SystemConfig` rule table (Module 5), not hardcoded here — enforced by counting a user's `UserSession` rows where `revoked_at IS NULL AND expires_at > now()`.
+- **Device limit: FIELD role only, enforced on registered phones, not logins.** Every new phone a field employee uses becomes a `UserDevice` row in `PENDING` and needs Admin approval (the first one too). The limit (`MAX_REGISTERED_DEVICES_FIELD`, default `2`, in `SystemConfig`) counts `PENDING` + `REGISTERED` rows; at the limit a new phone is refused outright and no request is created. Logging out never frees a slot, only Admin removing a phone does. A rejected phone is blocked until `expires_at` (`REJECTED_DEVICE_TTL_DAYS`, default `7`), then a TTL index deletes the row. Web-portal roles (Admin/HR/Accountant) have no registry and no limit. Replaced the earlier "count active sessions, block with 'log out from another device first'" rule on 2026-09-24, `docs/decision-log.md`.
 - **Compliance block history is its own append-only collection (`ComplianceBlock`), not overwritable fields on `User`.** A background job (HLD 10) creates a new `ComplianceBlock` row (`reason`, `blocked_at`) and sets `User.is_blocked = true` — there's no `blocked_by` on the row, since no person initiates it. `User.is_blocked` stays as a fast top-level flag for querying ("list currently-blocked users"); the row is where the reason and timestamps actually live, one per block **event**, so a second block later in the same employee's tenure doesn't silently erase the first. Retention is indefinite — no TTL/auto-expiry — matching how the rest of the system treats history (HLD 9's Financial-Year toggle only ever scopes what's *shown*, never deletes). Clearing a block (`unblocked_by`/`unblocked_at` on the open row, plus `User.is_blocked = false`) is restricted to an `ADMIN`-role user, never the Nearest Manager, even though the Nearest Manager is otherwise the Stage 1 approver for everything this user submits (PRD §7.1) — a deliberate carve-out because the block is punitive/compliance-driven, not a routine approval. Closing the row and flipping the flag happen in one transaction — the first in this codebase — since either happening without the other would leave the two disagreeing.
 
 ## Next

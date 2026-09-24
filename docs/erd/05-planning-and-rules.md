@@ -69,7 +69,8 @@ erDiagram
 - **`SystemConfig` is now formalized**, holding every tunable value referenced by earlier modules rather than hardcoding them:
   - `DAILY_PLAN_SUBMIT_CUTOFF_TIME` = `10:00`
   - `MONTHLY_PLAN_SUBMIT_CUTOFF_DATE` = `28`
-  - `MAX_ACTIVE_DEVICES_FIELD` = `2` (Module 1)
+  - `MAX_REGISTERED_DEVICES_FIELD` = `2` (Module 1) — approved + pending phones per field employee
+  - `REJECTED_DEVICE_TTL_DAYS` = `7` (Module 1) — how long a phone Admin rejected stays blocked
   - `GEO_FENCE_RADIUS_METERS` = `200` (Module 4, exact default TBD)
   - `DCR_MISS_BLOCK_ENABLED` = `true` (Module 1/4, HLD 10) — kill switch for the missed-DCR compliance block
   - `DCR_MISS_GRACE_DAYS` = `1` (Module 1/4, HLD 10) — how many consecutive days without a submitted DCR (and without an approved Leave covering them) before the block triggers

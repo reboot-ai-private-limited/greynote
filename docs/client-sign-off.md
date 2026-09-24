@@ -13,15 +13,15 @@ cheapest to change before the listed phase starts.
 
 ---
 
-## A. Login & devices (affects Phase 1, already built)
+## A. Login & devices (affects Phase 1, already built) — **answered 2026-09-24**
 
-| # | Question | Today | Status |
+| # | Question | Answer | Status |
 |---|---|---|---|
-| A1 | Login method: employee code + password, or OTP (§20.1)? If OTP, via SMS, WhatsApp or email? | Employee code + password | Built |
-| A2 | How many devices can a **field employee** be logged in on at once (§20.3)? | 2 (*config*) | Built |
-| A3 | When a field employee hits the limit (e.g. lost phone), is Admin approval needed to add the new device, or is logging out the old one enough? | Blocked with "log out from another device first"; Admin can force-logout all devices | Built |
-| A4 | Confirm Admin, HR and Accountant have **no** device limit. | No limit | Built |
-| A5 | Password reset: who can do it (Admin only, or self-service), and through which channel? | Not built | Open |
+| A1 | Login method: employee code + password, or OTP (§20.1)? | Employee code + password, for now | Built |
+| A2 | How many devices can a **field employee** use? | 2 (*config*: `MAX_REGISTERED_DEVICES_FIELD`) | Built |
+| A3 | Is Admin approval needed for a new device? | Yes — **every** new phone, including the first, waits for Admin approval. At 2 phones, login is refused until Admin removes one; logging out doesn't free a slot. Admin can remove a phone or log it out. A rejected phone is blocked for 7 days (*config*: `REJECTED_DEVICE_TTL_DAYS`) | Built |
+| A4 | Admin, HR and Accountant have no device limit? | Confirmed — no limit, no approval | Built |
+| A5 | Password reset? | Admin only; sets a new password and logs the user out everywhere | Built |
 
 ## B. Plans & DCR (Phases 4 and 6)
 

@@ -28,8 +28,14 @@ other module depends on it, directly or through the Approval Workflow Engine —
   TTL). `User.is_blocked` is kept in sync with whether an "open" row (`unblocked_at: null`)
   exists for that user.
 - **`UserSession`** — one row per logged-in device: `device_id`, `refresh_token_hash`,
-  `issued_at`/`expires_at`/`last_active_at`/`revoked_at`. This is what makes per-device
-  revocation and the device-count limit possible; access tokens themselves are never persisted.
+  `issued_at`/`expires_at`/`last_active_at`/`revoked_at`, and `revoked_reason` (`ROTATED`,
+  `LOGOUT`, `ADMIN`, `PASSWORD_RESET`, `THEFT`). Makes per-device revocation possible; access
+  tokens themselves are never persisted.
+- **`UserDevice`** — FIELD employees only: the phones they're allowed to use. `device_id`,
+  `device_name`, `device_model`, `platform`, `status` (`PENDING` / `REGISTERED` / `REJECTED` /
+  `REMOVED`), `requested_at`, `decided_at`/`decided_by` (the Admin), and `expires_at` (set only
+  on `REJECTED`; a TTL index deletes the row when it passes). At most one `PENDING`/
+  `REGISTERED`/`REJECTED` row per phone per employee; `REMOVED` rows are kept as history.
 
 ## Public contract
 
@@ -51,8 +57,8 @@ same shape as `health.public.ts`, just with real methods:
   chain rather than just the nearest manager means the approval engine never has to call back
   into Identity recursively per level.
 - `isFieldRole(userId)` / `getPayBandRates(userId)` — used by TA/DA auto-calculation and Payroll.
-- `getActiveDeviceCount(userId)` — used by the login flow itself, exposed in case a future admin
-  screen wants to show a user's active sessions without duplicating the count logic.
+- `getActiveDeviceCount(userId)` — number of active sessions (not registered devices). No
+  consumer yet.
 
 ## Write-path rules & invariants
 
@@ -61,15 +67,30 @@ same shape as `health.public.ts`, just with real methods:
   rejected, and an `ADMIN`/`HR`/`ACCOUNTANT` user never gets an `EmployeeProfile` row at all.
   Consequently Payroll only ever processes FIELD-role users.
 - **One auth mechanism for every role**: `employee_code` + `password_hash`, web and mobile alike.
-  No OTP, no separate mPIN for field-force login — both were considered and dropped (ERD Module
-  1's design notes).
-- **Device limit is FIELD-role only, and it blocks rather than evicts.** A field employee's
-  login beyond `MAX_ACTIVE_DEVICES_FIELD` (read from `Config`, default `2`) is rejected with
-  `409` and an explicit "log out from another device first" message — never a silent kick of the
-  oldest session (PRD §2). Web-portal roles have no limit at all; the check doesn't run for them.
-- **Re-login on an already-active device doesn't count against the limit.** Logging in again
-  from the same `device_id` just revokes and replaces that device's own session — this is the
-  ordinary "token expired, log back in" path, not a new device.
+  No OTP for now — the client confirmed password login (`client-sign-off.md` A1).
+- **Every new phone a field employee uses needs Admin approval, including the first**
+  (`client-sign-off.md` A2–A3). After the password check, a FIELD login looks up the phone's
+  `UserDevice` row:
+  - `REGISTERED` → logs in.
+  - `PENDING` → `409`, `data.reason: DEVICE_APPROVAL_PENDING` ("Waiting for Admin to approve
+    this device"). No duplicate request.
+  - `REJECTED` and not yet expired → `403`, `DEVICE_REJECTED`, with `retryAfter`.
+  - No row, and `PENDING + REGISTERED` already at `MAX_REGISTERED_DEVICES_FIELD` (Config,
+    default `2`) → `409`, `DEVICE_LIMIT_REACHED` ("You already have 2 devices. Ask Admin to
+    remove an old device first"). **No request is created.**
+  - No row, under the limit → a `PENDING` row is created and the login is refused with
+    `DEVICE_APPROVAL_PENDING`. The employee logs in again once Admin approves.
+  Web-portal roles have no registry and no limit; none of this runs for them.
+- **Logging out never frees a slot.** Only Admin removing a registered device (or rejecting a
+  pending one) does. Re-login on a registered phone just replaces that phone's session.
+- **Rejections expire.** Rejecting sets `expires_at = now + REJECTED_DEVICE_TTL_DAYS` (Config,
+  default `7`). Until then the phone gets `DEVICE_REJECTED`; afterwards the row is deleted and the
+  phone counts as new.
+- **Only reuse of a `ROTATED` refresh token is theft.** A token revoked by logout, Admin or a
+  password reset just returns `401` on refresh, so ending one phone's session never logs the
+  employee out of their other phone.
+- **Password reset is Admin-only** (`client-sign-off.md` A5). It re-hashes the password and ends
+  every session (`PASSWORD_RESET`); registered devices stay registered.
 - **The compliance block is system-set, Admin-only to clear.** A background job
   ([`hld/10`](../hld/10-submission-gating-and-compliance-block.md)) creates a new `ComplianceBlock`
   row and sets `User.is_blocked = true` — never a person, so there's no `blocked_by` on the row.
@@ -93,14 +114,53 @@ Summary at LLD depth:
   expiry, no DB lookup.
 - **Refresh token**: long-lived opaque random string, stored only as a hash
   (`refresh_token_hash`) on its `UserSession` row.
-- **Rotation + reuse detection**: every refresh revokes the old `UserSession` row and issues a
-  new one for the same device. A refresh token presented after it's already been rotated is
-  treated as theft and revokes **every** session for that user, not just the one in use.
-- **Logout** revokes one `UserSession` row (`revoked_at = now()`). Admin can force-revoke every
-  row for a user in one call — the same mechanism, not a separate feature, useful for
-  offboarding.
-- **The device-limit check reads its threshold from `Config` at request time** (`Config`, Tier 0),
+- **Rotation + reuse detection**: every refresh revokes the old `UserSession` row (reason
+  `ROTATED`) and issues a new one for the same device. A refresh token presented after it's
+  already been rotated is treated as theft and revokes **every** session for that user.
+- **Logout** revokes one `UserSession` row. Admin can revoke every row for a user
+  (`logout-all`), or just one phone's (device logout / removal).
+- **Device limit and rejection TTL are read from `Config` at request time** (`Config`, Tier 0),
   never hardcoded — consistent with the tier order (`hld/03-system-architecture.md`).
+
+## Where `device_id` and `device_name` come from
+
+The backend **can't** work these out by itself. An HTTP request only carries an IP address and a
+User-Agent string, and both change or collide too often to identify a phone. The app reads them
+on the phone and sends them in the login body.
+
+For the planned app (Android, React Native CLI, MMKV — client `TECH NOTES.docx`), use
+the `react-native-device-info` package:
+
+| Login field | Source | Example |
+|---|---|---|
+| `deviceId` | `DeviceInfo.getUniqueId()` → Android `ANDROID_ID` | `a1b2c3d4e5f60718` |
+| `deviceName` | `await DeviceInfo.getDeviceName()` | `Rahul's Redmi` |
+| `deviceModel` | `` `${DeviceInfo.getBrand()} ${DeviceInfo.getModel()}` `` | `Xiaomi Redmi Note 12` |
+| `platform` | constant | `ANDROID` |
+
+```ts
+import DeviceInfo from 'react-native-device-info';
+
+const body = {
+  employeeCode,
+  password,
+  deviceId: await DeviceInfo.getUniqueId(),
+  deviceName: await DeviceInfo.getDeviceName(),
+  deviceModel: `${DeviceInfo.getBrand()} ${DeviceInfo.getModel()}`,
+  platform: 'ANDROID',
+};
+```
+
+- `ANDROID_ID` stays the same across app reinstalls and updates (Android 8+), as long as the
+  app's signing key doesn't change. It **changes after a factory reset**, so a reset phone shows
+  up as a new device and needs approval again.
+- IMEI and serial number can't be read by normal apps since Android 10. Don't plan on them.
+- `deviceId` is sent by the phone, so it enforces policy, not security: a rooted phone can fake
+  it. The password is still the real credential.
+- The web portal (Admin/HR/Accountant) has no device registry. It generates a random UUID once,
+  keeps it in `localStorage`, and sends it as `deviceId` so its sessions can still be told apart.
+- On a `409`/`403` from login, the app reads `data.reason` (`DEVICE_APPROVAL_PENDING`,
+  `DEVICE_LIMIT_REACHED`, `DEVICE_REJECTED`) and shows the matching screen, not a generic error.
 
 The 4 fixed `Role` rows and the very first `ADMIN` user are **not** created through this HTTP
 surface at all — no endpoint for either exists. Both are seeded by `apps/api/src/scripts/seed.ts`,
@@ -111,7 +171,7 @@ dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-l
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| `POST` | `/api/identity/auth/login` | any | `{employee_code, password, device_id, device_name, device_model, platform}` → tokens, or `409` at the device limit |
+| `POST` | `/api/identity/auth/login` | any | `{employee_code, password, device_id, device_name, device_model, platform}` → tokens; for FIELD, `409`/`403` with `data.reason` when the phone isn't approved (see rules above) |
 | `POST` | `/api/identity/auth/refresh` | any (via refresh token) | Rotate a session |
 | `POST` | `/api/identity/auth/logout` | any | Revoke the calling session |
 | `POST` | `/api/identity/auth/logout-all` | Admin (on behalf of a user) | Revoke every session for a user — offboarding |
@@ -122,6 +182,13 @@ dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-l
 | `POST` | `/api/identity/users/:id/documents` | Admin, HR | Upload a document (`multipart/form-data`, field `file` + `documentType`) to Cloudinary and attach it to the user |
 | `DELETE` | `/api/identity/users/:id/documents/:documentId` | Admin, HR | Remove a document from Cloudinary **and** the user record |
 | `POST` | `/api/identity/users/:id/unblock` | Admin only | Clear a compliance block |
+| `POST` | `/api/identity/users/:id/reset-password` | Admin only | `{newPassword}` → re-hash, end every session |
+| `GET` | `/api/identity/devices/pending` | Admin only | Every `PENDING` phone across the org, oldest first, with employee code/name |
+| `GET` | `/api/identity/users/:id/devices` | Admin only | One employee's phones (all statuses), with `loggedIn` / `lastActiveAt` |
+| `POST` | `/api/identity/users/:id/devices/:deviceRowId/approve` | Admin only | `PENDING` → `REGISTERED` |
+| `POST` | `/api/identity/users/:id/devices/:deviceRowId/reject` | Admin only | `PENDING` → `REJECTED` until `REJECTED_DEVICE_TTL_DAYS` pass |
+| `DELETE` | `/api/identity/users/:id/devices/:deviceRowId` | Admin only | `REGISTERED` → `REMOVED` and end its sessions (one transaction); frees a slot |
+| `POST` | `/api/identity/users/:id/devices/:deviceRowId/logout` | Admin only | End that phone's sessions; it stays registered |
 | `GET`/`POST`/`PATCH` | `/api/identity/roles`, `/designations`, `/pay-bands` | Admin | Master-data CRUD |
 
 Passwords are capped at 72 bytes (UTF-8) and rejected, not truncated, above that — bcrypt's own
