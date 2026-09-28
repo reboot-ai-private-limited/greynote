@@ -16,4 +16,6 @@ export interface PlanningPublicContract {
   isDailyPlanApproved(userId: string, planDate: string): Promise<boolean>;
   /** `null` when there's no Plan for that day at all. */
   getDailyPlanStatus(userId: string, planDate: string): Promise<PlanApprovalStatus | null>;
+  /** `null` when there's no Plan for that month at all. */
+  getMonthlyPlanStatus(userId: string, planMonth: string): Promise<PlanApprovalStatus | null>;
 }

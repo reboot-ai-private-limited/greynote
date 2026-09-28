@@ -1,5 +1,6 @@
 import type { ApprovalsPort, PlanApprovalStatus } from '../../domain/approvals.port.js';
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
+import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
 import { planStatus } from '../planViews.js';
 
 /**
@@ -10,12 +11,18 @@ import { planStatus } from '../planViews.js';
 export class GetPlanStatusUseCase {
   constructor(
     private readonly dailyPlans: DailyPlanRepositoryPort,
+    private readonly monthlyPlans: MonthlyPlanRepositoryPort,
     private readonly approvals: ApprovalsPort,
   ) {}
 
   async daily(userId: string, planDate: string): Promise<PlanApprovalStatus | null> {
     const plan = await this.dailyPlans.findByUserAndDate(userId, planDate);
     return plan && planStatus(await this.approvals.getForRecord('DAILY_PLAN', plan.id));
+  }
+
+  async monthly(userId: string, planMonth: string): Promise<PlanApprovalStatus | null> {
+    const plan = await this.monthlyPlans.findByUserAndMonth(userId, planMonth);
+    return plan && planStatus(await this.approvals.getForRecord('MONTHLY_PLAN', plan.id));
   }
 
   async isDailyPlanApproved(userId: string, planDate: string): Promise<boolean> {

@@ -1,5 +1,6 @@
 import type { ApprovalRequest } from '@/modules/approval/approval.public.js';
 import type { DailyPlan } from '../domain/dailyPlan.entity.js';
+import type { MonthlyPlan } from '../domain/monthlyPlan.entity.js';
 import type { ApprovalsPort, PlanApprovalStatus } from '../domain/approvals.port.js';
 import type { PlanKind } from '../domain/plan.js';
 import type { PlanDeadlines } from './planDeadlines.js';
@@ -20,6 +21,7 @@ export interface PlanStateView {
 }
 
 export type DailyPlanView = DailyPlan & PlanStateView;
+export type MonthlyPlanView = MonthlyPlan & PlanStateView;
 
 export const planStatus = (request: ApprovalRequest | null): PlanApprovalStatus => request?.status ?? 'DRAFT';
 
@@ -31,6 +33,10 @@ export class PlanViews {
 
   async daily(plan: DailyPlan): Promise<DailyPlanView> {
     return { ...plan, ...(await this.state('DAILY_PLAN', plan.id, await this.deadlines.daily(plan.planDate))) };
+  }
+
+  async monthly(plan: MonthlyPlan): Promise<MonthlyPlanView> {
+    return { ...plan, ...(await this.state('MONTHLY_PLAN', plan.id, await this.deadlines.monthly(plan.planMonth))) };
   }
 
   async state(kind: PlanKind, recordId: string, submitDeadline: Date): Promise<PlanStateView> {

@@ -8,8 +8,11 @@ import type { PlanningHandlers } from './planning.controller.js';
 import {
   dateRangeQuerySchema,
   listDailyPlansQuerySchema,
+  listMonthlyPlansQuerySchema,
+  monthRangeQuerySchema,
   planIdParamsSchema,
   saveDailyPlanBodySchema,
+  saveMonthlyPlanBodySchema,
 } from './planning.schemas.js';
 
 const TAG = 'Planning';
@@ -41,6 +44,10 @@ doc('post', '/daily', 'Save my plan for a day (draft; editable again after a rej
 doc('get', '/daily', 'My daily plans between two dates, with status and submit deadline', { query: dateRangeQuerySchema });
 doc('get', '/daily/{id}', 'One daily plan — owner, their managers (read-only), Admin', { params: planIdParamsSchema });
 doc('post', '/daily/{id}/submit', 'Submit my plan for approval — refused after the deadline without a late-submission exception', { params: planIdParamsSchema });
+doc('post', '/monthly', 'Save my plan for a month — every day at once (draft)', { body: saveMonthlyPlanBodySchema });
+doc('get', '/monthly', 'My monthly plans between two months, with status and submit deadline', { query: monthRangeQuerySchema });
+doc('get', '/monthly/{id}', 'One monthly plan — owner, their managers (read-only), Admin', { params: planIdParamsSchema });
+doc('post', '/monthly/{id}/submit', 'Submit my whole month for approval — refused after the deadline without a late-submission exception', { params: planIdParamsSchema });
 
 export function buildPlanningRouter(c: PlanningHandlers): Router {
   const router = Router();
@@ -50,5 +57,10 @@ export function buildPlanningRouter(c: PlanningHandlers): Router {
   router.get('/daily', requireRole('FIELD'), validate({ query: listDailyPlansQuerySchema }), c.listDaily);
   router.get('/daily/:id', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.getDaily);
   router.post('/daily/:id/submit', requireRole('FIELD'), validate({ params: planIdParamsSchema }), c.submitDaily);
+
+  router.post('/monthly', requireRole('FIELD'), validate({ body: saveMonthlyPlanBodySchema }), c.saveMonthly);
+  router.get('/monthly', requireRole('FIELD'), validate({ query: listMonthlyPlansQuerySchema }), c.listMonthly);
+  router.get('/monthly/:id', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.getMonthly);
+  router.post('/monthly/:id/submit', requireRole('FIELD'), validate({ params: planIdParamsSchema }), c.submitMonthly);
   return router;
 }

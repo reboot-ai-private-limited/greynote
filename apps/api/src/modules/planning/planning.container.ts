@@ -4,16 +4,21 @@ import { PlanDeadlines } from './application/planDeadlines.js';
 import { PlanSubmitter } from './application/planSubmitter.js';
 import { PlanViews } from './application/planViews.js';
 import { GetDailyPlanUseCase } from './application/usecases/getDailyPlan.usecase.js';
+import { GetMonthlyPlanUseCase } from './application/usecases/getMonthlyPlan.usecase.js';
 import { GetPlanStatusUseCase } from './application/usecases/getPlanStatus.usecase.js';
 import { ListDailyPlansUseCase } from './application/usecases/listDailyPlans.usecase.js';
+import { ListMonthlyPlansUseCase } from './application/usecases/listMonthlyPlans.usecase.js';
 import { SaveDailyPlanUseCase } from './application/usecases/saveDailyPlan.usecase.js';
+import { SaveMonthlyPlanUseCase } from './application/usecases/saveMonthlyPlan.usecase.js';
 import { SubmitDailyPlanUseCase } from './application/usecases/submitDailyPlan.usecase.js';
+import { SubmitMonthlyPlanUseCase } from './application/usecases/submitMonthlyPlan.usecase.js';
 import type { ApprovalsPort } from './domain/approvals.port.js';
 import type { ConfigProviderPort } from './domain/configProvider.port.js';
 import { PLAN_KINDS } from './domain/plan.js';
 import type { RouteDirectoryPort } from './domain/routeDirectory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import { MongoDailyPlanAdapter } from './infrastructure/mongoDailyPlan.adapter.js';
+import { MongoMonthlyPlanAdapter } from './infrastructure/mongoMonthlyPlan.adapter.js';
 import { makePlanningControllers } from './interface/planning.controller.js';
 import { buildPlanningRouter } from './interface/planning.route.js';
 import type { PlanningPublicContract } from './planning.public.js';
@@ -36,6 +41,7 @@ export function buildPlanningContainer(
 
   // 1. Adapters
   const dailyPlans = new MongoDailyPlanAdapter();
+  const monthlyPlans = new MongoMonthlyPlanAdapter();
   const transactions = new MongooseTransactionRunner();
 
   // 2. Use cases
@@ -46,13 +52,30 @@ export function buildPlanningContainer(
   const submitDaily = new SubmitDailyPlanUseCase(dailyPlans, deadlines, submitter);
   const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views);
   const listDaily = new ListDailyPlansUseCase(dailyPlans, views);
-  const status = new GetPlanStatusUseCase(dailyPlans, approvals);
+  const saveMonthly = new SaveMonthlyPlanUseCase(monthlyPlans, approvals, views);
+  const submitMonthly = new SubmitMonthlyPlanUseCase(monthlyPlans, deadlines, submitter);
+  const getMonthly = new GetMonthlyPlanUseCase(monthlyPlans, users, views);
+  const listMonthly = new ListMonthlyPlansUseCase(monthlyPlans, views);
+  const status = new GetPlanStatusUseCase(dailyPlans, monthlyPlans, approvals);
 
   return {
     contract: {
       isDailyPlanApproved: (userId, planDate) => status.isDailyPlanApproved(userId, planDate),
       getDailyPlanStatus: (userId, planDate) => status.daily(userId, planDate),
+      getMonthlyPlanStatus: (userId, planMonth) => status.monthly(userId, planMonth),
     },
-    buildRouter: () => buildPlanningRouter(makePlanningControllers({ saveDaily, listDaily, getDaily, submitDaily })),
+    buildRouter: () =>
+      buildPlanningRouter(
+        makePlanningControllers({
+          saveDaily,
+          listDaily,
+          getDaily,
+          submitDaily,
+          saveMonthly,
+          listMonthly,
+          getMonthly,
+          submitMonthly,
+        }),
+      ),
   };
 }

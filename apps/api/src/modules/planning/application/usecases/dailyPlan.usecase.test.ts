@@ -53,7 +53,7 @@ describe('Daily Plan', () => {
     save = new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views);
     submit = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter);
     get = new GetDailyPlanUseCase(kit.dailyPlans, kit.users, kit.views);
-    status = new GetPlanStatusUseCase(kit.dailyPlans, kit.approvals);
+    status = new GetPlanStatusUseCase(kit.dailyPlans, kit.monthlyPlans, kit.approvals);
   });
 
   it('saves a draft with its deadline in the business timezone', async () => {

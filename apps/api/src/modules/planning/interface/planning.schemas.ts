@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parseCalendarDate } from '@/shared/time/businessTime.js';
+import { parseCalendarDate, parseCalendarMonth } from '@/shared/time/businessTime.js';
 import { WORKING_TYPES } from '../domain/plan.js';
 
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
@@ -15,6 +15,19 @@ export const planDateSchema = z.string().refine(
     }
   },
   { message: 'Must be a date as YYYY-MM-DD.' },
+);
+
+/** A calendar month, `YYYY-MM`. */
+export const planMonthSchema = z.string().refine(
+  (v) => {
+    try {
+      parseCalendarMonth(v);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: 'Must be a month as YYYY-MM.' },
 );
 
 export const planIdParamsSchema = z.object({ id: objectIdSchema });
@@ -34,5 +47,19 @@ export const listDailyPlansQuerySchema = dateRangeQuerySchema
   .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] })
   .refine((q) => (Date.parse(q.to) - Date.parse(q.from)) / 86_400_000 <= 92, {
     message: 'At most 93 days at a time.',
+    path: ['to'],
+  });
+
+export const saveMonthlyPlanBodySchema = z.object({
+  planMonth: planMonthSchema,
+  entries: z.array(planDaySchema.extend({ planDate: planDateSchema })).max(31),
+});
+
+/** Both ends inclusive. The unrefined object is what the OpenAPI doc shows. */
+export const monthRangeQuerySchema = z.object({ from: planMonthSchema, to: planMonthSchema });
+export const listMonthlyPlansQuerySchema = monthRangeQuerySchema
+  .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] })
+  .refine((q) => Number(q.to.slice(0, 4)) * 12 + Number(q.to.slice(5)) - (Number(q.from.slice(0, 4)) * 12 + Number(q.from.slice(5))) < 12, {
+    message: 'At most 12 months at a time.',
     path: ['to'],
   });

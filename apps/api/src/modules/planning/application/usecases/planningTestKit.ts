@@ -5,6 +5,8 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { DailyPlan } from '../../domain/dailyPlan.entity.js';
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
+import type { MonthlyPlan, MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
+import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
 import type { PlanDay } from '../../domain/plan.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { PlanDeadlines } from '../planDeadlines.js';
@@ -34,6 +36,41 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
       userId,
       planDate,
       ...day,
+      revision: (existing?.revision ?? 0) + 1,
+      updatedAt: new Date(),
+    };
+    this.rows.set(plan.id, plan);
+    return plan;
+  }
+  async confirmRevision(id: string, revision: number) {
+    const plan = this.rows.get(id);
+    if (!plan || plan.revision !== revision) return false;
+    this.rows.set(id, { ...plan, revision: revision + 1 });
+    return true;
+  }
+}
+
+export class FakeMonthlyPlans implements MonthlyPlanRepositoryPort {
+  rows = new Map<string, MonthlyPlan>();
+  async findById(id: string) {
+    return this.rows.get(id) ?? null;
+  }
+  async findByUserAndMonth(userId: string, planMonth: string) {
+    return [...this.rows.values()].find((p) => p.userId === userId && p.planMonth === planMonth) ?? null;
+  }
+  async listForUser(userId: string, fromMonth: string, toMonth: string) {
+    return [...this.rows.values()]
+      .filter((p) => p.userId === userId && p.planMonth >= fromMonth && p.planMonth <= toMonth)
+      .sort((a, b) => a.planMonth.localeCompare(b.planMonth));
+  }
+  async save(userId: string, planMonth: string, entries: MonthlyPlanEntry[], expectedRevision: number | null) {
+    const existing = await this.findByUserAndMonth(userId, planMonth);
+    if ((existing?.revision ?? null) !== expectedRevision) return null;
+    const plan: MonthlyPlan = {
+      id: existing?.id ?? `month-${this.rows.size + 1}`,
+      userId,
+      planMonth,
+      entries,
       revision: (existing?.revision ?? 0) + 1,
       updatedAt: new Date(),
     };
@@ -157,8 +194,9 @@ export function planningKit(clock: Clock) {
   const approvals = new FakeApprovals();
   const config = new FakeConfig();
   const dailyPlans = new FakeDailyPlans();
+  const monthlyPlans = new FakeMonthlyPlans();
   const deadlines = new PlanDeadlines(config, clock.now);
   const views = new PlanViews(approvals, deadlines);
   const submitter = new PlanSubmitter(users, routes, approvals, inlineTransactions, clock.now);
-  return { users, routes, approvals, config, dailyPlans, deadlines, views, submitter };
+  return { users, routes, approvals, config, dailyPlans, monthlyPlans, deadlines, views, submitter };
 }

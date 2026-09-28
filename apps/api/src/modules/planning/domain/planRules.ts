@@ -24,3 +24,19 @@ export function assertPlanDay(day: PlanDay, ownerId: string, field = ''): void {
     throw AppError.badRequest('You can’t work with yourself.', { field: `${field}workWith` });
   }
 }
+
+/** Every entry inside `planMonth`, no day twice, and each a valid planned day. */
+export function assertMonthlyEntries(planMonth: string, entries: Array<PlanDay & { planDate: string }>, ownerId: string): void {
+  const seen = new Set<string>();
+  entries.forEach((entry, i) => {
+    const field = `entries.${i}.`;
+    if (!entry.planDate.startsWith(`${planMonth}-`)) {
+      throw AppError.badRequest('A day in this plan is outside its month.', { field: `${field}planDate` });
+    }
+    if (seen.has(entry.planDate)) {
+      throw AppError.badRequest('A day is planned twice.', { field: `${field}planDate` });
+    }
+    seen.add(entry.planDate);
+    assertPlanDay(entry, ownerId, field);
+  });
+}
