@@ -1,4 +1,6 @@
 import type { Holiday } from '../../domain/holiday.entity.js';
+import type { LeaveBalance } from '../../domain/leaveBalance.entity.js';
+import type { BalanceKey, LeaveBalanceRepositoryPort } from '../../domain/leaveBalance.repository.port.js';
 import { holidayApplies } from '../../domain/holiday.entity.js';
 import type { HolidayFilter, HolidayRepositoryPort } from '../../domain/holiday.repository.port.js';
 import type { LeavePolicy } from '../../domain/leavePolicy.entity.js';
@@ -183,4 +185,58 @@ export class FakeConfig {
     if (value === undefined) throw new Error(`missing ${key}`);
     return value;
   }
+}
+
+export class FakeBalances implements LeaveBalanceRepositoryPort {
+  rows: LeaveBalance[] = [];
+  private match = (k: BalanceKey) => (b: LeaveBalance) => b.userId === k.userId && b.leaveTypeId === k.leaveTypeId && b.year === k.year;
+  async listForUser(userId: string, year: number) {
+    return this.rows.filter((b) => b.userId === userId && b.year === year);
+  }
+  async find(key: BalanceKey) {
+    return this.rows.find(this.match(key)) ?? null;
+  }
+  async insertMissing(rows: Array<BalanceKey & { allocatedDays: number }>) {
+    for (const r of rows) {
+      if (this.rows.some(this.match(r))) continue;
+      this.rows.push({ ...r, id: `bal-${this.rows.length + 1}`, usedDays: 0, pendingDays: 0, adjustedBy: null, adjustedAt: null, adjustReason: null });
+    }
+  }
+  async setAllocated(key: BalanceKey, allocatedDays: number, by: string, reason: string) {
+    const b = this.rows.find(this.match(key));
+    if (!b || allocatedDays < b.usedDays + b.pendingDays) return null;
+    Object.assign(b, { allocatedDays, adjustedBy: by, adjustedAt: new Date(), adjustReason: reason });
+    return b;
+  }
+  async existsForLeaveType(leaveTypeId: string) {
+    return this.rows.some((b) => b.leaveTypeId === leaveTypeId);
+  }
+  async reserve(key: BalanceKey, days: number, _ctx?: unknown) {
+    const b = this.rows.find(this.match(key));
+    if (!b || b.allocatedDays - b.usedDays - b.pendingDays < days) return false;
+    b.pendingDays += days;
+    return true;
+  }
+  private must(key: BalanceKey) {
+    const b = this.rows.find(this.match(key));
+    if (!b) throw new Error('LEAVE_BALANCE_MISSING');
+    return b;
+  }
+  async release(key: BalanceKey, days: number, _ctx?: unknown) {
+    this.must(key).pendingDays -= days;
+  }
+  async consume(key: BalanceKey, days: number, _ctx?: unknown) {
+    const b = this.must(key);
+    b.pendingDays -= days;
+    b.usedDays += days;
+  }
+  async giveBack(key: BalanceKey, days: number, _ctx?: unknown) {
+    this.must(key).usedDays -= days;
+  }
+}
+
+/** A settable clock. */
+export class Clock {
+  constructor(public current: Date) {}
+  now = () => this.current;
 }

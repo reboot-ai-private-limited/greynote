@@ -165,7 +165,7 @@ HR, step by step:
 2. Leave-year helpers and Config keys, Identity `getEmploymentDetails`, Territory `UserHqAssignment` — **done**
 3. HR skeleton, Leave Types, Leave Master — **done**
 4. Holidays — **done**
-5. Balances
+5. Balances — **done**
 6. Leave requests through the approval module, and the public contract
 7. Live run against the dev database
 

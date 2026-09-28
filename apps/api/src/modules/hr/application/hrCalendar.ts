@@ -34,11 +34,16 @@ export class HrCalendar {
   }
 
   async today(): Promise<string> {
+    return this.dateOf(this.now());
+  }
+
+  /** The calendar day an instant falls on in the business timezone. */
+  async dateOf(instant: Date): Promise<string> {
     const timeZone = await readConfig(this.config, HR_CONFIG_KEYS.timeZone, (v) => {
       assertTimeZone(v);
       return v;
     });
-    return businessDate(this.now(), timeZone);
+    return businessDate(instant, timeZone);
   }
 
   async leaveYearOf(date: string): Promise<number> {

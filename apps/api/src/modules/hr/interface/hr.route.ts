@@ -4,8 +4,11 @@ import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
-import type { MastersHandlers } from './hr.controller.js';
+import type { BalanceHandlers, MastersHandlers } from './hr.controller.js';
 import {
+  adjustBalanceBodySchema,
+  balanceParamsSchema,
+  balanceQuerySchema,
   createHolidayBodySchema,
   createLeaveTypeBodySchema,
   holidayQueryObject,
@@ -14,6 +17,7 @@ import {
   listHolidaysQuerySchema,
   setLeavePolicyBodySchema,
   updateLeaveTypeBodySchema,
+  userIdParamsSchema,
 } from './hr.schemas.js';
 
 const TAG = 'HR';
@@ -49,6 +53,9 @@ doc('put', '/leave-policies/{payBandId}/{leaveTypeId}', 'HR/Admin: set a grade�
 doc('get', '/holidays', 'Holidays — field staff: the ones that apply to them; HR/Admin: all, filterable', { query: holidayQueryObject });
 doc('post', '/holidays', 'HR/Admin: add a National, Zone or HQ holiday', { body: createHolidayBodySchema });
 doc('delete', '/holidays/{id}', 'HR/Admin: remove a holiday', { params: idParamsSchema });
+doc('get', '/leave-balances/me', 'Field staff: my leave balances for a leave year (the current one by default)', { query: balanceQuerySchema });
+doc('get', '/leave-balances/{userId}', 'An employee’s balances — HR/Admin, or their managers (read-only)', { params: userIdParamsSchema, query: balanceQuerySchema });
+doc('patch', '/leave-balances/{userId}/{leaveTypeId}', 'HR/Admin: set one employee’s allocation (never below used + pending)', { params: balanceParamsSchema, body: adjustBalanceBodySchema });
 
 /** Leave types, the Leave Master and holidays. */
 export function buildMastersRouter(c: MastersHandlers): Router {
@@ -64,5 +71,15 @@ export function buildMastersRouter(c: MastersHandlers): Router {
   router.get('/holidays', validate({ query: listHolidaysQuerySchema }), c.listHolidays);
   router.post('/holidays', hr, validate({ body: createHolidayBodySchema }), c.createHoliday);
   router.delete('/holidays/:id', hr, validate({ params: idParamsSchema }), c.deleteHoliday);
+  return router;
+}
+
+export function buildBalancesRouter(c: BalanceHandlers): Router {
+  const router = Router();
+  router.use(authenticate());
+  router.get('/me', requireRole('FIELD'), validate({ query: balanceQuerySchema }), c.myBalances);
+  // Managers are FIELD too; the use case checks the chain.
+  router.get('/:userId', requireRole('FIELD', 'HR', 'ADMIN'), validate({ params: userIdParamsSchema, query: balanceQuerySchema }), c.userBalances);
+  router.patch('/:userId/:leaveTypeId', requireRole('HR', 'ADMIN'), validate({ params: balanceParamsSchema, body: adjustBalanceBodySchema }), c.adjustBalance);
   return router;
 }

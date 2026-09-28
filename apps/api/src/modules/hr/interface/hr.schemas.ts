@@ -12,6 +12,15 @@ export const daysSchema = z
   .refine((n) => Number.isInteger(n * 2), { message: 'Must be whole or half days.' });
 
 export const idParamsSchema = z.object({ id: objectIdSchema });
+export const userIdParamsSchema = z.object({ userId: objectIdSchema });
+export const balanceParamsSchema = z.object({ userId: objectIdSchema, leaveTypeId: objectIdSchema });
+const leaveYearSchema = z.coerce.number().int().min(2000).max(2100);
+export const balanceQuerySchema = z.object({ year: leaveYearSchema.optional() });
+export const adjustBalanceBodySchema = z.object({
+  year: leaveYearSchema,
+  allocatedDays: z.number().min(0).max(366).refine((n) => Number.isInteger(n * 2), { message: 'Must be whole or half days.' }),
+  reason: z.string().trim().min(1, 'A reason is required.').max(500),
+});
 
 export const createLeaveTypeBodySchema = z.object({ name: nameSchema, isPaid: z.boolean() });
 export const updateLeaveTypeBodySchema = z

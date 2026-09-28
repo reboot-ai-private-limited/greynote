@@ -34,7 +34,7 @@ async function main(): Promise<void> {
   await identity.seedRoles();
   logger.info('Role rows seeded');
 
-  const hr = buildHrContainer(identity.contract, buildTerritoryContainer(identity.contract).contract);
+  const hr = buildHrContainer(identity.contract, buildTerritoryContainer(identity.contract).contract, config.contract);
   await hr.seed();
   logger.info('Starting leave types seeded (existing ones untouched)');
 
