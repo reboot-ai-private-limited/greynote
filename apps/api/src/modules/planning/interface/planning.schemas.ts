@@ -1,34 +1,11 @@
 import { z } from 'zod';
-import { parseCalendarDate, parseCalendarMonth } from '@/shared/time/businessTime.js';
+import { calendarDateSchema, calendarMonthSchema } from '@/shared/time/calendarSchemas.js';
 import { PLAN_KINDS, WORKING_TYPES } from '../domain/plan.js';
 
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
 
-/** A calendar day, `YYYY-MM-DD` — plan dates aren't instants, so no time or offset. */
-export const planDateSchema = z.string().refine(
-  (v) => {
-    try {
-      parseCalendarDate(v);
-      return true;
-    } catch {
-      return false;
-    }
-  },
-  { message: 'Must be a date as YYYY-MM-DD.' },
-);
-
-/** A calendar month, `YYYY-MM`. */
-export const planMonthSchema = z.string().refine(
-  (v) => {
-    try {
-      parseCalendarMonth(v);
-      return true;
-    } catch {
-      return false;
-    }
-  },
-  { message: 'Must be a month as YYYY-MM.' },
-);
+export const planDateSchema = calendarDateSchema;
+export const planMonthSchema = calendarMonthSchema;
 
 export const planIdParamsSchema = z.object({ id: objectIdSchema });
 

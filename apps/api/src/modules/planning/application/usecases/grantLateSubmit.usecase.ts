@@ -6,7 +6,7 @@ import type { LateSubmitGrantRepositoryPort } from '../../domain/lateSubmitGrant
 import type { PlanKind } from '../../domain/plan.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../planAccess.js';
-import { parseBoolean, parsePositiveInt, readConfig } from '../readConfig.js';
+import { parseBoolean, parsePositiveInt, readConfig } from '@/shared/config/readConfig.js';
 
 export interface GrantLateSubmitInput {
   userId: string;

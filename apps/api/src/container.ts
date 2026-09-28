@@ -1,6 +1,7 @@
 import { buildApprovalContainer } from '@/modules/approval/approval.container.js';
 import { buildConfigContainer } from '@/modules/config/config.container.js';
 import { buildHealthContainer } from '@/modules/health/health.container.js';
+import { buildHrContainer } from '@/modules/hr/hr.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
 import { buildPlanningContainer } from '@/modules/planning/planning.container.js';
 import { buildTerritoryContainer } from '@/modules/territory/territory.container.js';
@@ -12,6 +13,7 @@ export interface AppContainers {
   territory: ReturnType<typeof buildTerritoryContainer>;
   approval: ReturnType<typeof buildApprovalContainer>;
   planning: ReturnType<typeof buildPlanningContainer>;
+  hr: ReturnType<typeof buildHrContainer>;
 }
 
 /**
@@ -38,5 +40,8 @@ export function buildContainers(): AppContainers {
   // cover (Territory), the approval workflow its Plans go through, and the deadlines (Config).
   const planning = buildPlanningContainer(identity.contract, territory.contract, approval.contract, config.contract);
 
-  return { health, config, identity, territory, approval, planning };
+  // Tier 3 — HR: employees and Pay Bands (Identity), their HQ (Territory).
+  const hr = buildHrContainer(identity.contract, territory.contract);
+
+  return { health, config, identity, territory, approval, planning, hr };
 }

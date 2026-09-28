@@ -8,7 +8,7 @@ import {
 } from '@/shared/time/businessTime.js';
 import { PLANNING_CONFIG_KEYS, type ConfigProviderPort } from '../domain/configProvider.port.js';
 import type { ResubmitPolicy } from '../domain/resubmitWindow.js';
-import { parsePositiveInt, readConfig } from './readConfig.js';
+import { parsePositiveInt, readConfig } from '@/shared/config/readConfig.js';
 
 /**
  * Submit deadlines, read from Config on every call — Admin can change a cutoff or the timezone at

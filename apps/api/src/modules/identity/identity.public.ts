@@ -30,5 +30,7 @@ export interface IdentityPublicContract {
   /** Pay Band and joining date (FIELD only); `null` without an EmployeeProfile. */
   getEmploymentDetails(userId: string): Promise<EmploymentDetails | null>;
   getPayBandRates(userId: string): Promise<PayBand>;
+  /** Every Pay Band's id and grade name (G1…) — for grade-wise masters like HR's Leave Master. */
+  listPayBands(): Promise<Array<{ id: string; name: PayBand['name'] }>>;
   getActiveDeviceCount(userId: string): Promise<number>;
 }

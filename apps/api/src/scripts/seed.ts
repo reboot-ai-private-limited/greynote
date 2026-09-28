@@ -1,7 +1,9 @@
 import mongoose from 'mongoose';
 import prompts from 'prompts';
 import { buildConfigContainer } from '@/modules/config/config.container.js';
+import { buildHrContainer } from '@/modules/hr/hr.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
+import { buildTerritoryContainer } from '@/modules/territory/territory.container.js';
 import { env } from '@/config/env.js';
 import { logger } from '@/shared/logging/logger.js';
 
@@ -31,6 +33,10 @@ async function main(): Promise<void> {
   const identity = buildIdentityContainer(config.contract);
   await identity.seedRoles();
   logger.info('Role rows seeded');
+
+  const hr = buildHrContainer(identity.contract, buildTerritoryContainer(identity.contract).contract);
+  await hr.seed();
+  logger.info('Starting leave types seeded (existing ones untouched)');
 
   if (await identity.hasAdmin()) {
     logger.info('An ADMIN user already exists — skipping bootstrap Admin creation.');

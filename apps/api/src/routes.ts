@@ -11,6 +11,7 @@ export function buildApiRouter(containers: AppContainers): Router {
   router.use('/territory', containers.territory.buildRouter());
   router.use('/approvals', containers.approval.buildRouter());
   router.use('/planning', containers.planning.buildRouter());
+  router.use('/hr', containers.hr.buildRouter());
 
   return router;
 }

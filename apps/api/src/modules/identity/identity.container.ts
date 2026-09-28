@@ -239,6 +239,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       isFieldRole: (userId) => isFieldRole.execute(userId),
       isBlocked: (userId) => isBlocked.execute(userId),
       getEmploymentDetails: (userId) => getEmploymentDetails.execute(userId),
+      listPayBands: async () => (await listPayBands.execute()).map(({ id, name }) => ({ id, name })),
       getPayBandRates: (userId) => getPayBandRates.execute(userId),
       getActiveDeviceCount: (userId) => getActiveDeviceCount.execute(userId),
     },
