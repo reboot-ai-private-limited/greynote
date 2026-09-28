@@ -4,7 +4,7 @@ import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
-import type { BalanceHandlers, MastersHandlers } from './hr.controller.js';
+import type { BalanceHandlers, LeaveHandlers, MastersHandlers } from './hr.controller.js';
 import {
   adjustBalanceBodySchema,
   balanceParamsSchema,
@@ -13,8 +13,11 @@ import {
   createLeaveTypeBodySchema,
   holidayQueryObject,
   idParamsSchema,
+  leaveBodySchema,
+  leavesQuerySchema,
   leavePolicyParamsSchema,
   listHolidaysQuerySchema,
+  myLeavesQuerySchema,
   setLeavePolicyBodySchema,
   updateLeaveTypeBodySchema,
   userIdParamsSchema,
@@ -56,6 +59,11 @@ doc('delete', '/holidays/{id}', 'HR/Admin: remove a holiday', { params: idParams
 doc('get', '/leave-balances/me', 'Field staff: my leave balances for a leave year (the current one by default)', { query: balanceQuerySchema });
 doc('get', '/leave-balances/{userId}', 'An employee’s balances — HR/Admin, or their managers (read-only)', { params: userIdParamsSchema, query: balanceQuerySchema });
 doc('patch', '/leave-balances/{userId}/{leaveTypeId}', 'HR/Admin: set one employee’s allocation (never below used + pending)', { params: balanceParamsSchema, body: adjustBalanceBodySchema });
+doc('post', '/leaves', 'Field staff: request leave — it goes to your manager, then HR/Admin', { body: leaveBodySchema });
+doc('put', '/leaves/{id}', 'Field staff: change a rejected, withdrawn or reopened leave — resubmits it', { params: idParamsSchema, body: leaveBodySchema });
+doc('get', '/leaves/me', 'Field staff: my leaves, newest first', { query: myLeavesQuerySchema });
+doc('get', '/leaves', 'HR/Admin: everyone’s leaves, newest first', { query: leavesQuerySchema });
+doc('get', '/leaves/{id}', 'One leave — the employee, their managers, HR, Admin', { params: idParamsSchema });
 
 /** Leave types, the Leave Master and holidays. */
 export function buildMastersRouter(c: MastersHandlers): Router {
@@ -81,5 +89,17 @@ export function buildBalancesRouter(c: BalanceHandlers): Router {
   // Managers are FIELD too; the use case checks the chain.
   router.get('/:userId', requireRole('FIELD', 'HR', 'ADMIN'), validate({ params: userIdParamsSchema, query: balanceQuerySchema }), c.userBalances);
   router.patch('/:userId/:leaveTypeId', requireRole('HR', 'ADMIN'), validate({ params: balanceParamsSchema, body: adjustBalanceBodySchema }), c.adjustBalance);
+  return router;
+}
+
+/** Approve, reject and withdraw are `/api/approvals/*` with `kind=LEAVE`. */
+export function buildLeavesRouter(c: LeaveHandlers): Router {
+  const router = Router();
+  router.use(authenticate());
+  router.post('/', requireRole('FIELD'), validate({ body: leaveBodySchema }), c.requestLeave);
+  router.get('/me', requireRole('FIELD'), validate({ query: myLeavesQuerySchema }), c.myLeaves);
+  router.get('/', requireRole('HR', 'ADMIN'), validate({ query: leavesQuerySchema }), c.allLeaves);
+  router.put('/:id', requireRole('FIELD'), validate({ params: idParamsSchema, body: leaveBodySchema }), c.editLeave);
+  router.get('/:id', validate({ params: idParamsSchema }), c.getLeave);
   return router;
 }

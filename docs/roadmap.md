@@ -166,7 +166,7 @@ HR, step by step:
 3. HR skeleton, Leave Types, Leave Master — **done**
 4. Holidays — **done**
 5. Balances — **done**
-6. Leave requests through the approval module, and the public contract
+6. Leave requests through the approval module, and the public contract — **done**
 7. Live run against the dev database
 
 **Done when:** Admin can populate Doctors/Chemists/Distributors/Products and assign MRs to them;

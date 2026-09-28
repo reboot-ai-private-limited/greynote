@@ -9,13 +9,24 @@ import type { CreateHolidayUseCase } from '../application/usecases/createHoliday
 import type { AdjustLeaveBalanceUseCase } from '../application/usecases/adjustLeaveBalance.usecase.js';
 import type { CreateLeaveTypeUseCase } from '../application/usecases/createLeaveType.usecase.js';
 import type { GetLeaveBalancesUseCase } from '../application/usecases/getLeaveBalances.usecase.js';
+import type { GetLeaveUseCase } from '../application/usecases/getLeave.usecase.js';
+import type { ListLeavesUseCase } from '../application/usecases/listLeaves.usecase.js';
+import type { LeaveRequests } from '../application/leaveRequests.js';
 import type { DeleteHolidayUseCase } from '../application/usecases/deleteHoliday.usecase.js';
 import type { ListHolidaysUseCase } from '../application/usecases/listHolidays.usecase.js';
 import type { ListLeavePoliciesUseCase } from '../application/usecases/listLeavePolicies.usecase.js';
 import type { ListLeaveTypesUseCase } from '../application/usecases/listLeaveTypes.usecase.js';
 import type { SetLeavePolicyUseCase } from '../application/usecases/setLeavePolicy.usecase.js';
 import type { UpdateLeaveTypeUseCase } from '../application/usecases/updateLeaveType.usecase.js';
-import type { adjustBalanceBodySchema, balanceQuerySchema, createHolidayBodySchema, listHolidaysQuerySchema } from './hr.schemas.js';
+import type {
+  adjustBalanceBodySchema,
+  balanceQuerySchema,
+  createHolidayBodySchema,
+  leaveBodySchema,
+  leavesQuerySchema,
+  listHolidaysQuerySchema,
+  myLeavesQuerySchema,
+} from './hr.schemas.js';
 
 export function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -92,6 +103,32 @@ export function makeBalanceControllers(u: { get: GetLeaveBalancesUseCase; adjust
         actorId: actorOf(req).id,
       });
       sendSuccess(req, res, balance, 'Leave balance adjusted.', 200);
+    }),
+  };
+}
+
+export type LeaveHandlers = Record<'requestLeave' | 'editLeave' | 'myLeaves' | 'allLeaves' | 'getLeave', RequestHandler>;
+
+export function makeLeaveControllers(u: { requests: LeaveRequests; list: ListLeavesUseCase; get: GetLeaveUseCase }): LeaveHandlers {
+  return {
+    requestLeave: asyncHandler(async (req, res) => {
+      const leave = await u.requests.request(actorOf(req).id, req.body as z.output<typeof leaveBodySchema>);
+      sendSuccess(req, res, leave, 'Leave requested.', 201);
+    }),
+    editLeave: asyncHandler(async (req, res) => {
+      const leave = await u.requests.edit(actorOf(req).id, requiredParam(req.params, 'id'), req.body as z.output<typeof leaveBodySchema>);
+      sendSuccess(req, res, leave, 'Leave updated and resubmitted.', 200);
+    }),
+    myLeaves: asyncHandler(async (req, res) => {
+      const { page, pageSize, ...range } = req.query as unknown as z.output<typeof myLeavesQuerySchema>;
+      sendSuccess(req, res, await u.list.mine(actorOf(req).id, range, { page, pageSize }), 'Your leaves.', 200);
+    }),
+    allLeaves: asyncHandler(async (req, res) => {
+      const { page, pageSize, ...filter } = req.query as unknown as z.output<typeof leavesQuerySchema>;
+      sendSuccess(req, res, await u.list.all(filter, { page, pageSize }), 'Leaves.', 200);
+    }),
+    getLeave: asyncHandler(async (req, res) => {
+      sendSuccess(req, res, await u.get.execute(actorOf(req), requiredParam(req.params, 'id')), 'Leave.', 200);
     }),
   };
 }

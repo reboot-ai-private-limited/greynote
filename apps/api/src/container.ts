@@ -40,9 +40,9 @@ export function buildContainers(): AppContainers {
   // cover (Territory), the approval workflow its Plans go through, and the deadlines (Config).
   const planning = buildPlanningContainer(identity.contract, territory.contract, approval.contract, config.contract);
 
-  // Tier 3 — HR: employees and Pay Bands (Identity), their HQ (Territory), the leave-year and
-  // weekly-off settings (Config).
-  const hr = buildHrContainer(identity.contract, territory.contract, config.contract);
+  // Tier 3 — HR: employees and Pay Bands (Identity), their HQ (Territory), the LEAVE workflow
+  // (Approval), the leave-year and weekly-off settings (Config).
+  const hr = buildHrContainer(identity.contract, territory.contract, approval.contract, config.contract);
 
   return { health, config, identity, territory, approval, planning, hr };
 }

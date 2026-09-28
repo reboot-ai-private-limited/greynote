@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import prompts from 'prompts';
+import { buildApprovalContainer } from '@/modules/approval/approval.container.js';
 import { buildConfigContainer } from '@/modules/config/config.container.js';
 import { buildHrContainer } from '@/modules/hr/hr.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
@@ -34,7 +35,8 @@ async function main(): Promise<void> {
   await identity.seedRoles();
   logger.info('Role rows seeded');
 
-  const hr = buildHrContainer(identity.contract, buildTerritoryContainer(identity.contract).contract, config.contract);
+  const approval = buildApprovalContainer(identity.contract, config.contract);
+  const hr = buildHrContainer(identity.contract, buildTerritoryContainer(identity.contract).contract, approval.contract, config.contract);
   await hr.seed();
   logger.info('Starting leave types seeded (existing ones untouched)');
 

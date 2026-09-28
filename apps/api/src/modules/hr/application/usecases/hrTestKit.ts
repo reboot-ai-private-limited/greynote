@@ -1,4 +1,10 @@
+import type { ApprovalKindDefinition, ApprovalRequest, ApprovalStatus } from '@/modules/approval/approval.public.js';
+import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
+import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
+import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { Holiday } from '../../domain/holiday.entity.js';
+import type { Leave } from '../../domain/leave.entity.js';
+import type { LeaveBody, LeaveFilter, LeaveRepositoryPort } from '../../domain/leave.repository.port.js';
 import type { LeaveBalance } from '../../domain/leaveBalance.entity.js';
 import type { BalanceKey, LeaveBalanceRepositoryPort } from '../../domain/leaveBalance.repository.port.js';
 import { holidayApplies } from '../../domain/holiday.entity.js';
@@ -240,3 +246,89 @@ export class Clock {
   constructor(public current: Date) {}
   now = () => this.current;
 }
+
+export class FakeLeaves implements LeaveRepositoryPort {
+  rows: Leave[] = [];
+  async findById(id: string) {
+    return this.rows.find((l) => l.id === id) ?? null;
+  }
+  async listOverlapping(userId: string, from: string, to: string) {
+    return this.rows.filter((l) => l.userId === userId && l.startDate <= to && l.endDate >= from);
+  }
+  async list(filter: LeaveFilter, page: { page: number; pageSize: number }) {
+    const items = this.rows.filter(
+      (l) =>
+        (!filter.userIds || filter.userIds.includes(l.userId)) &&
+        (!filter.to || l.startDate <= filter.to) &&
+        (!filter.from || l.endDate >= filter.from),
+    );
+    return { items: items.slice((page.page - 1) * page.pageSize, page.page * page.pageSize), total: items.length };
+  }
+  async create(userId: string, body: LeaveBody) {
+    const row: Leave = { ...body, id: `leave-${this.rows.length + 1}`, userId, revision: 1, createdAt: new Date(), updatedAt: new Date() };
+    this.rows.push(row);
+    return row;
+  }
+  async replace(id: string, expectedRevision: number, body: LeaveBody) {
+    const i = this.rows.findIndex((l) => l.id === id && l.revision === expectedRevision);
+    if (i < 0) return null;
+    this.rows[i] = { ...this.rows[i]!, ...body, revision: expectedRevision + 1, updatedAt: new Date() };
+    return this.rows[i]!;
+  }
+  async existsForLeaveType(leaveTypeId: string) {
+    return this.rows.some((l) => l.leaveTypeId === leaveTypeId);
+  }
+}
+
+/** Submit/resubmit, and decisions that fire the registered kind's `onStatusChange` like the real module. */
+export class FakeApprovals implements ApprovalsPort {
+  kinds = new Map<string, ApprovalKindDefinition>();
+  requests = new Map<string, ApprovalRequest>();
+  registerKind(definition: ApprovalKindDefinition) {
+    this.kinds.set(definition.kind, definition);
+  }
+  async submit(input: { kind: string; recordId: string; submitterId: string }) {
+    const key = `${input.kind}:${input.recordId}`;
+    const existing = this.requests.get(key);
+    if (existing && !isEditableBySubmitter(existing.status)) throw new Error('not editable');
+    const request: ApprovalRequest = {
+      id: existing?.id ?? `req-${this.requests.size + 1}`,
+      kind: input.kind,
+      recordId: input.recordId,
+      submitterId: input.submitterId,
+      status: 'SUBMITTED',
+      workflow: 'MANAGER_THEN_FINAL',
+      cycle: (existing?.cycle ?? 0) + 1,
+      submittedAt: new Date(),
+      decidedAt: null,
+      history: [],
+    };
+    this.requests.set(key, request);
+    return request;
+  }
+  async getForRecord(kind: string, recordId: string) {
+    return this.requests.get(`${kind}:${recordId}`) ?? null;
+  }
+  /** Move a request to `status`, running the owner's callback as the approval module would. */
+  async move(kind: string, recordId: string, status: ApprovalStatus) {
+    const key = `${kind}:${recordId}`;
+    const request = this.requests.get(key)!;
+    const updated = { ...request, status };
+    await this.kinds.get(kind)?.onStatusChange?.(
+      {
+        requestId: request.id,
+        kind,
+        recordId,
+        submitterId: request.submitterId,
+        previousStatus: request.status,
+        status,
+        action: { action: 'APPROVE', authority: 'MANAGER', actorId: 'x', actorRole: 'FIELD', comment: null, at: new Date(), resultingStatus: status, cycle: request.cycle },
+        request: updated,
+      },
+      {},
+    );
+    this.requests.set(key, updated);
+  }
+}
+
+export const inlineTransactions: TransactionRunnerPort = { run: (fn) => fn({}) };
