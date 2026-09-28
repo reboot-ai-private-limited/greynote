@@ -10,6 +10,7 @@ export function buildApiRouter(containers: AppContainers): Router {
   router.use('/identity', containers.identity.buildRouter());
   router.use('/territory', containers.territory.buildRouter());
   router.use('/approvals', containers.approval.buildRouter());
+  router.use('/planning', containers.planning.buildRouter());
 
   return router;
 }

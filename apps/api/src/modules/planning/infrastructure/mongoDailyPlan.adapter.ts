@@ -1,0 +1,67 @@
+import { Types, type ClientSession } from 'mongoose';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
+import type { DailyPlan } from '../domain/dailyPlan.entity.js';
+import type { DailyPlanRepositoryPort } from '../domain/dailyPlan.repository.port.js';
+import type { PlanDay } from '../domain/plan.js';
+import { DailyPlanModel, type DailyPlanDoc } from './dailyPlan.schema.js';
+import { isDuplicateKey, toDayDoc, toPlanDay } from './planDoc.js';
+
+function toPlan(doc: DailyPlanDoc & { _id: unknown }): DailyPlan {
+  return {
+    id: String(doc._id),
+    userId: String(doc.userId),
+    planDate: doc.planDate,
+    ...toPlanDay(doc),
+    revision: doc.revision,
+    updatedAt: doc.updatedAt,
+  };
+}
+
+export class MongoDailyPlanAdapter implements DailyPlanRepositoryPort {
+  async findById(id: string): Promise<DailyPlan | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
+    const doc = await DailyPlanModel.findById(id).lean();
+    return doc ? toPlan(doc) : null;
+  }
+
+  async findByUserAndDate(userId: string, planDate: string): Promise<DailyPlan | null> {
+    const doc = await DailyPlanModel.findOne({ userId: new Types.ObjectId(userId), planDate }).lean();
+    return doc ? toPlan(doc) : null;
+  }
+
+  async listForUser(userId: string, from: string, to: string): Promise<DailyPlan[]> {
+    const docs = await DailyPlanModel.find({ userId: new Types.ObjectId(userId), planDate: { $gte: from, $lte: to } })
+      .sort({ planDate: 1 })
+      .lean();
+    return docs.map(toPlan);
+  }
+
+  async save(userId: string, planDate: string, day: PlanDay, expectedRevision: number | null): Promise<DailyPlan | null> {
+    const body = { ...toDayDoc(day), updatedAt: new Date() };
+    if (expectedRevision === null) {
+      try {
+        const doc = await DailyPlanModel.create({ userId: new Types.ObjectId(userId), planDate, ...body, revision: 1 });
+        return toPlan(doc.toObject());
+      } catch (err) {
+        // Another save created the day's plan first.
+        if (isDuplicateKey(err)) return null;
+        throw err;
+      }
+    }
+    const doc = await DailyPlanModel.findOneAndUpdate(
+      { userId: new Types.ObjectId(userId), planDate, revision: expectedRevision },
+      { $set: body, $inc: { revision: 1 } },
+      { new: true },
+    ).lean();
+    return doc ? toPlan(doc) : null;
+  }
+
+  async confirmRevision(id: string, revision: number, ctx: TransactionContext): Promise<boolean> {
+    const result = await DailyPlanModel.updateOne(
+      { _id: id, revision },
+      { $inc: { revision: 1 } },
+      { session: ctx as ClientSession },
+    );
+    return result.matchedCount === 1;
+  }
+}

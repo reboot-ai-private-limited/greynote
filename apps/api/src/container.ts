@@ -2,6 +2,7 @@ import { buildApprovalContainer } from '@/modules/approval/approval.container.js
 import { buildConfigContainer } from '@/modules/config/config.container.js';
 import { buildHealthContainer } from '@/modules/health/health.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
+import { buildPlanningContainer } from '@/modules/planning/planning.container.js';
 import { buildTerritoryContainer } from '@/modules/territory/territory.container.js';
 
 export interface AppContainers {
@@ -10,6 +11,7 @@ export interface AppContainers {
   identity: ReturnType<typeof buildIdentityContainer>;
   territory: ReturnType<typeof buildTerritoryContainer>;
   approval: ReturnType<typeof buildApprovalContainer>;
+  planning: ReturnType<typeof buildPlanningContainer>;
 }
 
 /**
@@ -32,5 +34,9 @@ export function buildContainers(): AppContainers {
   // kinds skip the final stage).
   const approval = buildApprovalContainer(identity.contract, config.contract);
 
-  return { health, config, identity, territory, approval };
+  // Tier 3 — Planning: who the submitter and their managers are (Identity), which Routes they
+  // cover (Territory), the approval workflow its Plans go through, and the deadlines (Config).
+  const planning = buildPlanningContainer(identity.contract, territory.contract, approval.contract, config.contract);
+
+  return { health, config, identity, territory, approval, planning };
 }
