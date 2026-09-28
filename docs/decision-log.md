@@ -17,6 +17,34 @@ old one.
 
 ---
 
+## 2026-09-28 — Approvals are decided on a cycle; bulk isolates faults; date filters carry an offset
+
+**Decision:** Three fixes from the Phase 3 review, before Planning becomes the first consumer:
+
+- **A decision names the cycle it was made on.** `POST /approvals/:id/approve|reject` require
+  `cycle`; `POST /approvals/bulk` takes `requests: [{ id, cycle }]` instead of `requestIds`. The
+  conditional write matches status **and** cycle. Replaces the status-only guard.
+- **Bulk never fails as a whole.** An unexpected error on one item (an unregistered kind, an
+  owning module's `onStatusChange` throwing a plain `Error`) is logged at `error` and returned as
+  that item's `500`; the other items still run. Previously it aborted the loop with a bare `500`
+  after earlier items had already committed.
+- **List `from` / `to` must be ISO date-times with an offset**, both inclusive. A bare date is a
+  `400`. Replaces `z.coerce.date()`, which read `to=2026-09-28` as 00:00 UTC — dropping that day,
+  and off by 5½ hours for IST.
+
+**Why:** Withdraw + resubmit returns a request to `SUBMITTED` on a new cycle with a possibly
+edited record, so a status-only guard let a manager approve content they never saw. The server
+has no business timezone, so it cannot turn a bare date into a day; the client can.
+
+**Consequences:** web and mobile clients send the `cycle` from the row they displayed, and send
+local start/end-of-day instants. A business-timezone `SystemConfig` key is still needed for
+Planning's 10:00 Daily Plan deadline (B3) — added in Phase 4, not here. No client existed yet,
+so the contract change cost nothing.
+
+**Refs:** `apps/api/src/modules/approval/`, `docs/LLD/approval.md`, `docs/hld/05-approval-workflow-engine.md` §8
+
+---
+
 ## 2026-09-24 — Approval workflow switch is one list key; decision callbacks are transactional
 
 **Decision:** Two refinements while building Phase 3 step 3:

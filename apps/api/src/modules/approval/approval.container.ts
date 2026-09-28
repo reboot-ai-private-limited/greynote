@@ -1,5 +1,6 @@
 import type { Router } from 'express';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
+import { logger } from '@/shared/logging/logger.js';
 import { ApprovalKindRegistry } from './application/approvalKindRegistry.js';
 import { BulkDecideApprovalUseCase } from './application/usecases/bulkDecideApproval.usecase.js';
 import { DecideApprovalUseCase } from './application/usecases/decideApproval.usecase.js';
@@ -43,7 +44,13 @@ export function buildApprovalContainer(users: UserDirectoryPort, config: ConfigP
   const getForRecord = new GetApprovalForRecordUseCase(requestRepository);
   const list = new ListApprovalsUseCase(requestRepository, users, kinds);
   const detail = new GetApprovalDetailUseCase(requestRepository, users, kinds);
-  const bulk = new BulkDecideApprovalUseCase(decide);
+  // Logged like an unhandled request error (shared/http/error-handler.ts), so it still alerts.
+  const bulk = new BulkDecideApprovalUseCase(decide, (requestId, err) =>
+    logger.error(
+      { requestId, err: String(err), stack: err instanceof Error ? err.stack : undefined },
+      'bulk approval item failed',
+    ),
+  );
 
   return {
     contract: {

@@ -83,7 +83,7 @@ export class SubmitApprovalUseCase {
     const cycle = existing.cycle + 1;
     const updated = await this.requests.transition(
       existing.id,
-      existing.status,
+      { status: existing.status, cycle: existing.cycle },
       {
         status: 'SUBMITTED',
         decidedAt: null,

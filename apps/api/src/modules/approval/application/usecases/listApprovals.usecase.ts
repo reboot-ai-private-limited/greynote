@@ -1,3 +1,4 @@
+import { AppError } from '@/shared/errors/AppError.js';
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
 import type { ApprovalRequest, ApprovalStatus } from '../../domain/approvalRequest.entity.js';
 import type { ApprovalListFilter, ApprovalRequestRepositoryPort } from '../../domain/approvalRequest.repository.port.js';
@@ -100,6 +101,9 @@ export class ListApprovalsUseCase {
 
   /** Kind / submitter / manager / date filters shared by every list. Null = can match nothing. */
   private async commonFilter(filters: ApprovalQueryFilters): Promise<ApprovalListFilter | null> {
+    if (filters.from && filters.to && filters.from > filters.to) {
+      throw AppError.badRequest('The end of the date range is before its start.', { field: 'to' });
+    }
     const filter: ApprovalListFilter = {
       ...(filters.kind && { kinds: [filters.kind] }),
       ...(filters.from && { submittedFrom: filters.from }),

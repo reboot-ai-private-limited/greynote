@@ -9,6 +9,15 @@ export interface ApprovalTransition {
   newCycle?: { cycle: number; workflow: ApprovalWorkflow; submittedAt: Date };
 }
 
+/**
+ * The state a write was decided against. Status alone isn't enough: withdraw + resubmit brings a
+ * request back to `SUBMITTED` on a new cycle, and a decision read on the old cycle must not land.
+ */
+export interface ExpectedState {
+  status: ApprovalStatus;
+  cycle: number;
+}
+
 export interface ApprovalListFilter {
   statuses?: ApprovalStatus[] | undefined;
   kinds?: string[] | undefined;
@@ -32,12 +41,12 @@ export interface ApprovalRequestRepositoryPort {
   /** Throws a 409 if a request for this (kind, recordId) already exists. */
   create(input: Omit<ApprovalRequest, 'id'>, ctx?: TransactionContext): Promise<ApprovalRequest>;
   /**
-   * Applies `change` and appends its action — only if the request is still in `expectedStatus`.
-   * Returns null when it isn't: someone else acted first.
+   * Applies `change` and appends its action — only if the request is still in `expected` status
+   * and cycle. Returns null when it isn't: someone else acted first.
    */
   transition(
     id: string,
-    expectedStatus: ApprovalStatus,
+    expected: ExpectedState,
     change: ApprovalTransition,
     ctx?: TransactionContext,
   ): Promise<ApprovalRequest | null>;

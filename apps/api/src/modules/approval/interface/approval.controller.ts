@@ -1,4 +1,5 @@
 import type { Request, RequestHandler } from 'express';
+import type { z } from 'zod';
 import { AppError } from '@/shared/errors/AppError.js';
 import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
@@ -11,6 +12,7 @@ import type { ReopenApprovalUseCase } from '../application/usecases/reopenApprov
 import type { WithdrawApprovalUseCase } from '../application/usecases/withdrawApproval.usecase.js';
 import type { ApprovalStatus } from '../domain/approvalRequest.entity.js';
 import type { Actor } from '../domain/approvalRules.js';
+import type { bulkDecideBodySchema } from './approval.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -29,6 +31,8 @@ type ListQuery = {
   to?: Date;
   scope?: 'direct' | 'indirect' | 'all';
 };
+type BulkBody = z.output<typeof bulkDecideBodySchema>;
+
 const splitQuery = (req: Request) => {
   const { page, pageSize, scope, ...filters } = req.query as unknown as ListQuery;
   return { page: { page, pageSize }, filters, scope: scope ?? 'all' };
@@ -49,6 +53,7 @@ export function makeApprovalControllers(useCases: {
         actor: actorOf(req),
         decision,
         comment: req.body.comment,
+        expectedCycle: req.body.cycle,
       });
       sendSuccess(req, res, updated, decision === 'APPROVE' ? 'Approved.' : 'Rejected.', 200);
     });
@@ -73,7 +78,13 @@ export function makeApprovalControllers(useCases: {
     approve: decide('APPROVE'),
     reject: decide('REJECT'),
     bulk: asyncHandler(async (req, res) => {
-      const results = await useCases.bulk.execute({ ...req.body, actor: actorOf(req) });
+      const body = req.body as BulkBody;
+      const results = await useCases.bulk.execute({
+        requests: body.requests.map((r) => ({ requestId: r.id, expectedCycle: r.cycle })),
+        actor: actorOf(req),
+        decision: body.decision,
+        comment: body.comment,
+      });
       const done = results.filter((r) => r.ok).length;
       sendSuccess(req, res, { results }, `${done} of ${results.length} done.`, 200);
     }),

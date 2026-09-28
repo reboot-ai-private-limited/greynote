@@ -7,7 +7,7 @@ import type { ApprovalKindRegistry } from './approvalKindRegistry.js';
 /**
  * The one way a request changes status after submission: the conditional write and the owning
  * module's `onStatusChange` commit in a single transaction, so the two can never disagree. A
- * write that loses a race (status moved on) becomes a 409 and nothing is committed.
+ * write that loses a race (status or cycle moved on) becomes a 409 and nothing is committed.
  */
 export async function applyTransition(
   deps: { requests: ApprovalRequestRepositoryPort; kinds: ApprovalKindRegistry; transactions: TransactionRunnerPort },
@@ -16,7 +16,8 @@ export async function applyTransition(
 ): Promise<ApprovalRequest> {
   const kind = deps.kinds.get(request.kind);
   return deps.transactions.run(async (ctx) => {
-    const updated = await deps.requests.transition(request.id, request.status, change, ctx);
+    const expected = { status: request.status, cycle: request.cycle };
+    const updated = await deps.requests.transition(request.id, expected, change, ctx);
     if (!updated) throw AppError.conflict('Someone else acted on this request first. Reload it.');
     await kind.onStatusChange?.(
       {

@@ -4,6 +4,16 @@ import { MAX_BULK } from '../application/usecases/bulkDecideApproval.usecase.js'
 
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
 const commentSchema = z.string().trim().max(1000);
+/** The cycle the client displayed — a decision on a request resubmitted since then is a 409. */
+const cycleSchema = z.number().int().positive();
+/**
+ * An instant with its offset (`2026-09-28T23:59:59.999+05:30`), never a bare date: the server
+ * has no business timezone, so "the 28th" is the client's to turn into a start and end.
+ */
+const instantSchema = z
+  .string()
+  .datetime({ offset: true, message: 'Must be a date-time with a timezone offset.' })
+  .transform((s) => new Date(s));
 
 export const approvalIdParamsSchema = z.object({ id: objectIdSchema });
 
@@ -13,8 +23,10 @@ const listBase = z.object({
   kind: z.string().trim().min(1).optional(),
   status: z.enum(APPROVAL_STATUSES).optional(),
   submitterId: objectIdSchema.optional(),
-  from: z.coerce.date().optional(),
-  to: z.coerce.date().optional(),
+  /** Inclusive. */
+  from: instantSchema.optional(),
+  /** Inclusive — send the end of the last day wanted, not the start of the day after. */
+  to: instantSchema.optional(),
 });
 
 export const inboxQuerySchema = listBase.extend({
@@ -26,14 +38,17 @@ export const teamQuerySchema = listBase.extend({
 });
 export const mineQuerySchema = listBase.omit({ submitterId: true });
 
-export const approveBodySchema = z.object({ comment: commentSchema.optional() });
-export const rejectBodySchema = z.object({ comment: commentSchema.min(1, 'A reason is required to reject.') });
+export const approveBodySchema = z.object({ cycle: cycleSchema, comment: commentSchema.optional() });
+export const rejectBodySchema = z.object({ cycle: cycleSchema, comment: commentSchema.min(1, 'A reason is required to reject.') });
 export const withdrawBodySchema = z.object({ comment: commentSchema.optional() });
 export const reopenBodySchema = z.object({ comment: commentSchema.min(1, 'A reason is required to reopen.') });
 export const bulkDecideBodySchema = z
   .object({
     decision: z.enum(['APPROVE', 'REJECT']),
-    requestIds: z.array(objectIdSchema).min(1).max(MAX_BULK),
+    requests: z
+      .array(z.object({ id: objectIdSchema, cycle: cycleSchema }))
+      .min(1)
+      .max(MAX_BULK),
     comment: commentSchema.optional(),
   })
   .refine((b) => b.decision === 'APPROVE' || (b.comment ?? '').length > 0, {

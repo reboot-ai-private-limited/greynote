@@ -1,12 +1,13 @@
 import { Types, type ClientSession } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
-import type { ApprovalAction, ApprovalRequest, ApprovalStatus } from '../domain/approvalRequest.entity.js';
+import type { ApprovalAction, ApprovalRequest } from '../domain/approvalRequest.entity.js';
 import type {
   ApprovalListFilter,
   ApprovalListPage,
   ApprovalRequestRepositoryPort,
   ApprovalTransition,
+  ExpectedState,
 } from '../domain/approvalRequest.repository.port.js';
 import { ApprovalRequestModel, type ApprovalRequestDoc } from './approvalRequest.schema.js';
 
@@ -89,12 +90,12 @@ export class MongoApprovalRequestAdapter implements ApprovalRequestRepositoryPor
 
   async transition(
     id: string,
-    expectedStatus: ApprovalStatus,
+    expected: ExpectedState,
     change: ApprovalTransition,
     ctx?: TransactionContext,
   ): Promise<ApprovalRequest | null> {
     const doc = await ApprovalRequestModel.findOneAndUpdate(
-      { _id: id, status: expectedStatus },
+      { _id: id, status: expected.status, cycle: expected.cycle },
       {
         $set: { status: change.status, decidedAt: change.decidedAt, ...change.newCycle },
         $push: { history: toActionDoc(change.action) },

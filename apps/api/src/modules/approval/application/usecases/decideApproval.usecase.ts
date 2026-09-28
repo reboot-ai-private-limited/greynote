@@ -12,6 +12,11 @@ export interface DecideApprovalInput {
   actor: Actor;
   decision: 'APPROVE' | 'REJECT';
   comment?: string | null | undefined;
+  /**
+   * The cycle the approver was looking at. Required over HTTP, so nobody approves a resubmission
+   * they haven't seen; optional here for scripts and live checks.
+   */
+  expectedCycle?: number | undefined;
 }
 
 /** Approve or reject, as whichever authority `resolveAuthority` grants the actor right now. */
@@ -26,6 +31,9 @@ export class DecideApprovalUseCase {
   async execute(input: DecideApprovalInput): Promise<ApprovalRequest> {
     const request = await this.requests.findById(input.requestId);
     if (!request) throw AppError.notFound();
+    if (input.expectedCycle !== undefined && input.expectedCycle !== request.cycle) {
+      throw AppError.conflict('This was changed and resubmitted since you opened it. Reload it.');
+    }
     if (!isOpen(request.status)) throw AppError.conflict(`This request is already ${request.status.toLowerCase()}.`);
 
     const comment = input.comment?.trim() || null;

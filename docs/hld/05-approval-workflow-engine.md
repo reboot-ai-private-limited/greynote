@@ -157,9 +157,15 @@ The transaction plumbing (`TransactionRunnerPort`, the Mongoose runner) lives in
 
 ## 8. Concurrency
 
-Every status change is a conditional write — "move to X *if still* in Y". Two approvers acting at
-once: one wins, the other gets `409` and nothing of theirs is committed. The same guard covers a
-resubmit racing a reopen, and a decision racing a withdrawal.
+Every status change is a conditional write — "move to X *if still* in Y, on cycle N". Two
+approvers acting at once: one wins, the other gets `409` and nothing of theirs is committed. The
+same guard covers a resubmit racing a reopen, and a decision racing a withdrawal.
+
+Status alone isn't enough: withdraw + resubmit brings a request back to `SUBMITTED` on a new
+cycle, possibly with an edited record behind it. So the write also matches the cycle it was
+decided on, and over HTTP an approver sends the `cycle` they were shown — a decision on a
+resubmission they haven't seen is a `409` ("reload it"), never an approval of content they
+didn't look at.
 
 ## Next
 

@@ -70,15 +70,19 @@ web portal and the app's Team tab can share one approval screen (client §19.6).
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| `GET` | `/inbox` | FIELD, HR, ADMIN | What I can act on now, oldest first. Manager: direct reports at Stage 1. HR: open requests of kinds where HR is a final approver that HR can act on. Admin: every open request. Filters: `kind`, `status`, `submitterId`, `managerId` (Admin), `from`, `to`; paginated |
+| `GET` | `/inbox` | FIELD, HR, ADMIN | What I can act on now, oldest first. Manager: direct reports at Stage 1. HR: open requests of kinds where HR is a final approver that HR can act on. Admin: every open request. Filters: `kind`, `status`, `submitterId`, `managerId` (Admin), `from`, `to` (see below); paginated |
 | `GET` | `/team` | FIELD | My downline's requests, any status, newest first; `scope=direct\|indirect\|all`. Direct reports' Stage-1 requests have `canAct: true`, deeper levels are read-only |
 | `GET` | `/mine` | any | My own requests, newest first |
 | `GET` | `/:id` | submitter, their manager chain, Admin, the kind's final approvers | Detail with the full named `history`, plus `canAct`, `canWithdraw`, `canReopen`. Anyone else: `404` |
-| `POST` | `/:id/approve` | whoever `resolveAuthority` allows | Optional `comment` |
-| `POST` | `/:id/reject` | same | `comment` required |
-| `POST` | `/bulk` | FIELD, HR, ADMIN | `{ decision, requestIds (≤100), comment? }` — each decided independently in its own transaction; `results[]` per id (`ok` + `status`, or `statusCode` + `message`) |
+| `POST` | `/:id/approve` | whoever `resolveAuthority` allows | `cycle` required (the one displayed), optional `comment` |
+| `POST` | `/:id/reject` | same | `cycle` and `comment` required |
+| `POST` | `/bulk` | FIELD, HR, ADMIN | `{ decision, requests: [{ id, cycle }] (≤100), comment? }` — each decided independently in its own transaction; `results[]` per id (`ok` + `status`, or `statusCode` + `message`). A genuine fault on one item is logged and returned as that item's `500`; the rest still run |
 | `POST` | `/:id/withdraw` | the submitter | Only while `SUBMITTED` |
 | `POST` | `/:id/reopen` | ADMIN | Only from `APPROVED`; `comment` required |
+
+`from` / `to` are ISO date-times **with an offset** (`2026-09-28T23:59:59.999+05:30`), both
+inclusive, on `submittedAt`. A bare date is a `400`: the server has no business timezone, so the
+client turns "the 28th" into its own start and end of day. `from` after `to` is a `400` on `to`.
 
 Submitting is not an HTTP endpoint here — it happens through the owning module's own submit
 endpoint, which calls `contract.submit`.
@@ -87,8 +91,8 @@ endpoint, which calls `contract.submit`.
 
 - One request per `(kind, recordId)`; a resubmission is a new **cycle** on it, never a new
   request. Only the original submitter can resubmit.
-- Every status change is conditional on the status it started from (HLD 05 §8) → `409` on a
-  lost race, with nothing committed.
+- Every status change is conditional on the status **and cycle** it started from (HLD 05 §8) →
+  `409` on a lost race, with nothing committed.
 - Decisions, withdrawals and reopens run the kind's `onStatusChange` in the same transaction.
 - The workflow is re-read from config at each (re)submission and fixed for that cycle.
 - `history` is append-only.
@@ -97,6 +101,9 @@ endpoint, which calls `contract.submit`.
 
 - **The submitter's manager changes while a request is pending** — the new manager can act, the
   old one can't (resolved live). Nothing to migrate.
+- **The submitter withdraws, edits and resubmits while the approver has it open** — the
+  approver's decision carries the old `cycle`, so it's a `409` ("changed and resubmitted since
+  you opened it"); they reload and decide on what's actually there.
 - **The manager is inactive or never acts** — Admin approves or rejects from `/inbox` (override,
   final in one step). No timeout or auto-escalation; F8's notifications may add reminders later.
 - **HR submits their own leave** — HR has no manager, so it's top-of-chain; HR can't act on

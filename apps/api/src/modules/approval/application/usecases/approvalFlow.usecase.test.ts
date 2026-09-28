@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ApprovalKindDefinition } from '../../domain/approvalKind.js';
-import type { ApprovalRequest, ApprovalStatus } from '../../domain/approvalRequest.entity.js';
+import type { ApprovalRequest } from '../../domain/approvalRequest.entity.js';
 import type {
   ApprovalListFilter,
   ApprovalListPage,
   ApprovalRequestRepositoryPort,
+  ExpectedState,
 } from '../../domain/approvalRequest.repository.port.js';
 import type { Actor } from '../../domain/approvalRules.js';
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
@@ -48,9 +49,9 @@ class FakeRequests implements ApprovalRequestRepositoryPort {
     this.rows.set(row.id, row);
     return row;
   }
-  async transition(id: string, expected: ApprovalStatus, change: Parameters<ApprovalRequestRepositoryPort['transition']>[2]) {
+  async transition(id: string, expected: ExpectedState, change: Parameters<ApprovalRequestRepositoryPort['transition']>[2]) {
     const row = this.rows.get(id);
-    if (!row || row.status !== expected) return null;
+    if (!row || row.status !== expected.status || row.cycle !== expected.cycle) return null;
     const updated = {
       ...row,
       ...change.newCycle,
@@ -138,8 +139,11 @@ let reopen: ReopenApprovalUseCase;
 let lists: ListApprovalsUseCase;
 let detail: GetApprovalDetailUseCase;
 let bulk: BulkDecideApprovalUseCase;
+/** What bulk handed its fault reporter. */
+let faults: Array<{ requestId: string; err: unknown }>;
 
 beforeEach(() => {
+  faults = [];
   managerOf = { mr: 'asm', asm: 'nsm', asm2: 'nsm', nsm: null };
   managerOnlyKinds = ' test_quick , NONE';
   changes = [];
@@ -154,7 +158,7 @@ beforeEach(() => {
   reopen = new ReopenApprovalUseCase(requests, kinds, transactions);
   lists = new ListApprovalsUseCase(requests, users, kinds);
   detail = new GetApprovalDetailUseCase(requests, users, kinds);
-  bulk = new BulkDecideApprovalUseCase(decide);
+  bulk = new BulkDecideApprovalUseCase(decide, (requestId, err) => faults.push({ requestId, err }));
 });
 
 const submitAs = (submitterId: string, kind = PLAN.kind, recordId = `rec-${submitterId}`) =>
@@ -272,6 +276,31 @@ describe('integrity', () => {
     };
     await expect(approve(req.id, 'asm')).rejects.toMatchObject({ statusCode: 409 });
     expect(requests.rows.get(req.id)?.status).toBe('REJECTED');
+  });
+
+  it('a decision on a cycle the approver has not seen is refused', async () => {
+    const req = await submitAs('mr');
+    await withdraw.execute(req.id, as('mr'));
+    await submitAs('mr'); // edited and resubmitted: cycle 2
+
+    const stale = decide.execute({ requestId: req.id, actor: as('asm'), decision: 'APPROVE', expectedCycle: 1 });
+    await expect(stale).rejects.toMatchObject({ statusCode: 409 });
+    expect(requests.rows.get(req.id)).toMatchObject({ status: 'SUBMITTED', cycle: 2 });
+
+    const seen = await decide.execute({ requestId: req.id, actor: as('asm'), decision: 'APPROVE', expectedCycle: 2 });
+    expect(seen).toMatchObject({ status: 'MANAGER_APPROVED', cycle: 2 });
+  });
+
+  it('a withdraw + resubmit landing between the read and the write is a 409, not an approval of cycle 2', async () => {
+    const req = await submitAs('mr');
+    transactions.beforeNextRun = async () => {
+      await withdraw.execute(req.id, as('mr'));
+      await submitAs('mr');
+    };
+    await expect(approve(req.id, 'asm')).rejects.toMatchObject({ statusCode: 409 });
+    const row = requests.rows.get(req.id);
+    expect(row).toMatchObject({ status: 'SUBMITTED', cycle: 2 });
+    expect(row?.history.some((h) => h.action === 'APPROVE')).toBe(false);
   });
 
   it('a kind must include ADMIN as a final approver, and can only be registered once', () => {
@@ -474,11 +503,61 @@ describe('bulk', () => {
     const other = await submitAs('asm', PLAN.kind, 'c');
     await reject(b.id, 'asm', 'no');
 
-    const results = await bulk.execute({ requestIds: [a.id, b.id, other.id, a.id], actor: as('asm'), decision: 'APPROVE' });
+    const results = await bulk.execute({
+      requests: [a, b, other, a].map((r) => ({ requestId: r.id, expectedCycle: r.cycle })),
+      actor: as('asm'),
+      decision: 'APPROVE',
+    });
     expect(results).toEqual([
       { requestId: a.id, ok: true, status: 'MANAGER_APPROVED' },
       { requestId: b.id, ok: false, statusCode: 409, message: expect.any(String) },
       { requestId: other.id, ok: false, statusCode: 403, message: expect.any(String) },
     ]);
+    expect(faults).toHaveLength(0);
+  });
+
+  it('a genuine fault on one item is reported and returned as a 500 for it; the rest still go through', async () => {
+    const a = await submitAs('mr', PLAN.kind, 'a');
+    const c = await submitAs('mr', PLAN.kind, 'c');
+    // A request whose kind no module registers any more — acting on it is a wiring fault.
+    const gone = { ...a, id: 'req-gone', kind: 'TEST_GONE', recordId: 'gone' };
+    requests.rows.set(gone.id, gone);
+
+    const results = await bulk.execute({
+      requests: [a, gone, c].map((r) => ({ requestId: r.id, expectedCycle: r.cycle })),
+      actor: as('admin'),
+      decision: 'APPROVE',
+    });
+    expect(results).toEqual([
+      { requestId: a.id, ok: true, status: 'APPROVED' },
+      { requestId: gone.id, ok: false, statusCode: 500, message: 'Something went wrong. Please try again shortly.' },
+      { requestId: c.id, ok: true, status: 'APPROVED' },
+    ]);
+    expect(faults.map((f) => f.requestId)).toEqual([gone.id]);
+  });
+
+  it("a failing owning-module handler is a fault for that item, not the whole batch", async () => {
+    const a = await submitAs('mr', PLAN.kind, 'a');
+    const leave = await submitAs('mr', LEAVE.kind, 'l');
+    handlerFails = true; // PLAN's handler throws a plain Error; LEAVE has none
+
+    const results = await bulk.execute({
+      requests: [a, leave].map((r) => ({ requestId: r.id, expectedCycle: r.cycle })),
+      actor: as('asm'),
+      decision: 'APPROVE',
+    });
+    expect(results.map((r) => (r.ok ? r.status : r.statusCode))).toEqual([500, 'MANAGER_APPROVED']);
+    expect(requests.rows.get(a.id)).toMatchObject({ status: 'SUBMITTED' });
+    expect(faults).toHaveLength(1);
+  });
+});
+
+describe('list date range', () => {
+  it('an end before the start is a 400 on `to`', async () => {
+    const range = { from: new Date('2026-09-28T00:00:00+05:30'), to: new Date('2026-09-27T23:59:59+05:30') };
+    await expect(lists.mine(as('mr'), range, { page: 1, pageSize: 20 })).rejects.toMatchObject({
+      statusCode: 400,
+      publicDetails: { field: 'to' },
+    });
   });
 });
