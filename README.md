@@ -8,7 +8,7 @@ One repo, growing toward three apps:
 
 | | | Runs on | Status |
 |---|---|---|---|
-| `apps/api` | Express modular-monolith API | server | in progress — `health` module only |
+| `apps/api` | Express modular-monolith API | server | in progress — Config, Identity, Territory and Approval done ([`docs/roadmap.md`](docs/roadmap.md) phases 0–3); phase 4 next |
 | `apps/web` | Next.js admin/HR/accountant portal | server | planned — [`docs/roadmap.md`](docs/roadmap.md) phase 9 |
 | `apps/mobile` | React Native field-force app | App Store / Play | planned — [`docs/roadmap.md`](docs/roadmap.md) phase 10 |
 
@@ -215,8 +215,8 @@ see [`docs/engineering/build-and-deploy.md`](docs/engineering/build-and-deploy.m
 by `dependency-cruiser`, and it costs nothing at runtime: the contract file is types only.
 
 **Modules import strictly downward, by tier.** `apps/api/.dependency-cruiser.cjs`'s
-`MODULE_TIERS` is the actual dependency graph — Config → Identity → Territory → {Field Master
-Data, Planning, HR} → {Field Activity, Sales, Marketing} → Payroll — and it is the same order
+`MODULE_TIERS` is the actual dependency graph — Config → Identity → {Territory, Approval} →
+{Field Master Data, Planning, HR} → {Field Activity, Sales, Marketing} → Payroll — and it is the same order
 [`docs/roadmap.md`](docs/roadmap.md) builds in. A same-tier or upward import means either the
 dependency is backwards or the module belongs on a different tier.
 

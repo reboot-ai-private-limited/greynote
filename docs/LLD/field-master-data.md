@@ -101,12 +101,41 @@ All Admin-only (Web Portal, `../roadmap.md` phase 9) unless noted.
 | `GET` | `/field-master-data/doctors/:id/sample-allocations` | Admin, assigned MR | Remaining quantities |
 
 Also usable from the mobile field app: `Add Doctor` (PRD §6.2.A) — an MR-initiated `POST
-/field-master-data/doctors` with a reduced field set (category, name, address, email, specialty,
-qualification; no location capture from the field, since PRD §5.1 ties registered location to
-"when added" by Admin). Confirm this reduced-field MR-facing create endpoint's exact shape
-against `../erd/03-field-master-data.md` before implementing — the ERD doesn't currently
-distinguish an Admin-created vs. MR-created Doctor row, and that's a real design question for
-this phase, not assumed here.
+/field-master-data/doctors` with a reduced field set, which goes through approval before the
+Doctor is usable. See **Doctor-creation approval** below.
+
+## Doctor-creation approval
+
+Client sign-off C4 (answered 2026-09-24): a Doctor an MR adds needs approval **Employee →
+Manager → Admin**, through the `approval` module ([`approval.md`](approval.md),
+[`../hld/05-approval-workflow-engine.md`](../hld/05-approval-workflow-engine.md)) — this module
+doesn't re-derive the state machine.
+
+- This module registers a kind (working name `NEW_DOCTOR`, final approver `ADMIN`) and calls
+  `approval.contract.submit({ kind, recordId: doctorId, submitterId })` from the MR's create
+  endpoint, in the same transaction as the insert.
+- **An MR-created Doctor isn't usable until `APPROVED`.** It needs a status outside `active` —
+  `Doctor.status` gains `pending` (ERD 03 lists only `active`/`inactive` today; add it when this
+  is built). Every contract read above (`getDoctorLocation`, `listAssignedDoctors`,
+  `isAssignedToDoctor`, …) treats a `pending` Doctor as not existing yet, so nobody calls on or
+  gives samples to an unapproved Doctor.
+- `onStatusChange` on `APPROVED` sets the Doctor `active`, in the approval's transaction. On
+  `REJECTED` / `WITHDRAWN` it stays `pending`; the MR can edit it (`isEditableBySubmitter`) and
+  resubmit, as a new cycle on the same request.
+- **Admin-created Doctors skip approval** and are created `active` — Admin is the final approver
+  anyway.
+- `MANAGER_ONLY` for this kind is a config switch (`APPROVAL_MANAGER_ONLY_KINDS`), not code, if
+  the client later decides the Admin stage is too heavy.
+
+**Still open before building it** (client sign-off):
+
+- **C4 (second half):** which fields the MR may fill. Working assumption until answered: category,
+  name, address, email, specialty, qualification — no location.
+- **C6:** whether the MR captures the Doctor's location on the first visit (approved by ASM/Admin)
+  or Admin enters it at creation. Today's assumption is Admin at creation, so an MR-created Doctor
+  starts with no registered location — see the no-location edge case below.
+- Whether approval also creates a `DoctorAssignment` to the MR who added the Doctor, or Admin
+  assigns separately. Decide in Phase 4 and record it in `../decision-log.md`.
 
 ## Edge cases
 
@@ -146,6 +175,8 @@ this phase, not assumed here.
   is read (not written) here only insofar as the "route coverage ≠ direct assignment" distinction
   needs Territory's contract to explain the difference in documentation and, likely, in a combined
   "who can see this doctor" query on the Field Activity side rather than in this module.
+- **Approval** (Tier 2, [`approval.md`](approval.md)) — the `NEW_DOCTOR` workflow for MR-created
+  Doctors: `registerKind`, `submit`, `getForRecord`.
 
 Consumed by (Tier 4, `../roadmap.md` phase 6): Field Activity, Sales & Orders, Marketing — see
 Public contract above.
@@ -154,8 +185,8 @@ Public contract above.
 
 - **The geofence distance check and its radius config** — owned by Field Activity and
   `SystemConfig` respectively, not this module. See `../hld/01-sync-and-geofencing.md`.
-- **The MR-facing reduced-field "Add Doctor" endpoint's exact validation rules** — flagged above
-  as needing a design decision during Phase 4, not resolved here.
+- **The MR-facing reduced-field "Add Doctor" endpoint's exact field set** — waits on client
+  sign-off C4/C6 (see Doctor-creation approval above); the approval flow itself is settled.
 - **DoctorGift** — despite being Admin-issued the same way `DoctorSampleAllocation` is, the ERD
   places it in Module 4 (Field Activity) alongside DoctorService, not here. Don't duplicate it in
   this module.

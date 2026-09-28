@@ -64,17 +64,19 @@ needs to call into.
 
 Per PRD §6.2 A and [`hld/10-submission-gating-and-compliance-block.md`](../hld/10-submission-gating-and-compliance-block.md)
 §1, an MR cannot create `DoctorCall`, `ChemistCall`, `DoctorFollowup`, `ChemistFollowup`, or
-`Expense` for a `report_date` until that date's `DailyPlan` (Planning module) is
-`MANAGER_APPROVED`. **The gate lives here, in Field Activity's use cases — it is this module
+`Expense` for a `report_date` until that date's `DailyPlan` (Planning module) is past the
+manager's stage — `MANAGER_APPROVED` or `APPROVED`. **The gate lives here, in Field Activity's use cases — it is this module
 consuming Planning's contract, not something Planning enforces on Field Activity's behalf.**
 
 Every write use case in this module (`CreateDoctorCall`, `CreateExpense`, …) starts with:
 
 ```
-Planning.contract.getPlanStatus(userId, reportDate) === 'MANAGER_APPROVED'
+await Planning.contract.isDailyPlanApproved(userId, reportDate)
 ```
 
-and rejects otherwise. The mobile app also checks this client-side against the locally-synced
+and rejects otherwise. Never compare against a single status here: which statuses count as
+approved is Planning's rule ([`planning.md`](planning.md) § Public contract), and a top-of-chain
+MR, an Admin override or a `MANAGER_ONLY` Daily Plan all land on `APPROVED`, not `MANAGER_APPROVED`. The mobile app also checks this client-side against the locally-synced
 `DailyPlan` status (a UX gate, not a security boundary — `hld/01` §1.1's reference-data cache can
 be stale, e.g. a manager rejected the plan after the device's last sync), so the server check is
 the one that's authoritative.

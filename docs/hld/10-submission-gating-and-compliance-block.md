@@ -4,7 +4,10 @@ Two related rules that keep a field employee's daily workflow honest: you can't 
 
 ## 1. DailyPlan-approval gate
 
-An MR cannot create `DoctorCall`, `ChemistCall`, `DoctorFollowup`, `ChemistFollowup`, or `Expense` (ERD Module 4) for a given date until that date's `DailyPlan` (ERD Module 5) is `MANAGER_APPROVED`.
+An MR cannot create `DoctorCall`, `ChemistCall`, `DoctorFollowup`, `ChemistFollowup`, or `Expense` (ERD Module 4) for a given date until that date's `DailyPlan` (ERD Module 5) is past the manager's stage: its
+`DAILY_PLAN` approval request is `MANAGER_APPROVED` or `APPROVED` (HLD 05). "Approved" below
+means exactly that, and it's Planning's contract (`isDailyPlanApproved`) that answers it — not
+a status comparison in Field Activity or the app.
 
 ```mermaid
 sequenceDiagram
@@ -15,14 +18,14 @@ sequenceDiagram
 
     MR->>App: Open Dr Call / Chemist Call / Followup / Expense
     App->>Cache: Read today's DailyPlan.status
-    alt status != MANAGER_APPROVED
+    alt not approved (no plan, DRAFT, SUBMITTED, REJECTED, WITHDRAWN, REOPENED)
         App-->>MR: Screen disabled, "Today's Tour Plan isn't approved yet"
-    else status == MANAGER_APPROVED
+    else MANAGER_APPROVED or APPROVED
         App-->>MR: Screen usable, MR logs the activity (DRAFT, offline-capable)
         Note over MR,App: ...later, at Submit/sync...
         App->>API: Push record
         API->>API: Re-check DailyPlan.status server-side for that user+date
-        API-->>App: Rejects if DailyPlan isn't actually MANAGER_APPROVED (cache was stale)
+        API-->>App: Rejects if the DailyPlan isn't actually approved (cache was stale)
     end
 ```
 

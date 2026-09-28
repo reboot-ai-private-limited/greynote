@@ -40,16 +40,24 @@ establishes (compare `health.public.ts`'s one-method contract for the pattern, n
 
 ```ts
 interface PlanningPublicContract {
+  /** The DCR gate: may this user log field activity for this date? */
+  isDailyPlanApproved(userId: UserId, date: PlanDate): Promise<boolean>;
   getDailyPlanStatus(userId: UserId, date: PlanDate): Promise<PlanApprovalStatus | null>;
   getMonthlyPlanStatus(userId: UserId, month: PlanMonth): Promise<PlanApprovalStatus | null>;
 }
 ```
 
-`getDailyPlanStatus` is the one method that matters most to the rest of the system: it's what
+`isDailyPlanApproved` is the one method that matters most to the rest of the system: it's what
 Field Activity's submission gate (`hld/10-submission-gating-and-compliance-block.md`) calls to
 decide whether a given user may log a Dr Call, Dr Followup, Chemist Call, Chemist Followup, or
-Expense for a given date. Returns `null` when no `DailyPlan` exists yet for that date — the gate
-treats "no plan" the same as "not approved," never as "approved by default."
+Expense for a given date. **True when the day's `DAILY_PLAN` request is `MANAGER_APPROVED` or
+`APPROVED`** — i.e. past the manager's stage (client sign-off B4: "blocked until the day's Plan is
+Manager-approved"). Checking `=== 'MANAGER_APPROVED'` alone would be wrong: a top-of-chain
+submitter, an Admin override and a `MANAGER_ONLY` workflow all go straight to `APPROVED`, and a
+manager-approved Plan moves on to `APPROVED` when Admin signs it off. False for no plan, `DRAFT`,
+`SUBMITTED`, `REJECTED`, `WITHDRAWN` and `REOPENED` — "no plan" is never "approved by default."
+The rule lives here, once, so Field Activity and the mobile app's cached check don't each
+re-derive it. `getDailyPlanStatus` stays for screens that show the status itself.
 
 Kept deliberately narrow: only status, not the full `DailyPlan` document. A future consumer that
 needs Route or Work-With detail is a reason to extend the contract, not to reach past it.
@@ -66,9 +74,10 @@ needs Route or Work-With detail is a reason to extend the contract, not to reach
   path. This is deliberate, not an oversight: `hld/10`'s gate reads live Plan-approval status, so
   a queued-but-not-yet-server-side submit would let a device believe it's unlocked DCR entry
   before the server agrees.
-- **A `MonthlyPlan` submits as one unit.** Individual `MonthlyPlanEntry` rows have no `status` of
-  their own; the parent `MonthlyPlan.status` governs the whole month. Entries are editable only
-  while the parent is `DRAFT` — once `SUBMITTED`, the month is frozen pending review.
+- **A `MonthlyPlan` submits as one unit.** Individual `MonthlyPlanEntry` rows have no status of
+  their own; the month's one `MONTHLY_PLAN` approval request governs all of them. Entries are
+  editable while the month is still a `DRAFT` (no request yet) or its request
+  `isEditableBySubmitter` (`REJECTED` / `WITHDRAWN` / `REOPENED`) — otherwise the month is frozen.
 - **`route_ids` and `work_with` are arrays, not join rows** — a plan can name more than one Route
   or accompanying colleague for a single day, matching the same pattern `DoctorCall.work_with`
   and `Route.waypoints` use elsewhere in the ERD.
@@ -120,9 +129,12 @@ first endpoints establish, and keep Daily/Monthly symmetric.
 
 ## Edge cases
 
-- **A `DailyPlan` saved as `DRAFT` but never submitted.** Field Activity's gate treats an absent
-  or non-`MANAGER_APPROVED` Plan identically — the employee simply cannot log field activity for
-  that date. No special-cased "forgot to submit" state.
+- **A `DailyPlan` saved as `DRAFT` but never submitted.** `isDailyPlanApproved` is false for an
+  absent Plan and a draft alike — the employee simply cannot log field activity for that date. No
+  special-cased "forgot to submit" state.
+- **Admin rejects (or later reopens) a Plan the manager already approved.** The gate closes again
+  from that moment. What happens to field activity already logged against it that day is Field
+  Activity's call, to decide in Phase 6 — Planning only reports the current state.
 - **Submit attempted with no connectivity.** Must fail clearly and immediately (not silently
   queue) — the client-side UX needs to distinguish this from every other offline-tolerant write
   in the app, since a user's mental model everywhere else is "it'll sync later."
@@ -153,5 +165,3 @@ first endpoints establish, and keep Daily/Monthly symmetric.
   from `DailyPlan` to `MonthlyPlanEntry` if the two are ever linked, which they currently are not.
 - **Post-cutoff submission handling** — flagged above as unresolved; do not invent a behavior for
   this in code before it's decided and recorded in `../decision-log.md`.
-- **Resubmission flow for a rejected Plan** — same open question as Field Activity's DCR;
-  resolve once, for both modules, not independently.
