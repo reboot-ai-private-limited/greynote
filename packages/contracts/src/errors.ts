@@ -14,6 +14,8 @@ export const FAULT_CODES = [
   'FORBIDDEN',
   'NOT_FOUND',
   'CONFLICT',
+  /** A Plan submitted after its deadline without a late-submission exception (409). */
+  'PLAN_SUBMIT_LATE',
   /** An external dependency (e.g. Google Maps) is unconfigured or down — retry later. */
   'SERVICE_UNAVAILABLE',
   'INTERNAL',

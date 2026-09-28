@@ -21,6 +21,25 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = [
     description: 'Day of the month by which a Monthly Plan must be submitted.',
   },
   {
+    key: 'BUSINESS_TIMEZONE',
+    value: 'Asia/Kolkata',
+    module: 'SYSTEM',
+    description: 'IANA timezone every business deadline is read in (e.g. the Daily Plan cutoff time).',
+  },
+  {
+    key: 'LATE_PLAN_GRANT_BY_MANAGER',
+    value: 'false',
+    module: 'PLANNING',
+    description:
+      'Whether a manager (not just Admin) may let someone in their team submit a Plan after its deadline.',
+  },
+  {
+    key: 'LATE_PLAN_GRANT_VALID_HOURS',
+    value: '24',
+    module: 'PLANNING',
+    description: 'Hours a late-submission exception stays usable after it is granted.',
+  },
+  {
     key: 'MAX_REGISTERED_DEVICES_FIELD',
     value: '2',
     module: 'AUTH',

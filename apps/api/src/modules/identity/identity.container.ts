@@ -18,6 +18,7 @@ import { GetPayBandRatesUseCase } from './application/usecases/getPayBandRates.u
 import { GetUserDetailUseCase } from './application/usecases/getUserDetail.usecase.js';
 import { GetUserSummariesUseCase } from './application/usecases/getUserSummaries.usecase.js';
 import { GetUserSummaryUseCase } from './application/usecases/getUserSummary.usecase.js';
+import { IsBlockedUseCase } from './application/usecases/isBlocked.usecase.js';
 import { IsFieldRoleUseCase } from './application/usecases/isFieldRole.usecase.js';
 import { ListDesignationsUseCase } from './application/usecases/listDesignations.usecase.js';
 import { ListPayBandsUseCase } from './application/usecases/listPayBands.usecase.js';
@@ -188,6 +189,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const getDirectReports = new GetDirectReportsUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getDownline = new GetDownlineUseCase(userRepository, roleRepository, employeeProfileRepository);
   const isFieldRole = new IsFieldRoleUseCase(userRepository, roleRepository);
+  const isBlocked = new IsBlockedUseCase(userRepository);
   const getPayBandRates = new GetPayBandRatesUseCase(userRepository, employeeProfileRepository, payBandRepository);
   const getActiveDeviceCount = new GetActiveDeviceCountUseCase(userRepository, userSessionRepository);
 
@@ -233,6 +235,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       getDirectReports: (managerId) => getDirectReports.execute(managerId),
       getDownline: (managerId) => getDownline.execute(managerId),
       isFieldRole: (userId) => isFieldRole.execute(userId),
+      isBlocked: (userId) => isBlocked.execute(userId),
       getPayBandRates: (userId) => getPayBandRates.execute(userId),
       getActiveDeviceCount: (userId) => getActiveDeviceCount.execute(userId),
     },

@@ -23,6 +23,8 @@ export interface IdentityPublicContract {
   /** Everyone below this user at any depth (`depth` 1 = direct report), by depth then name. */
   getDownline(managerId: string): Promise<DownlineMember[]>;
   isFieldRole(userId: string): Promise<boolean>;
+  /** Whether a compliance block (HLD 10) stops this user submitting anything new. */
+  isBlocked(userId: string): Promise<boolean>;
   getPayBandRates(userId: string): Promise<PayBand>;
   getActiveDeviceCount(userId: string): Promise<number>;
 }
