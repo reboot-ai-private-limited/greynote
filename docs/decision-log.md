@@ -17,6 +17,42 @@ old one.
 
 ---
 
+## 2026-09-28 — A late Plan is refused; a one-off exception overrides the deadline
+
+**Decision:** A Daily or Monthly Plan submitted after its deadline is **refused** (`409
+PLAN_SUBMIT_LATE`), not accepted and flagged. Every submit is checked, including a resubmit after
+a rejection or withdrawal. The override is a **late-submission exception** (`LatePlanSubmitGrant`)
+for one user and one Plan (a date or a month):
+
+- **Admin** can grant it to anyone. A **manager** can grant it to someone in their downline only
+  while `LATE_PLAN_GRANT_BY_MANAGER` is `true` (seeded `false`).
+- A reason is required. It expires `LATE_PLAN_GRANT_VALID_HOURS` after it's granted (seeded `24`),
+  covers **one** submit (used up in the same transaction as the submit) and can be revoked while
+  unused.
+- The employee still submits the Plan and it goes through normal approval. Nobody submits on the
+  employee's behalf.
+- Deadlines are read in `BUSINESS_TIMEZONE` (seeded `Asia/Kolkata`). A Daily Plan is due at
+  `DAILY_PLAN_SUBMIT_CUTOFF_TIME` on its own date. A Monthly Plan is due at the end of
+  `MONTHLY_PLAN_SUBMIT_CUTOFF_DATE` in the month before; a day past that month's end (e.g. 30 in
+  February) means its last day.
+
+**Why:** B4 already blocks the DCR until the Plan is approved, so a "late" flag that changed
+nothing would be a deadline in name only. Lifting a rule is Admin's everywhere else too (B6
+unblock, E2 stock reopen, F10 reopen). The manager switch exists because an Admin-only exception
+could make Admin the 10:05 bottleneck for the whole org, and turning it on needs no code change.
+
+**Rejected:** accept-and-flag (no teeth); applying the deadline to the first submit only (the
+user chose every submit, so resubmits get no special rule); requesting an exception through a new
+approval kind (two approval rounds for one day's Plan).
+
+**Consequences:** a manager who rejects a Plan after the cutoff leaves the MR needing an
+exception before they can resubmit, so rejecting early matters. Existing environments need
+`pnpm --filter @greynote/api seed` to get the three new keys. Recorded as sign-off row B8.
+
+**Refs:** `docs/LLD/planning.md`, `docs/erd/05-planning-and-rules.md`, `docs/client-sign-off.md` §B
+
+---
+
 ## 2026-09-28 — Plan deadlines and the DCR gate built on today's assumptions (B1, B3, B4)
 
 **Decision:** The client hasn't answered sign-off rows B1, B3 and B4. Their "Today" assumptions

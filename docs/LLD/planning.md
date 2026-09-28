@@ -21,8 +21,13 @@ even if it wanted to enforce anything there.
 - **`MonthlyPlan`** — the envelope: one row per user per month, carrying only the approval
   fields. Its `MonthlyPlanEntry` children hold the day-by-day detail (same shape as `DailyPlan`:
   `working_type`, `work_with`, `route_ids`, `remarks`, one per planned date).
-- **`MonthlyPlanEntry`** — a child row of `MonthlyPlan`. Freely editable while the parent is
-  `DRAFT`; the whole month submits together as one unit, not entry by entry.
+- **`MonthlyPlanEntry`** — a child of `MonthlyPlan`, embedded in its Mongo document (at most 31,
+  always saved and submitted together, so one document keeps each write atomic). Freely editable
+  while the parent is `DRAFT`; the whole month submits together as one unit, not entry by entry.
+- **`LatePlanSubmitGrant`** — a one-off exception to a submit deadline (see *Late-submission
+  exceptions*).
+
+Plan dates are calendar days (`YYYY-MM-DD`, months `YYYY-MM`), stored as strings, not instants.
 
 `DailyPlan` and `MonthlyPlan` are **independent** — no FK between a `DailyPlan` row and a
 `MonthlyPlanEntry`, by deliberate ERD choice (no plan-vs-actual adherence feature yet; see
@@ -82,11 +87,34 @@ needs Route or Work-With detail is a reason to extend the contract, not to reach
   or accompanying colleague for a single day, matching the same pattern `DoctorCall.work_with`
   and `Route.waypoints` use elsewhere in the ERD.
 - **Submit-time cutoffs are enforced from `Config`, not hardcoded**: `DAILY_PLAN_SUBMIT_CUTOFF_TIME`
-  (default `10:00`) and `MONTHLY_PLAN_SUBMIT_CUTOFF_DATE` (default the 28th). The PRD does not
-  yet specify what happens to a Plan submitted after its cutoff — allowed-but-flagged vs.
-  rejected outright is unresolved; treat as an open question to close before this module's
-  `submitDailyPlan`/`submitMonthlyPlan` use cases are implemented, not something to silently
-  decide in code.
+  (default `10:00`) and `MONTHLY_PLAN_SUBMIT_CUTOFF_DATE` (default the 28th), read in
+  `BUSINESS_TIMEZONE` (default `Asia/Kolkata`) on every submit. A Daily Plan is due at the cutoff
+  time on its own date. A Monthly Plan is due at the end of the cutoff day in the month before (a
+  day past that month's end means its last day).
+- **A late submit is refused** (`409 PLAN_SUBMIT_LATE`, details carry `deadline` and `planKey`),
+  resubmits included, unless the employee holds a late-submission exception (below). Decided
+  2026-09-28, sign-off B8.
+- **A blocked user can't submit** (`403`), checked through Identity's `isBlocked` (PRD §7.5,
+  `hld/10`).
+- **Submit validates against today's state:** every `route_id` must be one of the submitter's
+  active Routes (Territory's `listRoutesForUser`), every `work_with` id an active user other than
+  the submitter. `FIELD_WORK` needs at least one Route; `MEETING` / `CONFERENCE` / `STRIKE` take
+  none.
+
+## Late-submission exceptions
+
+A `LatePlanSubmitGrant` lets one employee submit one Plan (`DAILY_PLAN` + date, or
+`MONTHLY_PLAN` + month) after its deadline:
+
+- **Who grants:** Admin, for anyone. A manager, for someone in their downline, only while
+  `LATE_PLAN_GRANT_BY_MANAGER` is `true` (seeded `false`). A reason is required.
+- **Lifetime:** expires `LATE_PLAN_GRANT_VALID_HOURS` after it's granted (seeded `24`). It's used
+  up by the submit it allows, inside the same transaction as `approval.submit`, so a failed
+  submit leaves it unused. Admin or the grantor can revoke it while it's unused.
+- At most one open (unused, unrevoked) exception per employee and Plan. An expired one doesn't
+  count as open.
+- It only lifts the deadline. The Plan still goes through normal approval, and a later late
+  resubmit of the same Plan needs a new exception.
 
 ## Approval workflow
 
@@ -122,6 +150,11 @@ this doc does not re-derive that state machine. As it applies here:
 | `GET` | `/planning/daily/:id` | FIELD, manager (read-only per visibility rules) | Fetch one |
 | `POST` | `/planning/monthly` | FIELD | Save/update a Monthly Plan and its entries |
 | `POST` | `/planning/monthly/:id/submit` | FIELD | Submit the whole month |
+| `GET` | `/planning/monthly` | FIELD | List own Monthly Plans (month range) |
+| `GET` | `/planning/monthly/:id` | FIELD, manager (read-only), Admin | Fetch one |
+| `POST` | `/planning/late-grants` | ADMIN; FIELD manager while `LATE_PLAN_GRANT_BY_MANAGER` is on | Grant a late-submission exception |
+| `GET` | `/planning/late-grants` | ADMIN (all), FIELD manager (downline) | List exceptions |
+| `POST` | `/planning/late-grants/:id/revoke` | ADMIN, the grantor | Revoke an unused exception |
 | — | `/api/approvals/*` | Manager, Admin | Pending queue, team view (actionable vs read-only), approve/reject, Admin's org-wide queue and override — the approval module's endpoints ([`approval.md`](approval.md)), filtered with `kind=DAILY_PLAN` / `MONTHLY_PLAN` |
 
 Exact paths are illustrative — finalize against whatever URL convention the Identity module's
@@ -143,18 +176,19 @@ first endpoints establish, and keep Daily/Monthly symmetric.
 - **A rejected Plan.** The employee edits and resubmits; the approval module records it as a new
   cycle on the same request, history kept (HLD 05 §3).
 - **Compliance block active** (PRD §7.5): a user blocked for missed DCR cannot submit a new
-  Daily/Monthly Plan at all. This module doesn't own the block state (Field Activity/`hld/10`
-  does) but its submit use cases must check it before accepting a submission.
+  Daily/Monthly Plan at all. This module doesn't own the block state (the flag is Identity's
+  `User.isBlocked`, set by Field Activity's job in `hld/10`); its submit use cases check Identity's
+  `isBlocked` before accepting a submission.
 - **Nearest manager can't act** (deactivated, on leave, forgot, unreachable) — no per-reason
   detection; Admin approves or rejects from the approval inbox at any time (HLD 05 §4). Same
   rule for every reason.
 
 ## Dependencies
 
-- **Identity** (Tier 1): submitter identity and role.
+- **Identity** (Tier 1): submitter identity and role, the manager chain, `isBlocked`.
 - **Territory** (Tier 2): `route_ids` reference Territory's `Route` entities — Planning validates
   a referenced route exists and is one the submitter is assigned to, via Territory's contract.
-- **Config** (Tier 0): submit-cutoff values.
+- **Config** (Tier 0): submit cutoffs, `BUSINESS_TIMEZONE`, the late-exception keys.
 - **Approval** (Tier 2, [`approval.md`](approval.md)): the whole approve/reject workflow,
   approver resolution and team visibility.
 
@@ -163,5 +197,5 @@ first endpoints establish, and keep Daily/Monthly symmetric.
 - **Plan-vs-actual adherence reporting** (comparing a `DailyPlan`'s planned routes against the
   DCR calls actually logged that day) — explicitly deferred in `erd/05`; would need a nullable FK
   from `DailyPlan` to `MonthlyPlanEntry` if the two are ever linked, which they currently are not.
-- **Post-cutoff submission handling** — flagged above as unresolved; do not invent a behavior for
-  this in code before it's decided and recorded in `../decision-log.md`.
+- **In-day changes to an approved Daily Plan** (client §2.6) — see *Approval workflow*.
+- **How far ahead a Daily Plan may be made** — no limit yet.
