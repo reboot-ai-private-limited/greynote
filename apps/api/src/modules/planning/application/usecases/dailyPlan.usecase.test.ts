@@ -84,10 +84,11 @@ describe('Daily Plan', () => {
     expect((await submit.execute(MR, plan.id)).status).toBe('SUBMITTED');
   });
 
-  it('refuses a late resubmit after a rejection too', async () => {
+  it('refuses a late resubmit once the after-rejection window has closed', async () => {
     const plan = await save.execute(MR, DATE, fieldDay());
     await submit.execute(MR, plan.id);
-    kit.approvals.setStatus('DAILY_PLAN', plan.id, 'REJECTED');
+    // Rejected at 09:00 IST: the window is just the deadline, 10:00.
+    kit.approvals.setStatus('DAILY_PLAN', plan.id, 'REJECTED', new Date('2026-10-05T03:30:00Z'));
     clock.set(AFTER_CUTOFF);
     await save.execute(MR, DATE, fieldDay({ remarks: 'fixed' }));
     await expectError(submit.execute(MR, plan.id), 409, 'PLAN_SUBMIT_LATE');

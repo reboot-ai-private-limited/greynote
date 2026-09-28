@@ -17,6 +17,35 @@ old one.
 
 ---
 
+## 2026-09-28 — A rejected Plan gets a short window to be resubmitted
+
+**Decision:** Adds to the late-Plan rule below. After a **rejection**, the employee may resubmit
+past the deadline until the later of the deadline and the rejection time plus a grace period. Two
+limits apply, whichever is reached first:
+
+- **Daily Plan:** grace `DAILY_PLAN_RESUBMIT_GRACE_MINUTES` (30), never after
+  `DAILY_PLAN_RESUBMIT_LATEST_TIME` (11:30) on the plan's date.
+- **Monthly Plan:** grace `MONTHLY_PLAN_RESUBMIT_GRACE_HOURS` (24), never after the month has
+  started.
+- **Both:** at most `PLAN_RESUBMIT_GRACE_MAX` (2) resubmits through the window per Plan.
+
+A rejection before the deadline gets the same window (09:50 → 10:20). The window follows a
+rejection only, not the employee's own withdraw (which would let them buy time) and not an Admin
+reopen. Once the window is closed or used up, the late-submission exception still applies. A
+submit inside the window never uses an exception. All four values are SystemConfig.
+
+**Why:** with every submit checked, a manager rejecting at 10:30 cost the MR the day unless
+someone granted an exception. Telling managers to "reject early" isn't a rule anyone can enforce.
+The count stops endless reject-and-resubmit rounds, and the time cap keeps the field day usable.
+
+**Consequences:** Plans carry a `lateResubmits` count, raised in the submit transaction. Plan
+views show `resubmitAllowedUntil` while a window is open. Existing environments need a re-seed for
+the four new keys.
+
+**Refs:** `docs/LLD/planning.md`, `docs/client-sign-off.md` B8
+
+---
+
 ## 2026-09-28 — A late Plan is refused; a one-off exception overrides the deadline
 
 **Decision:** A Daily or Monthly Plan submitted after its deadline is **refused** (`409

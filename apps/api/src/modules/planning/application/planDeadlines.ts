@@ -2,9 +2,12 @@ import {
   assertTimeZone,
   dailyPlanDeadline,
   monthlyPlanDeadline,
+  parseCalendarMonth,
   parseTimeOfDay,
+  zonedInstant,
 } from '@/shared/time/businessTime.js';
 import { PLANNING_CONFIG_KEYS, type ConfigProviderPort } from '../domain/configProvider.port.js';
+import type { ResubmitPolicy } from '../domain/resubmitWindow.js';
 import { parsePositiveInt, readConfig } from './readConfig.js';
 
 /**
@@ -34,6 +37,39 @@ export class PlanDeadlines {
       readConfig(this.config, PLANNING_CONFIG_KEYS.monthlyCutoffDay, parsePositiveInt(31)),
     ]);
     return monthlyPlanDeadline(planMonth, cutoffDay, timeZone);
+  }
+
+  async dailyResubmitPolicy(planDate: string): Promise<ResubmitPolicy> {
+    const [timeZone, minutes, latestTime, max] = await Promise.all([
+      this.timeZone(),
+      readConfig(this.config, PLANNING_CONFIG_KEYS.dailyResubmitGraceMinutes, parsePositiveInt(24 * 60)),
+      readConfig(this.config, PLANNING_CONFIG_KEYS.dailyResubmitLatestTime, (v) => {
+        parseTimeOfDay(v);
+        return v;
+      }),
+      this.resubmitMax(),
+    ]);
+    return { graceMs: minutes * 60_000, latest: dailyPlanDeadline(planDate, latestTime, timeZone), max };
+  }
+
+  async monthlyResubmitPolicy(planMonth: string): Promise<ResubmitPolicy> {
+    const [timeZone, hours, max] = await Promise.all([
+      this.timeZone(),
+      readConfig(this.config, PLANNING_CONFIG_KEYS.monthlyResubmitGraceHours, parsePositiveInt(24 * 31)),
+      this.resubmitMax(),
+    ]);
+    const { year, month } = parseCalendarMonth(planMonth);
+    // The last moment before the month starts.
+    const latest = new Date(zonedInstant({ year, month, day: 1 }, 0, 0, timeZone).getTime() - 1);
+    return { graceMs: hours * 3_600_000, latest, max };
+  }
+
+  private resubmitMax(): Promise<number> {
+    return readConfig(this.config, PLANNING_CONFIG_KEYS.resubmitGraceMax, (v) => {
+      // 0 is allowed: switches the window off.
+      if (!/^\d{1,2}$/.test(v)) throw new RangeError(`Not a whole number from 0 to 99: ${v}`);
+      return Number(v);
+    });
   }
 
   private timeZone(): Promise<string> {

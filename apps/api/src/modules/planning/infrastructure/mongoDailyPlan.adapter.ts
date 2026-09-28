@@ -13,6 +13,7 @@ function toPlan(doc: DailyPlanDoc & { _id: unknown }): DailyPlan {
     planDate: doc.planDate,
     ...toPlanDay(doc),
     revision: doc.revision,
+    lateResubmits: doc.lateResubmits ?? 0,
     updatedAt: doc.updatedAt,
   };
 }
@@ -40,7 +41,7 @@ export class MongoDailyPlanAdapter implements DailyPlanRepositoryPort {
     const body = { ...toDayDoc(day), updatedAt: new Date() };
     if (expectedRevision === null) {
       try {
-        const doc = await DailyPlanModel.create({ userId: new Types.ObjectId(userId), planDate, ...body, revision: 1 });
+        const doc = await DailyPlanModel.create({ userId: new Types.ObjectId(userId), planDate, ...body, revision: 1, lateResubmits: 0 });
         return toPlan(doc.toObject());
       } catch (err) {
         // Another save created the day's plan first.
@@ -56,10 +57,10 @@ export class MongoDailyPlanAdapter implements DailyPlanRepositoryPort {
     return doc ? toPlan(doc) : null;
   }
 
-  async confirmRevision(id: string, revision: number, ctx: TransactionContext): Promise<boolean> {
+  async confirmRevision(id: string, revision: number, countLateResubmit: boolean, ctx: TransactionContext): Promise<boolean> {
     const result = await DailyPlanModel.updateOne(
       { _id: id, revision },
-      { $inc: { revision: 1 } },
+      { $inc: { revision: 1, ...(countLateResubmit && { lateResubmits: 1 }) } },
       { session: ctx as ClientSession },
     );
     return result.matchedCount === 1;

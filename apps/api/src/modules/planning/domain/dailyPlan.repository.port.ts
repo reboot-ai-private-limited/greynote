@@ -16,6 +16,7 @@ export interface DailyPlanRepositoryPort {
    * Inside the submit transaction: bumps `revision` only if the plan is still at `revision`.
    * Both sides being conditional is what stops an edit and a submit crossing — the submit can't
    * send a plan it didn't validate, and the edit can't land on a plan that was just submitted.
+   * `countLateResubmit` also raises `lateResubmits`, for a submit through the resubmit window.
    */
-  confirmRevision(id: string, revision: number, ctx: TransactionContext): Promise<boolean>;
+  confirmRevision(id: string, revision: number, countLateResubmit: boolean, ctx: TransactionContext): Promise<boolean>;
 }

@@ -12,6 +12,7 @@ function toPlan(doc: MonthlyPlanDoc & { _id: unknown }): MonthlyPlan {
     planMonth: doc.planMonth,
     entries: doc.entries.map((e) => ({ planDate: e.planDate, ...toPlanDay(e) })),
     revision: doc.revision,
+    lateResubmits: doc.lateResubmits ?? 0,
     updatedAt: doc.updatedAt,
   };
 }
@@ -49,7 +50,7 @@ export class MongoMonthlyPlanAdapter implements MonthlyPlanRepositoryPort {
     const body = { entries: toEntryDocs(entries), updatedAt: new Date() };
     if (expectedRevision === null) {
       try {
-        const doc = await MonthlyPlanModel.create({ userId: new Types.ObjectId(userId), planMonth, ...body, revision: 1 });
+        const doc = await MonthlyPlanModel.create({ userId: new Types.ObjectId(userId), planMonth, ...body, revision: 1, lateResubmits: 0 });
         return toPlan(doc.toObject());
       } catch (err) {
         // Another save created the month's plan first.
@@ -65,10 +66,10 @@ export class MongoMonthlyPlanAdapter implements MonthlyPlanRepositoryPort {
     return doc ? toPlan(doc) : null;
   }
 
-  async confirmRevision(id: string, revision: number, ctx: TransactionContext): Promise<boolean> {
+  async confirmRevision(id: string, revision: number, countLateResubmit: boolean, ctx: TransactionContext): Promise<boolean> {
     const result = await MonthlyPlanModel.updateOne(
       { _id: id, revision },
-      { $inc: { revision: 1 } },
+      { $inc: { revision: 1, ...(countLateResubmit && { lateResubmits: 1 }) } },
       { session: ctx as ClientSession },
     );
     return result.matchedCount === 1;

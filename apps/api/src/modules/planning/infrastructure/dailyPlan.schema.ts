@@ -5,6 +5,7 @@ export interface DailyPlanDoc extends PlanDayDoc {
   userId: Types.ObjectId;
   planDate: string;
   revision: number;
+  lateResubmits: number;
   updatedAt: Date;
 }
 
@@ -14,6 +15,7 @@ const dailyPlanSchema = new Schema<DailyPlanDoc>({
   planDate: { type: String, required: true },
   ...planDaySchemaFields,
   revision: { type: Number, required: true },
+  lateResubmits: { type: Number, default: 0 },
   updatedAt: { type: Date, required: true },
 });
 

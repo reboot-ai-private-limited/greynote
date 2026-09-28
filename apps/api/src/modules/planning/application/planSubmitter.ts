@@ -3,9 +3,11 @@ import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalsPort } from '../domain/approvals.port.js';
+import type { LateSubmitGrant } from '../domain/lateSubmitGrant.entity.js';
 import type { LateSubmitGrantRepositoryPort } from '../domain/lateSubmitGrant.repository.port.js';
 import type { PlanDay, PlanKind } from '../domain/plan.js';
 import { assertPlanDay } from '../domain/planRules.js';
+import { resubmitWindowEnd, type ResubmitPolicy } from '../domain/resubmitWindow.js';
 import type { RouteDirectoryPort } from '../domain/routeDirectory.port.js';
 import type { UserDirectoryPort } from '../domain/userDirectory.port.js';
 
@@ -16,17 +18,24 @@ export interface PlanSubmission {
   /** The date (`YYYY-MM-DD`) or month (`YYYY-MM`) the Plan is for. */
   planKey: string;
   deadline: Date;
+  /** The after-rejection window, and how many resubmits this Plan already made through it. */
+  resubmitPolicy: ResubmitPolicy;
+  lateResubmits: number;
   /** Every day in the Plan, with the field prefix its errors carry. */
   days: Array<{ day: PlanDay; field: string }>;
-  /** Inside the transaction: false if the Plan was edited after it was validated here. */
-  confirmRevision: (ctx: TransactionContext) => Promise<boolean>;
+  /**
+   * Inside the transaction: false if the Plan was edited after it was validated here.
+   * `countLateResubmit` records a submit through the resubmit window.
+   */
+  confirmRevision: (countLateResubmit: boolean, ctx: TransactionContext) => Promise<boolean>;
 }
 
 /**
  * The submit pipeline Daily and Monthly Plans share (LLD planning.md, write-path rules): not
  * already pending/approved → not blocked → valid against today's routes and colleagues → before
- * the deadline, or holding a late-submission exception → submitted to the approval module in one
- * transaction with the revision check and the exception's use, so a failed submit keeps it.
+ * the deadline, inside the after-rejection window, or holding a late-submission exception →
+ * submitted to the approval module in one transaction with the revision check and the window
+ * count or the exception's use, so a failed submit keeps both.
  */
 export class PlanSubmitter {
   constructor(
@@ -53,16 +62,23 @@ export class PlanSubmitter {
     }
     await this.assertValid(s);
 
+    // Late (sign-off B8): the after-rejection window first, so an exception is kept for later;
+    // otherwise a late-submission exception, used up by this submit.
     const now = this.now();
-    // Late: only with a late-submission exception, used up by this submit (sign-off B8).
-    const grant = now > s.deadline ? await this.grants.findUsable(s.ownerId, s.kind, s.planKey, now) : null;
-    if (now > s.deadline && !grant) throw lateError(s);
+    let inWindow = false;
+    let grant: LateSubmitGrant | null = null;
+    if (now > s.deadline) {
+      const windowEnd = resubmitWindowEnd(existing, s.deadline, s.resubmitPolicy, s.lateResubmits);
+      inWindow = windowEnd !== null && now <= windowEnd;
+      if (!inWindow) grant = await this.grants.findUsable(s.ownerId, s.kind, s.planKey, now);
+      if (!inWindow && !grant) throw lateError(s);
+    }
 
     return this.transactions.run(async (ctx) => {
       if (grant && !(await this.grants.consume(grant.id, now, ctx))) {
         throw AppError.conflict('The late-submission exception was used, revoked or expired meanwhile.');
       }
-      if (!(await s.confirmRevision(ctx))) {
+      if (!(await s.confirmRevision(inWindow, ctx))) {
         throw AppError.conflict('This plan changed while it was being submitted. Reload it and try again.');
       }
       return this.approvals.submit({ kind: s.kind, recordId: s.recordId, submitterId: s.ownerId }, ctx);

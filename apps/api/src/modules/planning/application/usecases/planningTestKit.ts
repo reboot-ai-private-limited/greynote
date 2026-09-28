@@ -39,15 +39,16 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
       planDate,
       ...day,
       revision: (existing?.revision ?? 0) + 1,
+      lateResubmits: existing?.lateResubmits ?? 0,
       updatedAt: new Date(),
     };
     this.rows.set(plan.id, plan);
     return plan;
   }
-  async confirmRevision(id: string, revision: number) {
+  async confirmRevision(id: string, revision: number, countLateResubmit: boolean) {
     const plan = this.rows.get(id);
     if (!plan || plan.revision !== revision) return false;
-    this.rows.set(id, { ...plan, revision: revision + 1 });
+    this.rows.set(id, { ...plan, revision: revision + 1, lateResubmits: plan.lateResubmits + (countLateResubmit ? 1 : 0) });
     return true;
   }
 }
@@ -74,15 +75,16 @@ export class FakeMonthlyPlans implements MonthlyPlanRepositoryPort {
       planMonth,
       entries,
       revision: (existing?.revision ?? 0) + 1,
+      lateResubmits: existing?.lateResubmits ?? 0,
       updatedAt: new Date(),
     };
     this.rows.set(plan.id, plan);
     return plan;
   }
-  async confirmRevision(id: string, revision: number) {
+  async confirmRevision(id: string, revision: number, countLateResubmit: boolean) {
     const plan = this.rows.get(id);
     if (!plan || plan.revision !== revision) return false;
-    this.rows.set(id, { ...plan, revision: revision + 1 });
+    this.rows.set(id, { ...plan, revision: revision + 1, lateResubmits: plan.lateResubmits + (countLateResubmit ? 1 : 0) });
     return true;
   }
 }
@@ -162,10 +164,27 @@ export class FakeApprovals implements ApprovalsPort {
   async getForRecord(kind: string, recordId: string) {
     return this.requests.get(`${kind}:${recordId}`) ?? null;
   }
-  setStatus(kind: string, recordId: string, status: ApprovalStatus) {
+  /** A decision at `at`; a rejection is appended to the history, where the resubmit window reads it. */
+  setStatus(kind: string, recordId: string, status: ApprovalStatus, at = new Date()) {
     const request = this.requests.get(`${kind}:${recordId}`);
     if (!request) throw new Error('no request');
-    this.requests.set(`${kind}:${recordId}`, { ...request, status });
+    const history =
+      status === 'REJECTED'
+        ? [
+            ...request.history,
+            {
+              action: 'REJECT' as const,
+              authority: 'MANAGER' as const,
+              actorId: 'manager',
+              actorRole: 'FIELD' as const,
+              comment: 'no',
+              at,
+              resultingStatus: status,
+              cycle: request.cycle,
+            },
+          ]
+        : request.history;
+    this.requests.set(`${kind}:${recordId}`, { ...request, status, history });
   }
 }
 
@@ -230,6 +249,10 @@ export class FakeConfig {
     MONTHLY_PLAN_SUBMIT_CUTOFF_DATE: '28',
     LATE_PLAN_GRANT_BY_MANAGER: 'false',
     LATE_PLAN_GRANT_VALID_HOURS: '24',
+    DAILY_PLAN_RESUBMIT_GRACE_MINUTES: '30',
+    DAILY_PLAN_RESUBMIT_LATEST_TIME: '11:30',
+    MONTHLY_PLAN_RESUBMIT_GRACE_HOURS: '24',
+    PLAN_RESUBMIT_GRACE_MAX: '2',
   };
   async get(key: string) {
     const value = this.values[key];

@@ -36,7 +36,7 @@ cheapest to change before the listed phase starts.
 | B5 | Missed-DCR rule for 1 / 2 / 3 consecutive days (§3.7). | Block after 1 grace day (*config*), with an on/off switch | Designed |
 | B6 | Can Admin override a locked/blocked DCR (§3.8)? | Yes — Admin can unblock an employee and approve any pending Plan/DCR directly | Built (unblock) / Designed |
 | B7 | Attendance: is a day "present" on DCR **submit** or on DCR **approval** (§10.1)? | Not decided | Open |
-| B8 | A Plan submitted after its deadline: refused, or accepted and flagged? | Refused, resubmits included. Admin (and a manager, if *config* `LATE_PLAN_GRANT_BY_MANAGER` is on) can grant a one-off exception for one Plan, valid for `LATE_PLAN_GRANT_VALID_HOURS` (*config*, 24) | Built |
+| B8 | A Plan submitted after its deadline: refused, or accepted and flagged? | Refused, resubmits included — except that after a rejection the employee has a window: Daily 30 min, never after 11:30; Monthly 24 h, never after the month starts; at most 2 per Plan (all *config*). Beyond that, Admin (and a manager, if *config* `LATE_PLAN_GRANT_BY_MANAGER` is on) can grant a one-off exception for one Plan, valid for `LATE_PLAN_GRANT_VALID_HOURS` (*config*, 24) | Built |
 
 ## C. Doctors, Chemists & Distributors (Phase 4)
 

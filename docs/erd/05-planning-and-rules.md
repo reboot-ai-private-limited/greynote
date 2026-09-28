@@ -88,6 +88,10 @@ erDiagram
   - `BUSINESS_TIMEZONE` = `Asia/Kolkata` — the timezone every business deadline is read in
   - `LATE_PLAN_GRANT_BY_MANAGER` = `false` — whether a manager (not just Admin) may grant a late-submission exception
   - `LATE_PLAN_GRANT_VALID_HOURS` = `24` — how long a late-submission exception stays usable
+  - `DAILY_PLAN_RESUBMIT_GRACE_MINUTES` = `30` — after a rejection, how long a Daily Plan may still be resubmitted past its deadline
+  - `DAILY_PLAN_RESUBMIT_LATEST_TIME` = `11:30` — no Daily Plan resubmit window runs past this time on the plan's date
+  - `MONTHLY_PLAN_RESUBMIT_GRACE_HOURS` = `24` — the same window for a Monthly Plan, never past the month's start
+  - `PLAN_RESUBMIT_GRACE_MAX` = `2` — at most this many window resubmits per Plan
   - `MAX_REGISTERED_DEVICES_FIELD` = `2` (Module 1) — approved + pending phones per field employee
   - `REJECTED_DEVICE_TTL_DAYS` = `7` (Module 1) — how long a phone Admin rejected stays blocked
   - `GEO_FENCE_RADIUS_METERS` = `200` (Module 4, exact default TBD)

@@ -23,8 +23,10 @@ export class SubmitMonthlyPlanUseCase {
       ownerId: plan.userId,
       planKey: plan.planMonth,
       deadline: await this.deadlines.monthly(plan.planMonth),
+      resubmitPolicy: await this.deadlines.monthlyResubmitPolicy(plan.planMonth),
+      lateResubmits: plan.lateResubmits,
       days: plan.entries.map((day, i) => ({ day, field: `entries.${i}.` })),
-      confirmRevision: (ctx) => this.plans.confirmRevision(plan.id, plan.revision, ctx),
+      confirmRevision: (count, ctx) => this.plans.confirmRevision(plan.id, plan.revision, count, ctx),
     });
   }
 }

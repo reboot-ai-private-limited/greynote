@@ -13,5 +13,5 @@ export interface MonthlyPlanRepositoryPort {
     entries: MonthlyPlanEntry[],
     expectedRevision: number | null,
   ): Promise<MonthlyPlan | null>;
-  confirmRevision(id: string, revision: number, ctx: TransactionContext): Promise<boolean>;
+  confirmRevision(id: string, revision: number, countLateResubmit: boolean, ctx: TransactionContext): Promise<boolean>;
 }

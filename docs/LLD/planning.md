@@ -92,8 +92,23 @@ needs Route or Work-With detail is a reason to extend the contract, not to reach
   time on its own date. A Monthly Plan is due at the end of the cutoff day in the month before (a
   day past that month's end means its last day).
 - **A late submit is refused** (`409 PLAN_SUBMIT_LATE`, details carry `deadline` and `planKey`),
-  resubmits included, unless the employee holds a late-submission exception (below). Decided
-  2026-09-28, sign-off B8.
+  resubmits included, unless a resubmit window is open or the employee holds a late-submission
+  exception (both below). Decided 2026-09-28, sign-off B8.
+
+## Resubmit window after a rejection
+
+After a rejection, the employee may resubmit past the deadline until the later of the deadline and
+the rejection time plus a grace period. Limits apply, whichever is reached first:
+
+| | Grace | Hard stop |
+|---|---|---|
+| Daily Plan | `DAILY_PLAN_RESUBMIT_GRACE_MINUTES` (30) | `DAILY_PLAN_RESUBMIT_LATEST_TIME` (11:30) on the plan's date |
+| Monthly Plan | `MONTHLY_PLAN_RESUBMIT_GRACE_HOURS` (24) | the start of the plan's month |
+
+Both are limited to `PLAN_RESUBMIT_GRACE_MAX` (2) window resubmits per Plan, counted on the Plan
+(`lateResubmits`) in the submit transaction. The window opens only on `REJECTED`, not after the
+employee's own withdraw and not after an Admin reopen. A submit inside the window doesn't use a
+late-submission exception. Plan views show `resubmitAllowedUntil` while one is open.
 - **A blocked user can't submit** (`403`), checked through Identity's `isBlocked` (PRD §7.5,
   `hld/10`).
 - **Submit validates against today's state:** every `route_id` must be one of the submitter's

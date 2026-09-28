@@ -23,8 +23,10 @@ export class SubmitDailyPlanUseCase {
       ownerId: plan.userId,
       planKey: plan.planDate,
       deadline: await this.deadlines.daily(plan.planDate),
+      resubmitPolicy: await this.deadlines.dailyResubmitPolicy(plan.planDate),
+      lateResubmits: plan.lateResubmits,
       days: [{ day: plan, field: '' }],
-      confirmRevision: (ctx) => this.plans.confirmRevision(plan.id, plan.revision, ctx),
+      confirmRevision: (count, ctx) => this.plans.confirmRevision(plan.id, plan.revision, count, ctx),
     });
   }
 }

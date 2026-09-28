@@ -40,6 +40,30 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = [
     description: 'Hours a late-submission exception stays usable after it is granted.',
   },
   {
+    key: 'DAILY_PLAN_RESUBMIT_GRACE_MINUTES',
+    value: '30',
+    module: 'PLANNING',
+    description: 'After a rejection, minutes a Daily Plan may still be resubmitted past its deadline.',
+  },
+  {
+    key: 'DAILY_PLAN_RESUBMIT_LATEST_TIME',
+    value: '11:30',
+    module: 'PLANNING',
+    description: 'Time of day on the plan date after which a rejected Daily Plan can no longer be resubmitted.',
+  },
+  {
+    key: 'MONTHLY_PLAN_RESUBMIT_GRACE_HOURS',
+    value: '24',
+    module: 'PLANNING',
+    description: 'After a rejection, hours a Monthly Plan may still be resubmitted past its deadline (never after the month starts).',
+  },
+  {
+    key: 'PLAN_RESUBMIT_GRACE_MAX',
+    value: '2',
+    module: 'PLANNING',
+    description: 'Most resubmits per Plan allowed through the after-rejection window.',
+  },
+  {
     key: 'MAX_REGISTERED_DEVICES_FIELD',
     value: '2',
     module: 'AUTH',

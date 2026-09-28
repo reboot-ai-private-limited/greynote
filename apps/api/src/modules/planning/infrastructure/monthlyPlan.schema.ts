@@ -10,6 +10,7 @@ export interface MonthlyPlanDoc {
   planMonth: string;
   entries: MonthlyPlanEntryDoc[];
   revision: number;
+  lateResubmits: number;
   updatedAt: Date;
 }
 
@@ -26,6 +27,7 @@ const monthlyPlanSchema = new Schema<MonthlyPlanDoc>({
   planMonth: { type: String, required: true },
   entries: { type: [entrySchema], default: [] },
   revision: { type: Number, required: true },
+  lateResubmits: { type: Number, default: 0 },
   updatedAt: { type: Date, required: true },
 });
 

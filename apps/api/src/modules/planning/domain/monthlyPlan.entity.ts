@@ -19,5 +19,7 @@ export interface MonthlyPlan {
   entries: MonthlyPlanEntry[];
   /** Bumped on every save; submit is conditional on the revision it validated. */
   revision: number;
+  /** Resubmits made through the after-rejection window; capped by `PLAN_RESUBMIT_GRACE_MAX`. */
+  lateResubmits: number;
   updatedAt: Date;
 }
