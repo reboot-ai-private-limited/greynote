@@ -141,6 +141,18 @@ Territory exist. Each depends only on tiers 0–2 and, where noted, the Phase 3 
   Employee → Manager → HR or Admin through the Phase 3 approval module (client §11.2; decision-log
   2026-09-24); Holiday Calendar (National/Zone/HQ scoping)
 
+Planning, step by step:
+
+1. Late submissions decided: refused, with a one-off exception (sign-off B8) — **done** (2026-09-28)
+2. Business-time helpers, `BUSINESS_TIMEZONE` and the exception keys, Identity `isBlocked` — **done**
+3. Daily Plan: save, submit, read, `isDailyPlanApproved` — **done**
+4. Monthly Plan — **done**
+5. Late-submission exceptions: grant, revoke, list, used by the submit — **done**
+6. Live run against the dev database — not yet
+
+Still open for Planning: in-day changes to an approved Daily Plan (client §2.6, likely a
+`DAILY_PLAN_CHANGE` kind).
+
 **Done when:** Admin can populate Doctors/Chemists/Distributors/Products and assign MRs to them;
 an MR can submit a Daily/Monthly Plan and see it move through Nearest-Manager approval; HR can
 configure per-Pay-Band leave defaults and an employee's balance reflects them.

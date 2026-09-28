@@ -16,5 +16,7 @@ export interface UserDirectoryPort {
   getUserSummaries(userIds: string[]): Promise<DirectoryUser[]>;
   /** Nearest Higher Manager first, then everyone above; `[]` at the top. */
   getManagerChain(userId: string): Promise<DirectoryUser[]>;
+  /** Everyone below this manager, at any depth. */
+  getDownline(managerId: string): Promise<DirectoryUser[]>;
   isBlocked(userId: string): Promise<boolean>;
 }

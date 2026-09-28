@@ -3,6 +3,7 @@ import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalsPort } from '../domain/approvals.port.js';
+import type { LateSubmitGrantRepositoryPort } from '../domain/lateSubmitGrant.repository.port.js';
 import type { PlanDay, PlanKind } from '../domain/plan.js';
 import { assertPlanDay } from '../domain/planRules.js';
 import type { RouteDirectoryPort } from '../domain/routeDirectory.port.js';
@@ -24,13 +25,15 @@ export interface PlanSubmission {
 /**
  * The submit pipeline Daily and Monthly Plans share (LLD planning.md, write-path rules): not
  * already pending/approved → not blocked → valid against today's routes and colleagues → before
- * the deadline → submitted to the approval module in one transaction with the revision check.
+ * the deadline, or holding a late-submission exception → submitted to the approval module in one
+ * transaction with the revision check and the exception's use, so a failed submit keeps it.
  */
 export class PlanSubmitter {
   constructor(
     private readonly users: UserDirectoryPort,
     private readonly routes: RouteDirectoryPort,
     private readonly approvals: ApprovalsPort,
+    private readonly grants: LateSubmitGrantRepositoryPort,
     private readonly transactions: TransactionRunnerPort,
     private readonly now: () => Date,
   ) {}
@@ -49,9 +52,16 @@ export class PlanSubmitter {
       throw AppError.forbidden('You are blocked for missed reports. Admin has to unblock you before you can submit a plan.');
     }
     await this.assertValid(s);
-    if (this.now() > s.deadline) throw lateError(s);
+
+    const now = this.now();
+    // Late: only with a late-submission exception, used up by this submit (sign-off B8).
+    const grant = now > s.deadline ? await this.grants.findUsable(s.ownerId, s.kind, s.planKey, now) : null;
+    if (now > s.deadline && !grant) throw lateError(s);
 
     return this.transactions.run(async (ctx) => {
+      if (grant && !(await this.grants.consume(grant.id, now, ctx))) {
+        throw AppError.conflict('The late-submission exception was used, revoked or expired meanwhile.');
+      }
       if (!(await s.confirmRevision(ctx))) {
         throw AppError.conflict('This plan changed while it was being submitted. Reload it and try again.');
       }

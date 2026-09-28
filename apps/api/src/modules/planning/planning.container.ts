@@ -5,9 +5,12 @@ import { PlanSubmitter } from './application/planSubmitter.js';
 import { PlanViews } from './application/planViews.js';
 import { GetDailyPlanUseCase } from './application/usecases/getDailyPlan.usecase.js';
 import { GetMonthlyPlanUseCase } from './application/usecases/getMonthlyPlan.usecase.js';
+import { GrantLateSubmitUseCase } from './application/usecases/grantLateSubmit.usecase.js';
 import { GetPlanStatusUseCase } from './application/usecases/getPlanStatus.usecase.js';
 import { ListDailyPlansUseCase } from './application/usecases/listDailyPlans.usecase.js';
+import { ListLateSubmitGrantsUseCase } from './application/usecases/listLateSubmitGrants.usecase.js';
 import { ListMonthlyPlansUseCase } from './application/usecases/listMonthlyPlans.usecase.js';
+import { RevokeLateSubmitUseCase } from './application/usecases/revokeLateSubmit.usecase.js';
 import { SaveDailyPlanUseCase } from './application/usecases/saveDailyPlan.usecase.js';
 import { SaveMonthlyPlanUseCase } from './application/usecases/saveMonthlyPlan.usecase.js';
 import { SubmitDailyPlanUseCase } from './application/usecases/submitDailyPlan.usecase.js';
@@ -18,6 +21,7 @@ import { PLAN_KINDS } from './domain/plan.js';
 import type { RouteDirectoryPort } from './domain/routeDirectory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import { MongoDailyPlanAdapter } from './infrastructure/mongoDailyPlan.adapter.js';
+import { MongoLateSubmitGrantAdapter } from './infrastructure/mongoLateSubmitGrant.adapter.js';
 import { MongoMonthlyPlanAdapter } from './infrastructure/mongoMonthlyPlan.adapter.js';
 import { makePlanningControllers } from './interface/planning.controller.js';
 import { buildPlanningRouter } from './interface/planning.route.js';
@@ -42,12 +46,13 @@ export function buildPlanningContainer(
   // 1. Adapters
   const dailyPlans = new MongoDailyPlanAdapter();
   const monthlyPlans = new MongoMonthlyPlanAdapter();
+  const grants = new MongoLateSubmitGrantAdapter();
   const transactions = new MongooseTransactionRunner();
 
   // 2. Use cases
   const deadlines = new PlanDeadlines(config);
-  const views = new PlanViews(approvals, deadlines);
-  const submitter = new PlanSubmitter(users, routes, approvals, transactions, deadlines.now);
+  const views = new PlanViews(approvals, grants, deadlines);
+  const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now);
   const saveDaily = new SaveDailyPlanUseCase(dailyPlans, approvals, views);
   const submitDaily = new SubmitDailyPlanUseCase(dailyPlans, deadlines, submitter);
   const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views);
@@ -57,6 +62,9 @@ export function buildPlanningContainer(
   const getMonthly = new GetMonthlyPlanUseCase(monthlyPlans, users, views);
   const listMonthly = new ListMonthlyPlansUseCase(monthlyPlans, views);
   const status = new GetPlanStatusUseCase(dailyPlans, monthlyPlans, approvals);
+  const grantLate = new GrantLateSubmitUseCase(grants, users, config, deadlines.now);
+  const listLateGrants = new ListLateSubmitGrantsUseCase(grants, users, deadlines.now);
+  const revokeLate = new RevokeLateSubmitUseCase(grants, deadlines.now);
 
   return {
     contract: {
@@ -75,6 +83,9 @@ export function buildPlanningContainer(
           listMonthly,
           getMonthly,
           submitMonthly,
+          grantLate,
+          listLateGrants,
+          revokeLate,
         }),
       ),
   };

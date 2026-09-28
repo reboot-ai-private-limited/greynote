@@ -115,6 +115,10 @@ A `LatePlanSubmitGrant` lets one employee submit one Plan (`DAILY_PLAN` + date, 
   count as open.
 - It only lifts the deadline. The Plan still goes through normal approval, and a later late
   resubmit of the same Plan needs a new exception.
+- A Plan's view carries `submitDeadline` and, while an exception is usable,
+  `lateSubmitAllowedUntil`, so the app can say which applies.
+- Stored status is `OPEN` / `USED` / `REVOKED` / `EXPIRED`. `EXPIRED` is written lazily (when a new
+  exception for the same Plan is granted); reads treat an `OPEN` one past `expiresAt` as expired.
 
 ## Approval workflow
 
@@ -153,7 +157,7 @@ this doc does not re-derive that state machine. As it applies here:
 | `GET` | `/planning/monthly` | FIELD | List own Monthly Plans (month range) |
 | `GET` | `/planning/monthly/:id` | FIELD, manager (read-only), Admin | Fetch one |
 | `POST` | `/planning/late-grants` | ADMIN; FIELD manager while `LATE_PLAN_GRANT_BY_MANAGER` is on | Grant a late-submission exception |
-| `GET` | `/planning/late-grants` | ADMIN (all), FIELD manager (downline) | List exceptions |
+| `GET` | `/planning/late-grants` | ADMIN (all), FIELD (own and downline) | List exceptions, newest first |
 | `POST` | `/planning/late-grants/:id/revoke` | ADMIN, the grantor | Revoke an unused exception |
 | — | `/api/approvals/*` | Manager, Admin | Pending queue, team view (actionable vs read-only), approve/reject, Admin's org-wide queue and override — the approval module's endpoints ([`approval.md`](approval.md)), filtered with `kind=DAILY_PLAN` / `MONTHLY_PLAN` |
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { parseCalendarDate, parseCalendarMonth } from '@/shared/time/businessTime.js';
-import { WORKING_TYPES } from '../domain/plan.js';
+import { PLAN_KINDS, WORKING_TYPES } from '../domain/plan.js';
 
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
 
@@ -63,3 +63,18 @@ export const listMonthlyPlansQuerySchema = monthRangeQuerySchema
     message: 'At most 12 months at a time.',
     path: ['to'],
   });
+
+export const grantLateSubmitBodySchema = z.object({
+  userId: objectIdSchema,
+  kind: z.enum(PLAN_KINDS),
+  /** `YYYY-MM-DD` for `DAILY_PLAN`, `YYYY-MM` for `MONTHLY_PLAN`. */
+  planKey: z.string().trim().min(1),
+  reason: z.string().trim().min(1, 'A reason is required.').max(1000),
+});
+
+export const listLateSubmitGrantsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  userId: objectIdSchema.optional(),
+  kind: z.enum(PLAN_KINDS).optional(),
+});

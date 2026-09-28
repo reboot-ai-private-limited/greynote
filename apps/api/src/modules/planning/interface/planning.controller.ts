@@ -7,14 +7,19 @@ import { sendSuccess } from '@/shared/http/response.util.js';
 import type { Actor } from '../application/planAccess.js';
 import type { GetDailyPlanUseCase } from '../application/usecases/getDailyPlan.usecase.js';
 import type { GetMonthlyPlanUseCase } from '../application/usecases/getMonthlyPlan.usecase.js';
+import type { GrantLateSubmitUseCase } from '../application/usecases/grantLateSubmit.usecase.js';
 import type { ListDailyPlansUseCase } from '../application/usecases/listDailyPlans.usecase.js';
+import type { ListLateSubmitGrantsUseCase } from '../application/usecases/listLateSubmitGrants.usecase.js';
 import type { ListMonthlyPlansUseCase } from '../application/usecases/listMonthlyPlans.usecase.js';
+import type { RevokeLateSubmitUseCase } from '../application/usecases/revokeLateSubmit.usecase.js';
 import type { SaveDailyPlanUseCase } from '../application/usecases/saveDailyPlan.usecase.js';
 import type { SaveMonthlyPlanUseCase } from '../application/usecases/saveMonthlyPlan.usecase.js';
 import type { SubmitDailyPlanUseCase } from '../application/usecases/submitDailyPlan.usecase.js';
 import type { SubmitMonthlyPlanUseCase } from '../application/usecases/submitMonthlyPlan.usecase.js';
 import type {
+  grantLateSubmitBodySchema,
   listDailyPlansQuerySchema,
+  listLateSubmitGrantsQuerySchema,
   listMonthlyPlansQuerySchema,
   saveDailyPlanBodySchema,
   saveMonthlyPlanBodySchema,
@@ -29,6 +34,8 @@ type SaveDailyBody = z.output<typeof saveDailyPlanBodySchema>;
 type ListDailyQuery = z.output<typeof listDailyPlansQuerySchema>;
 type SaveMonthlyBody = z.output<typeof saveMonthlyPlanBodySchema>;
 type ListMonthlyQuery = z.output<typeof listMonthlyPlansQuerySchema>;
+type GrantBody = z.output<typeof grantLateSubmitBodySchema>;
+type ListGrantsQuery = z.output<typeof listLateSubmitGrantsQuerySchema>;
 
 export type PlanningHandlers = Record<
   | 'saveDaily'
@@ -38,7 +45,10 @@ export type PlanningHandlers = Record<
   | 'saveMonthly'
   | 'listMonthly'
   | 'getMonthly'
-  | 'submitMonthly',
+  | 'submitMonthly'
+  | 'grantLate'
+  | 'listLateGrants'
+  | 'revokeLate',
   RequestHandler
 >;
 
@@ -51,6 +61,9 @@ export function makePlanningControllers(useCases: {
   listMonthly: ListMonthlyPlansUseCase;
   getMonthly: GetMonthlyPlanUseCase;
   submitMonthly: SubmitMonthlyPlanUseCase;
+  grantLate: GrantLateSubmitUseCase;
+  listLateGrants: ListLateSubmitGrantsUseCase;
+  revokeLate: RevokeLateSubmitUseCase;
 }): PlanningHandlers {
   return {
     saveDaily: asyncHandler(async (req, res) => {
@@ -86,6 +99,19 @@ export function makePlanningControllers(useCases: {
     submitMonthly: asyncHandler(async (req, res) => {
       const request = await useCases.submitMonthly.execute(actorOf(req).id, requiredParam(req.params, 'id'));
       sendSuccess(req, res, request, 'Plan submitted for approval.', 200);
+    }),
+    grantLate: asyncHandler(async (req, res) => {
+      const grant = await useCases.grantLate.execute(actorOf(req), req.body as GrantBody);
+      sendSuccess(req, res, grant, 'Late submission allowed.', 201);
+    }),
+    listLateGrants: asyncHandler(async (req, res) => {
+      const { page, pageSize, ...filter } = req.query as unknown as ListGrantsQuery;
+      const result = await useCases.listLateGrants.execute(actorOf(req), filter, { page, pageSize });
+      sendSuccess(req, res, result, 'Late-submission exceptions.', 200);
+    }),
+    revokeLate: asyncHandler(async (req, res) => {
+      const grant = await useCases.revokeLate.execute(actorOf(req), requiredParam(req.params, 'id'));
+      sendSuccess(req, res, grant, 'Late-submission exception revoked.', 200);
     }),
   };
 }

@@ -2,6 +2,7 @@ import type { ApprovalRequest } from '@/modules/approval/approval.public.js';
 import type { DailyPlan } from '../domain/dailyPlan.entity.js';
 import type { MonthlyPlan } from '../domain/monthlyPlan.entity.js';
 import type { ApprovalsPort, PlanApprovalStatus } from '../domain/approvals.port.js';
+import type { LateSubmitGrantRepositoryPort } from '../domain/lateSubmitGrant.repository.port.js';
 import type { PlanKind } from '../domain/plan.js';
 import type { PlanDeadlines } from './planDeadlines.js';
 
@@ -18,6 +19,8 @@ export interface PlanStateView {
   approval: PlanApprovalView | null;
   /** When a submit stops being accepted without a late-submission exception. */
   submitDeadline: Date;
+  /** Set while the owner holds a usable late-submission exception for this Plan: when it expires. */
+  lateSubmitAllowedUntil: Date | null;
 }
 
 export type DailyPlanView = DailyPlan & PlanStateView;
@@ -28,19 +31,31 @@ export const planStatus = (request: ApprovalRequest | null): PlanApprovalStatus 
 export class PlanViews {
   constructor(
     private readonly approvals: ApprovalsPort,
+    private readonly grants: LateSubmitGrantRepositoryPort,
     private readonly deadlines: PlanDeadlines,
   ) {}
 
   async daily(plan: DailyPlan): Promise<DailyPlanView> {
-    return { ...plan, ...(await this.state('DAILY_PLAN', plan.id, await this.deadlines.daily(plan.planDate))) };
+    const deadline = await this.deadlines.daily(plan.planDate);
+    return { ...plan, ...(await this.state('DAILY_PLAN', plan.userId, plan.id, plan.planDate, deadline)) };
   }
 
   async monthly(plan: MonthlyPlan): Promise<MonthlyPlanView> {
-    return { ...plan, ...(await this.state('MONTHLY_PLAN', plan.id, await this.deadlines.monthly(plan.planMonth))) };
+    const deadline = await this.deadlines.monthly(plan.planMonth);
+    return { ...plan, ...(await this.state('MONTHLY_PLAN', plan.userId, plan.id, plan.planMonth, deadline)) };
   }
 
-  async state(kind: PlanKind, recordId: string, submitDeadline: Date): Promise<PlanStateView> {
-    const request = await this.approvals.getForRecord(kind, recordId);
+  private async state(
+    kind: PlanKind,
+    userId: string,
+    recordId: string,
+    planKey: string,
+    submitDeadline: Date,
+  ): Promise<PlanStateView> {
+    const [request, grant] = await Promise.all([
+      this.approvals.getForRecord(kind, recordId),
+      this.grants.findUsable(userId, kind, planKey, this.deadlines.now()),
+    ]);
     return {
       status: planStatus(request),
       approval: request && {
@@ -50,6 +65,7 @@ export class PlanViews {
         decidedAt: request.decidedAt,
       },
       submitDeadline,
+      lateSubmitAllowedUntil: grant?.expiresAt ?? null,
     };
   }
 }

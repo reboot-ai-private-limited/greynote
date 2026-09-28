@@ -5,9 +5,11 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { DailyPlan } from '../../domain/dailyPlan.entity.js';
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
+import type { LateSubmitGrant } from '../../domain/lateSubmitGrant.entity.js';
+import type { LateSubmitGrantFilter, LateSubmitGrantRepositoryPort } from '../../domain/lateSubmitGrant.repository.port.js';
 import type { MonthlyPlan, MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
-import type { PlanDay } from '../../domain/plan.js';
+import type { PlanDay, PlanKind } from '../../domain/plan.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { PlanDeadlines } from '../planDeadlines.js';
 import { PlanSubmitter } from '../planSubmitter.js';
@@ -85,6 +87,52 @@ export class FakeMonthlyPlans implements MonthlyPlanRepositoryPort {
   }
 }
 
+export class FakeGrants implements LateSubmitGrantRepositoryPort {
+  rows = new Map<string, LateSubmitGrant>();
+  async findById(id: string) {
+    return this.rows.get(id) ?? null;
+  }
+  private usable(g: LateSubmitGrant, now: Date) {
+    return g.status === 'OPEN' && g.expiresAt > now;
+  }
+  async findUsable(userId: string, kind: PlanKind, planKey: string, now: Date) {
+    return (
+      [...this.rows.values()].find(
+        (g) => g.userId === userId && g.kind === kind && g.planKey === planKey && this.usable(g, now),
+      ) ?? null
+    );
+  }
+  async create(input: Omit<LateSubmitGrant, 'id' | 'status' | 'usedAt' | 'revokedAt' | 'revokedBy'>, now: Date) {
+    const same = [...this.rows.values()].filter(
+      (g) => g.userId === input.userId && g.kind === input.kind && g.planKey === input.planKey && g.status === 'OPEN',
+    );
+    for (const g of same) if (g.expiresAt <= now) this.rows.set(g.id, { ...g, status: 'EXPIRED' });
+    if (same.some((g) => g.expiresAt > now)) return null;
+    const grant: LateSubmitGrant = { ...input, id: `grant-${this.rows.size + 1}`, status: 'OPEN', usedAt: null, revokedAt: null, revokedBy: null };
+    this.rows.set(grant.id, grant);
+    return grant;
+  }
+  async consume(id: string, now: Date) {
+    const g = this.rows.get(id);
+    if (!g || !this.usable(g, now)) return false;
+    this.rows.set(id, { ...g, status: 'USED', usedAt: now });
+    return true;
+  }
+  async revoke(id: string, revokedBy: string, now: Date) {
+    const g = this.rows.get(id);
+    if (!g || !this.usable(g, now)) return null;
+    const revoked = { ...g, status: 'REVOKED' as const, revokedAt: now, revokedBy };
+    this.rows.set(id, revoked);
+    return revoked;
+  }
+  async list(filter: LateSubmitGrantFilter, page: { page: number; pageSize: number }) {
+    const matches = [...this.rows.values()]
+      .filter((g) => (!filter.userIds || filter.userIds.includes(g.userId)) && (!filter.kind || filter.kind === g.kind))
+      .sort((a, b) => b.grantedAt.getTime() - a.grantedAt.getTime());
+    return { items: matches.slice((page.page - 1) * page.pageSize, page.page * page.pageSize), total: matches.length };
+  }
+}
+
 /** Just enough of the approval module: submit/resubmit, and a way to set a decision. */
 export class FakeApprovals implements ApprovalsPort {
   requests = new Map<string, ApprovalRequest>();
@@ -147,6 +195,19 @@ export class FakeUsers implements UserDirectoryPort {
     }
     return chain;
   }
+  async getDownline(managerId: string) {
+    const below: DirectoryUser[] = [];
+    const walk = (id: string) => {
+      for (const u of this.users.values()) {
+        if (u.managerId === id) {
+          below.push(u);
+          walk(u.id);
+        }
+      }
+    };
+    walk(managerId);
+    return below;
+  }
   async isBlocked(userId: string) {
     return this.users.get(userId)?.isBlocked ?? false;
   }
@@ -195,8 +256,9 @@ export function planningKit(clock: Clock) {
   const config = new FakeConfig();
   const dailyPlans = new FakeDailyPlans();
   const monthlyPlans = new FakeMonthlyPlans();
+  const grants = new FakeGrants();
   const deadlines = new PlanDeadlines(config, clock.now);
-  const views = new PlanViews(approvals, deadlines);
-  const submitter = new PlanSubmitter(users, routes, approvals, inlineTransactions, clock.now);
-  return { users, routes, approvals, config, dailyPlans, monthlyPlans, deadlines, views, submitter };
+  const views = new PlanViews(approvals, grants, deadlines);
+  const submitter = new PlanSubmitter(users, routes, approvals, grants, inlineTransactions, clock.now);
+  return { users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter };
 }
