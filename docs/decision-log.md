@@ -17,6 +17,35 @@ old one.
 
 ---
 
+## 2026-09-28 — HR built on today's leave assumptions (F3, F11–F16)
+
+**Decision:** The client hasn't answered how leave works in detail. These working assumptions
+are accepted so HR can start (roadmap sequencing rule 6). A later client answer is a change, not
+a gap, and the marked ones are configuration:
+
+- **F3 — no probation rule.** Leave is allocated once the employee's grade (Pay Band) is set.
+- **F11 — the leave year is the financial year**, from `FY_START_MONTH` (April), matching payroll
+  and the FY toggle (HLD 09).
+- **F12 — the weekly off day and holidays aren't counted** inside a leave range. The off day is a
+  new `WEEKLY_OFF_DAY` key (Sunday). Holidays are those that apply to the employee's HQ/Zone plus
+  national ones.
+- **F13 — a mid-year joiner gets a share** of the grade default for the months left in the leave
+  year, rounded to half days.
+- **F14 — half-day leave is allowed** (first or second half).
+- **F15 — leave can be applied up to 30 days back** (new key), within the current leave year —
+  e.g. to cover a missed DCR before the compliance block (PRD §7.5).
+- **F16 — too little balance is refused.** Loss of Pay has no balance and is always allowed.
+
+The client's own leave types, which are paid, and the days per grade (F17) are data HR enters in
+the app, so they don't block building.
+
+**Why:** HR has no technical blocker; these are the rules the LLD left unstated. Deciding them now
+keeps them out of ad-hoc code decisions.
+
+**Refs:** `docs/client-sign-off.md` §F, `docs/LLD/hr.md`, `docs/hld/09-financial-year-toggle.md`
+
+---
+
 ## 2026-09-28 — A rejected Plan gets a short window to be resubmitted
 
 **Decision:** Adds to the late-Plan rule below. After a **rejection**, the employee may resubmit
