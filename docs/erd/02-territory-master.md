@@ -50,9 +50,20 @@ erDiagram
         timestamp unassigned_at "nullable"
         uuid unassigned_by FK "nullable - Admin"
     }
+    USER_HQ_ASSIGNMENT {
+        uuid id PK
+        uuid user_id FK "FIELD employee"
+        uuid hq_id FK
+        string status "active, inactive - at most one active row per user"
+        timestamp assigned_at
+        uuid assigned_by FK "Admin or HR"
+        timestamp unassigned_at "nullable"
+        uuid unassigned_by FK "nullable"
+    }
 
     ZONE ||--o{ HQ : "zone_id"
     HQ ||--o{ AREA : "hq_id"
+    HQ ||--o{ USER_HQ_ASSIGNMENT : "hq_id"
     AREA ||--o{ ROUTE : "area_id"
     ROUTE ||--o{ ROUTE_ASSIGNMENT : "route_id"
     USER ||--o{ ROUTE_ASSIGNMENT : "user_id"
@@ -67,6 +78,8 @@ erDiagram
 - **Many-to-many MR ↔ Route via `RouteAssignment`.** A route can have multiple MRs (shared coverage) and an MR can cover multiple routes. The join table also gives a lightweight assignment history (`assigned_at`, `status`) instead of silently overwriting a single FK on reassignment. Creating a `RouteAssignment` should validate its `user_id` resolves to a `FIELD`-role user via Identity's `isFieldRole` contract method — the same FIELD-only-check pattern Identity itself already uses.
 - **`ta_per_km_rate_override` is a plain nullable field, not a provenance pair like `distance_km`'s.** `PayBand.ta_per_km_rate` (Module 1) is the default; when set, this overrides it for travel on this specific route (e.g. a remote/difficult route negotiated at a higher rate) — added 2026-09-23, `docs/decision-log.md`. Unlike `distance_km`'s `MANUAL_OVERRIDE`, it does **not** reset on a waypoint edit — a negotiated rate is unrelated to the route's geography, so editing waypoints has no bearing on it — and needs no `distance_source`/`distance_status`-style pair, since there's no "auto-calculated" rate to fall out of sync with; it's simply present (use it) or absent (fall back to the pay band). See `hld/06-ta-da-auto-calculation.md` §2 for how this resolves per route when a `DailyPlan` carries more than one.
 - **Doctor/Chemist/Distributor attachment to routes is deferred.** PRD §5.1 says Admin "attaches Doctors/Chemists to those routes", and the client rules (§17.2) add Distributors to the same list. That join can't be modeled until those entities exist, so it's added in Module 3.
+
+- **An employee's HQ is `UserHqAssignment`, owned here** (added 2026-09-28 for HR's HQ/Zone holidays). Territory can validate the user through Identity; Identity (a tier below) can't validate an HQ, so the FK the Identity ERD once pencilled onto `EmployeeProfile` lives here instead. One active row per user, history kept like `RouteAssignment`.
 
 ## Next
 

@@ -17,6 +17,35 @@ old one.
 
 ---
 
+## 2026-09-28 — HR's design: employee HQ in Territory, lazily seeded balances, a pending ledger
+
+**Decision:** Three choices while planning the HR module:
+
+- **An employee's HQ is a Territory-owned `UserHqAssignment`**, set by Admin or HR. At most one
+  active row per FIELD user, with history kept like `RouteAssignment`. HQ- and Zone-scoped
+  holidays read it through Territory's contract. An employee without one gets only National
+  holidays.
+- **Leave balances are seeded lazily, per leave year**, the first time HR needs them (a balance
+  read or a leave request). The allocation is the Pay Band's `LeavePolicy` days, pro-rata for
+  someone who joined during that leave year. The next leave year seeds itself.
+- **`LeaveBalance` keeps `pendingDays` as well as `usedDays`.** Submitting reserves days with a
+  conditional update, and the `LEAVE` kind's `onStatusChange` moves them on each decision, in
+  the approval module's transaction.
+
+**Why:**
+- **HQ:** the Identity ERD pencilled an `hq_id` onto `EmployeeProfile`, but Identity (Tier 1)
+  can't validate an HQ that lives in Territory (Tier 2). Territory can validate the user, so the
+  assignment lives there. Deriving the HQ from an employee's routes was rejected, because a
+  manager with no routes of their own would get only National holidays.
+- **Lazy seeding:** "seed when the Pay Band is set" would need Identity to call HR, an upward
+  dependency. Seeding on first need also removes any year-end job.
+- **Pending ledger:** checking only `usedDays` would let two requests pending at once overdraw a
+  balance.
+
+**Refs:** `docs/LLD/hr.md`, `docs/LLD/territory.md`, `docs/erd/02-territory-master.md`, `docs/erd/07-hr-ops.md`
+
+---
+
 ## 2026-09-28 — HR built on today's leave assumptions (F3, F11–F16)
 
 **Decision:** The client hasn't answered how leave works in detail. These working assumptions

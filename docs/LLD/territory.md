@@ -23,6 +23,11 @@ in [`../hld/02-route-distance-calculation.md`](../hld/02-route-distance-calculat
   (shared coverage), an MR can cover several routes. Carries `assigned_at` and `status`
   (`active`/`inactive`) as a lightweight assignment history, rather than a single FK that
   silently loses history on reassignment.
+- **`UserHqAssignment`** — a FIELD employee's HQ (decision-log 2026-09-28). At most one active
+  row per user, history kept the same way as `RouteAssignment`; setting a new HQ ends the old row
+  and starts a new one in one transaction. Set by Admin or HR. HR's HQ/Zone holidays read it; an
+  employee without one gets only National holidays. It doesn't restrict which Routes they can be
+  assigned.
 
 Full field list: [`../erd/02-territory-master.md`](../erd/02-territory-master.md).
 
@@ -49,6 +54,9 @@ interface TerritoryPublicContract {
   getRoute(routeId: string): Promise<RouteSummary | null>;
   listRoutesForUser(userId: string): Promise<RouteSummary[]>;  // active assignments, active routes
   getRoutePath(routeId: string): Promise<RoutePath | null>;
+  getUserHq(userId: string): Promise<{ hqId: string; zoneId: string } | null>;  // active assignment
+  getHq(hqId: string): Promise<{ id: string; zoneId: string; name: string; status: TerritoryStatus } | null>;
+  getZone(zoneId: string): Promise<{ id: string; name: string; status: TerritoryStatus } | null>;
 }
 
 // No waypoints — consumers need the TA/DA inputs, not the geometry.
@@ -176,6 +184,8 @@ this module's depth:
 | `GET` | `/api/territory/places/search?q=` | Admin | Proxy to Google Places — candidates with `{label, latitude, longitude, place_id}`; the API key never leaves the server |
 | `POST` | `/api/territory/import` | Admin | CSV bulk import of Zone / HQ / Area rows (not Routes — waypoints need confirmed pins); `?dryRun=true` previews. See CSV import below |
 | `GET` | `/api/territory/my-routes` | FIELD roles | The calling MR's own assigned Routes — consumed by Planning's route picker |
+| `PUT` | `/api/territory/users/:userId/hq` | Admin, HR | Set a FIELD employee's HQ (ends the previous one) |
+| `GET` | `/api/territory/users/:userId/hq` | Admin, HR | The employee's current HQ and its history |
 
 ## CSV import
 

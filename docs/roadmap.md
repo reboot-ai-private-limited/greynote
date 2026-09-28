@@ -159,6 +159,16 @@ afterwards.
 Still open for Planning: in-day changes to an approved Daily Plan (client §2.6, likely a
 `DAILY_PLAN_CHANGE` kind).
 
+HR, step by step:
+
+1. Design recorded: LLD rewrite, employee HQ, lazy balances, pending ledger — **done** (2026-09-28)
+2. Leave-year helpers and Config keys, Identity `getEmploymentDetails`, Territory `UserHqAssignment`
+3. HR skeleton, Leave Types, Leave Master
+4. Holidays
+5. Balances
+6. Leave requests through the approval module, and the public contract
+7. Live run against the dev database
+
 **Done when:** Admin can populate Doctors/Chemists/Distributors/Products and assign MRs to them;
 an MR can submit a Daily/Monthly Plan and see it move through Nearest-Manager approval; HR can
 configure per-Pay-Band leave defaults and an employee's balance reflects them.
