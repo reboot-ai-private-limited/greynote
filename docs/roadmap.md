@@ -148,7 +148,13 @@ Planning, step by step:
 3. Daily Plan: save, submit, read, `isDailyPlanApproved` — **done**
 4. Monthly Plan — **done**
 5. Late-submission exceptions: grant, revoke, list, used by the submit — **done**
-6. Live run against the dev database — not yet
+6. Live run against the dev database — **done** (2026-09-28)
+
+**Status (2026-09-28): Planning done.** 36 unit tests (deadline edges in IST, every-submit
+lateness, manager switch and team scope, expiry, revoke, the DCR gate) plus a live run on the dev
+database: 41 checks over real HTTP, real Mongo transactions and indexes. It included a rollback
+where an edit races a late submit and the exception survives. Temporary data was removed
+afterwards.
 
 Still open for Planning: in-day changes to an approved Daily Plan (client §2.6, likely a
 `DAILY_PLAN_CHANGE` kind).
