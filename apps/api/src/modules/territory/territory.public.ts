@@ -1,4 +1,5 @@
 import type { RoutePath, RouteSummary } from './domain/routeView.js';
+import type { TerritoryStatus } from './domain/territoryStatus.js';
 
 export type { RoutePath, RouteSummary } from './domain/routeView.js';
 
@@ -14,4 +15,8 @@ export interface TerritoryPublicContract {
   listRoutesForUser(userId: string): Promise<RouteSummary[]>;
   /** The Route's Area / HQ / Zone ids and Area type, or `null` for an unknown id. */
   getRoutePath(routeId: string): Promise<RoutePath | null>;
+  /** A FIELD employee's current HQ and its Zone, or `null` if none is set — HR's holiday scope. */
+  getUserHq(userId: string): Promise<{ hqId: string; zoneId: string } | null>;
+  getHq(hqId: string): Promise<{ id: string; zoneId: string; name: string; status: TerritoryStatus } | null>;
+  getZone(zoneId: string): Promise<{ id: string; name: string; status: TerritoryStatus } | null>;
 }

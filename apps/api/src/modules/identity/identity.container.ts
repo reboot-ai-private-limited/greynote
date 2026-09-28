@@ -13,6 +13,7 @@ import { CreateUserUseCase } from './application/usecases/createUser.usecase.js'
 import { GetActiveDeviceCountUseCase } from './application/usecases/getActiveDeviceCount.usecase.js';
 import { GetDirectReportsUseCase } from './application/usecases/getDirectReports.usecase.js';
 import { GetDownlineUseCase } from './application/usecases/getDownline.usecase.js';
+import { GetEmploymentDetailsUseCase } from './application/usecases/getEmploymentDetails.usecase.js';
 import { GetManagerChainUseCase } from './application/usecases/getManagerChain.usecase.js';
 import { GetPayBandRatesUseCase } from './application/usecases/getPayBandRates.usecase.js';
 import { GetUserDetailUseCase } from './application/usecases/getUserDetail.usecase.js';
@@ -190,6 +191,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const getDownline = new GetDownlineUseCase(userRepository, roleRepository, employeeProfileRepository);
   const isFieldRole = new IsFieldRoleUseCase(userRepository, roleRepository);
   const isBlocked = new IsBlockedUseCase(userRepository);
+  const getEmploymentDetails = new GetEmploymentDetailsUseCase(employeeProfileRepository);
   const getPayBandRates = new GetPayBandRatesUseCase(userRepository, employeeProfileRepository, payBandRepository);
   const getActiveDeviceCount = new GetActiveDeviceCountUseCase(userRepository, userSessionRepository);
 
@@ -236,6 +238,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       getDownline: (managerId) => getDownline.execute(managerId),
       isFieldRole: (userId) => isFieldRole.execute(userId),
       isBlocked: (userId) => isBlocked.execute(userId),
+      getEmploymentDetails: (userId) => getEmploymentDetails.execute(userId),
       getPayBandRates: (userId) => getPayBandRates.execute(userId),
       getActiveDeviceCount: (userId) => getActiveDeviceCount.execute(userId),
     },

@@ -18,6 +18,11 @@ import { ListRouteAssignmentsUseCase } from './application/usecases/listRouteAss
 import { ListRoutesForUserUseCase } from './application/usecases/listRoutesForUser.usecase.js';
 import { UnassignRouteUseCase } from './application/usecases/unassignRoute.usecase.js';
 import { ListRoutesUseCase } from './application/usecases/listRoutes.usecase.js';
+import { GetUserHqUseCase } from './application/usecases/getUserHq.usecase.js';
+import { SetUserHqUseCase } from './application/usecases/setUserHq.usecase.js';
+import { MongoUserHqAssignmentAdapter } from './infrastructure/mongoUserHqAssignment.adapter.js';
+import { buildUserHqRouter } from './interface/userHq.route.js';
+import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { OverrideRouteDistanceUseCase } from './application/usecases/overrideRouteDistance.usecase.js';
 import { RecalculateRouteDistanceUseCase } from './application/usecases/recalculateRouteDistance.usecase.js';
 import { SearchPlacesUseCase } from './application/usecases/searchPlaces.usecase.js';
@@ -63,6 +68,8 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
   const assignmentRepository = new MongoRouteAssignmentAdapter();
   const distanceProvider = new GoogleRoutesDistanceAdapter();
   const placeSearch = new GooglePlaceSearchAdapter();
+  const userHqRepository = new MongoUserHqAssignmentAdapter();
+  const transactions = new MongooseTransactionRunner();
 
   // 2. Use cases
   const zones = {
@@ -111,12 +118,19 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
   const getRoutePath = new GetRoutePathUseCase(routeRepository, areaRepository, hqRepository);
   const importHierarchy = new ImportHierarchyUseCase(zoneRepository, hqRepository, areaRepository);
   const searchPlaces = makeSearchPlacesController(new SearchPlacesUseCase(placeSearch));
+  const userHq = {
+    set: new SetUserHqUseCase(userHqRepository, hqRepository, users, transactions),
+    get: new GetUserHqUseCase(userHqRepository, hqRepository),
+  };
 
   return {
     contract: {
       getRoute: (routeId) => getRouteSummary.execute(routeId),
       listRoutesForUser: (userId) => listRoutesForUser.execute(userId),
       getRoutePath: (routeId) => getRoutePath.execute(routeId),
+      getUserHq: (userId) => userHq.get.current(userId),
+      getHq: (hqId) => hqRepository.findById(hqId),
+      getZone: (zoneId) => zoneRepository.findById(zoneId),
     },
 
     buildRouter: () => {
@@ -125,6 +139,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
       router.use('/places', buildPlacesRouter(searchPlaces));
       router.use('/import', buildImportRouter(importHierarchy));
       router.use('/my-routes', buildMyRoutesRouter(makeMyRoutesController(listRoutesForUser)));
+      router.use('/users', buildUserHqRouter(userHq));
       return router;
     },
   };

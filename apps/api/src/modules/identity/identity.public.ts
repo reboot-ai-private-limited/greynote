@@ -1,10 +1,12 @@
 import type { LoginInput, LoginOutput } from './application/usecases/login.usecase.js';
 import type { RefreshSessionOutput } from './application/usecases/refreshSession.usecase.js';
 import type { DownlineMember } from './application/usecases/getDownline.usecase.js';
+import type { EmploymentDetails } from './application/usecases/getEmploymentDetails.usecase.js';
 import type { PayBand } from './domain/payBand.entity.js';
 import type { UserSummary } from './domain/user.entity.js';
 
 export type { DownlineMember } from './application/usecases/getDownline.usecase.js';
+export type { EmploymentDetails } from './application/usecases/getEmploymentDetails.usecase.js';
 
 /** The only thing another module may import from `identity/`. */
 export interface IdentityPublicContract {
@@ -25,6 +27,8 @@ export interface IdentityPublicContract {
   isFieldRole(userId: string): Promise<boolean>;
   /** Whether a compliance block (HLD 10) stops this user submitting anything new. */
   isBlocked(userId: string): Promise<boolean>;
+  /** Pay Band and joining date (FIELD only); `null` without an EmployeeProfile. */
+  getEmploymentDetails(userId: string): Promise<EmploymentDetails | null>;
   getPayBandRates(userId: string): Promise<PayBand>;
   getActiveDeviceCount(userId: string): Promise<number>;
 }

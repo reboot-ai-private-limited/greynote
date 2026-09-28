@@ -27,6 +27,24 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = [
     description: 'IANA timezone every business deadline is read in (e.g. the Daily Plan cutoff time).',
   },
   {
+    key: 'FY_START_MONTH',
+    value: 'APRIL',
+    module: 'SYSTEM',
+    description: 'Month the financial year — and the leave year — starts in (JANUARY … DECEMBER).',
+  },
+  {
+    key: 'WEEKLY_OFF_DAY',
+    value: 'SUNDAY',
+    module: 'SYSTEM',
+    description: 'The weekly day off (SUNDAY … SATURDAY) — not counted inside a leave.',
+  },
+  {
+    key: 'LEAVE_BACKDATE_DAYS',
+    value: '30',
+    module: 'HR',
+    description: 'How many days back a leave may start (e.g. to cover a missed report).',
+  },
+  {
     key: 'LATE_PLAN_GRANT_BY_MANAGER',
     value: 'false',
     module: 'PLANNING',

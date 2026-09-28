@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addDays,
   assertTimeZone,
   businessDate,
   dailyPlanDeadline,
+  eachDate,
+  leaveYearOf,
+  leaveYearRange,
   monthlyPlanDeadline,
   parseCalendarDate,
+  parseMonthName,
   parseTimeOfDay,
+  parseWeekdayName,
+  weekdayOf,
 } from './businessTime.js';
 
 const IST = 'Asia/Kolkata';
@@ -54,5 +61,34 @@ describe('malformed values', () => {
     expect(() => parseCalendarDate('2026-02-30')).toThrow(RangeError);
     expect(() => monthlyPlanDeadline('2026-10', 0, IST)).toThrow(RangeError);
     expect(() => assertTimeZone('Mars/Olympus')).toThrow(RangeError);
+  });
+});
+
+describe('calendar helpers', () => {
+  it('adds days and walks a range across a month end and a leap day', () => {
+    expect(addDays('2028-02-28', 1)).toBe('2028-02-29');
+    expect(addDays('2026-03-01', -1)).toBe('2026-02-28');
+    expect(eachDate('2026-09-29', '2026-10-02')).toEqual(['2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02']);
+    expect(eachDate('2026-10-02', '2026-10-01')).toEqual([]);
+  });
+
+  it('names weekdays', () => {
+    expect(weekdayOf('2026-09-27')).toBe('SUNDAY');
+    expect(weekdayOf('2026-09-28')).toBe('MONDAY');
+  });
+
+  it('places dates in their leave year', () => {
+    expect(leaveYearOf('2027-03-31', 4)).toBe(2026);
+    expect(leaveYearOf('2027-04-01', 4)).toBe(2027);
+    expect(leaveYearOf('2026-12-31', 1)).toBe(2026);
+    expect(leaveYearRange(2026, 4)).toEqual({ from: '2026-04-01', to: '2027-03-31' });
+    expect(leaveYearRange(2026, 1)).toEqual({ from: '2026-01-01', to: '2026-12-31' });
+  });
+
+  it('parses month and weekday names', () => {
+    expect(parseMonthName('APRIL')).toBe(4);
+    expect(() => parseMonthName('April')).toThrow(RangeError);
+    expect(parseWeekdayName('SUNDAY')).toBe('SUNDAY');
+    expect(() => parseWeekdayName('SUN')).toThrow(RangeError);
   });
 });

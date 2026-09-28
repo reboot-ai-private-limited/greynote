@@ -119,3 +119,62 @@ export function monthlyPlanDeadline(planMonth: string, cutoffDay: number, timeZo
   const day = Math.min(cutoffDay, daysInMonth(prevYear, prevMonth));
   return zonedInstant({ year: prevYear, month: prevMonth, day }, 23, 59, timeZone, 59_999);
 }
+
+export const MONTH_NAMES = [
+  'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+  'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
+] as const;
+export const WEEKDAY_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'] as const;
+export type WeekdayName = (typeof WEEKDAY_NAMES)[number];
+
+/** `APRIL` → 4. */
+export function parseMonthName(value: string): number {
+  const index = MONTH_NAMES.indexOf(value as (typeof MONTH_NAMES)[number]);
+  if (index < 0) throw new RangeError(`Not a month name: ${value}`);
+  return index + 1;
+}
+
+export function parseWeekdayName(value: string): WeekdayName {
+  if (!WEEKDAY_NAMES.includes(value as WeekdayName)) throw new RangeError(`Not a weekday name: ${value}`);
+  return value as WeekdayName;
+}
+
+const toUtc = (date: string) => {
+  const { year, month, day } = parseCalendarDate(date);
+  return Date.UTC(year, month - 1, day);
+};
+const fromUtc = (ms: number) => {
+  const d = new Date(ms);
+  return formatCalendarDate({ year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() });
+};
+
+/** Calendar arithmetic on `YYYY-MM-DD` — no timezone involved. */
+export function addDays(date: string, days: number): string {
+  return fromUtc(toUtc(date) + days * 86_400_000);
+}
+
+/** Every date from `from` to `to`, both inclusive. */
+export function eachDate(from: string, to: string): string[] {
+  const dates: string[] = [];
+  for (let ms = toUtc(from); ms <= toUtc(to); ms += 86_400_000) dates.push(fromUtc(ms));
+  return dates;
+}
+
+export function weekdayOf(date: string): WeekdayName {
+  return WEEKDAY_NAMES[new Date(toUtc(date)).getUTCDay()]!;
+}
+
+/**
+ * The leave (financial) year a date falls in, named by the year it starts in: with an April start,
+ * 2027-03-31 is in 2026 and 2027-04-01 in 2027.
+ */
+export function leaveYearOf(date: string, startMonth: number): number {
+  const { year, month } = parseCalendarDate(date);
+  return month >= startMonth ? year : year - 1;
+}
+
+/** First and last day of a leave year. */
+export function leaveYearRange(year: number, startMonth: number): { from: string; to: string } {
+  const from = formatCalendarDate({ year, month: startMonth, day: 1 });
+  return { from, to: addDays(formatCalendarDate({ year: year + 1, month: startMonth, day: 1 }), -1) };
+}

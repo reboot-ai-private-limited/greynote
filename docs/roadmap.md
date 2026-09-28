@@ -162,7 +162,7 @@ Still open for Planning: in-day changes to an approved Daily Plan (client §2.6,
 HR, step by step:
 
 1. Design recorded: LLD rewrite, employee HQ, lazy balances, pending ledger — **done** (2026-09-28)
-2. Leave-year helpers and Config keys, Identity `getEmploymentDetails`, Territory `UserHqAssignment`
+2. Leave-year helpers and Config keys, Identity `getEmploymentDetails`, Territory `UserHqAssignment` — **done**
 3. HR skeleton, Leave Types, Leave Master
 4. Holidays
 5. Balances
