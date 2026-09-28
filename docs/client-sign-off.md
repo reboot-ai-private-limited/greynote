@@ -9,7 +9,9 @@ Each question states **what we built or assumed today**, so the client can reply
 give the change. An answer marked *config* can change later without code; anything else is
 cheapest to change before the listed phase starts.
 
-**Status key:** Built = already in code · Designed = in docs, not built · Open = no assumption yet.
+**Status key:** Built = already in code · Designed = in docs, not built · Open = no assumption yet
+· Accepted = not answered by the client, but "Today" explicitly accepted to build on (recorded in
+`decision-log.md`; a later client answer is a change, not a gap).
 
 ---
 
@@ -27,10 +29,10 @@ cheapest to change before the listed phase starts.
 
 | # | Question | Today | Status |
 |---|---|---|---|
-| B1 | Monthly Plan deadline day (§1.3). | 28th (*config*) | Designed |
+| B1 | Monthly Plan deadline day (§1.3). | 28th (*config*: `MONTHLY_PLAN_SUBMIT_CUTOFF_DATE`) | Accepted 2026-09-28 |
 | B2 | If the Monthly Plan is missed, is next month's DCR blocked (§1.4)? | Not decided | Open |
-| B3 | Daily Plan deadline time (§2.2). | 10:00 (*config*) | Designed |
-| B4 | If the Daily Plan is missed, is that day's DCR blocked, or only a notification (§2.3–2.4)? | DCR blocked until the day's Plan is Manager-approved | Designed |
+| B3 | Daily Plan deadline time (§2.2). | 10:00 (*config*: `DAILY_PLAN_SUBMIT_CUTOFF_TIME`) | Accepted 2026-09-28 |
+| B4 | If the Daily Plan is missed, is that day's DCR blocked, or only a notification (§2.3–2.4)? | DCR blocked until the day's Plan is Manager-approved (`MANAGER_APPROVED` or `APPROVED`) | Accepted 2026-09-28 |
 | B5 | Missed-DCR rule for 1 / 2 / 3 consecutive days (§3.7). | Block after 1 grace day (*config*), with an on/off switch | Designed |
 | B6 | Can Admin override a locked/blocked DCR (§3.8)? | Yes — Admin can unblock an employee and approve any pending Plan/DCR directly | Built (unblock) / Designed |
 | B7 | Attendance: is a day "present" on DCR **submit** or on DCR **approval** (§10.1)? | Not decided | Open |

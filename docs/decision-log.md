@@ -17,6 +17,42 @@ old one.
 
 ---
 
+## 2026-09-28 — Plan deadlines and the DCR gate built on today's assumptions (B1, B3, B4)
+
+**Decision:** The client hasn't answered sign-off rows B1, B3 and B4. Their "Today" assumptions
+are accepted explicitly, so Phase 4 Planning can start (roadmap sequencing rule 6):
+
+- **B1 — Monthly Plan deadline: the 28th.** Read from `MONTHLY_PLAN_SUBMIT_CUTOFF_DATE`, i.e. next
+  month's plan is due by the 28th of the current month.
+- **B3 — Daily Plan deadline: 10:00.** Read from `DAILY_PLAN_SUBMIT_CUTOFF_TIME`.
+- **B4 — a missed Daily Plan blocks that day's DCR**, not just a notification. The gate opens once
+  the day's `DAILY_PLAN` request is past the manager: `MANAGER_APPROVED` or `APPROVED`
+  (Planning's `isDailyPlanApproved`, `LLD/planning.md`).
+
+**The values are configuration, not code.** Both deadlines are already-seeded `SystemConfig` keys
+that Admin can change at runtime (decision-log 2026-09-24); Planning reads them through
+Config's `get(key)` on every submit and never hardcodes `10:00` or `28`. A client answer that
+only changes a value is an Admin edit, not a release. B4 is a rule, not a value, and has no key.
+
+**Why:** Planning is the approval module's first consumer and on the path to Phase 6's gate;
+waiting on the client would stall both. These three are the rows Planning actually depends on.
+
+**Consequences:**
+
+- A **business timezone** is needed to say when "10:00" and "the 28th" are — the server has none
+  (decision-log 2026-09-28, approval date filters). Planning adds it as a `SystemConfig` key
+  (e.g. `BUSINESS_TIMEZONE`, default `Asia/Kolkata`), not an env var, when it builds the cutoffs.
+- **Still undecided, and needed before Planning's submit use cases:** what happens to a Plan
+  submitted after its deadline — refused, or accepted and flagged (`LLD/planning.md` write-path
+  rules). Not covered by B1/B3.
+- B2 (missed Monthly Plan blocks next month's DCR), B5–B7 stay as they are — they gate Phase 6,
+  not Planning. Field Master Data (C) and HR (F) rows are unchanged.
+
+**Refs:** `docs/client-sign-off.md` §B, `docs/roadmap.md` sign-off gate,
+`apps/api/src/modules/config/application/usecases/seedDefaultConfig.usecase.ts`
+
+---
+
 ## 2026-09-28 — Approvals are decided on a cycle; bulk isolates faults; date filters carry an offset
 
 **Decision:** Three fixes from the Phase 3 review, before Planning becomes the first consumer:
