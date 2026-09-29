@@ -29,6 +29,10 @@ export class MongoProductAdapter implements ProductRepositoryPort {
     return buildPaginatedResult(docs.map(toProduct), total, filter);
   }
 
+  async listActive(): Promise<Product[]> {
+    return (await ProductModel.find({ status: 'active' }).sort({ name: 1, _id: 1 }).lean()).map(toProduct);
+  }
+
   async findById(id: string): Promise<Product | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const doc = await ProductModel.findById(id).lean();

@@ -29,6 +29,8 @@ export interface DoctorRepositoryPort {
   createProposed(input: Omit<Doctor, 'id'>, ctx: TransactionContext): Promise<Doctor>;
   findByClientRequest(addedBy: string, clientRequestId: string): Promise<Doctor | null>;
   update(id: string, change: Partial<Omit<Doctor, 'id'>>, ctx?: TransactionContext): Promise<Doctor | null>;
+  /** The Doctors this user added that are still waiting for approval. */
+  listPendingAdded(addedBy: string): Promise<Doctor[]>;
   /** Doctors this user added, in any status, newest first. */
   listAdded(addedBy: string, page: PageQuery): Promise<PaginatedResult<Doctor>>;
   /**

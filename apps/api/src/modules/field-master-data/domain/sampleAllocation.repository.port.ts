@@ -5,6 +5,7 @@ export interface SampleAllocationRepositoryPort {
   find(doctorId: string, productId: string): Promise<SampleAllocation | null>;
   findById(id: string): Promise<SampleAllocation | null>;
   listForDoctor(doctorId: string): Promise<SampleAllocation[]>;
+  listForDoctors(doctorIds: string[]): Promise<SampleAllocation[]>;
   /** Adds `quantity` to the (Doctor, Product) row, creating it if there is none — one atomic step. */
   issue(input: { doctorId: string; productId: string; quantity: number; by: string }): Promise<SampleAllocation>;
   /**

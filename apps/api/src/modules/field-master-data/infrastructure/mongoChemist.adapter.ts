@@ -37,6 +37,12 @@ export class MongoChemistAdapter implements ChemistRepositoryPort {
     return buildPaginatedResult(docs.map(toChemist), total, filter);
   }
 
+  async listActiveOnRoutes(routeIds: string[]): Promise<Chemist[]> {
+    if (routeIds.length === 0) return [];
+    const docs = await ChemistModel.find({ routeId: { $in: routeIds.map((id) => new Types.ObjectId(id)) }, status: 'active' }).sort({ name: 1, _id: 1 }).lean();
+    return docs.map(toChemist);
+  }
+
   async findById(id: string): Promise<Chemist | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const doc = await ChemistModel.findById(id).lean();

@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
+import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
+import { makeHrSource } from './application/syncSnapshot.js';
 import { HolidayCalendar } from './application/holidayCalendar.js';
 import { HrCalendar } from './application/hrCalendar.js';
 import { LeaveBalances } from './application/leaveBalances.js';
@@ -40,11 +42,12 @@ export interface HrContainer {
   seed: () => Promise<void>;
 }
 
-/** Identity's, Territory's, Approval's and Config's public contracts, passed in by the composition root. */
+/** Identity's, Territory's, Approval's, Sync's and Config's public contracts, passed in by the composition root. */
 export function buildHrContainer(
   users: UserDirectoryPort,
   territory: TerritoryPort,
   approvals: ApprovalsPort,
+  sync: SyncPublicContract,
   config: ConfigReader,
 ): HrContainer {
 
@@ -64,6 +67,8 @@ export function buildHrContainer(
   const calendar = new HrCalendar(config);
   const holidayCalendar = new HolidayCalendar(holidays, territory);
   const balances = new LeaveBalances(balanceRepository, policies, leaveTypes, users, calendar);
+  // What the phone caches of HR: leave types, the MR's balances and the holidays that apply to them.
+  sync.registerSource(makeHrSource({ leaveTypes, balances, holidays, territory, calendar }));
   const isLeaveTypeInUse = async (id: string) =>
     (await policies.existsForLeaveType(id)) ||
     (await balanceRepository.existsForLeaveType(id)) ||

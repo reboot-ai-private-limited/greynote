@@ -95,6 +95,11 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
     return doc ? toDoctor(doc) : null;
   }
 
+  async listPendingAdded(addedBy: string): Promise<Doctor[]> {
+    const docs = await DoctorModel.find({ addedBy: new Types.ObjectId(addedBy), status: 'pending' }).sort({ _id: 1 }).lean();
+    return docs.map(toDoctor);
+  }
+
   async listAdded(addedBy: string, page: PageQuery): Promise<PaginatedResult<Doctor>> {
     const query = { addedBy: new Types.ObjectId(addedBy) };
     const [docs, total] = await Promise.all([

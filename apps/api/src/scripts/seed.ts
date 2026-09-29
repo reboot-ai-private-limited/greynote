@@ -4,6 +4,7 @@ import { buildApprovalContainer } from '@/modules/approval/approval.container.js
 import { buildConfigContainer } from '@/modules/config/config.container.js';
 import { buildHrContainer } from '@/modules/hr/hr.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
+import { buildSyncContainer } from '@/modules/sync/sync.container.js';
 import { buildTerritoryContainer } from '@/modules/territory/territory.container.js';
 import { env } from '@/config/env.js';
 import { logger } from '@/shared/logging/logger.js';
@@ -36,7 +37,9 @@ async function main(): Promise<void> {
   logger.info('Role rows seeded');
 
   const approval = buildApprovalContainer(identity.contract, config.contract);
-  const hr = buildHrContainer(identity.contract, buildTerritoryContainer(identity.contract).contract, approval.contract, config.contract);
+  // HR registers its slice of the phone's cache with Sync as it builds; a seed run just needs somewhere to put it.
+  const sync = buildSyncContainer(identity.contract, config.contract);
+  const hr = buildHrContainer(identity.contract, buildTerritoryContainer(identity.contract).contract, approval.contract, sync.contract, config.contract);
   await hr.seed();
   logger.info('Starting leave types seeded (existing ones untouched)');
 

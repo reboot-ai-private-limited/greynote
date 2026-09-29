@@ -27,6 +27,9 @@ const paged = <T>(rows: T[], f: { page: number; pageSize: number }): PaginatedRe
 
 export class FakeProducts implements ProductRepositoryPort {
   rows: Product[] = [];
+  async listActive() {
+    return this.rows.filter((p) => p.status === 'active');
+  }
   private taken(sku: string, exceptId?: string) {
     return this.rows.some((p) => p.id !== exceptId && p.sku.trim().toLowerCase() === sku.trim().toLowerCase());
   }
@@ -62,6 +65,9 @@ export class FakeProducts implements ProductRepositoryPort {
 
 export class FakeChemists implements ChemistRepositoryPort {
   rows: Chemist[] = [];
+  async listActiveOnRoutes(routeIds: string[]) {
+    return this.rows.filter((c) => c.status === 'active' && routeIds.includes(c.routeId));
+  }
   async list(f: ChemistFilter) {
     const search = f.search?.toLowerCase();
     return paged(
@@ -212,6 +218,9 @@ export class FakeDoctors implements DoctorRepositoryPort {
     this.rows[i] = { ...this.rows[i]!, ...change };
     return this.rows[i]!;
   }
+  async listPendingAdded(addedBy: string) {
+    return this.rows.filter((d) => d.addedBy === addedBy && d.status === 'pending');
+  }
   async listAdded(addedBy: string, f: PageQuery) {
     return paged(this.rows.filter((d) => d.addedBy === addedBy).reverse(), f);
   }
@@ -292,6 +301,9 @@ export class FakeApprovals implements ApprovalsPort {
 
 export class FakeDistributors implements DistributorRepositoryPort {
   rows: Distributor[] = [];
+  async listActiveForUser(userId: string, routeIds: string[]) {
+    return this.rows.filter((d) => d.status === 'active' && (d.assignedMrId === userId || routeIds.includes(d.routeId)));
+  }
   async list(f: DistributorFilter) {
     const search = f.search?.toLowerCase();
     return paged(
@@ -331,6 +343,9 @@ export class FakeSampleAllocations implements SampleAllocationRepositoryPort {
   }
   async listForDoctor(doctorId: string) {
     return this.rows.filter((a) => a.doctorId === doctorId);
+  }
+  async listForDoctors(doctorIds: string[]) {
+    return this.rows.filter((a) => doctorIds.includes(a.doctorId));
   }
   async issue(i: { doctorId: string; productId: string; quantity: number; by: string }) {
     const row = await this.find(i.doctorId, i.productId);

@@ -51,3 +51,15 @@ export const listDraftsQuerySchema = z.object({
   after: z.string().regex(/^[a-f\d]{24}$/i, 'Must be a cursor from the previous page.').optional(),
   limit: z.coerce.number().int().positive().max(200).default(100),
 });
+
+/**
+ * `GET /pull?v[fieldMasterData]=<version>&v[hr]=<version>&only=hr,territory` — the version the phone holds
+ * for each source (a SHA-1), and optionally which sources it wants; all of them by default.
+ */
+export const pullQuerySchema = z.object({
+  v: z.record(z.string().regex(/^[a-f0-9]{40}$/, 'Must be a version from an earlier pull.')).default({}),
+  only: z
+    .string()
+    .transform((s) => s.split(',').map((n) => n.trim()).filter(Boolean))
+    .optional(),
+});

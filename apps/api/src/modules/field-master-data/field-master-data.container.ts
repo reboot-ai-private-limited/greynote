@@ -2,6 +2,7 @@ import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
+import { makeFieldMasterDataSource } from './application/syncSnapshot.js';
 import { makeNewDoctorSyncHandler } from './application/newDoctorSync.js';
 import { makeDoctorApprovalHandler, NEW_DOCTOR_KIND } from './application/doctorApproval.js';
 import { DoctorVisibility } from './application/doctorVisibility.js';
@@ -94,6 +95,8 @@ export function buildFieldMasterDataContainer(
   // (sync kind NEW_DOCTOR) and is created inside the sync engine's transaction.
   const addedDoctors = new AddedDoctors(doctors, territory, approvals, transactions, views);
   sync.registerHandler(makeNewDoctorSyncHandler(addedDoctors, (payload) => editAddedDoctorBodySchema.parse(payload)));
+  // …and what the phone caches of this module, as one snapshot of what the caller may see.
+  sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, products, distributors, allocations: sampleAllocations, visibility, territory }));
 
   const doctorUseCases = {
     list: new ListDoctorsUseCase(doctors, views),

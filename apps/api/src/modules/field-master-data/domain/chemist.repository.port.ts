@@ -11,6 +11,8 @@ export interface ChemistFilter extends PageQuery {
 export interface ChemistRepositoryPort {
   list(filter: ChemistFilter): Promise<PaginatedResult<Chemist>>;
   findById(id: string): Promise<Chemist | null>;
+  /** Every active Chemist on these Routes — the phone's cache. */
+  listActiveOnRoutes(routeIds: string[]): Promise<Chemist[]>;
   create(input: Omit<Chemist, 'id'>): Promise<Chemist>;
   update(id: string, change: Partial<Omit<Chemist, 'id'>>): Promise<Chemist | null>;
 }

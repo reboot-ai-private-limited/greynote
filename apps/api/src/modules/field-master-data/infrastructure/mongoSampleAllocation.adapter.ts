@@ -34,6 +34,11 @@ export class MongoSampleAllocationAdapter implements SampleAllocationRepositoryP
     return (await SampleAllocationModel.find({ doctorId: oid(doctorId) }).sort({ allocatedAt: -1, _id: -1 }).lean()).map(toAllocation);
   }
 
+  async listForDoctors(doctorIds: string[]): Promise<SampleAllocation[]> {
+    if (doctorIds.length === 0) return [];
+    return (await SampleAllocationModel.find({ doctorId: { $in: doctorIds.map(oid) } }).sort({ _id: 1 }).lean()).map(toAllocation);
+  }
+
   async issue(input: { doctorId: string; productId: string; quantity: number; by: string }): Promise<SampleAllocation> {
     const run = () =>
       SampleAllocationModel.findOneAndUpdate(

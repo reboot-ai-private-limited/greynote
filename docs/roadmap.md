@@ -235,7 +235,9 @@ connection at the action.
    the first handler registered into the engine, 8 tests and a 28-check live run through the real
    app (push, retry, 8 simultaneous sends, route drift, the direct endpoint first, approval after)
 7. Pull: the source registry and `GET /sync/pull`, with Field Master Data, Territory, HR, Planning
-   and Config as sources
+   and Config as sources — **done** (2026-09-29): 21 tests and a 29-check live run (exactly the
+   caller's data, stable versions, only the changed source returned, Doctors vanishing and returning
+   with a Route to exactly the earlier version)
 8. Contract types in `packages/contracts`, a sync-client simulator test (dropped connections, replayed
    batches, a lost phone restored on another), and one end-to-end live run
 

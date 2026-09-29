@@ -146,19 +146,57 @@ with them or leave a half-applied state.
 ## Pull
 
 `GET /api/sync/pull` gives the phone what it caches (HLD 01 §1.1). A **versioned snapshot** per data
-source (G2), not a row-level delta: the phone sends the last `version` it holds for each source and
-gets back either `{ unchanged: true }` or `{ version, rows }`. A row-level delta can't see a Doctor
-*appearing* because an MR regained a Route (the Doctor row didn't change) or *disappearing* because
-they lost one, and an MR's set is a few hundred rows, so a snapshot is cheap and cannot drift. A
-version is a hash of the snapshot's content.
+source (G2), not a row-level delta: a delta can't see a Doctor *appearing* because an MR regained a
+Route (the Doctor row didn't change) or *disappearing* because they lost one, and an MR's set is a few
+hundred rows, so a snapshot is cheap and cannot drift.
 
-- Sources register themselves, like handlers: Field Master Data (the MR's visible Doctors — the
-  Route-following rule included — Chemists on their Routes, Products, remaining sample counts,
-  Distributors they can act on), Territory (their Routes), HR (leave types, their balances, the
-  holidays that apply to them), Planning (their Plans and statuses, for the gate), and the SystemConfig
-  values the app needs offline (the geofence radius, the cutoffs).
-- The response carries `serverTime`, so the phone can tell how far its clock is off.
-- Everything is scoped to the caller: an MR never receives another MR's Doctors.
+```
+GET /api/sync/pull?v[fieldMasterData]=<version>&v[hr]=<version>&only=hr,territory
+```
+
+`v[<source>]` is the version the phone holds for that source (none on a first pull); `only` narrows
+the sources (default: all). The answer:
+
+```jsonc
+{ "serverTime": "2026-10-05T12:00:00.000Z",
+  "sources": {
+    "config":         { "version": "<sha1>", "unchanged": true },
+    "fieldMasterData": { "version": "<sha1>", "data": { … } },
+    "hr":             { "error": { "code": "SOURCE_UNAVAILABLE", "message": "…" } } } }
+```
+
+- **A version** is the SHA-1 of the snapshot's canonical JSON (keys sorted, dates as ISO text), so it is
+  equal exactly when the content is. An equal version gets `unchanged` and no data; anything else —
+  including a made-up one — gets the whole snapshot. A malformed version is a 400, an unknown source a 400
+  that lists the real ones.
+- **A source that fails is reported for that source alone** (`SOURCE_UNAVAILABLE`, logged in full); the
+  rest still refresh. `serverTime` lets the phone tell how far its own clock is off.
+- **Scoped to the caller.** The user comes from the token and each source is asked only about them.
+  Nothing of another MR's — a Doctor, a Chemist, a holiday of another HQ — appears in the response.
+- **Deterministic.** A source must give the same snapshot for the same data: lists sorted by a stable key,
+  and nothing that changes on its own. That is what lets a Route lost and regained bring the phone back to
+  *exactly* the version it held before — checked live.
+
+| Source | Registered by | Contents |
+|---|---|---|
+| `fieldMasterData` | Field Master Data | `doctors` (the MR's own, by the `GET /doctors/mine` rule, Route-following included), `pendingDoctors` (the ones they added, awaiting approval), `chemists` (active, on their Routes), `distributors` (active; assigned to them or on their Routes), `products` (the active catalog), `sampleAllocations` (what's left, for exactly those Doctors) |
+| `territory` | the composition root | their Routes (name, Area and its type, distance, TA rate override in paise) and their HQ and Zone by name |
+| `hr` | HR | active leave types, their balances for the current leave year, the holidays that apply to them across it (National, their HQ's, its Zone's), the weekly off day and the backdating limit |
+| `planning` | Planning | their Daily Plans from a week back to 30 days ahead and this and next month's Monthly Plans, each with its approval status (for the day's gate, a UX check — the server's is the real one) |
+| `config` | the composition root | an allow-list of settings the app needs offline: the timezone, the Plan cutoffs, the calendar, the geofence radius and accuracy limit, and the sync limits it obeys |
+
+Only what the app needs is included: no assignment history, no capture point, no approval internals.
+Saving and submitting Plans and Leave requests need a connection and aren't synced.
+
+**Why the composition root wires two of them:** a module may import contracts only from tiers *below*
+its own, and Sync sits at Territory's tier and above Config's, so neither can register with it. Field
+Master Data, HR and Planning are tier 3 and register their own; `apps/api/src/syncSources.ts` builds the
+other two from their public contracts — composition, not logic.
+
+**Cost.** Every source is read on every pull, even when nothing changed, because the version is a hash
+of the snapshot. Measured against the remote dev cluster, a full pull took about 2 s (five sources, about
+a dozen queries); an all-`unchanged` reply is under 1 KB. Compression is the reverse proxy's job. If pulls
+ever cost too much, a per-source change token would let an unchanged source skip its reads.
 
 ## Geofencing
 
@@ -185,10 +223,12 @@ evaluateGeofence({ registered, captured, accuracyMeters, radiusMeters, maxAccura
 
 ## Module and tier
 
-`apps/api/src/modules/sync`, **tier 2** beside Approval: a registry that knows no kind and no source
-until its owner registers it, so it imports only Identity (to check the caller). the module also owns the draft collection; Field Master Data
-registers `NEW_DOCTOR`'s handler and its pull source; Territory, HR, Planning and Config register
-their sources; Phase 6 adds the calls, expenses, orders, gifts, services and the DCR submit.
+`apps/api/src/modules/sync`, **tier 2** beside Approval: a registry that knows no record kind and no
+data source until its owner registers one, so it imports only Identity (to check the caller) and Config
+(its limits). It also owns the receipt and draft collections. Field Master Data registers the
+`NEW_DOCTOR` handler and its pull source; HR and Planning register their pull sources; Territory's and
+Config's are wired from the composition root (*Pull*). Phase 6 adds the calls, expenses, orders, gifts,
+services and the DCR submit.
 
 ## HTTP surface
 

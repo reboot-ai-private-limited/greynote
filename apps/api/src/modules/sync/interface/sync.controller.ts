@@ -4,19 +4,24 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { ListDraftsUseCase } from '../application/usecases/listDrafts.usecase.js';
+import type { PullSnapshotsUseCase } from '../application/usecases/pullSnapshots.usecase.js';
 import type { PushRecordsUseCase } from '../application/usecases/pushRecords.usecase.js';
 import type { PutDraftsUseCase } from '../application/usecases/putDrafts.usecase.js';
-import type { listDraftsQuerySchema, pushBodySchema, putDraftsBodySchema } from './sync.schemas.js';
+import type { listDraftsQuerySchema, pullQuerySchema, pushBodySchema, putDraftsBodySchema } from './sync.schemas.js';
 
-export type SyncHandlers = Record<'push' | 'putDrafts' | 'listDrafts', RequestHandler>;
+export type SyncHandlers = Record<'push' | 'putDrafts' | 'listDrafts' | 'pull', RequestHandler>;
 
 function actorOf(req: Request) {
   if (!req.user) throw AppError.unauthenticated();
   return { id: req.user.sub, role: req.user.role };
 }
 
-export function makeSyncControllers(u: { push: PushRecordsUseCase; putDrafts: PutDraftsUseCase; listDrafts: ListDraftsUseCase }): SyncHandlers {
+export function makeSyncControllers(u: { push: PushRecordsUseCase; putDrafts: PutDraftsUseCase; listDrafts: ListDraftsUseCase; pull: PullSnapshotsUseCase }): SyncHandlers {
   return {
+    pull: asyncHandler(async (req, res) => {
+      const { v, only } = req.query as unknown as z.output<typeof pullQuerySchema>;
+      sendSuccess(req, res, await u.pull.execute(actorOf(req), v, only ?? null), 'Your reference data.', 200);
+    }),
     putDrafts: asyncHandler(async (req, res) => {
       const { drafts } = req.body as z.output<typeof putDraftsBodySchema>;
       const result = await u.putDrafts.execute(actorOf(req), drafts);

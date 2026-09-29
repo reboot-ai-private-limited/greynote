@@ -11,6 +11,8 @@ export interface ProductFilter extends PageQuery {
 export interface ProductRepositoryPort {
   list(filter: ProductFilter): Promise<PaginatedResult<Product>>;
   findById(id: string): Promise<Product | null>;
+  /** The whole active catalog — the phone's cache. */
+  listActive(): Promise<Product[]>;
   /** `null` if the SKU is taken. */
   create(input: Omit<Product, 'id'>): Promise<Product | null>;
   /** `null` if the row is missing (see `findById`) or the new SKU is taken. */

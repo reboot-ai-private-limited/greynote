@@ -1,8 +1,10 @@
 import type { Router } from 'express';
+import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { PlanDeadlines } from './application/planDeadlines.js';
 import { PlanSubmitter } from './application/planSubmitter.js';
 import { PlanViews } from './application/planViews.js';
+import { makePlanningSource } from './application/syncSnapshot.js';
 import { makeDailyPlanChangeHandler } from './application/dailyPlanChangeHandler.js';
 import { GetDailyPlanUseCase } from './application/usecases/getDailyPlan.usecase.js';
 import { GetMonthlyPlanUseCase } from './application/usecases/getMonthlyPlan.usecase.js';
@@ -41,6 +43,7 @@ export function buildPlanningContainer(
   users: UserDirectoryPort,
   routes: RouteDirectoryPort,
   approvals: ApprovalsPort,
+  sync: SyncPublicContract,
   config: ConfigProviderPort,
 ): PlanningContainer {
   // Plans are approved by the submitter's manager, then Admin (unless APPROVAL_MANAGER_ONLY_KINDS
@@ -80,6 +83,8 @@ export function buildPlanningContainer(
     managerOnly: true,
     onStatusChange: makeDailyPlanChangeHandler(dailyPlanChanges, dailyPlans, approvals, deadlines),
   });
+  // What the phone caches of Planning: the MR's own Plans, with their status for the day's gate.
+  sync.registerSource(makePlanningSource({ deadlines, daily: listDaily, monthly: listMonthly }));
   const requestChange = new RequestDailyPlanChangeUseCase(dailyPlans, dailyPlanChanges, approvals, users, submitter, deadlines, transactions);
   const listChanges = new ListDailyPlanChangesUseCase(dailyPlans, dailyPlanChanges, approvals, users);
 

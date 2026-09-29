@@ -6,6 +6,7 @@ import { buildHrContainer } from '@/modules/hr/hr.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
 import { buildPlanningContainer } from '@/modules/planning/planning.container.js';
 import { buildSyncContainer } from '@/modules/sync/sync.container.js';
+import { registerCompositionSyncSources } from './syncSources.js';
 import { buildTerritoryContainer } from '@/modules/territory/territory.container.js';
 
 export interface AppContainers {
@@ -46,16 +47,20 @@ export function buildContainers(): AppContainers {
 
   // Tier 3 — Planning: who the submitter and their managers are (Identity), which Routes they
   // cover (Territory), the approval workflow its Plans go through, and the deadlines (Config).
-  const planning = buildPlanningContainer(identity.contract, territory.contract, approval.contract, config.contract);
+  const planning = buildPlanningContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
 
   // Tier 3 — HR: employees and Pay Bands (Identity), their HQ (Territory), the LEAVE workflow
   // (Approval), the leave-year and weekly-off settings (Config).
-  const hr = buildHrContainer(identity.contract, territory.contract, approval.contract, config.contract);
+  const hr = buildHrContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
 
   // Tier 3 — Field Master Data: employees and their downline (Identity), the Routes Doctors and Chemists sit on and an MR covers (Territory), the NEW_DOCTOR workflow
   // (Approval), the daily report's push, where an offline-added Doctor arrives (Sync), and the visibility
   // and auto-assign switches (Config).
   const fieldMasterData = buildFieldMasterDataContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
+
+  // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
+  // slices of the phone's cache are wired here, from their public contracts.
+  registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
   return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync };
 }
