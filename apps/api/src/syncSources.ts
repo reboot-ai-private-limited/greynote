@@ -1,3 +1,4 @@
+import type { ConfigSnapshot, TerritorySnapshot } from '@greynote/contracts';
 import type { ConfigPublicContract } from '@/modules/config/config.public.js';
 import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import type { TerritoryPublicContract } from '@/modules/territory/territory.public.js';
@@ -36,7 +37,7 @@ export function registerCompositionSyncSources(deps: {
 }): void {
   deps.sync.registerSource({
     name: 'territory',
-    async snapshot(userId) {
+    async snapshot(userId): Promise<TerritorySnapshot> {
       const [routes, place] = await Promise.all([deps.territory.listRoutesForUser(userId), deps.territory.getUserHq(userId)]);
       const [hq, zone] = place ? await Promise.all([deps.territory.getHq(place.hqId), deps.territory.getZone(place.zoneId)]) : [null, null];
       return {
@@ -59,7 +60,7 @@ export function registerCompositionSyncSources(deps: {
 
   deps.sync.registerSource({
     name: 'config',
-    async snapshot() {
+    async snapshot(): Promise<ConfigSnapshot> {
       const settings: Record<string, string> = {};
       for (const key of CONFIG_KEYS_FOR_PHONE) settings[key] = await deps.config.get(key);
       return { settings };

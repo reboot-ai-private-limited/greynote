@@ -6,7 +6,8 @@ import type { SyncReceiptRepositoryPort } from '../../domain/syncReceipt.reposit
 export interface DraftView {
   clientId: string;
   kind: string;
-  clientUpdatedAt: Date;
+  /** ISO 8601 — the wire format (`@greynote/contracts`). */
+  clientUpdatedAt: string;
   payload: unknown;
 }
 
@@ -36,7 +37,7 @@ export class ListDraftsUseCase {
     const pageRows = rows.slice(0, page.limit);
     const submitted = new Set((await this.receipts.findByClientIds(actor.id, pageRows.map((r) => r.clientId))).map((r) => r.clientId));
     return {
-      drafts: pageRows.filter((r) => !submitted.has(r.clientId)).map((r) => ({ clientId: r.clientId, kind: r.kind, clientUpdatedAt: r.clientUpdatedAt, payload: r.payload })),
+      drafts: pageRows.filter((r) => !submitted.has(r.clientId)).map((r) => ({ clientId: r.clientId, kind: r.kind, clientUpdatedAt: r.clientUpdatedAt.toISOString(), payload: r.payload })),
       nextCursor: hasMore ? pageRows[pageRows.length - 1]!.id : null,
     };
   }

@@ -1,3 +1,4 @@
+import type { HrSnapshot } from '@greynote/contracts';
 import type { SyncSourceDefinition } from '@/modules/sync/sync.public.js';
 import type { HolidayRepositoryPort } from '../domain/holiday.repository.port.js';
 import type { LeaveTypeRepositoryPort } from '../domain/leaveType.repository.port.js';
@@ -22,7 +23,7 @@ export function makeHrSource(deps: {
 }): SyncSourceDefinition {
   return {
     name: HR_SYNC_SOURCE,
-    async snapshot(userId) {
+    async snapshot(userId): Promise<HrSnapshot> {
       const leaveYear = await deps.calendar.leaveYearOf(await deps.calendar.today());
       const range = await deps.calendar.leaveYearRange(leaveYear);
       const [types, balances, holidays, weeklyOffDay, backdateDays] = await Promise.all([

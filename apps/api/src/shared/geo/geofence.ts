@@ -1,8 +1,6 @@
-/** A point on Earth, in degrees. */
-export interface GeoPoint {
-  latitude: number;
-  longitude: number;
-}
+import type { GeofenceComputedStatus, GeofenceReason, GeofenceResult, GeoPoint } from '@greynote/contracts';
+
+export type { GeofenceComputedStatus, GeofenceReason, GeofenceResult, GeoPoint };
 
 const EARTH_RADIUS_METERS = 6_371_000;
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
@@ -15,13 +13,8 @@ export function haversineMeters(a: GeoPoint, b: GeoPoint): number {
   return 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-/**
- * `PASS` / `FAIL` — the captured point is inside / outside the radius. `UNVERIFIED` — the check can't
- * be trusted either way (see `GeofenceReason`); the manager sees it like a `FAIL`. `OVERRIDE`, a
- * manager accepting a `FAIL`, is recorded by Field Activity's DCR review, never computed here.
- */
-export type GeofenceStatus = 'PASS' | 'FAIL' | 'UNVERIFIED';
-export type GeofenceReason = 'NO_REGISTERED_LOCATION' | 'LOW_ACCURACY';
+/** `OVERRIDE` (a manager accepting a `FAIL`) is recorded by Field Activity's DCR review, never computed here. */
+export type GeofenceStatus = GeofenceComputedStatus;
 
 export interface GeofenceInput {
   /** Where the Doctor or Chemist is supposed to be; `null` if none was ever registered. */
@@ -33,13 +26,6 @@ export interface GeofenceInput {
   radiusMeters: number;
   /** A reading less accurate than this is not evidence either way. */
   maxAccuracyMeters: number;
-}
-
-export interface GeofenceResult {
-  status: GeofenceStatus;
-  /** How far the captured point is from the registered one, rounded to a meter; `null` when there's nothing to measure against. */
-  distanceMeters: number | null;
-  reason: GeofenceReason | null;
 }
 
 /**

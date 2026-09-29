@@ -51,8 +51,11 @@ Response `200` with a **result per record** — never one verdict for the batch:
 Only a malformed envelope (or no login) is a 4xx.
 
 - **Order.** Records are applied in dependency order (`dependsOn` lists client ids; ties keep the
-  order given). A record whose dependency failed is `FAILED` with `DEPENDENCY_FAILED`; an unknown
-  dependency or a cycle is `INVALID_DEPENDENCY`. A batch is capped at `SYNC_MAX_BATCH` records (100).
+  order given). A record whose dependency failed *in the same batch* is `FAILED` with
+  `DEPENDENCY_FAILED`. A dependency that is neither in the batch nor already synced, or a cycle, is
+  `INVALID_DEPENDENCY` — which includes, across chunks, a parent that failed in an earlier request: the
+  server knows only what synced, so the phone sends parents first and holds back the children of one
+  that failed. A batch is capped at `SYNC_MAX_BATCH` records (100).
 - **Idempotent on `clientId`.** A `SyncReceipt` — unique on `(userId, clientId)` — is written in the
   same transaction as the record. Sending a record again returns `ALREADY_SYNCED` with the original
   `serverId`. Only `SYNCED` records get a receipt: a `FAILED` one is retried from scratch, so the MR
@@ -261,6 +264,29 @@ services and the DCR submit.
 ## Dependencies
 
 Identity (the caller). Everything else reaches this module by registering into it.
+
+## The shared contract, and how the protocol is tested
+
+**`packages/contracts`** (`sync.ts`, `geofence.ts`) holds the wire format — the push, draft and pull
+requests and responses, the five pull snapshots, the `NEW_DOCTOR` payload and every status and reason
+code — so the phone and the API are built against one definition. `apps/api` builds against it: each
+pull source's `snapshot()` is compiled against its contract type, and a conformance test
+(`interface/sync.contract.test.ts`, `newDoctorSync.contract.test.ts`) fails the build if a response type
+drifts from its contract or the server stops accepting what the contract says a phone may send. Dates on
+the wire are ISO strings and money is paise.
+
+**The phone simulator** (`interface/phoneSimulator.ts`) is a fake phone that follows the protocol —
+local records, backup whenever there is a connection, a chunked Submit with the DCR's own submit last,
+retry, restore on another phone — against the real engine, with the connection dropped *before* and
+*after* the server has acted (the reply lost, so the phone can't tell). Its tests
+(`interface/phone.simulation.test.ts`) prove, among others: a lost reply never doubles a record and ends
+in exactly the state a clean run would; a day bigger than a chunk survives drops between chunks; a refused
+record keeps the day from being submitted and a fix plus another Submit finishes it; a lost phone is
+restored on another from the backup and an old copy resurfacing changes nothing; two phones editing one
+record settle on the later edit; a phone with the wrong clock gets a reason it can show and can fix it —
+and **30 seeded random days** over a randomly failing connection each converge on every record exactly
+once, the DCR committed last, nothing doubled and no draft left. Breaking the engine's idempotency on
+purpose fails 34 of them, so they do bite.
 
 ## Deliberately deferred
 

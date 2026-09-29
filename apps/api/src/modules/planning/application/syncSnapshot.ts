@@ -1,3 +1,4 @@
+import type { PlanningSnapshot } from '@greynote/contracts';
 import type { SyncSourceDefinition } from '@/modules/sync/sync.public.js';
 import { addDays } from '@/shared/time/businessTime.js';
 import type { PlanDeadlines } from './planDeadlines.js';
@@ -25,7 +26,7 @@ const nextMonth = (month: string): string => {
 export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: ListDailyPlansUseCase; monthly: ListMonthlyPlansUseCase }): SyncSourceDefinition {
   return {
     name: PLANNING_SYNC_SOURCE,
-    async snapshot(userId) {
+    async snapshot(userId): Promise<PlanningSnapshot> {
       const today = await deps.deadlines.today();
       const month = today.slice(0, 7);
       const [daily, monthly] = await Promise.all([
@@ -44,7 +45,7 @@ export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: List
           revision: p.revision,
           status: p.status,
           approvalRequestId: p.approval?.requestId ?? null,
-          submitDeadline: p.submitDeadline,
+          submitDeadline: p.submitDeadline.toISOString(),
         })),
         monthlyPlans: monthly.map((p) => ({
           id: p.id,
@@ -53,7 +54,7 @@ export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: List
           revision: p.revision,
           status: p.status,
           approvalRequestId: p.approval?.requestId ?? null,
-          submitDeadline: p.submitDeadline,
+          submitDeadline: p.submitDeadline.toISOString(),
         })),
       };
     },

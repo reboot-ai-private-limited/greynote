@@ -1,3 +1,4 @@
+import type { FieldMasterDataSnapshot } from '@greynote/contracts';
 import type { SyncSourceDefinition } from '@/modules/sync/sync.public.js';
 import type { ChemistRepositoryPort } from '../domain/chemist.repository.port.js';
 import type { DistributorRepositoryPort } from '../domain/distributor.repository.port.js';
@@ -37,7 +38,7 @@ export function makeFieldMasterDataSource(deps: {
   const byId = <T extends { id: string }>(rows: T[]) => [...rows].sort((a, b) => a.id.localeCompare(b.id));
   return {
     name: FIELD_MASTER_DATA_SYNC_SOURCE,
-    async snapshot(userId) {
+    async snapshot(userId): Promise<FieldMasterDataSnapshot> {
       const [scopes, routes] = await Promise.all([deps.visibility.scopes([userId]), deps.territory.listRoutesForUser(userId)]);
       const routeIds = routes.map((r) => r.id);
       const [{ items: mine }, pending, chemists, distributors, products] = await Promise.all([

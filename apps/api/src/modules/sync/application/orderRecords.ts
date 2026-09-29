@@ -18,7 +18,9 @@ export function orderRecords(records: SyncRecordInput[], known: ReadonlySet<stri
 
   for (const r of records) {
     const missing = r.dependsOn.filter((d) => !byId.has(d) && !known.has(d));
-    if (missing.length > 0) invalid.set(r.clientId, `Depends on a record that wasn't sent or synced: ${missing.join(', ')}.`);
+    if (missing.length > 0) {
+      invalid.set(r.clientId, `Depends on a record that hasn't been synced: ${missing.join(', ')}. Send parents first; if the parent failed, fix it and send it again.`);
+    }
     if (r.dependsOn.includes(r.clientId)) invalid.set(r.clientId, 'A record can’t depend on itself.');
   }
 

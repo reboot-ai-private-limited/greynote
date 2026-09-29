@@ -239,14 +239,26 @@ connection at the action.
    caller's data, stable versions, only the changed source returned, Doctors vanishing and returning
    with a Route to exactly the earlier version)
 8. Contract types in `packages/contracts`, a sync-client simulator test (dropped connections, replayed
-   batches, a lost phone restored on another), and one end-to-end live run
+   batches, a lost phone restored on another), and one end-to-end live run — **done** (2026-09-29):
+   the API is built against the shared types (a conformance test pins it), a phone simulator with 46
+   tests including 30 random-connection days, and a 23-check live run over a flaky connection
+
+**Status (2026-09-29): Phase 5 done** — the server half of offline sync and geofencing, in eight
+steps: design and decisions, the geofence check, money as integer paise, the push engine, the private
+draft backup, `NEW_DOCTOR` through it, the pull, and the shared contract with a phone simulator.
+About 150 new tests (314 before the phase, 470 after) and a live run per step, ending in one over a flaky connection: a lost phone is
+restored on another, a Submit in chunks with replies lost is applied once per record, a Route change
+makes Doctors vanish and return to exactly the earlier version, and calls are flagged `PASS` / `FAIL` /
+`UNVERIFIED` against locations that came through the real pull. What remains is the phone itself
+(Phase 10) and the record kinds Phase 6 registers.
 
 **Done when:** an MR-added Doctor sent in a push is created exactly once however many times the push
 is repeated or interrupted, a record whose parent failed is reported as such without losing the
 rest, drafts backed up from one phone restore on another and a stale copy never overwrites a newer
 one, no other endpoint can read a draft, the pull returns exactly the caller's data (and a Route
-change makes Doctors appear and vanish), and a call-shaped test record is flagged `FAIL` / `UNVERIFIED` correctly — all against real
-Field Master Data from Phase 4, not fixtures. Real calls, expenses and orders join in Phase 6.
+change makes Doctors appear and vanish), and a call-shaped test record is flagged `FAIL` / `UNVERIFIED`
+correctly — all against real Field Master Data from Phase 4, not fixtures. Real calls, expenses and
+orders join in Phase 6.
 
 ## Phase 6 — Field Activity, Sales & Orders, Marketing
 

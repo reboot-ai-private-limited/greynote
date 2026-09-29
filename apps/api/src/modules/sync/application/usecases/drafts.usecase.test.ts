@@ -183,7 +183,7 @@ describe('Draft backup — the private copy of the day’s unsent records', () =
       await kit.putDrafts.execute(mr1, [removal(ds[1]!.clientId, '2026-10-05T11:00:00Z')]);
       const p1 = await kit.listDrafts.execute(mr1, { after: null, limit: 2 });
       expect(p1.drafts.map((d) => (d.payload as { n: number }).n)).toEqual([0, 2]);
-      expect(p1.drafts[0]).toEqual({ clientId: ds[0]!.clientId, kind: 'CALL', clientUpdatedAt: T('10:00'), payload: { n: 0 } });
+      expect(p1.drafts[0]).toEqual({ clientId: ds[0]!.clientId, kind: 'CALL', clientUpdatedAt: '2026-10-05T10:00:00.000Z', payload: { n: 0 } });
       expect(p1.nextCursor).not.toBeNull();
       const p2 = await kit.listDrafts.execute(mr1, { after: p1.nextCursor, limit: 2 });
       expect(p2.drafts.map((d) => (d.payload as { n: number }).n)).toEqual([3, 4]);
