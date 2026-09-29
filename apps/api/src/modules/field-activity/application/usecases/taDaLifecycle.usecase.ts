@@ -23,7 +23,8 @@ const WITHDRAWN_STATUSES: ReadonlySet<ApprovalStatus> = new Set(['REJECTED', 'RE
  *   second hook for the same approval, or `MANAGER_APPROVED → APPROVED`, adds nothing.
  * - If it goes back (Admin's final rejection, a reopen, a withdrawal), its `UNPAID` `AUTO` rows are `CANCELLED`;
  *   a `PAID` one is left. A later approval after a resubmission generates fresh rows.
- * - `MANUAL` expenses are never touched here.
+ * - The DCR's rows carry `accepted` while it stands past the manager, which is what the Accountant's list and
+ *   mark-paid rest on. `MANUAL` expenses are otherwise never touched here.
  */
 export class TaDaLifecycle {
   constructor(
@@ -37,9 +38,14 @@ export class TaDaLifecycle {
   async onStatusChange(dcrId: string, status: ApprovalStatus, ctx: TransactionContext, now: Date = new Date()): Promise<void> {
     if (WITHDRAWN_STATUSES.has(status)) {
       await this.expenses.cancelUnpaidAuto(dcrId, ctx);
+      await this.expenses.setAccepted(dcrId, false, ctx);
       return;
     }
-    if (APPROVED_STATUSES.has(status)) await this.generate(dcrId, ctx, now);
+    if (APPROVED_STATUSES.has(status)) {
+      // The claim is accepted: the MR's manual rows become auditable and payable, and the computed ones are written.
+      await this.expenses.setAccepted(dcrId, true, ctx);
+      await this.generate(dcrId, ctx, now);
+    }
   }
 
   private async generate(dcrId: string, ctx: TransactionContext, now: Date): Promise<void> {
@@ -53,7 +59,7 @@ export class TaDaLifecycle {
     const rows = calculateTaDa(day.workingType as WorkingType, routes, day.routeIds, await this.users.getPayBandRates(dcr.userId));
     for (const row of rows) {
       await this.expenses.create(
-        { dcrId, userId: dcr.userId, reportDate: dcr.reportDate, routeId: row.routeId, type: row.type, source: 'AUTO', amountPaise: row.amountPaise, remarks: null, paymentStatus: 'UNPAID', distanceFlag: row.distanceFlag, paidBy: null, paidAt: null, clientId: null, recordedAt: now },
+        { dcrId, userId: dcr.userId, reportDate: dcr.reportDate, routeId: row.routeId, type: row.type, source: 'AUTO', amountPaise: row.amountPaise, remarks: null, paymentStatus: 'UNPAID', accepted: true, distanceFlag: row.distanceFlag, paidBy: null, paidAt: null, clientId: null, recordedAt: now },
         ctx,
       );
     }

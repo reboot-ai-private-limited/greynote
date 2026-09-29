@@ -13,6 +13,7 @@ export interface GeofenceOverride {
 export interface DoctorCallRepositoryPort {
   create(input: Omit<DoctorCall, 'id'>, ctx: TransactionContext): Promise<DoctorCall>;
   listForDcr(dcrId: string): Promise<DoctorCall[]>;
+  countForDcrs(dcrIds: string[]): Promise<Map<string, number>>;
   findById(id: string): Promise<DoctorCall | null>;
   /** One conditional update: only a still-`FAIL` / `UNVERIFIED` call becomes `OVERRIDE`. False if it no longer is (someone got there first). */
   overrideGeofence(id: string, override: GeofenceOverride): Promise<boolean>;
@@ -20,12 +21,14 @@ export interface DoctorCallRepositoryPort {
 export interface ChemistCallRepositoryPort {
   create(input: Omit<ChemistCall, 'id'>, ctx: TransactionContext): Promise<ChemistCall>;
   listForDcr(dcrId: string): Promise<ChemistCall[]>;
+  countForDcrs(dcrIds: string[]): Promise<Map<string, number>>;
   findById(id: string): Promise<ChemistCall | null>;
   overrideGeofence(id: string, override: GeofenceOverride): Promise<boolean>;
 }
 export interface FollowupRepositoryPort {
   create(input: Omit<Followup, 'id'>, ctx: TransactionContext): Promise<Followup>;
   listForDcr(dcrId: string): Promise<Followup[]>;
+  countForDcrs(dcrIds: string[]): Promise<Map<string, number>>;
 }
 export interface ExpenseRepositoryPort {
   create(input: Omit<Expense, 'id'>, ctx: TransactionContext): Promise<Expense>;
@@ -33,6 +36,17 @@ export interface ExpenseRepositoryPort {
   hasActiveAuto(dcrId: string, ctx: TransactionContext): Promise<boolean>;
   /** Marks the DCR's `UNPAID` AUTO rows `CANCELLED` (a `PAID` row is left); returns how many. */
   cancelUnpaidAuto(dcrId: string, ctx: TransactionContext): Promise<number>;
+  /** Sets `accepted` on the DCR's rows that aren't `PAID` (a paid row keeps what it was). */
+  setAccepted(dcrId: string, accepted: boolean, ctx: TransactionContext): Promise<void>;
+  findById(id: string): Promise<Expense | null>;
+  /** One conditional update: only an `accepted`, still-`UNPAID` row becomes `PAID`. False if it isn't one. */
+  markPaid(id: string, by: string, at: Date): Promise<boolean>;
+  /** The accepted rows in a date range, `UNPAID` first then `PAID`, oldest day first; at most `limit`. */
+  listAccepted(filter: { from: string; to: string; userId?: string; paymentStatus?: 'UNPAID' | 'PAID' }, limit: number): Promise<Expense[]>;
+  /** The whole paise `PAID` for a user in a month (`YYYY-MM`, by report date), TA and DA apart. */
+  paidTaDaTotals(userId: string, month: string): Promise<{ taPaise: number; daPaise: number }>;
+  /** Per DCR, what is claimed: TA, DA and the manual rows, `CANCELLED` left out, and how much of it is `PAID`. */
+  totalsForDcrs(dcrIds: string[]): Promise<Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>>;
   listForDcr(dcrId: string): Promise<Expense[]>;
 }
 

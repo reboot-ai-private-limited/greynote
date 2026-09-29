@@ -12,6 +12,8 @@ import { makeExpenseSyncHandler } from './application/expenseSync.js';
 import { TaDaLifecycle } from './application/usecases/taDaLifecycle.usecase.js';
 import { LogExpenseUseCase } from './application/usecases/logExpense.usecase.js';
 import { makeServiceGiftSyncHandlers } from './application/serviceGiftSync.js';
+import { GetPaidTaDaTotalUseCase, ListExpensesUseCase, MarkExpensePaidUseCase } from './application/usecases/accountantExpenses.usecase.js';
+import { GetDcrSummaryUseCase } from './application/usecases/getDcrSummary.usecase.js';
 import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, DOCTOR_SERVICE_KIND, ListDoctorServicesUseCase, ListGiftsUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './application/usecases/servicesAndGifts.usecase.js';
 import { GeofenceEvaluator } from './application/geofenceEvaluator.js';
 import { LoggingGate } from './application/loggingGate.js';
@@ -87,6 +89,8 @@ export function buildFieldActivityContainer(
   const views = new DcrViews(approvals);
   const submitDcr = new SubmitDcrUseCase(gate, dcrs, approvals);
   const hasQualifyingDcr = new HasQualifyingDcrUseCase(dcrs, approvals);
+  const paidTaDa = new GetPaidTaDaTotalUseCase(expenses);
+  const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
 
   // The day's calls and follow-ups, each checked against Field Master Data and Territory as they are at sync.
   const checks = new CallChecks(master, territory, users);
@@ -117,6 +121,8 @@ export function buildFieldActivityContainer(
   return {
     contract: {
       hasQualifyingDcr: (userId, date) => hasQualifyingDcr.execute(userId, date),
+      getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),
+      getDcrSummary: (userId, range) => dcrSummary.execute(userId, range),
     },
     buildRouter: () =>
       buildFieldActivityRouter(
@@ -128,6 +134,8 @@ export function buildFieldActivityContainer(
           listServices: new ListDoctorServicesUseCase(services, approvals, master),
           allocateGift: new AllocateGiftUseCase(master, gifts),
           listGifts: new ListGiftsUseCase(gifts, master),
+          listExpenses: new ListExpensesUseCase(expenses, users),
+          markPaid: new MarkExpensePaidUseCase(expenses),
           override: new OverrideGeofenceUseCase(dcrs, users, views, doctorCalls, chemistCalls),
           get: new GetDcrDetailUseCase(new GetDcrUseCase(dcrs, users, views), doctorCalls, chemistCalls, followups, expenses, master),
         }),

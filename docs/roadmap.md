@@ -309,7 +309,10 @@ Field Activity, step by step (decision-log 2026-09-29):
    through manager and Admin approval, Admin-made ones tied to the assigned MR, 5 simultaneous "done" → one wins,
    a Doctor reassigned mid-offline hands its gift to the new MR, a blocked MR refused). Field Master Data gained
    `getAssignedUserId`
-8. The Accountant's mark-paid, and the contract (`getPaidTaDaTotal`, `hasQualifyingDcr`, `getDcrSummary`)
+8. The Accountant's mark-paid, and the contract (`getPaidTaDaTotal`, `hasQualifyingDcr`, `getDcrSummary`) —
+   **done** (2026-09-29): the audit list and idempotent mark-paid (an `accepted` flag on each expense, kept in step
+   by the DCR approval hook); 8 new tests and a 16-check live run (unpayable until accepted, 5 simultaneous
+   payments → one payer, a paid row surviving Admin's rejection, Payroll's total counting only PAID TA/DA)
 9. The missed-DCR compliance script
 10. A `fieldActivity` pull source and the shared contract types
 11. Live run: a full day end to end

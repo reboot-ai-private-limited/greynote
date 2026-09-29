@@ -101,6 +101,7 @@ export interface ExpenseDoc {
   amountPaise: number;
   remarks: string | null;
   paymentStatus: 'UNPAID' | 'PAID' | 'CANCELLED';
+  accepted: boolean;
   distanceFlag: boolean;
   paidBy: Types.ObjectId | null;
   paidAt: Date | null;
@@ -117,6 +118,7 @@ const expenseSchema = new Schema<ExpenseDoc>({
   amountPaise: { type: Number, required: true, min: 0 },
   remarks: { type: String, default: null },
   paymentStatus: { type: String, required: true, enum: ['UNPAID', 'PAID', 'CANCELLED'], default: 'UNPAID' },
+  accepted: { type: Boolean, default: false },
   distanceFlag: { type: Boolean, default: false },
   paidBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
   paidAt: { type: Date, default: null },
@@ -124,6 +126,9 @@ const expenseSchema = new Schema<ExpenseDoc>({
   recordedAt: { type: Date, required: true },
 });
 expenseSchema.index({ dcrId: 1, recordedAt: 1 });
+// The Accountant's audit list and Payroll's monthly total.
+expenseSchema.index({ accepted: 1, paymentStatus: 1, reportDate: 1 });
+expenseSchema.index({ userId: 1, reportDate: 1, paymentStatus: 1 });
 // One MANUAL expense per phone record; AUTO rows have no client id and are left out of the index.
 expenseSchema.index({ userId: 1, clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } });
 

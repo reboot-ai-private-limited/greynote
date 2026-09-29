@@ -20,6 +20,11 @@ export interface Expense {
   amountPaise: Paise;
   remarks: string | null;
   paymentStatus: PaymentStatus;
+  /**
+   * The DCR's claim has been accepted (past the manager) and not sent back since — the only rows the Accountant
+   * audits and may pay. Set by the DCR's approval hook; a `PAID` row keeps it even if the DCR is later sent back.
+   */
+  accepted: boolean;
   /** AUTO TA only: a Route's distance could not be calculated, so the amount is artificially low. */
   distanceFlag: boolean;
   paidBy: string | null;

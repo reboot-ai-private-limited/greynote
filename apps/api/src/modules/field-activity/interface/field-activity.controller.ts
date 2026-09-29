@@ -4,18 +4,19 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
+import type { ListExpensesUseCase, MarkExpensePaidUseCase } from '../application/usecases/accountantExpenses.usecase.js';
 import type { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase } from '../application/usecases/servicesAndGifts.usecase.js';
 import type { OverrideGeofenceUseCase } from '../application/usecases/overrideGeofence.usecase.js';
 import type { GetDcrDetailUseCase } from '../application/usecases/getDcrDetail.usecase.js';
 import type { Actor, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCase } from '../application/usecases/readDcrs.usecase.js';
-import type { allocateGiftBodySchema, doctorServiceFieldsSchema, listDcrsQuerySchema, listGiftsQuerySchema, listServicesQuerySchema, listTeamDcrsQuerySchema, overrideBodySchema } from './field-activity.schemas.js';
+import type { listExpensesQuerySchema, allocateGiftBodySchema, doctorServiceFieldsSchema, listDcrsQuerySchema, listGiftsQuerySchema, listServicesQuerySchema, listTeamDcrsQuerySchema, overrideBodySchema } from './field-activity.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
   return { id: req.user.sub, role: req.user.role };
 }
 
-export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'createAdminService' | 'listServices' | 'allocateGift' | 'listGifts', RequestHandler>;
+export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'createAdminService' | 'listServices' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid', RequestHandler>;
 
 export function makeFieldActivityControllers(u: {
   listMine: ListMyDcrsUseCase;
@@ -27,6 +28,8 @@ export function makeFieldActivityControllers(u: {
   listServices: ListDoctorServicesUseCase;
   allocateGift: AllocateGiftUseCase;
   listGifts: ListGiftsUseCase;
+  listExpenses: ListExpensesUseCase;
+  markPaid: MarkExpensePaidUseCase;
 }): FieldActivityHandlers {
   return {
     // FIELD: their own. ADMIN: anyone's — `userId` is required, so "everyone's" is never an accident.
@@ -56,6 +59,8 @@ export function makeFieldActivityControllers(u: {
     ),
     allocateGift: asyncHandler(async (req, res) => sendSuccess(req, res, await u.allocateGift.execute(actorOf(req).id, req.body as z.output<typeof allocateGiftBodySchema>), 'The gift was allocated.', 201)),
     listGifts: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listGifts.execute(actorOf(req), req.query as unknown as z.output<typeof listGiftsQuerySchema>), 'Doctor gifts.', 200)),
+    listExpenses: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listExpenses.execute(req.query as unknown as z.output<typeof listExpensesQuerySchema>), 'Expenses to audit.', 200)),
+    markExpensePaid: asyncHandler(async (req, res) => sendSuccess(req, res, await u.markPaid.execute(actorOf(req).id, requiredParam(req.params, 'id')), 'The expense was marked paid.', 200)),
     getDcr: asyncHandler(async (req, res) => sendSuccess(req, res, await u.get.execute(actorOf(req), requiredParam(req.params, 'id')), 'Daily report.', 200)),
   };
 }

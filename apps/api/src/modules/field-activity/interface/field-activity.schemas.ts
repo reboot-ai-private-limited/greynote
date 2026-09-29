@@ -72,5 +72,7 @@ export const giftDonePayloadSchema = z.object({ giftId: objectIdSchema });
 
 export const allocateGiftBodySchema = z.object({ doctorId: objectIdSchema, productName: z.string().trim().min(1, 'Name the gift.').max(200), amountPaise: paiseSchema });
 
+export const listExpensesQuerySchema = rangeRules(z.object({ ...rangeFields, userId: objectIdSchema.optional(), paymentStatus: z.enum(['UNPAID', 'PAID']).optional() }));
+
 export const listServicesQuerySchema = z.object({ userId: objectIdSchema.optional(), doctorId: objectIdSchema.optional() });
 export const listGiftsQuerySchema = z.object({ status: z.enum(['PENDING', 'DONE']).optional() });

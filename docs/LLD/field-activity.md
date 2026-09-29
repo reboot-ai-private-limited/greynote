@@ -12,10 +12,10 @@ Activity as their first, and in most cases only, real consumer.
 
 ## Build status
 
-Built so far (Phase 6 Field Activity steps 1–7, `../roadmap.md`): the decisions below, the **DCR envelope**
+Built so far (Phase 6 Field Activity steps 1–8, `../roadmap.md`): the decisions below, the **DCR envelope**
 and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_SUBMIT`, reads of DCRs,
 `hasQualifyingDcr` on the contract, and **calls, follow-ups and samples given** as four sync kinds, and
-**manual expenses** as the sync kind `EXPENSE`. **the geofence override** for the manager's review (approve / reject is the approval module's). **TA/DA generation and its cancellation**. **Doctor Services and Gifts**. Mark-paid and the missed-DCR job follow.
+**manual expenses** as the sync kind `EXPENSE`. **the geofence override** for the manager's review (approve / reject is the approval module's). **TA/DA generation and its cancellation**. **Doctor Services and Gifts**. **the Accountant's list and mark-paid**, and the contract's **`getPaidTaDaTotal` / `getDcrSummary`**. The missed-DCR job follows.
 
 - **The DCR** (`Dcr`: `userId`, `reportDate`) is one row per user per day — a unique index — created lazily
   by the first record of the day or by the submit, in one atomic upsert, so simultaneous first records (two
@@ -89,6 +89,20 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
     gifts to the new MR (the old one gets `DOCTOR_NOT_ASSIGNED`). One conditional update (`PENDING` → `DONE`, with
     who and the phone's time) — a second attempt, even by the same MR, is `GIFT_ALREADY_DONE`; an unknown gift is
     `GIFT_NOT_FOUND`. `GET /doctor-gifts` is the gifts of the MR's own Doctors (Admin: all), filterable by status.
+- **The Accountant (step 8).** An `Expense` carries `accepted`: true while its DCR stands past the manager, set
+  and cleared by the DCR approval hook (computed rows are written already accepted; the MR's manual rows flip
+  with the DCR; a `PAID` row keeps what it was). `GET /expenses?from&to[&userId][&paymentStatus]` (ACCOUNTANT,
+  ADMIN; the range is required, at most 400 days, at most 500 rows) lists the accepted rows, `UNPAID` first then
+  `PAID`, oldest day first, with the employee's name and code and the `distanceFlag`.
+  `POST /expenses/:id/mark-paid` is one conditional update (accepted and `UNPAID` → `PAID`, with `paidBy` and
+  `paidAt`). Marking a paid one again returns it unchanged — the first payer and time stay, however many retries or
+  simultaneous clicks; a `CANCELLED` row, or one whose DCR isn't accepted, is 409; an unknown id 404. Because
+  `accepted` is in the update's filter, a payment can't slip past a rejection that commits first.
+- **Contract (step 8).** `getPaidTaDaTotal(userId, 'YYYY-MM')` → `{ taPaise, daPaise }`: the `PAID` TA and DA
+  whose *report day* is in that month (manual reimbursements are not in it — Payroll adds the base salary and the
+  leave deduction, hld/07). `getDcrSummary(userId, { from, to })` → per DCR `{ dcrId, userId, reportDate, status,
+  doctorCalls, chemistCalls, followups, taPaise, daPaise, otherExpensesPaise, paidPaise }`, `CANCELLED` rows left
+  out, in a fixed handful of queries however many days.
 - **Contract:** `hasQualifyingDcr(userId, date)` — true once `SUBMITTED`, `MANAGER_APPROVED` or `APPROVED`.
 
 ## What it owns
@@ -122,7 +136,7 @@ async methods, no framework types leaking through):
 interface FieldActivityPublicContract {
   // Payroll (tier 5) sums PAID TA/DA for a user across a month. Only PAID rows count —
   // MANAGER_APPROVED alone is not enough (see "Write-path rules" below).
-  getPaidTaDaTotal(userId: string, month: string): Promise<{ taTotal: Decimal; daTotal: Decimal }>;
+  getPaidTaDaTotal(userId: string, month: string): Promise<{ taPaise: number; daPaise: number }>;
 
   // The missed-DCR compliance job (hld/10 §2) needs to know whether a DCR exists in a
   // qualifying status for a given user+date, without reaching into the collection directly.
@@ -130,13 +144,13 @@ interface FieldActivityPublicContract {
 
   // Reports (DCR Report, Gift & Sales Report — PRD §6.3) read through this contract rather than
   // a report-specific query layer, at least until a dedicated reporting module is warranted.
-  getDcrSummary(userId: string, dateRange: DateRange): Promise<DcrSummary[]>;
+  getDcrSummary(userId: string, range: { from: string; to: string }): Promise<DcrSummary[]>;
 }
 ```
 
-`Decimal` here stands for money, which is a whole number of **paise** — a plain integer
-(decided 2026-09-29; [`../engineering/coding-standards.md#money`](../engineering/coding-standards.md#money)).
-Name the fields `…Paise`.
+Money is a whole number of **paise** — a plain integer
+(decided 2026-09-29; [`../engineering/coding-standards.md#money`](../engineering/coding-standards.md#money)),
+named `…Paise`.
 
 What it does **not** expose: nothing about `geofence_status`, `working_type`, or the write paths
 below. Those are internal to how a DCR gets created and approved, not something another module

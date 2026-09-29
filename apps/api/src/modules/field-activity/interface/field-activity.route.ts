@@ -5,7 +5,7 @@ import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { FieldActivityHandlers } from './field-activity.controller.js';
-import { allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
+import { listExpensesQuerySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
 
 const TAG = 'Field Activity';
 
@@ -36,6 +36,16 @@ openApiRegistry.registerPath({
 
 doc('/doctor-services', 'My Doctor Services with their approval status — Admin: everyone’s, optionally by userId / doctorId', { query: listServicesQuerySchema });
 doc('/doctor-gifts', 'Gifts for my Doctors, pending and done — Admin: all', { query: listGiftsQuerySchema });
+doc('/expenses', 'Accountant: expenses whose report the manager accepted, unpaid first — a date range is required', { query: listExpensesQuerySchema });
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/field-activity/expenses/{id}/mark-paid',
+  tags: [TAG],
+  summary: 'Accountant: settle an accepted expense. Idempotent; a cancelled or not-yet-approved one is a 409',
+  security: [{ bearerAuth: [] }],
+  request: { params: idParamsSchema },
+  responses: { 200: { description: 'The expense, PAID' }, 409: { description: 'Cancelled, or its report is not approved' } },
+});
 function docPost(path: string, summary: string, schema: ZodTypeAny): void {
   openApiRegistry.registerPath({
     method: 'post',
@@ -61,6 +71,8 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.get('/dcr/team', requireRole('FIELD'), validate({ query: listTeamDcrsQuerySchema }), c.teamDcrs);
   router.get('/dcr/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.getDcr);
   router.post('/dcr/:id/calls/:callId/override-geofence', requireRole('FIELD', 'ADMIN'), validate({ params: callParamsSchema, body: overrideBodySchema }), c.overrideGeofence);
+  router.get('/expenses', requireRole('ACCOUNTANT', 'ADMIN'), validate({ query: listExpensesQuerySchema }), c.listExpenses);
+  router.post('/expenses/:id/mark-paid', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: idParamsSchema }), c.markExpensePaid);
   router.get('/doctor-services', requireRole('FIELD', 'ADMIN'), validate({ query: listServicesQuerySchema }), c.listServices);
   router.get('/doctor-gifts', requireRole('FIELD', 'ADMIN'), validate({ query: listGiftsQuerySchema }), c.listGifts);
   router.post('/admin/doctor-services', requireRole('ADMIN'), validate({ body: doctorServiceFieldsSchema }), c.createAdminService);

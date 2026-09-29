@@ -80,6 +80,13 @@ const overrideUpdate = (id: string, o: GeofenceOverride) => ({
   update: { $set: { geofenceStatus: 'OVERRIDE', geofenceOverriddenBy: oid(o.by), geofenceOverriddenAt: o.at, geofenceOverrideComment: o.comment } },
 });
 
+/** Documents per DCR, for the reports — one aggregation, never a query per DCR. */
+async function countByDcr(model: { aggregate: (p: object[]) => Promise<Array<{ _id: Types.ObjectId; n: number }>> }, dcrIds: string[]): Promise<Map<string, number>> {
+  if (dcrIds.length === 0) return new Map();
+  const rows = await model.aggregate([{ $match: { dcrId: { $in: dcrIds.map(oid) } } }, { $group: { _id: '$dcrId', n: { $sum: 1 } } }]);
+  return new Map(rows.map((r) => [String(r._id), r.n]));
+}
+
 export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
   async create(input: Omit<DoctorCall, 'id'>, ctx: TransactionContext): Promise<DoctorCall> {
     const [doc] = await DoctorCallModel.create(
@@ -87,6 +94,9 @@ export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
       session(ctx),
     );
     return toDoctorCall(doc!.toObject());
+  }
+  async countForDcrs(dcrIds: string[]): Promise<Map<string, number>> {
+    return countByDcr(DoctorCallModel as never, dcrIds);
   }
   async listForDcr(dcrId: string): Promise<DoctorCall[]> {
     return (await DoctorCallModel.find({ dcrId: oid(dcrId) }).sort({ recordedAt: 1, _id: 1 }).lean()).map(toDoctorCall);
@@ -106,6 +116,9 @@ export class MongoChemistCallAdapter implements ChemistCallRepositoryPort {
     const [doc] = await ChemistCallModel.create([{ ...callColumns(input), chemistId: oid(input.chemistId) }], session(ctx));
     return toChemistCall(doc!.toObject());
   }
+  async countForDcrs(dcrIds: string[]): Promise<Map<string, number>> {
+    return countByDcr(ChemistCallModel as never, dcrIds);
+  }
   async listForDcr(dcrId: string): Promise<ChemistCall[]> {
     return (await ChemistCallModel.find({ dcrId: oid(dcrId) }).sort({ recordedAt: 1, _id: 1 }).lean()).map(toChemistCall);
   }
@@ -124,6 +137,9 @@ export class MongoFollowupAdapter implements FollowupRepositoryPort {
     const [doc] = await FollowupModel.create([{ ...input, dcrId: oid(input.dcrId), userId: oid(input.userId), subjectId: oid(input.subjectId) }], session(ctx));
     return toFollowup(doc!.toObject());
   }
+  async countForDcrs(dcrIds: string[]): Promise<Map<string, number>> {
+    return countByDcr(FollowupModel as never, dcrIds);
+  }
   async listForDcr(dcrId: string): Promise<Followup[]> {
     return (await FollowupModel.find({ dcrId: oid(dcrId) }).sort({ recordedAt: 1, _id: 1 }).lean()).map(toFollowup);
   }
@@ -140,6 +156,7 @@ const toExpense = (d: ExpenseDoc & { _id: unknown }): Expense => ({
   amountPaise: d.amountPaise,
   remarks: d.remarks,
   paymentStatus: d.paymentStatus,
+  accepted: d.accepted,
   distanceFlag: d.distanceFlag,
   paidBy: d.paidBy ? String(d.paidBy) : null,
   paidAt: d.paidAt,
@@ -154,6 +171,45 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
       session(ctx),
     );
     return toExpense(doc!.toObject());
+  }
+  async setAccepted(dcrId: string, accepted: boolean, ctx: TransactionContext): Promise<void> {
+    await ExpenseModel.updateMany({ dcrId: oid(dcrId), paymentStatus: { $ne: 'PAID' } }, { $set: { accepted } }, session(ctx));
+  }
+  async findById(id: string): Promise<Expense | null> {
+    const doc = await ExpenseModel.findById(id).lean();
+    return doc ? toExpense(doc) : null;
+  }
+  async markPaid(id: string, by: string, at: Date): Promise<boolean> {
+    const res = await ExpenseModel.updateOne({ _id: oid(id), accepted: true, paymentStatus: 'UNPAID' }, { $set: { paymentStatus: 'PAID', paidBy: oid(by), paidAt: at } });
+    return res.modifiedCount === 1;
+  }
+  async listAccepted(filter: { from: string; to: string; userId?: string; paymentStatus?: 'UNPAID' | 'PAID' }, limit: number): Promise<Expense[]> {
+    const base = { accepted: true, reportDate: { $gte: filter.from, $lte: filter.to }, ...(filter.userId && { userId: oid(filter.userId) }) };
+    const fetch = async (status: 'UNPAID' | 'PAID', n: number) => (await ExpenseModel.find({ ...base, paymentStatus: status }).sort({ reportDate: 1, _id: 1 }).limit(n).lean()).map(toExpense);
+    if (filter.paymentStatus) return fetch(filter.paymentStatus, limit);
+    const unpaid = await fetch('UNPAID', limit);
+    return unpaid.length >= limit ? unpaid : [...unpaid, ...(await fetch('PAID', limit - unpaid.length))];
+  }
+  async paidTaDaTotals(userId: string, month: string): Promise<{ taPaise: number; daPaise: number }> {
+    const rows = await ExpenseModel.aggregate<{ _id: 'TA' | 'DA'; total: number }>([
+      { $match: { userId: oid(userId), paymentStatus: 'PAID', type: { $in: ['TA', 'DA'] }, reportDate: { $gte: `${month}-01`, $lte: `${month}-31` } } },
+      { $group: { _id: '$type', total: { $sum: '$amountPaise' } } },
+    ]);
+    return { taPaise: rows.find((r) => r._id === 'TA')?.total ?? 0, daPaise: rows.find((r) => r._id === 'DA')?.total ?? 0 };
+  }
+  async totalsForDcrs(dcrIds: string[]): Promise<Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>> {
+    const out = new Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>();
+    if (dcrIds.length === 0) return out;
+    const rows = await ExpenseModel.find({ dcrId: { $in: dcrIds.map(oid) }, paymentStatus: { $ne: 'CANCELLED' } }, { dcrId: 1, type: 1, amountPaise: 1, paymentStatus: 1 }).lean();
+    for (const r of rows) {
+      const t = out.get(String(r.dcrId)) ?? { taPaise: 0, daPaise: 0, otherPaise: 0, paidPaise: 0 };
+      if (r.type === 'TA') t.taPaise += r.amountPaise;
+      else if (r.type === 'DA') t.daPaise += r.amountPaise;
+      else t.otherPaise += r.amountPaise;
+      if (r.paymentStatus === 'PAID') t.paidPaise += r.amountPaise;
+      out.set(String(r.dcrId), t);
+    }
+    return out;
   }
   async hasActiveAuto(dcrId: string, ctx: TransactionContext): Promise<boolean> {
     return (await ExpenseModel.exists({ dcrId: oid(dcrId), source: 'AUTO', paymentStatus: { $ne: 'CANCELLED' } }).session(ctx as ClientSession)) !== null;

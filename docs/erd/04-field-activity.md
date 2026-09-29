@@ -95,6 +95,7 @@ erDiagram
         int amount_paise
         string remarks
         string payment_status "UNPAID, PAID, CANCELLED - separate from the DCR approval status; CANCELLED only for an unpaid AUTO row whose DCR Admin later rejected"
+        bool accepted "the DCR stands past the manager (set/cleared by the approval hook) - the only rows the Accountant audits and may pay; a PAID row keeps it"
         bool distance_flag "AUTO TA only - a route's distance could not be calculated, so this TA is artificially low"
         uuid paid_by FK "nullable - Accountant who marked it paid"
         timestamp paid_at "nullable"

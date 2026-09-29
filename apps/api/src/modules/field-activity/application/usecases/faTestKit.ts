@@ -17,6 +17,8 @@ import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirector
 import { CallChecks } from '../callChecks.js';
 import { GeofenceEvaluator } from '../geofenceEvaluator.js';
 import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './servicesAndGifts.usecase.js';
+import { GetPaidTaDaTotalUseCase, ListExpensesUseCase, MarkExpensePaidUseCase } from './accountantExpenses.usecase.js';
+import { GetDcrSummaryUseCase } from './getDcrSummary.usecase.js';
 import { TaDaLifecycle } from './taDaLifecycle.usecase.js';
 import { LogExpenseUseCase } from './logExpense.usecase.js';
 import { LogChemistCallUseCase, LogDoctorCallUseCase, LogFollowupUseCase } from './logCalls.usecase.js';
@@ -242,6 +244,11 @@ class FakeCalls<T extends { id: string; dcrId: string }> {
   async findById(id: string) {
     return this.rows.find((r) => r.id === id) ?? null;
   }
+  async countForDcrs(dcrIds: string[]) {
+    const m = new Map<string, number>();
+    for (const r of this.rows) if (dcrIds.includes(r.dcrId)) m.set(r.dcrId, (m.get(r.dcrId) ?? 0) + 1);
+    return m;
+  }
   async overrideGeofence(id: string, o: { by: string; at: Date; comment: string }) {
     const row = this.rows.find((r) => r.id === id) as unknown as { geofence?: { status: string; overriddenBy: string | null; overriddenAt: Date | null; overrideComment: string | null } } | undefined;
     if (!row?.geofence || !['FAIL', 'UNVERIFIED'].includes(row.geofence.status)) return false;
@@ -253,6 +260,42 @@ export class FakeDoctorCalls extends FakeCalls<DoctorCall> implements DoctorCall
 export class FakeChemistCalls extends FakeCalls<ChemistCall> implements ChemistCallRepositoryPort {}
 export class FakeFollowups extends FakeCalls<Followup> implements FollowupRepositoryPort {}
 export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositoryPort {
+  async setAccepted(dcrId: string, accepted: boolean, ctx: unknown) {
+    for (const r of this.rows.filter((x) => x.dcrId === dcrId && x.paymentStatus !== 'PAID')) {
+      const before = r.accepted;
+      r.accepted = accepted;
+      (ctx as Tx).undo.push(() => {
+        r.accepted = before;
+      });
+    }
+  }
+  async markPaid(id: string, by: string, at: Date) {
+    const r = this.rows.find((x) => x.id === id);
+    if (!r || !r.accepted || r.paymentStatus !== 'UNPAID') return false;
+    Object.assign(r, { paymentStatus: 'PAID', paidBy: by, paidAt: at });
+    return true;
+  }
+  async listAccepted(f: { from: string; to: string; userId?: string; paymentStatus?: 'UNPAID' | 'PAID' }, limit: number) {
+    const hit = this.rows.filter((r) => r.accepted && r.reportDate >= f.from && r.reportDate <= f.to && (!f.userId || r.userId === f.userId) && (r.paymentStatus === 'UNPAID' || r.paymentStatus === 'PAID') && (!f.paymentStatus || r.paymentStatus === f.paymentStatus));
+    return [...hit.filter((r) => r.paymentStatus === 'UNPAID'), ...hit.filter((r) => r.paymentStatus === 'PAID')].slice(0, limit);
+  }
+  async paidTaDaTotals(userId: string, month: string) {
+    const paid = this.rows.filter((r) => r.userId === userId && r.paymentStatus === 'PAID' && r.reportDate.startsWith(month));
+    const sum = (t: string) => paid.filter((r) => r.type === t).reduce((a, r) => a + r.amountPaise, 0);
+    return { taPaise: sum('TA'), daPaise: sum('DA') };
+  }
+  async totalsForDcrs(dcrIds: string[]) {
+    const out = new Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>();
+    for (const r of this.rows.filter((x) => dcrIds.includes(x.dcrId) && x.paymentStatus !== 'CANCELLED')) {
+      const t = out.get(r.dcrId) ?? { taPaise: 0, daPaise: 0, otherPaise: 0, paidPaise: 0 };
+      if (r.type === 'TA') t.taPaise += r.amountPaise;
+      else if (r.type === 'DA') t.daPaise += r.amountPaise;
+      else t.otherPaise += r.amountPaise;
+      if (r.paymentStatus === 'PAID') t.paidPaise += r.amountPaise;
+      out.set(r.dcrId, t);
+    }
+    return out;
+  }
   async hasActiveAuto(dcrId: string) {
     return this.rows.some((r) => r.dcrId === dcrId && r.source === 'AUTO' && r.paymentStatus !== 'CANCELLED');
   }
@@ -332,11 +375,15 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const logFollowup = new LogFollowupUseCase(gate, checks, followups);
   const logExpense = new LogExpenseUseCase(gate, expenses);
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses);
+  const listExpenses = new ListExpensesUseCase(expenses, users);
+  const markPaid = new MarkExpensePaidUseCase(expenses, () => new Date(clock.current));
+  const paidTaDa = new GetPaidTaDaTotalUseCase(expenses);
+  const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
   const services = new FakeServices();
   const gifts = new FakeGifts();
   const submitService = new SubmitDoctorServiceUseCase(users, checks, services, approvals);
   const adminService = new CreateAdminDoctorServiceUseCase(fmd, services, () => new Date(clock.current));
   const allocateGift = new AllocateGiftUseCase(fmd, gifts, () => new Date(clock.current));
   const markGiftDone = new MarkGiftDoneUseCase(users, checks, gifts);
-  return { users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, expenses, logDoctorCall, logChemistCall, logFollowup, logExpense, taDa, services, gifts, submitService, adminService, allocateGift, markGiftDone };
+  return { users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, expenses, logDoctorCall, logChemistCall, logFollowup, logExpense, taDa, listExpenses, markPaid, paidTaDa, dcrSummary, services, gifts, submitService, adminService, allocateGift, markGiftDone };
 }
