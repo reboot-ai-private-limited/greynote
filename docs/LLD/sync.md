@@ -52,7 +52,7 @@ Only a malformed envelope (or no login) is a 4xx.
 
 - **Order.** Records are applied in dependency order (`dependsOn` lists client ids; ties keep the
   order given). A record whose dependency failed is `FAILED` with `DEPENDENCY_FAILED`; an unknown
-  dependency or a cycle is `INVALID_DEPENDENCY`. A batch is capped at `SYNC_MAX_BATCH` records.
+  dependency or a cycle is `INVALID_DEPENDENCY`. A batch is capped at `SYNC_MAX_BATCH` records (100).
 - **Idempotent on `clientId`.** A `SyncReceipt` — unique on `(userId, clientId)` — is written in the
   same transaction as the record. Sending a record again returns `ALREADY_SYNCED` with the original
   `serverId`. Only `SYNCED` records get a receipt: a `FAILED` one is retried from scratch, so the MR
@@ -60,7 +60,13 @@ Only a malformed envelope (or no login) is a 4xx.
   index; the loser answers `ALREADY_SYNCED` (the duplicate is thrown out of the transaction and
   caught outside it — `../engineering/coding-standards.md`, *Transactions and unique keys*).
 - **One transaction per record**, so a failure leaves no half-written record and never undoes its
-  neighbours.
+  neighbours. Records are applied one after another, in order — a later call must fail on an
+  allocation an earlier one used up, not race it — so a push's time grows with its size: about
+  0.19 s a record measured against the remote dev cluster (three round trips a record at ~60 ms;
+  expect far less next to the database). **The app therefore sends a big day in chunks of at most
+  `SYNC_MAX_BATCH`**, oldest and parents first, the DCR's own submit in the last chunk — a dependency
+  on a record from an earlier chunk is satisfied by its receipt, so chunking needs nothing special.
+  A retry resends only what isn't `SYNCED` yet, or simply everything.
 - **The Final Submission is just the last record.** Field Activity (Phase 6) registers the DCR's
   submit as a kind that `dependsOn` every other record of the day. If any of them failed, it is
   `FAILED` with `DEPENDENCY_FAILED` and the DCR is not submitted; the MR fixes the failures on the
@@ -157,12 +163,12 @@ their sources; Phase 6 adds the calls, expenses, orders, gifts, services and the
 |---|---|---|---|
 | `PUT` | `/api/sync/drafts` | FIELD | Back up the day's unsent records (private, unvalidated, last write wins) |
 | `GET` | `/api/sync/drafts` | FIELD | Restore them, e.g. on a new phone |
-| `POST` | `/api/sync/push` | FIELD | Submit: commit the day's records, with a result per record |
+| `POST` | `/api/sync/push` | FIELD | Submit: commit the day's records, with a result per record. A body over 2 MB is a 413, malformed JSON a 400 |
 | `GET` | `/api/sync/pull` | FIELD | The MR's reference data, as versioned snapshots |
 
 ## Config
 
-`GEO_FENCE_RADIUS_METERS` (200), `GEO_MAX_ACCURACY_METERS` (100), `SYNC_MAX_BATCH` (500),
+`GEO_FENCE_RADIUS_METERS` (200), `GEO_MAX_ACCURACY_METERS` (100), `SYNC_MAX_BATCH` (100),
 `SYNC_MAX_AGE_DAYS` (7), `SYNC_CLOCK_SKEW_MINUTES` (10) — seeded now; `SYNC_DRAFT_TTL_DAYS` (30),
 `SYNC_MAX_DRAFT_BYTES` (65,536) and `SYNC_MAX_DRAFTS` (2,000) are seeded with the draft backup.
 

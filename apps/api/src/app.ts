@@ -23,7 +23,8 @@ export function createApp(): Express {
     app.use(accessLogMiddleware());
     app.use(helmet());
     app.use(cors({ origin: env.CORS_ORIGINS, credentials: true }));
-    app.use(express.json());
+    // 2 MB, not the 100 KB default: a day's report is one push of up to `SYNC_MAX_BATCH` records.
+    app.use(express.json({ limit: '2mb' }));
     app.use(cookieParser());
 
     // 1. Build all the Clean Architecture modules. Importing a module's route file (inside

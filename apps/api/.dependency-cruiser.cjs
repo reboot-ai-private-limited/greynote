@@ -36,7 +36,7 @@
 const MODULE_TIERS = [
     ['health', 'config'], //          Tier 0 — SystemConfig; no dependencies
     ['identity'], //                  Tier 1 — User, Role, Designation, PayBand, UserSession
-    ['territory', 'approval'], //     Tier 2 — Zone, HQ, Area, Route, RouteAssignment; ApprovalRequest
+    ['territory', 'approval', 'sync'], // Tier 2 — Zone, HQ, Area, Route, RouteAssignment; ApprovalRequest; SyncReceipt
     ['field-master-data', 'planning', 'hr'], //  Tier 3 — Doctor/Chemist/Distributor/Product/
     //                                            allocations; DailyPlan/MonthlyPlan; leave & holidays
     ['field-activity', 'sales', 'marketing'], // Tier 4 — DCR/calls/expenses; Order/MonthlyStock; Visual/Campaign/Target

@@ -223,7 +223,9 @@ connection at the action.
    (before Phase 6 adds Expenses) — **done** (2026-09-29): helpers and rounding in `shared/money`,
    a one-off idempotent script run on the dev database, live-checked over HTTP
 4. Sync module (tier 2): receipts, the handler registry, `POST /sync/push` (Submit) with per-record
-   results, dependency order, the creation-time rules
+   results, dependency order, the creation-time rules — **done** (2026-09-29): 28 tests, and a
+   29-check live run (real transactions, 8 simultaneous sends of one record, real rollback, 2 MB body
+   limit); a big day is sent in chunks of 100
 5. Draft backup (G9, G10): `PUT` / `GET /sync/drafts` — opaque, private, last write wins, removals
    remembered, size and count limits, TTL purge, drafts cleared with the receipt at Submit
 6. `NEW_DOCTOR` through it (the one real offline record that exists today)

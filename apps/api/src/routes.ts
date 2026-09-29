@@ -13,6 +13,7 @@ export function buildApiRouter(containers: AppContainers): Router {
   router.use('/planning', containers.planning.buildRouter());
   router.use('/hr', containers.hr.buildRouter());
   router.use('/field-master-data', containers.fieldMasterData.buildRouter());
+  router.use('/sync', containers.sync.buildRouter());
 
   return router;
 }

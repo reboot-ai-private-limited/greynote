@@ -41,6 +41,7 @@ graph TD
     Identity["Tier 1: Identity<br/>(User, Role, Designation, PayBand, UserSession)"]
     Territory["Tier 2: Territory<br/>(Zone, HQ, Area, Route, RouteAssignment)"]
     Approval["Tier 2: Approval<br/>(ApprovalRequest)"]
+    Sync["Tier 2: Sync<br/>(SyncReceipt — a registry; owners register handlers)"]
     FMD["Tier 3: Field Master Data<br/>(Doctor, Chemist, Distributor, Product,<br/>DoctorSampleAllocation, DoctorAssignment)"]
     Planning["Tier 3: Planning<br/>(DailyPlan, MonthlyPlan)"]
     HR["Tier 3: HR Ops<br/>(LeavePolicy, LeaveBalance, Leave, Holiday)"]
@@ -53,6 +54,8 @@ graph TD
     Identity --> Territory
     Identity --> Approval
     Config --> Approval
+    Identity --> Sync
+    Config --> Sync
     Approval --> Planning
     Approval --> HR
     Approval --> FMD

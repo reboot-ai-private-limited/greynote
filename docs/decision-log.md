@@ -17,6 +17,29 @@ old one.
 
 ---
 
+## 2026-09-29 — The sync push applies records one at a time; the app sends chunks of 100
+
+**Decision:** `POST /sync/push` applies its records sequentially, each in its own transaction with its
+receipt, and `SYNC_MAX_BATCH` is 100 (it was drafted as 500). The app sends a larger day in chunks,
+parents first and the DCR's own submit last; a dependency on an earlier chunk's record is satisfied by
+its receipt. The JSON body limit became 2 MB, and the shared error handler now answers a body over the
+limit with a 413 (`PAYLOAD_TOO_LARGE`) and malformed JSON with a 400, instead of a 500.
+
+**Why:** the live run measured about 0.19 s per record against the remote dev cluster, so 500 records
+held one request open for 97 s — past any ordinary proxy or phone timeout. Sequential is deliberate: two
+calls drawing on one sample allocation must be decided in the order the MR made them, and running
+siblings concurrently would make "which one gets the last sample" a coin flip. Chunks of 100 keep a
+request near 19 s here and far shorter beside the database.
+
+**Costs:** a day over 100 records is several requests, so the app has to chunk (a small, mechanical rule
+in `LLD/sync.md`). Concurrency across genuinely independent records is the escape hatch if a day is ever
+too slow — it wasn't built because it changes ordering guarantees. The 413/400 fix also corrects an
+older gap: any body-parser error used to be a generic 500.
+
+**Refs:** [`LLD/sync.md`](LLD/sync.md) *Push*, `shared/http/error-handler.ts`
+
+---
+
 ## 2026-09-29 — Money migrated to integer paise
 
 **Decision:** `PayBand`'s five money fields and `Route.taPerKmRateOverride` — the only money in the

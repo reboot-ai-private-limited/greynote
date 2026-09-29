@@ -64,6 +64,22 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     return;
   }
 
+  // The body parser's own errors: a client mistake, not a fault — so a phone that sends a body
+  // over the limit or malformed JSON is told so, instead of a generic 500.
+  const bodyError = (err as { type?: string } | null)?.type;
+  if (bodyError === 'entity.too.large') {
+    res.status(413).json(
+      buildErrorBody(req, { statusCode: 413, code: 'PAYLOAD_TOO_LARGE', message: 'This request is too large. Send it in smaller parts.' }),
+    );
+    return;
+  }
+  if (bodyError === 'entity.parse.failed') {
+    res.status(400).json(
+      buildErrorBody(req, { statusCode: 400, code: 'VALIDATION_FAILED', message: 'The request body is not valid JSON.' }),
+    );
+    return;
+  }
+
   const stack = err instanceof Error ? err.stack : undefined;
   logger.error(
     { url: req.originalUrl, err: String(err), stack, cause: causeChain(err) },

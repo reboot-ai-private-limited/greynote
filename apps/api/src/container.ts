@@ -5,6 +5,7 @@ import { buildHealthContainer } from '@/modules/health/health.container.js';
 import { buildHrContainer } from '@/modules/hr/hr.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
 import { buildPlanningContainer } from '@/modules/planning/planning.container.js';
+import { buildSyncContainer } from '@/modules/sync/sync.container.js';
 import { buildTerritoryContainer } from '@/modules/territory/territory.container.js';
 
 export interface AppContainers {
@@ -15,6 +16,7 @@ export interface AppContainers {
   approval: ReturnType<typeof buildApprovalContainer>;
   planning: ReturnType<typeof buildPlanningContainer>;
   hr: ReturnType<typeof buildHrContainer>;
+  sync: ReturnType<typeof buildSyncContainer>;
   fieldMasterData: ReturnType<typeof buildFieldMasterDataContainer>;
 }
 
@@ -38,6 +40,10 @@ export function buildContainers(): AppContainers {
   // kinds skip the final stage).
   const approval = buildApprovalContainer(identity.contract, config.contract);
 
+  // Tier 2 — Sync: the daily report's push. A registry — it knows no kind until an owning module
+  // registers one, so it needs only Identity (who is sending) and Config (its limits).
+  const sync = buildSyncContainer(identity.contract, config.contract);
+
   // Tier 3 — Planning: who the submitter and their managers are (Identity), which Routes they
   // cover (Territory), the approval workflow its Plans go through, and the deadlines (Config).
   const planning = buildPlanningContainer(identity.contract, territory.contract, approval.contract, config.contract);
@@ -50,5 +56,5 @@ export function buildContainers(): AppContainers {
   // (Approval), and the visibility and auto-assign switches (Config).
   const fieldMasterData = buildFieldMasterDataContainer(identity.contract, territory.contract, approval.contract, config.contract);
 
-  return { health, config, identity, territory, approval, planning, hr, fieldMasterData };
+  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync };
 }

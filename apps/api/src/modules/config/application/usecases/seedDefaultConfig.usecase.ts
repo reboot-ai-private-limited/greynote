@@ -132,9 +132,9 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = [
   },
   {
     key: 'SYNC_MAX_BATCH',
-    value: '500',
+    value: '100',
     module: 'SYNC',
-    description: 'Most records the app may send in one daily-report push.',
+    description: 'Most records the app may send in one push. A bigger day is sent in chunks, the DCR’s own submit last.',
   },
   {
     key: 'SYNC_MAX_AGE_DAYS',
