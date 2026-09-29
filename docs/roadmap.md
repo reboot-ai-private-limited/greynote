@@ -167,7 +167,19 @@ HR, step by step:
 4. Holidays — **done**
 5. Balances — **done**
 6. Leave requests through the approval module, and the public contract — **done**
-7. Live run against the dev database
+7. Live run against the dev database — **done** (2026-09-29)
+
+**Status (2026-09-29): HR done.** A live run on the dev database: 90 checks over real HTTP, real Mongo
+transactions and indexes, with the real Approval routers. It covered leave types and the Leave
+Master, holidays scoped to National / HQ / other HQ, lazy and pro-rata balances, counted days
+(weekly off and the employee's own holidays skipped), every refusal (overlap, overdraw, backdating,
+leave-year boundary, half-day, no Pay Band), the whole approval ledger (submit, manager, final,
+reject, edit, withdraw, Admin reopen and re-approve), unpaid days through the contract, HR balance
+adjustments, and a rollback where a broken ledger step undoes the final approval. Temporary data
+was removed afterwards.
+
+Noted, not changed: the ledger's `consume` / `release` don't check that `pendingDays` covers the
+days, so a drifted row would go negative instead of failing (only a missing row throws).
 
 **Done when:** Admin can populate Doctors/Chemists/Distributors/Products and assign MRs to them;
 an MR can submit a Daily/Monthly Plan and see it move through Nearest-Manager approval; HR can
