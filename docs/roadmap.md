@@ -188,7 +188,7 @@ Field Master Data, step by step (decision-log 2026-09-29):
 1. Config keys (`DOCTOR_VISIBILITY_FOLLOWS_ROUTE`, `AUTO_ASSIGN_DOCTOR_ON_APPROVAL`,
    `NEW_DOCTOR_COVERAGE_WAIT_DAYS`); Territory's `listRoutesForUser` already gives an MR's current
    Routes, so it needs no new method — **done** (2026-09-29)
-2. Module skeleton, Products, Chemists
+2. Module skeleton, Products, Chemists — **done** (2026-09-29)
 3. Doctors: Admin create with a map point, assignments with the Route rule, visibility
 4. MR add-Doctor: `NEW_DOCTOR` approval, offline-safe create, auto-assign on approval
 5. Distributors and sample allocations

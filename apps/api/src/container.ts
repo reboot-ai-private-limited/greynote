@@ -1,5 +1,6 @@
 import { buildApprovalContainer } from '@/modules/approval/approval.container.js';
 import { buildConfigContainer } from '@/modules/config/config.container.js';
+import { buildFieldMasterDataContainer } from '@/modules/field-master-data/field-master-data.container.js';
 import { buildHealthContainer } from '@/modules/health/health.container.js';
 import { buildHrContainer } from '@/modules/hr/hr.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
@@ -14,6 +15,7 @@ export interface AppContainers {
   approval: ReturnType<typeof buildApprovalContainer>;
   planning: ReturnType<typeof buildPlanningContainer>;
   hr: ReturnType<typeof buildHrContainer>;
+  fieldMasterData: ReturnType<typeof buildFieldMasterDataContainer>;
 }
 
 /**
@@ -44,5 +46,8 @@ export function buildContainers(): AppContainers {
   // (Approval), the leave-year and weekly-off settings (Config).
   const hr = buildHrContainer(identity.contract, territory.contract, approval.contract, config.contract);
 
-  return { health, config, identity, territory, approval, planning, hr };
+  // Tier 3 — Field Master Data: the Routes its Chemists sit on (Territory).
+  const fieldMasterData = buildFieldMasterDataContainer(territory.contract);
+
+  return { health, config, identity, territory, approval, planning, hr, fieldMasterData };
 }

@@ -12,6 +12,7 @@ export function buildApiRouter(containers: AppContainers): Router {
   router.use('/approvals', containers.approval.buildRouter());
   router.use('/planning', containers.planning.buildRouter());
   router.use('/hr', containers.hr.buildRouter());
+  router.use('/field-master-data', containers.fieldMasterData.buildRouter());
 
   return router;
 }

@@ -8,6 +8,25 @@ Doctor. ERD: [`../erd/03-field-master-data.md`](../erd/03-field-master-data.md).
 `field-master-data`. Roadmap: [`../roadmap.md`](../roadmap.md) phase 4, alongside Planning and HR
 — same tier, parallelizable.
 
+## Build status
+
+Built so far (Phase 4 Field Master Data steps 1–2, `../roadmap.md`): the module skeleton
+(`apps/api/src/modules/field-master-data`, mounted at `/api/field-master-data`), **Products** and
+**Chemists** — create, list, detail, edit — Admin-only. Doctors, assignments, Distributors and
+sample allocations follow in steps 3–5, and the contract below grows as they land.
+
+- **Products:** `sku` is unique ignoring case and surrounding spaces (a duplicate is a 409).
+  `status` is `active` or `inactive`; nothing is ever deleted. List filters: `search` (name or SKU),
+  `category`, `status`.
+- **Chemists:** always on one Route, which must exist and be **active** when the Chemist is created
+  or moved (Territory's `getRoute`); editing a Chemist whose Route has since gone inactive is fine
+  as long as the Route isn't changed. The location is a `{ latitude, longitude }` pair — both or
+  neither, range-checked — picked on a Google map; it may be left out at creation and set later, and
+  an edit can correct or clear it (`null`). List filters: `search` (name), `routeId`, `status`.
+- **Contract today:** `getChemistLocation`, `getChemist`, `getProduct`. `getChemistLocation` returns
+  `null` for both "no such Chemist" and "no location set", which Field Activity must read as "the
+  geofence check cannot run", never as "passed".
+
 ## What it owns
 
 - **Doctor** — `route_id`, category, name, address, email, specialty, qualification, and a
