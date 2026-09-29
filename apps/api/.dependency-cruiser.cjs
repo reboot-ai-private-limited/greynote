@@ -39,8 +39,8 @@ const MODULE_TIERS = [
     ['territory', 'approval', 'sync'], // Tier 2 — Zone, HQ, Area, Route, RouteAssignment; ApprovalRequest; SyncReceipt
     ['field-master-data', 'planning', 'hr'], //  Tier 3 — Doctor/Chemist/Distributor/Product/
     //                                            allocations; DailyPlan/MonthlyPlan; leave & holidays
-    ['field-activity', 'sales', 'marketing'], // Tier 4 — DCR/calls/expenses; Order/MonthlyStock; Visual/Campaign/Target
-    ['payroll'], //                   Tier 5 — PayrollRun; top of the graph
+    ['field-activity', 'sales'], //   Tier 4 — DCR/calls/expenses; Order/MonthlyStock
+    ['marketing', 'payroll'], //      Tier 5 — Visual/Campaign/Target (reads Sales' order totals); PayrollRun. Top of the graph
 ];
 
 const layeringRules = MODULE_TIERS.map((tier, index) => {

@@ -268,7 +268,8 @@ orders join in Phase 6.
 [`hld/06-ta-da-auto-calculation.md`](hld/06-ta-da-auto-calculation.md) ·
 [`hld/10-submission-gating-and-compliance-block.md`](hld/10-submission-gating-and-compliance-block.md)
 
-Tier 4 — same tier, parallelizable the same way Phase 4 was, and the largest phase: this is
+Field Activity and Sales & Orders are Tier 4, and Marketing is Tier 5 beside Payroll (it reads Sales'
+order totals; decision-log 2026-09-29) — so Marketing is built after Sales. The largest phase: this is
 where the two shared mechanisms from Phases 3 and 5 get their real consumers.
 
 - **Field Activity** (ERD Module 4): Dr/Chemist Calls & Followups, Expenses, Doctor Service

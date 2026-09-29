@@ -17,6 +17,29 @@ old one.
 
 ---
 
+## 2026-09-29 — Marketing moves up to Tier 5; B9, G1 and G9 confirmed
+
+**Decision:** `marketing` moves from Tier 4 to **Tier 5, beside `payroll`**, so it can read Sales &
+Orders' order totals for the Target rollup (`hld/08`) through Sales' public contract. Tier 4 is now
+`field-activity` and `sales`; Tier 5 is `marketing` and `payroll`. Also confirmed by the product owner:
+the in-day Plan change rules (sign-off B9), and the one-submit sync model with its private draft
+backup (G1 as amended by G9) — the client-facing rows are now Accepted, not Designed.
+
+**Why:** the Target rollup needs "achieved" from `OrderItem`, and a same-tier import is forbidden.
+Sales depends on nothing in Marketing (an Order carries no Campaign or Target), and Payroll depends
+on nothing in Marketing, so lifting Marketing one tier changes one line of `MODULE_TIERS` and no
+code. The alternatives — a read model Sales publishes, or a reporting layer above both — would add
+machinery to avoid moving one module.
+
+**Costs:** none in code (Marketing isn't built yet). If Sales ever needs something from Marketing
+(say an Order tied to a Campaign) the dependency would point the wrong way and the tiers would have
+to be revisited; nothing in the ERD asks for that.
+
+**Refs:** [`LLD/marketing.md`](LLD/marketing.md), [`hld/03-system-architecture.md`](hld/03-system-architecture.md),
+[`engineering/boundaries-and-enforcement.md`](engineering/boundaries-and-enforcement.md)
+
+---
+
 ## 2026-09-29 — The sync push applies records one at a time; the app sends chunks of 100
 
 **Decision:** `POST /sync/push` applies its records sequentially, each in its own transaction with its

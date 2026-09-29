@@ -20,10 +20,10 @@ but this file is the authority `pnpm lint:deps` actually enforces.
 const MODULE_TIERS = [
     ['health', 'config'],                            // Tier 0 — no dependencies
     ['identity'],                                     // Tier 1
-    ['territory'],                                     // Tier 2
+    ['territory', 'approval', 'sync'],                 // Tier 2
     ['field-master-data', 'planning', 'hr'],           // Tier 3
-    ['field-activity', 'sales', 'marketing'],          // Tier 4
-    ['payroll'],                                        // Tier 5 — top of the graph
+    ['field-activity', 'sales'],                       // Tier 4
+    ['marketing', 'payroll'],                          // Tier 5 — top of the graph
 ];
 ```
 

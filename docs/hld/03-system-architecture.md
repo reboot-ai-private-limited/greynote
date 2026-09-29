@@ -47,7 +47,7 @@ graph TD
     HR["Tier 3: HR Ops<br/>(LeavePolicy, LeaveBalance, Leave, Holiday)"]
     FieldActivity["Tier 4: Field Activity<br/>(DCR, Calls, Expense, Service, Gift)"]
     Sales["Tier 4: Sales & Orders<br/>(Order, MonthlyStock)"]
-    Marketing["Tier 4: Marketing<br/>(Visual, Campaign, Target)"]
+    Marketing["Tier 5: Marketing<br/>(Visual, Campaign, Target)"]
     Payroll["Tier 5: Payroll<br/>(PayrollRun)"]
 
     Config --> Identity
@@ -68,6 +68,8 @@ graph TD
     Config --> FieldActivity
     FMD --> Sales
     FMD --> Marketing
+    Sales --> Marketing
+    Identity --> Marketing
     FieldActivity --> Payroll
     HR --> Payroll
 ```

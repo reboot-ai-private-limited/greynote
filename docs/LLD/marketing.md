@@ -68,29 +68,17 @@ the hierarchy is shallow (≤5 levels) and a sum over a handful of rows is cheap
 nightly-materialized cache as the escape hatch if a Target dashboard's check-frequency ever makes
 this a real load concern — not needed at first build.
 
-### Open question this module's build must resolve: the Sales dependency crosses tiers sideways
+### The Sales dependency: resolved by tiering (2026-09-29)
 
-`hld/08-target-rollup.md`'s sequence diagram has Marketing call **Sales & Orders'**
-`contract.sumOrderAmount(...)` directly. But `apps/api/.dependency-cruiser.cjs`'s `MODULE_TIERS`
-places `sales` and `marketing` in the **same tier** (Tier 4:
-`['field-activity', 'sales', 'marketing']`), and same-tier imports are forbidden by the boundary
-rules just as upward ones are (see
-[`../engineering/boundaries-and-enforcement.md`](../engineering/boundaries-and-enforcement.md)) —
-a genuine same-tier dependency is a sign one of the two modules is mis-tiered, not a case to
-special-case around.
-
-This needs resolving **before** Phase 6 implementation, not discovered when `lint:deps` fails on
-it. Options, roughly in order of how little they disturb the existing tier graph:
-
-1. **Move `sales` below `marketing`** in `MODULE_TIERS` (Sales & Orders doesn't appear to depend
-   on Marketing for anything, based on the ERD/HLD read so far — confirm before doing this).
-2. **Marketing computes the achieved figure from a read model Sales publishes**, rather than
-   calling Sales synchronously — e.g. Sales writes a denormalized per-user/month order-total
-   Field Activity or a shared collection reads, sidestepping the direct contract call.
-3. **Split target rollup's "achieved" computation into its own reporting layer** above both
-   modules, rather than having either call the other.
-
-Record whichever is chosen in [`../decision-log.md`](../decision-log.md) when this phase starts.
+`hld/08-target-rollup.md` has Marketing call **Sales & Orders'** `contract.sumOrderAmount(...)`
+directly, but the tier graph forbids a same-tier import, and `sales` and `marketing` were both in
+Tier 4. **Decision: `marketing` moves up to Tier 5, beside `payroll`** (`MODULE_TIERS` in
+`apps/api/.dependency-cruiser.cjs`; `../decision-log.md`, 2026-09-29). Checked before moving it:
+Sales & Orders depends on nothing in Marketing (an Order carries no Campaign or Target), and Payroll
+depends on nothing in Marketing, so the two share a tier without touching. Marketing may now import
+Identity (the downline), Field Master Data (Products) and Sales & Orders (order totals) through their
+`.public.ts` contracts, exactly as the HLD draws it. The other two options — a read model Sales
+publishes, or a reporting layer above both — were rejected as machinery the fix doesn't need.
 
 ## HTTP surface
 
@@ -127,8 +115,7 @@ Record whichever is chosen in [`../decision-log.md`](../decision-log.md) when th
   `Target.user_id`/`created_by` against real users.
 - **Field Master Data** (Tier 3) — resolving `Visual.product_id`/`Target.product_id` against real
   Products.
-- **Sales & Orders** (Tier 4, same tier — see the open question above) — `achieved_amount`
-  aggregation from `OrderItem`.
+- **Sales & Orders** (Tier 4) — `achieved_amount` aggregation from `OrderItem`, through Sales' contract.
 
 ## Deliberately deferred
 
