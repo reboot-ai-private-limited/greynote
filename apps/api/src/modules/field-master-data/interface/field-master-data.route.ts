@@ -7,20 +7,26 @@ import { validate } from '@/shared/http/validate.middleware.js';
 import type { CrudHandlers, DoctorHandlers } from './field-master-data.controller.js';
 import {
   addDoctorBodySchema,
+  adjustSampleBodySchema,
   assignDoctorBodySchema,
   createChemistBodySchema,
+  createDistributorBodySchema,
   createDoctorBodySchema,
   createProductBodySchema,
   doctorAssignmentParamsSchema,
   editAddedDoctorBodySchema,
   idParamsSchema,
+  issueSampleBodySchema,
   listAddedDoctorsQuerySchema,
   listAssignedDoctorsQuerySchema,
   listChemistsQuerySchema,
+  listDistributorsQuerySchema,
   listDoctorsQuerySchema,
   listProductsQuerySchema,
+  sampleAllocationParamsSchema,
   teamDoctorsQuerySchema,
   updateChemistBodySchema,
+  updateDistributorBodySchema,
   updateDoctorBodySchema,
   updateProductBodySchema,
 } from './field-master-data.schemas.js';
@@ -72,6 +78,14 @@ doc('get', '/doctors/{id}/assignments', 'Admin: who has been responsible for a d
 doc('post', '/doctors/{id}/assignments', 'Admin: make an MR responsible for a doctor, replacing the current one', { params: idParamsSchema, body: assignDoctorBodySchema });
 doc('delete', '/doctors/{id}/assignments/{userId}', 'Admin: remove an MR’s assignment', { params: doctorAssignmentParamsSchema });
 
+doc('get', '/distributors', 'Admin: list distributors, by route or the area / HQ / zone above it', { query: listDistributorsQuerySchema });
+doc('post', '/distributors', 'Admin: add a distributor on a route', { body: createDistributorBodySchema });
+doc('get', '/distributors/{id}', 'Admin: one distributor, with its zone → HQ → area → route breadcrumb', { params: idParamsSchema });
+doc('patch', '/distributors/{id}', 'Admin: edit a distributor, reassign its MR / ASM', { params: idParamsSchema, body: updateDistributorBodySchema });
+doc('get', '/doctors/{id}/sample-allocations', 'A doctor’s sample allocations and what is left — Admin, the assigned MR, or their manager', { params: idParamsSchema });
+doc('post', '/doctors/{id}/sample-allocations', 'Admin: issue samples of a product for a doctor (adds to an existing allocation)', { params: idParamsSchema, body: issueSampleBodySchema });
+doc('patch', '/doctors/{id}/sample-allocations/{productId}', 'Admin: correct the allocated total (not below what was given out)', { params: sampleAllocationParamsSchema, body: adjustSampleBodySchema });
+
 function crudRouter(
   c: CrudHandlers,
   schemas: { list: AnyZodObject; create: ZodTypeAny; update: ZodTypeAny },
@@ -103,14 +117,26 @@ function doctorsRouter(c: DoctorHandlers): Router {
   router.patch('/:id', admin, validate({ params: idParamsSchema, body: updateDoctorBodySchema }), c.update);
   router.get('/:id/assignments', admin, validate({ params: idParamsSchema }), c.listAssignments);
   router.post('/:id/assignments', admin, validate({ params: idParamsSchema, body: assignDoctorBodySchema }), c.assign);
+  router.get('/:id/sample-allocations', requireRole('ADMIN', 'FIELD'), validate({ params: idParamsSchema }), c.listSamples);
+  router.post('/:id/sample-allocations', admin, validate({ params: idParamsSchema, body: issueSampleBodySchema }), c.issueSample);
+  router.patch('/:id/sample-allocations/:productId', admin, validate({ params: sampleAllocationParamsSchema, body: adjustSampleBodySchema }), c.adjustSample);
   router.delete('/:id/assignments/:userId', admin, validate({ params: doctorAssignmentParamsSchema }), c.unassign);
   return router;
 }
 
-export function buildFieldMasterDataRouter(c: { products: CrudHandlers; chemists: CrudHandlers; doctors: DoctorHandlers }): Router {
+export function buildFieldMasterDataRouter(c: {
+  products: CrudHandlers;
+  chemists: CrudHandlers;
+  distributors: CrudHandlers;
+  doctors: DoctorHandlers;
+}): Router {
   const router = Router();
   router.use('/doctors', doctorsRouter(c.doctors));
   router.use('/products', crudRouter(c.products, { list: listProductsQuerySchema, create: createProductBodySchema, update: updateProductBodySchema }));
+  router.use(
+    '/distributors',
+    crudRouter(c.distributors, { list: listDistributorsQuerySchema, create: createDistributorBodySchema, update: updateDistributorBodySchema }),
+  );
   router.use('/chemists', crudRouter(c.chemists, { list: listChemistsQuerySchema, create: createChemistBodySchema, update: updateChemistBodySchema }));
   return router;
 }

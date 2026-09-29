@@ -15,6 +15,8 @@ export interface TerritoryPublicContract {
   listRoutesForUser(userId: string): Promise<RouteSummary[]>;
   /** The Route's Area / HQ / Zone ids and Area type, or `null` for an unknown id. */
   getRoutePath(routeId: string): Promise<RoutePath | null>;
+  /** Every Route id under an Area, an HQ or a Zone (the most specific one given) — for filtering lists by territory. */
+  listRouteIdsInScope(scope: { areaId?: string | undefined; hqId?: string | undefined; zoneId?: string | undefined }): Promise<string[]>;
   /** A FIELD employee's current HQ and its Zone, or `null` if none is set — HR's holiday scope. */
   getUserHq(userId: string): Promise<{ hqId: string; zoneId: string } | null>;
   getHq(hqId: string): Promise<{ id: string; zoneId: string; name: string; status: TerritoryStatus } | null>;

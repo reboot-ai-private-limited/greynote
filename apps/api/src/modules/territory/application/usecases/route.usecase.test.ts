@@ -51,6 +51,9 @@ class FakeRoutes implements RouteRepositoryPort {
   async list(): Promise<{ items: Route[]; total: number }> {
     throw new Error('not used');
   }
+  async listIdsInScope(scope: { areaId?: string | undefined }) {
+    return [...this.rows.values()].filter((r) => r.areaId === scope.areaId).map((r) => r.id);
+  }
   async countActiveInArea(areaId: string) {
     return [...this.rows.values()].filter((r) => r.areaId === areaId && r.status === 'active').length;
   }

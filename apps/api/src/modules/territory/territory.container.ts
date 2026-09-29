@@ -15,6 +15,7 @@ import { ImportHierarchyUseCase } from './application/usecases/importHierarchy.u
 import { GetRoutePathUseCase } from './application/usecases/getRoutePath.usecase.js';
 import { GetRouteSummaryUseCase } from './application/usecases/getRouteSummary.usecase.js';
 import { ListRouteAssignmentsUseCase } from './application/usecases/listRouteAssignments.usecase.js';
+import { ListRouteIdsInScopeUseCase } from './application/usecases/listRouteIdsInScope.usecase.js';
 import { ListRoutesForUserUseCase } from './application/usecases/listRoutesForUser.usecase.js';
 import { UnassignRouteUseCase } from './application/usecases/unassignRoute.usecase.js';
 import { ListRoutesUseCase } from './application/usecases/listRoutes.usecase.js';
@@ -116,6 +117,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
   const listRoutesForUser = new ListRoutesForUserUseCase(assignmentRepository, routeRepository, areaRepository);
   const getRouteSummary = new GetRouteSummaryUseCase(routeRepository, areaRepository);
   const getRoutePath = new GetRoutePathUseCase(routeRepository, areaRepository, hqRepository);
+  const listRouteIdsInScope = new ListRouteIdsInScopeUseCase(routeRepository);
   const importHierarchy = new ImportHierarchyUseCase(zoneRepository, hqRepository, areaRepository);
   const searchPlaces = makeSearchPlacesController(new SearchPlacesUseCase(placeSearch));
   const userHq = {
@@ -128,6 +130,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
       getRoute: (routeId) => getRouteSummary.execute(routeId),
       listRoutesForUser: (userId) => listRoutesForUser.execute(userId),
       getRoutePath: (routeId) => getRoutePath.execute(routeId),
+      listRouteIdsInScope: (scope) => listRouteIdsInScope.execute(scope),
       getUserHq: (userId) => userHq.get.current(userId),
       getHq: (hqId) => hqRepository.findById(hqId),
       getZone: (zoneId) => zoneRepository.findById(zoneId),

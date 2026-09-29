@@ -3,6 +3,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { Route } from '../domain/route.entity.js';
 import type { RouteListQuery, RouteRepositoryPort } from '../domain/route.repository.port.js';
 import { AreaModel } from './area.schema.js';
+import { HqModel } from './hq.schema.js';
 import { listOptions, rethrowDuplicateName, toNameKey } from './mongoHelpers.js';
 import { RouteModel, type RouteDoc } from './route.schema.js';
 
@@ -50,6 +51,21 @@ export class MongoRouteAdapter implements RouteRepositoryPort {
   async findByName(areaId: string, name: string): Promise<Route | null> {
     const doc = await RouteModel.findOne({ areaId: new Types.ObjectId(areaId), nameKey: toNameKey(name) }).lean();
     return doc ? toRoute(doc) : null;
+  }
+
+  async listIdsInScope(scope: { areaId?: string | undefined; hqId?: string | undefined; zoneId?: string | undefined }): Promise<string[]> {
+    // The most specific level given wins: Area, then HQ, then Zone.
+    let areaIds: Types.ObjectId[];
+    if (scope.areaId) {
+      areaIds = [new Types.ObjectId(scope.areaId)];
+    } else {
+      let hqIds: Types.ObjectId[];
+      if (scope.hqId) hqIds = [new Types.ObjectId(scope.hqId)];
+      else if (scope.zoneId) hqIds = (await HqModel.find({ zoneId: new Types.ObjectId(scope.zoneId) }).select('_id').lean()).map((h) => h._id);
+      else return [];
+      areaIds = (await AreaModel.find({ hqId: { $in: hqIds } }).select('_id').lean()).map((a) => a._id);
+    }
+    return (await RouteModel.find({ areaId: { $in: areaIds } }).select('_id').lean()).map((r) => String(r._id));
   }
 
   async list(query: RouteListQuery): Promise<{ items: Route[]; total: number }> {

@@ -6,26 +6,36 @@ import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { Actor } from '../application/actor.js';
 import type { AddedDoctors } from '../application/usecases/addedDoctors.js';
+import type { AdjustSampleAllocationUseCase } from '../application/usecases/adjustSampleAllocation.usecase.js';
 import type { AssignDoctorUseCase } from '../application/usecases/assignDoctor.usecase.js';
 import type { CreateChemistUseCase } from '../application/usecases/createChemist.usecase.js';
+import type { CreateDistributorUseCase } from '../application/usecases/createDistributor.usecase.js';
 import type { CreateDoctorUseCase } from '../application/usecases/createDoctor.usecase.js';
 import type { CreateProductUseCase } from '../application/usecases/createProduct.usecase.js';
 import type { GetChemistUseCase } from '../application/usecases/getChemist.usecase.js';
+import type { GetDistributorUseCase } from '../application/usecases/getDistributor.usecase.js';
 import type { GetDoctorUseCase } from '../application/usecases/getDoctor.usecase.js';
 import type { GetProductUseCase } from '../application/usecases/getProduct.usecase.js';
 import type { ListChemistsUseCase } from '../application/usecases/listChemists.usecase.js';
+import type { IssueSampleAllocationUseCase } from '../application/usecases/issueSampleAllocation.usecase.js';
 import type { ListAssignedDoctorsUseCase } from '../application/usecases/listAssignedDoctors.usecase.js';
 import type { ListDoctorAssignmentsUseCase } from '../application/usecases/listDoctorAssignments.usecase.js';
+import type { ListDistributorsUseCase } from '../application/usecases/listDistributors.usecase.js';
 import type { ListDoctorsUseCase } from '../application/usecases/listDoctors.usecase.js';
 import type { ListProductsUseCase } from '../application/usecases/listProducts.usecase.js';
+import type { ListSampleAllocationsUseCase } from '../application/usecases/listSampleAllocations.usecase.js';
 import type { UnassignDoctorUseCase } from '../application/usecases/unassignDoctor.usecase.js';
 import type { UpdateChemistUseCase } from '../application/usecases/updateChemist.usecase.js';
+import type { UpdateDistributorUseCase } from '../application/usecases/updateDistributor.usecase.js';
 import type { UpdateDoctorUseCase } from '../application/usecases/updateDoctor.usecase.js';
 import type { UpdateProductUseCase } from '../application/usecases/updateProduct.usecase.js';
 import type {
+  adjustSampleBodySchema,
+  issueSampleBodySchema,
   listAddedDoctorsQuerySchema,
   listAssignedDoctorsQuerySchema,
   listChemistsQuerySchema,
+  listDistributorsQuerySchema,
   listDoctorsQuerySchema,
   listProductsQuerySchema,
   teamDoctorsQuerySchema,
@@ -77,7 +87,7 @@ export function makeChemistControllers(u: {
 }
 
 export type DoctorHandlers = Record<
-  'list' | 'create' | 'get' | 'update' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded',
+  'list' | 'create' | 'get' | 'update' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'listSamples' | 'issueSample' | 'adjustSample',
   RequestHandler
 >;
 
@@ -91,6 +101,9 @@ export function makeDoctorControllers(u: {
   assign: AssignDoctorUseCase;
   unassign: UnassignDoctorUseCase;
   addedDoctors: AddedDoctors;
+  listSamples: ListSampleAllocationsUseCase;
+  issueSample: IssueSampleAllocationUseCase;
+  adjustSample: AdjustSampleAllocationUseCase;
 }): DoctorHandlers {
   return {
     list: asyncHandler(async (req, res) => {
@@ -121,6 +134,24 @@ export function makeDoctorControllers(u: {
       const assignment = await u.assign.execute(requiredParam(req.params, 'id'), req.body.userId, actorOf(req).id);
       sendSuccess(req, res, assignment, 'Doctor assigned.', 200);
     }),
+    listSamples: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.listSamples.execute(actorOf(req), requiredParam(req.params, 'id')), 'Sample allocations.', 200),
+    ),
+    issueSample: asyncHandler(async (req, res) => {
+      const body = req.body as z.output<typeof issueSampleBodySchema>;
+      const allocation = await u.issueSample.execute({ doctorId: requiredParam(req.params, 'id'), ...body, adminId: actorOf(req).id });
+      sendSuccess(req, res, allocation, 'Samples issued.', 200);
+    }),
+    adjustSample: asyncHandler(async (req, res) => {
+      const body = req.body as z.output<typeof adjustSampleBodySchema>;
+      const allocation = await u.adjustSample.execute({
+        doctorId: requiredParam(req.params, 'id'),
+        productId: requiredParam(req.params, 'productId'),
+        total: body.quantityAllocated,
+        adminId: actorOf(req).id,
+      });
+      sendSuccess(req, res, allocation, 'Sample allocation adjusted.', 200);
+    }),
     added: asyncHandler(async (req, res) => {
       const query = req.query as unknown as z.output<typeof listAddedDoctorsQuerySchema>;
       sendSuccess(req, res, await u.addedDoctors.list(actorOf(req).id, query), 'Doctors you added.', 200);
@@ -137,5 +168,24 @@ export function makeDoctorControllers(u: {
       await u.unassign.execute(requiredParam(req.params, 'id'), requiredParam(req.params, 'userId'), actorOf(req).id);
       sendSuccess(req, res, null, 'Assignment removed.', 200);
     }),
+  };
+}
+
+export function makeDistributorControllers(u: {
+  list: ListDistributorsUseCase;
+  create: CreateDistributorUseCase;
+  get: GetDistributorUseCase;
+  update: UpdateDistributorUseCase;
+}): CrudHandlers {
+  return {
+    list: asyncHandler(async (req, res) => {
+      const query = req.query as unknown as z.output<typeof listDistributorsQuerySchema>;
+      sendSuccess(req, res, await u.list.execute(query), 'Distributors.', 200);
+    }),
+    create: asyncHandler(async (req, res) => sendSuccess(req, res, await u.create.execute(req.body), 'Distributor created.', 201)),
+    get: asyncHandler(async (req, res) => sendSuccess(req, res, await u.get.execute(requiredParam(req.params, 'id')), 'Distributor.', 200)),
+    update: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.update.execute(requiredParam(req.params, 'id'), req.body), 'Distributor updated.', 200),
+    ),
   };
 }

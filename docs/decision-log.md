@@ -17,6 +17,29 @@ old one.
 
 ---
 
+## 2026-09-29 — Distributors and sample allocations: two choices
+
+**Decision:**
+
+- **One sample-allocation row per (Doctor, Product); issuing again adds to it.** Not one row per
+  issue. The contract's `getSampleAllocation(doctorId, productId)` and the never-negative
+  decrement both want a single row to read and to guard. Admin can correct the total, but not
+  below what has been given out.
+- **A Distributor's primary and secondary sales flags have no default.** Admin states both when
+  adding one. Whether a Distributor may take primary or secondary orders is the client's rule, and
+  Sales & Orders (Phase 6) will read the flags; a silent default would be a silent assumption.
+
+**Why:** the first keeps the atomic decrement a one-document conditional update (checked live: 30
+concurrent gives against 12 in stock, exactly 12 succeeded); the second follows roadmap rule 6 —
+don't build on an unstated business rule.
+
+**Consequences:** the per-issue history isn't kept, only the running totals and the last issuer.
+If the client wants an audit trail of each issue, it becomes a separate ledger collection beside
+the row. Territory's public contract gained `listRouteIdsInScope` so Distributors can be filtered by
+Zone, HQ or Area without storing them.
+
+---
+
 ## 2026-09-29 — A unique-key conflict inside a transaction is thrown, not returned
 
 **Decision:** Field Master Data's repositories throw `DuplicateRecordError` when a write inside a

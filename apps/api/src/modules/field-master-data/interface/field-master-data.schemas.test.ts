@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDoctorBodySchema,
+  adjustSampleBodySchema,
   createChemistBodySchema,
+  createDistributorBodySchema,
+  issueSampleBodySchema,
   editAddedDoctorBodySchema,
   updateChemistBodySchema,
   updateProductBodySchema,
@@ -36,5 +39,22 @@ describe('Field Master Data request schemas', () => {
     expect(addDoctorBodySchema.safeParse({ ...doctor, clientRequestId: 'short' }).success).toBe(false);
     expect(addDoctorBodySchema.safeParse({ ...doctor, email: 'not-an-email' }).success).toBe(false);
     expect(editAddedDoctorBodySchema.safeParse({ ...doctor, clientRequestId: undefined }).success).toBe(true);
+  });
+
+  it('a distributor needs a GST number, a phone and both sales flags; GST is upper-cased', () => {
+    const d = { routeId: route, name: 'Shree', gstNumber: ' 19abcde1234f1z5 ', contactPerson: 'R', mobile: '9876543210', address: 'Rd', primarySalesEnabled: true, secondarySalesEnabled: false };
+    const parsed = createDistributorBodySchema.parse(d);
+    expect(parsed).toMatchObject({ gstNumber: '19ABCDE1234F1Z5', location: null, assignedMrId: null, assignedAsmId: null });
+    expect(createDistributorBodySchema.safeParse({ ...d, gstNumber: '12345' }).success).toBe(false);
+    expect(createDistributorBodySchema.safeParse({ ...d, mobile: 'call me' }).success).toBe(false);
+    expect(createDistributorBodySchema.safeParse({ ...d, primarySalesEnabled: undefined }).success).toBe(false);
+  });
+
+  it('sample quantities are whole numbers within range; an adjust may go to zero, an issue may not', () => {
+    expect(issueSampleBodySchema.safeParse({ productId: route, quantity: 0 }).success).toBe(false);
+    expect(issueSampleBodySchema.safeParse({ productId: route, quantity: 2.5 }).success).toBe(false);
+    expect(issueSampleBodySchema.safeParse({ productId: route, quantity: 3 }).success).toBe(true);
+    expect(adjustSampleBodySchema.safeParse({ quantityAllocated: 0 }).success).toBe(true);
+    expect(adjustSampleBodySchema.safeParse({ quantityAllocated: -1 }).success).toBe(false);
   });
 });

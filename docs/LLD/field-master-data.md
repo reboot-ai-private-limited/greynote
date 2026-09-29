@@ -10,11 +10,11 @@ Doctor. ERD: [`../erd/03-field-master-data.md`](../erd/03-field-master-data.md).
 
 ## Build status
 
-Built so far (Phase 4 Field Master Data steps 1–4, `../roadmap.md`): the module skeleton
+Built so far (Phase 4 Field Master Data steps 1–5, `../roadmap.md`): the module skeleton
 (`apps/api/src/modules/field-master-data`, mounted at `/api/field-master-data`), **Products**,
-**Chemists** and **Doctors** with their assignments, and the MR-added Doctor with its approval
-(*Doctor-creation approval* below). Distributors and sample allocations follow in step 5, and the
-contract below grows as they land.
+**Chemists**, **Doctors** with their assignments, the MR-added Doctor with its approval
+(*Doctor-creation approval* below), **Distributors** and **sample allocations** — the module's
+whole data model. The contract below is complete for Phase 6's needs.
 
 - **Products:** `sku` is unique ignoring case and surrounding spaces (a duplicate is a 409).
   `status` is `active` or `inactive`; nothing is ever deleted. List filters: `search` (name or SKU),
@@ -37,8 +37,24 @@ contract below grows as they land.
   assigned MR, or their manager — anyone else gets a 404, so a Doctor's existence isn't revealed).
   Inactive Doctors show only to Admin. Checked live: losing a Route hides the Doctor, giving it back
   restores it, and the switch off keeps it.
+- **Distributors (step 5, Admin-only):** on an active Route, with GST number (15-character GSTIN,
+  upper-cased), contact person, mobile, address, an optional map-picked location, and **both sales
+  flags stated explicitly** — there's no default, since whether a Distributor takes primary or
+  secondary orders is the client's call. The assigned MR and ASM (sign-off C2) must be active FIELD
+  employees, or `null`; a person already in place who later goes inactive can stay until Admin
+  moves them. The list filters by `routeId`, or by the `areaId` / `hqId` / `zoneId` above it (the
+  most specific one given, resolved to Route ids through Territory's `listRouteIdsInScope`), by
+  `assignedMrId`, and by name / GST; the detail adds the Zone → HQ → Area breadcrumb through the Route.
+- **Sample allocations (step 5):** one row per (Doctor, Product). `POST /doctors/:id/sample-allocations`
+  issues samples and **adds** to an existing row (a first-time issue is an atomic upsert, so racing
+  issues sum correctly); `PATCH …/:productId` corrects the allocated total but never below what has
+  already been given out. Only an active Doctor and an active Product qualify. The remaining count
+  moves only through `decrementRemaining`, a single conditional update, and the database refuses
+  a negative one as well — checked live: 30 concurrent gives against 12 in stock, exactly 12 succeed.
+  Admin, the assigned MR and their manager can read a Doctor's allocations (a 404 to anyone else).
 - **Contract today:** `getDoctor`, `getDoctorLocation`, `isAssignedToDoctor`, `listAssignedDoctors`
-  (both use the same visibility rule), `getChemistLocation`, `getChemist`, `getProduct`. `getChemistLocation` returns
+  (both use the same visibility rule), `getChemistLocation`, `getChemist`, `getProduct`, `getDistributor`, `canActOnDistributor`,
+  `getSampleAllocation`, `decrementRemaining`. `getChemistLocation` returns
   `null` for both "no such Chemist" and "no location set", which Field Activity must read as "the
   geofence check cannot run", never as "passed".
 
@@ -137,8 +153,9 @@ All Admin-only (Web Portal, `../roadmap.md` phase 9) unless noted.
 | `GET`/`PATCH` | `/field-master-data/distributors/:id` | Admin | Detail/edit, including reassigning MR/ASM |
 | `POST` | `/field-master-data/products` | Admin | Create a Product |
 | `GET`/`PATCH` | `/field-master-data/products`, `/products/:id` | Admin | List/detail/edit |
-| `POST` | `/field-master-data/doctors/:id/sample-allocations` | Admin | Allocate a Product quantity to a Doctor |
-| `GET` | `/field-master-data/doctors/:id/sample-allocations` | Admin, assigned MR | Remaining quantities |
+| `POST` | `/field-master-data/doctors/:id/sample-allocations` | Admin | Issue a Product quantity for a Doctor (adds to an existing allocation) |
+| `PATCH` | `/field-master-data/doctors/:id/sample-allocations/:productId` | Admin | Correct the allocated total (not below what was given out) |
+| `GET` | `/field-master-data/doctors/:id/sample-allocations` | Admin, assigned MR, their manager | Remaining quantities |
 
 Also usable from the mobile field app: `Add Doctor` (PRD §6.2.A) — `POST /field-master-data/doctors/added`,
 with a reduced field set, which goes through approval before the Doctor is usable. See

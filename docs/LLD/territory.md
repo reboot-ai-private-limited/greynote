@@ -54,6 +54,8 @@ interface TerritoryPublicContract {
   getRoute(routeId: string): Promise<RouteSummary | null>;
   listRoutesForUser(userId: string): Promise<RouteSummary[]>;  // active assignments, active routes
   getRoutePath(routeId: string): Promise<RoutePath | null>;
+  /** Route ids under an Area, HQ or Zone (most specific given) — for filtering another module's lists by territory. */
+  listRouteIdsInScope(scope: { areaId?: string; hqId?: string; zoneId?: string }): Promise<string[]>;
   getUserHq(userId: string): Promise<{ hqId: string; zoneId: string } | null>;  // active assignment
   getHq(hqId: string): Promise<{ id: string; zoneId: string; name: string; status: TerritoryStatus } | null>;
   getZone(zoneId: string): Promise<{ id: string; name: string; status: TerritoryStatus } | null>;

@@ -122,3 +122,62 @@ export const addDoctorBodySchema = z.object({
 });
 export const editAddedDoctorBodySchema = z.object(addedDoctorFields);
 export const listAddedDoctorsQuerySchema = z.object({ page: pageFields.page, pageSize: pageFields.pageSize });
+
+// ---- Distributors
+const gstSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/, 'Must be a 15-character GST number.');
+const mobileSchema = z.string().trim().regex(/^\+?\d{10,15}$/, 'Must be a phone number of 10 to 15 digits.');
+const distributorFields = {
+  name: nameSchema,
+  gstNumber: gstSchema,
+  contactPerson: z.string().trim().min(1).max(150),
+  mobile: mobileSchema,
+  address: textSchema,
+};
+export const createDistributorBodySchema = z.object({
+  routeId: objectIdSchema,
+  ...distributorFields,
+  /** Picked on a Google map. Omit to add the Distributor now and set the point later. */
+  location: locationSchema.nullish().transform((v) => v ?? null),
+  assignedMrId: objectIdSchema.nullish().transform((v) => v ?? null),
+  assignedAsmId: objectIdSchema.nullish().transform((v) => v ?? null),
+  // No default: whether a Distributor may take primary or secondary orders is the client's call, so Admin says.
+  primarySalesEnabled: z.boolean(),
+  secondarySalesEnabled: z.boolean(),
+});
+export const updateDistributorBodySchema = z
+  .object({
+    routeId: objectIdSchema.optional(),
+    name: nameSchema.optional(),
+    gstNumber: gstSchema.optional(),
+    contactPerson: distributorFields.contactPerson.optional(),
+    mobile: mobileSchema.optional(),
+    address: textSchema.optional(),
+    /** `null` clears the registered location. */
+    location: locationSchema.nullable().optional(),
+    /** `null` un-assigns. */
+    assignedMrId: objectIdSchema.nullable().optional(),
+    assignedAsmId: objectIdSchema.nullable().optional(),
+    primarySalesEnabled: z.boolean().optional(),
+    secondarySalesEnabled: z.boolean().optional(),
+    status: statusSchema.optional(),
+  })
+  .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
+export const listDistributorsQuerySchema = z.object({
+  ...pageFields,
+  routeId: objectIdSchema.optional(),
+  /** Zone, HQ and Area narrow by territory; the most specific one given is used. */
+  areaId: objectIdSchema.optional(),
+  hqId: objectIdSchema.optional(),
+  zoneId: objectIdSchema.optional(),
+  assignedMrId: objectIdSchema.optional(),
+});
+
+// ---- Doctor sample allocations
+const quantitySchema = z.number().int().min(1).max(100_000);
+export const issueSampleBodySchema = z.object({ productId: objectIdSchema, quantity: quantitySchema });
+export const adjustSampleBodySchema = z.object({ quantityAllocated: z.number().int().min(0).max(100_000) });
+export const sampleAllocationParamsSchema = z.object({ id: objectIdSchema, productId: objectIdSchema });

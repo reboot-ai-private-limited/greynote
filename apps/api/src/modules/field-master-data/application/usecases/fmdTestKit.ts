@@ -12,6 +12,10 @@ import type { DoctorAssignment } from '../../domain/doctorAssignment.entity.js';
 import type { DoctorAssignmentRepositoryPort } from '../../domain/doctorAssignment.repository.port.js';
 import type { PageQuery } from '../../domain/masterStatus.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
+import type { Distributor } from '../../domain/distributor.entity.js';
+import type { DistributorFilter, DistributorRepositoryPort } from '../../domain/distributor.repository.port.js';
+import type { SampleAllocation } from '../../domain/sampleAllocation.entity.js';
+import type { SampleAllocationRepositoryPort } from '../../domain/sampleAllocation.repository.port.js';
 import type { Product } from '../../domain/product.entity.js';
 import type { ProductFilter, ProductRepositoryPort } from '../../domain/product.repository.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
@@ -90,8 +94,23 @@ export class FakeTerritory implements TerritoryPort {
   routes = new Map<string, 'active' | 'inactive'>([
     ['route-1', 'active'],
     ['route-2', 'active'],
+    ['route-3', 'active'],
     ['route-off', 'inactive'],
   ]);
+  /** Where each Route sits: route-1 and route-2 share HQ h1 in zone z1; route-3 is elsewhere. */
+  paths = new Map([
+    ['route-1', { routeId: 'route-1', areaId: 'a1', areaType: 'HQ' as const, hqId: 'h1', zoneId: 'z1' }],
+    ['route-2', { routeId: 'route-2', areaId: 'a2', areaType: 'HQ' as const, hqId: 'h1', zoneId: 'z1' }],
+    ['route-3', { routeId: 'route-3', areaId: 'a3', areaType: 'HQ' as const, hqId: 'h2', zoneId: 'z2' }],
+  ]);
+  async getRoutePath(routeId: string) {
+    return this.paths.get(routeId) ?? null;
+  }
+  async listRouteIdsInScope(scope: { areaId?: string | undefined; hqId?: string | undefined; zoneId?: string | undefined }) {
+    return [...this.paths.values()]
+      .filter((p) => (scope.areaId ? p.areaId === scope.areaId : scope.hqId ? p.hqId === scope.hqId : scope.zoneId ? p.zoneId === scope.zoneId : false))
+      .map((p) => p.routeId);
+  }
   /** The Routes each user currently has. */
   userRoutes = new Map<string, string[]>();
   async getRoute(routeId: string) {
@@ -268,5 +287,73 @@ export class FakeApprovals implements ApprovalsPort {
       { requestId: request.id, kind, recordId, submitterId: request.submitterId, previousStatus, status, action: request.history.at(-1)!, request },
       {},
     );
+  }
+}
+
+export class FakeDistributors implements DistributorRepositoryPort {
+  rows: Distributor[] = [];
+  async list(f: DistributorFilter) {
+    const search = f.search?.toLowerCase();
+    return paged(
+      this.rows.filter(
+        (d) =>
+          (!f.routeIds || f.routeIds.includes(d.routeId)) &&
+          (!f.assignedMrId || d.assignedMrId === f.assignedMrId) &&
+          (!f.status || d.status === f.status) &&
+          (!search || d.name.toLowerCase().includes(search) || d.gstNumber.toLowerCase().includes(search)),
+      ),
+      f,
+    );
+  }
+  async findById(id: string) {
+    return this.rows.find((d) => d.id === id) ?? null;
+  }
+  async create(input: Omit<Distributor, 'id'>) {
+    const row = { ...input, id: `distributor-${this.rows.length + 1}` };
+    this.rows.push(row);
+    return row;
+  }
+  async update(id: string, change: Partial<Omit<Distributor, 'id'>>) {
+    const i = this.rows.findIndex((d) => d.id === id);
+    if (i < 0) return null;
+    this.rows[i] = { ...this.rows[i]!, ...change };
+    return this.rows[i]!;
+  }
+}
+
+export class FakeSampleAllocations implements SampleAllocationRepositoryPort {
+  rows: SampleAllocation[] = [];
+  async find(doctorId: string, productId: string) {
+    return this.rows.find((a) => a.doctorId === doctorId && a.productId === productId) ?? null;
+  }
+  async findById(id: string) {
+    return this.rows.find((a) => a.id === id) ?? null;
+  }
+  async listForDoctor(doctorId: string) {
+    return this.rows.filter((a) => a.doctorId === doctorId);
+  }
+  async issue(i: { doctorId: string; productId: string; quantity: number; by: string }) {
+    const row = await this.find(i.doctorId, i.productId);
+    if (row) {
+      Object.assign(row, { quantityAllocated: row.quantityAllocated + i.quantity, quantityRemaining: row.quantityRemaining + i.quantity, allocatedBy: i.by });
+      return row;
+    }
+    const created: SampleAllocation = { id: `allocation-${this.rows.length + 1}`, doctorId: i.doctorId, productId: i.productId, quantityAllocated: i.quantity, quantityRemaining: i.quantity, allocatedBy: i.by, allocatedAt: new Date() };
+    this.rows.push(created);
+    return created;
+  }
+  async setAllocated(i: { doctorId: string; productId: string; total: number; by: string }) {
+    const row = await this.find(i.doctorId, i.productId);
+    const given = row ? row.quantityAllocated - row.quantityRemaining : 0;
+    if (!row || given > i.total) return null;
+    Object.assign(row, { quantityAllocated: i.total, quantityRemaining: i.total - given, allocatedBy: i.by });
+    return row;
+  }
+  /** One synchronous check-and-take, like the conditional update in Mongo. */
+  async decrementRemaining(id: string, quantity: number) {
+    const row = this.rows.find((a) => a.id === id);
+    if (!row || row.quantityRemaining < quantity) return false;
+    row.quantityRemaining -= quantity;
+    return true;
   }
 }

@@ -13,6 +13,8 @@ export interface RouteRepositoryPort {
   findByName(areaId: string, name: string): Promise<Route | null>;
   list(query: RouteListQuery): Promise<{ items: Route[]; total: number }>;
   countActiveInArea(areaId: string): Promise<number>;
+  /** Every Route id under an Area, an HQ (through its Areas) or a Zone (through its HQs) — any status. */
+  listIdsInScope(scope: { areaId?: string | undefined; hqId?: string | undefined; zoneId?: string | undefined }): Promise<string[]>;
   create(input: Omit<Route, 'id'>): Promise<Route>;
   /** Fields that don't touch waypoints or distance, so no revision check. */
   update(id: string, input: Partial<Pick<Route, 'name' | 'status' | 'taPerKmRateOverride'>>): Promise<Route>;

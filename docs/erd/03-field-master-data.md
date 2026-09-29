@@ -54,7 +54,7 @@ erDiagram
         decimal longitude
         uuid assigned_mr_id FK "nullable - single current MR"
         uuid assigned_asm_id FK "nullable - single current ASM"
-        boolean primary_sales_enabled
+        boolean primary_sales_enabled "stated explicitly by Admin, no default"
         boolean secondary_sales_enabled
         string status "active, inactive"
     }
@@ -101,6 +101,7 @@ erDiagram
 - **Distributor visibility = Route coverage + a direct assignment field.** Client rules §17.3: visibility is "controlled through Route and manual assignment rules". An MR sees a Distributor if a `RouteAssignment` covers its Route, or if they are its `assigned_mr_id`. Managers see their downline's Distributors through the reporting chain (HLD 05 §3). No separate Distributor↔User join table.
 - **`assigned_mr_id` / `assigned_asm_id` are single-value.** This follows from the one-Doctor-one-MR rule below. The client has not stated it separately for Distributors; if a Distributor ever needs several concurrent MRs, it becomes a join table shaped like `DoctorAssignment`.
 - **No separate Sample catalog.** `Product` is the single catalog for both orderable items and sample-eligible items. What makes something a "sample" is that it has been **allocated** to a doctor — modeled by `DoctorSampleAllocation`, not a flag on `Product`.
+- **One `DoctorSampleAllocation` row per (Doctor, Product)** (unique). Issuing more samples adds to it; `allocated_by` / `allocated_at` are the latest issue or adjustment. `quantity_remaining` never goes below zero — enforced by a conditional update and by the schema. Admin can correct `quantity_allocated`, but not below what has been given.
 - **`DoctorSampleAllocation` is Admin-issued master data, not a field transaction.** Admin allocates a quantity of a `Product` to a specific `Doctor`. MRs assigned to that doctor (via `DoctorAssignment`, below) can see `quantity_remaining` to know what's available to give. The actual "gave 3 units during today's call" event — which decrements `quantity_remaining` — is a Module 4 transaction (Dr Call → Doctor Sample Provided), not modeled here.
 - **`DoctorAssignment` gives each Doctor exactly one responsible MR at a time.** An MR can be responsible for many doctors, but a doctor has at most one `status: active` row. Reassigning a doctor deactivates the current row and inserts a new one, so the table doubles as assignment history (same never-overwrite shape as `RouteAssignment`). This answers the client's open question on one-doctor-per-MR vs. shared doctors (client rules §31). The MR's managers still see and act on that doctor through the reporting chain (HLD 05 §3); that isn't an assignment. This is deliberately independent of `Doctor.route_id` — a doctor sits on exactly one route (location), but _who is responsible for that doctor_ (and therefore who sees their sample/gift allocations) is this table, not route coverage. (Previously many-to-many; changed 2026-09-24, `docs/decision-log.md`.)
 - **A Doctor is added by an MR (phone GPS, offline-first, then approved) or by Admin (map).** See `LLD/field-master-data.md`. The MR's capture is kept beside the registered point when Admin corrects it, and a `pending` Doctor is invisible to every other module. Which Doctors an MR sees follows their current Routes while `DOCTOR_VISIBILITY_FOLLOWS_ROUTE` is on.
