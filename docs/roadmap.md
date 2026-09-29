@@ -216,7 +216,7 @@ phone's local store is Phase 10). Offline data syncs **once, at the daily report
 (sign-off G1); Plans, Leave and approvals need a live connection at the action.
 
 1. Design recorded, sign-off G1–G8 accepted, money decided as integer paise — **done** (2026-09-29)
-2. Geofence: the distance check, `PASS` / `FAIL` / `UNVERIFIED`, radius and accuracy from SystemConfig
+2. Geofence: the distance check, `PASS` / `FAIL` / `UNVERIFIED`, radius and accuracy from SystemConfig — **done** (2026-09-29): a pure function in `shared/geo`, 10 tests; Field Activity calls it in Phase 6
 3. Money migration: `PayBand` and `Route.taPerKmRateOverride` from `Decimal128` to integer paise
    (before Phase 6 adds Expenses)
 4. Sync module (tier 2): receipts, the handler registry, `POST /sync/push` with per-record results,

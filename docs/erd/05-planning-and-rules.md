@@ -98,7 +98,9 @@ erDiagram
   - `NEW_DOCTOR_COVERAGE_WAIT_DAYS` = `8` (Module 3) — days after approval before a new Doctor counts toward coverage
   - `MAX_REGISTERED_DEVICES_FIELD` = `2` (Module 1) — approved + pending phones per field employee
   - `REJECTED_DEVICE_TTL_DAYS` = `7` (Module 1) — how long a phone Admin rejected stays blocked
-  - `GEO_FENCE_RADIUS_METERS` = `200` (Module 4, exact default TBD)
+  - `GEO_FENCE_RADIUS_METERS` = `200` (Module 4; the client's document says 100 — Admin changes it, sign-off C5)
+  - `GEO_MAX_ACCURACY_METERS` = `100` — a GPS reading less accurate than this makes a call's geofence `UNVERIFIED`
+  - `SYNC_MAX_BATCH` = `500`, `SYNC_MAX_AGE_DAYS` = `7`, `SYNC_CLOCK_SKEW_MINUTES` = `10` — the daily-report push's limits (`LLD/sync.md`)
   - `DCR_MISS_BLOCK_ENABLED` = `true` (Module 1/4, HLD 10) — kill switch for the missed-DCR compliance block
   - `DCR_MISS_GRACE_DAYS` = `1` (Module 1/4, HLD 10) — how many consecutive days without a submitted DCR (and without an approved Leave covering them) before the block triggers
   - `SystemConfig` values are Admin-writable at runtime, not just seed defaults — a `PATCH` per key, ADMIN-only, so e.g. `DCR_MISS_GRACE_DAYS` can be moved from its default `1` to `2` or `3` without a redeploy (decision-log 2026-09-24)

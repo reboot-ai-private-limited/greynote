@@ -125,6 +125,30 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = [
     description: 'Radius, in meters, a Dr/Chemist Call must be logged within.',
   },
   {
+    key: 'GEO_MAX_ACCURACY_METERS',
+    value: '100',
+    module: 'FIELD_ACTIVITY',
+    description: 'A GPS reading less accurate than this (in meters) can’t confirm or refute a call’s location: the check is UNVERIFIED.',
+  },
+  {
+    key: 'SYNC_MAX_BATCH',
+    value: '500',
+    module: 'SYNC',
+    description: 'Most records the app may send in one daily-report push.',
+  },
+  {
+    key: 'SYNC_MAX_AGE_DAYS',
+    value: '7',
+    module: 'SYNC',
+    description: 'How many days old a record’s creation time may be when it arrives.',
+  },
+  {
+    key: 'SYNC_CLOCK_SKEW_MINUTES',
+    value: '10',
+    module: 'SYNC',
+    description: 'How far ahead of the server a record’s creation time may be (phone clocks drift).',
+  },
+  {
     key: 'DCR_MISS_BLOCK_ENABLED',
     value: 'true',
     module: 'FIELD_ACTIVITY',
