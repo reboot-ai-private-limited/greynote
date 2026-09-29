@@ -98,7 +98,7 @@ erDiagram
   - `NEW_DOCTOR_COVERAGE_WAIT_DAYS` = `8` (Module 3) — days after approval before a new Doctor counts toward coverage
   - `MAX_REGISTERED_DEVICES_FIELD` = `2` (Module 1) — approved + pending phones per field employee
   - `REJECTED_DEVICE_TTL_DAYS` = `7` (Module 1) — how long a phone Admin rejected stays blocked
-  - `GEO_FENCE_RADIUS_METERS` = `200` (Module 4; the client's document says 100 — Admin changes it, sign-off C5)
+  - `GEO_FENCE_RADIUS_METERS` = `100` (Module 4; matches the client's document, Admin can change it in System Config, sign-off C5)
   - `GEO_MAX_ACCURACY_METERS` = `100` — a GPS reading less accurate than this makes a call's geofence `UNVERIFIED`
   - `SYNC_MAX_BATCH` = `100`, `SYNC_MAX_AGE_DAYS` = `7`, `SYNC_CLOCK_SKEW_MINUTES` = `10` — the daily-report push's limits (`LLD/sync.md`)
   - `SYNC_DRAFT_TTL_DAYS` = `30`, `SYNC_MAX_DRAFT_BYTES` = `65536`, `SYNC_MAX_DRAFTS` = `2000` — the private draft backup's retention and limits

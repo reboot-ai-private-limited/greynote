@@ -120,7 +120,7 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = [
   },
   {
     key: 'GEO_FENCE_RADIUS_METERS',
-    value: '200',
+    value: '100',
     module: 'FIELD_ACTIVITY',
     description: 'Radius, in meters, a Dr/Chemist Call must be logged within.',
   },

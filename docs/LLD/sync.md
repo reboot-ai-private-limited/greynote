@@ -211,7 +211,7 @@ evaluateGeofence({ registered, captured, accuracyMeters, radiusMeters, maxAccura
 ```
 
 - **`PASS` / `FAIL`** — the haversine distance between the captured point and the registered one,
-  against `GEO_FENCE_RADIUS_METERS` (SystemConfig, seeded `200`; the client's document says 100 —
+  against `GEO_FENCE_RADIUS_METERS` (SystemConfig, seeded `100`, matching the client's document; Admin can change it —
   sign-off C5). A `FAIL` **flags, it doesn't block** (HLD 01 §2.3).
 - **`UNVERIFIED`** — the check can't be trusted either way, and the manager sees it like a `FAIL`.
   Two reasons: `NO_REGISTERED_LOCATION` (the Doctor or Chemist has none, so it can't be checked —
@@ -244,7 +244,7 @@ services and the DCR submit.
 
 ## Config
 
-`GEO_FENCE_RADIUS_METERS` (200), `GEO_MAX_ACCURACY_METERS` (100), `SYNC_MAX_BATCH` (100),
+`GEO_FENCE_RADIUS_METERS` (100), `GEO_MAX_ACCURACY_METERS` (100), `SYNC_MAX_BATCH` (100),
 `SYNC_MAX_AGE_DAYS` (7), `SYNC_CLOCK_SKEW_MINUTES` (10), `SYNC_DRAFT_TTL_DAYS` (30),
 `SYNC_MAX_DRAFT_BYTES` (65,536) and `SYNC_MAX_DRAFTS` (2,000).
 
