@@ -1,6 +1,8 @@
 import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
+import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
+import { makeNewDoctorSyncHandler } from './application/newDoctorSync.js';
 import { makeDoctorApprovalHandler, NEW_DOCTOR_KIND } from './application/doctorApproval.js';
 import { DoctorVisibility } from './application/doctorVisibility.js';
 import { DoctorViews } from './application/doctorViews.js';
@@ -38,6 +40,7 @@ import { MongoDoctorAdapter } from './infrastructure/mongoDoctor.adapter.js';
 import { MongoDoctorAssignmentAdapter } from './infrastructure/mongoDoctorAssignment.adapter.js';
 import { MongoProductAdapter } from './infrastructure/mongoProduct.adapter.js';
 import { MongoSampleAllocationAdapter } from './infrastructure/mongoSampleAllocation.adapter.js';
+import { editAddedDoctorBodySchema } from './interface/field-master-data.schemas.js';
 import { makeChemistControllers, makeDistributorControllers, makeDoctorControllers, makeProductControllers } from './interface/field-master-data.controller.js';
 import { buildFieldMasterDataRouter } from './interface/field-master-data.route.js';
 
@@ -46,11 +49,12 @@ export interface FieldMasterDataContainer {
   buildRouter: () => Router;
 }
 
-/** Identity's, Territory's, Approval's and Config's public contracts, passed in by the composition root. */
+/** Identity's, Territory's, Approval's, Sync's and Config's public contracts, passed in by the composition root. */
 export function buildFieldMasterDataContainer(
   users: UserDirectoryPort,
   territory: TerritoryPort,
   approvals: ApprovalsPort,
+  sync: SyncPublicContract,
   config: ConfigReader,
 ): FieldMasterDataContainer {
   // 1. Adapters
@@ -86,6 +90,11 @@ export function buildFieldMasterDataContainer(
 
   const visibility = new DoctorVisibility(assignments, territory, users, config);
   const views = new DoctorViews(assignments, users);
+  // The same add-Doctor logic, for a Doctor the MR added offline: it arrives in the daily report's push
+  // (sync kind NEW_DOCTOR) and is created inside the sync engine's transaction.
+  const addedDoctors = new AddedDoctors(doctors, territory, approvals, transactions, views);
+  sync.registerHandler(makeNewDoctorSyncHandler(addedDoctors, (payload) => editAddedDoctorBodySchema.parse(payload)));
+
   const doctorUseCases = {
     list: new ListDoctorsUseCase(doctors, views),
     create: new CreateDoctorUseCase(doctors, territory, views),
@@ -95,7 +104,7 @@ export function buildFieldMasterDataContainer(
     listAssignments: new ListDoctorAssignmentsUseCase(doctors, assignments),
     assign: new AssignDoctorUseCase(doctors, assignments, users, territory, transactions),
     unassign: new UnassignDoctorUseCase(assignments),
-    addedDoctors: new AddedDoctors(doctors, territory, approvals, transactions, views),
+    addedDoctors,
     listSamples: new ListSampleAllocationsUseCase(sampleAllocations, doctors, products, visibility),
     issueSample: new IssueSampleAllocationUseCase(sampleAllocations, doctors, products),
     adjustSample: new AdjustSampleAllocationUseCase(sampleAllocations),

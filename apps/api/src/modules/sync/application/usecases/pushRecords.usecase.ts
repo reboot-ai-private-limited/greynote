@@ -6,7 +6,7 @@ import { logger } from '@/shared/logging/logger.js';
 import { SyncRejection } from '../../domain/syncHandler.js';
 import { SYNC_CODES, type SyncReason, type SyncRecordInput, type SyncResult } from '../../domain/syncRecord.js';
 import type { SyncDraftRepositoryPort } from '../../domain/syncDraft.repository.port.js';
-import { DuplicateReceiptError, type SyncReceiptRepositoryPort } from '../../domain/syncReceipt.repository.port.js';
+import type { SyncReceiptRepositoryPort } from '../../domain/syncReceipt.repository.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { orderRecords } from '../orderRecords.js';
 import type { SyncHandlerRegistry } from '../syncHandlerRegistry.js';
@@ -135,11 +135,11 @@ export class PushRecordsUseCase {
       });
       return { clientId: record.clientId, status: 'SYNCED', serverId };
     } catch (err) {
-      if (err instanceof DuplicateReceiptError) {
-        // A simultaneous send of the same record got there first; its transaction won and this one rolled back whole.
-        const [receipt] = await this.receipts.findByClientIds(userId, [record.clientId]);
-        if (receipt) return { clientId: record.clientId, status: 'ALREADY_SYNCED', serverId: receipt.serverId };
-      }
+      // Whatever went wrong, a simultaneous send of this same record may have delivered it meanwhile — its
+      // transaction won and this one rolled back whole. The record is on the server then, so say so, rather
+      // than report a failure the MR would only have to retry. (Looked up only on the failure path.)
+      const [receipt] = await this.receipts.findByClientIds(userId, [record.clientId]);
+      if (receipt) return { clientId: record.clientId, status: 'ALREADY_SYNCED', serverId: receipt.serverId };
       if (err instanceof SyncRejection) return { clientId: record.clientId, status: 'FAILED', reason: { code: err.code, message: err.message } };
       if (err instanceof AppError && err.statusCode < 500) {
         return { clientId: record.clientId, status: 'FAILED', reason: { code: err.code, message: err.message } };

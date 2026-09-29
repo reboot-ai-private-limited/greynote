@@ -231,7 +231,9 @@ connection at the action.
    (2026-09-29): 19 tests and a 32-check live run (the atomic last-write-wins upsert under 12
    simultaneous out-of-order uploads, the TTL and unique indexes, the draft delete rolling back with
    a failed record)
-6. `NEW_DOCTOR` through it (the one real offline record that exists today)
+6. `NEW_DOCTOR` through it (the one real offline record that exists today) — **done** (2026-09-29):
+   the first handler registered into the engine, 8 tests and a 28-check live run through the real
+   app (push, retry, 8 simultaneous sends, route drift, the direct endpoint first, approval after)
 7. Pull: the source registry and `GET /sync/pull`, with Field Master Data, Territory, HR, Planning
    and Config as sources
 8. Contract types in `packages/contracts`, a sync-client simulator test (dropped connections, replayed

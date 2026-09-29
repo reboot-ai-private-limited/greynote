@@ -53,8 +53,9 @@ export function buildContainers(): AppContainers {
   const hr = buildHrContainer(identity.contract, territory.contract, approval.contract, config.contract);
 
   // Tier 3 — Field Master Data: employees and their downline (Identity), the Routes Doctors and Chemists sit on and an MR covers (Territory), the NEW_DOCTOR workflow
-  // (Approval), and the visibility and auto-assign switches (Config).
-  const fieldMasterData = buildFieldMasterDataContainer(identity.contract, territory.contract, approval.contract, config.contract);
+  // (Approval), the daily report's push, where an offline-added Doctor arrives (Sync), and the visibility
+  // and auto-assign switches (Config).
+  const fieldMasterData = buildFieldMasterDataContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
 
   return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync };
 }

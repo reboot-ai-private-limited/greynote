@@ -57,8 +57,12 @@ Only a malformed envelope (or no login) is a 4xx.
   same transaction as the record. Sending a record again returns `ALREADY_SYNCED` with the original
   `serverId`. Only `SYNCED` records get a receipt: a `FAILED` one is retried from scratch, so the MR
   can fix it and send it again. Two requests racing on one `clientId` are settled by the unique
-  index; the loser answers `ALREADY_SYNCED` (the duplicate is thrown out of the transaction and
-  caught outside it — `../engineering/coding-standards.md`, *Transactions and unique keys*).
+  index (the duplicate is thrown out of the transaction and caught outside it —
+  `../engineering/coding-standards.md`, *Transactions and unique keys*). And whenever a record's
+  attempt fails for any reason, the engine first looks for its receipt: a simultaneous send may have
+  delivered it meanwhile, in which case the answer is `ALREADY_SYNCED`, not a failure the MR would
+  only have to retry. (Checked live: 8 simultaneous pushes of one Doctor gave exactly one `SYNCED`
+  and seven `ALREADY_SYNCED`, twice over.)
 - **One transaction per record**, so a failure leaves no half-written record and never undoes its
   neighbours. Records are applied one after another, in order — a later call must fail on an
   allocation an earlier one used up, not race it — so a push's time grows with its size: about
@@ -84,6 +88,16 @@ Only a malformed envelope (or no login) is a 4xx.
   `CLIENT_TIME_INVALID`. Both are SystemConfig.
 - **Who:** an active FIELD employee. Whether a compliance-blocked one may still send the report that
   ends the block is Field Activity's call (`hld/10`).
+
+## The kinds registered so far
+
+| Kind | Owner | What it does | Refusals |
+|---|---|---|---|
+| `NEW_DOCTOR` | Field Master Data | A Doctor the MR added offline: created `pending` with the phone's location and sent for approval (Employee → Manager → Admin), exactly as `POST /field-master-data/doctors/added` does, in the engine's transaction. The record's `serverId` is the Doctor's id. The client id is the Doctor's `clientRequestId`, so an id already used — directly or by an earlier push — returns that Doctor, never a second | `INVALID_PAYLOAD` (names the first bad field), `ROUTE_NOT_ASSIGNED` (Admin took the Route away while the phone was offline — the drift case of HLD 01 §1.4; the MR picks another), `ADDED_AT_THE_SAME_TIME` |
+
+Phase 6 adds the calls, follow-ups, expenses, orders, gifts, services and the DCR submit. Payload
+fields for `NEW_DOCTOR`: `routeId`, `category`, `name`, `address`, `specialty`, `qualification`,
+`email` (optional) and `location` `{ latitude, longitude }` — the same rules as the direct endpoint.
 
 ## Draft backup
 

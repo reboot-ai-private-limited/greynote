@@ -68,6 +68,27 @@ describe('Push — the daily report’s Submit', () => {
       expect(kit.store.map((r) => r.name)).toEqual(['call', 'reduced quantity']);
     });
 
+    it('a record refused because a simultaneous send won the race is ALREADY_SYNCED, not FAILED — it is delivered', async () => {
+      // The other request commits this record's receipt while this one is failing (here: on a refusal it never
+      // would have made on its own), so the failure is moot.
+      kit.registry.register({
+        kind: 'RACER',
+        async apply({ userId, clientId }) {
+          kit.receipts.rows.push({ userId, clientId, kind: 'RACER', serverId: 'winner-1', syncedAt: new Date() });
+          throw new SyncRejection('ADDED_AT_THE_SAME_TIME', 'Tap Submit again.');
+        },
+      });
+      const r = record({ kind: 'RACER' });
+      const { results, summary } = await kit.push.execute(mr1, [r]);
+      expect(results).toEqual([{ clientId: r.clientId, status: 'ALREADY_SYNCED', serverId: 'winner-1' }]);
+      expect(summary).toEqual({ synced: 0, alreadySynced: 1, failed: 0 });
+    });
+
+    it('a genuine failure with no receipt behind it is still FAILED', async () => {
+      const { results } = await kit.push.execute(mr1, [record({ payload: { refuse: 'no' } })]);
+      expect(results[0]!.status).toBe('FAILED');
+    });
+
     it('two MRs can use the same client id without colliding — a receipt is per user', async () => {
       const a = record();
       expect((await kit.push.execute(mr1, [a])).results[0]!.status).toBe('SYNCED');

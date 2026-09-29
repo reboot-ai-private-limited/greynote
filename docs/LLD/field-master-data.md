@@ -185,7 +185,10 @@ doesn't re-derive the state machine.
 - **On Admin `REOPENED`** an approved Doctor goes back to `pending` with `approvedAt` cleared, so it
   drops out of the field's lists while it's reconsidered; its assignment is kept, hidden, and is not
   duplicated when it's approved again.
-- **Offline-first create.** `clientRequestId` (unique per MR) makes a retry safe: the same id again
+- **Offline-first create.** An MR adds a Doctor on the phone and it reaches the server with the daily
+  report's push as a `NEW_DOCTOR` sync record (`sync.md`), running this same logic inside the sync
+  engine's transaction; `POST /doctors/added` stays for an online add. Either way `clientRequestId`
+  (the sync client id, unique per MR) makes a retry safe: the same id again
   returns the Doctor already made (`200`, not a second Doctor or request). Two requests racing on
   one id are settled by a unique index — one wins, the others get the winner. The Route must be one
   the MR currently has.

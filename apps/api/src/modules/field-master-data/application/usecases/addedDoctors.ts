@@ -1,5 +1,5 @@
 import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
-import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
+import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
@@ -47,16 +47,9 @@ export class AddedDoctors {
     if (earlier) return { doctor: await this.view(earlier), created: false };
 
     await this.requireOwnRoute(mrId, input.routeId);
-    const { clientRequestId, location, ...fields } = input;
+    const { clientRequestId } = input;
     try {
-      const created = await this.transactions.run(async (ctx) => {
-        const doctor = await this.doctors.createProposed(
-          { ...fields, location, capturedLocation: location, clientRequestId, status: 'pending', addedBy: mrId, approvedAt: null },
-          ctx,
-        );
-        await this.approvals.submit({ kind: NEW_DOCTOR_KIND, recordId: doctor.id, submitterId: mrId }, ctx);
-        return doctor;
-      });
+      const created = await this.transactions.run((ctx) => this.insertAndSubmit(mrId, input, ctx));
       return { doctor: await this.view(created), created: true };
     } catch (err) {
       if (!(err instanceof DuplicateRecordError)) throw err;
@@ -65,6 +58,30 @@ export class AddedDoctors {
       if (!winner) throw AppError.conflict('This doctor was added at the same time. Reload and try again.');
       return { doctor: await this.view(winner), created: false };
     }
+  }
+
+  /**
+   * The same create, inside a transaction the caller already opened — the sync push's, for a Doctor the
+   * MR added offline (LLD sync.md). `input.clientRequestId` is the record's sync client id. If an earlier
+   * send already made this Doctor (through `add`, or a first push) that one is returned, so the same
+   * client id can never make two. Throws `DuplicateRecordError` if a simultaneous send got in first —
+   * the transaction is already doomed by then, so the caller reports it and the MR taps Submit again.
+   */
+  async addWithin(mrId: string, input: AddedDoctorInput & { clientRequestId: string }, ctx: TransactionContext): Promise<Doctor> {
+    const earlier = await this.doctors.findByClientRequest(mrId, input.clientRequestId);
+    if (earlier) return earlier;
+    await this.requireOwnRoute(mrId, input.routeId);
+    return this.insertAndSubmit(mrId, input, ctx);
+  }
+
+  private async insertAndSubmit(mrId: string, input: AddedDoctorInput & { clientRequestId: string }, ctx: TransactionContext): Promise<Doctor> {
+    const { clientRequestId, location, ...fields } = input;
+    const doctor = await this.doctors.createProposed(
+      { ...fields, location, capturedLocation: location, clientRequestId, status: 'pending', addedBy: mrId, approvedAt: null },
+      ctx,
+    );
+    await this.approvals.submit({ kind: NEW_DOCTOR_KIND, recordId: doctor.id, submitterId: mrId }, ctx);
+    return doctor;
   }
 
   /** After a rejection, withdrawal or Admin reopen: change the Doctor and resubmit it as a new cycle. */
