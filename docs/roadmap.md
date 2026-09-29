@@ -183,6 +183,17 @@ days, so a drifted row went negative. Fixed (2026-09-29): each is now a conditio
 missing or drifted row throws (`LEAVE_BALANCE_MISSING` / `LEAVE_BALANCE_DRIFT`), rolling the decision
 back. Checked live: normal moves pass, a repeat on an empty row throws.
 
+Field Master Data, step by step (decision-log 2026-09-29):
+
+1. Config keys (`DOCTOR_VISIBILITY_FOLLOWS_ROUTE`, `AUTO_ASSIGN_DOCTOR_ON_APPROVAL`,
+   `NEW_DOCTOR_COVERAGE_WAIT_DAYS`); Territory's `listRoutesForUser` already gives an MR's current
+   Routes, so it needs no new method — **done** (2026-09-29)
+2. Module skeleton, Products, Chemists
+3. Doctors: Admin create with a map point, assignments with the Route rule, visibility
+4. MR add-Doctor: `NEW_DOCTOR` approval, offline-safe create, auto-assign on approval
+5. Distributors and sample allocations
+6. Tests, live run against the dev database
+
 **Done when:** Admin can populate Doctors/Chemists/Distributors/Products and assign MRs to them;
 an MR can submit a Daily/Monthly Plan and see it move through Nearest-Manager approval; HR can
 configure per-Pay-Band leave defaults and an employee's balance reflects them.

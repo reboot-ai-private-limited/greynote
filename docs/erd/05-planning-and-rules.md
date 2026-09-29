@@ -92,6 +92,9 @@ erDiagram
   - `DAILY_PLAN_RESUBMIT_LATEST_TIME` = `11:30` — no Daily Plan resubmit window runs past this time on the plan's date
   - `MONTHLY_PLAN_RESUBMIT_GRACE_HOURS` = `24` — the same window for a Monthly Plan, never past the month's start
   - `PLAN_RESUBMIT_GRACE_MAX` = `2` — at most this many window resubmits per Plan
+  - `DOCTOR_VISIBILITY_FOLLOWS_ROUTE` = `true` (Module 3) — an MR sees only the assigned Doctors on their current Routes; off, they keep every assigned Doctor across a Route change
+  - `AUTO_ASSIGN_DOCTOR_ON_APPROVAL` = `true` (Module 3) — approving an MR-added Doctor assigns it to that MR
+  - `NEW_DOCTOR_COVERAGE_WAIT_DAYS` = `8` (Module 3) — days after approval before a new Doctor counts toward coverage
   - `MAX_REGISTERED_DEVICES_FIELD` = `2` (Module 1) — approved + pending phones per field employee
   - `REJECTED_DEVICE_TTL_DAYS` = `7` (Module 1) — how long a phone Admin rejected stays blocked
   - `GEO_FENCE_RADIUS_METERS` = `200` (Module 4, exact default TBD)

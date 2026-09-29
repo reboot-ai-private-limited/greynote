@@ -82,6 +82,25 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = [
     description: 'Most resubmits per Plan allowed through the after-rejection window.',
   },
   {
+    key: 'DOCTOR_VISIBILITY_FOLLOWS_ROUTE',
+    value: 'true',
+    module: 'FIELD_MASTER_DATA',
+    description:
+      'Whether an MR sees only the assigned Doctors on the Routes they currently have. Off: an MR keeps every assigned Doctor after a Route change.',
+  },
+  {
+    key: 'AUTO_ASSIGN_DOCTOR_ON_APPROVAL',
+    value: 'true',
+    module: 'FIELD_MASTER_DATA',
+    description: 'Whether approving a Doctor an MR added assigns that Doctor to the MR who added it.',
+  },
+  {
+    key: 'NEW_DOCTOR_COVERAGE_WAIT_DAYS',
+    value: '8',
+    module: 'FIELD_MASTER_DATA',
+    description: 'Days after approval before a new Doctor counts toward an MR’s coverage.',
+  },
+  {
     key: 'MAX_REGISTERED_DEVICES_FIELD',
     value: '2',
     module: 'AUTH',
