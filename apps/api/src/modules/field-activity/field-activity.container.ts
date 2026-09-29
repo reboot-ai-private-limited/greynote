@@ -12,6 +12,7 @@ import { makeExpenseSyncHandler } from './application/expenseSync.js';
 import { LogExpenseUseCase } from './application/usecases/logExpense.usecase.js';
 import { GeofenceEvaluator } from './application/geofenceEvaluator.js';
 import { LoggingGate } from './application/loggingGate.js';
+import { OverrideGeofenceUseCase } from './application/usecases/overrideGeofence.usecase.js';
 import { GetDcrDetailUseCase } from './application/usecases/getDcrDetail.usecase.js';
 import { LogChemistCallUseCase, LogDoctorCallUseCase, LogFollowupUseCase } from './application/usecases/logCalls.usecase.js';
 import { GetDcrUseCase, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCase } from './application/usecases/readDcrs.usecase.js';
@@ -104,6 +105,7 @@ export function buildFieldActivityContainer(
           listMine: new ListMyDcrsUseCase(dcrs, views),
           listAll: new ListAllDcrsUseCase(dcrs, users, views),
           listTeam: new ListTeamDcrsUseCase(dcrs, users, views),
+          override: new OverrideGeofenceUseCase(dcrs, users, views, doctorCalls, chemistCalls),
           get: new GetDcrDetailUseCase(new GetDcrUseCase(dcrs, users, views), doctorCalls, chemistCalls, followups, expenses, master),
         }),
       ),

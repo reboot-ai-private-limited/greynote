@@ -12,10 +12,10 @@ Activity as their first, and in most cases only, real consumer.
 
 ## Build status
 
-Built so far (Phase 6 Field Activity steps 1–4, `../roadmap.md`): the decisions below, the **DCR envelope**
+Built so far (Phase 6 Field Activity steps 1–5, `../roadmap.md`): the decisions below, the **DCR envelope**
 and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_SUBMIT`, reads of DCRs,
 `hasQualifyingDcr` on the contract, and **calls, follow-ups and samples given** as four sync kinds, and
-**manual expenses** as the sync kind `EXPENSE`. Review, TA/DA, Services and Gifts follow.
+**manual expenses** as the sync kind `EXPENSE`. **the geofence override** for the manager's review (approve / reject is the approval module's). TA/DA, Services and Gifts follow.
 
 - **The DCR** (`Dcr`: `userId`, `reportDate`) is one row per user per day — a unique index — created lazily
   by the first record of the day or by the submit, in one atomic upsert, so simultaneous first records (two
@@ -242,6 +242,15 @@ approving the DCR, so a manager can accept two flagged calls and still reject th
 when and why (`geofenceOverriddenBy`, `…At`, `…Comment`), keeps the computed distance and original status,
 and is allowed only on a `FAIL` / `UNVERIFIED` call of a DCR that is still `SUBMITTED` at the reviewing
 manager's stage (Admin may do it at any stage). A `PASS` call has nothing to override.
+
+**Built (step 5).** Body `{ comment }` (required, ≤ 500 characters); response `{ id, geofence }`. Who: the
+employee's **nearest manager** while the DCR is `SUBMITTED`, and **Admin** while it is `SUBMITTED` or
+`MANAGER_APPROVED`; anyone else — the owner, a manager higher up at the manager's stage, a stranger — is 403.
+`409` when the DCR isn't under review (draft, rejected, withdrawn, fully approved), the call passed, or was
+already accepted; `404` for a call that isn't on that DCR. The change is one conditional update
+(`FAIL`/`UNVERIFIED` → `OVERRIDE`), so simultaneous accepts leave one winner. The original status is not stored
+separately: it is recoverable from what stays — a `reason` means it was `UNVERIFIED`, none means `FAIL` — beside
+the computed distance.
 
 ## When TA/DA is generated (decided 2026-09-29)
 

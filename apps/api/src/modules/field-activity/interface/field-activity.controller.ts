@@ -4,22 +4,24 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
+import type { OverrideGeofenceUseCase } from '../application/usecases/overrideGeofence.usecase.js';
 import type { GetDcrDetailUseCase } from '../application/usecases/getDcrDetail.usecase.js';
 import type { Actor, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCase } from '../application/usecases/readDcrs.usecase.js';
-import type { listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
+import type { listDcrsQuerySchema, listTeamDcrsQuerySchema, overrideBodySchema } from './field-activity.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
   return { id: req.user.sub, role: req.user.role };
 }
 
-export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr', RequestHandler>;
+export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence', RequestHandler>;
 
 export function makeFieldActivityControllers(u: {
   listMine: ListMyDcrsUseCase;
   listAll: ListAllDcrsUseCase;
   listTeam: ListTeamDcrsUseCase;
   get: GetDcrDetailUseCase;
+  override: OverrideGeofenceUseCase;
 }): FieldActivityHandlers {
   return {
     // FIELD: their own. ADMIN: anyone's — `userId` is required, so "everyone's" is never an accident.
@@ -35,6 +37,11 @@ export function makeFieldActivityControllers(u: {
     teamDcrs: asyncHandler(async (req, res) => {
       const { from, to, userId } = req.query as unknown as z.output<typeof listTeamDcrsQuerySchema>;
       sendSuccess(req, res, await u.listTeam.execute(actorOf(req), from, to, userId ?? null), 'Your team’s daily reports.', 200);
+    }),
+    overrideGeofence: asyncHandler(async (req, res) => {
+      const { comment } = req.body as z.output<typeof overrideBodySchema>;
+      const call = await u.override.execute(actorOf(req), requiredParam(req.params, 'id'), requiredParam(req.params, 'callId'), comment);
+      sendSuccess(req, res, { id: call.id, geofence: call.geofence }, 'The call was accepted.', 200);
     }),
     getDcr: asyncHandler(async (req, res) => sendSuccess(req, res, await u.get.execute(actorOf(req), requiredParam(req.params, 'id')), 'Daily report.', 200)),
   };

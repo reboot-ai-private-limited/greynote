@@ -2,6 +2,7 @@ import { Types, type ClientSession } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { ChemistCall, DoctorCall, Followup, GeofenceOutcome } from '../domain/call.entity.js';
 import type { Expense } from '../domain/expense.entity.js';
+import type { GeofenceOverride } from '../domain/records.repository.port.js';
 import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseRepositoryPort, FollowupRepositoryPort } from '../domain/records.repository.port.js';
 import { ChemistCallModel, DoctorCallModel, ExpenseModel, FollowupModel, type ChemistCallDoc, type DoctorCallDoc, type ExpenseDoc, type FollowupDoc } from './records.schema.js';
 
@@ -73,6 +74,12 @@ const toFollowup = (d: FollowupDoc & { _id: unknown }): Followup => ({
   recordedAt: d.recordedAt,
 });
 
+/** Filter + update for the one-way `FAIL` / `UNVERIFIED` → `OVERRIDE`; the computed distance and reason stay. */
+const overrideUpdate = (id: string, o: GeofenceOverride) => ({
+  filter: { _id: oid(id), geofenceStatus: { $in: ['FAIL', 'UNVERIFIED'] } },
+  update: { $set: { geofenceStatus: 'OVERRIDE', geofenceOverriddenBy: oid(o.by), geofenceOverriddenAt: o.at, geofenceOverrideComment: o.comment } },
+});
+
 export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
   async create(input: Omit<DoctorCall, 'id'>, ctx: TransactionContext): Promise<DoctorCall> {
     const [doc] = await DoctorCallModel.create(
@@ -84,6 +91,14 @@ export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
   async listForDcr(dcrId: string): Promise<DoctorCall[]> {
     return (await DoctorCallModel.find({ dcrId: oid(dcrId) }).sort({ recordedAt: 1, _id: 1 }).lean()).map(toDoctorCall);
   }
+  async findById(id: string): Promise<DoctorCall | null> {
+    const doc = await DoctorCallModel.findById(id).lean();
+    return doc ? toDoctorCall(doc) : null;
+  }
+  async overrideGeofence(id: string, o: GeofenceOverride): Promise<boolean> {
+    const { filter, update } = overrideUpdate(id, o);
+    return (await DoctorCallModel.updateOne(filter, update)).modifiedCount === 1;
+  }
 }
 
 export class MongoChemistCallAdapter implements ChemistCallRepositoryPort {
@@ -93,6 +108,14 @@ export class MongoChemistCallAdapter implements ChemistCallRepositoryPort {
   }
   async listForDcr(dcrId: string): Promise<ChemistCall[]> {
     return (await ChemistCallModel.find({ dcrId: oid(dcrId) }).sort({ recordedAt: 1, _id: 1 }).lean()).map(toChemistCall);
+  }
+  async findById(id: string): Promise<ChemistCall | null> {
+    const doc = await ChemistCallModel.findById(id).lean();
+    return doc ? toChemistCall(doc) : null;
+  }
+  async overrideGeofence(id: string, o: GeofenceOverride): Promise<boolean> {
+    const { filter, update } = overrideUpdate(id, o);
+    return (await ChemistCallModel.updateOne(filter, update)).modifiedCount === 1;
   }
 }
 

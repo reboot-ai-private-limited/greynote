@@ -8,6 +8,9 @@ const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.')
 
 export const idParamsSchema = z.object({ id: objectIdSchema });
 
+export const callParamsSchema = z.object({ id: objectIdSchema, callId: objectIdSchema });
+export const overrideBodySchema = z.object({ comment: z.string().trim().min(1, 'Say why the call is accepted.').max(500) });
+
 /** Both ends inclusive, at most ~13 months. */
 const rangeFields = { from: calendarDateSchema, to: calendarDateSchema };
 const rangeRules = <T extends { from: string; to: string }>(schema: z.ZodType<T>) =>

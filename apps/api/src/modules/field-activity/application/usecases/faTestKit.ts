@@ -200,8 +200,10 @@ export class FakeFmd implements FieldMasterDataPort {
 
 class FakeCalls<T extends { id: string; dcrId: string }> {
   rows: T[] = [];
+  /** Ids are unique across the fakes, as ObjectIds are. */
+  private static counter = 0;
   async create(input: Omit<T, 'id'>, ctx: unknown) {
-    const row = { ...input, id: `rec-${this.rows.length + 1}` } as T;
+    const row = { ...input, id: `rec-${++FakeCalls.counter}` } as T;
     this.rows.push(row);
     (ctx as Tx).undo.push(() => {
       this.rows.splice(this.rows.indexOf(row), 1);
@@ -210,6 +212,15 @@ class FakeCalls<T extends { id: string; dcrId: string }> {
   }
   async listForDcr(dcrId: string) {
     return this.rows.filter((r) => r.dcrId === dcrId);
+  }
+  async findById(id: string) {
+    return this.rows.find((r) => r.id === id) ?? null;
+  }
+  async overrideGeofence(id: string, o: { by: string; at: Date; comment: string }) {
+    const row = this.rows.find((r) => r.id === id) as unknown as { geofence?: { status: string; overriddenBy: string | null; overriddenAt: Date | null; overrideComment: string | null } } | undefined;
+    if (!row?.geofence || !['FAIL', 'UNVERIFIED'].includes(row.geofence.status)) return false;
+    Object.assign(row.geofence, { status: 'OVERRIDE', overriddenBy: o.by, overriddenAt: o.at, overrideComment: o.comment });
+    return true;
   }
 }
 export class FakeDoctorCalls extends FakeCalls<DoctorCall> implements DoctorCallRepositoryPort {}
