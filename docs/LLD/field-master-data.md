@@ -52,12 +52,12 @@ Admin-only, reached through this module's own HTTP surface (below), not through 
 
 ## Write-path rules & invariants
 
-- **Registered location is captured once, at creation, from the Admin form** — PRD §5.1 says so
-  explicitly ("captured once when added"). There is no scheduled re-capture; correcting a wrong
-  location is an explicit edit, not something that happens automatically as calls accumulate
-  near a different point.
+- **Registered location is captured once, when the Doctor is added** — by the MR's phone (then
+  reviewed by Admin at approval) or picked on a Google map by Admin (PRD §5.1: "captured once when
+  added"). There is no scheduled re-capture; correcting a wrong location is an explicit Admin edit,
+  not something that happens automatically as calls accumulate near a different point.
 - **Direct assignment vs. route coverage are two independent relationships, and neither implies
-  the other.** `RouteAssignment` (Territory module) covering a route does not grant visibility
+  the other** (visibility does read both — see *Who can see a Doctor*). `RouteAssignment` (Territory module) covering a route does not grant visibility
   into every Doctor/Chemist on it — sample/gift/service actions require the specific
   `DoctorAssignment` row.
 - **One active `DoctorAssignment` per Doctor.** Assigning a doctor who already has an active row
@@ -127,20 +127,40 @@ doesn't re-derive the state machine.
 - `MANAGER_ONLY` for this kind is a config switch (`APPROVAL_MANAGER_ONLY_KINDS`), not code, if
   the client later decides the Admin stage is too heavy.
 
-**Still open before building it** (client sign-off):
+**Accepted 2026-09-29** (client sign-off C3, C4, C6, C7, C8; `../decision-log.md`):
 
-- **C4 (second half):** which fields the MR may fill. Working assumption until answered: category,
-  name, address, email, specialty, qualification — no location.
-- **C6:** whether the MR captures the Doctor's location on the first visit (approved by ASM/Admin)
-  or Admin enters it at creation. Today's assumption is Admin at creation, so an MR-created Doctor
-  starts with no registered location — see the no-location edge case below.
-- Whether approval also creates a `DoctorAssignment` to the MR who added the Doctor, or Admin
-  assigns separately. Decide in Phase 4 and record it in `../decision-log.md`.
+- **What an MR fills:** category, name, address, email, specialty, qualification, the Route (one of
+  the MR's own assigned Routes) and the location. The location is the phone's GPS at the moment of
+  adding; the MR can't edit it afterwards.
+- **Offline-first.** The phone saves the Doctor and sends it later. The create carries a
+  client-generated `clientRequestId`, unique per submitter, so a retry returns the first Doctor
+  instead of creating a second. The same rule will serve Phase 5's queue.
+- **Admin review.** The approver sees the location on a Google map and may correct it as part of
+  the approval; the corrected point is the registered one. The original capture is kept
+  (`capturedLocation`) so the change is visible.
+- **Admin-created Doctors** pick the location on a Google map and are `active` at once, no approval.
+- **Approval assigns the MR.** On `APPROVED`, if `AUTO_ASSIGN_DOCTOR_ON_APPROVAL` (default true) is on,
+  a `DoctorAssignment` to the MR who added it is created in the approval's transaction. Admin can
+  reassign afterwards.
+- **`approvedAt`** is stored on the Doctor. Phase 6 combines it with `NEW_DOCTOR_COVERAGE_WAIT_DAYS`
+  (8) to decide when visits count toward coverage.
+
+## Who can see a Doctor
+
+- **An MR** sees the Doctors assigned to them, and — while `DOCTOR_VISIBILITY_FOLLOWS_ROUTE` (default
+  true) is on — only those whose Route is one of their current Routes. Assignments on a Route the MR
+  no longer has are hidden when read, not changed, so a Route given back brings them back. With the
+  switch off, an MR keeps every assigned Doctor.
+- **Assigning needs the Route.** A Doctor can be assigned only to an MR whose Routes include the
+  Doctor's Route. Changing an MR's Routes never assigns or unassigns Doctors; Admin assigns the
+  Doctors on the new Route by hand.
+- **Managers** see the Doctors and Routes of their downline through the reporting chain, by the
+  same rule applied to each report.
 
 ## Edge cases
 
-- **A Doctor/Chemist created (or migrated) with no registered location.** `latitude`/`longitude`
-  are on the ERD without a stated nullability. If they can be null, `getDoctorLocation` returning
+- **A Doctor/Chemist with no registered location.** `latitude`/`longitude` may be empty (a
+  migrated record). An empty location means the geofence check can't run, so `getDoctorLocation` returning
   `null` must mean "geofence check cannot run" to Field Activity, not "check passed" — this
   module's contract should make that distinction unambiguous in its return type rather than
   leaving Field Activity to infer it from a missing field.
@@ -157,10 +177,8 @@ doesn't re-derive the state machine.
   never-goes-negative invariant must be enforced atomically at the data layer (a conditional
   update, not read-then-write in application code), or two concurrent Dr Calls can both succeed
   against a `quantity_remaining` of 1.
-- **Deactivating a Doctor (`status: inactive`) with active `DoctorAssignment` or
-  `DoctorSampleAllocation` rows.** Decide at implementation time whether deactivation blocks,
-  cascades, or leaves them — not specified in the ERD; note the choice in
-  `../decision-log.md` when made, the same way Territory's Route deactivation should.
+- **Deactivating a Doctor (`status: inactive`) with an active `DoctorAssignment`** is refused;
+  Admin reassigns or removes it first. `DoctorSampleAllocation` rows stay as history.
 - **A Product referenced by an allocation being edited or deactivated.** `quantity_allocated`/
   `quantity_remaining` should stay meaningful even if the Product's name/SKU changes later — this
   argues for the allocation storing a reference, not a denormalized snapshot, since (unlike
@@ -185,8 +203,7 @@ Public contract above.
 
 - **The geofence distance check and its radius config** — owned by Field Activity and
   `SystemConfig` respectively, not this module. See `../hld/01-sync-and-geofencing.md`.
-- **The MR-facing reduced-field "Add Doctor" endpoint's exact field set** — waits on client
-  sign-off C4/C6 (see Doctor-creation approval above); the approval flow itself is settled.
+- **How the Doctor's approval date enters the coverage figure** — Field Activity (Phase 6).
 - **DoctorGift** — despite being Admin-issued the same way `DoctorSampleAllocation` is, the ERD
   places it in Module 4 (Field Activity) alongside DoctorService, not here. Don't duplicate it in
   this module.

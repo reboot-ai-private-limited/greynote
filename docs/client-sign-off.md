@@ -44,12 +44,12 @@ cheapest to change before the listed phase starts.
 |---|---|---|---|
 | C1 | Confirm one Doctor = one MR at a time; the MR's managers still see the Doctor (§4.5–4.6). | Yes | Designed |
 | C2 | Confirm a Distributor has one assigned MR and one assigned ASM at a time. | Yes (assumed by analogy with C1) | Designed |
-| C3 | When an MR's Route changes, does their Doctor visibility change automatically (§17.5)? | Not decided | Open |
-| C4 | MR-created Doctors need Admin approval before becoming active (§4.2) — confirm, and what fields can the MR fill? | **Approval answered 2026-09-24:** Employee → Manager → Admin. Fields the MR can fill: still open | Partly answered |
+| C3 | When an MR's Route changes, does their Doctor visibility change automatically (§17.5)? | **Accepted 2026-09-29:** yes, by default — an MR who loses a Route stops seeing that Route's Doctors (their assignments are hidden, not deleted), and Admin assigns Doctors on the new Route by hand. A Doctor can only be assigned to an MR whose Routes include the Doctor's Route. Managers see their downline's Routes and Doctors. A switch (*config* `DOCTOR_VISIBILITY_FOLLOWS_ROUTE`, default on) turns it off, so an MR keeps their Doctors across a Route change | Accepted 2026-09-29 |
+| C4 | MR-created Doctors need Admin approval before becoming active (§4.2) — confirm, and what fields can the MR fill? | **Approval answered 2026-09-24:** Employee → Manager → Admin. **Fields accepted 2026-09-29:** category, name, address, email, specialty, qualification, the Route (one of the MR's own) and the location, taken from the MR's phone GPS when adding, offline-first. Admin can correct the location while approving. On approval the Doctor is assigned to the MR who added it (*config* `AUTO_ASSIGN_DOCTOR_ON_APPROVAL`, default on); Admin can reassign later | Accepted 2026-09-29 |
 | C5 | GPS validation radius (§5.5). Your document says **100 m**. | **200 m** (*config*) — will change to 100 m on confirmation | Designed |
-| C6 | Doctor location captured by the MR on first visit then approved by ASM/Admin (§5.4, Master M4) — confirm this over "Admin enters it at creation". | Admin enters at creation | Designed |
-| C7 | New-Doctor waiting period before visits count toward coverage (§4.9, proposed 8 days). | Not decided | Open |
-| C8 | Doctor Service types list (§6). | Not provided | Open |
+| C6 | Doctor location captured by the MR on first visit then approved by ASM/Admin (§5.4, Master M4) — confirm this over "Admin enters it at creation". | **Changed 2026-09-29:** the MR's phone location is captured when the MR adds the Doctor and Admin reviews it at approval. When Admin adds a Doctor directly, Admin picks the location on a Google map | Accepted 2026-09-29 |
+| C7 | New-Doctor waiting period before visits count toward coverage (§4.9, proposed 8 days). | **Accepted 2026-09-29:** 8 days from approval (*config* `NEW_DOCTOR_COVERAGE_WAIT_DAYS`). Phase 4 stores the approval date; how it enters the coverage figure (visits in the wait don't count, or the Doctor is left out of the total) is decided with Field Activity in Phase 6 | Accepted 2026-09-29 |
+| C8 | Doctor Service types list (§6). | Not needed for Phase 4 — Doctor Services belong to Field Activity (Phase 6). Still to be provided by the client before then | Deferred to Phase 6 |
 
 ## D. Territory, TA & DA (Phases 2 and 6)
 

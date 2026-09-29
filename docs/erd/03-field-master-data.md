@@ -24,9 +24,14 @@ erDiagram
         string email
         string specialty
         string qualification "class, e.g. MBBS, MD"
-        decimal latitude "registered clinic location - for visit geofence validation"
-        decimal longitude
-        string status "active, inactive"
+        decimal latitude "nullable - registered clinic location for visit geofence validation"
+        decimal longitude "nullable"
+        decimal captured_latitude "nullable - the MR phone's GPS when adding, kept if Admin corrects the point"
+        decimal captured_longitude "nullable"
+        uuid added_by FK "the MR, or Admin"
+        string client_request_id "MR-added only - unique per added_by, makes an offline retry safe"
+        timestamp approved_at "nullable - Phase 6 coverage wait counts from here"
+        string status "pending, active, inactive - pending until an MR-added Doctor is approved"
     }
     CHEMIST {
         uuid id PK
@@ -98,6 +103,7 @@ erDiagram
 - **No separate Sample catalog.** `Product` is the single catalog for both orderable items and sample-eligible items. What makes something a "sample" is that it has been **allocated** to a doctor — modeled by `DoctorSampleAllocation`, not a flag on `Product`.
 - **`DoctorSampleAllocation` is Admin-issued master data, not a field transaction.** Admin allocates a quantity of a `Product` to a specific `Doctor`. MRs assigned to that doctor (via `DoctorAssignment`, below) can see `quantity_remaining` to know what's available to give. The actual "gave 3 units during today's call" event — which decrements `quantity_remaining` — is a Module 4 transaction (Dr Call → Doctor Sample Provided), not modeled here.
 - **`DoctorAssignment` gives each Doctor exactly one responsible MR at a time.** An MR can be responsible for many doctors, but a doctor has at most one `status: active` row. Reassigning a doctor deactivates the current row and inserts a new one, so the table doubles as assignment history (same never-overwrite shape as `RouteAssignment`). This answers the client's open question on one-doctor-per-MR vs. shared doctors (client rules §31). The MR's managers still see and act on that doctor through the reporting chain (HLD 05 §3); that isn't an assignment. This is deliberately independent of `Doctor.route_id` — a doctor sits on exactly one route (location), but _who is responsible for that doctor_ (and therefore who sees their sample/gift allocations) is this table, not route coverage. (Previously many-to-many; changed 2026-09-24, `docs/decision-log.md`.)
+- **A Doctor is added by an MR (phone GPS, offline-first, then approved) or by Admin (map).** See `LLD/field-master-data.md`. The MR's capture is kept beside the registered point when Admin corrects it, and a `pending` Doctor is invisible to every other module. Which Doctors an MR sees follows their current Routes while `DOCTOR_VISIBILITY_FOLLOWS_ROUTE` is on.
 - **Doctor, Chemist and Distributor carry a registered `latitude`/`longitude`.** For Doctor and Chemist this is the reference point for geofence validation of calls. Distributor gets it too per the client Master spec (M6). No distributor check-in flow uses it yet, so for now it's reference data only.
 - **The actual visit validation is a Module 4 concern, not this one.** This module only stores _where the doctor/chemist is supposed to be_. The MR's captured GPS coordinates at call time, the computed distance from the registered point, and a pass/fail flag belong on the Doctor Call / Chemist Call record itself. The allowed deviation radius (e.g. 200m) will live in `SystemConfig` (Module 5) alongside the other tunable rules, as `GEO_FENCE_RADIUS_METERS`.
 

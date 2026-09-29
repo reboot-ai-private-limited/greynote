@@ -59,7 +59,7 @@ lists the rules that "cannot be changed casually after development" — most una
 |---|---|
 | A. Login & devices | Answered 2026-09-24 and built into Phase 1 |
 | D. Territory, TA & DA | D5, D7 answered 2026-09-24 (Phase 2); the rest block Phase 6 (TA/DA engine) |
-| B, C, F | Phase 4 (Planning, Field Master Data, HR). B1, B3, B4 accepted 2026-09-28 — Planning done; F3, F11–F16 accepted 2026-09-28 — HR can start; C (Field Master Data) still open |
+| B, C, F | Phase 4 (Planning, Field Master Data, HR). B1, B3, B4 accepted 2026-09-28 — Planning done; F3, F11–F16 accepted 2026-09-28 — HR done; C3, C4, C6, C7, C8 accepted 2026-09-29 — Field Master Data can start |
 | E | Phase 6 (Sales & Orders) |
 
 Phase 2 can start in parallel: Zone → HQ → Area → Route is confirmed by the client's Master spec.

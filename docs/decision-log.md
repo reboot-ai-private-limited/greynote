@@ -17,6 +17,45 @@ old one.
 
 ---
 
+## 2026-09-29 — Field Master Data built on today's assumptions (C3, C4, C6, C7, C8)
+
+**Decision:** Phase 4's Field Master Data starts on these accepted assumptions:
+
+- **C3 — a Route change hides an MR's old Doctors, behind a switch.** Visibility follows the MR's
+  current Routes: `DOCTOR_VISIBILITY_FOLLOWS_ROUTE` (default `true`). When on, an MR who loses a
+  Route stops seeing its Doctors; their assignments are hidden when read, not rewritten, so
+  giving the Route back restores them. Admin assigns Doctors on the new Route by hand, and a
+  Doctor can only be assigned to an MR who has the Doctor's Route. When off, an MR keeps their
+  Doctors across a Route change. Managers see the Routes and Doctors of their downline.
+- **C4 / C6 — the MR captures the location; Admin reviews it.** An MR adds a Doctor with their
+  phone's GPS location, on one of their own Routes, offline-first: it is saved on the phone and
+  sent later under a client-generated id so a retry can't create it twice. Admin can correct the
+  location while approving. Admin adding a Doctor directly picks the location on a Google map, and
+  that Doctor is active at once. On approval the Doctor is assigned to the MR who added it
+  (`AUTO_ASSIGN_DOCTOR_ON_APPROVAL`, default `true`); Admin can reassign later.
+- **C7 — `NEW_DOCTOR_COVERAGE_WAIT_DAYS` = 8**, counted from approval. Phase 4 stores the approval
+  date; the coverage rule itself waits for Field Activity (Phase 6).
+- **C8 — Doctor Service types** aren't needed until Phase 6.
+- **Deactivating a Doctor** is refused while it has an active assignment; sample allocations stay
+  as history. A Doctor's or Chemist's location may be empty, and an empty one means the geofence
+  check can't run.
+
+**Replaces:** the earlier assumption that Admin enters a Doctor's location at creation (C6), and
+the open question of whether a Route change moves an MR's Doctors (C3).
+
+**Why:** roadmap rule 6 — build on explicitly accepted assumptions rather than wait on the client.
+Route-following is a config switch because it is a policy the client may reverse; hiding on read
+means a config flip or a returned Route needs no data repair.
+
+**Costs:** the MR's phone location may not be the clinic's, so Admin's review at approval is the
+control. An offline create needs an idempotency id, so the add-Doctor endpoint depends on the same
+client-id rule Phase 5's sync will use.
+
+**Refs:** [`client-sign-off.md`](client-sign-off.md) C3, C4, C6, C7, C8,
+[`LLD/field-master-data.md`](LLD/field-master-data.md)
+
+---
+
 ## 2026-09-28 — HR's design: employee HQ in Territory, lazily seeded balances, a pending ledger
 
 **Decision:** Three choices while planning the HR module:
