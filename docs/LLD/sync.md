@@ -91,22 +91,41 @@ The holding area for the day's unsent records (sign-off G9). It stores each reco
 and applies **no** business rules — the real handlers run only at Submit — so it can never disagree
 with them or leave a half-applied state.
 
-- **Upload:** `PUT /api/sync/drafts` — a batch of `{ clientId, kind, clientUpdatedAt, payload }` and
-  `{ clientId, deleted: true }` for a record the MR removed. It is an **upsert by `clientId`**, per
-  user, with **last write wins** on `clientUpdatedAt`: an older copy arriving late (or from the second
-  phone) never overwrites a newer one, and a removal is remembered so a stale copy can't bring the
-  record back. The phone sends it whenever it has a connection and something changed, debounced, and
-  needs no answer beyond "stored".
-- **Restore:** `GET /api/sync/drafts` returns the caller's drafts (not the removed ones), so logging in
-  on a new phone brings the day back. With the 2-device limit an MR can carry on from either phone;
-  if both edit one record, the later edit wins.
-- **Private:** only the owner can read or write their drafts; no other endpoint, module or report
-  reads the collection. A draft is unvalidated and may be broken; it is never treated as a record.
-- **Limits:** a draft is at most `SYNC_MAX_DRAFT_BYTES` (64 KB), and an MR keeps at most
-  `SYNC_MAX_DRAFTS` (2,000) at once — enough for several days offline, not a place to dump files.
-- **Clearing:** a record that commits at Submit has its draft deleted in the same transaction as its
-  receipt; drafts older than `SYNC_DRAFT_TTL_DAYS` (30) are purged, by a MongoDB TTL index, so
-  abandoned ones don't accumulate.
+- **Upload:** `PUT /api/sync/drafts` — a batch of `{ clientId, kind, clientUpdatedAt, payload }`, or
+  `{ clientId, clientUpdatedAt, deleted: true }` for a record the MR removed. It is an **upsert by
+  `clientId`**, per user, with **last write wins** on `clientUpdatedAt`, decided atomically by the
+  database (a conditional upsert that only matches an *older* held copy, with a unique index
+  refusing the rest): an older or equal copy — a stale upload, the second phone — never overwrites
+  a newer one, and a removal is kept as a tombstone so an old copy can't bring the record back. The
+  answer is **one result per draft**: `STORED`, `STALE` (an equal-or-newer copy is held, so nothing
+  changed), `SUBMITTED` (that record already reached the server, so the draft is moot) or
+  `REJECTED` with a reason (`DRAFT_TOO_LARGE`, `DRAFT_LIMIT_REACHED`, `CLIENT_TIME_INVALID` — a
+  `clientUpdatedAt` more than `SYNC_CLOCK_SKEW_MINUTES` ahead would otherwise win last-write-wins
+  against every honest copy for ever). The phone sends it whenever it has a connection and
+  something changed, debounced; it needs no more than "stored". A batch is at most `SYNC_MAX_BATCH`,
+  and the 2 MB body limit applies, so a phone with many large drafts sends several requests.
+- **Restore:** `GET /api/sync/drafts?after=<cursor>&limit=<n>` (default 100, at most 200) returns the
+  caller's live drafts — `{ clientId, kind, clientUpdatedAt, payload }` — oldest first, with a
+  `nextCursor` for the next page (a day can hold up to `SYNC_MAX_DRAFTS` blobs, too many for one
+  response). Removed drafts aren't returned, and neither is one whose record has since reached the
+  server, so a stale upload that raced a Submit can't come back as if it were still unsent. Logging in
+  on a new phone brings the day back; with the 2-device limit an MR can carry on from either phone,
+  and if both edit one record the later edit wins.
+- **Private:** the caller comes from the token — there is no way to name another user — and no other
+  endpoint, module or report reads the collection. A draft is unvalidated and may be broken; it is
+  never treated as a record.
+- **Limits:** a draft's payload is at most `SYNC_MAX_DRAFT_BYTES` (64 KB, measured in bytes, not
+  characters), and an MR keeps at most `SYNC_MAX_DRAFTS` (2,000) at once. Only a *new* draft takes a
+  slot: editing one the server holds, or removing one, never needs one. The count is checked before
+  the write, so two simultaneous batches can overshoot it by at most a batch — a guard against dumping
+  files, not an exact quota.
+- **Clearing:** a record that commits at Submit has its draft deleted **in the same transaction as its
+  receipt**, so a record that didn't commit keeps its draft (the MR can restore and fix it) and one
+  that did can't leave one behind. Every draft row carries its own `expiresAt`, set at write time from
+  `SYNC_DRAFT_TTL_DAYS` (30) — so the setting is live, unlike a fixed-age index — and a MongoDB TTL
+  index on it purges abandoned drafts and old tombstones. (A removal older than the TTL is forgotten,
+  so a copy that turns up after that could return; no honest phone is offline that long, and a record
+  that old is refused at Submit anyway.)
 - **Not a shortcut:** the phone can't submit a draft by id; Submit sends the records themselves, so
   what is committed is exactly what the MR looked at when they tapped it.
 
@@ -162,15 +181,15 @@ their sources; Phase 6 adds the calls, expenses, orders, gifts, services and the
 | Method | Path | Role | Purpose |
 |---|---|---|---|
 | `PUT` | `/api/sync/drafts` | FIELD | Back up the day's unsent records (private, unvalidated, last write wins) |
-| `GET` | `/api/sync/drafts` | FIELD | Restore them, e.g. on a new phone |
+| `GET` | `/api/sync/drafts` | FIELD | Restore them, e.g. on a new phone — paged by cursor |
 | `POST` | `/api/sync/push` | FIELD | Submit: commit the day's records, with a result per record. A body over 2 MB is a 413, malformed JSON a 400 |
 | `GET` | `/api/sync/pull` | FIELD | The MR's reference data, as versioned snapshots |
 
 ## Config
 
 `GEO_FENCE_RADIUS_METERS` (200), `GEO_MAX_ACCURACY_METERS` (100), `SYNC_MAX_BATCH` (100),
-`SYNC_MAX_AGE_DAYS` (7), `SYNC_CLOCK_SKEW_MINUTES` (10) — seeded now; `SYNC_DRAFT_TTL_DAYS` (30),
-`SYNC_MAX_DRAFT_BYTES` (65,536) and `SYNC_MAX_DRAFTS` (2,000) are seeded with the draft backup.
+`SYNC_MAX_AGE_DAYS` (7), `SYNC_CLOCK_SKEW_MINUTES` (10), `SYNC_DRAFT_TTL_DAYS` (30),
+`SYNC_MAX_DRAFT_BYTES` (65,536) and `SYNC_MAX_DRAFTS` (2,000).
 
 ## Edge cases
 

@@ -1,11 +1,15 @@
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { SyncApplyContext, SyncHandlerDefinition } from '../../domain/syncHandler.js';
+import type { SyncDraft } from '../../domain/syncDraft.entity.js';
+import type { SyncDraftRepositoryPort } from '../../domain/syncDraft.repository.port.js';
 import type { SyncReceipt } from '../../domain/syncReceipt.entity.js';
 import { DuplicateReceiptError, type SyncReceiptRepositoryPort } from '../../domain/syncReceipt.repository.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { SyncHandlerRegistry } from '../syncHandlerRegistry.js';
+import { ListDraftsUseCase } from './listDrafts.usecase.js';
 import { PushRecordsUseCase } from './pushRecords.usecase.js';
+import { PutDraftsUseCase } from './putDrafts.usecase.js';
 
 /** In-memory fakes for the sync module's tests — no Mongo, no other module's internals. */
 
@@ -44,6 +48,36 @@ export class FakeReceipts implements SyncReceiptRepositoryPort {
   }
 }
 
+export class FakeDrafts implements SyncDraftRepositoryPort {
+  rows: Array<SyncDraft & { id: string; expiresAt: Date }> = [];
+  private next = 1;
+  /** Compare-and-set in one synchronous step, like the conditional upsert + unique index. */
+  async putIfNewer(draft: SyncDraft, expiresAt: Date) {
+    const held = this.rows.find((r) => r.userId === draft.userId && r.clientId === draft.clientId);
+    if (held && held.clientUpdatedAt.getTime() >= draft.clientUpdatedAt.getTime()) return false;
+    if (held) Object.assign(held, { ...draft, expiresAt });
+    else this.rows.push({ ...draft, expiresAt, id: String(this.next++).padStart(24, '0') });
+    return true;
+  }
+  async findExistingIds(userId: string, clientIds: string[]) {
+    return new Set(this.rows.filter((r) => r.userId === userId && clientIds.includes(r.clientId)).map((r) => r.clientId));
+  }
+  async countLive(userId: string) {
+    return this.rows.filter((r) => r.userId === userId && !r.deleted).length;
+  }
+  async listLive(userId: string, afterId: string | null, limit: number) {
+    return this.rows.filter((r) => r.userId === userId && !r.deleted && (afterId === null || r.id > afterId)).slice(0, limit + 1);
+  }
+  async deleteForRecord(userId: string, clientId: string, ctx: unknown) {
+    const row = this.rows.find((r) => r.userId === userId && r.clientId === clientId);
+    if (!row) return;
+    this.rows = this.rows.filter((r) => r !== row);
+    (ctx as FakeTx).undo.push(() => {
+      this.rows.push(row);
+    });
+  }
+}
+
 export class FakeUsers implements UserDirectoryPort {
   users = new Map<string, { id: string; role: 'FIELD' | 'ADMIN' | 'HR' | 'ACCOUNTANT'; status: 'active' | 'pending' | 'inactive' }>([
     ['mr1', { id: 'mr1', role: 'FIELD', status: 'active' }],
@@ -57,7 +91,14 @@ export class FakeUsers implements UserDirectoryPort {
 }
 
 export class FakeConfig implements ConfigReader {
-  values: Record<string, string> = { SYNC_MAX_BATCH: '500', SYNC_MAX_AGE_DAYS: '7', SYNC_CLOCK_SKEW_MINUTES: '10' };
+  values: Record<string, string> = {
+    SYNC_MAX_BATCH: '500',
+    SYNC_MAX_AGE_DAYS: '7',
+    SYNC_CLOCK_SKEW_MINUTES: '10',
+    SYNC_DRAFT_TTL_DAYS: '30',
+    SYNC_MAX_DRAFT_BYTES: '65536',
+    SYNC_MAX_DRAFTS: '2000',
+  };
   async get(key: string) {
     const v = this.values[key];
     if (v === undefined) throw new Error(`missing ${key}`);
@@ -102,13 +143,26 @@ export function makeKit(nowIso = '2026-10-05T12:00:00Z') {
   const users = new FakeUsers();
   const config = new FakeConfig();
   const clock = { current: new Date(nowIso) };
-  const push = new PushRecordsUseCase(registry, receipts, new FakeTransactions(), users, config, () => clock.current);
-  return { store, applied, registry, receipts, users, config, clock, push };
+  const drafts = new FakeDrafts();
+  const push = new PushRecordsUseCase(registry, receipts, drafts, new FakeTransactions(), users, config, () => clock.current);
+  const putDrafts = new PutDraftsUseCase(drafts, receipts, users, config, () => clock.current);
+  const listDrafts = new ListDraftsUseCase(drafts, receipts);
+  return { store, applied, registry, receipts, drafts, users, config, clock, push, putDrafts, listDrafts };
 }
 
 let counter = 0;
 /** A valid-looking UUID, stable per call order. */
 export const uuid = () => `00000000-0000-4000-8000-${String(++counter).padStart(12, '0')}`;
+
+export const draft = (over: Partial<{ clientId: string; kind: string; clientUpdatedAt: Date; payload: unknown }> = {}) => ({
+  clientId: uuid(),
+  kind: 'CALL',
+  clientUpdatedAt: new Date('2026-10-05T10:00:00Z'),
+  payload: { name: 'draft' } as unknown,
+  deleted: false as const,
+  ...over,
+});
+export const removal = (clientId: string, at: string) => ({ clientId, clientUpdatedAt: new Date(at), deleted: true as const });
 
 export const record = (over: Partial<{ clientId: string; kind: string; dependsOn: string[]; clientCreatedAt: Date; payload: unknown }> = {}) => ({
   clientId: uuid(),

@@ -5,6 +5,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { logger } from '@/shared/logging/logger.js';
 import { SyncRejection } from '../../domain/syncHandler.js';
 import { SYNC_CODES, type SyncReason, type SyncRecordInput, type SyncResult } from '../../domain/syncRecord.js';
+import type { SyncDraftRepositoryPort } from '../../domain/syncDraft.repository.port.js';
 import { DuplicateReceiptError, type SyncReceiptRepositoryPort } from '../../domain/syncReceipt.repository.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { orderRecords } from '../orderRecords.js';
@@ -33,6 +34,7 @@ export class PushRecordsUseCase {
   constructor(
     private readonly handlers: SyncHandlerRegistry,
     private readonly receipts: SyncReceiptRepositoryPort,
+    private readonly drafts: SyncDraftRepositoryPort,
     private readonly transactions: TransactionRunnerPort,
     private readonly users: UserDirectoryPort,
     private readonly config: ConfigReader,
@@ -126,6 +128,9 @@ export class PushRecordsUseCase {
       const { serverId } = await this.transactions.run(async (ctx) => {
         const created = await apply({ userId, clientId: record.clientId, clientCreatedAt: record.clientCreatedAt, payload: record.payload }, ctx);
         await this.receipts.create({ userId, clientId: record.clientId, kind: record.kind, serverId: created.serverId, syncedAt: now }, ctx);
+        // The record is committed, so its private backup is moot — cleared in the same transaction, so a record
+        // that didn't commit keeps its draft and one that did can't leave one behind.
+        await this.drafts.deleteForRecord(userId, record.clientId, ctx);
         return created;
       });
       return { clientId: record.clientId, status: 'SYNCED', serverId };

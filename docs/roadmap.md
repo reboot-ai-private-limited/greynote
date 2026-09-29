@@ -227,7 +227,10 @@ connection at the action.
    29-check live run (real transactions, 8 simultaneous sends of one record, real rollback, 2 MB body
    limit); a big day is sent in chunks of 100
 5. Draft backup (G9, G10): `PUT` / `GET /sync/drafts` — opaque, private, last write wins, removals
-   remembered, size and count limits, TTL purge, drafts cleared with the receipt at Submit
+   remembered, size and count limits, TTL purge, drafts cleared with the receipt at Submit — **done**
+   (2026-09-29): 19 tests and a 32-check live run (the atomic last-write-wins upsert under 12
+   simultaneous out-of-order uploads, the TTL and unique indexes, the draft delete rolling back with
+   a failed record)
 6. `NEW_DOCTOR` through it (the one real offline record that exists today)
 7. Pull: the source registry and `GET /sync/pull`, with Field Master Data, Territory, HR, Planning
    and Config as sources

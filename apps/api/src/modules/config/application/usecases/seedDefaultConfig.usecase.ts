@@ -137,6 +137,24 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = [
     description: 'Most records the app may send in one push. A bigger day is sent in chunks, the DCR’s own submit last.',
   },
   {
+    key: 'SYNC_DRAFT_TTL_DAYS',
+    value: '30',
+    module: 'SYNC',
+    description: 'How long an unsent backed-up record is kept before it is purged.',
+  },
+  {
+    key: 'SYNC_MAX_DRAFT_BYTES',
+    value: '65536',
+    module: 'SYNC',
+    description: 'Largest a single backed-up record may be, in bytes.',
+  },
+  {
+    key: 'SYNC_MAX_DRAFTS',
+    value: '2000',
+    module: 'SYNC',
+    description: 'Most unsent records one employee may keep backed up at once.',
+  },
+  {
     key: 'SYNC_MAX_AGE_DAYS',
     value: '7',
     module: 'SYNC',

@@ -2,8 +2,11 @@ import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { SyncHandlerRegistry } from './application/syncHandlerRegistry.js';
+import { ListDraftsUseCase } from './application/usecases/listDrafts.usecase.js';
 import { PushRecordsUseCase } from './application/usecases/pushRecords.usecase.js';
+import { PutDraftsUseCase } from './application/usecases/putDrafts.usecase.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
+import { MongoSyncDraftAdapter } from './infrastructure/mongoSyncDraft.adapter.js';
 import { MongoSyncReceiptAdapter } from './infrastructure/mongoSyncReceipt.adapter.js';
 import { makeSyncControllers } from './interface/sync.controller.js';
 import { buildSyncRouter } from './interface/sync.route.js';
@@ -20,15 +23,18 @@ export interface SyncContainer {
 export function buildSyncContainer(users: UserDirectoryPort, config: ConfigReader): SyncContainer {
   // 1. Adapters
   const receipts = new MongoSyncReceiptAdapter();
+  const drafts = new MongoSyncDraftAdapter();
   const transactions = new MongooseTransactionRunner();
   const handlers = new SyncHandlerRegistry();
 
   // 2. Use cases
-  const push = new PushRecordsUseCase(handlers, receipts, transactions, users, config);
+  const push = new PushRecordsUseCase(handlers, receipts, drafts, transactions, users, config);
+  const putDrafts = new PutDraftsUseCase(drafts, receipts, users, config);
+  const listDrafts = new ListDraftsUseCase(drafts, receipts);
 
   return {
     contract: { registerHandler: (definition) => handlers.register(definition) },
-    buildRouter: () => buildSyncRouter(makeSyncControllers({ push })),
+    buildRouter: () => buildSyncRouter(makeSyncControllers({ push, putDrafts, listDrafts })),
     push,
   };
 }
