@@ -208,19 +208,30 @@ configure per-Pay-Band leave defaults and an employee's balance reflects them.
 
 ## Phase 5 — Offline Sync & Geofencing
 
-[`hld/01-sync-and-geofencing.md`](hld/01-sync-and-geofencing.md)
+[`LLD/sync.md`](LLD/sync.md) · [`hld/01-sync-and-geofencing.md`](hld/01-sync-and-geofencing.md)
 
 The other shared mechanism, and the riskiest mobile-side piece — built once, alone, before Field
-Activity becomes the first module to actually depend on it. Two things, both cross-cutting:
+Activity becomes the first module to actually depend on it. This phase is the **server half** (the
+phone's local store is Phase 10). Offline data syncs **once, at the daily report's Submit**
+(sign-off G1); Plans, Leave and approvals need a live connection at the action.
 
-- The offline-first local queue: data cached locally, submissions queued until the user hits
-  Submit with connectivity (PRD §2)
-- GPS-radius validation of a Doctor/Chemist Call against the registered location captured on the
-  master record (PRD §5.1)
+1. Design recorded, sign-off G1–G8 accepted, money decided as integer paise — **done** (2026-09-29)
+2. Geofence: the distance check, `PASS` / `FAIL` / `UNVERIFIED`, radius and accuracy from SystemConfig
+3. Money migration: `PayBand` and `Route.taPerKmRateOverride` from `Decimal128` to integer paise
+   (before Phase 6 adds Expenses)
+4. Sync module (tier 2): receipts, the handler registry, `POST /sync/push` with per-record results,
+   dependency order, the creation-time rules
+5. `NEW_DOCTOR` through it (the one real offline record that exists today)
+6. Pull: the source registry and `GET /sync/pull`, with Field Master Data, Territory, HR, Planning
+   and Config as sources
+7. Contract types in `packages/contracts`, a sync-client simulator test (dropped connections, replayed
+   batches), and one end-to-end live run
 
-**Done when:** a Dr Call / Chemist Call logged offline queues correctly and syncs on
-reconnection without duplication, and a call logged outside the configured radius is flagged
-per `hld/01`'s spec — both against real Field Master Data from Phase 4, not fixtures.
+**Done when:** an MR-added Doctor sent in a push is created exactly once however many times the push
+is repeated or interrupted, a record whose parent failed is reported as such without losing the
+rest, the pull returns exactly the caller's data (and a Route change makes Doctors appear and
+vanish), and a call-shaped test record is flagged `FAIL` / `UNVERIFIED` correctly — all against real
+Field Master Data from Phase 4, not fixtures. Real calls, expenses and orders join in Phase 6.
 
 ## Phase 6 — Field Activity, Sales & Orders, Marketing
 

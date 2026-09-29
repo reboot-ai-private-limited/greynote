@@ -28,6 +28,7 @@ undefined yet.
 | 1 | Identity | [`identity.md`](identity.md) | [`01-identity-hierarchy`](../erd/01-identity-hierarchy.md) | — |
 | 2 | Territory | [`territory.md`](territory.md) | [`02-territory-master`](../erd/02-territory-master.md) | Identity |
 | 2b | Approval | [`approval.md`](approval.md) | — (HLD [`05`](../hld/05-approval-workflow-engine.md)) | Identity, Config |
+| 2c | Sync & Geofencing | [`sync.md`](sync.md) | — (HLD [`01`](../hld/01-sync-and-geofencing.md)) | Identity |
 | 3 | Field Master Data | [`field-master-data.md`](field-master-data.md) | [`03-field-master-data`](../erd/03-field-master-data.md) | Identity, Territory |
 | 4 | Planning | [`planning.md`](planning.md) | [`05-planning-and-rules`](../erd/05-planning-and-rules.md) | Identity, Territory, Approval |
 | 5 | HR | [`hr.md`](hr.md) | [`07-hr-ops`](../erd/07-hr-ops.md) | Identity, Territory |
@@ -42,8 +43,8 @@ design.
 
 ## Conventions used throughout
 
-- **Money** is a `decimal` field per the ERD, never a float — the exact precision convention
-  (`Decimal128` vs. an integer-subunit scheme) is **not yet decided**; see
+- **Money** is a whole number of **paise** (integer), never a float or a decimal; the ERD's
+  `decimal` money fields are stored that way (decided 2026-09-29). See
   [`../engineering/coding-standards.md#money`](../engineering/coding-standards.md#money).
 - **Timestamps** are stored UTC, rendered in the user's local time (India-only deployment
   currently implies `Asia/Kolkata`, but nothing in the PRD hard-codes a single timezone).

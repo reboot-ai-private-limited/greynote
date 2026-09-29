@@ -8,10 +8,16 @@ Two cross-cutting mechanisms that touch nearly every mobile-side module: how off
 
 The mobile app's local DB mirrors two different kinds of data, handled differently:
 
-- **Reference/master data** — `Doctor`, `Chemist`, `Route`, `Product`, `Visual`, `SystemConfig` rules, and running balances like `DoctorSampleAllocation.quantity_remaining`. Pulled via a **delta sync** (only rows changed since the last successful sync timestamp) on app foreground and periodically in the background. Read-mostly; the device treats it as a cache, never a source of truth.
+- **Reference/master data** — `Doctor`, `Chemist`, `Route`, `Product`, `Visual`, `SystemConfig` rules, and running balances like `DoctorSampleAllocation.quantity_remaining`. Pulled as a **versioned snapshot per source** (sign-off G2 — a row-level delta can't see a Doctor appearing or vanishing when an MR's Routes change) on app foreground and periodically in the background; the app sends the version it holds and gets "unchanged" or the new snapshot. Read-mostly; the device treats it as a cache, never a source of truth.
 - **Transactional records** the MR creates — `DailyPlan`, `MonthlyPlan`, `DCR` and its children (`DoctorCall`, `ChemistCall`, `DoctorFollowup`, `ChemistFollowup`, `Expense`), `Order`, `Leave`. Each gets a **client-generated UUID** as its primary key at the moment of local creation — the ID never changes when the record later reaches the server, which is what makes retries safe (see 1.3). Each carries a local `sync_status`: `DRAFT` → `QUEUED` → `SYNCED` / `FAILED`.
 
-### 1.2 The submit boundary is explicit
+### 1.2 The submit boundary is explicit — one submit, at the end of the day
+
+> **Revised 2026-09-29 (sign-off G1).** The daily report's Submit is the only moment offline data
+> leaves the device: the whole day's records go in one push, and there is no background queue or
+> auto-retry. Read §1.1–1.3 with that in mind: `QUEUED` means "in the day's report, waiting for
+> Submit"; a failed Submit is retried by tapping it again. The design is in
+> [`../LLD/sync.md`](../LLD/sync.md).
 
 Per PRD §2, nothing transactional leaves the device automatically. A record only moves from `DRAFT` to `QUEUED` when the user taps "Submit" (per-call, or the DCR's "Final Submission"). Network availability is checked at that point and continuously afterward for anything still `QUEUED`.
 
@@ -80,6 +86,13 @@ sequenceDiagram
 ```
 
 The check **must** run on-device first — the MR may be submitting with no network at all, and the app already has the doctor/chemist's location cached locally as reference data (1.1). The server's recomputation at sync time is a tamper-resistance measure against a spoofed or stale local cache; if it disagrees, the server's result is authoritative and overwrites what the device computed.
+
+### 2.2a Two more outcomes, and where the radius lives (revised 2026-09-29)
+
+`geofence_status` is `PASS`, `FAIL`, `UNVERIFIED` or `OVERRIDE`. **`UNVERIFIED`** means the check
+can't be trusted either way: the Doctor or Chemist has no registered location, or the phone's GPS
+accuracy is worse than `GEO_MAX_ACCURACY_METERS`. The manager sees it like a `FAIL`. The radius,
+`GEO_FENCE_RADIUS_METERS`, is SystemConfig. Detail: [`../LLD/sync.md`](../LLD/sync.md).
 
 ### 2.3 Design decision: FAIL flags, doesn't block
 

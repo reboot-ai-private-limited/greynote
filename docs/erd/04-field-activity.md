@@ -45,7 +45,8 @@ erDiagram
         string remarks
         decimal captured_latitude "MR's GPS at call time"
         decimal captured_longitude
-        string geofence_status "PASS, FAIL, OVERRIDE"
+        decimal accuracy_meters "the phone's reported GPS accuracy"
+        string geofence_status "PASS, FAIL, UNVERIFIED, OVERRIDE"
         timestamp created_at
     }
     DOCTOR_SAMPLE_GIVEN {
@@ -70,7 +71,8 @@ erDiagram
         string remarks
         decimal captured_latitude "MR's GPS at call time"
         decimal captured_longitude
-        string geofence_status "PASS, FAIL, OVERRIDE"
+        decimal accuracy_meters "the phone's reported GPS accuracy"
+        string geofence_status "PASS, FAIL, UNVERIFIED, OVERRIDE"
         timestamp created_at
     }
     CHEMIST_FOLLOWUP {

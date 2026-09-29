@@ -17,6 +17,43 @@ old one.
 
 ---
 
+## 2026-09-29 — Offline data syncs once, at the daily report's Submit; money is integer paise
+
+**Decision:**
+
+- **One push per day, at Submit (sign-off G1).** The field app sends everything created offline —
+  Doctors added, calls with their samples, follow-ups, expenses, orders, gifts done, service
+  requests, monthly stock — together, when the MR taps the daily report's Submit with a live
+  connection. No background sync. Plans, Leave, approvals and login need a connection at the moment
+  of the action. The DCR's own submit is the *last record* of the push and depends on all the others,
+  so a day with any failed record isn't submitted; the MR fixes it and taps Submit again, and the
+  records already synced are recognised.
+- **Pull is a versioned snapshot per source, not a row delta (G2)**, because a delta can't see a
+  Doctor appear or vanish when an MR's Routes change.
+- **Lateness is judged on the phone's creation time (G3)**, within 10 minutes of the future and 7
+  days of the past, both config.
+- **Geofence:** radius in SystemConfig (G4); a new `UNVERIFIED` outcome for a Doctor or Chemist with
+  no registered location (G5) and for a GPS reading worse than 100 m accuracy (G6); no spoof
+  detection (G7).
+- **Money is a whole number of paise, everywhere (G8).** No `Decimal128`, no floats.
+
+**Replaces:** HLD 01's "queued records sync whenever connectivity returns"; the provisional
+`Decimal128` money choice of 2026-09-23, which this ratifies away rather than confirms.
+
+**Why:** PRD §2 says data syncs "only when the user explicitly hits Submit with an active
+connection", and one submit makes the design simpler — no queue state, no retry policy, no
+half-synced day. Integer paise makes every sum exact and every amount a value nobody can misread.
+
+**Costs:** nothing leaves the phone until Submit, so a lost or broken phone loses the day (accepted);
+a bad connection at 6 pm means retrying the whole submit, which is safe because it's idempotent.
+Money needs a migration of `PayBand` and `Route.taPerKmRateOverride` before Phase 6 (roadmap);
+TA is a fractional multiplication, so it is rounded half up to a paise once, when created.
+
+**Refs:** [`LLD/sync.md`](LLD/sync.md), [`hld/01-sync-and-geofencing.md`](hld/01-sync-and-geofencing.md),
+[`engineering/coding-standards.md`](engineering/coding-standards.md) *Money*, sign-off G1–G8
+
+---
+
 ## 2026-09-29 — In-day changes to an approved Daily Plan are their own manager-approved request
 
 **Decision:** Client §2.6 lets the day's plan change during the day with the manager's approval, but

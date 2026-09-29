@@ -53,8 +53,9 @@ interface FieldActivityPublicContract {
 }
 ```
 
-`Decimal` here is a placeholder for whatever [`../engineering/coding-standards.md#money`](../engineering/coding-standards.md#money)
-settles on — not yet decided; do not ship this contract with a `number` return type for money.
+`Decimal` here stands for money, which is a whole number of **paise** — a plain integer
+(decided 2026-09-29; [`../engineering/coding-standards.md#money`](../engineering/coding-standards.md#money)).
+Name the fields `…Paise`.
 
 What it does **not** expose: nothing about `geofence_status`, `working_type`, or the write paths
 below. Those are internal to how a DCR gets created and approved, not something another module

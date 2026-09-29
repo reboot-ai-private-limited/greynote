@@ -39,20 +39,24 @@ outside a transaction can still return `null` for a duplicate.
 
 ## Money
 
-**Decided (provisionally): Mongoose `Decimal128`, converted to/from a decimal string at the
-domain boundary.** The ERD (`docs/erd/01-identity-hierarchy.md`, `09-payroll.md`,
-`04-field-activity.md`) types every money field as `decimal` — `base_salary`, `hq_da`,
-`Expense.amount`, `PayrollRun.net_payable` — which already rules out a JavaScript `number`/float
-for storage or arithmetic (floats cannot represent currency exactly, and repeated addition across
-a payroll run compounds the error). `PayBand.base_salary/ta_per_km_rate/hq_da/ex_station_da/out_station_da` (Phase 1) are
-the first fields to use this: `Decimal128` in `infrastructure/payBand.schema.ts`, plain decimal
-strings everywhere else (`domain/` never imports Mongoose). Flagged **provisional** in
-`../decision-log.md`, 2026-09-23 — Payroll (Phase 7) is where this either gets ratified against
-real payroll-math requirements or deliberately overridden in favor of `../driverzone`'s
-integer-subunit convention; it should not silently inherit this choice unexamined.
+**Decided 2026-09-29: money is a whole number of paise** (₹1 = 100 paise), a plain JavaScript
+integer, in storage, in the domain and in the API. No `Decimal128`, no decimal strings, no floats.
+Rates are paise too: ₹7.50 per km is `750`. A money field's name says so (`baseSalaryPaise`,
+`amountPaise`), so a rupee value can't be mistaken for one.
 
-Never use a plain `number` for a money field in new code: use `Decimal128` (domain-side: a decimal
-string) so a later change of convention is a formatting/parsing change, not a data migration.
+- **Arithmetic stays in integers.** Sums and differences are exact. A product with a fractional
+  factor — TA is `distanceKm × ratePaisePerKm` — is rounded **half up to a whole paise once, at the
+  point the amount is created** (per Route per day), and the rounded integer is what's stored and
+  summed. Never round a running total. Distances are not money and stay decimal (`Decimal128` in
+  Territory).
+- **Validate at the edge:** a money value in a request is a safe non-negative integer (`z.number().int()`);
+  a decimal-looking one is a 400, not a silent truncation.
+- **Display is the client's job:** paise → `₹` with two decimals, at the last moment.
+- **Existing fields** (`PayBand` rates and salary, `Route.taPerKmRateOverride`), which were
+  `Decimal128` under the earlier provisional choice, are migrated before Phase 6 adds `Expense`
+  amounts (`../roadmap.md`, *Money migration*).
+
+Replaces the provisional `Decimal128` choice of 2026-09-23 (`../decision-log.md`, 2026-09-29).
 
 ## Naming
 

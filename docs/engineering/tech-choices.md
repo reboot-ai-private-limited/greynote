@@ -22,7 +22,7 @@ Current state — what we use and why, in the present tense. History of what cha
 
 | | Status |
 |---|---|
-| Money storage precision | **Open** — ERD types money fields `decimal`, ruling out floats, but the exact convention (`Decimal128` vs. an integer-subunit scheme) isn't chosen. See `coding-standards.md#money`. Decide before Phase 1. |
+| Money storage | **Integer paise** (₹1 = 100), decided 2026-09-29 — no `Decimal128`, no floats. See `coding-standards.md#money`. |
 | Mobile local-store layer | HLD-03 §1 names "React Native + SQLite (op-sqlite or similar, with Drizzle for local query building)" as a direction, not a final pick. Decide when `docs/roadmap.md` phase 10 starts. |
 | Web portal state/data-fetching library | Not yet needed — no `apps/web` exists. Driverzone's own equivalent decision (TanStack Query, `decision-log.md` there 2026-08-25) is "add it when the admin panel actually needs it, not before"; the same discipline applies here. |
 | Object/document storage (Doctor Service attachments, if any) | Not yet needed by any landed module. |

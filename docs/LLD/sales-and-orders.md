@@ -73,10 +73,10 @@ the contract starts narrow and grows on demand (per
   `opening_qty + primary sales received during the month − closing_qty`, computed at read time
   from `MonthlyStock` plus that period's `Order` rows for the same outlet/product. This module
   owns the two inputs; it does not persist the derived figure anywhere.
-- **Money.** `unit_price`, `amount`, `total_amount` are `decimal` per the ERD — the precision
-  convention (`Decimal128` vs. integer-subunit) is not yet decided project-wide; see
-  [`../engineering/coding-standards.md#money`](../engineering/coding-standards.md#money). Do not
-  introduce a `sales`-specific convention ahead of that decision.
+- **Money.** `unit_price`, `amount`, `total_amount` are money: whole numbers of **paise** (decided
+  2026-09-29), named `…Paise`; see
+  [`../engineering/coding-standards.md#money`](../engineering/coding-standards.md#money). A line's
+  amount is `quantity × unitPricePaise`, an integer.
 
 ## HTTP surface
 
