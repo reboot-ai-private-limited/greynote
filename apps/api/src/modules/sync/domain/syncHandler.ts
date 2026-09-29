@@ -23,9 +23,13 @@ export interface SyncHandlerDefinition {
    * rest of the batch carries on. Any other error is a fault: the record is reported `INTERNAL`,
    * retryable, and its detail is never sent to the phone.
    *
+   * `data` is the server's own version of what it made — the values it computed or overwrote (a call's
+   * geofence status, say) — sent back to the phone in the result (sign-off G10) and kept with the receipt,
+   * so a retry gets the same answer. Small, plain JSON.
+   *
    * May run again on a transient-error retry, so keep it to database writes on `ctx`.
    */
-  apply(input: SyncApplyContext, ctx: TransactionContext): Promise<{ serverId: string }>;
+  apply(input: SyncApplyContext, ctx: TransactionContext): Promise<{ serverId: string; data?: unknown }>;
 }
 
 /** A handler's domain refusal of one record. */

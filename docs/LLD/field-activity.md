@@ -12,9 +12,10 @@ Activity as their first, and in most cases only, real consumer.
 
 ## Build status
 
-Built so far (Phase 6 Field Activity steps 1–2, `../roadmap.md`): the decisions below, the **DCR envelope**
-and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_SUBMIT`, reads of DCRs, and
-`hasQualifyingDcr` on the contract. Calls, follow-ups, expenses, review, TA/DA, Services and Gifts follow.
+Built so far (Phase 6 Field Activity steps 1–3, `../roadmap.md`): the decisions below, the **DCR envelope**
+and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_SUBMIT`, reads of DCRs,
+`hasQualifyingDcr` on the contract, and **calls, follow-ups and samples given** as four sync kinds.
+Expenses, review, TA/DA, Services and Gifts follow.
 
 - **The DCR** (`Dcr`: `userId`, `reportDate`) is one row per user per day — a unique index — created lazily
   by the first record of the day or by the submit, in one atomic upsert, so simultaneous first records (two
@@ -35,7 +36,21 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
   Payload: `{ "reportDate": "YYYY-MM-DD" }`.
 - **Reads:** `GET /dcr?from&to` (an employee's own; Admin names `userId`), `GET /dcr/team?from&to[&userId]`
   (a manager's downline, read-only) and `GET /dcr/:id` (owner, their managers, Admin), each DCR with its status
-  and approval summary. Approving is `/api/approvals/*` with `kind=DCR`.
+  and approval summary; `:id` also returns the day's calls and follow-ups with Doctor, Chemist and product
+  names and the geofence flags — the manager's review screen. Approving is `/api/approvals/*` with `kind=DCR`.
+- **Calls, follow-ups and samples (step 3)** are the sync kinds `DOCTOR_CALL`, `CHEMIST_CALL`,
+  `DOCTOR_FOLLOWUP` and `CHEMIST_FOLLOWUP`, each through the gate and stored on the day's DCR, unique on
+  (`userId`, `clientId`). Beyond the gate the server re-checks what the phone's cache may have gone stale on:
+  the Doctor is active and still assigned to the MR (`DOCTOR_NOT_FOUND`, `DOCTOR_NOT_ASSIGNED`); the Chemist is
+  active and on a Route the MR still has (`CHEMIST_NOT_FOUND`, `CHEMIST_ROUTE_NOT_ASSIGNED`); every `workWith`
+  is someone else (`INVALID_WORK_WITH`). The phone sends `capturedLocation` (nullable) and `accuracyMeters`;
+  the **server** decides `PASS` / `FAIL` / `UNVERIFIED` with the radius and accuracy read from System Config on
+  every call, stores it, and echoes it as the record's `data.geofence` (replayed unchanged on `ALREADY_SYNCED`).
+  A `FAIL` is flagged for the manager, never refused. No GPS reading at all is `UNVERIFIED / NO_GPS_READING`.
+  A Doctor call may carry `samples`: each line draws the Doctor's allocation down atomically
+  (`decrementRemaining`), inside the record's transaction, so a line that cannot be met (`SAMPLES_EXHAUSTED`,
+  saying how many remain; `NO_SAMPLE_ALLOCATION`) undoes the whole call including earlier lines; simultaneous
+  calls can never take the allocation below zero.
 - **Contract:** `hasQualifyingDcr(userId, date)` — true once `SUBMITTED`, `MANAGER_APPROVED` or `APPROVED`.
 
 ## What it owns

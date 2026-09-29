@@ -11,6 +11,8 @@ export interface DirectoryUser {
 /** Field Activity's narrow view of Identity; `identity.contract` satisfies it structurally. */
 export interface UserDirectoryPort {
   findUserSummary(userId: string): Promise<DirectoryUser | null>;
+  /** Batched; unknown ids are skipped. */
+  getUserSummaries(userIds: string[]): Promise<DirectoryUser[]>;
   /** Nearest Higher Manager first, then everyone above; `[]` at the top. */
   getManagerChain(userId: string): Promise<DirectoryUser[]>;
   /** Everyone below this manager, at any depth. */

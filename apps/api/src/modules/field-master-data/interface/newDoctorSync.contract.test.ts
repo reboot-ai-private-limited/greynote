@@ -13,7 +13,7 @@ describe('NEW_DOCTOR against the shared contract', () => {
   });
 
   it('the kind and the refusal codes are the contract’s, value for value', () => {
-    expect([...SYNC_RECORD_KINDS]).toEqual([NEW_DOCTOR_SYNC_KIND]);
+    expect(SYNC_RECORD_KINDS).toContain(NEW_DOCTOR_SYNC_KIND);
     expect([...NEW_DOCTOR_REASON_CODES].sort()).toEqual(Object.values(NEW_DOCTOR_SYNC_CODES).sort());
   });
 

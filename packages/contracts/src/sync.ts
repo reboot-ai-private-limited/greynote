@@ -40,6 +40,12 @@ export interface SyncRecordResult {
   status: SyncResultStatus;
   /** The id of what the server created (or already had). */
   serverId?: string;
+  /**
+   * The server's own version of what it made — the values it computed or overwrote (a call's geofence
+   * result, say) — that the phone takes in place of its local ones (sign-off G10). Same on a retry.
+   * Its shape depends on the record's kind.
+   */
+  data?: unknown;
   reason?: SyncReason;
 }
 
@@ -59,7 +65,7 @@ export interface SyncPushResponse {
 export const SYNC_ENGINE_CODES = ['DEPENDENCY_FAILED', 'INVALID_DEPENDENCY', 'UNKNOWN_KIND', 'CLIENT_TIME_INVALID', 'INTERNAL'] as const;
 
 /** The record kinds the server accepts today; Phase 6 adds the calls, expenses, orders, gifts, services and the DCR submit. */
-export const SYNC_RECORD_KINDS = ['NEW_DOCTOR'] as const;
+export const SYNC_RECORD_KINDS = ['NEW_DOCTOR', 'DCR_SUBMIT', 'DOCTOR_CALL', 'CHEMIST_CALL', 'DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP'] as const;
 export type SyncRecordKind = (typeof SYNC_RECORD_KINDS)[number];
 
 /** A Doctor the MR added offline (the same fields as `POST /field-master-data/doctors/added`, minus the client id). */
@@ -75,6 +81,59 @@ export interface NewDoctorPayload {
   location: GeoPoint;
 }
 export type NewDoctorSyncRecord = SyncRecord<'NEW_DOCTOR', NewDoctorPayload>;
+
+// ---- The day's records (Field Activity) --------------------------------------------------------
+
+/** A Doctor Call (`DOCTOR_CALL`). The phone's own geofence result isn't sent: the server computes it. */
+export interface DoctorCallPayload {
+  reportDate: string;
+  doctorId: string;
+  workingType: WorkingType;
+  workWith: string[];
+  remarks?: string | null;
+  /** The phone's GPS at the call; `null` if it got no reading at all (the check is then `UNVERIFIED`). */
+  capturedLocation: GeoPoint | null;
+  /** The phone's reported accuracy for that reading, in meters. */
+  accuracyMeters?: number | null;
+  /** Samples given during the call; each draws down the Doctor's allocation of that product. */
+  samples?: Array<{ productId: string; quantity: number }>;
+}
+
+/** A Chemist Call (`CHEMIST_CALL`) — the same, without samples. */
+export type ChemistCallPayload = Omit<DoctorCallPayload, 'doctorId' | 'samples'> & { chemistId: string };
+
+export interface DoctorFollowupPayload {
+  reportDate: string;
+  doctorId: string;
+  remarks: string;
+}
+export interface ChemistFollowupPayload {
+  reportDate: string;
+  chemistId: string;
+  remarks: string;
+}
+
+/** What a call's result `data` carries back: the server's own geofence answer, which replaces the phone's. */
+export interface CallResultData {
+  geofence: { status: 'PASS' | 'FAIL' | 'UNVERIFIED'; distanceMeters: number | null; reason: 'NO_REGISTERED_LOCATION' | 'NO_GPS_READING' | 'LOW_ACCURACY' | null };
+}
+
+/** What a call, follow-up or the DCR's submit refuses with, beyond the engine's codes. */
+export const DCR_REFUSAL_CODES = [
+  'USER_BLOCKED',
+  'DAILY_PLAN_NOT_APPROVED',
+  'DATE_IN_FUTURE',
+  'DATE_MISMATCH',
+  'DCR_LOCKED',
+  'DOCTOR_NOT_FOUND',
+  'DOCTOR_NOT_ASSIGNED',
+  'CHEMIST_NOT_FOUND',
+  'CHEMIST_ROUTE_NOT_ASSIGNED',
+  'INVALID_WORK_WITH',
+  'NO_SAMPLE_ALLOCATION',
+  'SAMPLES_EXHAUSTED',
+  'INVALID_PAYLOAD',
+] as const;
 
 /** What `NEW_DOCTOR` refuses with, beyond the engine's codes. */
 export const NEW_DOCTOR_REASON_CODES = ['INVALID_PAYLOAD', 'ROUTE_NOT_ASSIGNED', 'ADDED_AT_THE_SAME_TIME'] as const;
@@ -215,7 +274,8 @@ export interface HrSnapshot {
 
 export const PLAN_STATUSES = ['DRAFT', 'SUBMITTED', 'MANAGER_APPROVED', 'APPROVED', 'REJECTED', 'WITHDRAWN', 'REOPENED'] as const;
 export type PlanStatus = (typeof PLAN_STATUSES)[number];
-export type WorkingType = 'FIELD_WORK' | 'MEETING' | 'CONFERENCE' | 'STRIKE';
+export const WORKING_TYPES = ['FIELD_WORK', 'MEETING', 'CONFERENCE', 'STRIKE'] as const;
+export type WorkingType = (typeof WORKING_TYPES)[number];
 
 export interface PlanningSnapshot {
   /** Today's date in the business timezone. */

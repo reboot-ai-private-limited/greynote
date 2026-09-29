@@ -8,5 +8,7 @@ export interface SyncReceipt {
   clientId: string;
   kind: string;
   serverId: string;
+  /** What the handler returned for the phone; replayed on a retry. */
+  data?: unknown;
   syncedAt: Date;
 }

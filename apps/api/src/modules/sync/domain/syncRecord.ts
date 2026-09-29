@@ -27,6 +27,8 @@ export interface SyncResult {
   status: SyncStatus;
   /** The id of what was created or updated on the server. */
   serverId?: string;
+  /** The server's version of what it made, if the handler returned one. */
+  data?: unknown;
   reason?: SyncReason;
 }
 

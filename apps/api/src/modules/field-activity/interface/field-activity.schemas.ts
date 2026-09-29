@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { WORKING_TYPES } from '@greynote/contracts';
 import { calendarDateSchema } from '@/shared/time/calendarSchemas.js';
 
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
@@ -17,3 +18,28 @@ export const listTeamDcrsQuerySchema = rangeRules(z.object({ ...rangeFields, use
 
 /** The payload of a `DCR_SUBMIT` sync record. */
 export const dcrSubmitPayloadSchema = z.object({ reportDate: calendarDateSchema });
+
+// ---- Payloads of the day's records (sync kinds) ------------------------------------------------
+
+const locationSchema = z.object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) });
+const remarksSchema = z.string().trim().max(1000).nullish().transform((v) => v || null);
+const callFields = {
+  reportDate: calendarDateSchema,
+  workingType: z.enum(WORKING_TYPES),
+  workWith: z.array(objectIdSchema).max(20).default([]),
+  remarks: remarksSchema,
+  /** The phone's GPS at the call; `null` if it got no reading. Its own geofence result is not sent — the server computes it. */
+  capturedLocation: locationSchema.nullable(),
+  accuracyMeters: z.number().min(0).max(100_000).nullish().transform((v) => v ?? null),
+};
+
+export const doctorCallPayloadSchema = z
+  .object({
+    ...callFields,
+    doctorId: objectIdSchema,
+    samples: z.array(z.object({ productId: objectIdSchema, quantity: z.number().int().min(1).max(1_000) })).max(50).default([]),
+  })
+  .refine((c) => new Set(c.samples.map((s) => s.productId)).size === c.samples.length, { message: 'A product is listed twice — give it one line.', path: ['samples'] });
+export const chemistCallPayloadSchema = z.object({ ...callFields, chemistId: objectIdSchema });
+export const doctorFollowupPayloadSchema = z.object({ reportDate: calendarDateSchema, doctorId: objectIdSchema, remarks: z.string().trim().min(1, 'Remarks are required.').max(1000) });
+export const chemistFollowupPayloadSchema = z.object({ reportDate: calendarDateSchema, chemistId: objectIdSchema, remarks: z.string().trim().min(1, 'Remarks are required.').max(1000) });

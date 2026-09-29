@@ -113,6 +113,8 @@ export interface CallPayload {
   crash?: boolean;
   /** Fail after writing, to prove the write is undone. */
   failAfterWrite?: boolean;
+  /** Returned to the phone as the server's version of the record. */
+  data?: unknown;
 }
 
 export function makeKit(nowIso = '2026-10-05T12:00:00Z') {
@@ -135,7 +137,7 @@ export function makeKit(nowIso = '2026-10-05T12:00:00Z') {
         store.splice(store.indexOf(row), 1);
       });
       if (payload.failAfterWrite) throw new Error('after the write');
-      return { serverId: row.id };
+      return { serverId: row.id, ...(payload.data !== undefined && { data: payload.data }) };
     },
   };
   registry.register(callHandler);

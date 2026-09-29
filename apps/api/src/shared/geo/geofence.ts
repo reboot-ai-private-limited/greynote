@@ -19,8 +19,8 @@ export type GeofenceStatus = GeofenceComputedStatus;
 export interface GeofenceInput {
   /** Where the Doctor or Chemist is supposed to be; `null` if none was ever registered. */
   registered: GeoPoint | null;
-  /** The phone's GPS at the call. */
-  captured: GeoPoint;
+  /** The phone's GPS at the call; `null` if it couldn't get a reading. */
+  captured: GeoPoint | null;
   /** The phone's reported accuracy radius for that reading, in meters; `null` if it didn't say. */
   accuracyMeters: number | null;
   radiusMeters: number;
@@ -34,13 +34,14 @@ export interface GeofenceInput {
  * overwrites (the server's answer is authoritative). Pure: the radius and the accuracy limit are
  * SystemConfig values the caller passes in.
  *
- * A registered location missing → `UNVERIFIED`, whatever the reading. Otherwise a reading worse than
+ * A registered location missing → `UNVERIFIED`, whatever the reading. No reading from the phone at all → `UNVERIFIED` too. Otherwise a reading worse than
  * `maxAccuracyMeters` → `UNVERIFIED` (a nearby-looking point from a weak fix proves nothing, and a
  * far-looking one may just be drift) — the distance is still reported so a manager can judge.
  * A reading with no accuracy given is taken at face value.
  */
 export function evaluateGeofence(input: GeofenceInput): GeofenceResult {
   if (input.registered === null) return { status: 'UNVERIFIED', distanceMeters: null, reason: 'NO_REGISTERED_LOCATION' };
+  if (input.captured === null) return { status: 'UNVERIFIED', distanceMeters: null, reason: 'NO_GPS_READING' };
   const distanceMeters = Math.round(haversineMeters(input.registered, input.captured));
   if (input.accuracyMeters !== null && input.accuracyMeters > input.maxAccuracyMeters) {
     return { status: 'UNVERIFIED', distanceMeters, reason: 'LOW_ACCURACY' };

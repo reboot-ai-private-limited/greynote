@@ -89,6 +89,15 @@ describe('Push — the daily report’s Submit', () => {
       expect(results[0]!.status).toBe('FAILED');
     });
 
+    it('a handler’s own version of the record (data) goes back to the phone, and a retry gets the very same answer', async () => {
+      const a = record({ payload: { data: { geofence: { status: 'FAIL', distanceMeters: 240 } } } });
+      const first = await kit.push.execute(mr1, [a]);
+      expect(first.results[0]).toMatchObject({ status: 'SYNCED', data: { geofence: { status: 'FAIL', distanceMeters: 240 } } });
+      const again = await kit.push.execute(mr1, [a]);
+      expect(again.results[0]).toEqual({ clientId: a.clientId, status: 'ALREADY_SYNCED', serverId: first.results[0]!.serverId, data: { geofence: { status: 'FAIL', distanceMeters: 240 } } });
+      expect((await kit.push.execute(mr1, [record()])).results[0]).not.toHaveProperty('data'); // none unless the handler gave one
+    });
+
     it('two MRs can use the same client id without colliding — a receipt is per user', async () => {
       const a = record();
       expect((await kit.push.execute(mr1, [a])).results[0]!.status).toBe('SYNCED');

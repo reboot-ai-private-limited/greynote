@@ -95,6 +95,7 @@ describe('the vocabularies match, value for value', () => {
       evaluateGeofence({ registered: clinic, captured: { latitude: 27, longitude: 88.4 }, accuracyMeters: 5, radiusMeters: 200, maxAccuracyMeters: 100 }),
       evaluateGeofence({ registered: null, captured: clinic, accuracyMeters: 5, radiusMeters: 200, maxAccuracyMeters: 100 }),
       evaluateGeofence({ registered: clinic, captured: clinic, accuracyMeters: 500, radiusMeters: 200, maxAccuracyMeters: 100 }),
+      evaluateGeofence({ registered: clinic, captured: null, accuracyMeters: null, radiusMeters: 200, maxAccuracyMeters: 100 }),
     ]) {
       seen.add(r.status);
       reasons.add(r.reason);

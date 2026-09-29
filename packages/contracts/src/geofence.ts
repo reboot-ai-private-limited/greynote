@@ -16,8 +16,11 @@ export type GeofenceComputedStatus = (typeof GEOFENCE_COMPUTED_STATUSES)[number]
 export const GEOFENCE_STATUSES = [...GEOFENCE_COMPUTED_STATUSES, 'OVERRIDE'] as const;
 export type GeofenceStatus = (typeof GEOFENCE_STATUSES)[number];
 
-/** Why a check is `UNVERIFIED`: the Doctor or Chemist has no registered location, or the GPS reading was too weak. */
-export const GEOFENCE_REASONS = ['NO_REGISTERED_LOCATION', 'LOW_ACCURACY'] as const;
+/**
+ * Why a check is `UNVERIFIED`: the Doctor or Chemist has no registered location, the phone got no GPS reading
+ * at all, or the reading was too weak.
+ */
+export const GEOFENCE_REASONS = ['NO_REGISTERED_LOCATION', 'NO_GPS_READING', 'LOW_ACCURACY'] as const;
 export type GeofenceReason = (typeof GEOFENCE_REASONS)[number];
 
 export interface GeofenceResult {

@@ -113,7 +113,7 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | G2 | How does the app refresh its cached Doctors, Routes, Products and balances? | A versioned snapshot per source, not a row-by-row delta (a delta can't see a Doctor appearing or vanishing when an MR's Routes change) | Accepted 2026-09-29 |
 | G3 | For a record made offline, which time decides whether it was late? | The phone's creation time — not in the future beyond 10 min, not older than 7 days (*config* `SYNC_CLOCK_SKEW_MINUTES`, `SYNC_MAX_AGE_DAYS`) | Accepted 2026-09-29 |
 | G4 | Where is the geofence radius set? | SystemConfig (`GEO_FENCE_RADIUS_METERS`, default 100 m), editable by Admin — see C5 | Accepted 2026-09-29 |
-| G5 | A call to a Doctor or Chemist with no registered location. | Status `UNVERIFIED`, flagged for the manager like a `FAIL` | Accepted 2026-09-29 |
+| G5 | A call to a Doctor or Chemist with no registered location — or with no GPS reading at all (`NO_GPS_READING`, built in step 3). | Status `UNVERIFIED`, flagged for the manager like a `FAIL` | Accepted 2026-09-29 |
 | G6 | A weak GPS reading. | The phone sends its accuracy; worse than `GEO_MAX_ACCURACY_METERS` (100 m) → `UNVERIFIED` (low confidence), not `FAIL` | Accepted 2026-09-29 |
 | G7 | Detecting spoofed / mock locations. | Not needed | Accepted 2026-09-29 |
 | G8 | Money in the system: rupees with paise, or another unit? | Whole numbers of **paise** everywhere (₹1 = 100). Rates are paise (₹7.50/km = 750) | Accepted 2026-09-29 |

@@ -4,7 +4,8 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
-import type { Actor, GetDcrUseCase, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCase } from '../application/usecases/readDcrs.usecase.js';
+import type { GetDcrDetailUseCase } from '../application/usecases/getDcrDetail.usecase.js';
+import type { Actor, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCase } from '../application/usecases/readDcrs.usecase.js';
 import type { listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
 
 function actorOf(req: Request): Actor {
@@ -18,7 +19,7 @@ export function makeFieldActivityControllers(u: {
   listMine: ListMyDcrsUseCase;
   listAll: ListAllDcrsUseCase;
   listTeam: ListTeamDcrsUseCase;
-  get: GetDcrUseCase;
+  get: GetDcrDetailUseCase;
 }): FieldActivityHandlers {
   return {
     // FIELD: their own. ADMIN: anyone's — `userId` is required, so "everyone's" is never an accident.

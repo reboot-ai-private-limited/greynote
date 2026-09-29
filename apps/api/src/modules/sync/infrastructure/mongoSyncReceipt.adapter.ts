@@ -8,7 +8,7 @@ export class MongoSyncReceiptAdapter implements SyncReceiptRepositoryPort {
   async findByClientIds(userId: string, clientIds: string[]): Promise<SyncReceipt[]> {
     if (clientIds.length === 0) return [];
     const docs = await SyncReceiptModel.find({ userId: new Types.ObjectId(userId), clientId: { $in: clientIds } }).lean();
-    return docs.map((d) => ({ userId: String(d.userId), clientId: d.clientId, kind: d.kind, serverId: d.serverId, syncedAt: d.syncedAt }));
+    return docs.map((d) => ({ userId: String(d.userId), clientId: d.clientId, kind: d.kind, serverId: d.serverId, ...(d.data !== undefined && { data: d.data }), syncedAt: d.syncedAt }));
   }
 
   async create(receipt: SyncReceipt, ctx: TransactionContext): Promise<void> {

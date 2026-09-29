@@ -5,6 +5,7 @@ export interface SyncReceiptDoc {
   clientId: string;
   kind: string;
   serverId: string;
+  data?: unknown;
   syncedAt: Date;
 }
 
@@ -19,6 +20,7 @@ const syncReceiptSchema = new Schema<SyncReceiptDoc>({
   clientId: { type: String, required: true },
   kind: { type: String, required: true },
   serverId: { type: String, required: true },
+  data: { type: Schema.Types.Mixed },
   syncedAt: { type: Date, required: true },
 });
 

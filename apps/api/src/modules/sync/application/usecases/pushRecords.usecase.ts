@@ -67,7 +67,7 @@ export class PushRecordsUseCase {
     const fresh: SyncRecordInput[] = [];
     for (const r of records) {
       const receipt = receiptByClientId.get(r.clientId);
-      if (receipt) results.set(r.clientId, { clientId: r.clientId, status: 'ALREADY_SYNCED', serverId: receipt.serverId });
+      if (receipt) results.set(r.clientId, { clientId: r.clientId, status: 'ALREADY_SYNCED', serverId: receipt.serverId, ...(receipt.data !== undefined && { data: receipt.data }) });
       else fresh.push(r);
     }
 
@@ -121,25 +121,25 @@ export class PushRecordsUseCase {
   private async apply(
     userId: string,
     record: SyncRecordInput,
-    apply: (input: { userId: string; clientId: string; clientCreatedAt: Date; payload: unknown }, ctx: unknown) => Promise<{ serverId: string }>,
+    apply: (input: { userId: string; clientId: string; clientCreatedAt: Date; payload: unknown }, ctx: unknown) => Promise<{ serverId: string; data?: unknown }>,
     now: Date,
   ): Promise<SyncResult> {
     try {
-      const { serverId } = await this.transactions.run(async (ctx) => {
+      const { serverId, data } = await this.transactions.run(async (ctx) => {
         const created = await apply({ userId, clientId: record.clientId, clientCreatedAt: record.clientCreatedAt, payload: record.payload }, ctx);
-        await this.receipts.create({ userId, clientId: record.clientId, kind: record.kind, serverId: created.serverId, syncedAt: now }, ctx);
+        await this.receipts.create({ userId, clientId: record.clientId, kind: record.kind, serverId: created.serverId, ...(created.data !== undefined && { data: created.data }), syncedAt: now }, ctx);
         // The record is committed, so its private backup is moot — cleared in the same transaction, so a record
         // that didn't commit keeps its draft and one that did can't leave one behind.
         await this.drafts.deleteForRecord(userId, record.clientId, ctx);
         return created;
       });
-      return { clientId: record.clientId, status: 'SYNCED', serverId };
+      return { clientId: record.clientId, status: 'SYNCED', serverId, ...(data !== undefined && { data }) };
     } catch (err) {
       // Whatever went wrong, a simultaneous send of this same record may have delivered it meanwhile — its
       // transaction won and this one rolled back whole. The record is on the server then, so say so, rather
       // than report a failure the MR would only have to retry. (Looked up only on the failure path.)
       const [receipt] = await this.receipts.findByClientIds(userId, [record.clientId]);
-      if (receipt) return { clientId: record.clientId, status: 'ALREADY_SYNCED', serverId: receipt.serverId };
+      if (receipt) return { clientId: record.clientId, status: 'ALREADY_SYNCED', serverId: receipt.serverId, ...(receipt.data !== undefined && { data: receipt.data }) };
       if (err instanceof SyncRejection) return { clientId: record.clientId, status: 'FAILED', reason: { code: err.code, message: err.message } };
       if (err instanceof AppError && err.statusCode < 500) {
         return { clientId: record.clientId, status: 'FAILED', reason: { code: err.code, message: err.message } };

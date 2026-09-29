@@ -290,7 +290,9 @@ Field Activity, step by step (decision-log 2026-09-29):
    and a 26-check live run (the gate's five refusals against a real approved Plan, `DCR_SUBMIT` through the
    push, Identity `blockUser` under 6 simultaneous calls, rejection and resubmit)
 3. Calls, follow-ups and samples given: the server-side geofence, the Doctor still assigned, atomic sample
-   draw-down
+   draw-down — **done** (2026-09-29): 527 tests and a 21-check live run (geofence PASS/FAIL/UNVERIFIED echoed
+   and replayed, 8 simultaneous sample draws → exactly the stock, rollback of a half-met sample list,
+   assignment drift, radius changed in System Config taking effect on the next call)
 4. Expenses (manual), every record kind registered into the sync push, and the DCR submit that depends on
    them all
 5. DCR review: manager approve / reject, the geofence override

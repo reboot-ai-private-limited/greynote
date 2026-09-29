@@ -54,6 +54,12 @@ describe('evaluateGeofence', () => {
     expect(check({ registered: null, captured: metersNorth(5000), accuracyMeters: 500 }).reason).toBe('NO_REGISTERED_LOCATION');
   });
 
+  it('UNVERIFIED, with no distance, when the phone got no GPS reading at all', () => {
+    expect(check({ captured: null })).toEqual({ status: 'UNVERIFIED', distanceMeters: null, reason: 'NO_GPS_READING' });
+    // a missing registered location is reported first — there was nothing to compare against either way
+    expect(check({ registered: null, captured: null }).reason).toBe('NO_REGISTERED_LOCATION');
+  });
+
   it('UNVERIFIED for a weak reading either way — near or far — but still reports the distance', () => {
     expect(check({ accuracyMeters: 250, captured: metersNorth(20) })).toEqual({ status: 'UNVERIFIED', distanceMeters: 20, reason: 'LOW_ACCURACY' });
     expect(check({ accuracyMeters: 250, captured: metersNorth(900) })).toMatchObject({ status: 'UNVERIFIED', distanceMeters: 900 });
