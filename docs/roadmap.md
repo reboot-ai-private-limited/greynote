@@ -320,7 +320,10 @@ Field Activity, step by step (decision-log 2026-09-29):
 10. A `fieldActivity` pull source and the shared contract types — **done** (2026-09-29): `FieldActivitySnapshot` in
     `packages/contracts`; 7 unit tests and a 13-check live pull (empty, `unchanged`, a service/gift/day appearing,
     determinism, another MR sees nothing, a service approved, a gift done, a block appearing, all six sources)
-11. Live run: a full day end to end
+11. Live run: a full day end to end — **done** (2026-09-29): one 24-check run through real HTTP — Plan gate, nine
+    records pushed out of order and retried, the server's geofence PASS/FAIL/UNVERIFIED, samples 10 → 7, the
+    manager's review and override, TA 6170 + DA 20000 computed and paid, Payroll's total, the phone's pull, and the
+    compliance job blocking a MR who never reported. **Field Activity is complete.**
 
 **Done when:** a full DCR day — Plan approved → Dr Call logged with location check → Expense
 logged → TA/DA computed → Final Submission — works end to end for a seeded MR and their manager
