@@ -15,7 +15,7 @@ Activity as their first, and in most cases only, real consumer.
 Built so far (Phase 6 Field Activity steps 1–8, `../roadmap.md`): the decisions below, the **DCR envelope**
 and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_SUBMIT`, reads of DCRs,
 `hasQualifyingDcr` on the contract, and **calls, follow-ups and samples given** as four sync kinds, and
-**manual expenses** as the sync kind `EXPENSE`. **the geofence override** for the manager's review (approve / reject is the approval module's). **TA/DA generation and its cancellation**. **Doctor Services and Gifts**. **the Accountant's list and mark-paid**, and the contract's **`getPaidTaDaTotal` / `getDcrSummary`**. **the missed-DCR compliance job**. The `fieldActivity` pull source and the end-to-end run follow.
+**manual expenses** as the sync kind `EXPENSE`. **the geofence override** for the manager's review (approve / reject is the approval module's). **TA/DA generation and its cancellation**. **Doctor Services and Gifts**. **the Accountant's list and mark-paid**, and the contract's **`getPaidTaDaTotal` / `getDcrSummary`**. **the missed-DCR compliance job**. **the `fieldActivity` pull source**. Only the end-to-end run remains.
 
 - **The DCR** (`Dcr`: `userId`, `reportDate`) is one row per user per day — a unique index — created lazily
   by the first record of the day or by the submit, in one atomic upsert, so simultaneous first records (two
@@ -103,6 +103,11 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
   so Payroll can show them apart and add them to the net pay with the base salary less the leave deduction (hld/07). `getDcrSummary(userId, { from, to })` → per DCR `{ dcrId, userId, reportDate, status,
   doctorCalls, chemistCalls, followups, taPaise, daPaise, otherExpensesPaise, paidPaise }`, `CANCELLED` rows left
   out, in a fixed handful of queries however many days.
+- **Pull source (step 10).** `fieldActivity` (`sync.md`, *Pull*), scoped to the caller: `blocked`, `today`, the
+  last seven days' `dcrs` (status, approval request id, counts, TA / DA / other / paid in paise), `doctorServices`
+  (newest 100, with status) and `pendingGifts`. Typed as `FieldActivitySnapshot` in `packages/contracts`. It is a
+  snapshot with a version like the others: deterministic, so it reports `unchanged` until a status, amount or gift
+  actually changes. `getDcrSummary` gained `approvalRequestId` for it.
 - **Contract:** `hasQualifyingDcr(userId, date)` — true once `SUBMITTED`, `MANAGER_APPROVED` or `APPROVED`.
 
 ## What it owns

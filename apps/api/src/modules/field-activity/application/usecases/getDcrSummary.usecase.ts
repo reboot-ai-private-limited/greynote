@@ -10,6 +10,8 @@ export interface DcrSummary {
   userId: string;
   reportDate: string;
   status: DcrStatus;
+  /** For `/api/approvals/:id` — the history and the cycle a decision names; `null` while a draft. */
+  approvalRequestId: string | null;
   doctorCalls: number;
   chemistCalls: number;
   followups: number;
@@ -39,7 +41,7 @@ export class GetDcrSummaryUseCase {
     const [dc, cc, fu, money] = await Promise.all([this.doctorCalls.countForDcrs(ids), this.chemistCalls.countForDcrs(ids), this.followups.countForDcrs(ids), this.expenses.totalsForDcrs(ids)]);
     return views.map((v) => {
       const m = money.get(v.id);
-      return { dcrId: v.id, userId: v.userId, reportDate: v.reportDate, status: v.status, doctorCalls: dc.get(v.id) ?? 0, chemistCalls: cc.get(v.id) ?? 0, followups: fu.get(v.id) ?? 0, taPaise: m?.taPaise ?? 0, daPaise: m?.daPaise ?? 0, otherExpensesPaise: m?.otherPaise ?? 0, paidPaise: m?.paidPaise ?? 0 };
+      return { dcrId: v.id, userId: v.userId, reportDate: v.reportDate, status: v.status, approvalRequestId: v.approval?.requestId ?? null, doctorCalls: dc.get(v.id) ?? 0, chemistCalls: cc.get(v.id) ?? 0, followups: fu.get(v.id) ?? 0, taPaise: m?.taPaise ?? 0, daPaise: m?.daPaise ?? 0, otherExpensesPaise: m?.otherPaise ?? 0, paidPaise: m?.paidPaise ?? 0 };
     });
   }
 }

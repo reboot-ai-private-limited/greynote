@@ -41,7 +41,7 @@ describe('the responses the server builds are exactly the contract’s types', (
   it('pull: the envelope is the contract’s, and each source is built to its snapshot type (checked where they are written)', () => {
     expectTypeOf<PullResponse['serverTime']>().toEqualTypeOf<SyncPullResponse['serverTime']>();
     expectTypeOf<keyof SyncPullResponse['sources']>().toEqualTypeOf<(typeof SYNC_SOURCE_NAMES)[number]>();
-    expect([...SYNC_SOURCE_NAMES]).toEqual(['config', 'fieldMasterData', 'hr', 'planning', 'territory']);
+    expect([...SYNC_SOURCE_NAMES]).toEqual(['config', 'fieldActivity', 'fieldMasterData', 'hr', 'planning', 'territory']);
   });
 });
 

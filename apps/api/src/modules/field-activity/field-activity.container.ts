@@ -12,6 +12,7 @@ import { makeExpenseSyncHandler } from './application/expenseSync.js';
 import { TaDaLifecycle } from './application/usecases/taDaLifecycle.usecase.js';
 import { LogExpenseUseCase } from './application/usecases/logExpense.usecase.js';
 import { makeServiceGiftSyncHandlers } from './application/serviceGiftSync.js';
+import { makeFieldActivitySource } from './application/fieldActivitySnapshot.js';
 import { GetPaidTaDaTotalUseCase, ListExpensesUseCase, MarkExpensePaidUseCase } from './application/usecases/accountantExpenses.usecase.js';
 import { RunMissedDcrCheckUseCase } from './application/usecases/runMissedDcrCheck.usecase.js';
 import type { LeavePort } from './domain/leave.port.js';
@@ -123,6 +124,16 @@ export function buildFieldActivityContainer(
   }
   sync.registerHandler(makeDcrSubmitSyncHandler(submitDcr, (payload) => dcrSubmitPayloadSchema.parse(payload)));
 
+  // What the phone caches of this module (LLD sync.md, Pull).
+  sync.registerSource(
+    makeFieldActivitySource({
+      clock,
+      users,
+      summary: dcrSummary,
+      services: new ListDoctorServicesUseCase(services, approvals, master),
+      gifts: new ListGiftsUseCase(gifts, master),
+    }),
+  );
   const missedDcrCheck = new RunMissedDcrCheckUseCase(users, leave, (userId, date) => hasQualifyingDcr.execute(userId, date), clock, config);
 
   return {

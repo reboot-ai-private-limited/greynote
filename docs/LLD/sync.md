@@ -193,6 +193,7 @@ the sources (default: all). The answer:
 | `fieldMasterData` | Field Master Data | `doctors` (the MR's own, by the `GET /doctors/mine` rule, Route-following included), `pendingDoctors` (the ones they added, awaiting approval), `chemists` (active, on their Routes), `distributors` (active; assigned to them or on their Routes), `products` (the active catalog), `sampleAllocations` (what's left, for exactly those Doctors) |
 | `territory` | the composition root | their Routes (name, Area and its type, distance, TA rate override in paise) and their HQ and Zone by name |
 | `hr` | HR | active leave types, their balances for the current leave year, the holidays that apply to them across it (National, their HQ's, its Zone's), the weekly off day and the backdating limit |
+| `fieldActivity` | Field Activity | whether they are compliance-blocked; their last week's daily reports (from six days back to today, oldest first) each with status, approval request id, call and follow-up counts and the day's money in paise (TA, DA, other expenses, how much is paid); their Doctor Services (newest 100) with status; the gifts for their Doctors still to give. Not the calls themselves, geofence results or anyone else's |
 | `planning` | Planning | their Daily Plans from a week back to 30 days ahead and this and next month's Monthly Plans, each with its approval status (for the day's gate, a UX check — the server's is the real one) |
 | `config` | the composition root | an allow-list of settings the app needs offline: the timezone, the Plan cutoffs, the calendar, the geofence radius and accuracy limit, and the sync limits it obeys |
 
@@ -205,7 +206,7 @@ Master Data, HR and Planning are tier 3 and register their own; `apps/api/src/sy
 other two from their public contracts — composition, not logic.
 
 **Cost.** Every source is read on every pull, even when nothing changed, because the version is a hash
-of the snapshot. Measured against the remote dev cluster, a full pull took about 2 s (five sources, about
+of the snapshot. Measured against the remote dev cluster, a full pull took about 2 s (five sources at the time, before `fieldActivity`, about
 a dozen queries); an all-`unchanged` reply is under 1 KB. Compression is the reverse proxy's job. If pulls
 ever cost too much, a per-source change token would let an unchanged source skip its reads.
 
@@ -238,7 +239,7 @@ evaluateGeofence({ registered, captured, accuracyMeters, radiusMeters, maxAccura
 data source until its owner registers one, so it imports only Identity (to check the caller) and Config
 (its limits). It also owns the receipt and draft collections. Field Master Data registers the
 `NEW_DOCTOR` handler and its pull source; HR and Planning register their pull sources; Territory's and
-Config's are wired from the composition root (*Pull*). Phase 6 adds the calls, expenses, orders, gifts,
+Config's are wired from the composition root (*Pull*). Field Activity registers `fieldActivity`. Phase 6 adds the calls, expenses, orders, gifts,
 services and the DCR submit.
 
 ## HTTP surface
@@ -276,7 +277,7 @@ Identity (the caller). Everything else reaches this module by registering into i
 ## The shared contract, and how the protocol is tested
 
 **`packages/contracts`** (`sync.ts`, `geofence.ts`) holds the wire format — the push, draft and pull
-requests and responses, the five pull snapshots, the `NEW_DOCTOR` payload and every status and reason
+requests and responses, the six pull snapshots, the `NEW_DOCTOR` payload and every status and reason
 code — so the phone and the API are built against one definition. `apps/api` builds against it: each
 pull source's `snapshot()` is compiled against its contract type, and a conformance test
 (`interface/sync.contract.test.ts`, `newDoctorSync.contract.test.ts`) fails the build if a response type

@@ -317,7 +317,9 @@ Field Activity, step by step (decision-log 2026-09-29):
    tests and an 11-check live run of the real script (dry run, disabled switch, real block, second run blocks no
    one, Admin's clearing gives a clean slate). Payroll's total also gained `reimbursementPaise`. Identity gained
    `listActiveFieldUserIds` / `getLastBlockClearedAt`, HR `listOffDates`
-10. A `fieldActivity` pull source and the shared contract types
+10. A `fieldActivity` pull source and the shared contract types — **done** (2026-09-29): `FieldActivitySnapshot` in
+    `packages/contracts`; 7 unit tests and a 13-check live pull (empty, `unchanged`, a service/gift/day appearing,
+    determinism, another MR sees nothing, a service approved, a gift done, a block appearing, all six sources)
 11. Live run: a full day end to end
 
 **Done when:** a full DCR day — Plan approved → Dr Call logged with location check → Expense

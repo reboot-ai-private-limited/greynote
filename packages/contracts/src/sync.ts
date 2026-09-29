@@ -211,7 +211,7 @@ export interface SyncDraftsPage {
 
 // ---- Pull: the phone's reference data ----------------------------------------------------------
 
-export const SYNC_SOURCE_NAMES = ['config', 'fieldMasterData', 'hr', 'planning', 'territory'] as const;
+export const SYNC_SOURCE_NAMES = ['config', 'fieldActivity', 'fieldMasterData', 'hr', 'planning', 'territory'] as const;
 export type SyncSourceName = (typeof SYNC_SOURCE_NAMES)[number];
 
 export type SyncSourceResult<Data> =
@@ -224,6 +224,7 @@ export interface SyncPullResponse {
   serverTime: string;
   sources: {
     config?: SyncSourceResult<ConfigSnapshot>;
+    fieldActivity?: SyncSourceResult<FieldActivitySnapshot>;
     fieldMasterData?: SyncSourceResult<FieldMasterDataSnapshot>;
     hr?: SyncSourceResult<HrSnapshot>;
     planning?: SyncSourceResult<PlanningSnapshot>;
@@ -301,6 +302,48 @@ export interface HrSnapshot {
   leaveTypes: Array<{ id: string; name: string; isPaid: boolean }>;
   balances: Array<{ leaveTypeId: string; leaveTypeName: string; allocatedDays: number; usedDays: number; pendingDays: number; availableDays: number }>;
   holidays: Array<{ name: string; date: string; scope: 'NATIONAL' | 'ZONE' | 'HQ' }>;
+}
+
+/** A DCR's approval status as the phone shows it; `DRAFT` until it has been submitted. */
+export type DcrStatusName = 'DRAFT' | 'SUBMITTED' | 'MANAGER_APPROVED' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN' | 'REOPENED';
+
+/**
+ * What the phone caches of Field Activity (LLD sync.md, Pull): whether it is blocked, the last week's daily
+ * reports with their status and money, its Doctor Services with their status, and the gifts still to give.
+ * Money is whole paise. The server's answer at Submit is the one that counts; this is for showing the state.
+ */
+export interface FieldActivitySnapshot {
+  /** A compliance block (missed reports): the phone can say so before the MR types anything. Only Admin clears it. */
+  blocked: boolean;
+  /** Today's date in the business timezone. */
+  today: string;
+  /** From a week back to today, oldest first. */
+  dcrs: Array<{
+    id: string;
+    reportDate: string;
+    status: DcrStatusName;
+    approvalRequestId: string | null;
+    doctorCalls: number;
+    chemistCalls: number;
+    followups: number;
+    taPaise: number;
+    daPaise: number;
+    otherExpensesPaise: number;
+    paidPaise: number;
+  }>;
+  /** The MR's own, newest first, at most 100. An Admin-made one is `APPROVED`. */
+  doctorServices: Array<{
+    id: string;
+    doctorId: string;
+    serviceType: DoctorServiceType;
+    amountPaise: number;
+    remarks: string | null;
+    origin: 'MR' | 'ADMIN';
+    status: DcrStatusName;
+    approvalRequestId: string | null;
+  }>;
+  /** Gifts for the MR's Doctors that are still to be given, newest first. Marking one done is the `GIFT_DONE` record. */
+  pendingGifts: Array<{ id: string; doctorId: string; productName: string; amountPaise: number }>;
 }
 
 export const PLAN_STATUSES = ['DRAFT', 'SUBMITTED', 'MANAGER_APPROVED', 'APPROVED', 'REJECTED', 'WITHDRAWN', 'REOPENED'] as const;
