@@ -55,8 +55,11 @@ one meant the commit failed with "transaction aborted", so five racing retries o
 one Doctor (correct) but answered 500 to the other four. Found by the step 4 live run.
 
 **Consequences:** rule added to `engineering/coding-standards.md`. Territory's
-`MongoUserHqAssignmentAdapter.create` catches the duplicate the same way, so a race there most
-likely ends in the same 500; it has not been changed or checked.
+`MongoUserHqAssignmentAdapter.create` catches the duplicate the same way, so this entry first
+suspected the same 500 there. A probe on 2026-09-29 (five simultaneous HQ assignments for one
+employee, two different HQs) did **not** reproduce it: all five answered 200 and exactly one
+active row remained. It is left as it is; the pattern is still fragile in principle, so it gets
+fixed the day someone touches that adapter or a real 500 shows up.
 
 ---
 

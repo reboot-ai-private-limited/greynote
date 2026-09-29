@@ -59,7 +59,7 @@ lists the rules that "cannot be changed casually after development" — most una
 |---|---|
 | A. Login & devices | Answered 2026-09-24 and built into Phase 1 |
 | D. Territory, TA & DA | D5, D7 answered 2026-09-24 (Phase 2); the rest block Phase 6 (TA/DA engine) |
-| B, C, F | Phase 4 (Planning, Field Master Data, HR). B1, B3, B4 accepted 2026-09-28 — Planning done; F3, F11–F16 accepted 2026-09-28 — HR done; C3, C4, C6, C7, C8 accepted 2026-09-29 — Field Master Data can start |
+| B, C, F | Phase 4 (Planning, Field Master Data, HR). B1, B3, B4 accepted 2026-09-28 — Planning done; F3, F11–F16 accepted 2026-09-28 — HR done; C3, C4, C6, C7, C8 accepted 2026-09-29 — Field Master Data done |
 | E | Phase 6 (Sales & Orders) |
 
 Phase 2 can start in parallel: Zone → HQ → Area → Route is confirmed by the client's Master spec.
@@ -192,7 +192,15 @@ Field Master Data, step by step (decision-log 2026-09-29):
 3. Doctors: Admin create with a map point, assignments with the Route rule, visibility — **done** (2026-09-29; live-checked, 45 checks)
 4. MR add-Doctor: `NEW_DOCTOR` approval, offline-safe create, auto-assign on approval — **done** (2026-09-29; live-checked, 38 checks)
 5. Distributors and sample allocations — **done** (2026-09-29; live-checked, 48 checks). Territory's contract gained `listRouteIdsInScope`
-6. Tests, live run against the dev database
+6. Tests, live run against the dev database — **done** (2026-09-29): one end-to-end run over the whole module, 41 checks
+
+**Status (2026-09-29): Phase 4 done** — Planning, HR and Field Master Data are built and live-checked.
+Field Master Data: 11 + 14 + 17 + 13 unit tests across the steps, a live run per step and a final
+end-to-end run (41 checks: catalog, an MR adding a Doctor offline, approval with Admin's map
+correction, auto-assign, samples with racing gives, route-loss visibility and the switch,
+rejection and reopen, deactivation rules). Still open from this phase, none blocking Phase 5:
+in-day changes to an approved Daily Plan (client §2.6), and the client's Doctor Service types
+(C8, needed in Phase 6).
 
 **Done when:** Admin can populate Doctors/Chemists/Distributors/Products and assign MRs to them;
 an MR can submit a Daily/Monthly Plan and see it move through Nearest-Manager approval; HR can
