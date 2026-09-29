@@ -101,6 +101,12 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = [
     description: 'Days after approval before a new Doctor counts toward an MR’s coverage.',
   },
   {
+    key: 'DAILY_PLAN_CHANGE_MAX',
+    value: '3',
+    module: 'PLANNING',
+    description: 'Most in-day changes that can be applied to one approved Daily Plan.',
+  },
+  {
     key: 'MAX_REGISTERED_DEVICES_FIELD',
     value: '2',
     module: 'AUTH',

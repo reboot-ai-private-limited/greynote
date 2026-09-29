@@ -1,5 +1,6 @@
 import {
   assertTimeZone,
+  businessDate,
   dailyPlanDeadline,
   monthlyPlanDeadline,
   parseCalendarMonth,
@@ -19,6 +20,16 @@ export class PlanDeadlines {
     private readonly config: ConfigProviderPort,
     readonly now: () => Date = () => new Date(),
   ) {}
+
+  /** Today's date in the business timezone — the only day an approved plan can still be changed. */
+  async today(): Promise<string> {
+    return businessDate(this.now(), await this.timeZone());
+  }
+
+  /** Most in-day changes that can be applied to one Daily Plan. */
+  changeMax(): Promise<number> {
+    return readConfig(this.config, PLANNING_CONFIG_KEYS.dailyChangeMax, parsePositiveInt(50));
+  }
 
   async daily(planDate: string): Promise<Date> {
     const [timeZone, cutoffTime] = await Promise.all([

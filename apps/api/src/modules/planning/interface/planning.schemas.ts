@@ -55,3 +55,8 @@ export const listLateSubmitGrantsQuerySchema = z.object({
   userId: objectIdSchema.optional(),
   kind: z.enum(PLAN_KINDS).optional(),
 });
+
+/** An in-day change to today's approved Daily Plan: the whole day as it should now be, and why. */
+export const requestDailyPlanChangeBodySchema = planDaySchema.extend({
+  reason: z.string().trim().min(1, 'A reason is required.').max(500),
+});

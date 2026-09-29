@@ -125,6 +125,7 @@ const onStatusChange = async (change: ApprovalStatusChange, ctx: unknown) => {
 const PLAN: ApprovalKindDefinition = { kind: 'TEST_PLAN', finalApproverRoles: ['ADMIN'], onStatusChange };
 const QUICK: ApprovalKindDefinition = { kind: 'TEST_QUICK', finalApproverRoles: ['ADMIN'] };
 const LEAVE: ApprovalKindDefinition = { kind: 'TEST_LEAVE', finalApproverRoles: ['HR', 'ADMIN'] };
+const CHANGE: ApprovalKindDefinition = { kind: 'TEST_CHANGE', finalApproverRoles: ['ADMIN'], managerOnly: true };
 
 /** The `APPROVAL_MANAGER_ONLY_KINDS` value; TEST_QUICK skips the final stage. */
 let managerOnlyKinds: string;
@@ -151,7 +152,7 @@ beforeEach(() => {
   requests = new FakeRequests();
   transactions = new FakeTransactions(requests);
   const kinds = new ApprovalKindRegistry();
-  [PLAN, QUICK, LEAVE].forEach((k) => kinds.register(k));
+  [PLAN, QUICK, LEAVE, CHANGE].forEach((k) => kinds.register(k));
   submit = new SubmitApprovalUseCase(requests, users, kinds, config);
   decide = new DecideApprovalUseCase(requests, users, kinds, transactions);
   withdraw = new WithdrawApprovalUseCase(requests, kinds, transactions);
@@ -240,6 +241,13 @@ describe('special routes', () => {
 
   it('kinds listed in APPROVAL_MANAGER_ONLY_KINDS end at the manager (case/space-insensitive)', async () => {
     const req = await submitAs('mr', QUICK.kind);
+    expect(req.workflow).toBe('MANAGER_ONLY');
+    expect((await approve(req.id, 'asm')).status).toBe('APPROVED');
+  });
+
+  it('a kind declared managerOnly ends at the manager whatever the config says, and Admin still can override', async () => {
+    managerOnlyKinds = 'NONE';
+    const req = await submitAs('mr', CHANGE.kind);
     expect(req.workflow).toBe('MANAGER_ONLY');
     expect((await approve(req.id, 'asm')).status).toBe('APPROVED');
   });

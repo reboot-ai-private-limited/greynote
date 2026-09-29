@@ -13,4 +13,5 @@ export const PLANNING_CONFIG_KEYS = {
   dailyResubmitLatestTime: 'DAILY_PLAN_RESUBMIT_LATEST_TIME',
   monthlyResubmitGraceHours: 'MONTHLY_PLAN_RESUBMIT_GRACE_HOURS',
   resubmitGraceMax: 'PLAN_RESUBMIT_GRACE_MAX',
+  dailyChangeMax: 'DAILY_PLAN_CHANGE_MAX',
 } as const;

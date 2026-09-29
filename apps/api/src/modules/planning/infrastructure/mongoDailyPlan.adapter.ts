@@ -57,6 +57,15 @@ export class MongoDailyPlanAdapter implements DailyPlanRepositoryPort {
     return doc ? toPlan(doc) : null;
   }
 
+  async applyChange(id: string, revision: number, day: PlanDay, ctx: TransactionContext): Promise<boolean> {
+    const result = await DailyPlanModel.updateOne(
+      { _id: id, revision },
+      { $set: { ...toDayDoc(day), updatedAt: new Date() }, $inc: { revision: 1 } },
+      { session: ctx as ClientSession },
+    );
+    return result.matchedCount === 1;
+  }
+
   async confirmRevision(id: string, revision: number, countLateResubmit: boolean, ctx: TransactionContext): Promise<boolean> {
     const result = await DailyPlanModel.updateOne(
       { _id: id, revision },

@@ -26,6 +26,8 @@ even if it wanted to enforce anything there.
   while the parent is `DRAFT`; the whole month submits together as one unit, not entry by entry.
 - **`LatePlanSubmitGrant`** — a one-off exception to a submit deadline (see *Late-submission
   exceptions*).
+- **`DailyPlanChange`** — a request to change an approved Daily Plan on its own day (see *In-day
+  changes to an approved Daily Plan*).
 
 Plan dates are calendar days (`YYYY-MM-DD`, months `YYYY-MM`), stored as strings, not instants.
 
@@ -150,14 +152,44 @@ this doc does not re-derive that state machine. As it applies here:
   `APPROVAL_MANAGER_ONLY_KINDS` and ends at the manager — no code change.
 - Once submitted, the employee can't edit a Plan (client §2.5) unless it's `REJECTED`,
   `WITHDRAWN` or Admin-`REOPENED` — Planning's edit endpoints check `isEditableBySubmitter`.
-  **Open for Phase 4:** client §2.6 wants in-day changes to an approved Plan approved by the
-  *manager*, but only Admin can reopen an approved request. Likely answer: a separate
-  `DAILY_PLAN_CHANGE` kind (the change is its own approvable record, manager-approved); decide
-  when Planning is built.
+  In-day changes to an approved Plan (client §2.6) are a separate `DAILY_PLAN_CHANGE` kind — see
+  the next section.
 - Planning reads a Plan's status with `getForRecord`; its `onStatusChange` handles anything that
   must happen on a decision, in the same transaction.
 - Approve/reject, the team view, Admin's org-wide queue and history are the approval module's
   `/api/approvals/*` endpoints — Planning has none of its own.
+
+## In-day changes to an approved Daily Plan
+
+Client §2.6: the day's plan can change during the day, and the manager decides. Only Admin can
+reopen an approved request, so a change is **its own approvable record**, kind `DAILY_PLAN_CHANGE`,
+registered with `managerOnly: true` — the approval module gives it no final stage whatever
+`APPROVAL_MANAGER_ONLY_KINDS` says (`approval.md`). Admin can still act on it, and a top-of-chain
+employee's change goes to Admin. These are working assumptions (sign-off B9), not client answers.
+
+- **Asking:** `POST /planning/daily/:id/changes` with the whole day as it should now be, plus a
+  required reason. Only the plan's owner; only for **today** (the business timezone); only while
+  the plan is `MANAGER_APPROVED` or `APPROVED` — the states in which the day's gate is open. A draft
+  or rejected plan is edited and submitted, not "changed". A blocked employee can't ask. The
+  submit deadlines don't apply, since an in-day change is after them by nature. The proposed day
+  goes through the same checks as a submit (own active routes, active colleagues, a valid working
+  type) and must differ from the plan.
+- **While it waits, the plan doesn't move:** it stays approved with its old content, so the gate
+  stays open and the employee keeps working to it. **One waiting change per plan**, enforced by a
+  partial unique index, so two simultaneous requests can't both get in.
+- **Approving** (the employee's manager; Admin may override) writes the proposed day into the plan,
+  bumps its `revision`, and closes the change as applied — in the approval's transaction. The plan's
+  own approval is untouched. It is **refused (409)** if the plan is no longer approved (Admin
+  reopened it), was changed since the request (`basedOnRevision` no longer matches), or the day is
+  over; the manager then rejects it. Nothing changes on a refusal.
+- **Rejecting or withdrawing** closes the change and leaves the plan as it was; the employee may
+  ask again. A decided change can't be reopened — Admin reopens the plan itself instead.
+- **Cap:** at most `DAILY_PLAN_CHANGE_MAX` (seeded `3`) *applied* changes per plan; rejected and
+  withdrawn ones don't count.
+- **Reading:** `GET /planning/daily/:id/changes` — newest first, each with `previous`, `proposed`,
+  `reason`, and its approval status — for the owner, their managers (read-only) and Admin.
+- What happens to field activity already logged against the old plan is Field Activity's call
+  (Phase 6), as with any reopen.
 
 ## HTTP surface
 
@@ -169,6 +201,8 @@ this doc does not re-derive that state machine. As it applies here:
 | `GET` | `/planning/daily/:id` | FIELD, manager (read-only per visibility rules) | Fetch one |
 | `POST` | `/planning/monthly` | FIELD | Save/update a Monthly Plan and its entries |
 | `POST` | `/planning/monthly/:id/submit` | FIELD | Submit the whole month |
+| `POST` | `/planning/daily/:id/changes` | FIELD (owner) | Ask to change today's approved plan — to the manager, with a reason |
+| `GET` | `/planning/daily/:id/changes` | FIELD (owner, managers), ADMIN | A plan's in-day changes with their approval status |
 | `GET` | `/planning/monthly` | FIELD | List own Monthly Plans (month range) |
 | `GET` | `/planning/monthly/:id` | FIELD, manager (read-only), Admin | Fetch one |
 | `POST` | `/planning/late-grants` | ADMIN; FIELD manager while `LATE_PLAN_GRANT_BY_MANAGER` is on | Grant a late-submission exception |
@@ -216,5 +250,5 @@ first endpoints establish, and keep Daily/Monthly symmetric.
 - **Plan-vs-actual adherence reporting** (comparing a `DailyPlan`'s planned routes against the
   DCR calls actually logged that day) — explicitly deferred in `erd/05`; would need a nullable FK
   from `DailyPlan` to `MonthlyPlanEntry` if the two are ever linked, which they currently are not.
-- **In-day changes to an approved Daily Plan** (client §2.6) — see *Approval workflow*.
+- **Editing a waiting or decided in-day change** — a change is immutable once asked; the employee withdraws it and asks again.
 - **How far ahead a Daily Plan may be made** — no limit yet.

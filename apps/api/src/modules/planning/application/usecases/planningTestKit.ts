@@ -2,6 +2,12 @@ import type { ApprovalRequest, ApprovalStatus } from '@/modules/approval/approva
 import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
+import type { ApprovalKindDefinition } from '@/modules/approval/approval.public.js';
+import type { DailyPlanChange } from '../../domain/dailyPlanChange.entity.js';
+import { OpenChangeExistsError, type DailyPlanChangeRepositoryPort } from '../../domain/dailyPlanChange.repository.port.js';
+import { makeDailyPlanChangeHandler } from '../dailyPlanChangeHandler.js';
+import { ListDailyPlanChangesUseCase } from './listDailyPlanChanges.usecase.js';
+import { RequestDailyPlanChangeUseCase } from './requestDailyPlanChange.usecase.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { DailyPlan } from '../../domain/dailyPlan.entity.js';
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
@@ -45,11 +51,42 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
     this.rows.set(plan.id, plan);
     return plan;
   }
+  async applyChange(id: string, revision: number, day: PlanDay) {
+    const plan = this.rows.get(id);
+    if (!plan || plan.revision !== revision) return false;
+    this.rows.set(id, { ...plan, ...day, revision: revision + 1, updatedAt: new Date() });
+    return true;
+  }
   async confirmRevision(id: string, revision: number, countLateResubmit: boolean) {
     const plan = this.rows.get(id);
     if (!plan || plan.revision !== revision) return false;
     this.rows.set(id, { ...plan, revision: revision + 1, lateResubmits: plan.lateResubmits + (countLateResubmit ? 1 : 0) });
     return true;
+  }
+}
+
+export class FakeChanges implements DailyPlanChangeRepositoryPort {
+  rows: DailyPlanChange[] = [];
+  async findById(id: string) {
+    return this.rows.find((c) => c.id === id) ?? null;
+  }
+  async listForPlan(planId: string) {
+    return this.rows.filter((c) => c.planId === planId).reverse();
+  }
+  async countApplied(planId: string) {
+    return this.rows.filter((c) => c.planId === planId && c.applied).length;
+  }
+  async create(input: Omit<DailyPlanChange, 'id' | 'open' | 'applied' | 'createdAt'>) {
+    // Check and insert in one synchronous step, like the partial unique index does.
+    if (this.rows.some((c) => c.planId === input.planId && c.open)) throw new OpenChangeExistsError();
+    const row: DailyPlanChange = { ...input, id: `change-${this.rows.length + 1}`, open: true, applied: false, createdAt: new Date() };
+    this.rows.push(row);
+    return row;
+  }
+  async close(id: string, applied: boolean) {
+    const row = this.rows.find((c) => c.id === id)!;
+    row.open = false;
+    row.applied = applied;
   }
 }
 
@@ -139,8 +176,24 @@ export class FakeGrants implements LateSubmitGrantRepositoryPort {
 export class FakeApprovals implements ApprovalsPort {
   requests = new Map<string, ApprovalRequest>();
   registered: string[] = [];
-  registerKind(definition: { kind: string }) {
+  definitions = new Map<string, ApprovalKindDefinition>();
+  registerKind(definition: ApprovalKindDefinition) {
     this.registered.push(definition.kind);
+    this.definitions.set(definition.kind, definition);
+  }
+  /**
+   * Like the approval module: runs the kind's `onStatusChange` first and only moves the request if
+   * it doesn't throw (the real one rolls the decision back).
+   */
+  async decide(kind: string, recordId: string, status: ApprovalStatus) {
+    const request = this.requests.get(`${kind}:${recordId}`);
+    if (!request) throw new Error('no request');
+    const next = { ...request, status };
+    await this.definitions.get(kind)?.onStatusChange?.(
+      { requestId: request.id, kind, recordId, submitterId: request.submitterId, previousStatus: request.status, status, action: {} as never, request: next },
+      {},
+    );
+    this.setStatus(kind, recordId, status);
   }
   async submit(input: { kind: string; recordId: string; submitterId: string }) {
     const key = `${input.kind}:${input.recordId}`;
@@ -253,6 +306,7 @@ export class FakeConfig {
     DAILY_PLAN_RESUBMIT_LATEST_TIME: '11:30',
     MONTHLY_PLAN_RESUBMIT_GRACE_HOURS: '24',
     PLAN_RESUBMIT_GRACE_MAX: '2',
+    DAILY_PLAN_CHANGE_MAX: '3',
   };
   async get(key: string) {
     const value = this.values[key];
@@ -283,5 +337,14 @@ export function planningKit(clock: Clock) {
   const deadlines = new PlanDeadlines(config, clock.now);
   const views = new PlanViews(approvals, grants, deadlines);
   const submitter = new PlanSubmitter(users, routes, approvals, grants, inlineTransactions, clock.now);
-  return { users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter };
+  const changes = new FakeChanges();
+  approvals.registerKind({
+    kind: 'DAILY_PLAN_CHANGE',
+    finalApproverRoles: ['ADMIN'],
+    managerOnly: true,
+    onStatusChange: makeDailyPlanChangeHandler(changes, dailyPlans, approvals, deadlines),
+  });
+  const requestChange = new RequestDailyPlanChangeUseCase(dailyPlans, changes, approvals, users, submitter, deadlines, inlineTransactions);
+  const listChanges = new ListDailyPlanChangesUseCase(dailyPlans, changes, approvals, users);
+  return { users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, changes, requestChange, listChanges };
 }

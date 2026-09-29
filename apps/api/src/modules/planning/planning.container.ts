@@ -3,13 +3,16 @@ import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner
 import { PlanDeadlines } from './application/planDeadlines.js';
 import { PlanSubmitter } from './application/planSubmitter.js';
 import { PlanViews } from './application/planViews.js';
+import { makeDailyPlanChangeHandler } from './application/dailyPlanChangeHandler.js';
 import { GetDailyPlanUseCase } from './application/usecases/getDailyPlan.usecase.js';
 import { GetMonthlyPlanUseCase } from './application/usecases/getMonthlyPlan.usecase.js';
 import { GrantLateSubmitUseCase } from './application/usecases/grantLateSubmit.usecase.js';
 import { GetPlanStatusUseCase } from './application/usecases/getPlanStatus.usecase.js';
+import { ListDailyPlanChangesUseCase } from './application/usecases/listDailyPlanChanges.usecase.js';
 import { ListDailyPlansUseCase } from './application/usecases/listDailyPlans.usecase.js';
 import { ListLateSubmitGrantsUseCase } from './application/usecases/listLateSubmitGrants.usecase.js';
 import { ListMonthlyPlansUseCase } from './application/usecases/listMonthlyPlans.usecase.js';
+import { RequestDailyPlanChangeUseCase } from './application/usecases/requestDailyPlanChange.usecase.js';
 import { RevokeLateSubmitUseCase } from './application/usecases/revokeLateSubmit.usecase.js';
 import { SaveDailyPlanUseCase } from './application/usecases/saveDailyPlan.usecase.js';
 import { SaveMonthlyPlanUseCase } from './application/usecases/saveMonthlyPlan.usecase.js';
@@ -17,10 +20,11 @@ import { SubmitDailyPlanUseCase } from './application/usecases/submitDailyPlan.u
 import { SubmitMonthlyPlanUseCase } from './application/usecases/submitMonthlyPlan.usecase.js';
 import type { ApprovalsPort } from './domain/approvals.port.js';
 import type { ConfigProviderPort } from './domain/configProvider.port.js';
-import { PLAN_KINDS } from './domain/plan.js';
+import { DAILY_PLAN_CHANGE_KIND, PLAN_KINDS } from './domain/plan.js';
 import type { RouteDirectoryPort } from './domain/routeDirectory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import { MongoDailyPlanAdapter } from './infrastructure/mongoDailyPlan.adapter.js';
+import { MongoDailyPlanChangeAdapter } from './infrastructure/mongoDailyPlanChange.adapter.js';
 import { MongoLateSubmitGrantAdapter } from './infrastructure/mongoLateSubmitGrant.adapter.js';
 import { MongoMonthlyPlanAdapter } from './infrastructure/mongoMonthlyPlan.adapter.js';
 import { makePlanningControllers } from './interface/planning.controller.js';
@@ -45,6 +49,7 @@ export function buildPlanningContainer(
 
   // 1. Adapters
   const dailyPlans = new MongoDailyPlanAdapter();
+  const dailyPlanChanges = new MongoDailyPlanChangeAdapter();
   const monthlyPlans = new MongoMonthlyPlanAdapter();
   const grants = new MongoLateSubmitGrantAdapter();
   const transactions = new MongooseTransactionRunner();
@@ -66,6 +71,18 @@ export function buildPlanningContainer(
   const listLateGrants = new ListLateSubmitGrantsUseCase(grants, users, deadlines.now);
   const revokeLate = new RevokeLateSubmitUseCase(grants, deadlines.now);
 
+  // An in-day change to an approved Daily Plan (client §2.6) is its own request, and the manager's
+  // approval is the decision — no Admin stage, whatever APPROVAL_MANAGER_ONLY_KINDS says. Approving
+  // it writes the change into the plan, in the approval's transaction.
+  approvals.registerKind({
+    kind: DAILY_PLAN_CHANGE_KIND,
+    finalApproverRoles: ['ADMIN'],
+    managerOnly: true,
+    onStatusChange: makeDailyPlanChangeHandler(dailyPlanChanges, dailyPlans, approvals, deadlines),
+  });
+  const requestChange = new RequestDailyPlanChangeUseCase(dailyPlans, dailyPlanChanges, approvals, users, submitter, deadlines, transactions);
+  const listChanges = new ListDailyPlanChangesUseCase(dailyPlans, dailyPlanChanges, approvals, users);
+
   return {
     contract: {
       isDailyPlanApproved: (userId, planDate) => status.isDailyPlanApproved(userId, planDate),
@@ -86,6 +103,8 @@ export function buildPlanningContainer(
           grantLate,
           listLateGrants,
           revokeLate,
+          requestChange,
+          listChanges,
         }),
       ),
   };

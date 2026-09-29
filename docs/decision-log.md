@@ -17,6 +17,37 @@ old one.
 
 ---
 
+## 2026-09-29 — In-day changes to an approved Daily Plan are their own manager-approved request
+
+**Decision:** Client §2.6 lets the day's plan change during the day with the manager's approval, but
+only Admin can reopen an approved request. So a change is **its own record and approval kind**,
+`DAILY_PLAN_CHANGE`, and the plan itself is never reopened:
+
+- The employee asks for **today's** plan, while it is `MANAGER_APPROVED` or `APPROVED`, with a
+  required reason. The plan stays approved, and its gate open, until the manager decides.
+- The manager's approval **is** the decision — the approval module gained `managerOnly` on a kind
+  definition, so the kind never has a final stage, whatever `APPROVAL_MANAGER_ONLY_KINDS` says.
+- Approving writes the proposed day into the plan in the same transaction, and is refused if the
+  plan was reopened, changed since the request, or the day is over.
+- One waiting change per plan (partial unique index); at most `DAILY_PLAN_CHANGE_MAX` (3) applied.
+- A decided change can't be reopened; Admin reopens the plan instead.
+
+**Replaces:** the LLD's open note that left this "for Phase 4, likely a `DAILY_PLAN_CHANGE` kind".
+
+**Why:** reopening the plan would drop the day's gate and need Admin for what the client wants the
+manager to decide; a separate record leaves the approved plan usable and gives the approver a
+before/after to look at. `managerOnly` is fixed on the kind, not left to Admin's setting, because
+"the manager decides" is this feature's design, not a tuning knob.
+
+**Costs:** the rules (who approves, which days, the cap of 3) are **my assumptions**, recorded as
+sign-off B9 with status *Designed*, not answers from the client. A change made on a plan with field
+activity already logged is Field Activity's problem to reconcile in Phase 6.
+
+**Refs:** [`LLD/planning.md`](LLD/planning.md) *In-day changes*, [`LLD/approval.md`](LLD/approval.md),
+[`client-sign-off.md`](client-sign-off.md) B9
+
+---
+
 ## 2026-09-29 — Distributors and sample allocations: two choices
 
 **Decision:**

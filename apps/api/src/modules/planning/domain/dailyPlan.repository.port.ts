@@ -13,6 +13,11 @@ export interface DailyPlanRepositoryPort {
    */
   save(userId: string, planDate: string, day: PlanDay, expectedRevision: number | null): Promise<DailyPlan | null>;
   /**
+   * Inside an approval's transaction: replaces the plan's body with an approved in-day change, but
+   * only if the plan is still at `revision` (the one the change was made against), bumping it.
+   */
+  applyChange(id: string, revision: number, day: PlanDay, ctx: TransactionContext): Promise<boolean>;
+  /**
    * Inside the submit transaction: bumps `revision` only if the plan is still at `revision`.
    * Both sides being conditional is what stops an edit and a submit crossing — the submit can't
    * send a plan it didn't validate, and the edit can't land on a plan that was just submitted.

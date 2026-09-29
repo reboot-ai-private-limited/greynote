@@ -149,6 +149,7 @@ Planning, step by step:
 4. Monthly Plan — **done**
 5. Late-submission exceptions: grant, revoke, list, used by the submit — **done**
 6. Live run against the dev database — **done** (2026-09-28)
+7. In-day changes to an approved Daily Plan (client §2.6) — **done** (2026-09-29); live-checked, 36 checks
 
 **Status (2026-09-28): Planning done.** 36 unit tests (deadline edges in IST, every-submit
 lateness, manager switch and team scope, expiry, revoke, the DCR gate) plus a live run on the dev
@@ -156,8 +157,8 @@ database: 41 checks over real HTTP, real Mongo transactions and indexes. It incl
 where an edit races a late submit and the exception survives. Temporary data was removed
 afterwards.
 
-Still open for Planning: in-day changes to an approved Daily Plan (client §2.6, likely a
-`DAILY_PLAN_CHANGE` kind).
+In-day changes to an approved Daily Plan (client §2.6) are built as their own manager-approved
+`DAILY_PLAN_CHANGE` request (`LLD/planning.md`); the rules are working assumptions, sign-off B9.
 
 HR, step by step:
 
@@ -198,9 +199,8 @@ Field Master Data, step by step (decision-log 2026-09-29):
 Field Master Data: 11 + 14 + 17 + 13 unit tests across the steps, a live run per step and a final
 end-to-end run (41 checks: catalog, an MR adding a Doctor offline, approval with Admin's map
 correction, auto-assign, samples with racing gives, route-loss visibility and the switch,
-rejection and reopen, deactivation rules). Still open from this phase, none blocking Phase 5:
-in-day changes to an approved Daily Plan (client §2.6), and the client's Doctor Service types
-(C8, needed in Phase 6).
+rejection and reopen, deactivation rules). Still open from this phase, none blocking Phase 5: the client's Doctor Service
+types (C8, needed in Phase 6), and the client's confirmation of the in-day change rules (B9).
 
 **Done when:** Admin can populate Doctors/Chemists/Distributors/Products and assign MRs to them;
 an MR can submit a Daily/Monthly Plan and see it move through Nearest-Manager approval; HR can

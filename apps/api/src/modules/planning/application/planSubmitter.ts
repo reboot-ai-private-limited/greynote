@@ -60,7 +60,7 @@ export class PlanSubmitter {
     if (await this.users.isBlocked(s.ownerId)) {
       throw AppError.forbidden('You are blocked for missed reports. Admin has to unblock you before you can submit a plan.');
     }
-    await this.assertValid(s);
+    await this.validateDays(s.ownerId, s.days);
 
     // Late (sign-off B8): the after-rejection window first, so an exception is kept for later;
     // otherwise a late-submission exception, used up by this submit.
@@ -85,7 +85,9 @@ export class PlanSubmitter {
     });
   }
 
-  private async assertValid(s: PlanSubmission): Promise<void> {
+  /** Every day is well-formed, on the owner's own active routes, with active colleagues — checked against today's state. */
+  async validateDays(ownerId: string, days: Array<{ day: PlanDay; field: string }>): Promise<void> {
+    const s = { ownerId, days };
     for (const { day, field } of s.days) assertPlanDay(day, s.ownerId, field);
 
     const allowed = new Set((await this.routes.listRoutesForUser(s.ownerId)).map((r) => r.id));

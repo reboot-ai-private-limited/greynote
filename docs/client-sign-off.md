@@ -37,6 +37,7 @@ cheapest to change before the listed phase starts.
 | B6 | Can Admin override a locked/blocked DCR (§3.8)? | Yes — Admin can unblock an employee and approve any pending Plan/DCR directly | Built (unblock) / Designed |
 | B7 | Attendance: is a day "present" on DCR **submit** or on DCR **approval** (§10.1)? | Not decided | Open |
 | B8 | A Plan submitted after its deadline: refused, or accepted and flagged? | Refused, resubmits included — except that after a rejection the employee has a window: Daily 30 min, never after 11:30; Monthly 24 h, never after the month starts; at most 2 per Plan (all *config*). Beyond that, Admin (and a manager, if *config* `LATE_PLAN_GRANT_BY_MANAGER` is on) can grant a one-off exception for one Plan, valid for `LATE_PLAN_GRANT_VALID_HOURS` (*config*, 24) | Built |
+| B9 | In-day changes to an approved Daily Plan (§2.6): who approves, on which days, how often? | Built as an assumption, **not yet confirmed with the client**: the employee's manager alone approves (Admin can override; top-of-chain goes to Admin); only today's plan, while its gate is open; a reason is required; one waiting change at a time; at most 3 applied per plan (*config* `DAILY_PLAN_CHANGE_MAX`); the plan stays approved and unchanged until the manager says yes | Designed |
 
 ## C. Doctors, Chemists & Distributors (Phase 4)
 

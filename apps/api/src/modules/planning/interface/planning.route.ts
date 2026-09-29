@@ -13,6 +13,7 @@ import {
   listMonthlyPlansQuerySchema,
   monthRangeQuerySchema,
   planIdParamsSchema,
+  requestDailyPlanChangeBodySchema,
   saveDailyPlanBodySchema,
   saveMonthlyPlanBodySchema,
 } from './planning.schemas.js';
@@ -46,6 +47,8 @@ doc('post', '/daily', 'Save my plan for a day (draft; editable again after a rej
 doc('get', '/daily', 'My daily plans between two dates, with status and submit deadline', { query: dateRangeQuerySchema });
 doc('get', '/daily/{id}', 'One daily plan — owner, their managers (read-only), Admin', { params: planIdParamsSchema });
 doc('post', '/daily/{id}/submit', 'Submit my plan for approval — refused after the deadline without a late-submission exception', { params: planIdParamsSchema });
+doc('post', '/daily/{id}/changes', 'Ask to change my approved plan for today — goes to my manager; the plan stays approved until they say yes', { params: planIdParamsSchema, body: requestDailyPlanChangeBodySchema });
+doc('get', '/daily/{id}/changes', 'A plan’s in-day changes, with their approval status — owner, their managers (read-only), Admin', { params: planIdParamsSchema });
 doc('post', '/monthly', 'Save my plan for a month — every day at once (draft)', { body: saveMonthlyPlanBodySchema });
 doc('get', '/monthly', 'My monthly plans between two months, with status and submit deadline', { query: monthRangeQuerySchema });
 doc('get', '/monthly/{id}', 'One monthly plan — owner, their managers (read-only), Admin', { params: planIdParamsSchema });
@@ -62,6 +65,9 @@ export function buildPlanningRouter(c: PlanningHandlers): Router {
   router.get('/daily', requireRole('FIELD'), validate({ query: listDailyPlansQuerySchema }), c.listDaily);
   router.get('/daily/:id', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.getDaily);
   router.post('/daily/:id/submit', requireRole('FIELD'), validate({ params: planIdParamsSchema }), c.submitDaily);
+
+  router.post('/daily/:id/changes', requireRole('FIELD'), validate({ params: planIdParamsSchema, body: requestDailyPlanChangeBodySchema }), c.requestChange);
+  router.get('/daily/:id/changes', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.listChanges);
 
   router.post('/monthly', requireRole('FIELD'), validate({ body: saveMonthlyPlanBodySchema }), c.saveMonthly);
   router.get('/monthly', requireRole('FIELD'), validate({ query: listMonthlyPlansQuerySchema }), c.listMonthly);

@@ -107,6 +107,7 @@ export class SubmitApprovalUseCase {
   }
 
   private async workflowFor(kind: string): Promise<ApprovalWorkflow> {
+    if (this.kinds.get(kind).managerOnly) return 'MANAGER_ONLY';
     const managerOnly = parseManagerOnlyKinds(await this.config.get(MANAGER_ONLY_KINDS_KEY));
     return managerOnly.has(kind.toUpperCase()) ? 'MANAGER_ONLY' : 'MANAGER_THEN_FINAL';
   }
