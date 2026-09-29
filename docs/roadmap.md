@@ -286,7 +286,9 @@ Field Activity, step by step (decision-log 2026-09-29):
 
 1. Decisions recorded; Identity `blockUser`; the module skeleton — **done** (2026-09-29)
 2. The DCR and the gate: one DCR per user per date, its approval in the approval module, and one check for
-   "may this MR log anything for this date?" (Plan approved, not blocked)
+   "may this MR log anything for this date?" (Plan approved, not blocked) — **done** (2026-09-29): 26 tests
+   and a 26-check live run (the gate's five refusals against a real approved Plan, `DCR_SUBMIT` through the
+   push, Identity `blockUser` under 6 simultaneous calls, rejection and resubmit)
 3. Calls, follow-ups and samples given: the server-side geofence, the Doctor still assigned, atomic sample
    draw-down
 4. Expenses (manual), every record kind registered into the sync push, and the DCR submit that depends on

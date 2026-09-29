@@ -10,6 +10,34 @@ cross-cutting mechanism in the HLD converges on: Approval (`hld/05`), Offline Sy
 (`hld/01`), TA/DA Auto-Calculation (`hld/06`), and Submission Gating (`hld/10`) all have Field
 Activity as their first, and in most cases only, real consumer.
 
+## Build status
+
+Built so far (Phase 6 Field Activity steps 1–2, `../roadmap.md`): the decisions below, the **DCR envelope**
+and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_SUBMIT`, reads of DCRs, and
+`hasQualifyingDcr` on the contract. Calls, follow-ups, expenses, review, TA/DA, Services and Gifts follow.
+
+- **The DCR** (`Dcr`: `userId`, `reportDate`) is one row per user per day — a unique index — created lazily
+  by the first record of the day or by the submit, in one atomic upsert, so simultaneous first records (two
+  phones, two pushes) share one envelope. It has no status of its own: it is `DRAFT` until it has a `DCR`
+  approval request (Employee → Manager → Admin), then that request's status.
+- **The gate** (`LoggingGate`) is the one check every write of the day goes through, in this order: the
+  employee isn't compliance-blocked (`USER_BLOCKED`); the day isn't in the future (`DATE_IN_FUTURE`) and is
+  the day the record was made — `clientCreatedAt` read in `BUSINESS_TIMEZONE`, so a record made at 00:30 IST
+  on the 6th belongs to the 6th though it is still the 5th in UTC (`DATE_MISMATCH`); the day's Plan is past
+  the manager, asked of Planning's `isDailyPlanApproved` and never compared here
+  (`DAILY_PLAN_NOT_APPROVED`) — the server's answer, whatever the phone's cache believed; and the day's DCR
+  isn't already sent (`DCR_LOCKED`; a rejected, withdrawn or reopened one can be added to again). Each is a
+  `GateRefusal` carrying that code, which the sync handlers turn into the record's `reason`.
+- **`DCR_SUBMIT`** is the last record of the day's push and `dependsOn` all the others, so it only runs when
+  every record before it applied. It goes through the same gate, creates the envelope if the day had no calls
+  (a meeting day is a valid report), and submits the `DCR` request in the sync engine's transaction; the
+  record's `serverId` is the DCR's id. Resubmitting after a rejection is a new cycle on the same request.
+  Payload: `{ "reportDate": "YYYY-MM-DD" }`.
+- **Reads:** `GET /dcr?from&to` (an employee's own; Admin names `userId`), `GET /dcr/team?from&to[&userId]`
+  (a manager's downline, read-only) and `GET /dcr/:id` (owner, their managers, Admin), each DCR with its status
+  and approval summary. Approving is `/api/approvals/*` with `kind=DCR`.
+- **Contract:** `hasQualifyingDcr(userId, date)` — true once `SUBMITTED`, `MANAGER_APPROVED` or `APPROVED`.
+
 ## What it owns
 
 Full fields in [`../erd/04-field-activity.md`](../erd/04-field-activity.md).
@@ -170,7 +198,8 @@ what needs a live connection or a role other than the MR's, all under `/api/fiel
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| `GET` | `/dcr` | FIELD (own, and the downline read-only), ADMIN | List and history of DCRs, each with its status and record counts |
+| `GET` | `/dcr` | FIELD (own), ADMIN (names `userId`) | List and history of DCRs, each with its status |
+| `GET` | `/dcr/team` | FIELD (managers) | The downline's DCRs, read-only |
 | `GET` | `/dcr/:id` | FIELD (owner, managers), ADMIN | One DCR with its calls, follow-ups and expenses — the manager's review screen, geofence flags included |
 | `POST` | `/dcr/:id/calls/:callId/override-geofence` | FIELD (the reviewing manager), ADMIN | Accept a `FAIL` / `UNVERIFIED` call (below) |
 | — | `/api/approvals/*` with `kind=DCR` | Manager, Admin | Approve / reject / withdraw the DCR — the approval module's endpoints |

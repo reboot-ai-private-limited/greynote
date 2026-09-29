@@ -61,7 +61,7 @@ export function buildContainers(): AppContainers {
   const fieldMasterData = buildFieldMasterDataContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
 
   // Tier 4 — Field Activity: the daily core (DCR, calls, expenses, TA/DA). It consumes almost everything below it.
-  const fieldActivity = buildFieldActivityContainer();
+  const fieldActivity = buildFieldActivityContainer(identity.contract, planning.contract, approval.contract, sync.contract, config.contract);
 
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.

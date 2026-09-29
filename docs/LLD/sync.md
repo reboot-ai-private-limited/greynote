@@ -97,8 +97,9 @@ Only a malformed envelope (or no login) is a 4xx.
 | Kind | Owner | What it does | Refusals |
 |---|---|---|---|
 | `NEW_DOCTOR` | Field Master Data | A Doctor the MR added offline: created `pending` with the phone's location and sent for approval (Employee → Manager → Admin), exactly as `POST /field-master-data/doctors/added` does, in the engine's transaction. The record's `serverId` is the Doctor's id. The client id is the Doctor's `clientRequestId`, so an id already used — directly or by an earlier push — returns that Doctor, never a second | `INVALID_PAYLOAD` (names the first bad field), `ROUTE_NOT_ASSIGNED` (Admin took the Route away while the phone was offline — the drift case of HLD 01 §1.4; the MR picks another), `ADDED_AT_THE_SAME_TIME` |
+| `DCR_SUBMIT` | Field Activity | The day's Final Submission: the DCR goes to the manager as a `DCR` approval request, in the engine's transaction. It `dependsOn` every other record of the day, so a day with a failed record isn't submitted. The `serverId` is the DCR's id. Payload `{ reportDate }` | `INVALID_PAYLOAD`; the gate's codes `USER_BLOCKED`, `DAILY_PLAN_NOT_APPROVED`, `DATE_IN_FUTURE`, `DATE_MISMATCH`, `DCR_LOCKED` |
 
-Phase 6 adds the calls, follow-ups, expenses, orders, gifts, services and the DCR submit. Payload
+Phase 6 adds the calls, follow-ups, expenses, orders, gifts and services. Payload
 fields for `NEW_DOCTOR`: `routeId`, `category`, `name`, `address`, `specialty`, `qualification`,
 `email` (optional) and `location` `{ latitude, longitude }` — the same rules as the direct endpoint.
 
