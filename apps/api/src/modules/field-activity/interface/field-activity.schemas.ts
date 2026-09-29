@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { WORKING_TYPES } from '@greynote/contracts';
+import { paiseSchema } from '@/shared/money/paise.js';
+import { MANUAL_EXPENSE_TYPES } from '../domain/expense.entity.js';
 import { calendarDateSchema } from '@/shared/time/calendarSchemas.js';
 
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
@@ -43,3 +45,11 @@ export const doctorCallPayloadSchema = z
 export const chemistCallPayloadSchema = z.object({ ...callFields, chemistId: objectIdSchema });
 export const doctorFollowupPayloadSchema = z.object({ reportDate: calendarDateSchema, doctorId: objectIdSchema, remarks: z.string().trim().min(1, 'Remarks are required.').max(1000) });
 export const chemistFollowupPayloadSchema = z.object({ reportDate: calendarDateSchema, chemistId: objectIdSchema, remarks: z.string().trim().min(1, 'Remarks are required.').max(1000) });
+
+/** A manual expense: an MR-claimed TRAVEL, MEAL or MISC amount in whole paise. TA and DA are computed by the server, never sent. */
+export const expensePayloadSchema = z.object({
+  reportDate: calendarDateSchema,
+  type: z.enum(MANUAL_EXPENSE_TYPES),
+  amountPaise: paiseSchema.refine((v) => v > 0, 'The amount must be more than zero.'),
+  remarks: remarksSchema,
+});

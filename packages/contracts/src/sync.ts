@@ -65,7 +65,7 @@ export interface SyncPushResponse {
 export const SYNC_ENGINE_CODES = ['DEPENDENCY_FAILED', 'INVALID_DEPENDENCY', 'UNKNOWN_KIND', 'CLIENT_TIME_INVALID', 'INTERNAL'] as const;
 
 /** The record kinds the server accepts today; Phase 6 adds the calls, expenses, orders, gifts, services and the DCR submit. */
-export const SYNC_RECORD_KINDS = ['NEW_DOCTOR', 'DCR_SUBMIT', 'DOCTOR_CALL', 'CHEMIST_CALL', 'DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP'] as const;
+export const SYNC_RECORD_KINDS = ['NEW_DOCTOR', 'DCR_SUBMIT', 'DOCTOR_CALL', 'CHEMIST_CALL', 'DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP', 'EXPENSE'] as const;
 export type SyncRecordKind = (typeof SYNC_RECORD_KINDS)[number];
 
 /** A Doctor the MR added offline (the same fields as `POST /field-master-data/doctors/added`, minus the client id). */
@@ -111,6 +111,18 @@ export interface ChemistFollowupPayload {
   reportDate: string;
   chemistId: string;
   remarks: string;
+}
+
+/** What an MR may claim by hand; TA and DA are the server's to compute and are never sent. */
+export const MANUAL_EXPENSE_TYPES = ['TRAVEL', 'MEAL', 'MISC'] as const;
+export type ManualExpenseType = (typeof MANUAL_EXPENSE_TYPES)[number];
+
+/** A manual expense (`EXPENSE`), in whole paise and more than zero. */
+export interface ExpensePayload {
+  reportDate: string;
+  type: ManualExpenseType;
+  amountPaise: number;
+  remarks?: string | null;
 }
 
 /** What a call's result `data` carries back: the server's own geofence answer, which replaces the phone's. */

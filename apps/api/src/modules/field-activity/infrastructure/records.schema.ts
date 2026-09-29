@@ -91,6 +91,43 @@ const followupSchema = new Schema<FollowupDoc>({
 followupSchema.index({ dcrId: 1, recordedAt: 1 });
 followupSchema.index({ userId: 1, clientId: 1 }, { unique: true });
 
+export interface ExpenseDoc {
+  dcrId: Types.ObjectId;
+  userId: Types.ObjectId;
+  reportDate: string;
+  routeId: Types.ObjectId | null;
+  type: 'TA' | 'DA' | 'TRAVEL' | 'MEAL' | 'MISC';
+  source: 'AUTO' | 'MANUAL';
+  amountPaise: number;
+  remarks: string | null;
+  paymentStatus: 'UNPAID' | 'PAID' | 'CANCELLED';
+  distanceFlag: boolean;
+  paidBy: Types.ObjectId | null;
+  paidAt: Date | null;
+  clientId: string | null;
+  recordedAt: Date;
+}
+const expenseSchema = new Schema<ExpenseDoc>({
+  dcrId: ref('Dcr'),
+  userId: ref('User'),
+  reportDate: { type: String, required: true },
+  routeId: { type: Schema.Types.ObjectId, default: null, ref: 'Route' },
+  type: { type: String, required: true, enum: ['TA', 'DA', 'TRAVEL', 'MEAL', 'MISC'] },
+  source: { type: String, required: true, enum: ['AUTO', 'MANUAL'] },
+  amountPaise: { type: Number, required: true, min: 0 },
+  remarks: { type: String, default: null },
+  paymentStatus: { type: String, required: true, enum: ['UNPAID', 'PAID', 'CANCELLED'], default: 'UNPAID' },
+  distanceFlag: { type: Boolean, default: false },
+  paidBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
+  paidAt: { type: Date, default: null },
+  clientId: { type: String, default: null },
+  recordedAt: { type: Date, required: true },
+});
+expenseSchema.index({ dcrId: 1, recordedAt: 1 });
+// One MANUAL expense per phone record; AUTO rows have no client id and are left out of the index.
+expenseSchema.index({ userId: 1, clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } });
+
+export const ExpenseModel = model<ExpenseDoc>('Expense', expenseSchema);
 export const DoctorCallModel = model<DoctorCallDoc>('DoctorCall', doctorCallSchema);
 export const ChemistCallModel = model<ChemistCallDoc>('ChemistCall', chemistCallSchema);
 export const FollowupModel = model<FollowupDoc>('Followup', followupSchema);

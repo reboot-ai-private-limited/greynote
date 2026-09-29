@@ -12,10 +12,10 @@ Activity as their first, and in most cases only, real consumer.
 
 ## Build status
 
-Built so far (Phase 6 Field Activity steps 1–3, `../roadmap.md`): the decisions below, the **DCR envelope**
+Built so far (Phase 6 Field Activity steps 1–4, `../roadmap.md`): the decisions below, the **DCR envelope**
 and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_SUBMIT`, reads of DCRs,
-`hasQualifyingDcr` on the contract, and **calls, follow-ups and samples given** as four sync kinds.
-Expenses, review, TA/DA, Services and Gifts follow.
+`hasQualifyingDcr` on the contract, and **calls, follow-ups and samples given** as four sync kinds, and
+**manual expenses** as the sync kind `EXPENSE`. Review, TA/DA, Services and Gifts follow.
 
 - **The DCR** (`Dcr`: `userId`, `reportDate`) is one row per user per day — a unique index — created lazily
   by the first record of the day or by the submit, in one atomic upsert, so simultaneous first records (two
@@ -51,6 +51,13 @@ Expenses, review, TA/DA, Services and Gifts follow.
   (`decrementRemaining`), inside the record's transaction, so a line that cannot be met (`SAMPLES_EXHAUSTED`,
   saying how many remain; `NO_SAMPLE_ALLOCATION`) undoes the whole call including earlier lines; simultaneous
   calls can never take the allocation below zero.
+- **Manual expenses (step 4)** are the sync kind `EXPENSE`, payload `{ reportDate, type, amountPaise, remarks? }`
+  with `type` one of `TRAVEL`, `MEAL`, `MISC` and the amount a whole number of paise above zero. It goes through
+  the same gate, is stored `source: MANUAL`, `paymentStatus: UNPAID`, unique on (`userId`, `clientId`), and shows
+  in `GET /dcr/:id` as `expenses`. `TA` and `DA` are refused as `INVALID_PAYLOAD`: the server alone computes
+  them (step 6). The `Expense` row already carries the AUTO fields (`routeId`, `distanceFlag`) and
+  `paidBy`/`paidAt`, so steps 6 and 8 add behaviour, not schema. The DCR submit's `dependsOn` already covers
+  every record kind, expenses included, so a day with a refused expense is not submitted.
 - **Contract:** `hasQualifyingDcr(userId, date)` — true once `SUBMITTED`, `MANAGER_APPROVED` or `APPROVED`.
 
 ## What it owns

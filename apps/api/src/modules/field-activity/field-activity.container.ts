@@ -8,6 +8,8 @@ import { DcrViews } from './application/dcrViews.js';
 import { HasQualifyingDcrUseCase } from './application/usecases/hasQualifyingDcr.usecase.js';
 import { CallChecks } from './application/callChecks.js';
 import { makeCallSyncHandlers } from './application/callsSync.js';
+import { makeExpenseSyncHandler } from './application/expenseSync.js';
+import { LogExpenseUseCase } from './application/usecases/logExpense.usecase.js';
 import { GeofenceEvaluator } from './application/geofenceEvaluator.js';
 import { LoggingGate } from './application/loggingGate.js';
 import { GetDcrDetailUseCase } from './application/usecases/getDcrDetail.usecase.js';
@@ -21,7 +23,7 @@ import type { TerritoryPort } from './domain/territory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import type { FieldActivityPublicContract } from './field-activity.public.js';
 import { MongoDcrAdapter } from './infrastructure/mongoDcr.adapter.js';
-import { MongoChemistCallAdapter, MongoDoctorCallAdapter, MongoFollowupAdapter } from './infrastructure/mongoRecords.adapter.js';
+import { MongoChemistCallAdapter, MongoDoctorCallAdapter, MongoExpenseAdapter, MongoFollowupAdapter } from './infrastructure/mongoRecords.adapter.js';
 import { makeFieldActivityControllers } from './interface/field-activity.controller.js';
 import { buildFieldActivityRouter } from './interface/field-activity.route.js';
 import {
@@ -30,6 +32,7 @@ import {
   dcrSubmitPayloadSchema,
   doctorCallPayloadSchema,
   doctorFollowupPayloadSchema,
+  expensePayloadSchema,
 } from './interface/field-activity.schemas.js';
 
 export interface FieldActivityContainer {
@@ -60,6 +63,7 @@ export function buildFieldActivityContainer(
   const doctorCalls = new MongoDoctorCallAdapter();
   const chemistCalls = new MongoChemistCallAdapter();
   const followups = new MongoFollowupAdapter();
+  const expenses = new MongoExpenseAdapter();
 
   // A DCR goes manager, then Admin (client F1); TA/DA generation and its cancellation hook in here in later steps.
   approvals.registerKind({ kind: DCR_KIND, finalApproverRoles: ['ADMIN'] });
@@ -87,6 +91,7 @@ export function buildFieldActivityContainer(
   })) {
     sync.registerHandler(definition);
   }
+  sync.registerHandler(makeExpenseSyncHandler(new LogExpenseUseCase(gate, expenses), (payload) => expensePayloadSchema.parse(payload)));
   sync.registerHandler(makeDcrSubmitSyncHandler(submitDcr, (payload) => dcrSubmitPayloadSchema.parse(payload)));
 
   return {
@@ -99,7 +104,7 @@ export function buildFieldActivityContainer(
           listMine: new ListMyDcrsUseCase(dcrs, views),
           listAll: new ListAllDcrsUseCase(dcrs, users, views),
           listTeam: new ListTeamDcrsUseCase(dcrs, users, views),
-          get: new GetDcrDetailUseCase(new GetDcrUseCase(dcrs, users, views), doctorCalls, chemistCalls, followups, master),
+          get: new GetDcrDetailUseCase(new GetDcrUseCase(dcrs, users, views), doctorCalls, chemistCalls, followups, expenses, master),
         }),
       ),
   };

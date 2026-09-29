@@ -22,7 +22,7 @@ function asRejection(err: unknown): unknown {
 }
 
 /** Parse the payload, run the use case, translate its refusals — the same wrapping for every kind. */
-function handler<Input, Output extends { serverId: string }>(kind: string, parse: (payload: unknown) => Input, run: (rec: { userId: string; clientId: string; recordedAt: Date }, input: Input, ctx: unknown) => Promise<Output>): SyncHandlerDefinition {
+export function recordHandler<Input, Output extends { serverId: string }>(kind: string, parse: (payload: unknown) => Input, run: (rec: { userId: string; clientId: string; recordedAt: Date }, input: Input, ctx: unknown) => Promise<Output>): SyncHandlerDefinition {
   return {
     kind,
     async apply({ userId, clientId, clientCreatedAt, payload }, ctx) {
@@ -57,12 +57,12 @@ export function makeCallSyncHandlers(deps: {
   };
 }): SyncHandlerDefinition[] {
   return [
-    handler(DOCTOR_CALL_SYNC_KIND, deps.parse.doctorCall, (rec, input, ctx) => deps.doctorCall.execute(rec, input, ctx)),
-    handler(CHEMIST_CALL_SYNC_KIND, deps.parse.chemistCall, (rec, input, ctx) => deps.chemistCall.execute(rec, input, ctx)),
-    handler(DOCTOR_FOLLOWUP_SYNC_KIND, deps.parse.doctorFollowup, (rec, p, ctx) =>
+    recordHandler(DOCTOR_CALL_SYNC_KIND, deps.parse.doctorCall, (rec, input, ctx) => deps.doctorCall.execute(rec, input, ctx)),
+    recordHandler(CHEMIST_CALL_SYNC_KIND, deps.parse.chemistCall, (rec, input, ctx) => deps.chemistCall.execute(rec, input, ctx)),
+    recordHandler(DOCTOR_FOLLOWUP_SYNC_KIND, deps.parse.doctorFollowup, (rec, p, ctx) =>
       deps.followup.execute(rec, { reportDate: p.reportDate, subject: 'DOCTOR', subjectId: p.doctorId, remarks: p.remarks }, ctx),
     ),
-    handler(CHEMIST_FOLLOWUP_SYNC_KIND, deps.parse.chemistFollowup, (rec, p, ctx) =>
+    recordHandler(CHEMIST_FOLLOWUP_SYNC_KIND, deps.parse.chemistFollowup, (rec, p, ctx) =>
       deps.followup.execute(rec, { reportDate: p.reportDate, subject: 'CHEMIST', subjectId: p.chemistId, remarks: p.remarks }, ctx),
     ),
   ];

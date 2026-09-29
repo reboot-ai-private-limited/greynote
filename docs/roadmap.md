@@ -294,7 +294,9 @@ Field Activity, step by step (decision-log 2026-09-29):
    and replayed, 8 simultaneous sample draws → exactly the stock, rollback of a half-met sample list,
    assignment drift, radius changed in System Config taking effect on the next call)
 4. Expenses (manual), every record kind registered into the sync push, and the DCR submit that depends on
-   them all
+   them all — **done** (2026-09-29): the `EXPENSE` kind; 531 tests and a 13-check live run (a day of three
+   expenses + the submit sent out of order, replay, decimal/zero/TA/DA refused, 6 simultaneous pushes of one
+   expense → one row). Gifts and Services register their kinds in step 7, orders in Sales
 5. DCR review: manager approve / reject, the geofence override
 6. TA/DA auto-generation at the manager's approval, and its cancellation
 7. Doctor Service (approval) and Doctor Gift (Admin allocates, MR marks done)

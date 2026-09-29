@@ -1,8 +1,9 @@
 import { Types, type ClientSession } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { ChemistCall, DoctorCall, Followup, GeofenceOutcome } from '../domain/call.entity.js';
-import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, FollowupRepositoryPort } from '../domain/records.repository.port.js';
-import { ChemistCallModel, DoctorCallModel, FollowupModel, type ChemistCallDoc, type DoctorCallDoc, type FollowupDoc } from './records.schema.js';
+import type { Expense } from '../domain/expense.entity.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseRepositoryPort, FollowupRepositoryPort } from '../domain/records.repository.port.js';
+import { ChemistCallModel, DoctorCallModel, ExpenseModel, FollowupModel, type ChemistCallDoc, type DoctorCallDoc, type ExpenseDoc, type FollowupDoc } from './records.schema.js';
 
 const oid = (id: string) => new Types.ObjectId(id);
 const session = (ctx: TransactionContext) => ({ session: ctx as ClientSession });
@@ -102,5 +103,36 @@ export class MongoFollowupAdapter implements FollowupRepositoryPort {
   }
   async listForDcr(dcrId: string): Promise<Followup[]> {
     return (await FollowupModel.find({ dcrId: oid(dcrId) }).sort({ recordedAt: 1, _id: 1 }).lean()).map(toFollowup);
+  }
+}
+
+const toExpense = (d: ExpenseDoc & { _id: unknown }): Expense => ({
+  id: String(d._id),
+  dcrId: String(d.dcrId),
+  userId: String(d.userId),
+  reportDate: d.reportDate,
+  routeId: d.routeId ? String(d.routeId) : null,
+  type: d.type,
+  source: d.source,
+  amountPaise: d.amountPaise,
+  remarks: d.remarks,
+  paymentStatus: d.paymentStatus,
+  distanceFlag: d.distanceFlag,
+  paidBy: d.paidBy ? String(d.paidBy) : null,
+  paidAt: d.paidAt,
+  clientId: d.clientId,
+  recordedAt: d.recordedAt,
+});
+
+export class MongoExpenseAdapter implements ExpenseRepositoryPort {
+  async create(input: Omit<Expense, 'id'>, ctx: TransactionContext): Promise<Expense> {
+    const [doc] = await ExpenseModel.create(
+      [{ ...input, dcrId: oid(input.dcrId), userId: oid(input.userId), routeId: input.routeId ? oid(input.routeId) : null, paidBy: input.paidBy ? oid(input.paidBy) : null }],
+      session(ctx),
+    );
+    return toExpense(doc!.toObject());
+  }
+  async listForDcr(dcrId: string): Promise<Expense[]> {
+    return (await ExpenseModel.find({ dcrId: oid(dcrId) }).sort({ recordedAt: 1, _id: 1 }).lean()).map(toExpense);
   }
 }

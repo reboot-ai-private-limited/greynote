@@ -102,6 +102,7 @@ Only a malformed envelope (or no login) is a 4xx.
 | `CHEMIST_CALL` | Field Activity | A call on a Chemist; same shape without samples. `data` is `{ geofence }` | `INVALID_PAYLOAD`, the gate's codes, `CHEMIST_NOT_FOUND`, `CHEMIST_ROUTE_NOT_ASSIGNED`, `INVALID_WORK_WITH` |
 | `DOCTOR_FOLLOWUP` | Field Activity | A follow-up note on a Doctor, on the day's DCR | `INVALID_PAYLOAD`, the gate's codes, `DOCTOR_NOT_FOUND`, `DOCTOR_NOT_ASSIGNED` |
 | `CHEMIST_FOLLOWUP` | Field Activity | A follow-up note on a Chemist | `INVALID_PAYLOAD`, the gate's codes, `CHEMIST_NOT_FOUND`, `CHEMIST_ROUTE_NOT_ASSIGNED` |
+| `EXPENSE` | Field Activity | A manual expense on the day's DCR: `TRAVEL`, `MEAL` or `MISC`, whole paise above zero, stored `MANUAL` and `UNPAID`. TA and DA are never sent — the server computes them | `INVALID_PAYLOAD` (a decimal, zero, TA/DA), the gate's codes |
 
 Phase 6 adds the calls, follow-ups, expenses, orders, gifts and services. Payload
 fields for `NEW_DOCTOR`: `routeId`, `category`, `name`, `address`, `specialty`, `qualification`,

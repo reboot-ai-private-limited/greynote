@@ -1,4 +1,5 @@
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
+import type { Expense } from './expense.entity.js';
 import type { ChemistCall, DoctorCall, Followup } from './call.entity.js';
 
 export interface DoctorCallRepositoryPort {
@@ -12,4 +13,8 @@ export interface ChemistCallRepositoryPort {
 export interface FollowupRepositoryPort {
   create(input: Omit<Followup, 'id'>, ctx: TransactionContext): Promise<Followup>;
   listForDcr(dcrId: string): Promise<Followup[]>;
+}
+export interface ExpenseRepositoryPort {
+  create(input: Omit<Expense, 'id'>, ctx: TransactionContext): Promise<Expense>;
+  listForDcr(dcrId: string): Promise<Expense[]>;
 }

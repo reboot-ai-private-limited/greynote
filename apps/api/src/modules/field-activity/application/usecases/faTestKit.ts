@@ -7,12 +7,14 @@ import type { Dcr } from '../../domain/dcr.entity.js';
 import type { DcrRepositoryPort } from '../../domain/dcr.repository.port.js';
 import type { PlanningPort } from '../../domain/planning.port.js';
 import type { ChemistCall, DoctorCall, Followup } from '../../domain/call.entity.js';
+import type { Expense } from '../../domain/expense.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
-import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseRepositoryPort, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { CallChecks } from '../callChecks.js';
 import { GeofenceEvaluator } from '../geofenceEvaluator.js';
+import { LogExpenseUseCase } from './logExpense.usecase.js';
 import { LogChemistCallUseCase, LogDoctorCallUseCase, LogFollowupUseCase } from './logCalls.usecase.js';
 import { DcrClock } from '../dcrClock.js';
 import { DcrViews } from '../dcrViews.js';
@@ -213,6 +215,7 @@ class FakeCalls<T extends { id: string; dcrId: string }> {
 export class FakeDoctorCalls extends FakeCalls<DoctorCall> implements DoctorCallRepositoryPort {}
 export class FakeChemistCalls extends FakeCalls<ChemistCall> implements ChemistCallRepositoryPort {}
 export class FakeFollowups extends FakeCalls<Followup> implements FollowupRepositoryPort {}
+export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositoryPort {}
 
 /** 2026-10-05 12:00 IST — a working day well inside the business day. */
 export function faKit(nowIso = '2026-10-05T06:30:00Z') {
@@ -231,10 +234,12 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const doctorCalls = new FakeDoctorCalls();
   const chemistCalls = new FakeChemistCalls();
   const followups = new FakeFollowups();
+  const expenses = new FakeExpenses();
   const checks = new CallChecks(fmd, territory, users);
   const geofence = new GeofenceEvaluator(config);
   const logDoctorCall = new LogDoctorCallUseCase(gate, checks, geofence, fmd, doctorCalls);
   const logChemistCall = new LogChemistCallUseCase(gate, checks, geofence, fmd, chemistCalls);
   const logFollowup = new LogFollowupUseCase(gate, checks, followups);
-  return { users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, logDoctorCall, logChemistCall, logFollowup };
+  const logExpense = new LogExpenseUseCase(gate, expenses);
+  return { users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, expenses, logDoctorCall, logChemistCall, logFollowup, logExpense };
 }
