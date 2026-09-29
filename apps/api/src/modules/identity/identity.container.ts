@@ -19,6 +19,7 @@ import { GetPayBandRatesUseCase } from './application/usecases/getPayBandRates.u
 import { GetUserDetailUseCase } from './application/usecases/getUserDetail.usecase.js';
 import { GetUserSummariesUseCase } from './application/usecases/getUserSummaries.usecase.js';
 import { GetUserSummaryUseCase } from './application/usecases/getUserSummary.usecase.js';
+import { BlockUserUseCase } from './application/usecases/blockUser.usecase.js';
 import { IsBlockedUseCase } from './application/usecases/isBlocked.usecase.js';
 import { IsFieldRoleUseCase } from './application/usecases/isFieldRole.usecase.js';
 import { ListDesignationsUseCase } from './application/usecases/listDesignations.usecase.js';
@@ -163,6 +164,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const listUsers = new ListUsersUseCase(userRepository, roleRepository, employeeProfileRepository);
   const uploadUserDocument = new UploadUserDocumentUseCase(userRepository, employeeProfileRepository, documentStorage);
   const removeUserDocument = new RemoveUserDocumentUseCase(employeeProfileRepository, documentStorage);
+  const blockUser = new BlockUserUseCase(userRepository, roleRepository, complianceBlockRepository, transactionRunner);
   const unblockUser = new UnblockUserUseCase(userRepository, complianceBlockRepository, transactionRunner);
   const resetPassword = new ResetPasswordUseCase(userRepository, userSessionRepository, passwordHasher);
   const getUserDetail = new GetUserDetailUseCase(
@@ -238,6 +240,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       getDownline: (managerId) => getDownline.execute(managerId),
       isFieldRole: (userId) => isFieldRole.execute(userId),
       isBlocked: (userId) => isBlocked.execute(userId),
+      blockUser: (userId, reason) => blockUser.execute(userId, reason),
       getEmploymentDetails: (userId) => getEmploymentDetails.execute(userId),
       listPayBands: async () => (await listPayBands.execute()).map(({ id, name }) => ({ id, name })),
       getPayBandRates: (userId) => getPayBandRates.execute(userId),

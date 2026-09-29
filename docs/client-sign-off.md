@@ -119,3 +119,14 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | G8 | Money in the system: rupees with paise, or another unit? | Whole numbers of **paise** everywhere (₹1 = 100). Rates are paise (₹7.50/km = 750) | Accepted 2026-09-29 |
 | G9 | Can the phone back up the day's unsent records automatically, so a lost or broken phone doesn't lose the day? | Yes, as a **private draft backup**: whenever the phone has a connection it uploads its draft records to a holding area on the server that no manager, Admin, report, count, stock, sample balance, Plan gate or compliance check can see. Submit is still the only commit. Logging in on a new phone restores the day's drafts. Drafts are deleted on a successful Submit and purged after a while (*config* `SYNC_DRAFT_TTL_DAYS`) | Accepted 2026-09-29 |
 | G10 | On Submit, does the phone end up matching the server? | Yes — Submit sends the final records, the server commits them and returns *its* version of each (recomputed geofence, assigned ids, per-record failures), the phone replaces its local copies with those and refreshes its reference data. The server's answer wins | Accepted 2026-09-29 |
+
+## H. Field Activity (Phase 6)
+
+| # | Question | Today | Status |
+|---|---|---|---|
+| H1 | A call outside the radius (or with no reference location / a weak GPS reading): what can the manager do? | It is flagged, never refused. The reviewing manager can accept a flagged call with a required comment (`OVERRIDE`), separately from approving or rejecting the day | Accepted 2026-09-29 |
+| H2 | If Admin rejects a DCR at the final stage after the manager approved it, what happens to its auto-calculated TA/DA? | The unpaid auto rows are cancelled; any already paid are left and reported | Accepted 2026-09-29 |
+| H3 | Manual expenses (§9.2, see F2): limits and receipts? | No per-category limit and no receipt photo for now | Accepted 2026-09-29 (working assumption, F2 still open) |
+| H4 | Doctor Service types (see C8). | Tour package, gift, online promotion, others | Accepted 2026-09-29 (working assumption, C8 still open) |
+| H5 | The missed-DCR block: when does a day count as reported, and how is it triggered? | The DCR counts once submitted (see B7); an approved leave excuses the day; a script run daily by the operator applies the block — after `DCR_MISS_GRACE_DAYS` (default 1) missed days, switchable with `DCR_MISS_BLOCK_ENABLED` | Accepted 2026-09-29 |
+

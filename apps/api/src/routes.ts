@@ -14,6 +14,7 @@ export function buildApiRouter(containers: AppContainers): Router {
   router.use('/hr', containers.hr.buildRouter());
   router.use('/field-master-data', containers.fieldMasterData.buildRouter());
   router.use('/sync', containers.sync.buildRouter());
+  router.use('/field-activity', containers.fieldActivity.buildRouter());
 
   return router;
 }

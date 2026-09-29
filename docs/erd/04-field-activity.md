@@ -47,6 +47,10 @@ erDiagram
         decimal captured_longitude
         decimal accuracy_meters "the phone's reported GPS accuracy"
         string geofence_status "PASS, FAIL, UNVERIFIED, OVERRIDE"
+        int geofence_distance_meters "nullable - the server's computed distance, kept when overridden"
+        uuid geofence_overridden_by FK "nullable - the manager who accepted a FAIL/UNVERIFIED"
+        timestamp geofence_overridden_at "nullable"
+        string geofence_override_comment "nullable - required when overridden"
         timestamp created_at
     }
     DOCTOR_SAMPLE_GIVEN {
@@ -90,7 +94,8 @@ erDiagram
         string source "AUTO (system-calculated TA/DA), MANUAL (logged by MR)"
         int amount_paise
         string remarks
-        string payment_status "UNPAID, PAID - separate from the DCR approval status"
+        string payment_status "UNPAID, PAID, CANCELLED - separate from the DCR approval status; CANCELLED only for an unpaid AUTO row whose DCR Admin later rejected"
+        bool distance_flag "AUTO TA only - a route's distance could not be calculated, so this TA is artificially low"
         uuid paid_by FK "nullable - Accountant who marked it paid"
         timestamp paid_at "nullable"
         timestamp created_at

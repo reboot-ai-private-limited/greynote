@@ -1,5 +1,6 @@
 import { buildApprovalContainer } from '@/modules/approval/approval.container.js';
 import { buildConfigContainer } from '@/modules/config/config.container.js';
+import { buildFieldActivityContainer } from '@/modules/field-activity/field-activity.container.js';
 import { buildFieldMasterDataContainer } from '@/modules/field-master-data/field-master-data.container.js';
 import { buildHealthContainer } from '@/modules/health/health.container.js';
 import { buildHrContainer } from '@/modules/hr/hr.container.js';
@@ -18,6 +19,7 @@ export interface AppContainers {
   planning: ReturnType<typeof buildPlanningContainer>;
   hr: ReturnType<typeof buildHrContainer>;
   sync: ReturnType<typeof buildSyncContainer>;
+  fieldActivity: ReturnType<typeof buildFieldActivityContainer>;
   fieldMasterData: ReturnType<typeof buildFieldMasterDataContainer>;
 }
 
@@ -58,9 +60,12 @@ export function buildContainers(): AppContainers {
   // and auto-assign switches (Config).
   const fieldMasterData = buildFieldMasterDataContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
 
+  // Tier 4 — Field Activity: the daily core (DCR, calls, expenses, TA/DA). It consumes almost everything below it.
+  const fieldActivity = buildFieldActivityContainer();
+
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
-  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync };
+  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync, fieldActivity };
 }

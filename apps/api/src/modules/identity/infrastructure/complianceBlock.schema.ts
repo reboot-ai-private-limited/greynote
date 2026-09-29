@@ -18,5 +18,8 @@ const complianceBlockSchema = new Schema<ComplianceBlockDoc>({
 
 // Backs `findOpenByUserId` — always filtered by userId first, then the open (unblockedAt: null) one.
 complianceBlockSchema.index({ userId: 1, unblockedAt: 1 });
+// At most ONE open block per user, enforced by the database, so two runs of the compliance job (or a job
+// racing an Admin) can't leave two open events of which Unblock would close only one.
+complianceBlockSchema.index({ userId: 1 }, { unique: true, partialFilterExpression: { unblockedAt: null } });
 
 export const ComplianceBlockModel = model<ComplianceBlockDoc>('ComplianceBlock', complianceBlockSchema);

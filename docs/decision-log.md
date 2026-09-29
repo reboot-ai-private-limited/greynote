@@ -17,6 +17,43 @@ old one.
 
 ---
 
+## 2026-09-29 — Field Activity's write path, override, TA/DA timing and compliance job
+
+**Decision:** Phase 6 builds Field Activity on these choices (sign-off group H):
+
+- **Records arrive through the sync push, not a POST each.** Calls, follow-ups, expenses, Doctor
+  Services, Gifts marked done and the DCR's own submit are sync record kinds; the DCR submit depends on
+  every other record of the day. REST stays for reads, the manager's review, Admin's gift and service
+  creation, and the Accountant's mark-paid.
+- **`FAIL → OVERRIDE` is a manager action on the call**, with a required comment, recorded with who and
+  when, separate from approving the DCR, allowed only on a `FAIL` / `UNVERIFIED` call.
+- **TA/DA is generated once, at the manager's approval;** if Admin later rejects at the final stage the
+  unpaid auto rows are `CANCELLED` and any paid ones are left and reported.
+- **The missed-DCR job is a script the operator runs daily by cron**, idempotent through Identity's new
+  `blockUser` — no scheduler is added to the application.
+- Open client rows (F2 expense limits and receipts, C8 service types, D2 Night Stay, D6 holiday TA/DA,
+  B7 attendance) are built around with working assumptions, not guessed at.
+
+**Replaces:** the field-activity LLD's per-record `POST /dcr/:id/...` endpoints and its open note on the
+override's shape.
+
+**Why:** the write path follows from the sync design already accepted (one submit, per-record results,
+idempotent on the client id) — a second, REST way to create the same records would have to be kept
+consistent with it for no gain. The override is per-call so a manager's judgement on one flagged visit
+doesn't force a verdict on the day. Generating TA/DA at the manager stage matches HLD 06; cancelling only
+*unpaid* rows keeps a payment that has happened out of automatic reversal. A script matches how the
+project already runs one-off and periodic operations, and needs no new infrastructure to be reliable.
+
+**Costs:** the phone can't create a call online without a Submit — acceptable, since Submit is the only
+commit; Admin's cancellation of unpaid TA/DA needs an audit trail on the expense (`CANCELLED`, with the
+reason on the approval history); a missed run of the script means blocks apply a day late, which the
+grace already tolerates. Identity gained `blockUser` and a database rule of one open block per user.
+
+**Refs:** [`LLD/field-activity.md`](LLD/field-activity.md), [`client-sign-off.md`](client-sign-off.md) H1–H5,
+[`hld/10-submission-gating-and-compliance-block.md`](hld/10-submission-gating-and-compliance-block.md)
+
+---
+
 ## 2026-09-29 — Marketing moves up to Tier 5; B9, G1 and G9 confirmed
 
 **Decision:** `marketing` moves from Tier 4 to **Tier 5, beside `payroll`**, so it can read Sales &

@@ -282,6 +282,23 @@ where the two shared mechanisms from Phases 3 and 5 get their real consumers.
 - **Marketing** (ERD Module 8): Visuals/Campaigns, Targets (including the downline-sum rollup —
   `hld/08-target-rollup.md`)
 
+Field Activity, step by step (decision-log 2026-09-29):
+
+1. Decisions recorded; Identity `blockUser`; the module skeleton — **done** (2026-09-29)
+2. The DCR and the gate: one DCR per user per date, its approval in the approval module, and one check for
+   "may this MR log anything for this date?" (Plan approved, not blocked)
+3. Calls, follow-ups and samples given: the server-side geofence, the Doctor still assigned, atomic sample
+   draw-down
+4. Expenses (manual), every record kind registered into the sync push, and the DCR submit that depends on
+   them all
+5. DCR review: manager approve / reject, the geofence override
+6. TA/DA auto-generation at the manager's approval, and its cancellation
+7. Doctor Service (approval) and Doctor Gift (Admin allocates, MR marks done)
+8. The Accountant's mark-paid, and the contract (`getPaidTaDaTotal`, `hasQualifyingDcr`, `getDcrSummary`)
+9. The missed-DCR compliance script
+10. A `fieldActivity` pull source and the shared contract types
+11. Live run: a full day end to end
+
 **Done when:** a full DCR day — Plan approved → Dr Call logged with location check → Expense
 logged → TA/DA computed → Final Submission — works end to end for a seeded MR and their manager
 chain; an MR cannot log field activity for a day whose Plan isn't approved; Orders and stock

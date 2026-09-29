@@ -27,6 +27,12 @@ export interface IdentityPublicContract {
   isFieldRole(userId: string): Promise<boolean>;
   /** Whether a compliance block (HLD 10) stops this user submitting anything new. */
   isBlocked(userId: string): Promise<boolean>;
+  /**
+   * Blocks an active field employee (HLD 10) — the missed-DCR job's trigger. Records the event and sets the
+   * flag in one transaction. `true` if this call blocked them, `false` if they were already blocked
+   * (idempotent, safe to run twice). Only Admin can clear it, through Identity's own endpoint.
+   */
+  blockUser(userId: string, reason: string): Promise<boolean>;
   /** Pay Band and joining date (FIELD only); `null` without an EmployeeProfile. */
   getEmploymentDetails(userId: string): Promise<EmploymentDetails | null>;
   getPayBandRates(userId: string): Promise<PayBand>;

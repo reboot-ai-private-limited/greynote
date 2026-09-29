@@ -155,32 +155,68 @@ implementing, don't re-derive it from this summary alone.
   logic in this module's use case, calling Field Master Data's contract (not a schema-level
   constraint, per the ERD's own note); reject the call write if the allocation can't cover the
   quantity requested, rather than allowing a negative remaining balance.
-- **Final Submission is one sync aggregate**, not five independent pushes racing each other —
-  Dr Calls, Chemist Calls, Followups, added Doctors, and Expenses for the day all move to
-  `QUEUED`/sync together, and (per the offline-sync section above) require connectivity at the
-  moment of the tap.
+- **Final Submission is the last record of the day's push** (`sync.md`, *Push*): a `DCR_SUBMIT`
+  record that `dependsOn` every other record of the day. If any of them failed it is `FAILED` with
+  `DEPENDENCY_FAILED` and the DCR is not submitted — the MR fixes the failures and taps Submit again,
+  and what already synced is `ALREADY_SYNCED`. It needs a live connection at the tap, like every push.
 
-## HTTP surface
+## Write path and HTTP surface
 
-All under `/api/field-activity`, scoped by the authenticated user's role.
+**Records reach the server through the sync push, not through a POST each** (sign-off G1; `sync.md`).
+The calls, follow-ups, expenses, Doctor Services, Gifts marked done and the DCR's own submit are
+registered as sync record kinds and arrive together at the daily report's Submit; the per-record
+`POST /dcr/:id/doctor-calls`-style endpoints this LLD first listed are not built. What stays as REST is
+what needs a live connection or a role other than the MR's, all under `/api/field-activity`:
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| `POST` | `/dcr` | FIELD | Create/get today's `DCR` envelope (idempotent per user+date) |
-| `POST` | `/dcr/:id/doctor-calls` | FIELD | Log a Dr Call (gated on plan approval) |
-| `POST` | `/dcr/:id/chemist-calls` | FIELD | Log a Chemist Call (gated) |
-| `POST` | `/dcr/:id/doctor-followups` | FIELD | Log a Dr Followup (gated) |
-| `POST` | `/dcr/:id/chemist-followups` | FIELD | Log a Chemist Followup (gated) |
-| `POST` | `/dcr/:id/expenses` | FIELD | Log a MANUAL expense (gated) |
-| `POST` | `/dcr/:id/submit` | FIELD | Final Submission — requires connectivity, rejected while `is_blocked` |
-| `POST` | `/dcr/:id/review` | FIELD (manager) | Approve/reject; approval triggers AUTO TA/DA generation |
-| `GET` | `/dcr` | FIELD, ADMIN | List/history (Team tab read-only visibility per PRD §7.1 applies here) |
-| `POST` | `/doctor-services` | FIELD | Request a service (routed to approval engine) |
-| `POST` | `/doctor-services/:id/review` | FIELD (manager) | Approve/reject |
-| `POST` | `/admin/doctor-services` | ADMIN | Admin-created, auto-approved |
-| `POST` | `/admin/doctor-gifts` | ADMIN | Allocate a gift |
-| `POST` | `/doctor-gifts/:id/complete` | FIELD | Mark a gift `DONE` |
-| `POST` | `/expenses/:id/mark-paid` | ACCOUNTANT | Settlement step, independent of DCR approval |
+| `GET` | `/dcr` | FIELD (own, and the downline read-only), ADMIN | List and history of DCRs, each with its status and record counts |
+| `GET` | `/dcr/:id` | FIELD (owner, managers), ADMIN | One DCR with its calls, follow-ups and expenses — the manager's review screen, geofence flags included |
+| `POST` | `/dcr/:id/calls/:callId/override-geofence` | FIELD (the reviewing manager), ADMIN | Accept a `FAIL` / `UNVERIFIED` call (below) |
+| — | `/api/approvals/*` with `kind=DCR` | Manager, Admin | Approve / reject / withdraw the DCR — the approval module's endpoints |
+| `POST` | `/admin/doctor-services` | ADMIN | An Admin-created Doctor Service, effective at once |
+| `POST` | `/admin/doctor-gifts` | ADMIN | Allocate a Gift to a Doctor |
+| `GET` | `/doctor-services`, `/doctor-gifts` | FIELD (own), ADMIN | Lists |
+| `GET` | `/expenses` | ACCOUNTANT, ADMIN | The audit list: manager-approved expenses, unpaid first |
+| `POST` | `/expenses/:id/mark-paid` | ACCOUNTANT, ADMIN | The settlement step, independent of the DCR's approval |
+
+## Geofence override (decided 2026-09-29)
+
+The server recomputes every call's `geofence_status` at sync from the Doctor's or Chemist's stored
+location and `GEO_FENCE_RADIUS_METERS` (`sync.md`, *Geofencing*); its answer overwrites the phone's. A
+`FAIL` or `UNVERIFIED` call is **flagged, never refused**, and the reviewing manager sees the flag next
+to the call's remarks. To accept one, **the manager marks that call `OVERRIDE` with a required
+comment** — `POST /dcr/:id/calls/:callId/override-geofence`. It's an action on the *call*, separate from
+approving the DCR, so a manager can accept two flagged calls and still reject the day. It records who,
+when and why (`geofenceOverriddenBy`, `…At`, `…Comment`), keeps the computed distance and original status,
+and is allowed only on a `FAIL` / `UNVERIFIED` call of a DCR that is still `SUBMITTED` at the reviewing
+manager's stage (Admin may do it at any stage). A `PASS` call has nothing to override.
+
+## When TA/DA is generated (decided 2026-09-29)
+
+At the DCR's `SUBMITTED → MANAGER_APPROVED` transition, exactly once, from the day's Plan
+(`hld/06`). If **Admin later rejects at the final stage** (or reopens the DCR), the `AUTO` expenses that are
+still `UNPAID` are marked `CANCELLED` — they no longer count for anything — while any already `PAID` are left
+alone and reported, since money has moved. A resubmitted DCR that reaches the manager stage again generates
+fresh `AUTO` expenses. `MANUAL` expenses follow the DCR's approval but are never cancelled by this.
+
+## The missed-DCR job (decided 2026-09-29)
+
+The application has no scheduler, and this doesn't add one. The job (`hld/10` §2) is an **explicit script**,
+`pnpm --filter @greynote/api compliance:run` (`node dist/scripts/run-compliance.js` in production), run
+daily by the operator's cron after the day rolls over — the same model as `seed` and the money migration
+(`manual_deploy.md`). It is **idempotent**: `Identity.blockUser` answers "already blocked" the second time,
+so a double run, or a re-run after a failure part-way, blocks no one twice. It reads
+`DCR_MISS_BLOCK_ENABLED` and `DCR_MISS_GRACE_DAYS`; a DCR counts as submitted once `SUBMITTED` or
+`MANAGER_APPROVED` (sign-off B7's working assumption), and an `APPROVED` Leave covering the day
+(`HR.isOnLeave`) excuses it.
+
+## Working assumptions for open client rows (sign-off group H)
+
+Built without waiting, and revisited when the client answers: **manual expenses** carry no per-category
+limit and no receipt (F2); **Doctor Service types** are the ERD's `TOUR_PACKAGE`, `GIFT`, `ONLINE_PROMOTION`,
+`OTHERS` (C8); **Night Stay** allowance is not computed (D2); TA/DA on **holidays and weekly offs** is not
+treated specially (D6); an MR's day **counts as reported when the DCR is submitted** (B7).
 
 ## Edge cases
 
@@ -224,9 +260,6 @@ All under `/api/field-activity`, scoped by the authenticated user's role.
 
 ## Deliberately deferred
 
-- The exact API/UI shape for a manager setting `geofence_status = FAIL → OVERRIDE` during DCR
-  review — the state exists in the ERD, `hld/01` describes the judgment call but not the
-  mechanism; design this when building the review endpoint, not before.
 - A `DailyPlan`-vs-`DCR` adherence report (did the MR actually visit what they planned) — the ERD
   explicitly keeps `DailyPlan` and `DCR` unlinked for now (ERD Module 5's note); revisit only if
   that reporting need is confirmed.

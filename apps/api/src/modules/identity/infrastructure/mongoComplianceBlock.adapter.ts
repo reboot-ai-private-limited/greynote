@@ -1,7 +1,7 @@
 import { Types, type ClientSession } from 'mongoose';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ComplianceBlockEvent } from '../domain/complianceBlock.entity.js';
-import type { ComplianceBlockRepositoryPort } from '../domain/complianceBlock.repository.port.js';
+import { OpenBlockExistsError, type ComplianceBlockRepositoryPort } from '../domain/complianceBlock.repository.port.js';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { ComplianceBlockModel, type ComplianceBlockDoc } from './complianceBlock.schema.js';
 
@@ -26,21 +26,27 @@ export class MongoComplianceBlockAdapter implements ComplianceBlockRepositoryPor
   }
 
   async create(input: Omit<ComplianceBlockEvent, 'id'>, ctx?: TransactionContext): Promise<ComplianceBlockEvent> {
-    const docs = await ComplianceBlockModel.create(
-      [
-        {
-          userId: new Types.ObjectId(input.userId),
-          reason: input.reason,
-          blockedAt: input.blockedAt,
-          unblockedBy: input.unblockedBy ? new Types.ObjectId(input.unblockedBy) : null,
-          unblockedAt: input.unblockedAt,
-        },
-      ],
-      { ...(ctx ? { session: ctx as ClientSession } : {}) },
-    );
-    const doc = docs[0];
-    if (!doc) throw AppError.internal('INTERNAL', { reason: 'COMPLIANCE_BLOCK_CREATE_RETURNED_EMPTY' });
-    return toComplianceBlockEvent(doc);
+    try {
+      const docs = await ComplianceBlockModel.create(
+        [
+          {
+            userId: new Types.ObjectId(input.userId),
+            reason: input.reason,
+            blockedAt: input.blockedAt,
+            unblockedBy: input.unblockedBy ? new Types.ObjectId(input.unblockedBy) : null,
+            unblockedAt: input.unblockedAt,
+          },
+        ],
+        { ...(ctx ? { session: ctx as ClientSession } : {}) },
+      );
+      const doc = docs[0];
+      if (!doc) throw AppError.internal('INTERNAL', { reason: 'COMPLIANCE_BLOCK_CREATE_RETURNED_EMPTY' });
+      return toComplianceBlockEvent(doc);
+    } catch (err) {
+      // The database aborts the transaction on this, so it is thrown for the use case to answer.
+      if ((err as { code?: number }).code === 11000) throw new OpenBlockExistsError();
+      throw err;
+    }
   }
 
   async close(id: string, unblockedBy: string, unblockedAt: Date, ctx?: TransactionContext): Promise<void> {
