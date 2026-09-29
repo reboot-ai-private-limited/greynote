@@ -154,7 +154,7 @@ describe('creating a route', () => {
       distanceSource: 'AUTO_CALCULATED',
       distanceStatus: 'CALCULATED',
       revision: 1,
-      taPerKmRateOverride: null,
+      taPerKmRateOverridePaise: null,
     });
     expect(route.distanceCalculatedAt).toBeInstanceOf(Date);
   });
@@ -220,20 +220,20 @@ describe('manual override', () => {
     await new OverrideRouteDistanceUseCase(routes).execute(route.id, { distanceKm: '18.50' });
     const updated = await new UpdateRouteUseCase(routes, areas, assignments).execute(route.id, {
       name: 'Renamed',
-      taPerKmRateOverride: '4.50',
+      taPerKmRateOverridePaise: 450,
     });
-    expect(updated).toMatchObject({ distanceKm: '18.50', distanceSource: 'MANUAL_OVERRIDE', taPerKmRateOverride: '4.50' });
+    expect(updated).toMatchObject({ distanceKm: '18.50', distanceSource: 'MANUAL_OVERRIDE', taPerKmRateOverridePaise: 450 });
   });
 });
 
 describe('the TA rate override', () => {
   it('survives a waypoint edit', async () => {
-    const route = await createRoute({ taPerKmRateOverride: '4.50' });
+    const route = await createRoute({ taPerKmRateOverridePaise: 450 });
     const edited = await new UpdateRouteWaypointsUseCase(routes, distance).execute(route.id, {
       waypoints: MATIGARA_TO_FULBARI,
       revision: 1,
     });
-    expect(edited.taPerKmRateOverride).toBe('4.50');
+    expect(edited.taPerKmRateOverridePaise).toBe(450);
   });
 });
 

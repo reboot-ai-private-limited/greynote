@@ -12,17 +12,17 @@ erDiagram
     }
     PAY_BAND {
         uuid id PK
-        decimal base_salary "full PayBand entity defined in Module 1"
+        int base_salary_paise "full PayBand entity defined in Module 1"
     }
 
     PAYROLL_RUN {
         uuid id PK
         uuid user_id FK
         string month "e.g. 2026-10"
-        decimal base_salary "snapshot of PayBand.base_salary at generation time"
-        decimal total_ta_da "sum of that month's PAID Expense rows (Module 4)"
-        decimal leave_deduction "computed from unpaid Leave days that month (Module 7)"
-        decimal net_payable "base_salary + total_ta_da - leave_deduction"
+        int base_salary_paise "snapshot of PayBand.base_salary_paise at generation time"
+        int total_ta_da_paise "sum of that month's PAID Expense rows (Module 4)"
+        int leave_deduction_paise "computed from unpaid Leave days that month (Module 7)"
+        int net_payable_paise "base_salary_paise + total_ta_da_paise - leave_deduction_paise"
         string status "DRAFT, FINALIZED"
         uuid generated_by FK "Accountant"
         timestamp generated_at

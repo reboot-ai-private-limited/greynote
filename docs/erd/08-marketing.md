@@ -41,7 +41,7 @@ erDiagram
         uuid product_id FK "nullable - overall target if not product-specific"
         uuid campaign_id FK "nullable - standalone monthly target if not tied to a campaign"
         string month "e.g. 2026-10"
-        decimal target_amount
+        int target_amount_paise
         uuid created_by FK "Admin or manager who set it"
         timestamp created_at
     }

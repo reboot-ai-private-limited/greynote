@@ -30,7 +30,7 @@ erDiagram
         uuid chemist_id FK "nullable"
         date order_date
         string status "PLACED, DONE, CANCELLED"
-        decimal total_amount
+        int total_amount_paise
         string remarks
         uuid completed_by FK "nullable - who marked it done"
         timestamp completed_at "nullable"
@@ -41,8 +41,8 @@ erDiagram
         uuid order_id FK
         uuid product_id FK
         int quantity
-        decimal unit_price
-        decimal amount
+        int unit_price_paise
+        int amount_paise
     }
     MONTHLY_STOCK {
         uuid id PK

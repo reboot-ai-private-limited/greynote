@@ -7,7 +7,7 @@ import { assertNameFree, assertNoActiveChildren, assertParentUsable } from './hi
 
 /**
  * Name, status and the per-route TA rate — nothing that touches waypoints or distance, so no
- * revision check. `taPerKmRateOverride: null` clears the override.
+ * revision check. `taPerKmRateOverridePaise: null` clears the override.
  */
 export class UpdateRouteUseCase {
   constructor(
@@ -16,7 +16,7 @@ export class UpdateRouteUseCase {
     private readonly assignments: RouteAssignmentRepositoryPort,
   ) {}
 
-  async execute(id: string, input: Partial<Pick<Route, 'name' | 'status' | 'taPerKmRateOverride'>>): Promise<Route> {
+  async execute(id: string, input: Partial<Pick<Route, 'name' | 'status' | 'taPerKmRateOverridePaise'>>): Promise<Route> {
     const route = await this.routes.findById(id);
     if (!route) throw AppError.notFound();
 

@@ -2,30 +2,25 @@ export const PAY_BAND_NAMES = ['G1', 'G2', 'G3'] as const;
 export type PayBandName = (typeof PAY_BAND_NAMES)[number];
 
 /**
- * Money fields are decimal STRINGS here — domain/ never imports Mongoose (2026-09-19 decision),
- * so the `Decimal128` conversion happens only in `infrastructure/mongoPayBand.adapter.ts`.
+ * Money is whole paise (₹1 = 100), plain integers — see `docs/engineering/coding-standards.md`,
+ * *Money*. So ₹7.50 per km is `taPerKmRatePaise: 750`.
  *
  * DA has one rate per Area type (`HQ` / `EX_STATION` / `OUT_STATION`, see hld/06 §2).
  */
 export interface PayBand {
   id: string;
   name: PayBandName;
-  baseSalary: string;
-  taPerKmRate: string;
-  hqDa: string;
-  exStationDa: string;
-  outStationDa: string;
+  baseSalaryPaise: number;
+  taPerKmRatePaise: number;
+  hqDaPaise: number;
+  exStationDaPaise: number;
+  outStationDaPaise: number;
 }
 
 export const PAY_BAND_MONEY_FIELDS = [
-  'baseSalary',
-  'taPerKmRate',
-  'hqDa',
-  'exStationDa',
-  'outStationDa',
+  'baseSalaryPaise',
+  'taPerKmRatePaise',
+  'hqDaPaise',
+  'exStationDaPaise',
+  'outStationDaPaise',
 ] as const satisfies readonly (keyof PayBand)[];
-
-/** Non-negative, up to 2 decimal places — what `Decimal128` can represent losslessly for money. */
-export function isValidDecimalString(value: string): boolean {
-  return /^\d+(\.\d{1,2})?$/.test(value);
-}

@@ -1,4 +1,5 @@
 import { Schema, model, type Types } from 'mongoose';
+import { isPaise } from '@/shared/money/paise.js';
 import {
   DISTANCE_SOURCES,
   DISTANCE_STATUSES,
@@ -17,7 +18,7 @@ export interface RouteDoc {
   distanceSource: DistanceSource;
   distanceStatus: DistanceStatus;
   distanceCalculatedAt: Date | null;
-  taPerKmRateOverride: Types.Decimal128 | null;
+  taPerKmRateOverridePaise: number | null;
   revision: number;
   status: TerritoryStatus;
 }
@@ -43,7 +44,7 @@ const routeSchema = new Schema<RouteDoc>({
   distanceSource: { type: String, required: true, enum: DISTANCE_SOURCES },
   distanceStatus: { type: String, required: true, enum: DISTANCE_STATUSES },
   distanceCalculatedAt: { type: Date, default: null },
-  taPerKmRateOverride: { type: Schema.Types.Decimal128, default: null },
+  taPerKmRateOverridePaise: { type: Number, default: null, validate: { validator: (v: unknown) => v === null || isPaise(v), message: 'Must be a whole number of paise.' } },
   revision: { type: Number, required: true },
   status: { type: String, required: true, enum: TERRITORY_STATUSES },
 });

@@ -1,34 +1,18 @@
-import { Types } from 'mongoose';
 import { AppError } from '@/shared/errors/AppError.js';
-import { PAY_BAND_MONEY_FIELDS, type PayBand, type PayBandName } from '../domain/payBand.entity.js';
+import type { PayBand, PayBandName } from '../domain/payBand.entity.js';
 import type { PayBandRepositoryPort } from '../domain/payBand.repository.port.js';
 import { PayBandModel } from './payBand.schema.js';
 
-type PayBandDoc = { _id: unknown; name: PayBandName } & Record<
-  (typeof PAY_BAND_MONEY_FIELDS)[number],
-  Types.Decimal128
->;
-
-/** Domain keeps money as decimal strings (no Mongoose in domain/) — conversion lives only here. */
-function toPayBand(doc: PayBandDoc): PayBand {
+function toPayBand(doc: { _id: unknown; name: PayBandName } & Omit<PayBand, 'id' | 'name'>): PayBand {
   return {
     id: String(doc._id),
     name: doc.name,
-    baseSalary: doc.baseSalary.toString(),
-    taPerKmRate: doc.taPerKmRate.toString(),
-    hqDa: doc.hqDa.toString(),
-    exStationDa: doc.exStationDa.toString(),
-    outStationDa: doc.outStationDa.toString(),
+    baseSalaryPaise: doc.baseSalaryPaise,
+    taPerKmRatePaise: doc.taPerKmRatePaise,
+    hqDaPaise: doc.hqDaPaise,
+    exStationDaPaise: doc.exStationDaPaise,
+    outStationDaPaise: doc.outStationDaPaise,
   };
-}
-
-function toDecimalFields(input: Partial<Omit<PayBand, 'id' | 'name'>>) {
-  const fields: Record<string, Types.Decimal128> = {};
-  for (const field of PAY_BAND_MONEY_FIELDS) {
-    const value = input[field];
-    if (value !== undefined) fields[field] = Types.Decimal128.fromString(value);
-  }
-  return fields;
 }
 
 export class MongoPayBandAdapter implements PayBandRepositoryPort {
@@ -48,17 +32,12 @@ export class MongoPayBandAdapter implements PayBandRepositoryPort {
   }
 
   async create(input: Omit<PayBand, 'id'>): Promise<PayBand> {
-    const doc = await PayBandModel.create({ name: input.name, ...toDecimalFields(input) });
-    return toPayBand(doc);
+    const doc = await PayBandModel.create(input);
+    return toPayBand(doc.toObject());
   }
 
   async update(id: string, input: Partial<Omit<PayBand, 'id'>>): Promise<PayBand> {
-    const { name, ...money } = input;
-    const doc = await PayBandModel.findByIdAndUpdate(
-      id,
-      { ...(name ? { name } : {}), ...toDecimalFields(money) },
-      { new: true },
-    ).lean();
+    const doc = await PayBandModel.findByIdAndUpdate(id, input, { new: true }).lean();
     if (!doc) throw AppError.internal('INTERNAL', { reason: 'PAY_BAND_NOT_FOUND', id });
     return toPayBand(doc);
   }

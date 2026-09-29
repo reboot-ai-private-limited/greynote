@@ -109,6 +109,22 @@ only if no `ADMIN` user exists yet, prompts interactively for the first Admin's 
 entry masked, typed twice). `docker compose exec` allocates a terminal for this automatically when
 run from an interactive shell, so the prompts appear normally.
 
+## Step 9 — Convert money to paise (once, when upgrading past 2026-09-29)
+
+Money became whole paise under new field names (`docs/decision-log.md`, 2026-09-29). A database that
+still holds the old `Decimal128` rupee fields must be converted **before the new version starts**, or
+Pay Bands and Route rate overrides read as empty. Dry run first (changes nothing, lists what it would
+do), then apply (saves a backup file first):
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-money-to-paise.js
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-money-to-paise.js --apply --backup /tmp/money-backup.json
+```
+
+It is safe to run again: a converted document is skipped, and a value it can't convert exactly (more
+than 2 decimal places, or negative) stops the whole run before anything is written. A fresh database
+that never had the old fields has nothing to convert.
+
 ## Verification
 
 ```bash

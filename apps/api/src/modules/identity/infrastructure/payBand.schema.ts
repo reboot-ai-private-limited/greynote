@@ -1,22 +1,26 @@
-import { Schema, model, type Types } from 'mongoose';
+import { Schema, model } from 'mongoose';
+import { isPaise } from '@/shared/money/paise.js';
 import { PAY_BAND_NAMES, type PayBandName } from '../domain/payBand.entity.js';
 
 interface PayBandDocument {
   name: PayBandName;
-  baseSalary: Types.Decimal128;
-  taPerKmRate: Types.Decimal128;
-  hqDa: Types.Decimal128;
-  exStationDa: Types.Decimal128;
-  outStationDa: Types.Decimal128;
+  baseSalaryPaise: number;
+  taPerKmRatePaise: number;
+  hqDaPaise: number;
+  exStationDaPaise: number;
+  outStationDaPaise: number;
 }
+
+/** Whole paise, checked by the schema as well as the API: a stray decimal or negative can't be stored. */
+const paise = { type: Number, required: true, validate: { validator: isPaise, message: 'Must be a whole number of paise.' } };
 
 const payBandSchema = new Schema<PayBandDocument>({
   name: { type: String, required: true, unique: true, enum: PAY_BAND_NAMES },
-  baseSalary: { type: Schema.Types.Decimal128, required: true },
-  taPerKmRate: { type: Schema.Types.Decimal128, required: true },
-  hqDa: { type: Schema.Types.Decimal128, required: true },
-  exStationDa: { type: Schema.Types.Decimal128, required: true },
-  outStationDa: { type: Schema.Types.Decimal128, required: true },
+  baseSalaryPaise: paise,
+  taPerKmRatePaise: paise,
+  hqDaPaise: paise,
+  exStationDaPaise: paise,
+  outStationDaPaise: paise,
 });
 
 export const PayBandModel = model<PayBandDocument>('PayBand', payBandSchema);

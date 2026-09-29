@@ -20,8 +20,8 @@ sequenceDiagram
         FA-->>Payroll: total_ta_da
         Payroll->>HR: contract.sumUnpaidLeaveDays(user_id, month)
         HR-->>Payroll: unpaid_days
-        Payroll->>Payroll: leave_deduction = unpaid_days x (base_salary / 30)
-        Payroll->>Payroll: net_payable = base_salary + total_ta_da - leave_deduction
+        Payroll->>Payroll: leave_deduction_paise = round_half_up(unpaid_days x base_salary_paise / 30)
+        Payroll->>Payroll: net_payable_paise = base_salary_paise + total_ta_da_paise - leave_deduction_paise
         Payroll->>DB: upsert PayrollRun (status=DRAFT)
     end
     Payroll-->>Acct: Computed sheet per user, for review

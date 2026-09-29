@@ -1,12 +1,11 @@
 import { AppError } from '@/shared/errors/AppError.js';
-import { isValidDecimalString, PAY_BAND_MONEY_FIELDS, type PayBand } from '../../domain/payBand.entity.js';
+import { isPaise } from '@/shared/money/paise.js';
+import { PAY_BAND_MONEY_FIELDS, type PayBand } from '../../domain/payBand.entity.js';
 import type { PayBandRepositoryPort } from '../../domain/payBand.repository.port.js';
 
 function assertValidMoney(input: Omit<PayBand, 'id'>): void {
   for (const field of PAY_BAND_MONEY_FIELDS) {
-    if (!isValidDecimalString(input[field])) {
-      throw AppError.badRequest(`${field} must be a non-negative decimal with up to 2 places.`, { field });
-    }
+    if (!isPaise(input[field])) throw AppError.badRequest(`${field} must be a whole number of paise.`, { field });
   }
 }
 

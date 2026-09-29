@@ -220,7 +220,8 @@ connection at the action.
 1. Design recorded, sign-off G1–G10 accepted, money decided as integer paise — **done** (2026-09-29)
 2. Geofence: the distance check, `PASS` / `FAIL` / `UNVERIFIED`, radius and accuracy from SystemConfig — **done** (2026-09-29): a pure function in `shared/geo`, 10 tests; Field Activity calls it in Phase 6
 3. Money migration: `PayBand` and `Route.taPerKmRateOverride` from `Decimal128` to integer paise
-   (before Phase 6 adds Expenses)
+   (before Phase 6 adds Expenses) — **done** (2026-09-29): helpers and rounding in `shared/money`,
+   a one-off idempotent script run on the dev database, live-checked over HTTP
 4. Sync module (tier 2): receipts, the handler registry, `POST /sync/push` (Submit) with per-record
    results, dependency order, the creation-time rules
 5. Draft backup (G9, G10): `PUT` / `GET /sync/drafts` — opaque, private, last write wins, removals

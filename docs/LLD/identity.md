@@ -10,8 +10,9 @@ other module depends on it, directly or through the Approval Workflow Engine —
 - **`Role`** — `ADMIN`, `HR`, `ACCOUNTANT`, `FIELD`. One row per role name.
 - **`Designation`** — `MR`, `ASM`, `RSM`, `ZSM`, `NSM`, with a `level` used to validate the
   reporting chain. FIELD-role only.
-- **`PayBand`** — `G1`/`G2`/`G3`, carrying `base_salary`, `ta_per_km_rate`, and three DA rates
-  (`hq_da`, `ex_station_da`, `out_station_da`, one per `Area.type`). FIELD-role
+- **`PayBand`** — `G1`/`G2`/`G3`, carrying `baseSalaryPaise`, `taPerKmRatePaise`, and three DA rates
+  (`hqDaPaise`, `exStationDaPaise`, `outStationDaPaise`, one per `Area.type`), all whole paise
+  (₹7.50 per km is `750`; `../engineering/coding-standards.md`, *Money*). FIELD-role
   only; feeds TA/DA auto-calculation ([`hld/06`](../hld/06-ta-da-auto-calculation.md)) and Payroll
   ([`payroll.md`](payroll.md)).
 - **`User`** — the lean account, every role: `employee_code`, `password_hash`, `role_id`, `status`,

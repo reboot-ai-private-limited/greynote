@@ -16,7 +16,7 @@ export class CreateRouteUseCase {
     areaId: string;
     name: string;
     waypoints: Waypoint[];
-    taPerKmRateOverride?: string | null | undefined;
+    taPerKmRateOverridePaise?: number | null | undefined;
   }): Promise<Route> {
     assertParentUsable(await this.areas.findById(input.areaId), 'areaId', 'area');
     assertNameFree(await this.routes.findByName(input.areaId, input.name), 'route');
@@ -26,7 +26,7 @@ export class CreateRouteUseCase {
       name: input.name,
       waypoints: input.waypoints,
       ...(await calculateDistance(this.distance, input.waypoints)),
-      taPerKmRateOverride: input.taPerKmRateOverride ?? null,
+      taPerKmRateOverridePaise: input.taPerKmRateOverridePaise ?? null,
       revision: 1,
       status: 'active',
     });

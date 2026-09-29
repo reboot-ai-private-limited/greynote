@@ -22,7 +22,7 @@ by a filter someone could forget.
 |---|---|
 | `base_salary` | **Snapshot** of `PayBand.base_salary` at generation time |
 | `total_ta_da` | Sum of that month's `Expense` rows with `payment_status = PAID` (Field Activity) |
-| `leave_deduction` | `unpaid_days × (base_salary / 30)` — computed at generation, then frozen as one number |
+| `leave_deduction_paise` | `unpaid_days × base_salary_paise / 30`, rounded half up to a whole paise once — computed at generation, then frozen as one number |
 | `net_payable` | `base_salary + total_ta_da − leave_deduction` |
 | `status` | `DRAFT` → `FINALIZED` |
 | `generated_by` / `generated_at`, `finalized_at` | Accountant, and when |
@@ -62,7 +62,7 @@ never their internals — to pull `PayBand.base_salary` (Identity), the month's 
   marking expenses paid (Field Activity) has to happen before payroll generation reads the
   result — not the other way around, and not concurrently for the same month in a way that could
   race.
-- **`leave_deduction = unpaid_days × (base_salary / 30)`**, flat — not actual calendar days, not
+- **`leave_deduction_paise = round_half_up(unpaid_days × base_salary_paise / 30)`**, flat — not actual calendar days, not
   working days net of Sundays/Holidays. Deliberately the simplest of the options HLD 7 considered;
   do not "improve" this into a calendar-aware formula without a decision recorded in
   [`../decision-log.md`](../decision-log.md) first, since every already-generated run's number

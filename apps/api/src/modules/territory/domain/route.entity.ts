@@ -23,8 +23,8 @@ export type DistanceStatus = (typeof DISTANCE_STATUSES)[number];
  * An ordered set of waypoints inside one Area, and the road distance TA is paid on. Name is
  * unique within its Area, ignoring case. Uses its Area's type for DA — no override (sign-off D5).
  *
- * `distanceKm` and `taPerKmRateOverride` are decimal strings with up to 2 places; the
- * `Decimal128` conversion lives only in the Mongo adapter, as with `PayBand`.
+ * `distanceKm` is a decimal string with up to 2 places (a distance, not money; the `Decimal128`
+ * conversion lives only in the Mongo adapter). `taPerKmRateOverridePaise` is money: whole paise.
  */
 export interface Route {
   id: string;
@@ -36,8 +36,8 @@ export interface Route {
   distanceSource: DistanceSource;
   distanceStatus: DistanceStatus;
   distanceCalculatedAt: Date | null;
-  /** Overrides the MR's `PayBand.taPerKmRate` on this route. Survives waypoint edits. */
-  taPerKmRateOverride: string | null;
+  /** Paise per km; overrides the MR's `PayBand.taPerKmRatePaise` on this route. Survives waypoint edits. */
+  taPerKmRateOverridePaise: number | null;
   /**
    * Bumped by every write that changes the waypoints or the distance. Each of those writes is
    * conditional on the revision it started from, so two concurrent edits (or an edit racing a

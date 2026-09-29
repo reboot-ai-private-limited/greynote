@@ -67,7 +67,7 @@ interface RouteSummary {
   areaType: AreaType;                  // decides DA
   distanceKm: string | null;           // null exactly when distanceStatus is FAILED; never doubled
   distanceStatus: 'CALCULATED' | 'FAILED';
-  taPerKmRateOverride: string | null;
+  taPerKmRateOverridePaise: number | null;   // whole paise per km
   status: 'active' | 'inactive';
 }
 interface RoutePath { routeId: string; areaId: string; areaType: AreaType; hqId: string; zoneId: string }
@@ -86,7 +86,7 @@ Consumers, per [`../roadmap.md`](../roadmap.md):
   to offer only routes the submitting MR is actually assigned.
 - **Field Activity** (Tier 4) — TA/DA auto-calculation
   ([`../hld/06-ta-da-auto-calculation.md`](../hld/06-ta-da-auto-calculation.md)) reads
-  `getRoute` for TA (`distanceKm`, `taPerKmRateOverride`), and must handle a `FAILED` status as a
+  `getRoute` for TA (`distanceKm`, `taPerKmRateOverridePaise`), and must handle a `FAILED` status as a
   flag, not a silent zero (see Edge cases below). `areaType` on the same summary gives DA.
 
 Territory itself depends only on Identity (Tier 1) — a `RouteAssignment.user_id` is validated
@@ -182,7 +182,7 @@ this module's depth:
 | `GET` | `/api/territory/routes/:id/assignments` | Admin | Who covers this Route, with employee code/name; full history unless `?status=` |
 | `DELETE` | `/api/territory/routes/:id/assignments/:userId` | Admin | End an employee's assignment — the row becomes `inactive` history, not deleted |
 | `POST` | `/api/territory/routes/:id/recalculate` | Admin | Retry the Directions call (e.g. after `FAILED`); resets any manual override like a waypoint edit |
-| `PATCH` | `/api/territory/zones/:id`, `/hqs/:id`, `/routes/:id` | Admin | Rename, deactivate/reactivate (and Route's `ta_per_km_rate_override`) |
+| `PATCH` | `/api/territory/zones/:id`, `/hqs/:id`, `/routes/:id` | Admin | Rename, deactivate/reactivate (and Route's `taPerKmRateOverridePaise`) |
 | `GET` | `/api/territory/places/search?q=` | Admin | Proxy to Google Places — candidates with `{label, latitude, longitude, place_id}`; the API key never leaves the server |
 | `POST` | `/api/territory/import` | Admin | CSV bulk import of Zone / HQ / Area rows (not Routes — waypoints need confirmed pins); `?dryRun=true` previews. See CSV import below |
 | `GET` | `/api/territory/my-routes` | FIELD roles | The calling MR's own assigned Routes — consumed by Planning's route picker |

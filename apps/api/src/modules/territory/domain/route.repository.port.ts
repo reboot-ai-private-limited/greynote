@@ -17,7 +17,7 @@ export interface RouteRepositoryPort {
   listIdsInScope(scope: { areaId?: string | undefined; hqId?: string | undefined; zoneId?: string | undefined }): Promise<string[]>;
   create(input: Omit<Route, 'id'>): Promise<Route>;
   /** Fields that don't touch waypoints or distance, so no revision check. */
-  update(id: string, input: Partial<Pick<Route, 'name' | 'status' | 'taPerKmRateOverride'>>): Promise<Route>;
+  update(id: string, input: Partial<Pick<Route, 'name' | 'status' | 'taPerKmRateOverridePaise'>>): Promise<Route>;
   /**
    * Applies `change` and bumps `revision`, but only if the stored revision still equals
    * `expectedRevision`. Returns null when it doesn't — someone else wrote first.

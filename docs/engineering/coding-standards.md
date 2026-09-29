@@ -52,9 +52,10 @@ Rates are paise too: ₹7.50 per km is `750`. A money field's name says so (`bas
 - **Validate at the edge:** a money value in a request is a safe non-negative integer (`z.number().int()`);
   a decimal-looking one is a 400, not a silent truncation.
 - **Display is the client's job:** paise → `₹` with two decimals, at the last moment.
-- **Existing fields** (`PayBand` rates and salary, `Route.taPerKmRateOverride`), which were
-  `Decimal128` under the earlier provisional choice, are migrated before Phase 6 adds `Expense`
-  amounts (`../roadmap.md`, *Money migration*).
+- **Existing fields** (`PayBand` rates and salary, `Route.taPerKmRateOverridePaise`) were `Decimal128`
+  rupees under the earlier provisional choice and were migrated on 2026-09-29 by
+  `scripts/migrate-money-to-paise.ts` (`../manual_deploy.md`). The helpers — `paiseSchema`,
+  `isPaise`, `multiplyPaise`, `rupeesToPaise`, `formatPaise` — are in `shared/money/paise.ts`.
 
 Replaces the provisional `Decimal128` choice of 2026-09-23 (`../decision-log.md`, 2026-09-29).
 

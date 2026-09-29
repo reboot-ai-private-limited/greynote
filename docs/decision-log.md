@@ -17,6 +17,35 @@ old one.
 
 ---
 
+## 2026-09-29 — Money migrated to integer paise
+
+**Decision:** `PayBand`'s five money fields and `Route.taPerKmRateOverride` — the only money in the
+system so far — moved from `Decimal128` rupees to plain integers in paise, under new names
+(`baseSalaryPaise`, `taPerKmRatePaise`, `hqDaPaise`, `exStationDaPaise`, `outStationDaPaise`,
+`taPerKmRateOverridePaise`), in storage, domain and API. `shared/money/paise.ts` holds the helpers,
+including `multiplyPaise`, which rounds a rate × distance half up to a whole paise once, with exact
+integer arithmetic. The request schema and the Mongoose schema both refuse anything that isn't a
+whole, non-negative number of paise, so a decimal is a 400, never a silent rounding. Distances stay
+`Decimal128` — they aren't money.
+
+**Replaces:** the provisional `Decimal128` choice of 2026-09-23, which the 2026-09-29 entry on
+G8 ratified away.
+
+**Why:** paying people from floating-point-adjacent arithmetic is how a payroll drifts by a rupee and
+nobody can say why; integers make every sum exact and the one fractional step (TA) explicit, in one
+tested place. Doing it now costs one Pay Band and no Routes on the dev database; doing it after
+Expenses, Orders and Payroll exist would cost every one of their tables.
+
+**Consequences:** the API's money fields changed name and type, so any client built on the old shape
+(there is none yet) would break. A deployed database must be converted before the new version starts
+— `scripts/migrate-money-to-paise.ts`, dry run by default, idempotent, backing up before it writes
+(`manual_deploy.md`, step 9). Run on the dev database: G1 went from ₹20,000 / ₹5 per km / ₹100 / ₹200 /
+₹500 to 2,000,000 / 500 / 10,000 / 20,000 / 50,000 paise, verified, and a second run found nothing
+to do. Payroll's flat `base_salary / 30` deduction is also a fractional step, so it rounds half up to
+a paise once at generation.
+
+---
+
 ## 2026-09-29 — A private draft backup under the daily-report sync (amends G1)
 
 **Decision:** The 2026-09-29 entry above has offline data leave the phone only at the daily report's

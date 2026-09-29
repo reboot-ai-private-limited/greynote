@@ -17,7 +17,7 @@ function toRoute(doc: RouteDoc & { _id: unknown }): Route {
     distanceSource: doc.distanceSource,
     distanceStatus: doc.distanceStatus,
     distanceCalculatedAt: doc.distanceCalculatedAt,
-    taPerKmRateOverride: doc.taPerKmRateOverride?.toString() ?? null,
+    taPerKmRateOverridePaise: doc.taPerKmRateOverridePaise ?? null,
     revision: doc.revision,
     status: doc.status,
   };
@@ -25,14 +25,13 @@ function toRoute(doc: RouteDoc & { _id: unknown }): Route {
 
 const toDecimal = (value: string | null) => (value === null ? null : Types.Decimal128.fromString(value));
 
-/** Domain → document: decimal strings become `Decimal128`, `name` also sets `nameKey`. */
+/** Domain → document: the distance string becomes `Decimal128`, `name` also sets `nameKey`. */
 function toDocChange(input: Partial<Omit<Route, 'id' | 'areaId'>>): UpdateQuery<RouteDoc> {
-  const { name, distanceKm, taPerKmRateOverride, ...rest } = input;
+  const { name, distanceKm, ...rest } = input;
   return {
     ...rest,
     ...(name !== undefined && { name, nameKey: toNameKey(name) }),
     ...(distanceKm !== undefined && { distanceKm: toDecimal(distanceKm) }),
-    ...(taPerKmRateOverride !== undefined && { taPerKmRateOverride: toDecimal(taPerKmRateOverride) }),
   };
 }
 
@@ -100,7 +99,7 @@ export class MongoRouteAdapter implements RouteRepositoryPort {
     }
   }
 
-  async update(id: string, input: Partial<Pick<Route, 'name' | 'status' | 'taPerKmRateOverride'>>): Promise<Route> {
+  async update(id: string, input: Partial<Pick<Route, 'name' | 'status' | 'taPerKmRateOverridePaise'>>): Promise<Route> {
     try {
       const doc = await RouteModel.findByIdAndUpdate(id, toDocChange(input), { new: true }).lean();
       if (!doc) throw AppError.internal('INTERNAL', { reason: 'ROUTE_NOT_FOUND', id });

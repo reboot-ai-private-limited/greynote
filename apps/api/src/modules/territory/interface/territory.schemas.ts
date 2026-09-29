@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paiseSchema } from '@/shared/money/paise.js';
 import { paginationQuerySchema } from '@/shared/http/pagination.js';
 import { AREA_TYPES } from '../domain/area.entity.js';
 import { MAX_WAYPOINTS, MIN_WAYPOINTS } from '../domain/route.entity.js';
@@ -61,14 +62,15 @@ export const createRouteBodySchema = z.object({
   areaId: objectIdSchema,
   name: nameSchema,
   waypoints: waypointsSchema,
-  taPerKmRateOverride: decimalSchema.nullable().optional(),
+  /** Paise per km (₹7.50 = 750). */
+  taPerKmRateOverridePaise: paiseSchema.nullable().optional(),
 });
 export const updateRouteBodySchema = z
   .object({
     name: nameSchema,
     status: z.enum(TERRITORY_STATUSES),
     /** `null` clears the override, falling back to the MR's PayBand rate. */
-    taPerKmRateOverride: decimalSchema.nullable(),
+    taPerKmRateOverridePaise: paiseSchema.nullable(),
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'Nothing to update.');

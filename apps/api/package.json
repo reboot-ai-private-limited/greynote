@@ -11,7 +11,8 @@
         "lint": "eslint src && pnpm lint:deps",
         "lint:deps": "depcruise src --config .dependency-cruiser.cjs --output-type err-long",
         "test": "vitest run",
-        "seed": "tsx src/scripts/seed.ts"
+        "seed": "tsx src/scripts/seed.ts",
+        "migrate:money": "tsx src/scripts/migrate-money-to-paise.ts"
     },
     "dependencies": {
         "@asteasolutions/zod-to-openapi": "^7.3.4",

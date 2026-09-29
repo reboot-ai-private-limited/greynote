@@ -2,6 +2,14 @@
 
 How the `AUTO`-sourced `Expense` rows (TA, DA) actually get computed (PRD glossary: TA = Route Distance × Per-Km Rate; client Master spec: DA = Area Type + Grade rate, i.e. each grade has separate HQ / Ex Station / Out Station DA rates) — ties Module 2's distance calc, Module 1's `PayBand` rates, Module 5's `DailyPlan`, Module 4's `Expense`, and HLD 5's approval engine together.
 
+## Money and rounding (decided 2026-09-29)
+
+Every amount here is whole paise. The only fractional step is TA: `distance_km` (a 2-decimal figure) times a
+rate in paise per km. It is **rounded half up to a whole paise once per route, when the amount is
+created** (`multiplyPaise` in `shared/money/paise.ts`, exact integer arithmetic, no floats), and the
+integer is what is stored and summed — a day's TA is the sum of its routes' rounded amounts, never a
+rounded total. DA is a rate, already whole paise. See `../engineering/coding-standards.md`, *Money*.
+
 ## 1. Computed server-side, never trusted from the client
 
 **TA/DA amounts are always computed on the server**, ignoring whatever the client payload might carry for those fields. The mobile app _may_ show the MR a local estimate for UX, but that number is non-authoritative — a compromised or buggy client must never be able to inflate a travel-allowance claim by sending a pre-computed amount the server just accepts. Consistent with HLD 1's "never trust the offline payload outright" stance.
@@ -25,8 +33,8 @@ sequenceDiagram
     FA->>Identity: contract.getUser(user_id) -> pay_band
     alt working_type == FIELD_WORK
         FA->>Territory: contract.getRoutes(route_ids) + getRoutePath(route_id) per route
-        Territory-->>FA: [{ distance_km, distance_status, ta_per_km_rate_override, area_type }, ...]
-        FA->>FA: ta_amount = sum over routes where CALCULATED of distance_km x (ta_per_km_rate_override ?? pay_band.ta_per_km_rate)
+        Territory-->>FA: [{ distance_km, distance_status, ta_per_km_rate_override_paise, area_type }, ...]
+        FA->>FA: ta_amount_paise = sum over routes where CALCULATED of round_half_up(distance_km x (ta_per_km_rate_override_paise ?? pay_band.ta_per_km_rate_paise))
         FA->>FA: day_area_type = highest area_type among the day's routes (OUT_STATION > EX_STATION > HQ)
         FA->>FA: da_amount = pay_band DA rate for day_area_type
         FA->>DB: Create AUTO Expense rows (TA + DA) on this DCR

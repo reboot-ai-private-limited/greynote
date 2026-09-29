@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ROLE_NAMES } from '@greynote/contracts';
+import { paiseSchema } from '@/shared/money/paise.js';
 import { DESIGNATION_NAMES } from '../domain/designation.entity.js';
 import { PAY_BAND_NAMES } from '../domain/payBand.entity.js';
 
@@ -14,13 +15,12 @@ export const updateDesignationBodySchema = createDesignationBodySchema.partial()
 
 export const createPayBandBodySchema = z.object({
   name: z.enum(PAY_BAND_NAMES),
-  // Format enforced by the use case (domain/payBand.entity.ts's `isValidDecimalString`) — this
-  // schema only checks shape, not the money-specific decimal rule, so there's one place that rule lives.
-  baseSalary: z.string().min(1),
-  taPerKmRate: z.string().min(1),
-  hqDa: z.string().min(1),
-  exStationDa: z.string().min(1),
-  outStationDa: z.string().min(1),
+  // Whole paise (₹1 = 100): ₹7.50 per km is 750. A decimal is a 400, not a rounding.
+  baseSalaryPaise: paiseSchema,
+  taPerKmRatePaise: paiseSchema,
+  hqDaPaise: paiseSchema,
+  exStationDaPaise: paiseSchema,
+  outStationDaPaise: paiseSchema,
 });
 export const updatePayBandBodySchema = createPayBandBodySchema.partial();
 

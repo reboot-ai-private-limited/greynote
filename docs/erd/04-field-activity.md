@@ -88,7 +88,7 @@ erDiagram
         uuid route_id FK "nullable - the route distance behind an auto TA calc"
         string type "TA, DA, TRAVEL, MEAL, MISC"
         string source "AUTO (system-calculated TA/DA), MANUAL (logged by MR)"
-        decimal amount
+        int amount_paise
         string remarks
         string payment_status "UNPAID, PAID - separate from the DCR approval status"
         uuid paid_by FK "nullable - Accountant who marked it paid"
@@ -101,7 +101,7 @@ erDiagram
         uuid user_id FK "the MR tied to this service - submitter, or auto-selected via DoctorAssignment when Admin-created"
         uuid created_by FK "who created the row - the MR themself, or an Admin"
         string service_type "TOUR_PACKAGE, GIFT, ONLINE_PROMOTION, OTHERS"
-        decimal amount
+        int amount_paise
         string remarks
         string status "SUBMITTED, MANAGER_APPROVED, REJECTED"
         timestamp submitted_at
@@ -113,7 +113,7 @@ erDiagram
         uuid doctor_id FK
         uuid allocated_by FK "Admin user who set it"
         string product_name "free text"
-        decimal amount
+        int amount_paise
         string status "PENDING, DONE"
         uuid completed_by FK "nullable - MR who marked it done"
         timestamp completed_at "nullable"

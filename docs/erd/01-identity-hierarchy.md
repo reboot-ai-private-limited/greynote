@@ -26,11 +26,11 @@ erDiagram
     PAY_BAND {
         uuid id PK
         string name "G1, G2, G3"
-        decimal base_salary "monthly base salary for this grade - feeds Payroll (Module 9)"
-        decimal ta_per_km_rate "feeds auto TA calculation - see HLD 06"
-        decimal hq_da "DA when the day's Area type is HQ - see HLD 06"
-        decimal ex_station_da "DA for EX_STATION areas"
-        decimal out_station_da "DA for OUT_STATION areas"
+        int base_salary_paise "monthly base salary for this grade, in whole paise - feeds Payroll (Module 9)"
+        int ta_per_km_rate_paise "paise per km - feeds auto TA calculation - see HLD 06"
+        int hq_da_paise "DA when the day's Area type is HQ - see HLD 06"
+        int ex_station_da_paise "DA for EX_STATION areas"
+        int out_station_da_paise "DA for OUT_STATION areas"
     }
     USER {
         uuid id PK

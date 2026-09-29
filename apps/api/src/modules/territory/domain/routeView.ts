@@ -15,7 +15,7 @@ export interface RouteSummary {
   /** Null when `distanceStatus` is `FAILED` — TA must flag that, never read it as 0 km. */
   distanceKm: string | null;
   distanceStatus: Route['distanceStatus'];
-  taPerKmRateOverride: string | null;
+  taPerKmRateOverridePaise: number | null;
   status: Route['status'];
 }
 

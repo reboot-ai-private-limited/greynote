@@ -28,7 +28,7 @@ export async function toRouteSummaries(areas: AreaRepositoryPort, routes: Route[
       areaType: area.type,
       distanceKm: route.distanceKm,
       distanceStatus: route.distanceStatus,
-      taPerKmRateOverride: route.taPerKmRateOverride,
+      taPerKmRateOverridePaise: route.taPerKmRateOverridePaise,
       status: route.status,
     };
   });
