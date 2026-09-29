@@ -1,9 +1,12 @@
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
+import type { ApprovalKindDefinition, ApprovalRequest, ApprovalStatus } from '@/modules/approval/approval.public.js';
+import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { Chemist } from '../../domain/chemist.entity.js';
 import type { ChemistFilter, ChemistRepositoryPort } from '../../domain/chemist.repository.port.js';
 import type { Doctor } from '../../domain/doctor.entity.js';
+import { DuplicateRecordError } from '../../domain/duplicateRecord.error.js';
 import type { AssignedDoctor, AssignedScope, DoctorFilter, DoctorRepositoryPort } from '../../domain/doctor.repository.port.js';
 import type { DoctorAssignment } from '../../domain/doctorAssignment.entity.js';
 import type { DoctorAssignmentRepositoryPort } from '../../domain/doctorAssignment.repository.port.js';
@@ -137,7 +140,7 @@ export class FakeAssignments implements DoctorAssignmentRepositoryPort {
     for (const a of this.rows) if (a.doctorId === doctorId && a.status === 'active') Object.assign(a, { status: 'inactive', unassignedAt: new Date(), unassignedBy: by });
   }
   async create(input: { doctorId: string; userId: string; assignedBy: string }) {
-    if (await this.findActiveForDoctor(input.doctorId)) return null;
+    if (await this.findActiveForDoctor(input.doctorId)) throw new DuplicateRecordError('active assignment');
     const row: DoctorAssignment = { ...input, id: `assignment-${this.rows.length + 1}`, status: 'active', assignedAt: new Date(), unassignedAt: null, unassignedBy: null };
     this.rows.push(row);
     return row;
@@ -174,11 +177,24 @@ export class FakeDoctors implements DoctorRepositoryPort {
     this.rows.push(row);
     return row;
   }
+  /** Check and insert in one synchronous step, like the unique index does in Mongo. */
+  async createProposed(input: Omit<Doctor, 'id'>) {
+    if (this.rows.some((d) => d.addedBy === input.addedBy && d.clientRequestId !== null && d.clientRequestId === input.clientRequestId)) throw new DuplicateRecordError('client request');
+    const row = { ...input, id: `doctor-${this.rows.length + 1}` };
+    this.rows.push(row);
+    return row;
+  }
+  async findByClientRequest(addedBy: string, clientRequestId: string) {
+    return this.rows.find((d) => d.addedBy === addedBy && d.clientRequestId === clientRequestId) ?? null;
+  }
   async update(id: string, change: Partial<Omit<Doctor, 'id'>>) {
     const i = this.rows.findIndex((d) => d.id === id);
     if (i < 0) return null;
     this.rows[i] = { ...this.rows[i]!, ...change };
     return this.rows[i]!;
+  }
+  async listAdded(addedBy: string, f: PageQuery) {
+    return paged(this.rows.filter((d) => d.addedBy === addedBy).reverse(), f);
   }
   async listAssigned(scopes: AssignedScope[], f: Omit<DoctorFilter, 'status' | keyof PageQuery>, page: PageQuery | null) {
     const search = f.search?.toLowerCase();
@@ -207,5 +223,50 @@ export class FakeConfig implements ConfigReader {
 export class FakeTransactions implements TransactionRunnerPort {
   async run<T>(fn: (ctx: unknown) => Promise<T>) {
     return fn({});
+  }
+}
+
+/** Stands in for the approval module: keeps one request per record and lets a test play the deciders. */
+export class FakeApprovals implements ApprovalsPort {
+  kinds = new Map<string, ApprovalKindDefinition>();
+  requests: ApprovalRequest[] = [];
+  registerKind(definition: ApprovalKindDefinition) {
+    this.kinds.set(definition.kind, definition);
+  }
+  async submit(input: { kind: string; recordId: string; submitterId: string }) {
+    const i = this.requests.findIndex((r) => r.kind === input.kind && r.recordId === input.recordId);
+    if (i >= 0) {
+      const again = { ...this.requests[i]!, status: 'SUBMITTED' as ApprovalStatus, cycle: this.requests[i]!.cycle + 1 };
+      this.requests[i] = again;
+      return again;
+    }
+    const request: ApprovalRequest = {
+      id: `request-${this.requests.length + 1}`,
+      kind: input.kind,
+      recordId: input.recordId,
+      submitterId: input.submitterId,
+      status: 'SUBMITTED',
+      workflow: 'MANAGER_THEN_FINAL',
+      cycle: 1,
+      submittedAt: new Date(),
+      decidedAt: null,
+      history: [],
+    };
+    this.requests.push(request);
+    return request;
+  }
+  async getForRecord(kind: string, recordId: string) {
+    return this.requests.find((r) => r.kind === kind && r.recordId === recordId) ?? null;
+  }
+  /** Moves the request to `status` and runs the kind's `onStatusChange`, as the approval module would. */
+  async decide(kind: string, recordId: string, status: ApprovalStatus, actorId = 'admin') {
+    const request = this.requests.find((r) => r.kind === kind && r.recordId === recordId)!;
+    const previousStatus = request.status;
+    request.status = status;
+    request.history.push({ action: 'APPROVE', authority: 'FINAL', actorId, actorRole: 'ADMIN', comment: null, at: new Date(), resultingStatus: status, cycle: request.cycle });
+    await this.kinds.get(kind)!.onStatusChange?.(
+      { requestId: request.id, kind, recordId, submitterId: request.submitterId, previousStatus, status, action: request.history.at(-1)!, request },
+      {},
+    );
   }
 }

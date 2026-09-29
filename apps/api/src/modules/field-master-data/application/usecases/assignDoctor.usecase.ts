@@ -1,5 +1,6 @@
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
+import { DuplicateRecordError } from '../../domain/duplicateRecord.error.js';
 import type { DoctorRepositoryPort } from '../../domain/doctor.repository.port.js';
 import type { DoctorAssignment } from '../../domain/doctorAssignment.entity.js';
 import type { DoctorAssignmentRepositoryPort } from '../../domain/doctorAssignment.repository.port.js';
@@ -38,11 +39,16 @@ export class AssignDoctorUseCase {
     const current = await this.assignments.findActiveForDoctor(doctorId);
     if (current?.userId === userId) return current;
 
-    const created = await this.transactions.run(async (ctx) => {
-      await this.assignments.endActive(doctorId, adminId, ctx);
-      return this.assignments.create({ doctorId, userId, assignedBy: adminId }, ctx);
-    });
-    if (!created) throw AppError.conflict('This doctor’s assignment was changed at the same time. Reload and try again.');
-    return created;
+    try {
+      return await this.transactions.run(async (ctx) => {
+        await this.assignments.endActive(doctorId, adminId, ctx);
+        return this.assignments.create({ doctorId, userId, assignedBy: adminId }, ctx);
+      });
+    } catch (err) {
+      if (err instanceof DuplicateRecordError) {
+        throw AppError.conflict('This doctor’s assignment was changed at the same time. Reload and try again.');
+      }
+      throw err;
+    }
   }
 }

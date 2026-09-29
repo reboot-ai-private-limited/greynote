@@ -25,7 +25,12 @@ export interface DoctorRepositoryPort {
   list(filter: DoctorFilter): Promise<PaginatedResult<Doctor>>;
   findById(id: string): Promise<Doctor | null>;
   create(input: Omit<Doctor, 'id'>): Promise<Doctor>;
-  update(id: string, change: Partial<Omit<Doctor, 'id'>>): Promise<Doctor | null>;
+  /** An MR-added Doctor. Throws `DuplicateRecordError` if this MR already created one with the same `clientRequestId`. */
+  createProposed(input: Omit<Doctor, 'id'>, ctx: TransactionContext): Promise<Doctor>;
+  findByClientRequest(addedBy: string, clientRequestId: string): Promise<Doctor | null>;
+  update(id: string, change: Partial<Omit<Doctor, 'id'>>, ctx?: TransactionContext): Promise<Doctor | null>;
+  /** Doctors this user added, in any status, newest first. */
+  listAdded(addedBy: string, page: PageQuery): Promise<PaginatedResult<Doctor>>;
   /**
    * The active Doctors with an active assignment to one of these users (and, per scope, on a Route
    * that user has). `page: null` returns them all.

@@ -25,6 +25,9 @@ export class UpdateDoctorUseCase {
   async execute(id: string, change: UpdateDoctorInput): Promise<DoctorView> {
     const current = await this.doctors.findById(id);
     if (!current) throw AppError.notFound('No such doctor.');
+    if (current.status === 'pending' && change.status !== undefined) {
+      throw AppError.conflict('This doctor is waiting for approval. Approve or reject it in the approvals inbox.', { field: 'status' });
+    }
     if (change.routeId !== undefined && change.routeId !== current.routeId) {
       await requireActiveRoute(this.territory, change.routeId);
     }

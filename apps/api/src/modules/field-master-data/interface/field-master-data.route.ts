@@ -6,12 +6,15 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { CrudHandlers, DoctorHandlers } from './field-master-data.controller.js';
 import {
+  addDoctorBodySchema,
   assignDoctorBodySchema,
   createChemistBodySchema,
   createDoctorBodySchema,
   createProductBodySchema,
   doctorAssignmentParamsSchema,
+  editAddedDoctorBodySchema,
   idParamsSchema,
+  listAddedDoctorsQuerySchema,
   listAssignedDoctorsQuerySchema,
   listChemistsQuerySchema,
   listDoctorsQuerySchema,
@@ -27,7 +30,7 @@ const bearer = [{ bearerAuth: [] }];
 const json = (schema: ZodTypeAny) => ({ content: { 'application/json': { schema } } });
 
 function doc(
-  method: 'get' | 'post' | 'patch' | 'delete',
+  method: 'get' | 'post' | 'put' | 'patch' | 'delete',
   path: string,
   summary: string,
   request: { query?: AnyZodObject; params?: AnyZodObject; body?: ZodTypeAny } = {},
@@ -60,6 +63,9 @@ doc('get', '/doctors', 'Admin: list doctors', { query: listDoctorsQuerySchema })
 doc('post', '/doctors', 'Admin: add a doctor on a route, with a map-picked location', { body: createDoctorBodySchema });
 doc('get', '/doctors/mine', 'Field staff: the doctors assigned to me, on routes I still have', { query: listAssignedDoctorsQuerySchema });
 doc('get', '/doctors/team', 'Managers: the doctors of everyone in my downline', { query: teamDoctorsQuerySchema });
+doc('get', '/doctors/added', 'Field staff: the doctors I added, with where each is in its approval', { query: listAddedDoctorsQuerySchema });
+doc('post', '/doctors/added', 'Field staff: add a doctor (offline-first) — it goes to my manager, then Admin', { body: addDoctorBodySchema });
+doc('put', '/doctors/added/{id}', 'Field staff: change a rejected, withdrawn or reopened doctor — resubmits it', { params: idParamsSchema, body: editAddedDoctorBodySchema });
 doc('get', '/doctors/{id}', 'A doctor — Admin, the assigned MR, or their manager', { params: idParamsSchema });
 doc('patch', '/doctors/{id}', 'Admin: edit a doctor, including correcting its location', { params: idParamsSchema, body: updateDoctorBodySchema });
 doc('get', '/doctors/{id}/assignments', 'Admin: who has been responsible for a doctor', { params: idParamsSchema });
@@ -79,7 +85,7 @@ function crudRouter(
   return router;
 }
 
-/** Field staff read their own Doctors; everything else is Admin's. `/mine` and `/team` come before `/:id`. */
+/** Field staff read their own Doctors and add new ones; everything else is Admin's. `/added`, `/mine` and `/team` come before `/:id`. */
 function doctorsRouter(c: DoctorHandlers): Router {
   const router = Router();
   router.use(authenticate());
@@ -87,6 +93,9 @@ function doctorsRouter(c: DoctorHandlers): Router {
   const field = requireRole('FIELD');
   router.get('/mine', field, validate({ query: listAssignedDoctorsQuerySchema }), c.mine);
   router.get('/team', field, validate({ query: teamDoctorsQuerySchema }), c.team);
+  router.get('/added', field, validate({ query: listAddedDoctorsQuerySchema }), c.added);
+  router.post('/added', field, validate({ body: addDoctorBodySchema }), c.addDoctor);
+  router.put('/added/:id', field, validate({ params: idParamsSchema, body: editAddedDoctorBodySchema }), c.editAdded);
   router.get('/', admin, validate({ query: listDoctorsQuerySchema }), c.list);
   router.post('/', admin, validate({ body: createDoctorBodySchema }), c.create);
   // Admin, or a FIELD employee the use case checks (the assigned MR, or their manager).

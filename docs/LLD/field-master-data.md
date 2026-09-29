@@ -10,10 +10,11 @@ Doctor. ERD: [`../erd/03-field-master-data.md`](../erd/03-field-master-data.md).
 
 ## Build status
 
-Built so far (Phase 4 Field Master Data steps 1–3, `../roadmap.md`): the module skeleton
+Built so far (Phase 4 Field Master Data steps 1–4, `../roadmap.md`): the module skeleton
 (`apps/api/src/modules/field-master-data`, mounted at `/api/field-master-data`), **Products**,
-**Chemists** and **Doctors** with their assignments. Distributors, sample allocations and the
-MR-added Doctor (with its approval) follow in steps 4–5, and the contract below grows as they land.
+**Chemists** and **Doctors** with their assignments, and the MR-added Doctor with its approval
+(*Doctor-creation approval* below). Distributors and sample allocations follow in step 5, and the
+contract below grows as they land.
 
 - **Products:** `sku` is unique ignoring case and surrounding spaces (a duplicate is a 409).
   `status` is `active` or `inactive`; nothing is ever deleted. List filters: `search` (name or SKU),
@@ -119,6 +120,9 @@ All Admin-only (Web Portal, `../roadmap.md` phase 9) unless noted.
 |---|---|---|---|
 | `POST` | `/field-master-data/doctors` | Admin | Create a Doctor, including registered lat/lng |
 | `GET` | `/field-master-data/doctors` | Admin | List/search, filterable by route, category, status; each row shows who is responsible |
+| `POST` | `/field-master-data/doctors/added` | FIELD | An MR adds a Doctor (offline-first, `clientRequestId`); `201` new, `200` for a retry of one already made |
+| `PUT` | `/field-master-data/doctors/added/:id` | FIELD | The MR changes a rejected, withdrawn or reopened Doctor — resubmits it |
+| `GET` | `/field-master-data/doctors/added` | FIELD | The Doctors I added, any status, each with where it is in its approval |
 | `GET` | `/field-master-data/doctors/mine` | FIELD | My Doctors — assigned to me, on Routes I still have (per the switch) |
 | `GET` | `/field-master-data/doctors/team` | FIELD (manager) | My downline's Doctors; `userId` narrows to one report |
 | `GET` | `/field-master-data/doctors/:id` | Admin, assigned MR, their manager | Detail (404 to anyone else) |
@@ -136,9 +140,9 @@ All Admin-only (Web Portal, `../roadmap.md` phase 9) unless noted.
 | `POST` | `/field-master-data/doctors/:id/sample-allocations` | Admin | Allocate a Product quantity to a Doctor |
 | `GET` | `/field-master-data/doctors/:id/sample-allocations` | Admin, assigned MR | Remaining quantities |
 
-Also usable from the mobile field app: `Add Doctor` (PRD §6.2.A) — an MR-initiated `POST
-/field-master-data/doctors` with a reduced field set, which goes through approval before the
-Doctor is usable. See **Doctor-creation approval** below.
+Also usable from the mobile field app: `Add Doctor` (PRD §6.2.A) — `POST /field-master-data/doctors/added`,
+with a reduced field set, which goes through approval before the Doctor is usable. See
+**Doctor-creation approval** below.
 
 ## Doctor-creation approval
 
@@ -147,37 +151,39 @@ Manager → Admin**, through the `approval` module ([`approval.md`](approval.md)
 [`../hld/05-approval-workflow-engine.md`](../hld/05-approval-workflow-engine.md)) — this module
 doesn't re-derive the state machine.
 
-- This module registers a kind (working name `NEW_DOCTOR`, final approver `ADMIN`) and calls
-  `approval.contract.submit({ kind, recordId: doctorId, submitterId })` from the MR's create
-  endpoint, in the same transaction as the insert.
-- **An MR-created Doctor isn't usable until `APPROVED`.** It needs a status outside `active` —
-  `Doctor.status` gains `pending` (ERD 03 lists only `active`/`inactive` today; add it when this
-  is built). Every contract read above (`getDoctorLocation`, `listAssignedDoctors`,
-  `isAssignedToDoctor`, …) treats a `pending` Doctor as not existing yet, so nobody calls on or
-  gives samples to an unapproved Doctor.
-- `onStatusChange` on `APPROVED` sets the Doctor `active`, in the approval's transaction. On
-  `REJECTED` / `WITHDRAWN` it stays `pending`; the MR can edit it (`isEditableBySubmitter`) and
-  resubmit, as a new cycle on the same request.
-- **Admin-created Doctors skip approval** and are created `active` — Admin is the final approver
-  anyway.
+- This module registers the `NEW_DOCTOR` kind (final approver `ADMIN`) and submits it from the MR's
+  create endpoint, in the same transaction as the insert, so a Doctor never exists without its
+  request. The approve, reject and withdraw actions are the approval module's own `/api/approvals/*`
+  endpoints; Admin opens the Doctor from a request's `recordId`.
+- **An MR-added Doctor is `pending` until `APPROVED`.** `Doctor.status` is `pending`, `active` or
+  `inactive`. `getDoctor` and `getDoctorLocation` return `null` for a pending Doctor, and
+  `isAssignedToDoctor` / `listAssignedDoctors` never include one, so nobody calls on it or gives
+  samples to it. It's visible to Admin, to the MR who added it, and to that MR's managers.
+- **On `APPROVED`** the Doctor becomes `active` and `approvedAt` is set. With
+  `AUTO_ASSIGN_DOCTOR_ON_APPROVAL` on, the MR who added it is assigned in the same transaction —
+  unless they're inactive or no longer have the Doctor's Route, in which case the Doctor is left
+  unassigned for Admin (the approval never fails for that reason).
+- **On `REJECTED` / `WITHDRAWN`** it stays `pending`; the MR can edit it (`PUT /doctors/added/:id`)
+  and resubmit as a new cycle on the same request. The MR's edit re-captures the phone location.
+- **On Admin `REOPENED`** an approved Doctor goes back to `pending` with `approvedAt` cleared, so it
+  drops out of the field's lists while it's reconsidered; its assignment is kept, hidden, and is not
+  duplicated when it's approved again.
+- **Offline-first create.** `clientRequestId` (unique per MR) makes a retry safe: the same id again
+  returns the Doctor already made (`200`, not a second Doctor or request). Two requests racing on
+  one id are settled by a unique index — one wins, the others get the winner. The Route must be one
+  the MR currently has.
+- **Admin review.** Admin can correct the location on a map while the Doctor is pending (or later,
+  with the ordinary edit): `location` changes, `capturedLocation` keeps the phone's point. Admin
+  can't approve or deactivate a pending Doctor through an edit; that is the approval's job.
 - `MANAGER_ONLY` for this kind is a config switch (`APPROVAL_MANAGER_ONLY_KINDS`), not code, if
   the client later decides the Admin stage is too heavy.
 
 **Accepted 2026-09-29** (client sign-off C3, C4, C6, C7, C8; `../decision-log.md`):
 
 - **What an MR fills:** category, name, address, email, specialty, qualification, the Route (one of
-  the MR's own assigned Routes) and the location. The location is the phone's GPS at the moment of
-  adding; the MR can't edit it afterwards.
-- **Offline-first.** The phone saves the Doctor and sends it later. The create carries a
-  client-generated `clientRequestId`, unique per submitter, so a retry returns the first Doctor
-  instead of creating a second. The same rule will serve Phase 5's queue.
-- **Admin review.** The approver sees the location on a Google map and may correct it as part of
-  the approval; the corrected point is the registered one. The original capture is kept
-  (`capturedLocation`) so the change is visible.
+  the MR's own) and the location — the phone's GPS when adding. After approval the MR can't change
+  it; only Admin can.
 - **Admin-created Doctors** pick the location on a Google map and are `active` at once, no approval.
-- **Approval assigns the MR.** On `APPROVED`, if `AUTO_ASSIGN_DOCTOR_ON_APPROVAL` (default true) is on,
-  a `DoctorAssignment` to the MR who added it is created in the approval's transaction. Admin can
-  reassign afterwards.
 - **`approvedAt`** is stored on the Doctor. Phase 6 combines it with `NEW_DOCTOR_COVERAGE_WAIT_DAYS`
   (8) to decide when visits count toward coverage.
 

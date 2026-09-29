@@ -28,6 +28,15 @@ Use `AppError.internal(code, details, cause)` for a violated invariant — somet
 be impossible given valid input — not for expected failure paths like "record not found." It
 sets `isExpected: false`, which is what should eventually drive alerting.
 
+## Transactions and unique keys
+
+MongoDB aborts a transaction on **any** write error, a duplicate key included. So a repository
+inside a transaction must **throw** a unique-key conflict (Field Master Data's
+`DuplicateRecordError`), never swallow it and return `null`: carrying on only fails later at
+commit, as an opaque "transaction aborted" 500. The use case catches it **outside** the
+transaction and decides — return the winner of a race, or a 409. A plain `updateOne` or read
+outside a transaction can still return `null` for a duplicate.
+
 ## Money
 
 **Decided (provisionally): Mongoose `Decimal128`, converted to/from a decimal string at the

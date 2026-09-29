@@ -1,6 +1,7 @@
 import { Types, type ClientSession } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { DoctorAssignment } from '../domain/doctorAssignment.entity.js';
+import { DuplicateRecordError } from '../domain/duplicateRecord.error.js';
 import type { DoctorAssignmentRepositoryPort } from '../domain/doctorAssignment.repository.port.js';
 import { DoctorAssignmentModel, type DoctorAssignmentDoc } from './doctorAssignment.schema.js';
 import { isDuplicateKey } from './mongoHelpers.js';
@@ -40,15 +41,15 @@ export class MongoDoctorAssignmentAdapter implements DoctorAssignmentRepositoryP
     await DoctorAssignmentModel.updateOne({ doctorId: oid(doctorId), status: 'active' }, ending(by), { session: session(ctx) });
   }
 
-  async create(input: { doctorId: string; userId: string; assignedBy: string }, ctx: TransactionContext): Promise<DoctorAssignment | null> {
+  async create(input: { doctorId: string; userId: string; assignedBy: string }, ctx: TransactionContext): Promise<DoctorAssignment> {
     try {
       const [doc] = await DoctorAssignmentModel.create(
         [{ doctorId: oid(input.doctorId), userId: oid(input.userId), status: 'active', assignedAt: new Date(), assignedBy: oid(input.assignedBy) }],
         { session: session(ctx) },
       );
-      return doc ? toAssignment(doc.toObject()) : null;
+      return toAssignment(doc!.toObject());
     } catch (err) {
-      if (isDuplicateKey(err)) return null;
+      if (isDuplicateKey(err)) throw new DuplicateRecordError('active assignment');
       throw err;
     }
   }

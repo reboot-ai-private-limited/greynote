@@ -17,6 +17,26 @@ old one.
 
 ---
 
+## 2026-09-29 — A unique-key conflict inside a transaction is thrown, not returned
+
+**Decision:** Field Master Data's repositories throw `DuplicateRecordError` when a write inside a
+transaction hits a unique index (a repeated `clientRequestId`, a second active assignment for a
+Doctor); the use case catches it outside the transaction and answers — the earlier Doctor for a
+retry, a 409 for a racing assignment.
+
+**Replaces:** the first version of step 4, whose adapter caught the duplicate and returned `null`
+from inside the transaction, as Territory's HQ assignment does.
+
+**Why:** the database aborts the whole transaction on any write error. Returning normally after
+one meant the commit failed with "transaction aborted", so five racing retries of one create left
+one Doctor (correct) but answered 500 to the other four. Found by the step 4 live run.
+
+**Consequences:** rule added to `engineering/coding-standards.md`. Territory's
+`MongoUserHqAssignmentAdapter.create` catches the duplicate the same way, so a race there most
+likely ends in the same 500; it has not been changed or checked.
+
+---
+
 ## 2026-09-29 — Field Master Data built on today's assumptions (C3, C4, C6, C7, C8)
 
 **Decision:** Phase 4's Field Master Data starts on these accepted assumptions:

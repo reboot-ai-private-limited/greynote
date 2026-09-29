@@ -9,8 +9,8 @@ export interface DoctorAssignmentRepositoryPort {
   listForDoctor(doctorId: string): Promise<DoctorAssignment[]>;
   /** Ends the Doctor's active assignment, if any. */
   endActive(doctorId: string, by: string, ctx: TransactionContext): Promise<void>;
-  /** `null` if another active assignment for the Doctor appeared meanwhile. */
-  create(input: { doctorId: string; userId: string; assignedBy: string }, ctx: TransactionContext): Promise<DoctorAssignment | null>;
+  /** Throws `DuplicateRecordError` if another active assignment for the Doctor appeared meanwhile. */
+  create(input: { doctorId: string; userId: string; assignedBy: string }, ctx: TransactionContext): Promise<DoctorAssignment>;
   /** Ends the active assignment only if it belongs to this user; `false` if there was none. */
   endActiveIfUser(doctorId: string, userId: string, by: string): Promise<boolean>;
 }

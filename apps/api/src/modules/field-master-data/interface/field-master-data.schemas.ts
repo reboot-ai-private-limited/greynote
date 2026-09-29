@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DOCTOR_STATUSES } from '../domain/doctor.entity.js';
 import { MASTER_STATUSES } from '../domain/masterStatus.js';
 
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
@@ -89,6 +90,8 @@ export const updateDoctorBodySchema = z
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 export const listDoctorsQuerySchema = z.object({
   ...pageFields,
+  /** Includes `pending` — the MR-added Doctors waiting for approval. */
+  status: z.enum(DOCTOR_STATUSES).optional(),
   routeId: objectIdSchema.optional(),
   category: z.string().trim().min(1).optional(),
 });
@@ -103,3 +106,19 @@ export const listAssignedDoctorsQuerySchema = z.object({
 export const teamDoctorsQuerySchema = listAssignedDoctorsQuerySchema.extend({ userId: objectIdSchema.optional() });
 export const assignDoctorBodySchema = z.object({ userId: objectIdSchema });
 export const doctorAssignmentParamsSchema = z.object({ id: objectIdSchema, userId: objectIdSchema });
+
+// ---- Doctors an MR adds (offline-first, then approved)
+const addedDoctorFields = {
+  routeId: objectIdSchema,
+  ...doctorFields,
+  email: emailSchema.nullish().transform((v) => v ?? null),
+  /** The phone's GPS when adding. Required — Admin reviews it on a map at approval. */
+  location: locationSchema,
+};
+export const addDoctorBodySchema = z.object({
+  ...addedDoctorFields,
+  /** Made by the app once per add, so a retry after a dropped connection can't create a second Doctor. */
+  clientRequestId: z.string().trim().min(8).max(100),
+});
+export const editAddedDoctorBodySchema = z.object(addedDoctorFields);
+export const listAddedDoctorsQuerySchema = z.object({ page: pageFields.page, pageSize: pageFields.pageSize });

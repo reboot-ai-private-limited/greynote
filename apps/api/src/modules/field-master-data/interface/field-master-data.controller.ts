@@ -5,6 +5,7 @@ import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { Actor } from '../application/actor.js';
+import type { AddedDoctors } from '../application/usecases/addedDoctors.js';
 import type { AssignDoctorUseCase } from '../application/usecases/assignDoctor.usecase.js';
 import type { CreateChemistUseCase } from '../application/usecases/createChemist.usecase.js';
 import type { CreateDoctorUseCase } from '../application/usecases/createDoctor.usecase.js';
@@ -22,6 +23,7 @@ import type { UpdateChemistUseCase } from '../application/usecases/updateChemist
 import type { UpdateDoctorUseCase } from '../application/usecases/updateDoctor.usecase.js';
 import type { UpdateProductUseCase } from '../application/usecases/updateProduct.usecase.js';
 import type {
+  listAddedDoctorsQuerySchema,
   listAssignedDoctorsQuerySchema,
   listChemistsQuerySchema,
   listDoctorsQuerySchema,
@@ -75,7 +77,7 @@ export function makeChemistControllers(u: {
 }
 
 export type DoctorHandlers = Record<
-  'list' | 'create' | 'get' | 'update' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign',
+  'list' | 'create' | 'get' | 'update' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded',
   RequestHandler
 >;
 
@@ -88,6 +90,7 @@ export function makeDoctorControllers(u: {
   listAssignments: ListDoctorAssignmentsUseCase;
   assign: AssignDoctorUseCase;
   unassign: UnassignDoctorUseCase;
+  addedDoctors: AddedDoctors;
 }): DoctorHandlers {
   return {
     list: asyncHandler(async (req, res) => {
@@ -118,6 +121,18 @@ export function makeDoctorControllers(u: {
       const assignment = await u.assign.execute(requiredParam(req.params, 'id'), req.body.userId, actorOf(req).id);
       sendSuccess(req, res, assignment, 'Doctor assigned.', 200);
     }),
+    added: asyncHandler(async (req, res) => {
+      const query = req.query as unknown as z.output<typeof listAddedDoctorsQuerySchema>;
+      sendSuccess(req, res, await u.addedDoctors.list(actorOf(req).id, query), 'Doctors you added.', 200);
+    }),
+    addDoctor: asyncHandler(async (req, res) => {
+      const { doctor, created } = await u.addedDoctors.add(actorOf(req).id, req.body);
+      // 200 for a retry of a create that already went through, so the app can tell the two apart.
+      sendSuccess(req, res, doctor, created ? 'Doctor added and sent for approval.' : 'Doctor was already added.', created ? 201 : 200);
+    }),
+    editAdded: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.addedDoctors.edit(actorOf(req).id, requiredParam(req.params, 'id'), req.body), 'Doctor updated and resubmitted.', 200),
+    ),
     unassign: asyncHandler(async (req, res) => {
       await u.unassign.execute(requiredParam(req.params, 'id'), requiredParam(req.params, 'userId'), actorOf(req).id);
       sendSuccess(req, res, null, 'Assignment removed.', 200);

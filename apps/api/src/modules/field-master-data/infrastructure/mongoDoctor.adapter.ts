@@ -1,6 +1,8 @@
-import { Types, type PipelineStage } from 'mongoose';
+import { Types, type ClientSession, type PipelineStage } from 'mongoose';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { buildPaginatedResult, toSkipLimit, type PaginatedResult } from '@/shared/http/pagination.js';
 import type { Doctor } from '../domain/doctor.entity.js';
+import { DuplicateRecordError } from '../domain/duplicateRecord.error.js';
 import type {
   AssignedDoctor,
   AssignedScope,
@@ -10,7 +12,7 @@ import type {
 import type { PageQuery } from '../domain/masterStatus.js';
 import { DoctorModel, type DoctorDoc } from './doctor.schema.js';
 import { DoctorAssignmentModel } from './doctorAssignment.schema.js';
-import { escapeRegex } from './mongoHelpers.js';
+import { escapeRegex, isDuplicateKey } from './mongoHelpers.js';
 
 const toDoctor = (doc: DoctorDoc & { _id: unknown }): Doctor => ({
   id: String(doc._id),
@@ -22,19 +24,26 @@ const toDoctor = (doc: DoctorDoc & { _id: unknown }): Doctor => ({
   specialty: doc.specialty,
   qualification: doc.qualification,
   location: doc.latitude === null || doc.longitude === null ? null : { latitude: doc.latitude, longitude: doc.longitude },
+  capturedLocation:
+    doc.capturedLatitude === null || doc.capturedLongitude === null ? null : { latitude: doc.capturedLatitude, longitude: doc.capturedLongitude },
   status: doc.status,
   addedBy: String(doc.addedBy),
+  clientRequestId: doc.clientRequestId,
   approvedAt: doc.approvedAt,
 });
 
 /** Domain fields ↔ the stored columns. */
 const toColumns = (change: Partial<Omit<Doctor, 'id'>>): Record<string, unknown> => {
-  const { location, routeId, addedBy, ...rest } = change;
+  const { location, capturedLocation, routeId, addedBy, ...rest } = change;
   return {
     ...rest,
     ...(routeId !== undefined && { routeId: new Types.ObjectId(routeId) }),
     ...(addedBy !== undefined && { addedBy: new Types.ObjectId(addedBy) }),
     ...(location !== undefined && { latitude: location?.latitude ?? null, longitude: location?.longitude ?? null }),
+    ...(capturedLocation !== undefined && {
+      capturedLatitude: capturedLocation?.latitude ?? null,
+      capturedLongitude: capturedLocation?.longitude ?? null,
+    }),
   };
 };
 
@@ -63,9 +72,36 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
     return toDoctor(doc.toObject());
   }
 
-  async update(id: string, change: Partial<Omit<Doctor, 'id'>>): Promise<Doctor | null> {
-    const doc = await DoctorModel.findByIdAndUpdate(id, toColumns(change), { new: true }).lean();
+  async createProposed(input: Omit<Doctor, 'id'>, ctx: TransactionContext): Promise<Doctor> {
+    try {
+      const [doc] = await DoctorModel.create([toColumns(input)], { session: ctx as ClientSession });
+      return toDoctor(doc!.toObject());
+    } catch (err) {
+      if (isDuplicateKey(err)) throw new DuplicateRecordError('client request');
+      throw err;
+    }
+  }
+
+  async findByClientRequest(addedBy: string, clientRequestId: string): Promise<Doctor | null> {
+    const doc = await DoctorModel.findOne({ addedBy: new Types.ObjectId(addedBy), clientRequestId }).lean();
     return doc ? toDoctor(doc) : null;
+  }
+
+  async update(id: string, change: Partial<Omit<Doctor, 'id'>>, ctx?: TransactionContext): Promise<Doctor | null> {
+    const doc = await DoctorModel.findByIdAndUpdate(id, toColumns(change), {
+      new: true,
+      ...(ctx !== undefined && { session: ctx as ClientSession }),
+    }).lean();
+    return doc ? toDoctor(doc) : null;
+  }
+
+  async listAdded(addedBy: string, page: PageQuery): Promise<PaginatedResult<Doctor>> {
+    const query = { addedBy: new Types.ObjectId(addedBy) };
+    const [docs, total] = await Promise.all([
+      DoctorModel.find(query).sort({ _id: -1 }).skip(toSkipLimit(page).skip).limit(page.pageSize).lean(),
+      DoctorModel.countDocuments(query),
+    ]);
+    return buildPaginatedResult(docs.map(toDoctor), total, page);
   }
 
   async listAssigned(

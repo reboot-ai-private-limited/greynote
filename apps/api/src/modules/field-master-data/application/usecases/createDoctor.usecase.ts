@@ -16,7 +16,7 @@ export class CreateDoctorUseCase {
 
   async execute(input: CreateDoctorInput, adminId: string): Promise<DoctorView> {
     await requireActiveRoute(this.territory, input.routeId);
-    const doctor = await this.doctors.create({ ...input, status: 'active', addedBy: adminId, approvedAt: new Date() });
+    const doctor = await this.doctors.create({ ...input, capturedLocation: null, clientRequestId: null, status: 'active', addedBy: adminId, approvedAt: new Date() });
     return this.views.one(doctor);
   }
 }

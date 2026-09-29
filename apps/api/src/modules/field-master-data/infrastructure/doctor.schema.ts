@@ -11,8 +11,11 @@ export interface DoctorDoc {
   qualification: string;
   latitude: number | null;
   longitude: number | null;
+  capturedLatitude: number | null;
+  capturedLongitude: number | null;
   status: DoctorStatus;
   addedBy: Types.ObjectId;
+  clientRequestId: string | null;
   approvedAt: Date | null;
 }
 
@@ -26,10 +29,17 @@ const doctorSchema = new Schema<DoctorDoc>({
   qualification: { type: String, required: true },
   latitude: { type: Number, default: null },
   longitude: { type: Number, default: null },
+  capturedLatitude: { type: Number, default: null },
+  capturedLongitude: { type: Number, default: null },
   status: { type: String, required: true, enum: DOCTOR_STATUSES },
   addedBy: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
+  clientRequestId: { type: String, default: null },
   approvedAt: { type: Date, default: null },
 });
 doctorSchema.index({ routeId: 1, status: 1 });
+// An offline retry of the same create returns the first Doctor instead of adding a second.
+doctorSchema.index({ addedBy: 1, clientRequestId: 1 }, { unique: true, partialFilterExpression: { clientRequestId: { $type: 'string' } } });
+// "Doctors I added".
+doctorSchema.index({ addedBy: 1, _id: -1 });
 
 export const DoctorModel = model<DoctorDoc>('Doctor', doctorSchema);

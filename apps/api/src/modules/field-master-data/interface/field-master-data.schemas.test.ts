@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createChemistBodySchema, updateChemistBodySchema, updateProductBodySchema } from './field-master-data.schemas.js';
+import {
+  addDoctorBodySchema,
+  createChemistBodySchema,
+  editAddedDoctorBodySchema,
+  updateChemistBodySchema,
+  updateProductBodySchema,
+} from './field-master-data.schemas.js';
 
 const route = 'a'.repeat(24);
 const base = { routeId: route, name: 'Sai', address: 'Main Rd' };
@@ -21,5 +27,14 @@ describe('Field Master Data request schemas', () => {
     expect(updateChemistBodySchema.safeParse({}).success).toBe(false);
     expect(updateProductBodySchema.safeParse({}).success).toBe(false);
     expect(updateChemistBodySchema.parse({ location: null }).location).toBeNull();
+  });
+
+  it('an MR-added doctor needs a phone location and a client request id', () => {
+    const doctor = { routeId: route, category: 'A', name: 'Dr X', address: 'Rd', specialty: 'ENT', qualification: 'MS', location: { latitude: 26.7, longitude: 88.4 }, clientRequestId: 'abcd-1234' };
+    expect(addDoctorBodySchema.parse(doctor).email).toBeNull();
+    expect(addDoctorBodySchema.safeParse({ ...doctor, location: undefined }).success).toBe(false);
+    expect(addDoctorBodySchema.safeParse({ ...doctor, clientRequestId: 'short' }).success).toBe(false);
+    expect(addDoctorBodySchema.safeParse({ ...doctor, email: 'not-an-email' }).success).toBe(false);
+    expect(editAddedDoctorBodySchema.safeParse({ ...doctor, clientRequestId: undefined }).success).toBe(true);
   });
 });

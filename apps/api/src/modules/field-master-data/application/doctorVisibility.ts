@@ -45,12 +45,15 @@ export class DoctorVisibility {
   async canView(actor: Actor, doctor: Doctor): Promise<boolean> {
     if (actor.role === 'ADMIN') return true;
     if (actor.role !== 'FIELD') return false;
+    // An MR-added Doctor awaiting approval: the MR who added it and their managers can follow it.
+    if (doctor.status === 'pending') return actor.id === doctor.addedBy || (await this.isManagerOf(actor.id, doctor.addedBy));
     const assignment = await this.assignments.findActiveForDoctor(doctor.id);
     if (!assignment) return false;
-    if (assignment.userId !== actor.id) {
-      const downline = await this.users.getDownline(actor.id);
-      if (!downline.some((u) => u.id === assignment.userId)) return false;
-    }
+    if (assignment.userId !== actor.id && !(await this.isManagerOf(actor.id, assignment.userId))) return false;
     return this.isVisibleToAssignee(assignment.userId, doctor);
+  }
+
+  private async isManagerOf(managerId: string, userId: string): Promise<boolean> {
+    return (await this.users.getDownline(managerId)).some((u) => u.id === userId);
   }
 }

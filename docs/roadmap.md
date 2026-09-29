@@ -190,7 +190,7 @@ Field Master Data, step by step (decision-log 2026-09-29):
    Routes, so it needs no new method — **done** (2026-09-29)
 2. Module skeleton, Products, Chemists — **done** (2026-09-29)
 3. Doctors: Admin create with a map point, assignments with the Route rule, visibility — **done** (2026-09-29; live-checked, 45 checks)
-4. MR add-Doctor: `NEW_DOCTOR` approval, offline-safe create, auto-assign on approval
+4. MR add-Doctor: `NEW_DOCTOR` approval, offline-safe create, auto-assign on approval — **done** (2026-09-29; live-checked, 38 checks)
 5. Distributors and sample allocations
 6. Tests, live run against the dev database
 
