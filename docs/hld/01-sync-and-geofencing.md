@@ -17,7 +17,9 @@ The mobile app's local DB mirrors two different kinds of data, handled different
 > leaves the device: the whole day's records go in one push, and there is no background queue or
 > auto-retry. Read §1.1–1.3 with that in mind: `QUEUED` means "in the day's report, waiting for
 > Submit"; a failed Submit is retried by tapping it again. The design is in
-> [`../LLD/sync.md`](../LLD/sync.md).
+> [`../LLD/sync.md`](../LLD/sync.md). **Amended the same day (G9, G10):** the phone also backs its
+> unsent records up to a private holding area on the server whenever it has a connection — they count
+> for nothing until Submit — and Submit ends with the phone taking the server's version of each record.
 
 Per PRD §2, nothing transactional leaves the device automatically. A record only moves from `DRAFT` to `QUEUED` when the user taps "Submit" (per-call, or the DCR's "Final Submission"). Network availability is checked at that point and continuously afterward for anything still `QUEUED`.
 

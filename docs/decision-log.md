@@ -17,6 +17,39 @@ old one.
 
 ---
 
+## 2026-09-29 — A private draft backup under the daily-report sync (amends G1)
+
+**Decision:** The 2026-09-29 entry above has offline data leave the phone only at the daily report's
+Submit. That stands for everything that *counts*, but the phone now also **backs its unsent records up
+to the server whenever it has a connection** (sign-off G9), and **Submit ends with the phone taking
+the server's version of each record** (G10):
+
+- Drafts go to a holding area as opaque blobs: upserted by `clientId`, last write wins on
+  `clientUpdatedAt`, removals remembered. No business rule runs on them, and no other module, report,
+  count, balance, gate or compliance check can see them — only the MR, to restore the day on a new
+  phone. Submit remains the only commit and runs the real handlers.
+- At Submit the server returns its own version of every record (ids, the recomputed geofence status,
+  per-record failures), the phone replaces its local copies and refreshes reference data, and the
+  day's drafts are deleted with the receipts.
+
+**Replaces:** the "nothing leaves the device until Submit" line of the entry above, and the "save to
+server now" button that was listed as deferred.
+
+**Why:** the only real cost of syncing at Submit was that a lost or broken phone loses the day. An
+automatic backup removes that without breaking the PRD's rule that nothing counts until Submit, and
+without ever making draft data look like real data — which is why it stores blobs and validates
+nothing. Reconciling at Submit means the phone never keeps a version that disagrees with the server.
+
+**Costs:** one more collection and two endpoints; drafts hold GPS points and business data, so they
+are private to the owner and purged after `SYNC_DRAFT_TTL_DAYS`. If both of an MR's phones edit one
+record, the later edit wins. Anything created after the last upload is still lost with the phone.
+**The client should confirm G1 as amended** — it said data syncs "only on Submit", and a hidden backup
+is a reading of that, not a quote of it.
+
+**Refs:** [`LLD/sync.md`](LLD/sync.md) *Draft backup*, [`client-sign-off.md`](client-sign-off.md) G1, G9, G10
+
+---
+
 ## 2026-09-29 — Offline data syncs once, at the daily report's Submit; money is integer paise
 
 **Decision:**

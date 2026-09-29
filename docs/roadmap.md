@@ -212,25 +212,30 @@ configure per-Pay-Band leave defaults and an employee's balance reflects them.
 
 The other shared mechanism, and the riskiest mobile-side piece — built once, alone, before Field
 Activity becomes the first module to actually depend on it. This phase is the **server half** (the
-phone's local store is Phase 10). Offline data syncs **once, at the daily report's Submit**
-(sign-off G1); Plans, Leave and approvals need a live connection at the action.
+phone's local store is Phase 10). Offline data is **committed once, at the daily report's Submit**
+(sign-off G1), with a private draft backup underneath so a lost phone doesn't lose the day (G9) and
+the phone taking the server's version at Submit (G10); Plans, Leave and approvals need a live
+connection at the action.
 
-1. Design recorded, sign-off G1–G8 accepted, money decided as integer paise — **done** (2026-09-29)
+1. Design recorded, sign-off G1–G10 accepted, money decided as integer paise — **done** (2026-09-29)
 2. Geofence: the distance check, `PASS` / `FAIL` / `UNVERIFIED`, radius and accuracy from SystemConfig — **done** (2026-09-29): a pure function in `shared/geo`, 10 tests; Field Activity calls it in Phase 6
 3. Money migration: `PayBand` and `Route.taPerKmRateOverride` from `Decimal128` to integer paise
    (before Phase 6 adds Expenses)
-4. Sync module (tier 2): receipts, the handler registry, `POST /sync/push` with per-record results,
-   dependency order, the creation-time rules
-5. `NEW_DOCTOR` through it (the one real offline record that exists today)
-6. Pull: the source registry and `GET /sync/pull`, with Field Master Data, Territory, HR, Planning
+4. Sync module (tier 2): receipts, the handler registry, `POST /sync/push` (Submit) with per-record
+   results, dependency order, the creation-time rules
+5. Draft backup (G9, G10): `PUT` / `GET /sync/drafts` — opaque, private, last write wins, removals
+   remembered, size and count limits, TTL purge, drafts cleared with the receipt at Submit
+6. `NEW_DOCTOR` through it (the one real offline record that exists today)
+7. Pull: the source registry and `GET /sync/pull`, with Field Master Data, Territory, HR, Planning
    and Config as sources
-7. Contract types in `packages/contracts`, a sync-client simulator test (dropped connections, replayed
-   batches), and one end-to-end live run
+8. Contract types in `packages/contracts`, a sync-client simulator test (dropped connections, replayed
+   batches, a lost phone restored on another), and one end-to-end live run
 
 **Done when:** an MR-added Doctor sent in a push is created exactly once however many times the push
 is repeated or interrupted, a record whose parent failed is reported as such without losing the
-rest, the pull returns exactly the caller's data (and a Route change makes Doctors appear and
-vanish), and a call-shaped test record is flagged `FAIL` / `UNVERIFIED` correctly — all against real
+rest, drafts backed up from one phone restore on another and a stale copy never overwrites a newer
+one, no other endpoint can read a draft, the pull returns exactly the caller's data (and a Route
+change makes Doctors appear and vanish), and a call-shaped test record is flagged `FAIL` / `UNVERIFIED` correctly — all against real
 Field Master Data from Phase 4, not fixtures. Real calls, expenses and orders join in Phase 6.
 
 ## Phase 6 — Field Activity, Sales & Orders, Marketing

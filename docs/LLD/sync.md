@@ -9,10 +9,21 @@ The rules here are the working assumptions accepted on 2026-09-29 (client sign-o
 
 ## The model: one daily-report submit
 
-Nothing syncs in the background. The MR works offline all day, and everything that belongs to the
-day goes to the server **together, when they tap the daily report's Submit with a live connection**
-(PRD §2, §6.2 Final Submission). There is no per-record queue and no auto-retry: a failed submit is
-retried by the MR tapping Submit again, and that is safe because every record is idempotent.
+**Nothing counts until Submit.** The MR works offline all day, and everything that belongs to the day
+is committed **together, when they tap the daily report's Submit with a live connection** (PRD §2,
+§6.2 Final Submission). There is no per-record commit queue and no auto-retry of the commit: a
+failed submit is retried by the MR tapping Submit again, and that is safe because every record is
+idempotent.
+
+**A private backup runs underneath (G9).** Whenever the phone has a connection it uploads its
+draft records to a holding area on the server (*Draft backup* below), so a lost or broken phone
+doesn't lose the day. Drafts are invisible to everyone but the MR and change nothing: no report, no
+count, no sample or stock balance, no gate, no compliance check. The commit is still Submit alone.
+
+**Submit reconciles both sides (G10).** It pushes the final set, the server commits it and returns
+*its* version of every record (assigned ids, the recomputed geofence status, per-record failures);
+the phone replaces its local copies with those, refreshes its reference data, and the server clears
+the day's drafts. The server's answer wins.
 
 **In the daily report (created offline, sent at Submit):** Doctors the MR added, Doctor and Chemist
 Calls with the samples given in them, Follow-ups, Expenses, Orders, Doctor Gifts marked done, Doctor
@@ -68,6 +79,31 @@ Only a malformed envelope (or no login) is a 4xx.
 - **Who:** an active FIELD employee. Whether a compliance-blocked one may still send the report that
   ends the block is Field Activity's call (`hld/10`).
 
+## Draft backup
+
+The holding area for the day's unsent records (sign-off G9). It stores each record as an opaque blob
+and applies **no** business rules — the real handlers run only at Submit — so it can never disagree
+with them or leave a half-applied state.
+
+- **Upload:** `PUT /api/sync/drafts` — a batch of `{ clientId, kind, clientUpdatedAt, payload }` and
+  `{ clientId, deleted: true }` for a record the MR removed. It is an **upsert by `clientId`**, per
+  user, with **last write wins** on `clientUpdatedAt`: an older copy arriving late (or from the second
+  phone) never overwrites a newer one, and a removal is remembered so a stale copy can't bring the
+  record back. The phone sends it whenever it has a connection and something changed, debounced, and
+  needs no answer beyond "stored".
+- **Restore:** `GET /api/sync/drafts` returns the caller's drafts (not the removed ones), so logging in
+  on a new phone brings the day back. With the 2-device limit an MR can carry on from either phone;
+  if both edit one record, the later edit wins.
+- **Private:** only the owner can read or write their drafts; no other endpoint, module or report
+  reads the collection. A draft is unvalidated and may be broken; it is never treated as a record.
+- **Limits:** a draft is at most `SYNC_MAX_DRAFT_BYTES` (64 KB), and an MR keeps at most
+  `SYNC_MAX_DRAFTS` (2,000) at once — enough for several days offline, not a place to dump files.
+- **Clearing:** a record that commits at Submit has its draft deleted in the same transaction as its
+  receipt; drafts older than `SYNC_DRAFT_TTL_DAYS` (30) are purged, by a MongoDB TTL index, so
+  abandoned ones don't accumulate.
+- **Not a shortcut:** the phone can't submit a draft by id; Submit sends the records themselves, so
+  what is committed is exactly what the MR looked at when they tapped it.
+
 ## Pull
 
 `GET /api/sync/pull` gives the phone what it caches (HLD 01 §1.1). A **versioned snapshot** per data
@@ -111,7 +147,7 @@ evaluateGeofence({ registered, captured, accuracyMeters, radiusMeters, maxAccura
 ## Module and tier
 
 `apps/api/src/modules/sync`, **tier 2** beside Approval: a registry that knows no kind and no source
-until its owner registers it, so it imports only Identity (to check the caller). Field Master Data
+until its owner registers it, so it imports only Identity (to check the caller). the module also owns the draft collection; Field Master Data
 registers `NEW_DOCTOR`'s handler and its pull source; Territory, HR, Planning and Config register
 their sources; Phase 6 adds the calls, expenses, orders, gifts, services and the DCR submit.
 
@@ -119,20 +155,24 @@ their sources; Phase 6 adds the calls, expenses, orders, gifts, services and the
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| `POST` | `/api/sync/push` | FIELD | Send the day's records, with a result per record |
+| `PUT` | `/api/sync/drafts` | FIELD | Back up the day's unsent records (private, unvalidated, last write wins) |
+| `GET` | `/api/sync/drafts` | FIELD | Restore them, e.g. on a new phone |
+| `POST` | `/api/sync/push` | FIELD | Submit: commit the day's records, with a result per record |
 | `GET` | `/api/sync/pull` | FIELD | The MR's reference data, as versioned snapshots |
 
 ## Config
 
 `GEO_FENCE_RADIUS_METERS` (200), `GEO_MAX_ACCURACY_METERS` (100), `SYNC_MAX_BATCH` (500),
-`SYNC_MAX_AGE_DAYS` (7), `SYNC_CLOCK_SKEW_MINUTES` (10).
+`SYNC_MAX_AGE_DAYS` (7), `SYNC_CLOCK_SKEW_MINUTES` (10) — seeded now; `SYNC_DRAFT_TTL_DAYS` (30),
+`SYNC_MAX_DRAFT_BYTES` (65,536) and `SYNC_MAX_DRAFTS` (2,000) are seeded with the draft backup.
 
 ## Edge cases
 
 - **The connection drops mid-push.** Records already committed have receipts; the MR taps Submit
   again and they come back `ALREADY_SYNCED`. Nothing is lost or doubled.
-- **The phone is lost before Submit.** Nothing has left the device. That's the price of syncing
-  only at Submit; the daily-report design accepts it.
+- **The phone is lost or broken before Submit.** The draft backup has the day (as of the last time
+  the phone had a connection); logging in on another phone restores it, and the MR submits from there.
+  Anything created after the last upload is lost.
 - **A record fixed after `FAILED`.** It has no receipt, so it is applied fresh — and if the MR sends
   the *same* `clientId` with a changed payload after `SYNCED`, the original result stands; a
   correction after sync is a new record or an Admin edit, never a silent overwrite.
@@ -145,6 +185,7 @@ Identity (the caller). Everything else reaches this module by registering into i
 
 ## Deliberately deferred
 
-- A "save to server now" draft sync before the final Submit — the PRD says Submit only.
+- A draft **visible to the manager** before Submit (a live view of the MR's day). Drafts are private
+  by design (G9); anything the manager can see is a submitted report.
 - Attachments and receipt photos, if the client wants them for Expenses (sign-off F2).
 - Row-level delta pull, if a source ever grows too large to send whole.
