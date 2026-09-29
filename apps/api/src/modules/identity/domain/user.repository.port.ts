@@ -39,6 +39,8 @@ export interface UserRepositoryPort {
   create(input: Omit<User, 'id'>): Promise<User>;
   /** `ctx` participates in a transaction (only `unblockUser` needs this) — omit for a plain single-document write. */
   update(id: string, input: Partial<Omit<User, 'id'>>, ctx?: TransactionContext): Promise<User>;
+  /** Ids of the active users with this role, no paging — for a job that visits each. */
+  listActiveIdsByRole(role: 'FIELD'): Promise<string[]>;
   existsByEmployeeCode(employeeCode: string): Promise<boolean>;
   existsByEmail(email: string): Promise<boolean>;
   /** Backs the bootstrap-admin seed's idempotency check. */

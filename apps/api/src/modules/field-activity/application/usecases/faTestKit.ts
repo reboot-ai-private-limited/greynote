@@ -12,6 +12,7 @@ import type { DoctorGift, DoctorService } from '../../domain/serviceGift.entity.
 import type { Expense } from '../../domain/expense.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, DoctorGiftRepositoryPort, DoctorServiceRepositoryPort, ExpenseRepositoryPort, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
+import type { LeavePort } from '../../domain/leave.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { CallChecks } from '../callChecks.js';
@@ -19,6 +20,8 @@ import { GeofenceEvaluator } from '../geofenceEvaluator.js';
 import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './servicesAndGifts.usecase.js';
 import { GetPaidTaDaTotalUseCase, ListExpensesUseCase, MarkExpensePaidUseCase } from './accountantExpenses.usecase.js';
 import { GetDcrSummaryUseCase } from './getDcrSummary.usecase.js';
+import { HasQualifyingDcrUseCase } from './hasQualifyingDcr.usecase.js';
+import { RunMissedDcrCheckUseCase } from './runMissedDcrCheck.usecase.js';
 import { TaDaLifecycle } from './taDaLifecycle.usecase.js';
 import { LogExpenseUseCase } from './logExpense.usecase.js';
 import { LogChemistCallUseCase, LogDoctorCallUseCase, LogFollowupUseCase } from './logCalls.usecase.js';
@@ -63,6 +66,27 @@ export class FakeUsers implements UserDirectoryPort {
   }
   async isBlocked(userId: string) {
     return this.users.get(userId)?.blocked ?? false;
+  }
+  joined = new Map<string, Date>();
+  clearedAt = new Map<string, Date>();
+  blockCalls: Array<{ userId: string; reason: string }> = [];
+  failBlockFor = new Set<string>();
+  async listActiveFieldUserIds() {
+    return [...this.users.values()].filter((u) => u.role === 'FIELD' && u.status === 'active' && !['asm', 'stranger'].includes(u.id)).map((u) => u.id);
+  }
+  async getLastBlockClearedAt(userId: string) {
+    return this.clearedAt.get(userId) ?? null;
+  }
+  async blockUser(userId: string, reason: string) {
+    if (this.failBlockFor.has(userId)) throw new Error('boom');
+    const u = this.users.get(userId)!;
+    if (u.blocked) return false;
+    u.blocked = true;
+    this.blockCalls.push({ userId, reason });
+    return true;
+  }
+  async getEmploymentDetails(userId: string) {
+    return { dateOfJoining: this.joined.get(userId) ?? null };
   }
   /** G1-like: ₹7.50/km; DA ₹0 at HQ, ₹200 ex-station, ₹500 out-station. */
   rates = { taPerKmRatePaise: 750, hqDaPaise: 0, exStationDaPaise: 20000, outStationDaPaise: 50000 };
@@ -279,10 +303,10 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
     const hit = this.rows.filter((r) => r.accepted && r.reportDate >= f.from && r.reportDate <= f.to && (!f.userId || r.userId === f.userId) && (r.paymentStatus === 'UNPAID' || r.paymentStatus === 'PAID') && (!f.paymentStatus || r.paymentStatus === f.paymentStatus));
     return [...hit.filter((r) => r.paymentStatus === 'UNPAID'), ...hit.filter((r) => r.paymentStatus === 'PAID')].slice(0, limit);
   }
-  async paidTaDaTotals(userId: string, month: string) {
+  async paidTotals(userId: string, month: string) {
     const paid = this.rows.filter((r) => r.userId === userId && r.paymentStatus === 'PAID' && r.reportDate.startsWith(month));
-    const sum = (t: string) => paid.filter((r) => r.type === t).reduce((a, r) => a + r.amountPaise, 0);
-    return { taPaise: sum('TA'), daPaise: sum('DA') };
+    const sum = (...t: string[]) => paid.filter((r) => t.includes(r.type)).reduce((a, r) => a + r.amountPaise, 0);
+    return { taPaise: sum('TA'), daPaise: sum('DA'), reimbursementPaise: sum('TRAVEL', 'MEAL', 'MISC') };
   }
   async totalsForDcrs(dcrIds: string[]) {
     const out = new Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>();
@@ -350,6 +374,17 @@ export class FakeGifts implements DoctorGiftRepositoryPort {
   }
 }
 
+export class FakeLeave implements LeavePort {
+  leaveDays = new Set<string>();
+  offDays = new Set<string>();
+  async isOnLeave(userId: string, date: string) {
+    return this.leaveDays.has(`${userId}:${date}`);
+  }
+  async listOffDates(_userId: string, from: string, to: string) {
+    return [...this.offDays].filter((d) => d >= from && d <= to);
+  }
+}
+
 /** 2026-10-05 12:00 IST — a working day well inside the business day. */
 export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const users = new FakeUsers();
@@ -379,11 +414,14 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const markPaid = new MarkExpensePaidUseCase(expenses, () => new Date(clock.current));
   const paidTaDa = new GetPaidTaDaTotalUseCase(expenses);
   const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
+  const leave = new FakeLeave();
+  const hasQualifying = new HasQualifyingDcrUseCase(dcrs, approvals);
+  const missedCheck = new RunMissedDcrCheckUseCase(users, leave, (u, d) => hasQualifying.execute(u, d), dcrClock, config);
   const services = new FakeServices();
   const gifts = new FakeGifts();
   const submitService = new SubmitDoctorServiceUseCase(users, checks, services, approvals);
   const adminService = new CreateAdminDoctorServiceUseCase(fmd, services, () => new Date(clock.current));
   const allocateGift = new AllocateGiftUseCase(fmd, gifts, () => new Date(clock.current));
   const markGiftDone = new MarkGiftDoneUseCase(users, checks, gifts);
-  return { users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, expenses, logDoctorCall, logChemistCall, logFollowup, logExpense, taDa, listExpenses, markPaid, paidTaDa, dcrSummary, services, gifts, submitService, adminService, allocateGift, markGiftDone };
+  return { users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, expenses, logDoctorCall, logChemistCall, logFollowup, logExpense, taDa, leave, missedCheck, listExpenses, markPaid, paidTaDa, dcrSummary, services, gifts, submitService, adminService, allocateGift, markGiftDone };
 }

@@ -25,6 +25,11 @@ export class MongoComplianceBlockAdapter implements ComplianceBlockRepositoryPor
     return doc ? toComplianceBlockEvent(doc) : null;
   }
 
+  async findLastClearedAt(userId: string): Promise<Date | null> {
+    const doc = await ComplianceBlockModel.findOne({ userId: new Types.ObjectId(userId), unblockedAt: { $ne: null } }).sort({ unblockedAt: -1 }).lean();
+    return doc?.unblockedAt ?? null;
+  }
+
   async create(input: Omit<ComplianceBlockEvent, 'id'>, ctx?: TransactionContext): Promise<ComplianceBlockEvent> {
     try {
       const docs = await ComplianceBlockModel.create(

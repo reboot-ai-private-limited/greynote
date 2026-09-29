@@ -71,6 +71,7 @@ same shape as `health.public.ts`, just with real methods:
   the approval module (read-only visibility), the Team tab, Marketing's target rollup.
   Both include inactive and pending users; callers filter.
 - `isFieldRole(userId)` / `getPayBandRates(userId)` — used by TA/DA auto-calculation and Payroll.
+- `listActiveFieldUserIds()` / `getLastBlockClearedAt(userId)` — the missed-DCR job's roster, and the day after which it counts an employee's misses again once an Admin has cleared a block (Phase 6 step 9).
 - `getActiveDeviceCount(userId)` — number of active sessions (not registered devices). No
   consumer yet.
 

@@ -313,7 +313,10 @@ Field Activity, step by step (decision-log 2026-09-29):
    **done** (2026-09-29): the audit list and idempotent mark-paid (an `accepted` flag on each expense, kept in step
    by the DCR approval hook); 8 new tests and a 16-check live run (unpayable until accepted, 5 simultaneous
    payments → one payer, a paid row surviving Admin's rejection, Payroll's total counting only PAID TA/DA)
-9. The missed-DCR compliance script
+9. The missed-DCR compliance script — **done** (2026-09-29): `compliance:run` with `--dry-run` / `--user`, 12 unit
+   tests and an 11-check live run of the real script (dry run, disabled switch, real block, second run blocks no
+   one, Admin's clearing gives a clean slate). Payroll's total also gained `reimbursementPaise`. Identity gained
+   `listActiveFieldUserIds` / `getLastBlockClearedAt`, HR `listOffDates`
 10. A `fieldActivity` pull source and the shared contract types
 11. Live run: a full day end to end
 

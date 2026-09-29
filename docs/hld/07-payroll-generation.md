@@ -16,12 +16,12 @@ sequenceDiagram
     Acct->>Payroll: Generate for {month, user_ids or "all FIELD"}
     loop per user
         Payroll->>Identity: contract.getUser(user_id) -> pay_band
-        Payroll->>FA: contract.sumPaidExpenses(user_id, month, types=[TA, DA])
-        FA-->>Payroll: total_ta_da
+        Payroll->>FA: contract.getPaidTaDaTotal(user_id, month)
+        FA-->>Payroll: { ta, da, reimbursement } (PAID only)
         Payroll->>HR: contract.sumUnpaidLeaveDays(user_id, month)
         HR-->>Payroll: unpaid_days
         Payroll->>Payroll: leave_deduction_paise = round_half_up(unpaid_days x base_salary_paise / 30)
-        Payroll->>Payroll: net_payable_paise = base_salary_paise + total_ta_da_paise - leave_deduction_paise
+        Payroll->>Payroll: net_payable_paise = base_salary_paise + total_ta_da_paise + reimbursement_paise - leave_deduction_paise
         Payroll->>DB: upsert PayrollRun (status=DRAFT)
     end
     Payroll-->>Acct: Computed sheet per user, for review
@@ -29,6 +29,7 @@ sequenceDiagram
 
 - **Bulk-capable:** Accountant can generate for one user or the whole FIELD workforce for a month in one action — each user gets their own `PayrollRun` row, computed independently.
 - **Leave deduction rate: `base_salary / 30`, flat**, regardless of the actual calendar month length or working-day count. This is deliberately the simplest of three options considered (vs. actual calendar days, vs. actual working days excluding Sundays/Holidays) — matches common payroll practice and avoids pulling Module 7's Holiday/weekly-off data into every payroll calculation.
+- **`reimbursement_paise`** (added 2026-09-29) is the month's `PAID` *manual* expenses — travel, meals, other — shown apart from TA/DA and added to the net pay. `total_ta_da` is TA + DA only.
 - **`total_ta_da` only counts `PAID` expenses** (HLD 6 / Module 4's `payment_status`) — an approved-but-unpaid TA/DA claim doesn't count toward this month's payroll yet, same rule already locked in Module 9's ERD.
 
 ## 2. Idempotency and the Draft -> Finalized lock

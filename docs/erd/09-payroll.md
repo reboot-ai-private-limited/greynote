@@ -20,9 +20,10 @@ erDiagram
         uuid user_id FK
         string month "e.g. 2026-10"
         int base_salary_paise "snapshot of PayBand.base_salary_paise at generation time"
-        int total_ta_da_paise "sum of that month's PAID Expense rows (Module 4)"
+        int total_ta_da_paise "sum of that month's PAID TA and DA Expense rows (Module 4)"
+        int reimbursement_paise "sum of that month's PAID manual Expense rows - travel, meals, other (Module 4)"
         int leave_deduction_paise "computed from unpaid Leave days that month (Module 7)"
-        int net_payable_paise "base_salary_paise + total_ta_da_paise - leave_deduction_paise"
+        int net_payable_paise "base_salary_paise + total_ta_da_paise + reimbursement_paise - leave_deduction_paise"
         string status "DRAFT, FINALIZED"
         uuid generated_by FK "Accountant"
         timestamp generated_at

@@ -125,6 +125,22 @@ It is safe to run again: a converted document is skipped, and a value it can't c
 than 2 decimal places, or negative) stops the whole run before anything is written. A fresh database
 that never had the old fields has nothing to convert.
 
+## Step 10 — Schedule the daily compliance job
+
+The application has no scheduler. Once a day, after the business day rolls over (early morning is fine), the
+operator's cron runs the missed-DCR job, which blocks each field employee who has missed more working days in a
+row than `DCR_MISS_GRACE_DAYS` allows (`docs/hld/10-submission-gating-and-compliance-block.md` §2):
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T api node dist/scripts/run-compliance.js --dry-run   # report only
+docker compose -f docker-compose.prod.yml exec -T api node dist/scripts/run-compliance.js             # block
+```
+
+`--user <id>` (repeatable) limits a run to those employees. It is safe to run twice, or again after a failure,
+and does nothing while `DCR_MISS_BLOCK_ENABLED` is `false` in System Config. It exits `1` if any employee could
+not be checked, so the cron wrapper can alert. Try the dry run first and read who it would block before the first
+real run.
+
 ## Verification
 
 ```bash

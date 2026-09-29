@@ -43,8 +43,8 @@ export interface ExpenseRepositoryPort {
   markPaid(id: string, by: string, at: Date): Promise<boolean>;
   /** The accepted rows in a date range, `UNPAID` first then `PAID`, oldest day first; at most `limit`. */
   listAccepted(filter: { from: string; to: string; userId?: string; paymentStatus?: 'UNPAID' | 'PAID' }, limit: number): Promise<Expense[]>;
-  /** The whole paise `PAID` for a user in a month (`YYYY-MM`, by report date), TA and DA apart. */
-  paidTaDaTotals(userId: string, month: string): Promise<{ taPaise: number; daPaise: number }>;
+  /** The whole paise `PAID` for a user in a month (`YYYY-MM`, by report date): TA, DA and the manual reimbursements apart. */
+  paidTotals(userId: string, month: string): Promise<{ taPaise: number; daPaise: number; reimbursementPaise: number }>;
   /** Per DCR, what is claimed: TA, DA and the manual rows, `CANCELLED` left out, and how much of it is `PAID`. */
   totalsForDcrs(dcrIds: string[]): Promise<Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>>;
   listForDcr(dcrId: string): Promise<Expense[]>;

@@ -15,7 +15,7 @@ Activity as their first, and in most cases only, real consumer.
 Built so far (Phase 6 Field Activity steps 1–8, `../roadmap.md`): the decisions below, the **DCR envelope**
 and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_SUBMIT`, reads of DCRs,
 `hasQualifyingDcr` on the contract, and **calls, follow-ups and samples given** as four sync kinds, and
-**manual expenses** as the sync kind `EXPENSE`. **the geofence override** for the manager's review (approve / reject is the approval module's). **TA/DA generation and its cancellation**. **Doctor Services and Gifts**. **the Accountant's list and mark-paid**, and the contract's **`getPaidTaDaTotal` / `getDcrSummary`**. The missed-DCR job follows.
+**manual expenses** as the sync kind `EXPENSE`. **the geofence override** for the manager's review (approve / reject is the approval module's). **TA/DA generation and its cancellation**. **Doctor Services and Gifts**. **the Accountant's list and mark-paid**, and the contract's **`getPaidTaDaTotal` / `getDcrSummary`**. **the missed-DCR compliance job**. The `fieldActivity` pull source and the end-to-end run follow.
 
 - **The DCR** (`Dcr`: `userId`, `reportDate`) is one row per user per day — a unique index — created lazily
   by the first record of the day or by the submit, in one atomic upsert, so simultaneous first records (two
@@ -98,9 +98,9 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
   `paidAt`). Marking a paid one again returns it unchanged — the first payer and time stay, however many retries or
   simultaneous clicks; a `CANCELLED` row, or one whose DCR isn't accepted, is 409; an unknown id 404. Because
   `accepted` is in the update's filter, a payment can't slip past a rejection that commits first.
-- **Contract (step 8).** `getPaidTaDaTotal(userId, 'YYYY-MM')` → `{ taPaise, daPaise }`: the `PAID` TA and DA
-  whose *report day* is in that month (manual reimbursements are not in it — Payroll adds the base salary and the
-  leave deduction, hld/07). `getDcrSummary(userId, { from, to })` → per DCR `{ dcrId, userId, reportDate, status,
+- **Contract (step 8).** `getPaidTaDaTotal(userId, 'YYYY-MM')` → `{ taPaise, daPaise, reimbursementPaise }`: what is `PAID`
+  for report days in that month — TA, DA, and the manual expenses (travel, meals, other) as `reimbursementPaise` —
+  so Payroll can show them apart and add them to the net pay with the base salary less the leave deduction (hld/07). `getDcrSummary(userId, { from, to })` → per DCR `{ dcrId, userId, reportDate, status,
   doctorCalls, chemistCalls, followups, taPaise, daPaise, otherExpensesPaise, paidPaise }`, `CANCELLED` rows left
   out, in a fixed handful of queries however many days.
 - **Contract:** `hasQualifyingDcr(userId, date)` — true once `SUBMITTED`, `MANAGER_APPROVED` or `APPROVED`.
@@ -136,7 +136,7 @@ async methods, no framework types leaking through):
 interface FieldActivityPublicContract {
   // Payroll (tier 5) sums PAID TA/DA for a user across a month. Only PAID rows count —
   // MANAGER_APPROVED alone is not enough (see "Write-path rules" below).
-  getPaidTaDaTotal(userId: string, month: string): Promise<{ taPaise: number; daPaise: number }>;
+  getPaidTaDaTotal(userId: string, month: string): Promise<{ taPaise: number; daPaise: number; reimbursementPaise: number }>;
 
   // The missed-DCR compliance job (hld/10 §2) needs to know whether a DCR exists in a
   // qualifying status for a given user+date, without reaching into the collection directly.
@@ -305,16 +305,32 @@ still `UNPAID` are marked `CANCELLED` — they no longer count for anything — 
 alone and reported, since money has moved. A resubmitted DCR that reaches the manager stage again generates
 fresh `AUTO` expenses. `MANUAL` expenses follow the DCR's approval but are never cancelled by this.
 
-## The missed-DCR job (decided 2026-09-29)
+## The missed-DCR job (decided 2026-09-29, built in step 9)
 
 The application has no scheduler, and this doesn't add one. The job (`hld/10` §2) is an **explicit script**,
 `pnpm --filter @greynote/api compliance:run` (`node dist/scripts/run-compliance.js` in production), run
 daily by the operator's cron after the day rolls over — the same model as `seed` and the money migration
-(`manual_deploy.md`). It is **idempotent**: `Identity.blockUser` answers "already blocked" the second time,
-so a double run, or a re-run after a failure part-way, blocks no one twice. It reads
-`DCR_MISS_BLOCK_ENABLED` and `DCR_MISS_GRACE_DAYS`; a DCR counts as submitted once `SUBMITTED` or
-`MANAGER_APPROVED` (sign-off B7's working assumption), and an `APPROVED` Leave covering the day
-(`HR.isOnLeave`) excuses it.
+(`manual_deploy.md`, step 10). `--dry-run` reports who would be blocked and blocks no one; `--user <id>`
+limits the run; the exit code is 1 if any employee could not be checked.
+
+`RunMissedDcrCheckUseCase` visits each active FIELD employee (Identity's `listActiveFieldUserIds`). It blocks
+(`Identity.blockUser`, reason `DCR_MISSED_NO_LEAVE: no report for <dates>`) anyone who has **missed more than
+`DCR_MISS_GRACE_DAYS` working days in a row, ending yesterday** (business timezone) — `0` blocks on the first
+miss, the default `1` on the second. Walking back from yesterday, a day is:
+
+- **reported** — a DCR that is `SUBMITTED`, `MANAGER_APPROVED` or `APPROVED` (sign-off B7's working assumption) —
+  which ends the walk;
+- **skipped**, neither counted nor breaking the run — the employee's weekly off or a holiday (HR's
+  `listOffDates`), or covered by an approved Leave (`isOnLeave`);
+- **out of scope**, which ends the walk — before the joining date, or before the day an Admin last cleared a
+  block on them (Identity's `getLastBlockClearedAt`), so an unblocked employee starts clean instead of being
+  re-blocked next morning for the same days;
+- otherwise **missed**.
+
+The walk looks back at most 31 days. It is **idempotent**: a blocked employee is skipped (and `blockUser`
+answers "already blocked" if a race slipped through), so a double run, or a re-run after a failure part-way,
+blocks no one twice. One employee's failure is recorded in the run's `failed` list and the rest are still checked.
+It does nothing when `DCR_MISS_BLOCK_ENABLED` is `false`.
 
 ## Working assumptions for open client rows (sign-off group H)
 

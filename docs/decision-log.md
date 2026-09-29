@@ -17,6 +17,25 @@ old one.
 
 ---
 
+## 2026-09-29 — The missed-DCR job's rules, and reimbursements in Payroll's total
+
+**Decision:** (1) `DCR_MISS_GRACE_DAYS` is the number of **consecutive missed working days tolerated**: an
+employee is blocked once they have missed *more* than that many in a row, ending yesterday. `0` blocks on the
+first miss; the default `1` blocks on the second. A day off (weekly off or holiday) and a day covered by an
+approved Leave are skipped — they neither count nor break the run; days before the joining date, and before the
+day an Admin last cleared a block, are nobody's to report. (2) The job has `--dry-run` and `--user`. (3)
+`getPaidTaDaTotal` returns `reimbursementPaise` — the `PAID` manual expenses — beside TA and DA.
+
+**Why:** hld/10's diagram checks only yesterday but its text says "exceeded that count", and a day-by-day block
+would fire every Sunday and every holiday; the run-of-working-days reading is the one that is fair and matches
+the ERD's wording. Without the clean-slate rule an unblocked employee would be blocked again the next morning
+for the same old days. The user asked for reimbursements to reach net pay.
+
+**Consequences:** HR's contract gained `listOffDates`; Identity's gained `listActiveFieldUserIds` and
+`getLastBlockClearedAt`. Recorded as sign-off H5/H6 (working assumption until the client answers).
+
+---
+
 ## 2026-09-29 — Field Activity's write path, override, TA/DA timing and compliance job
 
 **Decision:** Phase 6 builds Field Activity on these choices (sign-off group H):

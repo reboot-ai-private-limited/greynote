@@ -121,6 +121,11 @@ export class MongoUserAdapter implements UserRepositoryPort {
     return toUser(doc);
   }
 
+  async listActiveIdsByRole(role: 'FIELD'): Promise<string[]> {
+    const found = await RoleModel.findOne({ name: role }).lean();
+    if (!found) return [];
+    return (await UserModel.find({ roleId: found._id, status: 'active' }, { _id: 1 }).sort({ _id: 1 }).lean()).map((u) => String(u._id));
+  }
   async existsByEmployeeCode(employeeCode: string): Promise<boolean> {
     return (await UserModel.exists({ employeeCode })) !== null;
   }

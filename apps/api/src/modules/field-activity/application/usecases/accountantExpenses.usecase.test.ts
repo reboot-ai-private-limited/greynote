@@ -74,14 +74,14 @@ describe('the Accountant’s side', () => {
     expect((await kit.markPaid.execute('acct', kit.expenses.rows[0]!.id)).paymentStatus).toBe('PAID');
   });
 
-  it('Payroll’s total counts only PAID TA and DA of that month for that user', async () => {
+  it('Payroll’s total counts only PAID rows of that month for that user: TA, DA and the reimbursements apart', async () => {
     kit.territory.routes.set('route-1', { ...kit.territory.routes.get('route-1')!, areaType: 'EX_STATION' });
     await approve(); // TA 8003 + DA 20000, MEAL 5000
-    expect(await kit.paidTaDa.execute('mr1', '2026-10')).toEqual({ taPaise: 0, daPaise: 0 });
+    expect(await kit.paidTaDa.execute('mr1', '2026-10')).toEqual({ taPaise: 0, daPaise: 0, reimbursementPaise: 0 });
     for (const r of kit.expenses.rows) await kit.markPaid.execute('acct', r.id);
-    expect(await kit.paidTaDa.execute('mr1', '2026-10')).toEqual({ taPaise: 8003, daPaise: 20000 }); // the meal is not in it
-    expect(await kit.paidTaDa.execute('mr1', '2026-09')).toEqual({ taPaise: 0, daPaise: 0 });
-    expect(await kit.paidTaDa.execute('mr2', '2026-10')).toEqual({ taPaise: 0, daPaise: 0 });
+    expect(await kit.paidTaDa.execute('mr1', '2026-10')).toEqual({ taPaise: 8003, daPaise: 20000, reimbursementPaise: 5000 }); // the meal is its own figure
+    expect(await kit.paidTaDa.execute('mr1', '2026-09')).toEqual({ taPaise: 0, daPaise: 0, reimbursementPaise: 0 });
+    expect(await kit.paidTaDa.execute('mr2', '2026-10')).toEqual({ taPaise: 0, daPaise: 0, reimbursementPaise: 0 });
   });
 
   it('the DCR summary: status, counts and money per day, cancelled rows left out', async () => {

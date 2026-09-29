@@ -53,11 +53,14 @@ export class MarkExpensePaidUseCase {
   }
 }
 
-/** Payroll's question: the whole paise of TA and DA `PAID` for this user's days in a month (`YYYY-MM`). Manual reimbursements are not in it. */
+/**
+ * Payroll's question: what has been `PAID` for this user's report days in a month (`YYYY-MM`), in whole paise —
+ * TA and DA, and the manual reimbursements (travel, meals, other) as their own figure, so the payslip can show them apart.
+ */
 export class GetPaidTaDaTotalUseCase {
   constructor(private readonly expenses: ExpenseRepositoryPort) {}
 
-  async execute(userId: string, month: string): Promise<{ taPaise: Paise; daPaise: Paise }> {
-    return this.expenses.paidTaDaTotals(userId, month);
+  async execute(userId: string, month: string): Promise<{ taPaise: Paise; daPaise: Paise; reimbursementPaise: Paise }> {
+    return this.expenses.paidTotals(userId, month);
   }
 }

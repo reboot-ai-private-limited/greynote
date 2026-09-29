@@ -1,3 +1,4 @@
+import { eachDate, weekdayOf } from '@/shared/time/businessTime.js';
 import { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
@@ -101,6 +102,11 @@ export function buildHrContainer(
     contract: {
       isOnLeave: (userId, date) => lookups.isOnLeave(userId, date),
       getUnpaidLeaveDays: (userId, month) => lookups.unpaidDays(userId, month),
+      listOffDates: async (userId, from, to) => {
+        const weeklyOff = await calendar.weeklyOff();
+        const holidayDates = await holidayCalendar.datesFor(userId, from, to);
+        return eachDate(from, to).filter((d) => weekdayOf(d) === weeklyOff || holidayDates.has(d));
+      },
       listHolidayDates: async (userId, from, to) => [...(await holidayCalendar.datesFor(userId, from, to))].sort(),
     },
     buildRouter: () => {

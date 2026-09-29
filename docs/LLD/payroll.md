@@ -21,9 +21,10 @@ by a filter someone could forget.
 | Field | Meaning |
 |---|---|
 | `base_salary` | **Snapshot** of `PayBand.base_salary` at generation time |
-| `total_ta_da` | Sum of that month's `Expense` rows with `payment_status = PAID` (Field Activity) |
+| `total_ta_da` | Sum of that month's `PAID` `TA` and `DA` `Expense` rows (Field Activity's `getPaidTaDaTotal`) |
+| `reimbursement` | Sum of that month's `PAID` manual `Expense` rows — travel, meals, other — from the same call |
 | `leave_deduction_paise` | `unpaid_days × base_salary_paise / 30`, rounded half up to a whole paise once — computed at generation, then frozen as one number |
-| `net_payable` | `base_salary + total_ta_da − leave_deduction` |
+| `net_payable` | `base_salary + total_ta_da + reimbursement − leave_deduction` |
 | `status` | `DRAFT` → `FINALIZED` |
 | `generated_by` / `generated_at`, `finalized_at` | Accountant, and when |
 

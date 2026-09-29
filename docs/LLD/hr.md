@@ -86,6 +86,8 @@ interface HrPublicContract {
   isOnLeave(userId: string, date: string): Promise<boolean>;
   /** Phase 7's Payroll: approved unpaid-leave days falling in this month (`YYYY-MM`). */
   getUnpaidLeaveDays(userId: string, month: string): Promise<number>;
+  /** The days in a range that are not working days for this employee: their weekly off day (`WEEKLY_OFF_DAY`) and the holidays that apply — the missed-DCR job skips them. */
+  listOffDates(userId: string, from: string, to: string): Promise<string[]>;
   /** The holidays that apply to this employee in a date range — for "is this a working day". */
   listHolidayDates(userId: string, from: string, to: string): Promise<string[]>;
 }

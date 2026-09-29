@@ -33,6 +33,10 @@ export interface IdentityPublicContract {
    * (idempotent, safe to run twice). Only Admin can clear it, through Identity's own endpoint.
    */
   blockUser(userId: string, reason: string): Promise<boolean>;
+  /** Every active FIELD employee's id — who the missed-DCR job checks. */
+  listActiveFieldUserIds(): Promise<string[]>;
+  /** When an Admin last cleared a compliance block on this user, or `null` if none ever was. The missed-DCR job counts only days after it. */
+  getLastBlockClearedAt(userId: string): Promise<Date | null>;
   /** Pay Band and joining date (FIELD only); `null` without an EmployeeProfile. */
   getEmploymentDetails(userId: string): Promise<EmploymentDetails | null>;
   getPayBandRates(userId: string): Promise<PayBand>;

@@ -13,6 +13,8 @@ import { TaDaLifecycle } from './application/usecases/taDaLifecycle.usecase.js';
 import { LogExpenseUseCase } from './application/usecases/logExpense.usecase.js';
 import { makeServiceGiftSyncHandlers } from './application/serviceGiftSync.js';
 import { GetPaidTaDaTotalUseCase, ListExpensesUseCase, MarkExpensePaidUseCase } from './application/usecases/accountantExpenses.usecase.js';
+import { RunMissedDcrCheckUseCase } from './application/usecases/runMissedDcrCheck.usecase.js';
+import type { LeavePort } from './domain/leave.port.js';
 import { GetDcrSummaryUseCase } from './application/usecases/getDcrSummary.usecase.js';
 import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, DOCTOR_SERVICE_KIND, ListDoctorServicesUseCase, ListGiftsUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './application/usecases/servicesAndGifts.usecase.js';
 import { GeofenceEvaluator } from './application/geofenceEvaluator.js';
@@ -46,6 +48,8 @@ import {
 
 export interface FieldActivityContainer {
   contract: FieldActivityPublicContract;
+  /** The missed-DCR compliance job — run by `scripts/run-compliance.ts`, never by the server. */
+  runMissedDcrCheck: (options?: { dryRun?: boolean; userIds?: string[] }) => ReturnType<RunMissedDcrCheckUseCase['execute']>;
   buildRouter: () => Router;
 }
 
@@ -55,7 +59,7 @@ export interface FieldActivityContainer {
  * missed-DCR job. Records reach the server through the sync push (LLD sync.md), so this module registers
  * handlers there rather than exposing a POST per record.
  *
- * Identity's, Planning's, Field Master Data's, Territory's, Approval's, Sync's and Config's public contracts,
+ * Identity's, Planning's, Field Master Data's, Territory's, Approval's, Sync's, HR's and Config's public contracts,
  * passed in by the composition root.
  */
 export function buildFieldActivityContainer(
@@ -65,6 +69,7 @@ export function buildFieldActivityContainer(
   territory: TerritoryPort,
   approvals: ApprovalsPort,
   sync: SyncPublicContract,
+  leave: LeavePort,
   config: ConfigReader,
 ): FieldActivityContainer {
   // 1. Adapters
@@ -118,7 +123,10 @@ export function buildFieldActivityContainer(
   }
   sync.registerHandler(makeDcrSubmitSyncHandler(submitDcr, (payload) => dcrSubmitPayloadSchema.parse(payload)));
 
+  const missedDcrCheck = new RunMissedDcrCheckUseCase(users, leave, (userId, date) => hasQualifyingDcr.execute(userId, date), clock, config);
+
   return {
+    runMissedDcrCheck: (options) => missedDcrCheck.execute(options),
     contract: {
       hasQualifyingDcr: (userId, date) => hasQualifyingDcr.execute(userId, date),
       getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),

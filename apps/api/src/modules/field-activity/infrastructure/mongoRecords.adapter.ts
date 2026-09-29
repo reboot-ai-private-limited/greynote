@@ -190,12 +190,13 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
     const unpaid = await fetch('UNPAID', limit);
     return unpaid.length >= limit ? unpaid : [...unpaid, ...(await fetch('PAID', limit - unpaid.length))];
   }
-  async paidTaDaTotals(userId: string, month: string): Promise<{ taPaise: number; daPaise: number }> {
-    const rows = await ExpenseModel.aggregate<{ _id: 'TA' | 'DA'; total: number }>([
-      { $match: { userId: oid(userId), paymentStatus: 'PAID', type: { $in: ['TA', 'DA'] }, reportDate: { $gte: `${month}-01`, $lte: `${month}-31` } } },
+  async paidTotals(userId: string, month: string): Promise<{ taPaise: number; daPaise: number; reimbursementPaise: number }> {
+    const rows = await ExpenseModel.aggregate<{ _id: string; total: number }>([
+      { $match: { userId: oid(userId), paymentStatus: 'PAID', reportDate: { $gte: `${month}-01`, $lte: `${month}-31` } } },
       { $group: { _id: '$type', total: { $sum: '$amountPaise' } } },
     ]);
-    return { taPaise: rows.find((r) => r._id === 'TA')?.total ?? 0, daPaise: rows.find((r) => r._id === 'DA')?.total ?? 0 };
+    const of = (t: string) => rows.find((r) => r._id === t)?.total ?? 0;
+    return { taPaise: of('TA'), daPaise: of('DA'), reimbursementPaise: of('TRAVEL') + of('MEAL') + of('MISC') };
   }
   async totalsForDcrs(dcrIds: string[]): Promise<Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>> {
     const out = new Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>();

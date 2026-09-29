@@ -11,6 +11,8 @@ export class OpenBlockExistsError extends Error {
 
 export interface ComplianceBlockRepositoryPort {
   findOpenByUserId(userId: string): Promise<ComplianceBlockEvent | null>;
+  /** The `unblockedAt` of the user's most recently cleared block, or `null` if none was ever cleared. */
+  findLastClearedAt(userId: string): Promise<Date | null>;
   /** Throws `OpenBlockExistsError` if the user already has an open block. */
   create(input: Omit<ComplianceBlockEvent, 'id'>, ctx?: TransactionContext): Promise<ComplianceBlockEvent>;
   close(id: string, unblockedBy: string, unblockedAt: Date, ctx?: TransactionContext): Promise<void>;
