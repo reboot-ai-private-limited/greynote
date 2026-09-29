@@ -88,20 +88,36 @@ export class MongoLeaveBalanceAdapter implements LeaveBalanceRepositoryPort {
   }
 
   async release(key: BalanceKey, days: number, ctx: TransactionContext): Promise<void> {
-    await this.apply(key, { pendingDays: -days }, ctx);
+    await this.apply(key, { pendingDays: -days }, { pendingDays: days }, ctx);
   }
 
   async consume(key: BalanceKey, days: number, ctx: TransactionContext): Promise<void> {
-    await this.apply(key, { pendingDays: -days, usedDays: days }, ctx);
+    await this.apply(key, { pendingDays: -days, usedDays: days }, { pendingDays: days }, ctx);
   }
 
   async giveBack(key: BalanceKey, days: number, ctx: TransactionContext): Promise<void> {
-    await this.apply(key, { usedDays: -days }, ctx);
+    await this.apply(key, { usedDays: -days }, { usedDays: days }, ctx);
   }
 
-  /** A ledger move on a row that must exist — a missing one is a broken invariant, not input. */
-  private async apply(key: BalanceKey, inc: Record<string, number>, ctx: TransactionContext): Promise<void> {
-    const result = await LeaveBalanceModel.updateOne(filterOf(key), { $inc: inc }, session(ctx));
-    if (result.matchedCount !== 1) throw AppError.internal('INTERNAL', { reason: 'LEAVE_BALANCE_MISSING', ...key });
+  /**
+   * A ledger move on a row that must exist and hold at least what it's about to give up — a
+   * missing row, or one that would go negative, is a broken invariant, not input. Throwing rolls
+   * back the approval decision that caused it.
+   */
+  private async apply(
+    key: BalanceKey,
+    inc: Record<string, number>,
+    atLeast: Partial<Record<'pendingDays' | 'usedDays', number>>,
+    ctx: TransactionContext,
+  ): Promise<void> {
+    const covered = Object.entries(atLeast).map(([field, days]) => ({ $gte: [`$${field}`, days] }));
+    const result = await LeaveBalanceModel.updateOne(
+      { ...filterOf(key), $expr: { $and: covered } },
+      { $inc: inc },
+      session(ctx),
+    );
+    if (result.matchedCount === 1) return;
+    const exists = (await LeaveBalanceModel.exists({ ...filterOf(key) }).session(ctx as ClientSession)) !== null;
+    throw AppError.internal('INTERNAL', { reason: exists ? 'LEAVE_BALANCE_DRIFT' : 'LEAVE_BALANCE_MISSING', ...key });
   }
 }

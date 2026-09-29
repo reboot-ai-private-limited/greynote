@@ -178,8 +178,10 @@ reject, edit, withdraw, Admin reopen and re-approve), unpaid days through the co
 adjustments, and a rollback where a broken ledger step undoes the final approval. Temporary data
 was removed afterwards.
 
-Noted, not changed: the ledger's `consume` / `release` don't check that `pendingDays` covers the
-days, so a drifted row would go negative instead of failing (only a missing row throws).
+The run showed the ledger's `consume` / `release` / `give back` didn't check that the row covered the
+days, so a drifted row went negative. Fixed (2026-09-29): each is now a conditional update, and a
+missing or drifted row throws (`LEAVE_BALANCE_MISSING` / `LEAVE_BALANCE_DRIFT`), rolling the decision
+back. Checked live: normal moves pass, a repeat on an empty row throws.
 
 **Done when:** Admin can populate Doctors/Chemists/Distributors/Products and assign MRs to them;
 an MR can submit a Daily/Monthly Plan and see it move through Nearest-Manager approval; HR can
