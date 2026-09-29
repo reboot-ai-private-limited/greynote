@@ -304,7 +304,11 @@ Field Activity, step by step (decision-log 2026-09-29):
    and a 14-check live run (per-Route TA at the Route's own and the pay band's rate, DA at the day's highest Area
    type, a flagged zero for an uncalculated Route, Admin's final rejection cancels, resubmit and re-approve write
    fresh rows once, a later Route change leaves the approved row alone). Planning gained `getDailyPlanDay`
-7. Doctor Service (approval) and Doctor Gift (Admin allocates, MR marks done)
+7. Doctor Service (approval) and Doctor Gift (Admin allocates, MR marks done) — **done** (2026-09-29): the
+   `DOCTOR_SERVICE` and `GIFT_DONE` kinds and four REST endpoints; 14 new tests and a 25-check live run (a Service
+   through manager and Admin approval, Admin-made ones tied to the assigned MR, 5 simultaneous "done" → one wins,
+   a Doctor reassigned mid-offline hands its gift to the new MR, a blocked MR refused). Field Master Data gained
+   `getAssignedUserId`
 8. The Accountant's mark-paid, and the contract (`getPaidTaDaTotal`, `hasQualifyingDcr`, `getDcrSummary`)
 9. The missed-DCR compliance script
 10. A `fieldActivity` pull source and the shared contract types

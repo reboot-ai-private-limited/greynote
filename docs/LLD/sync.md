@@ -103,6 +103,8 @@ Only a malformed envelope (or no login) is a 4xx.
 | `DOCTOR_FOLLOWUP` | Field Activity | A follow-up note on a Doctor, on the day's DCR | `INVALID_PAYLOAD`, the gate's codes, `DOCTOR_NOT_FOUND`, `DOCTOR_NOT_ASSIGNED` |
 | `CHEMIST_FOLLOWUP` | Field Activity | A follow-up note on a Chemist | `INVALID_PAYLOAD`, the gate's codes, `CHEMIST_NOT_FOUND`, `CHEMIST_ROUTE_NOT_ASSIGNED` |
 | `EXPENSE` | Field Activity | A manual expense on the day's DCR: `TRAVEL`, `MEAL` or `MISC`, whole paise above zero, stored `MANUAL` and `UNPAID`. TA and DA are never sent — the server computes them | `INVALID_PAYLOAD` (a decimal, zero, TA/DA), the gate's codes |
+| `DOCTOR_SERVICE` | Field Activity | A Doctor Service request: stored and submitted as a `DOCTOR_SERVICE` approval request (Employee → Manager → Admin). Not part of the day, so no Plan gate; whole paise above zero | `INVALID_PAYLOAD`, `USER_BLOCKED`, `DOCTOR_NOT_FOUND`, `DOCTOR_NOT_ASSIGNED` |
+| `GIFT_DONE` | Field Activity | The assigned MR marks an Admin-allocated gift given: `PENDING` → `DONE` in one conditional update. Payload `{ giftId }` | `INVALID_PAYLOAD`, `USER_BLOCKED`, `GIFT_NOT_FOUND`, `DOCTOR_NOT_ASSIGNED`, `GIFT_ALREADY_DONE` |
 
 Phase 6 adds the calls, follow-ups, expenses, orders, gifts and services. Payload
 fields for `NEW_DOCTOR`: `routeId`, `category`, `name`, `address`, `specialty`, `qualification`,

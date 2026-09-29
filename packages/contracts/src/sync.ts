@@ -65,7 +65,7 @@ export interface SyncPushResponse {
 export const SYNC_ENGINE_CODES = ['DEPENDENCY_FAILED', 'INVALID_DEPENDENCY', 'UNKNOWN_KIND', 'CLIENT_TIME_INVALID', 'INTERNAL'] as const;
 
 /** The record kinds the server accepts today; Phase 6 adds the calls, expenses, orders, gifts, services and the DCR submit. */
-export const SYNC_RECORD_KINDS = ['NEW_DOCTOR', 'DCR_SUBMIT', 'DOCTOR_CALL', 'CHEMIST_CALL', 'DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP', 'EXPENSE'] as const;
+export const SYNC_RECORD_KINDS = ['NEW_DOCTOR', 'DCR_SUBMIT', 'DOCTOR_CALL', 'CHEMIST_CALL', 'DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP', 'EXPENSE', 'DOCTOR_SERVICE', 'GIFT_DONE'] as const;
 export type SyncRecordKind = (typeof SYNC_RECORD_KINDS)[number];
 
 /** A Doctor the MR added offline (the same fields as `POST /field-master-data/doctors/added`, minus the client id). */
@@ -125,6 +125,23 @@ export interface ExpensePayload {
   remarks?: string | null;
 }
 
+/** What a Doctor Service can be (sign-off H4). */
+export const DOCTOR_SERVICE_TYPES = ['TOUR_PACKAGE', 'GIFT', 'ONLINE_PROMOTION', 'OTHERS'] as const;
+export type DoctorServiceType = (typeof DOCTOR_SERVICE_TYPES)[number];
+
+/** A Doctor Service request (`DOCTOR_SERVICE`): sent for approval, in whole paise above zero. */
+export interface DoctorServicePayload {
+  doctorId: string;
+  serviceType: DoctorServiceType;
+  amountPaise: number;
+  remarks?: string | null;
+}
+
+/** A gift the MR marked as given (`GIFT_DONE`). */
+export interface GiftDonePayload {
+  giftId: string;
+}
+
 /** What a call's result `data` carries back: the server's own geofence answer, which replaces the phone's. */
 export interface CallResultData {
   geofence: { status: 'PASS' | 'FAIL' | 'UNVERIFIED'; distanceMeters: number | null; reason: 'NO_REGISTERED_LOCATION' | 'NO_GPS_READING' | 'LOW_ACCURACY' | null };
@@ -144,6 +161,8 @@ export const DCR_REFUSAL_CODES = [
   'INVALID_WORK_WITH',
   'NO_SAMPLE_ALLOCATION',
   'SAMPLES_EXHAUSTED',
+  'GIFT_NOT_FOUND',
+  'GIFT_ALREADY_DONE',
   'INVALID_PAYLOAD',
 ] as const;
 

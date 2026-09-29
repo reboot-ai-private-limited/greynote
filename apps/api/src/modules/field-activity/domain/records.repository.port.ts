@@ -1,4 +1,5 @@
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
+import type { DoctorGift, DoctorService } from './serviceGift.entity.js';
 import type { Expense } from './expense.entity.js';
 import type { ChemistCall, DoctorCall, Followup } from './call.entity.js';
 
@@ -33,4 +34,20 @@ export interface ExpenseRepositoryPort {
   /** Marks the DCR's `UNPAID` AUTO rows `CANCELLED` (a `PAID` row is left); returns how many. */
   cancelUnpaidAuto(dcrId: string, ctx: TransactionContext): Promise<number>;
   listForDcr(dcrId: string): Promise<Expense[]>;
+}
+
+export interface DoctorServiceRepositoryPort {
+  create(input: Omit<DoctorService, 'id'>, ctx?: TransactionContext): Promise<DoctorService>;
+  findById(id: string): Promise<DoctorService | null>;
+  /** Newest first, at most `limit`; every filter is optional. */
+  list(filter: { userId?: string; doctorId?: string }, limit: number): Promise<DoctorService[]>;
+}
+
+export interface DoctorGiftRepositoryPort {
+  create(input: Omit<DoctorGift, 'id'>): Promise<DoctorGift>;
+  findById(id: string): Promise<DoctorGift | null>;
+  /** Newest first, at most `limit`; `doctorIds` narrows to those Doctors (an MR's own). */
+  list(filter: { doctorIds?: string[]; status?: DoctorGift['status'] }, limit: number): Promise<DoctorGift[]>;
+  /** One conditional update: only a still-`PENDING` gift becomes `DONE`. False if it no longer is. */
+  markDone(id: string, by: string, at: Date, ctx: TransactionContext): Promise<boolean>;
 }

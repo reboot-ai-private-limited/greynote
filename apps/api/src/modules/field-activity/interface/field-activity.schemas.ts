@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { WORKING_TYPES } from '@greynote/contracts';
 import { paiseSchema } from '@/shared/money/paise.js';
 import { MANUAL_EXPENSE_TYPES } from '../domain/expense.entity.js';
+import { DOCTOR_SERVICE_TYPES } from '../domain/serviceGift.entity.js';
 import { calendarDateSchema } from '@/shared/time/calendarSchemas.js';
 
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
@@ -56,3 +57,20 @@ export const expensePayloadSchema = z.object({
   amountPaise: paiseSchema.refine((v) => v > 0, 'The amount must be more than zero.'),
   remarks: remarksSchema,
 });
+
+const positivePaise = paiseSchema.refine((v) => v > 0, 'The amount must be more than zero.');
+
+/** An MR's Doctor Service request (the `DOCTOR_SERVICE` sync kind), and Admin's direct one (the same fields, over REST). */
+export const doctorServiceFieldsSchema = z.object({
+  doctorId: objectIdSchema,
+  serviceType: z.enum(DOCTOR_SERVICE_TYPES),
+  amountPaise: positivePaise,
+  remarks: remarksSchema,
+});
+export const doctorServicePayloadSchema = doctorServiceFieldsSchema;
+export const giftDonePayloadSchema = z.object({ giftId: objectIdSchema });
+
+export const allocateGiftBodySchema = z.object({ doctorId: objectIdSchema, productName: z.string().trim().min(1, 'Name the gift.').max(200), amountPaise: paiseSchema });
+
+export const listServicesQuerySchema = z.object({ userId: objectIdSchema.optional(), doctorId: objectIdSchema.optional() });
+export const listGiftsQuerySchema = z.object({ status: z.enum(['PENDING', 'DONE']).optional() });

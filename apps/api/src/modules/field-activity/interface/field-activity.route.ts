@@ -5,7 +5,7 @@ import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { FieldActivityHandlers } from './field-activity.controller.js';
-import { callParamsSchema, idParamsSchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
+import { allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
 
 const TAG = 'Field Activity';
 
@@ -34,6 +34,22 @@ openApiRegistry.registerPath({
   responses: { 200: { description: 'The call, now OVERRIDE' }, 409: { description: 'Not under review, passed, or already accepted' } },
 });
 
+doc('/doctor-services', 'My Doctor Services with their approval status — Admin: everyone’s, optionally by userId / doctorId', { query: listServicesQuerySchema });
+doc('/doctor-gifts', 'Gifts for my Doctors, pending and done — Admin: all', { query: listGiftsQuerySchema });
+function docPost(path: string, summary: string, schema: ZodTypeAny): void {
+  openApiRegistry.registerPath({
+    method: 'post',
+    path: `/api/field-activity${path}`,
+    tags: [TAG],
+    summary,
+    security: [{ bearerAuth: [] }],
+    request: { body: { content: { 'application/json': { schema } } } },
+    responses: { 201: { description: 'Created' } },
+  });
+}
+docPost('/admin/doctor-services', 'Admin: a Doctor Service, effective at once and tied to the Doctor’s assigned MR', doctorServiceFieldsSchema);
+docPost('/admin/doctor-gifts', 'Admin: allocate a gift to a Doctor; the assigned MR marks it done', allocateGiftBodySchema);
+
 /**
  * Reads, plus the geofence override: the day's records arrive through the sync push, and a DCR is approved
  * through `/api/approvals/*` with `kind=DCR` (LLD field-activity.md, *Write path and HTTP surface*).
@@ -45,5 +61,9 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.get('/dcr/team', requireRole('FIELD'), validate({ query: listTeamDcrsQuerySchema }), c.teamDcrs);
   router.get('/dcr/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.getDcr);
   router.post('/dcr/:id/calls/:callId/override-geofence', requireRole('FIELD', 'ADMIN'), validate({ params: callParamsSchema, body: overrideBodySchema }), c.overrideGeofence);
+  router.get('/doctor-services', requireRole('FIELD', 'ADMIN'), validate({ query: listServicesQuerySchema }), c.listServices);
+  router.get('/doctor-gifts', requireRole('FIELD', 'ADMIN'), validate({ query: listGiftsQuerySchema }), c.listGifts);
+  router.post('/admin/doctor-services', requireRole('ADMIN'), validate({ body: doctorServiceFieldsSchema }), c.createAdminService);
+  router.post('/admin/doctor-gifts', requireRole('ADMIN'), validate({ body: allocateGiftBodySchema }), c.allocateGift);
   return router;
 }

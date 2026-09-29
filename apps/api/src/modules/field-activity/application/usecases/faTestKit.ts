@@ -8,13 +8,15 @@ import type { Dcr } from '../../domain/dcr.entity.js';
 import type { DcrRepositoryPort } from '../../domain/dcr.repository.port.js';
 import type { PlanningPort } from '../../domain/planning.port.js';
 import type { ChemistCall, DoctorCall, Followup } from '../../domain/call.entity.js';
+import type { DoctorGift, DoctorService } from '../../domain/serviceGift.entity.js';
 import type { Expense } from '../../domain/expense.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
-import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseRepositoryPort, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, DoctorGiftRepositoryPort, DoctorServiceRepositoryPort, ExpenseRepositoryPort, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { CallChecks } from '../callChecks.js';
 import { GeofenceEvaluator } from '../geofenceEvaluator.js';
+import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './servicesAndGifts.usecase.js';
 import { TaDaLifecycle } from './taDaLifecycle.usecase.js';
 import { LogExpenseUseCase } from './logExpense.usecase.js';
 import { LogChemistCallUseCase, LogDoctorCallUseCase, LogFollowupUseCase } from './logCalls.usecase.js';
@@ -196,6 +198,13 @@ export class FakeFmd implements FieldMasterDataPort {
   async getChemistLocation(id: string) {
     return this.chemistLocation[id] ?? null;
   }
+  assignedTo = new Map<string, string>([['d1', 'mr1']]);
+  async getAssignedUserId(doctorId: string) {
+    return this.assignedTo.get(doctorId) ?? null;
+  }
+  async listAssignedDoctors(userId: string) {
+    return [...this.doctors.values()].filter((d) => this.assigned.has(`${userId}:${d.id}`)) as never;
+  }
   async isAssignedToDoctor(userId: string, doctorId: string) {
     return this.assigned.has(`${userId}:${doctorId}`);
   }
@@ -259,6 +268,45 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
   }
 }
 
+export class FakeServices implements DoctorServiceRepositoryPort {
+  rows: DoctorService[] = [];
+  async create(input: Omit<DoctorService, 'id'>, ctx?: unknown) {
+    const row = { ...input, id: `svc-${this.rows.length + 1}` };
+    this.rows.push(row);
+    (ctx as Tx | undefined)?.undo.push(() => {
+      this.rows.splice(this.rows.indexOf(row), 1);
+    });
+    return row;
+  }
+  async findById(id: string) {
+    return this.rows.find((r) => r.id === id) ?? null;
+  }
+  async list(filter: { userId?: string; doctorId?: string }, limit: number) {
+    return this.rows.filter((r) => (!filter.userId || r.userId === filter.userId) && (!filter.doctorId || r.doctorId === filter.doctorId)).slice(0, limit);
+  }
+}
+export class FakeGifts implements DoctorGiftRepositoryPort {
+  rows: DoctorGift[] = [];
+  async create(input: Omit<DoctorGift, 'id'>) {
+    const row = { ...input, id: `gift-${this.rows.length + 1}` };
+    this.rows.push(row);
+    return row;
+  }
+  async findById(id: string) {
+    return this.rows.find((r) => r.id === id) ?? null;
+  }
+  async list(filter: { doctorIds?: string[]; status?: DoctorGift['status'] }, limit: number) {
+    return this.rows.filter((r) => (!filter.doctorIds || filter.doctorIds.includes(r.doctorId)) && (!filter.status || r.status === filter.status)).slice(0, limit);
+  }
+  async markDone(id: string, by: string, at: Date, ctx: unknown) {
+    const g = this.rows.find((r) => r.id === id);
+    if (!g || g.status !== 'PENDING') return false;
+    Object.assign(g, { status: 'DONE', completedBy: by, completedAt: at });
+    (ctx as Tx).undo.push(() => Object.assign(g, { status: 'PENDING', completedBy: null, completedAt: null }));
+    return true;
+  }
+}
+
 /** 2026-10-05 12:00 IST — a working day well inside the business day. */
 export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const users = new FakeUsers();
@@ -284,5 +332,11 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const logFollowup = new LogFollowupUseCase(gate, checks, followups);
   const logExpense = new LogExpenseUseCase(gate, expenses);
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses);
-  return { users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, expenses, logDoctorCall, logChemistCall, logFollowup, logExpense, taDa };
+  const services = new FakeServices();
+  const gifts = new FakeGifts();
+  const submitService = new SubmitDoctorServiceUseCase(users, checks, services, approvals);
+  const adminService = new CreateAdminDoctorServiceUseCase(fmd, services, () => new Date(clock.current));
+  const allocateGift = new AllocateGiftUseCase(fmd, gifts, () => new Date(clock.current));
+  const markGiftDone = new MarkGiftDoneUseCase(users, checks, gifts);
+  return { users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, expenses, logDoctorCall, logChemistCall, logFollowup, logExpense, taDa, services, gifts, submitService, adminService, allocateGift, markGiftDone };
 }

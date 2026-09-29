@@ -11,6 +11,8 @@ import { makeCallSyncHandlers } from './application/callsSync.js';
 import { makeExpenseSyncHandler } from './application/expenseSync.js';
 import { TaDaLifecycle } from './application/usecases/taDaLifecycle.usecase.js';
 import { LogExpenseUseCase } from './application/usecases/logExpense.usecase.js';
+import { makeServiceGiftSyncHandlers } from './application/serviceGiftSync.js';
+import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, DOCTOR_SERVICE_KIND, ListDoctorServicesUseCase, ListGiftsUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './application/usecases/servicesAndGifts.usecase.js';
 import { GeofenceEvaluator } from './application/geofenceEvaluator.js';
 import { LoggingGate } from './application/loggingGate.js';
 import { OverrideGeofenceUseCase } from './application/usecases/overrideGeofence.usecase.js';
@@ -24,6 +26,7 @@ import type { PlanningPort } from './domain/planning.port.js';
 import type { TerritoryPort } from './domain/territory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import type { FieldActivityPublicContract } from './field-activity.public.js';
+import { MongoDoctorGiftAdapter, MongoDoctorServiceAdapter } from './infrastructure/mongoServiceGift.adapter.js';
 import { MongoDcrAdapter } from './infrastructure/mongoDcr.adapter.js';
 import { MongoChemistCallAdapter, MongoDoctorCallAdapter, MongoExpenseAdapter, MongoFollowupAdapter } from './infrastructure/mongoRecords.adapter.js';
 import { makeFieldActivityControllers } from './interface/field-activity.controller.js';
@@ -34,7 +37,9 @@ import {
   dcrSubmitPayloadSchema,
   doctorCallPayloadSchema,
   doctorFollowupPayloadSchema,
+  doctorServicePayloadSchema,
   expensePayloadSchema,
+  giftDonePayloadSchema,
 } from './interface/field-activity.schemas.js';
 
 export interface FieldActivityContainer {
@@ -66,10 +71,15 @@ export function buildFieldActivityContainer(
   const chemistCalls = new MongoChemistCallAdapter();
   const followups = new MongoFollowupAdapter();
   const expenses = new MongoExpenseAdapter();
+  const services = new MongoDoctorServiceAdapter();
+  const gifts = new MongoDoctorGiftAdapter();
 
   // A DCR goes manager, then Admin (client F1). Past the manager it earns its TA/DA; sent back, the unpaid computed rows are cancelled.
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses);
   approvals.registerKind({ kind: DCR_KIND, finalApproverRoles: ['ADMIN'], onStatusChange: (change, ctx) => taDa.onStatusChange(change.recordId, change.status, ctx) });
+
+  // A Service an MR asks for goes manager, then Admin, like a DCR; nothing else happens on approval — the status is its request's.
+  approvals.registerKind({ kind: DOCTOR_SERVICE_KIND, finalApproverRoles: ['ADMIN'] });
 
   // 2. Use cases
   const clock = new DcrClock(config);
@@ -95,6 +105,13 @@ export function buildFieldActivityContainer(
     sync.registerHandler(definition);
   }
   sync.registerHandler(makeExpenseSyncHandler(new LogExpenseUseCase(gate, expenses), (payload) => expensePayloadSchema.parse(payload)));
+  for (const definition of makeServiceGiftSyncHandlers({
+    service: new SubmitDoctorServiceUseCase(users, checks, services, approvals),
+    gift: new MarkGiftDoneUseCase(users, checks, gifts),
+    parse: { service: (p) => doctorServicePayloadSchema.parse(p), giftDone: (p) => giftDonePayloadSchema.parse(p) },
+  })) {
+    sync.registerHandler(definition);
+  }
   sync.registerHandler(makeDcrSubmitSyncHandler(submitDcr, (payload) => dcrSubmitPayloadSchema.parse(payload)));
 
   return {
@@ -107,6 +124,10 @@ export function buildFieldActivityContainer(
           listMine: new ListMyDcrsUseCase(dcrs, views),
           listAll: new ListAllDcrsUseCase(dcrs, users, views),
           listTeam: new ListTeamDcrsUseCase(dcrs, users, views),
+          adminService: new CreateAdminDoctorServiceUseCase(master, services),
+          listServices: new ListDoctorServicesUseCase(services, approvals, master),
+          allocateGift: new AllocateGiftUseCase(master, gifts),
+          listGifts: new ListGiftsUseCase(gifts, master),
           override: new OverrideGeofenceUseCase(dcrs, users, views, doctorCalls, chemistCalls),
           get: new GetDcrDetailUseCase(new GetDcrUseCase(dcrs, users, views), doctorCalls, chemistCalls, followups, expenses, master),
         }),

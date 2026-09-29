@@ -35,6 +35,8 @@ export interface FieldMasterDataPublicContract {
    * draw samples or act on the Doctor.
    */
   isAssignedToDoctor(userId: string, doctorId: string): Promise<boolean>;
+  /** The MR the Doctor is assigned to now, or `null` — unknown, `pending`, inactive or unassigned Doctor. Admin-created Services go to this MR. */
+  getAssignedUserId(doctorId: string): Promise<string | null>;
   /** An MR's Doctors under the same rule as `isAssignedToDoctor`, by name. */
   listAssignedDoctors(userId: string): Promise<Doctor[]>;
   getChemistLocation(chemistId: string): Promise<GeoPoint | null>;

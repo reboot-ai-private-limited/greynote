@@ -8,6 +8,8 @@ export const LOG_CODES = {
   invalidWorkWith: 'INVALID_WORK_WITH',
   noSampleAllocation: 'NO_SAMPLE_ALLOCATION',
   samplesExhausted: 'SAMPLES_EXHAUSTED',
+  giftNotFound: 'GIFT_NOT_FOUND',
+  giftAlreadyDone: 'GIFT_ALREADY_DONE',
 } as const;
 export type LogCode = (typeof LOG_CODES)[keyof typeof LOG_CODES];
 

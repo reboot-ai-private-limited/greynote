@@ -12,10 +12,10 @@ Activity as their first, and in most cases only, real consumer.
 
 ## Build status
 
-Built so far (Phase 6 Field Activity steps 1–6, `../roadmap.md`): the decisions below, the **DCR envelope**
+Built so far (Phase 6 Field Activity steps 1–7, `../roadmap.md`): the decisions below, the **DCR envelope**
 and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_SUBMIT`, reads of DCRs,
 `hasQualifyingDcr` on the contract, and **calls, follow-ups and samples given** as four sync kinds, and
-**manual expenses** as the sync kind `EXPENSE`. **the geofence override** for the manager's review (approve / reject is the approval module's). **TA/DA generation and its cancellation**. Services, Gifts, mark-paid and the missed-DCR job follow.
+**manual expenses** as the sync kind `EXPENSE`. **the geofence override** for the manager's review (approve / reject is the approval module's). **TA/DA generation and its cancellation**. **Doctor Services and Gifts**. Mark-paid and the missed-DCR job follow.
 
 - **The DCR** (`Dcr`: `userId`, `reportDate`) is one row per user per day — a unique index — created lazily
   by the first record of the day or by the submit, in one atomic upsert, so simultaneous first records (two
@@ -72,6 +72,23 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
   `REOPENED`, `WITHDRAWN`) its `UNPAID` `AUTO` rows become `CANCELLED` and a `PAID` one is left; approval after a
   resubmission writes fresh rows and the cancelled ones stay as history. `MANUAL` rows are never touched. The
   amounts are a snapshot: changing a Route's distance or a rate afterwards doesn't reach an approved row.
+- **Doctor Services and Gifts (step 7)** are not children of the day's DCR (the ERD gives them no `dcrId`), so
+  neither needs the day's Plan; both refuse a compliance-blocked MR (`USER_BLOCKED`).
+  - **Doctor Service.** The sync kind `DOCTOR_SERVICE`, payload `{ doctorId, serviceType, amountPaise, remarks? }`,
+    `serviceType` one of `TOUR_PACKAGE`, `GIFT`, `ONLINE_PROMOTION`, `OTHERS` (H4), whole paise above zero. The Doctor
+    must be an active one the MR is still assigned to (`DOCTOR_NOT_FOUND` / `DOCTOR_NOT_ASSIGNED`). It is stored and
+    submitted as a `DOCTOR_SERVICE` approval request (Employee → Manager → Admin) in the engine's transaction; its
+    status is the request's, not stored. Admin's `POST /admin/doctor-services` (same fields) creates one with no
+    request — effective at once, `origin: ADMIN`, shown as `APPROVED` — tied to the Doctor's assigned MR at that
+    moment, read from Field Master Data's new `getAssignedUserId`; a Doctor with no assigned MR is a 409.
+    `GET /doctor-services` is the MR's own (Admin: everyone's, or `userId` / `doctorId`), each with the Doctor's name,
+    status and approval ids.
+  - **Doctor Gift.** Admin's `POST /admin/doctor-gifts` `{ doctorId, productName, amountPaise }` creates it `PENDING`,
+    with no MR named and no approval. The MR marks it done with the sync kind `GIFT_DONE` `{ giftId }`, allowed for
+    whoever is assigned to that Doctor *when the record is applied*, so a Doctor reassigned in between hands its
+    gifts to the new MR (the old one gets `DOCTOR_NOT_ASSIGNED`). One conditional update (`PENDING` → `DONE`, with
+    who and the phone's time) — a second attempt, even by the same MR, is `GIFT_ALREADY_DONE`; an unknown gift is
+    `GIFT_NOT_FOUND`. `GET /doctor-gifts` is the gifts of the MR's own Doctors (Admin: all), filterable by status.
 - **Contract:** `hasQualifyingDcr(userId, date)` — true once `SUBMITTED`, `MANAGER_APPROVED` or `APPROVED`.
 
 ## What it owns

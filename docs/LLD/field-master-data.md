@@ -52,7 +52,7 @@ whole data model. The contract below is complete for Phase 6's needs.
   moves only through `decrementRemaining`, a single conditional update, and the database refuses
   a negative one as well — checked live: 30 concurrent gives against 12 in stock, exactly 12 succeed.
   Admin, the assigned MR and their manager can read a Doctor's allocations (a 404 to anyone else).
-- **Contract today:** `getDoctor`, `getDoctorLocation`, `isAssignedToDoctor`, `listAssignedDoctors`
+- **Contract today:** `getDoctor`, `getDoctorLocation`, `isAssignedToDoctor`, `getAssignedUserId`, `listAssignedDoctors`
   (both use the same visibility rule), `getChemistLocation`, `getChemist`, `getProduct`, `getDistributor`, `canActOnDistributor`,
   `getSampleAllocation`, `decrementRemaining`. `getChemistLocation` returns
   `null` for both "no such Chemist" and "no location set", which Field Activity must read as "the
@@ -91,6 +91,7 @@ call, not the full CRUD surface:
 |---|---|---|
 | `getDoctorLocation(doctorId)` → `{ latitude, longitude } \| null` | Field Activity (Phase 6) | The geofence check compares an MR's captured GPS at call time against this. This module owns *where the doctor is supposed to be*; it does not run the distance check or know the configured radius — that's `SystemConfig.GEO_FENCE_RADIUS_METERS` plus Field Activity's own logic, per `../hld/01-sync-and-geofencing.md`. |
 | `getChemistLocation(chemistId)` → same shape | Field Activity | Same split, for Chemist Calls. |
+| `getAssignedUserId(doctorId)` → `string \| null` | Field Activity | The MR a Doctor is assigned to now (an active Doctor with an active assignment), so an Admin-created Doctor Service has someone to be tied to. `null` for an unknown, `pending` or inactive Doctor or one with no MR. |
 | `isAssignedToDoctor(userId, doctorId)` → `boolean` | Field Activity | Gates who may draw against a `DoctorSampleAllocation` via "Doctor Sample Provided" on a Dr Call, and who Admin-created Doctor Services auto-select (PRD §6.2.B — outside this module, but reads the same assignment table). |
 | `listAssignedDoctors(userId)` → `Doctor[]` | Field Activity, Marketing | An MR's "my doctors" list — what a mobile Home-tab screen and a Target scoped to a doctor's assignee both need. |
 | `getSampleAllocation(doctorId, productId)` → `DoctorSampleAllocation \| null` and a paired `decrementRemaining(allocationId, qty)` | Field Activity | The sample-given transaction on a Dr Call reads remaining quantity and decrements it; this module owns the row, Field Activity owns the event that triggers the write. |
