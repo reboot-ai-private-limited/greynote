@@ -91,6 +91,7 @@ export function buildPlanningContainer(
   return {
     contract: {
       isDailyPlanApproved: (userId, planDate) => status.isDailyPlanApproved(userId, planDate),
+      getDailyPlanDay: (userId, planDate) => status.day(userId, planDate),
       getDailyPlanStatus: (userId, planDate) => status.daily(userId, planDate),
       getMonthlyPlanStatus: (userId, planMonth) => status.monthly(userId, planMonth),
     },

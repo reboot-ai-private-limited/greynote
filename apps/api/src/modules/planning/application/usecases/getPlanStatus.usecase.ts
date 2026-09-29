@@ -20,6 +20,12 @@ export class GetPlanStatusUseCase {
     return plan && planStatus(await this.approvals.getForRecord('DAILY_PLAN', plan.id));
   }
 
+  async day(userId: string, planDate: string) {
+    const plan = await this.dailyPlans.findByUserAndDate(userId, planDate);
+    if (!plan) return null;
+    return { status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', plan.id)), workingType: plan.workingType, routeIds: [...plan.routeIds] };
+  }
+
   async monthly(userId: string, planMonth: string): Promise<PlanApprovalStatus | null> {
     const plan = await this.monthlyPlans.findByUserAndMonth(userId, planMonth);
     return plan && planStatus(await this.approvals.getForRecord('MONTHLY_PLAN', plan.id));

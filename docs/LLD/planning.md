@@ -50,6 +50,8 @@ interface PlanningPublicContract {
   /** The DCR gate: may this user log field activity for this date? */
   isDailyPlanApproved(userId: UserId, date: PlanDate): Promise<boolean>;
   getDailyPlanStatus(userId: UserId, date: PlanDate): Promise<PlanApprovalStatus | null>;
+  /** The day's working type and routes with its status, for TA/DA at the DCR's approval (Field Activity); null with no Plan. */
+  getDailyPlanDay(userId: UserId, date: PlanDate): Promise<{ status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[] } | null>;
   getMonthlyPlanStatus(userId: UserId, month: PlanMonth): Promise<PlanApprovalStatus | null>;
 }
 ```

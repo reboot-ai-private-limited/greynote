@@ -9,6 +9,7 @@ import { HasQualifyingDcrUseCase } from './application/usecases/hasQualifyingDcr
 import { CallChecks } from './application/callChecks.js';
 import { makeCallSyncHandlers } from './application/callsSync.js';
 import { makeExpenseSyncHandler } from './application/expenseSync.js';
+import { TaDaLifecycle } from './application/usecases/taDaLifecycle.usecase.js';
 import { LogExpenseUseCase } from './application/usecases/logExpense.usecase.js';
 import { GeofenceEvaluator } from './application/geofenceEvaluator.js';
 import { LoggingGate } from './application/loggingGate.js';
@@ -66,8 +67,9 @@ export function buildFieldActivityContainer(
   const followups = new MongoFollowupAdapter();
   const expenses = new MongoExpenseAdapter();
 
-  // A DCR goes manager, then Admin (client F1); TA/DA generation and its cancellation hook in here in later steps.
-  approvals.registerKind({ kind: DCR_KIND, finalApproverRoles: ['ADMIN'] });
+  // A DCR goes manager, then Admin (client F1). Past the manager it earns its TA/DA; sent back, the unpaid computed rows are cancelled.
+  const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses);
+  approvals.registerKind({ kind: DCR_KIND, finalApproverRoles: ['ADMIN'], onStatusChange: (change, ctx) => taDa.onStatusChange(change.recordId, change.status, ctx) });
 
   // 2. Use cases
   const clock = new DcrClock(config);

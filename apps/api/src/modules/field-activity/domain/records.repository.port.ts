@@ -28,5 +28,9 @@ export interface FollowupRepositoryPort {
 }
 export interface ExpenseRepositoryPort {
   create(input: Omit<Expense, 'id'>, ctx: TransactionContext): Promise<Expense>;
+  /** Whether the DCR already has AUTO rows that still count (not `CANCELLED`) — TA/DA is generated once per approval. */
+  hasActiveAuto(dcrId: string, ctx: TransactionContext): Promise<boolean>;
+  /** Marks the DCR's `UNPAID` AUTO rows `CANCELLED` (a `PAID` row is left); returns how many. */
+  cancelUnpaidAuto(dcrId: string, ctx: TransactionContext): Promise<number>;
   listForDcr(dcrId: string): Promise<Expense[]>;
 }

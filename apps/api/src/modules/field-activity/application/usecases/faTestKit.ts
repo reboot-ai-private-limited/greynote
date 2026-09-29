@@ -1,3 +1,4 @@
+import type { WorkingType } from '@greynote/contracts';
 import type { ApprovalKindDefinition, ApprovalRequest, ApprovalStatus } from '@/modules/approval/approval.public.js';
 import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import { AppError } from '@/shared/errors/AppError.js';
@@ -14,6 +15,7 @@ import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { CallChecks } from '../callChecks.js';
 import { GeofenceEvaluator } from '../geofenceEvaluator.js';
+import { TaDaLifecycle } from './taDaLifecycle.usecase.js';
 import { LogExpenseUseCase } from './logExpense.usecase.js';
 import { LogChemistCallUseCase, LogDoctorCallUseCase, LogFollowupUseCase } from './logCalls.usecase.js';
 import { DcrClock } from '../dcrClock.js';
@@ -58,6 +60,11 @@ export class FakeUsers implements UserDirectoryPort {
   async isBlocked(userId: string) {
     return this.users.get(userId)?.blocked ?? false;
   }
+  /** G1-like: ₹7.50/km; DA ₹0 at HQ, ₹200 ex-station, ₹500 out-station. */
+  rates = { taPerKmRatePaise: 750, hqDaPaise: 0, exStationDaPaise: 20000, outStationDaPaise: 50000 };
+  async getPayBandRates() {
+    return this.rates;
+  }
 }
 
 export class FakePlanning implements PlanningPort {
@@ -67,6 +74,10 @@ export class FakePlanning implements PlanningPort {
   }
   async isDailyPlanApproved(userId: string, date: string) {
     return this.approved.has(`${userId}:${date}`);
+  }
+  days = new Map<string, { workingType: WorkingType; routeIds: string[] }>();
+  async getDailyPlanDay(userId: string, date: string) {
+    return this.days.get(`${userId}:${date}`) ?? null;
   }
 }
 
@@ -148,6 +159,12 @@ export class FakeTerritory implements TerritoryPort {
   async listRoutesForUser(userId: string) {
     return (this.routesByUser.get(userId) ?? []).map((id) => ({ id }));
   }
+  routes = new Map<string, { id: string; areaType: 'HQ' | 'EX_STATION' | 'OUT_STATION'; distanceKm: string | null; distanceStatus: string; taPerKmRateOverridePaise: number | null }>([
+    ['route-1', { id: 'route-1', areaType: 'HQ', distanceKm: '10.67', distanceStatus: 'CALCULATED', taPerKmRateOverridePaise: null }],
+  ]);
+  async getRoute(id: string) {
+    return this.routes.get(id) ?? null;
+  }
 }
 
 const CLINIC = { latitude: 26.7271, longitude: 88.3953 };
@@ -226,7 +243,21 @@ class FakeCalls<T extends { id: string; dcrId: string }> {
 export class FakeDoctorCalls extends FakeCalls<DoctorCall> implements DoctorCallRepositoryPort {}
 export class FakeChemistCalls extends FakeCalls<ChemistCall> implements ChemistCallRepositoryPort {}
 export class FakeFollowups extends FakeCalls<Followup> implements FollowupRepositoryPort {}
-export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositoryPort {}
+export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositoryPort {
+  async hasActiveAuto(dcrId: string) {
+    return this.rows.some((r) => r.dcrId === dcrId && r.source === 'AUTO' && r.paymentStatus !== 'CANCELLED');
+  }
+  async cancelUnpaidAuto(dcrId: string, ctx: unknown) {
+    const hit = this.rows.filter((r) => r.dcrId === dcrId && r.source === 'AUTO' && r.paymentStatus === 'UNPAID');
+    for (const r of hit) {
+      r.paymentStatus = 'CANCELLED';
+      (ctx as Tx).undo.push(() => {
+        r.paymentStatus = 'UNPAID';
+      });
+    }
+    return hit.length;
+  }
+}
 
 /** 2026-10-05 12:00 IST — a working day well inside the business day. */
 export function faKit(nowIso = '2026-10-05T06:30:00Z') {
@@ -252,5 +283,6 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const logChemistCall = new LogChemistCallUseCase(gate, checks, geofence, fmd, chemistCalls);
   const logFollowup = new LogFollowupUseCase(gate, checks, followups);
   const logExpense = new LogExpenseUseCase(gate, expenses);
-  return { users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, expenses, logDoctorCall, logChemistCall, logFollowup, logExpense };
+  const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses);
+  return { users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, expenses, logDoctorCall, logChemistCall, logFollowup, logExpense, taDa };
 }

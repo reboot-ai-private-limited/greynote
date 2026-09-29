@@ -300,7 +300,10 @@ Field Activity, step by step (decision-log 2026-09-29):
 5. DCR review: manager approve / reject, the geofence override — **done** (2026-09-29): approve/reject is the
    approval module's; the override endpoint has 8 unit tests and a 15-check live run (who may, at which stage,
    4 simultaneous accepts → one winner, the review screen, Admin after the manager approves)
-6. TA/DA auto-generation at the manager's approval, and its cancellation
+6. TA/DA auto-generation at the manager's approval, and its cancellation — **done** (2026-09-29): 18 new tests
+   and a 14-check live run (per-Route TA at the Route's own and the pay band's rate, DA at the day's highest Area
+   type, a flagged zero for an uncalculated Route, Admin's final rejection cancels, resubmit and re-approve write
+   fresh rows once, a later Route change leaves the approved row alone). Planning gained `getDailyPlanDay`
 7. Doctor Service (approval) and Doctor Gift (Admin allocates, MR marks done)
 8. The Accountant's mark-paid, and the contract (`getPaidTaDaTotal`, `hasQualifyingDcr`, `getDcrSummary`)
 9. The missed-DCR compliance script

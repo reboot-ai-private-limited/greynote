@@ -1,3 +1,4 @@
+import type { WorkingType } from './domain/plan.js';
 import type { PlanApprovalStatus } from './domain/approvals.port.js';
 
 export type { PlanApprovalStatus } from './domain/approvals.port.js';
@@ -16,6 +17,11 @@ export interface PlanningPublicContract {
   isDailyPlanApproved(userId: string, planDate: string): Promise<boolean>;
   /** `null` when there's no Plan for that day at all. */
   getDailyPlanStatus(userId: string, planDate: string): Promise<PlanApprovalStatus | null>;
+  /**
+   * What the day's Plan says — working type and routes — with its status, for TA/DA; `null` with no Plan.
+   * Read at the DCR's approval, so an approved in-day change is already in it.
+   */
+  getDailyPlanDay(userId: string, planDate: string): Promise<{ status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[] } | null>;
   /** `null` when there's no Plan for that month at all. */
   getMonthlyPlanStatus(userId: string, planMonth: string): Promise<PlanApprovalStatus | null>;
 }

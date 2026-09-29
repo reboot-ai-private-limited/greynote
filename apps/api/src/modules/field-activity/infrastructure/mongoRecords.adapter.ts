@@ -155,6 +155,13 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
     );
     return toExpense(doc!.toObject());
   }
+  async hasActiveAuto(dcrId: string, ctx: TransactionContext): Promise<boolean> {
+    return (await ExpenseModel.exists({ dcrId: oid(dcrId), source: 'AUTO', paymentStatus: { $ne: 'CANCELLED' } }).session(ctx as ClientSession)) !== null;
+  }
+  async cancelUnpaidAuto(dcrId: string, ctx: TransactionContext): Promise<number> {
+    const res = await ExpenseModel.updateMany({ dcrId: oid(dcrId), source: 'AUTO', paymentStatus: 'UNPAID' }, { $set: { paymentStatus: 'CANCELLED' } }, session(ctx));
+    return res.modifiedCount;
+  }
   async listForDcr(dcrId: string): Promise<Expense[]> {
     return (await ExpenseModel.find({ dcrId: oid(dcrId) }).sort({ recordedAt: 1, _id: 1 }).lean()).map(toExpense);
   }

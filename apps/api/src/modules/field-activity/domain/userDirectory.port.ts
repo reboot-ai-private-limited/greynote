@@ -19,4 +19,6 @@ export interface UserDirectoryPort {
   getDownline(managerId: string): Promise<DirectoryUser[]>;
   /** Whether a compliance block (HLD 10) stops this user submitting anything new. */
   isBlocked(userId: string): Promise<boolean>;
+  /** The user's Pay Band rates, whole paise — TA per km and DA per Area type. */
+  getPayBandRates(userId: string): Promise<{ taPerKmRatePaise: number; hqDaPaise: number; exStationDaPaise: number; outStationDaPaise: number }>;
 }
