@@ -55,3 +55,51 @@ export const updateChemistBodySchema = z
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 export const listChemistsQuerySchema = z.object({ ...pageFields, routeId: objectIdSchema.optional() });
+
+// ---- Doctors
+const emailSchema = z.string().trim().email().max(200);
+const doctorFields = {
+  category: z.string().trim().min(1).max(100),
+  name: nameSchema,
+  address: textSchema,
+  specialty: z.string().trim().min(1).max(150),
+  qualification: z.string().trim().min(1).max(150),
+};
+export const createDoctorBodySchema = z.object({
+  routeId: objectIdSchema,
+  ...doctorFields,
+  email: emailSchema.nullish().transform((v) => v ?? null),
+  /** Picked on a Google map. Omit to add the Doctor now and set the point later. */
+  location: locationSchema.nullish().transform((v) => v ?? null),
+});
+export const updateDoctorBodySchema = z
+  .object({
+    routeId: objectIdSchema.optional(),
+    category: doctorFields.category.optional(),
+    name: nameSchema.optional(),
+    address: textSchema.optional(),
+    specialty: doctorFields.specialty.optional(),
+    qualification: doctorFields.qualification.optional(),
+    /** `null` clears it. */
+    email: emailSchema.nullable().optional(),
+    /** `null` clears the registered location. */
+    location: locationSchema.nullable().optional(),
+    status: statusSchema.optional(),
+  })
+  .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
+export const listDoctorsQuerySchema = z.object({
+  ...pageFields,
+  routeId: objectIdSchema.optional(),
+  category: z.string().trim().min(1).optional(),
+});
+/** An MR's own Doctors — active only, so no status filter. */
+export const listAssignedDoctorsQuerySchema = z.object({
+  page: pageFields.page,
+  pageSize: pageFields.pageSize,
+  search: pageFields.search,
+  routeId: objectIdSchema.optional(),
+  category: z.string().trim().min(1).optional(),
+});
+export const teamDoctorsQuerySchema = listAssignedDoctorsQuerySchema.extend({ userId: objectIdSchema.optional() });
+export const assignDoctorBodySchema = z.object({ userId: objectIdSchema });
+export const doctorAssignmentParamsSchema = z.object({ id: objectIdSchema, userId: objectIdSchema });

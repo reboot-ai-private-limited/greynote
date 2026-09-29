@@ -10,10 +10,10 @@ Doctor. ERD: [`../erd/03-field-master-data.md`](../erd/03-field-master-data.md).
 
 ## Build status
 
-Built so far (Phase 4 Field Master Data steps 1–2, `../roadmap.md`): the module skeleton
-(`apps/api/src/modules/field-master-data`, mounted at `/api/field-master-data`), **Products** and
-**Chemists** — create, list, detail, edit — Admin-only. Doctors, assignments, Distributors and
-sample allocations follow in steps 3–5, and the contract below grows as they land.
+Built so far (Phase 4 Field Master Data steps 1–3, `../roadmap.md`): the module skeleton
+(`apps/api/src/modules/field-master-data`, mounted at `/api/field-master-data`), **Products**,
+**Chemists** and **Doctors** with their assignments. Distributors, sample allocations and the
+MR-added Doctor (with its approval) follow in steps 4–5, and the contract below grows as they land.
 
 - **Products:** `sku` is unique ignoring case and surrounding spaces (a duplicate is a 409).
   `status` is `active` or `inactive`; nothing is ever deleted. List filters: `search` (name or SKU),
@@ -23,7 +23,21 @@ sample allocations follow in steps 3–5, and the contract below grows as they l
   as long as the Route isn't changed. The location is a `{ latitude, longitude }` pair — both or
   neither, range-checked — picked on a Google map; it may be left out at creation and set later, and
   an edit can correct or clear it (`null`). List filters: `search` (name), `routeId`, `status`.
-- **Contract today:** `getChemistLocation`, `getChemist`, `getProduct`. `getChemistLocation` returns
+- **Doctors (step 3, Admin-created):** a Doctor sits on one active Route, with category, name,
+  address, specialty, qualification, an optional email and an optional map-picked location (both
+  coordinates or neither; an edit corrects or clears it). Admin-created Doctors are `active` at once
+  with `approvedAt` set. Deactivating is refused while an MR is assigned.
+- **Assignments:** `POST /doctors/:id/assignments` needs an active FIELD employee who currently has
+  the Doctor's Route (409 otherwise), replaces the current MR in one transaction and keeps the old
+  row as history; assigning the current MR again changes nothing. The database allows one active row
+  per Doctor (partial unique index), so racing reassignments can't leave two.
+- **Visibility** is as in *Who can see a Doctor*: `GET /doctors/mine` (an MR), `GET /doctors/team`
+  (a manager, optionally narrowed to one report in their downline) and `GET /doctors/:id` (Admin, the
+  assigned MR, or their manager — anyone else gets a 404, so a Doctor's existence isn't revealed).
+  Inactive Doctors show only to Admin. Checked live: losing a Route hides the Doctor, giving it back
+  restores it, and the switch off keeps it.
+- **Contract today:** `getDoctor`, `getDoctorLocation`, `isAssignedToDoctor`, `listAssignedDoctors`
+  (both use the same visibility rule), `getChemistLocation`, `getChemist`, `getProduct`. `getChemistLocation` returns
   `null` for both "no such Chemist" and "no location set", which Field Activity must read as "the
   geofence check cannot run", never as "passed".
 
@@ -104,10 +118,13 @@ All Admin-only (Web Portal, `../roadmap.md` phase 9) unless noted.
 | Method | Path | Role | Purpose |
 |---|---|---|---|
 | `POST` | `/field-master-data/doctors` | Admin | Create a Doctor, including registered lat/lng |
-| `GET` | `/field-master-data/doctors` | Admin | List/search, filterable by route |
-| `GET` | `/field-master-data/doctors/:id` | Admin, assigned MR | Detail |
+| `GET` | `/field-master-data/doctors` | Admin | List/search, filterable by route, category, status; each row shows who is responsible |
+| `GET` | `/field-master-data/doctors/mine` | FIELD | My Doctors — assigned to me, on Routes I still have (per the switch) |
+| `GET` | `/field-master-data/doctors/team` | FIELD (manager) | My downline's Doctors; `userId` narrows to one report |
+| `GET` | `/field-master-data/doctors/:id` | Admin, assigned MR, their manager | Detail (404 to anyone else) |
 | `PATCH` | `/field-master-data/doctors/:id` | Admin | Edit, including correcting a registered location |
 | `POST` | `/field-master-data/doctors/:id/assignments` | Admin | Assign an MR to this Doctor, replacing any current active assignment |
+| `GET` | `/field-master-data/doctors/:id/assignments` | Admin | Assignment history, newest first |
 | `DELETE` | `/field-master-data/doctors/:id/assignments/:userId` | Admin | Remove a direct assignment |
 | `POST` | `/field-master-data/chemists` | Admin | Create a Chemist |
 | `GET`/`PATCH` | `/field-master-data/chemists`, `/chemists/:id` | Admin | List/detail/edit |
