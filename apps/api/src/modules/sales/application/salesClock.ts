@@ -23,6 +23,10 @@ export class SalesClock {
     });
   }
 
+  async today(): Promise<string> {
+    return businessDate(this.now(), await this.timeZone());
+  }
+
   /** The month that ended most recently, `YYYY-MM` — what the stock-check job looks at by default. */
   async previousMonth(): Promise<string> {
     const today = businessDate(this.now(), await this.timeZone());

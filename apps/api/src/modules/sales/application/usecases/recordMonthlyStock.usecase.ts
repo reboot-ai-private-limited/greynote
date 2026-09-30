@@ -4,12 +4,8 @@ import type { Outlet, StockLine } from '../../domain/monthlyStock.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { MonthlyStockRepositoryPort } from '../../domain/monthlyStock.repository.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
+import type { Actor, OutletAccess } from '../outletAccess.js';
 import type { SalesClock } from '../salesClock.js';
-
-export interface Actor {
-  id: string;
-  role: string;
-}
 
 export interface RecordStockInput {
   outlet: Outlet;
@@ -25,6 +21,7 @@ export interface RecordStockInput {
  */
 export class RecordMonthlyStockUseCase {
   constructor(
+    private readonly access: OutletAccess,
     private readonly master: FieldMasterDataPort,
     private readonly stock: MonthlyStockRepositoryPort,
     private readonly clock: SalesClock,
@@ -32,13 +29,7 @@ export class RecordMonthlyStockUseCase {
 
   async execute(actor: Actor, input: RecordStockInput, ctx?: TransactionContext): Promise<{ serverId: string; lines: number }> {
     const { outlet, month } = input;
-    const found = outlet.type === 'CHEMIST' ? await this.master.getChemist(outlet.id) : await this.master.getDistributor(outlet.id);
-    if (!found || found.status !== 'active') throw new StockRefusal(STOCK_CODES.outletNotFound, 'That outlet does not exist or is no longer active.');
-
-    if (actor.role !== 'ADMIN') {
-      const allowed = outlet.type === 'CHEMIST' ? await this.master.canActOnChemist(actor.id, outlet.id) : await this.master.canActOnDistributor(actor.id, outlet.id);
-      if (!allowed) throw new StockRefusal(STOCK_CODES.outletNotYours, 'That outlet is not on your Routes.');
-    }
+    await this.access.assertUsable(actor, outlet);
 
     const now = this.clock.now();
     const window = monthWindow(month, now, await this.clock.graceDays(), await this.clock.timeZone());

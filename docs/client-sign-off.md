@@ -72,7 +72,8 @@ cheapest to change before the listed phase starts.
 | E2 | After the deadline, can entries be re-opened? By Admin only, or through an approval? | Admin-only unlock, per month. After the deadline an entry is refused (409); the manager and Admin are shown which outlets are missing. **No DCR block** | Designed |
 | E3 | Who enters Primary Sales: MR, ASM, or RSM (§14, S6 "configurable")? | Not decided | Open |
 | E4 | Required fields for Primary (opening / purchase / closing, qty and/or value) and Secondary (§14–15). | Opening + closing qty per product | Designed |
-| E5 | Distributor Order workflow after "Placed" (§16), and who marks it Done? | Placed → Done / Cancelled, by the MR | Designed |
+| E5 | Distributor Order workflow after "Placed" (§16), and who marks it Done? | Placed → Done / Cancelled, by the MR who placed it (or Admin); built 2026-09-30. **New question E7:** is there a price list, or does the MR enter each unit price? | Built (working assumption) |
+| E7 | Order unit prices: from a price list per Product, or entered by the MR? | Entered by the MR, as whole paise | Open |
 | E6 | Distributor payment / collection: from your accounts system, or entered in this app (§16.8–16.9)? | Not decided | Open |
 
 ## F. Approvals, expenses, leave, HR (Phases 3, 4, 7)

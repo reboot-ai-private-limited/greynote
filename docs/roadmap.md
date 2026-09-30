@@ -338,7 +338,11 @@ Sales & Orders, step by step (decision-log 2026-09-30) — Monthly Stock first, 
    `MONTHLY_STOCK` push with a refused, a closed-month and a malformed record beside a good one, then replayed)
 3. The `MONTHLY_STOCK` sync kind — **built**, unit-tested through the use case; a `salesStock` pull source is not
 4. The missing-stock report (`GET /sales/monthly-stock/missing`) and the read-only `stock-check:run` job — **built**
-5. Orders (`PLACED → DONE/CANCELLED`), the `ORDER` sync kind, and a live run
+5. Orders (`PLACED → DONE/CANCELLED`), the `ORDER` sync kind, and a live run — **done** (2026-09-30): 9 unit tests
+   and a 53-check live run through real HTTP on a throwaway Atlas database (server-computed amounts, 13 refusals,
+   the DB's own refusal of both/neither outlet, a wrong total and no lines, who sees and who may finish, 8 simultaneous
+   complete/cancel → exactly one winner, and the `ORDER` push with a refused, a malformed and a good record, replayed).
+   **Sales & Orders is complete; Marketing is next.**
 
 **Done when:** a full DCR day — Plan approved → Dr Call logged with location check → Expense
 logged → TA/DA computed → Final Submission — works end to end for a seeded MR and their manager

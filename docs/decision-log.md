@@ -17,6 +17,27 @@ old one.
 
 ---
 
+## 2026-09-30 — Orders: lines embedded, server-side amounts, one winner on complete/cancel
+
+**Decision:** (1) An Order and its lines are one document; the schema refuses a total that is not the sum of the
+lines, an order with no lines, and both/neither outlet. (2) The server works out every line amount and the total from
+quantity × unit price (whole paise, capped at `MAX_PAISE`); an amount sent by the phone is ignored. The MR enters the
+unit price — Products have no price. (3) Only an MR places an Order; the order date defaults to today and may be past,
+not future. (4) `PLACED → DONE/CANCELLED` is one conditional update: of racing calls one wins, the rest are `409`; the
+MR who placed it or an Admin may do it, a manager may only read. (5) `ORDER` is a sync kind; completing and cancelling
+are online. (6) Orders are not gated by the DCR compliance block.
+
+**Why:** the ERD's separate `OrderItem` table would need a multi-document transaction for what is one fact; Mongo
+does not enforce a denormalised total, so the schema does. Trusting a phone's arithmetic silently corrupts totals
+Marketing will read.
+
+**Rejected:** a price list now (no client rule for it yet — E-series question to add); Admin placing orders on an
+MR's behalf (no owner to attribute it to); offline complete/cancel (the LLD keeps them as HTTP).
+
+**Cost:** unit prices are free text from the MR until the client gives a price list.
+
+---
+
 ## 2026-09-30 — Monthly stock: due on the month's last day, for Chemists and Distributors
 
 **Decision:** (1) At month end an MR records **opening and closing stock per Product** for each of their

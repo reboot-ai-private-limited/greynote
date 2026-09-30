@@ -88,11 +88,11 @@ the contract starts narrow and grows on demand (per
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| `POST` | `/sales/orders` | MR | Create an Order with its `OrderItem` lines, status `PLACED` |
-| `GET` | `/sales/orders` | MR, Admin | List Orders (MR: own; Admin: all/filtered) |
-| `GET` | `/sales/orders/:id` | MR, Admin | Order detail with line items |
-| `POST` | `/sales/orders/:id/complete` | MR | Transition `PLACED → DONE`, sets `completed_by`/`completed_at` |
-| `POST` | `/sales/orders/:id/cancel` | MR | Transition `PLACED → CANCELLED` |
+| `POST` | `/sales/orders` | MR | Create an Order with its lines, status `PLACED` (also the `ORDER` sync kind) |
+| `GET` | `/sales/orders` | MR, Manager, Admin | List Orders (MR: own; manager: plus downline's; Admin: all); filter by status, dates, outlet |
+| `GET` | `/sales/orders/:id` | MR, Manager, Admin | Order detail with lines; not visible = `404` |
+| `POST` | `/sales/orders/:id/complete` | MR (own), Admin | Transition `PLACED → DONE`, sets `completed_by`/`completed_at` |
+| `POST` | `/sales/orders/:id/cancel` | MR (own), Admin | Transition `PLACED → CANCELLED`, same fields |
 | `POST` | `/sales/monthly-stock` | MR, Admin | Record/update opening+closing counts for one outlet, one month, several products |
 | `GET` | `/sales/monthly-stock` | MR, Manager, Admin | List stock counts, filterable by outlet/product/month |
 | `POST` | `/sales/monthly-stock/unlock` | Admin | Re-open a past month for entry |
@@ -102,6 +102,14 @@ the contract starts narrow and grows on demand (per
 Exact role gating (whether HR/Accountant get any read access here) follows PRD §5's "Sales
 managers are explicitly excluded from web-portal workflows" framing — this module's Web Portal
 surface, if any beyond Admin reporting, is Admin-only by default until stated otherwise.
+
+**As built (2026-09-30):** an Order's lines are embedded in the Order document (one write, so the total can
+never disagree with the lines; the database itself refuses a total that is not their sum). Only an MR places an
+Order — it belongs to them, so Admin cannot. Unit price is entered by the MR (there is no price list yet) as whole
+paise; the server multiplies. The order date defaults to today and may be in the past, never the future.
+Completing/cancelling is one conditional update, so of two racing calls exactly one wins and the other is a `409`;
+a manager may open a team member's Order but only its MR or an Admin may finish it. Completing/cancelling is online
+only. Blocked (missed-DCR) MRs are not stopped from ordering — orders are not part of the DCR.
 
 ## Edge cases
 

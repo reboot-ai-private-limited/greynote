@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Outlet, MonthlyStock, StockLine } from '../../domain/monthlyStock.entity.js';
-import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { MonthlyStockRepositoryPort, StockFilter } from '../../domain/monthlyStock.repository.port.js';
-import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
+import { FakeMaster, FakeUsers, config } from './salesTestKit.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
+import { OutletAccess } from '../outletAccess.js';
 import { SalesClock } from '../salesClock.js';
 import { ListMissingStockUseCase, ListMonthlyStockUseCase } from './readMonthlyStock.usecase.js';
 import { RecordMonthlyStockUseCase } from './recordMonthlyStock.usecase.js';
@@ -33,46 +33,6 @@ class FakeStock implements MonthlyStockRepositoryPort {
   }
 }
 
-// mr1 covers chem1 + dist1, mr2 covers chem2; asm manages both.
-class FakeMaster implements FieldMasterDataPort {
-  private active = { status: 'active' as const };
-  outlets: Record<string, { chemists: string[]; distributors: string[] }> = { mr1: { chemists: ['chem1'], distributors: ['dist1'] }, mr2: { chemists: ['chem2'], distributors: [] }, asm: { chemists: [], distributors: [] } };
-  inactiveProducts = new Set<string>();
-  async getChemist(id: string) {
-    return ['chem1', 'chem2'].includes(id) ? { id, name: id, ...this.active } : null;
-  }
-  async getDistributor(id: string) {
-    return id === 'dist1' ? { id, name: id, ...this.active } : null;
-  }
-  async getProduct(id: string) {
-    return id.startsWith('prod') ? { id, name: id, status: this.inactiveProducts.has(id) ? ('inactive' as const) : ('active' as const) } : null;
-  }
-  async canActOnChemist(u: string, id: string) {
-    return this.outlets[u]?.chemists.includes(id) ?? false;
-  }
-  async canActOnDistributor(u: string, id: string) {
-    return this.outlets[u]?.distributors.includes(id) ?? false;
-  }
-  async listOutletsForUser(u: string) {
-    const o = this.outlets[u] ?? { chemists: [], distributors: [] };
-    return { chemists: o.chemists.map((id) => ({ id, name: id })), distributors: o.distributors.map((id) => ({ id, name: id })) };
-  }
-}
-
-class FakeUsers implements UserDirectoryPort {
-  private u = (id: string): DirectoryUser => ({ id, name: id, employeeCode: id, role: id === 'admin' ? 'ADMIN' : 'FIELD', status: 'active' });
-  async getUserSummaries(ids: string[]) {
-    return ids.map(this.u);
-  }
-  async getDownline(m: string) {
-    return m === 'asm' ? [this.u('mr1'), this.u('mr2')] : [];
-  }
-  async listActiveFieldUserIds() {
-    return ['asm', 'mr1', 'mr2'];
-  }
-}
-
-const config = { get: async (key: string) => ({ BUSINESS_TIMEZONE: 'Asia/Kolkata', MONTHLY_STOCK_GRACE_DAYS: '0' })[key] ?? '' };
 const line = (productId = 'prod1', openingQty = 10, closingQty = 4): StockLine => ({ productId, openingQty, closingQty });
 const mr1 = { id: 'mr1', role: 'FIELD' };
 
@@ -87,7 +47,7 @@ describe('monthly stock', () => {
     now = new Date('2026-09-30T10:00:00+05:30');
     stock = new FakeStock();
     master = new FakeMaster();
-    record = new RecordMonthlyStockUseCase(master, stock, clock());
+    record = new RecordMonthlyStockUseCase(new OutletAccess(master), master, stock, clock());
   });
 
   const code = async (p: Promise<unknown>) => p.then(() => null, (e: unknown) => (e instanceof StockRefusal ? e.code : 'OTHER'));

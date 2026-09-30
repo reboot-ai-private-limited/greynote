@@ -2,7 +2,7 @@ import type { Outlet } from '../../domain/monthlyStock.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { MonthlyStockRepositoryPort } from '../../domain/monthlyStock.repository.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
-import type { Actor } from './recordMonthlyStock.usecase.js';
+import type { Actor } from '../outletAccess.js';
 
 const LIMIT = 2000;
 const key = (o: Outlet) => `${o.type}:${o.id}`;
