@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPaise, isPaise, MAX_PAISE, multiplyPaise, paiseSchema, rupeesToPaise } from './paise.js';
+import { formatPaise, isPaise, MAX_PAISE, multiplyPaise, paiseSchema, proratePaise, rupeesToPaise } from './paise.js';
 
 describe('isPaise / paiseSchema', () => {
   it('a whole, non-negative, sane number', () => {
@@ -69,5 +69,31 @@ describe('formatPaise', () => {
     expect(formatPaise(750)).toBe('₹7.50');
     expect(formatPaise(2_000_000)).toBe('₹20,000.00');
     expect(formatPaise(123_456_789)).toBe('₹12,34,567.89');
+  });
+});
+
+describe('proratePaise — a share of an amount, rounded half up to a paise once', () => {
+  it('is exact when it divides evenly', () => {
+    expect(proratePaise(3_000_000, 2, 60)).toBe(100_000); // one day of a ₹30,000 month, in half-days
+    expect(proratePaise(3_000_000, 0, 60)).toBe(0);
+  });
+
+  it('rounds half up, at the paise', () => {
+    expect(proratePaise(1, 1, 2)).toBe(1); // 0.5 → 1
+    expect(proratePaise(1, 1, 3)).toBe(0); // 0.33 → 0
+    expect(proratePaise(2, 1, 3)).toBe(1); // 0.67 → 1
+    expect(proratePaise(10, 1, 4)).toBe(3); // 2.5 → 3
+    expect(proratePaise(10, 3, 8)).toBe(4); // 3.75 → 4
+    expect(proratePaise(15, 1, 30)).toBe(1); // 0.5 → 1
+    expect(proratePaise(14, 1, 30)).toBe(0); // 0.47 → 0
+  });
+
+  it('never goes through floating point, at the largest amounts', () => {
+    expect(proratePaise(MAX_PAISE, 60, 60)).toBe(MAX_PAISE);
+    expect(proratePaise(MAX_PAISE, 1, 60)).toBe(166_666_667); // 166,666,666.67
+  });
+
+  it('refuses a fraction, a negative, a zero denominator and a non-paise amount', () => {
+    for (const [paise, n, d] of [[100, 1.5, 2], [100, -1, 2], [100, 1, 0], [1.5, 1, 2], [-1, 1, 2]] as Array<[number, number, number]>) expect(() => proratePaise(paise, n, d)).toThrow(RangeError);
   });
 });

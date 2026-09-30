@@ -6,6 +6,7 @@ import { buildHealthContainer } from '@/modules/health/health.container.js';
 import { buildHrContainer } from '@/modules/hr/hr.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
 import { buildMarketingContainer } from '@/modules/marketing/marketing.container.js';
+import { buildPayrollContainer } from '@/modules/payroll/payroll.container.js';
 import { buildPlanningContainer } from '@/modules/planning/planning.container.js';
 import { buildSalesContainer } from '@/modules/sales/sales.container.js';
 import { buildSyncContainer } from '@/modules/sync/sync.container.js';
@@ -25,6 +26,7 @@ export interface AppContainers {
   fieldMasterData: ReturnType<typeof buildFieldMasterDataContainer>;
   sales: ReturnType<typeof buildSalesContainer>;
   marketing: ReturnType<typeof buildMarketingContainer>;
+  payroll: ReturnType<typeof buildPayrollContainer>;
 }
 
 /**
@@ -73,9 +75,12 @@ export function buildContainers(): AppContainers {
   // Tier 5 — Marketing: Visuals, Campaigns and Targets. Reads the downline (Identity), Products (Field Master Data) and order totals (Sales).
   const marketing = buildMarketingContainer(identity.contract, fieldMasterData.contract, sales.contract);
 
+  // Tier 5 — Payroll: base salary and who is active (Identity), approved unpaid leave (HR), what was paid in the month (Field Activity).
+  const payroll = buildPayrollContainer(identity.contract, hr.contract, fieldActivity.contract, config.contract);
+
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
-  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync, fieldActivity, sales, marketing };
+  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync, fieldActivity, sales, marketing, payroll };
 }

@@ -39,6 +39,20 @@ export function multiplyPaise(paise: Paise, factor: string): Paise {
   return result;
 }
 
+/**
+ * `paise × numerator ÷ denominator` for whole numbers, rounded **half up to a whole paise once**, exactly — no floating
+ * point. For a share of a monthly amount: leave deduction is `proratePaise(base, halfDays, 60)`.
+ */
+export function proratePaise(paise: Paise, numerator: number, denominator: number): Paise {
+  if (!isPaise(paise) || !Number.isSafeInteger(numerator) || numerator < 0 || !Number.isSafeInteger(denominator) || denominator < 1) {
+    throw new RangeError(`Not a paise amount and a whole ratio: ${paise} × ${numerator} ÷ ${denominator}`);
+  }
+  const d = BigInt(denominator);
+  const result = Number((BigInt(paise) * BigInt(numerator) * 2n + d) / (d * 2n)); // floor(x / d + ½)
+  if (!Number.isSafeInteger(result)) throw new RangeError(`Amount out of range: ${paise} × ${numerator} ÷ ${denominator}`);
+  return result;
+}
+
 /** A rupee amount typed as a decimal string (`"1234.5"`, up to 2 places) → exact paise; `null` if it isn't one. For migrating old data and importing files. */
 export function rupeesToPaise(value: string): Paise | null {
   const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());

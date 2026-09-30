@@ -378,9 +378,19 @@ Payroll, step by step (decision-log 2026-09-30):
 
 1. Decisions recorded (paid-month basis, Accountant + Admin, ended months only, no proration but flagged) — docs
    **done** (2026-09-30)
-2. Field Activity's `getPaidTaDaTotal` counts by the month an expense was paid
-3. The Payroll module: generate (bulk, per-user outcomes), finalize, read
-4. Live run, including the "Done when" below
+2. Field Activity's `getPaidTaDaTotal` counts by the month an expense was paid — **done** (2026-09-30): +2 tests (paid
+   in the next month; the IST midnight edge, and December wrapping the year)
+3. The Payroll module: generate (bulk, per-user outcomes), finalize, read — **done** (2026-09-30): 28 unit tests
+   (the calculation at every rounding boundary, generate/finalize/access, `proratePaise` in `shared/money`)
+4. Live run, including the "Done when" below — **done** (2026-09-30): 41 checks through real HTTP on a throwaway Atlas
+   database with real Field Activity expenses (paid, unpaid, cancelled, paid the month before) and real HR leave
+   (approved unpaid days incl. a half-day, a pending one, a paid-type one, another month's): exact sums and a
+   half-up deduction on 4,500,050 (75,000.83 → 75,001); no Pay Band skipped without failing the batch; joiner
+   flagged not prorated; 6 simultaneous bulk generates → one row per employee; 6 simultaneous finalizes → one winner;
+   generate racing finalize → ends FINALIZED; and **the lock**: after finalizing, a raised Pay Band, new leave and an
+   expense paid through the real Accountant endpoint leave the finalized sheet byte-for-byte unchanged, regenerating
+   is a 409 (one employee) or a skip (batch), and the late payment appears in the paid month only.
+   **Payroll is complete; the backend phases are done. Financial Year Toggle (Phase 8) is next.**
 
 ## Phase 8 — Financial Year Toggle
 

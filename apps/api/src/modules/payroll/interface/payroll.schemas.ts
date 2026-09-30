@@ -1,0 +1,10 @@
+import { z } from 'zod';
+import { calendarMonthSchema } from '@/shared/time/calendarSchemas.js';
+import { PAYROLL_STATUSES } from '../domain/payrollRun.entity.js';
+
+const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
+
+export const idParamsSchema = z.object({ id: objectIdSchema });
+/** No `userIds` = every active FIELD employee. */
+export const generateBodySchema = z.object({ month: calendarMonthSchema, userIds: z.array(objectIdSchema).min(1).max(2000).optional() });
+export const listRunsQuerySchema = z.object({ month: calendarMonthSchema.optional(), userId: objectIdSchema.optional(), status: z.enum(PAYROLL_STATUSES).optional() });
