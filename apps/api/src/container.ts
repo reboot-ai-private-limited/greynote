@@ -6,6 +6,7 @@ import { buildHealthContainer } from '@/modules/health/health.container.js';
 import { buildHrContainer } from '@/modules/hr/hr.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
 import { buildPlanningContainer } from '@/modules/planning/planning.container.js';
+import { buildSalesContainer } from '@/modules/sales/sales.container.js';
 import { buildSyncContainer } from '@/modules/sync/sync.container.js';
 import { registerCompositionSyncSources } from './syncSources.js';
 import { buildTerritoryContainer } from '@/modules/territory/territory.container.js';
@@ -21,6 +22,7 @@ export interface AppContainers {
   sync: ReturnType<typeof buildSyncContainer>;
   fieldActivity: ReturnType<typeof buildFieldActivityContainer>;
   fieldMasterData: ReturnType<typeof buildFieldMasterDataContainer>;
+  sales: ReturnType<typeof buildSalesContainer>;
 }
 
 /**
@@ -63,9 +65,12 @@ export function buildContainers(): AppContainers {
   // Tier 4 — Field Activity: the daily core (DCR, calls, expenses, TA/DA). It consumes almost everything below it.
   const fieldActivity = buildFieldActivityContainer(identity.contract, planning.contract, fieldMasterData.contract, territory.contract, approval.contract, sync.contract, hr.contract, config.contract);
 
+  // Tier 4 — Sales & Orders: monthly stock counts at Chemists and Distributors (Field Master Data), who may see whose (Identity), the daily push (Sync).
+  const sales = buildSalesContainer(identity.contract, fieldMasterData.contract, sync.contract, config.contract);
+
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
-  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync, fieldActivity };
+  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync, fieldActivity, sales };
 }

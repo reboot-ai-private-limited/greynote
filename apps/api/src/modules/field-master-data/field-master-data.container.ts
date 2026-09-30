@@ -150,6 +150,16 @@ export function buildFieldMasterDataContainer(
         if (distributor.assignedMrId === userId) return true;
         return (await territory.listRoutesForUser(userId)).some((r) => r.id === distributor.routeId);
       },
+      canActOnChemist: async (userId, chemistId) => {
+        const chemist = await chemists.findById(chemistId);
+        if (!chemist || chemist.status !== 'active') return false;
+        return (await territory.listRoutesForUser(userId)).some((r) => r.id === chemist.routeId);
+      },
+      listOutletsForUser: async (userId) => {
+        const routeIds = (await territory.listRoutesForUser(userId)).map((r) => r.id);
+        const [chemistList, distributorList] = await Promise.all([chemists.listActiveOnRoutes(routeIds), distributors.listActiveForUser(userId, routeIds)]);
+        return { chemists: chemistList, distributors: distributorList };
+      },
       getSampleAllocation: (doctorId, productId) => sampleAllocations.find(doctorId, productId),
       decrementRemaining: (allocationId, quantity, ctx) => sampleAllocations.decrementRemaining(allocationId, quantity, ctx),
       getChemistLocation: async (id) => (await chemists.findById(id))?.location ?? null,

@@ -56,14 +56,20 @@ the contract starts narrow and grows on demand (per
 - **Monthly stock has a submission deadline set in `SystemConfig`.** Field staff enter each
   Distributor's per-product opening/closing stock once a month (client rules §14–15; client
   `sales.docx` S6: "Monthly One Time Entry"). The cut-off is Admin-configurable, not hard-coded:
-  - `MONTHLY_STOCK_SUBMISSION_DAY` — day of the **following** month by which month *M*'s counts
-    must be in. The client's proposed value is "within 5 days" (§15.4), so the seed default is
-    `5`, pending their final answer.
+  - **Deadline (decision-log 2026-09-30, was "the 5th of the following month"):** month *M*'s counts
+    are due by *M*'s **last calendar day** (28/29/30/31). `MONTHLY_STOCK_GRACE_DAYS` (seed `0`) adds
+    days after month end, so "within 5 days" (§15.4) is a config change, not code. A future month is
+    refused. Chemists and Distributors are counted alike, per Product, opening and closing.
   - After the cut-off, a create/update for month *M* is rejected (`409`), unless Admin has
-    re-opened it. The client spec says re-open goes "only through Approval (if enabled)"; until
+    re-opened that month. The client spec says re-open goes "only through Approval (if enabled)"; until
     that approval exists, it's an Admin-only unlock.
-  - Late or missing submissions notify the Manager (Secondary, §15.5) / Admin (Primary, §14.5).
-    That's a notification, not a DCR block, unlike HLD 10's compliance block.
+  - Missing submissions are **reported** to the Manager (Secondary, §15.5) / Admin (Primary, §14.5) —
+    `GET /sales/monthly-stock/missing` and the `sales:stock-check` job. That's a report, not a DCR
+    block, unlike HLD 10's compliance block; notification delivery waits for F8.
+  - **Who enters:** an MR for the Chemists and Distributors on their Routes
+    (`canActOnChemist` / `canActOnDistributor`); Admin for any; managers read their team's counts.
+    Stock is a `MONTHLY_STOCK` record kind in the daily push, checked against the deadline when the
+    push arrives.
 - **Who may submit or order for a Distributor:** a user for whom
   `FieldMasterDataPublicContract.canActOnDistributor` is true — the Distributor's
   `assigned_mr_id`, or an MR whose `RouteAssignment` covers its Route — plus anyone above them in
@@ -87,8 +93,10 @@ the contract starts narrow and grows on demand (per
 | `GET` | `/sales/orders/:id` | MR, Admin | Order detail with line items |
 | `POST` | `/sales/orders/:id/complete` | MR | Transition `PLACED → DONE`, sets `completed_by`/`completed_at` |
 | `POST` | `/sales/orders/:id/cancel` | MR | Transition `PLACED → CANCELLED` |
-| `POST` | `/sales/monthly-stock` | MR | Record/update opening+closing counts for an outlet/product/month |
-| `GET` | `/sales/monthly-stock` | MR, Admin | List stock counts, filterable by outlet/product/month |
+| `POST` | `/sales/monthly-stock` | MR, Admin | Record/update opening+closing counts for one outlet, one month, several products |
+| `GET` | `/sales/monthly-stock` | MR, Manager, Admin | List stock counts, filterable by outlet/product/month |
+| `POST` | `/sales/monthly-stock/unlock` | Admin | Re-open a past month for entry |
+| `GET` | `/sales/monthly-stock/missing` | Manager, Admin | Outlets with no count for a month, by MR |
 | `GET` | `/sales/reports/secondary-sales` | Admin | Derived Secondary Sales figures over a period |
 
 Exact role gating (whether HR/Accountant get any read access here) follows PRD §5's "Sales
@@ -114,7 +122,7 @@ surface, if any beyond Admin reporting, is Admin-only by default until stated ot
   assignment.** Rejected with `403`. Resolved 2026-09-24 from client rules §17.3 — see the
   "Who may submit or order" rule above. `Order` still stores no link to `RouteAssignment`; the
   check runs at write time only.
-- **A month's counts arriving after `MONTHLY_STOCK_SUBMISSION_DAY`.** Rejected unless re-opened.
+- **A month's counts arriving after the month's last day (plus `MONTHLY_STOCK_GRACE_DAYS`).** Rejected unless re-opened.
   If Admin changes the config value mid-month, the new value applies to any month not yet
   closed. A month already past its old cut-off doesn't silently re-open.
 - **Money precision drift between `unit_price × quantity` and `amount`.** Compute `amount`
@@ -128,7 +136,7 @@ surface, if any beyond Admin reporting, is Admin-only by default until stated ot
   [`field-master-data.md`](field-master-data.md).
 - **Identity** (Tier 1) — the submitting/completing `User` (`user_id`, `completed_by`,
   `recorded_by`), plus the reporting-chain lookup for manager access.
-- **Config** (Tier 0) — `MONTHLY_STOCK_SUBMISSION_DAY`.
+- **Config** (Tier 0) — `MONTHLY_STOCK_GRACE_DAYS`.
 
 Not a dependency: the Approval Workflow Engine, Offline Sync & Geofencing (Orders/stock counts
 are not stated as geofenced the way Doctor/Chemist Calls are in PRD §5.1 — they're captured, not

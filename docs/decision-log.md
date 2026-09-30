@@ -17,6 +17,30 @@ old one.
 
 ---
 
+## 2026-09-30 — Monthly stock: due on the month's last day, for Chemists and Distributors
+
+**Decision:** (1) At month end an MR records **opening and closing stock per Product** for each of their
+Chemists and Distributors; Admin may enter for any. It is due by the **last calendar day of that month**
+(28/29/30/31), not the 5th of the next. `MONTHLY_STOCK_SUBMISSION_DAY` is replaced by
+`MONTHLY_STOCK_GRACE_DAYS` (default `0`): extra days after month end, so "the 5th" becomes a config change. (2)
+After the deadline an entry is refused (`409`) unless Admin has unlocked that month; a future month is refused. (3)
+Missing counts are **reported** to the manager and Admin (`GET /sales/monthly-stock/missing` and a `sales:stock-check`
+job), not enforced by a DCR block; notification delivery waits for F8. (4) An MR may enter only for outlets on their
+Routes (`canActOnChemist` is added beside `canActOnDistributor`); managers read their team's counts. (5) Stock rides
+the daily push as a `MONTHLY_STOCK` record kind; the deadline is checked when the push arrives.
+
+**Why:** the client described the month-end visit and the last-day rule; the LLD's 5th-of-next-month came from the
+questionnaire's proposal (§15.4) and was never confirmed. A count taken on the last day would otherwise sit a day
+past the deadline. A block would punish the MR for a chemist who was closed; a visible list lets the manager act.
+
+**Rejected:** keeping the 5th (contradicts the client); accept-and-flag (no teeth); blocking the DCR (harsher than
+the client's rules ask).
+
+**Cost:** E1 is still a working assumption. The offline caveat: an MR who taps Submit after midnight on the last day
+is refused, so the field app should push before the day ends.
+
+---
+
 ## 2026-09-29 — The missed-DCR job's rules, and reimbursements in Payroll's total
 
 **Decision:** (1) `DCR_MISS_GRACE_DAYS` is the number of **consecutive missed working days tolerated**: an

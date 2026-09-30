@@ -179,6 +179,12 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = [
     description: 'Grace days before a missed DCR triggers the compliance block.',
   },
   {
+    key: 'MONTHLY_STOCK_GRACE_DAYS',
+    value: '0',
+    module: 'SALES',
+    description: 'Days after a month ends during which its stock counts are still accepted (0 = the month’s last day is the deadline).',
+  },
+  {
     key: 'APPROVAL_MANAGER_ONLY_KINDS',
     value: 'NONE',
     module: 'APPROVAL',

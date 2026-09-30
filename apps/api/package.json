@@ -13,7 +13,8 @@
         "test": "vitest run",
         "seed": "tsx src/scripts/seed.ts",
         "migrate:money": "tsx src/scripts/migrate-money-to-paise.ts",
-        "compliance:run": "tsx src/scripts/run-compliance.ts"
+        "compliance:run": "tsx src/scripts/run-compliance.ts",
+        "stock-check:run": "tsx src/scripts/run-stock-check.ts"
     },
     "dependencies": {
         "@asteasolutions/zod-to-openapi": "^7.3.4",

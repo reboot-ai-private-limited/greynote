@@ -325,6 +325,21 @@ Field Activity, step by step (decision-log 2026-09-29):
     manager's review and override, TA 6170 + DA 20000 computed and paid, Payroll's total, the phone's pull, and the
     compliance job blocking a MR who never reported. **Field Activity is complete.**
 
+Sales & Orders, step by step (decision-log 2026-09-30) — Monthly Stock first, Orders after:
+
+1. Decisions recorded (E1 → last day of the month; miss = report, not block); the `sales` module skeleton —
+   docs **done** (2026-09-30)
+2. Monthly Stock: opening/closing per Product for Chemists and Distributors, the deadline rule, Admin unlock,
+   `canActOnChemist` — **built** (2026-09-30): 19 unit tests (the deadline across 28/29/30/31-day months, grace
+   days and the IST midnight edge; access, overwrite, closed/unlocked/future months, who sees what) and a 47-check live
+   run through real HTTP on a throwaway Atlas database (an MR's own Chemist and Distributor, overwrite and replay,
+   another MR's outlet 403, closed/future months 409, Admin's correction and unlock, 6 simultaneous entries → one row,
+   the DB's own refusal of both/neither outlet and of a duplicate key, who sees what, the missing-stock report, and a
+   `MONTHLY_STOCK` push with a refused, a closed-month and a malformed record beside a good one, then replayed)
+3. The `MONTHLY_STOCK` sync kind — **built**, unit-tested through the use case; a `salesStock` pull source is not
+4. The missing-stock report (`GET /sales/monthly-stock/missing`) and the read-only `stock-check:run` job — **built**
+5. Orders (`PLACED → DONE/CANCELLED`), the `ORDER` sync kind, and a live run
+
 **Done when:** a full DCR day — Plan approved → Dr Call logged with location check → Expense
 logged → TA/DA computed → Final Submission — works end to end for a seeded MR and their manager
 chain; an MR cannot log field activity for a day whose Plan isn't approved; Orders and stock

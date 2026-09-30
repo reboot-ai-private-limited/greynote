@@ -68,8 +68,8 @@ cheapest to change before the listed phase starts.
 
 | # | Question | Today | Status |
 |---|---|---|---|
-| E1 | Monthly stock entry deadline for Primary and Secondary Sales (§14.5, §15.4). | 5th of the following month (*config*) | Designed |
-| E2 | After the deadline, can entries be re-opened? By Admin only, or through an approval? | Admin-only unlock | Designed |
+| E1 | Monthly stock entry deadline for Primary and Secondary Sales (§14.5, §15.4). | The **last day of the month** the counts are for (28/29/30/31); `MONTHLY_STOCK_GRACE_DAYS` (default 0) can extend it. Chemists and Distributors alike | Designed 2026-09-30 (working assumption, awaiting client; was "5th of the following month") |
+| E2 | After the deadline, can entries be re-opened? By Admin only, or through an approval? | Admin-only unlock, per month. After the deadline an entry is refused (409); the manager and Admin are shown which outlets are missing. **No DCR block** | Designed |
 | E3 | Who enters Primary Sales: MR, ASM, or RSM (§14, S6 "configurable")? | Not decided | Open |
 | E4 | Required fields for Primary (opening / purchase / closing, qty and/or value) and Secondary (§14–15). | Opening + closing qty per product | Designed |
 | E5 | Distributor Order workflow after "Placed" (§16), and who marks it Done? | Placed → Done / Cancelled, by the MR | Designed |

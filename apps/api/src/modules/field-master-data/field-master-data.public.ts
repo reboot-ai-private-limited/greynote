@@ -49,6 +49,10 @@ export interface FieldMasterDataPublicContract {
    * chain, not here.
    */
   canActOnDistributor(userId: string, distributorId: string): Promise<boolean>;
+  /** Gates a Chemist's monthly stock: the Chemist is active and on a Route the user covers. Managers/Admin are the caller's to resolve. */
+  canActOnChemist(userId: string, chemistId: string): Promise<boolean>;
+  /** The active Chemists on the user's Routes and the active Distributors they are assigned to or cover — the outlets they count stock at. */
+  listOutletsForUser(userId: string): Promise<{ chemists: Chemist[]; distributors: Distributor[] }>;
   /** The Doctor's allocation of one Product, or `null` if none has been issued. */
   getSampleAllocation(doctorId: string, productId: string): Promise<SampleAllocation | null>;
   /**
