@@ -57,7 +57,10 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
   );
 
   return {
-    contract: { listMissingStock: (month) => missing.execute({ id: 'system', role: 'ADMIN' }, month) },
+    contract: {
+      sumOrderAmount: (filter) => orders.sumAmount(filter),
+      listMissingStock: (month) => missing.execute({ id: 'system', role: 'ADMIN' }, month),
+    },
     runStockCheck: async (month) => {
       const m = month ?? (await clock.previousMonth());
       return { month: m, missing: await missing.execute({ id: 'system', role: 'ADMIN' }, m) };

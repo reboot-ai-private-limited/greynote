@@ -342,7 +342,16 @@ Sales & Orders, step by step (decision-log 2026-09-30) — Monthly Stock first, 
    and a 53-check live run through real HTTP on a throwaway Atlas database (server-computed amounts, 13 refusals,
    the DB's own refusal of both/neither outlet, a wrong total and no lines, who sees and who may finish, 8 simultaneous
    complete/cancel → exactly one winner, and the `ORDER` push with a refused, a malformed and a good record, replayed).
-   **Sales & Orders is complete; Marketing is next.**
+   **Sales & Orders is complete.**
+
+Marketing, step by step (decision-log 2026-09-30) — **done** (2026-09-30): Visuals (real Cloudinary upload),
+Campaigns and Targets with the downline rollup. 14 unit tests (+1 in Sales for `sumOrderAmount`) and a 59-check live
+run through real HTTP on a throwaway Atlas database: the upload fetched back from Cloudinary, a corrupt PDF, an
+executable and an oversize file refused, active-only for field staff, Targets replaced not duplicated, 6 simultaneous
+first-time sets → one row, own + downline rolled up against real orders (cancelled and last month's left out, by
+product, by campaign dates), who may set and who may read, and the rollup following a change of manager.
+
+**Phase 6 is complete** — Field Activity, Sales & Orders and Marketing are built and live-checked.
 
 **Done when:** a full DCR day — Plan approved → Dr Call logged with location check → Expense
 logged → TA/DA computed → Final Submission — works end to end for a seeded MR and their manager

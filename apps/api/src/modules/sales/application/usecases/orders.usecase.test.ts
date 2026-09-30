@@ -9,6 +9,11 @@ import { FakeMaster, FakeUsers, config } from './salesTestKit.js';
 
 class FakeOrders implements OrderRepositoryPort {
   rows: Order[] = [];
+  async sumAmount(f: { userIds: string[]; from: string; to: string; productId?: string | undefined }) {
+    return this.rows
+      .filter((o) => f.userIds.includes(o.userId) && o.status !== 'CANCELLED' && o.orderDate >= f.from && o.orderDate <= f.to)
+      .reduce((n, o) => n + (f.productId ? o.items.filter((i) => i.productId === f.productId).reduce((m, i) => m + i.amountPaise, 0) : o.totalAmountPaise), 0);
+  }
   async create(input: Omit<Order, 'id'>) {
     const o = { ...input, id: `o${this.rows.length + 1}` };
     this.rows.push(o);
@@ -110,6 +115,21 @@ describe('orders', () => {
     expect((await list.execute(asm, {})).length).toBe(2);
     expect((await list.execute(admin, { status: 'DONE' })).length).toBe(0);
     expect((await list.execute(admin, {})).length).toBe(2);
+  });
+
+  it('sums what users ordered in a range, leaving cancelled orders out, whole or by product', async () => {
+    await place.execute(mr1, order()); // 3750 + 990 = 4740, dated 2026-09-30
+    await place.execute(mr1, order({ orderDate: '2026-09-10', lines: [{ productId: 'prod1', quantity: 1, unitPricePaise: 1000 }] }));
+    await place.execute(mr2, order({ outlet: { type: 'CHEMIST', id: 'chem2' }, orderDate: '2026-08-31' }));
+    await place.execute(mr1, order({ orderDate: '2026-09-11', lines: [{ productId: 'prod1', quantity: 5, unitPricePaise: 1000 }] }));
+    await finish.execute(mr1, 'o4', 'CANCELLED');
+    await finish.execute(mr1, 'o1', 'DONE'); // DONE still counts
+    const sep = { from: '2026-09-01', to: '2026-09-30' };
+    expect(await orders.sumAmount({ userIds: ['mr1'], ...sep })).toBe(4740 + 1000);
+    expect(await orders.sumAmount({ userIds: ['mr1', 'mr2'], ...sep })).toBe(4740 + 1000);
+    expect(await orders.sumAmount({ userIds: ['mr1', 'mr2'], from: '2026-08-01', to: '2026-09-30' })).toBe(4740 + 1000 + 4740);
+    expect(await orders.sumAmount({ userIds: ['mr1'], ...sep, productId: 'prod1' })).toBe(3750 + 1000);
+    expect(await orders.sumAmount({ userIds: [], ...sep })).toBe(0);
   });
 
   it('an unknown order is NOT_FOUND', async () => {

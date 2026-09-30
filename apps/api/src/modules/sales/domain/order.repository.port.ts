@@ -11,7 +11,18 @@ export interface OrderFilter {
   outlet?: Outlet | undefined;
 }
 
+export interface OrderAmountFilter {
+  userIds: string[];
+  /** Order dates, both ends inclusive (`YYYY-MM-DD`). */
+  from: string;
+  to: string;
+  /** Only this Product's lines; omitted = whole orders. */
+  productId?: string | undefined;
+}
+
 export interface OrderRepositoryPort {
+  /** Whole paise ordered by these users in the range, `CANCELLED` orders left out. */
+  sumAmount(filter: OrderAmountFilter): Promise<number>;
   create(input: Omit<Order, 'id'>, ctx?: TransactionContext): Promise<Order>;
   findById(id: string): Promise<Order | null>;
   list(filter: OrderFilter, limit: number): Promise<Order[]>;

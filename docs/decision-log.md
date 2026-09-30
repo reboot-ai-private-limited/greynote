@@ -17,6 +17,29 @@ old one.
 
 ---
 
+## 2026-09-30 — Marketing: one Target per key, what "achieved" counts, Visuals uploaded through the API
+
+**Decision:** (1) A Target is unique per user + month + product + campaign; setting it again replaces it. (2)
+"Achieved" is worked out live from Sales: orders by the user and their downline dated in the month, `PLACED` and
+`DONE`, never `CANCELLED`; a product narrows to its lines; a campaign narrows to its dates inside the month; no filter
+means the general target against all sales. Sales' contract gains `sumOrderAmount`. (3) Only Admin or a manager sets
+Targets, for themselves and their downline. (4) Admin uploads a Visual to the API (multipart, ≤ 25 MB, image / PDF /
+MP4-MOV-WebM), which stores it in Cloudinary; Cloudinary configuration moves to `shared/storage/cloudinary.ts`,
+shared with Identity. Campaigns are company-wide, status-only edits.
+
+**Why:** the ERD left uniqueness open, and a duplicate row would silently inflate a manager's rollup. Counting
+cancelled orders would reward cancelling; counting only `DONE` would lag behind MRs who never mark them. Uploading
+through the API keeps the storage account and the rules in one place, at the cost of buffering up to 25 MB per request.
+
+**Rejected:** several Targets per key summed (double-count risk); an Admin-supplied file URL (the client asked for
+upload); "any" as the meaning of an omitted filter (it would add a general and a product target together).
+
+**Cost:** an MR without a team cannot set their own Target; unit prices and achieved both rest on MR-entered orders
+(sign-off E7). Live run found and fixed a Campaign saved with no description (Mongoose reads `''` as missing) and a
+corrupt PDF answered `500` instead of `400`.
+
+---
+
 ## 2026-09-30 — Orders: lines embedded, server-side amounts, one winner on complete/cancel
 
 **Decision:** (1) An Order and its lines are one document; the schema refuses a total that is not the sum of the

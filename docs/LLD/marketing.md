@@ -37,16 +37,20 @@ or manager actions), not from another module reacting to something.
 - **`Visual.product_id` and `Target.product_id`/`campaign_id` are independently nullable** — a
   write validates a non-null FK resolves via Field Master Data's (Product) or this module's own
   (Campaign) contract, but never requires one.
-- **`Target` has no uniqueness constraint stopping two rows for the same `(user_id, month,
-  product_id, campaign_id)`** per the ERD as written — if the intent is "at most one Target per
-  that combination," add the constraint before this module's first build; the ERD doc doesn't
-  state one either way, so treat this as a question to close in review, not an assumption to
-  silently make.
+- **One `Target` per `(user_id, month, product_id, campaign_id)`** — decided 2026-09-30 (the ERD was silent).
+  A unique index enforces it (a missing product or campaign is stored as an explicit `null`, so "none" is one value),
+  and `POST /targets` for an existing key **replaces** the amount and records who set it last, so a repeat can never
+  double-count in the rollup. Two first-time sets racing to insert are safe: the loser retries into an update.
 - **`Target.created_by`** — the ERD notes "Admin or manager who set it." A manager setting a
   Target is presumably limited to their own reports (mirroring the approval engine's
   nearest-manager scoping elsewhere), but Marketing has no approval engine to inherit that check
   from — this module's own write path must enforce "a manager can only set a Target for someone
   in their downline" itself, via Identity's downline contract (see below).
+- **What "achieved" counts** (decided 2026-09-30): orders by the user and their downline dated in the month, `PLACED`
+  and `DONE` alike, `CANCELLED` left out. A product narrows both sides — its targets, and only its order lines. No
+  product/campaign asks for the *general* target and *all* sales (the filters are exact, never "any"). Orders carry
+  no Campaign, so a campaign-tied target counts only orders dated within the campaign's start–end inside that month;
+  a campaign that misses the month entirely counts nothing.
 - **`achieved_amount` is never stored.** Per the ERD's explicit decision: it's derived by
   aggregating `OrderItem` rows (Sales & Orders, Module 6) for the matching user/month/product,
   computed at read time — never a column that can drift out of sync with the orders it's summing.
@@ -84,14 +88,22 @@ publishes, or a reporting layer above both — were rejected as machinery the fi
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| `POST` | `/api/marketing/visuals` | Admin | Upload/create a Visual |
+| `POST` | `/api/marketing/visuals` | Admin | Upload a Visual — multipart: `file` (image, PDF or MP4/MOV/WebM, ≤ 25 MB) plus `title`, `category`, optional `productId` |
 | `GET` | `/api/marketing/visuals` | Admin, FIELD | List active Visuals, optionally filtered by product |
 | `PATCH` | `/api/marketing/visuals/:id` | Admin | Update status (active/inactive) |
 | `POST` | `/api/marketing/campaigns` | Admin | Create a Campaign |
 | `GET` | `/api/marketing/campaigns` | Admin, FIELD | List Campaigns, optionally filtered by status |
 | `PATCH` | `/api/marketing/campaigns/:id` | Admin | Update status (active/inactive/completed) |
 | `POST` | `/api/marketing/targets` | Admin, manager (FIELD) | Set a Target for self or a downline member |
-| `GET` | `/api/marketing/targets/:userId` | Admin, manager (FIELD, own downline), self | Effective target + achieved, for a month |
+| `GET` | `/api/marketing/targets/:userId?month=&productId=&campaignId=` | Admin, manager (FIELD, own downline), self | Own + downline target, and achieved, for a month |
+
+**As built (2026-09-30):** Visual files go to Cloudinary through `shared/storage/cloudinary.ts` (also used by Identity's
+documents; configured only when an upload happens). The file is stored first and taken back out if the row cannot be
+written; a file Cloudinary cannot read is a `400`, not a `500`. Field staff always get only `active` Visuals and
+Campaigns (the status filter is Admin's). Only an Admin or a *manager* (a FIELD user with people below them) sets
+Targets — for themselves and their downline at any depth; an MR without a team cannot set even their own, and may
+only read it. A Target's subject must be an active FIELD employee. Not built: a per-member breakdown of a manager's
+rollup, and editing a Campaign's name or dates (status only, as specified).
 
 ## Edge cases
 

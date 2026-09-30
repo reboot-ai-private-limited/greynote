@@ -5,6 +5,7 @@ import { buildFieldMasterDataContainer } from '@/modules/field-master-data/field
 import { buildHealthContainer } from '@/modules/health/health.container.js';
 import { buildHrContainer } from '@/modules/hr/hr.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
+import { buildMarketingContainer } from '@/modules/marketing/marketing.container.js';
 import { buildPlanningContainer } from '@/modules/planning/planning.container.js';
 import { buildSalesContainer } from '@/modules/sales/sales.container.js';
 import { buildSyncContainer } from '@/modules/sync/sync.container.js';
@@ -23,6 +24,7 @@ export interface AppContainers {
   fieldActivity: ReturnType<typeof buildFieldActivityContainer>;
   fieldMasterData: ReturnType<typeof buildFieldMasterDataContainer>;
   sales: ReturnType<typeof buildSalesContainer>;
+  marketing: ReturnType<typeof buildMarketingContainer>;
 }
 
 /**
@@ -68,9 +70,12 @@ export function buildContainers(): AppContainers {
   // Tier 4 — Sales & Orders: monthly stock counts at Chemists and Distributors (Field Master Data), who may see whose (Identity), the daily push (Sync).
   const sales = buildSalesContainer(identity.contract, fieldMasterData.contract, sync.contract, config.contract);
 
+  // Tier 5 — Marketing: Visuals, Campaigns and Targets. Reads the downline (Identity), Products (Field Master Data) and order totals (Sales).
+  const marketing = buildMarketingContainer(identity.contract, fieldMasterData.contract, sales.contract);
+
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
-  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync, fieldActivity, sales };
+  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync, fieldActivity, sales, marketing };
 }

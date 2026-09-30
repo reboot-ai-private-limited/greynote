@@ -1,7 +1,7 @@
 import { Types, type ClientSession, type FilterQuery } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { Order } from '../domain/order.entity.js';
-import type { OrderFilter, OrderRepositoryPort } from '../domain/order.repository.port.js';
+import type { OrderAmountFilter, OrderFilter, OrderRepositoryPort } from '../domain/order.repository.port.js';
 import { OrderModel, type OrderDoc } from './order.schema.js';
 
 const oid = (id: string) => new Types.ObjectId(id);
@@ -32,6 +32,16 @@ export class MongoOrderAdapter implements OrderRepositoryPort {
     };
     const [created] = await OrderModel.create([doc], ctx ? { session: ctx as ClientSession } : {});
     return toOrder(created!.toObject());
+  }
+
+  async sumAmount(filter: OrderAmountFilter): Promise<number> {
+    if (filter.userIds.length === 0) return 0;
+    const match = { userId: { $in: filter.userIds.map(oid) }, status: { $ne: 'CANCELLED' }, orderDate: { $gte: filter.from, $lte: filter.to } };
+    const pipeline = filter.productId
+      ? [{ $match: match }, { $unwind: '$items' }, { $match: { 'items.productId': oid(filter.productId) } }, { $group: { _id: null, total: { $sum: '$items.amountPaise' } } }]
+      : [{ $match: match }, { $group: { _id: null, total: { $sum: '$totalAmountPaise' } } }];
+    const [row] = await OrderModel.aggregate<{ total: number }>(pipeline);
+    return row?.total ?? 0;
   }
 
   async findById(id: string): Promise<Order | null> {

@@ -74,6 +74,7 @@ cheapest to change before the listed phase starts.
 | E4 | Required fields for Primary (opening / purchase / closing, qty and/or value) and Secondary (§14–15). | Opening + closing qty per product | Designed |
 | E5 | Distributor Order workflow after "Placed" (§16), and who marks it Done? | Placed → Done / Cancelled, by the MR who placed it (or Admin); built 2026-09-30. **New question E7:** is there a price list, or does the MR enter each unit price? | Built (working assumption) |
 | E7 | Order unit prices: from a price list per Product, or entered by the MR? | Entered by the MR, as whole paise | Open |
+| E8 | What counts toward a Target's "achieved"; can an MR set their own Target? | Non-cancelled orders (placed or done) dated in the month; a campaign Target counts only orders inside the campaign's dates. Only Admin or a manager sets Targets (for themselves and their team) | Built (working assumption, awaiting client) |
 | E6 | Distributor payment / collection: from your accounts system, or entered in this app (§16.8–16.9)? | Not decided | Open |
 
 ## F. Approvals, expenses, leave, HR (Phases 3, 4, 7)

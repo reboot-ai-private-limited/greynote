@@ -57,6 +57,8 @@ erDiagram
 
 ## Design decisions locked for this module
 
+- **`Target` is unique per `(user_id, month, product_id, campaign_id)`** (2026-09-30): setting it again replaces the amount. "No product" and "no campaign" are stored as explicit `null`, which the unique index treats as one value.
+
 - **`Visual.product_id` is a nullable FK to `Product`.** Most e-detailing content is drug-specific, so linking it lets MRs filter by product — but it stays nullable to allow general/branding visuals with no single product behind them.
 - **`Campaign` is company-wide, no Zone/HQ scoping.** Every active campaign is visible to every field worker — no `CampaignZone`/`CampaignHQ` join table, unlike `Holiday` in Module 7. Simplest fit for what the PRD actually describes; can be revisited if regional campaign targeting becomes a real requirement.
 - **`Target` is per User per month, optionally narrowed by Product and/or Campaign** (both nullable FKs) — one shape covers a general monthly sales target, a product-specific target, and a campaign-tied target, without needing three separate entities.
