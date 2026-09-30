@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { AnyZodObject, ZodTypeAny } from 'zod';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
+import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { PlanningHandlers } from './planning.controller.js';
@@ -62,7 +63,7 @@ export function buildPlanningRouter(c: PlanningHandlers): Router {
   router.use(authenticate());
 
   router.post('/daily', requireRole('FIELD'), validate({ body: saveDailyPlanBodySchema }), c.saveDaily);
-  router.get('/daily', requireRole('FIELD'), validate({ query: listDailyPlansQuerySchema }), c.listDaily);
+  router.get('/daily', requireRole('FIELD'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: listDailyPlansQuerySchema }), c.listDaily);
   router.get('/daily/:id', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.getDaily);
   router.post('/daily/:id/submit', requireRole('FIELD'), validate({ params: planIdParamsSchema }), c.submitDaily);
 
@@ -70,7 +71,7 @@ export function buildPlanningRouter(c: PlanningHandlers): Router {
   router.get('/daily/:id/changes', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.listChanges);
 
   router.post('/monthly', requireRole('FIELD'), validate({ body: saveMonthlyPlanBodySchema }), c.saveMonthly);
-  router.get('/monthly', requireRole('FIELD'), validate({ query: listMonthlyPlansQuerySchema }), c.listMonthly);
+  router.get('/monthly', requireRole('FIELD'), scopeToFinancialYear({ kind: 'month', from: 'from', to: 'to', fill: true }), validate({ query: listMonthlyPlansQuerySchema }), c.listMonthly);
   router.get('/monthly/:id', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.getMonthly);
   router.post('/monthly/:id/submit', requireRole('FIELD'), validate({ params: planIdParamsSchema }), c.submitMonthly);
 

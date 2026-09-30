@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { AnyZodObject, ZodTypeAny } from 'zod';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
+import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { PayrollHandlers } from './payroll.controller.js';
@@ -30,7 +31,7 @@ export function buildPayrollRouter(c: PayrollHandlers): Router {
   router.use(authenticate(), requireRole('ACCOUNTANT', 'ADMIN'));
   router.post('/generate', validate({ body: generateBodySchema }), c.generate);
   router.post('/:id/finalize', validate({ params: idParamsSchema }), c.finalize);
-  router.get('/', validate({ query: listRunsQuerySchema }), c.list);
+  router.get('/', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', single: 'month', fill: true }), validate({ query: listRunsQuerySchema }), c.list);
   router.get('/:id', validate({ params: idParamsSchema }), c.get);
   return router;
 }

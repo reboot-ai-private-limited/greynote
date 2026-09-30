@@ -17,6 +17,30 @@ old one.
 
 ---
 
+## 2026-09-30 — Financial Year toggle: a per-request header, read-only, out-of-range is an error
+
+**Decision:** (1) The selected past financial year travels as a header, `X-Financial-Year: <start year>`, on each request —
+stateless, nothing stored; absent or current = normal. (2) Any non-read request carrying a past-year header is `409
+FINANCIAL_YEAR_READ_ONLY`, except login, refresh and logout. (3) On the scoped lists, dates left out default to the year's
+range and dates outside it are `400 OUTSIDE_FINANCIAL_YEAR`. (4) Scope: DCRs, expenses, plans, leaves, orders, payroll runs,
+the approval lists and leave balances; not products/chemists/campaigns/holidays/targets/monthly stock; by-id reads are not
+re-checked. (5) Payroll's list gains a `fromMonth`/`toMonth` range so a year can be listed; leave balances are no longer
+created when a past year is viewed. (6) A test lists every GET route and fails if one is not classified.
+
+**Why:** a header needs no server-side state or new endpoint, works the same for the phone and the web, and the
+"read-only" rule is one check in one place instead of one per endpoint. Rejecting out-of-range dates makes a UI mistake
+loud instead of showing a quietly wrong list. Viewing history must not write, and the leave-balance screen did.
+
+**Rejected:** a stored per-user setting (state to keep in step across devices); trimming out-of-range dates silently;
+checking every by-id read (the id only comes from a scoped list); leaving `POST /sync/push` open under the header (the
+phone does not send it there).
+
+**Cost:** each new dated list needs a scope line, which the guard test enforces. HLD 09's argument for read-only — a stale
+approval would change a finalized payroll — is weaker now that payroll counts by paid month; the rule stays for
+simplicity and the PRD's "view", and a stuck past-year item still has no path (sign-off J3).
+
+---
+
 ## 2026-09-30 — Payroll: the month is the month an expense was paid; who runs it; ended months only
 
 **Decision:** (1) Field Activity's `getPaidTaDaTotal(userId, month)` counts what was `PAID` **during** the month (by

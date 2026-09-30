@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import type { AppContainers } from './container.js';
+import { financialYearContext } from '@/shared/http/financialYear.middleware.js';
 
 export function buildApiRouter(containers: AppContainers): Router {
   const router = Router();
+
+  // A past financial year, selected per request (`X-Financial-Year`), is read-only — docs/hld/09. Ahead of every module router.
+  router.use(financialYearContext(containers.config.contract));
 
   // Mount the health module's router under /health
   router.use('/health', containers.health.buildRouter());

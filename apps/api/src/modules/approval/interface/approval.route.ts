@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import type { AnyZodObject, ZodTypeAny } from 'zod';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
+import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import {
@@ -57,9 +58,9 @@ export function buildApprovalRouter(c: Record<'inbox' | 'team' | 'mine' | 'detai
   const withId = (body: ZodTypeAny) => validate({ params: approvalIdParamsSchema, body });
 
   // Literal paths before `/:id`, so "inbox" is never read as an id.
-  router.get('/inbox', requireRole('FIELD', 'HR', 'ADMIN'), validate({ query: inboxQuerySchema }), c.inbox);
-  router.get('/team', requireRole('FIELD'), validate({ query: teamQuerySchema }), c.team);
-  router.get('/mine', validate({ query: mineQuerySchema }), c.mine);
+  router.get('/inbox', requireRole('FIELD', 'HR', 'ADMIN'), scopeToFinancialYear({ kind: 'instant', from: 'from', to: 'to', fill: true }), validate({ query: inboxQuerySchema }), c.inbox);
+  router.get('/team', requireRole('FIELD'), scopeToFinancialYear({ kind: 'instant', from: 'from', to: 'to', fill: true }), validate({ query: teamQuerySchema }), c.team);
+  router.get('/mine', scopeToFinancialYear({ kind: 'instant', from: 'from', to: 'to', fill: true }), validate({ query: mineQuerySchema }), c.mine);
   router.post('/bulk', requireRole('FIELD', 'HR', 'ADMIN'), validate({ body: bulkDecideBodySchema }), c.bulk);
   router.get('/:id', validate({ params: approvalIdParamsSchema }), c.detail);
   router.post('/:id/approve', withId(approveBodySchema), c.approve);

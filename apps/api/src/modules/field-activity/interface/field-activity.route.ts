@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { AnyZodObject, ZodTypeAny } from 'zod';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
+import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { FieldActivityHandlers } from './field-activity.controller.js';
@@ -67,11 +68,11 @@ docPost('/admin/doctor-gifts', 'Admin: allocate a gift to a Doctor; the assigned
 export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   const router = Router();
   router.use(authenticate());
-  router.get('/dcr', requireRole('FIELD', 'ADMIN'), validate({ query: listDcrsQuerySchema }), c.listDcrs);
-  router.get('/dcr/team', requireRole('FIELD'), validate({ query: listTeamDcrsQuerySchema }), c.teamDcrs);
+  router.get('/dcr', requireRole('FIELD', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listDcrsQuerySchema }), c.listDcrs);
+  router.get('/dcr/team', requireRole('FIELD'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listTeamDcrsQuerySchema }), c.teamDcrs);
   router.get('/dcr/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.getDcr);
   router.post('/dcr/:id/calls/:callId/override-geofence', requireRole('FIELD', 'ADMIN'), validate({ params: callParamsSchema, body: overrideBodySchema }), c.overrideGeofence);
-  router.get('/expenses', requireRole('ACCOUNTANT', 'ADMIN'), validate({ query: listExpensesQuerySchema }), c.listExpenses);
+  router.get('/expenses', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listExpensesQuerySchema }), c.listExpenses);
   router.post('/expenses/:id/mark-paid', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: idParamsSchema }), c.markExpensePaid);
   router.get('/doctor-services', requireRole('FIELD', 'ADMIN'), validate({ query: listServicesQuerySchema }), c.listServices);
   router.get('/doctor-gifts', requireRole('FIELD', 'ADMIN'), validate({ query: listGiftsQuerySchema }), c.listGifts);

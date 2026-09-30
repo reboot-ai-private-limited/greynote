@@ -77,6 +77,15 @@ describe('Leave balances', () => {
     });
   });
 
+  it('never creates balances when a leave year that is already over is read — it shows only what exists', async () => {
+    expect(await days('mr', 2025)).toEqual({});
+    expect(balanceRepo.rows).toEqual([]); // nothing was written
+    await balanceRepo.insertMissing([{ userId: 'mr', leaveTypeId: typeId('Casual'), year: 2025, allocatedDays: 10 }]);
+    expect(await days('mr', 2025)).toEqual({ Casual: 10 }); // history that exists is shown, and only that
+    expect(balanceRepo.rows.filter((b) => b.year === 2025).length).toBe(1);
+    expect((await days('mr')).Casual).toBe(12); // the current year still seeds on first read
+  });
+
   it('pro-rates a mid-year joiner', async () => {
     expect(await days('new')).toEqual({ Casual: 9, Earned: 0, Sick: 4.5 });
   });

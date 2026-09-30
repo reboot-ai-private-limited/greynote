@@ -143,3 +143,12 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | H5 | The missed-DCR block: when does a day count as reported, and how is it triggered? | The DCR counts once submitted (see B7); an approved leave excuses the day; a script run daily by the operator applies the block, switchable with `DCR_MISS_BLOCK_ENABLED` | Accepted 2026-09-29 |
 | H6 | How many missed days before the block, and which days don't count? | Blocked after missing **more than `DCR_MISS_GRACE_DAYS` working days in a row** (default 1 → the second consecutive miss; 0 → the first). The weekly off day, holidays and approved-leave days are skipped; days before joining, or before an Admin last cleared a block, are not counted | Designed 2026-09-29 (working assumption, awaiting client) |
 
+## J. Financial Year toggle (Phase 8)
+
+| # | Question | Today | Status |
+|---|---|---|---|
+| J1 | How is a past financial year selected, and what can be done in it? | The app sends the year with each request; while a past year is selected everything is **read-only** (any save, approval or payment is refused), only signing in/out and refreshing the session still work | Designed 2026-09-30 (working assumption, awaiting client) |
+| J2 | Which screens does it cover? | Daily reports, expenses, tour plans, leaves and leave balances, orders, payroll sheets, and the approval lists ("pending items"). Products, chemists, campaigns and holidays don't change with the year | Designed 2026-09-30 (working assumption) |
+| J3 | An item still waiting for approval from a past year: who resolves it, and how? | Not handled by the toggle (it is read-only). Needs an Admin route to correct it before payroll — to be agreed | Open |
+| J4 | Does everyone get the toggle (Admin, HR, Accountant on the web), or only field staff on the phone? | The server allows it for anyone; the screens decide | Open |
+

@@ -20,7 +20,9 @@ export class GetLeaveBalancesUseCase {
       const chain = await this.users.getManagerChain(userId);
       if (!chain.some((m) => m.id === actor.id)) throw AppError.forbidden();
     }
-    const leaveYear = year ?? (await this.calendar.leaveYearOf(await this.calendar.today()));
-    return { year: leaveYear, balances: await this.balances.views(userId, leaveYear) };
+    const currentYear = await this.calendar.leaveYearOf(await this.calendar.today());
+    const leaveYear = year ?? currentYear;
+    // A year that is over is only ever read: balances are seeded the first time they are needed, never after the fact.
+    return { year: leaveYear, balances: await this.balances.views(userId, leaveYear, { seed: leaveYear >= currentYear }) };
   }
 }

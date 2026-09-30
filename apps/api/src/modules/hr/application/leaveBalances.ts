@@ -49,8 +49,12 @@ export class LeaveBalances {
     return this.balances.listForUser(userId, year);
   }
 
-  async views(userId: string, year: number): Promise<LeaveBalanceView[]> {
-    const [rows, types] = await Promise.all([this.ensureSeeded(userId, year), this.types.list()]);
+  /**
+   * `seed: false` shows only the rows that exist and writes nothing — for a leave year that is already over, where
+   * creating balances would be inventing history (and a past-year view must never write; docs/hld/09).
+   */
+  async views(userId: string, year: number, options: { seed?: boolean } = {}): Promise<LeaveBalanceView[]> {
+    const [rows, types] = await Promise.all([options.seed === false ? this.balances.listForUser(userId, year) : this.ensureSeeded(userId, year), this.types.list()]);
     const names = new Map(types.map((t) => [t.id, t.name]));
     return rows
       .map((b) => ({ ...b, leaveTypeName: names.get(b.leaveTypeId) ?? '', availableDays: availableDays(b) }))

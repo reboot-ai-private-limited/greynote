@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { AnyZodObject, ZodTypeAny } from 'zod';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
+import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { BalanceHandlers, LeaveHandlers, MastersHandlers } from './hr.controller.js';
@@ -85,9 +86,9 @@ export function buildMastersRouter(c: MastersHandlers): Router {
 export function buildBalancesRouter(c: BalanceHandlers): Router {
   const router = Router();
   router.use(authenticate());
-  router.get('/me', requireRole('FIELD'), validate({ query: balanceQuerySchema }), c.myBalances);
+  router.get('/me', requireRole('FIELD'), scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: balanceQuerySchema }), c.myBalances);
   // Managers are FIELD too; the use case checks the chain.
-  router.get('/:userId', requireRole('FIELD', 'HR', 'ADMIN'), validate({ params: userIdParamsSchema, query: balanceQuerySchema }), c.userBalances);
+  router.get('/:userId', requireRole('FIELD', 'HR', 'ADMIN'), scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ params: userIdParamsSchema, query: balanceQuerySchema }), c.userBalances);
   router.patch('/:userId/:leaveTypeId', requireRole('HR', 'ADMIN'), validate({ params: balanceParamsSchema, body: adjustBalanceBodySchema }), c.adjustBalance);
   return router;
 }
@@ -97,8 +98,8 @@ export function buildLeavesRouter(c: LeaveHandlers): Router {
   const router = Router();
   router.use(authenticate());
   router.post('/', requireRole('FIELD'), validate({ body: leaveBodySchema }), c.requestLeave);
-  router.get('/me', requireRole('FIELD'), validate({ query: myLeavesQuerySchema }), c.myLeaves);
-  router.get('/', requireRole('HR', 'ADMIN'), validate({ query: leavesQuerySchema }), c.allLeaves);
+  router.get('/me', requireRole('FIELD'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: myLeavesQuerySchema }), c.myLeaves);
+  router.get('/', requireRole('HR', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: leavesQuerySchema }), c.allLeaves);
   router.put('/:id', requireRole('FIELD'), validate({ params: idParamsSchema, body: leaveBodySchema }), c.editLeave);
   router.get('/:id', validate({ params: idParamsSchema }), c.getLeave);
   return router;

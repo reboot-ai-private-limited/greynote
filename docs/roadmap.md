@@ -401,6 +401,25 @@ pending items. Deliberately last among the backend phases — it needs real hist
 spanning multiple modules to be worth building and testing against; building it earlier means
 testing it against fixtures that don't resemble what it will actually render.
 
+Step by step (decision-log 2026-09-30):
+
+1. Decisions recorded (header, read-only rule, scope, out-of-range = 400) — docs **done** (2026-09-30)
+2. The shared middleware: the FY context, the mutation block and the per-route scope — **done** (2026-09-30):
+   `shared/http/financialYear.middleware.ts`, 22 tests (the IST 31 March / 1 April edge, January and October
+   starts, every scope kind)
+3. Wired into the six modules' list routes; Payroll's month range; leave balances stop seeding past years — **done**
+   (2026-09-30)
+4. A route-classification guard test, so a new dated list cannot ship unscoped — **done** (2026-09-30): it walks all
+   44 GET routes and fails on one that is not classified as scoped, by-id or timeless
+5. Live run over two financial years — **done** (2026-09-30): 63 checks through real HTTP on a throwaway Atlas
+   database, with data on both sides of 31 March / 1 April (DCRs, expenses, daily and monthly plans, leaves incl. one
+   spanning the boundary, leave balances, orders, payroll runs, approvals down to the first instant and last second of
+   the year): every scoped list returns only the selected year, a bare call defaults to it, anything reaching outside is
+   a 400, a future or malformed year is a 400, ten kinds of write are refused with 409 (even before authentication)
+   while login/refresh/logout still work, viewing a past year creates nothing (leave-balance row count unchanged), the
+   same write works again without the header, and switching `FY_START_MONTH` to January moves the boundary.
+   **Phase 8 is complete: every backend phase is done. The web portal (Phase 9) is next.**
+
 **Done when:** switching FY context correctly scopes every report/list screen it touches (per
 `hld/09`) without leaking current-FY data into the historical view or vice versa.
 

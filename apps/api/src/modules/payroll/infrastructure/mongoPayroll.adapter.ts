@@ -50,7 +50,11 @@ export class MongoPayrollAdapter implements PayrollRunRepositoryPort {
 
   async list(filter: PayrollFilter, limit: number): Promise<PayrollRun[]> {
     const q: FilterQuery<PayrollRunDoc> = {};
-    if (filter.month) q.month = filter.month;
+    const months: Record<string, string> = {};
+    if (filter.fromMonth) months.$gte = filter.fromMonth;
+    if (filter.toMonth) months.$lte = filter.toMonth;
+    if (filter.month) months.$eq = filter.month;
+    if (Object.keys(months).length > 0) q.month = months;
     if (filter.userId) q.userId = oid(filter.userId);
     if (filter.status) q.status = filter.status;
     return (await PayrollRunModel.find(q).sort({ month: -1, _id: 1 }).limit(limit).lean()).map(toRun);

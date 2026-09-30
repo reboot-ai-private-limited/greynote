@@ -19,7 +19,7 @@ class FakeRuns implements PayrollRunRepositoryPort {
     return this.rows.find((r) => r.id === id) ?? null;
   }
   async list(f: PayrollFilter) {
-    return this.rows.filter((r) => (!f.month || r.month === f.month) && (!f.userId || r.userId === f.userId) && (!f.status || r.status === f.status));
+    return this.rows.filter((r) => (!f.month || r.month === f.month) && (!f.fromMonth || r.month >= f.fromMonth) && (!f.toMonth || r.month <= f.toMonth) && (!f.userId || r.userId === f.userId) && (!f.status || r.status === f.status));
   }
   async finalize(id: string, at: Date) {
     const r = this.rows.find((x) => x.id === id);
@@ -171,6 +171,9 @@ describe('payroll', () => {
     expect((await list.execute({ status: 'FINALIZED' })).map((r) => r.userId)).toEqual(['mr2']);
     expect((await list.execute({ userId: 'mr1', month: '2026-10' })).length).toBe(1);
     expect((await list.execute({ month: '2026-09' })).length).toBe(0);
+    expect((await list.execute({ fromMonth: '2026-04', toMonth: '2027-03' })).length).toBe(2); // a range, both ends in
+    expect((await list.execute({ fromMonth: '2026-11' })).length).toBe(0);
+    expect((await list.execute({ toMonth: '2026-09' })).length).toBe(0);
     expect((await new GetPayrollRunUseCase(runs).execute('p1')).userId).toBe('mr1');
     expect(await code(new GetPayrollRunUseCase(runs).execute('zzz'))).toBe(PAYROLL_CODES.runNotFound);
   });

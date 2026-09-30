@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { AnyZodObject, ZodTypeAny } from 'zod';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
+import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { SalesHandlers } from './sales.controller.js';
@@ -42,7 +43,7 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.post('/monthly-stock/unlock', requireRole('ADMIN'), validate({ body: unlockBodySchema }), c.unlockMonth);
   router.get('/monthly-stock/missing', requireRole('FIELD', 'ADMIN'), validate({ query: missingQuerySchema }), c.missingStock);
   router.post('/orders', requireRole('FIELD'), validate({ body: placeOrderBodySchema }), c.placeOrder);
-  router.get('/orders', requireRole('FIELD', 'ADMIN'), validate({ query: listOrdersQuerySchema }), c.listOrders);
+  router.get('/orders', requireRole('FIELD', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listOrdersQuerySchema }), c.listOrders);
   router.get('/orders/:id', requireRole('FIELD', 'ADMIN'), validate({ params: orderIdParamsSchema }), c.getOrder);
   router.post('/orders/:id/complete', requireRole('FIELD', 'ADMIN'), validate({ params: orderIdParamsSchema }), c.completeOrder);
   router.post('/orders/:id/cancel', requireRole('FIELD', 'ADMIN'), validate({ params: orderIdParamsSchema }), c.cancelOrder);

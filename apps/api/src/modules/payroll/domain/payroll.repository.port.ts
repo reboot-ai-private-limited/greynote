@@ -2,6 +2,9 @@ import type { PayrollDraft, PayrollRun, PayrollStatus } from './payrollRun.entit
 
 export interface PayrollFilter {
   month?: string | undefined;
+  /** A range of months, both ends included; combines with `month` by intersection. */
+  fromMonth?: string | undefined;
+  toMonth?: string | undefined;
   userId?: string | undefined;
   status?: PayrollStatus | undefined;
 }
