@@ -374,6 +374,14 @@ Field Activity (paid TA/DA), so it cannot start earlier no matter how it's staff
 leave_deduction` for every fixture, and editing an already-paid Expense after finalization
 provably does not change the finalized sheet.
 
+Payroll, step by step (decision-log 2026-09-30):
+
+1. Decisions recorded (paid-month basis, Accountant + Admin, ended months only, no proration but flagged) — docs
+   **done** (2026-09-30)
+2. Field Activity's `getPaidTaDaTotal` counts by the month an expense was paid
+3. The Payroll module: generate (bulk, per-user outcomes), finalize, read
+4. Live run, including the "Done when" below
+
 ## Phase 8 — Financial Year Toggle
 
 [`hld/09-financial-year-toggle.md`](hld/09-financial-year-toggle.md)

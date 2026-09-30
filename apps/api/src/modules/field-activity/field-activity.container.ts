@@ -95,7 +95,7 @@ export function buildFieldActivityContainer(
   const views = new DcrViews(approvals);
   const submitDcr = new SubmitDcrUseCase(gate, dcrs, approvals);
   const hasQualifyingDcr = new HasQualifyingDcrUseCase(dcrs, approvals);
-  const paidTaDa = new GetPaidTaDaTotalUseCase(expenses);
+  const paidTaDa = new GetPaidTaDaTotalUseCase(expenses, clock);
   const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
 
   // The day's calls and follow-ups, each checked against Field Master Data and Territory as they are at sync.

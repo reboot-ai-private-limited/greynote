@@ -14,7 +14,8 @@ export interface FieldActivityPublicContract {
    */
   hasQualifyingDcr(userId: string, date: string): Promise<boolean>;
   /**
-   * Payroll's input: what has been `PAID` for this user's report days in the month — TA, DA, and the manual
+   * Payroll's input: what was marked `PAID` for this user *during* the month (by paid date in the business timezone, not by
+   * report day — a payment made after a month was finalized lands in the next one) — TA, DA, and the manual
    * reimbursements (travel, meals, other) as `reimbursementPaise`. Only `PAID` rows count: an approved but unpaid
    * claim must not reach a payroll run.
    */

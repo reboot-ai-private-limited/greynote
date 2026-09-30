@@ -303,8 +303,8 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
     const hit = this.rows.filter((r) => r.accepted && r.reportDate >= f.from && r.reportDate <= f.to && (!f.userId || r.userId === f.userId) && (r.paymentStatus === 'UNPAID' || r.paymentStatus === 'PAID') && (!f.paymentStatus || r.paymentStatus === f.paymentStatus));
     return [...hit.filter((r) => r.paymentStatus === 'UNPAID'), ...hit.filter((r) => r.paymentStatus === 'PAID')].slice(0, limit);
   }
-  async paidTotals(userId: string, month: string) {
-    const paid = this.rows.filter((r) => r.userId === userId && r.paymentStatus === 'PAID' && r.reportDate.startsWith(month));
+  async paidTotals(userId: string, period: { from: Date; to: Date }) {
+    const paid = this.rows.filter((r) => r.userId === userId && r.paymentStatus === 'PAID' && r.paidAt !== null && r.paidAt >= period.from && r.paidAt < period.to);
     const sum = (...t: string[]) => paid.filter((r) => t.includes(r.type)).reduce((a, r) => a + r.amountPaise, 0);
     return { taPaise: sum('TA'), daPaise: sum('DA'), reimbursementPaise: sum('TRAVEL', 'MEAL', 'MISC') };
   }
@@ -412,7 +412,7 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses);
   const listExpenses = new ListExpensesUseCase(expenses, users);
   const markPaid = new MarkExpensePaidUseCase(expenses, () => new Date(clock.current));
-  const paidTaDa = new GetPaidTaDaTotalUseCase(expenses);
+  const paidTaDa = new GetPaidTaDaTotalUseCase(expenses, dcrClock);
   const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
   const leave = new FakeLeave();
   const hasQualifying = new HasQualifyingDcrUseCase(dcrs, approvals);

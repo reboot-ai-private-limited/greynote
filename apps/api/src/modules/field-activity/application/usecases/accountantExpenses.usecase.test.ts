@@ -84,6 +84,28 @@ describe('the Accountant’s side', () => {
     expect(await kit.paidTaDa.execute('mr2', '2026-10')).toEqual({ taPaise: 0, daPaise: 0, reimbursementPaise: 0 });
   });
 
+  it('the month is the month it was PAID: a September claim paid in October counts in October only', async () => {
+    kit.territory.routes.set('route-1', { ...kit.territory.routes.get('route-1')!, areaType: 'EX_STATION' });
+    await approve(); // reported on DAY, in 2026-10
+    kit.clock.current = new Date('2026-11-03T10:00:00+05:30');
+    for (const r of kit.expenses.rows) await kit.markPaid.execute('acct', r.id);
+    expect(await kit.paidTaDa.execute('mr1', '2026-10')).toEqual({ taPaise: 0, daPaise: 0, reimbursementPaise: 0 });
+    expect(await kit.paidTaDa.execute('mr1', '2026-11')).toEqual({ taPaise: 8003, daPaise: 20000, reimbursementPaise: 5000 });
+  });
+
+  it('the month runs on business time: 23:59:59 IST on the 31st is October, 00:00:00 IST on the 1st is November', async () => {
+    await approve();
+    const [meal, ta] = kit.expenses.rows;
+    kit.clock.current = new Date('2026-10-31T23:59:59+05:30');
+    await kit.markPaid.execute('acct', meal!.id);
+    kit.clock.current = new Date('2026-11-01T00:00:00+05:30'); // 18:30 UTC on 31 Oct
+    await kit.markPaid.execute('acct', ta!.id);
+    expect(await kit.paidTaDa.execute('mr1', '2026-10')).toEqual({ taPaise: 0, daPaise: 0, reimbursementPaise: 5000 });
+    expect(await kit.paidTaDa.execute('mr1', '2026-11')).toEqual({ taPaise: 8003, daPaise: 0, reimbursementPaise: 0 });
+    // December wraps the year correctly, and an unpaid or cancelled row never counts.
+    expect(await kit.paidTaDa.execute('mr1', '2026-12')).toEqual({ taPaise: 0, daPaise: 0, reimbursementPaise: 0 });
+  });
+
   it('the DCR summary: status, counts and money per day, cancelled rows left out', async () => {
     await approve();
     await kit.markPaid.execute('acct', kit.expenses.rows[0]!.id);

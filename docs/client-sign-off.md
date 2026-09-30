@@ -107,6 +107,16 @@ Record each answer in [`decision-log.md`](decision-log.md) and update the affect
 docs, then mark the row confirmed here. A phase in the roadmap doesn't start until the rows it
 depends on are answered or explicitly accepted as "build with today's assumption".
 
+## I. Payroll (Phase 7)
+
+| # | Question | Today | Status |
+|---|---|---|---|
+| I1 | Which month does a paid expense belong to in payroll? | The month it was **paid** (not the month it was reported), so a late payment lands in the next run and is never lost | Designed 2026-09-30 (working assumption, awaiting client) |
+| I2 | Who generates and finalizes payroll? | Accountant and Admin; never HR | Designed 2026-09-30 (working assumption) |
+| I3 | Can the current, unfinished month be generated? | No — only months that have ended | Designed 2026-09-30 (working assumption) |
+| I4 | An employee who joined (or left) mid-month: prorated salary? | Full base salary, flagged on the run; no proration. Inactive employees are not in a bulk run | Designed 2026-09-30 (working assumption; proration rule awaiting client) |
+| I5 | Statutory deductions (PF, ESIC, Medical) and salary overrides (see F6, F7). | Not modeled; net = base + TA/DA + reimbursement − leave deduction | Open |
+
 ## G. Offline sync & geofencing (Phase 5)
 
 | # | Question | Today | Status |

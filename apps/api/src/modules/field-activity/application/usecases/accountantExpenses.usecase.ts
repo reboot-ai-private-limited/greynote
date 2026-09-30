@@ -1,6 +1,7 @@
 import { AppError } from '@/shared/errors/AppError.js';
 import type { Paise } from '@/shared/money/paise.js';
 import type { Expense } from '../../domain/expense.entity.js';
+import type { DcrClock } from '../dcrClock.js';
 import type { ExpenseRepositoryPort } from '../../domain/records.repository.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 
@@ -54,13 +55,17 @@ export class MarkExpensePaidUseCase {
 }
 
 /**
- * Payroll's question: what has been `PAID` for this user's report days in a month (`YYYY-MM`), in whole paise —
+ * Payroll's question: what was marked `PAID` for this user *during* a month (`YYYY-MM`, business timezone, by paid date —
+ * not by report day, so a payment made after a month was finalized lands in the next one), in whole paise —
  * TA and DA, and the manual reimbursements (travel, meals, other) as their own figure, so the payslip can show them apart.
  */
 export class GetPaidTaDaTotalUseCase {
-  constructor(private readonly expenses: ExpenseRepositoryPort) {}
+  constructor(
+    private readonly expenses: ExpenseRepositoryPort,
+    private readonly clock: DcrClock,
+  ) {}
 
   async execute(userId: string, month: string): Promise<{ taPaise: Paise; daPaise: Paise; reimbursementPaise: Paise }> {
-    return this.expenses.paidTotals(userId, month);
+    return this.expenses.paidTotals(userId, await this.clock.monthRange(month));
   }
 }

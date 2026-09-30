@@ -190,9 +190,9 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
     const unpaid = await fetch('UNPAID', limit);
     return unpaid.length >= limit ? unpaid : [...unpaid, ...(await fetch('PAID', limit - unpaid.length))];
   }
-  async paidTotals(userId: string, month: string): Promise<{ taPaise: number; daPaise: number; reimbursementPaise: number }> {
+  async paidTotals(userId: string, period: { from: Date; to: Date }): Promise<{ taPaise: number; daPaise: number; reimbursementPaise: number }> {
     const rows = await ExpenseModel.aggregate<{ _id: string; total: number }>([
-      { $match: { userId: oid(userId), paymentStatus: 'PAID', reportDate: { $gte: `${month}-01`, $lte: `${month}-31` } } },
+      { $match: { userId: oid(userId), paymentStatus: 'PAID', paidAt: { $gte: period.from, $lt: period.to } } },
       { $group: { _id: '$type', total: { $sum: '$amountPaise' } } },
     ]);
     const of = (t: string) => rows.find((r) => r._id === t)?.total ?? 0;

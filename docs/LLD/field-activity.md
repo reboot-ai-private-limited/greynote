@@ -98,8 +98,9 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
   `paidAt`). Marking a paid one again returns it unchanged — the first payer and time stay, however many retries or
   simultaneous clicks; a `CANCELLED` row, or one whose DCR isn't accepted, is 409; an unknown id 404. Because
   `accepted` is in the update's filter, a payment can't slip past a rejection that commits first.
-- **Contract (step 8).** `getPaidTaDaTotal(userId, 'YYYY-MM')` → `{ taPaise, daPaise, reimbursementPaise }`: what is `PAID`
-  for report days in that month — TA, DA, and the manual expenses (travel, meals, other) as `reimbursementPaise` —
+- **Contract (step 8).** `getPaidTaDaTotal(userId, 'YYYY-MM')` → `{ taPaise, daPaise, reimbursementPaise }`: what was `PAID`
+  **during** that month (by `paid_at` in the business timezone, not by report day — decision-log 2026-09-30: an expense
+  reported in September and paid on 3 October belongs to October's payroll, so a late payment is never orphaned) — TA, DA, and the manual expenses (travel, meals, other) as `reimbursementPaise` —
   so Payroll can show them apart and add them to the net pay with the base salary less the leave deduction (hld/07). `getDcrSummary(userId, { from, to })` → per DCR `{ dcrId, userId, reportDate, status,
   doctorCalls, chemistCalls, followups, taPaise, daPaise, otherExpensesPaise, paidPaise }`, `CANCELLED` rows left
   out, in a fixed handful of queries however many days.
@@ -139,7 +140,7 @@ async methods, no framework types leaking through):
 
 ```ts
 interface FieldActivityPublicContract {
-  // Payroll (tier 5) sums PAID TA/DA for a user across a month. Only PAID rows count —
+  // Payroll (tier 5) sums TA/DA PAID for a user during a month (by paid date). Only PAID rows count —
   // MANAGER_APPROVED alone is not enough (see "Write-path rules" below).
   getPaidTaDaTotal(userId: string, month: string): Promise<{ taPaise: number; daPaise: number; reimbursementPaise: number }>;
 

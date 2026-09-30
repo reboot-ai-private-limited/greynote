@@ -17,6 +17,28 @@ old one.
 
 ---
 
+## 2026-09-30 — Payroll: the month is the month an expense was paid; who runs it; ended months only
+
+**Decision:** (1) Field Activity's `getPaidTaDaTotal(userId, month)` counts what was `PAID` **during** the month (by
+`paid_at` in the business timezone), replacing "for report days in the month". (2) Accountant and Admin generate and
+finalize payroll; HR never. (3) Only months that have ended can be generated. (4) A mid-month joiner is paid the full
+base salary and the run carries `joined_in_month`; no proration until the client gives a rule. (5) The deduction is
+`round_half_up(unpaid_days × base / 30)` with unpaid days capped at 30, and the run keeps `unpaid_leave_days` as a
+snapshot. (6) PF/ESIC/Medical and salary overrides (F6, F7) stay out of the formula.
+
+**Why:** with report-day months, an expense reported on 28 September and paid on 3 October — after September was
+finalized — would reach no payroll ever; nothing can reopen a finalized run and Field Activity cannot see Payroll's
+lock (it sits above it). Counting by paid date needs no lock at all, and matches how the Accountant works: pay, then
+generate. Refusing the unfinished month stops a finalized sheet that misses the rest of the month.
+
+**Rejected:** keeping report-day months and refusing late payments (needs a cross-tier lock hook); accepting the gap
+(money silently missed); proration by joining date (the rule is the client's to give).
+
+**Cost:** payments are counted in the month they were made, so an employee's September travel paid in October shows
+in October's sheet; the two-fields-more `PayrollRun` differs slightly from the first ERD.
+
+---
+
 ## 2026-09-30 — Marketing: one Target per key, what "achieved" counts, Visuals uploaded through the API
 
 **Decision:** (1) A Target is unique per user + month + product + campaign; setting it again replaces it. (2)

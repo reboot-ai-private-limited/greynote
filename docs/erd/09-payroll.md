@@ -22,7 +22,9 @@ erDiagram
         int base_salary_paise "snapshot of PayBand.base_salary_paise at generation time"
         int total_ta_da_paise "sum of that month's PAID TA and DA Expense rows (Module 4)"
         int reimbursement_paise "sum of that month's PAID manual Expense rows - travel, meals, other (Module 4)"
+        number unpaid_leave_days "snapshot: approved unpaid days that month, halves allowed (Module 7)"
         int leave_deduction_paise "computed from unpaid Leave days that month (Module 7)"
+        boolean joined_in_month "flag: the joining date falls in this month - full base salary paid, not prorated"
         int net_payable_paise "base_salary_paise + total_ta_da_paise + reimbursement_paise - leave_deduction_paise"
         string status "DRAFT, FINALIZED"
         uuid generated_by FK "Accountant"
@@ -42,6 +44,9 @@ erDiagram
 - **`base_salary` is snapshotted at generation time**, not re-read from `PayBand` later — if the grade's base salary changes next quarter, past `PayrollRun` rows for prior months must stay accurate to what was actually paid.
 - **`total_ta_da` only sums `Expense` rows with `payment_status = PAID`** (Module 4) — an approved-but-unpaid expense claim doesn't count toward payroll yet. This is what actually connects the Accountant's two responsibilities from PRD §5.3: "marks as paid" (Module 4) happens first, "generates final PAYROLL sheet" (this module) reads the result.
 - **`leave_deduction` is computed, not itself a stored breakdown.** It's derived from that month's unpaid `Leave` days (Module 7, `LeaveType.is_paid = false`) at generation time, then baked into the snapshot as a single number on `PayrollRun` — the detailed leave ledger stays in Module 7, not duplicated here.
+
+- **Two fields beyond the first design (2026-09-30):** `unpaid_leave_days` (so the deduction can be audited from the row alone) and `joined_in_month` (a flag, not a proration). `PayrollRun` is unique per `(user_id, month)`.
+- **`total_ta_da` and `reimbursement` are what was `PAID` during the month** (by paid date), not for report days in it.
 
 ## Status
 

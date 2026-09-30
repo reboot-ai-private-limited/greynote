@@ -21,8 +21,10 @@ by a filter someone could forget.
 | Field | Meaning |
 |---|---|
 | `base_salary` | **Snapshot** of `PayBand.base_salary` at generation time |
-| `total_ta_da` | Sum of that month's `PAID` `TA` and `DA` `Expense` rows (Field Activity's `getPaidTaDaTotal`) |
-| `reimbursement` | Sum of that month's `PAID` manual `Expense` rows — travel, meals, other — from the same call |
+| `total_ta_da` | Sum of the `TA` and `DA` `Expense` rows **paid during** that month (Field Activity's `getPaidTaDaTotal`, by paid date) |
+| `reimbursement` | Sum of the manual `Expense` rows paid during that month — travel, meals, other — from the same call |
+| `unpaid_leave_days` | Snapshot of the approved unpaid days (halves allowed) the deduction was computed from |
+| `joined_in_month` | `true` when the employee's joining date falls in the month — flag only, no proration |
 | `leave_deduction_paise` | `unpaid_days × base_salary_paise / 30`, rounded half up to a whole paise once — computed at generation, then frozen as one number |
 | `net_payable` | `base_salary + total_ta_da + reimbursement − leave_deduction` |
 | `status` | `DRAFT` → `FINALIZED` |
@@ -74,9 +76,14 @@ never their internals — to pull `PayBand.base_salary` (Identity), the month's 
   record. A later edit to that month's `Expense` or `Leave` data must never retroactively change
   it; the frozen `base_salary`/`total_ta_da`/`leave_deduction`/`net_payable` are the whole point
   of finalizing.
-- **Only the Accountant generates or finalizes.** HR has no write access to this module — PRD
-  §5.3 draws that line explicitly, and it is enforced the same way every role check in this
-  system is: at the `interface/` layer, before a use case runs.
+- **Only the Accountant and Admin generate or finalize** (decision-log 2026-09-30; Admin as the fallback, as
+  everywhere else). HR has no write access to this module — PRD §5.3 draws that line explicitly, and it is enforced
+  the same way every role check in this system is: at the `interface/` layer, before a use case runs.
+- **Only months that have ended can be generated.** The current or a future month is a `409`.
+- **The deduction is capped at 30 days** (a 31-day month with every day unpaid cannot deduct more than the base).
+- **Bulk generation is independent per user:** each user's outcome is `created`, `updated` or `skipped` (with a
+  reason — no Pay Band, or already finalized); one user's problem never fails the batch. A single-user request for an
+  already-finalized month is the `409` below.
 
 ## Generation flow
 
@@ -118,6 +125,10 @@ touching the write path.
   resolves to for the user **at generation time**. A grade change mid-month is not prorated by
   this module; if that's a real requirement, it needs an explicit decision (proration rule) before
   implementation, not an assumption baked in silently.
+- **A payment made after the month was finalized** — nothing is lost: the month is the month an expense was
+  *paid*, so it goes into the next month's run.
+- **An employee who joined mid-month** — paid the full `base_salary` with `joined_in_month` set; no proration. Employees
+  who are no longer active are not in a bulk run.
 - **Zero TA/DA activity for the month** — `total_ta_da = 0` is a completely valid, common case
   (an MR who filed no reimbursable expenses that month), not an error state.
 - **A user with no `PayBand`** (shouldn't happen for a FIELD user per Identity's invariants, but
