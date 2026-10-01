@@ -57,6 +57,7 @@ const BY_ID = [
 const TIMELESS = [
   // Operational and master data — the same whichever year is being looked at.
   '/api/health',
+  '/api/identity/auth/me',
   '/api/identity/devices/pending',
   '/api/identity/users/:id/devices',
   '/api/identity/users',

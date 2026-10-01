@@ -7,3 +7,5 @@ export * from './errors.js';
 export * from './auth.js';
 export * from './geofence.js';
 export * from './sync.js';
+export * from './pagination.js';
+export * from './territory.js';

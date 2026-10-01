@@ -13,6 +13,7 @@ import type {
   makeLoginController,
   makeLogoutAllController,
   makeLogoutController,
+  makeMeController,
   makeRefreshController,
 } from './auth.controller.js';
 
@@ -33,7 +34,8 @@ openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/auth/refresh',
   tags: ['Identity / Auth'],
-  summary: 'Rotate a session using its refresh token',
+  summary:
+    'Rotate a session. Refresh token comes from the body (mobile) or the httpOnly cookie (browser, needs X-Client header)',
   request: { body: { content: { 'application/json': { schema: refreshBodySchema } } } },
   responses: {
     200: { description: 'New token pair issued' },
@@ -52,6 +54,15 @@ openApiRegistry.registerPath({
 });
 
 openApiRegistry.registerPath({
+  method: 'get',
+  path: '/api/identity/auth/me',
+  tags: ['Identity / Auth'],
+  summary: 'The signed-in user (role, name, status) — used by the web portal at boot',
+  security: [{ bearerAuth: [] }],
+  responses: { 200: { description: 'The caller as a UserSummary' } },
+});
+
+openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/auth/logout-all',
   tags: ['Identity / Auth'],
@@ -66,12 +77,14 @@ export function buildAuthRouter(controllers: {
   refresh: ReturnType<typeof makeRefreshController>;
   logout: ReturnType<typeof makeLogoutController>;
   logoutAll: ReturnType<typeof makeLogoutAllController>;
+  me: ReturnType<typeof makeMeController>;
 }): Router {
   const router = Router();
 
   router.post('/login', validate({ body: loginBodySchema }), controllers.login);
   router.post('/refresh', validate({ body: refreshBodySchema }), controllers.refresh);
   router.post('/logout', authenticate(), validate({ body: logoutBodySchema }), controllers.logout);
+  router.get('/me', authenticate(), controllers.me);
   router.post(
     '/logout-all',
     authenticate(),

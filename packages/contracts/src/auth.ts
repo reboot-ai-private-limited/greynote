@@ -24,3 +24,37 @@ export interface AccessTokenPayload {
   iat: number;
   exp: number;
 }
+
+/** The signed-in user, as `GET /identity/auth/me` and the login response return it. */
+export interface UserSummaryDto {
+  id: string;
+  employeeCode: string;
+  name: string;
+  role: RoleName;
+  designationId: string | null;
+  managerId: string | null;
+  status: string;
+}
+
+export interface LoginRequestDto {
+  employeeCode: string;
+  password: string;
+  deviceId: string;
+  deviceName: string;
+  deviceModel: string;
+  platform: 'ANDROID' | 'IOS' | 'WEB';
+}
+
+/**
+ * Login / refresh response. `refreshToken` is present only for a client that sent
+ * `X-Client: mobile`; a browser gets it as an httpOnly cookie instead and never sees it.
+ */
+export interface AuthTokensDto {
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn: number;
+}
+
+export interface LoginResponseDto extends AuthTokensDto {
+  user: UserSummaryDto;
+}

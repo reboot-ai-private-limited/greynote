@@ -11,12 +11,13 @@ export const loginBodySchema = z.object({
   platform: z.enum(PLATFORMS),
 });
 
+// Optional: a browser sends the token as an httpOnly cookie instead (see refreshCookie.ts).
 export const refreshBodySchema = z.object({
-  refreshToken: z.string().min(1),
+  refreshToken: z.string().min(1).optional(),
 });
 
 export const logoutBodySchema = z.object({
-  refreshToken: z.string().min(1),
+  refreshToken: z.string().min(1).optional(),
 });
 
 export const logoutAllBodySchema = z.object({

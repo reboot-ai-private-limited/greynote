@@ -59,6 +59,7 @@ import {
   makeLoginController,
   makeLogoutAllController,
   makeLogoutController,
+  makeMeController,
   makeRefreshController,
 } from './interface/auth.controller.js';
 import { buildAuthRouter } from './interface/auth.route.js';
@@ -206,6 +207,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     refresh: makeRefreshController(refreshSession),
     logout: makeLogoutController(logout),
     logoutAll: makeLogoutAllController(logoutAllSessions),
+    me: makeMeController(getUserSummary),
   };
   const usersControllers = {
     list: makeListUsersController(listUsers),
