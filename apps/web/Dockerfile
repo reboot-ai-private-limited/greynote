@@ -32,7 +32,10 @@ FROM deps AS build
 ARG NEXT_PUBLIC_API_BASE_URL
 # Fail the build rather than ship a bundle that points at localhost.
 RUN test -n "$NEXT_PUBLIC_API_BASE_URL" || (echo "NEXT_PUBLIC_API_BASE_URL build arg is required" && exit 1)
+# Optional: a browser Maps JavaScript API key (referrer-restricted). Empty => the route map shows a fallback.
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY packages/config    packages/config

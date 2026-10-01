@@ -22,7 +22,8 @@ module.exports = [
       ...tsBlock.languageOptions,
       parserOptions: { ...tsBlock.languageOptions.parserOptions, ecmaFeatures: { jsx: true } },
       // `process.env.NEXT_PUBLIC_*` is inlined by Next at build time, so `process` is safe.
-      globals: { ...globals.browser, ...globals.es2022, process: 'readonly' },
+      // `google` is the Maps JavaScript API namespace (types from @types/google.maps).
+      globals: { ...globals.browser, ...globals.es2022, process: 'readonly', google: 'readonly' },
     },
   },
   {

@@ -13,13 +13,13 @@ export function normalizeName(raw: string): string {
   return raw.trim().replace(/\s+/g, ' ');
 }
 
-function nameError(name: string): string | undefined {
+export function nameError(name: string): string | undefined {
   if (name === '') return 'Enter a name.';
   if (name.length > NAME_MAX) return `Keep the name to ${NAME_MAX} characters.`;
   return undefined;
 }
 
-function fail(errors: Record<string, string | undefined>): { ok: false; errors: Record<string, string> } {
+export function fail(errors: Record<string, string | undefined>): { ok: false; errors: Record<string, string> } {
   return { ok: false, errors: Object.fromEntries(Object.entries(errors).filter((e): e is [string, string] => e[1] !== undefined)) };
 }
 

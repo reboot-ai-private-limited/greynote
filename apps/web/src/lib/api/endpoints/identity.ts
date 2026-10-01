@@ -6,6 +6,7 @@ export interface ListUsersQuery {
   pageSize?: number | undefined;
   status?: UserListStatus | undefined;
   role?: UserListItemDto['role'] | undefined;
+  search?: string | undefined;
 }
 
 export const identityApi = {

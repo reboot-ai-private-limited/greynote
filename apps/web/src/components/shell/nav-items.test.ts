@@ -18,6 +18,14 @@ describe('navFor', () => {
   });
 });
 
+describe('Routes', () => {
+  it('is an Admin-only Master data screen', () => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/routes');
+    expect(navFor('HR').map((i) => i.href)).not.toContain('/routes');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/routes');
+  });
+});
+
 describe('navGroupsFor', () => {
   it('groups items under their headings, in order, dropping empty groups', () => {
     const groups = navGroupsFor('ACCOUNTANT');

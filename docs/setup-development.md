@@ -118,6 +118,8 @@ pnpm --filter @greynote/api build        # tsc --noEmit && esbuild → dist/
 | `pnpm --filter @greynote/web dev` | web only |
 | `pnpm --filter @greynote/web test` / `lint` / `typecheck` | web checks |
 
+The route map additionally reads an optional `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (a browser key, restricted by HTTP referrer to the Maps JavaScript API; empty is fine — the map shows a fallback). It is not the API's server-side Google key.
+
 The web reads `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:3000/api`, see `apps/web/.env.example`), and the
 API's `CORS_ORIGINS` must include `http://localhost:3001` (the default). Sign in with an Admin's employee code and
 password. Mobile joins this table with phase 10 ([`roadmap.md`](roadmap.md)).

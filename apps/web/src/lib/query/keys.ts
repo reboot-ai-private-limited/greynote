@@ -24,6 +24,14 @@ export const keys = {
   expenses: { audit: (query: object) => ['expenses', fy(), 'audit', query] as const },
   payroll: { month: (query: object) => ['payroll', fy(), 'month', query] as const },
   monthlyStock: { missing: (month: string) => ['monthlyStock', fy(), 'missing', month] as const },
+  routes: {
+    all: () => ['routes', fy()] as const,
+    list: (query?: object) => [...keys.routes.all(), 'list', query ?? {}] as const,
+    detail: (id: string) => [...keys.routes.all(), 'detail', id] as const,
+    assignments: (id: string, includeHistory: boolean) => [...keys.routes.all(), 'assignments', id, includeHistory] as const,
+  },
+  places: { search: (q: string) => ['places', 'search', q] as const },
+  fieldEmployees: { search: (q: string) => ['users', fy(), 'field', q] as const },
   zones: {
     all: () => ['zones', fy()] as const,
     list: (query?: object) => [...keys.zones.all(), 'list', query ?? {}] as const,

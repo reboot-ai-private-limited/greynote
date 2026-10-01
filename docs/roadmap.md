@@ -452,7 +452,11 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   The sidebar is now an icon-only rail that expands over the page on hover/focus. Write controls are disabled in a past Financial Year. Form rules are pure builders with tests; parent pickers load one page
   of 100. Verified by typecheck, lint, 125 tests and `next build` only; **not yet exercised against the live API** (no way to
   sign in from the build environment). Routes (waypoints, Google Places, assignments) are the remaining Territory piece.
-  Next: Territory Routes, then master data, HR, approvals, expenses/payroll — one module at a time.
+  **Territory Routes built (`/routes`, `/routes/new`, `/routes/[id]`):** list with filters, create, and a detail page with
+  details, an ordered stops editor with place search and map preview, distance (retry / manual override), and assigned MRs.
+  Pure rules (stop list, route drafts, distance, stale revision) are unit-tested; the stops editor was exercised in a browser
+  against a stub search. **Not yet exercised against the live API or with a real Maps key** (no sign-in from the build environment).
+  Next: Employees & HR, then master data, HR, approvals, expenses/payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

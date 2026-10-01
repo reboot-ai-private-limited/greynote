@@ -8,6 +8,7 @@ import {
   Map as MapIcon,
   MapPinned,
   Receipt,
+  Route,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -31,6 +32,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Zones', href: '/zones', icon: MapIcon, group: 'Master data', roles: ['ADMIN'] },
   { label: 'HQs', href: '/hqs', icon: Building2, group: 'Master data', roles: ['ADMIN'] },
   { label: 'Areas', href: '/areas', icon: MapPinned, group: 'Master data', roles: ['ADMIN'] },
+  { label: 'Routes', href: '/routes', icon: Route, group: 'Master data', roles: ['ADMIN'] },
   { label: 'Employees', href: '/employees', icon: Users, group: 'People', roles: ALL, comingSoon: true },
   { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'People', roles: ['ADMIN', 'HR'], comingSoon: true },
   { label: 'Approvals', href: '/approvals', icon: ClipboardCheck, group: 'Operations', roles: ['ADMIN'], comingSoon: true },

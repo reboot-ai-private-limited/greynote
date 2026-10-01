@@ -87,6 +87,33 @@ never reflows. Details worth keeping:
 - Colours are the `sidebar*` tokens (light accent tint, solid accent pill for the active item); `/design/shell` (dev only)
   renders the real rail next to sample content for checking all of the above without signing in.
 
+## Maps (route stops)
+
+`RouteMap` previews a route's stops with numbered pins and a **dashed straight line** captioned "not the driving route" — the
+API stores no route geometry and the browser key is scoped to the Maps JavaScript API only, so a road-shaped line would imply a
+path nobody verified. Rules:
+- **Two different Google keys.** The API's key is server-side (Places + Routes) and never reaches a browser. The map needs its
+  own browser key, `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, which ships in the bundle: protect it by *configuration* — HTTP-referrer
+  restriction to the portal's domain and API restriction to *Maps JavaScript API* only — and set a billing alert (each map load
+  is billed). It is an optional Docker build arg.
+- **No key = graceful fallback.** The map panel says it is unavailable and the stops list (with coordinates) still works.
+- All map code goes through `lib/googleMaps.ts` (the loader's `setOptions` is a singleton and must run once). Legacy
+  `google.maps.Marker`, which needs no Map ID.
+- **Place search is a billed call per request:** debounced 500 ms, 3+ characters, cached 5 minutes, never retried
+  (`retry: false` in `authedQueryOptions`), and a 503 degrades to a message.
+
+## Routes
+
+`/routes` (list), `/routes/new`, `/routes/[id]`. A route is edited on full pages, not dialogs: an ordered 2–25 stop list, a
+distance that can fail, an optional per-km rate override and its assigned MRs. Things worth knowing:
+- **A failed Google distance calculation is HTTP 200 with `distanceStatus: FAILED`.** Every response that may have recalculated
+  goes through `announceRoute`, and a failed route is shown as "Failed", never as 0 km.
+- `distanceKm` is the paid one-way figure used for TA and is not doubled for a return trip; the UI says so.
+- Saving stops carries the loaded `revision`; a 409 with `field: 'revision'` shows a "changed elsewhere — Reload" dialog and
+  discards the draft. A waypoint edit or recalculation replaces a manual distance, and the UI warns before it.
+- The stop list only accepts places found by search, refuses a duplicate `placeId`, and enforces 2–25 (`lib/waypoints.ts`).
+- Deactivating a route needs every MR unassigned (the server's refusal is toasted); assigning needs an active route.
+
 ## Dashboards
 
 `/dashboard` is an **operational** dashboard — a work queue, not BI. It answers one question per role: *what needs my action

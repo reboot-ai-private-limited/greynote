@@ -14,11 +14,13 @@ export interface AuthedQueryInput<T> {
   staleTime?: number;
   enabled?: boolean;
   refetchOnWindowFocus?: boolean;
+  /** `false` for a call that costs money per request (place search): a retry is a second charge. */
+  retry?: false;
 }
 
 type AuthedQueryOptions<T> = Pick<
   UseQueryOptions<T, Error, T, QueryKey>,
-  'queryKey' | 'queryFn' | 'staleTime' | 'enabled' | 'refetchOnWindowFocus' | 'placeholderData'
+  'queryKey' | 'queryFn' | 'staleTime' | 'enabled' | 'refetchOnWindowFocus' | 'placeholderData' | 'retry'
 >;
 
 export function authedQueryOptions<T>({
@@ -27,6 +29,7 @@ export function authedQueryOptions<T>({
   staleTime: freshFor = staleTime.configuration,
   enabled,
   refetchOnWindowFocus,
+  retry,
 }: AuthedQueryInput<T>): AuthedQueryOptions<T> {
   return {
     queryKey,
@@ -35,5 +38,6 @@ export function authedQueryOptions<T>({
     placeholderData: keepPreviousData,
     ...(enabled === undefined ? {} : { enabled }),
     ...(refetchOnWindowFocus === undefined ? {} : { refetchOnWindowFocus }),
+    ...(retry === undefined ? {} : { retry }),
   };
 }

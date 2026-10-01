@@ -17,6 +17,27 @@ old one.
 
 ---
 
+## 2026-10-01 — Routes screens: full pages, map preview with its own browser key
+
+**Decision:** Territory Routes get a list page, a create page and a detail page (details, stops & distance, assigned MRs)
+rather than dialogs. The stops editor shows a **map preview** (numbered pins, dashed straight line captioned as not the driving
+route), which needs a separate browser-side Google Maps key (`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, optional, referrer- and
+API-restricted); without it the map shows a fallback and everything else works. Place search is debounced, 3+ characters,
+cached and never retried.
+
+**Why:** a route has an ordered list of up to 25 stops, a distance state, a rate override and assignments — too much for a
+dialog. The map makes order and geography checkable at a glance. Keeping the API's server key and the browser key separate means
+the key that can call billed Places/Routes APIs never ships to a browser.
+
+**Rejected:** no map (list-only was the cheaper default, but you chose the preview); drawing a road-shaped line (the API has no
+geometry and the browser key is not scoped to Directions); free-text stops (only a searched place has a `placeId` and a verified
+location); dialogs like Zones/HQs/Areas.
+
+**Cost:** one more key to create, restrict and watch for billing; each map load and each place search is a billed Google call;
+the straight line can be mistaken for the route despite its caption.
+
+---
+
 ## 2026-10-01 — Territory tree deferred until after the MVP; back to dedicated Zones / HQs / Areas pages
 
 **Decision:** The single `/territory` tree page (entry below) is reverted. Zones, HQs and Areas are separate pages again

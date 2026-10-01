@@ -139,7 +139,7 @@ system, not a real-time dispatch platform. The parts most likely to strain first
 | Where | How | Why |
 |---|---|---|
 | API (runtime) | compose `env_file` | Secrets must never enter an image layer — a baked `.env` leaks to anyone who can pull the image |
-| Web (`NEXT_PUBLIC_*`) | Docker build args (`NEXT_PUBLIC_API_BASE_URL`, read from the root `.env` by compose) | Next inlines these into the client bundle at build time — the same reasoning driverzone documents: pointing at a different API is a rebuild, not a restart |
+| Web (`NEXT_PUBLIC_*`) | Docker build args (`NEXT_PUBLIC_API_BASE_URL` required; `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` optional — a referrer-restricted browser key for the route map; both read from the root `.env` by compose) | Next inlines these into the client bundle at build time — the same reasoning driverzone documents: pointing at a different API is a rebuild, not a restart |
 
 `apps/api/src/config/env.ts` parses everything through Zod at boot. A missing variable fails the
 process immediately with the variable named, rather than surfacing as `undefined` inside a
