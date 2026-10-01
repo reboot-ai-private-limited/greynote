@@ -447,7 +447,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   Role dashboards (Admin/HR/Accountant work queues from existing endpoints; charts and a summary endpoint deferred) and a
   responsive shell landed the same day.
   Design system pass done the same day (tokens, 15 components, `/design` style guide; see the decision log).
-  Next: the remaining Territory levels, then master data, HR, approvals, expenses/payroll — one module at a time.
+  **Territory hierarchy screens (Zones, HQs, Areas) built:** list with search/status/parent filters in the URL, create and
+  edit in dialogs, and confirm-to-(de)activate (soft delete only; the server's refusal when active children exist is toasted).
+  Write controls are disabled in a past Financial Year. Form rules are pure builders with tests; parent pickers load one page
+  of 100. Verified by typecheck, lint, 125 tests and `next build` only; **not yet exercised against the live API** (no way to
+  sign in from the build environment). Routes (waypoints, Google Places, assignments) are the remaining Territory piece.
+  Next: Territory Routes, then master data, HR, approvals, expenses/payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

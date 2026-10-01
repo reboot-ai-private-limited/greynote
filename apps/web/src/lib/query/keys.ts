@@ -28,6 +28,14 @@ export const keys = {
     all: () => ['zones', fy()] as const,
     list: (query?: object) => [...keys.zones.all(), 'list', query ?? {}] as const,
   },
+  hqs: {
+    all: () => ['hqs', fy()] as const,
+    list: (query?: object) => [...keys.hqs.all(), 'list', query ?? {}] as const,
+  },
+  areas: {
+    all: () => ['areas', fy()] as const,
+    list: (query?: object) => [...keys.areas.all(), 'list', query ?? {}] as const,
+  },
 };
 
 /** How long each kind of data counts as fresh. Pick from here, never a bare number. */

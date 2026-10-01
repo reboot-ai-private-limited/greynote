@@ -21,19 +21,22 @@ export function Select({
   options,
   placeholder = 'Select…',
   'aria-invalid': invalid,
+  'aria-label': ariaLabel,
 }: {
   id?: string;
   value: string;
   onValueChange: (value: string) => void;
   options: readonly SelectOption[];
   placeholder?: string;
-  'aria-invalid'?: boolean;
+  'aria-invalid'?: boolean | undefined;
+  'aria-label'?: string | undefined;
 }) {
   return (
     <RadixSelect.Root value={value} onValueChange={onValueChange}>
       <RadixSelect.Trigger
         id={id}
         aria-invalid={invalid}
+        aria-label={ariaLabel}
         className={cn(fieldClass, 'inline-flex h-10 items-center justify-between gap-2 text-left')}
       >
         <RadixSelect.Value placeholder={<span className="text-text-subtle">{placeholder}</span>} />
