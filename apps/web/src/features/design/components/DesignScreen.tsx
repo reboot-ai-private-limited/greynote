@@ -17,6 +17,7 @@ import { Pagination } from '@/components/ui/Pagination';
 import { Select } from '@/components/ui/Select';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import { StatTile } from '@/components/ui/StatTile';
+import { ActionTile } from '@/features/dashboard/components/ActionTile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { toast } from '@/components/ui/toast';
 import { palette, semantic, status } from '@/styles/tokens';
@@ -164,6 +165,15 @@ export function DesignScreen() {
           <StatTile label="Active employees" value="248" note="+12 this month" tone="success" />
           <StatTile label="Pending approvals" value="17" note="5 older than 2 days" tone="warning" />
           <StatTile label="Payroll (Sep)" value="₹48.2L" note="Draft" />
+        </div>
+      </Section>
+
+      <Section title="Dashboard tiles — loading, error, ready, linked">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <ActionTile label="Loading" query={{ data: undefined, error: null, isLoading: true, refetch: () => undefined }} map={() => ({ value: '' })} />
+          <ActionTile label="Failed" query={{ data: undefined, error: new Error('x'), isLoading: false, refetch: () => undefined }} map={() => ({ value: '' })} />
+          <ActionTile label="Ready" query={{ data: 12, error: null, isLoading: false, refetch: () => undefined }} map={(n) => ({ value: String(n), note: 'Oldest waiting 3d', tone: 'warning' })} />
+          <ActionTile label="Linked (Zones)" href="/zones" query={{ data: 4, error: null, isLoading: false, refetch: () => undefined }} map={(n) => ({ value: String(n), note: 'All clear', tone: 'success' })} />
         </div>
       </Section>
 

@@ -17,6 +17,26 @@ old one.
 
 ---
 
+## 2026-10-01 — Dashboards: role-based work queues composed from existing endpoints
+
+**Decision:** The dashboard is an operational, role-specific work queue (Admin / HR / Accountant), built by composing the list
+endpoints that already exist; each tile owns its query and failure state, links only to built screens, and refuses to show a
+number it cannot compute correctly (capped lists show "500+"). Charts, `GET /dashboard/summary`, draggable widgets and dark
+mode are deferred. The sidebar becomes a drawer below `lg`.
+
+**Why:** the API has no aggregate or time-series endpoint, and a new cross-module backend module would have blocked the screen
+for no immediate gain. Counts are available from `total` on the paginated lists and from array lengths elsewhere. A dashboard of
+fabricated or undercounted numbers is worse than one that says "coming soon".
+
+**Rejected:** a `/dashboard/summary` module first (delays the screen; it crosses several modules' `.public` contracts); one
+shared query for the whole page (one failure would blank every tile); BI-style analytical/strategic dashboards (no trend data).
+
+**Cost:** several requests per load (tiles refetch on focus), the expenses tile can only be exact under 500 unpaid claims, and
+blocked-employee / missed-DCR tiles are placeholders until endpoints exist. Noted for later: `GET /identity/users?isBlocked=false`
+is parsed as `true` (`z.coerce.boolean()`), so only `isBlocked=true` may be sent until the schema is fixed.
+
+---
+
 ## 2026-10-01 — Web design system: white canvas, indigo accent, Inter, comfortable density
 
 **Decision:** The portal's look is a white canvas with hairline borders (no grey page background), one indigo accent

@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Menu } from 'lucide-react';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { FinancialYearSwitcher } from './FinancialYearSwitcher';
@@ -12,12 +12,22 @@ const initials = (name: string) =>
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('');
 
-export function TopBar() {
+export function TopBar({ onMenu }: { onMenu: () => void }) {
   const { user, signOut } = useSession();
 
   return (
     <div className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-surface/95 px-8 backdrop-blur">
-      <FinancialYearSwitcher />
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          aria-label="Open menu"
+          onClick={onMenu}
+          className="rounded-md p-2 text-text-muted hover:bg-surface-hover focus-visible:shadow-focus focus-visible:outline-none lg:hidden"
+        >
+          <Menu aria-hidden className="size-5" />
+        </button>
+        <FinancialYearSwitcher />
+      </div>
       <DropdownMenu
         trigger={
           <button

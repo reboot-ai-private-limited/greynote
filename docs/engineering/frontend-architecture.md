@@ -74,6 +74,37 @@ density (40px controls, 48px table rows); numbers use `tabular-nums`. Shadows ar
 - **`/design`** renders every token and component in every state. Development only (404s in a production build). Add a new
   primitive there in the same change that adds it.
 
+## Dashboards
+
+`/dashboard` is an **operational** dashboard — a work queue, not BI. It answers one question per role: *what needs my action
+right now?* The role decides the cards (`cardsForRole` in `lib/dashboard.ts`, mirroring what the API lets each role call):
+
+| Role | Cards |
+|---|---|
+| ADMIN | Pending approvals (+ the five longest waiting), devices awaiting approval, active employees (+ onboarding), MRs missing stock |
+| HR | Leave awaiting you (+ list), active employees, on leave today |
+| ACCOUNTANT | Expenses awaiting payment, payroll status for the month just ended |
+
+Rules (keep them for every later screen):
+- A tile answers "what do I do next?" and links to the screen that resolves it. It only links to a **built** screen
+  (`isRouteBuilt`), so no tile 404s. No vanity numbers.
+- One screen, at most six cards, the big number first and the label second. Colour means status only.
+- **Each tile owns its query and its own loading / error / ready state** (`ActionTile`). One failing endpoint fails one tile.
+- Never show a number we cannot compute correctly: the expenses list is capped at 500 (unpaid first), so at the cap the tile
+  says "500+ claims" and no total instead of an undercount. Gaps with no endpoint (blocked employees, missed DCRs) are listed
+  as "Coming soon", never hidden or faked.
+- The numbers are the live queue: `staleTime.live`, refetch on focus. Counts come from `total` on the paginated lists
+  (`pageSize=1`), or the array length for the endpoints that return a bare array (devices, expenses, payroll, missing stock).
+- Rules like "500+" and "All clear" live in pure mappers (`features/dashboard/lib/tiles.ts`) and are unit-tested.
+- Dates: the API uses `YYYY-MM-DD`, `YYYY-MM` and ISO datetimes; `lib/dates.ts` computes every "today" in Asia/Kolkata.
+- Charts and trends wait for an endpoint that returns a time series; when they arrive, follow the `dataviz` guidance and keep
+  a table as the fallback view. Pie charts are avoided.
+- Below `lg` the sidebar is an off-canvas drawer opened from the top bar; tiles reflow 4 → 2 → 1 columns.
+
+Gaps that would justify a `GET /dashboard/summary` module later: blocked-employee and missed-DCR counts, plans pending, an
+unpaid-expense total beyond the 500 cap, payroll counts by status in one call, and any per-day/month series. Swapping it in
+touches only `hooks/useDashboardData.ts`.
+
 ## Auth and session
 
 `POST /identity/auth/login` (employee code + password; the web sends a stable `deviceId` from localStorage and

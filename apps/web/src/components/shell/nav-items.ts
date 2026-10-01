@@ -44,3 +44,8 @@ export function navGroupsFor(role: RoleName): { group: string; items: readonly N
   for (const item of navFor(role)) groups.set(item.group, [...(groups.get(item.group) ?? []), item]);
   return [...groups].map(([group, items]) => ({ group, items }));
 }
+
+/** True when the screen behind `href` exists. Tiles and links only point at built screens. */
+export function isRouteBuilt(href: string): boolean {
+  return NAV_ITEMS.some((item) => item.href === href && !item.comingSoon);
+}

@@ -11,6 +11,19 @@ import { getFinancialYear } from '../financial-year';
 const fy = () => getFinancialYear() ?? 'current';
 
 export const keys = {
+  approvals: {
+    all: () => ['approvals', fy()] as const,
+    inbox: (query: object) => [...keys.approvals.all(), 'inbox', query] as const,
+  },
+  devices: { pending: () => ['devices', fy(), 'pending'] as const },
+  users: {
+    all: () => ['users', fy()] as const,
+    list: (query: object) => [...keys.users.all(), 'list', query] as const,
+  },
+  leaves: { range: (query: object) => ['leaves', fy(), 'range', query] as const },
+  expenses: { audit: (query: object) => ['expenses', fy(), 'audit', query] as const },
+  payroll: { month: (query: object) => ['payroll', fy(), 'month', query] as const },
+  monthlyStock: { missing: (month: string) => ['monthlyStock', fy(), 'missing', month] as const },
   zones: {
     all: () => ['zones', fy()] as const,
     list: (query?: object) => [...keys.zones.all(), 'list', query ?? {}] as const,
