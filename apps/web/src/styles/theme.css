@@ -1,0 +1,16 @@
+/* Mirrors styles/tokens.ts — keep them in step (tokens.drift.test.ts). Components use the
+   semantic names (bg-surface, text-text-subtle), never raw hex. */
+@theme {
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f6f7f9;
+  --color-text: #16181d;
+  --color-text-subtle: #5b6270;
+  --color-border: #e3e6eb;
+  --color-border-strong: #c9ced6;
+  --color-accent: #3b4cca;
+  --color-accent-text: #ffffff;
+  --color-danger: #b42318;
+  --color-success: #157f3b;
+  --color-warning: #a15c07;
+  --spacing-rail: 15rem;
+}

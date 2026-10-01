@@ -9,11 +9,12 @@
 # string, and the deploy host's egress IP must be allowlisted on that Atlas project first; see
 # docs/manual_deploy.md.
 #
-# Note what is also NOT here yet: `web`. apps/web (Next.js admin portal) is not scaffolded —
-# see docs/roadmap.md phase 9. This file grows a `web` service, its own Dockerfile and build-arg
-# wiring the same shape as ../driverzone/docker-compose.prod.yml's `web` service, once it lands.
+# `web` is the Next.js admin portal. NEXT_PUBLIC_API_BASE_URL is a BUILD arg (inlined into the
+# browser bundle), read from the root .env at compose time — set it before `up --build`.
+# The portal and the API must share a registrable domain (e.g. app.example.com and
+# api.example.com): the refresh cookie is SameSite=Strict, so a different site would never send it.
 #
-# On a real host, nginx terminates TLS in front of api:3000 — see
+# On a real host, nginx terminates TLS in front of api:3000 and web:3001 — see
 # docs/engineering/build-and-deploy.md.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -27,6 +28,21 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?set NEXT_PUBLIC_API_BASE_URL in .env}
+    ports: ['3001:3001']
+    depends_on: [api]
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3001/login']
       interval: 15s
       timeout: 5s
       retries: 5

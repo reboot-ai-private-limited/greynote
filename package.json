@@ -6,6 +6,7 @@
   "private": "true",
   "scripts": {
     "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=@greynote/api --filter=@greynote/web",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",

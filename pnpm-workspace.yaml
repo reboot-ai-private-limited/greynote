@@ -5,3 +5,11 @@ allowBuilds:
   '@scarf/scarf': false
   bcrypt: true
   esbuild: false
+  unrs-resolver: set this to true or false
+
+# One React for the whole workspace, and it is Expo's choice (apps/fieldApp pins 19.2.3 exactly).
+# A second copy of React in one render gives "Cannot read properties of null (reading 'useRef')"
+# during prerender, so apps/web follows the mobile app, not the other way round.
+overrides:
+  react: 19.2.3
+  react-dom: 19.2.3
