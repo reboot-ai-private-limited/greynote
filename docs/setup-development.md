@@ -112,8 +112,15 @@ pnpm --filter @greynote/api lint:deps    # boundaries only, faster than the full
 pnpm --filter @greynote/api build        # tsc --noEmit && esbuild → dist/
 ```
 
-This section grows a table like driverzone's `dev:api` / `dev:web` combinations once `apps/web`
-and `apps/mobile` exist ([`roadmap.md`](roadmap.md) phases 9–10).
+| Command | Runs |
+|---|---|
+| `pnpm dev:web` | API on :3000 + web portal on :3001 |
+| `pnpm --filter @greynote/web dev` | web only |
+| `pnpm --filter @greynote/web test` / `lint` / `typecheck` | web checks |
+
+The web reads `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:3000/api`, see `apps/web/.env.example`), and the
+API's `CORS_ORIGINS` must include `http://localhost:3001` (the default). Sign in with an Admin's employee code and
+password. Mobile joins this table with phase 10 ([`roadmap.md`](roadmap.md)).
 
 ---
 
@@ -159,7 +166,7 @@ docker compose -f docker-compose.prod.yml down
 
 ```bash
 docker build -f apps/api/Dockerfile -t greynote-api .
-docker run --rm -e MONGO_URI=... -e CORS_ORIGINS=http://localhost:3000 greynote-api
+docker run --rm -e MONGO_URI=... -e CORS_ORIGINS=http://localhost:3001 greynote-api
 ```
 
 Run the container before believing the build. See

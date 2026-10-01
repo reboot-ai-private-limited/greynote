@@ -17,6 +17,33 @@ old one.
 
 ---
 
+## 2026-10-01 — Web portal setup: cookie-mode refresh, no design-system package yet, web on :3001
+
+**Decision:** (1) The refresh token reaches a client by one of two routes, chosen by a request header. `X-Client: mobile`
+gets it in the JSON body, as before. Anything else (the browser) gets it as an `httpOnly; SameSite=Strict` cookie scoped to
+`/api/identity/auth` and it is left out of the body. `/refresh` and `/logout` read the token from the body, or from the cookie
+when the caller sent an `X-Client` header. (2) New `GET /api/identity/auth/me` returns the signed-in `UserSummary`, so the web
+needs no JWT decoding at boot. (3) `apps/web` is Next.js 15 (App Router, client-side panel), TanStack Query, Tailwind v4,
+modelled on `../driverzone/apps/web`. (4) No `packages/design-system`: primitives live in `apps/web/src/components/ui`, tokens in
+`apps/web/src/styles/tokens.ts` + `theme.css`. (5) Web runs on **:3001**; the API keeps :3000; `CORS_ORIGINS` defaults to
+`http://localhost:3001`. (6) React is pinned to 19.2.3 workspace-wide via `pnpm-workspace.yaml` `overrides`, matching Expo.
+
+**Why:** the API only returned tokens in the body, so a browser would have had to keep a 30-day rotating refresh token in JS,
+readable by any XSS. A cookie keeps it out of reach; the header lets the phone keep its body contract with no change. The
+header is a response-shape switch, not a security boundary: a caller that lies only changes where its own token is delivered.
+React DOM / Radix / Tailwind components cannot be shared with React Native, so a UI package would have one consumer; only the
+tokens could be shared, and they are kept in one file so they can be lifted out in Phase 10.
+
+**Rejected:** tokens held in browser memory (refresh token exposed to XSS); a Next BFF proxying auth (a second hop and a second
+place for session logic, for no gain once the API can set the cookie); moving the API to :4000 (touches env, Dockerfile,
+healthcheck, docs).
+
+**Cost:** the web and the API must share a registrable domain in production (SameSite=Strict), and `CORS_ORIGINS` must list the
+portal's origin. Cookie reads on refresh/logout require a custom header, which forces a CORS preflight, as a CSRF guard on top
+of SameSite. Reversing the cookie default later would be a breaking change for any browser client.
+
+---
+
 ## 2026-09-30 — Financial Year toggle: a per-request header, read-only, out-of-range is an error
 
 **Decision:** (1) The selected past financial year travels as a header, `X-Financial-Year: <start year>`, on each request —

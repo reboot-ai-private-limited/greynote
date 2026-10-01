@@ -18,6 +18,7 @@ data model, the cross-cutting mechanisms. This directory is about the _code_.
 | [Boundaries & enforcement](boundaries-and-enforcement.md) | Every `dependency-cruiser` rule, what it catches, what breaks without it |
 | [Coding standards](coding-standards.md) | Naming, errors, money, commits, comments |
 | [Tech choices](tech-choices.md) | Every dependency: why it's here, what's undecided |
+| [Frontend architecture](frontend-architecture.md) | `apps/web`: where pages, features, hooks and shared components live |
 | [Build & deploy](build-and-deploy.md) | Artifacts, the Dockerfile, CI, production topology |
 | [Adding a module](adding-a-module.md) | The checklist |
 

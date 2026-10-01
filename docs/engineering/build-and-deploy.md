@@ -5,10 +5,9 @@
 | Artifact | Built from | Contains | Goes to |
 |---|---|---|---|
 | `greynote-api` | `apps/api/Dockerfile` | `dist/` + prod deps | VM / ECS |
-| `greynote-web` | *(not yet — `apps/web/Dockerfile`, phase 9)* | Next standalone output | VM / ECS |
+| `greynote-web` | `apps/web/Dockerfile` | Next standalone output | VM / ECS |
 
-Today there's exactly one server artifact. When `apps/web` lands it follows the same two-artifact
-shape driverzone uses — a separate image, a separate container, same VM to start.
+Two server artifacts, driverzone's shape: a separate image and container for the web, same VM to start.
 
 ## The build context is the repo root; the image is not
 
@@ -104,7 +103,7 @@ on PR:
 on merge to main:
   detect changed paths
   ├─ apps/api or packages/{contracts,config}      → build+push api image → deploy api
-  └─ apps/web or packages/{contracts,config}       → build+push web image → deploy web   (once apps/web exists)
+  └─ apps/web or packages/{contracts,config}       → build+push web image → deploy web   
 ```
 
 ## Production topology
@@ -119,9 +118,9 @@ At current scale, one VM:
               MongoDB Atlas (managed, off-VM)
 ```
 
-`web:3000`'s port would collide with `api`'s own default — once `apps/web` exists, either the API
-moves off `3000` or the two are given distinct ports/hosts before both run on one VM. Decide this
-explicitly when phase 9 starts rather than discovering the collision at deploy time.
+The API listens on `3000` and the web on `3001` (decided 2026-10-01), so both can run on one VM.
+The portal and the API must share a registrable domain (e.g. `app.` and `api.` under one
+domain): the refresh cookie is `SameSite=Strict`, so a different site would never send it.
 
 ### Scaling order
 
@@ -140,7 +139,7 @@ system, not a real-time dispatch platform. The parts most likely to strain first
 | Where | How | Why |
 |---|---|---|
 | API (runtime) | compose `env_file` | Secrets must never enter an image layer — a baked `.env` leaks to anyone who can pull the image |
-| Web (`NEXT_PUBLIC_*`) | *(once `apps/web` exists)* Docker build args | Next inlines these into the client bundle at build time — the same reasoning driverzone documents: pointing at a different API is a rebuild, not a restart |
+| Web (`NEXT_PUBLIC_*`) | Docker build args (`NEXT_PUBLIC_API_BASE_URL`, read from the root `.env` by compose) | Next inlines these into the client bundle at build time — the same reasoning driverzone documents: pointing at a different API is a rebuild, not a restart |
 
 `apps/api/src/config/env.ts` parses everything through Zod at boot. A missing variable fails the
 process immediately with the variable named, rather than surfacing as `undefined` inside a

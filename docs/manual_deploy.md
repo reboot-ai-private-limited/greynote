@@ -81,9 +81,8 @@ request 500s: the build succeeds, the process boots, and the first Mongo query t
 cp apps/api/.env.prod.example apps/api/.env.prod
 # nano apps/api/.env.prod
 #   - MONGO_URI: the staging Atlas connection string from Step 5
-#   - CORS_ORIGINS: this VM's own origin, e.g. http://your_staging_vm_ip:3000 — the example
-#     ships http://localhost:3000, which blocks the admin portal the moment it exists and tries
-#     to call this API from a real browser
+#   - CORS_ORIGINS: this VM's own origin, the portal's own origin, e.g. http://your_staging_vm_ip:3001 —
+#     the example ships http://localhost:3001, which is the local dev origin only
 ```
 
 ## Step 7 — Build and run the stack

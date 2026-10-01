@@ -24,7 +24,7 @@ Current state — what we use and why, in the present tense. History of what cha
 |---|---|
 | Money storage | **Integer paise** (₹1 = 100), decided 2026-09-29 — no `Decimal128`, no floats. See `coding-standards.md#money`. |
 | Mobile local-store layer | HLD-03 §1 names "React Native + SQLite (op-sqlite or similar, with Drizzle for local query building)" as a direction, not a final pick. Decide when `docs/roadmap.md` phase 10 starts. |
-| Web portal state/data-fetching library | Not yet needed — no `apps/web` exists. Driverzone's own equivalent decision (TanStack Query, `decision-log.md` there 2026-08-25) is "add it when the admin panel actually needs it, not before"; the same discipline applies here. |
+| Web portal state/data-fetching library | **TanStack Query v5** (decided 2026-10-01 with `apps/web`). Server state only: no global client store, filters live in the URL. Same choice as driverzone's admin panel. |
 | Object/document storage (Doctor Service attachments, if any) | Not yet needed by any landed module. |
 
 ## Deliberately absent

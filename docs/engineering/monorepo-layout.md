@@ -17,8 +17,8 @@ packages/
 
 ```
 apps/
-  web/                  Next.js — Admin/HR/Accountant portal (phase 9)
-  mobile/               React Native (Expo) + SQLite — field-force app (phase 10)
+  web/                  Next.js — Admin/HR/Accountant portal (phase 9) — see frontend-architecture.md
+  fieldApp/             React Native (Expo) + SQLite — field-force app (phase 10)
 packages/
   shared/                @greynote/shared — code genuinely needed by BOTH apps/api and
                           apps/mobile (validation schemas, the offline-sync payload shape),

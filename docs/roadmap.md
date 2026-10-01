@@ -437,6 +437,15 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
 - Accountant screens (expense audit + mark-paid, Payroll generation)
 - Reports (DCR, TP, Gift & Sales)
 
+- **Setup — done 2026-10-01.** `apps/web` scaffolded (Next 15, TanStack Query, Tailwind v4) with the folder contract in
+  [`engineering/frontend-architecture.md`](engineering/frontend-architecture.md): session gate + login (employee code +
+  password), role-filtered nav, Financial Year switcher, UI primitives, and Territory → Zones as the first vertical slice.
+  API side: cookie-mode refresh and `GET /identity/auth/me` (see the decision-log entry of that date). Web Dockerfile and a
+  `web` compose service added. Typecheck, lint, 40 web tests and the full API suite (697) green; `next build` succeeds; CORS between
+  :3001 and :3000 checked live; the web image builds and serves on :3001, and the API image still builds. **Not yet checked
+  live:** a real login and the cookie round-trip (needs an Admin user in Atlas).
+  Next: the remaining Territory levels, then master data, HR, approvals, expenses/payroll — one module at a time.
+
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.
 
