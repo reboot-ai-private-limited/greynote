@@ -1,12 +1,12 @@
 import { Suspense } from 'react';
 import { SkeletonTable } from '@/components/ui/Skeleton';
-import { ZonesScreen } from '@/features/territory/components/ZonesScreen';
+import { TerritoryTreeScreen } from '@/features/territory/components/TerritoryTreeScreen';
 
 // The screen reads `useSearchParams`, which needs a Suspense boundary to prerender.
-export default function ZonesPage() {
+export default function TerritoryPage() {
   return (
     <Suspense fallback={<SkeletonTable />}>
-      <ZonesScreen />
+      <TerritoryTreeScreen />
     </Suspense>
   );
 }

@@ -54,6 +54,9 @@ export const semantic = {
   accentSoftText: palette.accent[700],
   accentText: palette.neutral[0],
   focus: palette.accent[400],
+  sidebar: palette.accent[50],
+  sidebarBorder: palette.accent[100],
+  sidebarHover: palette.accent[100],
 } as const;
 
 /**

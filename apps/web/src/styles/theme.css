@@ -43,6 +43,9 @@
   --color-accent-soft-text: #3d3cbd;
   --color-accent-text: #ffffff;
   --color-focus: #818af5;
+  --color-sidebar: #f1f3ff;
+  --color-sidebar-border: #e4e8ff;
+  --color-sidebar-hover: #e4e8ff;
 
   /* Status */
   --color-success-bg: #ecf8f0;
@@ -61,4 +64,5 @@
   --shadow-pop: 0 1px 2px rgb(19 24 34 / 0.06), 0 8px 24px rgb(19 24 34 / 0.12);
   --shadow-focus: 0 0 0 3px rgb(129 138 245 / 0.35);
   --spacing-rail: 15rem;
+  --spacing-rail-collapsed: 4rem;
 }

@@ -7,7 +7,7 @@ export function EmptyState({
   action,
 }: {
   title: string;
-  description?: string;
+  description?: string | undefined;
   action?: ReactNode;
 }) {
   return (

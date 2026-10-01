@@ -18,7 +18,7 @@ export function DataState({
   isLoading: boolean;
   error: ErrorStateProps | null;
   isEmpty: boolean;
-  empty: { title: string; description?: string };
+  empty: { title: string; description?: string; action?: ReactNode };
   skeleton?: ReactNode;
   children: ReactNode;
 }) {

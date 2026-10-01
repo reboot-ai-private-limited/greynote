@@ -38,6 +38,8 @@ module.exports = [
     ...jsxA11y.flatConfigs.recommended,
     rules: {
       ...jsxA11y.flatConfigs.recommended.rules,
+      // `role` on our own components is a user role (e.g. <SideNav role="ADMIN" />), not an ARIA role.
+      'jsx-a11y/aria-role': ['error', { ignoreNonDOM: true }],
       'no-restricted-syntax': [
         'error',
         {

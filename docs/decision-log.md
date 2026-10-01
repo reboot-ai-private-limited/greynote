@@ -17,6 +17,26 @@ old one.
 
 ---
 
+## 2026-10-01 — Icon-only navigation rail and one Territory tree page
+
+**Decision:** (1) The sidebar is a light, accent-tinted icon rail that expands over the content on hover or keyboard focus,
+without changing the page layout; below `lg` it stays a drawer. (2) Zones, HQs and Areas are one page at `/territory`, a tree
+whose branches load lazily when opened; the old `/zones`, `/hqs`, `/areas` URLs redirect there. A search shows a flat results
+list across all three levels.
+
+**Why:** the rail gives every table about 200px more width without making navigation harder to reach, and expanding as an
+overlay means nothing jumps. The tree matches how the data is shaped, removes the "which page do I add an area on?" hop, and
+lazy loading is the only approach that is correct against an API that caps lists at 100 — fetching everything up front would
+silently truncate in a large org.
+
+**Rejected:** a pin-to-expand button (more state for little gain); a dark sidebar; loading the whole hierarchy in the browser
+(truncates past 100 per list); keeping three list pages (three trips for one task).
+
+**Cost:** an icon-only rail relies on recognisable icons (labels appear on hover/focus, and a touch device uses the drawer); a
+branch with more than 100 children shows a "use search" note rather than paging; tree search cannot expand in place.
+
+---
+
 ## 2026-10-01 — Dashboards: role-based work queues composed from existing endpoints
 
 **Decision:** The dashboard is an operational, role-specific work queue (Admin / HR / Accountant), built by composing the list

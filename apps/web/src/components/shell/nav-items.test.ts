@@ -3,12 +3,12 @@ import { navFor, navGroupsFor } from './nav-items';
 
 describe('navFor', () => {
   it('gives ADMIN the zones screen', () => {
-    expect(navFor('ADMIN').map((i) => i.href)).toContain('/zones');
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/territory');
   });
 
   it('hides master data from HR and Accountant', () => {
-    expect(navFor('HR').map((i) => i.href)).not.toContain('/zones');
-    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/zones');
+    expect(navFor('HR').map((i) => i.href)).not.toContain('/territory');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/territory');
   });
 
   it('gives Accountant payroll but not leave', () => {

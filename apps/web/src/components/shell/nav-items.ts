@@ -1,12 +1,10 @@
 import type { RoleName } from '@greynote/contracts';
 import {
   Banknote,
-  Building2,
   CalendarDays,
   ClipboardCheck,
   LayoutDashboard,
   Map as MapIcon,
-  MapPinned,
   Receipt,
   Users,
   type LucideIcon,
@@ -28,9 +26,7 @@ const ALL: readonly RoleName[] = ['ADMIN', 'HR', 'ACCOUNTANT'];
 /** The portal's navigation. Mirrors `apps/api/src/modules/*`; PRD §4 decides who sees what. */
 export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, group: 'Overview', roles: ALL },
-  { label: 'Zones', href: '/zones', icon: MapIcon, group: 'Master data', roles: ['ADMIN'] },
-  { label: 'HQs', href: '/hqs', icon: Building2, group: 'Master data', roles: ['ADMIN'] },
-  { label: 'Areas', href: '/areas', icon: MapPinned, group: 'Master data', roles: ['ADMIN'] },
+  { label: 'Territory', href: '/territory', icon: MapIcon, group: 'Master data', roles: ['ADMIN'] },
   { label: 'Employees', href: '/employees', icon: Users, group: 'People', roles: ALL, comingSoon: true },
   { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'People', roles: ['ADMIN', 'HR'], comingSoon: true },
   { label: 'Approvals', href: '/approvals', icon: ClipboardCheck, group: 'Operations', roles: ['ADMIN'], comingSoon: true },
