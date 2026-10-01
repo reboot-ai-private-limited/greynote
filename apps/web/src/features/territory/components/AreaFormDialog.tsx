@@ -13,18 +13,9 @@ import { FormDialog } from './FormDialog';
 export const AREA_TYPE_OPTIONS = AREA_TYPES.map((t) => ({ value: t, label: AREA_TYPE_LABEL[t] }));
 
 /** Create, or edit name/type (`area`). An Area cannot move to another HQ. */
-export function AreaFormDialog({
-  area,
-  defaultHqId,
-  onClose,
-}: {
-  area?: AreaDto | undefined;
-  /** Preselects the HQ when adding from an HQ's row. */
-  defaultHqId?: string | undefined;
-  onClose: () => void;
-}) {
+export function AreaFormDialog({ area, onClose }: { area?: AreaDto | undefined; onClose: () => void }) {
   const [name, setName] = useState(area?.name ?? '');
-  const [hqId, setHqId] = useState(area?.hqId ?? defaultHqId ?? '');
+  const [hqId, setHqId] = useState(area?.hqId ?? '');
   const [type, setType] = useState<string>(area?.type ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const hqs = useHqOptions();

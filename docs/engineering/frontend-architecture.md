@@ -87,16 +87,6 @@ never reflows. Details worth keeping:
 - Colours are the `sidebar*` tokens (light accent tint, solid accent pill for the active item); `/design/shell` (dev only)
   renders the real rail next to sample content for checking all of the above without signing in.
 
-## Trees
-
-`components/ui/Tree.tsx` is an accessible tree (WAI-ARIA tree pattern: one tab stop, ↑/↓ move, → expands then enters, ←
-collapses then goes to the parent, Home/End). Rows are read from the DOM, so a branch that loads its own data can render
-children whenever they arrive; the roving tab stop is set on the DOM directly rather than in state. Key logic is pure and tested
-in `lib/tree.ts`. **Territory** (`/territory`) is the first user: Zone › HQ › Area on one page, each node owning a query that is
-`enabled` only while expanded (`GET /territory/hqs?zoneId=`, `/areas?hqId=`), so nothing is fetched until opened and the API's
-100-per-page ceiling never bites. A search swaps the tree for a flat results list (unloaded branches cannot be filtered). A new
-level — Routes under Area — is one more node component.
-
 ## Dashboards
 
 `/dashboard` is an **operational** dashboard — a work queue, not BI. It answers one question per role: *what needs my action

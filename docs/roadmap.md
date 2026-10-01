@@ -447,8 +447,8 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   Role dashboards (Admin/HR/Accountant work queues from existing endpoints; charts and a summary endpoint deferred) and a
   responsive shell landed the same day.
   Design system pass done the same day (tokens, 15 components, `/design` style guide; see the decision log).
-  **Territory hierarchy built as one tree page (`/territory`; Zones, HQs and Areas, lazy per expand, flat search):** create and
-  edit in dialogs, add-child from a row, and confirm-to-(de)activate (soft delete only; the server's refusal when active children exist is toasted).
+  **Territory hierarchy built as dedicated Zones / HQs / Areas pages (a single tree page was tried and deferred to post-MVP):**
+  list with search/status/parent filters in the URL, create and edit in dialogs, and confirm-to-(de)activate (soft delete only; the server's refusal when active children exist is toasted).
   The sidebar is now an icon-only rail that expands over the page on hover/focus. Write controls are disabled in a past Financial Year. Form rules are pure builders with tests; parent pickers load one page
   of 100. Verified by typecheck, lint, 125 tests and `next build` only; **not yet exercised against the live API** (no way to
   sign in from the build environment). Routes (waypoints, Google Places, assignments) are the remaining Territory piece.

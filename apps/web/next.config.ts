@@ -13,10 +13,6 @@ const config: NextConfig = {
   outputFileTracingRoot: repoRoot,
   // @greynote/contracts ships TypeScript source (no build step).
   transpilePackages: ['@greynote/contracts'],
-  // Zones, HQs and Areas became one tree page; keep the old URLs working.
-  async redirects() {
-    return ['/zones', '/hqs', '/areas'].map((source) => ({ source, destination: '/territory', permanent: false }));
-  },
   webpack(webpackConfig) {
     // contracts is NodeNext, so it imports its own files with `.js` suffixes that point at .ts.
     webpackConfig.resolve.extensionAlias = {

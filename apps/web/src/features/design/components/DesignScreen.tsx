@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, Map as MapIcon, MapPin, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -18,8 +18,6 @@ import { Select } from '@/components/ui/Select';
 import { SkeletonTable } from '@/components/ui/Skeleton';
 import { StatTile } from '@/components/ui/StatTile';
 import { ActionTile } from '@/features/dashboard/components/ActionTile';
-import { Tree, TreeItem } from '@/components/ui/Tree';
-import { addToSet, toggleSet } from '@/lib/tree';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { toast } from '@/components/ui/toast';
 import { palette, semantic, status } from '@/styles/tokens';
@@ -60,7 +58,6 @@ export function DesignScreen() {
   const [sort, setSort] = useState<SortState>({ key: 'name', order: 'asc' });
   const [dialog, setDialog] = useState(false);
   const [select, setSelect] = useState('');
-  const [open, setOpen] = useState<ReadonlySet<string>>(new Set(['z1']));
 
   return (
     <main className="mx-auto max-w-5xl space-y-12 px-8 py-10">
@@ -178,21 +175,6 @@ export function DesignScreen() {
           <ActionTile label="Ready" query={{ data: 12, error: null, isLoading: false, refetch: () => undefined }} map={(n) => ({ value: String(n), note: 'Oldest waiting 3d', tone: 'warning' })} />
           <ActionTile label="Linked (Zones)" href="/zones" query={{ data: 4, error: null, isLoading: false, refetch: () => undefined }} map={(n) => ({ value: String(n), note: 'All clear', tone: 'success' })} />
         </div>
-      </Section>
-
-      <Section title="Tree — arrow keys move, → expands, ← collapses">
-        <Card className="p-2">
-          <Tree label="Demo tree" onExpand={(id) => setOpen((s) => addToSet(s, id))} onCollapse={(id) => setOpen((s) => toggleSet(s, id))}>
-            <TreeItem id="z1" parentId={null} level={1} expanded={open.has('z1')} onToggle={() => setOpen((s) => toggleSet(s, 'z1'))} icon={<MapIcon className="size-4" />} label="West Bengal">
-              <TreeItem id="h1" parentId="z1" level={2} expanded={open.has('h1')} onToggle={() => setOpen((s) => toggleSet(s, 'h1'))} icon={<Building2 className="size-4" />} label="Siliguri" badges={<Badge tone="neutral">Inactive</Badge>}>
-                <TreeItem id="a1" parentId="h1" level={3} expanded={undefined} icon={<MapPin className="size-4" />} label="Matigara" badges={<Badge tone="accent">HQ</Badge>} />
-                <TreeItem id="a2" parentId="h1" level={3} expanded={undefined} icon={<MapPin className="size-4" />} label="Bagdogra" badges={<Badge tone="accent">Ex-station</Badge>} />
-              </TreeItem>
-              <TreeItem id="h2" parentId="z1" level={2} expanded={open.has('h2')} onToggle={() => setOpen((s) => toggleSet(s, 'h2'))} icon={<Building2 className="size-4" />} label="Durgapur" />
-            </TreeItem>
-            <TreeItem id="z2" parentId={null} level={1} expanded={open.has('z2')} onToggle={() => setOpen((s) => toggleSet(s, 'z2'))} icon={<MapIcon className="size-4" />} label="Odisha" />
-          </Tree>
-        </Card>
       </Section>
 
       <Section title="Table, pagination, tabs">

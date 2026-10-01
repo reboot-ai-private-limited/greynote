@@ -17,6 +17,21 @@ old one.
 
 ---
 
+## 2026-10-01 — Territory tree deferred until after the MVP; back to dedicated Zones / HQs / Areas pages
+
+**Decision:** The single `/territory` tree page (entry below) is reverted. Zones, HQs and Areas are separate pages again
+(`/zones`, `/hqs`, `/areas`, each its own nav item). The icon-only navigation rail from the same change is kept. A tree view of
+the hierarchy is a post-MVP idea, to be designed properly then.
+
+**Why:** the tree page offered one primary action ("New zone") and pushed every other action into row menus, which made the
+page feel thin and the common tasks harder to find than on a dedicated list with its own New button, filters and columns.
+Redesigning the page properly is not MVP-critical, and the dedicated pages already cover every Territory task.
+
+**Cost:** three nav items under Master data instead of one, and no at-a-glance hierarchy view. The reverted work (an accessible
+tree primitive, lazy per-branch loading, flat cross-level search) is in git history at `d9b69e3` if a tree is wanted later.
+
+---
+
 ## 2026-10-01 — Icon-only navigation rail and one Territory tree page
 
 **Decision:** (1) The sidebar is a light, accent-tinted icon rail that expands over the content on hover or keyboard focus,

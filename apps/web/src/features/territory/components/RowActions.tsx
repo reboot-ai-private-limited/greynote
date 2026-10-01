@@ -2,7 +2,7 @@
 
 import type { TerritoryStatus } from '@greynote/contracts';
 import { MoreHorizontal } from 'lucide-react';
-import { DropdownMenu, type MenuItem } from '@/components/ui/DropdownMenu';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 
 /** Edit and (de)activate. Territory is soft-deleted only, so there is no delete. */
 export function RowActions({
@@ -11,15 +11,12 @@ export function RowActions({
   disabled,
   onEdit,
   onToggleStatus,
-  extraItems = [],
 }: {
   label: string;
   status: TerritoryStatus;
   disabled: boolean;
   onEdit: () => void;
   onToggleStatus: () => void;
-  /** Level-specific actions, shown first — e.g. "Add HQ" on a zone. */
-  extraItems?: readonly MenuItem[];
 }) {
   return (
     <DropdownMenu
@@ -35,7 +32,6 @@ export function RowActions({
         </button>
       }
       items={[
-        ...extraItems,
         { label: 'Edit', onSelect: onEdit },
         status === 'active'
           ? { label: 'Deactivate', onSelect: onToggleStatus, tone: 'danger' }
