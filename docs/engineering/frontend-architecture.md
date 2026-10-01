@@ -57,6 +57,23 @@ src/
 - Nav is role-filtered in `nav-items.ts`, which is **cosmetic**: the API returns 403 regardless.
 - Tests are Vitest in a Node environment — pure logic only, no DOM. Keep logic in React-free modules so it can be tested.
 
+## Design system
+
+White canvas; structure from hairline borders and a faint tint (sidebar, table headers), not grey slabs. One indigo accent
+used sparingly (primary actions, active nav, key numbers); Inter (self-hosted via `@fontsource-variable/inter`); comfortable
+density (40px controls, 48px table rows); numbers use `tabular-nums`. Shadows are only for things that float (menus, dialogs).
+
+- **Tokens** live in `styles/tokens.ts` (ramps → semantic names → status `bg/fg/solid`, radius, shadow) and are mirrored in
+  `styles/theme.css`. `tokens.drift.test.ts` fails if they disagree; `tokens.contrast.test.ts` fails if a text/background pair
+  drops below WCAG AA (4.5:1). Components use only the **semantic** names (`bg-surface`, `text-text-muted`, `bg-success-bg`),
+  never a ramp step or hex, so a retheme is a change in `tokens.ts` + `theme.css` and nothing else.
+- **Status** (`Badge`): `success` = approved/paid, `warning` = pending, `danger` = rejected/blocked, `accent` = info,
+  `neutral` = draft. The dot carries the colour for people who cannot rely on the tint.
+- **Components** in `components/ui`: Button, Input/Textarea, FormField, Select, Dialog, Tabs, DropdownMenu, Badge, Card,
+  StatTile, DataTable (sortable), Pagination, EmptyState, ErrorState, Skeleton, TopProgressBar, toast.
+- **`/design`** renders every token and component in every state. Development only (404s in a production build). Add a new
+  primitive there in the same change that adds it.
+
 ## Auth and session
 
 `POST /identity/auth/login` (employee code + password; the web sends a stable `deviceId` from localStorage and

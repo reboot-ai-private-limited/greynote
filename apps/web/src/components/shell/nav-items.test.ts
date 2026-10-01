@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { navFor } from './nav-items';
+import { navFor, navGroupsFor } from './nav-items';
 
 describe('navFor', () => {
   it('gives ADMIN the zones screen', () => {
@@ -15,5 +15,16 @@ describe('navFor', () => {
     const hrefs = navFor('ACCOUNTANT').map((i) => i.href);
     expect(hrefs).toContain('/payroll');
     expect(hrefs).not.toContain('/hr');
+  });
+});
+
+describe('navGroupsFor', () => {
+  it('groups items under their headings, in order, dropping empty groups', () => {
+    const groups = navGroupsFor('ACCOUNTANT');
+    expect(groups.map((g) => g.group)).toEqual(['Overview', 'People', 'Operations']);
+    expect(groups.find((g) => g.group === 'Operations')?.items.map((i) => i.href)).toEqual([
+      '/expenses',
+      '/payroll',
+    ]);
   });
 });

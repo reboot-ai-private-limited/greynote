@@ -1,8 +1,8 @@
 'use client';
 
 import * as RadixToast from '@radix-ui/react-toast';
+import { CircleAlert, CircleCheck } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
-import { cn } from './cn';
 
 interface ToastItem {
   id: number;
@@ -39,21 +39,24 @@ export function Toaster() {
   const current = useSyncExternalStore(subscribe, () => items, () => items);
   return (
     <RadixToast.Provider duration={5000}>
-      {current.map((t) => (
-        <RadixToast.Root
-          key={t.id}
-          onOpenChange={(open) => {
-            if (!open) emit(items.filter((i) => i.id !== t.id));
-          }}
-          className={cn(
-            'rounded-md border bg-surface p-3 text-sm shadow-lg',
-            t.tone === 'error' ? 'border-danger' : 'border-success',
-          )}
-        >
-          <RadixToast.Description>{t.message}</RadixToast.Description>
-          {t.requestId ? <p className="mt-1 text-xs text-text-subtle">Request ID: {t.requestId}</p> : null}
-        </RadixToast.Root>
-      ))}
+      {current.map((t) => {
+        const Icon = t.tone === 'error' ? CircleAlert : CircleCheck;
+        return (
+          <RadixToast.Root
+            key={t.id}
+            onOpenChange={(open) => {
+              if (!open) emit(items.filter((i) => i.id !== t.id));
+            }}
+            className="flex gap-3 rounded-lg border border-border bg-surface p-4 text-sm shadow-pop"
+          >
+            <Icon aria-hidden className={`mt-0.5 size-4 shrink-0 ${t.tone === 'error' ? 'text-danger' : 'text-success'}`} />
+            <div>
+              <RadixToast.Description className="text-text">{t.message}</RadixToast.Description>
+              {t.requestId ? <p className="mt-1 text-xs text-text-subtle">Request ID: {t.requestId}</p> : null}
+            </div>
+          </RadixToast.Root>
+        );
+      })}
       <RadixToast.Viewport className="fixed bottom-4 right-4 z-50 flex w-96 max-w-full flex-col gap-2" />
     </RadixToast.Provider>
   );

@@ -1,5 +1,6 @@
 'use client';
 
+import { CalendarRange } from 'lucide-react';
 import { useFinancialYear } from '@/lib/useFinancialYear';
 
 const YEARS_BACK = 5;
@@ -13,12 +14,13 @@ export function FinancialYearSwitcher() {
   const thisYear = new Date().getFullYear();
 
   return (
-    <label className="flex items-center gap-2 text-sm text-text-subtle">
-      Financial year
+    <label className="flex items-center gap-2 text-sm text-text-muted">
+      <CalendarRange aria-hidden className="size-4" />
+      <span>Financial year</span>
       <select
         value={year ?? ''}
         onChange={(e) => select(e.target.value === '' ? null : Number(e.target.value))}
-        className="h-8 rounded-md border border-border-strong bg-surface px-2 text-text"
+        className="h-8 rounded-md border border-border-strong bg-surface px-2 text-sm text-text focus-visible:shadow-focus focus-visible:outline-none"
       >
         <option value="">Current</option>
         {Array.from({ length: YEARS_BACK }, (_, i) => thisYear - 1 - i).map((y) => (

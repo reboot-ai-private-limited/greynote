@@ -17,11 +17,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         {year !== null ? (
-          <div role="status" className="bg-warning/10 px-6 py-2 text-sm text-warning">
+          <div role="status" className="border-b border-warning/30 bg-warning-bg px-8 py-2.5 text-sm text-warning-fg">
             Viewing financial year {year}–{String(year + 1).slice(2)}. This view is read-only.
           </div>
         ) : null}
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 px-8 py-8">{children}</main>
       </div>
     </div>
   );

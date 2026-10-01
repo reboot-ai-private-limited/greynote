@@ -1,16 +1,64 @@
 /* Mirrors styles/tokens.ts — keep them in step (tokens.drift.test.ts). Components use the
-   semantic names (bg-surface, text-text-subtle), never raw hex. */
+   SEMANTIC names (bg-surface, text-text-muted, bg-success-bg), never a ramp step or raw hex. */
 @theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+
+  /* Ramps */
+  --color-neutral-0: #ffffff;
+  --color-neutral-25: #fbfbfc;
+  --color-neutral-50: #f7f8fa;
+  --color-neutral-100: #f1f3f6;
+  --color-neutral-200: #e6e9ee;
+  --color-neutral-300: #d3d8e0;
+  --color-neutral-400: #a3abb9;
+  --color-neutral-500: #636d80;
+  --color-neutral-600: #515b6e;
+  --color-neutral-700: #3b4455;
+  --color-neutral-800: #252c39;
+  --color-neutral-900: #131822;
+  --color-accent-50: #f1f3ff;
+  --color-accent-100: #e4e8ff;
+  --color-accent-200: #cdd3ff;
+  --color-accent-300: #a9b2fb;
+  --color-accent-400: #818af5;
+  --color-accent-500: #5f66ea;
+  --color-accent-600: #4a4bd9;
+  --color-accent-700: #3d3cbd;
+  --color-accent-800: #34349a;
+  --color-accent-900: #2d2f7a;
+
+  /* Semantic */
+  --color-canvas: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-sunken: #f6f7f9;
-  --color-text: #16181d;
-  --color-text-subtle: #5b6270;
-  --color-border: #e3e6eb;
-  --color-border-strong: #c9ced6;
-  --color-accent: #3b4cca;
+  --color-surface-subtle: #f7f8fa;
+  --color-surface-hover: #f1f3f6;
+  --color-border: #e6e9ee;
+  --color-border-strong: #d3d8e0;
+  --color-text: #131822;
+  --color-text-muted: #515b6e;
+  --color-text-subtle: #636d80;
+  --color-accent: #4a4bd9;
+  --color-accent-hover: #3d3cbd;
+  --color-accent-soft: #f1f3ff;
+  --color-accent-soft-text: #3d3cbd;
   --color-accent-text: #ffffff;
-  --color-danger: #b42318;
-  --color-success: #157f3b;
-  --color-warning: #a15c07;
+  --color-focus: #818af5;
+
+  /* Status */
+  --color-success-bg: #ecf8f0;
+  --color-success-fg: #166534;
+  --color-success: #16a34a;
+  --color-warning-bg: #fff6e5;
+  --color-warning-fg: #8a4b05;
+  --color-warning: #d97706;
+  --color-danger-bg: #fdeeee;
+  --color-danger-fg: #a11d1d;
+  --color-danger: #dc2626;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-pop: 0 1px 2px rgb(19 24 34 / 0.06), 0 8px 24px rgb(19 24 34 / 0.12);
+  --shadow-focus: 0 0 0 3px rgb(129 138 245 / 0.35);
   --spacing-rail: 15rem;
 }

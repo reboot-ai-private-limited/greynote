@@ -444,6 +444,7 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   `web` compose service added. Typecheck, lint, 40 web tests and the full API suite (697) green; `next build` succeeds; CORS between
   :3001 and :3000 checked live; the web image builds and serves on :3001, and the API image still builds. **Not yet checked
   live:** a real login and the cookie round-trip (needs an Admin user in Atlas).
+  Design system pass done the same day (tokens, 15 components, `/design` style guide; see the decision log).
   Next: the remaining Territory levels, then master data, HR, approvals, expenses/payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5

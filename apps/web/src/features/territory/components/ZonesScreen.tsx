@@ -3,6 +3,7 @@
 import type { ZoneDto } from '@greynote/contracts';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
@@ -40,8 +41,8 @@ export function ZonesScreen() {
   return (
     <>
       <PageHeader title="Zones" description="Top of the territory hierarchy." />
-      <div className="rounded-lg border border-border bg-surface">
-        <div className="p-3">
+      <Card>
+        <div className="p-4">
           <Input
             placeholder="Search zones"
             aria-label="Search zones"
@@ -67,7 +68,7 @@ export function ZonesScreen() {
             />
           ) : null}
         </DataState>
-      </div>
+      </Card>
     </>
   );
 }

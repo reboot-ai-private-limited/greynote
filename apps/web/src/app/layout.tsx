@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Providers } from './providers';
+import '@fontsource-variable/inter';
 import './globals.css';
 
 export const metadata: Metadata = { title: 'Greynote', description: 'Greynote admin portal' };

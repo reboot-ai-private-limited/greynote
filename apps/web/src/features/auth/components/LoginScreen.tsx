@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/Button';
+import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { ApiError, NetworkError } from '@/lib/api/ApiError';
 import { useSession } from '@/lib/auth/SessionProvider';
@@ -36,26 +37,48 @@ export function LoginScreen() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-border bg-surface p-6">
-        <h1 className="text-xl font-semibold">Sign in to Greynote</h1>
-        <label htmlFor="employeeCode" className="block space-y-1 text-sm">
-          Employee code
-          <Input id="employeeCode" value={employeeCode} onChange={(e) => setEmployeeCode(e.target.value)} autoComplete="username" required />
-        </label>
-        <label htmlFor="password" className="block space-y-1 text-sm">
-          Password
-          <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
-        </label>
-        {error ? (
-          <p role="alert" className="text-sm text-danger">
-            {error}
+    <main className="grid min-h-screen lg:grid-cols-[1fr_1.1fr]">
+      <section className="hidden flex-col justify-between bg-accent-900 p-12 text-accent-50 lg:flex">
+        <div className="flex items-center gap-2.5">
+          <span aria-hidden className="grid size-9 place-items-center rounded-md bg-surface text-base font-bold text-accent-900">
+            G
+          </span>
+          <span className="text-xl font-semibold tracking-tight">Greynote</span>
+        </div>
+        <div>
+          <p className="max-w-sm text-3xl font-semibold leading-tight tracking-tight">
+            Field force, plans and payroll in one place.
           </p>
-        ) : null}
-        <Button type="submit" disabled={submitting} className="w-full">
-          {submitting ? 'Signing in…' : 'Sign in'}
-        </Button>
-      </form>
+          <p className="mt-3 max-w-sm text-sm text-accent-200">The Admin, HR and Accountant portal.</p>
+        </div>
+        <p className="text-xs text-accent-300">© Greynote</p>
+      </section>
+
+      <section className="grid place-items-center bg-surface p-6">
+        <form onSubmit={onSubmit} className="w-full max-w-sm space-y-5">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-text">Sign in</h1>
+            <p className="mt-1 text-sm text-text-muted">Use your employee code and password.</p>
+          </div>
+          <FormField label="Employee code" htmlFor="employeeCode">
+            <Input id="employeeCode" value={employeeCode} onChange={(e) => setEmployeeCode(e.target.value)} autoComplete="username" required />
+          </FormField>
+          <FormField label="Password" htmlFor="password" error={error ?? undefined}>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              aria-invalid={error ? true : undefined}
+              required
+            />
+          </FormField>
+          <Button type="submit" disabled={submitting} className="w-full">
+            {submitting ? 'Signing in…' : 'Sign in'}
+          </Button>
+        </form>
+      </section>
     </main>
   );
 }

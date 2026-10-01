@@ -17,6 +17,24 @@ old one.
 
 ---
 
+## 2026-10-01 — Web design system: white canvas, indigo accent, Inter, comfortable density
+
+**Decision:** The portal's look is a white canvas with hairline borders (no grey page background), one indigo accent
+(`accent-600`), Inter via `@fontsource-variable/inter`, and comfortable density (40px controls, 48px rows). Tokens are ramps →
+semantic names → status triples (`bg/fg/solid`) in `apps/web/src/styles/tokens.ts`, mirrored in `theme.css`; a drift test and
+a WCAG-AA contrast test guard them. Dark mode is deferred. A dev-only `/design` page is the living style guide.
+
+**Why:** the first scaffold's grey-page-white-card look was a placeholder, and a retheme costs more with every screen built on
+it. Semantic-only component classes make a later palette or dark-mode change a tokens edit. The contrast test already caught
+one failing pair (`text-subtle` on the tinted surface, 4.42:1) before any screen used it.
+
+**Rejected:** teal accent (collides with the "approved" green); compact density (HR and Accountant live in tables all day);
+Google-hosted font via `next/font` (needs network at build time); a `packages/design-system` (see the entry below).
+
+**Cost:** the accent hex is a placeholder until there is a brand colour; swapping it is one ramp in `tokens.ts` and `theme.css`.
+
+---
+
 ## 2026-10-01 — Web portal setup: cookie-mode refresh, no design-system package yet, web on :3001
 
 **Decision:** (1) The refresh token reaches a client by one of two routes, chosen by a request header. `X-Client: mobile`

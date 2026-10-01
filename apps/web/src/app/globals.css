@@ -2,6 +2,9 @@
 @import '../styles/theme.css';
 
 body {
-  background: var(--color-surface-sunken);
+  background: var(--color-canvas);
   color: var(--color-text);
+  font-family: var(--font-sans);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
 }
