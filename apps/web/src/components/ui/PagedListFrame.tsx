@@ -25,6 +25,7 @@ export function PagedListFrame<T extends { id: string }>({
   filters,
   query,
   columns,
+  emptyTitle,
   emptyDescription,
   onPageChange,
   children,
@@ -33,7 +34,8 @@ export function PagedListFrame<T extends { id: string }>({
   description: string;
   noun: string;
   readOnly: boolean;
-  onNew: () => void;
+  /** Omit for a list with nothing to create (the approvals queue): no "New" button is shown. */
+  onNew?: () => void;
   filters: ReactNode;
   query: {
     data: PaginatedDto<T> | undefined;
@@ -43,6 +45,8 @@ export function PagedListFrame<T extends { id: string }>({
     refetch: () => unknown;
   };
   columns: readonly Column<T>[];
+  /** Defaults to "No {noun}s". */
+  emptyTitle?: string;
   emptyDescription: string;
   onPageChange: (page: number) => void;
   /** Dialogs, rendered beside the table. */
@@ -54,13 +58,15 @@ export function PagedListFrame<T extends { id: string }>({
         title={title}
         description={description}
         actions={
-          <Button
-            onClick={onNew}
-            disabled={readOnly}
-            title={readOnly ? 'A past financial year is read-only' : undefined}
-          >
-            <Plus aria-hidden className="size-4" /> New {noun}
-          </Button>
+          onNew ? (
+            <Button
+              onClick={onNew}
+              disabled={readOnly}
+              title={readOnly ? 'A past financial year is read-only' : undefined}
+            >
+              <Plus aria-hidden className="size-4" /> New {noun}
+            </Button>
+          ) : null
         }
       />
       <Card>
@@ -70,7 +76,7 @@ export function PagedListFrame<T extends { id: string }>({
           isLoading={query.isLoading}
           error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
           isEmpty={query.data?.items.length === 0}
-          empty={{ title: `No ${noun}s`, description: emptyDescription }}
+          empty={{ title: emptyTitle ?? `No ${noun}s`, description: emptyDescription }}
         >
           <DataTable columns={columns} rows={query.data?.items ?? []} rowKey={(row) => row.id} />
           {query.data ? (

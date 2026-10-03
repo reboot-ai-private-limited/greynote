@@ -530,7 +530,11 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   labels, who a request is waiting on, the Admin-override warning, history grouped by cycle, Indian-time date ranges sent as offset
   instants, reasons, and bulk batching and result summaries. Planned: the `/approvals` queue with History, the detail page, bulk decide,
   then a read-only preview per kind (new doctor and leave first; then daily report, plans, doctor service, plan change).
-  Next: the `/approvals` screens; then HR, expenses/payroll — one module at a time.
+  **Approvals queue built (2026-10-03, `/approvals`):** *Waiting on you* (the inbox) and *History* (`/all`), filtered by kind, status (History),
+  and a submitted-from / to range sent as Indian-time offset instants; each row says who it is waiting on and opens its detail. HR sees leave
+  only. The nav item is live for Admin and HR. The shared list frame's "New" button became optional. Verified by typecheck, lint, 346 tests and
+  `next build`; **not yet exercised against the live API.**
+  Next: the request detail page (history, approve, reject, reopen), bulk decide, and the per-kind previews; then HR, expenses/payroll.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

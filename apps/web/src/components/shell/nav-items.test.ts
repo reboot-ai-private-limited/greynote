@@ -44,6 +44,15 @@ describe('Field master data', () => {
   });
 });
 
+describe('Approvals', () => {
+  it('is built, and shown to Admin and HR (HR decides leave), not the Accountant', () => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/approvals');
+    expect(navFor('HR').map((i) => i.href)).toContain('/approvals');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/approvals');
+    expect(isRouteBuilt('/approvals')).toBe(true);
+  });
+});
+
 describe('Devices', () => {
   it('is an Admin-only screen, since the device API is', () => {
     expect(navFor('ADMIN').map((i) => i.href)).toContain('/devices');
