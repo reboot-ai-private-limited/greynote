@@ -36,6 +36,7 @@ openApiRegistry.registerPath({
 });
 
 doc('/doctor-services', 'My Doctor Services with their approval status — Admin: everyone’s, optionally by userId / doctorId', { query: listServicesQuerySchema });
+doc('/doctor-services/{id}', 'One Doctor Service by its own id — what an approval request points at; Admin, or the MR it is tied to', { params: idParamsSchema });
 doc('/doctor-gifts', 'Gifts for my Doctors, pending and done — Admin: all', { query: listGiftsQuerySchema });
 doc('/expenses', 'Accountant: expenses whose report the manager accepted, unpaid first — a date range is required', { query: listExpensesQuerySchema });
 openApiRegistry.registerPath({
@@ -75,6 +76,7 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.get('/expenses', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listExpensesQuerySchema }), c.listExpenses);
   router.post('/expenses/:id/mark-paid', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: idParamsSchema }), c.markExpensePaid);
   router.get('/doctor-services', requireRole('FIELD', 'ADMIN'), validate({ query: listServicesQuerySchema }), c.listServices);
+  router.get('/doctor-services/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.getService);
   router.get('/doctor-gifts', requireRole('FIELD', 'ADMIN'), validate({ query: listGiftsQuerySchema }), c.listGifts);
   router.post('/admin/doctor-services', requireRole('ADMIN'), validate({ body: doctorServiceFieldsSchema }), c.createAdminService);
   router.post('/admin/doctor-gifts', requireRole('ADMIN'), validate({ body: allocateGiftBodySchema }), c.allocateGift);

@@ -3,7 +3,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { GateRefusal } from '../../domain/gateRefusal.js';
 import { LogRefusal } from '../../domain/logRefusal.js';
 import { faKit, Tx } from './faTestKit.js';
-import { ListDoctorServicesUseCase, ListGiftsUseCase } from './servicesAndGifts.usecase.js';
+import { GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase } from './servicesAndGifts.usecase.js';
 
 const REC = { userId: 'mr1', clientId: 'c-1', recordedAt: new Date('2026-10-05T04:00:00Z') };
 const svc = { doctorId: 'd1', serviceType: 'TOUR_PACKAGE' as const, amountPaise: 1_500_000, remarks: null };
@@ -59,6 +59,31 @@ describe('Doctor Services', () => {
     expect((await list.execute({ id: 'mr1', role: 'FIELD' }, { doctorId: 'zzz' })).length).toBe(0);
     // an MR cannot widen the list by naming someone else
     expect((await list.execute({ id: 'mr1', role: 'FIELD' }, { userId: 'mr2' })).every((s) => s.userId === 'mr1')).toBe(true);
+  });
+});
+
+describe('Doctor Service by id', () => {
+  let kit: ReturnType<typeof faKit>;
+  beforeEach(() => {
+    kit = faKit();
+  });
+
+  it('Admin reads any; an MR-made one carries the request’s status and id, an Admin-made one is APPROVED', async () => {
+    const { serverId } = await kit.submitService.execute(REC, svc, new Tx());
+    const adminMade = await kit.adminService.execute('admin', svc);
+    const get = new GetDoctorServiceUseCase(kit.services, kit.approvals, kit.fmd);
+    const mr = await get.execute({ id: 'admin', role: 'ADMIN' }, serverId);
+    expect(mr).toMatchObject({ origin: 'MR', status: 'SUBMITTED', doctorName: 'Dr Rao', userId: 'mr1', amountPaise: 1_500_000 });
+    expect(mr.approval).toMatchObject({ requestId: expect.any(String), cycle: 1 });
+    expect(await get.execute({ id: 'admin', role: 'ADMIN' }, adminMade.id)).toMatchObject({ origin: 'ADMIN', status: 'APPROVED', approval: null });
+  });
+
+  it('an MR reads only their own: someone else’s and an unknown id are the same 404', async () => {
+    const { serverId } = await kit.submitService.execute(REC, svc, new Tx());
+    const get = new GetDoctorServiceUseCase(kit.services, kit.approvals, kit.fmd);
+    expect((await get.execute({ id: 'mr1', role: 'FIELD' }, serverId)).id).toBe(serverId);
+    expect(((await refusal(get.execute({ id: 'mr2', role: 'FIELD' }, serverId))) as AppError).statusCode).toBe(404);
+    expect(((await refusal(get.execute({ id: 'admin', role: 'ADMIN' }, 'nope'))) as AppError).statusCode).toBe(404);
   });
 });
 

@@ -50,6 +50,7 @@ doc('get', '/daily/{id}', 'One daily plan — owner, their managers (read-only),
 doc('post', '/daily/{id}/submit', 'Submit my plan for approval — refused after the deadline without a late-submission exception', { params: planIdParamsSchema });
 doc('post', '/daily/{id}/changes', 'Ask to change my approved plan for today — goes to my manager; the plan stays approved until they say yes', { params: planIdParamsSchema, body: requestDailyPlanChangeBodySchema });
 doc('get', '/daily/{id}/changes', 'A plan’s in-day changes, with their approval status — owner, their managers (read-only), Admin', { params: planIdParamsSchema });
+doc('get', '/changes/{id}', 'One in-day change by its own id — what an approval request points at; owner, their managers (read-only), Admin', { params: planIdParamsSchema });
 doc('post', '/monthly', 'Save my plan for a month — every day at once (draft)', { body: saveMonthlyPlanBodySchema });
 doc('get', '/monthly', 'My monthly plans between two months, with status and submit deadline', { query: monthRangeQuerySchema });
 doc('get', '/monthly/{id}', 'One monthly plan — owner, their managers (read-only), Admin', { params: planIdParamsSchema });
@@ -69,6 +70,8 @@ export function buildPlanningRouter(c: PlanningHandlers): Router {
 
   router.post('/daily/:id/changes', requireRole('FIELD'), validate({ params: planIdParamsSchema, body: requestDailyPlanChangeBodySchema }), c.requestChange);
   router.get('/daily/:id/changes', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.listChanges);
+
+  router.get('/changes/:id', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.getChange);
 
   router.post('/monthly', requireRole('FIELD'), validate({ body: saveMonthlyPlanBodySchema }), c.saveMonthly);
   router.get('/monthly', requireRole('FIELD'), scopeToFinancialYear({ kind: 'month', from: 'from', to: 'to', fill: true }), validate({ query: listMonthlyPlansQuerySchema }), c.listMonthly);

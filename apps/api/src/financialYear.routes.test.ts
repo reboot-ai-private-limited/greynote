@@ -48,6 +48,8 @@ const SCOPED = [
 const BY_ID = [
   '/api/field-activity/dcr/:id',
   '/api/planning/daily/:id',
+  '/api/planning/changes/:id',
+  '/api/field-activity/doctor-services/:id',
   '/api/planning/daily/:id/changes',
   '/api/planning/monthly/:id',
   '/api/hr/leaves/:id',

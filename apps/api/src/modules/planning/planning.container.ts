@@ -10,7 +10,7 @@ import { GetDailyPlanUseCase } from './application/usecases/getDailyPlan.usecase
 import { GetMonthlyPlanUseCase } from './application/usecases/getMonthlyPlan.usecase.js';
 import { GrantLateSubmitUseCase } from './application/usecases/grantLateSubmit.usecase.js';
 import { GetPlanStatusUseCase } from './application/usecases/getPlanStatus.usecase.js';
-import { ListDailyPlanChangesUseCase } from './application/usecases/listDailyPlanChanges.usecase.js';
+import { GetDailyPlanChangeUseCase, ListDailyPlanChangesUseCase } from './application/usecases/listDailyPlanChanges.usecase.js';
 import { ListDailyPlansUseCase } from './application/usecases/listDailyPlans.usecase.js';
 import { ListLateSubmitGrantsUseCase } from './application/usecases/listLateSubmitGrants.usecase.js';
 import { ListMonthlyPlansUseCase } from './application/usecases/listMonthlyPlans.usecase.js';
@@ -87,6 +87,7 @@ export function buildPlanningContainer(
   sync.registerSource(makePlanningSource({ deadlines, daily: listDaily, monthly: listMonthly }));
   const requestChange = new RequestDailyPlanChangeUseCase(dailyPlans, dailyPlanChanges, approvals, users, submitter, deadlines, transactions);
   const listChanges = new ListDailyPlanChangesUseCase(dailyPlans, dailyPlanChanges, approvals, users);
+  const getChange = new GetDailyPlanChangeUseCase(dailyPlanChanges, approvals, users);
 
   return {
     contract: {
@@ -111,6 +112,7 @@ export function buildPlanningContainer(
           revokeLate,
           requestChange,
           listChanges,
+          getChange,
         }),
       ),
   };

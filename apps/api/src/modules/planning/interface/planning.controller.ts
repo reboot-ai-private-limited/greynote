@@ -11,7 +11,7 @@ import type { GrantLateSubmitUseCase } from '../application/usecases/grantLateSu
 import type { ListDailyPlansUseCase } from '../application/usecases/listDailyPlans.usecase.js';
 import type { ListLateSubmitGrantsUseCase } from '../application/usecases/listLateSubmitGrants.usecase.js';
 import type { ListMonthlyPlansUseCase } from '../application/usecases/listMonthlyPlans.usecase.js';
-import type { ListDailyPlanChangesUseCase } from '../application/usecases/listDailyPlanChanges.usecase.js';
+import type { GetDailyPlanChangeUseCase, ListDailyPlanChangesUseCase } from '../application/usecases/listDailyPlanChanges.usecase.js';
 import type { RequestDailyPlanChangeUseCase } from '../application/usecases/requestDailyPlanChange.usecase.js';
 import type { RevokeLateSubmitUseCase } from '../application/usecases/revokeLateSubmit.usecase.js';
 import type { SaveDailyPlanUseCase } from '../application/usecases/saveDailyPlan.usecase.js';
@@ -53,13 +53,15 @@ export type PlanningHandlers = Record<
   | 'listLateGrants'
   | 'revokeLate'
   | 'requestChange'
-  | 'listChanges',
+  | 'listChanges'
+  | 'getChange',
   RequestHandler
 >;
 
 export function makePlanningControllers(useCases: {
   requestChange: RequestDailyPlanChangeUseCase;
   listChanges: ListDailyPlanChangesUseCase;
+  getChange: GetDailyPlanChangeUseCase;
   saveDaily: SaveDailyPlanUseCase;
   listDaily: ListDailyPlansUseCase;
   getDaily: GetDailyPlanUseCase;
@@ -124,6 +126,10 @@ export function makePlanningControllers(useCases: {
     listChanges: asyncHandler(async (req, res) => {
       const changes = await useCases.listChanges.execute(actorOf(req), requiredParam(req.params, 'id'));
       sendSuccess(req, res, changes, 'Changes to this plan.', 200);
+    }),
+    getChange: asyncHandler(async (req, res) => {
+      const change = await useCases.getChange.execute(actorOf(req), requiredParam(req.params, 'id'));
+      sendSuccess(req, res, change, 'Plan change.', 200);
     }),
     revokeLate: asyncHandler(async (req, res) => {
       const grant = await useCases.revokeLate.execute(actorOf(req), requiredParam(req.params, 'id'));

@@ -6,7 +6,7 @@ import type { ApprovalKindDefinition } from '@/modules/approval/approval.public.
 import type { DailyPlanChange } from '../../domain/dailyPlanChange.entity.js';
 import { OpenChangeExistsError, type DailyPlanChangeRepositoryPort } from '../../domain/dailyPlanChange.repository.port.js';
 import { makeDailyPlanChangeHandler } from '../dailyPlanChangeHandler.js';
-import { ListDailyPlanChangesUseCase } from './listDailyPlanChanges.usecase.js';
+import { GetDailyPlanChangeUseCase, ListDailyPlanChangesUseCase } from './listDailyPlanChanges.usecase.js';
 import { RequestDailyPlanChangeUseCase } from './requestDailyPlanChange.usecase.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { DailyPlan } from '../../domain/dailyPlan.entity.js';
@@ -346,5 +346,6 @@ export function planningKit(clock: Clock) {
   });
   const requestChange = new RequestDailyPlanChangeUseCase(dailyPlans, changes, approvals, users, submitter, deadlines, inlineTransactions);
   const listChanges = new ListDailyPlanChangesUseCase(dailyPlans, changes, approvals, users);
-  return { users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, changes, requestChange, listChanges };
+  const getChange = new GetDailyPlanChangeUseCase(changes, approvals, users);
+  return { users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, changes, requestChange, listChanges, getChange };
 }

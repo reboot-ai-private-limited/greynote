@@ -190,6 +190,8 @@ employee's change goes to Admin. These are working assumptions (sign-off B9), no
   withdrawn ones don't count.
 - **Reading:** `GET /planning/daily/:id/changes` — newest first, each with `previous`, `proposed`,
   `reason`, and its approval status — for the owner, their managers (read-only) and Admin.
+  `GET /planning/changes/:id` reads one change by its own id, which is what an approval request's
+  `recordId` points at; same readers.
 - What happens to field activity already logged against the old plan is Field Activity's call
   (Phase 6), as with any reopen.
 
@@ -205,6 +207,7 @@ employee's change goes to Admin. These are working assumptions (sign-off B9), no
 | `POST` | `/planning/monthly/:id/submit` | FIELD | Submit the whole month |
 | `POST` | `/planning/daily/:id/changes` | FIELD (owner) | Ask to change today's approved plan — to the manager, with a reason |
 | `GET` | `/planning/daily/:id/changes` | FIELD (owner, managers), ADMIN | A plan's in-day changes with their approval status |
+| `GET` | `/planning/changes/:id` | FIELD (owner, managers), ADMIN | One change by its own id (an approval request's `recordId`) |
 | `GET` | `/planning/monthly` | FIELD | List own Monthly Plans (month range) |
 | `GET` | `/planning/monthly/:id` | FIELD, manager (read-only), Admin | Fetch one |
 | `POST` | `/planning/late-grants` | ADMIN; FIELD manager while `LATE_PLAN_GRANT_BY_MANAGER` is on | Grant a late-submission exception |

@@ -279,6 +279,7 @@ what needs a live connection or a role other than the MR's, all under `/api/fiel
 | `POST` | `/admin/doctor-services` | ADMIN | An Admin-created Doctor Service, effective at once |
 | `POST` | `/admin/doctor-gifts` | ADMIN | Allocate a Gift to a Doctor |
 | `GET` | `/doctor-services`, `/doctor-gifts` | FIELD (own), ADMIN | Lists |
+| `GET` | `/doctor-services/:id` | FIELD, ADMIN | One Doctor Service by its own id (what an approval request's `recordId` points at). Admin reads any; an MR only their own, and anyone else gets the same `404` as an unknown id |
 | `GET` | `/expenses` | ACCOUNTANT, ADMIN | The audit list: manager-approved expenses, unpaid first |
 | `POST` | `/expenses/:id/mark-paid` | ACCOUNTANT, ADMIN | The settlement step, independent of the DCR's approval |
 

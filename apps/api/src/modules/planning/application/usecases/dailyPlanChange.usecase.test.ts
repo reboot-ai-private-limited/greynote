@@ -196,4 +196,24 @@ describe('In-day change to an approved Daily Plan', () => {
     await expectError(kit.listChanges.execute({ id: OTHER, role: 'FIELD' }, planId), 403);
     await expectError(kit.listChanges.execute({ id: MR, role: 'FIELD' }, 'nope'), 404);
   });
+
+  it('reads one change by its own id, which is what an approval request points at — owner, manager, Admin; nobody else', async () => {
+    const a = await ask();
+    kit.users.add('admin', { role: 'ADMIN' });
+    const asOwner = await kit.getChange.execute({ id: MR, role: 'FIELD' }, a.id);
+    expect(asOwner).toMatchObject({ id: a.id, planId, status: 'SUBMITTED', reason: 'Doctor is out today' });
+    expect(asOwner.previous).toBeDefined();
+    expect(asOwner.proposed).toBeDefined();
+    expect(asOwner.approval).toMatchObject({ requestId: expect.any(String), cycle: 1 });
+    expect((await kit.getChange.execute({ id: ASM, role: 'FIELD' }, a.id)).id).toBe(a.id);
+    expect((await kit.getChange.execute({ id: 'admin', role: 'ADMIN' }, a.id)).id).toBe(a.id);
+    await expectError(kit.getChange.execute({ id: OTHER, role: 'FIELD' }, a.id), 403);
+    await expectError(kit.getChange.execute({ id: MR, role: 'FIELD' }, 'nope'), 404);
+  });
+
+  it('a decided change reads with its decided status', async () => {
+    const a = await ask();
+    await decide(a.id, 'APPROVED');
+    expect((await kit.getChange.execute({ id: MR, role: 'FIELD' }, a.id)).status).toBe('APPROVED');
+  });
 });

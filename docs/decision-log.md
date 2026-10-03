@@ -17,6 +17,19 @@ old one.
 
 ---
 
+## 2026-10-03 — A plan change and a doctor service can be read by their own id
+
+**Decision:** two read endpoints, `GET /planning/changes/:id` and `GET /field-activity/doctor-services/:id`, with the same readers as
+their siblings (the owner, their managers and Admin for a change; Admin or the tied MR for a service; anyone else a `404`).
+
+**Why:** found while planning the approval previews. An approval request points at the record it is about by its own id, but a plan
+change could only be read through its plan's id and a doctor service only through a filtered list. The portal could not show
+Admin what a request was asking for.
+
+**Cost:** two more GET routes, classified in the Financial Year route guard as by-id. No change to existing callers.
+
+---
+
 ## 2026-10-03 — Admin and HR can list decided approval requests: `GET /approvals/all`
 
 **Decision:** a new `GET /approvals/all` (HR, Admin) returns requests in any status, newest first, with the inbox's filters and row shape.
