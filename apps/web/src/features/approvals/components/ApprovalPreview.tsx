@@ -1,6 +1,7 @@
 import type { ApprovalDetailDto } from '@greynote/contracts';
 import { Card } from '@/components/ui/Card';
 import { kindLabel } from '../lib/approvals';
+import { DcrPreview } from './DcrPreview';
 import { DoctorPreview } from './DoctorPreview';
 import { LeavePreview } from './LeavePreview';
 
@@ -12,6 +13,8 @@ export function ApprovalPreview({ request }: { request: ApprovalDetailDto }) {
   switch (request.kind) {
     case 'NEW_DOCTOR':
       return <DoctorPreview recordId={request.recordId} />;
+    case 'DCR':
+      return <DcrPreview recordId={request.recordId} />;
     case 'LEAVE':
       return <LeavePreview recordId={request.recordId} />;
     default:

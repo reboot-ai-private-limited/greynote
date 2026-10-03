@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { fieldActivityApi } from '@/lib/api/endpoints/fieldActivity';
 import { hrApi } from '@/lib/api/endpoints/hr';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
@@ -24,6 +25,17 @@ export function useLeaveBalances(userId: string | undefined, year: number | unde
       fetch: (token, signal) => hrApi.balances(token, userId ?? '', year, signal),
       staleTime: staleTime.live,
       enabled: Boolean(userId) && year !== undefined,
+    }),
+  );
+}
+
+/** The daily report under review, with every call, follow-up and expense. */
+export function useDcr(id: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.dcr.detail(id),
+      fetch: (token, signal) => fieldActivityApi.dcr(token, id, signal),
+      staleTime: staleTime.live,
     }),
   );
 }

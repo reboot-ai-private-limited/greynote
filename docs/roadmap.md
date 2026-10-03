@@ -556,7 +556,13 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   check found, which calls are flagged and not yet accepted, who may accept one, expense grouping and totals, the "TA and DA are
   calculated when the manager approves" note, a plan-change diff and a stale-change check. Planned: the daily report preview, then the
   geofence override, then plans, doctor service and plan change.
-  Next: the daily report preview and the geofence override; then plans, doctor service and plan change; then HR, expenses/payroll.
+  **Daily report preview built (2026-10-03):** the day at a glance, each doctor and chemist call with the server's location check (within range, out of range
+  with the distance, could not verify with why, or accepted with the reason), samples given, who they worked with and remarks, the follow-ups,
+  and the expenses split into the server's TA and DA and the MR's claims with a total. A flagged call is highlighted and counted in a
+  notice; while the report is with the manager it says TA and DA are calculated when the manager approves; a travel allowance whose
+  distance could not be calculated is called out. Read-only so far. Verified by typecheck, lint, 390 tests and `next build`; **not yet
+  exercised against the live API.**
+  Next: the geofence override; then plans, doctor service and plan change; then HR, expenses/payroll.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.
