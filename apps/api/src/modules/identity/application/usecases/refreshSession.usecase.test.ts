@@ -66,7 +66,8 @@ class FakeUserSessionRepository
   }
 }
 
-const userRepository: Pick<UserRepositoryPort, 'findById'> = { findById: async () => USER };
+let currentUser: User = USER;
+const userRepository: Pick<UserRepositoryPort, 'findById'> = { findById: async () => currentUser };
 const roleRepository: Pick<RoleRepositoryPort, 'findById'> = { findById: async () => ROLE };
 const accessTokenSigner: AccessTokenSignerPort = { sign: () => 'new-jwt' };
 const refreshTokenGenerator: RefreshTokenGeneratorPort = {
@@ -115,6 +116,22 @@ describe('RefreshSessionUseCase', () => {
     const useCase = buildUseCase(sessions);
     await expect(useCase.execute('raw-token')).rejects.toMatchObject({ statusCode: 401 });
     expect(sessions.revokedAllFor).toHaveLength(0);
+  });
+
+  it('refuses to refresh a deactivated account, ends every session, and issues nothing', async () => {
+    currentUser = { ...USER, status: 'inactive' };
+    try {
+      const sessions = new FakeUserSessionRepository(makeSession());
+      await expect(buildUseCase(sessions).execute('raw-token')).rejects.toMatchObject({
+        statusCode: 401,
+        message: 'This account has been deactivated. Contact your administrator.',
+      });
+      expect(sessions.revokedAllFor).toEqual([{ userId: USER.id, reason: 'ADMIN' }]);
+      expect(sessions.created).toHaveLength(0);
+      expect(sessions.revoked).toHaveLength(0);
+    } finally {
+      currentUser = USER;
+    }
   });
 
   it('rotates a valid session: revokes the old row and issues a new pair for the same device', async () => {

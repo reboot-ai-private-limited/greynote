@@ -17,6 +17,22 @@ old one.
 
 ---
 
+## 2026-10-03 — A deactivated account can't sign in, and deactivating signs the employee out
+
+**Decision:** an account with `status: inactive` is refused at login (`403`, after the password check so existence is not
+revealed, and before the device registry so no phone request is created) and at refresh (`401`, ending the user's sessions).
+Setting `status: inactive` through `PATCH /identity/users/:id` revokes every session of that employee at that moment, once, on
+the transition only.
+
+**Why:** found while building the Security tab. "Deactivate" only changed a field: nothing read it at login, so an offboarded
+employee could keep signing in and submitting. `status` is sticky by design and no endpoint reactivates, so this is
+effectively offboarding; it has to cut access.
+
+**Cost:** an access token already issued stays valid until it expires, up to 15 minutes, because the auth middleware verifies the
+token and does not read the database. Reactivation does not exist; it would be a deliberate new endpoint.
+
+---
+
 ## 2026-10-03 — A manager can't create a reporting loop; optional profile fields can be cleared
 
 **Decision:** (1) `PATCH /identity/users/:id` refuses a `managerId` that is the employee or that already reports to them,

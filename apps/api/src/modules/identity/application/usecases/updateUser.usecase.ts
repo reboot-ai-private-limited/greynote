@@ -8,6 +8,7 @@ import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
 import type { User, UserSummary } from '../../domain/user.entity.js';
 import { toUserSummary } from '../../domain/user.entity.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
+import type { UserSessionRepositoryPort } from '../../domain/userSession.repository.port.js';
 
 /**
  * Every section optional — this is the incremental-onboarding PATCH (decision 13), and now the
@@ -20,7 +21,8 @@ import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
  * cleared, since clearing one would silently demote an active employee to `pending`.
  * A manager is refused if it would make an employee report to themselves, directly or through
  * the chain — the approval routing walks that chain upward and must reach the top.
- * `status: 'inactive'` may be set explicitly (deactivation/offboarding) — once set, it's sticky:
+ * `status: 'inactive'` may be set explicitly (deactivation/offboarding): it ends every session, login and
+ * refresh then refuse the account, and — once set, it's sticky:
  * `computeUserStatus` never upgrades an `inactive` user back to `active`/`pending` as a side
  * effect of a later onboarding PATCH.
  */
@@ -56,6 +58,7 @@ export class UpdateUserUseCase {
     private readonly designationRepository: DesignationRepositoryPort,
     private readonly payBandRepository: PayBandRepositoryPort,
     private readonly employeeProfileRepository: EmployeeProfileRepositoryPort,
+    private readonly userSessionRepository: UserSessionRepositoryPort,
   ) {}
 
   async execute(targetUserId: string, input: UpdateUserInput): Promise<UserSummary> {
@@ -119,6 +122,12 @@ export class UpdateUserUseCase {
     if (input.basicDetails?.name !== undefined) userPatch.name = input.basicDetails.name;
 
     const updated = await this.userRepository.update(targetUserId, userPatch);
+
+    // Deactivation signs the employee out everywhere. Login and refresh already refuse an inactive
+    // account, so a failure here leaves nothing usable: this is clean-up, run only on the change.
+    if (input.status === 'inactive' && existing.status !== 'inactive') {
+      await this.userSessionRepository.revokeAllForUser(targetUserId, 'ADMIN');
+    }
 
     return toUserSummary(updated, role.name, touchesProfile ? mergedProfile : existingProfile);
   }

@@ -90,6 +90,12 @@ same shape as `health.public.ts`, just with real methods:
   fields `computeUserStatus` needs (name, mobile, date of birth, address, designation, pay band,
   manager, bank details) can be changed but not cleared, since clearing one would quietly demote an
   active employee to `pending`. Bank `branchName` clears by sending the whole bank object without it.
+- **A deactivated account cannot sign in.** `status: inactive` (set through the onboarding `PATCH`, and
+  never reversed by it) ends every session of the employee at that moment. Login, after the password
+  check and before the device registry, and refresh both refuse an inactive account (`403` on login,
+  `401` on refresh, "This account has been deactivated"). An access token already issued stays valid
+  until it expires (`JWT_ACCESS_TOKEN_TTL_SECONDS`, 15 minutes), because the middleware reads the
+  token only.
 - **One auth mechanism for every role**: `employee_code` + `password_hash`, web and mobile alike.
   No OTP for now — the client confirmed password login (`client-sign-off.md` A1).
 - **Every new phone a field employee uses needs Admin approval, including the first**

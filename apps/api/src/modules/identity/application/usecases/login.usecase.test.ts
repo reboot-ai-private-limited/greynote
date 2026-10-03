@@ -163,6 +163,25 @@ describe('LoginUseCase — credentials', () => {
     expect(devices.lookups).toBe(0);
   });
 
+  it('refuses a deactivated account with the right password, before any device lookup or session', async () => {
+    const { useCase, devices, sessions } = build({ user: makeUser({ status: 'inactive' }) });
+    await expect(useCase.execute(loginInput)).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'This account has been deactivated. Contact your administrator.',
+    });
+    expect(devices.lookups).toBe(0);
+    expect(devices.pendingCreated).toEqual([]);
+    expect(sessions.created).toHaveLength(0);
+  });
+
+  it('does not reveal that a deactivated account exists to someone with the wrong password', async () => {
+    const { useCase } = build({ user: makeUser({ status: 'inactive' }) });
+    await expect(useCase.execute({ ...loginInput, password: 'wrong' })).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'Invalid employee code or password.',
+    });
+  });
+
   it('succeeds for a blocked user — the compliance block gates submissions, not authentication', async () => {
     const { useCase } = build({ user: makeUser({ isBlocked: true }) });
     await expect(useCase.execute(loginInput)).resolves.toMatchObject({ accessToken: 'signed-jwt' });

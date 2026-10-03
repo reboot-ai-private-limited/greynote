@@ -161,6 +161,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     designationRepository,
     payBandRepository,
     employeeProfileRepository,
+    userSessionRepository,
   );
   const listUsers = new ListUsersUseCase(userRepository, roleRepository, employeeProfileRepository);
   const uploadUserDocument = new UploadUserDocumentUseCase(userRepository, employeeProfileRepository, documentStorage);

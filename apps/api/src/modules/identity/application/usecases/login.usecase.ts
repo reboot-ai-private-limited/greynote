@@ -10,6 +10,9 @@ import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
 import type { Platform } from '../../domain/userSession.entity.js';
 import type { UserSessionRepositoryPort } from '../../domain/userSession.repository.port.js';
 
+/** Shown on sign-in and refresh for an account that has been deactivated (offboarded). */
+export const DEACTIVATED_MESSAGE = 'This account has been deactivated. Contact your administrator.';
+
 export interface LoginInput {
   employeeCode: string;
   password: string;
@@ -50,6 +53,10 @@ export class LoginUseCase {
 
     const passwordValid = await this.passwordHasher.verify(input.password, user.passwordHash);
     if (!passwordValid) throw invalidCredentials();
+
+    // Only after the password check, so the account's existence is not revealed to a guesser; and
+    // before the device registry, so a deactivated employee's phone never creates a request.
+    if (user.status === 'inactive') throw AppError.forbidden(DEACTIVATED_MESSAGE);
 
     const role = await this.roleRepository.findById(user.roleId);
     if (!role) throw AppError.internal('INTERNAL', { reason: 'ROLE_NOT_FOUND', roleId: user.roleId });

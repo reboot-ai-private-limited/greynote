@@ -4,6 +4,7 @@ import type { RefreshTokenGeneratorPort } from '../../domain/refreshTokenGenerat
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
 import type { UserSessionRepositoryPort } from '../../domain/userSession.repository.port.js';
+import { DEACTIVATED_MESSAGE } from './login.usecase.js';
 
 export interface RefreshSessionOutput {
   accessToken: string;
@@ -44,6 +45,12 @@ export class RefreshSessionUseCase {
 
     const user = await this.userRepository.findById(session.userId);
     if (!user) throw AppError.internal('INTERNAL', { reason: 'SESSION_USER_NOT_FOUND', userId: session.userId });
+    if (user.status === 'inactive') {
+      // Deactivation ends sessions when it happens; this catches any that slipped through (an
+      // account deactivated before that was added) and stops the refresh chain for good.
+      await this.userSessionRepository.revokeAllForUser(user.id, 'ADMIN');
+      throw AppError.unauthenticated(DEACTIVATED_MESSAGE);
+    }
     const role = await this.roleRepository.findById(user.roleId);
     if (!role) throw AppError.internal('INTERNAL', { reason: 'ROLE_NOT_FOUND', roleId: user.roleId });
 
