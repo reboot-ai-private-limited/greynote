@@ -15,3 +15,4 @@ export * from './hr.js';
 export * from './fieldActivity.js';
 export * from './payroll.js';
 export * from './sales.js';
+export * from './fieldMasterData.js';

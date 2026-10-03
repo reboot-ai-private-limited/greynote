@@ -37,6 +37,26 @@ export const keys = {
     detail: (id: string) => [...keys.routes.all(), 'detail', id] as const,
     assignments: (id: string, includeHistory: boolean) => [...keys.routes.all(), 'assignments', id, includeHistory] as const,
   },
+  products: {
+    all: () => ['products', fy()] as const,
+    list: (query?: object) => [...keys.products.all(), 'list', query ?? {}] as const,
+  },
+  chemists: {
+    all: () => ['chemists', fy()] as const,
+    list: (query?: object) => [...keys.chemists.all(), 'list', query ?? {}] as const,
+  },
+  distributors: {
+    all: () => ['distributors', fy()] as const,
+    list: (query?: object) => [...keys.distributors.all(), 'list', query ?? {}] as const,
+    detail: (id: string) => [...keys.distributors.all(), 'detail', id] as const,
+  },
+  doctors: {
+    all: () => ['doctors', fy()] as const,
+    list: (query?: object) => [...keys.doctors.all(), 'list', query ?? {}] as const,
+    detail: (id: string) => [...keys.doctors.all(), 'detail', id] as const,
+    assignments: (id: string) => [...keys.doctors.all(), 'assignments', id] as const,
+    samples: (id: string) => [...keys.doctors.all(), 'samples', id] as const,
+  },
   places: { search: (q: string) => ['places', 'search', q] as const },
   fieldEmployees: { search: (q: string) => ['users', fy(), 'field', q] as const },
   zones: {

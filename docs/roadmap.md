@@ -489,7 +489,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   (decision-log 2026-10-03): it only changed a field, so a deactivated employee could still sign in. Login and refresh now refuse an
   inactive account and deactivating ends the sessions. There is still no reactivate endpoint. Verified by typecheck, lint, 248 tests and
   `next build`; **not yet exercised against the live API.** **Employees is complete in the web portal.**
-  Next: master data (Doctors, Chemists, Distributors, Products), then HR, approvals, expenses/payroll — one module at a time.
+  **Field master data started (2026-10-03):** the shared wire types (`packages/contracts/src/fieldMasterData.ts`), the API calls and the
+  query keys for Products, Chemists, Distributors, Doctors, Doctor assignments and sample allocations are in place. Admin only, as the
+  API is. Planned order: Products, the shared map-point / Route pickers, Chemists, Distributors, Doctors (list, create, edit, detail),
+  assignments and samples, then a banner on a pending Doctor. A pending (MR-added) Doctor is shown on the Doctors screen, but approving
+  or rejecting it is the Approvals page's job. Doctor Gifts belong to Field Activity, not here.
+  Next: Products, then the rest of the order above; then Approvals, HR, expenses/payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.
