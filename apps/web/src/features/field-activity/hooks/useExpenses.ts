@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { fieldActivityApi } from '@/lib/api/endpoints/fieldActivity';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
+import { useApiMutation } from '@/lib/query/mutation';
+import { markRowsPaid, type MarkPaidResult } from '../lib/expenses';
 
 export interface ExpenseAuditQuery {
   from: string;
@@ -24,4 +26,16 @@ export function useExpenseAudit(query: ExpenseAuditQuery, enabled: boolean) {
       enabled,
     }),
   );
+}
+
+/**
+ * Marks each row paid, one request each. It never throws on a refused row: the caller gets which were paid and which were not,
+ * with the server's message, and the list refetches either way.
+ */
+export function useMarkPaid(onResult: (result: MarkPaidResult) => void) {
+  return useApiMutation<string[], MarkPaidResult>({
+    call: (token, ids) => markRowsPaid((id) => fieldActivityApi.markPaid(token, id), ids),
+    invalidates: [keys.expenses.all()],
+    onSuccess: onResult,
+  });
 }

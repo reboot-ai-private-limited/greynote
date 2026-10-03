@@ -2,6 +2,7 @@
 
 import type { ExpenseAuditRowDto, ExpensePaymentStatus } from '@greynote/contracts';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -19,6 +20,7 @@ import { istDate } from '@/lib/dates';
 import { monthToDate, rangeError } from '@/lib/dateRange';
 import { formatDate, formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
+import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useExpenseAudit } from '../hooks/useExpenses';
 import {
   EXPENSE_TYPE_LABEL,
@@ -29,7 +31,10 @@ import {
   expensesFilename,
   flaggedRows,
   isCapped,
+  payableRows,
+  sumPaise,
 } from '../lib/expenses';
+import { MarkPaidDialog } from './MarkPaidDialog';
 
 type StatusFilter = ExpensePaymentStatus | 'all';
 const STATUS_OPTIONS = [
@@ -49,6 +54,7 @@ export function ExpensesScreen() {
   const to = values.to || defaults.to;
   const status: StatusFilter = values.status === 'PAID' || values.status === 'all' ? values.status : 'UNPAID';
   const range = rangeError(from, to);
+  const readOnly = useIsReadOnly();
 
   const query = useExpenseAudit(
     { from, to, ...(values.userId && { userId: values.userId }), ...(status !== 'all' && { paymentStatus: status }) },
@@ -58,7 +64,39 @@ export function ExpensesScreen() {
   const totals = auditTotals(rows);
   const flagged = flaggedRows(rows).filter((r) => r.paymentStatus === 'UNPAID');
 
+  // Selection: only rows that can be paid, and only the ones in front of the person. It clears when the filters change.
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [paying, setPaying] = useState<ExpenseAuditRowDto[] | null>(null);
+  const filterKey = `${from}|${to}|${values.userId}|${status}`;
+  useEffect(() => setSelected(new Set()), [filterKey]);
+  const payable = payableRows(rows);
+  const chosen = payable.filter((r) => selected.has(r.id));
+  const allChosen = payable.length > 0 && chosen.length === payable.length;
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   const columns: readonly Column<ExpenseAuditRowDto>[] = [
+    {
+      key: 'select',
+      header: '',
+      className: 'w-10',
+      render: (r) =>
+        r.paymentStatus === 'UNPAID' ? (
+          <input
+            type="checkbox"
+            checked={selected.has(r.id)}
+            onChange={() => toggle(r.id)}
+            disabled={readOnly}
+            aria-label={`Select ${EXPENSE_TYPE_LABEL[r.type]} for ${r.userName}`}
+            className="size-4 rounded border-border-strong accent-[var(--color-accent)]"
+          />
+        ) : null,
+    },
     {
       key: 'employee',
       header: 'Employee',
@@ -96,6 +134,17 @@ export function ExpensesScreen() {
           {r.paidAt ? <div className="mt-1 text-xs text-text-subtle">{formatDate(r.paidAt)}</div> : null}
         </div>
       ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-28 text-right',
+      render: (r) =>
+        r.paymentStatus === 'UNPAID' ? (
+          <Button size="sm" variant="secondary" disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setPaying([r])}>
+            Mark paid
+          </Button>
+        ) : null,
     },
   ];
 
@@ -146,6 +195,21 @@ export function ExpensesScreen() {
             </p>
           ) : null}
         </div>
+        {payable.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-3 border-t border-border px-4 py-3">
+            <Button variant="secondary" size="sm" disabled={readOnly} onClick={() => setSelected(allChosen ? new Set() : new Set(payable.map((r) => r.id)))}>
+              {allChosen ? 'Clear selection' : `Select all ${payable.length} unpaid`}
+            </Button>
+            <span className="text-sm text-text-muted" aria-live="polite">
+              {chosen.length === 0 ? 'Select claims to pay them together.' : `${chosen.length} selected · ${formatMoney(sumPaise(chosen))}`}
+            </span>
+            {chosen.length > 0 ? (
+              <Button size="sm" disabled={readOnly} onClick={() => setPaying(chosen)}>
+                Mark selected paid
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
         <TopProgressBar active={query.isFetching && !query.isLoading} />
         {isCapped(rows) ? (
           <p role="status" className="border-t border-border bg-warning-bg px-5 py-3 text-sm text-warning-fg">
@@ -161,6 +225,13 @@ export function ExpensesScreen() {
           <DataTable columns={columns} rows={rows} rowKey={(r) => r.id} />
         </DataState>
       </Card>
+      {paying ? (
+        <MarkPaidDialog
+          rows={paying}
+          onClose={() => setPaying(null)}
+          onFinished={(paid) => setSelected((prev) => new Set([...prev].filter((id) => !paid.includes(id))))}
+        />
+      ) : null}
     </>
   );
 }

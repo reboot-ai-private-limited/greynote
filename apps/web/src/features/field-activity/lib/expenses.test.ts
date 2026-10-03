@@ -10,6 +10,7 @@ import {
   isPayable,
   markPaidMessage,
   markRowsPaid,
+  paidInMonthLabel,
   payableRows,
   sumPaise,
 } from './expenses';
@@ -99,5 +100,12 @@ describe('expensesCsv', () => {
   it('writes only the header for no rows, and names the file by its range', () => {
     expect(expensesCsv([]).trimEnd().split('\r\n')).toHaveLength(1);
     expect(expensesFilename('2026-10-01', '2026-10-03')).toBe('expenses-2026-10-01-to-2026-10-03.csv');
+  });
+});
+
+describe('paidInMonthLabel', () => {
+  it('names the month a payment made today lands in', () => {
+    expect(paidInMonthLabel('2026-10-03')).toBe('October 2026');
+    expect(paidInMonthLabel('2026-12-31')).toBe('December 2026');
   });
 });

@@ -613,7 +613,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   ranges are held back), filterable by employee and Unpaid / Paid / both; tiles for what is still to pay and what was paid (each shown only when the list holds its rows),
   and a count of travel allowances whose distance was not calculated; rows flag those and mark calculated ones; a notice at the 500-row cap; and **Download CSV**.
   Read-only so far. The nav item is live for Admin and the Accountant. Verified by typecheck, lint and 487 tests; **not yet exercised against the live API.**
-  Next: mark paid (one, and selected), then `/payroll` — one module at a time.
+  **Mark paid built (2026-10-03):** each unpaid row has *Mark paid*, and a checkbox plus *Select all* and *Mark selected paid* handle many. The confirmation says it
+  cannot be undone here, the amount and who it is for, which month payroll will count it in (the month it is marked paid), and warns about low travel
+  allowances. One request per row (the API has no bulk call), so a refused row never stops the rest, a retry is safe (marking a paid row again changes
+  nothing), and the result names each row that could not be paid with the server's message. Verified by typecheck, lint and 488 tests; **not yet
+  exercised against the live API.**
+  Next: `/payroll` (month, generate, finalize, the run page), then CSV for payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

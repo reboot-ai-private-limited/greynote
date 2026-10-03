@@ -116,3 +116,8 @@ export const expensesFilename = (from: string, to: string): string => `expenses-
 
 /** "3 Oct 2026" for a row's report day (it is a `YYYY-MM-DD`). */
 export const reportDayLabel = (date: string): string => formatDate(date);
+
+/** `October 2026`: the month a payment made today is counted in, since payroll counts by the month an expense was marked paid. */
+export function paidInMonthLabel(today: string): string {
+  return new Intl.DateTimeFormat('en-IN', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(new Date(`${today.slice(0, 7)}-01T00:00:00Z`));
+}
