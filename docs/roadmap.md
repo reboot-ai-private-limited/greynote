@@ -566,7 +566,10 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   required reason (kept on the call beside what the check found, with who and when) and says it counts the visit without approving the
   report. The approve dialog now warns when a daily report still has flagged calls, since approving does not accept them, and combines that
   with the skip-the-manager warning. Verified by typecheck, lint, 395 tests and a clean `next build`; **not yet exercised against the live API.**
-  Next: plans, doctor service and plan change previews; then HR, expenses/payroll.
+  **Plan previews built (2026-10-03):** a daily plan shows its day, submit deadline, working type, routes by "HQ · Area · Route", who they work with and remarks;
+  a monthly plan shows the month, a count of days by working type, and a dated row per planned day. Verified by typecheck, lint, 395 tests
+  and a clean `next build`; **not yet exercised against the live API.**
+  Next: doctor service and plan change previews; then HR, expenses/payroll.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

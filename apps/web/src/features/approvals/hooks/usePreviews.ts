@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { fieldActivityApi } from '@/lib/api/endpoints/fieldActivity';
 import { hrApi } from '@/lib/api/endpoints/hr';
+import { planningApi } from '@/lib/api/endpoints/planning';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
@@ -50,4 +51,35 @@ export function useAcceptCall(dcrId: string, onDone: () => void) {
     successMessage: 'The call was accepted.',
     onSuccess: onDone,
   });
+}
+
+export function useDailyPlan(id: string, enabled = true) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.plans.daily(id),
+      fetch: (token, signal) => planningApi.daily(token, id, signal),
+      staleTime: staleTime.live,
+      enabled,
+    }),
+  );
+}
+
+export function useMonthlyPlan(id: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.plans.monthly(id),
+      fetch: (token, signal) => planningApi.monthly(token, id, signal),
+      staleTime: staleTime.live,
+    }),
+  );
+}
+
+export function usePlanChange(id: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.plans.change(id),
+      fetch: (token, signal) => planningApi.change(token, id, signal),
+      staleTime: staleTime.live,
+    }),
+  );
 }

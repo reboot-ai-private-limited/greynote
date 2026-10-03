@@ -1,9 +1,11 @@
 import type { ApprovalDetailDto } from '@greynote/contracts';
 import { Card } from '@/components/ui/Card';
 import { kindLabel } from '../lib/approvals';
+import { DailyPlanPreview } from './DailyPlanPreview';
 import { DcrPreview } from './DcrPreview';
 import { DoctorPreview } from './DoctorPreview';
 import { LeavePreview } from './LeavePreview';
+import { MonthlyPlanPreview } from './MonthlyPlanPreview';
 
 /**
  * What is being approved. Each kind adds its own read-only panel; a kind with none yet still shows
@@ -15,6 +17,10 @@ export function ApprovalPreview({ request }: { request: ApprovalDetailDto }) {
       return <DoctorPreview recordId={request.recordId} />;
     case 'DCR':
       return <DcrPreview recordId={request.recordId} />;
+    case 'DAILY_PLAN':
+      return <DailyPlanPreview recordId={request.recordId} />;
+    case 'MONTHLY_PLAN':
+      return <MonthlyPlanPreview recordId={request.recordId} />;
     case 'LEAVE':
       return <LeavePreview recordId={request.recordId} />;
     default:
