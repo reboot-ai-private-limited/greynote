@@ -1,9 +1,9 @@
-const TIME_ZONE = 'Asia/Kolkata';
+import { businessTimeZone } from './siteConfig';
 
-/** `1 Oct 2026` in Indian time, regardless of the browser's own zone. */
+/** `1 Oct 2026` in the business timezone, regardless of the browser's own zone. */
 export function formatDate(value: string | Date): string {
   return new Intl.DateTimeFormat('en-IN', {
-    timeZone: TIME_ZONE,
+    timeZone: businessTimeZone(),
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -13,7 +13,7 @@ export function formatDate(value: string | Date): string {
 /** `1 Oct 2026, 3:05 pm` in Indian time: for a history, where the hour matters. */
 export function formatDateTime(value: string | Date): string {
   return new Intl.DateTimeFormat('en-IN', {
-    timeZone: TIME_ZONE,
+    timeZone: businessTimeZone(),
     day: 'numeric',
     month: 'short',
     year: 'numeric',

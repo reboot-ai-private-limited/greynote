@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { resetSiteConfig, setSiteConfig } from './siteConfig';
 import { financialYearLabel, financialYearOf, financialYearRange } from './financial-year';
 
 describe('financialYearOf', () => {
@@ -35,5 +36,22 @@ describe('financialYearLabel', () => {
   it('shortens the second year', () => {
     expect(financialYearLabel(2026)).toBe('2026–27');
     expect(financialYearLabel(2099)).toBe('2099–00');
+  });
+});
+
+describe('the start month comes from the server', () => {
+  afterEach(resetSiteConfig);
+  it('follows a different start month from the site config when none is passed', () => {
+    setSiteConfig({ financialYearStartMonth: 1, businessTimezone: 'Asia/Kolkata' });
+    expect(financialYearOf('2027-03-31')).toBe(2027);
+    expect(financialYearRange(2027)).toEqual({ from: '2027-01-01', to: '2027-12-31' });
+    setSiteConfig({ financialYearStartMonth: 10, businessTimezone: 'Asia/Kolkata' });
+    expect(financialYearOf('2026-09-30')).toBe(2025);
+    expect(financialYearOf('2026-10-01')).toBe(2026);
+  });
+  it('is April again after a reset', () => {
+    setSiteConfig({ financialYearStartMonth: 1, businessTimezone: 'Asia/Kolkata' });
+    resetSiteConfig();
+    expect(financialYearOf('2027-03-31')).toBe(2026);
   });
 });

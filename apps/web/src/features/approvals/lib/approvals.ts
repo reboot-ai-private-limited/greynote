@@ -9,6 +9,7 @@ import type {
 } from '@greynote/contracts';
 import { MAX_BULK_DECISIONS } from '@greynote/contracts';
 import type { BadgeTone } from '@/components/ui/Badge';
+import { zoneOffset } from '@/lib/siteConfig';
 
 // ── Kinds ──────────────────────────────────────────────────────────────────────────────────
 
@@ -138,16 +139,14 @@ export function groupByCycle(history: readonly ApprovalActionDto[]): { cycle: nu
 
 // ── Dates ──────────────────────────────────────────────────────────────────────────────────
 
-const IST_OFFSET = '+05:30';
-
 /**
  * The API takes instants with an offset, never a bare date, because the server has no business timezone.
- * "From the 1st to the 3rd" is the start of the 1st and the last millisecond of the 3rd, in Indian time.
+ * "From the 1st to the 3rd" is the start of the 1st and the last millisecond of the 3rd, in the business timezone (with its offset on those days).
  */
 export function dateRangeToInstants(from: string, to: string): { from?: string; to?: string } {
   return {
-    ...(from && { from: `${from}T00:00:00.000${IST_OFFSET}` }),
-    ...(to && { to: `${to}T23:59:59.999${IST_OFFSET}` }),
+    ...(from && { from: `${from}T00:00:00.000${zoneOffset(from)}` }),
+    ...(to && { to: `${to}T23:59:59.999${zoneOffset(to)}` }),
   };
 }
 

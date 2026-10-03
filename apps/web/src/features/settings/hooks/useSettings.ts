@@ -6,6 +6,7 @@ import { configApi } from '@/lib/api/endpoints/config';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
+import { needsReload } from '@/lib/siteConfig';
 
 /** Every setting with its rules and value. Admin only: the API refuses everyone else. */
 export function useSettings() {
@@ -28,6 +29,10 @@ export function useUpdateSetting(key: string, label: string, onDone: () => void)
     call: (token, value) => configApi.update(token, key, { value }),
     invalidates: [keys.config.all(), keys.config.public()],
     successMessage: `${label} saved.`,
-    onSuccess: onDone,
+    onSuccess: () => {
+      onDone();
+      // The financial-year start month and the timezone shape every date already on screen, so the portal reloads to read them afresh.
+      if (needsReload(key) && typeof window !== 'undefined') window.setTimeout(() => window.location.reload(), 800);
+    },
   });
 }

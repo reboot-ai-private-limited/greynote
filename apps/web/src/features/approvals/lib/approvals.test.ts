@@ -1,5 +1,6 @@
 import type { ApprovalActionDto, BulkResultDto } from '@greynote/contracts';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { resetSiteConfig, setSiteConfig } from '@/lib/siteConfig';
 import {
   actionLabel,
   buildBulkBody,
@@ -185,5 +186,19 @@ describe('runBulk', () => {
     let calls = 0;
     expect(await runBulk(async (b) => { calls += 1; return ok(b); }, 'APPROVE', [], '')).toEqual([]);
     expect(calls).toBe(0);
+  });
+});
+
+describe('dateRangeToInstants follows the business timezone', () => {
+  afterEach(resetSiteConfig);
+  it('uses the offset of the configured timezone on each of the two days', () => {
+    setSiteConfig({ financialYearStartMonth: 4, businessTimezone: 'Europe/London' });
+    expect(dateRangeToInstants('2026-01-10', '2026-07-10')).toEqual({
+      from: '2026-01-10T00:00:00.000+00:00',
+      to: '2026-07-10T23:59:59.999+01:00',
+    });
+  });
+  it('is India’s +05:30 by default', () => {
+    expect(dateRangeToInstants('2026-10-01', '2026-10-03')).toEqual({ from: '2026-10-01T00:00:00.000+05:30', to: '2026-10-03T23:59:59.999+05:30' });
   });
 });

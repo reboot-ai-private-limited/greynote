@@ -644,6 +644,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   if it disagrees. A **high-impact** setting (timezone, financial-year start month, weekly day off, the missed-report block, manager-only approvals) shows
   what moves and the change (`April → January`) and asks first. A stored value that breaks its own rules is marked, explained, and counted in a banner. In a past
   financial year the controls are disabled. The nav item is Admin-only. Verified by typecheck, lint and 509 tests; **not yet exercised against the live API.**
+  **The portal now reads the financial-year start month and timezone from the server (2026-10-03):** once signed in, the panel loads `GET /config/public` (and shows its
+  loading skeleton until it has, falling back to April and Asia/Kolkata only if the read fails) and keeps the two values where the date helpers read them. "Today", the
+  financial-year selector, a month's bounds and the date ranges sent to the approvals API (as instants with the right offset for that day, so daylight saving is
+  respected) all follow them instead of assuming April and Indian time. Saving the timezone or the start month in `/settings` reloads the portal so every date on
+  screen is drawn afresh. The financial-year selector now names the year we are in by the server's start month and not the browser's calendar year (which was wrong from
+  January to March). Verified by typecheck, lint and 523 tests; **not yet exercised against the live API.**
   **Phase 9 status:** Territory, Employees, Field master data, Approvals, HR and the Accountant screens are built. Still to do from the Phase 9 list:
   Reports (DCR, TP, Gift and Sales) and a screen for the System Config settings (no HTTP surface yet); then a live run of the whole portal against
   the real API.

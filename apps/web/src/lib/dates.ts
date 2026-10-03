@@ -1,15 +1,16 @@
+import { businessTimeZone } from './siteConfig';
+
 /**
  * The API speaks three date conventions — `YYYY-MM-DD` (hr, field-activity, planning), `YYYY-MM`
- * (sales, payroll) and ISO datetimes (approvals). Every "today" is computed in Asia/Kolkata, not in
+ * (sales, payroll) and ISO datetimes (approvals). Every "today" is computed in the business timezone (Asia/Kolkata unless Admin changed it), not in
  * the browser's own zone: a user on a laptop set to UTC would otherwise see yesterday for the first
  * five and a half hours of the Indian day.
  */
-const TIME_ZONE = 'Asia/Kolkata';
 
-/** `YYYY-MM-DD` in Indian time. (`en-CA` formats as ISO.) */
+/** `YYYY-MM-DD` in the business timezone. The name is from when that was always India. (`en-CA` formats as ISO.) */
 export function istDate(now: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {
-    timeZone: TIME_ZONE,
+    timeZone: businessTimeZone(),
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

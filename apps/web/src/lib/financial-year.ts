@@ -1,3 +1,5 @@
+import { financialYearStartMonth } from './siteConfig';
+
 /**
  * The Financial Year "time machine" (docs/hld/09). The selected year rides on every API request
  * as `X-Financial-Year`; a past year makes the whole panel read-only server-side. `null` means
@@ -32,19 +34,16 @@ export function financialYearHeaders(): Record<string, string> {
 }
 
 /**
- * The year a date falls in, named by the calendar year it starts in: with an April start, 1 Oct 2026 is in 2026 and
- * 1 Feb 2027 is also in 2026. Mirrors the API's `FY_START_MONTH` (a config key with no HTTP surface yet, April by default),
- * so a change there needs the same here.
+ * The year a date falls in, named by the calendar year it starts in: with an April start, 1 Oct 2026 is in 2026 and 1 Feb 2027 is also
+ * in 2026. The start month is the server's `FY_START_MONTH`, read once at sign-in (see `siteConfig`); April until then.
  */
-export const FY_START_MONTH = 4;
-
-export function financialYearOf(date: string, startMonth = FY_START_MONTH): number {
+export function financialYearOf(date: string, startMonth = financialYearStartMonth()): number {
   const [year = 0, month = 1] = date.split('-').map(Number);
   return month >= startMonth ? year : year - 1;
 }
 
 /** First and last day (`YYYY-MM-DD`) of a financial year. */
-export function financialYearRange(year: number, startMonth = FY_START_MONTH): { from: string; to: string } {
+export function financialYearRange(year: number, startMonth = financialYearStartMonth()): { from: string; to: string } {
   const pad = (n: number) => String(n).padStart(2, '0');
   const from = `${year}-${pad(startMonth)}-01`;
   const end = new Date(Date.UTC(year + 1, startMonth - 1, 0)); // the day before the next year starts

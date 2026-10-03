@@ -1,6 +1,8 @@
 'use client';
 
 import { CalendarRange } from 'lucide-react';
+import { istDate } from '@/lib/dates';
+import { financialYearLabel, financialYearOf } from '@/lib/financial-year';
 import { useFinancialYear } from '@/lib/useFinancialYear';
 
 const YEARS_BACK = 5;
@@ -11,7 +13,8 @@ const YEARS_BACK = 5;
  */
 export function FinancialYearSwitcher() {
   const { year, select } = useFinancialYear();
-  const thisYear = new Date().getFullYear();
+  // The financial year we are in, by the server's own start month: not the browser's calendar year, which is wrong from January to March.
+  const thisYear = financialYearOf(istDate());
 
   return (
     <label className="flex items-center gap-2 text-sm text-text-muted">
@@ -25,7 +28,7 @@ export function FinancialYearSwitcher() {
         <option value="">Current</option>
         {Array.from({ length: YEARS_BACK }, (_, i) => thisYear - 1 - i).map((y) => (
           <option key={y} value={y}>
-            {y}–{String(y + 1).slice(2)}
+            {financialYearLabel(y)}
           </option>
         ))}
       </select>
