@@ -58,6 +58,7 @@ export const productsApi = {
 };
 
 export const chemistsApi = {
+  get: (token: string, id: string, signal?: AbortSignal) => request<ChemistDto>(`${BASE}/chemists/${id}`, { token, signal }),
   list: (token: string, query: ListChemistsQuery | undefined, signal?: AbortSignal) =>
     request<PaginatedDto<ChemistDto>>(`${BASE}/chemists`, { token, ...(query && { query: { ...query } }), signal }),
   create: (token: string, body: CreateChemistDto) => request<ChemistDto>(`${BASE}/chemists`, { method: 'POST', token, body }),

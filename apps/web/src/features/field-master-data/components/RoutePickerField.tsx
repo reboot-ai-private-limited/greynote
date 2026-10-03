@@ -55,7 +55,7 @@ export function RoutePickerField({
   );
 }
 
-function RouteListDialog({
+export function RouteListDialog({
   options,
   onPick,
   onClose,
@@ -96,5 +96,33 @@ function RouteListDialog({
         )}
       </div>
     </Dialog>
+  );
+}
+
+/** A route filter for a list: "All routes", or the chosen one with a way to clear it. The choice lives in the URL. */
+export function RouteFilter({ value, onChange }: { value: string; onChange: (routeId: string) => void }) {
+  const directory = useTerritoryDirectory();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex items-center gap-1">
+      <Button variant="secondary" disabled={directory.isLoading} onClick={() => setOpen(true)} aria-label="Filter by route">
+        <span className="max-w-56 truncate">{value ? directory.routeLabel(value) : 'All routes'}</span>
+      </Button>
+      {value ? (
+        <Button variant="ghost" size="sm" onClick={() => onChange('')} aria-label="Clear the route filter">
+          Clear
+        </Button>
+      ) : null}
+      {open ? (
+        <RouteListDialog
+          options={directory.routeOptions}
+          onClose={() => setOpen(false)}
+          onPick={(routeId) => {
+            onChange(routeId);
+            setOpen(false);
+          }}
+        />
+      ) : null}
+    </div>
   );
 }

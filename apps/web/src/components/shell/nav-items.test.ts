@@ -35,12 +35,12 @@ describe('Employees', () => {
   });
 });
 
-describe('Products', () => {
-  it('is an Admin-only Master data screen, like the rest of field master data', () => {
-    expect(navFor('ADMIN').map((i) => i.href)).toContain('/products');
-    expect(navFor('HR').map((i) => i.href)).not.toContain('/products');
-    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/products');
-    expect(isRouteBuilt('/products')).toBe(true);
+describe('Field master data', () => {
+  it.each(['/products', '/chemists'])('%s is an Admin-only Master data screen', (href) => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain(href);
+    expect(navFor('HR').map((i) => i.href)).not.toContain(href);
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain(href);
+    expect(isRouteBuilt(href)).toBe(true);
   });
 });
 
