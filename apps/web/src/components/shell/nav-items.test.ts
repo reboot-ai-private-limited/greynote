@@ -71,6 +71,15 @@ describe('Expenses', () => {
   });
 });
 
+describe('Payroll', () => {
+  it('is built, and shown to Admin and the Accountant, not HR', () => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/payroll');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).toContain('/payroll');
+    expect(navFor('HR').map((i) => i.href)).not.toContain('/payroll');
+    expect(isRouteBuilt('/payroll')).toBe(true);
+  });
+});
+
 describe('Devices', () => {
   it('is an Admin-only screen, since the device API is', () => {
     expect(navFor('ADMIN').map((i) => i.href)).toContain('/devices');

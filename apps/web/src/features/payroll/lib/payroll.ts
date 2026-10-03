@@ -2,6 +2,7 @@ import type { GenerateOutcomeDto, PayrollRunDto, PayrollSkipReason } from '@grey
 import { rupeesForCsv, toCsv } from '@/lib/csv';
 import { formatMoney } from '@/lib/format';
 import { formatDays } from '@/features/hr/lib/days';
+import { financialYearRange } from '@/lib/financial-year';
 
 // ── Months ─────────────────────────────────────────────────────────────────────────────────
 
@@ -17,6 +18,28 @@ export function endedMonths(today: string, count = 18): string[] {
     const d = new Date(Date.UTC(year, month - 2 - i, 1));
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
   });
+}
+
+/**
+ * The months of a financial year that have ended, newest first. The payroll list is scoped to the year in view and refuses a month
+ * outside it, so a month can only be chosen from the year being looked at; April of a new year has none yet.
+ */
+export function endedMonthsInYear(year: number, today: string): string[] {
+  const { from } = financialYearRange(year);
+  const start = from.slice(0, 7);
+  const current = today.slice(0, 7);
+  const out: string[] = [];
+  let [y = 0, m = 1] = start.split('-').map(Number);
+  for (let i = 0; i < 12; i++) {
+    const month = `${y}-${String(m).padStart(2, '0')}`;
+    if (month < current) out.push(month);
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return out.reverse();
 }
 
 export function monthLabel(month: string): string {

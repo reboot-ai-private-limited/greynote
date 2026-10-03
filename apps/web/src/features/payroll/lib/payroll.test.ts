@@ -4,6 +4,7 @@ import {
   deductionExplanation,
   draftRuns,
   endedMonths,
+  endedMonthsInYear,
   finalizeMessage,
   finalizeRuns,
   generateMessage,
@@ -52,6 +53,15 @@ describe('months', () => {
     expect(endedMonths('2026-10-03', 3)).toEqual(['2026-09', '2026-08', '2026-07']);
     expect(endedMonths('2026-01-15', 3)).toEqual(['2025-12', '2025-11', '2025-10']);
     expect(endedMonths('2026-10-03').length).toBe(18);
+  });
+  it('lists the ended months of a financial year, newest first, never one that has not ended', () => {
+    expect(endedMonthsInYear(2026, '2026-10-03')).toEqual(['2026-09', '2026-08', '2026-07', '2026-06', '2026-05', '2026-04']);
+    expect(endedMonthsInYear(2026, '2027-02-10')).toEqual(['2027-01', '2026-12', '2026-11', '2026-10', '2026-09', '2026-08', '2026-07', '2026-06', '2026-05', '2026-04']);
+  });
+  it('lists all twelve for a year that is over, and none in April of a new year', () => {
+    expect(endedMonthsInYear(2025, '2026-10-03')).toHaveLength(12);
+    expect(endedMonthsInYear(2025, '2026-10-03')[0]).toBe('2026-03');
+    expect(endedMonthsInYear(2026, '2026-04-15')).toEqual([]);
   });
   it('labels a month and finds its first and last day, in a leap year too', () => {
     expect(monthLabel('2026-09')).toBe('September 2026');

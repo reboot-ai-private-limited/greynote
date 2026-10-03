@@ -618,7 +618,14 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   allowances. One request per row (the API has no bulk call), so a refused row never stops the rest, a retry is safe (marking a paid row again changes
   nothing), and the result names each row that could not be paid with the server's message. Verified by typecheck, lint and 488 tests; **not yet
   exercised against the live API.**
-  Next: `/payroll` (month, generate, finalize, the run page), then CSV for payroll — one module at a time.
+  **Payroll month view and Generate built (2026-10-03, `/payroll`):** a month chosen from the ended months of the financial year in view (the API refuses a month
+  outside it, and April of a new year has none yet), tiles for employees, net payable, what was paid in the month and leave deductions, a notice of accepted
+  claims for that month that are still unpaid and so not in the sheet (with a link to review them), and the sheet itself with a joined-this-month flag and
+  the unpaid-leave deduction per employee. **Generate sheet** and **Regenerate** a draft first say what they read (the base salary now, what was paid *during*
+  the month, unpaid leave, base ÷ 30) and that a finalized run is never changed; the result names every skipped employee with the reason, treating
+  "already finalized" as expected. **Download CSV** for the sheet. The nav item is live for Admin and the Accountant. Verified by typecheck, lint and 491 tests;
+  **not yet exercised against the live API.**
+  Next: finalize (one, and all drafts) and the run page — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.
