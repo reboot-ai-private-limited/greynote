@@ -34,6 +34,8 @@ export const keys = {
   routes: {
     all: () => ['routes', fy()] as const,
     list: (query?: object) => [...keys.routes.all(), 'list', query ?? {}] as const,
+    /** Every row, all pages: for pickers and labels. Under `all`, so a territory edit refreshes it. */
+    directory: () => [...keys.routes.all(), 'directory'] as const,
     detail: (id: string) => [...keys.routes.all(), 'detail', id] as const,
     assignments: (id: string, includeHistory: boolean) => [...keys.routes.all(), 'assignments', id, includeHistory] as const,
   },
@@ -62,14 +64,20 @@ export const keys = {
   zones: {
     all: () => ['zones', fy()] as const,
     list: (query?: object) => [...keys.zones.all(), 'list', query ?? {}] as const,
+    /** Every row, all pages: for pickers and labels. Under `all`, so a territory edit refreshes it. */
+    directory: () => [...keys.zones.all(), 'directory'] as const,
   },
   hqs: {
     all: () => ['hqs', fy()] as const,
     list: (query?: object) => [...keys.hqs.all(), 'list', query ?? {}] as const,
+    /** Every row, all pages: for pickers and labels. Under `all`, so a territory edit refreshes it. */
+    directory: () => [...keys.hqs.all(), 'directory'] as const,
   },
   areas: {
     all: () => ['areas', fy()] as const,
     list: (query?: object) => [...keys.areas.all(), 'list', query ?? {}] as const,
+    /** Every row, all pages: for pickers and labels. Under `all`, so a territory edit refreshes it. */
+    directory: () => [...keys.areas.all(), 'directory'] as const,
   },
 };
 

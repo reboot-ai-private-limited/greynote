@@ -41,6 +41,7 @@ src/
 | A request/response type? | `@greynote/contracts` — add it there, never declare it in the web |
 | A constant? | the module that owns it; there is no global `constants/` or `types/` folder |
 | Client state shared across screens? | probably the URL (`useFilterParams`); there is no global store |
+| A feature needs another feature's data? | It may import from a feature of a **lower backend tier** (field master data reads Territory: `useTerritoryDirectory`, `usePlaceSearch`), never the other way, mirroring `apps/api`'s tiers. A list needed in full for a label or picker (a page of 100 silently drops the rest) is read with `fetchAllPages` behind a hook the owning feature exports. |
 
 ## Conventions
 
