@@ -562,7 +562,11 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   notice; while the report is with the manager it says TA and DA are calculated when the manager approves; a travel allowance whose
   distance could not be calculated is called out. Read-only so far. Verified by typecheck, lint, 390 tests and `next build`; **not yet
   exercised against the live API.**
-  Next: the geofence override; then plans, doctor service and plan change; then HR, expenses/payroll.
+  **Geofence override built (2026-10-03):** on a flagged call, Admin sees *Accept this call* while the report is with the manager or Admin; it asks a
+  required reason (kept on the call beside what the check found, with who and when) and says it counts the visit without approving the
+  report. The approve dialog now warns when a daily report still has flagged calls, since approving does not accept them, and combines that
+  with the skip-the-manager warning. Verified by typecheck, lint, 395 tests and a clean `next build`; **not yet exercised against the live API.**
+  Next: plans, doctor service and plan change previews; then HR, expenses/payroll.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

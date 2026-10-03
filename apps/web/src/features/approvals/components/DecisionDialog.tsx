@@ -7,7 +7,9 @@ import { FormField } from '@/components/ui/FormField';
 import { Textarea } from '@/components/ui/Input';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { useDecision, type DecisionAction } from '../hooks/useApprovals';
+import { useDcr } from '../hooks/usePreviews';
 import { kindLabel, reasonError, skipsManager } from '../lib/approvals';
+import { approveWarnings, flaggedCalls } from '../lib/review';
 
 const COPY: Record<DecisionAction, { title: string; confirm: string; label: string; required: boolean; hint: string }> = {
   approve: { title: 'Approve', confirm: 'Approve', label: 'Comment', required: false, hint: 'Optional. The employee and the manager can see it.' },
@@ -32,7 +34,12 @@ export function DecisionDialog({
   const [comment, setComment] = useState('');
   const [error, setError] = useState<string | undefined>();
   const decision = useDecision(request.id, action, onDone);
-  const override = action === 'approve' && skipsManager(request, role);
+  // A daily report's flagged calls stay unaccepted when the report is approved; say so. Same query as the preview, so no extra request.
+  const dcr = useDcr(request.recordId, request.kind === 'DCR' && action === 'approve');
+  const warnings =
+    action === 'approve'
+      ? approveWarnings({ skipsManager: skipsManager(request, role), flagged: dcr.data ? flaggedCalls(dcr.data).length : 0 })
+      : [];
 
   function submit() {
     const problem = reasonError(comment, copy.required);
@@ -44,8 +51,8 @@ export function DecisionDialog({
   return (
     <FormDialog
       title={`${copy.title}: ${kindLabel(request.kind).toLowerCase()}`}
-      {...(override
-        ? { description: `This is still waiting on the manager. Approving now decides it at once, without them.` }
+      {...(warnings.length > 0
+        ? { description: warnings.join(' ') }
         : request.submitter
           ? { description: `From ${request.submitter.name} (${request.submitter.employeeCode}).` }
           : {})}

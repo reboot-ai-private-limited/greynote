@@ -1,12 +1,17 @@
 'use client';
 
-import type { DcrDetailDto } from '@greynote/contracts';
-import type { ReactNode } from 'react';
+import type { ChemistCallDto, DcrDetailDto, DoctorCallDto } from '@greynote/contracts';
+import { useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { useSession } from '@/lib/auth/SessionProvider';
+import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { formatDate, formatMoney } from '@/lib/format';
 import { useDcr } from '../hooks/usePreviews';
 import {
   EXPENSE_TYPE_LABEL,
+  canOverride,
+  isFlagged,
   claimedTotalPaise,
   dcrCounts,
   dcrCountsLabel,
@@ -15,6 +20,7 @@ import {
   splitExpenses,
   taDaNote,
 } from '../lib/review';
+import { AcceptCallDialog } from './AcceptCallDialog';
 import { CallCard } from './CallCard';
 import { PreviewFrame } from './PreviewFrame';
 
@@ -43,6 +49,22 @@ export function DcrPreview({ recordId }: { recordId: string }) {
 }
 
 function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
+  const role = useSession().user?.role;
+  const readOnly = useIsReadOnly();
+  const [accepting, setAccepting] = useState<DoctorCallDto | ChemistCallDto | null>(null);
+  const mayAccept = canOverride(role, dcr.status);
+  const acceptButton = (c: DoctorCallDto | ChemistCallDto) =>
+    mayAccept && isFlagged(c) ? (
+      <Button
+        size="sm"
+        variant="secondary"
+        disabled={readOnly}
+        title={readOnly ? 'A past financial year is read-only' : undefined}
+        onClick={() => setAccepting(c)}
+      >
+        Accept this call
+      </Button>
+    ) : undefined;
   const notice = flaggedNotice(dcr);
   const { auto, manual } = splitExpenses(dcr.expenses);
   const note = taDaNote(dcr.status, dcr.expenses);
@@ -56,7 +78,7 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
 
       {notice ? (
         <p role="status" className="rounded-md border border-warning bg-warning-bg p-3 text-sm text-warning-fg">
-          {notice} Each is shown below with what the check found.
+          {notice} Each is shown below with what the check found{mayAccept ? '; accepting a call is separate from approving the report' : ''}.
         </p>
       ) : null}
 
@@ -64,7 +86,7 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
         <Section title="Doctor calls" count={dcr.doctorCalls.length}>
           <ul className="space-y-3">
             {dcr.doctorCalls.map((c) => (
-              <CallCard key={c.id} call={c} />
+              <CallCard key={c.id} call={c} action={acceptButton(c)} />
             ))}
           </ul>
         </Section>
@@ -74,7 +96,7 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
         <Section title="Chemist calls" count={dcr.chemistCalls.length}>
           <ul className="space-y-3">
             {dcr.chemistCalls.map((c) => (
-              <CallCard key={c.id} call={c} />
+              <CallCard key={c.id} call={c} action={acceptButton(c)} />
             ))}
           </ul>
         </Section>
@@ -129,6 +151,7 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
           </div>
         )}
       </Section>
+      {accepting ? <AcceptCallDialog dcrId={dcr.id} call={accepting} onClose={() => setAccepting(null)} /> : null}
     </div>
   );
 }

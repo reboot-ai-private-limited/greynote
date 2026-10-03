@@ -1,6 +1,7 @@
 import type { DcrDetailDto, DcrExpenseDto, DoctorCallDto, GeofenceOutcomeDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
 import {
+  approveWarnings,
   canOverride,
   claimedTotalPaise,
   dcrCounts,
@@ -11,6 +12,7 @@ import {
   geofenceDetail,
   hasDistanceFlag,
   isFlagged,
+  overrideReasonError,
   splitExpenses,
   taDaNote,
 } from './review';
@@ -146,5 +148,32 @@ describe('day at a glance', () => {
     expect(dcrCountsLabel(dcrCounts(dcr))).toBe('2 doctor calls · 1 follow-up');
     expect(dcrCountsLabel({ doctorCalls: 1, chemistCalls: 1, followups: 0, samples: 0 })).toBe('1 doctor call · 1 chemist call');
     expect(dcrCountsLabel({ doctorCalls: 0, chemistCalls: 0, followups: 0, samples: 0 })).toBe('Nothing was logged on this day.');
+  });
+});
+
+describe('overrideReasonError', () => {
+  it('needs a reason, and caps its length', () => {
+    expect(overrideReasonError('')).toBe('Say why the call is accepted.');
+    expect(overrideReasonError('   ')).toBe('Say why the call is accepted.');
+    expect(overrideReasonError('Clinic moved to a new address')).toBeUndefined();
+    expect(overrideReasonError('x'.repeat(501))).toMatch(/500/);
+    expect(overrideReasonError('x'.repeat(500))).toBeUndefined();
+  });
+});
+
+describe('approveWarnings', () => {
+  it('is empty when there is nothing to warn about', () => {
+    expect(approveWarnings({ skipsManager: false, flagged: 0 })).toEqual([]);
+  });
+  it('warns about skipping the manager', () => {
+    expect(approveWarnings({ skipsManager: true, flagged: 0 })).toEqual(['This is still waiting on the manager. Approving now decides it at once, without them.']);
+  });
+  it('warns that flagged calls stay unaccepted, in the singular and the plural', () => {
+    expect(approveWarnings({ skipsManager: false, flagged: 1 })).toEqual(['1 flagged call has not been accepted. Approving the report does not accept it.']);
+    expect(approveWarnings({ skipsManager: false, flagged: 3 })[0]).toBe('3 flagged calls have not been accepted. Approving the report does not accept them.');
+  });
+  it('gives both, the manager first', () => {
+    expect(approveWarnings({ skipsManager: true, flagged: 2 })).toHaveLength(2);
+    expect(approveWarnings({ skipsManager: true, flagged: 2 })[0]).toMatch(/waiting on the manager/);
   });
 });

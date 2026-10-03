@@ -147,3 +147,29 @@ export function dcrCountsLabel(c: DcrCounts): string {
   const parts = [part(c.doctorCalls, 'doctor call', 'doctor calls'), part(c.chemistCalls, 'chemist call', 'chemist calls'), part(c.followups, 'follow-up', 'follow-ups')].filter(Boolean);
   return parts.length > 0 ? parts.join(' · ') : 'Nothing was logged on this day.';
 }
+
+// ── Accepting a flagged call, and deciding the report ──────────────────────────────────────
+
+export const OVERRIDE_REASON_MAX = 500;
+
+/** Accepting a flagged call needs a reason, which is kept with the call beside what the check found. */
+export function overrideReasonError(comment: string): string | undefined {
+  const text = comment.trim();
+  if (text === '') return 'Say why the call is accepted.';
+  if (text.length > OVERRIDE_REASON_MAX) return `Keep the reason to ${OVERRIDE_REASON_MAX} characters.`;
+  return undefined;
+}
+
+/**
+ * What to tell the approver before they approve: that it skips the manager, and that approving the report does not
+ * accept its flagged calls (they are separate actions, so a manager can accept two calls and still reject the day).
+ */
+export function approveWarnings(input: { skipsManager: boolean; flagged: number }): string[] {
+  const out: string[] = [];
+  if (input.skipsManager) out.push('This is still waiting on the manager. Approving now decides it at once, without them.');
+  if (input.flagged > 0) {
+    const n = input.flagged;
+    out.push(`${n} flagged ${n === 1 ? 'call has' : 'calls have'} not been accepted. Approving the report does not accept ${n === 1 ? 'it' : 'them'}.`);
+  }
+  return out;
+}

@@ -5,6 +5,7 @@ import { fieldActivityApi } from '@/lib/api/endpoints/fieldActivity';
 import { hrApi } from '@/lib/api/endpoints/hr';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
+import { useApiMutation } from '@/lib/query/mutation';
 
 /** The leave a request is about, as it was counted when submitted. */
 export function useLeave(id: string) {
@@ -30,12 +31,23 @@ export function useLeaveBalances(userId: string | undefined, year: number | unde
 }
 
 /** The daily report under review, with every call, follow-up and expense. */
-export function useDcr(id: string) {
+export function useDcr(id: string, enabled = true) {
   return useQuery(
     authedQueryOptions({
       queryKey: keys.dcr.detail(id),
       fetch: (token, signal) => fieldActivityApi.dcr(token, id, signal),
       staleTime: staleTime.live,
+      enabled,
     }),
   );
+}
+
+/** Accepts a flagged call. The report refetches, so the call shows as accepted with who and why. */
+export function useAcceptCall(dcrId: string, onDone: () => void) {
+  return useApiMutation<{ callId: string; comment: string }>({
+    call: (token, { callId, comment }) => fieldActivityApi.overrideGeofence(token, dcrId, callId, { comment: comment.trim() }),
+    invalidates: [keys.dcr.detail(dcrId)],
+    successMessage: 'The call was accepted.',
+    onSuccess: onDone,
+  });
 }
