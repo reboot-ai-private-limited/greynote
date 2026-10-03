@@ -2,6 +2,7 @@
 
 import type { UserListItemDto, UserListStatus } from '@greynote/contracts';
 import { Plus } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -60,7 +61,9 @@ export function EmployeesScreen() {
       header: 'Employee',
       render: (u) => (
         <div>
-          <div className="font-medium">{u.name}</div>
+          <Link href={`/employees/${u.id}`} className="font-medium text-text hover:text-accent hover:underline">
+            {u.name}
+          </Link>
           <div className="text-xs text-text-subtle">{u.employeeCode}</div>
         </div>
       ),

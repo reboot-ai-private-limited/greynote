@@ -62,3 +62,74 @@ export interface CreateUserDto {
   email?: string;
   phone?: string;
 }
+
+export interface UserAddressDto {
+  district: string;
+  state: string;
+  pincode: string;
+  country: string;
+}
+
+export interface UserBankDetailsDto {
+  bankName: string;
+  ifsc: string;
+  accountNumber: string;
+  accountHolderName: string;
+  branchName: string | null;
+}
+
+export interface UserDocumentDto {
+  id: string;
+  type: string;
+  url: string;
+  publicId: string;
+  uploadedAt: string;
+}
+
+/**
+ * `GET /identity/users/:id` — the only place personal and bank details are returned.
+ * `profile` is null for a non-FIELD user, or a FIELD user whose onboarding has not started.
+ */
+export interface UserDetailDto {
+  id: string;
+  employeeCode: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: UserListItemDto['role'];
+  status: UserListStatus;
+  isBlocked: boolean;
+  lastLoginAt: string | null;
+  currentBlock: { reason: string; blockedAt: string } | null;
+  profile: {
+    designationId: string | null;
+    payBandId: string | null;
+    managerId: string | null;
+    dateOfJoining: string | null;
+    mobileNumber: string | null;
+    guardianName: string | null;
+    dateOfBirth: string | null;
+    address: UserAddressDto | null;
+    qualification: string | null;
+    bankDetails: UserBankDetailsDto | null;
+    documents: UserDocumentDto[];
+  } | null;
+}
+
+/** Body of `PATCH /identity/users/:id` — every section optional; an address or bank object is sent whole. */
+export interface UpdateUserDto {
+  basicDetails?: {
+    name?: string;
+    mobileNumber?: string;
+    guardianName?: string;
+    dateOfBirth?: string;
+    dateOfJoining?: string;
+    qualification?: string;
+    address?: UserAddressDto;
+  };
+  bankDetails?: Omit<UserBankDetailsDto, 'branchName'> & { branchName?: string };
+  designationId?: string;
+  payBandId?: string;
+  managerId?: string;
+  status?: 'inactive';
+}

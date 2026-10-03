@@ -8,6 +8,8 @@ import type {
   PendingDeviceDto,
   UpdateDesignationDto,
   UpdatePayBandDto,
+  UpdateUserDto,
+  UserDetailDto,
   UserListItemDto,
   UserListStatus,
 } from '@greynote/contracts';
@@ -29,6 +31,12 @@ export const identityApi = {
 
   users: (token: string, query: ListUsersQuery, signal?: AbortSignal) =>
     request<PaginatedDto<UserListItemDto>>('/identity/users', { token, query: { ...query }, signal }),
+
+  user: (token: string, id: string, signal?: AbortSignal) =>
+    request<UserDetailDto>(`/identity/users/${id}`, { token, signal }),
+
+  updateUser: (token: string, id: string, body: UpdateUserDto) =>
+    request<UserListItemDto>(`/identity/users/${id}`, { method: 'PATCH', token, body }),
 
   createUser: (token: string, body: CreateUserDto) =>
     request<UserListItemDto>('/identity/users', { method: 'POST', token, body }),

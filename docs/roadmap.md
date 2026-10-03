@@ -465,10 +465,17 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   **Employees list and create built (2026-10-03, `/employees`, `/employees/new`):** search plus role / status / designation filters in
   the URL, an onboarding badge for a FIELD user whose profile is incomplete, and a create form where HR can only pick the field force
   (Admin any role) and an initial password can be generated. The nav item is now Admin/HR only, since the users API is. Verified by
-  typecheck, lint, 196 tests and `next build`; **not yet exercised against the live API.** A row does not open anywhere until the detail
-  page lands.
-  Next: Employee detail (profile / bank / documents / devices / security), then master data, HR, approvals, expenses/payroll — one
-  module at a time.
+  typecheck, lint, 196 tests and `next build`; **not yet exercised against the live API.**
+  **Employee detail, Profile and Bank tabs built (2026-10-03, `/employees/[id]`):** for a field employee, four sections that each save
+  on their own through the incremental PATCH — personal details, address, designation / pay band / manager (searchable manager
+  picker, the employee themselves not offered) and bank details (account number masked until shown). A banner lists what is still
+  missing before the employee turns Active, mirroring the API's rule. Only changed fields are sent; an address or bank object is sent
+  whole. Other roles get a read-only Account card, because the API's PATCH would create a profile row for them. Verified by typecheck,
+  lint, 221 tests and `next build`; **not yet exercised against the live API.**
+  **Known API gaps, not fixed here:** a manager can be set to the employee themselves or to someone in their own downline (a cycle),
+  and a profile field cannot be cleared once set.
+  Next: Documents, then Devices, then Security (reset password, unblock, deactivate); then master data, HR, approvals,
+  expenses/payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

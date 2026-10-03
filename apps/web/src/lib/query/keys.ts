@@ -19,6 +19,7 @@ export const keys = {
   users: {
     all: () => ['users', fy()] as const,
     list: (query: object) => [...keys.users.all(), 'list', query] as const,
+    detail: (id: string) => [...keys.users.all(), 'detail', id] as const,
   },
   designations: { all: () => ['designations', fy()] as const },
   payBands: { all: () => ['payBands', fy()] as const },
