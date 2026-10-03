@@ -2,7 +2,7 @@
 
 import type { PlanDayDto } from '@greynote/contracts';
 import { Badge } from '@/components/ui/Badge';
-import { EmployeeName } from '@/features/field-master-data/components/EmployeePickerField';
+import { EmployeeName } from '@/features/people/components/EmployeePickerField';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { WORKING_TYPE_LABEL } from '../lib/review';
 

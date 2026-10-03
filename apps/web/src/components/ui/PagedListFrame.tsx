@@ -28,6 +28,7 @@ export function PagedListFrame<T extends { id: string }>({
   emptyTitle,
   emptyDescription,
   onPageChange,
+  hideHeader = false,
   children,
 }: {
   title: string;
@@ -49,26 +50,30 @@ export function PagedListFrame<T extends { id: string }>({
   emptyTitle?: string;
   emptyDescription: string;
   onPageChange: (page: number) => void;
+  /** Skip the page header: the list sits under a header the screen already has (a tab). */
+  hideHeader?: boolean;
   /** Dialogs, rendered beside the table. */
   children?: ReactNode;
 }) {
   return (
     <>
-      <PageHeader
-        title={title}
-        description={description}
-        actions={
-          onNew ? (
-            <Button
-              onClick={onNew}
-              disabled={readOnly}
-              title={readOnly ? 'A past financial year is read-only' : undefined}
-            >
-              <Plus aria-hidden className="size-4" /> New {noun}
-            </Button>
-          ) : null
-        }
-      />
+      {hideHeader ? null : (
+        <PageHeader
+          title={title}
+          description={description}
+          actions={
+            onNew ? (
+              <Button
+                onClick={onNew}
+                disabled={readOnly}
+                title={readOnly ? 'A past financial year is read-only' : undefined}
+              >
+                <Plus aria-hidden className="size-4" /> New {noun}
+              </Button>
+            ) : null
+          }
+        />
+      )}
       <Card>
         <div className="flex flex-wrap items-center gap-3 p-4">{filters}</div>
         <TopProgressBar active={query.isFetching && !query.isLoading} />

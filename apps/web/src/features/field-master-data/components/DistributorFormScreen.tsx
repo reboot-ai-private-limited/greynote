@@ -26,7 +26,7 @@ import {
   distributorToDraft,
   type DistributorDraft,
 } from '../lib/distributors';
-import { EmployeePickerField } from './EmployeePickerField';
+import { EmployeePickerField } from '@/features/people/components/EmployeePickerField';
 import { LocationPicker } from './LocationPicker';
 import { RoutePickerField } from './RoutePickerField';
 

@@ -15,7 +15,7 @@ import { formatDate } from '@/lib/format';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useAssignDoctor, useDoctorAssignments, useUnassignDoctor } from '../hooks/useDoctors';
 import { assignableMrs } from '../lib/samples';
-import { EmployeeName } from './EmployeePickerField';
+import { EmployeeName } from '@/features/people/components/EmployeePickerField';
 
 /** Who is responsible for this doctor now, who has been, and the way to change it. */
 export function DoctorAssignmentsTab({ doctor }: { doctor: DoctorDto }) {

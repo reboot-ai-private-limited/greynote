@@ -53,6 +53,15 @@ describe('Approvals', () => {
   });
 });
 
+describe('Leave & holidays', () => {
+  it('is built, and shown to Admin and HR, not the Accountant (who only syncs unpaid leave through payroll)', () => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/hr');
+    expect(navFor('HR').map((i) => i.href)).toContain('/hr');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/hr');
+    expect(isRouteBuilt('/hr')).toBe(true);
+  });
+});
+
 describe('Devices', () => {
   it('is an Admin-only screen, since the device API is', () => {
     expect(navFor('ADMIN').map((i) => i.href)).toContain('/devices');

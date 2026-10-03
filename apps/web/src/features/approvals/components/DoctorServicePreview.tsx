@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Field, FieldList } from '@/components/ui/FieldList';
-import { EmployeeName } from '@/features/field-master-data/components/EmployeePickerField';
+import { EmployeeName } from '@/features/people/components/EmployeePickerField';
 import { formatDate, formatMoney } from '@/lib/format';
 import { useDoctorService } from '../hooks/usePreviews';
 import { serviceOriginLabel, serviceTypeLabel } from '../lib/previews';

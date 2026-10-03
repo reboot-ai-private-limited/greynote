@@ -17,7 +17,7 @@ import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDistributors, useUpdateDistributor } from '../hooks/useDistributors';
-import { EmployeeFilter, EmployeeName } from './EmployeePickerField';
+import { EmployeeFilter, EmployeeName } from '@/features/people/components/EmployeePickerField';
 import { RouteFilter } from './RoutePickerField';
 
 const ANY = 'all';

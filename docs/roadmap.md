@@ -580,7 +580,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   (a national holiday carries no places; Zone and HQ need at least one), a 400-day list range, balance allocation (never below used plus
   pending) and a before-and-after preview. Planned: `/hr` with tabs for Leaves, Leave types, Leave master and Holidays, then a Leave tab on the
   employee for balances and their HQ.
-  Next: the `/hr` screens, then the Accountant screens (expense audit, payroll) — one module at a time.
+  **Leave & holidays page started (2026-10-03, `/hr`):** a tabbed page (the tab is in the URL, and switching clears the other tab's filters) with the
+  **Leaves** tab first: everyone's leaves, newest first, filtered by employee and date range, with type (unpaid flagged), dates, counted days and status;
+  a row opens its approval, since that is where a leave is decided. The nav item is live for Admin and HR. The employee picker moved to the people
+  feature and the leave date formatting to HR so neither imports from the doctors feature. Verified by typecheck, lint and 441 tests; **not yet
+  exercised against the live API.**
+  Next: the Leave types, Leave master and Holidays tabs, then the employee's Leave tab; then the Accountant screens — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

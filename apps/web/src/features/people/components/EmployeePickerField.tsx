@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
-import { ManagerPickerDialog } from '@/features/people/components/ManagerPickerDialog';
-import { useUser } from '@/features/people/hooks/useUsers';
+import { ManagerPickerDialog } from './ManagerPickerDialog';
+import { useUser } from '../hooks/useUsers';
 
 /** A person's name and code from their id, or a dash while it loads or for someone not found. */
 export function EmployeeName({ userId }: { userId: string | null | undefined }) {

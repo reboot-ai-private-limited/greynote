@@ -3,7 +3,7 @@
 import type { DailyPlanChangeDto } from '@greynote/contracts';
 import { Badge } from '@/components/ui/Badge';
 import { Field, FieldList } from '@/components/ui/FieldList';
-import { EmployeeName } from '@/features/field-master-data/components/EmployeePickerField';
+import { EmployeeName } from '@/features/people/components/EmployeePickerField';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { useDailyPlan, usePlanChange } from '../hooks/usePreviews';
 import { changeStateLabel, changedFields, isStaleChange, listDiff, planDayLabel } from '../lib/plans';

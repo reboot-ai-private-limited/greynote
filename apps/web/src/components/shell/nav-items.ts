@@ -48,7 +48,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Devices', href: '/devices', icon: Smartphone, group: 'People', roles: ['ADMIN'] },
   { label: 'Pay Bands', href: '/pay-bands', icon: Wallet, group: 'People', roles: ALL },
   { label: 'Designations', href: '/designations', icon: Award, group: 'People', roles: ['ADMIN', 'HR'] },
-  { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'People', roles: ['ADMIN', 'HR'], comingSoon: true },
+  { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'People', roles: ['ADMIN', 'HR'] },
   { label: 'Approvals', href: '/approvals', icon: ClipboardCheck, group: 'Operations', roles: ['ADMIN', 'HR'] },
   { label: 'Expenses', href: '/expenses', icon: Receipt, group: 'Operations', roles: ['ADMIN', 'ACCOUNTANT'], comingSoon: true },
   { label: 'Payroll', href: '/payroll', icon: Banknote, group: 'Operations', roles: ['ADMIN', 'ACCOUNTANT'], comingSoon: true },

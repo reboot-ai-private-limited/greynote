@@ -1,7 +1,7 @@
 import type { ChemistCallDto, DoctorCallDto } from '@greynote/contracts';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/Badge';
-import { EmployeeName } from '@/features/field-master-data/components/EmployeePickerField';
+import { EmployeeName } from '@/features/people/components/EmployeePickerField';
 import { formatDateTime } from '@/lib/format';
 import { GEOFENCE_LABEL, GEOFENCE_TONE, WORKING_TYPE_LABEL, geofenceDetail, isFlagged } from '../lib/review';
 

@@ -3,7 +3,8 @@
 import { Badge } from '@/components/ui/Badge';
 import { Field, FieldList } from '@/components/ui/FieldList';
 import { useLeave, useLeaveBalances } from '../hooks/usePreviews';
-import { balanceForLeave, balanceNote, daysLabel, leaveRangeLabel } from '../lib/previews';
+import { daysLabel, leaveRangeLabel } from '@/features/hr/lib/leave';
+import { balanceForLeave, balanceNote } from '../lib/previews';
 import { PreviewFrame } from './PreviewFrame';
 
 /** A leave: what, when, how many days it counts, and what it does to the balance. */
