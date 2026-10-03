@@ -593,7 +593,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   until *Save N changes*, which sends only the changed cells, one by one; a refused cell keeps what was typed with the server's reason beside it
   and never undoes the others. A cell that had a value cannot be blanked (the API sets a default but cannot unset one). A note says a change applies
   to balances created from then on. Verified by typecheck, lint and 448 tests; **not yet exercised against the live API.**
-  Next: the Holidays tab, then the employee's Leave tab; then the Accountant screens — one module at a time.
+  **Holidays tab built (2026-10-03):** the calendar grouped by month, over a range that defaults to the financial year in view (the API lists at most 400 days, so a
+  longer or reversed range is refused before any request), filterable by scope, zone and HQ; each row says who it applies to. Add (name, date, and
+  National, Zone or HQ with at least one place for the last two; switching scope clears the other list) and remove with a confirmation that leaves
+  already counted keep their days. There is no edit in the API, so a correction is remove and add. Verified by typecheck, lint and 448 tests;
+  **not yet exercised against the live API.**
+  Next: the employee's Leave tab (balances, adjusting an allocation, and their HQ); then the Accountant screens — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

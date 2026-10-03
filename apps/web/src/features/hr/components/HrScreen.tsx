@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { HolidaysTab } from './HolidaysTab';
 import { LeaveMasterTab } from './LeaveMasterTab';
 import { LeavesTab } from './LeavesTab';
 import { LeaveTypesTab } from './LeaveTypesTab';
@@ -11,6 +12,7 @@ const TABS = [
   { value: 'leaves', label: 'Leaves' },
   { value: 'types', label: 'Leave types' },
   { value: 'master', label: 'Leave master' },
+  { value: 'holidays', label: 'Holidays' },
 ] as const;
 type TabValue = (typeof TABS)[number]['value'];
 
@@ -44,6 +46,9 @@ export function HrScreen() {
         </TabsContent>
         <TabsContent value="master" className="mt-6">
           <LeaveMasterTab />
+        </TabsContent>
+        <TabsContent value="holidays" className="mt-6">
+          <HolidaysTab />
         </TabsContent>
       </Tabs>
     </>
