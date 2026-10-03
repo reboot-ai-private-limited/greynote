@@ -35,6 +35,15 @@ describe('Employees', () => {
   });
 });
 
+describe('Products', () => {
+  it('is an Admin-only Master data screen, like the rest of field master data', () => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/products');
+    expect(navFor('HR').map((i) => i.href)).not.toContain('/products');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/products');
+    expect(isRouteBuilt('/products')).toBe(true);
+  });
+});
+
 describe('Devices', () => {
   it('is an Admin-only screen, since the device API is', () => {
     expect(navFor('ADMIN').map((i) => i.href)).toContain('/devices');

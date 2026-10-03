@@ -1,5 +1,5 @@
 import type { UpdateUserDto, UserAddressDto, UserBankDetailsDto, UserDetailDto } from '@greynote/contracts';
-import { fail, type BuildResult } from './masterData';
+import { fail, type BuildResult } from '@/lib/forms';
 
 /**
  * Employee profile drafts → PATCH bodies, one per section: the API's PATCH is incremental, so

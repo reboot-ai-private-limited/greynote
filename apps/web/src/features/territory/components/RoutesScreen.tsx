@@ -14,8 +14,8 @@ import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useAreaOptions } from '../hooks/useAreaOptions';
 import { useRoutes } from '../hooks/useRoutes';
 import { distanceSummary } from '../lib/routeDraft';
-import { StatusFilter } from './StatusFilter';
-import { TerritoryLevelFrame } from './TerritoryLevelFrame';
+import { StatusFilter } from '@/components/ui/StatusFilter';
+import { PagedListFrame } from '@/components/ui/PagedListFrame';
 
 export function RoutesScreen() {
   const router = useRouter();
@@ -75,7 +75,7 @@ export function RoutesScreen() {
   ];
 
   return (
-    <TerritoryLevelFrame
+    <PagedListFrame
       title="Routes"
       description="The stops an MR travels, with the distance TA is paid on."
       noun="route"

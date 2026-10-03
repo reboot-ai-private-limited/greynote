@@ -1,5 +1,5 @@
 import type { CreateUserDto, UserListItemDto, UserListStatus } from '@greynote/contracts';
-import { fail, type BuildResult } from './masterData';
+import { fail, type BuildResult } from '@/lib/forms';
 
 export type UserRole = UserListItemDto['role'];
 

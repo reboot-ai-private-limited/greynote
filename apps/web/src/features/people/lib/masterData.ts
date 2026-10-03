@@ -10,6 +10,7 @@ import {
   type UpdateDesignationDto,
   type UpdatePayBandDto,
 } from '@greynote/contracts';
+import { fail, type BuildResult } from '@/lib/forms';
 import { paiseToRupees, rupeesToPaise } from '@/lib/money';
 
 /**
@@ -17,8 +18,6 @@ import { paiseToRupees, rupeesToPaise } from '@/lib/money';
  * these turn them into what the API accepts, or say what is wrong per field. Pure, so the rules
  * are tested without a browser.
  */
-export type BuildResult<T> = { ok: true; body: T } | { ok: false; errors: Record<string, string> };
-
 /** The API's ceiling on one money field: ₹10 crore, in paise. */
 export const MAX_PAISE = 10_000_000_000;
 
@@ -59,10 +58,6 @@ export function moneyError(raw: string): string | undefined {
   if (paise === null) return 'Use rupees with at most two decimals, e.g. 7.50.';
   if (paise > MAX_PAISE) return 'That is more than ₹10 crore — check for an extra zero.';
   return undefined;
-}
-
-export function fail(errors: Record<string, string | undefined>): { ok: false; errors: Record<string, string> } {
-  return { ok: false, errors: Object.fromEntries(Object.entries(errors).filter((e): e is [string, string] => e[1] !== undefined)) };
 }
 
 const isPayBandName = (value: string): value is PayBandName => (PAY_BAND_NAMES as readonly string[]).includes(value);

@@ -13,10 +13,10 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { TopProgressBar } from '@/components/ui/TopProgressBar';
 
 /**
- * The shared shell of the Zones / HQs / Areas screens: header with the "New" action, a filter
- * row, the four-state table and pagination. A level supplies its columns, filters and dialogs.
+ * The shared shell of a paginated admin list (Zones, HQs, Areas, Products, Doctors…): header with the "New" action, a filter
+ * row, the four-state table and pagination. A screen supplies its columns, filters and dialogs.
  */
-export function TerritoryLevelFrame<T extends { id: string }>({
+export function PagedListFrame<T extends { id: string }>({
   title,
   description,
   noun,

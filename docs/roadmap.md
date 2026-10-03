@@ -494,7 +494,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   API is. Planned order: Products, the shared map-point / Route pickers, Chemists, Distributors, Doctors (list, create, edit, detail),
   assignments and samples, then a banner on a pending Doctor. A pending (MR-added) Doctor is shown on the Doctors screen, but approving
   or rejecting it is the Approvals page's job. Doctor Gifts belong to Field Activity, not here.
-  Next: Products, then the rest of the order above; then Approvals, HR, expenses/payroll — one module at a time.
+  **Products built (2026-10-03, `/products`):** search, category and status filters in the URL, create and edit in a dialog (category
+  suggestions from the ones in use; a SKU with a space is refused because the server ignores spaces when comparing), and confirm-to-
+  (de)activate. The generic Territory list pieces (paged frame, row actions, status filter and toggle) moved to `components/ui` for
+  reuse. Verified by typecheck, lint, 257 tests and `next build`; **not yet exercised against the live API.**
+  Next: the map-point and Route pickers, then Chemists, Distributors, Doctors, assignments and samples; then Approvals, HR,
+  expenses/payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

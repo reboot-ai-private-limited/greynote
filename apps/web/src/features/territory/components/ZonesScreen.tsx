@@ -10,10 +10,10 @@ import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useZones } from '../hooks/useZones';
 import { useUpdateZone } from '../hooks/useTerritoryMutations';
-import { RowActions } from './RowActions';
-import { StatusFilter } from './StatusFilter';
-import { StatusToggleDialog } from './StatusToggleDialog';
-import { TerritoryLevelFrame } from './TerritoryLevelFrame';
+import { RowActions } from '@/components/ui/RowActions';
+import { StatusFilter } from '@/components/ui/StatusFilter';
+import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
+import { PagedListFrame } from '@/components/ui/PagedListFrame';
 import { ZoneFormDialog } from './ZoneFormDialog';
 
 export function ZonesScreen() {
@@ -54,7 +54,7 @@ export function ZonesScreen() {
   ];
 
   return (
-    <TerritoryLevelFrame
+    <PagedListFrame
       title="Zones"
       description="Top of the territory hierarchy."
       noun="zone"
@@ -79,6 +79,6 @@ export function ZonesScreen() {
         onClose={() => setToggling(null)}
         onConfirm={(status) => toggling && updateZone.mutate({ id: toggling.id, body: { status } })}
       />
-    </TerritoryLevelFrame>
+    </PagedListFrame>
   );
 }

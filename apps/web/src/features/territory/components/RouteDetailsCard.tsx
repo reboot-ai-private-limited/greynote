@@ -11,7 +11,7 @@ import { paiseToRupees } from '@/lib/money';
 import { useUpdateRoute } from '../hooks/useRouteMutations';
 import { AREA_TYPE_LABEL } from '../lib/draft';
 import { changedRouteFields } from '../lib/routeDraft';
-import { StatusToggleDialog } from './StatusToggleDialog';
+import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 
 /** Name, TA rate override and status. The Area is read-only: a route cannot be re-parented. */
 export function RouteDetailsCard({

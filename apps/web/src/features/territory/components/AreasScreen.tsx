@@ -14,10 +14,10 @@ import { useHqOptions } from '../hooks/useParentOptions';
 import { useUpdateArea } from '../hooks/useTerritoryMutations';
 import { AREA_TYPE_LABEL } from '../lib/draft';
 import { AREA_TYPE_OPTIONS, AreaFormDialog } from './AreaFormDialog';
-import { RowActions } from './RowActions';
-import { StatusFilter } from './StatusFilter';
-import { StatusToggleDialog } from './StatusToggleDialog';
-import { TerritoryLevelFrame } from './TerritoryLevelFrame';
+import { RowActions } from '@/components/ui/RowActions';
+import { StatusFilter } from '@/components/ui/StatusFilter';
+import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
+import { PagedListFrame } from '@/components/ui/PagedListFrame';
 
 export function AreasScreen() {
   const { values, page, update } = useFilterParams(['search', 'status', 'hqId', 'type']);
@@ -56,7 +56,7 @@ export function AreasScreen() {
   ];
 
   return (
-    <TerritoryLevelFrame
+    <PagedListFrame
       title="Areas"
       description="Areas under each HQ. The type decides which DA rate applies."
       noun="area"
@@ -97,6 +97,6 @@ export function AreasScreen() {
         onClose={() => setToggling(null)}
         onConfirm={(status) => toggling && updateArea.mutate({ id: toggling.id, body: { status } })}
       />
-    </TerritoryLevelFrame>
+    </PagedListFrame>
   );
 }

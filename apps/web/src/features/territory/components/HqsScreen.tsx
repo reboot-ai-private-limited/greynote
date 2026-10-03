@@ -13,10 +13,10 @@ import { useHqs } from '../hooks/useHqs';
 import { useZoneOptions } from '../hooks/useParentOptions';
 import { useUpdateHq } from '../hooks/useTerritoryMutations';
 import { HqFormDialog } from './HqFormDialog';
-import { RowActions } from './RowActions';
-import { StatusFilter } from './StatusFilter';
-import { StatusToggleDialog } from './StatusToggleDialog';
-import { TerritoryLevelFrame } from './TerritoryLevelFrame';
+import { RowActions } from '@/components/ui/RowActions';
+import { StatusFilter } from '@/components/ui/StatusFilter';
+import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
+import { PagedListFrame } from '@/components/ui/PagedListFrame';
 
 export function HqsScreen() {
   const { values, page, update } = useFilterParams(['search', 'status', 'zoneId']);
@@ -53,7 +53,7 @@ export function HqsScreen() {
   ];
 
   return (
-    <TerritoryLevelFrame
+    <PagedListFrame
       title="HQs"
       description="Headquarters, each under one zone."
       noun="HQ"
@@ -86,6 +86,6 @@ export function HqsScreen() {
         onClose={() => setToggling(null)}
         onConfirm={(status) => toggling && updateHq.mutate({ id: toggling.id, body: { status } })}
       />
-    </TerritoryLevelFrame>
+    </PagedListFrame>
   );
 }

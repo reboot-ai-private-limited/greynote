@@ -1,10 +1,11 @@
 'use client';
 
-import type { TerritoryStatus } from '@greynote/contracts';
 import { MoreHorizontal } from 'lucide-react';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 
-/** Edit and (de)activate. Territory is soft-deleted only, so there is no delete. */
+/** Edit and (de)activate. These records are soft-deleted only, so there is no delete. */
+type ActiveStatus = 'active' | 'inactive';
+
 export function RowActions({
   label,
   status,
@@ -13,7 +14,7 @@ export function RowActions({
   onToggleStatus,
 }: {
   label: string;
-  status: TerritoryStatus;
+  status: ActiveStatus;
   disabled: boolean;
   onEdit: () => void;
   onToggleStatus: () => void;

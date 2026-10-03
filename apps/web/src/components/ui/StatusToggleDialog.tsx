@@ -1,9 +1,10 @@
 'use client';
 
-import type { TerritoryStatus } from '@greynote/contracts';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 /** Confirms a status change. Deactivation is refused server-side while active children exist; its message is toasted. */
+type ActiveStatus = 'active' | 'inactive';
+
 export function StatusToggleDialog({
   item,
   noun,
@@ -11,11 +12,11 @@ export function StatusToggleDialog({
   onClose,
   onConfirm,
 }: {
-  item: { id: string; name: string; status: TerritoryStatus } | null;
+  item: { id: string; name: string; status: ActiveStatus } | null;
   noun: string;
   pending: boolean;
   onClose: () => void;
-  onConfirm: (next: TerritoryStatus) => void;
+  onConfirm: (next: ActiveStatus) => void;
 }) {
   const deactivating = item?.status === 'active';
   return (
