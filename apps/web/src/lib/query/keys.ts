@@ -29,7 +29,11 @@ export const keys = {
   },
   designations: { all: () => ['designations', fy()] as const },
   payBands: { all: () => ['payBands', fy()] as const },
-  leaves: { range: (query: object) => ['leaves', fy(), 'range', query] as const },
+  leaves: {
+    detail: (id: string) => ['leaves', fy(), 'detail', id] as const,
+    balances: (userId: string, year: number | undefined) => ['leaves', fy(), 'balances', userId, year ?? 'current'] as const,
+    range: (query: object) => ['leaves', fy(), 'range', query] as const,
+  },
   expenses: { audit: (query: object) => ['expenses', fy(), 'audit', query] as const },
   payroll: { month: (query: object) => ['payroll', fy(), 'month', query] as const },
   monthlyStock: { missing: (month: string) => ['monthlyStock', fy(), 'missing', month] as const },

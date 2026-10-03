@@ -1,6 +1,7 @@
 'use client';
 
 import type { ApprovalInboxItemDto } from '@greynote/contracts';
+import { kindLabel } from '@/features/approvals/lib/approvals';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
@@ -9,7 +10,6 @@ import { ageLabel } from '@/lib/dates';
 import { longestWaiting } from '@/lib/dashboard';
 import { useApprovalInbox } from '../hooks/useDashboardData';
 
-const KIND_LABEL: Record<string, string> = { LEAVE: 'Leave', DCR: 'Daily report' };
 
 /** The requests that have waited longest, so the first thing on the page is what to do first. */
 export function ApprovalsWaitingList({ kind, title }: { kind?: string; title: string }) {
@@ -30,7 +30,7 @@ export function ApprovalsWaitingList({ kind, title }: { kind?: string; title: st
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-text">{row.submitter?.name ?? 'Unknown employee'}</p>
                 <p className="text-[13px] text-text-subtle">
-                  {KIND_LABEL[row.kind] ?? row.kind} · {row.submitter?.employeeCode ?? '—'}
+                  {kindLabel(row.kind)} · {row.submitter?.employeeCode ?? '—'}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-3">

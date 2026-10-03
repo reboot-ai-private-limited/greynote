@@ -3,20 +3,10 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Field, FieldList } from '@/components/ui/FieldList';
 
-/** A label and its value; an empty value renders as a quiet dash. */
-export function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-text-subtle">{label}</dt>
-      <dd className="mt-1 text-sm text-text">{children || <span className="text-text-subtle">—</span>}</dd>
-    </div>
-  );
-}
-
-export function FieldList({ children }: { children: ReactNode }) {
-  return <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">{children}</dl>;
-}
+// Re-exported so the people screens keep importing the description list from one place.
+export { Field, FieldList };
 
 /**
  * One independently-saved section: a read view with an Edit button that swaps to a form. The form

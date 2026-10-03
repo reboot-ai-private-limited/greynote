@@ -544,7 +544,13 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   asks one required reason to reject; the result lists every failure by name with the server's message, and a batch lost to a
   dropped connection is reported unconfirmed and stops the rest. Verified by typecheck, lint, 353 tests and `next build`; **not yet
   exercised against the live API.**
-  Next: the per-kind previews (new doctor and leave first); then HR, expenses/payroll.
+  **Previews for new doctor and leave built (2026-10-03):** the detail page shows the record being decided. A new doctor shows its details and a read-only map
+  with the registered location beside the grey pin of where the phone was, how far apart they are when Admin corrected it, and a link to open the
+  doctor and correct it. A leave shows its type (paid or unpaid), dates, the days it counts, the reason, and the submitter's balance for that
+  type and year with what will be left on approval (a balance that would go negative is called out). A preview that cannot load shows its own
+  error and never blocks the decision or the history. The pending-Doctor banner now links to `/approvals?kind=NEW_DOCTOR`, and the dashboard
+  uses the shared kind labels. Verified by typecheck, lint, 367 tests and `next build`; **not yet exercised against the live API.**
+  Next: previews for daily report (with the geofence override), plans, doctor service and plan change; then HR, expenses/payroll.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

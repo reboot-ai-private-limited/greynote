@@ -85,7 +85,11 @@ function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoc
           <p className="font-medium">An MR added this doctor, and it is waiting for approval.</p>
           <p className="mt-1">
             Nobody can visit it or give it samples until it is approved. Check the location below against the grey pin (where the phone was),
-            correct it if needed, then approve or reject it from the Approvals queue.
+            correct it if needed, then approve or reject it from the{' '}
+            <Link href="/approvals?kind=NEW_DOCTOR" className="font-medium underline">
+              Approvals queue
+            </Link>
+            .
           </p>
         </div>
       ) : null}

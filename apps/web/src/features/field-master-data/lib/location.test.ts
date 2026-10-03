@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPoint, locationChange, pointFromInputs, pointToInputs, roundCoordinate, samePoint } from './location';
+import { distanceMeters, formatDistance, formatPoint, locationChange, pointFromInputs, pointToInputs, roundCoordinate, samePoint } from './location';
 
 describe('pointFromInputs', () => {
   it('turns two numbers into a point, rounded to six decimals', () => {
@@ -66,5 +66,32 @@ describe('samePoint / locationChange', () => {
 describe('roundCoordinate', () => {
   it('keeps six decimals', () => {
     expect(roundCoordinate(1.23456789)).toBe(1.234568);
+  });
+});
+
+describe('distanceMeters / formatDistance', () => {
+  it('is zero for the same point', () => {
+    expect(distanceMeters({ latitude: 26.7, longitude: 88.4 }, { latitude: 26.7, longitude: 88.4 })).toBe(0);
+  });
+  it('measures about 111 km for one degree of latitude', () => {
+    const d = distanceMeters({ latitude: 26, longitude: 88 }, { latitude: 27, longitude: 88 });
+    expect(d).toBeGreaterThan(111_000);
+    expect(d).toBeLessThan(111_400);
+  });
+  it('measures a short walk in metres', () => {
+    const d = distanceMeters({ latitude: 26.7271, longitude: 88.3953 }, { latitude: 26.7274, longitude: 88.3953 });
+    expect(d).toBeGreaterThan(30);
+    expect(d).toBeLessThan(36);
+  });
+  it('is symmetric', () => {
+    const a = { latitude: 26.7, longitude: 88.4 };
+    const b = { latitude: 27.1, longitude: 88.9 };
+    expect(distanceMeters(a, b)).toBeCloseTo(distanceMeters(b, a), 6);
+  });
+  it('formats metres and kilometres', () => {
+    expect(formatDistance(34.6)).toBe('35 m');
+    expect(formatDistance(999)).toBe('999 m');
+    expect(formatDistance(1234)).toBe('1.2 km');
+    expect(formatDistance(25_400)).toBe('25 km');
   });
 });
