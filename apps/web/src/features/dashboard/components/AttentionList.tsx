@@ -28,9 +28,9 @@ export function ApprovalsWaitingList({ kind, title }: { kind?: string; title: st
           {rows.map((row) => (
             <li key={row.id} className="flex items-center justify-between gap-4 px-5 py-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-text">{row.submitter.name}</p>
+                <p className="truncate text-sm font-medium text-text">{row.submitter?.name ?? 'Unknown employee'}</p>
                 <p className="text-[13px] text-text-subtle">
-                  {KIND_LABEL[row.kind] ?? row.kind} · {row.submitter.employeeCode}
+                  {KIND_LABEL[row.kind] ?? row.kind} · {row.submitter?.employeeCode ?? '—'}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-3">

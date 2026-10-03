@@ -525,7 +525,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   so before it does) and corrects a total, refused below what was already given out. Only an active doctor can be assigned or issued
   samples. Verified by typecheck, lint, 330 tests and `next build`; **not yet exercised against the live API.**
   **Field master data is complete in the web portal** (Products, Chemists, Distributors, Doctors).
-  Next: Approvals (which also decides the pending Doctors), then HR, expenses/payroll — one module at a time.
+  **Approvals started (2026-10-03):** the API gained `GET /approvals/all` so Admin and HR can list decided requests (decision-log 2026-10-03).
+  The web has the wire types (row, detail with named history, decide, bulk), the API calls and the tested pure rules: kind and status
+  labels, who a request is waiting on, the Admin-override warning, history grouped by cycle, Indian-time date ranges sent as offset
+  instants, reasons, and bulk batching and result summaries. Planned: the `/approvals` queue with History, the detail page, bulk decide,
+  then a read-only preview per kind (new doctor and leave first; then daily report, plans, doctor service, plan change).
+  Next: the `/approvals` screens; then HR, expenses/payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

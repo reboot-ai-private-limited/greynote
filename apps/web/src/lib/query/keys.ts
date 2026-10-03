@@ -14,6 +14,8 @@ export const keys = {
   approvals: {
     all: () => ['approvals', fy()] as const,
     inbox: (query: object) => [...keys.approvals.all(), 'inbox', query] as const,
+    history: (query: object) => [...keys.approvals.all(), 'history', query] as const,
+    detail: (id: string) => [...keys.approvals.all(), 'detail', id] as const,
   },
   devices: {
     all: () => ['devices', fy()] as const,
