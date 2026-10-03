@@ -27,7 +27,7 @@ await esbuild.build({
     // the container, not just `tsx` in dev). No `outbase` needed — esbuild's default output
     // layout uses each entry's path relative to the lowest common ancestor of all entry points
     // (`src/`), so this lands at `dist/scripts/seed.js` alongside `dist/server.js`.
-    entryPoints: ['src/server.ts', 'src/scripts/seed.ts', 'src/scripts/migrate-money-to-paise.ts', 'src/scripts/run-compliance.ts'],
+    entryPoints: ['src/server.ts', 'src/scripts/seed.ts', 'src/scripts/migrate-money-to-paise.ts', 'src/scripts/migrate-territory-flatten.ts', 'src/scripts/run-compliance.ts'],
     bundle: true,
     platform: 'node',
     format: 'esm',

@@ -124,6 +124,29 @@ It is safe to run again: a converted document is skipped, and a value it can't c
 than 2 decimal places, or negative) stops the whole run before anything is written. A fresh database
 that never had the old fields has nothing to convert.
 
+## Step 9b — Flatten the territory (once, when upgrading past 2026-10-03)
+
+`Area` was removed: a Route now belongs to an HQ, has one destination and carries the DA type
+(`docs/decision-log.md`, 2026-10-03). A database with Routes and Areas in the old shape must be
+converted **before the new version starts**, or its Routes can't be read. Dry run first (changes
+nothing, lists what it would do), then apply (saves a backup file first):
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-territory-flatten.js
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-territory-flatten.js --apply --backup /tmp/territory-backup.json
+```
+
+Each Route takes its HQ and type from its Area and keeps its **last waypoint** as the destination;
+the `areas` collection is dropped once the result is verified. The run stops before writing anything if
+a Route has no Area or no waypoints, or if two Routes would now share a name under one HQ (rename one
+and run again). It is safe to run again.
+
+**Then set each HQ's base place in the portal.** The script can't know it: it only prints a suggestion
+(where the HQ's first Route used to start). Saving the base place recalculates that HQ's Routes from it,
+except any with a manually entered distance, which are listed so you can check them. Until then the
+stored distances stay as they were, and the HQ can't get a new Route. A fresh database has nothing to
+convert.
+
 ## Step 10 — Schedule the daily compliance job
 
 The application has no scheduler. Once a day, after the business day rolls over (early morning is fine), the

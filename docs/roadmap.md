@@ -88,9 +88,11 @@ the CSV reader/import; live runs against the dev API (real Google key) passed ev
 
 **Rework (2026-10-03): in progress.** The client's structure is an HQ town with routes out to nearby
 places, so `Area` and the waypoint list are removed (decision-log 2026-10-03, sign-off D8). Order:
-(1) docs and decision-log — done 2026-10-03; (2) contracts + API (HQ base place, Route
-`hq_id`/`destination`/`type`, `areaType` → `routeType` in TA/DA, sync and Distributor path);
-(3) one-off data migration; (4) web portal (Areas screens removed, HQ base-place picker, Route form).
+(1) docs and decision-log — done 2026-10-03; (2) contracts + API — done 2026-10-03 (HQ base place,
+Route `hq_id`/`destination`/`type`, base-place change recalculates the HQ's Routes, `areaType` →
+`routeType` in TA/DA, sync and the Distributor path, CSV is Zone/HQ only); (3) one-off data migration —
+done 2026-10-03 (`migrate:territory`, `manual_deploy.md` Step 9b); (4) web portal (Areas screens removed,
+HQ base-place picker, Route form) — not yet.
 The status paragraph above and the Phase 9 / Phase 6 notes below describe what was built before the
 rework and are updated as each step lands.
 
