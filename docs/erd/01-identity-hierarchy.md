@@ -28,9 +28,9 @@ erDiagram
         string name "G1, G2, G3"
         int base_salary_paise "monthly base salary for this grade, in whole paise - feeds Payroll (Module 9)"
         int ta_per_km_rate_paise "paise per km - feeds auto TA calculation - see HLD 06"
-        int hq_da_paise "DA when the day's Area type is HQ - see HLD 06"
-        int ex_station_da_paise "DA for EX_STATION areas"
-        int out_station_da_paise "DA for OUT_STATION areas"
+        int hq_da_paise "DA when the day's Route type is HQ - see HLD 06"
+        int ex_station_da_paise "DA for EX_STATION routes"
+        int out_station_da_paise "DA for OUT_STATION routes"
     }
     USER {
         uuid id PK
@@ -143,7 +143,7 @@ Territory (Module 2), one tier above Identity, not here.
 
 ## Next
 
-**Module 2 — Territory Master.** Zone → HQ → Area → Route will add a territory FK (e.g. `hq_id` or
+**Module 2 — Territory Master.** Zone → HQ → Route will add a territory FK (e.g. `hq_id` or
 `route_id`) onto `EmployeeProfile` (not `User` — the FK would be FIELD-only, same as
 `designation_id`/`pay_band_id`), plus Route → Doctor/Chemist assignment. Route assignment itself
 (`ROUTE_ASSIGNMENT`, ERD-02) should validate its target `user_id` resolves to a `FIELD`-role user

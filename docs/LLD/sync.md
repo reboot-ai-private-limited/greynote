@@ -193,7 +193,7 @@ the sources (default: all). The answer:
 | Source | Registered by | Contents |
 |---|---|---|
 | `fieldMasterData` | Field Master Data | `doctors` (the MR's own, by the `GET /doctors/mine` rule, Route-following included), `pendingDoctors` (the ones they added, awaiting approval), `chemists` (active, on their Routes), `distributors` (active; assigned to them or on their Routes), `products` (the active catalog), `sampleAllocations` (what's left, for exactly those Doctors) |
-| `territory` | the composition root | their Routes (name, Area and its type, distance, TA rate override in paise) and their HQ and Zone by name |
+| `territory` | the composition root | their Routes (name, HQ, route type, distance, TA rate override in paise) and their HQ and Zone by name |
 | `hr` | HR | active leave types, their balances for the current leave year, the holidays that apply to them across it (National, their HQ's, its Zone's), the weekly off day and the backdating limit |
 | `fieldActivity` | Field Activity | whether they are compliance-blocked; their last week's daily reports (from six days back to today, oldest first) each with status, approval request id, call and follow-up counts and the day's money in paise (TA, DA, other expenses, how much is paid); their Doctor Services (newest 100) with status; the gifts for their Doctors still to give. Not the calls themselves, geofence results or anyone else's |
 | `planning` | Planning | their Daily Plans from a week back to 30 days ahead and this and next month's Monthly Plans, each with its approval status (for the day's gate, a UX check — the server's is the real one) |

@@ -62,7 +62,7 @@ lists the rules that "cannot be changed casually after development" — most una
 | B, C, F | Phase 4 (Planning, Field Master Data, HR). B1, B3, B4 accepted 2026-09-28 — Planning done; F3, F11–F16 accepted 2026-09-28 — HR done; C3, C4, C6, C7, C8 accepted 2026-09-29 — Field Master Data done |
 | E | Phase 6 (Sales & Orders) |
 
-Phase 2 can start in parallel: Zone → HQ → Area → Route is confirmed by the client's Master spec.
+Phase 2 can start in parallel: the territory shape is `Zone → HQ → Route` (sign-off D8; it was `Zone → HQ → Area → Route` until 2026-10-03).
 A row the client doesn't answer can still be built, but only with its "Today" assumption
 accepted explicitly, and recorded in `decision-log.md`.
 
@@ -70,9 +70,11 @@ accepted explicitly, and recorded in `decision-log.md`.
 
 [`LLD/territory.md`](LLD/territory.md) · [`hld/02-route-distance-calculation.md`](hld/02-route-distance-calculation.md)
 
-- `Zone → HQ → Area → Route` spatial hierarchy (ERD Module 2), with `Area.type` feeding DA
-- Route-distance external API integration — auto-recalculated on every waypoint edit, with a
-  manual Admin override that itself doesn't survive the next edit (`hld/02` §3)
+- `Zone → HQ → Route` spatial hierarchy (ERD Module 2): an HQ has a base place, a Route is one
+  destination place from it, and `Route.type` feeds DA
+- Route-distance external API integration — base place → destination, auto-recalculated on every
+  destination edit (and on an HQ base-place change, except manual overrides), with a manual Admin
+  override that itself doesn't survive the next destination edit (`hld/02` §3)
 - `RouteAssignment` (MR ↔ Route, many-to-many)
 
 **Status (2026-09-24): done.** Steps 1–2 done — Zone / HQ / Area CRUD; Routes with
@@ -84,14 +86,22 @@ for field employees, and `TerritoryPublicContract` (`getRoute`, `listRoutesForUs
 the hierarchy rules, route distance/override/revision rules, assignments, the contract reads and
 the CSV reader/import; live runs against the dev API (real Google key) passed every check.
 
+**Rework (2026-10-03): in progress.** The client's structure is an HQ town with routes out to nearby
+places, so `Area` and the waypoint list are removed (decision-log 2026-10-03, sign-off D8). Order:
+(1) docs and decision-log — done 2026-10-03; (2) contracts + API (HQ base place, Route
+`hq_id`/`destination`/`type`, `areaType` → `routeType` in TA/DA, sync and Distributor path);
+(3) one-off data migration; (4) web portal (Areas screens removed, HQ base-place picker, Route form).
+The status paragraph above and the Phase 9 / Phase 6 notes below describe what was built before the
+rework and are updated as each step lands.
+
 Tier 2, and the only thing tier 3 as a whole depends on besides Identity. Building it alone
 (rather than starting tier 3 in parallel) keeps the external-API integration — the one genuinely
 risky piece here — isolated and testable before three modules build assignment/location features
 on top of it. Route↔Doctor/Chemist territory coverage is **not** this module's join — the ERD
 defers it to Field Master Data (Phase 4), since `Doctor`/`Chemist` don't exist at this tier.
 
-**Done when:** editing a Route's waypoints recalculates `distance_km` from the external API, a
-manual override is possible and is correctly cleared by the next waypoint edit, a route whose
+**Done when:** editing a Route's destination (or its HQ's base place) recalculates `distance_km` from the external API, a
+manual override is possible and is correctly cleared by the next destination edit, a route whose
 distance API call fails still saves master data (flagged `FAILED`, not blocking, retryable), and
 Admin can assign MRs to Routes.
 

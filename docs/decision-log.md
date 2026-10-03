@@ -17,6 +17,31 @@ old one.
 
 ---
 
+## 2026-10-03 — Territory flattened: `Zone → HQ → Route`, a Route runs from its HQ's base place to one destination
+
+**Decision:** **Reverses the `Area` half of** "Territory, Distributor, Doctor assignment and DA re-aligned to the client's Master spec" (2026-09-24). The other three calls in that entry (Distributor on a Route, one active Doctor assignment, per-type DA rates) stand.
+
+- **`Area` is removed.** The hierarchy is `Zone → HQ → Route`. `Route.area_id` becomes `Route.hq_id`.
+- **An HQ has a base place** (`label`, `latitude`, `longitude`, `place_id`), e.g. SLG-1 and SLG-2 are two HQs whose base place is Siliguri. It is required on create. HQs that exist before this change have none until an Admin sets one.
+- **A Route is one destination place** reached from its HQ's base place (SLG-1 → Naxalbari, SLG-1 → Dhupguri). `waypoints[]` (2–25 stops) is replaced by a single `destination`. The distance is base place → destination, from the same Google Routes call as before, with manual override and retry kept. Still never doubled (sign-off D7).
+- **The DA tier moves to `Route.type`** (`HQ | EX_STATION | OUT_STATION`), set by the Admin when the Route is created. The DA rule itself is unchanged: the highest type among the day's Routes wins, and `MEETING`/`CONFERENCE` use the HQ rate. The three per-grade DA rates on Pay Bands are unchanged.
+- **Changing an HQ's base place recalculates its active Routes** that are not manually overridden. Overridden Routes keep their distance and are reported back to the Admin, so one edit never silently throws away a hand-entered distance.
+- **CSV import covers Zone and HQ only.** The `area` and `area_type` columns go. An HQ's base place needs a map-confirmed pin, the same reason Routes were never imported.
+
+**Why:** the client's real structure is a headquarters town with routes out to nearby places. A Route is "from Siliguri to Naxalbari", not a path through waypoints, and Area added a level that the client does not use. The distance the client needs is between two places.
+
+**Rejected:**
+- DA tier derived from distance bands: it needs thresholds that the client has not given, and it would change what is paid for existing Routes.
+- DA tier on HQ: too coarse, since SLG-1 → Naxalbari and SLG-1 → a far place would be paid the same.
+- An extra sub-base level under HQ for SLG-1/SLG-2: it adds a level instead of removing one.
+- Keeping optional via-stops on a Route: it keeps the whole waypoint editor and map code for a case the client has not asked for.
+
+**Cost:** multi-stop Routes are gone, so a trip through a stop is one Route per destination (or a manual distance override). Existing Routes need a one-off migration: `hq_id` from the Area's HQ, `type` from the Area's type, `destination` from the last waypoint. Sync payload, `RouteSummary`, `RoutePath` and the Distributor detail path change shape, with `areaType` renamed `routeType`. The field app has no territory code yet, so nothing there breaks.
+
+**Refs:** sign-off D3, D4, D5, D8; [`LLD/territory.md`](LLD/territory.md); [`erd/02-territory-master.md`](erd/02-territory-master.md); [`hld/02-route-distance-calculation.md`](hld/02-route-distance-calculation.md); [`hld/06-ta-da-auto-calculation.md`](hld/06-ta-da-auto-calculation.md)
+
+---
+
 ## 2026-10-03 — Every Config setting is defined in one registry
 
 **Decision:** `modules/config/domain/configDefinitions.ts` defines all 30 settings once: label, description, type (yes/no, whole number, time,

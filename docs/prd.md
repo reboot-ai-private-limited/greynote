@@ -52,9 +52,9 @@ _Sales managers are explicitly excluded from web-portal workflows to keep back-o
 
 Territories are built on a strict spatial hierarchy: **Zone → Headquarter (HQ) → Route**.
 
-- **Hierarchy Mapping:** E.g., West Bengal Zone → Siliguri HQ → Matigara Loop.
-- **Route Details:** Routes contain an array of waypoints (e.g., "From Matigara via Medical More via Darj to Fulbari").
-- **TA Automation:** When creating a route, an external API calculates the total distance. This distance is saved to automate TA calculations later.
+- **Hierarchy Mapping:** E.g., West Bengal Zone → SLG-1 HQ → Naxalbari Route. An HQ has a base place (e.g., Siliguri); several HQs can share one.
+- **Route Details:** A route runs from its HQ's base place to one destination place (e.g., "From Siliguri to Naxalbari") and has a type (HQ, Ex Station or Out Station) that sets the DA rate.
+- **TA Automation:** When creating a route, an external API calculates the road distance from the HQ's base place to the destination. This distance is saved to automate TA calculations later. Admin can override it by hand.
 - **Assignments:** Admin can assign MRs to specific routes and attach Doctors/Chemists to those routes. A route may have more than one MR assigned (shared coverage), and one MR can cover more than one route.
 - **Direct Doctor Assignment:** Independently of route coverage, Admin can also assign one or more specific MRs directly to a Doctor. This direct assignment — not general route coverage — is what determines which MR(s) can see and act on that doctor's Sample/Gift allocations and auto-select for Admin-created Doctor Services (see Section 6.2).
 - **Location Verification:** Doctor and Chemist master records carry a registered location (captured once when added). When an MR logs a Dr Call or Chemist Call, the app captures the MR's GPS position at that moment and validates it against the registered location within an Admin-configurable radius (see Section 8), flagging calls logged from outside that radius.

@@ -11,7 +11,8 @@ cheapest to change before the listed phase starts.
 
 **Status key:** Built = already in code · Designed = in docs, not built · Open = no assumption yet
 · Accepted = not answered by the client, but "Today" explicitly accepted to build on (recorded in
-`decision-log.md`; a later client answer is a change, not a gap).
+`decision-log.md`; a later client answer is a change, not a gap) · Retired = the question no longer
+applies because the design changed (the decision-log entry says how).
 
 ---
 
@@ -58,11 +59,12 @@ cheapest to change before the listed phase starts.
 |---|---|---|---|
 | D1 | TA source: predefined Route distance only, or can Doctor GPS location be used (§7.1, §7.7)? | Route distance only | Designed |
 | D2 | Night Stay allowance: when does it apply, and is it per grade? | Not modeled | Open |
-| D3 | If one day's plan covers routes in different Area types (e.g. HQ and Out Station), which DA applies? | The highest (Out Station > Ex Station > HQ) | Designed |
+| D3 | If one day's plan covers routes of different types (e.g. HQ and Out Station), which DA applies? | The highest (Out Station > Ex Station > HQ). The type is set on each Route (see D8) | Designed |
 | D4 | DA on Meeting / Conference days (no route). | HQ DA rate | Designed |
-| D5 | Can a Route have a different Area Type from its Area? | **Answered 2026-09-24:** No — a Route always uses its Area's type | Confirmed |
+| D5 | Can a Route have a different Area Type from its Area? | **Retired 2026-10-03:** there is no Area any more; the type is on the Route itself (D8). Was answered 2026-09-24: no | Retired |
 | D6 | Is TA/DA paid on holidays / weekly offs (§8.5, §25.3)? | Not decided | Open |
 | D7 | Is TA paid on a Route's one-way distance, or doubled for the return trip? | **Answered 2026-09-24:** used as-is, no ×2 — Admin enters the distance to cover the full paid travel | Confirmed |
+| D8 | Territory shape and the Route distance. | **Accepted 2026-10-03:** `Zone → HQ → Route`, no Area. Each HQ has a base place (e.g. Siliguri); a Route is one destination (e.g. Naxalbari) and its distance is base place → destination, with Admin override. The DA type (HQ / Ex Station / Out Station) is set on the Route. Changing an HQ's base place recalculates its Routes except manually overridden ones | Designed |
 
 ## E. Sales & Distributors (Phase 6)
 

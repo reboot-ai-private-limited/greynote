@@ -44,7 +44,7 @@ erDiagram
     }
     DISTRIBUTOR {
         uuid id PK
-        uuid route_id FK "Zone/HQ/Area reached via Route"
+        uuid route_id FK "Zone/HQ reached via Route"
         string name
         string gst_number
         string contact_person
@@ -97,7 +97,7 @@ erDiagram
 
 - **Chemist and Distributor are separate entities**, not a shared "Outlet" table — Chemist carries its own Call/Followup transactional flow (Module 4), Distributor doesn't, so merging them would leave a lot of unused fields either way.
 - **Doctor and Chemist each get a single `route_id` FK.** One physical location, one route. No join table — simpler than Module 2's MR↔Route relationship because a clinic/pharmacy doesn't move or get double-covered the way MR assignments do.
-- **Distributor attaches at the Route level (`route_id`), same as Doctor and Chemist.** Client rules §17.2: "A Route can contain multiple: Doctors, Chemists, Distributors." Zone/HQ/Area are shown on the Distributor screen as a breadcrumb resolved through the Route, not stored. (An earlier version attached Distributor to `hq_id`; reversed 2026-09-24, `docs/decision-log.md`.)
+- **Distributor attaches at the Route level (`route_id`), same as Doctor and Chemist.** Client rules §17.2: "A Route can contain multiple: Doctors, Chemists, Distributors." Zone/HQ are shown on the Distributor screen as a breadcrumb resolved through the Route, not stored. (An earlier version attached Distributor to `hq_id`; reversed 2026-09-24, `docs/decision-log.md`.)
 - **Distributor visibility = Route coverage + a direct assignment field.** Client rules §17.3: visibility is "controlled through Route and manual assignment rules". An MR sees a Distributor if a `RouteAssignment` covers its Route, or if they are its `assigned_mr_id`. Managers see their downline's Distributors through the reporting chain (HLD 05 §3). No separate Distributor↔User join table.
 - **`assigned_mr_id` / `assigned_asm_id` are single-value.** This follows from the one-Doctor-one-MR rule below. The client has not stated it separately for Distributors; if a Distributor ever needs several concurrent MRs, it becomes a join table shaped like `DoctorAssignment`.
 - **No separate Sample catalog.** `Product` is the single catalog for both orderable items and sample-eligible items. What makes something a "sample" is that it has been **allocated** to a doctor — modeled by `DoctorSampleAllocation`, not a flag on `Product`.

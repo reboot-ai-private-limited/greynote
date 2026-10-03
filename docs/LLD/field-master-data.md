@@ -42,9 +42,9 @@ whole data model. The contract below is complete for Phase 6's needs.
   flags stated explicitly** — there's no default, since whether a Distributor takes primary or
   secondary orders is the client's call. The assigned MR and ASM (sign-off C2) must be active FIELD
   employees, or `null`; a person already in place who later goes inactive can stay until Admin
-  moves them. The list filters by `routeId`, or by the `areaId` / `hqId` / `zoneId` above it (the
+  moves them. The list filters by `routeId`, or by the `hqId` / `zoneId` above it (the
   most specific one given, resolved to Route ids through Territory's `listRouteIdsInScope`), by
-  `assignedMrId`, and by name / GST; the detail adds the Zone → HQ → Area breadcrumb through the Route.
+  `assignedMrId`, and by name / GST; the detail adds the Zone → HQ breadcrumb through the Route.
 - **Sample allocations (step 5):** one row per (Doctor, Product). `POST /doctors/:id/sample-allocations`
   issues samples and **adds** to an existing row (a first-time issue is an atomic upsert, so racing
   issues sum correctly); `PATCH …/:productId` corrects the allocated total but never below what has
@@ -65,7 +65,7 @@ whole data model. The contract below is complete for Phase 6's needs.
 - **Chemist** — the same shape minus specialty/qualification, its own registered
   `latitude`/`longitude`.
 - **Distributor** — attaches at the `route_id` level, same as Doctor/Chemist (client rules
-  §17.2). Zone/HQ/Area are resolved through the Route (`TerritoryPublicContract.getRoutePath`),
+  §17.2). Zone/HQ are resolved through the Route (`TerritoryPublicContract.getRoutePath`),
   never stored. Carries GST number, contact person, mobile, address, a registered
   `latitude`/`longitude`, single-value `assigned_mr_id`/`assigned_asm_id`, and
   `primary_sales_enabled`/`secondary_sales_enabled` flags (client Master spec M6). Orders and
@@ -149,8 +149,8 @@ All Admin-only (Web Portal, `../roadmap.md` phase 9) unless noted.
 | `DELETE` | `/field-master-data/doctors/:id/assignments/:userId` | Admin | Remove a direct assignment |
 | `POST` | `/field-master-data/chemists` | Admin | Create a Chemist |
 | `GET`/`PATCH` | `/field-master-data/chemists`, `/chemists/:id` | Admin | List/detail/edit |
-| `POST` | `/field-master-data/distributors` | Admin | Create a Distributor on a Route (portal picks Zone → HQ → Area → Route using Territory's filtered list endpoints) |
-| `GET` | `/field-master-data/distributors` | Admin | List, filterable by `routeId`, `areaId`, `hqId`, `zoneId` (upper levels resolved to route ids via Territory), and `assignedMrId` |
+| `POST` | `/field-master-data/distributors` | Admin | Create a Distributor on a Route (portal picks Zone → HQ → Route using Territory's filtered list endpoints) |
+| `GET` | `/field-master-data/distributors` | Admin | List, filterable by `routeId`, `hqId`, `zoneId` (upper levels resolved to route ids via Territory), and `assignedMrId` |
 | `GET`/`PATCH` | `/field-master-data/distributors/:id` | Admin | Detail/edit, including reassigning MR/ASM |
 | `POST` | `/field-master-data/products` | Admin | Create a Product |
 | `GET`/`PATCH` | `/field-master-data/products`, `/products/:id` | Admin | List/detail/edit |
@@ -252,7 +252,7 @@ doesn't re-derive the state machine.
 
 - **Identity** (Tier 1) — `User` ids for `DoctorSampleAllocation.allocated_by` and
   `DoctorAssignment.user_id`.
-- **Territory** (Tier 2) — `Route.id` for Doctor/Chemist/Distributor, `getRoutePath` for the Zone/HQ/Area breadcrumb; `RouteAssignment`
+- **Territory** (Tier 2) — `Route.id` for Doctor/Chemist/Distributor, `getRoutePath` for the Zone/HQ breadcrumb; `RouteAssignment`
   is read (not written) here only insofar as the "route coverage ≠ direct assignment" distinction
   needs Territory's contract to explain the difference in documentation and, likely, in a combined
   "who can see this doctor" query on the Field Activity side rather than in this module.

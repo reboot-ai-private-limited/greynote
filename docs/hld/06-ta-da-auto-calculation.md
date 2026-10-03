@@ -1,6 +1,6 @@
 # HLD 6: TA/DA Auto-Calculation
 
-How the `AUTO`-sourced `Expense` rows (TA, DA) actually get computed (PRD glossary: TA = Route Distance × Per-Km Rate; client Master spec: DA = Area Type + Grade rate, i.e. each grade has separate HQ / Ex Station / Out Station DA rates) — ties Module 2's distance calc, Module 1's `PayBand` rates, Module 5's `DailyPlan`, Module 4's `Expense`, and HLD 5's approval engine together.
+How the `AUTO`-sourced `Expense` rows (TA, DA) actually get computed (PRD glossary: TA = Route Distance × Per-Km Rate; client Master spec: DA = Route Type + Grade rate, i.e. each grade has separate HQ / Ex Station / Out Station DA rates) — ties Module 2's distance calc, Module 1's `PayBand` rates, Module 5's `DailyPlan`, Module 4's `Expense`, and HLD 5's approval engine together.
 
 ## Money and rounding (decided 2026-09-29)
 
@@ -33,10 +33,10 @@ sequenceDiagram
     FA->>Identity: contract.getUser(user_id) -> pay_band
     alt working_type == FIELD_WORK
         FA->>Territory: contract.getRoutes(route_ids) + getRoutePath(route_id) per route
-        Territory-->>FA: [{ distance_km, distance_status, ta_per_km_rate_override_paise, area_type }, ...]
+        Territory-->>FA: [{ distance_km, distance_status, ta_per_km_rate_override_paise, route_type }, ...]
         FA->>FA: ta_amount_paise = sum over routes where CALCULATED of round_half_up(distance_km x (ta_per_km_rate_override_paise ?? pay_band.ta_per_km_rate_paise))
-        FA->>FA: day_area_type = highest area_type among the day's routes (OUT_STATION > EX_STATION > HQ)
-        FA->>FA: da_amount = pay_band DA rate for day_area_type
+        FA->>FA: day_route_type = highest route_type among the day's routes (OUT_STATION > EX_STATION > HQ)
+        FA->>FA: da_amount = pay_band DA rate for day_route_type
         FA->>DB: Create AUTO Expense rows (TA + DA) on this DCR
     else working_type in (MEETING, CONFERENCE)
         FA->>FA: da_amount = pay_band HQ DA rate (no route needed)
@@ -47,9 +47,9 @@ sequenceDiagram
 ```
 
 - **TA only applies to `FIELD_WORK`.** It's the one working type where a route is actually required in that day's `DailyPlan` — no route, nothing to compute a distance from, so `MEETING`/`CONFERENCE` never get a TA row at all, regardless of pay band.
-- **DA applies to `FIELD_WORK`, `MEETING`, and `CONFERENCE`.** Only `STRIKE` (not working) excludes it. DA is **one amount per day**, not per route. The rate is the user's grade rate for that day's **Area type**. Each grade carries three DA rates — `hq_da`, `ex_station_da`, `out_station_da` (client Master spec M2, e.g. G1: HQ ₹0 / Ex Station ₹200 / Out Station ₹500). The day's area type comes from the Areas of its Plan routes (`Route → Area.type`, ERD 02).
-- **A day touching routes in different Area types uses the highest one** (`OUT_STATION` > `EX_STATION` > `HQ`). An MR who went out-station at all that day incurred out-station costs. This tie-break is this doc's call; the client spec doesn't state one — confirm with the client before Phase 6.
-- **`MEETING`/`CONFERENCE` days have no route**, so they have no Area type. They default to the `HQ` rate. Also a provisional call, same confirm-before-Phase-6 note.
+- **DA applies to `FIELD_WORK`, `MEETING`, and `CONFERENCE`.** Only `STRIKE` (not working) excludes it. DA is **one amount per day**, not per route. The rate is the user's grade rate for that day's **Route type**. Each grade carries three DA rates — `hq_da`, `ex_station_da`, `out_station_da` (client Master spec M2, e.g. G1: HQ ₹0 / Ex Station ₹200 / Out Station ₹500). The day's type comes from its Plan routes (`Route.type`, ERD 02; moved from `Area` 2026-10-03).
+- **A day touching routes in different Route types uses the highest one** (`OUT_STATION` > `EX_STATION` > `HQ`). An MR who went out-station at all that day incurred out-station costs. This tie-break is this doc's call; the client spec doesn't state one — confirm with the client before Phase 6.
+- **`MEETING`/`CONFERENCE` days have no route**, so they have no Route type. They default to the `HQ` rate. Also a provisional call, same confirm-before-Phase-6 note.
 - **Night Stay** is a fourth per-grade rate in the client spec, but neither the PRD nor the client rules say what triggers it (an overnight out-station plan? a flag on the DCR?). Not computed here until that's defined. Listed as open, not guessed.
 - **Holiday/weekly-off impact on DA** is an open client question (client rules §8.5, §25.3). Not handled until answered.
 - **Route source (when TA applies):** the day's `DailyPlan.route_ids` for that `user_id` + date — not routes pulled from individual `DoctorCall` rows. `DailyPlan` is what explicitly captures "Select Routes" for the day (PRD §6.2 A).

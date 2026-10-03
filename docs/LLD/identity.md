@@ -11,7 +11,7 @@ other module depends on it, directly or through the Approval Workflow Engine —
 - **`Designation`** — `MR`, `ASM`, `RSM`, `ZSM`, `NSM`, with a `level` used to validate the
   reporting chain. FIELD-role only.
 - **`PayBand`** — `G1`/`G2`/`G3`, carrying `baseSalaryPaise`, `taPerKmRatePaise`, and three DA rates
-  (`hqDaPaise`, `exStationDaPaise`, `outStationDaPaise`, one per `Area.type`), all whole paise
+  (`hqDaPaise`, `exStationDaPaise`, `outStationDaPaise`, one per `Route.type`), all whole paise
   (₹7.50 per km is `750`; `../engineering/coding-standards.md`, *Money*). FIELD-role
   only; feeds TA/DA auto-calculation ([`hld/06`](../hld/06-ta-da-auto-calculation.md)) and Payroll
   ([`payroll.md`](payroll.md)).

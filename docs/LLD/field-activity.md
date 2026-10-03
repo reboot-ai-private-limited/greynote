@@ -65,7 +65,7 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
   an approved in-day change already in it), each Route (Territory's `getRoute`) and the Pay Band (Identity's
   `getPayBandRates`), and writes `AUTO`, `UNPAID` rows — never from anything the phone sent. The rules are
   `application/taDaCalculator.ts`: `FIELD_WORK` gets **one TA row per Route** (distance × the Route's own rate, else
-  the Pay Band's, rounded half up once per Route) and one DA row at the highest Area type of the day;
+  the Pay Band's, rounded half up once per Route) and one DA row at the highest Route type of the day;
   `MEETING`/`CONFERENCE` get DA at the HQ rate; `STRIKE` nothing. A Route whose distance isn't `CALCULATED` (or is
   unknown) gets a zero TA row with `distanceFlag`, and approval goes through. A zero DA (a grade's ₹0 HQ rate) is
   not written. No Plan for the day → no rows. When the DCR goes back (`REJECTED` by Admin at the final stage,
@@ -229,7 +229,7 @@ implementing, don't re-derive it from this summary alone.
   at approval time — Territory keeps that figure current on every waypoint edit
   ([`territory.md`](territory.md)); Field Activity only reads it, never recomputes or freezes it.
 - **DA** (`FIELD_WORK`, `MEETING`, `CONFERENCE` — not `STRIKE`) = the pay band's DA rate for the
-  day's Area type (`HQ`/`EX_STATION`/`OUT_STATION`, read via Territory's `getRoutePath`). One
+  day's Route type (`HQ`/`EX_STATION`/`OUT_STATION`, read via Territory's `getRoutePath`). One
   amount per day, not per route. Full rule and tie-breaks in
   [`../hld/06-ta-da-auto-calculation.md`](../hld/06-ta-da-auto-calculation.md) §2.
 - Both are created as `source: AUTO` `Expense` rows on that `DCR`. **Never trust a client-supplied
