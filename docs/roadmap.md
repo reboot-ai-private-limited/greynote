@@ -462,8 +462,13 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   tested pure builders, the grade/designation name offered only while unused and fixed after creation, and a note that edits apply to
   future runs, not a finalized payroll month. The shared `FormDialog` moved to `components/ui`. Verified by typecheck, lint, 182 tests and
   `next build`; **not yet exercised against the live API.**
-  Next: Employees (list, create, detail with profile / bank / documents / devices / security), then master data, HR, approvals,
-  expenses/payroll — one module at a time.
+  **Employees list and create built (2026-10-03, `/employees`, `/employees/new`):** search plus role / status / designation filters in
+  the URL, an onboarding badge for a FIELD user whose profile is incomplete, and a create form where HR can only pick the field force
+  (Admin any role) and an initial password can be generated. The nav item is now Admin/HR only, since the users API is. Verified by
+  typecheck, lint, 196 tests and `next build`; **not yet exercised against the live API.** A row does not open anywhere until the detail
+  page lands.
+  Next: Employee detail (profile / bank / documents / devices / security), then master data, HR, approvals, expenses/payroll — one
+  module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

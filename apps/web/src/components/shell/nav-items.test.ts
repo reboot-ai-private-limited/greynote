@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { navFor, navGroupsFor } from './nav-items';
+import { isRouteBuilt, navFor, navGroupsFor } from './nav-items';
 
 describe('navFor', () => {
   it('gives ADMIN the zones screen', () => {
@@ -23,6 +23,15 @@ describe('Routes', () => {
     expect(navFor('ADMIN').map((i) => i.href)).toContain('/routes');
     expect(navFor('HR').map((i) => i.href)).not.toContain('/routes');
     expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/routes');
+  });
+});
+
+describe('Employees', () => {
+  it('is built, and shown to Admin and HR only (the users API is Admin/HR)', () => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/employees');
+    expect(navFor('HR').map((i) => i.href)).toContain('/employees');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/employees');
+    expect(isRouteBuilt('/employees')).toBe(true);
   });
 });
 

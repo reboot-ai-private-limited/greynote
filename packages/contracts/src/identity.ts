@@ -52,3 +52,13 @@ export interface PayBandDto {
 }
 export type CreatePayBandDto = Omit<PayBandDto, 'id'>;
 export type UpdatePayBandDto = Partial<CreatePayBandDto>;
+
+/** Body of `POST /identity/users`. Admin may create any role; HR only FIELD. Everything else is set later by the onboarding PATCH. */
+export interface CreateUserDto {
+  role: UserListItemDto['role'];
+  employeeCode: string;
+  name: string;
+  password: string;
+  email?: string;
+  phone?: string;
+}

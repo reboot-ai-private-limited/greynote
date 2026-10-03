@@ -61,7 +61,7 @@ export function moneyError(raw: string): string | undefined {
   return undefined;
 }
 
-function fail(errors: Record<string, string | undefined>): { ok: false; errors: Record<string, string> } {
+export function fail(errors: Record<string, string | undefined>): { ok: false; errors: Record<string, string> } {
   return { ok: false, errors: Object.fromEntries(Object.entries(errors).filter((e): e is [string, string] => e[1] !== undefined)) };
 }
 

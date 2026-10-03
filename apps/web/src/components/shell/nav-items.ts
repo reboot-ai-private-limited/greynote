@@ -35,7 +35,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'HQs', href: '/hqs', icon: Building2, group: 'Master data', roles: ['ADMIN'] },
   { label: 'Areas', href: '/areas', icon: MapPinned, group: 'Master data', roles: ['ADMIN'] },
   { label: 'Routes', href: '/routes', icon: Route, group: 'Master data', roles: ['ADMIN'] },
-  { label: 'Employees', href: '/employees', icon: Users, group: 'People', roles: ALL, comingSoon: true },
+  { label: 'Employees', href: '/employees', icon: Users, group: 'People', roles: ['ADMIN', 'HR'] },
   { label: 'Pay Bands', href: '/pay-bands', icon: Wallet, group: 'People', roles: ALL },
   { label: 'Designations', href: '/designations', icon: Award, group: 'People', roles: ['ADMIN', 'HR'] },
   { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'People', roles: ['ADMIN', 'HR'], comingSoon: true },

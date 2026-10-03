@@ -1,5 +1,6 @@
 import type {
   CreateDesignationDto,
+  CreateUserDto,
   CreatePayBandDto,
   DesignationDto,
   PaginatedDto,
@@ -17,6 +18,7 @@ export interface ListUsersQuery {
   pageSize?: number | undefined;
   status?: UserListStatus | undefined;
   role?: UserListItemDto['role'] | undefined;
+  designationId?: string | undefined;
   search?: string | undefined;
 }
 
@@ -27,6 +29,9 @@ export const identityApi = {
 
   users: (token: string, query: ListUsersQuery, signal?: AbortSignal) =>
     request<PaginatedDto<UserListItemDto>>('/identity/users', { token, query: { ...query }, signal }),
+
+  createUser: (token: string, body: CreateUserDto) =>
+    request<UserListItemDto>('/identity/users', { method: 'POST', token, body }),
 };
 
 /** Master data. Both lists are bare arrays: a handful of rows each, never paginated. */
