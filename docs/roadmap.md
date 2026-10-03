@@ -463,7 +463,7 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   HQ form has a **base place** picker (search + map pin; shown as a column on the HQs page), and saving a changed base place reports how
   many routes were recalculated, which failed and which kept a manual distance. A Route is now an HQ, a type (the DA tier), a TA rate
   override and **one destination** picked the same way — the multi-stop editor is replaced by a place picker showing the HQ's base place
-  (A) and the destination (B); the Routes list filters by Zone, HQ and type. Pickers and breadcrumbs read "HQ · Route". Verified by
+  (A) and the destination (B); the Routes list filters by Zone, HQ and type. The shared dialog never exceeds the viewport (header and footer pinned, body scrolls, so Save stays reachable on a small laptop), and place results close once one is chosen. Pickers and breadcrumbs read "HQ · Route". Verified by
   typecheck, lint and unit tests; **not yet exercised in a browser against the migrated API.** The three paragraphs below describe what
   was built before the rework.
   **Territory hierarchy built as dedicated Zones / HQs / Areas pages (a single tree page was tried and deferred to post-MVP):**

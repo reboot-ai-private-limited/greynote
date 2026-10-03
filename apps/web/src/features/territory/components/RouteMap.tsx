@@ -22,11 +22,14 @@ export function RouteMap({
   stops,
   candidates = [],
   className,
+  heightClass = 'h-72',
 }: {
   /** In travel order: the HQ's base place, then the destination. */
   stops: readonly PlaceDto[];
   candidates?: readonly PlaceCandidateDto[];
   className?: string;
+  /** The map box's height; shorter where space is tight, such as in a dialog. */
+  heightClass?: string;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
@@ -101,7 +104,7 @@ export function RouteMap({
 
   return (
     <div className={className}>
-      <div className="relative h-72 overflow-hidden rounded-lg border border-border bg-surface-subtle">
+      <div className={`relative overflow-hidden rounded-lg border border-border bg-surface-subtle ${heightClass}`}>
         <div ref={container} className="size-full" />
         {status !== 'ready' ? (
           <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-text-muted">

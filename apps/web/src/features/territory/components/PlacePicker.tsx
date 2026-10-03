@@ -47,6 +47,12 @@ export function PlacePicker({
   const search = useSearch(term);
   const stops = [...(from ? [from] : []), ...(value ? [value] : [])];
 
+  // Choosing closes the results: the chosen card and the map pin show it, and typing starts a new search.
+  function choose(candidate: PlaceSearchState['candidates'][number]) {
+    onChange(toPlace(candidate));
+    setTerm('');
+  }
+
   return (
     <div className={stacked ? 'space-y-6' : 'grid gap-6 lg:grid-cols-[1fr_1fr]'}>
       <div className="space-y-4">
@@ -76,7 +82,7 @@ export function PlacePicker({
             ) : search.candidates.length === 0 ? (
               <p className="text-[13px] text-text-subtle">No places found.</p>
             ) : (
-              <ul className="divide-y divide-border rounded-md border border-border">
+              <ul className="max-h-56 divide-y divide-border overflow-y-auto rounded-md border border-border">
                 {search.candidates.map((c) => {
                   const chosen = samePlace(value, toPlace(c));
                   return (
@@ -85,7 +91,7 @@ export function PlacePicker({
                         <p className="truncate text-sm font-medium text-text">{c.label}</p>
                         <p className="truncate text-xs text-text-subtle">{c.address}</p>
                       </div>
-                      <Button size="sm" variant="secondary" disabled={disabled || chosen} onClick={() => onChange(toPlace(c))}>
+                      <Button size="sm" variant="secondary" disabled={disabled || chosen} onClick={() => choose(c)}>
                         {chosen ? 'Chosen' : (<><Plus aria-hidden className="size-3.5" /> Choose</>)}
                       </Button>
                     </li>
@@ -118,7 +124,7 @@ export function PlacePicker({
         </div>
       </div>
 
-      <RouteMap stops={stops} candidates={search.ready ? search.candidates : []} />
+      <RouteMap stops={stops} candidates={search.ready ? search.candidates : []} heightClass={stacked ? 'h-48' : 'h-72'} />
     </div>
   );
 }
