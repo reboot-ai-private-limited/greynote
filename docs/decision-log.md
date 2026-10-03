@@ -17,6 +17,18 @@ old one.
 
 ---
 
+## 2026-10-03 — Admin and HR can list decided approval requests: `GET /approvals/all`
+
+**Decision:** a new `GET /approvals/all` (HR, Admin) returns requests in any status, newest first, with the inbox's filters and row shape.
+Admin sees every request; HR sees the kinds it is a final approver of (Leave). It is scoped to the selected Financial Year, like the other lists.
+
+**Why:** found while planning the Approvals screen. The inbox is open requests only, `/team` is for field managers and `/mine` is the caller's
+own, so Admin and HR had no way to see a decided request, and `reopen` (Admin, Approved only) was unreachable without already knowing an id.
+
+**Cost:** none to existing callers; one more route, classified in the Financial Year route guard.
+
+---
+
 ## 2026-10-03 — Employee documents must really be a PDF, JPG or PNG
 
 **Decision:** `POST /identity/users/:id/documents` refuses any file whose own leading bytes are not a PDF, JPEG or PNG, with a

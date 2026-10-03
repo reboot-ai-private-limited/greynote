@@ -472,6 +472,32 @@ describe('lists', () => {
     expect((await lists.inbox(as('admin'), { status: 'APPROVED' }, PAGE)).total).toBe(0);
   });
 
+  it('all: Admin sees every request in any status, newest first, and can filter to the decided ones', async () => {
+    const r = await seed();
+    await approve(r.mrPlan!.id, 'asm');
+    await approve(r.mrPlan!.id, 'admin');
+    const all = await lists.all(as('admin'), {}, PAGE);
+    expect(all.items.map((i) => i.recordId)).toEqual(['nsmLeave', 'asmPlan', 'mrLeave', 'mrPlan']);
+    expect((await lists.all(as('admin'), { status: 'APPROVED' }, PAGE)).items.map((i) => [i.recordId, i.status])).toEqual([['mrPlan', 'APPROVED']]);
+    expect((await lists.all(as('admin'), { kind: LEAVE.kind }, PAGE)).total).toBe(2);
+    expect((await lists.all(as('admin'), { managerId: 'asm' }, PAGE)).items.map((i) => i.recordId)).toEqual(['mrLeave', 'mrPlan']);
+    // The inbox, by contrast, no longer shows the approved one.
+    expect((await lists.inbox(as('admin'), {}, PAGE)).items.map((i) => i.recordId)).not.toContain('mrPlan');
+  });
+
+  it("all: HR sees Leave in any status and nothing else; others are refused", async () => {
+    const r = await seed();
+    await approve(r.mrLeave!.id, 'asm');
+    await approve(r.mrLeave!.id, 'hr');
+    const all = await lists.all(as('hr'), {}, PAGE);
+    expect(all.items.map((i) => [i.recordId, i.status])).toEqual([
+      ['nsmLeave', 'SUBMITTED'],
+      ['mrLeave', 'APPROVED'],
+    ]);
+    expect((await lists.all(as('hr'), { kind: PLAN.kind }, PAGE)).total).toBe(0);
+    await expect(lists.all(as('asm'), {}, PAGE)).rejects.toMatchObject({ statusCode: 403 });
+  });
+
   it('team: direct reports are actionable, deeper levels read-only', async () => {
     await seed();
     const team = await lists.team(as('nsm'), 'all', {}, PAGE);

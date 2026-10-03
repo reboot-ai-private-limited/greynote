@@ -41,6 +41,7 @@ const SCOPED = [
   '/api/sales/orders',
   '/api/payroll',
   '/api/approvals/inbox',
+  '/api/approvals/all',
   '/api/approvals/team',
   '/api/approvals/mine',
 ];

@@ -45,7 +45,7 @@ export function makeApprovalControllers(useCases: {
   bulk: BulkDecideApprovalUseCase;
   withdraw: WithdrawApprovalUseCase;
   reopen: ReopenApprovalUseCase;
-}): Record<'inbox' | 'team' | 'mine' | 'detail' | 'approve' | 'reject' | 'bulk' | 'withdraw' | 'reopen', RequestHandler> {
+}): Record<'inbox' | 'all' | 'team' | 'mine' | 'detail' | 'approve' | 'reject' | 'bulk' | 'withdraw' | 'reopen', RequestHandler> {
   const decide = (decision: 'APPROVE' | 'REJECT'): RequestHandler =>
     asyncHandler(async (req, res) => {
       const updated = await useCases.decide.execute({
@@ -62,6 +62,10 @@ export function makeApprovalControllers(useCases: {
     inbox: asyncHandler(async (req, res) => {
       const { page, filters } = splitQuery(req);
       sendSuccess(req, res, await useCases.list.inbox(actorOf(req), filters, page), 'Approvals waiting on you.', 200);
+    }),
+    all: asyncHandler(async (req, res) => {
+      const { page, filters } = splitQuery(req);
+      sendSuccess(req, res, await useCases.list.all(actorOf(req), filters, page), 'Approval requests.', 200);
     }),
     team: asyncHandler(async (req, res) => {
       const { page, filters, scope } = splitQuery(req);

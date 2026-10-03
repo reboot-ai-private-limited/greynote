@@ -31,7 +31,7 @@ export interface PageQuery {
 }
 
 /**
- * The approval screens' three lists. All return the same row shape with a `canAct` flag, so the
+ * The approval screens' lists. All return the same row shape with a `canAct` flag, so the
  * web portal and the app's Team tab render one component (client rules §19.6).
  */
 export class ListApprovalsUseCase {
@@ -71,6 +71,27 @@ export class ListApprovalsUseCase {
     const submitterIds = filters.submitterId ? reportIds.filter((id) => id === filters.submitterId) : reportIds;
     if (submitterIds.length === 0) return buildPaginatedResult([], 0, page);
     return this.page(actor, { ...common, submitterIds, statuses: ['SUBMITTED'] }, page, 'asc');
+  }
+
+  /**
+   * Every request the caller may see in the portal, any status, newest first: the History tab, and the
+   * only way to find an Approved request to reopen. Admin sees all of them (filterable like the inbox);
+   * HR sees the kinds it is a final approver of (Leave), in any status. Managers use `team`.
+   */
+  async all(actor: Actor, filters: ApprovalQueryFilters, page: PageQuery): Promise<PaginatedResult<ApprovalListItem>> {
+    const common = await this.commonFilter(filters);
+    if (common === null) return buildPaginatedResult([], 0, page);
+    const statuses = filters.status ? { statuses: [filters.status] } : {};
+
+    if (actor.role === 'ADMIN') return this.page(actor, { ...common, ...statuses }, page, 'desc');
+
+    if (actor.role === 'HR') {
+      const hrKinds = this.kinds.kindsWithFinalApprover('HR');
+      const kinds = filters.kind ? hrKinds.filter((k) => k === filters.kind) : hrKinds;
+      if (kinds.length === 0) return buildPaginatedResult([], 0, page);
+      return this.page(actor, { ...common, ...statuses, kinds }, page, 'desc');
+    }
+    throw AppError.forbidden();
   }
 
   /**
