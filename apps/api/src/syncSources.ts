@@ -46,9 +46,9 @@ export function registerCompositionSyncSources(deps: {
           .map((r) => ({
             id: r.id,
             name: r.name,
-            areaId: r.areaId,
-            areaName: r.areaName,
-            areaType: r.areaType,
+            hqId: r.hqId,
+            hqName: r.hqName,
+            routeType: r.routeType,
             distanceKm: r.distanceKm,
             distanceStatus: r.distanceStatus,
             taPerKmRateOverridePaise: r.taPerKmRateOverridePaise,

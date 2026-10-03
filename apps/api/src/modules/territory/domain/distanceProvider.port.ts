@@ -6,9 +6,9 @@ export interface GeoPoint {
 export type DistanceResult = { ok: true; meters: number } | { ok: false; reason: string };
 
 /**
- * Road distance (not straight-line) through `points` in exactly the given order — the provider
- * must never re-optimize the sequence (HLD 02 §2). Never throws: a provider outage is a `FAILED`
- * route, not a failed save.
+ * Road distance (not straight-line) from the first point to the last. A Route passes exactly two:
+ * its HQ's base place and its destination (HLD 02 §2). Never throws: a provider outage is a
+ * `FAILED` route, not a failed save.
  */
 export interface DistanceProviderPort {
   roadDistance(points: GeoPoint[]): Promise<DistanceResult>;

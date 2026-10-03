@@ -78,9 +78,9 @@ doc('get', '/doctors/{id}/assignments', 'Admin: who has been responsible for a d
 doc('post', '/doctors/{id}/assignments', 'Admin: make an MR responsible for a doctor, replacing the current one', { params: idParamsSchema, body: assignDoctorBodySchema });
 doc('delete', '/doctors/{id}/assignments/{userId}', 'Admin: remove an MR’s assignment', { params: doctorAssignmentParamsSchema });
 
-doc('get', '/distributors', 'Admin: list distributors, by route or the area / HQ / zone above it', { query: listDistributorsQuerySchema });
+doc('get', '/distributors', 'Admin: list distributors, by route or the HQ / zone above it', { query: listDistributorsQuerySchema });
 doc('post', '/distributors', 'Admin: add a distributor on a route', { body: createDistributorBodySchema });
-doc('get', '/distributors/{id}', 'Admin: one distributor, with its zone → HQ → area → route breadcrumb', { params: idParamsSchema });
+doc('get', '/distributors/{id}', 'Admin: one distributor, with its zone → HQ → route breadcrumb', { params: idParamsSchema });
 doc('patch', '/distributors/{id}', 'Admin: edit a distributor, reassign its MR / ASM', { params: idParamsSchema, body: updateDistributorBodySchema });
 doc('get', '/doctors/{id}/sample-allocations', 'A doctor’s sample allocations and what is left — Admin, the assigned MR, or their manager', { params: idParamsSchema });
 doc('post', '/doctors/{id}/sample-allocations', 'Admin: issue samples of a product for a doctor (adds to an existing allocation)', { params: idParamsSchema, body: issueSampleBodySchema });

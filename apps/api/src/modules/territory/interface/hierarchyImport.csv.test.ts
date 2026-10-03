@@ -22,26 +22,29 @@ describe('parseCsv', () => {
 });
 
 describe('readHierarchyCsv', () => {
-  it('reads zone-only, zone+hq and full rows, normalizing names and area types', () => {
-    const { rows, errors } = readHierarchyCsv(
-      'Zone,HQ,Area,Area Type\nWest  Bengal,,,\nWest Bengal,Siliguri,,\nWest Bengal,Siliguri,Matigara,ex station\n',
-    );
+  it('reads zone-only and zone+hq rows, normalizing names', () => {
+    const { rows, errors } = readHierarchyCsv('Zone,HQ\nWest  Bengal,\nWest Bengal,SLG-1\n');
     expect(errors).toEqual([]);
     expect(rows).toEqual([
       { line: 2, zone: 'West Bengal', hq: undefined },
-      { line: 3, zone: 'West Bengal', hq: 'Siliguri' },
-      { line: 4, zone: 'West Bengal', hq: 'Siliguri', area: { name: 'Matigara', type: 'EX_STATION' } },
+      { line: 3, zone: 'West Bengal', hq: 'SLG-1' },
     ]);
   });
 
   it('reports every bad row by line', () => {
-    const { errors } = readHierarchyCsv('zone,hq,area,area_type\n,X,,\nA,,Matigara,HQ\nA,B,C,MOON\nA,B,,HQ\n');
-    expect(errors.map((e) => e.line)).toEqual([2, 3, 4, 5]);
-    expect(errors[2]?.message).toContain('MOON');
+    const { errors } = readHierarchyCsv(`zone,hq\n,X\nA,${'x'.repeat(101)}\nA,B\n`);
+    expect(errors.map((e) => e.line)).toEqual([2, 3]);
   });
 
-  it('needs a zone column, and hq + area_type when there is an area column', () => {
+  it('needs a zone column', () => {
     expect(readHierarchyCsv('hq\nX').errors[0]?.message).toContain('"zone"');
-    expect(readHierarchyCsv('zone,area\nA,B').errors[0]?.message).toContain('"hq"');
+  });
+
+  it('refuses a file that still has the retired area columns, rather than ignoring them', () => {
+    for (const header of ['zone,hq,area,area_type', 'zone,hq,Area', 'zone,hq,Area Type']) {
+      const { rows, errors } = readHierarchyCsv(`${header}\nA,B,C,HQ\n`);
+      expect(rows).toEqual([]);
+      expect(errors[0]?.message).toContain('Areas no longer exist');
+    }
   });
 });

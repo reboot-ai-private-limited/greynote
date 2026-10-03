@@ -10,7 +10,7 @@ interface HierarchyUseCases<ListQuery, CreateInput, UpdateInput> {
 }
 
 /**
- * One factory for Zone/HQ/Area — the same list/create/update shape at every level, like
+ * One factory for Zone/HQ/Route — the same list/create/update shape at every level, like
  * identity's `makeMasterDataController`. `validate()` has already parsed body and query, so
  * each is passed through as its schema's output type.
  */

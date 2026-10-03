@@ -17,10 +17,7 @@ export class GoogleRoutesDistanceAdapter implements DistanceProviderPort {
       const res = await googlePost(COMPUTE_ROUTES_URL, 'routes.distanceMeters', {
         origin: toLocation(origin),
         destination: toLocation(destination),
-        intermediates: points.slice(1, -1).map(toLocation),
         travelMode: 'DRIVE',
-        // The waypoint order is the route Admin drew, and TA is paid on it — never reorder.
-        optimizeWaypointOrder: false,
       });
       if (!res.ok) return { ok: false, reason: `HTTP ${res.status}: ${(await res.text()).slice(0, 300)}` };
 

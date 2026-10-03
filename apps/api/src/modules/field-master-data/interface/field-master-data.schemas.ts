@@ -169,8 +169,7 @@ export const updateDistributorBodySchema = z
 export const listDistributorsQuerySchema = z.object({
   ...pageFields,
   routeId: objectIdSchema.optional(),
-  /** Zone, HQ and Area narrow by territory; the most specific one given is used. */
-  areaId: objectIdSchema.optional(),
+  /** Zone and HQ narrow by territory; the most specific one given is used. */
   hqId: objectIdSchema.optional(),
   zoneId: objectIdSchema.optional(),
   assignedMrId: objectIdSchema.optional(),

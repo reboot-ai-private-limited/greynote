@@ -7,13 +7,28 @@ import { HqModel, type HqDoc } from './hq.schema.js';
 import { listOptions, rethrowDuplicateName, toNameKey } from './mongoHelpers.js';
 
 function toHq(doc: HqDoc & { _id: unknown }): Hq {
-  return { id: String(doc._id), zoneId: String(doc.zoneId), name: doc.name, status: doc.status };
+  const place = doc.basePlace;
+  return {
+    id: String(doc._id),
+    zoneId: String(doc.zoneId),
+    name: doc.name,
+    basePlace: place
+      ? { label: place.label, latitude: place.latitude, longitude: place.longitude, placeId: place.placeId }
+      : null,
+    status: doc.status,
+  };
 }
 
 export class MongoHqAdapter implements HqRepositoryPort {
   async findById(id: string): Promise<Hq | null> {
     const doc = await HqModel.findById(id).lean();
     return doc ? toHq(doc) : null;
+  }
+
+  async findByIds(ids: string[]): Promise<Hq[]> {
+    if (ids.length === 0) return [];
+    const docs = await HqModel.find({ _id: { $in: ids.map((id) => new Types.ObjectId(id)) } }).lean();
+    return docs.map(toHq);
   }
 
   async findByName(zoneId: string, name: string): Promise<Hq | null> {

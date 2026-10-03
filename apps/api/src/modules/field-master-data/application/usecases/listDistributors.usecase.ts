@@ -7,7 +7,6 @@ import type { TerritoryPort } from '../../domain/territory.port.js';
 export interface ListDistributorsInput extends PageQuery {
   search?: string | undefined;
   routeId?: string | undefined;
-  areaId?: string | undefined;
   hqId?: string | undefined;
   zoneId?: string | undefined;
   assignedMrId?: string | undefined;
@@ -15,7 +14,7 @@ export interface ListDistributorsInput extends PageQuery {
 }
 
 /**
- * Admin: Distributors by Route, or by the Area / HQ / Zone above it (the most specific of those
+ * Admin: Distributors by Route, or by the HQ / Zone above it (the most specific of those
  * given), resolved to Route ids through Territory since a Distributor stores only its Route.
  */
 export class ListDistributorsUseCase {
@@ -25,9 +24,9 @@ export class ListDistributorsUseCase {
   ) {}
 
   async execute(input: ListDistributorsInput): Promise<PaginatedResult<Distributor>> {
-    const { routeId, areaId, hqId, zoneId, ...rest } = input;
+    const { routeId, hqId, zoneId, ...rest } = input;
     let routeIds: string[] | undefined;
-    if (areaId || hqId || zoneId) routeIds = await this.territory.listRouteIdsInScope({ areaId, hqId, zoneId });
+    if (hqId || zoneId) routeIds = await this.territory.listRouteIdsInScope({ hqId, zoneId });
     if (routeId) routeIds = routeIds ? routeIds.filter((id) => id === routeId) : [routeId];
     if (routeIds && routeIds.length === 0) return buildPaginatedResult([], 0, input);
     return this.distributors.list({ ...rest, routeIds });

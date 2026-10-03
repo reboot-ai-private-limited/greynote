@@ -1,12 +1,9 @@
 import type { Router } from 'express';
 import { AssignRouteUseCase } from './application/usecases/assignRoute.usecase.js';
-import { CreateAreaUseCase } from './application/usecases/createArea.usecase.js';
 import { CreateHqUseCase } from './application/usecases/createHq.usecase.js';
 import { CreateZoneUseCase } from './application/usecases/createZone.usecase.js';
-import { ListAreasUseCase } from './application/usecases/listAreas.usecase.js';
 import { ListHqsUseCase } from './application/usecases/listHqs.usecase.js';
 import { ListZonesUseCase } from './application/usecases/listZones.usecase.js';
-import { UpdateAreaUseCase } from './application/usecases/updateArea.usecase.js';
 import { UpdateHqUseCase } from './application/usecases/updateHq.usecase.js';
 import { UpdateZoneUseCase } from './application/usecases/updateZone.usecase.js';
 import { CreateRouteUseCase } from './application/usecases/createRoute.usecase.js';
@@ -28,8 +25,7 @@ import { OverrideRouteDistanceUseCase } from './application/usecases/overrideRou
 import { RecalculateRouteDistanceUseCase } from './application/usecases/recalculateRouteDistance.usecase.js';
 import { SearchPlacesUseCase } from './application/usecases/searchPlaces.usecase.js';
 import { UpdateRouteUseCase } from './application/usecases/updateRoute.usecase.js';
-import { UpdateRouteWaypointsUseCase } from './application/usecases/updateRouteWaypoints.usecase.js';
-import { MongoAreaAdapter } from './infrastructure/mongoArea.adapter.js';
+import { UpdateRouteDestinationUseCase } from './application/usecases/updateRouteDestination.usecase.js';
 import { MongoHqAdapter } from './infrastructure/mongoHq.adapter.js';
 import { MongoZoneAdapter } from './infrastructure/mongoZone.adapter.js';
 import { GooglePlaceSearchAdapter } from './infrastructure/googlePlaceSearch.adapter.js';
@@ -49,7 +45,7 @@ import {
   makeOverrideRouteDistanceController,
   makeRecalculateRouteDistanceController,
   makeSearchPlacesController,
-  makeUpdateRouteWaypointsController,
+  makeUpdateRouteDestinationController,
 } from './interface/routes.controller.js';
 import { buildMyRoutesRouter, buildPlacesRouter, buildRoutesRouter } from './interface/routes.route.js';
 import type { TerritoryPublicContract } from './territory.public.js';
@@ -64,7 +60,6 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
   // 1. Adapters
   const zoneRepository = new MongoZoneAdapter();
   const hqRepository = new MongoHqAdapter();
-  const areaRepository = new MongoAreaAdapter();
   const routeRepository = new MongoRouteAdapter();
   const assignmentRepository = new MongoRouteAssignmentAdapter();
   const distanceProvider = new GoogleRoutesDistanceAdapter();
@@ -81,32 +76,28 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
   const hqs = {
     list: new ListHqsUseCase(hqRepository),
     create: new CreateHqUseCase(hqRepository, zoneRepository),
-    update: new UpdateHqUseCase(hqRepository, zoneRepository, areaRepository),
+    update: new UpdateHqUseCase(hqRepository, zoneRepository, routeRepository, distanceProvider),
   };
-  const areas = {
-    list: new ListAreasUseCase(areaRepository),
-    create: new CreateAreaUseCase(areaRepository, hqRepository),
-    update: new UpdateAreaUseCase(areaRepository, hqRepository, routeRepository),
-  };
-
 
   // 3. Controllers — Routes share the list/create/update shape with the levels above, plus four
   // distance-specific actions.
   const routeCrud = makeHierarchyController(
     {
       list: new ListRoutesUseCase(routeRepository),
-      create: new CreateRouteUseCase(routeRepository, areaRepository, distanceProvider),
-      update: new UpdateRouteUseCase(routeRepository, areaRepository, assignmentRepository),
+      create: new CreateRouteUseCase(routeRepository, hqRepository, distanceProvider),
+      update: new UpdateRouteUseCase(routeRepository, hqRepository, assignmentRepository),
     },
     'Route',
   );
   const routeControllers = {
     ...routeCrud,
     get: makeGetRouteController(new GetRouteUseCase(routeRepository)),
-    updateWaypoints: makeUpdateRouteWaypointsController(new UpdateRouteWaypointsUseCase(routeRepository, distanceProvider)),
+    updateDestination: makeUpdateRouteDestinationController(
+      new UpdateRouteDestinationUseCase(routeRepository, hqRepository, distanceProvider),
+    ),
     overrideDistance: makeOverrideRouteDistanceController(new OverrideRouteDistanceUseCase(routeRepository)),
     recalculate: makeRecalculateRouteDistanceController(
-      new RecalculateRouteDistanceUseCase(routeRepository, distanceProvider),
+      new RecalculateRouteDistanceUseCase(routeRepository, hqRepository, distanceProvider),
     ),
     assign: makeAssignRouteController(new AssignRouteUseCase(routeRepository, assignmentRepository, users)),
     listAssignments: makeListRouteAssignmentsController(
@@ -114,11 +105,11 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
     ),
     unassign: makeUnassignRouteController(new UnassignRouteUseCase(assignmentRepository)),
   };
-  const listRoutesForUser = new ListRoutesForUserUseCase(assignmentRepository, routeRepository, areaRepository);
-  const getRouteSummary = new GetRouteSummaryUseCase(routeRepository, areaRepository);
-  const getRoutePath = new GetRoutePathUseCase(routeRepository, areaRepository, hqRepository);
+  const listRoutesForUser = new ListRoutesForUserUseCase(assignmentRepository, routeRepository, hqRepository);
+  const getRouteSummary = new GetRouteSummaryUseCase(routeRepository, hqRepository);
+  const getRoutePath = new GetRoutePathUseCase(routeRepository, hqRepository);
   const listRouteIdsInScope = new ListRouteIdsInScopeUseCase(routeRepository);
-  const importHierarchy = new ImportHierarchyUseCase(zoneRepository, hqRepository, areaRepository);
+  const importHierarchy = new ImportHierarchyUseCase(zoneRepository, hqRepository);
   const searchPlaces = makeSearchPlacesController(new SearchPlacesUseCase(placeSearch));
   const userHq = {
     set: new SetUserHqUseCase(userHqRepository, hqRepository, users, transactions),
@@ -137,7 +128,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
     },
 
     buildRouter: () => {
-      const router = buildHierarchyRouter({ zones, hqs, areas });
+      const router = buildHierarchyRouter({ zones, hqs });
       router.use('/routes', buildRoutesRouter(routeControllers));
       router.use('/places', buildPlacesRouter(searchPlaces));
       router.use('/import', buildImportRouter(importHierarchy));

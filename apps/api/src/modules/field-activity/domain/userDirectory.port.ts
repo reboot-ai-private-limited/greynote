@@ -27,6 +27,6 @@ export interface UserDirectoryPort {
   blockUser(userId: string, reason: string): Promise<boolean>;
   /** The joining date (`null` if unknown) — days before it are nobody's to report. */
   getEmploymentDetails(userId: string): Promise<{ dateOfJoining: Date | null } | null>;
-  /** The user's Pay Band rates, whole paise — TA per km and DA per Area type. */
+  /** The user's Pay Band rates, whole paise — TA per km and DA per Route type. */
   getPayBandRates(userId: string): Promise<{ taPerKmRatePaise: number; hqDaPaise: number; exStationDaPaise: number; outStationDaPaise: number }>;
 }

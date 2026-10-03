@@ -1,4 +1,4 @@
-import type { AreaRepositoryPort } from '../../domain/area.repository.port.js';
+import type { HqRepositoryPort } from '../../domain/hq.repository.port.js';
 import type { RouteRepositoryPort } from '../../domain/route.repository.port.js';
 import type { RouteSummary } from '../../domain/routeView.js';
 import { toRouteSummaries } from './routeSummaries.js';
@@ -7,13 +7,13 @@ import { toRouteSummaries } from './routeSummaries.js';
 export class GetRouteSummaryUseCase {
   constructor(
     private readonly routes: RouteRepositoryPort,
-    private readonly areas: AreaRepositoryPort,
+    private readonly hqs: HqRepositoryPort,
   ) {}
 
   async execute(routeId: string): Promise<RouteSummary | null> {
     const route = await this.routes.findById(routeId);
     if (!route) return null;
-    const [summary] = await toRouteSummaries(this.areas, [route]);
+    const [summary] = await toRouteSummaries(this.hqs, [route]);
     return summary ?? null;
   }
 }

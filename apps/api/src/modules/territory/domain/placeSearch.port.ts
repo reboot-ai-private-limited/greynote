@@ -1,4 +1,4 @@
-/** One search hit, already in the shape a `Waypoint` is stored in once Admin confirms it. */
+/** One search hit, already in the shape a `Place` is stored in once Admin confirms it. */
 export interface PlaceCandidate {
   label: string;
   address: string;

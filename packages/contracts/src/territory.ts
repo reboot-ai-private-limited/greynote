@@ -1,9 +1,18 @@
 export const TERRITORY_STATUSES = ['active', 'inactive'] as const;
 export type TerritoryStatus = (typeof TERRITORY_STATUSES)[number];
 
-/** Which of a grade's three DA rates applies to a day worked in an Area. */
-export const AREA_TYPES = ['HQ', 'EX_STATION', 'OUT_STATION'] as const;
-export type AreaType = (typeof AREA_TYPES)[number];
+/** Which of a grade's three DA rates applies to a day worked on a Route. */
+export const ROUTE_TYPES = ['HQ', 'EX_STATION', 'OUT_STATION'] as const;
+export type RouteType = (typeof ROUTE_TYPES)[number];
+
+/** A point Admin confirmed on the map: an HQ's base place or a Route's destination. */
+export interface PlaceDto {
+  label: string;
+  latitude: number;
+  longitude: number;
+  /** Google place id. Only a place found by search can be saved. */
+  placeId: string;
+}
 
 export interface ZoneDto {
   id: string;
@@ -15,16 +24,21 @@ export interface HqDto {
   id: string;
   zoneId: string;
   name: string;
+  /** The origin of every Route's distance. Null only for an HQ that predates it or came from CSV import. */
+  basePlace: PlaceDto | null;
   status: TerritoryStatus;
 }
 
-export interface AreaDto {
-  id: string;
-  hqId: string;
-  name: string;
-  type: AreaType;
-  status: TerritoryStatus;
+/** What an HQ base-place change did to its Routes. Manually overridden Routes are left as they were. */
+export interface RouteRecalculationDto {
+  recalculated: number;
+  /** Could not be calculated, or changed under us. Retry each from the Route. */
+  failed: number;
+  overridden: Array<{ id: string; name: string }>;
 }
+
+/** `PATCH /territory/hqs/:id`: the HQ, plus a report when the base place changed. */
+export type UpdateHqResultDto = HqDto & { routeRecalculation?: RouteRecalculationDto };
 
 export interface CreateZoneDto {
   name: string;
@@ -38,30 +52,13 @@ export interface UpdateZoneDto {
 export interface CreateHqDto {
   zoneId: string;
   name: string;
+  basePlace: PlaceDto;
 }
-export type UpdateHqDto = UpdateZoneDto;
-
-export interface CreateAreaDto {
-  hqId: string;
-  name: string;
-  type: AreaType;
-}
-export interface UpdateAreaDto {
+/** At least one field; the server rejects an empty update. Changing `basePlace` recalculates the HQ's Routes. */
+export interface UpdateHqDto {
   name?: string | undefined;
-  type?: AreaType | undefined;
   status?: TerritoryStatus | undefined;
-}
-
-/** Waypoint count limits for a Route (Google takes origin, destination and up to 23 stops via). */
-export const MIN_WAYPOINTS = 2;
-export const MAX_WAYPOINTS = 25;
-
-export interface WaypointDto {
-  label: string;
-  latitude: number;
-  longitude: number;
-  /** Google place id. Only a place found by search can be a waypoint. */
-  placeId: string;
+  basePlace?: PlaceDto | undefined;
 }
 
 export type DistanceStatus = 'CALCULATED' | 'FAILED';
@@ -69,13 +66,14 @@ export type DistanceSource = 'AUTO_CALCULATED' | 'MANUAL_OVERRIDE';
 
 /**
  * A Route. `distanceKm` is a two-decimal string, and null exactly when `distanceStatus` is FAILED.
- * There is no route geometry, and no Area/HQ names (join those client-side).
+ * There is no route geometry, and no HQ name (join it client-side).
  */
 export interface RouteDto {
   id: string;
-  areaId: string;
+  hqId: string;
   name: string;
-  waypoints: WaypointDto[];
+  type: RouteType;
+  destination: PlaceDto;
   distanceKm: string | null;
   distanceSource: DistanceSource;
   distanceStatus: DistanceStatus;
@@ -87,21 +85,23 @@ export interface RouteDto {
 }
 
 export interface CreateRouteDto {
-  areaId: string;
+  hqId: string;
   name: string;
-  waypoints: WaypointDto[];
+  type: RouteType;
+  destination: PlaceDto;
   taPerKmRateOverridePaise?: number | null | undefined;
 }
 
 export interface UpdateRouteDto {
   name?: string | undefined;
+  type?: RouteType | undefined;
   status?: TerritoryStatus | undefined;
   /** `null` clears the override. */
   taPerKmRateOverridePaise?: number | null | undefined;
 }
 
-export interface UpdateWaypointsDto {
-  waypoints: WaypointDto[];
+export interface UpdateDestinationDto {
+  destination: PlaceDto;
   /** The `revision` of the route as loaded — a stale one is a 409. */
   revision: number;
 }
@@ -118,7 +118,7 @@ export interface RouteAssignmentDto {
   user: { id: string; employeeCode: string; name: string } | null;
 }
 
-/** One result of `GET /territory/places/search`. Maps directly onto a Waypoint. */
+/** One result of `GET /territory/places/search`. Maps directly onto a Place. */
 export interface PlaceCandidateDto {
   label: string;
   address: string;

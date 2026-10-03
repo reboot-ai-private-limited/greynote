@@ -15,7 +15,7 @@ const UNAVAILABLE_MESSAGE = 'Place search is unavailable right now. Please try a
 
 /**
  * Google Places API (New) Text Search. One call returns coordinates too, so no separate
- * Place Details lookup is needed before a candidate can become a waypoint.
+ * Place Details lookup is needed before a candidate can become a `Place`.
  */
 export class GooglePlaceSearchAdapter implements PlaceSearchPort {
   async search(query: string): Promise<PlaceCandidate[]> {

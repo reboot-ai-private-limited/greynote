@@ -281,9 +281,9 @@ export interface TerritorySnapshot {
   routes: Array<{
     id: string;
     name: string;
-    areaId: string;
-    areaName: string;
-    areaType: 'HQ' | 'EX_STATION' | 'OUT_STATION';
+    hqId: string;
+    hqName: string;
+    routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION';
     /** Decimal kilometres as text; `null` when the distance could not be calculated. */
     distanceKm: string | null;
     distanceStatus: 'CALCULATED' | 'FAILED';

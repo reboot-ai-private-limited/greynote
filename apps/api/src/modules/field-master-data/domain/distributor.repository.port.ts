@@ -4,7 +4,7 @@ import type { MasterStatus, PageQuery } from './masterStatus.js';
 
 export interface DistributorFilter extends PageQuery {
   search?: string | undefined;
-  /** Restrict to these Routes (already resolved from a Zone, HQ or Area); `[]` matches nothing. */
+  /** Restrict to these Routes (already resolved from a Zone or HQ); `[]` matches nothing. */
   routeIds?: string[] | undefined;
   assignedMrId?: string | undefined;
   status?: MasterStatus | undefined;

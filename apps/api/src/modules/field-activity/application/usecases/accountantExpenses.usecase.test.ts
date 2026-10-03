@@ -75,7 +75,7 @@ describe('the Accountant’s side', () => {
   });
 
   it('Payroll’s total counts only PAID rows of that month for that user: TA, DA and the reimbursements apart', async () => {
-    kit.territory.routes.set('route-1', { ...kit.territory.routes.get('route-1')!, areaType: 'EX_STATION' });
+    kit.territory.routes.set('route-1', { ...kit.territory.routes.get('route-1')!, routeType: 'EX_STATION' });
     await approve(); // TA 8003 + DA 20000, MEAL 5000
     expect(await kit.paidTaDa.execute('mr1', '2026-10')).toEqual({ taPaise: 0, daPaise: 0, reimbursementPaise: 0 });
     for (const r of kit.expenses.rows) await kit.markPaid.execute('acct', r.id);
@@ -85,7 +85,7 @@ describe('the Accountant’s side', () => {
   });
 
   it('the month is the month it was PAID: a September claim paid in October counts in October only', async () => {
-    kit.territory.routes.set('route-1', { ...kit.territory.routes.get('route-1')!, areaType: 'EX_STATION' });
+    kit.territory.routes.set('route-1', { ...kit.territory.routes.get('route-1')!, routeType: 'EX_STATION' });
     await approve(); // reported on DAY, in 2026-10
     kit.clock.current = new Date('2026-11-03T10:00:00+05:30');
     for (const r of kit.expenses.rows) await kit.markPaid.execute('acct', r.id);

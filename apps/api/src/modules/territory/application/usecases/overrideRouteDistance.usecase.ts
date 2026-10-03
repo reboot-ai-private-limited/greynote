@@ -5,8 +5,8 @@ import { staleRevision } from './staleRevision.js';
 
 /**
  * Admin sets the distance by hand (real money moves on it). Makes the route `CALCULATED` even if
- * the provider had failed — there is now a real figure. Waypoints are untouched; the next
- * waypoint edit or recalculation replaces this value.
+ * the provider had failed — there is now a real figure. The destination is untouched; the next
+ * destination edit or recalculation replaces this value.
  */
 export class OverrideRouteDistanceUseCase {
   constructor(private readonly routes: RouteRepositoryPort) {}

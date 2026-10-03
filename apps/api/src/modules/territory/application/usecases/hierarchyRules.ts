@@ -8,11 +8,11 @@ import type { TerritoryStatus } from '../../domain/territoryStatus.js';
  */
 
 /** A new or reactivated node needs an existing, active parent. */
-export function assertParentUsable(
-  parent: { status: TerritoryStatus } | null,
+export function assertParentUsable<T extends { status: TerritoryStatus }>(
+  parent: T | null,
   field: string,
   noun: string,
-): void {
+): asserts parent is T {
   if (!parent) throw AppError.badRequest(`No such ${noun}.`, { field });
   if (parent.status !== 'active') {
     throw AppError.conflict(`That ${noun} is inactive. Reactivate it first.`, { field });

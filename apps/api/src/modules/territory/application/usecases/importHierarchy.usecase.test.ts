@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { Area } from '../../domain/area.entity.js';
-import type { AreaRepositoryPort } from '../../domain/area.repository.port.js';
 import type { HierarchyImportRow } from '../../domain/hierarchyImport.js';
 import type { Hq } from '../../domain/hq.entity.js';
 import type { HqRepositoryPort } from '../../domain/hq.repository.port.js';
@@ -12,7 +10,6 @@ import { ImportHierarchyUseCase } from './importHierarchy.usecase.js';
 class Store {
   zones: Zone[] = [];
   hqs: Hq[] = [];
-  areas: Area[] = [];
   private n = 0;
   id = () => `id-${++this.n}`;
 }
@@ -40,22 +37,13 @@ beforeEach(() => {
       return row;
     },
   } as unknown as HqRepositoryPort;
-  const areas = {
-    findByName: async (hqId: string, name: string) =>
-      store.areas.find((a) => a.hqId === hqId && eq(a.name, name)) ?? null,
-    create: async (input: Omit<Area, 'id'>) => {
-      const row = { ...input, id: store.id() };
-      store.areas.push(row);
-      return row;
-    },
-  } as unknown as AreaRepositoryPort;
-  useCase = new ImportHierarchyUseCase(zones, hqs, areas);
+  useCase = new ImportHierarchyUseCase(zones, hqs);
 });
 
 const ROWS: HierarchyImportRow[] = [
-  { line: 2, zone: 'West Bengal', hq: 'Siliguri', area: { name: 'Matigara', type: 'HQ' } },
-  { line: 3, zone: 'West Bengal', hq: 'Siliguri', area: { name: 'Sevoke', type: 'OUT_STATION' } },
-  { line: 4, zone: 'west bengal', hq: 'Jalpaiguri' },
+  { line: 2, zone: 'West Bengal', hq: 'SLG-1' },
+  { line: 3, zone: 'West Bengal', hq: 'SLG-2' },
+  { line: 4, zone: 'west bengal', hq: 'slg-1' },
   { line: 5, zone: 'Sikkim' },
 ];
 
@@ -64,42 +52,44 @@ describe('ImportHierarchyUseCase', () => {
     const result = await useCase.execute(ROWS, { dryRun: false });
     expect(result.created).toEqual({
       zones: ['West Bengal', 'Sikkim'],
-      hqs: ['West Bengal / Siliguri', 'West Bengal / Jalpaiguri'],
-      areas: ['West Bengal / Siliguri / Matigara', 'West Bengal / Siliguri / Sevoke'],
+      hqs: ['West Bengal / SLG-1', 'West Bengal / SLG-2'],
     });
-    const siliguri = store.hqs.find((h) => h.name === 'Siliguri');
-    expect(siliguri?.zoneId).toBe(store.zones.find((z) => z.name === 'West Bengal')?.id);
-    expect(store.areas.every((a) => a.hqId === siliguri?.id)).toBe(true);
+    const slg1 = store.hqs.find((h) => h.name === 'SLG-1');
+    expect(slg1?.zoneId).toBe(store.zones.find((z) => z.name === 'West Bengal')?.id);
+  });
+
+  it('creates HQs without a base place — that needs a map-confirmed pin, set later in the app', async () => {
+    await useCase.execute(ROWS, { dryRun: false });
+    expect(store.hqs.every((h) => h.basePlace === null)).toBe(true);
   });
 
   it('writes nothing in a dry run, but reports the same plan', async () => {
     const result = await useCase.execute(ROWS, { dryRun: true });
     expect(result.dryRun).toBe(true);
-    expect(result.created.areas).toHaveLength(2);
+    expect(result.created.hqs).toHaveLength(2);
     expect(store.zones).toHaveLength(0);
   });
 
   it('is a no-op the second time: everything is reused, nothing duplicated', async () => {
     await useCase.execute(ROWS, { dryRun: false });
     const again = await useCase.execute(ROWS, { dryRun: false });
-    expect(again.created).toEqual({ zones: [], hqs: [], areas: [] });
-    expect(again.existing).toEqual({ zones: 2, hqs: 2, areas: 2 });
-    expect(store.areas).toHaveLength(2);
+    expect(again.created).toEqual({ zones: [], hqs: [] });
+    expect(again.existing).toEqual({ zones: 2, hqs: 2 });
+    expect(store.hqs).toHaveLength(2);
   });
 
-  it('rejects the whole file, listing every problem, when any row conflicts', async () => {
+  it('rejects the whole file, listing every problem, when any row names an inactive parent', async () => {
     store.zones.push({ id: 'z-old', name: 'Assam', status: 'inactive' });
-    await useCase.execute([ROWS[0] as HierarchyImportRow], { dryRun: false });
-    const before = store.areas.length;
+    store.zones.push({ id: 'z-bihar', name: 'Bihar', status: 'active' });
+    store.hqs.push({ id: 'h-old', zoneId: 'z-bihar', name: 'Patna', basePlace: null, status: 'inactive' });
+    const before = store.hqs.length;
 
     await expect(
       useCase.execute(
         [
-          { line: 2, zone: 'Bihar', hq: 'Patna' },
+          { line: 2, zone: 'Nepal', hq: 'Kathmandu' },
           { line: 3, zone: 'Assam', hq: 'Guwahati' },
-          { line: 4, zone: 'West Bengal', hq: 'Siliguri', area: { name: 'MATIGARA', type: 'EX_STATION' } },
-          { line: 5, zone: 'Bihar', hq: 'Patna', area: { name: 'Danapur', type: 'HQ' } },
-          { line: 6, zone: 'Bihar', hq: 'Patna', area: { name: 'danapur', type: 'OUT_STATION' } },
+          { line: 4, zone: 'Bihar', hq: 'patna' },
         ],
         { dryRun: false },
       ),
@@ -108,12 +98,11 @@ describe('ImportHierarchyUseCase', () => {
       publicDetails: {
         errors: [
           { line: 3, message: expect.stringContaining('inactive') },
-          { line: 4, message: expect.stringContaining('already exists as HQ') },
-          { line: 6, message: expect.stringContaining('earlier in the file') },
+          { line: 4, message: expect.stringContaining('inactive') },
         ],
       },
     });
-    expect(store.zones.some((z) => z.name === 'Bihar')).toBe(false);
-    expect(store.areas).toHaveLength(before);
+    expect(store.zones.some((z) => z.name === 'Nepal')).toBe(false);
+    expect(store.hqs).toHaveLength(before);
   });
 });

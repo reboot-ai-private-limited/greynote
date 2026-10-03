@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import { paiseSchema } from '@/shared/money/paise.js';
 import { paginationQuerySchema } from '@/shared/http/pagination.js';
-import { AREA_TYPES } from '../domain/area.entity.js';
-import { MAX_WAYPOINTS, MIN_WAYPOINTS } from '../domain/route.entity.js';
+import { ROUTE_TYPES } from '../domain/route.entity.js';
 import { TERRITORY_STATUSES } from '../domain/territoryStatus.js';
 
 /** Checked here so a malformed id is a 400, not a Mongoose CastError surfacing as a 500. */
@@ -29,53 +28,44 @@ export const updateZoneBodySchema = z
   .refine((body) => Object.keys(body).length > 0, 'Nothing to update.');
 export const listZonesQuerySchema = listQuerySchema;
 
-export const createHqBodySchema = z.object({ zoneId: objectIdSchema, name: nameSchema });
-export const updateHqBodySchema = updateZoneBodySchema;
-export const listHqsQuerySchema = listQuerySchema.extend({ zoneId: objectIdSchema.optional() });
-
-export const createAreaBodySchema = z.object({
-  hqId: objectIdSchema,
-  name: nameSchema,
-  type: z.enum(AREA_TYPES),
-});
-export const updateAreaBodySchema = z
-  .object({ name: nameSchema, type: z.enum(AREA_TYPES), status: z.enum(TERRITORY_STATUSES) })
-  .partial()
-  .refine((body) => Object.keys(body).length > 0, 'Nothing to update.');
-export const listAreasQuerySchema = listQuerySchema.extend({
-  hqId: objectIdSchema.optional(),
-  type: z.enum(AREA_TYPES).optional(),
-});
-
-/** Non-negative, up to 2 decimal places — what `Decimal128` stores losslessly (as `PayBand`). */
-const decimalSchema = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a number with up to 2 decimal places.');
-
-const waypointSchema = z.object({
+/** A place Admin confirmed on the map: an HQ's base place or a Route's destination. */
+export const placeBodySchema = z.object({
   label: z.string().trim().min(1).max(200),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   placeId: z.string().trim().min(1),
 });
-const waypointsSchema = z.array(waypointSchema).min(MIN_WAYPOINTS).max(MAX_WAYPOINTS);
+
+export const createHqBodySchema = z.object({ zoneId: objectIdSchema, name: nameSchema, basePlace: placeBodySchema });
+export const updateHqBodySchema = z
+  .object({ name: nameSchema, status: z.enum(TERRITORY_STATUSES), basePlace: placeBodySchema })
+  .partial()
+  .refine((body) => Object.keys(body).length > 0, 'Nothing to update.');
+export const listHqsQuerySchema = listQuerySchema.extend({ zoneId: objectIdSchema.optional() });
+
+/** Non-negative, up to 2 decimal places — what `Decimal128` stores losslessly (as `PayBand`). */
+const decimalSchema = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a number with up to 2 decimal places.');
 
 export const createRouteBodySchema = z.object({
-  areaId: objectIdSchema,
+  hqId: objectIdSchema,
   name: nameSchema,
-  waypoints: waypointsSchema,
+  type: z.enum(ROUTE_TYPES),
+  destination: placeBodySchema,
   /** Paise per km (₹7.50 = 750). */
   taPerKmRateOverridePaise: paiseSchema.nullable().optional(),
 });
 export const updateRouteBodySchema = z
   .object({
     name: nameSchema,
+    type: z.enum(ROUTE_TYPES),
     status: z.enum(TERRITORY_STATUSES),
     /** `null` clears the override, falling back to the MR's PayBand rate. */
     taPerKmRateOverridePaise: paiseSchema.nullable(),
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'Nothing to update.');
-export const updateRouteWaypointsBodySchema = z.object({
-  waypoints: waypointsSchema,
+export const updateRouteDestinationBodySchema = z.object({
+  destination: placeBodySchema,
   /** The route's `revision` this edit was made against. */
   revision: z.number().int().positive(),
 });
@@ -83,8 +73,9 @@ export const overrideRouteDistanceBodySchema = z.object({
   distanceKm: decimalSchema.refine((value) => Number(value) > 0, 'Must be greater than 0.'),
 });
 export const listRoutesQuerySchema = listQuerySchema.extend({
-  areaId: objectIdSchema.optional(),
   hqId: objectIdSchema.optional(),
+  zoneId: objectIdSchema.optional(),
+  type: z.enum(ROUTE_TYPES).optional(),
 });
 
 export const searchPlacesQuerySchema = z.object({ q: z.string().trim().min(2).max(200) });

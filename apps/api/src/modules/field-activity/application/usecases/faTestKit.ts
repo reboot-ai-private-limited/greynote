@@ -187,8 +187,8 @@ export class FakeTerritory implements TerritoryPort {
   async listRoutesForUser(userId: string) {
     return (this.routesByUser.get(userId) ?? []).map((id) => ({ id }));
   }
-  routes = new Map<string, { id: string; areaType: 'HQ' | 'EX_STATION' | 'OUT_STATION'; distanceKm: string | null; distanceStatus: string; taPerKmRateOverridePaise: number | null }>([
-    ['route-1', { id: 'route-1', areaType: 'HQ', distanceKm: '10.67', distanceStatus: 'CALCULATED', taPerKmRateOverridePaise: null }],
+  routes = new Map<string, { id: string; routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION'; distanceKm: string | null; distanceStatus: string; taPerKmRateOverridePaise: number | null }>([
+    ['route-1', { id: 'route-1', routeType: 'HQ', distanceKm: '10.67', distanceStatus: 'CALCULATED', taPerKmRateOverridePaise: null }],
   ]);
   async getRoute(id: string) {
     return this.routes.get(id) ?? null;

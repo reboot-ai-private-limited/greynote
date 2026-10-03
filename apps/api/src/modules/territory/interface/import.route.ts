@@ -37,12 +37,12 @@ openApiRegistry.registerPath({
   method: 'post',
   path: '/api/territory/import',
   tags: ['Territory / Import'],
-  summary: 'Admin: bulk-create Zones / HQs / Areas from a CSV',
+  summary: 'Admin: bulk-create Zones / HQs from a CSV',
   description:
     'multipart/form-data with a `file` field (CSV, ≤1 MB, ≤' +
-    `${MAX_IMPORT_ROWS} rows). Columns: zone (required), hq, area, area_type (HQ / EX_STATION / ` +
-    'OUT_STATION; "Ex Station" also accepted). Existing names (ignoring case) are reused, never ' +
-    'changed. Any problem rejects the whole file with every problem listed by line. ' +
+    `${MAX_IMPORT_ROWS} rows). Columns: zone (required), hq. ` +
+    'An imported HQ has no base place yet; set it in the app before adding Routes. ' +
+    'Existing names (ignoring case) are reused, never changed. Any problem rejects the whole file with every problem listed by line. ' +
     '`?dryRun=true` reports what would be created without writing.',
   security: [{ bearerAuth: [] }],
   request: {

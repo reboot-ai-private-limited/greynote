@@ -105,16 +105,16 @@ export class FakeTerritory implements TerritoryPort {
   ]);
   /** Where each Route sits: route-1 and route-2 share HQ h1 in zone z1; route-3 is elsewhere. */
   paths = new Map([
-    ['route-1', { routeId: 'route-1', areaId: 'a1', areaType: 'HQ' as const, hqId: 'h1', zoneId: 'z1' }],
-    ['route-2', { routeId: 'route-2', areaId: 'a2', areaType: 'HQ' as const, hqId: 'h1', zoneId: 'z1' }],
-    ['route-3', { routeId: 'route-3', areaId: 'a3', areaType: 'HQ' as const, hqId: 'h2', zoneId: 'z2' }],
+    ['route-1', { routeId: 'route-1', routeType: 'HQ' as const, hqId: 'h1', zoneId: 'z1' }],
+    ['route-2', { routeId: 'route-2', routeType: 'HQ' as const, hqId: 'h1', zoneId: 'z1' }],
+    ['route-3', { routeId: 'route-3', routeType: 'HQ' as const, hqId: 'h2', zoneId: 'z2' }],
   ]);
   async getRoutePath(routeId: string) {
     return this.paths.get(routeId) ?? null;
   }
-  async listRouteIdsInScope(scope: { areaId?: string | undefined; hqId?: string | undefined; zoneId?: string | undefined }) {
+  async listRouteIdsInScope(scope: { hqId?: string | undefined; zoneId?: string | undefined }) {
     return [...this.paths.values()]
-      .filter((p) => (scope.areaId ? p.areaId === scope.areaId : scope.hqId ? p.hqId === scope.hqId : scope.zoneId ? p.zoneId === scope.zoneId : false))
+      .filter((p) => (scope.hqId ? p.hqId === scope.hqId : scope.zoneId ? p.zoneId === scope.zoneId : false))
       .map((p) => p.routeId);
   }
   /** The Routes each user currently has. */

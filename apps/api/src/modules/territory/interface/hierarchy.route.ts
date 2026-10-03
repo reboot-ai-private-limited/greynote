@@ -4,25 +4,19 @@ import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
-import type { CreateAreaUseCase } from '../application/usecases/createArea.usecase.js';
 import type { CreateHqUseCase } from '../application/usecases/createHq.usecase.js';
 import type { CreateZoneUseCase } from '../application/usecases/createZone.usecase.js';
-import type { ListAreasUseCase } from '../application/usecases/listAreas.usecase.js';
 import type { ListHqsUseCase } from '../application/usecases/listHqs.usecase.js';
 import type { ListZonesUseCase } from '../application/usecases/listZones.usecase.js';
-import type { UpdateAreaUseCase } from '../application/usecases/updateArea.usecase.js';
 import type { UpdateHqUseCase } from '../application/usecases/updateHq.usecase.js';
 import type { UpdateZoneUseCase } from '../application/usecases/updateZone.usecase.js';
 import { makeHierarchyController } from './hierarchy.controller.js';
 import {
-  createAreaBodySchema,
   createHqBodySchema,
   createZoneBodySchema,
-  listAreasQuerySchema,
   listHqsQuerySchema,
   listZonesQuerySchema,
   territoryIdParamsSchema,
-  updateAreaBodySchema,
   updateHqBodySchema,
   updateZoneBodySchema,
 } from './territory.schemas.js';
@@ -55,16 +49,7 @@ const LEVELS = {
     listQuery: listHqsQuerySchema,
     createBody: createHqBodySchema,
     updateBody: updateHqBodySchema,
-    updateSummary: 'rename, deactivate (only with no active areas) or reactivate',
-  },
-  areas: {
-    segment: 'areas',
-    tag: 'Territory / Areas',
-    noun: 'area',
-    listQuery: listAreasQuerySchema,
-    createBody: createAreaBodySchema,
-    updateBody: updateAreaBodySchema,
-    updateSummary: 'rename, change type, deactivate or reactivate',
+    updateSummary: 'rename, change the base place (recalculates its routes), deactivate (only with no active routes) or reactivate',
   },
 } satisfies Record<string, LevelSpec>;
 
@@ -119,11 +104,9 @@ function buildLevelRouter(spec: LevelSpec, useCases: LevelUseCases): Router {
 export function buildHierarchyRouter(useCases: {
   zones: { list: ListZonesUseCase; create: CreateZoneUseCase; update: UpdateZoneUseCase };
   hqs: { list: ListHqsUseCase; create: CreateHqUseCase; update: UpdateHqUseCase };
-  areas: { list: ListAreasUseCase; create: CreateAreaUseCase; update: UpdateAreaUseCase };
 }): Router {
   const router = Router();
   router.use(`/${LEVELS.zones.segment}`, buildLevelRouter(LEVELS.zones, useCases.zones));
   router.use(`/${LEVELS.hqs.segment}`, buildLevelRouter(LEVELS.hqs, useCases.hqs));
-  router.use(`/${LEVELS.areas.segment}`, buildLevelRouter(LEVELS.areas, useCases.areas));
   return router;
 }

@@ -1,11 +1,11 @@
 import { multiplyPaise, type Paise } from '@/shared/money/paise.js';
 import type { WorkingType } from '@greynote/contracts';
 
-type AreaType = 'HQ' | 'EX_STATION' | 'OUT_STATION';
+type RouteType = 'HQ' | 'EX_STATION' | 'OUT_STATION';
 
 export interface DayRoute {
   id: string;
-  areaType: AreaType;
+  routeType: RouteType;
   distanceKm: string | null;
   distanceStatus: string;
   taPerKmRateOverridePaise: number | null;
@@ -24,7 +24,7 @@ export interface AutoExpense {
   distanceFlag: boolean;
 }
 
-const RANK: Record<AreaType, number> = { HQ: 0, EX_STATION: 1, OUT_STATION: 2 };
+const RANK: Record<RouteType, number> = { HQ: 0, EX_STATION: 1, OUT_STATION: 2 };
 
 /**
  * The day's TA and DA (hld/06). Pure: the caller reads the Plan, the Routes and the Pay Band.
@@ -32,7 +32,7 @@ const RANK: Record<AreaType, number> = { HQ: 0, EX_STATION: 1, OUT_STATION: 2 };
  * - `FIELD_WORK`: one TA row **per Route** — its `distanceKm` × (the Route's own rate, else the Pay Band's),
  *   rounded half up to a whole paise once, per Route. A Route whose distance isn't `CALCULATED` (or is unknown,
  *   which the caller passes as `null`) gets a zero row flagged `distanceFlag`, never a made-up figure and never
- *   a block on approval. Plus one DA row: the Pay Band's rate for the *highest* Area type among the Routes.
+ *   a block on approval. Plus one DA row: the Pay Band's rate for the *highest* Route type among the Routes.
  * - `MEETING` / `CONFERENCE`: DA at the HQ rate, no TA.
  * - `STRIKE`: nothing.
  * A DA of ₹0 (the HQ rate of some grades) and a genuinely zero-km TA are not written — nothing is claimed.
@@ -54,8 +54,8 @@ export function calculateTaDa(workingType: WorkingType, routes: Array<DayRoute |
     });
   }
 
-  const dayArea = workingType === 'FIELD_WORK' ? known.reduce<AreaType>((top, r) => (RANK[r.areaType] > RANK[top] ? r.areaType : top), 'HQ') : 'HQ';
-  const da = dayArea === 'OUT_STATION' ? rates.outStationDaPaise : dayArea === 'EX_STATION' ? rates.exStationDaPaise : rates.hqDaPaise;
+  const dayType = workingType === 'FIELD_WORK' ? known.reduce<RouteType>((top, r) => (RANK[r.routeType] > RANK[top] ? r.routeType : top), 'HQ') : 'HQ';
+  const da = dayType === 'OUT_STATION' ? rates.outStationDaPaise : dayType === 'EX_STATION' ? rates.exStationDaPaise : rates.hqDaPaise;
   if (da > 0) out.push({ type: 'DA', routeId: null, amountPaise: da, distanceFlag: false });
   return out;
 }

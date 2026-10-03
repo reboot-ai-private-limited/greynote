@@ -2,7 +2,6 @@ import { Types, type UpdateQuery } from 'mongoose';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { Route } from '../domain/route.entity.js';
 import type { RouteListQuery, RouteRepositoryPort } from '../domain/route.repository.port.js';
-import { AreaModel } from './area.schema.js';
 import { HqModel } from './hq.schema.js';
 import { listOptions, rethrowDuplicateName, toNameKey } from './mongoHelpers.js';
 import { RouteModel, type RouteDoc } from './route.schema.js';
@@ -10,9 +9,15 @@ import { RouteModel, type RouteDoc } from './route.schema.js';
 function toRoute(doc: RouteDoc & { _id: unknown }): Route {
   return {
     id: String(doc._id),
-    areaId: String(doc.areaId),
+    hqId: String(doc.hqId),
     name: doc.name,
-    waypoints: doc.waypoints.map(({ label, latitude, longitude, placeId }) => ({ label, latitude, longitude, placeId })),
+    type: doc.type,
+    destination: {
+      label: doc.destination.label,
+      latitude: doc.destination.latitude,
+      longitude: doc.destination.longitude,
+      placeId: doc.destination.placeId,
+    },
     distanceKm: doc.distanceKm?.toString() ?? null,
     distanceSource: doc.distanceSource,
     distanceStatus: doc.distanceStatus,
@@ -26,7 +31,7 @@ function toRoute(doc: RouteDoc & { _id: unknown }): Route {
 const toDecimal = (value: string | null) => (value === null ? null : Types.Decimal128.fromString(value));
 
 /** Domain → document: the distance string becomes `Decimal128`, `name` also sets `nameKey`. */
-function toDocChange(input: Partial<Omit<Route, 'id' | 'areaId'>>): UpdateQuery<RouteDoc> {
+function toDocChange(input: Partial<Omit<Route, 'id' | 'hqId'>>): UpdateQuery<RouteDoc> {
   const { name, distanceKm, ...rest } = input;
   return {
     ...rest,
@@ -47,38 +52,33 @@ export class MongoRouteAdapter implements RouteRepositoryPort {
     return docs.map(toRoute);
   }
 
-  async findByName(areaId: string, name: string): Promise<Route | null> {
-    const doc = await RouteModel.findOne({ areaId: new Types.ObjectId(areaId), nameKey: toNameKey(name) }).lean();
+  async findByName(hqId: string, name: string): Promise<Route | null> {
+    const doc = await RouteModel.findOne({ hqId: new Types.ObjectId(hqId), nameKey: toNameKey(name) }).lean();
     return doc ? toRoute(doc) : null;
   }
 
-  async listIdsInScope(scope: { areaId?: string | undefined; hqId?: string | undefined; zoneId?: string | undefined }): Promise<string[]> {
-    // The most specific level given wins: Area, then HQ, then Zone.
-    let areaIds: Types.ObjectId[];
-    if (scope.areaId) {
-      areaIds = [new Types.ObjectId(scope.areaId)];
-    } else {
-      let hqIds: Types.ObjectId[];
-      if (scope.hqId) hqIds = [new Types.ObjectId(scope.hqId)];
-      else if (scope.zoneId) hqIds = (await HqModel.find({ zoneId: new Types.ObjectId(scope.zoneId) }).select('_id').lean()).map((h) => h._id);
-      else return [];
-      areaIds = (await AreaModel.find({ hqId: { $in: hqIds } }).select('_id').lean()).map((a) => a._id);
-    }
-    return (await RouteModel.find({ areaId: { $in: areaIds } }).select('_id').lean()).map((r) => String(r._id));
+  async listIdsInScope(scope: { hqId?: string | undefined; zoneId?: string | undefined }): Promise<string[]> {
+    // The most specific level given wins: HQ, then Zone.
+    let hqIds: Types.ObjectId[];
+    if (scope.hqId) hqIds = [new Types.ObjectId(scope.hqId)];
+    else if (scope.zoneId) hqIds = await this.hqIdsInZone(scope.zoneId);
+    else return [];
+    return (await RouteModel.find({ hqId: { $in: hqIds } }).select('_id').lean()).map((r) => String(r._id));
+  }
+
+  private async hqIdsInZone(zoneId: string): Promise<Types.ObjectId[]> {
+    return (await HqModel.find({ zoneId: new Types.ObjectId(zoneId) }).select('_id').lean()).map((h) => h._id);
   }
 
   async list(query: RouteListQuery): Promise<{ items: Route[]; total: number }> {
     const { filter, sort, skip, limit } = listOptions<RouteDoc>(query);
     if (query.hqId) {
-      // Routes don't store their HQ (always reached through the Area, ERD 02) — resolve it here.
-      const areas = await AreaModel.find({ hqId: new Types.ObjectId(query.hqId) }).select('_id').lean();
-      const areaIds = areas.map((a) => a._id);
-      filter.areaId = query.areaId
-        ? { $in: areaIds.filter((id) => String(id) === query.areaId) }
-        : { $in: areaIds };
-    } else if (query.areaId) {
-      filter.areaId = new Types.ObjectId(query.areaId);
+      filter.hqId = new Types.ObjectId(query.hqId);
+    } else if (query.zoneId) {
+      // Routes store only their HQ (Zone is reached through it, ERD 02) — resolve the Zone's HQs here.
+      filter.hqId = { $in: await this.hqIdsInZone(query.zoneId) };
     }
+    if (query.type) filter.type = query.type;
     const [docs, total] = await Promise.all([
       RouteModel.find(filter).sort(sort).skip(skip).limit(limit).lean(),
       RouteModel.countDocuments(filter),
@@ -86,20 +86,25 @@ export class MongoRouteAdapter implements RouteRepositoryPort {
     return { items: docs.map(toRoute), total };
   }
 
-  countActiveInArea(areaId: string): Promise<number> {
-    return RouteModel.countDocuments({ areaId: new Types.ObjectId(areaId), status: 'active' });
+  countActiveInHq(hqId: string): Promise<number> {
+    return RouteModel.countDocuments({ hqId: new Types.ObjectId(hqId), status: 'active' });
+  }
+
+  async listActiveInHq(hqId: string): Promise<Route[]> {
+    const docs = await RouteModel.find({ hqId: new Types.ObjectId(hqId), status: 'active' }).lean();
+    return docs.map(toRoute);
   }
 
   async create(input: Omit<Route, 'id'>): Promise<Route> {
     try {
-      const doc = await RouteModel.create({ ...toDocChange(input), areaId: new Types.ObjectId(input.areaId) });
+      const doc = await RouteModel.create({ ...toDocChange(input), hqId: new Types.ObjectId(input.hqId) });
       return toRoute(doc.toObject());
     } catch (err) {
       return rethrowDuplicateName(err, 'route');
     }
   }
 
-  async update(id: string, input: Partial<Pick<Route, 'name' | 'status' | 'taPerKmRateOverridePaise'>>): Promise<Route> {
+  async update(id: string, input: Partial<Pick<Route, 'name' | 'type' | 'status' | 'taPerKmRateOverridePaise'>>): Promise<Route> {
     try {
       const doc = await RouteModel.findByIdAndUpdate(id, toDocChange(input), { new: true }).lean();
       if (!doc) throw AppError.internal('INTERNAL', { reason: 'ROUTE_NOT_FOUND', id });
@@ -112,7 +117,7 @@ export class MongoRouteAdapter implements RouteRepositoryPort {
   async updateAtRevision(
     id: string,
     expectedRevision: number,
-    change: Partial<Omit<Route, 'id' | 'areaId'>>,
+    change: Partial<Omit<Route, 'id' | 'hqId'>>,
   ): Promise<Route | null> {
     const doc = await RouteModel.findOneAndUpdate(
       { _id: id, revision: expectedRevision },

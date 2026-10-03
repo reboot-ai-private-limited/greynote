@@ -5,7 +5,7 @@ export type PayBandName = (typeof PAY_BAND_NAMES)[number];
  * Money is whole paise (₹1 = 100), plain integers — see `docs/engineering/coding-standards.md`,
  * *Money*. So ₹7.50 per km is `taPerKmRatePaise: 750`.
  *
- * DA has one rate per Area type (`HQ` / `EX_STATION` / `OUT_STATION`, see hld/06 §2).
+ * DA has one rate per Route type (`HQ` / `EX_STATION` / `OUT_STATION`, see hld/06 §2).
  */
 export interface PayBand {
   id: string;

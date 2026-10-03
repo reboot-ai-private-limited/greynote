@@ -73,11 +73,11 @@ describe('Distributors', () => {
   it('the detail carries the breadcrumb resolved through the Route', async () => {
     const d = await create();
     const detail = await new GetDistributorUseCase(distributors, territory).execute(d.id);
-    expect(detail.path).toEqual({ routeId: 'route-1', areaId: 'a1', areaType: 'HQ', hqId: 'h1', zoneId: 'z1' });
+    expect(detail.path).toEqual({ routeId: 'route-1', routeType: 'HQ', hqId: 'h1', zoneId: 'z1' });
     await expectStatus(new GetDistributorUseCase(distributors, territory).execute('nope'), 404);
   });
 
-  it('lists by route, by the area / HQ / zone above it, by MR, and by name or GST', async () => {
+  it('lists by route, by the HQ / zone above it, by MR, and by name or GST', async () => {
     await create();
     await create({ routeId: 'route-2', name: 'City Agencies', gstNumber: '19AAAAA1111A1Z1', assignedMrId: 'mr2' });
     await create({ routeId: 'route-3', name: 'Far Away Co', gstNumber: '27BBBBB2222B1Z2', assignedMrId: null });
@@ -86,7 +86,6 @@ describe('Distributors', () => {
     expect(await names({ routeId: 'route-2' })).toEqual(['City Agencies']);
     expect(await names({ hqId: 'h1' })).toEqual(['City Agencies', 'Shree Distributors']);
     expect(await names({ zoneId: 'z2' })).toEqual(['Far Away Co']);
-    expect(await names({ areaId: 'a1' })).toEqual(['Shree Distributors']);
     expect(await names({ hqId: 'h1', routeId: 'route-3' })).toEqual([]); // the route isn't under that HQ
     expect(await names({ hqId: 'nowhere' })).toEqual([]);
     expect(await names({ assignedMrId: 'mr2' })).toEqual(['City Agencies']);

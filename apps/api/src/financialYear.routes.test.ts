@@ -72,7 +72,6 @@ const TIMELESS = [
   '/api/identity/pay-bands',
   '/api/territory/zones',
   '/api/territory/hqs',
-  '/api/territory/areas',
   '/api/territory/routes',
   '/api/territory/routes/:id',
   '/api/territory/routes/:id/assignments',

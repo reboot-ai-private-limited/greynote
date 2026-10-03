@@ -23,14 +23,14 @@ describe('TA/DA over a DCR’s life', () => {
     // the HQ rate is ₹0, so no DA row for an HQ-only day
   });
 
-  it('a route in another Area type earns the higher DA', async () => {
-    kit.territory.routes.set('route-1', { ...kit.territory.routes.get('route-1')!, areaType: 'OUT_STATION' });
+  it('a route of another type earns the higher DA', async () => {
+    kit.territory.routes.set('route-1', { ...kit.territory.routes.get('route-1')!, routeType: 'OUT_STATION' });
     await kit.taDa.onStatusChange(dcrId, 'MANAGER_APPROVED', new Tx());
     expect(auto().map((r) => [r.type, r.amountPaise])).toEqual([['TA', 8003], ['DA', 50000]]);
   });
 
   it('exactly once: the same approval seen again, or MANAGER_APPROVED then APPROVED, adds nothing', async () => {
-    kit.territory.routes.set('route-1', { ...kit.territory.routes.get('route-1')!, areaType: 'EX_STATION' });
+    kit.territory.routes.set('route-1', { ...kit.territory.routes.get('route-1')!, routeType: 'EX_STATION' });
     await kit.taDa.onStatusChange(dcrId, 'MANAGER_APPROVED', new Tx());
     await kit.taDa.onStatusChange(dcrId, 'MANAGER_APPROVED', new Tx());
     await kit.taDa.onStatusChange(dcrId, 'APPROVED', new Tx());

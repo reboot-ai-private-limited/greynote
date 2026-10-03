@@ -14,7 +14,7 @@ import {
   searchPlacesQuerySchema,
   territoryIdParamsSchema,
   updateRouteBodySchema,
-  updateRouteWaypointsBodySchema,
+  updateRouteDestinationBodySchema,
 } from './territory.schemas.js';
 
 const ROUTES_TAG = 'Territory / Routes';
@@ -25,7 +25,7 @@ openApiRegistry.registerPath({
   method: 'get',
   path: '/api/territory/places/search',
   tags: [ROUTES_TAG],
-  summary: 'Admin: search places to use as waypoints (Google Places proxy)',
+  summary: 'Admin: search places to use as an HQ base place or a Route destination (Google Places proxy)',
   security: bearer,
   request: { query: searchPlacesQuerySchema },
   responses: { 200: { description: 'Candidates with coordinates' }, 503: { description: 'Google unavailable' } },
@@ -34,7 +34,7 @@ openApiRegistry.registerPath({
   method: 'get',
   path: '/api/territory/routes',
   tags: [ROUTES_TAG],
-  summary: 'Admin: list routes, optionally by Area or HQ',
+  summary: 'Admin: list routes, optionally by HQ, Zone or type',
   security: bearer,
   request: { query: listRoutesQuerySchema },
   responses: { 200: { description: 'Routes listed' } },
@@ -68,18 +68,18 @@ openApiRegistry.registerPath({
 });
 openApiRegistry.registerPath({
   method: 'patch',
-  path: '/api/territory/routes/{id}/waypoints',
+  path: '/api/territory/routes/{id}/destination',
   tags: [ROUTES_TAG],
-  summary: 'Admin: replace waypoints — recalculates distance and clears any manual override',
+  summary: 'Admin: change the destination — recalculates distance and clears any manual override',
   security: bearer,
-  request: { params: territoryIdParamsSchema, body: json(updateRouteWaypointsBodySchema) },
-  responses: { 200: { description: 'Waypoints updated' }, 409: { description: 'Stale revision' } },
+  request: { params: territoryIdParamsSchema, body: json(updateRouteDestinationBodySchema) },
+  responses: { 200: { description: 'Destination updated' }, 409: { description: 'Stale revision' } },
 });
 openApiRegistry.registerPath({
   method: 'patch',
   path: '/api/territory/routes/{id}/distance',
   tags: [ROUTES_TAG],
-  summary: 'Admin: manually override the distance (until the next waypoint edit)',
+  summary: 'Admin: manually override the distance (until the next destination edit)',
   security: bearer,
   request: { params: territoryIdParamsSchema, body: json(overrideRouteDistanceBodySchema) },
   responses: { 200: { description: 'Distance overridden' } },
@@ -127,7 +127,7 @@ openApiRegistry.registerPath({
   tags: [ROUTES_TAG],
   summary: 'Field employee: my active routes (for the Daily Plan route picker)',
   security: bearer,
-  responses: { 200: { description: 'Routes with Area name/type and distance' } },
+  responses: { 200: { description: 'Routes with HQ name, type and distance' } },
 });
 
 export function buildRoutesRouter(controllers: {
@@ -135,7 +135,7 @@ export function buildRoutesRouter(controllers: {
   create: RequestHandler;
   update: RequestHandler;
   get: RequestHandler;
-  updateWaypoints: RequestHandler;
+  updateDestination: RequestHandler;
   overrideDistance: RequestHandler;
   recalculate: RequestHandler;
   assign: RequestHandler;
@@ -151,7 +151,7 @@ export function buildRoutesRouter(controllers: {
   router.post('/', validate({ body: createRouteBodySchema }), controllers.create);
   router.get('/:id', withId(), controllers.get);
   router.patch('/:id', withId(updateRouteBodySchema), controllers.update);
-  router.patch('/:id/waypoints', withId(updateRouteWaypointsBodySchema), controllers.updateWaypoints);
+  router.patch('/:id/destination', withId(updateRouteDestinationBodySchema), controllers.updateDestination);
   router.patch('/:id/distance', withId(overrideRouteDistanceBodySchema), controllers.overrideDistance);
   router.post('/:id/recalculate', withId(), controllers.recalculate);
   router.post('/:id/assignments', withId(assignRouteBodySchema), controllers.assign);

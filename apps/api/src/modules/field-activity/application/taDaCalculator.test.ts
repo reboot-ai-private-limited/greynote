@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { calculateTaDa, type DayRoute, type PayRates } from './taDaCalculator.js';
 
 const rates: PayRates = { taPerKmRatePaise: 750, hqDaPaise: 0, exStationDaPaise: 20000, outStationDaPaise: 50000 };
-const route = (id: string, over: Partial<DayRoute> = {}): DayRoute => ({ id, areaType: 'HQ', distanceKm: '10.67', distanceStatus: 'CALCULATED', taPerKmRateOverridePaise: null, ...over });
+const route = (id: string, over: Partial<DayRoute> = {}): DayRoute => ({ id, routeType: 'HQ', distanceKm: '10.67', distanceStatus: 'CALCULATED', taPerKmRateOverridePaise: null, ...over });
 
 describe('TA/DA calculation (hld/06)', () => {
   it('FIELD_WORK: TA is distance × the Pay Band rate, rounded half up to a whole paise once', () => {
@@ -30,11 +30,11 @@ describe('TA/DA calculation (hld/06)', () => {
     ]);
   });
 
-  it('DA is one amount for the day at the highest Area type among the Routes', () => {
-    const routes = [route('r1', { areaType: 'HQ' }), route('r2', { areaType: 'OUT_STATION' }), route('r3', { areaType: 'EX_STATION' })];
+  it('DA is one amount for the day at the highest Route type among the Routes', () => {
+    const routes = [route('r1', { routeType: 'HQ' }), route('r2', { routeType: 'OUT_STATION' }), route('r3', { routeType: 'EX_STATION' })];
     const da = calculateTaDa('FIELD_WORK', routes, ['r1', 'r2', 'r3'], rates).filter((x) => x.type === 'DA');
     expect(da).toEqual([{ type: 'DA', routeId: null, amountPaise: 50000, distanceFlag: false }]);
-    expect(calculateTaDa('FIELD_WORK', [route('a', { areaType: 'EX_STATION' }), route('b')], ['a', 'b'], rates).find((x) => x.type === 'DA')!.amountPaise).toBe(20000);
+    expect(calculateTaDa('FIELD_WORK', [route('a', { routeType: 'EX_STATION' }), route('b')], ['a', 'b'], rates).find((x) => x.type === 'DA')!.amountPaise).toBe(20000);
   });
 
   it('MEETING and CONFERENCE: DA at the HQ rate only, no TA; a ₹0 HQ rate writes nothing', () => {
@@ -48,6 +48,6 @@ describe('TA/DA calculation (hld/06)', () => {
   });
 
   it('every amount is a whole number of paise', () => {
-    for (const x of calculateTaDa('FIELD_WORK', [route('r1', { distanceKm: '33.333', areaType: 'EX_STATION' })], ['r1'], rates)) expect(Number.isInteger(x.amountPaise)).toBe(true);
+    for (const x of calculateTaDa('FIELD_WORK', [route('r1', { distanceKm: '33.333', routeType: 'EX_STATION' })], ['r1'], rates)) expect(Number.isInteger(x.amountPaise)).toBe(true);
   });
 });

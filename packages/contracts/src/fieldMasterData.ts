@@ -161,7 +161,7 @@ export interface DistributorDto {
 }
 /** `GET /distributors/:id`: the Distributor with its Route's place in the hierarchy (ids only). */
 export interface DistributorDetailDto extends DistributorDto {
-  path: { routeId: string; areaId: string; areaType: 'HQ' | 'EX_STATION' | 'OUT_STATION'; hqId: string; zoneId: string } | null;
+  path: { routeId: string; routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION'; hqId: string; zoneId: string } | null;
 }
 export interface CreateDistributorDto {
   routeId: string;
