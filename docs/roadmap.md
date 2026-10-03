@@ -483,7 +483,13 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   in and when it was last active, and offers Log out and Remove on a registered one. Each action says what it does before it is
   confirmed (a removal frees a slot; a log-out does not). The dashboard's devices tile now opens `/devices`. HR does not see the tab,
   as the API refuses HR. Verified by typecheck, lint, 243 tests and `next build`; **not yet exercised against the live API.**
-  Next: Security (reset password, unblock, deactivate); then master data, HR, approvals, expenses/payroll — one module at a time.
+  **Security built (2026-10-03):** Admin-only, a tab for a field employee and a card below the Account card for other roles.
+  Reset password (generate or type one; confirmed, since it signs the employee out everywhere), Unblock (shown only when blocked,
+  with the reason and date) and Deactivate (confirmed; refused for your own account). Deactivating needed an API fix first
+  (decision-log 2026-10-03): it only changed a field, so a deactivated employee could still sign in. Login and refresh now refuse an
+  inactive account and deactivating ends the sessions. There is still no reactivate endpoint. Verified by typecheck, lint, 248 tests and
+  `next build`; **not yet exercised against the live API.** **Employees is complete in the web portal.**
+  Next: master data (Doctors, Chemists, Distributors, Products), then HR, approvals, expenses/payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

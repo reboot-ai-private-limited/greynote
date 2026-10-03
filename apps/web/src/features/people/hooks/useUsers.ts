@@ -81,3 +81,30 @@ export function useRemoveDocument(userId: string, onDone: () => void) {
     onSuccess: onDone,
   });
 }
+
+export function useResetPassword(userId: string, onDone: () => void) {
+  return useApiMutation<string>({
+    call: (token, newPassword) => identityApi.resetPassword(token, userId, newPassword),
+    successMessage: 'Password reset. The employee is signed out everywhere.',
+    onSuccess: onDone,
+  });
+}
+
+export function useUnblockUser(userId: string, onDone: () => void) {
+  return useApiMutation({
+    call: (token) => identityApi.unblockUser(token, userId),
+    invalidates: [keys.users.all()],
+    successMessage: 'Employee unblocked.',
+    onSuccess: onDone,
+  });
+}
+
+export function useDeactivateUser(userId: string, onDone: () => void) {
+  return useApiMutation({
+    call: (token) => identityApi.updateUser(token, userId, { status: 'inactive' }),
+    // The status badge, the list and the employee's phones (their sessions ended) all change.
+    invalidates: [keys.users.all(), keys.devices.all()],
+    successMessage: 'Account deactivated.',
+    onSuccess: onDone,
+  });
+}

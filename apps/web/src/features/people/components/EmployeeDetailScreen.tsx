@@ -19,13 +19,15 @@ import { BankSection } from './BankSection';
 import { DocumentsSection } from './DocumentsSection';
 import { BasicSection } from './BasicSection';
 import { Field, FieldList } from './SectionCard';
+import { SecuritySection } from './SecuritySection';
 import { UserDevicesSection } from './UserDevicesSection';
 import { WorkSection } from './WorkSection';
 
 export function EmployeeDetailScreen({ id }: { id: string }) {
   const readOnly = useIsReadOnly();
   // Phones are Admin's call (the API refuses HR), so HR does not see the tab.
-  const isAdmin = useSession().user?.role === 'ADMIN';
+  const session = useSession().user;
+  const isAdmin = session?.role === 'ADMIN';
   const query = useUser(id);
   const user = query.data;
   const missing = user ? missingForActive(user) : [];
@@ -74,6 +76,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                   <TabsTrigger value="bank">Bank</TabsTrigger>
                   <TabsTrigger value="documents">Documents</TabsTrigger>
                   {isAdmin ? <TabsTrigger value="devices">Devices</TabsTrigger> : null}
+                  {isAdmin ? <TabsTrigger value="security">Security</TabsTrigger> : null}
                 </TabsList>
                 <TabsContent value="profile" className="mt-6 space-y-6">
                   <BasicSection user={user} readOnly={readOnly} />
@@ -91,6 +94,11 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                     <UserDevicesSection userId={user.id} />
                   </TabsContent>
                 ) : null}
+                {isAdmin ? (
+                  <TabsContent value="security" className="mt-6">
+                    <SecuritySection user={user} selfId={session?.id} readOnly={readOnly} />
+                  </TabsContent>
+                ) : null}
               </Tabs>
             ) : (
               <Card title="Account" description="Designation, pay band, bank details and devices apply to the field force only.">
@@ -103,6 +111,11 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 </div>
               </Card>
             )}
+            {user.role !== 'FIELD' && isAdmin ? (
+              <div className="mt-6">
+                <SecuritySection user={user} selfId={session?.id} readOnly={readOnly} />
+              </div>
+            ) : null}
           </>
         ) : null}
       </DataState>

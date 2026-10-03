@@ -12,7 +12,8 @@ import { Select } from '@/components/ui/Select';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useCreateUser } from '../hooks/useUsers';
-import { EMPTY_USER_DRAFT, ROLE_LABEL, buildUser, creatableRoles, generatePassword, secureRandom, type UserDraft } from '../lib/user';
+import { PasswordField } from './PasswordField';
+import { EMPTY_USER_DRAFT, ROLE_LABEL, buildUser, creatableRoles, type UserDraft } from '../lib/user';
 
 export function EmployeeCreateScreen() {
   const router = useRouter();
@@ -22,7 +23,6 @@ export function EmployeeCreateScreen() {
   // HR can only create field employees, so the choice is made for them.
   const [draft, setDraft] = useState<UserDraft>({ ...EMPTY_USER_DRAFT, role: roles.length === 1 ? (roles[0] ?? '') : '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [reveal, setReveal] = useState(false);
   const create = useCreateUser((created) => router.push(`/employees/${created.id}`));
 
   const set = (field: keyof UserDraft) => (value: string) => setDraft((d) => ({ ...d, [field]: value }));
@@ -73,30 +73,14 @@ export function EmployeeCreateScreen() {
             <FormField label="Full name" htmlFor="user-name" error={errors['name']}>
               <Input id="user-name" value={draft.name} onChange={(e) => set('name')(e.target.value)} aria-invalid={invalid('name')} />
             </FormField>
-            <FormField label="Initial password" htmlFor="user-password" error={errors['password']} hint="Share it with the employee. Only an Admin can reset it later.">
-              <div className="flex gap-2">
-                <Input
-                  id="user-password"
-                  type={reveal ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  value={draft.password}
-                  onChange={(e) => set('password')(e.target.value)}
-                  aria-invalid={invalid('password')}
-                />
-                <Button variant="secondary" onClick={() => setReveal((r) => !r)} aria-pressed={reveal}>
-                  {reveal ? 'Hide' : 'Show'}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    set('password')(generatePassword(secureRandom));
-                    setReveal(true);
-                  }}
-                >
-                  Generate
-                </Button>
-              </div>
-            </FormField>
+            <PasswordField
+              id="user-password"
+              label="Initial password"
+              hint="Share it with the employee. Only an Admin can reset it later."
+              value={draft.password}
+              error={errors['password']}
+              onChange={set('password')}
+            />
             <FormField label="Email" htmlFor="user-email" error={errors['email']} hint="Optional.">
               <Input id="user-email" type="email" value={draft.email} onChange={(e) => set('email')(e.target.value)} aria-invalid={invalid('email')} />
             </FormField>

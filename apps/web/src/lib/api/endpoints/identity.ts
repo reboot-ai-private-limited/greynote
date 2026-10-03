@@ -45,6 +45,14 @@ export const identityApi = {
   logoutDevice: (token: string, userId: string, deviceRowId: string) =>
     request<Record<string, never>>(`/identity/users/${userId}/devices/${deviceRowId}/logout`, { method: 'POST', token }),
 
+  /** Ends every session of the employee. Admin only. */
+  resetPassword: (token: string, userId: string, newPassword: string) =>
+    request<Record<string, never>>(`/identity/users/${userId}/reset-password`, { method: 'POST', token, body: { newPassword } }),
+
+  /** Clears a compliance block. Admin only; a no-op for someone who is not blocked. */
+  unblockUser: (token: string, userId: string) =>
+    request<Record<string, never>>(`/identity/users/${userId}/unblock`, { method: 'POST', token }),
+
   user: (token: string, id: string, signal?: AbortSignal) =>
     request<UserDetailDto>(`/identity/users/${id}`, { token, signal }),
 
