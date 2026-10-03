@@ -1,6 +1,6 @@
 'use client';
 
-import type { WaypointDto } from '@greynote/contracts';
+import type { PlaceDto } from '@greynote/contracts';
 import { Plus } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/Badge';
@@ -21,7 +21,7 @@ import { StatTile } from '@/components/ui/StatTile';
 import { ActionTile } from '@/features/dashboard/components/ActionTile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { toast } from '@/components/ui/toast';
-import { StopsEditor } from '@/features/territory/components/StopsEditor';
+import { PlacePicker } from '@/features/territory/components/PlacePicker';
 import type { PlaceSearchState } from '@/features/territory/hooks/usePlaceSearch';
 import { palette, semantic, status } from '@/styles/tokens';
 
@@ -75,7 +75,7 @@ export function DesignScreen() {
   const [sort, setSort] = useState<SortState>({ key: 'name', order: 'asc' });
   const [dialog, setDialog] = useState(false);
   const [select, setSelect] = useState('');
-  const [stops, setStops] = useState<WaypointDto[]>([]);
+  const [place, setPlace] = useState<PlaceDto | null>(null);
 
   return (
     <main className="mx-auto max-w-5xl space-y-12 px-8 py-10">
@@ -195,9 +195,9 @@ export function DesignScreen() {
         </div>
       </Section>
 
-      <Section title="Route stops editor — stub search (try &ldquo;sil&rdquo;, &ldquo;mat&rdquo;, &ldquo;bag&rdquo;, &ldquo;sev&rdquo;)">
+      <Section title="Place picker — stub search (try &ldquo;sil&rdquo;, &ldquo;mat&rdquo;, &ldquo;bag&rdquo;, &ldquo;sev&rdquo;)">
         <Card className="p-5">
-          <StopsEditor stops={stops} onChange={setStops} useSearch={useStubSearch} />
+          <PlacePicker id="design-place" label="Destination" value={place} onChange={setPlace} useSearch={useStubSearch} />
         </Card>
       </Section>
 

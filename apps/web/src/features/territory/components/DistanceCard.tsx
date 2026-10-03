@@ -10,8 +10,8 @@ import { ManualDistanceDialog } from './ManualDistanceDialog';
 
 /**
  * The route's distance and what can be done about it. A failed calculation is shown as failed — never
- * as 0 km — with retry and manual entry. `dirty` means the stop list has unsaved edits, so a
- * recalculation would measure the OLD stops and is disabled until they are saved.
+ * as 0 km — with retry and manual entry. `dirty` means the destination has an unsaved edit, so a
+ * recalculation would measure the OLD destination and is disabled until it is saved.
  */
 export function DistanceCard({ route, readOnly, dirty }: { route: RouteDto; readOnly: boolean; dirty: boolean }) {
   const [manual, setManual] = useState(false);
@@ -37,12 +37,12 @@ export function DistanceCard({ route, readOnly, dirty }: { route: RouteDto; read
       ) : null}
       {route.distanceSource === 'MANUAL_OVERRIDE' && !failed ? (
         <p className="mt-3 text-[13px] text-text-subtle">
-          Entered manually. Editing the stops or recalculating will replace it.
+          Entered manually. Changing the destination or recalculating will replace it. Changing the HQ’s base place leaves it alone.
         </p>
       ) : null}
       <p className="mt-3 text-[13px] text-text-subtle">
-        This is the paid one-way figure used for TA — it is not doubled for a return trip. Include the full travel in the
-        stops, or in the rate.
+        This is the paid one-way figure used for TA — it is not doubled for a return trip. Enter the full paid travel by hand if
+        the road distance is not what should be paid.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -50,7 +50,7 @@ export function DistanceCard({ route, readOnly, dirty }: { route: RouteDto; read
           variant="secondary"
           size="sm"
           disabled={readOnly || dirty || recalc.isPending}
-          title={dirty ? 'Save the stops first' : undefined}
+          title={dirty ? 'Save the destination first' : undefined}
           onClick={() => recalc.mutate()}
         >
           {recalc.isPending ? 'Calculating…' : failed ? 'Retry calculation' : 'Recalculate'}

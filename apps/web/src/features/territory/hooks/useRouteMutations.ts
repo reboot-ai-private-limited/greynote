@@ -1,6 +1,6 @@
 'use client';
 
-import type { RouteDto, UpdateRouteDto, UpdateWaypointsDto } from '@greynote/contracts';
+import type { RouteDto, UpdateRouteDto, UpdateDestinationDto } from '@greynote/contracts';
 import { toast } from '@/components/ui/toast';
 import { assignmentsApi, routesApi } from '@/lib/api/endpoints/territory';
 import { keys } from '@/lib/query/keys';
@@ -42,11 +42,11 @@ export function useUpdateRoute(id: string, onDone?: () => void) {
   });
 }
 
-export function useSaveWaypoints(id: string) {
-  return useApiMutation<UpdateWaypointsDto, RouteDto>({
-    call: (token, body) => routesApi.saveWaypoints(token, id, body),
+export function useSaveDestination(id: string) {
+  return useApiMutation<UpdateDestinationDto, RouteDto>({
+    call: (token, body) => routesApi.saveDestination(token, id, body),
     invalidates: invalidates(),
-    onSuccess: (route) => announceRoute(route, 'Stops saved.'),
+    onSuccess: (route) => announceRoute(route, 'Destination saved.'),
   });
 }
 

@@ -22,7 +22,7 @@ export function ManualDistanceDialog({ routeId, onClose }: { routeId: string; on
   return (
     <FormDialog
       title="Enter distance manually"
-      description="This replaces the calculated figure. Editing the stops or recalculating later will overwrite it."
+      description="This replaces the calculated figure. Changing the destination or recalculating later will overwrite it."
       formId="distance-form"
       pending={set.isPending}
       onClose={onClose}

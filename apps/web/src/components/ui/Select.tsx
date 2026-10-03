@@ -22,6 +22,7 @@ export function Select({
   placeholder = 'Select…',
   'aria-invalid': invalid,
   'aria-label': ariaLabel,
+  disabled = false,
 }: {
   id?: string;
   value: string;
@@ -30,9 +31,10 @@ export function Select({
   placeholder?: string;
   'aria-invalid'?: boolean | undefined;
   'aria-label'?: string | undefined;
+  disabled?: boolean;
 }) {
   return (
-    <RadixSelect.Root value={value} onValueChange={onValueChange}>
+    <RadixSelect.Root value={value} onValueChange={onValueChange} disabled={disabled}>
       <RadixSelect.Trigger
         id={id}
         aria-invalid={invalid}

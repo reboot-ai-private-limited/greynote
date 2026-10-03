@@ -1,7 +1,4 @@
 import type {
-  AreaDto,
-  AreaType,
-  CreateAreaDto,
   CreateHqDto,
   CreateRouteDto,
   CreateZoneDto,
@@ -11,11 +8,12 @@ import type {
   PlaceCandidateDto,
   RouteAssignmentDto,
   RouteDto,
+  RouteType,
   TerritoryStatus,
-  UpdateAreaDto,
+  UpdateDestinationDto,
   UpdateHqDto,
+  UpdateHqResultDto,
   UpdateRouteDto,
-  UpdateWaypointsDto,
   UpdateZoneDto,
   UserHqAssignmentDto,
   ZoneDto,
@@ -27,10 +25,6 @@ export interface ListZonesQuery extends PaginationQueryDto {
 }
 export interface ListHqsQuery extends ListZonesQuery {
   zoneId?: string | undefined;
-}
-export interface ListAreasQuery extends ListZonesQuery {
-  hqId?: string | undefined;
-  type?: AreaType | undefined;
 }
 
 export const zonesApi = {
@@ -46,22 +40,15 @@ export const hqsApi = {
   list: (token: string, query: ListHqsQuery | undefined, signal?: AbortSignal) =>
     request<PaginatedDto<HqDto>>('/territory/hqs', { token, ...(query && { query: { ...query } }), signal }),
   create: (token: string, body: CreateHqDto) => request<HqDto>('/territory/hqs', { method: 'POST', token, body }),
+  /** Changing `basePlace` recalculates the HQ's Routes; the response then carries a `routeRecalculation` report. */
   update: (token: string, id: string, body: UpdateHqDto) =>
-    request<HqDto>(`/territory/hqs/${id}`, { method: 'PATCH', token, body }),
-};
-
-export const areasApi = {
-  list: (token: string, query: ListAreasQuery | undefined, signal?: AbortSignal) =>
-    request<PaginatedDto<AreaDto>>('/territory/areas', { token, ...(query && { query: { ...query } }), signal }),
-  create: (token: string, body: CreateAreaDto) =>
-    request<AreaDto>('/territory/areas', { method: 'POST', token, body }),
-  update: (token: string, id: string, body: UpdateAreaDto) =>
-    request<AreaDto>(`/territory/areas/${id}`, { method: 'PATCH', token, body }),
+    request<UpdateHqResultDto>(`/territory/hqs/${id}`, { method: 'PATCH', token, body }),
 };
 
 export interface ListRoutesQuery extends ListZonesQuery {
-  areaId?: string | undefined;
   hqId?: string | undefined;
+  zoneId?: string | undefined;
+  type?: RouteType | undefined;
 }
 
 export const routesApi = {
@@ -73,8 +60,8 @@ export const routesApi = {
     request<RouteDto>('/territory/routes', { method: 'POST', token, body }),
   update: (token: string, id: string, body: UpdateRouteDto) =>
     request<RouteDto>(`/territory/routes/${id}`, { method: 'PATCH', token, body }),
-  saveWaypoints: (token: string, id: string, body: UpdateWaypointsDto) =>
-    request<RouteDto>(`/territory/routes/${id}/waypoints`, { method: 'PATCH', token, body }),
+  saveDestination: (token: string, id: string, body: UpdateDestinationDto) =>
+    request<RouteDto>(`/territory/routes/${id}/destination`, { method: 'PATCH', token, body }),
   /** Manual distance override. `distanceKm` is a positive string with at most 2 decimals. */
   setDistance: (token: string, id: string, distanceKm: string) =>
     request<RouteDto>(`/territory/routes/${id}/distance`, { method: 'PATCH', token, body: { distanceKm } }),

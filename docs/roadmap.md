@@ -92,7 +92,7 @@ places, so `Area` and the waypoint list are removed (decision-log 2026-10-03, si
 Route `hq_id`/`destination`/`type`, base-place change recalculates the HQ's Routes, `areaType` →
 `routeType` in TA/DA, sync and the Distributor path, CSV is Zone/HQ only); (3) one-off data migration —
 done 2026-10-03 (`migrate:territory`, `manual_deploy.md` Step 9b); (4) web portal (Areas screens removed,
-HQ base-place picker, Route form) — not yet.
+HQ base-place picker, Route form) — done 2026-10-03, not yet checked in a browser (see Phase 9).
 The status paragraph above and the Phase 9 / Phase 6 notes below describe what was built before the
 rework and are updated as each step lands.
 
@@ -313,7 +313,7 @@ Field Activity, step by step (decision-log 2026-09-29):
    approval module's; the override endpoint has 8 unit tests and a 15-check live run (who may, at which stage,
    4 simultaneous accepts → one winner, the review screen, Admin after the manager approves)
 6. TA/DA auto-generation at the manager's approval, and its cancellation — **done** (2026-09-29): 18 new tests
-   and a 14-check live run (per-Route TA at the Route's own and the pay band's rate, DA at the day's highest Area
+   and a 14-check live run (per-Route TA at the Route's own and the pay band's rate, DA at the day's highest Route type
    type, a flagged zero for an uncalculated Route, Admin's final rejection cancels, resubmit and re-approve write
    fresh rows once, a later Route change leaves the approved row alone). Planning gained `getDailyPlanDay`
 7. Doctor Service (approval) and Doctor Gift (Admin allocates, MR marks done) — **done** (2026-09-29): the
@@ -459,6 +459,13 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   Role dashboards (Admin/HR/Accountant work queues from existing endpoints; charts and a summary endpoint deferred) and a
   responsive shell landed the same day.
   Design system pass done the same day (tokens, 15 components, `/design` style guide; see the decision log).
+  **Territory reworked to Zone → HQ → Route (2026-10-03, decision-log 2026-10-03, sign-off D8):** the Areas page and nav item are gone. The
+  HQ form has a **base place** picker (search + map pin; shown as a column on the HQs page), and saving a changed base place reports how
+  many routes were recalculated, which failed and which kept a manual distance. A Route is now an HQ, a type (the DA tier), a TA rate
+  override and **one destination** picked the same way — the multi-stop editor is replaced by a place picker showing the HQ's base place
+  (A) and the destination (B); the Routes list filters by Zone, HQ and type. Pickers and breadcrumbs read "HQ · Route". Verified by
+  typecheck, lint and unit tests; **not yet exercised in a browser against the migrated API.** The three paragraphs below describe what
+  was built before the rework.
   **Territory hierarchy built as dedicated Zones / HQs / Areas pages (a single tree page was tried and deferred to post-MVP):**
   list with search/status/parent filters in the URL, create and edit in dialogs, and confirm-to-(de)activate (soft delete only; the server's refusal when active children exist is toasted).
   The sidebar is now an icon-only rail that expands over the page on hover/focus. Write controls are disabled in a past Financial Year. Form rules are pure builders with tests; parent pickers load one page
@@ -511,10 +518,10 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   (de)activate. The generic Territory list pieces (paged frame, row actions, status filter and toggle) moved to `components/ui` for
   reuse. Verified by typecheck, lint, 257 tests and `next build`; **not yet exercised against the live API.**
   **Shared pickers built (2026-10-03):** a map-point picker (search a place, click or drag the pin, or type the coordinates; both-or-neither
-  rule, six decimals; a grey pin for the phone's captured point), a Route picker labelled "HQ · Area · Route" over a
-  `useTerritoryDirectory` that reads every Zone / HQ / Area / Route rather than one capped page (`fetchAllPages`). Pure rules are tested
+  rule, six decimals; a grey pin for the phone's captured point), a Route picker labelled "HQ · Route" over a
+  `useTerritoryDirectory` that reads every Zone / HQ / Route rather than one capped page (`fetchAllPages`). Pure rules are tested
   (279 tests). **Not yet used by a screen, and not yet exercised against the live API or a real Maps key.**
-  **Chemists built (2026-10-03, `/chemists`, `/chemists/new`, `/chemists/[id]`):** a list with search, route (by "HQ · Area · Route")
+  **Chemists built (2026-10-03, `/chemists`, `/chemists/new`, `/chemists/[id]`):** a list with search, route (by "HQ · Route")
   and status filters and a Location Set / Not set badge; create and edit as full pages with the Route picker and the map-point picker
   (a dialog is too small for a map). Edit sends only what changed; a cleared location is sent as `null`; an inactive chemist is read-only until
   reactivated. Verified by typecheck, lint, 290 tests and `next build`; **not yet exercised against the live API or a real Maps key.**
@@ -522,7 +529,7 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   route, assigned MR and status, with the MR's name, which order types it takes and a Location badge; create and edit as full pages with the
   Route picker, GST and mobile checks (same rules as the API), explicit Allowed / Not allowed choices for primary and secondary sales
   (no default, as the API requires), MR and ASM pickers (an emptied one is sent as `null` to un-assign) and the map-point picker. The edit
-  page shows the Zone → HQ → Area → Route path. The shared employee picker was generalised from the manager picker. Verified by
+  page shows the Zone → HQ → Route path. The shared employee picker was generalised from the manager picker. Verified by
   typecheck, lint, 306 tests and `next build`; **not yet exercised against the live API.**
   **Doctors built (2026-10-03, `/doctors`, `/doctors/new`, `/doctors/[id]`):** a list with search, route, category and status filters (status
   includes *Awaiting approval*, the Doctors MRs added), a Responsible MR column that flags an unassigned active doctor, and a Location
@@ -578,7 +585,7 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   required reason (kept on the call beside what the check found, with who and when) and says it counts the visit without approving the
   report. The approve dialog now warns when a daily report still has flagged calls, since approving does not accept them, and combines that
   with the skip-the-manager warning. Verified by typecheck, lint, 395 tests and a clean `next build`; **not yet exercised against the live API.**
-  **Plan previews built (2026-10-03):** a daily plan shows its day, submit deadline, working type, routes by "HQ · Area · Route", who they work with and remarks;
+  **Plan previews built (2026-10-03):** a daily plan shows its day, submit deadline, working type, routes by "HQ · Route", who they work with and remarks;
   a monthly plan shows the month, a count of days by working type, and a dated row per planned day. Verified by typecheck, lint, 395 tests
   and a clean `next build`; **not yet exercised against the live API.**
   **Doctor service and plan change previews built (2026-10-03):** a service shows its doctor (linked), type, amount, who it is tied to, who made it and

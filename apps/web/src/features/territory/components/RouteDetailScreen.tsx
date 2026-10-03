@@ -1,6 +1,6 @@
 'use client';
 
-import type { RouteDto, WaypointDto } from '@greynote/contracts';
+import type { PlaceDto, RouteDto } from '@greynote/contracts';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
@@ -12,15 +12,15 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useAreaOptions } from '../hooks/useAreaOptions';
+import { useAllHqs } from '../hooks/useHqs';
 import { useRoute } from '../hooks/useRoutes';
-import { useSaveWaypoints } from '../hooks/useRouteMutations';
+import { useSaveDestination } from '../hooks/useRouteMutations';
+import { samePlace } from '../lib/place';
 import { staleRevisionOf } from '../lib/routeDraft';
-import { sameWaypoints, validateWaypoints } from '../lib/waypoints';
 import { AssignmentsCard } from './AssignmentsCard';
 import { DistanceCard } from './DistanceCard';
+import { PlacePicker } from './PlacePicker';
 import { RouteDetailsCard } from './RouteDetailsCard';
-import { StopsEditor } from './StopsEditor';
 
 export function RouteDetailScreen({ id }: { id: string }) {
   const route = useRoute(id);
@@ -46,61 +46,69 @@ export function RouteDetailScreen({ id }: { id: string }) {
 
 function RouteDetailBody({ route, onReload }: { route: RouteDto; onReload: () => void }) {
   const readOnly = useIsReadOnly();
-  const areas = useAreaOptions();
-  const area = areas.areaOf.get(route.areaId);
-  const save = useSaveWaypoints(route.id);
+  const hqs = useAllHqs();
+  const hq = hqs.data?.find((h) => h.id === route.hqId);
+  const save = useSaveDestination(route.id);
 
   // The draft follows the server whenever the route's revision moves (after a save or a reload), and is
-  // otherwise the user's own. Derived during render, not in an effect: no flash of stale stops.
-  const [draft, setDraft] = useState<WaypointDto[]>(route.waypoints);
+  // otherwise the user's own. Derived during render, not in an effect: no flash of a stale destination.
+  const [draft, setDraft] = useState<PlaceDto>(route.destination);
   const [seenRevision, setSeenRevision] = useState(route.revision);
   if (route.revision !== seenRevision) {
     setSeenRevision(route.revision);
-    setDraft(route.waypoints);
+    setDraft(route.destination);
   }
 
-  const dirty = !sameWaypoints(draft, route.waypoints);
-  const invalid = validateWaypoints(draft);
+  const dirty = !samePlace(draft, route.destination);
   const stale = staleRevisionOf(save.error);
+  const from = hq?.basePlace ?? null;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={route.name}
-        description={area ? `${area.hqName ?? '—'} · ${area.name}` : undefined}
+        description={hq ? `${hq.name}${from ? ` · ${from.label} → ${route.destination.label}` : ''}` : undefined}
         actions={<Badge tone={route.status === 'active' ? 'success' : 'neutral'}>{route.status === 'active' ? 'Active' : 'Inactive'}</Badge>}
       />
 
       <RouteDetailsCard
-        key={`${route.revision}:${route.name}:${route.taPerKmRateOverridePaise}:${route.status}`}
+        key={`${route.revision}:${route.name}:${route.type}:${route.taPerKmRateOverridePaise}:${route.status}`}
         route={route}
-        areaLabel={area ? `${area.hqName ?? '—'} · ${area.name}` : '—'}
-        areaType={area?.type}
+        hqLabel={hq?.name ?? '—'}
         readOnly={readOnly}
       />
 
       <Card
-        title="Stops & distance"
-        description="Saving new stops recalculates the distance with Google."
+        title="Destination & distance"
+        description={
+          from
+            ? `Measured by road from ${from.label}, the HQ’s base place. Saving a new destination recalculates the distance with Google.`
+            : 'Saving a new destination recalculates the distance with Google.'
+        }
         actions={
           <div className="flex items-center gap-2">
             {dirty ? (
-              <Button variant="ghost" size="sm" onClick={() => setDraft(route.waypoints)}>
+              <Button variant="ghost" size="sm" onClick={() => setDraft(route.destination)}>
                 Discard changes
               </Button>
             ) : null}
             <Button
               size="sm"
-              disabled={readOnly || !dirty || invalid !== undefined || save.isPending}
-              onClick={() => save.mutate({ waypoints: draft, revision: route.revision })}
+              disabled={readOnly || !dirty || save.isPending}
+              onClick={() => save.mutate({ destination: draft, revision: route.revision })}
             >
-              {save.isPending ? 'Saving…' : 'Save stops'}
+              {save.isPending ? 'Saving…' : 'Save destination'}
             </Button>
           </div>
         }
       >
         <div className="space-y-6 p-5">
-          <StopsEditor stops={draft} onChange={setDraft} disabled={readOnly} />
+          {hq && !from ? (
+            <p role="alert" className="rounded-md bg-danger-bg p-3 text-[13px] text-danger-fg">
+              This HQ has no base place, so the distance cannot be recalculated. Set the HQ&rsquo;s base place on the HQs page.
+            </p>
+          ) : null}
+          <PlacePicker id="route-destination" label="Destination" value={draft} onChange={setDraft} from={from} disabled={readOnly} />
           <DistanceCard route={route} readOnly={readOnly} dirty={dirty} />
         </div>
       </Card>
@@ -111,12 +119,12 @@ function RouteDetailBody({ route, onReload }: { route: RouteDto; onReload: () =>
         open={stale !== null}
         onOpenChange={(open) => !open && save.reset()}
         title="This route was changed elsewhere"
-        description="Someone else saved this route while you were editing. Reload to see the latest version — your unsaved stop changes will be discarded."
+        description="Someone else saved this route while you were editing. Reload to see the latest version — your unsaved destination change will be discarded."
         confirmLabel="Reload"
         tone="primary"
         onConfirm={() => {
           save.reset();
-          setDraft(route.waypoints);
+          setDraft(route.destination);
           onReload();
         }}
       />

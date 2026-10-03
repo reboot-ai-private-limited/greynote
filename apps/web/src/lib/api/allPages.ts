@@ -4,8 +4,8 @@ import type { PaginatedDto } from '@greynote/contracts';
 export const MAX_PAGE_SIZE = 100;
 
 /**
- * Reads every page of a list. For reference data a picker or a label needs in full (the Zones, HQs,
- * Areas and Routes of a company: tens to a few hundred), never for something that grows without
+ * Reads every page of a list. For reference data a picker or a label needs in full (the Zones, HQs
+ * and Routes of a company: tens to a few hundred), never for something that grows without
  * bound. `maxPages` stops a runaway loop, and the result says whether it stopped early.
  */
 export async function fetchAllPages<T>(

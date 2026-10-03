@@ -1,12 +1,13 @@
 'use client';
 
-import type { PlaceCandidateDto, WaypointDto } from '@greynote/contracts';
+import type { PlaceCandidateDto, PlaceDto } from '@greynote/contracts';
 import { useEffect, useRef, useState } from 'react';
 import { DEFAULT_CENTER, hasMapsKey, loadMapsLibrary } from '@/lib/googleMaps';
 import { semantic } from '@/styles/tokens';
 
 /**
- * A preview of a route's stops: numbered pins in order, search candidates as grey pins, fit to bounds.
+ * A preview of places on a map: lettered pins in order (A = where it starts, B = where it ends), search
+ * candidates as grey pins, fit to bounds. An HQ's base place is one pin; a route is two.
  *
  * THE DASHED LINE IS STRAIGHT, NOT THE DRIVING ROUTE. The API stores no route geometry and the
  * browser key is scoped to the Maps JavaScript API only, so a road-shaped line would imply a path
@@ -15,12 +16,15 @@ import { semantic } from '@/styles/tokens';
  * Legacy `google.maps.Marker`: the advanced marker needs a Map ID configured in the Google Cloud
  * console, which a plain marker does not.
  */
+const pinText = (index: number) => String.fromCharCode(65 + index);
+
 export function RouteMap({
   stops,
   candidates = [],
   className,
 }: {
-  stops: readonly WaypointDto[];
+  /** In travel order: the HQ's base place, then the destination. */
+  stops: readonly PlaceDto[];
   candidates?: readonly PlaceCandidateDto[];
   className?: string;
 }) {
@@ -76,7 +80,7 @@ export function RouteMap({
     }
     const path = stops.map((s) => ({ lat: s.latitude, lng: s.longitude }));
     stops.forEach((s, i) => {
-      overlays.current.push(pin(path[i]!, semantic.accent, String(i + 1), s.label));
+      overlays.current.push(pin(path[i]!, semantic.accent, pinText(i), s.label));
       bounds.extend(path[i]!);
     });
     if (path.length > 1) {
@@ -101,11 +105,11 @@ export function RouteMap({
         <div ref={container} className="size-full" />
         {status !== 'ready' ? (
           <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-text-muted">
-            {status === 'loading' ? 'Loading map…' : 'Map preview unavailable (no Google Maps key configured). Stops are listed alongside.'}
+            {status === 'loading' ? 'Loading map…' : 'Map preview unavailable (no Google Maps key configured). The places are listed alongside.'}
           </div>
         ) : null}
       </div>
-      <p className="mt-2 text-xs text-text-subtle">Straight-line preview between stops — not the driving route.</p>
+      <p className="mt-2 text-xs text-text-subtle">Straight-line preview between the places — not the driving route.</p>
     </div>
   );
 }

@@ -1,37 +1,38 @@
 'use client';
 
-import type { RouteDto } from '@greynote/contracts';
+import { ROUTE_TYPES, type RouteDto, type RouteType } from '@greynote/contracts';
 import { useState } from 'react';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { paiseToRupees } from '@/lib/money';
 import { useUpdateRoute } from '../hooks/useRouteMutations';
-import { AREA_TYPE_LABEL } from '../lib/draft';
+import { ROUTE_TYPE_LABEL } from '../lib/draft';
 import { changedRouteFields } from '../lib/routeDraft';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 
-/** Name, TA rate override and status. The Area is read-only: a route cannot be re-parented. */
+const TYPE_OPTIONS = ROUTE_TYPES.map((t) => ({ value: t, label: ROUTE_TYPE_LABEL[t] }));
+
+/** Name, type, TA rate override and status. The HQ is read-only: a route cannot be re-parented. */
 export function RouteDetailsCard({
   route,
-  areaLabel,
-  areaType,
+  hqLabel,
   readOnly,
 }: {
   route: RouteDto;
-  areaLabel: string;
-  areaType: keyof typeof AREA_TYPE_LABEL | undefined;
+  hqLabel: string;
   readOnly: boolean;
 }) {
   const [name, setName] = useState(route.name);
+  const [type, setType] = useState<RouteType>(route.type);
   const [rate, setRate] = useState(route.taPerKmRateOverridePaise === null ? '' : paiseToRupees(route.taPerKmRateOverridePaise));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toggling, setToggling] = useState(false);
   const update = useUpdateRoute(route.id, () => setToggling(false));
 
-  const built = changedRouteFields(route, { name, rate });
+  const built = changedRouteFields(route, { name, type, rate });
   const unchanged = built.ok && Object.keys(built.body).length === 0;
 
   function save() {
@@ -63,13 +64,13 @@ export function RouteDetailsCard({
         <FormField label="TA rate override (₹ per km)" htmlFor="route-rate" error={errors['rate']} hint="Leave empty to use the employee's pay band rate.">
           <Input id="route-rate" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} disabled={readOnly} aria-invalid={errors['rate'] ? true : undefined} />
         </FormField>
+        <FormField label="Type" htmlFor="route-type" hint="Sets which DA rate a day on this route earns. A change affects DA from now on, not days already approved.">
+          <Select id="route-type" value={type} onValueChange={(v) => setType(v as RouteType)} options={TYPE_OPTIONS} disabled={readOnly} />
+        </FormField>
         <div className="space-y-1.5">
-          <p className="text-sm font-medium text-text">Area</p>
-          <p className="flex items-center gap-2 text-sm text-text-muted">
-            {areaLabel}
-            {areaType ? <Badge tone="accent">{AREA_TYPE_LABEL[areaType]}</Badge> : null}
-          </p>
-          <p className="text-[13px] text-text-subtle">A route cannot move to another area. The area&rsquo;s type sets the DA rate.</p>
+          <p className="text-sm font-medium text-text">HQ</p>
+          <p className="text-sm text-text-muted">{hqLabel}</p>
+          <p className="text-[13px] text-text-subtle">A route cannot move to another HQ.</p>
         </div>
         <div className="flex items-end justify-end">
           <Button type="submit" disabled={readOnly || unchanged || update.isPending}>

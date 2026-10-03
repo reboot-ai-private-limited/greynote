@@ -1,6 +1,9 @@
-import type { AreaDto } from '@greynote/contracts';
+import type { HqDto, PlaceDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { buildArea, buildHq, buildZone, changedAreaFields, changedZoneFields, normalizeName } from './draft';
+import { buildHq, buildZone, changedHqFields, changedZoneFields, normalizeName } from './draft';
+
+const siliguri: PlaceDto = { label: 'Siliguri', latitude: 26.71, longitude: 88.43, placeId: 'p-sil' };
+const matigara: PlaceDto = { label: 'Matigara', latitude: 26.69, longitude: 88.39, placeId: 'p-mat' };
 
 describe('normalizeName', () => {
   it('trims and collapses inner whitespace, like the server', () => {
@@ -19,36 +22,44 @@ describe('buildZone', () => {
 });
 
 describe('buildHq', () => {
+  it('builds a body with the base place', () => {
+    expect(buildHq({ zoneId: 'z', name: ' SLG-1 ', basePlace: siliguri })).toEqual({
+      ok: true,
+      body: { zoneId: 'z', name: 'SLG-1', basePlace: siliguri },
+    });
+  });
   it('needs a zone', () => {
-    expect(buildHq({ zoneId: '', name: 'Siliguri' })).toMatchObject({ ok: false, errors: { zoneId: 'Choose a zone.' } });
+    expect(buildHq({ zoneId: '', name: 'SLG-1', basePlace: siliguri })).toMatchObject({ ok: false, errors: { zoneId: 'Choose a zone.' } });
+  });
+  it('needs a base place — an HQ without one cannot have a route', () => {
+    expect(buildHq({ zoneId: 'z', name: 'SLG-1', basePlace: null })).toMatchObject({
+      ok: false,
+      errors: { basePlace: expect.stringContaining('base place') },
+    });
   });
   it('reports every problem at once', () => {
-    const result = buildHq({ zoneId: '', name: '' });
+    const result = buildHq({ zoneId: '', name: '', basePlace: null });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['name', 'zoneId']);
-  });
-});
-
-describe('buildArea', () => {
-  it('needs an HQ and a valid type', () => {
-    expect(buildArea({ hqId: 'h', name: 'Matigara', type: 'NOPE' })).toMatchObject({ ok: false, errors: { type: 'Choose a type.' } });
-    expect(buildArea({ hqId: 'h', name: 'Matigara', type: 'EX_STATION' })).toEqual({
-      ok: true,
-      body: { hqId: 'h', name: 'Matigara', type: 'EX_STATION' },
-    });
+    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['basePlace', 'name', 'zoneId']);
   });
 });
 
 describe('changed fields', () => {
-  const area: AreaDto = { id: '1', hqId: 'h', name: 'Matigara', type: 'HQ', status: 'active' };
+  const hq: HqDto = { id: '1', zoneId: 'z', name: 'SLG-1', basePlace: siliguri, status: 'active' };
 
   it('is empty when nothing changed (the API would reject an empty update)', () => {
     expect(changedZoneFields({ id: '1', name: 'North', status: 'active' }, { name: ' North ' })).toEqual({});
-    expect(changedAreaFields(area, { name: 'Matigara', type: 'HQ' })).toEqual({});
+    expect(changedHqFields(hq, { name: ' SLG-1 ', basePlace: { ...siliguri } })).toEqual({});
   });
 
   it('includes only what changed', () => {
-    expect(changedAreaFields(area, { name: 'Matigara', type: 'OUT_STATION' })).toEqual({ type: 'OUT_STATION' });
-    expect(changedAreaFields(area, { name: 'Bagdogra', type: 'HQ' })).toEqual({ name: 'Bagdogra' });
+    expect(changedHqFields(hq, { name: 'SLG-One', basePlace: siliguri })).toEqual({ name: 'SLG-One' });
+    expect(changedHqFields(hq, { name: 'SLG-1', basePlace: matigara })).toEqual({ basePlace: matigara });
+  });
+
+  it('sends a first base place for an HQ that had none, and never an empty one', () => {
+    const none: HqDto = { ...hq, basePlace: null };
+    expect(changedHqFields(none, { name: 'SLG-1', basePlace: siliguri })).toEqual({ basePlace: siliguri });
+    expect(changedHqFields(none, { name: 'SLG-1', basePlace: null })).toEqual({});
   });
 });

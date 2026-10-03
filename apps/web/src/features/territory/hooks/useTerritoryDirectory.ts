@@ -4,7 +4,7 @@ import type { PaginatedDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { fetchAllPages, MAX_PAGE_SIZE } from '@/lib/api/allPages';
-import { areasApi, hqsApi, routesApi, zonesApi } from '@/lib/api/endpoints/territory';
+import { hqsApi, routesApi, zonesApi } from '@/lib/api/endpoints/territory';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { buildTerritoryDirectory } from '../lib/directory';
@@ -13,7 +13,7 @@ const all = <T,>(read: (token: string, page: number, signal: AbortSignal) => Pro
   (token: string, signal: AbortSignal) => fetchAllPages((page) => read(token, page, signal)).then((r) => r.items);
 
 /**
- * Every Zone, HQ, Area and Route, for a label ("HQ · Area · Route") or a picker. Other modules'
+ * Every Zone, HQ and Route, for a label ("HQ · Route") or a picker. Other modules'
  * screens read this rather than a paged list, because a page of 100 silently drops the rest.
  */
 export function useTerritoryDirectory() {
@@ -32,13 +32,6 @@ export function useTerritoryDirectory() {
       ...options,
     }),
   );
-  const areas = useQuery(
-    authedQueryOptions({
-      queryKey: keys.areas.directory(),
-      fetch: all((token, page, signal) => areasApi.list(token, { page, pageSize: MAX_PAGE_SIZE }, signal)),
-      ...options,
-    }),
-  );
   const routes = useQuery(
     authedQueryOptions({
       queryKey: keys.routes.directory(),
@@ -52,15 +45,14 @@ export function useTerritoryDirectory() {
       buildTerritoryDirectory({
         zones: zones.data ?? [],
         hqs: hqs.data ?? [],
-        areas: areas.data ?? [],
         routes: routes.data ?? [],
       }),
-    [zones.data, hqs.data, areas.data, routes.data],
+    [zones.data, hqs.data, routes.data],
   );
 
   return {
     ...directory,
-    isLoading: zones.isLoading || hqs.isLoading || areas.isLoading || routes.isLoading,
-    error: zones.error ?? hqs.error ?? areas.error ?? routes.error,
+    isLoading: zones.isLoading || hqs.isLoading || routes.isLoading,
+    error: zones.error ?? hqs.error ?? routes.error,
   };
 }

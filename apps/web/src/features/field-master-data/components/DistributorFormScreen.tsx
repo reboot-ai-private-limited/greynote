@@ -92,7 +92,7 @@ function DistributorForm({ distributor }: { distributor?: DistributorDetailDto }
         title={distributor ? distributor.name : 'New distributor'}
         description={
           path
-            ? `${directory.zoneName(path.zoneId)} → ${directory.hqName(path.hqId)} → ${directory.areaName(path.areaId)} → ${directory.routeName(path.routeId)}`
+            ? `${directory.zoneName(path.zoneId)} → ${directory.hqName(path.hqId)} → ${directory.routeName(path.routeId)}`
             : 'A stockist on a route. The location can be set now or later.'
         }
         actions={

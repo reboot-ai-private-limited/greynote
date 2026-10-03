@@ -10,7 +10,7 @@ import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDi
 /** How many matches the list shows at once: a company has a few hundred Routes, and a long list is not searchable by eye. */
 const SHOWN = 50;
 
-/** Pick a Route by "HQ · Area · Route". The choice is a Route id; the label is only for people. */
+/** Pick a Route by "HQ · Route". The choice is a Route id; the label is only for people. */
 export function RoutePickerField({
   id,
   label = 'Route',
@@ -73,7 +73,7 @@ export function RouteListDialog({
       <label htmlFor="route-search" className="mb-1.5 block text-sm font-medium text-text">
         Search
       </label>
-      <Input id="route-search" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="HQ, area or route name" autoComplete="off" />
+      <Input id="route-search" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="HQ or route name" autoComplete="off" />
       <div aria-live="polite" className="mt-3 max-h-64 overflow-y-auto">
         {matches.length === 0 ? (
           <p className="text-[13px] text-text-subtle">No active route matches.</p>

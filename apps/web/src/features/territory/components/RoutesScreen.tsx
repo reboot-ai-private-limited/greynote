@@ -1,6 +1,6 @@
 'use client';
 
-import type { RouteDto } from '@greynote/contracts';
+import { ROUTE_TYPES, type RouteDto } from '@greynote/contracts';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/Badge';
@@ -11,29 +11,29 @@ import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { paiseToRupees } from '@/lib/money';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useAreaOptions } from '../hooks/useAreaOptions';
+import { useHqOptions, useZoneOptions } from '../hooks/useParentOptions';
 import { useRoutes } from '../hooks/useRoutes';
+import { ROUTE_TYPE_LABEL } from '../lib/draft';
 import { distanceSummary } from '../lib/routeDraft';
 import { StatusFilter } from '@/components/ui/StatusFilter';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
 
 export function RoutesScreen() {
   const router = useRouter();
-  const { values, page, update } = useFilterParams(['search', 'status', 'hqId', 'areaId']);
+  const { values, page, update } = useFilterParams(['search', 'status', 'zoneId', 'hqId', 'type']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
-  const areas = useAreaOptions();
+  const zones = useZoneOptions();
+  const hqs = useHqOptions();
 
   const routes = useRoutes({
     page,
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as RouteDto['status'] }),
+    ...(values.zoneId && { zoneId: values.zoneId }),
     ...(values.hqId && { hqId: values.hqId }),
-    ...(values.areaId && { areaId: values.areaId }),
+    ...(values.type && { type: values.type as RouteDto['type'] }),
   });
-
-  // The area filter follows the HQ filter.
-  const areaChoices = areas.options.filter((o) => !values.hqId || areas.areaOf.get(o.value)?.hqId === values.hqId);
 
   const columns: readonly Column<RouteDto>[] = [
     {
@@ -45,9 +45,9 @@ export function RoutesScreen() {
         </Link>
       ),
     },
-    { key: 'area', header: 'Area', render: (r) => areas.areaOf.get(r.areaId)?.name ?? '—' },
-    { key: 'hq', header: 'HQ', render: (r) => areas.areaOf.get(r.areaId)?.hqName ?? '—' },
-    { key: 'stops', header: 'Stops', numeric: true, render: (r) => r.waypoints.length },
+    { key: 'hq', header: 'HQ', render: (r) => hqs.nameOf.get(r.hqId) ?? '—' },
+    { key: 'destination', header: 'To', render: (r) => r.destination.label },
+    { key: 'type', header: 'Type', render: (r) => ROUTE_TYPE_LABEL[r.type] },
     {
       key: 'distance',
       header: 'Distance',
@@ -77,27 +77,35 @@ export function RoutesScreen() {
   return (
     <PagedListFrame
       title="Routes"
-      description="The stops an MR travels, with the distance TA is paid on."
+      description="Where an MR travels from an HQ, with the distance TA is paid on."
       noun="route"
       readOnly={readOnly}
       onNew={() => router.push('/routes/new')}
       filters={
         <>
           <Input placeholder="Search routes" aria-label="Search routes" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
-          <div className="w-48">
+          <div className="w-44">
+            <Select
+              aria-label="Zone"
+              value={values.zoneId || 'all'}
+              onValueChange={(v) => update({ zoneId: v === 'all' ? '' : v })}
+              options={[{ value: 'all', label: 'All zones' }, ...zones.options]}
+            />
+          </div>
+          <div className="w-44">
             <Select
               aria-label="HQ"
               value={values.hqId || 'all'}
-              onValueChange={(v) => update({ hqId: v === 'all' ? '' : v, areaId: '' })}
-              options={[{ value: 'all', label: 'All HQs' }, ...areas.hqOptions]}
+              onValueChange={(v) => update({ hqId: v === 'all' ? '' : v })}
+              options={[{ value: 'all', label: 'All HQs' }, ...hqs.options]}
             />
           </div>
-          <div className="w-56">
+          <div className="w-40">
             <Select
-              aria-label="Area"
-              value={values.areaId || 'all'}
-              onValueChange={(v) => update({ areaId: v === 'all' ? '' : v })}
-              options={[{ value: 'all', label: 'All areas' }, ...areaChoices]}
+              aria-label="Type"
+              value={values.type || 'all'}
+              onValueChange={(v) => update({ type: v === 'all' ? '' : v })}
+              options={[{ value: 'all', label: 'All types' }, ...ROUTE_TYPES.map((t) => ({ value: t, label: ROUTE_TYPE_LABEL[t] }))]}
             />
           </div>
           <StatusFilter value={values.status} onChange={(v) => update({ status: v })} />

@@ -42,8 +42,6 @@ export interface ListDoctorsQuery extends PaginationQueryDto {
 export interface ListDistributorsQuery extends PaginationQueryDto {
   status?: MasterStatus | undefined;
   routeId?: string | undefined;
-  /** Zone, HQ and Area narrow by territory; the API uses the most specific one given. */
-  areaId?: string | undefined;
   hqId?: string | undefined;
   zoneId?: string | undefined;
   assignedMrId?: string | undefined;

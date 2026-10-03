@@ -1,4 +1,5 @@
-import { AREA_TYPES, type AreaDto, type AreaType, type CreateAreaDto, type CreateHqDto, type CreateZoneDto, type UpdateAreaDto, type UpdateZoneDto, type HqDto, type ZoneDto } from '@greynote/contracts';
+import type { CreateHqDto, CreateZoneDto, HqDto, PlaceDto, RouteType, UpdateHqDto, UpdateZoneDto, ZoneDto } from '@greynote/contracts';
+import { samePlace } from './place';
 
 /**
  * Form drafts → request bodies. Forms hold strings; these turn them into what the API accepts, or
@@ -29,42 +30,39 @@ export function buildZone(draft: { name: string }): BuildResult<CreateZoneDto> {
   return error ? fail({ name: error }) : { ok: true, body: { name } };
 }
 
-export function buildHq(draft: { zoneId: string; name: string }): BuildResult<CreateHqDto> {
+export function buildHq(draft: { zoneId: string; name: string; basePlace: PlaceDto | null }): BuildResult<CreateHqDto> {
   const name = normalizeName(draft.name);
-  const errors = { zoneId: draft.zoneId ? undefined : 'Choose a zone.', name: nameError(name) };
-  return errors.zoneId || errors.name ? fail(errors) : { ok: true, body: { zoneId: draft.zoneId, name } };
-}
-
-export function buildArea(draft: { hqId: string; name: string; type: string }): BuildResult<CreateAreaDto> {
-  const name = normalizeName(draft.name);
-  const isType = (value: string): value is AreaType => (AREA_TYPES as readonly string[]).includes(value);
   const errors = {
-    hqId: draft.hqId ? undefined : 'Choose an HQ.',
+    zoneId: draft.zoneId ? undefined : 'Choose a zone.',
     name: nameError(name),
-    type: isType(draft.type) ? undefined : 'Choose a type.',
+    basePlace: draft.basePlace ? undefined : 'Search for the base place and pick it on the map.',
   };
-  if (errors.hqId || errors.name || errors.type || !isType(draft.type)) return fail(errors);
-  return { ok: true, body: { hqId: draft.hqId, name, type: draft.type } };
+  if (errors.zoneId || errors.name || errors.basePlace || !draft.basePlace) return fail(errors);
+  return { ok: true, body: { zoneId: draft.zoneId, name, basePlace: draft.basePlace } };
 }
 
 /**
  * The fields of an edit that actually changed. The API rejects an empty update, and sending only
  * what changed keeps a rename from also re-sending (and racing on) the status.
  */
-export function changedZoneFields(original: ZoneDto | HqDto, draft: { name: string }): UpdateZoneDto {
+export function changedZoneFields(original: ZoneDto, draft: { name: string }): UpdateZoneDto {
   const name = normalizeName(draft.name);
   return name !== original.name ? { name } : {};
 }
 
-export function changedAreaFields(original: AreaDto, draft: { name: string; type: AreaType }): UpdateAreaDto {
+/**
+ * An HQ edit's changed fields: the name, and the base place when it moved. A new base place makes the
+ * server recalculate the HQ's routes, so it is sent only when it actually differs.
+ */
+export function changedHqFields(original: HqDto, draft: { name: string; basePlace: PlaceDto | null }): UpdateHqDto {
   const name = normalizeName(draft.name);
   return {
     ...(name !== original.name && { name }),
-    ...(draft.type !== original.type && { type: draft.type }),
+    ...(draft.basePlace && !samePlace(draft.basePlace, original.basePlace) && { basePlace: draft.basePlace }),
   };
 }
 
-export const AREA_TYPE_LABEL: Record<AreaType, string> = {
+export const ROUTE_TYPE_LABEL: Record<RouteType, string> = {
   HQ: 'HQ',
   EX_STATION: 'Ex-station',
   OUT_STATION: 'Out-station',

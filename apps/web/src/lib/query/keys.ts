@@ -112,12 +112,6 @@ export const keys = {
     /** Every row, all pages: for pickers and labels. Under `all`, so a territory edit refreshes it. */
     directory: () => [...keys.hqs.all(), 'directory'] as const,
   },
-  areas: {
-    all: () => ['areas', fy()] as const,
-    list: (query?: object) => [...keys.areas.all(), 'list', query ?? {}] as const,
-    /** Every row, all pages: for pickers and labels. Under `all`, so a territory edit refreshes it. */
-    directory: () => [...keys.areas.all(), 'directory'] as const,
-  },
 };
 
 /** How long each kind of data counts as fresh. Pick from here, never a bare number. */

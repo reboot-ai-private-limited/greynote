@@ -28,7 +28,7 @@ export function usePlaceSearch(term: string) {
   return { query, enabled, searchedTerm: debounced };
 }
 
-/** What the stops editor needs from a search, so a stub can stand in for it (the /design preview). */
+/** What the place picker needs from a search, so a stub can stand in for it (the /design preview). */
 export interface PlaceSearchState {
   candidates: PlaceCandidateDto[];
   isLoading: boolean;
