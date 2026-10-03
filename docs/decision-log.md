@@ -17,6 +17,24 @@ old one.
 
 ---
 
+## 2026-10-03 — Every Config setting is defined in one registry
+
+**Decision:** `modules/config/domain/configDefinitions.ts` defines all 30 settings once: label, description, type (yes/no, whole number, time,
+month, weekday, timezone, list of approval kinds), limits and unit, default, and an impact level with a note for the five that change how the
+system reads dates or who can act (the business timezone, the financial-year start month, the weekly off day, the missed-report block, and the
+manager-only approval kinds). The seed is built from it. The limits are the ones each reader enforces when it parses the value.
+
+**Why:** found while planning the System settings screen. Config validated nothing on write, so `banana` for a cutoff time or `13` for the
+financial-year month would be stored and then fail on every read of that key. The screen needs the same facts (type, limits, warnings) the
+server needs to validate, and one registry keeps them from drifting.
+
+**Cost:** a reader's limit and its definition are written twice (the reader's own parser and this registry), kept honest by a test that every
+default passes its own definition and equals what the seed always wrote, and by the readers' own tests. A time is accepted only as `HH:MM`
+with two digits each, because that is all the deadline code accepts. A timezone is kept as typed once `Intl` accepts it: `Intl` reports a
+legacy alias for some zones (`Asia/Calcutta` for `Asia/Kolkata`), so its own spelling is not used.
+
+---
+
 ## 2026-10-03 — Payroll rows carry the employee's name and code
 
 **Decision:** every payroll row the HTTP API returns (get, list, finalize, and each line of a generate result) now has `userName` and
