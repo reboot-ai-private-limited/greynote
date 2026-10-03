@@ -159,7 +159,7 @@ docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-inh
 ```
 
 Employees still submit each day. A fresh database has nothing to convert. Also: `MONTHLY_STOCK_GRACE_DAYS` is gone, replaced
-by `MONTHLY_STOCK_DEADLINE_DAY` (seeded `5` on boot); schedule the stock check for the day after it.
+by `MONTHLY_STOCK_DEADLINE_DAY`. **Re-run the seed (Step 8; safe to repeat) so the three new settings (`DCR_APPROVAL_REQUIRED`, `APPROVAL_SLA_DAYS`, `MONTHLY_STOCK_DEADLINE_DAY`) appear in System settings** — it only adds missing keys. Schedule the stock check for the day after the deadline day.
 
 ## Step 10 — Schedule the daily compliance job
 
