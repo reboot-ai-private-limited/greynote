@@ -34,6 +34,13 @@ export const keys = {
     balances: (userId: string, year: number | undefined) => ['leaves', fy(), 'balances', userId, year ?? 'current'] as const,
     range: (query: object) => ['leaves', fy(), 'range', query] as const,
   },
+  dcr: { detail: (id: string) => ['dcr', fy(), 'detail', id] as const },
+  plans: {
+    daily: (id: string) => ['plans', fy(), 'daily', id] as const,
+    monthly: (id: string) => ['plans', fy(), 'monthly', id] as const,
+    change: (id: string) => ['plans', fy(), 'change', id] as const,
+  },
+  doctorServices: { detail: (id: string) => ['doctorServices', fy(), 'detail', id] as const },
   expenses: { audit: (query: object) => ['expenses', fy(), 'audit', query] as const },
   payroll: { month: (query: object) => ['payroll', fy(), 'month', query] as const },
   monthlyStock: { missing: (month: string) => ['monthlyStock', fy(), 'missing', month] as const },

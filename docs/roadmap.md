@@ -550,7 +550,13 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   type and year with what will be left on approval (a balance that would go negative is called out). A preview that cannot load shows its own
   error and never blocks the decision or the history. The pending-Doctor banner now links to `/approvals?kind=NEW_DOCTOR`, and the dashboard
   uses the shared kind labels. Verified by typecheck, lint, 367 tests and `next build`; **not yet exercised against the live API.**
-  Next: previews for daily report (with the geofence override), plans, doctor service and plan change; then HR, expenses/payroll.
+  **Remaining previews started (2026-10-03):** the API gained two read endpoints so a plan change and a doctor service can be fetched by the id an
+  approval points at (decision-log 2026-10-03). The web has the wire types for the daily report under review (calls with the server's geofence
+  answer, follow-ups, expenses), plans, a plan change and a doctor service, the API calls, and tested rules: geofence labels and what the
+  check found, which calls are flagged and not yet accepted, who may accept one, expense grouping and totals, the "TA and DA are
+  calculated when the manager approves" note, a plan-change diff and a stale-change check. Planned: the daily report preview, then the
+  geofence override, then plans, doctor service and plan change.
+  Next: the daily report preview and the geofence override; then plans, doctor service and plan change; then HR, expenses/payroll.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.
