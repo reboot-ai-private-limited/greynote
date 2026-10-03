@@ -534,7 +534,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   and a submitted-from / to range sent as Indian-time offset instants; each row says who it is waiting on and opens its detail. HR sees leave
   only. The nav item is live for Admin and HR. The shared list frame's "New" button became optional. Verified by typecheck, lint, 346 tests and
   `next build`; **not yet exercised against the live API.**
-  Next: the request detail page (history, approve, reject, reopen), bulk decide, and the per-kind previews; then HR, expenses/payroll.
+  **Request detail built (2026-10-03, `/approvals/[id]`):** who and when, the stage, a decision bar (Approve and Reject when the caller can act, Reopen
+  for Admin on an Approved request), and the history grouped by submission round with each action's authority, so an Admin override is
+  visible. Approve and Reject ask for a comment or a required reason; approving a request still with the manager warns that it skips them.
+  A decision returns to the queue; a lost race (the employee resubmitted) shows the server's message and refreshes. A kind with no preview
+  yet shows what it is and its record id. Verified by typecheck, lint, 348 tests and `next build`; **not yet exercised against the live API.**
+  Next: bulk decide, and the per-kind previews (new doctor and leave first); then HR, expenses/payroll.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.
