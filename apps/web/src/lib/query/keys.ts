@@ -30,6 +30,8 @@ export const keys = {
   designations: { all: () => ['designations', fy()] as const },
   payBands: { all: () => ['payBands', fy()] as const },
   leaves: {
+    /** Every leave query for the year in view: balances, lists and details. */
+    root: () => ['leaves', fy()] as const,
     detail: (id: string) => ['leaves', fy(), 'detail', id] as const,
     balances: (userId: string, year: number | undefined) => ['leaves', fy(), 'balances', userId, year ?? 'current'] as const,
     range: (query: object) => ['leaves', fy(), 'range', query] as const,

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
+import { EmployeeLeaveTab } from '@/features/hr/components/EmployeeLeaveTab';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -75,6 +76,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                   <TabsTrigger value="profile">Profile</TabsTrigger>
                   <TabsTrigger value="bank">Bank</TabsTrigger>
                   <TabsTrigger value="documents">Documents</TabsTrigger>
+                  <TabsTrigger value="leave">Leave</TabsTrigger>
                   {isAdmin ? <TabsTrigger value="devices">Devices</TabsTrigger> : null}
                   {isAdmin ? <TabsTrigger value="security">Security</TabsTrigger> : null}
                 </TabsList>
@@ -88,6 +90,9 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 </TabsContent>
                 <TabsContent value="documents" className="mt-6">
                   <DocumentsSection user={user} readOnly={readOnly} />
+                </TabsContent>
+                <TabsContent value="leave" className="mt-6">
+                  <EmployeeLeaveTab userId={user.id} />
                 </TabsContent>
                 {isAdmin ? (
                   <TabsContent value="devices" className="mt-6">

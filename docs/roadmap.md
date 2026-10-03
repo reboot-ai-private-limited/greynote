@@ -598,7 +598,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   National, Zone or HQ with at least one place for the last two; switching scope clears the other list) and remove with a confirmation that leaves
   already counted keep their days. There is no edit in the API, so a correction is remove and add. Verified by typecheck, lint and 448 tests;
   **not yet exercised against the live API.**
-  Next: the employee's Leave tab (balances, adjusting an allocation, and their HQ); then the Accountant screens — one module at a time.
+  **Employee Leave tab built (2026-10-03):** on a field employee, *Balances* (allocated, used, pending and available per paid type, for the leave year
+  that follows the financial-year selector; the API refuses a year outside it) with **Adjust** (a new allocation and a required reason, a before-and-after
+  preview, never below used plus pending), and *HQ* (the current HQ, a change control, and the history), since an employee's HQ decides which Zone
+  and HQ holidays apply. An employee with no Pay Band shows no balances and says where to set one. **HR is complete in the web portal.**
+  Verified by typecheck, lint and 448 tests; **not yet exercised against the live API.**
+  Next: the Accountant screens (expense audit and mark-paid, then payroll) — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.
