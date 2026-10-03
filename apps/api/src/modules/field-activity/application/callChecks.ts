@@ -1,5 +1,6 @@
 import type { Doctor, Chemist } from '@/modules/field-master-data/field-master-data.public.js';
 import { LOG_CODES, LogRefusal } from '../domain/logRefusal.js';
+import type { PlanningPort } from '../domain/planning.port.js';
 import type { FieldMasterDataPort } from '../domain/fieldMasterData.port.js';
 import type { TerritoryPort } from '../domain/territory.port.js';
 import type { UserDirectoryPort } from '../domain/userDirectory.port.js';
@@ -15,6 +16,7 @@ export class CallChecks {
     private readonly master: FieldMasterDataPort,
     private readonly territory: TerritoryPort,
     private readonly users: UserDirectoryPort,
+    private readonly planning: PlanningPort,
   ) {}
 
   /** An active Doctor the MR is still assigned to — and can still see, when visibility follows the Route. */
@@ -35,6 +37,18 @@ export class CallChecks {
       throw new LogRefusal(LOG_CODES.chemistRouteNotAssigned, 'You no longer have this chemist’s route, so the call can’t be recorded.');
     }
     return chemist;
+  }
+
+  /**
+   * A call stays inside the day's approved Plan: the Doctor's or Chemist's Route must be one the Plan lists. The report can't
+   * depart from the plan — the way to change the day is for the manager or Admin to amend the plan, then log. (A Plan with no
+   * Routes, a meeting day, has no calls.) The gate has already confirmed the Plan is approved.
+   */
+  async onPlannedRoute(userId: string, reportDate: string, routeId: string): Promise<void> {
+    const day = await this.planning.getDailyPlanDay(userId, reportDate);
+    if (!day?.routeIds.includes(routeId)) {
+      throw new LogRefusal(LOG_CODES.routeNotInPlan, 'This call isn’t on a route in today’s approved plan. Ask your manager to amend the plan first.');
+    }
   }
 
   /** Colleagues who worked with the MR: active employees, each once, never themselves. */

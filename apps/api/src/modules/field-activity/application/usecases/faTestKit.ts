@@ -97,8 +97,10 @@ export class FakeUsers implements UserDirectoryPort {
 
 export class FakePlanning implements PlanningPort {
   approved = new Set<string>();
+  /** An approved day defaults to field work on route-1, where the fixtures' Doctor and Chemist are; a test can set `days` itself. */
   approve(userId: string, date: string) {
     this.approved.add(`${userId}:${date}`);
+    if (!this.days.has(`${userId}:${date}`)) this.days.set(`${userId}:${date}`, { workingType: 'FIELD_WORK', routeIds: ['route-1'] });
   }
   async isDailyPlanApproved(userId: string, date: string) {
     return this.approved.has(`${userId}:${date}`);
@@ -115,7 +117,7 @@ export class FakeApprovals implements ApprovalsPort {
   registerKind(d: ApprovalKindDefinition) {
     this.kinds.set(d.kind, d);
   }
-  async submit(input: { kind: string; recordId: string; submitterId: string }) {
+  async submit(input: { kind: string; recordId: string; submitterId: string; autoApprove?: boolean }) {
     const key = `${input.kind}:${input.recordId}`;
     const existing = this.requests.get(key);
     if (existing && !isEditableBySubmitter(existing.status)) throw AppError.conflict('Already waiting.');
@@ -124,7 +126,7 @@ export class FakeApprovals implements ApprovalsPort {
       kind: input.kind,
       recordId: input.recordId,
       submitterId: input.submitterId,
-      status: 'SUBMITTED',
+      status: input.autoApprove ? 'APPROVED' : 'SUBMITTED',
       workflow: 'MANAGER_THEN_FINAL',
       cycle: (existing?.cycle ?? 0) + 1,
       submittedAt: new Date(),
@@ -165,7 +167,7 @@ export class FakeDcrs implements DcrRepositoryPort {
 }
 
 export class FakeConfig implements ConfigReader {
-  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100' };
+  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true' };
   async get(key: string) {
     const v = this.values[key];
     if (v === undefined) throw new Error(`missing ${key}`);
@@ -395,7 +397,6 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const clock = { current: new Date(nowIso) };
   const dcrClock = new DcrClock(config, () => clock.current);
   const gate = new LoggingGate(users, planning, approvals, dcrs, dcrClock);
-  const submit = new SubmitDcrUseCase(gate, dcrs, approvals);
   const views = new DcrViews(approvals);
   const fmd = new FakeFmd();
   const territory = new FakeTerritory();
@@ -403,13 +404,14 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const chemistCalls = new FakeChemistCalls();
   const followups = new FakeFollowups();
   const expenses = new FakeExpenses();
-  const checks = new CallChecks(fmd, territory, users);
+  const checks = new CallChecks(fmd, territory, users, planning);
   const geofence = new GeofenceEvaluator(config);
   const logDoctorCall = new LogDoctorCallUseCase(gate, checks, geofence, fmd, doctorCalls);
   const logChemistCall = new LogChemistCallUseCase(gate, checks, geofence, fmd, chemistCalls);
   const logFollowup = new LogFollowupUseCase(gate, checks, followups);
   const logExpense = new LogExpenseUseCase(gate, expenses);
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses);
+  const submit = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config);
   const listExpenses = new ListExpensesUseCase(expenses, users);
   const markPaid = new MarkExpensePaidUseCase(expenses, () => new Date(clock.current));
   const paidTaDa = new GetPaidTaDaTotalUseCase(expenses, dcrClock);

@@ -42,4 +42,4 @@ export class FakeUsers implements UserDirectoryPort {
   }
 }
 
-export const config = { get: async (key: string) => ({ BUSINESS_TIMEZONE: 'Asia/Kolkata', MONTHLY_STOCK_GRACE_DAYS: '0' })[key] ?? '' };
+export const config = { get: async (key: string) => ({ BUSINESS_TIMEZONE: 'Asia/Kolkata', MONTHLY_STOCK_DEADLINE_DAY: '5' })[key] ?? '' };

@@ -7,6 +7,7 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { PlanningHandlers } from './planning.controller.js';
 import {
+  amendDailyPlanBodySchema,
   dateRangeQuerySchema,
   grantLateSubmitBodySchema,
   listLateSubmitGrantsQuerySchema,
@@ -24,7 +25,7 @@ const bearer = [{ bearerAuth: [] }];
 const json = (schema: ZodTypeAny) => ({ content: { 'application/json': { schema } } });
 
 function doc(
-  method: 'get' | 'post',
+  method: 'get' | 'post' | 'patch',
   path: string,
   summary: string,
   request: { query?: AnyZodObject; params?: AnyZodObject; body?: ZodTypeAny },
@@ -49,6 +50,7 @@ doc('get', '/daily', 'My daily plans between two dates, with status and submit d
 doc('get', '/daily/{id}', 'One daily plan — owner, their managers (read-only), Admin', { params: planIdParamsSchema });
 doc('post', '/daily/{id}/submit', 'Submit my plan for approval — refused after the deadline without a late-submission exception', { params: planIdParamsSchema });
 doc('post', '/daily/{id}/changes', 'Ask to change my approved plan for today — goes to my manager; the plan stays approved until they say yes', { params: planIdParamsSchema, body: requestDailyPlanChangeBodySchema });
+doc('patch', '/daily/{id}/amend', 'Amend an employee’s plan for a day — their managers and Admin; a reason is required and the old body is kept', { params: planIdParamsSchema, body: amendDailyPlanBodySchema });
 doc('get', '/daily/{id}/changes', 'A plan’s in-day changes, with their approval status — owner, their managers (read-only), Admin', { params: planIdParamsSchema });
 doc('get', '/changes/{id}', 'One in-day change by its own id — what an approval request points at; owner, their managers (read-only), Admin', { params: planIdParamsSchema });
 doc('post', '/monthly', 'Save my plan for a month — every day at once (draft)', { body: saveMonthlyPlanBodySchema });
@@ -69,6 +71,7 @@ export function buildPlanningRouter(c: PlanningHandlers): Router {
   router.post('/daily/:id/submit', requireRole('FIELD'), validate({ params: planIdParamsSchema }), c.submitDaily);
 
   router.post('/daily/:id/changes', requireRole('FIELD'), validate({ params: planIdParamsSchema, body: requestDailyPlanChangeBodySchema }), c.requestChange);
+  router.patch('/daily/:id/amend', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema, body: amendDailyPlanBodySchema }), c.amendDaily);
   router.get('/daily/:id/changes', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.listChanges);
 
   router.get('/changes/:id', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.getChange);

@@ -14,6 +14,7 @@
         "seed": "tsx src/scripts/seed.ts",
         "migrate:money": "tsx src/scripts/migrate-money-to-paise.ts",
         "migrate:territory": "tsx src/scripts/migrate-territory-flatten.ts",
+        "migrate:inherit-monthly": "tsx src/scripts/migrate-inherit-monthly-plans.ts",
         "compliance:run": "tsx src/scripts/run-compliance.ts",
         "stock-check:run": "tsx src/scripts/run-stock-check.ts"
     },

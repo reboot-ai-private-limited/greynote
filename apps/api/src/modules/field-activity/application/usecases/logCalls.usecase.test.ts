@@ -31,6 +31,29 @@ describe('logging the day’s calls and follow-ups', () => {
     tx = new Tx();
   });
 
+  describe('the day’s approved Plan bounds the report', () => {
+    it('a call on a route the Plan doesn’t list is refused, Doctor or Chemist, and nothing is stored', async () => {
+      kit.planning.days.set(`mr1:${DAY}`, { workingType: 'FIELD_WORK', routeIds: ['route-2'] });
+      expect((await refusal(log())).code).toBe('ROUTE_NOT_IN_PLAN');
+      expect((await refusal(kit.logChemistCall.execute(REC, chemistCall(), tx))).code).toBe('ROUTE_NOT_IN_PLAN');
+      expect(kit.doctorCalls.rows).toHaveLength(0);
+      expect(kit.chemistCalls.rows).toHaveLength(0);
+    });
+
+    it('a meeting day (no routes) has no calls', async () => {
+      kit.planning.days.set(`mr1:${DAY}`, { workingType: 'MEETING', routeIds: [] });
+      expect((await refusal(log())).code).toBe('ROUTE_NOT_IN_PLAN');
+    });
+
+    it('once the manager amends the plan to include the route, the call is accepted', async () => {
+      kit.planning.days.set(`mr1:${DAY}`, { workingType: 'FIELD_WORK', routeIds: ['route-2'] });
+      await refusal(log());
+      kit.planning.days.set(`mr1:${DAY}`, { workingType: 'FIELD_WORK', routeIds: ['route-1', 'route-2'] });
+      await log();
+      expect(kit.doctorCalls.rows).toHaveLength(1);
+    });
+  });
+
   describe('a Doctor Call', () => {
     it('is stored on the day’s DCR, created by the first record, and answers with the server’s geofence result', async () => {
       const { serverId, data } = await log();

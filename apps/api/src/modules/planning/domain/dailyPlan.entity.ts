@@ -1,4 +1,12 @@
-import type { PlanDay } from './plan.js';
+import type { PlanDay, PlanSource } from './plan.js';
+
+/** A manager's or Admin's change to a day, kept with what it replaced. */
+export interface PlanAmendment {
+  by: string;
+  at: Date;
+  reason: string;
+  previous: PlanDay;
+}
 
 /**
  * One user's plan for one day. Its approval state is not here — it's the `DAILY_PLAN`
@@ -9,6 +17,9 @@ export interface DailyPlan extends PlanDay {
   userId: string;
   /** A calendar day, `YYYY-MM-DD` — not an instant. */
   planDate: string;
+  source: PlanSource;
+  /** Oldest first. */
+  amendments: PlanAmendment[];
   /** Bumped on every save; submit is conditional on the revision it validated. */
   revision: number;
   /** Resubmits made through the after-rejection window; capped by `PLAN_RESUBMIT_GRACE_MAX`. */

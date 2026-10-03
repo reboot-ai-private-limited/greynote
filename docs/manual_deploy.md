@@ -147,6 +147,20 @@ except any with a manually entered distance, which are listed so you can check t
 stored distances stay as they were, and the HQ can't get a new Route. A fresh database has nothing to
 convert.
 
+## Step 9c — Give approved Monthly Plans their days (once, when upgrading past the 2026-10-03 plan change)
+
+Daily Plans are now written from the approved Monthly Plan (`docs/decision-log.md`, 2026-10-03). Monthly Plans approved
+**before** that have no days yet; this writes the coming ones, exactly as approving them today would. Days already planned
+are left alone, so it is safe to run again. Dry run first:
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-inherit-monthly-plans.js
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-inherit-monthly-plans.js --apply
+```
+
+Employees still submit each day. A fresh database has nothing to convert. Also: `MONTHLY_STOCK_GRACE_DAYS` is gone, replaced
+by `MONTHLY_STOCK_DEADLINE_DAY` (seeded `5` on boot); schedule the stock check for the day after it.
+
 ## Step 10 — Schedule the daily compliance job
 
 The application has no scheduler. Once a day, after the business day rolls over (early morning is fine), the

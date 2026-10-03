@@ -88,10 +88,15 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
     impact: 'HIGH',
     impactNote: 'Turning this off stops blocking anyone who misses a daily report, from the next check onward. Turning it on can block employees who have already missed days.',
   },
+  {
+    ...toggle('DCR_APPROVAL_REQUIRED', 'FIELD_ACTIVITY', 'Daily reports need approval', 'Whether a submitted DCR waits for the manager (and Admin) to approve it. Off: a DCR is approved the moment it is submitted and its TA/DA is generated then.', true),
+    impact: 'HIGH',
+    impactNote: 'Applies to reports submitted from now on. Off: nobody reviews a daily report before its TA/DA is generated. Reports already waiting keep their current approval path.',
+  },
   integer('DCR_MISS_GRACE_DAYS', 'FIELD_ACTIVITY', 'Missed-report grace', 'Grace days before a missed DCR triggers the compliance block.', 1, 0, 365, 'days'),
 
   // ── Sales ──
-  integer('MONTHLY_STOCK_GRACE_DAYS', 'SALES', 'Monthly stock grace', 'Days after a month ends during which its stock counts are still accepted (0 = the month’s last day is the deadline).', 0, 0, 31, 'days'),
+  integer('MONTHLY_STOCK_DEADLINE_DAY', 'SALES', 'Monthly stock deadline day', 'Day of the next month by which a month’s opening and closing stock counts must be entered (5 = the 5th of the following month).', 5, 1, 28),
 
   // ── Sync ──
   integer('SYNC_MAX_BATCH', 'SYNC', 'Most records per push', 'Most records the app may send in one push. A bigger day is sent in chunks, the DCR’s own submit last.', 100, 1, 10_000),
@@ -112,6 +117,8 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
     impact: 'HIGH',
     impactNote: 'Requests of a listed kind submitted from now on are decided by the manager alone, with no Admin or HR check. Requests already in progress are not affected.',
   },
+
+  integer('APPROVAL_SLA_DAYS', 'APPROVAL', 'Approval turnaround', 'Days an approver has to act on a request. After that it is flagged overdue (nothing is approved automatically; Admin can always approve).', 3, 1, 30, 'days'),
 
   // ── System ──
   {

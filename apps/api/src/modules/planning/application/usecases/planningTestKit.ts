@@ -6,10 +6,12 @@ import type { ApprovalKindDefinition } from '@/modules/approval/approval.public.
 import type { DailyPlanChange } from '../../domain/dailyPlanChange.entity.js';
 import { OpenChangeExistsError, type DailyPlanChangeRepositoryPort } from '../../domain/dailyPlanChange.repository.port.js';
 import { makeDailyPlanChangeHandler } from '../dailyPlanChangeHandler.js';
+import { makeMonthlyPlanInheritHandler } from '../monthlyPlanInheritHandler.js';
+import { AmendDailyPlanUseCase } from './amendDailyPlan.usecase.js';
 import { GetDailyPlanChangeUseCase, ListDailyPlanChangesUseCase } from './listDailyPlanChanges.usecase.js';
 import { RequestDailyPlanChangeUseCase } from './requestDailyPlanChange.usecase.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
-import type { DailyPlan } from '../../domain/dailyPlan.entity.js';
+import type { DailyPlan, PlanAmendment } from '../../domain/dailyPlan.entity.js';
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
 import type { LateSubmitGrant } from '../../domain/lateSubmitGrant.entity.js';
 import type { LateSubmitGrantFilter, LateSubmitGrantRepositoryPort } from '../../domain/lateSubmitGrant.repository.port.js';
@@ -46,10 +48,25 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
       ...day,
       revision: (existing?.revision ?? 0) + 1,
       lateResubmits: existing?.lateResubmits ?? 0,
+      source: existing?.source ?? 'MANUAL',
+      amendments: existing?.amendments ?? [],
       updatedAt: new Date(),
     };
     this.rows.set(plan.id, plan);
     return plan;
+  }
+  async createInherited(userId: string, planDate: string, day: PlanDay) {
+    if (await this.findByUserAndDate(userId, planDate)) return false;
+    const id = `plan-${this.rows.size + 1}`;
+    this.rows.set(id, { id, userId, planDate, ...day, source: 'MONTHLY', amendments: [], revision: 1, lateResubmits: 0, updatedAt: new Date() });
+    return true;
+  }
+  async amend(id: string, expectedRevision: number, day: PlanDay, amendment: PlanAmendment) {
+    const plan = this.rows.get(id);
+    if (!plan || plan.revision !== expectedRevision) return null;
+    const next = { ...plan, ...day, revision: plan.revision + 1, amendments: [...plan.amendments, amendment], updatedAt: amendment.at };
+    this.rows.set(id, next);
+    return next;
   }
   async applyChange(id: string, revision: number, day: PlanDay) {
     const plan = this.rows.get(id);
@@ -102,6 +119,9 @@ export class FakeMonthlyPlans implements MonthlyPlanRepositoryPort {
     return [...this.rows.values()]
       .filter((p) => p.userId === userId && p.planMonth >= fromMonth && p.planMonth <= toMonth)
       .sort((a, b) => a.planMonth.localeCompare(b.planMonth));
+  }
+  async listFromMonth(planMonth: string) {
+    return [...this.rows.values()].filter((p) => p.planMonth >= planMonth);
   }
   async save(userId: string, planMonth: string, entries: MonthlyPlanEntry[], expectedRevision: number | null) {
     const existing = await this.findByUserAndMonth(userId, planMonth);
@@ -344,8 +364,16 @@ export function planningKit(clock: Clock) {
     managerOnly: true,
     onStatusChange: makeDailyPlanChangeHandler(changes, dailyPlans, approvals, deadlines),
   });
+  approvals.registerKind({
+    kind: 'MONTHLY_PLAN',
+    finalApproverRoles: ['ADMIN'],
+    onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines),
+  });
+  /** Dates (`userId:YYYY-MM-DD`) whose DCR the test says is already submitted. */
+  const reported = new Set<string>();
+  const amend = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => async (u, d) => reported.has(`${u}:${d}`));
   const requestChange = new RequestDailyPlanChangeUseCase(dailyPlans, changes, approvals, users, submitter, deadlines, inlineTransactions);
   const listChanges = new ListDailyPlanChangesUseCase(dailyPlans, changes, approvals, users);
   const getChange = new GetDailyPlanChangeUseCase(changes, approvals, users);
-  return { users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, changes, requestChange, listChanges, getChange };
+  return { users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, changes, requestChange, listChanges, getChange, amend, reported };
 }

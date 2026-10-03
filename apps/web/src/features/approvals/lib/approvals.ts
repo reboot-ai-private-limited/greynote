@@ -103,6 +103,7 @@ const AUTHORITY_LABEL: Record<ApprovalAuthority, string> = {
   SUBMITTER: 'the employee',
   MANAGER: 'as the manager',
   ADMIN_OVERRIDE: 'as an Admin override',
+  AUTO: 'automatically (approval not required)',
   TOP_OF_CHAIN: 'as the top of the chain',
   FINAL: 'as a final approver',
 };

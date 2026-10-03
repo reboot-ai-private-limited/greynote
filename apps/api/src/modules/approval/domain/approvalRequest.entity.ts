@@ -31,7 +31,7 @@ export type ApprovalActionType = (typeof APPROVAL_ACTIONS)[number];
  * Why the actor was allowed to act — kept on every history entry so the audit trail says, e.g.,
  * that Admin approved over the manager's head rather than as the ordinary final approver.
  */
-export const APPROVAL_AUTHORITIES = ['SUBMITTER', 'MANAGER', 'ADMIN_OVERRIDE', 'TOP_OF_CHAIN', 'FINAL'] as const;
+export const APPROVAL_AUTHORITIES = ['SUBMITTER', 'MANAGER', 'ADMIN_OVERRIDE', 'TOP_OF_CHAIN', 'FINAL', 'AUTO'] as const;
 export type ApprovalAuthority = (typeof APPROVAL_AUTHORITIES)[number];
 
 export interface ApprovalAction {

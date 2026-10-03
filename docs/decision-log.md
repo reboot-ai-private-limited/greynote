@@ -17,6 +17,25 @@ old one.
 
 ---
 
+## 2026-10-03 — DCR approval is a switch; Daily Plans come from the approved Monthly Plan; approvers get a turnaround; stock is due on the 5th
+
+**Decision:** four connected changes, each driven by a `SystemConfig` key so Admin changes them without a release.
+
+1. **`DCR_APPROVAL_REQUIRED`** (default `true`, HIGH impact). On: unchanged (manager, then Admin unless `APPROVAL_MANAGER_ONLY_KINDS` lists `DCR`). Off: a submitted DCR is recorded already `APPROVED` (history `SUBMIT`, authority `AUTO`; no approver sees it) and its TA/DA is generated in the same transaction. The day's Daily Plan must still be approved (the DCR gate is untouched), and no DCR submit still means no TA/DA. The setting is read at submit; requests already waiting keep their path.
+2. **Daily Plans are inherited.** When a Monthly Plan is past the manager, each of its entries from today on is written as that day's Daily Plan (`source: MONTHLY`, a draft). The employee **cannot edit it** (`PLAN_INHERITED_READONLY`) but **still submits it every day, and the manager still approves it** — inheriting approves nothing. A manager above the employee, or Admin, can **amend** the day (`PATCH /planning/daily/:id/amend`): a reason is required, the previous body is kept on the plan, the day is validated against the employee's own routes, and an already approved day stays approved. Refused once that day's DCR is submitted (`TA/DA` follows the plan's routes) and for a day that is over. Re-approving the month refreshes only inherited days that were never submitted or amended. A day the month didn't cover is still written by the employee (`source: MANUAL`). TA/DA keeps being worked out from the approved Daily Plan's routes.
+3. **A call stays inside the day's approved Plan.** A Doctor or Chemist Call whose Route is not in the Plan is refused `ROUTE_NOT_IN_PLAN`; a meeting day (no Routes) has no calls. The fix is for the manager or Admin to amend the plan, then the employee logs.
+4. **Approver turnaround and the stock deadline.** `APPROVAL_SLA_DAYS` (default 3): a request open longer than that at its current stage (from submit, or from the manager's approval) is returned with `overdue: true` and `dueAt`. It is a **flag only** — nothing is auto-approved or re-routed, and Admin can always approve (unchanged). `MONTHLY_STOCK_DEADLINE_DAY` (default 5) **replaces `MONTHLY_STOCK_GRACE_DAYS`**: month *M*'s opening and closing stock is due by the end of that day of the following month. The Monthly Plan deadline stays `MONTHLY_PLAN_SUBMIT_CUTOFF_DATE` (28th).
+
+**Supersedes:** "Monthly stock: due on the month's last day" (2026-09-30) — back to a day in the following month, now configurable. The in-day change request (B9) is **kept** as the employee's way to ask for a change for today; the manager can now also amend directly.
+
+**Why:** the Monthly Plan is the real plan; a daily one that can drift from it, and a report that can drift from the daily one, defeat the approval. Letting only a manager or Admin move a day keeps one accountable person for every deviation.
+
+**Rejected:** auto-approve after the turnaround (releases TA/DA unreviewed); inheriting straight to approved (the client wants a daily submit and approval); a "flag, don't block" off-plan call (the client wants the report held to the plan — can become a setting later).
+
+**Cost:** the manager must be reachable for any change on the day; there is no web screen to find a team member's plan yet, so amend is API-only for now. Plans approved before this change need the one-off `migrate:inherit-monthly` to get their days.
+
+---
+
 ## 2026-10-03 — Territory flattened: `Zone → HQ → Route`, a Route runs from its HQ's base place to one destination
 
 **Decision:** **Reverses the `Area` half of** "Territory, Distributor, Doctor assignment and DA re-aligned to the client's Master spec" (2026-09-24). The other three calls in that entry (Distributor on a Route, one active Doctor assignment, per-type DA rates) stand.

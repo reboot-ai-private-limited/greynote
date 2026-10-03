@@ -1,7 +1,7 @@
 import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
 import { addDays, assertTimeZone, businessDate } from '@/shared/time/businessTime.js';
 
-/** Business timezone and the stock grace days, read from Config on every call. `now` is injectable for tests. */
+/** Business timezone and the stock deadline day, read from Config on every call. `now` is injectable for tests. */
 export class SalesClock {
   constructor(
     private readonly config: ConfigReader,
@@ -15,10 +15,10 @@ export class SalesClock {
     });
   }
 
-  graceDays(): Promise<number> {
-    return readConfig(this.config, 'MONTHLY_STOCK_GRACE_DAYS', (v) => {
+  deadlineDay(): Promise<number> {
+    return readConfig(this.config, 'MONTHLY_STOCK_DEADLINE_DAY', (v) => {
       const n = Number(v);
-      if (!/^\d+$/.test(v) || n > 31) throw new RangeError(`Not a whole number from 0 to 31: ${v}`);
+      if (!/^\d+$/.test(v) || n < 1 || n > 28) throw new RangeError(`Not a whole number from 1 to 28: ${v}`);
       return n;
     });
   }

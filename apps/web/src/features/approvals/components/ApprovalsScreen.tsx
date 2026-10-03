@@ -110,7 +110,10 @@ export function ApprovalsScreen() {
       header: view === 'waiting' ? 'Waiting on' : 'Status',
       render: (r) =>
         view === 'waiting' ? (
-          <Badge tone={STATUS_TONE[r.status]}>{stageLabel(r)}</Badge>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge tone={STATUS_TONE[r.status]}>{stageLabel(r)}</Badge>
+            {r.overdue ? <Badge tone="danger">Overdue</Badge> : null}
+          </div>
         ) : (
           <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
         ),

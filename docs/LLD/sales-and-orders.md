@@ -56,10 +56,10 @@ the contract starts narrow and grows on demand (per
 - **Monthly stock has a submission deadline set in `SystemConfig`.** Field staff enter each
   Distributor's per-product opening/closing stock once a month (client rules §14–15; client
   `sales.docx` S6: "Monthly One Time Entry"). The cut-off is Admin-configurable, not hard-coded:
-  - **Deadline (decision-log 2026-09-30, was "the 5th of the following month"):** month *M*'s counts
-    are due by *M*'s **last calendar day** (28/29/30/31). `MONTHLY_STOCK_GRACE_DAYS` (seed `0`) adds
-    days after month end, so "within 5 days" (§15.4) is a config change, not code. A future month is
-    refused. Chemists and Distributors are counted alike, per Product, opening and closing.
+  - **Deadline (decision-log 2026-10-03, replacing the 2026-09-30 "last day + grace days"):** month *M*'s
+    counts are due by the end of day `MONTHLY_STOCK_DEADLINE_DAY` (seed `5`, 1–28) of the **following
+    month**, in the business timezone. A future month is refused. Chemists and Distributors are counted
+    alike, per Product, opening and closing. The stock-check script is run the day after the deadline.
   - After the cut-off, a create/update for month *M* is rejected (`409`), unless Admin has
     re-opened that month. The client spec says re-open goes "only through Approval (if enabled)"; until
     that approval exists, it's an Admin-only unlock.
@@ -130,7 +130,7 @@ only. Blocked (missed-DCR) MRs are not stopped from ordering — orders are not 
   assignment.** Rejected with `403`. Resolved 2026-09-24 from client rules §17.3 — see the
   "Who may submit or order" rule above. `Order` still stores no link to `RouteAssignment`; the
   check runs at write time only.
-- **A month's counts arriving after the month's last day (plus `MONTHLY_STOCK_GRACE_DAYS`).** Rejected unless re-opened.
+- **A month's counts arriving after the deadline day of the following month (`MONTHLY_STOCK_DEADLINE_DAY`).** Rejected unless re-opened.
   If Admin changes the config value mid-month, the new value applies to any month not yet
   closed. A month already past its old cut-off doesn't silently re-open.
 - **Money precision drift between `unit_price × quantity` and `amount`.** Compute `amount`
@@ -144,7 +144,7 @@ only. Blocked (missed-DCR) MRs are not stopped from ordering — orders are not 
   [`field-master-data.md`](field-master-data.md).
 - **Identity** (Tier 1) — the submitting/completing `User` (`user_id`, `completed_by`,
   `recorded_by`), plus the reporting-chain lookup for manager access.
-- **Config** (Tier 0) — `MONTHLY_STOCK_GRACE_DAYS`.
+- **Config** (Tier 0) — `MONTHLY_STOCK_DEADLINE_DAY`.
 
 Not a dependency: the Approval Workflow Engine, Offline Sync & Geofencing (Orders/stock counts
 are not stated as geofenced the way Doctor/Chemist Calls are in PRD §5.1 — they're captured, not

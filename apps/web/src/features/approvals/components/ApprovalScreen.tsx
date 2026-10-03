@@ -53,7 +53,12 @@ export function ApprovalScreen({ id }: { id: string }) {
                   ? `From ${request.submitter.name} (${request.submitter.employeeCode}) · submitted ${formatDateTime(request.submittedAt)}${request.cycle > 1 ? ` · round ${request.cycle}` : ''}`
                   : `Submitted ${formatDateTime(request.submittedAt)}`
               }
-              actions={<Badge tone={STATUS_TONE[request.status]}>{isOpen(request.status) ? stageLabel(request) : STATUS_LABEL[request.status]}</Badge>}
+              actions={
+                <div className="flex items-center gap-1.5">
+                  <Badge tone={STATUS_TONE[request.status]}>{isOpen(request.status) ? stageLabel(request) : STATUS_LABEL[request.status]}</Badge>
+                  {request.overdue ? <Badge tone="danger">Overdue</Badge> : null}
+                </div>
+              }
             />
             {request.canAct || request.canReopen ? (
               <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface p-4">

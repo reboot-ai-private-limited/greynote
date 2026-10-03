@@ -5,7 +5,8 @@ import type { ApprovalListFilter, ApprovalRequestRepositoryPort } from '../../do
 import type { Actor } from '../../domain/approvalRules.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { ApprovalKindRegistry } from '../approvalKindRegistry.js';
-import { canActOn, loadPeople, toListItem, type ApprovalListItem } from '../approvalViews.js';
+import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
+import { canActOn, loadPeople, loadSlaDays, toListItem, type ApprovalListItem } from '../approvalViews.js';
 
 const OPEN: ApprovalStatus[] = ['SUBMITTED', 'MANAGER_APPROVED'];
 /**
@@ -39,6 +40,7 @@ export class ListApprovalsUseCase {
     private readonly requests: ApprovalRequestRepositoryPort,
     private readonly users: UserDirectoryPort,
     private readonly kinds: ApprovalKindRegistry,
+    private readonly config: ConfigProviderPort,
   ) {}
 
   /**
@@ -150,8 +152,9 @@ export class ListApprovalsUseCase {
   ): Promise<PaginatedResult<ApprovalListItem>> {
     const { items, total } = await this.requests.list(filter, { ...page, sortOrder });
     const people = await loadPeople(this.users, items);
+    const sla = { days: await loadSlaDays(this.config), now: new Date() };
     return buildPaginatedResult(
-      items.map((r) => toListItem(r, actor, people, this.kinds)),
+      items.map((r) => toListItem(r, actor, people, this.kinds, sla)),
       total,
       page,
     );
@@ -163,10 +166,11 @@ export class ListApprovalsUseCase {
     page: PageQuery,
   ): Promise<PaginatedResult<ApprovalListItem>> {
     const people = await loadPeople(this.users, candidates);
+    const sla = { days: await loadSlaDays(this.config), now: new Date() };
     const actionable = candidates.filter((r) => canActOn(r, actor, people.get(r.submitterId), this.kinds.find(r.kind)));
     const start = (page.page - 1) * page.pageSize;
     return buildPaginatedResult(
-      actionable.slice(start, start + page.pageSize).map((r) => toListItem(r, actor, people, this.kinds)),
+      actionable.slice(start, start + page.pageSize).map((r) => toListItem(r, actor, people, this.kinds, sla)),
       actionable.length,
       page,
     );

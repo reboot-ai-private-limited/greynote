@@ -1,6 +1,8 @@
+import { parsePositiveInt, readConfig } from '@/shared/config/readConfig.js';
 import type { ApprovalKindDefinition } from '../domain/approvalKind.js';
 import { isOpen, type ApprovalAction, type ApprovalRequest } from '../domain/approvalRequest.entity.js';
 import { resolveAuthority, type Actor } from '../domain/approvalRules.js';
+import { APPROVAL_SLA_DAYS_KEY, type ConfigProviderPort } from '../domain/configProvider.port.js';
 import type { DirectoryUser, UserDirectoryPort } from '../domain/userDirectory.port.js';
 import type { ApprovalKindRegistry } from './approvalKindRegistry.js';
 
@@ -24,6 +26,27 @@ export interface ApprovalListItem {
   lastAction: Omit<ApprovalAction, 'actorId'> & { actor: PersonRef | null };
   /** Whether the caller may approve/reject it right now. */
   canAct: boolean;
+  /** When the current approver's turn ends (`APPROVAL_SLA_DAYS` after it began); null once decided. */
+  dueAt: Date | null;
+  /** Past `dueAt` and still open. Only a flag: nothing is approved or re-routed because of it. */
+  overdue: boolean;
+}
+
+/** The approver SLA in days, read on every call so a change applies at once. */
+export function loadSlaDays(config: ConfigProviderPort): Promise<number> {
+  return readConfig(config, APPROVAL_SLA_DAYS_KEY, parsePositiveInt(30));
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * The current stage's clock starts when the request was submitted (waiting on the manager) or when the manager
+ * approved it (waiting on the final approver, the last history entry).
+ */
+export function dueAt(request: ApprovalRequest, slaDays: number): Date | null {
+  if (!isOpen(request.status)) return null;
+  const since = request.status === 'SUBMITTED' ? request.submittedAt : (request.history.at(-1)?.at ?? request.submittedAt);
+  return new Date(since.getTime() + slaDays * DAY_MS);
 }
 
 const ref = (u: DirectoryUser | undefined): PersonRef | null =>
@@ -51,10 +74,12 @@ export function toListItem(
   actor: Actor,
   people: Map<string, DirectoryUser>,
   kinds: ApprovalKindRegistry,
+  sla: { days: number; now: Date },
 ): ApprovalListItem {
   const submitter = people.get(request.submitterId);
   const last = request.history.at(-1) as ApprovalAction;
   const { actorId, ...lastRest } = last;
+  const due = dueAt(request, sla.days);
   return {
     id: request.id,
     kind: request.kind,
@@ -67,6 +92,8 @@ export function toListItem(
     submitter: ref(submitter),
     lastAction: { ...lastRest, actor: ref(people.get(actorId)) },
     canAct: canActOn(request, actor, submitter, kinds.find(request.kind)),
+    dueAt: due,
+    overdue: due !== null && sla.now.getTime() > due.getTime(),
   };
 }
 

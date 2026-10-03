@@ -11,7 +11,7 @@ export type ApprovalWorkflow = 'MANAGER_THEN_FINAL' | 'MANAGER_ONLY';
 export type ApprovalActionType = 'SUBMIT' | 'APPROVE' | 'REJECT' | 'WITHDRAW' | 'RESUBMIT' | 'REOPEN';
 
 /** Why the actor was allowed to act: an Admin approving over the manager's head says so. */
-export type ApprovalAuthority = 'SUBMITTER' | 'MANAGER' | 'ADMIN_OVERRIDE' | 'TOP_OF_CHAIN' | 'FINAL';
+export type ApprovalAuthority = 'SUBMITTER' | 'MANAGER' | 'ADMIN_OVERRIDE' | 'TOP_OF_CHAIN' | 'FINAL' | 'AUTO';
 
 export interface ApprovalPersonDto {
   id: string;
@@ -49,6 +49,10 @@ export interface ApprovalInboxItemDto {
   lastAction: ApprovalActionDto;
   /** Whether the caller may approve or reject it right now. */
   canAct: boolean;
+  /** When the current approver's turn ends (`APPROVAL_SLA_DAYS`); null once decided. */
+  dueAt: string | null;
+  /** Past `dueAt` and still open — a flag only; Admin can always act. */
+  overdue: boolean;
 }
 
 /** `GET /approvals/:id`: the row, with the full named history and what the caller may do. */

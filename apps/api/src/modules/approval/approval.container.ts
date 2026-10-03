@@ -42,8 +42,8 @@ export function buildApprovalContainer(users: UserDirectoryPort, config: ConfigP
   const withdraw = new WithdrawApprovalUseCase(requestRepository, kinds, transactions);
   const reopen = new ReopenApprovalUseCase(requestRepository, kinds, transactions);
   const getForRecord = new GetApprovalForRecordUseCase(requestRepository);
-  const list = new ListApprovalsUseCase(requestRepository, users, kinds);
-  const detail = new GetApprovalDetailUseCase(requestRepository, users, kinds);
+  const list = new ListApprovalsUseCase(requestRepository, users, kinds, config);
+  const detail = new GetApprovalDetailUseCase(requestRepository, users, kinds, config);
   // Logged like an unhandled request error (shared/http/error-handler.ts), so it still alerts.
   const bulk = new BulkDecideApprovalUseCase(decide, (requestId, err) =>
     logger.error(

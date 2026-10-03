@@ -76,7 +76,7 @@ erDiagram
 ## Design decisions locked for this module
 
 - **Monthly Plan is day-by-day, same shape as Daily Plan.** `MonthlyPlan` is the envelope (one row per user per month); `MonthlyPlanEntry` holds one row per planned day with the same fields as `DailyPlan` (`working_type`, `work_with`, `route_ids`, `remarks`). Entries can be edited freely while the parent `MonthlyPlan.status = DRAFT`; the whole month is submitted together, and only then does it move into the approval flow.
-- **Daily Plan and Monthly Plan are independent — no link between them.** A `DailyPlan` row does **not** reference a `MonthlyPlanEntry`. This was a deliberate choice against building a plan-vs-actual adherence feature now; it can be added later as a nullable FK on `DailyPlan` if that reporting need comes up.
+- **A Daily Plan is written from the approved Monthly Plan, by copy, with no foreign key (decision-log 2026-10-03).** `DailyPlan.source` is `MONTHLY` (copied from a `MonthlyPlanEntry`; the owner can't edit it but still submits it) or `MANUAL` (absent on older rows, read as `MANUAL`). `DailyPlan.amendments[]` holds each manager/Admin change: `{ by, at, reason, previous }`. Later edits to the month don't reach a day that was submitted or amended.
 - **Superseded 2026-09-24:** approval state (`status`/`reviewed_by`/`reviewed_at` below) moves to the `approval` module's `ApprovalRequest` (`../LLD/approval.md`); the fields are dropped when Planning is built. Kept below as the record of the earlier model.
 - **Same two-stage approval as `DCR` (Module 4).** Both `DailyPlan` and `MonthlyPlan` carry `status`/`reviewed_by`/`reviewed_at`, with `reviewed_by` always the nearest higher manager. Once `status = MANAGER_APPROVED`, Admin visibility is automatic via the `manager_id` hierarchy walk (Module 1) — no separate "sent to admin" field, consistent with how `DCR` handles it.
 - **A late Plan is refused; `LATE_PLAN_SUBMIT_GRANT` is the override** (decision-log 2026-09-28, sign-off B8). One row lets one user submit one Plan (`kind` + `plan_key`) after its deadline, once, before `expires_at`. At most one open (unused, unrevoked) row per `user_id` + `kind` + `plan_key`.
@@ -104,6 +104,9 @@ erDiagram
   - `SYNC_DRAFT_TTL_DAYS` = `30`, `SYNC_MAX_DRAFT_BYTES` = `65536`, `SYNC_MAX_DRAFTS` = `2000` — the private draft backup's retention and limits
   - `DCR_MISS_BLOCK_ENABLED` = `true` (Module 1/4, HLD 10) — kill switch for the missed-DCR compliance block
   - `DCR_MISS_GRACE_DAYS` = `1` (Module 1/4, HLD 10) — how many consecutive days without a submitted DCR (and without an approved Leave covering them) before the block triggers
+  - `DCR_APPROVAL_REQUIRED` = `true` (Module 4, decision-log 2026-10-03) — off: a submitted DCR is approved at once (authority `AUTO`) and its TA/DA generated then
+  - `APPROVAL_SLA_DAYS` = `3` (Module 1/approval) — days an approver has before a request is flagged overdue; flag only, nothing is auto-approved
+  - `MONTHLY_STOCK_DEADLINE_DAY` = `5` (Module 6) — month *M*'s opening/closing stock is due by this day of the following month (replaces `MONTHLY_STOCK_GRACE_DAYS`)
   - `SystemConfig` values are Admin-writable at runtime, not just seed defaults — a `PATCH` per key, ADMIN-only, so e.g. `DCR_MISS_GRACE_DAYS` can be moved from its default `1` to `2` or `3` without a redeploy (decision-log 2026-09-24)
 - **`Submit` on `DailyPlan`/`MonthlyPlan` requires a live connection at tap time — unlike other transactional records (HLD 1 §1.1), it does not queue offline.** Saving as `DRAFT` still works fully offline for UX; only the state transition into the approval flow needs a synchronous server round-trip, since it's what the DailyPlan-approval gate (HLD 10) depends on. Same carve-out applies to `DCR` Final Submission (Module 4).
 

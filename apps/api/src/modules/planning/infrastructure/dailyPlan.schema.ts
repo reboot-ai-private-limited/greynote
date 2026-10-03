@@ -1,9 +1,24 @@
 import { Schema, model, type Types } from 'mongoose';
+import { PLAN_SOURCES, type PlanSource } from '../domain/plan.js';
 import { planDaySchemaFields, type PlanDayDoc } from './planDoc.js';
+
+export interface PlanAmendmentDoc {
+  by: Types.ObjectId;
+  at: Date;
+  reason: string;
+  previous: PlanDayDoc;
+}
+
+const amendmentSchema = new Schema<PlanAmendmentDoc>(
+  { by: { type: Schema.Types.ObjectId, required: true, ref: 'User' }, at: { type: Date, required: true }, reason: { type: String, required: true }, previous: { type: new Schema(planDaySchemaFields, { _id: false }), required: true } },
+  { _id: false },
+);
 
 export interface DailyPlanDoc extends PlanDayDoc {
   userId: Types.ObjectId;
   planDate: string;
+  source?: PlanSource;
+  amendments?: PlanAmendmentDoc[];
   revision: number;
   lateResubmits: number;
   updatedAt: Date;
@@ -14,6 +29,9 @@ const dailyPlanSchema = new Schema<DailyPlanDoc>({
   // A calendar day as `YYYY-MM-DD` — sorts correctly as a string, and isn't an instant.
   planDate: { type: String, required: true },
   ...planDaySchemaFields,
+  // Absent on plans from before inheritance: read as MANUAL.
+  source: { type: String, enum: [...PLAN_SOURCES], default: 'MANUAL' },
+  amendments: { type: [amendmentSchema], default: [] },
   revision: { type: Number, required: true },
   lateResubmits: { type: Number, default: 0 },
   updatedAt: { type: Date, required: true },

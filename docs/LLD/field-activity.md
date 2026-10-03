@@ -304,6 +304,21 @@ already accepted; `404` for a call that isn't on that DCR. The change is one con
 separately: it is recoverable from what stays — a `reason` means it was `UNVERIFIED`, none means `FAIL` — beside
 the computed distance.
 
+## The DCR can be set not to need approval (decision-log 2026-10-03)
+
+`DCR_APPROVAL_REQUIRED` (seed `true`) is read at submit. When it is `false`, `SubmitDcrUseCase` submits with
+`autoApprove`: the approval request is recorded already `APPROVED` (history `SUBMIT`, authority `AUTO`; nobody
+is asked) and the TA/DA step below runs in the same transaction, since no status change will call it later. All
+gate checks, including the approved Daily Plan, still apply, so there is no TA/DA without an approved Plan and
+a submitted DCR. When `true`, nothing changes.
+
+## Calls stay inside the day's Plan (decision-log 2026-10-03)
+
+A Doctor or Chemist Call is refused `ROUTE_NOT_IN_PLAN` unless the Doctor's or Chemist's Route is one of the approved
+Plan's `routeIds` (`CallChecks.onPlannedRoute`, after the existence/assignment checks). A meeting or conference day
+has no Routes, so no calls. Follow-ups are not route-checked. To differ from the Plan, the manager or Admin amends the
+Plan first (`planning.md`).
+
 ## When TA/DA is generated (decided 2026-09-29)
 
 At the DCR's `SUBMITTED → MANAGER_APPROVED` transition, exactly once, from the day's Plan

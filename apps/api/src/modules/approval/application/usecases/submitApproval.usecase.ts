@@ -15,6 +15,11 @@ export interface SubmitApprovalInput {
   kind: string;
   recordId: string;
   submitterId: string;
+  /**
+   * The owning module's switch says this kind needs no approval right now: the submission is recorded already `APPROVED`
+   * (authority `AUTO`) and no approver ever sees it. The owning module runs its own follow-up, as for any submit.
+   */
+  autoApprove?: boolean;
 }
 
 /**
@@ -40,6 +45,9 @@ export class SubmitApprovalUseCase {
     const existing = await this.requests.findByRecord(input.kind, input.recordId);
     const workflow = await this.workflowFor(input.kind);
     const now = new Date();
+    const auto = input.autoApprove === true;
+    const status = auto ? 'APPROVED' : 'SUBMITTED';
+    const authority = auto ? 'AUTO' : 'SUBMITTER';
 
     if (!existing) {
       return this.requests.create(
@@ -47,20 +55,20 @@ export class SubmitApprovalUseCase {
           kind: input.kind,
           recordId: input.recordId,
           submitterId: input.submitterId,
-          status: 'SUBMITTED',
+          status,
           workflow,
           cycle: 1,
           submittedAt: now,
-          decidedAt: null,
+          decidedAt: auto ? now : null,
           history: [
             {
               action: 'SUBMIT',
-              authority: 'SUBMITTER',
+              authority,
               actorId: submitter.id,
               actorRole: submitter.role,
               comment: null,
               at: now,
-              resultingStatus: 'SUBMITTED',
+              resultingStatus: status,
               cycle: 1,
             },
           ],
@@ -85,18 +93,18 @@ export class SubmitApprovalUseCase {
       existing.id,
       { status: existing.status, cycle: existing.cycle },
       {
-        status: 'SUBMITTED',
-        decidedAt: null,
+        status,
+        decidedAt: auto ? now : null,
         // Re-read, so a config change applies from the next cycle on — never mid-cycle.
         newCycle: { cycle, workflow, submittedAt: now },
         action: {
           action: 'RESUBMIT',
-          authority: 'SUBMITTER',
+          authority,
           actorId: submitter.id,
           actorRole: submitter.role,
           comment: null,
           at: now,
-          resultingStatus: 'SUBMITTED',
+          resultingStatus: status,
           cycle,
         },
       },

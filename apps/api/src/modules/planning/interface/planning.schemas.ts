@@ -60,3 +60,8 @@ export const listLateSubmitGrantsQuerySchema = z.object({
 export const requestDailyPlanChangeBodySchema = planDaySchema.extend({
   reason: z.string().trim().min(1, 'A reason is required.').max(500),
 });
+
+/** A manager's or Admin's amendment of an employee's Daily Plan: the whole day as it should be, and why. */
+export const amendDailyPlanBodySchema = planDaySchema.extend({
+  reason: z.string().trim().min(1, 'A reason is required.').max(500),
+});

@@ -1,6 +1,6 @@
 import { Types, type ClientSession } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
-import type { DailyPlan } from '../domain/dailyPlan.entity.js';
+import type { DailyPlan, PlanAmendment } from '../domain/dailyPlan.entity.js';
 import type { DailyPlanRepositoryPort } from '../domain/dailyPlan.repository.port.js';
 import type { PlanDay } from '../domain/plan.js';
 import { DailyPlanModel, type DailyPlanDoc } from './dailyPlan.schema.js';
@@ -12,6 +12,8 @@ function toPlan(doc: DailyPlanDoc & { _id: unknown }): DailyPlan {
     userId: String(doc.userId),
     planDate: doc.planDate,
     ...toPlanDay(doc),
+    source: doc.source ?? 'MANUAL',
+    amendments: (doc.amendments ?? []).map((a) => ({ by: String(a.by), at: a.at, reason: a.reason, previous: toPlanDay(a.previous) })),
     revision: doc.revision,
     lateResubmits: doc.lateResubmits ?? 0,
     updatedAt: doc.updatedAt,
@@ -52,6 +54,28 @@ export class MongoDailyPlanAdapter implements DailyPlanRepositoryPort {
     const doc = await DailyPlanModel.findOneAndUpdate(
       { userId: new Types.ObjectId(userId), planDate, revision: expectedRevision },
       { $set: body, $inc: { revision: 1 } },
+      { new: true },
+    ).lean();
+    return doc ? toPlan(doc) : null;
+  }
+
+  async createInherited(userId: string, planDate: string, day: PlanDay, ctx: TransactionContext): Promise<boolean> {
+    const result = await DailyPlanModel.updateOne(
+      { userId: new Types.ObjectId(userId), planDate },
+      { $setOnInsert: { ...toDayDoc(day), source: 'MONTHLY', amendments: [], revision: 1, lateResubmits: 0, updatedAt: new Date() } },
+      { upsert: true, session: ctx as ClientSession },
+    );
+    return result.upsertedCount === 1;
+  }
+
+  async amend(id: string, expectedRevision: number, day: PlanDay, amendment: PlanAmendment): Promise<DailyPlan | null> {
+    const doc = await DailyPlanModel.findOneAndUpdate(
+      { _id: id, revision: expectedRevision },
+      {
+        $set: { ...toDayDoc(day), updatedAt: amendment.at },
+        $push: { amendments: { by: new Types.ObjectId(amendment.by), at: amendment.at, reason: amendment.reason, previous: toDayDoc(amendment.previous) } },
+        $inc: { revision: 1 },
+      },
       { new: true },
     ).lean();
     return doc ? toPlan(doc) : null;

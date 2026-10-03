@@ -122,4 +122,5 @@ endpoint, which calls `contract.submit`.
 
 - **Notifications** on submit/decision (client sign-off F8).
 - **Delegation** ("my deputy approves while I'm on leave") — Admin's override covers it for now.
-- **Per-kind SLAs / auto-escalation** after N days — not asked for.
+- **Auto-escalation / auto-approval** after N days — not wanted: the client asked for a flag only (2026-10-03). `APPROVAL_SLA_DAYS` (seed `3`) gives every open request `dueAt` (the stage's start + N days; from submit at Stage 1, from the manager's approval at the final stage) and `overdue` on the list/detail views. Computed on read, so a config change applies to requests already waiting. Admin's ability to act is unchanged.
+- **Auto-approved submit** — `SubmitApprovalInput.autoApprove` records the submission already `APPROVED` with authority `AUTO` and one history entry. The owning module decides when (the DCR switch) and runs its own follow-up, since no status change fires.

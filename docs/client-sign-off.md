@@ -39,6 +39,10 @@ applies because the design changed (the decision-log entry says how).
 | B7 | Attendance: is a day "present" on DCR **submit** or on DCR **approval** (§10.1)? | Not decided | Open |
 | B8 | A Plan submitted after its deadline: refused, or accepted and flagged? | Refused, resubmits included — except that after a rejection the employee has a window: Daily 30 min, never after 11:30; Monthly 24 h, never after the month starts; at most 2 per Plan (all *config*). Beyond that, Admin (and a manager, if *config* `LATE_PLAN_GRANT_BY_MANAGER` is on) can grant a one-off exception for one Plan, valid for `LATE_PLAN_GRANT_VALID_HOURS` (*config*, 24) | Built |
 | B9 | In-day changes to an approved Daily Plan (§2.6): who approves, on which days, how often? | Built and **confirmed 2026-09-29**: the employee's manager alone approves (Admin can override; top-of-chain goes to Admin); only today's plan, while its gate is open; a reason is required; one waiting change at a time; at most 3 applied per plan (*config* `DAILY_PLAN_CHANGE_MAX`); the plan stays approved and unchanged until the manager says yes | Accepted 2026-09-29 |
+| B10 | Does a submitted DCR need approval? | A global switch, `DCR_APPROVAL_REQUIRED` (*config*, default on). Off: approved on submit, TA/DA generated then. The day's Plan must still be approved | Built 2026-10-03 (client's call) |
+| B11 | How do Daily Plans relate to the Monthly Plan? | Written from the approved Monthly Plan as drafts. The employee can't edit them but still submits each day, and the manager still approves. A manager above them or Admin can amend a day on request (reason kept) until that day's DCR is submitted | Built 2026-10-03 (client's call) |
+| B12 | Can a DCR depart from the day's Plan? | No: a call on a Route the approved Plan doesn't list is refused (`ROUTE_NOT_IN_PLAN`). The manager/Admin amends the plan first | Built 2026-10-03 (client's call; was open — flag instead of refuse is a possible setting) |
+| B13 | How long does an approver have? | 3 days (*config* `APPROVAL_SLA_DAYS`), measured per stage. Then the request is flagged overdue; nothing is auto-approved and Admin can always approve | Built 2026-10-03 (client's call) |
 
 ## C. Doctors, Chemists & Distributors (Phase 4)
 
@@ -70,7 +74,7 @@ applies because the design changed (the decision-log entry says how).
 
 | # | Question | Today | Status |
 |---|---|---|---|
-| E1 | Monthly stock entry deadline for Primary and Secondary Sales (§14.5, §15.4). | The **last day of the month** the counts are for (28/29/30/31); `MONTHLY_STOCK_GRACE_DAYS` (default 0) can extend it. Chemists and Distributors alike | Designed 2026-09-30 (working assumption, awaiting client; was "5th of the following month") |
+| E1 | Monthly stock entry deadline for Primary and Secondary Sales (§14.5, §15.4). | The **5th of the following month** (*config* `MONTHLY_STOCK_DEADLINE_DAY`, default 5, 1–28), for Chemists and Distributors alike | Built 2026-10-03 (client's call; replaces the 2026-09-30 "last day + grace days" assumption) |
 | E2 | After the deadline, can entries be re-opened? By Admin only, or through an approval? | Admin-only unlock, per month. After the deadline an entry is refused (409); the manager and Admin are shown which outlets are missing. **No DCR block** | Designed |
 | E3 | Who enters Primary Sales: MR, ASM, or RSM (§14, S6 "configurable")? | Not decided | Open |
 | E4 | Required fields for Primary (opening / purchase / closing, qty and/or value) and Secondary (§14–15). | Opening + closing qty per product | Designed |

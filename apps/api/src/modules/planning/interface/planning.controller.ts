@@ -5,6 +5,7 @@ import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { Actor } from '../application/planAccess.js';
+import type { AmendDailyPlanUseCase } from '../application/usecases/amendDailyPlan.usecase.js';
 import type { GetDailyPlanUseCase } from '../application/usecases/getDailyPlan.usecase.js';
 import type { GetMonthlyPlanUseCase } from '../application/usecases/getMonthlyPlan.usecase.js';
 import type { GrantLateSubmitUseCase } from '../application/usecases/grantLateSubmit.usecase.js';
@@ -19,6 +20,7 @@ import type { SaveMonthlyPlanUseCase } from '../application/usecases/saveMonthly
 import type { SubmitDailyPlanUseCase } from '../application/usecases/submitDailyPlan.usecase.js';
 import type { SubmitMonthlyPlanUseCase } from '../application/usecases/submitMonthlyPlan.usecase.js';
 import type {
+  amendDailyPlanBodySchema,
   grantLateSubmitBodySchema,
   listDailyPlansQuerySchema,
   listLateSubmitGrantsQuerySchema,
@@ -53,6 +55,7 @@ export type PlanningHandlers = Record<
   | 'listLateGrants'
   | 'revokeLate'
   | 'requestChange'
+  | 'amendDaily'
   | 'listChanges'
   | 'getChange',
   RequestHandler
@@ -60,6 +63,7 @@ export type PlanningHandlers = Record<
 
 export function makePlanningControllers(useCases: {
   requestChange: RequestDailyPlanChangeUseCase;
+  amendDaily: AmendDailyPlanUseCase;
   listChanges: ListDailyPlanChangesUseCase;
   getChange: GetDailyPlanChangeUseCase;
   saveDaily: SaveDailyPlanUseCase;
@@ -122,6 +126,11 @@ export function makePlanningControllers(useCases: {
       const { reason, ...day } = req.body as z.output<typeof requestDailyPlanChangeBodySchema>;
       const change = await useCases.requestChange.execute(actorOf(req).id, requiredParam(req.params, 'id'), day, reason);
       sendSuccess(req, res, change, 'Change sent to your manager for approval.', 201);
+    }),
+    amendDaily: asyncHandler(async (req, res) => {
+      const { reason, ...day } = req.body as z.output<typeof amendDailyPlanBodySchema>;
+      const plan = await useCases.amendDaily.execute(actorOf(req), requiredParam(req.params, 'id'), day, reason);
+      sendSuccess(req, res, plan, 'Plan amended.', 200);
     }),
     listChanges: asyncHandler(async (req, res) => {
       const changes = await useCases.listChanges.execute(actorOf(req), requiredParam(req.params, 'id'));

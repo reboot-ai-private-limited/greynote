@@ -5,7 +5,7 @@ import { logger } from '@/shared/logging/logger.js';
 
 /**
  * The month-end stock check (docs/LLD/sales-and-orders.md, *Monthly stock*). The application has no scheduler; the
- * operator's cron runs this on the 1st (or the day after any grace period):
+ * operator's cron runs this the day after the deadline day (`MONTHLY_STOCK_DEADLINE_DAY`, default the 5th, so on the 6th):
  *
  *   pnpm --filter @greynote/api stock-check:run [--month YYYY-MM]   (dev, via tsx)
  *   node dist/scripts/run-stock-check.js [--month YYYY-MM]          (prod, inside the container)

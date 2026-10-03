@@ -24,10 +24,23 @@ export interface PlanStateDto {
   lateSubmitAllowedUntil: string | null;
 }
 
+/** A manager's or Admin's change to a day, with what it replaced. */
+export interface PlanAmendmentDto {
+  /** User id of the manager or Admin. */
+  by: string;
+  at: string;
+  reason: string;
+  previous: PlanDayDto;
+}
+
 export interface DailyPlanDto extends PlanDayDto, PlanStateDto {
   id: string;
   userId: string;
   planDate: string;
+  /** `MONTHLY`: written from the approved monthly plan — the owner submits it as it is and can't edit it. */
+  source: 'MANUAL' | 'MONTHLY';
+  /** Oldest first. */
+  amendments: PlanAmendmentDto[];
   /** Bumped on every save. */
   revision: number;
   updatedAt: string;

@@ -129,7 +129,8 @@ const CHANGE: ApprovalKindDefinition = { kind: 'TEST_CHANGE', finalApproverRoles
 
 /** The `APPROVAL_MANAGER_ONLY_KINDS` value; TEST_QUICK skips the final stage. */
 let managerOnlyKinds: string;
-const config: ConfigProviderPort = { get: async () => managerOnlyKinds };
+let slaDays = '3';
+const config: ConfigProviderPort = { get: async (key) => (key === 'APPROVAL_SLA_DAYS' ? slaDays : managerOnlyKinds) };
 
 let requests: FakeRequests;
 let transactions: FakeTransactions;
@@ -147,6 +148,7 @@ beforeEach(() => {
   faults = [];
   managerOf = { mr: 'asm', asm: 'nsm', asm2: 'nsm', nsm: null };
   managerOnlyKinds = ' test_quick , NONE';
+  slaDays = '3';
   changes = [];
   handlerFails = false;
   requests = new FakeRequests();
@@ -157,8 +159,8 @@ beforeEach(() => {
   decide = new DecideApprovalUseCase(requests, users, kinds, transactions);
   withdraw = new WithdrawApprovalUseCase(requests, kinds, transactions);
   reopen = new ReopenApprovalUseCase(requests, kinds, transactions);
-  lists = new ListApprovalsUseCase(requests, users, kinds);
-  detail = new GetApprovalDetailUseCase(requests, users, kinds);
+  lists = new ListApprovalsUseCase(requests, users, kinds, config);
+  detail = new GetApprovalDetailUseCase(requests, users, kinds, config);
   bulk = new BulkDecideApprovalUseCase(decide, (requestId, err) => faults.push({ requestId, err }));
 });
 
@@ -593,5 +595,60 @@ describe('list date range', () => {
       statusCode: 400,
       publicDetails: { field: 'to' },
     });
+  });
+});
+
+const PAGE = { page: 1, pageSize: 20 };
+
+describe('approver turnaround (APPROVAL_SLA_DAYS)', () => {
+  const DAY = 86_400_000;
+  const age = (id: string, days: number) => {
+    const r = requests.rows.get(id)!;
+    requests.rows.set(id, { ...r, submittedAt: new Date(Date.now() - days * DAY) });
+  };
+  const inboxItem = async (actor: string) => (await lists.inbox(as(actor), {}, PAGE)).items[0]!;
+
+  it('is only a flag: past the SLA it shows overdue and can still be acted on by the manager and Admin', async () => {
+    const req = await submitAs('mr');
+    expect(await inboxItem('asm')).toMatchObject({ overdue: false });
+    age(req.id, 4);
+    expect(await inboxItem('asm')).toMatchObject({ overdue: true, canAct: true });
+    expect((await inboxItem('admin')).canAct).toBe(true);
+    expect((await approve(req.id, 'asm')).status).toBe('MANAGER_APPROVED');
+  });
+
+  it('the days come from config, read on every call', async () => {
+    const req = await submitAs('mr');
+    age(req.id, 2);
+    expect((await inboxItem('asm')).overdue).toBe(false);
+    slaDays = '1';
+    const item = await inboxItem('asm');
+    expect(item.overdue).toBe(true);
+    expect(item.dueAt?.getTime()).toBe(requests.rows.get(req.id)!.submittedAt.getTime() + DAY);
+  });
+
+  it('a decided request is never overdue and has no due date', async () => {
+    const req = await submitAs('mr');
+    age(req.id, 10);
+    await approve(req.id, 'asm');
+    await approve(req.id, 'admin');
+    expect(await detail.execute(req.id, as('mr'))).toMatchObject({ overdue: false, dueAt: null });
+  });
+
+  it('waiting on the final approver, the clock runs from the manager’s approval', async () => {
+    const req = await submitAs('mr');
+    age(req.id, 10);
+    await approve(req.id, 'asm');
+    expect(await detail.execute(req.id, as('admin'))).toMatchObject({ status: 'MANAGER_APPROVED', overdue: false });
+  });
+});
+
+describe('autoApprove submit', () => {
+  it('records the submission already APPROVED by AUTO authority and needs no approver', async () => {
+    const req = await submit.execute({ kind: PLAN.kind, recordId: 'auto-1', submitterId: 'mr', autoApprove: true });
+    expect(req.status).toBe('APPROVED');
+    expect(req.decidedAt).toBeInstanceOf(Date);
+    expect(req.history.map((h) => [h.action, h.authority, h.resultingStatus])).toEqual([['SUBMIT', 'AUTO', 'APPROVED']]);
+    expect((await lists.inbox(as('asm'), {}, PAGE)).items).toHaveLength(0);
   });
 });

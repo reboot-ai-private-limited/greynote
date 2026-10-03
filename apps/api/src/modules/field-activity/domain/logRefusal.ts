@@ -5,6 +5,7 @@ export const LOG_CODES = {
   doctorNotAssigned: 'DOCTOR_NOT_ASSIGNED',
   chemistNotFound: 'CHEMIST_NOT_FOUND',
   chemistRouteNotAssigned: 'CHEMIST_ROUTE_NOT_ASSIGNED',
+  routeNotInPlan: 'ROUTE_NOT_IN_PLAN',
   invalidWorkWith: 'INVALID_WORK_WITH',
   noSampleAllocation: 'NO_SAMPLE_ALLOCATION',
   samplesExhausted: 'SAMPLES_EXHAUSTED',

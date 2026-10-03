@@ -30,8 +30,10 @@ const HISTORICAL_DEFAULTS: Record<string, string> = {
   SYNC_MAX_AGE_DAYS: '7',
   SYNC_CLOCK_SKEW_MINUTES: '10',
   DCR_MISS_BLOCK_ENABLED: 'true',
+  DCR_APPROVAL_REQUIRED: 'true',
+  APPROVAL_SLA_DAYS: '3',
   DCR_MISS_GRACE_DAYS: '1',
-  MONTHLY_STOCK_GRACE_DAYS: '0',
+  MONTHLY_STOCK_DEADLINE_DAY: '5',
   APPROVAL_MANAGER_ONLY_KINDS: 'NONE',
 };
 
@@ -71,7 +73,7 @@ describe('the definitions registry', () => {
 
   it('says what moves for every high-impact setting', () => {
     const high = CONFIG_DEFINITIONS.filter((d) => d.impact === 'HIGH');
-    expect(high.map((d) => d.key).sort()).toEqual(['APPROVAL_MANAGER_ONLY_KINDS', 'BUSINESS_TIMEZONE', 'DCR_MISS_BLOCK_ENABLED', 'FY_START_MONTH', 'WEEKLY_OFF_DAY']);
+    expect(high.map((d) => d.key).sort()).toEqual(['APPROVAL_MANAGER_ONLY_KINDS', 'BUSINESS_TIMEZONE', 'DCR_APPROVAL_REQUIRED', 'DCR_MISS_BLOCK_ENABLED', 'FY_START_MONTH', 'WEEKLY_OFF_DAY']);
     for (const d of high) expect(d.impactNote?.length, d.key).toBeGreaterThan(20);
   });
 });
@@ -98,7 +100,8 @@ describe('validateConfigValue', () => {
     expect(validateConfigValue(def('PLAN_RESUBMIT_GRACE_MAX'), '100').ok).toBe(false);
     expect(validateConfigValue(def('MAX_REGISTERED_DEVICES_FIELD'), '0').ok).toBe(false);
     expect(validateConfigValue(def('MONTHLY_PLAN_SUBMIT_CUTOFF_DATE'), '32').ok).toBe(false);
-    expect(validateConfigValue(def('MONTHLY_STOCK_GRACE_DAYS'), '32').ok).toBe(false);
+    expect(validateConfigValue(def('MONTHLY_STOCK_DEADLINE_DAY'), '0').ok).toBe(false);
+    expect(validateConfigValue(def('MONTHLY_STOCK_DEADLINE_DAY'), '29').ok).toBe(false);
   });
 
   it('reads a time exactly as the system does: HH:MM, 24-hour, two digits each', () => {

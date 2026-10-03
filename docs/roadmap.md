@@ -706,6 +706,17 @@ you have, the same discipline driverzone's own roadmap holds to for its pilot ph
 
 ---
 
+## Change after the backend phases — plans, DCR approval, SLA, stock deadline (2026-10-03)
+
+Decision-log 2026-10-03, sign-off B10–B13 and E1. Backend **done 2026-10-03**: `DCR_APPROVAL_REQUIRED` switch and the
+`AUTO` approval; Daily Plans inherited from the approved Monthly Plan (`source`, `amendments`, `PATCH /planning/daily/:id/amend`,
+`migrate:inherit-monthly`); `ROUTE_NOT_IN_PLAN` on calls; `APPROVAL_SLA_DAYS` with `dueAt`/`overdue` on approvals;
+`MONTHLY_STOCK_DEADLINE_DAY` replacing the grace days. Web: the overdue badge is in; the three new settings appear on the
+Settings screen by themselves. **Still to do:** a web/app screen for a manager to find a team member's day and amend it (needs a
+team-plans list endpoint), the app's read-only inherited-day behaviour, and a browser check.
+
+---
+
 ## Sequencing rules
 
 1. **Shared mechanisms before their consumers, not alongside them.** The Approval Workflow

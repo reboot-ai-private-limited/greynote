@@ -1,5 +1,5 @@
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
-import type { DailyPlan } from './dailyPlan.entity.js';
+import type { DailyPlan, PlanAmendment } from './dailyPlan.entity.js';
 import type { PlanDay } from './plan.js';
 
 export interface DailyPlanRepositoryPort {
@@ -12,6 +12,16 @@ export interface DailyPlanRepositoryPort {
    * `expectedRevision`, bumping `revision`. `null` when it moved on (or was created meanwhile).
    */
   save(userId: string, planDate: string, day: PlanDay, expectedRevision: number | null): Promise<DailyPlan | null>;
+  /**
+   * Inside the Monthly Plan's approval transaction: creates the day's plan from the Monthly entry (`source: MONTHLY`) unless one
+   * exists for that day, in which case nothing changes. Returns whether it created one.
+   */
+  createInherited(userId: string, planDate: string, day: PlanDay, ctx: TransactionContext): Promise<boolean>;
+  /**
+   * A manager's or Admin's amendment: replaces the body and appends `amendment`, bumping `revision`, only if the plan is still
+   * at `expectedRevision`. `null` when it moved on.
+   */
+  amend(id: string, expectedRevision: number, day: PlanDay, amendment: PlanAmendment): Promise<DailyPlan | null>;
   /**
    * Inside an approval's transaction: replaces the plan's body with an approved in-day change, but
    * only if the plan is still at `revision` (the one the change was made against), bumping it.

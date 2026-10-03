@@ -7,6 +7,8 @@ export interface MonthlyPlanRepositoryPort {
   findByUserAndMonth(userId: string, planMonth: string): Promise<MonthlyPlan | null>;
   /** Both ends inclusive, oldest first. */
   listForUser(userId: string, fromMonth: string, toMonth: string): Promise<MonthlyPlan[]>;
+  /** Every user's Monthly Plan for this month and later. For the one-off backfill. */
+  listFromMonth(planMonth: string): Promise<MonthlyPlan[]>;
   save(
     userId: string,
     planMonth: string,

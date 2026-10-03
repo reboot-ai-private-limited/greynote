@@ -161,6 +161,28 @@ this doc does not re-derive that state machine. As it applies here:
 - Approve/reject, the team view, Admin's org-wide queue and history are the approval module's
   `/api/approvals/*` endpoints — Planning has none of its own.
 
+## Daily Plans inherit from the Monthly Plan (decision-log 2026-10-03)
+
+The `MONTHLY_PLAN` kind's `onStatusChange` (`monthlyPlanInheritHandler.ts`) runs in the approval's
+transaction once the month is `MANAGER_APPROVED` or `APPROVED`. For every entry from **today on** it creates
+that day's `DailyPlan` — `source: MONTHLY`, a draft with no approval request — unless the day already has one.
+Safe to repeat: a re-approved month refreshes only inherited days that were never submitted (or came back for
+changes) and were never amended; submitted, approved, employee-written (`MANUAL`) and amended days are left alone.
+
+- **Inheriting approves nothing.** The employee **submits every day** (the 10:00 cutoff, late rules and
+  exceptions apply unchanged) and the manager approves it; the DCR gate still needs the day approved.
+- **The owner can't edit an inherited day:** `POST /planning/daily` for it is `409` with
+  `reason: PLAN_INHERITED_READONLY`. They submit it as it is. A day the month didn't cover is written by the owner (`MANUAL`).
+- **Amend** — `PATCH /planning/daily/:id/amend` `{ …the whole day, reason }`. Allowed for Admin and for anyone above the
+  employee in the chain; never the employee (`403`), never outside the chain (`404`). Validated like a submit (the
+  employee's own active routes and colleagues). Appends `{ by, at, reason, previous }` to `amendments` and bumps
+  `revision`; the plan's approval is untouched, so an approved day stays approved. Refused (`409`) for a day that is
+  over, and once that day's DCR is submitted (`reason: PLAN_DAY_REPORTED`) because TA/DA follows the plan's routes —
+  Admin reopens the DCR first. The DCR check is handed back to Planning after both modules are built
+  (`bindDayReported`) and fails closed until bound.
+- The in-day change request below stays as the employee's way to **ask** for a change to today's approved plan.
+- Plans approved before this change get their days from the one-off `migrate:inherit-monthly`.
+
 ## In-day changes to an approved Daily Plan
 
 Client §2.6: the day's plan can change during the day, and the manager decides. Only Admin can
@@ -205,6 +227,7 @@ employee's change goes to Admin. These are working assumptions (sign-off B9), no
 | `GET` | `/planning/daily/:id` | FIELD, manager (read-only per visibility rules) | Fetch one |
 | `POST` | `/planning/monthly` | FIELD | Save/update a Monthly Plan and its entries |
 | `POST` | `/planning/monthly/:id/submit` | FIELD | Submit the whole month |
+| `PATCH` | `/planning/daily/:id/amend` | FIELD (owner's managers), ADMIN | Amend an employee's day, with a reason; the old body is kept |
 | `POST` | `/planning/daily/:id/changes` | FIELD (owner) | Ask to change today's approved plan — to the manager, with a reason |
 | `GET` | `/planning/daily/:id/changes` | FIELD (owner, managers), ADMIN | A plan's in-day changes with their approval status |
 | `GET` | `/planning/changes/:id` | FIELD (owner, managers), ADMIN | One change by its own id (an approval request's `recordId`) |

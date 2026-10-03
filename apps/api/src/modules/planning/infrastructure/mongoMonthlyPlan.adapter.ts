@@ -41,6 +41,11 @@ export class MongoMonthlyPlanAdapter implements MonthlyPlanRepositoryPort {
     return docs.map(toPlan);
   }
 
+  async listFromMonth(planMonth: string): Promise<MonthlyPlan[]> {
+    const docs = await MonthlyPlanModel.find({ planMonth: { $gte: planMonth } }).sort({ planMonth: 1 }).lean();
+    return docs.map(toPlan);
+  }
+
   async save(
     userId: string,
     planMonth: string,

@@ -4,7 +4,8 @@ import type { ApprovalRequestRepositoryPort } from '../../domain/approvalRequest
 import type { Actor } from '../../domain/approvalRules.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { ApprovalKindRegistry } from '../approvalKindRegistry.js';
-import { canActOn, loadPeople, toListItem, toPersonRef, type ApprovalListItem, type PersonRef } from '../approvalViews.js';
+import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
+import { canActOn, loadPeople, loadSlaDays, toListItem, toPersonRef, type ApprovalListItem, type PersonRef } from '../approvalViews.js';
 
 export type ApprovalDetail = ApprovalListItem & {
   history: Array<Omit<ApprovalAction, 'actorId'> & { actor: PersonRef | null }>;
@@ -23,6 +24,7 @@ export class GetApprovalDetailUseCase {
     private readonly requests: ApprovalRequestRepositoryPort,
     private readonly users: UserDirectoryPort,
     private readonly kinds: ApprovalKindRegistry,
+    private readonly config: ConfigProviderPort,
   ) {}
 
   async execute(requestId: string, actor: Actor): Promise<ApprovalDetail> {
@@ -39,7 +41,7 @@ export class GetApprovalDetailUseCase {
 
     const people = await loadPeople(this.users, [request]);
     return {
-      ...toListItem(request, actor, people, this.kinds),
+      ...toListItem(request, actor, people, this.kinds, { days: await loadSlaDays(this.config), now: new Date() }),
       canAct: canActOn(request, actor, people.get(request.submitterId), kind),
       history: request.history.map(({ actorId, ...rest }) => ({ ...rest, actor: toPersonRef(people.get(actorId)) })),
       canWithdraw: actor.id === request.submitterId && request.status === 'SUBMITTED',

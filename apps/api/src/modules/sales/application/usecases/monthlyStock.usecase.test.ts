@@ -81,8 +81,14 @@ describe('monthly stock', () => {
     expect(stock.rows.size).toBe(0);
   });
 
-  it('refuses after the last day, until an Admin unlocks that month', async () => {
-    now = new Date('2026-10-01T00:00:01+05:30');
+  it('accepts through the deadline day of the next month', async () => {
+    now = new Date('2026-10-05T23:59:00+05:30');
+    await record.execute(mr1, { outlet: { type: 'CHEMIST', id: 'chem1' }, month: '2026-09', lines: [line()] });
+    expect(stock.rows.size).toBe(1);
+  });
+
+  it('refuses after the deadline day, until an Admin unlocks that month', async () => {
+    now = new Date('2026-10-06T00:00:01+05:30');
     const input = { outlet: { type: 'CHEMIST', id: 'chem1' } as Outlet, month: '2026-09', lines: [line()] };
     expect(await code(record.execute(mr1, input))).toBe(STOCK_CODES.monthClosed);
     await new UnlockMonthUseCase(stock, clock()).execute('admin', '2026-09');
