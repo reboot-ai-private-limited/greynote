@@ -205,7 +205,8 @@ dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-l
 | `POST` | `/api/identity/users/:id/devices/:deviceRowId/reject` | Admin only | `PENDING` → `REJECTED` until `REJECTED_DEVICE_TTL_DAYS` pass |
 | `DELETE` | `/api/identity/users/:id/devices/:deviceRowId` | Admin only | `REGISTERED` → `REMOVED` and end its sessions (one transaction); frees a slot |
 | `POST` | `/api/identity/users/:id/devices/:deviceRowId/logout` | Admin only | End that phone's sessions; it stays registered |
-| `GET`/`POST`/`PATCH` | `/api/identity/roles`, `/designations`, `/pay-bands` | Admin | Master-data CRUD |
+| `GET`/`POST`/`PATCH` | `/api/identity/roles` | Admin | Master-data CRUD (a fixed set of four names) |
+| `GET`/`POST`/`PATCH` | `/api/identity/designations`, `/pay-bands` | Admin, HR | Master-data CRUD. `GET /pay-bands` is also open to the Accountant (view-only pay grades, PRD §5.3) |
 
 Passwords are capped at 72 bytes (UTF-8) and rejected, not truncated, above that — bcrypt's own
 input limit; see `docs/decision-log.md`, 2026-09-23.

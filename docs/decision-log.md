@@ -17,6 +17,20 @@ old one.
 
 ---
 
+## 2026-10-03 — HR manages Designations and Pay Bands; the Accountant can read Pay Bands
+
+**Decision:** `GET/POST/PATCH /designations` and `/pay-bands` are open to **Admin and HR** (were Admin only). `GET /pay-bands`
+is also open to the **Accountant**, read only. `/roles` stays Admin only; it is a fixed set of four names.
+
+**Why:** PRD §5.3 gives HR the Employee Lifecycle (assign Designation and Pay Band) and the Accountant view-only access to pay
+grades. With Admin-only reads, HR could not fill the pickers needed to complete a FIELD employee's profile. The client confirmed
+HR also maintains these records.
+
+**Cost:** HR can change the rates behind future TA/DA and payroll runs. A finalized PayrollRun is unaffected, because it
+snapshots `base_salary` at generation (Phase 7).
+
+---
+
 ## 2026-10-01 — Routes screens: full pages, map preview with its own browser key
 
 **Decision:** Territory Routes get a list page, a create page and a detail page (details, stops & distance, assigned MRs)

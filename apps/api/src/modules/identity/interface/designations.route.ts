@@ -18,7 +18,7 @@ openApiRegistry.registerPath({
   method: 'get',
   path: '/api/identity/designations',
   tags: ['Identity / Designations'],
-  summary: 'Admin: list designations',
+  summary: 'Admin/HR: list designations',
   security: [{ bearerAuth: [] }],
   responses: { 200: { description: 'Designations listed' } },
 });
@@ -26,7 +26,7 @@ openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/designations',
   tags: ['Identity / Designations'],
-  summary: 'Admin: create a designation',
+  summary: 'Admin/HR: create a designation',
   security: [{ bearerAuth: [] }],
   request: { body: { content: { 'application/json': { schema: createDesignationBodySchema } } } },
   responses: { 201: { description: 'Designation created' } },
@@ -35,7 +35,7 @@ openApiRegistry.registerPath({
   method: 'patch',
   path: '/api/identity/designations/{id}',
   tags: ['Identity / Designations'],
-  summary: 'Admin: update a designation',
+  summary: 'Admin/HR: update a designation',
   security: [{ bearerAuth: [] }],
   request: {
     params: masterDataIdParamsSchema,
@@ -55,18 +55,18 @@ export function buildDesignationsRouter(useCases: {
     'Designation',
   );
 
-  router.get('/', authenticate(), requireRole('ADMIN'), controller.list);
+  router.get('/', authenticate(), requireRole('ADMIN', 'HR'), controller.list);
   router.post(
     '/',
     authenticate(),
-    requireRole('ADMIN'),
+    requireRole('ADMIN', 'HR'),
     validate({ body: createDesignationBodySchema }),
     controller.create,
   );
   router.patch(
     '/:id',
     authenticate(),
-    requireRole('ADMIN'),
+    requireRole('ADMIN', 'HR'),
     validate({ params: masterDataIdParamsSchema, body: updateDesignationBodySchema }),
     controller.update,
   );
