@@ -12,6 +12,7 @@ import {
   Pill,
   Receipt,
   Route,
+  Settings2,
   Smartphone,
   Stethoscope,
   Truck,
@@ -52,6 +53,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Approvals', href: '/approvals', icon: ClipboardCheck, group: 'Operations', roles: ['ADMIN', 'HR'] },
   { label: 'Expenses', href: '/expenses', icon: Receipt, group: 'Operations', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Payroll', href: '/payroll', icon: Banknote, group: 'Operations', roles: ['ADMIN', 'ACCOUNTANT'] },
+  { label: 'System settings', href: '/settings', icon: Settings2, group: 'System', roles: ['ADMIN'] },
 ];
 
 export function navFor(role: RoleName): readonly NavItem[] {

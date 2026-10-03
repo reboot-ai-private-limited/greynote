@@ -80,6 +80,15 @@ describe('Payroll', () => {
   });
 });
 
+describe('System settings', () => {
+  it('is built and Admin-only: HR and the Accountant never see it', () => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/settings');
+    expect(navFor('HR').map((i) => i.href)).not.toContain('/settings');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/settings');
+    expect(isRouteBuilt('/settings')).toBe(true);
+  });
+});
+
 describe('Devices', () => {
   it('is an Admin-only screen, since the device API is', () => {
     expect(navFor('ADMIN').map((i) => i.href)).toContain('/devices');

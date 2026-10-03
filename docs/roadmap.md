@@ -638,6 +638,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   signed-in user). See the decision log. The web has the wire types, API calls, keys and tested rules (grouping, search, a mirror of the server's checks,
   normalising a draft, "is it changed", and the confirmation for a high-impact change). Planned: `/settings` for Admin, then the portal reading the
   financial-year start month and timezone from the server instead of assuming April and Indian time.
+  **`/settings` built (2026-10-03, Admin only):** settings in sections by module with a search box, each with a control for its type (a switch, a number with its unit,
+  a time, a month or weekday list, a timezone with suggestions, the approval kinds), its range, its default, and who last changed it and when. Each is saved on
+  its own with *Save* (never automatically), with *Discard* and *Reset to default*; a quick check catches a mistake before a request and the server's own message is shown
+  if it disagrees. A **high-impact** setting (timezone, financial-year start month, weekly day off, the missed-report block, manager-only approvals) shows
+  what moves and the change (`April → January`) and asks first. A stored value that breaks its own rules is marked, explained, and counted in a banner. In a past
+  financial year the controls are disabled. The nav item is Admin-only. Verified by typecheck, lint and 509 tests; **not yet exercised against the live API.**
   **Phase 9 status:** Territory, Employees, Field master data, Approvals, HR and the Accountant screens are built. Still to do from the Phase 9 list:
   Reports (DCR, TP, Gift and Sales) and a screen for the System Config settings (no HTTP surface yet); then a live run of the whole portal against
   the real API.
