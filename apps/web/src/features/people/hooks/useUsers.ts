@@ -1,6 +1,6 @@
 'use client';
 
-import type { CreateUserDto, UpdateUserDto, UserListItemDto } from '@greynote/contracts';
+import type { CreateUserDto, UpdateUserDto, UserDocumentDto, UserListItemDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { identityApi, type ListUsersQuery } from '@/lib/api/endpoints/identity';
 import { timing } from '@/lib/hooks/timing';
@@ -62,4 +62,22 @@ export function useManagerCandidates(term: string, enabled: boolean) {
       enabled,
     }),
   );
+}
+
+export function useUploadDocument(userId: string, onDone: () => void) {
+  return useApiMutation<FormData, UserDocumentDto>({
+    call: (token, form) => identityApi.uploadDocument(token, userId, form),
+    invalidates: [keys.users.all()],
+    successMessage: 'Document uploaded.',
+    onSuccess: onDone,
+  });
+}
+
+export function useRemoveDocument(userId: string, onDone: () => void) {
+  return useApiMutation<string>({
+    call: (token, documentId) => identityApi.removeDocument(token, userId, documentId),
+    invalidates: [keys.users.all()],
+    successMessage: 'Document removed.',
+    onSuccess: onDone,
+  });
 }

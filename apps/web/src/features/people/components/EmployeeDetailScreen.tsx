@@ -15,6 +15,7 @@ import { missingForActive } from '../lib/profile';
 import { ROLE_LABEL, STATUS_LABEL, STATUS_TONE } from '../lib/user';
 import { AddressSection } from './AddressSection';
 import { BankSection } from './BankSection';
+import { DocumentsSection } from './DocumentsSection';
 import { BasicSection } from './BasicSection';
 import { Field, FieldList } from './SectionCard';
 import { WorkSection } from './WorkSection';
@@ -67,6 +68,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 <TabsList>
                   <TabsTrigger value="profile">Profile</TabsTrigger>
                   <TabsTrigger value="bank">Bank</TabsTrigger>
+                  <TabsTrigger value="documents">Documents</TabsTrigger>
                 </TabsList>
                 <TabsContent value="profile" className="mt-6 space-y-6">
                   <BasicSection user={user} readOnly={readOnly} />
@@ -75,6 +77,9 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 </TabsContent>
                 <TabsContent value="bank" className="mt-6">
                   <BankSection user={user} readOnly={readOnly} />
+                </TabsContent>
+                <TabsContent value="documents" className="mt-6">
+                  <DocumentsSection user={user} readOnly={readOnly} />
                 </TabsContent>
               </Tabs>
             ) : (

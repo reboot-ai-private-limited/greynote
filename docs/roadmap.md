@@ -474,8 +474,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   lint, 221 tests and `next build`; **not yet exercised against the live API.**
   **Two API gaps found and fixed the same day (decision-log 2026-10-03):** a manager can no longer be the employee or someone in their
   own downline, and the optional fields (guardian, qualification, joining date) can be cleared with `null`.
-  Next: Documents, then Devices, then Security (reset password, unblock, deactivate); then master data, HR, approvals,
-  expenses/payroll — one module at a time.
+  **Documents tab built (2026-10-03):** upload with a type (Aadhaar, PAN, cancelled cheque, qualification, offer letter, other) and a
+  file, remove with a confirmation, and open a document in a new tab. The web refuses a file that is not a PDF, JPG or PNG, or is empty or over
+  10 MB, before anything is uploaded; the API's own check is the 10 MB limit only. The API client now sends a `FormData` body untouched.
+  Verified by typecheck, lint, 234 tests and `next build`; **not yet exercised against the live API or Cloudinary.**
+  Next: Devices, then Security (reset password, unblock, deactivate); then master data, HR, approvals, expenses/payroll — one module
+  at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

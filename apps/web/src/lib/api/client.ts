@@ -20,6 +20,16 @@ export interface RequestOptions {
 }
 
 /**
+ * A `FormData` body (a file upload) goes as is: the browser must set the multipart `Content-Type`
+ * itself, because only it knows the boundary. Anything else is JSON.
+ */
+export function encodeBody(body: unknown): { contentType?: string; payload: string | FormData } | null {
+  if (body === undefined) return null;
+  if (body instanceof FormData) return { payload: body };
+  return { contentType: 'application/json', payload: JSON.stringify(body) };
+}
+
+/**
  * The one function every request goes through. It unwraps the envelope (`data` on success,
  * `ApiError` on failure) so no caller ever writes `if (body.success)`.
  */
@@ -35,7 +45,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   const onAuthPath = path.startsWith(COOKIE_SCOPED_PREFIX);
   const headers: Record<string, string> = { Accept: 'application/json', ...financialYearHeaders() };
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const encoded = encodeBody(body);
+  if (encoded?.contentType) headers['Content-Type'] = encoded.contentType;
   if (token !== undefined) headers['Authorization'] = `Bearer ${token}`;
   // Tells the API this is a browser (refresh token goes in the cookie, not the body) and, being
   // a custom header, forces a CORS preflight — a CSRF guard on the cookie-reading endpoints.
@@ -47,7 +58,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       method,
       headers,
       credentials: onAuthPath ? 'include' : 'omit',
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(encoded === null ? {} : { body: encoded.payload }),
       ...(signal === undefined ? {} : { signal }),
     });
   } catch (cause) {

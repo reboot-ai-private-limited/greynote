@@ -10,6 +10,7 @@ import type {
   UpdatePayBandDto,
   UpdateUserDto,
   UserDetailDto,
+  UserDocumentDto,
   UserListItemDto,
   UserListStatus,
 } from '@greynote/contracts';
@@ -37,6 +38,13 @@ export const identityApi = {
 
   updateUser: (token: string, id: string, body: UpdateUserDto) =>
     request<UserListItemDto>(`/identity/users/${id}`, { method: 'PATCH', token, body }),
+
+  /** `multipart/form-data`: the document type, then the file. Returns the stored document. */
+  uploadDocument: (token: string, userId: string, body: FormData) =>
+    request<UserDocumentDto>(`/identity/users/${userId}/documents`, { method: 'POST', token, body }),
+
+  removeDocument: (token: string, userId: string, documentId: string) =>
+    request<Record<string, never>>(`/identity/users/${userId}/documents/${documentId}`, { method: 'DELETE', token }),
 
   createUser: (token: string, body: CreateUserDto) =>
     request<UserListItemDto>('/identity/users', { method: 'POST', token, body }),
