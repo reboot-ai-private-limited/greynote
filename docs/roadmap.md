@@ -589,7 +589,11 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   required, not defaulted; the form says it is fixed once a grade, balance or leave depends on it, and the server's refusal is shown if it is),
   and confirm-to-(de)activate. A change refreshes the Leave Master's columns too. Verified by typecheck, lint and 441 tests; **not yet exercised
   against the live API.**
-  Next: the Leave master and Holidays tabs, then the employee's Leave tab; then the Accountant screens — one module at a time.
+  **Leave master tab built (2026-10-03):** a grid of grades by active paid leave types, each cell the default days (whole or half, 0 to 366). Edits are held
+  until *Save N changes*, which sends only the changed cells, one by one; a refused cell keeps what was typed with the server's reason beside it
+  and never undoes the others. A cell that had a value cannot be blanked (the API sets a default but cannot unset one). A note says a change applies
+  to balances created from then on. Verified by typecheck, lint and 448 tests; **not yet exercised against the live API.**
+  Next: the Holidays tab, then the employee's Leave tab; then the Accountant screens — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

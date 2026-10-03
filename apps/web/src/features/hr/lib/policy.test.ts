@@ -1,6 +1,6 @@
 import type { LeaveTypeDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { buildPolicyGrid, readCell } from './policy';
+import { buildPolicyGrid, cellKey, collectPolicyChanges, readCell, savePolicyChanges } from './policy';
 
 const types: LeaveTypeDto[] = [
   { id: 'casual', name: 'Casual', isPaid: true, active: true },
@@ -45,5 +45,55 @@ describe('readCell', () => {
   it('refuses a bad number with the reason', () => {
     expect(readCell('1.3', null)).toEqual({ ok: false, error: 'Use whole or half days only.' });
     expect(readCell('400', null)).toMatchObject({ ok: false });
+  });
+});
+
+describe('collectPolicyChanges', () => {
+  const grid = buildPolicyGrid(bands, types, [{ payBandId: 'g1', leaveTypeId: 'casual', defaultDays: 12 }]);
+  it('collects only the cells that changed', () => {
+    const { changes, errors } = collectPolicyChanges(grid, {
+      [cellKey('g1', 'casual')]: '15',
+      [cellKey('g1', 'sick')]: '',
+      [cellKey('g2', 'casual')]: '10',
+    });
+    expect(errors).toEqual({});
+    expect(changes).toEqual([
+      { payBandId: 'g1', leaveTypeId: 'casual', days: 15 },
+      { payBandId: 'g2', leaveTypeId: 'casual', days: 10 },
+    ]);
+  });
+  it('ignores a cell typed back to what it was, and cells never touched', () => {
+    expect(collectPolicyChanges(grid, { [cellKey('g1', 'casual')]: '12' }).changes).toEqual([]);
+    expect(collectPolicyChanges(grid, {}).changes).toEqual([]);
+  });
+  it('reports an error per invalid cell and still collects the valid ones', () => {
+    const { changes, errors } = collectPolicyChanges(grid, { [cellKey('g1', 'casual')]: '1.3', [cellKey('g2', 'sick')]: '8' });
+    expect(errors).toEqual({ [cellKey('g1', 'casual')]: 'Use whole or half days only.' });
+    expect(changes).toEqual([{ payBandId: 'g2', leaveTypeId: 'sick', days: 8 }]);
+  });
+  it('refuses to blank a cell that had a value', () => {
+    expect(collectPolicyChanges(grid, { [cellKey('g1', 'casual')]: '' }).errors[cellKey('g1', 'casual')]).toMatch(/0 for none/);
+  });
+});
+
+describe('savePolicyChanges', () => {
+  const a = { payBandId: 'g1', leaveTypeId: 'casual', days: 1 };
+  const b = { payBandId: 'g1', leaveTypeId: 'sick', days: 2 };
+  const c = { payBandId: 'g2', leaveTypeId: 'casual', days: 3 };
+  it('sends every change in order and reports them saved', async () => {
+    const sent: string[] = [];
+    const result = await savePolicyChanges(async (ch) => void sent.push(cellKey(ch.payBandId, ch.leaveTypeId)), [a, b, c]);
+    expect(sent).toEqual(['g1:casual', 'g1:sick', 'g2:casual']);
+    expect(result).toEqual({ saved: [a, b, c], failed: [] });
+  });
+  it('keeps going after a refusal, and keeps its message', async () => {
+    const result = await savePolicyChanges(async (ch) => {
+      if (ch === b) throw new Error('A grade can only be set for a paid type.');
+    }, [a, b, c]);
+    expect(result.saved).toEqual([a, c]);
+    expect(result.failed).toEqual([{ change: b, message: 'A grade can only be set for a paid type.' }]);
+  });
+  it('does nothing for no changes', async () => {
+    expect(await savePolicyChanges(async () => undefined, [])).toEqual({ saved: [], failed: [] });
   });
 });

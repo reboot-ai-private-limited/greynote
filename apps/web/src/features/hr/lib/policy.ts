@@ -51,3 +51,55 @@ export function readCell(raw: string, current: number | null): CellEdit {
 
 export const POLICY_NOTE =
   'A change applies to balances created from now on. Balances already created for a year keep their days; adjust those on the employee.';
+
+export const cellKey = (payBandId: string, leaveTypeId: string) => `${payBandId}:${leaveTypeId}`;
+
+export interface PolicyChange {
+  payBandId: string;
+  leaveTypeId: string;
+  days: number;
+}
+
+/**
+ * Turns the grid's typed values into what to send: only the cells that changed, and an error per cell that is invalid. `drafts`
+ * holds a string for each cell the person touched; a cell not in it is unchanged.
+ */
+export function collectPolicyChanges(
+  grid: PolicyGrid,
+  drafts: Readonly<Record<string, string>>,
+): { changes: PolicyChange[]; errors: Record<string, string> } {
+  const changes: PolicyChange[] = [];
+  const errors: Record<string, string> = {};
+  for (const row of grid.rows) {
+    for (const cell of row.cells) {
+      const key = cellKey(cell.payBandId, cell.leaveTypeId);
+      if (!(key in drafts)) continue;
+      const edit = readCell(drafts[key] ?? '', cell.days);
+      if (!edit.ok) errors[key] = edit.error;
+      else if (edit.days !== null) changes.push({ payBandId: cell.payBandId, leaveTypeId: cell.leaveTypeId, days: edit.days });
+    }
+  }
+  return { changes, errors };
+}
+
+export interface PolicySaveResult {
+  saved: PolicyChange[];
+  failed: { change: PolicyChange; message: string }[];
+}
+
+/** Sends each change on its own. One refused cell never undoes the others, and each failure keeps the server's message. */
+export async function savePolicyChanges(
+  send: (change: PolicyChange) => Promise<unknown>,
+  changes: readonly PolicyChange[],
+): Promise<PolicySaveResult> {
+  const result: PolicySaveResult = { saved: [], failed: [] };
+  for (const change of changes) {
+    try {
+      await send(change);
+      result.saved.push(change);
+    } catch (error) {
+      result.failed.push({ change, message: error instanceof Error ? error.message : 'Could not save.' });
+    }
+  }
+  return result;
+}
