@@ -36,7 +36,7 @@ describe('Employees', () => {
 });
 
 describe('Field master data', () => {
-  it.each(['/products', '/chemists', '/distributors'])('%s is an Admin-only Master data screen', (href) => {
+  it.each(['/products', '/chemists', '/distributors', '/doctors'])('%s is an Admin-only Master data screen', (href) => {
     expect(navFor('ADMIN').map((i) => i.href)).toContain(href);
     expect(navFor('HR').map((i) => i.href)).not.toContain(href);
     expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain(href);

@@ -512,7 +512,15 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   (no default, as the API requires), MR and ASM pickers (an emptied one is sent as `null` to un-assign) and the map-point picker. The edit
   page shows the Zone → HQ → Area → Route path. The shared employee picker was generalised from the manager picker. Verified by
   typecheck, lint, 306 tests and `next build`; **not yet exercised against the live API.**
-  Next: Doctors (list, create, edit, detail), then assignments and samples; then Approvals, HR, expenses/payroll — one module at a time.
+  **Doctors built (2026-10-03, `/doctors`, `/doctors/new`, `/doctors/[id]`):** a list with search, route, category and status filters (status
+  includes *Awaiting approval*, the Doctors MRs added), a Responsible MR column that flags an unassigned active doctor, and a Location
+  badge; create and edit as full pages with the Route picker, category suggestions, an optional email (an emptied one is sent as `null`)
+  and the map-point picker, which shows the phone's captured point as a grey pin beside the registered one. A pending Doctor gets a
+  banner explaining it awaits approval in the Approvals queue (no approve button here, by decision); Admin can still correct its
+  location. Active and inactive can be toggled; pending cannot. Verified by typecheck, lint, 320 tests and `next build`; **not yet
+  exercised against the live API.**
+  Next: the Assignments and Samples tabs on a Doctor; then Approvals (which also decides the pending Doctors), HR, expenses/payroll —
+  one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.
