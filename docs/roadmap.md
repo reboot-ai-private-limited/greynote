@@ -585,7 +585,11 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   a row opens its approval, since that is where a leave is decided. The nav item is live for Admin and HR. The employee picker moved to the people
   feature and the leave date formatting to HR so neither imports from the doctors feature. Verified by typecheck, lint and 441 tests; **not yet
   exercised against the live API.**
-  Next: the Leave types, Leave master and Holidays tabs, then the employee's Leave tab; then the Accountant screens — one module at a time.
+  **Leave types tab built (2026-10-03):** the list with paid or unpaid and active status, create and edit in a dialog (a paid or unpaid choice is
+  required, not defaulted; the form says it is fixed once a grade, balance or leave depends on it, and the server's refusal is shown if it is),
+  and confirm-to-(de)activate. A change refreshes the Leave Master's columns too. Verified by typecheck, lint and 441 tests; **not yet exercised
+  against the live API.**
+  Next: the Leave master and Holidays tabs, then the employee's Leave tab; then the Accountant screens — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.
