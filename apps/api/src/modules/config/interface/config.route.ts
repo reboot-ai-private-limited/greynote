@@ -4,8 +4,16 @@ import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { configKeyParamsSchema, updateConfigBodySchema } from './config.schemas.js';
-import type { makeListConfigController, makeUpdateConfigController } from './config.controller.js';
+import type { makeListConfigController, makePublicConfigController, makeUpdateConfigController } from './config.controller.js';
 
+openApiRegistry.registerPath({
+  method: 'get',
+  path: '/api/config/public',
+  tags: ['Config'],
+  summary: 'Any signed-in user: the financial-year start month and the business timezone, so clients read dates as the server does',
+  security: [{ bearerAuth: [] }],
+  responses: { 200: { description: 'Public settings' } },
+});
 openApiRegistry.registerPath({
   method: 'get',
   path: '/api/config',
@@ -32,10 +40,12 @@ openApiRegistry.registerPath({
 
 export function buildConfigRouter(controllers: {
   list: ReturnType<typeof makeListConfigController>;
+  publicSettings: ReturnType<typeof makePublicConfigController>;
   update: ReturnType<typeof makeUpdateConfigController>;
 }): Router {
   const router = Router();
 
+  router.get('/public', authenticate(), controllers.publicSettings);
   router.get('/', authenticate(), requireRole('ADMIN'), controllers.list);
   router.patch(
     '/:key',

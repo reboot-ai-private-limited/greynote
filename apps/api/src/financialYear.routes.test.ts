@@ -59,6 +59,7 @@ const BY_ID = [
 ];
 const TIMELESS = [
   '/api/config', // system settings: global, not a dated record
+  '/api/config/public',
   // Operational and master data — the same whichever year is being looked at.
   '/api/health',
   '/api/identity/auth/me',
