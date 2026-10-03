@@ -519,8 +519,13 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   banner explaining it awaits approval in the Approvals queue (no approve button here, by decision); Admin can still correct its
   location. Active and inactive can be toggled; pending cannot. Verified by typecheck, lint, 320 tests and `next build`; **not yet
   exercised against the live API.**
-  Next: the Assignments and Samples tabs on a Doctor; then Approvals (which also decides the pending Doctors), HR, expenses/payroll —
-  one module at a time.
+  **Doctor assignments and samples built (2026-10-03):** the *Responsible MR* tab shows who is responsible, offers Change and Remove, and
+  lists the history; its picker offers only the MRs who cover the doctor's route (the API refuses anyone else) and points to the route
+  page when there are none. The *Samples* tab lists each product's allocated, given-out and remaining, issues more (it adds, and says
+  so before it does) and corrects a total, refused below what was already given out. Only an active doctor can be assigned or issued
+  samples. Verified by typecheck, lint, 330 tests and `next build`; **not yet exercised against the live API.**
+  **Field master data is complete in the web portal** (Products, Chemists, Distributors, Doctors).
+  Next: Approvals (which also decides the pending Doctors), then HR, expenses/payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

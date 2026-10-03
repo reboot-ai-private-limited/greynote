@@ -2,6 +2,7 @@
 
 import type { CreateProductDto, UpdateProductDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
+import { fetchAllPages, MAX_PAGE_SIZE } from '@/lib/api/allPages';
 import { productsApi, type ListProductsQuery } from '@/lib/api/endpoints/fieldMasterData';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
@@ -40,4 +41,16 @@ export function useUpdateProduct(onDone?: () => void) {
     successMessage: 'Product updated.',
     ...(onDone && { onSuccess: onDone }),
   });
+}
+
+/** Every active product, for a picker: a page of 100 would silently drop the rest of a larger catalog. */
+export function useActiveProducts() {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.products.directory(),
+      fetch: (token, signal) =>
+        fetchAllPages((page) => productsApi.list(token, { page, pageSize: MAX_PAGE_SIZE, status: 'active' }, signal)).then((r) => r.items),
+      staleTime: staleTime.configuration,
+    }),
+  );
 }

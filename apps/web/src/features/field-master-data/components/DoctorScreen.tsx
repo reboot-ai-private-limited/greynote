@@ -14,7 +14,9 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDoctor, useUpdateDoctor } from '../hooks/useDoctors';
 import { DOCTOR_STATUS_LABEL, DOCTOR_STATUS_TONE, canToggleStatus, locationWasCorrected } from '../lib/doctors';
+import { DoctorAssignmentsTab } from './DoctorAssignmentsTab';
 import { DoctorDetailsForm } from './DoctorDetailsForm';
+import { DoctorSamplesTab } from './DoctorSamplesTab';
 
 /** `/doctors/new` (no id) and `/doctors/[id]`. */
 export function DoctorScreen({ id }: { id?: string }) {
@@ -98,10 +100,18 @@ function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoc
       <Tabs defaultValue="details">
         <TabsList>
           <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="assignment">Responsible MR</TabsTrigger>
+          <TabsTrigger value="samples">Samples</TabsTrigger>
         </TabsList>
         <TabsContent value="details" className="mt-6">
-          {/* Keyed by what was loaded, so the draft starts from the latest data after a save. */}
-          <DoctorDetailsForm key={JSON.stringify(doctor)} doctor={doctor} />
+          {/* Keyed by what the form edits (not who is assigned), so a save refreshes the draft but changing the MR does not wipe unsaved edits. */}
+          <DoctorDetailsForm key={JSON.stringify({ ...doctor, assignedTo: null })} doctor={doctor} />
+        </TabsContent>
+        <TabsContent value="assignment" className="mt-6">
+          <DoctorAssignmentsTab doctor={doctor} />
+        </TabsContent>
+        <TabsContent value="samples" className="mt-6">
+          <DoctorSamplesTab doctor={doctor} />
         </TabsContent>
       </Tabs>
       {canToggleStatus(doctor.status) ? (

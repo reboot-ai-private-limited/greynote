@@ -42,6 +42,8 @@ export const keys = {
   products: {
     all: () => ['products', fy()] as const,
     list: (query?: object) => [...keys.products.all(), 'list', query ?? {}] as const,
+    /** Every active product, all pages: the sample picker's options. */
+    directory: () => [...keys.products.all(), 'directory'] as const,
   },
   chemists: {
     all: () => ['chemists', fy()] as const,
