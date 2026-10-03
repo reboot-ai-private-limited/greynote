@@ -506,7 +506,13 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   and status filters and a Location Set / Not set badge; create and edit as full pages with the Route picker and the map-point picker
   (a dialog is too small for a map). Edit sends only what changed; a cleared location is sent as `null`; an inactive chemist is read-only until
   reactivated. Verified by typecheck, lint, 290 tests and `next build`; **not yet exercised against the live API or a real Maps key.**
-  Next: Distributors, Doctors, assignments and samples; then Approvals, HR, expenses/payroll — one module at a time.
+  **Distributors built (2026-10-03, `/distributors`, `/distributors/new`, `/distributors/[id]`):** a list filtered by search, zone, HQ,
+  route, assigned MR and status, with the MR's name, which order types it takes and a Location badge; create and edit as full pages with the
+  Route picker, GST and mobile checks (same rules as the API), explicit Allowed / Not allowed choices for primary and secondary sales
+  (no default, as the API requires), MR and ASM pickers (an emptied one is sent as `null` to un-assign) and the map-point picker. The edit
+  page shows the Zone → HQ → Area → Route path. The shared employee picker was generalised from the manager picker. Verified by
+  typecheck, lint, 306 tests and `next build`; **not yet exercised against the live API.**
+  Next: Doctors (list, create, edit, detail), then assignments and samples; then Approvals, HR, expenses/payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

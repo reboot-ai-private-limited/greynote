@@ -7,13 +7,20 @@ import { Input } from '@/components/ui/Input';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useManagerCandidates } from '../hooks/useUsers';
 
-/** Search active field employees and choose one as the manager. The employee themselves is not offered. */
+/**
+ * Search active field employees and choose one. For a manager, the employee themselves is not
+ * offered (`selfId`); other screens reuse it to pick an MR or an ASM with their own `title`.
+ */
 export function ManagerPickerDialog({
   selfId,
+  title = 'Choose a manager',
+  label = 'Manager',
   onPick,
   onClose,
 }: {
-  selfId: string;
+  selfId?: string;
+  title?: string;
+  label?: string;
   onPick: (user: { id: string; name: string }) => void;
   onClose: () => void;
 }) {
@@ -22,9 +29,9 @@ export function ManagerPickerDialog({
   const rows = (candidates.data?.items ?? []).filter((u) => u.id !== selfId);
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()} title="Choose a manager" description="Search by name or employee code.">
+    <Dialog open onOpenChange={(open) => !open && onClose()} title={title} description="Search by name or employee code.">
       <label htmlFor="manager-search" className="mb-1.5 block text-sm font-medium text-text">
-        Manager
+        {label}
       </label>
       <Input id="manager-search" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="e.g. Rahul or ASM003" autoComplete="off" />
       <div aria-live="polite" className="mt-3 max-h-64 overflow-y-auto">

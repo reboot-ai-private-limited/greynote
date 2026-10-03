@@ -38,4 +38,17 @@ describe('buildTerritoryDirectory', () => {
     expect(partial.routeLabel('r1')).toBe('Route 1');
     expect(partial.pathOf('r1')).toBeNull();
   });
+
+  it('names a Zone, an HQ and an Area, with a dash for an unknown id', () => {
+    expect(directory.zoneName('z1')).toBe('West Bengal');
+    expect(directory.hqName('h1')).toBe('Siliguri');
+    expect(directory.areaName('a2')).toBe('Fulbari');
+    expect(directory.areaName('nope')).toBe('—');
+    expect(directory.routeName('r1')).toBe('Route 1');
+    expect(directory.routeName('nope')).toBe('—');
+  });
+  it('offers active Zones and HQs for a filter, an HQ with its Zone', () => {
+    expect(directory.zoneOptions).toEqual([{ value: 'z1', label: 'West Bengal' }]);
+    expect(directory.hqOptions).toEqual([{ value: 'h1', label: 'West Bengal · Siliguri' }]);
+  });
 });
