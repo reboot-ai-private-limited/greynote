@@ -78,9 +78,22 @@ describe('buildBasic', () => {
     expect(buildBasic(complete, { ...draft, mobileNumber: '12ab' }, TODAY)).toMatchObject({ ok: false });
     expect(buildBasic(complete, { ...draft, mobileNumber: '+91 98300 12345' }, TODAY)).toMatchObject({ ok: true });
   });
-  it('does not send a blank optional field, since the API cannot clear one', () => {
-    const filled = { ...complete, profile: { ...complete.profile!, guardianName: 'R. Rao' } };
-    expect(buildBasic(filled, { ...basicToDraft(filled), guardianName: '' }, TODAY)).toEqual({ ok: true, body: {} });
+  it('sends null for an optional field that was emptied, so the server clears it', () => {
+    const filled = {
+      ...complete,
+      profile: { ...complete.profile!, guardianName: 'R. Rao', qualification: 'B.Pharm' },
+    };
+    expect(buildBasic(filled, { ...basicToDraft(filled), guardianName: '  ', qualification: '', dateOfJoining: '' }, TODAY)).toEqual({
+      ok: true,
+      body: { basicDetails: { guardianName: null, qualification: null, dateOfJoining: null } },
+    });
+  });
+  it('sends nothing for an optional field that was empty and still is', () => {
+    expect(buildBasic(complete, { ...draft, guardianName: ' ' }, TODAY)).toEqual({ ok: true, body: {} });
+  });
+  it('still refuses to empty a required field', () => {
+    expect(buildBasic(complete, { ...draft, mobileNumber: '' }, TODAY)).toMatchObject({ ok: false });
+    expect(buildBasic(complete, { ...draft, dateOfBirth: '' }, TODAY)).toMatchObject({ ok: false });
   });
 });
 

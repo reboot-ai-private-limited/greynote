@@ -472,8 +472,8 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   missing before the employee turns Active, mirroring the API's rule. Only changed fields are sent; an address or bank object is sent
   whole. Other roles get a read-only Account card, because the API's PATCH would create a profile row for them. Verified by typecheck,
   lint, 221 tests and `next build`; **not yet exercised against the live API.**
-  **Known API gaps, not fixed here:** a manager can be set to the employee themselves or to someone in their own downline (a cycle),
-  and a profile field cannot be cleared once set.
+  **Two API gaps found and fixed the same day (decision-log 2026-10-03):** a manager can no longer be the employee or someone in their
+  own downline, and the optional fields (guardian, qualification, joining date) can be cleared with `null`.
   Next: Documents, then Devices, then Security (reset password, unblock, deactivate); then master data, HR, approvals,
   expenses/payroll — one module at a time.
 

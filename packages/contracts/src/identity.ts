@@ -121,10 +121,11 @@ export interface UpdateUserDto {
   basicDetails?: {
     name?: string;
     mobileNumber?: string;
-    guardianName?: string;
+    /** `null` clears the three optional fields (guardian, joining date, qualification); a missing key leaves them alone. */
+    guardianName?: string | null;
     dateOfBirth?: string;
-    dateOfJoining?: string;
-    qualification?: string;
+    dateOfJoining?: string | null;
+    qualification?: string | null;
     address?: UserAddressDto;
   };
   bankDetails?: Omit<UserBankDetailsDto, 'branchName'> & { branchName?: string };

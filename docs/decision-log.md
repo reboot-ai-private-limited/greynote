@@ -17,6 +17,22 @@ old one.
 
 ---
 
+## 2026-10-03 — A manager can't create a reporting loop; optional profile fields can be cleared
+
+**Decision:** (1) `PATCH /identity/users/:id` refuses a `managerId` that is the employee or that already reports to them,
+directly or through the chain. (2) `guardianName`, `qualification` and `dateOfJoining` accept `null` to clear them; a missing key
+still means "leave alone". Required onboarding fields stay changeable but not clearable. (3) `dateOfBirth` is now parsed from a
+string, because `z.coerce.date()` turned `null` into 1 January 1970 instead of refusing it.
+
+**Why:** the first two were found while building the Employee detail screen. With only an existence check, two employees could be
+set to manage each other and the approval chain would never reach the top; and a wrongly entered guardian could never be removed.
+Clearing a required field would silently turn an active employee back into `pending`, so that stays a deliberate refusal.
+
+**Cost:** the loop check is one read per level above the new manager (about five). It does not repair loops that were already in
+the data; those are tolerated as before.
+
+---
+
 ## 2026-10-03 — HR manages Designations and Pay Bands; the Accountant can read Pay Bands
 
 **Decision:** `GET/POST/PATCH /designations` and `/pay-bands` are open to **Admin and HR** (were Admin only). `GET /pay-bands`

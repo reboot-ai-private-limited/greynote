@@ -81,6 +81,15 @@ same shape as `health.public.ts`, just with real methods:
   time, not just by convention — attempting to set designation/pay-band on a non-FIELD user is
   rejected, and an `ADMIN`/`HR`/`ACCOUNTANT` user never gets an `EmployeeProfile` row at all.
   Consequently Payroll only ever processes FIELD-role users.
+- **The reporting chain cannot loop.** Setting a manager is refused (`400`, `field: managerId`) if the
+  chosen person is the employee, or already reports to them directly or through the chain, because
+  approval routing walks the chain upward and must reach the top. The check walks up from the new
+  manager (bounded at 50 steps) and ends quietly on a loop that does not involve the employee.
+- **Optional profile fields can be cleared.** In the onboarding `PATCH`, `guardianName`,
+  `qualification` and `dateOfJoining` accept `null` to clear; a missing key leaves them alone. The
+  fields `computeUserStatus` needs (name, mobile, date of birth, address, designation, pay band,
+  manager, bank details) can be changed but not cleared, since clearing one would quietly demote an
+  active employee to `pending`. Bank `branchName` clears by sending the whole bank object without it.
 - **One auth mechanism for every role**: `employee_code` + `password_hash`, web and mobile alike.
   No OTP for now — the client confirmed password login (`client-sign-off.md` A1).
 - **Every new phone a field employee uses needs Admin approval, including the first**

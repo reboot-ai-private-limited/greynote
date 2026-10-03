@@ -62,18 +62,18 @@ export function buildBasic(user: UserDetailDto, draft: BasicDraft, today: string
   };
   if (Object.values(errors).some(Boolean)) return fail(errors);
 
-  // Only what changed: a rename must not re-send (and race on) the date of birth.
+  // Only what changed: a rename must not re-send (and race on) the date of birth. The three optional
+  // fields send `null` when emptied; name, mobile and date of birth are required and cannot be.
   const before = basicToDraft(user);
   const guardian = squash(draft.guardianName);
   const qualification = squash(draft.qualification);
   const basicDetails: NonNullable<UpdateUserDto['basicDetails']> = {
     ...(name !== before.name && { name }),
     ...(mobile !== before.mobileNumber && { mobileNumber: mobile }),
-    // The API cannot clear a field, so blank-after-filled is left alone rather than sent as "".
-    ...(guardian !== '' && guardian !== before.guardianName && { guardianName: guardian }),
+    ...(guardian !== before.guardianName && { guardianName: guardian === '' ? null : guardian }),
     ...(draft.dateOfBirth !== before.dateOfBirth && { dateOfBirth: draft.dateOfBirth }),
-    ...(draft.dateOfJoining !== '' && draft.dateOfJoining !== before.dateOfJoining && { dateOfJoining: draft.dateOfJoining }),
-    ...(qualification !== '' && qualification !== before.qualification && { qualification }),
+    ...(draft.dateOfJoining !== before.dateOfJoining && { dateOfJoining: draft.dateOfJoining === '' ? null : draft.dateOfJoining }),
+    ...(qualification !== before.qualification && { qualification: qualification === '' ? null : qualification }),
   };
   return { ok: true, body: Object.keys(basicDetails).length ? { basicDetails } : {} };
 }

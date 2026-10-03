@@ -35,10 +35,12 @@ export const createUserBodySchema = z.object({
 const basicDetailsPatchSchema = z.object({
   name: z.string().min(1).optional(),
   mobileNumber: z.string().min(1).optional(),
-  guardianName: z.string().min(1).optional(),
-  dateOfBirth: z.coerce.date().optional(),
-  dateOfJoining: z.coerce.date().optional(),
-  qualification: z.string().min(1).optional(),
+  // `null` clears an optional field; a missing key leaves it alone.
+  guardianName: z.string().min(1).nullable().optional(),
+  // A string first: `z.coerce.date()` alone turns `null` into 1 January 1970 instead of refusing it.
+  dateOfBirth: z.string().min(1).pipe(z.coerce.date()).optional(),
+  dateOfJoining: z.coerce.date().nullable().optional(),
+  qualification: z.string().min(1).nullable().optional(),
   address: addressSchema.optional(),
 });
 
