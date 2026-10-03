@@ -33,7 +33,15 @@ export const keys = {
     detail: (id: string) => ['leaves', fy(), 'detail', id] as const,
     balances: (userId: string, year: number | undefined) => ['leaves', fy(), 'balances', userId, year ?? 'current'] as const,
     range: (query: object) => ['leaves', fy(), 'range', query] as const,
+    all: (query: object) => ['leaves', fy(), 'all', query] as const,
   },
+  hr: {
+    leaveTypes: () => ['hr', fy(), 'leaveTypes'] as const,
+    policies: () => ['hr', fy(), 'policies'] as const,
+    holidays: (query: object) => ['hr', fy(), 'holidays', query] as const,
+    allHolidays: () => ['hr', fy(), 'holidays'] as const,
+  },
+  userHq: { history: (userId: string) => ['userHq', fy(), userId] as const },
   dcr: { detail: (id: string) => ['dcr', fy(), 'detail', id] as const },
   plans: {
     daily: (id: string) => ['plans', fy(), 'daily', id] as const,

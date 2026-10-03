@@ -40,3 +40,62 @@ export interface LeaveBalanceDto {
   pendingDays: number;
   availableDays: number;
 }
+
+// ── Masters (HR, Admin) ────────────────────────────────────────────────────────────────────
+
+/** `isPaid` decides whether a type has a balance; it is fixed once the type is in use. An inactive type cannot be requested. */
+export interface LeaveTypeDto {
+  id: string;
+  name: string;
+  isPaid: boolean;
+  active: boolean;
+}
+export interface CreateLeaveTypeDto {
+  name: string;
+  isPaid: boolean;
+}
+export interface UpdateLeaveTypeDto {
+  name?: string;
+  isPaid?: boolean;
+  active?: boolean;
+}
+
+/** One cell of the Leave Master: a grade's default days per leave year for a paid type. */
+export interface LeavePolicyDto {
+  id: string;
+  payBandId: string;
+  leaveTypeId: string;
+  /** Whole or half days. */
+  defaultDays: number;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export const HOLIDAY_SCOPES = ['NATIONAL', 'ZONE', 'HQ'] as const;
+export type HolidayScope = (typeof HOLIDAY_SCOPES)[number];
+
+export interface HolidayDto {
+  id: string;
+  name: string;
+  /** `YYYY-MM-DD`. */
+  date: string;
+  scope: HolidayScope;
+  zoneIds: string[];
+  hqIds: string[];
+  createdBy: string;
+  createdAt: string;
+}
+export interface CreateHolidayDto {
+  name: string;
+  date: string;
+  scope: HolidayScope;
+  zoneIds: string[];
+  hqIds: string[];
+}
+
+/** Body of `PATCH /hr/leave-balances/:userId/:leaveTypeId`. Never below what is used plus pending. */
+export interface AdjustLeaveBalanceDto {
+  year: number;
+  allocatedDays: number;
+  reason: string;
+}

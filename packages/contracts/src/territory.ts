@@ -126,3 +126,15 @@ export interface PlaceCandidateDto {
   longitude: number;
   placeId: string;
 }
+
+/** One row of `GET /territory/users/:id/hq`, current first: a field employee's HQ, which decides the holidays that apply to them. */
+export interface UserHqAssignmentDto {
+  id: string;
+  userId: string;
+  hqId: string;
+  status: TerritoryStatus;
+  assignedAt: string;
+  assignedBy: string;
+  unassignedAt: string | null;
+  unassignedBy: string | null;
+}

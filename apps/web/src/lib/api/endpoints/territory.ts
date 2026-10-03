@@ -17,6 +17,7 @@ import type {
   UpdateRouteDto,
   UpdateWaypointsDto,
   UpdateZoneDto,
+  UserHqAssignmentDto,
   ZoneDto,
 } from '@greynote/contracts';
 import { request } from '../client';
@@ -99,4 +100,13 @@ export const placesApi = {
   /** 2–200 chars; at most 10 results. 503 when Google or its server key is unavailable. */
   search: (token: string, q: string, signal?: AbortSignal) =>
     request<PlaceCandidateDto[]>('/territory/places/search', { token, query: { q }, signal }),
+};
+
+/** A field employee's HQ, which decides which holidays apply to them. Admin and HR. */
+export const userHqApi = {
+  history: (token: string, userId: string, signal?: AbortSignal) =>
+    request<UserHqAssignmentDto[]>(`/territory/users/${userId}/hq`, { token, signal }),
+  /** Sets the HQ and ends the previous one. */
+  set: (token: string, userId: string, hqId: string) =>
+    request<UserHqAssignmentDto>(`/territory/users/${userId}/hq`, { method: 'PUT', token, body: { hqId } }),
 };

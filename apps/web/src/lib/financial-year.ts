@@ -30,3 +30,28 @@ export function subscribeFinancialYear(listener: Listener): () => void {
 export function financialYearHeaders(): Record<string, string> {
   return selected === null ? {} : { 'X-Financial-Year': String(selected) };
 }
+
+/**
+ * The year a date falls in, named by the calendar year it starts in: with an April start, 1 Oct 2026 is in 2026 and
+ * 1 Feb 2027 is also in 2026. Mirrors the API's `FY_START_MONTH` (a config key with no HTTP surface yet, April by default),
+ * so a change there needs the same here.
+ */
+export const FY_START_MONTH = 4;
+
+export function financialYearOf(date: string, startMonth = FY_START_MONTH): number {
+  const [year = 0, month = 1] = date.split('-').map(Number);
+  return month >= startMonth ? year : year - 1;
+}
+
+/** First and last day (`YYYY-MM-DD`) of a financial year. */
+export function financialYearRange(year: number, startMonth = FY_START_MONTH): { from: string; to: string } {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const from = `${year}-${pad(startMonth)}-01`;
+  const end = new Date(Date.UTC(year + 1, startMonth - 1, 0)); // the day before the next year starts
+  return { from, to: `${end.getUTCFullYear()}-${pad(end.getUTCMonth() + 1)}-${pad(end.getUTCDate())}` };
+}
+
+/** `2026–27`. */
+export function financialYearLabel(year: number): string {
+  return `${year}–${String(year + 1).slice(2)}`;
+}

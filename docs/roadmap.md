@@ -574,7 +574,13 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   added or removed, remarks), the plan as approved beside the proposal, and a warning when the plan has moved on since it was asked for,
   since approving then fails. **Every approval kind now has a preview.** Verified by typecheck, lint, 397 tests and a clean
   `next build`; **not yet exercised against the live API.**
-  Next: HR (leave types, the leave master, holidays, balances), then Accountant (expense audit, payroll) — one module at a time.
+  **HR started (2026-10-03):** the wire types (leave types, the Leave Master, holidays, balance adjustment, an employee's HQ), the API calls, the query keys,
+  financial-year helpers (which year a date is in, its first and last day) and the tested rules for them: whole-or-half-day numbers, the leave-type
+  form (paid or unpaid is chosen, not defaulted), the Leave Master grid (a column per active paid type) and its edit rule, holiday scopes
+  (a national holiday carries no places; Zone and HQ need at least one), a 400-day list range, balance allocation (never below used plus
+  pending) and a before-and-after preview. Planned: `/hr` with tabs for Leaves, Leave types, Leave master and Holidays, then a Leave tab on the
+  employee for balances and their HQ.
+  Next: the `/hr` screens, then the Accountant screens (expense audit, payroll) — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.
