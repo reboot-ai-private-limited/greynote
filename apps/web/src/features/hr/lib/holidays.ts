@@ -1,5 +1,9 @@
 import type { CreateHolidayDto, HolidayDto, HolidayScope } from '@greynote/contracts';
+import { isRealDate, rangeError } from '@/lib/dateRange';
 import { fail, squash, type BuildResult } from '@/lib/forms';
+
+// Kept here too, so the holiday screens import their date rules from one place.
+export { rangeError };
 
 export const HOLIDAY_SCOPE_LABEL: Record<HolidayScope, string> = {
   NATIONAL: 'National',
@@ -8,8 +12,6 @@ export const HOLIDAY_SCOPE_LABEL: Record<HolidayScope, string> = {
 };
 
 export const NAME_MAX = 100;
-/** The API lists at most this many days at a time. */
-export const MAX_RANGE_DAYS = 400;
 
 export interface HolidayDraft {
   name: string;
@@ -21,8 +23,6 @@ export interface HolidayDraft {
 
 export const EMPTY_HOLIDAY: HolidayDraft = { name: '', date: '', scope: '', zoneIds: [], hqIds: [] };
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const isRealDate = (v: string) => DATE.test(v) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
 
 /**
  * Same rules as the API: a national holiday carries no places, a Zone holiday needs a Zone and no HQs, an HQ holiday
@@ -57,14 +57,6 @@ export function withScope(draft: HolidayDraft, scope: HolidayScope): HolidayDraf
 
 export function toggleId(ids: readonly string[], id: string): string[] {
   return ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
-}
-
-/** A range the API will list: both ends real, in order, and not more than 400 days. */
-export function rangeError(from: string, to: string): string | undefined {
-  if (!isRealDate(from) || !isRealDate(to)) return 'Choose both dates.';
-  if (from > to) return 'The end date is before the start date.';
-  const days = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
-  return days > MAX_RANGE_DAYS ? `Choose at most ${MAX_RANGE_DAYS} days at a time.` : undefined;
 }
 
 /** Holidays grouped by month, in date order: `{ month: '2026-10', items }`. */

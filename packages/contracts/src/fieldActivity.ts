@@ -3,20 +3,39 @@ import type { DcrStatusName, DoctorServiceType, WorkingType } from './sync.js';
 
 export type ExpensePaymentStatus = 'UNPAID' | 'PAID';
 
-/** One row of `GET /field-activity/expenses` (Accountant audit) — a bare array, capped at 500. */
+export type ExpenseTypeDto = 'TA' | 'DA' | 'TRAVEL' | 'MEAL' | 'MISC';
+
+/**
+ * One row of `GET /field-activity/expenses` (Accountant audit) — a bare array, capped at 500. These are expenses whose daily
+ * report is past the manager and has not been sent back. Money is integer paise.
+ */
 export interface ExpenseAuditRowDto {
   id: string;
   userId: string;
   userName: string;
   employeeCode: string;
+  /** The day of the report, `YYYY-MM-DD`. */
   reportDate: string;
-  type: string;
-  source: string;
+  type: ExpenseTypeDto;
+  /** `AUTO` is the server's TA and DA; `MANUAL` is what the MR claimed. */
+  source: 'AUTO' | 'MANUAL';
   amountPaise: number;
+  remarks: string | null;
   paymentStatus: ExpensePaymentStatus | 'CANCELLED';
+  /** AUTO TA only: a Route's distance could not be calculated, so the amount is artificially low. */
+  distanceFlag: boolean;
+  routeId: string | null;
+  paidBy: string | null;
   paidAt: string | null;
 }
 
+/** What `POST /field-activity/expenses/:id/mark-paid` returns: the expense as it now stands. */
+export interface MarkedPaidDto {
+  id: string;
+  paymentStatus: ExpensePaymentStatus | 'CANCELLED';
+  paidBy: string | null;
+  paidAt: string | null;
+}
 
 // ── The daily report under review (`GET /field-activity/dcr/:id`) ──────────────────────────
 // Dates are ISO strings on the wire; money is integer paise.
@@ -66,8 +85,6 @@ export interface FollowupDto {
   remarks: string;
   recordedAt: string;
 }
-
-export type ExpenseTypeDto = 'TA' | 'DA' | 'TRAVEL' | 'MEAL' | 'MISC';
 
 export interface DcrExpenseDto {
   id: string;

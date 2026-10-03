@@ -3,7 +3,6 @@ import type {
   DcrDetailDto,
   DcrExpenseDto,
   DoctorCallDto,
-  ExpenseTypeDto,
   GeofenceOutcomeDto,
   GeofenceReason,
   GeofenceStatus,
@@ -90,13 +89,8 @@ export function canOverride(role: string | undefined, status: DcrDetailDto['stat
 
 // ── Expenses ───────────────────────────────────────────────────────────────────────────────
 
-export const EXPENSE_TYPE_LABEL: Record<ExpenseTypeDto, string> = {
-  TA: 'Travel allowance (TA)',
-  DA: 'Daily allowance (DA)',
-  TRAVEL: 'Travel',
-  MEAL: 'Meal',
-  MISC: 'Other',
-};
+// One label per expense type, shared with the Accountant's audit.
+export { EXPENSE_TYPE_LABEL } from '@/features/field-activity/lib/expenses';
 
 /** The server's TA and DA first, then the MR's own claims. */
 export function splitExpenses(expenses: readonly DcrExpenseDto[]): { auto: DcrExpenseDto[]; manual: DcrExpenseDto[] } {

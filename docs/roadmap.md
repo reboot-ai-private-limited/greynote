@@ -603,7 +603,13 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   preview, never below used plus pending), and *HQ* (the current HQ, a change control, and the history), since an employee's HQ decides which Zone
   and HQ holidays apply. An employee with no Pay Band shows no balances and says where to set one. **HR is complete in the web portal.**
   Verified by typecheck, lint and 448 tests; **not yet exercised against the live API.**
-  Next: the Accountant screens (expense audit and mark-paid, then payroll) — one module at a time.
+  **Accountant screens started (2026-10-03):** the API now names every payroll row (decision-log 2026-10-03). The web has the wire types for the expense audit,
+  mark-paid and payroll (a run, generate outcomes), the API calls, query keys and the tested rules: audit totals that leave out a cancelled row, which rows can
+  be paid, marking each row on its own so a refusal never stops the rest, the 500-row cap, ended months only for payroll, run totals and the month's
+  state, a check that net adds up, the deduction explained in words, generate and finalize summaries, and CSV for both sheets with
+  spreadsheet-formula protection. A shared date-range check also fixed a real bug: a date like `2026-13-01` made it throw instead of being refused.
+  Planned: `/expenses`, mark paid, `/payroll`, generate, finalize and the run page, then CSV download. Exports are CSV only.
+  Next: the `/expenses` and `/payroll` screens — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

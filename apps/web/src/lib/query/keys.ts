@@ -51,8 +51,15 @@ export const keys = {
     change: (id: string) => ['plans', fy(), 'change', id] as const,
   },
   doctorServices: { detail: (id: string) => ['doctorServices', fy(), 'detail', id] as const },
-  expenses: { audit: (query: object) => ['expenses', fy(), 'audit', query] as const },
-  payroll: { month: (query: object) => ['payroll', fy(), 'month', query] as const },
+  expenses: {
+    all: () => ['expenses', fy()] as const,
+    audit: (query: object) => [...keys.expenses.all(), 'audit', query] as const,
+  },
+  payroll: {
+    all: () => ['payroll', fy()] as const,
+    month: (query: object) => [...keys.payroll.all(), 'month', query] as const,
+    detail: (id: string) => [...keys.payroll.all(), 'detail', id] as const,
+  },
   monthlyStock: { missing: (month: string) => ['monthlyStock', fy(), 'missing', month] as const },
   routes: {
     all: () => ['routes', fy()] as const,
