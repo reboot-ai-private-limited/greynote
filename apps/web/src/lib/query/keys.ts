@@ -92,6 +92,12 @@ export const keys = {
     assignments: (id: string) => [...keys.doctors.all(), 'assignments', id] as const,
     samples: (id: string) => [...keys.doctors.all(), 'samples', id] as const,
   },
+  config: {
+    all: () => ['config', fy()] as const,
+    list: () => [...keys.config.all(), 'list'] as const,
+    /** Not tied to a financial year: it says how years are drawn. */
+    public: () => ['config', 'public'] as const,
+  },
   places: { search: (q: string) => ['places', 'search', q] as const },
   fieldEmployees: { search: (q: string) => ['users', fy(), 'field', q] as const },
   zones: {

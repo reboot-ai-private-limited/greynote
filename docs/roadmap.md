@@ -632,6 +632,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   down (base, TA and DA paid, reimbursements, the deduction explained as unpaid days × base ÷ 30, the net), warns if the figures do not add up, notes a
   mid-month joiner is paid in full, and shows when it was generated and finalized. **The Accountant's screens are complete in the web portal.**
   Verified by typecheck, lint and 491 tests; **not yet exercised against the live API.**
+  **System settings started (2026-10-03):** the API gained a registry that defines all 30 Config settings once (type, limits, default, and an impact note for the five
+  that change how the system reads dates or who can act), `GET /config` (Admin), validation on `PATCH /config/:key` (a bad value is a 400 naming the rule;
+  the latest daily-plan resubmit time must stay after the plan deadline) and `GET /config/public` (the financial-year start month and timezone, for any
+  signed-in user). See the decision log. The web has the wire types, API calls, keys and tested rules (grouping, search, a mirror of the server's checks,
+  normalising a draft, "is it changed", and the confirmation for a high-impact change). Planned: `/settings` for Admin, then the portal reading the
+  financial-year start month and timezone from the server instead of assuming April and Indian time.
   **Phase 9 status:** Territory, Employees, Field master data, Approvals, HR and the Accountant screens are built. Still to do from the Phase 9 list:
   Reports (DCR, TP, Gift and Sales) and a screen for the System Config settings (no HTTP surface yet); then a live run of the whole portal against
   the real API.
