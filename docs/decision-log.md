@@ -30,6 +30,8 @@ server needs to validate, and one registry keeps them from drifting.
 
 **Also:** `GET /config` (Admin) lists every setting with its value, rules, default, who changed it and when, and flags a stored value that breaks its own rules (with why) rather than hiding it.
 
+**And:** `PATCH /config/:key` now checks the value against its definition (a `400` naming the rule) and stores it in the form the readers expect (a month in capitals, a time as `HH:MM`, a list of kinds de-duplicated). A key with no definition is a `404`. One rule spans two settings: the latest daily-plan resubmit time must be after the plan deadline, whichever is being changed; a bad older value in the other one does not block fixing this one.
+
 **Cost:** a reader's limit and its definition are written twice (the reader's own parser and this registry), kept honest by a test that every
 default passes its own definition and equals what the seed always wrote, and by the readers' own tests. A time is accepted only as `HH:MM`
 with two digits each, because that is all the deadline code accepts. A timezone is kept as typed once `Intl` accepts it: `Intl` reports a
