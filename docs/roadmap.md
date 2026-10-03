@@ -609,7 +609,11 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   state, a check that net adds up, the deduction explained in words, generate and finalize summaries, and CSV for both sheets with
   spreadsheet-formula protection. A shared date-range check also fixed a real bug: a date like `2026-13-01` made it throw instead of being refused.
   Planned: `/expenses`, mark paid, `/payroll`, generate, finalize and the run page, then CSV download. Exports are CSV only.
-  Next: the `/expenses` and `/payroll` screens — one module at a time.
+  **Expenses list built (2026-10-03, `/expenses`):** the audit of claims the manager accepted, over a range that defaults to this month so far (invalid or reversed
+  ranges are held back), filterable by employee and Unpaid / Paid / both; tiles for what is still to pay and what was paid (each shown only when the list holds its rows),
+  and a count of travel allowances whose distance was not calculated; rows flag those and mark calculated ones; a notice at the 500-row cap; and **Download CSV**.
+  Read-only so far. The nav item is live for Admin and the Accountant. Verified by typecheck, lint and 487 tests; **not yet exercised against the live API.**
+  Next: mark paid (one, and selected), then `/payroll` — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

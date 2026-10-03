@@ -62,6 +62,15 @@ describe('Leave & holidays', () => {
   });
 });
 
+describe('Expenses', () => {
+  it('is built, and shown to Admin and the Accountant, not HR', () => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/expenses');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).toContain('/expenses');
+    expect(navFor('HR').map((i) => i.href)).not.toContain('/expenses');
+    expect(isRouteBuilt('/expenses')).toBe(true);
+  });
+});
+
 describe('Devices', () => {
   it('is an Admin-only screen, since the device API is', () => {
     expect(navFor('ADMIN').map((i) => i.href)).toContain('/devices');
