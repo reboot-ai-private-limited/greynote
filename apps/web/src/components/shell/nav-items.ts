@@ -1,5 +1,6 @@
 import type { RoleName } from '@greynote/contracts';
 import {
+  Award,
   Banknote,
   Building2,
   CalendarDays,
@@ -10,6 +11,7 @@ import {
   Receipt,
   Route,
   Users,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -34,6 +36,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Areas', href: '/areas', icon: MapPinned, group: 'Master data', roles: ['ADMIN'] },
   { label: 'Routes', href: '/routes', icon: Route, group: 'Master data', roles: ['ADMIN'] },
   { label: 'Employees', href: '/employees', icon: Users, group: 'People', roles: ALL, comingSoon: true },
+  { label: 'Pay Bands', href: '/pay-bands', icon: Wallet, group: 'People', roles: ALL },
+  { label: 'Designations', href: '/designations', icon: Award, group: 'People', roles: ['ADMIN', 'HR'] },
   { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'People', roles: ['ADMIN', 'HR'], comingSoon: true },
   { label: 'Approvals', href: '/approvals', icon: ClipboardCheck, group: 'Operations', roles: ['ADMIN'], comingSoon: true },
   { label: 'Expenses', href: '/expenses', icon: Receipt, group: 'Operations', roles: ['ADMIN', 'ACCOUNTANT'], comingSoon: true },

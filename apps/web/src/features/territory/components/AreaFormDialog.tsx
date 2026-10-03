@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/Select';
 import { useCreateArea, useUpdateArea } from '../hooks/useTerritoryMutations';
 import { useHqOptions } from '../hooks/useParentOptions';
 import { AREA_TYPE_LABEL, buildArea, changedAreaFields } from '../lib/draft';
-import { FormDialog } from './FormDialog';
+import { FormDialog } from '@/components/ui/FormDialog';
 
 export const AREA_TYPE_OPTIONS = AREA_TYPES.map((t) => ({ value: t, label: AREA_TYPE_LABEL[t] }));
 

@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/Select';
 import { useCreateHq, useUpdateHq } from '../hooks/useTerritoryMutations';
 import { useZoneOptions } from '../hooks/useParentOptions';
 import { buildHq, changedZoneFields } from '../lib/draft';
-import { FormDialog } from './FormDialog';
+import { FormDialog } from '@/components/ui/FormDialog';
 
 /** Create, or rename (`hq`). An HQ cannot move to another zone, so the zone is read-only on edit. */
 export function HqFormDialog({ hq, onClose }: { hq?: HqDto | undefined; onClose: () => void }) {

@@ -6,7 +6,7 @@ import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { useCreateZone, useUpdateZone } from '../hooks/useTerritoryMutations';
 import { buildZone, changedZoneFields } from '../lib/draft';
-import { FormDialog } from './FormDialog';
+import { FormDialog } from '@/components/ui/FormDialog';
 
 /** Create (no `zone`) or rename (`zone`). Mounted only while open, so its draft is fresh each time. */
 export function ZoneFormDialog({ zone, onClose }: { zone?: ZoneDto | undefined; onClose: () => void }) {

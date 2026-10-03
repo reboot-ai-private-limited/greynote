@@ -456,7 +456,14 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   details, an ordered stops editor with place search and map preview, distance (retry / manual override), and assigned MRs.
   Pure rules (stop list, route drafts, distance, stale revision) are unit-tested; the stops editor was exercised in a browser
   against a stub search. **Not yet exercised against the live API or with a real Maps key** (no sign-in from the build environment).
-  Next: Employees & HR, then master data, HR, approvals, expenses/payroll — one module at a time.
+  **Live verification done (2026-10-03):** login, cookie refresh, Zones/HQs/Areas and Routes with a real Maps key against the real API.
+  **Pay Bands and Designations built (2026-10-03, `/pay-bands`, `/designations`):** HR and Admin create and edit; the Accountant reads
+  Pay Bands only (API opened the same day, decision-log 2026-10-03). Bare-array lists, rupee inputs converted to integer paise by
+  tested pure builders, the grade/designation name offered only while unused and fixed after creation, and a note that edits apply to
+  future runs, not a finalized payroll month. The shared `FormDialog` moved to `components/ui`. Verified by typecheck, lint, 182 tests and
+  `next build`; **not yet exercised against the live API.**
+  Next: Employees (list, create, detail with profile / bank / documents / devices / security), then master data, HR, approvals,
+  expenses/payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

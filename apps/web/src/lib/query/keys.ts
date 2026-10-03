@@ -20,6 +20,8 @@ export const keys = {
     all: () => ['users', fy()] as const,
     list: (query: object) => [...keys.users.all(), 'list', query] as const,
   },
+  designations: { all: () => ['designations', fy()] as const },
+  payBands: { all: () => ['payBands', fy()] as const },
   leaves: { range: (query: object) => ['leaves', fy(), 'range', query] as const },
   expenses: { audit: (query: object) => ['expenses', fy(), 'audit', query] as const },
   payroll: { month: (query: object) => ['payroll', fy(), 'month', query] as const },

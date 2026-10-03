@@ -26,6 +26,22 @@ describe('Routes', () => {
   });
 });
 
+describe('Pay Bands and Designations', () => {
+  it('lets Admin and HR see both', () => {
+    for (const role of ['ADMIN', 'HR'] as const) {
+      const hrefs = navFor(role).map((i) => i.href);
+      expect(hrefs).toContain('/pay-bands');
+      expect(hrefs).toContain('/designations');
+    }
+  });
+
+  it('lets the Accountant read pay bands but not see designations', () => {
+    const hrefs = navFor('ACCOUNTANT').map((i) => i.href);
+    expect(hrefs).toContain('/pay-bands');
+    expect(hrefs).not.toContain('/designations');
+  });
+});
+
 describe('navGroupsFor', () => {
   it('groups items under their headings, in order, dropping empty groups', () => {
     const groups = navGroupsFor('ACCOUNTANT');

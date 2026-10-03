@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 
 /**
- * The frame every Zone/HQ/Area form shares. The Save button sits in the dialog footer, outside
+ * The frame every dialog form shares. The Save button sits in the dialog footer, outside
  * the <form>, so it is tied to the form by id.
  */
 export function FormDialog({

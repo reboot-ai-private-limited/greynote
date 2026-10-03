@@ -5,7 +5,7 @@ import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { useSetDistance } from '../hooks/useRouteMutations';
 import { buildDistanceOverride } from '../lib/routeDraft';
-import { FormDialog } from './FormDialog';
+import { FormDialog } from '@/components/ui/FormDialog';
 
 /** Enter the distance by hand — free (no Google call) and rescues a failed calculation. */
 export function ManualDistanceDialog({ routeId, onClose }: { routeId: string; onClose: () => void }) {
