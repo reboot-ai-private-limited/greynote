@@ -4,6 +4,8 @@ import type { Paise } from '@/shared/money/paise.js';
 export interface IdentityPort {
   /** Every active FIELD employee's id. */
   listActiveFieldUserIds(): Promise<string[]>;
+  /** Names and codes for a batch of employees, in one call. A missing id is left out. */
+  getUserSummaries(userIds: string[]): Promise<Array<{ id: string; name: string; employeeCode: string }>>;
   findUserSummary(userId: string): Promise<{ id: string; name: string; role: string; status: 'active' | 'pending' | 'inactive' } | null>;
   /** The Pay Band id (`null` if none) and joining date; `null` without an EmployeeProfile. */
   getEmploymentDetails(userId: string): Promise<{ payBandId: string | null; dateOfJoining: Date | null } | null>;

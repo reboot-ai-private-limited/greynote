@@ -1,6 +1,7 @@
 import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { FinalizePayrollUseCase, GeneratePayrollUseCase, GetPayrollRunUseCase, ListPayrollRunsUseCase, PayrollClock } from './application/usecases/payroll.usecase.js';
+import { PayrollViews } from './application/payrollViews.js';
 import type { FieldActivityPort, HrPort, IdentityPort } from './domain/ports.js';
 import { MongoPayrollAdapter } from './infrastructure/mongoPayroll.adapter.js';
 import { makePayrollControllers } from './interface/payroll.controller.js';
@@ -23,8 +24,9 @@ export function buildPayrollContainer(identity: IdentityPort, hr: HrPort, fieldA
   const finalize = new FinalizePayrollUseCase(runs, clock);
   const get = new GetPayrollRunUseCase(runs);
   const list = new ListPayrollRunsUseCase(runs);
+  const views = new PayrollViews(identity);
   return {
     contract: { generate: (actor, input) => generate.execute(actor, input), finalize: (id) => finalize.execute(id), get: (id) => get.execute(id), list: (filter) => list.execute(filter) },
-    buildRouter: () => buildPayrollRouter(makePayrollControllers({ generate, finalize, get, list })),
+    buildRouter: () => buildPayrollRouter(makePayrollControllers({ generate, finalize, get, list, views })),
   };
 }

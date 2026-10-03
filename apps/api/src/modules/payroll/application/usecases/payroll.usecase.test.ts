@@ -38,6 +38,9 @@ class World implements IdentityPort, HrPort, FieldActivityPort {
   async listActiveFieldUserIds() {
     return [...this.emps].filter(([, e]) => (e.role ?? 'FIELD') === 'FIELD' && (e.status ?? 'active') === 'active').map(([id]) => id);
   }
+  async getUserSummaries(ids: string[]) {
+    return ids.filter((id) => this.emps.has(id)).map((id) => ({ id, name: `Name ${id}`, employeeCode: `E-${id}` }));
+  }
   async findUserSummary(id: string) {
     const e = this.emps.get(id);
     return e ? { id, name: id, role: e.role ?? 'FIELD', status: e.status ?? 'active' } : null;

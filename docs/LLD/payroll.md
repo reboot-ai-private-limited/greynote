@@ -107,6 +107,10 @@ looks wrong (e.g. an expense not yet marked paid), then finalizes.
 | `GET` | `/payroll/:id` | Accountant | One run |
 | `GET` | `/payroll` | Accountant | List, filterable by `month` / `userId` / `status` |
 
+Every row the HTTP surface returns (a run, the list, a finalize result and each line of a generate result, skipped ones
+included) carries `userName` and `employeeCode`, looked up in one Identity call for the whole response: the stored run holds
+only a `userId`, and a month's sheet is hundreds of rows. The public contract still returns the stored run unchanged.
+
 No MR/manager-facing endpoint in this module — a field employee's own payslip view, if the PRD
 ends up wanting one, is a read surface over this data and can be added to the contract without
 touching the write path.

@@ -17,6 +17,18 @@ old one.
 
 ---
 
+## 2026-10-03 — Payroll rows carry the employee's name and code
+
+**Decision:** every payroll row the HTTP API returns (get, list, finalize, and each line of a generate result) now has `userName` and
+`employeeCode`, resolved in one batched Identity call per response. The stored `PayrollRun` and the public contract are unchanged.
+
+**Why:** found while planning the Accountant screens. A run holds only a `userId`, so a sheet of a few hundred employees would have
+needed a few hundred lookups to show a name. The expense audit already returns the name and code on each row.
+
+**Cost:** one extra Identity read per payroll response; the contract still returns the stored run.
+
+---
+
 ## 2026-10-03 — A plan change and a doctor service can be read by their own id
 
 **Decision:** two read endpoints, `GET /planning/changes/:id` and `GET /field-activity/doctor-services/:id`, with the same readers as
