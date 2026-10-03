@@ -1,5 +1,6 @@
 import { v7 as uuidv7 } from 'uuid';
 import { AppError } from '@/shared/errors/AppError.js';
+import { DOCUMENT_FILE_MESSAGE, detectDocumentKind } from '../../domain/documentFile.js';
 import type { DocumentStoragePort } from '../../domain/documentStorage.port.js';
 import type { UserDocument } from '../../domain/employeeProfile.entity.js';
 import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
@@ -20,6 +21,11 @@ export class UploadUserDocumentUseCase {
   ): Promise<UserDocument> {
     const user = await this.userRepository.findById(targetUserId);
     if (!user) throw AppError.notFound();
+
+    // Before anything is stored: a refused file never reaches Cloudinary.
+    if (detectDocumentKind(fileBuffer) === null) {
+      throw AppError.badRequest(DOCUMENT_FILE_MESSAGE, { field: 'file' });
+    }
 
     const { url, publicId } = await this.documentStorage.upload(fileBuffer, {
       userId: targetUserId,

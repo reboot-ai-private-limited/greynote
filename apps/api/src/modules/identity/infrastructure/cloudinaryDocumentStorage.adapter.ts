@@ -9,6 +9,11 @@ export class CloudinaryDocumentStorage implements DocumentStoragePort {
       const uploadStream = cloudinary.uploader.upload_stream(
         { folder: `greynote/users/${meta.userId}/documents`, resource_type: 'auto' },
         (error, result) => {
+          // Cloudinary answers 400 for a file it cannot read (a corrupt PDF, say): the sender's problem, not ours.
+          if ((error as { http_code?: number } | undefined)?.http_code === 400) {
+            reject(AppError.badRequest('That file could not be read. Check it opens, then upload it again.', { field: 'file' }));
+            return;
+          }
           if (error || !result) {
             reject(
               AppError.internal(

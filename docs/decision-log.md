@@ -17,6 +17,20 @@ old one.
 
 ---
 
+## 2026-10-03 — Employee documents must really be a PDF, JPG or PNG
+
+**Decision:** `POST /identity/users/:id/documents` refuses any file whose own leading bytes are not a PDF, JPEG or PNG, with a
+`400` before anything is stored. The check ignores the file name and the declared `Content-Type`. A file Cloudinary cannot read
+(a corrupt PDF) is also a `400`, not a server error. The web form already offered only those three types.
+
+**Why:** the endpoint accepted anything up to 10 MB and stored it publicly through Cloudinary's `resource_type: auto`. Marketing
+already refuses executables and corrupt files; employee documents held personal data and had no check at all.
+
+**Cost:** a PDF with more than 1 KB of junk before its header is refused, as most readers would refuse it too. A Word file or
+a GIF is not accepted; the client's document types are scans and photos.
+
+---
+
 ## 2026-10-03 — A deactivated account can't sign in, and deactivating signs the employee out
 
 **Decision:** an account with `status: inactive` is refused at login (`403`, after the password check so existence is not
