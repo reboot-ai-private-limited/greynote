@@ -2,6 +2,7 @@
 
 import type { ApprovalInboxItemDto, ApprovalStatus } from '@greynote/contracts';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { Column } from '@/components/ui/DataTable';
@@ -14,6 +15,7 @@ import { formatDate } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useApprovals, type ApprovalView } from '../hooks/useApprovals';
+import { BulkDecisionDialog } from './BulkDecisionDialog';
 import {
   KIND_OPTIONS,
   STATUS_LABEL,
@@ -21,6 +23,7 @@ import {
   dateRangeError,
   dateRangeToInstants,
   kindLabel,
+  selectableRows,
   stageLabel,
 } from '../lib/approvals';
 
@@ -50,7 +53,43 @@ export function ApprovalsScreen() {
     !rangeError,
   );
 
+  // Bulk selection: only what the caller can act on, and only on the page in front of them.
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [bulk, setBulk] = useState<'APPROVE' | 'REJECT' | null>(null);
+  const filterKey = `${view}|${values.kind}|${values.status}|${values.from}|${values.to}|${page}`;
+  useEffect(() => setSelected(new Set()), [filterKey]);
+  const selectable = view === 'waiting' ? selectableRows(list.data?.items ?? []) : [];
+  const chosen = selectable.filter((r) => selected.has(r.id));
+  const allChosen = selectable.length > 0 && chosen.length === selectable.length;
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   const columns: readonly Column<ApprovalInboxItemDto>[] = [
+    ...(view === 'waiting'
+      ? [
+          {
+            key: 'select',
+            header: '',
+            className: 'w-10',
+            render: (r: ApprovalInboxItemDto) =>
+              selectable.some((s) => s.id === r.id) ? (
+                <input
+                  type="checkbox"
+                  checked={selected.has(r.id)}
+                  onChange={() => toggle(r.id)}
+                  disabled={readOnly}
+                  aria-label={`Select ${kindLabel(r.kind)} from ${r.submitter?.name ?? 'an employee'}`}
+                  className="size-4 rounded border-border-strong accent-[var(--color-accent)]"
+                />
+              ) : null,
+          },
+        ]
+      : []),
     {
       key: 'request',
       header: 'Request',
@@ -165,6 +204,31 @@ export function ApprovalsScreen() {
               Clear filters
             </Button>
           ) : null}
+          {view === 'waiting' && selectable.length > 0 ? (
+            <div className="flex basis-full flex-wrap items-center gap-3 border-t border-border pt-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={readOnly}
+                onClick={() => setSelected(allChosen ? new Set() : new Set(selectable.map((r) => r.id)))}
+              >
+                {allChosen ? 'Clear selection' : `Select all ${selectable.length} on this page`}
+              </Button>
+              <span className="text-sm text-text-muted" aria-live="polite">
+                {chosen.length === 0 ? 'Select requests to decide them together.' : `${chosen.length} selected`}
+              </span>
+              {chosen.length > 0 ? (
+                <>
+                  <Button size="sm" disabled={readOnly} onClick={() => setBulk('APPROVE')}>
+                    Approve selected
+                  </Button>
+                  <Button size="sm" variant="secondary" disabled={readOnly} onClick={() => setBulk('REJECT')}>
+                    Reject selected
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
           {rangeError ? (
             <p role="alert" className="basis-full text-[13px] text-danger-fg">
               {rangeError}
@@ -177,6 +241,15 @@ export function ApprovalsScreen() {
       emptyTitle={view === 'waiting' ? 'Nothing waiting' : 'No requests'}
       emptyDescription={view === 'waiting' ? 'Every request has been decided. New ones appear here as they are submitted.' : 'No request matches these filters.'}
       onPageChange={(p) => update({ page: p })}
-    />
+    >
+      {bulk ? (
+        <BulkDecisionDialog
+          decision={bulk}
+          rows={chosen}
+          onClose={() => setBulk(null)}
+          onFinished={(decided) => setSelected((prev) => new Set([...prev].filter((id) => !decided.includes(id))))}
+        />
+      ) : null}
+    </PagedListFrame>
   );
 }

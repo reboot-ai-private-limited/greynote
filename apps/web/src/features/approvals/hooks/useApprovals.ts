@@ -1,11 +1,12 @@
 'use client';
 
-import type { ApprovalDetailDto } from '@greynote/contracts';
+import type { ApprovalDetailDto, ApprovalInboxItemDto, BulkResultDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { approvalsApi, type InboxQuery } from '@/lib/api/endpoints/approvals';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
+import { runBulk } from '../lib/approvals';
 
 export type ApprovalView = 'waiting' | 'history';
 
@@ -61,5 +62,23 @@ export function useDecision(requestId: string, action: DecisionAction, onDone: (
     invalidates: [keys.approvals.all()],
     successMessage: DONE[action],
     onSuccess: onDone,
+  });
+}
+
+export interface BulkInput {
+  decision: 'APPROVE' | 'REJECT';
+  rows: Pick<ApprovalInboxItemDto, 'id' | 'cycle'>[];
+  comment: string;
+}
+
+/**
+ * Approve or reject many at once. It never rejects on a partial failure: the caller gets a result per row,
+ * and decides what to show. The queue refetches either way, since some rows are decided.
+ */
+export function useBulkDecision(onResults: (results: BulkResultDto[]) => void) {
+  return useApiMutation<BulkInput, BulkResultDto[]>({
+    call: (token, { decision, rows, comment }) => runBulk((body) => approvalsApi.bulk(token, body), decision, rows, comment),
+    invalidates: [keys.approvals.all()],
+    onSuccess: onResults,
   });
 }

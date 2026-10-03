@@ -10,6 +10,8 @@ import {
   groupByCycle,
   kindLabel,
   reasonError,
+  runBulk,
+  UNCONFIRMED_MESSAGE,
   selectableRows,
   skipsManager,
   stageLabel,
@@ -132,5 +134,56 @@ describe('bulk', () => {
     expect(summary.failed).toEqual([{ requestId: 'b', statusCode: 409, message: 'This was changed and resubmitted since you opened it. Reload it.' }]);
     expect(bulkMessage(summary, 2)).toMatch(/1 of 2 done. 1 could not be decided/);
     expect(bulkMessage({ done: 3, failed: [] }, 3)).toBe('3 of 3 done.');
+  });
+});
+
+describe('runBulk', () => {
+  const rows = Array.from({ length: 230 }, (_, i) => ({ id: `r${i}`, cycle: 1 }));
+  const ok = (body: { requests: { id: string }[] }) => ({ results: body.requests.map((r) => ({ requestId: r.id, ok: true as const, status: 'APPROVED' as const })) });
+
+  it('sends batches of 100 in order and returns a result for every row', async () => {
+    const sizes: number[] = [];
+    const results = await runBulk(async (body) => {
+      sizes.push(body.requests.length);
+      return ok(body);
+    }, 'APPROVE', rows, '');
+    expect(sizes).toEqual([100, 100, 30]);
+    expect(results).toHaveLength(230);
+    expect(results.every((r) => r.ok)).toBe(true);
+  });
+  it('passes the decision and the trimmed comment to every batch', async () => {
+    const bodies: { decision: string; comment?: string }[] = [];
+    await runBulk(async (body) => {
+      bodies.push({ decision: body.decision, ...(body.comment && { comment: body.comment }) });
+      return ok(body);
+    }, 'REJECT', rows.slice(0, 150), '  not clear  ');
+    expect(bodies).toEqual([{ decision: 'REJECT', comment: 'not clear' }, { decision: 'REJECT', comment: 'not clear' }]);
+  });
+  it('keeps per-item failures the server reported', async () => {
+    const results = await runBulk(async (body) => ({
+      results: body.requests.map((r, i): { requestId: string; ok: false; statusCode: number; message: string } | { requestId: string; ok: true; status: 'APPROVED' } =>
+        i === 1 ? { requestId: r.id, ok: false, statusCode: 409, message: 'stale' } : { requestId: r.id, ok: true, status: 'APPROVED' },
+      ),
+    }), 'APPROVE', rows.slice(0, 3), '');
+    expect(summariseBulk(results)).toMatchObject({ done: 2, failed: [{ requestId: 'r1', statusCode: 409 }] });
+  });
+  it('stops at a failed batch: its rows and every later row come back unconfirmed, none sent', async () => {
+    let calls = 0;
+    const results = await runBulk(async (body) => {
+      calls += 1;
+      if (calls === 2) throw new Error('network');
+      return ok(body);
+    }, 'APPROVE', rows, '');
+    expect(calls).toBe(2);
+    expect(results).toHaveLength(230);
+    expect(results.slice(0, 100).every((r) => r.ok)).toBe(true);
+    const unconfirmed = results.slice(100);
+    expect(unconfirmed).toHaveLength(130);
+    expect(unconfirmed.every((r) => !r.ok && r.statusCode === 0 && r.message === UNCONFIRMED_MESSAGE)).toBe(true);
+  });
+  it('sends nothing for no rows', async () => {
+    let calls = 0;
+    expect(await runBulk(async (b) => { calls += 1; return ok(b); }, 'APPROVE', [], '')).toEqual([]);
+    expect(calls).toBe(0);
   });
 });

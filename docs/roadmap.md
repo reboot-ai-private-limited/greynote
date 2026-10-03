@@ -539,7 +539,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   visible. Approve and Reject ask for a comment or a required reason; approving a request still with the manager warns that it skips them.
   A decision returns to the queue; a lost race (the employee resubmitted) shows the server's message and refreshes. A kind with no preview
   yet shows what it is and its record id. Verified by typecheck, lint, 348 tests and `next build`; **not yet exercised against the live API.**
-  Next: bulk decide, and the per-kind previews (new doctor and leave first); then HR, expenses/payroll.
+  **Bulk decide built (2026-10-03):** on *Waiting on you*, a checkbox on each row the caller can act on, a Select-all for the page, and Approve /
+  Reject selected. Each goes at the round it showed, in batches of 100 (one request each); the dialog warns how many skip the manager and
+  asks one required reason to reject; the result lists every failure by name with the server's message, and a batch lost to a
+  dropped connection is reported unconfirmed and stops the rest. Verified by typecheck, lint, 353 tests and `next build`; **not yet
+  exercised against the live API.**
+  Next: the per-kind previews (new doctor and leave first); then HR, expenses/payroll.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

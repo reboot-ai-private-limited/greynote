@@ -211,3 +211,32 @@ export function bulkMessage(summary: BulkSummary, total: number): string {
   if (summary.failed.length === 0) return `${summary.done} of ${total} done.`;
   return `${summary.done} of ${total} done. ${summary.failed.length} could not be decided: reload them and try again.`;
 }
+
+export const UNCONFIRMED_MESSAGE = 'Could not confirm: the connection failed. Reload and check before trying again.';
+
+/**
+ * Sends the rows in batches of 100, one request each, and always returns a result per row: a batch whose
+ * request fails (a dropped connection, where the server may or may not have decided some) is reported as
+ * unconfirmed for each of its rows, and the batches after it are not sent, so nothing is decided on a bad connection.
+ */
+export async function runBulk(
+  send: (body: BulkDecideDto) => Promise<{ results: BulkResultDto[] }>,
+  decision: BulkDecideDto['decision'],
+  rows: readonly Pick<ApprovalInboxItemDto, 'id' | 'cycle'>[],
+  comment: string,
+): Promise<BulkResultDto[]> {
+  const results: BulkResultDto[] = [];
+  const batches = chunkRows(rows);
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i] ?? [];
+    try {
+      results.push(...(await send(buildBulkBody(decision, batch, comment))).results);
+    } catch {
+      for (const row of batches.slice(i).flat()) {
+        results.push({ requestId: row.id, ok: false, statusCode: 0, message: UNCONFIRMED_MESSAGE });
+      }
+      break;
+    }
+  }
+  return results;
+}
