@@ -28,6 +28,8 @@ manager-only approval kinds). The seed is built from it. The limits are the ones
 financial-year month would be stored and then fail on every read of that key. The screen needs the same facts (type, limits, warnings) the
 server needs to validate, and one registry keeps them from drifting.
 
+**Also:** `GET /config` (Admin) lists every setting with its value, rules, default, who changed it and when, and flags a stored value that breaks its own rules (with why) rather than hiding it.
+
 **Cost:** a reader's limit and its definition are written twice (the reader's own parser and this registry), kept honest by a test that every
 default passes its own definition and equals what the seed always wrote, and by the readers' own tests. A time is accepted only as `HH:MM`
 with two digits each, because that is all the deadline code accepts. A timezone is kept as typed once `Intl` accepts it: `Intl` reports a

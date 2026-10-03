@@ -4,8 +4,16 @@ import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { configKeyParamsSchema, updateConfigBodySchema } from './config.schemas.js';
-import type { makeUpdateConfigController } from './config.controller.js';
+import type { makeListConfigController, makeUpdateConfigController } from './config.controller.js';
 
+openApiRegistry.registerPath({
+  method: 'get',
+  path: '/api/config',
+  tags: ['Config'],
+  summary: 'Admin: every system setting with its value, type, limits, default and impact',
+  security: [{ bearerAuth: [] }],
+  responses: { 200: { description: 'System settings' } },
+});
 openApiRegistry.registerPath({
   method: 'patch',
   path: '/api/config/{key}',
@@ -23,10 +31,12 @@ openApiRegistry.registerPath({
 });
 
 export function buildConfigRouter(controllers: {
+  list: ReturnType<typeof makeListConfigController>;
   update: ReturnType<typeof makeUpdateConfigController>;
 }): Router {
   const router = Router();
 
+  router.get('/', authenticate(), requireRole('ADMIN'), controllers.list);
   router.patch(
     '/:key',
     authenticate(),

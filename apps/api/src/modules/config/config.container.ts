@@ -1,9 +1,10 @@
 import type { Router } from 'express';
 import { GetConfigValueUseCase } from './application/usecases/getConfigValue.usecase.js';
+import { ListConfigUseCase } from './application/usecases/listConfig.usecase.js';
 import { SeedDefaultConfigUseCase } from './application/usecases/seedDefaultConfig.usecase.js';
 import { UpdateConfigValueUseCase } from './application/usecases/updateConfigValue.usecase.js';
 import { MongoSystemConfigAdapter } from './infrastructure/mongoSystemConfig.adapter.js';
-import { makeUpdateConfigController } from './interface/config.controller.js';
+import { makeListConfigController, makeUpdateConfigController } from './interface/config.controller.js';
 import { buildConfigRouter } from './interface/config.route.js';
 import type { ConfigPublicContract } from './config.public.js';
 
@@ -19,12 +20,13 @@ export function buildConfigContainer(): ConfigContainer {
   const getConfigValue = new GetConfigValueUseCase(repository);
   const seedDefaultConfig = new SeedDefaultConfigUseCase(repository);
   const updateConfigValue = new UpdateConfigValueUseCase(repository);
+  const listConfig = new ListConfigUseCase(repository);
 
   return {
     contract: {
       get: (key: string) => getConfigValue.execute(key),
     },
     seed: () => seedDefaultConfig.execute(),
-    buildRouter: () => buildConfigRouter({ update: makeUpdateConfigController(updateConfigValue) }),
+    buildRouter: () => buildConfigRouter({ list: makeListConfigController(listConfig), update: makeUpdateConfigController(updateConfigValue) }),
   };
 }

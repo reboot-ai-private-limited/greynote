@@ -16,6 +16,18 @@ export class MongoSystemConfigAdapter implements SystemConfigRepositoryPort {
     };
   }
 
+  async list(): Promise<SystemConfigEntry[]> {
+    const docs = await SystemConfigModel.find({}).lean();
+    return docs.map((doc) => ({
+      key: doc.key,
+      value: doc.value,
+      module: doc.module,
+      description: doc.description,
+      updatedBy: doc.updatedBy,
+      updatedAt: doc.updatedAt,
+    }));
+  }
+
   async updateValue(key: string, value: string, updatedBy: string): Promise<SystemConfigEntry | null> {
     const doc = await SystemConfigModel.findOneAndUpdate(
       { key },

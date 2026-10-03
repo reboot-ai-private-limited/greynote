@@ -2,6 +2,8 @@ import type { SystemConfigEntry, SystemConfigSeed } from './systemConfig.entity.
 
 export interface SystemConfigRepositoryPort {
   findByKey(key: string): Promise<SystemConfigEntry | null>;
+  /** Every stored row, in no particular order. */
+  list(): Promise<SystemConfigEntry[]>;
   /**
    * Upserts each seed entry only if its key doesn't already exist (`$setOnInsert`-style) —
    * never overwrites a value an Admin has since edited.
