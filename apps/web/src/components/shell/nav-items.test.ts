@@ -35,6 +35,15 @@ describe('Employees', () => {
   });
 });
 
+describe('Devices', () => {
+  it('is an Admin-only screen, since the device API is', () => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/devices');
+    expect(navFor('HR').map((i) => i.href)).not.toContain('/devices');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/devices');
+    expect(isRouteBuilt('/devices')).toBe(true);
+  });
+});
+
 describe('Pay Bands and Designations', () => {
   it('lets Admin and HR see both', () => {
     for (const role of ['ADMIN', 'HR'] as const) {

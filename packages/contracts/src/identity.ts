@@ -134,3 +134,25 @@ export interface UpdateUserDto {
   managerId?: string;
   status?: 'inactive';
 }
+
+export const DEVICE_STATUSES = ['PENDING', 'REGISTERED', 'REJECTED', 'REMOVED'] as const;
+export type DeviceStatus = (typeof DEVICE_STATUSES)[number];
+
+/** One row of `GET /identity/users/:id/devices` — every status, newest first. */
+export interface UserDeviceDto {
+  id: string;
+  userId: string;
+  deviceId: string;
+  deviceName: string;
+  deviceModel: string;
+  platform: 'ANDROID' | 'IOS' | 'WEB';
+  status: DeviceStatus;
+  requestedAt: string;
+  decidedAt: string | null;
+  decidedBy: string | null;
+  /** A rejected phone is blocked until this passes, then it counts as new. */
+  expiresAt: string | null;
+  /** A live session exists on this phone. Only a registered phone can be logged in. */
+  loggedIn: boolean;
+  lastActiveAt: string | null;
+}

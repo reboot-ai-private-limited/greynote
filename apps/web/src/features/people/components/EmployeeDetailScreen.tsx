@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { formatDate } from '@/lib/format';
+import { useSession } from '@/lib/auth/SessionProvider';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useUser } from '../hooks/useUsers';
 import { missingForActive } from '../lib/profile';
@@ -18,10 +19,13 @@ import { BankSection } from './BankSection';
 import { DocumentsSection } from './DocumentsSection';
 import { BasicSection } from './BasicSection';
 import { Field, FieldList } from './SectionCard';
+import { UserDevicesSection } from './UserDevicesSection';
 import { WorkSection } from './WorkSection';
 
 export function EmployeeDetailScreen({ id }: { id: string }) {
   const readOnly = useIsReadOnly();
+  // Phones are Admin's call (the API refuses HR), so HR does not see the tab.
+  const isAdmin = useSession().user?.role === 'ADMIN';
   const query = useUser(id);
   const user = query.data;
   const missing = user ? missingForActive(user) : [];
@@ -69,6 +73,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                   <TabsTrigger value="profile">Profile</TabsTrigger>
                   <TabsTrigger value="bank">Bank</TabsTrigger>
                   <TabsTrigger value="documents">Documents</TabsTrigger>
+                  {isAdmin ? <TabsTrigger value="devices">Devices</TabsTrigger> : null}
                 </TabsList>
                 <TabsContent value="profile" className="mt-6 space-y-6">
                   <BasicSection user={user} readOnly={readOnly} />
@@ -81,6 +86,11 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 <TabsContent value="documents" className="mt-6">
                   <DocumentsSection user={user} readOnly={readOnly} />
                 </TabsContent>
+                {isAdmin ? (
+                  <TabsContent value="devices" className="mt-6">
+                    <UserDevicesSection userId={user.id} />
+                  </TabsContent>
+                ) : null}
               </Tabs>
             ) : (
               <Card title="Account" description="Designation, pay band, bank details and devices apply to the field force only.">

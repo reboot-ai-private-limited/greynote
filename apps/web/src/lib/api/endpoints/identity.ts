@@ -10,6 +10,7 @@ import type {
   UpdatePayBandDto,
   UpdateUserDto,
   UserDetailDto,
+  UserDeviceDto,
   UserDocumentDto,
   UserListItemDto,
   UserListStatus,
@@ -32,6 +33,17 @@ export const identityApi = {
 
   users: (token: string, query: ListUsersQuery, signal?: AbortSignal) =>
     request<PaginatedDto<UserListItemDto>>('/identity/users', { token, query: { ...query }, signal }),
+
+  userDevices: (token: string, userId: string, signal?: AbortSignal) =>
+    request<UserDeviceDto[]>(`/identity/users/${userId}/devices`, { token, signal }),
+
+  /** `approve` and `reject` return the device; `remove` and `logout` return nothing. */
+  decideDevice: (token: string, userId: string, deviceRowId: string, action: 'approve' | 'reject') =>
+    request<UserDeviceDto>(`/identity/users/${userId}/devices/${deviceRowId}/${action}`, { method: 'POST', token }),
+  removeDevice: (token: string, userId: string, deviceRowId: string) =>
+    request<Record<string, never>>(`/identity/users/${userId}/devices/${deviceRowId}`, { method: 'DELETE', token }),
+  logoutDevice: (token: string, userId: string, deviceRowId: string) =>
+    request<Record<string, never>>(`/identity/users/${userId}/devices/${deviceRowId}/logout`, { method: 'POST', token }),
 
   user: (token: string, id: string, signal?: AbortSignal) =>
     request<UserDetailDto>(`/identity/users/${id}`, { token, signal }),

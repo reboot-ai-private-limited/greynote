@@ -478,8 +478,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   file, remove with a confirmation, and open a document in a new tab. The web refuses a file that is not a PDF, JPG or PNG, or is empty or over
   10 MB, before anything is uploaded; the API's own check is the 10 MB limit only. The API client now sends a `FormData` body untouched.
   Verified by typecheck, lint, 234 tests and `next build`; **not yet exercised against the live API or Cloudinary.**
-  Next: Devices, then Security (reset password, unblock, deactivate); then master data, HR, approvals, expenses/payroll — one module
-  at a time.
+  **Devices built (2026-10-03, `/devices` and the Devices tab):** Admin-only. `/devices` is the org-wide queue of phones awaiting
+  approval, oldest first, with Approve and Reject; the employee's Devices tab lists every phone with its status, whether it is signed
+  in and when it was last active, and offers Log out and Remove on a registered one. Each action says what it does before it is
+  confirmed (a removal frees a slot; a log-out does not). The dashboard's devices tile now opens `/devices`. HR does not see the tab,
+  as the API refuses HR. Verified by typecheck, lint, 243 tests and `next build`; **not yet exercised against the live API.**
+  Next: Security (reset password, unblock, deactivate); then master data, HR, approvals, expenses/payroll — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

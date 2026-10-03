@@ -15,7 +15,11 @@ export const keys = {
     all: () => ['approvals', fy()] as const,
     inbox: (query: object) => [...keys.approvals.all(), 'inbox', query] as const,
   },
-  devices: { pending: () => ['devices', fy(), 'pending'] as const },
+  devices: {
+    all: () => ['devices', fy()] as const,
+    pending: () => [...keys.devices.all(), 'pending'] as const,
+    forUser: (userId: string) => [...keys.devices.all(), 'user', userId] as const,
+  },
   users: {
     all: () => ['users', fy()] as const,
     list: (query: object) => [...keys.users.all(), 'list', query] as const,

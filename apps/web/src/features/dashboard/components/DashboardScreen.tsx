@@ -42,7 +42,7 @@ function LeaveApprovalsTile() {
 }
 
 function DevicesTile() {
-  return <ActionTile label="Devices awaiting approval" query={usePendingDevices()} map={devicesTile} href="/employees" />;
+  return <ActionTile label="Devices awaiting approval" query={usePendingDevices()} map={devicesTile} href="/devices" />;
 }
 
 function EmployeesTile() {
