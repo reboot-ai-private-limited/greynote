@@ -4,8 +4,10 @@ import { kindLabel } from '../lib/approvals';
 import { DailyPlanPreview } from './DailyPlanPreview';
 import { DcrPreview } from './DcrPreview';
 import { DoctorPreview } from './DoctorPreview';
+import { DoctorServicePreview } from './DoctorServicePreview';
 import { LeavePreview } from './LeavePreview';
 import { MonthlyPlanPreview } from './MonthlyPlanPreview';
+import { PlanChangePreview } from './PlanChangePreview';
 
 /**
  * What is being approved. Each kind adds its own read-only panel; a kind with none yet still shows
@@ -21,13 +23,17 @@ export function ApprovalPreview({ request }: { request: ApprovalDetailDto }) {
       return <DailyPlanPreview recordId={request.recordId} />;
     case 'MONTHLY_PLAN':
       return <MonthlyPlanPreview recordId={request.recordId} />;
+    case 'DOCTOR_SERVICE':
+      return <DoctorServicePreview recordId={request.recordId} />;
+    case 'DAILY_PLAN_CHANGE':
+      return <PlanChangePreview recordId={request.recordId} />;
     case 'LEAVE':
       return <LeavePreview recordId={request.recordId} />;
     default:
       return (
         <Card title={kindLabel(request.kind)} description="The record this request is about.">
           <p className="p-5 text-sm text-text-muted">
-            A preview of this kind is not available in the portal yet. Record <span className="font-mono text-text">{request.recordId}</span>.
+            This kind has no preview in the portal. Record <span className="font-mono text-text">{request.recordId}</span>.
           </p>
         </Card>
       );

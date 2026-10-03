@@ -569,7 +569,12 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   **Plan previews built (2026-10-03):** a daily plan shows its day, submit deadline, working type, routes by "HQ · Area · Route", who they work with and remarks;
   a monthly plan shows the month, a count of days by working type, and a dated row per planned day. Verified by typecheck, lint, 395 tests
   and a clean `next build`; **not yet exercised against the live API.**
-  Next: doctor service and plan change previews; then HR, expenses/payroll.
+  **Doctor service and plan change previews built (2026-10-03):** a service shows its doctor (linked), type, amount, who it is tied to, who made it and
+  the remarks. A plan change shows the reason and its state, a "What changes" list (working type before → after, routes and colleagues
+  added or removed, remarks), the plan as approved beside the proposal, and a warning when the plan has moved on since it was asked for,
+  since approving then fails. **Every approval kind now has a preview.** Verified by typecheck, lint, 397 tests and a clean
+  `next build`; **not yet exercised against the live API.**
+  Next: HR (leave types, the leave master, holidays, balances), then Accountant (expense audit, payroll) — one module at a time.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

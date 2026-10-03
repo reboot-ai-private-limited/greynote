@@ -1,4 +1,4 @@
-import type { LeaveBalanceDto, LeaveDetailDto } from '@greynote/contracts';
+import type { DoctorServiceType, LeaveBalanceDto, LeaveDetailDto } from '@greynote/contracts';
 
 /** `3 Oct 2026` for one day, `3 – 5 Oct 2026` within a month, otherwise both ends in full. Dates arrive as `YYYY-MM-DD`. */
 export function leaveRangeLabel(start: string, end: string, half: string | null): string {
@@ -39,4 +39,22 @@ export function balanceNote(leave: Pick<LeaveDetailDto, 'isPaid' | 'status' | 'd
   return open
     ? `Already held against the balance. ${daysLabel(balance.availableDays)} will be left if it is approved.`
     : `${daysLabel(balance.availableDays)} available now.`;
+}
+
+
+export const SERVICE_TYPE_LABEL: Record<DoctorServiceType, string> = {
+  TOUR_PACKAGE: 'Tour package',
+  GIFT: 'Gift',
+  ONLINE_PROMOTION: 'Online promotion',
+  OTHERS: 'Other',
+};
+
+/** A service type the portal does not know is shown as stored rather than hidden. */
+export function serviceTypeLabel(type: string): string {
+  return SERVICE_TYPE_LABEL[type as DoctorServiceType] ?? type;
+}
+
+/** Who made it: an MR asks (and it needs approval); Admin records one that takes effect at once. */
+export function serviceOriginLabel(origin: 'MR' | 'ADMIN'): string {
+  return origin === 'MR' ? 'Requested by the MR' : 'Recorded by Admin';
 }

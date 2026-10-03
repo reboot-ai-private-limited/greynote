@@ -1,6 +1,6 @@
 import type { LeaveBalanceDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { balanceForLeave, balanceNote, daysLabel, leaveRangeLabel } from './previews';
+import { balanceForLeave, balanceNote, daysLabel, leaveRangeLabel, serviceOriginLabel, serviceTypeLabel } from './previews';
 
 describe('leaveRangeLabel', () => {
   it('shows one day, and a half day with which half', () => {
@@ -57,5 +57,18 @@ describe('balanceForLeave / balanceNote', () => {
   it('says an unpaid leave uses no balance, and handles a missing row', () => {
     expect(balanceNote(leave({ isPaid: false }), null)).toMatch(/Unpaid leave/);
     expect(balanceNote(leave(), null)).toBe('No balance row for this leave type and year.');
+  });
+});
+
+describe('doctor service labels', () => {
+  it('names the known types and shows an unknown one as stored', () => {
+    expect(serviceTypeLabel('TOUR_PACKAGE')).toBe('Tour package');
+    expect(serviceTypeLabel('ONLINE_PROMOTION')).toBe('Online promotion');
+    expect(serviceTypeLabel('OTHERS')).toBe('Other');
+    expect(serviceTypeLabel('SPONSORED_LUNCH')).toBe('SPONSORED_LUNCH');
+  });
+  it('says who made it', () => {
+    expect(serviceOriginLabel('MR')).toBe('Requested by the MR');
+    expect(serviceOriginLabel('ADMIN')).toBe('Recorded by Admin');
   });
 });

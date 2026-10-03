@@ -83,3 +83,13 @@ export function usePlanChange(id: string) {
     }),
   );
 }
+
+export function useDoctorService(id: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.doctorServices.detail(id),
+      fetch: (token, signal) => fieldActivityApi.doctorService(token, id, signal),
+      staleTime: staleTime.live,
+    }),
+  );
+}
