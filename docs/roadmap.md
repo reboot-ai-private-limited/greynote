@@ -625,7 +625,16 @@ Payroll's screen waits on Phase 7's API regardless of when the web app itself st
   the month, unpaid leave, base ÷ 30) and that a finalized run is never changed; the result names every skipped employee with the reason, treating
   "already finalized" as expected. **Download CSV** for the sheet. The nav item is live for Admin and the Accountant. Verified by typecheck, lint and 491 tests;
   **not yet exercised against the live API.**
-  Next: finalize (one, and all drafts) and the run page — one module at a time.
+  **Finalize and the run page built (2026-10-03):** each draft has *Finalize*, and the sheet has *Finalize all N drafts*. The confirmation says it is a one-way lock
+  (later payments and leave do not alter a finalized month; a later payment counts in the month it is made), shows the net being locked, says how many
+  accepted claims for the month are unpaid and not in the sheet, and needs a deliberate tick that the figures were checked. One request per run, so a
+  run already final in another tab is that row's refusal alone, and the result names each one that could not be finalized. `/payroll/[id]` breaks a run
+  down (base, TA and DA paid, reimbursements, the deduction explained as unpaid days × base ÷ 30, the net), warns if the figures do not add up, notes a
+  mid-month joiner is paid in full, and shows when it was generated and finalized. **The Accountant's screens are complete in the web portal.**
+  Verified by typecheck, lint and 491 tests; **not yet exercised against the live API.**
+  **Phase 9 status:** Territory, Employees, Field master data, Approvals, HR and the Accountant screens are built. Still to do from the Phase 9 list:
+  Reports (DCR, TP, Gift and Sales) and a screen for the System Config settings (no HTTP surface yet); then a live run of the whole portal against
+  the real API.
 
 **Done when:** an Admin/HR/Accountant can perform every Web Portal responsibility in PRD §5
 without engineering help, end to end against the real API.

@@ -22,7 +22,8 @@ import { formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
 import { useGenerate, usePayrollMonth } from '../hooks/usePayroll';
-import { endedMonthsInYear, monthBounds, monthLabel, monthState, payrollCsv, payrollFilename, runTotals } from '../lib/payroll';
+import { draftRuns, endedMonthsInYear, monthBounds, monthLabel, monthState, payrollCsv, payrollFilename, runTotals } from '../lib/payroll';
+import { FinalizeDialog } from './FinalizeDialog';
 import { GenerateDialog } from './GenerateDialog';
 import { GenerateResultDialog } from './GenerateResultDialog';
 
@@ -37,11 +38,13 @@ export function PayrollScreen() {
   const month = months.includes(values.month) ? values.month : (months[0] ?? '');
   const [generating, setGenerating] = useState<{ employee?: PayrollRunDto } | null>(null);
   const [outcomes, setOutcomes] = useState<GenerateOutcomeDto[] | null>(null);
+  const [finalizing, setFinalizing] = useState<PayrollRunDto[] | null>(null);
 
   const sheet = usePayrollMonth(month, month !== '');
   const runs = sheet.data ?? [];
   const totals = runTotals(runs);
   const state = monthState(runs);
+  const drafts = draftRuns(runs);
   const generate = useGenerate((result) => {
     setGenerating(null);
     setOutcomes(result);
@@ -77,13 +80,24 @@ export function PayrollScreen() {
     {
       key: 'actions',
       header: '',
-      className: 'w-32 text-right',
-      render: (r) =>
-        r.status === 'DRAFT' ? (
-          <Button size="sm" variant="secondary" disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setGenerating({ employee: r })}>
-            Regenerate
-          </Button>
-        ) : null,
+      className: 'w-64 text-right',
+      render: (r) => (
+        <div className="flex items-center justify-end gap-2">
+          <Link href={`/payroll/${r.id}`} className="text-sm text-accent hover:underline">
+            Details
+          </Link>
+          {r.status === 'DRAFT' ? (
+            <>
+              <Button size="sm" variant="secondary" disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setGenerating({ employee: r })}>
+                Regenerate
+              </Button>
+              <Button size="sm" disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setFinalizing([r])}>
+                Finalize
+              </Button>
+            </>
+          ) : null}
+        </div>
+      ),
     },
   ];
 
@@ -97,6 +111,11 @@ export function PayrollScreen() {
             <Button variant="secondary" disabled={runs.length === 0} onClick={() => downloadCsv(payrollFilename(month), payrollCsv(runs))}>
               Download CSV
             </Button>
+            {drafts.length > 0 ? (
+              <Button variant="secondary" disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setFinalizing(drafts)}>
+                Finalize {drafts.length === 1 ? 'the draft' : `all ${drafts.length} drafts`}
+              </Button>
+            ) : null}
             <Button disabled={readOnly || month === ''} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setGenerating({})}>
               {state === 'none' ? 'Generate sheet' : 'Regenerate drafts'}
             </Button>
@@ -163,6 +182,7 @@ export function PayrollScreen() {
           onConfirm={() => generate.mutate({ month, ...(generating.employee && { userIds: [generating.employee.userId] }) })}
         />
       ) : null}
+      {finalizing ? <FinalizeDialog runs={finalizing} month={month} unpaidClaims={unpaidTotals.unpaidCount} onClose={() => setFinalizing(null)} /> : null}
       {outcomes ? <GenerateResultDialog outcomes={outcomes} onClose={() => setOutcomes(null)} /> : null}
     </>
   );
