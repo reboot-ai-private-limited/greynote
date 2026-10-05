@@ -167,7 +167,7 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | K1 | Maximum km paid as TA for one Route | `TA_MAX_KM`, default 99, in SystemConfig; a longer Route is paid as 99 km | Accepted 2026-10-05 (from the owner) |
 | K2 | When is a Route Ex-station or Out-station? | By distance: over `EX_STATION_MIN_KM` (15) → Ex-station; over `OUT_STATION_MIN_KM` (50) → Out-station; both in SystemConfig | Accepted 2026-10-05 |
 | K3 | Can the creator pick a different type? | Yes, with a warning, never a block | Accepted 2026-10-05 |
-| K4 | Does the 99 km cap apply per Route or to the day's total? | The **day's total**: the km paid across all the day's Routes is capped at `TA_MAX_KM` | Accepted 2026-10-05 (from the owner) |
+| K4 | A day with several Routes: how is TA counted? | **Only the longest Route** is paid TA (at most `TA_MAX_KM` of it, at its own rate); the others get no TA. DA is still by the highest Route type | Accepted 2026-10-05 (from the owner) |
 | K5 | Salary on the 1st (previous month, no TA/DA), expense payout on the 15th | Two separate runs; salary slip shows the ESI number | Designed 2026-10-05 (working assumption) |
 | K6 | All leave paid during the first 6 months; no half-day leave | Probation from the joining date; half-day removed | Open (leave types and start date to confirm) |
 | K7 | Approvals after the date has gone | **Dropped 2026-10-05**: no cutoff, nothing is refused for being late | Dropped (from the owner) |

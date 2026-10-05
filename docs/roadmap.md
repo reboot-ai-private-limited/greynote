@@ -727,7 +727,7 @@ Follow-up the same day: pay grades carry a required, enforced CTC range, free na
 
 Decision-log 2026-10-05, sign-off K. Order is by dependency: rules and money first, then data, then screens, then the phone.
 
-1. **Rule changes to existing code** (each a pure function plus a test): TA cap `TA_MAX_KM` (99) · Route type from distance by `EX_STATION_MIN_KM` (15) / `OUT_STATION_MIN_KM` (50), overridable with a warning · no half-day leave · probation (6 months) all leave paid · ESI number on the employee. All limits in SystemConfig.
+1. **Rule changes to existing code** (each a pure function plus a test): TA for the longest Route of the day, capped at `TA_MAX_KM` (99) · Route type from distance by `EX_STATION_MIN_KM` (15) / `OUT_STATION_MIN_KM` (50), overridable with a warning · no half-day leave · probation (6 months) all leave paid · ESI number on the employee. All limits in SystemConfig.
 2. **Money flow:** salary run on the 1st (previous month, no TA/DA) and a separate expense payout run on the 15th; salary slip with the ESI number; financial-year close by an Admin-set date, the lock following the period and not the run date; re-prove the finalized-month lock for both runs.
 3. **Master data:** product fields · Doctor category/speciality with a visual and a rank · Gift, Sample and Service definitions · optional proof upload on medical leave (needs file storage) · step-wise employee and Doctor creation in the web.
 4. **Promotion:** designation/grade change with an effective date and history, linked to a new CTC revision that must sit inside the new grade's range.
@@ -735,7 +735,7 @@ Decision-log 2026-10-05, sign-off K. Order is by dependency: rules and money fir
 6. **App simulator in the web (dev only):** drives the Plan → DCR → sync → approval loop without a phone, built on the existing phone-simulator code.
 7. **Mobile app (Phase 10), then the Pilot (Phase 11).**
 
-Point #12 (no approving after the date) was dropped by the owner. Step 1 sub-steps: 1a config keys (`TA_MAX_KM`, `EX_STATION_MIN_KM`, `OUT_STATION_MIN_KM`, `PROBATION_MONTHS`, `PROBATION_LEAVE_PAID`) — **done 2026-10-05**; 1b TA cap on the day's total km — **done 2026-10-05** (`taDaCalculator`, 5 new tests; 137 field-activity tests pass); 1c Route type from distance (`typeSource` AUTO/MANUAL, warning on override); 1d no half-day leave; 1e probation (per-employee `probationMonths`, paid leave, balance check skipped); 1f 17-digit ESI number.
+Point #12 (no approving after the date) was dropped by the owner. Step 1 sub-steps: 1a config keys (`TA_MAX_KM`, `EX_STATION_MIN_KM`, `OUT_STATION_MIN_KM`, `PROBATION_MONTHS`, `PROBATION_LEAVE_PAID`) — **done 2026-10-05**; 1b TA for the day's longest Route only, capped at `TA_MAX_KM` — **done 2026-10-05** (`taDaCalculator`; 136 field-activity tests pass); 1c Route type from distance (`typeSource` AUTO/MANUAL, warning on override); 1d no half-day leave; 1e probation (per-employee `probationMonths`, paid leave, balance check skipped); 1f 17-digit ESI number.
 Step 1 continues with 1c; steps 2, 3 and 7 depend on the open rows in sign-off K.
 
 ---

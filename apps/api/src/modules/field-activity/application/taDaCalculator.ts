@@ -33,8 +33,8 @@ const RANK: Record<RouteType, number> = { HQ: 0, EX_STATION: 1, OUT_STATION: 2 }
  *   rounded half up to a whole paise once, per Route. A Route whose distance isn't `CALCULATED` (or is unknown,
  *   which the caller passes as `null`) gets a zero row flagged `distanceFlag`, never a made-up figure and never
  *   a block on approval. Plus one DA row: the Pay Band's rate for the *highest* Route type among the Routes.
- * - The km paid across the day's Routes together never exceed `maxKm` (`TA_MAX_KM`): Routes are taken in plan order, the one
- *   that crosses the cap is paid for the km left, and any after it get no row. Each Route is still priced at its own rate.
+ * - Only the day's **longest** Route is paid TA (the first, if two tie), for at most `maxKm` (`TA_MAX_KM`) of it, at that Route's own
+ *   rate. The other Routes get no TA row. A Route whose distance is unknown is not a candidate and keeps a zero flagged row.
  * - `MEETING` / `CONFERENCE`: DA at the HQ rate, no TA.
  * - `STRIKE`: nothing.
  * A DA of ₹0 (the HQ rate of some grades) and a genuinely zero-km TA are not written — nothing is claimed.
@@ -45,21 +45,23 @@ export function calculateTaDa(workingType: WorkingType, routes: Array<DayRoute |
   const known = routes.filter((r): r is DayRoute => r !== null);
 
   if (workingType === 'FIELD_WORK') {
-    // Whole hundredths of a km, so the cap is exact (a distance has at most 2 places).
-    let leftHundredths = Math.round(maxKm * 100);
+    // Whole hundredths of a km (a distance has at most 2 places), so the comparison and the cap are exact.
+    let longest: { routeId: string; route: DayRoute; hundredths: number } | null = null;
     routeIds.forEach((routeId, i) => {
       const route = routes[i] ?? null;
       if (!route || route.distanceStatus !== 'CALCULATED' || route.distanceKm === null) {
         out.push({ type: 'TA', routeId, amountPaise: 0, distanceFlag: true });
         return;
       }
-      const routeHundredths = Math.round(Number(route.distanceKm) * 100);
-      const paidHundredths = Math.min(routeHundredths, leftHundredths);
-      leftHundredths -= paidHundredths;
-      if (paidHundredths === 0 && routeHundredths > 0) return;
-      const amountPaise = multiplyPaise(route.taPerKmRateOverridePaise ?? rates.taPerKmRatePaise, (paidHundredths / 100).toFixed(2));
-      if (amountPaise > 0) out.push({ type: 'TA', routeId, amountPaise, distanceFlag: false });
+      const hundredths = Math.round(Number(route.distanceKm) * 100);
+      if (!longest || hundredths > longest.hundredths) longest = { routeId, route, hundredths };
     });
+    if (longest) {
+      const { routeId, route, hundredths } = longest as { routeId: string; route: DayRoute; hundredths: number };
+      const paid = Math.min(hundredths, Math.round(maxKm * 100));
+      const amountPaise = multiplyPaise(route.taPerKmRateOverridePaise ?? rates.taPerKmRatePaise, (paid / 100).toFixed(2));
+      if (amountPaise > 0) out.push({ type: 'TA', routeId, amountPaise, distanceFlag: false });
+    }
   }
 
   const dayType = workingType === 'FIELD_WORK' ? known.reduce<RouteType>((top, r) => (RANK[r.routeType] > RANK[top] ? r.routeType : top), 'HQ') : 'HQ';

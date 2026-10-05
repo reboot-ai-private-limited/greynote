@@ -11,15 +11,9 @@ describe('TA/DA calculation (hld/06)', () => {
     expect(calc('FIELD_WORK', [route('r1')], ['r1'], rates)).toEqual([{ type: 'TA', routeId: 'r1', amountPaise: 8003, distanceFlag: false }]);
   });
 
-  it('a Route’s own rate beats the Pay Band’s, per Route, inside the sum', () => {
-    const out = calc('FIELD_WORK', [route('r1', { taPerKmRateOverridePaise: 1000, distanceKm: '10.00' }), route('r2', { distanceKm: '10.00' })], ['r1', 'r2'], rates);
-    expect(out.filter((x) => x.type === 'TA').map((x) => x.amountPaise)).toEqual([10000, 7500]);
-  });
-
-  it('each Route is rounded on its own — the day’s TA is the sum of rounded amounts, not a rounded total', () => {
-    const out = calc('FIELD_WORK', [route('r1', { distanceKm: '0.01' }), route('r2', { distanceKm: '0.01' })], ['r1', 'r2'], { ...rates, taPerKmRatePaise: 50 });
-    // 0.01 km × 50 paise = 0.5 → 1 paise each (half up), 2 total — a rounded total would be 1
-    expect(out.filter((x) => x.type === 'TA').map((x) => x.amountPaise)).toEqual([1, 1]);
+  it('a Route’s own rate beats the Pay Band’s', () => {
+    const out = calc('FIELD_WORK', [route('r1', { taPerKmRateOverridePaise: 1000, distanceKm: '10.00' })], ['r1'], rates);
+    expect(out.filter((x) => x.type === 'TA').map((x) => x.amountPaise)).toEqual([10000]);
   });
 
   it('a Route whose distance could not be calculated, or is unknown, is a zero row flagged — TA never blocks', () => {
@@ -52,30 +46,32 @@ describe('TA/DA calculation (hld/06)', () => {
     for (const x of calc('FIELD_WORK', [route('r1', { distanceKm: '33.333', routeType: 'EX_STATION' })], ['r1'], rates)) expect(Number.isInteger(x.amountPaise)).toBe(true);
   });
 
-  describe('the day’s TA is capped at maxKm in total', () => {
+  describe('only the day’s longest Route is paid, for at most maxKm', () => {
     const ta = (out: ReturnType<typeof calc>) => out.filter((x) => x.type === 'TA').map((x) => [x.routeId, x.amountPaise]);
     const r = { ...rates, taPerKmRatePaise: 100 };
 
-    it('pays everything up to the cap, and exactly the cap at the cap', () => {
+    it('pays the longest of several Routes and nothing for the others', () => {
+      const routes = [route('a', { distanceKm: '12.00' }), route('b', { distanceKm: '30.50' }), route('c', { distanceKm: '8.00' })];
+      expect(ta(calc('FIELD_WORK', routes, ['a', 'b', 'c'], r))).toEqual([['b', 3050]]);
+    });
+
+    it('on a tie the first Route in plan order is paid', () => {
+      expect(ta(calc('FIELD_WORK', [route('a', { distanceKm: '10.00' }), route('b', { distanceKm: '10.00' })], ['a', 'b'], r))).toEqual([['a', 1000]]);
+    });
+
+    it('pays exactly up to the cap and no more', () => {
       expect(ta(calc('FIELD_WORK', [route('a', { distanceKm: '99.00' })], ['a'], r))).toEqual([['a', 9900]]);
       expect(ta(calc('FIELD_WORK', [route('a', { distanceKm: '98.99' })], ['a'], r))).toEqual([['a', 9899]]);
-    });
-
-    it('pays only the cap for a longer Route', () => {
       expect(ta(calc('FIELD_WORK', [route('a', { distanceKm: '100.00' })], ['a'], r))).toEqual([['a', 9900]]);
+      expect(ta(calc('FIELD_WORK', [route('a', { distanceKm: '40.00' }), route('b', { distanceKm: '150.00' })], ['a', 'b'], r))).toEqual([['b', 9900]]);
     });
 
-    it('is a cap on the day’s total: the Route that crosses it gets the km left, later ones get no row', () => {
-      const routes = [route('a', { distanceKm: '60.00' }), route('b', { distanceKm: '60.00' }), route('c', { distanceKm: '5.00' })];
-      expect(ta(calc('FIELD_WORK', routes, ['a', 'b', 'c'], r))).toEqual([['a', 6000], ['b', 3900]]);
+    it('uses the longest Route’s own rate', () => {
+      const routes = [route('a', { distanceKm: '60.00', taPerKmRateOverridePaise: 200 }), route('b', { distanceKm: '20.00' })];
+      expect(ta(calc('FIELD_WORK', routes, ['a', 'b'], r))).toEqual([['a', 12000]]);
     });
 
-    it('prices each Route at its own rate, the cap counts km and not money', () => {
-      const routes = [route('a', { distanceKm: '60.00', taPerKmRateOverridePaise: 200 }), route('b', { distanceKm: '60.00' })];
-      expect(ta(calc('FIELD_WORK', routes, ['a', 'b'], r))).toEqual([['a', 12000], ['b', 3900]]);
-    });
-
-    it('a Route with no distance is flagged and uses none of the cap; the cap comes from the caller', () => {
+    it('a Route with no distance keeps its flagged zero row and is not a candidate; the cap comes from the caller', () => {
       const routes = [route('a', { distanceStatus: 'FAILED', distanceKm: null }), route('b', { distanceKm: '30.00' })];
       expect(calc('FIELD_WORK', routes, ['a', 'b'], r, 10).filter((x) => x.type === 'TA')).toEqual([
         { type: 'TA', routeId: 'a', amountPaise: 0, distanceFlag: true },
