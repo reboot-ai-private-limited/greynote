@@ -100,14 +100,14 @@ export class FakeHolidays implements HolidayRepositoryPort {
 }
 
 export class FakeUsers implements UserDirectoryPort {
-  users = new Map<string, DirectoryUser & { managerId: string | null; payBandId: string | null; dateOfJoining: Date | null }>();
+  users = new Map<string, DirectoryUser & { managerId: string | null; payBandId: string | null; dateOfJoining: Date | null; probationMonths: number | null }>();
   payBands = [
     { id: 'band-g1', name: 'G1' },
     { id: 'band-g2', name: 'G2' },
   ];
   add(
     id: string,
-    opts: { role?: DirectoryUser['role']; managerId?: string | null; payBandId?: string | null; dateOfJoining?: string | null } = {},
+    opts: { role?: DirectoryUser['role']; managerId?: string | null; payBandId?: string | null; dateOfJoining?: string | null; probationMonths?: number | null } = {},
   ) {
     this.users.set(id, {
       id,
@@ -117,6 +117,7 @@ export class FakeUsers implements UserDirectoryPort {
       status: 'active',
       managerId: opts.managerId ?? null,
       payBandId: opts.payBandId === undefined ? 'band-g1' : opts.payBandId,
+      probationMonths: opts.probationMonths ?? null,
       dateOfJoining: opts.dateOfJoining ? new Date(`${opts.dateOfJoining}T00:00:00+05:30`) : null,
     });
   }
@@ -148,7 +149,7 @@ export class FakeUsers implements UserDirectoryPort {
   }
   async getEmploymentDetails(userId: string) {
     const u = this.users.get(userId);
-    return u && u.role === 'FIELD' ? { payBandId: u.payBandId, dateOfJoining: u.dateOfJoining } : null;
+    return u && u.role === 'FIELD' ? { payBandId: u.payBandId, dateOfJoining: u.dateOfJoining, probationMonths: u.probationMonths } : null;
   }
   async listPayBands() {
     return this.payBands;
@@ -185,6 +186,8 @@ export class FakeConfig {
     FY_START_MONTH: 'APRIL',
     WEEKLY_OFF_DAY: 'SUNDAY',
     LEAVE_BACKDATE_DAYS: '30',
+    PROBATION_LEAVE_PAID: 'true',
+    PROBATION_MONTHS: '6',
   };
   async get(key: string) {
     const value = this.values[key];

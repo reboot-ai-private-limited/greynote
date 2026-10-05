@@ -137,3 +137,14 @@ Territory (`getUserHq`, `getHq`, `getZone`), Approval (the `LEAVE` workflow), Co
 - Negative balances ("leave in advance").
 - Bulk re-seeding when a `LeavePolicy` default changes.
 - Notifications around pending leave.
+
+
+## Probation (2026-10-05)
+
+Probation runs from the joining date for the employee's own `probationMonths` (Identity, empty = the `PROBATION_MONTHS` setting, 0 = none),
+and only while `PROBATION_LEAVE_PAID` is on. Two effects, both in `application/probation.ts`'s window (`probationEndsOn`, the first day after it):
+
+- **Requests:** a paid leave that *starts* inside probation is never refused for balance. It reserves what balance there is
+  (`Leave.ledgerDays`, 0 if none) and the rest is paid without a ledger row; approve / reject / withdraw / reopen move only `ledgerDays`.
+  Leaves from before this read `ledgerDays` as `daysCount`.
+- **Payroll:** `getUnpaidLeaveDays` leaves out any unpaid-leave day inside probation, so no deduction is made for it.

@@ -3,6 +3,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { DEFAULT_LEAVE_TYPES } from '../../domain/leaveType.entity.js';
 import { HolidayCalendar } from '../holidayCalendar.js';
 import { HrCalendar } from '../hrCalendar.js';
+import { Probation } from '../probation.js';
 import { LeaveBalances } from '../leaveBalances.js';
 import { makeLeaveLedger } from '../leaveLedger.js';
 import { LeaveLookups } from '../leaveLookups.js';
@@ -44,6 +45,7 @@ describe('Leave requests', () => {
   let leaves: FakeLeaves;
   let approvals: FakeApprovals;
   let users: FakeUsers;
+  let config: FakeConfig;
   let requests: LeaveRequests;
   let lookups: LeaveLookups;
   let get: GetLeaveUseCase;
@@ -81,12 +83,14 @@ describe('Leave requests', () => {
     territory.userHq.set('mr', { hqId: 'hq-slg', zoneId: 'zone-wb' });
     const holidays = new FakeHolidays();
     await holidays.create({ name: 'Durga Puja', date: '2026-10-02', scope: 'ZONE', zoneIds: ['zone-wb'], hqIds: [], createdBy: 'hr' });
-    const calendar = new HrCalendar(new FakeConfig(), new Clock(NOW).now);
+    config = new FakeConfig();
+    const calendar = new HrCalendar(config, new Clock(NOW).now);
+    const probation = new Probation(users, config, calendar);
     const balances = new LeaveBalances(balanceRepo, policies, types, users, calendar);
     const views = new LeaveViews(approvals, types);
     approvals.registerKind({ kind: 'LEAVE', finalApproverRoles: ['HR', 'ADMIN'], onStatusChange: makeLeaveLedger(leaves, balanceRepo) });
-    requests = new LeaveRequests(leaves, types, balanceRepo, balances, calendar, new HolidayCalendar(holidays, territory), approvals, inlineTransactions, views);
-    lookups = new LeaveLookups(leaves, approvals);
+    requests = new LeaveRequests(leaves, types, balanceRepo, balances, calendar, new HolidayCalendar(holidays, territory), approvals, inlineTransactions, views, probation);
+    lookups = new LeaveLookups(leaves, approvals, probation);
     get = new GetLeaveUseCase(leaves, users, views);
   });
 
@@ -184,5 +188,76 @@ describe('Leave requests', () => {
     await expect(get.execute({ id: 'asm', role: 'FIELD' }, leave.id)).resolves.toBeDefined();
     await expect(get.execute({ id: 'hr', role: 'HR' }, leave.id)).resolves.toBeDefined();
     await expectError(get.execute({ id: 'stranger', role: 'FIELD' }, leave.id), 403);
+  });
+
+  describe('probation (2026-10-05)', () => {
+    // 2026-10-01..2026-10-14: 11 working days against 6 Casual days.
+    const long = () => casual({ startDate: '2026-10-01', endDate: '2026-10-14' });
+    const joined = (on: string, probationMonths: number | null = null) => {
+      const u = users.users.get('mr')!;
+      u.dateOfJoining = new Date(`${on}T00:00:00+05:30`);
+      u.probationMonths = probationMonths;
+    };
+
+    it('during probation a paid leave is never refused for balance: it uses the balance there is, the rest is paid anyway', async () => {
+      joined('2026-07-01'); // joined mid-year: 9 of 12 months of the 6 Casual days = 4.5
+      const leave = await requests.request('mr', long());
+      expect(leave.daysCount).toBe(11);
+      expect(ledger()).toEqual({ used: 0, pending: 4.5 });
+      await approvals.move('LEAVE', leave.id, 'APPROVED');
+      expect(ledger()).toEqual({ used: 4.5, pending: 0 });
+      await approvals.move('LEAVE', leave.id, 'REOPENED');
+      expect(ledger()).toEqual({ used: 0, pending: 0 });
+    });
+
+    it('a rejection or withdrawal releases only what the ledger held', async () => {
+      joined('2026-07-01');
+      const leave = await requests.request('mr', long());
+      await approvals.move('LEAVE', leave.id, 'WITHDRAWN');
+      expect(ledger()).toEqual({ used: 0, pending: 0 });
+    });
+
+    it('with no balance left at all, the leave goes through and the ledger does not move', async () => {
+      joined('2026-07-01', 12);
+      await requests.request('mr', casual({ startDate: '2026-10-01', endDate: '2026-10-08' })); // 6 days: takes all 4.5
+      expect(ledger()).toEqual({ used: 0, pending: 4.5 });
+      const second = await requests.request('mr', casual({ startDate: '2026-10-12', endDate: '2026-10-16' }));
+      expect(second.daysCount).toBe(5);
+      expect(ledger()).toEqual({ used: 0, pending: 4.5 });
+      await approvals.move('LEAVE', second.id, 'APPROVED');
+      await approvals.move('LEAVE', second.id, 'REOPENED');
+      expect(ledger()).toEqual({ used: 0, pending: 4.5 });
+    });
+
+    it('after probation, or with the toggle off, or with 0 months, the balance is checked as before', async () => {
+      joined('2025-01-01');
+      await expectError(requests.request('mr', long()), 409);
+      joined('2026-07-01');
+      config.values['PROBATION_LEAVE_PAID'] = 'false';
+      await expectError(requests.request('mr', long()), 409);
+      config.values['PROBATION_LEAVE_PAID'] = 'true';
+      joined('2026-07-01', 0);
+      await expectError(requests.request('mr', long()), 409);
+    });
+
+    it('the employee’s own months beat the setting, and the setting applies when they have none', async () => {
+      joined('2026-07-01', 1); // probation ended 2026-08-01
+      await expectError(requests.request('mr', long()), 409);
+      joined('2026-07-01', 12);
+      await expect(requests.request('mr', long())).resolves.toBeDefined();
+    });
+
+    it('unpaid days inside probation are paid (not counted for Payroll); days after it, or with the toggle off, are', async () => {
+      joined('2026-07-01'); // probation to 2027-01-01
+      const lop = await requests.request('mr', casual({ leaveTypeId: typeId('Loss of Pay'), startDate: '2026-10-30', endDate: '2026-11-03' }));
+      await approvals.move('LEAVE', lop.id, 'APPROVED');
+      expect(await lookups.unpaidDays('mr', '2026-10')).toBe(0);
+      config.values['PROBATION_LEAVE_PAID'] = 'false';
+      expect(await lookups.unpaidDays('mr', '2026-10')).toBe(2);
+      config.values['PROBATION_LEAVE_PAID'] = 'true';
+      joined('2026-07-01', 4); // probation ends 2026-11-01: Fri 30 / Sat 31 Oct paid, Mon 2 / Tue 3 Nov not
+      expect(await lookups.unpaidDays('mr', '2026-10')).toBe(0);
+      expect(await lookups.unpaidDays('mr', '2026-11')).toBe(2);
+    });
   });
 });

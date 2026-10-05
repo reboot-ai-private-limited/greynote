@@ -14,6 +14,6 @@ export interface UserDirectoryPort {
   /** Nearest Higher Manager first, then everyone above; `[]` at the top. */
   getManagerChain(userId: string): Promise<DirectoryUser[]>;
   getDownline(managerId: string): Promise<DirectoryUser[]>;
-  getEmploymentDetails(userId: string): Promise<{ payBandId: string | null; dateOfJoining: Date | null } | null>;
+  getEmploymentDetails(userId: string): Promise<{ payBandId: string | null; dateOfJoining: Date | null; probationMonths: number | null } | null>;
   listPayBands(): Promise<Array<{ id: string; name: string }>>;
 }

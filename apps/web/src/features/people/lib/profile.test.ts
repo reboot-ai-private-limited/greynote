@@ -32,6 +32,7 @@ const complete: UserDetailDto = {
     payBandId: 'b1',
     managerId: 'm1',
     dateOfJoining: '2024-04-01T00:00:00.000Z',
+    probationMonths: null,
     mobileNumber: '9830012345',
     guardianName: null,
     dateOfBirth: '1995-08-20T00:00:00.000Z',
@@ -196,5 +197,26 @@ describe('missingForActive', () => {
   it('is empty for a non-field role and for an inactive employee', () => {
     expect(missingForActive({ ...fresh, role: 'HR' })).toEqual([]);
     expect(missingForActive({ ...fresh, status: 'inactive' })).toEqual([]);
+  });
+});
+
+describe('probation months', () => {
+  const user = complete;
+  it('empty means the system default and sends nothing when unchanged', () => {
+    expect(basicToDraft(user).probationMonths).toBe('');
+    expect(buildBasic(user, basicToDraft(user), TODAY)).toEqual({ ok: true, body: {} });
+  });
+
+  it('a number is sent as a number, 0 included, and emptying it sends null', () => {
+    expect(buildBasic(user, { ...basicToDraft(user), probationMonths: '3' }, TODAY)).toEqual({ ok: true, body: { basicDetails: { probationMonths: 3 } } });
+    expect(buildBasic(user, { ...basicToDraft(user), probationMonths: '0' }, TODAY)).toEqual({ ok: true, body: { basicDetails: { probationMonths: 0 } } });
+    const set = { ...user, profile: { ...user.profile!, probationMonths: 6 } };
+    expect(buildBasic(set, { ...basicToDraft(set), probationMonths: '' }, TODAY)).toEqual({ ok: true, body: { basicDetails: { probationMonths: null } } });
+  });
+
+  it('refuses anything but whole months from 0 to 36', () => {
+    for (const bad of ['-1', '1.5', 'six', '37']) {
+      expect(buildBasic(user, { ...basicToDraft(user), probationMonths: bad }, TODAY)).toMatchObject({ ok: false });
+    }
   });
 });

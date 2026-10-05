@@ -29,6 +29,7 @@ export interface EmployeeProfileDoc {
   payBandId: Types.ObjectId | null;
   managerId: Types.ObjectId | null;
   dateOfJoining: Date | null;
+  probationMonths?: number | null;
   mobileNumber: string | null;
   guardianName: string | null;
   dateOfBirth: Date | null;
@@ -76,6 +77,7 @@ const employeeProfileSchema = new Schema<EmployeeProfileDoc>({
   payBandId: { type: Schema.Types.ObjectId, default: null, ref: 'PayBand' },
   managerId: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
   dateOfJoining: { type: Date, default: null },
+  probationMonths: { type: Number, default: null, min: 0, max: 36 },
   mobileNumber: { type: String, default: null },
   guardianName: { type: String, default: null },
   dateOfBirth: { type: Date, default: null },

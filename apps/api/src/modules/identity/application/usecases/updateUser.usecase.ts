@@ -33,6 +33,7 @@ export interface UpdateUserInput {
     guardianName?: string | null;
     dateOfBirth?: Date;
     dateOfJoining?: Date | null;
+    probationMonths?: number | null;
     qualification?: string | null;
     address?: Address;
   };
@@ -91,6 +92,7 @@ export class UpdateUserUseCase {
       payBandId: input.payBandId ?? existingProfile?.payBandId ?? null,
       managerId: input.managerId ?? existingProfile?.managerId ?? null,
       dateOfJoining: pick(input.basicDetails?.dateOfJoining, existingProfile?.dateOfJoining),
+      probationMonths: pick(input.basicDetails?.probationMonths, existingProfile?.probationMonths),
       mobileNumber: input.basicDetails?.mobileNumber ?? existingProfile?.mobileNumber ?? null,
       guardianName: pick(input.basicDetails?.guardianName, existingProfile?.guardianName),
       dateOfBirth: input.basicDetails?.dateOfBirth ?? existingProfile?.dateOfBirth ?? null,

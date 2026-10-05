@@ -4,6 +4,7 @@ import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { makeHrSource } from './application/syncSnapshot.js';
 import { HolidayCalendar } from './application/holidayCalendar.js';
+import { Probation } from './application/probation.js';
 import { HrCalendar } from './application/hrCalendar.js';
 import { LeaveBalances } from './application/leaveBalances.js';
 import { makeLeaveLedger } from './application/leaveLedger.js';
@@ -67,6 +68,7 @@ export function buildHrContainer(
   // 2. Use cases
   const calendar = new HrCalendar(config);
   const holidayCalendar = new HolidayCalendar(holidays, territory);
+  const probation = new Probation(users, config, calendar);
   const balances = new LeaveBalances(balanceRepository, policies, leaveTypes, users, calendar);
   // What the phone caches of HR: leave types, the MR's balances and the holidays that apply to them.
   sync.registerSource(makeHrSource({ leaveTypes, balances, holidays, territory, calendar }));
@@ -85,8 +87,9 @@ export function buildHrContainer(
     approvals,
     transactions,
     leaveViews,
+    probation,
   );
-  const lookups = new LeaveLookups(leaves, approvals);
+  const lookups = new LeaveLookups(leaves, approvals, probation);
   const masters = {
     listTypes: new ListLeaveTypesUseCase(leaveTypes),
     createType: new CreateLeaveTypeUseCase(leaveTypes),

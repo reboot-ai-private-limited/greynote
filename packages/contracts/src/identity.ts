@@ -106,6 +106,8 @@ export interface UserDetailDto {
     payBandId: string | null;
     managerId: string | null;
     dateOfJoining: string | null;
+    /** Null: the probation length setting applies. 0: no probation. */
+    probationMonths: number | null;
     mobileNumber: string | null;
     guardianName: string | null;
     dateOfBirth: string | null;
@@ -125,6 +127,8 @@ export interface UpdateUserDto {
     guardianName?: string | null;
     dateOfBirth?: string;
     dateOfJoining?: string | null;
+    /** Whole months 0–36; `null` goes back to the setting. */
+    probationMonths?: number | null;
     qualification?: string | null;
     address?: UserAddressDto;
   };

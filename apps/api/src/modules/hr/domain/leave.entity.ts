@@ -29,6 +29,11 @@ export interface Leave {
   reason: string;
   days: LeaveDay[];
   daysCount: number;
+  /**
+   * How many of `daysCount` moved the balance ledger. Normally all of them; during probation a paid leave uses what balance there is and
+   * the rest is paid without a ledger row (decision-log 2026-10-05). Leaves from before this existed read as `daysCount`.
+   */
+  ledgerDays: number;
   /** Bumped on every edit; an edit is conditional on the revision it validated. */
   revision: number;
   createdAt: Date;

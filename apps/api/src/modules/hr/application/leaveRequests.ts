@@ -12,6 +12,7 @@ import type { HolidayCalendar } from './holidayCalendar.js';
 import type { HrCalendar } from './hrCalendar.js';
 import type { LeaveBalances } from './leaveBalances.js';
 import type { LeaveView, LeaveViews } from './leaveViews.js';
+import type { Probation } from './probation.js';
 
 export interface LeaveInput {
   leaveTypeId: string;
@@ -41,6 +42,7 @@ export class LeaveRequests {
     private readonly approvals: ApprovalsPort,
     private readonly transactions: TransactionRunnerPort,
     private readonly views: LeaveViews,
+    private readonly probation: Probation,
   ) {}
 
   async request(userId: string, input: LeaveInput): Promise<LeaveView> {
@@ -78,9 +80,9 @@ export class LeaveRequests {
   }
 
   private async reserve(userId: string, body: LeaveBody, ctx: unknown): Promise<void> {
-    if (!body.isPaid) return;
+    if (!body.isPaid || body.ledgerDays === 0) return;
     const key = { userId, leaveTypeId: body.leaveTypeId, year: body.year };
-    if (!(await this.balanceRepo.reserve(key, body.daysCount, ctx))) {
+    if (!(await this.balanceRepo.reserve(key, body.ledgerDays, ctx))) {
       throw AppError.conflict('Not enough leave left for this — another request may have just used it.', { field: 'leaveTypeId' });
     }
   }
@@ -122,16 +124,23 @@ export class LeaveRequests {
       }
     }
 
-    // Enough balance (F16) — the friendly check; the reservation in the transaction is the real one.
+    // Enough balance (F16) — the friendly check; the reservation in the transaction is the real one. A leave that starts inside the
+    // employee's probation is never refused for balance: it uses what balance there is, and the rest is paid anyway (2026-10-05).
+    let ledgerDays = daysCount;
     if (type.isPaid) {
       const balance = (await this.balances.ensureSeeded(userId, year)).find((b) => b.leaveTypeId === type.id);
-      if (!balance) throw AppError.badRequest('You have no Pay Band yet, so no paid leave. Ask HR.', { field: 'leaveTypeId' });
-      if (availableDays(balance) < daysCount) {
-        throw AppError.conflict(`Only ${availableDays(balance)} day(s) of ${type.name} left; this needs ${daysCount}.`, {
-          field: 'leaveTypeId',
-          available: availableDays(balance),
-          needed: daysCount,
-        });
+      const probationEnd = await this.probation.endsOn(userId);
+      if (probationEnd && input.startDate < probationEnd) {
+        ledgerDays = balance ? Math.min(daysCount, Math.max(availableDays(balance), 0)) : 0;
+      } else {
+        if (!balance) throw AppError.badRequest('You have no Pay Band yet, so no paid leave. Ask HR.', { field: 'leaveTypeId' });
+        if (availableDays(balance) < daysCount) {
+          throw AppError.conflict(`Only ${availableDays(balance)} day(s) of ${type.name} left; this needs ${daysCount}.`, {
+            field: 'leaveTypeId',
+            available: availableDays(balance),
+            needed: daysCount,
+          });
+        }
       }
     }
 
@@ -145,6 +154,7 @@ export class LeaveRequests {
       reason: input.reason,
       days,
       daysCount,
+      ledgerDays,
     };
   }
 }

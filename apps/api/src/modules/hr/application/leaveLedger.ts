@@ -13,17 +13,18 @@ export function makeLeaveLedger(leaves: LeaveRepositoryPort, balances: LeaveBala
   return async (change: ApprovalStatusChange, ctx: TransactionContext): Promise<void> => {
     const leave = await leaves.findById(change.recordId);
     if (!leave) throw AppError.internal('INTERNAL', { reason: 'LEAVE_NOT_FOUND', recordId: change.recordId });
-    if (!leave.isPaid) return;
+    // `ledgerDays` is what actually moved the balance: less than the leave's days for a probation leave that outran its balance.
+    if (!leave.isPaid || leave.ledgerDays === 0) return;
 
     const key = { userId: leave.userId, leaveTypeId: leave.leaveTypeId, year: leave.year };
     switch (change.status) {
       case 'APPROVED':
-        return balances.consume(key, leave.daysCount, ctx);
+        return balances.consume(key, leave.ledgerDays, ctx);
       case 'REJECTED':
       case 'WITHDRAWN':
-        return balances.release(key, leave.daysCount, ctx);
+        return balances.release(key, leave.ledgerDays, ctx);
       case 'REOPENED':
-        return balances.giveBack(key, leave.daysCount, ctx);
+        return balances.giveBack(key, leave.ledgerDays, ctx);
       default:
         return; // MANAGER_APPROVED: still pending.
     }

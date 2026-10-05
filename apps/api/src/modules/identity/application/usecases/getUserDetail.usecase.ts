@@ -25,6 +25,7 @@ export interface UserDetail {
     payBandId: string | null;
     managerId: string | null;
     dateOfJoining: Date | null;
+    probationMonths: number | null;
     mobileNumber: string | null;
     guardianName: string | null;
     dateOfBirth: Date | null;
@@ -75,6 +76,7 @@ export class GetUserDetailUseCase {
             payBandId: profile.payBandId,
             managerId: profile.managerId,
             dateOfJoining: profile.dateOfJoining,
+            probationMonths: profile.probationMonths,
             mobileNumber: profile.mobileNumber,
             guardianName: profile.guardianName,
             dateOfBirth: profile.dateOfBirth,

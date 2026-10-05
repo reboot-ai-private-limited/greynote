@@ -3,6 +3,8 @@ import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile
 export interface EmploymentDetails {
   payBandId: string | null;
   dateOfJoining: Date | null;
+  /** Null: the `PROBATION_MONTHS` setting applies. */
+  probationMonths: number | null;
 }
 
 /**
@@ -14,6 +16,6 @@ export class GetEmploymentDetailsUseCase {
 
   async execute(userId: string): Promise<EmploymentDetails | null> {
     const profile = await this.employeeProfileRepository.findByUserId(userId);
-    return profile && { payBandId: profile.payBandId, dateOfJoining: profile.dateOfJoining };
+    return profile && { payBandId: profile.payBandId, dateOfJoining: profile.dateOfJoining, probationMonths: profile.probationMonths };
   }
 }

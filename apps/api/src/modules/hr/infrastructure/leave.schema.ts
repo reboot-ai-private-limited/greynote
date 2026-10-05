@@ -12,6 +12,7 @@ export interface LeaveDoc {
   reason: string;
   days: LeaveDay[];
   daysCount: number;
+  ledgerDays?: number;
   revision: number;
   createdAt: Date;
   updatedAt: Date;
@@ -31,6 +32,7 @@ const leaveSchema = new Schema<LeaveDoc>({
   reason: { type: String, required: true },
   days: { type: [daySchema], default: [] },
   daysCount: { type: Number, required: true },
+  ledgerDays: { type: Number, min: 0 },
   revision: { type: Number, required: true },
   createdAt: { type: Date, required: true },
   updatedAt: { type: Date, required: true },

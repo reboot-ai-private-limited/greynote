@@ -46,6 +46,8 @@ export interface EmployeeProfile {
   payBandId: string | null;
   managerId: string | null;
   dateOfJoining: Date | null;
+  /** Months of probation from `dateOfJoining`. Null: use the `PROBATION_MONTHS` setting. 0: no probation. */
+  probationMonths: number | null;
   mobileNumber: string | null;
   guardianName: string | null;
   dateOfBirth: Date | null;

@@ -17,6 +17,7 @@ const toLeave = (doc: LeaveDoc & { _id: unknown }): Leave => ({
   reason: doc.reason,
   days: doc.days.map((d) => ({ date: d.date, portion: d.portion })),
   daysCount: doc.daysCount,
+  ledgerDays: doc.ledgerDays ?? doc.daysCount,
   revision: doc.revision,
   createdAt: doc.createdAt,
   updatedAt: doc.updatedAt,
