@@ -159,3 +159,18 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | J3 | An item still waiting for approval from a past year: who resolves it, and how? | Not handled by the toggle (it is read-only). Needs an Admin route to correct it before payroll — to be agreed | Open |
 | J4 | Does everyone get the toggle (Admin, HR, Accountant on the web), or only field staff on the phone? | The server allows it for anyone; the screens decide | Open |
 
+
+## K. Roadmap brief of 2026-10-05
+
+| # | Question | Today | Status |
+|---|---|---|---|
+| K1 | Maximum km paid as TA for one Route | `TA_MAX_KM`, default 99, in SystemConfig; a longer Route is paid as 99 km | Accepted 2026-10-05 (from the owner) |
+| K2 | When is a Route Ex-station or Out-station? | By distance: over `EX_STATION_MIN_KM` (15) → Ex-station; over `OUT_STATION_MIN_KM` (50) → Out-station; both in SystemConfig | Accepted 2026-10-05 |
+| K3 | Can the creator pick a different type? | Yes, with a warning, never a block | Accepted 2026-10-05 |
+| K4 | Does the 99 km cap apply per Route or to the day's total? | The **day's total**: the km paid across all the day's Routes is capped at `TA_MAX_KM` | Accepted 2026-10-05 (from the owner) |
+| K5 | Salary on the 1st (previous month, no TA/DA), expense payout on the 15th | Two separate runs; salary slip shows the ESI number | Designed 2026-10-05 (working assumption) |
+| K6 | All leave paid during the first 6 months; no half-day leave | Probation from the joining date; half-day removed | Open (leave types and start date to confirm) |
+| K7 | Approvals after the date has gone | **Dropped 2026-10-05**: no cutoff, nothing is refused for being late | Dropped (from the owner) |
+| K8 | Financial-year close | Admin-set close date (proposed after the 15th payout), then read-only; the lock follows the period, not the run date | Designed 2026-10-05 (working assumption) |
+| K9 | Primary and secondary sales | Primary = to distributors, secondary = distributors to chemists | Open |
+| K10 | CTC against grade on a promotion | The new CTC must sit inside the new grade's range | Open |

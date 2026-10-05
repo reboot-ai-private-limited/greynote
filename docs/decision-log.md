@@ -1551,3 +1551,23 @@ stay plain TypeScript types — so a schema/model always lives in exactly one mo
 `infrastructure/`, never shared, per `module-internals-are-private`.
 
 **Refs:** commit `d52b99e`, [`hld/03-system-architecture.md`](hld/03-system-architecture.md) §4
+
+---
+
+## 2026-10-05 — Roadmap after the backend: rule changes, payout split, master data, promotion, web views, app simulator
+
+**Decision:** The 24-point brief of 2026-10-05 is sequenced in seven steps (`roadmap.md`, "Roadmap from 2026-10-05"):
+(1) rule changes to existing code, (2) salary on the 1st / expense payout on the 15th with a period-based financial-year close,
+(3) master data, (4) promotion, (5) web views, (6) an app simulator in the web (dev only), (7) the mobile app, then the pilot.
+
+**Step 1 rules decided today:**
+- **TA cap:** a Route's TA is paid for at most `TA_MAX_KM` km (default **99**, SystemConfig, Admin-editable). A longer distance is paid as the cap, not dropped.
+- **Route type from distance:** a Route's type follows its distance from the HQ base place by two SystemConfig thresholds: over `EX_STATION_MIN_KM` (default **15**) → `EX_STATION`; over `OUT_STATION_MIN_KM` (default **50**) → `OUT_STATION`; otherwise `HQ`. Boundaries are strictly "over" (exactly 15 km stays HQ) — assumption.
+- **Override with a warning:** whoever creates or edits a Route may pick a type that differs from the distance's. This is never refused; the screen and the API response carry a warning naming the type the distance suggests. The chosen type is what DA uses.
+- **CTC and grade:** a CTC must stay inside its grade's range (already enforced on setting a CTC); a promotion that changes the grade must also land a CTC inside the new grade's range — assumption, wording to be confirmed.
+
+**Why:** the Route's type drives DA, so it should not depend on someone remembering to set it; the thresholds are business numbers that change, hence config, and a warning rather than a block keeps a real exception (a short route that is really out of station) possible.
+
+**Still open:** #23 meaning of primary/secondary sales; #9 probation start and leave types; the financial-year close date (proposed: Admin-set, after the 15th payout).
+
+**Added 2026-10-05 (same day):** the TA cap is on the **day's total** km (K4); #12 (no approving after the date) is **dropped**; probation months come from `PROBATION_MONTHS` (6) but can be set per employee (`probationMonths`, empty = the default); `PROBATION_LEAVE_PAID` (default on) toggles whether unpaid leave inside probation is deducted; during probation a leave request skips the balance check and uses what balance exists, the rest is paid without a ledger row; Route `typeSource` AUTO/MANUAL (existing routes MANUAL); the ESI number is exactly 17 digits.

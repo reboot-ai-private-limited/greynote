@@ -71,6 +71,13 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   // ── HR ──
   integer('LEAVE_BACKDATE_DAYS', 'HR', 'Leave backdating limit', 'How many days back a leave may start (e.g. to cover a missed report).', 30, 1, 366, 'days'),
 
+  toggle('PROBATION_LEAVE_PAID', 'HR', 'Leave is paid during probation', 'Whether unpaid leave taken during an employee’s probation is paid anyway (no salary deduction). Off: probation is treated like any other time.', true),
+  integer('PROBATION_MONTHS', 'HR', 'Probation length', 'Months of probation from the joining date, unless the employee has their own length set.', 6, 0, 36, 'months'),
+
+  // ── Territory ──
+  integer('EX_STATION_MIN_KM', 'TERRITORY', 'Ex-station from', 'A Route longer than this many km from its HQ is suggested as Ex-station. Whoever creates a Route may still choose another type; they are warned, not blocked.', 15, 1, 5000, 'km'),
+  integer('OUT_STATION_MIN_KM', 'TERRITORY', 'Out-station from', 'A Route longer than this many km from its HQ is suggested as Out-station. Must be more than the Ex-station distance.', 50, 2, 5000, 'km'),
+
   // ── Field master data ──
   toggle('DOCTOR_VISIBILITY_FOLLOWS_ROUTE', 'FIELD_MASTER_DATA', 'Doctors follow the MR’s routes', 'Whether an MR sees only the assigned Doctors on the Routes they currently have. Off: an MR keeps every assigned Doctor after a Route change.', true),
   toggle('AUTO_ASSIGN_DOCTOR_ON_APPROVAL', 'FIELD_MASTER_DATA', 'Assign a new doctor to the MR who added it', 'Whether approving a Doctor an MR added assigns that Doctor to the MR who added it.', true),
@@ -94,6 +101,8 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
     impactNote: 'Applies to reports submitted from now on. Off: nobody reviews a daily report before its TA/DA is generated. Reports already waiting keep their current approval path.',
   },
   integer('DCR_MISS_GRACE_DAYS', 'FIELD_ACTIVITY', 'Missed-report grace', 'Grace days before a missed DCR triggers the compliance block.', 1, 0, 365, 'days'),
+
+  integer('TA_MAX_KM', 'FIELD_ACTIVITY', 'Most km paid as TA in a day', 'The km paid as TA across all of a day’s Routes together never exceeds this. Km beyond it are not paid.', 99, 1, 5000, 'km'),
 
   // ── Sales ──
   integer('MONTHLY_STOCK_DEADLINE_DAY', 'SALES', 'Monthly stock deadline day', 'Day of the next month by which a month’s opening and closing stock counts must be entered (5 = the 5th of the following month).', 5, 1, 28),
@@ -156,6 +165,7 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
 export const CONFIG_MODULE_LABEL: Record<string, string> = {
   PLANNING: 'Planning',
   HR: 'HR and leave',
+  TERRITORY: 'Territory and routes',
   FIELD_MASTER_DATA: 'Doctors and field master data',
   AUTH: 'Devices',
   FIELD_ACTIVITY: 'Field activity and compliance',

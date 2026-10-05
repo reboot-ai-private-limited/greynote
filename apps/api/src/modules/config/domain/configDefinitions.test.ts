@@ -35,6 +35,11 @@ const HISTORICAL_DEFAULTS: Record<string, string> = {
   DCR_MISS_GRACE_DAYS: '1',
   MONTHLY_STOCK_DEADLINE_DAY: '5',
   APPROVAL_MANAGER_ONLY_KINDS: 'NONE',
+  PROBATION_LEAVE_PAID: 'true',
+  PROBATION_MONTHS: '6',
+  EX_STATION_MIN_KM: '15',
+  OUT_STATION_MIN_KM: '50',
+  TA_MAX_KM: '99',
 };
 
 const def = (key: string) => {

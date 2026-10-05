@@ -119,6 +119,21 @@ describe('UpdateConfigValueUseCase', () => {
     });
   });
 
+  describe('the station distances stay in order', () => {
+    it('refuses an Out-station distance that is not more than Ex-station, and the reverse', async () => {
+      const { repository, useCase } = build();
+      repository.others.set('EX_STATION_MIN_KM', '15');
+      repository.others.set('OUT_STATION_MIN_KM', '50');
+      await expect(useCase.execute('a', 'ADMIN', 'OUT_STATION_MIN_KM', '15')).rejects.toMatchObject({
+        statusCode: 400,
+        message: 'Out-station (15 km) must be more than Ex-station (15 km).',
+      });
+      await expect(useCase.execute('a', 'ADMIN', 'EX_STATION_MIN_KM', '50')).rejects.toMatchObject({ statusCode: 400 });
+      await expect(useCase.execute('a', 'ADMIN', 'OUT_STATION_MIN_KM', '16')).resolves.toBeDefined();
+      await expect(useCase.execute('a', 'ADMIN', 'EX_STATION_MIN_KM', '49')).resolves.toBeDefined();
+    });
+  });
+
   describe('the plan times stay in order', () => {
     it('refuses a latest resubmit time that is not after the plan deadline', async () => {
       const { repository, useCase } = build();

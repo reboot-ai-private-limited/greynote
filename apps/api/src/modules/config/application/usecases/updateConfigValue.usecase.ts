@@ -7,6 +7,9 @@ import type { SystemConfigRepositoryPort } from '../../domain/systemConfig.repos
 /** The two plan times that must stay in order: a rejected plan cannot be resubmitted before its own deadline has passed. */
 const DEADLINE_KEY = 'DAILY_PLAN_SUBMIT_CUTOFF_TIME';
 const LATEST_KEY = 'DAILY_PLAN_RESUBMIT_LATEST_TIME';
+/** The two route-distance thresholds: Out-station must start beyond Ex-station. */
+const EX_KEY = 'EX_STATION_MIN_KM';
+const OUT_KEY = 'OUT_STATION_MIN_KM';
 
 /**
  * Changes one setting. The value is checked against the setting's own definition (type, limits) and stored in the form the readers
@@ -34,6 +37,7 @@ export class UpdateConfigValueUseCase {
     const checked = validateConfigValue(definition, value);
     if (!checked.ok) throw AppError.badRequest(checked.message, { field: 'value', key });
     await this.assertPlanTimesInOrder(key, checked.value);
+    await this.assertStationKmInOrder(key, checked.value);
 
     const updated = await this.repository.updateValue(key, checked.value, actingUserId);
     if (!updated) {
@@ -43,6 +47,23 @@ export class UpdateConfigValueUseCase {
       throw AppError.notFound(`Unknown config key: ${key}`);
     }
     return updated;
+  }
+
+  private async assertStationKmInOrder(key: string, value: string): Promise<void> {
+    if (key !== EX_KEY && key !== OUT_KEY) return;
+    const other = (await this.repository.findByKey(key === EX_KEY ? OUT_KEY : EX_KEY))?.value;
+    // As with the plan times, an unreadable other value is flagged on its own and must not block fixing this one.
+    if (!other || !/^\d+$/.test(other)) return;
+    const ex = Number(key === EX_KEY ? value : other);
+    const out = Number(key === OUT_KEY ? value : other);
+    if (out <= ex) {
+      throw AppError.badRequest(
+        key === OUT_KEY
+          ? `Out-station (${out} km) must be more than Ex-station (${ex} km).`
+          : `Ex-station (${ex} km) must be less than Out-station (${out} km).`,
+        { field: 'value', key },
+      );
+    }
   }
 
   private async assertPlanTimesInOrder(key: string, value: string): Promise<void> {
