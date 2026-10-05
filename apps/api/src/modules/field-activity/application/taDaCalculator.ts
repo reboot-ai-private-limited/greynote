@@ -33,23 +33,31 @@ const RANK: Record<RouteType, number> = { HQ: 0, EX_STATION: 1, OUT_STATION: 2 }
  *   rounded half up to a whole paise once, per Route. A Route whose distance isn't `CALCULATED` (or is unknown,
  *   which the caller passes as `null`) gets a zero row flagged `distanceFlag`, never a made-up figure and never
  *   a block on approval. Plus one DA row: the Pay Band's rate for the *highest* Route type among the Routes.
+ * - The km paid across the day's Routes together never exceed `maxKm` (`TA_MAX_KM`): Routes are taken in plan order, the one
+ *   that crosses the cap is paid for the km left, and any after it get no row. Each Route is still priced at its own rate.
  * - `MEETING` / `CONFERENCE`: DA at the HQ rate, no TA.
  * - `STRIKE`: nothing.
  * A DA of ₹0 (the HQ rate of some grades) and a genuinely zero-km TA are not written — nothing is claimed.
  */
-export function calculateTaDa(workingType: WorkingType, routes: Array<DayRoute | null>, routeIds: string[], rates: PayRates): AutoExpense[] {
+export function calculateTaDa(workingType: WorkingType, routes: Array<DayRoute | null>, routeIds: string[], rates: PayRates, maxKm: number): AutoExpense[] {
   if (workingType === 'STRIKE') return [];
   const out: AutoExpense[] = [];
   const known = routes.filter((r): r is DayRoute => r !== null);
 
   if (workingType === 'FIELD_WORK') {
+    // Whole hundredths of a km, so the cap is exact (a distance has at most 2 places).
+    let leftHundredths = Math.round(maxKm * 100);
     routeIds.forEach((routeId, i) => {
       const route = routes[i] ?? null;
       if (!route || route.distanceStatus !== 'CALCULATED' || route.distanceKm === null) {
         out.push({ type: 'TA', routeId, amountPaise: 0, distanceFlag: true });
         return;
       }
-      const amountPaise = multiplyPaise(route.taPerKmRateOverridePaise ?? rates.taPerKmRatePaise, route.distanceKm);
+      const routeHundredths = Math.round(Number(route.distanceKm) * 100);
+      const paidHundredths = Math.min(routeHundredths, leftHundredths);
+      leftHundredths -= paidHundredths;
+      if (paidHundredths === 0 && routeHundredths > 0) return;
+      const amountPaise = multiplyPaise(route.taPerKmRateOverridePaise ?? rates.taPerKmRatePaise, (paidHundredths / 100).toFixed(2));
       if (amountPaise > 0) out.push({ type: 'TA', routeId, amountPaise, distanceFlag: false });
     });
   }

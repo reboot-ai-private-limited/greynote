@@ -83,7 +83,7 @@ export function buildFieldActivityContainer(
   const gifts = new MongoDoctorGiftAdapter();
 
   // A DCR goes manager, then Admin (client F1). Past the manager it earns its TA/DA; sent back, the unpaid computed rows are cancelled.
-  const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses);
+  const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses, config);
   approvals.registerKind({ kind: DCR_KIND, finalApproverRoles: ['ADMIN'], onStatusChange: (change, ctx) => taDa.onStatusChange(change.recordId, change.status, ctx) });
 
   // A Service an MR asks for goes manager, then Admin, like a DCR; nothing else happens on approval — the status is its request's.

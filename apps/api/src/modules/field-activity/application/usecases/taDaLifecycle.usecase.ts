@@ -6,6 +6,7 @@ import type { PlanningPort } from '../../domain/planning.port.js';
 import type { ExpenseRepositoryPort } from '../../domain/records.repository.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
+import { readConfig, parsePositiveInt, type ConfigReader } from '@/shared/config/readConfig.js';
 import { calculateTaDa } from '../taDaCalculator.js';
 
 /** Past the manager: the claim is accepted, so TA/DA exists. */
@@ -33,6 +34,7 @@ export class TaDaLifecycle {
     private readonly territory: TerritoryPort,
     private readonly users: UserDirectoryPort,
     private readonly expenses: ExpenseRepositoryPort,
+    private readonly config: ConfigReader,
   ) {}
 
   async onStatusChange(dcrId: string, status: ApprovalStatus, ctx: TransactionContext, now: Date = new Date()): Promise<void> {
@@ -56,7 +58,7 @@ export class TaDaLifecycle {
     const day = await this.planning.getDailyPlanDay(dcr.userId, dcr.reportDate);
     if (!day) return;
     const routes = day.workingType === 'FIELD_WORK' ? await Promise.all(day.routeIds.map((id) => this.territory.getRoute(id))) : [];
-    const rows = calculateTaDa(day.workingType as WorkingType, routes, day.routeIds, await this.users.getPayBandRates(dcr.userId));
+    const rows = calculateTaDa(day.workingType as WorkingType, routes, day.routeIds, await this.users.getPayBandRates(dcr.userId), await readConfig(this.config, 'TA_MAX_KM', parsePositiveInt(5000)));
     for (const row of rows) {
       await this.expenses.create(
         { dcrId, userId: dcr.userId, reportDate: dcr.reportDate, routeId: row.routeId, type: row.type, source: 'AUTO', amountPaise: row.amountPaise, remarks: null, paymentStatus: 'UNPAID', accepted: true, distanceFlag: row.distanceFlag, paidBy: null, paidAt: null, clientId: null, recordedAt: now },

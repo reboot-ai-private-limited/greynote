@@ -735,8 +735,8 @@ Decision-log 2026-10-05, sign-off K. Order is by dependency: rules and money fir
 6. **App simulator in the web (dev only):** drives the Plan → DCR → sync → approval loop without a phone, built on the existing phone-simulator code.
 7. **Mobile app (Phase 10), then the Pilot (Phase 11).**
 
-Point #12 (no approving after the date) was dropped by the owner. Step 1 sub-steps: 1a config keys (`TA_MAX_KM`, `EX_STATION_MIN_KM`, `OUT_STATION_MIN_KM`, `PROBATION_MONTHS`, `PROBATION_LEAVE_PAID`) — **done 2026-10-05**; 1b TA cap on the day's total km; 1c Route type from distance (`typeSource` AUTO/MANUAL, warning on override); 1d no half-day leave; 1e probation (per-employee `probationMonths`, paid leave, balance check skipped); 1f 17-digit ESI number.
-Step 1 continues with 1b; steps 2, 3 and 7 depend on the open rows in sign-off K.
+Point #12 (no approving after the date) was dropped by the owner. Step 1 sub-steps: 1a config keys (`TA_MAX_KM`, `EX_STATION_MIN_KM`, `OUT_STATION_MIN_KM`, `PROBATION_MONTHS`, `PROBATION_LEAVE_PAID`) — **done 2026-10-05**; 1b TA cap on the day's total km — **done 2026-10-05** (`taDaCalculator`, 5 new tests; 137 field-activity tests pass); 1c Route type from distance (`typeSource` AUTO/MANUAL, warning on override); 1d no half-day leave; 1e probation (per-employee `probationMonths`, paid leave, balance check skipped); 1f 17-digit ESI number.
+Step 1 continues with 1c; steps 2, 3 and 7 depend on the open rows in sign-off K.
 
 ---
 

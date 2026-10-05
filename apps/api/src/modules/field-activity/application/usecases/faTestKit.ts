@@ -167,7 +167,7 @@ export class FakeDcrs implements DcrRepositoryPort {
 }
 
 export class FakeConfig implements ConfigReader {
-  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true' };
+  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', TA_MAX_KM: '99' };
   async get(key: string) {
     const v = this.values[key];
     if (v === undefined) throw new Error(`missing ${key}`);
@@ -410,7 +410,7 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const logChemistCall = new LogChemistCallUseCase(gate, checks, geofence, fmd, chemistCalls);
   const logFollowup = new LogFollowupUseCase(gate, checks, followups);
   const logExpense = new LogExpenseUseCase(gate, expenses);
-  const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses);
+  const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses, config);
   const submit = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config);
   const listExpenses = new ListExpensesUseCase(expenses, users);
   const markPaid = new MarkExpensePaidUseCase(expenses, () => new Date(clock.current));

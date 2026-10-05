@@ -65,7 +65,7 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
   an approved in-day change already in it), each Route (Territory's `getRoute`) and the Pay Band (Identity's
   `getPayBandRates`), and writes `AUTO`, `UNPAID` rows — never from anything the phone sent. The rules are
   `application/taDaCalculator.ts`: `FIELD_WORK` gets **one TA row per Route** (distance × the Route's own rate, else
-  the Pay Band's, rounded half up once per Route) and one DA row at the highest Route type of the day;
+  the Pay Band's, rounded half up once per Route; the km paid across the day's Routes together are capped at `TA_MAX_KM` (99), taken in plan order, decision-log 2026-10-05) and one DA row at the highest Route type of the day;
   `MEETING`/`CONFERENCE` get DA at the HQ rate; `STRIKE` nothing. A Route whose distance isn't `CALCULATED` (or is
   unknown) gets a zero TA row with `distanceFlag`, and approval goes through. A zero DA (a grade's ₹0 HQ rate) is
   not written. No Plan for the day → no rows. When the DCR goes back (`REJECTED` by Admin at the final stage,
