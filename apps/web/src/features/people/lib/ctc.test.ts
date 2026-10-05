@@ -8,7 +8,9 @@ import {
   buildPayComponentUpdate,
   buildPreview,
   componentToDraft,
-  ctcWarning,
+  ctcRangeError,
+  gradeRange,
+  gradeRangeText,
   monthlyOf,
   parseOverrides,
   percentToBasisPoints,
@@ -32,11 +34,23 @@ describe('percentages', () => {
   });
 });
 
-describe('ctcWarning', () => {
-  it('warns below ₹1.44 lakh, never at or above, and never blocks', () => {
-    expect(ctcWarning(14_399_999)).toMatch(/1,44,000/);
-    expect(ctcWarning(14_400_000)).toBeUndefined();
-    expect(ctcWarning(null)).toBeUndefined();
+const g2 = { name: 'G2', ctcMinAnnualPaise: 14_400_000, ctcMaxAnnualPaise: 30_000_000 };
+
+describe('grade range', () => {
+  it('has a midpoint average, half up', () => {
+    expect(gradeRange(g2)).toEqual({ min: 14_400_000, avg: 22_200_000, max: 30_000_000 });
+    expect(gradeRange({ ctcMinAnnualPaise: 1, ctcMaxAnnualPaise: 2 }).avg).toBe(2);
+    expect(gradeRangeText(g2)).toMatch(/1,44,000.*3,00,000.*average.*2,22,000/);
+  });
+  it('allows both ends and refuses 1 paise outside', () => {
+    expect(ctcRangeError(14_400_000, g2)).toBeUndefined();
+    expect(ctcRangeError(30_000_000, g2)).toBeUndefined();
+    expect(ctcRangeError(14_399_999, g2)).toMatch(/G2.*1,44,000.*3,00,000/);
+    expect(ctcRangeError(30_000_001, g2)).toMatch(/G2/);
+  });
+  it('says nothing while there is no amount or no grade yet', () => {
+    expect(ctcRangeError(null, g2)).toBeUndefined();
+    expect(ctcRangeError(1, undefined)).toBeUndefined();
   });
 });
 
@@ -99,8 +113,12 @@ describe('the CTC form', () => {
       body: { ctcAnnualPaise: 18_000_000, effectiveFrom: '2026-11', overrides: { MEDICAL: 600_000 }, reason: 'Annual review' },
     });
   });
-  it('accepts a CTC below the minimum (a warning, not a refusal)', () => {
-    expect(buildAssignCtc({ ctc: '100000', effectiveFrom: '2026-10', reason: '', overrides: {} })).toMatchObject({ ok: true });
+  it('refuses a CTC outside the grade’s range, per field, and accepts the ends', () => {
+    const draft = (ctc: string) => ({ ctc, effectiveFrom: '2026-10', reason: '', overrides: {} });
+    expect(buildAssignCtc(draft('100000'), g2)).toMatchObject({ ok: false, errors: { ctc: expect.stringMatching(/G2/) } });
+    expect(buildAssignCtc(draft('300000.01'), g2)).toMatchObject({ ok: false });
+    expect(buildAssignCtc(draft('144000'), g2)).toMatchObject({ ok: true });
+    expect(buildAssignCtc(draft('300000'), g2)).toMatchObject({ ok: true });
   });
   it('refuses a missing CTC or month and a bad override, per field', () => {
     const r = buildAssignCtc({ ctc: '', effectiveFrom: '', reason: '', overrides: { MEDICAL: 'abc' } });

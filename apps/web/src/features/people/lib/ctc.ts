@@ -2,12 +2,14 @@ import type {
   AssignCtcDto,
   CreatePayComponentDto,
   PayComponentDto,
+  PayBandDto,
   PayComponentKind,
   PayComponentRuleDto,
   PreviewCtcDto,
   UpdatePayComponentDto,
 } from '@greynote/contracts';
 import { fail, squash, type BuildResult } from '@/lib/forms';
+import { formatMoney } from '@/lib/format';
 import { rupeesToPaise } from '@/lib/money';
 import { MAX_PAISE } from './masterData';
 
@@ -17,12 +19,28 @@ import { MAX_PAISE } from './masterData';
  * re-checks the whole formula; these only stop what can be caught on the spot.
  */
 
-/** ₹1.44 lakh a year. The client's usual floor — a warning only, never a refusal. */
-export const CTC_SOFT_MINIMUM_PAISE = 14_400_000;
+/** A grade's CTC range a year, with the midpoint (half up) — what HR sees when choosing a grade for an employee. */
+export interface GradeRange {
+  min: number;
+  avg: number;
+  max: number;
+}
 
-export function ctcWarning(paise: number | null): string | undefined {
-  if (paise === null || paise >= CTC_SOFT_MINIMUM_PAISE) return undefined;
-  return 'This is below ₹1,44,000 a year, the usual minimum CTC. You can still save it.';
+export function gradeRange(band: Pick<PayBandDto, 'ctcMinAnnualPaise' | 'ctcMaxAnnualPaise'>): GradeRange {
+  return { min: band.ctcMinAnnualPaise, avg: Math.floor((band.ctcMinAnnualPaise + band.ctcMaxAnnualPaise) / 2 + 0.5), max: band.ctcMaxAnnualPaise };
+}
+
+/** "₹1,44,000.00 – ₹3,00,000.00 (average ₹2,22,000.00)". */
+export function gradeRangeText(band: Pick<PayBandDto, 'ctcMinAnnualPaise' | 'ctcMaxAnnualPaise'>): string {
+  const r = gradeRange(band);
+  return `${formatMoney(r.min)} – ${formatMoney(r.max)} (average ${formatMoney(r.avg)})`;
+}
+
+/** Why a CTC can't be used on this grade, or `undefined` when it is inside the range (both ends allowed). The server refuses the same. */
+export function ctcRangeError(paise: number | null, band: Pick<PayBandDto, 'name' | 'ctcMinAnnualPaise' | 'ctcMaxAnnualPaise'> | undefined): string | undefined {
+  if (paise === null || !band) return undefined;
+  if (paise >= band.ctcMinAnnualPaise && paise <= band.ctcMaxAnnualPaise) return undefined;
+  return `For grade ${band.name} the CTC must be between ${formatMoney(band.ctcMinAnnualPaise)} and ${formatMoney(band.ctcMaxAnnualPaise)} a year.`;
 }
 
 /** Annual → monthly, half up (the server rounds the same way). */
@@ -196,10 +214,11 @@ export interface CtcDraft {
   overrides: Record<string, string>;
 }
 
-export function buildAssignCtc(d: CtcDraft): BuildResult<AssignCtcDto> {
+export function buildAssignCtc(d: CtcDraft, grade?: Pick<PayBandDto, 'name' | 'ctcMinAnnualPaise' | 'ctcMaxAnnualPaise'>): BuildResult<AssignCtcDto> {
   const errors: Record<string, string | undefined> = {};
   const ctc = parseCtc(d.ctc);
   if (ctc === null) errors['ctc'] = 'Enter the yearly CTC in rupees, e.g. 144000.';
+  else errors['ctc'] = ctcRangeError(ctc, grade);
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(d.effectiveFrom)) errors['effectiveFrom'] = 'Choose the month it starts.';
   if (d.reason.trim().length > 200) errors['reason'] = 'Keep the reason to 200 characters.';
   for (const [code, text] of Object.entries(d.overrides)) {

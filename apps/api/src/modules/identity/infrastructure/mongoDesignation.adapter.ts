@@ -1,10 +1,10 @@
-import { AppError } from '@/shared/errors/AppError.js';
-import type { Designation, DesignationName } from '../domain/designation.entity.js';
+import { DESIGNATION_LEVEL, type Designation, type DesignationName } from '../domain/designation.entity.js';
 import type { DesignationRepositoryPort } from '../domain/designation.repository.port.js';
 import { DesignationModel } from './designation.schema.js';
 
-function toDesignation(doc: { _id: unknown; name: DesignationName; level: number }): Designation {
-  return { id: String(doc._id), name: doc.name, level: doc.level };
+function toDesignation(doc: { _id: unknown; name: DesignationName }): Designation {
+  // The level follows from the name, so a row saved with a different one (it used to be typed in) reads correctly anyway.
+  return { id: String(doc._id), name: doc.name, level: DESIGNATION_LEVEL[doc.name] };
 }
 
 export class MongoDesignationAdapter implements DesignationRepositoryPort {
@@ -25,12 +25,6 @@ export class MongoDesignationAdapter implements DesignationRepositoryPort {
 
   async create(input: Omit<Designation, 'id'>): Promise<Designation> {
     const doc = await DesignationModel.create(input);
-    return toDesignation(doc);
-  }
-
-  async update(id: string, input: Partial<Omit<Designation, 'id'>>): Promise<Designation> {
-    const doc = await DesignationModel.findByIdAndUpdate(id, input, { new: true }).lean();
-    if (!doc) throw AppError.internal('INTERNAL', { reason: 'DESIGNATION_NOT_FOUND', id });
     return toDesignation(doc);
   }
 }

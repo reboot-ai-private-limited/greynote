@@ -32,3 +32,18 @@ export function makeMasterDataController<T, CreateInput, UpdateInput>(
     }),
   };
 }
+
+/** For a master with nothing to edit afterwards (Designations: the rank follows from the name). */
+export function makeListCreateController<T, CreateInput>(
+  useCases: Pick<MasterDataUseCases<T, CreateInput, never>, 'list' | 'create'>,
+  noun: string,
+): { list: RequestHandler; create: RequestHandler } {
+  return {
+    list: asyncHandler(async (req, res) => {
+      sendSuccess(req, res, await useCases.list.execute(), `${noun}s listed.`, 200);
+    }),
+    create: asyncHandler(async (req, res) => {
+      sendSuccess(req, res, await useCases.create.execute(req.body), `${noun} created.`, 201);
+    }),
+  };
+}

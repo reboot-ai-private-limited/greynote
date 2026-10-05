@@ -1,10 +1,12 @@
 import { Schema, model } from 'mongoose';
 import { isPaise } from '@/shared/money/paise.js';
-import { PAY_BAND_NAMES, type PayBandName } from '../domain/payBand.entity.js';
 
 interface PayBandDocument {
-  name: PayBandName;
-  suggestedCtcAnnualPaise: number | null;
+  name: string;
+  /** Lower-cased, space-squashed `name`, for the case-insensitive unique index. */
+  nameKey: string;
+  ctcMinAnnualPaise: number;
+  ctcMaxAnnualPaise: number;
   taPerKmRatePaise: number;
   hqDaPaise: number;
   exStationDaPaise: number;
@@ -15,12 +17,17 @@ interface PayBandDocument {
 const paise = { type: Number, required: true, validate: { validator: isPaise, message: 'Must be a whole number of paise.' } };
 
 const payBandSchema = new Schema<PayBandDocument>({
-  name: { type: String, required: true, unique: true, enum: PAY_BAND_NAMES },
-  suggestedCtcAnnualPaise: { type: Number, default: null, validate: { validator: (v: unknown) => v === null || isPaise(v), message: 'Must be a whole number of paise.' } },
+  name: { type: String, required: true },
+  nameKey: { type: String, required: true, unique: true },
+  ctcMinAnnualPaise: paise,
+  ctcMaxAnnualPaise: paise,
   taPerKmRatePaise: paise,
   hqDaPaise: paise,
   exStationDaPaise: paise,
   outStationDaPaise: paise,
+});
+payBandSchema.pre('validate', function () {
+  if (this.ctcMinAnnualPaise <= 0 || this.ctcMinAnnualPaise > this.ctcMaxAnnualPaise) this.invalidate('ctcMinAnnualPaise', 'The CTC range needs 0 < minimum <= maximum.');
 });
 
 export const PayBandModel = model<PayBandDocument>('PayBand', payBandSchema);

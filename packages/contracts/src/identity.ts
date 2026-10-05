@@ -27,31 +27,30 @@ export interface UserListItemDto {
 export const DESIGNATION_NAMES = ['MR', 'ASM', 'RSM', 'ZSM', 'NSM'] as const;
 export type DesignationName = (typeof DESIGNATION_NAMES)[number];
 
-/** One row of `GET /identity/designations` — a bare array, not paginated. `level` is the rank in the reporting chain. */
+/** One row of `GET /identity/designations` — a bare array, not paginated. `level` is the rank in the reporting chain (MR 1 … NSM 5), fixed by the name. */
 export interface DesignationDto {
   id: string;
   name: DesignationName;
   level: number;
 }
-export type CreateDesignationDto = Omit<DesignationDto, 'id'>;
-export type UpdateDesignationDto = Partial<CreateDesignationDto>;
-
-export const PAY_BAND_NAMES = ['G1', 'G2', 'G3'] as const;
-export type PayBandName = (typeof PAY_BAND_NAMES)[number];
+/** The level is not sent: it follows from the name. */
+export type CreateDesignationDto = Pick<DesignationDto, 'name'>;
 
 /** One row of `GET /identity/pay-bands` — a bare array. Money is whole paise (₹1 = 100). */
 export interface PayBandDto {
   id: string;
-  name: PayBandName;
-  /** Pre-fills the CTC box when HR picks this grade for an employee — a suggestion, never enforced. */
-  suggestedCtcAnnualPaise: number | null;
+  /** Free text, up to 20 characters, unique ignoring case (G1, Trainee, Senior …). */
+  name: string;
+  /** What an employee on this grade may be paid a year, both ends allowed: a CTC outside it is refused. */
+  ctcMinAnnualPaise: number;
+  ctcMaxAnnualPaise: number;
   taPerKmRatePaise: number;
   /** DA for a day worked in an HQ / Ex-station / Out-station Area. */
   hqDaPaise: number;
   exStationDaPaise: number;
   outStationDaPaise: number;
 }
-export type CreatePayBandDto = Omit<PayBandDto, 'id' | 'suggestedCtcAnnualPaise'> & { suggestedCtcAnnualPaise?: number | null };
+export type CreatePayBandDto = Omit<PayBandDto, 'id'>;
 export type UpdatePayBandDto = Partial<CreatePayBandDto>;
 
 /** Body of `POST /identity/users`. Admin may create any role; HR only FIELD. Everything else is set later by the onboarding PATCH. */

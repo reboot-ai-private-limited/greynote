@@ -1,10 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { PayBandsScreen } from '@/features/people/components/PayBandsScreen';
-import { useSession } from '@/lib/auth/SessionProvider';
-
-export default function PayBandsPage() {
-  const { user } = useSession();
-  // The Accountant can read pay grades (PRD §5.3) but not change them; the API enforces it too.
-  return <PayBandsScreen canWrite={user?.role === 'ADMIN' || user?.role === 'HR'} />;
+/** The screen was called Pay Bands; old links and bookmarks land on its new address. */
+export default function PayBandsRedirect(): never {
+  redirect('/pay-grades');
 }

@@ -17,6 +17,22 @@ old one.
 
 ---
 
+## 2026-10-05 — Pay grades carry a required CTC range that is enforced; grade names are free; designation levels are fixed; the screen is "Pay grades"
+
+**Decision:**
+- A Pay Band (grade) has a required `ctcMinAnnualPaise` and `ctcMaxAnnualPaise` (`0 < min ≤ max`, both ends allowed). It **replaces** `suggestedCtcAnnualPaise`. Assigning an employee's CTC outside their grade's range is a `400` naming the grade and both bounds, and an employee with no grade can't be given a CTC. The average (midpoint, half up) is derived and shown with min and max wherever a grade is chosen (employee Profile, Compensation tab, CTC dialog, the grade list). The ₹1.44 lakh soft warning is gone: the grade's minimum is the floor now. A formula re-apply keeps each employee's CTC and is not range-checked.
+- **Grade names are free text** (up to 20 characters, unique ignoring case via `nameKey`, renamable), no longer the closed list G1/G2/G3 — which is why a fourth could not be created. Nothing downstream keyed on the names (Leave Master and Payroll use the grade id).
+- **Designation `level` is no longer entered:** it follows from the name (MR 1, ASM 2, RSM 3, ZSM 4, NSM 5) in code, and the Designations edit endpoint is removed (nothing is left to edit). No rule used `level` except ordering.
+- The screen is **Pay grades** at `/pay-grades` (`/pay-bands` redirects); the API path and code names stay `pay-bands` / `PayBand`.
+
+**Needs a migration:** `pnpm --filter @greynote/api migrate:payband-range` (dry run first) — sets `nameKey`, and turns an old suggested CTC into a placeholder min = max range for HR to widen. A grade with neither stops the run. Run it before starting this version.
+
+**Why:** the client wants pay bounded per grade rather than a loose suggestion, and a fixed three grades did not fit the org. **Open for the client (sign-off):** the actual min/max per grade.
+
+**Refs:** `apps/api/src/modules/identity/{domain/payBand.entity,application/usecases/assignCtc.usecase}.ts`, `apps/api/src/scripts/migrate-payband-ctc-range.ts`
+
+---
+
 ## 2026-10-05 — CTC replaces the flat Pay Band salary: one org-wide formula of Pay Components, a CTC per employee
 
 **Decision:** a FIELD employee's pay is a **CTC** (annual, whole paise) split by **one org-wide formula** made of *Pay Components*, instead of `PayBand.baseSalaryPaise`.

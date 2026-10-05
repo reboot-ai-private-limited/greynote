@@ -3,7 +3,6 @@
 import type {
   CreateDesignationDto,
   CreatePayBandDto,
-  UpdateDesignationDto,
   UpdatePayBandDto,
 } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
@@ -40,15 +39,6 @@ export function useCreateDesignation(onDone: () => void) {
     onSuccess: onDone,
   });
 }
-export function useUpdateDesignation(onDone: () => void) {
-  return useApiMutation<{ id: string; body: UpdateDesignationDto }>({
-    call: (token, { id, body }) => designationsApi.update(token, id, body),
-    invalidates: [keys.designations.all()],
-    successMessage: 'Designation updated.',
-    onSuccess: onDone,
-  });
-}
-
 export function useCreatePayBand(onDone: () => void) {
   return useApiMutation<CreatePayBandDto>({
     call: (token, body) => payBandsApi.create(token, body),

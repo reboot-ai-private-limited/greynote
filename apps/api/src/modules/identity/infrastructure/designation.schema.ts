@@ -3,12 +3,13 @@ import { DESIGNATION_NAMES, type DesignationName } from '../domain/designation.e
 
 interface DesignationDocument {
   name: DesignationName;
-  level: number;
+  /** Legacy: the level now follows from the name, so this is no longer read. */
+  level?: number;
 }
 
 const designationSchema = new Schema<DesignationDocument>({
   name: { type: String, required: true, unique: true, enum: DESIGNATION_NAMES },
-  level: { type: Number, required: true },
+  level: { type: Number },
 });
 
 export const DesignationModel = model<DesignationDocument>('Designation', designationSchema);

@@ -6,7 +6,7 @@ import type { Column } from '@/components/ui/DataTable';
 import { formatMoney } from '@/lib/format';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { usePayBands } from '../hooks/useMasterData';
-import { unusedPayBandNames } from '../lib/masterData';
+import { gradeRange } from '../lib/ctc';
 import { EditButton } from './EditButton';
 import { MasterDataFrame } from './MasterDataFrame';
 import { PayBandFormDialog } from './PayBandFormDialog';
@@ -15,11 +15,12 @@ export function PayBandsScreen({ canWrite }: { canWrite: boolean }) {
   const readOnly = useIsReadOnly();
   const bands = usePayBands();
   const [form, setForm] = useState<{ band?: PayBandDto } | null>(null);
-  const available = unusedPayBandNames(bands.data ?? []);
 
   const columns: readonly Column<PayBandDto>[] = [
     { key: 'name', header: 'Grade', render: (b) => <span className="font-medium">{b.name}</span> },
-    { key: 'ctc', header: 'Suggested CTC / yr', numeric: true, render: (b) => (b.suggestedCtcAnnualPaise === null ? '—' : formatMoney(b.suggestedCtcAnnualPaise)) },
+    { key: 'min', header: 'CTC min / yr', numeric: true, render: (b) => formatMoney(b.ctcMinAnnualPaise) },
+    { key: 'avg', header: 'CTC avg / yr', numeric: true, render: (b) => formatMoney(gradeRange(b).avg) },
+    { key: 'max', header: 'CTC max / yr', numeric: true, render: (b) => formatMoney(b.ctcMaxAnnualPaise) },
     { key: 'ta', header: 'TA / km', numeric: true, render: (b) => formatMoney(b.taPerKmRatePaise) },
     { key: 'hq', header: 'DA · HQ', numeric: true, render: (b) => formatMoney(b.hqDaPaise) },
     { key: 'ex', header: 'DA · Ex-station', numeric: true, render: (b) => formatMoney(b.exStationDaPaise) },
@@ -38,18 +39,18 @@ export function PayBandsScreen({ canWrite }: { canWrite: boolean }) {
 
   return (
     <MasterDataFrame
-      title="Pay Bands"
-      description="TA rate and DA amounts per grade. Salary is set per employee as a CTC, under Compensation."
-      noun="pay band"
+      title="Pay grades"
+      description="Each grade sets the CTC range an employee on it can be paid, plus the TA rate and DA amounts. The CTC itself is set per employee, under Compensation."
+      noun="pay grade"
       readOnly={readOnly || !canWrite}
-      canCreate={available.length > 0}
-      createHint="All grades already exist."
+      canCreate
+      createHint=""
       onNew={() => setForm({})}
       query={bands}
       columns={columns}
-      emptyDescription="Create a grade (G1, G2, G3) before putting employees on a pay band."
+      emptyDescription="Create a grade (G1, G2 … or any name) with its CTC range before putting employees on a pay grade."
     >
-      {form ? <PayBandFormDialog band={form.band} availableNames={available} onClose={() => setForm(null)} /> : null}
+      {form ? <PayBandFormDialog band={form.band} all={bands.data ?? []} onClose={() => setForm(null)} /> : null}
     </MasterDataFrame>
   );
 }

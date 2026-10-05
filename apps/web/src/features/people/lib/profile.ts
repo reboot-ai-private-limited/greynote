@@ -160,7 +160,7 @@ export function maskAccount(accountNumber: string): string {
   return accountNumber.length <= 4 ? '••••' : `••••${accountNumber.slice(-4)}`;
 }
 
-// ── Work assignment (designation, pay band, manager) ───────────────────────────────────────
+// ── Work assignment (designation, pay grade, manager) ───────────────────────────────────────
 
 export interface WorkDraft {
   designationId: string;
@@ -176,7 +176,7 @@ export function workToDraft(profile: UserDetailDto['profile']): WorkDraft {
   };
 }
 
-/** Sends only what changed, so a manager change does not re-send (and race on) the pay band. */
+/** Sends only what changed, so a manager change does not re-send (and race on) the pay grade. */
 export function buildWork(before: UserDetailDto['profile'], draft: WorkDraft, selfId: string): BuildResult<UpdateUserDto> {
   const was = workToDraft(before);
   const errors = {
@@ -197,7 +197,7 @@ export function buildWork(before: UserDetailDto['profile'], draft: WorkDraft, se
 
 /**
  * Why a FIELD employee is still onboarding. Mirrors `computeUserStatus` in the API: name, mobile,
- * date of birth, a complete address, designation, pay band, manager, and the four required bank
+ * date of birth, a complete address, designation, pay grade, manager, and the four required bank
  * fields. Guardian, qualification, branch, joining date and documents are optional.
  */
 export function missingForActive(user: UserDetailDto): string[] {
@@ -211,7 +211,7 @@ export function missingForActive(user: UserDetailDto): string[] {
   if (!p?.dateOfBirth) missing.push('Date of birth');
   if (!(a?.district && a.state && a.pincode && a.country)) missing.push('Address');
   if (!p?.designationId) missing.push('Designation');
-  if (!p?.payBandId) missing.push('Pay band');
+  if (!p?.payBandId) missing.push('Pay grade');
   if (!p?.managerId) missing.push('Manager');
   if (!(b?.bankName && b.ifsc && b.accountNumber && b.accountHolderName)) missing.push('Bank details');
   return missing;

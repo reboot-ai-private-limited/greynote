@@ -68,7 +68,7 @@ function BalancesCard({ userId }: { userId: string }) {
         isLoading={query.isLoading}
         error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
         isEmpty={query.data?.balances.length === 0}
-        empty={{ title: 'No leave balances', description: "An employee needs a Pay Band to have balances. Set it on the Profile tab, and add the grade's days on the Leave master." }}
+        empty={{ title: 'No leave balances', description: "An employee needs a pay grade to have balances. Set it on the Profile tab, and add the grade's days on the Leave master." }}
       >
         <DataTable columns={columns} rows={query.data?.balances ?? []} rowKey={(b) => b.id} />
       </DataState>

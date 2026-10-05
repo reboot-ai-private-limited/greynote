@@ -53,7 +53,7 @@ export function LeaveMasterTab() {
         error={error ? toErrorState(error, () => { void bands.refetch(); void types.refetch(); void policies.refetch(); }) : null}
         isEmpty={grid.rows.length === 0 || grid.columns.length === 0}
         empty={{
-          title: grid.rows.length === 0 ? 'No pay bands yet' : 'No paid leave types',
+          title: grid.rows.length === 0 ? 'No pay grades yet' : 'No paid leave types',
           description:
             grid.rows.length === 0
               ? 'Create the grades first, then set their leave days here.'
@@ -126,7 +126,7 @@ export function LeaveMasterTab() {
       </DataState>
       {grid.rows.length === 0 ? (
         <p className="border-t border-border px-5 py-3 text-sm">
-          <Link href="/pay-bands" className="text-accent hover:underline">Go to Pay Bands</Link>
+          <Link href="/pay-grades" className="text-accent hover:underline">Go to Pay grades</Link>
         </p>
       ) : null}
     </Card>

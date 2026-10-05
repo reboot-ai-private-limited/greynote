@@ -15,7 +15,6 @@ import type {
   PaginatedDto,
   PayBandDto,
   PendingDeviceDto,
-  UpdateDesignationDto,
   UpdatePayBandDto,
   UpdateUserDto,
   UserDetailDto,
@@ -85,8 +84,6 @@ export const designationsApi = {
     request<DesignationDto[]>('/identity/designations', { token, signal }),
   create: (token: string, body: CreateDesignationDto) =>
     request<DesignationDto>('/identity/designations', { method: 'POST', token, body }),
-  update: (token: string, id: string, body: UpdateDesignationDto) =>
-    request<DesignationDto>(`/identity/designations/${id}`, { method: 'PATCH', token, body }),
 };
 
 export const payBandsApi = {

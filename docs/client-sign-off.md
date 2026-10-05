@@ -120,6 +120,7 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | I1 | Which month does a paid expense belong to in payroll? | The month it was **paid** (not the month it was reported), so a late payment lands in the next run and is never lost | Designed 2026-09-30 (working assumption, awaiting client) |
 | I2 | Who generates and finalizes payroll? | Accountant and Admin; never HR | Designed 2026-09-30 (working assumption) |
 | I3 | Can the current, unfinished month be generated? | No — only months that have ended | Designed 2026-09-30 (working assumption) |
+| I6 | What CTC range (min–max a year) does each pay grade get, and are the grade names G1, G2 … or something else? | A CTC outside its grade's range is refused; names are free text (decision-log 2026-10-05) | Built; the actual ranges to be supplied by the client |
 | I4 | An employee who joined (or left) mid-month: prorated salary? | Full monthly gross of the CTC, flagged on the run; no proration. Inactive employees are not in a bulk run | Designed 2026-09-30 (working assumption; proration rule awaiting client) |
 | I5 | Statutory deductions (PF, ESIC, Medical) and salary overrides (see F6, F7). | Not modeled; net = base + TA/DA + reimbursement − leave deduction | Open |
 

@@ -8,9 +8,9 @@ other module depends on it, directly or through the Approval Workflow Engine —
 ## What it owns
 
 - **`Role`** — `ADMIN`, `HR`, `ACCOUNTANT`, `FIELD`. One row per role name.
-- **`Designation`** — `MR`, `ASM`, `RSM`, `ZSM`, `NSM`, with a `level` used to validate the
+- **`Designation`** — `MR`, `ASM`, `RSM`, `ZSM`, `NSM`, with a `level` fixed by the name (MR 1 … NSM 5, in code; nobody types it) used to order the
   reporting chain. FIELD-role only.
-- **`PayBand`** — `G1`/`G2`/`G3`, carrying (no salary any more — that is the per-employee CTC) an optional `suggestedCtcAnnualPaise` (pre-fills the CTC box), `taPerKmRatePaise`, and three DA rates
+- **`PayBand`** — a **pay grade** — free-text name (up to 20 characters, unique ignoring case; no cap on how many), carrying a required CTC range `ctcMinAnnualPaise`–`ctcMaxAnnualPaise` (assigning a CTC outside it is a `400`; the average is derived), `taPerKmRatePaise`, and three DA rates
   (`hqDaPaise`, `exStationDaPaise`, `outStationDaPaise`, one per `Route.type`), all whole paise
   (₹7.50 per km is `750`; `../engineering/coding-standards.md`, *Money*). FIELD-role
   only; feeds TA/DA auto-calculation ([`hld/06`](../hld/06-ta-da-auto-calculation.md)) and Payroll

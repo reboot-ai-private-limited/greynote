@@ -21,6 +21,8 @@ const stub = <T>(result: T) => ({ execute: vi.fn().mockResolvedValue(result) });
 
 const payBandBody = {
   name: 'G1',
+  ctcMinAnnualPaise: 14_400_000,
+  ctcMaxAnnualPaise: 30_000_000,
   taPerKmRatePaise: 750,
   hqDaPaise: 20000,
   exStationDaPaise: 30000,
@@ -39,7 +41,7 @@ beforeAll(async () => {
   );
   app.use(
     '/designations',
-    buildDesignationsRouter({ list: stub([]), create: stub({ id: '1' }), update: stub({ id: '1' }) } as never),
+    buildDesignationsRouter({ list: stub([]), create: stub({ id: '1' }) } as never),
   );
   app.use(errorHandler as never);
   await new Promise<void>((resolve) => {
@@ -99,12 +101,12 @@ describe('Designations — who may', () => {
     expect(await call(role, 'GET', '/designations')).toBe(status);
   });
 
-  it('HR creates and updates', async () => {
-    expect(await call('HR', 'POST', '/designations', { name: 'MR', level: 1 })).toBe(201);
-    expect(await call('HR', 'PATCH', '/designations/abc', { level: 2 })).toBe(200);
+  it('HR creates; there is nothing to update (the level follows from the name)', async () => {
+    expect(await call('HR', 'POST', '/designations', { name: 'MR' })).toBe(201);
+    expect(await call('HR', 'PATCH', '/designations/abc', { level: 2 })).toBe(404);
   });
 
   it('an Accountant cannot write', async () => {
-    expect(await call('ACCOUNTANT', 'POST', '/designations', { name: 'MR', level: 1 })).toBe(403);
+    expect(await call('ACCOUNTANT', 'POST', '/designations', { name: 'MR' })).toBe(403);
   });
 });

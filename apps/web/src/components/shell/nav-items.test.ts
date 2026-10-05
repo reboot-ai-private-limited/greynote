@@ -98,18 +98,18 @@ describe('Devices', () => {
   });
 });
 
-describe('Pay Bands and Designations', () => {
+describe('Pay grades and Designations', () => {
   it('lets Admin and HR see both', () => {
     for (const role of ['ADMIN', 'HR'] as const) {
       const hrefs = navFor(role).map((i) => i.href);
-      expect(hrefs).toContain('/pay-bands');
+      expect(hrefs).toContain('/pay-grades');
       expect(hrefs).toContain('/designations');
     }
   });
 
-  it('lets the Accountant read pay bands but not see designations', () => {
+  it('lets the Accountant read pay grades but not see designations', () => {
     const hrefs = navFor('ACCOUNTANT').map((i) => i.href);
-    expect(hrefs).toContain('/pay-bands');
+    expect(hrefs).toContain('/pay-grades');
     expect(hrefs).not.toContain('/designations');
   });
 });

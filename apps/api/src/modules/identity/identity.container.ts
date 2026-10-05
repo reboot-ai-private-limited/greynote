@@ -49,7 +49,6 @@ import type { BootstrapAdminInput } from './application/usecases/seedBootstrapAd
 import { SeedBootstrapAdminUseCase } from './application/usecases/seedBootstrapAdmin.usecase.js';
 import { SeedDefaultRolesUseCase } from './application/usecases/seedDefaultRoles.usecase.js';
 import { UnblockUserUseCase } from './application/usecases/unblockUser.usecase.js';
-import { UpdateDesignationUseCase } from './application/usecases/updateDesignation.usecase.js';
 import { UpdatePayBandUseCase } from './application/usecases/updatePayBand.usecase.js';
 import { UpdateRoleUseCase } from './application/usecases/updateRole.usecase.js';
 import { UpdateUserUseCase } from './application/usecases/updateUser.usecase.js';
@@ -199,7 +198,6 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
 
   const createDesignation = new CreateDesignationUseCase(designationRepository);
   const listDesignations = new ListDesignationsUseCase(designationRepository);
-  const updateDesignation = new UpdateDesignationUseCase(designationRepository);
 
   const createPayBand = new CreatePayBandUseCase(payBandRepository);
   const listPayBands = new ListPayBandsUseCase(payBandRepository);
@@ -210,7 +208,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const updatePayComponent = new UpdatePayComponentUseCase(payComponentRepository);
   const seedDefaultPayComponents = new SeedDefaultPayComponentsUseCase(payComponentRepository);
   const previewCtc = new PreviewCtcUseCase(payComponentRepository);
-  const assignCtc = new AssignCtcUseCase(userRepository, roleRepository, payComponentRepository, ctcAssignmentRepository);
+  const assignCtc = new AssignCtcUseCase(userRepository, roleRepository, payComponentRepository, ctcAssignmentRepository, employeeProfileRepository, payBandRepository);
   const listCtcHistory = new ListCtcHistoryUseCase(ctcAssignmentRepository);
   const getCtcForMonth = new GetCtcForMonthUseCase(ctcAssignmentRepository);
   const reapplyCtc = new ReapplyCtcUseCase(payComponentRepository, ctcAssignmentRepository);
@@ -292,7 +290,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       router.use('/roles', buildRolesRouter({ list: listRoles, create: createRole, update: updateRole }));
       router.use(
         '/designations',
-        buildDesignationsRouter({ list: listDesignations, create: createDesignation, update: updateDesignation }),
+        buildDesignationsRouter({ list: listDesignations, create: createDesignation }),
       );
       router.use(
         '/pay-bands',

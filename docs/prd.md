@@ -64,7 +64,7 @@ Territories are built on a strict spatial hierarchy: **Zone → Headquarter (HQ)
 Employees are classified using a dual-matrix system to decouple job role from salary grade:
 
 1.  **Designation (Role):** L1, L2, L3 (e.g., MR, ASM, RSM). Determines app permissions and reporting hierarchy.
-2.  **Pay Band (Grade):** G1, G2, G3. Determines the financial rates — a flat **base salary**, DA amount, and TA per-km rate per grade.
+2.  **Pay Band (Grade, shown as "Pay grade"):** G1, G2, … any name. Determines the financial rates — the **CTC range** an employee on it may be paid (each employee's own CTC sits inside it), the DA amounts, and the TA per-km rate per grade.
     - _Logic:_ Two employees with the same L1 designation can be on different Pay Bands (G1 vs G2), yielding different base salary, DA amounts, and TA per-km rates.
     - _Scope:_ Designation and Pay Band — and therefore Payroll (below) — apply to field-force employees only. Admin/HR/Accountant compensation is handled by a separate, external company payroll system outside this platform.
 

@@ -111,7 +111,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 ) : null}
               </Tabs>
             ) : (
-              <Card title="Account" description="Designation, pay band, bank details and devices apply to the field force only.">
+              <Card title="Account" description="Designation, pay grade, bank details and devices apply to the field force only.">
                 <div className="p-5">
                   <FieldList>
                     <Field label="Email">{user.email}</Field>

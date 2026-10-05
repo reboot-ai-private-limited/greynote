@@ -1,23 +1,21 @@
 import { AppError } from '@/shared/errors/AppError.js';
-import { isPaise } from '@/shared/money/paise.js';
-import { PAY_BAND_MONEY_FIELDS, type PayBand } from '../../domain/payBand.entity.js';
+import type { PayBand } from '../../domain/payBand.entity.js';
 import type { PayBandRepositoryPort } from '../../domain/payBand.repository.port.js';
+import { assertValidPayBandMoney } from './createPayBand.usecase.js';
 
 export class UpdatePayBandUseCase {
   constructor(private readonly repository: PayBandRepositoryPort) {}
 
   async execute(id: string, input: Partial<Omit<PayBand, 'id'>>): Promise<PayBand> {
-    if (!(await this.repository.findById(id))) throw AppError.notFound();
+    const existing = await this.repository.findById(id);
+    if (!existing) throw AppError.notFound();
 
-    for (const field of PAY_BAND_MONEY_FIELDS) {
-      const value = input[field];
-      if (value !== undefined && !isPaise(value)) {
-        throw AppError.badRequest(`${field} must be a whole number of paise.`, { field });
-      }
-    }
+    // The merged result must still be a usable grade: the range is checked as a whole, not field by field.
+    assertValidPayBandMoney({ ...existing, ...input });
 
-    if (input.suggestedCtcAnnualPaise != null && !isPaise(input.suggestedCtcAnnualPaise)) {
-      throw AppError.badRequest('suggestedCtcAnnualPaise must be a whole number of paise.', { field: 'suggestedCtcAnnualPaise' });
+    if (input.name !== undefined) {
+      const clash = await this.repository.findByName(input.name);
+      if (clash && clash.id !== id) throw AppError.conflict('A pay grade with that name already exists.', { field: 'name' });
     }
 
     return this.repository.update(id, input);

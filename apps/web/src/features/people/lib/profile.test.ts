@@ -178,7 +178,7 @@ describe('missingForActive', () => {
       'Date of birth',
       'Address',
       'Designation',
-      'Pay band',
+      'Pay grade',
       'Manager',
       'Bank details',
     ]);

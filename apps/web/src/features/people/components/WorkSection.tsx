@@ -9,10 +9,11 @@ import { useDesignations, usePayBands } from '../hooks/useMasterData';
 import { useUpdateUser, useUser } from '../hooks/useUsers';
 import { DESIGNATION_LABEL } from '../lib/masterData';
 import { buildWork, workToDraft, type WorkDraft } from '../lib/profile';
+import { GradeRange } from './GradeRange';
 import { ManagerPickerDialog } from './ManagerPickerDialog';
 import { Field, FieldList, SectionCard, SectionForm } from './SectionCard';
 
-/** Designation, pay band and manager: what places an employee in the reporting chain and on a pay grade. */
+/** Designation, pay grade and manager: what places an employee in the reporting chain and on a pay grade. */
 export function WorkSection({ user, readOnly }: { user: UserDetailDto; readOnly: boolean }) {
   const p = user.profile;
   const designations = useDesignations();
@@ -23,13 +24,14 @@ export function WorkSection({ user, readOnly }: { user: UserDetailDto; readOnly:
 
   return (
     <SectionCard
-      title="Designation, pay band and manager"
-      description="Sets the reporting chain, and the TA and DA rates. Salary is set under Compensation."
+      title="Designation, pay grade and manager"
+      description="Sets the reporting chain, the CTC range, and the TA and DA rates. The CTC itself is set under Compensation."
       readOnly={readOnly}
       view={
         <FieldList>
           <Field label="Designation">{designation ? DESIGNATION_LABEL[designation.name] : null}</Field>
-          <Field label="Pay band">{payBand?.name}</Field>
+          <Field label="Pay grade">{payBand?.name}</Field>
+          <Field label="CTC range (a year)">{payBand ? <GradeRange band={payBand} /> : null}</Field>
           <Field label="Manager">{manager.data ? `${manager.data.name} (${manager.data.employeeCode})` : null}</Field>
         </FieldList>
       }
@@ -46,6 +48,7 @@ function WorkForm({ user, onDone }: { user: UserDetailDto; onDone: () => void })
   const designations = useDesignations();
   const payBands = usePayBands();
   const currentManager = useUser(user.profile?.managerId);
+  const chosenBand = payBands.data?.find((b) => b.id === draft.payBandId);
   const update = useUpdateUser(user.id, onDone);
 
   function submit() {
@@ -71,14 +74,19 @@ function WorkForm({ user, onDone }: { user: UserDetailDto; onDone: () => void })
             placeholder={designations.isLoading ? 'Loading…' : 'Choose a designation'}
           />
         </FormField>
-        <FormField label="Pay band" htmlFor="work-payband" error={errors['payBandId']}>
+        <FormField label="Pay grade" htmlFor="work-payband" error={errors['payBandId']}>
           <Select
             id="work-payband"
             value={draft.payBandId}
             onValueChange={(v) => setDraft((d) => ({ ...d, payBandId: v }))}
             options={(payBands.data ?? []).map((b) => ({ value: b.id, label: b.name }))}
-            placeholder={payBands.isLoading ? 'Loading…' : 'Choose a pay band'}
+            placeholder={payBands.isLoading ? 'Loading…' : 'Choose a pay grade'}
           />
+          {chosenBand ? (
+            <div className="mt-2">
+              <GradeRange band={chosenBand} />
+            </div>
+          ) : null}
         </FormField>
         <FormField label="Manager" htmlFor="work-manager" error={errors['managerId']}>
           <div className="flex items-center gap-3">
