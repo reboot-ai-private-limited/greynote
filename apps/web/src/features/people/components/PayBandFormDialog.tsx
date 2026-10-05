@@ -6,6 +6,7 @@ import { FormDialog } from '@/components/ui/FormDialog';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { paiseToRupees } from '@/lib/money';
 import { useCreatePayBand, useUpdatePayBand } from '../hooks/useMasterData';
 import {
   EMPTY_PAY_BAND_RUPEES,
@@ -31,18 +32,19 @@ export function PayBandFormDialog({
 }) {
   const [name, setName] = useState(band?.name ?? availableNames[0] ?? '');
   const [rupees, setRupees] = useState<PayBandRupees>(band ? payBandToRupees(band) : EMPTY_PAY_BAND_RUPEES);
+  const [suggestedCtc, setSuggestedCtc] = useState(band?.suggestedCtcAnnualPaise ? paiseToRupees(band.suggestedCtcAnnualPaise) : '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const create = useCreatePayBand(onClose);
   const update = useUpdatePayBand(onClose);
 
   function submit() {
     if (band) {
-      const built = buildPayBandUpdate(band, rupees);
+      const built = buildPayBandUpdate(band, rupees, suggestedCtc);
       if (!built.ok) return setErrors(built.errors);
       if (Object.keys(built.body).length === 0) return onClose();
       return update.mutate({ id: band.id, body: built.body });
     }
-    const built = buildPayBand({ name, rupees });
+    const built = buildPayBand({ name, rupees, suggestedCtc });
     if (!built.ok) return setErrors(built.errors);
     create.mutate(built.body);
   }
@@ -53,7 +55,7 @@ export function PayBandFormDialog({
       description={
         band
           ? 'Changes apply to future TA/DA and payroll runs. A finalized payroll month is not changed.'
-          : 'A grade sets the base salary, TA rate and DA amounts for the employees on it.'
+          : 'A grade sets the TA rate and DA amounts for the employees on it.'
       }
       formId="pay-band-form"
       pending={create.isPending || update.isPending}
@@ -84,6 +86,16 @@ export function PayBandFormDialog({
           />
         </FormField>
       ))}
+      <FormField label="Suggested CTC per year (₹, optional)" htmlFor="pay-band-suggested-ctc" error={errors['suggestedCtc']}>
+        <Input
+          id="pay-band-suggested-ctc"
+          inputMode="decimal"
+          value={suggestedCtc}
+          placeholder="144000"
+          onChange={(e) => setSuggestedCtc(e.target.value)}
+          aria-invalid={errors['suggestedCtc'] ? true : undefined}
+        />
+      </FormField>
     </FormDialog>
   );
 }

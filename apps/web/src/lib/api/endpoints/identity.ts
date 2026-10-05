@@ -1,5 +1,14 @@
 import type {
+  AssignCtcDto,
   CreateDesignationDto,
+  CreatePayComponentDto,
+  CtcAssignmentDto,
+  CtcPreviewDto,
+  PayComponentDto,
+  PreviewCtcDto,
+  ReapplyCtcDto,
+  ReapplyOutcomeDto,
+  UpdatePayComponentDto,
   CreateUserDto,
   CreatePayBandDto,
   DesignationDto,
@@ -86,4 +95,24 @@ export const payBandsApi = {
     request<PayBandDto>('/identity/pay-bands', { method: 'POST', token, body }),
   update: (token: string, id: string, body: UpdatePayBandDto) =>
     request<PayBandDto>(`/identity/pay-bands/${id}`, { method: 'PATCH', token, body }),
+};
+
+/** The org-wide CTC formula and each employee's CTC revisions. */
+export const payComponentsApi = {
+  list: (token: string, signal?: AbortSignal) => request<PayComponentDto[]>('/identity/pay-components', { token, signal }),
+  create: (token: string, body: CreatePayComponentDto) =>
+    request<PayComponentDto>('/identity/pay-components', { method: 'POST', token, body }),
+  update: (token: string, id: string, body: UpdatePayComponentDto) =>
+    request<PayComponentDto>(`/identity/pay-components/${id}`, { method: 'PATCH', token, body }),
+};
+
+export const ctcApi = {
+  preview: (token: string, body: PreviewCtcDto, signal?: AbortSignal) =>
+    request<CtcPreviewDto>('/identity/ctc/preview', { method: 'POST', token, body, signal }),
+  history: (token: string, userId: string, signal?: AbortSignal) =>
+    request<CtcAssignmentDto[]>(`/identity/users/${userId}/ctc`, { token, signal }),
+  assign: (token: string, userId: string, body: AssignCtcDto) =>
+    request<CtcAssignmentDto>(`/identity/users/${userId}/ctc`, { method: 'POST', token, body }),
+  reapply: (token: string, body: ReapplyCtcDto) =>
+    request<ReapplyOutcomeDto[]>('/identity/ctc/reapply', { method: 'POST', token, body }),
 };

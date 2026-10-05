@@ -114,6 +114,13 @@ describe('Pay Bands and Designations', () => {
   });
 });
 
+describe('Pay components', () => {
+  it('lets Admin, HR and the Accountant see the formula', () => {
+    for (const role of ['ADMIN', 'HR', 'ACCOUNTANT'] as const) expect(navFor(role).map((i) => i.href)).toContain('/pay-components');
+    expect(isRouteBuilt('/pay-components')).toBe(true);
+  });
+});
+
 describe('navGroupsFor', () => {
   it('groups items under their headings, in order, dropping empty groups', () => {
     const groups = navGroupsFor('ACCOUNTANT');

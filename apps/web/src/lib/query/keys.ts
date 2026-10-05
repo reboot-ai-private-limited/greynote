@@ -29,6 +29,12 @@ export const keys = {
   },
   designations: { all: () => ['designations', fy()] as const },
   payBands: { all: () => ['payBands', fy()] as const },
+  payComponents: { all: () => ['payComponents', fy()] as const },
+  ctc: {
+    all: () => ['ctc', fy()] as const,
+    history: (userId: string) => [...keys.ctc.all(), 'history', userId] as const,
+    preview: (body: object) => [...keys.ctc.all(), 'preview', body] as const,
+  },
   leaves: {
     /** Every leave query for the year in view: balances, lists and details. */
     root: () => ['leaves', fy()] as const,

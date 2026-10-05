@@ -139,3 +139,21 @@ describe('buildDesignationUpdate', () => {
     expect(buildDesignationUpdate(asm, 'x')).toMatchObject({ ok: false });
   });
 });
+
+describe('suggested CTC on a pay band', () => {
+  it('is optional on create, and sent in paise when given', () => {
+    expect(buildPayBand({ name: 'G1', rupees: filled })).toMatchObject({ ok: true });
+    expect((buildPayBand({ name: 'G1', rupees: filled }) as { body: object }).body).not.toHaveProperty('suggestedCtcAnnualPaise');
+    expect(buildPayBand({ name: 'G1', rupees: filled, suggestedCtc: '144000' })).toMatchObject({ ok: true, body: { suggestedCtcAnnualPaise: 14_400_000 } });
+  });
+  it('refuses nonsense', () => {
+    expect(buildPayBand({ name: 'G1', rupees: filled, suggestedCtc: 'lots' })).toMatchObject({ ok: false, errors: { suggestedCtc: expect.any(String) } });
+  });
+  it('on edit changes only when different, and a blank clears it', () => {
+    const withCtc = { ...g1, suggestedCtcAnnualPaise: 14_400_000 };
+    expect(buildPayBandUpdate(withCtc, filled, '144000.00')).toEqual({ ok: true, body: {} });
+    expect(buildPayBandUpdate(withCtc, filled, '180000')).toEqual({ ok: true, body: { suggestedCtcAnnualPaise: 18_000_000 } });
+    expect(buildPayBandUpdate(withCtc, filled, '')).toEqual({ ok: true, body: { suggestedCtcAnnualPaise: null } });
+    expect(buildPayBandUpdate(g1, filled)).toEqual({ ok: true, body: {} });
+  });
+});

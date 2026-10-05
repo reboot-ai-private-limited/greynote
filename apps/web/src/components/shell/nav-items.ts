@@ -2,6 +2,7 @@ import type { RoleName } from '@greynote/contracts';
 import {
   Award,
   Banknote,
+  Calculator,
   Building2,
   CalendarDays,
   ClipboardCheck,
@@ -46,6 +47,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Employees', href: '/employees', icon: Users, group: 'People', roles: ['ADMIN', 'HR'] },
   { label: 'Devices', href: '/devices', icon: Smartphone, group: 'People', roles: ['ADMIN'] },
   { label: 'Pay Bands', href: '/pay-bands', icon: Wallet, group: 'People', roles: ALL },
+  { label: 'Pay components', href: '/pay-components', icon: Calculator, group: 'People', roles: ALL },
   { label: 'Designations', href: '/designations', icon: Award, group: 'People', roles: ['ADMIN', 'HR'] },
   { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'People', roles: ['ADMIN', 'HR'] },
   { label: 'Approvals', href: '/approvals', icon: ClipboardCheck, group: 'Operations', roles: ['ADMIN', 'HR'] },

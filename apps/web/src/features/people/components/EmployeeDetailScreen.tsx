@@ -19,6 +19,7 @@ import { AddressSection } from './AddressSection';
 import { BankSection } from './BankSection';
 import { DocumentsSection } from './DocumentsSection';
 import { BasicSection } from './BasicSection';
+import { CompensationTab } from './CompensationTab';
 import { Field, FieldList } from './SectionCard';
 import { SecuritySection } from './SecuritySection';
 import { UserDevicesSection } from './UserDevicesSection';
@@ -76,6 +77,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                   <TabsTrigger value="profile">Profile</TabsTrigger>
                   <TabsTrigger value="bank">Bank</TabsTrigger>
                   <TabsTrigger value="documents">Documents</TabsTrigger>
+                  <TabsTrigger value="compensation">Compensation</TabsTrigger>
                   <TabsTrigger value="leave">Leave</TabsTrigger>
                   {isAdmin ? <TabsTrigger value="devices">Devices</TabsTrigger> : null}
                   {isAdmin ? <TabsTrigger value="security">Security</TabsTrigger> : null}
@@ -90,6 +92,9 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 </TabsContent>
                 <TabsContent value="documents" className="mt-6">
                   <DocumentsSection user={user} readOnly={readOnly} />
+                </TabsContent>
+                <TabsContent value="compensation" className="mt-6">
+                  <CompensationTab user={user} readOnly={readOnly} />
                 </TabsContent>
                 <TabsContent value="leave" className="mt-6">
                   <EmployeeLeaveTab userId={user.id} />

@@ -157,3 +157,80 @@ export interface UserDeviceDto {
   loggedIn: boolean;
   lastActiveAt: string | null;
 }
+
+/** One line of the org-wide CTC formula (`GET /identity/pay-components`, a bare array in display order). */
+export type PayComponentKind = 'EARNING' | 'EMPLOYER_CONTRIBUTION';
+
+/** Percentages are whole basis points (1% = 100, so ESI 0.75% is `75`); money is annual whole paise. */
+export type PayComponentRuleDto =
+  | { type: 'PERCENT_OF_CTC'; basisPoints: number }
+  | { type: 'PERCENT_OF_COMPONENTS'; basisPoints: number; of: string[] }
+  | { type: 'FIXED'; amountPaise: number }
+  | { type: 'BALANCER' };
+
+export interface PayComponentDto {
+  id: string;
+  /** Upper-case and unique; what other components and an employee's overrides refer to. Fixed once created. */
+  code: string;
+  name: string;
+  kind: PayComponentKind;
+  rule: PayComponentRuleDto;
+  order: number;
+  isActive: boolean;
+}
+export type CreatePayComponentDto = Omit<PayComponentDto, 'id'>;
+export type UpdatePayComponentDto = Partial<Omit<PayComponentDto, 'id' | 'code'>>;
+
+/** One line of an employee's CTC breakdown, annual paise. */
+export interface CtcLineDto {
+  code: string;
+  name: string;
+  kind: PayComponentKind;
+  amountPaise: number;
+  /** HR typed this amount for this employee instead of taking the formula's. */
+  isOverridden: boolean;
+}
+
+/** `POST /identity/ctc/preview` — the breakdown worked out, nothing saved. */
+export interface PreviewCtcDto {
+  ctcAnnualPaise: number;
+  /** Component code → annual paise, for lines HR is overriding. */
+  overrides?: Record<string, number>;
+}
+export interface CtcPreviewDto {
+  ctcAnnualPaise: number;
+  lines: CtcLineDto[];
+  /** CTC less the employer's own EPF/ESI: what the employee is paid before any deduction. */
+  grossAnnualPaise: number;
+  grossMonthlyPaise: number;
+}
+
+/** One saved revision of an employee's CTC. Never edited; a change is a new revision. */
+export interface CtcAssignmentDto {
+  id: string;
+  userId: string;
+  ctcAnnualPaise: number;
+  /** `YYYY-MM`, the first payroll month it applies to. */
+  effectiveFrom: string;
+  overrides: Record<string, number>;
+  lines: CtcLineDto[];
+  reason: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+export interface AssignCtcDto {
+  ctcAnnualPaise: number;
+  effectiveFrom: string;
+  overrides?: Record<string, number>;
+  reason?: string | null;
+}
+
+/** `POST /identity/ctc/reapply` — fresh revisions from the current formula, one outcome per employee. */
+export interface ReapplyCtcDto {
+  effectiveFrom: string;
+  reason?: string | null;
+  userIds?: string[];
+}
+export type ReapplyOutcomeDto =
+  | { userId: string; outcome: 'revised'; revisionId: string }
+  | { userId: string; outcome: 'skipped'; message: string };

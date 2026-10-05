@@ -71,8 +71,18 @@ export function unusedDesignationNames(existing: readonly DesignationDto[]): Des
   return DESIGNATION_NAMES.filter((n) => !taken.has(n));
 }
 
-export function buildPayBand(draft: { name: string; rupees: PayBandRupees }): BuildResult<CreatePayBandDto> {
+/** The optional suggested yearly CTC: blank is "none" (`null`), anything else must be an amount. */
+function suggestedCtcOf(raw: string, errors: Record<string, string | undefined>): number | null {
+  if (raw.trim() === '') return null;
+  const paise = rupeesToPaise(raw);
+  if (paise === null || paise === 0) errors['suggestedCtc'] = 'Use rupees with at most two decimals, e.g. 144000 — or leave it blank.';
+  else if (paise > MAX_PAISE) errors['suggestedCtc'] = 'That is more than ₹10 crore — check for an extra zero.';
+  return errors['suggestedCtc'] ? null : paise;
+}
+
+export function buildPayBand(draft: { name: string; rupees: PayBandRupees; suggestedCtc?: string }): BuildResult<CreatePayBandDto> {
   const errors: Record<string, string | undefined> = { name: isPayBandName(draft.name) ? undefined : 'Choose a grade.' };
+  const suggested = suggestedCtcOf(draft.suggestedCtc ?? '', errors);
   for (const { key } of PAY_BAND_MONEY_FIELDS) errors[key] = moneyError(draft.rupees[key]);
   if (Object.values(errors).some(Boolean) || !isPayBandName(draft.name)) return fail(errors);
   const paise = (key: PayBandMoneyKey) => rupeesToPaise(draft.rupees[key]) ?? 0;
@@ -80,6 +90,7 @@ export function buildPayBand(draft: { name: string; rupees: PayBandRupees }): Bu
     ok: true,
     body: {
       name: draft.name,
+      ...(suggested === null ? {} : { suggestedCtcAnnualPaise: suggested }),
       taPerKmRatePaise: paise('taPerKmRatePaise'),
       hqDaPaise: paise('hqDaPaise'),
       exStationDaPaise: paise('exStationDaPaise'),
@@ -92,11 +103,13 @@ export function buildPayBand(draft: { name: string; rupees: PayBandRupees }): Bu
  * An edit's validated, changed-only body. The grade name is fixed once created (it is what
  * Employees point at), so only money fields can change. `{}` means nothing changed.
  */
-export function buildPayBandUpdate(original: PayBandDto, rupees: PayBandRupees): BuildResult<UpdatePayBandDto> {
+export function buildPayBandUpdate(original: PayBandDto, rupees: PayBandRupees, suggestedCtc?: string): BuildResult<UpdatePayBandDto> {
   const errors: Record<string, string | undefined> = {};
+  const suggested = suggestedCtcOf(suggestedCtc ?? (original.suggestedCtcAnnualPaise === null ? '' : paiseToRupees(original.suggestedCtcAnnualPaise)), errors);
   for (const { key } of PAY_BAND_MONEY_FIELDS) errors[key] = moneyError(rupees[key]);
   if (Object.values(errors).some(Boolean)) return fail(errors);
   const body: UpdatePayBandDto = {};
+  if (suggested !== original.suggestedCtcAnnualPaise) body.suggestedCtcAnnualPaise = suggested;
   for (const { key } of PAY_BAND_MONEY_FIELDS) {
     const paise = rupeesToPaise(rupees[key]) ?? 0;
     if (paise !== original[key]) body[key] = paise;

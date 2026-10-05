@@ -24,7 +24,7 @@ export function WorkSection({ user, readOnly }: { user: UserDetailDto; readOnly:
   return (
     <SectionCard
       title="Designation, pay band and manager"
-      description="Sets the reporting chain, and the salary, TA and DA rates."
+      description="Sets the reporting chain, and the TA and DA rates. Salary is set under Compensation."
       readOnly={readOnly}
       view={
         <FieldList>
