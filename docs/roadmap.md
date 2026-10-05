@@ -719,7 +719,7 @@ team-plans list endpoint), the app's read-only inherited-day behaviour, and a br
 
 ## Change after the backend phases — CTC and Pay Components (2026-10-05)
 
-Pay becomes a per-employee CTC split by one org-wide formula (`decision-log.md`, 2026-10-05). Steps: (1) formula function — **done**; (2) Pay Components master, CTC revisions, API, Grade's suggested CTC — **done (Identity)**; (3) Payroll reads `getCtcForMonth`, `NO_CTC` skip, `PayBand.baseSalaryPaise` removed + migration — **done**; (4) web: Pay Components screen (`/pay-components`, Admin/HR edit, Accountant read) with re-apply, a Compensation tab on the FIELD employee page (live breakdown, per-line edits, revision history), suggested CTC on the Pay Band form — **built, not yet browser-checked**; (5) client sign-off on the assumptions listed in the decision.
+Pay becomes a per-employee CTC split by one org-wide formula (`decision-log.md`, 2026-10-05). Steps: (1) formula function — **done**; (2) Pay Components master, CTC revisions, API, Grade's suggested CTC — **done (Identity)**; (3) Payroll reads `getCtcForMonth`, `NO_CTC` skip, `PayBand.baseSalaryPaise` removed + migration — **done**; (4) web: Pay Components screen (`/pay-components`, Admin/HR edit, Accountant read) with re-apply, a Compensation tab on the FIELD employee page (live breakdown, per-line edits, revision history), suggested CTC on the Pay Band form — **built and browser-checked 2026-10-05** (formula screen, live breakdown, a Medical override with Other absorbing it, save and history; re-apply and the Pay Band suggested-CTC field not clicked through); (5) client sign-off on the assumptions listed in the decision.
 
 ## Sequencing rules
 
