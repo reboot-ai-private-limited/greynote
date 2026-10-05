@@ -17,6 +17,26 @@ old one.
 
 ---
 
+## 2026-10-05 — CTC replaces the flat Pay Band salary: one org-wide formula of Pay Components, a CTC per employee
+
+**Decision:** a FIELD employee's pay is a **CTC** (annual, whole paise) split by **one org-wide formula** made of *Pay Components*, instead of `PayBand.baseSalaryPaise`.
+
+- **No Paygroup.** Considered (a named rule set assigned to employees) and dropped: the org has one formula, so it would be a table with one row. Variation is per employee (below), not per group.
+- **Pay Components** (Admin/HR master): `code`, `name`, `kind` (`EARNING` / `EMPLOYER_CONTRIBUTION`), `order`, `isActive`, and a rule — percent of CTC, percent of other components, fixed amount, or the **balancer** (exactly one; takes the rest). Percentages are whole basis points. Seeded: Basic 30% of CTC, FDA 10% of Basic, EPF 12% of Basic + FDA, ESI 0.75% of CTC, Medical (fixed, Admin-set), Other allowance (balancer). HRA, Conveyance etc. are added by Admin as data. Basic is validated 30–60% of CTC; the formula must keep one balancer, no loops, and no reference to an inactive component.
+- **Rounding:** each figure rounds half up to a whole paise once; the balancer absorbs the difference, so lines always sum to the CTC exactly. A formula that leaves a negative balancer is a 400.
+- **Per employee:** HR picks the Grade and types the CTC; the breakdown fills from the formula and HR may override any line (the balancer is never overridden). Overrides are kept, and components that are a percentage of an overridden line follow it.
+- **Append-only revisions** (`CtcAssignment`: CTC, `effectiveFrom` month, frozen lines, overrides, reason, who). A package change is a new revision; the one in force for a payroll month is the latest `effectiveFrom` not after it, ties to the one saved last. Editing the formula **does not** rewrite saved breakdowns; `POST /identity/ctc/reapply` saves fresh revisions from a chosen month (same CTC and overrides), each employee independent.
+- **Employer EPF/ESI are inside the CTC**, so the employee's monthly gross is `(CTC − employer EPF − employer ESI) ÷ 12`. Employee-side deductions on the payslip are **deferred**.
+- **The 1.44 minimum is not enforced** (read as ₹1.44 lakh a year; the UI will only warn). **Grade** keeps TA/DA rates and leave policy, and gains an optional `suggestedCtcAnnualPaise` that pre-fills the CTC box.
+
+**Status:** backend for the master, revisions and API built (Identity). `PayBand.baseSalaryPaise` is still present and still what Payroll reads until the Payroll step lands; then it is removed. Web UI follows.
+
+**Assumptions for the client (sign-off):** the unit of 1.44; ESI applied to everyone as stated (the statute has a wage ceiling); employee-side deductions later; revisions start at a chosen month with no mid-month proration.
+
+**Refs:** `apps/api/src/modules/identity/domain/{ctcBreakdown,payComponent.entity,defaultPayComponents,ctcAssignment.entity}.ts`, `application/usecases/{assignCtc,previewCtc,reapplyCtc,*PayComponent}.usecase.ts`, `interface/ctc.route.ts`
+
+---
+
 ## 2026-10-03 — DCR approval is a switch; Daily Plans come from the approved Monthly Plan; approvers get a turnaround; stock is due on the 5th
 
 **Decision:** four connected changes, each driven by a `SystemConfig` key so Admin changes them without a release.

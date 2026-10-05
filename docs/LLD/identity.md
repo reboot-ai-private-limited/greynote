@@ -10,11 +10,16 @@ other module depends on it, directly or through the Approval Workflow Engine —
 - **`Role`** — `ADMIN`, `HR`, `ACCOUNTANT`, `FIELD`. One row per role name.
 - **`Designation`** — `MR`, `ASM`, `RSM`, `ZSM`, `NSM`, with a `level` used to validate the
   reporting chain. FIELD-role only.
-- **`PayBand`** — `G1`/`G2`/`G3`, carrying `baseSalaryPaise`, `taPerKmRatePaise`, and three DA rates
+- **`PayBand`** — `G1`/`G2`/`G3`, carrying `baseSalaryPaise` (being replaced by the per-employee CTC), an optional `suggestedCtcAnnualPaise` (pre-fills the CTC box), `taPerKmRatePaise`, and three DA rates
   (`hqDaPaise`, `exStationDaPaise`, `outStationDaPaise`, one per `Route.type`), all whole paise
   (₹7.50 per km is `750`; `../engineering/coding-standards.md`, *Money*). FIELD-role
   only; feeds TA/DA auto-calculation ([`hld/06`](../hld/06-ta-da-auto-calculation.md)) and Payroll
   ([`payroll.md`](payroll.md)).
+- **`PayComponent`** — one line of the org-wide CTC formula (Basic, FDA, EPF, ESI, Medical, Other allowance…): `code`, `kind`, a
+  rule (percent of CTC, percent of other components, fixed, or the single balancer), `order`, `isActive`.
+  `domain/ctcBreakdown.ts` is the pure function that splits a CTC by it; the decision is in `../decision-log.md` (2026-10-05).
+- **`CtcAssignment`** — an append-only revision of a FIELD employee's CTC: amount, `effectiveFrom` month, the frozen breakdown
+  lines, HR's per-line overrides. Payroll reads the one in force for a month through `getCtcForMonth`.
 - **`User`** — the lean account, every role: `employee_code`, `password_hash`, `role_id`, `status`,
   and `is_blocked` (a fast top-level flag; the historical detail lives in `ComplianceBlock`).
   Personal details, bank details, designation/pay-band/manager, and joining date are **not**
@@ -210,6 +215,10 @@ dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-l
 | `GET` | `/api/identity/users/:id` | Admin, HR | Full detail — `User` + `EmployeeProfile` (if any) + the current open `ComplianceBlock` (if any). The only place personal/bank details are ever returned. |
 | `POST` | `/api/identity/users` | Admin, HR | Create a user — `{role, employeeCode, name, password, email?, phone?}`, identical shape for every role now (decision 12's split is about who's allowed to submit which `role`, enforced in the use case, not a field difference). Always writes only `User`; `status: active` for non-FIELD, `pending` for FIELD (no `EmployeeProfile` yet). HR may only submit `role: FIELD` (PRD §5.3); non-FIELD creation is Admin-only. |
 | `PATCH` | `/api/identity/users/:id` | Admin, HR | Incremental onboarding update — any of `basicDetails` (now including `dateOfJoining`), `bankDetails`, `designationId`, `payBandId`, `managerId` (each optional per call); upserts `EmployeeProfile` into existence on the first call. `status` is recomputed automatically after each call, not set directly (except `status: 'inactive'` for explicit deactivation, a direct `User` field toggle) |
+| `GET`/`POST`/`PATCH` | `/api/identity/pay-components` | read: Admin, HR, Accountant; write: Admin, HR | The org-wide CTC formula. Every write re-validates the whole formula (one balancer, no loops, Basic 30–60%) |
+| `POST` | `/api/identity/ctc/preview` | Admin, HR | `{ctcAnnualPaise, overrides?}` → breakdown + gross, nothing saved |
+| `GET`/`POST` | `/api/identity/users/:id/ctc` | read: Admin, HR, Accountant; write: Admin, HR | An employee's CTC revisions / save a new one `{ctcAnnualPaise, effectiveFrom, overrides?, reason?}` |
+| `POST` | `/api/identity/ctc/reapply` | Admin, HR | `{effectiveFrom, reason?, userIds?}` → new revisions from the current formula; per-employee outcome |
 | `POST` | `/api/identity/users/:id/documents` | Admin, HR | Upload a document (`multipart/form-data`, field `file` + `documentType`, up to 10 MB) to Cloudinary and attach it to the user. Only a PDF, JPG or PNG, judged by the file's own header, not its name or declared type; anything else is a `400` before it reaches storage |
 | `DELETE` | `/api/identity/users/:id/documents/:documentId` | Admin, HR | Remove a document from Cloudinary **and** the user record |
 | `POST` | `/api/identity/users/:id/unblock` | Admin only | Clear a compliance block |

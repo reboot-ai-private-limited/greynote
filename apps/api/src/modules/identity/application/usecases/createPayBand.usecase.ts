@@ -17,6 +17,6 @@ export class CreatePayBandUseCase {
     if (await this.repository.findByName(input.name)) {
       throw AppError.conflict('That pay band already exists.', { field: 'name' });
     }
-    return this.repository.create(input);
+    return this.repository.create({ ...input, suggestedCtcAnnualPaise: input.suggestedCtcAnnualPaise ?? null });
   }
 }

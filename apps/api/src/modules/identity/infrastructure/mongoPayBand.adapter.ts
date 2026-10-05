@@ -3,11 +3,12 @@ import type { PayBand, PayBandName } from '../domain/payBand.entity.js';
 import type { PayBandRepositoryPort } from '../domain/payBand.repository.port.js';
 import { PayBandModel } from './payBand.schema.js';
 
-function toPayBand(doc: { _id: unknown; name: PayBandName } & Omit<PayBand, 'id' | 'name'>): PayBand {
+function toPayBand(doc: { _id: unknown; name: PayBandName } & Omit<PayBand, 'id' | 'name' | 'suggestedCtcAnnualPaise'> & { suggestedCtcAnnualPaise?: number | null }): PayBand {
   return {
     id: String(doc._id),
     name: doc.name,
     baseSalaryPaise: doc.baseSalaryPaise,
+    suggestedCtcAnnualPaise: doc.suggestedCtcAnnualPaise ?? null,
     taPerKmRatePaise: doc.taPerKmRatePaise,
     hqDaPaise: doc.hqDaPaise,
     exStationDaPaise: doc.exStationDaPaise,

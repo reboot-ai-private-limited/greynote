@@ -2,9 +2,11 @@ import type { LoginInput, LoginOutput } from './application/usecases/login.useca
 import type { RefreshSessionOutput } from './application/usecases/refreshSession.usecase.js';
 import type { DownlineMember } from './application/usecases/getDownline.usecase.js';
 import type { EmploymentDetails } from './application/usecases/getEmploymentDetails.usecase.js';
+import type { CtcAssignment } from './domain/ctcAssignment.entity.js';
 import type { PayBand } from './domain/payBand.entity.js';
 import type { UserSummary } from './domain/user.entity.js';
 
+export type { CtcAssignment } from './domain/ctcAssignment.entity.js';
 export type { DownlineMember } from './application/usecases/getDownline.usecase.js';
 export type { EmploymentDetails } from './application/usecases/getEmploymentDetails.usecase.js';
 
@@ -42,5 +44,7 @@ export interface IdentityPublicContract {
   getPayBandRates(userId: string): Promise<PayBand>;
   /** Every Pay Band's id and grade name (G1…) — for grade-wise masters like HR's Leave Master. */
   listPayBands(): Promise<Array<{ id: string; name: PayBand['name'] }>>;
+  /** The CTC revision in force for a payroll month (`YYYY-MM`), or `null` if none was assigned by then. */
+  getCtcForMonth(userId: string, month: string): Promise<CtcAssignment | null>;
   getActiveDeviceCount(userId: string): Promise<number>;
 }

@@ -7,6 +7,19 @@ import { LogoutDeviceUseCase } from './application/usecases/logoutDevice.usecase
 import { RejectDeviceUseCase } from './application/usecases/rejectDevice.usecase.js';
 import { RemoveDeviceUseCase } from './application/usecases/removeDevice.usecase.js';
 import { CreateDesignationUseCase } from './application/usecases/createDesignation.usecase.js';
+import { AssignCtcUseCase } from './application/usecases/assignCtc.usecase.js';
+import { CreatePayComponentUseCase } from './application/usecases/createPayComponent.usecase.js';
+import { GetCtcForMonthUseCase } from './application/usecases/getCtcForMonth.usecase.js';
+import { ListCtcHistoryUseCase } from './application/usecases/listCtcHistory.usecase.js';
+import { ListPayComponentsUseCase } from './application/usecases/listPayComponents.usecase.js';
+import { PreviewCtcUseCase } from './application/usecases/previewCtc.usecase.js';
+import { ReapplyCtcUseCase } from './application/usecases/reapplyCtc.usecase.js';
+import { SeedDefaultPayComponentsUseCase } from './application/usecases/seedDefaultPayComponents.usecase.js';
+import { UpdatePayComponentUseCase } from './application/usecases/updatePayComponent.usecase.js';
+import { MongoCtcAssignmentAdapter } from './infrastructure/mongoCtcAssignment.adapter.js';
+import { MongoPayComponentAdapter } from './infrastructure/mongoPayComponent.adapter.js';
+import { makeCtcControllers } from './interface/ctc.controller.js';
+import { buildCtcRouter, buildPayComponentsRouter, buildUserCtcRouter } from './interface/ctc.route.js';
 import { CreatePayBandUseCase } from './application/usecases/createPayBand.usecase.js';
 import { CreateRoleUseCase } from './application/usecases/createRole.usecase.js';
 import { CreateUserUseCase } from './application/usecases/createUser.usecase.js';
@@ -99,6 +112,8 @@ export interface IdentityContainer {
    * the input when one already exists.
    */
   seedRoles: () => Promise<void>;
+  /** Writes the org's starting CTC formula if none exists yet. */
+  seedPayComponents: () => Promise<void>;
   hasAdmin: () => Promise<boolean>;
   seedBootstrapAdmin: (input: BootstrapAdminInput) => Promise<void>;
 }
@@ -108,6 +123,8 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const roleRepository = new MongoRoleAdapter();
   const designationRepository = new MongoDesignationAdapter();
   const payBandRepository = new MongoPayBandAdapter();
+  const payComponentRepository = new MongoPayComponentAdapter();
+  const ctcAssignmentRepository = new MongoCtcAssignmentAdapter();
   const userRepository = new MongoUserAdapter();
   const employeeProfileRepository = new MongoEmployeeProfileAdapter();
   const complianceBlockRepository = new MongoComplianceBlockAdapter();
@@ -188,6 +205,16 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const listPayBands = new ListPayBandsUseCase(payBandRepository);
   const updatePayBand = new UpdatePayBandUseCase(payBandRepository);
 
+  const listPayComponents = new ListPayComponentsUseCase(payComponentRepository);
+  const createPayComponent = new CreatePayComponentUseCase(payComponentRepository);
+  const updatePayComponent = new UpdatePayComponentUseCase(payComponentRepository);
+  const seedDefaultPayComponents = new SeedDefaultPayComponentsUseCase(payComponentRepository);
+  const previewCtc = new PreviewCtcUseCase(payComponentRepository);
+  const assignCtc = new AssignCtcUseCase(userRepository, roleRepository, payComponentRepository, ctcAssignmentRepository);
+  const listCtcHistory = new ListCtcHistoryUseCase(ctcAssignmentRepository);
+  const getCtcForMonth = new GetCtcForMonthUseCase(ctcAssignmentRepository);
+  const reapplyCtc = new ReapplyCtcUseCase(payComponentRepository, ctcAssignmentRepository);
+
   const getUserSummary = new GetUserSummaryUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getManagerChain = new GetManagerChainUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getUserSummaries = new GetUserSummariesUseCase(userRepository, roleRepository, employeeProfileRepository);
@@ -220,6 +247,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     unblock: makeUnblockUserController(unblockUser),
     resetPassword: makeResetPasswordController(resetPassword),
   };
+  const ctcControllers = makeCtcControllers({ preview: previewCtc, assign: assignCtc, history: listCtcHistory, reapply: reapplyCtc });
   const devicesControllers = {
     listPending: makeListPendingDevicesController(listPendingDevices),
     listForUser: makeListUserDevicesController(listUserDevices),
@@ -249,6 +277,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       getEmploymentDetails: (userId) => getEmploymentDetails.execute(userId),
       listPayBands: async () => (await listPayBands.execute()).map(({ id, name }) => ({ id, name })),
       getPayBandRates: (userId) => getPayBandRates.execute(userId),
+      getCtcForMonth: (userId, month) => getCtcForMonth.execute(userId, month),
       getActiveDeviceCount: (userId) => getActiveDeviceCount.execute(userId),
     },
 
@@ -256,7 +285,10 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       const router = Router();
       router.use('/auth', buildAuthRouter(authControllers));
       router.use(buildDevicesRouter(devicesControllers));
+      router.use('/users', buildUserCtcRouter(ctcControllers));
       router.use('/users', buildUsersRouter(usersControllers));
+      router.use('/pay-components', buildPayComponentsRouter({ list: listPayComponents, create: createPayComponent, update: updatePayComponent }));
+      router.use('/ctc', buildCtcRouter(ctcControllers));
       router.use('/roles', buildRolesRouter({ list: listRoles, create: createRole, update: updateRole }));
       router.use(
         '/designations',
@@ -270,6 +302,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     },
 
     seedRoles: () => seedDefaultRoles.execute(),
+    seedPayComponents: () => seedDefaultPayComponents.execute(),
     hasAdmin: () => userRepository.existsAdmin(),
     seedBootstrapAdmin: (input) => seedBootstrapAdminUseCase.execute(input),
   };

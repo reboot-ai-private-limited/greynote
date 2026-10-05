@@ -16,6 +16,10 @@ export class UpdatePayBandUseCase {
       }
     }
 
+    if (input.suggestedCtcAnnualPaise != null && !isPaise(input.suggestedCtcAnnualPaise)) {
+      throw AppError.badRequest('suggestedCtcAnnualPaise must be a whole number of paise.', { field: 'suggestedCtcAnnualPaise' });
+    }
+
     return this.repository.update(id, input);
   }
 }

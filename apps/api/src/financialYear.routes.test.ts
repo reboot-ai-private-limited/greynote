@@ -70,6 +70,8 @@ const TIMELESS = [
   '/api/identity/roles',
   '/api/identity/designations',
   '/api/identity/pay-bands',
+  '/api/identity/pay-components',
+  '/api/identity/users/:id/ctc', // an employee's CTC revisions, a master record with its own effective months
   '/api/territory/zones',
   '/api/territory/hqs',
   '/api/territory/routes',

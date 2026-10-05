@@ -35,6 +35,8 @@ async function main(): Promise<void> {
   const identity = buildIdentityContainer(config.contract);
   await identity.seedRoles();
   logger.info('Role rows seeded');
+  await identity.seedPayComponents();
+  logger.info('CTC pay components seeded (existing Admin-edited formula untouched)');
 
   const approval = buildApprovalContainer(identity.contract, config.contract);
   // HR registers its slice of the phone's cache with Sync as it builds; a seed run just needs somewhere to put it.
