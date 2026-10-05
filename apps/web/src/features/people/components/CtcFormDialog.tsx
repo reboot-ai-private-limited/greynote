@@ -72,7 +72,7 @@ export function CtcFormDialog({
       onSubmit={submit}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="CTC per year (₹)" htmlFor="ctc-amount" error={errors['ctc']}>
+        <FormField label="CTC per year (₹)" htmlFor="ctc-amount" error={errors['ctc'] === rangeProblem ? undefined : errors['ctc']}>
           <Input id="ctc-amount" inputMode="decimal" value={draft.ctc} placeholder="144000" onChange={(e) => set({ ctc: e.target.value })} aria-invalid={errors['ctc'] ? true : undefined} />
         </FormField>
         <FormField label="Starts from" htmlFor="ctc-from" error={errors['effectiveFrom']}>

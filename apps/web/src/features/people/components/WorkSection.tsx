@@ -79,7 +79,7 @@ function WorkForm({ user, onDone }: { user: UserDetailDto; onDone: () => void })
             id="work-payband"
             value={draft.payBandId}
             onValueChange={(v) => setDraft((d) => ({ ...d, payBandId: v }))}
-            options={(payBands.data ?? []).map((b) => ({ value: b.id, label: b.name }))}
+            options={[...(payBands.data ?? [])].sort((a, b) => a.ctcMinAnnualPaise - b.ctcMinAnnualPaise || a.name.localeCompare(b.name)).map((b) => ({ value: b.id, label: b.name }))}
             placeholder={payBands.isLoading ? 'Loading…' : 'Choose a pay grade'}
           />
           {chosenBand ? (

@@ -46,7 +46,7 @@ export function PayBandsScreen({ canWrite }: { canWrite: boolean }) {
       canCreate
       createHint=""
       onNew={() => setForm({})}
-      query={bands}
+      query={{ ...bands, data: bands.data ? [...bands.data].sort((a, b) => a.ctcMinAnnualPaise - b.ctcMinAnnualPaise || a.name.localeCompare(b.name)) : undefined }}
       columns={columns}
       emptyDescription="Create a grade (G1, G2 … or any name) with its CTC range before putting employees on a pay grade."
     >
