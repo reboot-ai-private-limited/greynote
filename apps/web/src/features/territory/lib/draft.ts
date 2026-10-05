@@ -62,6 +62,10 @@ export function changedHqFields(original: HqDto, draft: { name: string; basePlac
   };
 }
 
+/** The type select's "follow the distance" choice. */
+export const AUTO_ROUTE_TYPE = 'AUTO';
+export const AUTO_ROUTE_TYPE_LABEL = 'Automatic (from the distance)';
+
 export const ROUTE_TYPE_LABEL: Record<RouteType, string> = {
   HQ: 'HQ',
   EX_STATION: 'Ex-station',

@@ -12,6 +12,7 @@ function toRoute(doc: RouteDoc & { _id: unknown }): Route {
     hqId: String(doc.hqId),
     name: doc.name,
     type: doc.type,
+    typeSource: doc.typeSource ?? 'MANUAL',
     destination: {
       label: doc.destination.label,
       latitude: doc.destination.latitude,
@@ -104,7 +105,7 @@ export class MongoRouteAdapter implements RouteRepositoryPort {
     }
   }
 
-  async update(id: string, input: Partial<Pick<Route, 'name' | 'type' | 'status' | 'taPerKmRateOverridePaise'>>): Promise<Route> {
+  async update(id: string, input: Partial<Pick<Route, 'name' | 'type' | 'typeSource' | 'status' | 'taPerKmRateOverridePaise'>>): Promise<Route> {
     try {
       const doc = await RouteModel.findByIdAndUpdate(id, toDocChange(input), { new: true }).lean();
       if (!doc) throw AppError.internal('INTERNAL', { reason: 'ROUTE_NOT_FOUND', id });

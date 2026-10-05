@@ -13,11 +13,11 @@ import { Select } from '@/components/ui/Select';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useHqs } from '../hooks/useHqs';
 import { useCreateRoute } from '../hooks/useRouteMutations';
-import { ROUTE_TYPE_LABEL } from '../lib/draft';
+import { AUTO_ROUTE_TYPE, AUTO_ROUTE_TYPE_LABEL, ROUTE_TYPE_LABEL } from '../lib/draft';
 import { buildRoute } from '../lib/routeDraft';
 import { PlacePicker } from './PlacePicker';
 
-const TYPE_OPTIONS = ROUTE_TYPES.map((t) => ({ value: t, label: ROUTE_TYPE_LABEL[t] }));
+const TYPE_OPTIONS = [{ value: AUTO_ROUTE_TYPE, label: AUTO_ROUTE_TYPE_LABEL }, ...ROUTE_TYPES.map((t) => ({ value: t, label: ROUTE_TYPE_LABEL[t] }))];
 
 export function RouteCreateScreen() {
   const router = useRouter();
@@ -26,7 +26,7 @@ export function RouteCreateScreen() {
   const hqs = useHqs({ page: 1, pageSize: 100, status: 'active' });
   const [hqId, setHqId] = useState('');
   const [name, setName] = useState('');
-  const [type, setType] = useState('');
+  const [type, setType] = useState<string>(AUTO_ROUTE_TYPE);
   const [rate, setRate] = useState('');
   const [destination, setDestination] = useState<PlaceDto | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -85,13 +85,12 @@ export function RouteCreateScreen() {
             <FormField label="Name" htmlFor="new-name" error={errors['name']}>
               <Input id="new-name" value={name} onChange={(e) => setName(e.target.value)} aria-invalid={errors['name'] ? true : undefined} />
             </FormField>
-            <FormField label="Type" htmlFor="new-type" error={errors['type']} hint="Sets which DA rate a day on this route earns.">
+            <FormField label="Type" htmlFor="new-type" error={errors['type']} hint="Sets which DA rate a day on this route earns. Automatic follows the distance; you can choose another type and will only be warned.">
               <Select
                 id="new-type"
                 value={type}
                 onValueChange={setType}
                 options={TYPE_OPTIONS}
-                placeholder="Choose a type"
                 aria-invalid={errors['type'] ? true : undefined}
               />
             </FormField>

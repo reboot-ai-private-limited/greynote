@@ -232,6 +232,13 @@ Sikkim,
 - **An MR is assigned to overlapping or geographically nonsensical routes.** Nothing in the ERD
   or PRD constrains this — shared coverage is explicitly allowed ("a route may have more than one
   MR assigned"), and Territory has no reason to reject it.
+- **Route type follows the distance (2026-10-05).** `type` is `AUTO` or `MANUAL` (`typeSource`). Created without a type,
+  a Route is AUTO: over `EX_STATION_MIN_KM` (15) km it is `EX_STATION`, over `OUT_STATION_MIN_KM` (50) `OUT_STATION`, otherwise
+  `HQ` (strictly "over"); with no usable distance it starts as `HQ` and follows the distance once one is known. A destination
+  edit, a distance override, a recalculation and an HQ base-place change all re-apply it to AUTO Routes. Choosing a type makes
+  the Route MANUAL, kept as chosen; if the distance disagrees the Route read carries `typeWarning` (the warning is never a
+  refusal, and DA uses the type that is set). `PATCH` with `typeSource: 'AUTO'` hands it back to the distance. Routes saved
+  before this existed read as MANUAL, so nothing changes for them and no migration is needed.
 - **A Route's `type` is edited after DA has already been generated for days worked on it.** Past
   `AUTO` DA `Expense` rows stay as generated (the locked-snapshot rule in HLD 06 §3); only future
   approvals use the new type.

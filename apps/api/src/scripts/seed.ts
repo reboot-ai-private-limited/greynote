@@ -41,7 +41,7 @@ async function main(): Promise<void> {
   const approval = buildApprovalContainer(identity.contract, config.contract);
   // HR registers its slice of the phone's cache with Sync as it builds; a seed run just needs somewhere to put it.
   const sync = buildSyncContainer(identity.contract, config.contract);
-  const hr = buildHrContainer(identity.contract, buildTerritoryContainer(identity.contract).contract, approval.contract, sync.contract, config.contract);
+  const hr = buildHrContainer(identity.contract, buildTerritoryContainer(identity.contract, config.contract).contract, approval.contract, sync.contract, config.contract);
   await hr.seed();
   logger.info('Starting leave types seeded (existing ones untouched)');
 

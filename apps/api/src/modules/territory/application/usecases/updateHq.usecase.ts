@@ -6,6 +6,7 @@ import type { Place } from '../../domain/place.js';
 import type { RouteRepositoryPort } from '../../domain/route.repository.port.js';
 import type { ZoneRepositoryPort } from '../../domain/zone.repository.port.js';
 import { assertNameFree, assertNoActiveChildren, assertParentUsable } from './hierarchyRules.js';
+import type { RouteTypeRules } from './routeTypeRules.js';
 import { recalculateHqRoutes, type RouteRecalculationReport } from './recalculateHqRoutes.js';
 
 export type UpdateHqResult = Hq & {
@@ -28,6 +29,7 @@ export class UpdateHqUseCase {
     private readonly zones: ZoneRepositoryPort,
     private readonly routes: RouteRepositoryPort,
     private readonly distance: DistanceProviderPort,
+    private readonly typeRules: RouteTypeRules,
   ) {}
 
   async execute(id: string, input: Partial<Pick<Hq, 'name' | 'status' | 'basePlace'>>): Promise<UpdateHqResult> {
@@ -45,6 +47,6 @@ export class UpdateHqUseCase {
     const updated = await this.hqs.update(id, input);
     const newBase = input.basePlace;
     if (!newBase || samePlace(hq.basePlace, newBase)) return updated;
-    return { ...updated, routeRecalculation: await recalculateHqRoutes(this.routes, this.distance, id, newBase) };
+    return { ...updated, routeRecalculation: await recalculateHqRoutes(this.routes, this.distance, id, newBase, this.typeRules) };
   }
 }

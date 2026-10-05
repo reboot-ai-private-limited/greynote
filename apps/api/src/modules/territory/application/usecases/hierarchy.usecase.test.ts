@@ -10,6 +10,8 @@ import { CreateHqUseCase } from './createHq.usecase.js';
 import { CreateZoneUseCase } from './createZone.usecase.js';
 import { UpdateHqUseCase } from './updateHq.usecase.js';
 import { UpdateZoneUseCase } from './updateZone.usecase.js';
+import { RouteTypeRules } from './routeTypeRules.js';
+const typeRules = new RouteTypeRules({ get: async (key: string) => ({ EX_STATION_MIN_KM: '15', OUT_STATION_MIN_KM: '50' })[key] ?? '' });
 
 /** In-memory rows; `findByName` is case-insensitive within a parent, like the real unique index. */
 class FakeTable<T extends { id: string; name: string; status: string }> {
@@ -109,7 +111,7 @@ describe('names', () => {
   it('rejects renaming an HQ onto a sibling name, but allows re-saving its own name', async () => {
     const { zone, hq } = await seedChain();
     await new CreateHqUseCase(hqs, zones).execute({ zoneId: zone.id, name: 'SLG-2', basePlace: SILIGURI });
-    const update = new UpdateHqUseCase(hqs, zones, routes, distance);
+    const update = new UpdateHqUseCase(hqs, zones, routes, distance, typeRules);
 
     await expect(update.execute(hq.id, { name: 'slg-2' })).rejects.toMatchObject({ statusCode: 409 });
     await expect(update.execute(hq.id, { name: 'SLG-1' })).resolves.toMatchObject({ name: 'SLG-1' });
@@ -126,10 +128,10 @@ describe('parents', () => {
 
   it('rejects reactivating an HQ whose Zone is inactive', async () => {
     const { zone, hq } = await seedChain();
-    await new UpdateHqUseCase(hqs, zones, routes, distance).execute(hq.id, { status: 'inactive' });
+    await new UpdateHqUseCase(hqs, zones, routes, distance, typeRules).execute(hq.id, { status: 'inactive' });
     await new UpdateZoneUseCase(zones, hqs).execute(zone.id, { status: 'inactive' });
 
-    await expect(new UpdateHqUseCase(hqs, zones, routes, distance).execute(hq.id, { status: 'active' })).rejects.toMatchObject({
+    await expect(new UpdateHqUseCase(hqs, zones, routes, distance, typeRules).execute(hq.id, { status: 'active' })).rejects.toMatchObject({
       statusCode: 409,
     });
   });
@@ -146,7 +148,7 @@ describe('deactivation', () => {
 
   it('refuses to deactivate an HQ with an active Route, then allows it once there is none', async () => {
     const { hq } = await seedChain();
-    const updateHq = new UpdateHqUseCase(hqs, zones, routes, distance);
+    const updateHq = new UpdateHqUseCase(hqs, zones, routes, distance, typeRules);
 
     activeRoutes = 2;
     await expect(updateHq.execute(hq.id, { status: 'inactive' })).rejects.toMatchObject({

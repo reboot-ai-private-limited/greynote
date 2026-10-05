@@ -5,6 +5,8 @@ import {
   DISTANCE_SOURCES,
   DISTANCE_STATUSES,
   ROUTE_TYPES,
+  ROUTE_TYPE_SOURCES,
+  type RouteTypeSource,
   type DistanceSource,
   type DistanceStatus,
   type RouteType,
@@ -17,6 +19,7 @@ export interface RouteDoc {
   name: string;
   nameKey: string;
   type: RouteType;
+  typeSource?: RouteTypeSource;
   destination: Place;
   distanceKm: Types.Decimal128 | null;
   distanceSource: DistanceSource;
@@ -32,6 +35,8 @@ const routeSchema = new Schema<RouteDoc>({
   name: { type: String, required: true },
   nameKey: { type: String, required: true },
   type: { type: String, required: true, enum: ROUTE_TYPES },
+  // Routes saved before this field existed have none: they read as MANUAL, so nothing about them changes.
+  typeSource: { type: String, enum: ROUTE_TYPE_SOURCES, default: 'MANUAL' },
   destination: { type: placeSchema, required: true },
   distanceKm: { type: Schema.Types.Decimal128, default: null },
   distanceSource: { type: String, required: true, enum: DISTANCE_SOURCES },

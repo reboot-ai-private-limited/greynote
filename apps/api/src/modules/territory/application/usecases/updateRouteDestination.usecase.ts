@@ -2,11 +2,12 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { DistanceProviderPort } from '../../domain/distanceProvider.port.js';
 import type { HqRepositoryPort } from '../../domain/hq.repository.port.js';
 import type { Place } from '../../domain/place.js';
-import type { Route } from '../../domain/route.entity.js';
 import type { RouteRepositoryPort } from '../../domain/route.repository.port.js';
 import { loadRouteOrigin } from './hqBasePlace.js';
 import { staleRevision } from './staleRevision.js';
+import { typeChangeForDistance } from '../../domain/routeType.js';
 import { calculateDistance } from './routeDistance.js';
+import type { RouteTypeRules, RouteWithWarning } from './routeTypeRules.js';
 
 /**
  * Replaces the destination and recalculates the distance, which resets any manual override — the
@@ -21,9 +22,10 @@ export class UpdateRouteDestinationUseCase {
     private readonly routes: RouteRepositoryPort,
     private readonly hqs: HqRepositoryPort,
     private readonly distance: DistanceProviderPort,
+    private readonly typeRules: RouteTypeRules,
   ) {}
 
-  async execute(id: string, input: { destination: Place; revision: number }): Promise<Route> {
+  async execute(id: string, input: { destination: Place; revision: number }): Promise<RouteWithWarning> {
     const route = await this.routes.findById(id);
     if (!route) throw AppError.notFound();
     // Checked before the provider call too, so a stale edit doesn't spend a paid API request.
@@ -31,8 +33,12 @@ export class UpdateRouteDestinationUseCase {
 
     const origin = await loadRouteOrigin(this.hqs, route);
     const distance = await calculateDistance(this.distance, origin, input.destination);
-    const updated = await this.routes.updateAtRevision(id, input.revision, { destination: input.destination, ...distance });
+    const updated = await this.routes.updateAtRevision(id, input.revision, {
+      destination: input.destination,
+      ...distance,
+      ...typeChangeForDistance(route, distance.distanceKm, await this.typeRules.thresholds()),
+    });
     if (!updated) throw staleRevision(await this.routes.findById(id));
-    return updated;
+    return this.typeRules.annotate(updated);
   }
 }

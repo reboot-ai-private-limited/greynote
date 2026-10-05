@@ -19,6 +19,8 @@ import { UpdateHqUseCase } from './updateHq.usecase.js';
 import { UpdateRouteUseCase } from './updateRoute.usecase.js';
 import { UnassignRouteUseCase } from './unassignRoute.usecase.js';
 import { UpdateRouteDestinationUseCase } from './updateRouteDestination.usecase.js';
+import { RouteTypeRules } from './routeTypeRules.js';
+const typeRules = new RouteTypeRules({ get: async (key: string) => ({ EX_STATION_MIN_KM: '15', OUT_STATION_MIN_KM: '50' })[key] ?? '' });
 
 const place = (label: string, latitude: number): Place => ({ label, latitude, longitude: 88.4, placeId: `place-${label}` });
 const SILIGURI = place('Siliguri', 26.71);
@@ -144,7 +146,7 @@ beforeEach(() => {
 });
 
 const createRoute = (overrides: Partial<Parameters<CreateRouteUseCase['execute']>[0]> = {}) =>
-  new CreateRouteUseCase(routes, hqs, distance).execute({
+  new CreateRouteUseCase(routes, hqs, distance, typeRules).execute({
     hqId: hqRow.id,
     name: 'Naxalbari',
     type: 'EX_STATION',
@@ -206,7 +208,7 @@ describe('manual override', () => {
   it('sets MANUAL_OVERRIDE and fixes a FAILED route', async () => {
     distance.next = { ok: false, reason: 'timeout' };
     const route = await createRoute();
-    const overridden = await new OverrideRouteDistanceUseCase(routes).execute(route.id, { distanceKm: '18.50' });
+    const overridden = await new OverrideRouteDistanceUseCase(routes, typeRules).execute(route.id, { distanceKm: '18.50' });
     expect(overridden).toMatchObject({
       distanceKm: '18.50',
       distanceSource: 'MANUAL_OVERRIDE',
@@ -218,10 +220,10 @@ describe('manual override', () => {
 
   it('is replaced by the next destination edit', async () => {
     const route = await createRoute();
-    const overridden = await new OverrideRouteDistanceUseCase(routes).execute(route.id, { distanceKm: '18.50' });
+    const overridden = await new OverrideRouteDistanceUseCase(routes, typeRules).execute(route.id, { distanceKm: '18.50' });
     distance.next = { ok: true, meters: 20_000 };
 
-    const edited = await new UpdateRouteDestinationUseCase(routes, hqs, distance).execute(route.id, {
+    const edited = await new UpdateRouteDestinationUseCase(routes, hqs, distance, typeRules).execute(route.id, {
       destination: DHUPGURI,
       revision: overridden.revision,
     });
@@ -235,15 +237,15 @@ describe('manual override', () => {
 
   it('is replaced by a recalculation', async () => {
     const route = await createRoute();
-    await new OverrideRouteDistanceUseCase(routes).execute(route.id, { distanceKm: '18.50' });
-    const recalculated = await new RecalculateRouteDistanceUseCase(routes, hqs, distance).execute(route.id);
+    await new OverrideRouteDistanceUseCase(routes, typeRules).execute(route.id, { distanceKm: '18.50' });
+    const recalculated = await new RecalculateRouteDistanceUseCase(routes, hqs, distance, typeRules).execute(route.id);
     expect(recalculated).toMatchObject({ distanceKm: '12.35', distanceSource: 'AUTO_CALCULATED' });
   });
 
   it('survives a rename and a TA rate change, which leave distance alone', async () => {
     const route = await createRoute();
-    await new OverrideRouteDistanceUseCase(routes).execute(route.id, { distanceKm: '18.50' });
-    const updated = await new UpdateRouteUseCase(routes, hqs, assignments).execute(route.id, {
+    await new OverrideRouteDistanceUseCase(routes, typeRules).execute(route.id, { distanceKm: '18.50' });
+    const updated = await new UpdateRouteUseCase(routes, hqs, assignments, typeRules).execute(route.id, {
       name: 'Renamed',
       taPerKmRateOverridePaise: 450,
     });
@@ -254,7 +256,7 @@ describe('manual override', () => {
 describe('the TA rate override', () => {
   it('survives a destination edit', async () => {
     const route = await createRoute({ taPerKmRateOverridePaise: 450 });
-    const edited = await new UpdateRouteDestinationUseCase(routes, hqs, distance).execute(route.id, {
+    const edited = await new UpdateRouteDestinationUseCase(routes, hqs, distance, typeRules).execute(route.id, {
       destination: DHUPGURI,
       revision: 1,
     });
@@ -265,11 +267,11 @@ describe('the TA rate override', () => {
 describe('revisions', () => {
   it('refuses a destination edit made against an old revision, without calling the provider', async () => {
     const route = await createRoute();
-    await new OverrideRouteDistanceUseCase(routes).execute(route.id, { distanceKm: '18.50' });
+    await new OverrideRouteDistanceUseCase(routes, typeRules).execute(route.id, { distanceKm: '18.50' });
     distance.calls = [];
 
     await expect(
-      new UpdateRouteDestinationUseCase(routes, hqs, distance).execute(route.id, { destination: DHUPGURI, revision: 1 }),
+      new UpdateRouteDestinationUseCase(routes, hqs, distance, typeRules).execute(route.id, { destination: DHUPGURI, revision: 1 }),
     ).rejects.toMatchObject({ statusCode: 409, publicDetails: { field: 'revision', currentRevision: 2 } });
     expect(distance.calls).toHaveLength(0);
   });
@@ -278,10 +280,10 @@ describe('revisions', () => {
     const route = await createRoute();
     distance.during = async () => {
       distance.during = undefined;
-      await new OverrideRouteDistanceUseCase(routes).execute(route.id, { distanceKm: '18.50' });
+      await new OverrideRouteDistanceUseCase(routes, typeRules).execute(route.id, { distanceKm: '18.50' });
     };
 
-    await expect(new RecalculateRouteDistanceUseCase(routes, hqs, distance).execute(route.id)).rejects.toMatchObject({
+    await expect(new RecalculateRouteDistanceUseCase(routes, hqs, distance, typeRules).execute(route.id)).rejects.toMatchObject({
       statusCode: 409,
     });
     expect(routes.rows.get(route.id)).toMatchObject({ distanceKm: '18.50', distanceSource: 'MANUAL_OVERRIDE' });
@@ -291,7 +293,7 @@ describe('revisions', () => {
 describe('route type', () => {
   it('can be changed without touching the distance, and is not revision-checked', async () => {
     const route = await createRoute();
-    const updated = await new UpdateRouteUseCase(routes, hqs, assignments).execute(route.id, { type: 'OUT_STATION' });
+    const updated = await new UpdateRouteUseCase(routes, hqs, assignments, typeRules).execute(route.id, { type: 'OUT_STATION' });
     expect(updated).toMatchObject({ type: 'OUT_STATION', distanceKm: '12.35', revision: 1 });
   });
 });
@@ -299,20 +301,20 @@ describe('route type', () => {
 describe('HQ deactivation', () => {
   it('is refused while the HQ has an active route, allowed once it is inactive', async () => {
     const route = await createRoute();
-    const updateHq = new UpdateHqUseCase(hqs, zones, routes, distance);
+    const updateHq = new UpdateHqUseCase(hqs, zones, routes, distance, typeRules);
 
     await expect(updateHq.execute(hqRow.id, { status: 'inactive' })).rejects.toMatchObject({
       statusCode: 409,
       publicDetails: { activeChildren: 1 },
     });
-    await new UpdateRouteUseCase(routes, hqs, assignments).execute(route.id, { status: 'inactive' });
+    await new UpdateRouteUseCase(routes, hqs, assignments, typeRules).execute(route.id, { status: 'inactive' });
     await expect(updateHq.execute(hqRow.id, { status: 'inactive' })).resolves.toMatchObject({ status: 'inactive' });
   });
 });
 
 describe("changing an HQ's base place", () => {
   const MATIGARA = place('Matigara', 26.7);
-  const moveBase = () => new UpdateHqUseCase(hqs, zones, routes, distance).execute(hqRow.id, { basePlace: MATIGARA });
+  const moveBase = () => new UpdateHqUseCase(hqs, zones, routes, distance, typeRules).execute(hqRow.id, { basePlace: MATIGARA });
 
   it("recalculates each active route from the new base place", async () => {
     const a = await createRoute({ name: 'Naxalbari' });
@@ -334,7 +336,7 @@ describe("changing an HQ's base place", () => {
 
   it('leaves a manually overridden route alone and names it in the report', async () => {
     const manual = await createRoute({ name: 'Naxalbari' });
-    await new OverrideRouteDistanceUseCase(routes).execute(manual.id, { distanceKm: '18.50' });
+    await new OverrideRouteDistanceUseCase(routes, typeRules).execute(manual.id, { distanceKm: '18.50' });
     const auto = await createRoute({ name: 'Dhupguri', destination: DHUPGURI });
     distance.calls = [];
 
@@ -368,7 +370,7 @@ describe("changing an HQ's base place", () => {
 
   it('skips inactive routes', async () => {
     const route = await createRoute();
-    await new UpdateRouteUseCase(routes, hqs, assignments).execute(route.id, { status: 'inactive' });
+    await new UpdateRouteUseCase(routes, hqs, assignments, typeRules).execute(route.id, { status: 'inactive' });
     distance.calls = [];
 
     const result = await moveBase();
@@ -380,7 +382,7 @@ describe("changing an HQ's base place", () => {
   it('does nothing to the routes when the base place did not change', async () => {
     await createRoute();
     distance.calls = [];
-    const result = await new UpdateHqUseCase(hqs, zones, routes, distance).execute(hqRow.id, { basePlace: { ...SILIGURI } });
+    const result = await new UpdateHqUseCase(hqs, zones, routes, distance, typeRules).execute(hqRow.id, { basePlace: { ...SILIGURI } });
     expect(result.routeRecalculation).toBeUndefined();
     expect(distance.calls).toHaveLength(0);
   });
@@ -388,7 +390,7 @@ describe("changing an HQ's base place", () => {
   it('does not recalculate when only the name or status changes', async () => {
     await createRoute();
     distance.calls = [];
-    const result = await new UpdateHqUseCase(hqs, zones, routes, distance).execute(hqRow.id, { name: 'SLG-One' });
+    const result = await new UpdateHqUseCase(hqs, zones, routes, distance, typeRules).execute(hqRow.id, { name: 'SLG-One' });
     expect(result.routeRecalculation).toBeUndefined();
     expect(distance.calls).toHaveLength(0);
   });
@@ -427,7 +429,7 @@ describe('assignments', () => {
 
   it('refuses assigning to an inactive route', async () => {
     const route = await createRoute();
-    await new UpdateRouteUseCase(routes, hqs, assignments).execute(route.id, { status: 'inactive' });
+    await new UpdateRouteUseCase(routes, hqs, assignments, typeRules).execute(route.id, { status: 'inactive' });
     await expect(assign(route.id, 'mr-1')).rejects.toMatchObject({ statusCode: 409 });
   });
 
@@ -447,7 +449,7 @@ describe('assignments', () => {
   it('blocks deactivating a route that still has an active assignment', async () => {
     const route = await createRoute();
     await assign(route.id, 'mr-1');
-    const update = new UpdateRouteUseCase(routes, hqs, assignments);
+    const update = new UpdateRouteUseCase(routes, hqs, assignments, typeRules);
 
     await expect(update.execute(route.id, { status: 'inactive' })).rejects.toMatchObject({ statusCode: 409 });
     await new UnassignRouteUseCase(assignments).execute(route.id, 'mr-1', 'admin-1');
@@ -480,5 +482,67 @@ describe('contract reads', () => {
       zoneId: 'zone-1',
     });
     await expect(getPath.execute('missing')).resolves.toBeNull();
+  });
+});
+
+
+describe('Route type from distance (decision-log 2026-10-05)', () => {
+  const noType = (overrides: Partial<Parameters<CreateRouteUseCase['execute']>[0]> = {}) => createRoute({ type: undefined, ...overrides });
+  const kmAway = (km: number) => (distance.next = { ok: true, meters: km * 1000 });
+
+  it('a Route created without a type takes it from the distance, as AUTO', async () => {
+    kmAway(15);
+    expect(await noType()).toMatchObject({ type: 'HQ', typeSource: 'AUTO', typeWarning: null });
+    kmAway(15.5);
+    expect(await noType({ name: 'B' })).toMatchObject({ type: 'EX_STATION', typeSource: 'AUTO' });
+    kmAway(51);
+    expect(await noType({ name: 'C' })).toMatchObject({ type: 'OUT_STATION', typeSource: 'AUTO' });
+  });
+
+  it('a Route with no usable distance starts as HQ (AUTO) and follows the distance when a recalculation succeeds', async () => {
+    distance.next = { ok: false } as DistanceResult;
+    const route = await noType();
+    expect(route).toMatchObject({ type: 'HQ', typeSource: 'AUTO', distanceStatus: 'FAILED' });
+    kmAway(60);
+    const again = await new RecalculateRouteDistanceUseCase(routes, hqs, distance, typeRules).execute(route.id);
+    expect(again).toMatchObject({ type: 'OUT_STATION', typeSource: 'AUTO', typeWarning: null });
+  });
+
+  it('a chosen type is kept as MANUAL; if the distance disagrees there is a warning and no refusal', async () => {
+    kmAway(30);
+    const route = await createRoute({ type: 'HQ' });
+    expect(route).toMatchObject({ type: 'HQ', typeSource: 'MANUAL' });
+    expect(route.typeWarning).toContain('suggests Ex-station');
+    kmAway(30);
+    expect((await createRoute({ name: 'Agrees', type: 'EX_STATION' })).typeWarning).toBeNull();
+  });
+
+  it('an AUTO Route follows a destination edit and a distance override, a MANUAL one does not', async () => {
+    kmAway(10);
+    const auto = await noType();
+    const manual = await createRoute({ name: 'Manual', type: 'HQ' });
+    kmAway(60);
+    const movedAuto = await new UpdateRouteDestinationUseCase(routes, hqs, distance, typeRules).execute(auto.id, { destination: DHUPGURI, revision: auto.revision });
+    const movedManual = await new UpdateRouteDestinationUseCase(routes, hqs, distance, typeRules).execute(manual.id, { destination: DHUPGURI, revision: manual.revision });
+    expect(movedAuto).toMatchObject({ type: 'OUT_STATION', typeSource: 'AUTO' });
+    expect(movedManual).toMatchObject({ type: 'HQ', typeSource: 'MANUAL' });
+    expect(movedManual.typeWarning).toContain('suggests Out-station');
+
+    const overridden = await new OverrideRouteDistanceUseCase(routes, typeRules).execute(auto.id, { distanceKm: '20.00' });
+    expect(overridden).toMatchObject({ type: 'EX_STATION', typeSource: 'AUTO' });
+  });
+
+  it('choosing a type makes a Route MANUAL; typeSource AUTO hands it back to the distance', async () => {
+    kmAway(30);
+    const route = await noType();
+    const update = new UpdateRouteUseCase(routes, hqs, assignments, typeRules);
+    expect(await update.execute(route.id, { type: 'OUT_STATION' })).toMatchObject({ type: 'OUT_STATION', typeSource: 'MANUAL' });
+    expect(await update.execute(route.id, { typeSource: 'AUTO' })).toMatchObject({ type: 'EX_STATION', typeSource: 'AUTO', typeWarning: null });
+  });
+
+  it('a Route saved before typeSource existed reads as MANUAL, so nothing about it changes', async () => {
+    kmAway(10);
+    const route = await createRoute({ type: 'OUT_STATION' });
+    expect(route.typeSource).toBe('MANUAL');
   });
 });

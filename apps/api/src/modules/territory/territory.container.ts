@@ -1,4 +1,6 @@
 import type { Router } from 'express';
+import type { ConfigReader } from '@/shared/config/readConfig.js';
+import { RouteTypeRules } from './application/usecases/routeTypeRules.js';
 import { AssignRouteUseCase } from './application/usecases/assignRoute.usecase.js';
 import { CreateHqUseCase } from './application/usecases/createHq.usecase.js';
 import { CreateZoneUseCase } from './application/usecases/createZone.usecase.js';
@@ -56,7 +58,7 @@ export interface TerritoryContainer {
 }
 
 /** `users` is Identity's public contract, passed in by the top-level composition root. */
-export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryContainer {
+export function buildTerritoryContainer(users: UserDirectoryPort, config: ConfigReader): TerritoryContainer {
   // 1. Adapters
   const zoneRepository = new MongoZoneAdapter();
   const hqRepository = new MongoHqAdapter();
@@ -66,6 +68,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
   const placeSearch = new GooglePlaceSearchAdapter();
   const userHqRepository = new MongoUserHqAssignmentAdapter();
   const transactions = new MongooseTransactionRunner();
+  const typeRules = new RouteTypeRules(config);
 
   // 2. Use cases
   const zones = {
@@ -76,7 +79,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
   const hqs = {
     list: new ListHqsUseCase(hqRepository),
     create: new CreateHqUseCase(hqRepository, zoneRepository),
-    update: new UpdateHqUseCase(hqRepository, zoneRepository, routeRepository, distanceProvider),
+    update: new UpdateHqUseCase(hqRepository, zoneRepository, routeRepository, distanceProvider, typeRules),
   };
 
   // 3. Controllers — Routes share the list/create/update shape with the levels above, plus four
@@ -84,20 +87,20 @@ export function buildTerritoryContainer(users: UserDirectoryPort): TerritoryCont
   const routeCrud = makeHierarchyController(
     {
       list: new ListRoutesUseCase(routeRepository),
-      create: new CreateRouteUseCase(routeRepository, hqRepository, distanceProvider),
-      update: new UpdateRouteUseCase(routeRepository, hqRepository, assignmentRepository),
+      create: new CreateRouteUseCase(routeRepository, hqRepository, distanceProvider, typeRules),
+      update: new UpdateRouteUseCase(routeRepository, hqRepository, assignmentRepository, typeRules),
     },
     'Route',
   );
   const routeControllers = {
     ...routeCrud,
-    get: makeGetRouteController(new GetRouteUseCase(routeRepository)),
+    get: makeGetRouteController(new GetRouteUseCase(routeRepository, typeRules)),
     updateDestination: makeUpdateRouteDestinationController(
-      new UpdateRouteDestinationUseCase(routeRepository, hqRepository, distanceProvider),
+      new UpdateRouteDestinationUseCase(routeRepository, hqRepository, distanceProvider, typeRules),
     ),
-    overrideDistance: makeOverrideRouteDistanceController(new OverrideRouteDistanceUseCase(routeRepository)),
+    overrideDistance: makeOverrideRouteDistanceController(new OverrideRouteDistanceUseCase(routeRepository, typeRules)),
     recalculate: makeRecalculateRouteDistanceController(
-      new RecalculateRouteDistanceUseCase(routeRepository, hqRepository, distanceProvider),
+      new RecalculateRouteDistanceUseCase(routeRepository, hqRepository, distanceProvider, typeRules),
     ),
     assign: makeAssignRouteController(new AssignRouteUseCase(routeRepository, assignmentRepository, users)),
     listAssignments: makeListRouteAssignmentsController(

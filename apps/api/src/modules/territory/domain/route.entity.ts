@@ -5,6 +5,10 @@ import type { TerritoryStatus } from './territoryStatus.js';
 export const ROUTE_TYPES = ['HQ', 'EX_STATION', 'OUT_STATION'] as const;
 export type RouteType = (typeof ROUTE_TYPES)[number];
 
+/** `AUTO`: the type follows the distance. `MANUAL`: someone chose it, and only someone changes it. */
+export const ROUTE_TYPE_SOURCES = ['AUTO', 'MANUAL'] as const;
+export type RouteTypeSource = (typeof ROUTE_TYPE_SOURCES)[number];
+
 export const DISTANCE_SOURCES = ['AUTO_CALCULATED', 'MANUAL_OVERRIDE'] as const;
 export type DistanceSource = (typeof DISTANCE_SOURCES)[number];
 
@@ -24,6 +28,8 @@ export interface Route {
   hqId: string;
   name: string;
   type: RouteType;
+  /** `AUTO`: the type follows the distance (`EX_STATION_MIN_KM` / `OUT_STATION_MIN_KM`). `MANUAL`: chosen by a person, kept as chosen. */
+  typeSource: RouteTypeSource;
   destination: Place;
   /** Null exactly when `distanceStatus` is `FAILED`. Used as-is for TA — never doubled (sign-off D7). */
   distanceKm: string | null;

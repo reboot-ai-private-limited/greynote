@@ -9,6 +9,7 @@ const route = (over: Partial<RouteDto> = {}): RouteDto => ({
   hqId: 'h1',
   name: 'Morning run',
   type: 'EX_STATION',
+  typeSource: 'MANUAL',
   destination: place('naxalbari'),
   distanceKm: '12.50',
   distanceSource: 'AUTO_CALCULATED',
@@ -98,5 +99,30 @@ describe('staleRevisionOf', () => {
     expect(staleRevisionOf(conflict({ field: 'name' }))).toBeNull();
     expect(staleRevisionOf(conflict(undefined))).toBeNull();
     expect(staleRevisionOf(new Error('x'))).toBeNull();
+  });
+});
+
+describe('route type: Automatic or chosen', () => {
+  const base = { hqId: 'h1', name: 'Run', rate: '', destination: place('naxalbari') };
+
+  it('Automatic sends no type, so the server follows the distance', () => {
+    const built = buildRoute({ ...base, type: 'AUTO' });
+    expect(built).toMatchObject({ ok: true });
+    expect(built.ok && 'type' in built.body).toBe(false);
+  });
+
+  it('a chosen type is sent', () => {
+    expect(buildRoute({ ...base, type: 'OUT_STATION' })).toMatchObject({ ok: true, body: { type: 'OUT_STATION' } });
+    expect(buildRoute({ ...base, type: 'nonsense' })).toMatchObject({ ok: false });
+  });
+
+  it('on edit: Automatic on a MANUAL route hands it back; unchanged Automatic sends nothing', () => {
+    expect(changedRouteFields(route(), { name: 'Morning run', type: 'AUTO', rate: '' })).toEqual({ ok: true, body: { typeSource: 'AUTO' } });
+    expect(changedRouteFields(route({ typeSource: 'AUTO' }), { name: 'Morning run', type: 'AUTO', rate: '' })).toEqual({ ok: true, body: {} });
+  });
+
+  it('on edit: choosing the type an AUTO route already has still makes it MANUAL; an unchanged MANUAL type sends nothing', () => {
+    expect(changedRouteFields(route({ typeSource: 'AUTO' }), { name: 'Morning run', type: 'EX_STATION', rate: '' })).toEqual({ ok: true, body: { type: 'EX_STATION' } });
+    expect(changedRouteFields(route(), { name: 'Morning run', type: 'EX_STATION', rate: '' })).toEqual({ ok: true, body: {} });
   });
 });

@@ -18,7 +18,7 @@ export function announceRoute(route: RouteDto, saved: string): void {
   if (route.distanceStatus === 'FAILED') {
     toast.error(`${saved} But the distance could not be calculated — open the route and retry.`);
   } else {
-    toast.success(saved);
+    toast.success(route.typeWarning ? `${saved} Note: ${route.typeWarning}` : saved);
   }
 }
 

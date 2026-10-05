@@ -43,7 +43,7 @@ export function buildContainers(): AppContainers {
   const identity = buildIdentityContainer(config.contract);
 
   // Tier 2 — Territory depends only on Identity's public contract (RouteAssignment's user checks).
-  const territory = buildTerritoryContainer(identity.contract);
+  const territory = buildTerritoryContainer(identity.contract, config.contract);
 
   // Tier 2 — Approval reads Identity (who manages the submitter, right now) and Config (which
   // kinds skip the final stage).

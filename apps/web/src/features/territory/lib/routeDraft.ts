@@ -2,7 +2,7 @@ import { ROUTE_TYPES, type CreateRouteDto, type PlaceDto, type RouteDto, type Ro
 import type { BadgeTone } from '@/components/ui/Badge';
 import { ApiError } from '@/lib/api/ApiError';
 import { rupeesToPaise } from '@/lib/money';
-import { fail, nameError, normalizeName, type BuildResult } from './draft';
+import { AUTO_ROUTE_TYPE, fail, nameError, normalizeName, type BuildResult } from './draft';
 
 /** Form drafts → request bodies for routes, and how a route's distance should be presented. */
 
@@ -30,11 +30,11 @@ export function buildRoute(draft: {
   const errors = {
     hqId: draft.hqId ? undefined : 'Choose an HQ.',
     name: nameError(name),
-    type: isRouteType(draft.type) ? undefined : 'Choose a type.',
+    type: draft.type === AUTO_ROUTE_TYPE || isRouteType(draft.type) ? undefined : 'Choose a type.',
     rate: rate.ok ? undefined : rate.error,
     destination: draft.destination ? undefined : 'Search for the destination and pick it on the map.',
   };
-  if (errors.hqId || errors.name || errors.type || errors.rate || errors.destination || !rate.ok || !draft.destination || !isRouteType(draft.type)) {
+  if (errors.hqId || errors.name || errors.type || errors.rate || errors.destination || !rate.ok || !draft.destination || (draft.type !== AUTO_ROUTE_TYPE && !isRouteType(draft.type))) {
     return fail(errors);
   }
   return {
@@ -42,7 +42,8 @@ export function buildRoute(draft: {
     body: {
       hqId: draft.hqId,
       name,
-      type: draft.type,
+      // Automatic: no type is sent, and the server takes it from the distance.
+      ...(isRouteType(draft.type) && { type: draft.type }),
       destination: draft.destination,
       ...(rate.paise !== null && { taPerKmRateOverridePaise: rate.paise }),
     },
@@ -53,7 +54,7 @@ export function buildRoute(draft: {
  * The details that changed. The API rejects an empty update, so an unchanged form is `{ ok: true, body: {} }`
  * and the caller just closes. Clearing a rate sends `null` — an absent field would leave it as it was.
  */
-export function changedRouteFields(original: RouteDto, draft: { name: string; type: RouteType; rate: string }): BuildResult<UpdateRouteDto> {
+export function changedRouteFields(original: RouteDto, draft: { name: string; type: RouteType | typeof AUTO_ROUTE_TYPE; rate: string }): BuildResult<UpdateRouteDto> {
   const name = normalizeName(draft.name);
   const rate = parseRate(draft.rate);
   const errors = { name: nameError(name), rate: rate.ok ? undefined : rate.error };
@@ -62,7 +63,8 @@ export function changedRouteFields(original: RouteDto, draft: { name: string; ty
     ok: true,
     body: {
       ...(name !== original.name && { name }),
-      ...(draft.type !== original.type && { type: draft.type }),
+      // Automatic hands the type back to the distance; a chosen type that is new, or replaces Automatic, is sent.
+      ...(draft.type === AUTO_ROUTE_TYPE ? original.typeSource !== 'AUTO' && { typeSource: 'AUTO' as const } : (draft.type !== original.type || original.typeSource === 'AUTO') && { type: draft.type }),
       ...(rate.paise !== original.taPerKmRateOverridePaise && { taPerKmRateOverridePaise: rate.paise }),
     },
   };

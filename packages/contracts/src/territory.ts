@@ -73,6 +73,10 @@ export interface RouteDto {
   hqId: string;
   name: string;
   type: RouteType;
+  /** `AUTO`: the type follows the distance. `MANUAL`: chosen by a person. Routes from before this existed are MANUAL. */
+  typeSource: 'AUTO' | 'MANUAL';
+  /** Set on a single Route's reads and writes (not lists): the distance suggests another type than the one set. A warning, never a refusal. */
+  typeWarning?: string | null | undefined;
   destination: PlaceDto;
   distanceKm: string | null;
   distanceSource: DistanceSource;
@@ -87,7 +91,8 @@ export interface RouteDto {
 export interface CreateRouteDto {
   hqId: string;
   name: string;
-  type: RouteType;
+  /** Left out: the type follows the distance (AUTO). */
+  type?: RouteType | undefined;
   destination: PlaceDto;
   taPerKmRateOverridePaise?: number | null | undefined;
 }
@@ -95,6 +100,8 @@ export interface CreateRouteDto {
 export interface UpdateRouteDto {
   name?: string | undefined;
   type?: RouteType | undefined;
+  /** `AUTO` hands the type back to the distance. */
+  typeSource?: 'AUTO' | undefined;
   status?: TerritoryStatus | undefined;
   /** `null` clears the override. */
   taPerKmRateOverridePaise?: number | null | undefined;

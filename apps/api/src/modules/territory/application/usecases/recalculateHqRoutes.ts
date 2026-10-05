@@ -1,7 +1,9 @@
 import type { DistanceProviderPort } from '../../domain/distanceProvider.port.js';
 import type { Place } from '../../domain/place.js';
 import type { RouteRepositoryPort } from '../../domain/route.repository.port.js';
+import { typeChangeForDistance } from '../../domain/routeType.js';
 import { calculateDistance } from './routeDistance.js';
+import type { RouteTypeRules } from './routeTypeRules.js';
 
 /** What an HQ base-place change did to its Routes (decision-log 2026-10-03). */
 export interface RouteRecalculationReport {
@@ -24,15 +26,17 @@ export async function recalculateHqRoutes(
   provider: DistanceProviderPort,
   hqId: string,
   basePlace: Place,
+  typeRules: RouteTypeRules,
 ): Promise<RouteRecalculationReport> {
   const report: RouteRecalculationReport = { recalculated: 0, failed: 0, overridden: [] };
+  const thresholds = await typeRules.thresholds();
   for (const route of await routes.listActiveInHq(hqId)) {
     if (route.distanceSource === 'MANUAL_OVERRIDE') {
       report.overridden.push({ id: route.id, name: route.name });
       continue;
     }
     const distance = await calculateDistance(provider, basePlace, route.destination);
-    const updated = await routes.updateAtRevision(route.id, route.revision, distance);
+    const updated = await routes.updateAtRevision(route.id, route.revision, { ...distance, ...typeChangeForDistance(route, distance.distanceKm, thresholds) });
     if (updated && updated.distanceStatus === 'CALCULATED') report.recalculated += 1;
     else report.failed += 1;
   }

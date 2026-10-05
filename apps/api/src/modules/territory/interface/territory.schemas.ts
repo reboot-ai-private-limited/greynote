@@ -49,7 +49,8 @@ const decimalSchema = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a number wi
 export const createRouteBodySchema = z.object({
   hqId: objectIdSchema,
   name: nameSchema,
-  type: z.enum(ROUTE_TYPES),
+  /** Left out: the type follows the distance. Given: kept as chosen, with a warning if the distance disagrees. */
+  type: z.enum(ROUTE_TYPES).optional(),
   destination: placeBodySchema,
   /** Paise per km (₹7.50 = 750). */
   taPerKmRateOverridePaise: paiseSchema.nullable().optional(),
@@ -58,6 +59,8 @@ export const updateRouteBodySchema = z
   .object({
     name: nameSchema,
     type: z.enum(ROUTE_TYPES),
+    /** `AUTO`: hand the type back to the distance. Choosing a `type` makes it MANUAL. */
+    typeSource: z.literal('AUTO'),
     status: z.enum(TERRITORY_STATUSES),
     /** `null` clears the override, falling back to the MR's PayBand rate. */
     taPerKmRateOverridePaise: paiseSchema.nullable(),
