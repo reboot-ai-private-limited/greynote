@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { calendarDateSchema } from '@/shared/time/calendarSchemas.js';
 import { HOLIDAY_SCOPES } from '../domain/holiday.entity.js';
-import { LEAVE_HALVES } from '../domain/leave.entity.js';
 
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
 const nameSchema = z.string().trim().min(1).max(100);
@@ -55,8 +54,11 @@ export const leaveBodySchema = z.object({
   leaveTypeId: objectIdSchema,
   startDate: calendarDateSchema,
   endDate: calendarDateSchema,
-  /** Only for a one-day leave. */
-  half: z.enum(LEAVE_HALVES).nullish().transform((v) => v ?? null),
+  /** Half-day leave was removed (2026-10-05): a leave is whole days. Sending a half is refused, not ignored. */
+  half: z
+    .unknown()
+    .refine((v) => v === undefined || v === null, { message: 'Half-day leave is not available. Request whole days.' })
+    .transform(() => null),
   reason: z.string().trim().min(1, 'A reason is required.').max(1000),
 });
 

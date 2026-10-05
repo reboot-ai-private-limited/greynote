@@ -15,7 +15,7 @@ accepted on 2026-09-28 (client sign-off F3, F11–F16; `../decision-log.md`).
   (`PayBand`, paid `LeaveType`) pair.
 - **`LeaveBalance`** — per user, paid leave type and leave year: `allocatedDays`, `usedDays`,
   `pendingDays`. Seeded from `LeavePolicy`, then HR-editable per person.
-- **`Leave`** — a request: type, `startDate`/`endDate`, optional half (`FIRST`/`SECOND`), reason,
+- **`Leave`** — a request: type, `startDate`/`endDate`, `half` (only on leaves from before 2026-10-05; a new request with one is refused), reason,
   and the **counted days** (`days: [{ date, portion }]`, `daysCount` their sum). Its approval
   state is the `LEAVE` `ApprovalRequest` in the `approval` module (`approval.md`), not fields on
   the row.
@@ -59,8 +59,8 @@ The financial year, from `FY_START_MONTH` (April): leave year 2026 is 2026-04-01
 ## Leave requests
 
 - **Counted days** (F12, F14): every date from start to end, minus `WEEKLY_OFF_DAY` and the
-  holidays that apply to the employee — National, their HQ's and their HQ's Zone's. A half day
-  needs start = end and counts 0.5. Stored on the Leave at submit, so a later holiday edit doesn't
+  holidays that apply to the employee — National, their HQ's and their HQ's Zone's. Half-day leave was removed
+  (2026-10-05): every day counts 1, though a leave made earlier as a half keeps counting 0.5. Stored on the Leave at submit, so a later holiday edit doesn't
   rewrite past leave; Payroll's per-month count and the DCR "on leave" check read these days.
 - **Rules:** at least one counted day; start no more than `LEAVE_BACKDATE_DAYS` (30) days back and
   within the current leave year (F15), or in the next one; no overlap with the employee's own

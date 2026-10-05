@@ -99,11 +99,9 @@ describe('Leave requests', () => {
     expect(ledger()).toEqual({ used: 0, pending: 4 });
   });
 
-  it('counts a half day as 0.5, and only on a one-day leave', async () => {
-    expect((await requests.request('mr', casual({ startDate: '2026-10-05', endDate: '2026-10-05', half: 'FIRST' }))).daysCount).toBe(0.5);
-    await expectError(requests.request('mr', casual({ half: 'FIRST' })), 400);
-    // The other half of the same day doesn't clash.
-    expect((await requests.request('mr', casual({ startDate: '2026-10-05', endDate: '2026-10-05', half: 'SECOND' }))).daysCount).toBe(0.5);
+  it('refuses a half-day leave: leaves are whole days (2026-10-05)', async () => {
+    await expectError(requests.request('mr', casual({ startDate: '2026-10-05', endDate: '2026-10-05', half: 'FIRST' })), 400);
+    expect((await requests.request('mr', casual({ startDate: '2026-10-05', endDate: '2026-10-05' }))).daysCount).toBe(1);
   });
 
   it('allows up to 30 days back, this leave year or the next, never across a year boundary', async () => {

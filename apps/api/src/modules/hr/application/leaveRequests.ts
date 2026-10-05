@@ -90,9 +90,8 @@ export class LeaveRequests {
     if (!type) throw AppError.badRequest('No such leave type.', { field: 'leaveTypeId' });
     if (!type.active) throw AppError.badRequest('This leave type can’t be requested any more.', { field: 'leaveTypeId' });
     if (input.startDate > input.endDate) throw AppError.badRequest('The leave ends before it starts.', { field: 'endDate' });
-    if (input.half && input.startDate !== input.endDate) {
-      throw AppError.badRequest('A half day is a one-day leave.', { field: 'half' });
-    }
+    // Half-day leave was removed (2026-10-05); old records keep theirs, a new request never has one.
+    if (input.half) throw AppError.badRequest('Half-day leave is not available. Request whole days.', { field: 'half' });
 
     // When (sign-off F11, F15): not further back than the limit, inside the current leave year
     // or the next, and not across a leave-year boundary.
