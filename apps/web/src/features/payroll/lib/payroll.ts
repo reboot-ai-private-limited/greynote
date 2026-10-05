@@ -110,7 +110,7 @@ const SKIP_LABEL: Record<PayrollSkipReason, string> = {
   RUN_NOT_FOUND: 'No such run',
   USER_NOT_FOUND: 'No such employee',
   NOT_FIELD_EMPLOYEE: 'Not an active field employee',
-  NO_PAY_BAND: 'No Pay Band',
+  NO_CTC: 'No CTC',
   ERROR: 'Something went wrong',
 };
 

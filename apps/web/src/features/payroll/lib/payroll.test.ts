@@ -28,6 +28,9 @@ const run = (over: Partial<PayrollRunDto> = {}): PayrollRunDto => ({
   employeeCode: 'MR001',
   month: '2026-09',
   baseSalaryPaise: 3_000_000,
+  ctcAnnualPaise: null,
+  ctcEffectiveFrom: null,
+  ctcLines: [],
   totalTaDaPaise: 617_000,
   reimbursementPaise: 15_050,
   unpaidLeaveDays: 0,
@@ -110,7 +113,7 @@ describe('generating', () => {
     { userId: 'a', userName: 'A', employeeCode: 'E1', outcome: 'created', run: run() },
     { userId: 'b', userName: 'B', employeeCode: 'E2', outcome: 'updated', run: run() },
     { userId: 'c', userName: 'C', employeeCode: 'E3', outcome: 'skipped', reason: 'ALREADY_FINALIZED', message: 'already' },
-    { userId: 'd', userName: 'D', employeeCode: 'E4', outcome: 'skipped', reason: 'NO_PAY_BAND', message: 'D has no Pay Band assigned, so there is no base salary to pay.' },
+    { userId: 'd', userName: 'D', employeeCode: 'E4', outcome: 'skipped', reason: 'NO_CTC', message: 'D has no CTC in force for 2026-09, so there is no salary to pay.' },
   ];
   it('counts each outcome and keeps the skipped lines', () => {
     const s = summariseGenerate(outcomes);
@@ -125,7 +128,7 @@ describe('generating', () => {
     expect(needsAttention(summariseGenerate(outcomes)).map((o) => o.userId)).toEqual(['d']);
   });
   it('names a reason, and shows one it does not know as it is', () => {
-    expect(skipLabel('NO_PAY_BAND')).toBe('No Pay Band');
+    expect(skipLabel('NO_CTC')).toBe('No CTC');
     expect(skipLabel('SOMETHING_NEW' as never)).toBe('SOMETHING_NEW');
   });
 });

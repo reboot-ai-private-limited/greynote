@@ -43,14 +43,15 @@ export type PayBandName = (typeof PAY_BAND_NAMES)[number];
 export interface PayBandDto {
   id: string;
   name: PayBandName;
-  baseSalaryPaise: number;
+  /** Pre-fills the CTC box when HR picks this grade for an employee — a suggestion, never enforced. */
+  suggestedCtcAnnualPaise: number | null;
   taPerKmRatePaise: number;
   /** DA for a day worked in an HQ / Ex-station / Out-station Area. */
   hqDaPaise: number;
   exStationDaPaise: number;
   outStationDaPaise: number;
 }
-export type CreatePayBandDto = Omit<PayBandDto, 'id'>;
+export type CreatePayBandDto = Omit<PayBandDto, 'id' | 'suggestedCtcAnnualPaise'> & { suggestedCtcAnnualPaise?: number | null };
 export type UpdatePayBandDto = Partial<CreatePayBandDto>;
 
 /** Body of `POST /identity/users`. Admin may create any role; HR only FIELD. Everything else is set later by the onboarding PATCH. */

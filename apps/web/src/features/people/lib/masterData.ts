@@ -22,7 +22,6 @@ import { paiseToRupees, rupeesToPaise } from '@/lib/money';
 export const MAX_PAISE = 10_000_000_000;
 
 export const PAY_BAND_MONEY_FIELDS = [
-  { key: 'baseSalaryPaise', label: 'Base salary (per month)' },
   { key: 'taPerKmRatePaise', label: 'TA rate (per km)' },
   { key: 'hqDaPaise', label: 'DA — HQ day' },
   { key: 'exStationDaPaise', label: 'DA — Ex-station day' },
@@ -34,7 +33,6 @@ export type PayBandMoneyKey = (typeof PAY_BAND_MONEY_FIELDS)[number]['key'];
 export type PayBandRupees = Record<PayBandMoneyKey, string>;
 
 export const EMPTY_PAY_BAND_RUPEES: PayBandRupees = {
-  baseSalaryPaise: '',
   taPerKmRatePaise: '',
   hqDaPaise: '',
   exStationDaPaise: '',
@@ -43,7 +41,6 @@ export const EMPTY_PAY_BAND_RUPEES: PayBandRupees = {
 
 export function payBandToRupees(band: PayBandDto): PayBandRupees {
   return {
-    baseSalaryPaise: paiseToRupees(band.baseSalaryPaise),
     taPerKmRatePaise: paiseToRupees(band.taPerKmRatePaise),
     hqDaPaise: paiseToRupees(band.hqDaPaise),
     exStationDaPaise: paiseToRupees(band.exStationDaPaise),
@@ -83,7 +80,6 @@ export function buildPayBand(draft: { name: string; rupees: PayBandRupees }): Bu
     ok: true,
     body: {
       name: draft.name,
-      baseSalaryPaise: paise('baseSalaryPaise'),
       taPerKmRatePaise: paise('taPerKmRatePaise'),
       hqDaPaise: paise('hqDaPaise'),
       exStationDaPaise: paise('exStationDaPaise'),

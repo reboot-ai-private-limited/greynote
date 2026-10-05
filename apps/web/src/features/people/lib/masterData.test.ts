@@ -16,7 +16,7 @@ import {
 const g1: PayBandDto = {
   id: 'b1',
   name: 'G1',
-  baseSalaryPaise: 2_500_000,
+  suggestedCtcAnnualPaise: null,
   taPerKmRatePaise: 750,
   hqDaPaise: 20_000,
   exStationDaPaise: 30_000,
@@ -48,7 +48,6 @@ describe('buildPayBand', () => {
       ok: true,
       body: {
         name: 'G1',
-        baseSalaryPaise: 2_500_000,
         taPerKmRatePaise: 750,
         hqDaPaise: 20_000,
         exStationDaPaise: 30_000,
@@ -65,7 +64,7 @@ describe('buildPayBand', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(Object.keys(result.errors).sort()).toEqual(
-        ['baseSalaryPaise', 'exStationDaPaise', 'hqDaPaise', 'name', 'outStationDaPaise', 'taPerKmRatePaise'].sort(),
+        ['exStationDaPaise', 'hqDaPaise', 'name', 'outStationDaPaise', 'taPerKmRatePaise'].sort(),
       );
     }
   });
@@ -85,9 +84,9 @@ describe('buildPayBandUpdate', () => {
     expect(buildPayBandUpdate(g1, { ...filled, taPerKmRatePaise: '7.5' })).toEqual({ ok: true, body: {} });
   });
   it('refuses an invalid amount', () => {
-    expect(buildPayBandUpdate(g1, { ...filled, baseSalaryPaise: '' })).toMatchObject({
+    expect(buildPayBandUpdate(g1, { ...filled, hqDaPaise: '' })).toMatchObject({
       ok: false,
-      errors: { baseSalaryPaise: 'Enter an amount.' },
+      errors: { hqDaPaise: 'Enter an amount.' },
     });
   });
 });

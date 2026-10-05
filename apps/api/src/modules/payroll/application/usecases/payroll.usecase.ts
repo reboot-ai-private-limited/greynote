@@ -5,7 +5,7 @@ import type { PayrollFilter, PayrollRunRepositoryPort } from '../../domain/payro
 import { PAYROLL_CODES, PayrollRefusal, type PayrollCode } from '../../domain/payrollRefusal.js';
 import type { PayrollRun } from '../../domain/payrollRun.entity.js';
 import type { FieldActivityPort, HrPort, IdentityPort } from '../../domain/ports.js';
-import { leaveDeductionPaise, netPayablePaise } from '../payrollCalc.js';
+import { leaveDeductionPaise, monthlyGrossPaise, netPayablePaise } from '../payrollCalc.js';
 
 export interface Actor {
   id: string;
@@ -39,10 +39,10 @@ export class PayrollClock {
 }
 
 /**
- * The Accountant's (or Admin's) month-end sheet (LLD payroll.md, HLD 7). For each employee, independently: the Pay Band's
- * base salary as it is now (snapshotted), what was paid during the month, the month's approved unpaid leave, the
+ * The Accountant's (or Admin's) month-end sheet (LLD payroll.md, HLD 7). For each employee, independently: the CTC in
+ * force for the month (its monthly gross, snapshotted), what was paid during the month, the month's approved unpaid leave, the
  * deduction and the net — written as a `DRAFT`, overwriting an earlier draft, never a finalized run. One employee's
- * problem (no Pay Band, already finalized, a fault) is reported for them and never fails the rest.
+ * problem (no CTC, already finalized, a fault) is reported for them and never fails the rest.
  */
 export class GeneratePayrollUseCase {
   constructor(
@@ -82,19 +82,23 @@ export class GeneratePayrollUseCase {
     if (!user) throw new PayrollRefusal(PAYROLL_CODES.userNotFound, 'No such employee.');
     if (user.role !== 'FIELD' || user.status !== 'active') throw new PayrollRefusal(PAYROLL_CODES.notFieldEmployee, 'Payroll covers active field employees only.');
     const employment = await this.identity.getEmploymentDetails(userId);
-    if (!employment?.payBandId) throw new PayrollRefusal(PAYROLL_CODES.noPayBand, `${user.name} has no Pay Band assigned, so there is no base salary to pay.`);
+    const ctc = await this.identity.getCtcForMonth(userId, month);
+    if (!ctc) throw new PayrollRefusal(PAYROLL_CODES.noCtc, `${user.name} has no CTC in force for ${month}, so there is no salary to pay.`);
 
-    const { baseSalaryPaise } = await this.identity.getPayBandRates(userId);
+    const baseSalaryPaise = monthlyGrossPaise(ctc.lines);
     const paid = await this.fieldActivity.getPaidTaDaTotal(userId, month);
     const unpaidLeaveDays = await this.hr.getUnpaidLeaveDays(userId, month);
     const totalTaDaPaise = paid.taPaise + paid.daPaise;
     const deduction = leaveDeductionPaise(unpaidLeaveDays, baseSalaryPaise);
-    const joinedInMonth = employment.dateOfJoining ? (await this.clock.dateOf(employment.dateOfJoining)).startsWith(`${month}-`) : false;
+    const joinedInMonth = employment?.dateOfJoining ? (await this.clock.dateOf(employment.dateOfJoining)).startsWith(`${month}-`) : false;
 
     const saved = await this.runs.saveDraft({
       userId,
       month,
       baseSalaryPaise,
+      ctcAnnualPaise: ctc.ctcAnnualPaise,
+      ctcEffectiveFrom: ctc.effectiveFrom,
+      ctcLines: ctc.lines,
       totalTaDaPaise,
       reimbursementPaise: paid.reimbursementPaise,
       unpaidLeaveDays,

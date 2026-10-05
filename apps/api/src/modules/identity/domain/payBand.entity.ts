@@ -10,8 +10,6 @@ export type PayBandName = (typeof PAY_BAND_NAMES)[number];
 export interface PayBand {
   id: string;
   name: PayBandName;
-  /** Being replaced by the per-employee CTC (payroll phase of the CTC work); removed once Payroll stops reading it. */
-  baseSalaryPaise: number;
   /** Pre-fills the CTC box when HR picks this grade for an employee. A suggestion, never enforced. */
   suggestedCtcAnnualPaise: number | null;
   taPerKmRatePaise: number;
@@ -21,7 +19,6 @@ export interface PayBand {
 }
 
 export const PAY_BAND_MONEY_FIELDS = [
-  'baseSalaryPaise',
   'taPerKmRatePaise',
   'hqDaPaise',
   'exStationDaPaise',

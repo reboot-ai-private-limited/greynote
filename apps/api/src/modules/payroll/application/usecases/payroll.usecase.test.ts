@@ -29,7 +29,7 @@ class FakeRuns implements PayrollRunRepositoryPort {
   }
 }
 
-type Emp = { role?: string; status?: 'active' | 'inactive'; payBandId?: string | null; base?: number; joined?: Date | null; unpaid?: number; paid?: { taPaise: number; daPaise: number; reimbursementPaise: number } };
+type Emp = { role?: string; status?: 'active' | 'inactive'; ctc?: boolean; base?: number; joined?: Date | null; unpaid?: number; paid?: { taPaise: number; daPaise: number; reimbursementPaise: number } };
 class World implements IdentityPort, HrPort, FieldActivityPort {
   emps = new Map<string, Emp>();
   add(id: string, e: Emp = {}) {
@@ -47,10 +47,20 @@ class World implements IdentityPort, HrPort, FieldActivityPort {
   }
   async getEmploymentDetails(id: string) {
     const e = this.emps.get(id);
-    return e ? { payBandId: e.payBandId === undefined ? 'band' : e.payBandId, dateOfJoining: e.joined ?? new Date('2024-01-01') } : null;
+    return e ? { dateOfJoining: e.joined ?? new Date('2024-01-01') } : null;
   }
-  async getPayBandRates(id: string) {
-    return { baseSalaryPaise: this.emps.get(id)?.base ?? 3_000_000 };
+  ctcMonths: string[] = [];
+  /** `base` is the monthly gross; the CTC also carries an employer EPF line that must not be paid out. */
+  async getCtcForMonth(id: string, month: string) {
+    this.ctcMonths.push(month);
+    const e = this.emps.get(id);
+    if (!e || e.ctc === false) return null;
+    const gross = (e.base ?? 3_000_000) * 12;
+    const lines = [
+      { code: 'BASIC', name: 'Basic', kind: 'EARNING' as const, amountPaise: gross, isOverridden: false },
+      { code: 'EPF', name: 'EPF (employer)', kind: 'EMPLOYER_CONTRIBUTION' as const, amountPaise: 600_000, isOverridden: false },
+    ];
+    return { ctcAnnualPaise: gross + 600_000, effectiveFrom: '2026-04', lines };
   }
   async getUnpaidLeaveDays(id: string) {
     return this.emps.get(id)?.unpaid ?? 0;
@@ -113,7 +123,7 @@ describe('payroll', () => {
     const done = await finalize.execute('p1');
     expect(done).toMatchObject({ status: 'FINALIZED' });
     expect(done.finalizedAt).toEqual(now);
-    // Pay band raised, more expenses paid, more leave approved: the finalized numbers do not move.
+    // CTC raised, more expenses paid, more leave approved: the finalized numbers do not move.
     world.emps.get('mr1')!.base = 9_999_900;
     world.emps.get('mr1')!.paid = { taPaise: 1, daPaise: 1, reimbursementPaise: 1 };
     world.emps.get('mr1')!.unpaid = 9;
@@ -130,11 +140,19 @@ describe('payroll', () => {
     expect(out.map((o) => [o.userId, o.outcome, 'reason' in o ? o.reason : ''])).toEqual([['mr1', 'skipped', PAYROLL_CODES.alreadyFinalized], ['mr2', 'updated', '']]);
   });
 
-  it('an employee with no Pay Band is skipped with a reason; the others are still done', async () => {
-    world.add('mr3', { payBandId: null });
+  it('pays the monthly gross of the CTC in force for the month — not the employer’s EPF — and snapshots the breakdown', async () => {
+    const [a] = await generate.execute(acct, { month: '2026-10', userIds: ['mr1'] });
+    const run = (a as { run: PayrollRun }).run;
+    expect(world.ctcMonths).toEqual(['2026-10']);
+    expect(run).toMatchObject({ baseSalaryPaise: 3_000_000, ctcAnnualPaise: 36_600_000, ctcEffectiveFrom: '2026-04' });
+    expect(run.ctcLines.map((l) => l.code)).toEqual(['BASIC', 'EPF']);
+  });
+
+  it('an employee with no CTC is skipped with a reason; the others are still done', async () => {
+    world.add('mr3', { ctc: false });
     const out = await generate.execute(acct, { month: '2026-10' });
     expect(out.map((o) => [o.userId, o.outcome])).toEqual([['mr1', 'created'], ['mr2', 'created'], ['mr3', 'skipped']]);
-    expect(out[2]).toMatchObject({ reason: PAYROLL_CODES.noPayBand });
+    expect(out[2]).toMatchObject({ reason: PAYROLL_CODES.noCtc });
     expect(runs.rows.length).toBe(2);
   });
 

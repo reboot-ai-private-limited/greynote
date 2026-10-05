@@ -8,6 +8,9 @@ const run = (userId: string): PayrollRun => ({
   userId,
   month: '2026-09',
   baseSalaryPaise: 3_000_000,
+  ctcAnnualPaise: null,
+  ctcEffectiveFrom: null,
+  ctcLines: [],
   totalTaDaPaise: 100_000,
   reimbursementPaise: 0,
   unpaidLeaveDays: 0,
@@ -60,7 +63,7 @@ describe('PayrollViews', () => {
     const outcomes: GenerateOutcome[] = [
       { userId: 'a', outcome: 'created', run: run('a') },
       { userId: 'b', outcome: 'updated', run: run('b') },
-      { userId: 'c', outcome: 'skipped', reason: 'NO_PAY_BAND' as never, message: 'c has no Pay Band assigned, so there is no base salary to pay.' },
+      { userId: 'c', outcome: 'skipped', reason: 'NO_CTC' as never, message: 'c has no CTC in force for 2026-09, so there is no salary to pay.' },
     ];
     const out = await views.outcomes(outcomes);
     expect(out.map((o) => [o.userId, o.outcome, o.userName])).toEqual([
@@ -69,6 +72,6 @@ describe('PayrollViews', () => {
       ['c', 'skipped', 'Name c'],
     ]);
     expect(out[0]).toMatchObject({ run: { userName: 'Name a', employeeCode: 'E-a' } });
-    expect(out[2]).toMatchObject({ message: expect.stringMatching(/no Pay Band/) });
+    expect(out[2]).toMatchObject({ message: expect.stringMatching(/no CTC/) });
   });
 });

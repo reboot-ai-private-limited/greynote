@@ -1,3 +1,11 @@
+export interface PayrollCtcLineDto {
+  code: string;
+  name: string;
+  kind: 'EARNING' | 'EMPLOYER_CONTRIBUTION';
+  amountPaise: number;
+  isOverridden: boolean;
+}
+
 export type PayrollStatus = 'DRAFT' | 'FINALIZED';
 
 /**
@@ -11,8 +19,13 @@ export interface PayrollRunDto {
   employeeCode: string;
   /** `YYYY-MM`. */
   month: string;
-  /** Snapshot of the Pay Band's base salary when generated. */
+  /** Monthly gross when generated: the CTC less the employer's EPF/ESI, ÷ 12, frozen. */
   baseSalaryPaise: number;
+  /** The annual CTC and the month its revision started; `null` on runs from before CTC existed. */
+  ctcAnnualPaise: number | null;
+  ctcEffectiveFrom: string | null;
+  /** The breakdown at generation (annual amounts, employer contributions included); empty on older runs. */
+  ctcLines: PayrollCtcLineDto[];
   /** TA and DA marked paid during the month. */
   totalTaDaPaise: number;
   /** Manual expenses (travel, meals, other) marked paid during the month. */
@@ -31,7 +44,7 @@ export interface PayrollRunDto {
   finalizedAt: string | null;
 }
 
-export type PayrollSkipReason = 'MONTH_NOT_ENDED' | 'ALREADY_FINALIZED' | 'RUN_NOT_FOUND' | 'USER_NOT_FOUND' | 'NOT_FIELD_EMPLOYEE' | 'NO_PAY_BAND' | 'ERROR';
+export type PayrollSkipReason = 'MONTH_NOT_ENDED' | 'ALREADY_FINALIZED' | 'RUN_NOT_FOUND' | 'USER_NOT_FOUND' | 'NOT_FIELD_EMPLOYEE' | 'NO_CTC' | 'ERROR';
 
 /** One employee's line in the result of `POST /payroll/generate`. One line failing never fails the rest. */
 export type GenerateOutcomeDto =

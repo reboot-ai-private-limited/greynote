@@ -69,7 +69,7 @@ export function PayrollRunScreen({ id }: { id: string }) {
             <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
               <Card title="How the net is worked out">
                 <div className="divide-y divide-border">
-                  <Line label="Base salary" note="The Pay Band's base when this was generated; a later change to it does not alter it." amount={formatMoney(run.baseSalaryPaise)} />
+                  <Line label="Base salary" note="Monthly gross from the CTC in force when this was generated (the CTC less the employer's EPF and ESI, ÷ 12); a later change does not alter it." amount={formatMoney(run.baseSalaryPaise)} />
                   <Line label="TA and DA paid" note={`Marked paid during ${monthLabel(run.month)}.`} amount={`+ ${formatMoney(run.totalTaDaPaise)}`} />
                   <Line label="Reimbursements paid" note="Travel, meals and other claims marked paid in the month." amount={`+ ${formatMoney(run.reimbursementPaise)}`} />
                   <Line label="Leave deduction" note={deductionExplanation(run)} amount={`− ${formatMoney(run.leaveDeductionPaise)}`} />

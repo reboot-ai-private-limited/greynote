@@ -19,7 +19,7 @@ export function PayBandsScreen({ canWrite }: { canWrite: boolean }) {
 
   const columns: readonly Column<PayBandDto>[] = [
     { key: 'name', header: 'Grade', render: (b) => <span className="font-medium">{b.name}</span> },
-    { key: 'base', header: 'Base salary', numeric: true, render: (b) => formatMoney(b.baseSalaryPaise) },
+    { key: 'ctc', header: 'Suggested CTC / yr', numeric: true, render: (b) => (b.suggestedCtcAnnualPaise === null ? '—' : formatMoney(b.suggestedCtcAnnualPaise)) },
     { key: 'ta', header: 'TA / km', numeric: true, render: (b) => formatMoney(b.taPerKmRatePaise) },
     { key: 'hq', header: 'DA · HQ', numeric: true, render: (b) => formatMoney(b.hqDaPaise) },
     { key: 'ex', header: 'DA · Ex-station', numeric: true, render: (b) => formatMoney(b.exStationDaPaise) },
@@ -39,7 +39,7 @@ export function PayBandsScreen({ canWrite }: { canWrite: boolean }) {
   return (
     <MasterDataFrame
       title="Pay Bands"
-      description="Base salary, TA rate and DA amounts per grade. Employees on a grade earn at these rates."
+      description="TA rate and DA amounts per grade. Salary is set per employee as a CTC, under Compensation."
       noun="pay band"
       readOnly={readOnly || !canWrite}
       canCreate={available.length > 0}

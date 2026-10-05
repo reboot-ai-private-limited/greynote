@@ -1,4 +1,5 @@
 import { MAX_PAISE, proratePaise, type Paise } from '@/shared/money/paise.js';
+import type { CtcLineSnapshot } from '../domain/ports.js';
 
 /** A month is priced as 30 days whatever its length (HLD 7): more unpaid days than that cannot deduct more than the base. */
 export const DEDUCTION_DAYS = 30;
@@ -18,4 +19,13 @@ export function netPayablePaise(p: { baseSalaryPaise: Paise; totalTaDaPaise: Pai
   const net = p.baseSalaryPaise + p.totalTaDaPaise + p.reimbursementPaise - p.leaveDeductionPaise;
   if (!Number.isSafeInteger(net) || net < 0 || net > MAX_PAISE * 3) throw new RangeError(`Net pay out of range: ${net}`);
   return net;
+}
+
+/**
+ * What the employee is paid before any deduction, per month: the earning lines of the CTC (the CTC less the employer's own
+ * EPF/ESI), ÷ 12, rounded half up once.
+ */
+export function monthlyGrossPaise(lines: readonly CtcLineSnapshot[]): Paise {
+  const annual = lines.filter((l) => l.kind === 'EARNING').reduce((sum, l) => sum + l.amountPaise, 0);
+  return proratePaise(annual, 1, 12);
 }

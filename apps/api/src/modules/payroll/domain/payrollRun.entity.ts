@@ -1,4 +1,5 @@
 import type { Paise } from '@/shared/money/paise.js';
+import type { CtcLineSnapshot } from './ports.js';
 
 export const PAYROLL_STATUSES = ['DRAFT', 'FINALIZED'] as const;
 export type PayrollStatus = (typeof PAYROLL_STATUSES)[number];
@@ -12,8 +13,16 @@ export interface PayrollRun {
   userId: string;
   /** `YYYY-MM`. */
   month: string;
-  /** Snapshot of the Pay Band's base salary when generated — a later grade change never rewrites it. */
+  /**
+   * The employee's monthly gross when generated: the CTC less the employer's EPF/ESI, ÷ 12 — a snapshot, so a later CTC
+   * revision never rewrites it. (Runs from before CTC existed hold the old Pay Band salary here and no CTC fields.)
+   */
   baseSalaryPaise: Paise;
+  /** The annual CTC and the revision's first month it was worked out from; `null` on runs from before CTC existed. */
+  ctcAnnualPaise: Paise | null;
+  ctcEffectiveFrom: string | null;
+  /** The breakdown at generation (annual amounts, employer contributions included); empty on older runs. */
+  ctcLines: CtcLineSnapshot[];
   /** TA + DA marked paid during the month. */
   totalTaDaPaise: Paise;
   /** Manual expenses (travel, meals, other) marked paid during the month. */

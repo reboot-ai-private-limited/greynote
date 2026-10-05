@@ -29,7 +29,7 @@ old one.
 - **Employer EPF/ESI are inside the CTC**, so the employee's monthly gross is `(CTC − employer EPF − employer ESI) ÷ 12`. Employee-side deductions on the payslip are **deferred**.
 - **The 1.44 minimum is not enforced** (read as ₹1.44 lakh a year; the UI will only warn). **Grade** keeps TA/DA rates and leave policy, and gains an optional `suggestedCtcAnnualPaise` that pre-fills the CTC box.
 
-**Status:** backend for the master, revisions and API built (Identity). `PayBand.baseSalaryPaise` is still present and still what Payroll reads until the Payroll step lands; then it is removed. Web UI follows.
+**Status:** backend built. Payroll reads `getCtcForMonth`: `PayrollRun.baseSalaryPaise` is the monthly gross, the run also freezes `ctcAnnualPaise`, `ctcEffectiveFrom` and `ctcLines`, and an employee with no CTC in force is skipped `NO_CTC` (replacing `NO_PAY_BAND`). `PayBand.baseSalaryPaise` is removed; `pnpm --filter @greynote/api migrate:payband-ctc` turns each grade's old monthly salary into a suggested annual CTC (×12) and removes the field. Runs already generated keep their numbers. **Every employee needs a CTC assigned before the next payroll** — none exist until HR does it. Web UI follows.
 
 **Assumptions for the client (sign-off):** the unit of 1.44; ESI applied to everyone as stated (the statute has a wage ceiling); employee-side deductions later; revisions start at a chosen month with no mid-month proration.
 

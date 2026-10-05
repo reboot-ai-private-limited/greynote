@@ -16,7 +16,6 @@ export const updateDesignationBodySchema = createDesignationBodySchema.partial()
 export const createPayBandBodySchema = z.object({
   name: z.enum(PAY_BAND_NAMES),
   // Whole paise (₹1 = 100): ₹7.50 per km is 750. A decimal is a 400, not a rounding.
-  baseSalaryPaise: paiseSchema,
   suggestedCtcAnnualPaise: paiseSchema.nullable().default(null),
   taPerKmRatePaise: paiseSchema,
   hqDaPaise: paiseSchema,

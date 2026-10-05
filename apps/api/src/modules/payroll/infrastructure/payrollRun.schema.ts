@@ -6,6 +6,9 @@ export interface PayrollRunDoc {
   userId: Types.ObjectId;
   month: string;
   baseSalaryPaise: number;
+  ctcAnnualPaise: number | null;
+  ctcEffectiveFrom: string | null;
+  ctcLines: Array<{ code: string; name: string; kind: 'EARNING' | 'EMPLOYER_CONTRIBUTION'; amountPaise: number; isOverridden: boolean }>;
   totalTaDaPaise: number;
   reimbursementPaise: number;
   unpaidLeaveDays: number;
@@ -23,6 +26,9 @@ const schema = new Schema<PayrollRunDoc>({
   userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   month: { type: String, required: true, match: /^\d{4}-(0[1-9]|1[0-2])$/ },
   baseSalaryPaise: paise,
+  ctcAnnualPaise: { type: Number, default: null },
+  ctcEffectiveFrom: { type: String, default: null },
+  ctcLines: { type: [new Schema({ code: String, name: String, kind: String, amountPaise: Number, isOverridden: Boolean }, { _id: false })], default: [] },
   totalTaDaPaise: paise,
   reimbursementPaise: paise,
   unpaidLeaveDays: { type: Number, required: true, min: 0, validate: { validator: (v: number) => Number.isInteger(v * 2), message: 'Whole or half days only.' } },
