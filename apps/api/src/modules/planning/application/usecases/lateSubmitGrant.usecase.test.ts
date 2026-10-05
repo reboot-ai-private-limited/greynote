@@ -66,7 +66,10 @@ describe('Late-submission exceptions', () => {
     expect((await submit.execute(MR, planId)).status).toBe('SUBMITTED');
     expect(kit.grants.rows.get(g.id)?.status).toBe('USED');
 
-    kit.approvals.setStatus('DAILY_PLAN', planId, 'REJECTED');
+    // Rejected at 10:30 IST (on the test clock, like everything else), resubmitted at 12:00 IST: past the 30-minute
+    // after-rejection window and its 11:30 cap, so only a fresh exception would let it through — and the one granted is spent.
+    kit.approvals.setStatus('DAILY_PLAN', planId, 'REJECTED', new Date(AFTER_CUTOFF));
+    clock.set('2026-10-05T06:30:00Z');
     await save.execute(MR, DATE, { ...day, remarks: 'fixed' });
     await expectError(submit.execute(MR, planId), 409, 'PLAN_SUBMIT_LATE');
   });
