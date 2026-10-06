@@ -183,3 +183,9 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | K17 | Leave on promotion | Leave is by financial year; a promotion keeps the current year's days and balance unchanged (the new grade's days apply from the next year); the promotion screen shows days used and deducted | Accepted 2026-10-06 (from the owner; reading of "show the deducted leave" to confirm) |
 | K18 | Reports after a team move | Show the team as it was in that month; every manager change is kept as dated history | Accepted 2026-10-06 (from the owner) |
 | K19 | Do ASM and above do field work? | Yes; their routes, doctors and plans stay with them on promotion | Accepted 2026-10-06 (from the owner) |
+| K20 | Does an *absent* day (a working day with no report, no leave, no strike) reduce salary? | Proposed: **no** — the calendar is for information; HR turns a real absence into leave. Salary stays base minus unpaid leave | Open |
+| K21 | Which order statuses count as primary / secondary in reports? | Proposed: `DONE` only (delivered), with `PLACED` shown as a separate "placed, not yet done" column; cancelled never | Open |
+| K22 | Value of primary and secondary | Proposed: primary at PTS, secondary at PTR, from the product card; orders also keep the price typed on them, shown on the Sales page | Open |
+| K23 | Chemist orders taken by an MR | Proposed: shown as "secondary orders booked", next to the secondary derived from the distributor's stock, so the two can be compared | Open |
+| K24 | Who sees the Sales page, Reports and calendars | Proposed: Admin all; Accountant read-only on Reports and the payroll calendar; HR on calendars | Open |
+| K25 | Calendar day priority | Proposed: holiday, weekly off, leave, strike, present, absent (first match wins); a Meeting or Conference day is present only with a submitted report | Open |
