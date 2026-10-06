@@ -4,6 +4,7 @@ import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { makeHrSource } from './application/syncSnapshot.js';
 import { HolidayCalendar } from './application/holidayCalendar.js';
+import { LeaveLock, type PayrollFinalizedCheck } from './application/leaveLock.js';
 import { Probation } from './application/probation.js';
 import { HrCalendar } from './application/hrCalendar.js';
 import { LeaveBalances } from './application/leaveBalances.js';
@@ -42,6 +43,8 @@ export interface HrContainer {
   buildRouter: () => Router;
   /** Adds the starting leave types that are missing — `pnpm seed`, never on boot. */
   seed: () => Promise<void>;
+  /** Payroll sits above HR, so the composition root hands HR the question "is this month's salary finalized?" once Payroll exists. */
+  bindPayrollLock(check: PayrollFinalizedCheck): void;
 }
 
 /** Identity's, Territory's, Approval's, Sync's and Config's public contracts, passed in by the composition root. */
@@ -63,7 +66,8 @@ export function buildHrContainer(
 
   // Employee → Manager → HR or Admin (client §11.2). The ledger moves a paid leave's days on each
   // decision, in the approval module's transaction.
-  approvals.registerKind({ kind: 'LEAVE', finalApproverRoles: ['HR', 'ADMIN'], onStatusChange: makeLeaveLedger(leaves, balanceRepository) });
+  const leaveLock = new LeaveLock(config);
+  approvals.registerKind({ kind: 'LEAVE', finalApproverRoles: ['HR', 'ADMIN'], onStatusChange: makeLeaveLedger(leaves, balanceRepository, leaveLock) });
 
   // 2. Use cases
   const calendar = new HrCalendar(config);
@@ -88,6 +92,7 @@ export function buildHrContainer(
     transactions,
     leaveViews,
     probation,
+    leaveLock,
   );
   const lookups = new LeaveLookups(leaves, approvals, probation);
   const masters = {
@@ -137,5 +142,6 @@ export function buildHrContainer(
       return router;
     },
     seed: () => leaveTypes.seed(DEFAULT_LEAVE_TYPES),
+    bindPayrollLock: (check) => leaveLock.bind(check),
   };
 }

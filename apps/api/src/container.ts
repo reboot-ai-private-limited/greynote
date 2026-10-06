@@ -80,6 +80,9 @@ export function buildContainers(): AppContainers {
   // Tier 5 — Payroll: base salary and who is active (Identity), approved unpaid leave (HR), what was paid in the month (Field Activity).
   const payroll = buildPayrollContainer(identity.contract, hr.contract, config.contract);
 
+  // HR sits below Payroll, so it asks through a port: once a month's salary is finalized, that employee's leave in the month is locked.
+  hr.bindPayrollLock((userId, month) => payroll.contract.isMonthFinalized(userId, month));
+
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });

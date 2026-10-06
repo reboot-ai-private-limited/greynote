@@ -64,6 +64,10 @@ export class MongoPayrollAdapter implements PayrollRunRepositoryPort {
     return (await PayrollRunModel.find(q).sort({ month: -1, _id: 1 }).limit(limit).lean()).map(toRun);
   }
 
+  async isFinalized(userId: string, month: string): Promise<boolean> {
+    return (await PayrollRunModel.exists({ userId: oid(userId), month, status: 'FINALIZED' })) !== null;
+  }
+
   async finalize(id: string, at: Date): Promise<boolean> {
     const res = await PayrollRunModel.updateOne({ _id: oid(id), status: 'DRAFT' }, { $set: { status: 'FINALIZED', finalizedAt: at } });
     return res.modifiedCount === 1;

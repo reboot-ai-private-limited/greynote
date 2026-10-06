@@ -43,6 +43,7 @@ const HISTORICAL_DEFAULTS: Record<string, string> = {
   SALARY_RUN_DAY: '1',
   EXPENSE_PAYOUT_DAY: '15',
   FY_CLOSED_YEARS: 'NONE',
+  LEAVE_LOCKED_AFTER_PAYROLL: 'true',
 };
 
 const def = (key: string) => {

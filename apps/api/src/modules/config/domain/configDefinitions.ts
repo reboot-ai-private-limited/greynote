@@ -113,6 +113,8 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   integer('SALARY_RUN_DAY', 'PAYROLL', 'Salary day', 'Day of the month the salary for the month just ended is run (1 = the 1st). Only drives the "due" flag on the payroll screen; nothing is refused for being early or late.', 1, 1, 28),
   integer('EXPENSE_PAYOUT_DAY', 'PAYROLL', 'Expense payout day', 'Day of the month TA, DA and reimbursements of the month just ended are paid (15 = the 15th). Only drives the "due" and "overdue" flags; nothing is refused for being early or late.', 15, 1, 28),
 
+  toggle('LEAVE_LOCKED_AFTER_PAYROLL', 'PAYROLL', 'Lock leave once salary is finalized', 'Whether an employee\'s leave in a month can still change (be requested, edited, approved or reopened) after their salary run for that month is finalized. Daily reports and expenses are never locked by this.', true),
+
   // ── Sales ──
   integer('MONTHLY_STOCK_DEADLINE_DAY', 'SALES', 'Monthly stock deadline day', 'Day of the next month by which a month’s opening and closing stock counts must be entered (5 = the 5th of the following month).', 5, 1, 28),
 

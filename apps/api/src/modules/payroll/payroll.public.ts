@@ -14,4 +14,6 @@ export interface PayrollPublicContract {
   finalize(payrollRunId: string): Promise<PayrollRun>;
   get(payrollRunId: string): Promise<PayrollRun>;
   list(filter: PayrollFilter): Promise<PayrollRun[]>;
+  /** Whether this employee's salary run for the month (`YYYY-MM`) is finalized: HR locks that month's leave on it. */
+  isMonthFinalized(userId: string, month: string): Promise<boolean>;
 }

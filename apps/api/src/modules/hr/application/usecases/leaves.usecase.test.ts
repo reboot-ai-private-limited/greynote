@@ -6,6 +6,7 @@ import { HrCalendar } from '../hrCalendar.js';
 import { Probation } from '../probation.js';
 import { LeaveBalances } from '../leaveBalances.js';
 import { makeLeaveLedger } from '../leaveLedger.js';
+import { LeaveLock } from '../leaveLock.js';
 import { LeaveLookups } from '../leaveLookups.js';
 import { LeaveRequests, type LeaveInput } from '../leaveRequests.js';
 import { LeaveViews } from '../leaveViews.js';
@@ -46,6 +47,8 @@ describe('Leave requests', () => {
   let approvals: FakeApprovals;
   let users: FakeUsers;
   let config: FakeConfig;
+  let lock: LeaveLock;
+  const finalizedMonths = new Set<string>();
   let requests: LeaveRequests;
   let lookups: LeaveLookups;
   let get: GetLeaveUseCase;
@@ -86,10 +89,13 @@ describe('Leave requests', () => {
     config = new FakeConfig();
     const calendar = new HrCalendar(config, new Clock(NOW).now);
     const probation = new Probation(users, config, calendar);
+    lock = new LeaveLock(config);
+    finalizedMonths.clear();
+    lock.bind(async (userId, month) => finalizedMonths.has(`${userId}:${month}`));
     const balances = new LeaveBalances(balanceRepo, policies, types, users, calendar);
     const views = new LeaveViews(approvals, types);
-    approvals.registerKind({ kind: 'LEAVE', finalApproverRoles: ['HR', 'ADMIN'], onStatusChange: makeLeaveLedger(leaves, balanceRepo) });
-    requests = new LeaveRequests(leaves, types, balanceRepo, balances, calendar, new HolidayCalendar(holidays, territory), approvals, inlineTransactions, views, probation);
+    approvals.registerKind({ kind: 'LEAVE', finalApproverRoles: ['HR', 'ADMIN'], onStatusChange: makeLeaveLedger(leaves, balanceRepo, lock) });
+    requests = new LeaveRequests(leaves, types, balanceRepo, balances, calendar, new HolidayCalendar(holidays, territory), approvals, inlineTransactions, views, probation, lock);
     lookups = new LeaveLookups(leaves, approvals, probation);
     get = new GetLeaveUseCase(leaves, users, views);
   });
@@ -258,6 +264,45 @@ describe('Leave requests', () => {
       joined('2026-07-01', 4); // probation ends 2026-11-01: Fri 30 / Sat 31 Oct paid, Mon 2 / Tue 3 Nov not
       expect(await lookups.unpaidDays('mr', '2026-10')).toBe(0);
       expect(await lookups.unpaidDays('mr', '2026-11')).toBe(2);
+    });
+  });
+
+  describe('locked once the salary for the month is finalized (2026-10-05)', () => {
+    it('refuses a new request, and an edit, that touches a finalized month — other months and other people are free', async () => {
+      const leave = await requests.request('mr', casual());
+      await approvals.move('LEAVE', leave.id, 'REJECTED');
+      finalizedMonths.add('mr:2026-10');
+      await expectError(requests.request('mr', casual({ startDate: '2026-10-12', endDate: '2026-10-13' })), 409);
+      await expectError(requests.edit('mr', leave.id, casual()), 409);
+      await expect(requests.request('mr', casual({ startDate: '2026-11-02', endDate: '2026-11-03' }))).resolves.toBeDefined();
+      expect(finalizedMonths.has('asm:2026-10')).toBe(false);
+    });
+
+    it('refuses approving, and reopening, a leave in a finalized month — but rejecting or withdrawing one that was never approved is fine', async () => {
+      const a = await requests.request('mr', casual({ startDate: '2026-10-05', endDate: '2026-10-06' }));
+      const b = await requests.request('mr', casual({ startDate: '2026-10-07', endDate: '2026-10-08' }));
+      await approvals.move('LEAVE', a.id, 'APPROVED');
+      finalizedMonths.add('mr:2026-10');
+      await expectError(approvals.move('LEAVE', a.id, 'REOPENED'), 409);
+      await expectError(approvals.move('LEAVE', b.id, 'APPROVED'), 409);
+      await expect(approvals.move('LEAVE', b.id, 'REJECTED')).resolves.not.toThrow();
+    });
+
+    it('applies to unpaid leave too, the type that feeds salary', async () => {
+      const lop = await requests.request('mr', casual({ leaveTypeId: typeId('Loss of Pay'), startDate: '2026-10-05', endDate: '2026-10-05' }));
+      finalizedMonths.add('mr:2026-10');
+      await expectError(approvals.move('LEAVE', lop.id, 'APPROVED'), 409);
+    });
+
+    it('is switched off by the setting', async () => {
+      finalizedMonths.add('mr:2026-10');
+      config.values['LEAVE_LOCKED_AFTER_PAYROLL'] = 'false';
+      await expect(requests.request('mr', casual())).resolves.toBeDefined();
+    });
+
+    it('does nothing until Payroll is bound', async () => {
+      const unbound = new LeaveLock(config);
+      await expect(unbound.assertUnlocked('mr', ['2026-10-05'])).resolves.toBeUndefined();
     });
   });
 });

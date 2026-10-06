@@ -12,6 +12,7 @@ import type { HolidayCalendar } from './holidayCalendar.js';
 import type { HrCalendar } from './hrCalendar.js';
 import type { LeaveBalances } from './leaveBalances.js';
 import type { LeaveView, LeaveViews } from './leaveViews.js';
+import type { LeaveLock } from './leaveLock.js';
 import type { Probation } from './probation.js';
 
 export interface LeaveInput {
@@ -43,6 +44,7 @@ export class LeaveRequests {
     private readonly transactions: TransactionRunnerPort,
     private readonly views: LeaveViews,
     private readonly probation: Probation,
+    private readonly lock: LeaveLock,
   ) {}
 
   async request(userId: string, input: LeaveInput): Promise<LeaveView> {
@@ -114,6 +116,7 @@ export class LeaveRequests {
     const days = computeLeaveDays(input.startDate, input.endDate, input.half, weeklyOff, await this.holidays.datesFor(userId, input.startDate, input.endDate));
     const daysCount = days.reduce((sum, d) => sum + d.portion, 0);
     if (daysCount === 0) throw AppError.badRequest('These dates are all days off or holidays.', { field: 'startDate' });
+    await this.lock.assertUnlocked(userId, days.map((d) => d.date));
 
     // Not over another leave that's still in play.
     for (const other of await this.leaves.listOverlapping(userId, input.startDate, input.endDate)) {

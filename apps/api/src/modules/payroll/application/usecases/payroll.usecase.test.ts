@@ -21,6 +21,9 @@ class FakeRuns implements PayrollRunRepositoryPort {
   async list(f: PayrollFilter) {
     return this.rows.filter((r) => (!f.month || r.month === f.month) && (!f.fromMonth || r.month >= f.fromMonth) && (!f.toMonth || r.month <= f.toMonth) && (!f.userId || r.userId === f.userId) && (!f.status || r.status === f.status));
   }
+  async isFinalized(userId: string, month: string) {
+    return this.rows.some((r) => r.userId === userId && r.month === month && r.status === 'FINALIZED');
+  }
   async finalize(id: string, at: Date) {
     const r = this.rows.find((x) => x.id === id);
     if (!r || r.status !== 'DRAFT') return false;
@@ -208,5 +211,14 @@ describe('payroll', () => {
     expect(await refusal(generate.execute(acct, { month: '2026-03' }))).toBeNull();
     closedYears.value = 'NONE';
     expect(await refusal(finalize.execute('p1'))).toBeNull();
+  });
+
+  it('says whether an employee’s month is finalized, for HR’s leave lock: a draft is not', async () => {
+    await generate.execute(acct, { month: '2026-10' });
+    expect(await runs.isFinalized('mr1', '2026-10')).toBe(false);
+    await finalize.execute('p1');
+    expect(await runs.isFinalized('mr1', '2026-10')).toBe(true);
+    expect(await runs.isFinalized('mr2', '2026-10')).toBe(false);
+    expect(await runs.isFinalized('mr1', '2026-09')).toBe(false);
   });
 });

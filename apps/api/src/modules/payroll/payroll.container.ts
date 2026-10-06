@@ -26,7 +26,7 @@ export function buildPayrollContainer(identity: IdentityPort, hr: HrPort, config
   const list = new ListPayrollRunsUseCase(runs);
   const views = new PayrollViews(identity);
   return {
-    contract: { generate: (actor, input) => generate.execute(actor, input), finalize: (id) => finalize.execute(id), get: (id) => get.execute(id), list: (filter) => list.execute(filter) },
+    contract: { generate: (actor, input) => generate.execute(actor, input), finalize: (id) => finalize.execute(id), get: (id) => get.execute(id), list: (filter) => list.execute(filter), isMonthFinalized: (userId, month) => runs.isFinalized(userId, month) },
     buildRouter: () => buildPayrollRouter(makePayrollControllers({ generate, finalize, get, list, views })),
   };
 }

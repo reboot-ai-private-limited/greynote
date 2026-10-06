@@ -188,6 +188,7 @@ export class FakeConfig {
     LEAVE_BACKDATE_DAYS: '30',
     PROBATION_LEAVE_PAID: 'true',
     PROBATION_MONTHS: '6',
+    LEAVE_LOCKED_AFTER_PAYROLL: 'true',
   };
   async get(key: string) {
     const value = this.values[key];

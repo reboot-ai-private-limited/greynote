@@ -148,3 +148,10 @@ and only while `PROBATION_LEAVE_PAID` is on. Two effects, both in `application/p
   (`Leave.ledgerDays`, 0 if none) and the rest is paid without a ledger row; approve / reject / withdraw / reopen move only `ledgerDays`.
   Leaves from before this read `ledgerDays` as `daysCount`.
 - **Payroll:** `getUnpaidLeaveDays` leaves out any unpaid-leave day inside probation, so no deduction is made for it.
+
+## Locked after salary (2026-10-06)
+
+`LeaveLock` (`application/leaveLock.ts`): when `LEAVE_LOCKED_AFTER_PAYROLL` is on and the employee's salary run for a month is finalized, a leave
+touching that month can't be requested or edited, and the `LEAVE` ledger hook refuses `APPROVED` and `REOPENED` for it (409 `PAYROLL_FINALIZED`),
+whether the leave is paid or unpaid. Rejecting or withdrawing one that was never approved is allowed. Payroll sits above HR, so the check is a
+port bound at the composition root (`hr.bindPayrollLock`); unbound (tests, scripts) nothing is locked.

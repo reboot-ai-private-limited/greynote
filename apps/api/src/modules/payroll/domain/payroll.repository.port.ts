@@ -20,6 +20,8 @@ export interface PayrollRunRepositoryPort {
   saveDraft(draft: PayrollDraft): Promise<SaveDraftResult>;
   findById(id: string): Promise<PayrollRun | null>;
   list(filter: PayrollFilter, limit: number): Promise<PayrollRun[]>;
+  /** Whether the employee's run for the month is `FINALIZED`. */
+  isFinalized(userId: string, month: string): Promise<boolean>;
   /** `DRAFT` → `FINALIZED` in one conditional update; `false` if the row is not `DRAFT`. */
   finalize(id: string, at: Date): Promise<boolean>;
 }
