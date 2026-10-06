@@ -13,6 +13,9 @@ import {
   createDistributorBodySchema,
   createDoctorBodySchema,
   createProductBodySchema,
+  createSpecialtyBodySchema,
+  listSpecialtiesQuerySchema,
+  updateSpecialtyBodySchema,
   doctorAssignmentParamsSchema,
   editAddedDoctorBodySchema,
   idParamsSchema,
@@ -60,6 +63,10 @@ doc('get', '/products', 'Admin: list products', { query: listProductsQuerySchema
 doc('post', '/products', 'Admin: add a product', { body: createProductBodySchema });
 doc('get', '/products/{id}', 'Admin: one product', { params: idParamsSchema });
 doc('patch', '/products/{id}', 'Admin: edit or deactivate a product', { params: idParamsSchema, body: updateProductBodySchema });
+doc('get', '/specialties', 'Admin: list the specialities a doctor can have', { query: listSpecialtiesQuerySchema });
+doc('post', '/specialties', 'Admin: add a speciality', { body: createSpecialtyBodySchema });
+doc('get', '/specialties/{id}', 'Admin: one speciality', { params: idParamsSchema });
+doc('patch', '/specialties/{id}', 'Admin: rename (also on its doctors) or deactivate a speciality', { params: idParamsSchema, body: updateSpecialtyBodySchema });
 doc('get', '/chemists', 'Admin: list chemists', { query: listChemistsQuerySchema });
 doc('post', '/chemists', 'Admin: add a chemist on a route, with a map-picked location', { body: createChemistBodySchema });
 doc('get', '/chemists/{id}', 'Admin: one chemist', { params: idParamsSchema });
@@ -126,6 +133,7 @@ function doctorsRouter(c: DoctorHandlers): Router {
 
 export function buildFieldMasterDataRouter(c: {
   products: CrudHandlers;
+  specialties: CrudHandlers;
   chemists: CrudHandlers;
   distributors: CrudHandlers;
   doctors: DoctorHandlers;
@@ -133,6 +141,7 @@ export function buildFieldMasterDataRouter(c: {
   const router = Router();
   router.use('/doctors', doctorsRouter(c.doctors));
   router.use('/products', crudRouter(c.products, { list: listProductsQuerySchema, create: createProductBodySchema, update: updateProductBodySchema }));
+  router.use('/specialties', crudRouter(c.specialties, { list: listSpecialtiesQuerySchema, create: createSpecialtyBodySchema, update: updateSpecialtyBodySchema }));
   router.use(
     '/distributors',
     crudRouter(c.distributors, { list: listDistributorsQuerySchema, create: createDistributorBodySchema, update: updateDistributorBodySchema }),

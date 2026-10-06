@@ -6,7 +6,6 @@ import type { PageQuery } from './masterStatus.js';
 export interface DoctorFilter extends PageQuery {
   search?: string | undefined;
   routeId?: string | undefined;
-  category?: string | undefined;
   status?: DoctorStatus | undefined;
 }
 
@@ -29,6 +28,8 @@ export interface DoctorRepositoryPort {
   createProposed(input: Omit<Doctor, 'id'>, ctx: TransactionContext): Promise<Doctor>;
   findByClientRequest(addedBy: string, clientRequestId: string): Promise<Doctor | null>;
   update(id: string, change: Partial<Omit<Doctor, 'id'>>, ctx?: TransactionContext): Promise<Doctor | null>;
+  /** Renames a speciality on every Doctor that carries it (the name compared ignoring case); returns how many. */
+  renameSpecialty(from: string, to: string): Promise<number>;
   /** The Doctors this user added that are still waiting for approval. */
   listPendingAdded(addedBy: string): Promise<Doctor[]>;
   /** Doctors this user added, in any status, newest first. */

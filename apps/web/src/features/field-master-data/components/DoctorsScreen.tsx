@@ -15,7 +15,7 @@ import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDi
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useDoctorCategories, useDoctors, useUpdateDoctor } from '../hooks/useDoctors';
+import { useDoctors, useUpdateDoctor } from '../hooks/useDoctors';
 import { DOCTOR_STATUS_LABEL, DOCTOR_STATUS_TONE, canToggleStatus } from '../lib/doctors';
 import { RouteFilter } from './RoutePickerField';
 
@@ -29,11 +29,10 @@ const STATUS_OPTIONS = [
 
 export function DoctorsScreen() {
   const router = useRouter();
-  const { values, page, update } = useFilterParams(['search', 'status', 'routeId', 'category']);
+  const { values, page, update } = useFilterParams(['search', 'status', 'routeId']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
-  const { categories } = useDoctorCategories();
   const [toggling, setToggling] = useState<DoctorDto | null>(null);
   const updateDoctor = useUpdateDoctor(() => setToggling(null));
 
@@ -42,7 +41,6 @@ export function DoctorsScreen() {
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as DoctorStatus }),
     ...(values.routeId && { routeId: values.routeId }),
-    ...(values.category && { category: values.category }),
   });
 
   const columns: readonly Column<DoctorDto>[] = [
@@ -58,7 +56,7 @@ export function DoctorsScreen() {
         </div>
       ),
     },
-    { key: 'category', header: 'Category', render: (d) => d.category },
+    { key: 'specialty', header: 'Speciality', render: (d) => d.specialty },
     { key: 'route', header: 'Route', render: (d) => directory.routeLabel(d.routeId) },
     {
       key: 'mr',
@@ -110,14 +108,6 @@ export function DoctorsScreen() {
         <>
           <Input placeholder="Search by name" aria-label="Search doctors" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
           <RouteFilter value={values.routeId} onChange={(v) => update({ routeId: v })} />
-          <div className="w-40">
-            <Select
-              aria-label="Category"
-              value={values.category || ANY}
-              options={[{ value: ANY, label: 'All categories' }, ...categories.map((c) => ({ value: c, label: c }))]}
-              onValueChange={(v) => update({ category: v === ANY ? '' : v })}
-            />
-          </div>
           <div className="w-48">
             <Select aria-label="Status" value={values.status || ANY} options={STATUS_OPTIONS} onValueChange={(v) => update({ status: v === ANY ? '' : v })} />
           </div>

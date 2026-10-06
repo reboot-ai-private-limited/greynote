@@ -14,7 +14,6 @@ export type DoctorStatus = (typeof DOCTOR_STATUSES)[number];
 export interface Doctor {
   id: string;
   routeId: string;
-  category: string;
   name: string;
   address: string;
   email: string | null;

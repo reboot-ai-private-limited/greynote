@@ -18,6 +18,8 @@ import type { SampleAllocation } from '../../domain/sampleAllocation.entity.js';
 import type { SampleAllocationRepositoryPort } from '../../domain/sampleAllocation.repository.port.js';
 import type { Product } from '../../domain/product.entity.js';
 import type { ProductFilter, ProductRepositoryPort } from '../../domain/product.repository.port.js';
+import type { Specialty } from '../../domain/specialty.entity.js';
+import type { SpecialtyFilter, SpecialtyRepositoryPort } from '../../domain/specialty.repository.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 
 /** In-memory fakes for Field Master Data's use-case tests — no Mongo, no other module's internals. */
@@ -178,16 +180,67 @@ export class FakeAssignments implements DoctorAssignmentRepositoryPort {
   }
 }
 
+/** A speciality list, with the starter names a test usually wants. */
+export class FakeSpecialties implements SpecialtyRepositoryPort {
+  rows: Specialty[] = [];
+  private nextId = 1;
+  constructor(names: string[] = ['General Physician', 'ENT', 'Cardiologist', 'Pediatrician']) {
+    for (const name of names) this.rows.push({ id: `sp-${this.nextId++}`, name, status: 'active' });
+  }
+  async list(f: SpecialtyFilter) {
+    const search = f.search?.toLowerCase();
+    return paged(this.rows.filter((s) => (!f.status || s.status === f.status) && (!search || s.name.toLowerCase().includes(search))), f);
+  }
+  // Copies, like a database: a caller holding the old row must not see a later update through it.
+  async findById(id: string) {
+    const row = this.rows.find((s) => s.id === id);
+    return row ? { ...row } : null;
+  }
+  async findByName(name: string) {
+    const row = this.rows.find((s) => s.name.trim().toLowerCase() === name.trim().toLowerCase());
+    return row ? { ...row } : null;
+  }
+  async listActive() {
+    return this.rows.filter((s) => s.status === 'active').sort((a, b) => a.name.localeCompare(b.name));
+  }
+  async create(input: { name: string }) {
+    if (await this.findByName(input.name)) return null;
+    const row: Specialty = { id: `sp-${this.nextId++}`, name: input.name, status: 'active' };
+    this.rows.push(row);
+    return row;
+  }
+  async update(id: string, change: { name?: string; status?: 'active' | 'inactive' }) {
+    const row = this.rows.find((s) => s.id === id);
+    if (!row) return null;
+    if (change.name !== undefined) {
+      const clash = await this.findByName(change.name);
+      if (clash && clash.id !== id) return null;
+      row.name = change.name;
+    }
+    if (change.status) row.status = change.status;
+    return { ...row };
+  }
+  async addMissing(names: string[]) {
+    let added = 0;
+    for (const n of names) if (await this.create({ name: n })) added += 1;
+    return added;
+  }
+}
+
 export class FakeDoctors implements DoctorRepositoryPort {
   rows: Doctor[] = [];
   constructor(private readonly assignments: FakeAssignments) {}
+  async renameSpecialty(from: string, to: string) {
+    const hit = this.rows.filter((d) => d.specialty.trim().toLowerCase() === from.trim().toLowerCase());
+    for (const d of hit) d.specialty = to;
+    return hit.length;
+  }
   async list(f: DoctorFilter) {
     const search = f.search?.toLowerCase();
     return paged(
       this.rows.filter(
         (d) =>
           (!f.routeId || d.routeId === f.routeId) &&
-          (!f.category || d.category === f.category) &&
           (!f.status || d.status === f.status) &&
           (!search || d.name.toLowerCase().includes(search)),
       ),
@@ -232,7 +285,7 @@ export class FakeDoctors implements DoctorRepositoryPort {
       const scope = scopes.find((s) => s.userId === a?.userId);
       if (!a || !scope || d.status !== 'active') continue;
       if (scope.routeIds !== null && !scope.routeIds.includes(d.routeId)) continue;
-      if ((f.routeId && d.routeId !== f.routeId) || (f.category && d.category !== f.category)) continue;
+      if (f.routeId && d.routeId !== f.routeId) continue;
       if (search && !d.name.toLowerCase().includes(search)) continue;
       items.push({ ...d, assignedUserId: a.userId });
     }

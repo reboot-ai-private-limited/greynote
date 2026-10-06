@@ -8,13 +8,13 @@ import type { DoctorRepositoryPort } from '../../domain/doctor.repository.port.j
 import { DuplicateRecordError } from '../../domain/duplicateRecord.error.js';
 import type { GeoPoint, PageQuery } from '../../domain/masterStatus.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
+import type { SpecialtyCatalog } from '../specialtyCatalog.js';
 import { NEW_DOCTOR_KIND } from '../doctorApproval.js';
 import type { DoctorView, DoctorViews } from '../doctorViews.js';
 
 /** What an MR fills when adding a Doctor (sign-off C4): no status, no assignment — those come from the approval. */
 export interface AddedDoctorInput {
   routeId: string;
-  category: string;
   name: string;
   address: string;
   email: string | null;
@@ -39,6 +39,7 @@ export class AddedDoctors {
     private readonly approvals: ApprovalsPort,
     private readonly transactions: TransactionRunnerPort,
     private readonly views: DoctorViews,
+    private readonly specialties: SpecialtyCatalog,
   ) {}
 
   /** `created: false` means this was a retry of an earlier, successful create. */
@@ -47,6 +48,7 @@ export class AddedDoctors {
     if (earlier) return { doctor: await this.view(earlier), created: false };
 
     await this.requireOwnRoute(mrId, input.routeId);
+    input = { ...input, specialty: await this.specialties.resolve(input.specialty) };
     const { clientRequestId } = input;
     try {
       const created = await this.transactions.run((ctx) => this.insertAndSubmit(mrId, input, ctx));
@@ -71,7 +73,7 @@ export class AddedDoctors {
     const earlier = await this.doctors.findByClientRequest(mrId, input.clientRequestId);
     if (earlier) return earlier;
     await this.requireOwnRoute(mrId, input.routeId);
-    return this.insertAndSubmit(mrId, input, ctx);
+    return this.insertAndSubmit(mrId, { ...input, specialty: await this.specialties.resolve(input.specialty) }, ctx);
   }
 
   private async insertAndSubmit(mrId: string, input: AddedDoctorInput & { clientRequestId: string }, ctx: TransactionContext): Promise<Doctor> {
@@ -97,6 +99,7 @@ export class AddedDoctors {
       );
     }
     if (input.routeId !== existing.routeId) await this.requireOwnRoute(mrId, input.routeId);
+    input = { ...input, specialty: await this.specialties.resolve(input.specialty) };
 
     const updated = await this.transactions.run(async (ctx) => {
       const { location, ...fields } = input;

@@ -6,7 +6,6 @@ import { doctorsApi, type ListDoctorsQuery } from '@/lib/api/endpoints/fieldMast
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
-import { distinctCategories } from '../lib/doctors';
 
 /** Doctors change under Admin's feet (an MR adds one, an approval lands), so the list is not cached long. */
 export function useDoctors(query?: ListDoctorsQuery) {
@@ -27,12 +26,6 @@ export function useDoctor(id: string) {
       staleTime: staleTime.live,
     }),
   );
-}
-
-/** The categories in use, from one page of 100 (the API's cap): a hint for the filter and the form, not a master list. */
-export function useDoctorCategories() {
-  const doctors = useDoctors({ page: 1, pageSize: 100 });
-  return { categories: distinctCategories(doctors.data?.items ?? []), isLoading: doctors.isLoading };
 }
 
 export function useCreateDoctor(onDone: (doctor: DoctorDto) => void) {

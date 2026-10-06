@@ -11,6 +11,7 @@ import type { AssignDoctorUseCase } from '../application/usecases/assignDoctor.u
 import type { CreateChemistUseCase } from '../application/usecases/createChemist.usecase.js';
 import type { CreateDistributorUseCase } from '../application/usecases/createDistributor.usecase.js';
 import type { CreateDoctorUseCase } from '../application/usecases/createDoctor.usecase.js';
+import type { CreateSpecialtyUseCase, GetSpecialtyUseCase, ListSpecialtiesUseCase, UpdateSpecialtyUseCase } from '../application/usecases/specialties.usecase.js';
 import type { CreateProductUseCase } from '../application/usecases/createProduct.usecase.js';
 import type { GetChemistUseCase } from '../application/usecases/getChemist.usecase.js';
 import type { GetDistributorUseCase } from '../application/usecases/getDistributor.usecase.js';
@@ -38,6 +39,7 @@ import type {
   listDistributorsQuerySchema,
   listDoctorsQuerySchema,
   listProductsQuerySchema,
+  listSpecialtiesQuerySchema,
   teamDoctorsQuerySchema,
 } from './field-master-data.schemas.js';
 
@@ -63,6 +65,25 @@ export function makeProductControllers(u: {
     get: asyncHandler(async (req, res) => sendSuccess(req, res, await u.get.execute(requiredParam(req.params, 'id')), 'Product.', 200)),
     update: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.update.execute(requiredParam(req.params, 'id'), req.body), 'Product updated.', 200),
+    ),
+  };
+}
+
+export function makeSpecialtyControllers(u: {
+  list: ListSpecialtiesUseCase;
+  create: CreateSpecialtyUseCase;
+  get: GetSpecialtyUseCase;
+  update: UpdateSpecialtyUseCase;
+}): CrudHandlers {
+  return {
+    list: asyncHandler(async (req, res) => {
+      const query = req.query as unknown as z.output<typeof listSpecialtiesQuerySchema>;
+      sendSuccess(req, res, await u.list.execute(query), 'Specialities.', 200);
+    }),
+    create: asyncHandler(async (req, res) => sendSuccess(req, res, await u.create.execute(req.body), 'Speciality added.', 201)),
+    get: asyncHandler(async (req, res) => sendSuccess(req, res, await u.get.execute(requiredParam(req.params, 'id')), 'Speciality.', 200)),
+    update: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.update.execute(requiredParam(req.params, 'id'), req.body), 'Speciality updated.', 200),
     ),
   };
 }

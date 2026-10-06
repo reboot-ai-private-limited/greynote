@@ -5,6 +5,7 @@ import type {
   CreateDistributorDto,
   CreateDoctorDto,
   CreateProductDto,
+  CreateSpecialtyDto,
   DistributorDetailDto,
   DistributorDto,
   DoctorAssignmentDto,
@@ -16,8 +17,10 @@ import type {
   PaginationQueryDto,
   ProductDto,
   SampleAllocationDto,
+  SpecialtyDto,
   UpdateChemistDto,
   UpdateDistributorDto,
+  UpdateSpecialtyDto,
   UpdateDoctorDto,
   UpdateProductDto,
 } from '@greynote/contracts';
@@ -53,6 +56,18 @@ export const productsApi = {
   create: (token: string, body: CreateProductDto) => request<ProductDto>(`${BASE}/products`, { method: 'POST', token, body }),
   update: (token: string, id: string, body: UpdateProductDto) =>
     request<ProductDto>(`${BASE}/products/${id}`, { method: 'PATCH', token, body }),
+};
+
+export interface ListSpecialtiesQuery extends PaginationQueryDto {
+  status?: MasterStatus | undefined;
+}
+
+export const specialtiesApi = {
+  list: (token: string, query: ListSpecialtiesQuery | undefined, signal?: AbortSignal) =>
+    request<PaginatedDto<SpecialtyDto>>(`${BASE}/specialties`, { token, ...(query && { query: { ...query } }), signal }),
+  create: (token: string, body: CreateSpecialtyDto) => request<SpecialtyDto>(`${BASE}/specialties`, { method: 'POST', token, body }),
+  update: (token: string, id: string, body: UpdateSpecialtyDto) =>
+    request<SpecialtyDto>(`${BASE}/specialties/${id}`, { method: 'PATCH', token, body }),
 };
 
 export const chemistsApi = {

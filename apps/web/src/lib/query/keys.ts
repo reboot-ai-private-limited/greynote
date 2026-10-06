@@ -82,6 +82,12 @@ export const keys = {
     /** Every active product, all pages: the sample picker's options. */
     directory: () => [...keys.products.all(), 'directory'] as const,
   },
+  /** Specialities are a master list, the same whichever year is in view. */
+  specialties: {
+    all: () => ['specialties'] as const,
+    list: (query?: object) => [...keys.specialties.all(), 'list', query ?? {}] as const,
+    active: () => [...keys.specialties.all(), 'active'] as const,
+  },
   chemists: {
     all: () => ['chemists', fy()] as const,
     list: (query?: object) => [...keys.chemists.all(), 'list', query ?? {}] as const,

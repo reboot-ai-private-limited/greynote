@@ -113,12 +113,28 @@ export interface UpdateChemistDto {
   status?: MasterStatus;
 }
 
+// ── Specialities ───────────────────────────────────────────────────────────────────────────
+
+/** A speciality a Doctor can have, chosen from a list an Admin keeps. Unique ignoring case; no rank. */
+export interface SpecialtyDto {
+  id: string;
+  name: string;
+  status: MasterStatus;
+}
+export interface CreateSpecialtyDto {
+  name: string;
+}
+export interface UpdateSpecialtyDto {
+  /** A rename also renames it on the Doctors that carry it. */
+  name?: string;
+  status?: MasterStatus;
+}
+
 // ── Doctors ────────────────────────────────────────────────────────────────────────────────
 
 export interface DoctorDto {
   id: string;
   routeId: string;
-  category: string;
   name: string;
   address: string;
   email: string | null;
@@ -139,7 +155,6 @@ export interface DoctorDto {
 }
 export interface CreateDoctorDto {
   routeId: string;
-  category: string;
   name: string;
   address: string;
   specialty: string;
@@ -149,7 +164,6 @@ export interface CreateDoctorDto {
 }
 export interface UpdateDoctorDto {
   routeId?: string;
-  category?: string;
   name?: string;
   address?: string;
   specialty?: string;

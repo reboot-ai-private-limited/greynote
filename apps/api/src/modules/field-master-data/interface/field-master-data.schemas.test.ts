@@ -34,7 +34,7 @@ describe('Field Master Data request schemas', () => {
   });
 
   it('an MR-added doctor needs a phone location and a client request id', () => {
-    const doctor = { routeId: route, category: 'A', name: 'Dr X', address: 'Rd', specialty: 'ENT', qualification: 'MS', location: { latitude: 26.7, longitude: 88.4 }, clientRequestId: 'abcd-1234' };
+    const doctor = { routeId: route, name: 'Dr X', address: 'Rd', specialty: 'ENT', qualification: 'MS', location: { latitude: 26.7, longitude: 88.4 }, clientRequestId: 'abcd-1234' };
     expect(addDoctorBodySchema.parse(doctor).email).toBeNull();
     expect(addDoctorBodySchema.safeParse({ ...doctor, location: undefined }).success).toBe(false);
     expect(addDoctorBodySchema.safeParse({ ...doctor, clientRequestId: 'short' }).success).toBe(false);
@@ -73,8 +73,7 @@ describe('product body schemas (2026-10-06)', () => {
     for (const bad of [{ gstPercent: 7 }, { gstPercent: '12' }, { type: 'PILL' }, { ptsPaise: 0 }, { mrpPaise: 110.5 }, { ptrPaise: -1 }, { packSize: '' }]) {
       expect(createProductBodySchema.safeParse({ ...base, ...bad }).success).toBe(false);
     }
-    const { mrpPaise: _omit, ...withoutMrp } = base;
-    expect(createProductBodySchema.safeParse(withoutMrp).success).toBe(false);
+    expect(createProductBodySchema.safeParse({ ...base, mrpPaise: undefined }).success).toBe(false);
   });
 
   it('an update may change any one field, and null clears the division', () => {

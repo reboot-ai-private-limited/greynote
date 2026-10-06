@@ -5,7 +5,6 @@ import {
   buildDoctor,
   buildDoctorUpdate,
   canToggleStatus,
-  distinctCategories,
   doctorToDraft,
   locationWasCorrected,
 } from './doctors';
@@ -13,7 +12,6 @@ import {
 const doctor: DoctorDto = {
   id: 'd1',
   routeId: 'r1',
-  category: 'A',
   name: 'Dr. S. Roy',
   address: 'Burdwan Road, Siliguri',
   email: 'roy@example.com',
@@ -35,7 +33,6 @@ describe('buildDoctor', () => {
       ok: true,
       body: {
         routeId: 'r1',
-        category: 'A',
         name: 'Dr. S. Roy',
         address: 'Burdwan Road, Siliguri',
         specialty: 'Cardiology',
@@ -51,14 +48,13 @@ describe('buildDoctor', () => {
   it('reports every missing field at once, and not the optional email', () => {
     const result = buildDoctor(EMPTY_DOCTOR);
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['address', 'category', 'name', 'qualification', 'routeId', 'specialty']);
+    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['address', 'name', 'qualification', 'routeId', 'specialty']);
   });
   it('refuses a malformed email', () => {
     expect(buildDoctor({ ...filled, email: 'roy@' })).toMatchObject({ ok: false, errors: { email: 'Enter a valid email address.' } });
   });
   it('refuses over-long values', () => {
     expect(buildDoctor({ ...filled, specialty: 'x'.repeat(151) })).toMatchObject({ ok: false });
-    expect(buildDoctor({ ...filled, category: 'x'.repeat(101) })).toMatchObject({ ok: false });
   });
 });
 
@@ -67,9 +63,9 @@ describe('buildDoctorUpdate', () => {
     expect(buildDoctorUpdate(doctor, filled)).toEqual({ ok: true, body: {} });
   });
   it('sends only what changed', () => {
-    expect(buildDoctorUpdate(doctor, { ...filled, specialty: 'Neurology', category: 'B' })).toEqual({
+    expect(buildDoctorUpdate(doctor, { ...filled, specialty: 'Neurology', qualification: 'DM' })).toEqual({
       ok: true,
-      body: { specialty: 'Neurology', category: 'B' },
+      body: { specialty: 'Neurology', qualification: 'DM' },
     });
   });
   it('sends null to clear the email, and a value to set one', () => {
@@ -105,8 +101,3 @@ describe('locationWasCorrected', () => {
   });
 });
 
-describe('distinctCategories', () => {
-  it('lists each category once, sorted', () => {
-    expect(distinctCategories([{ category: 'B' }, { category: 'A' }, { category: 'B' }])).toEqual(['A', 'B']);
-  });
-});

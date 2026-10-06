@@ -4,10 +4,11 @@ import { makeDoctorApprovalHandler, NEW_DOCTOR_KIND } from '../doctorApproval.js
 import { DoctorViews } from '../doctorViews.js';
 import { DoctorVisibility } from '../doctorVisibility.js';
 import { AddedDoctors, type AddedDoctorInput } from './addedDoctors.js';
-import { FakeApprovals, FakeAssignments, FakeConfig, FakeDoctors, FakeTerritory, FakeTransactions, FakeUsers } from './fmdTestKit.js';
+import { FakeApprovals, FakeAssignments, FakeConfig, FakeDoctors, FakeTerritory, FakeTransactions, FakeUsers, FakeSpecialties } from './fmdTestKit.js';
 import { GetDoctorUseCase } from './getDoctor.usecase.js';
 import { ListAssignedDoctorsUseCase } from './listAssignedDoctors.usecase.js';
 import { UpdateDoctorUseCase } from './updateDoctor.usecase.js';
+import { SpecialtyCatalog } from '../specialtyCatalog.js';
 
 async function expectStatus(promise: Promise<unknown>, statusCode: number) {
   const err = await promise.then(
@@ -24,7 +25,6 @@ const admin = { id: 'admin', role: 'ADMIN' as const };
 const phoneGps = { latitude: 26.71, longitude: 88.41 };
 const input: AddedDoctorInput = {
   routeId: 'route-1',
-  category: 'A',
   name: 'Dr Mehta',
   address: '9 Lake Rd',
   email: null,
@@ -60,7 +60,7 @@ describe('An MR adds a Doctor', () => {
     territory.userRoutes.set('mr2', ['route-2']);
     views = new DoctorViews(assignments, users);
     visibility = new DoctorVisibility(assignments, territory, users, config);
-    added = new AddedDoctors(doctors, territory, approvals, new FakeTransactions(), views);
+    added = new AddedDoctors(doctors, territory, approvals, new FakeTransactions(), views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist'])));
     approvals.registerKind({
       kind: NEW_DOCTOR_KIND,
       finalApproverRoles: ['ADMIN'],
@@ -197,7 +197,7 @@ describe('An MR adds a Doctor', () => {
     it('can correct the location while it is pending, and the phone capture is kept', async () => {
       await add();
       const fixed = { latitude: 26.9, longitude: 88.5 };
-      const updated = await new UpdateDoctorUseCase(doctors, assignments, territory, views).execute('doctor-1', { location: fixed });
+      const updated = await new UpdateDoctorUseCase(doctors, assignments, territory, views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist']))).execute('doctor-1', { location: fixed });
       expect(updated).toMatchObject({ location: fixed, capturedLocation: phoneGps, status: 'pending' });
       await approve();
       expect(doctors.rows[0]).toMatchObject({ status: 'active', location: fixed, capturedLocation: phoneGps });
@@ -205,7 +205,7 @@ describe('An MR adds a Doctor', () => {
 
     it('cannot approve or deactivate it through an edit — that is the approval’s job', async () => {
       await add();
-      const update = new UpdateDoctorUseCase(doctors, assignments, territory, views);
+      const update = new UpdateDoctorUseCase(doctors, assignments, territory, views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist'])));
       await expectStatus(update.execute('doctor-1', { status: 'active' }), 409);
       await expectStatus(update.execute('doctor-1', { status: 'inactive' }), 409);
     });

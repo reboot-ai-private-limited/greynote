@@ -2,13 +2,15 @@
 
 import type { DoctorDto } from '@greynote/contracts';
 import { useRouter } from 'next/navigation';
-import { useId, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useCreateDoctor, useDoctorCategories, useUpdateDoctor } from '../hooks/useDoctors';
+import { useCreateDoctor, useUpdateDoctor } from '../hooks/useDoctors';
+import { useActiveSpecialtyNames } from '../hooks/useSpecialties';
 import { EMPTY_DOCTOR, buildDoctor, buildDoctorUpdate, doctorToDraft, type DoctorDraft } from '../lib/doctors';
 import { LocationPicker } from './LocationPicker';
 import { RoutePickerField } from './RoutePickerField';
@@ -17,8 +19,7 @@ import { RoutePickerField } from './RoutePickerField';
 export function DoctorDetailsForm({ doctor }: { doctor?: DoctorDto }) {
   const router = useRouter();
   const readOnly = useIsReadOnly();
-  const { categories } = useDoctorCategories();
-  const listId = useId();
+  const { names, isLoading: specialtiesLoading } = useActiveSpecialtyNames();
   const [draft, setDraft] = useState<DoctorDraft>(doctor ? doctorToDraft(doctor) : EMPTY_DOCTOR);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const create = useCreateDoctor((created) => router.push(`/doctors/${created.id}`));
@@ -27,6 +28,12 @@ export function DoctorDetailsForm({ doctor }: { doctor?: DoctorDto }) {
   const set = (field: keyof DoctorDraft) => (value: string) => setDraft((d) => ({ ...d, [field]: value }));
   const invalid = (field: string) => (errors[field] ? true : undefined);
   const pending = create.isPending || update.isPending;
+  // An older doctor's free-text speciality may not be on the list: it stays selectable, marked, so opening the form does not blank it.
+  const specialtyOptions = useMemo(() => {
+    const options = names.map((n) => ({ value: n, label: n }));
+    const current = doctor?.specialty;
+    return current && !names.some((n) => n.toLowerCase() === current.toLowerCase()) ? [{ value: current, label: `${current} (not on the list)` }, ...options] : options;
+  }, [names, doctor?.specialty]);
 
   function submit() {
     if (doctor) {
@@ -66,16 +73,16 @@ export function DoctorDetailsForm({ doctor }: { doctor?: DoctorDto }) {
           <FormField label="Name" htmlFor="doctor-name" error={errors['name']}>
             <Input id="doctor-name" value={draft.name} disabled={locked} onChange={(e) => set('name')(e.target.value)} aria-invalid={invalid('name')} />
           </FormField>
-          <FormField label="Category" htmlFor="doctor-category" error={errors['category']} hint="Your own classes, e.g. A, B, C.">
-            <Input id="doctor-category" list={listId} value={draft.category} disabled={locked} onChange={(e) => set('category')(e.target.value)} aria-invalid={invalid('category')} />
-            <datalist id={listId}>
-              {categories.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </FormField>
-          <FormField label="Specialty" htmlFor="doctor-specialty" error={errors['specialty']}>
-            <Input id="doctor-specialty" value={draft.specialty} disabled={locked} onChange={(e) => set('specialty')(e.target.value)} aria-invalid={invalid('specialty')} />
+          <FormField label="Speciality" htmlFor="doctor-specialty" error={errors['specialty']} hint="Chosen from Specialities; an Admin keeps that list.">
+            <Select
+              id="doctor-specialty"
+              value={draft.specialty}
+              onValueChange={set('specialty')}
+              options={specialtyOptions}
+              placeholder={specialtiesLoading ? 'Loading…' : 'Choose a speciality'}
+              disabled={locked}
+              aria-invalid={invalid('specialty')}
+            />
           </FormField>
           <FormField label="Qualification" htmlFor="doctor-qualification" error={errors['qualification']}>
             <Input id="doctor-qualification" value={draft.qualification} disabled={locked} onChange={(e) => set('qualification')(e.target.value)} aria-invalid={invalid('qualification')} />

@@ -10,6 +10,9 @@ import { DoctorViews } from './application/doctorViews.js';
 import { AddedDoctors } from './application/usecases/addedDoctors.js';
 import { AdjustSampleAllocationUseCase } from './application/usecases/adjustSampleAllocation.usecase.js';
 import { AssignDoctorUseCase } from './application/usecases/assignDoctor.usecase.js';
+import { CreateSpecialtyUseCase, GetSpecialtyUseCase, ListSpecialtiesUseCase, UpdateSpecialtyUseCase } from './application/usecases/specialties.usecase.js';
+import { SpecialtyCatalog } from './application/specialtyCatalog.js';
+import { MongoSpecialtyAdapter } from './infrastructure/mongoSpecialty.adapter.js';
 import { CreateChemistUseCase } from './application/usecases/createChemist.usecase.js';
 import { CreateDistributorUseCase } from './application/usecases/createDistributor.usecase.js';
 import { CreateDoctorUseCase } from './application/usecases/createDoctor.usecase.js';
@@ -42,7 +45,7 @@ import { MongoDoctorAssignmentAdapter } from './infrastructure/mongoDoctorAssign
 import { MongoProductAdapter } from './infrastructure/mongoProduct.adapter.js';
 import { MongoSampleAllocationAdapter } from './infrastructure/mongoSampleAllocation.adapter.js';
 import { editAddedDoctorBodySchema } from './interface/field-master-data.schemas.js';
-import { makeChemistControllers, makeDistributorControllers, makeDoctorControllers, makeProductControllers } from './interface/field-master-data.controller.js';
+import { makeChemistControllers, makeDistributorControllers, makeDoctorControllers, makeProductControllers, makeSpecialtyControllers } from './interface/field-master-data.controller.js';
 import { buildFieldMasterDataRouter } from './interface/field-master-data.route.js';
 
 export interface FieldMasterDataContainer {
@@ -61,6 +64,8 @@ export function buildFieldMasterDataContainer(
   // 1. Adapters
   const products = new MongoProductAdapter();
   const chemists = new MongoChemistAdapter();
+  const specialties = new MongoSpecialtyAdapter();
+  const specialtyCatalog = new SpecialtyCatalog(specialties);
   const distributors = new MongoDistributorAdapter();
   const sampleAllocations = new MongoSampleAllocationAdapter();
   const doctors = new MongoDoctorAdapter();
@@ -82,6 +87,12 @@ export function buildFieldMasterDataContainer(
     get: new GetProductUseCase(products),
     update: new UpdateProductUseCase(products),
   };
+  const specialtyUseCases = {
+    list: new ListSpecialtiesUseCase(specialties),
+    create: new CreateSpecialtyUseCase(specialties),
+    get: new GetSpecialtyUseCase(specialties),
+    update: new UpdateSpecialtyUseCase(specialties, doctors),
+  };
   const chemistUseCases = {
     list: new ListChemistsUseCase(chemists),
     create: new CreateChemistUseCase(chemists, territory),
@@ -93,16 +104,16 @@ export function buildFieldMasterDataContainer(
   const views = new DoctorViews(assignments, users);
   // The same add-Doctor logic, for a Doctor the MR added offline: it arrives in the daily report's push
   // (sync kind NEW_DOCTOR) and is created inside the sync engine's transaction.
-  const addedDoctors = new AddedDoctors(doctors, territory, approvals, transactions, views);
+  const addedDoctors = new AddedDoctors(doctors, territory, approvals, transactions, views, specialtyCatalog);
   sync.registerHandler(makeNewDoctorSyncHandler(addedDoctors, (payload) => editAddedDoctorBodySchema.parse(payload)));
   // …and what the phone caches of this module, as one snapshot of what the caller may see.
-  sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, products, distributors, allocations: sampleAllocations, visibility, territory }));
+  sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, products, specialties, distributors, allocations: sampleAllocations, visibility, territory }));
 
   const doctorUseCases = {
     list: new ListDoctorsUseCase(doctors, views),
-    create: new CreateDoctorUseCase(doctors, territory, views),
+    create: new CreateDoctorUseCase(doctors, territory, views, specialtyCatalog),
     get: new GetDoctorUseCase(doctors, visibility, views),
-    update: new UpdateDoctorUseCase(doctors, assignments, territory, views),
+    update: new UpdateDoctorUseCase(doctors, assignments, territory, views, specialtyCatalog),
     assigned: new ListAssignedDoctorsUseCase(doctors, visibility, users, views),
     listAssignments: new ListDoctorAssignmentsUseCase(doctors, assignments),
     assign: new AssignDoctorUseCase(doctors, assignments, users, territory, transactions),
@@ -169,6 +180,7 @@ export function buildFieldMasterDataContainer(
     buildRouter: () =>
       buildFieldMasterDataRouter({
         products: makeProductControllers(productUseCases),
+        specialties: makeSpecialtyControllers(specialtyUseCases),
         chemists: makeChemistControllers(chemistUseCases),
         doctors: makeDoctorControllers(doctorUseCases),
         distributors: makeDistributorControllers(distributorUseCases),

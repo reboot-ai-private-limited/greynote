@@ -161,6 +161,20 @@ docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-inh
 Employees still submit each day. A fresh database has nothing to convert. Also: `MONTHLY_STOCK_GRACE_DAYS` is gone, replaced
 by `MONTHLY_STOCK_DEADLINE_DAY`. **Re-run the seed (Step 8; safe to repeat) so the three new settings (`DCR_APPROVAL_REQUIRED`, `APPROVAL_SLA_DAYS`, `MONTHLY_STOCK_DEADLINE_DAY`) appear in System settings** — it only adds missing keys. Schedule the stock check for the day after the deadline day.
 
+## Step 9d — Build the speciality list, and re-run the seed (once, when upgrading past 2026-10-06)
+
+A doctor's speciality is now chosen from an Admin-kept list, and the doctor's *category* is gone (`docs/decision-log.md`, 2026-10-06). **Re-run the seed
+(Step 8) first** so the new settings (`TA_MAX_KM`, `EX_STATION_MIN_KM`, `OUT_STATION_MIN_KM`, `PROBATION_MONTHS`, `PROBATION_LEAVE_PAID`, `SALARY_RUN_DAY`,
+`EXPENSE_PAYOUT_DAY`, `FY_CLOSED_YEARS`, `LEAVE_LOCKED_AFTER_PAYROLL`) exist; without them the API fails when it first reads one. Then build the list from a
+starter set plus every speciality the existing doctors carry (spellings that differ only in case or spacing are merged, and those doctors respelled). Dry run first:
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-specialties.js
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-specialties.js --apply
+```
+
+Safe to run again. A fresh database gets the starter list and nothing else to convert. Old doctor `category` values stay in the database and are never read.
+
 ## Step 10 — Schedule the daily compliance job
 
 The application has no scheduler. Once a day, after the business day rolls over (early morning is fine), the

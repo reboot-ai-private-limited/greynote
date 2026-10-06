@@ -4,13 +4,14 @@ import { DoctorViews } from '../doctorViews.js';
 import { DoctorVisibility } from '../doctorVisibility.js';
 import { AssignDoctorUseCase } from './assignDoctor.usecase.js';
 import { CreateDoctorUseCase } from './createDoctor.usecase.js';
-import { FakeAssignments, FakeConfig, FakeDoctors, FakeTerritory, FakeTransactions, FakeUsers } from './fmdTestKit.js';
+import { FakeAssignments, FakeConfig, FakeDoctors, FakeTerritory, FakeTransactions, FakeUsers, FakeSpecialties } from './fmdTestKit.js';
 import { GetDoctorUseCase } from './getDoctor.usecase.js';
 import { ListAssignedDoctorsUseCase } from './listAssignedDoctors.usecase.js';
 import { ListDoctorAssignmentsUseCase } from './listDoctorAssignments.usecase.js';
 import { ListDoctorsUseCase } from './listDoctors.usecase.js';
 import { UnassignDoctorUseCase } from './unassignDoctor.usecase.js';
 import { UpdateDoctorUseCase } from './updateDoctor.usecase.js';
+import { SpecialtyCatalog } from '../specialtyCatalog.js';
 
 async function expectStatus(promise: Promise<unknown>, statusCode: number) {
   const err = await promise.then(
@@ -26,7 +27,6 @@ const admin = { id: 'admin', role: 'ADMIN' as const };
 const field = (id: string) => ({ id, role: 'FIELD' as const });
 const doctorInput = {
   routeId: 'route-1',
-  category: 'A',
   name: 'Dr Rao',
   address: '5 Clinic Rd',
   email: null,
@@ -44,7 +44,7 @@ describe('Doctors', () => {
   let views: DoctorViews;
   let visibility: DoctorVisibility;
 
-  const create = (over: Partial<typeof doctorInput> = {}) => new CreateDoctorUseCase(doctors, territory, views).execute({ ...doctorInput, ...over }, 'admin');
+  const create = (over: Partial<typeof doctorInput> = {}) => new CreateDoctorUseCase(doctors, territory, views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiology']))).execute({ ...doctorInput, ...over }, 'admin');
   const assign = (doctorId: string, userId: string) => new AssignDoctorUseCase(doctors, assignments, users, territory, new FakeTransactions()).execute(doctorId, userId, 'admin');
   const get = (actor: { id: string; role: 'ADMIN' | 'FIELD' }, id: string) => new GetDoctorUseCase(doctors, visibility, views).execute(actor, id);
   const listed = { run: () => new ListAssignedDoctorsUseCase(doctors, visibility, users, views) };
@@ -72,7 +72,7 @@ describe('Doctors', () => {
 
     it('edits, corrects the location, and moves only to an active route', async () => {
       const d = await create();
-      const update = new UpdateDoctorUseCase(doctors, assignments, territory, views);
+      const update = new UpdateDoctorUseCase(doctors, assignments, territory, views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiology'])));
       expect((await update.execute(d.id, { location: { latitude: 1, longitude: 2 } })).location).toEqual({ latitude: 1, longitude: 2 });
       expect((await update.execute(d.id, { location: null })).location).toBeNull();
       expect((await update.execute(d.id, { routeId: 'route-2' })).routeId).toBe('route-2');
@@ -83,7 +83,7 @@ describe('Doctors', () => {
     it('refuses to deactivate a Doctor who has an assigned MR, and allows it once unassigned', async () => {
       const d = await create();
       await assign(d.id, 'mr1');
-      const update = new UpdateDoctorUseCase(doctors, assignments, territory, views);
+      const update = new UpdateDoctorUseCase(doctors, assignments, territory, views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiology'])));
       await expectStatus(update.execute(d.id, { status: 'inactive' }), 409);
       await new UnassignDoctorUseCase(assignments).execute(d.id, 'mr1', 'admin');
       expect((await update.execute(d.id, { status: 'inactive' })).status).toBe('inactive');
@@ -114,7 +114,7 @@ describe('Doctors', () => {
       await expectStatus(assign(d.id, 'nobody'), 400);
       territory.userRoutes.set('gone', ['route-1']);
       await expectStatus(assign(d.id, 'gone'), 409);
-      await new UpdateDoctorUseCase(doctors, assignments, territory, views).execute(d.id, { status: 'inactive' });
+      await new UpdateDoctorUseCase(doctors, assignments, territory, views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiology']))).execute(d.id, { status: 'inactive' });
       await expectStatus(assign(d.id, 'mr1'), 409);
       await expectStatus(assign('nope', 'mr1'), 404);
     });

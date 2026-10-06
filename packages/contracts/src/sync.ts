@@ -71,7 +71,6 @@ export type SyncRecordKind = (typeof SYNC_RECORD_KINDS)[number];
 /** A Doctor the MR added offline (the same fields as `POST /field-master-data/doctors/added`, minus the client id). */
 export interface NewDoctorPayload {
   routeId: string;
-  category: string;
   name: string;
   address: string;
   specialty: string;
@@ -242,7 +241,6 @@ export interface FieldMasterDataSnapshot {
   doctors: Array<{
     id: string;
     routeId: string;
-    category: string;
     name: string;
     address: string;
     email: string | null;
@@ -254,13 +252,14 @@ export interface FieldMasterDataSnapshot {
   pendingDoctors: Array<{
     id: string;
     routeId: string;
-    category: string;
     name: string;
     address: string;
     specialty: string;
     qualification: string;
     location: GeoPoint | null;
   }>;
+  /** The active specialities, A–Z: the dropdown the app offers when adding a Doctor. A Doctor's speciality must be one of them. */
+  specialties: string[];
   chemists: Array<{ id: string; routeId: string; name: string; address: string; location: GeoPoint | null }>;
   distributors: Array<{
     id: string;

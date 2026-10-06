@@ -4,10 +4,11 @@ import type { DoctorRepositoryPort } from '../../domain/doctor.repository.port.j
 import type { DoctorAssignmentRepositoryPort } from '../../domain/doctorAssignment.repository.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { DoctorView, DoctorViews } from '../doctorViews.js';
+import type { SpecialtyCatalog } from '../specialtyCatalog.js';
 import { requireActiveRoute } from '../requireActiveRoute.js';
 
 export type UpdateDoctorInput = Partial<
-  Pick<Doctor, 'routeId' | 'category' | 'name' | 'address' | 'email' | 'specialty' | 'qualification' | 'location' | 'status'>
+  Pick<Doctor, 'routeId' | 'name' | 'address' | 'email' | 'specialty' | 'qualification' | 'location' | 'status'>
 >;
 
 /**
@@ -20,6 +21,7 @@ export class UpdateDoctorUseCase {
     private readonly assignments: DoctorAssignmentRepositoryPort,
     private readonly territory: TerritoryPort,
     private readonly views: DoctorViews,
+    private readonly specialties: SpecialtyCatalog,
   ) {}
 
   async execute(id: string, change: UpdateDoctorInput): Promise<DoctorView> {
@@ -33,6 +35,11 @@ export class UpdateDoctorUseCase {
     }
     if (change.status === 'inactive' && current.status !== 'inactive' && (await this.assignments.findActiveForDoctor(id))) {
       throw AppError.conflict('This doctor is assigned to an MR. Remove the assignment first.', { field: 'status' });
+    }
+    // A changed speciality must be on the list. One left as it was (an older doctor whose free text is not on the list) is not re-checked.
+    if (change.specialty !== undefined) {
+      const same = change.specialty.trim().toLowerCase() === current.specialty.trim().toLowerCase();
+      change = { ...change, specialty: same ? current.specialty : await this.specialties.resolve(change.specialty) };
     }
     const updated = await this.doctors.update(id, change);
     if (!updated) throw AppError.notFound('No such doctor.');

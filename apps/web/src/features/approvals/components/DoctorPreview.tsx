@@ -22,7 +22,6 @@ export function DoctorPreview({ recordId }: { recordId: string }) {
         <div className="space-y-5 p-5">
           <FieldList>
             <Field label="Name">{doctor.name}</Field>
-            <Field label="Category">{doctor.category}</Field>
             <Field label="Specialty">{doctor.specialty}</Field>
             <Field label="Qualification">{doctor.qualification}</Field>
             <Field label="Route">{directory.routeLabel(doctor.routeId)}</Field>

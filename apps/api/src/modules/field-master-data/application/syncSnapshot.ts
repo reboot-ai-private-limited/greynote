@@ -3,6 +3,7 @@ import type { SyncSourceDefinition } from '@/modules/sync/sync.public.js';
 import type { ChemistRepositoryPort } from '../domain/chemist.repository.port.js';
 import type { DistributorRepositoryPort } from '../domain/distributor.repository.port.js';
 import type { DoctorRepositoryPort } from '../domain/doctor.repository.port.js';
+import type { SpecialtyRepositoryPort } from '../domain/specialty.repository.port.js';
 import type { ProductRepositoryPort } from '../domain/product.repository.port.js';
 import type { SampleAllocationRepositoryPort } from '../domain/sampleAllocation.repository.port.js';
 import type { TerritoryPort } from '../domain/territory.port.js';
@@ -30,6 +31,7 @@ export function makeFieldMasterDataSource(deps: {
   doctors: DoctorRepositoryPort;
   chemists: ChemistRepositoryPort;
   products: ProductRepositoryPort;
+  specialties: SpecialtyRepositoryPort;
   distributors: DistributorRepositoryPort;
   allocations: SampleAllocationRepositoryPort;
   visibility: DoctorVisibility;
@@ -41,19 +43,19 @@ export function makeFieldMasterDataSource(deps: {
     async snapshot(userId): Promise<FieldMasterDataSnapshot> {
       const [scopes, routes] = await Promise.all([deps.visibility.scopes([userId]), deps.territory.listRoutesForUser(userId)]);
       const routeIds = routes.map((r) => r.id);
-      const [{ items: mine }, pending, chemists, distributors, products] = await Promise.all([
+      const [{ items: mine }, pending, chemists, distributors, products, specialties] = await Promise.all([
         deps.doctors.listAssigned(scopes, {}, null),
         deps.doctors.listPendingAdded(userId),
         deps.chemists.listActiveOnRoutes(routeIds),
         deps.distributors.listActiveForUser(userId, routeIds),
         deps.products.listActive(),
+        deps.specialties.listActive(),
       ]);
       const allocations = await deps.allocations.listForDoctors(mine.map((d) => d.id));
       return {
         doctors: byId(mine).map((d) => ({
           id: d.id,
           routeId: d.routeId,
-          category: d.category,
           name: d.name,
           address: d.address,
           email: d.email,
@@ -61,7 +63,7 @@ export function makeFieldMasterDataSource(deps: {
           qualification: d.qualification,
           location: d.location,
         })),
-        pendingDoctors: byId(pending).map((d) => ({ id: d.id, routeId: d.routeId, category: d.category, name: d.name, address: d.address, specialty: d.specialty, qualification: d.qualification, location: d.location })),
+        pendingDoctors: byId(pending).map((d) => ({ id: d.id, routeId: d.routeId, name: d.name, address: d.address, specialty: d.specialty, qualification: d.qualification, location: d.location })),
         chemists: byId(chemists).map((c) => ({ id: c.id, routeId: c.routeId, name: c.name, address: c.address, location: c.location })),
         distributors: byId(distributors).map((d) => ({
           id: d.id,
@@ -75,6 +77,7 @@ export function makeFieldMasterDataSource(deps: {
           primarySalesEnabled: d.primarySalesEnabled,
           secondarySalesEnabled: d.secondarySalesEnabled,
         })),
+        specialties: specialties.map((s) => s.name),
         products: byId(products).map((p) => ({ id: p.id, name: p.name, sku: p.sku, category: p.category, composition: p.composition, type: p.type, packSize: p.packSize, ptsPaise: p.ptsPaise, ptrPaise: p.ptrPaise, mrpPaise: p.mrpPaise, gstPercent: p.gstPercent, division: p.division })),
         sampleAllocations: byId(allocations).map((a) => ({ id: a.id, doctorId: a.doctorId, productId: a.productId, quantityAllocated: a.quantityAllocated, quantityRemaining: a.quantityRemaining })),
       };

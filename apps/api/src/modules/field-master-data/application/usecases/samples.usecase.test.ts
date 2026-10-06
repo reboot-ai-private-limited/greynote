@@ -6,10 +6,11 @@ import { AdjustSampleAllocationUseCase } from './adjustSampleAllocation.usecase.
 import { AssignDoctorUseCase } from './assignDoctor.usecase.js';
 import { CreateDoctorUseCase } from './createDoctor.usecase.js';
 import { CreateProductUseCase } from './createProduct.usecase.js';
-import { FakeAssignments, FakeConfig, FakeDoctors, FakeProducts, FakeSampleAllocations, FakeTerritory, FakeTransactions, FakeUsers } from './fmdTestKit.js';
+import { FakeAssignments, FakeConfig, FakeDoctors, FakeProducts, FakeSampleAllocations, FakeTerritory, FakeTransactions, FakeUsers, FakeSpecialties } from './fmdTestKit.js';
 import { IssueSampleAllocationUseCase } from './issueSampleAllocation.usecase.js';
 import { ListSampleAllocationsUseCase } from './listSampleAllocations.usecase.js';
 import { UpdateProductUseCase } from './updateProduct.usecase.js';
+import { SpecialtyCatalog } from '../specialtyCatalog.js';
 
 async function expectStatus(promise: Promise<unknown>, statusCode: number) {
   const err = await promise.then(
@@ -44,8 +45,8 @@ describe('Doctor sample allocations', () => {
     territory.userRoutes.set('mr1', ['route-1']);
     const views = new DoctorViews(assignments, users);
     doctorId = (
-      await new CreateDoctorUseCase(doctors, territory, views).execute(
-        { routeId: 'route-1', category: 'A', name: 'Dr Rao', address: 'Rd', email: null, specialty: 'ENT', qualification: 'MS', location: null },
+      await new CreateDoctorUseCase(doctors, territory, views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist']))).execute(
+        { routeId: 'route-1', name: 'Dr Rao', address: 'Rd', email: null, specialty: 'ENT', qualification: 'MS', location: null },
         'admin',
       )
     ).id;

@@ -743,7 +743,7 @@ Step 2 (money flow): 2a salary-only payroll — **done 2026-10-06** (`net = base
 ## Step 3 — master data (2026-10-06)
 
 Decisions (decision-log 2026-10-06): the product card is brand, composition, type (list), pack size, therapeutic class, PTS, PTR, MRP, GST (list 5/12/18/28), division; the doctor's *category* is dropped and *speciality* becomes an Admin-managed dropdown with no rank; the four service types are final (C8).
-3a product details — **done 2026-10-06** (API + web form/list; API / web tests pass; **not browser-checked**). Next: 3b speciality master and the doctor without a category; 3c Gift / Service / Sample web screens; 3d medical-leave proof upload; 3e step-by-step employee and doctor creation.
+3a product details — **done 2026-10-06** (API + web form/list; API / web tests pass; **not browser-checked**). 3b speciality master and the doctor without a category — **done 2026-10-06** (Admin-kept list with rename-cascade and deactivate, validation on every doctor create/edit including offline, `migrate:specialties`, the Specialities screen and the dropdown in the doctor form; API 937 / web 562 tests pass; **not browser-checked, migration not applied to dev**). Next: 3c Gift / Service / Sample web screens; 3d medical-leave proof upload; 3e step-by-step employee and doctor creation.
 
 ---
 

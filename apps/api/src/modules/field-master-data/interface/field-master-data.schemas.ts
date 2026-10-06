@@ -60,6 +60,13 @@ export const updateProductBodySchema = z
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 export const listProductsQuerySchema = z.object({ ...pageFields, category: z.string().trim().min(1).optional() });
 
+// ---- Specialities
+export const createSpecialtyBodySchema = z.object({ name: z.string().trim().min(1).max(100) });
+export const updateSpecialtyBodySchema = z
+  .object({ name: z.string().trim().min(1).max(100).optional(), status: statusSchema.optional() })
+  .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
+export const listSpecialtiesQuerySchema = z.object({ ...pageFields });
+
 // ---- Chemists
 export const createChemistBodySchema = z.object({
   routeId: objectIdSchema,
@@ -83,7 +90,6 @@ export const listChemistsQuerySchema = z.object({ ...pageFields, routeId: object
 // ---- Doctors
 const emailSchema = z.string().trim().email().max(200);
 const doctorFields = {
-  category: z.string().trim().min(1).max(100),
   name: nameSchema,
   address: textSchema,
   specialty: z.string().trim().min(1).max(150),
@@ -99,7 +105,6 @@ export const createDoctorBodySchema = z.object({
 export const updateDoctorBodySchema = z
   .object({
     routeId: objectIdSchema.optional(),
-    category: doctorFields.category.optional(),
     name: nameSchema.optional(),
     address: textSchema.optional(),
     specialty: doctorFields.specialty.optional(),
@@ -116,7 +121,6 @@ export const listDoctorsQuerySchema = z.object({
   /** Includes `pending` — the MR-added Doctors waiting for approval. */
   status: z.enum(DOCTOR_STATUSES).optional(),
   routeId: objectIdSchema.optional(),
-  category: z.string().trim().min(1).optional(),
 });
 /** An MR's own Doctors — active only, so no status filter. */
 export const listAssignedDoctorsQuerySchema = z.object({
@@ -124,7 +128,6 @@ export const listAssignedDoctorsQuerySchema = z.object({
   pageSize: pageFields.pageSize,
   search: pageFields.search,
   routeId: objectIdSchema.optional(),
-  category: z.string().trim().min(1).optional(),
 });
 export const teamDoctorsQuerySchema = listAssignedDoctorsQuerySchema.extend({ userId: objectIdSchema.optional() });
 export const assignDoctorBodySchema = z.object({ userId: objectIdSchema });

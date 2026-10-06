@@ -3,7 +3,8 @@ import { DOCTOR_STATUSES, type DoctorStatus } from '../domain/doctor.entity.js';
 
 export interface DoctorDoc {
   routeId: Types.ObjectId;
-  category: string;
+  /** Legacy: doctors saved before the category was dropped (2026-10-06) still carry it; nothing reads it. */
+  category?: string;
   name: string;
   address: string;
   email: string | null;
@@ -21,7 +22,7 @@ export interface DoctorDoc {
 
 const doctorSchema = new Schema<DoctorDoc>({
   routeId: { type: Schema.Types.ObjectId, required: true, ref: 'Route' },
-  category: { type: String, required: true },
+  category: { type: String },
   name: { type: String, required: true },
   address: { type: String, required: true },
   email: { type: String, default: null },

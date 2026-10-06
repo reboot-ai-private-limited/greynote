@@ -17,7 +17,6 @@ import { escapeRegex, isDuplicateKey } from './mongoHelpers.js';
 const toDoctor = (doc: DoctorDoc & { _id: unknown }): Doctor => ({
   id: String(doc._id),
   routeId: String(doc.routeId),
-  category: doc.category,
   name: doc.name,
   address: doc.address,
   email: doc.email,
@@ -51,7 +50,6 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
   async list(filter: DoctorFilter): Promise<PaginatedResult<Doctor>> {
     const query: Record<string, unknown> = {};
     if (filter.routeId) query['routeId'] = new Types.ObjectId(filter.routeId);
-    if (filter.category) query['category'] = filter.category;
     if (filter.status) query['status'] = filter.status;
     if (filter.search) query['name'] = new RegExp(escapeRegex(filter.search), 'i');
     const [docs, total] = await Promise.all([
@@ -59,6 +57,11 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
       DoctorModel.countDocuments(query),
     ]);
     return buildPaginatedResult(docs.map(toDoctor), total, filter);
+  }
+
+  async renameSpecialty(from: string, to: string): Promise<number> {
+    const res = await DoctorModel.updateMany({ specialty: new RegExp(`^\\s*${escapeRegex(from.trim())}\\s*$`, 'i') }, { $set: { specialty: to } });
+    return res.modifiedCount;
   }
 
   async findById(id: string): Promise<Doctor | null> {
@@ -119,7 +122,6 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
 
     const doctorMatch: Record<string, unknown> = { 'doctor.status': 'active' };
     if (filter.routeId) doctorMatch['doctor.routeId'] = oid(filter.routeId);
-    if (filter.category) doctorMatch['doctor.category'] = filter.category;
     if (filter.search) doctorMatch['doctor.name'] = new RegExp(escapeRegex(filter.search), 'i');
     // When visibility follows the Route, a user's Doctors are only the ones on Routes they still have.
     if (scopes.some((s) => s.routeIds !== null)) {

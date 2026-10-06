@@ -3,15 +3,15 @@ import { SyncRejection } from '@/modules/sync/sync.public.js';
 import { DoctorViews } from '../application/doctorViews.js';
 import { makeNewDoctorSyncHandler, NEW_DOCTOR_SYNC_KIND } from '../application/newDoctorSync.js';
 import { AddedDoctors } from '../application/usecases/addedDoctors.js';
-import { FakeApprovals, FakeAssignments, FakeDoctors, FakeTerritory, FakeTransactions, FakeUsers } from '../application/usecases/fmdTestKit.js';
+import { FakeApprovals, FakeAssignments, FakeDoctors, FakeTerritory, FakeTransactions, FakeUsers, FakeSpecialties } from '../application/usecases/fmdTestKit.js';
 import { editAddedDoctorBodySchema } from './field-master-data.schemas.js';
+import { SpecialtyCatalog } from '../application/specialtyCatalog.js';
 
 const ROUTE = 'a'.repeat(24);
 const OTHER_ROUTE = 'b'.repeat(24);
 const CLIENT_ID = '11111111-1111-4111-8111-111111111111';
-const payload = (over: Record<string, unknown> = {}): Record<string, unknown> & { routeId: string; category: string; name: string; address: string; specialty: string; qualification: string; location: { latitude: number; longitude: number } } => ({
+const payload = (over: Record<string, unknown> = {}): Record<string, unknown> & { routeId: string; name: string; address: string; specialty: string; qualification: string; location: { latitude: number; longitude: number } } => ({
   routeId: ROUTE,
-  category: 'A',
   name: 'Dr Mehta',
   address: '9 Lake Rd',
   specialty: 'ENT',
@@ -43,7 +43,7 @@ describe('NEW_DOCTOR through the sync push', () => {
     approvals = new FakeApprovals();
     territory = new FakeTerritory();
     territory.userRoutes.set('mr1', [ROUTE]);
-    added = new AddedDoctors(doctors, territory, approvals, new FakeTransactions(), new DoctorViews(assignments, new FakeUsers()));
+    added = new AddedDoctors(doctors, territory, approvals, new FakeTransactions(), new DoctorViews(assignments, new FakeUsers()), new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist'])));
     handler = makeNewDoctorSyncHandler(added, (p) => editAddedDoctorBodySchema.parse(p));
   });
 
@@ -120,7 +120,7 @@ describe('NEW_DOCTOR through the sync push', () => {
       doctors.findByClientRequest = async (...args) => {
         calls += 1;
         const found = await realFind(...args);
-        if (calls === 1) await doctors.createProposed({ routeId: ROUTE, category: 'A', name: 'Dr Mehta', address: 'x', email: null, specialty: 'ENT', qualification: 'MS', location: null, capturedLocation: null, clientRequestId: CLIENT_ID, status: 'pending', addedBy: 'mr1', approvedAt: null });
+        if (calls === 1) await doctors.createProposed({ routeId: ROUTE, name: 'Dr Mehta', address: 'x', email: null, specialty: 'ENT', qualification: 'MS', location: null, capturedLocation: null, clientRequestId: CLIENT_ID, status: 'pending', addedBy: 'mr1', approvedAt: null });
         return found;
       };
       expect((await refusal(payload())).code).toBe('ADDED_AT_THE_SAME_TIME');

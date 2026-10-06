@@ -282,3 +282,14 @@ Tablet, Capsule, Syrup, Suspension, Injection, Ointment, Cream / gel, Drops, Pow
 PTS ≤ PTR ≤ MRP (checked on create, and on an edit against the prices as they will stand); equal is allowed. Everything but `division` is required on create. A product
 saved before these existed has them `null` and can still be edited (renamed, deactivated) without them; it shows `—` for them until someone completes it. The phone's
 product cache carries all of them. `category` keeps its stored name and now means the therapeutic class.
+
+
+## Speciality list, and no doctor category (2026-10-06)
+
+A `Doctor` no longer has a category. Its `specialty` is the name of an entry in the Admin-kept `Specialty` list (name, status; no rank).
+`GET/POST/PATCH /api/field-master-data/specialties` (Admin). A doctor created or edited by Admin, or added by an MR (including offline, through the
+`NEW_DOCTOR` sync record), must name an **active** speciality, compared ignoring case and stored in the list's spelling; anything else is a 400
+`specialty` ("Choose a speciality from the list"). A doctor's speciality that is left as it was is not re-checked, so an older doctor whose free text is
+not on the list can still be edited. **Renaming** a speciality also renames it on its doctors; **deactivating** only stops it being offered. The phone's
+snapshot carries `specialties` (the active names, A–Z) for the dropdown, and the doctor payloads no longer carry `category`; an old phone sending one has
+it ignored. `migrate:specialties` builds the list from a starter set plus the existing doctors' specialities.

@@ -4,12 +4,11 @@ import type { BadgeTone } from '@/components/ui/Badge';
 import { placeErrors, type PlaceDraft } from './chemists';
 import { EMPTY_COORDINATES, locationChange, pointFromInputs, pointToInputs } from './location';
 
-export const CATEGORY_MAX = 100;
 export const TEXT_MAX = 150;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface DoctorDraft extends PlaceDraft {
-  category: string;
+  /** One of the Admin's list (see Specialities). */
   specialty: string;
   qualification: string;
   email: string;
@@ -20,7 +19,6 @@ export const EMPTY_DOCTOR: DoctorDraft = {
   name: '',
   address: '',
   coordinates: { ...EMPTY_COORDINATES },
-  category: '',
   specialty: '',
   qualification: '',
   email: '',
@@ -32,7 +30,6 @@ export function doctorToDraft(d: DoctorDto): DoctorDraft {
     name: d.name,
     address: d.address,
     coordinates: pointToInputs(d.location),
-    category: d.category,
     specialty: d.specialty,
     qualification: d.qualification,
     email: d.email ?? '',
@@ -40,14 +37,12 @@ export function doctorToDraft(d: DoctorDto): DoctorDraft {
 }
 
 function errorsFor(draft: DoctorDraft): Record<string, string | undefined> {
-  const category = squash(draft.category);
   const specialty = squash(draft.specialty);
   const qualification = squash(draft.qualification);
   const email = draft.email.trim();
   return {
     ...placeErrors(draft, 'doctor name'),
-    category: category === '' ? 'Enter a category.' : category.length > CATEGORY_MAX ? `Keep it to ${CATEGORY_MAX} characters.` : undefined,
-    specialty: specialty === '' ? 'Enter a specialty.' : specialty.length > TEXT_MAX ? `Keep it to ${TEXT_MAX} characters.` : undefined,
+    specialty: specialty === '' ? 'Choose a speciality.' : specialty.length > TEXT_MAX ? `Keep it to ${TEXT_MAX} characters.` : undefined,
     qualification: qualification === '' ? 'Enter a qualification.' : qualification.length > TEXT_MAX ? `Keep it to ${TEXT_MAX} characters.` : undefined,
     email: email !== '' && !EMAIL.test(email) ? 'Enter a valid email address.' : undefined,
   };
@@ -61,7 +56,6 @@ export function buildDoctor(draft: DoctorDraft): BuildResult<CreateDoctorDto> {
     ok: true,
     body: {
       routeId: draft.routeId,
-      category: squash(draft.category),
       name: squash(draft.name),
       address: squash(draft.address),
       specialty: squash(draft.specialty),
@@ -77,7 +71,6 @@ export function buildDoctorUpdate(original: DoctorDto, draft: DoctorDraft): Buil
   const errors = errorsFor(draft);
   const point = pointFromInputs(draft.coordinates);
   if (Object.values(errors).some(Boolean) || !point.ok) return fail(errors);
-  const category = squash(draft.category);
   const name = squash(draft.name);
   const address = squash(draft.address);
   const specialty = squash(draft.specialty);
@@ -87,7 +80,6 @@ export function buildDoctorUpdate(original: DoctorDto, draft: DoctorDraft): Buil
     ok: true,
     body: {
       ...(draft.routeId !== original.routeId && { routeId: draft.routeId }),
-      ...(category !== original.category && { category }),
       ...(name !== original.name && { name }),
       ...(address !== original.address && { address }),
       ...(specialty !== original.specialty && { specialty }),
@@ -113,11 +105,6 @@ export const DOCTOR_STATUS_TONE: Record<DoctorStatus, BadgeTone> = {
 /** Admin can move a Doctor between active and inactive; a pending one is the approval's to decide. */
 export function canToggleStatus(status: DoctorStatus): boolean {
   return status !== 'pending';
-}
-
-/** The distinct categories in use, sorted: the filter's options and the form's suggestions. */
-export function distinctCategories(doctors: readonly Pick<DoctorDto, 'category'>[]): string[] {
-  return [...new Set(doctors.map((d) => d.category))].sort((a, b) => a.localeCompare(b));
 }
 
 /** True for an MR-added Doctor whose phone point differs from the registered one: Admin has corrected it. */

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeFieldMasterDataSource } from '../syncSnapshot.js';
 import { DoctorVisibility } from '../doctorVisibility.js';
-import { FakeAssignments, FakeChemists, FakeConfig, FakeDistributors, FakeDoctors, FakeProducts, FakeSampleAllocations, FakeTerritory, FakeUsers } from './fmdTestKit.js';
+import { FakeAssignments, FakeChemists, FakeConfig, FakeDistributors, FakeDoctors, FakeProducts, FakeSampleAllocations, FakeTerritory, FakeUsers, FakeSpecialties } from './fmdTestKit.js';
+
 
 type Snapshot = {
   doctors: Array<{ id: string; name: string }>;
@@ -29,7 +30,7 @@ describe('the phone’s cache of Field Master Data', () => {
   const fingerprint = async (user: string) => JSON.stringify(await source.snapshot(user));
 
   const doctor = async (name: string, routeId: string, status: 'active' | 'inactive' | 'pending' = 'active', addedBy = 'admin') =>
-    doctors.create({ routeId, category: 'A', name, address: 'x', email: null, specialty: 'ENT', qualification: 'MS', location: { latitude: 1, longitude: 2 }, capturedLocation: { latitude: 9, longitude: 9 }, status, addedBy, clientRequestId: null, approvedAt: null });
+    doctors.create({ routeId, name, address: 'x', email: null, specialty: 'ENT', qualification: 'MS', location: { latitude: 1, longitude: 2 }, capturedLocation: { latitude: 9, longitude: 9 }, status, addedBy, clientRequestId: null, approvedAt: null });
   const assign = (doctorId: string, userId: string) => assignments.create({ doctorId, userId, assignedBy: 'admin' });
 
   beforeEach(() => {
@@ -44,7 +45,7 @@ describe('the phone’s cache of Field Master Data', () => {
     territory.userRoutes.set('mr1', ['route-1']);
     territory.userRoutes.set('mr2', ['route-2']);
     const users = new FakeUsers();
-    source = makeFieldMasterDataSource({ doctors, chemists, products, distributors, allocations, visibility: new DoctorVisibility(assignments, territory, users, config), territory });
+    source = makeFieldMasterDataSource({ doctors, chemists, products, specialties: new FakeSpecialties(['ENT', 'Cardiologist']), distributors, allocations, visibility: new DoctorVisibility(assignments, territory, users, config), territory });
   });
 
   it('is named fieldMasterData', () => {
