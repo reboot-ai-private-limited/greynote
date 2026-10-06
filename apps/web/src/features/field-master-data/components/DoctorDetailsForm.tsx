@@ -167,11 +167,13 @@ export function DoctorDetailsForm({ doctor }: { doctor?: DoctorDto }) {
           </Button>
         )}
         {stepping && step !== 'review' ? (
-          <Button onClick={nextStep} disabled={locked}>
+          // Keyed apart from the Create button below: they sit in the same place, and one element turning from a plain button into a submit
+          // button mid-click would submit the form on the very click that moved to the review step.
+          <Button key="next" type="button" onClick={nextStep} disabled={locked}>
             Next: {DOCTOR_STEP_LABEL[DOCTOR_STEPS[stepIndex + 1] ?? 'review']}
           </Button>
         ) : (
-          <Button type="submit" disabled={locked || pending} title={readOnly ? 'A past financial year is read-only' : undefined}>
+          <Button key="create" type="submit" disabled={locked || pending} title={readOnly ? 'A past financial year is read-only' : undefined}>
             {pending ? 'Saving…' : doctor ? 'Save changes' : 'Create doctor'}
           </Button>
         )}
