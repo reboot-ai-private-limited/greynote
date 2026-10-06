@@ -1,7 +1,7 @@
 'use client';
 
 import type { ApprovalDetailDto, ApprovalInboxItemDto, BulkResultDto } from '@greynote/contracts';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { approvalsApi, type InboxQuery } from '@/lib/api/endpoints/approvals';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
@@ -20,6 +20,25 @@ export function useApprovals(view: ApprovalView, query: InboxQuery, enabled = tr
       enabled,
     }),
   );
+}
+
+/**
+ * How many requests are waiting on the caller in each tab, one small query per tab (a page of one; only the total is read). The
+ * result is keyed by tab value, with the empty string for everything. Waits for `enabled`, and stays quiet for tabs it has no answer for.
+ */
+export function useWaitingCounts(tabs: readonly { value: string }[], enabled: boolean): Record<string, number | undefined> {
+  const results = useQueries({
+    queries: tabs.map((tab) => {
+      const query: InboxQuery = { pageSize: 1, ...(tab.value ? { kind: tab.value } : {}) };
+      return authedQueryOptions({
+        queryKey: keys.approvals.inbox(query),
+        fetch: (token, signal) => approvalsApi.inbox(token, query, signal),
+        staleTime: staleTime.live,
+        enabled,
+      });
+    }),
+  });
+  return Object.fromEntries(tabs.map((tab, i) => [tab.value, results[i]?.data?.total]));
 }
 
 export function useApproval(id: string) {

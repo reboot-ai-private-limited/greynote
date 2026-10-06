@@ -789,7 +789,7 @@ Day status (proposed order, first match wins): not yet or before joining → hol
 Open for the owner: see sign-off K20–K25.
 
 **Change to the plan, same day (K20 answered yes):** an absent day now cuts salary, so the day-status rules must be shared by payroll and the calendars. The new order of work:
-- 5a Approvals in tabs (web + one counts endpoint).
+- 5a Approvals in tabs — **done 2026-10-06, web only** (one tab per kind plus All, each with its waiting count read from the existing inbox with a page of one, so no new endpoint; HR has no tabs; web 586 tests pass; **not browser-checked**, the browser extension was unavailable).
 - 5b Sales page (Admin; existing endpoints).
 - 5c **`attendance` module** (a read model, no data of its own; its own tier below Payroll and Reports; reads Identity, HR, Planning, Field Activity, Config) with the day-status rule as one pure, tested function; the per-employee calendar and the payroll calendar on top of it.
 - 5d **Absent-day deduction in Payroll:** `absentDays` and an absent deduction on the run (base ÷ 30 a day, together with unpaid leave never more than 30 days), shown on the payroll screen and the salary slip; `ABSENT_DEDUCTS_SALARY` setting; payroll refuses nothing new but shows each employee's absent days before generating.

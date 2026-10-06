@@ -9,15 +9,16 @@ import type { Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
 import { Select } from '@/components/ui/Select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { ageLabel } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useApprovals, type ApprovalView } from '../hooks/useApprovals';
+import { useApprovals, useWaitingCounts, type ApprovalView } from '../hooks/useApprovals';
+import { approvalTabsFor, tabCaption } from '../lib/approvalTabs';
 import { BulkDecisionDialog } from './BulkDecisionDialog';
 import {
-  KIND_OPTIONS,
   STATUS_LABEL,
   STATUS_TONE,
   dateRangeError,
@@ -38,8 +39,8 @@ export function ApprovalsScreen() {
   const role = useSession().user?.role;
   const readOnly = useIsReadOnly();
   const view: ApprovalView = values.view === 'history' ? 'history' : 'waiting';
-  // HR decides leave only; offering the other kinds would only ever show an empty list.
-  const kindOptions = role === 'HR' ? KIND_OPTIONS.filter((k) => k.value === 'LEAVE') : KIND_OPTIONS;
+  const tabs = approvalTabsFor(role);
+  const counts = useWaitingCounts(tabs, tabs.length > 0 && view === 'waiting');
   const rangeError = dateRangeError(values.from, values.to);
 
   const list = useApprovals(
@@ -166,6 +167,19 @@ export function ApprovalsScreen() {
       readOnly={readOnly}
       filters={
         <>
+          {tabs.length > 0 ? (
+            <div className="basis-full overflow-x-auto">
+              <Tabs value={values.kind || ANY} onValueChange={(v) => update({ kind: v === ANY ? '' : v })}>
+                <TabsList>
+                  {tabs.map((t) => (
+                    <TabsTrigger key={t.value || ANY} value={t.value || ANY}>
+                      {tabCaption(t.label, view === 'waiting' ? counts[t.value] : undefined)}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
+          ) : null}
           <div className="flex gap-1" role="group" aria-label="View">
             <Button variant={view === 'waiting' ? 'primary' : 'secondary'} aria-pressed={view === 'waiting'} onClick={() => update({ view: '', status: '' })}>
               Waiting on you
@@ -174,16 +188,6 @@ export function ApprovalsScreen() {
               History
             </Button>
           </div>
-          {role === 'HR' ? null : (
-            <div className="w-44">
-              <Select
-                aria-label="Kind"
-                value={values.kind || ANY}
-                options={[{ value: ANY, label: 'All kinds' }, ...kindOptions]}
-                onValueChange={(v) => update({ kind: v === ANY ? '' : v })}
-              />
-            </div>
-          )}
           {view === 'history' ? (
             <div className="w-44">
               <Select
