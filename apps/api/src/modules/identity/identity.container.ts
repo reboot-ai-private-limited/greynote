@@ -208,7 +208,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const updatePayComponent = new UpdatePayComponentUseCase(payComponentRepository);
   const seedDefaultPayComponents = new SeedDefaultPayComponentsUseCase(payComponentRepository);
   const previewCtc = new PreviewCtcUseCase(payComponentRepository);
-  const assignCtc = new AssignCtcUseCase(userRepository, roleRepository, payComponentRepository, ctcAssignmentRepository, employeeProfileRepository, payBandRepository);
+  const assignCtc = new AssignCtcUseCase(userRepository, roleRepository, payComponentRepository, ctcAssignmentRepository, configProvider);
   const listCtcHistory = new ListCtcHistoryUseCase(ctcAssignmentRepository);
   const getCtcForMonth = new GetCtcForMonthUseCase(ctcAssignmentRepository);
   const reapplyCtc = new ReapplyCtcUseCase(payComponentRepository, ctcAssignmentRepository);

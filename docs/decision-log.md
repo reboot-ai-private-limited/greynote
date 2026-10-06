@@ -1609,3 +1609,4 @@ stay plain TypeScript types — so a schema/model always lives in exactly one mo
 
 **Consequences:** `Promotion` record (from/to designation, grade, manager, effective month, CTC revision, handover plan, status scheduled/applied/cancelled); a manager-history collection; a run-script that applies due promotions on the 1st (repeatable, catches up a missed day). Sub-steps in `roadmap.md` item 4.
 
+**Built 2026-10-06 (step 4-0):** a pay grade no longer carries `ctcMinAnnualPaise`/`ctcMaxAnnualPaise`; `assignCtc` has no range check and no longer needs a grade; a rise of more than `CTC_JUMP_WARN_PERCENT` (default 50, SystemConfig, Payroll group) over the previous revision saves and returns a `warning`, shown by the web as a notice. The old fields are removed by `migrate:paybands` (replaces `migrate:payband-range`; manual_deploy Step 9e). API 952 / web 574 tests pass; not browser-checked.

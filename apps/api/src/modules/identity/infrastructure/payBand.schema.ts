@@ -5,8 +5,6 @@ interface PayBandDocument {
   name: string;
   /** Lower-cased, space-squashed `name`, for the case-insensitive unique index. */
   nameKey: string;
-  ctcMinAnnualPaise: number;
-  ctcMaxAnnualPaise: number;
   taPerKmRatePaise: number;
   hqDaPaise: number;
   exStationDaPaise: number;
@@ -19,15 +17,10 @@ const paise = { type: Number, required: true, validate: { validator: isPaise, me
 const payBandSchema = new Schema<PayBandDocument>({
   name: { type: String, required: true },
   nameKey: { type: String, required: true, unique: true },
-  ctcMinAnnualPaise: paise,
-  ctcMaxAnnualPaise: paise,
   taPerKmRatePaise: paise,
   hqDaPaise: paise,
   exStationDaPaise: paise,
   outStationDaPaise: paise,
-});
-payBandSchema.pre('validate', function () {
-  if (this.ctcMinAnnualPaise <= 0 || this.ctcMinAnnualPaise > this.ctcMaxAnnualPaise) this.invalidate('ctcMinAnnualPaise', 'The CTC range needs 0 < minimum <= maximum.');
 });
 
 export const PayBandModel = model<PayBandDocument>('PayBand', payBandSchema);

@@ -2,14 +2,15 @@
 
 import type {
   AssignCtcDto,
+  AssignCtcResultDto,
   CreatePayComponentDto,
-  CtcAssignmentDto,
   PreviewCtcDto,
   ReapplyCtcDto,
   ReapplyOutcomeDto,
   UpdatePayComponentDto,
 } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from '@/components/ui/toast';
 import { ctcApi, payComponentsApi } from '@/lib/api/endpoints/identity';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import { authedQueryOptions } from '@/lib/query/factory';
@@ -71,11 +72,15 @@ export function useCtcPreview(body: PreviewCtcDto | null) {
 }
 
 export function useAssignCtc(userId: string, onDone: () => void) {
-  return useApiMutation<AssignCtcDto, CtcAssignmentDto>({
+  return useApiMutation<AssignCtcDto, AssignCtcResultDto>({
     call: (token, body) => ctcApi.assign(token, userId, body),
     invalidates: [keys.ctc.history(userId)],
-    successMessage: 'CTC saved.',
-    onSuccess: onDone,
+    onSuccess: (saved) => {
+      // Saved either way; a big jump is only a warning.
+      if (saved.warning) toast.error(`CTC saved. Note: ${saved.warning}`);
+      else toast.success('CTC saved.');
+      onDone();
+    },
   });
 }
 

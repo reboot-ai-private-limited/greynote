@@ -44,6 +44,7 @@ const HISTORICAL_DEFAULTS: Record<string, string> = {
   EXPENSE_PAYOUT_DAY: '15',
   FY_CLOSED_YEARS: 'NONE',
   LEAVE_LOCKED_AFTER_PAYROLL: 'true',
+  CTC_JUMP_WARN_PERCENT: '50',
 };
 
 const def = (key: string) => {

@@ -7,8 +7,6 @@ function toPayBand(doc: { _id: unknown } & Omit<PayBand, 'id'>): PayBand {
   return {
     id: String(doc._id),
     name: doc.name,
-    ctcMinAnnualPaise: doc.ctcMinAnnualPaise,
-    ctcMaxAnnualPaise: doc.ctcMaxAnnualPaise,
     taPerKmRatePaise: doc.taPerKmRatePaise,
     hqDaPaise: doc.hqDaPaise,
     exStationDaPaise: doc.exStationDaPaise,

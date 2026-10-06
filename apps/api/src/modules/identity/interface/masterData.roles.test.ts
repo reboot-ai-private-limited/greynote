@@ -21,8 +21,6 @@ const stub = <T>(result: T) => ({ execute: vi.fn().mockResolvedValue(result) });
 
 const payBandBody = {
   name: 'G1',
-  ctcMinAnnualPaise: 14_400_000,
-  ctcMaxAnnualPaise: 30_000_000,
   taPerKmRatePaise: 750,
   hqDaPaise: 20000,
   exStationDaPaise: 30000,

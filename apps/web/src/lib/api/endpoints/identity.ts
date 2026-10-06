@@ -1,5 +1,6 @@
 import type {
   AssignCtcDto,
+  AssignCtcResultDto,
   CreateDesignationDto,
   CreatePayComponentDto,
   CtcAssignmentDto,
@@ -109,7 +110,7 @@ export const ctcApi = {
   history: (token: string, userId: string, signal?: AbortSignal) =>
     request<CtcAssignmentDto[]>(`/identity/users/${userId}/ctc`, { token, signal }),
   assign: (token: string, userId: string, body: AssignCtcDto) =>
-    request<CtcAssignmentDto>(`/identity/users/${userId}/ctc`, { method: 'POST', token, body }),
+    request<AssignCtcResultDto>(`/identity/users/${userId}/ctc`, { method: 'POST', token, body }),
   reapply: (token: string, body: ReapplyCtcDto) =>
     request<ReapplyOutcomeDto[]>('/identity/ctc/reapply', { method: 'POST', token, body }),
 };

@@ -49,18 +49,17 @@ function kit() {
     findById: async (id: string) => (id === 'field1' || id === 'field2' ? { id, roleId: 'r-field' } : id === 'admin1' ? { id, roleId: 'r-admin' } : null),
   };
   const roles = { findById: async (id: string) => ({ id, name: id === 'r-field' ? 'FIELD' : 'ADMIN' }) };
-  // field1 is on a grade of ₹1,00,000–₹3,00,000 a year; field2 has none.
-  const grade = { id: 'g2', name: 'G2', ctcMinAnnualPaise: 100_000 * RUPEE, ctcMaxAnnualPaise: 300_000 * RUPEE };
-  const profiles = { findByUserId: async (id: string) => (id === 'field1' ? { payBandId: 'g2' } : id === 'field2' ? { payBandId: null } : null) };
-  const payBands = { findById: async (id: string) => (id === 'g2' ? grade : null) };
-  return { components, saved, componentRepo, assignmentRepo, users, roles, profiles, payBands };
+  // The CTC is the employee's own: no grade, no range. The jump warning reads CTC_JUMP_WARN_PERCENT (50).
+  const config = { get: async () => '50' };
+  return { components, saved, componentRepo, assignmentRepo, users, roles, config };
 }
 
 async function seeded() {
   const k = kit();
   await new SeedDefaultPayComponentsUseCase(k.componentRepo as never).execute();
-  const assign = new AssignCtcUseCase(k.users as never, k.roles as never, k.componentRepo as never, k.assignmentRepo as never, k.profiles as never, k.payBands as never);
-  return { ...k, assign };
+  const useCase = new AssignCtcUseCase(k.users as never, k.roles as never, k.componentRepo as never, k.assignmentRepo as never, k.config as never);
+  const assign = { execute: async (...args: Parameters<typeof useCase.execute>) => (await useCase.execute(...args)).assignment };
+  return { ...k, assign, useCase };
 }
 
 describe('pay component formula', () => {
@@ -124,21 +123,20 @@ describe('assigning a CTC', () => {
     await expect(assign.execute('ghost', { ctcAnnualPaise: CTC, effectiveFrom: '2026-10' }, 'hr1')).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it('keeps the CTC inside the grade’s range, both ends allowed', async () => {
+  it('does not tie the CTC to a grade: any positive amount is saved, whatever the grade', async () => {
     const { assign, saved } = await seeded();
-    await assign.execute('field1', { ctcAnnualPaise: 100_000 * RUPEE, effectiveFrom: '2026-10' }, 'hr1');
-    await assign.execute('field1', { ctcAnnualPaise: 300_000 * RUPEE, effectiveFrom: '2026-11' }, 'hr1');
-    expect(saved).toHaveLength(2);
-    for (const ctc of [100_000 * RUPEE - 1, 300_000 * RUPEE + 1]) {
-      const err = await assign.execute('field1', { ctcAnnualPaise: ctc, effectiveFrom: '2026-12' }, 'hr1').catch((e: AppError) => e);
-      expect(err).toMatchObject({ statusCode: 400, message: expect.stringMatching(/G2.*₹1,00,000\.00 and ₹3,00,000\.00/) });
-    }
-    expect(saved).toHaveLength(2);
+    for (const [i, ctc] of [1, 14_400 * RUPEE, 900_000 * RUPEE].entries()) await assign.execute('field2', { ctcAnnualPaise: ctc, effectiveFrom: `2026-0${i + 1}` }, 'hr1');
+    expect(saved).toHaveLength(3);
   });
 
-  it('needs a pay grade first', async () => {
-    const { assign } = await seeded();
-    await expect(assign.execute('field2', { ctcAnnualPaise: CTC, effectiveFrom: '2026-10' }, 'hr1')).rejects.toMatchObject({ statusCode: 400, message: expect.stringMatching(/pay grade/) });
+  it('warns, never refuses, when the CTC is more than the set percent above the previous one', async () => {
+    const { useCase, saved } = await seeded();
+    const first = await useCase.execute('field1', { ctcAnnualPaise: 100_000 * RUPEE, effectiveFrom: '2026-04' }, 'hr1');
+    expect(first.warning).toBeNull();
+    expect((await useCase.execute('field1', { ctcAnnualPaise: 150_000 * RUPEE, effectiveFrom: '2026-07' }, 'hr1')).warning).toBeNull();
+    const jump = await useCase.execute('field1', { ctcAnnualPaise: 1_500_000 * RUPEE, effectiveFrom: '2026-10' }, 'hr1');
+    expect(jump.warning).toMatch(/more than 50%/);
+    expect(saved).toHaveLength(3);
   });
 
   it('appends revisions; a month resolves to the latest one in force, and a later formula edit does not touch saved ones', async () => {

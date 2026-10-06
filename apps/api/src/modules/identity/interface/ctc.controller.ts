@@ -24,7 +24,8 @@ export function makeCtcControllers(useCases: {
       sendSuccess(req, res, await useCases.preview.execute(req.body.ctcAnnualPaise, req.body.overrides), 'CTC breakdown computed.', 200);
     }),
     assign: asyncHandler(async (req, res) => {
-      sendSuccess(req, res, await useCases.assign.execute(requiredParam(req.params, 'id'), req.body, callerId(req)), 'CTC saved.', 201);
+      const { assignment, warning } = await useCases.assign.execute(requiredParam(req.params, 'id'), req.body, callerId(req));
+      sendSuccess(req, res, { ...assignment, warning }, 'CTC saved.', 201);
     }),
     history: asyncHandler(async (req, res) => {
       sendSuccess(req, res, await useCases.history.execute(requiredParam(req.params, 'id')), 'CTC history listed.', 200);

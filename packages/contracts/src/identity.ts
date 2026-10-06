@@ -41,9 +41,6 @@ export interface PayBandDto {
   id: string;
   /** Free text, up to 20 characters, unique ignoring case (G1, Trainee, Senior …). */
   name: string;
-  /** What an employee on this grade may be paid a year, both ends allowed: a CTC outside it is refused. */
-  ctcMinAnnualPaise: number;
-  ctcMaxAnnualPaise: number;
   taPerKmRatePaise: number;
   /** DA for a day worked in an HQ / Ex-station / Out-station Area. */
   hqDaPaise: number;
@@ -224,6 +221,10 @@ export interface CtcAssignmentDto {
   reason: string | null;
   createdBy: string;
   createdAt: string;
+}
+/** `POST /identity/users/:id/ctc`: the saved revision, and a warning (never a block) when it is far above the previous one. */
+export interface AssignCtcResultDto extends CtcAssignmentDto {
+  warning: string | null;
 }
 export interface AssignCtcDto {
   ctcAnnualPaise: number;

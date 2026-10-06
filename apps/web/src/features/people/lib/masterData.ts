@@ -21,8 +21,6 @@ export const MAX_PAISE = 10_000_000_000;
 export const PAY_BAND_NAME_MAX = 20;
 
 export const PAY_BAND_MONEY_FIELDS = [
-  { key: 'ctcMinAnnualPaise', label: 'Minimum CTC (per year)' },
-  { key: 'ctcMaxAnnualPaise', label: 'Maximum CTC (per year)' },
   { key: 'taPerKmRatePaise', label: 'TA rate (per km)' },
   { key: 'hqDaPaise', label: 'DA — HQ day' },
   { key: 'exStationDaPaise', label: 'DA — Ex-station day' },
@@ -34,8 +32,6 @@ export type PayBandMoneyKey = (typeof PAY_BAND_MONEY_FIELDS)[number]['key'];
 export type PayBandRupees = Record<PayBandMoneyKey, string>;
 
 export const EMPTY_PAY_BAND_RUPEES: PayBandRupees = {
-  ctcMinAnnualPaise: '',
-  ctcMaxAnnualPaise: '',
   taPerKmRatePaise: '',
   hqDaPaise: '',
   exStationDaPaise: '',
@@ -44,8 +40,6 @@ export const EMPTY_PAY_BAND_RUPEES: PayBandRupees = {
 
 export function payBandToRupees(band: PayBandDto): PayBandRupees {
   return {
-    ctcMinAnnualPaise: paiseToRupees(band.ctcMinAnnualPaise),
-    ctcMaxAnnualPaise: paiseToRupees(band.ctcMaxAnnualPaise),
     taPerKmRatePaise: paiseToRupees(band.taPerKmRatePaise),
     hqDaPaise: paiseToRupees(band.hqDaPaise),
     exStationDaPaise: paiseToRupees(band.exStationDaPaise),
@@ -82,12 +76,6 @@ function payBandErrors(name: string, rupees: PayBandRupees, others: readonly str
   else if (clean.length > PAY_BAND_NAME_MAX) errors['name'] = `Keep the name to ${PAY_BAND_NAME_MAX} characters.`;
   else if (others.some((o) => o.toLowerCase() === clean.toLowerCase())) errors['name'] = 'A pay grade with that name already exists.';
   for (const { key } of PAY_BAND_MONEY_FIELDS) errors[key] = moneyError(rupees[key]);
-  const min = rupeesToPaise(rupees.ctcMinAnnualPaise);
-  const max = rupeesToPaise(rupees.ctcMaxAnnualPaise);
-  if (!errors['ctcMinAnnualPaise'] && min === 0) errors['ctcMinAnnualPaise'] = 'The minimum must be more than zero.';
-  if (!errors['ctcMinAnnualPaise'] && !errors['ctcMaxAnnualPaise'] && min !== null && max !== null && min > max) {
-    errors['ctcMaxAnnualPaise'] = 'The maximum cannot be below the minimum.';
-  }
   return errors;
 }
 
@@ -99,8 +87,6 @@ export function buildPayBand(draft: { name: string; rupees: PayBandRupees }, exi
     ok: true,
     body: {
       name: gradeNameOf(draft.name),
-      ctcMinAnnualPaise: paise('ctcMinAnnualPaise'),
-      ctcMaxAnnualPaise: paise('ctcMaxAnnualPaise'),
       taPerKmRatePaise: paise('taPerKmRatePaise'),
       hqDaPaise: paise('hqDaPaise'),
       exStationDaPaise: paise('exStationDaPaise'),

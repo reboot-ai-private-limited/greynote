@@ -13,8 +13,6 @@ import {
 const g1: PayBandDto = {
   id: 'b1',
   name: 'G1',
-  ctcMinAnnualPaise: 14_400_000,
-  ctcMaxAnnualPaise: 30_000_000,
   taPerKmRatePaise: 750,
   hqDaPaise: 20_000,
   exStationDaPaise: 30_000,
@@ -41,13 +39,11 @@ describe('moneyError', () => {
 });
 
 describe('buildPayBand', () => {
-  it('converts rupees to integer paise and carries the range', () => {
+  it('converts rupees to integer paise', () => {
     expect(buildPayBand({ name: 'G1', rupees: filled })).toEqual({
       ok: true,
       body: {
         name: 'G1',
-        ctcMinAnnualPaise: 14_400_000,
-        ctcMaxAnnualPaise: 30_000_000,
         taPerKmRatePaise: 750,
         hqDaPaise: 20_000,
         exStationDaPaise: 30_000,
@@ -72,14 +68,13 @@ describe('buildPayBand', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(Object.keys(result.errors).sort()).toEqual(
-        ['ctcMaxAnnualPaise', 'ctcMinAnnualPaise', 'exStationDaPaise', 'hqDaPaise', 'name', 'outStationDaPaise', 'taPerKmRatePaise'].sort(),
+        ['exStationDaPaise', 'hqDaPaise', 'name', 'outStationDaPaise', 'taPerKmRatePaise'].sort(),
       );
     }
   });
-  it('needs a range that is above zero with the minimum not above the maximum; equal ends are fine', () => {
-    expect(buildPayBand({ name: 'A', rupees: { ...filled, ctcMinAnnualPaise: '0' } })).toMatchObject({ ok: false, errors: { ctcMinAnnualPaise: expect.stringMatching(/more than zero/) } });
-    expect(buildPayBand({ name: 'A', rupees: { ...filled, ctcMinAnnualPaise: '400000', ctcMaxAnnualPaise: '300000' } })).toMatchObject({ ok: false, errors: { ctcMaxAnnualPaise: expect.stringMatching(/below the minimum/) } });
-    expect(buildPayBand({ name: 'A', rupees: { ...filled, ctcMinAnnualPaise: '300000', ctcMaxAnnualPaise: '300000' } })).toMatchObject({ ok: true });
+  it('has no CTC range: a grade is its name and rates', () => {
+    expect(buildPayBand({ name: 'A', rupees: filled })).toMatchObject({ ok: true });
+    expect(buildPayBand({ name: 'A', rupees: filled })).not.toHaveProperty('body.ctcMinAnnualPaise');
   });
 });
 
@@ -87,7 +82,7 @@ describe('buildPayBandUpdate', () => {
   const draft = (over: Partial<typeof filled> = {}, name = 'G1') => ({ name, rupees: { ...filled, ...over } });
   it('sends only what changed', () => {
     expect(buildPayBandUpdate(g1, draft({ hqDaPaise: '250.00' }))).toEqual({ ok: true, body: { hqDaPaise: 25_000 } });
-    expect(buildPayBandUpdate(g1, draft({ ctcMaxAnnualPaise: '350000' }))).toEqual({ ok: true, body: { ctcMaxAnnualPaise: 35_000_000 } });
+    expect(buildPayBandUpdate(g1, draft({ outStationDaPaise: '450' }))).toEqual({ ok: true, body: { outStationDaPaise: 45_000 } });
   });
   it('is empty when nothing changed, so the form can just close', () => {
     expect(buildPayBandUpdate(g1, draft())).toEqual({ ok: true, body: {} });
@@ -102,9 +97,8 @@ describe('buildPayBandUpdate', () => {
     expect(buildPayBandUpdate(g1, draft({}, 'G1'), [g1, g2])).toEqual({ ok: true, body: {} });
     expect(buildPayBandUpdate(g1, draft({}, 'g1'), [g1, g2])).toEqual({ ok: true, body: { name: 'g1' } }); // a case fix of its own name
   });
-  it('refuses an invalid amount or a range turned upside down', () => {
+  it('refuses an invalid amount', () => {
     expect(buildPayBandUpdate(g1, draft({ hqDaPaise: '' }))).toMatchObject({ ok: false, errors: { hqDaPaise: 'Enter an amount.' } });
-    expect(buildPayBandUpdate(g1, draft({ ctcMinAnnualPaise: '999999' }))).toMatchObject({ ok: false });
   });
 });
 

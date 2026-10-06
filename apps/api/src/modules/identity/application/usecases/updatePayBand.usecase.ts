@@ -10,7 +10,7 @@ export class UpdatePayBandUseCase {
     const existing = await this.repository.findById(id);
     if (!existing) throw AppError.notFound();
 
-    // The merged result must still be a usable grade: the range is checked as a whole, not field by field.
+    // The merged result must still be a usable grade.
     assertValidPayBandMoney({ ...existing, ...input });
 
     if (input.name !== undefined) {

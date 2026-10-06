@@ -10,7 +10,7 @@ other module depends on it, directly or through the Approval Workflow Engine —
 - **`Role`** — `ADMIN`, `HR`, `ACCOUNTANT`, `FIELD`. One row per role name.
 - **`Designation`** — `MR`, `ASM`, `RSM`, `ZSM`, `NSM`, with a `level` fixed by the name (MR 1 … NSM 5, in code; nobody types it) used to order the
   reporting chain. FIELD-role only.
-- **`PayBand`** — a **pay grade** — free-text name (up to 20 characters, unique ignoring case; no cap on how many), carrying a required CTC range `ctcMinAnnualPaise`–`ctcMaxAnnualPaise` (assigning a CTC outside it is a `400`; the average is derived), `taPerKmRatePaise`, and three DA rates
+- **`PayBand`** — a **pay grade** — free-text name (up to 20 characters, unique ignoring case; no cap on how many), holding **no CTC** (a grade has no range; the CTC is set per employee and is independent of the grade — decision-log 2026-10-06), `taPerKmRatePaise`, and three DA rates
   (`hqDaPaise`, `exStationDaPaise`, `outStationDaPaise`, one per `Route.type`), all whole paise
   (₹7.50 per km is `750`; `../engineering/coding-standards.md`, *Money*). FIELD-role
   only; feeds TA/DA auto-calculation ([`hld/06`](../hld/06-ta-da-auto-calculation.md)) and Payroll
@@ -217,7 +217,7 @@ dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-l
 | `PATCH` | `/api/identity/users/:id` | Admin, HR | Incremental onboarding update — any of `basicDetails` (now including `dateOfJoining`), `bankDetails`, `designationId`, `payBandId`, `managerId` (each optional per call); upserts `EmployeeProfile` into existence on the first call. `status` is recomputed automatically after each call, not set directly (except `status: 'inactive'` for explicit deactivation, a direct `User` field toggle) |
 | `GET`/`POST`/`PATCH` | `/api/identity/pay-components` | read: Admin, HR, Accountant; write: Admin, HR | The org-wide CTC formula. Every write re-validates the whole formula (one balancer, no loops, Basic 30–60%) |
 | `POST` | `/api/identity/ctc/preview` | Admin, HR | `{ctcAnnualPaise, overrides?}` → breakdown + gross, nothing saved |
-| `GET`/`POST` | `/api/identity/users/:id/ctc` | read: Admin, HR, Accountant; write: Admin, HR | An employee's CTC revisions / save a new one `{ctcAnnualPaise, effectiveFrom, overrides?, reason?}` |
+| `GET`/`POST` | `/api/identity/users/:id/ctc` | read: Admin, HR, Accountant; write: Admin, HR | An employee's CTC revisions / save a new one `{ctcAnnualPaise, effectiveFrom, overrides?, reason?}`; no grade and no range needed; the response carries `warning` when the CTC is more than `CTC_JUMP_WARN_PERCENT` (50) above the previous revision (saved anyway) |
 | `POST` | `/api/identity/ctc/reapply` | Admin, HR | `{effectiveFrom, reason?, userIds?}` → new revisions from the current formula; per-employee outcome |
 | `POST` | `/api/identity/users/:id/documents` | Admin, HR | Upload a document (`multipart/form-data`, field `file` + `documentType`, up to 10 MB) to Cloudinary and attach it to the user. Only a PDF, JPG or PNG, judged by the file's own header, not its name or declared type; anything else is a `400` before it reaches storage |
 | `DELETE` | `/api/identity/users/:id/documents/:documentId` | Admin, HR | Remove a document from Cloudinary **and** the user record |

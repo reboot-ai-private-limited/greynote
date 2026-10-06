@@ -13,9 +13,6 @@ export const createDesignationBodySchema = z.object({ name: z.enum(DESIGNATION_N
 export const createPayBandBodySchema = z.object({
   name: z.string().trim().min(1).max(PAY_BAND_NAME_MAX).transform((v) => v.replace(/\s+/g, ' ')),
   // Whole paise (₹1 = 100): ₹7.50 per km is 750. A decimal is a 400, not a rounding.
-  // The CTC range (a year, inclusive) is required; `min <= max` is checked in the use case, against the merged values on an edit.
-  ctcMinAnnualPaise: paiseSchema,
-  ctcMaxAnnualPaise: paiseSchema,
   taPerKmRatePaise: paiseSchema,
   hqDaPaise: paiseSchema,
   exStationDaPaise: paiseSchema,

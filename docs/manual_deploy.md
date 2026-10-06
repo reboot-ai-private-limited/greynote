@@ -175,6 +175,19 @@ docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-spe
 
 Safe to run again. A fresh database gets the starter list and nothing else to convert. Old doctor `category` values stay in the database and are never read.
 
+## Step 9e — Drop the CTC range from pay grades (once, when upgrading past 2026-10-06)
+
+A pay grade no longer holds a CTC range; the CTC is per employee (`docs/decision-log.md`, 2026-10-06). **Re-run the seed (Step 8) first** so the new setting
+`CTC_JUMP_WARN_PERCENT` exists. Then remove the old fields from the grades (and set the case-insensitive name key if an older database lacks it). Dry run first;
+`--apply` writes a backup file before changing anything:
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-paybands.js
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-paybands.js --apply
+```
+
+Safe to run again. Employees' saved CTC revisions are not touched.
+
 ## Step 10 — Schedule the daily compliance job
 
 The application has no scheduler. Once a day, after the business day rolls over (early morning is fine), the

@@ -15,7 +15,7 @@
         "migrate:money": "tsx src/scripts/migrate-money-to-paise.ts",
         "migrate:territory": "tsx src/scripts/migrate-territory-flatten.ts",
         "migrate:payband-ctc": "tsx src/scripts/migrate-payband-salary-to-ctc.ts",
-        "migrate:payband-range": "tsx src/scripts/migrate-payband-ctc-range.ts",
+        "migrate:paybands": "tsx src/scripts/migrate-paybands.ts",
         "migrate:specialties": "tsx src/scripts/migrate-specialties.ts",
         "migrate:inherit-monthly": "tsx src/scripts/migrate-inherit-monthly-plans.ts",
         "compliance:run": "tsx src/scripts/run-compliance.ts",

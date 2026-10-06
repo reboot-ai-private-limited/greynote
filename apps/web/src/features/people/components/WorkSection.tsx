@@ -9,7 +9,6 @@ import { useDesignations, usePayBands } from '../hooks/useMasterData';
 import { useUpdateUser, useUser } from '../hooks/useUsers';
 import { DESIGNATION_LABEL } from '../lib/masterData';
 import { buildWork, workToDraft, type WorkDraft } from '../lib/profile';
-import { GradeRange } from './GradeRange';
 import { ManagerPickerDialog } from './ManagerPickerDialog';
 import { Field, FieldList, SectionCard, SectionForm } from './SectionCard';
 
@@ -26,13 +25,12 @@ export function WorkSection({ user, readOnly, startEditing = false }: { user: Us
     <SectionCard
       startEditing={startEditing}
       title="Designation, pay grade and manager"
-      description="Sets the reporting chain, the CTC range, and the TA and DA rates. The CTC itself is set under Compensation."
+      description="Sets the reporting chain and the TA and DA rates. The CTC is set per employee under Compensation."
       readOnly={readOnly}
       view={
         <FieldList>
           <Field label="Designation">{designation ? DESIGNATION_LABEL[designation.name] : null}</Field>
           <Field label="Pay grade">{payBand?.name}</Field>
-          <Field label="CTC range (a year)">{payBand ? <GradeRange band={payBand} /> : null}</Field>
           <Field label="Manager">{manager.data ? `${manager.data.name} (${manager.data.employeeCode})` : null}</Field>
         </FieldList>
       }
@@ -49,7 +47,6 @@ function WorkForm({ user, onDone }: { user: UserDetailDto; onDone: () => void })
   const designations = useDesignations();
   const payBands = usePayBands();
   const currentManager = useUser(user.profile?.managerId);
-  const chosenBand = payBands.data?.find((b) => b.id === draft.payBandId);
   const update = useUpdateUser(user.id, onDone);
 
   function submit() {
@@ -80,14 +77,9 @@ function WorkForm({ user, onDone }: { user: UserDetailDto; onDone: () => void })
             id="work-payband"
             value={draft.payBandId}
             onValueChange={(v) => setDraft((d) => ({ ...d, payBandId: v }))}
-            options={[...(payBands.data ?? [])].sort((a, b) => a.ctcMinAnnualPaise - b.ctcMinAnnualPaise || a.name.localeCompare(b.name)).map((b) => ({ value: b.id, label: b.name }))}
+            options={[...(payBands.data ?? [])].sort((a, b) => a.name.localeCompare(b.name)).map((b) => ({ value: b.id, label: b.name }))}
             placeholder={payBands.isLoading ? 'Loading…' : 'Choose a pay grade'}
           />
-          {chosenBand ? (
-            <div className="mt-2">
-              <GradeRange band={chosenBand} />
-            </div>
-          ) : null}
         </FormField>
         <FormField label="Manager" htmlFor="work-manager" error={errors['managerId']}>
           <div className="flex items-center gap-3">

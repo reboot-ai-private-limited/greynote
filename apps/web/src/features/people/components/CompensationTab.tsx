@@ -10,10 +10,8 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { formatDate, formatMoney } from '@/lib/format';
 import { istMonth } from '@/lib/dates';
 import { useCtcHistory } from '../hooks/useCtc';
-import { usePayBands } from '../hooks/useMasterData';
 import { CtcBreakdownTable } from './CtcBreakdownTable';
 import { CtcFormDialog } from './CtcFormDialog';
-import { GradeRange } from './GradeRange';
 
 /** The revision in force this month: the latest start not after it, ties to the one saved last (the list is newest first). */
 function inForce(history: readonly CtcAssignmentDto[], month: string): CtcAssignmentDto | undefined {
@@ -23,13 +21,11 @@ function inForce(history: readonly CtcAssignmentDto[], month: string): CtcAssign
 /** An employee's CTC: what applies now, what is coming, and every revision so far. */
 export function CompensationTab({ user, readOnly }: { user: UserDetailDto; readOnly: boolean }) {
   const history = useCtcHistory(user.id);
-  const payBands = usePayBands();
   const [editing, setEditing] = useState(false);
   const month = istMonth();
   const revisions = history.data ?? [];
   const current = inForce(revisions, month);
   const upcoming = revisions.filter((r) => r.effectiveFrom > month);
-  const grade = payBands.data?.find((b) => b.id === user.profile?.payBandId);
 
   return (
     <div className="space-y-6">
@@ -39,8 +35,8 @@ export function CompensationTab({ user, readOnly }: { user: UserDetailDto; readO
         actions={
           <Button
             size="sm"
-            disabled={readOnly || !grade}
-            title={readOnly ? 'A past financial year is read-only' : !grade ? 'Choose a pay grade on the Profile tab first' : undefined}
+            disabled={readOnly}
+            title={readOnly ? 'A past financial year is read-only' : undefined}
             onClick={() => setEditing(true)}
           >
             {current ? 'Revise CTC' : 'Set CTC'}
@@ -48,16 +44,6 @@ export function CompensationTab({ user, readOnly }: { user: UserDetailDto; readO
         }
       >
         <div className="p-5">
-          {grade ? (
-            <div className="mb-4 rounded-md bg-surface-subtle px-3 py-2">
-              <p className="mb-1 text-xs text-text-subtle">Grade {grade.name}: CTC range a year</p>
-              <GradeRange band={grade} />
-            </div>
-          ) : (
-            <p role="status" className="mb-4 rounded-md bg-warning-bg px-3 py-2 text-sm text-warning-fg">
-              Choose a pay grade on the Profile tab first — the CTC has to fall inside the grade's range.
-            </p>
-          )}
           <DataState
             isLoading={history.isLoading}
             error={history.error ? toErrorState(history.error, () => void history.refetch()) : null}
@@ -99,7 +85,7 @@ export function CompensationTab({ user, readOnly }: { user: UserDetailDto; readO
         </Card>
       ) : null}
 
-      {editing && grade ? <CtcFormDialog userId={user.id} current={current} grade={grade} onClose={() => setEditing(false)} /> : null}
+      {editing ? <CtcFormDialog userId={user.id} current={current} onClose={() => setEditing(false)} /> : null}
     </div>
   );
 }

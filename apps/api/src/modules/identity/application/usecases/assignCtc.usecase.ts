@@ -1,10 +1,9 @@
 import { AppError } from '@/shared/errors/AppError.js';
-import { formatPaise } from '@/shared/money/paise.js';
 import { computeCtcBreakdown } from '../../domain/ctcBreakdown.js';
+import { ctcJumpWarning } from '../../domain/ctcJump.js';
 import type { CtcAssignment } from '../../domain/ctcAssignment.entity.js';
 import type { CtcAssignmentRepositoryPort } from '../../domain/ctcAssignment.repository.port.js';
-import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
-import type { PayBandRepositoryPort } from '../../domain/payBand.repository.port.js';
+import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
 import type { PayComponentRepositoryPort } from '../../domain/payComponent.repository.port.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
@@ -18,9 +17,13 @@ export interface AssignCtcInput {
   reason?: string | null;
 }
 
+const FAR_FUTURE = '9999-12';
+
 /**
- * Saves a new CTC revision for a FIELD employee, inside the range of their pay grade (both ends allowed). Never edits an earlier one: a later revision (or one saved later for the
- * same month) simply takes over from `effectiveFrom`, and past payroll keeps pointing at what was in force then.
+ * Saves a new CTC revision for a FIELD employee. The CTC is the employee's own: it does not depend on, or have to fit, their
+ * pay grade (decision-log 2026-10-06). A rise of more than `CTC_JUMP_WARN_PERCENT` over the previous revision saves but comes
+ * back with a warning. Never edits an earlier revision: a later one (or one saved later for the same month) simply takes over
+ * from `effectiveFrom`, and past payroll keeps pointing at what was in force then.
  */
 export class AssignCtcUseCase {
   constructor(
@@ -28,30 +31,21 @@ export class AssignCtcUseCase {
     private readonly roles: RoleRepositoryPort,
     private readonly components: PayComponentRepositoryPort,
     private readonly assignments: CtcAssignmentRepositoryPort,
-    private readonly profiles: EmployeeProfileRepositoryPort,
-    private readonly payBands: PayBandRepositoryPort,
+    private readonly config: ConfigProviderPort,
   ) {}
 
-  async execute(userId: string, input: AssignCtcInput, createdBy: string): Promise<CtcAssignment> {
+  async execute(userId: string, input: AssignCtcInput, createdBy: string): Promise<{ assignment: CtcAssignment; warning: string | null }> {
     const user = await this.users.findById(userId);
     if (!user) throw AppError.notFound();
     const role = await this.roles.findById(user.roleId);
     if (role?.name !== 'FIELD') throw AppError.badRequest('Only field employees have a CTC.');
 
-    const profile = await this.profiles.findByUserId(userId);
-    const grade = profile?.payBandId ? await this.payBands.findById(profile.payBandId) : null;
-    if (!grade) throw AppError.badRequest('Choose a pay grade for this employee before setting a CTC.', { field: 'payBandId' });
-    if (input.ctcAnnualPaise < grade.ctcMinAnnualPaise || input.ctcAnnualPaise > grade.ctcMaxAnnualPaise) {
-      throw AppError.badRequest(
-        `The CTC for grade ${grade.name} must be between ${formatPaise(grade.ctcMinAnnualPaise)} and ${formatPaise(grade.ctcMaxAnnualPaise)} a year.`,
-        { field: 'ctcAnnualPaise', min: grade.ctcMinAnnualPaise, max: grade.ctcMaxAnnualPaise },
-      );
-    }
-
     const overrides = input.overrides ?? {};
     const formula = await this.components.list();
     const lines = asBadRequest(() => computeCtcBreakdown(formula, input.ctcAnnualPaise, overrides));
-    return this.assignments.create({
+    const previous = await this.assignments.findEffective(userId, FAR_FUTURE);
+    const warning = ctcJumpWarning(previous?.ctcAnnualPaise ?? null, input.ctcAnnualPaise, Number(await this.config.get('CTC_JUMP_WARN_PERCENT')));
+    const assignment = await this.assignments.create({
       userId,
       ctcAnnualPaise: input.ctcAnnualPaise,
       effectiveFrom: input.effectiveFrom,
@@ -60,5 +54,6 @@ export class AssignCtcUseCase {
       reason: input.reason ?? null,
       createdBy,
     });
+    return { assignment, warning };
   }
 }

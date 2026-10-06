@@ -1,6 +1,6 @@
 'use client';
 
-import type { CtcAssignmentDto, PayBandDto, PayComponentDto } from '@greynote/contracts';
+import type { CtcAssignmentDto, PayComponentDto } from '@greynote/contracts';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -11,8 +11,7 @@ import { istMonth } from '@/lib/dates';
 import { formatMoney } from '@/lib/format';
 import { paiseToRupees } from '@/lib/money';
 import { useAssignCtc, useCtcPreview, usePayComponents } from '../hooks/useCtc';
-import { buildAssignCtc, buildPreview, ctcRangeError, gradeRange, monthlyOf, parseCtc, type CtcDraft } from '../lib/ctc';
-import { GradeRange } from './GradeRange';
+import { buildAssignCtc, buildPreview, monthlyOf, parseCtc, type CtcDraft } from '../lib/ctc';
 
 /**
  * Set or revise an employee's CTC. The breakdown fills in from the org formula as the CTC is typed; any line except the
@@ -22,18 +21,15 @@ import { GradeRange } from './GradeRange';
 export function CtcFormDialog({
   userId,
   current,
-  grade,
   onClose,
 }: {
   userId: string;
   /** The revision in force today, to start from. */
   current?: CtcAssignmentDto | undefined;
-  /** The employee's pay grade: the CTC must be inside its range, and the box starts from its average. */
-  grade: PayBandDto;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<CtcDraft>(() => ({
-    ctc: current ? paiseToRupees(current.ctcAnnualPaise) : paiseToRupees(gradeRange(grade).avg),
+    ctc: current ? paiseToRupees(current.ctcAnnualPaise) : '',
     effectiveFrom: istMonth(),
     reason: '',
     overrides: Object.fromEntries(Object.entries(current?.overrides ?? {}).map(([code, paise]) => [code, paiseToRupees(paise)])),
@@ -45,7 +41,6 @@ export function CtcFormDialog({
 
   const balancerCode = components.data?.find((c: PayComponentDto) => c.rule.type === 'BALANCER')?.code;
   const ctcPaise = parseCtc(draft.ctc);
-  const rangeProblem = ctcRangeError(ctcPaise, grade);
   const set = (patch: Partial<CtcDraft>) => setDraft((d) => ({ ...d, ...patch }));
   const setOverride = (code: string, text: string) => set({ overrides: { ...draft.overrides, [code]: text } });
   const clearOverride = (code: string) => {
@@ -53,7 +48,7 @@ export function CtcFormDialog({
   };
 
   function submit() {
-    const built = buildAssignCtc(draft, grade);
+    const built = buildAssignCtc(draft);
     if (!built.ok) return setErrors(built.errors);
     setErrors({});
     save.mutate(built.body);
@@ -72,7 +67,7 @@ export function CtcFormDialog({
       onSubmit={submit}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="CTC per year (₹)" htmlFor="ctc-amount" error={errors['ctc'] === rangeProblem ? undefined : errors['ctc']}>
+        <FormField label="CTC per year (₹)" htmlFor="ctc-amount" error={errors['ctc']}>
           <Input id="ctc-amount" inputMode="decimal" value={draft.ctc} placeholder="144000" onChange={(e) => set({ ctc: e.target.value })} aria-invalid={errors['ctc'] ? true : undefined} />
         </FormField>
         <FormField label="Starts from" htmlFor="ctc-from" error={errors['effectiveFrom']}>
@@ -80,16 +75,6 @@ export function CtcFormDialog({
         </FormField>
       </div>
       {ctcPaise !== null ? <p className="-mt-2 text-xs text-text-muted">{formatMoney(monthlyOf(ctcPaise))} a month</p> : null}
-      <div className="rounded-md bg-surface-subtle px-3 py-2">
-        <p className="mb-1 text-xs text-text-subtle">Grade {grade.name}: the CTC must be inside this range</p>
-        <GradeRange band={grade} />
-      </div>
-      {rangeProblem ? (
-        <p role="alert" className="rounded-md bg-danger-bg px-3 py-2 text-sm text-danger-fg">
-          {rangeProblem}
-        </p>
-      ) : null}
-
       <div aria-live="polite">
         {previewError ? (
           <p role="alert" className="rounded-md bg-danger-bg px-3 py-2 text-sm text-danger-fg">
