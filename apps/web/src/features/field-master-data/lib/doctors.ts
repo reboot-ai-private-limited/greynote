@@ -48,6 +48,25 @@ function errorsFor(draft: DoctorDraft): Record<string, string | undefined> {
   };
 }
 
+/** Adding a doctor is three steps: the details, where the clinic is on the map, and a look over it all before it is created. */
+export const DOCTOR_STEPS = ['details', 'location', 'review'] as const;
+export type DoctorStep = (typeof DOCTOR_STEPS)[number];
+export const DOCTOR_STEP_LABEL: Record<DoctorStep, string> = { details: 'Details', location: 'Location', review: 'Review' };
+
+const DETAIL_FIELDS = ['routeId', 'name', 'address', 'specialty', 'qualification', 'email'];
+const LOCATION_FIELDS = ['latitude', 'longitude'];
+
+/** What is wrong with the fields of one step (the review step checks everything), so "Next" can say so before moving on. */
+export function doctorStepErrors(draft: DoctorDraft, step: DoctorStep): Record<string, string> {
+  const all = errorsFor(draft);
+  const fields = step === 'details' ? DETAIL_FIELDS : step === 'location' ? LOCATION_FIELDS : null;
+  const out: Record<string, string> = {};
+  for (const [field, message] of Object.entries(all)) {
+    if (message && (fields === null || fields.includes(field))) out[field] = message;
+  }
+  return out;
+}
+
 export function buildDoctor(draft: DoctorDraft): BuildResult<CreateDoctorDto> {
   const errors = errorsFor(draft);
   const point = pointFromInputs(draft.coordinates);

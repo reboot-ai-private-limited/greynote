@@ -4,6 +4,7 @@ import {
   EMPTY_DOCTOR,
   buildDoctor,
   buildDoctorUpdate,
+  doctorStepErrors,
   canToggleStatus,
   doctorToDraft,
   locationWasCorrected,
@@ -101,3 +102,16 @@ describe('locationWasCorrected', () => {
   });
 });
 
+
+describe('doctorStepErrors', () => {
+  it('the details step checks only the details, the location step only the point, the review step everything', () => {
+    const empty = { ...filled, routeId: '', name: '', specialty: '', coordinates: { latitude: '95', longitude: '' } };
+    expect(Object.keys(doctorStepErrors(empty, 'details')).sort()).toEqual(['name', 'routeId', 'specialty']);
+    expect(Object.keys(doctorStepErrors(empty, 'location')).sort()).toEqual(['latitude', 'longitude']);
+    expect(Object.keys(doctorStepErrors(empty, 'review')).sort()).toEqual(['latitude', 'longitude', 'name', 'routeId', 'specialty']);
+  });
+  it('a complete draft has no errors on any step; a doctor with no point yet is fine', () => {
+    for (const step of ['details', 'location', 'review'] as const) expect(doctorStepErrors(filled, step)).toEqual({});
+    expect(doctorStepErrors({ ...filled, coordinates: { latitude: '', longitude: '' } }, 'location')).toEqual({});
+  });
+});

@@ -8,10 +8,11 @@ import { useUpdateUser } from '../hooks/useUsers';
 import { addressToDraft, buildAddress, type AddressDraft } from '../lib/profile';
 import { Field, FieldList, SectionCard, SectionForm } from './SectionCard';
 
-export function AddressSection({ user, readOnly }: { user: UserDetailDto; readOnly: boolean }) {
+export function AddressSection({ user, readOnly, startEditing = false }: { user: UserDetailDto; readOnly: boolean; startEditing?: boolean }) {
   const a = user.profile?.address;
   return (
     <SectionCard
+      startEditing={startEditing}
       title="Address"
       readOnly={readOnly}
       view={

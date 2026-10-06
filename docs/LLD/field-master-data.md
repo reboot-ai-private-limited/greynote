@@ -293,3 +293,7 @@ A `Doctor` no longer has a category. Its `specialty` is the name of an entry in 
 not on the list can still be edited. **Renaming** a speciality also renames it on its doctors; **deactivating** only stops it being offered. The phone's
 snapshot carries `specialties` (the active names, A–Z) for the dropdown, and the doctor payloads no longer carry `category`; an old phone sending one has
 it ignored. `migrate:specialties` builds the list from a starter set plus the existing doctors' specialities.
+
+
+Adding a doctor on the web is three steps (**Details → Location → Review**); editing one still shows everything at once. "Next" checks only that step's fields; Enter inside a step means Next, and
+only the review step creates the doctor. The responsible MR is chosen on the doctor's page afterwards.

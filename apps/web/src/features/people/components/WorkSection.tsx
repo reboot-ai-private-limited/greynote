@@ -14,7 +14,7 @@ import { ManagerPickerDialog } from './ManagerPickerDialog';
 import { Field, FieldList, SectionCard, SectionForm } from './SectionCard';
 
 /** Designation, pay grade and manager: what places an employee in the reporting chain and on a pay grade. */
-export function WorkSection({ user, readOnly }: { user: UserDetailDto; readOnly: boolean }) {
+export function WorkSection({ user, readOnly, startEditing = false }: { user: UserDetailDto; readOnly: boolean; startEditing?: boolean }) {
   const p = user.profile;
   const designations = useDesignations();
   const payBands = usePayBands();
@@ -24,6 +24,7 @@ export function WorkSection({ user, readOnly }: { user: UserDetailDto; readOnly:
 
   return (
     <SectionCard
+      startEditing={startEditing}
       title="Designation, pay grade and manager"
       description="Sets the reporting chain, the CTC range, and the TA and DA rates. The CTC itself is set under Compensation."
       readOnly={readOnly}

@@ -10,11 +10,12 @@ import { bankToDraft, buildBank, maskAccount, type BankDraft } from '../lib/prof
 import { Field, FieldList, SectionCard, SectionForm } from './SectionCard';
 
 /** Bank details, which the API returns nowhere else. The account number is masked until asked for. */
-export function BankSection({ user, readOnly }: { user: UserDetailDto; readOnly: boolean }) {
+export function BankSection({ user, readOnly, startEditing = false }: { user: UserDetailDto; readOnly: boolean; startEditing?: boolean }) {
   const b = user.profile?.bankDetails;
   const [reveal, setReveal] = useState(false);
   return (
     <SectionCard
+      startEditing={startEditing}
       title="Bank details"
       description="Needed before the employee can be paid. Visible to Admin and HR only."
       readOnly={readOnly}

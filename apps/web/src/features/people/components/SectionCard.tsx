@@ -18,6 +18,7 @@ export function SectionCard({
   readOnly,
   view,
   renderForm,
+  startEditing = false,
 }: {
   title: string;
   description?: string;
@@ -25,8 +26,10 @@ export function SectionCard({
   readOnly: boolean;
   view: ReactNode;
   renderForm: (close: () => void) => ReactNode;
+  /** Opens with the form showing — the step-by-step setup uses this. */
+  startEditing?: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(startEditing);
   return (
     <Card
       title={title}

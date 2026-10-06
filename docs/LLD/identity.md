@@ -266,3 +266,11 @@ device-limit value.
   reconsidered here.
 - Session-list / "log out from here" self-service UI — the API (`logout-all`) supports the
   underlying mechanism, but a user-facing device-management screen isn't in PRD scope for phase 1.
+
+
+## Setting a field employee up step by step (web, 2026-10-06)
+
+`/employees/:id/setup` walks a new FIELD employee through **Personal details, Address, Work, Bank details, Compensation, Documents**. Each step is the same section the profile shows,
+opened for editing, and saves on its own through the existing onboarding `PATCH`/CTC/document endpoints, so there is no new API and nothing is lost by stopping: the profile's "still to
+fill in" banner links back with *Continue setup*. The four required steps (everything `computeUserStatus` needs for `active`) show a check once the profile has them; Compensation and
+Documents are optional. Creating a FIELD employee goes straight to the first open step; other roles go to their profile.

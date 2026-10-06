@@ -69,6 +69,13 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
               <div role="status" className="mb-6 rounded-lg border border-border bg-warning-bg p-4 text-sm text-warning-fg">
                 <p className="font-medium">Still to fill in before this employee is active:</p>
                 <p className="mt-1">{missing.join(' · ')}</p>
+                {user.role === 'FIELD' ? (
+                  <p className="mt-2">
+                    <Link href={`/employees/${user.id}/setup`} className="font-medium underline">
+                      Continue setup
+                    </Link>
+                  </p>
+                ) : null}
               </div>
             ) : null}
             {user.role === 'FIELD' ? (

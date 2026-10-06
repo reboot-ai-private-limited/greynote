@@ -10,10 +10,11 @@ import { useUpdateUser } from '../hooks/useUsers';
 import { basicToDraft, buildBasic, type BasicDraft } from '../lib/profile';
 import { Field, FieldList, SectionCard, SectionForm } from './SectionCard';
 
-export function BasicSection({ user, readOnly }: { user: UserDetailDto; readOnly: boolean }) {
+export function BasicSection({ user, readOnly, startEditing = false }: { user: UserDetailDto; readOnly: boolean; startEditing?: boolean }) {
   const p = user.profile;
   return (
     <SectionCard
+      startEditing={startEditing}
       title="Personal details"
       readOnly={readOnly}
       view={

@@ -23,7 +23,7 @@ export function EmployeeCreateScreen() {
   // HR can only create field employees, so the choice is made for them.
   const [draft, setDraft] = useState<UserDraft>({ ...EMPTY_USER_DRAFT, role: roles.length === 1 ? (roles[0] ?? '') : '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const create = useCreateUser((created) => router.push(`/employees/${created.id}`));
+  const create = useCreateUser((created) => router.push(created.role === 'FIELD' ? `/employees/${created.id}/setup` : `/employees/${created.id}`));
 
   const set = (field: keyof UserDraft) => (value: string) => setDraft((d) => ({ ...d, [field]: value }));
 
@@ -45,7 +45,7 @@ export function EmployeeCreateScreen() {
       </p>
       <PageHeader
         title="New employee"
-        description="Create the login first. A field employee's profile, designation, pay band and manager are filled in on the next screen."
+        description="Create the login first. A field employee is then set up step by step: personal details, address, work, bank, compensation and documents."
       />
       <form
         noValidate
