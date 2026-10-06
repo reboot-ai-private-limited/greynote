@@ -175,4 +175,11 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | K8 | Financial-year close | An explicit Admin "Close year" (and "Reopen") action; a closed year refuses payroll generate/finalize and expense payments for its months. Viewing is unaffected | Accepted 2026-10-06 (from the owner) |
 | K12 | After an employee's salary for a month is finalized, can their leave in that month still change? | No: it is locked (daily reports and expenses stay open until the 15th payout). A setting, `LEAVE_LOCKED_AFTER_PAYROLL`, switches it off | Accepted 2026-10-06 (from the owner, with a setting) |
 | K9 | Primary and secondary sales | Primary = to distributors, secondary = distributors to chemists | Open |
-| K10 | CTC against grade on a promotion | The new CTC must sit inside the new grade's range | Open |
+| K10 | CTC against grade | **Changed 2026-10-06:** a grade holds no CTC range; the CTC is set per employee and is independent of the grade (promotion included) | Accepted 2026-10-06 (from the owner) |
+| K13 | Promotion effective date | The 1st of a chosen month, never mid-month; future months are scheduled; a finalized month or closed year is refused | Accepted 2026-10-06 (from the owner) |
+| K14 | A promoted manager's team | Cannot save the promotion until every direct report (and distributor owner) has a new manager, set per employee or per group; nothing moves until the effective date | Accepted 2026-10-06 (from the owner) |
+| K15 | Team changes between scheduling and the 1st | The promotion still applies; anyone not in the plan stays with the promoted person and is listed under "Needs attention" | Accepted 2026-10-06 (from the owner) |
+| K16 | Requests already waiting at the promoted manager | Stay with them until decided | Accepted 2026-10-06 (from the owner) |
+| K17 | Leave on promotion | Leave is by financial year; a promotion keeps the current year's days and balance unchanged (the new grade's days apply from the next year); the promotion screen shows days used and deducted | Accepted 2026-10-06 (from the owner; reading of "show the deducted leave" to confirm) |
+| K18 | Reports after a team move | Show the team as it was in that month; every manager change is kept as dated history | Accepted 2026-10-06 (from the owner) |
+| K19 | Do ASM and above do field work? | Yes; their routes, doctors and plans stay with them on promotion | Accepted 2026-10-06 (from the owner) |

@@ -1589,3 +1589,23 @@ stay plain TypeScript types — so a schema/model always lives in exactly one mo
 **Consequences:** older products keep working with the new fields empty. The doctor's `category` becomes optional and then unused (the phone's `NEW_DOCTOR` payload may still send it); `specialty` is validated against the list.
 
 **Added 2026-10-06 — proof on medical leave (#11):** a leave type can allow proof; the employee may attach up to 3 files (PDF, JPG or PNG, 5 MB each), always optional, visible to whoever can see the leave (the employee, their managers, HR, Admin). Defaults were taken by the owner's "go": 3 files, 5 MB, approval chain and HR see them.
+
+---
+
+## 2026-10-06 — Promotion (roadmap step 4) and the CTC no longer sits in the grade
+
+**Decision:**
+- **CTC independent of grade (K10 changed):** a grade holds its name, DA rates and leave days, and **no CTC range**. A CTC is set per employee with no range check and no need for a grade first. This supersedes "a CTC must stay inside its grade's range" (2026-10-05, and the earlier pay-grade rule). Built first as step 4-0.
+- **Effective date (K13):** a promotion takes effect on the **1st of a chosen month**, never mid-month. A future month is *scheduled* and applied on the 1st; a finalized salary month or a closed financial year is refused. A promotion on the 17th takes effect on the 1st of the next month.
+- **Team handover (K14):** when the person has direct reports (and is the assigned MR/ASM of distributors), the promotion cannot be saved until each has a new manager — one for all, a group, or each one; "stay with the promoted person" is allowed with a warning. Until the effective month the person keeps their role, grade, CTC, team and approvals; on the 1st everything applies in one transaction.
+- **Gap between scheduling and the 1st (K15):** the promotion still applies; anyone added since stays with the promoted person and is listed under "Needs attention".
+- **Waiting requests (K16):** stay with the approver they were sent to until decided.
+- **Leave (K17):** leave is by financial year; the current year's days and balance are untouched by a promotion, the new grade's days apply from the next year, and the screen shows days used and deducted.
+- **History and reports (K18):** a promotion record plus a dated history of **every** manager change; a report for month M uses the team as of M.
+- **Field work (K19):** ASM and above do field work, so routes, doctors and plans stay with them.
+- **Warn, not block:** a manager whose level is not above their report's, and a promoted person left with direct MRs.
+
+**Why:** pay and grade run by month, so a mid-month change would split one salary run; a manager's team must never be left without a manager; reports judge a manager on the team they actually had.
+
+**Consequences:** `Promotion` record (from/to designation, grade, manager, effective month, CTC revision, handover plan, status scheduled/applied/cancelled); a manager-history collection; a run-script that applies due promotions on the 1st (repeatable, catches up a missed day). Sub-steps in `roadmap.md` item 4.
+
