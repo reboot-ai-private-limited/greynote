@@ -54,6 +54,7 @@ erDiagram
         uuid manager_id FK "self-referencing to USER, nullable - null = top of chain, required for FIELD activation"
         date date_of_joining "nullable"
         int probation_months "nullable, 0-36; null = PROBATION_MONTHS setting"
+        string esi_number "nullable, exactly 17 digits - printed on the salary slip"
         string mobile_number "nullable - onboarding basic details"
         string guardian_name "nullable, optional - not required for activation"
         date date_of_birth "nullable - onboarding basic details"

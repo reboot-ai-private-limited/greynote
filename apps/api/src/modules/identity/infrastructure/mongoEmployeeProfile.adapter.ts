@@ -15,6 +15,7 @@ function toEmployeeProfile(doc: EmployeeProfileDoc & { _id: unknown }): Employee
     managerId: doc.managerId ? String(doc.managerId) : null,
     dateOfJoining: doc.dateOfJoining,
     probationMonths: doc.probationMonths ?? null,
+    esiNumber: doc.esiNumber ?? null,
     mobileNumber: doc.mobileNumber,
     guardianName: doc.guardianName,
     dateOfBirth: doc.dateOfBirth,

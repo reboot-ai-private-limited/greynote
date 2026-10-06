@@ -21,6 +21,7 @@ function baseProfile(overrides: Partial<Omit<EmployeeProfile, 'id' | 'userId'>> 
     managerId: 'manager-1',
     dateOfJoining: new Date('2024-01-01'),
     probationMonths: null,
+    esiNumber: null,
     mobileNumber: '9999999999',
     guardianName: null,
     dateOfBirth: new Date('1995-01-01'),

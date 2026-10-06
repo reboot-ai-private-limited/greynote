@@ -26,6 +26,7 @@ export interface UserDetail {
     managerId: string | null;
     dateOfJoining: Date | null;
     probationMonths: number | null;
+    esiNumber: string | null;
     mobileNumber: string | null;
     guardianName: string | null;
     dateOfBirth: Date | null;
@@ -77,6 +78,7 @@ export class GetUserDetailUseCase {
             managerId: profile.managerId,
             dateOfJoining: profile.dateOfJoining,
             probationMonths: profile.probationMonths,
+            esiNumber: profile.esiNumber,
             mobileNumber: profile.mobileNumber,
             guardianName: profile.guardianName,
             dateOfBirth: profile.dateOfBirth,

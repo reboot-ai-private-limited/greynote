@@ -22,6 +22,7 @@ export function BasicSection({ user, readOnly }: { user: UserDetailDto; readOnly
           <Field label="Mobile">{p?.mobileNumber}</Field>
           <Field label="Date of birth">{p?.dateOfBirth ? formatDate(p.dateOfBirth) : null}</Field>
           <Field label="Date of joining">{p?.dateOfJoining ? formatDate(p.dateOfJoining) : null}</Field>
+          <Field label="ESI number">{p?.esiNumber}</Field>
           <Field label="Probation">{p?.probationMonths == null ? 'System default' : p.probationMonths === 0 ? 'None' : `${p.probationMonths} months`}</Field>
           <Field label="Guardian">{p?.guardianName}</Field>
           <Field label="Qualification">{p?.qualification}</Field>
@@ -59,6 +60,9 @@ function BasicForm({ user, onDone }: { user: UserDetailDto; onDone: () => void }
       </FormField>
       <FormField label="Date of joining" htmlFor="basic-doj" error={errors['dateOfJoining']} hint="Optional.">
         <Input id="basic-doj" type="date" value={draft.dateOfJoining} onChange={(e) => set('dateOfJoining')(e.target.value)} aria-invalid={invalid('dateOfJoining')} />
+      </FormField>
+      <FormField label="ESI number" htmlFor="basic-esi" error={errors['esiNumber']} hint="Optional. 17 digits; printed on the salary slip.">
+        <Input id="basic-esi" inputMode="numeric" maxLength={17} value={draft.esiNumber} onChange={(e) => set('esiNumber')(e.target.value)} aria-invalid={invalid('esiNumber')} />
       </FormField>
       <FormField label="Probation (months)" htmlFor="basic-probation" error={errors['probationMonths']} hint="Counted from the date of joining. Leave empty to use the system's probation length; 0 means none. Leave taken in probation is paid.">
         <Input id="basic-probation" inputMode="numeric" value={draft.probationMonths} onChange={(e) => set('probationMonths')(e.target.value)} aria-invalid={invalid('probationMonths')} />

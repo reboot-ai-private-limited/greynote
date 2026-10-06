@@ -30,6 +30,7 @@ export interface EmployeeProfileDoc {
   managerId: Types.ObjectId | null;
   dateOfJoining: Date | null;
   probationMonths?: number | null;
+  esiNumber?: string | null;
   mobileNumber: string | null;
   guardianName: string | null;
   dateOfBirth: Date | null;
@@ -78,6 +79,7 @@ const employeeProfileSchema = new Schema<EmployeeProfileDoc>({
   managerId: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
   dateOfJoining: { type: Date, default: null },
   probationMonths: { type: Number, default: null, min: 0, max: 36 },
+  esiNumber: { type: String, default: null, match: /^\d{17}$/ },
   mobileNumber: { type: String, default: null },
   guardianName: { type: String, default: null },
   dateOfBirth: { type: Date, default: null },

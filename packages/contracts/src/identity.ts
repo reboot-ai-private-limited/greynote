@@ -108,6 +108,8 @@ export interface UserDetailDto {
     dateOfJoining: string | null;
     /** Null: the probation length setting applies. 0: no probation. */
     probationMonths: number | null;
+    /** Exactly 17 digits, or null. */
+    esiNumber: string | null;
     mobileNumber: string | null;
     guardianName: string | null;
     dateOfBirth: string | null;
@@ -129,6 +131,8 @@ export interface UpdateUserDto {
     dateOfJoining?: string | null;
     /** Whole months 0–36; `null` goes back to the setting. */
     probationMonths?: number | null;
+    /** Exactly 17 digits; `null` clears it. */
+    esiNumber?: string | null;
     qualification?: string | null;
     address?: UserAddressDto;
   };

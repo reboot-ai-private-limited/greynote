@@ -26,6 +26,7 @@ const profile = (userId: string, managerId: string | null, extra: Partial<Employ
   managerId,
   dateOfJoining: null,
   probationMonths: null,
+  esiNumber: null,
   mobileNumber: null,
   guardianName: null,
   dateOfBirth: null,
@@ -208,5 +209,15 @@ describe('UpdateUserUseCase — deactivation', () => {
     users.set('a', { ...(users.get('a') as User), status: 'inactive' });
     const result = await useCase.execute('a', { basicDetails: { name: 'Changed' } });
     expect(result.status).toBe('inactive');
+  });
+
+  it('the ESI number and probation months are set, kept when not mentioned, and cleared by null', async () => {
+    const { useCase, profiles } = build({ a: null }, { a: { mobileNumber: '9830012345' } });
+    await useCase.execute('a', { basicDetails: { esiNumber: '12345678901234567', probationMonths: 3 } });
+    expect(profiles.get('a')).toMatchObject({ esiNumber: '12345678901234567', probationMonths: 3 });
+    await useCase.execute('a', { basicDetails: { name: 'New Name' } });
+    expect(profiles.get('a')).toMatchObject({ esiNumber: '12345678901234567', probationMonths: 3 });
+    await useCase.execute('a', { basicDetails: { esiNumber: null, probationMonths: null } });
+    expect(profiles.get('a')).toMatchObject({ esiNumber: null, probationMonths: null });
   });
 });

@@ -34,6 +34,7 @@ export interface UpdateUserInput {
     dateOfBirth?: Date;
     dateOfJoining?: Date | null;
     probationMonths?: number | null;
+    esiNumber?: string | null;
     qualification?: string | null;
     address?: Address;
   };
@@ -93,6 +94,7 @@ export class UpdateUserUseCase {
       managerId: input.managerId ?? existingProfile?.managerId ?? null,
       dateOfJoining: pick(input.basicDetails?.dateOfJoining, existingProfile?.dateOfJoining),
       probationMonths: pick(input.basicDetails?.probationMonths, existingProfile?.probationMonths),
+      esiNumber: pick(input.basicDetails?.esiNumber, existingProfile?.esiNumber),
       mobileNumber: input.basicDetails?.mobileNumber ?? existingProfile?.mobileNumber ?? null,
       guardianName: pick(input.basicDetails?.guardianName, existingProfile?.guardianName),
       dateOfBirth: input.basicDetails?.dateOfBirth ?? existingProfile?.dateOfBirth ?? null,

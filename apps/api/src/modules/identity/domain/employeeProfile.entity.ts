@@ -48,6 +48,8 @@ export interface EmployeeProfile {
   dateOfJoining: Date | null;
   /** Months of probation from `dateOfJoining`. Null: use the `PROBATION_MONTHS` setting. 0: no probation. */
   probationMonths: number | null;
+  /** The ESI insurance number: exactly 17 digits. Optional; printed on the salary slip. */
+  esiNumber: string | null;
   mobileNumber: string | null;
   guardianName: string | null;
   dateOfBirth: Date | null;

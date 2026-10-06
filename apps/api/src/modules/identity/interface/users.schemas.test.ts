@@ -27,3 +27,25 @@ describe('updateUserBodySchema — clearing', () => {
     expect(updateUserBodySchema.safeParse({ managerId: null }).success).toBe(false);
   });
 });
+
+describe('updateUserBodySchema — ESI number and probation months', () => {
+  const parse = (basicDetails: unknown) => updateUserBodySchema.safeParse({ basicDetails });
+
+  it('accepts exactly 17 digits, and null to clear', () => {
+    expect(parse({ esiNumber: '12345678901234567' }).success).toBe(true);
+    expect(parse({ esiNumber: null }).success).toBe(true);
+  });
+
+  it('refuses anything else, naming the rule', () => {
+    for (const bad of ['1234567890123456', '123456789012345678', '1234567890123456a', '', ' 12345678901234567']) {
+      expect(parse({ esiNumber: bad }).success).toBe(false);
+    }
+    const result = parse({ esiNumber: '123' });
+    expect(!result.success && result.error.issues[0]?.message).toBe('The ESI number is exactly 17 digits.');
+  });
+
+  it('probation months are whole numbers from 0 to 36, or null', () => {
+    for (const ok of [0, 6, 36, null]) expect(parse({ probationMonths: ok }).success).toBe(true);
+    for (const bad of [-1, 37, 1.5, '6']) expect(parse({ probationMonths: bad }).success).toBe(false);
+  });
+});

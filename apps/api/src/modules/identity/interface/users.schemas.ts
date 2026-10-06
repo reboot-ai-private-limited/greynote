@@ -43,6 +43,8 @@ const basicDetailsPatchSchema = z.object({
   /** Whole months, 0 (none) to 36; `null` goes back to the `PROBATION_MONTHS` setting. */
   probationMonths: z.number().int().min(0).max(36).nullable().optional(),
   qualification: z.string().min(1).nullable().optional(),
+  /** Exactly 17 digits (the ESI insurance number); `null` clears it. */
+  esiNumber: z.string().regex(/^\d{17}$/, 'The ESI number is exactly 17 digits.').nullable().optional(),
   address: addressSchema.optional(),
 });
 

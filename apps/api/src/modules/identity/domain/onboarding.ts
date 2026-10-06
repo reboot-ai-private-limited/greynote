@@ -18,7 +18,7 @@ import type { User, UserStatus } from './user.entity.js';
  * docs/decision-log.md, not fully pinned by the PRD/ERD: name, mobileNumber, dateOfBirth, a
  * complete address, designationId, payBandId, managerId, and the bank details needed to actually
  * pay someone (bankName/ifsc/accountNumber/accountHolderName). NOT required: guardianName,
- * qualification, bankDetails.branchName, documents, dateOfJoining.
+ * qualification, bankDetails.branchName, documents, dateOfJoining, probationMonths, esiNumber.
  */
 export function computeUserStatus(
   user: Pick<User, 'status' | 'name'>,

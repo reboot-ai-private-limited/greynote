@@ -32,6 +32,8 @@ export interface BasicDraft {
   dateOfJoining: string;
   /** Whole months, '' = use the system's probation length. */
   probationMonths: string;
+  /** Exactly 17 digits, '' = none. */
+  esiNumber: string;
   qualification: string;
 }
 
@@ -44,6 +46,7 @@ export function basicToDraft(user: UserDetailDto): BasicDraft {
     dateOfBirth: toDateInput(p?.dateOfBirth),
     dateOfJoining: toDateInput(p?.dateOfJoining),
     probationMonths: p?.probationMonths == null ? '' : String(p.probationMonths),
+    esiNumber: p?.esiNumber ?? '',
     qualification: p?.qualification ?? '',
   };
 }
@@ -62,6 +65,7 @@ export function buildBasic(user: UserDetailDto, draft: BasicDraft, today: string
           ? 'The date of birth must be in the past.'
           : undefined,
     dateOfJoining: draft.dateOfJoining && !isRealDate(draft.dateOfJoining) ? 'Enter a real date.' : undefined,
+    esiNumber: /^(\d{17})?$/.test(draft.esiNumber.trim()) ? undefined : 'The ESI number is exactly 17 digits.',
     probationMonths: /^(\d{1,2})?$/.test(draft.probationMonths.trim()) && Number(draft.probationMonths) <= 36 ? undefined : 'Use a whole number of months from 0 to 36, or leave it empty.',
   };
   if (Object.values(errors).some(Boolean)) return fail(errors);
@@ -78,6 +82,7 @@ export function buildBasic(user: UserDetailDto, draft: BasicDraft, today: string
     ...(draft.dateOfBirth !== before.dateOfBirth && { dateOfBirth: draft.dateOfBirth }),
     ...(draft.dateOfJoining !== before.dateOfJoining && { dateOfJoining: draft.dateOfJoining === '' ? null : draft.dateOfJoining }),
     ...(draft.probationMonths.trim() !== before.probationMonths && { probationMonths: draft.probationMonths.trim() === '' ? null : Number(draft.probationMonths) }),
+    ...(draft.esiNumber.trim() !== before.esiNumber && { esiNumber: draft.esiNumber.trim() === '' ? null : draft.esiNumber.trim() }),
     ...(qualification !== before.qualification && { qualification: qualification === '' ? null : qualification }),
   };
   return { ok: true, body: Object.keys(basicDetails).length ? { basicDetails } : {} };

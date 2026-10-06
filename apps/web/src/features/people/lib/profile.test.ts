@@ -33,6 +33,7 @@ const complete: UserDetailDto = {
     managerId: 'm1',
     dateOfJoining: '2024-04-01T00:00:00.000Z',
     probationMonths: null,
+    esiNumber: null,
     mobileNumber: '9830012345',
     guardianName: null,
     dateOfBirth: '1995-08-20T00:00:00.000Z',
@@ -217,6 +218,25 @@ describe('probation months', () => {
   it('refuses anything but whole months from 0 to 36', () => {
     for (const bad of ['-1', '1.5', 'six', '37']) {
       expect(buildBasic(user, { ...basicToDraft(user), probationMonths: bad }, TODAY)).toMatchObject({ ok: false });
+    }
+  });
+});
+
+describe('ESI number', () => {
+  it('is optional, exactly 17 digits, sent when changed and null when emptied', () => {
+    expect(basicToDraft(complete).esiNumber).toBe('');
+    expect(buildBasic(complete, { ...basicToDraft(complete), esiNumber: ' 12345678901234567 ' }, TODAY)).toEqual({
+      ok: true,
+      body: { basicDetails: { esiNumber: '12345678901234567' } },
+    });
+    const set = { ...complete, profile: { ...complete.profile!, esiNumber: '12345678901234567' } };
+    expect(buildBasic(set, basicToDraft(set), TODAY)).toEqual({ ok: true, body: {} });
+    expect(buildBasic(set, { ...basicToDraft(set), esiNumber: '' }, TODAY)).toEqual({ ok: true, body: { basicDetails: { esiNumber: null } } });
+  });
+
+  it('refuses anything that is not 17 digits', () => {
+    for (const bad of ['1234', '1234567890123456', '123456789012345678', '1234567890123456x']) {
+      expect(buildBasic(complete, { ...basicToDraft(complete), esiNumber: bad }, TODAY)).toMatchObject({ ok: false });
     }
   });
 });
