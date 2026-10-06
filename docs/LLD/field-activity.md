@@ -408,3 +408,15 @@ treated specially (D6); an MR's day **counts as reported when the DCR is submitt
   that reporting need is confirmed.
 - Any reporting module beyond the minimal `getDcrSummary` on this module's own contract — a
   dedicated reporting/analytics layer is out of scope for the first build.
+
+
+## Expense payout (2026-10-06)
+
+TA, DA and the manual reimbursements are paid in a payout of their own, apart from salary (decision-log 2026-10-06). A month is the
+month the expense was *incurred* (its report day); only accepted, uncancelled claims count. `GET /api/field-activity/expense-payouts?month=YYYY-MM`
+(Accountant, Admin; scoped to the financial year by `month`) returns one statement per employee — what is still `UNPAID` and what is `PAID`,
+each as TA, DA and reimbursements apart, plus the latest paid time — with `dueDate` (`EXPENSE_PAYOUT_DAY` of the next month, default 15) and
+`overdue` (something unpaid and the day has passed: a flag, never a refusal). `POST /expense-payouts/pay { month, userIds? }` marks every
+accepted, unpaid expense of that month paid for the named employees, or for everyone owed, with who and when; one conditional update per
+employee, so a second press pays nothing twice and moves no date. Marking a single expense paid (`/expenses/:id/mark-paid`) still works.
+There is no new collection: a statement is a grouped view of the `Expense` rows. `getPaidTaDaTotal` is no longer read by Payroll.

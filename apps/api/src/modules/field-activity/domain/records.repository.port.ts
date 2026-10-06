@@ -30,6 +30,20 @@ export interface FollowupRepositoryPort {
   listForDcr(dcrId: string): Promise<Followup[]>;
   countForDcrs(dcrIds: string[]): Promise<Map<string, number>>;
 }
+/** TA, DA and the manual reimbursements (travel, meals, other) apart, in whole paise, and how many rows. */
+export interface ExpenseBucket {
+  taPaise: number;
+  daPaise: number;
+  reimbursementPaise: number;
+  count: number;
+}
+export interface ExpenseStatement {
+  userId: string;
+  unpaid: ExpenseBucket;
+  paid: ExpenseBucket;
+  lastPaidAt: Date | null;
+}
+
 export interface ExpenseRepositoryPort {
   create(input: Omit<Expense, 'id'>, ctx: TransactionContext): Promise<Expense>;
   /** Whether the DCR already has AUTO rows that still count (not `CANCELLED`) — TA/DA is generated once per approval. */
@@ -45,6 +59,13 @@ export interface ExpenseRepositoryPort {
   listAccepted(filter: { from: string; to: string; userId?: string; paymentStatus?: 'UNPAID' | 'PAID' }, limit: number): Promise<Expense[]>;
   /** The whole paise marked `PAID` for a user *during* the period (`from` inclusive, `to` exclusive, by `paid_at`): TA, DA and the manual reimbursements apart. */
   paidTotals(userId: string, period: { from: Date; to: Date }): Promise<{ taPaise: number; daPaise: number; reimbursementPaise: number }>;
+  /**
+   * Per employee, the accepted expenses whose report day falls in the range (`YYYY-MM-DD`, both inclusive), `CANCELLED` left out:
+   * what is still `UNPAID` and what is `PAID`, each as TA, DA and the manual reimbursements apart, and the latest `paid_at`.
+   */
+  statementsForRange(range: { from: string; to: string }): Promise<ExpenseStatement[]>;
+  /** One conditional update: every accepted, still-`UNPAID` row of the user in the range becomes `PAID`. Returns how many. */
+  payAllForUser(userId: string, range: { from: string; to: string }, by: string, at: Date): Promise<number>;
   /** Per DCR, what is claimed: TA, DA and the manual rows, `CANCELLED` left out, and how much of it is `PAID`. */
   totalsForDcrs(dcrIds: string[]): Promise<Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>>;
   listForDcr(dcrId: string): Promise<Expense[]>;

@@ -3,7 +3,7 @@ import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { ChemistCall, DoctorCall, Followup, GeofenceOutcome } from '../domain/call.entity.js';
 import type { Expense } from '../domain/expense.entity.js';
 import type { GeofenceOverride } from '../domain/records.repository.port.js';
-import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseRepositoryPort, FollowupRepositoryPort } from '../domain/records.repository.port.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseBucket, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../domain/records.repository.port.js';
 import { ChemistCallModel, DoctorCallModel, ExpenseModel, FollowupModel, type ChemistCallDoc, type DoctorCallDoc, type ExpenseDoc, type FollowupDoc } from './records.schema.js';
 
 const oid = (id: string) => new Types.ObjectId(id);
@@ -189,6 +189,33 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
     if (filter.paymentStatus) return fetch(filter.paymentStatus, limit);
     const unpaid = await fetch('UNPAID', limit);
     return unpaid.length >= limit ? unpaid : [...unpaid, ...(await fetch('PAID', limit - unpaid.length))];
+  }
+  async statementsForRange(range: { from: string; to: string }): Promise<ExpenseStatement[]> {
+    const rows = await ExpenseModel.aggregate<{ _id: { userId: unknown; status: 'UNPAID' | 'PAID'; type: string }; total: number; count: number; lastPaidAt: Date | null }>([
+      { $match: { accepted: true, paymentStatus: { $in: ['UNPAID', 'PAID'] }, reportDate: { $gte: range.from, $lte: range.to } } },
+      { $group: { _id: { userId: '$userId', status: '$paymentStatus', type: '$type' }, total: { $sum: '$amountPaise' }, count: { $sum: 1 }, lastPaidAt: { $max: '$paidAt' } } },
+    ]);
+    const empty = (): ExpenseBucket => ({ taPaise: 0, daPaise: 0, reimbursementPaise: 0, count: 0 });
+    const byUser = new Map<string, ExpenseStatement>();
+    for (const r of rows) {
+      const id = String(r._id.userId);
+      const s = byUser.get(id) ?? { userId: id, unpaid: empty(), paid: empty(), lastPaidAt: null };
+      const bucket = r._id.status === 'PAID' ? s.paid : s.unpaid;
+      if (r._id.type === 'TA') bucket.taPaise += r.total;
+      else if (r._id.type === 'DA') bucket.daPaise += r.total;
+      else bucket.reimbursementPaise += r.total;
+      bucket.count += r.count;
+      if (r.lastPaidAt && (!s.lastPaidAt || r.lastPaidAt > s.lastPaidAt)) s.lastPaidAt = r.lastPaidAt;
+      byUser.set(id, s);
+    }
+    return [...byUser.values()];
+  }
+  async payAllForUser(userId: string, range: { from: string; to: string }, by: string, at: Date): Promise<number> {
+    const res = await ExpenseModel.updateMany(
+      { userId: oid(userId), accepted: true, paymentStatus: 'UNPAID', reportDate: { $gte: range.from, $lte: range.to } },
+      { $set: { paymentStatus: 'PAID', paidBy: oid(by), paidAt: at } },
+    );
+    return res.modifiedCount;
   }
   async paidTotals(userId: string, period: { from: Date; to: Date }): Promise<{ taPaise: number; daPaise: number; reimbursementPaise: number }> {
     const rows = await ExpenseModel.aggregate<{ _id: string; total: number }>([

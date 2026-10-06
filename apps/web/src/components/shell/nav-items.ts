@@ -17,6 +17,7 @@ import {
   Stethoscope,
   Truck,
   Users,
+  Coins,
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
@@ -52,6 +53,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'People', roles: ['ADMIN', 'HR'] },
   { label: 'Approvals', href: '/approvals', icon: ClipboardCheck, group: 'Operations', roles: ['ADMIN', 'HR'] },
   { label: 'Expenses', href: '/expenses', icon: Receipt, group: 'Operations', roles: ['ADMIN', 'ACCOUNTANT'] },
+  { label: 'Expense payouts', href: '/expense-payouts', icon: Coins, group: 'Operations', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Payroll', href: '/payroll', icon: Banknote, group: 'Operations', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'System settings', href: '/settings', icon: Settings2, group: 'System', roles: ['ADMIN'] },
 ];

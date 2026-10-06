@@ -32,6 +32,7 @@ const SCOPED = [
   '/api/field-activity/dcr',
   '/api/field-activity/dcr/team',
   '/api/field-activity/expenses',
+  '/api/field-activity/expense-payouts',
   '/api/planning/daily',
   '/api/planning/monthly',
   '/api/hr/leaves/me',

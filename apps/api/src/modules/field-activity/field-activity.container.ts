@@ -13,6 +13,7 @@ import { TaDaLifecycle } from './application/usecases/taDaLifecycle.usecase.js';
 import { LogExpenseUseCase } from './application/usecases/logExpense.usecase.js';
 import { makeServiceGiftSyncHandlers } from './application/serviceGiftSync.js';
 import { makeFieldActivitySource } from './application/fieldActivitySnapshot.js';
+import { ListExpensePayoutsUseCase, PayMonthExpensesUseCase } from './application/usecases/expensePayouts.usecase.js';
 import { GetPaidTaDaTotalUseCase, ListExpensesUseCase, MarkExpensePaidUseCase } from './application/usecases/accountantExpenses.usecase.js';
 import { RunMissedDcrCheckUseCase } from './application/usecases/runMissedDcrCheck.usecase.js';
 import type { LeavePort } from './domain/leave.port.js';
@@ -156,6 +157,8 @@ export function buildFieldActivityContainer(
           listGifts: new ListGiftsUseCase(gifts, master),
           listExpenses: new ListExpensesUseCase(expenses, users),
           markPaid: new MarkExpensePaidUseCase(expenses),
+          listPayouts: new ListExpensePayoutsUseCase(expenses, users, config, clock),
+          payExpenses: new PayMonthExpensesUseCase(expenses),
           override: new OverrideGeofenceUseCase(dcrs, users, views, doctorCalls, chemistCalls),
           get: new GetDcrDetailUseCase(new GetDcrUseCase(dcrs, users, views), doctorCalls, chemistCalls, followups, expenses, master),
         }),

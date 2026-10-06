@@ -127,6 +127,7 @@ describe('navGroupsFor', () => {
     expect(groups.map((g) => g.group)).toEqual(['Overview', 'People', 'Operations']);
     expect(groups.find((g) => g.group === 'Operations')?.items.map((i) => i.href)).toEqual([
       '/expenses',
+      '/expense-payouts',
       '/payroll',
     ]);
   });

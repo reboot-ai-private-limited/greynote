@@ -3,8 +3,11 @@ import type {
   DoctorServiceDto,
   ExpenseAuditRowDto,
   ExpensePaymentStatus,
+  ExpensePayoutSheetDto,
   MarkedPaidDto,
   OverrideGeofenceDto,
+  PayExpensesDto,
+  PayOutcomeDto,
 } from '@greynote/contracts';
 import { request } from '../client';
 
@@ -22,6 +25,13 @@ export const fieldActivityApi = {
    */
   markPaid: (token: string, id: string) =>
     request<MarkedPaidDto>(`/field-activity/expenses/${id}/mark-paid`, { method: 'POST', token }),
+
+  /** One month's accepted expenses per employee (by the month they were incurred), with the day they are due. */
+  expensePayouts: (token: string, month: string, signal?: AbortSignal) =>
+    request<ExpensePayoutSheetDto>('/field-activity/expense-payouts', { token, query: { month }, signal }),
+
+  /** Pays a month's unpaid expenses for the named employees, or for everyone owed. Paying twice pays nothing twice. */
+  payExpenses: (token: string, body: PayExpensesDto) => request<PayOutcomeDto[]>('/field-activity/expense-payouts/pay', { method: 'POST', token, body }),
 
   /** One daily report with every call, follow-up and expense: the review screen. */
   dcr: (token: string, id: string, signal?: AbortSignal) => request<DcrDetailDto>(`/field-activity/dcr/${id}`, { token, signal }),

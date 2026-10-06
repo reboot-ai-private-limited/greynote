@@ -1,6 +1,6 @@
 'use client';
 
-import type { ExpensePaymentStatus } from '@greynote/contracts';
+import type { ExpensePaymentStatus, PayExpensesDto, PayOutcomeDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { fieldActivityApi } from '@/lib/api/endpoints/fieldActivity';
 import { authedQueryOptions } from '@/lib/query/factory';
@@ -35,6 +35,27 @@ export function useExpenseAudit(query: ExpenseAuditQuery, enabled: boolean) {
 export function useMarkPaid(onResult: (result: MarkPaidResult) => void) {
   return useApiMutation<string[], MarkPaidResult>({
     call: (token, ids) => markRowsPaid((id) => fieldActivityApi.markPaid(token, id), ids),
+    invalidates: [keys.expenses.all()],
+    onSuccess: onResult,
+  });
+}
+
+/** One month's expense payout sheet. `enabled` is off while no month is chosen. */
+export function useExpensePayouts(month: string, enabled: boolean) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.expenses.payouts(month),
+      fetch: (token, signal) => fieldActivityApi.expensePayouts(token, month, signal),
+      staleTime: staleTime.live,
+      enabled,
+    }),
+  );
+}
+
+/** Pays a month's unpaid expenses for some employees or everyone owed; the sheet refetches either way. */
+export function usePayExpenses(onResult: (outcomes: PayOutcomeDto[]) => void) {
+  return useApiMutation<PayExpensesDto, PayOutcomeDto[]>({
+    call: (token, body) => fieldActivityApi.payExpenses(token, body),
     invalidates: [keys.expenses.all()],
     onSuccess: onResult,
   });

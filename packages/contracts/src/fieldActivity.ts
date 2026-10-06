@@ -136,3 +136,43 @@ export interface DoctorServiceDto {
   status: string;
   approval: { requestId: string; cycle: number } | null;
 }
+
+/** TA, DA and the manual reimbursements (travel, meals, other) apart, in whole paise, and how many expenses. */
+export interface ExpenseBucketDto {
+  taPaise: number;
+  daPaise: number;
+  reimbursementPaise: number;
+  count: number;
+}
+
+export interface ExpensePayoutRowDto {
+  userId: string;
+  userName: string;
+  employeeCode: string;
+  unpaid: ExpenseBucketDto;
+  paid: ExpenseBucketDto;
+  /** The latest time one of this month's expenses was paid; null if none was. */
+  lastPaidAt: string | null;
+}
+
+/**
+ * `GET /field-activity/expense-payouts?month=YYYY-MM`: the month's accepted expenses per employee. A month is the month the expense
+ * was incurred (its report day). `dueDate` is `EXPENSE_PAYOUT_DAY` of the next month; `overdue` is only a flag.
+ */
+export interface ExpensePayoutSheetDto {
+  month: string;
+  dueDate: string;
+  overdue: boolean;
+  rows: ExpensePayoutRowDto[];
+}
+
+/** `POST /field-activity/expense-payouts/pay`: omit `userIds` to pay everyone who is owed. */
+export interface PayExpensesDto {
+  month: string;
+  userIds?: string[] | undefined;
+}
+export interface PayOutcomeDto {
+  userId: string;
+  paidCount: number;
+  paidPaise: number;
+}

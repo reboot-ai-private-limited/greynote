@@ -104,6 +104,10 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
 
   integer('TA_MAX_KM', 'FIELD_ACTIVITY', 'Most km paid as TA in a day', 'The km paid as TA across all of a day’s Routes together never exceeds this. Km beyond it are not paid.', 99, 1, 5000, 'km'),
 
+  // ── Salary and payouts ──
+  integer('SALARY_RUN_DAY', 'PAYROLL', 'Salary day', 'Day of the month the salary for the month just ended is run (1 = the 1st). Only drives the "due" flag on the payroll screen; nothing is refused for being early or late.', 1, 1, 28),
+  integer('EXPENSE_PAYOUT_DAY', 'PAYROLL', 'Expense payout day', 'Day of the month TA, DA and reimbursements of the month just ended are paid (15 = the 15th). Only drives the "due" and "overdue" flags; nothing is refused for being early or late.', 15, 1, 28),
+
   // ── Sales ──
   integer('MONTHLY_STOCK_DEADLINE_DAY', 'SALES', 'Monthly stock deadline day', 'Day of the next month by which a month’s opening and closing stock counts must be entered (5 = the 5th of the following month).', 5, 1, 28),
 
@@ -169,6 +173,7 @@ export const CONFIG_MODULE_LABEL: Record<string, string> = {
   FIELD_MASTER_DATA: 'Doctors and field master data',
   AUTH: 'Devices',
   FIELD_ACTIVITY: 'Field activity and compliance',
+  PAYROLL: 'Salary and payouts',
   SALES: 'Sales',
   SYNC: 'Phone sync',
   APPROVAL: 'Approvals',

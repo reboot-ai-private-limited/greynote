@@ -11,7 +11,7 @@ import type { ChemistCall, DoctorCall, Followup } from '../../domain/call.entity
 import type { DoctorGift, DoctorService } from '../../domain/serviceGift.entity.js';
 import type { Expense } from '../../domain/expense.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
-import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, DoctorGiftRepositoryPort, DoctorServiceRepositoryPort, ExpenseRepositoryPort, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, DoctorGiftRepositoryPort, DoctorServiceRepositoryPort, ExpenseBucket, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
 import type { LeavePort } from '../../domain/leave.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -167,7 +167,7 @@ export class FakeDcrs implements DcrRepositoryPort {
 }
 
 export class FakeConfig implements ConfigReader {
-  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', TA_MAX_KM: '99' };
+  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', TA_MAX_KM: '99', EXPENSE_PAYOUT_DAY: '15' };
   async get(key: string) {
     const v = this.values[key];
     if (v === undefined) throw new Error(`missing ${key}`);
@@ -304,6 +304,26 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
   async listAccepted(f: { from: string; to: string; userId?: string; paymentStatus?: 'UNPAID' | 'PAID' }, limit: number) {
     const hit = this.rows.filter((r) => r.accepted && r.reportDate >= f.from && r.reportDate <= f.to && (!f.userId || r.userId === f.userId) && (r.paymentStatus === 'UNPAID' || r.paymentStatus === 'PAID') && (!f.paymentStatus || r.paymentStatus === f.paymentStatus));
     return [...hit.filter((r) => r.paymentStatus === 'UNPAID'), ...hit.filter((r) => r.paymentStatus === 'PAID')].slice(0, limit);
+  }
+  async statementsForRange(range: { from: string; to: string }) {
+    const out = new Map<string, ExpenseStatement>();
+    const empty = (): ExpenseBucket => ({ taPaise: 0, daPaise: 0, reimbursementPaise: 0, count: 0 });
+    for (const r of this.rows.filter((x) => x.accepted && (x.paymentStatus === 'UNPAID' || x.paymentStatus === 'PAID') && x.reportDate >= range.from && x.reportDate <= range.to)) {
+      const s = out.get(r.userId) ?? { userId: r.userId, unpaid: empty(), paid: empty(), lastPaidAt: null };
+      const b = r.paymentStatus === 'PAID' ? s.paid : s.unpaid;
+      if (r.type === 'TA') b.taPaise += r.amountPaise;
+      else if (r.type === 'DA') b.daPaise += r.amountPaise;
+      else b.reimbursementPaise += r.amountPaise;
+      b.count += 1;
+      if (r.paidAt && (!s.lastPaidAt || r.paidAt > s.lastPaidAt)) s.lastPaidAt = r.paidAt;
+      out.set(r.userId, s);
+    }
+    return [...out.values()];
+  }
+  async payAllForUser(userId: string, range: { from: string; to: string }, by: string, at: Date) {
+    const hit = this.rows.filter((r) => r.userId === userId && r.accepted && r.paymentStatus === 'UNPAID' && r.reportDate >= range.from && r.reportDate <= range.to);
+    for (const r of hit) Object.assign(r, { paymentStatus: 'PAID', paidBy: by, paidAt: at });
+    return hit.length;
   }
   async paidTotals(userId: string, period: { from: Date; to: Date }) {
     const paid = this.rows.filter((r) => r.userId === userId && r.paymentStatus === 'PAID' && r.paidAt !== null && r.paidAt >= period.from && r.paidAt < period.to);

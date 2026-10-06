@@ -4,10 +4,9 @@ import type { ExpenseAuditRowDto } from '@greynote/contracts';
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
-import { istDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/format';
 import { useMarkPaid } from '../hooks/useExpenses';
-import { EXPENSE_TYPE_LABEL, flaggedRows, markPaidMessage, paidInMonthLabel, sumPaise, type MarkPaidResult } from '../lib/expenses';
+import { EXPENSE_TYPE_LABEL, flaggedRows, markPaidMessage, sumPaise, type MarkPaidResult } from '../lib/expenses';
 
 /**
  * Marks one or several expenses paid. It is the settlement step and there is no undo, so it says what it does: how much, to whom, and
@@ -83,7 +82,7 @@ export function MarkPaidDialog({
       }
     >
       <div className="space-y-3 text-sm text-text-muted">
-        <p>Payroll counts a payment in the month it is marked paid. Paid today, this goes into {paidInMonthLabel(istDate())}.</p>
+        <p>This settles the expense on its own. To pay a whole month for an employee at once, use Expense payouts.</p>
         {flagged > 0 ? (
           <p role="alert" className="rounded-md border border-warning bg-warning-bg p-3 text-warning-fg">
             {flagged === 1 ? '1 of these is a travel allowance' : `${flagged} of these are travel allowances`} whose route distance could not be calculated, so the amount is lower than it should be. Check before paying.

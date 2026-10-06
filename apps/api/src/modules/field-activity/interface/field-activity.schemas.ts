@@ -74,5 +74,9 @@ export const allocateGiftBodySchema = z.object({ doctorId: objectIdSchema, produ
 
 export const listExpensesQuerySchema = rangeRules(z.object({ ...rangeFields, userId: objectIdSchema.optional(), paymentStatus: z.enum(['UNPAID', 'PAID']).optional() }));
 
+export const monthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use a month like 2026-10.');
+export const listExpensePayoutsQuerySchema = z.object({ month: monthSchema });
+export const payExpensesBodySchema = z.object({ month: monthSchema, userIds: z.array(objectIdSchema).min(1).max(1000).optional() });
+
 export const listServicesQuerySchema = z.object({ userId: objectIdSchema.optional(), doctorId: objectIdSchema.optional() });
 export const listGiftsQuerySchema = z.object({ status: z.enum(['PENDING', 'DONE']).optional() });

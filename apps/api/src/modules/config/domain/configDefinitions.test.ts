@@ -40,6 +40,8 @@ const HISTORICAL_DEFAULTS: Record<string, string> = {
   EX_STATION_MIN_KM: '15',
   OUT_STATION_MIN_KM: '50',
   TA_MAX_KM: '99',
+  SALARY_RUN_DAY: '1',
+  EXPENSE_PAYOUT_DAY: '15',
 };
 
 const def = (key: string) => {
