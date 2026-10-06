@@ -33,8 +33,9 @@ const RANK: Record<RouteType, number> = { HQ: 0, EX_STATION: 1, OUT_STATION: 2 }
  *   rounded half up to a whole paise once, per Route. A Route whose distance isn't `CALCULATED` (or is unknown,
  *   which the caller passes as `null`) gets a zero row flagged `distanceFlag`, never a made-up figure and never
  *   a block on approval. Plus one DA row: the Pay Band's rate for the *highest* Route type among the Routes.
- * - Only the day's **longest** Route is paid TA (the first, if two tie), for at most `maxKm` (`TA_MAX_KM`) of it, at that Route's own
- *   rate. The other Routes get no TA row. A Route whose distance is unknown is not a candidate and keeps a zero flagged row.
+ * - An `HQ` Route earns no TA (the day is within the HQ town): a day on HQ Routes only is DA alone.
+ * - Of the day's other Routes only the **longest** is paid TA (the first, if two tie), for at most `maxKm` (`TA_MAX_KM`) of it, at that
+ *   Route's own rate. The rest get no TA row. A Route whose distance is unknown is not a candidate and keeps a zero flagged row.
  * - `MEETING` / `CONFERENCE`: DA at the HQ rate, no TA.
  * - `STRIKE`: nothing.
  * A DA of ₹0 (the HQ rate of some grades) and a genuinely zero-km TA are not written — nothing is claimed.
@@ -49,6 +50,7 @@ export function calculateTaDa(workingType: WorkingType, routes: Array<DayRoute |
     let longest: { routeId: string; route: DayRoute; hundredths: number } | null = null;
     routeIds.forEach((routeId, i) => {
       const route = routes[i] ?? null;
+      if (route?.routeType === 'HQ') return; // no TA on an HQ Route, whatever its distance
       if (!route || route.distanceStatus !== 'CALCULATED' || route.distanceKm === null) {
         out.push({ type: 'TA', routeId, amountPaise: 0, distanceFlag: true });
         return;

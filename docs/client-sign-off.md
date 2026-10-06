@@ -168,6 +168,7 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | K2 | When is a Route Ex-station or Out-station? | By distance: over `EX_STATION_MIN_KM` (15) → Ex-station; over `OUT_STATION_MIN_KM` (50) → Out-station; both in SystemConfig | Accepted 2026-10-05 |
 | K3 | Can the creator pick a different type? | Yes, with a warning, never a block | Accepted 2026-10-05 |
 | K4 | A day with several Routes: how is TA counted? | **Only the longest Route** is paid TA (at most `TA_MAX_KM` of it, at its own rate); the others get no TA. DA is still by the highest Route type | Accepted 2026-10-05 (from the owner) |
+| K11 | What does a day earn, by type? | HQ Route: DA only. Field work on an Ex-/Out-station Route: TA and DA. Meeting / conference: DA only. Strike: nothing | Accepted 2026-10-06 (from the owner) |
 | K5 | Salary on the 1st (previous month, no TA/DA), expense payout on the 15th | Two separate runs; salary slip shows the ESI number | Designed 2026-10-05 (working assumption) |
 | K6 | All leave paid during the first 6 months; no half-day leave | Probation from the joining date; half-day removed | Half-day removed: **accepted 2026-10-05**. Probation: months from the joining date, per-employee override, `PROBATION_LEAVE_PAID` toggle, balance check skipped: **accepted 2026-10-05** (leave types to confirm) |
 | K7 | Approvals after the date has gone | **Dropped 2026-10-05**: no cutoff, nothing is refused for being late | Dropped (from the owner) |

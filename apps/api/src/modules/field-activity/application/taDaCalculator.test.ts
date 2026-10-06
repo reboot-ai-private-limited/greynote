@@ -3,12 +3,12 @@ import { calculateTaDa, type DayRoute, type PayRates } from './taDaCalculator.js
 
 const rates: PayRates = { taPerKmRatePaise: 750, hqDaPaise: 0, exStationDaPaise: 20000, outStationDaPaise: 50000 };
 const calc = (workingType: Parameters<typeof calculateTaDa>[0], routes: Parameters<typeof calculateTaDa>[1], routeIds: string[], r: PayRates, maxKm = 99) => calculateTaDa(workingType, routes, routeIds, r, maxKm);
-const route = (id: string, over: Partial<DayRoute> = {}): DayRoute => ({ id, routeType: 'HQ', distanceKm: '10.67', distanceStatus: 'CALCULATED', taPerKmRateOverridePaise: null, ...over });
+const route = (id: string, over: Partial<DayRoute> = {}): DayRoute => ({ id, routeType: 'EX_STATION', distanceKm: '10.67', distanceStatus: 'CALCULATED', taPerKmRateOverridePaise: null, ...over });
 
 describe('TA/DA calculation (hld/06)', () => {
   it('FIELD_WORK: TA is distance × the Pay Band rate, rounded half up to a whole paise once', () => {
     // 10.67 km × ₹7.50 = ₹80.025 → 8003 paise (half up)
-    expect(calc('FIELD_WORK', [route('r1')], ['r1'], rates)).toEqual([{ type: 'TA', routeId: 'r1', amountPaise: 8003, distanceFlag: false }]);
+    expect(calc('FIELD_WORK', [route('r1')], ['r1'], rates).filter((x) => x.type === 'TA')).toEqual([{ type: 'TA', routeId: 'r1', amountPaise: 8003, distanceFlag: false }]);
   });
 
   it('a Route’s own rate beats the Pay Band’s', () => {
@@ -77,6 +77,36 @@ describe('TA/DA calculation (hld/06)', () => {
         { type: 'TA', routeId: 'a', amountPaise: 0, distanceFlag: true },
         { type: 'TA', routeId: 'b', amountPaise: 1000, distanceFlag: false },
       ]);
+    });
+  });
+
+  describe('what a day earns, by working type and Route type (2026-10-06)', () => {
+    const r = { taPerKmRatePaise: 100, hqDaPaise: 15000, exStationDaPaise: 20000, outStationDaPaise: 50000 };
+    const kinds = (out: ReturnType<typeof calc>) => out.map((x) => `${x.type}:${x.amountPaise}`);
+
+    it('field work on an HQ Route is DA alone, at the HQ rate: no TA', () => {
+      expect(kinds(calc('FIELD_WORK', [route('a', { routeType: 'HQ', distanceKm: '8.00' })], ['a'], r))).toEqual(['DA:15000']);
+    });
+
+    it('field work on an Ex-station or Out-station Route is TA and DA', () => {
+      expect(kinds(calc('FIELD_WORK', [route('a', { routeType: 'EX_STATION', distanceKm: '20.00' })], ['a'], r))).toEqual(['TA:2000', 'DA:20000']);
+      expect(kinds(calc('FIELD_WORK', [route('a', { routeType: 'OUT_STATION', distanceKm: '60.00' })], ['a'], r))).toEqual(['TA:6000', 'DA:50000']);
+    });
+
+    it('a mix: TA is for the longest Route that is not an HQ Route, DA for the highest type of the day', () => {
+      const routes = [route('hq', { routeType: 'HQ', distanceKm: '14.00' }), route('ex', { routeType: 'EX_STATION', distanceKm: '18.00' })];
+      expect(kinds(calc('FIELD_WORK', routes, ['hq', 'ex'], r))).toEqual(['TA:1800', 'DA:20000']);
+    });
+
+    it('an HQ Route whose distance failed earns nothing and is not flagged: it would not have been paid TA anyway', () => {
+      const failed = route('a', { routeType: 'HQ', distanceStatus: 'FAILED', distanceKm: null });
+      expect(calc('FIELD_WORK', [failed], ['a'], r).map((x) => x.type)).toEqual(['DA']);
+    });
+
+    it('a meeting or conference is DA alone at the HQ rate, and a strike is nothing', () => {
+      expect(kinds(calc('MEETING', [], [], r))).toEqual(['DA:15000']);
+      expect(kinds(calc('CONFERENCE', [], [], r))).toEqual(['DA:15000']);
+      expect(calc('STRIKE', [route('a')], ['a'], r)).toEqual([]);
     });
   });
 });

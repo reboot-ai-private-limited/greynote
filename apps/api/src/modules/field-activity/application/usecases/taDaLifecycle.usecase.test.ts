@@ -31,6 +31,7 @@ describe('TA/DA over a DCR’s life', () => {
 
   it('exactly once: the same approval seen again, or MANAGER_APPROVED then APPROVED, adds nothing', async () => {
     kit.territory.routes.set('route-1', { ...kit.territory.routes.get('route-1')!, routeType: 'EX_STATION' });
+    kit.users.rates.exStationDaPaise = 20000;
     await kit.taDa.onStatusChange(dcrId, 'MANAGER_APPROVED', new Tx());
     await kit.taDa.onStatusChange(dcrId, 'MANAGER_APPROVED', new Tx());
     await kit.taDa.onStatusChange(dcrId, 'APPROVED', new Tx());

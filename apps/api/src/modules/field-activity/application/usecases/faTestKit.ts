@@ -88,8 +88,8 @@ export class FakeUsers implements UserDirectoryPort {
   async getEmploymentDetails(userId: string) {
     return { dateOfJoining: this.joined.get(userId) ?? null };
   }
-  /** G1-like: ₹7.50/km; DA ₹0 at HQ, ₹200 ex-station, ₹500 out-station. */
-  rates = { taPerKmRatePaise: 750, hqDaPaise: 0, exStationDaPaise: 20000, outStationDaPaise: 50000 };
+  /** G1-like: ₹7.50/km; DA ₹0 at HQ and (here) ex-station, ₹500 out-station. route-1 is an ex-station Route, because an HQ Route earns no TA, ₹500 out-station. */
+  rates = { taPerKmRatePaise: 750, hqDaPaise: 0, exStationDaPaise: 0, outStationDaPaise: 50000 };
   async getPayBandRates() {
     return this.rates;
   }
@@ -190,7 +190,7 @@ export class FakeTerritory implements TerritoryPort {
     return (this.routesByUser.get(userId) ?? []).map((id) => ({ id }));
   }
   routes = new Map<string, { id: string; routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION'; distanceKm: string | null; distanceStatus: string; taPerKmRateOverridePaise: number | null }>([
-    ['route-1', { id: 'route-1', routeType: 'HQ', distanceKm: '10.67', distanceStatus: 'CALCULATED', taPerKmRateOverridePaise: null }],
+    ['route-1', { id: 'route-1', routeType: 'EX_STATION', distanceKm: '10.67', distanceStatus: 'CALCULATED', taPerKmRateOverridePaise: null }],
   ]);
   async getRoute(id: string) {
     return this.routes.get(id) ?? null;
