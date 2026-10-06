@@ -25,7 +25,7 @@ import { FinalizeDialog } from './FinalizeDialog';
 import { GenerateDialog } from './GenerateDialog';
 import { GenerateResultDialog } from './GenerateResultDialog';
 
-/** One month's payroll sheet: generate it from what was paid, review it, and (next) lock it. */
+/** One month's salary sheet: generate it, review it, and finalize it to lock it. */
 export function PayrollScreen() {
   const readOnly = useIsReadOnly();
   const { year } = useFinancialYear();
@@ -154,7 +154,7 @@ export function PayrollScreen() {
               isLoading={sheet.isLoading}
               error={sheet.error ? toErrorState(sheet.error, () => void sheet.refetch()) : null}
               isEmpty={runs.length === 0}
-              empty={{ title: `Nothing generated for ${monthLabel(month)}`, description: 'Generate the sheet to calculate every active field employee from what was paid in the month.' }}
+              empty={{ title: `Nothing generated for ${monthLabel(month)}`, description: 'Generate the sheet to work out the salary of every active field employee for the month.' }}
             >
               <DataTable columns={columns} rows={runs} rowKey={(r) => r.id} />
             </DataState>

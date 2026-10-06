@@ -24,7 +24,7 @@ function Line({ label, note, amount, strong = false }: { label: string; note?: s
   );
 }
 
-/** One run broken down: base, what was paid in the month, the leave deduction explained, and the net. */
+/** One run broken down: base, the leave deduction explained, and the net (older runs also show TA/DA paid in the month). */
 export function PayrollRunScreen({ id }: { id: string }) {
   const query = usePayrollRun(id);
   const run = query.data;
