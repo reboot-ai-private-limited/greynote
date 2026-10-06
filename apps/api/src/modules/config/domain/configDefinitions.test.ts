@@ -42,6 +42,7 @@ const HISTORICAL_DEFAULTS: Record<string, string> = {
   TA_MAX_KM: '99',
   SALARY_RUN_DAY: '1',
   EXPENSE_PAYOUT_DAY: '15',
+  FY_CLOSED_YEARS: 'NONE',
 };
 
 const def = (key: string) => {

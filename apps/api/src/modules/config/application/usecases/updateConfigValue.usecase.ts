@@ -34,6 +34,7 @@ export class UpdateConfigValueUseCase {
     const definition = findConfigDefinition(key);
     // A key with no definition is not one an Admin may change, whatever the database holds.
     if (!definition) throw AppError.notFound(`Unknown config key: ${key}`);
+    if (definition.managedBy) throw AppError.badRequest(definition.managedBy, { field: 'key', key });
     const checked = validateConfigValue(definition, value);
     if (!checked.ok) throw AppError.badRequest(checked.message, { field: 'value', key });
     await this.assertPlanTimesInOrder(key, checked.value);

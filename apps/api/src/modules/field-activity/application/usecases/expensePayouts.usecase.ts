@@ -1,5 +1,6 @@
 import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
 import { AppError } from '@/shared/errors/AppError.js';
+import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import { parseCalendarMonth } from '@/shared/time/businessTime.js';
 import type { DcrClock } from '../dcrClock.js';
 import type { ExpenseBucket, ExpenseRepositoryPort } from '../../domain/records.repository.port.js';
@@ -78,11 +79,13 @@ export type PayOutcome = { userId: string; paidCount: number; paidPaise: number 
 export class PayMonthExpensesUseCase {
   constructor(
     private readonly expenses: ExpenseRepositoryPort,
+    private readonly config: ConfigReader,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
   async execute(accountantId: string, input: { month: string; userIds?: string[] | undefined }): Promise<PayOutcome[]> {
     const range = monthRange(input.month);
+    await assertFinancialYearOpen(this.config, range.from, `The expenses of ${input.month}`);
     const statements = await this.expenses.statementsForRange(range);
     const owed = new Map(statements.filter((s) => hasUnpaid(s.unpaid)).map((s) => [s.userId, s.unpaid]));
     const ids = input.userIds ? [...new Set(input.userIds)] : [...owed.keys()];

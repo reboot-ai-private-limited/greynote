@@ -172,6 +172,7 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | K5 | Salary on the 1st (previous month, no TA/DA), expense payout on the 15th | Two separate runs; salary slip shows the ESI number | Built 2026-10-06 (working assumption: expenses are paid by the month they were incurred) |
 | K6 | All leave paid during the first 6 months; no half-day leave | Probation from the joining date; half-day removed | Half-day removed: **accepted 2026-10-05**. Probation: months from the joining date, per-employee override, `PROBATION_LEAVE_PAID` toggle, balance check skipped: **accepted 2026-10-05** (leave types to confirm) |
 | K7 | Approvals after the date has gone | **Dropped 2026-10-05**: no cutoff, nothing is refused for being late | Dropped (from the owner) |
-| K8 | Financial-year close | Admin-set close date (proposed after the 15th payout), then read-only; the lock follows the period, not the run date | Designed 2026-10-05 (working assumption) |
+| K8 | Financial-year close | An explicit Admin "Close year" (and "Reopen") action; a closed year refuses payroll generate/finalize and expense payments for its months. Viewing is unaffected | Accepted 2026-10-06 (from the owner) |
+| K12 | After an employee's salary for a month is finalized, can their leave in that month still change? | Proposed: no (daily reports and expenses stay open until the 15th payout) | Open |
 | K9 | Primary and secondary sales | Primary = to distributors, secondary = distributors to chemists | Open |
 | K10 | CTC against grade on a promotion | The new CTC must sit inside the new grade's range | Open |

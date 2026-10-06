@@ -9,7 +9,7 @@ import { MONTH_NAMES, WEEKDAY_NAMES, assertTimeZone, parseTimeOfDay } from '@/sh
  * a value this accepts is one the system will accept when it reads it back. Change a reader's limit and change it here too: a test
  * checks that every default passes its own definition, and the readers' own tests cover their side.
  */
-export const CONFIG_TYPES = ['BOOLEAN', 'INTEGER', 'TIME', 'MONTH', 'WEEKDAY', 'TIMEZONE', 'KIND_LIST'] as const;
+export const CONFIG_TYPES = ['BOOLEAN', 'INTEGER', 'TIME', 'MONTH', 'WEEKDAY', 'TIMEZONE', 'KIND_LIST', 'YEAR_LIST'] as const;
 export type ConfigType = (typeof CONFIG_TYPES)[number];
 
 export const CONFIG_IMPACTS = ['NORMAL', 'HIGH'] as const;
@@ -33,6 +33,11 @@ export interface ConfigDefinition {
   impact: ConfigImpact;
   /** What moves when a `HIGH` setting changes, said before it does. */
   impactNote?: string;
+  /**
+   * Set when the value is not edited as a setting but through its own action (the financial-year close). Such a setting is left off
+   * the settings list and refused by `PATCH /config/:key`; the string is what the refusal says.
+   */
+  managedBy?: string;
 }
 
 const integer = (
@@ -145,6 +150,16 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
     impactNote: 'Every deadline and every "today" in the system moves to the new timezone: plan cutoffs, leave dates, the missed-report check and payroll months.',
   },
   {
+    key: 'FY_CLOSED_YEARS',
+    module: 'SYSTEM',
+    label: 'Closed financial years',
+    description: 'The financial years an Admin has closed, named by the year they start in (2025 = 2025-26), oldest first. NONE = none closed.',
+    type: 'YEAR_LIST',
+    default: 'NONE',
+    impact: 'NORMAL',
+    managedBy: 'Use the "Close year" action under Financial year, not this setting.',
+  },
+  {
     key: 'FY_START_MONTH',
     module: 'SYSTEM',
     label: 'Financial year starts in',
@@ -233,6 +248,13 @@ export function validateConfigValue(def: ConfigDefinition, raw: string): ConfigV
       // Asia/Kolkata "Asia/Calcutta"), which would quietly change a zone Admin typed correctly.
       const known = Intl.supportedValuesOf('timeZone').find((z) => z.toLowerCase() === value.toLowerCase());
       return { ok: true, value: known ?? value };
+    }
+    case 'YEAR_LIST': {
+      if (value.toUpperCase() === 'NONE') return { ok: true, value: 'NONE' };
+      const years = value.split(',').map((y) => y.trim());
+      if (years.some((y) => !/^\d{4}$/.test(y))) return fail('Use NONE, or comma-separated four-digit years.');
+      const sorted = [...new Set(years.map(Number))].sort((a, b) => a - b);
+      return { ok: true, value: sorted.join(',') };
     }
     case 'KIND_LIST': {
       if (value.toUpperCase() === 'NONE') return { ok: true, value: 'NONE' };

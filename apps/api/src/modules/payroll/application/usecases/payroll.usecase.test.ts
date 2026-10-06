@@ -67,7 +67,8 @@ class World implements IdentityPort, HrPort {
   }
 }
 
-const config = { get: async (key: string) => (key === 'BUSINESS_TIMEZONE' ? 'Asia/Kolkata' : '') };
+const closedYears = { value: 'NONE' };
+const config = { get: async (key: string) => (key === 'BUSINESS_TIMEZONE' ? 'Asia/Kolkata' : key === 'FY_START_MONTH' ? 'APRIL' : key === 'FY_CLOSED_YEARS' ? closedYears.value : '') };
 const acct = { id: 'acct', role: 'ACCOUNTANT' };
 
 describe('payroll', () => {
@@ -194,5 +195,18 @@ describe('payroll', () => {
     expect((await list.execute({ toMonth: '2026-09' })).length).toBe(0);
     expect((await new GetPayrollRunUseCase(runs).execute('p1')).userId).toBe('mr1');
     expect(await code(new GetPayrollRunUseCase(runs).execute('zzz'))).toBe(PAYROLL_CODES.runNotFound);
+  });
+
+  it('a month inside a closed financial year can be neither generated nor finalized, and reopening lets it through', async () => {
+    await generate.execute(acct, { month: '2026-10' });
+    closedYears.value = '2026';
+    const refusal = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => e as { statusCode?: number; message?: string });
+    expect(await refusal(generate.execute(acct, { month: '2026-10' }))).toMatchObject({ statusCode: 409 });
+    expect(await refusal(finalize.execute('p1'))).toMatchObject({ statusCode: 409 });
+    expect(runs.rows[0]!.status).toBe('DRAFT');
+    // A month of another year is not affected: 2026-03 belongs to 2025-26.
+    expect(await refusal(generate.execute(acct, { month: '2026-03' }))).toBeNull();
+    closedYears.value = 'NONE';
+    expect(await refusal(finalize.execute('p1'))).toBeNull();
   });
 });

@@ -23,7 +23,7 @@ describe('the expense payout (decision-log 2026-10-06)', () => {
     kit.users.rates.exStationDaPaise = 20000;
     const clock = new DcrClock(kit.config, () => at);
     list = new ListExpensePayoutsUseCase(kit.expenses, kit.users, kit.config, clock);
-    pay = new PayMonthExpensesUseCase(kit.expenses, () => at);
+    pay = new PayMonthExpensesUseCase(kit.expenses, kit.config, () => at);
   });
 
   it('is one statement per employee for the month the expenses were incurred, TA, DA and reimbursements apart', async () => {
@@ -75,5 +75,14 @@ describe('the expense payout (decision-log 2026-10-06)', () => {
   it('an unknown month is refused', async () => {
     await expect(list.execute('2026-13')).rejects.toBeDefined();
     await expect(pay.execute('acct', { month: 'October' })).rejects.toBeDefined();
+  });
+
+  it('a month, or one expense, inside a closed financial year cannot be paid; reopening lets it through', async () => {
+    kit.config.values['FY_CLOSED_YEARS'] = '2026'; // 2026-27 includes October 2026
+    await expect(pay.execute('acct', { month: '2026-10' })).rejects.toMatchObject({ statusCode: 409 });
+    await expect(kit.markPaid.execute('acct', kit.expenses.rows[0]!.id)).rejects.toMatchObject({ statusCode: 409 });
+    expect(kit.expenses.rows.every((r) => r.paymentStatus === 'UNPAID')).toBe(true);
+    kit.config.values['FY_CLOSED_YEARS'] = 'NONE';
+    expect((await pay.execute('acct', { month: '2026-10' }))[0]).toMatchObject({ paidCount: 2 });
   });
 });

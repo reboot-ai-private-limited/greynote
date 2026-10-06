@@ -167,7 +167,7 @@ export class FakeDcrs implements DcrRepositoryPort {
 }
 
 export class FakeConfig implements ConfigReader {
-  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', TA_MAX_KM: '99', EXPENSE_PAYOUT_DAY: '15' };
+  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', TA_MAX_KM: '99', EXPENSE_PAYOUT_DAY: '15', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: 'NONE' };
   async get(key: string) {
     const v = this.values[key];
     if (v === undefined) throw new Error(`missing ${key}`);
@@ -433,7 +433,7 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses, config);
   const submit = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config);
   const listExpenses = new ListExpensesUseCase(expenses, users);
-  const markPaid = new MarkExpensePaidUseCase(expenses, () => new Date(clock.current));
+  const markPaid = new MarkExpensePaidUseCase(expenses, config, () => new Date(clock.current));
   const paidTaDa = new GetPaidTaDaTotalUseCase(expenses, dcrClock);
   const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
   const leave = new FakeLeave();

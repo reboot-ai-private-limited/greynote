@@ -51,6 +51,7 @@ export class ListConfigUseCase {
     const stored = new Map((await this.repository.list()).map((e) => [e.key, e]));
     const out: ConfigSettingView[] = [];
     for (const def of CONFIG_DEFINITIONS) {
+      if (def.managedBy) continue; // changed through its own action, not on the settings list
       const entry = stored.get(def.key);
       if (!entry) continue;
       const check = validateConfigValue(def, entry.value);

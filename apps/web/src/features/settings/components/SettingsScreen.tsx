@@ -12,6 +12,7 @@ import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useSettings } from '../hooks/useSettings';
 import { groupSettings, invalidSettings, searchSettings } from '../lib/settings';
+import { FinancialYearCard } from './FinancialYearCard';
 import { SettingRow } from './SettingRow';
 
 /** The system-wide settings every module reads: deadlines, limits, switches. Admin only. */
@@ -51,6 +52,9 @@ export function SettingsScreen() {
           {broken} {broken === 1 ? 'setting holds' : 'settings hold'} a value that breaks {broken === 1 ? 'its' : 'their'} rules, so the system fails whenever it reads {broken === 1 ? 'it' : 'them'}. They are marked below: save a valid value for each.
         </p>
       ) : null}
+      <div className="mb-6">
+        <FinancialYearCard readOnly={readOnly} />
+      </div>
       <div className="mb-6 max-w-md">
         <Input aria-label="Search settings" placeholder="Search settings" value={term} onChange={(e) => setTerm(e.target.value)} />
       </div>

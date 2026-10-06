@@ -4,6 +4,8 @@ import type { SystemConfigEntry } from '../../domain/systemConfig.entity.js';
 import type { SystemConfigRepositoryPort } from '../../domain/systemConfig.repository.port.js';
 import { ListConfigUseCase } from './listConfig.usecase.js';
 
+/** Settings changed through their own action (the year close) are not on the list. */
+const LISTED = CONFIG_DEFINITIONS.filter((d) => !d.managedBy);
 const at = new Date('2026-10-01T00:00:00Z');
 const seeded = (): SystemConfigEntry[] =>
   CONFIG_DEFINITIONS.map((d) => ({ key: d.key, value: d.default, module: d.module, description: d.description, updatedBy: null, updatedAt: at }));
@@ -19,7 +21,7 @@ describe('ListConfigUseCase', () => {
 
   it('lists every defined setting in the registry’s order, with its rules beside its value', async () => {
     const list = await build(seeded()).execute('ADMIN');
-    expect(list.map((s) => s.key)).toEqual(CONFIG_DEFINITIONS.map((d) => d.key));
+    expect(list.map((s) => s.key)).toEqual(LISTED.map((d) => d.key));
     const radius = list.find((s) => s.key === 'GEO_FENCE_RADIUS_METERS')!;
     expect(radius).toMatchObject({ type: 'INTEGER', min: 1, max: 100000, unit: 'meters', moduleLabel: 'Field activity and compliance', impact: 'NORMAL', impactNote: null, options: null });
   });
@@ -53,6 +55,6 @@ describe('ListConfigUseCase', () => {
     const keys = (await build(rows).execute('ADMIN')).map((s) => s.key);
     expect(keys).not.toContain('SOMETHING_OLD');
     expect(keys).not.toContain('SYNC_MAX_BATCH');
-    expect(keys).toHaveLength(CONFIG_DEFINITIONS.length - 1);
+    expect(keys).toHaveLength(LISTED.length - 1);
   });
 });

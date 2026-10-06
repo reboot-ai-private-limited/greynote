@@ -7,3 +7,5 @@ export const configKeyParamsSchema = z.object({
 export const updateConfigBodySchema = z.object({
   value: z.string().min(1),
 });
+
+export const financialYearBodySchema = z.object({ year: z.number().int().min(2000).max(2200) });

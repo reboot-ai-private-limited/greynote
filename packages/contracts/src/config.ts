@@ -51,3 +51,12 @@ export interface PublicConfigDto {
   /** An IANA name, e.g. `Asia/Kolkata`. */
   businessTimezone: string;
 }
+
+/** `GET /config/financial-year` (Admin): which financial years are closed, and which ended ones can still be closed. Years are named by the year they start in (2025 = 2025-26). */
+export interface FinancialYearCloseDto {
+  currentYear: number;
+  /** Oldest first. */
+  closedYears: number[];
+  /** Ended years not yet closed, newest first. */
+  closableYears: number[];
+}

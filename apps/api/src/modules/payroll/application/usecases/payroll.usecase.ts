@@ -1,6 +1,7 @@
 import { logger } from '@/shared/logging/logger.js';
 import { assertTimeZone, businessDate } from '@/shared/time/businessTime.js';
 import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
+import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import type { PayrollFilter, PayrollRunRepositoryPort } from '../../domain/payroll.repository.port.js';
 import { PAYROLL_CODES, PayrollRefusal, type PayrollCode } from '../../domain/payrollRefusal.js';
 import type { PayrollRun } from '../../domain/payrollRun.entity.js';
@@ -36,6 +37,10 @@ export class PayrollClock {
   async dateOf(instant: Date): Promise<string> {
     return businessDate(instant, await this.timeZone());
   }
+  /** A month inside a closed financial year can no longer be generated or finalized. */
+  assertMonthOpen(month: string): Promise<void> {
+    return assertFinancialYearOpen(this.config, `${month}-01`, `Payroll for ${month}`);
+  }
 }
 
 /**
@@ -56,6 +61,7 @@ export class GeneratePayrollUseCase {
     // Only a month that is over: generating the unfinished one would freeze a sheet that misses the rest of it.
     if ((await this.clock.today()).slice(0, 7) <= input.month) throw new PayrollRefusal(PAYROLL_CODES.monthNotEnded, `${input.month} has not ended yet. Payroll can be generated once the month is over.`);
 
+    await this.clock.assertMonthOpen(input.month);
     const single = input.userIds?.length === 1;
     const ids = input.userIds ? [...new Set(input.userIds)] : await this.identity.listActiveFieldUserIds();
     const results: GenerateOutcome[] = [];
@@ -122,6 +128,7 @@ export class FinalizePayrollUseCase {
   async execute(id: string): Promise<PayrollRun> {
     const run = await this.runs.findById(id);
     if (!run) throw new PayrollRefusal(PAYROLL_CODES.runNotFound, 'No such payroll run.');
+    await this.clock.assertMonthOpen(run.month);
     if (!(await this.runs.finalize(id, this.clock.now()))) throw new PayrollRefusal(PAYROLL_CODES.alreadyFinalized, 'This payroll run is already finalized.');
     return (await this.runs.findById(id)) ?? run;
   }

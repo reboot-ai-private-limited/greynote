@@ -1,4 +1,6 @@
 import { AppError } from '@/shared/errors/AppError.js';
+import type { ConfigReader } from '@/shared/config/readConfig.js';
+import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import type { Paise } from '@/shared/money/paise.js';
 import type { Expense } from '../../domain/expense.entity.js';
 import type { DcrClock } from '../dcrClock.js';
@@ -40,12 +42,14 @@ export class ListExpensesUseCase {
 export class MarkExpensePaidUseCase {
   constructor(
     private readonly expenses: ExpenseRepositoryPort,
+    private readonly config: ConfigReader,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
   async execute(accountantId: string, id: string): Promise<Expense> {
     const expense = await this.expenses.findById(id);
     if (!expense) throw AppError.notFound('No such expense.');
+    await assertFinancialYearOpen(this.config, expense.reportDate, 'This expense');
     if (await this.expenses.markPaid(id, accountantId, this.now())) return (await this.expenses.findById(id))!;
     const current = (await this.expenses.findById(id))!;
     if (current.paymentStatus === 'PAID') return current;

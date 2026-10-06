@@ -102,6 +102,7 @@ export const keys = {
   config: {
     all: () => ['config', fy()] as const,
     list: () => [...keys.config.all(), 'list'] as const,
+    financialYear: () => [...keys.config.all(), 'financial-year'] as const,
     /** Not tied to a financial year: it says how years are drawn. */
     public: () => ['config', 'public'] as const,
   },

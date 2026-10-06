@@ -51,3 +51,12 @@ is a `400`.
 ## Next
 
 This is HLD topic 9 — the last of the originally planned topics. See `README.md` for the index. Still pending: the Admin TA/DA override mechanism (follow-up to this conversation) — will land as an amendment to HLD 6 once confirmed.
+
+
+## Closing a year (2026-10-06)
+
+The toggle above only makes a *viewed* past year read-only. Closing is the other half: an Admin closes an ended year
+(`POST /api/config/financial-year/close`), after which payroll generate/finalize and expense payments for that year's months are refused
+(`assertFinancialYearOpen`, `shared/time/financialYearClose.ts`, 409 `FY_CLOSED`) whatever the toggle says. Reopening undoes it. The year is
+named by the year it starts in and stored in `FY_CLOSED_YEARS`. Why explicit, not automatic on a date: the March salary run (1 April) and the March
+expense payout (15 April) belong to the old year, so the Admin closes it after the last payout.

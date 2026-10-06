@@ -3,8 +3,8 @@ import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
-import { configKeyParamsSchema, updateConfigBodySchema } from './config.schemas.js';
-import type { makeListConfigController, makePublicConfigController, makeUpdateConfigController } from './config.controller.js';
+import { configKeyParamsSchema, financialYearBodySchema, updateConfigBodySchema } from './config.schemas.js';
+import type { makeFinancialYearControllers, makeListConfigController, makePublicConfigController, makeUpdateConfigController } from './config.controller.js';
 
 openApiRegistry.registerPath({
   method: 'get',
@@ -38,7 +38,21 @@ openApiRegistry.registerPath({
   },
 });
 
+openApiRegistry.registerPath({ method: 'get', path: '/api/config/financial-year', tags: ['Config'], summary: 'Admin: the closed financial years and the ended ones that can still be closed', security: [{ bearerAuth: [] }], responses: { 200: { description: 'Financial year state' } } });
+for (const action of ['close', 'reopen'] as const) {
+  openApiRegistry.registerPath({
+    method: 'post',
+    path: `/api/config/financial-year/${action}`,
+    tags: ['Config'],
+    summary: action === 'close' ? 'Admin: close an ended financial year — payroll and expense payments for its months are then refused' : 'Admin: reopen a closed financial year',
+    security: [{ bearerAuth: [] }],
+    request: { body: { content: { 'application/json': { schema: financialYearBodySchema } } } },
+    responses: { 200: { description: 'Financial year state' }, 409: { description: action === 'close' ? 'Already closed' : 'Not closed' } },
+  });
+}
+
 export function buildConfigRouter(controllers: {
+  financialYear: ReturnType<typeof makeFinancialYearControllers>;
   list: ReturnType<typeof makeListConfigController>;
   publicSettings: ReturnType<typeof makePublicConfigController>;
   update: ReturnType<typeof makeUpdateConfigController>;
@@ -47,6 +61,9 @@ export function buildConfigRouter(controllers: {
 
   router.get('/public', authenticate(), controllers.publicSettings);
   router.get('/', authenticate(), requireRole('ADMIN'), controllers.list);
+  router.get('/financial-year', authenticate(), requireRole('ADMIN'), controllers.financialYear.state);
+  router.post('/financial-year/close', authenticate(), requireRole('ADMIN'), validate({ body: financialYearBodySchema }), controllers.financialYear.close);
+  router.post('/financial-year/reopen', authenticate(), requireRole('ADMIN'), validate({ body: financialYearBodySchema }), controllers.financialYear.reopen);
   router.patch(
     '/:key',
     authenticate(),

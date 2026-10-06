@@ -1,6 +1,6 @@
 'use client';
 
-import type { ConfigSettingDto } from '@greynote/contracts';
+import type { ConfigSettingDto, FinancialYearCloseDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { configApi } from '@/lib/api/endpoints/config';
 import { authedQueryOptions } from '@/lib/query/factory';
@@ -34,5 +34,26 @@ export function useUpdateSetting(key: string, label: string, onDone: () => void)
       // The financial-year start month and the timezone shape every date already on screen, so the portal reloads to read them afresh.
       if (needsReload(key) && typeof window !== 'undefined') window.setTimeout(() => window.location.reload(), 800);
     },
+  });
+}
+
+/** The closed financial years and the ended ones that can still be closed. Admin only. */
+export function useFinancialYearClose() {
+  return useQuery(
+    authedQueryOptions<FinancialYearCloseDto>({
+      queryKey: keys.config.financialYear(),
+      fetch: (token, signal) => configApi.financialYear(token, signal),
+      staleTime: staleTime.configuration,
+    }),
+  );
+}
+
+/** Closes (or reopens) one year. The state refetches either way; the server refuses a year that has not ended, or is not closed. */
+export function useCloseYear(action: 'close' | 'reopen', onDone: () => void) {
+  return useApiMutation<number, FinancialYearCloseDto>({
+    call: (token, year) => (action === 'close' ? configApi.closeYear(token, year) : configApi.reopenYear(token, year)),
+    invalidates: [keys.config.all()],
+    successMessage: action === 'close' ? 'The financial year was closed.' : 'The financial year was reopened.',
+    onSuccess: onDone,
   });
 }

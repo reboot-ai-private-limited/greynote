@@ -61,6 +61,7 @@ const BY_ID = [
 const TIMELESS = [
   '/api/config', // system settings: global, not a dated record
   '/api/config/public',
+  '/api/config/financial-year', // closing a year is an Admin action on the system, not a dated report
   // Operational and master data — the same whichever year is being looked at.
   '/api/health',
   '/api/identity/auth/me',
