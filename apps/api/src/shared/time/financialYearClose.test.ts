@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AppError } from '@/shared/errors/AppError.js';
+import type { AppError } from '@/shared/errors/AppError.js';
 import { assertFinancialYearOpen, financialYearLabel, parseClosedYears } from './financialYearClose.js';
 
 const config = (values: Record<string, string>) => ({ get: async (key: string) => values[key] ?? '' });
