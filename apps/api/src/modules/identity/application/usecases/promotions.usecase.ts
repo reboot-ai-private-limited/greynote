@@ -1,4 +1,4 @@
-import type { PromotionDto, PromotionPreviewDto, PromotionRequestDto } from '@greynote/contracts';
+import type { PromotionDto, PromotionPreviewDto, PromotionRequestDto, PromotionStatus } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { PromotionRepositoryPort } from '../../domain/promotion.repository.port.js';
 import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
@@ -62,5 +62,36 @@ export class ListPromotionsUseCase {
   async execute(userId: string): Promise<PromotionDto[]> {
     if (!(await this.users.findById(userId))) throw AppError.notFound();
     return this.planner.views(await this.promotions.listByUser(userId));
+  }
+}
+
+/** Every promotion in the org, newest first, optionally of one status — the Admin/HR overview with what needs attention. */
+export class ListAllPromotionsUseCase {
+  constructor(
+    private readonly planner: PromotionPlanner,
+    private readonly promotions: PromotionRepositoryPort,
+  ) {}
+
+  async execute(status?: PromotionStatus): Promise<PromotionDto[]> {
+    return this.planner.views(await this.promotions.list({ status }));
+  }
+}
+
+/** Cancels a promotion that has not applied. Nothing about the employee or their team had changed, so nothing is undone. */
+export class CancelPromotionUseCase {
+  constructor(
+    private readonly planner: PromotionPlanner,
+    private readonly promotions: PromotionRepositoryPort,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
+
+  async execute(promotionId: string): Promise<PromotionDto> {
+    const existing = await this.promotions.findById(promotionId);
+    if (!existing) throw AppError.notFound();
+    if (existing.status !== 'SCHEDULED' || !(await this.promotions.cancel(promotionId, this.now()))) {
+      throw AppError.conflict('Only a scheduled promotion can be cancelled.', { status: existing.status });
+    }
+    const [view] = await this.planner.views([(await this.promotions.findById(promotionId))!]);
+    return view!;
   }
 }

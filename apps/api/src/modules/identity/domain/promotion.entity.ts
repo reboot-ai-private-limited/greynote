@@ -39,4 +39,12 @@ export interface Promotion {
   ctcAssignmentId: string | null;
   appliedAt: Date | null;
   cancelledAt: Date | null;
+  /** Taken by the run that is applying it (and the time it started), so two servers never apply one twice; the claim lapses so a crashed run is retried. */
+  claimedAt: Date | null;
+  /** Anything that did not go as planned: why a SCHEDULED one could not be applied yet, or what an APPLIED one left undone. */
+  note: string | null;
+  /** Planned moves the apply could not carry out (the new manager is no longer usable): the person stays with the promoted person. */
+  skippedMoves: PromotionTeamMove[];
+  /** Direct reports who were not in the plan when it applied (added after it was scheduled): they stay with the promoted person. */
+  unplannedReportIds: string[];
 }

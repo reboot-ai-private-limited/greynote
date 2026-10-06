@@ -4,6 +4,7 @@ import type { AppError } from '@/shared/errors/AppError.js';
 import { DEFAULT_PAY_COMPONENTS } from '../../domain/defaultPayComponents.js';
 import type { EmployeeProfile } from '../../domain/employeeProfile.entity.js';
 import type { Promotion } from '../../domain/promotion.entity.js';
+import type { NewPromotion } from '../../domain/promotion.repository.port.js';
 import type { User } from '../../domain/user.entity.js';
 import { PromotionPlanner, nextMonth } from './promotionPlanner.js';
 import { ListPromotionsUseCase, PreviewPromotionUseCase, SchedulePromotionUseCase } from './promotions.usecase.js';
@@ -35,13 +36,15 @@ function kit(over: { status?: Record<string, User['status']>; scheduled?: Promot
   const profiles = new Map<string, EmployeeProfile>(
     TREE.map(([id, designationId, managerId]) => [id, { id: `p-${id}`, userId: id, designationId, payBandId: 'g1', managerId, dateOfJoining: null, probationMonths: null, esiNumber: null, mobileNumber: null, guardianName: null, dateOfBirth: null, address: null, qualification: null, bankDetails: null, documents: [] }]),
   );
-  const created: Array<Omit<Promotion, 'id' | 'createdAt' | 'status' | 'ctcAssignmentId' | 'appliedAt' | 'cancelledAt'>> = [];
+  const created: NewPromotion[] = [];
+  const full = (input: NewPromotion): Promotion => ({ ...input, id: 'promo1', status: 'SCHEDULED', createdAt: new Date('2026-10-06T00:00:00Z'), ctcAssignmentId: null, appliedAt: null, cancelledAt: null, claimedAt: null, note: null, skippedMoves: [], unplannedReportIds: [] });
   const promotions = {
     create: async (input: (typeof created)[number]) => {
       created.push(input);
-      return { ...input, id: 'promo1', status: 'SCHEDULED', createdAt: new Date('2026-10-06T00:00:00Z'), ctcAssignmentId: null, appliedAt: null, cancelledAt: null } as Promotion;
+      return full(input);
     },
-    listByUser: async () => (created.length ? [{ ...created[0]!, id: 'promo1', status: 'SCHEDULED', createdAt: new Date('2026-10-06T00:00:00Z'), ctcAssignmentId: null, appliedAt: null, cancelledAt: null } as Promotion] : []),
+    listByUser: async () => created.map(full),
+    list: async () => created.map(full),
     findScheduledByUser: async () => over.scheduled ?? null,
     findById: async () => null,
   };

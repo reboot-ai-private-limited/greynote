@@ -1,5 +1,6 @@
 import type {
   CtcLineDto,
+  PromotionAttentionDto,
   PromotionDto,
   PromotionPersonDto,
   PromotionPositionDto,
@@ -20,14 +21,13 @@ import type { PayBandRepositoryPort } from '../../domain/payBand.repository.port
 import type { PayComponentRepositoryPort } from '../../domain/payComponent.repository.port.js';
 import type { Promotion } from '../../domain/promotion.entity.js';
 import type { PromotionRepositoryPort } from '../../domain/promotion.repository.port.js';
+import { reachesUpward } from '../../domain/reportingChain.js';
 import { judgePromotion, type PlanFacts, type PlanPerson, type PlanResult } from '../../domain/promotionPlan.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
 import type { User } from '../../domain/user.entity.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
 
 const FAR_FUTURE = '9999-12';
-/** Bounds a walk up a chain through already-corrupted data; real chains are ~5 levels. */
-const MAX_CHAIN_DEPTH = 50;
 
 /** The month after `month` (`YYYY-MM`). */
 export function nextMonth(month: string): string {
@@ -72,6 +72,9 @@ export class PeopleLookup {
     const p = this.people.get(id);
     if (!p) return null;
     return { id, name: p.user.name, employeeCode: p.user.employeeCode, level: this.level(p.profile?.designationId ?? null), active: p.user.status !== 'inactive' };
+  }
+  managerOf(id: string): string | null {
+    return this.people.get(id)?.profile?.managerId ?? null;
   }
   dto(id: string | null): PromotionPersonDto | null {
     const p = id ? this.people.get(id) : undefined;
@@ -205,10 +208,15 @@ export class PromotionPlanner {
     return { userId, request, result, preview };
   }
 
-  /** The kept promotions of one employee, as the screens show them. */
+  /** The kept promotions, as the screens show them, with what needs HR's attention. */
   async views(promotions: Promotion[]): Promise<PromotionDto[]> {
     if (promotions.length === 0) return [];
-    const ids = promotions.flatMap((p) => [p.userId, p.fromManagerId, p.toManagerId, ...p.teamMoves.flatMap((m) => [m.userId, m.toManagerId])]).filter((id): id is string => id !== null);
+    // A scheduled promotion's team as it is now: someone added since is not in its plan.
+    const currentReports = new Map<string, string[]>();
+    for (const p of promotions.filter((x) => x.status === 'SCHEDULED')) currentReports.set(p.id, await this.deps.profiles.findUserIdsByFilter({ managerId: p.userId }));
+    const ids = promotions
+      .flatMap((p) => [p.userId, p.fromManagerId, p.toManagerId, ...p.teamMoves.flatMap((m) => [m.userId, m.toManagerId]), ...p.skippedMoves.map((m) => m.userId), ...p.unplannedReportIds, ...(currentReports.get(p.id) ?? [])])
+      .filter((id): id is string => id !== null);
     const lookup = await PeopleLookup.load(ids, this.deps);
     return promotions.map((p) => {
       const team: PromotionTeamRowDto[] = p.teamMoves
@@ -218,6 +226,9 @@ export class PromotionPlanner {
       return {
         id: p.id,
         userId: p.userId,
+        employee: lookup.dto(p.userId),
+        note: p.note,
+        attention: this.attention(p, lookup, currentReports.get(p.id) ?? []),
         effectiveFrom: p.effectiveFrom,
         status: p.status,
         from: lookup.position(p.fromDesignationId, p.fromPayBandId, p.fromManagerId),
@@ -233,21 +244,39 @@ export class PromotionPlanner {
     });
   }
 
+  private attention(p: Promotion, lookup: PeopleLookup, reportsNow: string[]): PromotionAttentionDto[] {
+    const items: PromotionAttentionDto[] = [];
+    const who = lookup.dto(p.userId)?.name ?? 'The promoted person';
+    if (p.status === 'SCHEDULED') {
+      const planned = new Set(p.teamMoves.map((m) => m.userId));
+      for (const id of reportsNow) {
+        const person = lookup.dto(id);
+        if (person && lookup.plan(id)?.active && !planned.has(id)) {
+          items.push({ kind: 'NOT_IN_PLAN', message: `${person.name} joined ${who}'s team after this was scheduled and is not in the plan. They will stay with ${who}.`, person });
+        }
+      }
+    }
+    if (p.status === 'APPLIED') {
+      const still = (id: string) => lookup.managerOf(id) === p.userId;
+      for (const id of p.unplannedReportIds) {
+        const person = lookup.dto(id);
+        if (person && still(id)) items.push({ kind: 'STILL_WITH_PROMOTED', message: `${person.name} was not in the plan and still reports to ${who}.`, person });
+      }
+      for (const m of p.skippedMoves) {
+        const person = lookup.dto(m.userId);
+        if (person && still(m.userId)) items.push({ kind: 'STILL_WITH_PROMOTED', message: `${person.name} could not be moved to ${lookup.dto(m.toManagerId)?.name ?? 'the chosen manager'} and still reports to ${who}.`, person });
+      }
+    }
+    if (p.note) items.push({ kind: 'NOTE', message: p.note, person: null });
+    return items;
+  }
+
   private async designationFacts(id: string): Promise<{ found: boolean; level: number | null }> {
     const designation = await this.deps.designations.findById(id);
     return { found: designation !== null, level: designation?.level ?? null };
   }
 
-  /** Walks upward from `start`; true if `target` is on the way (not counting `start` itself). */
-  private async reaches(start: string, target: string): Promise<boolean> {
-    const seen = new Set<string>();
-    let current: string | null = (await this.deps.profiles.findByUserId(start))?.managerId ?? null;
-    for (let depth = 0; current !== null && depth < MAX_CHAIN_DEPTH; depth++) {
-      if (current === target) return true;
-      if (seen.has(current)) return false;
-      seen.add(current);
-      current = (await this.deps.profiles.findByUserId(current))?.managerId ?? null;
-    }
-    return false;
+  private reaches(start: string, target: string): Promise<boolean> {
+    return reachesUpward(async (id) => (await this.deps.profiles.findByUserId(id))?.managerId ?? null, start, target);
   }
 }

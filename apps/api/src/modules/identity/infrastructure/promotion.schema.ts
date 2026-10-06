@@ -19,6 +19,10 @@ export interface PromotionDocument {
   ctcAssignmentId: Types.ObjectId | null;
   appliedAt: Date | null;
   cancelledAt: Date | null;
+  claimedAt: Date | null;
+  note: string | null;
+  skippedMoves: Array<{ userId: Types.ObjectId; toManagerId: Types.ObjectId }>;
+  unplannedReportIds: Types.ObjectId[];
 }
 
 const ref = (to: string) => ({ type: Schema.Types.ObjectId, default: null, ref: to });
@@ -47,6 +51,13 @@ const promotionSchema = new Schema<PromotionDocument>(
     ctcAssignmentId: ref('CtcAssignment'),
     appliedAt: { type: Date, default: null },
     cancelledAt: { type: Date, default: null },
+    claimedAt: { type: Date, default: null },
+    note: { type: String, default: null },
+    skippedMoves: {
+      type: [new Schema({ userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' }, toManagerId: { type: Schema.Types.ObjectId, required: true, ref: 'User' } }, { _id: false })],
+      default: [],
+    },
+    unplannedReportIds: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
   },
   { timestamps: { createdAt: true, updatedAt: false }, minimize: false },
 );

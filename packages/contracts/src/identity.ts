@@ -313,10 +313,27 @@ export interface PromotionPreviewDto {
   canSchedule: boolean;
 }
 
-/** One promotion, as kept: `GET .../promotions`, newest first. */
+/** Something HR should look at: a person not placed, or a step that did not go as planned. Derived from the current state, so it clears by itself once fixed. */
+export interface PromotionAttentionDto {
+  kind: 'NOT_IN_PLAN' | 'STILL_WITH_PROMOTED' | 'NOTE';
+  message: string;
+  person: PromotionPersonDto | null;
+}
+
+/** `POST /identity/promotions/apply-due`: what the run did. */
+export interface ApplyDuePromotionsResultDto {
+  applied: number;
+  failed: number;
+}
+
+/** One promotion, as kept: `GET .../promotions` and `GET /identity/promotions`, newest first. */
 export interface PromotionDto {
   id: string;
   userId: string;
+  employee: PromotionPersonDto | null;
+  /** Why a scheduled one could not be applied yet, or what an applied one left undone. */
+  note: string | null;
+  attention: PromotionAttentionDto[];
   effectiveFrom: string;
   status: PromotionStatus;
   from: PromotionPositionDto;

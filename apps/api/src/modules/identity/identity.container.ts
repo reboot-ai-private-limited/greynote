@@ -8,7 +8,8 @@ import { RejectDeviceUseCase } from './application/usecases/rejectDevice.usecase
 import { RemoveDeviceUseCase } from './application/usecases/removeDevice.usecase.js';
 import { CreateDesignationUseCase } from './application/usecases/createDesignation.usecase.js';
 import { PromotionPlanner } from './application/usecases/promotionPlanner.js';
-import { ListPromotionsUseCase, PreviewPromotionUseCase, SchedulePromotionUseCase } from './application/usecases/promotions.usecase.js';
+import { ApplyDuePromotionsUseCase } from './application/usecases/applyDuePromotions.usecase.js';
+import { CancelPromotionUseCase, ListAllPromotionsUseCase, ListPromotionsUseCase, PreviewPromotionUseCase, SchedulePromotionUseCase } from './application/usecases/promotions.usecase.js';
 import { AssignCtcUseCase } from './application/usecases/assignCtc.usecase.js';
 import { CreatePayComponentUseCase } from './application/usecases/createPayComponent.usecase.js';
 import { GetCtcForMonthUseCase } from './application/usecases/getCtcForMonth.usecase.js';
@@ -91,7 +92,7 @@ import {
 } from './interface/devices.controller.js';
 import { buildDevicesRouter } from './interface/devices.route.js';
 import { makePromotionControllers } from './interface/promotions.controller.js';
-import { buildUserPromotionsRouter } from './interface/promotions.route.js';
+import { buildPromotionsRouter, buildUserPromotionsRouter } from './interface/promotions.route.js';
 import { buildPayBandsRouter } from './interface/payBands.route.js';
 import { buildRolesRouter } from './interface/roles.route.js';
 import {
@@ -120,6 +121,8 @@ export interface IdentityContainer {
   seedRoles: () => Promise<void>;
   /** Writes the org's starting CTC formula if none exists yet. */
   seedPayComponents: () => Promise<void>;
+  /** Applies every promotion whose month has come. The server calls it on start and hourly; safe at any time and from any number of servers. */
+  applyDuePromotions: () => Promise<{ applied: number; failed: number }>;
   hasAdmin: () => Promise<boolean>;
   seedBootstrapAdmin: (input: BootstrapAdminInput) => Promise<void>;
 }
@@ -241,6 +244,9 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const previewPromotion = new PreviewPromotionUseCase(promotionPlanner);
   const schedulePromotion = new SchedulePromotionUseCase(promotionPlanner, promotionRepository, employeeProfileRepository);
   const listPromotions = new ListPromotionsUseCase(promotionPlanner, promotionRepository, userRepository);
+  const listAllPromotions = new ListAllPromotionsUseCase(promotionPlanner, promotionRepository);
+  const cancelPromotion = new CancelPromotionUseCase(promotionPlanner, promotionRepository);
+  const applyDuePromotions = new ApplyDuePromotionsUseCase(promotionRepository, employeeProfileRepository, userRepository, payComponentRepository, ctcAssignmentRepository, managerHistoryRepository, currentMonth);
 
   const getUserSummary = new GetUserSummaryUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getManagerChain = new GetManagerChainUseCase(userRepository, roleRepository, employeeProfileRepository);
@@ -275,7 +281,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     resetPassword: makeResetPasswordController(resetPassword),
   };
   const ctcControllers = makeCtcControllers({ preview: previewCtc, assign: assignCtc, history: listCtcHistory, reapply: reapplyCtc });
-  const promotionControllers = makePromotionControllers({ preview: previewPromotion, schedule: schedulePromotion, list: listPromotions });
+  const promotionControllers = makePromotionControllers({ preview: previewPromotion, schedule: schedulePromotion, list: listPromotions, listAll: listAllPromotions, cancel: cancelPromotion, applyDue: applyDuePromotions });
   const devicesControllers = {
     listPending: makeListPendingDevicesController(listPendingDevices),
     listForUser: makeListUserDevicesController(listUserDevices),
@@ -315,6 +321,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       router.use(buildDevicesRouter(devicesControllers));
       router.use('/users', buildUserCtcRouter(ctcControllers));
       router.use('/users', buildUserPromotionsRouter(promotionControllers));
+      router.use('/promotions', buildPromotionsRouter(promotionControllers));
       router.use('/users', buildUsersRouter(usersControllers));
       router.use('/pay-components', buildPayComponentsRouter({ list: listPayComponents, create: createPayComponent, update: updatePayComponent }));
       router.use('/ctc', buildCtcRouter(ctcControllers));
@@ -332,6 +339,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
 
     seedRoles: () => seedDefaultRoles.execute(),
     seedPayComponents: () => seedDefaultPayComponents.execute(),
+    applyDuePromotions: () => applyDuePromotions.execute(),
     hasAdmin: () => userRepository.existsAdmin(),
     seedBootstrapAdmin: (input) => seedBootstrapAdminUseCase.execute(input),
   };

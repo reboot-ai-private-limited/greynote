@@ -4,14 +4,19 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { env } from '@/config/env.js';
-import { buildContainers } from './container.js';
+import { buildContainers, type AppContainers } from './container.js';
 import { buildApiRouter } from './routes.js';
 import { accessLogMiddleware } from '@/shared/http/access-log.middleware.js';
 import { errorHandler, notFoundHandler } from '@/shared/http/error-handler.js';
 import { requestIdMiddleware } from '@/shared/http/request-id.middleware.js';
 import { mountSwagger } from '@/shared/http/swagger.util.js';
 
-export function createApp(): Express {
+export interface CreateAppOptions {
+    /** Called once with the built modules, for what the server runs besides requests (scheduled jobs). */
+    onContainers?: (containers: AppContainers) => void;
+}
+
+export function createApp(options: CreateAppOptions = {}): Express {
     const app = express();
 
     app.disable('x-powered-by');
@@ -31,6 +36,7 @@ export function createApp(): Express {
     // buildRouter, called below) registers its OpenAPI paths as a side effect, so containers
     // MUST be built — and their routers built — before mountSwagger reads the registry.
     const containers = buildContainers();
+    options.onContainers?.(containers);
 
     // 2. Wire their routes into Express at /api
     app.use('/api', buildApiRouter(containers));
