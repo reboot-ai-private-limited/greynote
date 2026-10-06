@@ -10,18 +10,15 @@ import { finalizeMessage, monthLabel, runTotals, type FinalizeResult } from '../
 
 /**
  * Locks drafts. It is a one-way door: a finalized month is a record, and later expense or leave changes do not touch it. So it asks
- * for a deliberate tick, says what is locked and for how much, and says how many claims are still unpaid and so are not in it.
+ * for a deliberate tick, says what is locked and for how much, 
  */
 export function FinalizeDialog({
   runs: liveRuns,
   month,
-  unpaidClaims,
   onClose,
 }: {
   runs: readonly PayrollRunDto[];
   month: string;
-  /** Accepted claims for the month still unpaid: not in the sheet. */
-  unpaidClaims: number;
   onClose: () => void;
 }) {
   // The sheet refetches once some are finalized and the drafts shrink; the summary must still say "7 of 9".
@@ -75,14 +72,8 @@ export function FinalizeDialog({
     >
       <div className="space-y-3 text-sm text-text-muted">
         <p>
-          A finalized run cannot be regenerated or changed. Expenses paid or leave approved afterwards do not alter it; a later payment is counted in the
-          month it is made.
+          A finalized run cannot be regenerated or changed. Leave approved afterwards does not alter it. TA, DA and reimbursements are not in a salary sheet: they are paid separately.
         </p>
-        {unpaidClaims > 0 ? (
-          <p role="alert" className="rounded-md border border-warning bg-warning-bg p-3 text-warning-fg">
-            {unpaidClaims} accepted {unpaidClaims === 1 ? 'claim' : 'claims'} for {monthLabel(month)} {unpaidClaims === 1 ? 'is' : 'are'} still unpaid and not in this sheet. If they should be, pay them and regenerate before finalizing.
-          </p>
-        ) : null}
         <label className="flex cursor-pointer items-start gap-3 text-text">
           <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} className="mt-0.5 size-4 rounded border-border-strong accent-[var(--color-accent)]" />
           <span>I have checked the figures{single ? '' : ' for every employee'} and want to lock {single ? 'this run' : 'these runs'}.</span>

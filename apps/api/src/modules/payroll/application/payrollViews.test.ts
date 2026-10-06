@@ -16,6 +16,7 @@ const run = (userId: string): PayrollRun => ({
   unpaidLeaveDays: 0,
   leaveDeductionPaise: 0,
   netPayablePaise: 3_100_000,
+  esiNumber: null,
   joinedInMonth: false,
   status: 'DRAFT',
   generatedBy: 'acc',

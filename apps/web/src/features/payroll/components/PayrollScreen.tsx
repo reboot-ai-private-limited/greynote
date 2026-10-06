@@ -12,8 +12,6 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Select } from '@/components/ui/Select';
 import { StatTile } from '@/components/ui/StatTile';
 import { TopProgressBar } from '@/components/ui/TopProgressBar';
-import { useExpenseAudit } from '@/features/field-activity/hooks/useExpenses';
-import { auditTotals } from '@/features/field-activity/lib/expenses';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { downloadCsv } from '@/lib/csv';
 import { istDate } from '@/lib/dates';
@@ -22,7 +20,7 @@ import { formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
 import { useGenerate, usePayrollMonth } from '../hooks/usePayroll';
-import { draftRuns, endedMonthsInYear, monthBounds, monthLabel, monthState, payrollCsv, payrollFilename, runTotals } from '../lib/payroll';
+import { draftRuns, endedMonthsInYear, monthLabel, monthState, payrollCsv, payrollFilename, runTotals } from '../lib/payroll';
 import { FinalizeDialog } from './FinalizeDialog';
 import { GenerateDialog } from './GenerateDialog';
 import { GenerateResultDialog } from './GenerateResultDialog';
@@ -50,10 +48,8 @@ export function PayrollScreen() {
     setOutcomes(result);
   });
 
-  // Claims accepted for this month's reports but not yet paid are not in the sheet, and the Accountant should know how much.
-  const bounds = month ? monthBounds(month) : { from: '', to: '' };
-  const unpaid = useExpenseAudit({ ...bounds, paymentStatus: 'UNPAID' }, month !== '');
-  const unpaidTotals = auditTotals(unpaid.data ?? []);
+  // Runs finalized before 2026-10-06 included TA/DA and reimbursements; those columns show only while such a run is in view.
+  const hasExpenseLines = runs.some((r) => r.totalTaDaPaise !== 0 || r.reimbursementPaise !== 0);
 
   const columns: readonly Column<PayrollRunDto>[] = [
     {
@@ -72,8 +68,12 @@ export function PayrollScreen() {
       ),
     },
     { key: 'base', header: 'Base', numeric: true, render: (r) => formatMoney(r.baseSalaryPaise) },
-    { key: 'taDa', header: 'TA + DA paid', numeric: true, render: (r) => formatMoney(r.totalTaDaPaise) },
-    { key: 'reimb', header: 'Reimbursed', numeric: true, render: (r) => formatMoney(r.reimbursementPaise) },
+    ...(hasExpenseLines
+      ? ([
+          { key: 'taDa', header: 'TA + DA paid', numeric: true, render: (r) => formatMoney(r.totalTaDaPaise) },
+          { key: 'reimb', header: 'Reimbursed', numeric: true, render: (r) => formatMoney(r.reimbursementPaise) },
+        ] satisfies Column<PayrollRunDto>[])
+      : []),
     { key: 'leave', header: 'Unpaid leave', numeric: true, render: (r) => (r.unpaidLeaveDays === 0 ? '—' : `${r.unpaidLeaveDays} d · −${formatMoney(r.leaveDeductionPaise)}`) },
     { key: 'net', header: 'Net payable', numeric: true, render: (r) => <span className="font-semibold">{formatMoney(r.netPayablePaise)}</span> },
     { key: 'status', header: 'Status', render: (r) => <Badge tone={r.status === 'FINALIZED' ? 'success' : 'warning'}>{r.status === 'FINALIZED' ? 'Finalized' : 'Draft'}</Badge> },
@@ -105,7 +105,7 @@ export function PayrollScreen() {
     <>
       <PageHeader
         title="Payroll"
-        description="A sheet per month for every active field employee: base salary plus what was paid in the month, less unpaid leave."
+        description="A sheet per month for every active field employee: base salary less unpaid leave. TA, DA and reimbursements are paid separately, on the 15th."
         actions={
           <div className="flex items-center gap-2">
             <Button variant="secondary" disabled={runs.length === 0} onClick={() => downloadCsv(payrollFilename(month), payrollCsv(runs))}>
@@ -141,21 +141,10 @@ export function PayrollScreen() {
             ) : null}
           </div>
 
-          {unpaidTotals.unpaidCount > 0 ? (
-            <p role="status" className="mb-6 rounded-lg border border-warning bg-warning-bg p-4 text-sm text-warning-fg">
-              {unpaidTotals.unpaidCount} accepted {unpaidTotals.unpaidCount === 1 ? 'claim' : 'claims'} for {monthLabel(month)} ({formatMoney(unpaidTotals.unpaidPaise)}) {unpaidTotals.unpaidCount === 1 ? 'is' : 'are'} still unpaid, so{' '}
-              {unpaidTotals.unpaidCount === 1 ? 'it is' : 'they are'} not in this sheet. Once paid, {unpaidTotals.unpaidCount === 1 ? 'it counts' : 'they count'} in the month you pay.{' '}
-              <Link href={`/expenses?from=${bounds.from}&to=${bounds.to}`} className="font-medium underline">
-                Review them
-              </Link>
-              .
-            </p>
-          ) : null}
-
           <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile label="Employees" value={totals.employees} note={totals.joinedInMonth > 0 ? `${totals.joinedInMonth} joined this month, paid in full` : undefined} />
             <StatTile label="Net payable" value={formatMoney(totals.netPaise)} />
-            <StatTile label="Paid in the month" value={formatMoney(totals.taDaPaise + totals.reimbursementPaise)} note="TA, DA and reimbursements" />
+            {hasExpenseLines ? <StatTile label="Paid in the month" value={formatMoney(totals.taDaPaise + totals.reimbursementPaise)} note="TA, DA and reimbursements (older runs)" /> : <StatTile label="Base salary" value={formatMoney(totals.basePaise)} />}
             <StatTile label="Leave deductions" value={formatMoney(totals.deductionPaise)} />
           </div>
 
@@ -182,7 +171,7 @@ export function PayrollScreen() {
           onConfirm={() => generate.mutate({ month, ...(generating.employee && { userIds: [generating.employee.userId] }) })}
         />
       ) : null}
-      {finalizing ? <FinalizeDialog runs={finalizing} month={month} unpaidClaims={unpaidTotals.unpaidCount} onClose={() => setFinalizing(null)} /> : null}
+      {finalizing ? <FinalizeDialog runs={finalizing} month={month} onClose={() => setFinalizing(null)} /> : null}
       {outcomes ? <GenerateResultDialog outcomes={outcomes} onClose={() => setOutcomes(null)} /> : null}
     </>
   );

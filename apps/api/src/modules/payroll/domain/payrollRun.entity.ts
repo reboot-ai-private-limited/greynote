@@ -23,15 +23,20 @@ export interface PayrollRun {
   ctcEffectiveFrom: string | null;
   /** The breakdown at generation (annual amounts, employer contributions included); empty on older runs. */
   ctcLines: CtcLineSnapshot[];
-  /** TA + DA marked paid during the month. */
+  /**
+   * TA + DA marked paid during the month. Only on runs finalized before 2026-10-06: TA/DA and reimbursements are paid in their own
+   * payout on the 15th now (decision-log 2026-10-06), so a new run holds 0 here.
+   */
   totalTaDaPaise: Paise;
-  /** Manual expenses (travel, meals, other) marked paid during the month. */
+  /** Manual expenses paid during the month; as above, 0 on a new run. */
   reimbursementPaise: Paise;
   /** Approved unpaid leave days in the month, halves allowed — what the deduction was worked out from. */
   unpaidLeaveDays: number;
   leaveDeductionPaise: Paise;
-  /** `base + TA/DA + reimbursement − leave deduction`. */
+  /** `base − leave deduction` (older runs also add TA/DA and reimbursement). */
   netPayablePaise: Paise;
+  /** The employee's ESI number when generated (a snapshot, printed on the salary slip); null if none was set. */
+  esiNumber: string | null;
   /** The joining date falls in this month; the full base salary is paid (no proration) and the Accountant is told. */
   joinedInMonth: boolean;
   status: PayrollStatus;

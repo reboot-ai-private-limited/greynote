@@ -16,6 +16,7 @@ const toRun = (d: PayrollRunDoc & { _id: unknown }): PayrollRun => ({
   ctcLines: (d.ctcLines ?? []).map((l) => ({ code: l.code, name: l.name, kind: l.kind, amountPaise: l.amountPaise, isOverridden: l.isOverridden })),
   totalTaDaPaise: d.totalTaDaPaise,
   reimbursementPaise: d.reimbursementPaise,
+  esiNumber: d.esiNumber ?? null,
   unpaidLeaveDays: d.unpaidLeaveDays,
   leaveDeductionPaise: d.leaveDeductionPaise,
   netPayablePaise: d.netPayablePaise,

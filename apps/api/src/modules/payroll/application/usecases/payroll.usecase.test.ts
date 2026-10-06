@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { PayrollFilter, PayrollRunRepositoryPort, SaveDraftResult } from '../../domain/payroll.repository.port.js';
 import { PAYROLL_CODES, PayrollRefusal } from '../../domain/payrollRefusal.js';
 import type { PayrollDraft, PayrollRun } from '../../domain/payrollRun.entity.js';
-import type { FieldActivityPort, HrPort, IdentityPort } from '../../domain/ports.js';
+import type { HrPort, IdentityPort } from '../../domain/ports.js';
 import { FinalizePayrollUseCase, GeneratePayrollUseCase, GetPayrollRunUseCase, ListPayrollRunsUseCase, PayrollClock } from './payroll.usecase.js';
 
 class FakeRuns implements PayrollRunRepositoryPort {
@@ -29,8 +29,8 @@ class FakeRuns implements PayrollRunRepositoryPort {
   }
 }
 
-type Emp = { role?: string; status?: 'active' | 'inactive'; ctc?: boolean; base?: number; joined?: Date | null; unpaid?: number; paid?: { taPaise: number; daPaise: number; reimbursementPaise: number } };
-class World implements IdentityPort, HrPort, FieldActivityPort {
+type Emp = { role?: string; status?: 'active' | 'inactive'; ctc?: boolean; base?: number; joined?: Date | null; unpaid?: number; esi?: string | null };
+class World implements IdentityPort, HrPort {
   emps = new Map<string, Emp>();
   add(id: string, e: Emp = {}) {
     this.emps.set(id, e);
@@ -47,7 +47,7 @@ class World implements IdentityPort, HrPort, FieldActivityPort {
   }
   async getEmploymentDetails(id: string) {
     const e = this.emps.get(id);
-    return e ? { dateOfJoining: e.joined ?? new Date('2024-01-01') } : null;
+    return e ? { dateOfJoining: e.joined ?? new Date('2024-01-01'), esiNumber: e.esi ?? null } : null;
   }
   ctcMonths: string[] = [];
   /** `base` is the monthly gross; the CTC also carries an employer EPF line that must not be paid out. */
@@ -64,9 +64,6 @@ class World implements IdentityPort, HrPort, FieldActivityPort {
   }
   async getUnpaidLeaveDays(id: string) {
     return this.emps.get(id)?.unpaid ?? 0;
-  }
-  async getPaidTaDaTotal(id: string) {
-    return this.emps.get(id)?.paid ?? { taPaise: 0, daPaise: 0, reimbursementPaise: 0 };
   }
 }
 
@@ -86,17 +83,17 @@ describe('payroll', () => {
     runs = new FakeRuns();
     world = new World();
     now = new Date('2026-11-05T10:00:00+05:30');
-    generate = new GeneratePayrollUseCase(runs, world, world, world, clock());
+    generate = new GeneratePayrollUseCase(runs, world, world, clock());
     finalize = new FinalizePayrollUseCase(runs, clock());
-    world.add('mr1', { paid: { taPaise: 8003, daPaise: 20000, reimbursementPaise: 5000 }, unpaid: 1 });
+    world.add('mr1', { unpaid: 1, esi: '12345678901234567' });
     world.add('mr2');
   });
 
-  it('works out each employee’s sheet: base + TA/DA + reimbursement − one day’s deduction', async () => {
+  it('works out each employee’s sheet: base − one day’s deduction, with no TA/DA or reimbursement in it', async () => {
     const [a, b] = await generate.execute(acct, { month: '2026-10' });
     expect(a).toMatchObject({ userId: 'mr1', outcome: 'created' });
-    expect((a as { run: PayrollRun }).run).toMatchObject({ baseSalaryPaise: 3_000_000, totalTaDaPaise: 28003, reimbursementPaise: 5000, unpaidLeaveDays: 1, leaveDeductionPaise: 100_000, netPayablePaise: 2_933_003, status: 'DRAFT', generatedBy: 'acct' });
-    expect((b as { run: PayrollRun }).run).toMatchObject({ totalTaDaPaise: 0, leaveDeductionPaise: 0, netPayablePaise: 3_000_000 }); // no activity is normal
+    expect((a as { run: PayrollRun }).run).toMatchObject({ baseSalaryPaise: 3_000_000, totalTaDaPaise: 0, reimbursementPaise: 0, unpaidLeaveDays: 1, leaveDeductionPaise: 100_000, netPayablePaise: 2_900_000, esiNumber: '12345678901234567', status: 'DRAFT', generatedBy: 'acct' });
+    expect((b as { run: PayrollRun }).run).toMatchObject({ totalTaDaPaise: 0, leaveDeductionPaise: 0, netPayablePaise: 3_000_000, esiNumber: null }); // no ESI number is normal
   });
 
   it('only a month that has ended can be generated', async () => {
@@ -123,12 +120,12 @@ describe('payroll', () => {
     const done = await finalize.execute('p1');
     expect(done).toMatchObject({ status: 'FINALIZED' });
     expect(done.finalizedAt).toEqual(now);
-    // CTC raised, more expenses paid, more leave approved: the finalized numbers do not move.
+    // CTC raised, the ESI number changed, more leave approved: the finalized numbers do not move.
     world.emps.get('mr1')!.base = 9_999_900;
-    world.emps.get('mr1')!.paid = { taPaise: 1, daPaise: 1, reimbursementPaise: 1 };
+    world.emps.get('mr1')!.esi = '99999999999999999';
     world.emps.get('mr1')!.unpaid = 9;
     expect(await code(generate.execute(acct, { month: '2026-10', userIds: ['mr1'] }))).toBe(PAYROLL_CODES.alreadyFinalized);
-    expect(runs.rows[0]).toMatchObject({ baseSalaryPaise: 3_000_000, totalTaDaPaise: 28003, netPayablePaise: 2_933_003, status: 'FINALIZED' });
+    expect(runs.rows[0]).toMatchObject({ baseSalaryPaise: 3_000_000, netPayablePaise: 2_900_000, esiNumber: '12345678901234567', status: 'FINALIZED' });
     expect(await code(finalize.execute('p1'))).toBe(PAYROLL_CODES.alreadyFinalized);
     expect(await code(finalize.execute('nope'))).toBe(PAYROLL_CODES.runNotFound);
   });

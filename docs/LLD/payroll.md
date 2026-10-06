@@ -27,7 +27,8 @@ by a filter someone could forget.
 | `unpaid_leave_days` | Snapshot of the approved unpaid days (halves allowed) the deduction was computed from |
 | `joined_in_month` | `true` when the employee's joining date falls in the month — flag only, no proration |
 | `leave_deduction_paise` | `unpaid_days × base_salary_paise / 30`, rounded half up to a whole paise once — computed at generation, then frozen as one number |
-| `net_payable` | `base_salary + total_ta_da + reimbursement − leave_deduction` |
+| `net_payable` | `base_salary − leave_deduction` (2026-10-06; runs finalized before it also add `total_ta_da + reimbursement`) |
+| `esi_number` | The employee's ESI number when generated (a snapshot, printed on the salary slip), or null |
 | `status` | `DRAFT` → `FINALIZED` |
 | `generated_by` / `generated_at`, `finalized_at` | Accountant, and when |
 
@@ -159,3 +160,12 @@ models directly, per
   for one; if it's added later it's a read-only addition to the public contract, not a rework.
 - **Calendar-aware or working-day-aware leave deduction.** The flat `/30` rate is deliberate and
   simple; revisiting it is a decision for `../decision-log.md`, not a silent refinement.
+
+
+## Salary is separate from TA/DA (2026-10-06)
+
+A salary run no longer reads Field Activity at all: `net_payable = base_salary − leave_deduction`, and `total_ta_da` and `reimbursement`
+are written as 0 on new runs (kept on the entity for runs finalized before this, which are untouched). TA, DA and reimbursements are
+paid in their own **expense payout** on the 15th (decision-log 2026-10-06; Field Activity's `expense payout`, step 2b). Salary is run on
+the 1st for the month just ended. The run snapshots the ESI number for the salary slip. Both days are settings
+(`SALARY_RUN_DAY`, `EXPENSE_PAYOUT_DAY`) that only drive "due" flags; nothing is refused for being early or late.

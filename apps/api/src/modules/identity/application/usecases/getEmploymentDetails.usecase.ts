@@ -5,6 +5,8 @@ export interface EmploymentDetails {
   dateOfJoining: Date | null;
   /** Null: the `PROBATION_MONTHS` setting applies. */
   probationMonths: number | null;
+  /** The ESI number (17 digits), or null. */
+  esiNumber: string | null;
 }
 
 /**
@@ -16,6 +18,6 @@ export class GetEmploymentDetailsUseCase {
 
   async execute(userId: string): Promise<EmploymentDetails | null> {
     const profile = await this.employeeProfileRepository.findByUserId(userId);
-    return profile && { payBandId: profile.payBandId, dateOfJoining: profile.dateOfJoining, probationMonths: profile.probationMonths };
+    return profile && { payBandId: profile.payBandId, dateOfJoining: profile.dateOfJoining, probationMonths: profile.probationMonths, esiNumber: profile.esiNumber };
   }
 }

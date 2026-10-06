@@ -57,7 +57,7 @@ export function PayrollRunScreen({ id }: { id: string }) {
             />
             {!netAddsUp(run) ? (
               <p role="alert" className="mb-6 rounded-lg border border-danger bg-danger-bg p-4 text-sm text-danger-fg">
-                The net payable does not equal base plus TA/DA plus reimbursements minus the deduction. Do not finalize this run: regenerate it, and report it if it
+                The net payable does not equal the base salary minus the deduction (plus TA/DA and reimbursements on an older run). Do not finalize this run: regenerate it, and report it if it
                 happens again.
               </p>
             ) : null}
@@ -70,8 +70,12 @@ export function PayrollRunScreen({ id }: { id: string }) {
               <Card title="How the net is worked out">
                 <div className="divide-y divide-border">
                   <Line label="Base salary" note="Monthly gross from the CTC in force when this was generated (the CTC less the employer's EPF and ESI, ÷ 12); a later change does not alter it." amount={formatMoney(run.baseSalaryPaise)} />
-                  <Line label="TA and DA paid" note={`Marked paid during ${monthLabel(run.month)}.`} amount={`+ ${formatMoney(run.totalTaDaPaise)}`} />
-                  <Line label="Reimbursements paid" note="Travel, meals and other claims marked paid in the month." amount={`+ ${formatMoney(run.reimbursementPaise)}`} />
+                  {run.totalTaDaPaise !== 0 || run.reimbursementPaise !== 0 ? (
+                    <>
+                      <Line label="TA and DA paid" note={`Marked paid during ${monthLabel(run.month)} (a run from before TA/DA moved to its own payout).`} amount={`+ ${formatMoney(run.totalTaDaPaise)}`} />
+                      <Line label="Reimbursements paid" note="Travel, meals and other claims marked paid in the month." amount={`+ ${formatMoney(run.reimbursementPaise)}`} />
+                    </>
+                  ) : null}
                   <Line label="Leave deduction" note={deductionExplanation(run)} amount={`− ${formatMoney(run.leaveDeductionPaise)}`} />
                   <Line strong label="Net payable" amount={formatMoney(run.netPayablePaise)} />
                 </div>
@@ -81,6 +85,7 @@ export function PayrollRunScreen({ id }: { id: string }) {
                   <FieldList>
                     <Field label="Generated">{formatDateTime(run.generatedAt)}</Field>
                     <Field label="Finalized">{run.finalizedAt ? formatDateTime(run.finalizedAt) : null}</Field>
+                    <Field label="ESI number">{run.esiNumber}</Field>
                     <Field label="Employee">
                       <Link href={`/employees/${run.userId}`} className="text-accent hover:underline">
                         {run.userName || 'Open the employee'}

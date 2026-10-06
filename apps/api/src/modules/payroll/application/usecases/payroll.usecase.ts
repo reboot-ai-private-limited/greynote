@@ -4,7 +4,7 @@ import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
 import type { PayrollFilter, PayrollRunRepositoryPort } from '../../domain/payroll.repository.port.js';
 import { PAYROLL_CODES, PayrollRefusal, type PayrollCode } from '../../domain/payrollRefusal.js';
 import type { PayrollRun } from '../../domain/payrollRun.entity.js';
-import type { FieldActivityPort, HrPort, IdentityPort } from '../../domain/ports.js';
+import type { HrPort, IdentityPort } from '../../domain/ports.js';
 import { leaveDeductionPaise, monthlyGrossPaise, netPayablePaise } from '../payrollCalc.js';
 
 export interface Actor {
@@ -39,9 +39,9 @@ export class PayrollClock {
 }
 
 /**
- * The Accountant's (or Admin's) month-end sheet (LLD payroll.md, HLD 7). For each employee, independently: the CTC in
- * force for the month (its monthly gross, snapshotted), what was paid during the month, the month's approved unpaid leave, the
- * deduction and the net — written as a `DRAFT`, overwriting an earlier draft, never a finalized run. One employee's
+ * The Accountant's (or Admin's) salary sheet (LLD payroll.md, HLD 7). For each employee, independently: the CTC in force for
+ * the month (its monthly gross, snapshotted), the month's approved unpaid leave, the deduction and the net (`base − deduction`; TA/DA
+ * and reimbursements are paid separately, on the 15th) — written as a `DRAFT`, overwriting an earlier draft, never a finalized run. One employee's
  * problem (no CTC, already finalized, a fault) is reported for them and never fails the rest.
  */
 export class GeneratePayrollUseCase {
@@ -49,7 +49,6 @@ export class GeneratePayrollUseCase {
     private readonly runs: PayrollRunRepositoryPort,
     private readonly identity: IdentityPort,
     private readonly hr: HrPort,
-    private readonly fieldActivity: FieldActivityPort,
     private readonly clock: PayrollClock,
   ) {}
 
@@ -86,9 +85,7 @@ export class GeneratePayrollUseCase {
     if (!ctc) throw new PayrollRefusal(PAYROLL_CODES.noCtc, `${user.name} has no CTC in force for ${month}, so there is no salary to pay.`);
 
     const baseSalaryPaise = monthlyGrossPaise(ctc.lines);
-    const paid = await this.fieldActivity.getPaidTaDaTotal(userId, month);
     const unpaidLeaveDays = await this.hr.getUnpaidLeaveDays(userId, month);
-    const totalTaDaPaise = paid.taPaise + paid.daPaise;
     const deduction = leaveDeductionPaise(unpaidLeaveDays, baseSalaryPaise);
     const joinedInMonth = employment?.dateOfJoining ? (await this.clock.dateOf(employment.dateOfJoining)).startsWith(`${month}-`) : false;
 
@@ -99,11 +96,13 @@ export class GeneratePayrollUseCase {
       ctcAnnualPaise: ctc.ctcAnnualPaise,
       ctcEffectiveFrom: ctc.effectiveFrom,
       ctcLines: ctc.lines,
-      totalTaDaPaise,
-      reimbursementPaise: paid.reimbursementPaise,
+      // TA/DA and reimbursements are not part of salary: they are paid in the expense payout on the 15th.
+      totalTaDaPaise: 0,
+      reimbursementPaise: 0,
+      esiNumber: employment?.esiNumber ?? null,
       unpaidLeaveDays,
       leaveDeductionPaise: deduction,
-      netPayablePaise: netPayablePaise({ baseSalaryPaise, totalTaDaPaise, reimbursementPaise: paid.reimbursementPaise, leaveDeductionPaise: deduction }),
+      netPayablePaise: netPayablePaise({ baseSalaryPaise, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: deduction }),
       joinedInMonth,
       generatedBy: actor.id,
       generatedAt: this.clock.now(),

@@ -11,6 +11,7 @@ export interface PayrollRunDoc {
   ctcLines: Array<{ code: string; name: string; kind: 'EARNING' | 'EMPLOYER_CONTRIBUTION'; amountPaise: number; isOverridden: boolean }>;
   totalTaDaPaise: number;
   reimbursementPaise: number;
+  esiNumber?: string | null;
   unpaidLeaveDays: number;
   leaveDeductionPaise: number;
   netPayablePaise: number;
@@ -31,6 +32,7 @@ const schema = new Schema<PayrollRunDoc>({
   ctcLines: { type: [new Schema({ code: String, name: String, kind: String, amountPaise: Number, isOverridden: Boolean }, { _id: false })], default: [] },
   totalTaDaPaise: paise,
   reimbursementPaise: paise,
+  esiNumber: { type: String, default: null },
   unpaidLeaveDays: { type: Number, required: true, min: 0, validate: { validator: (v: number) => Number.isInteger(v * 2), message: 'Whole or half days only.' } },
   leaveDeductionPaise: paise,
   netPayablePaise: paise,

@@ -78,7 +78,7 @@ export function buildContainers(): AppContainers {
   const marketing = buildMarketingContainer(identity.contract, fieldMasterData.contract, sales.contract);
 
   // Tier 5 — Payroll: base salary and who is active (Identity), approved unpaid leave (HR), what was paid in the month (Field Activity).
-  const payroll = buildPayrollContainer(identity.contract, hr.contract, fieldActivity.contract, config.contract);
+  const payroll = buildPayrollContainer(identity.contract, hr.contract, config.contract);
 
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.

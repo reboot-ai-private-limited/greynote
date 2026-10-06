@@ -36,6 +36,7 @@ const run = (over: Partial<PayrollRunDto> = {}): PayrollRunDto => ({
   unpaidLeaveDays: 0,
   leaveDeductionPaise: 0,
   netPayablePaise: 3_632_050,
+  esiNumber: null,
   joinedInMonth: false,
   status: 'DRAFT',
   generatedBy: 'acc',
