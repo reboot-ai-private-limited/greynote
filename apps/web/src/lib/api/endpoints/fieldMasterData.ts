@@ -40,7 +40,8 @@ export interface ListDoctorsQuery extends PaginationQueryDto {
   /** Includes `pending`: the Doctors MRs added that await approval. */
   status?: DoctorStatus | undefined;
   routeId?: string | undefined;
-  category?: string | undefined;
+  /** Matches the name. */
+  search?: string | undefined;
 }
 export interface ListDistributorsQuery extends PaginationQueryDto {
   status?: MasterStatus | undefined;

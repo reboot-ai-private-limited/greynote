@@ -420,3 +420,10 @@ each as TA, DA and reimbursements apart, plus the latest paid time — with `due
 accepted, unpaid expense of that month paid for the named employees, or for everyone owed, with who and when; one conditional update per
 employee, so a second press pays nothing twice and moves no date. Marking a single expense paid (`/expenses/:id/mark-paid`) still works.
 There is no new collection: a statement is a grouped view of the `Expense` rows. `getPaidTaDaTotal` is no longer read by Payroll.
+
+
+## Gifts and services in the web portal (2026-10-06)
+
+Admin screens over the existing API: **Doctor gifts** (`/doctor-gifts`: list by status, allocate a gift to a doctor with a name and a value; the assigned MR marks it done in
+the app) and **Doctor services** (`/doctor-services`: every service with its approval status, and "New service" for one Admin records: effective at once, tied to the doctor's
+assigned MR, refused for a doctor with no MR). A doctor is picked by searching names. The four service types (Tour package, Gift, Online promotion, Others) are final.

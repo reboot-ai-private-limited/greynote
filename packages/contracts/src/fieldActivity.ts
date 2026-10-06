@@ -176,3 +176,29 @@ export interface PayOutcomeDto {
   paidCount: number;
   paidPaise: number;
 }
+
+/** A gift Admin allocated to a Doctor: the assigned MR marks it done once delivered. No approval. */
+export interface DoctorGiftDto {
+  id: string;
+  doctorId: string;
+  doctorName: string;
+  allocatedBy: string;
+  productName: string;
+  amountPaise: number;
+  status: 'PENDING' | 'DONE';
+  completedBy: string | null;
+  completedAt: string | null;
+  allocatedAt: string;
+}
+export interface AllocateGiftDto {
+  doctorId: string;
+  productName: string;
+  amountPaise: number;
+}
+/** Admin makes a Doctor Service directly: effective at once, tied to the Doctor's assigned MR, with no approval. */
+export interface CreateAdminServiceDto {
+  doctorId: string;
+  serviceType: DoctorServiceType;
+  amountPaise: number;
+  remarks?: string | null | undefined;
+}

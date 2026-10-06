@@ -1,5 +1,8 @@
 import type {
+  AllocateGiftDto,
+  CreateAdminServiceDto,
   DcrDetailDto,
+  DoctorGiftDto,
   DoctorServiceDto,
   ExpenseAuditRowDto,
   ExpensePaymentStatus,
@@ -32,6 +35,18 @@ export const fieldActivityApi = {
 
   /** Pays a month's unpaid expenses for the named employees, or for everyone owed. Paying twice pays nothing twice. */
   payExpenses: (token: string, body: PayExpensesDto) => request<PayOutcomeDto[]>('/field-activity/expense-payouts/pay', { method: 'POST', token, body }),
+
+  /** Admin: every Doctor Service, newest first, optionally for one Doctor. */
+  doctorServices: (token: string, query: { doctorId?: string | undefined }, signal?: AbortSignal) =>
+    request<DoctorServiceDto[]>('/field-activity/doctor-services', { token, query: { ...query }, signal }),
+  /** Admin: creates a Service for a Doctor — effective at once, tied to the Doctor's assigned MR. A Doctor with no MR is refused. */
+  createDoctorService: (token: string, body: CreateAdminServiceDto) =>
+    request<DoctorServiceDto>('/field-activity/admin/doctor-services', { method: 'POST', token, body }),
+  /** Admin: every gift, newest first, optionally only pending or done. */
+  doctorGifts: (token: string, query: { status?: 'PENDING' | 'DONE' | undefined }, signal?: AbortSignal) =>
+    request<DoctorGiftDto[]>('/field-activity/doctor-gifts', { token, query: { ...query }, signal }),
+  /** Admin: allocates a gift (a name and its value) to a Doctor; the assigned MR marks it done. */
+  allocateGift: (token: string, body: AllocateGiftDto) => request<DoctorGiftDto>('/field-activity/admin/doctor-gifts', { method: 'POST', token, body }),
 
   /** One daily report with every call, follow-up and expense: the review screen. */
   dcr: (token: string, id: string, signal?: AbortSignal) => request<DcrDetailDto>(`/field-activity/dcr/${id}`, { token, signal }),
