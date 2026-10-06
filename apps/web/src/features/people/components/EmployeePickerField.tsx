@@ -23,6 +23,7 @@ export function EmployeePickerField({
   error,
   disabled = false,
   hint,
+  selfId,
 }: {
   id: string;
   label: string;
@@ -32,6 +33,8 @@ export function EmployeePickerField({
   error?: string | undefined;
   disabled?: boolean;
   hint?: string;
+  /** Not offered in the list (the employee themselves, when choosing their own manager). */
+  selfId?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -51,6 +54,7 @@ export function EmployeePickerField({
       </div>
       {open ? (
         <ManagerPickerDialog
+          {...(selfId ? { selfId } : {})}
           title={title}
           label={label}
           onClose={() => setOpen(false)}

@@ -111,6 +111,7 @@ export function PromotionScreen({ id }: { id: string }) {
                   </FormField>
                   <EmployeePickerField
                     id="promo-manager"
+                    selfId={user.id}
                     label="New manager"
                     title="Choose their new manager"
                     value={draft.managerId}

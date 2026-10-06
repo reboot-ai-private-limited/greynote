@@ -289,3 +289,7 @@ device-limit value.
 opened for editing, and saves on its own through the existing onboarding `PATCH`/CTC/document endpoints, so there is no new API and nothing is lost by stopping: the profile's "still to
 fill in" banner links back with *Continue setup*. The four required steps (everything `computeUserStatus` needs for `active`) show a check once the profile has them; Compensation and
 Documents are optional. Creating a FIELD employee goes straight to the first open step; other roles go to their profile.
+
+## Promotion in the web (2026-10-06)
+
+`features/people`: the **Promotion** tab on a field employee (`PromotionTab`: history of `PromotionCard`s and a Promote button), the page `/employees/:id/promote` (`PromotionScreen`), and `/promotions` (`PromotionsScreen`, Admin and HR, in the People nav). The form's strings become the request in `lib/promotion.ts` (pure, tested); the team table, preview, problems and warnings all come from `POST …/promotions/preview`, debounced, so the screen holds no promotion rules of its own. The team table (`PromotionTeamTable`) places one person, a ticked group, or everyone through the existing manager picker, and "stays with" keeps them under the promoted person (a warning, not a block). Schedule is enabled only when the preview has no problems and is not still being worked out. The leave card shows the balances of the financial year in view and says a promotion leaves them untouched. `/promotions` lists Needs attention first (derived on the server from the current state) and has Cancel and "Apply due promotions now".

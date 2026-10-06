@@ -71,12 +71,15 @@ export function PromotionCard({ promotion: p, showEmployee = false, canCancel = 
         <ul role="status" className="mt-3 space-y-1 rounded-md bg-warning-bg px-3 py-2 text-sm text-warning-fg">
           {p.attention.map((a) => (
             <li key={`${a.kind}:${a.person?.id ?? a.message}`}>
-              {a.person ? (
-                <Link href={`/employees/${a.person.id}`} className="font-medium underline">
-                  {a.person.name}
-                </Link>
-              ) : null}{' '}
               {a.message}
+              {a.person ? (
+                <>
+                  {' '}
+                  <Link href={`/employees/${a.person.id}`} className="font-medium underline">
+                    Open {a.person.name}
+                  </Link>
+                </>
+              ) : null}
             </li>
           ))}
         </ul>
