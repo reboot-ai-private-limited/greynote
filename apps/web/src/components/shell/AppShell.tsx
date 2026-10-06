@@ -14,9 +14,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <SideNav role={user.role} open={navOpen} onClose={() => setNavOpen(false)} />
+      <div data-print-hide className="contents">
+        <SideNav role={user.role} open={navOpen} onClose={() => setNavOpen(false)} />
+      </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar onMenu={() => setNavOpen(true)} />
+        <div data-print-hide className="contents">
+          <TopBar onMenu={() => setNavOpen(true)} />
+        </div>
         {year !== null ? (
           <div role="status" className="border-b border-warning/30 bg-warning-bg px-4 py-2.5 sm:px-8 text-sm text-warning-fg">
             Viewing financial year {year}–{String(year + 1).slice(2)}. This view is read-only.

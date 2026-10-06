@@ -8,3 +8,16 @@ body {
   font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
 }
+
+/* Printing a page (a salary slip): the chrome around it is left off and the page uses the whole sheet. */
+@media print {
+  [data-print-hide] {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  body {
+    background: #fff;
+  }
+}

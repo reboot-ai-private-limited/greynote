@@ -53,7 +53,14 @@ export function PayrollRunScreen({ id }: { id: string }) {
             <PageHeader
               title={run.userName || 'Payroll run'}
               description={`${run.employeeCode} · ${monthLabel(run.month)}`}
-              actions={<Badge tone={run.status === 'FINALIZED' ? 'success' : 'warning'}>{run.status === 'FINALIZED' ? 'Finalized' : 'Draft'}</Badge>}
+              actions={
+                <div className="flex items-center gap-3">
+                  <Link href={`/payroll/${run.id}/slip`} className="text-sm text-accent hover:underline">
+                    Salary slip
+                  </Link>
+                  <Badge tone={run.status === 'FINALIZED' ? 'success' : 'warning'}>{run.status === 'FINALIZED' ? 'Finalized' : 'Draft'}</Badge>
+                </div>
+              }
             />
             {!netAddsUp(run) ? (
               <p role="alert" className="mb-6 rounded-lg border border-danger bg-danger-bg p-4 text-sm text-danger-fg">

@@ -169,3 +169,8 @@ are written as 0 on new runs (kept on the entity for runs finalized before this,
 paid in their own **expense payout** on the 15th (decision-log 2026-10-06; Field Activity's `expense payout`, step 2b). Salary is run on
 the 1st for the month just ended. The run snapshots the ESI number for the salary slip. Both days are settings
 (`SALARY_RUN_DAY`, `EXPENSE_PAYOUT_DAY`) that only drive "due" flags; nothing is refused for being early or late.
+
+**Salary slip (2026-10-06).** The web renders a slip per run at `/payroll/:id/slip`: employee, code, ESI number (the run's snapshot), the CTC's earning
+lines a month at a time (a twelfth each, half up; a visible *Rounding* line if they differ from the run's base by a paise or two; employer
+contributions are left off), the unpaid-leave deduction and the net. It prints, or saves as a PDF from the print dialog; a draft is marked
+"not final". No new endpoint: it is drawn from the run.
