@@ -20,6 +20,7 @@ import { BankSection } from './BankSection';
 import { DocumentsSection } from './DocumentsSection';
 import { BasicSection } from './BasicSection';
 import { CompensationTab } from './CompensationTab';
+import { PromotionTab } from './PromotionTab';
 import { Field, FieldList } from './SectionCard';
 import { SecuritySection } from './SecuritySection';
 import { UserDevicesSection } from './UserDevicesSection';
@@ -85,6 +86,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                   <TabsTrigger value="bank">Bank</TabsTrigger>
                   <TabsTrigger value="documents">Documents</TabsTrigger>
                   <TabsTrigger value="compensation">Compensation</TabsTrigger>
+                  <TabsTrigger value="promotion">Promotion</TabsTrigger>
                   <TabsTrigger value="leave">Leave</TabsTrigger>
                   {isAdmin ? <TabsTrigger value="devices">Devices</TabsTrigger> : null}
                   {isAdmin ? <TabsTrigger value="security">Security</TabsTrigger> : null}
@@ -102,6 +104,9 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 </TabsContent>
                 <TabsContent value="compensation" className="mt-6">
                   <CompensationTab user={user} readOnly={readOnly} />
+                </TabsContent>
+                <TabsContent value="promotion" className="mt-6">
+                  <PromotionTab user={user} readOnly={readOnly} />
                 </TabsContent>
                 <TabsContent value="leave" className="mt-6">
                   <EmployeeLeaveTab userId={user.id} />

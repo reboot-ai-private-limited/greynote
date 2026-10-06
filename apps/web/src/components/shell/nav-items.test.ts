@@ -132,3 +132,12 @@ describe('navGroupsFor', () => {
     ]);
   });
 });
+
+describe('Promotions', () => {
+  it('is for Admin and HR only', () => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/promotions');
+    expect(navFor('HR').map((i) => i.href)).toContain('/promotions');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/promotions');
+    expect(isRouteBuilt('/promotions')).toBe(true);
+  });
+});

@@ -15,6 +15,11 @@ import type {
   DesignationDto,
   PaginatedDto,
   PayBandDto,
+  ApplyDuePromotionsResultDto,
+  PromotionDto,
+  PromotionPreviewDto,
+  PromotionRequestDto,
+  PromotionStatus,
   PendingDeviceDto,
   UpdatePayBandDto,
   UpdateUserDto,
@@ -113,4 +118,16 @@ export const ctcApi = {
     request<AssignCtcResultDto>(`/identity/users/${userId}/ctc`, { method: 'POST', token, body }),
   reapply: (token: string, body: ReapplyCtcDto) =>
     request<ReapplyOutcomeDto[]>('/identity/ctc/reapply', { method: 'POST', token, body }),
+};
+
+export const promotionsApi = {
+  preview: (token: string, userId: string, body: PromotionRequestDto, signal?: AbortSignal) =>
+    request<PromotionPreviewDto>(`/identity/users/${userId}/promotions/preview`, { method: 'POST', token, body, signal }),
+  schedule: (token: string, userId: string, body: PromotionRequestDto) =>
+    request<PromotionDto>(`/identity/users/${userId}/promotions`, { method: 'POST', token, body }),
+  forUser: (token: string, userId: string, signal?: AbortSignal) => request<PromotionDto[]>(`/identity/users/${userId}/promotions`, { token, signal }),
+  all: (token: string, status?: PromotionStatus, signal?: AbortSignal) =>
+    request<PromotionDto[]>(`/identity/promotions${status ? `?status=${status}` : ''}`, { token, signal }),
+  cancel: (token: string, promotionId: string) => request<PromotionDto>(`/identity/promotions/${promotionId}/cancel`, { method: 'POST', token }),
+  applyDue: (token: string) => request<ApplyDuePromotionsResultDto>('/identity/promotions/apply-due', { method: 'POST', token }),
 };

@@ -35,6 +35,12 @@ export const keys = {
     history: (userId: string) => [...keys.ctc.all(), 'history', userId] as const,
     preview: (body: object) => [...keys.ctc.all(), 'preview', body] as const,
   },
+  promotions: {
+    all: () => ['promotions', fy()] as const,
+    forUser: (userId: string) => [...keys.promotions.all(), 'user', userId] as const,
+    list: (status: string) => [...keys.promotions.all(), 'list', status] as const,
+    preview: (userId: string, body: object) => [...keys.promotions.all(), 'preview', userId, body] as const,
+  },
   leaves: {
     /** Every leave query for the year in view: balances, lists and details. */
     root: () => ['leaves', fy()] as const,
