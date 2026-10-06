@@ -8,5 +8,5 @@ export interface LeaveTypeRepositoryPort {
   /** `null` if the new name (ignoring case) is taken. */
   update(id: string, change: Partial<Omit<LeaveType, 'id'>>): Promise<LeaveType | null>;
   /** Adds the defaults whose names are missing; never touches existing rows. */
-  seed(defaults: Array<Pick<LeaveType, 'name' | 'isPaid'>>): Promise<void>;
+  seed(defaults: Array<Pick<LeaveType, 'name' | 'isPaid' | 'allowsProof'>>): Promise<void>;
 }

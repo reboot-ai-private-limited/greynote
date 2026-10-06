@@ -3,6 +3,22 @@ import { eachDate, weekdayOf, type WeekdayName } from '@/shared/time/businessTim
 export const LEAVE_HALVES = ['FIRST', 'SECOND'] as const;
 export type LeaveHalf = (typeof LEAVE_HALVES)[number];
 
+/** A file the employee attached as proof (a prescription, a medical certificate) — optional, on a type that allows it. */
+export interface LeaveAttachment {
+  id: string;
+  url: string;
+  /** The storage provider's id for the file: what removing it needs. Never sent to a client. */
+  publicId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedAt: Date;
+}
+
+/** At most this many files per leave, each at most this big (decision-log 2026-10-06). */
+export const MAX_LEAVE_ATTACHMENTS = 3;
+export const MAX_LEAVE_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+
 /** One counted day of a leave. */
 export interface LeaveDay {
   date: string;
@@ -34,6 +50,8 @@ export interface Leave {
    * the rest is paid without a ledger row (decision-log 2026-10-05). Leaves from before this existed read as `daysCount`.
    */
   ledgerDays: number;
+  /** Proof the employee attached. Not part of a request's body: it survives an edit and resubmit. */
+  attachments: LeaveAttachment[];
   /** Bumped on every edit; an edit is conditional on the revision it validated. */
   revision: number;
   createdAt: Date;

@@ -3,7 +3,7 @@ import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { Holiday } from '../../domain/holiday.entity.js';
-import type { Leave } from '../../domain/leave.entity.js';
+import type { Leave, LeaveAttachment } from '../../domain/leave.entity.js';
 import type { LeaveBody, LeaveFilter, LeaveRepositoryPort } from '../../domain/leave.repository.port.js';
 import type { LeaveBalance } from '../../domain/leaveBalance.entity.js';
 import type { BalanceKey, LeaveBalanceRepositoryPort } from '../../domain/leaveBalance.repository.port.js';
@@ -42,7 +42,7 @@ export class FakeLeaveTypes implements LeaveTypeRepositoryPort {
     this.rows[i] = { ...this.rows[i]!, ...change };
     return this.rows[i]!;
   }
-  async seed(defaults: Array<Pick<LeaveType, 'name' | 'isPaid'>>) {
+  async seed(defaults: Array<Pick<LeaveType, 'name' | 'isPaid' | 'allowsProof'>>) {
     for (const d of defaults) if (!this.taken(d.name)) await this.create({ ...d, active: true });
   }
 }
@@ -269,7 +269,7 @@ export class FakeLeaves implements LeaveRepositoryPort {
     return { items: items.slice((page.page - 1) * page.pageSize, page.page * page.pageSize), total: items.length };
   }
   async create(userId: string, body: LeaveBody) {
-    const row: Leave = { ...body, id: `leave-${this.rows.length + 1}`, userId, revision: 1, createdAt: new Date(), updatedAt: new Date() };
+    const row: Leave = { ...body, attachments: [], id: `leave-${this.rows.length + 1}`, userId, revision: 1, createdAt: new Date(), updatedAt: new Date() };
     this.rows.push(row);
     return row;
   }
@@ -281,6 +281,18 @@ export class FakeLeaves implements LeaveRepositoryPort {
   }
   async existsForLeaveType(leaveTypeId: string) {
     return this.rows.some((l) => l.leaveTypeId === leaveTypeId);
+  }
+  private nextAttachment = 1;
+  async addAttachment(leaveId: string, attachment: Omit<LeaveAttachment, 'id'>, max: number) {
+    const row = this.rows.find((l) => l.id === leaveId);
+    if (!row || row.attachments.length >= max) return null;
+    row.attachments.push({ ...attachment, id: `att-${this.nextAttachment++}` });
+    return row;
+  }
+  async removeAttachment(leaveId: string, attachmentId: string) {
+    const row = this.rows.find((l) => l.id === leaveId);
+    const i = row?.attachments.findIndex((a) => a.id === attachmentId) ?? -1;
+    return row && i >= 0 ? row.attachments.splice(i, 1)[0]! : null;
   }
 }
 

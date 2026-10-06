@@ -13,12 +13,17 @@ export interface LeaveDoc {
   days: LeaveDay[];
   daysCount: number;
   ledgerDays?: number;
+  attachments?: Array<{ _id: Types.ObjectId; url: string; publicId: string; fileName: string; mimeType: string; sizeBytes: number; uploadedAt: Date }>;
   revision: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const daySchema = new Schema<LeaveDay>({ date: { type: String, required: true }, portion: { type: Number, required: true } }, { _id: false });
+
+const attachmentSchema = new Schema(
+  { url: { type: String, required: true }, publicId: { type: String, required: true }, fileName: { type: String, required: true }, mimeType: { type: String, required: true }, sizeBytes: { type: Number, required: true }, uploadedAt: { type: Date, required: true } },
+);
 
 const leaveSchema = new Schema<LeaveDoc>({
   userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
@@ -33,6 +38,7 @@ const leaveSchema = new Schema<LeaveDoc>({
   days: { type: [daySchema], default: [] },
   daysCount: { type: Number, required: true },
   ledgerDays: { type: Number, min: 0 },
+  attachments: { type: [attachmentSchema], default: [] },
   revision: { type: Number, required: true },
   createdAt: { type: Date, required: true },
   updatedAt: { type: Date, required: true },

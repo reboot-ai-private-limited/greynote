@@ -32,6 +32,23 @@ export function LeavePreview({ recordId }: { recordId: string }) {
               <Field label="Reason">{leave.reason}</Field>
             </div>
           </FieldList>
+          {leave.attachments.length > 0 ? (
+            <div>
+              <p className="mb-1 text-sm font-medium text-text">Proof attached</p>
+              <ul className="space-y-1 text-sm">
+                {leave.attachments.map((a) => (
+                  <li key={a.id}>
+                    <a href={a.url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                      {a.fileName}
+                    </a>
+                    <span className="ml-2 text-text-subtle">{Math.max(1, Math.round(a.sizeBytes / 1024))} KB</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : leave.allowsProof ? (
+            <p className="text-[13px] text-text-subtle">No proof was attached. It is optional.</p>
+          ) : null}
           <p className="text-[13px] text-text-subtle">Weekly off days and holidays inside the dates are not counted.</p>
 
           <div className="rounded-md border border-border bg-surface-subtle p-4">

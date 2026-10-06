@@ -5,8 +5,8 @@ import type { LeaveTypeRepositoryPort } from '../../domain/leaveType.repository.
 export class CreateLeaveTypeUseCase {
   constructor(private readonly types: LeaveTypeRepositoryPort) {}
 
-  async execute(input: { name: string; isPaid: boolean }): Promise<LeaveType> {
-    const created = await this.types.create({ ...input, active: true });
+  async execute(input: { name: string; isPaid: boolean; allowsProof?: boolean | undefined }): Promise<LeaveType> {
+    const created = await this.types.create({ name: input.name, isPaid: input.isPaid, allowsProof: input.allowsProof ?? false, active: true });
     if (!created) throw AppError.conflict('A leave type with this name already exists.', { field: 'name' });
     return created;
   }

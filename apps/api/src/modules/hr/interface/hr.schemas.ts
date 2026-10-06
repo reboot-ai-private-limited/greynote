@@ -12,6 +12,7 @@ export const daysSchema = z
   .refine((n) => Number.isInteger(n * 2), { message: 'Must be whole or half days.' });
 
 export const idParamsSchema = z.object({ id: objectIdSchema });
+export const attachmentParamsSchema = z.object({ id: objectIdSchema, attachmentId: objectIdSchema });
 export const userIdParamsSchema = z.object({ userId: objectIdSchema });
 export const balanceParamsSchema = z.object({ userId: objectIdSchema, leaveTypeId: objectIdSchema });
 const leaveYearSchema = z.coerce.number().int().min(2000).max(2100);
@@ -22,9 +23,9 @@ export const adjustBalanceBodySchema = z.object({
   reason: z.string().trim().min(1, 'A reason is required.').max(500),
 });
 
-export const createLeaveTypeBodySchema = z.object({ name: nameSchema, isPaid: z.boolean() });
+export const createLeaveTypeBodySchema = z.object({ name: nameSchema, isPaid: z.boolean(), allowsProof: z.boolean().optional() });
 export const updateLeaveTypeBodySchema = z
-  .object({ name: nameSchema.optional(), isPaid: z.boolean().optional(), active: z.boolean().optional() })
+  .object({ name: nameSchema.optional(), isPaid: z.boolean().optional(), allowsProof: z.boolean().optional(), active: z.boolean().optional() })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 
 export const leavePolicyParamsSchema = z.object({ payBandId: objectIdSchema, leaveTypeId: objectIdSchema });

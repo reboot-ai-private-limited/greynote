@@ -155,3 +155,13 @@ and only while `PROBATION_LEAVE_PAID` is on. Two effects, both in `application/p
 touching that month can't be requested or edited, and the `LEAVE` ledger hook refuses `APPROVED` and `REOPENED` for it (409 `PAYROLL_FINALIZED`),
 whether the leave is paid or unpaid. Rejecting or withdrawing one that was never approved is allowed. Payroll sits above HR, so the check is a
 port bound at the composition root (`hr.bindPayrollLock`); unbound (tests, scripts) nothing is locked.
+
+## Proof on a leave (2026-10-06)
+
+A leave type has `allowsProof` (the starting **Sick** type has it on; HR switches it per type on the Leave types tab). On a leave of such a type the employee can attach proof —
+a prescription, a medical certificate — which is **optional and never blocks a request**: `POST /api/hr/leaves/:id/attachments` (multipart `file`; the employee only) adds
+one, `DELETE /api/hr/leaves/:id/attachments/:attachmentId` removes one. A PDF, JPG or PNG (read from the file's own bytes, not its name or declared type), at most
+**5 MB**, at most **3 files** per leave (a conditional update, so two racing uploads can't make a fourth; the loser's file is removed from storage). It can be added after the leave is
+approved and survives an edit and resubmit. The files come back with the leave (`GET /api/hr/leaves/:id`, the lists, the approvals preview) as `attachments` (url, name, type, size;
+never the storage id) and `allowsProof`, so the employee, their managers, HR and Admin see them where they already see the leave. Files live in Cloudinary under
+`greynote/users/<employee>/leave-proof/<leave>`. The phone's upload screen is part of the mobile app; the web shows the files.

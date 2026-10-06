@@ -8,6 +8,7 @@ const toType = (doc: LeaveTypeDoc & { _id: unknown }): LeaveType => ({
   id: String(doc._id),
   name: doc.name,
   isPaid: doc.isPaid,
+  allowsProof: doc.allowsProof ?? false,
   active: doc.active,
 });
 
@@ -46,12 +47,12 @@ export class MongoLeaveTypeAdapter implements LeaveTypeRepositoryPort {
     }
   }
 
-  async seed(defaults: Array<Pick<LeaveType, 'name' | 'isPaid'>>): Promise<void> {
+  async seed(defaults: Array<Pick<LeaveType, 'name' | 'isPaid' | 'allowsProof'>>): Promise<void> {
     await LeaveTypeModel.bulkWrite(
       defaults.map((d) => ({
         updateOne: {
           filter: { nameKey: toNameKey(d.name) },
-          update: { $setOnInsert: { name: d.name, nameKey: toNameKey(d.name), isPaid: d.isPaid, active: true } },
+          update: { $setOnInsert: { name: d.name, nameKey: toNameKey(d.name), isPaid: d.isPaid, allowsProof: d.allowsProof, active: true } },
           upsert: true,
         },
       })),

@@ -1,7 +1,7 @@
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
-import type { Leave } from './leave.entity.js';
+import type { Leave, LeaveAttachment } from './leave.entity.js';
 
-export type LeaveBody = Omit<Leave, 'id' | 'userId' | 'revision' | 'createdAt' | 'updatedAt'>;
+export type LeaveBody = Omit<Leave, 'id' | 'userId' | 'revision' | 'createdAt' | 'updatedAt' | 'attachments'>;
 
 export interface LeaveFilter {
   userIds?: string[] | undefined;
@@ -20,4 +20,8 @@ export interface LeaveRepositoryPort {
   /** Replaces the body if still at `expectedRevision`; `null` if it moved on. */
   replace(id: string, expectedRevision: number, body: LeaveBody, ctx: TransactionContext): Promise<Leave | null>;
   existsForLeaveType(leaveTypeId: string): Promise<boolean>;
+  /** Adds a file only if the leave has fewer than `max` already (one conditional update); `null` if it is full or the leave is missing. */
+  addAttachment(leaveId: string, attachment: Omit<LeaveAttachment, 'id'>, max: number): Promise<Leave | null>;
+  /** Takes a file off and returns it (for removing it from storage); `null` if the leave or the file is not there. */
+  removeAttachment(leaveId: string, attachmentId: string): Promise<LeaveAttachment | null>;
 }

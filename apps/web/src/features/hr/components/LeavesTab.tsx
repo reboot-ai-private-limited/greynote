@@ -45,6 +45,7 @@ export function LeavesTab() {
         <span className="inline-flex items-center gap-2">
           {l.leaveTypeName}
           {l.isPaid ? null : <Badge tone="warning">Unpaid</Badge>}
+          {l.attachments.length > 0 ? <Badge tone="neutral">{l.attachments.length === 1 ? '1 file' : `${l.attachments.length} files`}</Badge> : null}
         </span>
       ),
     },

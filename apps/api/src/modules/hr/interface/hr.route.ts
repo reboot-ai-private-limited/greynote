@@ -1,13 +1,17 @@
-import { Router } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
+import multer from 'multer';
 import type { AnyZodObject, ZodTypeAny } from 'zod';
+import { AppError } from '@/shared/errors/AppError.js';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
+import { MAX_LEAVE_ATTACHMENT_BYTES } from '../domain/leave.entity.js';
 import type { BalanceHandlers, LeaveHandlers, MastersHandlers } from './hr.controller.js';
 import {
   adjustBalanceBodySchema,
+  attachmentParamsSchema,
   balanceParamsSchema,
   balanceQuerySchema,
   createHolidayBodySchema,
@@ -25,6 +29,19 @@ import {
 } from './hr.schemas.js';
 
 const TAG = 'HR';
+
+const uploadProof = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_LEAVE_ATTACHMENT_BYTES, files: 1 } }).single('file');
+/** Converts multer's error-first callback (a bad file, a file over 5 MB) into the same AppError path everything else uses. */
+function proofUpload(req: Request, res: Response, next: NextFunction): void {
+  uploadProof(req, res, (err: unknown) => {
+    if (err) {
+      const tooBig = (err as { code?: string }).code === 'LIMIT_FILE_SIZE';
+      next(AppError.badRequest(tooBig ? 'That file is over 5 MB.' : err instanceof Error ? err.message : 'Invalid file upload.', { field: 'file' }));
+      return;
+    }
+    next();
+  });
+}
 const bearer = [{ bearerAuth: [] }];
 const json = (schema: ZodTypeAny) => ({ content: { 'application/json': { schema } } });
 
@@ -64,6 +81,24 @@ doc('post', '/leaves', 'Field staff: request leave — it goes to your manager, 
 doc('put', '/leaves/{id}', 'Field staff: change a rejected, withdrawn or reopened leave — resubmits it', { params: idParamsSchema, body: leaveBodySchema });
 doc('get', '/leaves/me', 'Field staff: my leaves, newest first', { query: myLeavesQuerySchema });
 doc('get', '/leaves', 'HR/Admin: everyone’s leaves, newest first', { query: leavesQuerySchema });
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/hr/leaves/{id}/attachments',
+  tags: [TAG],
+  summary: 'Field staff: attach proof (PDF, JPG or PNG, up to 5 MB, at most 3 per leave) to a leave of a type that takes it — optional',
+  security: bearer,
+  request: { params: idParamsSchema },
+  responses: { 201: { description: 'The leave’s files' }, 400: { description: 'Not a PDF/JPG/PNG, too big, or this leave type takes no proof' }, 409: { description: 'Already 3 files' } },
+});
+openApiRegistry.registerPath({
+  method: 'delete',
+  path: '/api/hr/leaves/{id}/attachments/{attachmentId}',
+  tags: [TAG],
+  summary: 'Field staff: remove a file from my leave',
+  security: bearer,
+  request: { params: attachmentParamsSchema },
+  responses: { 200: { description: 'The leave’s remaining files' }, 404: { description: 'No such leave or file' } },
+});
 doc('get', '/leaves/{id}', 'One leave — the employee, their managers, HR, Admin', { params: idParamsSchema });
 
 /** Leave types, the Leave Master and holidays. */
@@ -102,5 +137,7 @@ export function buildLeavesRouter(c: LeaveHandlers): Router {
   router.get('/', requireRole('HR', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: leavesQuerySchema }), c.allLeaves);
   router.put('/:id', requireRole('FIELD'), validate({ params: idParamsSchema, body: leaveBodySchema }), c.editLeave);
   router.get('/:id', validate({ params: idParamsSchema }), c.getLeave);
+  router.post('/:id/attachments', requireRole('FIELD'), validate({ params: idParamsSchema }), proofUpload, c.addProof);
+  router.delete('/:id/attachments/:attachmentId', requireRole('FIELD'), validate({ params: attachmentParamsSchema }), c.removeProof);
   return router;
 }

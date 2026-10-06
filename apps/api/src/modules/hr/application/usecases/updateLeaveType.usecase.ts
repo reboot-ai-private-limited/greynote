@@ -12,7 +12,7 @@ export class UpdateLeaveTypeUseCase {
     private readonly isInUse: (leaveTypeId: string) => Promise<boolean>,
   ) {}
 
-  async execute(id: string, change: Partial<Pick<LeaveType, 'name' | 'isPaid' | 'active'>>): Promise<LeaveType> {
+  async execute(id: string, change: Partial<Pick<LeaveType, 'name' | 'isPaid' | 'allowsProof' | 'active'>>): Promise<LeaveType> {
     const type = await this.types.findById(id);
     if (!type) throw AppError.notFound('No such leave type.');
     if (change.isPaid !== undefined && change.isPaid !== type.isPaid && (await this.isInUse(id))) {

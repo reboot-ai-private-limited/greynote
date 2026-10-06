@@ -1,7 +1,7 @@
 import { Types, type ClientSession } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
-import type { Leave } from '../domain/leave.entity.js';
+import type { Leave, LeaveAttachment } from '../domain/leave.entity.js';
 import type { LeaveBody, LeaveFilter, LeaveRepositoryPort } from '../domain/leave.repository.port.js';
 import { LeaveModel, type LeaveDoc } from './leave.schema.js';
 
@@ -18,6 +18,7 @@ const toLeave = (doc: LeaveDoc & { _id: unknown }): Leave => ({
   days: doc.days.map((d) => ({ date: d.date, portion: d.portion })),
   daysCount: doc.daysCount,
   ledgerDays: doc.ledgerDays ?? doc.daysCount,
+  attachments: (doc.attachments ?? []).map((a) => ({ id: String(a._id), url: a.url, publicId: a.publicId, fileName: a.fileName, mimeType: a.mimeType, sizeBytes: a.sizeBytes, uploadedAt: a.uploadedAt })),
   revision: doc.revision,
   createdAt: doc.createdAt,
   updatedAt: doc.updatedAt,
@@ -75,6 +76,22 @@ export class MongoLeaveAdapter implements LeaveRepositoryPort {
       { new: true, ...session(ctx) },
     ).lean();
     return doc ? toLeave(doc) : null;
+  }
+
+  async addAttachment(leaveId: string, attachment: Omit<LeaveAttachment, 'id'>, max: number): Promise<Leave | null> {
+    if (!Types.ObjectId.isValid(leaveId)) return null;
+    const doc = await LeaveModel.findOneAndUpdate(
+      { _id: leaveId, $expr: { $lt: [{ $size: { $ifNull: ['$attachments', []] } }, max] } },
+      { $push: { attachments: { _id: new Types.ObjectId(), ...attachment } } },
+      { new: true },
+    ).lean();
+    return doc ? toLeave(doc) : null;
+  }
+
+  async removeAttachment(leaveId: string, attachmentId: string): Promise<LeaveAttachment | null> {
+    if (!Types.ObjectId.isValid(leaveId) || !Types.ObjectId.isValid(attachmentId)) return null;
+    const before = await LeaveModel.findOneAndUpdate({ _id: leaveId, 'attachments._id': new Types.ObjectId(attachmentId) }, { $pull: { attachments: { _id: new Types.ObjectId(attachmentId) } } }, { new: false }).lean();
+    return before ? (toLeave(before).attachments.find((a) => a.id === attachmentId) ?? null) : null;
   }
 
   async existsForLeaveType(leaveTypeId: string): Promise<boolean> {

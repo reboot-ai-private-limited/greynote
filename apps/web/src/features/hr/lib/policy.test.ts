@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { buildPolicyGrid, cellKey, collectPolicyChanges, readCell, savePolicyChanges } from './policy';
 
 const types: LeaveTypeDto[] = [
-  { id: 'casual', name: 'Casual', isPaid: true, active: true },
-  { id: 'sick', name: 'Sick', isPaid: true, active: true },
-  { id: 'lop', name: 'Loss of Pay', isPaid: false, active: true },
-  { id: 'old', name: 'Old', isPaid: true, active: false },
+  { id: 'casual', name: 'Casual', isPaid: true, allowsProof: false, active: true },
+  { id: 'sick', name: 'Sick', isPaid: true, allowsProof: false, active: true },
+  { id: 'lop', name: 'Loss of Pay', isPaid: false, allowsProof: false, active: true },
+  { id: 'old', name: 'Old', isPaid: true, allowsProof: false, active: false },
 ];
 const bands = [{ id: 'g2', name: 'G2' }, { id: 'g1', name: 'G1' }];
 

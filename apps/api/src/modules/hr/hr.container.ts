@@ -10,7 +10,9 @@ import { HrCalendar } from './application/hrCalendar.js';
 import { LeaveBalances } from './application/leaveBalances.js';
 import { makeLeaveLedger } from './application/leaveLedger.js';
 import { LeaveLookups } from './application/leaveLookups.js';
+import { LeaveProof } from './application/leaveProof.js';
 import { LeaveRequests } from './application/leaveRequests.js';
+import { CloudinaryProofStorage } from './infrastructure/cloudinaryProofStorage.adapter.js';
 import { LeaveViews } from './application/leaveViews.js';
 import { GetLeaveUseCase } from './application/usecases/getLeave.usecase.js';
 import { ListLeavesUseCase } from './application/usecases/listLeaves.usecase.js';
@@ -136,6 +138,7 @@ export function buildHrContainer(
             requests: leaveRequests,
             list: new ListLeavesUseCase(leaves, leaveViews),
             get: new GetLeaveUseCase(leaves, users, leaveViews),
+            proof: new LeaveProof(leaves, leaveTypes, new CloudinaryProofStorage()),
           }),
         ),
       );

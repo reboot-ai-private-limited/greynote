@@ -60,6 +60,18 @@ export function LeaveTypeFormDialog({ type, onClose }: { type?: LeaveTypeDto | u
           aria-invalid={errors['paid'] ? true : undefined}
         />
       </FormField>
+      <label className="flex cursor-pointer items-start gap-3 text-sm text-text">
+        <input
+          type="checkbox"
+          checked={draft.allowsProof}
+          onChange={(e) => setDraft((d) => ({ ...d, allowsProof: e.target.checked }))}
+          className="mt-0.5 size-4 rounded border-border-strong accent-[var(--color-accent)]"
+        />
+        <span>
+          Employees can attach proof
+          <span className="block text-[13px] text-text-subtle">A prescription or medical certificate (PDF, JPG or PNG; up to 3 files of 5 MB). Always optional: a request never needs it.</span>
+        </span>
+      </label>
     </FormDialog>
   );
 }

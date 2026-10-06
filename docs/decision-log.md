@@ -1587,3 +1587,5 @@ stay plain TypeScript types — so a schema/model always lives in exactly one mo
 **Why:** the owner's product sheet and answers on 2026-10-06. A list for speciality stops the same speciality being typed three ways, which reports would otherwise split.
 
 **Consequences:** older products keep working with the new fields empty. The doctor's `category` becomes optional and then unused (the phone's `NEW_DOCTOR` payload may still send it); `specialty` is validated against the list.
+
+**Added 2026-10-06 — proof on medical leave (#11):** a leave type can allow proof; the employee may attach up to 3 files (PDF, JPG or PNG, 5 MB each), always optional, visible to whoever can see the leave (the employee, their managers, HR, Admin). Defaults were taken by the owner's "go": 3 files, 5 MB, approval chain and HR see them.

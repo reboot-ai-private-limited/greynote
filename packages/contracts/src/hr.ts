@@ -10,6 +10,16 @@ export interface LeaveRequestDto {
   status: string;
 }
 
+/** A file the employee attached as proof (a prescription, a medical certificate). Optional, on a leave type that allows it; at most 3, 5 MB each. */
+export interface LeaveAttachmentDto {
+  id: string;
+  url: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
 /** One counted day of a leave: weekly off days and holidays are left out, a half-day counts 0.5. */
 export interface LeaveDayDto {
   date: string;
@@ -24,6 +34,10 @@ export interface LeaveDetailDto extends LeaveRequestDto {
   year: number;
   days: LeaveDayDto[];
   daysCount: number;
+  /** The proof files, if the employee attached any. */
+  attachments: LeaveAttachmentDto[];
+  /** Whether this kind of leave takes proof. */
+  allowsProof: boolean;
   /** The approval behind it; `cycle` is the round a decision must name. */
   approval: { requestId: string; cycle: number; submittedAt: string; decidedAt: string | null } | null;
 }
@@ -48,15 +62,19 @@ export interface LeaveTypeDto {
   id: string;
   name: string;
   isPaid: boolean;
+  /** The employee may attach proof (a prescription, a medical certificate) to a leave of this type: optional, never blocking. */
+  allowsProof: boolean;
   active: boolean;
 }
 export interface CreateLeaveTypeDto {
   name: string;
   isPaid: boolean;
+  allowsProof?: boolean | undefined;
 }
 export interface UpdateLeaveTypeDto {
   name?: string;
   isPaid?: boolean;
+  allowsProof?: boolean;
   active?: boolean;
 }
 

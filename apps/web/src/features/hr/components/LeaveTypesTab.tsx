@@ -26,6 +26,7 @@ export function LeaveTypesTab() {
   const columns: readonly Column<LeaveTypeDto>[] = [
     { key: 'name', header: 'Leave type', render: (t) => <span className="font-medium">{t.name}</span> },
     { key: 'paid', header: 'Pay', render: (t) => <Badge tone={t.isPaid ? 'success' : 'warning'}>{paidLabel(t.isPaid)}</Badge> },
+    { key: 'proof', header: 'Proof', render: (t) => (t.allowsProof ? <Badge tone="accent">Can attach</Badge> : <span className="text-text-subtle">—</span>) },
     { key: 'active', header: 'Status', render: (t) => <Badge tone={t.active ? 'success' : 'neutral'}>{t.active ? 'Active' : 'Inactive'}</Badge> },
     {
       key: 'actions',

@@ -11,6 +11,7 @@ import type { CreateLeaveTypeUseCase } from '../application/usecases/createLeave
 import type { GetLeaveBalancesUseCase } from '../application/usecases/getLeaveBalances.usecase.js';
 import type { GetLeaveUseCase } from '../application/usecases/getLeave.usecase.js';
 import type { ListLeavesUseCase } from '../application/usecases/listLeaves.usecase.js';
+import type { LeaveProof } from '../application/leaveProof.js';
 import type { LeaveRequests } from '../application/leaveRequests.js';
 import type { DeleteHolidayUseCase } from '../application/usecases/deleteHoliday.usecase.js';
 import type { ListHolidaysUseCase } from '../application/usecases/listHolidays.usecase.js';
@@ -107,10 +108,18 @@ export function makeBalanceControllers(u: { get: GetLeaveBalancesUseCase; adjust
   };
 }
 
-export type LeaveHandlers = Record<'requestLeave' | 'editLeave' | 'myLeaves' | 'allLeaves' | 'getLeave', RequestHandler>;
+export type LeaveHandlers = Record<'requestLeave' | 'editLeave' | 'myLeaves' | 'allLeaves' | 'getLeave' | 'addProof' | 'removeProof', RequestHandler>;
 
-export function makeLeaveControllers(u: { requests: LeaveRequests; list: ListLeavesUseCase; get: GetLeaveUseCase }): LeaveHandlers {
+export function makeLeaveControllers(u: { requests: LeaveRequests; list: ListLeavesUseCase; get: GetLeaveUseCase; proof: LeaveProof }): LeaveHandlers {
   return {
+    addProof: asyncHandler(async (req, res) => {
+      if (!req.file) throw AppError.badRequest('A file is required.', { field: 'file' });
+      const files = await u.proof.add(actorOf(req).id, requiredParam(req.params, 'id'), { buffer: req.file.buffer, name: req.file.originalname });
+      sendSuccess(req, res, files, 'Proof attached.', 201);
+    }),
+    removeProof: asyncHandler(async (req, res) => {
+      sendSuccess(req, res, await u.proof.remove(actorOf(req).id, requiredParam(req.params, 'id'), requiredParam(req.params, 'attachmentId')), 'Proof removed.', 200);
+    }),
     requestLeave: asyncHandler(async (req, res) => {
       const leave = await u.requests.request(actorOf(req).id, req.body as z.output<typeof leaveBodySchema>);
       sendSuccess(req, res, leave, 'Leave requested.', 201);
