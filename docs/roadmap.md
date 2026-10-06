@@ -769,3 +769,21 @@ Decisions (decision-log 2026-10-06): the product card is brand, composition, typ
    may need rework because of it.
 7. **Pilot small.** One Zone, a real manager chain, real money in the TA/DA sense even if not a
    payment gateway. Every assumption in the PRD/ERD/HLD meets reality there.
+
+---
+
+## Step 5 — web views (plan, 2026-10-06)
+
+K9 answered by the owner (2026-10-06): **primary = sales to distributors; secondary = distributors to chemists.** This replaces the older PRD wording ("secondary = stock remaining"). It matches the formula already in `LLD/sales-and-orders.md`: a distributor's secondary for a month = opening + primary received − closing.
+
+What exists: Approvals screen with Waiting/History and a kind filter; `GET /sales/orders`, `/sales/monthly-stock` (Admin and Field); day-level building blocks in the public contracts (`planning.getDailyPlanDay`, `fieldActivity.hasQualifyingDcr` / `getDcrSummary`, `hr.isOnLeave` / `listOffDates` / `listHolidayDates`). What does not: any Sales screen, any day-by-day status view, any report.
+
+Order of work (smallest and least risky first):
+- **5a Approvals in tabs.** One tab per kind (Leave, Daily report, Daily plan, Monthly plan, Plan change, New doctor, Doctor service) plus All, each with a count of what is waiting for the caller; Waiting/History stays inside a tab. One new read endpoint for the counts. Web only otherwise.
+- **5b Sales page (Admin).** Orders list with filters (dates, outlet type, MR, status) and a detail view, and the monthly stock counts per outlet. Uses the existing endpoints; no new backend.
+- **5c Reports page + a new `reports` module (tier 5, reads the tiers below, writes nothing).** A stock-and-sales statement per distributor and product for a month or range: opening, primary (received), closing, secondary (derived), in quantity and in value; roll-ups by HQ, MR and product; CSV. Value uses the product's PTS for primary and PTR for secondary (the prices added in Step 3).
+- **5d Calendars (same module).** A per-employee month calendar (a Calendar tab on the employee) and a payroll calendar (employees by days for a month, with counts), each day one of: holiday, weekly off, leave (paid or unpaid), strike, present, absent, not yet / before joining.
+
+Day status (proposed order, first match wins): not yet or before joining → holiday → weekly off → approved leave → strike (plan day) → present (a submitted DCR) → absent (a working day with none of those).
+
+Open for the owner: see sign-off K20–K25.
