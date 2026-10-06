@@ -1,6 +1,6 @@
 'use client';
 
-import type { MasterStatus, ProductDto } from '@greynote/contracts';
+import { PRODUCT_TYPE_LABEL, type MasterStatus, type ProductDto } from '@greynote/contracts';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import type { Column } from '@/components/ui/DataTable';
@@ -10,6 +10,7 @@ import { RowActions } from '@/components/ui/RowActions';
 import { Select } from '@/components/ui/Select';
 import { StatusFilter } from '@/components/ui/StatusFilter';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
+import { formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
@@ -35,9 +36,23 @@ export function ProductsScreen() {
   });
 
   const columns: readonly Column<ProductDto>[] = [
-    { key: 'name', header: 'Product', render: (p) => <span className="font-medium">{p.name}</span> },
+    {
+      key: 'name',
+      header: 'Brand',
+      render: (p) => (
+        <div>
+          <p className="font-medium">{p.name}</p>
+          <p className="text-xs text-text-subtle">{p.composition ?? p.sku}</p>
+        </div>
+      ),
+    },
     { key: 'sku', header: 'SKU', render: (p) => <span className="tabular-nums">{p.sku}</span> },
-    { key: 'category', header: 'Category', render: (p) => p.category },
+    { key: 'type', header: 'Type · pack', render: (p) => (p.type ? `${PRODUCT_TYPE_LABEL[p.type]}${p.packSize ? ` · ${p.packSize}` : ''}` : '—') },
+    { key: 'category', header: 'Therapeutic class', render: (p) => p.category },
+    { key: 'pts', header: 'PTS', numeric: true, render: (p) => (p.ptsPaise === null ? '—' : formatMoney(p.ptsPaise)) },
+    { key: 'ptr', header: 'PTR', numeric: true, render: (p) => (p.ptrPaise === null ? '—' : formatMoney(p.ptrPaise)) },
+    { key: 'mrp', header: 'MRP', numeric: true, render: (p) => (p.mrpPaise === null ? '—' : formatMoney(p.mrpPaise)) },
+    { key: 'gst', header: 'GST', numeric: true, render: (p) => (p.gstPercent === null ? '—' : `${p.gstPercent}%`) },
     {
       key: 'status',
       header: 'Status',

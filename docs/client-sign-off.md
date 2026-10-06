@@ -55,7 +55,7 @@ applies because the design changed (the decision-log entry says how).
 | C5 | GPS validation radius (§5.5). Your document says **100 m**. | **100 m** (*config* `GEO_FENCE_RADIUS_METERS`, changed from a 200 m draft on 2026-09-29) — Admin can change it any time in System Config, no code change | Accepted 2026-09-29 |
 | C6 | Doctor location captured by the MR on first visit then approved by ASM/Admin (§5.4, Master M4) — confirm this over "Admin enters it at creation". | **Changed 2026-09-29:** the MR's phone location is captured when the MR adds the Doctor and Admin reviews it at approval. When Admin adds a Doctor directly, Admin picks the location on a Google map | Accepted 2026-09-29 |
 | C7 | New-Doctor waiting period before visits count toward coverage (§4.9, proposed 8 days). | **Accepted 2026-09-29:** 8 days from approval (*config* `NEW_DOCTOR_COVERAGE_WAIT_DAYS`). Phase 4 stores the approval date; how it enters the coverage figure (visits in the wait don't count, or the Doctor is left out of the total) is decided with Field Activity in Phase 6 | Accepted 2026-09-29 |
-| C8 | Doctor Service types list (§6). | Not needed for Phase 4 — Doctor Services belong to Field Activity (Phase 6). Still to be provided by the client before then | Deferred to Phase 6 |
+| C8 | Doctor Service types list (§6). | Not needed for Phase 4 — Doctor Services belong to Field Activity (Phase 6). Still to be provided by the client before then | **Final 2026-10-06** (from the owner): Tour package, Gift, Online promotion, Others |
 
 ## D. Territory, TA & DA (Phases 2 and 6)
 
@@ -146,7 +146,7 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | H1 | A call outside the radius (or with no reference location / a weak GPS reading): what can the manager do? | It is flagged, never refused. The reviewing manager can accept a flagged call with a required comment (`OVERRIDE`), separately from approving or rejecting the day | Accepted 2026-09-29 |
 | H2 | If Admin rejects a DCR at the final stage after the manager approved it, what happens to its auto-calculated TA/DA? | The unpaid auto rows are cancelled; any already paid are left and reported | Accepted 2026-09-29 |
 | H3 | Manual expenses (§9.2, see F2): limits and receipts? | No per-category limit and no receipt photo for now | Accepted 2026-09-29 (working assumption, F2 still open) |
-| H4 | Doctor Service types (see C8). | Tour package, gift, online promotion, others | Accepted 2026-09-29 (working assumption, C8 still open) |
+| H4 | Doctor Service types (see C8). | Tour package, gift, online promotion, others | Final 2026-10-06 (C8 answered) |
 | H5 | The missed-DCR block: when does a day count as reported, and how is it triggered? | The DCR counts once submitted (see B7); an approved leave excuses the day; a script run daily by the operator applies the block, switchable with `DCR_MISS_BLOCK_ENABLED` | Accepted 2026-09-29 |
 | H6 | How many missed days before the block, and which days don't count? | Blocked after missing **more than `DCR_MISS_GRACE_DAYS` working days in a row** (default 1 → the second consecutive miss; 0 → the first). The weekly off day, holidays and approved-leave days are skipped; days before joining, or before an Admin last cleared a block, are not counted | Designed 2026-09-29 (working assumption, awaiting client) |
 

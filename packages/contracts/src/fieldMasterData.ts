@@ -15,23 +15,75 @@ export type DoctorStatus = (typeof DOCTOR_STATUSES)[number];
 
 // ── Products ───────────────────────────────────────────────────────────────────────────────
 
+/** The dosage form, chosen from a list. */
+export const PRODUCT_TYPES = ['TABLET', 'CAPSULE', 'SYRUP', 'SUSPENSION', 'INJECTION', 'OINTMENT', 'CREAM_GEL', 'DROPS', 'POWDER', 'INHALER', 'OTHER'] as const;
+export type ProductType = (typeof PRODUCT_TYPES)[number];
+export const PRODUCT_TYPE_LABEL: Record<ProductType, string> = {
+  TABLET: 'Tablet',
+  CAPSULE: 'Capsule',
+  SYRUP: 'Syrup',
+  SUSPENSION: 'Suspension',
+  INJECTION: 'Injection',
+  OINTMENT: 'Ointment',
+  CREAM_GEL: 'Cream / gel',
+  DROPS: 'Drops',
+  POWDER: 'Powder / sachet',
+  INHALER: 'Inhaler',
+  OTHER: 'Other',
+};
+
+/** GST slabs, in percent, chosen from a list. */
+export const GST_RATES = [5, 12, 18, 28] as const;
+export type GstRate = (typeof GST_RATES)[number];
+
+/**
+ * A product. `name` is the brand (e.g. `XYZ-500`). `category` is its therapeutic class (e.g. Analgesic/Antipyretic). Prices are whole paise:
+ * PTS (price to stockist) ≤ PTR (price to retailer) ≤ MRP. The fields added in 2026-10 are `null` on a product that was saved before them.
+ */
 export interface ProductDto {
   id: string;
   name: string;
   /** Unique ignoring case and surrounding spaces. */
   sku: string;
   category: string;
+  composition: string | null;
+  type: ProductType | null;
+  /** As printed on the pack, e.g. `10×10`. */
+  packSize: string | null;
+  ptsPaise: number | null;
+  ptrPaise: number | null;
+  mrpPaise: number | null;
+  gstPercent: GstRate | null;
+  division: string | null;
   status: MasterStatus;
 }
 export interface CreateProductDto {
   name: string;
   sku: string;
   category: string;
+  composition: string;
+  type: ProductType;
+  packSize: string;
+  ptsPaise: number;
+  ptrPaise: number;
+  mrpPaise: number;
+  gstPercent: GstRate;
+  /** Optional. */
+  division?: string | undefined;
 }
 export interface UpdateProductDto {
   name?: string;
   sku?: string;
   category?: string;
+  composition?: string;
+  type?: ProductType;
+  packSize?: string;
+  ptsPaise?: number;
+  ptrPaise?: number;
+  mrpPaise?: number;
+  gstPercent?: GstRate;
+  /** `null` clears it. */
+  division?: string | null;
   status?: MasterStatus;
 }
 

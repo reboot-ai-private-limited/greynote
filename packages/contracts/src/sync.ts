@@ -274,7 +274,20 @@ export interface FieldMasterDataSnapshot {
     primarySalesEnabled: boolean;
     secondarySalesEnabled: boolean;
   }>;
-  products: Array<{ id: string; name: string; sku: string; category: string }>;
+  products: Array<{
+    id: string;
+    name: string;
+    sku: string;
+    category: string;
+    composition: string | null;
+    type: string | null;
+    packSize: string | null;
+    ptsPaise: number | null;
+    ptrPaise: number | null;
+    mrpPaise: number | null;
+    gstPercent: number | null;
+    division: string | null;
+  }>;
   sampleAllocations: Array<{ id: string; doctorId: string; productId: string; quantityAllocated: number; quantityRemaining: number }>;
 }
 

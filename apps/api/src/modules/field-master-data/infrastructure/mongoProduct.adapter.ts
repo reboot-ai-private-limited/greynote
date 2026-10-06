@@ -10,6 +10,14 @@ const toProduct = (doc: ProductDoc & { _id: unknown }): Product => ({
   name: doc.name,
   sku: doc.sku,
   category: doc.category,
+  composition: doc.composition ?? null,
+  type: doc.type ?? null,
+  packSize: doc.packSize ?? null,
+  ptsPaise: doc.ptsPaise ?? null,
+  ptrPaise: doc.ptrPaise ?? null,
+  mrpPaise: doc.mrpPaise ?? null,
+  gstPercent: doc.gstPercent ?? null,
+  division: doc.division ?? null,
   status: doc.status,
 });
 
@@ -20,7 +28,7 @@ export class MongoProductAdapter implements ProductRepositoryPort {
     if (filter.status) query['status'] = filter.status;
     if (filter.search) {
       const rx = new RegExp(escapeRegex(filter.search), 'i');
-      query['$or'] = [{ name: rx }, { sku: rx }];
+      query['$or'] = [{ name: rx }, { sku: rx }, { composition: rx }];
     }
     const [docs, total] = await Promise.all([
       ProductModel.find(query).sort({ name: 1, _id: 1 }).skip(toSkipLimit(filter).skip).limit(filter.pageSize).lean(),

@@ -4,6 +4,7 @@ import {
   adjustSampleBodySchema,
   createChemistBodySchema,
   createDistributorBodySchema,
+  createProductBodySchema,
   issueSampleBodySchema,
   editAddedDoctorBodySchema,
   updateChemistBodySchema,
@@ -56,5 +57,30 @@ describe('Field Master Data request schemas', () => {
     expect(issueSampleBodySchema.safeParse({ productId: route, quantity: 3 }).success).toBe(true);
     expect(adjustSampleBodySchema.safeParse({ quantityAllocated: 0 }).success).toBe(true);
     expect(adjustSampleBodySchema.safeParse({ quantityAllocated: -1 }).success).toBe(false);
+  });
+});
+
+describe('product body schemas (2026-10-06)', () => {
+  const base = { name: 'XYZ-500', sku: 'XYZ-500', category: 'Analgesic/Antipyretic', composition: 'Paracetamol 500mg', type: 'TABLET', packSize: '10×10', ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000, gstPercent: 12 };
+
+  it('takes the product card: type and GST from their lists, prices in whole paise, division optional', () => {
+    expect(createProductBodySchema.safeParse(base).success).toBe(true);
+    expect(createProductBodySchema.safeParse({ ...base, division: 'General' }).success).toBe(true);
+    for (const rate of [5, 12, 18, 28]) expect(createProductBodySchema.safeParse({ ...base, gstPercent: rate }).success).toBe(true);
+  });
+
+  it('refuses a GST slab or a type that is not on the list, a missing price, and a price that is not whole paise or not above 0', () => {
+    for (const bad of [{ gstPercent: 7 }, { gstPercent: '12' }, { type: 'PILL' }, { ptsPaise: 0 }, { mrpPaise: 110.5 }, { ptrPaise: -1 }, { packSize: '' }]) {
+      expect(createProductBodySchema.safeParse({ ...base, ...bad }).success).toBe(false);
+    }
+    const { mrpPaise: _omit, ...withoutMrp } = base;
+    expect(createProductBodySchema.safeParse(withoutMrp).success).toBe(false);
+  });
+
+  it('an update may change any one field, and null clears the division', () => {
+    expect(updateProductBodySchema.safeParse({ gstPercent: 18 }).success).toBe(true);
+    expect(updateProductBodySchema.safeParse({ division: null }).success).toBe(true);
+    expect(updateProductBodySchema.safeParse({}).success).toBe(false);
+    expect(updateProductBodySchema.safeParse({ gstPercent: 3 }).success).toBe(false);
   });
 });

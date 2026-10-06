@@ -29,15 +29,42 @@ describe('Products', () => {
 
   it('creates an active product and refuses a duplicate SKU ignoring case and spaces', async () => {
     const create = new CreateProductUseCase(products);
-    const p = await create.execute({ name: 'Paracetamol 500', sku: 'PCM-500', category: 'Tablet' });
+    const p = await create.execute({ name: 'Paracetamol 500', sku: 'PCM-500', category: 'Tablet', composition: 'Paracetamol 500mg', type: 'TABLET' as const, packSize: '10×10', ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000, gstPercent: 12 as const });
     expect(p.status).toBe('active');
-    await expectStatus(create.execute({ name: 'Other', sku: ' pcm-500 ', category: 'Tablet' }), 409);
+    await expectStatus(create.execute({ name: 'Other', sku: ' pcm-500 ', category: 'Tablet', composition: 'Paracetamol 500mg', type: 'TABLET' as const, packSize: '10×10', ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000, gstPercent: 12 as const }), 409);
+  });
+
+  it('keeps the new product fields, and an optional division', async () => {
+    const create = new CreateProductUseCase(products);
+    const p = await create.execute({ name: 'XYZ-500', sku: 'XYZ-500', category: 'Analgesic/Antipyretic', composition: 'Paracetamol 500mg', type: 'TABLET', packSize: '10×10', ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000, gstPercent: 12, division: 'General' });
+    expect(p).toMatchObject({ composition: 'Paracetamol 500mg', type: 'TABLET', packSize: '10×10', ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000, gstPercent: 12, division: 'General' });
+    expect((await create.execute({ name: 'No division', sku: 'ND-1', category: 'Tablet', composition: 'x', type: 'CAPSULE', packSize: '1×10', ptsPaise: 1, ptrPaise: 1, mrpPaise: 1, gstPercent: 5 })).division).toBeNull();
+  });
+
+  it('refuses prices out of order — PTS above PTR, PTR above MRP — on create and on a one-field edit', async () => {
+    const create = new CreateProductUseCase(products);
+    const base = { name: 'P', sku: 'P-1', category: 'Tablet', composition: 'x', type: 'TABLET' as const, packSize: '10×10', gstPercent: 12 as const };
+    await expectStatus(create.execute({ ...base, ptsPaise: 9500, ptrPaise: 9000, mrpPaise: 11000 }), 400);
+    await expectStatus(create.execute({ ...base, ptsPaise: 8000, ptrPaise: 12000, mrpPaise: 11000 }), 400);
+    const ok = await create.execute({ ...base, ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000 });
+    const update = new UpdateProductUseCase(products);
+    await expectStatus(update.execute(ok.id, { mrpPaise: 8500 }), 400); // below the stored PTR
+    await expectStatus(update.execute(ok.id, { ptsPaise: 9500 }), 400); // above the stored PTR
+    expect((await update.execute(ok.id, { ptsPaise: 9000 })).ptsPaise).toBe(9000); // equal is fine
+    expect((await update.execute(ok.id, { mrpPaise: 12000, ptrPaise: 10000 })).mrpPaise).toBe(12000);
+  });
+
+  it('an older product with no prices can still be edited, and nothing is compared until the prices exist', async () => {
+    const old = await products.create({ name: 'Old', sku: 'OLD-1', category: 'Tablet', composition: null, type: null, packSize: null, ptsPaise: null, ptrPaise: null, mrpPaise: null, gstPercent: null, division: null, status: 'active' });
+    const update = new UpdateProductUseCase(products);
+    expect((await update.execute(old!.id, { name: 'Old renamed' })).name).toBe('Old renamed');
+    expect((await update.execute(old!.id, { mrpPaise: 5000 })).mrpPaise).toBe(5000);
   });
 
   it('edits and deactivates, refuses a SKU another product has, and 404s an unknown id', async () => {
     const create = new CreateProductUseCase(products);
-    const a = await create.execute({ name: 'A', sku: 'A-1', category: 'Tablet' });
-    await create.execute({ name: 'B', sku: 'B-1', category: 'Syrup' });
+    const a = await create.execute({ name: 'A', sku: 'A-1', category: 'Tablet', composition: 'Paracetamol 500mg', type: 'TABLET' as const, packSize: '10×10', ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000, gstPercent: 12 as const });
+    await create.execute({ name: 'B', sku: 'B-1', category: 'Syrup', composition: 'Paracetamol 500mg', type: 'TABLET' as const, packSize: '10×10', ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000, gstPercent: 12 as const });
     const update = new UpdateProductUseCase(products);
     expect((await update.execute(a.id, { name: 'A2', status: 'inactive' })).status).toBe('inactive');
     expect((await update.execute(a.id, { sku: 'a-1' })).sku).toBe('a-1'); // its own SKU is not a clash
@@ -48,8 +75,8 @@ describe('Products', () => {
 
   it('lists with search on name or SKU, category and status', async () => {
     const create = new CreateProductUseCase(products);
-    await create.execute({ name: 'Amoxicillin', sku: 'AMX-1', category: 'Capsule' });
-    const b = await create.execute({ name: 'Cough Syrup', sku: 'CS-9', category: 'Syrup' });
+    await create.execute({ name: 'Amoxicillin', sku: 'AMX-1', category: 'Capsule', composition: 'Paracetamol 500mg', type: 'TABLET' as const, packSize: '10×10', ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000, gstPercent: 12 as const });
+    const b = await create.execute({ name: 'Cough Syrup', sku: 'CS-9', category: 'Syrup', composition: 'Paracetamol 500mg', type: 'TABLET' as const, packSize: '10×10', ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000, gstPercent: 12 as const });
     await new UpdateProductUseCase(products).execute(b.id, { status: 'inactive' });
     const list = new ListProductsUseCase(products);
     expect((await list.execute({ ...page, search: 'amx' })).items.map((p) => p.name)).toEqual(['Amoxicillin']);

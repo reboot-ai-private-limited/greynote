@@ -272,3 +272,13 @@ Public contract above.
   this module.
 - **Bulk import** (e.g. a CSV of Doctors) — nothing in the PRD asks for it; add only if a real
   onboarding need shows up.
+
+
+## Product details (2026-10-06)
+
+A `Product` is the pharma catalog card: **brand** (`name`, e.g. XYZ-500), `sku`, **therapeutic class** (`category`), `composition`, `type` (a list:
+Tablet, Capsule, Syrup, Suspension, Injection, Ointment, Cream / gel, Drops, Powder / sachet, Inhaler, Other), `packSize` (as printed, e.g. `10×10`),
+`ptsPaise`, `ptrPaise`, `mrpPaise`, `gstPercent` (a list: 5, 12, 18, 28), optional `division`, and `status`. Prices are whole paise and must satisfy
+PTS ≤ PTR ≤ MRP (checked on create, and on an edit against the prices as they will stand); equal is allowed. Everything but `division` is required on create. A product
+saved before these existed has them `null` and can still be edited (renamed, deactivated) without them; it shows `—` for them until someone completes it. The phone's
+product cache carries all of them. `category` keeps its stored name and now means the therapeutic class.

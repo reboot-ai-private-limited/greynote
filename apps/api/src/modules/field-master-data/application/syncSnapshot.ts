@@ -75,7 +75,7 @@ export function makeFieldMasterDataSource(deps: {
           primarySalesEnabled: d.primarySalesEnabled,
           secondarySalesEnabled: d.secondarySalesEnabled,
         })),
-        products: byId(products).map((p) => ({ id: p.id, name: p.name, sku: p.sku, category: p.category })),
+        products: byId(products).map((p) => ({ id: p.id, name: p.name, sku: p.sku, category: p.category, composition: p.composition, type: p.type, packSize: p.packSize, ptsPaise: p.ptsPaise, ptrPaise: p.ptrPaise, mrpPaise: p.mrpPaise, gstPercent: p.gstPercent, division: p.division })),
         sampleAllocations: byId(allocations).map((a) => ({ id: a.id, doctorId: a.doctorId, productId: a.productId, quantityAllocated: a.quantityAllocated, quantityRemaining: a.quantityRemaining })),
       };
     },

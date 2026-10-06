@@ -1,4 +1,6 @@
+import { PRODUCT_TYPES } from '@greynote/contracts';
 import { z } from 'zod';
+import { paiseSchema } from '@/shared/money/paise.js';
 import { DOCTOR_STATUSES } from '../domain/doctor.entity.js';
 import { MASTER_STATUSES } from '../domain/masterStatus.js';
 
@@ -22,16 +24,37 @@ const longitudeSchema = z.number().min(-180).max(180);
 export const locationSchema = z.object({ latitude: latitudeSchema, longitude: longitudeSchema });
 
 // ---- Products
+const priceSchema = paiseSchema.refine((n) => n > 0, 'Must be more than 0.');
+const productFields = {
+  composition: z.string().trim().min(1).max(300),
+  type: z.enum(PRODUCT_TYPES),
+  packSize: z.string().trim().min(1).max(40),
+  ptsPaise: priceSchema,
+  ptrPaise: priceSchema,
+  mrpPaise: priceSchema,
+  gstPercent: z.union([z.literal(5), z.literal(12), z.literal(18), z.literal(28)]),
+};
 export const createProductBodySchema = z.object({
   name: nameSchema,
   sku: z.string().trim().min(1).max(60),
   category: z.string().trim().min(1).max(100),
+  ...productFields,
+  division: z.string().trim().min(1).max(100).optional(),
 });
 export const updateProductBodySchema = z
   .object({
     name: nameSchema.optional(),
     sku: z.string().trim().min(1).max(60).optional(),
     category: z.string().trim().min(1).max(100).optional(),
+    composition: productFields.composition.optional(),
+    type: productFields.type.optional(),
+    packSize: productFields.packSize.optional(),
+    ptsPaise: priceSchema.optional(),
+    ptrPaise: priceSchema.optional(),
+    mrpPaise: priceSchema.optional(),
+    gstPercent: productFields.gstPercent.optional(),
+    /** `null` clears it. */
+    division: z.string().trim().min(1).max(100).nullable().optional(),
     status: statusSchema.optional(),
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });

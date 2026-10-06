@@ -49,7 +49,7 @@ describe('Doctor sample allocations', () => {
         'admin',
       )
     ).id;
-    productId = (await new CreateProductUseCase(products).execute({ name: 'Cough Syrup', sku: 'CS-1', category: 'Syrup' })).id;
+    productId = (await new CreateProductUseCase(products).execute({ name: 'Cough Syrup', sku: 'CS-1', category: 'Syrup', composition: 'Paracetamol 500mg', type: 'TABLET' as const, packSize: '10×10', ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000, gstPercent: 12 as const })).id;
     issue = new IssueSampleAllocationUseCase(allocations, doctors, products);
   });
 
