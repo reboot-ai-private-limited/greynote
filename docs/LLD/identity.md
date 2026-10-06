@@ -20,6 +20,14 @@ other module depends on it, directly or through the Approval Workflow Engine —
   `domain/ctcBreakdown.ts` is the pure function that splits a CTC by it; the decision is in `../decision-log.md` (2026-10-05).
 - **`CtcAssignment`** — an append-only revision of a FIELD employee's CTC: amount, `effectiveFrom` month, the frozen breakdown
   lines, HR's per-line overrides. Payroll reads the one in force for a month through `getCtcForMonth`.
+- **`Promotion`** — a scheduled change of a FIELD employee's designation, grade and/or manager (and optionally a new CTC) that takes effect on the
+  **1st of a chosen month** (the next month at the earliest), with the team handed over in the same record (`teamMoves`: each current direct report and
+  their manager from that month; the promoted person's own id means "stays"). Status `SCHEDULED` / `APPLIED` / `CANCELLED`; one `SCHEDULED` per employee (a
+  partial unique index). It keeps what the employee was (`from*`). Nothing about the employee changes until it applies. `domain/promotionPlan.ts` is the
+  pure judgement (problems stop it, warnings never do); `application/usecases/promotionPlanner.ts` gathers the facts. Decision-log 2026-10-06; sign-off K13–K19.
+- **`ManagerChange`** — append-only dated history of every change of an employee's manager (`managerId`, `previousManagerId`, `effectiveFrom` month, `source`
+  PROFILE_EDIT or PROMOTION). `managerAsOf(changes, current, month)` answers who they reported to in a month, so a report for a past month can use the team as
+  it was then. A profile edit takes the whole month it is made in.
 - **`User`** — the lean account, every role: `employee_code`, `password_hash`, `role_id`, `status`,
   and `is_blocked` (a fast top-level flag; the historical detail lives in `ComplianceBlock`).
   Personal details, bank details, designation/pay-band/manager, and joining date are **not**
@@ -218,6 +226,9 @@ dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-l
 | `GET`/`POST`/`PATCH` | `/api/identity/pay-components` | read: Admin, HR, Accountant; write: Admin, HR | The org-wide CTC formula. Every write re-validates the whole formula (one balancer, no loops, Basic 30–60%) |
 | `POST` | `/api/identity/ctc/preview` | Admin, HR | `{ctcAnnualPaise, overrides?}` → breakdown + gross, nothing saved |
 | `GET`/`POST` | `/api/identity/users/:id/ctc` | read: Admin, HR, Accountant; write: Admin, HR | An employee's CTC revisions / save a new one `{ctcAnnualPaise, effectiveFrom, overrides?, reason?}`; no grade and no range needed; the response carries `warning` when the CTC is more than `CTC_JUMP_WARN_PERCENT` (50) above the previous revision (saved anyway) |
+| `POST` | `/api/identity/users/:id/promotions/preview` | Admin, HR | `{effectiveFrom, toDesignationId?, toPayBandId?, toManagerId?, ctc?, teamMoves[], reason?}` → before and after, the team and where each goes, the CTC breakdown, `warnings`, `problems`, `canSchedule`. Saves nothing |
+| `POST` | `/api/identity/users/:id/promotions` | Admin, HR | Schedules it; `400` (with every problem in `details.problems`) while anything in the preview is a problem — above all while a direct report has no new manager. `409` if one is already scheduled |
+| `GET` | `/api/identity/users/:id/promotions` | Admin, HR | The employee's promotions, newest first |
 | `POST` | `/api/identity/ctc/reapply` | Admin, HR | `{effectiveFrom, reason?, userIds?}` → new revisions from the current formula; per-employee outcome |
 | `POST` | `/api/identity/users/:id/documents` | Admin, HR | Upload a document (`multipart/form-data`, field `file` + `documentType`, up to 10 MB) to Cloudinary and attach it to the user. Only a PDF, JPG or PNG, judged by the file's own header, not its name or declared type; anything else is a `400` before it reaches storage |
 | `DELETE` | `/api/identity/users/:id/documents/:documentId` | Admin, HR | Remove a document from Cloudinary **and** the user record |

@@ -74,6 +74,7 @@ const TIMELESS = [
   '/api/identity/pay-bands',
   '/api/identity/pay-components',
   '/api/identity/users/:id/ctc', // an employee's CTC revisions, a master record with its own effective months
+  '/api/identity/users/:id/promotions', // an employee's promotions: a record with its own effective month, not a dated daily record
   '/api/territory/zones',
   '/api/territory/hqs',
   '/api/territory/routes',

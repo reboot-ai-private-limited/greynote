@@ -7,6 +7,8 @@ import { LogoutDeviceUseCase } from './application/usecases/logoutDevice.usecase
 import { RejectDeviceUseCase } from './application/usecases/rejectDevice.usecase.js';
 import { RemoveDeviceUseCase } from './application/usecases/removeDevice.usecase.js';
 import { CreateDesignationUseCase } from './application/usecases/createDesignation.usecase.js';
+import { PromotionPlanner } from './application/usecases/promotionPlanner.js';
+import { ListPromotionsUseCase, PreviewPromotionUseCase, SchedulePromotionUseCase } from './application/usecases/promotions.usecase.js';
 import { AssignCtcUseCase } from './application/usecases/assignCtc.usecase.js';
 import { CreatePayComponentUseCase } from './application/usecases/createPayComponent.usecase.js';
 import { GetCtcForMonthUseCase } from './application/usecases/getCtcForMonth.usecase.js';
@@ -61,11 +63,14 @@ import { JwtAccessTokenSigner } from './infrastructure/jwtAccessTokenSigner.adap
 import { MongoComplianceBlockAdapter } from './infrastructure/mongoComplianceBlock.adapter.js';
 import { MongoDesignationAdapter } from './infrastructure/mongoDesignation.adapter.js';
 import { MongoEmployeeProfileAdapter } from './infrastructure/mongoEmployeeProfile.adapter.js';
+import { MongoManagerHistoryAdapter } from './infrastructure/mongoManagerHistory.adapter.js';
+import { MongoPromotionAdapter } from './infrastructure/mongoPromotion.adapter.js';
 import { MongoPayBandAdapter } from './infrastructure/mongoPayBand.adapter.js';
 import { MongoRoleAdapter } from './infrastructure/mongoRole.adapter.js';
 import { MongoUserAdapter } from './infrastructure/mongoUser.adapter.js';
 import { MongoUserDeviceAdapter } from './infrastructure/mongoUserDevice.adapter.js';
 import { MongoUserSessionAdapter } from './infrastructure/mongoUserSession.adapter.js';
+import { businessDate } from '@/shared/time/businessTime.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import {
   makeLoginController,
@@ -85,6 +90,8 @@ import {
   makeRemoveDeviceController,
 } from './interface/devices.controller.js';
 import { buildDevicesRouter } from './interface/devices.route.js';
+import { makePromotionControllers } from './interface/promotions.controller.js';
+import { buildUserPromotionsRouter } from './interface/promotions.route.js';
 import { buildPayBandsRouter } from './interface/payBands.route.js';
 import { buildRolesRouter } from './interface/roles.route.js';
 import {
@@ -124,6 +131,10 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const payBandRepository = new MongoPayBandAdapter();
   const payComponentRepository = new MongoPayComponentAdapter();
   const ctcAssignmentRepository = new MongoCtcAssignmentAdapter();
+  const managerHistoryRepository = new MongoManagerHistoryAdapter();
+  const promotionRepository = new MongoPromotionAdapter();
+  /** The current month in the business timezone, read each time so a changed setting is honoured. */
+  const currentMonth = async (): Promise<string> => businessDate(new Date(), await configProvider.get('BUSINESS_TIMEZONE')).slice(0, 7);
   const userRepository = new MongoUserAdapter();
   const employeeProfileRepository = new MongoEmployeeProfileAdapter();
   const complianceBlockRepository = new MongoComplianceBlockAdapter();
@@ -178,6 +189,8 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     payBandRepository,
     employeeProfileRepository,
     userSessionRepository,
+    managerHistoryRepository,
+    currentMonth,
   );
   const listUsers = new ListUsersUseCase(userRepository, roleRepository, employeeProfileRepository);
   const uploadUserDocument = new UploadUserDocumentUseCase(userRepository, employeeProfileRepository, documentStorage);
@@ -213,6 +226,22 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const getCtcForMonth = new GetCtcForMonthUseCase(ctcAssignmentRepository);
   const reapplyCtc = new ReapplyCtcUseCase(payComponentRepository, ctcAssignmentRepository);
 
+  const promotionPlanner = new PromotionPlanner({
+    users: userRepository,
+    roles: roleRepository,
+    designations: designationRepository,
+    payBands: payBandRepository,
+    profiles: employeeProfileRepository,
+    components: payComponentRepository,
+    assignments: ctcAssignmentRepository,
+    promotions: promotionRepository,
+    config: configProvider,
+    currentMonth,
+  });
+  const previewPromotion = new PreviewPromotionUseCase(promotionPlanner);
+  const schedulePromotion = new SchedulePromotionUseCase(promotionPlanner, promotionRepository, employeeProfileRepository);
+  const listPromotions = new ListPromotionsUseCase(promotionPlanner, promotionRepository, userRepository);
+
   const getUserSummary = new GetUserSummaryUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getManagerChain = new GetManagerChainUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getUserSummaries = new GetUserSummariesUseCase(userRepository, roleRepository, employeeProfileRepository);
@@ -246,6 +275,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     resetPassword: makeResetPasswordController(resetPassword),
   };
   const ctcControllers = makeCtcControllers({ preview: previewCtc, assign: assignCtc, history: listCtcHistory, reapply: reapplyCtc });
+  const promotionControllers = makePromotionControllers({ preview: previewPromotion, schedule: schedulePromotion, list: listPromotions });
   const devicesControllers = {
     listPending: makeListPendingDevicesController(listPendingDevices),
     listForUser: makeListUserDevicesController(listUserDevices),
@@ -284,6 +314,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       router.use('/auth', buildAuthRouter(authControllers));
       router.use(buildDevicesRouter(devicesControllers));
       router.use('/users', buildUserCtcRouter(ctcControllers));
+      router.use('/users', buildUserPromotionsRouter(promotionControllers));
       router.use('/users', buildUsersRouter(usersControllers));
       router.use('/pay-components', buildPayComponentsRouter({ list: listPayComponents, create: createPayComponent, update: updatePayComponent }));
       router.use('/ctc', buildCtcRouter(ctcControllers));

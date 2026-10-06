@@ -242,3 +242,90 @@ export interface ReapplyCtcDto {
 export type ReapplyOutcomeDto =
   | { userId: string; outcome: 'revised'; revisionId: string }
   | { userId: string; outcome: 'skipped'; message: string };
+
+// ── Promotion (decision-log 2026-10-06) ─────────────────────────────────────────────────────
+
+export const PROMOTION_STATUSES = ['SCHEDULED', 'APPLIED', 'CANCELLED'] as const;
+export type PromotionStatus = (typeof PROMOTION_STATUSES)[number];
+
+/** A direct report and who they report to from the effective month. The promoted person's own id means "stays with them". */
+export interface PromotionTeamMoveDto {
+  userId: string;
+  toManagerId: string;
+}
+
+/**
+ * Body of `POST /identity/users/:id/promotions/preview` and `.../promotions`. A promotion takes effect on the 1st of
+ * `effectiveFrom` (the next month at the earliest). An omitted or null `to*` field is left as it is; every current direct report
+ * must appear in `teamMoves`, or the promotion cannot be scheduled.
+ */
+export interface PromotionRequestDto {
+  effectiveFrom: string;
+  toDesignationId?: string | null;
+  toPayBandId?: string | null;
+  /** The promoted person's own new manager. */
+  toManagerId?: string | null;
+  /** A new CTC from the same month; it need not sit in any range. */
+  ctc?: { ctcAnnualPaise: number; overrides?: Record<string, number> } | null;
+  teamMoves: PromotionTeamMoveDto[];
+  reason?: string | null;
+}
+
+export interface PromotionPersonDto {
+  id: string;
+  name: string;
+  employeeCode: string;
+  designation: DesignationName | null;
+}
+
+/** Designation, grade and manager at one moment. */
+export interface PromotionPositionDto {
+  designation: DesignationName | null;
+  payBand: { id: string; name: string } | null;
+  manager: PromotionPersonDto | null;
+}
+
+export interface PromotionTeamRowDto {
+  person: PromotionPersonDto;
+  toManager: PromotionPersonDto | null;
+  /** Stays with the promoted person. */
+  stays: boolean;
+}
+
+export interface PromotionProblemDto {
+  field: string;
+  message: string;
+}
+
+/** `POST .../promotions/preview`: what would change, without saving. Scheduling is allowed only when `problems` is empty. */
+export interface PromotionPreviewDto {
+  employee: PromotionPersonDto;
+  effectiveFrom: string;
+  /** The earliest month a promotion can start from now. */
+  earliestMonth: string;
+  from: PromotionPositionDto;
+  /** What it becomes: a field the request leaves alone shows its current value. */
+  to: PromotionPositionDto;
+  team: PromotionTeamRowDto[];
+  ctc: { previousAnnualPaise: number | null; newAnnualPaise: number; lines: CtcLineDto[] } | null;
+  warnings: string[];
+  problems: PromotionProblemDto[];
+  canSchedule: boolean;
+}
+
+/** One promotion, as kept: `GET .../promotions`, newest first. */
+export interface PromotionDto {
+  id: string;
+  userId: string;
+  effectiveFrom: string;
+  status: PromotionStatus;
+  from: PromotionPositionDto;
+  to: PromotionPositionDto;
+  ctcAnnualPaise: number | null;
+  team: PromotionTeamRowDto[];
+  reason: string | null;
+  createdBy: string;
+  createdAt: string;
+  appliedAt: string | null;
+  cancelledAt: string | null;
+}

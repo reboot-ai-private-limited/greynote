@@ -43,6 +43,7 @@ function build(chain: Record<string, string | null>, extra: Record<string, Parti
   const profiles = new Map(Object.entries(chain).map(([id, mgr]) => [id, profile(id, mgr, extra[id])]));
   const writes: Array<{ userId: string; input: Partial<EmployeeProfile> }> = [];
   const revokedAll: Array<{ userId: string; reason: string }> = [];
+  const history: Array<Record<string, unknown>> = [];
   const users = new Map([...ids].map((id) => [id, user(id)]));
   const useCase = new UpdateUserUseCase(
     {
@@ -66,8 +67,15 @@ function build(chain: Record<string, string | null>, extra: Record<string, Parti
         revokedAll.push({ userId, reason });
       },
     } as never,
+    {
+      record: async (input: Record<string, unknown>) => {
+        history.push(input);
+        return input;
+      },
+    } as never,
+    async () => '2026-10',
   );
-  return { useCase, writes, profiles, revokedAll, users };
+  return { useCase, writes, profiles, revokedAll, users, history };
 }
 
 async function rejection(promise: Promise<unknown>): Promise<AppError> {
@@ -219,5 +227,20 @@ describe('UpdateUserUseCase — deactivation', () => {
     expect(profiles.get('a')).toMatchObject({ esiNumber: '12345678901234567', probationMonths: 3 });
     await useCase.execute('a', { basicDetails: { esiNumber: null, probationMonths: null } });
     expect(profiles.get('a')).toMatchObject({ esiNumber: null, probationMonths: null });
+  });
+});
+
+describe('manager history', () => {
+  it('records a change of manager for the month it is made in, with who it was before', async () => {
+    const { useCase, history } = build({ emp: 'old', old: null, fresh: null });
+    await useCase.execute('emp', { managerId: 'fresh' });
+    expect(history).toEqual([{ userId: 'emp', managerId: 'fresh', previousManagerId: 'old', effectiveFrom: '2026-10', source: 'PROFILE_EDIT', promotionId: null, createdBy: null }]);
+  });
+
+  it('records nothing when the manager is unchanged or not sent', async () => {
+    const { useCase, history } = build({ emp: 'old', old: null });
+    await useCase.execute('emp', { managerId: 'old' });
+    await useCase.execute('emp', { basicDetails: { name: 'Emp' } });
+    expect(history).toEqual([]);
   });
 });

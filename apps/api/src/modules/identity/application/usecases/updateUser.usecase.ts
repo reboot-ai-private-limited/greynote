@@ -2,6 +2,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { computeUserStatus } from '../../domain/onboarding.js';
 import type { Address, BankDetails, EmployeeProfile } from '../../domain/employeeProfile.entity.js';
 import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
+import type { ManagerHistoryRepositoryPort } from '../../domain/managerHistory.repository.port.js';
 import type { DesignationRepositoryPort } from '../../domain/designation.repository.port.js';
 import type { PayBandRepositoryPort } from '../../domain/payBand.repository.port.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
@@ -61,6 +62,9 @@ export class UpdateUserUseCase {
     private readonly payBandRepository: PayBandRepositoryPort,
     private readonly employeeProfileRepository: EmployeeProfileRepositoryPort,
     private readonly userSessionRepository: UserSessionRepositoryPort,
+    private readonly managerHistory: ManagerHistoryRepositoryPort,
+    /** The current month (`YYYY-MM`) in the business timezone. */
+    private readonly currentMonth: () => Promise<string>,
   ) {}
 
   async execute(targetUserId: string, input: UpdateUserInput): Promise<UserSummary> {
@@ -120,6 +124,20 @@ export class UpdateUserUseCase {
 
     if (touchesProfile) {
       await this.employeeProfileRepository.upsert(targetUserId, mergedProfile);
+    }
+
+    // A change of manager is kept as dated history; an edit takes the whole month it is made in (promotions use their own month).
+    const previousManagerId = existingProfile?.managerId ?? null;
+    if (input.managerId !== undefined && input.managerId !== previousManagerId) {
+      await this.managerHistory.record({
+        userId: targetUserId,
+        managerId: input.managerId,
+        previousManagerId,
+        effectiveFrom: await this.currentMonth(),
+        source: 'PROFILE_EDIT',
+        promotionId: null,
+        createdBy: null,
+      });
     }
 
     const userPatch: Partial<Omit<User, 'id'>> = { status };
