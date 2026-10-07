@@ -1,8 +1,9 @@
 /**
  * What each working day of an employee was, worked out from the holiday calendar, leave, the approved plan and the submitted report
- * (decision-log 2026-10-06, sign-off K20, K25, K26). First match wins, in this order.
+ * (decision-log 2026-10-06, sign-off K20, K25, K26). First match wins, in this order. `UNKNOWN` is a past working day that would have been
+ * absent, for an employee whose joining date is not recorded: it is never deducted, because without it we cannot tell absent from not yet joined.
  */
-export const DAY_STATUSES = ['NOT_YET', 'BEFORE_JOINING', 'HOLIDAY', 'WEEKLY_OFF', 'LEAVE', 'STRIKE', 'PRESENT', 'ABSENT'] as const;
+export const DAY_STATUSES = ['NOT_YET', 'BEFORE_JOINING', 'HOLIDAY', 'WEEKLY_OFF', 'LEAVE', 'STRIKE', 'PRESENT', 'ABSENT', 'UNKNOWN'] as const;
 export type DayStatus = (typeof DAY_STATUSES)[number];
 
 export interface AttendanceDayDto {

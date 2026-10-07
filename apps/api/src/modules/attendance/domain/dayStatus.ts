@@ -8,7 +8,7 @@ export interface DayFacts {
   date: string;
   /** The business date today, same format. */
   today: string;
-  /** The day they joined (business date), or `null` when not recorded. */
+  /** The day they joined (business date), or `null` when not recorded — then no day can be called absent. */
   joinedOn: string | null;
   holiday: boolean;
   weeklyOff: boolean;
@@ -23,6 +23,7 @@ export interface DayFacts {
 /**
  * The day's status, first match wins: before they joined → not yet (a future day, or today with no report yet) → holiday → weekly off →
  * leave → strike → present (a report) → absent. A working day only becomes absent once it is over: today without a report is still "not yet".
+ * Without a recorded joining date a would-be-absent day is `UNKNOWN`, never absent: a missing date must not cost anyone a month's pay.
  */
 export function classifyDay(f: DayFacts): DayStatus {
   if (f.joinedOn !== null && f.date < f.joinedOn) return 'BEFORE_JOINING';
@@ -32,7 +33,8 @@ export function classifyDay(f: DayFacts): DayStatus {
   if (f.onLeave) return 'LEAVE';
   if (f.strikePlan) return 'STRIKE';
   if (f.reported) return 'PRESENT';
-  return f.date === f.today ? 'NOT_YET' : 'ABSENT';
+  if (f.date === f.today) return 'NOT_YET';
+  return f.joinedOn === null ? 'UNKNOWN' : 'ABSENT';
 }
 
 export interface DeductionSettings {

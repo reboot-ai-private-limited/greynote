@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -45,7 +46,7 @@ export function PayrollCalendarScreen() {
             <div className="w-56">
               <Select aria-label="Month" value={month} options={months.map((m) => ({ value: m, label: monthLabel(m) }))} onValueChange={(v) => update({ month: v })} />
             </div>
-            <StatusLegend />
+            <StatusLegend showUnknown={Boolean(data?.rows.some((r) => r.counts.UNKNOWN > 0))} />
           </div>
           <Card>
             <DataState
@@ -78,6 +79,11 @@ export function PayrollCalendarScreen() {
                               {r.user.name}
                             </Link>
                             <span className="ml-2 text-xs text-text-subtle">{r.user.employeeCode}</span>
+                            {r.counts.UNKNOWN > 0 ? (
+                              <span className="ml-2">
+                                <Badge tone="warning">No joining date</Badge>
+                              </span>
+                            ) : null}
                           </th>
                           {zipDays(data.dates, r.days).map((d) => (
                             <td key={d.date} className="px-0.5 py-1 text-center" title={`${d.date} · ${STATUS_LABEL[d.status]}`}>

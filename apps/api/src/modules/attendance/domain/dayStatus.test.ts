@@ -25,9 +25,17 @@ describe('classifyDay', () => {
     expect(day({ date: '2026-10-21', reported: true })).toBe('NOT_YET');
   });
 
-  it('the joining day itself counts; an unknown joining date never excludes a day', () => {
+  it('the joining day itself counts', () => {
     expect(day({ date: '2026-01-01' })).toBe('ABSENT');
-    expect(day({ joinedOn: null, date: '2020-01-01' })).toBe('ABSENT');
+  });
+
+  it('without a recorded joining date a would-be-absent day is unknown, never absent; every other status still applies', () => {
+    expect(day({ joinedOn: null })).toBe('UNKNOWN');
+    expect(day({ joinedOn: null, reported: true })).toBe('PRESENT');
+    expect(day({ joinedOn: null, onLeave: true })).toBe('LEAVE');
+    expect(day({ joinedOn: null, holiday: true })).toBe('HOLIDAY');
+    expect(day({ joinedOn: null, date: base.today })).toBe('NOT_YET');
+    expect(isDeductible('UNKNOWN', { absentDeducts: true, strikeDeducts: true })).toBe(false);
   });
 
   it('today is present with a report and not yet without one, never absent', () => {

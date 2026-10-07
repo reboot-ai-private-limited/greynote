@@ -48,7 +48,7 @@ export function EmployeeCalendarTab({ userId }: { userId: string }) {
           >
             {m ? (
               <>
-                <StatusLegend />
+                <StatusLegend showUnknown={m.counts.UNKNOWN > 0} />
                 <MonthCalendar days={m.days} />
                 <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
                   {STATUS_ORDER.map((s) => (
@@ -58,6 +58,11 @@ export function EmployeeCalendarTab({ userId }: { userId: string }) {
                     </div>
                   ))}
                 </dl>
+                {m.counts.UNKNOWN > 0 ? (
+                  <p role="alert" className="rounded-md bg-warning-bg px-3 py-2 text-sm text-warning-fg">
+                    No date of joining is recorded, so {m.counts.UNKNOWN} past working {m.counts.UNKNOWN === 1 ? 'day' : 'days'} cannot be called present or absent and none is deducted. Set the date of joining on the Profile tab.
+                  </p>
+                ) : null}
                 <p role="status" className={m.deductibleDays > 0 ? 'rounded-md bg-warning-bg px-3 py-2 text-sm text-warning-fg' : 'text-sm text-text-muted'}>
                   {deductionNote(m)} A day shown absent can be turned into leave (Leave tab) until payroll for the month is finalized.
                 </p>

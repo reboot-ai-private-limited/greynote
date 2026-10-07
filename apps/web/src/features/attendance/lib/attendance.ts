@@ -11,10 +11,11 @@ export const STATUS_LABEL: Record<DayStatus, string> = {
   WEEKLY_OFF: 'Weekly off',
   NOT_YET: 'Not yet',
   BEFORE_JOINING: 'Before joining',
+  UNKNOWN: 'Unknown (no joining date)',
 };
 
 /** One letter on the cell, so a day never depends on colour alone. */
-export const STATUS_CODE: Record<DayStatus, string> = { PRESENT: 'P', ABSENT: 'A', LEAVE: 'L', STRIKE: 'S', HOLIDAY: 'H', WEEKLY_OFF: 'O', NOT_YET: '', BEFORE_JOINING: '' };
+export const STATUS_CODE: Record<DayStatus, string> = { PRESENT: 'P', ABSENT: 'A', LEAVE: 'L', STRIKE: 'S', HOLIDAY: 'H', WEEKLY_OFF: 'O', NOT_YET: '', BEFORE_JOINING: '', UNKNOWN: '?' };
 
 export const STATUS_TONE: Record<DayStatus, BadgeTone> = {
   PRESENT: 'success',
@@ -25,6 +26,7 @@ export const STATUS_TONE: Record<DayStatus, BadgeTone> = {
   WEEKLY_OFF: 'neutral',
   NOT_YET: 'neutral',
   BEFORE_JOINING: 'neutral',
+  UNKNOWN: 'warning',
 };
 
 /** The order the legend and the counts are shown in. */
@@ -40,6 +42,7 @@ export const CELL_CLASS: Record<DayStatus, string> = {
   WEEKLY_OFF: 'bg-surface-subtle text-text-subtle',
   NOT_YET: 'text-text-subtle',
   BEFORE_JOINING: 'text-text-subtle',
+  UNKNOWN: 'border border-dashed border-warning text-warning-fg',
 };
 
 /** How many blank columns come before the 1st when the week starts on Monday: 0 for a Monday, 6 for a Sunday. */

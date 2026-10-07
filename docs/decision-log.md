@@ -1632,3 +1632,5 @@ Web: a Calendar tab on each employee, an **Attendance** page (every employee × 
 
 **Cautions recorded:** a report submitted late or a leave approved late cannot change a finalized month; probation gives no protection to an absent day (assumption);
 an unpaid leave stuck at the manager is neither deducted nor absent; the first payroll after the upgrade should be a draft read against the Attendance screen.
+
+**Browser pass 2026-10-07 (Attendance page):** found that employees with no recorded joining date (active status does not require one) were counted absent from the 1st. Changed: such days are `UNKNOWN` (a ninth status), never deducted; the calendars show a warning and a "No joining date" badge. Rest of the page checked: the grid, legend, weekly off, today left blank, absent and deducted counts, totals note.

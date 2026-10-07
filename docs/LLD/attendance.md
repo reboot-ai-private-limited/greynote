@@ -17,7 +17,7 @@ Nothing is stored. A **read model** at its own tier (5, below Payroll and Market
 5. covered by a Manager-Approved or fully approved leave, paid or unpaid → `LEAVE`
 6. the day's plan says Strike **and** the plan is past the manager → `STRIKE` (a draft or rejected Strike plan excuses nothing)
 7. a submitted, manager-approved or approved daily report → `PRESENT`
-8. otherwise `ABSENT` — but today with no report yet is `NOT_YET`: a day only becomes absent once it is over
+8. otherwise `ABSENT` — but today with no report yet is `NOT_YET` (a day only becomes absent once it is over), and **with no joining date recorded the day is `UNKNOWN`**, never absent: a missing date must not cost anyone a month's pay (found in the browser pass: test employees without one were all "absent" from the 1st)
 
 A rejected, withdrawn or reopened report is not a report, so that day is absent until it is resubmitted. A Meeting or Conference day without a
 report is absent too.
@@ -64,5 +64,5 @@ Both are scoped to the financial year in view (a month outside it is refused).
   finalizing, and turn a real absence into leave first (leave is locked after finalization too — `LEAVE_LOCKED_AFTER_PAYROLL`).
 - **A leave that is only Manager-Approved** counts as leave here (the same rule as `isOnLeave`), but Payroll deducts unpaid leave only once fully Approved, so
   an unpaid leave stuck at the manager is neither deducted nor absent until it is finalized.
-- **No joining date recorded** never excludes a day.
+- **No joining date recorded:** would-be-absent days are `UNKNOWN`, never deducted; the calendars warn and ask for the date on the Profile tab. Active status does not require a joining date, so HR must set it.
 - **Not built:** per-day drill-down (which report or leave a day came from), export, and a separate probation setting.

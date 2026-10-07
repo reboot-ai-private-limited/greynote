@@ -75,9 +75,10 @@ describe('an employee\'s month', () => {
     expect((await kit({ plans, config: { ABSENT_DEDUCTS_SALARY: 'false', STRIKE_DEDUCTS_SALARY: 'true' } }).month('u1', '2026-10')).deductibleDays).toBe(0);
   });
 
-  it('an unrecorded joining date never excludes a day, and a malformed setting is a fault naming its key', async () => {
+  it('an unrecorded joining date makes the would-be-absent days unknown and deducts nothing; a malformed setting is a fault naming its key', async () => {
     const m = await kit({ joined: null }).month('u1', '2026-10');
-    expect(m.counts.BEFORE_JOINING).toBe(0);
+    expect(m.counts).toMatchObject({ BEFORE_JOINING: 0, ABSENT: 0, UNKNOWN: 5 }); // the 1st, 3rd, 10th, 17th and 19th
+    expect(m).toMatchObject({ absentDays: 0, deductibleDays: 0 });
     await expect(kit({ config: { ABSENT_DEDUCTS_SALARY: 'yes' } }).month('u1', '2026-10')).rejects.toMatchObject({ statusCode: 500 });
   });
 });
