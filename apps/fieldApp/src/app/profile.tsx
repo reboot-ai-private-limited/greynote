@@ -1,0 +1,74 @@
+import * as Device from 'expo-device';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { ScrollView, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { PrimaryButton } from '@/components/primary-button';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { logout } from '@/lib/auth';
+
+/** Who is signed in, which phone this is, and Logout. Opened from the Home header. */
+export default function ProfileScreen() {
+  const user = useCurrentUser();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    await logout();
+    // The (tabs) layout redirects once the session clears; this covers leaving Profile itself.
+    router.replace('/login');
+  }
+
+  return (
+    <ThemedView style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <ThemedText type="subtitle">Profile</ThemedText>
+
+          <ThemedView type="backgroundElement" style={styles.card}>
+            <Row label="Name" value={user.name} />
+            <Row label="Employee code" value={user.employeeCode} />
+            <Row label="Role" value={user.designation} />
+          </ThemedView>
+
+          <ThemedView type="backgroundElement" style={styles.card}>
+            <Row label="This device" value={Device.deviceName ?? 'Unknown'} />
+            <Row label="Model" value={[Device.brand, Device.modelName].filter(Boolean).join(' ')} />
+          </ThemedView>
+
+          <PrimaryButton label="Back" variant="text" onPress={() => router.back()} />
+          <PrimaryButton label="Log out" loading={loggingOut} onPress={handleLogout} />
+        </ScrollView>
+      </SafeAreaView>
+    </ThemedView>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <ThemedView type="backgroundElement" style={styles.row}>
+      <ThemedText type="small" themeColor="textSecondary">
+        {label}
+      </ThemedText>
+      <ThemedText type="smallBold">{value || '—'}</ThemedText>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
+  content: {
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+    padding: Spacing.four,
+    gap: Spacing.three,
+  },
+  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  row: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },
+});

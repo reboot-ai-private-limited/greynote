@@ -1,61 +1,69 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
+import { ApiError } from '@/lib/api';
+import { loadCurrentUser } from '@/lib/auth';
+import { restoreSession } from '@/lib/session';
+import { useTheme } from '@/hooks/use-theme';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+/**
+ * In-app Splash screen (distinct from the native app.json splash — see src/app/_layout.tsx).
+ *
+ * Restores the saved session from secure storage, then confirms it with GET /identity/auth/me
+ * (which refreshes the token if it expired, see src/lib/api.ts): valid → /(tabs); rejected →
+ * /login. If the server can't be reached the saved user is trusted and the app opens anyway —
+ * the field app has to work offline (HLD 01).
+ *
+ * TODO: also kick off the first delta-sync of reference data here (HLD 01 §1.1) once Stage 1 lands.
+ */
+export default function SplashScreen() {
+  const theme = useTheme();
 
-export default function HomeScreen() {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [hasSession] = await Promise.all([
+        restoreSession(),
+        new Promise((resolve) => setTimeout(resolve, 600)),
+      ]);
+      let target: '/login' | '/(tabs)' = '/login';
+      if (hasSession) {
+        try {
+          await loadCurrentUser();
+          target = '/(tabs)';
+        } catch (err) {
+          // A 401 here means refresh failed too (session already cleared) → Login.
+          // Anything else (offline, server error) → keep the saved session and open the app.
+          target = err instanceof ApiError && err.status === 401 ? '/login' : '/(tabs)';
+        }
+      }
+      if (!cancelled) router.replace(target);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
+        <ThemedView style={[styles.mark, { backgroundColor: theme.primary }]}>
+          <ThemedText type="title" themeColor="onPrimary" style={styles.markLetter}>
+            G
           </ThemedText>
         </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
+        <ThemedText type="subtitle" style={styles.appName}>
+          My Greynote
         </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
+        <ThemedText type="small" themeColor="textSecondary">
+          Field Force Sales Automation
+        </ThemedText>
+        <ActivityIndicator style={styles.spinner} color={theme.primary} />
       </SafeAreaView>
     </ThemedView>
   );
@@ -64,35 +72,30 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
   },
   safeArea: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
+    gap: Spacing.two,
     paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
   },
-  title: {
+  mark: {
+    width: 88,
+    height: 88,
+    borderRadius: Spacing.four,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.two,
+  },
+  markLetter: {
+    fontSize: 40,
+    lineHeight: 44,
+  },
+  appName: {
     textAlign: 'center',
   },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  spinner: {
+    marginTop: Spacing.five,
   },
 });
