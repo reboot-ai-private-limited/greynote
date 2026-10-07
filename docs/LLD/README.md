@@ -36,6 +36,7 @@ undefined yet.
 | 7 | Sales & Orders | [`sales-and-orders.md`](sales-and-orders.md) | [`06-sales-and-orders`](../erd/06-sales-and-orders.md) | Field Master Data |
 | 8 | Marketing | [`marketing.md`](marketing.md) | [`08-marketing`](../erd/08-marketing.md) | Identity, Field Master Data |
 | 9 | Payroll | [`payroll.md`](payroll.md) | [`09-payroll`](../erd/09-payroll.md) | Identity, HR, Attendance |
+| 10 | Reports | [`reports.md`](reports.md) | — (a read model, owns no data) | Identity, Field Master Data, Sales (later Field Activity, Payroll, Marketing) |
 | 9b | Attendance | [`attendance.md`](attendance.md) | — (a read model, owns no data) | Identity, HR, Planning, Field Activity |
 
 `Config` (Tier 0, `SystemConfig`) and `health` have no LLD doc of their own — they're small

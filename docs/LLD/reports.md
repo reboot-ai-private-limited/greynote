@@ -1,0 +1,29 @@
+# Reports
+
+Read-only reports for the Admin: orders, and (as they are built) the sales, stock, TA/DA, DCR and salary reports. Decisions: sign-off K21, K23, K24, K27–K31, K33; decision-log 2026-10-07.
+
+## What it owns
+
+Nothing is stored. A **read model** at the top tier (7), above Payroll and Marketing so a report can read them: it asks Sales, Field Master Data and Identity (and later Field Activity, Payroll, Marketing) through their public contracts and joins names onto ids. It writes nothing; the one write on the Orders page (Done / Cancel) goes straight to Sales' existing endpoints.
+
+## Rules for every report
+
+- **Admin only** for now (K24); the calendars in Attendance stay Admin, HR and Accountant.
+- **The financial year in view, by month** (K27): no free date range; a month outside the selected year is refused (`scopeToFinancialYear`).
+- **CSV** export (K28); gaps are shown as gaps, never as zeros.
+
+## Definitions (K9, K21, K23, K31)
+
+- **Primary** = orders **to distributors** marked **Done**, in the month marked Done; Placed ones are shown in their own column; Cancelled never counts.
+- **Secondary** = what the distributors sell on, derived per distributor and product from its stock: opening + primary received − closing. A missing count is a gap.
+- A **chemist order** is information only: in neither figure, no supplying-distributor field, nothing sent on.
+
+## Built: the Orders report
+
+`GET /api/reports/orders?month=&type=&status=&mrId=` — one month of orders by **order date**, each with the MR and outlet named, plus totals by status (count and amount), capped at 2000 rows (`truncated` says when it may be short). `GET /api/reports/orders/:id` — one order in full with product names and who finished it. Names come from Identity's `getUserSummaries` and Field Master Data's `listNames` (three queries however many rows). Web: `/orders` (Admin), two tabs — *To distributors* and *Chemist orders* — month, status and MR filters, status totals as tiles, an order dialog, Done / Cancel for a placed distributor order, CSV.
+
+Added to the modules below for it: Sales `listOrders` and `getOrder` (contract), Field Master Data `findByIds` on the Distributor, Chemist and Product repositories and `listNames` (contract).
+
+## Not built yet
+
+The Sales report and its primary/secondary bar chart (K29), the Stock report, TA/DA, DCR and Salary (K30).

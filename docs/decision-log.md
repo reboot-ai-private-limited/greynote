@@ -1634,3 +1634,9 @@ Web: a Calendar tab on each employee, an **Attendance** page (every employee × 
 an unpaid leave stuck at the manager is neither deducted nor absent; the first payroll after the upgrade should be a draft read against the Attendance screen.
 
 **Browser pass 2026-10-07 (Attendance page):** found that employees with no recorded joining date (active status does not require one) were counted absent from the 1st. Changed: such days are `UNKNOWN` (a ninth status), never deducted; the calendars show a warning and a "No joining date" badge. Rest of the page checked: the grid, legend, weekly off, today left blank, absent and deducted counts, totals note.
+
+## 2026-10-07 — Reports module and the Orders page (roadmap step 5b, start of 5e)
+
+**Decided with the owner:** orders keep Placed → Done or Cancelled; a chemist order is information only (no supplying distributor, nothing sent on); primary = Done orders to distributors (month marked Done), secondary = derived from the distributors' stock; reports are Admin only, by month inside the financial year in view, CSV; the Sales report gets a primary and secondary bar chart per month; five reports (Sales, Stock, TA/DA, DCR, Salary).
+
+**Built:** a new top-tier (7) read-only `reports` module and its first report, **Orders** (API + the `/orders` page for Admin, with Done / Cancel on a placed distributor order). `MODULE_TIERS` gained tier 7. API 1024 / web 599 tests pass; **not browser-checked**. The Sales report, chart and the other four reports are next.

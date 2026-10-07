@@ -149,3 +149,11 @@ describe('Attendance', () => {
     expect(isRouteBuilt('/attendance')).toBe(true);
   });
 });
+
+describe('Orders', () => {
+  it('is for Admin only', () => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/orders');
+    for (const role of ['HR', 'ACCOUNTANT'] as const) expect(navFor(role).map((i) => i.href)).not.toContain('/orders');
+    expect(isRouteBuilt('/orders')).toBe(true);
+  });
+});
