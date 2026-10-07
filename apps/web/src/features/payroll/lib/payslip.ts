@@ -22,7 +22,7 @@ export const monthlyOf = (annualPaise: number): number => Math.floor((annualPais
  * contributions are not the employee's pay and stay off the slip. A run from before CTC existed has no lines, so it is one "Salary" line.
  * Runs from before TA/DA moved to their own payout also show those as earnings paid in the month.
  */
-export function payslipOf(run: Pick<PayrollRunDto, 'ctcLines' | 'baseSalaryPaise' | 'totalTaDaPaise' | 'reimbursementPaise' | 'leaveDeductionPaise' | 'unpaidLeaveDays' | 'netPayablePaise'>): Payslip {
+export function payslipOf(run: Pick<PayrollRunDto, 'ctcLines' | 'baseSalaryPaise' | 'totalTaDaPaise' | 'reimbursementPaise' | 'leaveDeductionPaise' | 'unpaidLeaveDays' | 'absentDays' | 'absentDeductionPaise' | 'netPayablePaise'>): Payslip {
   const earnings: SlipLine[] = run.ctcLines.filter((l) => l.kind === 'EARNING').map((l) => ({ label: l.name, amountPaise: monthlyOf(l.amountPaise) }));
   if (earnings.length === 0) earnings.push({ label: 'Salary', amountPaise: run.baseSalaryPaise });
   const lineSum = earnings.reduce((n, l) => n + l.amountPaise, 0);
@@ -30,8 +30,9 @@ export function payslipOf(run: Pick<PayrollRunDto, 'ctcLines' | 'baseSalaryPaise
   if (run.totalTaDaPaise > 0) earnings.push({ label: 'TA and DA paid in the month', amountPaise: run.totalTaDaPaise });
   if (run.reimbursementPaise > 0) earnings.push({ label: 'Reimbursements paid in the month', amountPaise: run.reimbursementPaise });
 
-  const deductions: SlipLine[] =
-    run.leaveDeductionPaise > 0 ? [{ label: `Unpaid leave (${run.unpaidLeaveDays} ${run.unpaidLeaveDays === 1 ? 'day' : 'days'})`, amountPaise: run.leaveDeductionPaise }] : [];
+  const deductions: SlipLine[] = [];
+  if (run.leaveDeductionPaise > 0) deductions.push({ label: `Unpaid leave (${run.unpaidLeaveDays} ${run.unpaidLeaveDays === 1 ? 'day' : 'days'})`, amountPaise: run.leaveDeductionPaise });
+  if (run.absentDeductionPaise > 0) deductions.push({ label: `Absent (${run.absentDays} ${run.absentDays === 1 ? 'day' : 'days'})`, amountPaise: run.absentDeductionPaise });
   const grossPaise = earnings.reduce((n, l) => n + l.amountPaise, 0);
   const deductionPaise = deductions.reduce((n, l) => n + l.amountPaise, 0);
   return { earnings, deductions, grossPaise, deductionPaise, netPaise: run.netPayablePaise };

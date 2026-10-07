@@ -33,7 +33,14 @@ export interface PayrollRun {
   /** Approved unpaid leave days in the month, halves allowed — what the deduction was worked out from. */
   unpaidLeaveDays: number;
   leaveDeductionPaise: Paise;
-  /** `base − leave deduction` (older runs also add TA/DA and reimbursement). */
+  /**
+   * Days charged as absent: working days with no report, leave or strike (and strike days too while `STRIKE_DEDUCTS_SALARY` is on), only while
+   * `ABSENT_DEDUCTS_SALARY` is on, and together with the unpaid leave never more than 30. `0` on runs from before 2026-10-07.
+   */
+  absentDays: number;
+  /** `absent days × base ÷ 30`, rounded half up once and frozen; `0` on older runs. */
+  absentDeductionPaise: Paise;
+  /** `base − leave deduction − absent deduction` (older runs also add TA/DA and reimbursement). */
   netPayablePaise: Paise;
   /** The employee's ESI number when generated (a snapshot, printed on the salary slip); null if none was set. */
   esiNumber: string | null;

@@ -73,6 +73,10 @@ export function PayslipScreen({ id }: { id: string }) {
                 <dt className="text-text-subtle">Unpaid leave days</dt>
                 <dd className="font-medium">{run.unpaidLeaveDays}</dd>
               </div>
+              <div>
+                <dt className="text-text-subtle">Absent days</dt>
+                <dd className="font-medium">{run.absentDays}</dd>
+              </div>
             </dl>
 
             <table className="mb-6 w-full">

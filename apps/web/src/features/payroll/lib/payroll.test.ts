@@ -14,6 +14,7 @@ import {
   monthState,
   needsAttention,
   netAddsUp,
+  absentExplanation,
   payrollCsv,
   payrollFilename,
   runTotals,
@@ -35,6 +36,8 @@ const run = (over: Partial<PayrollRunDto> = {}): PayrollRunDto => ({
   reimbursementPaise: 15_050,
   unpaidLeaveDays: 0,
   leaveDeductionPaise: 0,
+  absentDays: 0,
+  absentDeductionPaise: 0,
   netPayablePaise: 3_632_050,
   esiNumber: null,
   joinedInMonth: false,
@@ -149,11 +152,23 @@ describe('finalizeRuns', () => {
 describe('payrollCsv', () => {
   it('writes one row per employee with plain-number rupees and the status', () => {
     const lines = payrollCsv([run(), run({ id: 'r2', userName: '=cmd', status: 'FINALIZED', joinedInMonth: true, unpaidLeaveDays: 2.5 })]).trimEnd().split('\r\n');
-    expect(lines[0]).toBe('Employee code,Employee,Month,Base salary (INR),TA and DA paid (INR),Reimbursements paid (INR),Unpaid leave days,Leave deduction (INR),Net payable (INR),Joined this month,Status');
-    expect(lines[1]).toBe('MR001,Asha Rao,2026-09,30000.00,6170.00,150.50,0,0.00,36320.50,,Draft');
-    expect(lines[2]).toBe("MR001,'=cmd,2026-09,30000.00,6170.00,150.50,2.5,0.00,36320.50,Yes,Finalized");
+    expect(lines[0]).toBe('Employee code,Employee,Month,Base salary (INR),TA and DA paid (INR),Reimbursements paid (INR),Unpaid leave days,Leave deduction (INR),Absent days,Absent deduction (INR),Net payable (INR),Joined this month,Status');
+    expect(lines[1]).toBe('MR001,Asha Rao,2026-09,30000.00,6170.00,150.50,0,0.00,0,0.00,36320.50,,Draft');
+    expect(lines[2]).toBe("MR001,'=cmd,2026-09,30000.00,6170.00,150.50,2.5,0.00,0,0.00,36320.50,Yes,Finalized");
   });
   it('names the file by its month', () => {
     expect(payrollFilename('2026-09')).toBe('payroll-2026-09.csv');
+  });
+});
+
+describe('absent days on a run', () => {
+  it('count in the sheet totals and in the add-up check, and are explained in words', () => {
+    const r = run({ baseSalaryPaise: 3_000_000, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 100_000, absentDays: 3, absentDeductionPaise: 300_000, netPayablePaise: 2_600_000 });
+    expect(netAddsUp(r)).toBe(true);
+    expect(netAddsUp({ ...r, netPayablePaise: 2_900_000 })).toBe(false);
+    expect(runTotals([r]).deductionPaise).toBe(400_000);
+    expect(absentExplanation(r)).toMatch(/^3 absent days × ₹30,000\.00 ÷ 30 = ₹3,000\.00/);
+    expect(absentExplanation({ ...r, absentDays: 1, absentDeductionPaise: 100_000 })).toMatch(/^1 absent day ×/);
+    expect(absentExplanation({ ...r, absentDays: 0, absentDeductionPaise: 0 })).toMatch(/nothing is deducted/);
   });
 });

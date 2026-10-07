@@ -14,9 +14,24 @@ export function leaveDeductionPaise(unpaidDays: number, baseSalaryPaise: Paise):
   return proratePaise(baseSalaryPaise, Math.min(halves, DEDUCTION_DAYS * 2), DEDUCTION_DAYS * 2);
 }
 
-/** `base + TA/DA + reimbursement − deduction`. The deduction is at most the base, so this is never negative. */
-export function netPayablePaise(p: { baseSalaryPaise: Paise; totalTaDaPaise: Paise; reimbursementPaise: Paise; leaveDeductionPaise: Paise }): Paise {
-  const net = p.baseSalaryPaise + p.totalTaDaPaise + p.reimbursementPaise - p.leaveDeductionPaise;
+/**
+ * How many absent days can be charged on top of the unpaid leave: whole days only, and together with the leave never more than a month
+ * (30 days), so the deductions never exceed the base.
+ */
+export function chargeableAbsentDays(unpaidLeaveDays: number, deductibleDays: number): number {
+  if (!Number.isFinite(deductibleDays) || deductibleDays < 0 || !Number.isInteger(deductibleDays)) throw new RangeError(`Deductible days must be whole days: ${deductibleDays}`);
+  return Math.min(deductibleDays, Math.max(0, Math.floor(DEDUCTION_DAYS - unpaidLeaveDays)));
+}
+
+/** `days × base ÷ 30`, rounded half up to a whole paise once — an absent day costs what an unpaid-leave day does. */
+export function absentDeductionPaise(days: number, baseSalaryPaise: Paise): Paise {
+  if (!Number.isInteger(days) || days < 0 || days > DEDUCTION_DAYS) throw new RangeError(`Absent days must be whole days from 0 to ${DEDUCTION_DAYS}: ${days}`);
+  return proratePaise(baseSalaryPaise, days, DEDUCTION_DAYS);
+}
+
+/** `base + TA/DA + reimbursement − leave deduction − absent deduction`. The deductions together are at most the base, so this is never negative. */
+export function netPayablePaise(p: { baseSalaryPaise: Paise; totalTaDaPaise: Paise; reimbursementPaise: Paise; leaveDeductionPaise: Paise; absentDeductionPaise?: Paise }): Paise {
+  const net = p.baseSalaryPaise + p.totalTaDaPaise + p.reimbursementPaise - p.leaveDeductionPaise - (p.absentDeductionPaise ?? 0);
   if (!Number.isSafeInteger(net) || net < 0 || net > MAX_PAISE * 3) throw new RangeError(`Net pay out of range: ${net}`);
   return net;
 }

@@ -14,6 +14,8 @@ export interface PayrollRunDoc {
   esiNumber?: string | null;
   unpaidLeaveDays: number;
   leaveDeductionPaise: number;
+  absentDays?: number;
+  absentDeductionPaise?: number;
   netPayablePaise: number;
   joinedInMonth: boolean;
   status: PayrollStatus;
@@ -35,6 +37,8 @@ const schema = new Schema<PayrollRunDoc>({
   esiNumber: { type: String, default: null },
   unpaidLeaveDays: { type: Number, required: true, min: 0, validate: { validator: (v: number) => Number.isInteger(v * 2), message: 'Whole or half days only.' } },
   leaveDeductionPaise: paise,
+  absentDays: { type: Number, default: 0, min: 0, max: 30, validate: { validator: Number.isInteger, message: 'Whole days only.' } },
+  absentDeductionPaise: { type: Number, default: 0, min: 0, validate: { validator: isPaise, message: 'Must be a whole number of paise.' } },
   netPayablePaise: paise,
   joinedInMonth: { type: Boolean, required: true },
   status: { type: String, required: true, enum: PAYROLL_STATUSES },
@@ -44,7 +48,7 @@ const schema = new Schema<PayrollRunDoc>({
 });
 // The sheet must add up, whatever wrote it.
 schema.pre('validate', function () {
-  if (this.baseSalaryPaise + this.totalTaDaPaise + this.reimbursementPaise - this.leaveDeductionPaise !== this.netPayablePaise) this.invalidate('netPayablePaise', 'Net pay must equal base + TA/DA + reimbursement − leave deduction.');
+  if (this.baseSalaryPaise + this.totalTaDaPaise + this.reimbursementPaise - this.leaveDeductionPaise - (this.absentDeductionPaise ?? 0) !== this.netPayablePaise) this.invalidate('netPayablePaise', 'Net pay must equal base + TA/DA + reimbursement − leave deduction − absent deduction.');
   if ((this.status === 'FINALIZED') !== (this.finalizedAt !== null)) this.invalidate('finalizedAt', 'A run is finalized exactly when it has a finalization time.');
 });
 schema.index({ userId: 1, month: 1 }, { unique: true });

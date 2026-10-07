@@ -41,6 +41,8 @@ const run = (status: PayrollRunDto['status']): PayrollRunDto => ({
   reimbursementPaise: 0,
   unpaidLeaveDays: 0,
   leaveDeductionPaise: 0,
+  absentDays: 0,
+  absentDeductionPaise: 0,
   netPayablePaise: 100,
   esiNumber: null,
   joinedInMonth: false,

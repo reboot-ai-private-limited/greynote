@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_PAISE } from '@/shared/money/paise.js';
-import { leaveDeductionPaise, netPayablePaise } from './payrollCalc.js';
+import { absentDeductionPaise, chargeableAbsentDays, leaveDeductionPaise, netPayablePaise } from './payrollCalc.js';
 
 describe('leaveDeductionPaise — unpaid days × base ÷ 30, half up to a paise once', () => {
   it('no unpaid leave deducts nothing', () => {
@@ -45,5 +45,35 @@ describe('netPayablePaise', () => {
   it('cannot go negative or out of range', () => {
     expect(() => netPayablePaise({ baseSalaryPaise: 100, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 200 })).toThrow(RangeError);
     expect(() => netPayablePaise({ baseSalaryPaise: MAX_PAISE, totalTaDaPaise: MAX_PAISE * 3, reimbursementPaise: 0, leaveDeductionPaise: 0 })).toThrow(RangeError);
+  });
+});
+
+describe('absent days', () => {
+  it('cost what an unpaid-leave day costs: whole days × base ÷ 30, half up once', () => {
+    expect(absentDeductionPaise(0, 3_000_000)).toBe(0);
+    expect(absentDeductionPaise(1, 3_000_000)).toBe(leaveDeductionPaise(1, 3_000_000));
+    expect(absentDeductionPaise(3, 3_000_000)).toBe(300_000);
+    expect(absentDeductionPaise(1, 2_500_049)).toBe(83_335);
+    expect(absentDeductionPaise(30, 3_000_000)).toBe(3_000_000);
+  });
+
+  it('are whole days from 0 to 30', () => {
+    for (const bad of [-1, 0.5, 31, Number.NaN]) expect(() => absentDeductionPaise(bad, 3_000_000)).toThrow(RangeError);
+  });
+
+  it('together with unpaid leave never exceed a month, and only whole days are charged', () => {
+    expect(chargeableAbsentDays(0, 4)).toBe(4);
+    expect(chargeableAbsentDays(1, 4)).toBe(4);
+    expect(chargeableAbsentDays(27, 4)).toBe(3);
+    expect(chargeableAbsentDays(29.5, 4)).toBe(0); // half a day is left: not enough for a whole absent day
+    expect(chargeableAbsentDays(30, 4)).toBe(0);
+    expect(chargeableAbsentDays(0, 40)).toBe(30);
+    expect(() => chargeableAbsentDays(0, 1.5)).toThrow(RangeError);
+  });
+
+  it('come off the net together with the leave deduction, and never take it below zero', () => {
+    expect(netPayablePaise({ baseSalaryPaise: 3_000_000, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 100_000, absentDeductionPaise: 200_000 })).toBe(2_700_000);
+    expect(netPayablePaise({ baseSalaryPaise: 3_000_000, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 0 })).toBe(3_000_000);
+    expect(() => netPayablePaise({ baseSalaryPaise: 100, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 60, absentDeductionPaise: 60 })).toThrow(RangeError);
   });
 });

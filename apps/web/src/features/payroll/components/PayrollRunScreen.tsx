@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { formatDateTime, formatMoney } from '@/lib/format';
 import { usePayrollRun } from '../hooks/usePayroll';
-import { deductionExplanation, monthLabel, netAddsUp } from '../lib/payroll';
+import { absentExplanation, deductionExplanation, monthLabel, netAddsUp } from '../lib/payroll';
 
 function Line({ label, note, amount, strong = false }: { label: string; note?: string | undefined; amount: string; strong?: boolean }) {
   return (
@@ -84,6 +84,7 @@ export function PayrollRunScreen({ id }: { id: string }) {
                     </>
                   ) : null}
                   <Line label="Leave deduction" note={deductionExplanation(run)} amount={`− ${formatMoney(run.leaveDeductionPaise)}`} />
+                  <Line label="Absent deduction" note={absentExplanation(run)} amount={`− ${formatMoney(run.absentDeductionPaise)}`} />
                   <Line strong label="Net payable" amount={formatMoney(run.netPayablePaise)} />
                 </div>
               </Card>

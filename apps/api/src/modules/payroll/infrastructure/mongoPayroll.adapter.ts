@@ -19,6 +19,8 @@ const toRun = (d: PayrollRunDoc & { _id: unknown }): PayrollRun => ({
   esiNumber: d.esiNumber ?? null,
   unpaidLeaveDays: d.unpaidLeaveDays,
   leaveDeductionPaise: d.leaveDeductionPaise,
+  absentDays: d.absentDays ?? 0,
+  absentDeductionPaise: d.absentDeductionPaise ?? 0,
   netPayablePaise: d.netPayablePaise,
   joinedInMonth: d.joinedInMonth,
   status: d.status,

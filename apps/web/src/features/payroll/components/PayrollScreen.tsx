@@ -75,6 +75,7 @@ export function PayrollScreen() {
         ] satisfies Column<PayrollRunDto>[])
       : []),
     { key: 'leave', header: 'Unpaid leave', numeric: true, render: (r) => (r.unpaidLeaveDays === 0 ? '—' : `${r.unpaidLeaveDays} d · −${formatMoney(r.leaveDeductionPaise)}`) },
+    { key: 'absent', header: 'Absent', numeric: true, render: (r) => (r.absentDays === 0 ? '—' : `${r.absentDays} d · −${formatMoney(r.absentDeductionPaise)}`) },
     { key: 'net', header: 'Net payable', numeric: true, render: (r) => <span className="font-semibold">{formatMoney(r.netPayablePaise)}</span> },
     { key: 'status', header: 'Status', render: (r) => <Badge tone={r.status === 'FINALIZED' ? 'success' : 'warning'}>{r.status === 'FINALIZED' ? 'Finalized' : 'Draft'}</Badge> },
     {

@@ -34,7 +34,11 @@ export interface PayrollRunDto {
   unpaidLeaveDays: number;
   /** `unpaid days × base ÷ 30`, rounded half up once and frozen. */
   leaveDeductionPaise: number;
-  /** `base − deduction` (older runs also add TA/DA and reimbursement). */
+  /** Days charged as absent (and strike days while that is switched on); 0 on runs from before 2026-10-07 and while absent days are not deducted. */
+  absentDays: number;
+  /** `absent days × base ÷ 30`, rounded half up once and frozen. */
+  absentDeductionPaise: number;
+  /** `base − leave deduction − absent deduction` (older runs also add TA/DA and reimbursement). */
   netPayablePaise: number;
   /** The employee's ESI number when generated (a snapshot for the salary slip); null if none was set. */
   esiNumber: string | null;

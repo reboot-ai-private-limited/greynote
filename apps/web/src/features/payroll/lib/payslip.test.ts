@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { monthlyOf, payslipOf } from './payslip';
 
 const line = (name: string, amountPaise: number, kind: 'EARNING' | 'EMPLOYER_CONTRIBUTION' = 'EARNING') => ({ code: name, name, kind, amountPaise, isOverridden: false });
-const base = { totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 0, unpaidLeaveDays: 0 };
+const base = { totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 0, unpaidLeaveDays: 0, absentDays: 0, absentDeductionPaise: 0 };
 
 describe('monthlyOf', () => {
   it('is a twelfth, half up', () => {
@@ -42,5 +42,14 @@ describe('payslipOf', () => {
 
   it('pluralises the unpaid days', () => {
     expect(payslipOf({ ...base, ctcLines: [], baseSalaryPaise: 100, leaveDeductionPaise: 10, unpaidLeaveDays: 2.5, netPayablePaise: 90 }).deductions[0]?.label).toBe('Unpaid leave (2.5 days)');
+  });
+});
+
+describe('absent days on the slip', () => {
+  it('are their own deduction line after the unpaid leave, in days', () => {
+    const p = payslipOf({ ...base, ctcLines: [], baseSalaryPaise: 3_000_000, leaveDeductionPaise: 100_000, unpaidLeaveDays: 1, absentDays: 3, absentDeductionPaise: 300_000, netPayablePaise: 2_600_000 });
+    expect(p.deductions.map((d) => [d.label, d.amountPaise])).toEqual([['Unpaid leave (1 day)', 100_000], ['Absent (3 days)', 300_000]]);
+    expect(p.deductionPaise).toBe(400_000);
+    expect(payslipOf({ ...base, ctcLines: [], baseSalaryPaise: 100, absentDays: 1, absentDeductionPaise: 10, netPayablePaise: 90 }).deductions[0]?.label).toBe('Absent (1 day)');
   });
 });

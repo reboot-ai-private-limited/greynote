@@ -76,7 +76,7 @@ export function runTotals(runs: readonly PayrollRunDto[]): RunTotals {
     t.basePaise += r.baseSalaryPaise;
     t.taDaPaise += r.totalTaDaPaise;
     t.reimbursementPaise += r.reimbursementPaise;
-    t.deductionPaise += r.leaveDeductionPaise;
+    t.deductionPaise += r.leaveDeductionPaise + r.absentDeductionPaise;
     t.netPaise += r.netPayablePaise;
   }
   return t;
@@ -90,9 +90,15 @@ export function monthState(runs: readonly Pick<PayrollRunDto, 'status'>[]): 'non
   return runs.every((r) => r.status === 'FINALIZED') ? 'final' : 'draft';
 }
 
-/** The month's `net = base + TA/DA + reimbursement − deduction`, checked here so a sheet that does not add up is never shown as fine. */
-export function netAddsUp(r: Pick<PayrollRunDto, 'baseSalaryPaise' | 'totalTaDaPaise' | 'reimbursementPaise' | 'leaveDeductionPaise' | 'netPayablePaise'>): boolean {
-  return r.baseSalaryPaise + r.totalTaDaPaise + r.reimbursementPaise - r.leaveDeductionPaise === r.netPayablePaise;
+/** The month's `net = base + TA/DA + reimbursement − leave deduction − absent deduction`, checked here so a sheet that does not add up is never shown as fine. */
+export function netAddsUp(r: Pick<PayrollRunDto, 'baseSalaryPaise' | 'totalTaDaPaise' | 'reimbursementPaise' | 'leaveDeductionPaise' | 'absentDeductionPaise' | 'netPayablePaise'>): boolean {
+  return r.baseSalaryPaise + r.totalTaDaPaise + r.reimbursementPaise - r.leaveDeductionPaise - r.absentDeductionPaise === r.netPayablePaise;
+}
+
+/** The absent deduction in words, like the leave deduction: whole days at a thirtieth of the base each. */
+export function absentExplanation(r: Pick<PayrollRunDto, 'absentDays' | 'baseSalaryPaise' | 'absentDeductionPaise'>): string {
+  if (r.absentDays === 0) return 'No absent days, so nothing is deducted.';
+  return `${r.absentDays} absent ${r.absentDays === 1 ? 'day' : 'days'} × ${formatMoney(r.baseSalaryPaise)} ÷ 30 = ${formatMoney(r.absentDeductionPaise)} (working days with no report, leave or strike).`;
 }
 
 /** The deduction in words: `2.5 unpaid days × ₹30,000.00 ÷ 30 = ₹2,500.00`. A flat 30-day month, by decision, not the calendar's. */
@@ -171,7 +177,7 @@ export function finalizeMessage(result: FinalizeResult, total: number): string {
 // ── CSV ────────────────────────────────────────────────────────────────────────────────────
 
 export const PAYROLL_CSV_HEADER = [
-  'Employee code', 'Employee', 'Month', 'Base salary (INR)', 'TA and DA paid (INR)', 'Reimbursements paid (INR)', 'Unpaid leave days', 'Leave deduction (INR)', 'Net payable (INR)', 'Joined this month', 'Status',
+  'Employee code', 'Employee', 'Month', 'Base salary (INR)', 'TA and DA paid (INR)', 'Reimbursements paid (INR)', 'Unpaid leave days', 'Leave deduction (INR)', 'Absent days', 'Absent deduction (INR)', 'Net payable (INR)', 'Joined this month', 'Status',
 ] as const;
 
 export function payrollCsv(runs: readonly PayrollRunDto[]): string {
@@ -186,6 +192,8 @@ export function payrollCsv(runs: readonly PayrollRunDto[]): string {
       rupeesForCsv(r.reimbursementPaise),
       r.unpaidLeaveDays,
       rupeesForCsv(r.leaveDeductionPaise),
+      r.absentDays,
+      rupeesForCsv(r.absentDeductionPaise),
       rupeesForCsv(r.netPayablePaise),
       r.joinedInMonth ? 'Yes' : '',
       r.status === 'FINALIZED' ? 'Finalized' : 'Draft',

@@ -83,7 +83,7 @@ export function buildContainers(): AppContainers {
   const marketing = buildMarketingContainer(identity.contract, fieldMasterData.contract, sales.contract);
 
   // Tier 6 — Payroll: base salary and who is active (Identity), approved unpaid leave (HR), what was paid in the month (Field Activity).
-  const payroll = buildPayrollContainer(identity.contract, hr.contract, config.contract);
+  const payroll = buildPayrollContainer(identity.contract, hr.contract, attendance.contract, config.contract);
 
   // HR sits below Payroll, so it asks through a port: once a month's salary is finalized, that employee's leave in the month is locked.
   hr.bindPayrollLock((userId, month) => payroll.contract.isMonthFinalized(userId, month));

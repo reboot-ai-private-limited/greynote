@@ -5,8 +5,8 @@ import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import type { PayrollFilter, PayrollRunRepositoryPort } from '../../domain/payroll.repository.port.js';
 import { PAYROLL_CODES, PayrollRefusal, type PayrollCode } from '../../domain/payrollRefusal.js';
 import type { PayrollRun } from '../../domain/payrollRun.entity.js';
-import type { HrPort, IdentityPort } from '../../domain/ports.js';
-import { leaveDeductionPaise, monthlyGrossPaise, netPayablePaise } from '../payrollCalc.js';
+import type { AttendancePort, HrPort, IdentityPort } from '../../domain/ports.js';
+import { absentDeductionPaise, chargeableAbsentDays, leaveDeductionPaise, monthlyGrossPaise, netPayablePaise } from '../payrollCalc.js';
 
 export interface Actor {
   id: string;
@@ -54,6 +54,7 @@ export class GeneratePayrollUseCase {
     private readonly runs: PayrollRunRepositoryPort,
     private readonly identity: IdentityPort,
     private readonly hr: HrPort,
+    private readonly attendance: AttendancePort,
     private readonly clock: PayrollClock,
   ) {}
 
@@ -93,6 +94,9 @@ export class GeneratePayrollUseCase {
     const baseSalaryPaise = monthlyGrossPaise(ctc.lines);
     const unpaidLeaveDays = await this.hr.getUnpaidLeaveDays(userId, month);
     const deduction = leaveDeductionPaise(unpaidLeaveDays, baseSalaryPaise);
+    // Working days with no report, leave or strike cost a day's pay too (decision-log 2026-10-06, K20); never more than a month with the leave.
+    const absentDays = chargeableAbsentDays(unpaidLeaveDays, (await this.attendance.countDeductibleDays(userId, month)).deductibleDays);
+    const absentDeduction = absentDeductionPaise(absentDays, baseSalaryPaise);
     const joinedInMonth = employment?.dateOfJoining ? (await this.clock.dateOf(employment.dateOfJoining)).startsWith(`${month}-`) : false;
 
     const saved = await this.runs.saveDraft({
@@ -108,7 +112,9 @@ export class GeneratePayrollUseCase {
       esiNumber: employment?.esiNumber ?? null,
       unpaidLeaveDays,
       leaveDeductionPaise: deduction,
-      netPayablePaise: netPayablePaise({ baseSalaryPaise, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: deduction }),
+      absentDays,
+      absentDeductionPaise: absentDeduction,
+      netPayablePaise: netPayablePaise({ baseSalaryPaise, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: deduction, absentDeductionPaise: absentDeduction }),
       joinedInMonth,
       generatedBy: actor.id,
       generatedAt: this.clock.now(),

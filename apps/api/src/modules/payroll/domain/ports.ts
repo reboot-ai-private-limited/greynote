@@ -26,3 +26,8 @@ export interface HrPort {
   /** Approved unpaid-leave days in the month, halves allowed. */
   getUnpaidLeaveDays(userId: string, month: string): Promise<number>;
 }
+
+export interface AttendancePort {
+  /** The days of the month payroll would deduct (absent, and strike where switched on), 0 when absent days are not deducted. */
+  countDeductibleDays(userId: string, month: string): Promise<{ absentDays: number; strikeDays: number; deductibleDays: number }>;
+}

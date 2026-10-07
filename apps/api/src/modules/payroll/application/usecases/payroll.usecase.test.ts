@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { PayrollFilter, PayrollRunRepositoryPort, SaveDraftResult } from '../../domain/payroll.repository.port.js';
 import { PAYROLL_CODES, PayrollRefusal } from '../../domain/payrollRefusal.js';
 import type { PayrollDraft, PayrollRun } from '../../domain/payrollRun.entity.js';
-import type { HrPort, IdentityPort } from '../../domain/ports.js';
+import type { AttendancePort, HrPort, IdentityPort } from '../../domain/ports.js';
 import { FinalizePayrollUseCase, GeneratePayrollUseCase, GetPayrollRunUseCase, ListPayrollRunsUseCase, PayrollClock } from './payroll.usecase.js';
 
 class FakeRuns implements PayrollRunRepositoryPort {
@@ -32,8 +32,8 @@ class FakeRuns implements PayrollRunRepositoryPort {
   }
 }
 
-type Emp = { role?: string; status?: 'active' | 'inactive'; ctc?: boolean; base?: number; joined?: Date | null; unpaid?: number; esi?: string | null };
-class World implements IdentityPort, HrPort {
+type Emp = { role?: string; status?: 'active' | 'inactive'; ctc?: boolean; base?: number; joined?: Date | null; unpaid?: number; esi?: string | null; deductible?: number };
+class World implements IdentityPort, HrPort, AttendancePort {
   emps = new Map<string, Emp>();
   add(id: string, e: Emp = {}) {
     this.emps.set(id, e);
@@ -68,6 +68,10 @@ class World implements IdentityPort, HrPort {
   async getUnpaidLeaveDays(id: string) {
     return this.emps.get(id)?.unpaid ?? 0;
   }
+  async countDeductibleDays(id: string) {
+    const deductible = this.emps.get(id)?.deductible ?? 0;
+    return { absentDays: deductible, strikeDays: 0, deductibleDays: deductible };
+  }
 }
 
 const closedYears = { value: 'NONE' };
@@ -87,7 +91,7 @@ describe('payroll', () => {
     runs = new FakeRuns();
     world = new World();
     now = new Date('2026-11-05T10:00:00+05:30');
-    generate = new GeneratePayrollUseCase(runs, world, world, clock());
+    generate = new GeneratePayrollUseCase(runs, world, world, world, clock());
     finalize = new FinalizePayrollUseCase(runs, clock());
     world.add('mr1', { unpaid: 1, esi: '12345678901234567' });
     world.add('mr2');
@@ -98,6 +102,20 @@ describe('payroll', () => {
     expect(a).toMatchObject({ userId: 'mr1', outcome: 'created' });
     expect((a as { run: PayrollRun }).run).toMatchObject({ baseSalaryPaise: 3_000_000, totalTaDaPaise: 0, reimbursementPaise: 0, unpaidLeaveDays: 1, leaveDeductionPaise: 100_000, netPayablePaise: 2_900_000, esiNumber: '12345678901234567', status: 'DRAFT', generatedBy: 'acct' });
     expect((b as { run: PayrollRun }).run).toMatchObject({ totalTaDaPaise: 0, leaveDeductionPaise: 0, netPayablePaise: 3_000_000, esiNumber: null }); // no ESI number is normal
+  });
+
+  it('an absent day costs a day of pay on top of the leave, shown on its own and frozen with the run', async () => {
+    world.emps.get('mr1')!.deductible = 3; // one unpaid leave day and three absent days
+    const [a, b] = await generate.execute(acct, { month: '2026-10' });
+    expect((a as { run: PayrollRun }).run).toMatchObject({ unpaidLeaveDays: 1, leaveDeductionPaise: 100_000, absentDays: 3, absentDeductionPaise: 300_000, netPayablePaise: 2_600_000 });
+    expect((b as { run: PayrollRun }).run).toMatchObject({ absentDays: 0, absentDeductionPaise: 0, netPayablePaise: 3_000_000 });
+  });
+
+  it('the unpaid leave and the absent days together never take more than the month', async () => {
+    world.emps.get('mr1')!.unpaid = 28;
+    world.emps.get('mr1')!.deductible = 9;
+    const [a] = await generate.execute(acct, { month: '2026-10' });
+    expect((a as { run: PayrollRun }).run).toMatchObject({ leaveDeductionPaise: 2_800_000, absentDays: 2, absentDeductionPaise: 200_000, netPayablePaise: 0 });
   });
 
   it('only a month that has ended can be generated', async () => {
