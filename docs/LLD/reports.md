@@ -36,9 +36,15 @@ Web `/reports/sales`: value / quantity switch, distributor and product filters, 
 
 `GET /api/reports/stock?month=` — every count of the month for distributors and chemists, with the previous month's closing beside the opening, flags for a mismatch and (distributors) a negative secondary, a row `NO_COUNT` for each active outlet that did not count, and completeness (counted of expected, per outlet type). Web `/reports/stock`: month, "only what needs attention", tiles, table, CSV. A chemist's counts are information only.
 
+## Built: the TA/DA report
+
+`GET /api/reports/ta-da?year=` — for the financial year in view, each month (and each employee's month) of **accepted** expenses by the day reported: TA, DA, manual reimbursements (travel, meals, other), the total, how much is paid and how much unpaid (total = paid + unpaid), and the number of TA rows whose route distance could not be calculated (an artificially low amount, already recorded by Field Activity). "Accepted" is the same set the Accountant audits and pays — past the manager and not sent back; cancelled rows never count. `GET /api/reports/ta-da/days?userId=&month=` — one employee's accepted rows for a month, day by day, with the route name, status and paid date. It only reads; paying is done on the Expense payouts screen, which the report links to. Field Activity added `summarizeExpenses` (a month-grouped aggregation) and `listAcceptedExpenses` to its contract. No "unusual claim" flag, by the owner's choice (K28).
+
+Web `/reports/ta-da`: year tiles (TA, DA, paid, unpaid), a month table with a paid-share bar, the selected month's employees (largest first), and a dialog with the employee's days; CSV for the year, the month's employees and one employee's days.
+
 ## Not built yet
 
-TA/DA, DCR and Salary reports (K28, K30).
+DCR and Salary reports (K28, K30).
 
 ## Sample data for development
 

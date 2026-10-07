@@ -51,7 +51,7 @@ export function TaDaDaysDialog({ userId, month, onClose }: { userId: string; mon
               <tbody>
                 {d.rows.map((r) => (
                   <tr key={`${r.date}|${r.type}|${r.amountPaise}|${r.route?.id ?? ''}|${r.remarks ?? ''}`} className="border-t border-border">
-                    <td className="px-3 py-2">{formatDate(r.date)}</td>
+                    <td className="whitespace-nowrap px-3 py-2">{formatDate(r.date)}</td>
                     <td className="px-3 py-2">{EXPENSE_TYPE_LABEL[r.type]}</td>
                     <td className="px-3 py-2">
                       {r.route?.name ?? <span className="text-text-subtle">{r.remarks ?? '—'}</span>}
@@ -61,7 +61,7 @@ export function TaDaDaysDialog({ userId, month, onClose }: { userId: string; mon
                         </span>
                       ) : null}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatMoney(r.amountPaise)}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{formatMoney(r.amountPaise)}</td>
                     <td className="px-3 py-2">
                       <Badge tone={r.status === 'PAID' ? 'success' : 'warning'}>{r.status === 'PAID' ? `Paid${r.paidAt ? ` ${formatDate(r.paidAt)}` : ''}` : 'Unpaid'}</Badge>
                     </td>

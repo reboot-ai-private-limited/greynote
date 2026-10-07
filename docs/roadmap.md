@@ -818,3 +818,5 @@ New read-only `reports` module (top tier, writes nothing; reads Sales, Field Act
 **Sample data (2026-10-07):** `pnpm --filter @greynote/api seed:sample-sales -- --apply` is applied to the dev database (3 distributors, 4 chemists, 3 products, 76 orders, 140 stock counts, April to October). The Orders page is browser-checked against it. Remove with `-- --remove`.
 
 **5e progress 2026-10-07:** Orders page, Sales report with the primary/secondary bar chart, and Stock report are built and browser-checked against the sample data. Still to build: TA/DA, DCR and Salary reports (K28, K30).
+
+**5e progress:** the TA/DA report is built and browser-checked against the sample data. Still to build: the DCR and Salary reports (K28, K30).
