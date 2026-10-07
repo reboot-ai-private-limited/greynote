@@ -1,3 +1,4 @@
+import { buildAttendanceContainer } from '@/modules/attendance/attendance.container.js';
 import { buildApprovalContainer } from '@/modules/approval/approval.container.js';
 import { buildConfigContainer } from '@/modules/config/config.container.js';
 import { buildFieldActivityContainer } from '@/modules/field-activity/field-activity.container.js';
@@ -27,6 +28,7 @@ export interface AppContainers {
   sales: ReturnType<typeof buildSalesContainer>;
   marketing: ReturnType<typeof buildMarketingContainer>;
   payroll: ReturnType<typeof buildPayrollContainer>;
+  attendance: ReturnType<typeof buildAttendanceContainer>;
 }
 
 /**
@@ -74,10 +76,13 @@ export function buildContainers(): AppContainers {
   // Tier 4 — Sales & Orders: monthly stock counts at Chemists and Distributors (Field Master Data), who may see whose (Identity), the daily push (Sync).
   const sales = buildSalesContainer(identity.contract, fieldMasterData.contract, sync.contract, config.contract);
 
-  // Tier 5 — Marketing: Visuals, Campaigns and Targets. Reads the downline (Identity), Products (Field Master Data) and order totals (Sales).
+  // Tier 5 — Attendance: each day of a field employee's month as holiday, off, leave, strike, present or absent. Reads Identity, HR, Planning, Field Activity and Config; owns no data.
+  const attendance = buildAttendanceContainer(identity.contract, hr.contract, planning.contract, fieldActivity.contract, config.contract);
+
+  // Tier 6 — Marketing: Visuals, Campaigns and Targets. Reads the downline (Identity), Products (Field Master Data) and order totals (Sales).
   const marketing = buildMarketingContainer(identity.contract, fieldMasterData.contract, sales.contract);
 
-  // Tier 5 — Payroll: base salary and who is active (Identity), approved unpaid leave (HR), what was paid in the month (Field Activity).
+  // Tier 6 — Payroll: base salary and who is active (Identity), approved unpaid leave (HR), what was paid in the month (Field Activity).
   const payroll = buildPayrollContainer(identity.contract, hr.contract, config.contract);
 
   // HR sits below Payroll, so it asks through a port: once a month's salary is finalized, that employee's leave in the month is locked.
@@ -87,5 +92,5 @@ export function buildContainers(): AppContainers {
   // slices of the phone's cache are wired here, from their public contracts.
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
-  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync, fieldActivity, sales, marketing, payroll };
+  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance };
 }

@@ -23,7 +23,8 @@ const MODULE_TIERS = [
     ['territory', 'approval', 'sync'],                 // Tier 2
     ['field-master-data', 'planning', 'hr'],           // Tier 3
     ['field-activity', 'sales'],                       // Tier 4
-    ['marketing', 'payroll'],                          // Tier 5 — top of the graph
+    ['attendance'],                                    // Tier 5 — day-by-day status; owns no data
+    ['marketing', 'payroll'],                          // Tier 6 — top of the graph
 ];
 ```
 

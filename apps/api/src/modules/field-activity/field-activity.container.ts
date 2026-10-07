@@ -5,7 +5,7 @@ import { DcrClock } from './application/dcrClock.js';
 import { makeDcrSubmitSyncHandler } from './application/dcrSubmitSync.js';
 import { DCR_KIND } from './application/dcrStatus.js';
 import { DcrViews } from './application/dcrViews.js';
-import { HasQualifyingDcrUseCase } from './application/usecases/hasQualifyingDcr.usecase.js';
+import { HasQualifyingDcrUseCase, ListReportedDatesUseCase } from './application/usecases/hasQualifyingDcr.usecase.js';
 import { CallChecks } from './application/callChecks.js';
 import { makeCallSyncHandlers } from './application/callsSync.js';
 import { makeExpenseSyncHandler } from './application/expenseSync.js';
@@ -96,6 +96,7 @@ export function buildFieldActivityContainer(
   const views = new DcrViews(approvals);
   const submitDcr = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config);
   const hasQualifyingDcr = new HasQualifyingDcrUseCase(dcrs, approvals);
+  const listReportedDates = new ListReportedDatesUseCase(dcrs, approvals);
   const paidTaDa = new GetPaidTaDaTotalUseCase(expenses, clock);
   const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
 
@@ -141,6 +142,7 @@ export function buildFieldActivityContainer(
     runMissedDcrCheck: (options) => missedDcrCheck.execute(options),
     contract: {
       hasQualifyingDcr: (userId, date) => hasQualifyingDcr.execute(userId, date),
+      listReportedDates: (userId, from, to) => listReportedDates.execute(userId, from, to),
       getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),
       getDcrSummary: (userId, range) => dcrSummary.execute(userId, range),
     },

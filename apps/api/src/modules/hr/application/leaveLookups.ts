@@ -20,6 +20,20 @@ export class LeaveLookups {
     return false;
   }
 
+  /**
+   * The days in a range covered by a Manager-Approved (or fully approved) leave — the same rule as `isOnLeave`, in one pass for a
+   * calendar. Sorted, no duplicates.
+   */
+  async leaveDates(userId: string, from: string, to: string): Promise<string[]> {
+    const dates = new Set<string>();
+    for (const leave of await this.leaves.listOverlapping(userId, from, to)) {
+      const status = (await this.approvals.getForRecord('LEAVE', leave.id))?.status;
+      if (status !== 'MANAGER_APPROVED' && status !== 'APPROVED') continue;
+      for (const day of leave.days) if (day.date >= from && day.date <= to) dates.add(day.date);
+    }
+    return [...dates].sort();
+  }
+
   /** Payroll: approved unpaid days falling in `month` (`YYYY-MM`). Days inside the employee's probation are paid, so they don't count. */
   async unpaidDays(userId: string, month: string): Promise<number> {
     let total = 0;

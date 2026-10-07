@@ -1,6 +1,7 @@
 import type { ApprovalsPort, PlanApprovalStatus } from '../../domain/approvals.port.js';
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
+import type { WorkingType } from '../../domain/plan.js';
 import { planStatus } from '../planViews.js';
 
 /**
@@ -24,6 +25,12 @@ export class GetPlanStatusUseCase {
     const plan = await this.dailyPlans.findByUserAndDate(userId, planDate);
     if (!plan) return null;
     return { status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', plan.id)), workingType: plan.workingType, routeIds: [...plan.routeIds] };
+  }
+
+  /** A user's daily plans in a range (both ends inclusive), oldest first, each with its status and working type — a calendar's read. */
+  async days(userId: string, from: string, to: string): Promise<Array<{ date: string; status: PlanApprovalStatus; workingType: WorkingType }>> {
+    const plans = await this.dailyPlans.listForUser(userId, from, to);
+    return Promise.all(plans.map(async (p) => ({ date: p.planDate, status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', p.id)), workingType: p.workingType })));
   }
 
   async monthly(userId: string, planMonth: string): Promise<PlanApprovalStatus | null> {

@@ -14,3 +14,19 @@ export class HasQualifyingDcrUseCase {
     return dcr !== null && isQualifyingDcr(dcrStatus(await this.approvals.getForRecord(DCR_KIND, dcr.id)));
   }
 }
+
+/** The days in a range (both ends inclusive) the user reported — `HasQualifyingDcr` for a whole calendar in two queries. Sorted. */
+export class ListReportedDatesUseCase {
+  constructor(
+    private readonly dcrs: DcrRepositoryPort,
+    private readonly approvals: ApprovalsPort,
+  ) {}
+
+  async execute(userId: string, from: string, to: string): Promise<string[]> {
+    const dates: string[] = [];
+    for (const dcr of await this.dcrs.listForUsers([userId], from, to)) {
+      if (isQualifyingDcr(dcrStatus(await this.approvals.getForRecord(DCR_KIND, dcr.id)))) dates.push(dcr.reportDate);
+    }
+    return [...new Set(dates)].sort();
+  }
+}

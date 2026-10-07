@@ -111,6 +111,7 @@ export function buildHrContainer(
   return {
     contract: {
       isOnLeave: (userId, date) => lookups.isOnLeave(userId, date),
+      listLeaveDates: (userId, from, to) => lookups.leaveDates(userId, from, to),
       getUnpaidLeaveDays: (userId, month) => lookups.unpaidDays(userId, month),
       listOffDates: async (userId, from, to) => {
         const weeklyOff = await calendar.weeklyOff();

@@ -40,7 +40,8 @@ const MODULE_TIERS = [
     ['field-master-data', 'planning', 'hr'], //  Tier 3 — Doctor/Chemist/Distributor/Product/
     //                                            allocations; DailyPlan/MonthlyPlan; leave & holidays
     ['field-activity', 'sales'], //   Tier 4 — DCR/calls/expenses; Order/MonthlyStock
-    ['marketing', 'payroll'], //      Tier 5 — Visual/Campaign/Target (reads Sales' order totals); PayrollRun. Top of the graph
+    ['attendance'], //               Tier 5 — day-by-day status (reads HR, Planning, Field Activity); owns no data; Payroll and the reports read it
+    ['marketing', 'payroll'], //      Tier 6 — Visual/Campaign/Target (reads Sales' order totals); PayrollRun. Top of the graph
 ];
 
 const layeringRules = MODULE_TIERS.map((tier, index) => {

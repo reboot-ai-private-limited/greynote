@@ -4,6 +4,8 @@
 export interface HrPublicContract {
   /** Phase 6's missed-DCR job (PRD §7.5): does a Manager-Approved (or fully approved) leave cover this day? */
   isOnLeave(userId: string, date: string): Promise<boolean>;
+  /** The days in a range covered by a Manager-Approved (or fully approved) leave, sorted — `isOnLeave` for a whole calendar at once. */
+  listLeaveDates(userId: string, from: string, to: string): Promise<string[]>;
   /** Phase 7's Payroll: approved unpaid-leave days falling in this month (`YYYY-MM`). */
   getUnpaidLeaveDays(userId: string, month: string): Promise<number>;
   /** The days in a range that are not working days for this employee: their weekly off day and the holidays that apply. */

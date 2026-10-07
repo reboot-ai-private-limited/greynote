@@ -45,6 +45,8 @@ const HISTORICAL_DEFAULTS: Record<string, string> = {
   FY_CLOSED_YEARS: 'NONE',
   LEAVE_LOCKED_AFTER_PAYROLL: 'true',
   CTC_JUMP_WARN_PERCENT: '50',
+  ABSENT_DEDUCTS_SALARY: 'true',
+  STRIKE_DEDUCTS_SALARY: 'false',
 };
 
 const def = (key: string) => {

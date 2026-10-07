@@ -13,6 +13,8 @@ export interface FieldActivityPublicContract {
    * `REJECTED`, `WITHDRAWN`, `REOPENED` and no DCR are all false.
    */
   hasQualifyingDcr(userId: string, date: string): Promise<boolean>;
+  /** The days in a range (both ends inclusive) this user reported — `hasQualifyingDcr` for a whole calendar. Sorted. */
+  listReportedDates(userId: string, from: string, to: string): Promise<string[]>;
   /**
    * Payroll's input: what was marked `PAID` for this user *during* the month (by paid date in the business timezone, not by
    * report day — a payment made after a month was finalized lands in the next one) — TA, DA, and the manual

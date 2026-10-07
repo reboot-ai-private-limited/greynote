@@ -113,6 +113,9 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   integer('SALARY_RUN_DAY', 'PAYROLL', 'Salary day', 'Day of the month the salary for the month just ended is run (1 = the 1st). Only drives the "due" flag on the payroll screen; nothing is refused for being early or late.', 1, 1, 28),
   integer('EXPENSE_PAYOUT_DAY', 'PAYROLL', 'Expense payout day', 'Day of the month TA, DA and reimbursements of the month just ended are paid (15 = the 15th). Only drives the "due" and "overdue" flags; nothing is refused for being early or late.', 15, 1, 28),
 
+  toggle('ABSENT_DEDUCTS_SALARY', 'PAYROLL', 'Absent days reduce salary', 'Whether a working day with no submitted report, no approved leave and no strike is deducted from salary, like an unpaid-leave day (monthly base ÷ 30). Off: absent days are shown on the calendar but never deducted.', true),
+  toggle('STRIKE_DEDUCTS_SALARY', 'PAYROLL', 'Strike days reduce salary', 'Whether a day the approved plan marks as Strike is deducted from salary like an absent day. Off (the default): a strike day costs no salary. Only matters while absent days are deducted.', false),
+
   toggle('LEAVE_LOCKED_AFTER_PAYROLL', 'PAYROLL', 'Lock leave once salary is finalized', 'Whether an employee\'s leave in a month can still change (be requested, edited, approved or reopened) after their salary run for that month is finalized. Daily reports and expenses are never locked by this.', true),
 
   integer('CTC_JUMP_WARN_PERCENT', 'PAYROLL', 'CTC jump warning', 'A new CTC this many percent above the employee\'s previous one shows a warning (a likely typo). Nothing is refused.', 50, 1, 1000, '%'),
