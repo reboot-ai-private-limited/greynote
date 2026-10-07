@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
+import { EmployeeCalendarTab } from '@/features/attendance/components/EmployeeCalendarTab';
 import { EmployeeLeaveTab } from '@/features/hr/components/EmployeeLeaveTab';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
@@ -87,6 +88,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                   <TabsTrigger value="documents">Documents</TabsTrigger>
                   <TabsTrigger value="compensation">Compensation</TabsTrigger>
                   <TabsTrigger value="promotion">Promotion</TabsTrigger>
+                  <TabsTrigger value="calendar">Calendar</TabsTrigger>
                   <TabsTrigger value="leave">Leave</TabsTrigger>
                   {isAdmin ? <TabsTrigger value="devices">Devices</TabsTrigger> : null}
                   {isAdmin ? <TabsTrigger value="security">Security</TabsTrigger> : null}
@@ -107,6 +109,9 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 </TabsContent>
                 <TabsContent value="promotion" className="mt-6">
                   <PromotionTab user={user} readOnly={readOnly} />
+                </TabsContent>
+                <TabsContent value="calendar" className="mt-6">
+                  <EmployeeCalendarTab userId={user.id} />
                 </TabsContent>
                 <TabsContent value="leave" className="mt-6">
                   <EmployeeLeaveTab userId={user.id} />

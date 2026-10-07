@@ -22,6 +22,7 @@ import {
   Users,
   Coins,
   Wallet,
+  CalendarCheck,
   TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
@@ -60,6 +61,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Designations', href: '/designations', icon: Award, group: 'People', roles: ['ADMIN', 'HR'] },
   { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'People', roles: ['ADMIN', 'HR'] },
   { label: 'Approvals', href: '/approvals', icon: ClipboardCheck, group: 'Operations', roles: ['ADMIN', 'HR'] },
+  { label: 'Attendance', href: '/attendance', icon: CalendarCheck, group: 'Operations', roles: ALL },
   { label: 'Expenses', href: '/expenses', icon: Receipt, group: 'Operations', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Expense payouts', href: '/expense-payouts', icon: Coins, group: 'Operations', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Payroll', href: '/payroll', icon: Banknote, group: 'Operations', roles: ['ADMIN', 'ACCOUNTANT'] },

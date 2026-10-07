@@ -76,6 +76,11 @@ export const keys = {
     audit: (query: object) => [...keys.expenses.all(), 'audit', query] as const,
     payouts: (month: string) => [...keys.expenses.all(), 'payouts', month] as const,
   },
+  attendance: {
+    all: () => ['attendance', fy()] as const,
+    month: (userId: string, month: string) => [...keys.attendance.all(), 'month', userId, month] as const,
+    payroll: (month: string) => [...keys.attendance.all(), 'payroll', month] as const,
+  },
   payroll: {
     all: () => ['payroll', fy()] as const,
     month: (query: object) => [...keys.payroll.all(), 'month', query] as const,

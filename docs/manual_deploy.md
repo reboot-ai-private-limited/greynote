@@ -188,6 +188,13 @@ docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-pay
 
 Safe to run again. Employees' saved CTC revisions are not touched.
 
+## Step 9f — Re-run the seed for the absent-day settings (once, when upgrading past 2026-10-07)
+
+Salary now deducts absent days (`docs/decision-log.md`, 2026-10-06 and 2026-10-07). **Re-run the seed (Step 8)** so `ABSENT_DEDUCTS_SALARY` (default on) and
+`STRIKE_DEDUCTS_SALARY` (default off) exist; without them the Attendance screen and payroll generation fail when they first read one. Decide before the first payroll
+run after the upgrade whether absent days should cost salary yet: switch `ABSENT_DEDUCTS_SALARY` off in System settings to see the Attendance screen first, and
+on again when HR is ready. Generate the first sheet as a **draft** and read the Attendance screen's absent days before finalizing.
+
 ## Step 10 — Schedule the daily compliance job
 
 The application has no scheduler. Once a day, after the business day rolls over (early morning is fine), the

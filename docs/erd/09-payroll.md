@@ -28,7 +28,9 @@ erDiagram
         number unpaid_leave_days "snapshot: approved unpaid days that month, halves allowed (Module 7)"
         int leave_deduction_paise "computed from unpaid Leave days that month (Module 7)"
         boolean joined_in_month "flag: the joining date falls in this month - full base salary paid, not prorated"
-        int net_payable_paise "base_salary_paise + total_ta_da_paise + reimbursement_paise - leave_deduction_paise"
+        int absent_days "days charged as absent (incl. strike days when switched on); capped with unpaid leave at 30; 0 on older runs"
+        int absent_deduction_paise "absent_days x base / 30, half up once, frozen"
+        int net_payable_paise "base_salary_paise + total_ta_da_paise + reimbursement_paise - leave_deduction_paise - absent_deduction_paise"
         string status "DRAFT, FINALIZED"
         uuid generated_by FK "Accountant"
         timestamp generated_at

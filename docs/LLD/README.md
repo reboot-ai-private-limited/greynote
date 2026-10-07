@@ -35,7 +35,8 @@ undefined yet.
 | 6 | Field Activity | [`field-activity.md`](field-activity.md) | [`04-field-activity`](../erd/04-field-activity.md) | Identity, Territory, Field Master Data, Approval, Sync & Geofencing |
 | 7 | Sales & Orders | [`sales-and-orders.md`](sales-and-orders.md) | [`06-sales-and-orders`](../erd/06-sales-and-orders.md) | Field Master Data |
 | 8 | Marketing | [`marketing.md`](marketing.md) | [`08-marketing`](../erd/08-marketing.md) | Identity, Field Master Data |
-| 9 | Payroll | [`payroll.md`](payroll.md) | [`09-payroll`](../erd/09-payroll.md) | Identity, HR, Field Activity |
+| 9 | Payroll | [`payroll.md`](payroll.md) | [`09-payroll`](../erd/09-payroll.md) | Identity, HR, Attendance |
+| 9b | Attendance | [`attendance.md`](attendance.md) | — (a read model, owns no data) | Identity, HR, Planning, Field Activity |
 
 `Config` (Tier 0, `SystemConfig`) and `health` have no LLD doc of their own — they're small
 enough that `hld/03-system-architecture.md` and the `health` module's own code are the complete

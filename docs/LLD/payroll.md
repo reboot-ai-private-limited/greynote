@@ -27,7 +27,9 @@ by a filter someone could forget.
 | `unpaid_leave_days` | Snapshot of the approved unpaid days (halves allowed) the deduction was computed from |
 | `joined_in_month` | `true` when the employee's joining date falls in the month — flag only, no proration |
 | `leave_deduction_paise` | `unpaid_days × base_salary_paise / 30`, rounded half up to a whole paise once — computed at generation, then frozen as one number |
-| `net_payable` | `base_salary − leave_deduction` (2026-10-06; runs finalized before it also add `total_ta_da + reimbursement`) |
+| `absent_days` | Days charged as absent (working days with no report, leave or strike; strike days too while `STRIKE_DEDUCTS_SALARY` is on), only while `ABSENT_DEDUCTS_SALARY` is on, and together with `unpaid_leave_days` never more than 30; 0 on runs from before 2026-10-07 |
+| `absent_deduction_paise` | `absent_days × base_salary_paise / 30`, rounded half up to a whole paise once, frozen |
+| `net_payable` | `base_salary − leave_deduction − absent_deduction` (2026-10-07; before that `base − leave_deduction`, and runs finalized before 2026-10-06 also add `total_ta_da + reimbursement`) |
 | `esi_number` | The employee's ESI number when generated (a snapshot, printed on the salary slip), or null |
 | `status` | `DRAFT` → `FINALIZED` |
 | `generated_by` / `generated_at`, `finalized_at` | Accountant, and when |
@@ -174,3 +176,11 @@ the 1st for the month just ended. The run snapshots the ESI number for the salar
 lines a month at a time (a twelfth each, half up; a visible *Rounding* line if they differ from the run's base by a paise or two; employer
 contributions are left off), the unpaid-leave deduction and the net. It prints, or saves as a PDF from the print dialog; a draft is marked
 "not final". No new endpoint: it is drawn from the run.
+
+## Absent days (2026-10-07)
+
+An absent day costs a day's pay, like an unpaid-leave day (decision-log 2026-10-06, sign-off K20, K26). Payroll asks the **Attendance** module
+(`countDeductibleDays`, [`attendance.md`](attendance.md)) at generation, charges `chargeableAbsentDays(unpaid_leave_days, deductible)` whole days —
+never more than 30 together with the leave — and stores `absent_days` and `absent_deduction_paise` on the run with the rest of the snapshot. The two
+settings `ABSENT_DEDUCTS_SALARY` (on) and `STRIKE_DEDUCTS_SALARY` (off) decide what counts. Review the **Attendance** screen before generating or
+finalizing: a report submitted or a leave approved later cannot change a finalized month. Payroll now sits at tier 6, above Attendance (tier 5).

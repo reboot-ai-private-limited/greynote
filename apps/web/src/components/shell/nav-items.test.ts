@@ -126,6 +126,7 @@ describe('navGroupsFor', () => {
     const groups = navGroupsFor('ACCOUNTANT');
     expect(groups.map((g) => g.group)).toEqual(['Overview', 'People', 'Operations']);
     expect(groups.find((g) => g.group === 'Operations')?.items.map((i) => i.href)).toEqual([
+      '/attendance',
       '/expenses',
       '/expense-payouts',
       '/payroll',
@@ -139,5 +140,12 @@ describe('Promotions', () => {
     expect(navFor('HR').map((i) => i.href)).toContain('/promotions');
     expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/promotions');
     expect(isRouteBuilt('/promotions')).toBe(true);
+  });
+});
+
+describe('Attendance', () => {
+  it('is for Admin, HR and the Accountant', () => {
+    for (const role of ['ADMIN', 'HR', 'ACCOUNTANT'] as const) expect(navFor(role).map((i) => i.href)).toContain('/attendance');
+    expect(isRouteBuilt('/attendance')).toBe(true);
   });
 });
