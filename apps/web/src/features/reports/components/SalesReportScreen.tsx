@@ -44,9 +44,9 @@ export function SalesReportScreen() {
 
   const report = useSalesYear(fy, filters);
   const months = report.data?.months ?? [];
-  // The month shown below: the one asked for, or the latest that has started.
+  // The month shown below: the one asked for, or the latest that has ended (the month in progress has no stock counts yet), or the one in progress.
   const started = months.filter((m) => m.state !== 'FUTURE');
-  const selected = started.find((m) => m.month === values.month)?.month ?? started.at(-1)?.month ?? '';
+  const selected = started.find((m) => m.month === values.month)?.month ?? started.filter((m) => m.state === 'ENDED').at(-1)?.month ?? started.at(-1)?.month ?? '';
   const statement = useSalesStatement(selected, filters);
 
   const distributors = useDistributors({ page: 1, pageSize: 100, status: 'active' });

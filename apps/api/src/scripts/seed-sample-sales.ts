@@ -198,18 +198,22 @@ async function main(): Promise<void> {
     });
   });
 
-  // Chemist orders (information only) and chemist stock counts.
+  // Chemist orders (information only) and chemist stock counts, each month opening where the last one closed.
+  const chemistStock = new Map<string, number>();
   chemists.forEach((c, ci) => {
     months.forEach((month, mi) => {
       const lines = [0, 1, 2].slice(0, 2 + ((ci + mi) % 2)).map((pi) => ({ p: productDocs[pi]!, qty: 6 + Math.round(rnd() * 14), price: productDocs[pi]!.ptr }));
       const status: Order['status'] = month === current ? 'PLACED' : (ci + mi) % 5 === 0 ? 'CANCELLED' : 'DONE';
       orders.push(mkOrder({ chemistId: c._id }, c.mr, `${month}-${String(8 + ci * 3).padStart(2, '0')}`, status, lines, `${month}-${String(9 + ci * 3).padStart(2, '0')}`));
       if (month < current) {
-        let open = 10 + Math.round(rnd() * 10);
-        for (const pr of productDocs.slice(0, 3)) {
+        for (const [pi, pr] of productDocs.slice(0, 3).entries()) {
+          const k = `${String(c._id)}|${String(pr.id)}`;
+          const carried = chemistStock.get(k) ?? 10 + Math.round(rnd() * 10);
+          // One deliberate slip, so the Stock report has an opening that is not last month's closing to show.
+          const open = ci === 0 && pi === 0 && month === '2026-08' ? carried + 3 : carried;
           const closing = Math.max(0, open + Math.round(rnd() * 12) - Math.round(rnd() * 14));
           stock.push({ chemistId: c._id, productId: pr.id, month, openingQty: open, closingQty: closing, recordedBy: c.mr['_id'], recordedAt: at(`${month}-28`, 13) });
-          open = closing;
+          chemistStock.set(k, closing);
         }
       }
     });
