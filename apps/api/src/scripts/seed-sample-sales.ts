@@ -18,6 +18,8 @@ import { logger } from '@/shared/logging/logger.js';
 const TAG = 'SAMPLE DATA';
 /** The time stamped on the sample route assignments, so they can be found again: nothing real is assigned at exactly this instant. */
 const SAMPLE_ASSIGNED_AT = new Date('2026-04-01T00:00:00.000Z');
+/** The same for the sample salary runs (their `generatedAt`). */
+const SAMPLE_PAYROLL_AT = new Date('2026-04-01T00:00:00.123Z');
 const PREFIX = 'SAMPLE ';
 
 /** A small deterministic generator, so a rerun makes the same data. */
@@ -69,6 +71,7 @@ async function main(): Promise<void> {
     const expenseDcrIds = await db.collection('expenses').distinct('dcrId', { remarks: TAG });
     const sampleDoctors = await db.collection('doctors').find({ name: { $regex: `^${PREFIX}` } }).toArray();
     const out = {
+      payrollRuns: (await db.collection('payrollruns').deleteMany({ generatedAt: SAMPLE_PAYROLL_AT })).deletedCount,
       routeAssignments: (await db.collection('routeassignments').deleteMany({ assignedAt: SAMPLE_ASSIGNED_AT })).deletedCount,
       approvals: (await db.collection('approvalrequests').deleteMany({ kind: 'DCR', recordId: { $in: expenseDcrIds.map(String) } })).deletedCount,
       doctorCalls: (await db.collection('doctorcalls').deleteMany({ dcrId: { $in: expenseDcrIds } })).deletedCount,
@@ -327,7 +330,45 @@ async function main(): Promise<void> {
     });
   }
 
-  const plan = { products: newProducts.length, distributors: distributors.length, chemists: chemists.length, orders: orders.length, stockCounts: stock.length, expenses: expenseDocs.length, dailyReports: dcrDocs.length, doctors: doctorDocs.length, doctorCalls: doctorCallDocs.length, chemistCalls: chemistCallDocs.length, approvals: approvalDocs.length, months: months.length };
+  // Salary runs for the three sample MRs: finalized for the months before last, drafts for last month (this month's is not generated until it ends).
+  const payrollDocs: Array<Record<string, unknown>> = [];
+  for (const [mi, mr] of [0, 1, 2].map((i) => [i, mrFor(i)] as const)) {
+    const base = [3_000_000, 3_400_000, 2_800_000][mi]!;
+    for (const month of months.filter((m) => m < current)) {
+      const final = month < (months.filter((m) => m < current).at(-1) ?? '');
+      const leaveDays = rnd() < 0.3 ? 1 + Math.floor(rnd() * 2) : 0;
+      const absentDays = rnd() < 0.35 ? 1 + Math.floor(rnd() * 3) : 0;
+      const leaveDeduction = Math.round((base * leaveDays) / 30);
+      const absentDeduction = Math.round((base * absentDays) / 30);
+      payrollDocs.push({
+        userId: mr['_id'],
+        month,
+        baseSalaryPaise: base,
+        ctcAnnualPaise: base * 12 + Math.round(base * 12 * 0.12),
+        ctcEffectiveFrom: '2026-04',
+        ctcLines: [
+          { code: 'BASIC', name: 'Basic', kind: 'EARNING', amountPaise: Math.round(base * 12 * 0.6), isOverridden: false },
+          { code: 'OTHER', name: 'Other allowance', kind: 'EARNING', amountPaise: base * 12 - Math.round(base * 12 * 0.6), isOverridden: false },
+          { code: 'EPF', name: 'EPF (employer)', kind: 'EMPLOYER_CONTRIBUTION', amountPaise: Math.round(base * 12 * 0.12), isOverridden: false },
+        ],
+        totalTaDaPaise: 0,
+        reimbursementPaise: 0,
+        esiNumber: null,
+        unpaidLeaveDays: leaveDays,
+        leaveDeductionPaise: leaveDeduction,
+        absentDays,
+        absentDeductionPaise: absentDeduction,
+        netPayablePaise: base - leaveDeduction - absentDeduction,
+        joinedInMonth: false,
+        status: final ? 'FINALIZED' : 'DRAFT',
+        generatedBy: adminUser?.['_id'] ?? mr['_id'],
+        generatedAt: SAMPLE_PAYROLL_AT,
+        finalizedAt: final ? at(`${nextMonthOf(month)}-02`, 12) : null,
+      });
+    }
+  }
+
+  const plan = { products: newProducts.length, distributors: distributors.length, chemists: chemists.length, orders: orders.length, stockCounts: stock.length, expenses: expenseDocs.length, dailyReports: dcrDocs.length, doctors: doctorDocs.length, doctorCalls: doctorCallDocs.length, chemistCalls: chemistCallDocs.length, approvals: approvalDocs.length, payrollRuns: payrollDocs.length, months: months.length };
   logger.info({ ...plan, byMonthRupees: Object.fromEntries(Object.entries(summary).map(([m, s]) => [m, { primary: Math.round(s.primary / 100), secondary: Math.round(s.secondary / 100) }])) }, apply ? 'writing' : 'dry run — repeat with --apply to write');
   if (!apply) return;
 
@@ -349,6 +390,7 @@ async function main(): Promise<void> {
   await db.collection('chemistcalls').insertMany(chemistCallDocs as never[]);
   await db.collection('followups').insertMany(followupDocs as never[]);
   await db.collection('approvalrequests').insertMany(approvalDocs as never[]);
+  await db.collection('payrollruns').insertMany(payrollDocs as never[]);
   logger.info(plan, 'sample data written (remove with --remove)');
 }
 
