@@ -24,12 +24,15 @@ function kit(orders: OrderRecord[]) {
         return orders.filter((o) => (!f.from || o.orderDate >= f.from) && (!f.to || o.orderDate <= f.to) && (!f.status || o.status === f.status) && (!f.userId || o.userId === f.userId));
       },
       getOrder: async (id) => orders.find((o) => o.id === id) ?? null,
+      sumDistributorOrders: async () => [],
+      listStockRange: async () => [],
     },
     {
+      listActiveOutlets: async () => ({ distributors: [], chemists: [] }),
       listNames: async (q) => ({
         distributors: (q.distributorIds ?? []).filter((id) => id === 'd1').map((id) => ({ id, name: 'Shree Distributors' })),
         chemists: (q.chemistIds ?? []).filter((id) => id === 'c1').map((id) => ({ id, name: 'Sai Medical' })),
-        products: (q.productIds ?? []).filter((id) => id === 'p1').map((id) => ({ id, name: 'XYZ-500', sku: 'XYZ-500' })),
+        products: (q.productIds ?? []).filter((id) => id === 'p1').map((id) => ({ id, name: 'XYZ-500', sku: 'XYZ-500', ptrPaise: 9000 })),
       }),
     },
     { getUserSummaries: async (ids) => ids.filter((id) => id === 'u1' || id === 'admin').map((id) => ({ id, name: id === 'u1' ? 'Asha' : 'Arjit', employeeCode: id === 'u1' ? 'MR001' : 'EMP01' })) },

@@ -43,3 +43,91 @@ export interface OrdersReportDto {
   /** The list is capped; true when it may be missing older rows of the month. */
   truncated: boolean;
 }
+
+// ── Sales (primary and secondary, sign-off K9, K21, K22, K29, K31) ───────────────────────────────
+
+/** One month of the Sales chart. Primary: Done orders to distributors (the month marked Done). Secondary: what the distributors sold on, from their stock counts. */
+export interface SalesMonthDto {
+  /** `YYYY-MM`. */
+  month: string;
+  /** `FUTURE` has no figures; `OPEN` is the month in progress (its stock is counted after it ends). */
+  state: 'ENDED' | 'OPEN' | 'FUTURE';
+  primaryQty: number;
+  /** The amounts on the Done orders, whole paise. */
+  primaryPaise: number;
+  /** Orders placed in the month and not yet Done. */
+  placedQty: number;
+  placedPaise: number;
+  /** `opening + primary − closing` over the distributors' counts; `null` when nothing was counted (or a future month). */
+  secondaryQty: number | null;
+  /** The secondary quantity valued at each product's PTR; `null` when there is no secondary. */
+  secondaryPaise: number | null;
+  /** Active distributors with at least one count that month, out of those expected. */
+  countedDistributors: number;
+  expectedDistributors: number;
+  /** Every active distributor counted: when false the secondary bar is only part of the picture. */
+  complete: boolean;
+  /** Counts whose secondary came out below zero (a counting or entry error): left out of the totals. */
+  negativeRows: number;
+  /** Counts of a product with no PTR on its card: in the quantity but not in the value. */
+  unpricedRows: number;
+}
+
+/** `GET /reports/sales?year=`: the twelve months of a financial year. */
+export interface SalesYearReportDto {
+  /** The year it starts in (2026 is April 2026 to March 2027). */
+  year: number;
+  months: SalesMonthDto[];
+  totals: { primaryQty: number; primaryPaise: number; secondaryQty: number; secondaryPaise: number };
+}
+
+export type SalesRowFlag = 'NO_COUNT' | 'NEGATIVE_SECONDARY' | 'OPENING_MISMATCH' | 'UNPRICED';
+
+/** One distributor and product in one month: the stock statement. */
+export interface SalesStatementRowDto {
+  distributor: { id: string; name: string };
+  product: { id: string; name: string; sku: string };
+  /** `null` when there was no count for it. */
+  openingQty: number | null;
+  primaryQty: number;
+  primaryPaise: number;
+  placedQty: number;
+  closingQty: number | null;
+  secondaryQty: number | null;
+  secondaryPaise: number | null;
+  flags: SalesRowFlag[];
+}
+
+/** `GET /reports/sales/statement?month=`. */
+export interface SalesStatementDto {
+  month: string;
+  rows: SalesStatementRowDto[];
+  /** Active distributors with no count at all this month. */
+  missingDistributors: Array<{ id: string; name: string }>;
+  totals: { primaryQty: number; primaryPaise: number; placedPaise: number; secondaryQty: number; secondaryPaise: number };
+}
+
+// ── Stock ──────────────────────────────────────────────────────────────────────────────────────
+
+export type StockRowFlag = 'NO_COUNT' | 'OPENING_MISMATCH' | 'NEGATIVE_SECONDARY';
+
+export interface StockReportRowDto {
+  outletType: 'DISTRIBUTOR' | 'CHEMIST';
+  outlet: { id: string; name: string };
+  /** `null` on the single row of an outlet with no count at all. */
+  product: { id: string; name: string; sku: string } | null;
+  openingQty: number | null;
+  /** The previous month's closing count of the same outlet and product, when there is one. */
+  previousClosingQty: number | null;
+  closingQty: number | null;
+  flags: StockRowFlag[];
+}
+
+/** `GET /reports/stock?month=`: the month's stock counts, with who has not counted and what does not add up. */
+export interface StockReportDto {
+  month: string;
+  rows: StockReportRowDto[];
+  completeness: { distributors: { counted: number; expected: number }; chemists: { counted: number; expected: number } };
+  /** Rows carrying any flag. */
+  flagged: number;
+}

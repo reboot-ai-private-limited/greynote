@@ -91,7 +91,7 @@ export function buildContainers(): AppContainers {
   hr.bindPayrollLock((userId, month) => payroll.contract.isMonthFinalized(userId, month));
 
   // Tier 7 — Reports: read-only reports for the Admin, over Sales, Field Master Data and Identity. Owns no data.
-  const reports = buildReportsContainer(identity.contract, fieldMasterData.contract, sales.contract);
+  const reports = buildReportsContainer(identity.contract, fieldMasterData.contract, sales.contract, config.contract);
 
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.

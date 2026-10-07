@@ -8,7 +8,18 @@ export interface StockFilter {
   outlets?: Outlet[] | undefined;
 }
 
+export interface StockRangeFilter {
+  /** `YYYY-MM`, both ends inclusive. */
+  fromMonth: string;
+  toMonth: string;
+  outletType: Outlet['type'];
+  outletId?: string | undefined;
+  productId?: string | undefined;
+}
+
 export interface MonthlyStockRepositoryPort {
+  /** Every count of one kind of outlet over a range of months, oldest month first (a report's read; no per-user visibility). */
+  listRange(filter: StockRangeFilter, limit: number): Promise<MonthlyStock[]>;
   /** One row per outlet + product + month: a second write for the same key overwrites the counts and `recordedBy`. */
   upsertMany(outlet: Outlet, month: string, lines: StockLine[], by: string, at: Date, ctx?: TransactionContext): Promise<void>;
   list(filter: StockFilter, limit: number): Promise<MonthlyStock[]>;

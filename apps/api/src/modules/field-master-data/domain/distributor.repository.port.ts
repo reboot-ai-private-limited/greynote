@@ -15,6 +15,8 @@ export interface DistributorRepositoryPort {
   findById(id: string): Promise<Distributor | null>;
   /** Batched; an id that is not there is skipped. */
   findByIds(ids: string[]): Promise<Distributor[]>;
+  /** Every active one, by name — a report's list of who should have reported. */
+  listAllActive(): Promise<Distributor[]>;
   /** Active Distributors this user is the assigned MR of, or that sit on one of these Routes — the phone's cache. */
   listActiveForUser(userId: string, routeIds: string[]): Promise<Distributor[]>;
   create(input: Omit<Distributor, 'id'>): Promise<Distributor>;

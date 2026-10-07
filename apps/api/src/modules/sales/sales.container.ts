@@ -60,6 +60,8 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
     contract: {
       sumOrderAmount: (filter) => orders.sumAmount(filter),
       listOrders: (f) => orders.list({ from: f.from, to: f.to, status: f.status, outlet: f.outlet, userIds: f.userId ? [f.userId] : undefined }, f.limit ?? 2000),
+      sumDistributorOrders: async (f) => orders.sumDistributorOrders({ ...f, timeZone: await clock.timeZone() }),
+      listStockRange: (f) => stock.listRange(f, f.limit ?? 20000),
       getOrder: (id) => (id.match(/^[a-f\d]{24}$/i) ? orders.findById(id) : Promise.resolve(null)),
       listMissingStock: (month) => missing.execute({ id: 'system', role: 'ADMIN' }, month),
     },

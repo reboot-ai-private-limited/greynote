@@ -43,6 +43,10 @@ export class MongoChemistAdapter implements ChemistRepositoryPort {
     return docs.map(toChemist);
   }
 
+  async listAllActive(): Promise<Chemist[]> {
+    return (await ChemistModel.find({ status: 'active' }).sort({ name: 1, _id: 1 }).lean()).map(toChemist);
+  }
+
   async findByIds(ids: string[]): Promise<Chemist[]> {
     const valid = [...new Set(ids)].filter((id) => Types.ObjectId.isValid(id));
     if (valid.length === 0) return [];

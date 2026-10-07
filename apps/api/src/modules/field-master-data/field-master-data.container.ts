@@ -155,6 +155,10 @@ export function buildFieldMasterDataContainer(
         return items.map(({ assignedUserId: _assignedUserId, ...doctor }) => doctor);
       },
       getDistributor: (id) => distributors.findById(id),
+      listActiveOutlets: async () => {
+        const [ds, cs] = await Promise.all([distributors.listAllActive(), chemists.listAllActive()]);
+        return { distributors: ds.map((d) => ({ id: d.id, name: d.name })), chemists: cs.map((c) => ({ id: c.id, name: c.name })) };
+      },
       listNames: async (q) => {
         const [ds, cs, ps] = await Promise.all([distributors.findByIds(q.distributorIds ?? []), chemists.findByIds(q.chemistIds ?? []), products.findByIds(q.productIds ?? [])]);
         return {

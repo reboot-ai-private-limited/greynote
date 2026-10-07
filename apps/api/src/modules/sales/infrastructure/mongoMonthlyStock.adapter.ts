@@ -1,7 +1,7 @@
 import { Types, type ClientSession, type FilterQuery } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { MonthlyStock, Outlet, StockLine } from '../domain/monthlyStock.entity.js';
-import type { MonthlyStockRepositoryPort, StockFilter } from '../domain/monthlyStock.repository.port.js';
+import type { MonthlyStockRepositoryPort, StockFilter, StockRangeFilter } from '../domain/monthlyStock.repository.port.js';
 import { MonthlyStockModel, MonthlyStockUnlockModel, type MonthlyStockDoc } from './monthlyStock.schema.js';
 
 const oid = (id: string) => new Types.ObjectId(id);
@@ -40,6 +40,13 @@ export class MongoMonthlyStockAdapter implements MonthlyStockRepositoryPort {
       })),
       ctx ? { session: ctx as ClientSession } : {},
     );
+  }
+
+  async listRange(f: StockRangeFilter, limit: number): Promise<MonthlyStock[]> {
+    const idField = f.outletType === 'CHEMIST' ? 'chemistId' : 'distributorId';
+    const q: FilterQuery<MonthlyStockDoc> = { month: { $gte: f.fromMonth, $lte: f.toMonth }, [idField]: f.outletId ? oid(f.outletId) : { $type: 'objectId' } };
+    if (f.productId) q.productId = oid(f.productId);
+    return (await MonthlyStockModel.find(q).sort({ month: 1, _id: 1 }).limit(limit).lean()).map(toStock);
   }
 
   async list(filter: StockFilter, limit: number): Promise<MonthlyStock[]> {

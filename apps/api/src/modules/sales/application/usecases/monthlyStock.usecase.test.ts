@@ -17,6 +17,9 @@ class FakeStock implements MonthlyStockRepositoryPort {
   async upsertMany(outlet: Outlet, month: string, lines: StockLine[], by: string, at: Date) {
     for (const l of lines) this.rows.set(`${k(outlet)}|${l.productId}|${month}`, { id: `${this.rows.size}`, outlet, productId: l.productId, month, openingQty: l.openingQty, closingQty: l.closingQty, recordedBy: by, recordedAt: at });
   }
+  async listRange(f: { fromMonth: string; toMonth: string; outletType: Outlet['type']; outletId?: string | undefined; productId?: string | undefined }) {
+    return [...this.rows.values()].filter((r) => r.outlet.type === f.outletType && r.month >= f.fromMonth && r.month <= f.toMonth && (!f.outletId || r.outlet.id === f.outletId) && (!f.productId || r.productId === f.productId));
+  }
   async list(f: StockFilter) {
     const scope = f.outlets ? new Set(f.outlets.map(k)) : null;
     return [...this.rows.values()].filter((r) => (!f.month || r.month === f.month) && (!f.productId || r.productId === f.productId) && (!scope || scope.has(k(r.outlet))));

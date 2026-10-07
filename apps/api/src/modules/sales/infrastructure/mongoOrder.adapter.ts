@@ -1,7 +1,8 @@
 import { Types, type ClientSession, type FilterQuery } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { Order } from '../domain/order.entity.js';
-import type { OrderAmountFilter, OrderFilter, OrderRepositoryPort } from '../domain/order.repository.port.js';
+import { addDays, parseCalendarDate, zonedInstant } from '@/shared/time/businessTime.js';
+import type { DistributorOrderSum, DistributorOrderSumFilter, OrderAmountFilter, OrderFilter, OrderRepositoryPort } from '../domain/order.repository.port.js';
 import { OrderModel, type OrderDoc } from './order.schema.js';
 
 const oid = (id: string) => new Types.ObjectId(id);
@@ -32,6 +33,21 @@ export class MongoOrderAdapter implements OrderRepositoryPort {
     };
     const [created] = await OrderModel.create([doc], ctx ? { session: ctx as ClientSession } : {});
     return toOrder(created!.toObject());
+  }
+
+  async sumDistributorOrders(f: DistributorOrderSumFilter): Promise<DistributorOrderSum[]> {
+    const start = zonedInstant(parseCalendarDate(f.from), 0, 0, f.timeZone);
+    const end = zonedInstant(parseCalendarDate(addDays(f.to, 1)), 0, 0, f.timeZone);
+    const outlet = { distributorId: f.distributorId ? oid(f.distributorId) : { $type: 'objectId' } };
+    const lines = [{ $unwind: '$items' }, ...(f.productId ? [{ $match: { 'items.productId': oid(f.productId) } }] : [])];
+    const group = (month: unknown) => ({ $group: { _id: { m: month, d: '$distributorId', p: '$items.productId' }, quantity: { $sum: '$items.quantity' }, amountPaise: { $sum: '$items.amountPaise' } } });
+    type Row = { _id: { m: string; d: Types.ObjectId; p: Types.ObjectId }; quantity: number; amountPaise: number };
+    const [done, placed] = await Promise.all([
+      OrderModel.aggregate<Row>([{ $match: { ...outlet, status: 'DONE', completedAt: { $gte: start, $lt: end } } }, ...lines, group({ $dateToString: { format: '%Y-%m', date: '$completedAt', timezone: f.timeZone } })]),
+      OrderModel.aggregate<Row>([{ $match: { ...outlet, status: 'PLACED', orderDate: { $gte: f.from, $lte: f.to } } }, ...lines, group({ $substrBytes: ['$orderDate', 0, 7] })]),
+    ]);
+    const rows = (status: 'DONE' | 'PLACED') => (r: Row): DistributorOrderSum => ({ month: r._id.m, distributorId: String(r._id.d), productId: String(r._id.p), status, quantity: r.quantity, amountPaise: r.amountPaise });
+    return [...done.map(rows('DONE')), ...placed.map(rows('PLACED'))];
   }
 
   async sumAmount(filter: OrderAmountFilter): Promise<number> {

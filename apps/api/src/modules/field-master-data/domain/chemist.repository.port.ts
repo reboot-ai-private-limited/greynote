@@ -13,6 +13,8 @@ export interface ChemistRepositoryPort {
   findById(id: string): Promise<Chemist | null>;
   /** Batched; an id that is not there is skipped. */
   findByIds(ids: string[]): Promise<Chemist[]>;
+  /** Every active one, by name — a report's list of who should have reported. */
+  listAllActive(): Promise<Chemist[]>;
   /** Every active Chemist on these Routes — the phone's cache. */
   listActiveOnRoutes(routeIds: string[]): Promise<Chemist[]>;
   create(input: Omit<Chemist, 'id'>): Promise<Chemist>;

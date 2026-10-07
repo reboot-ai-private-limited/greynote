@@ -47,6 +47,8 @@ export interface FieldMasterDataPublicContract {
    * Names for a batch of Distributors, Chemists and Products in three queries — what a report needs to put words on ids. A product also carries the
    * prices a report values stock with. An id that is not there is left out.
    */
+  /** Every active Distributor and Chemist, by name: who a report expects a stock count from. */
+  listActiveOutlets(): Promise<{ distributors: Array<{ id: string; name: string }>; chemists: Array<{ id: string; name: string }> }>;
   listNames(query: { distributorIds?: string[]; chemistIds?: string[]; productIds?: string[] }): Promise<{
     distributors: Array<{ id: string; name: string }>;
     chemists: Array<{ id: string; name: string }>;

@@ -1,3 +1,4 @@
+import type { Paise } from '@/shared/money/paise.js';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { Outlet } from './monthlyStock.entity.js';
 import type { Order, OrderStatus } from './order.entity.js';
@@ -20,7 +21,29 @@ export interface OrderAmountFilter {
   productId?: string | undefined;
 }
 
+/** One line of the primary-sales picture: what one distributor's orders for one product add up to in one month, by status. */
+export interface DistributorOrderSum {
+  /** `YYYY-MM`: for a `DONE` order the month it was marked Done, for a `PLACED` one the month it was placed (business timezone). */
+  month: string;
+  distributorId: string;
+  productId: string;
+  status: 'DONE' | 'PLACED';
+  quantity: number;
+  amountPaise: Paise;
+}
+
+export interface DistributorOrderSumFilter {
+  /** `YYYY-MM-DD`, both ends inclusive: a Done order counts when it was marked Done in the range, a Placed one when placed in it. */
+  from: string;
+  to: string;
+  timeZone: string;
+  distributorId?: string | undefined;
+  productId?: string | undefined;
+}
+
 export interface OrderRepositoryPort {
+  /** Orders **to distributors** by month, distributor, product and status (cancelled ones never appear, chemist orders neither). */
+  sumDistributorOrders(filter: DistributorOrderSumFilter): Promise<DistributorOrderSum[]>;
   /** Whole paise ordered by these users in the range, `CANCELLED` orders left out. */
   sumAmount(filter: OrderAmountFilter): Promise<number>;
   create(input: Omit<Order, 'id'>, ctx?: TransactionContext): Promise<Order>;
