@@ -814,3 +814,5 @@ New read-only `reports` module (top tier, writes nothing; reads Sales, Field Act
 **Orders simplified again (2026-10-07):** the supplying-distributor field, the confirmation step and the "send to the distributor" sheet are dropped. Orders keep Placed → Done or Cancelled. Chemist orders are information only. Primary = Done orders to distributors (month marked Done); secondary = derived from distributor stock. The Admin Orders page lists both kinds. No change to the order model, the approval engine or the phone's payload.
 
 **5b done 2026-10-07:** the `reports` module (tier 7) and the Admin Orders page (`/orders`: two tabs, month / status / MR filters, status totals, order detail, Done / Cancel, CSV). Next: the Sales report with the primary and secondary bar chart, then Stock, TA/DA, DCR, Salary. Not browser-checked.
+
+**Sample data (2026-10-07):** `pnpm --filter @greynote/api seed:sample-sales -- --apply` is applied to the dev database (3 distributors, 4 chemists, 3 products, 76 orders, 140 stock counts, April to October). The Orders page is browser-checked against it. Remove with `-- --remove`.
