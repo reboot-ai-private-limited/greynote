@@ -106,5 +106,7 @@ async function request<T>(method: string, path: string, body?: unknown, opts: Op
 
 export const apiGet = <T>(path: string, opts?: Options) =>
   request<T>('GET', path, undefined, { auth: true, ...opts });
+export const apiPut = <T>(path: string, body: unknown, opts?: Options) =>
+  request<T>('PUT', path, body, { auth: true, ...opts });
 export const apiPost = <T>(path: string, body: unknown, opts?: Options) =>
   request<T>('POST', path, body, opts);

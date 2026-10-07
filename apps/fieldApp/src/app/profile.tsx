@@ -1,7 +1,7 @@
 import * as Device from 'expo-device';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Alert, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/primary-button';
@@ -10,11 +10,32 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { logout } from '@/lib/auth';
+import { countUnsent, isOnline } from '@/offline';
 
 /** Who is signed in, which phone this is, and Logout. Opened from the Home header. */
 export default function ProfileScreen() {
   const user = useCurrentUser();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  async function confirmLogout() {
+    const unsent = await countUnsent();
+    if (unsent === 0) return handleLogout();
+    if (!isOnline()) {
+      Alert.alert(
+        'Connect to log out',
+        `You have ${unsent} unsent record${unsent === 1 ? '' : 's'}. Connect to the internet so they can be backed up first — logging out now would lose them.`,
+      );
+      return;
+    }
+    Alert.alert(
+      'Log out?',
+      `${unsent} unsent record${unsent === 1 ? '' : 's'} will be backed up and restored when you log in again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log out', style: 'destructive', onPress: handleLogout },
+      ],
+    );
+  }
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -41,7 +62,7 @@ export default function ProfileScreen() {
           </ThemedView>
 
           <PrimaryButton label="Back" variant="text" onPress={() => router.back()} />
-          <PrimaryButton label="Log out" loading={loggingOut} onPress={handleLogout} />
+          <PrimaryButton label="Log out" loading={loggingOut} onPress={confirmLogout} />
         </ScrollView>
       </SafeAreaView>
     </ThemedView>

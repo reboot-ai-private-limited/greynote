@@ -3,7 +3,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef } from 'react';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { OfflineBanner } from '@/components/offline-banner';
 import { useSessionUser } from '@/lib/session';
+import { useAutoSync } from '@/offline';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +22,7 @@ export default function RootLayout() {
   // Signed in → signed out while the app is open (logout, or a refresh the server rejected) →
   // back to Login. Done here, not in (tabs)/_layout.tsx, so the tab navigator is left untouched.
   const user = useSessionUser();
+  useAutoSync();
   const wasSignedIn = useRef(false);
   useEffect(() => {
     if (wasSignedIn.current && !user) router.replace('/login');
@@ -29,6 +32,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={DefaultTheme}>
       <AnimatedSplashOverlay />
+      <OfflineBanner />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />

@@ -27,7 +27,7 @@ Read `docs/prd.md` §6 before building any screen — it's the actual spec for w
 
 ## Current state (check before assuming a screen or API call works)
 
-**Auth is wired (Stage 0, see docs/mobile-app-plan.md in this folder):** Login, Splash session restore, token refresh, logout and Profile call the real API via `src/lib/`. Every request must send `X-Client: mobile` or the server withholds the refresh token. **Tab screens are placeholders and the rest below is still UI only:** Splash (`src/app/index.tsx`), Login
+**Auth is wired (Stage 0, see docs/mobile-app-plan.md in this folder):** Login, Splash session restore, token refresh, logout and Profile call the real API via `src/lib/`. Every request must send `X-Client: mobile` or the server withholds the refresh token. **Offline layer (Stage 1) lives in `src/offline/`: screens create records with `createRecord`/`queueRecord` (never call the server for DCR records), `pushPending()` is the only thing that sends them, and `runSync()` (pull + draft backup) runs by itself via `useAutoSync`. Money is integer paise; never send TA/DA. **Tab screens are placeholders and the rest below is still UI only:** Splash (`src/app/index.tsx`), Login
 (`login.tsx`), Device status (`device-status.tsx`), and the 4-tab shell (`src/app/(tabs)/` —
 Home, Docs, Reports, Team, each still a `TabPlaceholder`). Team is hidden unless
 `useCurrentUser().isManager`, which is always false for now (the backend sends no "has direct reports" flag yet); screens

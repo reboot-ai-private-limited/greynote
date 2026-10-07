@@ -18,7 +18,8 @@ Last updated 2026-10-07. Day counts are estimates for one experienced developer.
 | Screens built | Splash, Login, Device Status, 4-tab shell (Home / Docs / Reports / Team — placeholders) |
 | Login | **Connected** to `POST /api/identity/auth/login`; tokens kept in secure storage; device-approval refusals route to Device Status |
 | Stage 0 | **Done 2026-10-07:** session restore on launch, authenticated API client with single-flight token refresh, logout + Profile screen, `/auth/me` load, signed-out redirect, tablet-ready layout (centred max-width, all orientations, `useResponsive`) |
-| Not done | `isManager` flag, designation name, no-connection banner, every Home / Docs / Reports / Team screen, the offline store and sync |
+| Stage 1 | **Built 2026-10-07:** `src/offline/` — SQLite store (memory on web), outbox, pull / push / draft backup / restore against `/sync/*`, on-device geofence (matches the server on 20,000 random cases), connectivity hook, offline banner, sync chip on Home. **Not yet run against a real phone and database.** |
+| Not done | `isManager` flag, designation name, every Home / Docs / Reports / Team screen, the offline store and sync |
 | Backend | Complete for all modules (Phases 0–8 of the roadmap); the gaps the app needs are listed in §7 |
 
 ---
@@ -91,7 +92,7 @@ Login is wired; the rest of the session isn't.
 **Done when:** killing and reopening the app keeps you signed in; logout returns to Login;
 a revoked session lands on Login.
 
-### Stage 1 — Offline foundation (6–8 days) — *the riskiest stage*
+### Stage 1 — Offline foundation (6–8 days) — *the riskiest stage* — **built 2026-10-07, needs a real-device test**
 1. Choose the local store (SQLite + a thin repository layer; see `../../../docs/engineering/tech-choices.md`).
 2. Local tables: `outbox` (clientId, kind, payload, status `DRAFT→QUEUED→SYNCED/FAILED`, dependsOn) plus cache tables for routes, doctors, chemists, products, holidays, leave balances.
 3. Reference-data pull: `GET /sync/pull` into the cache on login and on pull-to-refresh.

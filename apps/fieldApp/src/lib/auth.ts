@@ -2,6 +2,9 @@ import type { DeviceBlockReason, LoginResponse, SessionUser } from '@/types/auth
 
 import { ApiError, apiGet, apiPost, NetworkError } from './api';
 import { getDeviceInfo } from './device';
+import { isOnline } from '@/offline/connectivity';
+import { backupDrafts, prepareForUser, resetOfflineData } from '@/offline/engine';
+
 import { clearSession, getTokens, setSession, setUser } from './session';
 
 export type LoginResult =
@@ -25,6 +28,7 @@ export async function login(employeeCode: string, password: string): Promise<Log
       ...device,
     });
     await setSession(data);
+    await prepareForUser(data.user.id);
     return { ok: true };
   } catch (err) {
     if (err instanceof ApiError) {
@@ -52,8 +56,20 @@ export async function loadCurrentUser(): Promise<SessionUser> {
   return user;
 }
 
-/** Revokes this phone's session on the server (best effort), then forgets it locally. */
+/**
+ * Revokes this phone's session on the server (best effort), then forgets it locally. Unsent
+ * records are backed up first and then wiped from the phone — they come back at the next login
+ * (offline/engine.ts restoreDrafts). A session that merely *expires* keeps them: only an explicit
+ * logout, or a different employee logging in, clears the phone.
+ */
 export async function logout(): Promise<void> {
+  if (isOnline()) {
+    try {
+      await backupDrafts();
+    } catch {
+      // Best effort — the confirm dialog on Profile already warned about unsent records.
+    }
+  }
   const refreshToken = getTokens()?.refreshToken;
   try {
     if (refreshToken) await apiPost('/identity/auth/logout', { refreshToken }, { auth: true });
@@ -61,4 +77,5 @@ export async function logout(): Promise<void> {
     // Offline or already expired — signing out locally must still work.
   }
   await clearSession();
+  await resetOfflineData();
 }

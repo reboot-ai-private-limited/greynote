@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 
 import { PrimaryButton } from '@/components/primary-button';
 import { TabPlaceholder } from '@/components/tab-placeholder';
+import { SyncChip } from '@/components/sync-chip';
 import { ThemedText } from '@/components/themed-text';
 import { useCurrentUser } from '@/hooks/use-current-user';
 
@@ -17,6 +18,7 @@ export default function HomeScreen() {
       header={
         <>
           <ThemedText type="smallBold">Hello, {user.name || 'there'}</ThemedText>
+          <SyncChip />
           <PrimaryButton label="Profile & logout" variant="text" onPress={() => router.push('/profile')} />
         </>
       }
