@@ -25,6 +25,7 @@ import {
   BarChart3,
   Boxes,
   CalendarCheck,
+  ClipboardList,
   MapPinned,
   ShoppingCart,
   TrendingUp,
@@ -72,6 +73,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Payroll', href: '/payroll', icon: Banknote, group: 'Operations', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Sales report', href: '/reports/sales', icon: BarChart3, group: 'Reports', roles: ['ADMIN'] },
   { label: 'Stock report', href: '/reports/stock', icon: Boxes, group: 'Reports', roles: ['ADMIN'] },
+  { label: 'Daily reports', href: '/reports/dcr', icon: ClipboardList, group: 'Reports', roles: ['ADMIN'] },
   { label: 'TA/DA report', href: '/reports/ta-da', icon: MapPinned, group: 'Reports', roles: ['ADMIN'] },
   { label: 'System settings', href: '/settings', icon: Settings2, group: 'System', roles: ['ADMIN'] },
 ];

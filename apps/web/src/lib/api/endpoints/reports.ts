@@ -1,4 +1,4 @@
-import type { OrdersReportDto, ReportOrderDetailDto, SalesStatementDto, SalesYearReportDto, StockReportDto, TaDaDaysDto, TaDaYearReportDto } from '@greynote/contracts';
+import type { OrdersReportDto, ReportOrderDetailDto, SalesStatementDto, SalesYearReportDto, StockReportDto, TaDaDaysDto, TaDaYearReportDto, DcrCoverageDto, DcrYearReportDto } from '@greynote/contracts';
 import { request } from '../client';
 
 export interface OrdersReportQuery {
@@ -26,4 +26,9 @@ export const reportsApi = {
   taDaYear: (token: string, query: { year: number }, signal?: AbortSignal) => request<TaDaYearReportDto>('/reports/ta-da', { token, query: { ...query }, signal }),
   /** One employee's accepted expenses in a month, day by day. */
   taDaDays: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<TaDaDaysDto>('/reports/ta-da/days', { token, query: { ...query }, signal }),
+
+  /** Reported days, calls, follow-ups, geofence results and late submissions by month and employee for a financial year. */
+  dcrYear: (token: string, query: { year: number }, signal?: AbortSignal) => request<DcrYearReportDto>('/reports/dcr', { token, query: { ...query }, signal }),
+  /** The doctors assigned to an employee and which of them they called on in a month. */
+  dcrCoverage: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<DcrCoverageDto>('/reports/dcr/coverage', { token, query: { ...query }, signal }),
 };
