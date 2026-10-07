@@ -45,6 +45,12 @@ export function PlanDayForm({ value, onChange, disabled }: Props) {
       <ThemedText type="smallBold">Working type</ThemedText>
       <ChoiceChips options={WORKING_TYPES} value={value.workingType} onChange={setType} disabled={disabled} />
 
+      {!needsRoute ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          Routes are only picked for Field Work days.
+        </ThemedText>
+      ) : null}
+
       {needsRoute ? (
         <>
           <ThemedText type="smallBold">Routes</ThemedText>

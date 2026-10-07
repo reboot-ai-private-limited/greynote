@@ -26,7 +26,7 @@ import { refreshNow, useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { addDays, businessNowHHmm, dailyDeadlinePassed, prettyDay } from '@/offline/day';
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from '@/offline/local-draft';
-import type { ConfigSnapshot, PlanningSnapshot } from '@/types/sync';
+import type { ConfigSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
 
 type Msg = { tone: 'info' | 'warning' | 'danger' | 'success'; text: string };
 
@@ -92,6 +92,12 @@ export default function DailyPlanScreen() {
       getRejectionReason(existing.approvalRequestId).then(setRejection).catch(() => undefined);
     }
   }, [status, existing?.approvalRequestId, online]);
+
+  const territory = useCachedSource<TerritorySnapshot>('territory');
+  const routeNames = (existing?.routeIds ?? [])
+    .map((id) => territory.data?.routes.find((r) => r.id === id)?.name)
+    .filter(Boolean)
+    .join(', ');
 
   const dateOptions = useMemo(
     () =>
@@ -214,7 +220,7 @@ export default function DailyPlanScreen() {
         </>
       ) : existing ? (
         <ThemedText type="small" themeColor="textSecondary">
-          {`${workingTypeLabel(existing.workingType)}${existing.remarks ? ` — ${existing.remarks}` : ''}`}
+          {`${workingTypeLabel(existing.workingType)}${routeNames ? ` · ${routeNames}` : ''}${existing.remarks ? ` — ${existing.remarks}` : ''}`}
         </ThemedText>
       ) : null}
 
