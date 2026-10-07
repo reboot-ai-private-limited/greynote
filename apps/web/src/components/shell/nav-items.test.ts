@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isRouteBuilt, navFor, navGroupsFor } from './nav-items';
+import { activeGroupOf, isActiveItem, isRouteBuilt, NAV_ITEMS, navFor, navGroupsFor, parseOpenGroups, toggleGroup, withGroupOpen } from './nav-items';
 
 describe('navFor', () => {
   it('gives ADMIN the zones screen', () => {
@@ -124,13 +124,45 @@ describe('Pay components', () => {
 describe('navGroupsFor', () => {
   it('groups items under their headings, in order, dropping empty groups', () => {
     const groups = navGroupsFor('ACCOUNTANT');
-    expect(groups.map((g) => g.group)).toEqual(['Overview', 'People', 'Operations']);
-    expect(groups.find((g) => g.group === 'Operations')?.items.map((i) => i.href)).toEqual([
-      '/attendance',
-      '/expenses',
-      '/expense-payouts',
-      '/payroll',
-    ]);
+    expect(groups.map((g) => g.group)).toEqual(['Home', 'Daily work', 'Money', 'Setup']);
+    expect(groups.find((g) => g.group === 'Money')?.items.map((i) => i.href)).toEqual(['/payroll', '/expenses', '/expense-payouts']);
+    expect(groups.find((g) => g.group === 'Daily work')?.items.map((i) => i.href)).toEqual(['/attendance']);
+  });
+
+  it('keeps Home and Daily work always open, and every other group collapsible', () => {
+    const groups = navGroupsFor('ADMIN');
+    expect(groups.map((g) => g.group)).toEqual(['Home', 'Daily work', 'People', 'Money', 'Reports', 'Master data', 'Setup']);
+    expect(groups.filter((g) => g.alwaysOpen).map((g) => g.group)).toEqual(['Home', 'Daily work']);
+  });
+
+  it('puts every screen in exactly one group', () => {
+    const grouped = navGroupsFor('ADMIN').flatMap((g) => g.items.map((i) => i.href));
+    expect(new Set(grouped).size).toBe(grouped.length);
+    expect(grouped.length).toBe(navFor('ADMIN').length);
+    expect(NAV_ITEMS.length).toBeGreaterThanOrEqual(grouped.length);
+  });
+});
+
+describe('open groups', () => {
+  it('finds the group holding the screen being looked at, including a record opened from it', () => {
+    expect(activeGroupOf('ADMIN', '/payroll/abc/slip')).toBe('Money');
+    expect(activeGroupOf('ADMIN', '/reports/sales')).toBe('Reports');
+    expect(activeGroupOf('ADMIN', '/nowhere')).toBeNull();
+    expect(isActiveItem({ href: '/payroll' }, '/payroll-other')).toBe(false);
+  });
+
+  it('reads what was remembered, ignoring junk and unknown names', () => {
+    expect(parseOpenGroups(null)).toEqual([]);
+    expect(parseOpenGroups('not json')).toEqual([]);
+    expect(parseOpenGroups('["Money","Nope",3]')).toEqual(['Money']);
+  });
+
+  it('toggles a group and opens one without duplicating it', () => {
+    expect(toggleGroup([], 'Money')).toEqual(['Money']);
+    expect(toggleGroup(['Money'], 'Money')).toEqual([]);
+    expect(withGroupOpen(['Money'], 'Money')).toEqual(['Money']);
+    expect(withGroupOpen(['Money'], 'Reports')).toEqual(['Money', 'Reports']);
+    expect(withGroupOpen(['Money'], null)).toEqual(['Money']);
   });
 });
 
@@ -161,7 +193,7 @@ describe('Orders', () => {
 describe('Reports', () => {
   it('are for Admin only, in their own group', () => {
     const admin = navGroupsFor('ADMIN').find((g) => g.group === 'Reports');
-    expect(admin?.items.map((i) => i.href)).toEqual(['/reports/sales', '/reports/stock', '/reports/dcr', '/reports/salary', '/reports/ta-da']);
+    expect(admin?.items.map((i) => i.href)).toEqual(['/reports/sales', '/reports/stock', '/reports/dcr', '/reports/ta-da', '/reports/salary']);
     for (const role of ['HR', 'ACCOUNTANT'] as const) expect(navGroupsFor(role).some((g) => g.group === 'Reports')).toBe(false);
     expect(isRouteBuilt('/reports/sales')).toBe(true);
   });

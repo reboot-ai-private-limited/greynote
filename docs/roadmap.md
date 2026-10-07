@@ -823,4 +823,4 @@ New read-only `reports` module (top tier, writes nothing; reads Sales, Field Act
 
 **5e progress:** the DCR report is built and browser-checked against the sample data. Still to build: the Salary report (K30).
 
-**Step 5 is complete (2026-10-07):** approvals in tabs, the Orders page, the attendance calendars and absent-day deduction, and all five reports (Sales with the primary/secondary chart, Stock, TA/DA, DCR, Salary). Browser-checked against the dev sample data except 5a's tabs (extension was unavailable then). Next: Step 6 (the web app simulator, dev only), then Step 7 (the mobile app) and the pilot.
+**Step 5 is complete (2026-10-07):** approvals in tabs, the Orders page, the attendance calendars and absent-day deduction, and all five reports (Sales with the primary/secondary chart, Stock, TA/DA, DCR, Salary). Browser-checked against the dev sample data except 5a's tabs (extension was unavailable then). Before Step 6 the side navigation was regrouped (2026-10-07, decision log) and a manual test plan goes in `docs/testing/`. Next: Step 6 (the web app simulator, dev only), then Step 7 (the mobile app) and the pilot.
