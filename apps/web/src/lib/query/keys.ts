@@ -80,6 +80,9 @@ export const keys = {
     all: () => ['reports', fy()] as const,
     orders: (query: object) => [...keys.reports.all(), 'orders', query] as const,
     order: (id: string) => [...keys.reports.all(), 'order', id] as const,
+    salesYear: (query: object) => [...keys.reports.all(), 'salesYear', query] as const,
+    salesStatement: (query: object) => [...keys.reports.all(), 'salesStatement', query] as const,
+    stock: (month: string) => [...keys.reports.all(), 'stock', month] as const,
   },
   attendance: {
     all: () => ['attendance', fy()] as const,

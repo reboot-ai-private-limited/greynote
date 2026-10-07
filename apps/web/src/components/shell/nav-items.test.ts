@@ -157,3 +157,12 @@ describe('Orders', () => {
     expect(isRouteBuilt('/orders')).toBe(true);
   });
 });
+
+describe('Reports', () => {
+  it('are for Admin only, in their own group', () => {
+    const admin = navGroupsFor('ADMIN').find((g) => g.group === 'Reports');
+    expect(admin?.items.map((i) => i.href)).toEqual(['/reports/sales', '/reports/stock']);
+    for (const role of ['HR', 'ACCOUNTANT'] as const) expect(navGroupsFor(role).some((g) => g.group === 'Reports')).toBe(false);
+    expect(isRouteBuilt('/reports/sales')).toBe(true);
+  });
+});
