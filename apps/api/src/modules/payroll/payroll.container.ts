@@ -1,6 +1,7 @@
 import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { FinalizePayrollUseCase, GeneratePayrollUseCase, GetPayrollRunUseCase, ListPayrollRunsUseCase, PayrollClock } from './application/usecases/payroll.usecase.js';
+import { proratePaise } from '@/shared/money/paise.js';
 import { PayrollViews } from './application/payrollViews.js';
 import type { AttendancePort, HrPort, IdentityPort } from './domain/ports.js';
 import { MongoPayrollAdapter } from './infrastructure/mongoPayroll.adapter.js';
@@ -26,7 +27,20 @@ export function buildPayrollContainer(identity: IdentityPort, hr: HrPort, attend
   const list = new ListPayrollRunsUseCase(runs);
   const views = new PayrollViews(identity);
   return {
-    contract: { generate: (actor, input) => generate.execute(actor, input), finalize: (id) => finalize.execute(id), get: (id) => get.execute(id), list: (filter) => list.execute(filter), isMonthFinalized: (userId, month) => runs.isFinalized(userId, month) },
+    contract: {
+      listRunsForReport: async (range) =>
+        (await runs.list(range, 100_000)).map((r) => ({
+          runId: r.id,
+          userId: r.userId,
+          month: r.month,
+          status: r.status,
+          baseSalaryPaise: r.baseSalaryPaise,
+          leaveDeductionPaise: r.leaveDeductionPaise,
+          absentDeductionPaise: r.absentDeductionPaise,
+          netPayablePaise: r.netPayablePaise,
+          employerContributionPaise: proratePaise(r.ctcLines.filter((l) => l.kind === 'EMPLOYER_CONTRIBUTION').reduce((n, l) => n + l.amountPaise, 0), 1, 12),
+        })),
+      generate: (actor, input) => generate.execute(actor, input), finalize: (id) => finalize.execute(id), get: (id) => get.execute(id), list: (filter) => list.execute(filter), isMonthFinalized: (userId, month) => runs.isFinalized(userId, month) },
     buildRouter: () => buildPayrollRouter(makePayrollControllers({ generate, finalize, get, list, views })),
   };
 }

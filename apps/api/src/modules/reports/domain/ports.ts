@@ -97,3 +97,19 @@ export interface DcrMonthRow {
   followups: number;
   geofence: { pass: number; fail: number; unverified: number; override: number };
 }
+
+export interface PayrollReportRow {
+  runId: string;
+  userId: string;
+  month: string;
+  status: 'DRAFT' | 'FINALIZED';
+  baseSalaryPaise: number;
+  leaveDeductionPaise: number;
+  absentDeductionPaise: number;
+  netPayablePaise: number;
+  employerContributionPaise: number;
+}
+
+export interface PayrollPort {
+  listRunsForReport(range: { fromMonth: string; toMonth: string }): Promise<PayrollReportRow[]>;
+}

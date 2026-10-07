@@ -239,3 +239,60 @@ export interface DcrCoverageDto {
   visited: number;
   notVisited: Array<{ id: string; name: string; specialty: string }>;
 }
+
+// ── Salary (sign-off K30) ────────────────────────────────────────────────────────────────────────
+
+/** What a month's finalized salary runs came to, whole paise. Draft runs are never in these figures. */
+export interface SalaryFiguresDto {
+  basePaise: number;
+  leaveDeductionPaise: number;
+  absentDeductionPaise: number;
+  /** What the employees were paid. */
+  netPaise: number;
+  /** The employer's EPF/ESI and the like for the month. */
+  employerPaise: number;
+  /** What the salary costs the company: net pay plus the employer's contributions. */
+  costToCompanyPaise: number;
+}
+
+export interface SalaryMonthDto extends SalaryFiguresDto {
+  /** `YYYY-MM`. */
+  month: string;
+  /**
+   * `FINAL`: every run is finalized; `DRAFT`: there are runs and none is finalized; `PARTIAL`: some of each; `NONE`: the month ended with no run;
+   * `OPEN` and `FUTURE`: not over yet.
+   */
+  state: 'FINAL' | 'DRAFT' | 'PARTIAL' | 'NONE' | 'OPEN' | 'FUTURE';
+  finalEmployees: number;
+  draftEmployees: number;
+  /** The net pay of the draft runs: shown hatched, not in the figures above. */
+  draftNetPaise: number;
+  /** Accepted TA, DA and manual reimbursements of the month, by the day reported (paid or not). */
+  taPaise: number;
+  daPaise: number;
+  reimbursementPaise: number;
+}
+
+export interface SalaryRowDto {
+  month: string;
+  user: { id: string; name: string; employeeCode: string };
+  status: 'DRAFT' | 'FINALIZED';
+  /** For the payslip link. */
+  runId: string;
+  basePaise: number;
+  leaveDeductionPaise: number;
+  absentDeductionPaise: number;
+  netPaise: number;
+  employerPaise: number;
+  costToCompanyPaise: number;
+}
+
+/** `GET /reports/salary?year=`. */
+export interface SalaryYearReportDto {
+  year: number;
+  months: SalaryMonthDto[];
+  /** Every run of the year, drafts included (each says which it is). */
+  rows: SalaryRowDto[];
+  /** Finalized runs only. */
+  totals: SalaryFiguresDto;
+}

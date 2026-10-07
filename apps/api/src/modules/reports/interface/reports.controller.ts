@@ -6,11 +6,12 @@ import { sendSuccess } from '@/shared/http/response.util.js';
 import type { DcrReport } from '../application/dcrReport.js';
 import type { OrdersReport } from '../application/ordersReport.js';
 import type { SalesReport } from '../application/salesReport.js';
+import type { SalaryReport } from '../application/salaryReport.js';
 import type { StockReport } from '../application/stockReport.js';
 import type { TaDaReport } from '../application/taDaReport.js';
-import type { dcrCoverageQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
+import type { dcrCoverageQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
-export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport): Record<'orders' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage', RequestHandler> {
+export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport): Record<'orders' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear', RequestHandler> {
   return {
     orders: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof ordersQuerySchema>;
@@ -43,6 +44,10 @@ export function makeReportsControllers(orders: OrdersReport, sales: SalesReport,
     dcrCoverage: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof dcrCoverageQuerySchema>;
       sendSuccess(req, res, await dcr.coverage({ userId: q.userId, month: q.month }), 'Doctor coverage for the month.', 200);
+    }),
+    salaryYear: asyncHandler(async (req, res) => {
+      const q = req.query as unknown as z.output<typeof salaryYearQuerySchema>;
+      sendSuccess(req, res, await salary.year({ year: q.year }), 'Salary for the financial year.', 200);
     }),
     order: asyncHandler(async (req, res) => {
       sendSuccess(req, res, await orders.detail(requiredParam(req.params, 'id')), 'The order.', 200);
