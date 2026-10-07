@@ -10,7 +10,7 @@ import { AppError } from '@/shared/errors/AppError.js';
  * lives in the shared contracts package instead.
  */
 export function requireRole(...roles: RoleName[]): RequestHandler {
-  return (req, _res, next) => {
+  const handler: RequestHandler = (req, _res, next) => {
     if (!req.user) {
       next(AppError.unauthenticated());
       return;
@@ -21,4 +21,6 @@ export function requireRole(...roles: RoleName[]): RequestHandler {
     }
     next();
   };
+  // Carried on the handler so the role-by-route test can read who each route lets in.
+  return Object.assign(handler, { allowedRoles: roles });
 }

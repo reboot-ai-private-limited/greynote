@@ -10,7 +10,7 @@ import { verifyAccessToken } from './jwt.util.js';
  * handler might forget to check.
  */
 export function authenticate(): RequestHandler {
-  return (req, _res, next) => {
+  const handler: RequestHandler = (req, _res, next) => {
     const header = req.headers.authorization;
     const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : undefined;
 
@@ -22,4 +22,6 @@ export function authenticate(): RequestHandler {
     req.user = verifyAccessToken(token);
     next();
   };
+  // Carried on the handler so the role-by-route test can tell a signed-in route from a public one.
+  return Object.assign(handler, { authenticates: true });
 }
