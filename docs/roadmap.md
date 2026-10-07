@@ -797,3 +797,10 @@ Open for the owner: see sign-off K20–K25.
 
 **Settings for the absent-day rule (2026-10-06):** `ABSENT_DEDUCTS_SALARY` (default on) and `STRIKE_DEDUCTS_SALARY` (default off), both Payroll group, Admin-editable. With the first off, no absent day is deducted; with the second on, a strike day is deducted like an absent one. Build plan: (1) the two settings; (2) `attendance` module: one pure `classifyDay` function (tested table of cases) + a month builder over HR, Planning, Field Activity and Identity contracts; (3) the per-employee and payroll calendars; (4) Payroll reads `attendance.countDeductibleDays(userId, month)`, stores `absentDays` and `absentDeductionPaise` on the run (older runs read 0), caps unpaid-leave plus absent days at 30, and shows both on the payroll screen and the salary slip; (5) the payroll screen lists each employee's absent days before generating, linking to their calendar so HR can convert a real absence into leave first.
 
+---
+
+## Step 5e — Reports (plan, 2026-10-07)
+
+Owner's decisions (sign-off K21, K24, K27–K29): **Admin only**; every report is **the financial year in view, by month**; `DONE` orders only, in the month marked Done; four reports — **Sales**, **Stock**, **TA/DA**, **DCR** — CSV export; the DCR report counts calls only; no flag for unusual claims; the Sales report opens with a **grouped bar chart of the year** (primary bar and secondary bar for each month).
+
+New read-only `reports` module (top tier, writes nothing; reads Sales, Field Activity, Field Master Data, Territory, Identity, Marketing and Config through their public contracts). Build order: (1) module, shared filter bar (financial year in view, zone/HQ, team/MR, product/division), CSV helper; (2) Sales and Stock reports with the chart; (3) TA/DA report; (4) DCR report. The chart is a small hand-drawn SVG component in the web (no chart library is installed): grouped bars, ₹ with a quantity switch, values in lakh/crore, a table of the same numbers under it, future months left empty.
