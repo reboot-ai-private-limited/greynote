@@ -27,3 +27,8 @@ Added to the modules below for it: Sales `listOrders` and `getOrder` (contract),
 ## Not built yet
 
 The Sales report and its primary/secondary bar chart (K29), the Stock report, TA/DA, DCR and Salary (K30).
+
+## Sample data for development
+
+`pnpm --filter @greynote/api seed:sample-sales` (dry run) / `-- --apply` / `-- --remove` fills a **development** database with clearly-labelled sample sales data: three distributors and four chemists (names start with "SAMPLE"), three new products with prices beside the existing one, orders for the financial year so far (mostly Done, some Placed, a few Cancelled; remarks "SAMPLE DATA") and the monthly stock counts that follow from the Done orders, with one distributor's last ended month left without counts to show a gap. It refuses to run in production and does nothing if the samples are already there. Added 2026-10-07 to give the Orders page and the reports something to show.
+
