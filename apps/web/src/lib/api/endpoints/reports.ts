@@ -1,4 +1,4 @@
-import type { OrdersReportDto, ReportOrderDetailDto, SalesStatementDto, SalesYearReportDto, StockReportDto } from '@greynote/contracts';
+import type { OrdersReportDto, ReportOrderDetailDto, SalesStatementDto, SalesYearReportDto, StockReportDto, TaDaDaysDto, TaDaYearReportDto } from '@greynote/contracts';
 import { request } from '../client';
 
 export interface OrdersReportQuery {
@@ -21,4 +21,9 @@ export const reportsApi = {
   salesStatement: (token: string, query: { month: string; distributorId?: string | undefined; productId?: string | undefined }, signal?: AbortSignal) =>
     request<SalesStatementDto>('/reports/sales/statement', { token, query: { ...query }, signal }),
   stock: (token: string, query: { month: string }, signal?: AbortSignal) => request<StockReportDto>('/reports/stock', { token, query: { ...query }, signal }),
+
+  /** Accepted TA, DA and reimbursements by month and employee for a financial year (the year it starts in). */
+  taDaYear: (token: string, query: { year: number }, signal?: AbortSignal) => request<TaDaYearReportDto>('/reports/ta-da', { token, query: { ...query }, signal }),
+  /** One employee's accepted expenses in a month, day by day. */
+  taDaDays: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<TaDaDaysDto>('/reports/ta-da/days', { token, query: { ...query }, signal }),
 };
