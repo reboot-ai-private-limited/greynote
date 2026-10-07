@@ -18,7 +18,7 @@ Last updated 2026-10-07. Day counts are estimates for one experienced developer.
 | Screens built | Splash, Login, Device Status, 4-tab shell (Home / Docs / Reports / Team — placeholders) |
 | Login | **Connected** to `POST /api/identity/auth/login`; tokens kept in secure storage; device-approval refusals route to Device Status |
 | Stage 0 | **Done 2026-10-07:** session restore on launch, authenticated API client with single-flight token refresh, logout + Profile screen, `/auth/me` load, signed-out redirect, tablet-ready layout (centred max-width, all orientations, `useResponsive`) |
-| Stage 1 | **Built 2026-10-07:** `src/offline/` — SQLite store (memory on web), outbox, pull / push / draft backup / restore against `/sync/*`, on-device geofence (matches the server on 20,000 random cases), connectivity hook, offline banner, sync chip on Home. **Not yet run against a real phone and database.** |
+| Stage 1 | **Built and phone-tested 2026-10-07 (pull, push refusal, offline banner, backup, cold restart; the SYNCED push path still needs an employee with a route):** `src/offline/` — SQLite store (memory on web), outbox, pull / push / draft backup / restore against `/sync/*`, on-device geofence (matches the server on 20,000 random cases), connectivity hook, offline banner, sync chip on Home. |
 | Not done | `isManager` flag, designation name, every Home / Docs / Reports / Team screen, the offline store and sync |
 | Backend | Complete for all modules (Phases 0–8 of the roadmap); the gaps the app needs are listed in §7 |
 

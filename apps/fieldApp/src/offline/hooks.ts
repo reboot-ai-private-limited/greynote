@@ -40,7 +40,8 @@ export function useSyncStatus() {
  */
 export function useAutoSync() {
   const user = useSessionUser();
-  const signedIn = !!user;
+  // The /sync endpoints are FIELD-only; the other roles use the web portal and would get a 403.
+  const signedIn = user?.role === 'FIELD';
 
   useEffect(() => {
     const stopWatch = startConnectivityWatch();
