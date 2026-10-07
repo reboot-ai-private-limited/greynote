@@ -20,9 +20,6 @@ export default function HomeScreen() {
           <ThemedText type="smallBold">Hello, {user.name || 'there'}</ThemedText>
           <SyncChip />
           <PrimaryButton label="Profile & logout" variant="text" onPress={() => router.push('/profile')} />
-          {__DEV__ ? (
-            <PrimaryButton label="Dev: sync test" variant="text" onPress={() => router.push('/dev-sync')} />
-          ) : null}
         </>
       }
       upcoming={[
