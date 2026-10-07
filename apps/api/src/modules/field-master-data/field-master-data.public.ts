@@ -44,6 +44,15 @@ export interface FieldMasterDataPublicContract {
   getProduct(productId: string): Promise<Product | null>;
   getDistributor(distributorId: string): Promise<Distributor | null>;
   /**
+   * Names for a batch of Distributors, Chemists and Products in three queries — what a report needs to put words on ids. A product also carries the
+   * prices a report values stock with. An id that is not there is left out.
+   */
+  listNames(query: { distributorIds?: string[]; chemistIds?: string[]; productIds?: string[] }): Promise<{
+    distributors: Array<{ id: string; name: string }>;
+    chemists: Array<{ id: string; name: string }>;
+    products: Array<{ id: string; name: string; sku: string; division: string | null; ptsPaise: number | null; ptrPaise: number | null; mrpPaise: number | null }>;
+  }>;
+  /**
    * Gates Order and MonthlyStock creation: the Distributor is active and the user is its assigned
    * MR, or covers its Route. A manager's access is the caller's to resolve through the reporting
    * chain, not here.

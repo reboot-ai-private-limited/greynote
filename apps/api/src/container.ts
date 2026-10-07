@@ -9,6 +9,7 @@ import { buildIdentityContainer } from '@/modules/identity/identity.container.js
 import { buildMarketingContainer } from '@/modules/marketing/marketing.container.js';
 import { buildPayrollContainer } from '@/modules/payroll/payroll.container.js';
 import { buildPlanningContainer } from '@/modules/planning/planning.container.js';
+import { buildReportsContainer } from '@/modules/reports/reports.container.js';
 import { buildSalesContainer } from '@/modules/sales/sales.container.js';
 import { buildSyncContainer } from '@/modules/sync/sync.container.js';
 import { registerCompositionSyncSources } from './syncSources.js';
@@ -29,6 +30,7 @@ export interface AppContainers {
   marketing: ReturnType<typeof buildMarketingContainer>;
   payroll: ReturnType<typeof buildPayrollContainer>;
   attendance: ReturnType<typeof buildAttendanceContainer>;
+  reports: ReturnType<typeof buildReportsContainer>;
 }
 
 /**
@@ -88,9 +90,12 @@ export function buildContainers(): AppContainers {
   // HR sits below Payroll, so it asks through a port: once a month's salary is finalized, that employee's leave in the month is locked.
   hr.bindPayrollLock((userId, month) => payroll.contract.isMonthFinalized(userId, month));
 
+  // Tier 7 — Reports: read-only reports for the Admin, over Sales, Field Master Data and Identity. Owns no data.
+  const reports = buildReportsContainer(identity.contract, fieldMasterData.contract, sales.contract);
+
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
-  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance };
+  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance, reports };
 }

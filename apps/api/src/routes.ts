@@ -23,6 +23,7 @@ export function buildApiRouter(containers: AppContainers): Router {
   router.use('/marketing', containers.marketing.buildRouter());
   router.use('/payroll', containers.payroll.buildRouter());
   router.use('/attendance', containers.attendance.buildRouter());
+  router.use('/reports', containers.reports.buildRouter());
   router.use('/sales', containers.sales.buildRouter());
 
   return router;

@@ -178,3 +178,9 @@ export function leaveYearRange(year: number, startMonth: number): { from: string
   const from = formatCalendarDate({ year, month: startMonth, day: 1 });
   return { from, to: addDays(formatCalendarDate({ year: year + 1, month: startMonth, day: 1 }), -1) };
 }
+
+/** The first and last day of a month (`YYYY-MM`), as dates. */
+export function monthRange(month: string): { from: string; to: string } {
+  const { year, month: m } = parseCalendarMonth(month);
+  return { from: formatCalendarDate({ year, month: m, day: 1 }), to: formatCalendarDate({ year, month: m, day: daysInMonth(year, m) }) };
+}

@@ -50,6 +50,9 @@ export class FakeProducts implements ProductRepositoryPort {
   async findById(id: string) {
     return this.rows.find((p) => p.id === id) ?? null;
   }
+  async findByIds(ids: string[]) {
+    return this.rows.filter((r) => ids.includes(r.id));
+  }
   async create(input: Omit<Product, 'id'>) {
     if (this.taken(input.sku)) return null;
     const row = { ...input, id: `product-${this.rows.length + 1}` };
@@ -84,6 +87,9 @@ export class FakeChemists implements ChemistRepositoryPort {
   }
   async findById(id: string) {
     return this.rows.find((c) => c.id === id) ?? null;
+  }
+  async findByIds(ids: string[]) {
+    return this.rows.filter((r) => ids.includes(r.id));
   }
   async create(input: Omit<Chemist, 'id'>) {
     const row = { ...input, id: `chemist-${this.rows.length + 1}` };
@@ -372,6 +378,9 @@ export class FakeDistributors implements DistributorRepositoryPort {
   }
   async findById(id: string) {
     return this.rows.find((d) => d.id === id) ?? null;
+  }
+  async findByIds(ids: string[]) {
+    return this.rows.filter((r) => ids.includes(r.id));
   }
   async create(input: Omit<Distributor, 'id'>) {
     const row = { ...input, id: `distributor-${this.rows.length + 1}` };

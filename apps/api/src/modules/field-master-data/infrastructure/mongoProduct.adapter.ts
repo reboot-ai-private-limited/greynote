@@ -41,6 +41,12 @@ export class MongoProductAdapter implements ProductRepositoryPort {
     return (await ProductModel.find({ status: 'active' }).sort({ name: 1, _id: 1 }).lean()).map(toProduct);
   }
 
+  async findByIds(ids: string[]): Promise<Product[]> {
+    const valid = [...new Set(ids)].filter((id) => Types.ObjectId.isValid(id));
+    if (valid.length === 0) return [];
+    return (await ProductModel.find({ _id: { $in: valid.map((id) => new Types.ObjectId(id)) } }).lean()).map(toProduct);
+  }
+
   async findById(id: string): Promise<Product | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const doc = await ProductModel.findById(id).lean();

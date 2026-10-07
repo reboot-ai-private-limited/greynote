@@ -43,6 +43,7 @@ const SCOPED = [
   '/api/payroll',
   '/api/attendance/month',
   '/api/attendance/payroll-calendar',
+  '/api/reports/orders',
   '/api/approvals/inbox',
   '/api/approvals/all',
   '/api/approvals/team',
@@ -57,6 +58,7 @@ const BY_ID = [
   '/api/planning/monthly/:id',
   '/api/hr/leaves/:id',
   '/api/sales/orders/:id',
+  '/api/reports/orders/:id',
   '/api/payroll/:id',
   '/api/approvals/:id',
 ];

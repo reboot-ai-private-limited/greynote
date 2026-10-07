@@ -155,6 +155,14 @@ export function buildFieldMasterDataContainer(
         return items.map(({ assignedUserId: _assignedUserId, ...doctor }) => doctor);
       },
       getDistributor: (id) => distributors.findById(id),
+      listNames: async (q) => {
+        const [ds, cs, ps] = await Promise.all([distributors.findByIds(q.distributorIds ?? []), chemists.findByIds(q.chemistIds ?? []), products.findByIds(q.productIds ?? [])]);
+        return {
+          distributors: ds.map((d) => ({ id: d.id, name: d.name })),
+          chemists: cs.map((c) => ({ id: c.id, name: c.name })),
+          products: ps.map((p) => ({ id: p.id, name: p.name, sku: p.sku, division: p.division, ptsPaise: p.ptsPaise, ptrPaise: p.ptrPaise, mrpPaise: p.mrpPaise })),
+        };
+      },
       canActOnDistributor: async (userId, distributorId) => {
         const distributor = await distributors.findById(distributorId);
         if (!distributor || distributor.status !== 'active') return false;

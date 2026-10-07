@@ -64,6 +64,12 @@ export class MongoDistributorAdapter implements DistributorRepositoryPort {
     return docs.map(toDistributor);
   }
 
+  async findByIds(ids: string[]): Promise<Distributor[]> {
+    const valid = [...new Set(ids)].filter((id) => Types.ObjectId.isValid(id));
+    if (valid.length === 0) return [];
+    return (await DistributorModel.find({ _id: { $in: valid.map((id) => new Types.ObjectId(id)) } }).lean()).map(toDistributor);
+  }
+
   async findById(id: string): Promise<Distributor | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const doc = await DistributorModel.findById(id).lean();

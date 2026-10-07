@@ -24,7 +24,8 @@ const MODULE_TIERS = [
     ['field-master-data', 'planning', 'hr'],           // Tier 3
     ['field-activity', 'sales'],                       // Tier 4
     ['attendance'],                                    // Tier 5 — day-by-day status; owns no data
-    ['marketing', 'payroll'],                          // Tier 6 — top of the graph
+    ['marketing', 'payroll'],                          // Tier 6
+    ['reports'],                                       // Tier 7 — read-only reports; top of the graph
 ];
 ```
 

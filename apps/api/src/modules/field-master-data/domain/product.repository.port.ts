@@ -11,6 +11,8 @@ export interface ProductFilter extends PageQuery {
 export interface ProductRepositoryPort {
   list(filter: ProductFilter): Promise<PaginatedResult<Product>>;
   findById(id: string): Promise<Product | null>;
+  /** Batched; an id that is not there is skipped. */
+  findByIds(ids: string[]): Promise<Product[]>;
   /** The whole active catalog — the phone's cache. */
   listActive(): Promise<Product[]>;
   /** `null` if the SKU is taken. */
