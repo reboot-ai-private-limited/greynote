@@ -1,3 +1,4 @@
+import type { Href } from 'expo-router';
 import type { SymbolViewProps } from 'expo-symbols';
 
 /**
@@ -27,6 +28,8 @@ export type Feature = {
   gate: Gate;
   stage: number;
   icon: SymbolViewProps['name'];
+  /** The real screen, once built; until then the tile opens the placeholder. */
+  route?: Href;
   /** One line shown on the placeholder screen. */
   about: string;
 };
@@ -35,8 +38,8 @@ const icon = (ios: string, android: string): SymbolViewProps['name'] =>
   ({ ios, android, web: android }) as SymbolViewProps['name'];
 
 export const FEATURES: Feature[] = [
-  { key: 'daily-plan', title: 'Daily Plan', section: 'DCR', gate: 'unblocked', stage: 3, icon: icon('calendar', 'today'), about: 'Pick the day’s working type, who you work with and your routes, then submit for approval.' },
-  { key: 'monthly-plan', title: 'Monthly Plan', section: 'DCR', gate: 'unblocked', stage: 3, icon: icon('calendar.badge.clock', 'calendar_month'), about: 'Plan next month day by day before the cutoff.' },
+  { key: 'daily-plan', title: 'Daily Plan', section: 'DCR', gate: 'unblocked', stage: 3, route: '/daily-plan', icon: icon('calendar', 'today'), about: 'Pick the day’s working type, who you work with and your routes, then submit for approval.' },
+  { key: 'monthly-plan', title: 'Monthly Plan', section: 'DCR', gate: 'unblocked', stage: 3, route: '/monthly-plan', icon: icon('calendar.badge.clock', 'calendar_month'), about: 'Plan next month day by day before the cutoff.' },
   { key: 'dr-call', title: 'Dr Call', section: 'DCR', gate: 'plan', stage: 4, icon: icon('stethoscope', 'medical_services'), about: 'Log a visit to a doctor, with samples given. Your location is checked against the doctor’s.' },
   { key: 'dr-followup', title: 'Dr Followup', section: 'DCR', gate: 'plan', stage: 4, icon: icon('text.bubble', 'chat'), about: 'Add a follow-up note on a doctor.' },
   { key: 'chemist-call', title: 'Chemist Call', section: 'DCR', gate: 'plan', stage: 4, icon: icon('cross.case', 'local_pharmacy'), about: 'Log a visit to a chemist. Your location is checked against the chemist’s.' },

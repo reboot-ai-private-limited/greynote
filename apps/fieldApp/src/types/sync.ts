@@ -15,7 +15,31 @@ export type PlanStatus =
 export type PlanningSnapshot = {
   /** Today's date in the business timezone, as of the pull. */
   today: string;
-  dailyPlans: { id: string; planDate: string; status: PlanStatus; submitDeadline: string }[];
+  dailyPlans: {
+    id: string;
+    planDate: string;
+    workingType: 'FIELD_WORK' | 'MEETING' | 'CONFERENCE' | 'STRIKE';
+    workWith: string[];
+    routeIds: string[];
+    remarks: string | null;
+    status: PlanStatus;
+    approvalRequestId: string | null;
+    submitDeadline: string;
+  }[];
+  monthlyPlans: {
+    id: string;
+    planMonth: string;
+    entries: {
+      planDate: string;
+      workingType: 'FIELD_WORK' | 'MEETING' | 'CONFERENCE' | 'STRIKE';
+      workWith: string[];
+      routeIds: string[];
+      remarks: string | null;
+    }[];
+    status: PlanStatus;
+    approvalRequestId: string | null;
+    submitDeadline: string;
+  }[];
 };
 
 export type FieldActivitySnapshot = {
@@ -25,3 +49,15 @@ export type FieldActivitySnapshot = {
 };
 
 export type ConfigSnapshot = { settings: Record<string, string> };
+
+export type TerritorySnapshot = {
+  routes: {
+    id: string;
+    name: string;
+    hqId: string;
+    hqName: string;
+    routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION';
+    distanceKm: string | null;
+  }[];
+  hq: { hqId: string; hqName: string; zoneId: string; zoneName: string } | null;
+};

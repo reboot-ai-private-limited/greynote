@@ -61,7 +61,7 @@ export function TodayCard() {
       {needsPlan ? (
         <PrimaryButton
           label="Go to Daily Plan"
-          onPress={() => router.push({ pathname: '/feature/[key]', params: { key: 'daily-plan' } })}
+          onPress={() => router.push('/daily-plan')}
         />
       ) : null}
     </ThemedView>

@@ -379,6 +379,19 @@ export function runSync(): Promise<void> {
   return running;
 }
 
+/**
+ * A pull right now. Unlike runSync it never joins a background sync already in flight — that one may
+ * have started before the change the caller just made, and would hand back the old state.
+ */
+export async function refreshNow(): Promise<void> {
+  if (!isOnline()) return;
+  try {
+    await pull();
+  } catch (err) {
+    setStatus({ lastError: message(err) });
+  }
+}
+
 export async function resetOfflineData(): Promise<void> {
   await store.clearAll();
   status = { syncing: false, lastPullAt: null, lastBackupAt: null, lastError: null };

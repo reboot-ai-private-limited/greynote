@@ -68,3 +68,86 @@ export function computeDayGate(input: {
   }
   return { state: 'closed', reason: PLAN_REASON[status ?? 'NONE'], planStatus: status };
 }
+
+/* ───────────────────────────── calendar helpers (YYYY-MM-DD, no time zones) ───────────────────────────── */
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const parts = (iso: string) => iso.split('-').map(Number) as [number, number, number];
+const fromParts = (y: number, m: number, d: number) => `${y}-${pad(m)}-${pad(d)}`;
+
+export function addDays(iso: string, days: number): string {
+  const [y, m, d] = parts(iso);
+  const date = new Date(Date.UTC(y, m - 1, d + days));
+  return fromParts(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+}
+
+/** 0 = Sunday … 6 = Saturday. */
+export function weekdayOf(iso: string): number {
+  const [y, m, d] = parts(iso);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+export const monthOf = (iso: string) => iso.slice(0, 7);
+
+export function addMonths(month: string, n: number): string {
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  const total = y * 12 + (m - 1) + n;
+  return `${Math.floor(total / 12)}-${pad((total % 12) + 1)}`;
+}
+
+export function datesInMonth(month: string): string[] {
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  const count = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return Array.from({ length: count }, (_, i) => fromParts(y, m, i + 1));
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export const weekdayName = (iso: string) => WEEKDAYS[weekdayOf(iso)]!;
+
+/** "Wed 7 Oct". */
+export function prettyDay(iso: string): string {
+  const [, m, d] = parts(iso);
+  return `${weekdayName(iso)} ${d} ${MONTHS[m - 1]}`;
+}
+
+/** "October 2026". */
+export function prettyMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  return `${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][m - 1]} ${y}`;
+}
+
+/** The weekly off day setting ("SUNDAY", "Sunday"…) as a weekday number, or null if unset. */
+export function weeklyOffIndex(setting: string | null | undefined): number | null {
+  if (!setting) return null;
+  const i = WEEKDAYS.findIndex((w) => setting.toLowerCase().startsWith(w.toLowerCase()));
+  return i === -1 ? null : i;
+}
+
+/** The current wall-clock time ("HH:mm") in the business timezone. */
+export function businessNowHHmm(timeZone: string | null | undefined, now: Date = new Date()): string {
+  try {
+    if (timeZone) {
+      const t = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
+      if (/^\d{2}:\d{2}$/.test(t)) return t;
+    }
+  } catch {
+    // fall through to the phone's own time
+  }
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+/** Whether a Daily Plan's own submit deadline (cutoff time on its date) has already passed. A UX hint; the server decides. */
+export function dailyDeadlinePassed(planDate: string, today: string, nowHHmm: string, cutoffHHmm: string): boolean {
+  if (planDate < today) return true;
+  return planDate === today && nowHHmm > cutoffHHmm;
+}
+
+/** Whether a Monthly Plan's deadline (end of the cutoff day in the month before) has passed. A UX hint. */
+export function monthlyDeadlinePassed(planMonth: string, today: string, cutoffDay: number): boolean {
+  const before = addMonths(planMonth, -1);
+  const lastDay = datesInMonth(before).length;
+  const deadlineDay = Math.min(Math.max(cutoffDay, 1), lastDay);
+  return today > fromParts(Number(before.slice(0, 4)), Number(before.slice(5)), deadlineDay);
+}

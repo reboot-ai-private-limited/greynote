@@ -40,6 +40,7 @@ export default function HomeScreen() {
   function open(feature: Feature) {
     // The Resources tile is the Docs tab itself.
     if (feature.key === 'documents') router.navigate('/docs');
+    else if (feature.route) router.push(feature.route);
     else router.push({ pathname: '/feature/[key]', params: { key: feature.key } });
   }
 
