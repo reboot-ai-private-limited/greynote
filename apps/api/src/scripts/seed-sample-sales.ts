@@ -65,7 +65,14 @@ async function main(): Promise<void> {
     const dIds = sampleDistributors.map((d) => d._id);
     const cIds = sampleChemists.map((c) => c._id);
     const expenseDcrIds = await db.collection('expenses').distinct('dcrId', { remarks: TAG });
+    const sampleDoctors = await db.collection('doctors').find({ name: { $regex: `^${PREFIX}` } }).toArray();
     const out = {
+      approvals: (await db.collection('approvalrequests').deleteMany({ kind: 'DCR', recordId: { $in: expenseDcrIds.map(String) } })).deletedCount,
+      doctorCalls: (await db.collection('doctorcalls').deleteMany({ dcrId: { $in: expenseDcrIds } })).deletedCount,
+      chemistCalls: (await db.collection('chemistcalls').deleteMany({ dcrId: { $in: expenseDcrIds } })).deletedCount,
+      followups: (await db.collection('followups').deleteMany({ dcrId: { $in: expenseDcrIds } })).deletedCount,
+      doctorAssignments: (await db.collection('doctorassignments').deleteMany({ doctorId: { $in: sampleDoctors.map((d) => d._id) } })).deletedCount,
+      doctors: (await db.collection('doctors').deleteMany({ _id: { $in: sampleDoctors.map((d) => d._id) } })).deletedCount,
       expenses: (await db.collection('expenses').deleteMany({ remarks: TAG })).deletedCount,
       dailyReports: (await db.collection('dcrs').deleteMany({ _id: { $in: expenseDcrIds } })).deletedCount,
       orders: (await db.collection('orders').deleteMany({ remarks: TAG })).deletedCount,
@@ -251,7 +258,73 @@ async function main(): Promise<void> {
     }
   }
 
-  const plan = { products: newProducts.length, distributors: distributors.length, chemists: chemists.length, orders: orders.length, stockCounts: stock.length, expenses: expenseDocs.length, dailyReports: dcrDocs.length, months: months.length };
+  // Doctors, calls, follow-ups and approvals for those daily reports. Each MR has twelve sample doctors (two spend most visits on a few; a couple are
+  // almost never called on, so the coverage report has something to show). Most reports are approved, the last few days are only submitted, a few are
+  // still drafts or were rejected, and about one in ten was submitted the day after.
+  const SPECIALITIES = ['General Physician', 'Cardiology', 'ENT', 'Paediatrics', 'Gynaecology', 'Orthopaedics'];
+  const doctorDocs: Array<Record<string, unknown> & { _id: mongoose.Types.ObjectId; mr: { _id: unknown } }> = [];
+  const doctorsOf = new Map<string, mongoose.Types.ObjectId[]>();
+  for (let mi = 0; mi < 3; mi++) {
+    const mr = mrFor(mi);
+    const mine: mongoose.Types.ObjectId[] = [];
+    for (let k = 0; k < 12; k++) {
+      const _id = new mongoose.Types.ObjectId();
+      mine.push(_id);
+      doctorDocs.push({ _id, mr, routeId: route['_id'], name: `${PREFIX}Dr ${['Sen', 'Ali', 'Bose', 'Roy', 'Das', 'Gupta', 'Khan', 'Paul', 'Rai', 'Thapa', 'Ghosh', 'Mitra'][k]} ${mi + 1}`, address: 'Siliguri', email: null, specialty: SPECIALITIES[(k + mi) % SPECIALITIES.length]!, qualification: 'MBBS', latitude: null, longitude: null, capturedLatitude: null, capturedLongitude: null, status: 'active', addedBy: mr['_id'], clientRequestId: null, approvedAt: at('2026-04-01', 10) });
+    }
+    doctorsOf.set(String(mr['_id']), mine);
+  }
+  const doctorCallDocs: Array<Record<string, unknown>> = [];
+  const chemistCallDocs: Array<Record<string, unknown>> = [];
+  const followupDocs: Array<Record<string, unknown>> = [];
+  const approvalDocs: Array<Record<string, unknown>> = [];
+  const geofence = () => {
+    const r = rnd();
+    return r < 0.9 ? 'PASS' : r < 0.94 ? 'UNVERIFIED' : r < 0.98 ? 'FAIL' : 'OVERRIDE';
+  };
+  let seq = 0;
+  const callBase = (dcr: Record<string, unknown>, status: string) => ({ dcrId: dcr['_id'], userId: dcr['userId'], reportDate: dcr['reportDate'], workingType: 'FIELD_WORK', workWith: [], remarks: null, capturedLatitude: null, capturedLongitude: null, accuracyMeters: null, geofenceStatus: status, geofenceDistanceMeters: null, geofenceReason: status === 'UNVERIFIED' ? 'NO_GPS_READING' : null, geofenceOverriddenBy: null, geofenceOverriddenAt: null, geofenceOverrideComment: null, clientId: `sample-${++seq}`, recordedAt: dcr['createdAt'] });
+  const recentCutoff = new Date(`${today}T00:00:00Z`).getTime() - 3 * 86_400_000;
+  for (const dcr of dcrDocs) {
+    const date = String(dcr['reportDate']);
+    const userKey = String(dcr['userId']);
+    const mine = doctorsOf.get(userKey)!;
+    // Calls: four to seven of this MR's doctors; the last two are rarely chosen.
+    const pool = mine.slice(0, 10);
+    const visits = 4 + Math.floor(rnd() * 4);
+    const chosen = new Set<number>();
+    while (chosen.size < visits) chosen.add(Math.floor(rnd() * pool.length));
+    if (rnd() < 0.03) chosen.add(10 + Math.floor(rnd() * 2));
+    for (const i of chosen) doctorCallDocs.push({ ...callBase(dcr, geofence()), doctorId: (i < 10 ? pool[i] : mine[i])!, samples: [] });
+    const chemistCount = 1 + Math.floor(rnd() * 3);
+    for (let c = 0; c < chemistCount; c++) chemistCallDocs.push({ ...callBase(dcr, geofence()), chemistId: chemists[(c + Number(String(dcr['reportDate']).slice(8))) % chemists.length]!._id });
+    if (rnd() < 0.15) followupDocs.push({ dcrId: dcr['_id'], userId: dcr['userId'], reportDate: dcr['reportDate'], subject: 'DOCTOR', subjectId: pool[Math.floor(rnd() * pool.length)], remarks: TAG, clientId: `sample-${++seq}`, recordedAt: dcr['createdAt'] });
+
+    // The approval: a draft (no request), rejected, submitted only, or approved; submitted that evening or the next day.
+    const roll = rnd();
+    const isRecent = new Date(`${date}T00:00:00Z`).getTime() >= recentCutoff;
+    if (!isRecent && roll < 0.05) continue; // still a draft
+    const status = isRecent ? 'SUBMITTED' : roll < 0.08 ? 'REJECTED' : 'APPROVED';
+    const lateDay = rnd() < 0.1;
+    const submittedAt = lateDay ? at(`${new Date(new Date(`${date}T00:00:00Z`).getTime() + 86_400_000).toISOString().slice(0, 10)}`, 9) : at(date, 19);
+    const decidedAt = status === 'SUBMITTED' ? null : new Date(submittedAt.getTime() + 20 * 3_600_000);
+    approvalDocs.push({
+      kind: 'DCR',
+      recordId: String(dcr['_id']),
+      submitterId: dcr['userId'],
+      status,
+      workflow: 'MANAGER_THEN_FINAL',
+      cycle: 1,
+      submittedAt,
+      decidedAt,
+      history: [
+        { action: 'SUBMIT', authority: 'SUBMITTER', actorId: dcr['userId'], actorRole: 'FIELD', comment: null, at: submittedAt, resultingStatus: 'SUBMITTED', cycle: 1 },
+        ...(status === 'SUBMITTED' ? [] : [{ action: status === 'APPROVED' ? 'APPROVE' : 'REJECT', authority: 'ADMIN_OVERRIDE', actorId: adminUser?.['_id'] ?? dcr['userId'], actorRole: 'ADMIN', comment: status === 'REJECTED' ? 'SAMPLE DATA: please correct the route' : null, at: decidedAt, resultingStatus: status, cycle: 1 }]),
+      ],
+    });
+  }
+
+  const plan = { products: newProducts.length, distributors: distributors.length, chemists: chemists.length, orders: orders.length, stockCounts: stock.length, expenses: expenseDocs.length, dailyReports: dcrDocs.length, doctors: doctorDocs.length, doctorCalls: doctorCallDocs.length, chemistCalls: chemistCallDocs.length, approvals: approvalDocs.length, months: months.length };
   logger.info({ ...plan, byMonthRupees: Object.fromEntries(Object.entries(summary).map(([m, s]) => [m, { primary: Math.round(s.primary / 100), secondary: Math.round(s.secondary / 100) }])) }, apply ? 'writing' : 'dry run — repeat with --apply to write');
   if (!apply) return;
 
@@ -262,6 +335,12 @@ async function main(): Promise<void> {
   await db.collection('monthlystocks').insertMany(stock as never[]);
   await db.collection('dcrs').insertMany(dcrDocs as never[]);
   await db.collection('expenses').insertMany(expenseDocs as never[]);
+  await db.collection('doctors').insertMany(doctorDocs.map(({ mr: _mr, ...d }) => d) as never[]);
+  await db.collection('doctorassignments').insertMany(doctorDocs.map((d) => ({ doctorId: d._id, userId: d.mr._id, status: 'active', assignedAt: at('2026-04-01', 10), assignedBy: adminUser?.['_id'] ?? d.mr._id, unassignedAt: null, unassignedBy: null })) as never[]);
+  await db.collection('doctorcalls').insertMany(doctorCallDocs as never[]);
+  await db.collection('chemistcalls').insertMany(chemistCallDocs as never[]);
+  await db.collection('followups').insertMany(followupDocs as never[]);
+  await db.collection('approvalrequests').insertMany(approvalDocs as never[]);
   logger.info(plan, 'sample data written (remove with --remove)');
 }
 
