@@ -10,4 +10,6 @@ export interface DcrRepositoryPort {
   findByUserAndDate(userId: string, reportDate: string): Promise<Dcr | null>;
   /** Both ends inclusive, newest first. */
   listForUsers(userIds: string[], from: string, to: string): Promise<Dcr[]>;
+  /** Every user's DCRs in the range (both ends inclusive), oldest first — a report's read. */
+  listRange(from: string, to: string): Promise<Dcr[]>;
 }

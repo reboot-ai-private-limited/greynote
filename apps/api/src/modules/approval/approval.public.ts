@@ -19,4 +19,6 @@ export interface ApprovalPublicContract {
   /** First submission, or a resubmission after REJECTED / WITHDRAWN / REOPENED. */
   submit(input: SubmitApprovalInput, ctx?: TransactionContext): Promise<ApprovalRequest>;
   getForRecord(kind: string, recordId: string): Promise<ApprovalRequest | null>;
+  /** The requests of one kind for a batch of records in one query — a report's read; a record with no request is left out. */
+  listForRecords(kind: string, recordIds: string[]): Promise<ApprovalRequest[]>;
 }

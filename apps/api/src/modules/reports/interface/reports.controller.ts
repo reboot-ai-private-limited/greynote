@@ -3,13 +3,14 @@ import type { z } from 'zod';
 import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
+import type { DcrReport } from '../application/dcrReport.js';
 import type { OrdersReport } from '../application/ordersReport.js';
 import type { SalesReport } from '../application/salesReport.js';
 import type { StockReport } from '../application/stockReport.js';
 import type { TaDaReport } from '../application/taDaReport.js';
-import type { ordersQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
+import type { dcrCoverageQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
-export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport): Record<'orders' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays', RequestHandler> {
+export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport): Record<'orders' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage', RequestHandler> {
   return {
     orders: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof ordersQuerySchema>;
@@ -34,6 +35,14 @@ export function makeReportsControllers(orders: OrdersReport, sales: SalesReport,
     taDaDays: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof taDaDaysQuerySchema>;
       sendSuccess(req, res, await taDa.days({ userId: q.userId, month: q.month }), 'TA and DA, day by day.', 200);
+    }),
+    dcrYear: asyncHandler(async (req, res) => {
+      const q = req.query as unknown as z.output<typeof dcrYearQuerySchema>;
+      sendSuccess(req, res, await dcr.year({ year: q.year }), 'Daily reports for the financial year.', 200);
+    }),
+    dcrCoverage: asyncHandler(async (req, res) => {
+      const q = req.query as unknown as z.output<typeof dcrCoverageQuerySchema>;
+      sendSuccess(req, res, await dcr.coverage({ userId: q.userId, month: q.month }), 'Doctor coverage for the month.', 200);
     }),
     order: asyncHandler(async (req, res) => {
       sendSuccess(req, res, await orders.detail(requiredParam(req.params, 'id')), 'The order.', 200);

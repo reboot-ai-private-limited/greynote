@@ -71,6 +71,11 @@ export class MongoApprovalRequestAdapter implements ApprovalRequestRepositoryPor
     return doc ? toRequest(doc) : null;
   }
 
+  async findByRecords(kind: string, recordIds: string[]): Promise<ApprovalRequest[]> {
+    if (recordIds.length === 0) return [];
+    return (await ApprovalRequestModel.find({ kind, recordId: { $in: recordIds } }).lean()).map(toRequest);
+  }
+
   async create(input: Omit<ApprovalRequest, 'id'>, ctx?: TransactionContext): Promise<ApprovalRequest> {
     try {
       const [doc] = await ApprovalRequestModel.create(

@@ -37,6 +37,8 @@ export interface SalesPort {
 }
 
 export interface MasterPort {
+  /** The doctors an employee covers now: those the employee is assigned and can see. */
+  listAssignedDoctors(userId: string): Promise<Array<{ id: string; name: string; specialty: string }>>;
   listActiveOutlets(): Promise<{ distributors: Array<{ id: string; name: string }>; chemists: Array<{ id: string; name: string }> }>;
   listNames(query: { distributorIds?: string[]; chemistIds?: string[]; productIds?: string[] }): Promise<{
     distributors: Array<{ id: string; name: string }>;
@@ -75,10 +77,23 @@ export interface ExpenseRecord {
 }
 
 export interface FieldActivityPort {
+  summarizeDcrs(range: { from: string; to: string }): Promise<DcrMonthRow[]>;
+  listCalledDoctorIds(userId: string, range: { from: string; to: string }): Promise<string[]>;
   summarizeExpenses(range: { from: string; to: string }): Promise<ExpenseMonthRow[]>;
   listAcceptedExpenses(filter: { from: string; to: string; userId?: string; limit?: number }): Promise<ExpenseRecord[]>;
 }
 
 export interface TerritoryPort {
   getRoute(routeId: string): Promise<{ id: string; name: string } | null>;
+}
+
+export interface DcrMonthRow {
+  userId: string;
+  month: string;
+  reportedDays: number;
+  lateDays: number;
+  doctorCalls: number;
+  chemistCalls: number;
+  followups: number;
+  geofence: { pass: number; fail: number; unverified: number; override: number };
 }

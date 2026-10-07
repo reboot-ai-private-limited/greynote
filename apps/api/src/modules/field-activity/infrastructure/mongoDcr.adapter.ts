@@ -34,6 +34,10 @@ export class MongoDcrAdapter implements DcrRepositoryPort {
     return doc ? toDcr(doc) : null;
   }
 
+  async listRange(from: string, to: string): Promise<Dcr[]> {
+    return (await DcrModel.find({ reportDate: { $gte: from, $lte: to } }).sort({ reportDate: 1, _id: 1 }).lean()).map(toDcr);
+  }
+
   async listForUsers(userIds: string[], from: string, to: string): Promise<Dcr[]> {
     if (userIds.length === 0) return [];
     const docs = await DcrModel.find({ userId: { $in: userIds.map((id) => new Types.ObjectId(id)) }, reportDate: { $gte: from, $lte: to } })

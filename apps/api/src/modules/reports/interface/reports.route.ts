@@ -5,7 +5,7 @@ import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js'
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { makeReportsControllers } from './reports.controller.js';
-import { orderIdParamsSchema, ordersQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
+import { dcrCoverageQuerySchema, dcrYearQuerySchema, orderIdParamsSchema, ordersQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
 const tags = ['Reports'];
 const security = [{ bearerAuth: [] }];
@@ -19,6 +19,9 @@ openApiRegistry.registerPath({ method: 'get', path: '/api/reports/stock', tags, 
 openApiRegistry.registerPath({ method: 'get', path: '/api/reports/ta-da', tags, summary: 'Admin: accepted TA, DA and reimbursements by month and employee for a financial year', security, request: { query: taDaYearQuerySchema }, responses: { 200: { description: 'The year' } } });
 openApiRegistry.registerPath({ method: 'get', path: '/api/reports/ta-da/days', tags, summary: 'Admin: one employee\'s accepted expenses in a month, day by day', security, request: { query: taDaDaysQuerySchema }, responses: { 200: { description: 'The days' } } });
 
+openApiRegistry.registerPath({ method: 'get', path: '/api/reports/dcr', tags, summary: 'Admin: reported days, calls, follow-ups, geofence results and late submissions by month and employee for a financial year', security, request: { query: dcrYearQuerySchema }, responses: { 200: { description: 'The year' } } });
+openApiRegistry.registerPath({ method: 'get', path: '/api/reports/dcr/coverage', tags, summary: 'Admin: the doctors assigned to an employee that they did not call on in a month', security, request: { query: dcrCoverageQuerySchema }, responses: { 200: { description: 'The coverage' } } });
+
 /** Every report is Admin only for now (sign-off K24) and read-only. */
 export function buildReportsRouter(c: ReturnType<typeof makeReportsControllers>): Router {
   const router = Router();
@@ -29,6 +32,8 @@ export function buildReportsRouter(c: ReturnType<typeof makeReportsControllers>)
   router.get('/stock', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: stockQuerySchema }), c.stock);
   router.get('/ta-da', scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: taDaYearQuerySchema }), c.taDaYear);
   router.get('/ta-da/days', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: taDaDaysQuerySchema }), c.taDaDays);
+  router.get('/dcr', scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: dcrYearQuerySchema }), c.dcrYear);
+  router.get('/dcr/coverage', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: dcrCoverageQuerySchema }), c.dcrCoverage);
   router.get('/orders/:id', validate({ params: orderIdParamsSchema }), c.order);
   return router;
 }

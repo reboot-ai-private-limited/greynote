@@ -190,3 +190,52 @@ export interface TaDaDaysDto {
   /** The list is capped; true when it may be short. */
   truncated: boolean;
 }
+
+// ── DCR (daily reports; sign-off K28: calls only) ────────────────────────────────────────────────
+
+/** What the reported days of a period came to. A day is reported once its daily report is submitted or approved. */
+export interface DcrFiguresDto {
+  reportedDays: number;
+  /** Reported days submitted after the day itself. */
+  lateDays: number;
+  doctorCalls: number;
+  chemistCalls: number;
+  followups: number;
+  /** Doctor and chemist calls together. */
+  calls: number;
+  /** Calls per reported day, one decimal; `null` with no reported day. */
+  callsPerDay: number | null;
+  /** The server's geofence result for every call. */
+  geofence: { pass: number; fail: number; unverified: number; override: number };
+  /** Calls the geofence could not confirm (failed or unverified) and nobody overrode. */
+  unconfirmed: number;
+}
+
+export interface DcrMonthDto extends DcrFiguresDto {
+  month: string;
+  state: 'ENDED' | 'OPEN' | 'FUTURE';
+  /** Employees with a reported day that month. */
+  employees: number;
+}
+
+export interface DcrMrRowDto extends DcrFiguresDto {
+  month: string;
+  mr: { id: string; name: string; employeeCode: string };
+}
+
+/** `GET /reports/dcr?year=`. */
+export interface DcrYearReportDto {
+  year: number;
+  months: DcrMonthDto[];
+  rows: DcrMrRowDto[];
+  totals: DcrFiguresDto;
+}
+
+/** `GET /reports/dcr/coverage?userId=&month=`: the doctors assigned to an employee now, and which of them they called on that month. */
+export interface DcrCoverageDto {
+  month: string;
+  mr: { id: string; name: string; employeeCode: string };
+  assigned: number;
+  visited: number;
+  notVisited: Array<{ id: string; name: string; specialty: string }>;
+}

@@ -10,7 +10,18 @@ export interface GeofenceOverride {
   comment: string;
 }
 
+/** How many calls of a day's report ended with each geofence result: a report's read. */
+export interface GeofenceCount {
+  dcrId: string;
+  status: 'PASS' | 'FAIL' | 'UNVERIFIED' | 'OVERRIDE';
+  count: number;
+}
+
 export interface DoctorCallRepositoryPort {
+  /** Per daily report and geofence result, for report days in the range (both ends inclusive). */
+  countByGeofence(range: { from: string; to: string }): Promise<GeofenceCount[]>;
+  /** The distinct Doctors called in these daily reports. */
+  distinctDoctorIds(dcrIds: string[]): Promise<string[]>;
   create(input: Omit<DoctorCall, 'id'>, ctx: TransactionContext): Promise<DoctorCall>;
   listForDcr(dcrId: string): Promise<DoctorCall[]>;
   countForDcrs(dcrIds: string[]): Promise<Map<string, number>>;
@@ -19,6 +30,7 @@ export interface DoctorCallRepositoryPort {
   overrideGeofence(id: string, override: GeofenceOverride): Promise<boolean>;
 }
 export interface ChemistCallRepositoryPort {
+  countByGeofence(range: { from: string; to: string }): Promise<GeofenceCount[]>;
   create(input: Omit<ChemistCall, 'id'>, ctx: TransactionContext): Promise<ChemistCall>;
   listForDcr(dcrId: string): Promise<ChemistCall[]>;
   countForDcrs(dcrIds: string[]): Promise<Map<string, number>>;
@@ -26,6 +38,8 @@ export interface ChemistCallRepositoryPort {
   overrideGeofence(id: string, override: GeofenceOverride): Promise<boolean>;
 }
 export interface FollowupRepositoryPort {
+  /** Per daily report, for report days in the range (both ends inclusive). */
+  countByDcrRange(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>>;
   create(input: Omit<Followup, 'id'>, ctx: TransactionContext): Promise<Followup>;
   listForDcr(dcrId: string): Promise<Followup[]>;
   countForDcrs(dcrIds: string[]): Promise<Map<string, number>>;

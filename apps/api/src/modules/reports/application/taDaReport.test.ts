@@ -9,6 +9,8 @@ function kit(summaries: ExpenseMonthRow[], expenses: ExpenseRecord[] = []) {
   const calls: Array<Record<string, unknown>> = [];
   const report = new TaDaReport(
     {
+      summarizeDcrs: async () => [],
+      listCalledDoctorIds: async () => [],
       summarizeExpenses: async (range) => (calls.push({ summarize: range }), summaries.filter((s) => s.month >= range.from.slice(0, 7) && s.month <= range.to.slice(0, 7))),
       listAcceptedExpenses: async (f) => (calls.push({ list: f }), expenses.filter((e) => e.reportDate >= f.from && e.reportDate <= f.to && (!f.userId || e.userId === f.userId))),
     },

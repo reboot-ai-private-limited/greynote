@@ -38,6 +38,8 @@ export interface ApprovalRequestRepositoryPort {
   list(filter: ApprovalListFilter, page: ApprovalListPage): Promise<{ items: ApprovalRequest[]; total: number }>;
   findById(id: string): Promise<ApprovalRequest | null>;
   findByRecord(kind: string, recordId: string): Promise<ApprovalRequest | null>;
+  /** The requests of one kind for these records, in one query; a record with no request is simply absent. */
+  findByRecords(kind: string, recordIds: string[]): Promise<ApprovalRequest[]>;
   /** Throws a 409 if a request for this (kind, recordId) already exists. */
   create(input: Omit<ApprovalRequest, 'id'>, ctx?: TransactionContext): Promise<ApprovalRequest>;
   /**

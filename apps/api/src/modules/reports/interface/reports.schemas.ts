@@ -16,3 +16,5 @@ export const salesStatementQuerySchema = z.object({ month: monthSchema, distribu
 export const stockQuerySchema = z.object({ month: monthSchema });
 export const taDaYearQuerySchema = z.object({ year: z.coerce.number().int().min(2000).max(2100) });
 export const taDaDaysQuerySchema = z.object({ userId: objectId, month: monthSchema });
+export const dcrYearQuerySchema = z.object({ year: z.coerce.number().int().min(2000).max(2100) });
+export const dcrCoverageQuerySchema = z.object({ userId: objectId, month: monthSchema });

@@ -1,5 +1,6 @@
 import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
+import { DcrReport } from './application/dcrReport.js';
 import { OrdersReport } from './application/ordersReport.js';
 import { SalesReport } from './application/salesReport.js';
 import { StockReport } from './application/stockReport.js';
@@ -22,5 +23,6 @@ export function buildReportsContainer(identity: IdentityPort, master: MasterPort
   const salesReport = new SalesReport(sales, master, config);
   const stockReport = new StockReport(sales, master);
   const taDaReport = new TaDaReport(fieldActivity, territory, identity, config);
-  return { buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport)) };
+  const dcrReport = new DcrReport(fieldActivity, master, identity, config);
+  return { buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport, dcrReport)) };
 }

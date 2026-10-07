@@ -17,6 +17,7 @@ import { ListExpensePayoutsUseCase, PayMonthExpensesUseCase } from './applicatio
 import { GetPaidTaDaTotalUseCase, ListExpensesUseCase, MarkExpensePaidUseCase } from './application/usecases/accountantExpenses.usecase.js';
 import { RunMissedDcrCheckUseCase } from './application/usecases/runMissedDcrCheck.usecase.js';
 import type { LeavePort } from './domain/leave.port.js';
+import { ListCalledDoctorsUseCase, SummarizeDcrsUseCase } from './application/usecases/dcrReports.usecase.js';
 import { GetDcrSummaryUseCase } from './application/usecases/getDcrSummary.usecase.js';
 import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, DOCTOR_SERVICE_KIND, GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './application/usecases/servicesAndGifts.usecase.js';
 import { GeofenceEvaluator } from './application/geofenceEvaluator.js';
@@ -97,6 +98,8 @@ export function buildFieldActivityContainer(
   const submitDcr = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config);
   const hasQualifyingDcr = new HasQualifyingDcrUseCase(dcrs, approvals);
   const listReportedDates = new ListReportedDatesUseCase(dcrs, approvals);
+  const summarizeDcrs = new SummarizeDcrsUseCase(dcrs, approvals, doctorCalls, chemistCalls, followups, clock);
+  const listCalledDoctors = new ListCalledDoctorsUseCase(dcrs, approvals, doctorCalls);
   const paidTaDa = new GetPaidTaDaTotalUseCase(expenses, clock);
   const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
 
@@ -145,6 +148,8 @@ export function buildFieldActivityContainer(
       listReportedDates: (userId, from, to) => listReportedDates.execute(userId, from, to),
       getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),
       summarizeExpenses: (range) => expenses.summarizeByMonth(range),
+      summarizeDcrs: (range) => summarizeDcrs.execute(range),
+      listCalledDoctorIds: (userId, range) => listCalledDoctors.execute(userId, range),
       listAcceptedExpenses: (f) => expenses.listAccepted({ from: f.from, to: f.to, ...(f.userId && { userId: f.userId }) }, f.limit ?? 2000),
       getDcrSummary: (userId, range) => dcrSummary.execute(userId, range),
     },

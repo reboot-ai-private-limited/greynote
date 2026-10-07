@@ -1,9 +1,11 @@
 import type { Expense } from './domain/expense.entity.js';
 import type { ExpenseMonthSummary } from './domain/records.repository.port.js';
+import type { DcrMonthSummary } from './application/usecases/dcrReports.usecase.js';
 import type { DcrSummary } from './application/usecases/getDcrSummary.usecase.js';
 
 export type { Expense } from './domain/expense.entity.js';
 export type { ExpenseMonthSummary } from './domain/records.repository.port.js';
+export type { DcrMonthSummary } from './application/usecases/dcrReports.usecase.js';
 export type { DcrSummary } from './application/usecases/getDcrSummary.usecase.js';
 
 /**
@@ -30,6 +32,10 @@ export interface FieldActivityPublicContract {
   summarizeExpenses(range: { from: string; to: string }): Promise<ExpenseMonthSummary[]>;
   /** The accepted expense rows in a date range, oldest day first, at most `limit` (default 2000); optionally one employee's — the report's day-by-day drill-down. */
   listAcceptedExpenses(filter: { from: string; to: string; userId?: string; limit?: number }): Promise<Expense[]>;
+  /** Every employee's reported days, calls, follow-ups, geofence results and late submissions by month over a date range — the DCR report's input. */
+  summarizeDcrs(range: { from: string; to: string }): Promise<DcrMonthSummary[]>;
+  /** The Doctors this employee called on in their reported days of a range (both ends inclusive). */
+  listCalledDoctorIds(userId: string, range: { from: string; to: string }): Promise<string[]>;
   /** The reports' input: this user's DCRs in the range, each with its status, counts and money. */
   getDcrSummary(userId: string, range: { from: string; to: string }): Promise<DcrSummary[]>;
 }

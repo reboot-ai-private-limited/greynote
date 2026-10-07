@@ -22,6 +22,9 @@ import { SubmitApprovalUseCase } from './submitApproval.usecase.js';
 import { WithdrawApprovalUseCase } from './withdrawApproval.usecase.js';
 
 class FakeRequests implements ApprovalRequestRepositoryPort {
+  async findByRecords(kind: string, recordIds: string[]) {
+    return [...this.rows.values()].filter((r) => r.kind === kind && recordIds.includes(r.recordId));
+  }
   rows = new Map<string, ApprovalRequest>();
   async list(filter: ApprovalListFilter, page: ApprovalListPage) {
     const matches = [...this.rows.values()]

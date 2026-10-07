@@ -28,6 +28,7 @@ function kit(orderSums: OrderSumRow[], stock: StockRow[]) {
     products: [{ id: 'p1', name: 'XYZ-500', sku: 'XYZ-500', ptrPaise: 1000 }, { id: 'p2', name: 'Cetirizine', sku: 'CET', ptrPaise: 2000 }],
   };
   const master = {
+    listAssignedDoctors: async () => [],
     listActiveOutlets: async () => ({ distributors: names.distributors.filter((x) => x.id !== 'd3'), chemists: names.chemists }), // d3 is inactive
     listNames: async (q: { distributorIds?: string[]; chemistIds?: string[]; productIds?: string[] }) => ({
       distributors: names.distributors.filter((x) => (q.distributorIds ?? []).includes(x.id)),

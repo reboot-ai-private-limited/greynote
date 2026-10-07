@@ -117,6 +117,9 @@ export class FakeApprovals implements ApprovalsPort {
   registerKind(d: ApprovalKindDefinition) {
     this.kinds.set(d.kind, d);
   }
+  async listForRecords(kind: string, recordIds: string[]) {
+    return [...this.requests.values()].filter((r) => r.kind === kind && recordIds.includes(r.recordId));
+  }
   async submit(input: { kind: string; recordId: string; submitterId: string; autoApprove?: boolean }) {
     const key = `${input.kind}:${input.recordId}`;
     const existing = this.requests.get(key);
@@ -160,6 +163,9 @@ export class FakeDcrs implements DcrRepositoryPort {
   }
   async findByUserAndDate(userId: string, date: string) {
     return this.rows.find((d) => d.userId === userId && d.reportDate === date) ?? null;
+  }
+  async listRange(from: string, to: string) {
+    return this.rows.filter((d) => d.reportDate >= from && d.reportDate <= to).sort((a, b) => a.reportDate.localeCompare(b.reportDate));
   }
   async listForUsers(userIds: string[], from: string, to: string) {
     return this.rows.filter((d) => userIds.includes(d.userId) && d.reportDate >= from && d.reportDate <= to).sort((a, b) => b.reportDate.localeCompare(a.reportDate));
@@ -274,6 +280,25 @@ class FakeCalls<T extends { id: string; dcrId: string }> {
     const m = new Map<string, number>();
     for (const r of this.rows) if (dcrIds.includes(r.dcrId)) m.set(r.dcrId, (m.get(r.dcrId) ?? 0) + 1);
     return m;
+  }
+  async countByGeofence(range: { from: string; to: string }) {
+    const by = new Map<string, { dcrId: string; status: 'PASS' | 'FAIL' | 'UNVERIFIED' | 'OVERRIDE'; count: number }>();
+    for (const r of this.rows as unknown as Array<{ dcrId: string; reportDate: string; geofence: { status: 'PASS' | 'FAIL' | 'UNVERIFIED' | 'OVERRIDE' } }>) {
+      if (r.reportDate < range.from || r.reportDate > range.to) continue;
+      const key = `${r.dcrId}|${r.geofence.status}`;
+      const cur = by.get(key) ?? { dcrId: r.dcrId, status: r.geofence.status, count: 0 };
+      cur.count += 1;
+      by.set(key, cur);
+    }
+    return [...by.values()];
+  }
+  async distinctDoctorIds(dcrIds: string[]) {
+    return [...new Set((this.rows as unknown as Array<{ dcrId: string; doctorId: string }>).filter((r) => dcrIds.includes(r.dcrId)).map((r) => r.doctorId))];
+  }
+  async countByDcrRange(range: { from: string; to: string }) {
+    const by = new Map<string, number>();
+    for (const r of this.rows as unknown as Array<{ dcrId: string; reportDate: string }>) if (r.reportDate >= range.from && r.reportDate <= range.to) by.set(r.dcrId, (by.get(r.dcrId) ?? 0) + 1);
+    return [...by].map(([dcrId, count]) => ({ dcrId, count }));
   }
   async overrideGeofence(id: string, o: { by: string; at: Date; comment: string }) {
     const row = this.rows.find((r) => r.id === id) as unknown as { geofence?: { status: string; overriddenBy: string | null; overriddenAt: Date | null; overrideComment: string | null } } | undefined;

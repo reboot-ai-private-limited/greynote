@@ -3,7 +3,7 @@ import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { ChemistCall, DoctorCall, Followup, GeofenceOutcome } from '../domain/call.entity.js';
 import type { Expense } from '../domain/expense.entity.js';
 import type { GeofenceOverride } from '../domain/records.repository.port.js';
-import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseBucket, ExpenseMonthSummary, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../domain/records.repository.port.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseBucket, ExpenseMonthSummary, GeofenceCount, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../domain/records.repository.port.js';
 import { ChemistCallModel, DoctorCallModel, ExpenseModel, FollowupModel, type ChemistCallDoc, type DoctorCallDoc, type ExpenseDoc, type FollowupDoc } from './records.schema.js';
 
 const oid = (id: string) => new Types.ObjectId(id);
@@ -87,7 +87,22 @@ async function countByDcr(model: { aggregate: (p: object[]) => Promise<Array<{ _
   return new Map(rows.map((r) => [String(r._id), r.n]));
 }
 
+const countByGeofence = async (model: typeof DoctorCallModel | typeof ChemistCallModel, range: { from: string; to: string }): Promise<GeofenceCount[]> => {
+  const rows = await (model as typeof DoctorCallModel).aggregate<{ _id: { dcrId: unknown; status: GeofenceCount['status'] }; count: number }>([
+    { $match: { reportDate: { $gte: range.from, $lte: range.to } } },
+    { $group: { _id: { dcrId: '$dcrId', status: '$geofenceStatus' }, count: { $sum: 1 } } },
+  ]);
+  return rows.map((r) => ({ dcrId: String(r._id.dcrId), status: r._id.status, count: r.count }));
+};
+
 export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
+  countByGeofence(range: { from: string; to: string }): Promise<GeofenceCount[]> {
+    return countByGeofence(DoctorCallModel, range);
+  }
+  async distinctDoctorIds(dcrIds: string[]): Promise<string[]> {
+    if (dcrIds.length === 0) return [];
+    return (await DoctorCallModel.distinct('doctorId', { dcrId: { $in: dcrIds.map(oid) } })).map(String);
+  }
   async create(input: Omit<DoctorCall, 'id'>, ctx: TransactionContext): Promise<DoctorCall> {
     const [doc] = await DoctorCallModel.create(
       [{ ...callColumns(input), doctorId: oid(input.doctorId), samples: input.samples.map((s) => ({ allocationId: oid(s.allocationId), productId: oid(s.productId), quantity: s.quantity })) }],
@@ -112,6 +127,9 @@ export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
 }
 
 export class MongoChemistCallAdapter implements ChemistCallRepositoryPort {
+  countByGeofence(range: { from: string; to: string }): Promise<GeofenceCount[]> {
+    return countByGeofence(ChemistCallModel, range);
+  }
   async create(input: Omit<ChemistCall, 'id'>, ctx: TransactionContext): Promise<ChemistCall> {
     const [doc] = await ChemistCallModel.create([{ ...callColumns(input), chemistId: oid(input.chemistId) }], session(ctx));
     return toChemistCall(doc!.toObject());
@@ -133,6 +151,10 @@ export class MongoChemistCallAdapter implements ChemistCallRepositoryPort {
 }
 
 export class MongoFollowupAdapter implements FollowupRepositoryPort {
+  async countByDcrRange(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>> {
+    const rows = await FollowupModel.aggregate<{ _id: unknown; count: number }>([{ $match: { reportDate: { $gte: range.from, $lte: range.to } } }, { $group: { _id: '$dcrId', count: { $sum: 1 } } }]);
+    return rows.map((r) => ({ dcrId: String(r._id), count: r.count }));
+  }
   async create(input: Omit<Followup, 'id'>, ctx: TransactionContext): Promise<Followup> {
     const [doc] = await FollowupModel.create([{ ...input, dcrId: oid(input.dcrId), userId: oid(input.userId), subjectId: oid(input.subjectId) }], session(ctx));
     return toFollowup(doc!.toObject());
