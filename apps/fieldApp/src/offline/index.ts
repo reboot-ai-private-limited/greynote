@@ -1,4 +1,6 @@
+export * from './cache';
 export * from './connectivity';
+export * from './day';
 export * from './engine';
 export * from './geofence';
 export * from './hooks';

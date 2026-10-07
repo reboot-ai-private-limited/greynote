@@ -19,6 +19,7 @@ Last updated 2026-10-07. Day counts are estimates for one experienced developer.
 | Login | **Connected** to `POST /api/identity/auth/login`; tokens kept in secure storage; device-approval refusals route to Device Status |
 | Stage 0 | **Done 2026-10-07:** session restore on launch, authenticated API client with single-flight token refresh, logout + Profile screen, `/auth/me` load, signed-out redirect, tablet-ready layout (centred max-width, all orientations, `useResponsive`) |
 | Stage 1 | **Built and phone-tested 2026-10-07 (pull, push refusal, offline banner, backup, cold restart; the SYNCED push path still needs an employee with a route):** `src/offline/` — SQLite store (memory on web), outbox, pull / push / draft backup / restore against `/sync/*`, on-device geofence (matches the server on 20,000 random cases), connectivity hook, offline banner, sync chip on Home. |
+| Stage 2 | **Built 2026-10-07:** Home with the four tile sections (21 tiles), a today card showing the Tour Plan status, tiles locked by the day gate (plan approved, account unblocked — logic in `offline/day.ts`, checked on 11 cases) with a tap-to-explain message, a placeholder screen per tile (`/feature/[key]`), responsive 2/3-column grid. Seen on a real phone for a FIELD user with no plan; the **approved-plan and blocked states are not yet seen on a phone**. |
 | Not done | `isManager` flag, designation name, every Home / Docs / Reports / Team screen, the offline store and sync |
 | Backend | Complete for all modules (Phases 0–8 of the roadmap); the gaps the app needs are listed in §7 |
 
@@ -103,7 +104,7 @@ a revoked session lands on Login.
 
 **Done when:** airplane-mode create → reconnect → records appear on the server exactly once.
 
-### Stage 2 — Home shell and gating (2–3 days)
+### Stage 2 — Home shell and gating (2–3 days) — **built 2026-10-07, phone-tested**
 1. Home with the four quadrants and tile grid.
 2. Gate state hook: "may I log today?" = today's Plan approved ∧ not blocked; disabled tiles explain why.
 3. Header: user name, designation, sync status chip.

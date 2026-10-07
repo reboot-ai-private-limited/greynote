@@ -1,5 +1,6 @@
 import { ApiError, apiGet, apiPost, apiPut, NetworkError } from '@/lib/api';
 
+import { notifyCacheChanged } from './cache';
 import { isOnline } from './connectivity';
 import { notifyOutboxChanged } from './outbox';
 import { orderForPush } from './order';
@@ -83,6 +84,7 @@ export async function pull(): Promise<PullResult> {
   await store.setMeta('clockOffsetMs', String(Date.now() - new Date(response.serverTime).getTime()));
   await store.setMeta('lastPullAt', now);
   setStatus({ lastPullAt: now });
+  notifyCacheChanged();
   return result;
 }
 
