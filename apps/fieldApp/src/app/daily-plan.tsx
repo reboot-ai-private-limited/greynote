@@ -40,6 +40,13 @@ const STATUS_TEXT: Record<string, string> = {
   REOPENED: 'Reopened by Admin — update it and submit again',
 };
 
+/** Whether the form still equals what the server has — then there is nothing to save, and (for an inherited day) nothing the server would accept. */
+function sameDay(a: PlanDay, b: PlanDay): boolean {
+  const key = (d: PlanDay) =>
+    JSON.stringify([d.workingType, [...d.routeIds].sort(), [...d.workWith].sort(), (d.remarks ?? '').trim()]);
+  return key(a) === key(b);
+}
+
 const errorText = (err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
 
@@ -61,6 +68,8 @@ export default function DailyPlanScreen() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
   const [rejection, setRejection] = useState<string | null>(null);
+  // Days the server told us come from the approved Monthly Plan: read-only, submitted as they are.
+  const [inherited, setInherited] = useState<Record<string, boolean>>({});
 
   const existing = planning.data?.dailyPlans.find((p) => p.planDate === date) ?? null;
   const status = existing?.status ?? null;
@@ -124,6 +133,10 @@ export default function DailyPlanScreen() {
       const result = await action();
       if (result) setMsg(result);
     } catch (err) {
+      if (err instanceof ApiError && err.data?.reason === 'PLAN_INHERITED_READONLY' && existing) {
+        setInherited((i) => ({ ...i, [date]: true }));
+        setDay({ workingType: existing.workingType, workWith: existing.workWith, routeIds: existing.routeIds, remarks: existing.remarks });
+      }
       setMsg({ tone: 'danger', text: errorText(err) });
     } finally {
       setBusy(false);
@@ -138,6 +151,7 @@ export default function DailyPlanScreen() {
         await saveLocalDraft(`daily:${date}`, day);
         return { tone: 'info', text: 'Saved on this phone. Connect to the internet to submit it.' };
       }
+      if (existing && sameDay(day, existing)) return { tone: 'info', text: 'Nothing has changed since the last save.' };
       await saveDailyPlan(date, day);
       await clearLocalDraft(`daily:${date}`);
       await refreshNow();
@@ -153,8 +167,10 @@ export default function DailyPlanScreen() {
     return run(async () => {
       const p = problem();
       if (p) return { tone: 'warning', text: p };
-      const saved = await saveDailyPlan(date, day);
-      await submitDailyPlan(saved.id);
+      // Save only what the MR changed: an unchanged plan is submitted as it is — the only way to send a
+      // day inherited from the approved Monthly Plan, which the server won't let them re-save.
+      const planId = existing && sameDay(day, existing) ? existing.id : (await saveDailyPlan(date, day)).id;
+      await submitDailyPlan(planId);
       await clearLocalDraft(`daily:${date}`);
       await refreshNow();
       Alert.alert('Plan submitted', 'Your manager will be asked to approve it.', [{ text: 'OK', onPress: () => router.back() }]);
@@ -207,7 +223,7 @@ export default function DailyPlanScreen() {
 
       {editable || canRequestChange ? (
         <>
-          <PlanDayForm value={day} onChange={setDay} disabled={busy} />
+          <PlanDayForm value={day} onChange={setDay} disabled={busy || inherited[date] === true} />
 
           {canRequestChange ? (
             <>
