@@ -24,9 +24,21 @@ Nothing is stored. A **read model** at the top tier (7), above Payroll and Marke
 
 Added to the modules below for it: Sales `listOrders` and `getOrder` (contract), Field Master Data `findByIds` on the Distributor, Chemist and Product repositories and `listNames` (contract).
 
+## Built: the Sales report and its chart (K29)
+
+`GET /api/reports/sales?year=` (the year it starts in; scoped to the financial year in view) — the twelve months of the financial year, each with `primary` (Done orders to distributors, by the month marked Done, quantity and the order amounts), `placed` (orders placed that month and not yet Done), `secondary` (derived from the distributors' counts: opening + primary − closing, valued at PTR), how many of the expected (active) distributors counted, whether the month is complete, and the counts that came out negative (left out of the totals) or had no PTR (left out of the value). A month in progress has primary and no secondary; a future month has nothing; a month with no counts has primary and a *gap*, not a zero. Optional `distributorId` and `productId`. `GET /api/reports/sales/statement?month=` — one month per distributor and product: opening, primary, placed, closing, secondary, with flags `NO_COUNT`, `NEGATIVE_SECONDARY`, `OPENING_MISMATCH` (opening is not the previous month's closing), `UNPRICED`; and the active distributors with no count at all.
+
+The arithmetic is pure (`domain/salesFigures.ts`, tested). Sales added `sumDistributorOrders` (a Mongo aggregation by the month marked Done in the business timezone, checked against the sample data to the rupee) and `listStockRange`; Field Master Data added `listActiveOutlets`.
+
+Web `/reports/sales`: value / quantity switch, distributor and product filters, year totals, the **grouped bar chart** (a primary bar beside a secondary bar for each of April to March, drawn as SVG; the secondary bar of an incomplete month is hatched; future months empty; each month openable from the keyboard), the same numbers in a table under it, and, for the month clicked (the latest ended one by default), the statement with who did not count; CSV for the year and for the statement.
+
+## Built: the Stock report
+
+`GET /api/reports/stock?month=` — every count of the month for distributors and chemists, with the previous month's closing beside the opening, flags for a mismatch and (distributors) a negative secondary, a row `NO_COUNT` for each active outlet that did not count, and completeness (counted of expected, per outlet type). Web `/reports/stock`: month, "only what needs attention", tiles, table, CSV. A chemist's counts are information only.
+
 ## Not built yet
 
-The Sales report and its primary/secondary bar chart (K29), the Stock report, TA/DA, DCR and Salary (K30).
+TA/DA, DCR and Salary reports (K28, K30).
 
 ## Sample data for development
 
