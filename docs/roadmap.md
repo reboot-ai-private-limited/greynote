@@ -820,3 +820,5 @@ New read-only `reports` module (top tier, writes nothing; reads Sales, Field Act
 **5e progress 2026-10-07:** Orders page, Sales report with the primary/secondary bar chart, and Stock report are built and browser-checked against the sample data. Still to build: TA/DA, DCR and Salary reports (K28, K30).
 
 **5e progress:** the TA/DA report is built and browser-checked against the sample data. Still to build: the DCR and Salary reports (K28, K30).
+
+**5e progress:** the DCR report is built and browser-checked against the sample data. Still to build: the Salary report (K30).

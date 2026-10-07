@@ -42,11 +42,17 @@ Web `/reports/sales`: value / quantity switch, distributor and product filters, 
 
 Web `/reports/ta-da`: year tiles (TA, DA, paid, unpaid), a month table with a paid-share bar, the selected month's employees (largest first), and a dialog with the employee's days; CSV for the year, the month's employees and one employee's days.
 
+## Built: the DCR (daily reports) report
+
+`GET /api/reports/dcr?year=` — for the financial year in view, each month and each employee's month: **days reported** (a daily report that is submitted or approved; a draft, rejected, withdrawn or reopened one is not a reported day, and its calls are left out), **doctor calls, chemist calls, follow-ups, calls per reported day**, **days submitted late** (after the day itself, in the business timezone, from the approval's submit time), and how the **server's geofence** judged the calls (passed, overridden by a manager, unverified, failed; "could not confirm" = failed or unverified, not overridden). `GET /api/reports/dcr/coverage?userId=&month=` — the doctors assigned to the employee **now** that they did not call on in the month, by speciality. Calls only, no sample quantities, as the owner chose (K28). Missed days stay on the Attendance screen.
+
+Added below it: Approval `listForRecords` (a bulk read of requests by kind and record ids), Field Activity `summarizeDcrs` and `listCalledDoctorIds` (a handful of queries however many reports; the business timezone is read once, not per report — the first version took over ten seconds on the sample data), and call/follow-up counting by report. Web `/reports/dcr`: tiles, a month table and, for the month clicked, the employees with a **geofence bar** (the share confirmed, with the four results in its tooltip), "Doctors not visited" per employee, CSV for the year, the month and the doctors list. Coverage uses today's assignments, so a past month is judged against who is assigned now.
+
 ## Not built yet
 
-DCR and Salary reports (K28, K30).
+The Salary report (K30).
 
 ## Sample data for development
 
-`pnpm --filter @greynote/api seed:sample-sales` (dry run) / `-- --apply` / `-- --remove` fills a **development** database with clearly-labelled sample sales data: three distributors and four chemists (names start with "SAMPLE"), three new products with prices beside the existing one, orders for the financial year so far (mostly Done, some Placed, a few Cancelled; remarks "SAMPLE DATA") and the monthly stock counts that follow from the Done orders, with one distributor's last ended month left without counts to show a gap. It refuses to run in production and does nothing if the samples are already there. Added 2026-10-07 to give the Orders page and the reports something to show.
+`pnpm --filter @greynote/api seed:sample-sales` (dry run) / `-- --apply` / `-- --remove` fills a **development** database with clearly-labelled sample sales data: three distributors and four chemists (names start with "SAMPLE"), three new products with prices beside the existing one, orders for the financial year so far (mostly Done, some Placed, a few Cancelled; remarks "SAMPLE DATA") and the monthly stock counts that follow from the Done orders, accepted TA, DA and meal claims, doctors with their assignments, calls, follow-ups and approval records for the sample daily reports (some late, some drafts, a few rejected, the last days only submitted), route assignments for the three sample MRs, with one distributor's last ended month left without counts to show a gap. It refuses to run in production and does nothing if the samples are already there. Added 2026-10-07 to give the Orders page and the reports something to show.
 

@@ -16,6 +16,8 @@ import { logger } from '@/shared/logging/logger.js';
  * add up to, and closing is chosen so that secondary (opening + primary − closing) is a sensible share of what was there to sell.
  */
 const TAG = 'SAMPLE DATA';
+/** The time stamped on the sample route assignments, so they can be found again: nothing real is assigned at exactly this instant. */
+const SAMPLE_ASSIGNED_AT = new Date('2026-04-01T00:00:00.000Z');
 const PREFIX = 'SAMPLE ';
 
 /** A small deterministic generator, so a rerun makes the same data. */
@@ -67,6 +69,7 @@ async function main(): Promise<void> {
     const expenseDcrIds = await db.collection('expenses').distinct('dcrId', { remarks: TAG });
     const sampleDoctors = await db.collection('doctors').find({ name: { $regex: `^${PREFIX}` } }).toArray();
     const out = {
+      routeAssignments: (await db.collection('routeassignments').deleteMany({ assignedAt: SAMPLE_ASSIGNED_AT })).deletedCount,
       approvals: (await db.collection('approvalrequests').deleteMany({ kind: 'DCR', recordId: { $in: expenseDcrIds.map(String) } })).deletedCount,
       doctorCalls: (await db.collection('doctorcalls').deleteMany({ dcrId: { $in: expenseDcrIds } })).deletedCount,
       chemistCalls: (await db.collection('chemistcalls').deleteMany({ dcrId: { $in: expenseDcrIds } })).deletedCount,
@@ -335,6 +338,11 @@ async function main(): Promise<void> {
   await db.collection('monthlystocks').insertMany(stock as never[]);
   await db.collection('dcrs').insertMany(dcrDocs as never[]);
   await db.collection('expenses').insertMany(expenseDocs as never[]);
+  // The sample MRs cover the route their doctors are on (a doctor is only visible to someone who covers its route), unless they already do.
+  for (const mr of [0, 1, 2].map((i) => mrFor(i))) {
+    const covered = await db.collection('routeassignments').findOne({ routeId: route['_id'], userId: mr['_id'], status: 'active' });
+    if (!covered) await db.collection('routeassignments').insertOne({ routeId: route['_id'], userId: mr['_id'], status: 'active', assignedAt: SAMPLE_ASSIGNED_AT, assignedBy: adminUser?.['_id'] ?? mr['_id'], unassignedAt: null, unassignedBy: null });
+  }
   await db.collection('doctors').insertMany(doctorDocs.map(({ mr: _mr, ...d }) => d) as never[]);
   await db.collection('doctorassignments').insertMany(doctorDocs.map((d) => ({ doctorId: d._id, userId: d.mr._id, status: 'active', assignedAt: at('2026-04-01', 10), assignedBy: adminUser?.['_id'] ?? d.mr._id, unassignedAt: null, unassignedBy: null })) as never[]);
   await db.collection('doctorcalls').insertMany(doctorCallDocs as never[]);

@@ -40,6 +40,7 @@ export class SummarizeDcrsUseCase {
     const byDcr = new Map(reported.map((d) => [d.id, d]));
     const [doctor, chemist, follow] = await Promise.all([this.doctorCalls.countByGeofence(range), this.chemistCalls.countByGeofence(range), this.followups.countByDcrRange(range)]);
 
+    const dateOf = await this.clock.dateConverter();
     const out = new Map<string, DcrMonthSummary>();
     const of = (userId: string, month: string): DcrMonthSummary => {
       const key = `${userId}|${month}`;
@@ -51,7 +52,7 @@ export class SummarizeDcrsUseCase {
       const s = of(d.userId, d.reportDate.slice(0, 7));
       s.reportedDays += 1;
       const submitted = requests.get(d.id)?.submittedAt;
-      if (submitted && (await this.clock.dateOf(submitted)) > d.reportDate) s.lateDays += 1;
+      if (submitted && dateOf(submitted) > d.reportDate) s.lateDays += 1;
     }
     const geofenceKey = { PASS: 'pass', FAIL: 'fail', UNVERIFIED: 'unverified', OVERRIDE: 'override' } as const;
     for (const [rows, kind] of [[doctor, 'doctorCalls'], [chemist, 'chemistCalls']] as const) {
