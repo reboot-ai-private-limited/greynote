@@ -44,7 +44,23 @@ export interface ExpenseStatement {
   lastPaidAt: Date | null;
 }
 
+/** One employee's accepted expenses for one report month (`YYYY-MM`, by the day reported), `CANCELLED` left out. */
+export interface ExpenseMonthSummary {
+  userId: string;
+  month: string;
+  taPaise: number;
+  daPaise: number;
+  /** The manual claims: travel, meals, other. */
+  reimbursementPaise: number;
+  paidPaise: number;
+  unpaidPaise: number;
+  /** Rows (AUTO TA) whose route distance could not be calculated, so the amount is artificially low. */
+  flaggedRows: number;
+}
+
 export interface ExpenseRepositoryPort {
+  /** The accepted expenses whose report day falls in the range (`YYYY-MM-DD`, both inclusive), per employee and month. */
+  summarizeByMonth(range: { from: string; to: string }): Promise<ExpenseMonthSummary[]>;
   create(input: Omit<Expense, 'id'>, ctx: TransactionContext): Promise<Expense>;
   /** Whether the DCR already has AUTO rows that still count (not `CANCELLED`) — TA/DA is generated once per approval. */
   hasActiveAuto(dcrId: string, ctx: TransactionContext): Promise<boolean>;

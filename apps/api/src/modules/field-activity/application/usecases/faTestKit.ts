@@ -11,7 +11,7 @@ import type { ChemistCall, DoctorCall, Followup } from '../../domain/call.entity
 import type { DoctorGift, DoctorService } from '../../domain/serviceGift.entity.js';
 import type { Expense } from '../../domain/expense.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
-import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, DoctorGiftRepositoryPort, DoctorServiceRepositoryPort, ExpenseBucket, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, DoctorGiftRepositoryPort, DoctorServiceRepositoryPort, ExpenseBucket, ExpenseMonthSummary, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
 import type { LeavePort } from '../../domain/leave.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -286,6 +286,21 @@ export class FakeDoctorCalls extends FakeCalls<DoctorCall> implements DoctorCall
 export class FakeChemistCalls extends FakeCalls<ChemistCall> implements ChemistCallRepositoryPort {}
 export class FakeFollowups extends FakeCalls<Followup> implements FollowupRepositoryPort {}
 export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositoryPort {
+  async summarizeByMonth(range: { from: string; to: string }) {
+    const by = new Map<string, ExpenseMonthSummary>();
+    for (const r of this.rows.filter((x) => x.accepted && x.paymentStatus !== 'CANCELLED' && x.reportDate >= range.from && x.reportDate <= range.to)) {
+      const key = `${r.userId}|${r.reportDate.slice(0, 7)}`;
+      const s = by.get(key) ?? { userId: r.userId, month: r.reportDate.slice(0, 7), taPaise: 0, daPaise: 0, reimbursementPaise: 0, paidPaise: 0, unpaidPaise: 0, flaggedRows: 0 };
+      if (r.type === 'TA') s.taPaise += r.amountPaise;
+      else if (r.type === 'DA') s.daPaise += r.amountPaise;
+      else s.reimbursementPaise += r.amountPaise;
+      if (r.paymentStatus === 'PAID') s.paidPaise += r.amountPaise;
+      else s.unpaidPaise += r.amountPaise;
+      if (r.distanceFlag) s.flaggedRows += 1;
+      by.set(key, s);
+    }
+    return [...by.values()];
+  }
   async setAccepted(dcrId: string, accepted: boolean, ctx: unknown) {
     for (const r of this.rows.filter((x) => x.dcrId === dcrId && x.paymentStatus !== 'PAID')) {
       const before = r.accepted;

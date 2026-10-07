@@ -1,5 +1,9 @@
+import type { Expense } from './domain/expense.entity.js';
+import type { ExpenseMonthSummary } from './domain/records.repository.port.js';
 import type { DcrSummary } from './application/usecases/getDcrSummary.usecase.js';
 
+export type { Expense } from './domain/expense.entity.js';
+export type { ExpenseMonthSummary } from './domain/records.repository.port.js';
 export type { DcrSummary } from './application/usecases/getDcrSummary.usecase.js';
 
 /**
@@ -22,6 +26,10 @@ export interface FieldActivityPublicContract {
    * claim must not reach a payroll run.
    */
   getPaidTaDaTotal(userId: string, month: string): Promise<{ taPaise: number; daPaise: number; reimbursementPaise: number }>;
+  /** The accepted expenses by employee and report month over a date range (both ends inclusive): TA, DA, manual claims, paid and unpaid — the TA/DA report's input. */
+  summarizeExpenses(range: { from: string; to: string }): Promise<ExpenseMonthSummary[]>;
+  /** The accepted expense rows in a date range, oldest day first, at most `limit` (default 2000); optionally one employee's — the report's day-by-day drill-down. */
+  listAcceptedExpenses(filter: { from: string; to: string; userId?: string; limit?: number }): Promise<Expense[]>;
   /** The reports' input: this user's DCRs in the range, each with its status, counts and money. */
   getDcrSummary(userId: string, range: { from: string; to: string }): Promise<DcrSummary[]>;
 }

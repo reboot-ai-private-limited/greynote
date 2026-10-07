@@ -3,7 +3,7 @@ import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { ChemistCall, DoctorCall, Followup, GeofenceOutcome } from '../domain/call.entity.js';
 import type { Expense } from '../domain/expense.entity.js';
 import type { GeofenceOverride } from '../domain/records.repository.port.js';
-import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseBucket, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../domain/records.repository.port.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseBucket, ExpenseMonthSummary, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../domain/records.repository.port.js';
 import { ChemistCallModel, DoctorCallModel, ExpenseModel, FollowupModel, type ChemistCallDoc, type DoctorCallDoc, type ExpenseDoc, type FollowupDoc } from './records.schema.js';
 
 const oid = (id: string) => new Types.ObjectId(id);
@@ -189,6 +189,25 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
     if (filter.paymentStatus) return fetch(filter.paymentStatus, limit);
     const unpaid = await fetch('UNPAID', limit);
     return unpaid.length >= limit ? unpaid : [...unpaid, ...(await fetch('PAID', limit - unpaid.length))];
+  }
+  async summarizeByMonth(range: { from: string; to: string }): Promise<ExpenseMonthSummary[]> {
+    const rows = await ExpenseModel.aggregate<{ _id: { userId: unknown; month: string; status: 'UNPAID' | 'PAID'; type: string }; total: number; flagged: number }>([
+      { $match: { accepted: true, paymentStatus: { $in: ['UNPAID', 'PAID'] }, reportDate: { $gte: range.from, $lte: range.to } } },
+      { $group: { _id: { userId: '$userId', month: { $substrBytes: ['$reportDate', 0, 7] }, status: '$paymentStatus', type: '$type' }, total: { $sum: '$amountPaise' }, flagged: { $sum: { $cond: ['$distanceFlag', 1, 0] } } } },
+    ]);
+    const byKey = new Map<string, ExpenseMonthSummary>();
+    for (const r of rows) {
+      const key = `${String(r._id.userId)}|${r._id.month}`;
+      const s = byKey.get(key) ?? { userId: String(r._id.userId), month: r._id.month, taPaise: 0, daPaise: 0, reimbursementPaise: 0, paidPaise: 0, unpaidPaise: 0, flaggedRows: 0 };
+      if (r._id.type === 'TA') s.taPaise += r.total;
+      else if (r._id.type === 'DA') s.daPaise += r.total;
+      else s.reimbursementPaise += r.total;
+      if (r._id.status === 'PAID') s.paidPaise += r.total;
+      else s.unpaidPaise += r.total;
+      s.flaggedRows += r.flagged;
+      byKey.set(key, s);
+    }
+    return [...byKey.values()];
   }
   async statementsForRange(range: { from: string; to: string }): Promise<ExpenseStatement[]> {
     const rows = await ExpenseModel.aggregate<{ _id: { userId: unknown; status: 'UNPAID' | 'PAID'; type: string }; total: number; count: number; lastPaidAt: Date | null }>([

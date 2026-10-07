@@ -5,7 +5,7 @@ import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js'
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { makeReportsControllers } from './reports.controller.js';
-import { orderIdParamsSchema, ordersQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema } from './reports.schemas.js';
+import { orderIdParamsSchema, ordersQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
 const tags = ['Reports'];
 const security = [{ bearerAuth: [] }];
@@ -16,6 +16,9 @@ openApiRegistry.registerPath({ method: 'get', path: '/api/reports/sales', tags, 
 openApiRegistry.registerPath({ method: 'get', path: '/api/reports/sales/statement', tags, summary: 'Admin: one month\'s stock and sales statement per distributor and product', security, request: { query: salesStatementQuerySchema }, responses: { 200: { description: 'The statement' } } });
 openApiRegistry.registerPath({ method: 'get', path: '/api/reports/stock', tags, summary: 'Admin: a month\'s stock counts of distributors and chemists, with who has not counted and what does not add up', security, request: { query: stockQuerySchema }, responses: { 200: { description: 'The stock report' } } });
 
+openApiRegistry.registerPath({ method: 'get', path: '/api/reports/ta-da', tags, summary: 'Admin: accepted TA, DA and reimbursements by month and employee for a financial year', security, request: { query: taDaYearQuerySchema }, responses: { 200: { description: 'The year' } } });
+openApiRegistry.registerPath({ method: 'get', path: '/api/reports/ta-da/days', tags, summary: 'Admin: one employee\'s accepted expenses in a month, day by day', security, request: { query: taDaDaysQuerySchema }, responses: { 200: { description: 'The days' } } });
+
 /** Every report is Admin only for now (sign-off K24) and read-only. */
 export function buildReportsRouter(c: ReturnType<typeof makeReportsControllers>): Router {
   const router = Router();
@@ -24,6 +27,8 @@ export function buildReportsRouter(c: ReturnType<typeof makeReportsControllers>)
   router.get('/sales', scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: salesYearQuerySchema }), c.salesYear);
   router.get('/sales/statement', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: salesStatementQuerySchema }), c.salesStatement);
   router.get('/stock', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: stockQuerySchema }), c.stock);
+  router.get('/ta-da', scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: taDaYearQuerySchema }), c.taDaYear);
+  router.get('/ta-da/days', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: taDaDaysQuerySchema }), c.taDaDays);
   router.get('/orders/:id', validate({ params: orderIdParamsSchema }), c.order);
   return router;
 }

@@ -144,6 +144,8 @@ export function buildFieldActivityContainer(
       hasQualifyingDcr: (userId, date) => hasQualifyingDcr.execute(userId, date),
       listReportedDates: (userId, from, to) => listReportedDates.execute(userId, from, to),
       getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),
+      summarizeExpenses: (range) => expenses.summarizeByMonth(range),
+      listAcceptedExpenses: (f) => expenses.listAccepted({ from: f.from, to: f.to, ...(f.userId && { userId: f.userId }) }, f.limit ?? 2000),
       getDcrSummary: (userId, range) => dcrSummary.execute(userId, range),
     },
     buildRouter: () =>

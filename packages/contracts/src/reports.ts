@@ -131,3 +131,62 @@ export interface StockReportDto {
   /** Rows carrying any flag. */
   flagged: number;
 }
+
+// ── TA/DA (sign-off K28) ─────────────────────────────────────────────────────────────────────────
+
+/** Accepted expenses (past the manager and not sent back; cancelled ones left out), whole paise. */
+export interface TaDaFiguresDto {
+  taPaise: number;
+  daPaise: number;
+  /** Travel, meals and other claims entered by hand. */
+  reimbursementPaise: number;
+  /** TA + DA + reimbursements. */
+  totalPaise: number;
+  paidPaise: number;
+  unpaidPaise: number;
+  /** TA rows whose route distance could not be calculated, so the amount is artificially low. */
+  flaggedRows: number;
+}
+
+export interface TaDaMonthDto extends TaDaFiguresDto {
+  /** `YYYY-MM`, by the day reported. */
+  month: string;
+  state: 'ENDED' | 'OPEN' | 'FUTURE';
+  /** Employees with an accepted expense that month. */
+  employees: number;
+}
+
+export interface TaDaMrRowDto extends TaDaFiguresDto {
+  month: string;
+  mr: { id: string; name: string; employeeCode: string };
+}
+
+/** `GET /reports/ta-da?year=`: the financial year by month, and each employee's month. */
+export interface TaDaYearReportDto {
+  year: number;
+  months: TaDaMonthDto[];
+  rows: TaDaMrRowDto[];
+  totals: TaDaFiguresDto;
+}
+
+export interface TaDaDayRowDto {
+  /** `YYYY-MM-DD`, the day reported. */
+  date: string;
+  type: 'TA' | 'DA' | 'TRAVEL' | 'MEAL' | 'MISC';
+  source: 'AUTO' | 'MANUAL';
+  route: { id: string; name: string } | null;
+  amountPaise: number;
+  status: 'PAID' | 'UNPAID';
+  paidAt: string | null;
+  distanceFlag: boolean;
+  remarks: string | null;
+}
+
+/** `GET /reports/ta-da/days?userId=&month=`: one employee's accepted expenses, day by day. */
+export interface TaDaDaysDto {
+  month: string;
+  mr: { id: string; name: string; employeeCode: string };
+  rows: TaDaDayRowDto[];
+  /** The list is capped; true when it may be short. */
+  truncated: boolean;
+}

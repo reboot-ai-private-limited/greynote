@@ -48,3 +48,37 @@ export interface MasterPort {
 export interface IdentityPort {
   getUserSummaries(userIds: string[]): Promise<Array<{ id: string; name: string; employeeCode: string }>>;
 }
+
+export interface ExpenseMonthRow {
+  userId: string;
+  month: string;
+  taPaise: number;
+  daPaise: number;
+  reimbursementPaise: number;
+  paidPaise: number;
+  unpaidPaise: number;
+  flaggedRows: number;
+}
+
+export interface ExpenseRecord {
+  id: string;
+  userId: string;
+  reportDate: string;
+  routeId: string | null;
+  type: 'TA' | 'DA' | 'TRAVEL' | 'MEAL' | 'MISC';
+  source: 'AUTO' | 'MANUAL';
+  amountPaise: number;
+  remarks: string | null;
+  paymentStatus: 'UNPAID' | 'PAID' | 'CANCELLED';
+  distanceFlag: boolean;
+  paidAt: Date | null;
+}
+
+export interface FieldActivityPort {
+  summarizeExpenses(range: { from: string; to: string }): Promise<ExpenseMonthRow[]>;
+  listAcceptedExpenses(filter: { from: string; to: string; userId?: string; limit?: number }): Promise<ExpenseRecord[]>;
+}
+
+export interface TerritoryPort {
+  getRoute(routeId: string): Promise<{ id: string; name: string } | null>;
+}

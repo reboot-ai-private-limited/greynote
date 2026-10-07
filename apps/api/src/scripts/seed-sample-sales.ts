@@ -5,7 +5,7 @@ import { logger } from '@/shared/logging/logger.js';
 /**
  * DEVELOPMENT ONLY. Fills a development database with clearly-labelled sample sales data so the Orders page, the stock reports and the Sales chart
  * have something to show: a few distributors and chemists, a few products with prices, six-odd months of orders (mostly Done, some Placed, a few
- * Cancelled) and monthly stock counts that follow from them. Everything is labelled — names start with "SAMPLE", orders say "SAMPLE DATA" — so it
+ * Cancelled), monthly stock counts that follow from them, and accepted TA, DA and meal claims for the three sample MRs (with a daily report row to hang them on). Everything is labelled — names start with "SAMPLE", orders say "SAMPLE DATA" — so it
  * can be removed again. It refuses to run in production.
  *
  *   pnpm --filter @greynote/api seed:sample-sales                    dry run — says what it would do
@@ -64,7 +64,10 @@ async function main(): Promise<void> {
   if (remove) {
     const dIds = sampleDistributors.map((d) => d._id);
     const cIds = sampleChemists.map((c) => c._id);
+    const expenseDcrIds = await db.collection('expenses').distinct('dcrId', { remarks: TAG });
     const out = {
+      expenses: (await db.collection('expenses').deleteMany({ remarks: TAG })).deletedCount,
+      dailyReports: (await db.collection('dcrs').deleteMany({ _id: { $in: expenseDcrIds } })).deletedCount,
       orders: (await db.collection('orders').deleteMany({ remarks: TAG })).deletedCount,
       stock: (await db.collection('monthlystocks').deleteMany({ $or: [{ distributorId: { $in: dIds } }, { chemistId: { $in: cIds } }] })).deletedCount,
       distributors: (await db.collection('distributors').deleteMany({ _id: { $in: dIds } })).deletedCount,
@@ -219,7 +222,36 @@ async function main(): Promise<void> {
     });
   });
 
-  const plan = { products: newProducts.length, distributors: distributors.length, chemists: chemists.length, orders: orders.length, stockCounts: stock.length, months: months.length };
+  // Accepted TA, DA and a few meal claims for the three sample MRs, a day's report each. Months before last are paid on the 15th after; last month and
+  // this one are accepted and unpaid. A couple of TA rows carry the "distance not calculated" flag.
+  const dcrDocs: Array<Record<string, unknown>> = [];
+  const expenseDocs: Array<Record<string, unknown>> = [];
+  const adminUser = await db.collection('users').findOne({ roleId: (await db.collection('roles').findOne({ name: 'ADMIN' }))?._id });
+  const nextMonthOf = (m: string): string => {
+    const [y = 0, mo = 1] = m.split('-').map(Number);
+    return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}`;
+  };
+  const lastEnded = months.filter((m) => m < current).at(-1);
+  for (const [mi, mr] of [0, 1, 2].map((i) => [i, mrFor(i)] as const)) {
+    for (const month of months) {
+      const [yy = 2026, mm = 4] = month.split('-').map(Number);
+      const lastDay = month === current ? Number(today.slice(8, 10)) - 1 : new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+      for (let day = 1; day <= lastDay; day++) {
+        const date = `${month}-${String(day).padStart(2, '0')}`;
+        if (new Date(`${date}T00:00:00Z`).getUTCDay() === 0 || rnd() > 0.82) continue; // Sundays off, and the odd day without a report
+        const dcrId = new mongoose.Types.ObjectId();
+        dcrDocs.push({ _id: dcrId, userId: mr['_id'], reportDate: date, createdAt: at(date, 19) });
+        const paid = month < (lastEnded ?? '');
+        const base = { dcrId, userId: mr['_id'], reportDate: date, accepted: true, remarks: TAG, clientId: null, recordedAt: at(date, 19), paymentStatus: paid ? 'PAID' : 'UNPAID', paidBy: paid ? (adminUser?.['_id'] ?? null) : null, paidAt: paid ? at(`${nextMonthOf(month)}-15`, 11) : null };
+        const flagged = rnd() < 0.04;
+        expenseDocs.push({ ...base, routeId: route['_id'], type: 'TA', source: 'AUTO', amountPaise: flagged ? 1500 : 9000 + Math.round(rnd() * 36000), distanceFlag: flagged });
+        expenseDocs.push({ ...base, routeId: null, type: 'DA', source: 'AUTO', amountPaise: (mi + day) % 3 === 0 ? 40000 : 20000, distanceFlag: false });
+        if (rnd() < 0.1) expenseDocs.push({ ...base, routeId: null, type: 'MEAL', source: 'MANUAL', amountPaise: 3000 + Math.round(rnd() * 5000), distanceFlag: false });
+      }
+    }
+  }
+
+  const plan = { products: newProducts.length, distributors: distributors.length, chemists: chemists.length, orders: orders.length, stockCounts: stock.length, expenses: expenseDocs.length, dailyReports: dcrDocs.length, months: months.length };
   logger.info({ ...plan, byMonthRupees: Object.fromEntries(Object.entries(summary).map(([m, s]) => [m, { primary: Math.round(s.primary / 100), secondary: Math.round(s.secondary / 100) }])) }, apply ? 'writing' : 'dry run — repeat with --apply to write');
   if (!apply) return;
 
@@ -228,6 +260,8 @@ async function main(): Promise<void> {
   await db.collection('chemists').insertMany(chemists.map(({ mr: _mr, ...c }) => c) as never[]);
   await db.collection('orders').insertMany(orders as never[]);
   await db.collection('monthlystocks').insertMany(stock as never[]);
+  await db.collection('dcrs').insertMany(dcrDocs as never[]);
+  await db.collection('expenses').insertMany(expenseDocs as never[]);
   logger.info(plan, 'sample data written (remove with --remove)');
 }
 
