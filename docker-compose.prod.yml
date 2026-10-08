@@ -24,7 +24,7 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     env_file: [apps/api/.env.prod]
-    ports: ['3000:3000']
+    ports: ['${API_BIND:-0.0.0.0}:${API_HOST_PORT:-3000}:3000']
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
@@ -40,7 +40,7 @@ services:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?set NEXT_PUBLIC_API_BASE_URL in .env}
         # Optional browser key for the route map; unset => the map shows a fallback message.
         NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
-    ports: ['3001:3001']
+    ports: ['${WEB_BIND:-0.0.0.0}:${WEB_HOST_PORT:-3001}:3001']
     depends_on: [api]
     restart: unless-stopped
     healthcheck:
