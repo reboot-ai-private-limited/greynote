@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BrandLogo } from '@/components/brand-logo';
 import { PrimaryButton } from '@/components/primary-button';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
@@ -78,6 +79,7 @@ export default function LoginScreen() {
             keyboardShouldPersistTaps="handled"
             automaticallyAdjustKeyboardInsets>
             <ThemedView style={styles.header}>
+              <BrandLogo width={200} />
               <ThemedText type="title" style={styles.title}>
                 My Greynote
               </ThemedText>

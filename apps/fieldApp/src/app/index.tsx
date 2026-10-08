@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BrandLogo } from '@/components/brand-logo';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -52,11 +53,7 @@ export default function SplashScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={[styles.mark, { backgroundColor: theme.primary }]}>
-          <ThemedText type="title" themeColor="onPrimary" style={styles.markLetter}>
-            G
-          </ThemedText>
-        </ThemedView>
+        <BrandLogo width={240} />
         <ThemedText type="subtitle" style={styles.appName}>
           My Greynote
         </ThemedText>
@@ -79,18 +76,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.two,
     paddingHorizontal: Spacing.four,
-  },
-  mark: {
-    width: 88,
-    height: 88,
-    borderRadius: Spacing.four,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.two,
-  },
-  markLetter: {
-    fontSize: 40,
-    lineHeight: 44,
   },
   appName: {
     textAlign: 'center',
