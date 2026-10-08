@@ -14,6 +14,12 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    primary: '#208AEF',
+    onPrimary: '#ffffff',
+    border: '#DCDFE4',
+    placeholder: '#9A9EA6',
+    danger: '#D14343',
+    warning: '#B7791F',
   },
   dark: {
     text: '#ffffff',
@@ -21,6 +27,12 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    primary: '#3C9FFE',
+    onPrimary: '#ffffff',
+    border: '#33363B',
+    placeholder: '#75797F',
+    danger: '#FF6B6B',
+    warning: '#F0B429',
   },
 } as const;
 
@@ -62,4 +74,7 @@ export const Spacing = {
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+/** Forms and detail screens: a line of text stays readable at this width. */
 export const MaxContentWidth = 800;
+/** Tab screens (Home tile grid, lists): use more of a large tablet. */
+export const WideContentWidth = 1200;
