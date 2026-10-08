@@ -14,11 +14,12 @@ import { ThemedView } from '@/components/themed-view';
 import { WorkWithPicker } from '@/components/work-with-picker';
 import { Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useReportSent } from '@/hooks/use-report-sent';
 import { captureLocation } from '@/lib/location';
 import { WORKING_TYPES, workingTypeLabel, type WorkingType } from '@/lib/planning';
 import { removeRecord, saveCall, serverGeofence, useRecords, type CallPayload, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
-import type { FieldActivitySnapshot, FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
+import type { FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
 
 type Subject = 'DOCTOR' | 'CHEMIST';
 
@@ -44,8 +45,8 @@ export function CallScreen({ subject }: { subject: Subject }) {
   const gate = useDayGate();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const planning = useCachedSource<PlanningSnapshot>('planning');
-  const activity = useCachedSource<FieldActivitySnapshot>('fieldActivity');
-  const { records } = useRecords([kind, 'DCR_SUBMIT']);
+  const reportSent = useReportSent(gate.today);
+  const { records } = useRecords([kind]);
 
   const plan = planning.data?.dailyPlans.find((p) => p.planDate === gate.today) ?? null;
   const plannedRoutes = useMemo(() => new Set(plan?.routeIds ?? []), [plan]);
@@ -74,14 +75,6 @@ export function CallScreen({ subject }: { subject: Subject }) {
     [master.data],
   );
   const products = useMemo(() => new Map((master.data?.products ?? []).map((p) => [p.id, p])), [master.data]);
-
-  // Once today's report is with the manager the server takes no more calls on it (until it is sent back).
-  const dcrStatus = activity.data?.dcrs?.find((d) => d.reportDate === gate.today)?.status;
-  // The server's status wins; the phone's own record of a sent submit only counts before the first pull.
-  const reportSent =
-    dcrStatus !== undefined
-      ? ['SUBMITTED', 'MANAGER_APPROVED', 'APPROVED'].includes(dcrStatus)
-      : records.some((r) => r.kind === 'DCR_SUBMIT' && r.status === 'SYNCED' && (r.payload as CallPayload).reportDate === gate.today);
 
   const todays = records.filter((r) => !r.deleted && r.kind === kind && (r.payload as CallPayload).reportDate === gate.today);
   const calledIds = new Set(todays.filter((r) => r !== editing).map(idOf));
@@ -193,6 +186,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
           onChange={(id) => {
             setOutletId(id);
             setSamples([]);
+            setMsg(null);
           }}
           disabled={busy}
           emptyText={

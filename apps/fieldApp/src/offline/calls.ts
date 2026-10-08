@@ -24,6 +24,22 @@ export type CallPayload = {
   samples?: { productId: string; quantity: number }[];
 };
 
+export type ExpenseType = 'TRAVEL' | 'MEAL' | 'MISC';
+/** Whole paise above zero; TA and DA are never sent — the server computes them. */
+export type ExpensePayload = { reportDate: string; type: ExpenseType; amountPaise: number; remarks: string | null };
+
+/** A doctor the MR met who is not on their list: the server creates it pending and sends it for approval. */
+export type NewDoctorPayload = {
+  routeId: string;
+  name: string;
+  address: string;
+  specialty: string;
+  qualification: string;
+  email: string | null;
+  /** The phone's GPS at the time — required, and becomes the registered location until Admin corrects it. */
+  location: GeoPoint;
+};
+
 export type FollowupPayload = { reportDate: string; doctorId?: string; chemistId?: string; remarks: string };
 
 /** The phone's own geofence answer for a call. The server recomputes it at Submit and its answer wins. */
@@ -42,7 +58,11 @@ export async function localGeofence(registered: GeoPoint | null, fix: GpsFix | n
 }
 
 /** Keeps a call (or follow-up) as a DRAFT of the day. It joins the report at Final Submission, which is what talks to the server. */
-export const saveCall = (kind: CallKind | FollowupKind, payload: CallPayload | FollowupPayload, existing?: OutboxRecord) =>
+export const saveCall = (
+  kind: CallKind | FollowupKind | 'EXPENSE' | 'NEW_DOCTOR',
+  payload: CallPayload | FollowupPayload | ExpensePayload | NewDoctorPayload,
+  existing?: OutboxRecord,
+) =>
   existing ? updateRecord(existing.clientId, payload) : createRecord(kind, payload);
 
 export const payloadOf = <T,>(record: OutboxRecord) => record.payload as T;

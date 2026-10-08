@@ -120,9 +120,11 @@ export type PushSummary = {
  * run again: every record is idempotent on its clientId. Needs a live connection — the caller
  * disables Submit offline (HLD 01 §1.2).
  */
-export async function pushPending(): Promise<PushSummary> {
+export async function pushPending(only?: SyncKind[]): Promise<PushSummary> {
   const summary: PushSummary = { sent: 0, synced: 0, failed: 0, held: 0, offline: false, error: null };
-  const pending = orderForPush(await store.listRecords({ status: ['QUEUED', 'FAILED'] }));
+  const queued = await store.listRecords({ status: ['QUEUED', 'FAILED'] });
+  // `only` narrows a push to some kinds (e.g. a new doctor), so it never drags the day's report along with it.
+  const pending = orderForPush(only ? queued.filter((r) => only.includes(r.kind)) : queued);
   if (pending.length === 0) return summary;
 
   const maxBatch = await getNumberSetting('SYNC_MAX_BATCH');

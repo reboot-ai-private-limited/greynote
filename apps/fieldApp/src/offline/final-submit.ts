@@ -25,7 +25,17 @@ export type FinalSubmitResult = PushSummary & {
  * stays on the phone, marked, and holds the submit back; the MR fixes it and submits again.
  * Needs a connection — the caller disables the button offline.
  */
+/**
+ * Sends the doctors the MR added (not tied to any day): their drafts are queued and pushed on their own,
+ * so it works any time there is a connection and never touches the day's report.
+ */
+export async function sendNewDoctors(): Promise<PushSummary> {
+  for (const r of await listRecords({ kind: 'NEW_DOCTOR', status: 'DRAFT' })) if (!r.deleted) await queueRecord(r.clientId);
+  return pushPending(['NEW_DOCTOR']);
+}
+
 export async function finalSubmit(reportDate: string): Promise<FinalSubmitResult> {
+  await sendNewDoctors().catch(() => undefined); // a failed new doctor is shown on its own screen; it must not stop the day
   const unsent = await unsentForDay(reportDate);
   for (const r of unsent) if (r.status === 'DRAFT') await queueRecord(r.clientId);
 

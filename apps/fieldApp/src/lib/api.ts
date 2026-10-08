@@ -104,9 +104,56 @@ async function request<T>(method: string, path: string, body?: unknown, opts: Op
   }
 }
 
+/** A file picked on the phone, as expo-document-picker gives it. */
+export type UploadFile = { uri: string; name: string; mimeType?: string | null };
+
+/**
+ * Sends one picked file as multipart/form-data. This uses React Native's own XMLHttpRequest and its
+ * { uri, name, type } file part: the system reads the file, so the app never has to. (The app's fetch
+ * refuses that part, and Expo Go refuses expo-file-system "READ" permission on the picker's cache folder.)
+ */
+function sendFile<T>(path: string, file: UploadFile, accessToken?: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const form = new FormData();
+    form.append('file', { uri: file.uri, name: file.name, type: file.mimeType ?? 'application/octet-stream' } as unknown as Blob);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE_URL}${path}`);
+    // No Content-Type: the multipart boundary is set for us.
+    xhr.setRequestHeader('X-Client', 'mobile');
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (accessToken) xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+    xhr.onerror = () => reject(new NetworkError(`Can’t reach the server at ${API_BASE_URL}.`));
+    xhr.ontimeout = () => reject(new NetworkError('The upload took too long. Check your connection and try again.'));
+    xhr.timeout = 60_000;
+    xhr.onload = () => {
+      let json: { success?: boolean; message?: string; data?: unknown } | null = null;
+      try {
+        json = JSON.parse(xhr.responseText);
+      } catch {
+        json = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && json?.success) resolve(json.data as T);
+      else reject(new ApiError(xhr.status, json?.message ?? 'Something went wrong. Please try again.', (json as { data?: Record<string, unknown> } | null)?.data));
+    };
+    xhr.send(form);
+  });
+}
+
+/** POSTs one file as multipart/form-data (field `file`), refreshing the sign-in once on a 401 like every other call. */
+export async function apiUpload<T>(path: string, file: UploadFile): Promise<T> {
+  try {
+    return await sendFile<T>(path, file, getTokens()?.accessToken);
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 401) throw err;
+    if (!(await refreshTokens())) throw err;
+    return sendFile<T>(path, file, getTokens()?.accessToken);
+  }
+}
+
 export const apiGet = <T>(path: string, opts?: Options) =>
   request<T>('GET', path, undefined, { auth: true, ...opts });
 export const apiPut = <T>(path: string, body: unknown, opts?: Options) =>
   request<T>('PUT', path, body, { auth: true, ...opts });
 export const apiPost = <T>(path: string, body: unknown, opts?: Options) =>
   request<T>('POST', path, body, opts);
+export const apiDelete = <T>(path: string, opts?: Options) => request<T>('DELETE', path, undefined, { auth: true, ...opts });

@@ -80,5 +80,23 @@ export type FieldMasterDataSnapshot = {
   }[];
   chemists: { id: string; routeId: string; name: string; address: string; location: GeoPoint | null }[];
   products: { id: string; name: string; sku: string; packSize: string | null }[];
+  /** The specialities the server accepts for a doctor, A–Z. */
+  specialties: string[];
   sampleAllocations: { id: string; doctorId: string; productId: string; quantityAllocated: number; quantityRemaining: number }[];
+};
+
+/** What the Leave screen reads from the `hr` pull source (balances show offline from the last pull). */
+export type HrSnapshot = {
+  leaveYear: number;
+  /** How many days back a leave may start. */
+  leaveBackdateDays: number;
+  leaveTypes: { id: string; name: string; isPaid: boolean }[];
+  balances: {
+    leaveTypeId: string;
+    leaveTypeName: string;
+    allocatedDays: number;
+    usedDays: number;
+    pendingDays: number;
+    availableDays: number;
+  }[];
 };

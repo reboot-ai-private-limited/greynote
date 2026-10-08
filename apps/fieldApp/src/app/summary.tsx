@@ -7,6 +7,7 @@ import { ScreenShell } from '@/components/screen-shell';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { formatRupees } from '@/lib/money';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { DAY_KINDS, finalSubmit, prettyDay, useOnline, useRecords, type OutboxRecord, type SyncKind } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
@@ -26,6 +27,8 @@ const STATUS_TEXT: Record<OutboxRecord['status'], string> = {
   SYNCED: 'Sent',
   FAILED: 'Not accepted',
 };
+
+const EXPENSE_LABEL: Record<string, string> = { TRAVEL: 'Travel', MEAL: 'Meal', MISC: 'Other' };
 
 const DCR_TEXT: Record<string, string> = {
   SUBMITTED: 'Submitted — waiting for your manager',
@@ -69,12 +72,11 @@ export default function SummaryScreen() {
   const alreadySent = dcr ? ['SUBMITTED', 'MANAGER_APPROVED', 'APPROVED'].includes(dcr.status) : submitRecord?.status === 'SYNCED';
 
   const failed = dayRecords.filter((r) => r.status === 'FAILED');
-  const unsent = dayRecords.filter((r) => r.status !== 'SYNCED');
 
   const describe = (r: OutboxRecord) => {
     const p = r.payload as { doctorId?: string; chemistId?: string; type?: string; amountPaise?: number };
     const who = names.get(p.doctorId ?? p.chemistId ?? '');
-    if (r.kind === 'EXPENSE') return `${p.type ?? 'Expense'} · ₹${((p.amountPaise ?? 0) / 100).toFixed(2)}`;
+    if (r.kind === 'EXPENSE') return `${EXPENSE_LABEL[p.type ?? ''] ?? 'Expense'} · ${formatRupees(p.amountPaise ?? 0)}`;
     return who ?? 'Unknown';
   };
 
@@ -145,7 +147,7 @@ export default function SummaryScreen() {
 
       {alreadySent ? null : (
         <PrimaryButton
-          label={unsent.length === 0 && !submitRecord ? 'Submit today’s report (nothing logged)' : 'Final Submission'}
+          label={dayRecords.length === 0 ? 'Submit today’s report (nothing logged)' : 'Final Submission'}
           loading={busy}
           disabled={!canSubmit}
           onPress={submit}
