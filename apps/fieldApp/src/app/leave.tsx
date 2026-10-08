@@ -6,6 +6,7 @@ import { DateStepper } from '@/components/date-stepper';
 import { LeaveProof } from '@/components/leave-proof';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
+import { Skeleton } from '@/components/skeleton';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
@@ -265,9 +266,13 @@ export default function LeaveScreen() {
       <ThemedText type="smallBold">Your requests</ThemedText>
       {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
       {leaves === null && !loadError ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          {online ? 'Loading…' : 'Connect to the internet to see your requests.'}
-        </ThemedText>
+        online ? (
+          <Skeleton cards={2} lines={3} />
+        ) : (
+          <ThemedText type="small" themeColor="textSecondary">
+            Connect to the internet to see your requests.
+          </ThemedText>
+        )
       ) : null}
       {leaves !== null && leaves.length === 0 ? <Notice tone="info">You haven’t requested any leave yet.</Notice> : null}
       {(leaves ?? []).map((l) => (

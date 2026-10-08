@@ -5,6 +5,7 @@ import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
+import { Skeleton } from '@/components/skeleton';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
@@ -305,9 +306,13 @@ export default function AddDoctorScreen() {
       <ThemedText type="smallBold">Doctors you added</ThemedText>
       {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
       {added === null && !loadError ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          {online ? 'Loading…' : 'Connect to the internet to see where your doctors are in approval.'}
-        </ThemedText>
+        online ? (
+          <Skeleton cards={2} lines={2} />
+        ) : (
+          <ThemedText type="small" themeColor="textSecondary">
+            Connect to the internet to see where your doctors are in approval.
+          </ThemedText>
+        )
       ) : null}
       {added !== null && added.length === 0 ? <Notice tone="info">You haven’t added any doctors yet.</Notice> : null}
       {(added ?? []).map((d) => {

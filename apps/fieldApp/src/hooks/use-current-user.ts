@@ -1,12 +1,13 @@
 import { useSessionUser } from '@/lib/session';
 
+import { useIsManager } from './use-is-manager';
+
 /**
  * The logged-in employee, as the screens need it. Filled from the login response's `user`
  * (src/lib/session.ts). Screens should only ever read the user through this hook.
  *
- * TODO: `designation` shows the role (the response carries only a designationId) and `isManager`
- * is false — the backend exposes no "has direct reports" flag or designation name to the app yet,
- * so the Team tab stays hidden until it does.
+ * `designation` shows the role (the response carries only a designationId). `isManager` is worked out from the
+ * approvals lists (see use-is-manager.ts) because the backend has no "has direct reports" flag yet.
  */
 export type CurrentUser = {
   name: string;
@@ -20,11 +21,12 @@ const SIGNED_OUT: CurrentUser = { name: '', employeeCode: '', designation: '', i
 
 export function useCurrentUser(): CurrentUser {
   const user = useSessionUser();
+  const isManager = useIsManager(user?.id, user?.role);
   if (!user) return SIGNED_OUT;
   return {
     name: user.name,
     employeeCode: user.employeeCode,
     designation: user.role,
-    isManager: false,
+    isManager,
   };
 }
