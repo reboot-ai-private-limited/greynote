@@ -5,7 +5,7 @@ allowBuilds:
   '@scarf/scarf': false
   bcrypt: true
   esbuild: false
-  unrs-resolver: set this to true or false
+  unrs-resolver: false
 
 # One React for the whole workspace, and it is Expo's choice (apps/fieldApp pins 19.2.3 exactly).
 # A second copy of React in one render gives "Cannot read properties of null (reading 'useRef')"
