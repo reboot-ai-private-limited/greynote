@@ -5,8 +5,8 @@ import { useSessionUser } from '@/lib/session';
 
 import { onReconnect, startConnectivityWatch } from './connectivity';
 import { getSyncStatus, runSync, subscribeSyncStatus } from './engine';
-import { countByStatus, subscribeOutbox } from './outbox';
-import type { OutboxStatus } from './types';
+import { countByStatus, listRecords, subscribeOutbox } from './outbox';
+import type { OutboxRecord, OutboxStatus, SyncKind } from './types';
 
 /** Live counts of the day's records by status. Refreshes whenever the outbox changes. */
 export function useOutboxCounts(): Record<OutboxStatus, number> {
@@ -69,4 +69,23 @@ export function useAutoSync() {
       clearTimeout(timer);
     };
   }, [signedIn]);
+}
+
+/** Live list of this phone's records of one or more kinds (oldest first). Refreshes when the outbox changes. */
+export function useRecords(kinds: SyncKind[]): { records: OutboxRecord[]; loaded: boolean } {
+  const [state, setState] = useState<{ records: OutboxRecord[]; loaded: boolean }>({ records: [], loaded: false });
+  const key = kinds.join(',');
+  useEffect(() => {
+    let alive = true;
+    const refresh = () =>
+      listRecords().then((all) => alive && setState({ records: all.filter((r) => kinds.includes(r.kind)), loaded: true }));
+    void refresh();
+    const unsubscribe = subscribeOutbox(refresh);
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return state;
 }

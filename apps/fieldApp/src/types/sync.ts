@@ -46,6 +46,8 @@ export type FieldActivitySnapshot = {
   /** Compliance block: missed reports with no approved leave. Only an Admin clears it. */
   blocked: boolean;
   today: string;
+  /** The last week's daily reports, oldest first. */
+  dcrs?: { id: string; reportDate: string; status: PlanStatus; doctorCalls: number; chemistCalls: number; followups: number }[];
 };
 
 export type ConfigSnapshot = { settings: Record<string, string> };
@@ -60,4 +62,23 @@ export type TerritorySnapshot = {
     distanceKm: string | null;
   }[];
   hq: { hqId: string; hqName: string; zoneId: string; zoneName: string } | null;
+};
+
+export type GeoPoint = { latitude: number; longitude: number };
+
+/** What the Dr Call and Chemist Call screens read from the `fieldMasterData` pull source. */
+export type FieldMasterDataSnapshot = {
+  doctors: {
+    id: string;
+    routeId: string;
+    name: string;
+    address: string;
+    email: string | null;
+    specialty: string;
+    qualification: string;
+    location: GeoPoint | null;
+  }[];
+  chemists: { id: string; routeId: string; name: string; address: string; location: GeoPoint | null }[];
+  products: { id: string; name: string; sku: string; packSize: string | null }[];
+  sampleAllocations: { id: string; doctorId: string; productId: string; quantityAllocated: number; quantityRemaining: number }[];
 };
