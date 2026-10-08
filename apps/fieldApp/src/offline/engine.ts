@@ -1,6 +1,7 @@
 import { ApiError, apiGet, apiPost, apiPut, NetworkError } from '@/lib/api';
 
 import { notifyCacheChanged } from './cache';
+import { refreshColleagues } from './colleagues';
 import { isOnline } from './connectivity';
 import { notifyOutboxChanged } from './outbox';
 import { orderForPush } from './order';
@@ -364,6 +365,7 @@ export function runSync(): Promise<void> {
     setStatus({ syncing: true, lastError: null });
     try {
       await pull();
+      await refreshColleagues();
       await backupDrafts();
       await pruneSynced();
       setStatus({ lastError: null });

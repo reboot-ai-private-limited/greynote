@@ -74,4 +74,7 @@ export const Spacing = {
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+/** Forms and detail screens: a line of text stays readable at this width. */
 export const MaxContentWidth = 800;
+/** Tab screens (Home tile grid, lists): use more of a large tablet. */
+export const WideContentWidth = 1200;

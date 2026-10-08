@@ -15,11 +15,11 @@ export type FeatureKey =
   | 'daily-plan' | 'monthly-plan' | 'dr-call' | 'dr-followup' | 'chemist-call' | 'chemist-followup'
   | 'add-doctor' | 'expenses' | 'leave' | 'summary'
   | 'orders' | 'monthly-stock' | 'visuals' | 'campaigns' | 'targets' | 'gifts' | 'services'
-  | 'documents'
   | 'holidays' | 'forms' | 'financial-year';
 
 export type Gate = 'plan' | 'unblocked' | 'none';
-export type Section = 'DCR' | 'Marketing' | 'Resources' | 'Utility';
+/** Home's categories. PRD §6.2 also lists Resources (the document library); that is the Docs tab, so Home has no tab for it. */
+export type Section = 'DCR' | 'Marketing' | 'Utility';
 
 export type Feature = {
   key: FeatureKey;
@@ -57,13 +57,11 @@ export const FEATURES: Feature[] = [
   { key: 'gifts', title: 'Gifts', section: 'Marketing', gate: 'none', stage: 6, icon: icon('gift', 'redeem'), about: 'Gifts Admin allocated to your doctors — mark each done once given.' },
   { key: 'services', title: 'Services', section: 'Marketing', gate: 'none', stage: 6, icon: icon('briefcase', 'work'), about: 'Request a service for a doctor; it goes through approval.' },
 
-  { key: 'documents', title: 'Documents', section: 'Resources', gate: 'none', stage: 7, icon: icon('doc.text', 'description'), about: 'Price lists, literature and training material.' },
-
   { key: 'holidays', title: 'Holiday List', section: 'Utility', gate: 'none', stage: 7, icon: icon('calendar.circle', 'event'), about: 'National, zone and HQ holidays.' },
   { key: 'forms', title: 'Forms', section: 'Utility', gate: 'none', stage: 7, icon: icon('doc.plaintext', 'assignment'), about: 'Standard company request forms.' },
   { key: 'financial-year', title: 'Financial Year', section: 'Utility', gate: 'none', stage: 7, icon: icon('clock.arrow.circlepath', 'history'), about: 'Look back at a previous financial year (read-only).' },
 ];
 
-export const SECTIONS: Section[] = ['DCR', 'Marketing', 'Resources', 'Utility'];
+export const SECTIONS: Section[] = ['DCR', 'Marketing', 'Utility'];
 
 export const featureByKey = (key: string | undefined) => FEATURES.find((f) => f.key === key);

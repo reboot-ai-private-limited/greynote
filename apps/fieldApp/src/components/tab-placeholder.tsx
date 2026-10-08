@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, Spacing, WideContentWidth } from '@/constants/theme';
 
 type Props = {
   title: string;
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   },
   content: {
     width: '100%',
-    maxWidth: MaxContentWidth,
+    maxWidth: WideContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,

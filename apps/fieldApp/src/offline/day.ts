@@ -151,3 +151,22 @@ export function monthlyDeadlinePassed(planMonth: string, today: string, cutoffDa
   const deadlineDay = Math.min(Math.max(cutoffDay, 1), lastDay);
   return today > fromParts(Number(before.slice(0, 4)), Number(before.slice(5)), deadlineDay);
 }
+
+/** "Thu 8 Oct, 10:00" for an instant, in the business timezone (the phone's own if that is unknown). */
+export function formatWhen(iso: string, timeZone?: string | null): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  };
+  try {
+    return new Intl.DateTimeFormat('en-GB', { ...options, ...(timeZone ? { timeZone } : {}) }).format(date).replace(',', '');
+  } catch {
+    return new Intl.DateTimeFormat('en-GB', options).format(date).replace(',', '');
+  }
+}

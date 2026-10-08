@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
 import { PlanDayForm } from '@/components/plan-day-form';
+import { describeDay } from '@/components/plan-day-summary';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { ThemedText } from '@/components/themed-text';
@@ -16,17 +17,19 @@ import { ApiError, NetworkError } from '@/lib/api';
 import {
   EDITABLE,
   EMPTY_DAY,
+  getMonthlyPlanDetail,
   getRejectionReason,
   saveMonthlyPlan,
   submitMonthlyPlan,
   withdrawPlan,
-  workingTypeLabel,
+  type MonthlyPlanDetail,
   type PlanDay,
 } from '@/lib/planning';
-import { refreshNow, useOnline } from '@/offline';
+import { refreshNow, useColleagues, useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import {
   addMonths,
+  formatWhen,
   datesInMonth,
   monthlyDeadlinePassed,
   monthOf,
@@ -67,6 +70,7 @@ export default function MonthlyPlanScreen() {
   const territory = useCachedSource<TerritorySnapshot>('territory');
   const { today } = useDayGate();
   const online = useOnline();
+  const { colleagues } = useColleagues();
 
   const thisMonth = monthOf(today);
   const [month, setMonth] = useState(addMonths(thisMonth, 1));
@@ -76,6 +80,8 @@ export default function MonthlyPlanScreen() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
   const [rejection, setRejection] = useState<string | null>(null);
+  /** Everything the server knows about this month's plan (online only). */
+  const [detail, setDetail] = useState<MonthlyPlanDetail | null>(null);
 
   const existing = planning.data?.monthlyPlans.find((p) => p.planMonth === month) ?? null;
   const status = existing?.status ?? null;
@@ -83,7 +89,28 @@ export default function MonthlyPlanScreen() {
   const offDay = weeklyOffIndex(config.data?.settings.WEEKLY_OFF_DAY);
   const days = useMemo(() => datesInMonth(month), [month]);
   const isOff = (d: string) => offDay !== null && weekdayOf(d) === offDay;
-  const routeName = (id: string) => territory.data?.routes.find((r) => r.id === id)?.name ?? 'Route';
+  const names = useMemo(
+    () => ({
+      routes: new Map((territory.data?.routes ?? []).map((r) => [r.id, r.name])),
+      colleagues: new Map(colleagues.map((c) => [c.id, c])),
+    }),
+    [territory.data, colleagues],
+  );
+  const timeZone = config.data?.settings.BUSINESS_TIMEZONE;
+
+  const loadDetail = useCallback(async () => {
+    if (!online) return;
+    try {
+      setDetail(await getMonthlyPlanDetail(month));
+    } catch {
+      // Keep what the phone has; the synced plan is enough to work from.
+    }
+  }, [month, online]);
+
+  useEffect(() => {
+    setDetail(null);
+    void loadDetail();
+  }, [loadDetail, existing?.id, status]);
 
   const loadedFor = useRef<string | null>(null);
   useEffect(() => {
@@ -115,7 +142,14 @@ export default function MonthlyPlanScreen() {
   }, [status, existing?.approvalRequestId, online]);
 
   const cutoffDay = Number(config.data?.settings.MONTHLY_PLAN_SUBMIT_CUTOFF_DATE ?? 28);
-  const late = editable && monthlyDeadlinePassed(month, today, cutoffDay);
+  // The plan's own deadline when the server has given one; otherwise worked out from the cutoff setting.
+  const deadlineIso = detail?.submitDeadline ?? existing?.submitDeadline ?? null;
+  const deadlinePassed =
+    deadlineIso !== null ? Date.now() > Date.parse(deadlineIso) : monthlyDeadlinePassed(month, today, cutoffDay);
+  const resubmitUntil = detail?.resubmitAllowedUntil ?? null;
+  const lateUntil = detail?.lateSubmitAllowedUntil ?? null;
+  const lateButAllowed = editable && deadlinePassed && (resubmitUntil !== null || lateUntil !== null);
+  const lateAndRefused = editable && deadlinePassed && !lateButAllowed;
   const planned = Object.keys(entries).length;
 
   function openDay(date: string) {
@@ -178,7 +212,7 @@ export default function MonthlyPlanScreen() {
       }
       await saveMonthlyPlan(month, list());
       await clearLocalDraft(`monthly:${month}`);
-      await refreshNow();
+      await Promise.all([refreshNow(), loadDetail()]);
       return { tone: 'success', text: 'Draft saved.' };
     });
 
@@ -193,7 +227,7 @@ export default function MonthlyPlanScreen() {
       const saved = await saveMonthlyPlan(month, list());
       await submitMonthlyPlan(saved.id);
       await clearLocalDraft(`monthly:${month}`);
-      await refreshNow();
+      await Promise.all([refreshNow(), loadDetail()]);
       Alert.alert('Plan submitted', 'Your manager will be asked to approve it.', [{ text: 'OK', onPress: () => router.back() }]);
       return null;
     });
@@ -204,7 +238,7 @@ export default function MonthlyPlanScreen() {
       if (!existing?.approvalRequestId) return null;
       if (!online) return { tone: 'warning', text: 'Connect to the internet to withdraw.' };
       await withdrawPlan(existing.approvalRequestId);
-      await refreshNow();
+      await Promise.all([refreshNow(), loadDetail()]);
       return { tone: 'info', text: 'Plan withdrawn. You can edit it and submit again.' };
     });
 
@@ -223,9 +257,22 @@ export default function MonthlyPlanScreen() {
           {rejection ? `Reason: ${rejection}` : undefined}
         </Notice>
       ) : null}
-      {late ? (
+      {editable && !deadlinePassed && deadlineIso ? (
+        <Notice tone="info">{`Submit by ${formatWhen(deadlineIso, timeZone)}.`}</Notice>
+      ) : null}
+      {lateAndRefused ? (
         <Notice tone="warning" title="Deadline passed">
-          {`Monthly Plans are due by day ${cutoffDay} of the month before. A late submit is refused unless your manager gives you an exception.`}
+          {`This plan was due by ${deadlineIso ? formatWhen(deadlineIso, timeZone) : `day ${cutoffDay} of the month before`}. A late submit is refused unless your manager gives you an exception.`}
+        </Notice>
+      ) : null}
+      {lateButAllowed && resubmitUntil ? (
+        <Notice tone="warning" title="You can still resubmit">
+          {`Because it was rejected, you may resubmit until ${formatWhen(resubmitUntil, timeZone)}.`}
+        </Notice>
+      ) : null}
+      {lateButAllowed && !resubmitUntil && lateUntil ? (
+        <Notice tone="warning" title="Late-submission exception">
+          {`Your manager allowed a late submit. It expires ${formatWhen(lateUntil, timeZone)}.`}
         </Notice>
       ) : null}
       {!online ? <Notice tone="info">You’re offline. You can plan the days and save them on this phone; submitting needs the internet.</Notice> : null}
@@ -242,11 +289,7 @@ export default function MonthlyPlanScreen() {
             <ThemedView type="backgroundElement" style={[styles.day, off && styles.off]}>
               <ThemedText type="smallBold" style={styles.dayName}>{prettyDay(d)}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.dayText} numberOfLines={2}>
-                {off
-                  ? 'Weekly off'
-                  : e
-                    ? `${workingTypeLabel(e.workingType)}${e.routeIds.length ? ` · ${e.routeIds.map(routeName).join(', ')}` : ''}`
-                    : editable ? 'Tap to plan' : 'Not planned'}
+                {off ? 'Weekly off' : e ? describeDay(e, names) : editable ? 'Tap to plan' : 'Not planned'}
               </ThemedText>
             </ThemedView>
           </Pressable>

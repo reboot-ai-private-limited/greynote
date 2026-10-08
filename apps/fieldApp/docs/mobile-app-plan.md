@@ -236,7 +236,7 @@ counted separately.)
 |---|---|
 | `isManager` / "has direct reports" flag on the user (login response or `/auth/me`) | Team tab visibility |
 | Designation **name** (login gives only `designationId`) | Home header, Team labels |
-| A list of colleagues an MR can pick for "Work With" (id, name, code) — none exists for the FIELD role | Work With on Daily and Monthly Plan |
+| ~~A list of colleagues an MR can pick for Work With~~ — added 2026-10-07: `GET /identity/colleagues` | done |
 | Resource library endpoint (list/download documents) | Docs tab (#23) |
 | Company forms endpoint or a config of links | Forms (#25) |
 | CORS: add `http://localhost:8081` for web testing | Testing in the browser |

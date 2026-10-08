@@ -7,9 +7,13 @@ import { WORKING_TYPES, type PlanDay, type WorkingType } from '@/lib/planning';
 import type { TerritorySnapshot } from '@/types/sync';
 
 import { ChoiceChips } from './choice-chips';
+import { WorkWithPicker } from './work-with-picker';
 import { TextField } from './text-field';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
+
+/** The server refuses remarks longer than this. */
+const REMARKS_MAX = 1000;
 
 type Props = {
   value: PlanDay;
@@ -20,7 +24,7 @@ type Props = {
 /**
  * One planned day: working type, routes, remarks. Shared by the Daily Plan, an in-day change
  * and each Monthly Plan day. Routes come from the cached `territory` pull, so it works offline.
- * "Work with" is left out until the server can list an MR's colleagues for them to pick.
+ * "Work with" comes from the colleagues the server offers (offline/colleagues.ts).
  */
 export function PlanDayForm({ value, onChange, disabled }: Props) {
   const theme = useTheme();
@@ -95,11 +99,14 @@ export function PlanDayForm({ value, onChange, disabled }: Props) {
         </>
       ) : null}
 
+      <WorkWithPicker value={value.workWith} onChange={(workWith) => onChange({ ...value, workWith })} disabled={disabled} />
+
       <TextField
         label="Remarks (optional)"
         value={value.remarks ?? ''}
         onChangeText={(t) => onChange({ ...value, remarks: t.length > 0 ? t : null })}
         editable={!disabled}
+        maxLength={REMARKS_MAX}
         multiline
       />
     </>

@@ -74,3 +74,52 @@ export async function getRejectionReason(requestId: string): Promise<string | nu
 }
 
 type HistoryEntry = { action: string; comment: string | null };
+
+/* ───────────── the full plan views (everything the server knows about a plan) ───────────── */
+
+/** A change a manager or Admin made to a day, with what it replaced. `by` is a user id, not a name. */
+export type PlanAmendment = { by: string; at: string; reason: string; previous: PlanDay };
+
+/**
+ * What `GET /planning/daily` and `/monthly` return beyond the synced snapshot: where a day came from,
+ * the manager's amendments, and the two windows that let a late submit through. Fetched online only.
+ */
+export type DailyPlanDetail = DailyPlanView & {
+  /** `MONTHLY` = inherited from an approved Monthly Plan (read-only, submit as it is); `MANUAL` = written by the MR. */
+  source: 'MONTHLY' | 'MANUAL';
+  amendments: PlanAmendment[];
+};
+
+export type MonthlyPlanDetail = MonthlyPlanView;
+
+export async function getDailyPlanDetail(planDate: string): Promise<DailyPlanDetail | null> {
+  const rows = await apiGet<DailyPlanDetail[]>(`/planning/daily?from=${planDate}&to=${planDate}`, { auth: true });
+  return rows.find((r) => r.planDate === planDate) ?? null;
+}
+
+export async function getMonthlyPlanDetail(planMonth: string): Promise<MonthlyPlanDetail | null> {
+  const rows = await apiGet<MonthlyPlanDetail[]>(`/planning/monthly?from=${planMonth}&to=${planMonth}`, { auth: true });
+  return rows.find((r) => r.planMonth === planMonth) ?? null;
+}
+
+/** An in-day change request and where it is in the manager's approval. */
+export type DailyPlanChange = {
+  id: string;
+  planId: string;
+  planDate: string;
+  previous: PlanDay;
+  proposed: PlanDay;
+  reason: string;
+  /** The approval request's status: SUBMITTED, APPROVED, REJECTED or WITHDRAWN. */
+  status: string;
+  /** Waiting for a decision. */
+  open: boolean;
+  /** Approved and written into the plan. */
+  applied: boolean;
+  createdAt: string;
+  approval: { requestId: string; decidedAt: string | null } | null;
+};
+
+/** Newest first. */
+export const listDailyPlanChanges = (planId: string) =>
+  apiGet<DailyPlanChange[]>(`/planning/daily/${planId}/changes`, { auth: true });
