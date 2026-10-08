@@ -27,10 +27,11 @@ Read `docs/prd.md` §6 before building any screen — it's the actual spec for w
 
 ## Current state (check before assuming a screen or API call works)
 
-**This is currently the unmodified `create-expo-app` template** (`src/app/index.tsx`,
-`explore.tsx`, a 2-tab `AppTabs` in `src/components/app-tabs.tsx`) — no PharmaCRM screen has been
-built yet. Dependencies aren't installed; run `pnpm install` from the repo root first (this
-package joins the workspace via `pnpm-workspace.yaml`'s `apps/*`).
+**Auth is wired (Stage 0, see docs/mobile-app-plan.md in this folder):** Login, Splash session restore, token refresh, logout and Profile call the real API via `src/lib/`. Every request must send `X-Client: mobile` or the server withholds the refresh token. **Offline layer (Stage 1) lives in `src/offline/`: screens create records with `createRecord`/`queueRecord` (never call the server for DCR records), `pushPending()` is the only thing that sends them, and `runSync()` (pull + draft backup) runs by itself via `useAutoSync`. Money is integer paise; never send TA/DA. **Tab screens are placeholders and the rest below is still UI only:** Splash (`src/app/index.tsx`), Login
+(`login.tsx`), Device status (`device-status.tsx`), and the 4-tab shell (`src/app/(tabs)/` —
+Home, Docs, Reports, Team, each still a `TabPlaceholder`). Team is hidden unless
+`useCurrentUser().isManager`, which is always false for now (the backend sends no "has direct reports" flag yet); screens
+should read the user only through that hook. The old dev-only `pending`/`rejected`/`limit` login shortcut is gone.
 
 **Backend readiness — only these endpoints exist today**, everything else in the PRD has no API
 yet:
@@ -71,6 +72,10 @@ context.
   `useLocalSearchParams` from `expo-router`, never `@react-navigation/native` directly.
 - **`@/*` import alias** resolves to `src/*` (see `tsconfig.json`) — use it instead of relative
   `../../` chains.
+- **Light theme only.** The phone's dark-mode setting is ignored (`app.json`
+  `userInterfaceStyle: "light"`, and `src/hooks/use-color-scheme.ts` always returns `'light'`).
+  Get colors via `useTheme()` / `ThemedText` / `ThemedView`, and never import `useColorScheme`
+  from `react-native` directly — that would bypass the switch.
 - **Typed routes and the React Compiler are both on** (`app.json` → `experiments`) — don't fight
   either; if a route param type error looks wrong, regenerate types rather than casting past it.
 - **Offline-first is not optional for DCR screens.** Per HLD 01, `DailyPlan`/`MonthlyPlan`/`DCR`
