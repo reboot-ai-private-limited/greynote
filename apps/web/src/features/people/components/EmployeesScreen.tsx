@@ -7,10 +7,9 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
-import { Input } from '@/components/ui/Input';
+import { ListToolbar, SearchInput } from '@/components/ui/ListToolbar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Pagination } from '@/components/ui/Pagination';
 import { Select } from '@/components/ui/Select';
@@ -37,7 +36,7 @@ const STATUS_OPTIONS = withAny(
 );
 
 export function EmployeesScreen() {
-  const { values, page, update } = useFilterParams(['search', 'role', 'status', 'designationId']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'role', 'status', 'designationId']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const router = useRouter();
   const { user: me } = useSession();
@@ -46,6 +45,7 @@ export function EmployeesScreen() {
 
   const users = useUsers({
     page,
+    pageSize,
     ...(values.search && { search: values.search }),
     ...(values.role && { role: values.role as UserListItemDto['role'] }),
     ...(values.status && { status: values.status as UserListStatus }),
@@ -106,48 +106,42 @@ export function EmployeesScreen() {
         }
       />
       <EmployeeDraftsCard />
-      <Card>
-        <div className="flex flex-wrap items-center gap-3 p-4">
-          <Input
-            placeholder="Search by name or code"
-            aria-label="Search employees"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="max-w-xs"
-          />
-          <div className="w-44">
-            <Select aria-label="Role" value={values.role || ANY} options={ROLE_OPTIONS} onValueChange={(v) => update({ role: v === ANY ? '' : v })} />
-          </div>
-          <div className="w-44">
-            <Select aria-label="Status" value={values.status || ANY} options={STATUS_OPTIONS} onValueChange={(v) => update({ status: v === ANY ? '' : v })} />
-          </div>
-          <div className="w-44">
-            <Select
-              aria-label="Designation"
-              value={values.designationId || ANY}
-              options={designationOptions}
-              onValueChange={(v) => update({ designationId: v === ANY ? '' : v })}
-            />
-          </div>
+      <ListToolbar>
+        <SearchInput label="Search employees" placeholder="Search by name or code" value={search} onChange={setSearch} />
+        <div className="w-44">
+          <Select aria-label="Role" value={values.role || ANY} options={ROLE_OPTIONS} onValueChange={(v) => update({ role: v === ANY ? '' : v })} />
         </div>
-        <TopProgressBar active={users.isFetching && !users.isLoading} />
-        <DataState
-          isLoading={users.isLoading}
-          error={users.error ? toErrorState(users.error, () => void users.refetch()) : null}
-          isEmpty={users.data?.items.length === 0}
-          empty={{ title: 'No employees', description: 'No employee matches these filters.' }}
-        >
-          <DataTable columns={columns} rows={users.data?.items ?? []} rowKey={(u) => u.id} />
-          {users.data ? (
-            <Pagination
-              page={users.data.page}
-              totalPages={users.data.totalPages}
-              total={users.data.total}
-              onPageChange={(p) => update({ page: p })}
-            />
-          ) : null}
-        </DataState>
-      </Card>
+        <div className="w-44">
+          <Select aria-label="Status" value={values.status || ANY} options={STATUS_OPTIONS} onValueChange={(v) => update({ status: v === ANY ? '' : v })} />
+        </div>
+        <div className="w-44">
+          <Select
+            aria-label="Designation"
+            value={values.designationId || ANY}
+            options={designationOptions}
+            onValueChange={(v) => update({ designationId: v === ANY ? '' : v })}
+          />
+        </div>
+      </ListToolbar>
+      <TopProgressBar active={users.isFetching && !users.isLoading} />
+      <DataState
+        isLoading={users.isLoading}
+        error={users.error ? toErrorState(users.error, () => void users.refetch()) : null}
+        isEmpty={users.data?.items.length === 0}
+        empty={{ title: 'No employees', description: 'No employee matches these filters.' }}
+      >
+        <DataTable columns={columns} rows={users.data?.items ?? []} rowKey={(u) => u.id} />
+        {users.data ? (
+          <Pagination
+            page={users.data.page}
+            pageSize={pageSize}
+            totalPages={users.data.totalPages}
+            total={users.data.total}
+            onPageChange={(p) => update({ page: p })}
+            onPageSizeChange={(n) => update({ pageSize: n })}
+          />
+        ) : null}
+      </DataState>
     </>
   );
 }

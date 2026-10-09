@@ -144,7 +144,7 @@ export function SalesReportScreen() {
           >
             <SalesBarChart months={months} metric={metric} selected={selected} onSelect={(m) => update({ month: m })} />
             <div className="mt-4 overflow-hidden rounded-md border border-border">
-              <DataTable columns={monthColumns} rows={started} rowKey={(m) => m.month} />
+              <DataTable columns={monthColumns} rows={started} rowKey={(m) => m.month} bleed={false} />
             </div>
           </DataState>
         </div>
@@ -175,7 +175,7 @@ export function SalesReportScreen() {
                   </p>
                 ) : null}
                 <div className="overflow-hidden rounded-md border border-border">
-                  <DataTable columns={rowColumns} rows={s.rows} rowKey={(r) => `${r.distributor.id}|${r.product.id}`} />
+                  <DataTable columns={rowColumns} rows={s.rows} rowKey={(r) => `${r.distributor.id}|${r.product.id}`} bleed={false} />
                 </div>
                 <p className="text-sm text-text-muted">
                   Totals: primary {formatMoney(s.totals.primaryPaise)} ({qty(s.totals.primaryQty)} units) · secondary {formatMoney(s.totals.secondaryPaise)} ({qty(s.totals.secondaryQty)} units) · placed, not done {formatMoney(s.totals.placedPaise)}

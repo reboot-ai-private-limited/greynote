@@ -96,7 +96,7 @@ export function DoctorServicesScreen() {
           isEmpty={rows.length === 0}
           empty={{ title: 'No doctor services yet', description: 'Services appear here when an MR asks for one, or when you record one.' }}
         >
-          <DataTable columns={columns} rows={rows} rowKey={(s) => s.id} />
+          <DataTable columns={columns} rows={rows} rowKey={(s) => s.id} bleed={false} />
         </DataState>
       </Card>
       {creating ? <ServiceDialog onClose={() => setCreating(false)} /> : null}

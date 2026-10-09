@@ -211,8 +211,8 @@ export function DesignScreen() {
               </TabsList>
             </div>
             <TabsContent value="all">
-              <DataTable columns={columns} rows={rows} rowKey={(r) => r.id} sort={sort} onSortChange={setSort} />
-              <Pagination page={1} totalPages={3} total={52} onPageChange={() => undefined} />
+              <DataTable columns={columns} rows={rows} rowKey={(r) => r.id} sort={sort} onSortChange={setSort} bleed={false} />
+              <Pagination page={1} pageSize={25} totalPages={3} total={52} onPageChange={() => undefined} onPageSizeChange={() => undefined} bleed={false} />
             </TabsContent>
             <TabsContent value="pending">
               <EmptyState title="Nothing pending" description="Items waiting on you will show up here." />

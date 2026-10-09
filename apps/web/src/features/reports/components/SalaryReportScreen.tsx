@@ -102,7 +102,7 @@ export function SalaryReportScreen() {
           >
             <SalaryStackChart months={months} view={view} selected={selected} onSelect={(m) => update({ month: m === selected ? '' : m })} />
             <div className="mt-4 overflow-hidden rounded-md border border-border">
-              <DataTable columns={monthColumns} rows={shown} rowKey={(m) => m.month} />
+              <DataTable columns={monthColumns} rows={shown} rowKey={(m) => m.month} bleed={false} />
             </div>
           </DataState>
         </div>

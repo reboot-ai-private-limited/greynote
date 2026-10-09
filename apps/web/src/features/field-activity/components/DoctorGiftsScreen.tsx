@@ -102,7 +102,7 @@ export function DoctorGiftsScreen() {
           isEmpty={rows.length === 0}
           empty={{ title: 'No gifts', description: status ? 'No gift has this status.' : 'Allocate a gift to a doctor to start.' }}
         >
-          <DataTable columns={columns} rows={rows} rowKey={(g) => g.id} />
+          <DataTable columns={columns} rows={rows} rowKey={(g) => g.id} bleed={false} />
         </DataState>
       </Card>
       {creating ? <GiftDialog onClose={() => setCreating(false)} /> : null}

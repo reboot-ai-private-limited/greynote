@@ -17,7 +17,7 @@ import { SpecialtyFormDialog } from './SpecialtyFormDialog';
 
 /** The specialities a doctor can have. A deactivated one is no longer offered for new choices; doctors who have it keep it. */
 export function SpecialtiesScreen() {
-  const { values, page, update } = useFilterParams(['search', 'status']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const [form, setForm] = useState<{ specialty?: SpecialtyDto } | null>(null);
@@ -26,6 +26,7 @@ export function SpecialtiesScreen() {
 
   const specialties = useSpecialties({
     page,
+    pageSize,
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as MasterStatus }),
   });
@@ -62,6 +63,8 @@ export function SpecialtiesScreen() {
       columns={columns}
       emptyDescription="No speciality matches these filters."
       onPageChange={(p) => update({ page: p })}
+      pageSize={pageSize}
+      onPageSizeChange={(n) => update({ pageSize: n })}
     >
       {form ? <SpecialtyFormDialog specialty={form.specialty} onClose={() => setForm(null)} /> : null}
       <StatusToggleDialog

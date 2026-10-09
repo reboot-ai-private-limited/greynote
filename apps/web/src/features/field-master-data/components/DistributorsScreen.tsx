@@ -24,7 +24,7 @@ const ANY = 'all';
 
 export function DistributorsScreen() {
   const router = useRouter();
-  const { values, page, update } = useFilterParams(['search', 'status', 'routeId', 'hqId', 'zoneId', 'assignedMrId']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'routeId', 'hqId', 'zoneId', 'assignedMrId']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
@@ -33,6 +33,7 @@ export function DistributorsScreen() {
 
   const distributors = useDistributors({
     page,
+    pageSize,
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as MasterStatus }),
     ...(values.routeId && { routeId: values.routeId }),
@@ -125,6 +126,8 @@ export function DistributorsScreen() {
       columns={columns}
       emptyDescription="No distributor matches these filters."
       onPageChange={(p) => update({ page: p })}
+      pageSize={pageSize}
+      onPageSizeChange={(n) => update({ pageSize: n })}
     >
       <StatusToggleDialog
         item={toggling}

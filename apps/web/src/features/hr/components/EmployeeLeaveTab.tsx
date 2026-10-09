@@ -70,7 +70,7 @@ function BalancesCard({ userId }: { userId: string }) {
         isEmpty={query.data?.balances.length === 0}
         empty={{ title: 'No leave balances', description: "An employee needs a pay grade to have balances. Set it on the Profile tab, and add the grade's days on the Leave master." }}
       >
-        <DataTable columns={columns} rows={query.data?.balances ?? []} rowKey={(b) => b.id} />
+        <DataTable columns={columns} rows={query.data?.balances ?? []} rowKey={(b) => b.id} bleed={false} />
       </DataState>
       {adjusting ? <AdjustBalanceDialog balance={adjusting} onClose={() => setAdjusting(null)} /> : null}
     </Card>

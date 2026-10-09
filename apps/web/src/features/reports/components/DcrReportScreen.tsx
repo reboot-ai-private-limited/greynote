@@ -98,7 +98,7 @@ export function DcrReportScreen() {
           isEmpty={started.length === 0}
           empty={{ title: 'No month of this financial year has started yet' }}
         >
-          <DataTable columns={monthColumns} rows={started} rowKey={(m) => m.month} />
+          <DataTable columns={monthColumns} rows={started} rowKey={(m) => m.month} bleed={false} />
         </DataState>
       </Card>
 
@@ -114,7 +114,7 @@ export function DcrReportScreen() {
           className="mt-6"
         >
           <DataState isLoading={query.isLoading} error={null} isEmpty={rows.length === 0} empty={{ title: 'No reported days this month', description: 'Days appear once their daily report is submitted.' }}>
-            <DataTable columns={mrColumns} rows={rows} rowKey={(r) => r.mr.id} />
+            <DataTable columns={mrColumns} rows={rows} rowKey={(r) => r.mr.id} bleed={false} />
           </DataState>
         </Card>
       ) : null}

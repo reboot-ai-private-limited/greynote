@@ -19,7 +19,7 @@ import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
 
 export function HqsScreen() {
-  const { values, page, update } = useFilterParams(['search', 'status', 'zoneId']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'zoneId']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const zones = useZoneOptions();
@@ -29,6 +29,7 @@ export function HqsScreen() {
 
   const hqs = useHqs({
     page,
+    pageSize,
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as HqDto['status'] }),
     ...(values.zoneId && { zoneId: values.zoneId }),
@@ -82,6 +83,8 @@ export function HqsScreen() {
       columns={columns}
       emptyDescription="No HQ matches these filters."
       onPageChange={(p) => update({ page: p })}
+      pageSize={pageSize}
+      onPageSizeChange={(n) => update({ pageSize: n })}
     >
       {form ? <HqFormDialog hq={form.hq} onClose={() => setForm(null)} /> : null}
       <StatusToggleDialog

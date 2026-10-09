@@ -3,7 +3,6 @@
 import type { PendingDeviceDto } from '@greynote/contracts';
 import Link from 'next/link';
 import { useState } from 'react';
-import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -70,17 +69,15 @@ export function DevicesScreen() {
         title="Devices"
         description="New phones waiting for approval. A field employee can't sign in on one until you approve it, and each employee has a limited number of slots."
       />
-      <Card>
-        <TopProgressBar active={query.isFetching && !query.isLoading} />
-        <DataState
-          isLoading={query.isLoading}
-          error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
-          isEmpty={query.data?.length === 0}
-          empty={{ title: 'Nothing waiting', description: 'Every phone request has been decided.' }}
-        >
-          <DataTable columns={columns} rows={query.data ?? []} rowKey={(d) => d.id} />
-        </DataState>
-      </Card>
+      <TopProgressBar active={query.isFetching && !query.isLoading} />
+      <DataState
+        isLoading={query.isLoading}
+        error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
+        isEmpty={query.data?.length === 0}
+        empty={{ title: 'Nothing waiting', description: 'Every phone request has been decided.' }}
+      >
+        <DataTable columns={columns} rows={query.data ?? []} rowKey={(d) => d.id} />
+      </DataState>
       {chosen ? (
         <DeviceActionDialog
           action={chosen.action}

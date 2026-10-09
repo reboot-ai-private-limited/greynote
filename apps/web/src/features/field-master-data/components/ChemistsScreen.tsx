@@ -20,7 +20,7 @@ import { RouteFilter } from './RoutePickerField';
 
 export function ChemistsScreen() {
   const router = useRouter();
-  const { values, page, update } = useFilterParams(['search', 'status', 'routeId']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'routeId']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
@@ -29,6 +29,7 @@ export function ChemistsScreen() {
 
   const chemists = useChemists({
     page,
+    pageSize,
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as MasterStatus }),
     ...(values.routeId && { routeId: values.routeId }),
@@ -90,6 +91,8 @@ export function ChemistsScreen() {
       columns={columns}
       emptyDescription="No chemist matches these filters."
       onPageChange={(p) => update({ page: p })}
+      pageSize={pageSize}
+      onPageSizeChange={(n) => update({ pageSize: n })}
     >
       <StatusToggleDialog
         item={toggling}

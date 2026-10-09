@@ -68,7 +68,7 @@ export function AssignmentsCard({ routeId, routeActive, readOnly }: { routeId: s
         isEmpty={rows.data?.length === 0}
         empty={{ title: 'No MRs assigned', description: 'Assign an MR to put this route on their app.' }}
       >
-        <DataTable columns={columns} rows={rows.data ?? []} rowKey={(a) => a.id} />
+        <DataTable columns={columns} rows={rows.data ?? []} rowKey={(a) => a.id} bleed={false} />
       </DataState>
       {assigning ? <AssignMrDialog routeId={routeId} assignedUserIds={assignedIds} onClose={() => setAssigning(false)} /> : null}
       <ConfirmDialog

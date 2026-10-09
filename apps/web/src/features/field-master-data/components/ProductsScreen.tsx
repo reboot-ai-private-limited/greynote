@@ -20,7 +20,7 @@ import { ProductFormDialog } from './ProductFormDialog';
 const ANY = 'all';
 
 export function ProductsScreen() {
-  const { values, page, update } = useFilterParams(['search', 'status', 'category']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'category']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const [form, setForm] = useState<{ product?: ProductDto } | null>(null);
@@ -30,6 +30,7 @@ export function ProductsScreen() {
 
   const products = useProducts({
     page,
+    pageSize,
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as MasterStatus }),
     ...(values.category && { category: values.category }),
@@ -99,6 +100,8 @@ export function ProductsScreen() {
       columns={columns}
       emptyDescription="No product matches these filters."
       onPageChange={(p) => update({ page: p })}
+      pageSize={pageSize}
+      onPageSizeChange={(n) => update({ pageSize: n })}
     >
       {form ? <ProductFormDialog product={form.product} onClose={() => setForm(null)} /> : null}
       <StatusToggleDialog

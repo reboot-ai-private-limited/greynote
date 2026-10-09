@@ -132,7 +132,7 @@ export function ExpensePayoutsScreen() {
               isEmpty={rows.length === 0}
               empty={{ title: `No accepted expenses for ${monthLabel(month)}`, description: 'Expenses appear here once the manager has accepted the daily report they belong to.' }}
             >
-              <DataTable columns={columns} rows={rows} rowKey={(r) => r.userId} />
+              <DataTable columns={columns} rows={rows} rowKey={(r) => r.userId} bleed={false} />
             </DataState>
           </Card>
         </>

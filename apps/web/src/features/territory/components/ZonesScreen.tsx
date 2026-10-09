@@ -17,7 +17,7 @@ import { PagedListFrame } from '@/components/ui/PagedListFrame';
 import { ZoneFormDialog } from './ZoneFormDialog';
 
 export function ZonesScreen() {
-  const { values, page, update } = useFilterParams(['search', 'status']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const [form, setForm] = useState<{ zone?: ZoneDto } | null>(null);
@@ -26,6 +26,7 @@ export function ZonesScreen() {
 
   const zones = useZones({
     page,
+    pageSize,
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as ZoneDto['status'] }),
   });
@@ -70,6 +71,8 @@ export function ZonesScreen() {
       columns={columns}
       emptyDescription="No zone matches these filters."
       onPageChange={(p) => update({ page: p })}
+      pageSize={pageSize}
+      onPageSizeChange={(n) => update({ pageSize: n })}
     >
       {form ? <ZoneFormDialog zone={form.zone} onClose={() => setForm(null)} /> : null}
       <StatusToggleDialog

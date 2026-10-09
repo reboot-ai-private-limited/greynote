@@ -67,7 +67,7 @@ export function DoctorSamplesTab({ doctor }: { doctor: DoctorDto }) {
           isEmpty={samples.data?.length === 0}
           empty={{ title: 'No samples issued', description: 'Issue a product above to let the MR give it on a visit.' }}
         >
-          <DataTable columns={columns} rows={samples.data ?? []} rowKey={(a) => a.id} />
+          <DataTable columns={columns} rows={samples.data ?? []} rowKey={(a) => a.id} bleed={false} />
         </DataState>
       </Card>
       {adjusting ? <AdjustDialog doctorId={doctor.id} allocation={adjusting} onClose={() => setAdjusting(null)} /> : null}

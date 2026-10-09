@@ -35,7 +35,7 @@ const STATUS_OPTIONS = [
 ];
 
 export function ApprovalsScreen() {
-  const { values, page, update } = useFilterParams(['view', 'kind', 'status', 'from', 'to']);
+  const { values, page, pageSize, update } = useFilterParams(['view', 'kind', 'status', 'from', 'to']);
   const role = useSession().user?.role;
   const readOnly = useIsReadOnly();
   const view: ApprovalView = values.view === 'history' ? 'history' : 'waiting';
@@ -47,6 +47,7 @@ export function ApprovalsScreen() {
     view,
     {
       page,
+      pageSize,
       ...(values.kind && { kind: values.kind }),
       ...(view === 'history' && values.status && { status: values.status as ApprovalStatus }),
       ...(rangeError ? {} : dateRangeToInstants(values.from, values.to)),
@@ -248,6 +249,8 @@ export function ApprovalsScreen() {
       emptyTitle={view === 'waiting' ? 'Nothing waiting' : 'No requests'}
       emptyDescription={view === 'waiting' ? 'Every request has been decided. New ones appear here as they are submitted.' : 'No request matches these filters.'}
       onPageChange={(p) => update({ page: p })}
+      pageSize={pageSize}
+      onPageSizeChange={(n) => update({ pageSize: n })}
     >
       {bulk ? (
         <BulkDecisionDialog

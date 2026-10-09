@@ -233,7 +233,7 @@ function LeaveCard({ userId }: { userId: string }) {
         isEmpty={query.data?.balances.length === 0}
         empty={{ title: 'No leave balances', description: 'This employee has no paid leave allocated this year.' }}
       >
-        <DataTable columns={columns} rows={query.data?.balances ?? []} rowKey={(b) => b.id} />
+        <DataTable columns={columns} rows={query.data?.balances ?? []} rowKey={(b) => b.id} bleed={false} />
       </DataState>
     </Card>
   );

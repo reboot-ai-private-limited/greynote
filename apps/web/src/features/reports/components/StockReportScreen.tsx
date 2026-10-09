@@ -97,7 +97,7 @@ export function StockReportScreen() {
               isEmpty={rows.length === 0}
               empty={{ title: onlyFlagged ? 'Nothing needs attention' : `No outlets for ${monthLabel(month)}`, description: onlyFlagged ? 'Every count adds up.' : 'There are no active distributors or chemists.' }}
             >
-              <DataTable columns={columns} rows={rows} rowKey={(r) => `${r.outletType}|${r.outlet.id}|${r.product?.id ?? 'none'}`} />
+              <DataTable columns={columns} rows={rows} rowKey={(r) => `${r.outletType}|${r.outlet.id}|${r.product?.id ?? 'none'}`} bleed={false} />
             </DataState>
           </Card>
         </>

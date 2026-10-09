@@ -3,7 +3,6 @@
 import { Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -60,17 +59,15 @@ export function MasterDataFrame<T extends { id: string }>({
           </Button>
         }
       />
-      <Card>
-        <TopProgressBar active={query.isFetching && !query.isLoading} />
-        <DataState
-          isLoading={query.isLoading}
-          error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
-          isEmpty={query.data?.length === 0}
-          empty={{ title: `No ${noun}s`, description: emptyDescription }}
-        >
-          <DataTable columns={columns} rows={query.data ?? []} rowKey={(row) => row.id} />
-        </DataState>
-      </Card>
+      <TopProgressBar active={query.isFetching && !query.isLoading} />
+      <DataState
+        isLoading={query.isLoading}
+        error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
+        isEmpty={query.data?.length === 0}
+        empty={{ title: `No ${noun}s`, description: emptyDescription }}
+      >
+        <DataTable columns={columns} rows={query.data ?? []} rowKey={(row) => row.id} />
+      </DataState>
       {children}
     </>
   );

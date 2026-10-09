@@ -157,7 +157,7 @@ export function PayrollScreen() {
               isEmpty={runs.length === 0}
               empty={{ title: `Nothing generated for ${monthLabel(month)}`, description: 'Generate the sheet to work out the salary of every active field employee for the month.' }}
             >
-              <DataTable columns={columns} rows={runs} rowKey={(r) => r.id} />
+              <DataTable columns={columns} rows={runs} rowKey={(r) => r.id} bleed={false} />
             </DataState>
           </Card>
         </>

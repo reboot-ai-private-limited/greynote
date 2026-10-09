@@ -18,11 +18,12 @@ import { daysLabel, leaveRangeLabel } from '../lib/leave';
  * place to approve.
  */
 export function LeavesTab() {
-  const { values, page, update } = useFilterParams(['userId', 'from', 'to']);
+  const { values, page, pageSize, update } = useFilterParams(['userId', 'from', 'to']);
   // A range is optional here (the API fills in the selected financial year); only a reversed one is held back.
   const range = values.from && values.to && values.from > values.to ? 'The end date is before the start date.' : undefined;
   const list = useAllLeaves({
     page,
+    pageSize,
     ...(values.userId && { userId: values.userId }),
     ...(!range && values.from && { from: values.from }),
     ...(!range && values.to && { to: values.to }),
@@ -113,6 +114,8 @@ export function LeavesTab() {
       emptyTitle="No leaves"
       emptyDescription="No leave matches these filters."
       onPageChange={(p) => update({ page: p })}
+      pageSize={pageSize}
+      onPageSizeChange={(n) => update({ pageSize: n })}
     />
   );
 }

@@ -29,7 +29,7 @@ const STATUS_OPTIONS = [
 
 export function DoctorsScreen() {
   const router = useRouter();
-  const { values, page, update } = useFilterParams(['search', 'status', 'routeId']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'routeId']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
@@ -38,6 +38,7 @@ export function DoctorsScreen() {
 
   const doctors = useDoctors({
     page,
+    pageSize,
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as DoctorStatus }),
     ...(values.routeId && { routeId: values.routeId }),
@@ -117,6 +118,8 @@ export function DoctorsScreen() {
       columns={columns}
       emptyDescription="No doctor matches these filters."
       onPageChange={(p) => update({ page: p })}
+      pageSize={pageSize}
+      onPageSizeChange={(n) => update({ pageSize: n })}
     >
       <StatusToggleDialog
         item={toggling ? { id: toggling.id, name: toggling.name, status: toggling.status === 'active' ? 'active' : 'inactive' } : null}

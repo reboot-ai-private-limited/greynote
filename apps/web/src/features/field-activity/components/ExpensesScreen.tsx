@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
@@ -172,8 +171,7 @@ export function ExpensesScreen() {
         /> : null}
       </div>
 
-      <Card>
-        <div className="flex flex-wrap items-center gap-3 p-4">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 text-sm text-text-muted">
             <label htmlFor="expenses-from">Report day from</label>
             <Input id="expenses-from" type="date" value={from} onChange={(e) => update({ from: e.target.value })} className="w-40" />
@@ -194,9 +192,9 @@ export function ExpensesScreen() {
               {range}
             </p>
           ) : null}
-        </div>
+      </div>
         {payable.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-3 border-t border-border px-4 py-3">
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md bg-surface-subtle px-4 py-3">
             <Button variant="secondary" size="sm" disabled={readOnly} onClick={() => setSelected(allChosen ? new Set() : new Set(payable.map((r) => r.id)))}>
               {allChosen ? 'Clear selection' : `Select all ${payable.length} unpaid`}
             </Button>
@@ -212,7 +210,7 @@ export function ExpensesScreen() {
         ) : null}
         <TopProgressBar active={query.isFetching && !query.isLoading} />
         {isCapped(rows) ? (
-          <p role="status" className="border-t border-border bg-warning-bg px-5 py-3 text-sm text-warning-fg">
+          <p role="status" className="mb-3 rounded-md bg-warning-bg px-4 py-3 text-sm text-warning-fg">
             Showing the first 500. There may be more: narrow the dates or pick an employee, so the totals above are complete.
           </p>
         ) : null}
@@ -224,7 +222,6 @@ export function ExpensesScreen() {
         >
           <DataTable columns={columns} rows={rows} rowKey={(r) => r.id} />
         </DataState>
-      </Card>
       {paying ? (
         <MarkPaidDialog
           rows={paying}

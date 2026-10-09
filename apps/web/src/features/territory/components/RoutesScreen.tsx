@@ -20,7 +20,7 @@ import { PagedListFrame } from '@/components/ui/PagedListFrame';
 
 export function RoutesScreen() {
   const router = useRouter();
-  const { values, page, update } = useFilterParams(['search', 'status', 'zoneId', 'hqId', 'type']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'zoneId', 'hqId', 'type']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const zones = useZoneOptions();
@@ -28,6 +28,7 @@ export function RoutesScreen() {
 
   const routes = useRoutes({
     page,
+    pageSize,
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as RouteDto['status'] }),
     ...(values.zoneId && { zoneId: values.zoneId }),
@@ -115,6 +116,8 @@ export function RoutesScreen() {
       columns={columns}
       emptyDescription="No route matches these filters."
       onPageChange={(p) => update({ page: p })}
+      pageSize={pageSize}
+      onPageSizeChange={(n) => update({ pageSize: n })}
     />
   );
 }

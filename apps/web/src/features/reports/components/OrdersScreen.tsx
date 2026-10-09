@@ -134,7 +134,7 @@ export function OrdersScreen() {
               isEmpty={!report || report.rows.length === 0}
               empty={{ title: `No orders in ${monthLabel(month)}`, description: 'Orders appear here as MRs place them.' }}
             >
-              <DataTable columns={columns} rows={report?.rows ?? []} rowKey={(r) => r.id} />
+              <DataTable columns={columns} rows={report?.rows ?? []} rowKey={(r) => r.id} bleed={false} />
             </DataState>
           </Card>
           {report?.truncated ? (

@@ -60,7 +60,7 @@ export function LeaveTypesTab() {
         isEmpty={types.data?.length === 0}
         empty={{ title: 'No leave types', description: 'Add Casual, Sick, Earned and Loss of Pay before employees can ask for leave.' }}
       >
-        <DataTable columns={columns} rows={types.data ?? []} rowKey={(t) => t.id} />
+        <DataTable columns={columns} rows={types.data ?? []} rowKey={(t) => t.id} bleed={false} />
       </DataState>
       {form ? <LeaveTypeFormDialog type={form.type} onClose={() => setForm(null)} /> : null}
       <StatusToggleDialog
