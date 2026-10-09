@@ -30,11 +30,7 @@ export function DoctorScreen({ id }: { id?: string }) {
   );
   if (!id) {
     return (
-      <>
-        {back}
-        <PageHeader title="New doctor" description="A doctor on a route, active at once. The location can be set now or later." />
-        <DoctorDetailsForm />
-      </>
+      <DoctorDetailsForm />
     );
   }
   return (

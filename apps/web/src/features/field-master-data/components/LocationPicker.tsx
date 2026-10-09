@@ -6,8 +6,14 @@ import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { toErrorState } from '@/lib/api/toErrorState';
-import { PLACE_SEARCH_MIN_CHARS, useRealPlaceSearch } from '@/features/territory/hooks/usePlaceSearch';
-import { EMPTY_COORDINATES, formatPoint, pointFromInputs, pointToInputs, type CoordinateInputs } from '../lib/location';
+import { useRealPlaceSearch } from '@/features/territory/hooks/usePlaceSearch';
+import {
+  EMPTY_COORDINATES,
+  formatPoint,
+  pointFromInputs,
+  pointToInputs,
+  type CoordinateInputs,
+} from '../lib/location';
 import { LocationMap } from './LocationMap';
 
 /**
@@ -30,14 +36,17 @@ export function LocationPicker({
   disabled?: boolean;
 }) {
   const [term, setTerm] = useState('');
+  const [manual, setManual] = useState(false);
   const search = useRealPlaceSearch(term);
   const parsed = pointFromInputs(inputs);
   const point = parsed.ok ? parsed.point : null;
+  // A wrong or half-typed coordinate must be visible, so the fields open by themselves when there is something to say.
+  const showManual = manual || Boolean(errors?.latitude || errors?.longitude);
   const setPoint = (p: GeoPoint) => onChange(pointToInputs(p));
 
   return (
     <div className="space-y-4">
-      <FormField label="Find a place" htmlFor="location-search" hint={`Type at least ${PLACE_SEARCH_MIN_CHARS} characters, then choose a result.`}>
+      <FormField label="Find a place" htmlFor="location-search">
         <Input
           id="location-search"
           value={term}
@@ -52,7 +61,9 @@ export function LocationPicker({
           {search.isLoading ? (
             <p className="text-[13px] text-text-subtle">Searching…</p>
           ) : search.error ? (
-            <p role="alert" className="text-[13px] text-danger-fg">{toErrorState(search.error).message}</p>
+            <p role="alert" className="text-[13px] text-danger-fg">
+              {toErrorState(search.error).message}
+            </p>
           ) : search.candidates.length === 0 ? (
             <p className="text-[13px] text-text-subtle">No place matches.</p>
           ) : (
@@ -82,41 +93,53 @@ export function LocationPicker({
       ) : null}
 
       <LocationMap point={point} captured={captured} disabled={disabled} onPick={setPoint} />
-      <p className="text-xs text-text-subtle">
-        Click the map or drag the pin to set the location.
-        {captured ? ' The grey pin is where the phone was when the record was added.' : ''}
-      </p>
+      {captured ? (
+        <p className="text-xs text-text-subtle">
+          The grey pin is where the phone was when the record was added.
+        </p>
+      ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
-        <FormField label="Latitude" htmlFor="location-lat" error={errors?.latitude}>
-          <Input
-            id="location-lat"
-            inputMode="decimal"
-            value={inputs.latitude}
-            disabled={disabled}
-            onChange={(e) => onChange({ ...inputs, latitude: e.target.value })}
-            aria-invalid={errors?.latitude ? true : undefined}
-          />
-        </FormField>
-        <FormField label="Longitude" htmlFor="location-lng" error={errors?.longitude}>
-          <Input
-            id="location-lng"
-            inputMode="decimal"
-            value={inputs.longitude}
-            disabled={disabled}
-            onChange={(e) => onChange({ ...inputs, longitude: e.target.value })}
-            aria-invalid={errors?.longitude ? true : undefined}
-          />
-        </FormField>
-        <div className="sm:pt-[1.625rem]">
-          <Button variant="secondary" disabled={disabled || (inputs.latitude === '' && inputs.longitude === '')} onClick={() => onChange({ ...EMPTY_COORDINATES })}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-text-muted">{point ? formatPoint(point) : 'No location set'}</p>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setManual((m) => !m)}>
+            {showManual ? 'Hide coordinates' : 'Enter coordinates'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={disabled || (inputs.latitude === '' && inputs.longitude === '')}
+            onClick={() => onChange({ ...EMPTY_COORDINATES })}
+          >
             Clear
           </Button>
         </div>
       </div>
-      <p className="text-xs text-text-subtle">
-        {point ? `Registered at ${formatPoint(point)}.` : 'No location set: the geofence cannot check visits to this place until one is.'}
-      </p>
+
+      {showManual ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField label="Latitude" htmlFor="location-lat" error={errors?.latitude}>
+            <Input
+              id="location-lat"
+              inputMode="decimal"
+              value={inputs.latitude}
+              disabled={disabled}
+              onChange={(e) => onChange({ ...inputs, latitude: e.target.value })}
+              aria-invalid={errors?.latitude ? true : undefined}
+            />
+          </FormField>
+          <FormField label="Longitude" htmlFor="location-lng" error={errors?.longitude}>
+            <Input
+              id="location-lng"
+              inputMode="decimal"
+              value={inputs.longitude}
+              disabled={disabled}
+              onChange={(e) => onChange({ ...inputs, longitude: e.target.value })}
+              aria-invalid={errors?.longitude ? true : undefined}
+            />
+          </FormField>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -50,9 +50,11 @@ export function Select({
         <RadixSelect.Content
           position="popper"
           sideOffset={4}
-          className="z-50 min-w-(--radix-select-trigger-width) overflow-hidden rounded-md border border-border bg-surface shadow-pop"
+          collisionPadding={8}
+          className="z-50 max-h-[min(20rem,var(--radix-select-content-available-height))] min-w-(--radix-select-trigger-width) overflow-hidden rounded-md border border-border bg-surface shadow-pop"
         >
-          <RadixSelect.Viewport className="p-1">
+          {/* The viewport is what scrolls: without a height cap on the content a long list ran off the screen and was clipped. */}
+          <RadixSelect.Viewport className="max-h-[inherit] overflow-y-auto p-1">
             {options.map((o) => (
               <RadixSelect.Item
                 key={o.value}

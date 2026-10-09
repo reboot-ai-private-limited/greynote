@@ -17,6 +17,16 @@ old one.
 
 ---
 
+## 2026-10-09 — The add-doctor form uses the employee wizard's shell with no explanatory text; dropdowns scroll
+
+**Decision:**
+- Adding a doctor now looks like adding an employee: a centred card with the shared `Stepper` (Details, Location (optional), Review) and a Back / Next footer. The pill steps, per-step card titles and descriptions, field hints and the long Review disclaimer are gone; the labels say the rest. Errors show for a step only after Next is pressed on it. Editing a doctor keeps one page, in the same lean style.
+- The location picker (also used by the chemist and distributor forms) shows the search and the map; latitude and longitude are behind "Enter coordinates" and open by themselves when one is wrong.
+- `Select` now caps its list at 20rem (or the room on screen) and scrolls it. Before, a long list (Specialities can be ~100) ran off the screen and could not be scrolled, in every screen that uses it.
+- `StepFrame` and `Grid` moved to `components/ui/WizardParts.tsx` so both wizards share them. No draft saving for doctors (no API for it).
+
+**Needs a migration:** none.
+
 ## 2026-10-09 — Sales Dashboard: achievement is typed in, targets and achievements are bound to the current financial year
 
 **Decision:**

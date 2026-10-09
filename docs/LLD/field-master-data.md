@@ -295,5 +295,4 @@ snapshot carries `specialties` (the active names, A–Z) for the dropdown, and t
 it ignored. `migrate:specialties` builds the list from a starter set plus the existing doctors' specialities.
 
 
-Adding a doctor on the web is three steps (**Details → Location → Review**); editing one still shows everything at once. "Next" checks only that step's fields; Enter inside a step means Next, and
-only the review step creates the doctor. The responsible MR is chosen on the doctor's page afterwards.
+Adding a doctor on the web is three steps (**Details → Location → Review**) in the same shell as the employee wizard (centred card, `Stepper`, Back/Next footer); editing one still shows Details and Location on one page. "Next" checks only that step's fields, and errors show only after Next has been pressed on the step (Next is a submit button, so Enter in a field also means Next); only the review step creates the doctor. Location is optional, and its latitude/longitude fields are behind "Enter coordinates". The responsible MR is chosen on the doctor's page afterwards.

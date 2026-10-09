@@ -11,6 +11,7 @@
 | 3.07 | Distributors: add, edit, open | saved | |
 | 3.08 | Chemists: add, edit, open | saved | |
 | 3.09 | Doctors: list, filter, open one | 36 sample doctors; assignments shown | |
-| 3.10 | Doctors: add one | appears for the MR who covers its route only | |
+| 3.10 | Doctors: add one (Details → Location → Review, like a new employee) | Next with empty fields shows errors only then; Location can be skipped; appears for the MR who covers its route only | |
+| 3.10a | Doctor form: open the Speciality list and scroll to the last item | the list scrolls; every item can be reached (same for any dropdown) | |
 | 3.11 | Specialities, Doctor services, Doctor gifts: add / edit | listed | |
 | 3.12 | Each list: empty state, search, paging | readable, no error | |
