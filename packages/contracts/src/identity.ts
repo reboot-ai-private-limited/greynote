@@ -21,6 +21,11 @@ export interface UserListItemDto {
   role: 'ADMIN' | 'HR' | 'ACCOUNTANT' | 'FIELD';
   designationId: string | null;
   managerId: string | null;
+  /** The manager's name, so the list needs no second request. */
+  managerName: string | null;
+  /** The employee's current HQ and its zone (a copy kept on the profile); null for office staff or before an HQ is set. */
+  hqId: string | null;
+  zoneId: string | null;
   status: UserListStatus;
 }
 
@@ -122,6 +127,8 @@ export interface UserDetailDto {
     probationMonths: number | null;
     /** Exactly 17 digits, or null. */
     esiNumber: string | null;
+    hqId: string | null;
+    zoneId: string | null;
     mobileNumber: string | null;
     alternateMobile: string | null;
     guardianName: string | null;

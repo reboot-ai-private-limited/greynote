@@ -353,6 +353,9 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       getPayBandRates: (userId) => getPayBandRates.execute(userId),
       getCtcForMonth: (userId, month) => getCtcForMonth.execute(userId, month),
       getActiveDeviceCount: (userId) => getActiveDeviceCount.execute(userId),
+      recordUserTerritory: async (userId, territory) => {
+        await employeeProfileRepository.upsert(userId, territory);
+      },
     },
 
     buildRouter: () => {

@@ -23,7 +23,7 @@ function baseProfile(overrides: Partial<Omit<EmployeeProfile, 'id' | 'userId'>> 
     probationMonths: null,
     esiNumber: null,
     mobileNumber: '9999999999',
-    alternateMobile: null,
+    hqId: null, zoneId: null, alternateMobile: null,
     guardianName: null,
     dateOfBirth: new Date('1995-01-01'),
     address: { district: 'Pune', state: 'MH', pincode: '411001', country: 'India' },

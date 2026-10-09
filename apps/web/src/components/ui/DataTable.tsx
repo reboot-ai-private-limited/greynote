@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { cn } from './cn';
+import { isInteractiveTarget } from './rowClick';
 
 export interface Column<T> {
   key: string;
@@ -24,6 +25,7 @@ export function DataTable<T>({
   sort,
   onSortChange,
   bleed = true,
+  onRowClick,
 }: {
   columns: readonly Column<T>[];
   rows: readonly T[];
@@ -35,6 +37,11 @@ export function DataTable<T>({
    * column the same padding back, so the text still lines up with the title. `false` for a table inside a card or dialog.
    */
   bleed?: boolean;
+  /**
+   * Makes the whole row open something (a profile): pointer cursor, hover tint, and a click anywhere on it — except on a link,
+   * button or field inside it. Keep a real link in one cell so keyboard and middle-click users have a way in.
+   */
+  onRowClick?: ((row: T) => void) | undefined;
 }) {
   const last = columns.length - 1;
   const pad = (i: number) =>
@@ -51,13 +58,25 @@ export function DataTable<T>({
                 <th
                   key={c.key}
                   scope="col"
-                  aria-sort={active ? (sort.order === 'asc' ? 'ascending' : 'descending') : undefined}
-                  className={cn('py-3 font-semibold', pad(i), c.numeric && 'text-right', c.className)}
+                  aria-sort={
+                    active ? (sort.order === 'asc' ? 'ascending' : 'descending') : undefined
+                  }
+                  className={cn(
+                    'py-3 font-semibold',
+                    pad(i),
+                    c.numeric && 'text-right',
+                    c.className,
+                  )}
                 >
                   {c.sortable && onSortChange ? (
                     <button
                       type="button"
-                      onClick={() => onSortChange({ key: c.key, order: active && sort.order === 'asc' ? 'desc' : 'asc' })}
+                      onClick={() =>
+                        onSortChange({
+                          key: c.key,
+                          order: active && sort.order === 'asc' ? 'desc' : 'asc',
+                        })
+                      }
                       className="inline-flex items-center gap-1 hover:text-text focus-visible:shadow-focus focus-visible:outline-none"
                     >
                       {c.header}
@@ -73,9 +92,30 @@ export function DataTable<T>({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={rowKey(row)} className="border-b border-border last:border-0 hover:bg-surface-subtle">
+            <tr
+              key={rowKey(row)}
+              className={cn(
+                'border-b border-border last:border-0 hover:bg-surface-subtle',
+                onRowClick && 'cursor-pointer',
+              )}
+              {...(onRowClick && {
+                onClick: (e: MouseEvent<HTMLTableRowElement>) => {
+                  // Selecting text to copy it is not a click on the row.
+                  if (isInteractiveTarget(e.target) || window.getSelection()?.toString()) return;
+                  onRowClick(row);
+                },
+              })}
+            >
               {columns.map((c, i) => (
-                <td key={c.key} className={cn('h-12', pad(i), c.numeric && 'text-right tabular-nums', c.className)}>
+                <td
+                  key={c.key}
+                  className={cn(
+                    'h-12',
+                    pad(i),
+                    c.numeric && 'text-right tabular-nums',
+                    c.className,
+                  )}
+                >
                   {c.render(row)}
                 </td>
               ))}

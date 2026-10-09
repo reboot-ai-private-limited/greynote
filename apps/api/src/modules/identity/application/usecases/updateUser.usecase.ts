@@ -104,6 +104,9 @@ export class UpdateUserUseCase {
       dateOfJoining: pick(input.basicDetails?.dateOfJoining, existingProfile?.dateOfJoining),
       probationMonths: pick(input.basicDetails?.probationMonths, existingProfile?.probationMonths),
       esiNumber: pick(input.basicDetails?.esiNumber, existingProfile?.esiNumber),
+      // Territory writes these; an onboarding edit carries them through untouched.
+      hqId: existingProfile?.hqId ?? null,
+      zoneId: existingProfile?.zoneId ?? null,
       mobileNumber: input.basicDetails?.mobileNumber ?? existingProfile?.mobileNumber ?? null,
       alternateMobile: pick(input.basicDetails?.alternateMobile, existingProfile?.alternateMobile),
       guardianName: pick(input.basicDetails?.guardianName, existingProfile?.guardianName),

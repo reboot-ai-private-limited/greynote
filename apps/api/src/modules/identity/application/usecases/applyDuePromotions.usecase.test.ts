@@ -63,7 +63,7 @@ function kit(initial: Promotion[], opts: { month?: string; inactive?: string[]; 
   const profiles = new Map<string, EmployeeProfile>();
   const addPerson = (id: string, designationId: string, managerId: string | null) => {
     users.set(id, { id, employeeCode: id.toUpperCase(), name: id, email: null, phone: null, status: opts.inactive?.includes(id) ? 'inactive' : 'active', roleId: 'r-field', passwordHash: 'x', lastLoginAt: null, isBlocked: false });
-    profiles.set(id, { id: `p-${id}`, userId: id, designationId, payBandId: 'g1', managerId, dateOfJoining: null, probationMonths: null, esiNumber: null, mobileNumber: null, alternateMobile: null, guardianName: null, dateOfBirth: null, address: null, permanentAddress: null, permanentSameAsPresent: false, qualification: null, qualifications: [], previousEmployment: [], bankDetails: null, documents: [] });
+    profiles.set(id, { id: `p-${id}`, userId: id, designationId, payBandId: 'g1', managerId, dateOfJoining: null, probationMonths: null, esiNumber: null, mobileNumber: null, hqId: null, zoneId: null, alternateMobile: null, guardianName: null, dateOfBirth: null, address: null, permanentAddress: null, permanentSameAsPresent: false, qualification: null, qualifications: [], previousEmployment: [], bankDetails: null, documents: [] });
   };
   for (const [id, d, m] of TREE) addPerson(id, d, m);
   for (const id of opts.extraReports ?? []) addPerson(id, 'd-mr', 'raj');

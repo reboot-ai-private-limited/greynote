@@ -14,6 +14,7 @@
         "seed": "tsx src/scripts/seed.ts",
         "migrate:money": "tsx src/scripts/migrate-money-to-paise.ts",
         "migrate:territory": "tsx src/scripts/migrate-territory-flatten.ts",
+        "migrate:profile-territory": "tsx src/scripts/migrate-profile-territory.ts",
         "migrate:payband-ctc": "tsx src/scripts/migrate-payband-salary-to-ctc.ts",
         "migrate:paybands": "tsx src/scripts/migrate-paybands.ts",
         "seed:sample-sales": "tsx src/scripts/seed-sample-sales.ts",

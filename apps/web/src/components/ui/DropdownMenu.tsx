@@ -9,7 +9,13 @@ export interface MenuItem {
   tone?: 'default' | 'danger';
 }
 
-export function DropdownMenu({ trigger, items }: { trigger: ReactNode; items: readonly MenuItem[] }) {
+export function DropdownMenu({
+  trigger,
+  items,
+}: {
+  trigger: ReactNode;
+  items: readonly MenuItem[];
+}) {
   return (
     <RadixMenu.Root>
       <RadixMenu.Trigger asChild>{trigger}</RadixMenu.Trigger>

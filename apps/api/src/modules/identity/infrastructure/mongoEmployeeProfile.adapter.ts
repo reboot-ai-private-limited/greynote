@@ -16,6 +16,8 @@ function toEmployeeProfile(doc: EmployeeProfileDoc & { _id: unknown }): Employee
     dateOfJoining: doc.dateOfJoining,
     probationMonths: doc.probationMonths ?? null,
     esiNumber: doc.esiNumber ?? null,
+    hqId: doc.hqId ? String(doc.hqId) : null,
+    zoneId: doc.zoneId ? String(doc.zoneId) : null,
     mobileNumber: doc.mobileNumber,
     alternateMobile: doc.alternateMobile ?? null,
     guardianName: doc.guardianName,
@@ -42,6 +44,12 @@ function toDocFields(input: Partial<Omit<EmployeeProfile, 'id' | 'userId'>>): Re
   }
   if (input.managerId !== undefined) {
     doc.managerId = input.managerId ? new Types.ObjectId(input.managerId) : null;
+  }
+  if (input.hqId !== undefined) {
+    doc.hqId = input.hqId ? new Types.ObjectId(input.hqId) : null;
+  }
+  if (input.zoneId !== undefined) {
+    doc.zoneId = input.zoneId ? new Types.ObjectId(input.zoneId) : null;
   }
   return doc;
 }

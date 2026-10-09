@@ -35,7 +35,7 @@ const complete: UserDetailDto = {
     probationMonths: null,
     esiNumber: null,
     mobileNumber: '9830012345',
-    alternateMobile: null,
+    hqId: null, zoneId: null, alternateMobile: null,
     guardianName: null,
     dateOfBirth: '1995-08-20T00:00:00.000Z',
     address: { district: 'Darjeeling', state: 'West Bengal', pincode: '734001', country: 'India' },

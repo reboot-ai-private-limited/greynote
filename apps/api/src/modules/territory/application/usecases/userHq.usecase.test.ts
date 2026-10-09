@@ -45,7 +45,11 @@ const hqs: Hq[] = [
   { id: 'hq3', zoneId: 'z2', name: 'Closed', basePlace: null, status: 'inactive' },
 ];
 const hqRepo = { findById: async (id: string) => hqs.find((h) => h.id === id) ?? null } as unknown as HqRepositoryPort;
+const recorded: Array<{ userId: string; hqId: string; zoneId: string }> = [];
 const users: UserDirectoryPort = {
+  recordUserTerritory: async (userId, t) => {
+    recorded.push({ userId, ...t });
+  },
   findUserSummary: async (id) =>
     ({
       mr: { id: 'mr', employeeCode: 'E1', name: 'MR', role: 'FIELD' as const, status: 'active' as const },
@@ -70,6 +74,7 @@ describe('Employee HQ', () => {
   let get: GetUserHqUseCase;
 
   beforeEach(() => {
+    recorded.length = 0;
     assignments = new FakeAssignments();
     set = new SetUserHqUseCase(assignments, hqRepo, users, inline);
     get = new GetUserHqUseCase(assignments, hqRepo);
@@ -92,6 +97,21 @@ describe('Employee HQ', () => {
     const first = await set.execute('mr', 'hq1', 'admin');
     expect((await set.execute('mr', 'hq1', 'admin')).id).toBe(first.id);
     expect(assignments.rows).toHaveLength(1);
+  });
+
+  it('copies the current HQ and its zone to the employee, on a new HQ and again on the same one', async () => {
+    await set.execute('mr', 'hq1', 'admin');
+    expect(recorded).toEqual([{ userId: 'mr', hqId: 'hq1', zoneId: 'z1' }]);
+    await set.execute('mr', 'hq2', 'admin');
+    expect(recorded.at(-1)).toEqual({ userId: 'mr', hqId: 'hq2', zoneId: 'z1' });
+    // Saving the same HQ changes nothing in Territory but repairs the copy if an earlier write failed.
+    await set.execute('mr', 'hq2', 'admin');
+    expect(recorded).toHaveLength(3);
+  });
+
+  it('copies nothing when the HQ is refused', async () => {
+    await expectStatus(set.execute('mr', 'hq3', 'admin'), 409);
+    expect(recorded).toEqual([]);
   });
 
   it('is null with no HQ set', async () => {

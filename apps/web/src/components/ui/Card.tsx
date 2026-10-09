@@ -23,10 +23,17 @@ export function Card({
   return (
     <section className={cn(!flat && 'rounded-lg border border-border bg-surface', className)}>
       {title ? (
-        <header className={cn('flex items-start justify-between gap-4', flat ? 'mb-3' : 'border-b border-border px-5 py-4')}>
+        <header
+          className={cn(
+            'flex items-start justify-between gap-4',
+            flat ? 'mb-3' : 'border-b border-border px-5 py-4',
+          )}
+        >
           <div>
             <h2 className="text-[15px] font-semibold text-text">{title}</h2>
-            {description ? <p className="mt-0.5 text-[13px] text-text-subtle">{description}</p> : null}
+            {description ? (
+              <p className="mt-0.5 text-[13px] text-text-subtle">{description}</p>
+            ) : null}
           </div>
           {actions}
         </header>

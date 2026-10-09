@@ -34,7 +34,7 @@ function kit(over: { status?: Record<string, User['status']>; scheduled?: Promot
   );
   users.set('admin', { ...users.get('raj')!, id: 'admin', roleId: 'r-admin' });
   const profiles = new Map<string, EmployeeProfile>(
-    TREE.map(([id, designationId, managerId]) => [id, { id: `p-${id}`, userId: id, designationId, payBandId: 'g1', managerId, dateOfJoining: null, probationMonths: null, esiNumber: null, mobileNumber: null, alternateMobile: null, guardianName: null, dateOfBirth: null, address: null, permanentAddress: null, permanentSameAsPresent: false, qualification: null, qualifications: [], previousEmployment: [], bankDetails: null, documents: [] }]),
+    TREE.map(([id, designationId, managerId]) => [id, { id: `p-${id}`, userId: id, designationId, payBandId: 'g1', managerId, dateOfJoining: null, probationMonths: null, esiNumber: null, mobileNumber: null, hqId: null, zoneId: null, alternateMobile: null, guardianName: null, dateOfBirth: null, address: null, permanentAddress: null, permanentSameAsPresent: false, qualification: null, qualifications: [], previousEmployment: [], bankDetails: null, documents: [] }]),
   );
   const created: NewPromotion[] = [];
   const full = (input: NewPromotion): Promotion => ({ ...input, id: 'promo1', status: 'SCHEDULED', createdAt: new Date('2026-10-06T00:00:00Z'), ctcAssignmentId: null, appliedAt: null, cancelledAt: null, claimedAt: null, note: null, skippedMoves: [], unplannedReportIds: [] });

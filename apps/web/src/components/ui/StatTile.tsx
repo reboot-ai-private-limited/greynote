@@ -26,7 +26,11 @@ export function StatTile({
       <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-text">{value}</p>
       {note ? (
         <div className="mt-2">
-          {tone ? <Badge tone={tone}>{note}</Badge> : <p className="text-[13px] text-text-subtle">{note}</p>}
+          {tone ? (
+            <Badge tone={tone}>{note}</Badge>
+          ) : (
+            <p className="text-[13px] text-text-subtle">{note}</p>
+          )}
         </div>
       ) : null}
     </>
@@ -36,7 +40,10 @@ export function StatTile({
   return href ? (
     <Link
       href={href}
-      className={cn(base, 'transition-colors hover:border-border-strong hover:bg-surface-subtle focus-visible:shadow-focus focus-visible:outline-none')}
+      className={cn(
+        base,
+        'transition-colors hover:border-border-strong hover:bg-surface-subtle focus-visible:shadow-focus focus-visible:outline-none',
+      )}
     >
       {body}
     </Link>

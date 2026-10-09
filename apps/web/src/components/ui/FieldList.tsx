@@ -5,7 +5,9 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   return (
     <div>
       <dt className="text-xs font-medium uppercase tracking-wide text-text-subtle">{label}</dt>
-      <dd className="mt-1 text-sm text-text">{children || <span className="text-text-subtle">—</span>}</dd>
+      <dd className="mt-1 text-sm text-text">
+        {children || <span className="text-text-subtle">—</span>}
+      </dd>
     </div>
   );
 }

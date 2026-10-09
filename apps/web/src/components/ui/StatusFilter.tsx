@@ -9,7 +9,13 @@ const OPTIONS = [
 ];
 
 /** The empty URL param means "all"; Radix Select cannot hold an empty-string item, hence the sentinel. */
-export function StatusFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+export function StatusFilter({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <div className="w-44">
       <Select

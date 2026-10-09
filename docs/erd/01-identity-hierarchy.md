@@ -136,7 +136,7 @@ the end. `EmployeeProfile` also holds `alternate_mobile`, `permanent_address` /
 `permanent_same_as_present`, `qualifications[]` (degree, institute, year) and `previous_employment[]`
 (company, joining date, end date); an address has `line1`/`line2`. A `counters` document (`_id:
 employeeCode`, `seq`) numbers the codes. `manager_id` is required for `active` unless the
-designation is the highest level that exists. The wizard also sets the employee's HQ
+designation is the highest level that exists. `EmployeeProfile` also keeps `hq_id` and `zone_id`: a copy of the employee's current HQ and its zone, written by Territory's `SetUserHq` (Identity contract `recordUserTerritory`) so the employee list needs no Territory read; the assignment history in `UserHqAssignment` stays the source of truth. The wizard also sets the employee's HQ
 (`UserHqAssignment`, Territory) as it creates them; the status rule does not depend on it.
 
 ## Design decisions locked for this module

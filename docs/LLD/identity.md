@@ -283,6 +283,10 @@ device-limit value.
   underlying mechanism, but a user-facing device-management screen isn't in PRD scope for phase 1.
 
 
+## The employee list (2026-10-09)
+
+`GET /identity/users` returns, per row, `managerName` (one batched lookup per page), and `hqId` / `zoneId` from the profile's copy of the current HQ (`recordUserTerritory`, called by Territory after it saves an assignment; `UpdateUser` carries the two fields through untouched). `migrate:profile-territory` fills the copy for employees who already had an HQ. The web table maps the ids to names with the zone and HQ directories and makes the whole row open the profile (`DataTable` `onRowClick`).
+
 ## Adding a field employee: the wizard (web, 2026-10-09)
 
 `/employees/new` replaces the create-then-setup pair for FIELD employees (decision-log 2026-10-09). Eight steps — Personal, Address, Qualifications, Experience, Bank, Work, Pay, Review — held as strings in `features/people/lib/onboarding.ts` (pure, tested: `stepErrors`, `canOpen`, `firstOpenStep`, `toDraftData`/`fromDraftData`). Each Next saves an `EmployeeDraft` (`employee-drafts` routes, Admin/HR); the last step calls `POST /employee-drafts/:id/finalize` (`FinalizeEmployeeDraftUseCase`), which allocates the next `GRN` code (`MongoEmployeeCodeGenerator`, atomic counter), generates the password, then runs `CreateUser`, `UpdateUser`, the territory HQ assignment (bound into Identity at composition, `identity.bindHqAssigner`) and `AssignCtc`, and returns the credentials once. Required-field gaps are computed by `draftGaps` (`domain/employeeDraft.entity.ts`); the manager is not required when `isTopDesignation` (highest existing level). `/employees/new/staff` keeps the plain form for office logins.

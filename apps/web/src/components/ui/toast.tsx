@@ -36,7 +36,11 @@ const subscribe = (l: () => void) => {
 };
 
 export function Toaster() {
-  const current = useSyncExternalStore(subscribe, () => items, () => items);
+  const current = useSyncExternalStore(
+    subscribe,
+    () => items,
+    () => items,
+  );
   return (
     <RadixToast.Provider duration={5000}>
       {current.map((t) => {
@@ -49,10 +53,15 @@ export function Toaster() {
             }}
             className="flex gap-3 rounded-lg border border-border bg-surface p-4 text-sm shadow-pop"
           >
-            <Icon aria-hidden className={`mt-0.5 size-4 shrink-0 ${t.tone === 'error' ? 'text-danger' : 'text-success'}`} />
+            <Icon
+              aria-hidden
+              className={`mt-0.5 size-4 shrink-0 ${t.tone === 'error' ? 'text-danger' : 'text-success'}`}
+            />
             <div>
               <RadixToast.Description className="text-text">{t.message}</RadixToast.Description>
-              {t.requestId ? <p className="mt-1 text-xs text-text-subtle">Request ID: {t.requestId}</p> : null}
+              {t.requestId ? (
+                <p className="mt-1 text-xs text-text-subtle">Request ID: {t.requestId}</p>
+              ) : null}
             </div>
           </RadixToast.Root>
         );

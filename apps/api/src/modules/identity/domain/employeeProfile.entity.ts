@@ -68,6 +68,13 @@ export interface EmployeeProfile {
   probationMonths: number | null;
   /** The ESI insurance number: exactly 17 digits. Optional; printed on the salary slip. */
   esiNumber: string | null;
+  /**
+   * A copy of the employee's CURRENT HQ and its zone, kept here so the employee list needs no Territory read. Territory
+   * owns the real assignment (with history) and writes this through `recordUserTerritory` whenever the HQ is set; a zone
+   * never changes for an HQ, so only a change of HQ moves it. Null until an HQ is set.
+   */
+  hqId: string | null;
+  zoneId: string | null;
   mobileNumber: string | null;
   alternateMobile: string | null;
   guardianName: string | null;

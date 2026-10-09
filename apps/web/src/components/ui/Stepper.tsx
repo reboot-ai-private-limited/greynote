@@ -15,18 +15,33 @@ export interface StepperItem {
  * Numbered steps on a line. Done steps are filled with a tick, the current one is ringed, the ones ahead are muted and
  * cannot be clicked until the steps before them are done. On a phone it shrinks to "Step 3 of 8 · Bank" over a bar.
  */
-export function Stepper({ steps, current, onSelect }: { steps: readonly StepperItem[]; current: string; onSelect: (key: string) => void }) {
-  const index = Math.max(0, steps.findIndex((s) => s.key === current));
+export function Stepper({
+  steps,
+  current,
+  onSelect,
+}: {
+  steps: readonly StepperItem[];
+  current: string;
+  onSelect: (key: string) => void;
+}) {
+  const index = Math.max(
+    0,
+    steps.findIndex((s) => s.key === current),
+  );
   const active = steps[index];
 
   return (
     <nav aria-label="Progress">
       <div className="sm:hidden">
         <p className="mb-2 text-sm text-text-muted">
-          Step {index + 1} of {steps.length} · <span className="font-medium text-text">{active?.label}</span>
+          Step {index + 1} of {steps.length} ·{' '}
+          <span className="font-medium text-text">{active?.label}</span>
         </p>
         <div className="h-1.5 overflow-hidden rounded-full bg-surface-subtle">
-          <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${((index + 1) / steps.length) * 100}%` }} />
+          <div
+            className="h-full rounded-full bg-accent transition-all"
+            style={{ width: `${((index + 1) / steps.length) * 100}%` }}
+          />
         </div>
       </div>
 
@@ -38,7 +53,10 @@ export function Stepper({ steps, current, onSelect }: { steps: readonly StepperI
               {i > 0 ? (
                 <span
                   aria-hidden
-                  className={cn('absolute right-1/2 top-4 h-0.5 w-full -translate-y-1/2', steps[i - 1]?.done ? 'bg-accent' : 'bg-border')}
+                  className={cn(
+                    'absolute right-1/2 top-4 h-0.5 w-full -translate-y-1/2',
+                    steps[i - 1]?.done ? 'bg-accent' : 'bg-border',
+                  )}
                 />
               ) : null}
               <button
@@ -59,9 +77,20 @@ export function Stepper({ steps, current, onSelect }: { steps: readonly StepperI
                 >
                   {step.done && !isCurrent ? <Check aria-hidden className="size-4" /> : i + 1}
                 </span>
-                <span className={cn('text-center text-[13px] leading-tight', isCurrent ? 'font-semibold text-text' : step.reachable ? 'text-text-muted' : 'text-text-subtle')}>
+                <span
+                  className={cn(
+                    'text-center text-[13px] leading-tight',
+                    isCurrent
+                      ? 'font-semibold text-text'
+                      : step.reachable
+                        ? 'text-text-muted'
+                        : 'text-text-subtle',
+                  )}
+                >
                   {step.label}
-                  {step.optional ? <span className="block text-[11px] font-normal text-text-subtle">Optional</span> : null}
+                  {step.optional ? (
+                    <span className="block text-[11px] font-normal text-text-subtle">Optional</span>
+                  ) : null}
                 </span>
               </button>
             </li>

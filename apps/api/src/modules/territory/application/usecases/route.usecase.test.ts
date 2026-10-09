@@ -123,7 +123,10 @@ const USERS: UserRow[] = [
   { id: 'mr-left', employeeCode: 'MR003', name: 'Chandan', role: 'FIELD', status: 'inactive' },
   { id: 'hr-1', employeeCode: 'HR001', name: 'Dipa', role: 'HR', status: 'active' },
 ];
-const users: UserDirectoryPort = { findUserSummary: async (id) => USERS.find((u) => u.id === id) ?? null };
+const users: UserDirectoryPort = {
+  findUserSummary: async (id) => USERS.find((u) => u.id === id) ?? null,
+  recordUserTerritory: async () => undefined,
+};
 
 let hqRow: Hq;
 const hqs = {

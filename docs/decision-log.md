@@ -17,6 +17,19 @@ old one.
 
 ---
 
+## 2026-10-09 — The employee list shows manager and zone; the current HQ and zone are copied onto the employee profile
+
+**Decision:**
+- The Employees table shows Employee, Employee ID, Designation (office staff show their role), Manager, Zone (HQ beneath it) and Status; the Role column is gone (its filter stays). The whole row opens the profile (pointer cursor, hover tint); links, buttons and a text selection inside the row do not trigger it. `DataTable` gets an optional `onRowClick` for any list to adopt.
+- `EmployeeProfile` gains `hqId` and `zoneId`, a **copy of the employee's current HQ and its zone**. Territory still owns the assignment and its history; `SetUserHq` writes the copy through a new Identity contract method, `recordUserTerritory`, after the assignment is saved, and also when the same HQ is saved again (so a failed write is repaired by saving it again). A zone never changes for an HQ (an HQ edit can change name, status and base place only), so only a change of HQ moves it. Ids are stored, not names, so renames need no update.
+- The list API returns `managerName` (one batched lookup for the page), `hqId` and `zoneId` per row; the web turns the ids into names with the zone and HQ lists it already loads.
+
+**Why a copy:** Identity sits below Territory and cannot read it, and a second per-row lookup would make the list slow and noisy; the copy also makes a server-side zone filter and sort possible later.
+
+**Needs a migration:** `pnpm --filter @greynote/api migrate:profile-territory` (dry run first, then `-- --apply`) copies the current HQ and zone onto profiles of employees who already have an HQ. Until it is run those employees show "—" for Zone. Not yet run.
+
+---
+
 ## 2026-10-09 — Tables are flat and full width, with a page-size choice and an entries footer
 
 **Decision:** every list table loses its surrounding card and runs edge to edge (`DataTable` `bleed`), with a tinted sentence-case header row, thin row lines, a `ListToolbar` above it and a footer of rows-per-page plus "Showing x to y of N entries". `pageSize` (10/25/50/100, default 25) is a URL parameter next to `page`. `Card` gains `flat` for a heading over a flat table; chart cards, form cards, the payslip print layout and modal tables keep their boxes.

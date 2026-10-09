@@ -30,7 +30,10 @@ export function Pagination({
   return (
     <nav
       aria-label="Pagination"
-      className={cn('flex flex-wrap items-center justify-between gap-3 py-3 text-sm', bleed ? '-mx-4 px-4 sm:-mx-8 sm:px-8' : 'px-4')}
+      className={cn(
+        'flex flex-wrap items-center justify-between gap-3 py-3 text-sm',
+        bleed ? '-mx-4 px-4 sm:-mx-8 sm:px-8' : 'px-4',
+      )}
     >
       <div className="flex items-center gap-3 text-text-muted">
         {onPageSizeChange ? (
@@ -48,13 +51,23 @@ export function Pagination({
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+        >
           <ChevronLeft aria-hidden className="size-4" /> Previous
         </Button>
         <span className="px-1 text-text-muted tabular-nums">
           {page} / {Math.max(totalPages, 1)}
         </span>
-        <Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+        >
           Next <ChevronRight aria-hidden className="size-4" />
         </Button>
       </div>

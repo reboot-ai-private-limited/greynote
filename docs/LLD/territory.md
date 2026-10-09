@@ -276,3 +276,7 @@ Sikkim,
   client needs "via" stops (decision-log 2026-10-03 lists it as rejected).
 - **A `Zone`/`HQ` reparenting or cascade-delete design.** Not specified by the ERD; don't invent
   one preemptively.
+
+## Employee HQ also copied to the profile (2026-10-09)
+
+`SetUserHqUseCase` calls `UserDirectoryPort.recordUserTerritory(userId, { hqId, zoneId })` (Identity's contract) after the assignment is saved, and on a no-change save too, so Identity's employee list can show the zone without reading Territory. The assignment and its history remain here.

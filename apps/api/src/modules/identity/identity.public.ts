@@ -47,4 +47,9 @@ export interface IdentityPublicContract {
   /** The CTC revision in force for a payroll month (`YYYY-MM`), or `null` if none was assigned by then. */
   getCtcForMonth(userId: string, month: string): Promise<CtcAssignment | null>;
   getActiveDeviceCount(userId: string): Promise<number>;
+  /**
+   * Territory's write-back: copies a field employee's CURRENT HQ and zone onto their profile, so the employee list can show
+   * them without reading Territory. Called by `SetUserHq` after the assignment itself is saved.
+   */
+  recordUserTerritory(userId: string, territory: { hqId: string; zoneId: string }): Promise<void>;
 }

@@ -28,14 +28,20 @@ export class SetUserHqUseCase {
     if (!hq) throw AppError.badRequest('No such HQ.', { field: 'hqId' });
     if (hq.status !== 'active') throw AppError.conflict('This HQ is inactive. Reactivate it first.', { field: 'hqId' });
 
+    // Identity keeps a copy of the current HQ and zone for the employee list. It is written after the assignment, and also when
+    // nothing changes, so a write that failed last time is repaired by saving the same HQ again.
     const current = await this.assignments.findActive(userId);
-    if (current?.hqId === hqId) return current;
+    if (current?.hqId === hqId) {
+      await this.users.recordUserTerritory(userId, { hqId, zoneId: hq.zoneId });
+      return current;
+    }
 
     const created = await this.transactions.run(async (ctx) => {
       await this.assignments.endActive(userId, actorId, ctx);
       return this.assignments.create({ userId, hqId, assignedBy: actorId }, ctx);
     });
     if (!created) throw AppError.conflict('This employee’s HQ was changed at the same time. Reload and try again.');
+    await this.users.recordUserTerritory(userId, { hqId, zoneId: hq.zoneId });
     return created;
   }
 }

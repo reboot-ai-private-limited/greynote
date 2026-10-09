@@ -12,4 +12,6 @@ export interface UserDirectoryPort {
     role: RoleName;
     status: 'active' | 'pending' | 'inactive';
   } | null>;
+  /** Copies the employee's current HQ and zone onto their profile (Identity keeps it for the employee list). */
+  recordUserTerritory(userId: string, territory: { hqId: string; zoneId: string }): Promise<void>;
 }
