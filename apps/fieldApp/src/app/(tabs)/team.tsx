@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApprovalRow } from '@/components/approval-row';
 import { ChoiceChips } from '@/components/choice-chips';
+import { FyBanner } from '@/components/fy-banner';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { Skeleton } from '@/components/skeleton';
@@ -13,6 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing, WideContentWidth } from '@/constants/theme';
 import { ApiError, NetworkError } from '@/lib/api';
+import { useFinancialYear } from '@/lib/financial-year';
 import { bulkDecide, listInbox, listTeam, type ApprovalItem, type TeamScope } from '@/lib/approvals';
 import { useOnline } from '@/offline';
 
@@ -39,6 +41,7 @@ const errorText = (err: unknown) =>
  */
 export default function TeamScreen() {
   const online = useOnline();
+  const fy = useFinancialYear();
   const [view, setView] = useState<View_>('inbox');
   const [scope, setScope] = useState<TeamFilter>('all');
   const [items, setItems] = useState<ApprovalItem[] | null>(null);
@@ -71,7 +74,7 @@ export default function TeamScreen() {
     return () => {
       alive = false;
     };
-  }, [online, view, scope, reloadKey]);
+  }, [online, view, scope, reloadKey, fy.year]);
 
   // Coming back from a request (after a decision) shows the list as it now stands.
   useFocusEffect(
@@ -85,7 +88,8 @@ export default function TeamScreen() {
     setReloadKey((k) => k + 1);
   }, []);
 
-  const actionable = (items ?? []).filter((i) => i.canAct);
+  // A past year is read-only: nothing in it can be decided from here.
+  const actionable = fy.isPast ? [] : (items ?? []).filter((i) => i.canAct);
   const pickedItems = actionable.filter((i) => selected.has(i.id));
 
   const toggle = (id: string) =>
@@ -144,6 +148,7 @@ export default function TeamScreen() {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
           <ThemedText type="subtitle">Team</ThemedText>
+          <FyBanner />
           <ChoiceChips options={VIEWS} value={view} onChange={switchView} />
           {view === 'team' ? <ChoiceChips options={SCOPES} value={scope} onChange={(s) => { setItems(null); setScope(s); }} /> : null}
 

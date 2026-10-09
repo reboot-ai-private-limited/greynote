@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, PanResponder, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -42,16 +42,21 @@ export default function HomeScreen() {
   const { width: windowWidth } = useWindowDimensions();
 
   /** The pager position in pages: 0 = DCR … 3 = Utility. Fractions while dragging or settling. */
-  const pos = useRef(new Animated.Value(0)).current;
+  const [pos] = useState(() => new Animated.Value(0));
   const [pageWidth, setPageWidth] = useState(Math.min(windowWidth, WideContentWidth));
   const [heights, setHeights] = useState<number[]>([]);
   /** While moving, hold the taller of the two pages' heights so nothing is clipped mid-slide. */
   const [holdHeight, setHoldHeight] = useState<number | null>(null);
   /** Which tab's label is highlighted: the nearest page to the pager's position. */
   const [shown, setShown] = useState(0);
+  /** The page the strip is settling on (the tab that was picked or swiped to). */
+  const [index, setIndex] = useState(0);
+  // The gesture handlers below are created once, so they read the latest values through this ref.
   const live = useRef({ index: 0, pageWidth, heights: [] as number[] });
-  live.current.pageWidth = pageWidth;
-  live.current.heights = heights;
+  useEffect(() => {
+    live.current.pageWidth = pageWidth;
+    live.current.heights = heights;
+  }, [pageWidth, heights]);
 
   useEffect(() => {
     const id = pos.addListener(({ value }) => {
@@ -72,6 +77,7 @@ export default function HomeScreen() {
     const to = Math.max(0, Math.min(LAST, target));
     const from = s.index;
     s.index = to;
+    setIndex(to);
     setHoldHeight(Math.max(s.heights[from] ?? 0, s.heights[to] ?? 0));
     Animated.spring(pos, {
       toValue: to,
@@ -86,8 +92,10 @@ export default function HomeScreen() {
     });
   }
 
-  const swipe = useMemo(
-    () =>
+  // Created once (lazily). The handlers read `live` only when a touch event fires, never while rendering; the
+  // compiler lint cannot see that through PanResponder.create, so it is silenced for this one call.
+  // eslint-disable-next-line react-hooks/refs
+  const [swipe] = useState(() =>
       PanResponder.create({
         // Only a clearly horizontal drag claims the gesture, so scrolling up and down still works.
         onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
@@ -112,11 +120,9 @@ export default function HomeScreen() {
         },
         onPanResponderTerminate: () => goTo(live.current.index),
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reads everything through `live`
-    [],
   );
 
-  const stripHeight = holdHeight ?? heights[live.current.index] ?? 420;
+  const stripHeight = holdHeight ?? heights[index] ?? 420;
 
   return (
     <ThemedView style={styles.flex}>

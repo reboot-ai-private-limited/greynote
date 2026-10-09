@@ -64,10 +64,11 @@ export const STATUS_LABEL: Record<ApprovalStatus, string> = {
   REOPENED: 'Reopened',
 };
 
-export const listInbox = (pageSize = 50) => apiGet<Page<ApprovalItem>>(`/approvals/inbox?pageSize=${pageSize}`);
+/** The year switch (lib/financial-year.ts) bounds both lists: a past year shows that year's requests. */
+export const listInbox = (pageSize = 50) => apiGet<Page<ApprovalItem>>(`/approvals/inbox?pageSize=${pageSize}`, { fy: true });
 
 export const listTeam = (scope: TeamScope, pageSize = 50) =>
-  apiGet<Page<ApprovalItem>>(`/approvals/team?scope=${scope}&pageSize=${pageSize}`);
+  apiGet<Page<ApprovalItem>>(`/approvals/team?scope=${scope}&pageSize=${pageSize}`, { fy: true });
 
 export const getApproval = (id: string) => apiGet<ApprovalDetail>(`/approvals/${id}`);
 

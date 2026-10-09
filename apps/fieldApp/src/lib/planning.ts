@@ -17,6 +17,9 @@ export const WORKING_TYPES: { value: WorkingType; label: string }[] = [
   { value: 'STRIKE', label: 'Strike' },
 ];
 
+/** A single call is never a Strike (that is a whole-day type, with no TA/DA), so the call forms offer the other three. */
+export const CALL_WORKING_TYPES = WORKING_TYPES.filter((w) => w.value !== 'STRIKE');
+
 export const workingTypeLabel = (t: WorkingType) => WORKING_TYPES.find((w) => w.value === t)?.label ?? t;
 
 /** One planned day: what a Daily Plan holds, and what each Monthly Plan entry holds. */

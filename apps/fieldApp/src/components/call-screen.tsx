@@ -16,7 +16,7 @@ import { Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { captureLocation } from '@/lib/location';
-import { WORKING_TYPES, workingTypeLabel, type WorkingType } from '@/lib/planning';
+import { CALL_WORKING_TYPES, workingTypeLabel, type WorkingType } from '@/lib/planning';
 import { removeRecord, saveCall, serverGeofence, useRecords, type CallPayload, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import type { FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
@@ -104,14 +104,14 @@ export function CallScreen({ subject }: { subject: Subject }) {
     setMsg(null);
     if (record === 'new') {
       setOutletId(null);
-      setWorkingType(plan?.workingType ?? 'FIELD_WORK');
-      setWorkWith(plan?.workWith ?? []);
+      setWorkingType(plan && plan.workingType !== 'STRIKE' ? plan.workingType : 'FIELD_WORK');
+      setWorkWith([]); // picked per call; not copied from the day's plan
       setSamples([]);
       setRemarks('');
     } else {
       const p = record.payload as CallPayload;
       setOutletId(idOf(record));
-      setWorkingType(p.workingType);
+      setWorkingType(p.workingType === 'STRIKE' ? 'FIELD_WORK' : p.workingType);
       setWorkWith(p.workWith);
       setSamples(p.samples ?? []);
       setRemarks(p.remarks ?? '');
@@ -201,7 +201,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
 
         <View style={styles.block}>
           <ThemedText type="smallBold">Working type</ThemedText>
-          <ChoiceChips options={WORKING_TYPES} value={workingType} onChange={setWorkingType} disabled={busy} />
+          <ChoiceChips options={CALL_WORKING_TYPES} value={workingType} onChange={setWorkingType} disabled={busy} />
         </View>
 
         <WorkWithPicker value={workWith} onChange={setWorkWith} disabled={busy} />

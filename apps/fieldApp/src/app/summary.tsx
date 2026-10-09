@@ -9,6 +9,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { formatRupees } from '@/lib/money';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useReportSent } from '@/hooks/use-report-sent';
 import { DAY_KINDS, finalSubmit, prettyDay, useOnline, useRecords, type OutboxRecord, type SyncKind } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import type { FieldActivitySnapshot, FieldMasterDataSnapshot } from '@/types/sync';
@@ -53,7 +54,7 @@ export default function SummaryScreen() {
   const online = useOnline();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const activity = useCachedSource<FieldActivitySnapshot>('fieldActivity');
-  const { records } = useRecords([...DAY_KINDS, 'DCR_SUBMIT']);
+  const { records } = useRecords(DAY_KINDS);
 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
@@ -67,9 +68,8 @@ export default function SummaryScreen() {
   const dayRecords = records.filter(
     (r) => !r.deleted && DAY_KINDS.includes(r.kind) && (r.payload as { reportDate?: string }).reportDate === today,
   );
-  const submitRecord = records.find((r) => !r.deleted && r.kind === 'DCR_SUBMIT' && (r.payload as { reportDate?: string }).reportDate === today && r.status !== 'SYNCED') ?? null;
   const dcr = activity.data?.dcrs?.find((d) => d.reportDate === today) ?? null;
-  const alreadySent = dcr ? ['SUBMITTED', 'MANAGER_APPROVED', 'APPROVED'].includes(dcr.status) : submitRecord?.status === 'SYNCED';
+  const alreadySent = useReportSent(today);
 
   const failed = dayRecords.filter((r) => r.status === 'FAILED');
 
@@ -77,7 +77,9 @@ export default function SummaryScreen() {
     const p = r.payload as { doctorId?: string; chemistId?: string; type?: string; amountPaise?: number };
     const who = names.get(p.doctorId ?? p.chemistId ?? '');
     if (r.kind === 'EXPENSE') return `${EXPENSE_LABEL[p.type ?? ''] ?? 'Expense'} · ${formatRupees(p.amountPaise ?? 0)}`;
-    return who ?? 'Unknown';
+    if (who) return who;
+    // Not in the cached lists: the doctor or chemist was deactivated since the last sync.
+    return p.doctorId ? 'Doctor (no longer active)' : p.chemistId ? 'Chemist (no longer active)' : 'Record';
   };
 
   const submit = async () => {
@@ -104,7 +106,8 @@ export default function SummaryScreen() {
   };
 
   const blocked = gate.state === 'blocked';
-  const canSubmit = online && !blocked && gate.state !== 'unknown' && !alreadySent;
+  // Today's plan must be approved (gate open), and nothing the server refused may be left: fix those first.
+  const canSubmit = online && gate.state === 'open' && !alreadySent && failed.length === 0;
 
   return (
     <ScreenShell title="Summary">

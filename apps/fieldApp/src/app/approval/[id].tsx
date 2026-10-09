@@ -22,6 +22,8 @@ import {
   type ApprovalAction,
   type ApprovalDetail,
 } from '@/lib/approvals';
+import { FyBanner } from '@/components/fy-banner';
+import { useFinancialYear } from '@/lib/financial-year';
 import { useOnline } from '@/offline';
 import { formatWhen } from '@/offline/day';
 
@@ -47,6 +49,7 @@ type Step = null | 'approve' | 'reject';
 export default function ApprovalDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const online = useOnline();
+  const fy = useFinancialYear();
   const [request, setRequest] = useState<ApprovalDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [step, setStep] = useState<Step>(null);
@@ -89,9 +92,12 @@ export default function ApprovalDetailScreen() {
   }, [request, step, comment]);
 
   const title = request ? kindLabel(request.kind) : 'Request';
+  // A past financial year is read-only: the request can be read but not decided.
+  const shown = request && fy.isPast ? { ...request, canAct: false } : request;
 
   return (
     <ScreenShell title={title}>
+      <FyBanner />
       {!online ? <Notice tone="info">You’re offline. Approvals need the internet.</Notice> : null}
       {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
       {online && !request && !loadError ? <Skeleton cards={3} lines={4} /> : null}
@@ -105,7 +111,7 @@ export default function ApprovalDetailScreen() {
             {request.overdue ? <ThemedText type="small" themeColor="warning">Overdue</ThemedText> : null}
           </ThemedView>
 
-          <ApprovalSummary request={request} />
+          <ApprovalSummary request={shown ?? request} />
 
           <ThemedView type="backgroundElement" style={styles.card}>
             <ThemedText type="smallBold">History</ThemedText>
@@ -120,7 +126,7 @@ export default function ApprovalDetailScreen() {
 
           {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
 
-          {request.canAct ? (
+          {shown?.canAct ? (
             step ? (
               <ThemedView type="backgroundElement" style={styles.card}>
                 <ThemedText type="smallBold">{step === 'approve' ? 'Approve this request?' : 'Reject this request?'}</ThemedText>
@@ -146,7 +152,9 @@ export default function ApprovalDetailScreen() {
             )
           ) : (
             <Notice tone="info">
-              {request.status === 'SUBMITTED' || request.status === 'MANAGER_APPROVED'
+              {fy.isPast
+                ? 'A past financial year is read-only.'
+                : request.status === 'SUBMITTED' || request.status === 'MANAGER_APPROVED'
                 ? 'This request is view-only for you.'
                 : 'This request has already been decided.'}
             </Notice>
