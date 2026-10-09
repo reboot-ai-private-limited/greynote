@@ -7,7 +7,7 @@ import { makeMonthlyStockSyncHandler } from './application/monthlyStockSync.js';
 import { OutletAccess } from './application/outletAccess.js';
 import { SalesClock } from './application/salesClock.js';
 import { ListMissingStockUseCase, ListMonthlyStockUseCase } from './application/usecases/readMonthlyStock.usecase.js';
-import { CancelPaymentUseCase, ListPaymentsUseCase, RecordPaymentUseCase } from './application/usecases/payments.usecase.js';
+import { CancelPaymentUseCase, ListPaymentsUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from './application/usecases/payments.usecase.js';
 import { RecordMonthlyStockUseCase } from './application/usecases/recordMonthlyStock.usecase.js';
 import { UnlockMonthUseCase } from './application/usecases/unlockMonth.usecase.js';
 import type { FieldMasterDataPort } from './domain/fieldMasterData.port.js';
@@ -72,6 +72,6 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
       const m = month ?? (await clock.previousMonth());
       return { month: m, missing: await missing.execute({ id: 'system', role: 'ADMIN' }, m) };
     },
-    buildRouter: () => buildSalesRouter(makeSalesControllers({ record, list, unlock, missing, place, listOrders: new ListOrdersUseCase(orders, users), getOrder, finish: new FinishOrderUseCase(getOrder, orders, clock), recordPayment: new RecordPaymentUseCase(master, payments, clock, config, users), listPayments: new ListPaymentsUseCase(payments, orders, users, master), cancelPayment: new CancelPaymentUseCase(payments, clock, config, users) })),
+    buildRouter: () => buildSalesRouter(makeSalesControllers({ record, list, unlock, missing, place, listOrders: new ListOrdersUseCase(orders, users), getOrder, finish: new FinishOrderUseCase(getOrder, orders, clock), recordPayment: new RecordPaymentUseCase(master, payments, clock, config, users), listPayments: new ListPaymentsUseCase(payments, orders, users, master), cancelPayment: new CancelPaymentUseCase(payments, clock, config, users), paymentTotals: new PaymentTotalsUseCase(payments) })),
   };
 }

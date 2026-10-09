@@ -24,6 +24,23 @@ export function useDistributorPayments(query: DistributorRangeQuery, enabled = t
   );
 }
 
+/** What each distributor paid in a range, keyed by distributor id; one with nothing recorded is absent. Refreshes whenever a payment is recorded or cancelled. */
+export function useDistributorPaymentTotals(range: { from: string; to: string }) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.distributorPayments.totals(range),
+      fetch: async (token, signal) =>
+        new Map(
+          (await salesApi.distributorPaymentTotals(token, range, signal)).map((t) => [
+            t.distributorId,
+            t.collectedPaise,
+          ]),
+        ),
+      staleTime: staleTime.live,
+    }),
+  );
+}
+
 export function useDistributorOrders(query: DistributorRangeQuery, enabled = true) {
   return useQuery(
     authedQueryOptions({

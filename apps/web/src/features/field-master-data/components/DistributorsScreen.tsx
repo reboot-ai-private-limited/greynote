@@ -8,19 +8,26 @@ import { Badge } from '@/components/ui/Badge';
 import type { Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
-import { RowActions } from '@/components/ui/RowActions';
+import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { StatusFilter } from '@/components/ui/StatusFilter';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
-import { useIsReadOnly } from '@/lib/useFinancialYear';
+import { istDate } from '@/lib/dates';
+import { financialYearOf, financialYearRange } from '@/lib/financial-year';
+import { formatMoney } from '@/lib/format';
+import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
+import { useDistributorPaymentTotals } from '../hooks/useDistributorPayments';
 import { useDistributors, useUpdateDistributor } from '../hooks/useDistributors';
+import { paymentRange } from '../lib/payments';
+import { RecordPaymentDialog } from './RecordPaymentDialog';
 import { EmployeeFilter } from '@/features/people/components/EmployeePickerField';
 import { RouteFilter } from './RoutePickerField';
 
 const ANY = 'all';
+const money = (paise: number): string => formatMoney(paise);
 
 /** The first two route names and how many more. */
 const routesText = (labels: string[]) =>
@@ -40,6 +47,12 @@ export function DistributorsScreen() {
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
   const [toggling, setToggling] = useState<DistributorDto | null>(null);
+  const [paying, setPaying] = useState<DistributorDto | null>(null);
+  const { year } = useFinancialYear();
+  const today = istDate();
+  const collected = useDistributorPaymentTotals(
+    paymentRange('month', today, financialYearRange(year ?? financialYearOf(today))),
+  ).data;
   const updateDistributor = useUpdateDistributor(() => setToggling(null));
 
   const distributors = useDistributors({
@@ -59,10 +72,8 @@ export function DistributorsScreen() {
       header: 'Distributor',
       render: (d) => (
         <div>
-          <Link
-            href={`/distributors/${d.id}`}
-            className="font-medium text-text hover:text-accent hover:underline"
-          >
+          {/* A real link stays in the row for the keyboard and middle-click; the click anywhere on the row opens it too. */}
+          <Link href={`/distributors/${d.id}`} className="font-medium text-text">
             {d.name}
           </Link>
           <div className="text-xs text-text-subtle tabular-nums">{d.gstNumber}</div>
@@ -101,17 +112,49 @@ export function DistributorsScreen() {
       ),
     },
     {
+      key: 'collected',
+      header: 'Collected this month',
+      numeric: true,
+      render: (d) => {
+        const paise = collected?.get(d.id);
+        return paise ? money(paise) : <span className="text-text-subtle">—</span>;
+      },
+    },
+    {
       key: 'actions',
       header: '',
-      className: 'w-12 text-right',
+      className: 'whitespace-nowrap text-right',
       render: (d) => (
-        <RowActions
-          label={d.name}
-          status={d.status}
-          disabled={readOnly}
-          onEdit={() => router.push(`/distributors/${d.id}`)}
-          onToggleStatus={() => setToggling(d)}
-        />
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={readOnly || d.status === 'inactive'}
+            title={
+              readOnly
+                ? 'A past financial year is read-only'
+                : d.status === 'inactive'
+                  ? 'Reactivate the distributor first'
+                  : undefined
+            }
+            onClick={() => setPaying(d)}
+          >
+            Payment
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => router.push(`/distributors/${d.id}`)}>
+            Edit
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={readOnly}
+            title={readOnly ? 'A past financial year is read-only' : undefined}
+            className={d.status === 'active' ? 'text-danger-fg hover:text-danger-fg' : undefined}
+            onClick={() => setToggling(d)}
+          >
+            {d.status === 'active' ? 'Deactivate' : 'Reactivate'}
+          </Button>
+        </div>
       ),
     },
   ];
@@ -123,6 +166,7 @@ export function DistributorsScreen() {
       noun="distributor"
       readOnly={readOnly}
       onNew={() => router.push('/distributors/new')}
+      onRowClick={(d) => router.push(`/distributors/${d.id}`)}
       filters={
         <>
           <Input
@@ -164,6 +208,9 @@ export function DistributorsScreen() {
       pageSize={pageSize}
       onPageSizeChange={(n) => update({ pageSize: n })}
     >
+      {paying ? (
+        <RecordPaymentDialog distributorId={paying.id} onClose={() => setPaying(null)} />
+      ) : null}
       <StatusToggleDialog
         item={toggling}
         noun="distributor"

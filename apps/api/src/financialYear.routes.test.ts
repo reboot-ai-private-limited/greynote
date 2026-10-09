@@ -41,6 +41,7 @@ const SCOPED = [
   '/api/hr/leave-balances/:userId',
   '/api/sales/orders',
   '/api/sales/distributor-payments',
+  '/api/sales/distributor-payments/totals',
   '/api/payroll',
   '/api/attendance/month',
   '/api/attendance/payroll-calendar',

@@ -134,6 +134,7 @@ export const keys = {
     all: () => ['distributorPayments', fy()] as const,
     list: (query: object) => [...keys.distributorPayments.all(), 'list', query] as const,
     orders: (query: object) => [...keys.distributorPayments.all(), 'orders', query] as const,
+    totals: (query: object) => [...keys.distributorPayments.all(), 'totals', query] as const,
   },
   distributors: {
     all: () => ['distributors', fy()] as const,

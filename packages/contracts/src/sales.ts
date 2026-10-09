@@ -36,6 +36,12 @@ export interface DistributorPaymentsDto {
   orderedPaise: number;
 }
 
+/** One row of `GET /sales/distributor-payments/totals`: what a distributor paid over the range. Distributors with nothing recorded are left out. */
+export interface DistributorPaymentTotalDto {
+  distributorId: string;
+  collectedPaise: number;
+}
+
 export interface RecordDistributorPaymentDto {
   distributorId: string;
   paymentDate: string;

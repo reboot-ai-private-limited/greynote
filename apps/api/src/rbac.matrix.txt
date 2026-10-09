@@ -85,6 +85,7 @@ GET    /api/reports/stock  ADMIN
 GET    /api/reports/ta-da  ADMIN
 GET    /api/reports/ta-da/days  ADMIN
 GET    /api/sales/distributor-payments  ACCOUNTANT,ADMIN
+GET    /api/sales/distributor-payments/totals  ACCOUNTANT,ADMIN
 GET    /api/sales/monthly-stock  ADMIN,FIELD
 GET    /api/sales/monthly-stock/missing  ADMIN,FIELD
 GET    /api/sales/orders  ADMIN,FIELD

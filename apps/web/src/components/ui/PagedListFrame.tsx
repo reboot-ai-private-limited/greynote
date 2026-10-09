@@ -31,6 +31,7 @@ export function PagedListFrame<T extends { id: string }>({
   pageSize,
   onPageSizeChange,
   hideHeader = false,
+  onRowClick,
   children,
 }: {
   title: string;
@@ -57,6 +58,8 @@ export function PagedListFrame<T extends { id: string }>({
   onPageSizeChange: (pageSize: number) => void;
   /** Skip the page header: the list sits under a header the screen already has (a tab). */
   hideHeader?: boolean;
+  /** Makes the whole row open something (see `DataTable`): pointer cursor and a click anywhere on it except on a link or button. */
+  onRowClick?: ((row: T) => void) | undefined;
   /** Dialogs, rendered beside the table. */
   children?: ReactNode;
 }) {
@@ -87,7 +90,12 @@ export function PagedListFrame<T extends { id: string }>({
         isEmpty={query.data?.items.length === 0}
         empty={{ title: emptyTitle ?? `No ${noun}s`, description: emptyDescription }}
       >
-        <DataTable columns={columns} rows={query.data?.items ?? []} rowKey={(row) => row.id} />
+        <DataTable
+          columns={columns}
+          rows={query.data?.items ?? []}
+          rowKey={(row) => row.id}
+          onRowClick={onRowClick}
+        />
         {query.data ? (
           <Pagination
             page={query.data.page}

@@ -1,4 +1,4 @@
-import type { DistributorPaymentDto, DistributorPaymentsDto, MissingStockRowDto, RecordDistributorPaymentDto } from '@greynote/contracts';
+import type { DistributorPaymentDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto } from '@greynote/contracts';
 import { request } from '../client';
 
 /** One order as `GET /sales/orders` returns it; the distributor's Orders tab shows only these fields. */
@@ -16,6 +16,9 @@ export const salesApi = {
   /** Admin or Accountant. One distributor's payments in a range (both ends inclusive), with the collected and ordered totals. */
   distributorPayments: (token: string, query: { distributorId: string; from: string; to: string }, signal?: AbortSignal) =>
     request<DistributorPaymentsDto>('/sales/distributor-payments', { token, query: { ...query }, signal }),
+  /** Admin or Accountant. What each distributor paid in a range (recorded payments only); distributors with none are left out. */
+  distributorPaymentTotals: (token: string, query: { from: string; to: string }, signal?: AbortSignal) =>
+    request<DistributorPaymentTotalDto[]>('/sales/distributor-payments/totals', { token, query: { ...query }, signal }),
   recordPayment: (token: string, body: RecordDistributorPaymentDto) => request<DistributorPaymentDto>('/sales/distributor-payments', { method: 'POST', token, body }),
   cancelPayment: (token: string, id: string, reason: string) => request<DistributorPaymentDto>(`/sales/distributor-payments/${id}/cancel`, { method: 'POST', token, body: { reason } }),
   /** A distributor's orders in a range, newest first, whoever placed them (Admin). */

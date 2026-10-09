@@ -6,7 +6,7 @@ import type { DistributorPayment } from '../../domain/payment.entity.js';
 import type { PaymentRepositoryPort } from '../../domain/payment.repository.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import { SalesClock } from '../salesClock.js';
-import { CancelPaymentUseCase, ListPaymentsUseCase, RecordPaymentUseCase, type RecordPaymentInput } from './payments.usecase.js';
+import { CancelPaymentUseCase, ListPaymentsUseCase, PaymentTotalsUseCase, RecordPaymentUseCase, type RecordPaymentInput } from './payments.usecase.js';
 import { FakeMaster, FakeUsers } from './salesTestKit.js';
 
 class FakePayments implements PaymentRepositoryPort {
@@ -21,6 +21,11 @@ class FakePayments implements PaymentRepositoryPort {
   }
   async list(f: { distributorId: string; from: string; to: string }) {
     return this.rows.filter((p) => p.distributorId === f.distributorId && p.paymentDate >= f.from && p.paymentDate <= f.to).sort((a, b) => b.paymentDate.localeCompare(a.paymentDate));
+  }
+  async totals(f: { from: string; to: string }) {
+    const sums = new Map<string, number>();
+    for (const p of this.rows) if (p.status === 'RECORDED' && p.paymentDate >= f.from && p.paymentDate <= f.to) sums.set(p.distributorId, (sums.get(p.distributorId) ?? 0) + p.amountPaise);
+    return [...sums].map(([distributorId, collectedPaise]) => ({ distributorId, collectedPaise }));
   }
   async cancel(id: string, by: string, at: Date, reason: string) {
     const p = this.rows.find((r) => r.id === id);
@@ -106,5 +111,16 @@ describe('distributor payments', () => {
     expect(out.payments.map((p) => p.id)).toEqual(['p2', 'p1']);
     expect(out).toMatchObject({ collectedPaise: 25_000, orderedPaise: 100_000 });
     expect(await code(list.execute({ distributorId: 'nobody', from: '2026-10-01', to: '2026-10-31' }))).toBe(STOCK_CODES.outletNotFound);
+  });
+
+  it('the totals add up the recorded payments of each distributor in the range, leaving out cancelled ones and other dates', async () => {
+    const a = await record.execute(admin, input({ paymentDate: '2026-10-02', amountPaise: 10_000 }));
+    await record.execute(admin, input({ paymentDate: '2026-10-06', amountPaise: 25_000 }));
+    await record.execute(admin, input({ paymentDate: '2026-09-20', amountPaise: 99_999 }));
+    await cancel.execute(admin, a.id, 'typo');
+    await record.execute(admin, input({ paymentDate: '2026-10-07', amountPaise: 5_000 }));
+    const totals = new PaymentTotalsUseCase(payments);
+    expect(await totals.execute({ from: '2026-10-01', to: '2026-10-31' })).toEqual([{ distributorId: 'dist1', collectedPaise: 30_000 }]);
+    expect(await totals.execute({ from: '2026-01-01', to: '2026-01-31' })).toEqual([]);
   });
 });

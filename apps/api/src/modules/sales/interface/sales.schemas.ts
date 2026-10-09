@@ -64,4 +64,7 @@ export const recordPaymentBodySchema = z.object({
 export const listPaymentsQuerySchema = z
   .object({ distributorId: objectIdSchema, from: calendarDateSchema, to: calendarDateSchema })
   .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] });
+export const paymentTotalsQuerySchema = z
+  .object({ from: calendarDateSchema, to: calendarDateSchema })
+  .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] });
 export const cancelPaymentBodySchema = z.object({ reason: z.string().trim().min(1, 'Say why it is cancelled.').max(300) });

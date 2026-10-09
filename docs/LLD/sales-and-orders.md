@@ -172,3 +172,5 @@ location-verified).
 - `POST /api/sales/distributor-payments/:id/cancel` `{ reason }` — one conditional update; the second cancel is a 409.
 
 Web: the distributor's **Payments** tab (tiles, range filter, table, Record payment, Cancel) and **Orders** tab (its orders in the range). An MR does not record payments from the phone.
+
+`GET /api/sales/distributor-payments/totals?from&to` (Admin or Accountant, financial-year scoped) returns what each distributor paid in the range, recorded payments only, one row per distributor that has any — the Distributors list's "Collected this month" column. The list rows also have a **Payment** button that opens the same Record payment modal, plus Edit and Deactivate / Reactivate shown in the row (distributors list only; the other tables keep their 3-dot menu).

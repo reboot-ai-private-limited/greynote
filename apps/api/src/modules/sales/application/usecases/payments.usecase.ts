@@ -1,4 +1,4 @@
-import type { DistributorPaymentDto, DistributorPaymentsDto } from '@greynote/contracts';
+import type { DistributorPaymentDto, DistributorPaymentsDto, DistributorPaymentTotalDto } from '@greynote/contracts';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { Paise } from '@/shared/money/paise.js';
 import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
@@ -102,5 +102,14 @@ export class ListPaymentsUseCase {
       collectedPaise: rows.filter((p) => p.status === 'RECORDED').reduce((n, p) => n + p.amountPaise, 0),
       orderedPaise: orders.filter((o) => o.status !== 'CANCELLED').reduce((n, o) => n + o.totalAmountPaise, 0),
     };
+  }
+}
+
+/** What every distributor paid in a range, for the Distributors list's "collected" column — one query however many distributors. */
+export class PaymentTotalsUseCase {
+  constructor(private readonly payments: PaymentRepositoryPort) {}
+
+  async execute(range: { from: string; to: string }): Promise<DistributorPaymentTotalDto[]> {
+    return this.payments.totals(range);
   }
 }

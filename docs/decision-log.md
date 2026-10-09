@@ -17,6 +17,12 @@ old one.
 
 ---
 
+## 2026-10-09 — Distributors list: quick payment and visible row actions
+
+**Decision:** each row of the Distributors list has **Payment** (the same Record payment modal as the distributor's Payments tab, so a collection is entered without leaving the list), **Edit** and **Deactivate / Reactivate**, instead of the 3-dot menu; a new **Collected this month** column shows what has been recorded so far (recorded payments only, month to date, kept inside the financial year in view). Only this table: the shared 3-dot `RowActions` stays on the other tables. The column is fed by `GET /api/sales/distributor-payments/totals`, one grouped query, because the distributors list itself lives below Sales and cannot carry payment figures.
+
+**Needs a migration:** none.
+
 ## 2026-10-09 — Distributors: several routes, one list of assigned people, no order flags, and payment collection
 
 **Decision:**

@@ -15,3 +15,5 @@
 | 7.11 | Payment dated tomorrow, or in a closed financial year | refused | |
 | 7.12 | Payments in a past financial year | Record payment is disabled | |
 | 7.13 | Distributor page, Orders tab | that distributor's orders in the range, with who placed them | |
+| 7.14 | Distributors list: Payment button on a row, save | modal opens for that distributor; stays on the list; "Collected this month" updates; disabled for an inactive distributor and in a past financial year | |
+| 7.15 | Distributors list: Edit and Deactivate in the row | Edit opens the distributor; Deactivate asks to confirm and the button becomes Reactivate | |
