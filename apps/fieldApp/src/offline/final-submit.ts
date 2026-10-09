@@ -14,6 +14,15 @@ export async function unsentForDay(reportDate: string): Promise<OutboxRecord[]> 
   return all.filter((r) => !r.deleted && DAY_KINDS.includes(r.kind) && reportDateOf(r) === reportDate && r.status !== 'SYNCED');
 }
 
+/**
+ * Sends records that stand on their own (an order, a stock count, a service, a gift marked done): their
+ * drafts are queued and pushed at once, never touching the day's report. Offline, they stay on the phone.
+ */
+export async function sendNow(kinds: SyncKind[]): Promise<PushSummary> {
+  for (const kind of kinds) for (const r of await listRecords({ kind, status: 'DRAFT' })) if (!r.deleted) await queueRecord(r.clientId);
+  return pushPending(kinds);
+}
+
 export type FinalSubmitResult = PushSummary & {
   /** The day's own submit, as the server answered it. */
   submit: OutboxRecord | null;

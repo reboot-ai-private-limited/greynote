@@ -318,7 +318,7 @@ function CallCard({
   );
 }
 
-function DcrSummary({ recordId, canAct }: { recordId: string; canAct: boolean }) {
+export function DcrSummary({ recordId, canAct }: { recordId: string; canAct: boolean }) {
   const [reloadKey, setReloadKey] = useState(0);
   const { data, error } = useRecord<DcrDetail>(() => getDcr(recordId), reloadKey);
 
@@ -346,7 +346,7 @@ function DcrSummary({ recordId, canAct }: { recordId: string; canAct: boolean })
             <Stat label="Expenses" value={formatRupees(total)} />
           </View>
           {flagged > 0 ? (
-            <Notice tone="warning">{`${flagged} call${flagged === 1 ? ' was' : 's were'} flagged by the location check. Accepting a call is separate from approving the day.`}</Notice>
+            <Notice tone="warning">{`${flagged} call${flagged === 1 ? ' was' : 's were'} flagged by the location check.${canAct ? ' Accepting a call is separate from approving the day.' : ''}`}</Notice>
           ) : null}
 
           {data.doctorCalls.length > 0 ? (

@@ -1,0 +1,106 @@
+import { useEffect, useSyncExternalStore } from 'react';
+
+import { useCachedSource } from '@/offline/cache';
+import { businessToday, datesInMonth } from '@/offline/day';
+import type { ConfigSnapshot } from '@/types/sync';
+
+import { setFinancialYearHeader } from './api';
+import { useSessionUser } from './session';
+
+/**
+ * The financial-year "time machine" (HLD 9). A financial year is named by the year it starts in (with an April
+ * start, FY2025 runs 2025-04-01 to 2026-03-31). Picking a past year makes the screens that honour it read that
+ * year, read-only: Reports, the Holiday List and the Orders list. It is kept for this sign-in only and is never
+ * sent with a save or a sync — the server refuses every write while a past year is selected.
+ */
+const MONTH_NAMES = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** `FY_START_MONTH` ("APRIL") as 1–12; April when it is missing or unreadable. */
+export function fyStartMonth(setting: string | null | undefined): number {
+  const index = MONTH_NAMES.indexOf((setting ?? '').trim().toUpperCase());
+  return index === -1 ? 4 : index + 1;
+}
+
+/** The financial year a day falls in. */
+export function fyOf(isoDate: string, startMonth: number): number {
+  const year = Number(isoDate.slice(0, 4));
+  const month = Number(isoDate.slice(5, 7));
+  return month >= startMonth ? year : year - 1;
+}
+
+/** First and last calendar day of a financial year, and its first and last month (`YYYY-MM`). */
+export function fyRange(year: number, startMonth: number) {
+  const firstMonth = `${year}-${pad(startMonth)}`;
+  const lastMonth = startMonth === 1 ? `${year}-12` : `${year + 1}-${pad(startMonth - 1)}`;
+  const days = datesInMonth(lastMonth);
+  return { firstMonth, lastMonth, from: `${firstMonth}-01`, to: days[days.length - 1]! };
+}
+
+/** "FY 2025-26", or "FY 2025" for a calendar-year start. */
+export const fyLabel = (year: number, startMonth: number) => (startMonth === 1 ? `FY ${year}` : `FY ${year}-${String(year + 1).slice(2)}`);
+
+/** How many past years the switch offers. */
+export const FY_YEARS_BACK = 5;
+
+let selected: { year: number; userId: string } | null = null;
+const listeners = new Set<() => void>();
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => listeners.delete(l);
+};
+
+/** Picks a past year, or `null` to go back to the current one. */
+export function selectFinancialYear(year: number | null, userId: string) {
+  selected = year === null ? null : { year, userId };
+  setFinancialYearHeader(year);
+  listeners.forEach((l) => l());
+}
+
+export type FinancialYearState = {
+  /** The year being looked at (the current one unless a past year was picked). */
+  year: number;
+  current: number;
+  startMonth: number;
+  /** A past year is selected: everything is read-only. */
+  isPast: boolean;
+  label: string;
+  from: string;
+  to: string;
+  firstMonth: string;
+  lastMonth: string;
+  today: string;
+  /** Current year first, then up to FY_YEARS_BACK earlier ones. */
+  options: { year: number; label: string }[];
+};
+
+/** The selected financial year and its bounds. Re-reads when the year is switched. */
+export function useFinancialYear(): FinancialYearState {
+  const user = useSessionUser();
+  const config = useCachedSource<ConfigSnapshot>('config');
+  const pick = useSyncExternalStore(subscribe, () => selected);
+  const userId = user?.id ?? null;
+
+  const startMonth = fyStartMonth(config.data?.settings.FY_START_MONTH);
+  const today = businessToday(config.data?.settings.BUSINESS_TIMEZONE);
+  const current = fyOf(today, startMonth);
+  const own = pick && pick.userId === userId && pick.year < current ? pick.year : null;
+
+  // A pick left over from another employee, or one that is no longer past, must not keep the header on.
+  useEffect(() => {
+    if (own === null) setFinancialYearHeader(null);
+    else setFinancialYearHeader(own);
+  }, [own]);
+
+  const year = own ?? current;
+  return {
+    year,
+    current,
+    startMonth,
+    isPast: own !== null,
+    label: fyLabel(year, startMonth),
+    ...fyRange(year, startMonth),
+    today,
+    options: Array.from({ length: FY_YEARS_BACK + 1 }, (_, i) => ({ year: current - i, label: fyLabel(current - i, startMonth) })),
+  };
+}

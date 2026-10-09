@@ -48,7 +48,22 @@ export type FieldActivitySnapshot = {
   today: string;
   /** The last week's daily reports, oldest first. */
   dcrs?: { id: string; reportDate: string; status: PlanStatus; doctorCalls: number; chemistCalls: number; followups: number }[];
+  /** The MR's own Doctor Services, newest first (an Admin-made one is APPROVED). */
+  doctorServices?: {
+    id: string;
+    doctorId: string;
+    serviceType: DoctorServiceType;
+    amountPaise: number;
+    remarks: string | null;
+    origin: 'MR' | 'ADMIN';
+    status: PlanStatus;
+    approvalRequestId: string | null;
+  }[];
+  /** Gifts for the MR's doctors still to be given, newest first. */
+  pendingGifts?: { id: string; doctorId: string; productName: string; amountPaise: number }[];
 };
+
+export type DoctorServiceType = 'TOUR_PACKAGE' | 'GIFT' | 'ONLINE_PROMOTION' | 'OTHERS';
 
 export type ConfigSnapshot = { settings: Record<string, string> };
 
@@ -79,7 +94,16 @@ export type FieldMasterDataSnapshot = {
     location: GeoPoint | null;
   }[];
   chemists: { id: string; routeId: string; name: string; address: string; location: GeoPoint | null }[];
-  products: { id: string; name: string; sku: string; packSize: string | null }[];
+  distributors?: { id: string; routeId: string; name: string; address: string; location: GeoPoint | null }[];
+  products: {
+    id: string;
+    name: string;
+    sku: string;
+    packSize: string | null;
+    ptsPaise?: number | null;
+    ptrPaise?: number | null;
+    mrpPaise?: number | null;
+  }[];
   /** The specialities the server accepts for a doctor, A–Z. */
   specialties: string[];
   sampleAllocations: { id: string; doctorId: string; productId: string; quantityAllocated: number; quantityRemaining: number }[];

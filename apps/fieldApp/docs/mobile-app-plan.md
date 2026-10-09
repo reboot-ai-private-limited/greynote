@@ -7,7 +7,7 @@ and managers (ASM → RSM → ZSM → NSM). This is the working plan for Phase 1
 [`LLD/sync.md`](../../../docs/LLD/sync.md); gating is
 [`hld/10-submission-gating-and-compliance-block.md`](../../../docs/hld/10-submission-gating-and-compliance-block.md).
 
-Last updated 2026-10-07. Day counts are estimates for one experienced developer.
+Last updated 2026-10-09. Day counts are estimates for one experienced developer.
 
 ---
 
@@ -21,8 +21,10 @@ Last updated 2026-10-07. Day counts are estimates for one experienced developer.
 | Stage 1 | **Built and phone-tested 2026-10-07 (pull, push refusal, offline banner, backup, cold restart; the SYNCED push path still needs an employee with a route):** `src/offline/` — SQLite store (memory on web), outbox, pull / push / draft backup / restore against `/sync/*`, on-device geofence (matches the server on 20,000 random cases), connectivity hook, offline banner, sync chip on Home. |
 | Stage 2 | **Built 2026-10-07:** Home with the four tile sections (21 tiles), a today card showing the Tour Plan status, tiles locked by the day gate (plan approved, account unblocked — logic in `offline/day.ts`, checked on 11 cases) with a tap-to-explain message, a placeholder screen per tile (`/feature/[key]`), responsive 2/3-column grid. Seen on a real phone for a FIELD user with no plan; the **approved-plan and blocked states are not yet seen on a phone**. |
 | Stage 3 | **Built 2026-10-07:** Daily Plan (date chips, working type, routes, remarks; save / submit / withdraw; in-day change request) and Monthly Plan (day list, fill-all, weekly off skipped; save / submit / withdraw). Save and Submit need a connection, so offline the form is kept on the phone. Tested on a real phone against the real API: daily and monthly submit and withdraw, offline notice. **Not built:** the Work With picker (no endpoint lists colleagues for an MR) and a late-submission screen (those exceptions are *granted* by a manager or Admin, so they belong to the Team tab, Stage 5). **Not tested:** the route picker with real routes (EMP03 has none), approval, rejection reason, and the in-day change request. |
-| Stage 4 (done) | **Built 2026-10-08, phone-tested end to end (online, offline, a refused record and its retry):** Dr Call and Chemist Call (picker limited to today's plan routes, samples capped by allocation, GPS and on-device geofence, drafts on the phone), Dr and Chemist Followup, Expenses (rupees typed, whole paise stored; TA and DA never entered), Add Doctor (route, name, address, speciality, qualification, optional email; location is the phone's GPS, no map; works offline and sends on its own; approved by manager then Admin; Change, Withdraw and rejection reason; phone-tested), Leave (balances from the last sync, request, change and resend, withdraw; proof files attached on the request form or afterwards — PDF/JPG/PNG, 5 MB, 3 files; online only; phone-tested), Summary and Final Submission (queues the day, sends in order, shows a refused record with its reason). All of it reached the manager in the web portal. **Known gaps:** the phone re-checks the server only on start, foreground and reconnect; a deactivated doctor or chemist shows as "Unknown" in the Summary; the Work With picker waits on the colleagues endpoint. |
+| Stage 4 (done) | **Built 2026-10-08, phone-tested end to end (online, offline, a refused record and its retry):** Dr Call and Chemist Call (picker limited to today's plan routes, samples capped by allocation, GPS and on-device geofence, drafts on the phone), Dr and Chemist Followup, Expenses (rupees typed, whole paise stored; TA and DA never entered), Add Doctor (route, name, address, speciality, qualification, optional email; location is the phone's GPS, no map; works offline and sends on its own; approved by manager then Admin; Change, Withdraw and rejection reason; phone-tested), Leave (balances from the last sync, request, change and resend, withdraw; proof files attached on the request form or afterwards — PDF/JPG/PNG, 5 MB, 3 files; online only; phone-tested), Summary and Final Submission (queues the day, sends in order, shows a refused record with its reason). All of it reached the manager in the web portal. **Known gaps:** the phone re-checks the server only on start, foreground and reconnect; a deactivated doctor or chemist shows as "Doctor/Chemist (no longer active)" in the Summary; the Work With picker waits on the colleagues endpoint. |
 | Stage 5 | **Built and phone-tested 2026-10-08 as a manager login:** Team tab (shown when the user has any team request — the backend has no isManager flag, so the app checks the approvals lists once and remembers it), Inbox and Team activity (everyone / direct reports / further down), request detail for all seven kinds (plans, plan change, daily report with calls, followups and expenses, leave with proof links, new doctor with its captured location, doctor service), history, Approve (optional comment), Reject (reason required), Accept a flagged call (reason required), and bulk approve/reject with per-item results. Online only. **Not tested:** read-only rows for deeper levels, bulk reject, an Admin-level approval. |
+| Stage 6 | **Built 2026-10-08, typechecked and linted, NOT yet run on a phone:** Orders (place offline, Placed / Done / Cancelled, mark done or cancel online; price starts at PTR for a chemist, PTS for a distributor, editable), Monthly Stock (per outlet and month, opening pre-filled from last month's closing, replace on re-save), Gifts (mark done, works offline), Services (request, change, withdraw, rejection reason), Visuals (list kept for offline; pictures open in the app, PDFs and videos in the phone's viewer), Targets (month stepper, own plus team; a manager can set a target). Orders, stock counts, services and gifts are standalone outbox records: sent at once when online, and by the background sync after being saved offline (`STANDALONE_KINDS` in `offline/engine.ts`; a refused one is left for its owner, not retried). Campaigns were removed from the app on 2026-10-09 (the backend will drop them later). Targets can be narrowed to a product (view and set), and a manager has a read-only Team orders list (2026-10-09). |
+| Stage 7 (partly) | **Built, typechecked, NOT yet run on a phone:** Holidays, Financial-Year switch (a past year makes everything read-only), and the Reports tab (DCR with a detail screen, Tour Plan with rejection reasons, Gift & Sales assembled on the phone), each by month. **Not built, waiting on the backend (no endpoint exists):** Docs (Resources library) and Forms. |
 | Not done | `isManager` flag, designation name, every Home / Docs / Reports / Team screen, the offline store and sync |
 | Backend | Complete for all modules (Phases 0–8 of the roadmap); the gaps the app needs are listed in §7 |
 
@@ -71,7 +73,7 @@ Login ─► Device Status
 ├─ Home
 │   ├─ DCR:        Daily Plan · Monthly Plan · Dr Call · Dr Followup · Chemist Call
 │   │              · Chemist Followup · Add Doctor · Expenses · Leave · Summary & Final Submission
-│   ├─ Marketing:  Orders · Monthly Stock · Visuals · Campaigns · Targets · Gifts · Services
+│   ├─ Marketing:  Orders · Monthly Stock · Visuals · Targets · Gifts · Services
 │   ├─ Resources:  → Docs tab
 │   └─ Utility:    Holidays · Forms · Financial-Year switch
 ├─ Docs      (resource library)
@@ -124,7 +126,7 @@ Inbox, team activity, request detail, approve/reject, bulk. Built early enough t
 end to end with two test accounts.
 
 ### Stage 6 — Marketing (7–8 days)
-Orders, Monthly Stock, Visuals, Campaigns, Targets, Gifts, Services.
+Orders, Monthly Stock, Visuals, Targets, Gifts, Services.
 
 ### Stage 7 — Docs, Utility, Reports (6–7 days)
 Resource library, Holidays, Forms, Financial-Year switch, three reports.
@@ -177,7 +179,7 @@ time (online-only) vs **Queue:** saves locally and syncs later.
 | 16 | Orders (list + new + detail) | Queue | Chemist/Distributor order by product, Placed → Done/Cancelled | kind `ORDER`, `GET /sales/orders`, `…/:id`, `POST …/complete`, `POST …/cancel` |
 | 17 | Monthly Stock | Queue | Opening/closing counts per outlet and product; locked after month end | kind `MONTHLY_STOCK`, `GET /sales/monthly-stock`, `…/missing` |
 | 18 | Visuals | online, cached | E-detailing visuals, optionally per product | `GET /marketing/visuals` |
-| 19 | Campaigns | online, cached | Company campaigns | `GET /marketing/campaigns` |
+| 19 | ~~Campaigns~~ | removed from the app 2026-10-09 | — | — |
 | 20 | Targets | online | Own target; for managers the sum of the downline | `GET /marketing/targets/:userId`, `POST /marketing/targets` |
 | 21 | Doctor Gifts | Queue | Admin-allocated gifts; MR marks Done | `GET /field-activity/doctor-gifts`, kind `GIFT_DONE` |
 | 22 | Doctor Services | Queue | Request a service (Tour Package, Gift, Online Promotion, Others) + amount; goes to approval | `GET /field-activity/doctor-services`, kind `DOCTOR_SERVICE` |

@@ -32,9 +32,19 @@ export class ApiError extends Error {
 /** A network failure (server down, wrong IP, no Wi-Fi) — no HTTP response at all. */
 export class NetworkError extends Error {}
 
-type Options = { auth?: boolean };
+/**
+ * `fy`: send the financial-year header for the year the MR picked (lib/financial-year.ts). Only reads pass it:
+ * the server refuses every write while a past year is selected, so sync and saves must never carry it.
+ */
+type Options = { auth?: boolean; fy?: boolean };
 
-async function send<T>(method: string, path: string, body: unknown, accessToken?: string) {
+let financialYearHeader: string | null = null;
+/** Set by lib/financial-year.ts: the start year of a past financial year, or null for the current one. */
+export const setFinancialYearHeader = (year: number | null) => {
+  financialYearHeader = year === null ? null : String(year);
+};
+
+async function send<T>(method: string, path: string, body: unknown, accessToken?: string, extraHeaders?: Record<string, string>) {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
@@ -44,6 +54,7 @@ async function send<T>(method: string, path: string, body: unknown, accessToken?
         // Without this the server treats us as a browser and keeps the refresh token out of the body.
         'X-Client': 'mobile',
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...extraHeaders,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -94,13 +105,14 @@ function refreshTokens(): Promise<boolean> {
 
 async function request<T>(method: string, path: string, body?: unknown, opts: Options = {}) {
   if (!opts.auth) return send<T>(method, path, body);
+  const extra = opts.fy && method === 'GET' && financialYearHeader ? { 'X-Financial-Year': financialYearHeader } : undefined;
 
   try {
-    return await send<T>(method, path, body, getTokens()?.accessToken);
+    return await send<T>(method, path, body, getTokens()?.accessToken, extra);
   } catch (err) {
     if (!(err instanceof ApiError) || err.status !== 401) throw err;
     if (!(await refreshTokens())) throw err;
-    return send<T>(method, path, body, getTokens()?.accessToken);
+    return send<T>(method, path, body, getTokens()?.accessToken, extra);
   }
 }
 

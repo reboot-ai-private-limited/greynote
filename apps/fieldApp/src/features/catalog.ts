@@ -14,7 +14,7 @@ import type { SymbolViewProps } from 'expo-symbols';
 export type FeatureKey =
   | 'daily-plan' | 'monthly-plan' | 'dr-call' | 'dr-followup' | 'chemist-call' | 'chemist-followup'
   | 'add-doctor' | 'expenses' | 'leave' | 'summary'
-  | 'orders' | 'monthly-stock' | 'visuals' | 'campaigns' | 'targets' | 'gifts' | 'services'
+  | 'orders' | 'monthly-stock' | 'visuals' | 'targets' | 'gifts' | 'services'
   | 'holidays' | 'forms' | 'financial-year';
 
 export type Gate = 'plan' | 'unblocked' | 'none';
@@ -49,17 +49,16 @@ export const FEATURES: Feature[] = [
   { key: 'leave', title: 'Leave', section: 'DCR', gate: 'none', stage: 4, route: '/leave', icon: icon('beach.umbrella', 'beach_access'), about: 'See your balances and request leave. Still available while your account is blocked.' },
   { key: 'summary', title: 'Summary & Submit', section: 'DCR', gate: 'unblocked', stage: 4, route: '/summary', icon: icon('checkmark.seal', 'task_alt'), about: 'Review the whole day and send it with Final Submission. Needs a connection.' },
 
-  { key: 'orders', title: 'Orders', section: 'Marketing', gate: 'none', stage: 6, icon: icon('cart', 'shopping_cart'), about: 'Take chemist and distributor orders by product.' },
-  { key: 'monthly-stock', title: 'Monthly Stock', section: 'Marketing', gate: 'none', stage: 6, icon: icon('shippingbox', 'inventory_2'), about: 'Record opening and closing stock for the month.' },
-  { key: 'visuals', title: 'Visuals', section: 'Marketing', gate: 'none', stage: 6, icon: icon('photo.on.rectangle', 'slideshow'), about: 'Show e-detailing visuals to doctors.' },
-  { key: 'campaigns', title: 'Campaigns', section: 'Marketing', gate: 'none', stage: 6, icon: icon('megaphone', 'campaign'), about: 'Company-wide campaigns running now.' },
-  { key: 'targets', title: 'Targets', section: 'Marketing', gate: 'none', stage: 6, icon: icon('target', 'track_changes'), about: 'Your monthly targets, and your team’s if you manage one.' },
-  { key: 'gifts', title: 'Gifts', section: 'Marketing', gate: 'none', stage: 6, icon: icon('gift', 'redeem'), about: 'Gifts Admin allocated to your doctors — mark each done once given.' },
-  { key: 'services', title: 'Services', section: 'Marketing', gate: 'none', stage: 6, icon: icon('briefcase', 'work'), about: 'Request a service for a doctor; it goes through approval.' },
+  { key: 'orders', title: 'Orders', section: 'Marketing', gate: 'none', stage: 6, route: '/orders', icon: icon('cart', 'shopping_cart'), about: 'Take chemist and distributor orders by product.' },
+  { key: 'monthly-stock', title: 'Monthly Stock', section: 'Marketing', gate: 'none', stage: 6, route: '/monthly-stock', icon: icon('shippingbox', 'inventory_2'), about: 'Record opening and closing stock for the month.' },
+  { key: 'visuals', title: 'Visuals', section: 'Marketing', gate: 'none', stage: 6, route: '/visuals', icon: icon('photo.on.rectangle', 'slideshow'), about: 'Show e-detailing visuals to doctors.' },
+  { key: 'targets', title: 'Targets', section: 'Marketing', gate: 'none', stage: 6, route: '/targets', icon: icon('target', 'track_changes'), about: 'Your monthly targets, and your team’s if you manage one.' },
+  { key: 'gifts', title: 'Gifts', section: 'Marketing', gate: 'none', stage: 6, route: '/gifts', icon: icon('gift', 'redeem'), about: 'Gifts Admin allocated to your doctors — mark each done once given.' },
+  { key: 'services', title: 'Services', section: 'Marketing', gate: 'none', stage: 6, route: '/services', icon: icon('briefcase', 'work'), about: 'Request a service for a doctor; it goes through approval.' },
 
-  { key: 'holidays', title: 'Holiday List', section: 'Utility', gate: 'none', stage: 7, icon: icon('calendar.circle', 'event'), about: 'National, zone and HQ holidays.' },
+  { key: 'holidays', title: 'Holiday List', section: 'Utility', gate: 'none', stage: 7, route: '/holidays', icon: icon('calendar.circle', 'event'), about: 'National, zone and HQ holidays.' },
   { key: 'forms', title: 'Forms', section: 'Utility', gate: 'none', stage: 7, icon: icon('doc.plaintext', 'assignment'), about: 'Standard company request forms.' },
-  { key: 'financial-year', title: 'Financial Year', section: 'Utility', gate: 'none', stage: 7, icon: icon('clock.arrow.circlepath', 'history'), about: 'Look back at a previous financial year (read-only).' },
+  { key: 'financial-year', title: 'Financial Year', section: 'Utility', gate: 'none', stage: 7, route: '/financial-year', icon: icon('clock.arrow.circlepath', 'history'), about: 'Look back at a previous financial year (read-only).' },
 ];
 
 export const SECTIONS: Section[] = ['DCR', 'Marketing', 'Utility'];
