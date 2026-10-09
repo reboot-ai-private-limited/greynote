@@ -830,3 +830,5 @@ New read-only `reports` module (top tier, writes nothing; reads Sales, Field Act
 ## Employee onboarding wizard (2026-10-09)
 
 Built, not browser-checked: the eight-step new-employee wizard with drafts, `GRN` ids from a counter, server-generated password with Copy/Share, the top-designation rule, and the new profile fields (decision-log 2026-10-09). API and web unit tests pass. Still open: show and edit the new fields (alternate mobile, permanent address, qualifications, experience) on the profile screens; the old `/employees/:id/setup` stepper for employees already in onboarding; a browser walk-through against the dev database.
+
+**Flat tables (2026-10-09):** all list tables, report tables and tab tables are flat and full width with a page-size select and an entries footer (decision-log 2026-10-09). Not yet checked at phone width; Promotion team table, the payroll calendar grid and chart cards keep their old look.

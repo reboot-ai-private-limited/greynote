@@ -17,7 +17,17 @@ import { formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useFinancialYear } from '@/lib/useFinancialYear';
 import { useSalaryYear } from '../hooks/useSalaryReport';
-import { SALARY_STATE_LABEL, SALARY_STATE_TONE, salaryEmployeesCsv, salaryEmployeesFilename, salaryMatrix, salaryMonthsCsv, salaryMonthsFilename, startedMonths, wholeRupees } from '../lib/salary';
+import {
+  SALARY_STATE_LABEL,
+  SALARY_STATE_TONE,
+  salaryEmployeesCsv,
+  salaryEmployeesFilename,
+  salaryMatrix,
+  salaryMonthsCsv,
+  salaryMonthsFilename,
+  startedMonths,
+  wholeRupees,
+} from '../lib/salary';
 import { monthTick } from '../lib/salesChart';
 import type { StackView } from '../lib/stackChart';
 import { SalaryStackChart } from './SalaryStackChart';
@@ -44,15 +54,71 @@ export function SalaryReportScreen() {
   const draftMonths = started.filter((m) => m.state === 'DRAFT' || m.state === 'PARTIAL').length;
 
   const monthColumns: readonly Column<SalaryMonthDto>[] = [
-    { key: 'month', header: 'Month', render: (m) => <button type="button" className={m.month === selected ? 'font-semibold text-accent' : 'font-medium text-text hover:text-accent hover:underline'} onClick={() => update({ month: m.month === selected ? '' : m.month })}>{monthTick(m.month)}</button> },
-    { key: 'state', header: 'Status', render: (m) => <Badge tone={SALARY_STATE_TONE[m.state]}>{SALARY_STATE_LABEL[m.state]}</Badge> },
-    { key: 'employees', header: 'Employees', numeric: true, render: (m) => (m.draftEmployees > 0 ? `${m.finalEmployees} + ${m.draftEmployees} draft` : m.finalEmployees) },
+    {
+      key: 'month',
+      header: 'Month',
+      render: (m) => (
+        <button
+          type="button"
+          className={
+            m.month === selected
+              ? 'font-semibold text-accent'
+              : 'font-medium text-text hover:text-accent hover:underline'
+          }
+          onClick={() => update({ month: m.month === selected ? '' : m.month })}
+        >
+          {monthTick(m.month)}
+        </button>
+      ),
+    },
+    {
+      key: 'state',
+      header: 'Status',
+      render: (m) => <Badge tone={SALARY_STATE_TONE[m.state]}>{SALARY_STATE_LABEL[m.state]}</Badge>,
+    },
+    {
+      key: 'employees',
+      header: 'Employees',
+      numeric: true,
+      render: (m) =>
+        m.draftEmployees > 0 ? `${m.finalEmployees} + ${m.draftEmployees} draft` : m.finalEmployees,
+    },
     { key: 'base', header: 'Base', numeric: true, render: (m) => money(m.basePaise) },
-    { key: 'deductions', header: 'Deductions', numeric: true, render: (m) => money(m.leaveDeductionPaise + m.absentDeductionPaise) },
-    { key: 'net', header: 'Net pay', numeric: true, render: (m) => <span className="font-medium">{money(m.netPaise)}</span> },
-    { key: 'employer', header: 'Employer EPF/ESI', numeric: true, render: (m) => money(m.employerPaise) },
-    { key: 'cost', header: 'Cost to company', numeric: true, render: (m) => <span className="font-medium">{money(m.costToCompanyPaise)}</span> },
-    { key: 'draft', header: 'Draft net, not counted', numeric: true, render: (m) => (m.draftNetPaise > 0 ? <span className="text-text-subtle italic">{money(m.draftNetPaise)}</span> : '—') },
+    {
+      key: 'deductions',
+      header: 'Deductions',
+      numeric: true,
+      render: (m) => money(m.leaveDeductionPaise + m.absentDeductionPaise),
+    },
+    {
+      key: 'net',
+      header: 'Net pay',
+      numeric: true,
+      render: (m) => <span className="font-medium">{money(m.netPaise)}</span>,
+    },
+    {
+      key: 'employer',
+      header: 'Employer EPF/ESI',
+      numeric: true,
+      render: (m) => money(m.employerPaise),
+    },
+    {
+      key: 'cost',
+      header: 'Cost to company',
+      numeric: true,
+      render: (m) => <span className="font-medium">{money(m.costToCompanyPaise)}</span>,
+    },
+    {
+      key: 'draft',
+      header: 'Draft net, not counted',
+      numeric: true,
+      render: (m) =>
+        m.draftNetPaise > 0 ? (
+          <span className="text-text-subtle italic">{money(m.draftNetPaise)}</span>
+        ) : (
+          '—'
+        ),
+    },
   ];
 
   const t = report?.totals;
@@ -66,17 +132,44 @@ export function SalaryReportScreen() {
             <Link href="/payroll" className="text-sm text-accent hover:underline">
               Generate or finalize on Payroll
             </Link>
-            <Button variant="secondary" disabled={!report} onClick={() => report && downloadCsv(salaryMonthsFilename(fy), salaryMonthsCsv(report))}>
+            <Button
+              variant="secondary"
+              disabled={!report}
+              onClick={() =>
+                report && downloadCsv(salaryMonthsFilename(fy), salaryMonthsCsv(report))
+              }
+            >
               Download CSV
             </Button>
           </div>
         }
       />
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="Net pay, year to date" value={money(t?.netPaise ?? 0)} note="finalized runs" />
-        <StatTile label="Cost to company" value={money(t?.costToCompanyPaise ?? 0)} note={`net pay + ${money(t?.employerPaise ?? 0)} employer EPF/ESI`} />
-        <StatTile label="Deducted" value={money((t?.leaveDeductionPaise ?? 0) + (t?.absentDeductionPaise ?? 0))} note={`${money(t?.leaveDeductionPaise ?? 0)} leave · ${money(t?.absentDeductionPaise ?? 0)} absent`} />
-        <StatTile label="Months not yet final" value={`${draftMonths}`} note={draftMonths > 0 ? 'drafts are outside the totals' : 'every month with a run is finalized'} tone={draftMonths > 0 ? 'warning' : undefined} />
+        <StatTile
+          label="Net pay, year to date"
+          value={money(t?.netPaise ?? 0)}
+          note="finalized runs"
+        />
+        <StatTile
+          label="Cost to company"
+          value={money(t?.costToCompanyPaise ?? 0)}
+          note={`net pay + ${money(t?.employerPaise ?? 0)} employer EPF/ESI`}
+        />
+        <StatTile
+          label="Deducted"
+          value={money((t?.leaveDeductionPaise ?? 0) + (t?.absentDeductionPaise ?? 0))}
+          note={`${money(t?.leaveDeductionPaise ?? 0)} leave · ${money(t?.absentDeductionPaise ?? 0)} absent`}
+        />
+        <StatTile
+          label="Months not yet final"
+          value={`${draftMonths}`}
+          note={
+            draftMonths > 0
+              ? 'drafts are outside the totals'
+              : 'every month with a run is finalized'
+          }
+          tone={draftMonths > 0 ? 'warning' : undefined}
+        />
       </div>
 
       <Card
@@ -84,10 +177,20 @@ export function SalaryReportScreen() {
         description="Click a month to look at it alone; click it again to see them all."
         actions={
           <div className="flex gap-1" role="group" aria-label="Show">
-            <Button size="sm" variant={view === 'COST' ? 'primary' : 'secondary'} aria-pressed={view === 'COST'} onClick={() => update({ view: '' })}>
+            <Button
+              size="sm"
+              variant={view === 'COST' ? 'primary' : 'secondary'}
+              aria-pressed={view === 'COST'}
+              onClick={() => update({ view: '' })}
+            >
               What it cost
             </Button>
-            <Button size="sm" variant={view === 'DEDUCTIONS' ? 'primary' : 'secondary'} aria-pressed={view === 'DEDUCTIONS'} onClick={() => update({ view: 'deductions' })}>
+            <Button
+              size="sm"
+              variant={view === 'DEDUCTIONS' ? 'primary' : 'secondary'}
+              aria-pressed={view === 'DEDUCTIONS'}
+              onClick={() => update({ view: 'deductions' })}
+            >
               Deductions
             </Button>
           </div>
@@ -100,44 +203,83 @@ export function SalaryReportScreen() {
             isEmpty={started.length === 0}
             empty={{ title: 'No month of this financial year has started yet' }}
           >
-            <SalaryStackChart months={months} view={view} selected={selected} onSelect={(m) => update({ month: m === selected ? '' : m })} />
+            <SalaryStackChart
+              months={months}
+              view={view}
+              selected={selected}
+              onSelect={(m) => update({ month: m === selected ? '' : m })}
+            />
             <div className="mt-4 overflow-hidden rounded-md border border-border">
-              <DataTable columns={monthColumns} rows={shown} rowKey={(m) => m.month} bleed={false} />
+              <DataTable
+                columns={monthColumns}
+                rows={shown}
+                rowKey={(m) => m.month}
+                bleed={false}
+              />
             </div>
           </DataState>
         </div>
       </Card>
 
       <Card
+        flat
         title="Net pay by employee"
         description="Each cell is that month's net pay and opens the salary slip. Italic cells are drafts and are not in the total."
         actions={
-          <Button variant="secondary" size="sm" disabled={!report || report.rows.length === 0} onClick={() => report && downloadCsv(salaryEmployeesFilename(fy), salaryEmployeesCsv(report))}>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={!report || report.rows.length === 0}
+            onClick={() =>
+              report && downloadCsv(salaryEmployeesFilename(fy), salaryEmployeesCsv(report))
+            }
+          >
             Download CSV
           </Button>
         }
         className="mt-6"
       >
-        <DataState isLoading={query.isLoading} error={null} isEmpty={matrix.length === 0} empty={{ title: 'No salary runs yet', description: 'Generate the first sheet on Payroll once a month has ended.' }}>
-          <div className="overflow-x-auto">
+        <DataState
+          isLoading={query.isLoading}
+          error={null}
+          isEmpty={matrix.length === 0}
+          empty={{
+            title: 'No salary runs yet',
+            description: 'Generate the first sheet on Payroll once a month has ended.',
+          }}
+        >
+          <div className="-mx-4 overflow-x-auto border-y border-border sm:-mx-8">
             <table className="w-full min-w-max text-sm">
               <caption className="sr-only">Net pay by employee and month</caption>
-              <thead className="bg-surface-subtle text-xs text-text-subtle">
+              <thead className="bg-surface-subtle text-[13px] text-text-muted">
                 <tr>
-                  <th scope="col" className="sticky left-0 bg-surface-subtle px-3 py-2 text-left font-medium">Employee</th>
+                  <th
+                    scope="col"
+                    className="sticky left-0 bg-surface-subtle py-3 pl-4 pr-3 text-left font-semibold sm:pl-8"
+                  >
+                    Employee
+                  </th>
                   {started.map((m) => (
-                    <th key={m.month} scope="col" className="px-3 py-2 text-right font-medium">
+                    <th key={m.month} scope="col" className="px-3 py-3 text-right font-semibold">
                       {monthTick(m.month)}
                     </th>
                   ))}
-                  <th scope="col" className="px-3 py-2 text-right font-medium">Year (finalized)</th>
+                  <th scope="col" className="py-3 pl-3 pr-4 text-right font-semibold sm:pr-8">
+                    Year (finalized)
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {matrix.map((r) => (
                   <tr key={r.user.id} className="border-t border-border">
-                    <th scope="row" className="sticky left-0 bg-surface px-3 py-2 text-left font-normal">
-                      <Link href={`/employees/${r.user.id}`} className="font-medium text-text hover:text-accent hover:underline">
+                    <th
+                      scope="row"
+                      className="sticky left-0 bg-surface py-3 pl-4 pr-3 text-left font-normal sm:pl-8"
+                    >
+                      <Link
+                        href={`/employees/${r.user.id}`}
+                        className="font-medium text-text hover:text-accent hover:underline"
+                      >
                         {r.user.name}
                       </Link>
                       <span className="ml-2 text-xs text-text-subtle">{r.user.employeeCode}</span>
@@ -147,7 +289,19 @@ export function SalaryReportScreen() {
                       return (
                         <td key={m.month} className="px-3 py-2 text-right tabular-nums">
                           {run ? (
-                            <Link href={`/payroll/${run.runId}/slip`} className={run.status === 'DRAFT' ? 'italic text-text-subtle hover:underline' : 'text-text hover:text-accent hover:underline'} title={run.status === 'DRAFT' ? 'Draft: not in the total' : 'Open the salary slip'}>
+                            <Link
+                              href={`/payroll/${run.runId}/slip`}
+                              className={
+                                run.status === 'DRAFT'
+                                  ? 'italic text-text-subtle hover:underline'
+                                  : 'text-text hover:text-accent hover:underline'
+                              }
+                              title={
+                                run.status === 'DRAFT'
+                                  ? 'Draft: not in the total'
+                                  : 'Open the salary slip'
+                              }
+                            >
                               {wholeRupees(run.netPaise)}
                             </Link>
                           ) : (
@@ -156,7 +310,9 @@ export function SalaryReportScreen() {
                         </td>
                       );
                     })}
-                    <td className="px-3 py-2 text-right font-medium tabular-nums">{wholeRupees(r.netFinalPaise)}</td>
+                    <td className="py-3 pl-3 pr-4 text-right font-medium tabular-nums sm:pr-8">
+                      {wholeRupees(r.netFinalPaise)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

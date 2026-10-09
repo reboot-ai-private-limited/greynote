@@ -34,15 +34,38 @@ export function DoctorSamplesTab({ doctor }: { doctor: DoctorDto }) {
         </div>
       ),
     },
-    { key: 'allocated', header: 'Allocated', numeric: true, render: (a) => a.quantityAllocated.toLocaleString('en-IN') },
-    { key: 'given', header: 'Given out', numeric: true, render: (a) => givenOut(a).toLocaleString('en-IN') },
-    { key: 'remaining', header: 'Remaining', numeric: true, render: (a) => <span className="font-medium">{a.quantityRemaining.toLocaleString('en-IN')}</span> },
+    {
+      key: 'allocated',
+      header: 'Allocated',
+      numeric: true,
+      render: (a) => a.quantityAllocated.toLocaleString('en-IN'),
+    },
+    {
+      key: 'given',
+      header: 'Given out',
+      numeric: true,
+      render: (a) => givenOut(a).toLocaleString('en-IN'),
+    },
+    {
+      key: 'remaining',
+      header: 'Remaining',
+      numeric: true,
+      render: (a) => (
+        <span className="font-medium">{a.quantityRemaining.toLocaleString('en-IN')}</span>
+      ),
+    },
     {
       key: 'actions',
       header: '',
       className: 'w-24 text-right',
       render: (a) => (
-        <Button variant="ghost" size="sm" disabled={readOnly} onClick={() => setAdjusting(a)} aria-label={`Correct the allocation of ${a.productName}`}>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={readOnly}
+          onClick={() => setAdjusting(a)}
+          aria-label={`Correct the allocation of ${a.productName}`}
+        >
           Correct
         </Button>
       ),
@@ -51,7 +74,9 @@ export function DoctorSamplesTab({ doctor }: { doctor: DoctorDto }) {
 
   return (
     <div className="space-y-6">
-      {canIssue ? <IssueForm doctor={doctor} existing={samples.data ?? []} /> : (
+      {canIssue ? (
+        <IssueForm doctor={doctor} existing={samples.data ?? []} />
+      ) : (
         <p className="rounded-lg border border-border bg-surface-subtle p-4 text-sm text-text-muted">
           {readOnly
             ? 'A past financial year is read-only.'
@@ -60,22 +85,41 @@ export function DoctorSamplesTab({ doctor }: { doctor: DoctorDto }) {
               : 'Samples can only be issued for an active doctor.'}
         </p>
       )}
-      <Card title="Allocated samples" description="What the assigned MR can still give this doctor, per product.">
+      <Card
+        flat
+        title="Allocated samples"
+        description="What the assigned MR can still give this doctor, per product."
+      >
         <DataState
           isLoading={samples.isLoading}
           error={samples.error ? toErrorState(samples.error, () => void samples.refetch()) : null}
           isEmpty={samples.data?.length === 0}
-          empty={{ title: 'No samples issued', description: 'Issue a product above to let the MR give it on a visit.' }}
+          empty={{
+            title: 'No samples issued',
+            description: 'Issue a product above to let the MR give it on a visit.',
+          }}
         >
-          <DataTable columns={columns} rows={samples.data ?? []} rowKey={(a) => a.id} bleed={false} />
+          <DataTable columns={columns} rows={samples.data ?? []} rowKey={(a) => a.id} />
         </DataState>
       </Card>
-      {adjusting ? <AdjustDialog doctorId={doctor.id} allocation={adjusting} onClose={() => setAdjusting(null)} /> : null}
+      {adjusting ? (
+        <AdjustDialog
+          doctorId={doctor.id}
+          allocation={adjusting}
+          onClose={() => setAdjusting(null)}
+        />
+      ) : null}
     </div>
   );
 }
 
-function IssueForm({ doctor, existing }: { doctor: DoctorDto; existing: readonly SampleAllocationDto[] }) {
+function IssueForm({
+  doctor,
+  existing,
+}: {
+  doctor: DoctorDto;
+  existing: readonly SampleAllocationDto[];
+}) {
   const products = useActiveProducts();
   const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -112,7 +156,10 @@ function IssueForm({ doctor, existing }: { doctor: DoctorDto; existing: readonly
             id="sample-product"
             value={productId}
             onValueChange={setProductId}
-            options={(products.data ?? []).map((p) => ({ value: p.id, label: `${p.name} (${p.sku})` }))}
+            options={(products.data ?? []).map((p) => ({
+              value: p.id,
+              label: `${p.name} (${p.sku})`,
+            }))}
             placeholder={products.isLoading ? 'Loading products…' : 'Choose a product'}
             aria-invalid={errors['productId'] ? true : undefined}
           />
@@ -121,9 +168,17 @@ function IssueForm({ doctor, existing }: { doctor: DoctorDto; existing: readonly
           label="Quantity"
           htmlFor="sample-quantity"
           error={errors['quantity'] ?? quantityError}
-          {...(!errors['quantity'] && !quantityError && quantity !== '' && productId ? { hint: issuePreview(current, Number(quantity.trim())) } : {})}
+          {...(!errors['quantity'] && !quantityError && quantity !== '' && productId
+            ? { hint: issuePreview(current, Number(quantity.trim())) }
+            : {})}
         >
-          <Input id="sample-quantity" inputMode="numeric" value={quantity} onChange={(e) => setQuantity(e.target.value)} aria-invalid={errors['quantity'] || quantityError ? true : undefined} />
+          <Input
+            id="sample-quantity"
+            inputMode="numeric"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            aria-invalid={errors['quantity'] || quantityError ? true : undefined}
+          />
         </FormField>
         <div className="sm:pt-[1.625rem]">
           <Button type="submit" disabled={issue.isPending}>
@@ -136,7 +191,15 @@ function IssueForm({ doctor, existing }: { doctor: DoctorDto; existing: readonly
 }
 
 /** Sets the allocated total. It cannot go below what has been given out, which the field side already drew down. */
-function AdjustDialog({ doctorId, allocation, onClose }: { doctorId: string; allocation: SampleAllocationDto; onClose: () => void }) {
+function AdjustDialog({
+  doctorId,
+  allocation,
+  onClose,
+}: {
+  doctorId: string;
+  allocation: SampleAllocationDto;
+  onClose: () => void;
+}) {
   const [total, setTotal] = useState(String(allocation.quantityAllocated));
   const [error, setError] = useState<string | undefined>();
   const adjust = useAdjustSample(doctorId, onClose);
@@ -161,7 +224,13 @@ function AdjustDialog({ doctorId, allocation, onClose }: { doctorId: string; all
       onSubmit={submit}
     >
       <FormField label="Allocated total" htmlFor="adjust-total" error={error}>
-        <Input id="adjust-total" inputMode="numeric" value={total} onChange={(e) => setTotal(e.target.value)} aria-invalid={error ? true : undefined} />
+        <Input
+          id="adjust-total"
+          inputMode="numeric"
+          value={total}
+          onChange={(e) => setTotal(e.target.value)}
+          aria-invalid={error ? true : undefined}
+        />
       </FormField>
     </FormDialog>
   );

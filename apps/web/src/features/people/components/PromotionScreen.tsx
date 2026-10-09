@@ -25,7 +25,16 @@ import { useDesignations, usePayBands } from '../hooks/useMasterData';
 import { usePromotionPreview, useSchedulePromotion } from '../hooks/usePromotions';
 import { useUser } from '../hooks/useUsers';
 import { DESIGNATION_LABEL } from '../lib/masterData';
-import { assignMoves, buildPromotionRequest, changeSummary, clearMoves, emptyPromotionDraft, monthStartLabel, unplacedIds, type PromotionDraft } from '../lib/promotion';
+import {
+  assignMoves,
+  buildPromotionRequest,
+  changeSummary,
+  clearMoves,
+  emptyPromotionDraft,
+  monthStartLabel,
+  unplacedIds,
+  type PromotionDraft,
+} from '../lib/promotion';
 import { CtcBreakdownTable } from './CtcBreakdownTable';
 import { EmployeePickerField } from './EmployeePickerField';
 import { PromotionTeamTable } from './PromotionTeamTable';
@@ -55,15 +64,31 @@ export function PromotionScreen({ id }: { id: string }) {
   const team = data?.team ?? [];
   const waiting = preview.isFetching || preview.isPlaceholderData;
   const canSchedule = Boolean(body && data?.canSchedule && !waiting && !schedule.isPending);
-  const unplaced = unplacedIds(team.map((t) => t.person.id), draft.moves);
+  const unplaced = unplacedIds(
+    team.map((t) => t.person.id),
+    draft.moves,
+  );
 
-  const designationOptions = [{ value: KEEP, label: 'Keep the current designation' }, ...[...(designations.data ?? [])].sort((a, b) => a.level - b.level).map((d) => ({ value: d.id, label: DESIGNATION_LABEL[d.name] }))];
-  const gradeOptions = [{ value: KEEP, label: 'Keep the current grade' }, ...[...(payBands.data ?? [])].sort((a, b) => a.name.localeCompare(b.name)).map((b) => ({ value: b.id, label: b.name }))];
+  const designationOptions = [
+    { value: KEEP, label: 'Keep the current designation' },
+    ...[...(designations.data ?? [])]
+      .sort((a, b) => a.level - b.level)
+      .map((d) => ({ value: d.id, label: DESIGNATION_LABEL[d.name] })),
+  ];
+  const gradeOptions = [
+    { value: KEEP, label: 'Keep the current grade' },
+    ...[...(payBands.data ?? [])]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((b) => ({ value: b.id, label: b.name })),
+  ];
 
   return (
     <>
       <p className="mb-2 text-sm">
-        <Link href={`/employees/${id}`} className="text-text-muted hover:text-accent hover:underline">
+        <Link
+          href={`/employees/${id}`}
+          className="text-text-muted hover:text-accent hover:underline"
+        >
           ← {user?.name ?? 'Employee'}
         </Link>
       </p>
@@ -100,14 +125,38 @@ export function PromotionScreen({ id }: { id: string }) {
 
               <Card title="What changes" description="Leave a field alone to keep it as it is.">
                 <div className="grid gap-4 p-5 sm:grid-cols-2">
-                  <FormField label="Takes effect on the 1st of" htmlFor="promo-month" error={!built.ok ? built.errors['effectiveFrom'] : undefined} {...(data ? { hint: `The earliest is ${monthStartLabel(data.earliestMonth)}.` } : {})}>
-                    <Input id="promo-month" type="month" value={draft.effectiveFrom} onChange={(e) => set({ effectiveFrom: e.target.value })} />
+                  <FormField
+                    label="Takes effect on the 1st of"
+                    htmlFor="promo-month"
+                    error={!built.ok ? built.errors['effectiveFrom'] : undefined}
+                    {...(data
+                      ? { hint: `The earliest is ${monthStartLabel(data.earliestMonth)}.` }
+                      : {})}
+                  >
+                    <Input
+                      id="promo-month"
+                      type="month"
+                      value={draft.effectiveFrom}
+                      onChange={(e) => set({ effectiveFrom: e.target.value })}
+                    />
                   </FormField>
                   <FormField label="New designation" htmlFor="promo-designation">
-                    <Select id="promo-designation" value={draft.designationId || KEEP} onValueChange={(v) => set({ designationId: v === KEEP ? '' : v })} options={designationOptions} placeholder="Keep the current designation" />
+                    <Select
+                      id="promo-designation"
+                      value={draft.designationId || KEEP}
+                      onValueChange={(v) => set({ designationId: v === KEEP ? '' : v })}
+                      options={designationOptions}
+                      placeholder="Keep the current designation"
+                    />
                   </FormField>
                   <FormField label="New pay grade" htmlFor="promo-grade">
-                    <Select id="promo-grade" value={draft.payBandId || KEEP} onValueChange={(v) => set({ payBandId: v === KEEP ? '' : v })} options={gradeOptions} placeholder="Keep the current grade" />
+                    <Select
+                      id="promo-grade"
+                      value={draft.payBandId || KEEP}
+                      onValueChange={(v) => set({ payBandId: v === KEEP ? '' : v })}
+                      options={gradeOptions}
+                      placeholder="Keep the current grade"
+                    />
                   </FormField>
                   <EmployeePickerField
                     id="promo-manager"
@@ -118,11 +167,32 @@ export function PromotionScreen({ id }: { id: string }) {
                     onChange={(managerId) => set({ managerId })}
                     hint="Leave empty to keep the current manager."
                   />
-                  <FormField label="New CTC per year (₹)" htmlFor="promo-ctc" error={!built.ok ? built.errors['ctc'] : undefined} hint="Optional. It does not have to fit any range; it starts from the same month.">
-                    <Input id="promo-ctc" inputMode="decimal" value={draft.ctc} placeholder="e.g. 900000" onChange={(e) => set({ ctc: e.target.value })} aria-invalid={!built.ok && built.errors['ctc'] ? true : undefined} />
+                  <FormField
+                    label="New CTC per year (₹)"
+                    htmlFor="promo-ctc"
+                    error={!built.ok ? built.errors['ctc'] : undefined}
+                    hint="Optional. It does not have to fit any range; it starts from the same month."
+                  >
+                    <Input
+                      id="promo-ctc"
+                      inputMode="decimal"
+                      value={draft.ctc}
+                      placeholder="e.g. 900000"
+                      onChange={(e) => set({ ctc: e.target.value })}
+                      aria-invalid={!built.ok && built.errors['ctc'] ? true : undefined}
+                    />
                   </FormField>
-                  <FormField label="Reason (optional)" htmlFor="promo-reason" error={!built.ok ? built.errors['reason'] : undefined}>
-                    <Input id="promo-reason" value={draft.reason} placeholder="Annual review" onChange={(e) => set({ reason: e.target.value })} />
+                  <FormField
+                    label="Reason (optional)"
+                    htmlFor="promo-reason"
+                    error={!built.ok ? built.errors['reason'] : undefined}
+                  >
+                    <Input
+                      id="promo-reason"
+                      value={draft.reason}
+                      placeholder="Annual review"
+                      onChange={(e) => set({ reason: e.target.value })}
+                    />
                   </FormField>
                 </div>
               </Card>
@@ -132,14 +202,22 @@ export function PromotionScreen({ id }: { id: string }) {
                 description={`Everyone who reports to ${user.name} needs a manager from the effective month. Choose one for a person, a group, or everyone.`}
               >
                 {data && team.length === 0 ? (
-                  <p className="p-5 text-sm text-text-muted">{user.name} has no direct reports, so there is nothing to hand over.</p>
+                  <p className="p-5 text-sm text-text-muted">
+                    {user.name} has no direct reports, so there is nothing to hand over.
+                  </p>
                 ) : !data ? (
-                  <p className="p-5 text-sm text-text-muted">{preview.isError ? 'The team could not be loaded.' : 'Loading the team…'}</p>
+                  <p className="p-5 text-sm text-text-muted">
+                    {preview.isError ? 'The team could not be loaded.' : 'Loading the team…'}
+                  </p>
                 ) : (
                   <>
                     {unplaced.length > 0 ? (
-                      <p role="status" className="mx-5 mt-4 rounded-md bg-warning-bg px-3 py-2 text-sm text-warning-fg">
-                        {unplaced.length} of {team.length} still need a manager. The promotion can't be scheduled until everyone has one.
+                      <p
+                        role="status"
+                        className="mx-5 mt-4 rounded-md bg-warning-bg px-3 py-2 text-sm text-warning-fg"
+                      >
+                        {unplaced.length} of {team.length} still need a manager. The promotion can't
+                        be scheduled until everyone has one.
                       </p>
                     ) : null}
                     <PromotionTeamTable
@@ -159,12 +237,19 @@ export function PromotionScreen({ id }: { id: string }) {
 
               <LeaveCard userId={id} />
 
-              <Card title="Preview" {...(data ? { description: `From ${monthStartLabel(data.effectiveFrom)}` } : {})}>
+              <Card
+                title="Preview"
+                {...(data ? { description: `From ${monthStartLabel(data.effectiveFrom)}` } : {})}
+              >
                 <div className="space-y-3 p-5" aria-live="polite">
                   {!body ? (
-                    <p className="text-sm text-text-muted">Fix the fields above to see the preview.</p>
+                    <p className="text-sm text-text-muted">
+                      Fix the fields above to see the preview.
+                    </p>
                   ) : !data ? (
-                    <p className="text-sm text-text-muted">{preview.isError ? toErrorState(preview.error).message : 'Working it out…'}</p>
+                    <p className="text-sm text-text-muted">
+                      {preview.isError ? toErrorState(preview.error).message : 'Working it out…'}
+                    </p>
                   ) : (
                     <>
                       <ul className="space-y-1 text-sm">
@@ -175,21 +260,32 @@ export function PromotionScreen({ id }: { id: string }) {
                         ))}
                         {data.ctc ? (
                           <li className="font-medium">
-                            CTC {data.ctc.previousAnnualPaise !== null ? `${formatMoney(data.ctc.previousAnnualPaise)} → ` : ''}
+                            CTC{' '}
+                            {data.ctc.previousAnnualPaise !== null
+                              ? `${formatMoney(data.ctc.previousAnnualPaise)} → `
+                              : ''}
                             {formatMoney(data.ctc.newAnnualPaise)} a year
                           </li>
                         ) : null}
-                        {changeSummary(data.from, data.to).length === 0 && !data.ctc ? <li className="text-text-muted">Nothing is changing yet.</li> : null}
+                        {changeSummary(data.from, data.to).length === 0 && !data.ctc ? (
+                          <li className="text-text-muted">Nothing is changing yet.</li>
+                        ) : null}
                       </ul>
                       {data.problems.length > 0 ? (
-                        <ul role="alert" className="space-y-1 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger-fg">
+                        <ul
+                          role="alert"
+                          className="space-y-1 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger-fg"
+                        >
                           {data.problems.map((p) => (
                             <li key={`${p.field}:${p.message}`}>{p.message}</li>
                           ))}
                         </ul>
                       ) : null}
                       {data.warnings.length > 0 ? (
-                        <ul role="status" className="space-y-1 rounded-md bg-warning-bg px-3 py-2 text-sm text-warning-fg">
+                        <ul
+                          role="status"
+                          className="space-y-1 rounded-md bg-warning-bg px-3 py-2 text-sm text-warning-fg"
+                        >
                           {data.warnings.map((w) => (
                             <li key={w}>{w}</li>
                           ))}
@@ -198,7 +294,10 @@ export function PromotionScreen({ id }: { id: string }) {
                       {data.canSchedule ? <Badge tone="success">Ready to schedule</Badge> : null}
                       {data.ctc ? (
                         <div className="overflow-x-auto rounded-md border border-border">
-                          <CtcBreakdownTable lines={data.ctc.lines} ctcAnnualPaise={data.ctc.newAnnualPaise} />
+                          <CtcBreakdownTable
+                            lines={data.ctc.lines}
+                            ctcAnnualPaise={data.ctc.newAnnualPaise}
+                          />
                         </div>
                       ) : null}
                     </>
@@ -219,21 +318,42 @@ function LeaveCard({ userId }: { userId: string }) {
   const query = useEmployeeBalances(userId, year);
   const shown = query.data?.year ?? year ?? financialYearOf(istDate());
   const columns: readonly Column<LeaveBalanceDto>[] = [
-    { key: 'type', header: 'Leave type', render: (b) => <span className="font-medium">{b.leaveTypeName}</span> },
-    { key: 'allocated', header: 'Allocated', numeric: true, render: (b) => formatDays(b.allocatedDays) },
+    {
+      key: 'type',
+      header: 'Leave type',
+      render: (b) => <span className="font-medium">{b.leaveTypeName}</span>,
+    },
+    {
+      key: 'allocated',
+      header: 'Allocated',
+      numeric: true,
+      render: (b) => formatDays(b.allocatedDays),
+    },
     { key: 'used', header: 'Used', numeric: true, render: (b) => formatDays(b.usedDays) },
     { key: 'pending', header: 'Pending', numeric: true, render: (b) => formatDays(b.pendingDays) },
-    { key: 'available', header: 'Available', numeric: true, render: (b) => formatDays(b.availableDays) },
+    {
+      key: 'available',
+      header: 'Available',
+      numeric: true,
+      render: (b) => formatDays(b.availableDays),
+    },
   ];
   return (
-    <Card title={`Leave · ${financialYearLabel(shown)}`} description="Leave is by financial year. A promotion does not change this year's days or balance; the new grade's days apply from the next year.">
+    <Card
+      flat
+      title={`Leave · ${financialYearLabel(shown)}`}
+      description="Leave is by financial year. A promotion does not change this year's days or balance; the new grade's days apply from the next year."
+    >
       <DataState
         isLoading={query.isLoading}
         error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
         isEmpty={query.data?.balances.length === 0}
-        empty={{ title: 'No leave balances', description: 'This employee has no paid leave allocated this year.' }}
+        empty={{
+          title: 'No leave balances',
+          description: 'This employee has no paid leave allocated this year.',
+        }}
       >
-        <DataTable columns={columns} rows={query.data?.balances ?? []} rowKey={(b) => b.id} bleed={false} />
+        <DataTable columns={columns} rows={query.data?.balances ?? []} rowKey={(b) => b.id} />
       </DataState>
     </Card>
   );

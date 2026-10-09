@@ -71,7 +71,9 @@ density (40px controls, 48px table rows); numbers use `tabular-nums`. Shadows ar
 - **Status** (`Badge`): `success` = approved/paid, `warning` = pending, `danger` = rejected/blocked, `accent` = info,
   `neutral` = draft. The dot carries the colour for people who cannot rely on the tint.
 - **Components** in `components/ui`: Button, Input/Textarea, FormField, Select, Dialog, Tabs, DropdownMenu, Badge, Card,
-  StatTile, DataTable (sortable), Pagination, EmptyState, ErrorState, Skeleton, TopProgressBar, toast.
+  StatTile, DataTable (sortable), Pagination, ListToolbar / SearchInput, EmptyState, ErrorState, Skeleton, TopProgressBar, toast.
+
+**Tables (2026-10-09).** A list is flat and full width, not a box in a padded page: title, then a `ListToolbar` (search and filters, no card), then a `DataTable` that cancels the page's side padding (`bleed`, the default) and gives its first and last column that padding back so text lines up with the title, then `Pagination` (rows per page, "Showing 1 to 25 of N entries", Previous / Next). Page size lives in the URL (`pageSize`: 10, 25, 50, 100; 25 when absent) through `useFilterParams`, and the screen's query must send it. A table inside a card or dialog passes `bleed={false}`; `Card flat` is a plain heading over a flat table. Print layouts (the payslip) and modal tables are left alone.
 - **`/design`** renders every token and component in every state. Development only (404s in a production build). Add a new
   primitive there in the same change that adds it.
 

@@ -27,7 +27,8 @@ function ServiceDialog({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState<ServiceDraft>(EMPTY_SERVICE);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const create = useCreateDoctorService(onClose);
-  const set = (field: keyof ServiceDraft) => (value: string) => setDraft((d) => ({ ...d, [field]: value }));
+  const set = (field: keyof ServiceDraft) => (value: string) =>
+    setDraft((d) => ({ ...d, [field]: value }));
   const invalid = (field: string) => (errors[field] ? true : undefined);
 
   function submit() {
@@ -46,15 +47,43 @@ function ServiceDialog({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       onSubmit={submit}
     >
-      <DoctorPickerField id="service-doctor" value={draft.doctorId} onChange={set('doctorId')} error={errors['doctorId']} />
+      <DoctorPickerField
+        id="service-doctor"
+        value={draft.doctorId}
+        onChange={set('doctorId')}
+        error={errors['doctorId']}
+      />
       <FormField label="Type" htmlFor="service-type" error={errors['serviceType']}>
-        <Select id="service-type" value={draft.serviceType} onValueChange={set('serviceType')} options={TYPE_OPTIONS} placeholder="Choose a type" aria-invalid={invalid('serviceType')} />
+        <Select
+          id="service-type"
+          value={draft.serviceType}
+          onValueChange={set('serviceType')}
+          options={TYPE_OPTIONS}
+          placeholder="Choose a type"
+          aria-invalid={invalid('serviceType')}
+        />
       </FormField>
       <FormField label="Amount (₹)" htmlFor="service-amount" error={errors['amount']}>
-        <Input id="service-amount" inputMode="decimal" value={draft.amount} onChange={(e) => set('amount')(e.target.value)} aria-invalid={invalid('amount')} />
+        <Input
+          id="service-amount"
+          inputMode="decimal"
+          value={draft.amount}
+          onChange={(e) => set('amount')(e.target.value)}
+          aria-invalid={invalid('amount')}
+        />
       </FormField>
-      <FormField label="Remarks" htmlFor="service-remarks" error={errors['remarks']} hint="Optional.">
-        <Input id="service-remarks" value={draft.remarks} onChange={(e) => set('remarks')(e.target.value)} aria-invalid={invalid('remarks')} />
+      <FormField
+        label="Remarks"
+        htmlFor="service-remarks"
+        error={errors['remarks']}
+        hint="Optional."
+      >
+        <Input
+          id="service-remarks"
+          value={draft.remarks}
+          onChange={(e) => set('remarks')(e.target.value)}
+          aria-invalid={invalid('remarks')}
+        />
       </FormField>
     </FormDialog>
   );
@@ -68,11 +97,27 @@ export function DoctorServicesScreen() {
   const rows = query.data ?? [];
 
   const columns: readonly Column<DoctorServiceDto>[] = [
-    { key: 'doctor', header: 'Doctor', render: (s) => <span className="font-medium">{s.doctorName || 'Unknown'}</span> },
+    {
+      key: 'doctor',
+      header: 'Doctor',
+      render: (s) => <span className="font-medium">{s.doctorName || 'Unknown'}</span>,
+    },
     { key: 'type', header: 'Service', render: (s) => serviceTypeLabel(s.serviceType) },
     { key: 'amount', header: 'Amount', numeric: true, render: (s) => formatMoney(s.amountPaise) },
     { key: 'origin', header: 'Made by', render: (s) => serviceOriginLabel(s.origin) },
-    { key: 'status', header: 'Status', render: (s) => <Badge tone={s.status === 'APPROVED' ? 'success' : s.status === 'REJECTED' ? 'danger' : 'warning'}>{s.status.replace(/_/g, ' ').toLowerCase()}</Badge> },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (s) => (
+        <Badge
+          tone={
+            s.status === 'APPROVED' ? 'success' : s.status === 'REJECTED' ? 'danger' : 'warning'
+          }
+        >
+          {s.status.replace(/_/g, ' ').toLowerCase()}
+        </Badge>
+      ),
+    },
     { key: 'remarks', header: 'Remarks', render: (s) => s.remarks ?? '—' },
     { key: 'date', header: 'Date', render: (s) => formatDate(s.createdAt) },
   ];
@@ -83,20 +128,27 @@ export function DoctorServicesScreen() {
         title="Doctor services"
         description="Tour packages, gifts, online promotion and others given to doctors. An MR's request waits for approval; one Admin records takes effect at once."
         actions={
-          <Button disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setCreating(true)}>
+          <Button
+            disabled={readOnly}
+            title={readOnly ? 'A past financial year is read-only' : undefined}
+            onClick={() => setCreating(true)}
+          >
             New service
           </Button>
         }
       />
-      <Card>
+      <Card flat>
         <TopProgressBar active={query.isFetching && !query.isLoading} />
         <DataState
           isLoading={query.isLoading}
           error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
           isEmpty={rows.length === 0}
-          empty={{ title: 'No doctor services yet', description: 'Services appear here when an MR asks for one, or when you record one.' }}
+          empty={{
+            title: 'No doctor services yet',
+            description: 'Services appear here when an MR asks for one, or when you record one.',
+          }}
         >
-          <DataTable columns={columns} rows={rows} rowKey={(s) => s.id} bleed={false} />
+          <DataTable columns={columns} rows={rows} rowKey={(s) => s.id} />
         </DataState>
       </Card>
       {creating ? <ServiceDialog onClose={() => setCreating(false)} /> : null}

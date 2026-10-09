@@ -24,10 +24,33 @@ export function LeaveTypesTab() {
   const update = useUpdateLeaveType(() => setToggling(null));
 
   const columns: readonly Column<LeaveTypeDto>[] = [
-    { key: 'name', header: 'Leave type', render: (t) => <span className="font-medium">{t.name}</span> },
-    { key: 'paid', header: 'Pay', render: (t) => <Badge tone={t.isPaid ? 'success' : 'warning'}>{paidLabel(t.isPaid)}</Badge> },
-    { key: 'proof', header: 'Proof', render: (t) => (t.allowsProof ? <Badge tone="accent">Can attach</Badge> : <span className="text-text-subtle">—</span>) },
-    { key: 'active', header: 'Status', render: (t) => <Badge tone={t.active ? 'success' : 'neutral'}>{t.active ? 'Active' : 'Inactive'}</Badge> },
+    {
+      key: 'name',
+      header: 'Leave type',
+      render: (t) => <span className="font-medium">{t.name}</span>,
+    },
+    {
+      key: 'paid',
+      header: 'Pay',
+      render: (t) => <Badge tone={t.isPaid ? 'success' : 'warning'}>{paidLabel(t.isPaid)}</Badge>,
+    },
+    {
+      key: 'proof',
+      header: 'Proof',
+      render: (t) =>
+        t.allowsProof ? (
+          <Badge tone="accent">Can attach</Badge>
+        ) : (
+          <span className="text-text-subtle">—</span>
+        ),
+    },
+    {
+      key: 'active',
+      header: 'Status',
+      render: (t) => (
+        <Badge tone={t.active ? 'success' : 'neutral'}>{t.active ? 'Active' : 'Inactive'}</Badge>
+      ),
+    },
     {
       key: 'actions',
       header: '',
@@ -46,10 +69,15 @@ export function LeaveTypesTab() {
 
   return (
     <Card
+      flat
       title="Leave types"
       description="The kinds of leave an employee can ask for. An inactive type can't be requested but stays in history."
       actions={
-        <Button onClick={() => setForm({})} disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined}>
+        <Button
+          onClick={() => setForm({})}
+          disabled={readOnly}
+          title={readOnly ? 'A past financial year is read-only' : undefined}
+        >
           <Plus aria-hidden className="size-4" /> New leave type
         </Button>
       }
@@ -58,17 +86,31 @@ export function LeaveTypesTab() {
         isLoading={types.isLoading}
         error={types.error ? toErrorState(types.error, () => void types.refetch()) : null}
         isEmpty={types.data?.length === 0}
-        empty={{ title: 'No leave types', description: 'Add Casual, Sick, Earned and Loss of Pay before employees can ask for leave.' }}
+        empty={{
+          title: 'No leave types',
+          description:
+            'Add Casual, Sick, Earned and Loss of Pay before employees can ask for leave.',
+        }}
       >
-        <DataTable columns={columns} rows={types.data ?? []} rowKey={(t) => t.id} bleed={false} />
+        <DataTable columns={columns} rows={types.data ?? []} rowKey={(t) => t.id} />
       </DataState>
       {form ? <LeaveTypeFormDialog type={form.type} onClose={() => setForm(null)} /> : null}
       <StatusToggleDialog
-        item={toggling ? { id: toggling.id, name: toggling.name, status: toggling.active ? 'active' : 'inactive' } : null}
+        item={
+          toggling
+            ? {
+                id: toggling.id,
+                name: toggling.name,
+                status: toggling.active ? 'active' : 'inactive',
+              }
+            : null
+        }
         noun="leave type"
         pending={update.isPending}
         onClose={() => setToggling(null)}
-        onConfirm={(status) => toggling && update.mutate({ id: toggling.id, body: { active: status === 'active' } })}
+        onConfirm={(status) =>
+          toggling && update.mutate({ id: toggling.id, body: { active: status === 'active' } })
+        }
       />
     </Card>
   );

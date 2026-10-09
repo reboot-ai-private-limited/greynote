@@ -17,6 +17,18 @@ old one.
 
 ---
 
+## 2026-10-09 — Tables are flat and full width, with a page-size choice and an entries footer
+
+**Decision:** every list table loses its surrounding card and runs edge to edge (`DataTable` `bleed`), with a tinted sentence-case header row, thin row lines, a `ListToolbar` above it and a footer of rows-per-page plus "Showing x to y of N entries". `pageSize` (10/25/50/100, default 25) is a URL parameter next to `page`. `Card` gains `flat` for a heading over a flat table; chart cards, form cards, the payslip print layout and modal tables keep their boxes.
+
+**Replaces:** a bordered `Card` with `p-4` filters and `px-5` cells inside a page that already had `px-8`, which made tables feel narrow, and the "N total" footer. No API change (the API already took `pageSize` up to 100). Default page size moves from the API's 20 to 25.
+
+**Needs a migration:** none.
+
+**Why:** owner wanted tables "very simple", like a modern admin list, and applied site-wide.
+
+---
+
 ## 2026-10-09 — New field employees are added in one guided wizard with drafts; the GRN id and password are generated at the end; the top designation has no manager
 
 **Decision:**

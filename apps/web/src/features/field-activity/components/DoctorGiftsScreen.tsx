@@ -32,7 +32,8 @@ function GiftDialog({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState<GiftDraft>(EMPTY_GIFT);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const allocate = useAllocateGift(onClose);
-  const set = (field: keyof GiftDraft) => (value: string) => setDraft((d) => ({ ...d, [field]: value }));
+  const set = (field: keyof GiftDraft) => (value: string) =>
+    setDraft((d) => ({ ...d, [field]: value }));
   const invalid = (field: string) => (errors[field] ? true : undefined);
 
   function submit() {
@@ -51,12 +52,33 @@ function GiftDialog({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       onSubmit={submit}
     >
-      <DoctorPickerField id="gift-doctor" value={draft.doctorId} onChange={set('doctorId')} error={errors['doctorId']} />
-      <FormField label="Gift" htmlFor="gift-name" error={errors['productName']} hint="e.g. Desk clock">
-        <Input id="gift-name" value={draft.productName} onChange={(e) => set('productName')(e.target.value)} aria-invalid={invalid('productName')} />
+      <DoctorPickerField
+        id="gift-doctor"
+        value={draft.doctorId}
+        onChange={set('doctorId')}
+        error={errors['doctorId']}
+      />
+      <FormField
+        label="Gift"
+        htmlFor="gift-name"
+        error={errors['productName']}
+        hint="e.g. Desk clock"
+      >
+        <Input
+          id="gift-name"
+          value={draft.productName}
+          onChange={(e) => set('productName')(e.target.value)}
+          aria-invalid={invalid('productName')}
+        />
       </FormField>
       <FormField label="Value (₹)" htmlFor="gift-amount" error={errors['amount']}>
-        <Input id="gift-amount" inputMode="decimal" value={draft.amount} onChange={(e) => set('amount')(e.target.value)} aria-invalid={invalid('amount')} />
+        <Input
+          id="gift-amount"
+          inputMode="decimal"
+          value={draft.amount}
+          onChange={(e) => set('amount')(e.target.value)}
+          aria-invalid={invalid('amount')}
+        />
       </FormField>
     </FormDialog>
   );
@@ -66,18 +88,35 @@ function GiftDialog({ onClose }: { onClose: () => void }) {
 export function DoctorGiftsScreen() {
   const readOnly = useIsReadOnly();
   const { values, update } = useFilterParams(['status']);
-  const status = values.status === 'PENDING' || values.status === 'DONE' ? values.status : undefined;
+  const status =
+    values.status === 'PENDING' || values.status === 'DONE' ? values.status : undefined;
   const [creating, setCreating] = useState(false);
   const query = useDoctorGifts({ ...(status && { status }) });
   const rows = query.data ?? [];
 
   const columns: readonly Column<DoctorGiftDto>[] = [
-    { key: 'doctor', header: 'Doctor', render: (g) => <span className="font-medium">{g.doctorName || 'Unknown'}</span> },
+    {
+      key: 'doctor',
+      header: 'Doctor',
+      render: (g) => <span className="font-medium">{g.doctorName || 'Unknown'}</span>,
+    },
     { key: 'gift', header: 'Gift', render: (g) => g.productName },
     { key: 'value', header: 'Value', numeric: true, render: (g) => formatMoney(g.amountPaise) },
-    { key: 'status', header: 'Status', render: (g) => <Badge tone={g.status === 'DONE' ? 'success' : 'warning'}>{g.status === 'DONE' ? 'Done' : 'Pending'}</Badge> },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (g) => (
+        <Badge tone={g.status === 'DONE' ? 'success' : 'warning'}>
+          {g.status === 'DONE' ? 'Done' : 'Pending'}
+        </Badge>
+      ),
+    },
     { key: 'allocated', header: 'Allocated', render: (g) => formatDate(g.allocatedAt) },
-    { key: 'done', header: 'Delivered', render: (g) => (g.completedAt ? formatDate(g.completedAt) : '—') },
+    {
+      key: 'done',
+      header: 'Delivered',
+      render: (g) => (g.completedAt ? formatDate(g.completedAt) : '—'),
+    },
   ];
 
   return (
@@ -86,23 +125,37 @@ export function DoctorGiftsScreen() {
         title="Doctor gifts"
         description="Gifts you allocate to doctors. The assigned MR marks each one done once it is delivered."
         actions={
-          <Button disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setCreating(true)}>
+          <Button
+            disabled={readOnly}
+            title={readOnly ? 'A past financial year is read-only' : undefined}
+            onClick={() => setCreating(true)}
+          >
             Allocate a gift
           </Button>
         }
       />
       <div className="mb-6 w-56">
-        <Select aria-label="Status" value={status ?? ANY} options={STATUS_OPTIONS} onValueChange={(v) => update({ status: v === ANY ? '' : v })} />
+        <Select
+          aria-label="Status"
+          value={status ?? ANY}
+          options={STATUS_OPTIONS}
+          onValueChange={(v) => update({ status: v === ANY ? '' : v })}
+        />
       </div>
-      <Card>
+      <Card flat>
         <TopProgressBar active={query.isFetching && !query.isLoading} />
         <DataState
           isLoading={query.isLoading}
           error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
           isEmpty={rows.length === 0}
-          empty={{ title: 'No gifts', description: status ? 'No gift has this status.' : 'Allocate a gift to a doctor to start.' }}
+          empty={{
+            title: 'No gifts',
+            description: status
+              ? 'No gift has this status.'
+              : 'Allocate a gift to a doctor to start.',
+          }}
         >
-          <DataTable columns={columns} rows={rows} rowKey={(g) => g.id} bleed={false} />
+          <DataTable columns={columns} rows={rows} rowKey={(g) => g.id} />
         </DataState>
       </Card>
       {creating ? <GiftDialog onClose={() => setCreating(false)} /> : null}
