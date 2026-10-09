@@ -126,6 +126,9 @@ export function weeklyOffIndex(setting: string | null | undefined): number | nul
 }
 
 /** The current wall-clock time ("HH:mm") in the business timezone. */
+/** The current time in ms. A function of its own so a screen can read the clock without calling `Date.now()` straight in render. */
+export const nowMs = (): number => Date.now();
+
 export function businessNowHHmm(timeZone: string | null | undefined, now: Date = new Date()): string {
   try {
     if (timeZone) {

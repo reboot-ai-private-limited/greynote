@@ -27,6 +27,10 @@
     "plugins": [
       "expo-router",
       [
+        "expo-location",
+        { "locationWhenInUsePermission": "My Greynote uses your location to confirm where a doctor or chemist call took place." }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#FFFFFF",

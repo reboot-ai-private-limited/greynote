@@ -32,9 +32,19 @@ export class ApiError extends Error {
 /** A network failure (server down, wrong IP, no Wi-Fi) — no HTTP response at all. */
 export class NetworkError extends Error {}
 
-type Options = { auth?: boolean };
+/**
+ * `fy`: send the financial-year header for the year the MR picked (lib/financial-year.ts). Only reads pass it:
+ * the server refuses every write while a past year is selected, so sync and saves must never carry it.
+ */
+type Options = { auth?: boolean; fy?: boolean };
 
-async function send<T>(method: string, path: string, body: unknown, accessToken?: string) {
+let financialYearHeader: string | null = null;
+/** Set by lib/financial-year.ts: the start year of a past financial year, or null for the current one. */
+export const setFinancialYearHeader = (year: number | null) => {
+  financialYearHeader = year === null ? null : String(year);
+};
+
+async function send<T>(method: string, path: string, body: unknown, accessToken?: string, extraHeaders?: Record<string, string>) {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
@@ -44,6 +54,7 @@ async function send<T>(method: string, path: string, body: unknown, accessToken?
         // Without this the server treats us as a browser and keeps the refresh token out of the body.
         'X-Client': 'mobile',
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...extraHeaders,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -94,13 +105,60 @@ function refreshTokens(): Promise<boolean> {
 
 async function request<T>(method: string, path: string, body?: unknown, opts: Options = {}) {
   if (!opts.auth) return send<T>(method, path, body);
+  const extra = opts.fy && method === 'GET' && financialYearHeader ? { 'X-Financial-Year': financialYearHeader } : undefined;
 
   try {
-    return await send<T>(method, path, body, getTokens()?.accessToken);
+    return await send<T>(method, path, body, getTokens()?.accessToken, extra);
   } catch (err) {
     if (!(err instanceof ApiError) || err.status !== 401) throw err;
     if (!(await refreshTokens())) throw err;
-    return send<T>(method, path, body, getTokens()?.accessToken);
+    return send<T>(method, path, body, getTokens()?.accessToken, extra);
+  }
+}
+
+/** A file picked on the phone, as expo-document-picker gives it. */
+export type UploadFile = { uri: string; name: string; mimeType?: string | null };
+
+/**
+ * Sends one picked file as multipart/form-data. This uses React Native's own XMLHttpRequest and its
+ * { uri, name, type } file part: the system reads the file, so the app never has to. (The app's fetch
+ * refuses that part, and Expo Go refuses expo-file-system "READ" permission on the picker's cache folder.)
+ */
+function sendFile<T>(path: string, file: UploadFile, accessToken?: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const form = new FormData();
+    form.append('file', { uri: file.uri, name: file.name, type: file.mimeType ?? 'application/octet-stream' } as unknown as Blob);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE_URL}${path}`);
+    // No Content-Type: the multipart boundary is set for us.
+    xhr.setRequestHeader('X-Client', 'mobile');
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (accessToken) xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+    xhr.onerror = () => reject(new NetworkError(`Can’t reach the server at ${API_BASE_URL}.`));
+    xhr.ontimeout = () => reject(new NetworkError('The upload took too long. Check your connection and try again.'));
+    xhr.timeout = 60_000;
+    xhr.onload = () => {
+      let json: { success?: boolean; message?: string; data?: unknown } | null = null;
+      try {
+        json = JSON.parse(xhr.responseText);
+      } catch {
+        json = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && json?.success) resolve(json.data as T);
+      else reject(new ApiError(xhr.status, json?.message ?? 'Something went wrong. Please try again.', (json as { data?: Record<string, unknown> } | null)?.data));
+    };
+    xhr.send(form);
+  });
+}
+
+/** POSTs one file as multipart/form-data (field `file`), refreshing the sign-in once on a 401 like every other call. */
+export async function apiUpload<T>(path: string, file: UploadFile): Promise<T> {
+  try {
+    return await sendFile<T>(path, file, getTokens()?.accessToken);
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 401) throw err;
+    if (!(await refreshTokens())) throw err;
+    return sendFile<T>(path, file, getTokens()?.accessToken);
   }
 }
 
@@ -110,3 +168,4 @@ export const apiPut = <T>(path: string, body: unknown, opts?: Options) =>
   request<T>('PUT', path, body, { auth: true, ...opts });
 export const apiPost = <T>(path: string, body: unknown, opts?: Options) =>
   request<T>('POST', path, body, opts);
+export const apiDelete = <T>(path: string, opts?: Options) => request<T>('DELETE', path, undefined, { auth: true, ...opts });
