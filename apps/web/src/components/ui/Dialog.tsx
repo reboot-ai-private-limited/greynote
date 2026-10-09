@@ -18,6 +18,7 @@ export function Dialog({
   description,
   children,
   footer,
+  wide = false,
 }: {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -25,6 +26,8 @@ export function Dialog({
   description?: string | undefined;
   children?: ReactNode;
   footer?: ReactNode;
+  /** For a dialog that holds a table or a long form. */
+  wide?: boolean;
 }) {
   return (
     <RadixDialog.Root
@@ -33,7 +36,9 @@ export function Dialog({
     >
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="fixed inset-0 z-40 bg-neutral-900/40" />
-        <RadixDialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-surface shadow-pop focus:outline-none">
+        <RadixDialog.Content
+          className={`fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] ${wide ? 'max-w-4xl' : 'max-w-lg'} -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-surface shadow-pop focus:outline-none`}
+        >
           <div className="flex shrink-0 items-start justify-between gap-4 px-6 pt-5">
             <div>
               <RadixDialog.Title className="text-lg font-semibold text-text">

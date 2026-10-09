@@ -832,3 +832,5 @@ New read-only `reports` module (top tier, writes nothing; reads Sales, Field Act
 Built, not browser-checked: the eight-step new-employee wizard with drafts, `GRN` ids from a counter, server-generated password with Copy/Share, the top-designation rule, and the new profile fields (decision-log 2026-10-09). API and web unit tests pass. Still open: show and edit the new fields (alternate mobile, permanent address, qualifications, experience) on the profile screens; the old `/employees/:id/setup` stepper for employees already in onboarding; a browser walk-through against the dev database.
 
 **Flat tables (2026-10-09):** all list tables, report tables and tab tables are flat and full width with a page-size select and an entries footer (decision-log 2026-10-09). Not yet checked at phone width; Promotion team table, the payroll calendar grid and chart cards keep their old look.
+
+**CTC with Basic % and per-employee breakdown (2026-10-09):** built (decision-log 2026-10-09); the CTC dialog and the wizard's Pay step share one editor. Browser-checked on the preview only (nothing saved); a saved revision, re-apply and the wizard path are not yet browser-checked.

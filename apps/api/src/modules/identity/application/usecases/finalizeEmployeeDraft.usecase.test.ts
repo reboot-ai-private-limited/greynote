@@ -22,6 +22,7 @@ function build(data: EmployeeDraftData, opts: { createdUserId?: string; failHqOn
   const users = new Map<string, { id: string; employeeCode: string; passwordHash: string }>();
   if (opts.createdUserId) users.set(opts.createdUserId, { id: opts.createdUserId, employeeCode: 'GRN0007', passwordHash: 'old' });
   let ctcSaved = false;
+  const ctcInput: unknown[] = [];
   let hqFailures = opts.failHqOnce ? 1 : 0;
   let codeSeq = 0;
 
@@ -48,7 +49,7 @@ function build(data: EmployeeDraftData, opts: { createdUserId?: string; failHqOn
       },
     } as never,
     { execute: async (id: string, input: Record<string, unknown>) => { calls.push(`update ${id} ${input.managerId ?? 'no-manager'}`); } } as never,
-    { execute: async () => { calls.push('ctc'); ctcSaved = true; } } as never,
+    { execute: async (_id: string, input: unknown) => { calls.push('ctc'); ctcInput.push(input); ctcSaved = true; } } as never,
     { findEffective: async () => (ctcSaved ? {} : null) } as never,
     { hash: async (p: string) => `hash:${p}` } as never,
     () => async (userId: string, hqId: string) => {
@@ -57,7 +58,7 @@ function build(data: EmployeeDraftData, opts: { createdUserId?: string; failHqOn
     },
     async () => '2026-10',
   );
-  return { useCase, calls, users, draftNow: () => draft };
+  return { useCase, calls, users, ctcInput, draftNow: () => draft };
 }
 
 const actor = { id: 'admin', role: 'HR' as const };
@@ -94,5 +95,12 @@ describe('FinalizeEmployeeDraftUseCase', () => {
     expect(calls.filter((c) => c.startsWith('create'))).toHaveLength(1);
     expect(calls.filter((c) => c === 'ctc')).toHaveLength(1);
     expect(users.get('u1')?.passwordHash).toBe(`hash:${result.password}`);
+  });
+
+  it("hands the employee's own CTC structure to the CTC step", async () => {
+    const structure = { basicBasisPoints: 4000, ruleOverrides: {}, removed: ['MEDICAL'], extras: [] };
+    const { useCase, ctcInput } = build(complete({ compensation: { payBandId: 'g1', ctcAnnualPaise: 60000000, structure } }));
+    await useCase.execute(actor, 'd1');
+    expect(ctcInput).toEqual([expect.objectContaining({ ctcAnnualPaise: 60000000, structure })]);
   });
 });

@@ -203,7 +203,14 @@ export interface EmployeeDraftDataDto {
   bank?: { bankName?: string; accountNumber?: string; accountHolderName?: string; ifsc?: string; branchName?: string };
   /** `managerId` is not needed when the designation is the top of the hierarchy. */
   work?: { designationId?: string; hqId?: string; managerId?: string };
-  compensation?: { payBandId?: string; ctcAnnualPaise?: number; /** `YYYY-MM` */ effectiveFrom?: string };
+  compensation?: {
+    payBandId?: string;
+    ctcAnnualPaise?: number;
+    /** `YYYY-MM` */
+    effectiveFrom?: string;
+    /** This employee's own Basic %, changed, removed and added lines. */
+    structure?: CtcStructureDto;
+  };
 }
 
 /** `GET /identity/employee-drafts` (a bare array, newest first) and `/:id`. */

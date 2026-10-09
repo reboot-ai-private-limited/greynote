@@ -3,6 +3,8 @@
  * `User`: no login exists and no employee code is used up until the last step creates the real
  * records. Dates are `YYYY-MM-DD` strings here; they become `Date`s when the employee is created.
  */
+import type { CtcStructure } from './ctcBreakdown.js';
+
 export interface DraftAddress {
   line1?: string;
   line2?: string;
@@ -43,6 +45,8 @@ export interface EmployeeDraftData {
     ctcAnnualPaise?: number;
     /** `YYYY-MM`. Defaults to the month of joining, else this month. */
     effectiveFrom?: string;
+    /** This employee's own Basic %, changed, removed and added lines (see `CtcStructure`). */
+    structure?: CtcStructure;
   };
 }
 

@@ -21,7 +21,13 @@ const ctx: RuleContext = {
   today: '2026-10-09',
 };
 
-const address = { line1: '12 Park St', line2: '', district: 'Kolkata', state: 'West Bengal', pincode: '700016' };
+const address = {
+  line1: '12 Park St',
+  line2: '',
+  district: 'Kolkata',
+  state: 'West Bengal',
+  pincode: '700016',
+};
 
 const complete: WizardForm = {
   ...EMPTY_FORM,
@@ -49,12 +55,18 @@ describe('step rules', () => {
   });
 
   it('personal: mobile is 10 digits, ESI 17 when given, alternate mobile optional', () => {
-    const e = stepErrors('personal', { ...complete, mobileNumber: '98300', esiNumber: '12', alternateMobile: '' }, ctx);
+    const e = stepErrors(
+      'personal',
+      { ...complete, mobileNumber: '98300', esiNumber: '12', alternateMobile: '' },
+      ctx,
+    );
     expect(Object.keys(e).sort()).toEqual(['esiNumber', 'mobileNumber']);
   });
 
   it('personal: date of birth cannot be in the future', () => {
-    expect(stepErrors('personal', { ...complete, dateOfBirth: '2027-01-01' }, ctx)['dateOfBirth']).toMatch(/future/);
+    expect(
+      stepErrors('personal', { ...complete, dateOfBirth: '2027-01-01' }, ctx)['dateOfBirth'],
+    ).toMatch(/future/);
   });
 
   it('address: the permanent block is only checked when it is not the same as present', () => {
@@ -66,11 +78,17 @@ describe('step rules', () => {
   it('qualifications and experience are optional, but a started row must be whole', () => {
     expect(stepErrors('qualifications', complete, ctx)).toEqual({});
     const half = { ...complete, qualifications: [{ ...emptyQualification(), degree: 'BSc' }] };
-    expect(Object.keys(stepErrors('qualifications', half, ctx)).sort()).toEqual(['0.institute', '0.yearOfPassing']);
+    expect(Object.keys(stepErrors('qualifications', half, ctx)).sort()).toEqual([
+      '0.institute',
+      '0.yearOfPassing',
+    ]);
   });
 
   it('experience: the end date cannot precede the joining date', () => {
-    const form = { ...complete, experience: [{ id: 'x', companyName: 'X', joiningDate: '2020-05-01', endDate: '2019-01-01' }] };
+    const form = {
+      ...complete,
+      experience: [{ id: 'x', companyName: 'X', joiningDate: '2020-05-01', endDate: '2019-01-01' }],
+    };
     expect(stepErrors('experience', form, ctx)['0.endDate']).toMatch(/before/);
   });
 
@@ -87,7 +105,9 @@ describe('step rules', () => {
   });
 
   it('pay: the grade is needed, the CTC is optional but must be an amount', () => {
-    expect(stepErrors('compensation', { ...complete, payBandId: '' }, ctx)['payBandId']).toBeDefined();
+    expect(
+      stepErrors('compensation', { ...complete, payBandId: '' }, ctx)['payBandId'],
+    ).toBeDefined();
     expect(stepErrors('compensation', { ...complete, ctc: 'abc' }, ctx)['ctc']).toBeDefined();
     expect(stepErrors('compensation', { ...complete, ctc: '600000' }, ctx)).toEqual({});
   });
@@ -119,9 +139,18 @@ describe('moving between steps', () => {
 
 describe('draft', () => {
   it('leaves out blanks and anything not yet well-formed, so a half-typed form still saves', () => {
-    const data = toDraftData({ ...EMPTY_FORM, name: ' Asha  Rao ', mobileNumber: '98300', present: { ...address, pincode: '70' } });
+    const data = toDraftData({
+      ...EMPTY_FORM,
+      name: ' Asha  Rao ',
+      mobileNumber: '98300',
+      present: { ...address, pincode: '70' },
+    });
     expect(data.personal).toEqual({ name: 'Asha Rao' });
-    expect(data.address?.present).toEqual({ line1: '12 Park St', district: 'Kolkata', state: 'West Bengal' });
+    expect(data.address?.present).toEqual({
+      line1: '12 Park St',
+      district: 'Kolkata',
+      state: 'West Bengal',
+    });
     expect(data.bank).toEqual({});
   });
 
@@ -143,6 +172,37 @@ describe('draft', () => {
   });
 
   it('keeps the CTC in paise', () => {
-    expect(toDraftData({ ...complete, ctc: '600000' }).compensation?.ctcAnnualPaise).toBe(60_000_000);
+    expect(toDraftData({ ...complete, ctc: '600000' }).compensation?.ctcAnnualPaise).toBe(
+      60_000_000,
+    );
+  });
+
+  it("keeps this employee's own pay structure in the draft and brings it back", () => {
+    const form: WizardForm = {
+      ...complete,
+      ctc: '144000',
+      structure: {
+        basicPercent: '40',
+        rules: { FDA: { type: 'PERCENT_OF_COMPONENTS', percent: '14', of: ['BASIC'] } },
+        removed: ['MEDICAL'],
+        extras: [],
+      },
+    };
+    const data = toDraftData(form, ['BASIC', 'FDA', 'MEDICAL']);
+    expect(data.compensation?.structure).toEqual({
+      basicBasisPoints: 4000,
+      ruleOverrides: { FDA: { type: 'PERCENT_OF_COMPONENTS', basisPoints: 1400, of: ['BASIC'] } },
+      removed: ['MEDICAL'],
+      extras: [],
+    });
+    expect(fromDraftData(data).structure).toEqual(form.structure);
+  });
+
+  it('the pay step is blocked by an unfinished percentage', () => {
+    const form: WizardForm = {
+      ...complete,
+      structure: { basicPercent: '4x', rules: {}, removed: [], extras: [] },
+    };
+    expect(stepErrors('compensation', form, ctx)['basicPercent']).toBeDefined();
   });
 });

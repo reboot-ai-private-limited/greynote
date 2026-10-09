@@ -12,7 +12,12 @@ import { toast } from '@/components/ui/toast';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
 import { istDate } from '@/lib/dates';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useEmployeeDraft, useFinalizeEmployeeDraft, useSaveEmployeeDraft } from '../hooks/useEmployeeDrafts';
+import {
+  useEmployeeDraft,
+  useFinalizeEmployeeDraft,
+  useSaveEmployeeDraft,
+} from '../hooks/useEmployeeDrafts';
+import { usePayComponents } from '../hooks/useCtc';
 import { useDesignations } from '../hooks/useMasterData';
 import {
   EMPTY_FORM,
@@ -57,12 +62,22 @@ export function EmployeeOnboardingScreen() {
   const [draftId, setDraftId] = useState<string | null>(draftParam);
   const [tried, setTried] = useState<ReadonlySet<StepKey>>(new Set());
   const [result, setResult] = useState<FinalizedEmployeeDto | null>(null);
+  // Set by the pay step when the server refuses the CTC numbers as they stand (e.g. the lines add up to more than the CTC).
+  const [ctcProblem, setCtcProblem] = useState<string | null>(null);
   // The draft the form was filled from (or created), so a refetch never overwrites what is being typed.
   const filledFrom = useRef<string | null>(null);
 
   const finalize = useFinalizeEmployeeDraft(setResult);
 
-  const ctx: RuleContext = useMemo(() => ({ designations: designations.data ?? [], today: istDate() }), [designations.data]);
+  const payComponents = usePayComponents();
+  const orgCodes = useMemo(
+    () => (payComponents.data ?? []).map((c) => c.code),
+    [payComponents.data],
+  );
+  const ctx: RuleContext = useMemo(
+    () => ({ designations: designations.data ?? [], today: istDate(), orgCodes }),
+    [designations.data, orgCodes],
+  );
   const index = STEPS.findIndex((s) => s.key === step);
 
   // Resume: fill the form from the saved draft and open where it left off.
@@ -85,12 +100,20 @@ export function EmployeeOnboardingScreen() {
   }, [form.hqId, form.zoneId, hqs.data]);
 
   const update = (patch: Partial<WizardForm>) => setForm((f) => ({ ...f, ...patch }));
-  const errors = tried.has(step) ? stepErrors(step, form, ctx) : {};
+  const errors: Record<string, string> = tried.has(step)
+    ? {
+        ...stepErrors(step, form, ctx),
+        ...(step === 'compensation' && ctcProblem ? { ctc: ctcProblem } : {}),
+      }
+    : {};
 
   /** Saves the draft (creating it the first time) and keeps the address bar pointing at it. */
   async function persist(upTo: number): Promise<string | null> {
     try {
-      const saved = await save.mutateAsync({ id: draftId, body: { step: upTo + 1, data: toDraftData(form) } });
+      const saved = await save.mutateAsync({
+        id: draftId,
+        body: { step: upTo + 1, data: toDraftData(form, orgCodes) },
+      });
       if (!draftId) {
         filledFrom.current = saved.id;
         setDraftId(saved.id);
@@ -104,7 +127,7 @@ export function EmployeeOnboardingScreen() {
 
   async function next() {
     const found = stepErrors(step, form, ctx);
-    if (Object.keys(found).length > 0) {
+    if (Object.keys(found).length > 0 || (step === 'compensation' && ctcProblem)) {
       setTried((t) => new Set(t).add(step));
       return;
     }
@@ -157,7 +180,10 @@ export function EmployeeOnboardingScreen() {
     label: s.label,
     optional: !s.required,
     // A step ahead counts as done only if it is required and already valid (a resumed draft); optional ones once passed.
-    done: s.key !== 'review' && Object.keys(stepErrors(s.key, form, ctx)).length === 0 && (s.required ? true : i < index),
+    done:
+      s.key !== 'review' &&
+      Object.keys(stepErrors(s.key, form, ctx)).length === 0 &&
+      (s.required ? true : i < index),
     reachable: canOpen(s.key, form, ctx),
   }));
   const busy = save.isPending || finalize.isPending;
@@ -181,14 +207,31 @@ export function EmployeeOnboardingScreen() {
             <Skeleton className="h-64 w-full" />
           ) : (
             <>
-              {step === 'personal' ? <PersonalStep form={form} update={update} errors={errors} /> : null}
-              {step === 'address' ? <AddressStep form={form} update={update} errors={errors} /> : null}
-              {step === 'qualifications' ? <QualificationsStep form={form} update={update} errors={errors} /> : null}
-              {step === 'experience' ? <ExperienceStep form={form} update={update} errors={errors} /> : null}
+              {step === 'personal' ? (
+                <PersonalStep form={form} update={update} errors={errors} />
+              ) : null}
+              {step === 'address' ? (
+                <AddressStep form={form} update={update} errors={errors} />
+              ) : null}
+              {step === 'qualifications' ? (
+                <QualificationsStep form={form} update={update} errors={errors} />
+              ) : null}
+              {step === 'experience' ? (
+                <ExperienceStep form={form} update={update} errors={errors} />
+              ) : null}
               {step === 'bank' ? <BankStep form={form} update={update} errors={errors} /> : null}
               {step === 'work' ? <WorkStep form={form} update={update} errors={errors} /> : null}
-              {step === 'compensation' ? <CompensationStep form={form} update={update} errors={errors} /> : null}
-              {step === 'review' ? <ReviewStep form={form} problems={problems} onEdit={(key) => setStep(key)} /> : null}
+              {step === 'compensation' ? (
+                <CompensationStep
+                  form={form}
+                  update={update}
+                  errors={errors}
+                  onProblem={setCtcProblem}
+                />
+              ) : null}
+              {step === 'review' ? (
+                <ReviewStep form={form} problems={problems} onEdit={(key) => setStep(key)} />
+              ) : null}
             </>
           )}
         </div>
@@ -201,7 +244,11 @@ export function EmployeeOnboardingScreen() {
               Save draft
             </Button>
             {step === 'review' ? (
-              <Button onClick={() => void create()} disabled={busy || readOnly || problems.length > 0} title={readOnly ? 'A past financial year is read-only' : undefined}>
+              <Button
+                onClick={() => void create()}
+                disabled={busy || readOnly || problems.length > 0}
+                title={readOnly ? 'A past financial year is read-only' : undefined}
+              >
                 {finalize.isPending ? 'Creating…' : 'Create employee'}
               </Button>
             ) : (

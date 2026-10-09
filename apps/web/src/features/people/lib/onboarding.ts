@@ -1,6 +1,12 @@
 import type { DesignationDto, EmployeeDraftDataDto } from '@greynote/contracts';
 import { paiseToRupees } from '@/lib/money';
 import { parseCtc } from './ctc';
+import {
+  EMPTY_STRUCTURE_DRAFT,
+  buildStructure,
+  structureToDraft,
+  type StructureDraft,
+} from './ctcStructure';
 
 /**
  * The new-employee wizard's form, as strings, and the rules that go with it. Pure, so the step order, what blocks
@@ -71,6 +77,8 @@ export interface WizardForm {
   payBandId: string;
   /** Rupees a year, '' = not set yet. */
   ctc: string;
+  /** This employee's own Basic %, changed, removed and added lines. */
+  structure: StructureDraft;
 }
 
 const EMPTY_ADDRESS: AddressForm = { line1: '', line2: '', district: '', state: '', pincode: '' };
@@ -101,10 +109,21 @@ export const EMPTY_FORM: WizardForm = {
   managerName: '',
   payBandId: '',
   ctc: '',
+  structure: EMPTY_STRUCTURE_DRAFT,
 };
 
-export const emptyQualification = (): QualificationRow => ({ id: rowId(), degree: '', institute: '', yearOfPassing: '' });
-export const emptyExperience = (): ExperienceRow => ({ id: rowId(), companyName: '', joiningDate: '', endDate: '' });
+export const emptyQualification = (): QualificationRow => ({
+  id: rowId(),
+  degree: '',
+  institute: '',
+  yearOfPassing: '',
+});
+export const emptyExperience = (): ExperienceRow => ({
+  id: rowId(),
+  companyName: '',
+  joiningDate: '',
+  endDate: '',
+});
 
 // ── Field rules ────────────────────────────────────────────────────────────────────────────
 
@@ -123,10 +142,14 @@ const isRealDate = (value: string): boolean => {
 };
 
 /** The permanent address the employee will have: the present one while "same as present" is ticked. */
-export const effectivePermanent = (form: WizardForm): AddressForm => (form.permanentSameAsPresent ? form.present : form.permanent);
+export const effectivePermanent = (form: WizardForm): AddressForm =>
+  form.permanentSameAsPresent ? form.present : form.permanent;
 
 /** Whether this designation is the top of the hierarchy: the highest level that exists. It reports to nobody. */
-export function isTopDesignation(designationId: string, designations: readonly Pick<DesignationDto, 'id' | 'level'>[]): boolean {
+export function isTopDesignation(
+  designationId: string,
+  designations: readonly Pick<DesignationDto, 'id' | 'level'>[],
+): boolean {
   if (!designationId || designations.length === 0) return false;
   const top = Math.max(...designations.map((d) => d.level));
   return designations.some((d) => d.id === designationId && d.level === top);
@@ -136,6 +159,8 @@ export interface RuleContext {
   designations: readonly Pick<DesignationDto, 'id' | 'level'>[];
   /** Today, `YYYY-MM-DD`, for "not in the future" checks. */
   today: string;
+  /** Codes of the org's pay components, so a line added for this employee gets a code of its own. */
+  orgCodes?: readonly string[];
 }
 
 type Errors = Record<string, string>;
@@ -148,7 +173,11 @@ function addressErrors(a: AddressForm, prefix: string): Errors {
   put(e, `${prefix}.line1`, squash(a.line1) ? undefined : 'Enter the address.');
   put(e, `${prefix}.district`, squash(a.district) ? undefined : 'Enter the district or city.');
   put(e, `${prefix}.state`, squash(a.state) ? undefined : 'Enter the state.');
-  put(e, `${prefix}.pincode`, PINCODE.test(a.pincode.trim()) ? undefined : 'Enter a 6-digit pincode.');
+  put(
+    e,
+    `${prefix}.pincode`,
+    PINCODE.test(a.pincode.trim()) ? undefined : 'Enter a 6-digit pincode.',
+  );
   return e;
 }
 
@@ -158,50 +187,119 @@ export function stepErrors(step: StepKey, form: WizardForm, ctx: RuleContext): E
   switch (step) {
     case 'personal': {
       put(e, 'name', squash(form.name) ? undefined : 'Enter a name.');
-      put(e, 'mobileNumber', MOBILE.test(form.mobileNumber.trim()) ? undefined : 'Enter a 10-digit mobile number.');
+      put(
+        e,
+        'mobileNumber',
+        MOBILE.test(form.mobileNumber.trim()) ? undefined : 'Enter a 10-digit mobile number.',
+      );
       if (form.alternateMobile.trim()) {
-        put(e, 'alternateMobile', MOBILE.test(form.alternateMobile.trim()) ? undefined : 'Enter a 10-digit mobile number.');
+        put(
+          e,
+          'alternateMobile',
+          MOBILE.test(form.alternateMobile.trim()) ? undefined : 'Enter a 10-digit mobile number.',
+        );
       }
       put(e, 'guardianName', squash(form.guardianName) ? undefined : 'Enter the guardian’s name.');
       put(
         e,
         'dateOfBirth',
-        !form.dateOfBirth ? 'Enter the date of birth.' : !isRealDate(form.dateOfBirth) ? 'Enter a valid date.' : form.dateOfBirth > ctx.today ? 'The date of birth cannot be in the future.' : undefined,
+        !form.dateOfBirth
+          ? 'Enter the date of birth.'
+          : !isRealDate(form.dateOfBirth)
+            ? 'Enter a valid date.'
+            : form.dateOfBirth > ctx.today
+              ? 'The date of birth cannot be in the future.'
+              : undefined,
       );
-      if (form.esiNumber.trim()) put(e, 'esiNumber', ESI.test(form.esiNumber.trim()) ? undefined : 'The ESI number is exactly 17 digits.');
-      if (form.dateOfJoining) put(e, 'dateOfJoining', isRealDate(form.dateOfJoining) ? undefined : 'Enter a valid date.');
+      if (form.esiNumber.trim())
+        put(
+          e,
+          'esiNumber',
+          ESI.test(form.esiNumber.trim()) ? undefined : 'The ESI number is exactly 17 digits.',
+        );
+      if (form.dateOfJoining)
+        put(e, 'dateOfJoining', isRealDate(form.dateOfJoining) ? undefined : 'Enter a valid date.');
       if (form.probationMonths.trim()) {
         const months = Number(form.probationMonths);
-        put(e, 'probationMonths', Number.isInteger(months) && months >= 0 && months <= 36 ? undefined : 'Use whole months, 0 to 36.');
+        put(
+          e,
+          'probationMonths',
+          Number.isInteger(months) && months >= 0 && months <= 36
+            ? undefined
+            : 'Use whole months, 0 to 36.',
+        );
       }
       break;
     }
     case 'address':
       Object.assign(e, addressErrors(form.present, 'present'));
-      if (!form.permanentSameAsPresent) Object.assign(e, addressErrors(form.permanent, 'permanent'));
+      if (!form.permanentSameAsPresent)
+        Object.assign(e, addressErrors(form.permanent, 'permanent'));
       break;
     case 'qualifications':
       form.qualifications.forEach((row, i) => {
-        put(e, `${i}.degree`, squash(row.degree) ? undefined : 'Enter the degree or qualification.');
-        put(e, `${i}.institute`, squash(row.institute) ? undefined : 'Enter the board or institute.');
+        put(
+          e,
+          `${i}.degree`,
+          squash(row.degree) ? undefined : 'Enter the degree or qualification.',
+        );
+        put(
+          e,
+          `${i}.institute`,
+          squash(row.institute) ? undefined : 'Enter the board or institute.',
+        );
         const year = Number(row.yearOfPassing);
-        put(e, `${i}.yearOfPassing`, Number.isInteger(year) && year >= 1950 && year <= Number(ctx.today.slice(0, 4)) ? undefined : 'Enter the year, e.g. 2016.');
+        put(
+          e,
+          `${i}.yearOfPassing`,
+          Number.isInteger(year) && year >= 1950 && year <= Number(ctx.today.slice(0, 4))
+            ? undefined
+            : 'Enter the year, e.g. 2016.',
+        );
       });
       break;
     case 'experience':
       form.experience.forEach((row, i) => {
         put(e, `${i}.companyName`, squash(row.companyName) ? undefined : 'Enter the company name.');
-        put(e, `${i}.joiningDate`, isRealDate(row.joiningDate) ? undefined : 'Enter the joining date.');
+        put(
+          e,
+          `${i}.joiningDate`,
+          isRealDate(row.joiningDate) ? undefined : 'Enter the joining date.',
+        );
         if (row.endDate) {
-          put(e, `${i}.endDate`, !isRealDate(row.endDate) ? 'Enter a valid date.' : row.joiningDate && row.endDate < row.joiningDate ? 'The end date is before the joining date.' : undefined);
+          put(
+            e,
+            `${i}.endDate`,
+            !isRealDate(row.endDate)
+              ? 'Enter a valid date.'
+              : row.joiningDate && row.endDate < row.joiningDate
+                ? 'The end date is before the joining date.'
+                : undefined,
+          );
         }
       });
       break;
     case 'bank':
       put(e, 'bankName', squash(form.bankName) ? undefined : 'Enter the bank name.');
-      put(e, 'accountNumber', ACCOUNT.test(form.accountNumber.trim()) ? undefined : 'Enter the account number, 6 to 20 digits.');
-      put(e, 'accountHolderName', squash(form.accountHolderName) ? undefined : 'Enter the account holder’s name.');
-      put(e, 'ifsc', IFSC.test(form.ifsc.trim().toUpperCase()) ? undefined : 'Enter the IFSC code, e.g. SBIN0001234.');
+      put(
+        e,
+        'accountNumber',
+        ACCOUNT.test(form.accountNumber.trim())
+          ? undefined
+          : 'Enter the account number, 6 to 20 digits.',
+      );
+      put(
+        e,
+        'accountHolderName',
+        squash(form.accountHolderName) ? undefined : 'Enter the account holder’s name.',
+      );
+      put(
+        e,
+        'ifsc',
+        IFSC.test(form.ifsc.trim().toUpperCase())
+          ? undefined
+          : 'Enter the IFSC code, e.g. SBIN0001234.',
+      );
       put(e, 'branchName', squash(form.branchName) ? undefined : 'Enter the branch name.');
       break;
     case 'work':
@@ -214,7 +312,9 @@ export function stepErrors(step: StepKey, form: WizardForm, ctx: RuleContext): E
       break;
     case 'compensation':
       put(e, 'payBandId', form.payBandId ? undefined : 'Choose a pay grade.');
-      if (form.ctc.trim()) put(e, 'ctc', parseCtc(form.ctc) === null ? 'Enter the yearly CTC in rupees.' : undefined);
+      if (form.ctc.trim())
+        put(e, 'ctc', parseCtc(form.ctc) === null ? 'Enter the yearly CTC in rupees.' : undefined);
+      Object.assign(e, buildStructure(form.structure, ctx.orgCodes ?? []).errors);
       break;
     case 'review':
       break;
@@ -226,13 +326,21 @@ export function stepErrors(step: StepKey, form: WizardForm, ctx: RuleContext): E
 export function firstOpenStep(form: WizardForm, ctx: RuleContext): StepKey {
   for (const step of STEPS) {
     if (step.key === 'review') break;
-    if (Object.keys(stepErrors(step.key, form, ctx)).length > 0 && (step.required || hasStarted(step.key, form))) return step.key;
+    if (
+      Object.keys(stepErrors(step.key, form, ctx)).length > 0 &&
+      (step.required || hasStarted(step.key, form))
+    )
+      return step.key;
   }
   return 'review';
 }
 
 function hasStarted(step: StepKey, form: WizardForm): boolean {
-  return step === 'qualifications' ? form.qualifications.length > 0 : step === 'experience' ? form.experience.length > 0 : true;
+  return step === 'qualifications'
+    ? form.qualifications.length > 0
+    : step === 'experience'
+      ? form.experience.length > 0
+      : true;
 }
 
 /** A step can be opened once every step before it is valid (an optional step with nothing in it counts as valid). */
@@ -246,7 +354,9 @@ export function canOpen(target: StepKey, form: WizardForm, ctx: RuleContext): bo
 
 /** The steps a finished form still has trouble with, for the review. */
 export function stepsWithErrors(form: WizardForm, ctx: RuleContext): StepKey[] {
-  return STEPS.filter((s) => s.key !== 'review' && Object.keys(stepErrors(s.key, form, ctx)).length > 0).map((s) => s.key);
+  return STEPS.filter(
+    (s) => s.key !== 'review' && Object.keys(stepErrors(s.key, form, ctx)).length > 0,
+  ).map((s) => s.key);
 }
 
 // ── Draft ↔ form ───────────────────────────────────────────────────────────────────────────
@@ -275,7 +385,10 @@ function draftAddress(a: AddressForm) {
  * What a draft keeps. Blank fields are left out, and so is anything not yet well-formed (half a mobile number), so
  * "Save draft" works at any point instead of being refused for what you have not finished typing.
  */
-export function toDraftData(form: WizardForm): EmployeeDraftDataDto {
+export function toDraftData(
+  form: WizardForm,
+  orgCodes: readonly string[] = [],
+): EmployeeDraftDataDto {
   const months = form.probationMonths.trim() === '' ? undefined : Number(form.probationMonths);
   const ctc = parseCtc(form.ctc);
   const mobile = form.mobileNumber.trim();
@@ -283,6 +396,7 @@ export function toDraftData(form: WizardForm): EmployeeDraftDataDto {
   const esi = form.esiNumber.trim();
   const account = form.accountNumber.trim();
   const ifsc = form.ifsc.trim().toUpperCase();
+  const { body: structure } = buildStructure(form.structure, orgCodes);
 
   return {
     personal: {
@@ -293,7 +407,10 @@ export function toDraftData(form: WizardForm): EmployeeDraftDataDto {
       ...(isRealDate(form.dateOfBirth) && { dateOfBirth: form.dateOfBirth }),
       ...(ESI.test(esi) && { esiNumber: esi }),
       ...(isRealDate(form.dateOfJoining) && { dateOfJoining: form.dateOfJoining }),
-      ...(months !== undefined && Number.isInteger(months) && months >= 0 && months <= 36 && { probationMonths: months }),
+      ...(months !== undefined &&
+        Number.isInteger(months) &&
+        months >= 0 &&
+        months <= 36 && { probationMonths: months }),
     },
     address: {
       present: draftAddress(form.present),
@@ -328,11 +445,16 @@ export function toDraftData(form: WizardForm): EmployeeDraftDataDto {
     compensation: {
       ...(form.payBandId && { payBandId: form.payBandId }),
       ...(ctc !== null && { ctcAnnualPaise: ctc }),
+      ...(structure && { structure }),
     },
   };
 }
 
-const addressForm = (a: { line1?: string; line2?: string; district?: string; state?: string; pincode?: string } | undefined): AddressForm => ({
+const addressForm = (
+  a:
+    | { line1?: string; line2?: string; district?: string; state?: string; pincode?: string }
+    | undefined,
+): AddressForm => ({
   line1: a?.line1 ?? '',
   line2: a?.line2 ?? '',
   district: a?.district ?? '',
@@ -351,7 +473,8 @@ export function fromDraftData(data: EmployeeDraftDataDto): WizardForm {
     dateOfBirth: data.personal?.dateOfBirth ?? '',
     esiNumber: data.personal?.esiNumber ?? '',
     dateOfJoining: data.personal?.dateOfJoining ?? '',
-    probationMonths: data.personal?.probationMonths === undefined ? '' : String(data.personal.probationMonths),
+    probationMonths:
+      data.personal?.probationMonths === undefined ? '' : String(data.personal.probationMonths),
     present: addressForm(data.address?.present),
     permanent: addressForm(data.address?.permanent),
     permanentSameAsPresent: data.address?.permanentSameAsPresent ?? false,
@@ -361,7 +484,12 @@ export function fromDraftData(data: EmployeeDraftDataDto): WizardForm {
       institute: q.institute ?? '',
       yearOfPassing: q.yearOfPassing === undefined ? '' : String(q.yearOfPassing),
     })),
-    experience: (data.experience ?? []).map((x) => ({ id: rowId(), companyName: x.companyName ?? '', joiningDate: x.joiningDate ?? '', endDate: x.endDate ?? '' })),
+    experience: (data.experience ?? []).map((x) => ({
+      id: rowId(),
+      companyName: x.companyName ?? '',
+      joiningDate: x.joiningDate ?? '',
+      endDate: x.endDate ?? '',
+    })),
     bankName: data.bank?.bankName ?? '',
     accountNumber: data.bank?.accountNumber ?? '',
     accountHolderName: data.bank?.accountHolderName ?? '',
@@ -371,7 +499,11 @@ export function fromDraftData(data: EmployeeDraftDataDto): WizardForm {
     hqId: data.work?.hqId ?? '',
     managerId: data.work?.managerId ?? '',
     payBandId: data.compensation?.payBandId ?? '',
-    ctc: data.compensation?.ctcAnnualPaise === undefined ? '' : paiseToRupees(data.compensation.ctcAnnualPaise).replace(/\.00$/, ''),
+    ctc:
+      data.compensation?.ctcAnnualPaise === undefined
+        ? ''
+        : paiseToRupees(data.compensation.ctcAnnualPaise).replace(/\.00$/, ''),
+    structure: structureToDraft(data.compensation?.structure),
   };
 }
 
@@ -379,4 +511,3 @@ export function fromDraftData(data: EmployeeDraftDataDto): WizardForm {
 export function credentialsMessage(name: string, employeeCode: string, password: string): string {
   return `Hi ${name}, your Greynote login is ready.\nEmployee ID: ${employeeCode}\nPassword: ${password}\nPlease keep it private.`;
 }
-

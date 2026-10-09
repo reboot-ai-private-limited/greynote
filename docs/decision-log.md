@@ -17,6 +17,21 @@ old one.
 
 ---
 
+## 2026-10-09 — A CTC is entered with a Basic %, and its breakdown can be shaped per employee
+
+**Decision:**
+- Setting a CTC takes two inputs, **CTC and Basic %** (30–60%, two decimals; the org's own % when left empty), and the breakdown follows the org's pay components. For that one employee any line can then be changed (FDA 14% of Basic instead of 10%; what a percentage is of; or a fixed amount), removed, or added, and the lines always add up to the CTC: **Other allowance** (the balancer) takes whatever is left, and edits that add up to more than the CTC are refused with the shortfall.
+- **Basic and the balancer cannot be removed or re-ruled**; a line another line is worked out from (FDA, under EPF) cannot be removed until that one is changed.
+- A revision stores only the **differences** from the org formula (`structure`: `basicBasisPoints`, `ruleOverrides`, `removed`, `extras`), next to the frozen `lines`. So when Admin changes the org formula and re-applies it, everything an employee never touched follows and their own edits **stay**; promotions with a new CTC also keep the employee's structure. The old per-line amount `overrides` still work and read as fixed-amount rules when a CTC is revised.
+- The same editor is in the employee wizard's Pay step; the draft keeps the structure and finalize passes it to the CTC step.
+- The Basic and balancer rules, the 30–60% bound and the "one balancer" rule are the existing ones in `validatePayComponents`; nothing in payroll changes (it reads the frozen lines).
+
+**Needs a migration:** none (older revisions have no `structure` and read as the org formula).
+
+**Why:** HR needs one employee's Basic share, FDA rate, or an extra allowance to differ without changing everyone's formula.
+
+---
+
 ## 2026-10-09 — The employee list shows manager and zone; the current HQ and zone are copied onto the employee profile
 
 **Decision:**

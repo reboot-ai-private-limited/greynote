@@ -1,52 +1,54 @@
+import { useEffect } from 'react';
 import { FormField } from '@/components/ui/FormField';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { formatMoney } from '@/lib/format';
-import { useCtcPreview } from '../../hooks/useCtc';
+import { useCtcEditor } from '../../hooks/useCtcEditor';
 import { usePayBands } from '../../hooks/useMasterData';
-import { buildPreview, monthlyOf, parseCtc } from '../../lib/ctc';
-import { Grid, StepFrame, type StepProps } from './StepFrame';
+import { CtcBreakdownEditor } from '../CtcBreakdownEditor';
+import { StepFrame, type StepProps } from './StepFrame';
 
-export function CompensationStep({ form, update, errors }: StepProps) {
+/** Pay grade, then the CTC and Basic % with the editable breakdown. The CTC is optional: leave it empty to set it later. */
+export function CompensationStep({
+  form,
+  update,
+  errors,
+  onProblem,
+}: StepProps & {
+  /** Tells the wizard when the server refuses the numbers as they stand (e.g. the lines add up to more than the CTC). */
+  onProblem: (problem: string | null) => void;
+}) {
   const payBands = usePayBands();
-  const ctcPaise = parseCtc(form.ctc);
-  const preview = useCtcPreview(buildPreview(form.ctc, {}));
-  const lines = preview.data?.lines ?? [];
+  const editor = useCtcEditor(form.ctc, form.structure);
+  const { previewError } = editor;
+
+  useEffect(() => {
+    onProblem(form.ctc.trim() && previewError ? previewError : null);
+    return () => onProblem(null);
+  }, [form.ctc, previewError, onProblem]);
 
   return (
     <StepFrame title="Pay grade and CTC">
-      <Grid>
+      <div className="mb-6 max-w-sm">
         <FormField label="Pay grade" htmlFor="c-grade" error={errors['payBandId']}>
           <Select
             id="c-grade"
             value={form.payBandId}
             onValueChange={(v) => update({ payBandId: v })}
-            options={[...(payBands.data ?? [])].sort((a, b) => a.name.localeCompare(b.name)).map((b) => ({ value: b.id, label: b.name }))}
+            options={[...(payBands.data ?? [])]
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((b) => ({ value: b.id, label: b.name }))}
             placeholder={payBands.isLoading ? 'Loading…' : 'Choose a pay grade'}
             aria-invalid={errors['payBandId'] ? true : undefined}
           />
         </FormField>
-        <FormField label="CTC per year, ₹ (optional)" htmlFor="c-ctc" error={errors['ctc']}>
-          <Input id="c-ctc" inputMode="decimal" value={form.ctc} onChange={(e) => update({ ctc: e.target.value })} aria-invalid={errors['ctc'] ? true : undefined} />
-        </FormField>
-      </Grid>
-      {ctcPaise !== null ? (
-        <div className="mt-5 overflow-hidden rounded-lg border border-border" aria-live="polite">
-          <p className="bg-surface-subtle px-4 py-2.5 text-sm text-text-muted">
-            <span className="font-semibold text-text">{formatMoney(monthlyOf(ctcPaise))}</span> a month
-          </p>
-          {lines.length > 0 ? (
-            <ul className="divide-y divide-border text-sm">
-              {lines.map((l) => (
-                <li key={l.code} className="flex justify-between px-4 py-2">
-                  <span className="text-text-muted">{l.name}</span>
-                  <span className="tabular-nums">{formatMoney(monthlyOf(l.amountPaise))}</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      ) : null}
+      </div>
+      <CtcBreakdownEditor
+        ctc={form.ctc}
+        onCtcChange={(ctc) => update({ ctc })}
+        structure={form.structure}
+        onStructureChange={(structure) => update({ structure })}
+        editor={editor}
+        errors={errors}
+      />
     </StepFrame>
   );
 }

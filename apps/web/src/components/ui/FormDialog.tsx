@@ -13,16 +13,21 @@ export function FormDialog({
   description,
   formId,
   pending,
+  disabled = false,
   onClose,
   onSubmit,
+  wide,
   children,
 }: {
   title: string;
   description?: string;
   formId: string;
   pending: boolean;
+  /** Keeps Save off without saying "Saving…" (the form is not ready yet). */
+  disabled?: boolean;
   onClose: () => void;
   onSubmit: () => void;
+  wide?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -30,13 +35,14 @@ export function FormDialog({
       open
       onOpenChange={(open) => !open && onClose()}
       title={title}
+      {...(wide ? { wide } : {})}
       {...(description ? { description } : {})}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form={formId} disabled={pending}>
+          <Button type="submit" form={formId} disabled={pending || disabled}>
             {pending ? 'Saving…' : 'Save'}
           </Button>
         </>
@@ -48,6 +54,8 @@ export function FormDialog({
         className="space-y-4"
         onSubmit={(event) => {
           event.preventDefault();
+          // A dialog opened from inside another form must not submit that one too (React events bubble through portals).
+          event.stopPropagation();
           onSubmit();
         }}
       >

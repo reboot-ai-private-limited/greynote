@@ -121,7 +121,8 @@ export class FinalizeEmployeeDraftUseCase {
     if (ctc && !(await this.ctcAssignments.findEffective(userId, FAR_FUTURE))) {
       const effectiveFrom =
         data.compensation?.effectiveFrom ?? data.personal?.dateOfJoining?.slice(0, 7) ?? (await this.currentMonth());
-      await this.assignCtc.execute(userId, { ctcAnnualPaise: ctc, effectiveFrom, reason: 'Onboarding' }, actor.id);
+      const structure = data.compensation?.structure;
+      await this.assignCtc.execute(userId, { ctcAnnualPaise: ctc, effectiveFrom, reason: 'Onboarding', ...(structure && { structure }) }, actor.id);
     }
 
     await this.drafts.delete(draftId);

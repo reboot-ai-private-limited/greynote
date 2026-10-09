@@ -1,10 +1,8 @@
 import type {
-  AssignCtcDto,
   CreatePayComponentDto,
   PayComponentDto,
   PayComponentKind,
   PayComponentRuleDto,
-  PreviewCtcDto,
   UpdatePayComponentDto,
 } from '@greynote/contracts';
 import { fail, squash, type BuildResult } from '@/lib/forms';
@@ -28,7 +26,9 @@ export const KIND_LABEL: Record<PayComponentKind, string> = {
 /** 3000 → "30", 75 → "0.75". */
 export function basisPointsToPercent(bp: number): string {
   const whole = Math.trunc(bp / 100);
-  const fraction = String(bp % 100).padStart(2, '0').replace(/0+$/, '');
+  const fraction = String(bp % 100)
+    .padStart(2, '0')
+    .replace(/0+$/, '');
   return fraction ? `${whole}.${fraction}` : String(whole);
 }
 
@@ -42,7 +42,11 @@ export function percentToBasisPoints(input: string): number | null {
 }
 
 /** How a component's rule reads in the formula table: "10% of Basic", "Fixed ₹6,000 a year", "The rest of the CTC". */
-export function ruleSummary(rule: PayComponentRuleDto, byCode: ReadonlyMap<string, string>, money: (paise: number) => string): string {
+export function ruleSummary(
+  rule: PayComponentRuleDto,
+  byCode: ReadonlyMap<string, string>,
+  money: (paise: number) => string,
+): string {
   switch (rule.type) {
     case 'PERCENT_OF_CTC':
       return `${basisPointsToPercent(rule.basisPoints)}% of CTC`;
@@ -95,7 +99,10 @@ export function componentToDraft(c: PayComponentDto): ComponentDraft {
     name: c.name,
     kind: c.kind,
     ruleType: c.rule.type,
-    percent: c.rule.type === 'PERCENT_OF_CTC' || c.rule.type === 'PERCENT_OF_COMPONENTS' ? basisPointsToPercent(c.rule.basisPoints) : '',
+    percent:
+      c.rule.type === 'PERCENT_OF_CTC' || c.rule.type === 'PERCENT_OF_COMPONENTS'
+        ? basisPointsToPercent(c.rule.basisPoints)
+        : '',
     of: c.rule.type === 'PERCENT_OF_COMPONENTS' ? c.rule.of : [],
     amount: c.rule.type === 'FIXED' ? (c.rule.amountPaise / 100).toFixed(2) : '',
     order: String(c.order),
@@ -103,22 +110,30 @@ export function componentToDraft(c: PayComponentDto): ComponentDraft {
   };
 }
 
-function buildRule(d: ComponentDraft, errors: Record<string, string | undefined>): PayComponentRuleDto | null {
+function buildRule(
+  d: ComponentDraft,
+  errors: Record<string, string | undefined>,
+): PayComponentRuleDto | null {
   switch (d.ruleType) {
     case 'BALANCER':
       return { type: 'BALANCER' };
     case 'FIXED': {
       const paise = rupeesToPaise(d.amount);
       if (paise === null) errors['amount'] = 'Use rupees with at most two decimals, e.g. 6000.';
-      else if (paise > MAX_PAISE) errors['amount'] = 'That is more than ₹10 crore — check for an extra zero.';
+      else if (paise > MAX_PAISE)
+        errors['amount'] = 'That is more than ₹10 crore — check for an extra zero.';
       return paise === null || paise > MAX_PAISE ? null : { type: 'FIXED', amountPaise: paise };
     }
     default: {
       const bp = percentToBasisPoints(d.percent);
-      if (bp === null) errors['percent'] = 'Enter a percentage from 0 to 100, with at most two decimals.';
-      if (d.ruleType === 'PERCENT_OF_COMPONENTS' && d.of.length === 0) errors['of'] = 'Choose at least one component.';
+      if (bp === null)
+        errors['percent'] = 'Enter a percentage from 0 to 100, with at most two decimals.';
+      if (d.ruleType === 'PERCENT_OF_COMPONENTS' && d.of.length === 0)
+        errors['of'] = 'Choose at least one component.';
       if (bp === null || (d.ruleType === 'PERCENT_OF_COMPONENTS' && d.of.length === 0)) return null;
-      return d.ruleType === 'PERCENT_OF_CTC' ? { type: 'PERCENT_OF_CTC', basisPoints: bp } : { type: 'PERCENT_OF_COMPONENTS', basisPoints: bp, of: d.of };
+      return d.ruleType === 'PERCENT_OF_CTC'
+        ? { type: 'PERCENT_OF_CTC', basisPoints: bp }
+        : { type: 'PERCENT_OF_COMPONENTS', basisPoints: bp, of: d.of };
     }
   }
 }
@@ -134,14 +149,28 @@ function commonErrors(d: ComponentDraft): Record<string, string | undefined> {
 export function buildPayComponent(d: ComponentDraft): BuildResult<CreatePayComponentDto> {
   const errors = commonErrors(d);
   const code = d.code.trim().toUpperCase();
-  if (!/^[A-Z][A-Z0-9_]{1,23}$/.test(code)) errors['code'] = 'Use capitals, digits and underscores, 2–24 characters, e.g. HRA.';
+  if (!/^[A-Z][A-Z0-9_]{1,23}$/.test(code))
+    errors['code'] = 'Use capitals, digits and underscores, 2–24 characters, e.g. HRA.';
   const rule = buildRule(d, errors);
   if (Object.values(errors).some(Boolean) || !rule) return fail(errors);
-  return { ok: true, body: { code, name: squash(d.name), kind: d.kind, rule, order: Number(d.order), isActive: d.isActive } };
+  return {
+    ok: true,
+    body: {
+      code,
+      name: squash(d.name),
+      kind: d.kind,
+      rule,
+      order: Number(d.order),
+      isActive: d.isActive,
+    },
+  };
 }
 
 /** The changed fields only; `{}` means nothing changed. The code is fixed once created. */
-export function buildPayComponentUpdate(original: PayComponentDto, d: ComponentDraft): BuildResult<UpdatePayComponentDto> {
+export function buildPayComponentUpdate(
+  original: PayComponentDto,
+  d: ComponentDraft,
+): BuildResult<UpdatePayComponentDto> {
   const errors = commonErrors(d);
   const rule = buildRule(d, errors);
   if (Object.values(errors).some(Boolean) || !rule) return fail(errors);
@@ -158,56 +187,4 @@ export function buildPayComponentUpdate(original: PayComponentDto, d: ComponentD
 export function parseCtc(input: string): number | null {
   const paise = rupeesToPaise(input);
   return paise !== null && paise > 0 && paise <= MAX_PAISE ? paise : null;
-}
-
-/** The overrides typed so far that are valid amounts; a half-typed or blank line is left out, not an error, while editing. */
-export function parseOverrides(typed: Readonly<Record<string, string>>): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const [code, text] of Object.entries(typed)) {
-    const paise = rupeesToPaise(text);
-    if (paise !== null && paise <= MAX_PAISE) out[code] = paise;
-  }
-  return out;
-}
-
-/** The live-preview request, or `null` until the CTC is something worth computing. */
-export function buildPreview(ctcInput: string, typed: Readonly<Record<string, string>>): PreviewCtcDto | null {
-  const ctc = parseCtc(ctcInput);
-  if (ctc === null) return null;
-  const overrides = parseOverrides(typed);
-  return Object.keys(overrides).length > 0 ? { ctcAnnualPaise: ctc, overrides } : { ctcAnnualPaise: ctc };
-}
-
-export interface CtcDraft {
-  /** Rupees a year. */
-  ctc: string;
-  /** `YYYY-MM`. */
-  effectiveFrom: string;
-  reason: string;
-  /** Component code → rupees typed for that line. Only lines HR changed. */
-  overrides: Record<string, string>;
-}
-
-export function buildAssignCtc(d: CtcDraft): BuildResult<AssignCtcDto> {
-  const errors: Record<string, string | undefined> = {};
-  const ctc = parseCtc(d.ctc);
-  if (ctc === null) errors['ctc'] = 'Enter the yearly CTC in rupees, e.g. 144000.';
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(d.effectiveFrom)) errors['effectiveFrom'] = 'Choose the month it starts.';
-  if (d.reason.trim().length > 200) errors['reason'] = 'Keep the reason to 200 characters.';
-  for (const [code, text] of Object.entries(d.overrides)) {
-    const paise = rupeesToPaise(text);
-    if (paise === null || paise > MAX_PAISE) errors[`override:${code}`] = 'Use rupees with at most two decimals.';
-  }
-  if (Object.values(errors).some(Boolean) || ctc === null) return fail(errors);
-  const overrides = parseOverrides(d.overrides);
-  const reason = squash(d.reason);
-  return {
-    ok: true,
-    body: {
-      ctcAnnualPaise: ctc,
-      effectiveFrom: d.effectiveFrom,
-      ...(Object.keys(overrides).length > 0 ? { overrides } : {}),
-      ...(reason ? { reason } : {}),
-    },
-  };
 }

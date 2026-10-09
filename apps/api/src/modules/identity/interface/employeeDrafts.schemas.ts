@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ctcStructureSchema } from './ctc.schemas.js';
 
 const text = z.string().trim().min(1).max(200);
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.');
@@ -66,6 +67,7 @@ export const draftDataSchema = z
         payBandId: text.optional(),
         ctcAnnualPaise: z.number().int().positive().optional(),
         effectiveFrom: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use YYYY-MM.').optional(),
+        structure: ctcStructureSchema.optional(),
       })
       .optional(),
   })

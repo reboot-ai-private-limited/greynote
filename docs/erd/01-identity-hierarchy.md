@@ -160,3 +160,7 @@ designation is the highest level that exists. `EmployeeProfile` also keeps `hq_i
 (`ROUTE_ASSIGNMENT`, ERD-02) should validate its target `user_id` resolves to a `FIELD`-role user
 via Identity's `isFieldRole` contract method — the same pattern already used elsewhere for
 FIELD-only checks.
+
+## CTC structure (2026-10-09)
+
+A `CtcAssignment` revision also holds `structure`: `basicBasisPoints` (this employee's Basic share), `ruleOverrides` (code → rule), `removed` (org component codes not used) and `extras` (lines only this employee has). It is empty on older revisions. The revision's `lines` are still the frozen breakdown payroll reads; `structure` is what a re-apply and a revision start from.

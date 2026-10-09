@@ -10,6 +10,12 @@
 | 4.00f | After Create: Copy and Share | the message holds name, id and password; Share only shows where the browser supports it; the password is not shown again | |
 | 4.00g | Employees → Add office staff (Admin) | creates an HR, Accountant or Admin login; no field role offered | |
 | 4.01 | Employees: open Promo Mr One | profile, manager, HQ, joining date | |
+| 4.02a | Set CTC ₹1,44,000 with Basic 40% | Basic ₹57,600; the lines total ₹1,44,000; "Other allowance" is the rest | |
+| 4.02b | Change FDA to 14% | FDA ₹8,064 (marked Edited); Other allowance drops by what FDA and EPF took; total still ₹1,44,000 | |
+| 4.02c | Remove Medical, then Add a line → put it back; add a new line "Conveyance" ₹9,600 | the line leaves and returns; the new one appears; total unchanged | |
+| 4.02d | Try to remove FDA (EPF is worked out from it), Basic or Other allowance | the remove button is off; Basic and Other allowance have no remove | |
+| 4.02e | Add a ₹2 lakh fixed line to a ₹1.44 lakh CTC | a message says the lines add up to more than the CTC; Save is off | |
+| 4.02f | Admin changes the org FDA %, then Pay components → re-apply | an employee with their own 14% keeps it; one without follows the new %; Conveyance stays | |
 | 4.02 | Employee setup: set a CTC | monthly gross shown = CTC less employer contributions ÷ 12 | |
 | 4.03 | CTC change that jumps more than `CTC_JUMP_WARN_PERCENT` | a typo warning, but it can be saved (K10) | |
 | 4.04 | CTC change effective a past or future month | history keeps both revisions with effective months | |
