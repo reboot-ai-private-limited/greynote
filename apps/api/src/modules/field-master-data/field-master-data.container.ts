@@ -170,8 +170,8 @@ export function buildFieldMasterDataContainer(
       canActOnDistributor: async (userId, distributorId) => {
         const distributor = await distributors.findById(distributorId);
         if (!distributor || distributor.status !== 'active') return false;
-        if (distributor.assignedMrId === userId) return true;
-        return (await territory.listRoutesForUser(userId)).some((r) => r.id === distributor.routeId);
+        if (distributor.assignedUserIds.includes(userId)) return true;
+        return (await territory.listRoutesForUser(userId)).some((r) => distributor.routeIds.includes(r.id));
       },
       canActOnChemist: async (userId, chemistId) => {
         const chemist = await chemists.findById(chemistId);

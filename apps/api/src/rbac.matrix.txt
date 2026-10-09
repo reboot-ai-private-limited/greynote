@@ -84,6 +84,7 @@ GET    /api/reports/sales/statement  ADMIN
 GET    /api/reports/stock  ADMIN
 GET    /api/reports/ta-da  ADMIN
 GET    /api/reports/ta-da/days  ADMIN
+GET    /api/sales/distributor-payments  ACCOUNTANT,ADMIN
 GET    /api/sales/monthly-stock  ADMIN,FIELD
 GET    /api/sales/monthly-stock/missing  ADMIN,FIELD
 GET    /api/sales/orders  ADMIN,FIELD
@@ -181,6 +182,8 @@ POST   /api/planning/late-grants  ADMIN,FIELD
 POST   /api/planning/late-grants/:id/revoke  ADMIN,FIELD
 POST   /api/planning/monthly  FIELD
 POST   /api/planning/monthly/:id/submit  FIELD
+POST   /api/sales/distributor-payments  ACCOUNTANT,ADMIN
+POST   /api/sales/distributor-payments/:id/cancel  ACCOUNTANT,ADMIN
 POST   /api/sales/monthly-stock  ADMIN,FIELD
 POST   /api/sales/monthly-stock/unlock  ADMIN
 POST   /api/sales/orders  FIELD

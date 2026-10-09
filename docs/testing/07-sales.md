@@ -10,3 +10,8 @@
 | 7.06 | Primary value | only Done orders to distributors, in the month marked Done (K21, K31) | |
 | 7.07 | Secondary | opening + primary − closing, valued at PTR (K22) | |
 | 7.08 | Raise an order from the phone | **needs Step 6** | |
+| 7.09 | Distributor page, Payments tab: Record payment (date, amount, mode, reference, note) | listed; Collected total and "Collected of ordered" update | |
+| 7.10 | Cancel a payment, with a reason | stays listed, struck through, left out of the total; cancelling twice is refused | |
+| 7.11 | Payment dated tomorrow, or in a closed financial year | refused | |
+| 7.12 | Payments in a past financial year | Record payment is disabled | |
+| 7.13 | Distributor page, Orders tab | that distributor's orders in the range, with who placed them | |

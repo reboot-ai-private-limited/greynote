@@ -163,20 +163,18 @@ const distributorFields = {
   mobile: mobileSchema,
   address: textSchema,
 };
+const routeIdsSchema = z.array(objectIdSchema).min(1, 'Choose at least one route.').max(50);
 export const createDistributorBodySchema = z.object({
-  routeId: objectIdSchema,
+  routeIds: routeIdsSchema,
   ...distributorFields,
   /** Picked on a Google map. Omit to add the Distributor now and set the point later. */
   location: locationSchema.nullish().transform((v) => v ?? null),
-  assignedMrId: objectIdSchema.nullish().transform((v) => v ?? null),
-  assignedAsmId: objectIdSchema.nullish().transform((v) => v ?? null),
-  // No default: whether a Distributor may take primary or secondary orders is the client's call, so Admin says.
-  primarySalesEnabled: z.boolean(),
-  secondarySalesEnabled: z.boolean(),
+  /** Any active field employees, of any designation. */
+  assignedUserIds: z.array(objectIdSchema).max(100).default([]),
 });
 export const updateDistributorBodySchema = z
   .object({
-    routeId: objectIdSchema.optional(),
+    routeIds: routeIdsSchema.optional(),
     name: nameSchema.optional(),
     gstNumber: gstSchema.optional(),
     contactPerson: distributorFields.contactPerson.optional(),
@@ -184,11 +182,8 @@ export const updateDistributorBodySchema = z
     address: textSchema.optional(),
     /** `null` clears the registered location. */
     location: locationSchema.nullable().optional(),
-    /** `null` un-assigns. */
-    assignedMrId: objectIdSchema.nullable().optional(),
-    assignedAsmId: objectIdSchema.nullable().optional(),
-    primarySalesEnabled: z.boolean().optional(),
-    secondarySalesEnabled: z.boolean().optional(),
+    /** The whole new list; `[]` un-assigns everyone. */
+    assignedUserIds: z.array(objectIdSchema).max(100).optional(),
     status: statusSchema.optional(),
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
@@ -198,7 +193,7 @@ export const listDistributorsQuerySchema = z.object({
   /** Zone and HQ narrow by territory; the most specific one given is used. */
   hqId: objectIdSchema.optional(),
   zoneId: objectIdSchema.optional(),
-  assignedMrId: objectIdSchema.optional(),
+  assignedUserId: objectIdSchema.optional(),
 });
 
 // ---- Doctor sample allocations

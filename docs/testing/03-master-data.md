@@ -8,7 +8,9 @@
 | 3.04 | Route over `TA_MAX_KM` | paid TA capped at the maximum (K1) | |
 | 3.05 | Route detail: assign an MR | shown under assignments | |
 | 3.06 | Products: list shows XYZ-500 and 3 SAMPLE products with prices | PTS, PTR, MRP shown | |
-| 3.07 | Distributors: add, edit, open | saved | |
+| 3.07 | Distributors: add (Details, Coverage, Location, Review): pick a zone (or add one), tick two routes, add people of different designations | saved; the list shows the routes and the number of people; no Orders (primary/secondary) section anywhere | |
+| 3.07a | Distributor: try routes from two zones (change the zone after choosing routes) | the routes are cleared when the zone changes; the server refuses mixed zones | |
+| 3.07b | Chemists: add (Details, Location, Review) | same shell as employees and doctors | |
 | 3.08 | Chemists: add, edit, open | saved | |
 | 3.09 | Doctors: list, filter, open one | 36 sample doctors; assignments shown | |
 | 3.10 | Doctors: add one (Details → Location → Review, like a new employee) | Next with empty fields shows errors only then; Location can be skipped; appears for the MR who covers its route only | |

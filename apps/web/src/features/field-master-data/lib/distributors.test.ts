@@ -5,6 +5,7 @@ import {
   GST,
   buildDistributor,
   buildDistributorUpdate,
+  distributorStepErrors,
   distributorToDraft,
   normalizeGst,
   normalizeMobile,
@@ -13,20 +14,17 @@ import {
 
 const distributor: DistributorDto = {
   id: 'd1',
-  routeId: 'r1',
+  routeIds: ['r1', 'r2'],
   name: 'Eastern Pharma',
   gstNumber: '19ABCDE1234F1Z5',
   contactPerson: 'S. Das',
   mobile: '9830012345',
   address: 'Sevoke Road, Siliguri',
   location: { latitude: 26.7, longitude: 88.4 },
-  assignedMrId: 'mr1',
-  assignedAsmId: null,
-  primarySalesEnabled: true,
-  secondarySalesEnabled: false,
+  assignedUserIds: ['mr1', 'rsm1'],
   status: 'active',
 };
-const filled: DistributorDraft = distributorToDraft(distributor);
+const filled: DistributorDraft = distributorToDraft(distributor, 'z1');
 
 describe('GST and mobile', () => {
   it('accepts a well-formed GST number and refuses others', () => {
@@ -41,49 +39,77 @@ describe('GST and mobile', () => {
 });
 
 describe('buildDistributor', () => {
-  it('builds a body with the sales choices as booleans', () => {
-    expect(buildDistributor({ ...filled, gstNumber: ' 19abcde1234f1z5 ', mobile: '98300 12345', assignedMrId: '', primarySales: 'yes', secondarySales: 'no' })).toEqual({
+  it('builds a body with every route and every assigned person', () => {
+    expect(
+      buildDistributor({ ...filled, gstNumber: ' 19abcde1234f1z5 ', mobile: '98300 12345' }),
+    ).toEqual({
       ok: true,
       body: {
-        routeId: 'r1',
+        routeIds: ['r1', 'r2'],
         name: 'Eastern Pharma',
         gstNumber: '19ABCDE1234F1Z5',
         contactPerson: 'S. Das',
         mobile: '9830012345',
         address: 'Sevoke Road, Siliguri',
         location: { latitude: 26.7, longitude: 88.4 },
-        assignedMrId: null,
-        assignedAsmId: null,
-        primarySalesEnabled: true,
-        secondarySalesEnabled: false,
+        assignedUserIds: ['mr1', 'rsm1'],
       },
     });
   });
-  it('makes Admin choose both sales switches: there is no default', () => {
-    const result = buildDistributor({ ...filled, primarySales: '', secondarySales: '' });
-    expect(result).toMatchObject({ ok: false, errors: { primarySales: 'Choose yes or no.', secondarySales: 'Choose yes or no.' } });
-  });
-  it('reports every missing field at once', () => {
+  it('needs a zone and at least one route, and reports every missing field at once', () => {
     const result = buildDistributor(EMPTY_DISTRIBUTOR);
     expect(result.ok).toBe(false);
-    if (!result.ok) {
+    if (!result.ok)
       expect(Object.keys(result.errors).sort()).toEqual(
-        ['address', 'contactPerson', 'gstNumber', 'mobile', 'name', 'primarySales', 'routeId', 'secondarySales'].sort(),
+        ['address', 'contactPerson', 'gstNumber', 'mobile', 'name', 'routeIds', 'zoneId'].sort(),
       );
-    }
   });
   it('refuses a bad GST number and mobile', () => {
-    expect(buildDistributor({ ...filled, gstNumber: 'NOTGST' })).toMatchObject({ ok: false, errors: { gstNumber: expect.stringMatching(/15 characters/) } });
-    expect(buildDistributor({ ...filled, mobile: '12345' })).toMatchObject({ ok: false, errors: { mobile: expect.stringMatching(/10 to 15/) } });
-  });
-  it('refuses the same person as MR and ASM', () => {
-    expect(buildDistributor({ ...filled, assignedMrId: 'x', assignedAsmId: 'x' })).toMatchObject({
+    expect(buildDistributor({ ...filled, gstNumber: 'NOTGST' })).toMatchObject({
       ok: false,
-      errors: { assignedAsmId: expect.stringMatching(/different/) },
+      errors: { gstNumber: expect.stringMatching(/15 characters/) },
+    });
+    expect(buildDistributor({ ...filled, mobile: '12345' })).toMatchObject({
+      ok: false,
+      errors: { mobile: expect.stringMatching(/10 to 15/) },
+    });
+  });
+  it('people are optional and may be anyone', () => {
+    expect(buildDistributor({ ...filled, assignedUserIds: [] })).toMatchObject({
+      ok: true,
+      body: { assignedUserIds: [] },
     });
   });
   it('allows no location, sending null', () => {
-    expect(buildDistributor({ ...filled, coordinates: { latitude: '', longitude: '' } })).toMatchObject({ ok: true, body: { location: null } });
+    expect(
+      buildDistributor({ ...filled, coordinates: { latitude: '', longitude: '' } }),
+    ).toMatchObject({ ok: true, body: { location: null } });
+  });
+});
+
+describe('distributorStepErrors', () => {
+  it('each step checks only its own fields; the review step checks everything', () => {
+    const empty = { ...EMPTY_DISTRIBUTOR, coordinates: { latitude: '95', longitude: '' } };
+    expect(Object.keys(distributorStepErrors(empty, 'details')).sort()).toEqual([
+      'address',
+      'contactPerson',
+      'gstNumber',
+      'mobile',
+      'name',
+    ]);
+    expect(Object.keys(distributorStepErrors(empty, 'coverage')).sort()).toEqual([
+      'routeIds',
+      'zoneId',
+    ]);
+    expect(Object.keys(distributorStepErrors(empty, 'location')).sort()).toEqual([
+      'latitude',
+      'longitude',
+    ]);
+    expect(Object.keys(distributorStepErrors(empty, 'review'))).toHaveLength(9);
+  });
+  it('a complete draft is fine on every step', () => {
+    for (const step of ['details', 'coverage', 'location', 'review'] as const)
+      expect(distributorStepErrors(filled, step)).toEqual({});
   });
 });
 
@@ -91,20 +117,31 @@ describe('buildDistributorUpdate', () => {
   it('is empty when nothing changed', () => {
     expect(buildDistributorUpdate(distributor, filled)).toEqual({ ok: true, body: {} });
   });
-  it('sends only what changed, including a flipped sales switch', () => {
-    expect(buildDistributorUpdate(distributor, { ...filled, mobile: '98300 99999', secondarySales: 'yes' })).toEqual({
+  it('sends only what changed', () => {
+    expect(buildDistributorUpdate(distributor, { ...filled, mobile: '98300 99999' })).toEqual({
       ok: true,
-      body: { mobile: '9830099999', secondarySalesEnabled: true },
+      body: { mobile: '9830099999' },
     });
   });
-  it('un-assigns with null and assigns with an id', () => {
-    expect(buildDistributorUpdate(distributor, { ...filled, assignedMrId: '' })).toEqual({ ok: true, body: { assignedMrId: null } });
-    expect(buildDistributorUpdate(distributor, { ...filled, assignedAsmId: 'asm1' })).toEqual({ ok: true, body: { assignedAsmId: 'asm1' } });
-  });
-  it('does not resend an unchanged MR just because the form was opened', () => {
-    expect(buildDistributorUpdate(distributor, filled)).toMatchObject({ body: {} });
+  it('sends the whole new list of routes or people when either changed', () => {
+    expect(buildDistributorUpdate(distributor, { ...filled, routeIds: ['r2'] })).toEqual({
+      ok: true,
+      body: { routeIds: ['r2'] },
+    });
+    expect(buildDistributorUpdate(distributor, { ...filled, assignedUserIds: [] })).toEqual({
+      ok: true,
+      body: { assignedUserIds: [] },
+    });
+    expect(
+      buildDistributorUpdate(distributor, { ...filled, assignedUserIds: ['mr1', 'rsm1', 'asm1'] }),
+    ).toEqual({ ok: true, body: { assignedUserIds: ['mr1', 'rsm1', 'asm1'] } });
   });
   it('sends null for a cleared location', () => {
-    expect(buildDistributorUpdate(distributor, { ...filled, coordinates: { latitude: '', longitude: '' } })).toEqual({ ok: true, body: { location: null } });
+    expect(
+      buildDistributorUpdate(distributor, {
+        ...filled,
+        coordinates: { latitude: '', longitude: '' },
+      }),
+    ).toEqual({ ok: true, body: { location: null } });
   });
 });

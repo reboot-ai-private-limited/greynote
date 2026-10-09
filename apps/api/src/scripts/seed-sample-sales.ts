@@ -132,7 +132,7 @@ async function main(): Promise<void> {
 
   const distributors = DISTRIBUTORS.map((name, i) => ({
     _id: new mongoose.Types.ObjectId(),
-    routeId: route['_id'],
+    routeIds: [route['_id']],
     name,
     gstNumber: `19ABCDE123${i}F1Z5`,
     contactPerson: ['R. Sharma', 'S. Das', 'P. Gurung'][i]!,
@@ -140,10 +140,7 @@ async function main(): Promise<void> {
     address: `${name.slice(PREFIX.length)}, Siliguri`,
     latitude: null,
     longitude: null,
-    assignedMrId: mrFor(i)['_id'],
-    assignedAsmId: null,
-    primarySalesEnabled: true,
-    secondarySalesEnabled: true,
+    assignedUserIds: [mrFor(i)['_id']],
     status: 'active',
   }));
   const chemists = CHEMISTS.map((name, i) => ({ _id: new mongoose.Types.ObjectId(), routeId: route['_id'], name, address: `${name.slice(PREFIX.length)}, Siliguri`, latitude: null, longitude: null, status: 'active', mr: mrFor(i) }));

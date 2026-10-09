@@ -8,32 +8,54 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
+import { Field, FieldList } from '@/components/ui/FieldList';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Select } from '@/components/ui/Select';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
+import type { StepperItem } from '@/components/ui/Stepper';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { Grid } from '@/components/ui/WizardParts';
+import { WizardShell } from '@/components/ui/WizardShell';
+import { EmployeeName } from '@/features/people/components/EmployeePickerField';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useCreateDistributor, useDistributor, useUpdateDistributor } from '../hooks/useDistributors';
 import {
+  useCreateDistributor,
+  useDistributor,
+  useUpdateDistributor,
+} from '../hooks/useDistributors';
+import {
+  DISTRIBUTOR_STEPS,
+  DISTRIBUTOR_STEP_LABEL,
   EMPTY_DISTRIBUTOR,
-  SALES_OPTIONS,
   buildDistributor,
   buildDistributorUpdate,
+  distributorStepErrors,
   distributorToDraft,
   type DistributorDraft,
+  type DistributorStep,
 } from '../lib/distributors';
-import { EmployeePickerField } from '@/features/people/components/EmployeePickerField';
+import { DistributorOrdersTab } from './DistributorOrdersTab';
+import { DistributorPaymentsTab } from './DistributorPaymentsTab';
 import { LocationPicker } from './LocationPicker';
-import { RoutePickerField } from './RoutePickerField';
+import { PeopleMultiField } from './PeopleMultiField';
+import { RoutesMultiField } from './RoutesMultiField';
+import { ZoneField } from './ZoneField';
 
-/** `/distributors/new` (no id) and `/distributors/[id]` (edit). */
+const STEP_TITLE: Record<DistributorStep, string> = {
+  details: 'Distributor details',
+  coverage: 'Coverage',
+  location: 'Location (optional)',
+  review: 'Review',
+};
+
+/** `/distributors/new` (no id) walks the add wizard; `/distributors/[id]` is the distributor's page: Details, Payments and Orders. */
 export function DistributorFormScreen({ id }: { id?: string }) {
   const query = useDistributor(id ?? '');
-  if (!id) return <DistributorForm />;
+  if (!id) return <NewDistributor />;
   return (
     <DataState
       isLoading={query.isLoading}
@@ -47,33 +69,159 @@ export function DistributorFormScreen({ id }: { id?: string }) {
         </div>
       }
     >
-      {query.data ? <DistributorForm key={JSON.stringify(query.data)} distributor={query.data} /> : null}
+      {query.data ? <DistributorPage distributor={query.data} /> : null}
     </DataState>
   );
 }
 
-function DistributorForm({ distributor }: { distributor?: DistributorDetailDto }) {
+/** The fields shared by the wizard's steps and the edit page. */
+function useDistributorDraft(initial: DistributorDraft) {
+  const [draft, setDraft] = useState<DistributorDraft>(initial);
+  const set =
+    <K extends keyof DistributorDraft>(field: K) =>
+    (value: DistributorDraft[K]) =>
+      setDraft((d) => ({ ...d, [field]: value }));
+  return { draft, setDraft, set };
+}
+
+function DetailsFields({
+  draft,
+  set,
+  errors,
+  locked,
+}: {
+  draft: DistributorDraft;
+  set: <K extends keyof DistributorDraft>(f: K) => (v: DistributorDraft[K]) => void;
+  errors: Record<string, string>;
+  locked: boolean;
+}) {
+  const invalid = (field: string) => (errors[field] ? true : undefined);
+  return (
+    <Grid>
+      <FormField label="Name" htmlFor="dist-name" error={errors['name']}>
+        <Input
+          id="dist-name"
+          value={draft.name}
+          disabled={locked}
+          onChange={(e) => set('name')(e.target.value)}
+          aria-invalid={invalid('name')}
+        />
+      </FormField>
+      <FormField label="GST number" htmlFor="dist-gst" error={errors['gstNumber']}>
+        <Input
+          id="dist-gst"
+          value={draft.gstNumber}
+          disabled={locked}
+          onChange={(e) => set('gstNumber')(e.target.value)}
+          autoCapitalize="characters"
+          aria-invalid={invalid('gstNumber')}
+        />
+      </FormField>
+      <FormField label="Contact person" htmlFor="dist-contact" error={errors['contactPerson']}>
+        <Input
+          id="dist-contact"
+          value={draft.contactPerson}
+          disabled={locked}
+          onChange={(e) => set('contactPerson')(e.target.value)}
+          aria-invalid={invalid('contactPerson')}
+        />
+      </FormField>
+      <FormField label="Mobile" htmlFor="dist-mobile" error={errors['mobile']}>
+        <Input
+          id="dist-mobile"
+          inputMode="tel"
+          value={draft.mobile}
+          disabled={locked}
+          onChange={(e) => set('mobile')(e.target.value)}
+          aria-invalid={invalid('mobile')}
+        />
+      </FormField>
+      <div className="sm:col-span-2">
+        <FormField label="Address" htmlFor="dist-address" error={errors['address']}>
+          <Input
+            id="dist-address"
+            value={draft.address}
+            disabled={locked}
+            onChange={(e) => set('address')(e.target.value)}
+            aria-invalid={invalid('address')}
+          />
+        </FormField>
+      </div>
+    </Grid>
+  );
+}
+
+function CoverageFields({
+  draft,
+  setDraft,
+  errors,
+  locked,
+}: {
+  draft: DistributorDraft;
+  setDraft: (f: (d: DistributorDraft) => DistributorDraft) => void;
+  errors: Record<string, string>;
+  locked: boolean;
+}) {
+  return (
+    <div className="space-y-5">
+      {/* A different zone means different routes, so the old ones are dropped. */}
+      <ZoneField
+        id="dist-zone"
+        value={draft.zoneId}
+        onChange={(zoneId) =>
+          setDraft((d) => (zoneId === d.zoneId ? d : { ...d, zoneId, routeIds: [] }))
+        }
+        error={errors['zoneId']}
+        disabled={locked}
+      />
+      <RoutesMultiField
+        id="dist-routes"
+        zoneId={draft.zoneId}
+        value={draft.routeIds}
+        onChange={(routeIds) => setDraft((d) => ({ ...d, routeIds }))}
+        error={errors['routeIds']}
+        disabled={locked}
+      />
+      <PeopleMultiField
+        id="dist-people"
+        value={draft.assignedUserIds}
+        onChange={(assignedUserIds) => setDraft((d) => ({ ...d, assignedUserIds }))}
+        error={errors['assignedUserIds']}
+        disabled={locked}
+      />
+    </div>
+  );
+}
+
+function NewDistributor() {
   const router = useRouter();
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
-  const [draft, setDraft] = useState<DistributorDraft>(distributor ? distributorToDraft(distributor) : EMPTY_DISTRIBUTOR);
+  const { draft, setDraft, set } = useDistributorDraft(EMPTY_DISTRIBUTOR);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [toggling, setToggling] = useState(false);
-  const create = useCreateDistributor(() => router.push('/distributors'));
-  const update = useUpdateDistributor();
-  const toggle = useUpdateDistributor(() => setToggling(false));
-  const locked = readOnly || distributor?.status === 'inactive';
-  const set = <K extends keyof DistributorDraft>(field: K) => (value: DistributorDraft[K]) => setDraft((d) => ({ ...d, [field]: value }));
-  const invalid = (field: string) => (errors[field] ? true : undefined);
-  const path = distributor?.path;
+  const [step, setStep] = useState<DistributorStep>('details');
+  // Errors show for a step only once Next has been pressed on it, as in the employee wizard.
+  const [tried, setTried] = useState<ReadonlySet<DistributorStep>>(new Set());
+  const create = useCreateDistributor((created) => router.push(`/distributors/${created.id}`));
+  const stepIndex = DISTRIBUTOR_STEPS.indexOf(step);
+  const valid = (s: DistributorStep) => Object.keys(distributorStepErrors(draft, s)).length === 0;
+  const items: StepperItem[] = DISTRIBUTOR_STEPS.map((s, i) => ({
+    key: s,
+    label: DISTRIBUTOR_STEP_LABEL[s],
+    optional: s === 'location',
+    done: i < stepIndex && valid(s),
+    reachable: DISTRIBUTOR_STEPS.slice(0, i).every(valid),
+  }));
+  const shown = tried.has(step) ? distributorStepErrors(draft, step) : errors;
 
+  function goTo(next: DistributorStep) {
+    setStep(next);
+    window.scrollTo({ top: 0 });
+  }
   function submit() {
-    if (distributor) {
-      const built = buildDistributorUpdate(distributor, draft);
-      if (!built.ok) return setErrors(built.errors);
-      setErrors({});
-      if (Object.keys(built.body).length === 0) return router.push('/distributors');
-      return update.mutate({ id: distributor.id, body: built.body }, { onSuccess: () => router.push('/distributors') });
+    if (step !== 'review') {
+      if (!valid(step)) return setTried((t) => new Set(t).add(step));
+      return goTo(DISTRIBUTOR_STEPS[stepIndex + 1] ?? 'review');
     }
     const built = buildDistributor(draft);
     if (!built.ok) return setErrors(built.errors);
@@ -81,6 +229,79 @@ function DistributorForm({ distributor }: { distributor?: DistributorDetailDto }
     create.mutate(built.body);
   }
 
+  const point =
+    draft.coordinates.latitude !== '' && draft.coordinates.longitude !== ''
+      ? `${draft.coordinates.latitude}, ${draft.coordinates.longitude}`
+      : null;
+  return (
+    <WizardShell
+      backHref="/distributors"
+      backLabel="Distributors"
+      title="New distributor"
+      steps={items}
+      current={step}
+      onSelect={(key) => goTo(key as DistributorStep)}
+      stepTitle={STEP_TITLE[step]}
+      onSubmit={submit}
+      onBack={() =>
+        stepIndex > 0
+          ? goTo(DISTRIBUTOR_STEPS[stepIndex - 1] ?? 'details')
+          : router.push('/distributors')
+      }
+      backText={stepIndex > 0 ? 'Back' : 'Cancel'}
+      isLast={step === 'review'}
+      createLabel="Create distributor"
+      pending={create.isPending}
+      disabled={readOnly}
+      disabledTitle={readOnly ? 'A past financial year is read-only' : undefined}
+    >
+      {step === 'details' ? (
+        <DetailsFields draft={draft} set={set} errors={shown} locked={false} />
+      ) : null}
+      {step === 'coverage' ? (
+        <CoverageFields draft={draft} setDraft={setDraft} errors={shown} locked={false} />
+      ) : null}
+      {step === 'location' ? (
+        <LocationPicker
+          inputs={draft.coordinates}
+          onChange={(coordinates) => setDraft((d) => ({ ...d, coordinates }))}
+          errors={shown}
+        />
+      ) : null}
+      {step === 'review' ? (
+        <FieldList>
+          <Field label="Name">{draft.name}</Field>
+          <Field label="GST number">{draft.gstNumber}</Field>
+          <Field label="Contact person">{draft.contactPerson}</Field>
+          <Field label="Mobile">{draft.mobile}</Field>
+          <Field label="Address">{draft.address}</Field>
+          <Field label="Zone">{draft.zoneId ? directory.zoneName(draft.zoneId) : null}</Field>
+          <Field label="Routes">
+            {draft.routeIds.map((r) => directory.routeLabel(r)).join(', ') || null}
+          </Field>
+          <Field label="Assigned people">
+            {draft.assignedUserIds.length > 0
+              ? draft.assignedUserIds.map((u, i) => (
+                  <span key={u}>
+                    {i > 0 ? ', ' : ''}
+                    <EmployeeName userId={u} />
+                  </span>
+                ))
+              : null}
+          </Field>
+          <Field label="Location">{point}</Field>
+        </FieldList>
+      ) : null}
+    </WizardShell>
+  );
+}
+
+function DistributorPage({ distributor }: { distributor: DistributorDetailDto }) {
+  const readOnly = useIsReadOnly();
+  const directory = useTerritoryDirectory();
+  const update = useUpdateDistributor(() => setToggling(false));
+  const [toggling, setToggling] = useState(false);
+  const zones = [...new Set(distributor.paths.map((p) => directory.zoneName(p.zoneId)))];
   return (
     <>
       <p className="mb-2 text-sm">
@@ -89,99 +310,121 @@ function DistributorForm({ distributor }: { distributor?: DistributorDetailDto }
         </Link>
       </p>
       <PageHeader
-        title={distributor ? distributor.name : 'New distributor'}
+        title={distributor.name}
         description={
-          path
-            ? `${directory.zoneName(path.zoneId)} → ${directory.hqName(path.hqId)} → ${directory.routeName(path.routeId)}`
-            : 'A stockist on a route. The location can be set now or later.'
+          zones.length > 0
+            ? `${zones.join(', ')} · ${distributor.routeIds.map((r) => directory.routeLabel(r)).join(', ')}`
+            : undefined
         }
         actions={
-          distributor ? (
-            <div className="flex items-center gap-2">
-              <Badge tone={distributor.status === 'active' ? 'success' : 'neutral'}>{distributor.status === 'active' ? 'Active' : 'Inactive'}</Badge>
-              <Button variant="secondary" disabled={readOnly} onClick={() => setToggling(true)}>
-                {distributor.status === 'active' ? 'Deactivate' : 'Reactivate'}
-              </Button>
-            </div>
-          ) : null
+          <div className="flex items-center gap-2">
+            <Badge tone={distributor.status === 'active' ? 'success' : 'neutral'}>
+              {distributor.status === 'active' ? 'Active' : 'Inactive'}
+            </Badge>
+            <Button variant="secondary" disabled={readOnly} onClick={() => setToggling(true)}>
+              {distributor.status === 'active' ? 'Deactivate' : 'Reactivate'}
+            </Button>
+          </div>
         }
       />
-      {distributor?.status === 'inactive' ? (
-        <p role="status" className="mb-6 rounded-lg border border-border bg-surface-subtle p-4 text-sm text-text-muted">
+      {distributor.status === 'inactive' ? (
+        <p
+          role="status"
+          className="mb-6 rounded-lg border border-border bg-surface-subtle p-4 text-sm text-text-muted"
+        >
           This distributor is inactive. Reactivate it to change it.
         </p>
       ) : null}
-      <form
-        noValidate
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-        className="space-y-6"
-      >
-        <Card title="Details">
-          <div className="grid gap-5 p-5 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <RoutePickerField id="dist-route" value={draft.routeId} onChange={set('routeId')} error={errors['routeId']} disabled={locked} />
-            </div>
-            <FormField label="Name" htmlFor="dist-name" error={errors['name']}>
-              <Input id="dist-name" value={draft.name} disabled={locked} onChange={(e) => set('name')(e.target.value)} aria-invalid={invalid('name')} />
-            </FormField>
-            <FormField label="GST number" htmlFor="dist-gst" error={errors['gstNumber']} hint="15 characters, e.g. 19ABCDE1234F1Z5.">
-              <Input id="dist-gst" value={draft.gstNumber} disabled={locked} onChange={(e) => set('gstNumber')(e.target.value)} autoCapitalize="characters" aria-invalid={invalid('gstNumber')} />
-            </FormField>
-            <FormField label="Contact person" htmlFor="dist-contact" error={errors['contactPerson']}>
-              <Input id="dist-contact" value={draft.contactPerson} disabled={locked} onChange={(e) => set('contactPerson')(e.target.value)} aria-invalid={invalid('contactPerson')} />
-            </FormField>
-            <FormField label="Mobile" htmlFor="dist-mobile" error={errors['mobile']}>
-              <Input id="dist-mobile" inputMode="tel" value={draft.mobile} disabled={locked} onChange={(e) => set('mobile')(e.target.value)} aria-invalid={invalid('mobile')} />
-            </FormField>
-            <div className="sm:col-span-2">
-              <FormField label="Address" htmlFor="dist-address" error={errors['address']}>
-                <Input id="dist-address" value={draft.address} disabled={locked} onChange={(e) => set('address')(e.target.value)} aria-invalid={invalid('address')} />
-              </FormField>
-            </div>
-          </div>
-        </Card>
-        <Card title="Orders" description="Which kinds of order this distributor may take. You choose; there is no default.">
-          <div className="grid gap-5 p-5 sm:grid-cols-2">
-            <FormField label="Primary sales" htmlFor="dist-primary" error={errors['primarySales']}>
-              <Select id="dist-primary" value={draft.primarySales} onValueChange={(v) => set('primarySales')(v as 'yes' | 'no')} options={SALES_OPTIONS} placeholder="Choose" aria-invalid={invalid('primarySales')} />
-            </FormField>
-            <FormField label="Secondary sales" htmlFor="dist-secondary" error={errors['secondarySales']}>
-              <Select id="dist-secondary" value={draft.secondarySales} onValueChange={(v) => set('secondarySales')(v as 'yes' | 'no')} options={SALES_OPTIONS} placeholder="Choose" aria-invalid={invalid('secondarySales')} />
-            </FormField>
-          </div>
-        </Card>
-        <Card title="Assigned people" description="The MR who can place orders and stock counts against this distributor, and the ASM above them.">
-          <div className="grid gap-5 p-5 sm:grid-cols-2">
-            <EmployeePickerField id="dist-mr" label="MR" title="Choose an MR" value={draft.assignedMrId} onChange={set('assignedMrId')} error={errors['assignedMrId']} disabled={locked} />
-            <EmployeePickerField id="dist-asm" label="ASM" title="Choose an ASM" value={draft.assignedAsmId} onChange={set('assignedAsmId')} error={errors['assignedAsmId']} disabled={locked} />
-          </div>
-        </Card>
-        <Card title="Registered location">
-          <div className="p-5">
-            <LocationPicker inputs={draft.coordinates} onChange={(coordinates) => setDraft((d) => ({ ...d, coordinates }))} errors={errors} disabled={locked} />
-          </div>
-        </Card>
-        <div className="flex justify-end gap-3">
-          <Button variant="secondary" onClick={() => router.push('/distributors')}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={locked || create.isPending || update.isPending} title={readOnly ? 'A past financial year is read-only' : undefined}>
-            {create.isPending || update.isPending ? 'Saving…' : distributor ? 'Save changes' : 'Create distributor'}
-          </Button>
-        </div>
-      </form>
-      {distributor ? (
-        <StatusToggleDialog
-          item={toggling ? distributor : null}
-          noun="distributor"
-          pending={toggle.isPending}
-          onClose={() => setToggling(false)}
-          onConfirm={(status) => toggle.mutate({ id: distributor.id, body: { status } })}
-        />
-      ) : null}
+      <Tabs defaultValue="details" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="orders">Orders</TabsTrigger>
+        </TabsList>
+        <TabsContent value="details">
+          {/* Keyed by what was loaded, so the draft starts from the latest data after a save. */}
+          <DistributorEditForm key={JSON.stringify(distributor)} distributor={distributor} />
+        </TabsContent>
+        <TabsContent value="payments">
+          <DistributorPaymentsTab
+            distributorId={distributor.id}
+            inactive={distributor.status === 'inactive'}
+          />
+        </TabsContent>
+        <TabsContent value="orders">
+          <DistributorOrdersTab distributorId={distributor.id} />
+        </TabsContent>
+      </Tabs>
+      <StatusToggleDialog
+        item={toggling ? distributor : null}
+        noun="distributor"
+        pending={update.isPending}
+        onClose={() => setToggling(false)}
+        onConfirm={(status) => update.mutate({ id: distributor.id, body: { status } })}
+      />
     </>
+  );
+}
+
+function DistributorEditForm({ distributor }: { distributor: DistributorDetailDto }) {
+  const router = useRouter();
+  const readOnly = useIsReadOnly();
+  const { draft, setDraft, set } = useDistributorDraft(
+    distributorToDraft(distributor, distributor.paths[0]?.zoneId ?? ''),
+  );
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const update = useUpdateDistributor();
+  const locked = readOnly || distributor.status === 'inactive';
+
+  function submit() {
+    const built = buildDistributorUpdate(distributor, draft);
+    if (!built.ok) return setErrors(built.errors);
+    setErrors({});
+    if (Object.keys(built.body).length === 0) return;
+    update.mutate({ id: distributor.id, body: built.body });
+  }
+
+  return (
+    <form
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+      className="space-y-6"
+    >
+      <Card title="Details">
+        <div className="p-5">
+          <DetailsFields draft={draft} set={set} errors={errors} locked={locked} />
+        </div>
+      </Card>
+      <Card title="Coverage">
+        <div className="p-5">
+          <CoverageFields draft={draft} setDraft={setDraft} errors={errors} locked={locked} />
+        </div>
+      </Card>
+      <Card title="Registered location">
+        <div className="p-5">
+          <LocationPicker
+            inputs={draft.coordinates}
+            onChange={(coordinates) => setDraft((d) => ({ ...d, coordinates }))}
+            errors={errors}
+            disabled={locked}
+          />
+        </div>
+      </Card>
+      <div className="flex justify-between gap-3">
+        <Button variant="secondary" onClick={() => router.push('/distributors')}>
+          Back to distributors
+        </Button>
+        <Button
+          type="submit"
+          disabled={locked || update.isPending}
+          title={readOnly ? 'A past financial year is read-only' : undefined}
+        >
+          {update.isPending ? 'Saving…' : 'Save changes'}
+        </Button>
+      </div>
+    </form>
   );
 }

@@ -17,6 +17,19 @@ old one.
 
 ---
 
+## 2026-10-09 — Distributors: several routes, one list of assigned people, no order flags, and payment collection
+
+**Decision:**
+- A **distributor can have several Routes**, all in one Zone (the form picks the Zone first, or adds one, then ticks Routes inside it; the Zone itself is not stored). The API refuses Routes from different zones. Chemists keep one Route.
+- **Assigned people** are one list of any active field employees, of any designation, replacing the one MR + one ASM slots (sign-off C2). They are who can place orders and stock counts for it, as the assigned MR was before; the ASM slot was never used by any rule.
+- The **"Orders" card (Primary sales / Secondary sales Allowed / Not allowed) is removed**, and with it `primarySalesEnabled` / `secondarySalesEnabled` from the API, the contracts and the phone's sync snapshot. Nothing ever read them (order placing ignores them); Admin had been asked to answer a question that changed nothing. The sync snapshot now carries `routeIds` instead of `routeId`, and no flags — fine because the mobile app is not built yet.
+- **Payment collection is entered in this app** (resolves sign-off E6): Admin or the Accountant records each payment against a distributor (date not in the future, amount, mode, reference, note). A payment is never edited; a wrong one is cancelled with a reason and stays listed, out of the totals. A distributor's page has Details, Payments (collected against ordered for a range) and Orders tabs.
+- Adding a chemist or a distributor uses the employee wizard's shell, like the doctor form (decision-log, same date).
+
+**Replaces:** sign-off C2 (one MR, one ASM) and the order flags of the Master spec M6.
+
+**Needs a migration:** yes — `pnpm --filter @greynote/api migrate:distributors` (dry run first, then `-- --apply`): `routeId` → `routeIds`, `assignedMrId` + `assignedAsmId` → `assignedUserIds`, the flags removed. Applied to the dev database on 2026-10-09 (3 sample distributors). It must be run before the new API serves a database that has old distributors.
+
 ## 2026-10-09 — The add-doctor form uses the employee wizard's shell with no explanatory text; dropdowns scroll
 
 **Decision:**

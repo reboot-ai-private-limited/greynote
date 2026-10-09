@@ -4,9 +4,9 @@ import type { Distributor } from '../../domain/distributor.entity.js';
 import type { DistributorRepositoryPort } from '../../domain/distributor.repository.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 
-export type DistributorDetail = Distributor & { path: RoutePath | null };
+export type DistributorDetail = Distributor & { paths: RoutePath[] };
 
-/** Admin: one Distributor, with its Zone → HQ → Area → Route breadcrumb resolved through its Route (never stored). */
+/** Admin: one Distributor, with the Zone → HQ → Route place of each of its Routes resolved through Territory (never stored). */
 export class GetDistributorUseCase {
   constructor(
     private readonly distributors: DistributorRepositoryPort,
@@ -16,6 +16,7 @@ export class GetDistributorUseCase {
   async execute(id: string): Promise<DistributorDetail> {
     const distributor = await this.distributors.findById(id);
     if (!distributor) throw AppError.notFound('No such distributor.');
-    return { ...distributor, path: await this.territory.getRoutePath(distributor.routeId) };
+    const paths = await Promise.all(distributor.routeIds.map((id) => this.territory.getRoutePath(id)));
+    return { ...distributor, paths: paths.flatMap((p) => (p ? [p] : [])) };
   }
 }

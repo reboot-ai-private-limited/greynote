@@ -6,7 +6,7 @@ import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js'
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { SalesHandlers } from './sales.controller.js';
-import { listMonthlyStockQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
+import { cancelPaymentBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, recordPaymentBodySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 const TAG = 'Sales';
 
@@ -27,6 +27,9 @@ doc('post', '/monthly-stock/unlock', 'Admin: reopen a month after its deadline',
 doc('get', '/monthly-stock/missing', 'Outlets with no stock count for a month, by MR — a manager’s downline, or everyone for Admin', { query: missingQuerySchema });
 doc('post', '/orders', 'Place an order for one of my Chemists or Distributors, several products at once — amounts are worked out from quantity and unit price; no approval', { body: placeOrderBodySchema });
 doc('get', '/orders', 'Orders — my own; a manager also sees their downline’s, Admin all; filter by status, dates, outlet', { query: listOrdersQuerySchema });
+doc('post', '/distributor-payments', 'Admin or Accountant: record money received from a distributor (date not in the future, open financial year)', { body: recordPaymentBodySchema });
+doc('get', '/distributor-payments', 'Admin or Accountant: one distributor’s payments in a date range, with the total collected and the total ordered', { query: listPaymentsQuerySchema });
+openApiRegistry.registerPath({ method: 'post', path: '/api/sales/distributor-payments/{id}/cancel', tags: [TAG], summary: 'Admin or Accountant: cancel a recorded payment, with a reason; a 409 if it is already cancelled', security: [{ bearerAuth: [] }], request: { params: orderIdParamsSchema, body: { content: { 'application/json': { schema: cancelPaymentBodySchema } } } }, responses: { 200: { description: 'OK' }, 409: { description: 'Already cancelled' } } });
 for (const [path, summary] of [
   ['/orders/{id}', 'One order with its lines'],
   ['/orders/{id}/complete', 'Mark a PLACED order DONE — the MR who placed it, or Admin; a 409 if it is not PLACED'],
@@ -42,6 +45,9 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.get('/monthly-stock', requireRole('FIELD', 'ADMIN'), validate({ query: listMonthlyStockQuerySchema }), c.listStock);
   router.post('/monthly-stock/unlock', requireRole('ADMIN'), validate({ body: unlockBodySchema }), c.unlockMonth);
   router.get('/monthly-stock/missing', requireRole('FIELD', 'ADMIN'), validate({ query: missingQuerySchema }), c.missingStock);
+  router.post('/distributor-payments', requireRole('ACCOUNTANT', 'ADMIN'), validate({ body: recordPaymentBodySchema }), c.recordPayment);
+  router.get('/distributor-payments', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: listPaymentsQuerySchema }), c.listPayments);
+  router.post('/distributor-payments/:id/cancel', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: orderIdParamsSchema, body: cancelPaymentBodySchema }), c.cancelPayment);
   router.post('/orders', requireRole('FIELD'), validate({ body: placeOrderBodySchema }), c.placeOrder);
   router.get('/orders', requireRole('FIELD', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listOrdersQuerySchema }), c.listOrders);
   router.get('/orders/:id', requireRole('FIELD', 'ADMIN'), validate({ params: orderIdParamsSchema }), c.getOrder);

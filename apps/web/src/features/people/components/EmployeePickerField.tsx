@@ -83,8 +83,8 @@ export function EmployeeFilter({ value, onChange, allLabel }: { value: string; o
       ) : null}
       {open ? (
         <ManagerPickerDialog
-          title="Filter by MR"
-          label="MR"
+          title="Filter by employee"
+          label="Employee"
           onClose={() => setOpen(false)}
           onPick={(u) => {
             onChange(u.id);

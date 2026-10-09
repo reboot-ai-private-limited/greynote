@@ -1,7 +1,6 @@
 'use client';
 
 import type { DoctorDto } from '@greynote/contracts';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
@@ -10,8 +9,9 @@ import { Field, FieldList } from '@/components/ui/FieldList';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Stepper, type StepperItem } from '@/components/ui/Stepper';
-import { Grid, StepFrame } from '@/components/ui/WizardParts';
+import type { StepperItem } from '@/components/ui/Stepper';
+import { WizardShell } from '@/components/ui/WizardShell';
+import { Grid } from '@/components/ui/WizardParts';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useCreateDoctor, useUpdateDoctor } from '../hooks/useDoctors';
@@ -217,78 +217,38 @@ export function DoctorDetailsForm({ doctor }: { doctor?: DoctorDto }) {
 
   const point = pointFromInputs(draft.coordinates);
   return (
-    <div className="mx-auto max-w-3xl">
-      <p className="mb-2 text-sm">
-        <Link href="/doctors" className="text-text-muted hover:text-accent hover:underline">
-          ← Doctors
-        </Link>
-      </p>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-text">New doctor</h1>
-      <div className="mb-6">
-        <Stepper steps={items} current={step} onSelect={(key) => goTo(key as DoctorStep)} />
-      </div>
-      <form
-        noValidate
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-      >
-        <Card>
-          <div className="p-6">
-            <StepFrame title={STEP_TITLE[step]}>
-              {step === 'details' ? detailsFields : null}
-              {step === 'location' ? locationPicker : null}
-              {step === 'review' ? (
-                <FieldList>
-                  <Field label="Route">
-                    {draft.routeId ? directory.routeLabel(draft.routeId) : null}
-                  </Field>
-                  <Field label="Name">{draft.name}</Field>
-                  <Field label="Speciality">{draft.specialty}</Field>
-                  <Field label="Qualification">{draft.qualification}</Field>
-                  <Field label="Email">{draft.email || null}</Field>
-                  <Field label="Address">{draft.address}</Field>
-                  <Field label="Location">
-                    {point.ok ? formatPoint(point.point) : 'Not valid'}
-                  </Field>
-                </FieldList>
-              ) : null}
-            </StepFrame>
-          </div>
-          <footer className="flex items-center justify-between gap-3 border-t border-border px-6 py-4">
-            {stepIndex > 0 ? (
-              <Button
-                variant="secondary"
-                onClick={() => goTo(DOCTOR_STEPS[stepIndex - 1] ?? 'details')}
-              >
-                Back
-              </Button>
-            ) : (
-              <Button variant="secondary" onClick={() => router.push('/doctors')}>
-                Cancel
-              </Button>
-            )}
-            {step !== 'review' ? (
-              // A submit button, so Enter inside a field means Next too (a form with no submit button ignores Enter). Keyed apart from the
-              // Create button below: they sit in the same place, and one element turning into the other mid-click would submit the form on
-              // the very click that moved to the review step.
-              <Button key="next" type="submit" disabled={locked}>
-                Next
-              </Button>
-            ) : (
-              <Button
-                key="create"
-                type="submit"
-                disabled={locked || pending}
-                title={readOnly ? 'A past financial year is read-only' : undefined}
-              >
-                {pending ? 'Saving…' : 'Create doctor'}
-              </Button>
-            )}
-          </footer>
-        </Card>
-      </form>
-    </div>
+    <WizardShell
+      backHref="/doctors"
+      backLabel="Doctors"
+      title="New doctor"
+      steps={items}
+      current={step}
+      onSelect={(key) => goTo(key as DoctorStep)}
+      stepTitle={STEP_TITLE[step]}
+      onSubmit={submit}
+      onBack={() =>
+        stepIndex > 0 ? goTo(DOCTOR_STEPS[stepIndex - 1] ?? 'details') : router.push('/doctors')
+      }
+      backText={stepIndex > 0 ? 'Back' : 'Cancel'}
+      isLast={step === 'review'}
+      createLabel="Create doctor"
+      pending={pending}
+      disabled={locked}
+      disabledTitle={readOnly ? 'A past financial year is read-only' : undefined}
+    >
+      {step === 'details' ? detailsFields : null}
+      {step === 'location' ? locationPicker : null}
+      {step === 'review' ? (
+        <FieldList>
+          <Field label="Route">{draft.routeId ? directory.routeLabel(draft.routeId) : null}</Field>
+          <Field label="Name">{draft.name}</Field>
+          <Field label="Speciality">{draft.specialty}</Field>
+          <Field label="Qualification">{draft.qualification}</Field>
+          <Field label="Email">{draft.email || null}</Field>
+          <Field label="Address">{draft.address}</Field>
+          <Field label="Location">{point.ok ? formatPoint(point.point) : 'Not valid'}</Field>
+        </FieldList>
+      ) : null}
+    </WizardShell>
   );
 }

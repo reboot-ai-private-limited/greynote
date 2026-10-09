@@ -9,13 +9,13 @@ export interface ListDistributorsInput extends PageQuery {
   routeId?: string | undefined;
   hqId?: string | undefined;
   zoneId?: string | undefined;
-  assignedMrId?: string | undefined;
+  assignedUserId?: string | undefined;
   status?: MasterStatus | undefined;
 }
 
 /**
  * Admin: Distributors by Route, or by the HQ / Zone above it (the most specific of those
- * given), resolved to Route ids through Territory since a Distributor stores only its Route.
+ * given), resolved to Route ids through Territory since a Distributor stores only its Routes.
  */
 export class ListDistributorsUseCase {
   constructor(

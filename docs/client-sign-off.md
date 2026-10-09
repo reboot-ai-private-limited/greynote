@@ -49,7 +49,7 @@ applies because the design changed (the decision-log entry says how).
 | # | Question | Today | Status |
 |---|---|---|---|
 | C1 | Confirm one Doctor = one MR at a time; the MR's managers still see the Doctor (§4.5–4.6). | Yes | Designed |
-| C2 | Confirm a Distributor has one assigned MR and one assigned ASM at a time. | Yes (assumed by analogy with C1) | Designed |
+| C2 | Confirm a Distributor has one assigned MR and one assigned ASM at a time. | Yes (assumed by analogy with C1). **Changed 2026-10-09 by the owner:** a Distributor has a list of assigned field employees of any designation, and one or more Routes of one Zone | Built 2026-10-09 |
 | C3 | When an MR's Route changes, does their Doctor visibility change automatically (§17.5)? | **Accepted 2026-09-29:** yes, by default — an MR who loses a Route stops seeing that Route's Doctors (their assignments are hidden, not deleted), and Admin assigns Doctors on the new Route by hand. A Doctor can only be assigned to an MR whose Routes include the Doctor's Route. Managers see their downline's Routes and Doctors. A switch (*config* `DOCTOR_VISIBILITY_FOLLOWS_ROUTE`, default on) turns it off, so an MR keeps their Doctors across a Route change | Accepted 2026-09-29 |
 | C4 | MR-created Doctors need Admin approval before becoming active (§4.2) — confirm, and what fields can the MR fill? | **Approval answered 2026-09-24:** Employee → Manager → Admin. **Fields accepted 2026-09-29:** category, name, address, email, specialty, qualification, the Route (one of the MR's own) and the location, taken from the MR's phone GPS when adding, offline-first. Admin can correct the location while approving. On approval the Doctor is assigned to the MR who added it (*config* `AUTO_ASSIGN_DOCTOR_ON_APPROVAL`, default on); Admin can reassign later | Accepted 2026-09-29 |
 | C5 | GPS validation radius (§5.5). Your document says **100 m**. | **100 m** (*config* `GEO_FENCE_RADIUS_METERS`, changed from a 200 m draft on 2026-09-29) — Admin can change it any time in System Config, no code change | Accepted 2026-09-29 |
@@ -81,7 +81,7 @@ applies because the design changed (the decision-log entry says how).
 | E5 | Distributor Order workflow after "Placed" (§16), and who marks it Done? | Placed → Done / Cancelled, by the MR who placed it (or Admin); built 2026-09-30. **New question E7:** is there a price list, or does the MR enter each unit price? | Built (working assumption) |
 | E7 | Order unit prices: from a price list per Product, or entered by the MR? | Entered by the MR, as whole paise | Open |
 | E8 | What counts toward a Target's "achieved"; can an MR set their own Target? | Non-cancelled orders (placed or done) dated in the month; a campaign Target counts only orders inside the campaign's dates. Only Admin or a manager sets Targets (for themselves and their team) | Built (working assumption, awaiting client) **2026-10-09: the Sales Dashboard instead shows an achievement entered by hand per employee per month, and is also open to managers (their downline) — awaiting client.** |
-| E6 | Distributor payment / collection: from your accounts system, or entered in this app (§16.8–16.9)? | Not decided | Open |
+| E6 | Distributor payment / collection: from your accounts system, or entered in this app (§16.8–16.9)? | **Entered in this app** (2026-10-09, the owner): Admin or Accountant records each payment (date, amount, mode, reference, note) against a distributor; shown with its orders on the distributor page | Built 2026-10-09 |
 
 ## F. Approvals, expenses, leave, HR (Phases 3, 4, 7)
 

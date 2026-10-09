@@ -212,49 +212,41 @@ export interface AdjustSampleDto {
 
 export interface DistributorDto {
   id: string;
-  routeId: string;
+  /** One or more Routes, all in one Zone. */
+  routeIds: string[];
   name: string;
   gstNumber: string;
   contactPerson: string;
   mobile: string;
   address: string;
   location: GeoPoint | null;
-  assignedMrId: string | null;
-  assignedAsmId: string | null;
-  primarySalesEnabled: boolean;
-  secondarySalesEnabled: boolean;
+  /** Field employees (any designation) the Distributor is handed to. */
+  assignedUserIds: string[];
   status: MasterStatus;
 }
-/** `GET /distributors/:id`: the Distributor with its Route's place in the hierarchy (ids only). */
+/** `GET /distributors/:id`: the Distributor with each Route's place in the hierarchy (ids only). */
 export interface DistributorDetailDto extends DistributorDto {
-  path: { routeId: string; routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION'; hqId: string; zoneId: string } | null;
+  paths: Array<{ routeId: string; routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION'; hqId: string; zoneId: string }>;
 }
 export interface CreateDistributorDto {
-  routeId: string;
+  routeIds: string[];
   name: string;
   gstNumber: string;
   contactPerson: string;
   mobile: string;
   address: string;
   location?: GeoPoint | null;
-  assignedMrId?: string | null;
-  assignedAsmId?: string | null;
-  /** No default: whether a Distributor may take primary or secondary orders is Admin's call. */
-  primarySalesEnabled: boolean;
-  secondarySalesEnabled: boolean;
+  assignedUserIds?: string[];
 }
 export interface UpdateDistributorDto {
-  routeId?: string;
+  routeIds?: string[];
   name?: string;
   gstNumber?: string;
   contactPerson?: string;
   mobile?: string;
   address?: string;
   location?: GeoPoint | null;
-  /** `null` un-assigns. */
-  assignedMrId?: string | null;
-  assignedAsmId?: string | null;
-  primarySalesEnabled?: boolean;
-  secondarySalesEnabled?: boolean;
+  /** The whole new list; `[]` un-assigns everyone. */
+  assignedUserIds?: string[];
   status?: MasterStatus;
 }

@@ -20,7 +20,7 @@ export const FIELD_MASTER_DATA_SYNC_SOURCE = 'fieldMasterData';
  * - `doctors` — the MR's own, by the same visibility rule as `GET /doctors/mine`.
  * - `pendingDoctors` — the ones they added that are waiting for approval, so the phone can show them.
  * - `chemists` — active, on the Routes the MR currently has.
- * - `distributors` — active ones the MR is the assigned MR of, or that sit on one of their Routes.
+ * - `distributors` — active ones the MR is assigned to, or that sit on one of their Routes.
  * - `products` — the active catalog.
  * - `sampleAllocations` — what's left to give, for exactly those Doctors.
  *
@@ -67,15 +67,13 @@ export function makeFieldMasterDataSource(deps: {
         chemists: byId(chemists).map((c) => ({ id: c.id, routeId: c.routeId, name: c.name, address: c.address, location: c.location })),
         distributors: byId(distributors).map((d) => ({
           id: d.id,
-          routeId: d.routeId,
+          routeIds: d.routeIds,
           name: d.name,
           gstNumber: d.gstNumber,
           contactPerson: d.contactPerson,
           mobile: d.mobile,
           address: d.address,
           location: d.location,
-          primarySalesEnabled: d.primarySalesEnabled,
-          secondarySalesEnabled: d.secondarySalesEnabled,
         })),
         specialties: specialties.map((s) => s.name),
         products: byId(products).map((p) => ({ id: p.id, name: p.name, sku: p.sku, category: p.category, composition: p.composition, type: p.type, packSize: p.packSize, ptsPaise: p.ptsPaise, ptrPaise: p.ptrPaise, mrpPaise: p.mrpPaise, gstPercent: p.gstPercent, division: p.division })),

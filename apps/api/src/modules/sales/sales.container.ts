@@ -7,11 +7,13 @@ import { makeMonthlyStockSyncHandler } from './application/monthlyStockSync.js';
 import { OutletAccess } from './application/outletAccess.js';
 import { SalesClock } from './application/salesClock.js';
 import { ListMissingStockUseCase, ListMonthlyStockUseCase } from './application/usecases/readMonthlyStock.usecase.js';
+import { CancelPaymentUseCase, ListPaymentsUseCase, RecordPaymentUseCase } from './application/usecases/payments.usecase.js';
 import { RecordMonthlyStockUseCase } from './application/usecases/recordMonthlyStock.usecase.js';
 import { UnlockMonthUseCase } from './application/usecases/unlockMonth.usecase.js';
 import type { FieldMasterDataPort } from './domain/fieldMasterData.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import { MongoOrderAdapter } from './infrastructure/mongoOrder.adapter.js';
+import { MongoPaymentAdapter } from './infrastructure/mongoPayment.adapter.js';
 import { MongoMonthlyStockAdapter } from './infrastructure/mongoMonthlyStock.adapter.js';
 import { makeSalesControllers } from './interface/sales.controller.js';
 import { buildSalesRouter } from './interface/sales.route.js';
@@ -32,6 +34,7 @@ export interface SalesContainer {
 export function buildSalesContainer(users: UserDirectoryPort, master: FieldMasterDataPort, sync: SyncPublicContract, config: ConfigReader): SalesContainer {
   const stock = new MongoMonthlyStockAdapter();
   const orders = new MongoOrderAdapter();
+  const payments = new MongoPaymentAdapter();
   const clock = new SalesClock(config);
 
   const access = new OutletAccess(master);
@@ -69,6 +72,6 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
       const m = month ?? (await clock.previousMonth());
       return { month: m, missing: await missing.execute({ id: 'system', role: 'ADMIN' }, m) };
     },
-    buildRouter: () => buildSalesRouter(makeSalesControllers({ record, list, unlock, missing, place, listOrders: new ListOrdersUseCase(orders, users), getOrder, finish: new FinishOrderUseCase(getOrder, orders, clock) })),
+    buildRouter: () => buildSalesRouter(makeSalesControllers({ record, list, unlock, missing, place, listOrders: new ListOrdersUseCase(orders, users), getOrder, finish: new FinishOrderUseCase(getOrder, orders, clock), recordPayment: new RecordPaymentUseCase(master, payments, clock, config, users), listPayments: new ListPaymentsUseCase(payments, orders, users, master), cancelPayment: new CancelPaymentUseCase(payments, clock, config, users) })),
   };
 }

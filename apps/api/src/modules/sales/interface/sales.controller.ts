@@ -9,8 +9,9 @@ import type { ListMissingStockUseCase, ListMonthlyStockUseCase } from '../applic
 import type { Actor } from '../application/outletAccess.js';
 import type { RecordMonthlyStockUseCase } from '../application/usecases/recordMonthlyStock.usecase.js';
 import type { FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase } from '../application/usecases/orders.usecase.js';
+import type { CancelPaymentUseCase, ListPaymentsUseCase, RecordPaymentUseCase } from '../application/usecases/payments.usecase.js';
 import type { UnlockMonthUseCase } from '../application/usecases/unlockMonth.usecase.js';
-import type { listMonthlyStockQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
+import type { cancelPaymentBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, recordPaymentBodySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -31,7 +32,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'cancelOrder', RequestHandler>;
+export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'cancelPayment', RequestHandler>;
 
 export function makeSalesControllers(u: {
   record: RecordMonthlyStockUseCase;
@@ -42,6 +43,9 @@ export function makeSalesControllers(u: {
   listOrders: ListOrdersUseCase;
   getOrder: GetOrderUseCase;
   finish: FinishOrderUseCase;
+  recordPayment: RecordPaymentUseCase;
+  listPayments: ListPaymentsUseCase;
+  cancelPayment: CancelPaymentUseCase;
 }): SalesHandlers {
   return {
     recordStock: asyncHandler(async (req, res) => {
@@ -71,6 +75,15 @@ export function makeSalesControllers(u: {
       sendSuccess(req, res, await u.listOrders.execute(actorOf(req), { status: q.status, from: q.from, to: q.to, outlet }), 'Orders.', 200);
     }),
     getOrder: asyncHandler(async (req, res) => sendSuccess(req, res, await refusing(() => u.getOrder.execute(actorOf(req), requiredParam(req.params, 'id'))), 'The order.', 200)),
+    recordPayment: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.recordPayment.execute(actorOf(req), req.body as z.output<typeof recordPaymentBodySchema>)), 'The payment was recorded.', 201),
+    ),
+    listPayments: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.listPayments.execute(req.query as unknown as z.output<typeof listPaymentsQuerySchema>)), 'Payments.', 200),
+    ),
+    cancelPayment: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.cancelPayment.execute(actorOf(req), requiredParam(req.params, 'id'), (req.body as z.output<typeof cancelPaymentBodySchema>).reason)), 'The payment was cancelled.', 200),
+    ),
     completeOrder: asyncHandler(async (req, res) => sendSuccess(req, res, await refusing(() => u.finish.execute(actorOf(req), requiredParam(req.params, 'id'), 'DONE')), 'The order is done.', 200)),
     cancelOrder: asyncHandler(async (req, res) => sendSuccess(req, res, await refusing(() => u.finish.execute(actorOf(req), requiredParam(req.params, 'id'), 'CANCELLED')), 'The order was cancelled.', 200)),
   };

@@ -48,7 +48,7 @@ export interface ListDistributorsQuery extends PaginationQueryDto {
   routeId?: string | undefined;
   hqId?: string | undefined;
   zoneId?: string | undefined;
-  assignedMrId?: string | undefined;
+  assignedUserId?: string | undefined;
 }
 
 export const productsApi = {

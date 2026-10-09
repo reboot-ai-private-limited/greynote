@@ -17,14 +17,25 @@ import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDistributors, useUpdateDistributor } from '../hooks/useDistributors';
-import { EmployeeFilter, EmployeeName } from '@/features/people/components/EmployeePickerField';
+import { EmployeeFilter } from '@/features/people/components/EmployeePickerField';
 import { RouteFilter } from './RoutePickerField';
 
 const ANY = 'all';
 
+/** The first two route names and how many more. */
+const routesText = (labels: string[]) =>
+  labels.length <= 2 ? labels.join(', ') : `${labels.slice(0, 2).join(', ')} +${labels.length - 2}`;
+
 export function DistributorsScreen() {
   const router = useRouter();
-  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'routeId', 'hqId', 'zoneId', 'assignedMrId']);
+  const { values, page, pageSize, update } = useFilterParams([
+    'search',
+    'status',
+    'routeId',
+    'hqId',
+    'zoneId',
+    'assignedUserId',
+  ]);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
@@ -39,7 +50,7 @@ export function DistributorsScreen() {
     ...(values.routeId && { routeId: values.routeId }),
     ...(values.hqId && { hqId: values.hqId }),
     ...(values.zoneId && { zoneId: values.zoneId }),
-    ...(values.assignedMrId && { assignedMrId: values.assignedMrId }),
+    ...(values.assignedUserId && { assignedUserId: values.assignedUserId }),
   });
 
   const columns: readonly Column<DistributorDto>[] = [
@@ -48,32 +59,46 @@ export function DistributorsScreen() {
       header: 'Distributor',
       render: (d) => (
         <div>
-          <Link href={`/distributors/${d.id}`} className="font-medium text-text hover:text-accent hover:underline">
+          <Link
+            href={`/distributors/${d.id}`}
+            className="font-medium text-text hover:text-accent hover:underline"
+          >
             {d.name}
           </Link>
           <div className="text-xs text-text-subtle tabular-nums">{d.gstNumber}</div>
         </div>
       ),
     },
-    { key: 'route', header: 'Route', render: (d) => directory.routeLabel(d.routeId) },
-    { key: 'mr', header: 'MR', render: (d) => <EmployeeName userId={d.assignedMrId} /> },
     {
-      key: 'sales',
-      header: 'Takes orders',
+      key: 'route',
+      header: 'Route',
+      render: (d) => routesText(d.routeIds.map((r) => directory.routeLabel(r))),
+    },
+    {
+      key: 'people',
+      header: 'Assigned',
+      numeric: true,
       render: (d) =>
-        d.primarySalesEnabled || d.secondarySalesEnabled
-          ? [d.primarySalesEnabled && 'Primary', d.secondarySalesEnabled && 'Secondary'].filter(Boolean).join(' · ')
-          : <span className="text-text-subtle">None</span>,
+        d.assignedUserIds.length === 0 ? (
+          <span className="text-text-subtle">Nobody</span>
+        ) : (
+          d.assignedUserIds.length
+        ),
     },
     {
       key: 'location',
       header: 'Location',
-      render: (d) => (d.location ? <Badge tone="success">Set</Badge> : <Badge tone="warning">Not set</Badge>),
+      render: (d) =>
+        d.location ? <Badge tone="success">Set</Badge> : <Badge tone="warning">Not set</Badge>,
     },
     {
       key: 'status',
       header: 'Status',
-      render: (d) => <Badge tone={d.status === 'active' ? 'success' : 'neutral'}>{d.status === 'active' ? 'Active' : 'Inactive'}</Badge>,
+      render: (d) => (
+        <Badge tone={d.status === 'active' ? 'success' : 'neutral'}>
+          {d.status === 'active' ? 'Active' : 'Inactive'}
+        </Badge>
+      ),
     },
     {
       key: 'actions',
@@ -94,13 +119,19 @@ export function DistributorsScreen() {
   return (
     <PagedListFrame
       title="Distributors"
-      description="Stockists on a route, with an MR and an ASM assigned. Orders and monthly stock are taken against them."
+      description="Stockists on one or more routes, with any field employees assigned. Orders, payments and monthly stock are kept against them."
       noun="distributor"
       readOnly={readOnly}
       onNew={() => router.push('/distributors/new')}
       filters={
         <>
-          <Input placeholder="Search by name" aria-label="Search distributors" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+          <Input
+            placeholder="Search by name"
+            aria-label="Search distributors"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="max-w-xs"
+          />
           <div className="w-44">
             <Select
               aria-label="Zone"
@@ -118,7 +149,11 @@ export function DistributorsScreen() {
             />
           </div>
           <RouteFilter value={values.routeId} onChange={(v) => update({ routeId: v })} />
-          <EmployeeFilter allLabel="Any MR" value={values.assignedMrId} onChange={(v) => update({ assignedMrId: v })} />
+          <EmployeeFilter
+            allLabel="Anyone assigned"
+            value={values.assignedUserId}
+            onChange={(v) => update({ assignedUserId: v })}
+          />
           <StatusFilter value={values.status} onChange={(v) => update({ status: v })} />
         </>
       }
@@ -134,7 +169,9 @@ export function DistributorsScreen() {
         noun="distributor"
         pending={updateDistributor.isPending}
         onClose={() => setToggling(null)}
-        onConfirm={(status) => toggling && updateDistributor.mutate({ id: toggling.id, body: { status } })}
+        onConfirm={(status) =>
+          toggling && updateDistributor.mutate({ id: toggling.id, body: { status } })
+        }
       />
     </PagedListFrame>
   );

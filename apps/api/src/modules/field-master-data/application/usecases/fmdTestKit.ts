@@ -367,15 +367,15 @@ export class FakeApprovals implements ApprovalsPort {
 export class FakeDistributors implements DistributorRepositoryPort {
   rows: Distributor[] = [];
   async listActiveForUser(userId: string, routeIds: string[]) {
-    return this.rows.filter((d) => d.status === 'active' && (d.assignedMrId === userId || routeIds.includes(d.routeId)));
+    return this.rows.filter((d) => d.status === 'active' && (d.assignedUserIds.includes(userId) || d.routeIds.some((r) => routeIds.includes(r))));
   }
   async list(f: DistributorFilter) {
     const search = f.search?.toLowerCase();
     return paged(
       this.rows.filter(
         (d) =>
-          (!f.routeIds || f.routeIds.includes(d.routeId)) &&
-          (!f.assignedMrId || d.assignedMrId === f.assignedMrId) &&
+          (!f.routeIds || d.routeIds.some((r) => f.routeIds!.includes(r))) &&
+          (!f.assignedUserId || d.assignedUserIds.includes(f.assignedUserId)) &&
           (!f.status || d.status === f.status) &&
           (!search || d.name.toLowerCase().includes(search) || d.gstNumber.toLowerCase().includes(search)),
       ),

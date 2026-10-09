@@ -130,6 +130,11 @@ export const keys = {
     list: (query?: object) => [...keys.chemists.all(), 'list', query ?? {}] as const,
     detail: (id: string) => [...keys.chemists.all(), 'detail', id] as const,
   },
+  distributorPayments: {
+    all: () => ['distributorPayments', fy()] as const,
+    list: (query: object) => [...keys.distributorPayments.all(), 'list', query] as const,
+    orders: (query: object) => [...keys.distributorPayments.all(), 'orders', query] as const,
+  },
   distributors: {
     all: () => ['distributors', fy()] as const,
     list: (query?: object) => [...keys.distributors.all(), 'list', query ?? {}] as const,

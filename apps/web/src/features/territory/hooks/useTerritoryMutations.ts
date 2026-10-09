@@ -1,6 +1,6 @@
 'use client';
 
-import type { TerritoryStatus, UpdateHqDto, UpdateHqResultDto, UpdateZoneDto } from '@greynote/contracts';
+import type { TerritoryStatus, UpdateHqDto, UpdateHqResultDto, UpdateZoneDto, ZoneDto } from '@greynote/contracts';
 import { toast } from '@/components/ui/toast';
 import { hqsApi, zonesApi } from '@/lib/api/endpoints/territory';
 import { useApiMutation } from '@/lib/query/mutation';
@@ -15,8 +15,8 @@ import { describeRecalculation } from '../lib/recalculation';
  */
 const invalidates = () => [keys.zones.all(), keys.hqs.all(), keys.routes.all()];
 
-export function useCreateZone(onDone: () => void) {
-  return useApiMutation<CreateZoneDto>({
+export function useCreateZone(onDone: (zone: ZoneDto) => void) {
+  return useApiMutation<CreateZoneDto, ZoneDto>({
     call: (token, body) => zonesApi.create(token, body),
     invalidates: invalidates(),
     successMessage: 'Zone created.',

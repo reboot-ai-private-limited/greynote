@@ -9,10 +9,13 @@ import { buildZone, changedZoneFields } from '../lib/draft';
 import { FormDialog } from '@/components/ui/FormDialog';
 
 /** Create (no `zone`) or rename (`zone`). Mounted only while open, so its draft is fresh each time. */
-export function ZoneFormDialog({ zone, onClose }: { zone?: ZoneDto | undefined; onClose: () => void }) {
+export function ZoneFormDialog({ zone, onClose, onCreated }: { zone?: ZoneDto | undefined; onClose: () => void; onCreated?: ((zone: ZoneDto) => void) | undefined }) {
   const [name, setName] = useState(zone?.name ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const create = useCreateZone(onClose);
+  const create = useCreateZone((created) => {
+    onCreated?.(created);
+    onClose();
+  });
   const update = useUpdateZone(onClose);
 
   function submit() {

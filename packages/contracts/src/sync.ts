@@ -263,15 +263,13 @@ export interface FieldMasterDataSnapshot {
   chemists: Array<{ id: string; routeId: string; name: string; address: string; location: GeoPoint | null }>;
   distributors: Array<{
     id: string;
-    routeId: string;
+    routeIds: string[];
     name: string;
     gstNumber: string;
     contactPerson: string;
     mobile: string;
     address: string;
     location: GeoPoint | null;
-    primarySalesEnabled: boolean;
-    secondarySalesEnabled: boolean;
   }>;
   products: Array<{
     id: string;

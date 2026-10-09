@@ -1,0 +1,48 @@
+import { Types } from 'mongoose';
+import type { DistributorPayment } from '../domain/payment.entity.js';
+import type { PaymentRepositoryPort } from '../domain/payment.repository.port.js';
+import { PaymentModel, type PaymentDoc } from './payment.schema.js';
+
+const oid = (id: string) => new Types.ObjectId(id);
+
+const toPayment = (d: PaymentDoc & { _id: unknown }): DistributorPayment => ({
+  id: String(d._id),
+  distributorId: String(d.distributorId),
+  paymentDate: d.paymentDate,
+  amountPaise: d.amountPaise,
+  mode: d.mode,
+  reference: d.reference,
+  note: d.note,
+  status: d.status,
+  recordedBy: String(d.recordedBy),
+  createdAt: d.createdAt,
+  cancelledBy: d.cancelledBy ? String(d.cancelledBy) : null,
+  cancelledAt: d.cancelledAt,
+  cancelReason: d.cancelReason,
+});
+
+export class MongoPaymentAdapter implements PaymentRepositoryPort {
+  async create(input: Omit<DistributorPayment, 'id'>): Promise<DistributorPayment> {
+    const doc = await PaymentModel.create({ ...input, distributorId: oid(input.distributorId), recordedBy: oid(input.recordedBy), cancelledBy: null });
+    return toPayment(doc.toObject());
+  }
+
+  async findById(id: string): Promise<DistributorPayment | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
+    const doc = await PaymentModel.findById(id).lean();
+    return doc ? toPayment(doc) : null;
+  }
+
+  async list(filter: { distributorId: string; from: string; to: string }, limit: number): Promise<DistributorPayment[]> {
+    const docs = await PaymentModel.find({ distributorId: oid(filter.distributorId), paymentDate: { $gte: filter.from, $lte: filter.to } })
+      .sort({ paymentDate: -1, _id: -1 })
+      .limit(limit)
+      .lean();
+    return docs.map(toPayment);
+  }
+
+  async cancel(id: string, by: string, at: Date, reason: string): Promise<boolean> {
+    const res = await PaymentModel.updateOne({ _id: oid(id), status: 'RECORDED' }, { $set: { status: 'CANCELLED', cancelledBy: oid(by), cancelledAt: at, cancelReason: reason } });
+    return res.modifiedCount === 1;
+  }
+}

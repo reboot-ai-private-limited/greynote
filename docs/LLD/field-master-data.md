@@ -38,13 +38,13 @@ whole data model. The contract below is complete for Phase 6's needs.
   Inactive Doctors show only to Admin. Checked live: losing a Route hides the Doctor, giving it back
   restores it, and the switch off keeps it.
 - **Distributors (step 5, Admin-only):** on an active Route, with GST number (15-character GSTIN,
-  upper-cased), contact person, mobile, address, an optional map-picked location, and **both sales
-  flags stated explicitly** — there's no default, since whether a Distributor takes primary or
-  secondary orders is the client's call. The assigned MR and ASM (sign-off C2) must be active FIELD
-  employees, or `null`; a person already in place who later goes inactive can stay until Admin
-  moves them. The list filters by `routeId`, or by the `hqId` / `zoneId` above it (the
+  upper-cased), contact person, mobile, address, an optional map-picked location, **one or more Routes
+  that must all be in one Zone** (`ROUTES_IN_DIFFERENT_ZONES` otherwise; a Route already on it that has since
+  gone inactive can stay), and a **list of assigned people** (`assignedUserIds`): active FIELD employees of any
+  designation (decision-log 2026-10-09; the order flags and the one-MR-one-ASM slots are gone). A person already in
+  place who later goes inactive can stay until Admin removes them. The list filters by `routeId`, or by the `hqId` / `zoneId` above it (the
   most specific one given, resolved to Route ids through Territory's `listRouteIdsInScope`), by
-  `assignedMrId`, and by name / GST; the detail adds the Zone → HQ breadcrumb through the Route.
+  `assignedUserId`, and by name / GST; the detail adds the Zone → HQ breadcrumb through the Route.
 - **Sample allocations (step 5):** one row per (Doctor, Product). `POST /doctors/:id/sample-allocations`
   issues samples and **adds** to an existing row (a first-time issue is an atomic upsert, so racing
   issues sum correctly); `PATCH …/:productId` corrects the allocated total but never below what has
@@ -67,9 +67,8 @@ whole data model. The contract below is complete for Phase 6's needs.
 - **Distributor** — attaches at the `route_id` level, same as Doctor/Chemist (client rules
   §17.2). Zone/HQ are resolved through the Route (`TerritoryPublicContract.getRoutePath`),
   never stored. Carries GST number, contact person, mobile, address, a registered
-  `latitude`/`longitude`, single-value `assigned_mr_id`/`assigned_asm_id`, and
-  `primary_sales_enabled`/`secondary_sales_enabled` flags (client Master spec M6). Orders and
-  monthly stock counts against it live in Sales & Orders.
+  `latitude`/`longitude`, a list of `route_ids` (one Zone), and a list of `assigned_user_ids` (any field
+  employees). Orders, payments and monthly stock counts against it live in Sales & Orders.
 - **Product** — the single catalog for both orderable items and sample-eligible items; there is
   no separate sample catalog. `sku` unique.
 - **DoctorSampleAllocation** — Admin issues a `quantity_allocated` of a `Product` to a `Doctor`;
@@ -96,7 +95,7 @@ call, not the full CRUD surface:
 | `listAssignedDoctors(userId)` → `Doctor[]` | Field Activity, Marketing | An MR's "my doctors" list — what a mobile Home-tab screen and a Target scoped to a doctor's assignee both need. |
 | `getSampleAllocation(doctorId, productId)` → `DoctorSampleAllocation \| null` and a paired `decrementRemaining(allocationId, qty)` | Field Activity | The sample-given transaction on a Dr Call reads remaining quantity and decrements it; this module owns the row, Field Activity owns the event that triggers the write. |
 | `getDoctor(id)` / `getChemist(id)` / `getDistributor(id)` / `getProduct(id)` | Sales & Orders, Marketing | Order line items and Visual/Campaign/Target scoping reference these by id; each consumer resolves the reference through the contract rather than reading the collection directly. |
-| `canActOnDistributor(userId, distributorId)` → `boolean` | Sales & Orders | Gates Order/MonthlyStock creation: true if the user is the Distributor's `assigned_mr_id`, or a `RouteAssignment` covers its Route. Manager access is resolved by the caller through the reporting chain, not here. |
+| `canActOnDistributor(userId, distributorId)` → `boolean` | Sales & Orders | Gates Order/MonthlyStock creation: true if the user is in the Distributor's `assigned_user_ids`, or a `RouteAssignment` covers any of its Routes. Manager access is resolved by the caller through the reporting chain, not here. |
 
 Doctor/Chemist/Distributor/Product **CRUD itself is not exposed to other modules** — it's
 Admin-only, reached through this module's own HTTP surface (below), not through the contract.
@@ -116,7 +115,7 @@ Admin-only, reached through this module's own HTTP surface (below), not through 
   index on `doctor_id` where `status = active`, not a read-then-write check, so two concurrent
   Admin reassignments can't both leave an active row. The MR's managers get access through the
   reporting chain, not through extra assignment rows.
-- **Distributor `assigned_mr_id`/`assigned_asm_id` must reference a FIELD-role user**, validated
+- **Every id in a Distributor's `assigned_user_ids` must reference an active FIELD-role user**, validated
   via Identity's `isFieldRole`, same check `RouteAssignment` uses.
 - **`DoctorSampleAllocation` is Admin-issued master data, not something an MR requests or
   creates.** The MR-side "gave 3 units" event lives in Field Activity as a Dr Call field
@@ -150,7 +149,7 @@ All Admin-only (Web Portal, `../roadmap.md` phase 9) unless noted.
 | `POST` | `/field-master-data/chemists` | Admin | Create a Chemist |
 | `GET`/`PATCH` | `/field-master-data/chemists`, `/chemists/:id` | Admin | List/detail/edit |
 | `POST` | `/field-master-data/distributors` | Admin | Create a Distributor on a Route (portal picks Zone → HQ → Route using Territory's filtered list endpoints) |
-| `GET` | `/field-master-data/distributors` | Admin | List, filterable by `routeId`, `hqId`, `zoneId` (upper levels resolved to route ids via Territory), and `assignedMrId` |
+| `GET` | `/field-master-data/distributors` | Admin | List, filterable by `routeId`, `hqId`, `zoneId` (upper levels resolved to route ids via Territory), and `assignedUserId` |
 | `GET`/`PATCH` | `/field-master-data/distributors/:id` | Admin | Detail/edit, including reassigning MR/ASM |
 | `POST` | `/field-master-data/products` | Admin | Create a Product |
 | `GET`/`PATCH` | `/field-master-data/products`, `/products/:id` | Admin | List/detail/edit |
@@ -227,7 +226,7 @@ doesn't re-derive the state machine.
   `null` must mean "geofence check cannot run" to Field Activity, not "check passed" — this
   module's contract should make that distinction unambiguous in its return type rather than
   leaving Field Activity to infer it from a missing field.
-- **A Distributor's `assigned_mr_id` points at an MR who is later deactivated or moved.** Nothing
+- **A Distributor's assigned person is later deactivated or moved.** Nothing
   cascades automatically (same as Identity's `manager_id`); the Distributor stays visible through
   Route coverage and to managers, and Admin reassigns it. A list filter for "Distributors whose
   assigned MR is inactive" is the likely admin tool, not an automatic rewrite.
@@ -296,3 +295,7 @@ it ignored. `migrate:specialties` builds the list from a starter set plus the ex
 
 
 Adding a doctor on the web is three steps (**Details → Location → Review**) in the same shell as the employee wizard (centred card, `Stepper`, Back/Next footer); editing one still shows Details and Location on one page. "Next" checks only that step's fields, and errors show only after Next has been pressed on the step (Next is a submit button, so Enter in a field also means Next); only the review step creates the doctor. Location is optional, and its latitude/longitude fields are behind "Enter coordinates". The responsible MR is chosen on the doctor's page afterwards.
+
+## Distributor and chemist forms (2026-10-09)
+
+Adding a chemist (Details, Location, Review) and a distributor (Details, Coverage, Location, Review) uses the employee wizard's shell (`WizardShell`); Coverage is the zone (with "Add zone"), the routes of that zone, and the assigned people. A distributor's page is tabs: **Details** (the edit form), **Payments** and **Orders** (see LLD sales-and-orders.md, *Distributor payments*). Existing distributors were moved to the new shape by `pnpm --filter @greynote/api migrate:distributors` (dry run, then `-- --apply`).

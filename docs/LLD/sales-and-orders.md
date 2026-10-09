@@ -72,7 +72,7 @@ the contract starts narrow and grows on demand (per
     push arrives.
 - **Who may submit or order for a Distributor:** a user for whom
   `FieldMasterDataPublicContract.canActOnDistributor` is true — the Distributor's
-  `assigned_mr_id`, or an MR whose `RouteAssignment` covers its Route — plus anyone above them in
+  `assigned_user_ids`, or an MR whose `RouteAssignment` covers any of its Routes — plus anyone above them in
   the reporting chain (client `sales.docx` S6: "MR → own Distributor, Manager → team Distributor,
   Admin → all"). Chemist orders use the same Route-coverage rule.
 - **Secondary Sales is never written directly.** It's a derived report:
@@ -162,3 +162,13 @@ location-verified).
   month, a month with no opening count on file) is a reporting-layer concern to nail down when
   the Web Portal's Sales report screen ([`../roadmap.md`](../roadmap.md) phase 9) is actually
   built, not before there's a consumer for it.
+
+## Distributor payments (2026-10-09)
+
+`DistributorPayment { distributor_id, payment_date, amount_paise, mode (CASH, CHEQUE, BANK_TRANSFER, UPI), reference?, note?, status (RECORDED, CANCELLED), recorded_by, cancel reason/by/at }`, entered by **Admin or Accountant** on the web (resolves sign-off E6: entered in this app). Never edited: a wrong entry is cancelled with a reason, once, and stays listed but out of the totals.
+
+- `POST /api/sales/distributor-payments` — the distributor must be active, the date not in the future, and its financial year open (`FY_CLOSED`).
+- `GET /api/sales/distributor-payments?distributorId&from&to` — the range's payments, `collectedPaise` (recorded ones) and `orderedPaise` (the distributor's non-cancelled orders dated in the range), scoped to the financial year in view.
+- `POST /api/sales/distributor-payments/:id/cancel` `{ reason }` — one conditional update; the second cancel is a 409.
+
+Web: the distributor's **Payments** tab (tiles, range filter, table, Record payment, Cancel) and **Orders** tab (its orders in the range). An MR does not record payments from the phone.

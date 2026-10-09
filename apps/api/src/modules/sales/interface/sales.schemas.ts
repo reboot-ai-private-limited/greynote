@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PAYMENT_MODES } from '@greynote/contracts';
 import { paiseSchema } from '@/shared/money/paise.js';
 import { calendarDateSchema } from '@/shared/time/calendarSchemas.js';
 import { ORDER_STATUSES } from '../domain/order.entity.js';
@@ -51,3 +52,16 @@ export const listOrdersQuerySchema = z
   .object({ status: z.enum(ORDER_STATUSES).optional(), from: calendarDateSchema.optional(), to: calendarDateSchema.optional(), outletType: z.enum(OUTLET_TYPES).optional(), outletId: objectIdSchema.optional() })
   .refine((q) => (q.outletType === undefined) === (q.outletId === undefined), { message: 'Give outletType and outletId together.', path: ['outletId'] })
   .refine((q) => !q.from || !q.to || q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] });
+
+export const recordPaymentBodySchema = z.object({
+  distributorId: objectIdSchema,
+  paymentDate: calendarDateSchema,
+  amountPaise: paiseSchema.refine((n) => n > 0, 'A payment must be more than zero.'),
+  mode: z.enum(PAYMENT_MODES),
+  reference: z.string().trim().max(100).nullish().transform((v) => v || null),
+  note: z.string().trim().max(500).nullish().transform((v) => v || null),
+});
+export const listPaymentsQuerySchema = z
+  .object({ distributorId: objectIdSchema, from: calendarDateSchema, to: calendarDateSchema })
+  .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] });
+export const cancelPaymentBodySchema = z.object({ reason: z.string().trim().min(1, 'Say why it is cancelled.').max(300) });
