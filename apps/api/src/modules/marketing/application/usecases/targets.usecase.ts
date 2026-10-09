@@ -1,9 +1,11 @@
 import { daysInMonth, formatCalendarDate, parseCalendarMonth } from '@/shared/time/businessTime.js';
+import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { Paise } from '@/shared/money/paise.js';
-import type { Target, TargetKey } from '../../domain/marketing.entities.js';
-import type { CampaignRepositoryPort, TargetRepositoryPort } from '../../domain/marketing.repository.ports.js';
+import type { Achievement, Target, TargetKey } from '../../domain/marketing.entities.js';
+import type { AchievementRepositoryPort, CampaignRepositoryPort, TargetRepositoryPort } from '../../domain/marketing.repository.ports.js';
 import { MARKETING_CODES, MarketingRefusal } from '../../domain/marketingRefusal.js';
 import type { ProductPort, SalesPort, UserDirectoryPort } from '../../domain/ports.js';
+import { assertMonthInCurrentFinancialYear } from './fyGuard.js';
 import type { Actor } from './visualsAndCampaigns.usecase.js';
 
 export interface TargetScope {
@@ -39,10 +41,12 @@ export class SetTargetUseCase {
     private readonly campaigns: CampaignRepositoryPort,
     private readonly products: ProductPort,
     private readonly users: UserDirectoryPort,
+    private readonly config: ConfigReader,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
   async execute(actor: Actor, input: TargetScope & { userId: string; targetAmountPaise: Paise }): Promise<Target> {
+    await assertMonthInCurrentFinancialYear(this.config, input.month, this.now(), 'A target');
     const subject = await this.users.findUserSummary(input.userId);
     if (!subject || subject.status !== 'active' || subject.role !== 'FIELD') throw new MarketingRefusal(MARKETING_CODES.userNotFound, 'That employee does not exist or cannot be given a target.');
     await assertMayAct(this.users, actor, input.userId, 'set');
@@ -105,5 +109,50 @@ export class GetTargetSummaryUseCase {
     // A campaign that ends before the month starts (or starts after it ends) leaves no days to count.
     const achievedPaise = from > to ? 0 : await this.sales.sumOrderAmount({ userIds: [userId, ...downlineIds], from, to, productId: scope.productId ?? undefined });
     return { userId, ...scope, ownTargetPaise, downlineTargetPaise, downlineCount: downlineIds.length, effectiveTargetPaise: ownTargetPaise + downlineTargetPaise, achievedPaise, period: { from, to } };
+  }
+}
+
+/**
+ * Type in what an employee sold in a month (Sales Dashboard). Admin for anyone; a manager for their downline only — not for themselves, since
+ * nobody marks their own sales. Replaces the month's figure. Same financial-year bound as targets.
+ */
+export class SetAchievementUseCase {
+  constructor(
+    private readonly achievements: AchievementRepositoryPort,
+    private readonly users: UserDirectoryPort,
+    private readonly config: ConfigReader,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
+
+  async execute(actor: Actor, input: { userId: string; month: string; achievedAmountPaise: Paise }): Promise<Achievement> {
+    await assertMonthInCurrentFinancialYear(this.config, input.month, this.now(), 'An achievement');
+    const subject = await this.users.findUserSummary(input.userId);
+    if (!subject || subject.status !== 'active' || subject.role !== 'FIELD') throw new MarketingRefusal(MARKETING_CODES.userNotFound, 'That employee does not exist or cannot be given an achievement.');
+    if (actor.role !== 'ADMIN' && actor.id === input.userId) throw new MarketingRefusal(MARKETING_CODES.notYourTeam, 'You cannot enter your own achievement.');
+    await assertMayAct(this.users, actor, input.userId, 'set');
+    return this.achievements.upsert(input.userId, input.month, input.achievedAmountPaise, actor.id, this.now());
+  }
+}
+
+export interface MonthFigure {
+  userId: string;
+  /** The general monthly target, `null` when none is set. */
+  targetPaise: Paise | null;
+  /** What was typed in as sold, `null` when nothing is entered yet. */
+  achievedPaise: Paise | null;
+}
+
+/** The general target and the entered achievement of each user for a month — the Sales Dashboard's read. Two queries however many users. */
+export class ListMonthFiguresUseCase {
+  constructor(
+    private readonly targets: TargetRepositoryPort,
+    private readonly achievements: AchievementRepositoryPort,
+  ) {}
+
+  async execute(userIds: string[], month: string): Promise<MonthFigure[]> {
+    const [targets, achieved] = await Promise.all([this.targets.listGeneral(userIds, month), this.achievements.listForUsers(userIds, month)]);
+    const t = new Map(targets.map((r) => [r.userId, r.targetAmountPaise]));
+    const a = new Map(achieved.map((r) => [r.userId, r.achievedAmountPaise]));
+    return userIds.map((userId) => ({ userId, targetPaise: t.get(userId) ?? null, achievedPaise: a.get(userId) ?? null }));
   }
 }

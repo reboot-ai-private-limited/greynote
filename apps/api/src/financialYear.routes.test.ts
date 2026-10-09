@@ -52,6 +52,7 @@ const SCOPED = [
   '/api/reports/dcr',
   '/api/reports/dcr/coverage',
   '/api/reports/salary',
+  '/api/reports/sales-dashboard',
   '/api/approvals/inbox',
   '/api/approvals/all',
   '/api/approvals/team',

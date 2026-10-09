@@ -28,9 +28,9 @@ export class GetPlanStatusUseCase {
   }
 
   /** A user's daily plans in a range (both ends inclusive), oldest first, each with its status and working type — a calendar's read. */
-  async days(userId: string, from: string, to: string): Promise<Array<{ date: string; status: PlanApprovalStatus; workingType: WorkingType }>> {
+  async days(userId: string, from: string, to: string): Promise<Array<{ date: string; status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[] }>> {
     const plans = await this.dailyPlans.listForUser(userId, from, to);
-    return Promise.all(plans.map(async (p) => ({ date: p.planDate, status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', p.id)), workingType: p.workingType })));
+    return Promise.all(plans.map(async (p) => ({ date: p.planDate, status: planStatus(await this.approvals.getForRecord('DAILY_PLAN', p.id)), workingType: p.workingType, routeIds: p.routeIds })));
   }
 
   async monthly(userId: string, planMonth: string): Promise<PlanApprovalStatus | null> {

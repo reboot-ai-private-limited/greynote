@@ -85,7 +85,7 @@ export function buildContainers(): AppContainers {
   const attendance = buildAttendanceContainer(identity.contract, hr.contract, planning.contract, fieldActivity.contract, config.contract);
 
   // Tier 6 — Marketing: Visuals, Campaigns and Targets. Reads the downline (Identity), Products (Field Master Data) and order totals (Sales).
-  const marketing = buildMarketingContainer(identity.contract, fieldMasterData.contract, sales.contract);
+  const marketing = buildMarketingContainer(identity.contract, fieldMasterData.contract, sales.contract, config.contract);
 
   // Tier 6 — Payroll: base salary and who is active (Identity), approved unpaid leave (HR), what was paid in the month (Field Activity).
   const payroll = buildPayrollContainer(identity.contract, hr.contract, attendance.contract, config.contract);
@@ -94,7 +94,7 @@ export function buildContainers(): AppContainers {
   hr.bindPayrollLock((userId, month) => payroll.contract.isMonthFinalized(userId, month));
 
   // Tier 7 — Reports: read-only reports for the Admin, over Sales, Field Master Data and Identity. Owns no data.
-  const reports = buildReportsContainer(identity.contract, fieldMasterData.contract, sales.contract, fieldActivity.contract, territory.contract, payroll.contract, config.contract);
+  const reports = buildReportsContainer(identity.contract, fieldMasterData.contract, sales.contract, fieldActivity.contract, territory.contract, payroll.contract, planning.contract, attendance.contract, marketing.contract, config.contract);
 
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.

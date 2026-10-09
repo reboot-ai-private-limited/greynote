@@ -296,3 +296,44 @@ export interface SalaryYearReportDto {
   /** Finalized runs only. */
   totals: SalaryFiguresDto;
 }
+
+/** How many of an employee's working days in the range have a day plan / a daily report, and how many of those are fully approved. */
+export interface SalesDashboardComplianceDto {
+  /** Working days with one that is submitted, manager-approved or approved (a draft, rejected or missing one is not). */
+  submitted: number;
+  /** Working days with one fully approved. */
+  approved: number;
+}
+
+export interface SalesDashboardRowDto {
+  employee: { id: string; name: string; employeeCode: string };
+  designation: string | null;
+  zone: string | null;
+  /** Names of the Routes in the range's day plans, oldest first, each once. */
+  routes: string[];
+  /** Days in the range that were working days for this employee: not before joining, a holiday, a weekly off or leave. */
+  workingDays: number;
+  plan: SalesDashboardComplianceDto;
+  dcr: SalesDashboardComplianceDto;
+  /** Accepted TA and DA claimed in the range, cancelled ones left out. */
+  taPaise: number;
+  daPaise: number;
+  /** For the month of the range's last day: the general monthly target and what was entered as sold; `null` = not set. */
+  targetPaise: number | null;
+  achievedPaise: number | null;
+}
+
+/** `GET /reports/sales-dashboard?from=&to=`: the field force over a range, one page of rows and the totals of all of them. */
+export interface SalesDashboardDto {
+  /** The range actually read: `to` is held to today, since a future day has nothing yet. */
+  from: string;
+  to: string;
+  /** The month the target and achievement columns are for (`YYYY-MM`). */
+  month: string;
+  rows: SalesDashboardRowDto[];
+  totals: { employees: number; taPaise: number; daPaise: number; targetPaise: number; achievedPaise: number };
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}

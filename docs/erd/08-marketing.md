@@ -72,3 +72,7 @@ Target reporting depends on two things this ERD set already models: `User.manage
 ## Status
 
 This is the last of the 8 planned modules — the ERD set is now complete. See `README.md` for the full index. Next: HLD.
+
+## `Achievement` (2026-10-09)
+
+What one field employee sold in one month, **typed in** by Admin or the manager above (decision-log 2026-10-09). Fields: `user_id`, `month` (`YYYY-MM`), `achieved_amount_paise` (≥ 0), `entered_by`, timestamps. Unique on `(user_id, month)`. Only for months of the current financial year. It sits beside the derived "achieved" of the target summary rather than replacing it.

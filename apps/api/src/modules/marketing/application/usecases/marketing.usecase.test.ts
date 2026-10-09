@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { Campaign, Target, TargetKey, Visual } from '../../domain/marketing.entities.js';
-import type { CampaignRepositoryPort, TargetRepositoryPort, VisualRepositoryPort, VisualStoragePort } from '../../domain/marketing.repository.ports.js';
+import type { Achievement, Campaign, Target, TargetKey, Visual } from '../../domain/marketing.entities.js';
+import type { AchievementRepositoryPort, CampaignRepositoryPort, TargetRepositoryPort, VisualRepositoryPort, VisualStoragePort } from '../../domain/marketing.repository.ports.js';
 import { MARKETING_CODES, MarketingRefusal } from '../../domain/marketingRefusal.js';
 import type { DirectoryUser, ProductPort, SalesPort, UserDirectoryPort } from '../../domain/ports.js';
-import { GetTargetSummaryUseCase, SetTargetUseCase } from './targets.usecase.js';
+import { GetTargetSummaryUseCase, ListMonthFiguresUseCase, SetAchievementUseCase, SetTargetUseCase } from './targets.usecase.js';
 import { CreateCampaignUseCase, CreateVisualUseCase, ListCampaignsUseCase, ListVisualsUseCase } from './visualsAndCampaigns.usecase.js';
 
 const k = (t: TargetKey) => `${t.userId}|${t.month}|${t.productId}|${t.campaignId}`;
@@ -18,10 +18,28 @@ class FakeTargets implements TargetRepositoryPort {
   async find(key: TargetKey) {
     return this.rows.get(k(key)) ?? null;
   }
+  async listGeneral(ids: string[], month: string) {
+    return [...this.rows.values()].filter((t) => ids.includes(t.userId) && t.month === month && t.productId === null && t.campaignId === null).map((t) => ({ userId: t.userId, targetAmountPaise: t.targetAmountPaise }));
+  }
   async sum(ids: string[], s: { month: string; productId: string | null; campaignId: string | null }) {
     return [...this.rows.values()].filter((t) => ids.includes(t.userId) && t.month === s.month && t.productId === s.productId && t.campaignId === s.campaignId).reduce((n, t) => n + t.targetAmountPaise, 0);
   }
 }
+class FakeAchievements implements AchievementRepositoryPort {
+  rows = new Map<string, Achievement>();
+  async upsert(userId: string, month: string, amountPaise: number, by: string, at: Date) {
+    const old = this.rows.get(`${userId}|${month}`);
+    const row: Achievement = { id: old?.id ?? `a${this.rows.size + 1}`, userId, month, achievedAmountPaise: amountPaise, enteredBy: by, createdAt: old?.createdAt ?? at, updatedAt: at };
+    this.rows.set(`${userId}|${month}`, row);
+    return row;
+  }
+  async listForUsers(ids: string[], month: string) {
+    return [...this.rows.values()].filter((a) => ids.includes(a.userId) && a.month === month);
+  }
+}
+const config = { async get(key: string) { return ({ FY_START_MONTH: 'APRIL', BUSINESS_TIMEZONE: 'Asia/Kolkata', FY_CLOSED_YEARS: 'NONE' } as Record<string, string>)[key] ?? ''; } };
+const today = () => new Date('2026-10-09T06:00:00Z');
+
 class FakeCampaigns implements CampaignRepositoryPort {
   rows: Campaign[] = [];
   async create(i: Omit<Campaign, 'id'>) {
@@ -104,7 +122,7 @@ describe('targets', () => {
     campaigns = new FakeCampaigns();
     sold = [];
     const sales: SalesPort = { async sumOrderAmount(q) { sold.push(q); return q.userIds.length * 1000; } };
-    set = new SetTargetUseCase(targets, campaigns, products, users);
+    set = new SetTargetUseCase(targets, campaigns, products, users, config, today);
     summary = new GetTargetSummaryUseCase(targets, campaigns, users, sales);
   });
 
@@ -185,6 +203,59 @@ describe('targets', () => {
     expect(await code(summary.execute(f('mr2'), 'mr1', general))).toBe(MARKETING_CODES.notYourTeam);
     expect(await code(summary.execute(f('mr3'), 'mr1', general))).toBe(MARKETING_CODES.notYourTeam);
     expect(await code(summary.execute(admin, 'nobody', general))).toBe(MARKETING_CODES.userNotFound);
+  });
+});
+
+describe('the financial-year bound', () => {
+  const code = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => (e instanceof MarketingRefusal ? e.code : 'OTHER'));
+  const targets = new FakeTargets();
+  const set = new SetTargetUseCase(targets, new FakeCampaigns(), products, users, config, today);
+  const general = { productId: null, campaignId: null };
+
+  it('a target is accepted for any month of the current FY (Apr 2026 – Mar 2027) and refused outside it', async () => {
+    await set.execute(admin, { userId: 'mr1', month: '2026-04', ...general, targetAmountPaise: 1 });
+    await set.execute(admin, { userId: 'mr1', month: '2027-03', ...general, targetAmountPaise: 1 });
+    expect(await code(set.execute(admin, { userId: 'mr1', month: '2026-03', ...general, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.outsideFinancialYear);
+    expect(await code(set.execute(admin, { userId: 'mr1', month: '2027-04', ...general, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.outsideFinancialYear);
+  });
+});
+
+describe('achievements', () => {
+  const code = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => (e instanceof MarketingRefusal ? e.code : 'OTHER'));
+  let achievements: FakeAchievements;
+  let set: SetAchievementUseCase;
+  beforeEach(() => {
+    achievements = new FakeAchievements();
+    set = new SetAchievementUseCase(achievements, users, config, today);
+  });
+
+  it('Admin enters a month’s achievement; entering it again replaces it, and zero is allowed', async () => {
+    await set.execute(admin, { userId: 'mr1', month: '2026-10', achievedAmountPaise: 500 });
+    await set.execute(admin, { userId: 'mr1', month: '2026-10', achievedAmountPaise: 0 });
+    expect(achievements.rows.size).toBe(1);
+    expect([...achievements.rows.values()][0]).toMatchObject({ achievedAmountPaise: 0, enteredBy: 'admin' });
+  });
+
+  it('a manager enters for their downline, never for themselves or outside the team', async () => {
+    await set.execute(f('asm'), { userId: 'mr1', month: '2026-10', achievedAmountPaise: 1 });
+    expect(await code(set.execute(f('asm'), { userId: 'asm', month: '2026-10', achievedAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam);
+    expect(await code(set.execute(f('asm'), { userId: 'mr3', month: '2026-10', achievedAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam);
+    expect(await code(set.execute(f('mr1'), { userId: 'mr1', month: '2026-10', achievedAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam);
+  });
+
+  it('refuses a month outside the current FY and a non-field subject', async () => {
+    expect(await code(set.execute(admin, { userId: 'mr1', month: '2026-03', achievedAmountPaise: 1 }))).toBe(MARKETING_CODES.outsideFinancialYear);
+    expect(await code(set.execute(admin, { userId: 'admin', month: '2026-10', achievedAmountPaise: 1 }))).toBe(MARKETING_CODES.userNotFound);
+  });
+
+  it('the month figures pair each user’s general target with their entered achievement, null where unset', async () => {
+    const targets = new FakeTargets();
+    await new SetTargetUseCase(targets, new FakeCampaigns(), products, users, config, today).execute(admin, { userId: 'mr1', month: '2026-10', productId: null, campaignId: null, targetAmountPaise: 900 });
+    await set.execute(admin, { userId: 'mr2', month: '2026-10', achievedAmountPaise: 300 });
+    expect(await new ListMonthFiguresUseCase(targets, achievements).execute(['mr1', 'mr2'], '2026-10')).toEqual([
+      { userId: 'mr1', targetPaise: 900, achievedPaise: null },
+      { userId: 'mr2', targetPaise: null, achievedPaise: 300 },
+    ]);
   });
 });
 

@@ -17,6 +17,20 @@ old one.
 
 ---
 
+## 2026-10-09 — Sales Dashboard: achievement is typed in, targets and achievements are bound to the current financial year
+
+**Decision:**
+- A new report, **Sales dashboard** (`GET /api/reports/sales-dashboard?from=&to=`; web `/reports/sales-dashboard`), lists **field employees only** (active users with the FIELD role; office staff never appear). Per employee: name, zone, designation, route(s), day plan, DCR, TA, DA, target and achievement. The period is Today, Last 7 days or a custom range of at most 93 days; a range's end is held to today.
+- **Day plan and DCR** are Yes/No for one day. Over several days they show **approved of N and submitted of N**, where N is the employee's **working days** (not before joining, not a holiday, weekly off or approved leave, from Attendance). *Submitted* = SUBMITTED, MANAGER_APPROVED or APPROVED (as sign-off B7); *approved* = APPROVED. **TA and DA** are the sums of accepted, non-cancelled expenses in the range.
+- **Achievement is entered by hand** per employee per month (`Achievement`: unique on user + month, zero allowed), by Admin for anyone or a manager for their downline (not themselves). This **replaces "achieved is derived from orders" (sign-off E8, HLD 08 §3) for the Sales Dashboard**; the target-summary endpoint (`GET /api/marketing/targets/:userId`) still derives its `achievedPaise` from orders, so the two figures can differ until the client decides which one wins.
+- The dashboard's **target** is the existing general `Target` row (no product, no campaign) for the month of the range's last day.
+- **Financial-year bound:** a target or an achievement can be set only for a month of the **current** financial year (`OUTSIDE_FINANCIAL_YEAR` otherwise), and not in a closed year (`FY_CLOSED`). This also applies to the existing `POST /api/marketing/targets`.
+- **Access:** Admin sees every field employee; a manager sees their downline; a field employee with no team is refused. This is the one report that is not Admin-only (it replaces K24 for this report only); the web menu entry is Admin-only for now.
+
+**Replaces:** E8's "achieved is never stored" for this report only; K24's "every report is Admin only" for this one report.
+
+**Needs a migration:** none (a new `achievements` collection; no existing data changes).
+
 ## 2026-10-09 — A CTC is entered with a Basic %, and its breakdown can be shaped per employee
 
 **Decision:**

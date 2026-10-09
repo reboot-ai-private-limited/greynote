@@ -1,4 +1,4 @@
-import type { OrdersReportDto, ReportOrderDetailDto, SalesStatementDto, SalesYearReportDto, StockReportDto, TaDaDaysDto, TaDaYearReportDto, DcrCoverageDto, DcrYearReportDto, SalaryYearReportDto } from '@greynote/contracts';
+import type { OrdersReportDto, ReportOrderDetailDto, SalesStatementDto, SalesYearReportDto, StockReportDto, TaDaDaysDto, TaDaYearReportDto, DcrCoverageDto, DcrYearReportDto, SalaryYearReportDto, SalesDashboardDto } from '@greynote/contracts';
 import { request } from '../client';
 
 export interface OrdersReportQuery {
@@ -9,7 +9,19 @@ export interface OrdersReportQuery {
   mrId?: string | undefined;
 }
 
+export interface SalesDashboardQuery {
+  /** `YYYY-MM-DD`. */
+  from: string;
+  to: string;
+  search?: string | undefined;
+  page: number;
+  pageSize: number;
+}
+
 export const reportsApi = {
+  /** Admin, or a manager over their downline: the field force over a date range, one page of employees plus the totals of all of them. */
+  salesDashboard: (token: string, query: SalesDashboardQuery, signal?: AbortSignal) => request<SalesDashboardDto>('/reports/sales-dashboard', { token, query: { ...query }, signal }),
+
   /** Admin only. A month of orders by order date, with names and totals by status. */
   orders: (token: string, query: OrdersReportQuery, signal?: AbortSignal) => request<OrdersReportDto>('/reports/orders', { token, query: { ...query }, signal }),
   order: (token: string, id: string, signal?: AbortSignal) => request<ReportOrderDetailDto>(`/reports/orders/${id}`, { token, signal }),

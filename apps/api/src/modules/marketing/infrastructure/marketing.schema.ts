@@ -76,3 +76,23 @@ const targetSchema = new Schema<TargetDoc>({
 targetSchema.index({ userId: 1, month: 1, productId: 1, campaignId: 1 }, { unique: true });
 targetSchema.index({ month: 1, productId: 1, campaignId: 1 });
 export const TargetModel = model<TargetDoc>('Target', targetSchema);
+
+export interface AchievementDoc {
+  userId: Types.ObjectId;
+  month: string;
+  achievedAmountPaise: number;
+  enteredBy: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+const achievementSchema = new Schema<AchievementDoc>({
+  userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
+  month: { type: String, required: true, match: /^\d{4}-(0[1-9]|1[0-2])$/ },
+  achievedAmountPaise: { type: Number, required: true, min: 0, validate: { validator: isPaise, message: 'Must be a whole number of paise.' } },
+  enteredBy: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
+  createdAt: { type: Date, required: true },
+  updatedAt: { type: Date, required: true },
+});
+achievementSchema.index({ userId: 1, month: 1 }, { unique: true });
+achievementSchema.index({ month: 1 });
+export const AchievementModel = model<AchievementDoc>('Achievement', achievementSchema);

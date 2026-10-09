@@ -77,6 +77,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Expenses', href: '/expenses', icon: Receipt, group: 'Money', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Expense payouts', href: '/expense-payouts', icon: Coins, group: 'Money', roles: ['ADMIN', 'ACCOUNTANT'] },
 
+  { label: 'Sales dashboard', href: '/reports/sales-dashboard', icon: LayoutDashboard, group: 'Reports', roles: ['ADMIN'] },
   { label: 'Sales report', href: '/reports/sales', icon: BarChart3, group: 'Reports', roles: ['ADMIN'] },
   { label: 'Stock report', href: '/reports/stock', icon: Boxes, group: 'Reports', roles: ['ADMIN'] },
   { label: 'Daily reports', href: '/reports/dcr', icon: ClipboardList, group: 'Reports', roles: ['ADMIN'] },

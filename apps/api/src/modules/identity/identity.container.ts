@@ -347,6 +347,20 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       isBlocked: (userId) => isBlocked.execute(userId),
       blockUser: (userId, reason) => blockUser.execute(userId, reason),
       listActiveFieldUserIds: () => userRepository.listActiveIdsByRole('FIELD'),
+      listFieldEmployees: async (onlyIds) => {
+        const active = await userRepository.listActiveIdsByRole('FIELD');
+        const keep = onlyIds ? new Set(onlyIds) : null;
+        const ids = keep ? active.filter((id) => keep.has(id)) : active;
+        const [users, profiles, designations] = await Promise.all([userRepository.findByIds(ids), employeeProfileRepository.findByUserIds(ids), designationRepository.list()]);
+        const profileOf = new Map(profiles.map((p) => [p.userId, p]));
+        const designationName = new Map(designations.map((d) => [d.id, d.name as string]));
+        return users
+          .map((u) => {
+            const p = profileOf.get(u.id);
+            return { id: u.id, employeeCode: u.employeeCode, name: u.name, designation: (p?.designationId && designationName.get(p.designationId)) || null, hqId: p?.hqId ?? null, zoneId: p?.zoneId ?? null, managerId: p?.managerId ?? null };
+          })
+          .sort((a, b) => a.name.localeCompare(b.name));
+      },
       getLastBlockClearedAt: (userId) => complianceBlockRepository.findLastClearedAt(userId),
       getEmploymentDetails: (userId) => getEmploymentDetails.execute(userId),
       listPayBands: async () => (await listPayBands.execute()).map(({ id, name }) => ({ id, name })),

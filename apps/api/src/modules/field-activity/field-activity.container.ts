@@ -148,6 +148,7 @@ export function buildFieldActivityContainer(
       listReportedDates: (userId, from, to) => listReportedDates.execute(userId, from, to),
       getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),
       summarizeExpenses: (range) => expenses.summarizeByMonth(range),
+      summarizeTaDaByUser: async (range) => (await expenses.statementsForRange(range)).map((s) => ({ userId: s.userId, taPaise: s.paid.taPaise + s.unpaid.taPaise, daPaise: s.paid.daPaise + s.unpaid.daPaise })),
       summarizeDcrs: (range) => summarizeDcrs.execute(range),
       listCalledDoctorIds: (userId, range) => listCalledDoctors.execute(userId, range),
       listAcceptedExpenses: (f) => expenses.listAccepted({ from: f.from, to: f.to, ...(f.userId && { userId: f.userId }) }, f.limit ?? 2000),

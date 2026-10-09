@@ -51,6 +51,32 @@ export interface IdentityPort {
   getUserSummaries(userIds: string[]): Promise<Array<{ id: string; name: string; employeeCode: string }>>;
 }
 
+/** The Sales Dashboard's views of Identity and Field Activity, kept apart so the other reports' fakes stay small. */
+export interface FieldRosterPort {
+  /** Active FIELD employees (never office staff), or only those among `onlyIds`, by name. */
+  listFieldEmployees(onlyIds?: string[]): Promise<Array<{ id: string; employeeCode: string; name: string; designation: string | null; hqId: string | null; zoneId: string | null }>>;
+  /** Everyone below a manager, at any depth. */
+  getDownline(managerId: string): Promise<Array<{ id: string }>>;
+}
+
+export interface FieldDaysPort {
+  summarizeTaDaByUser(range: { from: string; to: string }): Promise<Array<{ userId: string; taPaise: number; daPaise: number }>>;
+  /** This user's reports in the range, each with its status (`DRAFT` until submitted). */
+  getDcrSummary(userId: string, range: { from: string; to: string }): Promise<Array<{ reportDate: string; status: string }>>;
+}
+
+export interface PlanningPort {
+  listDailyPlanDays(userId: string, from: string, to: string): Promise<Array<{ date: string; status: string; routeIds: string[] }>>;
+}
+
+export interface AttendancePort {
+  getMonth(userId: string, month: string): Promise<{ days: Array<{ date: string; status: string }> }>;
+}
+
+export interface MarketingPort {
+  listMonthFigures(userIds: string[], month: string): Promise<Array<{ userId: string; targetPaise: number | null; achievedPaise: number | null }>>;
+}
+
 export interface ExpenseMonthRow {
   userId: string;
   month: string;
@@ -85,6 +111,10 @@ export interface FieldActivityPort {
 
 export interface TerritoryPort {
   getRoute(routeId: string): Promise<{ id: string; name: string } | null>;
+}
+
+export interface ZoneNamePort {
+  getZone(zoneId: string): Promise<{ id: string; name: string } | null>;
 }
 
 export interface DcrMonthRow {

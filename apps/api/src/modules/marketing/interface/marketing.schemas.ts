@@ -34,4 +34,9 @@ export const setTargetBodySchema = z.object({
   campaignId: objectIdSchema.nullish().transform((v) => v ?? null),
   targetAmountPaise: paiseSchema.refine((n) => n > 0, 'A target must be more than zero.'),
 });
+export const setAchievementBodySchema = z.object({
+  userId: objectIdSchema,
+  month: calendarMonthSchema,
+  achievedAmountPaise: paiseSchema,
+});
 export const targetQuerySchema = z.object({ month: calendarMonthSchema, productId: objectIdSchema.optional(), campaignId: objectIdSchema.optional() });

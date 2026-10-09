@@ -10,6 +10,17 @@ export type { CtcAssignment } from './domain/ctcAssignment.entity.js';
 export type { DownlineMember } from './application/usecases/getDownline.usecase.js';
 export type { EmploymentDetails } from './application/usecases/getEmploymentDetails.usecase.js';
 
+/** An active field employee as the Sales Dashboard lists them: designation name and the HQ and Zone copied onto the profile. */
+export interface FieldEmployeeRow {
+  id: string;
+  employeeCode: string;
+  name: string;
+  designation: string | null;
+  hqId: string | null;
+  zoneId: string | null;
+  managerId: string | null;
+}
+
 /** The only thing another module may import from `identity/`. */
 export interface IdentityPublicContract {
   login(input: LoginInput): Promise<LoginOutput>;
@@ -37,6 +48,8 @@ export interface IdentityPublicContract {
   blockUser(userId: string, reason: string): Promise<boolean>;
   /** Every active FIELD employee's id — who the missed-DCR job checks. */
   listActiveFieldUserIds(): Promise<string[]>;
+  /** Every active FIELD employee (never office staff), or only those among `onlyIds`, by name — a dashboard's rows. */
+  listFieldEmployees(onlyIds?: string[]): Promise<FieldEmployeeRow[]>;
   /** When an Admin last cleared a compliance block on this user, or `null` if none ever was. The missed-DCR job counts only days after it. */
   getLastBlockClearedAt(userId: string): Promise<Date | null>;
   /** Pay Band and joining date (FIELD only); `null` without an EmployeeProfile. */

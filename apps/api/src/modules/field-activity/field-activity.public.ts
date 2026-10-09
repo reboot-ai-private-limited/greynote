@@ -30,6 +30,8 @@ export interface FieldActivityPublicContract {
   getPaidTaDaTotal(userId: string, month: string): Promise<{ taPaise: number; daPaise: number; reimbursementPaise: number }>;
   /** The accepted expenses by employee and report month over a date range (both ends inclusive): TA, DA, manual claims, paid and unpaid — the TA/DA report's input. */
   summarizeExpenses(range: { from: string; to: string }): Promise<ExpenseMonthSummary[]>;
+  /** The accepted TA and DA of each employee over a date range (both ends inclusive), paid and unpaid together, cancelled left out — the Sales Dashboard's TA and DA columns. */
+  summarizeTaDaByUser(range: { from: string; to: string }): Promise<Array<{ userId: string; taPaise: number; daPaise: number }>>;
   /** The accepted expense rows in a date range, oldest day first, at most `limit` (default 2000); optionally one employee's — the report's day-by-day drill-down. */
   listAcceptedExpenses(filter: { from: string; to: string; userId?: string; limit?: number }): Promise<Expense[]>;
   /** Every employee's reported days, calls, follow-ups, geofence results and late submissions by month over a date range — the DCR report's input. */

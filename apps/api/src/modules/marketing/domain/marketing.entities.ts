@@ -58,3 +58,18 @@ export interface TargetKey {
   productId: string | null;
   campaignId: string | null;
 }
+
+/**
+ * What one field employee actually sold in a month, typed in by an Admin or the manager above (decision-log 2026-10-09, which replaces the
+ * derived-only rule of sign-off E8 for the Sales Dashboard). One per (user, month); setting it again replaces the amount. Zero is a real figure.
+ */
+export interface Achievement {
+  id: string;
+  userId: string;
+  month: string;
+  achievedAmountPaise: Paise;
+  /** Whoever set it last. */
+  enteredBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}

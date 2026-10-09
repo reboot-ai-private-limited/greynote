@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { calendarDateSchema } from '@/shared/time/calendarSchemas.js';
 
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
 
@@ -19,3 +20,13 @@ export const taDaDaysQuerySchema = z.object({ userId: objectId, month: monthSche
 export const dcrYearQuerySchema = z.object({ year: z.coerce.number().int().min(2000).max(2100) });
 export const dcrCoverageQuerySchema = z.object({ userId: objectId, month: monthSchema });
 export const salaryYearQuerySchema = z.object({ year: z.coerce.number().int().min(2000).max(2100) });
+
+export const salesDashboardQuerySchema = z
+  .object({
+    from: calendarDateSchema,
+    to: calendarDateSchema,
+    search: z.string().trim().min(1).optional(),
+    page: z.coerce.number().int().positive().default(1),
+    pageSize: z.coerce.number().int().positive().max(100).default(25),
+  })
+  .refine((q) => q.from <= q.to, { message: 'The range ends before it starts.', path: ['to'] });

@@ -137,3 +137,7 @@ rollup, and editing a Campaign's name or dates (status only, as specified).
   hatch from HLD 8 is not built unless load actually demands it.
 - Any notion of a Target "status" (met/missed) beyond rendering `effective_target` alongside
   `achieved_amount` — PRD doesn't ask for a stored verdict, only the two numbers.
+
+## Achievement (2026-10-09)
+
+`Achievement { userId, month, achievedAmountPaise, enteredBy, createdAt, updatedAt }`, unique on `(userId, month)`; zero is a real figure. `POST /api/marketing/achievements` `{ userId, month, achievedAmountPaise }` — Admin for any active FIELD employee, a manager for their downline (not themselves); replaces the month's figure. Marketing's contract adds `listMonthFigures(userIds, month)` (the general target and the entered achievement of each user, `null` where unset), which the Sales Dashboard reads. **Both targets and achievements are refused for a month outside the current financial year** (`OUTSIDE_FINANCIAL_YEAR`) or in a closed one (`FY_CLOSED`). The target summary's derived `achievedPaise` is unchanged (decision-log 2026-10-09).

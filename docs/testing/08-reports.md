@@ -10,3 +10,7 @@
 | 8.06 | Each report: Download CSV | opens and matches | |
 | 8.07 | Change financial year | every report follows; a month outside the year is refused | |
 | 8.08 | As HR / Accountant | no Reports in the menu, direct address refused | |
+| 8.09 | Sales dashboard: Today, Last 7 days, Custom | field employees only (no HR/Accountant/Admin users); plan and DCR show Yes/No for a day, "x/N approved · y/N submitted" for several | |
+| 8.10 | Sales dashboard: a holiday or leave day in the range | N (working days) does not count it | |
+| 8.11 | Sales dashboard: Set a target and an achievement for this month | row updates; a month outside the current financial year is refused; both fields empty is refused | |
+| 8.12 | Sales dashboard in a past financial year | Set is disabled | |

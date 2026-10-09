@@ -34,3 +34,7 @@ The `achieved_amount` side of the equation was already decided in the ERD (Modul
 ## Next
 
 This is HLD topic 8. See `README.md` for the index.
+
+## 4. Sales Dashboard exception (2026-10-09)
+
+The Sales Dashboard shows an **entered** achievement per employee per month (`Achievement`), not the derived figure of §3; the rollup above is unchanged and still derived. See decision-log 2026-10-09.

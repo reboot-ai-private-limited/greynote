@@ -22,8 +22,8 @@ export interface PlanningPublicContract {
    * Read at the DCR's approval, so an approved in-day change is already in it.
    */
   getDailyPlanDay(userId: string, planDate: string): Promise<{ status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[] } | null>;
-  /** The user's daily plans in a date range (both ends inclusive), oldest first, each with its status and working type. */
-  listDailyPlanDays(userId: string, from: string, to: string): Promise<Array<{ date: string; status: PlanApprovalStatus; workingType: WorkingType }>>;
+  /** The user's daily plans in a date range (both ends inclusive), oldest first, each with its status, working type and Route ids. */
+  listDailyPlanDays(userId: string, from: string, to: string): Promise<Array<{ date: string; status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[] }>>;
   /** `null` when there's no Plan for that month at all. */
   getMonthlyPlanStatus(userId: string, planMonth: string): Promise<PlanApprovalStatus | null>;
 }

@@ -61,6 +61,8 @@ describe('role-by-route matrix', () => {
   it('keeps every report and the Orders list to Admin only', () => {
     const lines = actual.split('\n').filter((l) => /\/api\/reports\//.test(l));
     expect(lines.length).toBeGreaterThan(8);
-    for (const l of lines) expect(l.endsWith('  ADMIN'), l).toBe(true);
+    // The Sales Dashboard is the one exception: a manager reads it too, and the report limits them to their downline.
+    for (const l of lines.filter((x) => !x.includes('/api/reports/sales-dashboard'))) expect(l.endsWith('  ADMIN'), l).toBe(true);
+    expect(lines.some((l) => l.endsWith('/api/reports/sales-dashboard  ADMIN,FIELD'))).toBe(true);
   });
 });
