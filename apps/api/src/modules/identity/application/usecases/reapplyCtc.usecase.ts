@@ -1,4 +1,4 @@
-import { computeCtcBreakdown } from '../../domain/ctcBreakdown.js';
+import { computeStructuredBreakdown } from '../../domain/ctcBreakdown.js';
 import type { CtcAssignmentRepositoryPort } from '../../domain/ctcAssignment.repository.port.js';
 import type { PayComponentRepositoryPort } from '../../domain/payComponent.repository.port.js';
 
@@ -10,7 +10,7 @@ const FAR_FUTURE = '9999-12';
 
 /**
  * After Admin changes the formula, saves a fresh revision for each employee from `effectiveFrom`: same CTC, same HR
- * overrides, current formula. Each employee is independent — one whose overrides no longer fit is skipped with a reason,
+ * overrides and own structure (Basic %, edited, removed and added lines), current formula. Each employee is independent — one whose overrides no longer fit is skipped with a reason,
  * never failing the rest.
  */
 export class ReapplyCtcUseCase {
@@ -30,12 +30,18 @@ export class ReapplyCtcUseCase {
         continue;
       }
       try {
-        const lines = computeCtcBreakdown(formula, latest.ctcAnnualPaise, latest.overrides);
+        const lines = computeStructuredBreakdown(
+          formula,
+          latest.ctcAnnualPaise,
+          latest.structure,
+          latest.overrides,
+        );
         const created = await this.assignments.create({
           userId,
           ctcAnnualPaise: latest.ctcAnnualPaise,
           effectiveFrom: input.effectiveFrom,
           overrides: latest.overrides,
+          structure: latest.structure,
           lines,
           reason: input.reason ?? 'Formula re-applied',
           createdBy,

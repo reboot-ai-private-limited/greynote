@@ -185,3 +185,75 @@ describe('re-applying the formula', () => {
     expect(out.map((o) => o.outcome).sort()).toEqual(['revised', 'skipped']);
   });
 });
+
+describe("an employee's own structure", () => {
+  const own = {
+    basicBasisPoints: 4000,
+    ruleOverrides: {
+      FDA: { type: 'PERCENT_OF_COMPONENTS' as const, basisPoints: 1400, of: ['BASIC'] },
+    },
+    removed: ['MEDICAL'],
+    extras: [
+      {
+        code: 'CONVEYANCE',
+        name: 'Conveyance',
+        kind: 'EARNING' as const,
+        rule: { type: 'FIXED' as const, amountPaise: 9_600 * RUPEE },
+      },
+    ],
+  };
+
+  it('previews the shaped breakdown, which still adds up to the CTC', async () => {
+    const { componentRepo } = await seeded();
+    const p = await new PreviewCtcUseCase(componentRepo as never).execute(CTC, {}, own);
+    expect(p.lines.find((l) => l.code === 'BASIC')!.amountPaise).toBe(57_600 * RUPEE);
+    expect(p.lines.find((l) => l.code === 'FDA')!.amountPaise).toBe(8_064 * RUPEE);
+    expect(p.lines.find((l) => l.code === 'MEDICAL')).toBeUndefined();
+    expect(p.lines.reduce((s, l) => s + l.amountPaise, 0)).toBe(CTC);
+  });
+
+  it('refuses removing Basic as a 400', async () => {
+    const { componentRepo } = await seeded();
+    await expect(
+      new PreviewCtcUseCase(componentRepo as never).execute(
+        CTC,
+        {},
+        { ...own, removed: ['BASIC'] },
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('saves the structure with the revision, and re-apply keeps it while the org formula moves on', async () => {
+    const { assign, saved, components, componentRepo, assignmentRepo } = await seeded();
+    await assign.execute(
+      'field1',
+      { ctcAnnualPaise: CTC, effectiveFrom: '2026-04', structure: own },
+      'hr1',
+    );
+    expect(saved[0]!.structure).toEqual(own);
+
+    // Admin raises the org's FDA to 12% of Basic: this employee's own 14% and 40% Basic stay.
+    await new UpdatePayComponentUseCase(componentRepo as never).execute(
+      components.find((c) => c.code === 'FDA')!.id,
+      { rule: { type: 'PERCENT_OF_COMPONENTS', basisPoints: 1200, of: ['BASIC'] } },
+    );
+    await new ReapplyCtcUseCase(componentRepo as never, assignmentRepo as never).execute(
+      { effectiveFrom: '2026-11' },
+      'hr1',
+    );
+    const revised = saved[1]!;
+    expect(revised.structure).toEqual(own);
+    expect(revised.lines.find((l) => l.code === 'FDA')!.amountPaise).toBe(8_064 * RUPEE);
+    expect(revised.lines.find((l) => l.code === 'CONVEYANCE')!.amountPaise).toBe(9_600 * RUPEE);
+  });
+
+  it('a revision with no structure reads as the org formula', async () => {
+    const { assign } = await seeded();
+    const a = await assign.execute(
+      'field1',
+      { ctcAnnualPaise: CTC, effectiveFrom: '2026-10' },
+      'hr1',
+    );
+    expect(a.structure).toEqual({ ruleOverrides: {}, removed: [], extras: [] });
+  });
+});

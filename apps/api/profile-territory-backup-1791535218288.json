@@ -1,0 +1,20 @@
+[
+  {
+    "userId": "6ac623209b35eb37c30eae7d",
+    "hqId": "6ac0f5aaf127c58e74ff66e8",
+    "zoneId": "6ac0f44ef127c58e74ff66b4",
+    "before": {
+      "hqId": null,
+      "zoneId": null
+    }
+  },
+  {
+    "userId": "6ac8a06a000d229035181d30",
+    "hqId": "6ac0f58df127c58e74ff66e0",
+    "zoneId": "6ac0f44ef127c58e74ff66b4",
+    "before": {
+      "hqId": null,
+      "zoneId": null
+    }
+  }
+]

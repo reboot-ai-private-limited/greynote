@@ -1,4 +1,4 @@
-import { computeCtcBreakdown, grossAnnualPaise, monthlyPaise, type CtcLine } from '../../domain/ctcBreakdown.js';
+import { computeStructuredBreakdown, EMPTY_STRUCTURE, grossAnnualPaise, monthlyPaise, type CtcLine, type CtcStructure } from '../../domain/ctcBreakdown.js';
 import type { PayComponentRepositoryPort } from '../../domain/payComponent.repository.port.js';
 import { asBadRequest } from './payComponentFormula.js';
 
@@ -14,9 +14,9 @@ export interface CtcPreview {
 export class PreviewCtcUseCase {
   constructor(private readonly components: PayComponentRepositoryPort) {}
 
-  async execute(ctcAnnualPaise: number, overrides: Record<string, number> = {}): Promise<CtcPreview> {
+  async execute(ctcAnnualPaise: number, overrides: Record<string, number> = {}, structure: CtcStructure = EMPTY_STRUCTURE): Promise<CtcPreview> {
     const formula = await this.components.list();
-    const lines = asBadRequest(() => computeCtcBreakdown(formula, ctcAnnualPaise, overrides));
+    const lines = asBadRequest(() => computeStructuredBreakdown(formula, ctcAnnualPaise, structure, overrides));
     const gross = grossAnnualPaise(lines);
     return { ctcAnnualPaise, lines, grossAnnualPaise: gross, grossMonthlyPaise: monthlyPaise(gross) };
   }

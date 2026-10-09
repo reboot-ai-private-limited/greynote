@@ -9,7 +9,7 @@ import type {
   PromotionTeamRowDto,
 } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
-import { CtcBreakdownError, computeCtcBreakdown, type CtcLine } from '../../domain/ctcBreakdown.js';
+import { CtcBreakdownError, EMPTY_STRUCTURE, computeStructuredBreakdown, type CtcLine } from '../../domain/ctcBreakdown.js';
 import type { CtcAssignmentRepositoryPort } from '../../domain/ctcAssignment.repository.port.js';
 import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
 import type { Designation } from '../../domain/designation.entity.js';
@@ -159,7 +159,7 @@ export class PromotionPlanner {
       const previous = await d.assignments.findEffective(userId, FAR_FUTURE);
       let breakdownError: string | null = null;
       try {
-        lines = computeCtcBreakdown(await d.components.list(), request.ctc.ctcAnnualPaise, request.ctc.overrides ?? {});
+        lines = computeStructuredBreakdown(await d.components.list(), request.ctc.ctcAnnualPaise, previous?.structure ?? EMPTY_STRUCTURE, request.ctc.overrides ?? {});
       } catch (error) {
         if (!(error instanceof CtcBreakdownError)) throw error;
         breakdownError = error.message;

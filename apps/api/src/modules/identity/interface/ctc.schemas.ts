@@ -25,14 +25,28 @@ export const createPayComponentBodySchema = z.object({
 export const updatePayComponentBodySchema = createPayComponentBodySchema.omit({ code: true }).partial();
 
 const overridesSchema = z.record(z.string().min(1), paiseSchema);
+
+const componentCode = z.string().regex(/^[A-Z][A-Z0-9_]{1,23}$/, 'Use capitals, digits and underscores, e.g. CONVEYANCE.');
+
+/** One employee's own shape of the org formula (decision-log 2026-10-09). The domain checks what may be removed or re-ruled. */
+export const ctcStructureSchema = z.object({
+  basicBasisPoints: z.number().int().min(0).max(10_000).optional(),
+  ruleOverrides: z.record(z.string().min(1), payComponentRuleSchema).default({}),
+  removed: z.array(z.string().min(1)).max(50).default([]),
+  extras: z
+    .array(z.object({ code: componentCode, name: z.string().trim().min(1).max(60), kind: kindSchema, rule: payComponentRuleSchema }))
+    .max(30)
+    .default([]),
+});
 const ctcAmountSchema = paiseSchema.refine((v) => v > 0, 'CTC must be more than zero.');
 
-export const previewCtcBodySchema = z.object({ ctcAnnualPaise: ctcAmountSchema, overrides: overridesSchema.optional() });
+export const previewCtcBodySchema = z.object({ ctcAnnualPaise: ctcAmountSchema, overrides: overridesSchema.optional(), structure: ctcStructureSchema.optional() });
 
 export const assignCtcBodySchema = z.object({
   ctcAnnualPaise: ctcAmountSchema,
   effectiveFrom: calendarMonthSchema,
   overrides: overridesSchema.optional(),
+  structure: ctcStructureSchema.optional(),
   reason: z.string().trim().max(200).nullish(),
 });
 

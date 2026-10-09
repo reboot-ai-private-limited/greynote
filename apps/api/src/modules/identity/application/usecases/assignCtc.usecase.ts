@@ -1,5 +1,9 @@
 import { AppError } from '@/shared/errors/AppError.js';
-import { computeCtcBreakdown } from '../../domain/ctcBreakdown.js';
+import {
+  computeStructuredBreakdown,
+  EMPTY_STRUCTURE,
+  type CtcStructure,
+} from '../../domain/ctcBreakdown.js';
 import { ctcJumpWarning } from '../../domain/ctcJump.js';
 import type { CtcAssignment } from '../../domain/ctcAssignment.entity.js';
 import type { CtcAssignmentRepositoryPort } from '../../domain/ctcAssignment.repository.port.js';
@@ -14,6 +18,8 @@ export interface AssignCtcInput {
   /** `YYYY-MM` — the first payroll month it applies to. */
   effectiveFrom: string;
   overrides?: Record<string, number>;
+  /** This employee's own shape of the org formula: Basic %, edited, removed and added lines. */
+  structure?: CtcStructure;
   reason?: string | null;
 }
 
@@ -42,7 +48,10 @@ export class AssignCtcUseCase {
 
     const overrides = input.overrides ?? {};
     const formula = await this.components.list();
-    const lines = asBadRequest(() => computeCtcBreakdown(formula, input.ctcAnnualPaise, overrides));
+    const structure = input.structure ?? EMPTY_STRUCTURE;
+    const lines = asBadRequest(() =>
+      computeStructuredBreakdown(formula, input.ctcAnnualPaise, structure, overrides),
+    );
     const previous = await this.assignments.findEffective(userId, FAR_FUTURE);
     const warning = ctcJumpWarning(previous?.ctcAnnualPaise ?? null, input.ctcAnnualPaise, Number(await this.config.get('CTC_JUMP_WARN_PERCENT')));
     const assignment = await this.assignments.create({
@@ -50,6 +59,7 @@ export class AssignCtcUseCase {
       ctcAnnualPaise: input.ctcAnnualPaise,
       effectiveFrom: input.effectiveFrom,
       overrides,
+      structure,
       lines,
       reason: input.reason ?? null,
       createdBy,

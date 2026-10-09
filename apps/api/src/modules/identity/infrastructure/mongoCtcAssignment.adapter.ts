@@ -1,7 +1,19 @@
 import { Types } from 'mongoose';
 import type { CtcAssignment } from '../domain/ctcAssignment.entity.js';
+import { EMPTY_STRUCTURE, type CtcStructure } from '../domain/ctcBreakdown.js';
 import type { CtcAssignmentRepositoryPort } from '../domain/ctcAssignment.repository.port.js';
 import { CtcAssignmentModel, type CtcAssignmentDocument } from './ctcAssignment.schema.js';
+
+/** Older revisions carry no structure: they read as the org formula. */
+function toStructure(raw: unknown): CtcStructure {
+  const s = (raw ?? {}) as Partial<CtcStructure>;
+  return {
+    ...(s.basicBasisPoints !== undefined && { basicBasisPoints: s.basicBasisPoints }),
+    ruleOverrides: s.ruleOverrides ?? EMPTY_STRUCTURE.ruleOverrides,
+    removed: s.removed ?? [],
+    extras: s.extras ?? [],
+  };
+}
 
 function toAssignment(doc: CtcAssignmentDocument & { _id: unknown }): CtcAssignment {
   return {
@@ -10,6 +22,7 @@ function toAssignment(doc: CtcAssignmentDocument & { _id: unknown }): CtcAssignm
     ctcAnnualPaise: doc.ctcAnnualPaise,
     effectiveFrom: doc.effectiveFrom,
     overrides: doc.overrides ?? {},
+    structure: toStructure(doc.structure),
     lines: doc.lines.map((l) => ({ code: l.code, name: l.name, kind: l.kind, amountPaise: l.amountPaise, isOverridden: l.isOverridden })),
     reason: doc.reason,
     createdBy: String(doc.createdBy),

@@ -287,8 +287,22 @@ export interface CtcLineDto {
 }
 
 /** `POST /identity/ctc/preview` — the breakdown worked out, nothing saved. */
+/**
+ * How one employee's CTC breakdown differs from the org's pay components: their own Basic %, a changed rule for a line,
+ * lines left out, lines added. Basic and the balancer (the rest of the CTC) can be neither removed nor re-ruled.
+ */
+export interface CtcStructureDto {
+  /** Basic as a share of CTC in basis points (40% = 4000); between 3000 and 6000. The org's own when absent. */
+  basicBasisPoints?: number;
+  ruleOverrides: Record<string, PayComponentRuleDto>;
+  /** Codes of org components not used for this employee. */
+  removed: string[];
+  extras: Array<{ code: string; name: string; kind: PayComponentKind; rule: PayComponentRuleDto }>;
+}
+
 export interface PreviewCtcDto {
   ctcAnnualPaise: number;
+  structure?: CtcStructureDto;
   /** Component code → annual paise, for lines HR is overriding. */
   overrides?: Record<string, number>;
 }
@@ -308,6 +322,8 @@ export interface CtcAssignmentDto {
   /** `YYYY-MM`, the first payroll month it applies to. */
   effectiveFrom: string;
   overrides: Record<string, number>;
+  /** Empty for revisions saved before 2026-10-09: they read as the org formula. */
+  structure: CtcStructureDto;
   lines: CtcLineDto[];
   reason: string | null;
   createdBy: string;
@@ -319,6 +335,7 @@ export interface AssignCtcResultDto extends CtcAssignmentDto {
 }
 export interface AssignCtcDto {
   ctcAnnualPaise: number;
+  structure?: CtcStructureDto;
   effectiveFrom: string;
   overrides?: Record<string, number>;
   reason?: string | null;

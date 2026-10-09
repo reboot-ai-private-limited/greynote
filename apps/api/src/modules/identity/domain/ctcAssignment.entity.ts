@@ -1,4 +1,4 @@
-import type { CtcLine } from './ctcBreakdown.js';
+import type { CtcLine, CtcStructure } from './ctcBreakdown.js';
 
 /**
  * One revision of a FIELD employee's CTC. Append-only: a change of package is a new revision with a later (or the
@@ -13,6 +13,8 @@ export interface CtcAssignment {
   effectiveFrom: string;
   /** Per-employee line amounts HR typed (component code → annual paise); kept so a re-apply can preserve them. */
   overrides: Record<string, number>;
+  /** How this employee's breakdown differs from the org formula (their Basic %, edited, removed and added lines). Empty for older revisions. */
+  structure: CtcStructure;
   lines: CtcLine[];
   reason: string | null;
   createdBy: string;

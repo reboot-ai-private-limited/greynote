@@ -6,6 +6,7 @@ export interface CtcAssignmentDocument {
   ctcAnnualPaise: number;
   effectiveFrom: string;
   overrides: Record<string, number>;
+  structure?: unknown;
   lines: Array<{ code: string; name: string; kind: PayComponentKind; amountPaise: number; isOverridden: boolean }>;
   reason: string | null;
   createdBy: Types.ObjectId;
@@ -29,6 +30,7 @@ const ctcAssignmentSchema = new Schema<CtcAssignmentDocument>(
     ctcAnnualPaise: { type: Number, required: true },
     effectiveFrom: { type: String, required: true },
     overrides: { type: Schema.Types.Mixed, required: true, default: {} },
+    structure: { type: Schema.Types.Mixed, default: null },
     lines: { type: [lineSchema], required: true },
     reason: { type: String, default: null },
     createdBy: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
