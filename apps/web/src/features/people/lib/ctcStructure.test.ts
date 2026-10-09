@@ -7,6 +7,7 @@ import {
   buildPreview,
   buildStructure,
   codeFromName,
+  ctcTotals,
   dependentsOf,
   draftToRule,
   editorRows,
@@ -285,5 +286,17 @@ describe('the CTC form', () => {
           codes,
         ),
       ).toMatchObject({ ok: true });
+  });
+});
+
+describe('ctcTotals', () => {
+  it('splits what the employee is paid from what the employer puts in, and adds them to the CTC', () => {
+    const t = ctcTotals([
+      { kind: 'EARNING', amountPaise: 10_000_000 },
+      { kind: 'EARNING', amountPaise: 3_000_000 },
+      { kind: 'EMPLOYER_CONTRIBUTION', amountPaise: 1_400_000 },
+    ]);
+    expect(t).toEqual({ paidPaise: 13_000_000, employerPaise: 1_400_000, totalPaise: 14_400_000 });
+    expect(ctcTotals([])).toEqual({ paidPaise: 0, employerPaise: 0, totalPaise: 0 });
   });
 });

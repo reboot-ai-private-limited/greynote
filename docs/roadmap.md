@@ -834,3 +834,5 @@ Built, not browser-checked: the eight-step new-employee wizard with drafts, `GRN
 **Flat tables (2026-10-09):** all list tables, report tables and tab tables are flat and full width with a page-size select and an entries footer (decision-log 2026-10-09). Not yet checked at phone width; Promotion team table, the payroll calendar grid and chart cards keep their old look.
 
 **CTC with Basic % and per-employee breakdown (2026-10-09):** built (decision-log 2026-10-09); the CTC dialog and the wizard's Pay step share one editor. Browser-checked on the preview only (nothing saved); a saved revision, re-apply and the wizard path are not yet browser-checked.
+
+**CTC screen redesign (2026-10-09):** Set / Revise CTC is a full page with a sticky summary (CTC, Basic %, monthly, paid to the employee, employer contributions, whether it adds up) and the breakdown in Earnings and Employer contributions groups, each line editable in place; the wizard's Pay step uses the same pieces. Browser-checked on the preview (nothing saved); the wizard's Pay step and a saved revision are not yet browser-checked.

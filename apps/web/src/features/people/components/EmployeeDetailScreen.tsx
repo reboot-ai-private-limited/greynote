@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Badge } from '@/components/ui/Badge';
 import { EmployeeCalendarTab } from '@/features/attendance/components/EmployeeCalendarTab';
 import { EmployeeLeaveTab } from '@/features/hr/components/EmployeeLeaveTab';
@@ -27,6 +28,18 @@ import { SecuritySection } from './SecuritySection';
 import { UserDevicesSection } from './UserDevicesSection';
 import { WorkSection } from './WorkSection';
 
+const DETAIL_TABS = [
+  'profile',
+  'bank',
+  'documents',
+  'compensation',
+  'promotion',
+  'calendar',
+  'leave',
+  'devices',
+  'security',
+];
+
 export function EmployeeDetailScreen({ id }: { id: string }) {
   const readOnly = useIsReadOnly();
   // Phones are Admin's call (the API refuses HR), so HR does not see the tab.
@@ -34,6 +47,9 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
   const isAdmin = session?.role === 'ADMIN';
   const query = useUser(id);
   const user = query.data;
+  // Coming back from the CTC screen lands on the Compensation tab.
+  const requested = useSearchParams().get('tab');
+  const initialTab = requested && DETAIL_TABS.includes(requested) ? requested : 'profile';
   const missing = user ? missingForActive(user) : [];
 
   return (
@@ -68,7 +84,10 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
               }
             />
             {missing.length > 0 ? (
-              <div role="status" className="mb-6 rounded-lg border border-border bg-warning-bg p-4 text-sm text-warning-fg">
+              <div
+                role="status"
+                className="mb-6 rounded-lg border border-border bg-warning-bg p-4 text-sm text-warning-fg"
+              >
                 <p className="font-medium">Still to fill in before this employee is active:</p>
                 <p className="mt-1">{missing.join(' · ')}</p>
                 {user.role === 'FIELD' ? (
@@ -81,7 +100,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
               </div>
             ) : null}
             {user.role === 'FIELD' ? (
-              <Tabs defaultValue="profile">
+              <Tabs defaultValue={initialTab}>
                 <TabsList>
                   <TabsTrigger value="profile">Profile</TabsTrigger>
                   <TabsTrigger value="bank">Bank</TabsTrigger>
@@ -128,12 +147,17 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 ) : null}
               </Tabs>
             ) : (
-              <Card title="Account" description="Designation, pay grade, bank details and devices apply to the field force only.">
+              <Card
+                title="Account"
+                description="Designation, pay grade, bank details and devices apply to the field force only."
+              >
                 <div className="p-5">
                   <FieldList>
                     <Field label="Email">{user.email}</Field>
                     <Field label="Phone">{user.phone}</Field>
-                    <Field label="Last sign-in">{user.lastLoginAt ? formatDate(user.lastLoginAt) : null}</Field>
+                    <Field label="Last sign-in">
+                      {user.lastLoginAt ? formatDate(user.lastLoginAt) : null}
+                    </Field>
                   </FieldList>
                 </div>
               </Card>

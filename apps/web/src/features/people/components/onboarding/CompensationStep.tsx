@@ -3,10 +3,11 @@ import { FormField } from '@/components/ui/FormField';
 import { Select } from '@/components/ui/Select';
 import { useCtcEditor } from '../../hooks/useCtcEditor';
 import { usePayBands } from '../../hooks/useMasterData';
-import { CtcBreakdownEditor } from '../CtcBreakdownEditor';
+import { CtcBreakdown } from '../ctc/CtcBreakdown';
+import { CtcSummaryCard } from '../ctc/CtcSummaryCard';
 import { StepFrame, type StepProps } from './StepFrame';
 
-/** Pay grade, then the CTC and Basic % with the editable breakdown. The CTC is optional: leave it empty to set it later. */
+/** Pay grade, then the CTC and Basic % with the same grouped breakdown as the CTC screen. The CTC is optional: leave it empty to set it later. */
 export function CompensationStep({
   form,
   update,
@@ -41,14 +42,28 @@ export function CompensationStep({
           />
         </FormField>
       </div>
-      <CtcBreakdownEditor
-        ctc={form.ctc}
-        onCtcChange={(ctc) => update({ ctc })}
-        structure={form.structure}
-        onStructureChange={(structure) => update({ structure })}
-        editor={editor}
-        errors={errors}
-      />
+      <div className="space-y-6">
+        <CtcSummaryCard
+          compact
+          ctc={form.ctc}
+          onCtcChange={(ctc) => update({ ctc })}
+          structure={form.structure}
+          onStructureChange={(structure) => update({ structure })}
+          editor={editor}
+          errors={errors}
+        />
+        {form.ctc.trim() !== '' && editor.rows.length > 0 ? (
+          <CtcBreakdown
+            editor={editor}
+            structure={form.structure}
+            onStructureChange={(structure) => update({ structure })}
+          />
+        ) : (
+          <p className="text-sm text-text-muted">
+            The CTC is optional here. Leave it empty to set it later from the employee's profile.
+          </p>
+        )}
+      </div>
     </StepFrame>
   );
 }

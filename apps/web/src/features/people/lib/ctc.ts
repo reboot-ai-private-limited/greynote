@@ -15,6 +15,14 @@ import { MAX_PAISE } from './masterData';
  * re-checks the whole formula; these only stop what can be caught on the spot.
  */
 
+/** The revision in force in `month` (`YYYY-MM`): the latest start not after it, ties to the one saved last (the list is newest first). */
+export function inForce<T extends { effectiveFrom: string }>(
+  history: readonly T[],
+  month: string,
+): T | undefined {
+  return history.find((r) => r.effectiveFrom <= month);
+}
+
 /** Annual → monthly, half up (the server rounds the same way). */
 export const monthlyOf = (annualPaise: number): number => Math.floor(annualPaise / 12 + 0.5);
 

@@ -382,3 +382,25 @@ export function buildAssignCtc(
     },
   };
 }
+
+// ── Totals ─────────────────────────────────────────────────────────────────────────────────
+
+export interface CtcTotals {
+  /** What the employee is paid before any deduction: the earnings. Annual paise. */
+  paidPaise: number;
+  /** What the employer puts in on top, inside the CTC. Annual paise. */
+  employerPaise: number;
+  totalPaise: number;
+}
+
+export function ctcTotals(
+  lines: ReadonlyArray<{ kind: PayComponentKind; amountPaise: number }>,
+): CtcTotals {
+  const paidPaise = lines
+    .filter((l) => l.kind === 'EARNING')
+    .reduce((sum, l) => sum + l.amountPaise, 0);
+  const employerPaise = lines
+    .filter((l) => l.kind === 'EMPLOYER_CONTRIBUTION')
+    .reduce((sum, l) => sum + l.amountPaise, 0);
+  return { paidPaise, employerPaise, totalPaise: paidPaise + employerPaise };
+}
