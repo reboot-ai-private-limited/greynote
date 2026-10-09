@@ -19,11 +19,12 @@ export function EmployeeCreateScreen() {
   const router = useRouter();
   const { user } = useSession();
   const readOnly = useIsReadOnly();
-  const roles = creatableRoles(user?.role);
+  // Field employees are added through the step-by-step wizard; this form is for office logins.
+  const roles = creatableRoles(user?.role).filter((r) => r !== 'FIELD');
   // HR can only create field employees, so the choice is made for them.
   const [draft, setDraft] = useState<UserDraft>({ ...EMPTY_USER_DRAFT, role: roles.length === 1 ? (roles[0] ?? '') : '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const create = useCreateUser((created) => router.push(created.role === 'FIELD' ? `/employees/${created.id}/setup` : `/employees/${created.id}`));
+  const create = useCreateUser((created) => router.push(`/employees/${created.id}`));
 
   const set = (field: keyof UserDraft) => (value: string) => setDraft((d) => ({ ...d, [field]: value }));
 
@@ -43,10 +44,7 @@ export function EmployeeCreateScreen() {
           ← Employees
         </Link>
       </p>
-      <PageHeader
-        title="New employee"
-        description="Create the login first. A field employee is then set up step by step: personal details, address, work, bank, compensation and documents."
-      />
+      <PageHeader title="Add office staff" />
       <form
         noValidate
         onSubmit={(e) => {
@@ -55,7 +53,7 @@ export function EmployeeCreateScreen() {
         }}
         className="space-y-6"
       >
-        <Card title="Login">
+        <Card>
           <div className="grid gap-5 p-5 sm:grid-cols-2">
             <FormField label="Role" htmlFor="user-role" error={errors['role']}>
               <Select
@@ -67,7 +65,7 @@ export function EmployeeCreateScreen() {
                 aria-invalid={invalid('role')}
               />
             </FormField>
-            <FormField label="Employee code" htmlFor="user-code" error={errors['employeeCode']} hint="What they sign in with.">
+            <FormField label="Employee code" htmlFor="user-code" error={errors['employeeCode']}>
               <Input id="user-code" value={draft.employeeCode} onChange={(e) => set('employeeCode')(e.target.value)} aria-invalid={invalid('employeeCode')} />
             </FormField>
             <FormField label="Full name" htmlFor="user-name" error={errors['name']}>
@@ -76,23 +74,20 @@ export function EmployeeCreateScreen() {
             <PasswordField
               id="user-password"
               label="Initial password"
-              hint="Share it with the employee. Only an Admin can reset it later."
+              hint=""
               value={draft.password}
               error={errors['password']}
               onChange={set('password')}
             />
-            <FormField label="Email" htmlFor="user-email" error={errors['email']} hint="Optional.">
+            <FormField label="Email (optional)" htmlFor="user-email" error={errors['email']}>
               <Input id="user-email" type="email" value={draft.email} onChange={(e) => set('email')(e.target.value)} aria-invalid={invalid('email')} />
             </FormField>
-            <FormField label="Phone" htmlFor="user-phone" hint="Optional.">
+            <FormField label="Phone (optional)" htmlFor="user-phone">
               <Input id="user-phone" inputMode="tel" value={draft.phone} onChange={(e) => set('phone')(e.target.value)} />
             </FormField>
           </div>
         </Card>
-        <div className="flex justify-end gap-3">
-          <Button variant="secondary" onClick={() => router.push('/employees')}>
-            Cancel
-          </Button>
+        <div className="flex justify-end">
           <Button type="submit" disabled={readOnly || create.isPending} title={readOnly ? 'A past financial year is read-only' : undefined}>
             {create.isPending ? 'Creating…' : 'Create employee'}
           </Button>

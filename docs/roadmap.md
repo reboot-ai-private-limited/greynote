@@ -824,3 +824,9 @@ New read-only `reports` module (top tier, writes nothing; reads Sales, Field Act
 **5e progress:** the DCR report is built and browser-checked against the sample data. Still to build: the Salary report (K30).
 
 **Step 5 is complete (2026-10-07):** approvals in tabs, the Orders page, the attendance calendars and absent-day deduction, and all five reports (Sales with the primary/secondary chart, Stock, TA/DA, DCR, Salary). Browser-checked against the dev sample data except 5a's tabs (extension was unavailable then). Before Step 6 the side navigation was regrouped (2026-10-07, decision log) and a manual test plan goes in `docs/testing/`. Next: Step 6 (the web app simulator, dev only), then Step 7 (the mobile app) and the pilot.
+
+---
+
+## Employee onboarding wizard (2026-10-09)
+
+Built, not browser-checked: the eight-step new-employee wizard with drafts, `GRN` ids from a counter, server-generated password with Copy/Share, the top-designation rule, and the new profile fields (decision-log 2026-10-09). API and web unit tests pass. Still open: show and edit the new fields (alternate mobile, permanent address, qualifications, experience) on the profile screens; the old `/employees/:id/setup` stepper for employees already in onboarding; a browser walk-through against the dev database.

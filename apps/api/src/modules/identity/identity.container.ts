@@ -25,6 +25,18 @@ import { makeCtcControllers } from './interface/ctc.controller.js';
 import { buildCtcRouter, buildPayComponentsRouter, buildUserCtcRouter } from './interface/ctc.route.js';
 import { CreatePayBandUseCase } from './application/usecases/createPayBand.usecase.js';
 import { CreateRoleUseCase } from './application/usecases/createRole.usecase.js';
+import {
+  CreateEmployeeDraftUseCase,
+  DeleteEmployeeDraftUseCase,
+  GetEmployeeDraftUseCase,
+  ListEmployeeDraftsUseCase,
+  UpdateEmployeeDraftUseCase,
+} from './application/usecases/employeeDrafts.usecase.js';
+import { FinalizeEmployeeDraftUseCase, type HqAssigner } from './application/usecases/finalizeEmployeeDraft.usecase.js';
+import { MongoEmployeeDraftAdapter } from './infrastructure/mongoEmployeeDraft.adapter.js';
+import { MongoEmployeeCodeGenerator } from './infrastructure/mongoEmployeeCodeGenerator.adapter.js';
+import { makeEmployeeDraftControllers } from './interface/employeeDrafts.controller.js';
+import { buildEmployeeDraftsRouter } from './interface/employeeDrafts.route.js';
 import { CreateUserUseCase } from './application/usecases/createUser.usecase.js';
 import { GetActiveDeviceCountUseCase } from './application/usecases/getActiveDeviceCount.usecase.js';
 import { GetDirectReportsUseCase } from './application/usecases/getDirectReports.usecase.js';
@@ -123,6 +135,8 @@ export interface IdentityContainer {
   seedPayComponents: () => Promise<void>;
   /** Applies every promotion whose month has come. The server calls it on start and hourly; safe at any time and from any number of servers. */
   applyDuePromotions: () => Promise<{ applied: number; failed: number }>;
+  /** Territory sits above Identity, so the employee wizard's "set the HQ" is handed in once both are built. */
+  bindHqAssigner: (assign: HqAssigner) => void;
   hasAdmin: () => Promise<boolean>;
   seedBootstrapAdmin: (input: BootstrapAdminInput) => Promise<void>;
 }
@@ -139,6 +153,9 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   /** The current month in the business timezone, read each time so a changed setting is honoured. */
   const currentMonth = async (): Promise<string> => businessDate(new Date(), await configProvider.get('BUSINESS_TIMEZONE')).slice(0, 7);
   const userRepository = new MongoUserAdapter();
+  const employeeDraftRepository = new MongoEmployeeDraftAdapter();
+  const employeeCodeGenerator = new MongoEmployeeCodeGenerator(userRepository);
+  let hqAssigner: HqAssigner | null = null;
   const employeeProfileRepository = new MongoEmployeeProfileAdapter();
   const complianceBlockRepository = new MongoComplianceBlockAdapter();
   const userSessionRepository = new MongoUserSessionAdapter();
@@ -225,6 +242,29 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const seedDefaultPayComponents = new SeedDefaultPayComponentsUseCase(payComponentRepository);
   const previewCtc = new PreviewCtcUseCase(payComponentRepository);
   const assignCtc = new AssignCtcUseCase(userRepository, roleRepository, payComponentRepository, ctcAssignmentRepository, configProvider);
+  const employeeDraftControllers = makeEmployeeDraftControllers({
+    create: new CreateEmployeeDraftUseCase(employeeDraftRepository),
+    list: new ListEmployeeDraftsUseCase(employeeDraftRepository),
+    get: new GetEmployeeDraftUseCase(employeeDraftRepository),
+    update: new UpdateEmployeeDraftUseCase(employeeDraftRepository),
+    remove: new DeleteEmployeeDraftUseCase(employeeDraftRepository),
+    finalize: new FinalizeEmployeeDraftUseCase(
+      employeeDraftRepository,
+      userRepository,
+      designationRepository,
+      employeeCodeGenerator,
+      createUser,
+      updateUser,
+      assignCtc,
+      ctcAssignmentRepository,
+      passwordHasher,
+      () => {
+        if (!hqAssigner) throw new Error('The HQ assigner was not bound.');
+        return hqAssigner;
+      },
+      currentMonth,
+    ),
+  });
   const listCtcHistory = new ListCtcHistoryUseCase(ctcAssignmentRepository);
   const getCtcForMonth = new GetCtcForMonthUseCase(ctcAssignmentRepository);
   const reapplyCtc = new ReapplyCtcUseCase(payComponentRepository, ctcAssignmentRepository);
@@ -322,6 +362,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       router.use('/users', buildUserCtcRouter(ctcControllers));
       router.use('/users', buildUserPromotionsRouter(promotionControllers));
       router.use('/promotions', buildPromotionsRouter(promotionControllers));
+      router.use('/employee-drafts', buildEmployeeDraftsRouter(employeeDraftControllers));
       router.use('/users', buildUsersRouter(usersControllers));
       router.use('/pay-components', buildPayComponentsRouter({ list: listPayComponents, create: createPayComponent, update: updatePayComponent }));
       router.use('/ctc', buildCtcRouter(ctcControllers));
@@ -340,6 +381,9 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     seedRoles: () => seedDefaultRoles.execute(),
     seedPayComponents: () => seedDefaultPayComponents.execute(),
     applyDuePromotions: () => applyDuePromotions.execute(),
+    bindHqAssigner: (assign) => {
+      hqAssigner = assign;
+    },
     hasAdmin: () => userRepository.existsAdmin(),
     seedBootstrapAdmin: (input) => seedBootstrapAdminUseCase.execute(input),
   };

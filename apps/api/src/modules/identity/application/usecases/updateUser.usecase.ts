@@ -1,6 +1,6 @@
 import { AppError } from '@/shared/errors/AppError.js';
-import { computeUserStatus } from '../../domain/onboarding.js';
-import type { Address, BankDetails, EmployeeProfile } from '../../domain/employeeProfile.entity.js';
+import { computeUserStatus, isTopDesignation } from '../../domain/onboarding.js';
+import type { Address, BankDetails, EmployeeProfile, PreviousEmployment, Qualification } from '../../domain/employeeProfile.entity.js';
 import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
 import type { ManagerHistoryRepositoryPort } from '../../domain/managerHistory.repository.port.js';
 import type { DesignationRepositoryPort } from '../../domain/designation.repository.port.js';
@@ -31,6 +31,7 @@ export interface UpdateUserInput {
   basicDetails?: {
     name?: string;
     mobileNumber?: string;
+    alternateMobile?: string | null;
     guardianName?: string | null;
     dateOfBirth?: Date;
     dateOfJoining?: Date | null;
@@ -38,6 +39,10 @@ export interface UpdateUserInput {
     esiNumber?: string | null;
     qualification?: string | null;
     address?: Address;
+    permanentAddress?: Address;
+    permanentSameAsPresent?: boolean;
+    qualifications?: Qualification[];
+    previousEmployment?: PreviousEmployment[];
   };
   bankDetails?: BankDetails;
   designationId?: string;
@@ -100,19 +105,27 @@ export class UpdateUserUseCase {
       probationMonths: pick(input.basicDetails?.probationMonths, existingProfile?.probationMonths),
       esiNumber: pick(input.basicDetails?.esiNumber, existingProfile?.esiNumber),
       mobileNumber: input.basicDetails?.mobileNumber ?? existingProfile?.mobileNumber ?? null,
+      alternateMobile: pick(input.basicDetails?.alternateMobile, existingProfile?.alternateMobile),
       guardianName: pick(input.basicDetails?.guardianName, existingProfile?.guardianName),
       dateOfBirth: input.basicDetails?.dateOfBirth ?? existingProfile?.dateOfBirth ?? null,
       address: input.basicDetails?.address ?? existingProfile?.address ?? null,
+      permanentAddress: input.basicDetails?.permanentAddress ?? existingProfile?.permanentAddress ?? null,
+      permanentSameAsPresent: input.basicDetails?.permanentSameAsPresent ?? existingProfile?.permanentSameAsPresent ?? false,
       qualification: pick(input.basicDetails?.qualification, existingProfile?.qualification),
+      qualifications: input.basicDetails?.qualifications ?? existingProfile?.qualifications ?? [],
+      previousEmployment: input.basicDetails?.previousEmployment ?? existingProfile?.previousEmployment ?? [],
       bankDetails: input.bankDetails ?? existingProfile?.bankDetails ?? null,
       documents: existingProfile?.documents ?? [],
     };
 
     const mergedName = input.basicDetails?.name ?? existing.name;
+    const top =
+      role.name === 'FIELD' && isTopDesignation(mergedProfile.designationId, await this.designationRepository.list());
     const status = computeUserStatus(
       { status: input.status ?? existing.status, name: mergedName },
       mergedProfile,
       role.name,
+      top,
     );
 
     const touchesProfile =

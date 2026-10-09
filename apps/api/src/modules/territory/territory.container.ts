@@ -126,6 +126,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort, config: Config
       getRoutePath: (routeId) => getRoutePath.execute(routeId),
       listRouteIdsInScope: (scope) => listRouteIdsInScope.execute(scope),
       getUserHq: (userId) => userHq.get.current(userId),
+      assignUserHq: (userId, hqId, actorId) => userHq.set.execute(userId, hqId, actorId),
       getHq: (hqId) => hqRepository.findById(hqId),
       getZone: (zoneId) => zoneRepository.findById(zoneId),
     },

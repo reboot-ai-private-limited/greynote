@@ -17,6 +17,26 @@ old one.
 
 ---
 
+## 2026-10-09 — New field employees are added in one guided wizard with drafts; the GRN id and password are generated at the end; the top designation has no manager
+
+**Decision:**
+- `/employees/new` is one eight-step wizard: **Personal** (name, mobile, alternate mobile, guardian, date of birth, ESI number, joining date, probation), **Address** (present, and permanent with a "same as present" box), **Qualifications** (repeatable, optional), **Experience** (repeatable, optional), **Bank**, **Work** (designation, zone → HQ, manager), **Pay** (grade, optional CTC), **Review**. A step opens only once every step before it is valid. Required: personal, address, bank, work, pay grade. Optional: alternate mobile, ESI, joining date, probation, qualifications, experience, CTC.
+- **Drafts:** every Next saves the form to a new `EmployeeDraft` collection (not a `User`), so no login and no employee id exists until the last step. "Save draft" leaves; the Employees page lists drafts to continue or delete. `POST/GET/PATCH/DELETE /identity/employee-drafts`, `POST …/:id/finalize`.
+- **Finalize** creates the login, profile, HQ assignment and CTC through the existing use cases, deletes the draft, and returns `{ employeeCode, password }` once. It is not one transaction (HQ is Territory's), so a failure keeps the draft and remembers the login it made; pressing Create again reuses that login with a fresh password instead of making a second employee.
+- **Employee id** is `GRN` + a 4-digit number from a `counters` document bumped with an atomic `$inc` (`GRN0001`; past 9999 it grows). On first use it starts above the highest existing `GRN\d+` code. Older hand-typed codes are untouched. The **password** is generated on the server (12 characters, no look-alikes) and shown with Copy and Share (Web Share API where the browser has it).
+- **Top designation:** the designation with the highest level that exists reports to nobody (a client that stops at ZSM has no NSM row, so ZSM is the top); every other designation needs a manager. `computeUserStatus` takes this into account, so such an employee can be `active` with no manager.
+- `EmployeeProfile` gains `alternateMobile`, `permanentAddress` + `permanentSameAsPresent`, address `line1`/`line2`, `qualifications[]` and `previousEmployment[]` (all default empty, no migration). The old free-text `qualification` stays readable.
+- The old create screen remains at `/employees/new/staff` for Admin, for office logins (HR, Accountant, Admin) only.
+- The wizard drops the explanatory text under headings and fields, the per-step Cancel/Save, and "Finish later"; its footer is Back · Save draft · Next. The progress bar is a connected stepper (tick when done, ring on the current step, later steps locked).
+
+**Not changed:** permanent address and HQ are required by the wizard but **not** by `computeUserStatus`, so existing active employees do not drop to `pending`. The profile screens (`/employees/:id`, `/setup`) do not yet show or edit the new fields; they keep working on the old ones.
+
+**Needs a migration:** none.
+
+**Why:** HR wanted one ordered flow that cannot skip ahead, can be paused, and hands over a ready login, instead of a typed code and password followed by six separately saved sections.
+
+---
+
 ## 2026-10-05 — Pay grades carry a required CTC range that is enforced; grade names are free; designation levels are fixed; the screen is "Pay grades"
 
 **Decision:**

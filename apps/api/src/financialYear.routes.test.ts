@@ -88,6 +88,8 @@ const TIMELESS = [
   '/api/identity/users/:id/ctc', // an employee's CTC revisions, a master record with its own effective months
   '/api/identity/users/:id/promotions', // an employee's promotions: a record with its own effective month, not a dated daily record
   '/api/identity/promotions', // every promotion, a record with its own effective month
+  '/api/identity/employee-drafts', // half-filled onboarding forms, no financial-year dimension
+  '/api/identity/employee-drafts/:id',
   '/api/territory/zones',
   '/api/territory/hqs',
   '/api/territory/routes',

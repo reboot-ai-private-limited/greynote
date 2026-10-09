@@ -19,6 +19,8 @@ export interface TerritoryPublicContract {
   listRouteIdsInScope(scope: { hqId?: string | undefined; zoneId?: string | undefined }): Promise<string[]>;
   /** A FIELD employee's current HQ and its Zone, or `null` if none is set — HR's holiday scope. */
   getUserHq(userId: string): Promise<{ hqId: string; zoneId: string } | null>;
+  /** Sets a FIELD employee's HQ (ends the previous one) — the employee wizard's last step. */
+  assignUserHq(userId: string, hqId: string, actorId: string): Promise<unknown>;
   getHq(hqId: string): Promise<{ id: string; zoneId: string; name: string; status: TerritoryStatus } | null>;
   getZone(zoneId: string): Promise<{ id: string; name: string; status: TerritoryStatus } | null>;
 }

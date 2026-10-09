@@ -4,6 +4,7 @@ import type { UserListItemDto, UserListStatus } from '@greynote/contracts';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSession } from '@/lib/auth/SessionProvider';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -18,6 +19,7 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
+import { EmployeeDraftsCard } from './EmployeeDraftsCard';
 import { useDesignations } from '../hooks/useMasterData';
 import { useUsers } from '../hooks/useUsers';
 import { ROLE_LABEL, STATUS_LABEL, STATUS_TONE } from '../lib/user';
@@ -38,6 +40,7 @@ export function EmployeesScreen() {
   const { values, page, update } = useFilterParams(['search', 'role', 'status', 'designationId']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const router = useRouter();
+  const { user: me } = useSession();
   const readOnly = useIsReadOnly();
   const designations = useDesignations();
 
@@ -85,17 +88,24 @@ export function EmployeesScreen() {
     <>
       <PageHeader
         title="Employees"
-        description="Everyone with a login. A field employee stays in onboarding until their profile is complete."
         actions={
-          <Button
-            onClick={() => router.push('/employees/new')}
-            disabled={readOnly}
-            title={readOnly ? 'A past financial year is read-only' : undefined}
-          >
-            <Plus aria-hidden className="size-4" /> New employee
-          </Button>
+          <div className="flex items-center gap-2">
+            {me?.role === 'ADMIN' ? (
+              <Button variant="secondary" onClick={() => router.push('/employees/new/staff')} disabled={readOnly}>
+                Add office staff
+              </Button>
+            ) : null}
+            <Button
+              onClick={() => router.push('/employees/new')}
+              disabled={readOnly}
+              title={readOnly ? 'A past financial year is read-only' : undefined}
+            >
+              <Plus aria-hidden className="size-4" /> New employee
+            </Button>
+          </div>
         }
       />
+      <EmployeeDraftsCard />
       <Card>
         <div className="flex flex-wrap items-center gap-3 p-4">
           <Input

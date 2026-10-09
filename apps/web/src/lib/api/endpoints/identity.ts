@@ -11,6 +11,9 @@ import type {
   ReapplyOutcomeDto,
   UpdatePayComponentDto,
   CreateUserDto,
+  EmployeeDraftDto,
+  FinalizedEmployeeDto,
+  SaveEmployeeDraftDto,
   CreatePayBandDto,
   DesignationDto,
   PaginatedDto,
@@ -82,6 +85,21 @@ export const identityApi = {
 
   createUser: (token: string, body: CreateUserDto) =>
     request<UserListItemDto>('/identity/users', { method: 'POST', token, body }),
+};
+
+/** Half-filled new-employee forms, and the last step that turns one into a login. */
+export const employeeDraftsApi = {
+  list: (token: string, signal?: AbortSignal) => request<EmployeeDraftDto[]>('/identity/employee-drafts', { token, signal }),
+  get: (token: string, id: string, signal?: AbortSignal) => request<EmployeeDraftDto>(`/identity/employee-drafts/${id}`, { token, signal }),
+  create: (token: string, body: SaveEmployeeDraftDto) =>
+    request<EmployeeDraftDto>('/identity/employee-drafts', { method: 'POST', token, body }),
+  update: (token: string, id: string, body: SaveEmployeeDraftDto) =>
+    request<EmployeeDraftDto>(`/identity/employee-drafts/${id}`, { method: 'PATCH', token, body }),
+  remove: (token: string, id: string) =>
+    request<Record<string, never>>(`/identity/employee-drafts/${id}`, { method: 'DELETE', token }),
+  /** Returns the generated password this once. */
+  finalize: (token: string, id: string) =>
+    request<FinalizedEmployeeDto>(`/identity/employee-drafts/${id}/finalize`, { method: 'POST', token }),
 };
 
 /** Master data. Both lists are bare arrays: a handful of rows each, never paginated. */

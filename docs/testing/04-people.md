@@ -2,6 +2,13 @@
 
 | Id | Do | Expect | Result |
 |---|---|---|---|
+| 4.00a | Employees → New employee: go through all eight steps | each Next saves a draft; a later step cannot be opened before the earlier ones are valid; Create gives a GRN id and password | |
+| 4.00b | Address step: tick "Same as present" | the permanent fields lock and show the present address; untick lets you edit them | |
+| 4.00c | Qualifications / Experience: add several rows, remove the middle one | the others keep their text; both steps can be skipped empty | |
+| 4.00d | Work step: pick the top designation | no manager is asked for; any other designation needs one | |
+| 4.00e | Save draft, leave, open it from the Drafts card | it reopens at the first step still missing, with everything filled in | |
+| 4.00f | After Create: Copy and Share | the message holds name, id and password; Share only shows where the browser supports it; the password is not shown again | |
+| 4.00g | Employees → Add office staff (Admin) | creates an HR, Accountant or Admin login; no field role offered | |
 | 4.01 | Employees: open Promo Mr One | profile, manager, HQ, joining date | |
 | 4.02 | Employee setup: set a CTC | monthly gross shown = CTC less employer contributions ÷ 12 | |
 | 4.03 | CTC change that jumps more than `CTC_JUMP_WARN_PERCENT` | a typo warning, but it can be saved (K10) | |

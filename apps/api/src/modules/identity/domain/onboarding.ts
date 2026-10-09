@@ -17,13 +17,16 @@ import type { User, UserStatus } from './user.entity.js';
  * Required for activation (FIELD only) — flagged as a default assumption in
  * docs/decision-log.md, not fully pinned by the PRD/ERD: name, mobileNumber, dateOfBirth, a
  * complete address, designationId, payBandId, managerId, and the bank details needed to actually
- * pay someone (bankName/ifsc/accountNumber/accountHolderName). NOT required: guardianName,
+ * pay someone (bankName/ifsc/accountNumber/accountHolderName). A manager is required unless the
+ * designation is the top one. NOT required: guardianName,
  * qualification, bankDetails.branchName, documents, dateOfJoining, probationMonths, esiNumber.
  */
 export function computeUserStatus(
   user: Pick<User, 'status' | 'name'>,
   profile: Omit<EmployeeProfile, 'id' | 'userId'> | null,
   role: RoleName,
+  /** The employee's designation is the top of the client's hierarchy, so there is nobody for them to report to. */
+  isTopDesignation = false,
 ): UserStatus {
   if (user.status === 'inactive') return 'inactive';
   if (role !== 'FIELD') return 'active';
@@ -47,8 +50,18 @@ export function computeUserStatus(
     hasCompleteAddress &&
     !!profile.designationId &&
     !!profile.payBandId &&
-    !!profile.managerId &&
+    (isTopDesignation || !!profile.managerId) &&
     hasRequiredBankDetails;
 
   return isComplete ? 'active' : 'pending';
+}
+
+/**
+ * The top of the client's hierarchy: the designation with the highest level among those that exist.
+ * Whoever holds it reports to nobody (a client that stops at ZSM has no NSM row, so ZSM is the top).
+ */
+export function isTopDesignation(designationId: string | null, designations: Array<{ id: string; level: number }>): boolean {
+  if (!designationId || designations.length === 0) return false;
+  const top = Math.max(...designations.map((d) => d.level));
+  return designations.some((d) => d.id === designationId && d.level === top);
 }

@@ -61,10 +61,25 @@ export interface CreateUserDto {
 }
 
 export interface UserAddressDto {
+  /** House / street. Absent on addresses saved before the onboarding wizard. */
+  line1?: string | null;
+  line2?: string | null;
   district: string;
   state: string;
   pincode: string;
   country: string;
+}
+
+export interface UserQualificationDto {
+  degree: string;
+  institute: string;
+  yearOfPassing: number;
+}
+
+export interface UserPreviousEmploymentDto {
+  companyName: string;
+  joiningDate: string;
+  endDate: string | null;
 }
 
 export interface UserBankDetailsDto {
@@ -108,10 +123,16 @@ export interface UserDetailDto {
     /** Exactly 17 digits, or null. */
     esiNumber: string | null;
     mobileNumber: string | null;
+    alternateMobile: string | null;
     guardianName: string | null;
     dateOfBirth: string | null;
     address: UserAddressDto | null;
+    permanentAddress: UserAddressDto | null;
+    permanentSameAsPresent: boolean;
+    /** Legacy free text from before `qualifications`. */
     qualification: string | null;
+    qualifications: UserQualificationDto[];
+    previousEmployment: UserPreviousEmploymentDto[];
     bankDetails: UserBankDetailsDto | null;
     documents: UserDocumentDto[];
   } | null;
@@ -122,6 +143,7 @@ export interface UpdateUserDto {
   basicDetails?: {
     name?: string;
     mobileNumber?: string;
+    alternateMobile?: string | null;
     /** `null` clears the three optional fields (guardian, joining date, qualification); a missing key leaves them alone. */
     guardianName?: string | null;
     dateOfBirth?: string;
@@ -132,12 +154,74 @@ export interface UpdateUserDto {
     esiNumber?: string | null;
     qualification?: string | null;
     address?: UserAddressDto;
+    permanentAddress?: UserAddressDto;
+    permanentSameAsPresent?: boolean;
+    qualifications?: UserQualificationDto[];
+    previousEmployment?: UserPreviousEmploymentDto[];
   };
   bankDetails?: Omit<UserBankDetailsDto, 'branchName'> & { branchName?: string };
   designationId?: string;
   payBandId?: string;
   managerId?: string;
   status?: 'inactive';
+}
+
+/** One address of the onboarding wizard; every field optional while a draft is half-filled. Pincode is 6 digits. */
+export interface DraftAddressDto {
+  line1?: string;
+  line2?: string;
+  district?: string;
+  state?: string;
+  pincode?: string;
+  country?: string;
+}
+
+/** The wizard's data, a section per step. Dates are `YYYY-MM-DD`; money is whole paise. */
+export interface EmployeeDraftDataDto {
+  personal?: {
+    name?: string;
+    /** 10 digits. */
+    mobileNumber?: string;
+    alternateMobile?: string;
+    guardianName?: string;
+    dateOfBirth?: string;
+    /** Exactly 17 digits. */
+    esiNumber?: string;
+    dateOfJoining?: string;
+    probationMonths?: number;
+  };
+  address?: { present?: DraftAddressDto; permanent?: DraftAddressDto; permanentSameAsPresent?: boolean };
+  qualifications?: Array<{ degree?: string; institute?: string; yearOfPassing?: number }>;
+  experience?: Array<{ companyName?: string; joiningDate?: string; endDate?: string }>;
+  bank?: { bankName?: string; accountNumber?: string; accountHolderName?: string; ifsc?: string; branchName?: string };
+  /** `managerId` is not needed when the designation is the top of the hierarchy. */
+  work?: { designationId?: string; hqId?: string; managerId?: string };
+  compensation?: { payBandId?: string; ctcAnnualPaise?: number; /** `YYYY-MM` */ effectiveFrom?: string };
+}
+
+/** `GET /identity/employee-drafts` (a bare array, newest first) and `/:id`. */
+export interface EmployeeDraftDto {
+  id: string;
+  createdBy: string;
+  /** The furthest step reached (1–8). */
+  step: number;
+  data: EmployeeDraftDataDto;
+  createdUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Body of `POST` and `PATCH /identity/employee-drafts`. A section sent replaces that section whole. */
+export interface SaveEmployeeDraftDto {
+  step?: number;
+  data?: EmployeeDraftDataDto;
+}
+
+/** `POST /identity/employee-drafts/:id/finalize` — the password is shown once and never again. */
+export interface FinalizedEmployeeDto {
+  userId: string;
+  employeeCode: string;
+  password: string;
 }
 
 export const DEVICE_STATUSES = ['PENDING', 'REGISTERED', 'REJECTED', 'REMOVED'] as const;

@@ -28,10 +28,15 @@ const profile = (userId: string, managerId: string | null, extra: Partial<Employ
   probationMonths: null,
   esiNumber: null,
   mobileNumber: null,
+  alternateMobile: null,
   guardianName: null,
   dateOfBirth: null,
   address: null,
+  permanentAddress: null,
+  permanentSameAsPresent: false,
   qualification: null,
+  qualifications: [],
+  previousEmployment: [],
   bankDetails: null,
   documents: [],
   ...extra,
@@ -51,7 +56,13 @@ function build(chain: Record<string, string | null>, extra: Record<string, Parti
       update: async (id: string, patch: Partial<User>) => ({ ...(users.get(id) as User), ...patch }),
     } as never,
     { findById: async () => ({ id: 'role-field', name: 'FIELD' as RoleName }) } as never,
-    { findById: async (id: string) => (id === 'des-1' ? { id } : null) } as never,
+    {
+      findById: async (id: string) => (id === 'des-1' || id === 'des-top' ? { id } : null),
+      list: async () => [
+        { id: 'des-1', level: 1 },
+        { id: 'des-top', level: 5 },
+      ],
+    } as never,
     { findById: async (id: string) => (id === 'band-1' ? { id } : null) } as never,
     {
       findByUserId: async (id: string) => profiles.get(id) ?? null,
@@ -242,5 +253,29 @@ describe('manager history', () => {
     await useCase.execute('emp', { managerId: 'old' });
     await useCase.execute('emp', { basicDetails: { name: 'Emp' } });
     expect(history).toEqual([]);
+  });
+});
+
+describe('UpdateUserUseCase — the top designation needs no manager', () => {
+  const complete = {
+    a: {
+      payBandId: 'band-1',
+      mobileNumber: '9830012345',
+      dateOfBirth: new Date('1990-01-01'),
+      address: { district: 'Kolkata', state: 'WB', pincode: '700001', country: 'India' },
+      bankDetails: { bankName: 'SBI', ifsc: 'SBIN0000001', accountNumber: '1', accountHolderName: 'A', branchName: null },
+    },
+  };
+
+  it('is active at the top designation with no manager', async () => {
+    const { useCase } = build({ a: null }, complete);
+    const result = await useCase.execute('a', { designationId: 'des-top' });
+    expect(result.status).toBe('active');
+  });
+
+  it('stays pending below the top designation until a manager is chosen', async () => {
+    const { useCase } = build({ a: null, boss: null }, complete);
+    expect((await useCase.execute('a', { designationId: 'des-1' })).status).toBe('pending');
+    expect((await useCase.execute('a', { managerId: 'boss' })).status).toBe('active');
   });
 });

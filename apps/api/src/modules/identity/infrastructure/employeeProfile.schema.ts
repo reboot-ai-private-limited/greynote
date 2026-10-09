@@ -1,10 +1,24 @@
 import { Schema, model, type Types } from 'mongoose';
 
 interface AddressDoc {
+  line1?: string | null;
+  line2?: string | null;
   district: string;
   state: string;
   pincode: string;
   country: string;
+}
+
+interface QualificationDoc {
+  degree: string;
+  institute: string;
+  yearOfPassing: number;
+}
+
+interface PreviousEmploymentDoc {
+  companyName: string;
+  joiningDate: Date;
+  endDate: Date | null;
 }
 
 interface BankDetailsDoc {
@@ -32,20 +46,45 @@ export interface EmployeeProfileDoc {
   probationMonths?: number | null;
   esiNumber?: string | null;
   mobileNumber: string | null;
+  alternateMobile?: string | null;
   guardianName: string | null;
   dateOfBirth: Date | null;
   address: AddressDoc | null;
+  permanentAddress?: AddressDoc | null;
+  permanentSameAsPresent?: boolean;
   qualification: string | null;
+  qualifications?: QualificationDoc[];
+  previousEmployment?: PreviousEmploymentDoc[];
   bankDetails: BankDetailsDoc | null;
   documents: UserDocumentDoc[];
 }
 
 const addressSchema = new Schema<AddressDoc>(
   {
+    line1: { type: String, default: null },
+    line2: { type: String, default: null },
     district: { type: String, required: true },
     state: { type: String, required: true },
     pincode: { type: String, required: true },
     country: { type: String, required: true, default: 'India' },
+  },
+  { _id: false },
+);
+
+const qualificationSchema = new Schema<QualificationDoc>(
+  {
+    degree: { type: String, required: true },
+    institute: { type: String, required: true },
+    yearOfPassing: { type: Number, required: true },
+  },
+  { _id: false },
+);
+
+const previousEmploymentSchema = new Schema<PreviousEmploymentDoc>(
+  {
+    companyName: { type: String, required: true },
+    joiningDate: { type: Date, required: true },
+    endDate: { type: Date, default: null },
   },
   { _id: false },
 );
@@ -81,10 +120,15 @@ const employeeProfileSchema = new Schema<EmployeeProfileDoc>({
   probationMonths: { type: Number, default: null, min: 0, max: 36 },
   esiNumber: { type: String, default: null, match: /^\d{17}$/ },
   mobileNumber: { type: String, default: null },
+  alternateMobile: { type: String, default: null },
   guardianName: { type: String, default: null },
   dateOfBirth: { type: Date, default: null },
   address: { type: addressSchema, default: null },
+  permanentAddress: { type: addressSchema, default: null },
+  permanentSameAsPresent: { type: Boolean, default: false },
   qualification: { type: String, default: null },
+  qualifications: { type: [qualificationSchema], default: [] },
+  previousEmployment: { type: [previousEmploymentSchema], default: [] },
   bankDetails: { type: bankDetailsSchema, default: null },
   documents: { type: [userDocumentSchema], default: [] },
 });

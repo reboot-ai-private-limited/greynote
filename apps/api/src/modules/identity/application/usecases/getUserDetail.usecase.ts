@@ -1,7 +1,7 @@
 import type { RoleName } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ComplianceBlockRepositoryPort } from '../../domain/complianceBlock.repository.port.js';
-import type { Address, BankDetails, UserDocument } from '../../domain/employeeProfile.entity.js';
+import type { Address, BankDetails, PreviousEmployment, Qualification, UserDocument } from '../../domain/employeeProfile.entity.js';
 import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
 import type { UserStatus } from '../../domain/user.entity.js';
@@ -28,10 +28,15 @@ export interface UserDetail {
     probationMonths: number | null;
     esiNumber: string | null;
     mobileNumber: string | null;
+    alternateMobile: string | null;
     guardianName: string | null;
     dateOfBirth: Date | null;
     address: Address | null;
+    permanentAddress: Address | null;
+    permanentSameAsPresent: boolean;
     qualification: string | null;
+    qualifications: Qualification[];
+    previousEmployment: PreviousEmployment[];
     bankDetails: BankDetails | null;
     documents: UserDocument[];
   } | null;
@@ -80,10 +85,15 @@ export class GetUserDetailUseCase {
             probationMonths: profile.probationMonths,
             esiNumber: profile.esiNumber,
             mobileNumber: profile.mobileNumber,
+            alternateMobile: profile.alternateMobile,
             guardianName: profile.guardianName,
             dateOfBirth: profile.dateOfBirth,
             address: profile.address,
+            permanentAddress: profile.permanentAddress,
+            permanentSameAsPresent: profile.permanentSameAsPresent,
             qualification: profile.qualification,
+            qualifications: profile.qualifications,
+            previousEmployment: profile.previousEmployment,
             bankDetails: profile.bankDetails,
             documents: profile.documents,
           }

@@ -129,8 +129,15 @@ An `ADMIN`/`HR`/`ACCOUNTANT` `User` (the "user master" creation path) skips onbo
 `status: active` immediately, and never gets an `EmployeeProfile` row at all, since designation/
 pay-band/manager/joining-date/bank/documents don't apply to those roles.
 
-Zone/HQ assignment is **not** part of this onboarding flow — see "Next" below; it lands with
-Territory (Module 2), one tier above Identity, not here.
+Since 2026-10-09 a new FIELD employee is added through a wizard backed by an `EmployeeDraft`
+(`created_by`, `step`, `data` per wizard step, `created_user_id` once the login exists) that is
+turned into the real records by one "finalize" call, so a `User` and its `GRN` code appear only at
+the end. `EmployeeProfile` also holds `alternate_mobile`, `permanent_address` /
+`permanent_same_as_present`, `qualifications[]` (degree, institute, year) and `previous_employment[]`
+(company, joining date, end date); an address has `line1`/`line2`. A `counters` document (`_id:
+employeeCode`, `seq`) numbers the codes. `manager_id` is required for `active` unless the
+designation is the highest level that exists. The wizard also sets the employee's HQ
+(`UserHqAssignment`, Territory) as it creates them; the status rule does not depend on it.
 
 ## Design decisions locked for this module
 

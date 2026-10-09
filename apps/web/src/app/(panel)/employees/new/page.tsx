@@ -1,5 +1,5 @@
-import { EmployeeCreateScreen } from '@/features/people/components/EmployeeCreateScreen';
+import { EmployeeOnboardingScreen } from '@/features/people/components/EmployeeOnboardingScreen';
 
 export default function NewEmployeePage() {
-  return <EmployeeCreateScreen />;
+  return <EmployeeOnboardingScreen />;
 }

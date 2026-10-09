@@ -1,6 +1,7 @@
 DELETE /api/field-master-data/doctors/:id/assignments/:userId  ADMIN
 DELETE /api/hr/holidays/:id  ADMIN,HR
 DELETE /api/hr/leaves/:id/attachments/:attachmentId  FIELD
+DELETE /api/identity/employee-drafts/:id  ADMIN,HR
 DELETE /api/identity/users/:id/devices/:deviceRowId  ADMIN
 DELETE /api/identity/users/:id/documents/:documentId  ADMIN,HR
 DELETE /api/territory/routes/:id/assignments/:userId  ADMIN
@@ -49,6 +50,8 @@ GET    /api/hr/leaves/me  FIELD
 GET    /api/identity/auth/me  ANY
 GET    /api/identity/designations  ADMIN,HR
 GET    /api/identity/devices/pending  ADMIN
+GET    /api/identity/employee-drafts  ADMIN,HR
+GET    /api/identity/employee-drafts/:id  ADMIN,HR
 GET    /api/identity/pay-bands  ACCOUNTANT,ADMIN,HR
 GET    /api/identity/pay-components  ACCOUNTANT,ADMIN,HR
 GET    /api/identity/promotions  ADMIN,HR
@@ -103,6 +106,7 @@ PATCH  /api/field-master-data/products/:id  ADMIN
 PATCH  /api/field-master-data/specialties/:id  ADMIN
 PATCH  /api/hr/leave-balances/:userId/:leaveTypeId  ADMIN,HR
 PATCH  /api/hr/leave-types/:id  ADMIN,HR
+PATCH  /api/identity/employee-drafts/:id  ADMIN,HR
 PATCH  /api/identity/pay-bands/:id  ADMIN,HR
 PATCH  /api/identity/pay-components/:id  ADMIN,HR
 PATCH  /api/identity/roles/:id  ADMIN
@@ -146,6 +150,8 @@ POST   /api/identity/auth/refresh  PUBLIC
 POST   /api/identity/ctc/preview  ADMIN,HR
 POST   /api/identity/ctc/reapply  ADMIN,HR
 POST   /api/identity/designations  ADMIN,HR
+POST   /api/identity/employee-drafts  ADMIN,HR
+POST   /api/identity/employee-drafts/:id/finalize  ADMIN,HR
 POST   /api/identity/pay-bands  ADMIN,HR
 POST   /api/identity/pay-components  ADMIN,HR
 POST   /api/identity/promotions/:promotionId/cancel  ADMIN,HR

@@ -1,9 +1,27 @@
 export interface Address {
+  /** House / street. Optional: addresses saved before the onboarding wizard carry none. */
+  line1?: string | null;
+  line2?: string | null;
   district: string;
   state: string;
   pincode: string;
   /** Defaults to 'India' at the DTO layer — domain just stores whatever it's given. */
   country: string;
+}
+
+export interface Qualification {
+  /** Degree or qualification: HS, BSc, B.Tech, Diploma, PhD … */
+  degree: string;
+  /** Board, university or institute. */
+  institute: string;
+  yearOfPassing: number;
+}
+
+export interface PreviousEmployment {
+  companyName: string;
+  joiningDate: Date;
+  /** Null: still there, or not known. */
+  endDate: Date | null;
 }
 
 export interface BankDetails {
@@ -51,10 +69,17 @@ export interface EmployeeProfile {
   /** The ESI insurance number: exactly 17 digits. Optional; printed on the salary slip. */
   esiNumber: string | null;
   mobileNumber: string | null;
+  alternateMobile: string | null;
   guardianName: string | null;
   dateOfBirth: Date | null;
   address: Address | null;
+  /** Null until the wizard (or an edit) sets it. Equal to `address` when `permanentSameAsPresent`. */
+  permanentAddress: Address | null;
+  permanentSameAsPresent: boolean;
+  /** Legacy free text from before `qualifications`; kept readable, no longer written by the wizard. */
   qualification: string | null;
+  qualifications: Qualification[];
+  previousEmployment: PreviousEmployment[];
   bankDetails: BankDetails | null;
   documents: UserDocument[];
 }

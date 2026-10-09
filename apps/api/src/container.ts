@@ -49,6 +49,9 @@ export function buildContainers(): AppContainers {
   // Tier 2 — Territory depends only on Identity's public contract (RouteAssignment's user checks).
   const territory = buildTerritoryContainer(identity.contract, config.contract);
 
+  // Identity sits below Territory, so the employee wizard's "set the HQ" comes through a port.
+  identity.bindHqAssigner((userId, hqId, actorId) => territory.contract.assignUserHq(userId, hqId, actorId));
+
   // Tier 2 — Approval reads Identity (who manages the submitter, right now) and Config (which
   // kinds skip the final stage).
   const approval = buildApprovalContainer(identity.contract, config.contract);

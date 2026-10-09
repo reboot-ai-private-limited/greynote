@@ -3,6 +3,8 @@ import { paginationQuerySchema } from '@/shared/http/pagination.js';
 import { passwordSchema } from './password.schema.js';
 
 export const addressSchema = z.object({
+  line1: z.string().min(1).nullable().optional(),
+  line2: z.string().min(1).nullable().optional(),
   district: z.string().min(1),
   state: z.string().min(1),
   pincode: z.string().min(1),
@@ -35,6 +37,7 @@ export const createUserBodySchema = z.object({
 const basicDetailsPatchSchema = z.object({
   name: z.string().min(1).optional(),
   mobileNumber: z.string().min(1).optional(),
+  alternateMobile: z.string().min(1).nullable().optional(),
   // `null` clears an optional field; a missing key leaves it alone.
   guardianName: z.string().min(1).nullable().optional(),
   // A string first: `z.coerce.date()` alone turns `null` into 1 January 1970 instead of refusing it.
@@ -46,6 +49,16 @@ const basicDetailsPatchSchema = z.object({
   /** Exactly 17 digits (the ESI insurance number); `null` clears it. */
   esiNumber: z.string().regex(/^\d{17}$/, 'The ESI number is exactly 17 digits.').nullable().optional(),
   address: addressSchema.optional(),
+  permanentAddress: addressSchema.optional(),
+  permanentSameAsPresent: z.boolean().optional(),
+  qualifications: z
+    .array(z.object({ degree: z.string().min(1), institute: z.string().min(1), yearOfPassing: z.number().int().min(1950).max(2100) }))
+    .max(20)
+    .optional(),
+  previousEmployment: z
+    .array(z.object({ companyName: z.string().min(1), joiningDate: z.coerce.date(), endDate: z.coerce.date().nullable() }))
+    .max(30)
+    .optional(),
 });
 
 /** Every section optional — the incremental-onboarding PATCH (decision 13). */

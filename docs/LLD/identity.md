@@ -283,7 +283,11 @@ device-limit value.
   underlying mechanism, but a user-facing device-management screen isn't in PRD scope for phase 1.
 
 
-## Setting a field employee up step by step (web, 2026-10-06)
+## Adding a field employee: the wizard (web, 2026-10-09)
+
+`/employees/new` replaces the create-then-setup pair for FIELD employees (decision-log 2026-10-09). Eight steps — Personal, Address, Qualifications, Experience, Bank, Work, Pay, Review — held as strings in `features/people/lib/onboarding.ts` (pure, tested: `stepErrors`, `canOpen`, `firstOpenStep`, `toDraftData`/`fromDraftData`). Each Next saves an `EmployeeDraft` (`employee-drafts` routes, Admin/HR); the last step calls `POST /employee-drafts/:id/finalize` (`FinalizeEmployeeDraftUseCase`), which allocates the next `GRN` code (`MongoEmployeeCodeGenerator`, atomic counter), generates the password, then runs `CreateUser`, `UpdateUser`, the territory HQ assignment (bound into Identity at composition, `identity.bindHqAssigner`) and `AssignCtc`, and returns the credentials once. Required-field gaps are computed by `draftGaps` (`domain/employeeDraft.entity.ts`); the manager is not required when `isTopDesignation` (highest existing level). `/employees/new/staff` keeps the plain form for office logins.
+
+## Setting a field employee up step by step (web, 2026-10-06; older employees)
 
 `/employees/:id/setup` walks a new FIELD employee through **Personal details, Address, Work, Bank details, Compensation, Documents**. Each step is the same section the profile shows,
 opened for editing, and saves on its own through the existing onboarding `PATCH`/CTC/document endpoints, so there is no new API and nothing is lost by stopping: the profile's "still to
