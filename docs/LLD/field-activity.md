@@ -282,6 +282,8 @@ what needs a live connection or a role other than the MR's, all under `/api/fiel
 | `GET` | `/doctor-services/:id` | FIELD, ADMIN | One Doctor Service by its own id (what an approval request's `recordId` points at). Admin reads any; an MR only their own, and anyone else gets the same `404` as an unknown id |
 | `GET` | `/expenses` | ACCOUNTANT, ADMIN | The audit list: manager-approved expenses, unpaid first |
 | `POST` | `/expenses/:id/mark-paid` | ACCOUNTANT, ADMIN | The settlement step, independent of the DCR's approval |
+| `POST` | `/expenses/other/:id/attachments` | FIELD (owner) | Attach proof (multipart `file`; PDF/JPG/PNG, 5 MB, at most 3) to an Other expense while its month is editable |
+| `DELETE` | `/expenses/other/:id/attachments/:attachmentId` | FIELD (owner) | Remove a proof file; returns the remaining files |
 
 ## Geofence override (decided 2026-09-29)
 

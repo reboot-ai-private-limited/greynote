@@ -1,7 +1,7 @@
 import { Types, type ClientSession } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { ChemistCall, DoctorCall, Followup, GeofenceOutcome } from '../domain/call.entity.js';
-import type { Expense } from '../domain/expense.entity.js';
+import type { Expense, ExpenseAttachment } from '../domain/expense.entity.js';
 import type { GeofenceOverride } from '../domain/records.repository.port.js';
 import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseBucket, ExpenseMonthRecord, ExpenseMonthRepositoryPort, ExpenseMonthSummary, GeofenceCount, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../domain/records.repository.port.js';
 import { ChemistCallModel, DoctorCallModel, ExpenseModel, ExpenseMonthModel, FollowupModel, type ChemistCallDoc, type DoctorCallDoc, type ExpenseDoc, type ExpenseMonthDoc, type FollowupDoc } from './records.schema.js';
@@ -193,10 +193,11 @@ const toExpense = (d: ExpenseDoc & { _id: unknown }): Expense => ({
   paidAt: d.paidAt,
   clientId: d.clientId,
   recordedAt: d.recordedAt,
+  attachments: (d.attachments ?? []).map((a) => ({ id: String(a._id), url: a.url, publicId: a.publicId, fileName: a.fileName, mimeType: a.mimeType, sizeBytes: a.sizeBytes, uploadedAt: a.uploadedAt })),
 });
 
 export class MongoExpenseAdapter implements ExpenseRepositoryPort {
-  async create(input: Omit<Expense, 'id'>, ctx: TransactionContext): Promise<Expense> {
+  async create(input: Omit<Expense, 'id' | 'attachments'>, ctx: TransactionContext): Promise<Expense> {
     const [doc] = await ExpenseModel.create(
       [{ ...input, dcrId: input.dcrId ? oid(input.dcrId) : null, userId: oid(input.userId), routeId: input.routeId ? oid(input.routeId) : null, paidBy: input.paidBy ? oid(input.paidBy) : null }],
       session(ctx),
@@ -212,6 +213,24 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
   }
   async updateOther(id: string, userId: string, patch: { reportDate: string; amountPaise: number; remarks: string | null }): Promise<boolean> {
     return (await ExpenseModel.updateOne({ _id: oid(id), userId: oid(userId), type: 'OTHER', paymentStatus: 'UNPAID' }, { $set: patch })).matchedCount === 1;
+  }
+  async addAttachment(id: string, userId: string, attachment: Omit<ExpenseAttachment, 'id'>, max: number): Promise<Expense | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
+    const doc = await ExpenseModel.findOneAndUpdate(
+      { _id: oid(id), userId: oid(userId), type: 'OTHER', paymentStatus: 'UNPAID', $expr: { $lt: [{ $size: { $ifNull: ['$attachments', []] } }, max] } },
+      { $push: { attachments: { _id: new Types.ObjectId(), ...attachment } } },
+      { new: true },
+    ).lean();
+    return doc ? toExpense(doc) : null;
+  }
+  async removeAttachment(id: string, userId: string, attachmentId: string): Promise<ExpenseAttachment | null> {
+    if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(attachmentId)) return null;
+    const before = await ExpenseModel.findOneAndUpdate(
+      { _id: oid(id), userId: oid(userId), type: 'OTHER', paymentStatus: 'UNPAID', 'attachments._id': new Types.ObjectId(attachmentId) },
+      { $pull: { attachments: { _id: new Types.ObjectId(attachmentId) } } },
+      { new: false },
+    ).lean();
+    return before ? (toExpense(before).attachments.find((a) => a.id === attachmentId) ?? null) : null;
   }
   async deleteOther(id: string, userId: string): Promise<boolean> {
     return (await ExpenseModel.deleteOne({ _id: oid(id), userId: oid(userId), type: 'OTHER', paymentStatus: 'UNPAID' })).deletedCount === 1;

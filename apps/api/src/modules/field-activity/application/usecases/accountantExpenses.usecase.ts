@@ -2,12 +2,12 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import type { Paise } from '@/shared/money/paise.js';
-import type { Expense } from '../../domain/expense.entity.js';
+import { toExpenseView, type ExpenseView } from '../../domain/expense.entity.js';
 import type { DcrClock } from '../dcrClock.js';
 import type { ExpenseRepositoryPort } from '../../domain/records.repository.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 
-export interface ExpenseAuditRow extends Expense {
+export interface ExpenseAuditRow extends ExpenseView {
   userName: string;
   employeeCode: string;
 }
@@ -29,7 +29,7 @@ export class ListExpensesUseCase {
   async execute(filter: { from: string; to: string; userId?: string | undefined; paymentStatus?: 'UNPAID' | 'PAID' | undefined }): Promise<ExpenseAuditRow[]> {
     const rows = await this.expenses.listAccepted({ from: filter.from, to: filter.to, ...(filter.userId && { userId: filter.userId }), ...(filter.paymentStatus && { paymentStatus: filter.paymentStatus }) }, AUDIT_LIMIT);
     const people = new Map((await this.users.getUserSummaries([...new Set(rows.map((r) => r.userId))])).map((u) => [u.id, u]));
-    return rows.map((r) => ({ ...r, userName: people.get(r.userId)?.name ?? '', employeeCode: people.get(r.userId)?.employeeCode ?? '' }));
+    return rows.map((r) => ({ ...toExpenseView(r), userName: people.get(r.userId)?.name ?? '', employeeCode: people.get(r.userId)?.employeeCode ?? '' }));
   }
 }
 
@@ -46,13 +46,13 @@ export class MarkExpensePaidUseCase {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async execute(accountantId: string, id: string): Promise<Expense> {
+  async execute(accountantId: string, id: string): Promise<ExpenseView> {
     const expense = await this.expenses.findById(id);
     if (!expense) throw AppError.notFound('No such expense.');
     await assertFinancialYearOpen(this.config, expense.reportDate, 'This expense');
-    if (await this.expenses.markPaid(id, accountantId, this.now())) return (await this.expenses.findById(id))!;
+    if (await this.expenses.markPaid(id, accountantId, this.now())) return toExpenseView((await this.expenses.findById(id))!);
     const current = (await this.expenses.findById(id))!;
-    if (current.paymentStatus === 'PAID') return current;
+    if (current.paymentStatus === 'PAID') return toExpenseView(current);
     if (current.paymentStatus === 'CANCELLED') throw AppError.conflict('This expense was cancelled when its report was sent back, so there is nothing to pay.');
     throw AppError.conflict('This expense’s report has not been approved by the manager, so it cannot be paid yet.');
   }

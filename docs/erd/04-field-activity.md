@@ -99,6 +99,7 @@ erDiagram
         bool distance_flag "AUTO TA only - a route's distance could not be calculated, so this TA is artificially low"
         uuid paid_by FK "nullable - Accountant who marked it paid"
         timestamp paid_at "nullable"
+        json attachments "OTHER rows only - up to 3 proof files {url, public_id, file_name, mime_type, size_bytes, uploaded_at}; public_id never leaves the server"
         timestamp created_at
     }
     DOCTOR_SERVICE {
@@ -152,6 +153,7 @@ erDiagram
 
 ## Design decisions locked for this module
 
+- **2026-10-10 — proof on Other expenses (decision-log 2026-10-10):** `Expense.attachments` holds up to 3 PDF/JPG/PNG files (5 MB each) on an `OTHER` row, added and removed by the owner while the month is editable and the row unpaid; deleting the row removes the files from storage.
 - **2026-10-10 — monthly expenses (decision-log 2026-10-10):** `Expense.type` adds `OTHER` (dated, `dcr_id` null) and a row has `month_approved`; a row is payable only when `accepted` and `month_approved`. New `ExpenseMonth` (`user_id`, `month`, `status` DRAFT/SUBMITTED, `submitted_at`, `ta/da/other_paise` as sent; unique on user + month) is the record the `EXPENSE_MONTH` approval request points at.
 - **Expense is included here**, not deferred — the PRD's Final Submission flow (§6.2 A) bundles it with Doctor/Chemist Calls and Followups into one daily approval, so it needs the same envelope from day one rather than retrofitting it later.
 - **`DCR` is a single daily envelope, one row per user per date.** `DoctorCall`, `DoctorFollowup`, `ChemistCall`, `ChemistFollowup`, and `Expense` all attach to it via `dcr_id`. Its `status`/`reviewed_by` fields are exactly the two-stage approval from PRD §7.1: `reviewed_by` is always the nearest higher manager; once `status = MANAGER_APPROVED` the record is visible to Admin — no separate "forwarded to admin" field needed, since that visibility is derived from the same `manager_id` hierarchy walk established in Module 1, not stored state.

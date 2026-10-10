@@ -1,13 +1,15 @@
 import type { ApprovalStatus } from '@/modules/approval/approval.public.js';
 import { AppError } from '@/shared/errors/AppError.js';
+import { logger } from '@/shared/logging/logger.js';
 import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { Paise } from '@/shared/money/paise.js';
 import { monthRange, parseCalendarMonth } from '@/shared/time/businessTime.js';
 import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
-import type { Expense } from '../../domain/expense.entity.js';
+import { toAttachmentView, type Expense, type ExpenseAttachmentView } from '../../domain/expense.entity.js';
 import type { ExpenseMonthRepositoryPort, ExpenseRepositoryPort } from '../../domain/records.repository.port.js';
+import type { ProofStoragePort } from '../../domain/proofStorage.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { DcrClock } from '../dcrClock.js';
 import type { Actor } from './readDcrs.usecase.js';
@@ -24,7 +26,7 @@ export interface ExpenseDayLine {
   otherPaise: number;
   totalPaise: number;
   /** The employee's own entries for the day (editable while the month is). */
-  others: Array<{ id: string; amountPaise: number; remarks: string | null }>;
+  others: Array<{ id: string; amountPaise: number; remarks: string | null; attachments: ExpenseAttachmentView[] }>;
 }
 export interface ExpenseStatementView {
   userId: string;
@@ -82,6 +84,7 @@ export class ExpenseMonthService {
     private readonly clock: DcrClock,
     private readonly config: ConfigReader,
     private readonly transactions: TransactionRunnerPort,
+    private readonly storage: ProofStoragePort,
   ) {}
 
   /** Runs inside the approval's transaction: approval makes the month's rows payable; sending it back takes that away. */
@@ -115,7 +118,7 @@ export class ExpenseMonthService {
     const days: ExpenseDayLine[] = [...byDate.entries()].map(([date, dayRows]) => ({
       date,
       ...totalsOf(dayRows),
-      others: dayRows.filter((r) => r.type === 'OTHER').map((r) => ({ id: r.id, amountPaise: r.amountPaise, remarks: r.remarks })),
+      others: dayRows.filter((r) => r.type === 'OTHER').map((r) => ({ id: r.id, amountPaise: r.amountPaise, remarks: r.remarks, attachments: r.attachments.map(toAttachmentView) })),
     }));
     const totals = totalsOf(rows);
     const editable = status === 'DRAFT' || status === 'REJECTED';
@@ -160,7 +163,8 @@ export class ExpenseMonthService {
     return out;
   }
 
-  private async assertEditable(userId: string, month: string): Promise<void> {
+  /** Throws unless the employee's month is still theirs to change (not sent for approval, or sent back). */
+  async assertEditable(userId: string, month: string): Promise<void> {
     const record = await this.months.find(userId, month);
     const request = record ? await this.approvals.getForRecord(EXPENSE_MONTH_KIND, record.id) : null;
     const status = statusOf(request);
@@ -196,6 +200,8 @@ export class ExpenseMonthService {
     if (!current) throw AppError.notFound('No such expense.');
     await this.assertEditable(userId, current.reportDate.slice(0, 7));
     if (!(await this.expenses.deleteOther(id, userId))) throw AppError.conflict('This expense can no longer be removed.');
+    // The row is gone, so its proof goes too; a file that cannot be removed now is logged, not allowed to undo the delete.
+    await Promise.all(current.attachments.map((a) => this.storage.remove(a.publicId).catch((err: unknown) => logger.error({ err, publicId: a.publicId }, 'could not remove a deleted expense’s proof file'))));
   }
 
   /** Sends the finished month to the manager (Admin if none). Only once the month is over, and only if there is something to claim. */

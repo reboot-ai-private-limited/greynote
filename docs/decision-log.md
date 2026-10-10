@@ -33,6 +33,21 @@ old one.
 
 ---
 
+## 2026-10-10 — Proof (receipts) on an "Other" expense
+
+**Decision:**
+- An "Other" expense can carry **up to 3 proof files** of 5 MB each — PDF, JPG or PNG (read from the file's own bytes, as for leave proof). Proof is **optional**.
+- The phone first creates the expense (`POST /field-activity/expenses/other`, unchanged JSON), then uploads each file: `POST /field-activity/expenses/other/:id/attachments` (multipart field `file`) and `DELETE …/attachments/:attachmentId`. Only the owner, and only while the month is still editable (not sent for approval, or sent back) and the row unpaid.
+- Files are stored in Cloudinary under `greynote/users/{userId}/expense-proof/{expenseId}`. Deleting the expense deletes its files. The statement's `others[]` lines, and the Accountant's expense list, return each file as `{ id, url, fileName, mimeType, sizeBytes, uploadedAt }` — never the storage id.
+
+**Why:** the manager, Admin and Accountant approve and pay free-text claims; a receipt lets them check them.
+
+**Rejected:** one multipart create (breaks the JSON contract, and a failed upload would lose the claim); making proof compulsory (the owner has not asked for it).
+
+**Cost:** the proof helpers (file-type sniffing) are copied from HR into Field Activity, since a module's internals are private. Web does not show the files yet; the phone has no upload control yet. Not tested against a live Cloudinary account.
+
+---
+
 ## 2026-10-10 — Visuals shown to each doctor: a standing list the MR adds to and a manager or Admin controls
 
 **Decision:**

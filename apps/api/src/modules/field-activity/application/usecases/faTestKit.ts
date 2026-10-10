@@ -9,7 +9,7 @@ import type { DcrRepositoryPort } from '../../domain/dcr.repository.port.js';
 import type { PlanningPort } from '../../domain/planning.port.js';
 import type { ChemistCall, DoctorCall, Followup } from '../../domain/call.entity.js';
 import type { DoctorGift, DoctorService } from '../../domain/serviceGift.entity.js';
-import type { Expense } from '../../domain/expense.entity.js';
+import type { Expense, ExpenseAttachment } from '../../domain/expense.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, DoctorGiftRepositoryPort, DoctorServiceRepositoryPort, ExpenseBucket, ExpenseMonthSummary, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
 import type { LeavePort } from '../../domain/leave.port.js';
@@ -316,6 +316,21 @@ export class FakeDoctorCalls extends FakeCalls<DoctorCall> implements DoctorCall
 export class FakeChemistCalls extends FakeCalls<ChemistCall> implements ChemistCallRepositoryPort {}
 export class FakeFollowups extends FakeCalls<Followup> implements FollowupRepositoryPort {}
 export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositoryPort {
+  override async create(input: Omit<Expense, 'id' | 'attachments'>, ctx: unknown) {
+    return super.create({ ...input, attachments: [] }, ctx);
+  }
+  private static fileCounter = 0;
+  async addAttachment(id: string, userId: string, attachment: Omit<ExpenseAttachment, 'id'>, max: number) {
+    const r = this.rows.find((x) => x.id === id && x.userId === userId && x.type === 'OTHER' && x.paymentStatus === 'UNPAID');
+    if (!r || r.attachments.length >= max) return null;
+    r.attachments.push({ ...attachment, id: `file-${++FakeExpenses.fileCounter}` });
+    return r;
+  }
+  async removeAttachment(id: string, userId: string, attachmentId: string) {
+    const r = this.rows.find((x) => x.id === id && x.userId === userId && x.type === 'OTHER' && x.paymentStatus === 'UNPAID');
+    const i = r?.attachments.findIndex((a) => a.id === attachmentId) ?? -1;
+    return r && i >= 0 ? r.attachments.splice(i, 1)[0]! : null;
+  }
   async summarizeByMonth(range: { from: string; to: string }) {
     const by = new Map<string, ExpenseMonthSummary>();
     for (const r of this.rows.filter((x) => x.accepted && x.paymentStatus !== 'CANCELLED' && x.reportDate >= range.from && x.reportDate <= range.to)) {
