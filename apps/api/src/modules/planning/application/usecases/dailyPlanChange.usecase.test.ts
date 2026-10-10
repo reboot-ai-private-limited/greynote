@@ -36,7 +36,7 @@ describe('In-day change to an approved Daily Plan', () => {
   /** The plan for DATE, saved, submitted and approved (`status` MANAGER_APPROVED or APPROVED). */
   async function approvedPlan(status: 'MANAGER_APPROVED' | 'APPROVED' = 'APPROVED') {
     const saved = await new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views).execute(MR, DATE, fieldDay());
-    await new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter).execute(MR, saved.id);
+    await new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver).execute(MR, saved.id);
     kit.approvals.setStatus('DAILY_PLAN', saved.id, status);
     return saved.id;
   }

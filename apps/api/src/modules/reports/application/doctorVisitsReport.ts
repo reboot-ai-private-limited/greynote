@@ -1,7 +1,7 @@
 import type { DoctorVisitMrDto, DoctorVisitsReportDto } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import { monthRange } from '@/shared/time/businessTime.js';
-import type { DoctorCallsPort, FieldRosterPort, MasterPort } from '../domain/ports.js';
+import type { DoctorCallsPort, FieldRosterPort, MasterPort, PlannedDoctorsPort } from '../domain/ports.js';
 
 /**
  * Each Doctor's visit frequency against the calls made on reported days of a month: per employee the quota, calls made
@@ -14,6 +14,7 @@ export class DoctorVisitsReport {
     private readonly roster: FieldRosterPort,
     private readonly master: MasterPort,
     private readonly fieldActivity: DoctorCallsPort,
+    private readonly planning: PlannedDoctorsPort,
   ) {}
 
   async month(input: { actor: { id: string; role: string }; month: string; userId?: string | undefined }): Promise<DoctorVisitsReportDto> {
@@ -24,11 +25,12 @@ export class DoctorVisitsReport {
         employees.map(async (e): Promise<DoctorVisitMrDto | null> => {
           const tracked = (await this.master.listAssignedDoctors(e.id)).filter((d) => d.visitFrequency != null);
           if (tracked.length === 0) return null;
+          const planned = new Map((await this.planning.listPlannedDoctors(e.id, input.month)).map((p) => [p.doctorId, p]));
           const rows = tracked
             .map((d) => {
               const frequency = d.visitFrequency!;
               const made = Math.min(calls.get(d.id) ?? 0, frequency);
-              return { doctor: { id: d.id, name: d.name, specialty: d.specialty }, frequency, made, missed: frequency - made };
+              return { doctor: { id: d.id, name: d.name, specialty: d.specialty }, frequency, made, missed: frequency - made, plannedDays: planned.get(d.id)?.plannedDays ?? 0, missedSince: planned.get(d.id)?.missedSince ?? null };
             })
             .sort((a, b) => b.missed - a.missed || a.doctor.name.localeCompare(b.doctor.name));
           const quota = rows.reduce((n, r) => n + r.frequency, 0);

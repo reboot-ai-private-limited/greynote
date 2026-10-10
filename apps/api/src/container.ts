@@ -76,6 +76,7 @@ export function buildContainers(): AppContainers {
   // Tier 4 — Field Activity: the daily core (DCR, calls, expenses, TA/DA). It consumes almost everything below it.
   const fieldActivity = buildFieldActivityContainer(identity.contract, planning.contract, fieldMasterData.contract, territory.contract, approval.contract, sync.contract, hr.contract, config.contract);
 
+  planning.bindDoctorSources(fieldMasterData.contract, (userId, range) => fieldActivity.contract.listCalledDoctorIds(userId, range));
   planning.bindDayReported((userId, date) => fieldActivity.contract.hasQualifyingDcr(userId, date));
 
   // Tier 4 — Sales & Orders: monthly stock counts at Chemists and Distributors (Field Master Data), who may see whose (Identity), the daily push (Sync).

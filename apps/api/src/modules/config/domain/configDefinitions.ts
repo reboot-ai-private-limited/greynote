@@ -107,6 +107,9 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   },
   integer('DCR_MISS_GRACE_DAYS', 'FIELD_ACTIVITY', 'Missed-report grace', 'Grace days before a missed DCR triggers the compliance block.', 1, 0, 365, 'days'),
 
+  toggle('CALL_CARRY_OVER_FOREVER', 'FIELD_ACTIVITY', 'Missed calls carry over without limit', 'Whether a doctor planned for a day but not called stays on later days\u2019 plans until called. Off: the days setting below applies.', false),
+  integer('CALL_CARRY_OVER_DAYS', 'FIELD_ACTIVITY', 'Missed calls carry over for', 'How long a planned but uncalled doctor carries over to later days\u2019 plans. 0 = until the end of that month; otherwise that many days after the planned day. Ignored while the setting above is on.', 0, 0, 365, 'days'),
+
   integer('TA_MAX_KM', 'FIELD_ACTIVITY', 'Most km paid as TA in a day', 'The km paid as TA across all of a day’s Routes together never exceeds this. Km beyond it are not paid.', 99, 1, 5000, 'km'),
 
   // ── Salary and payouts ──

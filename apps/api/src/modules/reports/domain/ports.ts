@@ -85,6 +85,11 @@ export interface PlanningPort {
   listDailyPlanDays(userId: string, from: string, to: string): Promise<Array<{ date: string; status: string; routeIds: string[] }>>;
 }
 
+/** Planning's view of which doctors were planned and missed in a month. */
+export interface PlannedDoctorsPort {
+  listPlannedDoctors(userId: string, planMonth: string): Promise<Array<{ doctorId: string; plannedDays: number; missedSince: string | null }>>;
+}
+
 export interface AttendancePort {
   getMonth(userId: string, month: string): Promise<{ days: Array<{ date: string; status: string }> }>;
 }

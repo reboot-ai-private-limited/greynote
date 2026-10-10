@@ -54,7 +54,7 @@ export class LogDoctorCallUseCase {
   async execute(rec: RecordContext, input: CallInput & { doctorId: string; samples: Array<{ productId: string; quantity: number }> }, ctx: TransactionContext): Promise<CallResult> {
     const dcr = await this.gate.open(rec.userId, input.reportDate, rec.recordedAt);
     const doctor = await this.checks.doctor(rec.userId, input.doctorId);
-    await this.checks.onPlannedRoute(rec.userId, input.reportDate, doctor.routeId);
+    await this.checks.onPlannedRoute(rec.userId, input.reportDate, doctor.routeId, doctor.id);
     await this.checks.workWith(rec.userId, input.workWith);
     const geofence = await this.geofence.evaluate(await this.master.getDoctorLocation(input.doctorId), input.capturedLocation, input.accuracyMeters);
 

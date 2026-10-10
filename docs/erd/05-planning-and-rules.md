@@ -18,6 +18,7 @@ erDiagram
         string working_type "FIELD_WORK, MEETING, CONFERENCE, STRIKE"
         json work_with "array of accompanying user_ids"
         json route_ids "array of Route ids for the day"
+        json doctors "doctors to call: [{doctor_id, carried_from date or null}]; count = calls due"
         string remarks
         string status "DRAFT, SUBMITTED, MANAGER_APPROVED, REJECTED"
         timestamp submitted_at
@@ -75,6 +76,7 @@ erDiagram
 
 ## Design decisions locked for this module
 
+- **A Daily Plan lists the doctors to call (decision-log 2026-10-10).** `DailyPlan.doctors[]` = `{ doctor_id, carried_from }`; its length is the calls due. `carried_from` is the day the doctor was first planned when the entry is a missed call carried over, else null. It is kept apart from the route fields, so an inherited day stays route-locked while its doctors are editable. Carry-over is **not stored**: it is derived on read from APPROVED plans and the reported calls, within the window set by `CALL_CARRY_OVER_FOREVER` / `CALL_CARRY_OVER_DAYS` (0 = until month end).
 - **Monthly Plan is day-by-day, same shape as Daily Plan.** `MonthlyPlan` is the envelope (one row per user per month); `MonthlyPlanEntry` holds one row per planned day with the same fields as `DailyPlan` (`working_type`, `work_with`, `route_ids`, `remarks`). Entries can be edited freely while the parent `MonthlyPlan.status = DRAFT`; the whole month is submitted together, and only then does it move into the approval flow.
 - **A Daily Plan is written from the approved Monthly Plan, by copy, with no foreign key (decision-log 2026-10-03).** `DailyPlan.source` is `MONTHLY` (copied from a `MonthlyPlanEntry`; the owner can't edit it but still submits it) or `MANUAL` (absent on older rows, read as `MANUAL`). `DailyPlan.amendments[]` holds each manager/Admin change: `{ by, at, reason, previous }`. Later edits to the month don't reach a day that was submitted or amended.
 - **Superseded 2026-09-24:** approval state (`status`/`reviewed_by`/`reviewed_at` below) moves to the `approval` module's `ApprovalRequest` (`../LLD/approval.md`); the fields are dropped when Planning is built. Kept below as the record of the earlier model.
@@ -107,6 +109,7 @@ erDiagram
   - `DCR_APPROVAL_REQUIRED` = `true` (Module 4, decision-log 2026-10-03) — off: a submitted DCR is approved at once (authority `AUTO`) and its TA/DA generated then
   - `APPROVAL_SLA_DAYS` = `3` (Module 1/approval) — days an approver has before a request is flagged overdue; flag only, nothing is auto-approved
   - `MONTHLY_STOCK_DEADLINE_DAY` = `5` (Module 6) — month *M*'s opening/closing stock is due by this day of the following month (replaces `MONTHLY_STOCK_GRACE_DAYS`)
+  - `CALL_CARRY_OVER_FOREVER` = `false`, `CALL_CARRY_OVER_DAYS` = `0` (Module 5, decision-log 2026-10-10) — how long a planned but uncalled doctor carries over to later days' plans (0 = until the end of that month)
   - `SystemConfig` values are Admin-writable at runtime, not just seed defaults — a `PATCH` per key, ADMIN-only, so e.g. `DCR_MISS_GRACE_DAYS` can be moved from its default `1` to `2` or `3` without a redeploy (decision-log 2026-09-24)
 - **`Submit` on `DailyPlan`/`MonthlyPlan` requires a live connection at tap time — unlike other transactional records (HLD 1 §1.1), it does not queue offline.** Saving as `DRAFT` still works fully offline for UX; only the state transition into the approval flow needs a synchronous server round-trip, since it's what the DailyPlan-approval gate (HLD 10) depends on. Same carve-out applies to `DCR` Final Submission (Module 4).
 

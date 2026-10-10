@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DoctorCallsPort, FieldRosterPort, MasterPort } from '../domain/ports.js';
+import type { DoctorCallsPort, FieldRosterPort, MasterPort, PlannedDoctorsPort } from '../domain/ports.js';
 import { DoctorVisitsReport } from './doctorVisitsReport.js';
 
 const emp = (id: string, name: string) => ({ id, name, employeeCode: `E-${id}`, designation: null, hqId: null, zoneId: null });
@@ -20,7 +20,8 @@ const doctors: Record<string, Array<{ id: string; name: string; specialty: strin
 };
 const master = { listAssignedDoctors: async (id: string) => doctors[id] ?? [] } as unknown as MasterPort;
 const fieldActivity: DoctorCallsPort = { countDoctorCalls: async () => [{ doctorId: 'd1', count: 1 }, { doctorId: 'd2', count: 5 }, { doctorId: 'd3', count: 3 }] };
-const report = new DoctorVisitsReport(roster, master, fieldActivity);
+const planning: PlannedDoctorsPort = { listPlannedDoctors: async (id) => (id === 'mr1' ? [{ doctorId: 'd1', plannedDays: 2, missedSince: '2026-10-05' }] : []) };
+const report = new DoctorVisitsReport(roster, master, fieldActivity, planning);
 
 describe('DoctorVisitsReport', () => {
   it('counts quota, made and missed; only doctors with a frequency; made is capped per doctor', async () => {
@@ -28,6 +29,8 @@ describe('DoctorVisitsReport', () => {
     const mr = r.mrs[0]!;
     expect(mr).toMatchObject({ quota: 6, made: 3, missed: 3, doctors: 2, completedDoctors: 1 });
     expect(mr.rows[0]).toMatchObject({ frequency: 4, made: 1, missed: 3 });
+    expect(mr.rows[0]).toMatchObject({ plannedDays: 2, missedSince: '2026-10-05' });
+    expect(mr.rows[1]).toMatchObject({ plannedDays: 0, missedSince: null });
     expect(r.totals).toMatchObject({ quota: 6, made: 3, missed: 3 });
   });
 

@@ -14,4 +14,6 @@ export const PLANNING_CONFIG_KEYS = {
   monthlyResubmitGraceHours: 'MONTHLY_PLAN_RESUBMIT_GRACE_HOURS',
   resubmitGraceMax: 'PLAN_RESUBMIT_GRACE_MAX',
   dailyChangeMax: 'DAILY_PLAN_CHANGE_MAX',
+  carryOverForever: 'CALL_CARRY_OVER_FOREVER',
+  carryOverDays: 'CALL_CARRY_OVER_DAYS',
 } as const;

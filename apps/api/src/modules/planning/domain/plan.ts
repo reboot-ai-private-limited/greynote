@@ -25,3 +25,12 @@ export interface PlanDay {
   routeIds: string[];
   remarks: string | null;
 }
+
+/**
+ * One doctor on a Daily Plan. `carriedFrom` is the day the doctor was first planned when this entry is a missed call carried
+ * over to this day; `null` for a doctor the MR picked for the day.
+ */
+export interface PlannedDoctor {
+  doctorId: string;
+  carriedFrom: string | null;
+}

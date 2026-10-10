@@ -53,7 +53,7 @@ describe('Late-submission exceptions', () => {
     kit.users.add(MR, { managerId: ASM });
     kit.routes.byUser.set(MR, [ROUTE]);
     save = new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views);
-    submit = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter);
+    submit = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver);
     grant = new GrantLateSubmitUseCase(kit.grants, kit.users, kit.config, clock.now);
     revoke = new RevokeLateSubmitUseCase(kit.grants, clock.now);
     list = new ListLateSubmitGrantsUseCase(kit.grants, kit.users, clock.now);

@@ -1,4 +1,4 @@
-import type { PlanDay, PlanSource } from './plan.js';
+import type { PlanDay, PlannedDoctor, PlanSource } from './plan.js';
 
 /** A manager's or Admin's change to a day, kept with what it replaced. */
 export interface PlanAmendment {
@@ -18,6 +18,8 @@ export interface DailyPlan extends PlanDay {
   /** A calendar day, `YYYY-MM-DD` — not an instant. */
   planDate: string;
   source: PlanSource;
+  /** The doctors to call this day — the MR's picks plus missed calls carried over. Calls due = its length. */
+  doctors: PlannedDoctor[];
   /** Oldest first. */
   amendments: PlanAmendment[];
   /** Bumped on every save; submit is conditional on the revision it validated. */

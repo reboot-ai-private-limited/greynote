@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Dialog } from '@/components/ui/Dialog';
+import { formatDate } from '@/lib/format';
 import { monthLabel } from '@/features/payroll/lib/payroll';
 
 type Row = DoctorVisitMrDto['rows'][number];
@@ -18,6 +19,17 @@ const columns: readonly Column<Row>[] = [
   { key: 'specialty', header: 'Speciality', render: (r) => r.doctor.specialty },
   { key: 'frequency', header: 'Should visit', numeric: true, render: (r) => r.frequency },
   { key: 'made', header: 'Called', numeric: true, render: (r) => r.made },
+  { key: 'planned', header: 'Planned days', numeric: true, render: (r) => r.plannedDays },
+  {
+    key: 'missedSince',
+    header: 'Planned, not called since',
+    render: (r) =>
+      r.missedSince ? (
+        <Badge tone="warning">{formatDate(r.missedSince)}</Badge>
+      ) : (
+        <span className="text-text-subtle">—</span>
+      ),
+  },
   {
     key: 'missed',
     header: 'Missed',

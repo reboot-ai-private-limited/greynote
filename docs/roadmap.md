@@ -864,3 +864,7 @@ The MR picks, per doctor, which visuals to show; Admin and managers above the MR
 ## Doctor visit frequency and missed calls (2026-10-10)
 
 Doctor DOB / anniversary / monthly visit frequency (decision-log 2026-10-10, K38). **Done:** API (doctor fields, manager `PATCH /doctors/:id/targets`, `countDoctorCalls`, `GET /reports/doctor-visits`; tests and RBAC matrix updated) and web (doctor form fields, Visits tab, `/reports/doctor-visits`; typecheck and tests pass). **Not browser-checked.** **Open:** the phone's Missed calls section and add-doctor fields (mobile team); birthday/anniversary reminders; the docs `testing/` checklists are not extended yet.
+
+## Daily Plan doctor list and carry-over (2026-10-10)
+
+Decision-log 2026-10-10, B14: the MR picks the day's doctors (count = calls due); missed doctors carry to later days per Admin's settings; whole list re-approved; the visit report shows planned days and the missed-since date. **Done:** API (`doctors` on the Daily Plan, set-doctors and carry-over endpoints, submit merge, carried-doctor exemption in the call check, `listPlannedDoctors` for the report; tests pass), web (approval preview lists doctors, visit-report dialog and CSV). **Open:** the phone's picker and counter; seed the two new settings before deploy; browser check; amendments and in-day changes do not carry the list.

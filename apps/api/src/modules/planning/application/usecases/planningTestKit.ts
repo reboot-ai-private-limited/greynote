@@ -17,10 +17,12 @@ import type { LateSubmitGrant } from '../../domain/lateSubmitGrant.entity.js';
 import type { LateSubmitGrantFilter, LateSubmitGrantRepositoryPort } from '../../domain/lateSubmitGrant.repository.port.js';
 import type { MonthlyPlan, MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
-import type { PlanDay, PlanKind } from '../../domain/plan.js';
+import type { PlanDay, PlanKind, PlannedDoctor } from '../../domain/plan.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { PlanDeadlines } from '../planDeadlines.js';
 import { PlanSubmitter } from '../planSubmitter.js';
+import { CarryOver } from '../carryOver.js';
+import { SetDailyPlanDoctorsUseCase } from './setDailyPlanDoctors.usecase.js';
 import { PlanViews } from '../planViews.js';
 
 /** In-memory fakes for Planning's use-case tests — no Mongo, no other module's internals. */
@@ -49,6 +51,7 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
       revision: (existing?.revision ?? 0) + 1,
       lateResubmits: existing?.lateResubmits ?? 0,
       source: existing?.source ?? 'MANUAL',
+      doctors: existing?.doctors ?? [],
       amendments: existing?.amendments ?? [],
       updatedAt: new Date(),
     };
@@ -58,8 +61,15 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
   async createInherited(userId: string, planDate: string, day: PlanDay) {
     if (await this.findByUserAndDate(userId, planDate)) return false;
     const id = `plan-${this.rows.size + 1}`;
-    this.rows.set(id, { id, userId, planDate, ...day, source: 'MONTHLY', amendments: [], revision: 1, lateResubmits: 0, updatedAt: new Date() });
+    this.rows.set(id, { id, userId, planDate, ...day, source: 'MONTHLY', doctors: [], amendments: [], revision: 1, lateResubmits: 0, updatedAt: new Date() });
     return true;
+  }
+  async saveDoctors(id: string, expectedRevision: number, doctors: PlannedDoctor[]) {
+    const plan = this.rows.get(id);
+    if (!plan || plan.revision !== expectedRevision) return null;
+    const next = { ...plan, doctors, revision: plan.revision + 1, updatedAt: new Date() };
+    this.rows.set(id, next);
+    return next;
   }
   async amend(id: string, expectedRevision: number, day: PlanDay, amendment: PlanAmendment) {
     const plan = this.rows.get(id);
@@ -327,6 +337,8 @@ export class FakeConfig {
     MONTHLY_PLAN_RESUBMIT_GRACE_HOURS: '24',
     PLAN_RESUBMIT_GRACE_MAX: '2',
     DAILY_PLAN_CHANGE_MAX: '3',
+    CALL_CARRY_OVER_FOREVER: 'false',
+    CALL_CARRY_OVER_DAYS: '0',
   };
   async get(key: string) {
     const value = this.values[key];
@@ -375,5 +387,14 @@ export function planningKit(clock: Clock) {
   const requestChange = new RequestDailyPlanChangeUseCase(dailyPlans, changes, approvals, users, submitter, deadlines, inlineTransactions);
   const listChanges = new ListDailyPlanChangesUseCase(dailyPlans, changes, approvals, users);
   const getChange = new GetDailyPlanChangeUseCase(changes, approvals, users);
-  return { users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, changes, requestChange, listChanges, getChange, amend, reported };
+  /** Each user's visible doctors, and the calls they made (`userId` → `{ doctorId, date }`), as the test sets them. */
+  const doctors = new Map<string, Array<{ id: string; routeId: string }>>();
+  const calls: Array<{ userId: string; doctorId: string; date: string }> = [];
+  const carryOver = new CarryOver(dailyPlans, approvals, config);
+  carryOver.bind(
+    { listAssignedDoctors: async (userId) => doctors.get(userId) ?? [] },
+    async (userId, { from, to }) => calls.filter((c) => c.userId === userId && c.date >= from && c.date <= to).map((c) => c.doctorId),
+  );
+  const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views);
+  return { doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, changes, requestChange, listChanges, getChange, amend, reported };
 }

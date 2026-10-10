@@ -378,6 +378,8 @@ export interface PlanningSnapshot {
     workingType: WorkingType;
     workWith: string[];
     routeIds: string[];
+    /** The doctors to call: the MR's picks plus missed calls carried over. */
+    doctors: Array<{ doctorId: string; carriedFrom: string | null }>;
     remarks: string | null;
     revision: number;
     status: PlanStatus;

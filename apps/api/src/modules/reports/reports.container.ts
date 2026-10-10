@@ -9,7 +9,7 @@ import { SalaryReport } from './application/salaryReport.js';
 import { SalesReport } from './application/salesReport.js';
 import { StockReport } from './application/stockReport.js';
 import { TaDaReport } from './application/taDaReport.js';
-import type { AttendancePort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
+import type { AttendancePort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
 import { makeReportsControllers } from './interface/reports.controller.js';
 import { buildReportsRouter } from './interface/reports.route.js';
 
@@ -29,7 +29,7 @@ export function buildReportsContainer(
   fieldActivity: FieldActivityPort & FieldDaysPort & DoctorCallsPort,
   territory: TerritoryPort & ZoneNamePort,
   payroll: PayrollPort,
-  planning: PlanningPort,
+  planning: PlanningPort & PlannedDoctorsPort,
   attendance: AttendancePort,
   marketing: MarketingPort,
   config: ConfigReader,
@@ -42,6 +42,6 @@ export function buildReportsContainer(
   const salaryReport = new SalaryReport(payroll, fieldActivity, identity, config);
   const salesDashboard = new SalesDashboardReport(identity, planning, attendance, fieldActivity, marketing, sales, master, territory, config);
   const employeeSales = new EmployeeSalesReport(sales, marketing, master, identity, identity);
-  const doctorVisits = new DoctorVisitsReport(identity, master, fieldActivity);
+  const doctorVisits = new DoctorVisitsReport(identity, master, fieldActivity, planning);
   return { buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport, dcrReport, salaryReport, salesDashboard, employeeSales, doctorVisits)) };
 }

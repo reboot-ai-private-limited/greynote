@@ -181,6 +181,16 @@ changes) and were never amended; submitted, approved, employee-written (`MANUAL`
   over, and once that day's DCR is submitted (`reason: PLAN_DAY_REPORTED`) because TA/DA follows the plan's routes —
   Admin reopens the DCR first. The DCR check is handed back to Planning after both modules are built
   (`bindDayReported`) and fails closed until bound.
+- **Doctors and carry-over (decision-log 2026-10-10).** `DailyPlan.doctors` is set by `POST /planning/daily/doctors`
+  `{ planDate, doctorIds }` (the owner, any `source`, only while the plan is editable; max 50; doctors must be the
+  owner's visible doctors and on the day's routes). `CarryOver.pending(user, date)` returns the doctors first planned on
+  an earlier APPROVED day and not called since (`listCalledDoctorIds` from the first-planned day), still the MR's, within
+  the window from `CALL_CARRY_OVER_FOREVER` / `CALL_CARRY_OVER_DAYS` (0 = month end); exposed as
+  `GET /planning/daily/carry-over?date=`. Those doctors are added to the list on save and on submit and can't be dropped,
+  so the whole list is what the manager approves. Field Activity's `ROUTE_NOT_IN_PLAN` check lets a doctor the plan lists
+  as carried through (contract `getDailyPlanDay.carriedDoctorIds`). `listPlannedDoctors(user, month)` feeds the
+  doctor-visits report (`plannedDays`, `missedSince`). The doctor directory and the called-doctors lookup are handed in
+  after the containers are built (`bindDoctorSources`). Amendments and in-day changes do not carry the doctor list.
 - The in-day change request below stays as the employee's way to **ask** for a change to today's approved plan.
 - Plans approved before this change get their days from the one-off `migrate:inherit-monthly`.
 

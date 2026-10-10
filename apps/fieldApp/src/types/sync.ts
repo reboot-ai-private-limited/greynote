@@ -21,6 +21,8 @@ export type PlanningSnapshot = {
     workingType: 'FIELD_WORK' | 'MEETING' | 'CONFERENCE' | 'STRIKE';
     workWith: string[];
     routeIds: string[];
+    /** The doctors to call: the MR's picks plus missed calls carried over (`carriedFrom` = the day first planned). Absent from older servers. */
+    doctors?: { doctorId: string; carriedFrom: string | null }[];
     remarks: string | null;
     status: PlanStatus;
     approvalRequestId: string | null;

@@ -80,6 +80,7 @@ const BY_ID = [
   '/api/approvals/:id',
 ];
 const TIMELESS = [
+  '/api/planning/daily/carry-over',
   '/api/field-activity/expense-months/history', // the last twelve months, across a year end
   '/api/config', // system settings: global, not a dated record
   '/api/config/public',

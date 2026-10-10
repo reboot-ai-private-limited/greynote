@@ -14,6 +14,8 @@ const HEADER = [
   'Frequency',
   'Calls made',
   'Missed',
+  'Planned days',
+  'Planned, not called since',
 ] as const;
 
 export function doctorVisitsCsv(mrs: readonly DoctorVisitMrDto[]): string {
@@ -28,6 +30,8 @@ export function doctorVisitsCsv(mrs: readonly DoctorVisitMrDto[]): string {
         r.frequency,
         r.made,
         r.missed,
+        r.plannedDays,
+        r.missedSince ?? '',
       ]),
     ),
   );

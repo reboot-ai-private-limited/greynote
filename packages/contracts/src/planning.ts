@@ -33,8 +33,16 @@ export interface PlanAmendmentDto {
   previous: PlanDayDto;
 }
 
+export interface PlannedDoctorDto {
+  doctorId: string;
+  /** The day the doctor was first planned, when this is a missed call carried over; `null` for a doctor the MR picked. */
+  carriedFrom: string | null;
+}
+
 export interface DailyPlanDto extends PlanDayDto, PlanStateDto {
   id: string;
+  /** The doctors to call this day; their count is the calls due. */
+  doctors: PlannedDoctorDto[];
   userId: string;
   planDate: string;
   /** `MONTHLY`: written from the approved monthly plan — the owner submits it as it is and can't edit it. */

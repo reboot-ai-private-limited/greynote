@@ -41,6 +41,8 @@ const HISTORICAL_DEFAULTS: Record<string, string> = {
   EX_STATION_MIN_KM: '15',
   OUT_STATION_MIN_KM: '50',
   TA_MAX_KM: '99',
+  CALL_CARRY_OVER_FOREVER: 'false',
+  CALL_CARRY_OVER_DAYS: '0',
   SALARY_RUN_DAY: '1',
   EXPENSE_PAYOUT_DAY: '15',
   FY_CLOSED_YEARS: 'NONE',
@@ -57,7 +59,7 @@ const def = (key: string) => {
 };
 
 describe('the definitions registry', () => {
-  it('defines each of the 31 seeded keys exactly once, with the default it always had', () => {
+  it('defines each of the seeded keys exactly once, with the default it always had', () => {
     expect(CONFIG_DEFINITIONS).toHaveLength(Object.keys(HISTORICAL_DEFAULTS).length);
     expect(new Set(CONFIG_DEFINITIONS.map((d) => d.key)).size).toBe(CONFIG_DEFINITIONS.length);
     for (const [key, value] of Object.entries(HISTORICAL_DEFAULTS)) expect(def(key).default, key).toBe(value);

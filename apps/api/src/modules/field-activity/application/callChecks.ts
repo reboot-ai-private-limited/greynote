@@ -42,10 +42,12 @@ export class CallChecks {
   /**
    * A call stays inside the day's approved Plan: the Doctor's or Chemist's Route must be one the Plan lists. The report can't
    * depart from the plan — the way to change the day is for the manager or Admin to amend the plan, then log. (A Plan with no
-   * Routes, a meeting day, has no calls.) The gate has already confirmed the Plan is approved.
+   * Routes, a meeting day, has no calls.) The gate has already confirmed the Plan is approved. A Doctor carried over from an
+   * earlier day (`doctorId`) may be called whatever their Route: the plan lists them by name.
    */
-  async onPlannedRoute(userId: string, reportDate: string, routeId: string): Promise<void> {
+  async onPlannedRoute(userId: string, reportDate: string, routeId: string, doctorId?: string): Promise<void> {
     const day = await this.planning.getDailyPlanDay(userId, reportDate);
+    if (doctorId && day?.carriedDoctorIds?.includes(doctorId)) return;
     if (!day?.routeIds.includes(routeId)) {
       throw new LogRefusal(LOG_CODES.routeNotInPlan, 'This call isn’t on a route in today’s approved plan. Ask your manager to amend the plan first.');
     }

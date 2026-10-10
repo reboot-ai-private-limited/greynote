@@ -1,4 +1,5 @@
 DELETE /api/field-activity/expenses/other/:id  FIELD
+DELETE /api/field-activity/expenses/other/:id/attachments/:attachmentId  FIELD
 DELETE /api/field-master-data/doctors/:id/assignments/:userId  ADMIN
 DELETE /api/hr/holidays/:id  ADMIN,HR
 DELETE /api/hr/leaves/:id/attachments/:attachmentId  FIELD
@@ -78,6 +79,7 @@ GET    /api/planning/changes/:id  ADMIN,FIELD
 GET    /api/planning/daily  FIELD
 GET    /api/planning/daily/:id  ADMIN,FIELD
 GET    /api/planning/daily/:id/changes  ADMIN,FIELD
+GET    /api/planning/daily/carry-over  FIELD
 GET    /api/planning/late-grants  ADMIN,FIELD
 GET    /api/planning/monthly  FIELD
 GET    /api/planning/monthly/:id  ADMIN,FIELD
@@ -149,6 +151,7 @@ POST   /api/field-activity/expense-months/:month/submit  FIELD
 POST   /api/field-activity/expense-payouts/pay  ACCOUNTANT,ADMIN
 POST   /api/field-activity/expenses/:id/mark-paid  ACCOUNTANT,ADMIN
 POST   /api/field-activity/expenses/other  FIELD
+POST   /api/field-activity/expenses/other/:id/attachments  FIELD
 POST   /api/field-master-data/chemists  ADMIN
 POST   /api/field-master-data/distributors  ADMIN
 POST   /api/field-master-data/doctors  ADMIN
@@ -194,6 +197,7 @@ POST   /api/payroll/generate  ACCOUNTANT,ADMIN
 POST   /api/planning/daily  FIELD
 POST   /api/planning/daily/:id/changes  FIELD
 POST   /api/planning/daily/:id/submit  FIELD
+POST   /api/planning/daily/doctors  FIELD
 POST   /api/planning/late-grants  ADMIN,FIELD
 POST   /api/planning/late-grants/:id/revoke  ADMIN,FIELD
 POST   /api/planning/monthly  FIELD

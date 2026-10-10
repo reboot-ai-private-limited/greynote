@@ -1,6 +1,6 @@
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { DailyPlan, PlanAmendment } from './dailyPlan.entity.js';
-import type { PlanDay } from './plan.js';
+import type { PlanDay, PlannedDoctor } from './plan.js';
 
 export interface DailyPlanRepositoryPort {
   findById(id: string): Promise<DailyPlan | null>;
@@ -12,6 +12,8 @@ export interface DailyPlanRepositoryPort {
    * `expectedRevision`, bumping `revision`. `null` when it moved on (or was created meanwhile).
    */
   save(userId: string, planDate: string, day: PlanDay, expectedRevision: number | null): Promise<DailyPlan | null>;
+  /** Replaces the day's doctor list only if the plan is still at `expectedRevision`, bumping it. `null` when it moved on. */
+  saveDoctors(id: string, expectedRevision: number, doctors: PlannedDoctor[]): Promise<DailyPlan | null>;
   /**
    * Inside the Monthly Plan's approval transaction: creates the day's plan from the Monthly entry (`source: MONTHLY`) unless one
    * exists for that day, in which case nothing changes. Returns whether it created one.

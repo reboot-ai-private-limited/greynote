@@ -260,6 +260,10 @@ export interface DoctorVisitRowDto {
   made: number;
   /** `max(0, frequency − made)`. */
   missed: number;
+  /** Days this month the Doctor was on an approved daily plan, up to yesterday. */
+  plannedDays: number;
+  /** The day the Doctor was first planned and then never called on or after — the missed call carried forward; `null` if none. */
+  missedSince: string | null;
 }
 
 export interface DoctorVisitMrDto {

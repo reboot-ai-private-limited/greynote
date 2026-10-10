@@ -18,6 +18,7 @@ export interface DailyPlanDoc extends PlanDayDoc {
   userId: Types.ObjectId;
   planDate: string;
   source?: PlanSource;
+  doctors?: Array<{ doctorId: Types.ObjectId; carriedFrom: string | null }>;
   amendments?: PlanAmendmentDoc[];
   revision: number;
   lateResubmits: number;
@@ -32,6 +33,8 @@ const dailyPlanSchema = new Schema<DailyPlanDoc>({
   // Absent on plans from before inheritance: read as MANUAL.
   source: { type: String, enum: [...PLAN_SOURCES], default: 'MANUAL' },
   amendments: { type: [amendmentSchema], default: [] },
+  // Absent on plans from before doctor lists: read as none.
+  doctors: { type: [new Schema({ doctorId: { type: Schema.Types.ObjectId, required: true, ref: 'Doctor' }, carriedFrom: { type: String, default: null } }, { _id: false })], default: [] },
   revision: { type: Number, required: true },
   lateResubmits: { type: Number, default: 0 },
   updatedAt: { type: Date, required: true },

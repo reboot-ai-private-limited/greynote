@@ -18,6 +18,14 @@ export const planDaySchema = z.object({
 
 export const saveDailyPlanBodySchema = planDaySchema.extend({ planDate: planDateSchema });
 
+/** The doctors to call on a day (the route stays the Monthly Plan's). Missed calls still owed are added by the server. */
+export const setDailyPlanDoctorsBodySchema = z.object({
+  planDate: planDateSchema,
+  doctorIds: z.array(objectIdSchema).max(50),
+});
+
+export const carryOverQuerySchema = z.object({ date: planDateSchema });
+
 /** Both ends inclusive. The unrefined object is what the OpenAPI doc shows. */
 export const dateRangeQuerySchema = z.object({ from: planDateSchema, to: planDateSchema });
 export const listDailyPlansQuerySchema = dateRangeQuerySchema

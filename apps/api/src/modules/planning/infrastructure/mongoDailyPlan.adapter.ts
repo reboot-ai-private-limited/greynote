@@ -2,7 +2,7 @@ import { Types, type ClientSession } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { DailyPlan, PlanAmendment } from '../domain/dailyPlan.entity.js';
 import type { DailyPlanRepositoryPort } from '../domain/dailyPlan.repository.port.js';
-import type { PlanDay } from '../domain/plan.js';
+import type { PlanDay, PlannedDoctor } from '../domain/plan.js';
 import { DailyPlanModel, type DailyPlanDoc } from './dailyPlan.schema.js';
 import { isDuplicateKey, toDayDoc, toPlanDay } from './planDoc.js';
 
@@ -13,6 +13,7 @@ function toPlan(doc: DailyPlanDoc & { _id: unknown }): DailyPlan {
     planDate: doc.planDate,
     ...toPlanDay(doc),
     source: doc.source ?? 'MANUAL',
+    doctors: (doc.doctors ?? []).map((d) => ({ doctorId: String(d.doctorId), carriedFrom: d.carriedFrom ?? null })),
     amendments: (doc.amendments ?? []).map((a) => ({ by: String(a.by), at: a.at, reason: a.reason, previous: toPlanDay(a.previous) })),
     revision: doc.revision,
     lateResubmits: doc.lateResubmits ?? 0,
@@ -66,6 +67,18 @@ export class MongoDailyPlanAdapter implements DailyPlanRepositoryPort {
       { upsert: true, session: ctx as ClientSession },
     );
     return result.upsertedCount === 1;
+  }
+
+  async saveDoctors(id: string, expectedRevision: number, doctors: PlannedDoctor[]): Promise<DailyPlan | null> {
+    const doc = await DailyPlanModel.findOneAndUpdate(
+      { _id: id, revision: expectedRevision },
+      {
+        $set: { doctors: doctors.map((d) => ({ doctorId: new Types.ObjectId(d.doctorId), carriedFrom: d.carriedFrom })), updatedAt: new Date() },
+        $inc: { revision: 1 },
+      },
+      { new: true },
+    ).lean();
+    return doc ? toPlan(doc) : null;
   }
 
   async amend(id: string, expectedRevision: number, day: PlanDay, amendment: PlanAmendment): Promise<DailyPlan | null> {

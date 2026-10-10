@@ -6,6 +6,8 @@ import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { Actor } from '../application/planAccess.js';
 import type { AmendDailyPlanUseCase } from '../application/usecases/amendDailyPlan.usecase.js';
+import type { CarryOver } from '../application/carryOver.js';
+import type { SetDailyPlanDoctorsUseCase } from '../application/usecases/setDailyPlanDoctors.usecase.js';
 import type { GetDailyPlanUseCase } from '../application/usecases/getDailyPlan.usecase.js';
 import type { GetMonthlyPlanUseCase } from '../application/usecases/getMonthlyPlan.usecase.js';
 import type { GrantLateSubmitUseCase } from '../application/usecases/grantLateSubmit.usecase.js';
@@ -21,6 +23,8 @@ import type { SubmitDailyPlanUseCase } from '../application/usecases/submitDaily
 import type { SubmitMonthlyPlanUseCase } from '../application/usecases/submitMonthlyPlan.usecase.js';
 import type {
   amendDailyPlanBodySchema,
+  carryOverQuerySchema,
+  setDailyPlanDoctorsBodySchema,
   grantLateSubmitBodySchema,
   listDailyPlansQuerySchema,
   listLateSubmitGrantsQuerySchema,
@@ -44,6 +48,8 @@ type ListGrantsQuery = z.output<typeof listLateSubmitGrantsQuerySchema>;
 
 export type PlanningHandlers = Record<
   | 'saveDaily'
+  | 'setDoctors'
+  | 'carryOver'
   | 'listDaily'
   | 'getDaily'
   | 'submitDaily'
@@ -67,6 +73,8 @@ export function makePlanningControllers(useCases: {
   listChanges: ListDailyPlanChangesUseCase;
   getChange: GetDailyPlanChangeUseCase;
   saveDaily: SaveDailyPlanUseCase;
+  setDoctors: SetDailyPlanDoctorsUseCase;
+  carryOver: CarryOver;
   listDaily: ListDailyPlansUseCase;
   getDaily: GetDailyPlanUseCase;
   submitDaily: SubmitDailyPlanUseCase;
@@ -83,6 +91,14 @@ export function makePlanningControllers(useCases: {
       const { planDate, ...day } = req.body as SaveDailyBody;
       const plan = await useCases.saveDaily.execute(actorOf(req).id, planDate, day);
       sendSuccess(req, res, plan, 'Plan saved.', 200);
+    }),
+    setDoctors: asyncHandler(async (req, res) => {
+      const { planDate, doctorIds } = req.body as z.output<typeof setDailyPlanDoctorsBodySchema>;
+      sendSuccess(req, res, await useCases.setDoctors.execute(actorOf(req).id, planDate, doctorIds), 'Doctors saved.', 200);
+    }),
+    carryOver: asyncHandler(async (req, res) => {
+      const { date } = req.query as unknown as z.output<typeof carryOverQuerySchema>;
+      sendSuccess(req, res, await useCases.carryOver.pending(actorOf(req).id, date), 'Missed calls carried over to this day.', 200);
     }),
     listDaily: asyncHandler(async (req, res) => {
       const { from, to } = req.query as unknown as ListDailyQuery;

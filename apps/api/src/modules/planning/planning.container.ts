@@ -1,6 +1,7 @@
 import type { Router } from 'express';
 import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
+import { monthRange } from '@/shared/time/businessTime.js';
 import { PlanDeadlines } from './application/planDeadlines.js';
 import { PlanSubmitter } from './application/planSubmitter.js';
 import { PlanViews } from './application/planViews.js';
@@ -9,6 +10,9 @@ import { makeDailyPlanChangeHandler } from './application/dailyPlanChangeHandler
 import { makeMonthlyPlanInheritHandler } from './application/monthlyPlanInheritHandler.js';
 import { BackfillInheritedDaysUseCase } from './application/usecases/backfillInheritedDays.usecase.js';
 import { AmendDailyPlanUseCase, type DayReportedCheck } from './application/usecases/amendDailyPlan.usecase.js';
+import { CarryOver } from './application/carryOver.js';
+import { SetDailyPlanDoctorsUseCase } from './application/usecases/setDailyPlanDoctors.usecase.js';
+import type { CalledDoctorsPort, DoctorDirectoryPort } from './domain/doctorDirectory.port.js';
 import { GetDailyPlanUseCase } from './application/usecases/getDailyPlan.usecase.js';
 import { GetMonthlyPlanUseCase } from './application/usecases/getMonthlyPlan.usecase.js';
 import { GrantLateSubmitUseCase } from './application/usecases/grantLateSubmit.usecase.js';
@@ -44,6 +48,8 @@ export interface PlanningContainer {
    * back after both are built. Until then an amend fails closed.
    */
   bindDayReported(check: DayReportedCheck): void;
+  /** Field Master Data (the MR's doctors) and Field Activity (who was called) are built after Planning; handed in once they exist. */
+  bindDoctorSources(doctors: DoctorDirectoryPort, called: CalledDoctorsPort): void;
   /** The one-off `migrate:inherit-monthly` script's entry point. */
   backfillInheritedDays(apply: boolean): Promise<{ approvedMonthlyPlans: number; dailyPlansWritten: number }>;
 }
@@ -72,7 +78,9 @@ export function buildPlanningContainer(
   const views = new PlanViews(approvals, grants, deadlines);
   const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now);
   const saveDaily = new SaveDailyPlanUseCase(dailyPlans, approvals, views);
-  const submitDaily = new SubmitDailyPlanUseCase(dailyPlans, deadlines, submitter);
+  const carryOver = new CarryOver(dailyPlans, approvals, config);
+  const submitDaily = new SubmitDailyPlanUseCase(dailyPlans, deadlines, submitter, approvals, carryOver);
+  const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views);
   const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views);
   const listDaily = new ListDailyPlansUseCase(dailyPlans, views);
   const saveMonthly = new SaveMonthlyPlanUseCase(monthlyPlans, approvals, views);
@@ -108,6 +116,12 @@ export function buildPlanningContainer(
       isDailyPlanApproved: (userId, planDate) => status.isDailyPlanApproved(userId, planDate),
       getDailyPlanDay: (userId, planDate) => status.day(userId, planDate),
       listDailyPlanDays: (userId, from, to) => status.days(userId, from, to),
+      listPlannedDoctors: async (userId, planMonth) => {
+        const range = monthRange(planMonth);
+        const yesterday = new Date(Date.parse(await deadlines.today()) - 86_400_000).toISOString().slice(0, 10);
+        const to = range.to < yesterday ? range.to : yesterday;
+        return range.from > to ? [] : carryOver.monthSummary(userId, range.from, to);
+      },
       getDailyPlanStatus: (userId, planDate) => status.daily(userId, planDate),
       getMonthlyPlanStatus: (userId, planMonth) => status.monthly(userId, planMonth),
     },
@@ -115,10 +129,13 @@ export function buildPlanningContainer(
     bindDayReported: (check) => {
       dayReported = check;
     },
+    bindDoctorSources: (doctors, called) => carryOver.bind(doctors, called),
     buildRouter: () =>
       buildPlanningRouter(
         makePlanningControllers({
           saveDaily,
+          setDoctors,
+          carryOver,
           listDaily,
           getDaily,
           submitDaily,
