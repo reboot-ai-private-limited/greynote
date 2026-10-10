@@ -449,8 +449,13 @@ function ExpenseMonthSummaryCard({ recordId }: { recordId: string }) {
               <View style={styles.tableMain}>
                 <ThemedText type="small">{prettyDay(d.date)}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">{`TA ${formatRupees(d.taPaise)} · DA ${formatRupees(d.daPaise)} · Other ${formatRupees(d.otherPaise)}`}</ThemedText>
-                {d.others.filter((o) => o.remarks).map((o) => (
-                  <ThemedText key={o.id} type="small" themeColor="textSecondary">{`${formatRupees(o.amountPaise)} · ${o.remarks}`}</ThemedText>
+                {d.others.filter((o) => o.remarks || (o.attachments ?? []).length > 0).map((o) => (
+                  <View key={o.id}>
+                    <ThemedText type="small" themeColor="textSecondary">{`${formatRupees(o.amountPaise)}${o.remarks ? ` · ${o.remarks}` : ''}`}</ThemedText>
+                    {(o.attachments ?? []).map((a) => (
+                      <PrimaryButton key={a.id} label={`Receipt: ${a.fileName}`} variant="text" onPress={() => void Linking.openURL(a.url)} />
+                    ))}
+                  </View>
                 ))}
               </View>
               <ThemedText type="small" style={styles.amount}>

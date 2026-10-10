@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, apiPut } from './api';
+import { apiDelete, apiGet, apiPost, apiPut, apiUpload, type UploadFile } from './api';
 
 /**
  * The monthly expense statement (decision-log 2026-10-10): per date, the TA and DA the server worked out plus your own entries in the
@@ -8,13 +8,18 @@ export type ExpenseMonthStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
 
 export type ExpenseTotals = { taPaise: number; daPaise: number; otherPaise: number; totalPaise: number };
 
+/** A receipt on an Other expense: up to 3 files of PDF, JPG or PNG, 5 MB each, optional. */
+export type ExpenseProofFile = { id: string; url: string; fileName: string; mimeType: string; sizeBytes: number; uploadedAt: string };
+
+export type ExpenseOther = { id: string; amountPaise: number; remarks: string | null; attachments?: ExpenseProofFile[] };
+
 export type ExpenseDayLine = {
   date: string;
   taPaise: number;
   daPaise: number;
   otherPaise: number;
   totalPaise: number;
-  others: { id: string; amountPaise: number; remarks: string | null }[];
+  others: ExpenseOther[];
 };
 
 export type ExpenseStatement = {
@@ -49,7 +54,15 @@ export const getStatementById = (recordId: string) => apiGet<ExpenseStatement>(`
 
 export const getHistory = () => apiGet<ExpenseMonthSummary[]>('/field-activity/expense-months/history');
 
-export const addOther = (body: OtherExpenseBody) => apiPost<unknown>('/field-activity/expenses/other', body, { auth: true });
+/** Creates the expense; its receipts are uploaded afterwards, one request each, with `addExpenseProof`. */
+export const addOther = (body: OtherExpenseBody) => apiPost<{ id: string }>('/field-activity/expenses/other', body, { auth: true });
+
+/** Only the owner, only while the month is still editable and the expense unpaid. Returns the expense's files as they now stand. */
+export const addExpenseProof = (expenseId: string, file: UploadFile) =>
+  apiUpload<ExpenseProofFile[]>(`/field-activity/expenses/other/${expenseId}/attachments`, file);
+
+export const removeExpenseProof = (expenseId: string, attachmentId: string) =>
+  apiDelete<ExpenseProofFile[]>(`/field-activity/expenses/other/${expenseId}/attachments/${attachmentId}`);
 
 export const editOther = (id: string, body: OtherExpenseBody) => apiPut<unknown>(`/field-activity/expenses/other/${id}`, body);
 
