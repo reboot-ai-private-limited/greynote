@@ -188,6 +188,7 @@ export function buildFieldMasterDataContainer(
       getChemistLocation: async (id) => (await chemists.findById(id))?.location ?? null,
       getChemist: (id) => chemists.findById(id),
       getProduct: (id) => products.findById(id),
+      listActiveProducts: () => products.listActive(),
     },
     buildRouter: () =>
       buildFieldMasterDataRouter({

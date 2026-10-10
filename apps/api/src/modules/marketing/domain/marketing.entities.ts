@@ -36,13 +36,18 @@ export interface Campaign {
 }
 
 /**
- * What one user is meant to sell in a month, optionally narrowed to a Product and/or a Campaign. At most one per
- * (user, month, product, campaign): setting it again replaces the amount. "Achieved" is never stored.
+ * What one user is meant to sell over a run of whole months of one financial year (decision-log 2026-10-10): a month, a quarter, the year, or
+ * any run between — `month` is the first and `toMonth` the last (equal for a single month). Optionally narrowed to a Product and/or a Campaign.
+ * At most one per (user, range, product, campaign): setting it again replaces the amount. Ranges may overlap; each is measured on its own.
+ * What was achieved is never stored here: it is the secondary the employee entered, worked out by Reports.
  */
 export interface Target {
   id: string;
   userId: string;
+  /** First month of the range, `YYYY-MM`. */
   month: string;
+  /** Last month of the range, `YYYY-MM`; equal to `month` for a one-month target. */
+  toMonth: string;
   productId: string | null;
   campaignId: string | null;
   targetAmountPaise: Paise;
@@ -55,21 +60,7 @@ export interface Target {
 export interface TargetKey {
   userId: string;
   month: string;
+  toMonth: string;
   productId: string | null;
   campaignId: string | null;
-}
-
-/**
- * What one field employee actually sold in a month, typed in by an Admin or the manager above (decision-log 2026-10-09, which replaces the
- * derived-only rule of sign-off E8 for the Sales Dashboard). One per (user, month); setting it again replaces the amount. Zero is a real figure.
- */
-export interface Achievement {
-  id: string;
-  userId: string;
-  month: string;
-  achievedAmountPaise: Paise;
-  /** Whoever set it last. */
-  enteredBy: string;
-  createdAt: Date;
-  updatedAt: Date;
 }

@@ -12,6 +12,9 @@ class FakeOrders implements OrderRepositoryPort {
   async sumDistributorOrders() {
     return [];
   }
+  async sumUserOrders() {
+    return [];
+  }
   async sumAmount(f: { userIds: string[]; from: string; to: string; productId?: string | undefined }) {
     return this.rows
       .filter((o) => f.userIds.includes(o.userId) && o.status !== 'CANCELLED' && o.orderDate >= f.from && o.orderDate <= f.to)

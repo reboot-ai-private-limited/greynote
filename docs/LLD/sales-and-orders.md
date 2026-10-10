@@ -163,6 +163,22 @@ location-verified).
   the Web Portal's Sales report screen ([`../roadmap.md`](../roadmap.md) phase 9) is actually
   built, not before there's a consumer for it.
 
+## Distributor monthly statement (2026-10-09)
+
+Definitions, per distributor, product and month, in units: **Opening** = stock held at the start of the month; **Primary** = what the company sent to it (Done orders marked Done in the month + Admin's adjustment); **Secondary** = what it sold on; **Closing** = stock at month end; **Opening + Primary − Secondary = Closing**. Chemists are not part of these figures (K31).
+
+Two sources feed one result (`shared/stock/stockFigures.ts`, used by the grid and by the Sales report):
+- **Field count** — `MonthlyStock`, unchanged: any field employee who may act on the distributor submits opening and closing; secondary is derived (`opening + primary − closing`).
+- **Admin statement** — `StockStatement { distributorId, productId, month, openingQty, secondaryQty|null, adjustmentQty, adjustmentReason, enteredBy/At, updatedBy/At, history[] }`, unique per distributor + product + month. Closing is never stored; it is `opening + primary − secondary`. A change keeps the old values in `history`.
+
+**Precedence:** a statement that states a secondary is the figure used; otherwise the field count. When both exist and the field's closing differs from the derived closing the row carries `COUNT_MISMATCH`. Other flags: `NEGATIVE_SECONDARY` (count path), `NEGATIVE_CLOSING` (statement path), `OPENING_MISMATCH` (opening ≠ last month's closing), `UNPRICED`.
+
+- `GET /api/sales/distributor-statement?distributorId&month` (Admin, financial-year scoped): every active product with the field count (who, when), the orders, the saved statement or a suggested opening (the count's, else last month's closing) and the resulting figures.
+- `POST /api/sales/distributor-statement { distributorId, month, lines[] }` (Admin): distributor active, month started, financial year open, products active; an adjustment needs a reason; no deadline for Admin; an identical line is left alone.
+- The field-count path (`POST /monthly-stock`, the phone's `MONTHLY_STOCK` record) now also refuses a month of a closed financial year (a sync `FY_CLOSED` rejection).
+
+Web: the distributor's **Stock** tab (month, product grid, **Use field count**, Save) and the Sales report's statement (Adjustment, Source, new flags). The Stock report still shows the field counts only.
+
 ## Distributor payments (2026-10-09)
 
 `DistributorPayment { distributor_id, payment_date, amount_paise, mode (CASH, CHEQUE, BANK_TRANSFER, UPI), reference?, note?, status (RECORDED, CANCELLED), recorded_by, cancel reason/by/at }`, entered by **Admin or Accountant** on the web (resolves sign-off E6: entered in this app). Never edited: a wrong entry is cancelled with a reason, once, and stays listed but out of the totals.
@@ -174,3 +190,7 @@ location-verified).
 Web: the distributor's **Payments** tab (tiles, range filter, table, Record payment, Cancel) and **Orders** tab (its orders in the range). An MR does not record payments from the phone.
 
 `GET /api/sales/distributor-payments/totals?from&to` (Admin or Accountant, financial-year scoped) returns what each distributor paid in the range, recorded payments only, one row per distributor that has any — the Distributors list's "Collected this month" column. The list rows also have a **Payment** button that opens the same Record payment modal, plus Edit and Deactivate / Reactivate shown in the row (distributors list only; the other tables keep their 3-dot menu).
+
+## Employee figures (2026-10-10)
+
+`EmployeeSale` (see the ERD) with `GET /api/sales/employee-sales?userId&month` (the month by product: `orderPrimaryQty` from `sumUserOrders` — Done orders to distributors by user, product and month marked Done — plus the adjustment and the secondary), `POST /api/sales/employee-secondary` (`SaveEmployeeSecondaryUseCase`: self, manager of the user, or Admin; month started, financial year open, whole units, active products; after the stock deadline only Admin or an unlocked month) and `POST /api/sales/employee-primary` (`SaveEmployeePrimaryUseCase`: Admin; reason needed for a non-zero change). Public contract adds `sumUserOrders` and `listEmployeeSales`. For distributors, the Stock tab's suggested opening is now last month's closing first, the field count's opening only when there is none.

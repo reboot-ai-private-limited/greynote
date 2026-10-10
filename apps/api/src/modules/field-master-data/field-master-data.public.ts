@@ -43,6 +43,8 @@ export interface FieldMasterDataPublicContract {
   getChemist(chemistId: string): Promise<Chemist | null>;
   getProduct(productId: string): Promise<Product | null>;
   getDistributor(distributorId: string): Promise<Distributor | null>;
+  /** Every active Product, by name — the rows of a stock statement. */
+  listActiveProducts(): Promise<Product[]>;
   /**
    * Names for a batch of Distributors, Chemists and Products in three queries — what a report needs to put words on ids. A product also carries the
    * prices a report values stock with. An id that is not there is left out.

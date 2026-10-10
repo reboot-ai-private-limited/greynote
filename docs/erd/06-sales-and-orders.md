@@ -77,8 +77,13 @@ erDiagram
 - **`Order` carries a completion lifecycle, same shape as `DoctorGift`.** `status` moves `PLACED → DONE` (or `CANCELLED`), with `completed_by`/`completed_at` recording who marked it fulfilled and when — same pattern as Module 4's Gift allocation, since "no manager approval" and "no completion tracking" aren't the same thing.
 - **PRIMARY vs SECONDARY sales (PRD glossary) aren't a field anywhere — they're derived, not stored.** `Order` always represents a primary sale (an actual order placed with a distributor/chemist). Secondary sales aren't logged directly; they're computed from `MonthlyStock`'s opening/closing counts (roughly: `opening_qty + primary sales received during the month - closing_qty`) — that computation is reporting/application logic, not a schema concern.
 - **`MonthlyStock` is one row per outlet + product + month**, with the same polymorphic Distributor/Chemist attachment as `Order`. `recorded_by` tracks which MR submitted the count.
+- **`StockStatement` (2026-10-09)** is Admin's monthly entry for one distributor and product: `opening_qty`, `secondary_qty` (nullable), `adjustment_qty` (±) with `adjustment_reason`, `entered_by/at`, `updated_by/at` and a `history[]` of earlier values; unique on (distributor, product, month). It sits beside `MonthlyStock` (the field workers' count) and never overwrites it; closing is derived (`opening + primary − secondary`), never stored. A statement that states a secondary takes precedence over the count.
 - **No approval workflow for `Order` or `MonthlyStock`.** PRD §7 only routes Tour Plans, DCR & Expenses, and (from Module 4) MR-submitted Doctor Service through manager approval — orders and stock counts are captured directly, same treatment as `DoctorGift`.
 
 ## Next
 
 **Module 7 — HR Ops.** `Leave` and `Holiday` — including `Holiday.hq_id`, tying the holiday calendar to the HQ hierarchy from Module 2.
+
+## `EmployeeSale` (2026-10-10)
+
+One field employee's figures for one product and one month: `user_id`, `product_id`, `month` (`YYYY-MM`), `secondary_qty` (what they say they sold; null = nothing entered), `adjustment_qty` (Admin's change to their primary, ± whole units) with `adjustment_reason` (required when ≠ 0), `updated_by/at` and a `history[]` of the old values. Unique on `(user_id, product_id, month)`. The two figures have separate writers (the employee, their manager or Admin for secondary; Admin only for the adjustment). Primary itself is not stored: it is the employee's Done distributor orders plus the adjustment. No distributor is recorded: nothing here feeds a distributor's stock.

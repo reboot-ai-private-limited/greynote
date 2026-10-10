@@ -7,7 +7,7 @@ import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { MarketingHandlers } from './marketing.controller.js';
-import { createCampaignBodySchema, createVisualBodySchema, idParamsSchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, setStatusBodySchema, setAchievementBodySchema, setTargetBodySchema, targetQuerySchema, userIdParamsSchema } from './marketing.schemas.js';
+import { createCampaignBodySchema, createVisualBodySchema, idParamsSchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, setStatusBodySchema, setTargetBodySchema, listTargetsQuerySchema, targetQuerySchema, userIdParamsSchema } from './marketing.schemas.js';
 
 const TAG = 'Marketing';
 const MAX_VISUAL_BYTES = 25 * 1024 * 1024;
@@ -18,7 +18,7 @@ function uploadMiddleware(req: Request, res: Response, next: NextFunction): void
   upload(req, res, (err: unknown) => (err ? next(AppError.badRequest(err instanceof Error ? err.message : 'Invalid file upload.')) : next()));
 }
 
-function doc(method: 'get' | 'post' | 'patch', path: string, summary: string, request: { query?: ZodTypeAny; body?: ZodTypeAny; params?: AnyZodObject } = {}): void {
+function doc(method: 'get' | 'post' | 'patch' | 'delete', path: string, summary: string, request: { query?: ZodTypeAny; body?: ZodTypeAny; params?: AnyZodObject } = {}): void {
   openApiRegistry.registerPath({
     method,
     path: `/api/marketing${path}`,
@@ -35,8 +35,9 @@ doc('patch', '/visuals/{id}', 'Admin: set a Visual active or inactive', { params
 doc('post', '/campaigns', 'Admin: create a company-wide Campaign', { body: createCampaignBodySchema });
 doc('get', '/campaigns', 'Campaigns — field staff see the active ones; Admin all', { query: listCampaignsQuerySchema });
 doc('patch', '/campaigns/{id}', 'Admin: set a Campaign active, inactive or completed', { params: idParamsSchema, body: setCampaignStatusBodySchema });
-doc('post', '/targets', 'Admin, or a manager for themselves and their downline: set a monthly Target (replaces the same user + month + product + campaign)', { body: setTargetBodySchema });
-doc('post', '/achievements', 'Admin, or a manager for their downline: enter what an employee sold in a month (replaces the month\'s figure); only a month of the current financial year', { body: setAchievementBodySchema });
+doc('post', '/targets', 'Admin, or a manager for themselves and their downline: set a Target over a run of whole months of the current financial year (replaces the same user + range + product + campaign)', { body: setTargetBodySchema });
+doc('get', '/targets', 'An employee\'s targets touching a range of months, each with its share inside the range — self, the manager above, or Admin', { query: listTargetsQuerySchema });
+doc('delete', '/targets/{id}', 'Admin, or a manager for their team: take a Target away (current financial year)', { params: idParamsSchema });
 doc('get', '/targets/{userId}', 'Effective target (own + downline) and achieved for a month — self, the manager above, or Admin', { params: userIdParamsSchema, query: targetQuerySchema });
 
 export function buildMarketingRouter(c: MarketingHandlers): Router {
@@ -49,7 +50,8 @@ export function buildMarketingRouter(c: MarketingHandlers): Router {
   router.get('/campaigns', requireRole('FIELD', 'ADMIN'), validate({ query: listCampaignsQuerySchema }), c.listCampaigns);
   router.patch('/campaigns/:id', requireRole('ADMIN'), validate({ params: idParamsSchema, body: setCampaignStatusBodySchema }), c.setCampaignStatus);
   router.post('/targets', requireRole('FIELD', 'ADMIN'), validate({ body: setTargetBodySchema }), c.setTarget);
-  router.post('/achievements', requireRole('FIELD', 'ADMIN'), validate({ body: setAchievementBodySchema }), c.setAchievement);
+  router.get('/targets', requireRole('FIELD', 'ADMIN'), validate({ query: listTargetsQuerySchema }), c.listTargets);
+  router.delete('/targets/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.deleteTarget);
   router.get('/targets/:userId', requireRole('FIELD', 'ADMIN'), validate({ params: userIdParamsSchema, query: targetQuerySchema }), c.getTarget);
   return router;
 }

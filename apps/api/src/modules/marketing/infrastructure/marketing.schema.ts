@@ -54,7 +54,10 @@ export const CampaignModel = model<CampaignDoc>('Campaign', campaignSchema);
 
 export interface TargetDoc {
   userId: Types.ObjectId;
+  /** First month of the range. */
   month: string;
+  /** Last month of the range (equal to `month` for one month). */
+  toMonth: string;
   /** Stored as an explicit `null` when general, so the unique index treats "no product" as one value. */
   productId: Types.ObjectId | null;
   campaignId: Types.ObjectId | null;
@@ -66,6 +69,7 @@ export interface TargetDoc {
 const targetSchema = new Schema<TargetDoc>({
   userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   month: { type: String, required: true, match: /^\d{4}-(0[1-9]|1[0-2])$/ },
+  toMonth: { type: String, required: true, match: /^\d{4}-(0[1-9]|1[0-2])$/ },
   productId: { type: Schema.Types.ObjectId, default: null, ref: 'Product' },
   campaignId: { type: Schema.Types.ObjectId, default: null, ref: 'Campaign' },
   targetAmountPaise: { type: Number, required: true, min: 1, validate: { validator: isPaise, message: 'Must be a whole number of paise.' } },
@@ -73,10 +77,14 @@ const targetSchema = new Schema<TargetDoc>({
   createdAt: { type: Date, required: true },
   updatedAt: { type: Date, required: true },
 });
-targetSchema.index({ userId: 1, month: 1, productId: 1, campaignId: 1 }, { unique: true });
-targetSchema.index({ month: 1, productId: 1, campaignId: 1 });
+targetSchema.pre('validate', function () {
+  if (this.toMonth < this.month) this.invalidate('toMonth', 'A target cannot end before it starts.');
+});
+targetSchema.index({ userId: 1, month: 1, toMonth: 1, productId: 1, campaignId: 1 }, { unique: true });
+targetSchema.index({ userId: 1, toMonth: 1 });
 export const TargetModel = model<TargetDoc>('Target', targetSchema);
 
+/** History only: the typed-in monthly achievement of the Sales Dashboard before 2026-10-10. Nothing writes it any more; achievement is the secondary an employee enters. */
 export interface AchievementDoc {
   userId: Types.ObjectId;
   month: string;

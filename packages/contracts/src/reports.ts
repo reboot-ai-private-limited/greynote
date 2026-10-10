@@ -81,7 +81,10 @@ export interface SalesYearReportDto {
   totals: { primaryQty: number; primaryPaise: number; secondaryQty: number; secondaryPaise: number };
 }
 
-export type SalesRowFlag = 'NO_COUNT' | 'NEGATIVE_SECONDARY' | 'OPENING_MISMATCH' | 'UNPRICED';
+export type SalesRowFlag = 'NO_COUNT' | 'NEGATIVE_SECONDARY' | 'NEGATIVE_CLOSING' | 'COUNT_MISMATCH' | 'OPENING_MISMATCH' | 'UNPRICED';
+
+/** Where a row's figures come from: Admin's statement, the field workers' counts, or nothing counted yet (`NONE`). */
+export type SalesRowSource = 'STATEMENT' | 'FIELD_COUNT' | 'NONE';
 
 /** One distributor and product in one month: the stock statement. */
 export interface SalesStatementRowDto {
@@ -89,12 +92,19 @@ export interface SalesStatementRowDto {
   product: { id: string; name: string; sku: string };
   /** `null` when there was no count for it. */
   openingQty: number | null;
+  /** Done orders + the adjustment. */
   primaryQty: number;
+  /** Done orders in the month, before the adjustment. */
+  orderPrimaryQty: number;
+  /** Admin's adjustment to primary: supply without an app order (+) or a return (−). */
+  adjustmentQty: number;
+  /** Done order amounts + the adjustment valued at PTS. */
   primaryPaise: number;
   placedQty: number;
   closingQty: number | null;
   secondaryQty: number | null;
   secondaryPaise: number | null;
+  source: SalesRowSource;
   flags: SalesRowFlag[];
 }
 
@@ -318,9 +328,12 @@ export interface SalesDashboardRowDto {
   /** Accepted TA and DA claimed in the range, cancelled ones left out. */
   taPaise: number;
   daPaise: number;
-  /** For the month of the range's last day: the general monthly target and what was entered as sold; `null` = not set. */
+  /** The employee's targets over the months of the range (a longer target counts its even share of each month); `null` = none set. */
   targetPaise: number | null;
+  /** What they entered as secondary in those months, at PTR — their achievement; `null` = nothing entered and no target. */
   achievedPaise: number | null;
+  /** Their Done distributor orders plus Admin's change, in those months. */
+  primaryPaise: number;
 }
 
 /** `GET /reports/sales-dashboard?from=&to=`: the field force over a range, one page of rows and the totals of all of them. */
@@ -328,12 +341,56 @@ export interface SalesDashboardDto {
   /** The range actually read: `to` is held to today, since a future day has nothing yet. */
   from: string;
   to: string;
-  /** The month the target and achievement columns are for (`YYYY-MM`). */
-  month: string;
+  /** The months the target, primary and achievement columns cover (`YYYY-MM`, both inclusive): those of `from` and `to`. */
+  fromMonth: string;
+  toMonth: string;
   rows: SalesDashboardRowDto[];
-  totals: { employees: number; taPaise: number; daPaise: number; targetPaise: number; achievedPaise: number };
+  totals: { employees: number; taPaise: number; daPaise: number; targetPaise: number; achievedPaise: number; primaryPaise: number };
   page: number;
   pageSize: number;
   total: number;
   totalPages: number;
+}
+
+/** One product of an employee's view over a run of months. */
+export interface EmployeeProductFigureDto {
+  product: { id: string; name: string; sku: string };
+  /** The share of this product's targets inside the months asked about. */
+  targetPaise: number;
+  primaryQty: number;
+  /** Done orders plus Admin's change valued at PTS (a product with no PTS adds units only). */
+  primaryPaise: number;
+  secondaryQty: number;
+  /** At PTR; units of a product with no PTR are in `secondaryQty` only. */
+  secondaryPaise: number;
+  /** Achievement as a whole percent of `targetPaise`; `null` = no target. */
+  achievementPercent: number | null;
+  flags: Array<'NO_PTR' | 'NO_PTS'>;
+}
+
+/** One target, measured over its own months. */
+export interface EmployeeTargetFigureDto {
+  id: string;
+  /** `null` = a target for all products. */
+  product: { id: string; name: string } | null;
+  fromMonth: string;
+  toMonth: string;
+  amountPaise: number;
+  /** The employee's secondary in those months (that product's, or all), at PTR. */
+  achievedPaise: number;
+  achievementPercent: number | null;
+}
+
+/** `GET /reports/employee-sales?userId=&from=&to=` (months): one employee's targets, primary and secondary by product. */
+export interface EmployeeSalesReportDto {
+  employee: { id: string; name: string; employeeCode: string };
+  fromMonth: string;
+  toMonth: string;
+  /** Products with a target, an order or a secondary in the months, by name. */
+  products: EmployeeProductFigureDto[];
+  /** The share of targets for all products in the months. */
+  generalTargetPaise: number;
+  totals: { targetPaise: number; primaryPaise: number; secondaryPaise: number; achievementPercent: number | null };
+  /** Every target touching the months, each measured over its own months. */
+  targets: EmployeeTargetFigureDto[];
 }

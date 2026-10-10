@@ -1,7 +1,7 @@
 'use client';
 
 import type { SalesDashboardRowDto } from '@greynote/contracts';
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { DataState } from '@/components/ui/DataState';
@@ -11,15 +11,14 @@ import { ListToolbar, SearchInput } from '@/components/ui/ListToolbar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Pagination } from '@/components/ui/Pagination';
 import { StatTile } from '@/components/ui/StatTile';
-import { monthLabel } from '@/features/payroll/lib/payroll';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { downloadCsv } from '@/lib/csv';
 import { rangeError } from '@/lib/dateRange';
 import { istDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
-import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useSalesDashboard } from '../hooks/useSalesDashboard';
+import { rangeLabel } from '../lib/employeeSales';
 import {
   achievementPercent,
   complianceText,
@@ -31,7 +30,6 @@ import {
   salesDashboardCsv,
   salesDashboardFilename,
 } from '../lib/salesDashboard';
-import { SetFiguresDialog } from './SetFiguresDialog';
 
 /** The most days the API reads at once (SALES_DASHBOARD_MAX_DAYS). */
 const MAX_DAYS = 93;
@@ -47,8 +45,8 @@ function customRangeError(from: string, to: string): string | undefined {
 
 /**
  * The whole field force on one page: for each field employee, whether the day plan and daily report are in, the TA and DA claimed, and the
- * month's target against what was sold. Today, the last 7 days, or any range. Office staff are not listed. Target and achievement are for the
- * month of the range's last day and are entered by hand with "Set".
+ * employee's target against what they sold. Today, the last 7 days, or any range. Office staff are not listed. Target, primary and achievement
+ * cover the months of the range; a row opens that employee's targets and monthly figures.
  */
 export function SalesDashboardScreen() {
   const { values, page, pageSize, update } = useFilterParams(['range', 'from', 'to', 'q']);
@@ -64,10 +62,9 @@ export function SalesDashboardScreen() {
     !problem,
   );
   const data = query.data;
-  const readOnly = useIsReadOnly();
-  const [editing, setEditing] = useState<SalesDashboardRowDto | null>(null);
+  const router = useRouter();
   const single = data ? data.from === data.to : range.from === range.to;
-  const month = data?.month ?? range.to.slice(0, 7);
+  const months = rangeLabel(data?.fromMonth ?? range.from.slice(0, 7), data?.toMonth ?? range.to.slice(0, 7));
 
   const columns: readonly Column<SalesDashboardRowDto>[] = [
     {
@@ -118,12 +115,13 @@ export function SalesDashboardScreen() {
           money(r.targetPaise)
         ),
     },
+    { key: 'primary', header: 'Primary', numeric: true, render: (r) => money(r.primaryPaise) },
     {
       key: 'achieved',
       header: 'Achievement',
       numeric: true,
       render: (r) => {
-        if (r.achievedPaise === null) return <span className="text-text-subtle">Not entered</span>;
+        if (r.achievedPaise === null) return <span className="text-text-subtle">Nothing entered</span>;
         const percent = achievementPercent(r);
         return (
           <>
@@ -134,15 +132,6 @@ export function SalesDashboardScreen() {
           </>
         );
       },
-    },
-    {
-      key: 'set',
-      header: '',
-      render: (r) => (
-        <Button variant="secondary" size="sm" disabled={readOnly} onClick={() => setEditing(r)}>
-          Set
-        </Button>
-      ),
     },
   ];
 
@@ -155,7 +144,7 @@ export function SalesDashboardScreen() {
     <>
       <PageHeader
         title="Sales dashboard"
-        description={`Field employees only. Plans and reports count the employee's working days; target and achievement are for ${monthLabel(month)}.`}
+        description={`Field employees only. Plans and reports count the employee's working days; target, primary and achievement (the secondary they entered) cover ${months}. Open an employee to set targets and enter figures.`}
         actions={
           <Button
             variant="secondary"
@@ -173,7 +162,7 @@ export function SalesDashboardScreen() {
         <StatTile label="Field employees" value={totals?.employees ?? 0} />
         <StatTile label="TA" value={money(totals?.taPaise ?? 0)} />
         <StatTile label="DA" value={money(totals?.daPaise ?? 0)} />
-        <StatTile label="Target" value={money(totals?.targetPaise ?? 0)} note={monthLabel(month)} />
+        <StatTile label="Target" value={money(totals?.targetPaise ?? 0)} note={months} />
         <StatTile
           label="Achievement"
           value={money(totals?.achievedPaise ?? 0)}
@@ -214,7 +203,12 @@ export function SalesDashboardScreen() {
           description: values.q ? 'Try a different search.' : 'Active field employees appear here.',
         }}
       >
-        <DataTable columns={columns} rows={data?.rows ?? []} rowKey={(r) => r.employee.id} />
+        <DataTable
+          columns={columns}
+          rows={data?.rows ?? []}
+          rowKey={(r) => r.employee.id}
+          onRowClick={(r) => router.push(`/reports/sales-dashboard/${r.employee.id}`)}
+        />
         {data ? (
           <Pagination
             page={data.page}
@@ -226,10 +220,6 @@ export function SalesDashboardScreen() {
           />
         ) : null}
       </DataState>
-
-      {editing ? (
-        <SetFiguresDialog row={editing} month={month} onClose={() => setEditing(null)} />
-      ) : null}
     </>
   );
 }

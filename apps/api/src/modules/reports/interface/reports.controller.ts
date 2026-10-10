@@ -6,14 +6,15 @@ import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { DcrReport } from '../application/dcrReport.js';
 import type { OrdersReport } from '../application/ordersReport.js';
+import type { EmployeeSalesReport } from '../application/employeeSalesReport.js';
 import type { SalesDashboardReport } from '../application/salesDashboardReport.js';
 import type { SalesReport } from '../application/salesReport.js';
 import type { SalaryReport } from '../application/salaryReport.js';
 import type { StockReport } from '../application/stockReport.js';
 import type { TaDaReport } from '../application/taDaReport.js';
-import type { dcrCoverageQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
+import type { dcrCoverageQuerySchema, employeeSalesQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
-export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport): Record<'orders' | 'salesDashboard' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear', RequestHandler> {
+export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport): Record<'orders' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear', RequestHandler> {
   return {
     orders: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof ordersQuerySchema>;
@@ -50,6 +51,11 @@ export function makeReportsControllers(orders: OrdersReport, sales: SalesReport,
     salaryYear: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof salaryYearQuerySchema>;
       sendSuccess(req, res, await salary.year({ year: q.year }), 'Salary for the financial year.', 200);
+    }),
+    employeeSales: asyncHandler(async (req, res) => {
+      if (!req.user) throw AppError.unauthenticated();
+      const q = req.query as unknown as z.output<typeof employeeSalesQuerySchema>;
+      sendSuccess(req, res, await employeeSales.read({ actor: { id: req.user.sub, role: req.user.role }, userId: q.userId, from: q.from, to: q.to }), 'The employee\'s targets, primary and secondary.', 200);
     }),
     salesDashboard: asyncHandler(async (req, res) => {
       if (!req.user) throw AppError.unauthenticated();

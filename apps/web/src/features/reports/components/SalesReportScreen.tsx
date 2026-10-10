@@ -20,7 +20,7 @@ import { formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useFinancialYear } from '@/lib/useFinancialYear';
 import { useSalesStatement, useSalesYear } from '../hooks/useSalesReport';
-import { SALES_FLAG_LABEL, monthNote, salesFilename, salesMonthsCsv, statementCsv, statementFilename } from '../lib/sales';
+import { SALES_FLAG_LABEL, SOURCE_LABEL, monthNote, salesFilename, salesMonthsCsv, statementCsv, statementFilename } from '../lib/sales';
 import { monthTick, type Metric } from '../lib/salesChart';
 import { SalesBarChart } from './SalesBarChart';
 
@@ -69,15 +69,26 @@ export function SalesReportScreen() {
     { key: 'product', header: 'Product', render: (r) => r.product.name },
     { key: 'opening', header: 'Opening', numeric: true, render: (r) => qty(r.openingQty) },
     { key: 'primary', header: 'Primary', numeric: true, render: (r) => (metric === 'VALUE' ? formatMoney(r.primaryPaise) : qty(r.primaryQty)) },
+    {
+      key: 'adjustment',
+      header: 'Of which adjustment',
+      numeric: true,
+      render: (r) => (r.adjustmentQty === 0 ? <span className="text-text-subtle">—</span> : <span title={`${r.orderPrimaryQty} from orders`}>{r.adjustmentQty > 0 ? `+${r.adjustmentQty}` : r.adjustmentQty}</span>),
+    },
     { key: 'closing', header: 'Closing', numeric: true, render: (r) => qty(r.closingQty) },
     { key: 'secondary', header: 'Secondary', numeric: true, render: (r) => (metric === 'VALUE' ? money(r.secondaryPaise) : qty(r.secondaryQty)) },
+    {
+      key: 'source',
+      header: 'From',
+      render: (r) => (r.source === 'NONE' ? <span className="text-text-subtle">—</span> : <Badge tone={r.source === 'STATEMENT' ? 'accent' : 'neutral'}>{SOURCE_LABEL[r.source]}</Badge>),
+    },
     {
       key: 'flags',
       header: '',
       render: (r) => (
         <div className="flex flex-wrap gap-1">
           {r.flags.map((f) => (
-            <Badge key={f} tone={f === 'NO_COUNT' || f === 'UNPRICED' ? 'warning' : 'danger'}>
+            <Badge key={f} tone={f === 'NO_COUNT' || f === 'UNPRICED' || f === 'COUNT_MISMATCH' ? 'warning' : 'danger'}>
               {SALES_FLAG_LABEL[f]}
             </Badge>
           ))}
@@ -92,7 +103,7 @@ export function SalesReportScreen() {
     <>
       <PageHeader
         title="Sales"
-        description={`Primary and secondary sales, ${financialYearLabel(fy)}. Primary is what went to the distributors (Done orders); secondary is what they sold on, from their stock counts.`}
+        description={`Primary and secondary sales, ${financialYearLabel(fy)}. Primary is what went to the distributors (Done orders); secondary is what they sold on, from the distributor's statement when Admin entered one, otherwise from the field workers' stock counts.`}
         actions={
           <Button variant="secondary" disabled={!report.data} onClick={() => report.data && downloadCsv(salesFilename(fy), salesMonthsCsv(report.data))}>
             Download CSV

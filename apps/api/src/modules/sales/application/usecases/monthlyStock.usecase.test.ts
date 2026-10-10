@@ -55,6 +55,15 @@ describe('monthly stock', () => {
 
   const code = async (p: Promise<unknown>) => p.then(() => null, (e: unknown) => (e instanceof StockRefusal ? e.code : 'OTHER'));
 
+  it('a count for a month of a closed financial year is refused, for an MR and for Admin', async () => {
+    const closedYear = { get: async (key: string) => ({ BUSINESS_TIMEZONE: 'Asia/Kolkata', MONTHLY_STOCK_DEADLINE_DAY: '5', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: '2026' })[key] ?? '' };
+    const closedRecord = new RecordMonthlyStockUseCase(new OutletAccess(master), master, stock, new SalesClock(closedYear, () => now), closedYear);
+    for (const actor of [mr1, { id: 'admin', role: 'ADMIN' }]) {
+      await expect(closedRecord.execute(actor, { outlet: { type: 'DISTRIBUTOR', id: 'dist1' }, month: '2026-09', lines: [line()] })).rejects.toMatchObject({ statusCode: 409 });
+    }
+    expect(stock.rows.size).toBe(0);
+  });
+
   it('an MR records a Chemist and a Distributor on the last day of the month', async () => {
     await record.execute(mr1, { outlet: { type: 'CHEMIST', id: 'chem1' }, month: '2026-09', lines: [line('prod1'), line('prod2', 5, 5)] });
     await record.execute(mr1, { outlet: { type: 'DISTRIBUTOR', id: 'dist1' }, month: '2026-09', lines: [line()] });

@@ -40,6 +40,7 @@ import {
 } from '../lib/distributors';
 import { DistributorOrdersTab } from './DistributorOrdersTab';
 import { DistributorPaymentsTab } from './DistributorPaymentsTab';
+import { DistributorStockTab } from './DistributorStockTab';
 import { LocationPicker } from './LocationPicker';
 import { PeopleMultiField } from './PeopleMultiField';
 import { RoutesMultiField } from './RoutesMultiField';
@@ -340,6 +341,7 @@ function DistributorPage({ distributor }: { distributor: DistributorDetailDto })
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="orders">Orders</TabsTrigger>
+          <TabsTrigger value="stock">Stock</TabsTrigger>
         </TabsList>
         <TabsContent value="details">
           {/* Keyed by what was loaded, so the draft starts from the latest data after a save. */}
@@ -353,6 +355,9 @@ function DistributorPage({ distributor }: { distributor: DistributorDetailDto })
         </TabsContent>
         <TabsContent value="orders">
           <DistributorOrdersTab distributorId={distributor.id} />
+        </TabsContent>
+        <TabsContent value="stock">
+          <DistributorStockTab distributorId={distributor.id} inactive={distributor.status === 'inactive'} />
         </TabsContent>
       </Tabs>
       <StatusToggleDialog

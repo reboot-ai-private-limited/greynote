@@ -4,6 +4,7 @@ DELETE /api/hr/leaves/:id/attachments/:attachmentId  FIELD
 DELETE /api/identity/employee-drafts/:id  ADMIN,HR
 DELETE /api/identity/users/:id/devices/:deviceRowId  ADMIN
 DELETE /api/identity/users/:id/documents/:documentId  ADMIN,HR
+DELETE /api/marketing/targets/:id  ADMIN,FIELD
 DELETE /api/territory/routes/:id/assignments/:userId  ADMIN
 GET    /api/approvals/:id  ANY
 GET    /api/approvals/all  ADMIN,HR
@@ -62,6 +63,7 @@ GET    /api/identity/users/:id/ctc  ACCOUNTANT,ADMIN,HR
 GET    /api/identity/users/:id/devices  ADMIN
 GET    /api/identity/users/:id/promotions  ADMIN,HR
 GET    /api/marketing/campaigns  ADMIN,FIELD
+GET    /api/marketing/targets  ADMIN,FIELD
 GET    /api/marketing/targets/:userId  ADMIN,FIELD
 GET    /api/marketing/visuals  ADMIN,FIELD
 GET    /api/payroll  ACCOUNTANT,ADMIN
@@ -75,6 +77,7 @@ GET    /api/planning/monthly  FIELD
 GET    /api/planning/monthly/:id  ADMIN,FIELD
 GET    /api/reports/dcr  ADMIN
 GET    /api/reports/dcr/coverage  ADMIN
+GET    /api/reports/employee-sales  ADMIN,FIELD
 GET    /api/reports/orders  ADMIN
 GET    /api/reports/orders/:id  ADMIN
 GET    /api/reports/salary  ADMIN
@@ -86,6 +89,8 @@ GET    /api/reports/ta-da  ADMIN
 GET    /api/reports/ta-da/days  ADMIN
 GET    /api/sales/distributor-payments  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-payments/totals  ACCOUNTANT,ADMIN
+GET    /api/sales/distributor-statement  ADMIN
+GET    /api/sales/employee-sales  ADMIN,FIELD
 GET    /api/sales/monthly-stock  ADMIN,FIELD
 GET    /api/sales/monthly-stock/missing  ADMIN,FIELD
 GET    /api/sales/orders  ADMIN,FIELD
@@ -170,7 +175,6 @@ POST   /api/identity/users/:id/promotions  ADMIN,HR
 POST   /api/identity/users/:id/promotions/preview  ADMIN,HR
 POST   /api/identity/users/:id/reset-password  ADMIN
 POST   /api/identity/users/:id/unblock  ADMIN
-POST   /api/marketing/achievements  ADMIN,FIELD
 POST   /api/marketing/campaigns  ADMIN
 POST   /api/marketing/targets  ADMIN,FIELD
 POST   /api/marketing/visuals  ADMIN
@@ -185,6 +189,9 @@ POST   /api/planning/monthly  FIELD
 POST   /api/planning/monthly/:id/submit  FIELD
 POST   /api/sales/distributor-payments  ACCOUNTANT,ADMIN
 POST   /api/sales/distributor-payments/:id/cancel  ACCOUNTANT,ADMIN
+POST   /api/sales/distributor-statement  ADMIN
+POST   /api/sales/employee-primary  ADMIN
+POST   /api/sales/employee-secondary  ADMIN,FIELD
 POST   /api/sales/monthly-stock  ADMIN,FIELD
 POST   /api/sales/monthly-stock/unlock  ADMIN
 POST   /api/sales/orders  FIELD

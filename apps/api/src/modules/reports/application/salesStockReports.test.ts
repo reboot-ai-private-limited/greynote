@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { OrderSumRow, StockRow } from '../domain/ports.js';
+import type { OrderSumRow, StatementRow, StockRow } from '../domain/ports.js';
 import { SalesReport } from './salesReport.js';
 import { StockReport } from './stockReport.js';
 
@@ -8,7 +8,7 @@ const s = (outlet: StockRow['outlet'], productId: string, month: string, opening
 const dist = (id: string) => ({ type: 'DISTRIBUTOR' as const, id });
 const chem = (id: string) => ({ type: 'CHEMIST' as const, id });
 
-function kit(orderSums: OrderSumRow[], stock: StockRow[]) {
+function kit(orderSums: OrderSumRow[], stock: StockRow[], statements: StatementRow[] = []) {
   const calls: Array<{ kind: string; filter: Record<string, unknown> }> = [];
   const sales = {
     listOrders: async () => [],
@@ -17,6 +17,7 @@ function kit(orderSums: OrderSumRow[], stock: StockRow[]) {
       calls.push({ kind: 'orders', filter: f });
       return orderSums.filter((o) => o.month >= f.from.slice(0, 7) && o.month <= f.to.slice(0, 7) && (!f['distributorId'] || o.distributorId === f['distributorId']));
     },
+    listStatements: async (f: { fromMonth: string; toMonth: string; distributorId?: string }) => statements.filter((r) => r.month >= f.fromMonth && r.month <= f.toMonth && (!f.distributorId || r.distributorId === f.distributorId)),
     listStockRange: async (f: { fromMonth: string; toMonth: string; outletType: 'CHEMIST' | 'DISTRIBUTOR'; outletId?: string }) => {
       calls.push({ kind: 'stock', filter: f });
       return stock.filter((r) => r.outlet.type === f.outletType && r.month >= f.fromMonth && r.month <= f.toMonth && (!f.outletId || r.outlet.id === f.outletId));
@@ -25,7 +26,7 @@ function kit(orderSums: OrderSumRow[], stock: StockRow[]) {
   const names = {
     distributors: [{ id: 'd1', name: 'Shree' }, { id: 'd2', name: 'Maa Tara' }, { id: 'd3', name: 'Himalaya' }],
     chemists: [{ id: 'c1', name: 'Sai Medical' }, { id: 'c2', name: 'City Chemists' }],
-    products: [{ id: 'p1', name: 'XYZ-500', sku: 'XYZ-500', ptrPaise: 1000 }, { id: 'p2', name: 'Cetirizine', sku: 'CET', ptrPaise: 2000 }],
+    products: [{ id: 'p1', name: 'XYZ-500', sku: 'XYZ-500', ptrPaise: 1000, ptsPaise: 800 }, { id: 'p2', name: 'Cetirizine', sku: 'CET', ptrPaise: 2000, ptsPaise: null }],
   };
   const master = {
     listAssignedDoctors: async () => [],
@@ -109,5 +110,45 @@ describe('the stock report', () => {
     const empty = await kit([], []).stock.month({ month: '2026-05' });
     expect(empty.rows.every((x) => x.flags.includes('NO_COUNT'))).toBe(true);
     expect(empty.rows).toHaveLength(4);
+  });
+});
+
+describe('with an Admin statement', () => {
+  const st = (distributorId: string, productId: string, month: string, openingQty: number, secondaryQty: number | null, adjustmentQty: number): StatementRow => ({ distributorId, productId, month, openingQty, secondaryQty, adjustmentQty });
+
+  it('the statement month: primary = orders + adjustment (adjustment at PTS), secondary as stated, closing derived, source says so', async () => {
+    const r = await kit(
+      [d('2026-09', 'd1', 'p1', 'DONE', 40, 32_000)],
+      [],
+      [st('d1', 'p1', '2026-09', 10, 30, 5)],
+    ).sales.statement({ month: '2026-09' });
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0]).toMatchObject({ openingQty: 10, orderPrimaryQty: 40, adjustmentQty: 5, primaryQty: 45, primaryPaise: 32_000 + 5 * 800, secondaryQty: 30, secondaryPaise: 30_000, closingQty: 25, source: 'STATEMENT', flags: [] });
+    expect(r.totals).toMatchObject({ primaryQty: 45, secondaryQty: 30, secondaryPaise: 30_000 });
+    expect(r.missingDistributors.map((x) => x.id)).toEqual(['d2']); // d1 is stated; d2 has nothing
+  });
+
+  it('a field count that disagrees with the statement is flagged, and the statement still wins', async () => {
+    const r = await kit([d('2026-09', 'd1', 'p1', 'DONE', 40, 32_000)], [s(dist('d1'), 'p1', '2026-09', 10, 99)], [st('d1', 'p1', '2026-09', 10, 30, 0)]).sales.statement({ month: '2026-09' });
+    expect(r.rows[0]).toMatchObject({ source: 'STATEMENT', secondaryQty: 30, closingQty: 20, flags: ['COUNT_MISMATCH'] });
+  });
+
+  it('an opening that is not last month’s derived closing is flagged', async () => {
+    const r = await kit(
+      [d('2026-08', 'd1', 'p1', 'DONE', 20, 16_000)],
+      [],
+      [st('d1', 'p1', '2026-08', 0, 5, 0), st('d1', 'p1', '2026-09', 12, 0, 0)], // August closes at 15, September opens at 12
+    ).sales.statement({ month: '2026-09' });
+    expect(r.rows[0]!.flags).toContain('OPENING_MISMATCH');
+  });
+
+  it('a product with no PTS leaves the adjustment unvalued', async () => {
+    const r = await kit([], [], [st('d1', 'p2', '2026-09', 0, 0, 3)]).sales.year({ year: 2026 });
+    expect(r.months[5]).toMatchObject({ month: '2026-09', primaryQty: 3, primaryPaise: 0, unpricedRows: 1 });
+  });
+
+  it('the year chart counts a statement as counted, with the adjustment in primary', async () => {
+    const r = await kit([d('2026-05', 'd1', 'p1', 'DONE', 40, 32_000)], [], [st('d1', 'p1', '2026-05', 10, 30, 5), st('d2', 'p1', '2026-05', 0, 0, 0)]).sales.year({ year: 2026 });
+    expect(r.months[1]).toMatchObject({ month: '2026-05', primaryQty: 45, primaryPaise: 32_000 + 4_000, secondaryQty: 30, secondaryPaise: 30_000, countedDistributors: 2, complete: true });
   });
 });

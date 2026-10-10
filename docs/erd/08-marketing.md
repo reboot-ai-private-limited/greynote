@@ -76,3 +76,7 @@ This is the last of the 8 planned modules — the ERD set is now complete. See `
 ## `Achievement` (2026-10-09)
 
 What one field employee sold in one month, **typed in** by Admin or the manager above (decision-log 2026-10-09). Fields: `user_id`, `month` (`YYYY-MM`), `achieved_amount_paise` (≥ 0), `entered_by`, timestamps. Unique on `(user_id, month)`. Only for months of the current financial year. It sits beside the derived "achieved" of the target summary rather than replacing it.
+
+## `Target` over month ranges; `Achievement` retired (2026-10-10)
+
+`Target` gains `to_month` (`month` is the first month). Unique on `(user_id, month, to_month, product_id, campaign_id)`; ranges may overlap. Achievement is **no longer a Marketing entity**: it is the secondary an employee enters (`EmployeeSale`, Module 6), so the `Achievement` section above is history only — nothing writes the collection any more.

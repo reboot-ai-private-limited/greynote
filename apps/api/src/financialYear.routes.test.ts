@@ -42,6 +42,9 @@ const SCOPED = [
   '/api/sales/orders',
   '/api/sales/distributor-payments',
   '/api/sales/distributor-payments/totals',
+  '/api/sales/distributor-statement',
+  '/api/sales/employee-sales',
+  '/api/reports/employee-sales',
   '/api/payroll',
   '/api/attendance/month',
   '/api/attendance/payroll-calendar',
@@ -127,6 +130,8 @@ const TIMELESS = [
   '/api/sync/drafts',
   // Month or record reports outside the toggle's agreed scope (sign-off J2): scoping them is a one-line change if that grows.
   '/api/marketing/targets/:userId',
+  // An employee's targets for the months asked about (the year is the caller's choice inside the current one).
+  '/api/marketing/targets',
   '/api/sales/monthly-stock',
   '/api/sales/monthly-stock/missing',
   '/api/field-activity/doctor-services',

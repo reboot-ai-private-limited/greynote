@@ -29,6 +29,22 @@ export interface OrderSumRow {
   amountPaise: number;
 }
 
+/** Admin's statement line for a distributor's product in a month (Sales' `StockStatement`). */
+export interface StatementRow {
+  distributorId: string;
+  productId: string;
+  month: string;
+  openingQty: number;
+  secondaryQty: number | null;
+  adjustmentQty: number;
+}
+
+/** The Sales Report's extra read: kept apart from `SalesPort` so the other reports' fakes stay small. */
+export interface StatementsPort {
+  /** Admin's monthly statements over a range of months (`YYYY-MM`, both inclusive). */
+  listStatements(filter: { fromMonth: string; toMonth: string; distributorId?: string; productId?: string }): Promise<StatementRow[]>;
+}
+
 export interface SalesPort {
   sumDistributorOrders(filter: { from: string; to: string; distributorId?: string; productId?: string }): Promise<OrderSumRow[]>;
   listStockRange(filter: { fromMonth: string; toMonth: string; outletType: 'CHEMIST' | 'DISTRIBUTOR'; outletId?: string; productId?: string }): Promise<StockRow[]>;
@@ -43,7 +59,7 @@ export interface MasterPort {
   listNames(query: { distributorIds?: string[]; chemistIds?: string[]; productIds?: string[] }): Promise<{
     distributors: Array<{ id: string; name: string }>;
     chemists: Array<{ id: string; name: string }>;
-    products: Array<{ id: string; name: string; sku: string; ptrPaise: number | null }>;
+    products: Array<{ id: string; name: string; sku: string; ptrPaise: number | null; ptsPaise?: number | null }>;
   }>;
 }
 
@@ -74,7 +90,14 @@ export interface AttendancePort {
 }
 
 export interface MarketingPort {
-  listMonthFigures(userIds: string[], month: string): Promise<Array<{ userId: string; targetPaise: number | null; achievedPaise: number | null }>>;
+  /** The general targets of these users touching `fromMonth`–`toMonth`, each with its share inside that range. */
+  listTargetShares(userIds: string[], fromMonth: string, toMonth: string): Promise<Array<{ id: string; userId: string; productId: string | null; fromMonth: string; toMonth: string; amountPaise: number; sharePaise: number }>>;
+}
+
+/** Sales' employee figures: Done distributor orders per employee, and what employees entered. Kept apart so the other reports' fakes stay small. */
+export interface EmployeeSalesPort {
+  sumUserOrders(filter: { from: string; to: string; userIds?: string[]; productId?: string }): Promise<Array<{ userId: string; productId: string; month: string; quantity: number; amountPaise: number }>>;
+  listEmployeeSales(filter: { fromMonth: string; toMonth: string; userIds?: string[]; productId?: string }): Promise<Array<{ userId: string; productId: string; month: string; secondaryQty: number | null; adjustmentQty: number }>>;
 }
 
 export interface ExpenseMonthRow {

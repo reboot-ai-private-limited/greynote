@@ -68,3 +68,40 @@ export const paymentTotalsQuerySchema = z
   .object({ from: calendarDateSchema, to: calendarDateSchema })
   .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] });
 export const cancelPaymentBodySchema = z.object({ reason: z.string().trim().min(1, 'Say why it is cancelled.').max(300) });
+
+const qtySchemaWhole = z.number().int().min(0).max(100_000_000);
+export const statementQuerySchema = z.object({ distributorId: objectIdSchema, month: monthSchema });
+export const saveStatementBodySchema = z.object({
+  distributorId: objectIdSchema,
+  month: monthSchema,
+  lines: z
+    .array(
+      z.object({
+        productId: objectIdSchema,
+        openingQty: qtySchemaWhole,
+        secondaryQty: qtySchemaWhole.nullable(),
+        adjustmentQty: z.number().int().min(-100_000_000).max(100_000_000),
+        reason: z.string().trim().max(300).nullish(),
+      }),
+    )
+    .min(1)
+    .max(500)
+    .refine((lines) => new Set(lines.map((l) => l.productId)).size === lines.length, { message: 'A product appears twice.' }),
+});
+
+export const employeeSalesQuerySchema = z.object({ userId: objectIdSchema, month: monthSchema });
+const uniqueProducts = (lines: Array<{ productId: string }>) => new Set(lines.map((l) => l.productId)).size === lines.length;
+export const saveEmployeeSecondaryBodySchema = z.object({
+  userId: objectIdSchema,
+  month: monthSchema,
+  lines: z.array(z.object({ productId: objectIdSchema, qty: qtySchemaWhole })).min(1).max(500).refine(uniqueProducts, { message: 'A product appears twice.' }),
+});
+export const saveEmployeePrimaryBodySchema = z.object({
+  userId: objectIdSchema,
+  month: monthSchema,
+  lines: z
+    .array(z.object({ productId: objectIdSchema, adjustmentQty: z.number().int().min(-100_000_000).max(100_000_000), reason: z.string().trim().max(300).nullish() }))
+    .min(1)
+    .max(500)
+    .refine(uniqueProducts, { message: 'A product appears twice.' }),
+});

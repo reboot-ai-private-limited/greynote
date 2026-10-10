@@ -88,6 +88,7 @@ export const keys = {
     salesStatement: (query: object) => [...keys.reports.all(), 'salesStatement', query] as const,
     stock: (month: string) => [...keys.reports.all(), 'stock', month] as const,
     salesDashboard: (query: object) => [...keys.reports.all(), 'salesDashboard', query] as const,
+    employeeSales: (query: object) => [...keys.reports.all(), 'employeeSales', query] as const,
     salaryYear: (year: number) => [...keys.reports.all(), 'salaryYear', year] as const,
     dcrYear: (year: number) => [...keys.reports.all(), 'dcrYear', year] as const,
     dcrCoverage: (userId: string, month: string) => [...keys.reports.all(), 'dcrCoverage', userId, month] as const,
@@ -129,6 +130,14 @@ export const keys = {
     all: () => ['chemists', fy()] as const,
     list: (query?: object) => [...keys.chemists.all(), 'list', query ?? {}] as const,
     detail: (id: string) => [...keys.chemists.all(), 'detail', id] as const,
+  },
+  distributorStatement: {
+    all: () => ['distributorStatement', fy()] as const,
+    month: (distributorId: string, month: string) => [...keys.distributorStatement.all(), distributorId, month] as const,
+  },
+  employeeMonth: {
+    all: () => ['employeeMonth', fy()] as const,
+    month: (userId: string, month: string) => [...keys.employeeMonth.all(), userId, month] as const,
   },
   distributorPayments: {
     all: () => ['distributorPayments', fy()] as const,

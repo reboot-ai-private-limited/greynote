@@ -1,15 +1,19 @@
 import { daysInMonth, formatCalendarDate, parseCalendarMonth } from '@/shared/time/businessTime.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { Paise } from '@/shared/money/paise.js';
-import type { Achievement, Target, TargetKey } from '../../domain/marketing.entities.js';
-import type { AchievementRepositoryPort, CampaignRepositoryPort, TargetRepositoryPort } from '../../domain/marketing.repository.ports.js';
+import type { Target, TargetKey } from '../../domain/marketing.entities.js';
+import type { CampaignRepositoryPort, TargetRepositoryPort } from '../../domain/marketing.repository.ports.js';
+import { targetShare } from '../../domain/targetRange.js';
 import { MARKETING_CODES, MarketingRefusal } from '../../domain/marketingRefusal.js';
 import type { ProductPort, SalesPort, UserDirectoryPort } from '../../domain/ports.js';
 import { assertMonthInCurrentFinancialYear } from './fyGuard.js';
 import type { Actor } from './visualsAndCampaigns.usecase.js';
 
 export interface TargetScope {
+  /** The first month of the range, `YYYY-MM`. */
   month: string;
+  /** The last month; the same as `month` when left out. */
+  toMonth?: string | undefined;
   productId: string | null;
   campaignId: string | null;
 }
@@ -34,7 +38,7 @@ async function assertScope(products: ProductPort, campaigns: CampaignRepositoryP
   if (scope.campaignId && !(await campaigns.findById(scope.campaignId))) throw new MarketingRefusal(MARKETING_CODES.campaignNotFound, 'No such campaign.');
 }
 
-/** Set (or replace) one target. A manager sets their own and their downline's; Admin anyone's. */
+/** Set (or replace) one target over a run of months. A manager sets their own and their downline's; Admin anyone's. */
 export class SetTargetUseCase {
   constructor(
     private readonly targets: TargetRepositoryPort,
@@ -46,13 +50,51 @@ export class SetTargetUseCase {
   ) {}
 
   async execute(actor: Actor, input: TargetScope & { userId: string; targetAmountPaise: Paise }): Promise<Target> {
+    const toMonth = input.toMonth ?? input.month;
+    if (toMonth < input.month) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A target cannot end before it starts.');
+    // Both ends must sit in the current financial year, so the run can never straddle two.
     await assertMonthInCurrentFinancialYear(this.config, input.month, this.now(), 'A target');
+    await assertMonthInCurrentFinancialYear(this.config, toMonth, this.now(), 'A target');
     const subject = await this.users.findUserSummary(input.userId);
     if (!subject || subject.status !== 'active' || subject.role !== 'FIELD') throw new MarketingRefusal(MARKETING_CODES.userNotFound, 'That employee does not exist or cannot be given a target.');
     await assertMayAct(this.users, actor, input.userId, 'set');
     await assertScope(this.products, this.campaigns, input);
-    const key: TargetKey = { userId: input.userId, month: input.month, productId: input.productId, campaignId: input.campaignId };
+    const key: TargetKey = { userId: input.userId, month: input.month, toMonth, productId: input.productId, campaignId: input.campaignId };
     return this.targets.upsert(key, input.targetAmountPaise, actor.id, this.now());
+  }
+}
+
+/** Take a target away. Same who-may-act and financial-year rules as setting it. */
+export class DeleteTargetUseCase {
+  constructor(
+    private readonly targets: TargetRepositoryPort,
+    private readonly users: UserDirectoryPort,
+    private readonly config: ConfigReader,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
+
+  async execute(actor: Actor, id: string): Promise<void> {
+    const target = await this.targets.findById(id);
+    if (!target) throw new MarketingRefusal(MARKETING_CODES.targetNotFound, 'No such target.');
+    await assertMayAct(this.users, actor, target.userId, 'set');
+    await assertMonthInCurrentFinancialYear(this.config, target.month, this.now(), 'A target');
+    await this.targets.remove(id);
+  }
+}
+
+/** One user's targets that touch a range of months, each with the part that falls inside the range. General (no campaign) ones only. */
+export class ListTargetsUseCase {
+  constructor(
+    private readonly targets: TargetRepositoryPort,
+    private readonly users: UserDirectoryPort,
+  ) {}
+
+  async execute(actor: Actor, input: { userId: string; fromMonth: string; toMonth: string }): Promise<Array<Target & { sharePaise: Paise }>> {
+    if (!(await this.users.findUserSummary(input.userId))) throw new MarketingRefusal(MARKETING_CODES.userNotFound, 'No such employee.');
+    await assertMayAct(this.users, actor, input.userId, 'read');
+    const rows = await this.targets.listOverlapping([input.userId], input.fromMonth, input.toMonth, { campaignId: null });
+    const window = { from: input.fromMonth, to: input.toMonth };
+    return rows.map((t) => ({ ...t, sharePaise: targetShare(t, window) }));
   }
 }
 
@@ -61,7 +103,7 @@ export interface TargetSummary {
   month: string;
   productId: string | null;
   campaignId: string | null;
-  /** This user's own target row, `0` if none. */
+  /** This user's own target for the month (a longer target counts its share of the month), `0` if none. */
   ownTargetPaise: Paise;
   /** Everyone below them, summed; a member with no target adds `0`. */
   downlineTargetPaise: Paise;
@@ -75,10 +117,10 @@ export interface TargetSummary {
 }
 
 /**
- * A user's effective target for a month and its achievement (HLD 8): own row + the sum of their downline's, against
- * what that same set of people ordered. No product/campaign asks for the *general* target and all sales; a product
- * narrows both to that Product's lines; a campaign narrows the orders to the campaign's dates inside the month.
- * Live on every call — the hierarchy is as it is now.
+ * A user's effective target for a month and what their team ordered (HLD 8): own + the sum of their downline's, against what that same set of
+ * people ordered. No product/campaign asks for the *general* target and all sales; a product narrows both to that Product's lines; a campaign
+ * narrows the orders to the campaign's dates inside the month. A target over several months counts its even share of the month. Live on every
+ * call — the hierarchy is as it is now. (The Sales Dashboard's achievement is the secondary employees enter, not this.)
  */
 export class GetTargetSummaryUseCase {
   constructor(
@@ -103,56 +145,36 @@ export class GetTargetSummaryUseCase {
     }
 
     const downlineIds = (await this.users.getDownline(userId)).map((u) => u.id);
-    const own = await this.targets.find({ userId, ...scope });
-    const downlineTargetPaise = await this.targets.sum(downlineIds, scope);
-    const ownTargetPaise = own?.targetAmountPaise ?? 0;
+    const window = { from: scope.month, to: scope.month };
+    const rows = await this.targets.listOverlapping([userId, ...downlineIds], scope.month, scope.month, { productId: scope.productId, campaignId: scope.campaignId });
+    const share = (ids: string[]) => rows.filter((t) => ids.includes(t.userId)).reduce((n, t) => n + targetShare(t, window), 0);
+    const ownTargetPaise = share([userId]);
+    const downlineTargetPaise = share(downlineIds);
     // A campaign that ends before the month starts (or starts after it ends) leaves no days to count.
     const achievedPaise = from > to ? 0 : await this.sales.sumOrderAmount({ userIds: [userId, ...downlineIds], from, to, productId: scope.productId ?? undefined });
-    return { userId, ...scope, ownTargetPaise, downlineTargetPaise, downlineCount: downlineIds.length, effectiveTargetPaise: ownTargetPaise + downlineTargetPaise, achievedPaise, period: { from, to } };
+    return { userId, month: scope.month, productId: scope.productId, campaignId: scope.campaignId, ownTargetPaise, downlineTargetPaise, downlineCount: downlineIds.length, effectiveTargetPaise: ownTargetPaise + downlineTargetPaise, achievedPaise, period: { from, to } };
   }
 }
 
-/**
- * Type in what an employee sold in a month (Sales Dashboard). Admin for anyone; a manager for their downline only — not for themselves, since
- * nobody marks their own sales. Replaces the month's figure. Same financial-year bound as targets.
- */
-export class SetAchievementUseCase {
-  constructor(
-    private readonly achievements: AchievementRepositoryPort,
-    private readonly users: UserDirectoryPort,
-    private readonly config: ConfigReader,
-    private readonly now: () => Date = () => new Date(),
-  ) {}
-
-  async execute(actor: Actor, input: { userId: string; month: string; achievedAmountPaise: Paise }): Promise<Achievement> {
-    await assertMonthInCurrentFinancialYear(this.config, input.month, this.now(), 'An achievement');
-    const subject = await this.users.findUserSummary(input.userId);
-    if (!subject || subject.status !== 'active' || subject.role !== 'FIELD') throw new MarketingRefusal(MARKETING_CODES.userNotFound, 'That employee does not exist or cannot be given an achievement.');
-    if (actor.role !== 'ADMIN' && actor.id === input.userId) throw new MarketingRefusal(MARKETING_CODES.notYourTeam, 'You cannot enter your own achievement.');
-    await assertMayAct(this.users, actor, input.userId, 'set');
-    return this.achievements.upsert(input.userId, input.month, input.achievedAmountPaise, actor.id, this.now());
-  }
-}
-
-export interface MonthFigure {
+export interface TargetShareRow {
+  id: string;
   userId: string;
-  /** The general monthly target, `null` when none is set. */
-  targetPaise: Paise | null;
-  /** What was typed in as sold, `null` when nothing is entered yet. */
-  achievedPaise: Paise | null;
+  /** `null` = a target for all products. */
+  productId: string | null;
+  fromMonth: string;
+  toMonth: string;
+  amountPaise: Paise;
+  /** The part of it inside the window that was asked about. */
+  sharePaise: Paise;
 }
 
-/** The general target and the entered achievement of each user for a month — the Sales Dashboard's read. Two queries however many users. */
-export class ListMonthFiguresUseCase {
-  constructor(
-    private readonly targets: TargetRepositoryPort,
-    private readonly achievements: AchievementRepositoryPort,
-  ) {}
+/** The general (no campaign) targets of these users that touch a range of months, with the share inside it — the Sales Dashboard's and employee view's read. */
+export class ListTargetSharesUseCase {
+  constructor(private readonly targets: TargetRepositoryPort) {}
 
-  async execute(userIds: string[], month: string): Promise<MonthFigure[]> {
-    const [targets, achieved] = await Promise.all([this.targets.listGeneral(userIds, month), this.achievements.listForUsers(userIds, month)]);
-    const t = new Map(targets.map((r) => [r.userId, r.targetAmountPaise]));
-    const a = new Map(achieved.map((r) => [r.userId, r.achievedAmountPaise]));
-    return userIds.map((userId) => ({ userId, targetPaise: t.get(userId) ?? null, achievedPaise: a.get(userId) ?? null }));
+  async execute(userIds: string[], fromMonth: string, toMonth: string): Promise<TargetShareRow[]> {
+    const rows = await this.targets.listOverlapping(userIds, fromMonth, toMonth, { campaignId: null });
+    const window = { from: fromMonth, to: toMonth };
+    return rows.map((t) => ({ id: t.id, userId: t.userId, productId: t.productId, fromMonth: t.month, toMonth: t.toMonth, amountPaise: t.targetAmountPaise, sharePaise: targetShare(t, window) }));
   }
 }

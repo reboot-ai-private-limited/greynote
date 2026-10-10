@@ -30,3 +30,7 @@ export const salesDashboardQuerySchema = z
     pageSize: z.coerce.number().int().positive().max(100).default(25),
   })
   .refine((q) => q.from <= q.to, { message: 'The range ends before it starts.', path: ['to'] });
+
+export const employeeSalesQuerySchema = z
+  .object({ userId: objectId, from: monthSchema, to: monthSchema })
+  .refine((q) => q.from <= q.to, { message: 'The range ends before it starts.', path: ['to'] });

@@ -23,8 +23,8 @@ The Sales Force HR Software is a lightweight, practical Sales Force Automation (
 - **TA (Travel Allowance):** Compensation for field travel, calculated by Route Distance (via API) × Per-Km Rate (based on Pay Band).
 - **DA (Daily Allowance):** Fixed daily compensation for food/incidentals, dictated by the employee's Pay Band.
 - **PAYROLL:** The final processed salary sheet, aggregating base pay, approved TA/DA, and leave deductions.
-- **PRIMARY Sales:** Sales directly to stockists, distributors, or chemists.
-- **SECONDARY Sales:** Stock remaining at the retail/distributor level at month-end.
+- **PRIMARY Sales:** What the company sends **to** a distributor in the month: its Done orders plus any adjustment Admin enters (stock supplied without an app order, or a return). Chemists are not part of primary or secondary.
+- **SECONDARY Sales:** What a distributor **sells on** to others in the month. Opening + Primary − Secondary = Closing (the stock it holds at month end); the opening is the stock held at the month's start.
 - **TP (Tour Plan):** Forward-looking schedules (Daily or Monthly) submitted by field sales for manager approval.
 
 ---

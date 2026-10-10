@@ -41,7 +41,27 @@ export interface DistributorOrderSumFilter {
   productId?: string | undefined;
 }
 
+/** What one employee's Done orders **to distributors** add up to for one product in one month (the month they were marked Done). */
+export interface UserOrderSum {
+  month: string;
+  userId: string;
+  productId: string;
+  quantity: number;
+  amountPaise: Paise;
+}
+
+export interface UserOrderSumFilter {
+  /** `YYYY-MM-DD`, both ends inclusive. */
+  from: string;
+  to: string;
+  timeZone: string;
+  userIds?: string[] | undefined;
+  productId?: string | undefined;
+}
+
 export interface OrderRepositoryPort {
+  /** Done orders **to distributors** by month, employee and product — an employee's primary. Placed and cancelled orders never appear; chemist orders neither. */
+  sumUserOrders(filter: UserOrderSumFilter): Promise<UserOrderSum[]>;
   /** Orders **to distributors** by month, distributor, product and status (cancelled ones never appear, chemist orders neither). */
   sumDistributorOrders(filter: DistributorOrderSumFilter): Promise<DistributorOrderSum[]>;
   /** Whole paise ordered by these users in the range, `CANCELLED` orders left out. */

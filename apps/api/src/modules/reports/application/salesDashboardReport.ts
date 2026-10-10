@@ -2,7 +2,9 @@ import type { SalesDashboardComplianceDto, SalesDashboardDto, SalesDashboardRowD
 import { AppError } from '@/shared/errors/AppError.js';
 import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
 import { assertTimeZone, businessDate, eachDate } from '@/shared/time/businessTime.js';
-import type { AttendancePort, FieldDaysPort, FieldRosterPort, MarketingPort, PlanningPort, TerritoryPort, ZoneNamePort } from '../domain/ports.js';
+import { monthRange } from '@/shared/time/businessTime.js';
+import { primaryOf, secondaryOf, type PriceRow } from '../domain/employeeFigures.js';
+import type { AttendancePort, EmployeeSalesPort, FieldDaysPort, FieldRosterPort, MarketingPort, MasterPort, PlanningPort, TerritoryPort, ZoneNamePort } from '../domain/ports.js';
 
 /** The most days one dashboard read covers. A year's worth would mean a year of attendance for every employee on the page. */
 export const SALES_DASHBOARD_MAX_DAYS = 93;
@@ -37,6 +39,8 @@ export class SalesDashboardReport {
     private readonly attendance: AttendancePort,
     private readonly fieldActivity: FieldDaysPort,
     private readonly marketing: MarketingPort,
+    private readonly employeeSales: EmployeeSalesPort,
+    private readonly master: MasterPort,
     private readonly territory: TerritoryPort & ZoneNamePort,
     private readonly config: ConfigReader,
     private readonly now: () => Date = () => new Date(),
@@ -51,7 +55,8 @@ export class SalesDashboardReport {
     const from = input.from;
     const to = input.to < today ? input.to : today;
     if (input.to < from) throw AppError.badRequest('The range ends before it starts.');
-    const month = to.slice(0, 7);
+    const fromMonth = from.slice(0, 7);
+    const toMonth = to.slice(0, 7);
     const dates = from <= to ? eachDate(from, to) : [];
     if (dates.length > SALES_DASHBOARD_MAX_DAYS) throw AppError.badRequest(`Pick at most ${SALES_DASHBOARD_MAX_DAYS} days.`);
 
@@ -61,16 +66,36 @@ export class SalesDashboardReport {
     const ids = matching.map((p) => p.id);
 
     const range = { from, to };
-    const [taDa, figures] = await Promise.all([dates.length ? this.fieldActivity.summarizeTaDaByUser(range) : Promise.resolve([]), this.marketing.listMonthFigures(ids, month)]);
+    const months = { from: monthRange(fromMonth).from, to: monthRange(toMonth).to };
+    const [taDa, shares, orders, entries] = await Promise.all([
+      dates.length ? this.fieldActivity.summarizeTaDaByUser(range) : Promise.resolve([]),
+      this.marketing.listTargetShares(ids, fromMonth, toMonth),
+      this.employeeSales.sumUserOrders({ ...months, userIds: ids }),
+      this.employeeSales.listEmployeeSales({ fromMonth, toMonth, userIds: ids }),
+    ]);
     const taDaOf = new Map(taDa.map((t) => [t.userId, t]));
-    const figureOf = new Map(figures.map((f) => [f.userId, f]));
+    const productIds = [...new Set([...orders.map((o) => o.productId), ...entries.map((e) => e.productId)])];
+    const names = productIds.length ? await this.master.listNames({ productIds }) : { products: [] };
+    const prices = new Map<string, PriceRow>(names.products.map((p) => [p.id, { id: p.id, name: p.name, sku: p.sku, ptrPaise: p.ptrPaise, ptsPaise: p.ptsPaise ?? null }]));
+    const figureOf = (userId: string) => {
+      const mine = shares.filter((t) => t.userId === userId);
+      const has = entries.some((e) => e.userId === userId && e.secondaryQty !== null);
+      const sel = { userId, fromMonth, toMonth };
+      return {
+        targetPaise: mine.length ? mine.reduce((n, t) => n + t.sharePaise, 0) : null,
+        achievedPaise: mine.length || has ? secondaryOf(entries, prices, sel).paise : null,
+        primaryPaise: primaryOf(orders, entries, prices, sel).paise,
+      };
+    };
 
-    const totals = { employees: matching.length, taPaise: 0, daPaise: 0, targetPaise: 0, achievedPaise: 0 };
+    const totals = { employees: matching.length, taPaise: 0, daPaise: 0, targetPaise: 0, achievedPaise: 0, primaryPaise: 0 };
     for (const p of matching) {
+      const f = figureOf(p.id);
       totals.taPaise += taDaOf.get(p.id)?.taPaise ?? 0;
       totals.daPaise += taDaOf.get(p.id)?.daPaise ?? 0;
-      totals.targetPaise += figureOf.get(p.id)?.targetPaise ?? 0;
-      totals.achievedPaise += figureOf.get(p.id)?.achievedPaise ?? 0;
+      totals.targetPaise += f.targetPaise ?? 0;
+      totals.achievedPaise += f.achievedPaise ?? 0;
+      totals.primaryPaise += f.primaryPaise;
     }
 
     const pageCount = Math.max(1, Math.ceil(matching.length / input.pageSize));
@@ -101,7 +126,7 @@ export class SalesDashboardReport {
           return { submitted, approved };
         };
         const routeIds = [...new Set(plans.flatMap((pl) => pl.routeIds))];
-        const f = figureOf.get(p.id);
+        const f = figureOf(p.id);
         return {
           employee: { id: p.id, name: p.name, employeeCode: p.employeeCode },
           designation: p.designation,
@@ -112,13 +137,14 @@ export class SalesDashboardReport {
           dcr: count(new Map(dcrs.map((d) => [d.reportDate, d.status]))),
           taPaise: taDaOf.get(p.id)?.taPaise ?? 0,
           daPaise: taDaOf.get(p.id)?.daPaise ?? 0,
-          targetPaise: f?.targetPaise ?? null,
-          achievedPaise: f?.achievedPaise ?? null,
+          targetPaise: f.targetPaise,
+          achievedPaise: f.achievedPaise,
+          primaryPaise: f.primaryPaise,
         };
       }),
     );
 
-    return { from, to, month, rows, totals, page: input.page, pageSize: input.pageSize, total: matching.length, totalPages: pageCount };
+    return { from, to, fromMonth, toMonth, rows, totals, page: input.page, pageSize: input.pageSize, total: matching.length, totalPages: pageCount };
   }
 
   /** Who the reader may see: every active field employee for Admin; a manager's downline (not themselves); a field employee with no team, nobody. */

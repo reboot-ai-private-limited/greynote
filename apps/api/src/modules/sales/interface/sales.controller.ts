@@ -10,8 +10,10 @@ import type { Actor } from '../application/outletAccess.js';
 import type { RecordMonthlyStockUseCase } from '../application/usecases/recordMonthlyStock.usecase.js';
 import type { FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase } from '../application/usecases/orders.usecase.js';
 import type { CancelPaymentUseCase, ListPaymentsUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from '../application/usecases/payments.usecase.js';
+import type { ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase } from '../application/usecases/employeeSales.usecase.js';
+import type { ReadStatementUseCase, SaveStatementUseCase } from '../application/usecases/stockStatement.usecase.js';
 import type { UnlockMonthUseCase } from '../application/usecases/unlockMonth.usecase.js';
-import type { cancelPaymentBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
+import type { cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -32,7 +34,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'cancelPayment', RequestHandler>;
+export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'saveEmployeePrimary', RequestHandler>;
 
 export function makeSalesControllers(u: {
   record: RecordMonthlyStockUseCase;
@@ -47,6 +49,11 @@ export function makeSalesControllers(u: {
   listPayments: ListPaymentsUseCase;
   cancelPayment: CancelPaymentUseCase;
   paymentTotals: PaymentTotalsUseCase;
+  readStatement: ReadStatementUseCase;
+  saveStatement: SaveStatementUseCase;
+  readEmployeeSales: ReadEmployeeSalesUseCase;
+  saveEmployeeSecondary: SaveEmployeeSecondaryUseCase;
+  saveEmployeePrimary: SaveEmployeePrimaryUseCase;
 }): SalesHandlers {
   return {
     recordStock: asyncHandler(async (req, res) => {
@@ -84,6 +91,21 @@ export function makeSalesControllers(u: {
     ),
     paymentTotals: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.paymentTotals.execute(req.query as unknown as z.output<typeof paymentTotalsQuerySchema>), 'What each distributor paid.', 200),
+    ),
+    readStatement: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.readStatement.execute(req.query as unknown as z.output<typeof statementQuerySchema>)), 'The distributor\'s monthly statement.', 200),
+    ),
+    readEmployeeSales: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.readEmployeeSales.execute(actorOf(req), req.query as unknown as z.output<typeof employeeSalesQuerySchema>)), 'The employee\'s month by product.', 200),
+    ),
+    saveEmployeeSecondary: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.saveEmployeeSecondary.execute(actorOf(req), req.body as z.output<typeof saveEmployeeSecondaryBodySchema>)), 'The secondary was saved.', 200),
+    ),
+    saveEmployeePrimary: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.saveEmployeePrimary.execute(actorOf(req), req.body as z.output<typeof saveEmployeePrimaryBodySchema>)), 'The primary was saved.', 200),
+    ),
+    saveStatement: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.saveStatement.execute(actorOf(req), req.body as z.output<typeof saveStatementBodySchema>)), 'The statement was saved.', 200),
     ),
     cancelPayment: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.cancelPayment.execute(actorOf(req), requiredParam(req.params, 'id'), (req.body as z.output<typeof cancelPaymentBodySchema>).reason)), 'The payment was cancelled.', 200),

@@ -5,9 +5,13 @@ import { monthTick } from './salesChart';
 export const SALES_FLAG_LABEL: Record<SalesRowFlag, string> = {
   NO_COUNT: 'No count',
   NEGATIVE_SECONDARY: 'Negative secondary',
+  NEGATIVE_CLOSING: 'Negative closing',
+  COUNT_MISMATCH: 'Field count ≠ statement',
   OPENING_MISMATCH: 'Opening ≠ last closing',
-  UNPRICED: 'No PTR on the product',
+  UNPRICED: 'No price on the product',
 };
+
+export const SOURCE_LABEL = { STATEMENT: 'Statement', FIELD_COUNT: 'Field count', NONE: '' } as const;
 
 export const STOCK_FLAG_LABEL: Record<StockRowFlag, string> = {
   NO_COUNT: 'No count',
@@ -18,8 +22,9 @@ export const STOCK_FLAG_LABEL: Record<StockRowFlag, string> = {
 /** What to say under a month of the chart: how complete the secondary is, or why there is none. */
 export function monthNote(m: SalesMonthDto): string {
   if (m.state === 'FUTURE') return 'Not started yet.';
-  if (m.state === 'OPEN') return 'In progress: stock is counted after the month ends, so there is no secondary yet.';
-  if (m.secondaryQty === null) return 'No stock count was entered, so there is no secondary.';
+  if (m.state === 'OPEN' && m.secondaryQty === null) return 'In progress: stock is counted after the month ends, so there is no secondary yet.';
+  if (m.state === 'OPEN') return 'In progress: the secondary covers only what has been counted or stated so far.';
+  if (m.secondaryQty === null) return 'No stock count or statement was entered, so there is no secondary.';
   const parts = [m.complete ? `All ${m.expectedDistributors} distributors counted.` : `${m.countedDistributors} of ${m.expectedDistributors} distributors counted: the secondary is only part of the picture.`];
   if (m.negativeRows > 0) parts.push(`${m.negativeRows} count${m.negativeRows === 1 ? '' : 's'} came out below zero and ${m.negativeRows === 1 ? 'is' : 'are'} left out.`);
   if (m.unpricedRows > 0) parts.push(`${m.unpricedRows} count${m.unpricedRows === 1 ? '' : 's'} of a product with no PTR ${m.unpricedRows === 1 ? 'is' : 'are'} left out of the value.`);
@@ -38,12 +43,12 @@ export function salesMonthsCsv(report: Pick<SalesYearReportDto, 'months'>): stri
   );
 }
 
-export const STATEMENT_CSV_HEADER = ['Distributor', 'Product', 'SKU', 'Opening', 'Primary', 'Primary (INR)', 'Placed, not done', 'Closing', 'Secondary', 'Secondary (INR)', 'Notes'] as const;
+export const STATEMENT_CSV_HEADER = ['Distributor', 'Product', 'SKU', 'Opening', 'Primary from orders', 'Adjustment', 'Primary', 'Primary (INR)', 'Placed, not done', 'Closing', 'Secondary', 'Secondary (INR)', 'Source', 'Notes'] as const;
 
 export function statementCsv(s: Pick<SalesStatementDto, 'rows'>): string {
   return toCsv(
     STATEMENT_CSV_HEADER,
-    s.rows.map((r) => [r.distributor.name, r.product.name, r.product.sku, blank(r.openingQty), r.primaryQty, rupeesForCsv(r.primaryPaise), r.placedQty, blank(r.closingQty), blank(r.secondaryQty), money(r.secondaryPaise), r.flags.map((f) => SALES_FLAG_LABEL[f]).join('; ')]),
+    s.rows.map((r) => [r.distributor.name, r.product.name, r.product.sku, blank(r.openingQty), r.orderPrimaryQty, r.adjustmentQty, r.primaryQty, rupeesForCsv(r.primaryPaise), r.placedQty, blank(r.closingQty), blank(r.secondaryQty), money(r.secondaryPaise), SOURCE_LABEL[r.source], r.flags.map((f) => SALES_FLAG_LABEL[f]).join('; ')]),
   );
 }
 

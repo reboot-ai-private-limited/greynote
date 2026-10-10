@@ -7,12 +7,16 @@ import { makeMonthlyStockSyncHandler } from './application/monthlyStockSync.js';
 import { OutletAccess } from './application/outletAccess.js';
 import { SalesClock } from './application/salesClock.js';
 import { ListMissingStockUseCase, ListMonthlyStockUseCase } from './application/usecases/readMonthlyStock.usecase.js';
+import { ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase } from './application/usecases/employeeSales.usecase.js';
+import { ReadStatementUseCase, SaveStatementUseCase } from './application/usecases/stockStatement.usecase.js';
 import { CancelPaymentUseCase, ListPaymentsUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from './application/usecases/payments.usecase.js';
 import { RecordMonthlyStockUseCase } from './application/usecases/recordMonthlyStock.usecase.js';
 import { UnlockMonthUseCase } from './application/usecases/unlockMonth.usecase.js';
 import type { FieldMasterDataPort } from './domain/fieldMasterData.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import { MongoOrderAdapter } from './infrastructure/mongoOrder.adapter.js';
+import { MongoEmployeeSaleAdapter } from './infrastructure/mongoEmployeeSale.adapter.js';
+import { MongoStockStatementAdapter } from './infrastructure/mongoStockStatement.adapter.js';
 import { MongoPaymentAdapter } from './infrastructure/mongoPayment.adapter.js';
 import { MongoMonthlyStockAdapter } from './infrastructure/mongoMonthlyStock.adapter.js';
 import { makeSalesControllers } from './interface/sales.controller.js';
@@ -35,10 +39,12 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
   const stock = new MongoMonthlyStockAdapter();
   const orders = new MongoOrderAdapter();
   const payments = new MongoPaymentAdapter();
+  const statements = new MongoStockStatementAdapter();
+  const employeeSales = new MongoEmployeeSaleAdapter();
   const clock = new SalesClock(config);
 
   const access = new OutletAccess(master);
-  const record = new RecordMonthlyStockUseCase(access, master, stock, clock);
+  const record = new RecordMonthlyStockUseCase(access, master, stock, clock, config);
   const list = new ListMonthlyStockUseCase(stock, master, users);
   const missing = new ListMissingStockUseCase(stock, master, users);
   const unlock = new UnlockMonthUseCase(stock, clock);
@@ -65,6 +71,9 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
       listOrders: (f) => orders.list({ from: f.from, to: f.to, status: f.status, outlet: f.outlet, userIds: f.userId ? [f.userId] : undefined }, f.limit ?? 2000),
       sumDistributorOrders: async (f) => orders.sumDistributorOrders({ ...f, timeZone: await clock.timeZone() }),
       listStockRange: (f) => stock.listRange(f, f.limit ?? 20000),
+      sumUserOrders: async (f) => orders.sumUserOrders({ ...f, timeZone: await clock.timeZone() }),
+      listEmployeeSales: (f) => employeeSales.list(f, f.limit ?? 20000),
+      listStatements: (f) => statements.list(f, f.limit ?? 20000),
       getOrder: (id) => (id.match(/^[a-f\d]{24}$/i) ? orders.findById(id) : Promise.resolve(null)),
       listMissingStock: (month) => missing.execute({ id: 'system', role: 'ADMIN' }, month),
     },
@@ -72,6 +81,6 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
       const m = month ?? (await clock.previousMonth());
       return { month: m, missing: await missing.execute({ id: 'system', role: 'ADMIN' }, m) };
     },
-    buildRouter: () => buildSalesRouter(makeSalesControllers({ record, list, unlock, missing, place, listOrders: new ListOrdersUseCase(orders, users), getOrder, finish: new FinishOrderUseCase(getOrder, orders, clock), recordPayment: new RecordPaymentUseCase(master, payments, clock, config, users), listPayments: new ListPaymentsUseCase(payments, orders, users, master), cancelPayment: new CancelPaymentUseCase(payments, clock, config, users), paymentTotals: new PaymentTotalsUseCase(payments) })),
+    buildRouter: () => buildSalesRouter(makeSalesControllers({ record, list, unlock, missing, place, listOrders: new ListOrdersUseCase(orders, users), getOrder, finish: new FinishOrderUseCase(getOrder, orders, clock), recordPayment: new RecordPaymentUseCase(master, payments, clock, config, users), listPayments: new ListPaymentsUseCase(payments, orders, users, master), cancelPayment: new CancelPaymentUseCase(payments, clock, config, users), paymentTotals: new PaymentTotalsUseCase(payments), readStatement: new ReadStatementUseCase(master, statements, stock, orders, users, clock), saveStatement: new SaveStatementUseCase(master, statements, clock, config), readEmployeeSales: new ReadEmployeeSalesUseCase(users, master, employeeSales, orders, clock), saveEmployeeSecondary: new SaveEmployeeSecondaryUseCase(users, master, employeeSales, stock, clock, config), saveEmployeePrimary: new SaveEmployeePrimaryUseCase(users, master, employeeSales, clock, config) })),
   };
 }

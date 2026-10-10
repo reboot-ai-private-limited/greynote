@@ -1,4 +1,4 @@
-import type { DistributorPaymentDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto } from '@greynote/contracts';
+import type { EmployeeSalesDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto } from '@greynote/contracts';
 import { request } from '../client';
 
 /** One order as `GET /sales/orders` returns it; the distributor's Orders tab shows only these fields. */
@@ -19,6 +19,16 @@ export const salesApi = {
   /** Admin or Accountant. What each distributor paid in a range (recorded payments only); distributors with none are left out. */
   distributorPaymentTotals: (token: string, query: { from: string; to: string }, signal?: AbortSignal) =>
     request<DistributorPaymentTotalDto[]>('/sales/distributor-payments/totals', { token, query: { ...query }, signal }),
+  /** Admin. One distributor's month by product: field counts, orders, the saved statement and the figures that follow. */
+  distributorStatement: (token: string, query: { distributorId: string; month: string }, signal?: AbortSignal) =>
+    request<DistributorStatementDto>('/sales/distributor-statement', { token, query: { ...query }, signal }),
+  saveStatement: (token: string, body: SaveDistributorStatementDto) => request<{ added: number; changed: number }>('/sales/distributor-statement', { method: 'POST', token, body }),
+  /** One employee's month by product: Done distributor orders (primary), Admin's change to it, and the secondary entered. Self, the manager above, or Admin. */
+  employeeSales: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) =>
+    request<EmployeeSalesDto>('/sales/employee-sales', { token, query: { ...query }, signal }),
+  saveEmployeeSecondary: (token: string, body: SaveEmployeeSecondaryDto) => request<{ added: number; changed: number }>('/sales/employee-secondary', { method: 'POST', token, body }),
+  /** Admin only. */
+  saveEmployeePrimary: (token: string, body: SaveEmployeePrimaryDto) => request<{ added: number; changed: number }>('/sales/employee-primary', { method: 'POST', token, body }),
   recordPayment: (token: string, body: RecordDistributorPaymentDto) => request<DistributorPaymentDto>('/sales/distributor-payments', { method: 'POST', token, body }),
   cancelPayment: (token: string, id: string, reason: string) => request<DistributorPaymentDto>(`/sales/distributor-payments/${id}/cancel`, { method: 'POST', token, body: { reason } }),
   /** A distributor's orders in a range, newest first, whoever placed them (Admin). */

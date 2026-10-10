@@ -1,3 +1,5 @@
+import type { ConfigReader } from '@/shared/config/readConfig.js';
+import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { monthWindow } from '../../domain/stockDeadline.js';
 import type { Outlet, StockLine } from '../../domain/monthlyStock.entity.js';
@@ -25,6 +27,7 @@ export class RecordMonthlyStockUseCase {
     private readonly master: FieldMasterDataPort,
     private readonly stock: MonthlyStockRepositoryPort,
     private readonly clock: SalesClock,
+    private readonly config?: ConfigReader,
   ) {}
 
   async execute(actor: Actor, input: RecordStockInput, ctx?: TransactionContext): Promise<{ serverId: string; lines: number }> {
@@ -37,6 +40,9 @@ export class RecordMonthlyStockUseCase {
     if (window === 'CLOSED' && actor.role !== 'ADMIN' && !(await this.stock.isUnlocked(month))) {
       throw new StockRefusal(STOCK_CODES.monthClosed, `The deadline for ${month} has passed. Ask an Admin to reopen it.`);
     }
+
+    // The financial year the month belongs to must be open (decision-log 2026-10-06); a closed year takes no new counts.
+    if (this.config) await assertFinancialYearOpen(this.config, `${month}-01`, 'This month');
 
     for (const line of input.lines) {
       const product = await this.master.getProduct(line.productId);

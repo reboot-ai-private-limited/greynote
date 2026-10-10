@@ -5,9 +5,9 @@ import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import { MarketingRefusal } from '../domain/marketingRefusal.js';
-import type { GetTargetSummaryUseCase, SetAchievementUseCase, SetTargetUseCase } from '../application/usecases/targets.usecase.js';
+import type { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetsUseCase, SetTargetUseCase } from '../application/usecases/targets.usecase.js';
 import type { Actor, CreateCampaignUseCase, CreateVisualUseCase, ListCampaignsUseCase, ListVisualsUseCase, SetCampaignStatusUseCase, SetVisualStatusUseCase } from '../application/usecases/visualsAndCampaigns.usecase.js';
-import type { createCampaignBodySchema, createVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, setStatusBodySchema, setAchievementBodySchema, setTargetBodySchema, targetQuerySchema } from './marketing.schemas.js';
+import type { createCampaignBodySchema, createVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, setStatusBodySchema, setTargetBodySchema, listTargetsQuerySchema, targetQuerySchema } from './marketing.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -26,7 +26,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type MarketingHandlers = Record<'createVisual' | 'listVisuals' | 'setVisualStatus' | 'createCampaign' | 'listCampaigns' | 'setCampaignStatus' | 'setTarget' | 'setAchievement' | 'getTarget', RequestHandler>;
+export type MarketingHandlers = Record<'createVisual' | 'listVisuals' | 'setVisualStatus' | 'createCampaign' | 'listCampaigns' | 'setCampaignStatus' | 'setTarget' | 'deleteTarget' | 'listTargets' | 'getTarget', RequestHandler>;
 
 export function makeMarketingControllers(u: {
   createVisual: CreateVisualUseCase;
@@ -36,7 +36,8 @@ export function makeMarketingControllers(u: {
   listCampaigns: ListCampaignsUseCase;
   setCampaignStatus: SetCampaignStatusUseCase;
   setTarget: SetTargetUseCase;
-  setAchievement: SetAchievementUseCase;
+  deleteTarget: DeleteTargetUseCase;
+  listTargets: ListTargetsUseCase;
   getTarget: GetTargetSummaryUseCase;
 }): MarketingHandlers {
   return {
@@ -60,9 +61,14 @@ export function makeMarketingControllers(u: {
     setTarget: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.setTarget.execute(actorOf(req), req.body as z.output<typeof setTargetBodySchema>)), 'The target was saved.', 200),
     ),
-    setAchievement: asyncHandler(async (req, res) =>
-      sendSuccess(req, res, await refusing(() => u.setAchievement.execute(actorOf(req), req.body as z.output<typeof setAchievementBodySchema>)), 'The achievement was saved.', 200),
-    ),
+    deleteTarget: asyncHandler(async (req, res) => {
+      await refusing(() => u.deleteTarget.execute(actorOf(req), requiredParam(req.params, 'id')));
+      sendSuccess(req, res, null, 'The target was removed.', 200);
+    }),
+    listTargets: asyncHandler(async (req, res) => {
+      const q = req.query as unknown as z.output<typeof listTargetsQuerySchema>;
+      sendSuccess(req, res, await refusing(() => u.listTargets.execute(actorOf(req), { userId: q.userId, fromMonth: q.from, toMonth: q.to })), 'Targets.', 200);
+    }),
     getTarget: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof targetQuerySchema>;
       const summary = await refusing(() => u.getTarget.execute(actorOf(req), requiredParam(req.params, 'userId'), { month: q.month, productId: q.productId ?? null, campaignId: q.campaignId ?? null }));

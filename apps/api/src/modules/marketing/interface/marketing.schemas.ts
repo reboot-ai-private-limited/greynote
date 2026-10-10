@@ -27,16 +27,17 @@ export const createCampaignBodySchema = z.object({
 export const listCampaignsQuerySchema = z.object({ status: z.enum(CAMPAIGN_STATUSES).optional() });
 export const setCampaignStatusBodySchema = z.object({ status: z.enum(CAMPAIGN_STATUSES) });
 
-export const setTargetBodySchema = z.object({
-  userId: objectIdSchema,
-  month: calendarMonthSchema,
-  productId: objectIdSchema.nullish().transform((v) => v ?? null),
-  campaignId: objectIdSchema.nullish().transform((v) => v ?? null),
-  targetAmountPaise: paiseSchema.refine((n) => n > 0, 'A target must be more than zero.'),
-});
-export const setAchievementBodySchema = z.object({
-  userId: objectIdSchema,
-  month: calendarMonthSchema,
-  achievedAmountPaise: paiseSchema,
-});
+export const setTargetBodySchema = z
+  .object({
+    userId: objectIdSchema,
+    month: calendarMonthSchema,
+    toMonth: calendarMonthSchema.optional(),
+    productId: objectIdSchema.nullish().transform((v) => v ?? null),
+    campaignId: objectIdSchema.nullish().transform((v) => v ?? null),
+    targetAmountPaise: paiseSchema.refine((n) => n > 0, 'A target must be more than zero.'),
+  })
+  .refine((b) => !b.toMonth || b.toMonth >= b.month, { message: 'A target cannot end before it starts.', path: ['toMonth'] });
+export const listTargetsQuerySchema = z
+  .object({ userId: objectIdSchema, from: calendarMonthSchema, to: calendarMonthSchema })
+  .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] });
 export const targetQuerySchema = z.object({ month: calendarMonthSchema, productId: objectIdSchema.optional(), campaignId: objectIdSchema.optional() });

@@ -95,6 +95,7 @@ export const SALES_DASHBOARD_CSV_HEADER = [
   'TA (INR)',
   'DA (INR)',
   'Target (INR)',
+  'Primary (INR)',
   'Achievement (INR)',
 ] as const;
 
@@ -116,6 +117,7 @@ export function salesDashboardCsv(rows: readonly SalesDashboardRowDto[]): string
       money(r.taPaise),
       money(r.daPaise),
       money(r.targetPaise),
+      money(r.primaryPaise),
       money(r.achievedPaise),
     ]),
   );

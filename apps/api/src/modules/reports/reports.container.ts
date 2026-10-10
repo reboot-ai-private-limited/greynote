@@ -1,5 +1,6 @@
 import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
+import { EmployeeSalesReport } from './application/employeeSalesReport.js';
 import { DcrReport } from './application/dcrReport.js';
 import { OrdersReport } from './application/ordersReport.js';
 import { SalesDashboardReport } from './application/salesDashboardReport.js';
@@ -7,7 +8,7 @@ import { SalaryReport } from './application/salaryReport.js';
 import { SalesReport } from './application/salesReport.js';
 import { StockReport } from './application/stockReport.js';
 import { TaDaReport } from './application/taDaReport.js';
-import type { AttendancePort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
+import type { AttendancePort, EmployeeSalesPort, StatementsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
 import { makeReportsControllers } from './interface/reports.controller.js';
 import { buildReportsRouter } from './interface/reports.route.js';
 
@@ -23,7 +24,7 @@ export interface ReportsContainer {
 export function buildReportsContainer(
   identity: IdentityPort & FieldRosterPort,
   master: MasterPort,
-  sales: SalesPort,
+  sales: SalesPort & StatementsPort & EmployeeSalesPort,
   fieldActivity: FieldActivityPort & FieldDaysPort,
   territory: TerritoryPort & ZoneNamePort,
   payroll: PayrollPort,
@@ -38,6 +39,7 @@ export function buildReportsContainer(
   const taDaReport = new TaDaReport(fieldActivity, territory, identity, config);
   const dcrReport = new DcrReport(fieldActivity, master, identity, config);
   const salaryReport = new SalaryReport(payroll, fieldActivity, identity, config);
-  const salesDashboard = new SalesDashboardReport(identity, planning, attendance, fieldActivity, marketing, territory, config);
-  return { buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport, dcrReport, salaryReport, salesDashboard)) };
+  const salesDashboard = new SalesDashboardReport(identity, planning, attendance, fieldActivity, marketing, sales, master, territory, config);
+  const employeeSales = new EmployeeSalesReport(sales, marketing, master, identity, identity);
+  return { buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport, dcrReport, salaryReport, salesDashboard, employeeSales)) };
 }

@@ -1,3 +1,4 @@
+import { AppError } from '@/shared/errors/AppError.js';
 import { SyncRejection, type SyncHandlerDefinition } from '@/modules/sync/sync.public.js';
 import { STOCK_CODES, StockRefusal } from '../domain/stockRefusal.js';
 import type { RecordMonthlyStockUseCase, RecordStockInput } from './usecases/recordMonthlyStock.usecase.js';
@@ -21,7 +22,10 @@ export function makeMonthlyStockSyncHandler(record: RecordMonthlyStockUseCase, p
         const { serverId } = await record.execute({ id: userId, role: 'FIELD' }, input, ctx);
         return { serverId };
       } catch (err) {
-        throw err instanceof StockRefusal ? new SyncRejection(err.code, err.message) : err;
+        if (err instanceof StockRefusal) throw new SyncRejection(err.code, err.message);
+        // A month of a closed financial year takes no new counts: the phone is told so, not left retrying a server fault.
+        if (err instanceof AppError && err.statusCode === 409 && (err.publicDetails as { code?: string } | undefined)?.code === 'FY_CLOSED') throw new SyncRejection('FY_CLOSED', err.message);
+        throw err;
       }
     },
   };
