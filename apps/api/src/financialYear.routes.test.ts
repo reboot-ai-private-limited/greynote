@@ -33,6 +33,7 @@ const SCOPED = [
   '/api/field-activity/dcr/team',
   '/api/field-activity/expenses',
   '/api/field-activity/expense-payouts',
+  '/api/field-activity/expense-months',
   '/api/planning/daily',
   '/api/planning/monthly',
   '/api/hr/leaves/me',
@@ -64,6 +65,7 @@ const SCOPED = [
   '/api/approvals/mine',
 ];
 const BY_ID = [
+  '/api/field-activity/expense-months/:id',
   '/api/field-activity/dcr/:id',
   '/api/planning/daily/:id',
   '/api/planning/changes/:id',
@@ -77,6 +79,7 @@ const BY_ID = [
   '/api/approvals/:id',
 ];
 const TIMELESS = [
+  '/api/field-activity/expense-months/history', // the last twelve months, across a year end
   '/api/config', // system settings: global, not a dated record
   '/api/config/public',
   '/api/config/financial-year', // closing a year is an Admin action on the system, not a dated report

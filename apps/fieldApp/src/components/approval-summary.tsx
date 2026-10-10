@@ -19,6 +19,7 @@ import {
   type GeofenceOutcome,
   type PlanDayView,
 } from '@/lib/approvals';
+import { getStatementById } from '@/lib/expense-months';
 import { formatRupees } from '@/lib/money';
 import { useTheme } from '@/hooks/use-theme';
 import { workingTypeLabel, type WorkingType } from '@/lib/planning';
@@ -431,6 +432,38 @@ export function DcrSummary({ recordId, canAct }: { recordId: string; canAct: boo
   );
 }
 
+/* ───────────────────────────── monthly expenses ───────────────────────────── */
+
+function ExpenseMonthSummaryCard({ recordId }: { recordId: string }) {
+  const { data, error } = useRecord(() => getStatementById(recordId), 0);
+  return (
+    <Frame title={data ? `Expenses · ${prettyMonth(data.month)}` : 'Monthly expenses'} error={error} loading={!data}>
+      {data ? (
+        <>
+          <Line label="TA" value={formatRupees(data.totals.taPaise)} />
+          <Line label="DA" value={formatRupees(data.totals.daPaise)} />
+          <Line label="Other" value={formatRupees(data.totals.otherPaise)} />
+          <Line label="Total" value={formatRupees(data.totals.totalPaise)} />
+          {data.days.map((d) => (
+            <View key={d.date} style={styles.tableRow}>
+              <View style={styles.tableMain}>
+                <ThemedText type="small">{prettyDay(d.date)}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">{`TA ${formatRupees(d.taPaise)} · DA ${formatRupees(d.daPaise)} · Other ${formatRupees(d.otherPaise)}`}</ThemedText>
+                {d.others.filter((o) => o.remarks).map((o) => (
+                  <ThemedText key={o.id} type="small" themeColor="textSecondary">{`${formatRupees(o.amountPaise)} · ${o.remarks}`}</ThemedText>
+                ))}
+              </View>
+              <ThemedText type="small" style={styles.amount}>
+                {formatRupees(d.totalPaise)}
+              </ThemedText>
+            </View>
+          ))}
+        </>
+      ) : null}
+    </Frame>
+  );
+}
+
 /* ───────────────────────────── entry point ───────────────────────────── */
 
 /** The record behind a request, shown by kind. An unknown kind still shows the request's history below it. */
@@ -450,6 +483,8 @@ export function ApprovalSummary({ request }: { request: ApprovalDetail }) {
       return <NewDoctorSummary recordId={request.recordId} />;
     case 'DOCTOR_SERVICE':
       return <DoctorServiceSummary recordId={request.recordId} />;
+    case 'EXPENSE_MONTH':
+      return <ExpenseMonthSummaryCard recordId={request.recordId} />;
     default:
       return <Notice tone="info">No preview for this kind of request. Its history is below.</Notice>;
   }

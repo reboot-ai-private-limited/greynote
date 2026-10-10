@@ -92,16 +92,17 @@ followupSchema.index({ dcrId: 1, recordedAt: 1 });
 followupSchema.index({ userId: 1, clientId: 1 }, { unique: true });
 
 export interface ExpenseDoc {
-  dcrId: Types.ObjectId;
+  dcrId: Types.ObjectId | null;
   userId: Types.ObjectId;
   reportDate: string;
   routeId: Types.ObjectId | null;
-  type: 'TA' | 'DA' | 'TRAVEL' | 'MEAL' | 'MISC';
+  type: 'TA' | 'DA' | 'OTHER' | 'TRAVEL' | 'MEAL' | 'MISC';
   source: 'AUTO' | 'MANUAL';
   amountPaise: number;
   remarks: string | null;
   paymentStatus: 'UNPAID' | 'PAID' | 'CANCELLED';
   accepted: boolean;
+  monthApproved: boolean;
   distanceFlag: boolean;
   paidBy: Types.ObjectId | null;
   paidAt: Date | null;
@@ -109,16 +110,17 @@ export interface ExpenseDoc {
   recordedAt: Date;
 }
 const expenseSchema = new Schema<ExpenseDoc>({
-  dcrId: ref('Dcr'),
+  dcrId: { type: Schema.Types.ObjectId, default: null, ref: 'Dcr' },
   userId: ref('User'),
   reportDate: { type: String, required: true },
   routeId: { type: Schema.Types.ObjectId, default: null, ref: 'Route' },
-  type: { type: String, required: true, enum: ['TA', 'DA', 'TRAVEL', 'MEAL', 'MISC'] },
+  type: { type: String, required: true, enum: ['TA', 'DA', 'OTHER', 'TRAVEL', 'MEAL', 'MISC'] },
   source: { type: String, required: true, enum: ['AUTO', 'MANUAL'] },
   amountPaise: { type: Number, required: true, min: 0 },
   remarks: { type: String, default: null },
   paymentStatus: { type: String, required: true, enum: ['UNPAID', 'PAID', 'CANCELLED'], default: 'UNPAID' },
   accepted: { type: Boolean, default: false },
+  monthApproved: { type: Boolean, default: false },
   distanceFlag: { type: Boolean, default: false },
   paidBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
   paidAt: { type: Date, default: null },
@@ -133,6 +135,31 @@ expenseSchema.index({ userId: 1, reportDate: 1, paymentStatus: 1 });
 expenseSchema.index({ userId: 1, clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } });
 
 export const ExpenseModel = model<ExpenseDoc>('Expense', expenseSchema);
+
+export interface ExpenseMonthDoc {
+  userId: Types.ObjectId;
+  month: string;
+  status: 'DRAFT' | 'SUBMITTED';
+  submittedAt: Date | null;
+  /** Totals at submit, so the approver sees what was sent even if a DCR changes later. */
+  taPaise: number;
+  daPaise: number;
+  otherPaise: number;
+}
+const expenseMonthSchema = new Schema<ExpenseMonthDoc>(
+  {
+    userId: ref('User'),
+    month: { type: String, required: true },
+    status: { type: String, required: true, enum: ['DRAFT', 'SUBMITTED'], default: 'DRAFT' },
+    submittedAt: { type: Date, default: null },
+    taPaise: { type: Number, default: 0, min: 0 },
+    daPaise: { type: Number, default: 0, min: 0 },
+    otherPaise: { type: Number, default: 0, min: 0 },
+  },
+  { timestamps: true },
+);
+expenseMonthSchema.index({ userId: 1, month: 1 }, { unique: true });
+export const ExpenseMonthModel = model<ExpenseMonthDoc>('ExpenseMonth', expenseMonthSchema);
 export const DoctorCallModel = model<DoctorCallDoc>('DoctorCall', doctorCallSchema);
 export const ChemistCallModel = model<ChemistCallDoc>('ChemistCall', chemistCallSchema);
 export const FollowupModel = model<FollowupDoc>('Followup', followupSchema);

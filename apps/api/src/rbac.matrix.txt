@@ -1,3 +1,4 @@
+DELETE /api/field-activity/expenses/other/:id  FIELD
 DELETE /api/field-master-data/doctors/:id/assignments/:userId  ADMIN
 DELETE /api/hr/holidays/:id  ADMIN,HR
 DELETE /api/hr/leaves/:id/attachments/:attachmentId  FIELD
@@ -23,6 +24,9 @@ GET    /api/field-activity/dcr/team  FIELD
 GET    /api/field-activity/doctor-gifts  ADMIN,FIELD
 GET    /api/field-activity/doctor-services  ADMIN,FIELD
 GET    /api/field-activity/doctor-services/:id  ADMIN,FIELD
+GET    /api/field-activity/expense-months  ADMIN,FIELD
+GET    /api/field-activity/expense-months/:id  ADMIN,FIELD
+GET    /api/field-activity/expense-months/history  ADMIN,FIELD
 GET    /api/field-activity/expense-payouts  ACCOUNTANT,ADMIN
 GET    /api/field-activity/expenses  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists  ADMIN
@@ -139,8 +143,10 @@ POST   /api/config/financial-year/reopen  ADMIN
 POST   /api/field-activity/admin/doctor-gifts  ADMIN
 POST   /api/field-activity/admin/doctor-services  ADMIN
 POST   /api/field-activity/dcr/:id/calls/:callId/override-geofence  ADMIN,FIELD
+POST   /api/field-activity/expense-months/:month/submit  FIELD
 POST   /api/field-activity/expense-payouts/pay  ACCOUNTANT,ADMIN
 POST   /api/field-activity/expenses/:id/mark-paid  ACCOUNTANT,ADMIN
+POST   /api/field-activity/expenses/other  FIELD
 POST   /api/field-master-data/chemists  ADMIN
 POST   /api/field-master-data/distributors  ADMIN
 POST   /api/field-master-data/doctors  ADMIN
@@ -207,6 +213,7 @@ POST   /api/territory/routes  ADMIN
 POST   /api/territory/routes/:id/assignments  ADMIN
 POST   /api/territory/routes/:id/recalculate  ADMIN
 POST   /api/territory/zones  ADMIN
+PUT    /api/field-activity/expenses/other/:id  FIELD
 PUT    /api/field-master-data/doctors/added/:id  FIELD
 PUT    /api/hr/leave-policies/:payBandId/:leaveTypeId  ADMIN,HR
 PUT    /api/hr/leaves/:id  FIELD

@@ -2,7 +2,7 @@ import type { TaDaDaysDto, TaDaMonthDto, TaDaMrRowDto, TaDaYearReportDto } from 
 import { rupeesForCsv, toCsv } from '@/lib/csv';
 import { monthTick } from './salesChart';
 
-export const EXPENSE_TYPE_LABEL: Record<TaDaDaysDto['rows'][number]['type'], string> = { TA: 'TA', DA: 'DA', TRAVEL: 'Travel', MEAL: 'Meal', MISC: 'Other' };
+export const EXPENSE_TYPE_LABEL: Record<TaDaDaysDto['rows'][number]['type'], string> = { TA: 'TA', DA: 'DA', TRAVEL: 'Travel', MEAL: 'Meal', MISC: 'Other', OTHER: 'Other' };
 
 /** The employees of one month, biggest total first (ties by name). */
 export function rowsOfMonth(report: Pick<TaDaYearReportDto, 'rows'>, month: string): TaDaMrRowDto[] {

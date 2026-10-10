@@ -19,7 +19,7 @@ export class LogExpenseUseCase {
   async execute(rec: RecordContext, input: { reportDate: string; type: ManualExpenseType; amountPaise: Paise; remarks: string | null }, ctx: TransactionContext): Promise<{ serverId: string }> {
     const dcr = await this.gate.open(rec.userId, input.reportDate, rec.recordedAt);
     const expense = await this.expenses.create(
-      { dcrId: dcr.id, userId: rec.userId, reportDate: input.reportDate, routeId: null, type: input.type, source: 'MANUAL', amountPaise: input.amountPaise, remarks: input.remarks, paymentStatus: 'UNPAID', accepted: false, distanceFlag: false, paidBy: null, paidAt: null, clientId: rec.clientId, recordedAt: rec.recordedAt },
+      { dcrId: dcr.id, userId: rec.userId, reportDate: input.reportDate, routeId: null, type: input.type, source: 'MANUAL', amountPaise: input.amountPaise, remarks: input.remarks, paymentStatus: 'UNPAID', accepted: false, monthApproved: false, distanceFlag: false, paidBy: null, paidAt: null, clientId: rec.clientId, recordedAt: rec.recordedAt },
       ctx,
     );
     return { serverId: expense.id };

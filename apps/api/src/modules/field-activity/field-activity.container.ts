@@ -10,6 +10,8 @@ import { CallChecks } from './application/callChecks.js';
 import { makeCallSyncHandlers } from './application/callsSync.js';
 import { makeExpenseSyncHandler } from './application/expenseSync.js';
 import { TaDaLifecycle } from './application/usecases/taDaLifecycle.usecase.js';
+import { EXPENSE_MONTH_KIND, ExpenseMonthService } from './application/usecases/expenseMonth.usecase.js';
+import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { LogExpenseUseCase } from './application/usecases/logExpense.usecase.js';
 import { makeServiceGiftSyncHandlers } from './application/serviceGiftSync.js';
 import { makeFieldActivitySource } from './application/fieldActivitySnapshot.js';
@@ -35,7 +37,7 @@ import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import type { FieldActivityPublicContract } from './field-activity.public.js';
 import { MongoDoctorGiftAdapter, MongoDoctorServiceAdapter } from './infrastructure/mongoServiceGift.adapter.js';
 import { MongoDcrAdapter } from './infrastructure/mongoDcr.adapter.js';
-import { MongoChemistCallAdapter, MongoDoctorCallAdapter, MongoExpenseAdapter, MongoFollowupAdapter } from './infrastructure/mongoRecords.adapter.js';
+import { MongoChemistCallAdapter, MongoDoctorCallAdapter, MongoExpenseAdapter, MongoExpenseMonthAdapter, MongoFollowupAdapter } from './infrastructure/mongoRecords.adapter.js';
 import { makeFieldActivityControllers } from './interface/field-activity.controller.js';
 import { buildFieldActivityRouter } from './interface/field-activity.route.js';
 import {
@@ -81,6 +83,7 @@ export function buildFieldActivityContainer(
   const chemistCalls = new MongoChemistCallAdapter();
   const followups = new MongoFollowupAdapter();
   const expenses = new MongoExpenseAdapter();
+  const expenseMonths = new MongoExpenseMonthAdapter();
   const services = new MongoDoctorServiceAdapter();
   const gifts = new MongoDoctorGiftAdapter();
 
@@ -93,6 +96,10 @@ export function buildFieldActivityContainer(
 
   // 2. Use cases
   const clock = new DcrClock(config);
+
+  // A month of expenses goes to the manager, whose approval is the decision (Admin may act in their place); approval makes its rows payable.
+  const monthService = new ExpenseMonthService(expenses, expenseMonths, users, approvals, clock, config, new MongooseTransactionRunner());
+  approvals.registerKind({ kind: EXPENSE_MONTH_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, onStatusChange: (change, ctx) => monthService.onStatusChange(change.recordId, change.status, ctx) });
   const gate = new LoggingGate(users, planning, approvals, dcrs, clock);
   const views = new DcrViews(approvals);
   const submitDcr = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config);
@@ -167,6 +174,7 @@ export function buildFieldActivityContainer(
           listGifts: new ListGiftsUseCase(gifts, master),
           listExpenses: new ListExpensesUseCase(expenses, users),
           markPaid: new MarkExpensePaidUseCase(expenses, config),
+          expenseMonths: monthService,
           listPayouts: new ListExpensePayoutsUseCase(expenses, users, config, clock),
           payExpenses: new PayMonthExpensesUseCase(expenses, config),
           override: new OverrideGeofenceUseCase(dcrs, users, views, doctorCalls, chemistCalls),

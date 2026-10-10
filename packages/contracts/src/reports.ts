@@ -182,7 +182,7 @@ export interface TaDaYearReportDto {
 export interface TaDaDayRowDto {
   /** `YYYY-MM-DD`, the day reported. */
   date: string;
-  type: 'TA' | 'DA' | 'TRAVEL' | 'MEAL' | 'MISC';
+  type: 'TA' | 'DA' | 'OTHER' | 'TRAVEL' | 'MEAL' | 'MISC';
   source: 'AUTO' | 'MANUAL';
   route: { id: string; name: string } | null;
   amountPaise: number;

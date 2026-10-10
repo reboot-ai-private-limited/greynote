@@ -31,6 +31,17 @@ export function useLeaveBalances(userId: string | undefined, year: number | unde
   );
 }
 
+/** The month of expenses under review, date by date. */
+export function useExpenseMonth(id: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.expenses.month(id),
+      fetch: (token, signal) => fieldActivityApi.expenseMonth(token, id, signal),
+      staleTime: staleTime.live,
+    }),
+  );
+}
+
 /** The daily report under review, with every call, follow-up and expense. */
 export function useDcr(id: string, enabled = true) {
   return useQuery(

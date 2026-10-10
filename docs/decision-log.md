@@ -17,6 +17,22 @@ old one.
 
 ---
 
+## 2026-10-10 — Monthly expenses: one statement per month, approved by the manager or Admin, then paid
+
+**Decision:**
+- **Expenses leave the DCR.** An employee no longer enters Travel / Meal / Misc on the day's report. They add **dated entries in one "Other" category** (`Expense.type = OTHER`, no DCR behind it) on the new **Expenses** screen, online.
+- **The month is the unit.** A statement shows, per date, **TA and DA** (the server's `AUTO` rows, from approved DCRs) plus the employee's **Other**, and the totals. Previous months stay on the screen with whether each was approved.
+- **Submit and approval only from the 1st of the next month** (409 `MONTH_NOT_ENDED` before). A month cannot be sent empty, and its Other entries lock once sent.
+- **One stage:** approval kind `EXPENSE_MONTH` is **manager-only** — the nearest manager decides, **Admin can also approve or reject** (override, or top of chain when there is no manager). Rejecting or reopening gives the month back to the employee.
+- **Approval makes the month payable.** An expense is paid only if its DCR was accepted (`accepted`) **and** its month statement is approved (`monthApproved`). Mark-paid, the payout sheet and pay-all all require both. The 15th payout day and the FY-close guard are unchanged.
+- **If TA/DA changes after the send** (a late DCR approval), the statement shows the total that was sent beside the live one; Admin reopens the month to send it again.
+
+**Replaces:** manual Travel/Meal/Misc entered per DCR and accepted with it (decision-log 2026-09-23). Old rows stay readable and count as Other; the `EXPENSE` sync kind still works for phones that have queued one, but the screen no longer creates them.
+
+**Cost:** `pnpm migrate:expense-months -- --before YYYY-MM --apply` flags rows before the cutover month as `monthApproved` so past unpaid expenses stay payable (dry run first; not run). Web has no employee screen (field employees use the phone); the portal gets only the approval preview.
+
+---
+
 ## 2026-10-10 — Visuals shown to each doctor: a standing list the MR adds to and a manager or Admin controls
 
 **Decision:**

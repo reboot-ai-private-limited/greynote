@@ -22,7 +22,7 @@ export type ApprovalAction = {
 
 export type ApprovalItem = {
   id: string;
-  /** DAILY_PLAN, MONTHLY_PLAN, DAILY_PLAN_CHANGE, DCR, LEAVE, NEW_DOCTOR, DOCTOR_SERVICE. */
+  /** DAILY_PLAN, MONTHLY_PLAN, DAILY_PLAN_CHANGE, DCR, LEAVE, NEW_DOCTOR, DOCTOR_SERVICE, EXPENSE_MONTH. */
   kind: string;
   recordId: string;
   status: ApprovalStatus;
@@ -52,6 +52,7 @@ export const KIND_LABEL: Record<string, string> = {
   LEAVE: 'Leave',
   NEW_DOCTOR: 'New doctor',
   DOCTOR_SERVICE: 'Doctor service',
+  EXPENSE_MONTH: 'Monthly expenses',
 };
 export const kindLabel = (kind: string) => KIND_LABEL[kind] ?? kind;
 

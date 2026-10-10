@@ -45,7 +45,7 @@ export const FEATURES: Feature[] = [
   { key: 'chemist-call', title: 'Chemist Call', section: 'DCR', gate: 'plan', stage: 4, route: '/chemist-call', icon: icon('cross.case', 'local_pharmacy'), about: 'Log a visit to a chemist. Your location is checked against the chemist’s.' },
   { key: 'chemist-followup', title: 'Chemist Followup', section: 'DCR', gate: 'plan', stage: 4, route: '/chemist-followup', icon: icon('text.bubble.fill', 'forum'), about: 'Add a follow-up note on a chemist.' },
   { key: 'add-doctor', title: 'Add Doctor', section: 'DCR', gate: 'none', stage: 4, route: '/add-doctor', icon: icon('person.badge.plus', 'person_add'), about: 'Add a new doctor with their location; your manager and Admin approve it.' },
-  { key: 'expenses', title: 'Expenses', section: 'DCR', gate: 'plan', stage: 4, route: '/expenses', icon: icon('indianrupeesign.circle', 'payments'), about: 'Log travel, meals and other costs. TA and DA are worked out by the server.' },
+  { key: 'expenses', title: 'Expenses', section: 'DCR', gate: 'none', stage: 4, route: '/expenses', icon: icon('indianrupeesign.circle', 'payments'), about: 'Your month of TA, DA and other costs. Send it after the month ends; your manager approves it.' },
   { key: 'leave', title: 'Leave', section: 'DCR', gate: 'none', stage: 4, route: '/leave', icon: icon('beach.umbrella', 'beach_access'), about: 'See your balances and request leave. Still available while your account is blocked.' },
   { key: 'summary', title: 'Summary & Submit', section: 'DCR', gate: 'unblocked', stage: 4, route: '/summary', icon: icon('checkmark.seal', 'task_alt'), about: 'Review the whole day and send it with Final Submission. Needs a connection.' },
 

@@ -80,3 +80,16 @@ export const payExpensesBodySchema = z.object({ month: monthSchema, userIds: z.a
 
 export const listServicesQuerySchema = z.object({ userId: objectIdSchema.optional(), doctorId: objectIdSchema.optional() });
 export const listGiftsQuerySchema = z.object({ status: z.enum(['PENDING', 'DONE']).optional() });
+
+// ---- Monthly expense statement ------------------------------------------------------------------
+
+const expenseMonthValue = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Must be a month like 2026-09.');
+export const expenseMonthParamsSchema = z.object({ month: expenseMonthValue });
+export const expenseMonthQuerySchema = z.object({ month: expenseMonthValue, userId: objectIdSchema.optional() });
+export const expenseHistoryQuerySchema = z.object({ userId: objectIdSchema.optional() });
+/** An employee's own entry in the single "Other" category: a day, an amount in whole paise and a note. */
+export const otherExpenseBodySchema = z.object({
+  reportDate: calendarDateSchema,
+  amountPaise: paiseSchema.refine((v) => v > 0, 'The amount must be more than zero.'),
+  remarks: remarksSchema,
+});

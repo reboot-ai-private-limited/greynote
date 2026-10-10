@@ -58,7 +58,7 @@ export class ListExpensePayoutsUseCase {
   ) {}
 
   async execute(month: string): Promise<ExpensePayoutSheet> {
-    const statements = await this.expenses.statementsForRange(monthRange(month));
+    const statements = await this.expenses.statementsForRange(monthRange(month), { payableOnly: true });
     const people = new Map((await this.users.getUserSummaries(statements.map((s) => s.userId))).map((u) => [u.id, u]));
     const rows = statements
       .map((s) => ({ ...s, userName: people.get(s.userId)?.name ?? '', employeeCode: people.get(s.userId)?.employeeCode ?? '' }))
@@ -86,7 +86,7 @@ export class PayMonthExpensesUseCase {
   async execute(accountantId: string, input: { month: string; userIds?: string[] | undefined }): Promise<PayOutcome[]> {
     const range = monthRange(input.month);
     await assertFinancialYearOpen(this.config, range.from, `The expenses of ${input.month}`);
-    const statements = await this.expenses.statementsForRange(range);
+    const statements = await this.expenses.statementsForRange(range, { payableOnly: true });
     const owed = new Map(statements.filter((s) => hasUnpaid(s.unpaid)).map((s) => [s.userId, s.unpaid]));
     const ids = input.userIds ? [...new Set(input.userIds)] : [...owed.keys()];
     if (input.userIds && ids.length === 0) throw AppError.badRequest('Name at least one employee.', { field: 'userIds' });

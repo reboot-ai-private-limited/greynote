@@ -14,7 +14,12 @@ async function status(p: Promise<unknown>) {
 describe('the Accountant’s side', () => {
   let kit: ReturnType<typeof faKit>;
   let dcrId: string;
-  const approve = () => kit.taDa.onStatusChange(dcrId, 'MANAGER_APPROVED', new Tx());
+  const approveMonth = () => kit.expenses.setMonthApproved('mr1', { from: '2026-10-01', to: '2026-10-31' }, true, new Tx());
+  /** The DCR is accepted by the manager and the month statement is approved: the two things a row needs to be payable. */
+  const approve = async () => {
+    await kit.taDa.onStatusChange(dcrId, 'MANAGER_APPROVED', new Tx());
+    await approveMonth();
+  };
 
   beforeEach(async () => {
     kit = faKit();
@@ -27,6 +32,15 @@ describe('the Accountant’s side', () => {
   it('before the manager accepts, nothing is auditable or payable — not even the MR’s own claim', async () => {
     expect(await kit.listExpenses.execute({ from: DAY, to: DAY })).toEqual([]);
     expect(await status(kit.markPaid.execute('acct', kit.expenses.rows[0]!.id))).toBe(409);
+  });
+
+  it('an accepted DCR alone is not payable: the month statement must be approved too', async () => {
+    await kit.taDa.onStatusChange(dcrId, 'MANAGER_APPROVED', new Tx());
+    expect(await status(kit.markPaid.execute('acct', kit.expenses.rows[1]!.id))).toBe(409);
+    await approveMonth();
+    expect((await kit.markPaid.execute('acct', kit.expenses.rows[1]!.id)).paymentStatus).toBe('PAID');
+    await kit.expenses.setMonthApproved('mr1', { from: '2026-10-01', to: '2026-10-31' }, false, new Tx()); // sent back: the paid row is left alone
+    expect(kit.expenses.rows[1]!.monthApproved).toBe(true);
   });
 
   it('once accepted, the manual claim and the computed TA are listed, unpaid first, with the employee’s name', async () => {

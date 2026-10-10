@@ -83,7 +83,7 @@ export class TaDaReport {
     const expenses = await this.fieldActivity.listAcceptedExpenses({ from, to, userId: input.userId, limit: TADA_DAYS_LIMIT });
     const routeIds = [...new Set(expenses.flatMap((e) => (e.routeId ? [e.routeId] : [])))];
     const routes = new Map((await Promise.all(routeIds.map((id) => this.territory.getRoute(id)))).flatMap((r) => (r ? [[r.id, r.name] as const] : [])));
-    const order = { TA: 0, DA: 1, TRAVEL: 2, MEAL: 3, MISC: 4 } as const;
+    const order = { TA: 0, DA: 1, TRAVEL: 2, MEAL: 3, MISC: 4, OTHER: 5 } as const;
     return {
       month: input.month,
       mr: { id: mr.id, name: mr.name, employeeCode: mr.employeeCode },
