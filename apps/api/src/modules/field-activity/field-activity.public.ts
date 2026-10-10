@@ -38,6 +38,8 @@ export interface FieldActivityPublicContract {
   summarizeDcrs(range: { from: string; to: string }): Promise<DcrMonthSummary[]>;
   /** The Doctors this employee called on in their reported days of a range (both ends inclusive). */
   listCalledDoctorIds(userId: string, range: { from: string; to: string }): Promise<string[]>;
+  /** Calls per Doctor in the reported days of a range (both ends inclusive), by any employee — the visit-frequency report's input. */
+  countDoctorCalls(range: { from: string; to: string }): Promise<Array<{ doctorId: string; count: number }>>;
   /** The reports' input: this user's DCRs in the range, each with its status, counts and money. */
   getDcrSummary(userId: string, range: { from: string; to: string }): Promise<DcrSummary[]>;
 }

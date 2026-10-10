@@ -28,6 +28,7 @@ import type { ListSampleAllocationsUseCase } from '../application/usecases/listS
 import type { UnassignDoctorUseCase } from '../application/usecases/unassignDoctor.usecase.js';
 import type { UpdateChemistUseCase } from '../application/usecases/updateChemist.usecase.js';
 import type { UpdateDistributorUseCase } from '../application/usecases/updateDistributor.usecase.js';
+import type { UpdateDoctorTargetsUseCase } from '../application/usecases/updateDoctorTargets.usecase.js';
 import type { UpdateDoctorUseCase } from '../application/usecases/updateDoctor.usecase.js';
 import type { UpdateProductUseCase } from '../application/usecases/updateProduct.usecase.js';
 import type {
@@ -108,7 +109,7 @@ export function makeChemistControllers(u: {
 }
 
 export type DoctorHandlers = Record<
-  'list' | 'create' | 'get' | 'update' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'listSamples' | 'issueSample' | 'adjustSample',
+  'list' | 'create' | 'get' | 'update' | 'updateTargets' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'listSamples' | 'issueSample' | 'adjustSample',
   RequestHandler
 >;
 
@@ -117,6 +118,7 @@ export function makeDoctorControllers(u: {
   create: CreateDoctorUseCase;
   get: GetDoctorUseCase;
   update: UpdateDoctorUseCase;
+  updateTargets: UpdateDoctorTargetsUseCase;
   assigned: ListAssignedDoctorsUseCase;
   listAssignments: ListDoctorAssignmentsUseCase;
   assign: AssignDoctorUseCase;
@@ -139,6 +141,9 @@ export function makeDoctorControllers(u: {
     ),
     update: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.update.execute(requiredParam(req.params, 'id'), req.body), 'Doctor updated.', 200),
+    ),
+    updateTargets: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.updateTargets.execute(actorOf(req), requiredParam(req.params, 'id'), req.body), 'Visit target updated.', 200),
     ),
     mine: asyncHandler(async (req, res) => {
       const query = req.query as unknown as z.output<typeof listAssignedDoctorsQuerySchema>;

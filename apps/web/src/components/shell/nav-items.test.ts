@@ -193,7 +193,8 @@ describe('Orders', () => {
 describe('Reports', () => {
   it('are for Admin only, in their own group', () => {
     const admin = navGroupsFor('ADMIN').find((g) => g.group === 'Reports');
-    expect(admin?.items.map((i) => i.href)).toEqual(['/reports/sales-dashboard', '/reports/sales', '/reports/stock', '/reports/dcr', '/reports/ta-da', '/reports/salary']);
+    expect(admin?.items.map((i) => i.href)).toEqual(['/reports/sales-dashboard', '/reports/sales', '/reports/stock', '/reports/dcr',
+      '/reports/doctor-visits', '/reports/ta-da', '/reports/salary']);
     for (const role of ['HR', 'ACCOUNTANT'] as const) expect(navGroupsFor(role).some((g) => g.group === 'Reports')).toBe(false);
     expect(isRouteBuilt('/reports/sales')).toBe(true);
     expect(isRouteBuilt('/reports/sales-dashboard')).toBe(true);

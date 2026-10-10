@@ -1,4 +1,4 @@
-import type { OrdersReportDto, ReportOrderDetailDto, SalesStatementDto, SalesYearReportDto, StockReportDto, TaDaDaysDto, TaDaYearReportDto, DcrCoverageDto, DcrYearReportDto, SalaryYearReportDto, SalesDashboardDto, EmployeeSalesReportDto } from '@greynote/contracts';
+import type { OrdersReportDto, ReportOrderDetailDto, SalesStatementDto, SalesYearReportDto, StockReportDto, TaDaDaysDto, TaDaYearReportDto, DcrCoverageDto, DcrYearReportDto, SalaryYearReportDto, SalesDashboardDto, EmployeeSalesReportDto, DoctorVisitsReportDto } from '@greynote/contracts';
 import { request } from '../client';
 
 export interface OrdersReportQuery {
@@ -52,6 +52,9 @@ export const reportsApi = {
   dcrYear: (token: string, query: { year: number }, signal?: AbortSignal) => request<DcrYearReportDto>('/reports/dcr', { token, query: { ...query }, signal }),
   /** The doctors assigned to an employee and which of them they called on in a month. */
   dcrCoverage: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<DcrCoverageDto>('/reports/dcr/coverage', { token, query: { ...query }, signal }),
+
+  /** Each doctor's visit frequency against the calls made in a month, per employee. Omit `userId` for everyone you may see. */
+  doctorVisits: (token: string, query: { month: string; userId?: string | undefined }, signal?: AbortSignal) => request<DoctorVisitsReportDto>('/reports/doctor-visits', { token, query: { ...query }, signal }),
 
   /** Net pay by employee and month, month totals and the TA/DA cost for a financial year. */
   salaryYear: (token: string, query: { year: number }, signal?: AbortSignal) => request<SalaryYearReportDto>('/reports/salary', { token, query: { ...query }, signal }),

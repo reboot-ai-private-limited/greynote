@@ -250,6 +250,38 @@ export interface DcrCoverageDto {
   notVisited: Array<{ id: string; name: string; specialty: string }>;
 }
 
+// ── Doctor visits (monthly call frequency) ─────────────────────────────────────────────────────
+
+/** One Doctor's month against its visit frequency. `made` counts calls on reported (submitted or approved) daily reports only. */
+export interface DoctorVisitRowDto {
+  doctor: { id: string; name: string; specialty: string };
+  /** The Doctor's visit frequency (1–6): calls expected this month. */
+  frequency: number;
+  made: number;
+  /** `max(0, frequency − made)`. */
+  missed: number;
+}
+
+export interface DoctorVisitMrDto {
+  mr: { id: string; name: string; employeeCode: string };
+  /** Sum of the frequencies of this employee's Doctors that have one. */
+  quota: number;
+  /** Calls counted against the quota (never more than a Doctor's own frequency). */
+  made: number;
+  missed: number;
+  /** Doctors with a frequency / of those, how many reached it. */
+  doctors: number;
+  completedDoctors: number;
+  rows: DoctorVisitRowDto[];
+}
+
+/** `GET /reports/doctor-visits?month=&userId=`. */
+export interface DoctorVisitsReportDto {
+  month: string;
+  mrs: DoctorVisitMrDto[];
+  totals: { quota: number; made: number; missed: number; doctors: number; completedDoctors: number };
+}
+
 // ── Salary (sign-off K30) ────────────────────────────────────────────────────────────────────────
 
 /** What a month's finalized salary runs came to, whole paise. Draft runs are never in these figures. */

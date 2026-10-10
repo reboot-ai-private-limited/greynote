@@ -18,6 +18,9 @@ const doctor: DoctorDto = {
   email: 'roy@example.com',
   specialty: 'Cardiology',
   qualification: 'MD',
+  dateOfBirth: null,
+  anniversary: null,
+  visitFrequency: null,
   location: { latitude: 26.7, longitude: 88.4 },
   capturedLocation: null,
   status: 'active',
@@ -39,6 +42,9 @@ describe('buildDoctor', () => {
         specialty: 'Cardiology',
         qualification: 'MD',
         email: null,
+        dateOfBirth: null,
+        anniversary: null,
+        visitFrequency: null,
         location: { latitude: 26.7, longitude: 88.4 },
       },
     });
@@ -113,5 +119,22 @@ describe('doctorStepErrors', () => {
   it('a complete draft has no errors on any step; a doctor with no point yet is fine', () => {
     for (const step of ['details', 'location', 'review'] as const) expect(doctorStepErrors(filled, step)).toEqual({});
     expect(doctorStepErrors({ ...filled, coordinates: { latitude: '', longitude: '' } }, 'location')).toEqual({});
+  });
+});
+
+describe('visit frequency and dates', () => {
+  it('sends the frequency as a number and the dates as given, blank as null', () => {
+    const built = buildDoctor({ ...filled, visitFrequency: '4', dateOfBirth: '1980-05-02', anniversary: '' });
+    expect(built.ok && built.body).toMatchObject({ visitFrequency: 4, dateOfBirth: '1980-05-02', anniversary: null });
+  });
+  it('an update sends only the changed target, and null to clear it', () => {
+    const withTarget = { ...doctor, visitFrequency: 3 };
+    expect(buildDoctorUpdate(withTarget, doctorToDraft(withTarget))).toEqual({ ok: true, body: {} });
+    const changed = buildDoctorUpdate(withTarget, { ...doctorToDraft(withTarget), visitFrequency: '' });
+    expect(changed.ok && changed.body).toEqual({ visitFrequency: null });
+  });
+  it('refuses a date in the future or a malformed one', () => {
+    expect(doctorStepErrors({ ...filled, dateOfBirth: '2999-01-01' }, 'details')['dateOfBirth']).toBeDefined();
+    expect(doctorStepErrors({ ...filled, anniversary: '02/05/1980' }, 'details')['anniversary']).toBeDefined();
   });
 });

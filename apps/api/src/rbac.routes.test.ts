@@ -62,7 +62,7 @@ describe('role-by-route matrix', () => {
     const lines = actual.split('\n').filter((l) => /\/api\/reports\//.test(l));
     expect(lines.length).toBeGreaterThan(8);
     // The Sales Dashboard and the employee view are the exceptions: a manager reads them too (the employee their own), and the reports limit them to the downline.
-    const open = ['/api/reports/sales-dashboard', '/api/reports/employee-sales'];
+    const open = ['/api/reports/sales-dashboard', '/api/reports/employee-sales', '/api/reports/doctor-visits'];
     for (const l of lines.filter((x) => !open.some((o) => x.includes(o)))) expect(l.endsWith('  ADMIN'), l).toBe(true);
     for (const o of open) expect(lines.some((l) => l.endsWith(`${o}  ADMIN,FIELD`))).toBe(true);
   });

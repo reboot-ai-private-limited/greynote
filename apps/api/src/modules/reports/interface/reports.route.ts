@@ -5,7 +5,7 @@ import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js'
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { makeReportsControllers } from './reports.controller.js';
-import { dcrCoverageQuerySchema, employeeSalesQuerySchema, dcrYearQuerySchema, orderIdParamsSchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
+import { doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, dcrYearQuerySchema, orderIdParamsSchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
 const tags = ['Reports'];
 const security = [{ bearerAuth: [] }];
@@ -28,6 +28,8 @@ openApiRegistry.registerPath({ method: 'get', path: '/api/reports/sales-dashboar
 
 openApiRegistry.registerPath({ method: 'get', path: '/api/reports/employee-sales', tags, summary: 'Admin, the employee, or their manager: targets, primary and secondary by product over a run of months', security, request: { query: employeeSalesQuerySchema }, responses: { 200: { description: 'The employee\'s figures' } } });
 
+openApiRegistry.registerPath({ method: 'get', path: '/api/reports/doctor-visits', tags, summary: 'Admin (any employee), a manager (themself and their downline) or an employee (themself): each doctor\'s visit frequency against the calls made in a month, with missed calls', security, request: { query: doctorVisitsQuerySchema }, responses: { 200: { description: 'Quota, made and missed per employee and doctor' } } });
+
 /** Every report is Admin only for now (sign-off K24) and read-only. */
 export function buildReportsRouter(c: ReturnType<typeof makeReportsControllers>): Router {
   const router = Router();
@@ -35,6 +37,7 @@ export function buildReportsRouter(c: ReturnType<typeof makeReportsControllers>)
   // The one report a manager may open: the report itself limits a manager to their downline.
   router.get('/sales-dashboard', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: salesDashboardQuerySchema }), c.salesDashboard);
   router.get('/employee-sales', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'from', to: 'to', fill: false }), validate({ query: employeeSalesQuerySchema }), c.employeeSales);
+  router.get('/doctor-visits', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: doctorVisitsQuerySchema }), c.doctorVisits);
   router.use(requireRole('ADMIN'));
   router.get('/orders', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: ordersQuerySchema }), c.orders);
   router.get('/sales', scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: salesYearQuerySchema }), c.salesYear);

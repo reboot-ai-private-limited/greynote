@@ -6,15 +6,16 @@ import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { DcrReport } from '../application/dcrReport.js';
 import type { OrdersReport } from '../application/ordersReport.js';
+import type { DoctorVisitsReport } from '../application/doctorVisitsReport.js';
 import type { EmployeeSalesReport } from '../application/employeeSalesReport.js';
 import type { SalesDashboardReport } from '../application/salesDashboardReport.js';
 import type { SalesReport } from '../application/salesReport.js';
 import type { SalaryReport } from '../application/salaryReport.js';
 import type { StockReport } from '../application/stockReport.js';
 import type { TaDaReport } from '../application/taDaReport.js';
-import type { dcrCoverageQuerySchema, employeeSalesQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
+import type { doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
-export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport): Record<'orders' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear', RequestHandler> {
+export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport, doctorVisits: DoctorVisitsReport): Record<'orders' | 'doctorVisits' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear', RequestHandler> {
   return {
     orders: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof ordersQuerySchema>;
@@ -61,6 +62,11 @@ export function makeReportsControllers(orders: OrdersReport, sales: SalesReport,
       if (!req.user) throw AppError.unauthenticated();
       const q = req.query as unknown as z.output<typeof salesDashboardQuerySchema>;
       sendSuccess(req, res, await salesDashboard.read({ actor: { id: req.user.sub, role: req.user.role }, from: q.from, to: q.to, search: q.search, page: q.page, pageSize: q.pageSize }), 'The sales dashboard.', 200);
+    }),
+    doctorVisits: asyncHandler(async (req, res) => {
+      if (!req.user) throw AppError.unauthenticated();
+      const q = req.query as unknown as z.output<typeof doctorVisitsQuerySchema>;
+      sendSuccess(req, res, await doctorVisits.month({ actor: { id: req.user.sub, role: req.user.role }, month: q.month, userId: q.userId }), 'Doctor visits for the month.', 200);
     }),
     order: asyncHandler(async (req, res) => {
       sendSuccess(req, res, await orders.detail(requiredParam(req.params, 'id')), 'The order.', 200);

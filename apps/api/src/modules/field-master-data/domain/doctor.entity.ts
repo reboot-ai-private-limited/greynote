@@ -19,6 +19,11 @@ export interface Doctor {
   email: string | null;
   specialty: string;
   qualification: string;
+  /** `YYYY-MM-DD`, optional. */
+  dateOfBirth: string | null;
+  anniversary: string | null;
+  /** Visits the MR should make per month (1–6); `null` = no target, so no missed-call tracking. */
+  visitFrequency: number | null;
   /** `null` until set — the geofence check can't run for it. */
   location: GeoPoint | null;
   /** The MR phone's GPS when they added the Doctor; kept when Admin corrects `location`. `null` for Admin-added. */

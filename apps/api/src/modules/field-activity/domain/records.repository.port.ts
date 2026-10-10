@@ -22,6 +22,8 @@ export interface DoctorCallRepositoryPort {
   countByGeofence(range: { from: string; to: string }): Promise<GeofenceCount[]>;
   /** The distinct Doctors called in these daily reports. */
   distinctDoctorIds(dcrIds: string[]): Promise<string[]>;
+  /** How many calls each Doctor had in these daily reports. */
+  countByDoctor(dcrIds: string[]): Promise<Array<{ doctorId: string; count: number }>>;
   create(input: Omit<DoctorCall, 'id'>, ctx: TransactionContext): Promise<DoctorCall>;
   listForDcr(dcrId: string): Promise<DoctorCall[]>;
   countForDcrs(dcrIds: string[]): Promise<Map<string, number>>;

@@ -16,6 +16,7 @@ import { useDoctor, useUpdateDoctor } from '../hooks/useDoctors';
 import { DOCTOR_STATUS_LABEL, DOCTOR_STATUS_TONE, canToggleStatus, locationWasCorrected } from '../lib/doctors';
 import { DoctorAssignmentsTab } from './DoctorAssignmentsTab';
 import { DoctorDetailsForm } from './DoctorDetailsForm';
+import { DoctorVisitsTab } from './DoctorVisitsTab';
 import { DoctorSamplesTab } from './DoctorSamplesTab';
 import { DoctorVisualsTab } from '@/features/marketing/components/DoctorVisualsTab';
 
@@ -102,6 +103,7 @@ function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoc
         <TabsList>
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="assignment">Responsible MR</TabsTrigger>
+          <TabsTrigger value="visits">Visits</TabsTrigger>
           <TabsTrigger value="samples">Samples</TabsTrigger>
           <TabsTrigger value="visuals">Visuals</TabsTrigger>
         </TabsList>
@@ -111,6 +113,9 @@ function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoc
         </TabsContent>
         <TabsContent value="assignment" className="mt-6">
           <DoctorAssignmentsTab doctor={doctor} />
+        </TabsContent>
+        <TabsContent value="visits" className="mt-6">
+          <DoctorVisitsTab doctor={doctor} />
         </TabsContent>
         <TabsContent value="samples" className="mt-6">
           <DoctorSamplesTab doctor={doctor} />

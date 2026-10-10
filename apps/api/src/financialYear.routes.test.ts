@@ -57,6 +57,7 @@ const SCOPED = [
   '/api/reports/ta-da/days',
   '/api/reports/dcr',
   '/api/reports/dcr/coverage',
+  '/api/reports/doctor-visits',
   '/api/reports/salary',
   '/api/reports/sales-dashboard',
   '/api/approvals/inbox',

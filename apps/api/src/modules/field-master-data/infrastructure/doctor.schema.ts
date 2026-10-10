@@ -10,6 +10,9 @@ export interface DoctorDoc {
   email: string | null;
   specialty: string;
   qualification: string;
+  dateOfBirth: string | null;
+  anniversary: string | null;
+  visitFrequency: number | null;
   latitude: number | null;
   longitude: number | null;
   capturedLatitude: number | null;
@@ -28,6 +31,9 @@ const doctorSchema = new Schema<DoctorDoc>({
   email: { type: String, default: null },
   specialty: { type: String, required: true },
   qualification: { type: String, required: true },
+  dateOfBirth: { type: String, default: null },
+  anniversary: { type: String, default: null },
+  visitFrequency: { type: Number, default: null },
   latitude: { type: Number, default: null },
   longitude: { type: Number, default: null },
   capturedLatitude: { type: Number, default: null },

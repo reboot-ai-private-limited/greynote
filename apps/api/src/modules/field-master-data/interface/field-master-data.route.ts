@@ -31,6 +31,7 @@ import {
   updateChemistBodySchema,
   updateDistributorBodySchema,
   updateDoctorBodySchema,
+  updateDoctorTargetsBodySchema,
   updateProductBodySchema,
 } from './field-master-data.schemas.js';
 
@@ -74,6 +75,7 @@ doc('patch', '/chemists/{id}', 'Admin: edit a chemist, including correcting its 
 
 doc('get', '/doctors', 'Admin: list doctors', { query: listDoctorsQuerySchema });
 doc('post', '/doctors', 'Admin: add a doctor on a route, with a map-picked location', { body: createDoctorBodySchema });
+doc('patch', '/doctors/{id}/targets', 'Manager or Admin: set a doctor’s monthly visit frequency (1–6), date of birth and anniversary', { params: idParamsSchema, body: updateDoctorTargetsBodySchema });
 doc('get', '/doctors/mine', 'Field staff: the doctors assigned to me, on routes I still have', { query: listAssignedDoctorsQuerySchema });
 doc('get', '/doctors/team', 'Managers: the doctors of everyone in my downline', { query: teamDoctorsQuerySchema });
 doc('get', '/doctors/added', 'Field staff: the doctors I added, with where each is in its approval', { query: listAddedDoctorsQuerySchema });
@@ -122,6 +124,7 @@ function doctorsRouter(c: DoctorHandlers): Router {
   // Admin, or a FIELD employee the use case checks (the assigned MR, or their manager).
   router.get('/:id', requireRole('ADMIN', 'FIELD'), validate({ params: idParamsSchema }), c.get);
   router.patch('/:id', admin, validate({ params: idParamsSchema, body: updateDoctorBodySchema }), c.update);
+  router.patch('/:id/targets', requireRole('ADMIN', 'FIELD'), validate({ params: idParamsSchema, body: updateDoctorTargetsBodySchema }), c.updateTargets);
   router.get('/:id/assignments', admin, validate({ params: idParamsSchema }), c.listAssignments);
   router.post('/:id/assignments', admin, validate({ params: idParamsSchema, body: assignDoctorBodySchema }), c.assign);
   router.get('/:id/sample-allocations', requireRole('ADMIN', 'FIELD'), validate({ params: idParamsSchema }), c.listSamples);

@@ -22,6 +22,9 @@ const toDoctor = (doc: DoctorDoc & { _id: unknown }): Doctor => ({
   email: doc.email,
   specialty: doc.specialty,
   qualification: doc.qualification,
+  dateOfBirth: doc.dateOfBirth ?? null,
+  anniversary: doc.anniversary ?? null,
+  visitFrequency: doc.visitFrequency ?? null,
   location: doc.latitude === null || doc.longitude === null ? null : { latitude: doc.latitude, longitude: doc.longitude },
   capturedLocation:
     doc.capturedLatitude === null || doc.capturedLongitude === null ? null : { latitude: doc.capturedLatitude, longitude: doc.capturedLongitude },

@@ -140,6 +140,10 @@ export interface DoctorDto {
   email: string | null;
   specialty: string;
   qualification: string;
+  dateOfBirth: string | null;
+  anniversary: string | null;
+  /** Visits per month the MR should make (1–6); `null` = no target. */
+  visitFrequency: number | null;
   /** What the geofence compares against. `null` until set. */
   location: GeoPoint | null;
   /** The MR phone's GPS when it added the Doctor. Kept when Admin corrects `location`; `null` for Admin-added. */
@@ -160,6 +164,9 @@ export interface CreateDoctorDto {
   specialty: string;
   qualification: string;
   email?: string | null;
+  dateOfBirth?: string | null;
+  anniversary?: string | null;
+  visitFrequency?: number | null;
   location?: GeoPoint | null;
 }
 export interface UpdateDoctorDto {
@@ -170,6 +177,9 @@ export interface UpdateDoctorDto {
   qualification?: string;
   /** `null` clears it. */
   email?: string | null;
+  dateOfBirth?: string | null;
+  anniversary?: string | null;
+  visitFrequency?: number | null;
   /** `null` clears the registered location. */
   location?: GeoPoint | null;
   /** Admin can only move a Doctor between `active` and `inactive`; `pending` is the approval's. */

@@ -92,6 +92,7 @@ export const keys = {
     employeeSales: (query: object) => [...keys.reports.all(), 'employeeSales', query] as const,
     salaryYear: (year: number) => [...keys.reports.all(), 'salaryYear', year] as const,
     dcrYear: (year: number) => [...keys.reports.all(), 'dcrYear', year] as const,
+    doctorVisits: (userId: string | undefined, month: string) => [...keys.reports.all(), 'doctorVisits', userId ?? 'all', month] as const,
     dcrCoverage: (userId: string, month: string) => [...keys.reports.all(), 'dcrCoverage', userId, month] as const,
     taDaYear: (year: number) => [...keys.reports.all(), 'taDaYear', year] as const,
     taDaDays: (userId: string, month: string) => [...keys.reports.all(), 'taDaDays', userId, month] as const,
