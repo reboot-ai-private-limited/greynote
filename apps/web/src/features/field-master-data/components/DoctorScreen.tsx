@@ -17,6 +17,7 @@ import { DOCTOR_STATUS_LABEL, DOCTOR_STATUS_TONE, canToggleStatus, locationWasCo
 import { DoctorAssignmentsTab } from './DoctorAssignmentsTab';
 import { DoctorDetailsForm } from './DoctorDetailsForm';
 import { DoctorSamplesTab } from './DoctorSamplesTab';
+import { DoctorVisualsTab } from '@/features/marketing/components/DoctorVisualsTab';
 
 /** `/doctors/new` (no id) and `/doctors/[id]`. */
 export function DoctorScreen({ id }: { id?: string }) {
@@ -102,6 +103,7 @@ function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoc
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="assignment">Responsible MR</TabsTrigger>
           <TabsTrigger value="samples">Samples</TabsTrigger>
+          <TabsTrigger value="visuals">Visuals</TabsTrigger>
         </TabsList>
         <TabsContent value="details" className="mt-6">
           {/* Keyed by what the form edits (not who is assigned), so a save refreshes the draft but changing the MR does not wipe unsaved edits. */}
@@ -112,6 +114,9 @@ function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoc
         </TabsContent>
         <TabsContent value="samples" className="mt-6">
           <DoctorSamplesTab doctor={doctor} />
+        </TabsContent>
+        <TabsContent value="visuals" className="mt-6">
+          <DoctorVisualsTab doctorId={doctor.id} />
         </TabsContent>
       </Tabs>
       {canToggleStatus(doctor.status) ? (

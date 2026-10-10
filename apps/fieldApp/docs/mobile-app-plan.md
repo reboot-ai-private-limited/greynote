@@ -178,7 +178,7 @@ time (online-only) vs **Queue:** saves locally and syncs later.
 |---|---|---|---|---|
 | 16 | Orders (list + new + detail) | Queue | Chemist/Distributor order by product, Placed → Done/Cancelled | kind `ORDER`, `GET /sales/orders`, `…/:id`, `POST …/complete`, `POST …/cancel` |
 | 17 | Monthly Stock | Queue | Opening/closing counts per outlet and product; locked after month end | kind `MONTHLY_STOCK`, `GET /sales/monthly-stock`, `…/missing` |
-| 18 | Visuals | online, cached | E-detailing visuals, optionally per product | `GET /marketing/visuals` |
+| 18 | Visuals | online, cached | E-detailing visuals, optionally per product. Choose a doctor, tick visuals, Submit (online, add-only; earlier picks locked), Show walks through the doctor's list (2026-10-10, typechecked, not run on a phone) | `GET /marketing/visuals`, `GET/POST /marketing/doctors/:id/visuals` |
 | 19 | ~~Campaigns~~ | removed from the app 2026-10-09 | — | — |
 | 20 | Targets | online | Own target; for managers the sum of the downline | `GET /marketing/targets/:userId`, `POST /marketing/targets` |
 | 21 | Doctor Gifts | Queue | Admin-allocated gifts; MR marks Done | `GET /field-activity/doctor-gifts`, kind `GIFT_DONE` |

@@ -1,8 +1,9 @@
 import { Types, type FilterQuery } from 'mongoose';
-import type { Campaign, CampaignStatus, Target, TargetKey, Visual, VisualStatus } from '../domain/marketing.entities.js';
-import type { CampaignRepositoryPort, TargetRepositoryPort, VisualRepositoryPort } from '../domain/marketing.repository.ports.js';
-import { CampaignModel, TargetModel, VisualModel, type CampaignDoc, type TargetDoc, type VisualDoc } from './marketing.schema.js';
+import type { Campaign, CampaignStatus, DoctorVisual, Target, TargetKey, Visual, VisualStatus } from '../domain/marketing.entities.js';
+import type { CampaignRepositoryPort, DoctorVisualRepositoryPort, TargetRepositoryPort, VisualRepositoryPort } from '../domain/marketing.repository.ports.js';
+import { CampaignModel, DoctorVisualModel, TargetModel, VisualModel, type CampaignDoc, type DoctorVisualDoc, type TargetDoc, type VisualDoc } from './marketing.schema.js';
 
+const isDuplicateKey = (err: unknown) => (err as { code?: number }).code === 11000;
 const oid = (id: string) => new Types.ObjectId(id);
 const oidOrNull = (id: string | null) => (id ? oid(id) : null);
 const idOrNull = (id: Types.ObjectId | null) => (id ? String(id) : null);
@@ -26,9 +27,52 @@ export class MongoVisualAdapter implements VisualRepositoryPort {
     if (filter.productId) q.productId = oid(filter.productId);
     return (await VisualModel.find(q).sort({ createdAt: -1, _id: -1 }).limit(limit).lean()).map(toVisual);
   }
+  async findByIds(ids: string[]): Promise<Visual[]> {
+    if (ids.length === 0) return [];
+    return (await VisualModel.find({ _id: { $in: ids.map(oid) } }).lean()).map(toVisual);
+  }
   async setStatus(id: string, status: VisualStatus): Promise<Visual | null> {
     const doc = await VisualModel.findByIdAndUpdate(id, { $set: { status } }, { new: true }).lean();
     return doc ? toVisual(doc) : null;
+  }
+  async update(id: string, patch: { title?: string | undefined; category?: Visual['category'] | undefined; productId?: string | null | undefined; status?: VisualStatus | undefined }): Promise<Visual | null> {
+    const set: Partial<VisualDoc> = {};
+    if (patch.title !== undefined) set.title = patch.title;
+    if (patch.category !== undefined) set.category = patch.category;
+    if (patch.productId !== undefined) set.productId = oidOrNull(patch.productId);
+    if (patch.status !== undefined) set.status = patch.status;
+    const doc = await VisualModel.findByIdAndUpdate(id, { $set: set }, { new: true }).lean();
+    return doc ? toVisual(doc) : null;
+  }
+}
+
+const toDoctorVisual = (d: DoctorVisualDoc & { _id: unknown }): DoctorVisual => ({ id: String(d._id), doctorId: String(d.doctorId), visualId: String(d.visualId), addedBy: String(d.addedBy), addedAt: d.addedAt, removedBy: idOrNull(d.removedBy), removedAt: d.removedAt });
+
+export class MongoDoctorVisualAdapter implements DoctorVisualRepositoryPort {
+  async listActive(doctorId: string): Promise<DoctorVisual[]> {
+    return (await DoctorVisualModel.find({ doctorId: oid(doctorId), removedAt: null }).sort({ addedAt: 1, _id: 1 }).lean()).map(toDoctorVisual);
+  }
+  async addMany(doctorId: string, visualIds: string[], by: string, at: Date): Promise<void> {
+    if (visualIds.length === 0) return;
+    const ops = visualIds.flatMap((visualId) => {
+      const key = { doctorId: oid(doctorId), visualId: oid(visualId) };
+      return [
+        // A pick removed earlier comes back as added now ...
+        { updateOne: { filter: { ...key, removedAt: { $ne: null } }, update: { $set: { addedBy: oid(by), addedAt: at, removedAt: null, removedBy: null } } } },
+        // ... and one never picked is inserted; one already on the list is left exactly as it was.
+        { updateOne: { filter: key, update: { $setOnInsert: { addedBy: oid(by), addedAt: at, removedAt: null, removedBy: null } }, upsert: true } },
+      ];
+    });
+    try {
+      await DoctorVisualModel.bulkWrite(ops, { ordered: true });
+    } catch (err) {
+      // Two first-time adds of the same pick race to insert; the loser has nothing left to do.
+      if (!isDuplicateKey(err) && !(err as { writeErrors?: Array<{ code?: number }> }).writeErrors?.every((e) => e.code === 11000)) throw err;
+    }
+  }
+  async remove(doctorId: string, visualId: string, by: string, at: Date): Promise<boolean> {
+    const res = await DoctorVisualModel.updateOne({ doctorId: oid(doctorId), visualId: oid(visualId), removedAt: null }, { $set: { removedAt: at, removedBy: oid(by) } });
+    return res.modifiedCount === 1;
   }
 }
 
@@ -49,8 +93,6 @@ export class MongoCampaignAdapter implements CampaignRepositoryPort {
     return doc ? toCampaign(doc) : null;
   }
 }
-
-const isDuplicateKey = (err: unknown) => (err as { code?: number }).code === 11000;
 
 export class MongoTargetAdapter implements TargetRepositoryPort {
   private filter(key: TargetKey): FilterQuery<TargetDoc> {

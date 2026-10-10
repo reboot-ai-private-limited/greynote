@@ -44,10 +44,18 @@ export class ListVisualsUseCase {
   }
 }
 
-export class SetVisualStatusUseCase {
-  constructor(private readonly visuals: VisualRepositoryPort) {}
-  async execute(id: string, status: VisualStatus): Promise<Visual> {
-    const visual = await this.visuals.setStatus(id, status);
+/** Admin corrects a Visual's title, category or Product, or turns it on or off. A Visual can only be moved to an active Product, or to none (general). */
+export class UpdateVisualUseCase {
+  constructor(
+    private readonly visuals: VisualRepositoryPort,
+    private readonly products: ProductPort,
+  ) {}
+  async execute(id: string, patch: { title?: string | undefined; category?: VisualCategory | undefined; productId?: string | null | undefined; status?: VisualStatus | undefined }): Promise<Visual> {
+    if (patch.productId) {
+      const product = await this.products.getProduct(patch.productId);
+      if (!product || product.status !== 'active') throw new MarketingRefusal(MARKETING_CODES.productNotFound, 'That product does not exist or is no longer active.');
+    }
+    const visual = await this.visuals.update(id, patch);
     if (!visual) throw new MarketingRefusal(MARKETING_CODES.visualNotFound, 'No such visual.');
     return visual;
   }

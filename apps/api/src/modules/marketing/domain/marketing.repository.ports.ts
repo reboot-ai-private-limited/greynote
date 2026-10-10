@@ -1,10 +1,21 @@
-import type { Campaign, CampaignStatus, Target, TargetKey, Visual, VisualStatus } from './marketing.entities.js';
+import type { Campaign, CampaignStatus, DoctorVisual, Target, TargetKey, Visual, VisualStatus } from './marketing.entities.js';
 
 export interface VisualRepositoryPort {
   create(input: Omit<Visual, 'id'>): Promise<Visual>;
   findById(id: string): Promise<Visual | null>;
   list(filter: { status?: VisualStatus | undefined; productId?: string | undefined }, limit: number): Promise<Visual[]>;
+  findByIds(ids: string[]): Promise<Visual[]>;
   setStatus(id: string, status: VisualStatus): Promise<Visual | null>;
+  /** Changes what was given; a key left out stays as it was. `productId: null` makes it a general Visual. */
+  update(id: string, patch: { title?: string | undefined; category?: Visual['category'] | undefined; productId?: string | null | undefined; status?: VisualStatus | undefined }): Promise<Visual | null>;
+}
+
+export interface DoctorVisualRepositoryPort {
+  listActive(doctorId: string): Promise<DoctorVisual[]>;
+  /** Puts these Visuals on the Doctor's list. One already on it keeps its original adder; one removed earlier comes back as added now. */
+  addMany(doctorId: string, visualIds: string[], by: string, at: Date): Promise<void>;
+  /** `false` if that Visual is not on the list now. */
+  remove(doctorId: string, visualId: string, by: string, at: Date): Promise<boolean>;
 }
 
 export interface CampaignRepositoryPort {
