@@ -28,7 +28,7 @@ import {
 } from '@/lib/planning';
 import { refreshNow, useColleagues, useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
-import { addDays, businessNowHHmm, dailyDeadlinePassed, formatWhen, prettyDay } from '@/offline/day';
+import { addDays, businessNowHHmm, dailyDeadlinePassed, formatWhen, nowMs, prettyDay } from '@/offline/day';
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from '@/offline/local-draft';
 import type { ConfigSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
 
@@ -84,10 +84,9 @@ export default function DailyPlanScreen() {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
-  const [rejection, setRejection] = useState<string | null>(null);
-  /** Everything the server knows about this plan (online only). */
-  const [detail, setDetail] = useState<DailyPlanDetail | null>(null);
-  const [changes, setChanges] = useState<DailyPlanChange[]>([]);
+  // What the server said, kept with the plan it belongs to: a different day or plan reads as "not loaded yet".
+  const [rejectionState, setRejectionState] = useState<{ key: string; text: string | null } | null>(null);
+  const [detailState, setDetailState] = useState<{ key: string; detail: DailyPlanDetail | null; changes: DailyPlanChange[] } | null>(null);
   // A day the server refused to re-save because it comes from the approved Monthly Plan.
   const [refusedAsInherited, setRefusedAsInherited] = useState<Record<string, boolean>>({});
 
@@ -96,6 +95,13 @@ export default function DailyPlanScreen() {
   const editable = EDITABLE.includes(status);
   const approved = status === 'APPROVED' || status === 'MANAGER_APPROVED';
   const timeZone = config.data?.settings.BUSINESS_TIMEZONE;
+
+  /** Everything the server knows about this plan (online only). */
+  const detailKey = `${date}:${existing?.id ?? 'new'}:${status}`;
+  const detail = detailState?.key === detailKey ? detailState.detail : null;
+  const changes = detailState?.key === detailKey ? detailState.changes : [];
+  const rejectionKey = status === 'REJECTED' ? (existing?.approvalRequestId ?? null) : null;
+  const rejection = rejectionKey !== null && rejectionState?.key === rejectionKey ? rejectionState.text : null;
 
   const inherited = detail?.source === 'MONTHLY' || refusedAsInherited[date] === true;
   const openChange = changes.find((c) => c.open) ?? null;
@@ -109,23 +115,27 @@ export default function DailyPlanScreen() {
     [territory.data, colleagues],
   );
 
-  /** Loads the full plan and its change requests from the server. */
-  const loadDetail = useCallback(async () => {
-    if (!online) return;
+  /** Asks the server for the full plan and its change requests; `null` offline or on a failure. */
+  const fetchDetail = useCallback(async () => {
+    if (!online) return null;
     try {
       const d = await getDailyPlanDetail(date);
-      setDetail(d);
-      setChanges(d ? await listDailyPlanChanges(d.id) : []);
+      return { key: detailKey, detail: d, changes: d ? await listDailyPlanChanges(d.id) : [] };
     } catch {
-      // Keep what the phone already has; the snapshot is enough to work from.
+      return null; // Keep what the phone already has; the snapshot is enough to work from.
     }
-  }, [date, online]);
+  }, [date, online, detailKey]);
+  const loadDetail = () => fetchDetail().then((r) => { if (r) setDetailState(r); });
 
   useEffect(() => {
-    setDetail(null);
-    setChanges([]);
-    void loadDetail();
-  }, [loadDetail, existing?.id, status]);
+    let alive = true;
+    void fetchDetail().then((r) => {
+      if (alive && r) setDetailState(r);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [fetchDetail]);
 
   // Load the form when the day (or the plan behind it) changes — not on every refresh, which
   // would wipe what the MR is typing.
@@ -146,11 +156,10 @@ export default function DailyPlanScreen() {
   }, [planning.loaded, date, existing, editable]);
 
   useEffect(() => {
-    setRejection(null);
-    if (status === 'REJECTED' && existing?.approvalRequestId && online) {
-      getRejectionReason(existing.approvalRequestId).then(setRejection).catch(() => undefined);
+    if (rejectionKey && online) {
+      getRejectionReason(rejectionKey).then((text) => setRejectionState({ key: rejectionKey, text })).catch(() => undefined);
     }
-  }, [status, existing?.approvalRequestId, online]);
+  }, [rejectionKey, online]);
 
   const dateOptions = useMemo(
     () =>
@@ -166,7 +175,7 @@ export default function DailyPlanScreen() {
   const deadlineIso = detail?.submitDeadline ?? existing?.submitDeadline ?? null;
   const deadlinePassed =
     deadlineIso !== null
-      ? Date.now() > Date.parse(deadlineIso)
+      ? nowMs() > Date.parse(deadlineIso)
       : dailyDeadlinePassed(date, today, businessNowHHmm(timeZone), cutoff);
   const resubmitUntil = detail?.resubmitAllowedUntil ?? null;
   const lateUntil = detail?.lateSubmitAllowedUntil ?? null;

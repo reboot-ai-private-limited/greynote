@@ -3,7 +3,7 @@ import { ApiError, apiGet, apiPost, apiPut, NetworkError } from '@/lib/api';
 import { notifyCacheChanged } from './cache';
 import { refreshColleagues } from './colleagues';
 import { isOnline } from './connectivity';
-import { notifyOutboxChanged } from './outbox';
+import { notifyOutboxChanged, queueRecord } from './outbox';
 import { orderForPush } from './order';
 import { getNumberSetting } from './settings';
 import { store } from './store';
@@ -120,9 +120,11 @@ export type PushSummary = {
  * run again: every record is idempotent on its clientId. Needs a live connection — the caller
  * disables Submit offline (HLD 01 §1.2).
  */
-export async function pushPending(): Promise<PushSummary> {
+export async function pushPending(only?: SyncKind[], opts: { skipFailed?: boolean } = {}): Promise<PushSummary> {
   const summary: PushSummary = { sent: 0, synced: 0, failed: 0, held: 0, offline: false, error: null };
-  const pending = orderForPush(await store.listRecords({ status: ['QUEUED', 'FAILED'] }));
+  const queued = await store.listRecords({ status: opts.skipFailed ? ['QUEUED'] : ['QUEUED', 'FAILED'] });
+  // `only` narrows a push to some kinds (e.g. a new doctor), so it never drags the day's report along with it.
+  const pending = orderForPush(only ? queued.filter((r) => only.includes(r.kind)) : queued);
   if (pending.length === 0) return summary;
 
   const maxBatch = await getNumberSetting('SYNC_MAX_BATCH');
@@ -353,6 +355,17 @@ export async function prepareForUser(userId: string): Promise<void> {
   }
 }
 
+/** Records that stand on their own, not part of a day's report: sent as soon as there is a connection. */
+export const STANDALONE_KINDS: SyncKind[] = ['ORDER', 'MONTHLY_STOCK', 'DOCTOR_SERVICE', 'GIFT_DONE', 'NEW_DOCTOR'];
+
+/** Sends what was saved offline. A record the server refused is left for its owner to fix, not retried here. */
+async function sendStandalone(): Promise<void> {
+  for (const r of await store.listRecords({ status: 'DRAFT' })) {
+    if (!r.deleted && STANDALONE_KINDS.includes(r.kind)) await queueRecord(r.clientId);
+  }
+  await pushPending(STANDALONE_KINDS, { skipFailed: true });
+}
+
 let running: Promise<void> | null = null;
 
 /**
@@ -364,6 +377,7 @@ export function runSync(): Promise<void> {
   running ??= (async () => {
     setStatus({ syncing: true, lastError: null });
     try {
+      await sendStandalone().catch(() => undefined); // what was saved offline goes first, so the pull below sees it
       await pull();
       await refreshColleagues();
       await backupDrafts();

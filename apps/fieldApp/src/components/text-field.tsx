@@ -35,8 +35,9 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
         style={[
           styles.inputRow,
           {
-            backgroundColor: theme.backgroundElement,
-            borderColor: error ? theme.danger : focused ? theme.primary : 'transparent',
+            // A white box with a visible outline, so it stands out on the page and inside grey cards alike.
+            backgroundColor: theme.background,
+            borderColor: error ? theme.danger : focused ? theme.primary : theme.border,
           },
         ]}>
         <TextInput

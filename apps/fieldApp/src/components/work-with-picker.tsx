@@ -70,7 +70,7 @@ export function WorkWithPicker({ value, onChange, disabled }: Props) {
         onPress={() => setOpen((o) => !o)}
         style={[styles.toggle, { borderColor: theme.border }, disabled && styles.disabled]}>
         <ThemedText type="small" themeColor="primary">
-          {open ? 'Hide colleagues' : value.length > 0 ? 'Change colleagues' : 'Add colleagues'}
+          {open ? 'Hide colleagues' : 'Add colleagues'}
         </ThemedText>
       </Pressable>
 
