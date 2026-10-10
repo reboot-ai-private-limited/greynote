@@ -13,9 +13,9 @@ import type { SymbolViewProps } from 'expo-symbols';
  */
 export type FeatureKey =
   | 'daily-plan' | 'monthly-plan' | 'dr-call' | 'dr-followup' | 'chemist-call' | 'chemist-followup'
-  | 'add-doctor' | 'expenses' | 'leave' | 'summary'
+  | 'add-doctor' | 'missed-calls' | 'expenses' | 'leave' | 'summary'
   | 'orders' | 'monthly-stock' | 'visuals' | 'targets' | 'secondary-sales' | 'gifts' | 'services'
-  | 'holidays' | 'forms' | 'financial-year';
+  | 'inbox' | 'holidays' | 'forms' | 'financial-year';
 
 export type Gate = 'plan' | 'unblocked' | 'none';
 /** Home's categories. PRD §6.2 also lists Resources (the document library); that is the Docs tab, so Home has no tab for it. */
@@ -45,6 +45,7 @@ export const FEATURES: Feature[] = [
   { key: 'chemist-call', title: 'Chemist Call', section: 'DCR', gate: 'plan', stage: 4, route: '/chemist-call', icon: icon('cross.case', 'local_pharmacy'), about: 'Log a visit to a chemist. Your location is checked against the chemist’s.' },
   { key: 'chemist-followup', title: 'Chemist Followup', section: 'DCR', gate: 'plan', stage: 4, route: '/chemist-followup', icon: icon('text.bubble.fill', 'forum'), about: 'Add a follow-up note on a chemist.' },
   { key: 'add-doctor', title: 'Add Doctor', section: 'DCR', gate: 'none', stage: 4, route: '/add-doctor', icon: icon('person.badge.plus', 'person_add'), about: 'Add a new doctor with their location; your manager and Admin approve it.' },
+  { key: 'missed-calls', title: 'Missed Calls', section: 'DCR', gate: 'none', stage: 4, route: '/missed-calls', icon: icon('phone.arrow.down.left', 'phone_missed'), about: 'Your doctors’ monthly visit targets against the calls you made.' },
   { key: 'expenses', title: 'Expenses', section: 'DCR', gate: 'none', stage: 4, route: '/expenses', icon: icon('indianrupeesign.circle', 'payments'), about: 'Your month of TA, DA and other costs. Send it after the month ends; your manager approves it.' },
   { key: 'leave', title: 'Leave', section: 'DCR', gate: 'none', stage: 4, route: '/leave', icon: icon('beach.umbrella', 'beach_access'), about: 'See your balances and request leave. Still available while your account is blocked.' },
   { key: 'summary', title: 'Summary & Submit', section: 'DCR', gate: 'unblocked', stage: 4, route: '/summary', icon: icon('checkmark.seal', 'task_alt'), about: 'Review the whole day and send it with Final Submission. Needs a connection.' },
@@ -57,6 +58,7 @@ export const FEATURES: Feature[] = [
   { key: 'gifts', title: 'Gifts', section: 'Marketing', gate: 'none', stage: 6, route: '/gifts', icon: icon('gift', 'redeem'), about: 'Gifts Admin allocated to your doctors — mark each done once given.' },
   { key: 'services', title: 'Services', section: 'Marketing', gate: 'none', stage: 6, route: '/services', icon: icon('briefcase', 'work'), about: 'Request a service for a doctor; it goes through approval.' },
 
+  { key: 'inbox', title: 'Inbox', section: 'Utility', gate: 'none', stage: 7, route: '/inbox', icon: icon('tray', 'inbox'), about: 'Messages for you (demo messages for now).' },
   { key: 'holidays', title: 'Holiday List', section: 'Utility', gate: 'none', stage: 7, route: '/holidays', icon: icon('calendar.circle', 'event'), about: 'National, zone and HQ holidays.' },
   { key: 'forms', title: 'Forms', section: 'Utility', gate: 'none', stage: 7, icon: icon('doc.plaintext', 'assignment'), about: 'Standard company request forms.' },
   { key: 'financial-year', title: 'Financial Year', section: 'Utility', gate: 'none', stage: 7, route: '/financial-year', icon: icon('clock.arrow.circlepath', 'history'), about: 'Look back at a previous financial year (read-only).' },
