@@ -35,7 +35,8 @@ export const getTarget = (userId: string, month: string, scope: { productId?: st
   if (scope.productId) q.set('productId', scope.productId);
   return apiGet<TargetSummary>(`/marketing/targets/${userId}?${q.toString()}`);
 };
-export const setTarget = (body: { userId: string; month: string; targetAmountPaise: number; productId?: string | null }) =>
+/** `toMonth` makes it a run of months (`month` to `toMonth`, both in the current financial year); left out, it is one month. */
+export const setTarget = (body: { userId: string; month: string; toMonth?: string; targetAmountPaise: number; productId?: string | null }) =>
   apiPost<unknown>('/marketing/targets', body, { auth: true });
 
 /* ── Orders (reading and finishing; placing one goes through the outbox) ── */

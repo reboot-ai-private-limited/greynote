@@ -14,7 +14,7 @@ import type { SymbolViewProps } from 'expo-symbols';
 export type FeatureKey =
   | 'daily-plan' | 'monthly-plan' | 'dr-call' | 'dr-followup' | 'chemist-call' | 'chemist-followup'
   | 'add-doctor' | 'expenses' | 'leave' | 'summary'
-  | 'orders' | 'monthly-stock' | 'visuals' | 'targets' | 'gifts' | 'services'
+  | 'orders' | 'monthly-stock' | 'visuals' | 'targets' | 'secondary-sales' | 'gifts' | 'services'
   | 'holidays' | 'forms' | 'financial-year';
 
 export type Gate = 'plan' | 'unblocked' | 'none';
@@ -53,6 +53,7 @@ export const FEATURES: Feature[] = [
   { key: 'monthly-stock', title: 'Monthly Stock', section: 'Marketing', gate: 'none', stage: 6, route: '/monthly-stock', icon: icon('shippingbox', 'inventory_2'), about: 'Record opening and closing stock for the month.' },
   { key: 'visuals', title: 'Visuals', section: 'Marketing', gate: 'none', stage: 6, route: '/visuals', icon: icon('photo.on.rectangle', 'slideshow'), about: 'Show e-detailing visuals to doctors.' },
   { key: 'targets', title: 'Targets', section: 'Marketing', gate: 'none', stage: 6, route: '/targets', icon: icon('target', 'track_changes'), about: 'Your monthly targets, and your team’s if you manage one.' },
+  { key: 'secondary-sales', title: 'Secondary Sales', section: 'Marketing', gate: 'none', stage: 6, route: '/secondary-sales', icon: icon('chart.line.uptrend.xyaxis', 'trending_up'), about: 'Enter the units you sold each month, per product. This is your achievement.' },
   { key: 'gifts', title: 'Gifts', section: 'Marketing', gate: 'none', stage: 6, route: '/gifts', icon: icon('gift', 'redeem'), about: 'Gifts Admin allocated to your doctors — mark each done once given.' },
   { key: 'services', title: 'Services', section: 'Marketing', gate: 'none', stage: 6, route: '/services', icon: icon('briefcase', 'work'), about: 'Request a service for a doctor; it goes through approval.' },
 

@@ -94,7 +94,8 @@ export type FieldMasterDataSnapshot = {
     location: GeoPoint | null;
   }[];
   chemists: { id: string; routeId: string; name: string; address: string; location: GeoPoint | null }[];
-  distributors?: { id: string; routeId: string; name: string; address: string; location: GeoPoint | null }[];
+  /** A distributor can be on several routes (the API sends `routeIds`; there is no single `routeId`). */
+  distributors?: { id: string; routeIds: string[]; name: string; address: string; location: GeoPoint | null }[];
   products: {
     id: string;
     name: string;
