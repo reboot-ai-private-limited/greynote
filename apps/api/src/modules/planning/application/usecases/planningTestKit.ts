@@ -317,7 +317,7 @@ export class FakeRoutes {
 
 export class FakeConfig {
   values: Record<string, string> = {
-    BUSINESS_TIMEZONE: 'Asia/Kolkata',
+    BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00',
     DAILY_PLAN_SUBMIT_CUTOFF_TIME: '10:00',
     MONTHLY_PLAN_SUBMIT_CUTOFF_DATE: '28',
     LATE_PLAN_GRANT_BY_MANAGER: 'false',

@@ -176,7 +176,7 @@ export default function DailyPlanScreen() {
   const deadlinePassed =
     deadlineIso !== null
       ? nowMs() > Date.parse(deadlineIso)
-      : dailyDeadlinePassed(date, today, businessNowHHmm(timeZone), cutoff);
+      : dailyDeadlinePassed(date, today, businessNowHHmm(timeZone), cutoff, config.data?.settings.DAY_START_TIME);
   const resubmitUntil = detail?.resubmitAllowedUntil ?? null;
   const lateUntil = detail?.lateSubmitAllowedUntil ?? null;
   const lateButAllowed = editable && deadlinePassed && (resubmitUntil !== null || lateUntil !== null);

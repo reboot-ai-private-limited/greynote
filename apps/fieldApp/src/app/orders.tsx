@@ -72,7 +72,7 @@ export default function OrdersScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<Msg | null>(null);
 
-  const today = businessToday(config.data?.settings.BUSINESS_TIMEZONE);
+  const today = businessToday(config.data?.settings.BUSINESS_TIMEZONE, new Date(), config.data?.settings.DAY_START_TIME);
   const products = master.data?.products ?? [];
   const chemists = master.data?.chemists ?? [];
   const distributors = master.data?.distributors ?? [];

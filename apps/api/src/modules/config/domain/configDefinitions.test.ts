@@ -6,6 +6,7 @@ const HISTORICAL_DEFAULTS: Record<string, string> = {
   DAILY_PLAN_SUBMIT_CUTOFF_TIME: '10:00',
   MONTHLY_PLAN_SUBMIT_CUTOFF_DATE: '28',
   BUSINESS_TIMEZONE: 'Asia/Kolkata',
+  DAY_START_TIME: '00:00',
   FY_START_MONTH: 'APRIL',
   WEEKLY_OFF_DAY: 'SUNDAY',
   LEAVE_BACKDATE_DAYS: '30',
@@ -56,7 +57,7 @@ const def = (key: string) => {
 };
 
 describe('the definitions registry', () => {
-  it('defines each of the 30 seeded keys exactly once, with the default it always had', () => {
+  it('defines each of the 31 seeded keys exactly once, with the default it always had', () => {
     expect(CONFIG_DEFINITIONS).toHaveLength(Object.keys(HISTORICAL_DEFAULTS).length);
     expect(new Set(CONFIG_DEFINITIONS.map((d) => d.key)).size).toBe(CONFIG_DEFINITIONS.length);
     for (const [key, value] of Object.entries(HISTORICAL_DEFAULTS)) expect(def(key).default, key).toBe(value);
@@ -85,7 +86,7 @@ describe('the definitions registry', () => {
 
   it('says what moves for every high-impact setting', () => {
     const high = CONFIG_DEFINITIONS.filter((d) => d.impact === 'HIGH');
-    expect(high.map((d) => d.key).sort()).toEqual(['APPROVAL_MANAGER_ONLY_KINDS', 'BUSINESS_TIMEZONE', 'DCR_APPROVAL_REQUIRED', 'DCR_MISS_BLOCK_ENABLED', 'FY_START_MONTH', 'WEEKLY_OFF_DAY']);
+    expect(high.map((d) => d.key).sort()).toEqual(['APPROVAL_MANAGER_ONLY_KINDS', 'BUSINESS_TIMEZONE', 'DAY_START_TIME', 'DCR_APPROVAL_REQUIRED', 'DCR_MISS_BLOCK_ENABLED', 'FY_START_MONTH', 'WEEKLY_OFF_DAY']);
     for (const d of high) expect(d.impactNote?.length, d.key).toBeGreaterThan(20);
   });
 });

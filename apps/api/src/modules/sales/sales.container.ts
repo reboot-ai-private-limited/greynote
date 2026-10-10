@@ -69,9 +69,9 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
     contract: {
       sumOrderAmount: (filter) => orders.sumAmount(filter),
       listOrders: (f) => orders.list({ from: f.from, to: f.to, status: f.status, outlet: f.outlet, userIds: f.userId ? [f.userId] : undefined }, f.limit ?? 2000),
-      sumDistributorOrders: async (f) => orders.sumDistributorOrders({ ...f, timeZone: await clock.timeZone() }),
+      sumDistributorOrders: async (f) => orders.sumDistributorOrders({ ...f, timeZone: await clock.timeZone(), dayStart: await clock.dayStart() }),
       listStockRange: (f) => stock.listRange(f, f.limit ?? 20000),
-      sumUserOrders: async (f) => orders.sumUserOrders({ ...f, timeZone: await clock.timeZone() }),
+      sumUserOrders: async (f) => orders.sumUserOrders({ ...f, timeZone: await clock.timeZone(), dayStart: await clock.dayStart() }),
       listEmployeeSales: (f) => employeeSales.list(f, f.limit ?? 20000),
       listStatements: (f) => statements.list(f, f.limit ?? 20000),
       getOrder: (id) => (id.match(/^[a-f\d]{24}$/i) ? orders.findById(id) : Promise.resolve(null)),

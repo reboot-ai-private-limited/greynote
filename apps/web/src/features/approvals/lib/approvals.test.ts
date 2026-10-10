@@ -28,7 +28,11 @@ describe('kindLabel', () => {
 });
 
 describe('stageLabel', () => {
-  const item = (status: Parameters<typeof stageLabel>[0]['status'], kind = 'DCR') => ({ kind, status, workflow: 'MANAGER_THEN_FINAL' as const });
+  const item = (status: Parameters<typeof stageLabel>[0]['status'], kind = 'DCR') => ({
+    kind,
+    status,
+    workflow: 'MANAGER_THEN_FINAL' as const,
+  });
   it('says who a request is waiting on', () => {
     expect(stageLabel(item('SUBMITTED'))).toBe('Waiting on the manager');
     expect(stageLabel(item('MANAGER_APPROVED'))).toBe('Waiting on Admin');
@@ -49,7 +53,11 @@ describe('skipsManager', () => {
 });
 
 describe('actionLabel and groupByCycle', () => {
-  const a = (action: ApprovalActionDto['action'], authority: ApprovalActionDto['authority'], cycle: number): ApprovalActionDto => ({
+  const a = (
+    action: ApprovalActionDto['action'],
+    authority: ApprovalActionDto['authority'],
+    cycle: number,
+  ): ApprovalActionDto => ({
     action,
     authority,
     actorRole: 'ADMIN',
@@ -65,7 +73,11 @@ describe('actionLabel and groupByCycle', () => {
     expect(actionLabel(a('SUBMIT', 'SUBMITTER', 1))).toBe('Submitted');
   });
   it('groups a history by round, newest round first, keeping order inside a round', () => {
-    const groups = groupByCycle([a('SUBMIT', 'SUBMITTER', 1), a('REJECT', 'MANAGER', 1), a('RESUBMIT', 'SUBMITTER', 2)]);
+    const groups = groupByCycle([
+      a('SUBMIT', 'SUBMITTER', 1),
+      a('REJECT', 'MANAGER', 1),
+      a('RESUBMIT', 'SUBMITTER', 2),
+    ]);
     expect(groups.map((g) => g.cycle)).toEqual([2, 1]);
     expect(groups[1]?.actions.map((x) => x.action)).toEqual(['SUBMIT', 'REJECT']);
   });
@@ -79,19 +91,25 @@ describe('dateRangeToInstants', () => {
     });
   });
   it('leaves out an end that is not given, and both when neither is', () => {
-    expect(dateRangeToInstants('2026-09-01', '')).toEqual({ from: '2026-09-01T00:00:00.000+05:30' });
+    expect(dateRangeToInstants('2026-09-01', '')).toEqual({
+      from: '2026-09-01T00:00:00.000+05:30',
+    });
     expect(dateRangeToInstants('', '')).toEqual({});
   });
   it('is a valid instant for the server: ISO with an offset', () => {
     const { from, to } = dateRangeToInstants('2026-03-31', '2026-03-31');
     expect(Number.isNaN(new Date(from ?? '').getTime())).toBe(false);
-    expect(new Date(to ?? '').getTime() - new Date(from ?? '').getTime()).toBe(24 * 3600 * 1000 - 1);
+    expect(new Date(to ?? '').getTime() - new Date(from ?? '').getTime()).toBe(
+      24 * 3600 * 1000 - 1,
+    );
   });
 });
 
 describe('dateRangeError', () => {
   it('refuses a reversed range, and allows the same day', () => {
-    expect(dateRangeError('2026-09-05', '2026-09-01')).toBe('The end date is before the start date.');
+    expect(dateRangeError('2026-09-05', '2026-09-01')).toBe(
+      'The end date is before the start date.',
+    );
     expect(dateRangeError('2026-09-01', '2026-09-01')).toBeUndefined();
     expect(dateRangeError('2026-09-01', '')).toBeUndefined();
   });
@@ -117,8 +135,15 @@ describe('bulk', () => {
     expect(selectableRows(rows).map((r) => r.id)).toEqual(['a', 'd']);
   });
   it('builds the body with each row at the cycle it showed, trimming the comment and omitting an empty one', () => {
-    expect(buildBulkBody('REJECT', rows.slice(0, 1), '  not clear  ')).toEqual({ decision: 'REJECT', requests: [{ id: 'a', cycle: 1 }], comment: 'not clear' });
-    expect(buildBulkBody('APPROVE', rows.slice(3), ' ')).toEqual({ decision: 'APPROVE', requests: [{ id: 'd', cycle: 3 }] });
+    expect(buildBulkBody('REJECT', rows.slice(0, 1), '  not clear  ')).toEqual({
+      decision: 'REJECT',
+      requests: [{ id: 'a', cycle: 1 }],
+      comment: 'not clear',
+    });
+    expect(buildBulkBody('APPROVE', rows.slice(3), ' ')).toEqual({
+      decision: 'APPROVE',
+      requests: [{ id: 'd', cycle: 3 }],
+    });
   });
   it('splits more than 100 into batches of 100', () => {
     const many = Array.from({ length: 250 }, (_, i) => i);
@@ -128,11 +153,22 @@ describe('bulk', () => {
   it('summarises per-item results, keeping each failure', () => {
     const results: BulkResultDto[] = [
       { requestId: 'a', ok: true, status: 'APPROVED' },
-      { requestId: 'b', ok: false, statusCode: 409, message: 'This was changed and resubmitted since you opened it. Reload it.' },
+      {
+        requestId: 'b',
+        ok: false,
+        statusCode: 409,
+        message: 'This was changed and resubmitted since you opened it. Reload it.',
+      },
     ];
     const summary = summariseBulk(results);
     expect(summary.done).toBe(1);
-    expect(summary.failed).toEqual([{ requestId: 'b', statusCode: 409, message: 'This was changed and resubmitted since you opened it. Reload it.' }]);
+    expect(summary.failed).toEqual([
+      {
+        requestId: 'b',
+        statusCode: 409,
+        message: 'This was changed and resubmitted since you opened it. Reload it.',
+      },
+    ]);
     expect(bulkMessage(summary, 2)).toMatch(/1 of 2 done. 1 could not be decided/);
     expect(bulkMessage({ done: 3, failed: [] }, 3)).toBe('3 of 3 done.');
   });
@@ -140,51 +176,103 @@ describe('bulk', () => {
 
 describe('runBulk', () => {
   const rows = Array.from({ length: 230 }, (_, i) => ({ id: `r${i}`, cycle: 1 }));
-  const ok = (body: { requests: { id: string }[] }) => ({ results: body.requests.map((r) => ({ requestId: r.id, ok: true as const, status: 'APPROVED' as const })) });
+  const ok = (body: { requests: { id: string }[] }) => ({
+    results: body.requests.map((r) => ({
+      requestId: r.id,
+      ok: true as const,
+      status: 'APPROVED' as const,
+    })),
+  });
 
   it('sends batches of 100 in order and returns a result for every row', async () => {
     const sizes: number[] = [];
-    const results = await runBulk(async (body) => {
-      sizes.push(body.requests.length);
-      return ok(body);
-    }, 'APPROVE', rows, '');
+    const results = await runBulk(
+      async (body) => {
+        sizes.push(body.requests.length);
+        return ok(body);
+      },
+      'APPROVE',
+      rows,
+      '',
+    );
     expect(sizes).toEqual([100, 100, 30]);
     expect(results).toHaveLength(230);
     expect(results.every((r) => r.ok)).toBe(true);
   });
   it('passes the decision and the trimmed comment to every batch', async () => {
     const bodies: { decision: string; comment?: string }[] = [];
-    await runBulk(async (body) => {
-      bodies.push({ decision: body.decision, ...(body.comment && { comment: body.comment }) });
-      return ok(body);
-    }, 'REJECT', rows.slice(0, 150), '  not clear  ');
-    expect(bodies).toEqual([{ decision: 'REJECT', comment: 'not clear' }, { decision: 'REJECT', comment: 'not clear' }]);
+    await runBulk(
+      async (body) => {
+        bodies.push({ decision: body.decision, ...(body.comment && { comment: body.comment }) });
+        return ok(body);
+      },
+      'REJECT',
+      rows.slice(0, 150),
+      '  not clear  ',
+    );
+    expect(bodies).toEqual([
+      { decision: 'REJECT', comment: 'not clear' },
+      { decision: 'REJECT', comment: 'not clear' },
+    ]);
   });
   it('keeps per-item failures the server reported', async () => {
-    const results = await runBulk(async (body) => ({
-      results: body.requests.map((r, i): { requestId: string; ok: false; statusCode: number; message: string } | { requestId: string; ok: true; status: 'APPROVED' } =>
-        i === 1 ? { requestId: r.id, ok: false, statusCode: 409, message: 'stale' } : { requestId: r.id, ok: true, status: 'APPROVED' },
-      ),
-    }), 'APPROVE', rows.slice(0, 3), '');
-    expect(summariseBulk(results)).toMatchObject({ done: 2, failed: [{ requestId: 'r1', statusCode: 409 }] });
+    const results = await runBulk(
+      async (body) => ({
+        results: body.requests.map(
+          (
+            r,
+            i,
+          ):
+            | { requestId: string; ok: false; statusCode: number; message: string }
+            | { requestId: string; ok: true; status: 'APPROVED' } =>
+            i === 1
+              ? { requestId: r.id, ok: false, statusCode: 409, message: 'stale' }
+              : { requestId: r.id, ok: true, status: 'APPROVED' },
+        ),
+      }),
+      'APPROVE',
+      rows.slice(0, 3),
+      '',
+    );
+    expect(summariseBulk(results)).toMatchObject({
+      done: 2,
+      failed: [{ requestId: 'r1', statusCode: 409 }],
+    });
   });
   it('stops at a failed batch: its rows and every later row come back unconfirmed, none sent', async () => {
     let calls = 0;
-    const results = await runBulk(async (body) => {
-      calls += 1;
-      if (calls === 2) throw new Error('network');
-      return ok(body);
-    }, 'APPROVE', rows, '');
+    const results = await runBulk(
+      async (body) => {
+        calls += 1;
+        if (calls === 2) throw new Error('network');
+        return ok(body);
+      },
+      'APPROVE',
+      rows,
+      '',
+    );
     expect(calls).toBe(2);
     expect(results).toHaveLength(230);
     expect(results.slice(0, 100).every((r) => r.ok)).toBe(true);
     const unconfirmed = results.slice(100);
     expect(unconfirmed).toHaveLength(130);
-    expect(unconfirmed.every((r) => !r.ok && r.statusCode === 0 && r.message === UNCONFIRMED_MESSAGE)).toBe(true);
+    expect(
+      unconfirmed.every((r) => !r.ok && r.statusCode === 0 && r.message === UNCONFIRMED_MESSAGE),
+    ).toBe(true);
   });
   it('sends nothing for no rows', async () => {
     let calls = 0;
-    expect(await runBulk(async (b) => { calls += 1; return ok(b); }, 'APPROVE', [], '')).toEqual([]);
+    expect(
+      await runBulk(
+        async (b) => {
+          calls += 1;
+          return ok(b);
+        },
+        'APPROVE',
+        [],
+        '',
+      ),
+    ).toEqual([]);
     expect(calls).toBe(0);
   });
 });
@@ -198,7 +286,21 @@ describe('dateRangeToInstants follows the business timezone', () => {
       to: '2026-07-10T23:59:59.999+01:00',
     });
   });
+  it('runs from the day start to one millisecond before the next day starts', () => {
+    setSiteConfig({
+      financialYearStartMonth: 4,
+      businessTimezone: 'Asia/Kolkata',
+      dayStartTime: '02:00',
+    });
+    expect(dateRangeToInstants('2026-10-01', '2026-10-03')).toEqual({
+      from: '2026-09-30T20:30:00.000Z',
+      to: '2026-10-03T20:29:59.999Z',
+    });
+  });
   it('is India’s +05:30 by default', () => {
-    expect(dateRangeToInstants('2026-10-01', '2026-10-03')).toEqual({ from: '2026-10-01T00:00:00.000+05:30', to: '2026-10-03T23:59:59.999+05:30' });
+    expect(dateRangeToInstants('2026-10-01', '2026-10-03')).toEqual({
+      from: '2026-10-01T00:00:00.000+05:30',
+      to: '2026-10-03T23:59:59.999+05:30',
+    });
   });
 });

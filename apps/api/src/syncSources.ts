@@ -13,6 +13,7 @@ import type { TerritoryPublicContract } from '@/modules/territory/territory.publ
 /** The settings the app needs offline: the geofence, the cutoffs, the calendar, and the sync limits it obeys. */
 export const CONFIG_KEYS_FOR_PHONE = [
   'BUSINESS_TIMEZONE',
+  'DAY_START_TIME',
   'DAILY_PLAN_SUBMIT_CUTOFF_TIME',
   'DAILY_PLAN_RESUBMIT_GRACE_MINUTES',
   'DAILY_PLAN_RESUBMIT_LATEST_TIME',
@@ -29,6 +30,8 @@ export const CONFIG_KEYS_FOR_PHONE = [
   'SYNC_MAX_AGE_DAYS',
   'SYNC_CLOCK_SKEW_MINUTES',
 ] as const;
+
+import { readDayStart } from '@/shared/config/readConfig.js';
 
 export function registerCompositionSyncSources(deps: {
   sync: SyncPublicContract;
@@ -62,7 +65,10 @@ export function registerCompositionSyncSources(deps: {
     name: 'config',
     async snapshot(): Promise<ConfigSnapshot> {
       const settings: Record<string, string> = {};
-      for (const key of CONFIG_KEYS_FOR_PHONE) settings[key] = await deps.config.get(key);
+      for (const key of CONFIG_KEYS_FOR_PHONE) {
+        // A database not yet re-seeded has no day start: midnight, as before the setting existed.
+        settings[key] = key === 'DAY_START_TIME' ? await readDayStart(deps.config) : await deps.config.get(key);
+      }
       return { settings };
     },
   });

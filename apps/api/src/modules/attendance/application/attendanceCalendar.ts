@@ -1,6 +1,6 @@
 import type { AttendanceMonthDto } from '@greynote/contracts';
-import { readConfig, parseBoolean, type ConfigReader } from '@/shared/config/readConfig.js';
-import { assertTimeZone, businessDate, daysInMonth, formatCalendarDate, parseCalendarMonth } from '@/shared/time/businessTime.js';
+import { readConfig, parseBoolean, readBusinessDay, type ConfigReader } from '@/shared/config/readConfig.js';
+import { businessDate, daysInMonth, formatCalendarDate, parseCalendarMonth } from '@/shared/time/businessTime.js';
 import { classifyDay, countStatuses, deductibleDays, type DayStatus, type DeductionSettings } from '../domain/dayStatus.js';
 import type { FieldActivityPort, HrPort, IdentityPort, PlanningPort } from '../domain/ports.js';
 
@@ -34,20 +34,14 @@ export class AttendanceCalendar {
     return { absentDeducts, strikeDeducts };
   }
 
-  private async zone(): Promise<string> {
-    return readConfig(this.config, 'BUSINESS_TIMEZONE', (v) => {
-      assertTimeZone(v);
-      return v;
-    });
-  }
-
   async today(): Promise<string> {
-    return businessDate(this.now(), await this.zone());
+    const { timeZone, dayStart } = await readBusinessDay(this.config);
+    return businessDate(this.now(), timeZone, dayStart);
   }
 
   async statuses(userId: string, month: string): Promise<{ dates: string[]; statuses: DayStatus[] }> {
     const { from, to, dates } = monthBounds(month);
-    const zone = await this.zone();
+    const { timeZone: zone } = await readBusinessDay(this.config);
     const [today, employment, off, holidays, leave, plans, reported] = await Promise.all([
       this.today(),
       this.identity.getEmploymentDetails(userId),
@@ -57,7 +51,7 @@ export class AttendanceCalendar {
       this.planning.listDailyPlanDays(userId, from, to),
       this.fieldActivity.listReportedDates(userId, from, to),
     ]);
-    const joinedOn = employment?.dateOfJoining ? businessDate(employment.dateOfJoining, zone) : null;
+    const joinedOn = employment?.dateOfJoining ? businessDate(employment.dateOfJoining, zone) /* a date of record: read at midnight, not shifted by the day start */ : null;
     const holidaySet = new Set(holidays);
     const offSet = new Set(off);
     const leaveSet = new Set(leave);

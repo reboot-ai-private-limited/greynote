@@ -1,4 +1,10 @@
-import type { CreateDoctorDto, DoctorDto, DoctorStatus, UpdateDoctorDto } from '@greynote/contracts';
+import type {
+  CreateDoctorDto,
+  DoctorDto,
+  DoctorStatus,
+  UpdateDoctorDto,
+} from '@greynote/contracts';
+import { istDate } from '@/lib/dates';
 import { fail, squash, type BuildResult } from '@/lib/forms';
 import type { BadgeTone } from '@/components/ui/Badge';
 import { placeErrors, type PlaceDraft } from './chemists';
@@ -19,7 +25,10 @@ export interface DoctorDraft extends PlaceDraft {
   visitFrequency: string;
 }
 
-export const FREQUENCY_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: n === 1 ? '1 visit a month' : `${n} visits a month` }));
+export const FREQUENCY_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({
+  value: String(n),
+  label: n === 1 ? '1 visit a month' : `${n} visits a month`,
+}));
 
 export const EMPTY_DOCTOR: DoctorDraft = {
   routeId: '',
@@ -52,7 +61,7 @@ export function doctorToDraft(d: DoctorDto): DoctorDraft {
 function dateError(v: string): string | undefined {
   if (v === '') return undefined;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(Date.parse(v))) return 'Enter a valid date.';
-  return v > new Date().toISOString().slice(0, 10) ? 'This date is in the future.' : undefined;
+  return v > istDate() ? 'This date is in the future.' : undefined;
 }
 
 function errorsFor(draft: DoctorDraft): Record<string, string | undefined> {
@@ -61,8 +70,18 @@ function errorsFor(draft: DoctorDraft): Record<string, string | undefined> {
   const email = draft.email.trim();
   return {
     ...placeErrors(draft, 'doctor name'),
-    specialty: specialty === '' ? 'Choose a speciality.' : specialty.length > TEXT_MAX ? `Keep it to ${TEXT_MAX} characters.` : undefined,
-    qualification: qualification === '' ? 'Enter a qualification.' : qualification.length > TEXT_MAX ? `Keep it to ${TEXT_MAX} characters.` : undefined,
+    specialty:
+      specialty === ''
+        ? 'Choose a speciality.'
+        : specialty.length > TEXT_MAX
+          ? `Keep it to ${TEXT_MAX} characters.`
+          : undefined,
+    qualification:
+      qualification === ''
+        ? 'Enter a qualification.'
+        : qualification.length > TEXT_MAX
+          ? `Keep it to ${TEXT_MAX} characters.`
+          : undefined,
     email: email !== '' && !EMAIL.test(email) ? 'Enter a valid email address.' : undefined,
     dateOfBirth: dateError(draft.dateOfBirth),
     anniversary: dateError(draft.anniversary),
@@ -72,9 +91,22 @@ function errorsFor(draft: DoctorDraft): Record<string, string | undefined> {
 /** Adding a doctor is three steps: the details, where the clinic is on the map, and a look over it all before it is created. */
 export const DOCTOR_STEPS = ['details', 'location', 'review'] as const;
 export type DoctorStep = (typeof DOCTOR_STEPS)[number];
-export const DOCTOR_STEP_LABEL: Record<DoctorStep, string> = { details: 'Details', location: 'Location', review: 'Review' };
+export const DOCTOR_STEP_LABEL: Record<DoctorStep, string> = {
+  details: 'Details',
+  location: 'Location',
+  review: 'Review',
+};
 
-const DETAIL_FIELDS = ['routeId', 'name', 'address', 'specialty', 'qualification', 'email', 'dateOfBirth', 'anniversary'];
+const DETAIL_FIELDS = [
+  'routeId',
+  'name',
+  'address',
+  'specialty',
+  'qualification',
+  'email',
+  'dateOfBirth',
+  'anniversary',
+];
 const LOCATION_FIELDS = ['latitude', 'longitude'];
 
 /** What is wrong with the fields of one step (the review step checks everything), so "Next" can say so before moving on. */
@@ -110,7 +142,10 @@ export function buildDoctor(draft: DoctorDraft): BuildResult<CreateDoctorDto> {
 }
 
 /** Only what changed. An emptied email is sent as `null` (the API reads that as "clear it"). */
-export function buildDoctorUpdate(original: DoctorDto, draft: DoctorDraft): BuildResult<UpdateDoctorDto> {
+export function buildDoctorUpdate(
+  original: DoctorDto,
+  draft: DoctorDraft,
+): BuildResult<UpdateDoctorDto> {
   const errors = errorsFor(draft);
   const point = pointFromInputs(draft.coordinates);
   if (Object.values(errors).some(Boolean) || !point.ok) return fail(errors);
@@ -159,5 +194,8 @@ export function canToggleStatus(status: DoctorStatus): boolean {
 /** True for an MR-added Doctor whose phone point differs from the registered one: Admin has corrected it. */
 export function locationWasCorrected(d: Pick<DoctorDto, 'location' | 'capturedLocation'>): boolean {
   if (!d.location || !d.capturedLocation) return false;
-  return d.location.latitude !== d.capturedLocation.latitude || d.location.longitude !== d.capturedLocation.longitude;
+  return (
+    d.location.latitude !== d.capturedLocation.latitude ||
+    d.location.longitude !== d.capturedLocation.longitude
+  );
 }

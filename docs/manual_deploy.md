@@ -197,7 +197,7 @@ on again when HR is ready. Generate the first sheet as a **draft** and read the 
 
 ## Step 10 — Schedule the daily compliance job
 
-The application has no scheduler. Once a day, after the business day rolls over (early morning is fine), the
+The application has no scheduler. Once a day, after the business day rolls over (the **Business day starts at** setting, `DAY_START_TIME`: with `02:00`, schedule it at 02:30 or later, never at 00:05), the
 operator's cron runs the missed-DCR job, which blocks each field employee who has missed more working days in a
 row than `DCR_MISS_GRACE_DAYS` allows (`docs/hld/10-submission-gating-and-compliance-block.md` §2):
 

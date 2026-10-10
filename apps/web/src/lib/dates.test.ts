@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { afterEach } from 'vitest';
+import { resetSiteConfig, setSiteConfig } from './siteConfig';
 import { addDays, ageLabel, istDate, istMonth, previousMonth } from './dates';
 
 describe('istDate / istMonth', () => {
@@ -11,6 +13,28 @@ describe('istDate / istMonth', () => {
 
   it('is still the same day just before IST midnight', () => {
     expect(istDate(new Date('2026-09-30T18:29:00Z'))).toBe('2026-09-30');
+  });
+});
+
+describe('istDate with a business day start', () => {
+  afterEach(resetSiteConfig);
+  it('keeps the small hours in the previous day until the day start', () => {
+    setSiteConfig({
+      financialYearStartMonth: 4,
+      businessTimezone: 'Asia/Kolkata',
+      dayStartTime: '02:00',
+    });
+    expect(istDate(new Date('2026-09-30T20:00:00Z'))).toBe('2026-09-30'); // 01:30 IST on 1 Oct
+    expect(istMonth(new Date('2026-09-30T20:00:00Z'))).toBe('2026-09');
+    expect(istDate(new Date('2026-09-30T20:30:00Z'))).toBe('2026-10-01'); // 02:00 IST
+  });
+  it('ignores a malformed day start', () => {
+    setSiteConfig({
+      financialYearStartMonth: 4,
+      businessTimezone: 'Asia/Kolkata',
+      dayStartTime: '2am',
+    });
+    expect(istDate(new Date('2026-09-30T20:00:00Z'))).toBe('2026-10-01');
   });
 });
 

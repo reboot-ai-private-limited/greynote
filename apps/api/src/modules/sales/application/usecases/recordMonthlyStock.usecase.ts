@@ -35,7 +35,7 @@ export class RecordMonthlyStockUseCase {
     await this.access.assertUsable(actor, outlet);
 
     const now = this.clock.now();
-    const window = monthWindow(month, now, await this.clock.deadlineDay(), await this.clock.timeZone());
+    const window = monthWindow(month, now, await this.clock.deadlineDay(), await this.clock.timeZone(), await this.clock.dayStart());
     if (window === 'FUTURE') throw new StockRefusal(STOCK_CODES.monthNotStarted, `${month} has not started yet.`);
     if (window === 'CLOSED' && actor.role !== 'ADMIN' && !(await this.stock.isUnlocked(month))) {
       throw new StockRefusal(STOCK_CODES.monthClosed, `The deadline for ${month} has passed. Ask an Admin to reopen it.`);

@@ -1,7 +1,7 @@
 import type { TaDaDaysDto, TaDaFiguresDto, TaDaMonthDto, TaDaMrRowDto, TaDaYearReportDto } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
-import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
-import { assertTimeZone, businessDate, leaveYearRange, monthRange, parseMonthName } from '@/shared/time/businessTime.js';
+import { readBusinessDay, readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
+import { businessDate, leaveYearRange, monthRange, parseMonthName } from '@/shared/time/businessTime.js';
 import { yearMonths } from '../domain/salesFigures.js';
 import type { ExpenseMonthRow, FieldActivityPort, IdentityPort, TerritoryPort } from '../domain/ports.js';
 
@@ -46,11 +46,8 @@ export class TaDaReport {
   ) {}
 
   private async currentMonth(): Promise<string> {
-    const zone = await readConfig(this.config, 'BUSINESS_TIMEZONE', (v) => {
-      assertTimeZone(v);
-      return v;
-    });
-    return businessDate(this.now(), zone).slice(0, 7);
+    const { timeZone: zone, dayStart } = await readBusinessDay(this.config);
+    return businessDate(this.now(), zone, dayStart).slice(0, 7);
   }
 
   async year(input: { year: number }): Promise<TaDaYearReportDto> {

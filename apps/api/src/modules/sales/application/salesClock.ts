@@ -1,4 +1,4 @@
-import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
+import { readConfig, readDayStart, type ConfigReader } from '@/shared/config/readConfig.js';
 import { addDays, assertTimeZone, businessDate } from '@/shared/time/businessTime.js';
 
 /** Business timezone and the stock deadline day, read from Config on every call. `now` is injectable for tests. */
@@ -15,6 +15,11 @@ export class SalesClock {
     });
   }
 
+  /** When the business day rolls over (`HH:mm`). */
+  dayStart(): Promise<string> {
+    return readDayStart(this.config);
+  }
+
   deadlineDay(): Promise<number> {
     return readConfig(this.config, 'MONTHLY_STOCK_DEADLINE_DAY', (v) => {
       const n = Number(v);
@@ -24,12 +29,12 @@ export class SalesClock {
   }
 
   async today(): Promise<string> {
-    return businessDate(this.now(), await this.timeZone());
+    return businessDate(this.now(), await this.timeZone(), await this.dayStart());
   }
 
   /** The month that ended most recently, `YYYY-MM` — what the stock-check job looks at by default. */
   async previousMonth(): Promise<string> {
-    const today = businessDate(this.now(), await this.timeZone());
+    const today = businessDate(this.now(), await this.timeZone(), await this.dayStart());
     return addDays(`${today.slice(0, 7)}-01`, -1).slice(0, 7);
   }
 }

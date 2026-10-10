@@ -24,7 +24,8 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
 - **The gate** (`LoggingGate`) is the one check every write of the day goes through, in this order: the
   employee isn't compliance-blocked (`USER_BLOCKED`); the day isn't in the future (`DATE_IN_FUTURE`) and is
   the day the record was made — `clientCreatedAt` read in `BUSINESS_TIMEZONE`, so a record made at 00:30 IST
-  on the 6th belongs to the 6th though it is still the 5th in UTC (`DATE_MISMATCH`); the day's Plan is past
+  on the 6th belongs to the 6th though it is still the 5th in UTC (`DATE_MISMATCH`) — and, from 2026-10-10, the day starts at
+  `DAY_START_TIME` (default 00:00), so with 02:00 a record made at 00:30 on the 6th belongs to the 5th; the day's Plan is past
   the manager, asked of Planning's `isDailyPlanApproved` and never compared here
   (`DAILY_PLAN_NOT_APPROVED`) — the server's answer, whatever the phone's cache believed; and the day's DCR
   isn't already sent (`DCR_LOCKED`; a rejected, withdrawn or reopened one can be added to again). Each is a
@@ -333,7 +334,7 @@ fresh `AUTO` expenses. `MANUAL` expenses follow the DCR's approval but are never
 
 The application has no scheduler, and this doesn't add one. The job (`hld/10` §2) is an **explicit script**,
 `pnpm --filter @greynote/api compliance:run` (`node dist/scripts/run-compliance.js` in production), run
-daily by the operator's cron after the day rolls over — the same model as `seed` and the money migration
+daily by the operator's cron after the business day rolls over (`DAY_START_TIME`, default midnight; with 02:00 the cron runs at 02:30 or later) — the same model as `seed` and the money migration
 (`manual_deploy.md`, step 10). `--dry-run` reports who would be blocked and blocks no one; `--user <id>`
 limits the run; the exit code is 1 if any employee could not be checked.
 

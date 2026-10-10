@@ -1,7 +1,7 @@
 import { Types, type ClientSession, type FilterQuery } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { Order } from '../domain/order.entity.js';
-import { addDays, parseCalendarDate, zonedInstant } from '@/shared/time/businessTime.js';
+import { addDays, dayStartInstant, DEFAULT_DAY_START, parseCalendarDate, parseTimeOfDay } from '@/shared/time/businessTime.js';
 import type { DistributorOrderSum, DistributorOrderSumFilter, OrderAmountFilter, OrderFilter, OrderRepositoryPort, UserOrderSum, UserOrderSumFilter } from '../domain/order.repository.port.js';
 import { OrderModel, type OrderDoc } from './order.schema.js';
 
@@ -22,6 +22,13 @@ const toOrder = (d: OrderDoc & { _id: unknown }): Order => ({
   createdAt: d.createdAt,
 });
 
+/** `field` moved back by the day start, so the small hours before it fall into the previous day (and month) when formatted. */
+function shiftedBy(dayStart: string, field: string) {
+  const { hour, minute } = parseTimeOfDay(dayStart);
+  const minutes = hour * 60 + minute;
+  return minutes === 0 ? field : { $dateSubtract: { startDate: field, unit: 'minute', amount: minutes } };
+}
+
 export class MongoOrderAdapter implements OrderRepositoryPort {
   async create(input: Omit<Order, 'id'>, ctx?: TransactionContext): Promise<Order> {
     const { outlet, ...rest } = input;
@@ -36,14 +43,15 @@ export class MongoOrderAdapter implements OrderRepositoryPort {
   }
 
   async sumDistributorOrders(f: DistributorOrderSumFilter): Promise<DistributorOrderSum[]> {
-    const start = zonedInstant(parseCalendarDate(f.from), 0, 0, f.timeZone);
-    const end = zonedInstant(parseCalendarDate(addDays(f.to, 1)), 0, 0, f.timeZone);
+    const dayStart = f.dayStart ?? DEFAULT_DAY_START;
+    const start = dayStartInstant(parseCalendarDate(f.from), dayStart, f.timeZone);
+    const end = dayStartInstant(parseCalendarDate(addDays(f.to, 1)), dayStart, f.timeZone);
     const outlet = { distributorId: f.distributorId ? oid(f.distributorId) : { $type: 'objectId' } };
     const lines = [{ $unwind: '$items' }, ...(f.productId ? [{ $match: { 'items.productId': oid(f.productId) } }] : [])];
     const group = (month: unknown) => ({ $group: { _id: { m: month, d: '$distributorId', p: '$items.productId' }, quantity: { $sum: '$items.quantity' }, amountPaise: { $sum: '$items.amountPaise' } } });
     type Row = { _id: { m: string; d: Types.ObjectId; p: Types.ObjectId }; quantity: number; amountPaise: number };
     const [done, placed] = await Promise.all([
-      OrderModel.aggregate<Row>([{ $match: { ...outlet, status: 'DONE', completedAt: { $gte: start, $lt: end } } }, ...lines, group({ $dateToString: { format: '%Y-%m', date: '$completedAt', timezone: f.timeZone } })]),
+      OrderModel.aggregate<Row>([{ $match: { ...outlet, status: 'DONE', completedAt: { $gte: start, $lt: end } } }, ...lines, group({ $dateToString: { format: '%Y-%m', date: shiftedBy(dayStart, '$completedAt'), timezone: f.timeZone } })]),
       OrderModel.aggregate<Row>([{ $match: { ...outlet, status: 'PLACED', orderDate: { $gte: f.from, $lte: f.to } } }, ...lines, group({ $substrBytes: ['$orderDate', 0, 7] })]),
     ]);
     const rows = (status: 'DONE' | 'PLACED') => (r: Row): DistributorOrderSum => ({ month: r._id.m, distributorId: String(r._id.d), productId: String(r._id.p), status, quantity: r.quantity, amountPaise: r.amountPaise });
@@ -51,8 +59,9 @@ export class MongoOrderAdapter implements OrderRepositoryPort {
   }
 
   async sumUserOrders(f: UserOrderSumFilter): Promise<UserOrderSum[]> {
-    const start = zonedInstant(parseCalendarDate(f.from), 0, 0, f.timeZone);
-    const end = zonedInstant(parseCalendarDate(addDays(f.to, 1)), 0, 0, f.timeZone);
+    const dayStart = f.dayStart ?? DEFAULT_DAY_START;
+    const start = dayStartInstant(parseCalendarDate(f.from), dayStart, f.timeZone);
+    const end = dayStartInstant(parseCalendarDate(addDays(f.to, 1)), dayStart, f.timeZone);
     if (f.userIds && f.userIds.length === 0) return [];
     const match = { distributorId: { $type: 'objectId' }, status: 'DONE', completedAt: { $gte: start, $lt: end }, ...(f.userIds && { userId: { $in: f.userIds.map(oid) } }) };
     type Row = { _id: { m: string; u: Types.ObjectId; p: Types.ObjectId }; quantity: number; amountPaise: number };
@@ -60,7 +69,7 @@ export class MongoOrderAdapter implements OrderRepositoryPort {
       { $match: match },
       { $unwind: '$items' },
       ...(f.productId ? [{ $match: { 'items.productId': oid(f.productId) } }] : []),
-      { $group: { _id: { m: { $dateToString: { format: '%Y-%m', date: '$completedAt', timezone: f.timeZone } }, u: '$userId', p: '$items.productId' }, quantity: { $sum: '$items.quantity' }, amountPaise: { $sum: '$items.amountPaise' } } },
+      { $group: { _id: { m: { $dateToString: { format: '%Y-%m', date: shiftedBy(dayStart, '$completedAt'), timezone: f.timeZone } }, u: '$userId', p: '$items.productId' }, quantity: { $sum: '$items.quantity' }, amountPaise: { $sum: '$items.amountPaise' } } },
     ]);
     return rows.map((r) => ({ month: r._id.m, userId: String(r._id.u), productId: String(r._id.p), quantity: r.quantity, amountPaise: r.amountPaise }));
   }

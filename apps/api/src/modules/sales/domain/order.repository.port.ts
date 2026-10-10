@@ -37,6 +37,8 @@ export interface DistributorOrderSumFilter {
   from: string;
   to: string;
   timeZone: string;
+  /** `HH:mm` the business day starts; midnight when absent. */
+  dayStart?: string | undefined;
   distributorId?: string | undefined;
   productId?: string | undefined;
 }
@@ -55,6 +57,8 @@ export interface UserOrderSumFilter {
   from: string;
   to: string;
   timeZone: string;
+  /** `HH:mm` the business day starts; midnight when absent. */
+  dayStart?: string | undefined;
   userIds?: string[] | undefined;
   productId?: string | undefined;
 }

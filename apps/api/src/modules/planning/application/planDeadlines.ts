@@ -5,11 +5,11 @@ import {
   monthlyPlanDeadline,
   parseCalendarMonth,
   parseTimeOfDay,
-  zonedInstant,
+  dayStartInstant,
 } from '@/shared/time/businessTime.js';
 import { PLANNING_CONFIG_KEYS, type ConfigProviderPort } from '../domain/configProvider.port.js';
 import type { ResubmitPolicy } from '../domain/resubmitWindow.js';
-import { parsePositiveInt, readConfig } from '@/shared/config/readConfig.js';
+import { parsePositiveInt, readBusinessDay, readConfig } from '@/shared/config/readConfig.js';
 
 /**
  * Submit deadlines, read from Config on every call — Admin can change a cutoff or the timezone at
@@ -23,7 +23,8 @@ export class PlanDeadlines {
 
   /** Today's date in the business timezone — the only day an approved plan can still be changed. */
   async today(): Promise<string> {
-    return businessDate(this.now(), await this.timeZone());
+    const { timeZone, dayStart } = await readBusinessDay(this.config);
+    return businessDate(this.now(), timeZone, dayStart);
   }
 
   /** Most in-day changes that can be applied to one Daily Plan. */
@@ -43,11 +44,11 @@ export class PlanDeadlines {
   }
 
   async monthly(planMonth: string): Promise<Date> {
-    const [timeZone, cutoffDay] = await Promise.all([
-      this.timeZone(),
+    const [{ timeZone, dayStart }, cutoffDay] = await Promise.all([
+      readBusinessDay(this.config),
       readConfig(this.config, PLANNING_CONFIG_KEYS.monthlyCutoffDay, parsePositiveInt(31)),
     ]);
-    return monthlyPlanDeadline(planMonth, cutoffDay, timeZone);
+    return monthlyPlanDeadline(planMonth, cutoffDay, timeZone, dayStart);
   }
 
   async dailyResubmitPolicy(planDate: string): Promise<ResubmitPolicy> {
@@ -64,14 +65,14 @@ export class PlanDeadlines {
   }
 
   async monthlyResubmitPolicy(planMonth: string): Promise<ResubmitPolicy> {
-    const [timeZone, hours, max] = await Promise.all([
-      this.timeZone(),
+    const [{ timeZone, dayStart }, hours, max] = await Promise.all([
+      readBusinessDay(this.config),
       readConfig(this.config, PLANNING_CONFIG_KEYS.monthlyResubmitGraceHours, parsePositiveInt(24 * 31)),
       this.resubmitMax(),
     ]);
     const { year, month } = parseCalendarMonth(planMonth);
     // The last moment before the month starts.
-    const latest = new Date(zonedInstant({ year, month, day: 1 }, 0, 0, timeZone).getTime() - 1);
+    const latest = new Date(dayStartInstant({ year, month, day: 1 }, dayStart, timeZone).getTime() - 1);
     return { graceMs: hours * 3_600_000, latest, max };
   }
 

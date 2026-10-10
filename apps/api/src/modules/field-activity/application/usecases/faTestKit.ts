@@ -173,7 +173,7 @@ export class FakeDcrs implements DcrRepositoryPort {
 }
 
 export class FakeConfig implements ConfigReader {
-  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', TA_MAX_KM: '99', EXPENSE_PAYOUT_DAY: '15', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: 'NONE' };
+  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', TA_MAX_KM: '99', EXPENSE_PAYOUT_DAY: '15', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: 'NONE' };
   async get(key: string) {
     const v = this.values[key];
     if (v === undefined) throw new Error(`missing ${key}`);

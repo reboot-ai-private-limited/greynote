@@ -21,7 +21,7 @@ export function useDayGate(): DayGate & { today: string } {
   const activity = useCachedSource<FieldActivitySnapshot>('fieldActivity');
   const config = useCachedSource<ConfigSnapshot>('config');
 
-  const today = businessToday(config.data?.settings.BUSINESS_TIMEZONE);
+  const today = businessToday(config.data?.settings.BUSINESS_TIMEZONE, new Date(), config.data?.settings.DAY_START_TIME);
   const gate = computeDayGate({
     today,
     plans: planning.data?.dailyPlans ?? null,

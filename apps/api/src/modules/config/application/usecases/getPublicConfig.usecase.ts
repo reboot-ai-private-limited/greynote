@@ -8,6 +8,8 @@ export interface PublicConfigView {
   financialYearStartMonth: number;
   /** An IANA name, e.g. `Asia/Kolkata`. */
   businessTimezone: string;
+  /** `HH:mm`: when the business day rolls over, e.g. `02:00`. */
+  dayStartTime: string;
 }
 
 const defaultOf = (key: string) => CONFIG_DEFINITIONS.find((d) => d.key === key)!.default;
@@ -30,7 +32,7 @@ export class GetPublicConfigUseCase {
   }
 
   async execute(): Promise<PublicConfigView> {
-    const [month, timezone] = await Promise.all([this.valid('FY_START_MONTH'), this.valid('BUSINESS_TIMEZONE')]);
-    return { financialYearStartMonth: MONTH_NAMES.indexOf(month as (typeof MONTH_NAMES)[number]) + 1, businessTimezone: timezone };
+    const [month, timezone, dayStart] = await Promise.all([this.valid('FY_START_MONTH'), this.valid('BUSINESS_TIMEZONE'), this.valid('DAY_START_TIME')]);
+    return { financialYearStartMonth: MONTH_NAMES.indexOf(month as (typeof MONTH_NAMES)[number]) + 1, businessTimezone: timezone, dayStartTime: dayStart };
   }
 }

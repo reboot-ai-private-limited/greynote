@@ -1,6 +1,6 @@
 import type { SalaryFiguresDto, SalaryMonthDto, SalaryRowDto, SalaryYearReportDto } from '@greynote/contracts';
-import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
-import { assertTimeZone, businessDate, leaveYearRange, parseMonthName } from '@/shared/time/businessTime.js';
+import { readBusinessDay, readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
+import { businessDate, leaveYearRange, parseMonthName } from '@/shared/time/businessTime.js';
 import { yearMonths } from '../domain/salesFigures.js';
 import type { FieldActivityPort, IdentityPort, PayrollPort, PayrollReportRow } from '../domain/ports.js';
 
@@ -40,11 +40,8 @@ export class SalaryReport {
   ) {}
 
   private async currentMonth(): Promise<string> {
-    const zone = await readConfig(this.config, 'BUSINESS_TIMEZONE', (v) => {
-      assertTimeZone(v);
-      return v;
-    });
-    return businessDate(this.now(), zone).slice(0, 7);
+    const { timeZone: zone, dayStart } = await readBusinessDay(this.config);
+    return businessDate(this.now(), zone, dayStart).slice(0, 7);
   }
 
   async year(input: { year: number }): Promise<SalaryYearReportDto> {

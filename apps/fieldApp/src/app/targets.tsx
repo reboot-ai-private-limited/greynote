@@ -35,7 +35,7 @@ export default function TargetsScreen() {
   const config = useCachedSource<ConfigSnapshot>('config');
   const { colleagues } = useColleagues();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
-  const thisMonth = monthOf(businessToday(config.data?.settings.BUSINESS_TIMEZONE));
+  const thisMonth = monthOf(businessToday(config.data?.settings.BUSINESS_TIMEZONE, new Date(), config.data?.settings.DAY_START_TIME));
 
   const [picked, setMonth] = useState<string | null>(null);
   const month = picked ?? thisMonth;

@@ -28,6 +28,6 @@ export class Probation {
     if (!employment?.dateOfJoining) return null;
     const months = employment.probationMonths ?? (await readConfig(this.config, 'PROBATION_MONTHS', parseMonths));
     if (months === 0) return null;
-    return probationEndsOn(await this.calendar.dateOf(employment.dateOfJoining), months);
+    return probationEndsOn(await this.calendar.calendarDateOf(employment.dateOfJoining), months);
   }
 }

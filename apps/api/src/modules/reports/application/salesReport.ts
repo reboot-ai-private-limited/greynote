@@ -1,6 +1,6 @@
 import type { SalesStatementDto, SalesYearReportDto } from '@greynote/contracts';
-import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
-import { assertTimeZone, businessDate, leaveYearRange, monthRange, parseMonthName } from '@/shared/time/businessTime.js';
+import { readBusinessDay, readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
+import { businessDate, leaveYearRange, monthRange, parseMonthName } from '@/shared/time/businessTime.js';
 import { buildSalesMonths, buildStatement, previousMonth, yearMonths, type StatementCount, type StockCount } from '../domain/salesFigures.js';
 import type { MasterPort, SalesPort, StatementRow, StatementsPort, StockRow } from '../domain/ports.js';
 
@@ -23,11 +23,8 @@ export class SalesReport {
   ) {}
 
   private async currentMonth(): Promise<string> {
-    const zone = await readConfig(this.config, 'BUSINESS_TIMEZONE', (v) => {
-      assertTimeZone(v);
-      return v;
-    });
-    return businessDate(this.now(), zone).slice(0, 7);
+    const { timeZone: zone, dayStart } = await readBusinessDay(this.config);
+    return businessDate(this.now(), zone, dayStart).slice(0, 7);
   }
 
   async year(input: { year: number; distributorId?: string | undefined; productId?: string | undefined }): Promise<SalesYearReportDto> {

@@ -157,6 +157,16 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
     impactNote: 'Every deadline and every "today" in the system moves to the new timezone: plan cutoffs, leave dates, the missed-report check and payroll months.',
   },
   {
+    key: 'DAY_START_TIME',
+    module: 'SYSTEM',
+    label: 'Business day starts at',
+    description: 'Time of day the business day rolls over. With 02:00, work done at 01:00 on the 11th still counts as the 10th, and the last day of a month ends at 02:00 on the 1st.',
+    type: 'TIME',
+    default: '00:00',
+    impact: 'HIGH',
+    impactNote: 'From the next moment, "today", the Daily Plan day, report dates and month ends all roll over at the new time. Records already saved keep the day they were saved under. Plan deadlines are still read as a time on the plan\'s own date.',
+  },
+  {
     key: 'FY_CLOSED_YEARS',
     module: 'SYSTEM',
     label: 'Closed financial years',

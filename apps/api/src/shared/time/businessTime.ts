@@ -82,10 +82,24 @@ function offsetMs(instant: Date, timeZone: string): number {
   return asUtc - Math.floor(instant.getTime() / 1000) * 1000;
 }
 
-/** The calendar day it is in `timeZone` at `now`, as `YYYY-MM-DD`. */
-export function businessDate(now: Date, timeZone: string): string {
-  const w = wallClock(now, timeZone);
+export const DEFAULT_DAY_START = '00:00';
+
+/**
+ * The business day `now` belongs to in `timeZone`, as `YYYY-MM-DD`. A day runs from `dayStart`
+ * (`HH:mm`, default midnight) to the next `dayStart`, so with `02:00` the instant 01:30 on the 11th
+ * is still the 10th.
+ */
+export function businessDate(now: Date, timeZone: string, dayStart: string = DEFAULT_DAY_START): string {
+  const { hour, minute } = parseTimeOfDay(dayStart);
+  const shifted = new Date(now.getTime() - (hour * 60 + minute) * 60_000);
+  const w = wallClock(shifted, timeZone);
   return formatCalendarDate({ year: w.year, month: w.month, day: w.day });
+}
+
+/** The instant business day `date` begins: `dayStart` on that calendar date in `timeZone`. */
+export function dayStartInstant(date: CalendarDate, dayStart: string, timeZone: string): Date {
+  const { hour, minute } = parseTimeOfDay(dayStart);
+  return zonedInstant(date, hour, minute, timeZone);
 }
 
 /**
@@ -98,6 +112,11 @@ export function zonedInstant(date: CalendarDate, hour: number, minute: number, t
   return new Date(naive - offsetMs(new Date(first), timeZone));
 }
 
+/** The last millisecond of business day `date`: one before the next day starts. */
+export function endOfBusinessDay(date: string, dayStart: string, timeZone: string): Date {
+  return new Date(dayStartInstant(parseCalendarDate(addDays(date, 1)), dayStart, timeZone).getTime() - 1);
+}
+
 /** A Daily Plan is due at `cutoffTime` (`HH:mm`) on its own date. */
 export function dailyPlanDeadline(planDate: string, cutoffTime: string, timeZone: string): Date {
   const { hour, minute } = parseTimeOfDay(cutoffTime);
@@ -107,9 +126,9 @@ export function dailyPlanDeadline(planDate: string, cutoffTime: string, timeZone
 /**
  * A Monthly Plan is due by the end of day `cutoffDay` of the month before `planMonth`. A day past
  * that month's end means its last day (30 in February → the 28th or 29th). Returns the last
- * millisecond of that day.
+ * millisecond of that business day.
  */
-export function monthlyPlanDeadline(planMonth: string, cutoffDay: number, timeZone: string): Date {
+export function monthlyPlanDeadline(planMonth: string, cutoffDay: number, timeZone: string, dayStart: string = DEFAULT_DAY_START): Date {
   if (!Number.isInteger(cutoffDay) || cutoffDay < 1 || cutoffDay > 31) {
     throw new RangeError(`Not a day of the month: ${cutoffDay}`);
   }
@@ -117,7 +136,8 @@ export function monthlyPlanDeadline(planMonth: string, cutoffDay: number, timeZo
   const prevYear = month === 1 ? year - 1 : year;
   const prevMonth = month === 1 ? 12 : month - 1;
   const day = Math.min(cutoffDay, daysInMonth(prevYear, prevMonth));
-  return zonedInstant({ year: prevYear, month: prevMonth, day }, 23, 59, timeZone, 59_999);
+  // The business day ends the moment the next one starts: 01:59:59.999 the next morning with a 02:00 day start.
+  return endOfBusinessDay(formatCalendarDate({ year: prevYear, month: prevMonth, day }), dayStart, timeZone);
 }
 
 export const MONTH_NAMES = [

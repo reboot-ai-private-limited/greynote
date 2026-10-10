@@ -1,6 +1,6 @@
 import { logger } from '@/shared/logging/logger.js';
 import { assertTimeZone, businessDate } from '@/shared/time/businessTime.js';
-import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
+import { readConfig, readDayStart, type ConfigReader } from '@/shared/config/readConfig.js';
 import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import type { PayrollFilter, PayrollRunRepositoryPort } from '../../domain/payroll.repository.port.js';
 import { PAYROLL_CODES, PayrollRefusal, type PayrollCode } from '../../domain/payrollRefusal.js';
@@ -32,9 +32,13 @@ export class PayrollClock {
     });
   }
   async today(): Promise<string> {
-    return businessDate(this.now(), await this.timeZone());
+    return businessDate(this.now(), await this.timeZone(), await readDayStart(this.config));
   }
   async dateOf(instant: Date): Promise<string> {
+    return businessDate(instant, await this.timeZone(), await readDayStart(this.config));
+  }
+  /** A date of record (the joining date) read in the business timezone, not shifted by the day start. */
+  async calendarDateOf(instant: Date): Promise<string> {
     return businessDate(instant, await this.timeZone());
   }
   /** A month inside a closed financial year can no longer be generated or finalized. */
@@ -97,7 +101,7 @@ export class GeneratePayrollUseCase {
     // Working days with no report, leave or strike cost a day's pay too (decision-log 2026-10-06, K20); never more than a month with the leave.
     const absentDays = chargeableAbsentDays(unpaidLeaveDays, (await this.attendance.countDeductibleDays(userId, month)).deductibleDays);
     const absentDeduction = absentDeductionPaise(absentDays, baseSalaryPaise);
-    const joinedInMonth = employment?.dateOfJoining ? (await this.clock.dateOf(employment.dateOfJoining)).startsWith(`${month}-`) : false;
+    const joinedInMonth = employment?.dateOfJoining ? (await this.clock.calendarDateOf(employment.dateOfJoining)).startsWith(`${month}-`) : false;
 
     const saved = await this.runs.saveDraft({
       userId,

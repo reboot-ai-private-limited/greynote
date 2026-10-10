@@ -1,4 +1,4 @@
-import { businessTimeZone } from './siteConfig';
+import { businessDayStart, businessTimeZone } from './siteConfig';
 
 /**
  * The API speaks three date conventions — `YYYY-MM-DD` (hr, field-activity, planning), `YYYY-MM`
@@ -7,14 +7,19 @@ import { businessTimeZone } from './siteConfig';
  * five and a half hours of the Indian day.
  */
 
-/** `YYYY-MM-DD` in the business timezone. The name is from when that was always India. (`en-CA` formats as ISO.) */
+/**
+ * The business day, `YYYY-MM-DD`, in the business timezone. The name is from when that was always India. (`en-CA` formats as ISO.)
+ * The day rolls over at the configured day start, not midnight: with `02:00`, 01:30 on the 11th is still the 10th.
+ */
 export function istDate(now: Date = new Date()): string {
+  const [hour = 0, minute = 0] = businessDayStart().split(':').map(Number);
+  const shifted = new Date(now.getTime() - (hour * 60 + minute) * 60_000);
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: businessTimeZone(),
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(now);
+  }).format(shifted);
 }
 
 /** `YYYY-MM` in Indian time. */

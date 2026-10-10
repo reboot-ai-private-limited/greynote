@@ -29,7 +29,9 @@ export class FinancialYearClose {
   private async currentYear(): Promise<number> {
     const zone = await valueOf(this.repository, 'BUSINESS_TIMEZONE');
     assertTimeZone(zone);
-    return leaveYearOf(businessDate(this.now(), zone), parseMonthName(await valueOf(this.repository, 'FY_START_MONTH')));
+    // A database not yet re-seeded has no day start: midnight, as before the setting existed.
+    const dayStart = (await this.repository.findByKey('DAY_START_TIME'))?.value || '00:00';
+    return leaveYearOf(businessDate(this.now(), zone, dayStart), parseMonthName(await valueOf(this.repository, 'FY_START_MONTH')));
   }
 
   private async closed(): Promise<number[]> {

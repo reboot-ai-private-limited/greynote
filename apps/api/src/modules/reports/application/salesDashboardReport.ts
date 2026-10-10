@@ -1,7 +1,7 @@
 import type { SalesDashboardComplianceDto, SalesDashboardDto, SalesDashboardRowDto } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
-import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
-import { assertTimeZone, businessDate, eachDate } from '@/shared/time/businessTime.js';
+import { readBusinessDay, type ConfigReader } from '@/shared/config/readConfig.js';
+import { businessDate, eachDate } from '@/shared/time/businessTime.js';
 import { monthRange } from '@/shared/time/businessTime.js';
 import { primaryOf, secondaryOf, type PriceRow } from '../domain/employeeFigures.js';
 import type { AttendancePort, EmployeeSalesPort, FieldDaysPort, FieldRosterPort, MarketingPort, MasterPort, PlanningPort, TerritoryPort, ZoneNamePort } from '../domain/ports.js';
@@ -47,11 +47,8 @@ export class SalesDashboardReport {
   ) {}
 
   async read(input: SalesDashboardInput): Promise<SalesDashboardDto> {
-    const zone = await readConfig(this.config, 'BUSINESS_TIMEZONE', (v) => {
-      assertTimeZone(v);
-      return v;
-    });
-    const today = businessDate(this.now(), zone);
+    const { timeZone: zone, dayStart } = await readBusinessDay(this.config);
+    const today = businessDate(this.now(), zone, dayStart);
     const from = input.from;
     const to = input.to < today ? input.to : today;
     if (input.to < from) throw AppError.badRequest('The range ends before it starts.');

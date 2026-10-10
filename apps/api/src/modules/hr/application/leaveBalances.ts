@@ -35,7 +35,7 @@ export class LeaveBalances {
       this.types.list().then((ts) => ts.filter((t) => t.isPaid)),
       this.policies.listForPayBand(employment.payBandId),
       this.calendar.leaveYearRange(year),
-      employment.dateOfJoining ? this.calendar.dateOf(employment.dateOfJoining) : Promise.resolve(null),
+      employment.dateOfJoining ? this.calendar.calendarDateOf(employment.dateOfJoining) : Promise.resolve(null),
     ]);
     const defaults = new Map(policies.map((p) => [p.leaveTypeId, p.defaultDays]));
     await this.balances.insertMissing(

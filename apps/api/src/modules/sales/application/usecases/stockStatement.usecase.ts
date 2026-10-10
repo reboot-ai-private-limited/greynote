@@ -97,7 +97,7 @@ export class ReadStatementUseCase {
       this.master.listActiveProducts(),
       this.statements.list({ fromMonth: prev, toMonth: input.month, distributorId: input.distributorId }, LIMIT),
       this.stock.listRange({ fromMonth: prev, toMonth: input.month, outletType: 'DISTRIBUTOR', outletId: input.distributorId }, LIMIT),
-      this.orders.sumDistributorOrders({ from, to, timeZone, distributorId: input.distributorId }),
+      this.orders.sumDistributorOrders({ from, to, timeZone, dayStart: await this.clock.dayStart(), distributorId: input.distributorId }),
     ]);
     const thisSaved = new Map(saved.filter((s) => s.month === input.month).map((s) => [key(s.productId), s]));
     const prevSaved = new Map(saved.filter((s) => s.month === prev).map((s) => [key(s.productId), s]));

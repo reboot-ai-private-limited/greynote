@@ -1,6 +1,5 @@
-import { readConfig, parsePositiveInt, type ConfigReader } from '@/shared/config/readConfig.js';
+import { readConfig, parsePositiveInt, readBusinessDay, type ConfigReader } from '@/shared/config/readConfig.js';
 import {
-  assertTimeZone,
   businessDate,
   leaveYearOf,
   leaveYearRange,
@@ -39,10 +38,13 @@ export class HrCalendar {
 
   /** The calendar day an instant falls on in the business timezone. */
   async dateOf(instant: Date): Promise<string> {
-    const timeZone = await readConfig(this.config, HR_CONFIG_KEYS.timeZone, (v) => {
-      assertTimeZone(v);
-      return v;
-    });
+    const { timeZone, dayStart } = await readBusinessDay(this.config);
+    return businessDate(instant, timeZone, dayStart);
+  }
+
+  /** A date of record (joining date, DOB) read in the business timezone, not shifted by the day start. */
+  async calendarDateOf(instant: Date): Promise<string> {
+    const { timeZone } = await readBusinessDay(this.config);
     return businessDate(instant, timeZone);
   }
 

@@ -94,7 +94,8 @@ needs Route or Work-With detail is a reason to extend the contract, not to reach
   (default `10:00`) and `MONTHLY_PLAN_SUBMIT_CUTOFF_DATE` (default the 28th), read in
   `BUSINESS_TIMEZONE` (default `Asia/Kolkata`) on every submit. A Daily Plan is due at the cutoff
   time on its own date. A Monthly Plan is due at the end of the cutoff day in the month before (a
-  day past that month's end means its last day).
+  day past that month's end means its last day), where "end of the day" is one millisecond before the next business day starts
+  (`DAY_START_TIME`, default 00:00; see the decision log 2026-10-10).
 - **A late submit is refused** (`409 PLAN_SUBMIT_LATE`, details carry `deadline` and `planKey`),
   resubmits included, unless a resubmit window is open or the employee holds a late-submission
   exception (both below). Decided 2026-09-28, sign-off B8.

@@ -6,8 +6,18 @@ import type { PlanStatus } from '@/types/sync';
  * the cache wrongly allowed (a manager may have rejected the plan since the last sync).
  */
 
-/** Today's date (YYYY-MM-DD) in the business timezone; the phone's own date if that can't be worked out. */
-export function businessToday(timeZone: string | null | undefined, now: Date = new Date()): string {
+/** `HH:mm` as minutes after midnight; 0 (midnight, the old behaviour) for anything else. */
+function dayStartMinutes(dayStart: string | null | undefined): number {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(dayStart ?? '');
+  return m ? Number(m[1]) * 60 + Number(m[2]) : 0;
+}
+
+/**
+ * The business day (YYYY-MM-DD) in the business timezone; the phone's own date if that can't be worked out. The day rolls over at
+ * `dayStart` (`DAY_START_TIME`, default midnight): with `02:00`, 01:30 on the 11th is still the 10th.
+ */
+export function businessToday(timeZone: string | null | undefined, now: Date = new Date(), dayStart?: string | null): string {
+  now = new Date(now.getTime() - dayStartMinutes(dayStart) * 60_000);
   try {
     if (timeZone) {
       const parts = new Intl.DateTimeFormat('en-CA', {
@@ -142,8 +152,10 @@ export function businessNowHHmm(timeZone: string | null | undefined, now: Date =
 }
 
 /** Whether a Daily Plan's own submit deadline (cutoff time on its date) has already passed. A UX hint; the server decides. */
-export function dailyDeadlinePassed(planDate: string, today: string, nowHHmm: string, cutoffHHmm: string): boolean {
+export function dailyDeadlinePassed(planDate: string, today: string, nowHHmm: string, cutoffHHmm: string, dayStart?: string | null): boolean {
   if (planDate < today) return true;
+  // Before the day start the clock is already past midnight of a business day that began yesterday: its cutoff has gone.
+  if (planDate === today && dayStart && nowHHmm < dayStart) return true;
   return planDate === today && nowHHmm > cutoffHHmm;
 }
 

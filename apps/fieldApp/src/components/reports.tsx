@@ -158,7 +158,7 @@ export function SalesReport({ month, year }: { month: string; year: number }) {
   const counted = new Set((stock.data ?? []).map((r) => `${r.outlet.type}:${r.outlet.id}`));
   const countedMine = outlets.filter((o) => counted.has(o)).length;
 
-  const giftsThisMonth = (gifts.data ?? []).filter((g) => g.completedAt && monthOf(businessToday(zone, new Date(g.completedAt))) === month);
+  const giftsThisMonth = (gifts.data ?? []).filter((g) => g.completedAt && monthOf(businessToday(zone, new Date(g.completedAt), config.data?.settings.DAY_START_TIME)) === month);
 
   const given = new Map<string, number>();
   for (const a of master.data?.sampleAllocations ?? []) given.set(a.productId, (given.get(a.productId) ?? 0) + (a.quantityAllocated - a.quantityRemaining));

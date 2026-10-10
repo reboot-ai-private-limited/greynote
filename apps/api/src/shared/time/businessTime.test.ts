@@ -4,6 +4,7 @@ import {
   assertTimeZone,
   businessDate,
   dailyPlanDeadline,
+  dayStartInstant,
   eachDate,
   leaveYearOf,
   leaveYearRange,
@@ -21,6 +22,27 @@ describe('businessDate', () => {
   it('rolls over at midnight in the business timezone, not UTC', () => {
     expect(businessDate(new Date('2026-10-04T18:29:59Z'), IST)).toBe('2026-10-04');
     expect(businessDate(new Date('2026-10-04T18:30:00Z'), IST)).toBe('2026-10-05');
+  });
+
+  it('rolls over at the configured day start instead of midnight', () => {
+    // 01:59 IST on the 5th is still the 4th with a 02:00 day start; 02:00 opens the 5th.
+    expect(businessDate(new Date('2026-10-04T20:29:00Z'), IST, '02:00')).toBe('2026-10-04');
+    expect(businessDate(new Date('2026-10-04T20:30:00Z'), IST, '02:00')).toBe('2026-10-05');
+  });
+
+  it('puts the small hours of the 1st into the previous month and year', () => {
+    expect(businessDate(new Date('2026-09-30T20:00:00Z'), IST, '02:00')).toBe('2026-09-30');
+    expect(businessDate(new Date('2026-12-31T20:00:00Z'), IST, '02:00')).toBe('2026-12-31');
+  });
+
+  it('defaults to midnight', () => {
+    expect(businessDate(new Date('2026-10-04T20:00:00Z'), IST)).toBe('2026-10-05');
+  });
+});
+
+describe('dayStartInstant', () => {
+  it('is the day-start wall time on that date', () => {
+    expect(dayStartInstant({ year: 2026, month: 10, day: 5 }, '02:00', IST).toISOString()).toBe('2026-10-04T20:30:00.000Z');
   });
 });
 

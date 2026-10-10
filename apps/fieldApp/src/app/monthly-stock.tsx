@@ -41,7 +41,7 @@ export default function MonthlyStockScreen() {
   const online = useOnline();
   const config = useCachedSource<ConfigSnapshot>('config');
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
-  const thisMonth = monthOf(businessToday(config.data?.settings.BUSINESS_TIMEZONE));
+  const thisMonth = monthOf(businessToday(config.data?.settings.BUSINESS_TIMEZONE, new Date(), config.data?.settings.DAY_START_TIME));
   const [month, setMonth] = useState(thisMonth);
   const closed = month < addMonths(thisMonth, -1);
   const { records } = useRecords(['MONTHLY_STOCK']);

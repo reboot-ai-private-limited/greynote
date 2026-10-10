@@ -9,7 +9,8 @@ import type {
 } from '@greynote/contracts';
 import { MAX_BULK_DECISIONS } from '@greynote/contracts';
 import type { BadgeTone } from '@/components/ui/Badge';
-import { zoneOffset } from '@/lib/siteConfig';
+import { addDays } from '@/lib/dates';
+import { businessDayStart, zoneOffset } from '@/lib/siteConfig';
 
 // ── Kinds ──────────────────────────────────────────────────────────────────────────────────
 
@@ -63,7 +64,9 @@ export function finalApproverLabel(kind: string): string {
 }
 
 /** Who a request is waiting on, or how it ended. */
-export function stageLabel(item: Pick<ApprovalInboxItemDto, 'kind' | 'status' | 'workflow'>): string {
+export function stageLabel(
+  item: Pick<ApprovalInboxItemDto, 'kind' | 'status' | 'workflow'>,
+): string {
   switch (item.status) {
     case 'SUBMITTED':
       return 'Waiting on the manager';
@@ -85,7 +88,10 @@ export function stageLabel(item: Pick<ApprovalInboxItemDto, 'kind' | 'status' | 
  * Said in the confirmation, because it skips a stage. (A request from someone with no manager is
  * decided by Admin as the ordinary top of the chain; the history records which it was.)
  */
-export function skipsManager(item: Pick<ApprovalInboxItemDto, 'status'>, actorRole: string | undefined): boolean {
+export function skipsManager(
+  item: Pick<ApprovalInboxItemDto, 'status'>,
+  actorRole: string | undefined,
+): boolean {
   return item.status === 'SUBMITTED' && actorRole === 'ADMIN';
 }
 
@@ -131,7 +137,9 @@ export function actionTone(action: ApprovalActionType): BadgeTone {
 }
 
 /** The history grouped by submission round, newest round first, so a resubmission reads as its own chapter. */
-export function groupByCycle(history: readonly ApprovalActionDto[]): { cycle: number; actions: ApprovalActionDto[] }[] {
+export function groupByCycle(
+  history: readonly ApprovalActionDto[],
+): { cycle: number; actions: ApprovalActionDto[] }[] {
   const byCycle = new Map<number, ApprovalActionDto[]>();
   for (const a of history) byCycle.set(a.cycle, [...(byCycle.get(a.cycle) ?? []), a]);
   return [...byCycle]
@@ -146,6 +154,15 @@ export function groupByCycle(history: readonly ApprovalActionDto[]): { cycle: nu
  * "From the 1st to the 3rd" is the start of the 1st and the last millisecond of the 3rd, in the business timezone (with its offset on those days).
  */
 export function dateRangeToInstants(from: string, to: string): { from?: string; to?: string } {
+  const dayStart = businessDayStart();
+  if (dayStart !== '00:00') {
+    // A business day runs dayStart to dayStart: "the 1st to the 3rd" ends one millisecond before the 4th begins.
+    const startOf = (date: string) => new Date(`${date}T${dayStart}:00.000${zoneOffset(date)}`);
+    return {
+      ...(from && { from: startOf(from).toISOString() }),
+      ...(to && { to: new Date(startOf(addDays(to, 1)).getTime() - 1).toISOString() }),
+    };
+  }
   return {
     ...(from && { from: `${from}T00:00:00.000${zoneOffset(from)}` }),
     ...(to && { to: `${to}T23:59:59.999${zoneOffset(to)}` }),
@@ -172,7 +189,9 @@ export function reasonError(reason: string, required: boolean): string | undefin
 // ── Bulk ───────────────────────────────────────────────────────────────────────────────────
 
 /** Only rows the caller can act on, as the `{ id, cycle }` pairs the API wants. */
-export function selectableRows<T extends Pick<ApprovalInboxItemDto, 'canAct' | 'status'>>(rows: readonly T[]): T[] {
+export function selectableRows<T extends Pick<ApprovalInboxItemDto, 'canAct' | 'status'>>(
+  rows: readonly T[],
+): T[] {
   return rows.filter((r) => r.canAct && isOpen(r.status));
 }
 
@@ -182,7 +201,11 @@ export function buildBulkBody(
   comment: string,
 ): BulkDecideDto {
   const text = comment.trim();
-  return { decision, requests: rows.map((r) => ({ id: r.id, cycle: r.cycle })), ...(text !== '' && { comment: text }) };
+  return {
+    decision,
+    requests: rows.map((r) => ({ id: r.id, cycle: r.cycle })),
+    ...(text !== '' && { comment: text }),
+  };
 }
 
 /** More than 100 are sent in batches of 100, each its own request. */
@@ -213,7 +236,8 @@ export function bulkMessage(summary: BulkSummary, total: number): string {
   return `${summary.done} of ${total} done. ${summary.failed.length} could not be decided: reload them and try again.`;
 }
 
-export const UNCONFIRMED_MESSAGE = 'Could not confirm: the connection failed. Reload and check before trying again.';
+export const UNCONFIRMED_MESSAGE =
+  'Could not confirm: the connection failed. Reload and check before trying again.';
 
 /**
  * Sends the rows in batches of 100, one request each, and always returns a result per row: a batch whose

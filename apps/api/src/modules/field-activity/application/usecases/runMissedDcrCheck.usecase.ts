@@ -85,7 +85,7 @@ export class RunMissedDcrCheckUseCase {
     const from = addDays(through, -(LOOKBACK_DAYS - 1));
     const [joined, cleared, off] = await Promise.all([this.users.getEmploymentDetails(userId), this.users.getLastBlockClearedAt(userId), this.leave.listOffDates(userId, from, through)]);
     const offDays = new Set(off);
-    const joinedOn = joined?.dateOfJoining ? await this.clock.dateOf(joined.dateOfJoining) : null;
+    const joinedOn = joined?.dateOfJoining ? await this.clock.calendarDateOf(joined.dateOfJoining) : null;
     // The day of the clearing itself is the employee's to work: they are judged from that day on.
     const clearedOn = cleared ? await this.clock.dateOf(cleared) : null;
 

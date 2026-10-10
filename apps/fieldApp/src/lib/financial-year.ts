@@ -82,7 +82,7 @@ export function useFinancialYear(): FinancialYearState {
   const userId = user?.id ?? null;
 
   const startMonth = fyStartMonth(config.data?.settings.FY_START_MONTH);
-  const today = businessToday(config.data?.settings.BUSINESS_TIMEZONE);
+  const today = businessToday(config.data?.settings.BUSINESS_TIMEZONE, new Date(), config.data?.settings.DAY_START_TIME);
   const current = fyOf(today, startMonth);
   const own = pick && pick.userId === userId && pick.year < current ? pick.year : null;
 

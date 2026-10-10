@@ -84,6 +84,7 @@ import { MongoUserAdapter } from './infrastructure/mongoUser.adapter.js';
 import { MongoUserDeviceAdapter } from './infrastructure/mongoUserDevice.adapter.js';
 import { MongoUserSessionAdapter } from './infrastructure/mongoUserSession.adapter.js';
 import { businessDate } from '@/shared/time/businessTime.js';
+import { readBusinessDay } from '@/shared/config/readConfig.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import {
   makeLoginController,
@@ -151,7 +152,10 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const managerHistoryRepository = new MongoManagerHistoryAdapter();
   const promotionRepository = new MongoPromotionAdapter();
   /** The current month in the business timezone, read each time so a changed setting is honoured. */
-  const currentMonth = async (): Promise<string> => businessDate(new Date(), await configProvider.get('BUSINESS_TIMEZONE')).slice(0, 7);
+  const currentMonth = async (): Promise<string> => {
+    const { timeZone, dayStart } = await readBusinessDay(configProvider);
+    return businessDate(new Date(), timeZone, dayStart).slice(0, 7);
+  };
   const userRepository = new MongoUserAdapter();
   const employeeDraftRepository = new MongoEmployeeDraftAdapter();
   const employeeCodeGenerator = new MongoEmployeeCodeGenerator(userRepository);

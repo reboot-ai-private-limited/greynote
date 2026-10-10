@@ -53,7 +53,7 @@ export class SaveEmployeeSecondaryUseCase {
   async execute(actor: Actor, input: { userId: string; month: string; lines: Array<{ productId: string; qty: number }> }): Promise<{ added: number; changed: number }> {
     await assertMayAct(this.users, actor, input.userId);
     const now = this.clock.now();
-    const window = monthWindow(input.month, now, await this.clock.deadlineDay(), await this.clock.timeZone());
+    const window = monthWindow(input.month, now, await this.clock.deadlineDay(), await this.clock.timeZone(), await this.clock.dayStart());
     if (window === 'FUTURE') throw new StockRefusal(STOCK_CODES.monthNotStarted, `${input.month} has not started yet.`);
     if (window === 'CLOSED' && actor.role !== 'ADMIN' && !(await this.stock.isUnlocked(input.month))) {
       throw new StockRefusal(STOCK_CODES.monthClosed, `The deadline for ${input.month} has passed. Ask an Admin to reopen it.`);
@@ -109,7 +109,7 @@ export class ReadEmployeeSalesUseCase {
     const [products, saved, orderSums] = await Promise.all([
       this.master.listActiveProducts(),
       this.sales.list({ userIds: [input.userId], fromMonth: input.month, toMonth: input.month }, 5000),
-      this.orders.sumUserOrders({ from, to, timeZone: await this.clock.timeZone(), userIds: [input.userId] }),
+      this.orders.sumUserOrders({ from, to, timeZone: await this.clock.timeZone(), dayStart: await this.clock.dayStart(), userIds: [input.userId] }),
     ]);
     const byProduct = new Map(saved.map((s) => [s.productId, s]));
     const ordered = new Map(orderSums.filter((o) => o.month === input.month).map((o) => [o.productId, o.quantity]));

@@ -1,7 +1,7 @@
 import type { RequestHandler } from 'express';
 import { AppError } from '@/shared/errors/AppError.js';
-import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
-import { addDays, assertTimeZone, businessDate, leaveYearOf, leaveYearRange, parseCalendarDate, parseMonthName, zonedInstant } from '@/shared/time/businessTime.js';
+import { readBusinessDay, readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
+import { addDays, businessDate, dayStartInstant, leaveYearOf, leaveYearRange, parseCalendarDate, parseMonthName } from '@/shared/time/businessTime.js';
 
 /**
  * The financial-year "time machine" (docs/hld/09, decision-log 2026-09-30). A client views a past year by sending
@@ -16,6 +16,8 @@ export interface FinancialYearContext {
   from: string;
   to: string;
   timeZone: string;
+  /** `HH:mm` the business day starts: a financial year runs from this time on its first day. */
+  dayStart: string;
 }
 
 export const FINANCIAL_YEAR_HEADER = 'x-financial-year';
@@ -35,16 +37,13 @@ export function financialYearContext(config: ConfigReader, now: () => Date = () 
       if (!/^\d{4}$/.test(header.trim())) throw invalid('X-Financial-Year must be the year the financial year starts in, e.g. 2025.');
       const year = Number(header.trim());
 
-      const timeZone = await readConfig(config, 'BUSINESS_TIMEZONE', (v) => {
-        assertTimeZone(v);
-        return v;
-      });
+      const { timeZone, dayStart } = await readBusinessDay(config);
       const startMonth = await readConfig(config, 'FY_START_MONTH', parseMonthName);
-      const current = leaveYearOf(businessDate(now(), timeZone), startMonth);
+      const current = leaveYearOf(businessDate(now(), timeZone, dayStart), startMonth);
       if (year > current) throw invalid(`Financial year ${year} has not started yet.`);
       if (year === current) return next();
 
-      req.financialYear = { year, ...leaveYearRange(year, startMonth), timeZone };
+      req.financialYear = { year, ...leaveYearRange(year, startMonth), timeZone, dayStart };
       if (!READ_METHODS.has(req.method) && !OPEN_WHILE_VIEWING.has(req.path)) {
         throw AppError.conflict(`Financial year ${year} is read-only. Switch back to the current year to make changes.`, { code: 'FINANCIAL_YEAR_READ_ONLY' });
       }
@@ -96,8 +95,8 @@ export function scopeToFinancialYear(rule: FinancialYearRule): RequestHandler {
       const bounds = (() => {
         if (rule.kind === 'date') return { lo: fy.from, hi: fy.to, cmp: (a: string) => a };
         if (rule.kind === 'month') return { lo: fy.from.slice(0, 7), hi: fy.to.slice(0, 7), cmp: (a: string) => a };
-        const start = zonedInstant(parseCalendarDate(fy.from), 0, 0, fy.timeZone);
-        const end = new Date(zonedInstant(parseCalendarDate(addDays(fy.to, 1)), 0, 0, fy.timeZone).getTime() - 1);
+        const start = dayStartInstant(parseCalendarDate(fy.from), fy.dayStart, fy.timeZone);
+        const end = new Date(dayStartInstant(parseCalendarDate(addDays(fy.to, 1)), fy.dayStart, fy.timeZone).getTime() - 1);
         return { lo: start.toISOString(), hi: end.toISOString(), cmp: (a: string) => new Date(a).toISOString() };
       })();
 

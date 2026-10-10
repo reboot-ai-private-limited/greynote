@@ -53,6 +53,22 @@ describe('UpdateConfigValueUseCase', () => {
     expect(result).toMatchObject({ key: 'DCR_MISS_GRACE_DAYS', value: '2', updatedBy: 'admin-1' });
   });
 
+  it('accepts any HH:mm as the business day start, wherever it falls against the plan deadline', async () => {
+    const repository = new FakeSystemConfigRepository(makeEntry({ key: 'DAY_START_TIME', value: '00:00' }));
+    repository.others.set('DAILY_PLAN_SUBMIT_CUTOFF_TIME', '10:00');
+    const useCase = new UpdateConfigValueUseCase(repository as unknown as SystemConfigRepositoryPort);
+
+    await expect(useCase.execute('admin-1', 'ADMIN', 'DAY_START_TIME', '2am')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(useCase.execute('admin-1', 'ADMIN', 'DAY_START_TIME', '25:00')).rejects.toMatchObject({ statusCode: 400 });
+    expect(repository.updates).toHaveLength(0);
+    await expect(useCase.execute('admin-1', 'ADMIN', 'DAY_START_TIME', '07:00')).resolves.toMatchObject({ value: '07:00' });
+    await expect(useCase.execute('admin-1', 'ADMIN', 'DAY_START_TIME', '18:30')).resolves.toMatchObject({ value: '18:30' });
+
+    // The plan deadline can sit before the day start too: nothing orders the two.
+    repository.others.set('DAY_START_TIME', '18:30');
+    await expect(useCase.execute('admin-1', 'ADMIN', 'DAILY_PLAN_SUBMIT_CUTOFF_TIME', '01:30')).resolves.toMatchObject({ value: '01:30' });
+  });
+
   it('rejects an unknown key with 404, not the internal CONFIG_KEY_MISSING path', async () => {
     const repository = new FakeSystemConfigRepository(null);
     const useCase = new UpdateConfigValueUseCase(repository as unknown as SystemConfigRepositoryPort);

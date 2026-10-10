@@ -38,7 +38,7 @@ describe('financialYearContext', () => {
   it('sets the context for a past year: the year named by its start, April to March', async () => {
     const { error, req } = await run(at('2026-09-30T10:00:00+05:30'), withHeader('2025'));
     expect(error).toBeUndefined();
-    expect(req.financialYear).toEqual({ year: 2025, from: '2025-04-01', to: '2026-03-31', timeZone: 'Asia/Kolkata' });
+    expect(req.financialYear).toEqual({ year: 2025, from: '2025-04-01', to: '2026-03-31', timeZone: 'Asia/Kolkata', dayStart: '00:00' });
   });
 
   it('refuses a malformed or future year with 400 INVALID_FINANCIAL_YEAR', async () => {
@@ -92,7 +92,7 @@ describe('financialYearContext', () => {
 });
 
 describe('scopeToFinancialYear', () => {
-  const fy: FinancialYearContext = { year: 2025, from: '2025-04-01', to: '2026-03-31', timeZone: 'Asia/Kolkata' };
+  const fy: FinancialYearContext = { year: 2025, from: '2025-04-01', to: '2026-03-31', timeZone: 'Asia/Kolkata', dayStart: '00:00' };
   const scope = (rule: FinancialYearRule, query: Record<string, unknown>, ctx: FinancialYearContext | null = fy) => run(scopeToFinancialYear(rule) as never, { query, financialYear: ctx ?? undefined } as never);
   const date: FinancialYearRule = { kind: 'date', from: 'from', to: 'to', fill: true };
 
@@ -161,6 +161,11 @@ describe('scopeToFinancialYear', () => {
     it('fills with the year’s first and last millisecond in business time', async () => {
       const { req } = await scope(instant, {});
       expect(req.query).toEqual({ from: '2025-03-31T18:30:00.000Z', to: '2026-03-31T18:29:59.999Z' }); // 00:00 IST 1 Apr … 23:59:59.999 IST 31 Mar
+    });
+    it('starts and ends the year at the business day start when it is not midnight', async () => {
+      const fy02: FinancialYearContext = { ...fy, dayStart: '02:00' };
+      const { req } = await scope(instant, {}, fy02);
+      expect(req.query).toEqual({ from: '2025-03-31T20:30:00.000Z', to: '2026-03-31T20:29:59.999Z' }); // 02:00 IST 1 Apr … 01:59:59.999 IST 1 Apr next year
     });
     it('the boundary is business midnight, whatever offset the client writes', async () => {
       expect((await scope(instant, { from: '2025-04-01T00:00:00+05:30' })).error).toBeUndefined();
