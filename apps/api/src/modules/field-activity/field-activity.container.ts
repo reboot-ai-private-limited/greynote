@@ -36,6 +36,8 @@ import type { TerritoryPort } from './domain/territory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import type { FieldActivityPublicContract } from './field-activity.public.js';
 import { MongoDoctorGiftAdapter, MongoDoctorServiceAdapter } from './infrastructure/mongoServiceGift.adapter.js';
+import { CloudinaryProofStorage } from './infrastructure/cloudinaryProofStorage.adapter.js';
+import { ExpenseProof } from './application/expenseProof.js';
 import { MongoDcrAdapter } from './infrastructure/mongoDcr.adapter.js';
 import { MongoChemistCallAdapter, MongoDoctorCallAdapter, MongoExpenseAdapter, MongoExpenseMonthAdapter, MongoFollowupAdapter } from './infrastructure/mongoRecords.adapter.js';
 import { makeFieldActivityControllers } from './interface/field-activity.controller.js';
@@ -98,7 +100,8 @@ export function buildFieldActivityContainer(
   const clock = new DcrClock(config);
 
   // A month of expenses goes to the manager, whose approval is the decision (Admin may act in their place); approval makes its rows payable.
-  const monthService = new ExpenseMonthService(expenses, expenseMonths, users, approvals, clock, config, new MongooseTransactionRunner());
+  const proofStorage = new CloudinaryProofStorage();
+  const monthService = new ExpenseMonthService(expenses, expenseMonths, users, approvals, clock, config, new MongooseTransactionRunner(), proofStorage);
   approvals.registerKind({ kind: EXPENSE_MONTH_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, onStatusChange: (change, ctx) => monthService.onStatusChange(change.recordId, change.status, ctx) });
   const gate = new LoggingGate(users, planning, approvals, dcrs, clock);
   const views = new DcrViews(approvals);
@@ -177,6 +180,7 @@ export function buildFieldActivityContainer(
           listExpenses: new ListExpensesUseCase(expenses, users),
           markPaid: new MarkExpensePaidUseCase(expenses, config),
           expenseMonths: monthService,
+          expenseProof: new ExpenseProof(expenses, monthService, proofStorage),
           listPayouts: new ListExpensePayoutsUseCase(expenses, users, config, clock),
           payExpenses: new PayMonthExpensesUseCase(expenses, config),
           override: new OverrideGeofenceUseCase(dcrs, users, views, doctorCalls, chemistCalls),

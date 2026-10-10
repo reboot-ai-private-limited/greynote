@@ -1,6 +1,6 @@
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { DoctorGift, DoctorService } from './serviceGift.entity.js';
-import type { Expense } from './expense.entity.js';
+import type { Expense, ExpenseAttachment } from './expense.entity.js';
 import type { ChemistCall, DoctorCall, Followup } from './call.entity.js';
 
 /** A manager accepting a flagged call: who, when and why. */
@@ -90,7 +90,14 @@ export interface ExpenseRepositoryPort {
    * Accountant pays on. `OTHER` rows are accepted with it — nothing else accepts them — and un-accepted when it goes back.
    */
   setMonthApproved(userId: string, range: { from: string; to: string }, approved: boolean, ctx: TransactionContext): Promise<void>;
-  create(input: Omit<Expense, 'id'>, ctx: TransactionContext): Promise<Expense>;
+  /**
+   * Adds a proof file to the employee's own `OTHER` row — one conditional update: the row is still `UNPAID` and has fewer than
+   * `max` files. Returns the row, or null if it is none of those.
+   */
+  addAttachment(id: string, userId: string, attachment: Omit<ExpenseAttachment, 'id'>, max: number): Promise<Expense | null>;
+  /** Removes one proof file from the employee's own unpaid `OTHER` row; returns the file removed, or null if there is none. */
+  removeAttachment(id: string, userId: string, attachmentId: string): Promise<ExpenseAttachment | null>;
+  create(input: Omit<Expense, 'id' | 'attachments'>, ctx: TransactionContext): Promise<Expense>;
   /** Whether the DCR already has AUTO rows that still count (not `CANCELLED`) — TA/DA is generated once per approval. */
   hasActiveAuto(dcrId: string, ctx: TransactionContext): Promise<boolean>;
   /** Marks the DCR's `UNPAID` AUTO rows `CANCELLED` (a `PAID` row is left); returns how many. */

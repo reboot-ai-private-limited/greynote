@@ -1,14 +1,30 @@
-import { Router } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
+import multer from 'multer';
+import { AppError } from '@/shared/errors/AppError.js';
 import type { AnyZodObject, ZodTypeAny } from 'zod';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
+import { MAX_EXPENSE_ATTACHMENT_BYTES } from '../domain/expense.entity.js';
 import type { FieldActivityHandlers } from './field-activity.controller.js';
-import { expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
+import { expenseAttachmentParamsSchema, expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
 
 const TAG = 'Field Activity';
+
+const uploadProof = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_EXPENSE_ATTACHMENT_BYTES, files: 1 } }).single('file');
+/** Converts multer's error-first callback (a bad file, a file over 5 MB) into the same AppError path everything else uses. */
+function proofUpload(req: Request, res: Response, next: NextFunction): void {
+  uploadProof(req, res, (err: unknown) => {
+    if (err) {
+      const tooBig = (err as { code?: string }).code === 'LIMIT_FILE_SIZE';
+      next(AppError.badRequest(tooBig ? 'That file is over 5 MB.' : err instanceof Error ? err.message : 'Invalid file upload.', { field: 'file' }));
+      return;
+    }
+    next();
+  });
+}
 
 function doc(path: string, summary: string, request: { query?: ZodTypeAny; params?: AnyZodObject } = {}): void {
   openApiRegistry.registerPath({
@@ -62,6 +78,24 @@ openApiRegistry.registerPath({
   responses: { 200: { description: 'The statement, now SUBMITTED' }, 409: { description: 'The month has not ended, or is already sent / approved' } },
 });
 docPost('/expenses/other', 'Add an expense in the single “Other” category, dated — while the month is still editable', otherExpenseBodySchema);
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/field-activity/expenses/other/{id}/attachments',
+  tags: [TAG],
+  summary: 'Field staff: attach proof (PDF, JPG or PNG, up to 5 MB, at most 3 per expense) to an Other expense — optional, while the month is still editable',
+  security: [{ bearerAuth: [] }],
+  request: { params: idParamsSchema },
+  responses: { 201: { description: 'The expense’s files' }, 400: { description: 'Not a PDF/JPG/PNG, empty, or too big' }, 409: { description: 'Already 3 files, or the expense can no longer be changed' } },
+});
+openApiRegistry.registerPath({
+  method: 'delete',
+  path: '/api/field-activity/expenses/other/{id}/attachments/{attachmentId}',
+  tags: [TAG],
+  summary: 'Field staff: remove a proof file from an Other expense while the month is still editable',
+  security: [{ bearerAuth: [] }],
+  request: { params: expenseAttachmentParamsSchema },
+  responses: { 200: { description: 'The expense’s remaining files' }, 404: { description: 'No such expense or file' } },
+});
 function docPost(path: string, summary: string, schema: ZodTypeAny): void {
   openApiRegistry.registerPath({
     method: 'post',
@@ -97,6 +131,8 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.post('/expense-months/:month/submit', requireRole('FIELD'), validate({ params: expenseMonthParamsSchema }), c.submitExpenseMonth);
   router.post('/expenses/other', requireRole('FIELD'), validate({ body: otherExpenseBodySchema }), c.addOtherExpense);
   router.put('/expenses/other/:id', requireRole('FIELD'), validate({ params: idParamsSchema, body: otherExpenseBodySchema }), c.updateOtherExpense);
+  router.post('/expenses/other/:id/attachments', requireRole('FIELD'), validate({ params: idParamsSchema }), proofUpload, c.addExpenseProof);
+  router.delete('/expenses/other/:id/attachments/:attachmentId', requireRole('FIELD'), validate({ params: expenseAttachmentParamsSchema }), c.removeExpenseProof);
   router.delete('/expenses/other/:id', requireRole('FIELD'), validate({ params: idParamsSchema }), c.deleteOtherExpense);
   router.get('/doctor-services', requireRole('FIELD', 'ADMIN'), validate({ query: listServicesQuerySchema }), c.listServices);
   router.get('/doctor-services/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.getService);

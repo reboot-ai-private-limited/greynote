@@ -9,6 +9,24 @@ export type ExpenseSource = 'AUTO' | 'MANUAL';
 /** Separate from the DCR's approval: approval accepts the claim, the Accountant's mark-paid settles it. */
 export type PaymentStatus = 'UNPAID' | 'PAID' | 'CANCELLED';
 
+/** A receipt or other proof on an `OTHER` expense — at most 3 files of 5 MB each, a PDF, JPG or PNG. */
+export const MAX_EXPENSE_ATTACHMENTS = 3;
+export const MAX_EXPENSE_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+
+export interface ExpenseAttachment {
+  id: string;
+  url: string;
+  /** The storage id — kept server-side so the file can be removed with the record; never sent to a client. */
+  publicId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedAt: Date;
+}
+/** What a client sees of a file: everything but the storage id. */
+export type ExpenseAttachmentView = Omit<ExpenseAttachment, 'publicId'>;
+export const toAttachmentView = ({ publicId: _publicId, ...rest }: ExpenseAttachment): ExpenseAttachmentView => rest;
+
 export interface Expense {
   id: string;
   /** The DCR an AUTO row or a legacy claim belongs to; null for an `OTHER` row of the monthly statement. */
@@ -36,4 +54,10 @@ export interface Expense {
   /** The phone's id for a MANUAL expense — the sync client id; null for AUTO rows. */
   clientId: string | null;
   recordedAt: Date;
+  /** Proof of an `OTHER` row; always empty for every other row. */
+  attachments: ExpenseAttachment[];
 }
+
+/** An expense as a client sees it: the proof files without their storage ids. */
+export type ExpenseView = Omit<Expense, 'attachments'> & { attachments: ExpenseAttachmentView[] };
+export const toExpenseView = (e: Expense): ExpenseView => ({ ...e, attachments: e.attachments.map(toAttachmentView) });

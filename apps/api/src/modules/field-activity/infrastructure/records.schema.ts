@@ -110,7 +110,11 @@ export interface ExpenseDoc {
   paidAt: Date | null;
   clientId: string | null;
   recordedAt: Date;
+  attachments?: Array<{ _id: Types.ObjectId; url: string; publicId: string; fileName: string; mimeType: string; sizeBytes: number; uploadedAt: Date }>;
 }
+const expenseAttachmentSchema = new Schema(
+  { url: { type: String, required: true }, publicId: { type: String, required: true }, fileName: { type: String, required: true }, mimeType: { type: String, required: true }, sizeBytes: { type: Number, required: true }, uploadedAt: { type: Date, required: true } },
+);
 const expenseSchema = new Schema<ExpenseDoc>({
   dcrId: { type: Schema.Types.ObjectId, default: null, ref: 'Dcr' },
   userId: ref('User'),
@@ -128,6 +132,7 @@ const expenseSchema = new Schema<ExpenseDoc>({
   paidAt: { type: Date, default: null },
   clientId: { type: String, default: null },
   recordedAt: { type: Date, required: true },
+  attachments: { type: [expenseAttachmentSchema], default: [] },
 });
 expenseSchema.index({ dcrId: 1, recordedAt: 1 });
 // The Accountant's audit list and Payroll's monthly total.

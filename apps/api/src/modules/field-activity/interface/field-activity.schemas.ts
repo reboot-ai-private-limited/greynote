@@ -93,3 +93,4 @@ export const otherExpenseBodySchema = z.object({
   amountPaise: paiseSchema.refine((v) => v > 0, 'The amount must be more than zero.'),
   remarks: remarksSchema,
 });
+export const expenseAttachmentParamsSchema = z.object({ id: objectIdSchema, attachmentId: objectIdSchema });

@@ -11,6 +11,7 @@ import type { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, GetDoctorSer
 import type { OverrideGeofenceUseCase } from '../application/usecases/overrideGeofence.usecase.js';
 import type { GetDcrDetailUseCase } from '../application/usecases/getDcrDetail.usecase.js';
 import type { Actor, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCase } from '../application/usecases/readDcrs.usecase.js';
+import type { ExpenseProof } from '../application/expenseProof.js';
 import type { expenseHistoryQuerySchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, allocateGiftBodySchema, doctorServiceFieldsSchema, listDcrsQuerySchema, listGiftsQuerySchema, listServicesQuerySchema, listTeamDcrsQuerySchema, overrideBodySchema } from './field-activity.schemas.js';
 
 function actorOf(req: Request): Actor {
@@ -18,7 +19,7 @@ function actorOf(req: Request): Actor {
   return { id: req.user.sub, role: req.user.role };
 }
 
-export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'createAdminService' | 'listServices' | 'getService' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'submitExpenseMonth', RequestHandler>;
+export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'createAdminService' | 'listServices' | 'getService' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth', RequestHandler>;
 
 export function makeFieldActivityControllers(u: {
   listMine: ListMyDcrsUseCase;
@@ -36,6 +37,7 @@ export function makeFieldActivityControllers(u: {
   payExpenses: PayMonthExpensesUseCase;
   markPaid: MarkExpensePaidUseCase;
   expenseMonths: ExpenseMonthService;
+  expenseProof: ExpenseProof;
 }): FieldActivityHandlers {
   return {
     // FIELD: their own. ADMIN: anyone's — `userId` is required, so "everyone's" is never an accident.
@@ -87,6 +89,14 @@ export function makeFieldActivityControllers(u: {
       await u.expenseMonths.deleteOther(actorOf(req).id, requiredParam(req.params, 'id'));
       sendSuccess(req, res, null, 'The expense was removed.', 200);
     }),
+    addExpenseProof: asyncHandler(async (req, res) => {
+      if (!req.file) throw AppError.badRequest('A file is required.', { field: 'file' });
+      const files = await u.expenseProof.add(actorOf(req).id, requiredParam(req.params, 'id'), { buffer: req.file.buffer, name: req.file.originalname });
+      sendSuccess(req, res, files, 'Proof attached.', 201);
+    }),
+    removeExpenseProof: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.expenseProof.remove(actorOf(req).id, requiredParam(req.params, 'id'), requiredParam(req.params, 'attachmentId')), 'Proof removed.', 200),
+    ),
     submitExpenseMonth: asyncHandler(async (req, res) => sendSuccess(req, res, await u.expenseMonths.submit(actorOf(req).id, requiredParam(req.params, 'month')), 'The month was sent for approval.', 200)),
     listExpensePayouts: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listPayouts.execute((req.query as { month: string }).month), 'Expense payouts.', 200)),
     payExpenses: asyncHandler(async (req, res) => {
