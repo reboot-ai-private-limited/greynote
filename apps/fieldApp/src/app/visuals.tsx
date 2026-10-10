@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
@@ -13,7 +13,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
-import { addDoctorVisuals, listDoctorVisuals, listVisuals, type Visual } from '@/lib/marketing';
+import { addDoctorVisuals, listDoctorVisuals, listVisuals, removeDoctorVisual, type Visual } from '@/lib/marketing';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { formatWhen } from '@/offline/day';
@@ -68,7 +68,8 @@ export default function VisualsScreen() {
 
   const open = async (v: Visual, items: Visual[] = [v]) => {
     setError(null);
-    if (kindOf(v) === 'image') {
+    // A picture, or a walk through several visuals (even one that starts on a PDF or video), opens the viewer.
+    if (kindOf(v) === 'image' || items.length > 1) {
       setViewing({ items, index: items.indexOf(v) });
       return;
     }
@@ -105,12 +106,44 @@ export default function VisualsScreen() {
     }
   };
 
+  // Only a manager above the doctor's MR, or Admin, can take a pick off (the server says so with `canRemove`); the MR cannot.
+  const canRemove = doctorList.data?.canRemove === true;
+  const confirmRemove = (v: Visual) =>
+    Alert.alert('Remove this visual?', `"${v.title}" will be taken off ${doctor?.name ?? 'this doctor'}'s list.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          if (!doctorId) return;
+          try {
+            await removeDoctorVisual(doctorId, v.id);
+            setSaved(`Removed "${v.title}".`);
+            doctorList.reload();
+          } catch (err) {
+            setError(messageOf(err));
+          }
+        },
+      },
+    ]);
+
   if (viewing) {
     const current = viewing.items[viewing.index]!;
     const last = viewing.items.length - 1;
     return (
       <ScreenShell title={current.title}>
-        <Image source={{ uri: current.fileUrl }} style={styles.full} contentFit="contain" accessibilityLabel={current.title} />
+        {kindOf(current) === 'image' ? (
+          <Image source={{ uri: current.fileUrl }} style={styles.full} contentFit="contain" accessibilityLabel={current.title} />
+        ) : (
+          <ThemedView type="backgroundElement" style={[styles.full, styles.fileThumb]}>
+            <ThemedText type="subtitle" themeColor="textSecondary">
+              {kindLabel(current)}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {'Opens in your phone’s viewer.'}
+            </ThemedText>
+          </ThemedView>
+        )}
         <ThemedText type="small" themeColor="textSecondary">
           {`${CATEGORY[current.category]} · ${productName(current.productId)}${last > 0 ? ` · ${viewing.index + 1} of ${last + 1}` : ''}`}
         </ThemedText>
@@ -204,7 +237,10 @@ export default function VisualsScreen() {
                   </ThemedText>
                 </View>
                 {doctorId ? (
-                  <PrimaryButton label="View" variant="text" accessibilityLabel={`View ${v.title}`} onPress={() => open(v)} />
+                  <View>
+                    <PrimaryButton label="View" variant="text" accessibilityLabel={`View ${v.title}`} onPress={() => open(v)} />
+                    {locked && canRemove ? <PrimaryButton label="Remove" variant="text" accessibilityLabel={`Remove ${v.title}`} onPress={() => confirmRemove(v)} /> : null}
+                  </View>
                 ) : null}
               </ThemedView>
             </Pressable>
