@@ -3,8 +3,8 @@ import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { ChemistCall, DoctorCall, Followup, GeofenceOutcome } from '../domain/call.entity.js';
 import type { Expense } from '../domain/expense.entity.js';
 import type { GeofenceOverride } from '../domain/records.repository.port.js';
-import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseBucket, ExpenseMonthSummary, GeofenceCount, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../domain/records.repository.port.js';
-import { ChemistCallModel, DoctorCallModel, ExpenseModel, FollowupModel, type ChemistCallDoc, type DoctorCallDoc, type ExpenseDoc, type FollowupDoc } from './records.schema.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseBucket, ExpenseMonthRecord, ExpenseMonthRepositoryPort, ExpenseMonthSummary, GeofenceCount, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../domain/records.repository.port.js';
+import { ChemistCallModel, DoctorCallModel, ExpenseModel, ExpenseMonthModel, FollowupModel, type ChemistCallDoc, type DoctorCallDoc, type ExpenseDoc, type ExpenseMonthDoc, type FollowupDoc } from './records.schema.js';
 
 const oid = (id: string) => new Types.ObjectId(id);
 const session = (ctx: TransactionContext) => ({ session: ctx as ClientSession });
@@ -169,7 +169,7 @@ export class MongoFollowupAdapter implements FollowupRepositoryPort {
 
 const toExpense = (d: ExpenseDoc & { _id: unknown }): Expense => ({
   id: String(d._id),
-  dcrId: String(d.dcrId),
+  dcrId: d.dcrId ? String(d.dcrId) : null,
   userId: String(d.userId),
   reportDate: d.reportDate,
   routeId: d.routeId ? String(d.routeId) : null,
@@ -179,6 +179,7 @@ const toExpense = (d: ExpenseDoc & { _id: unknown }): Expense => ({
   remarks: d.remarks,
   paymentStatus: d.paymentStatus,
   accepted: d.accepted,
+  monthApproved: d.monthApproved,
   distanceFlag: d.distanceFlag,
   paidBy: d.paidBy ? String(d.paidBy) : null,
   paidAt: d.paidAt,
@@ -189,10 +190,28 @@ const toExpense = (d: ExpenseDoc & { _id: unknown }): Expense => ({
 export class MongoExpenseAdapter implements ExpenseRepositoryPort {
   async create(input: Omit<Expense, 'id'>, ctx: TransactionContext): Promise<Expense> {
     const [doc] = await ExpenseModel.create(
-      [{ ...input, dcrId: oid(input.dcrId), userId: oid(input.userId), routeId: input.routeId ? oid(input.routeId) : null, paidBy: input.paidBy ? oid(input.paidBy) : null }],
+      [{ ...input, dcrId: input.dcrId ? oid(input.dcrId) : null, userId: oid(input.userId), routeId: input.routeId ? oid(input.routeId) : null, paidBy: input.paidBy ? oid(input.paidBy) : null }],
       session(ctx),
     );
     return toExpense(doc!.toObject());
+  }
+  async listForUserRange(userId: string, range: { from: string; to: string }): Promise<Expense[]> {
+    return (await ExpenseModel.find({ userId: oid(userId), paymentStatus: { $ne: 'CANCELLED' }, reportDate: { $gte: range.from, $lte: range.to } }).sort({ reportDate: 1, _id: 1 }).lean()).map(toExpense);
+  }
+  async findOtherById(id: string, userId: string): Promise<Expense | null> {
+    const doc = await ExpenseModel.findOne({ _id: oid(id), userId: oid(userId), type: 'OTHER' }).lean();
+    return doc ? toExpense(doc) : null;
+  }
+  async updateOther(id: string, userId: string, patch: { reportDate: string; amountPaise: number; remarks: string | null }): Promise<boolean> {
+    return (await ExpenseModel.updateOne({ _id: oid(id), userId: oid(userId), type: 'OTHER', paymentStatus: 'UNPAID' }, { $set: patch })).matchedCount === 1;
+  }
+  async deleteOther(id: string, userId: string): Promise<boolean> {
+    return (await ExpenseModel.deleteOne({ _id: oid(id), userId: oid(userId), type: 'OTHER', paymentStatus: 'UNPAID' })).deletedCount === 1;
+  }
+  async setMonthApproved(userId: string, range: { from: string; to: string }, approved: boolean, ctx: TransactionContext): Promise<void> {
+    const base = { userId: oid(userId), paymentStatus: 'UNPAID', reportDate: { $gte: range.from, $lte: range.to } };
+    await ExpenseModel.updateMany(base, { $set: { monthApproved: approved } }, session(ctx));
+    await ExpenseModel.updateMany({ ...base, type: 'OTHER' }, { $set: { accepted: approved } }, session(ctx));
   }
   async setAccepted(dcrId: string, accepted: boolean, ctx: TransactionContext): Promise<void> {
     await ExpenseModel.updateMany({ dcrId: oid(dcrId), paymentStatus: { $ne: 'PAID' } }, { $set: { accepted } }, session(ctx));
@@ -202,7 +221,7 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
     return doc ? toExpense(doc) : null;
   }
   async markPaid(id: string, by: string, at: Date): Promise<boolean> {
-    const res = await ExpenseModel.updateOne({ _id: oid(id), accepted: true, paymentStatus: 'UNPAID' }, { $set: { paymentStatus: 'PAID', paidBy: oid(by), paidAt: at } });
+    const res = await ExpenseModel.updateOne({ _id: oid(id), accepted: true, monthApproved: true, paymentStatus: 'UNPAID' }, { $set: { paymentStatus: 'PAID', paidBy: oid(by), paidAt: at } });
     return res.modifiedCount === 1;
   }
   async listAccepted(filter: { from: string; to: string; userId?: string; paymentStatus?: 'UNPAID' | 'PAID' }, limit: number): Promise<Expense[]> {
@@ -231,9 +250,9 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
     }
     return [...byKey.values()];
   }
-  async statementsForRange(range: { from: string; to: string }): Promise<ExpenseStatement[]> {
+  async statementsForRange(range: { from: string; to: string }, options: { payableOnly?: boolean } = {}): Promise<ExpenseStatement[]> {
     const rows = await ExpenseModel.aggregate<{ _id: { userId: unknown; status: 'UNPAID' | 'PAID'; type: string }; total: number; count: number; lastPaidAt: Date | null }>([
-      { $match: { accepted: true, paymentStatus: { $in: ['UNPAID', 'PAID'] }, reportDate: { $gte: range.from, $lte: range.to } } },
+      { $match: { accepted: true, ...(options.payableOnly && { monthApproved: true }), paymentStatus: { $in: ['UNPAID', 'PAID'] }, reportDate: { $gte: range.from, $lte: range.to } } },
       { $group: { _id: { userId: '$userId', status: '$paymentStatus', type: '$type' }, total: { $sum: '$amountPaise' }, count: { $sum: 1 }, lastPaidAt: { $max: '$paidAt' } } },
     ]);
     const empty = (): ExpenseBucket => ({ taPaise: 0, daPaise: 0, reimbursementPaise: 0, count: 0 });
@@ -253,7 +272,7 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
   }
   async payAllForUser(userId: string, range: { from: string; to: string }, by: string, at: Date): Promise<number> {
     const res = await ExpenseModel.updateMany(
-      { userId: oid(userId), accepted: true, paymentStatus: 'UNPAID', reportDate: { $gte: range.from, $lte: range.to } },
+      { userId: oid(userId), accepted: true, monthApproved: true, paymentStatus: 'UNPAID', reportDate: { $gte: range.from, $lte: range.to } },
       { $set: { paymentStatus: 'PAID', paidBy: oid(by), paidAt: at } },
     );
     return res.modifiedCount;
@@ -264,7 +283,7 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
       { $group: { _id: '$type', total: { $sum: '$amountPaise' } } },
     ]);
     const of = (t: string) => rows.find((r) => r._id === t)?.total ?? 0;
-    return { taPaise: of('TA'), daPaise: of('DA'), reimbursementPaise: of('TRAVEL') + of('MEAL') + of('MISC') };
+    return { taPaise: of('TA'), daPaise: of('DA'), reimbursementPaise: of('TRAVEL') + of('MEAL') + of('MISC') + of('OTHER') };
   }
   async totalsForDcrs(dcrIds: string[]): Promise<Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>> {
     const out = new Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>();
@@ -289,5 +308,25 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
   }
   async listForDcr(dcrId: string): Promise<Expense[]> {
     return (await ExpenseModel.find({ dcrId: oid(dcrId) }).sort({ recordedAt: 1, _id: 1 }).lean()).map(toExpense);
+  }
+}
+
+const toExpenseMonth = (d: ExpenseMonthDoc & { _id: unknown }): ExpenseMonthRecord => ({ id: String(d._id), userId: String(d.userId), month: d.month, status: d.status, submittedAt: d.submittedAt, taPaise: d.taPaise, daPaise: d.daPaise, otherPaise: d.otherPaise });
+
+export class MongoExpenseMonthAdapter implements ExpenseMonthRepositoryPort {
+  async find(userId: string, month: string): Promise<ExpenseMonthRecord | null> {
+    const doc = await ExpenseMonthModel.findOne({ userId: oid(userId), month }).lean();
+    return doc ? toExpenseMonth(doc) : null;
+  }
+  async findById(id: string): Promise<ExpenseMonthRecord | null> {
+    const doc = await ExpenseMonthModel.findById(id).lean();
+    return doc ? toExpenseMonth(doc) : null;
+  }
+  async markSubmitted(userId: string, month: string, totals: { taPaise: number; daPaise: number; otherPaise: number }, at: Date, ctx: TransactionContext): Promise<ExpenseMonthRecord> {
+    const doc = await ExpenseMonthModel.findOneAndUpdate({ userId: oid(userId), month }, { $set: { status: 'SUBMITTED', submittedAt: at, ...totals } }, { upsert: true, new: true, ...session(ctx) }).lean();
+    return toExpenseMonth(doc!);
+  }
+  async listForUsers(userIds: string[], month: string): Promise<ExpenseMonthRecord[]> {
+    return (await ExpenseMonthModel.find({ userId: { $in: userIds.map(oid) }, month }).lean()).map(toExpenseMonth);
   }
 }

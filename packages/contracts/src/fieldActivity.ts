@@ -3,7 +3,7 @@ import type { DcrStatusName, DoctorServiceType, WorkingType } from './sync.js';
 
 export type ExpensePaymentStatus = 'UNPAID' | 'PAID';
 
-export type ExpenseTypeDto = 'TA' | 'DA' | 'TRAVEL' | 'MEAL' | 'MISC';
+export type ExpenseTypeDto = 'TA' | 'DA' | 'OTHER' | 'TRAVEL' | 'MEAL' | 'MISC';
 
 /**
  * One row of `GET /field-activity/expenses` (Accountant audit) — a bare array, capped at 500. These are expenses whose daily
@@ -201,4 +201,54 @@ export interface CreateAdminServiceDto {
   serviceType: DoctorServiceType;
   amountPaise: number;
   remarks?: string | null | undefined;
+}
+
+// ---- Monthly expense statement (decision-log 2026-10-10) ----------------------------------------
+
+export type ExpenseMonthStatusDto = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+
+export interface ExpenseDayLineDto {
+  date: string;
+  taPaise: number;
+  daPaise: number;
+  otherPaise: number;
+  totalPaise: number;
+  /** The employee's own entries for the day. */
+  others: Array<{ id: string; amountPaise: number; remarks: string | null }>;
+}
+export interface ExpenseTotalsDto {
+  taPaise: number;
+  daPaise: number;
+  otherPaise: number;
+  totalPaise: number;
+}
+/** One employee's month: date-wise TA, DA and Other, and where it stands in approval. */
+export interface ExpenseStatementDto {
+  userId: string;
+  month: string;
+  status: ExpenseMonthStatusDto;
+  requestId: string | null;
+  /** The month is over, so it can be submitted and approved. */
+  monthEnded: boolean;
+  editable: boolean;
+  canSubmit: boolean;
+  days: ExpenseDayLineDto[];
+  totals: ExpenseTotalsDto;
+  /** What was sent to the approver; differs from `totals` if TA/DA changed after the send. */
+  submittedTotals: ExpenseTotalsDto | null;
+  paidPaise: number;
+}
+export interface ExpenseMonthSummaryDto {
+  month: string;
+  status: ExpenseMonthStatusDto;
+  taPaise: number;
+  daPaise: number;
+  otherPaise: number;
+  totalPaise: number;
+  paidPaise: number;
+}
+export interface OtherExpenseInputDto {
+  reportDate: string;
+  amountPaise: number;
+  remarks: string | null;
 }

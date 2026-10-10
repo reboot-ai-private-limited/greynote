@@ -21,6 +21,7 @@
         "migrate:specialties": "tsx src/scripts/migrate-specialties.ts",
         "migrate:distributors": "tsx src/scripts/migrate-distributors.ts",
         "migrate:targets": "tsx src/scripts/migrate-targets-to-ranges.ts",
+        "migrate:expense-months": "tsx src/scripts/migrate-expense-month-approval.ts",
         "migrate:inherit-monthly": "tsx src/scripts/migrate-inherit-monthly-plans.ts",
         "compliance:run": "tsx src/scripts/run-compliance.ts",
         "stock-check:run": "tsx src/scripts/run-stock-check.ts"

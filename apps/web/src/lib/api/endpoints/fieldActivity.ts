@@ -5,6 +5,7 @@ import type {
   DoctorGiftDto,
   DoctorServiceDto,
   ExpenseAuditRowDto,
+  ExpenseStatementDto,
   ExpensePaymentStatus,
   ExpensePayoutSheetDto,
   MarkedPaidDto,
@@ -47,6 +48,9 @@ export const fieldActivityApi = {
     request<DoctorGiftDto[]>('/field-activity/doctor-gifts', { token, query: { ...query }, signal }),
   /** Admin: allocates a gift (a name and its value) to a Doctor; the assigned MR marks it done. */
   allocateGift: (token: string, body: AllocateGiftDto) => request<DoctorGiftDto>('/field-activity/admin/doctor-gifts', { method: 'POST', token, body }),
+
+  /** The month statement an approval request points at (its record id): date-wise TA, DA and Other. */
+  expenseMonth: (token: string, id: string, signal?: AbortSignal) => request<ExpenseStatementDto>(`/field-activity/expense-months/${id}`, { token, signal }),
 
   /** One daily report with every call, follow-up and expense: the review screen. */
   dcr: (token: string, id: string, signal?: AbortSignal) => request<DcrDetailDto>(`/field-activity/dcr/${id}`, { token, signal }),

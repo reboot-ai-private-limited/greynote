@@ -5,6 +5,7 @@ import { DailyPlanPreview } from './DailyPlanPreview';
 import { DcrPreview } from './DcrPreview';
 import { DoctorPreview } from './DoctorPreview';
 import { DoctorServicePreview } from './DoctorServicePreview';
+import { ExpenseMonthPreview } from './ExpenseMonthPreview';
 import { LeavePreview } from './LeavePreview';
 import { MonthlyPlanPreview } from './MonthlyPlanPreview';
 import { PlanChangePreview } from './PlanChangePreview';
@@ -29,6 +30,8 @@ export function ApprovalPreview({ request }: { request: ApprovalDetailDto }) {
       return <PlanChangePreview recordId={request.recordId} />;
     case 'LEAVE':
       return <LeavePreview recordId={request.recordId} />;
+    case 'EXPENSE_MONTH':
+      return <ExpenseMonthPreview recordId={request.recordId} />;
     default:
       return (
         <Card title={kindLabel(request.kind)} description="The record this request is about.">

@@ -258,14 +258,14 @@ export class FakeFmd implements FieldMasterDataPort {
   }
 }
 
-class FakeCalls<T extends { id: string; dcrId: string }> {
+class FakeCalls<T extends { id: string; dcrId: string | null }> {
   rows: T[] = [];
   /** Ids are unique across the fakes, as ObjectIds are. */
   private static counter = 0;
   async create(input: Omit<T, 'id'>, ctx: unknown) {
     const row = { ...input, id: `rec-${++FakeCalls.counter}` } as T;
     this.rows.push(row);
-    (ctx as Tx).undo.push(() => {
+    (ctx as Tx | undefined)?.undo.push(() => {
       this.rows.splice(this.rows.indexOf(row), 1);
     });
     return row;
@@ -278,7 +278,7 @@ class FakeCalls<T extends { id: string; dcrId: string }> {
   }
   async countForDcrs(dcrIds: string[]) {
     const m = new Map<string, number>();
-    for (const r of this.rows) if (dcrIds.includes(r.dcrId)) m.set(r.dcrId, (m.get(r.dcrId) ?? 0) + 1);
+    for (const r of this.rows) if (r.dcrId && dcrIds.includes(r.dcrId)) m.set(r.dcrId, (m.get(r.dcrId) ?? 0) + 1);
     return m;
   }
   async countByGeofence(range: { from: string; to: string }) {
@@ -337,7 +337,7 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
   }
   async markPaid(id: string, by: string, at: Date) {
     const r = this.rows.find((x) => x.id === id);
-    if (!r || !r.accepted || r.paymentStatus !== 'UNPAID') return false;
+    if (!r || !r.accepted || !r.monthApproved || r.paymentStatus !== 'UNPAID') return false;
     Object.assign(r, { paymentStatus: 'PAID', paidBy: by, paidAt: at });
     return true;
   }
@@ -345,10 +345,36 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
     const hit = this.rows.filter((r) => r.accepted && r.reportDate >= f.from && r.reportDate <= f.to && (!f.userId || r.userId === f.userId) && (r.paymentStatus === 'UNPAID' || r.paymentStatus === 'PAID') && (!f.paymentStatus || r.paymentStatus === f.paymentStatus));
     return [...hit.filter((r) => r.paymentStatus === 'UNPAID'), ...hit.filter((r) => r.paymentStatus === 'PAID')].slice(0, limit);
   }
-  async statementsForRange(range: { from: string; to: string }) {
+  async listForUserRange(userId: string, range: { from: string; to: string }) {
+    return this.rows.filter((r) => r.userId === userId && r.paymentStatus !== 'CANCELLED' && r.reportDate >= range.from && r.reportDate <= range.to).sort((a, b) => a.reportDate.localeCompare(b.reportDate));
+  }
+  async findOtherById(id: string, userId: string) {
+    return this.rows.find((r) => r.id === id && r.userId === userId && r.type === 'OTHER') ?? null;
+  }
+  async updateOther(id: string, userId: string, patch: { reportDate: string; amountPaise: number; remarks: string | null }) {
+    const r = this.rows.find((x) => x.id === id && x.userId === userId && x.type === 'OTHER' && x.paymentStatus === 'UNPAID');
+    if (!r) return false;
+    Object.assign(r, patch);
+    return true;
+  }
+  async deleteOther(id: string, userId: string) {
+    const i = this.rows.findIndex((x) => x.id === id && x.userId === userId && x.type === 'OTHER' && x.paymentStatus === 'UNPAID');
+    if (i < 0) return false;
+    this.rows.splice(i, 1);
+    return true;
+  }
+  async setMonthApproved(userId: string, range: { from: string; to: string }, approved: boolean, ctx: unknown) {
+    for (const r of this.rows.filter((x) => x.userId === userId && x.paymentStatus === 'UNPAID' && x.reportDate >= range.from && x.reportDate <= range.to)) {
+      const before = { monthApproved: r.monthApproved, accepted: r.accepted };
+      r.monthApproved = approved;
+      if (r.type === 'OTHER') r.accepted = approved;
+      (ctx as Tx).undo.push(() => Object.assign(r, before));
+    }
+  }
+  async statementsForRange(range: { from: string; to: string }, options: { payableOnly?: boolean } = {}) {
     const out = new Map<string, ExpenseStatement>();
     const empty = (): ExpenseBucket => ({ taPaise: 0, daPaise: 0, reimbursementPaise: 0, count: 0 });
-    for (const r of this.rows.filter((x) => x.accepted && (x.paymentStatus === 'UNPAID' || x.paymentStatus === 'PAID') && x.reportDate >= range.from && x.reportDate <= range.to)) {
+    for (const r of this.rows.filter((x) => x.accepted && (!options.payableOnly || x.monthApproved) && (x.paymentStatus === 'UNPAID' || x.paymentStatus === 'PAID') && x.reportDate >= range.from && x.reportDate <= range.to)) {
       const s = out.get(r.userId) ?? { userId: r.userId, unpaid: empty(), paid: empty(), lastPaidAt: null };
       const b = r.paymentStatus === 'PAID' ? s.paid : s.unpaid;
       if (r.type === 'TA') b.taPaise += r.amountPaise;
@@ -361,18 +387,19 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
     return [...out.values()];
   }
   async payAllForUser(userId: string, range: { from: string; to: string }, by: string, at: Date) {
-    const hit = this.rows.filter((r) => r.userId === userId && r.accepted && r.paymentStatus === 'UNPAID' && r.reportDate >= range.from && r.reportDate <= range.to);
+    const hit = this.rows.filter((r) => r.userId === userId && r.accepted && r.monthApproved && r.paymentStatus === 'UNPAID' && r.reportDate >= range.from && r.reportDate <= range.to);
     for (const r of hit) Object.assign(r, { paymentStatus: 'PAID', paidBy: by, paidAt: at });
     return hit.length;
   }
   async paidTotals(userId: string, period: { from: Date; to: Date }) {
     const paid = this.rows.filter((r) => r.userId === userId && r.paymentStatus === 'PAID' && r.paidAt !== null && r.paidAt >= period.from && r.paidAt < period.to);
     const sum = (...t: string[]) => paid.filter((r) => t.includes(r.type)).reduce((a, r) => a + r.amountPaise, 0);
-    return { taPaise: sum('TA'), daPaise: sum('DA'), reimbursementPaise: sum('TRAVEL', 'MEAL', 'MISC') };
+    return { taPaise: sum('TA'), daPaise: sum('DA'), reimbursementPaise: sum('TRAVEL', 'MEAL', 'MISC', 'OTHER') };
   }
   async totalsForDcrs(dcrIds: string[]) {
     const out = new Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>();
-    for (const r of this.rows.filter((x) => dcrIds.includes(x.dcrId) && x.paymentStatus !== 'CANCELLED')) {
+    for (const r of this.rows.filter((x) => x.dcrId !== null && dcrIds.includes(x.dcrId) && x.paymentStatus !== 'CANCELLED')) {
+      if (!r.dcrId) continue;
       const t = out.get(r.dcrId) ?? { taPaise: 0, daPaise: 0, otherPaise: 0, paidPaise: 0 };
       if (r.type === 'TA') t.taPaise += r.amountPaise;
       else if (r.type === 'DA') t.daPaise += r.amountPaise;

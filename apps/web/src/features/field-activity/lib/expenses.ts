@@ -9,6 +9,7 @@ export const EXPENSE_TYPE_LABEL: Record<ExpenseTypeDto, string> = {
   TRAVEL: 'Travel',
   MEAL: 'Meal',
   MISC: 'Other',
+  OTHER: 'Other',
 };
 
 export const PAYMENT_LABEL: Record<ExpenseAuditRowDto['paymentStatus'], string> = {

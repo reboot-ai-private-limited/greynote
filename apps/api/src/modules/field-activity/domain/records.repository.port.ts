@@ -75,6 +75,19 @@ export interface ExpenseMonthSummary {
 export interface ExpenseRepositoryPort {
   /** The accepted expenses whose report day falls in the range (`YYYY-MM-DD`, both inclusive), per employee and month. */
   summarizeByMonth(range: { from: string; to: string }): Promise<ExpenseMonthSummary[]>;
+  /** Every row of the employee dated in the range (both inclusive, `YYYY-MM-DD`), `CANCELLED` left out, oldest day first: the month statement's lines. */
+  listForUserRange(userId: string, range: { from: string; to: string }): Promise<Expense[]>;
+  /** The employee's own `OTHER` row, if it exists. */
+  findOtherById(id: string, userId: string): Promise<Expense | null>;
+  /** Changes an `OTHER` row's day, amount and note; false if there is no such row of the employee, or it is already paid. */
+  updateOther(id: string, userId: string, patch: { reportDate: string; amountPaise: number; remarks: string | null }): Promise<boolean>;
+  /** Removes an `OTHER` row; false if there is no such row of the employee, or it is already paid. */
+  deleteOther(id: string, userId: string): Promise<boolean>;
+  /**
+   * The month statement was approved (or sent back): flags the employee's unpaid rows in the range `monthApproved`, which is what the
+   * Accountant pays on. `OTHER` rows are accepted with it — nothing else accepts them — and un-accepted when it goes back.
+   */
+  setMonthApproved(userId: string, range: { from: string; to: string }, approved: boolean, ctx: TransactionContext): Promise<void>;
   create(input: Omit<Expense, 'id'>, ctx: TransactionContext): Promise<Expense>;
   /** Whether the DCR already has AUTO rows that still count (not `CANCELLED`) — TA/DA is generated once per approval. */
   hasActiveAuto(dcrId: string, ctx: TransactionContext): Promise<boolean>;
@@ -93,12 +106,31 @@ export interface ExpenseRepositoryPort {
    * Per employee, the accepted expenses whose report day falls in the range (`YYYY-MM-DD`, both inclusive), `CANCELLED` left out:
    * what is still `UNPAID` and what is `PAID`, each as TA, DA and the manual reimbursements apart, and the latest `paid_at`.
    */
-  statementsForRange(range: { from: string; to: string }): Promise<ExpenseStatement[]>;
+  statementsForRange(range: { from: string; to: string }, options?: { payableOnly?: boolean }): Promise<ExpenseStatement[]>;
   /** One conditional update: every accepted, still-`UNPAID` row of the user in the range becomes `PAID`. Returns how many. */
   payAllForUser(userId: string, range: { from: string; to: string }, by: string, at: Date): Promise<number>;
   /** Per DCR, what is claimed: TA, DA and the manual rows, `CANCELLED` left out, and how much of it is `PAID`. */
   totalsForDcrs(dcrIds: string[]): Promise<Map<string, { taPaise: number; daPaise: number; otherPaise: number; paidPaise: number }>>;
   listForDcr(dcrId: string): Promise<Expense[]>;
+}
+
+export interface ExpenseMonthRecord {
+  id: string;
+  userId: string;
+  month: string;
+  status: 'DRAFT' | 'SUBMITTED';
+  submittedAt: Date | null;
+  taPaise: number;
+  daPaise: number;
+  otherPaise: number;
+}
+export interface ExpenseMonthRepositoryPort {
+  find(userId: string, month: string): Promise<ExpenseMonthRecord | null>;
+  findById(id: string): Promise<ExpenseMonthRecord | null>;
+  /** Creates the month's record if needed and marks it submitted with the totals sent. */
+  markSubmitted(userId: string, month: string, totals: { taPaise: number; daPaise: number; otherPaise: number }, at: Date, ctx: TransactionContext): Promise<ExpenseMonthRecord>;
+  /** The records of these users for the month, one query. */
+  listForUsers(userIds: string[], month: string): Promise<ExpenseMonthRecord[]>;
 }
 
 export interface DoctorServiceRepositoryPort {

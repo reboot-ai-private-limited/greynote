@@ -116,7 +116,7 @@ export interface ExpenseRecord {
   userId: string;
   reportDate: string;
   routeId: string | null;
-  type: 'TA' | 'DA' | 'TRAVEL' | 'MEAL' | 'MISC';
+  type: 'TA' | 'DA' | 'OTHER' | 'TRAVEL' | 'MEAL' | 'MISC';
   source: 'AUTO' | 'MANUAL';
   amountPaise: number;
   remarks: string | null;

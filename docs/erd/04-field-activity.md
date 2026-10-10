@@ -152,6 +152,7 @@ erDiagram
 
 ## Design decisions locked for this module
 
+- **2026-10-10 — monthly expenses (decision-log 2026-10-10):** `Expense.type` adds `OTHER` (dated, `dcr_id` null) and a row has `month_approved`; a row is payable only when `accepted` and `month_approved`. New `ExpenseMonth` (`user_id`, `month`, `status` DRAFT/SUBMITTED, `submitted_at`, `ta/da/other_paise` as sent; unique on user + month) is the record the `EXPENSE_MONTH` approval request points at.
 - **Expense is included here**, not deferred — the PRD's Final Submission flow (§6.2 A) bundles it with Doctor/Chemist Calls and Followups into one daily approval, so it needs the same envelope from day one rather than retrofitting it later.
 - **`DCR` is a single daily envelope, one row per user per date.** `DoctorCall`, `DoctorFollowup`, `ChemistCall`, `ChemistFollowup`, and `Expense` all attach to it via `dcr_id`. Its `status`/`reviewed_by` fields are exactly the two-stage approval from PRD §7.1: `reviewed_by` is always the nearest higher manager; once `status = MANAGER_APPROVED` the record is visible to Admin — no separate "forwarded to admin" field needed, since that visibility is derived from the same `manager_id` hierarchy walk established in Module 1, not stored state.
 - **Chemist Call has no link to Order.** Order is fully standalone (Module 6), captured independently via the Marketing tab — confirmed explicitly, overriding the recommended default.

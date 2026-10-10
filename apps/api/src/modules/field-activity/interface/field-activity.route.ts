@@ -6,7 +6,7 @@ import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js'
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { FieldActivityHandlers } from './field-activity.controller.js';
-import { listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
+import { expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
 
 const TAG = 'Field Activity';
 
@@ -49,6 +49,19 @@ openApiRegistry.registerPath({
   request: { params: idParamsSchema },
   responses: { 200: { description: 'The expense, PAID' }, 409: { description: 'Cancelled, or its report is not approved' } },
 });
+doc('/expense-months', 'The month’s expense statement — date-wise TA, DA and Other with its approval status. Own; a manager reads their team’s, Admin anyone’s (userId)', { query: expenseMonthQuerySchema });
+doc('/expense-months/{id}', 'One month’s statement by its own id — what an approval request points at; the owner, their managers, Admin', { params: idParamsSchema });
+doc('/expense-months/history', 'Previous months’ expenses with totals and whether each was approved (default: the last 12)', { query: expenseHistoryQuerySchema });
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/field-activity/expense-months/{month}/submit',
+  tags: [TAG],
+  summary: 'Send a finished month’s expenses for approval — only after the month has ended; the manager or Admin approves',
+  security: [{ bearerAuth: [] }],
+  request: { params: expenseMonthParamsSchema },
+  responses: { 200: { description: 'The statement, now SUBMITTED' }, 409: { description: 'The month has not ended, or is already sent / approved' } },
+});
+docPost('/expenses/other', 'Add an expense in the single “Other” category, dated — while the month is still editable', otherExpenseBodySchema);
 function docPost(path: string, summary: string, schema: ZodTypeAny): void {
   openApiRegistry.registerPath({
     method: 'post',
@@ -78,6 +91,13 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.get('/expense-payouts', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: listExpensePayoutsQuerySchema }), c.listExpensePayouts);
   router.post('/expense-payouts/pay', requireRole('ACCOUNTANT', 'ADMIN'), validate({ body: payExpensesBodySchema }), c.payExpenses);
   router.post('/expenses/:id/mark-paid', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: idParamsSchema }), c.markExpensePaid);
+  router.get('/expense-months', requireRole('FIELD', 'ADMIN'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: expenseMonthQuerySchema }), c.expenseStatement);
+  router.get('/expense-months/history', requireRole('FIELD', 'ADMIN'), validate({ query: expenseHistoryQuerySchema }), c.expenseHistory);
+  router.get('/expense-months/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.expenseStatementById);
+  router.post('/expense-months/:month/submit', requireRole('FIELD'), validate({ params: expenseMonthParamsSchema }), c.submitExpenseMonth);
+  router.post('/expenses/other', requireRole('FIELD'), validate({ body: otherExpenseBodySchema }), c.addOtherExpense);
+  router.put('/expenses/other/:id', requireRole('FIELD'), validate({ params: idParamsSchema, body: otherExpenseBodySchema }), c.updateOtherExpense);
+  router.delete('/expenses/other/:id', requireRole('FIELD'), validate({ params: idParamsSchema }), c.deleteOtherExpense);
   router.get('/doctor-services', requireRole('FIELD', 'ADMIN'), validate({ query: listServicesQuerySchema }), c.listServices);
   router.get('/doctor-services/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.getService);
   router.get('/doctor-gifts', requireRole('FIELD', 'ADMIN'), validate({ query: listGiftsQuerySchema }), c.listGifts);
