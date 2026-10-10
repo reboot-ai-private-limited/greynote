@@ -54,6 +54,51 @@ describe('logging the day’s calls and follow-ups', () => {
     });
   });
 
+  describe('a Doctor outside the day’s doctor list', () => {
+    const planned = (doctorIds: string[], routeIds = ['route-1']) => kit.planning.days.set(`mr1:${DAY}`, { workingType: 'FIELD_WORK', routeIds, doctorIds });
+
+    it('a listed Doctor is in plan, whatever their Route', async () => {
+      planned(['d1'], ['route-2']);
+      await log();
+      expect(kit.doctorCalls.rows[0]!.notInPlan).toBe(false);
+    });
+
+    it('an unlisted Doctor is saved and flagged while the setting is on', async () => {
+      planned(['d9']);
+      await log();
+      expect(kit.doctorCalls.rows[0]!.notInPlan).toBe(true);
+    });
+
+    it('an unlisted Doctor on a Route the plan doesn’t list is allowed and flagged too', async () => {
+      planned(['d9'], ['route-2']);
+      await log();
+      expect(kit.doctorCalls.rows[0]!.notInPlan).toBe(true);
+    });
+
+    it('is refused when the setting is off, and nothing is stored', async () => {
+      kit.config.values.ALLOW_UNPLANNED_DOCTOR_CALLS = 'false';
+      planned(['d9']);
+      expect((await refusal(log())).code).toBe('ROUTE_NOT_IN_PLAN');
+      expect(kit.doctorCalls.rows).toHaveLength(0);
+    });
+
+    it('a plan that lists no Doctors keeps the Route rule and flags nothing', async () => {
+      kit.config.values.ALLOW_UNPLANNED_DOCTOR_CALLS = 'false';
+      planned([]);
+      await log();
+      expect(kit.doctorCalls.rows[0]!.notInPlan).toBe(false);
+      planned([], ['route-2']);
+      expect((await refusal(log())).code).toBe('ROUTE_NOT_IN_PLAN');
+    });
+
+    it('a database without the setting yet reads as allowed', async () => {
+      delete kit.config.values.ALLOW_UNPLANNED_DOCTOR_CALLS;
+      planned(['d9']);
+      await log();
+      expect(kit.doctorCalls.rows[0]!.notInPlan).toBe(true);
+    });
+  });
+
   describe('a Doctor Call', () => {
     it('is stored on the day’s DCR, created by the first record, and answers with the server’s geofence result', async () => {
       const { serverId, data } = await log();

@@ -36,7 +36,7 @@ const callBase = (d: CallDocLike & { _id: unknown }) => ({
 });
 
 /** Domain → columns for the fields every call shares. */
-const callColumns = (c: Omit<DoctorCall, 'id' | 'doctorId' | 'samples'> | Omit<ChemistCall, 'id' | 'chemistId'>) => ({
+const callColumns = (c: Omit<DoctorCall, 'id' | 'doctorId' | 'samples' | 'notInPlan'> | Omit<ChemistCall, 'id' | 'chemistId'>) => ({
   dcrId: oid(c.dcrId),
   userId: oid(c.userId),
   reportDate: c.reportDate,
@@ -59,6 +59,7 @@ const callColumns = (c: Omit<DoctorCall, 'id' | 'doctorId' | 'samples'> | Omit<C
 const toDoctorCall = (d: DoctorCallDoc & { _id: unknown }): DoctorCall => ({
   ...callBase(d),
   doctorId: String(d.doctorId),
+  notInPlan: d.notInPlan ?? false,
   samples: d.samples.map((s) => ({ allocationId: String(s.allocationId), productId: String(s.productId), quantity: s.quantity })),
 });
 const toChemistCall = (d: ChemistCallDoc & { _id: unknown }): ChemistCall => ({ ...callBase(d), chemistId: String(d.chemistId) });
@@ -96,6 +97,13 @@ const countByGeofence = async (model: typeof DoctorCallModel | typeof ChemistCal
 };
 
 export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
+  async countNotInPlan(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>> {
+    const rows = await DoctorCallModel.aggregate<{ _id: unknown; count: number }>([
+      { $match: { reportDate: { $gte: range.from, $lte: range.to }, notInPlan: true } },
+      { $group: { _id: '$dcrId', count: { $sum: 1 } } },
+    ]);
+    return rows.map((r) => ({ dcrId: String(r._id), count: r.count }));
+  }
   countByGeofence(range: { from: string; to: string }): Promise<GeofenceCount[]> {
     return countByGeofence(DoctorCallModel, range);
   }
@@ -113,7 +121,7 @@ export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
   }
   async create(input: Omit<DoctorCall, 'id'>, ctx: TransactionContext): Promise<DoctorCall> {
     const [doc] = await DoctorCallModel.create(
-      [{ ...callColumns(input), doctorId: oid(input.doctorId), samples: input.samples.map((s) => ({ allocationId: oid(s.allocationId), productId: oid(s.productId), quantity: s.quantity })) }],
+      [{ ...callColumns(input), doctorId: oid(input.doctorId), notInPlan: input.notInPlan, samples: input.samples.map((s) => ({ allocationId: oid(s.allocationId), productId: oid(s.productId), quantity: s.quantity })) }],
       session(ctx),
     );
     return toDoctorCall(doc!.toObject());

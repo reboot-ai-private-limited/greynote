@@ -16,6 +16,7 @@ import {
   dcrCounts,
   dcrCountsLabel,
   flaggedNotice,
+  notInPlanNotice,
   hasDistanceFlag,
   splitExpenses,
   taDaNote,
@@ -24,7 +25,15 @@ import { AcceptCallDialog } from './AcceptCallDialog';
 import { CallCard } from './CallCard';
 import { PreviewFrame } from './PreviewFrame';
 
-function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+function Section({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count?: number;
+  children: ReactNode;
+}) {
   return (
     <section className="space-y-3">
       <h3 className="text-xs font-medium uppercase tracking-wide text-text-subtle">
@@ -42,7 +51,11 @@ export function DcrPreview({ recordId }: { recordId: string }) {
   const dcr = query.data;
 
   return (
-    <PreviewFrame title="Daily report" description="Check the calls and what was claimed before deciding." query={query}>
+    <PreviewFrame
+      title="Daily report"
+      description="Check the calls and what was claimed before deciding."
+      query={query}
+    >
       {dcr ? <DcrBody dcr={dcr} /> : null}
     </PreviewFrame>
   );
@@ -66,6 +79,7 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
       </Button>
     ) : undefined;
   const notice = flaggedNotice(dcr);
+  const unplanned = notInPlanNotice(dcr);
   const { auto, manual } = splitExpenses(dcr.expenses);
   const note = taDaNote(dcr.status, dcr.expenses);
 
@@ -77,8 +91,21 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
       </div>
 
       {notice ? (
-        <p role="status" className="rounded-md border border-warning bg-warning-bg p-3 text-sm text-warning-fg">
-          {notice} Each is shown below with what the check found{mayAccept ? '; accepting a call is separate from approving the report' : ''}.
+        <p
+          role="status"
+          className="rounded-md border border-warning bg-warning-bg p-3 text-sm text-warning-fg"
+        >
+          {notice} Each is shown below with what the check found
+          {mayAccept ? '; accepting a call is separate from approving the report' : ''}.
+        </p>
+      ) : null}
+
+      {unplanned ? (
+        <p
+          role="status"
+          className="rounded-md border border-warning bg-warning-bg p-3 text-sm text-warning-fg"
+        >
+          {unplanned} Each is marked below.
         </p>
       ) : null}
 
@@ -108,7 +135,10 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
             {dcr.followups.map((f) => (
               <li key={f.id} className="px-4 py-3">
                 <p className="text-sm font-medium text-text">
-                  {f.subjectName || 'Unknown'} <span className="font-normal text-text-subtle">· {f.subject === 'DOCTOR' ? 'doctor' : 'chemist'}</span>
+                  {f.subjectName || 'Unknown'}{' '}
+                  <span className="font-normal text-text-subtle">
+                    · {f.subject === 'DOCTOR' ? 'doctor' : 'chemist'}
+                  </span>
                 </p>
                 <p className="mt-1 text-sm text-text-muted">{f.remarks}</p>
               </li>
@@ -124,34 +154,48 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
           <div className="space-y-2">
             <ul className="divide-y divide-border rounded-md border border-border">
               {[...auto, ...manual].map((e) => (
-                <li key={e.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                <li
+                  key={e.id}
+                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                >
                   <div className="min-w-0">
                     <p className="flex flex-wrap items-center gap-2 text-sm text-text">
                       {EXPENSE_TYPE_LABEL[e.type]}
                       {e.source === 'AUTO' ? <Badge tone="neutral">Calculated</Badge> : null}
-                      {e.distanceFlag ? <Badge tone="warning">Distance not calculated</Badge> : null}
-                      {e.paymentStatus === 'CANCELLED' ? <Badge tone="neutral">Cancelled</Badge> : null}
+                      {e.distanceFlag ? (
+                        <Badge tone="warning">Distance not calculated</Badge>
+                      ) : null}
+                      {e.paymentStatus === 'CANCELLED' ? (
+                        <Badge tone="neutral">Cancelled</Badge>
+                      ) : null}
                     </p>
                     {e.remarks ? <p className="text-xs text-text-subtle">{e.remarks}</p> : null}
                   </div>
-                  <span className="text-sm font-medium tabular-nums">{formatMoney(e.amountPaise)}</span>
+                  <span className="text-sm font-medium tabular-nums">
+                    {formatMoney(e.amountPaise)}
+                  </span>
                 </li>
               ))}
             </ul>
             <p className="flex justify-between px-1 text-sm">
               <span className="text-text-muted">Claimed</span>
-              <span className="font-semibold tabular-nums">{formatMoney(claimedTotalPaise(dcr.expenses))}</span>
+              <span className="font-semibold tabular-nums">
+                {formatMoney(claimedTotalPaise(dcr.expenses))}
+              </span>
             </p>
             {hasDistanceFlag(dcr.expenses) ? (
               <p className="text-[13px] text-warning-fg">
-                A route&apos;s distance could not be calculated, so its travel allowance is lower than it should be. Check it before approving.
+                A route&apos;s distance could not be calculated, so its travel allowance is lower
+                than it should be. Check it before approving.
               </p>
             ) : null}
             {note ? <p className="text-[13px] text-text-subtle">{note}</p> : null}
           </div>
         )}
       </Section>
-      {accepting ? <AcceptCallDialog dcrId={dcr.id} call={accepting} onClose={() => setAccepting(null)} /> : null}
+      {accepting ? (
+        <AcceptCallDialog dcrId={dcr.id} call={accepting} onClose={() => setAccepting(null)} />
+      ) : null}
     </div>
   );
 }

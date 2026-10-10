@@ -79,6 +79,12 @@ export function flaggedNotice(dcr: Pick<DcrDetailDto, 'doctorCalls' | 'chemistCa
   return n === 0 ? null : `${n} ${n === 1 ? 'call was' : 'calls were'} flagged by the location check and ${n === 1 ? 'has' : 'have'} not been accepted.`;
 }
 
+/** "1 doctor call was not in the day's plan", or `null` when every call was. */
+export function notInPlanNotice(dcr: Pick<DcrDetailDto, 'doctorCalls'>): string | null {
+  const n = dcr.doctorCalls.filter((c) => c.notInPlan).length;
+  return n === 0 ? null : `${n} doctor ${n === 1 ? 'call was' : 'calls were'} not in the day’s plan.`;
+}
+
 /**
  * Who may accept a flagged call, and when: Admin, while the report is with the manager or with Admin. The API enforces it;
  * this only decides whether to offer the button.

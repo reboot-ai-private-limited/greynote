@@ -7,7 +7,7 @@ import type { DcrMonthRow, FieldActivityPort, IdentityPort, MasterPort } from '.
 
 const UNKNOWN = '(removed)';
 
-const zero = (): Omit<DcrFiguresDto, 'calls' | 'callsPerDay' | 'unconfirmed'> => ({ reportedDays: 0, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 } });
+const zero = (): Omit<DcrFiguresDto, 'calls' | 'callsPerDay' | 'unconfirmed'> => ({ reportedDays: 0, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 }, notInPlan: 0 });
 
 /** The derived figures (calls, calls per day, unconfirmed) from the counted ones. */
 export function figuresOf(r: Omit<DcrFiguresDto, 'calls' | 'callsPerDay' | 'unconfirmed'>): DcrFiguresDto {
@@ -21,10 +21,11 @@ function add(into: ReturnType<typeof zero>, r: Omit<DcrFiguresDto, 'calls' | 'ca
   into.doctorCalls += r.doctorCalls;
   into.chemistCalls += r.chemistCalls;
   into.followups += r.followups;
+  into.notInPlan += r.notInPlan;
   for (const k of ['pass', 'fail', 'unverified', 'override'] as const) into.geofence[k] += r.geofence[k];
 }
 
-const counted = (r: DcrMonthRow) => ({ reportedDays: r.reportedDays, lateDays: r.lateDays, doctorCalls: r.doctorCalls, chemistCalls: r.chemistCalls, followups: r.followups, geofence: { ...r.geofence } });
+const counted = (r: DcrMonthRow) => ({ reportedDays: r.reportedDays, lateDays: r.lateDays, doctorCalls: r.doctorCalls, chemistCalls: r.chemistCalls, followups: r.followups, geofence: { ...r.geofence }, notInPlan: r.notInPlan });
 
 /**
  * What the field force reported, for the financial year in view (sign-off K28: calls only): per month and per employee the reported days, doctor

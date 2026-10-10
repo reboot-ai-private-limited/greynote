@@ -82,6 +82,13 @@ export function DcrReportScreen() {
       render: (m) =>
         m.lateDays > 0 ? <span className="text-warning-fg">{n(m.lateDays)}</span> : '0',
     },
+    {
+      key: 'notInPlan',
+      header: 'Not in plan',
+      numeric: true,
+      render: (m) =>
+        m.notInPlan > 0 ? <span className="text-warning-fg">{n(m.notInPlan)}</span> : '0',
+    },
     { key: 'geofence', header: 'Geofence', render: (m) => <GeofenceBar figures={m} /> },
   ];
 
@@ -105,6 +112,12 @@ export function DcrReportScreen() {
       header: 'Late',
       numeric: true,
       render: (r) => (r.lateDays > 0 ? <Badge tone="warning">{`${r.lateDays} late`}</Badge> : '0'),
+    },
+    {
+      key: 'notInPlan',
+      header: 'Not in plan',
+      numeric: true,
+      render: (r) => (r.notInPlan > 0 ? <Badge tone="warning">{n(r.notInPlan)}</Badge> : '0'),
     },
     { key: 'geofence', header: 'Geofence', render: (r) => <GeofenceBar figures={r} /> },
     {
@@ -146,7 +159,7 @@ export function DcrReportScreen() {
           </div>
         }
       />
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatTile
           label="Days reported"
           value={n(t?.reportedDays ?? 0)}
@@ -163,6 +176,12 @@ export function DcrReportScreen() {
           value={n(t?.unconfirmed ?? 0)}
           note="failed or unverified, not overridden"
           tone={t && t.unconfirmed > 0 ? 'warning' : undefined}
+        />
+        <StatTile
+          label="Doctor calls not in plan"
+          value={n(t?.notInPlan ?? 0)}
+          note="a doctor who was not on the day’s plan"
+          tone={t && t.notInPlan > 0 ? 'warning' : undefined}
         />
       </div>
 

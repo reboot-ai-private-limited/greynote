@@ -322,6 +322,13 @@ Plan's `routeIds` (`CallChecks.onPlannedRoute`, after the existence/assignment c
 has no Routes, so no calls. Follow-ups are not route-checked. To differ from the Plan, the manager or Admin amends the
 Plan first (`planning.md`).
 
+**Doctors outside the day's doctor list (decision-log 2026-10-10).** A Doctor Call is checked by `CallChecks.doctorInPlan`:
+a Doctor on the plan's list (`getDailyPlanDay().doctorIds`, picked or carried) is in plan whatever their Route; a plan that
+lists **no** Doctors keeps the Route rule above; otherwise the Doctor is **not in plan** — saved with `notInPlan = true`
+while `ALLOW_UNPLANNED_DOCTOR_CALLS` is on (default; a database without the key reads as on), refused `ROUTE_NOT_IN_PLAN`
+when it is off. Chemist Calls keep the Route rule. The flag shows as a "Not in plan" badge on the call in the approval
+preview and as a count in the DCR report (`DcrMonthSummary.notInPlan` from `DoctorCallRepositoryPort.countNotInPlan`).
+
 ## When TA/DA is generated (decided 2026-09-29)
 
 At the DCR's `SUBMITTED → MANAGER_APPROVED` transition, exactly once, from the day's Plan

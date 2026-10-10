@@ -2,7 +2,7 @@ import type { DcrMonthDto, DcrMrRowDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
 import { callsPerDayText, confirmedPercent, dcrCoverageCsv, dcrDefaultMonth, dcrEmployeesCsv, dcrMonthsCsv, dcrRowsOfMonth, dcrYearFilename, latePercent } from './dcr';
 
-const f = { reportedDays: 20, lateDays: 2, doctorCalls: 100, chemistCalls: 40, followups: 5, calls: 140, callsPerDay: 7, geofence: { pass: 120, fail: 6, unverified: 4, override: 10 }, unconfirmed: 10 };
+const f = { reportedDays: 20, lateDays: 2, doctorCalls: 100, chemistCalls: 40, followups: 5, calls: 140, callsPerDay: 7, geofence: { pass: 120, fail: 6, unverified: 4, override: 10 }, unconfirmed: 10, notInPlan: 3 };
 const month = (over: Partial<DcrMonthDto> = {}): DcrMonthDto => ({ month: '2026-04', state: 'ENDED', employees: 2, ...f, ...over });
 const row = (over: Partial<DcrMrRowDto> = {}): DcrMrRowDto => ({ month: '2026-04', mr: { id: 'u1', name: 'Asha Rao', employeeCode: 'MR001' }, ...f, ...over });
 
@@ -36,11 +36,11 @@ describe('the CSVs', () => {
   it('the year: a row per started month, calls per day empty when there are no days', () => {
     const lines = dcrMonthsCsv({ months: [month(), month({ month: '2026-05', reportedDays: 0, callsPerDay: null }), month({ month: '2026-06', state: 'FUTURE' })] }).trimEnd().split('\r\n');
     expect(lines).toHaveLength(3);
-    expect(lines[1]).toBe('Apr 26,2,20,2,100,40,5,7,120,10,4,6');
-    expect(lines[2]).toBe('May 26,2,0,2,100,40,5,,120,10,4,6');
+    expect(lines[1]).toBe('Apr 26,2,20,2,100,40,5,7,120,10,4,6,3');
+    expect(lines[2]).toBe('May 26,2,0,2,100,40,5,,120,10,4,6,3');
   });
   it('the employees of a month, and the doctors not visited', () => {
-    expect(dcrEmployeesCsv([row()]).trimEnd().split('\r\n')[1]).toBe('Apr 26,MR001,Asha Rao,20,2,100,40,5,7,120,10,4,6');
+    expect(dcrEmployeesCsv([row()]).trimEnd().split('\r\n')[1]).toBe('Apr 26,MR001,Asha Rao,20,2,100,40,5,7,120,10,4,6,3');
     expect(dcrCoverageCsv({ notVisited: [{ id: 'd1', name: 'Dr Sen, MD', specialty: 'ENT' }] }).trimEnd().split('\r\n')[1]).toBe('"Dr Sen, MD",ENT');
     expect(dcrYearFilename(2026)).toBe('dcr-2026-27.csv');
   });

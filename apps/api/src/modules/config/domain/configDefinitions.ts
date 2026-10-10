@@ -105,6 +105,7 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
     impact: 'HIGH',
     impactNote: 'Applies to reports submitted from now on. Off: nobody reviews a daily report before its TA/DA is generated. Reports already waiting keep their current approval path.',
   },
+  toggle('ALLOW_UNPLANNED_DOCTOR_CALLS', 'FIELD_ACTIVITY', 'Allow calls to doctors not on the day\u2019s plan', 'Whether an employee can log a call to a doctor who is not on that day\u2019s approved doctor list. On: the call is saved and shown as "Not in plan" in the daily report and the reports. Off: such a call is refused.', true),
   integer('DCR_MISS_GRACE_DAYS', 'FIELD_ACTIVITY', 'Missed-report grace', 'Grace days before a missed DCR triggers the compliance block.', 1, 0, 365, 'days'),
 
   toggle('CALL_CARRY_OVER_FOREVER', 'FIELD_ACTIVITY', 'Missed calls carry over without limit', 'Whether a doctor planned for a day but not called stays on later days\u2019 plans until called. Off: the days setting below applies.', false),

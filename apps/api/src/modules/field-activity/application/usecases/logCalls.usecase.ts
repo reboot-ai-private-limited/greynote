@@ -54,7 +54,7 @@ export class LogDoctorCallUseCase {
   async execute(rec: RecordContext, input: CallInput & { doctorId: string; samples: Array<{ productId: string; quantity: number }> }, ctx: TransactionContext): Promise<CallResult> {
     const dcr = await this.gate.open(rec.userId, input.reportDate, rec.recordedAt);
     const doctor = await this.checks.doctor(rec.userId, input.doctorId);
-    await this.checks.onPlannedRoute(rec.userId, input.reportDate, doctor.routeId, doctor.id);
+    const { notInPlan } = await this.checks.doctorInPlan(rec.userId, input.reportDate, doctor);
     await this.checks.workWith(rec.userId, input.workWith);
     const geofence = await this.geofence.evaluate(await this.master.getDoctorLocation(input.doctorId), input.capturedLocation, input.accuracyMeters);
 
@@ -70,7 +70,7 @@ export class LogDoctorCallUseCase {
     }
 
     const call = await this.calls.create(
-      { dcrId: dcr.id, userId: rec.userId, reportDate: input.reportDate, doctorId: input.doctorId, workingType: input.workingType, workWith: input.workWith, remarks: input.remarks, capturedLocation: input.capturedLocation, accuracyMeters: input.accuracyMeters, geofence, samples, clientId: rec.clientId, recordedAt: rec.recordedAt },
+      { dcrId: dcr.id, userId: rec.userId, reportDate: input.reportDate, doctorId: input.doctorId, workingType: input.workingType, workWith: input.workWith, remarks: input.remarks, capturedLocation: input.capturedLocation, accuracyMeters: input.accuracyMeters, geofence, samples, notInPlan, clientId: rec.clientId, recordedAt: rec.recordedAt },
       ctx,
     );
     return resultOf(call.id, geofence);

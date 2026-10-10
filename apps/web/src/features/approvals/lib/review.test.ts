@@ -12,6 +12,7 @@ import {
   geofenceDetail,
   hasDistanceFlag,
   isFlagged,
+  notInPlanNotice,
   overrideReasonError,
   splitExpenses,
   taDaNote,
@@ -40,6 +41,7 @@ const call = (id: string, g: GeofenceOutcomeDto, samples: DoctorCallDto['samples
   recordedAt: '2026-10-05T05:00:00Z',
   doctorId: 'doc',
   doctorName: 'Dr Rao',
+  notInPlan: false,
   samples,
 });
 const expense = (over: Partial<DcrExpenseDto>): DcrExpenseDto => ({
@@ -175,5 +177,16 @@ describe('approveWarnings', () => {
   it('gives both, the manager first', () => {
     expect(approveWarnings({ skipsManager: true, flagged: 2 })).toHaveLength(2);
     expect(approveWarnings({ skipsManager: true, flagged: 2 })[0]).toMatch(/waiting on the manager/);
+  });
+});
+
+describe('notInPlanNotice', () => {
+  const dcr = (flags: boolean[]) => ({ doctorCalls: flags.map((f, i) => ({ ...call(`c${i}`, geo()), notInPlan: f })) });
+  it('is silent when every call was planned', () => {
+    expect(notInPlanNotice(dcr([false, false]))).toBeNull();
+  });
+  it('counts the calls that were not', () => {
+    expect(notInPlanNotice(dcr([true, false]))).toBe('1 doctor call was not in the day’s plan.');
+    expect(notInPlanNotice(dcr([true, true]))).toBe('2 doctor calls were not in the day’s plan.');
   });
 });

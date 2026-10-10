@@ -105,7 +105,7 @@ export class FakePlanning implements PlanningPort {
   async isDailyPlanApproved(userId: string, date: string) {
     return this.approved.has(`${userId}:${date}`);
   }
-  days = new Map<string, { workingType: WorkingType; routeIds: string[] }>();
+  days = new Map<string, { workingType: WorkingType; routeIds: string[]; doctorIds?: string[] }>();
   async getDailyPlanDay(userId: string, date: string) {
     return this.days.get(`${userId}:${date}`) ?? null;
   }
@@ -173,10 +173,11 @@ export class FakeDcrs implements DcrRepositoryPort {
 }
 
 export class FakeConfig implements ConfigReader {
-  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', TA_MAX_KM: '99', EXPENSE_PAYOUT_DAY: '15', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: 'NONE' };
+  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', ALLOW_UNPLANNED_DOCTOR_CALLS: 'true', TA_MAX_KM: '99', EXPENSE_PAYOUT_DAY: '15', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: 'NONE' };
   async get(key: string) {
     const v = this.values[key];
-    if (v === undefined) throw new Error(`missing ${key}`);
+    // Like the real Config: an unseeded key is a CONFIG_KEY_MISSING fault.
+    if (v === undefined) throw AppError.internal('INTERNAL', { reason: 'CONFIG_KEY_MISSING', key });
     return v;
   }
 }
@@ -312,7 +313,13 @@ class FakeCalls<T extends { id: string; dcrId: string | null }> {
     return true;
   }
 }
-export class FakeDoctorCalls extends FakeCalls<DoctorCall> implements DoctorCallRepositoryPort {}
+export class FakeDoctorCalls extends FakeCalls<DoctorCall> implements DoctorCallRepositoryPort {
+  async countNotInPlan(range: { from: string; to: string }) {
+    const by = new Map<string, number>();
+    for (const r of this.rows) if (r.notInPlan && r.reportDate >= range.from && r.reportDate <= range.to) by.set(r.dcrId, (by.get(r.dcrId) ?? 0) + 1);
+    return [...by].map(([dcrId, count]) => ({ dcrId, count }));
+  }
+}
 export class FakeChemistCalls extends FakeCalls<ChemistCall> implements ChemistCallRepositoryPort {}
 export class FakeFollowups extends FakeCalls<Followup> implements FollowupRepositoryPort {}
 export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositoryPort {
@@ -511,7 +518,7 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const chemistCalls = new FakeChemistCalls();
   const followups = new FakeFollowups();
   const expenses = new FakeExpenses();
-  const checks = new CallChecks(fmd, territory, users, planning);
+  const checks = new CallChecks(fmd, territory, users, planning, config);
   const geofence = new GeofenceEvaluator(config);
   const logDoctorCall = new LogDoctorCallUseCase(gate, checks, geofence, fmd, doctorCalls);
   const logChemistCall = new LogChemistCallUseCase(gate, checks, geofence, fmd, chemistCalls);

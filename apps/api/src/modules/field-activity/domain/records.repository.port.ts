@@ -18,6 +18,8 @@ export interface GeofenceCount {
 }
 
 export interface DoctorCallRepositoryPort {
+  /** Calls to a Doctor who wasn't on the day's plan, per daily report, for report days in the range (both ends inclusive). */
+  countNotInPlan(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>>;
   /** Per daily report and geofence result, for report days in the range (both ends inclusive). */
   countByGeofence(range: { from: string; to: string }): Promise<GeofenceCount[]>;
   /** The distinct Doctors called in these daily reports. */

@@ -1873,3 +1873,13 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Assumed (to confirm):** a call clears a doctor if it is on a **submitted or approved** daily report on or after the day first planned (the DCR report's rule); a carried doctor who is no longer the MR's (inactive, reassigned) drops off; only **approved** plans create carry-over; at most 50 doctors a day. Manager amendments and in-day change requests **do not carry the doctor list** (it stays as saved).
 
 **Open:** the phone's doctor picker, "carried from" chip and "calls due" counter (mobile team; the sync snapshot already carries `doctors`); run `pnpm --filter @greynote/api seed` so the two new settings exist (until then the reader would fail — seed before deploy); not browser-checked.
+
+## 2026-10-10 — Calls to doctors outside the day's plan are allowed by a rule and flagged "Not in plan"
+
+**Decided (owner):** an MR may log a call to a doctor who is **not on that day's doctor list** when Admin's rule **`ALLOW_UNPLANNED_DOCTOR_CALLS`** is on (**default on**). Such a call is saved and shown as **"Not in plan"** in the daily report (approval preview) and counted in the **DCR report**. When the rule is off the call is refused (`ROUTE_NOT_IN_PLAN`). **Flag only** — the MR is not asked for a reason. "Not in plan" means not on the day's list (picked or carried over), **whatever the doctor's route**.
+
+**Built (API + web only; the phone is another team's):** `DoctorCall.notInPlan` (absent on older calls = in plan); `CallChecks.doctorInPlan` replaces the route check for doctor calls; Planning's `getDailyPlanDay` returns the plan's `doctorIds`; DCR detail carries the flag; `DcrMonthSummary.notInPlan` → the DCR report (`DcrFiguresDto.notInPlan`). Web: a badge on the call card, a notice above the doctor calls, a column, a tile and a CSV column on the DCR report. No migration.
+
+**Assumed (to confirm):** a plan that lists **no doctors** (approved before doctor lists, or none chosen) keeps the old route rule and flags nothing, so those days are not locked out when the rule is off; a database without the key (not re-seeded yet) reads as **on**; chemist calls keep the route rule; an unplanned call counts toward the visit-frequency report and clears a carried-over entry like any other call.
+
+**Open:** the phone should stop limiting the doctor picker to the plan's list (mobile team); run `pnpm --filter @greynote/api seed` so the setting exists; not browser-checked.

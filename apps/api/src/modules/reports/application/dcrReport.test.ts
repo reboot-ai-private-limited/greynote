@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DcrMonthRow } from '../domain/ports.js';
 import { DcrReport, figuresOf } from './dcrReport.js';
 
-const row = (userId: string, month: string, over: Partial<DcrMonthRow> = {}): DcrMonthRow => ({ userId, month, reportedDays: 20, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 }, ...over });
+const row = (userId: string, month: string, over: Partial<DcrMonthRow> = {}): DcrMonthRow => ({ userId, month, reportedDays: 20, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 }, notInPlan: 0, ...over });
 
 function kit(summaries: DcrMonthRow[], over: { called?: string[] } = {}) {
   const calls: Array<Record<string, unknown>> = [];
@@ -34,25 +34,25 @@ function kit(summaries: DcrMonthRow[], over: { called?: string[] } = {}) {
 
 describe('figuresOf', () => {
   it('adds up the calls, gives calls per reported day to one decimal, and counts what the geofence could not confirm', () => {
-    const f = figuresOf({ reportedDays: 20, lateDays: 1, doctorCalls: 100, chemistCalls: 33, followups: 4, geofence: { pass: 120, fail: 5, unverified: 5, override: 3 } });
-    expect(f).toMatchObject({ calls: 133, callsPerDay: 6.7, unconfirmed: 10 });
+    const f = figuresOf({ reportedDays: 20, lateDays: 1, doctorCalls: 100, chemistCalls: 33, followups: 4, geofence: { pass: 120, fail: 5, unverified: 5, override: 3 }, notInPlan: 7 });
+    expect(f).toMatchObject({ calls: 133, callsPerDay: 6.7, unconfirmed: 10, notInPlan: 7 });
   });
   it('has no calls per day without a reported day', () => {
-    expect(figuresOf({ reportedDays: 0, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 } }).callsPerDay).toBeNull();
+    expect(figuresOf({ reportedDays: 0, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 }, notInPlan: 0 }).callsPerDay).toBeNull();
   });
 });
 
 describe('the DCR year', () => {
   it('twelve months from April, each employee\'s month, the months adding up, the open and future months marked', async () => {
     const { report, calls } = kit([
-      row('u1', '2026-04', { reportedDays: 20, lateDays: 2, doctorCalls: 100, chemistCalls: 40, followups: 5, geofence: { pass: 130, fail: 5, unverified: 3, override: 2 } }),
+      row('u1', '2026-04', { reportedDays: 20, lateDays: 2, doctorCalls: 100, chemistCalls: 40, followups: 5, geofence: { pass: 130, fail: 5, unverified: 3, override: 2 }, notInPlan: 4 }),
       row('u2', '2026-04', { reportedDays: 10, doctorCalls: 50, chemistCalls: 10, geofence: { pass: 60, fail: 0, unverified: 0, override: 0 } }),
       row('u1', '2026-10', { reportedDays: 4, doctorCalls: 20 }),
     ]);
     const r = await report.year({ year: 2026 });
     expect(calls[0]).toEqual({ summarize: { from: '2026-04-01', to: '2027-03-31' } });
     expect(r.months).toHaveLength(12);
-    expect(r.months[0]).toMatchObject({ month: '2026-04', state: 'ENDED', employees: 2, reportedDays: 30, lateDays: 2, doctorCalls: 150, chemistCalls: 50, followups: 5, calls: 200, callsPerDay: 6.7, unconfirmed: 8 });
+    expect(r.months[0]).toMatchObject({ month: '2026-04', state: 'ENDED', employees: 2, reportedDays: 30, lateDays: 2, doctorCalls: 150, chemistCalls: 50, followups: 5, calls: 200, callsPerDay: 6.7, unconfirmed: 8, notInPlan: 4 });
     expect(r.months[0]!.geofence).toEqual({ pass: 190, fail: 5, unverified: 3, override: 2 });
     expect(r.months[6]).toMatchObject({ month: '2026-10', state: 'OPEN', employees: 1, reportedDays: 4 });
     expect(r.months[7]).toMatchObject({ state: 'FUTURE', employees: 0, callsPerDay: null });

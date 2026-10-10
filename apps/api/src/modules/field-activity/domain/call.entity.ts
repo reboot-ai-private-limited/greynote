@@ -43,6 +43,8 @@ interface CallBase {
 export interface DoctorCall extends CallBase {
   doctorId: string;
   samples: SampleLine[];
+  /** The day's approved plan lists doctors and this one wasn't among them: allowed by `ALLOW_UNPLANNED_DOCTOR_CALLS`, shown as "Not in plan". */
+  notInPlan: boolean;
 }
 
 export interface ChemistCall extends CallBase {

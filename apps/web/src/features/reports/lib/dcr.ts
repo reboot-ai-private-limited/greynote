@@ -23,8 +23,8 @@ export const latePercent = (f: Pick<DcrFiguresDto, 'reportedDays' | 'lateDays'>)
 
 export const callsPerDayText = (f: Pick<DcrFiguresDto, 'callsPerDay'>): string => (f.callsPerDay === null ? '—' : f.callsPerDay.toFixed(1));
 
-const figureCells = (f: DcrFiguresDto) => [f.reportedDays, f.lateDays, f.doctorCalls, f.chemistCalls, f.followups, f.callsPerDay ?? '', f.geofence.pass, f.geofence.override, f.geofence.unverified, f.geofence.fail];
-const FIGURE_HEADER = ['Days reported', 'Submitted late', 'Doctor calls', 'Chemist calls', 'Follow-ups', 'Calls per day', 'Geofence passed', 'Geofence overridden', 'Geofence unverified', 'Geofence failed'] as const;
+const figureCells = (f: DcrFiguresDto) => [f.reportedDays, f.lateDays, f.doctorCalls, f.chemistCalls, f.followups, f.callsPerDay ?? '', f.geofence.pass, f.geofence.override, f.geofence.unverified, f.geofence.fail, f.notInPlan];
+const FIGURE_HEADER = ['Days reported', 'Submitted late', 'Doctor calls', 'Chemist calls', 'Follow-ups', 'Calls per day', 'Geofence passed', 'Geofence overridden', 'Geofence unverified', 'Geofence failed', 'Not in plan'] as const;
 
 export const DCR_MONTHS_CSV_HEADER = ['Month', 'Employees', ...FIGURE_HEADER] as const;
 

@@ -868,3 +868,7 @@ Doctor DOB / anniversary / monthly visit frequency (decision-log 2026-10-10, K38
 ## Daily Plan doctor list and carry-over (2026-10-10)
 
 Decision-log 2026-10-10, B14: the MR picks the day's doctors (count = calls due); missed doctors carry to later days per Admin's settings; whole list re-approved; the visit report shows planned days and the missed-since date. **Done:** API (`doctors` on the Daily Plan, set-doctors and carry-over endpoints, submit merge, carried-doctor exemption in the call check, `listPlannedDoctors` for the report; tests pass), web (approval preview lists doctors, visit-report dialog and CSV). **Open:** the phone's picker and counter; seed the two new settings before deploy; browser check; amendments and in-day changes do not carry the list.
+
+## Calls outside the day's plan (2026-10-10)
+
+Decision-log 2026-10-10, B15: `ALLOW_UNPLANNED_DOCTOR_CALLS` (default on) lets a call to a doctor not on the day's doctor list be saved and flagged "Not in plan" (approval preview badge, DCR report column/tile/CSV); off refuses it. **Done:** API (`doctorInPlan` check, `notInPlan` on the call, report counts; tests pass) and web. **Open:** the phone's picker; seed the setting; browser check.

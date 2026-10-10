@@ -26,6 +26,8 @@ interface CallDocBase {
 export interface DoctorCallDoc extends CallDocBase {
   doctorId: Types.ObjectId;
   samples: Array<{ allocationId: Types.ObjectId; productId: Types.ObjectId; quantity: number }>;
+  /** Absent on calls from before the rule: read as in plan. */
+  notInPlan?: boolean;
 }
 export interface ChemistCallDoc extends CallDocBase {
   chemistId: Types.ObjectId;
@@ -65,6 +67,7 @@ const callFields = {
 const doctorCallSchema = new Schema<DoctorCallDoc>({
   ...callFields,
   doctorId: ref('Doctor'),
+  notInPlan: { type: Boolean, default: false },
   samples: {
     type: [new Schema({ allocationId: ref('SampleAllocation'), productId: ref('Product'), quantity: { type: Number, required: true, min: 1 } }, { _id: false })],
     default: [],

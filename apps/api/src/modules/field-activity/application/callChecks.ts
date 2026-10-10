@@ -1,3 +1,5 @@
+import { AppError } from '@/shared/errors/AppError.js';
+import { parseBoolean, readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
 import type { Doctor, Chemist } from '@/modules/field-master-data/field-master-data.public.js';
 import { LOG_CODES, LogRefusal } from '../domain/logRefusal.js';
 import type { PlanningPort } from '../domain/planning.port.js';
@@ -17,6 +19,7 @@ export class CallChecks {
     private readonly territory: TerritoryPort,
     private readonly users: UserDirectoryPort,
     private readonly planning: PlanningPort,
+    private readonly config: ConfigReader,
   ) {}
 
   /** An active Doctor the MR is still assigned to — and can still see, when visibility follows the Route. */
@@ -42,14 +45,39 @@ export class CallChecks {
   /**
    * A call stays inside the day's approved Plan: the Doctor's or Chemist's Route must be one the Plan lists. The report can't
    * depart from the plan — the way to change the day is for the manager or Admin to amend the plan, then log. (A Plan with no
-   * Routes, a meeting day, has no calls.) The gate has already confirmed the Plan is approved. A Doctor carried over from an
-   * earlier day (`doctorId`) may be called whatever their Route: the plan lists them by name.
+   * Routes, a meeting day, has no calls.) The gate has already confirmed the Plan is approved.
    */
-  async onPlannedRoute(userId: string, reportDate: string, routeId: string, doctorId?: string): Promise<void> {
+  async onPlannedRoute(userId: string, reportDate: string, routeId: string): Promise<void> {
     const day = await this.planning.getDailyPlanDay(userId, reportDate);
-    if (doctorId && day?.carriedDoctorIds?.includes(doctorId)) return;
     if (!day?.routeIds.includes(routeId)) {
       throw new LogRefusal(LOG_CODES.routeNotInPlan, 'This call isn’t on a route in today’s approved plan. Ask your manager to amend the plan first.');
+    }
+  }
+
+  /**
+   * A Doctor call against the day's Plan. A Doctor on the Plan's list (picked or carried over) is in plan, whatever their Route. When the
+   * Plan lists no Doctors at all (a day from before doctor lists, or none chosen) the Route rule above applies. Otherwise the Doctor is
+   * not in plan: allowed and flagged while `ALLOW_UNPLANNED_DOCTOR_CALLS` is on, refused when it is off.
+   */
+  async doctorInPlan(userId: string, reportDate: string, doctor: Doctor): Promise<{ notInPlan: boolean }> {
+    const day = await this.planning.getDailyPlanDay(userId, reportDate);
+    const listed = day?.doctorIds ?? [];
+    if (listed.includes(doctor.id)) return { notInPlan: false };
+    if (listed.length === 0) {
+      await this.onPlannedRoute(userId, reportDate, doctor.routeId);
+      return { notInPlan: false };
+    }
+    if (await this.allowUnplanned()) return { notInPlan: true };
+    throw new LogRefusal(LOG_CODES.routeNotInPlan, 'This doctor isn’t on today’s approved plan. Ask your manager to amend the plan first.');
+  }
+
+  /** Whether a Doctor outside the day's list may be called; a database not re-seeded yet reads as allowed. */
+  private async allowUnplanned(): Promise<boolean> {
+    try {
+      return await readConfig(this.config, 'ALLOW_UNPLANNED_DOCTOR_CALLS', parseBoolean);
+    } catch (err) {
+      if (err instanceof AppError && (err.details as { reason?: string } | undefined)?.reason === 'CONFIG_KEY_MISSING') return true;
+      throw err;
     }
   }
 

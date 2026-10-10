@@ -160,6 +160,7 @@ export interface DcrMonthRow {
   chemistCalls: number;
   followups: number;
   geofence: { pass: number; fail: number; unverified: number; override: number };
+  notInPlan: number;
 }
 
 export interface PayrollReportRow {

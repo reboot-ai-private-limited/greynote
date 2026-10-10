@@ -115,7 +115,7 @@ export function buildFieldActivityContainer(
   const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
 
   // The day's calls and follow-ups, each checked against Field Master Data and Territory as they are at sync.
-  const checks = new CallChecks(master, territory, users, planning);
+  const checks = new CallChecks(master, territory, users, planning, config);
   const geofence = new GeofenceEvaluator(config);
   for (const definition of makeCallSyncHandlers({
     doctorCall: new LogDoctorCallUseCase(gate, checks, geofence, master, doctorCalls),

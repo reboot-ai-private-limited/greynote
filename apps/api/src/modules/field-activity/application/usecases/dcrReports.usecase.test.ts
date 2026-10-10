@@ -22,7 +22,7 @@ function world() {
     if (status) approvals.requests.set(`DCR:${dcr.id}`, { id: `req-${dcr.id}`, kind: 'DCR', recordId: dcr.id, submitterId: userId, status, workflow: 'MANAGER_THEN_FINAL', cycle: 1, submittedAt: new Date(submittedAt), decidedAt: null, history: [] });
     return dcr;
   };
-  const doctorCall = (dcrId: string, userId: string, reportDate: string, doctorId: string, status: GeoStatus = 'PASS') => doctor.rows.push({ id: `dc-${doctor.rows.length}`, dcrId, userId, reportDate, doctorId, geofence: { status } } as never);
+  const doctorCall = (dcrId: string, userId: string, reportDate: string, doctorId: string, status: GeoStatus = 'PASS', notInPlan = false) => doctor.rows.push({ id: `dc-${doctor.rows.length}`, dcrId, userId, reportDate, doctorId, notInPlan, geofence: { status } } as never);
   const chemistCall = (dcrId: string, userId: string, reportDate: string, status: GeoStatus = 'PASS') => chemist.rows.push({ id: `cc-${chemist.rows.length}`, dcrId, userId, reportDate, geofence: { status } } as never);
   const followup = (dcrId: string, userId: string, reportDate: string) => follow.rows.push({ id: `fu-${follow.rows.length}`, dcrId, userId, reportDate } as never);
   return { report, doctorCall, chemistCall, followup, summarize, called };
@@ -39,9 +39,9 @@ describe('summarizing the daily reports', () => {
     w.doctorCall(a.id, 'u1', '2026-10-05', 'd2', 'FAIL');
     w.chemistCall(a.id, 'u1', '2026-10-05', 'UNVERIFIED');
     w.followup(a.id, 'u1', '2026-10-05');
-    w.doctorCall(b.id, 'u1', '2026-10-06', 'd3', 'OVERRIDE');
+    w.doctorCall(b.id, 'u1', '2026-10-06', 'd3', 'OVERRIDE', true);
     const [s] = await w.summarize.execute(range);
-    expect(s).toEqual({ userId: 'u1', month: '2026-10', reportedDays: 2, lateDays: 0, doctorCalls: 3, chemistCalls: 1, followups: 1, geofence: { pass: 1, fail: 1, unverified: 1, override: 1 } });
+    expect(s).toEqual({ userId: 'u1', month: '2026-10', reportedDays: 2, lateDays: 0, doctorCalls: 3, chemistCalls: 1, followups: 1, geofence: { pass: 1, fail: 1, unverified: 1, override: 1 }, notInPlan: 1 });
   });
 
   it('leaves out a day that is only a draft, rejected or withdrawn, together with its calls', async () => {

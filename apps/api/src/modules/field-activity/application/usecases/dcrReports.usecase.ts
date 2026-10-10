@@ -17,6 +17,8 @@ export interface DcrMonthSummary {
   followups: number;
   /** Doctor and chemist calls together, by the server's geofence result. */
   geofence: { pass: number; fail: number; unverified: number; override: number };
+  /** Doctor calls to a Doctor who wasn't on the day's plan. */
+  notInPlan: number;
 }
 
 /**
@@ -38,13 +40,13 @@ export class SummarizeDcrsUseCase {
     const requests = new Map((await this.approvals.listForRecords(DCR_KIND, all.map((d) => d.id))).map((r) => [r.recordId, r]));
     const reported = all.filter((d) => isQualifyingDcr(dcrStatus(requests.get(d.id) ?? null)));
     const byDcr = new Map(reported.map((d) => [d.id, d]));
-    const [doctor, chemist, follow] = await Promise.all([this.doctorCalls.countByGeofence(range), this.chemistCalls.countByGeofence(range), this.followups.countByDcrRange(range)]);
+    const [doctor, chemist, follow, unplanned] = await Promise.all([this.doctorCalls.countByGeofence(range), this.chemistCalls.countByGeofence(range), this.followups.countByDcrRange(range), this.doctorCalls.countNotInPlan(range)]);
 
     const dateOf = await this.clock.dateConverter();
     const out = new Map<string, DcrMonthSummary>();
     const of = (userId: string, month: string): DcrMonthSummary => {
       const key = `${userId}|${month}`;
-      const cur = out.get(key) ?? { userId, month, reportedDays: 0, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 } };
+      const cur = out.get(key) ?? { userId, month, reportedDays: 0, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 }, notInPlan: 0 };
       out.set(key, cur);
       return cur;
     };
@@ -63,6 +65,10 @@ export class SummarizeDcrsUseCase {
         s[kind] += r.count;
         s.geofence[geofenceKey[r.status]] += r.count;
       }
+    }
+    for (const r of unplanned) {
+      const d = byDcr.get(r.dcrId);
+      if (d) of(d.userId, d.reportDate.slice(0, 7)).notInPlan += r.count;
     }
     for (const r of follow) {
       const d = byDcr.get(r.dcrId);

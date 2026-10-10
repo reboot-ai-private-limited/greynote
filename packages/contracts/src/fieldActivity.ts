@@ -69,6 +69,8 @@ interface CallBaseDto {
 export interface DoctorCallDto extends CallBaseDto {
   doctorId: string;
   doctorName: string;
+  /** The day's approved plan lists doctors and this one wasn't among them. */
+  notInPlan: boolean;
   samples: { allocationId: string; productId: string; productName: string; quantity: number }[];
 }
 

@@ -44,6 +44,7 @@ applies because the design changed (the decision-log entry says how).
 | B12 | Can a DCR depart from the day's Plan? | No: a call on a Route the approved Plan doesn't list is refused (`ROUTE_NOT_IN_PLAN`). The manager/Admin amends the plan first | Built 2026-10-03 (client's call; was open — flag instead of refuse is a possible setting) |
 | B13 | How long does an approver have? | 3 days (*config* `APPROVAL_SLA_DAYS`), measured per stage. Then the request is flagged overdue; nothing is auto-approved and Admin can always approve | Built 2026-10-03 (client's call) |
 | B14 | A day's doctor list and missed calls | The MR picks the doctors for the day (count = calls due); doctors not called carry to later days' lists for the period set in *config* `CALL_CARRY_OVER_FOREVER` / `CALL_CARRY_OVER_DAYS` (default until month end); the full list is approved; the visit report shows the date first planned and never called | Built 2026-10-10 (client's call; the "which calls clear a doctor" rule is assumed) |
+| B15 | A call to a doctor not on the day's plan | Allowed while *config* `ALLOW_UNPLANNED_DOCTOR_CALLS` is on (default), shown as "Not in plan" on the call and counted in the DCR report; refused when off. No reason is asked of the MR. A plan that lists no doctors keeps the route rule | Built 2026-10-10 (client's call) |
 
 ## C. Doctors, Chemists & Distributors (Phase 4)
 

@@ -46,6 +46,7 @@ erDiagram
         decimal captured_latitude "MR's GPS at call time"
         decimal captured_longitude
         decimal accuracy_meters "the phone's reported GPS accuracy"
+        boolean not_in_plan "true when the day's approved plan lists doctors and this one is not among them; default false"
         string geofence_status "PASS, FAIL, UNVERIFIED, OVERRIDE"
         int geofence_distance_meters "nullable - the server's computed distance, kept when overridden"
         uuid geofence_overridden_by FK "nullable - the manager who accepted a FAIL/UNVERIFIED"
