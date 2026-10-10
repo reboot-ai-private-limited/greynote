@@ -72,7 +72,10 @@ export default function LeaveScreen() {
   const [chosen, setChosen] = useState<PickedProof[]>([]);
   const [pickError, setPickError] = useState<string | null>(null);
 
-  const types = hr.data?.leaveTypes ?? [];
+  const allTypes = hr.data?.leaveTypes ?? [];
+  // A new request is for Casual, Sick or Earned leave (not Loss of Pay). The type of a leave already made is kept, so it can still be changed and sent again.
+  const requestable = (name: string) => ['casual', 'sick', 'earned'].includes(name.trim().toLowerCase());
+  const types = allTypes.filter((t) => requestable(t.name));
   const earliest = addDays(today, -(hr.data?.leaveBackdateDays ?? 0));
 
   const [reloadKey, setReloadKey] = useState(0);
@@ -195,7 +198,7 @@ export default function LeaveScreen() {
               Connect to the internet once so your leave types can load.
             </ThemedText>
           ) : (
-            <ChoiceChips options={types.map((t) => ({ value: t.id, label: t.name }))} value={typeId} onChange={setTypeId} disabled={busy} />
+            <ChoiceChips options={allTypes.filter((t) => requestable(t.name) || t.id === typeId).map((t) => ({ value: t.id, label: t.name }))} value={typeId} onChange={setTypeId} disabled={busy} />
           )}
         </View>
         <DateStepper

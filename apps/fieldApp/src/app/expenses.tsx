@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { DateStepper } from '@/components/date-stepper';
+import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
@@ -11,28 +12,36 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { useDayGate } from '@/hooks/use-day-gate';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
   STATUS_TEXT,
+  addExpenseProof,
   addOther,
   editOther,
   getHistory,
   getStatement,
+  removeExpenseProof,
   removeOther,
   submitMonth,
   type ExpenseDayLine,
   type ExpenseMonthSummary,
+  type ExpenseProofFile,
   type ExpenseStatement,
 } from '@/lib/expense-months';
+import { useFinancialYear } from '@/lib/financial-year';
+import { MAX_PROOF_FILES } from '@/lib/leave';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
+import { formatSize, pickProofFile, type PickedProof } from '@/lib/proof-picker';
+import { getRejectionReason } from '@/lib/planning';
 import { useOnline } from '@/offline';
-import { prettyDay, prettyMonth } from '@/offline/day';
+import { useCachedFetch } from '@/offline/cached-fetch';
+import { formatWhen, monthOf, prettyDay, prettyMonth } from '@/offline/day';
 
 const errorText = (err: unknown) => (err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.');
 
 type Msg = { tone: 'danger' | 'success' | 'info'; text: string };
-type Form = { id: string | null; date: string; amount: string; remarks: string };
+/** `existing` are receipts the server already has (removing one is immediate); `files` are picked and go up when you save. */
+type Form = { id: string | null; date: string; amount: string; remarks: string; existing: ExpenseProofFile[]; files: PickedProof[] };
 
 const firstOf = (month: string) => `${month}-01`;
 const lastOf = (month: string) => {
@@ -42,56 +51,111 @@ const lastOf = (month: string) => {
 
 /**
  * Expenses (decision-log 2026-10-10): your month, date by date — the TA and DA worked out from your approved reports, plus what you
- * paid for yourself, all in one "Other" category. Once the month is over you send it; your manager (or Admin) approves it, and only
- * then is it paid. Needs a connection. Earlier months stay here with whether each was approved.
+ * paid for yourself, all in one "Other" category, each with the reason it was spent. Once the month is over you send it; your manager (or
+ * Admin) approves it, and only then is it paid; if it is sent back you see why. Changing anything needs a connection, but the last
+ * statement you opened can still be read offline. Earlier months stay here with whether each was approved. Each Other entry can carry
+ * up to 3 receipts (PDF, JPG or PNG, 5 MB each, optional): the expense is saved first, then each file is uploaded, so a failed upload
+ * never loses the expense.
  */
 export default function ExpensesScreen() {
-  const { today } = useDayGate();
   const online = useOnline();
-  const thisMonth = today.slice(0, 7);
-  const [month, setMonth] = useState(thisMonth);
-  const [loaded, setStatement] = useState<ExpenseStatement | null>(null);
-  // A statement of another month is still loading: show the skeleton, not the old month under the new heading.
-  const statement = loaded?.month === month ? loaded : null;
-  const [history, setHistory] = useState<ExpenseMonthSummary[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const fy = useFinancialYear();
+  const today = fy.today;
+  const thisMonth = monthOf(today);
+
+  // The months stay inside the selected financial year, and stop at this month in the current one.
+  const lastMonth = fy.isPast ? fy.lastMonth : thisMonth;
+  const clamp = (m: string) => (m < fy.firstMonth ? fy.firstMonth : m > lastMonth ? lastMonth : m);
+  const [picked, setMonth] = useState<string | null>(null);
+  const month = clamp(picked ?? lastMonth);
+
+  // `tick` re-reads after a change of ours; pulling down (`reload`) shows the refresh spinner.
+  const [tick, setTick] = useState(0);
+  const reloadAfterChange = () => setTick((t) => t + 1);
+  const list = useCachedFetch<ExpenseStatement>(`expense-month:${fy.year}:${month}`, () => getStatement(month), tick);
+  const historyList = useCachedFetch<ExpenseMonthSummary[]>('expense-history', () => getHistory(), tick);
+  const statement = list.data;
+  // The server's history starts at the current month; "previous" means the months before it (this month is the statement above).
+  const history = (historyList.data ?? []).filter((h) => h.month < thisMonth);
+
   const [form, setForm] = useState<Form | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const reload = () => setReloadKey((k) => k + 1);
 
+  // Why the manager sent a month back, kept with the request it belongs to.
+  const [reason, setReason] = useState<{ key: string; text: string | null } | null>(null);
+  const rejectedId = statement?.status === 'REJECTED' ? statement.requestId : null;
   useEffect(() => {
-    if (!online) return;
-    let alive = true;
-    getStatement(month)
-      .then((s) => alive && (setStatement(s), setLoadError(null)))
-      .catch((err) => alive && setLoadError(errorText(err)));
-    getHistory()
-      .then((h) => alive && setHistory(h))
+    if (!rejectedId || !online) return;
+    getRejectionReason(rejectedId)
+      .then((text) => setReason({ key: rejectedId, text }))
       .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [online, month, reloadKey]);
+  }, [rejectedId, online]);
+  const rejectionText = rejectedId && reason?.key === rejectedId ? reason.text : null;
+
+  // A past year is read-only, and so is everything while offline.
+  const canChange = online && !fy.isPast;
 
   const startForm = (day?: ExpenseDayLine, entry?: ExpenseDayLine['others'][number]) => {
     setMsg(null);
     const date = day?.date ?? (today.startsWith(month) ? today : lastOf(month));
-    setForm({ id: entry?.id ?? null, date, amount: entry ? String(entry.amountPaise / 100) : '', remarks: entry?.remarks ?? '' });
+    setForm({ id: entry?.id ?? null, date, amount: entry ? String(entry.amountPaise / 100) : '', remarks: entry?.remarks ?? '', existing: entry?.attachments ?? [], files: [] });
+  };
+
+  const attach = async () => {
+    if (!form) return;
+    const picked = await pickProofFile(form.existing.length + form.files.length);
+    if (!picked) return;
+    if (picked.error) return setMsg({ tone: 'danger', text: picked.error });
+    if (picked.file) {
+      setMsg(null);
+      setForm({ ...form, files: [...form.files, picked.file] });
+    }
+  };
+
+  // A receipt the server already has is taken off at once; a picked one just leaves the list.
+  const dropExisting = async (file: ExpenseProofFile) => {
+    if (!form?.id) return;
+    setBusy(true);
+    try {
+      const left = await removeExpenseProof(form.id, file.id);
+      setForm((f) => (f ? { ...f, existing: left } : f));
+      reloadAfterChange();
+    } catch (err) {
+      setMsg({ tone: 'danger', text: errorText(err) });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const save = async () => {
     if (!form) return;
     const amountPaise = rupeesToPaise(form.amount);
     if (amountPaise === null) return setMsg({ tone: 'danger', text: 'Enter the amount in rupees, more than zero, with at most two decimals (for example 250 or 250.50).' });
+    const remarks = form.remarks.trim();
+    if (remarks === '') return setMsg({ tone: 'danger', text: 'Say what the expense was for.' });
     setBusy(true);
-    const body = { reportDate: form.date, amountPaise, remarks: form.remarks.trim() || null };
+    const body = { reportDate: form.date, amountPaise, remarks };
     try {
-      await (form.id ? editOther(form.id, body) : addOther(body));
+      let expenseId = form.id;
+      if (expenseId) await editOther(expenseId, body);
+      else expenseId = (await addOther(body)).id;
+      // The expense exists now, so a receipt that fails to upload never loses it: say which one and let them add it again.
+      const failed: string[] = [];
+      for (const file of form.files) {
+        try {
+          await addExpenseProof(expenseId, file);
+        } catch (err) {
+          failed.push(`${file.name} (${errorText(err)})`);
+        }
+      }
       setForm(null);
-      setMsg({ tone: 'success', text: 'Saved.' });
-      reload();
+      reloadAfterChange();
+      setMsg(
+        failed.length === 0
+          ? { tone: 'success', text: 'Saved.' }
+          : { tone: 'danger', text: `The expense is saved, but ${failed.length === 1 ? 'a receipt' : `${failed.length} receipts`} could not be attached: ${failed.join('; ')}. Tap Edit on it to try again.` },
+      );
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
     } finally {
@@ -103,7 +167,7 @@ export default function ExpensesScreen() {
     setBusy(true);
     try {
       await removeOther(id);
-      reload();
+      reloadAfterChange();
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
     } finally {
@@ -114,23 +178,15 @@ export default function ExpensesScreen() {
   const send = async () => {
     setBusy(true);
     try {
-      setStatement(await submitMonth(month));
+      await submitMonth(month);
       setMsg({ tone: 'success', text: 'Sent to your manager for approval.' });
-      reload();
+      reloadAfterChange();
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
     } finally {
       setBusy(false);
     }
   };
-
-  if (!online) {
-    return (
-      <ScreenShell title="Expenses">
-        <Notice tone="info">You’re offline. Connect to the internet to see or change your expenses.</Notice>
-      </ScreenShell>
-    );
-  }
 
   if (form) {
     return (
@@ -147,7 +203,35 @@ export default function ExpensesScreen() {
           placeholder="0.00"
           editable={!busy}
         />
-        <TextField label="What was it for? (optional)" value={form.remarks} onChangeText={(remarks) => setForm({ ...form, remarks })} multiline maxLength={1000} editable={!busy} />
+        <TextField
+          label="Reason — what was it for?"
+          value={form.remarks}
+          onChangeText={(remarks) => {
+            setForm({ ...form, remarks });
+            setMsg(null);
+          }}
+          multiline
+          maxLength={1000}
+          editable={!busy}
+        />
+        <View style={styles.receipts}>
+          <ThemedText type="smallBold">Receipts (optional)</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{`Up to ${MAX_PROOF_FILES} files, PDF, JPG or PNG, 5 MB each. Your approver can open them.`}</ThemedText>
+          {form.existing.map((f) => (
+            <View key={f.id} style={styles.row}>
+              <ThemedText type="small" style={styles.grow} numberOfLines={1}>{`${f.fileName} · ${formatSize(f.sizeBytes)}`}</ThemedText>
+              <PrimaryButton label="Open" variant="text" disabled={busy} onPress={() => void Linking.openURL(f.url)} />
+              <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => dropExisting(f)} />
+            </View>
+          ))}
+          {form.files.map((f) => (
+            <View key={f.uri} style={styles.row}>
+              <ThemedText type="small" style={styles.grow} numberOfLines={1}>{`${f.name} · ${formatSize(f.sizeBytes)} · goes up when you save`}</ThemedText>
+              <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => setForm({ ...form, files: form.files.filter((x) => x.uri !== f.uri) })} />
+            </View>
+          ))}
+          {form.existing.length + form.files.length < MAX_PROOF_FILES ? <PrimaryButton label="Attach a file" variant="text" disabled={busy} onPress={attach} /> : null}
+        </View>
         <Notice tone="info">TA and DA are worked out for you from your approved reports — don’t enter them here.</Notice>
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
         <PrimaryButton label="Save" loading={busy} onPress={save} />
@@ -157,11 +241,21 @@ export default function ExpensesScreen() {
   }
 
   return (
-    <ScreenShell title="Expenses">
-      <MonthStepper value={month} onChange={(m) => { setMonth(m); setMsg(null); }} max={thisMonth} />
+    <ScreenShell title="Expenses" onRefresh={list.reload} refreshing={list.refreshing}>
+      <FyBanner />
+      <MonthStepper value={month} onChange={(m) => (setMonth(m), setMsg(null))} min={fy.firstMonth} max={lastMonth} />
+      {!online ? <Notice tone="info">You’re offline. You can read the last copy; adding, changing and sending need the internet.</Notice> : null}
+      {list.stale && list.fetchedAt && statement && (!online || list.error) ? <Notice tone="info">{`Showing the copy from ${formatWhen(list.fetchedAt)}.`}</Notice> : null}
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-      {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
-      {!statement && !loadError ? <Skeleton /> : null}
+      {list.error && online ? <Notice tone="danger">{list.error}</Notice> : null}
+      {!statement && online && !list.error ? (
+        // Same shape as the loaded page: the month's summary card, then a card per day.
+        <View style={styles.loading}>
+          <Skeleton cards={1} lines={3} />
+          <Skeleton cards={3} lines={2} />
+        </View>
+      ) : null}
+      {!statement && !online ? <Notice tone="info">Connect once to load this month.</Notice> : null}
 
       {statement ? (
         <>
@@ -175,7 +269,13 @@ export default function ExpensesScreen() {
             {statement.paidPaise > 0 ? <ThemedText type="small" themeColor="textSecondary">{`Paid so far ${formatRupees(statement.paidPaise)}`}</ThemedText> : null}
           </ThemedView>
 
-          {statement.editable ? <PrimaryButton label="Add an expense" disabled={busy} onPress={() => startForm()} /> : null}
+          {statement.status === 'REJECTED' ? (
+            <Notice tone="danger" title="Sent back by your approver">
+              {rejectionText ?? 'No reason was given. Change what is needed and send it again.'}
+            </Notice>
+          ) : null}
+
+          {statement.editable && canChange ? <PrimaryButton label="Add an expense" disabled={busy} onPress={() => startForm()} /> : null}
 
           {statement.days.length === 0 ? (
             <Notice tone="info">Nothing for this month yet.</Notice>
@@ -188,14 +288,21 @@ export default function ExpensesScreen() {
                 </View>
                 <ThemedText type="small" themeColor="textSecondary">{`TA ${formatRupees(day.taPaise)} · DA ${formatRupees(day.daPaise)} · Other ${formatRupees(day.otherPaise)}`}</ThemedText>
                 {day.others.map((o) => (
-                  <View key={o.id} style={styles.row}>
-                    <ThemedText type="small" style={styles.grow}>{`${formatRupees(o.amountPaise)}${o.remarks ? ` · ${o.remarks}` : ''}`}</ThemedText>
-                    {statement.editable ? (
-                      <View style={styles.actions}>
-                        <PrimaryButton label="Edit" variant="text" disabled={busy} onPress={() => startForm(day, o)} />
-                        <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => remove(o.id)} />
-                      </View>
-                    ) : null}
+                  <View key={o.id} style={styles.entry}>
+                    <View style={styles.row}>
+                      <ThemedText type="small" style={styles.grow}>{`${formatRupees(o.amountPaise)}${o.remarks ? ` · ${o.remarks}` : ''}`}</ThemedText>
+                      {statement.editable && canChange ? (
+                        <View style={styles.actions}>
+                          <PrimaryButton label="Edit" variant="text" disabled={busy} onPress={() => startForm(day, o)} />
+                          <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => remove(o.id)} />
+                        </View>
+                      ) : null}
+                    </View>
+                    {(o.attachments ?? []).map((a) => (
+                      <Pressable key={a.id} accessibilityRole="link" accessibilityLabel={`Open receipt ${a.fileName}`} onPress={() => void Linking.openURL(a.url)}>
+                        <ThemedText type="small" themeColor="primary" numberOfLines={1}>{`Receipt: ${a.fileName} (${formatSize(a.sizeBytes)})`}</ThemedText>
+                      </Pressable>
+                    ))}
                   </View>
                 ))}
               </ThemedView>
@@ -203,7 +310,14 @@ export default function ExpensesScreen() {
           )}
 
           {statement.editable && !statement.monthEnded ? <Notice tone="info">You can send this month for approval from the 1st of next month.</Notice> : null}
-          {statement.canSubmit ? <PrimaryButton label="Send for approval" loading={busy} onPress={send} /> : null}
+          {statement.canSubmit && canChange ? <PrimaryButton label="Send for approval" loading={busy} onPress={send} /> : null}
+        </>
+      ) : null}
+
+      {historyList.loading && !historyList.data ? (
+        <>
+          <ThemedText type="smallBold">Previous months</ThemedText>
+          <Skeleton cards={2} lines={2} />
         </>
       ) : null}
 
@@ -211,7 +325,7 @@ export default function ExpensesScreen() {
         <>
           <ThemedText type="smallBold">Previous months</ThemedText>
           {history.map((h) => (
-            <Pressable key={h.month} accessibilityRole="button" onPress={() => setMonth(h.month)}>
+            <Pressable key={h.month} accessibilityRole="button" onPress={() => (setMonth(h.month), setMsg(null))}>
               <ThemedView type="backgroundElement" style={styles.card}>
                 <View style={styles.row}>
                   <ThemedText type="smallBold">{prettyMonth(h.month)}</ThemedText>
@@ -232,5 +346,8 @@ const styles = StyleSheet.create({
   card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1 },
+  entry: { gap: Spacing.half },
+  receipts: { gap: Spacing.one },
+  loading: { gap: Spacing.three },
   actions: { flexDirection: 'row', gap: Spacing.one },
 });

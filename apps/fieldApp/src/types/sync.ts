@@ -92,9 +92,15 @@ export type FieldMasterDataSnapshot = {
     specialty: string;
     qualification: string;
     location: GeoPoint | null;
+    /** `YYYY-MM-DD`, optional. */
+    dateOfBirth?: string | null;
+    anniversary?: string | null;
+    /** How many visits a month the MR should make (1–6); `null` = no target. */
+    visitFrequency?: number | null;
   }[];
   chemists: { id: string; routeId: string; name: string; address: string; location: GeoPoint | null }[];
-  distributors?: { id: string; routeId: string; name: string; address: string; location: GeoPoint | null }[];
+  /** A distributor can be on several routes (the API sends `routeIds`; there is no single `routeId`). */
+  distributors?: { id: string; routeIds: string[]; name: string; address: string; location: GeoPoint | null }[];
   products: {
     id: string;
     name: string;

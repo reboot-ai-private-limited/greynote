@@ -16,6 +16,10 @@ export type AddedDoctor = {
   specialty: string;
   qualification: string;
   location: GeoPoint | null;
+  dateOfBirth?: string | null;
+  anniversary?: string | null;
+  /** Visits a month (1–6) the MR should make; `null` = none set. */
+  visitFrequency?: number | null;
   /** `pending` until approved. */
   status: 'pending' | 'active' | 'inactive';
   approval: { requestId: string; cycle: number; status: string } | null;
@@ -28,6 +32,9 @@ export type AddedDoctorBody = {
   specialty: string;
   qualification: string;
   email: string | null;
+  dateOfBirth?: string | null;
+  anniversary?: string | null;
+  visitFrequency?: number | null;
   location: GeoPoint;
 };
 
