@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './api';
+import { apiDelete, apiGet, apiPost } from './api';
 
 /**
  * The Marketing endpoints that are read or decided online (Visuals, Targets, and an order's
@@ -17,6 +17,17 @@ export type Visual = {
 };
 export const listVisuals = (productId?: string) =>
   apiGet<Visual[]>(`/marketing/visuals${productId ? `?productId=${productId}` : ''}`);
+
+/** What the MR picked to show one doctor. The MR only adds; `canRemove` is true for a manager above the MR or Admin. */
+export type DoctorVisualList = {
+  items: { visual: Visual; addedBy: string; addedByName: string | null; addedAt: string }[];
+  canRemove: boolean;
+};
+export const listDoctorVisuals = (doctorId: string) => apiGet<DoctorVisualList>(`/marketing/doctors/${doctorId}/visuals`);
+/** Add-only and online: adding what is already there changes nothing. Returns the doctor's list as it now stands. */
+export const addDoctorVisuals = (doctorId: string, visualIds: string[]) =>
+  apiPost<DoctorVisualList>(`/marketing/doctors/${doctorId}/visuals`, { visualIds }, { auth: true });
+export const removeDoctorVisual = (doctorId: string, visualId: string) => apiDelete<null>(`/marketing/doctors/${doctorId}/visuals/${visualId}`);
 
 export type TargetSummary = {
   userId: string;

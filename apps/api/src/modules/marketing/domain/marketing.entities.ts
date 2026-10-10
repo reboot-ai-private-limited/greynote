@@ -20,6 +20,20 @@ export interface Visual {
   createdAt: Date;
 }
 
+/**
+ * One Visual on one Doctor's standing list: what their MR chose to show them. Add-only for the MR; a manager above the Doctor's MR or an Admin
+ * removes (soft, `removedAt`), and adding it again brings the same row back. One row per (Doctor, Visual).
+ */
+export interface DoctorVisual {
+  id: string;
+  doctorId: string;
+  visualId: string;
+  addedBy: string;
+  addedAt: Date;
+  removedBy: string | null;
+  removedAt: Date | null;
+}
+
 export const CAMPAIGN_STATUSES = ['active', 'inactive', 'completed'] as const;
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
 

@@ -157,6 +157,11 @@ export const keys = {
     assignments: (id: string) => [...keys.doctors.all(), 'assignments', id] as const,
     samples: (id: string) => [...keys.doctors.all(), 'samples', id] as const,
   },
+  visuals: {
+    all: () => ['visuals', fy()] as const,
+    list: (query?: object) => [...keys.visuals.all(), 'list', query ?? {}] as const,
+    forDoctor: (doctorId: string) => [...keys.visuals.all(), 'doctor', doctorId] as const,
+  },
   config: {
     all: () => ['config', fy()] as const,
     list: () => [...keys.config.all(), 'list'] as const,

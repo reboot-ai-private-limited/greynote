@@ -16,7 +16,13 @@ export const createVisualBodySchema = z.object({
   productId: optionalId,
 });
 export const listVisualsQuerySchema = z.object({ status: z.enum(VISUAL_STATUSES).optional(), productId: objectIdSchema.optional() });
-export const setStatusBodySchema = z.object({ status: z.enum(VISUAL_STATUSES) });
+export const updateVisualBodySchema = z
+  .object({ status: z.enum(VISUAL_STATUSES), title: z.string().trim().min(1).max(200), category: z.enum(VISUAL_CATEGORIES), productId: objectIdSchema.nullable() })
+  .partial()
+  .refine((b) => Object.keys(b).length > 0, { message: 'Send at least one thing to change.' });
+export const doctorIdParamsSchema = z.object({ doctorId: objectIdSchema });
+export const doctorVisualParamsSchema = z.object({ doctorId: objectIdSchema, visualId: objectIdSchema });
+export const addDoctorVisualsBodySchema = z.object({ visualIds: z.array(objectIdSchema).min(1).max(100) });
 
 export const createCampaignBodySchema = z.object({
   name: z.string().trim().min(1).max(200),

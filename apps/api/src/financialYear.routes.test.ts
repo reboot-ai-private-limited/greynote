@@ -122,6 +122,8 @@ const TIMELESS = [
   '/api/hr/leave-types',
   '/api/hr/leave-policies',
   '/api/marketing/visuals',
+  // The visuals picked for a doctor: a standing list, not a record of any year.
+  '/api/marketing/doctors/:doctorId/visuals',
   '/api/marketing/campaigns',
   // The upcoming-holidays list (PRD 6.2 D) — a calendar, not a report on a past year.
   '/api/hr/holidays',

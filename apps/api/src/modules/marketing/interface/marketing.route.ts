@@ -7,7 +7,7 @@ import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { MarketingHandlers } from './marketing.controller.js';
-import { createCampaignBodySchema, createVisualBodySchema, idParamsSchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, setStatusBodySchema, setTargetBodySchema, listTargetsQuerySchema, targetQuerySchema, userIdParamsSchema } from './marketing.schemas.js';
+import { addDoctorVisualsBodySchema, createCampaignBodySchema, createVisualBodySchema, doctorIdParamsSchema, doctorVisualParamsSchema, idParamsSchema, updateVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, setTargetBodySchema, listTargetsQuerySchema, targetQuerySchema, userIdParamsSchema } from './marketing.schemas.js';
 
 const TAG = 'Marketing';
 const MAX_VISUAL_BYTES = 25 * 1024 * 1024;
@@ -31,7 +31,10 @@ function doc(method: 'get' | 'post' | 'patch' | 'delete', path: string, summary:
 }
 doc('post', '/visuals', 'Admin: upload a Visual (multipart: file + title, category, optional productId) — image, PDF or MP4/MOV/WebM, up to 25 MB', { body: createVisualBodySchema });
 doc('get', '/visuals', 'Visuals — field staff see the active ones; Admin all. General (no-product) ones are included', { query: listVisualsQuerySchema });
-doc('patch', '/visuals/{id}', 'Admin: set a Visual active or inactive', { params: idParamsSchema, body: setStatusBodySchema });
+doc('patch', '/visuals/{id}', 'Admin: change a Visual\'s title, category or product, or set it active or inactive', { params: idParamsSchema, body: updateVisualBodySchema });
+doc('get', '/doctors/{doctorId}/visuals', 'The visuals picked for a doctor — the doctor\'s MR, a manager above them, or Admin', { params: doctorIdParamsSchema });
+doc('post', '/doctors/{doctorId}/visuals', 'Add visuals to a doctor\'s list (add-only) — the doctor\'s MR, a manager above them, or Admin', { params: doctorIdParamsSchema, body: addDoctorVisualsBodySchema });
+doc('delete', '/doctors/{doctorId}/visuals/{visualId}', 'Take a visual off a doctor\'s list — a manager above the doctor\'s MR, or Admin (not the MR)', { params: doctorVisualParamsSchema });
 doc('post', '/campaigns', 'Admin: create a company-wide Campaign', { body: createCampaignBodySchema });
 doc('get', '/campaigns', 'Campaigns — field staff see the active ones; Admin all', { query: listCampaignsQuerySchema });
 doc('patch', '/campaigns/{id}', 'Admin: set a Campaign active, inactive or completed', { params: idParamsSchema, body: setCampaignStatusBodySchema });
@@ -45,7 +48,10 @@ export function buildMarketingRouter(c: MarketingHandlers): Router {
   router.use(authenticate());
   router.post('/visuals', requireRole('ADMIN'), uploadMiddleware, validate({ body: createVisualBodySchema }), c.createVisual);
   router.get('/visuals', requireRole('FIELD', 'ADMIN'), validate({ query: listVisualsQuerySchema }), c.listVisuals);
-  router.patch('/visuals/:id', requireRole('ADMIN'), validate({ params: idParamsSchema, body: setStatusBodySchema }), c.setVisualStatus);
+  router.patch('/visuals/:id', requireRole('ADMIN'), validate({ params: idParamsSchema, body: updateVisualBodySchema }), c.updateVisual);
+  router.get('/doctors/:doctorId/visuals', requireRole('FIELD', 'ADMIN'), validate({ params: doctorIdParamsSchema }), c.listDoctorVisuals);
+  router.post('/doctors/:doctorId/visuals', requireRole('FIELD', 'ADMIN'), validate({ params: doctorIdParamsSchema, body: addDoctorVisualsBodySchema }), c.addDoctorVisuals);
+  router.delete('/doctors/:doctorId/visuals/:visualId', requireRole('FIELD', 'ADMIN'), validate({ params: doctorVisualParamsSchema }), c.removeDoctorVisual);
   router.post('/campaigns', requireRole('ADMIN'), validate({ body: createCampaignBodySchema }), c.createCampaign);
   router.get('/campaigns', requireRole('FIELD', 'ADMIN'), validate({ query: listCampaignsQuerySchema }), c.listCampaigns);
   router.patch('/campaigns/:id', requireRole('ADMIN'), validate({ params: idParamsSchema, body: setCampaignStatusBodySchema }), c.setCampaignStatus);

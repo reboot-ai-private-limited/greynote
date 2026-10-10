@@ -28,3 +28,18 @@
 | 7.24 | Open the same employee as a manager above them, and as someone else | the manager can set targets and enter figures but not change primary; a stranger gets 403 | |
 | 7.25 | Remove a target | it disappears; "Targets" and the totals update | |
 | 7.20 | Stock tab in a past financial year, or for an inactive distributor | read-only | |
+
+## Visuals shown to doctors (2026-10-10)
+
+| # | Step | Expect | Result |
+|---|---|---|---|
+| 7.30 | As Admin open **Visuals**, upload a PNG for a product and a PDF with no product | both appear, Active; the PDF shows "General" | |
+| 7.31 | Edit the PNG's title and move it to General; deactivate the PDF | the list updates; the filters (product, General, status) narrow it | |
+| 7.32 | As an MR, Visuals → choose one of your doctors, tick two, Submit | "2 visuals added"; both now show ticked and locked | |
+| 7.33 | Tap a locked visual | nothing changes; the MR cannot untick it | |
+| 7.34 | Tick a third, Submit; then tap Show | the doctor's three visuals open one after another (pictures in the app, the PDF in the viewer) | |
+| 7.35 | As Admin open that doctor → **Visuals** tab | three rows, each with who added it and when | |
+| 7.36 | Remove one as Admin | it leaves the list; the MR sees it unticked and can add it again | |
+| 7.37 | Call remove as the MR (API) | 403 | |
+| 7.38 | As the MR's manager, GET the doctor's visuals and DELETE one | both work; as an unrelated manager, 403 | |
+| 7.39 | Deactivate a picked visual in the library | it disappears from the MR's list; Admin's tab shows it Inactive | |

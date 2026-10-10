@@ -90,7 +90,10 @@ publishes, or a reporting layer above both — were rejected as machinery the fi
 |---|---|---|---|
 | `POST` | `/api/marketing/visuals` | Admin | Upload a Visual — multipart: `file` (image, PDF or MP4/MOV/WebM, ≤ 25 MB) plus `title`, `category`, optional `productId` |
 | `GET` | `/api/marketing/visuals` | Admin, FIELD | List active Visuals, optionally filtered by product |
-| `PATCH` | `/api/marketing/visuals/:id` | Admin | Update status (active/inactive) |
+| `PATCH` | `/api/marketing/visuals/:id` | Admin | Change title, category or product, or set status (active/inactive); send at least one |
+| `GET` | `/api/marketing/doctors/:doctorId/visuals` | Admin, FIELD | The Visuals picked for a Doctor, with `canRemove` — the Doctor's MR, a manager above them, or Admin |
+| `POST` | `/api/marketing/doctors/:doctorId/visuals` | Admin, FIELD | Add Visuals (`{ visualIds }`), add-only and idempotent; returns the list as it now stands |
+| `DELETE` | `/api/marketing/doctors/:doctorId/visuals/:visualId` | Admin, FIELD | Take one off — Admin, or a manager above the Doctor's MR; the MR gets 403 |
 | `POST` | `/api/marketing/campaigns` | Admin | Create a Campaign |
 | `GET` | `/api/marketing/campaigns` | Admin, FIELD | List Campaigns, optionally filtered by status |
 | `PATCH` | `/api/marketing/campaigns/:id` | Admin | Update status (active/inactive/completed) |
@@ -104,6 +107,13 @@ Campaigns (the status filter is Admin's). Only an Admin or a *manager* (a FIELD 
 Targets — for themselves and their downline at any depth; an MR without a team cannot set even their own, and may
 only read it. A Target's subject must be an active FIELD employee. Not built: a per-member breakdown of a manager's
 rollup, and editing a Campaign's name or dates (status only, as specified).
+
+**As built (2026-10-10), doctor visuals:** `DoctorVisual` rows are unique per (doctor, visual); `addMany` reactivates a removed row and
+leaves an existing one (and its first adder) untouched. Access: Admin always; the Doctor's assigned MR may list and add; a manager
+(the assigned MR is in their downline) may also remove; anyone else gets 403 (`NOT_YOUR_TEAM`), an MR removing gets 403
+(`ONLY_MANAGER_REMOVES`). Marketing reads the Doctor side through `getDoctor`, `isAssignedToDoctor` and `getAssignedUserId` of
+Field Master Data's public contract. Adding an inactive or unknown Visual is `404 VISUAL_NOT_FOUND`; the whole call is refused.
+A Visual deactivated later is hidden from the MR and shown, with its status, to Admin and managers.
 
 ## Edge cases
 

@@ -6,8 +6,9 @@ import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import { MarketingRefusal } from '../domain/marketingRefusal.js';
 import type { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetsUseCase, SetTargetUseCase } from '../application/usecases/targets.usecase.js';
-import type { Actor, CreateCampaignUseCase, CreateVisualUseCase, ListCampaignsUseCase, ListVisualsUseCase, SetCampaignStatusUseCase, SetVisualStatusUseCase } from '../application/usecases/visualsAndCampaigns.usecase.js';
-import type { createCampaignBodySchema, createVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, setStatusBodySchema, setTargetBodySchema, listTargetsQuerySchema, targetQuerySchema } from './marketing.schemas.js';
+import type { AddDoctorVisualsUseCase, ListDoctorVisualsUseCase, RemoveDoctorVisualUseCase } from '../application/usecases/doctorVisuals.usecase.js';
+import type { Actor, CreateCampaignUseCase, CreateVisualUseCase, ListCampaignsUseCase, ListVisualsUseCase, SetCampaignStatusUseCase, UpdateVisualUseCase } from '../application/usecases/visualsAndCampaigns.usecase.js';
+import type { addDoctorVisualsBodySchema, createCampaignBodySchema, createVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, updateVisualBodySchema, setTargetBodySchema, listTargetsQuerySchema, targetQuerySchema } from './marketing.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -26,12 +27,15 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type MarketingHandlers = Record<'createVisual' | 'listVisuals' | 'setVisualStatus' | 'createCampaign' | 'listCampaigns' | 'setCampaignStatus' | 'setTarget' | 'deleteTarget' | 'listTargets' | 'getTarget', RequestHandler>;
+export type MarketingHandlers = Record<'createVisual' | 'listVisuals' | 'updateVisual' | 'listDoctorVisuals' | 'addDoctorVisuals' | 'removeDoctorVisual' | 'createCampaign' | 'listCampaigns' | 'setCampaignStatus' | 'setTarget' | 'deleteTarget' | 'listTargets' | 'getTarget', RequestHandler>;
 
 export function makeMarketingControllers(u: {
   createVisual: CreateVisualUseCase;
   listVisuals: ListVisualsUseCase;
-  setVisualStatus: SetVisualStatusUseCase;
+  updateVisual: UpdateVisualUseCase;
+  listDoctorVisuals: ListDoctorVisualsUseCase;
+  addDoctorVisuals: AddDoctorVisualsUseCase;
+  removeDoctorVisual: RemoveDoctorVisualUseCase;
   createCampaign: CreateCampaignUseCase;
   listCampaigns: ListCampaignsUseCase;
   setCampaignStatus: SetCampaignStatusUseCase;
@@ -48,9 +52,18 @@ export function makeMarketingControllers(u: {
       sendSuccess(req, res, visual, 'The visual was uploaded.', 201);
     }),
     listVisuals: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listVisuals.execute(actorOf(req), req.query as z.output<typeof listVisualsQuerySchema>), 'Visuals.', 200)),
-    setVisualStatus: asyncHandler(async (req, res) =>
-      sendSuccess(req, res, await refusing(() => u.setVisualStatus.execute(requiredParam(req.params, 'id'), (req.body as z.output<typeof setStatusBodySchema>).status)), 'The visual was updated.', 200),
+    updateVisual: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.updateVisual.execute(requiredParam(req.params, 'id'), req.body as z.output<typeof updateVisualBodySchema>)), 'The visual was updated.', 200),
     ),
+    listDoctorVisuals: asyncHandler(async (req, res) => sendSuccess(req, res, await refusing(() => u.listDoctorVisuals.execute(actorOf(req), requiredParam(req.params, 'doctorId'))), 'The doctor’s visuals.', 200)),
+    addDoctorVisuals: asyncHandler(async (req, res) => {
+      await refusing(() => u.addDoctorVisuals.execute(actorOf(req), requiredParam(req.params, 'doctorId'), (req.body as z.output<typeof addDoctorVisualsBodySchema>).visualIds));
+      sendSuccess(req, res, await refusing(() => u.listDoctorVisuals.execute(actorOf(req), requiredParam(req.params, 'doctorId'))), 'The visuals were added to the doctor.', 200);
+    }),
+    removeDoctorVisual: asyncHandler(async (req, res) => {
+      await refusing(() => u.removeDoctorVisual.execute(actorOf(req), requiredParam(req.params, 'doctorId'), requiredParam(req.params, 'visualId')));
+      sendSuccess(req, res, null, 'The visual was taken off the doctor.', 200);
+    }),
     createCampaign: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.createCampaign.execute(actorOf(req), req.body as z.output<typeof createCampaignBodySchema>)), 'The campaign was created.', 201),
     ),

@@ -17,6 +17,23 @@ old one.
 
 ---
 
+## 2026-10-10 — Visuals shown to each doctor: a standing list the MR adds to and a manager or Admin controls
+
+**Decision:**
+- **Each Doctor has one standing list of Visuals** — what their MR chose to show them (`DoctorVisual`, one row per doctor and visual). It is not a per-call log: reopening a doctor shows the same list, each pick with who added it and when. Product visuals and general (no-product) visuals can both be picked; the MR chooses from all active Visuals.
+- **The MR can only add.** Earlier picks show ticked and locked in the app. Taking a pick off is for **Admin and any manager above the doctor's MR** (anyone with the MR in their downline); the MR gets 403. Removal is soft (`removedAt`, `removedBy`), and adding the same visual again brings the row back as added now.
+- A visual **Admin has since deactivated** drops out of the MR's list but stays visible, marked inactive, to Admin and managers.
+- **Mobile flow:** Visuals → choose a doctor → tick visuals → Submit; **Show** then walks through that doctor's visuals (pictures in the app, PDFs and videos in the phone's viewer). Submit needs a connection.
+- **Web:** a new Admin **Visuals** library page (upload, edit title/category/product, activate/deactivate) and a **Visuals** tab on the doctor screen that lists the picks and lets Admin remove one. `PATCH /marketing/visuals/:id` now also edits title, category and product (it only set status before).
+
+**Why:** MRs show different material to different doctors, and the company wants to see what was shown and correct it.
+
+**Rejected:** a per-call record tied to the DCR (more to build, and the owner described a list per doctor); letting the MR remove their own picks (the owner said add-only).
+
+**Cost:** the list belongs to the doctor, so a doctor reassigned to another MR keeps the list. Managers who are not Admin have no screen for removing yet: the API allows it, the phone only lists the MR's own doctors, and the web portal is Admin-only.
+
+**Needs a migration:** none (a new `doctorvisuals` collection with a unique (doctor, visual) index).
+
 ## 2026-10-09 — Distributor monthly statement: opening, primary (+ adjustment), secondary, closing
 
 **Decision:**

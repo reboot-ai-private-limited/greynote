@@ -64,9 +64,17 @@ class FakeVisuals implements VisualRepositoryPort {
   async list(f: { status?: string | undefined; productId?: string | undefined }) {
     return this.rows.filter((v) => (!f.status || v.status === f.status) && (!f.productId || v.productId === f.productId));
   }
+  async findByIds(ids: string[]) {
+    return this.rows.filter((v) => ids.includes(v.id));
+  }
   async setStatus(id: string, status: Visual['status']) {
     const v = this.rows.find((r) => r.id === id);
     if (v) v.status = status;
+    return v ?? null;
+  }
+  async update(id: string, patch: Partial<Pick<Visual, 'title' | 'category' | 'productId' | 'status'>>) {
+    const v = this.rows.find((r) => r.id === id);
+    if (v) Object.assign(v, Object.fromEntries(Object.entries(patch).filter(([, x]) => x !== undefined)));
     return v ?? null;
   }
 }

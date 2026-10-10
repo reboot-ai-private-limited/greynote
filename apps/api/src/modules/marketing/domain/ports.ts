@@ -5,6 +5,13 @@ export interface ProductPort {
   getProduct(id: string): Promise<{ id: string; status: 'active' | 'inactive' } | null>;
 }
 
+/** The Doctor side of Field Master Data: who may act on a Doctor and which MR it is with. */
+export interface DoctorPort {
+  getDoctor(doctorId: string): Promise<{ id: string } | null>;
+  isAssignedToDoctor(userId: string, doctorId: string): Promise<boolean>;
+  getAssignedUserId(doctorId: string): Promise<string | null>;
+}
+
 export interface DirectoryUser {
   id: string;
   name: string;

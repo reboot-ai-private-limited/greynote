@@ -15,6 +15,7 @@ import {
   Settings2,
   Smartphone,
   Gift,
+  Images,
   HandCoins,
   Stethoscope,
   Tags,
@@ -94,6 +95,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Specialities', href: '/specialties', icon: Tags, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
   { label: 'Doctor services', href: '/doctor-services', icon: HandCoins, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
   { label: 'Doctor gifts', href: '/doctor-gifts', icon: Gift, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
+  { label: 'Visuals', href: '/visuals', icon: Images, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
 
   { label: 'Designations', href: '/designations', icon: Award, group: 'Setup', roles: ['ADMIN', 'HR'] },
   { label: 'Pay grades', href: '/pay-grades', icon: Wallet, group: 'Setup', roles: ALL },

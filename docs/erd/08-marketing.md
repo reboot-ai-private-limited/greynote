@@ -21,9 +21,20 @@ erDiagram
         string title
         string category "E_DETAILING, CAMPAIGN_CREATIVE, ..."
         string file_url
+        string public_id "the storage provider's id, for removing the file"
+        string mime_type "image, PDF or video"
         uuid uploaded_by FK "Admin"
         string status "active, inactive"
         timestamp created_at
+    }
+    DOCTOR_VISUAL {
+        uuid id PK
+        uuid doctor_id FK "Module 3"
+        uuid visual_id FK
+        uuid added_by FK "the MR (or Admin) who picked it"
+        timestamp added_at
+        uuid removed_by FK "nullable - a manager above the MR, or Admin"
+        timestamp removed_at "nullable - set when taken off; adding again clears it"
     }
     CAMPAIGN {
         uuid id PK
@@ -48,6 +59,8 @@ erDiagram
 
     PRODUCT |o--o{ VISUAL : "product_id (optional)"
     USER ||--o{ VISUAL : "uploaded_by (Admin)"
+    VISUAL ||--o{ DOCTOR_VISUAL : "visual_id"
+    USER ||--o{ DOCTOR_VISUAL : "added_by / removed_by"
     USER ||--o{ CAMPAIGN : "created_by (Admin)"
     USER ||--o{ TARGET : "user_id"
     PRODUCT |o--o{ TARGET : "product_id (optional)"
@@ -56,6 +69,8 @@ erDiagram
 ```
 
 ## Design decisions locked for this module
+
+- **`DoctorVisual` is one standing list per Doctor** (2026-10-10), unique on `(doctor_id, visual_id)`. The MR only adds; Admin or a manager above the Doctor's MR removes (soft: `removed_at`), and adding again clears `removed_at`. It belongs to the Doctor, not to an MR, so a reassigned Doctor keeps it. It is not tied to a call or DCR.
 
 - **`Target` is unique per `(user_id, month, product_id, campaign_id)`** (2026-09-30): setting it again replaces the amount. "No product" and "no campaign" are stored as explicit `null`, which the unique index treats as one value.
 

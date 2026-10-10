@@ -4,6 +4,7 @@ DELETE /api/hr/leaves/:id/attachments/:attachmentId  FIELD
 DELETE /api/identity/employee-drafts/:id  ADMIN,HR
 DELETE /api/identity/users/:id/devices/:deviceRowId  ADMIN
 DELETE /api/identity/users/:id/documents/:documentId  ADMIN,HR
+DELETE /api/marketing/doctors/:doctorId/visuals/:visualId  ADMIN,FIELD
 DELETE /api/marketing/targets/:id  ADMIN,FIELD
 DELETE /api/territory/routes/:id/assignments/:userId  ADMIN
 GET    /api/approvals/:id  ANY
@@ -63,6 +64,7 @@ GET    /api/identity/users/:id/ctc  ACCOUNTANT,ADMIN,HR
 GET    /api/identity/users/:id/devices  ADMIN
 GET    /api/identity/users/:id/promotions  ADMIN,HR
 GET    /api/marketing/campaigns  ADMIN,FIELD
+GET    /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 GET    /api/marketing/targets  ADMIN,FIELD
 GET    /api/marketing/targets/:userId  ADMIN,FIELD
 GET    /api/marketing/visuals  ADMIN,FIELD
@@ -176,6 +178,7 @@ POST   /api/identity/users/:id/promotions/preview  ADMIN,HR
 POST   /api/identity/users/:id/reset-password  ADMIN
 POST   /api/identity/users/:id/unblock  ADMIN
 POST   /api/marketing/campaigns  ADMIN
+POST   /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 POST   /api/marketing/targets  ADMIN,FIELD
 POST   /api/marketing/visuals  ADMIN
 POST   /api/payroll/:id/finalize  ACCOUNTANT,ADMIN

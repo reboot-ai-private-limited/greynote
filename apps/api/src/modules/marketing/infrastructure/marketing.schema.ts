@@ -27,6 +27,26 @@ const visualSchema = new Schema<VisualDoc>({
 visualSchema.index({ status: 1, productId: 1, createdAt: -1 });
 export const VisualModel = model<VisualDoc>('Visual', visualSchema);
 
+export interface DoctorVisualDoc {
+  doctorId: Types.ObjectId;
+  visualId: Types.ObjectId;
+  addedBy: Types.ObjectId;
+  addedAt: Date;
+  removedBy: Types.ObjectId | null;
+  removedAt: Date | null;
+}
+const doctorVisualSchema = new Schema<DoctorVisualDoc>({
+  doctorId: { type: Schema.Types.ObjectId, required: true, ref: 'Doctor' },
+  visualId: { type: Schema.Types.ObjectId, required: true, ref: 'Visual' },
+  addedBy: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
+  addedAt: { type: Date, required: true },
+  removedBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
+  removedAt: { type: Date, default: null },
+});
+// One row per Doctor and Visual, so two racing adds cannot double a pick.
+doctorVisualSchema.index({ doctorId: 1, visualId: 1 }, { unique: true });
+export const DoctorVisualModel = model<DoctorVisualDoc>('DoctorVisual', doctorVisualSchema);
+
 export interface CampaignDoc {
   name: string;
   description: string;
