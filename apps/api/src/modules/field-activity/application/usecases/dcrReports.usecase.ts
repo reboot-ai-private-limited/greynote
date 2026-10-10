@@ -87,3 +87,19 @@ export class ListCalledDoctorsUseCase {
     return this.doctorCalls.distinctDoctorIds(reported);
   }
 }
+
+/** How many calls each Doctor had in the reported days of a range (both ends inclusive), by any employee: the visit-frequency report's input. */
+export class CountDoctorCallsUseCase {
+  constructor(
+    private readonly dcrs: DcrRepositoryPort,
+    private readonly approvals: ApprovalsPort,
+    private readonly doctorCalls: DoctorCallRepositoryPort,
+  ) {}
+
+  async execute(range: { from: string; to: string }): Promise<Array<{ doctorId: string; count: number }>> {
+    const all = await this.dcrs.listRange(range.from, range.to);
+    const requests = new Map((await this.approvals.listForRecords(DCR_KIND, all.map((d) => d.id))).map((r) => [r.recordId, r]));
+    const reported = all.filter((d) => isQualifyingDcr(dcrStatus(requests.get(d.id) ?? null))).map((d) => d.id);
+    return this.doctorCalls.countByDoctor(reported);
+  }
+}

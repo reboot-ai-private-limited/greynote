@@ -76,6 +76,10 @@ export interface NewDoctorPayload {
   specialty: string;
   qualification: string;
   email?: string | null;
+  dateOfBirth?: string | null;
+  anniversary?: string | null;
+  /** Visits per month (1–6). */
+  visitFrequency?: number | null;
   /** The phone's GPS when adding. */
   location: GeoPoint;
 }
@@ -246,6 +250,9 @@ export interface FieldMasterDataSnapshot {
     email: string | null;
     specialty: string;
     qualification: string;
+    dateOfBirth: string | null;
+    anniversary: string | null;
+    visitFrequency: number | null;
     location: GeoPoint | null;
   }>;
   /** Doctors the MR added that are still waiting for approval. */

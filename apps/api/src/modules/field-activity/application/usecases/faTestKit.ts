@@ -295,6 +295,11 @@ class FakeCalls<T extends { id: string; dcrId: string | null }> {
   async distinctDoctorIds(dcrIds: string[]) {
     return [...new Set((this.rows as unknown as Array<{ dcrId: string; doctorId: string }>).filter((r) => dcrIds.includes(r.dcrId)).map((r) => r.doctorId))];
   }
+  async countByDoctor(dcrIds: string[]) {
+    const by = new Map<string, number>();
+    for (const r of this.rows as unknown as Array<{ dcrId: string; doctorId: string }>) if (dcrIds.includes(r.dcrId)) by.set(r.doctorId, (by.get(r.doctorId) ?? 0) + 1);
+    return [...by].map(([doctorId, count]) => ({ doctorId, count }));
+  }
   async countByDcrRange(range: { from: string; to: string }) {
     const by = new Map<string, number>();
     for (const r of this.rows as unknown as Array<{ dcrId: string; reportDate: string }>) if (r.reportDate >= range.from && r.reportDate <= range.to) by.set(r.dcrId, (by.get(r.dcrId) ?? 0) + 1);

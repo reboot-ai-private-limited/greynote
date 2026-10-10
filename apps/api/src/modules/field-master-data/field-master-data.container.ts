@@ -33,6 +33,7 @@ import { UnassignDoctorUseCase } from './application/usecases/unassignDoctor.use
 import { UpdateChemistUseCase } from './application/usecases/updateChemist.usecase.js';
 import { UpdateDistributorUseCase } from './application/usecases/updateDistributor.usecase.js';
 import { UpdateDoctorUseCase } from './application/usecases/updateDoctor.usecase.js';
+import { UpdateDoctorTargetsUseCase } from './application/usecases/updateDoctorTargets.usecase.js';
 import { UpdateProductUseCase } from './application/usecases/updateProduct.usecase.js';
 import type { ApprovalsPort } from './domain/approvals.port.js';
 import type { TerritoryPort } from './domain/territory.port.js';
@@ -114,6 +115,7 @@ export function buildFieldMasterDataContainer(
     create: new CreateDoctorUseCase(doctors, territory, views, specialtyCatalog),
     get: new GetDoctorUseCase(doctors, visibility, views),
     update: new UpdateDoctorUseCase(doctors, assignments, territory, views, specialtyCatalog),
+    updateTargets: new UpdateDoctorTargetsUseCase(doctors, visibility, views),
     assigned: new ListAssignedDoctorsUseCase(doctors, visibility, users, views),
     listAssignments: new ListDoctorAssignmentsUseCase(doctors, assignments),
     assign: new AssignDoctorUseCase(doctors, assignments, users, territory, transactions),

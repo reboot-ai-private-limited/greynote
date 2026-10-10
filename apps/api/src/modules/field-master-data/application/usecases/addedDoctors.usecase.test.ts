@@ -176,7 +176,7 @@ describe('An MR adds a Doctor', () => {
     });
 
     it('an Admin-added Doctor is not one an MR can edit', async () => {
-      const d = await doctors.create({ ...input, capturedLocation: null, clientRequestId: null, status: 'active', addedBy: 'mr1', approvedAt: new Date() });
+      const d = await doctors.create({ ...input, dateOfBirth: null, anniversary: null, visitFrequency: null, capturedLocation: null, clientRequestId: null, status: 'active', addedBy: 'mr1', approvedAt: new Date() });
       await expectStatus(added.edit('mr1', d.id, input), 404);
     });
   });

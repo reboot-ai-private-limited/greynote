@@ -54,7 +54,7 @@ export interface SalesPort {
 
 export interface MasterPort {
   /** The doctors an employee covers now: those the employee is assigned and can see. */
-  listAssignedDoctors(userId: string): Promise<Array<{ id: string; name: string; specialty: string }>>;
+  listAssignedDoctors(userId: string): Promise<Array<{ id: string; name: string; specialty: string; visitFrequency?: number | null }>>;
   listActiveOutlets(): Promise<{ distributors: Array<{ id: string; name: string }>; chemists: Array<{ id: string; name: string }> }>;
   listNames(query: { distributorIds?: string[]; chemistIds?: string[]; productIds?: string[] }): Promise<{
     distributors: Array<{ id: string; name: string }>;
@@ -130,6 +130,12 @@ export interface FieldActivityPort {
   listCalledDoctorIds(userId: string, range: { from: string; to: string }): Promise<string[]>;
   summarizeExpenses(range: { from: string; to: string }): Promise<ExpenseMonthRow[]>;
   listAcceptedExpenses(filter: { from: string; to: string; userId?: string; limit?: number }): Promise<ExpenseRecord[]>;
+}
+
+/** The visit-frequency report's read, kept apart so the other reports' fakes stay small. */
+export interface DoctorCallsPort {
+  /** Calls per Doctor in the reported days of a range, by any employee. */
+  countDoctorCalls(range: { from: string; to: string }): Promise<Array<{ doctorId: string; count: number }>>;
 }
 
 export interface TerritoryPort {

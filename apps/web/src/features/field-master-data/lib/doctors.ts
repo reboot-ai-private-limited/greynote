@@ -12,7 +12,14 @@ export interface DoctorDraft extends PlaceDraft {
   specialty: string;
   qualification: string;
   email: string;
+  /** `YYYY-MM-DD` or empty. */
+  dateOfBirth: string;
+  anniversary: string;
+  /** `'1'`–`'6'` or empty (no target). */
+  visitFrequency: string;
 }
+
+export const FREQUENCY_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: n === 1 ? '1 visit a month' : `${n} visits a month` }));
 
 export const EMPTY_DOCTOR: DoctorDraft = {
   routeId: '',
@@ -22,6 +29,9 @@ export const EMPTY_DOCTOR: DoctorDraft = {
   specialty: '',
   qualification: '',
   email: '',
+  dateOfBirth: '',
+  anniversary: '',
+  visitFrequency: '',
 };
 
 export function doctorToDraft(d: DoctorDto): DoctorDraft {
@@ -33,7 +43,16 @@ export function doctorToDraft(d: DoctorDto): DoctorDraft {
     specialty: d.specialty,
     qualification: d.qualification,
     email: d.email ?? '',
+    dateOfBirth: d.dateOfBirth ?? '',
+    anniversary: d.anniversary ?? '',
+    visitFrequency: d.visitFrequency === null ? '' : String(d.visitFrequency),
   };
+}
+
+function dateError(v: string): string | undefined {
+  if (v === '') return undefined;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(Date.parse(v))) return 'Enter a valid date.';
+  return v > new Date().toISOString().slice(0, 10) ? 'This date is in the future.' : undefined;
 }
 
 function errorsFor(draft: DoctorDraft): Record<string, string | undefined> {
@@ -45,6 +64,8 @@ function errorsFor(draft: DoctorDraft): Record<string, string | undefined> {
     specialty: specialty === '' ? 'Choose a speciality.' : specialty.length > TEXT_MAX ? `Keep it to ${TEXT_MAX} characters.` : undefined,
     qualification: qualification === '' ? 'Enter a qualification.' : qualification.length > TEXT_MAX ? `Keep it to ${TEXT_MAX} characters.` : undefined,
     email: email !== '' && !EMAIL.test(email) ? 'Enter a valid email address.' : undefined,
+    dateOfBirth: dateError(draft.dateOfBirth),
+    anniversary: dateError(draft.anniversary),
   };
 }
 
@@ -53,7 +74,7 @@ export const DOCTOR_STEPS = ['details', 'location', 'review'] as const;
 export type DoctorStep = (typeof DOCTOR_STEPS)[number];
 export const DOCTOR_STEP_LABEL: Record<DoctorStep, string> = { details: 'Details', location: 'Location', review: 'Review' };
 
-const DETAIL_FIELDS = ['routeId', 'name', 'address', 'specialty', 'qualification', 'email'];
+const DETAIL_FIELDS = ['routeId', 'name', 'address', 'specialty', 'qualification', 'email', 'dateOfBirth', 'anniversary'];
 const LOCATION_FIELDS = ['latitude', 'longitude'];
 
 /** What is wrong with the fields of one step (the review step checks everything), so "Next" can say so before moving on. */
@@ -80,6 +101,9 @@ export function buildDoctor(draft: DoctorDraft): BuildResult<CreateDoctorDto> {
       specialty: squash(draft.specialty),
       qualification: squash(draft.qualification),
       email: draft.email.trim() === '' ? null : draft.email.trim(),
+      dateOfBirth: draft.dateOfBirth || null,
+      anniversary: draft.anniversary || null,
+      visitFrequency: draft.visitFrequency === '' ? null : Number(draft.visitFrequency),
       location: point.point,
     },
   };
@@ -95,6 +119,9 @@ export function buildDoctorUpdate(original: DoctorDto, draft: DoctorDraft): Buil
   const specialty = squash(draft.specialty);
   const qualification = squash(draft.qualification);
   const email = draft.email.trim() === '' ? null : draft.email.trim();
+  const dateOfBirth = draft.dateOfBirth || null;
+  const anniversary = draft.anniversary || null;
+  const visitFrequency = draft.visitFrequency === '' ? null : Number(draft.visitFrequency);
   return {
     ok: true,
     body: {
@@ -104,6 +131,9 @@ export function buildDoctorUpdate(original: DoctorDto, draft: DoctorDraft): Buil
       ...(specialty !== original.specialty && { specialty }),
       ...(qualification !== original.qualification && { qualification }),
       ...(email !== original.email && { email }),
+      ...(dateOfBirth !== original.dateOfBirth && { dateOfBirth }),
+      ...(anniversary !== original.anniversary && { anniversary }),
+      ...(visitFrequency !== original.visitFrequency && { visitFrequency }),
       ...locationChange(original.location, point.point),
     },
   };

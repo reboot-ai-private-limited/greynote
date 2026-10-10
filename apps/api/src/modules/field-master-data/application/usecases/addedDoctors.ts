@@ -20,6 +20,9 @@ export interface AddedDoctorInput {
   email: string | null;
   specialty: string;
   qualification: string;
+  dateOfBirth?: string | null;
+  anniversary?: string | null;
+  visitFrequency?: number | null;
   /** The phone's GPS when the MR added the Doctor — becomes the registered location until Admin corrects it. */
   location: GeoPoint;
 }
@@ -79,7 +82,7 @@ export class AddedDoctors {
   private async insertAndSubmit(mrId: string, input: AddedDoctorInput & { clientRequestId: string }, ctx: TransactionContext): Promise<Doctor> {
     const { clientRequestId, location, ...fields } = input;
     const doctor = await this.doctors.createProposed(
-      { ...fields, location, capturedLocation: location, clientRequestId, status: 'pending', addedBy: mrId, approvedAt: null },
+      { dateOfBirth: null, anniversary: null, visitFrequency: null, ...fields, location, capturedLocation: location, clientRequestId, status: 'pending', addedBy: mrId, approvedAt: null },
       ctx,
     );
     await this.approvals.submit({ kind: NEW_DOCTOR_KIND, recordId: doctor.id, submitterId: mrId }, ctx);

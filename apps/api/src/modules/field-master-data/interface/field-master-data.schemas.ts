@@ -89,6 +89,13 @@ export const listChemistsQuerySchema = z.object({ ...pageFields, routeId: object
 
 // ---- Doctors
 const emailSchema = z.string().trim().email().max(200);
+const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.').refine((v) => !Number.isNaN(Date.parse(v)), 'Not a real date.');
+const frequencySchema = z.number().int().min(1).max(6);
+const doctorExtras = {
+  dateOfBirth: dateOnly.nullish().transform((v) => v ?? null),
+  anniversary: dateOnly.nullish().transform((v) => v ?? null),
+  visitFrequency: frequencySchema.nullish().transform((v) => v ?? null),
+};
 const doctorFields = {
   name: nameSchema,
   address: textSchema,
@@ -98,6 +105,7 @@ const doctorFields = {
 export const createDoctorBodySchema = z.object({
   routeId: objectIdSchema,
   ...doctorFields,
+  ...doctorExtras,
   email: emailSchema.nullish().transform((v) => v ?? null),
   /** Picked on a Google map. Omit to add the Doctor now and set the point later. */
   location: locationSchema.nullish().transform((v) => v ?? null),
@@ -109,11 +117,23 @@ export const updateDoctorBodySchema = z
     address: textSchema.optional(),
     specialty: doctorFields.specialty.optional(),
     qualification: doctorFields.qualification.optional(),
+    /** `null` clears. */
+    dateOfBirth: dateOnly.nullable().optional(),
+    anniversary: dateOnly.nullable().optional(),
+    visitFrequency: frequencySchema.nullable().optional(),
     /** `null` clears it. */
     email: emailSchema.nullable().optional(),
     /** `null` clears the registered location. */
     location: locationSchema.nullable().optional(),
     status: statusSchema.optional(),
+  })
+  .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
+/** Manager/Admin: only the visit target and the two dates. */
+export const updateDoctorTargetsBodySchema = z
+  .object({
+    dateOfBirth: dateOnly.nullable().optional(),
+    anniversary: dateOnly.nullable().optional(),
+    visitFrequency: frequencySchema.nullable().optional(),
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 export const listDoctorsQuerySchema = z.object({
@@ -137,6 +157,7 @@ export const doctorAssignmentParamsSchema = z.object({ id: objectIdSchema, userI
 const addedDoctorFields = {
   routeId: objectIdSchema,
   ...doctorFields,
+  ...doctorExtras,
   email: emailSchema.nullish().transform((v) => v ?? null),
   /** The phone's GPS when adding. Required — Admin reviews it on a map at approval. */
   location: locationSchema,

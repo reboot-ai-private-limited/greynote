@@ -860,3 +860,7 @@ Expenses leave the DCR (decision-log 2026-10-10, K37): dated "Other" entries, a 
 ## Visuals shown to doctors (2026-10-10)
 
 The MR picks, per doctor, which visuals to show; Admin and managers above the MR see and can remove them (decision-log 2026-10-10). **Done:** API (`DoctorVisual`, three routes under `/marketing/doctors/:doctorId/visuals`, `PATCH /marketing/visuals/:id` edits title/category/product; marketing and RBAC tests pass, dependency check clean), web (Admin Visuals library page, Visuals tab on the doctor screen; web tests and typecheck pass) and phone (Visuals screen with a doctor picker, ticked-and-locked earlier picks, Submit and Show; typechecked and linted). **Not browser-checked and not run on a phone.** **Open:** a screen for managers who are not Admin to remove picks (the phone only lists the MR's own doctors); whether a reassigned doctor's list should follow the doctor (it does now); Submit is online-only; no link to the call or DCR.
+
+## Doctor visit frequency and missed calls (2026-10-10)
+
+Doctor DOB / anniversary / monthly visit frequency (decision-log 2026-10-10, K38). **Done:** API (doctor fields, manager `PATCH /doctors/:id/targets`, `countDoctorCalls`, `GET /reports/doctor-visits`; tests and RBAC matrix updated) and web (doctor form fields, Visits tab, `/reports/doctor-visits`; typecheck and tests pass). **Not browser-checked.** **Open:** the phone's Missed calls section and add-doctor fields (mobile team); birthday/anniversary reminders; the docs `testing/` checklists are not extended yet.

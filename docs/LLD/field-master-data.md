@@ -61,7 +61,10 @@ whole data model. The contract below is complete for Phase 6's needs.
 ## What it owns
 
 - **Doctor** — `route_id`, category, name, address, email, specialty, qualification, and a
-  registered `latitude`/`longitude` captured once at creation.
+  registered `latitude`/`longitude` captured once at creation. Also optional `date_of_birth`,
+  `anniversary` (`YYYY-MM-DD`) and `visit_frequency` (1–6 visits a month; null = no target). An MR sets them
+  when adding the doctor; Admin edits all of the doctor, and a manager can change only these three for a
+  doctor of someone in their downline (`PATCH /doctors/:id/targets`; the assigned MR cannot change their own target).
 - **Chemist** — the same shape minus specialty/qualification, its own registered
   `latitude`/`longitude`.
 - **Distributor** — attaches at the `route_id` level, same as Doctor/Chemist (client rules

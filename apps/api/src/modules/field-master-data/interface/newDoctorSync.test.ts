@@ -120,7 +120,7 @@ describe('NEW_DOCTOR through the sync push', () => {
       doctors.findByClientRequest = async (...args) => {
         calls += 1;
         const found = await realFind(...args);
-        if (calls === 1) await doctors.createProposed({ routeId: ROUTE, name: 'Dr Mehta', address: 'x', email: null, specialty: 'ENT', qualification: 'MS', location: null, capturedLocation: null, clientRequestId: CLIENT_ID, status: 'pending', addedBy: 'mr1', approvedAt: null });
+        if (calls === 1) await doctors.createProposed({ routeId: ROUTE, name: 'Dr Mehta', address: 'x', email: null, specialty: 'ENT', qualification: 'MS', location: null, dateOfBirth: null, anniversary: null, visitFrequency: null, capturedLocation: null, clientRequestId: CLIENT_ID, status: 'pending', addedBy: 'mr1', approvedAt: null });
         return found;
       };
       expect((await refusal(payload())).code).toBe('ADDED_AT_THE_SAME_TIME');

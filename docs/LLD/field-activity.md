@@ -427,3 +427,7 @@ There is no new collection: a statement is a grouped view of the `Expense` rows.
 Admin screens over the existing API: **Doctor gifts** (`/doctor-gifts`: list by status, allocate a gift to a doctor with a name and a value; the assigned MR marks it done in
 the app) and **Doctor services** (`/doctor-services`: every service with its approval status, and "New service" for one Admin records: effective at once, tied to the doctor's
 assigned MR, refused for a doctor with no MR). A doctor is picked by searching names. The four service types (Tour package, Gift, Online promotion, Others) are final.
+
+## Calls per doctor (2026-10-10)
+
+`countDoctorCalls(range)` on the public contract: calls per Doctor in the reported days of a range, by any employee (qualifying DCRs only). Feeds the Doctor visits report (LLD reports.md). Doctor calls gain the index `{doctorId, reportDate}`. Calls logged on a draft report are not counted until the day is submitted, so the phone may add its own unsubmitted calls when it shows "called / missed".

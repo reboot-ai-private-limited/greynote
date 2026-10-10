@@ -71,6 +71,8 @@ const doctorCallSchema = new Schema<DoctorCallDoc>({
   },
 });
 doctorCallSchema.index({ dcrId: 1, recordedAt: 1 });
+// Visits per Doctor in a month (the visit-frequency report).
+doctorCallSchema.index({ doctorId: 1, reportDate: 1 });
 // One call per phone record: a second guard behind the sync receipt.
 doctorCallSchema.index({ userId: 1, clientId: 1 }, { unique: true });
 

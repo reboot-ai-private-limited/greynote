@@ -24,6 +24,9 @@ erDiagram
         string email
         string specialty
         string qualification "class, e.g. MBBS, MD"
+        string date_of_birth "nullable - YYYY-MM-DD"
+        string anniversary "nullable - YYYY-MM-DD"
+        int visit_frequency "nullable - 1 to 6 visits a month; null = no target"
         decimal latitude "nullable - registered clinic location for visit geofence validation"
         decimal longitude "nullable"
         decimal captured_latitude "nullable - the MR phone's GPS when adding, kept if Admin corrects the point"

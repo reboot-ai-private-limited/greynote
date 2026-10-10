@@ -26,3 +26,15 @@ export function useDcrCoverage(userId: string, month: string, enabled: boolean) 
     }),
   );
 }
+
+/** Each doctor's visit frequency against the calls made in a month; one employee's, or everyone's when `userId` is omitted. */
+export function useDoctorVisits(month: string, userId?: string, enabled = true) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.reports.doctorVisits(userId, month),
+      fetch: (token, signal) => reportsApi.doctorVisits(token, { month, userId }, signal),
+      staleTime: staleTime.live,
+      enabled: enabled && month !== '',
+    }),
+  );
+}

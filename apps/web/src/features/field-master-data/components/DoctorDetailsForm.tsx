@@ -20,6 +20,7 @@ import {
   DOCTOR_STEPS,
   DOCTOR_STEP_LABEL,
   EMPTY_DOCTOR,
+  FREQUENCY_OPTIONS,
   buildDoctor,
   buildDoctorUpdate,
   doctorStepErrors,
@@ -160,6 +161,21 @@ export function DoctorDetailsForm({ doctor }: { doctor?: DoctorDto }) {
           aria-invalid={invalid('email')}
         />
       </FormField>
+      <FormField label="Date of birth (optional)" htmlFor="doctor-dob" error={shown['dateOfBirth']}>
+        <Input id="doctor-dob" type="date" value={draft.dateOfBirth} disabled={locked} onChange={(e) => set('dateOfBirth')(e.target.value)} aria-invalid={invalid('dateOfBirth')} />
+      </FormField>
+      <FormField label="Anniversary (optional)" htmlFor="doctor-anniversary" error={shown['anniversary']}>
+        <Input id="doctor-anniversary" type="date" value={draft.anniversary} disabled={locked} onChange={(e) => set('anniversary')(e.target.value)} aria-invalid={invalid('anniversary')} />
+      </FormField>
+      <FormField label="Visit frequency (optional)" htmlFor="doctor-frequency" hint="How many times the MR should visit this doctor each month. Missed visits are tracked against it.">
+        <Select
+          id="doctor-frequency"
+          value={draft.visitFrequency || 'none'}
+          onValueChange={(v) => set('visitFrequency')(v === 'none' ? '' : v)}
+          options={[{ value: 'none', label: 'No target' }, ...FREQUENCY_OPTIONS]}
+          disabled={locked}
+        />
+      </FormField>
       <div className="sm:col-span-2">
         <FormField label="Address" htmlFor="doctor-address" error={shown['address']}>
           <Input
@@ -245,6 +261,9 @@ export function DoctorDetailsForm({ doctor }: { doctor?: DoctorDto }) {
           <Field label="Speciality">{draft.specialty}</Field>
           <Field label="Qualification">{draft.qualification}</Field>
           <Field label="Email">{draft.email || null}</Field>
+          <Field label="Date of birth">{draft.dateOfBirth || null}</Field>
+          <Field label="Anniversary">{draft.anniversary || null}</Field>
+          <Field label="Visit frequency">{draft.visitFrequency ? `${draft.visitFrequency} a month` : null}</Field>
           <Field label="Address">{draft.address}</Field>
           <Field label="Location">{point.ok ? formatPoint(point.point) : 'Not valid'}</Field>
         </FieldList>
