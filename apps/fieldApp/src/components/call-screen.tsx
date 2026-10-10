@@ -15,10 +15,13 @@ import { WorkWithPicker } from '@/components/work-with-picker';
 import { Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useReportSent } from '@/hooks/use-report-sent';
+import { getDoctorVisits, type DoctorVisitsReport } from '@/lib/doctor-visits';
+import { useFinancialYear } from '@/lib/financial-year';
 import { captureLocation } from '@/lib/location';
 import { CALL_WORKING_TYPES, workingTypeLabel, type WorkingType } from '@/lib/planning';
 import { removeRecord, saveCall, serverGeofence, useRecords, type CallPayload, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
+import { useCachedFetch } from '@/offline/cached-fetch';
 import type { FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
 
 type Subject = 'DOCTOR' | 'CHEMIST';
@@ -47,6 +50,12 @@ export function CallScreen({ subject }: { subject: Subject }) {
   const planning = useCachedSource<PlanningSnapshot>('planning');
   const reportSent = useReportSent(gate.today);
   const { records } = useRecords([kind]);
+
+  // Doctors with a visit target show how far along the month is (calls on submitted days; the Missed Calls screen shares this copy).
+  const fy = useFinancialYear();
+  const visitMonth = gate.today.slice(0, 7);
+  const visits = useCachedFetch<DoctorVisitsReport | null>(isDoctor ? `doctor-visits:${fy.year}:${visitMonth}` : 'doctor-visits:none', () => (isDoctor ? getDoctorVisits(visitMonth) : Promise.resolve(null)));
+  const madeBy = useMemo(() => new Map((visits.data?.mrs ?? []).flatMap((m) => m.rows).map((r) => [r.doctor.id, r.made])), [visits.data]);
 
   const plan = planning.data?.dailyPlans.find((p) => p.planDate === gate.today) ?? null;
   const plannedRoutes = useMemo(() => new Set(plan?.routeIds ?? []), [plan]);
@@ -180,7 +189,9 @@ export function CallScreen({ subject }: { subject: Subject }) {
           options={outlets.map((o) => ({
             id: o.id,
             name: o.name,
-            subtitle: `${'specialty' in o ? `${o.specialty} · ${o.address}` : o.address}${calledIds.has(o.id) ? ' · called today' : ''}`,
+            subtitle: `${'specialty' in o ? `${o.specialty} · ${o.address}` : o.address}${
+              'visitFrequency' in o && o.visitFrequency ? ` · ${madeBy.has(o.id) ? `${madeBy.get(o.id)} of ${o.visitFrequency}` : o.visitFrequency} visits${madeBy.has(o.id) ? ' this month' : ' a month'}` : ''
+            }${calledIds.has(o.id) ? ' · called today' : ''}`,
           }))}
           value={outletId}
           onChange={(id) => {

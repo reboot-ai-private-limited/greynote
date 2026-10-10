@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
+import { DateField, EMPTY_PARTS, isoFromParts, partsFromIso, type DateParts } from '@/components/date-field';
 import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
@@ -11,6 +12,7 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useDayGate } from '@/hooks/use-day-gate';
 import { ApiError, NetworkError } from '@/lib/api';
 import { ADDED_EDITABLE, editAddedDoctor, listAddedDoctors, type AddedDoctor } from '@/lib/added-doctors';
 import { captureLocation } from '@/lib/location';
@@ -43,6 +45,9 @@ const APPROVAL_TEXT: Record<string, string> = {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** How many times a month the MR should visit this doctor: the server takes 1 to 6. Left empty, no target is set. */
+const FREQUENCIES = [1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }));
+
 type Msg = { tone: 'danger' | 'success' | 'info' | 'warning'; text: string };
 /** What the form is working on: a new doctor, one waiting on the phone, or one already with the server. */
 type Target = 'new' | { local: OutboxRecord } | { server: AddedDoctor };
@@ -56,6 +61,7 @@ type Target = 'new' | { local: OutboxRecord } | { server: AddedDoctor };
  */
 export default function AddDoctorScreen() {
   const online = useOnline();
+  const { today } = useDayGate();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const territory = useCachedSource<TerritorySnapshot>('territory');
   const { records } = useRecords(['NEW_DOCTOR']);
@@ -73,6 +79,9 @@ export default function AddDoctorScreen() {
   const [specialty, setSpecialty] = useState<string | null>(null);
   const [qualification, setQualification] = useState('');
   const [email, setEmail] = useState('');
+  const [birth, setBirth] = useState<DateParts>(EMPTY_PARTS);
+  const [anniversary, setAnniversary] = useState<DateParts>(EMPTY_PARTS);
+  const [frequency, setFrequency] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
 
@@ -122,6 +131,9 @@ export default function AddDoctorScreen() {
       setSpecialty(null);
       setQualification('');
       setEmail('');
+      setBirth(EMPTY_PARTS);
+      setAnniversary(EMPTY_PARTS);
+      setFrequency(null);
     } else {
       const d = 'local' in t ? (t.local.payload as NewDoctorPayload) : t.server;
       setRouteId(d.routeId);
@@ -130,6 +142,9 @@ export default function AddDoctorScreen() {
       setSpecialty(d.specialty);
       setQualification(d.qualification);
       setEmail(d.email ?? '');
+      setBirth(partsFromIso(d.dateOfBirth));
+      setAnniversary(partsFromIso(d.anniversary));
+      setFrequency(d.visitFrequency ? String(d.visitFrequency) : null);
     }
     setTarget(t);
   };
@@ -141,6 +156,10 @@ export default function AddDoctorScreen() {
     if (!specialty) return setMsg({ tone: 'danger', text: 'Choose the speciality.' });
     if (!qualification.trim()) return setMsg({ tone: 'danger', text: 'Enter the qualification.' });
     if (email.trim() && !EMAIL.test(email.trim())) return setMsg({ tone: 'danger', text: 'That email doesn’t look right.' });
+    const dob = isoFromParts(birth, today);
+    if (dob.error) return setMsg({ tone: 'danger', text: `Date of birth: ${dob.error}` });
+    const wedding = isoFromParts(anniversary, today);
+    if (wedding.error) return setMsg({ tone: 'danger', text: `Anniversary: ${wedding.error}` });
     if (target && typeof target === 'object' && 'server' in target && !online) {
       return setMsg({ tone: 'info', text: 'You’re offline. Connect to the internet to send this again.' });
     }
@@ -165,6 +184,9 @@ export default function AddDoctorScreen() {
       specialty,
       qualification: qualification.trim(),
       email: email.trim() || null,
+      dateOfBirth: dob.iso,
+      anniversary: wedding.iso,
+      visitFrequency: frequency ? Number(frequency) : null,
       location: fix.point,
     };
     try {
@@ -258,6 +280,15 @@ export default function AddDoctorScreen() {
           autoCorrect={false}
           editable={!busy}
         />
+        <DateField label="Date of birth (optional)" value={birth} onChange={setBirth} disabled={busy} />
+        <DateField label="Anniversary (optional)" value={anniversary} onChange={setAnniversary} disabled={busy} />
+        <View style={styles.block}>
+          <ThemedText type="smallBold">Visits a month (optional)</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            How many times you should visit this doctor each month. Missed Calls counts against it.
+          </ThemedText>
+          <ChoiceChips options={FREQUENCIES} value={frequency} onChange={(v) => setFrequency(v === frequency ? null : v)} disabled={busy} />
+        </View>
         <Notice tone="info">
           The doctor’s location is your phone’s position when you save, so save this while you’re at the doctor’s place.
         </Notice>

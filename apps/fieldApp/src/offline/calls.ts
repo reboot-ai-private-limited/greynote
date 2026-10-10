@@ -36,6 +36,10 @@ export type NewDoctorPayload = {
   specialty: string;
   qualification: string;
   email: string | null;
+  /** Optional: `YYYY-MM-DD` dates, and visits a month (1–6) the MR should make to this doctor. */
+  dateOfBirth?: string | null;
+  anniversary?: string | null;
+  visitFrequency?: number | null;
   /** The phone's GPS at the time — required, and becomes the registered location until Admin corrects it. */
   location: GeoPoint;
 };
