@@ -11,7 +11,7 @@ interface InboxPublicContract {
 }
 ```
 
-Nothing calls `notify` yet. It is the hook the decision-log promised ("decisions emit an event where notifications will plug in"): when sign-off F8 says which events notify whom (a target set, a late-submission exception, a call assigned), the owning module calls it. Inbox depends only on Identity (`listActiveRecipients`: id, role, HQ, Zone of every active user) and Territory (Zone/HQ exist and are active).
+Team's manager alerts call `notify` (2026-10-12, see [`team.md`](team.md)); nothing else does yet. It is the hook the decision-log promised ("decisions emit an event where notifications will plug in"): when sign-off F8 says which events notify whom (a target set, a late-submission exception, a call assigned), the owning module calls it. Inbox depends only on Identity (`listActiveRecipients`: id, role, HQ, Zone of every active user) and Territory (Zone/HQ exist and are active).
 
 ## Rules
 

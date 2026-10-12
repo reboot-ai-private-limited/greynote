@@ -2056,3 +2056,12 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** notifications (F8). The team's API is complete; the phone screens are the other team's.
 
 **Refs:** [`mobile/team.md`](mobile/team.md), [`LLD/team.md`](LLD/team.md), [`LLD/sales-and-orders.md`](LLD/sales-and-orders.md).
+
+## 2026-10-12 — Manager Team: owner's answers and the manager's alerts
+
+**Decision:** the owner answered the five Team questions (sign-off K42): whole team by default and read-only below direct reports; no salary or CTC for managers; Admin only approves for an absent manager; "not started" is 11:00 (the existing setting). For notifications, the manager is told in the Inbox of: a new **leave, monthly-expenses or new-doctor** request from a direct report; any request waiting past `APPROVAL_SLA_DAYS` (reminder only, nothing escalates); a direct report **blocked** for missed reports. Plans, daily reports and the other kinds stay with the badge because they arrive many times a day. Messages are digests (one per manager per check) so a busy moment is not a flood. A request is announced once per cycle, tracked in a new small collection (`team_alert_marks`, expires after 90 days, safe from several servers); a 5-minute server job sends them, and the missed-report job tells managers of the people it has just blocked. Admin can switch all of it off with `TEAM_ALERTS_ENABLED` (default on). The Team module therefore now owns that one collection.
+
+**Open:** push (FCM) is the phone team's later work; notifying the *employee* of decisions (F8, other events) is still undecided.
+
+**Refs:** [`mobile/team.md`](mobile/team.md), [`LLD/team.md`](LLD/team.md), [`LLD/inbox.md`](LLD/inbox.md), sign-off F8, K42.
+

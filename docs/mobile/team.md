@@ -1,6 +1,6 @@
 # Mobile — Team (the manager's daily operations)
 
-**Plan, 2026-10-12; all four build steps done the same day (T1–T10 ✅; only notifications T12 and the open questions remain).** What a manager (ASM → RSM → ZSM → NSM, a FIELD employee with a downline) needs to run the day and watch the team from the **Team** section, what the server and web already give them, and what is still missing. Nothing here is built yet; this is the plan to agree before any code. Related: [`inbox.md`](inbox.md), [`reports.md`](reports.md), [`dailyplan.md`](dailyplan.md), [`monthlyplan.md`](monthlyplan.md), [`dcr.md`](dcr.md), [`leave.md`](leave.md), [`expenses.md`](expenses.md), [`secondary-and-targets.md`](secondary-and-targets.md), [`doctors.md`](doctors.md). Rules: [`prd.md`](../prd.md) §6–§7.1, [`decision-log.md`](../decision-log.md).
+**Plan, 2026-10-12; built the same day (T1–T12 ✅). Client answers recorded 2026-10-12 (section 8).** What a manager (ASM → RSM → ZSM → NSM, a FIELD employee with a downline) needs to run the day and watch the team from the **Team** section, what the server and web already give them, and what is still missing. Nothing here is built yet; this is the plan to agree before any code. Related: [`inbox.md`](inbox.md), [`reports.md`](reports.md), [`dailyplan.md`](dailyplan.md), [`monthlyplan.md`](monthlyplan.md), [`dcr.md`](dcr.md), [`leave.md`](leave.md), [`expenses.md`](expenses.md), [`secondary-and-targets.md`](secondary-and-targets.md), [`doctors.md`](doctors.md). Rules: [`prd.md`](../prd.md) §6–§7.1, [`decision-log.md`](../decision-log.md).
 
 **Status key:** ✅ exists on the server. 🟡 exists but not open to a manager, or not shaped for a team. ❌ missing (we build it). 📱 the phone team shows it.
 
@@ -33,6 +33,18 @@ Everything a manager's phone calls, in one place. **Available** = built and test
 
 **Day states** in `/team/today`: `REPORTED` (DCR submitted or approved), `WORKING` (some call or follow-up logged, report not in), `NOT_YET` (nothing logged, before the not-started time), `NOT_STARTED` (nothing logged, after it), `MISSED` (a past day with no report), `ON_LEAVE` (a manager-approved or approved leave covers it), `OFF` (holiday or weekly off). Work logged on a leave or off day still counts as `WORKING` / `REPORTED`. `attention` is true when the person is blocked, `NOT_STARTED`, `MISSED`, or has no Daily Plan on a day they are not on leave or off. The not-started time is the Admin setting `TEAM_NOT_STARTED_AFTER` (default `11:00`, business timezone); it only changes this screen.
 
+### Messages the manager receives (in `GET /inbox`, no new route)
+
+The server puts these in the manager's Inbox ([`inbox.md`](inbox.md)) — the phone just shows them like any message and refreshes the unread count. No push yet; the phone polls. A background job checks every 5 minutes; each request is announced **once** (a resubmission after a rejection counts again). Admin can switch all of it off with the setting `TEAM_ALERTS_ENABLED` (default on).
+
+| When | `kind` | Title / body |
+|---|---|---|
+| A direct report sends a **leave request, monthly expenses or a new doctor** | `UPDATE` | "Asha sent a leave request", or "3 new requests from your team" with a line per person (up to 8, then "…and N more"). One message per manager per check, so a busy moment is not a flood. |
+| Any request (any kind) has waited at the manager **longer than `APPROVAL_SLA_DAYS`** | `REMINDER` | "A request is waiting too long" / "N requests are…", one line each with the number of days. Only a reminder: nothing is approved or escalated. |
+| The missed-report job **blocks** someone on the team (direct reports only) | `UPDATE` | "Asha is blocked" with the missed dates, and where to unblock (Team → the person → Unblock, with a reason). |
+
+Daily plans, monthly plans, daily reports, secondary sales and doctor services are **not** announced one by one (many a day); they are in the badge (`GET /approvals/inbox/summary`) and the overdue reminder. Messages last 14 days. They name no one outside the manager's own direct reports.
+
 ### Available — already there, used by the Team section
 
 | Route | Use |
@@ -50,7 +62,7 @@ Everything a manager's phone calls, in one place. **Available** = built and test
 
 | Gap | Route (proposed) | For |
 |---|---|---|
-| T12 | notifications / push | Waiting on sign-off F8. |
+| — | push notification (FCM) | The phone team; the messages below already reach the Inbox. |
 
 ## 3. What exists today
 
@@ -84,7 +96,7 @@ These are why a manager cannot yet "monitor the team": the data exists, but ther
 | T9 | **Person drill-down.** | ✅ built | `GET /team/members/:id/summary` (section 2), plus a `userId` filter on `/team/today`, `/plans`, `/leaves`, `/members`, and `/reports/team/overview`. |
 | T10 | **Access check, single source.** | ✅ built | `resolveTeamScope` in `shared/access/teamScope.ts`: the whole downline, or one named person who must be in it (else `403`). Every new team route uses it. Existing routes (`/dcr/team`, doctors `/team`) keep their own copies for now. |
 | T11 | **Reports after a team move.** Reports must show the team as it was in that month (sign-off K18). | ✅ design, check | Verify the new team reads use the dated manager history, not today's `managerId`. |
-| T12 | **Notifications** to the manager when something arrives (F8 is open; no push exists). | ❌ | Not in this plan; the badge in T3 is the stop-gap. Raise F8 with the client. |
+| T12 | **Notifications** to the manager. | ✅ built (Inbox only) | Section 2, *Messages the manager receives*. No push yet. |
 
 Not a gap (do not build): chemist orders approval (info-only, decision 2026-10-12), manager approval of Admin-owned things, any second manager stage (Stage 1 manager → Admin is fixed, PRD §7.1).
 
@@ -118,8 +130,10 @@ Suggested shape, not ours to build. Visible only when `GET /auth/me` shows the p
 
 ## 8. Questions for the client
 
-- **Q1** How deep? All levels' read-only visibility is signed off; should the **overview and dashboard** default to direct reports with a switch to "whole team"? Proposed: yes, default direct.
-- **Q2** What counts as "not started" in Today? **Built as a working assumption:** no calls or follow-ups logged by `TEAM_NOT_STARTED_AFTER` (default 11:00, Admin-editable). Confirm the time.
-- **Q3** Notifications (F8): which events should reach the manager (new request, overdue, a team member blocked)? Until answered, only the badge.
-- **Q4** Should the manager see the team's **salary or CTC**? Proposed: no, never (HR/Accounts only).
-- **Q5** Can a manager approve **on behalf of** an absent peer, or only Admin? Proposed: Admin only, as today.
+**Answered 2026-10-12 (from the owner):**
+
+- **Q1** How deep? **Whole team by default**; deeper levels are read-only, only direct reports can be acted on. (`scope` defaults to `all`; the phone may offer a switch to direct only.)
+- **Q2** What counts as "not started"? **No calls or follow-ups logged by 11:00**, the system setting `TEAM_NOT_STARTED_AFTER` (Admin-editable).
+- **Q3** Notifications (F8): **blocked and overdue always; new-request messages only for leave, monthly expenses and new doctors**; plans and daily reports stay with the badge. In-app Inbox only for now.
+- **Q4** Salary or CTC for a manager? **No, never** (HR/Accounts only). Nothing in the Team routes returns pay.
+- **Q5** Approve on behalf of an absent peer? **Admin only**, as today.

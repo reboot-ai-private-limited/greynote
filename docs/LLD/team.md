@@ -1,6 +1,6 @@
 # LLD — Team
 
-A manager's view of their downline. **Owns no data**: it reads Identity, Territory, Planning, Field Activity, HR, Reports, Sales, Field Master Data (outlet names) and Config (the last for the business day and the not-started time). Plan and phone contract: [`../mobile/team.md`](../mobile/team.md). Decision: [`../decision-log.md`](../decision-log.md) (2026-10-12). Managers use the phone only; the web portal is not for them.
+A manager's view of their downline. **Owns one small collection** (the alert marks, below) and otherwise no data: it reads Identity, Territory, Planning, Field Activity, HR, Reports, Sales, Field Master Data (outlet names) and Config (the last for the business day and the not-started time). Plan and phone contract: [`../mobile/team.md`](../mobile/team.md). Decision: [`../decision-log.md`](../decision-log.md) (2026-10-12). Managers use the phone only; the web portal is not for them.
 
 ## Access rule
 
@@ -24,6 +24,17 @@ The not-started time is the Config key `TEAM_NOT_STARTED_AFTER` (`FIELD_ACTIVITY
 
 Related, in Reports: `GET /reports/team/overview` ([`reports.md`](reports.md)). Related, in Approval: `GET /approvals/inbox/summary` ([`approval.md`](approval.md)).
 
+## Alerts to the manager (2026-10-12)
+
+`TeamAlerts` (`application/teamAlerts.ts`), run by the server every 5 minutes (`team-alerts` job) and, for blocks, straight after the missed-report job. Sends through Inbox's `notify()` (system sender, no push).
+
+- **New request:** Approval's `listWaitingOnManagers()` (Stage-1 requests whose submitter has a manager) filtered to `LEAVE`, `EXPENSE_MONTH` and `NEW_DOCTOR` submitted in the last 24 hours. Plans, reports and the other kinds are left to the badge.
+- **Overdue:** the same list, `overdue` (past `APPROVAL_SLA_DAYS`), any kind. A reminder only.
+- **Blocked:** `notifyBlocked(blocked)` with the people the missed-report run has just blocked (an already-blocked person is never in that list, a dry run never calls it). Goes to the person's own manager.
+- **Once only:** `claim()` on `team_alert_marks` (`key` unique: `new:<requestId>:<cycle>` or `overdue:<requestId>:<cycle>`; TTL 90 days) is an atomic upsert per key, so two servers racing announce a request once. Claimed before sending: if sending fails the alert is lost rather than repeated.
+- **Shape:** one message per manager per kind of alert per run, with a line per person (8 shown, then "…and N more"); kind `UPDATE` (new, blocked) or `REMINDER` (overdue); kept 14 days.
+- **Switch:** `TEAM_ALERTS_ENABLED` (APPROVAL, default on; a database not re-seeded reads on).
+
 ## Still to build
 
-Notifications to the manager (sign-off F8, no push exists). Routes, with shapes, are kept in [`../mobile/team.md`](../mobile/team.md) §2.
+Push (the phone team) and notifying the employee of decisions (F8). Routes, with shapes, are kept in [`../mobile/team.md`](../mobile/team.md) §2.
