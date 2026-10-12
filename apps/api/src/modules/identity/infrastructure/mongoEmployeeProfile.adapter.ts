@@ -125,4 +125,9 @@ export class MongoEmployeeProfileAdapter implements EmployeeProfileRepositoryPor
     const docs = await EmployeeProfileModel.find(query).select('userId').lean();
     return docs.map((doc) => String(doc.userId));
   }
+
+  async findManagerIds(): Promise<string[]> {
+    const ids = await EmployeeProfileModel.distinct('managerId', { managerId: { $ne: null } });
+    return ids.map(String);
+  }
 }

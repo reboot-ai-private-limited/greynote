@@ -14,7 +14,7 @@ import { DCR_KIND, isOpenForLogging } from './dcrStatus.js';
  * (a manager may have rejected the Plan after the last pull).
  *
  * In order: the employee isn't compliance-blocked (`hld/10`) → the day isn't in the future, and is the day
- * the record was made (`clientCreatedAt`, in the business timezone) → the day's Plan is past the manager
+ * the record was made (`clientCreatedAt`, in the business timezone) → the month's Monthly Plan is approved (no approved month, no work) → the day's Plan is past the manager
  * (Planning's `isDailyPlanApproved`, never a status compared here) → the day's DCR isn't already submitted
  * (a rejected, withdrawn or reopened one can be added to again). Refuses with a `GateRefusal` carrying the
  * code the app acts on.
@@ -51,6 +51,12 @@ export class LoggingGate {
     }
     if ((await this.clock.dateOf(recordedAt)) !== reportDate) {
       throw new GateRefusal(GATE_CODES.dateMismatch, 'This record was made on a different day from the report it is filed under.');
+    }
+    if (!(await this.planning.isMonthlyPlanApproved(userId, reportDate.slice(0, 7)))) {
+      throw new GateRefusal(
+        GATE_CODES.monthlyPlanNotApproved,
+        `Your monthly plan for ${reportDate.slice(0, 7)} isn’t approved, so nothing can be logged. Ask Admin for a late-submission exception if you missed the deadline.`,
+      );
     }
     if (!(await this.planning.isDailyPlanApproved(userId, reportDate))) {
       throw new GateRefusal(GATE_CODES.planNotApproved, 'Today’s tour plan isn’t approved, so nothing can be logged yet.');

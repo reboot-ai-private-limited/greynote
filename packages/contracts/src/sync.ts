@@ -153,6 +153,7 @@ export interface CallResultData {
 /** What a call, follow-up or the DCR's submit refuses with, beyond the engine's codes. */
 export const DCR_REFUSAL_CODES = [
   'USER_BLOCKED',
+  'MONTHLY_PLAN_NOT_APPROVED',
   'DAILY_PLAN_NOT_APPROVED',
   'DATE_IN_FUTURE',
   'DATE_MISMATCH',

@@ -4,7 +4,7 @@ import type { PlanDayDto, PlannedDoctorDto } from '@greynote/contracts';
 import { Badge } from '@/components/ui/Badge';
 import { formatDate } from '@/lib/format';
 import { useDoctor } from '@/features/field-master-data/hooks/useDoctors';
-import { EmployeeName } from '@/features/people/components/EmployeePickerField';
+import { WorkWithName } from '@/features/people/components/EmployeePickerField';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { WORKING_TYPE_LABEL } from '../lib/review';
 
@@ -33,7 +33,7 @@ export function PlanDayView({ day }: { day: PlanDayDto & { doctors?: PlannedDoct
           {day.workWith.map((id, i) => (
             <span key={id}>
               {i > 0 ? ', ' : ''}
-              <EmployeeName userId={id} />
+              <WorkWithName userId={id} />
             </span>
           ))}
         </p>

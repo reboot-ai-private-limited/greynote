@@ -4,6 +4,8 @@ import type { WorkingType } from '@greynote/contracts';
 export interface PlanningPort {
   /** The DCR gate (HLD 10): the day's Plan is past the manager. Which statuses count is Planning's rule, never compared here. */
   isDailyPlanApproved(userId: string, planDate: string): Promise<boolean>;
+  /** The Monthly Plan for `YYYY-MM` is past the manager. No approved month, no work (decision-log 2026-10-12). */
+  isMonthlyPlanApproved(userId: string, planMonth: string): Promise<boolean>;
   /** The day's working type and routes, for TA/DA; `null` with no Plan. */
   getDailyPlanDay(userId: string, planDate: string): Promise<{ workingType: WorkingType; routeIds: string[]; doctorIds?: string[] } | null>;
 }

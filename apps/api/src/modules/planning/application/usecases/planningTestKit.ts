@@ -19,6 +19,7 @@ import type { MonthlyPlan, MonthlyPlanEntry } from '../../domain/monthlyPlan.ent
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
 import type { PlanDay, PlanKind, PlannedDoctor } from '../../domain/plan.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
+import type { MonthlyApprovedCheck } from '../monthlyGate.js';
 import { PlanDeadlines } from '../planDeadlines.js';
 import { PlanSubmitter } from '../planSubmitter.js';
 import { CarryOver } from '../carryOver.js';
@@ -332,6 +333,7 @@ export class FakeConfig {
     MONTHLY_PLAN_SUBMIT_CUTOFF_DATE: '28',
     LATE_PLAN_GRANT_BY_MANAGER: 'false',
     LATE_PLAN_GRANT_VALID_HOURS: '24',
+    LATE_PLAN_GRANT_MAX_HOURS: '744',
     DAILY_PLAN_RESUBMIT_GRACE_MINUTES: '30',
     DAILY_PLAN_RESUBMIT_LATEST_TIME: '11:30',
     MONTHLY_PLAN_RESUBMIT_GRACE_HOURS: '24',
@@ -342,7 +344,7 @@ export class FakeConfig {
   };
   async get(key: string) {
     const value = this.values[key];
-    if (value === undefined) throw new Error(`missing ${key}`);
+    if (value === undefined) throw AppError.internal('INTERNAL', { reason: 'CONFIG_KEY_MISSING', key });
     return value;
   }
 }
@@ -383,6 +385,9 @@ export function planningKit(clock: Clock) {
   });
   /** Dates (`userId:YYYY-MM-DD`) whose DCR the test says is already submitted. */
   const reported = new Set<string>();
+  /** Months (`userId:YYYY-MM`) whose Monthly Plan the test says is not approved; every other month is. */
+  const monthlyBlocked = new Set<string>();
+  const monthlyApproved: MonthlyApprovedCheck = async (u, m) => !monthlyBlocked.has(`${u}:${m}`);
   const amend = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => async (u, d) => reported.has(`${u}:${d}`));
   const requestChange = new RequestDailyPlanChangeUseCase(dailyPlans, changes, approvals, users, submitter, deadlines, inlineTransactions);
   const listChanges = new ListDailyPlanChangesUseCase(dailyPlans, changes, approvals, users);
@@ -396,5 +401,5 @@ export function planningKit(clock: Clock) {
     async (userId, { from, to }) => calls.filter((c) => c.userId === userId && c.date >= from && c.date <= to).map((c) => c.doctorId),
   );
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views);
-  return { doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, changes, requestChange, listChanges, getChange, amend, reported };
+  return { doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, changes, requestChange, listChanges, getChange, amend, reported, monthlyBlocked, monthlyApproved };
 }

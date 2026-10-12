@@ -50,8 +50,8 @@ describe('Daily Plan', () => {
     kit.users.add(MR, { managerId: ASM });
     kit.users.add(OTHER);
     kit.routes.byUser.set(MR, [ROUTE]);
-    save = new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views);
-    submit = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver);
+    save = new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views, kit.monthlyApproved);
+    submit = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, kit.monthlyApproved);
     get = new GetDailyPlanUseCase(kit.dailyPlans, kit.users, kit.views);
     status = new GetPlanStatusUseCase(kit.dailyPlans, kit.monthlyPlans, kit.approvals);
   });

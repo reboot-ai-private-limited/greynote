@@ -3,6 +3,8 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
 import { GetPlanStatusUseCase } from './getPlanStatus.usecase.js';
 import { Clock, planningKit } from './planningTestKit.js';
+import { SaveDailyPlanUseCase } from './saveDailyPlan.usecase.js';
+import { SubmitDailyPlanUseCase } from './submitDailyPlan.usecase.js';
 import { SaveMonthlyPlanUseCase } from './saveMonthlyPlan.usecase.js';
 import { SubmitMonthlyPlanUseCase } from './submitMonthlyPlan.usecase.js';
 
@@ -87,5 +89,58 @@ describe('Monthly Plan', () => {
     const plan = await save.execute(MR, MONTH, [entry('2026-10-05')]);
     await submit.execute(MR, plan.id);
     await expectError(save.execute(MR, MONTH, [entry('2026-10-06')]), 409);
+  });
+
+  it('follows the global day start: with a 02:00 day start the 28th runs until 01:59:59.999 on the 29th', async () => {
+    kit.config.values['DAY_START_TIME'] = '02:00';
+    const plan = await save.execute(MR, MONTH, [entry('2026-10-05')]);
+    expect(plan.submitDeadline.toISOString()).toBe('2026-09-28T20:29:59.999Z'); // 01:59:59.999 IST on the 29th
+    clock.set('2026-09-28T20:29:00Z'); // 01:59 IST on the 29th: still the 28th's business day
+    expect((await submit.execute(MR, plan.id)).status).toBe('SUBMITTED');
+  });
+
+  it('refuses the same submit at 02:00 on the 29th with a 02:00 day start', async () => {
+    kit.config.values['DAY_START_TIME'] = '02:00';
+    const plan = await save.execute(MR, MONTH, [entry('2026-10-05')]);
+    clock.set('2026-09-28T20:30:00Z'); // 02:00 IST on the 29th: the 29th has begun
+    await expectError(submit.execute(MR, plan.id), 409, 'PLAN_SUBMIT_LATE');
+  });
+
+  describe('no approved Monthly Plan, no work that month', () => {
+    let saveDaily: SaveDailyPlanUseCase;
+    let submitDaily: SubmitDailyPlanUseCase;
+    const day = { workingType: 'FIELD_WORK' as const, workWith: [], routeIds: [ROUTE], remarks: null };
+
+    beforeEach(() => {
+      const approved = (u: string, m: string) => status.isMonthlyPlanApproved(u, m);
+      saveDaily = new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views, approved);
+      submitDaily = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, approved);
+    });
+
+    it('refuses a daily plan with no monthly plan, and while the month is only submitted', async () => {
+      const err = await expectError(saveDaily.execute(MR, '2026-10-06', day), 409, 'MONTHLY_PLAN_NOT_APPROVED');
+      expect(err.publicDetails).toEqual({ planMonth: MONTH });
+      const plan = await save.execute(MR, MONTH, [entry('2026-10-05')]);
+      await submit.execute(MR, plan.id);
+      await expectError(saveDaily.execute(MR, '2026-10-06', day), 409, 'MONTHLY_PLAN_NOT_APPROVED');
+    });
+
+    it('allows it once the manager has approved the month, and only for that month', async () => {
+      const plan = await save.execute(MR, MONTH, [entry('2026-10-05')]);
+      await submit.execute(MR, plan.id);
+      await kit.approvals.decide('MONTHLY_PLAN', plan.id, 'MANAGER_APPROVED');
+      const saved = await saveDaily.execute(MR, '2026-10-06', day);
+      expect(saved.status).toBe('DRAFT');
+      await expectError(saveDaily.execute(MR, '2026-11-03', day), 409, 'MONTHLY_PLAN_NOT_APPROVED');
+    });
+
+    it('stops a submit when the month is reopened after the day was saved', async () => {
+      const plan = await save.execute(MR, MONTH, [entry('2026-10-05')]);
+      await submit.execute(MR, plan.id);
+      await kit.approvals.decide('MONTHLY_PLAN', plan.id, 'MANAGER_APPROVED');
+      const saved = await saveDaily.execute(MR, '2026-10-06', day);
+      await kit.approvals.decide('MONTHLY_PLAN', plan.id, 'REJECTED');
+      await expectError(submitDaily.execute(MR, saved.id), 409, 'MONTHLY_PLAN_NOT_APPROVED');
+    });
   });
 });

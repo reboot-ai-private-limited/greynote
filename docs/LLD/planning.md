@@ -128,7 +128,7 @@ A `LatePlanSubmitGrant` lets one employee submit one Plan (`DAILY_PLAN` + date, 
 
 - **Who grants:** Admin, for anyone. A manager, for someone in their downline, only while
   `LATE_PLAN_GRANT_BY_MANAGER` is `true` (seeded `false`). A reason is required.
-- **Lifetime:** expires `LATE_PLAN_GRANT_VALID_HOURS` after it's granted (seeded `24`). It's used
+- **Lifetime:** ends at the `expiresAt` the grantor picks — in the future and within `LATE_PLAN_GRANT_MAX_HOURS` (seeded `744`) of now — or, if none is given, `LATE_PLAN_GRANT_VALID_HOURS` after it's granted (seeded `24`). It's used
   up by the submit it allows, inside the same transaction as `approval.submit`, so a failed
   submit leaves it unused. Admin or the grantor can revoke it while it's unused.
 - At most one open (unused, unrevoked) exception per employee and Plan. An expired one doesn't
@@ -161,6 +161,10 @@ this doc does not re-derive that state machine. As it applies here:
   must happen on a decision, in the same transaction.
 - Approve/reject, the team view, Admin's org-wide queue and history are the approval module's
   `/api/approvals/*` endpoints — Planning has none of its own.
+
+## No approved Monthly Plan, no work (decision-log 2026-10-12)
+
+`SaveDailyPlanUseCase` and `SubmitDailyPlanUseCase` call `assertMonthlyApproved` (`monthlyGate.ts`) first: the owner's Monthly Plan for the day's month must be `MANAGER_APPROVED` or `APPROVED` (`getPlanStatus.isMonthlyPlanApproved`, also on the public contract). Otherwise `409 MONTHLY_PLAN_NOT_APPROVED` with `publicDetails.planMonth`. Field Activity's `LoggingGate` asks the same question through its `PlanningPort` before the daily-plan check and refuses with `GateRefusal` code `MONTHLY_PLAN_NOT_APPROVED`. The way in for a new joiner or a missed deadline is a late-submission exception for that month.
 
 ## Daily Plans inherit from the Monthly Plan (decision-log 2026-10-03)
 
@@ -244,9 +248,10 @@ employee's change goes to Admin. These are working assumptions (sign-off B9), no
 | `GET` | `/planning/changes/:id` | FIELD (owner, managers), ADMIN | One change by its own id (an approval request's `recordId`) |
 | `GET` | `/planning/monthly` | FIELD | List own Monthly Plans (month range) |
 | `GET` | `/planning/monthly/:id` | FIELD, manager (read-only), Admin | Fetch one |
-| `POST` | `/planning/late-grants` | ADMIN; FIELD manager while `LATE_PLAN_GRANT_BY_MANAGER` is on | Grant a late-submission exception |
+| `POST` | `/planning/late-grants` | ADMIN; FIELD manager while `LATE_PLAN_GRANT_BY_MANAGER` is on | Grant a late-submission exception; optional `expiresAt` (future, within `LATE_PLAN_GRANT_MAX_HOURS`) |
 | `GET` | `/planning/late-grants` | ADMIN (all), FIELD (own and downline) | List exceptions, newest first |
 | `POST` | `/planning/late-grants/:id/revoke` | ADMIN, the grantor | Revoke an unused exception |
+| `GET` | `/identity/work-with` | FIELD | Who can be named in *Work With*: every active manager in the org, or `?scope=all` for every active field employee; each with a `Name (ASM)` label (identity module) |
 | — | `/api/approvals/*` | Manager, Admin | Pending queue, team view (actionable vs read-only), approve/reject, Admin's org-wide queue and override — the approval module's endpoints ([`approval.md`](approval.md)), filtered with `kind=DAILY_PLAN` / `MONTHLY_PLAN` |
 
 Exact paths are illustrative — finalize against whatever URL convention the Identity module's

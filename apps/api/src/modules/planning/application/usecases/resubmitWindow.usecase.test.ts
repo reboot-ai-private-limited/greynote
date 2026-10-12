@@ -45,8 +45,8 @@ describe('Resubmit window after a rejection — Daily Plan', () => {
     kit = planningKit(clock);
     kit.users.add(MR);
     kit.routes.byUser.set(MR, [ROUTE]);
-    save = new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views);
-    submit = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver);
+    save = new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views, kit.monthlyApproved);
+    submit = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, kit.monthlyApproved);
     planId = (await save.execute(MR, DATE, day)).id;
     await submit.execute(MR, planId);
   });

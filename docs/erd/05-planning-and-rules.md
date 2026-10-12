@@ -89,6 +89,7 @@ erDiagram
   - `MONTHLY_PLAN_SUBMIT_CUTOFF_DATE` = `28`
   - `BUSINESS_TIMEZONE` = `Asia/Kolkata` — the timezone every business deadline is read in
   - `LATE_PLAN_GRANT_BY_MANAGER` = `false` — whether a manager (not just Admin) may grant a late-submission exception
+  - `LATE_PLAN_GRANT_MAX_HOURS` = `744` — the furthest ahead a late-submission exception's `expiresAt` can be set
   - `LATE_PLAN_GRANT_VALID_HOURS` = `24` — how long a late-submission exception stays usable
   - `DAILY_PLAN_RESUBMIT_GRACE_MINUTES` = `30` — after a rejection, how long a Daily Plan may still be resubmitted past its deadline
   - `DAILY_PLAN_RESUBMIT_LATEST_TIME` = `11:30` — no Daily Plan resubmit window runs past this time on the plan's date

@@ -35,8 +35,8 @@ describe('In-day change to an approved Daily Plan', () => {
 
   /** The plan for DATE, saved, submitted and approved (`status` MANAGER_APPROVED or APPROVED). */
   async function approvedPlan(status: 'MANAGER_APPROVED' | 'APPROVED' = 'APPROVED') {
-    const saved = await new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views).execute(MR, DATE, fieldDay());
-    await new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver).execute(MR, saved.id);
+    const saved = await new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views, kit.monthlyApproved).execute(MR, DATE, fieldDay());
+    await new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, kit.monthlyApproved).execute(MR, saved.id);
     kit.approvals.setStatus('DAILY_PLAN', saved.id, status);
     return saved.id;
   }
@@ -114,7 +114,7 @@ describe('In-day change to an approved Daily Plan', () => {
   });
 
   it('a draft plan is an ordinary edit, not a change', async () => {
-    const draft = await new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views).execute(OTHER, DATE, { ...fieldDay(), routeIds: [] , workingType: 'MEETING' });
+    const draft = await new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views, kit.monthlyApproved).execute(OTHER, DATE, { ...fieldDay(), routeIds: [] , workingType: 'MEETING' });
     await expectError(kit.requestChange.execute(OTHER, draft.id, fieldDay({ workingType: 'MEETING', routeIds: [] , remarks: 'x' }), 'why'), 409);
   });
 
