@@ -2017,3 +2017,10 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 
 **Refs:** [`LLD/inbox.md`](LLD/inbox.md), [`LLD/hr.md`](LLD/hr.md), [`erd/10-inbox.md`](erd/10-inbox.md), sign-off F8.
 
+## 2026-10-12 — Employee's own reports (`/reports/me/*`)
+
+**Decision:** FIELD users read their own TA/DA (year, days) and DCR (year, coverage) through `/reports/me/*`; the figures are the Admin reports narrowed to the signed-in user (no `userId` parameter). Bound to the financial year by the existing mechanism: current year by default, older years only via `X-Financial-Year`, read-only. Phone consumes; no web page.
+
+**Open:** phone screens; leave and targets reuse `/hr/leave-balances/me` and `/reports/employee-sales`; sign-off K24a awaits the owner.
+
+**Refs:** [`mobile/reports.md`](mobile/reports.md), [`LLD/reports.md`](LLD/reports.md).

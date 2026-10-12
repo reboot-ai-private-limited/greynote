@@ -5,7 +5,7 @@ import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js'
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { makeReportsControllers } from './reports.controller.js';
-import { doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, dcrYearQuerySchema, orderIdParamsSchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
+import { myMonthQuerySchema, doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, dcrYearQuerySchema, orderIdParamsSchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
 const tags = ['Reports'];
 const security = [{ bearerAuth: [] }];
@@ -30,7 +30,12 @@ openApiRegistry.registerPath({ method: 'get', path: '/api/reports/employee-sales
 
 openApiRegistry.registerPath({ method: 'get', path: '/api/reports/doctor-visits', tags, summary: 'Admin (any employee), a manager (themself and their downline) or an employee (themself): each doctor\'s visit frequency against the calls made in a month, with missed calls', security, request: { query: doctorVisitsQuerySchema }, responses: { 200: { description: 'Quota, made and missed per employee and doctor' } } });
 
-/** Every report is Admin only for now (sign-off K24) and read-only. */
+openApiRegistry.registerPath({ method: 'get', path: '/api/reports/me/ta-da', tags, summary: 'Employee: your own accepted TA, DA and reimbursements by month for a financial year', security, request: { query: taDaYearQuerySchema }, responses: { 200: { description: 'The year' } } });
+openApiRegistry.registerPath({ method: 'get', path: '/api/reports/me/ta-da/days', tags, summary: 'Employee: your own accepted expenses in a month, day by day', security, request: { query: myMonthQuerySchema }, responses: { 200: { description: 'The days' } } });
+openApiRegistry.registerPath({ method: 'get', path: '/api/reports/me/dcr', tags, summary: 'Employee: your own reported days, calls, follow-ups and geofence results by month for a financial year', security, request: { query: dcrYearQuerySchema }, responses: { 200: { description: 'The year' } } });
+openApiRegistry.registerPath({ method: 'get', path: '/api/reports/me/dcr/coverage', tags, summary: 'Employee: the doctors assigned to you that you did not call on in a month', security, request: { query: myMonthQuerySchema }, responses: { 200: { description: 'The coverage' } } });
+
+/** The org-wide reports are Admin only for now (sign-off K24) and read-only. */
 export function buildReportsRouter(c: ReturnType<typeof makeReportsControllers>): Router {
   const router = Router();
   router.use(authenticate());
@@ -38,6 +43,11 @@ export function buildReportsRouter(c: ReturnType<typeof makeReportsControllers>)
   router.get('/sales-dashboard', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: salesDashboardQuerySchema }), c.salesDashboard);
   router.get('/employee-sales', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'from', to: 'to', fill: false }), validate({ query: employeeSalesQuerySchema }), c.employeeSales);
   router.get('/doctor-visits', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: doctorVisitsQuerySchema }), c.doctorVisits);
+  // The employee's own reports: always the signed-in user's figures; no userId is read.
+  router.get('/me/ta-da', requireRole('FIELD'), scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: taDaYearQuerySchema }), c.myTaDaYear);
+  router.get('/me/ta-da/days', requireRole('FIELD'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: myMonthQuerySchema }), c.myTaDaDays);
+  router.get('/me/dcr', requireRole('FIELD'), scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: dcrYearQuerySchema }), c.myDcrYear);
+  router.get('/me/dcr/coverage', requireRole('FIELD'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: myMonthQuerySchema }), c.myDcrCoverage);
   router.use(requireRole('ADMIN'));
   router.get('/orders', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: ordersQuerySchema }), c.orders);
   router.get('/sales', scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: salesYearQuerySchema }), c.salesYear);

@@ -19,6 +19,8 @@ export const taDaYearQuerySchema = z.object({ year: z.coerce.number().int().min(
 export const taDaDaysQuerySchema = z.object({ userId: objectId, month: monthSchema });
 export const dcrYearQuerySchema = z.object({ year: z.coerce.number().int().min(2000).max(2100) });
 export const dcrCoverageQuerySchema = z.object({ userId: objectId, month: monthSchema });
+/** The employee's own reports (/reports/me): the person is always the signed-in user, so there is no userId to send. */
+export const myMonthQuerySchema = z.object({ month: monthSchema });
 export const doctorVisitsQuerySchema = z.object({ month: monthSchema, userId: objectId.optional() });
 export const salaryYearQuerySchema = z.object({ year: z.coerce.number().int().min(2000).max(2100) });
 

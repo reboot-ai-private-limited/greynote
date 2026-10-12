@@ -8,7 +8,7 @@ Nothing is stored. A **read model** at the top tier (7), above Payroll and Marke
 
 ## Rules for every report
 
-- **Admin only** for now (K24); the calendars in Attendance stay Admin, HR and Accountant.
+- **Admin only** for the org-wide reports (K24); an employee reads their own TA/DA and DCR through `/reports/me/*` (FIELD only, the actor's id, never a `userId`, K24a); the calendars in Attendance stay Admin, HR and Accountant.
 - **The financial year in view, by month** (K27): no free date range; a month outside the selected year is refused (`scopeToFinancialYear`).
 - **CSV** export (K28); gaps are shown as gaps, never as zeros.
 

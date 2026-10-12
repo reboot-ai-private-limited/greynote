@@ -97,6 +97,10 @@ GET    /api/reports/dcr  ADMIN
 GET    /api/reports/dcr/coverage  ADMIN
 GET    /api/reports/doctor-visits  ADMIN,FIELD
 GET    /api/reports/employee-sales  ADMIN,FIELD
+GET    /api/reports/me/dcr  FIELD
+GET    /api/reports/me/dcr/coverage  FIELD
+GET    /api/reports/me/ta-da  FIELD
+GET    /api/reports/me/ta-da/days  FIELD
 GET    /api/reports/orders  ADMIN
 GET    /api/reports/orders/:id  ADMIN
 GET    /api/reports/salary  ADMIN

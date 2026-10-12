@@ -18,7 +18,7 @@ How an employee reads back **their own** daily report (DCR), secondary sales, or
 | 8 | **Plans:** `GET /planning/daily?from&to`, `/planning/daily/:id`, `/planning/monthly`. | ✅ |
 | 9 | **Leave and services:** see [`leave-report.md`](leave-report.md) and [`service-requests.md`](service-requests.md). | ✅ |
 | 10 | **Payslips and documents:** see [`docs.md`](docs.md). | ✅ |
-| 11 | **Not available to the employee:** the portal's `/reports/*` (TA/DA, salary, coverage, stock, DCR reports) are Admin/Accounts tools. Three are open to an employee for themselves (and to managers for their team): `/reports/doctor-visits`, `/reports/employee-sales` and `/reports/sales-dashboard`. | ✅ |
+| 11 | **Not available to the employee:** the portal's `/reports/*` (TA/DA, salary, coverage, stock, DCR reports) are Admin/Accounts tools. Four own-data routes are open to an employee, FIELD only, always the signed-in user (no `userId`), bound to the financial year in view (current by default; older years read-only through `X-Financial-Year`): `GET /reports/me/ta-da?year`, `/reports/me/ta-da/days?month`, `/reports/me/dcr?year` and `/reports/me/dcr/coverage?month` (same shapes as the Admin `/reports/ta-da`, `/ta-da/days`, `/dcr`, `/dcr/coverage`). Leave is `/hr/leave-balances/me`; targets are `/reports/employee-sales` with their own id. Three more are open to an employee for themselves (and to managers for their team): `/reports/doctor-visits`, `/reports/employee-sales` and `/reports/sales-dashboard`. | ✅ |
 
 ## 2. What the phone should show
 
