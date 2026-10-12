@@ -374,7 +374,7 @@ It does nothing when `DCR_MISS_BLOCK_ENABLED` is `false`.
 
 Built without waiting, and revisited when the client answers: **manual expenses** carry no per-category
 limit and no receipt (F2); **Doctor Service types** are the ERD's `TOUR_PACKAGE`, `GIFT`, `ONLINE_PROMOTION`,
-`OTHERS` (C8); **Night Stay** is the out-station trip rule (stay days DA only, transit day TA + ex-station DA; D2, assumed), not a separate amount; TA/DA on **holidays and weekly offs** is not
+`OTHERS` (C8); **Night Stay** is the out-station trip rule (stay days DA only, transit day TA + ex-station DA); the client confirmed no separate allowance is needed (D2); TA/DA on **holidays and weekly offs** is not
 treated specially (D6); an MR's day **counts as reported when the DCR is submitted** (B7).
 
 ## Edge cases
