@@ -288,11 +288,13 @@ export class FakeUsers implements UserDirectoryPort {
 
 export class FakeRoutes {
   byUser = new Map<string, string[]>();
+  /** Route types; a route not listed is `HQ`. */
+  types = new Map<string, 'HQ' | 'EX_STATION' | 'OUT_STATION'>();
   /** Runs while the submit is validating — to interleave a concurrent edit. */
   onList: (() => Promise<void>) | undefined;
   async listRoutesForUser(userId: string) {
     await this.onList?.();
-    return (this.byUser.get(userId) ?? []).map((id) => ({ id }));
+    return (this.byUser.get(userId) ?? []).map((id) => ({ id, routeType: this.types.get(id) ?? ('HQ' as const) }));
   }
 }
 

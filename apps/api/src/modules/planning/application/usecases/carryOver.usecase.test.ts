@@ -9,7 +9,7 @@ describe('doctor list and carry-over', () => {
 
   /** An approved field-work plan on `date` listing `doctorIds`. */
   const approvedDay = async (date: string, doctorIds: string[]) => {
-    const plan = await kit.dailyPlans.save(MR, date, { workingType: 'FIELD_WORK', workWith: [], routeIds: [ROUTE], remarks: null }, null);
+    const plan = await kit.dailyPlans.save(MR, date, { workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [ROUTE], remarks: null }, null);
     await kit.setDoctors.execute(MR, date, doctorIds);
     await kit.approvals.submit({ kind: 'DAILY_PLAN', recordId: plan!.id, submitterId: MR });
     kit.approvals.setStatus('DAILY_PLAN', plan!.id, 'APPROVED');
@@ -39,7 +39,7 @@ describe('doctor list and carry-over', () => {
 
   it('adds owed doctors to the list and refuses doctors off the day’s routes', async () => {
     await approvedDay('2026-10-05', ['d4']);
-    await kit.dailyPlans.save(MR, '2026-10-06', { workingType: 'FIELD_WORK', workWith: [], routeIds: [ROUTE], remarks: null }, null);
+    await kit.dailyPlans.save(MR, '2026-10-06', { workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [ROUTE], remarks: null }, null);
     const plan = await kit.setDoctors.execute(MR, '2026-10-06', ['d1']);
     expect(plan.doctors).toEqual([{ doctorId: 'd4', carriedFrom: '2026-10-05' }, { doctorId: 'd1', carriedFrom: null }]);
     kit.doctors.set(MR, [{ id: 'd9', routeId: 'other-route' }]);

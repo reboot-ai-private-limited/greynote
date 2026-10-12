@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { calendarDateSchema, calendarMonthSchema } from '@/shared/time/calendarSchemas.js';
-import { PLAN_KINDS, WORKING_TYPES } from '../domain/plan.js';
+import { DAY_KINDS, PLAN_KINDS, WORKING_TYPES } from '../domain/plan.js';
 
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
 
@@ -36,7 +36,16 @@ export const listDailyPlansQuerySchema = dateRangeQuerySchema
 
 export const saveMonthlyPlanBodySchema = z.object({
   planMonth: planMonthSchema,
-  entries: z.array(planDaySchema.extend({ planDate: planDateSchema })).max(31),
+  entries: z
+    .array(
+      planDaySchema.extend({
+        planDate: planDateSchema,
+        // Stay and transit days come back with the plan and may be sent as they are; the server rebuilds them from the trip.
+        dayKind: z.enum(DAY_KINDS).default('NORMAL'),
+        returnDate: planDateSchema.nullish().transform((v) => v ?? null),
+      }),
+    )
+    .max(31),
 });
 
 /** Both ends inclusive. The unrefined object is what the OpenAPI doc shows. */

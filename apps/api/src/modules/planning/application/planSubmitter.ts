@@ -90,8 +90,16 @@ export class PlanSubmitter {
     const s = { ownerId, days };
     for (const { day, field } of s.days) assertPlanDay(day, s.ownerId, field);
 
-    const allowed = new Set((await this.routes.listRoutesForUser(s.ownerId)).map((r) => r.id));
+    const mine = await this.routes.listRoutesForUser(s.ownerId);
+    const allowed = new Set(mine.map((r) => r.id));
+    const outStation = new Set(mine.filter((r) => r.routeType === 'OUT_STATION').map((r) => r.id));
     for (const { day, field } of s.days) {
+      // A stay or transit day is part of an out-station trip, so its routes have to include an out-station one.
+      if (day.dayKind !== 'NORMAL' && !day.routeIds.some((id) => outStation.has(id))) {
+        throw AppError.badRequest('A trip with a return date needs an out-station route. For other routes, plan each day on its own.', {
+          field: `${field}routeIds`,
+        });
+      }
       const notYours = day.routeIds.filter((id) => !allowed.has(id));
       if (notYours.length > 0) {
         throw AppError.badRequest('A route in this plan isn’t one of your active routes.', {

@@ -23,6 +23,8 @@ What the field app must do for the Monthly Plan, and the rules the server enforc
 | 13 | A blocked employee (missed reports) cannot submit; the server says so. | ✅ |
 | 14 | Every route must be one of the employee's own active routes; every work-with person must be an active employee; nobody lists themselves or a person twice. | ✅ |
 | 15 | **The routes chosen here decide the day's doctors.** The Daily Plan inherits each day's routes; the employee can then pick doctors only if they are **assigned to them and on that day's routes** (otherwise `400` on `doctorIds`). A missed call carried over from an earlier day is the one exception. So choose the routes carefully: a doctor on a route not planned for the day can't be added. See [`dailyplan.md`](dailyplan.md) rule 2a. | ✅ |
+| 16 | **Out-station trip.** On the day the employee leaves, an entry may carry `returnDate` (after `planDate`, this month or the next, field work or doctor campaign, with at least one out-station route). The server writes the days in between as `dayKind: STAY` and the return day as `dayKind: TRANSIT`, copying the trip's routes, work-with and remarks. Leave `returnDate` empty for a same-day return: that is an ordinary day. Send the entries back as they were read (stay/transit days included) or without them; the server rebuilds them from the trip. A trip can't run over another planned day and can't return later than the month after. **A trip that crosses a month end** also writes its stay/transit days into the next month's plan (made as a draft if it has none); that month still needs its own submit and approval by its own deadline. Saving is refused (`400`) if one of those days is already planned there, and (`409`) if the next month's plan is waiting or approved. Cutting the trip short removes the days again. A `returnDate` on a trip with no out-station route is refused at submit (`400` on that day's `routeIds`). | ✅ |
+| 17 | **What the days earn** (once each day's report is approved): trip day = TA + out-station DA; stay day = out-station DA, no TA; transit day = TA + **ex-station** DA. Each stay and transit day is a normal working day: it needs its own approved Daily Plan (inherited) and a submitted DCR, and calls may be made on it. The phone shows them as locked trip days; to change a trip, edit the first day. | ✅ |
 
 ## 2. Statuses
 
@@ -49,7 +51,7 @@ From `GET /planning/monthly?from=YYYY-MM&to=YYYY-MM` (each row):
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/planning/monthly` | Save the whole month (draft). Body `{ planMonth: "YYYY-MM", entries: [{ planDate, workingType, routeIds, workWith, remarks }] }`, ≤ 31 entries, each date inside the month, no date twice. |
+| `POST` | `/planning/monthly` | Save the whole month (draft). Body `{ planMonth: "YYYY-MM", entries: [{ planDate, workingType, routeIds, workWith, remarks, returnDate? }] }` (entries read back also carry `dayKind`: `NORMAL`, `STAY`, `TRANSIT`)`, ≤ 31 entries, each date inside the month, no date twice. |
 | `GET` | `/planning/monthly?from&to` | Own plans, ≤ 12 months, with the state fields above. |
 | `GET` | `/planning/monthly/:id` | One plan. |
 | `POST` | `/planning/monthly/:id/submit` | Submit; online only. |

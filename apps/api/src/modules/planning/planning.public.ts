@@ -1,4 +1,4 @@
-import type { WorkingType } from './domain/plan.js';
+import type { DayKind, WorkingType } from './domain/plan.js';
 import type { PlanApprovalStatus } from './domain/approvals.port.js';
 
 export type { PlanApprovalStatus } from './domain/approvals.port.js';
@@ -23,7 +23,7 @@ export interface PlanningPublicContract {
    * What the day's Plan says — working type and routes — with its status, for TA/DA; `null` with no Plan.
    * Read at the DCR's approval, so a manager's amendment is already in it.
    */
-  getDailyPlanDay(userId: string, planDate: string): Promise<{ status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[]; doctorIds: string[] } | null>;
+  getDailyPlanDay(userId: string, planDate: string): Promise<{ status: PlanApprovalStatus; workingType: WorkingType; dayKind: DayKind; routeIds: string[]; doctorIds: string[] } | null>;
   /** The user's daily plans in a date range (both ends inclusive), oldest first, each with its status, working type and Route ids. */
   listDailyPlanDays(userId: string, from: string, to: string): Promise<Array<{ date: string; status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[] }>>;
   /**

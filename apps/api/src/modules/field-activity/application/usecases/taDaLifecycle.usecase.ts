@@ -58,7 +58,7 @@ export class TaDaLifecycle {
     const day = await this.planning.getDailyPlanDay(dcr.userId, dcr.reportDate);
     if (!day) return;
     const routes = isFieldDay(day.workingType as WorkingType) ? await Promise.all(day.routeIds.map((id) => this.territory.getRoute(id))) : [];
-    const rows = calculateTaDa(day.workingType as WorkingType, routes, day.routeIds, await this.users.getPayBandRates(dcr.userId), await readConfig(this.config, 'TA_MAX_KM', parsePositiveInt(5000)));
+    const rows = calculateTaDa(day.workingType as WorkingType, routes, day.routeIds, await this.users.getPayBandRates(dcr.userId), await readConfig(this.config, 'TA_MAX_KM', parsePositiveInt(5000)), day.dayKind ?? 'NORMAL');
     for (const row of rows) {
       await this.expenses.create(
         { dcrId, userId: dcr.userId, reportDate: dcr.reportDate, routeId: row.routeId, type: row.type, source: 'AUTO', amountPaise: row.amountPaise, remarks: null, paymentStatus: 'UNPAID', accepted: true, monthApproved: false, distanceFlag: row.distanceFlag, paidBy: null, paidAt: null, clientId: null, recordedAt: now },

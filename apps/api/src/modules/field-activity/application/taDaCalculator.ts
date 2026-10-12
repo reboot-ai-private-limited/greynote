@@ -1,5 +1,5 @@
 import { multiplyPaise, type Paise } from '@/shared/money/paise.js';
-import { isFieldDay, type WorkingType } from '@greynote/contracts';
+import { isFieldDay, type DayKind, type WorkingType } from '@greynote/contracts';
 
 type RouteType = 'HQ' | 'EX_STATION' | 'OUT_STATION';
 
@@ -39,14 +39,16 @@ const RANK: Record<RouteType, number> = { HQ: 0, EX_STATION: 1, OUT_STATION: 2 }
  * - `DOCTOR_CAMPAIGN`: no TA; DA as for field work (the Pay Band's rate for the highest Route type).
  * - `MEETING` / `CONFERENCE`: DA at the HQ rate, no TA.
  * - `STRIKE`: nothing.
+ * - Days of an out-station trip (`dayKind`): a `STAY` day is DA at the out-station rate and no TA; a `TRANSIT` day (the way back) is
+ *   TA as for field work, with DA at the ex-station rate. The trip's first day is a `NORMAL` day.
  * A DA of ₹0 (the HQ rate of some grades) and a genuinely zero-km TA are not written — nothing is claimed.
  */
-export function calculateTaDa(workingType: WorkingType, routes: Array<DayRoute | null>, routeIds: string[], rates: PayRates, maxKm: number): AutoExpense[] {
+export function calculateTaDa(workingType: WorkingType, routes: Array<DayRoute | null>, routeIds: string[], rates: PayRates, maxKm: number, dayKind: DayKind = 'NORMAL'): AutoExpense[] {
   if (workingType === 'STRIKE') return [];
   const out: AutoExpense[] = [];
   const known = routes.filter((r): r is DayRoute => r !== null);
 
-  if (workingType === 'FIELD_WORK') {
+  if (workingType === 'FIELD_WORK' && dayKind !== 'STAY') {
     // Whole hundredths of a km (a distance has at most 2 places), so the comparison and the cap are exact.
     let longest: { routeId: string; route: DayRoute; hundredths: number } | null = null;
     routeIds.forEach((routeId, i) => {
@@ -67,7 +69,7 @@ export function calculateTaDa(workingType: WorkingType, routes: Array<DayRoute |
     }
   }
 
-  const dayType = isFieldDay(workingType) ? known.reduce<RouteType>((top, r) => (RANK[r.routeType] > RANK[top] ? r.routeType : top), 'HQ') : 'HQ';
+  const dayType = dayKind === 'STAY' ? 'OUT_STATION' : dayKind === 'TRANSIT' ? 'EX_STATION' : isFieldDay(workingType) ? known.reduce<RouteType>((top, r) => (RANK[r.routeType] > RANK[top] ? r.routeType : top), 'HQ') : 'HQ';
   const da = dayType === 'OUT_STATION' ? rates.outStationDaPaise : dayType === 'EX_STATION' ? rates.exStationDaPaise : rates.hqDaPaise;
   if (da > 0) out.push({ type: 'DA', routeId: null, amountPaise: da, distanceFlag: false });
   return out;

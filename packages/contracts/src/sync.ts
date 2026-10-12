@@ -393,6 +393,9 @@ export type WorkingType = (typeof WORKING_TYPES)[number];
 /** The days that go to doctors and chemists: they have Routes and calls. A campaign pays DA but no TA. */
 export const isFieldDay = (t: WorkingType): boolean => t === 'FIELD_WORK' || t === 'DOCTOR_CAMPAIGN';
 
+export const DAY_KINDS = ['NORMAL', 'STAY', 'TRANSIT'] as const;
+export type DayKind = (typeof DAY_KINDS)[number];
+
 export interface PlanningSnapshot {
   /** Today's date in the business timezone. */
   today: string;
@@ -400,6 +403,7 @@ export interface PlanningSnapshot {
     id: string;
     planDate: string;
     workingType: WorkingType;
+    dayKind: DayKind;
     workWith: string[];
     routeIds: string[];
     /** The doctors to call: the MR's picks plus missed calls carried over. */
@@ -413,7 +417,15 @@ export interface PlanningSnapshot {
   monthlyPlans: Array<{
     id: string;
     planMonth: string;
-    entries: Array<{ planDate: string; workingType: WorkingType; workWith: string[]; routeIds: string[]; remarks: string | null }>;
+    entries: Array<{
+      planDate: string;
+      returnDate: string | null;
+      workingType: WorkingType;
+      dayKind: DayKind;
+      workWith: string[];
+      routeIds: string[];
+      remarks: string | null;
+    }>;
     revision: number;
     status: PlanStatus;
     approvalRequestId: string | null;

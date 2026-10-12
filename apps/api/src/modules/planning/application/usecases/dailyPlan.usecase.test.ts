@@ -17,6 +17,7 @@ const AFTER_CUTOFF = '2026-10-05T04:31:00Z';
 
 const fieldDay = (overrides: Partial<PlanDay> = {}): PlanDay => ({
   workingType: 'FIELD_WORK',
+  dayKind: 'NORMAL',
   workWith: [],
   routeIds: [ROUTE],
   remarks: null,

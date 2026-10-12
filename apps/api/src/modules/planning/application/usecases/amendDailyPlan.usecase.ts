@@ -30,9 +30,11 @@ export class AmendDailyPlanUseCase {
     private readonly isDayReported: () => DayReportedCheck,
   ) {}
 
-  async execute(actor: Actor, planId: string, day: PlanDay, reason: string): Promise<DailyPlanView> {
+  async execute(actor: Actor, planId: string, body: Omit<PlanDay, 'dayKind'>, reason: string): Promise<DailyPlanView> {
     const plan = await this.plans.findById(planId);
     if (!plan) throw AppError.notFound('No such plan.');
+    // An amendment edits the day's contents; whether it's a stay or transit day of a trip stays as the Monthly Plan set it.
+    const day: PlanDay = { ...body, dayKind: plan.dayKind };
     if (actor.id === plan.userId) throw AppError.forbidden('You can’t amend your own plan. Ask your manager.');
     if (actor.role !== 'ADMIN') {
       const chain = await this.users.getManagerChain(plan.userId);
@@ -48,12 +50,12 @@ export class AmendDailyPlanUseCase {
     }
 
     await this.submitter.validateDays(plan.userId, [{ day, field: '' }]);
-    const { workingType, workWith, routeIds, remarks } = plan;
+    const { workingType, dayKind, workWith, routeIds, remarks } = plan;
     const saved = await this.plans.amend(plan.id, plan.revision, day, {
       by: actor.id,
       at: this.deadlines.now(),
       reason,
-      previous: { workingType, workWith, routeIds, remarks },
+      previous: { workingType, dayKind, workWith, routeIds, remarks },
     });
     if (!saved) throw AppError.conflict('This plan changed while you were amending it. Reload it and try again.');
     return this.views.daily(saved);

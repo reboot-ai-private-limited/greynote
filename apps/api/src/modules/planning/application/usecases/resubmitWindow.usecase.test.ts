@@ -15,7 +15,7 @@ const ist = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number) as [number, number];
   return new Date(Date.UTC(2026, 9, 5, h, m) - 330 * 60_000);
 };
-const day: PlanDay = { workingType: 'FIELD_WORK', workWith: [], routeIds: [ROUTE], remarks: null };
+const day: PlanDay = { workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [ROUTE], remarks: null };
 
 async function expectLate(promise: Promise<unknown>) {
   const err = await promise.then(
@@ -129,7 +129,7 @@ describe('Resubmit window after a rejection — Monthly Plan', () => {
     kit.routes.byUser.set(MR, [ROUTE]);
     const save = new SaveMonthlyPlanUseCase(kit.monthlyPlans, kit.approvals, kit.views);
     const submit = new SubmitMonthlyPlanUseCase(kit.monthlyPlans, kit.deadlines, kit.submitter);
-    const plan = await save.execute(MR, '2026-10', [{ planDate: '2026-10-05', ...day }]);
+    const plan = await save.execute(MR, '2026-10', [{ planDate: '2026-10-05', returnDate: null, ...day }]);
     await submit.execute(MR, plan.id);
 
     // Rejected 29 Sep 12:00 IST → until 30 Sep 12:00 IST.
