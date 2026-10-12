@@ -1963,3 +1963,14 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** the phone app (another team) must send `clinicName`/`phone`, cap frequency at 5, and the sync snapshot now carries both; not browser-checked.
 
 **Refs:** [`LLD/field-master-data.md`](LLD/field-master-data.md), [`LLD/reports.md`](LLD/reports.md), sign-off C4.
+
+## 2026-10-12 — Leave: probation switch at onboarding, approval cutoff at the leave's first day
+
+1. **Probation is a per-employee switch** (`onProbation`, default No), set in the onboarding wizard and editable by HR/Admin. Months default to `PROBATION_MONTHS`. Reason: the *software* is new, not the employees, so recently-joined existing staff must not be treated as probationers. No migration (absent = No). In probation all leave is paid (unchanged from 2026-10-05).
+2. **A leave can only be approved until its first day.** From the start date on, manager and HR approvals are refused with `409 LEAVE_APPROVAL_LATE` (reject / withdraw still work); an **Admin exception** (one use, expiring, reason required) lets one through. `LEAVE_BACKDATE_DAYS` defaults to **0** so a leave can't be requested for the past; an existing database keeps its stored value until Admin changes it in Settings.
+3. **Unapproved leave = as usual:** only approved / manager-approved leave exempts a day from the missed-report block and the absent deduction; a pending or expired request does not. Already built; now written down in [`mobile/leave.md`](mobile/leave.md).
+4. **Approvers:** manager, then HR or Admin (Admin may approve at any stage) — unchanged.
+
+**Open:** auto-reject of pending leaves whose first day passed (needs a system transition in the approval module); web screen for the Admin exception; employee cancel of an approved leave; not browser-checked; the phone app (another team) builds against [`mobile/leave.md`](mobile/leave.md).
+
+**Refs:** [`LLD/hr.md`](LLD/hr.md), [`mobile/leave.md`](mobile/leave.md), sign-off F3, F14, K6.

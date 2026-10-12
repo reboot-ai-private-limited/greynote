@@ -110,7 +110,7 @@ erDiagram
 - **Holiday scope supports National, Zone, or HQ — and a holiday can be tagged to multiple zones or multiple HQs at once.** `scope = NATIONAL` applies everywhere implicitly (no join rows needed). `scope = ZONE` or `HQ` uses `HolidayZone`/`HolidayHQ` join tables rather than a single FK, since one regional festival can span several zones or HQs simultaneously.
 - **Weekly off (e.g. Sunday) is not modeled as 52 `Holiday` rows a year.** It's a recurring rule, not a dated event, so it lives in `SystemConfig` (Module 5) as e.g. `WEEKLY_OFF_DAY = SUNDAY` — application logic treats it as a non-working day alongside whatever `Holiday` rows apply, without enumerating it as data.
 
-- **Built 2026-09-28 (Phase 4) — what changed from the diagram above:** `Leave.status`/`reviewed_by`/`reviewed_at` are dropped (the `LEAVE` `ApprovalRequest` holds them); `HOLIDAY_ZONE`/`HOLIDAY_HQ` become embedded `zone_ids`/`hq_ids` arrays on `Holiday`; days are decimal (half days); `LeaveBalance` gains `pending_days` and is seeded lazily per leave year. An employee's HQ/Zone comes from Territory's `UserHqAssignment`. Rules: `../LLD/hr.md`.
+- **Built 2026-09-28 (Phase 4) — what changed from the diagram above:** `Leave.status`/`reviewed_by`/`reviewed_at` are dropped (the `LEAVE` `ApprovalRequest` holds them); `HOLIDAY_ZONE`/`HOLIDAY_HQ` become embedded `zone_ids`/`hq_ids` arrays on `Holiday`; days are decimal (half days, removed for new leaves 2026-10-05; a new leave is whole days); `LeaveBalance` gains `pending_days` and is seeded lazily per leave year. An employee's HQ/Zone comes from Territory's `UserHqAssignment`. Rules: `../LLD/hr.md`.
 
 ## Next
 

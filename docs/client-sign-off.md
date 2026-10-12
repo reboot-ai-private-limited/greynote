@@ -91,7 +91,7 @@ applies because the design changed (the decision-log entry says how).
 |---|---|---|---|
 | F1 | Final list of activities that need approval (§19.3). | Plans, DCR, Leave, Doctor creation: immediate manager → Admin (Leave: → HR or Admin). Orders & stock: none. Whether each kind needs the Admin stage is *config* per kind | Partly answered |
 | F2 | Expense categories and per-category limits (§9.2). | Not provided | Open |
-| F3 | Leave entitlement per grade and probation rule (§11). | Per-grade defaults set by HR; **no probation rule** — leave is allocated once the employee's grade is set | Accepted 2026-09-28 |
+| F3 | Leave entitlement per grade and probation rule (§11). | Per-grade defaults set by HR; ~~no probation rule~~ — superseded: probation is a per-employee switch set at onboarding (K6, 2026-10-12); in probation all leave is paid | Accepted 2026-09-28; amended 2026-10-12 |
 | F4 | Employee statuses: Active / Inactive / Resigned / Suspended / Terminated — what does each allow (login, payroll)? | Active / Pending (onboarding) / Inactive | Built (partly) |
 | F5 | Are grades fixed (G1–G3), or can Admin add more? | Fixed G1–G3 | Built |
 | F6 | Per-grade PF %, ESIC %, Medical — confirm and give values. | Not modeled | Open |
@@ -102,7 +102,7 @@ applies because the design changed (the decision-log entry says how).
 | F11 | Leave year: financial year (April–March) or calendar year? | Financial year, from *config* `FY_START_MONTH` | Accepted 2026-09-28 |
 | F12 | Do the weekly off day and holidays inside a leave range count as leave days? | No — skipped (*config* `WEEKLY_OFF_DAY`, Sunday; holidays for the employee's HQ/Zone) | Accepted 2026-09-28 |
 | F13 | Someone joining mid-year: full allocation or a share? | A share for the months left in the leave year, rounded to half days | Accepted 2026-09-28 |
-| F14 | Half-day leave? | Yes — first or second half | Accepted 2026-09-28 |
+| F14 | Half-day leave? | ~~Yes — first or second half~~ Superseded 2026-10-05: whole days only | Accepted 2026-09-28; superseded |
 | F15 | How far back can leave be applied (e.g. to cover a missed DCR, §7.5)? | 30 days (*config*), within the current leave year | Accepted 2026-09-28 |
 | F16 | Leave request with too little balance? | Refused; Loss of Pay leave has no balance and is always allowed | Accepted 2026-09-28 |
 | F17 | Your leave types, which are paid, and the days per grade. | Casual, Sick, Earned (paid), Loss of Pay (unpaid) as a starting list; HR enters the days per grade in the app | Open (data, not blocking) |
