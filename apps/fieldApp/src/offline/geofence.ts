@@ -1,7 +1,8 @@
 /**
  * The call-location check, run on the phone first (HLD 01 §2.2) from the cached Doctor/Chemist
  * location. A port of apps/api/src/shared/geo/geofence.ts — keep the two in step. The server
- * recomputes at sync and its answer wins. A `FAIL` flags the call for the manager; it never blocks.
+ * recomputes at sync and its answer wins. Only a `PASS` is accepted: anything else is refused (`NOT_AT_LOCATION`) and
+ * nothing is stored, so the phone blocks Save on the same answer (docs/mobile/dcr.md rule 2).
  */
 
 export type GeoPoint = { latitude: number; longitude: number };

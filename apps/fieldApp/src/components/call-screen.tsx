@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { ChoiceChips } from '@/components/choice-chips';
 import { GeofenceBadge } from '@/components/geofence-badge';
 import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
@@ -18,12 +17,13 @@ import { useDayGate } from '@/hooks/use-day-gate';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { getDoctorVisits, type DoctorVisitsReport } from '@/lib/doctor-visits';
 import { useFinancialYear } from '@/lib/financial-year';
+import { confirmRemove, removeDayRecord } from '@/lib/day-records';
 import { captureLocation } from '@/lib/location';
-import { CALL_WORKING_TYPES, workingTypeLabel, type WorkingType } from '@/lib/planning';
-import { removeRecord, saveCall, serverGeofence, useRecords, type CallPayload, type OutboxRecord } from '@/offline';
+import { isFieldDay, routeTypeLabel, workingTypeLabel } from '@/lib/planning';
+import { notAtLocationReason, saveCall, serverGeofence, useOnline, useRecords, type CallPayload, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import type { ConfigSnapshot, FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
+import type { FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
 
 type Subject = 'DOCTOR' | 'CHEMIST';
 
@@ -35,10 +35,11 @@ const STATUS_TEXT: Record<OutboxRecord['status'], string> = {
 };
 
 /**
- * Dr Call / Chemist Call (PRD §6.2.B, HLD 01 §2): pick who you visited, log it, and the phone adds
- * its GPS reading. Everything is kept on the phone and goes up with the day's Final Submission, so
- * the form works offline. A location far from the registered one flags the call for your manager;
- * it never stops you saving.
+ * Dr Call / Chemist Call (PRD §6.2.B, docs/mobile/dcr.md): pick who you visited, log it, and the phone adds its GPS reading.
+ * Everything is kept on the phone and goes up with the day's Final Submission, so the form works offline. The location is
+ * required: away from the doctor or chemist (or with no GPS) the call isn't saved — the server would refuse it anyway. The
+ * work type is the day's plan type, stamped by the server; calls exist only on Field Work and Doctor Campaign days. A call
+ * off the day's plan is saved and flagged, never refused.
  */
 export function CallScreen({ subject }: { subject: Subject }) {
   const isDoctor = subject === 'DOCTOR';
@@ -49,7 +50,11 @@ export function CallScreen({ subject }: { subject: Subject }) {
   const gate = useDayGate();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const planning = useCachedSource<PlanningSnapshot>('planning');
-  const config = useCachedSource<ConfigSnapshot>('config');
+  const territory = useCachedSource<TerritorySnapshot>('territory');
+  const online = useOnline();
+  /** "Ex-station" etc.: the route type the server stamps on the call, read from the cached routes. */
+  const routeTypeOf = (routeId: string | undefined) =>
+    routeTypeLabel(territory.data?.routes.find((r) => r.id === routeId)?.routeType);
   const reportSent = useReportSent(gate.today);
   const { records } = useRecords([kind]);
 
@@ -63,11 +68,18 @@ export function CallScreen({ subject }: { subject: Subject }) {
   const plannedRoutes = useMemo(() => new Set(plan?.routeIds ?? []), [plan]);
   const plannedDoctorIds = useMemo(() => new Set((plan?.doctors ?? []).map((d) => d.doctorId)), [plan]);
   const hasPlannedDoctors = (plan?.doctors?.length ?? 0) > 0;
-  const allowUnplanned = config.data?.settings.ALLOW_UNPLANNED_DOCTOR_CALLS !== 'false';
+  const fieldDay = plan ? isFieldDay(plan.workingType) : true;
+
+  /** The plan flags the server will set on this call: a doctor off the day's list, or a route the plan doesn't list. */
+  const flagsFor = (o: { id: string; routeId: string }) => {
+    const flags: string[] = [];
+    if (isDoctor && hasPlannedDoctors && !plannedDoctorIds.has(o.id)) flags.push('Not in plan');
+    if (!plannedRoutes.has(o.routeId)) flags.push('Route not in plan');
+    return flags;
+  };
 
   const [editing, setEditing] = useState<OutboxRecord | 'new' | null>(null);
   const [outletId, setOutletId] = useState<string | null>(null);
-  const [workingType, setWorkingType] = useState<WorkingType>('FIELD_WORK');
   const [workWith, setWorkWith] = useState<string[]>([]);
   const [samples, setSamples] = useState<SampleLine[]>([]);
   const [remarks, setRemarks] = useState('');
@@ -79,24 +91,14 @@ export function CallScreen({ subject }: { subject: Subject }) {
     return (isDoctor ? p.doctorId : p.chemistId) ?? '';
   };
 
-  // The server only accepts a call on a route in today's approved plan, unless an unplanned call is allowed.
+  // Anyone the snapshot lists can be picked (doctors assigned to me, chemists on my routes); off-plan ones are flagged, not
+  // refused. The day's planned doctors come first, then the rest on the day's routes, then everyone else.
   const outlets = useMemo(() => {
-    if (!isDoctor) {
-      return (master.data?.chemists ?? []).filter((o) => plannedRoutes.has(o.routeId));
-    }
-    const allDoctors = master.data?.doctors ?? [];
-    if (hasPlannedDoctors) {
-      if (allowUnplanned) {
-        return [...allDoctors].sort((a, b) => {
-          const aIn = plannedDoctorIds.has(a.id) ? 0 : 1;
-          const bIn = plannedDoctorIds.has(b.id) ? 0 : 1;
-          return aIn - bIn || a.name.localeCompare(b.name);
-        });
-      }
-      return allDoctors.filter((d) => plannedDoctorIds.has(d.id));
-    }
-    return allDoctors.filter((d) => plannedRoutes.has(d.routeId));
-  }, [master.data, isDoctor, plannedRoutes, hasPlannedDoctors, plannedDoctorIds, allowUnplanned]);
+    const list: { id: string; routeId: string; name: string }[] = isDoctor ? (master.data?.doctors ?? []) : (master.data?.chemists ?? []);
+    const rank = (o: { id: string; routeId: string }) =>
+      isDoctor && plannedDoctorIds.has(o.id) ? 0 : plannedRoutes.has(o.routeId) ? 1 : 2;
+    return [...list].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  }, [master.data, isDoctor, plannedRoutes, plannedDoctorIds]);
   const outletById = useMemo(
     () => new Map([...(master.data?.doctors ?? []), ...(master.data?.chemists ?? [])].map((o) => [o.id, o])),
     [master.data],
@@ -131,14 +133,12 @@ export function CallScreen({ subject }: { subject: Subject }) {
     setMsg(null);
     if (record === 'new') {
       setOutletId(null);
-      setWorkingType(plan && plan.workingType !== 'STRIKE' ? plan.workingType : 'FIELD_WORK');
       setWorkWith([]); // picked per call; not copied from the day's plan
       setSamples([]);
       setRemarks('');
     } else {
       const p = record.payload as CallPayload;
       setOutletId(idOf(record));
-      setWorkingType(p.workingType === 'STRIKE' ? 'FIELD_WORK' : p.workingType);
       setWorkWith(p.workWith);
       setSamples(p.samples ?? []);
       setRemarks(p.remarks ?? '');
@@ -153,26 +153,26 @@ export function CallScreen({ subject }: { subject: Subject }) {
     }
     setBusy(true);
     setMsg({ tone: 'info', text: 'Getting your location…' });
-    const fix = await captureLocation();
-    const payload: CallPayload = {
-      reportDate: gate.today,
-      ...(isDoctor ? { doctorId: outletId } : { chemistId: outletId }),
-      workingType,
-      workWith,
-      remarks: remarks.trim() || null,
-      capturedLocation: fix?.point ?? null,
-      accuracyMeters: fix?.accuracyMeters ?? null,
-      ...(isDoctor ? { samples } : {}),
-    };
     try {
+      const fix = await captureLocation();
+      // The server stores a call only at the place: check here first so a call that would be refused is never kept.
+      const away = await notAtLocationReason(outletById.get(outletId)?.location ?? null, fix, noun);
+      if (away) {
+        setMsg({ tone: 'danger', text: away });
+        return;
+      }
+      const payload: CallPayload = {
+        reportDate: gate.today,
+        ...(isDoctor ? { doctorId: outletId } : { chemistId: outletId }),
+        workWith,
+        remarks: remarks.trim() || null,
+        capturedLocation: fix?.point ?? null,
+        accuracyMeters: fix?.accuracyMeters ?? null,
+        ...(isDoctor ? { samples } : {}),
+      };
       await saveCall(kind, payload, editing && editing !== 'new' ? editing : undefined);
       setEditing(null);
-      setMsg({
-        tone: 'success',
-        text: fix
-          ? 'Call saved with your location. It goes up with Final Submission.'
-          : 'Call saved without a location (GPS was off or refused). Your manager will see it as not verified.',
-      });
+      setMsg({ tone: 'success', text: 'Call saved with your location. It goes up with Final Submission.' });
     } catch (err) {
       setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Could not save the call.' });
     } finally {
@@ -180,13 +180,19 @@ export function CallScreen({ subject }: { subject: Subject }) {
     }
   };
 
-  const remove = async (r: OutboxRecord) => {
-    try {
-      await removeRecord(r.clientId);
-    } catch (err) {
-      setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Could not remove it.' });
-    }
-  };
+  const remove = (r: OutboxRecord) =>
+    confirmRemove('call', async () => {
+      if (r.status === 'SYNCED' && !online) {
+        setMsg({ tone: 'danger', text: 'Removing a call that was already sent needs the internet.' });
+        return;
+      }
+      try {
+        await removeDayRecord(r);
+        setMsg({ tone: 'info', text: isDoctor && r.status === 'SYNCED' ? 'Call removed. Its samples were given back.' : 'Call removed.' });
+      } catch (err) {
+        setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Could not remove it.' });
+      }
+    });
 
   if (gate.state !== 'open') {
     const isMonthlyBlock = gate.cause === 'MONTHLY_PLAN';
@@ -202,6 +208,17 @@ export function CallScreen({ subject }: { subject: Subject }) {
     );
   }
 
+  if (!fieldDay && plan) {
+    return (
+      <ScreenShell title={title}>
+        <Notice tone="info" title={`Today is a ${workingTypeLabel(plan.workingType)} day`}>
+          {`There are no calls on a ${workingTypeLabel(plan.workingType)} day. Write your note for the day on Summary & Submit and send the daily report from there.`}
+        </Notice>
+        <PrimaryButton label="Go to Summary & Submit" variant="text" onPress={() => router.push('/summary')} />
+      </ScreenShell>
+    );
+  }
+
   if (editing) {
     const picked = outletId ? outletById.get(outletId) : undefined;
     return (
@@ -209,12 +226,14 @@ export function CallScreen({ subject }: { subject: Subject }) {
         <OutletPicker
           label={isDoctor ? 'Doctor' : 'Chemist'}
           options={outlets.map((o) => {
-            const notInPlan = isDoctor && hasPlannedDoctors && !plannedDoctorIds.has(o.id);
+            const flags = flagsFor(o);
+            const full = outletById.get(o.id);
+            const clinic = full && 'clinicName' in full && full.clinicName ? ` · ${full.clinicName}` : '';
             return {
               id: o.id,
               name: o.name,
-              subtitle: `${notInPlan ? 'Not in plan · ' : ''}${'specialty' in o ? `${o.specialty} · ${o.address}` : o.address}${
-                'visitFrequency' in o && o.visitFrequency ? ` · ${madeBy.has(o.id) ? `${madeBy.get(o.id)} of ${o.visitFrequency}` : o.visitFrequency} visits${madeBy.has(o.id) ? ' this month' : ' a month'}` : ''
+              subtitle: `${flags.length ? `${flags.join(' · ')} · ` : ''}${full && 'specialty' in full ? `${full.specialty}${clinic} · ${full.address}` : (full?.address ?? '')}${
+                full && 'visitFrequency' in full && full.visitFrequency ? ` · ${madeBy.has(o.id) ? `${madeBy.get(o.id)} of ${full.visitFrequency}` : full.visitFrequency} visits${madeBy.has(o.id) ? ' this month' : ' a month'}` : ''
               }${calledIds.has(o.id) ? ' · called today' : ''}`,
             };
           })}
@@ -225,25 +244,21 @@ export function CallScreen({ subject }: { subject: Subject }) {
             setMsg(null);
           }}
           disabled={busy}
-          emptyText={
-            plannedRoutes.size === 0
-              ? 'Today’s plan has no routes, so there is nobody to visit. Ask your manager to amend the plan.'
-              : `No ${noun}s on today’s routes yet. Connect to the internet once so your list can load.`
-          }
+          emptyText={`No ${noun}s for you yet. Connect to the internet once so your list can load.`}
         />
-        {picked && isDoctor && hasPlannedDoctors && !plannedDoctorIds.has(picked.id) ? (
+        {picked && flagsFor(picked).length > 0 ? (
           <Notice tone="info">
-            This doctor is not on today’s Tour Plan. The call will be marked as “Not in plan” in your daily report.
+            {`${flagsFor(picked).join(' and ')}: the call is still saved, and marked that way in your daily report for your manager.`}
           </Notice>
         ) : null}
         {picked && !picked.location ? (
-          <Notice tone="warning">{`This ${noun} has no registered location, so the call can’t be location-checked. It still saves.`}</Notice>
+          <Notice tone="warning">{`This ${noun} has no registered location, so a call can’t be saved yet. Ask Admin to set it.`}</Notice>
         ) : null}
-
-        <View style={styles.block}>
-          <ThemedText type="smallBold">Working type</ThemedText>
-          <ChoiceChips options={CALL_WORKING_TYPES} value={workingType} onChange={setWorkingType} disabled={busy} />
-        </View>
+        {plan ? (
+          <ThemedText type="small" themeColor="textSecondary">
+            {`Work type: ${workingTypeLabel(plan.workingType)} (from today’s plan). You must be within reach of the ${noun} — your location is checked when you save.`}
+          </ThemedText>
+        ) : null}
 
         <WorkWithPicker value={workWith} onChange={setWorkWith} disabled={busy} />
 
@@ -277,7 +292,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
           It can’t take more calls unless your manager sends it back.
         </Notice>
       ) : (
-        <PrimaryButton label={`Log a ${title}`} onPress={() => start('new')} />
+        <PrimaryButton label={isDoctor ? 'Add a Doctor Call' : 'Add a Chemist Call'} onPress={() => start('new')} />
       )}
 
       {todays.length === 0 ? (
@@ -287,12 +302,20 @@ export function CallScreen({ subject }: { subject: Subject }) {
           const p = r.payload as CallPayload;
           const who = outletById.get(idOf(r));
           const editable = r.status === 'DRAFT' || r.status === 'FAILED';
+          // A call already on the server can still be removed while the report isn't with the manager (it was sent back).
+          const removable = editable || (r.status === 'SYNCED' && !reportSent);
+          const flags = who ? flagsFor(who) : [];
           return (
             <ThemedView key={r.clientId} type="backgroundElement" style={styles.card}>
               <ThemedText type="smallBold">{who?.name ?? `Unknown ${noun}`}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {`${workingTypeLabel(p.workingType)} · ${STATUS_TEXT[r.status]}`}
+                {[plan ? workingTypeLabel(plan.workingType) : null, routeTypeOf(who?.routeId), STATUS_TEXT[r.status]].filter(Boolean).join(' · ')}
               </ThemedText>
+              {flags.length ? (
+                <ThemedText type="small" themeColor="warning">
+                  {flags.join(' · ')}
+                </ThemedText>
+              ) : null}
               <GeofenceBadge
                 result={serverGeofence(r)}
                 registered={who?.location ?? null}
@@ -314,9 +337,14 @@ export function CallScreen({ subject }: { subject: Subject }) {
                   {r.errorMessage}
                 </ThemedText>
               ) : null}
-              {editable ? (
+              {r.status === 'FAILED' && r.errorCode === 'NOT_AT_LOCATION' ? (
+                <ThemedText type="small" themeColor="textSecondary">
+                  Refused for its location — remove it, go to the place and add the call again.
+                </ThemedText>
+              ) : null}
+              {removable ? (
                 <View style={styles.actions}>
-                  <PrimaryButton label="Edit" variant="text" onPress={() => start(r)} />
+                  {editable && r.errorCode !== 'NOT_AT_LOCATION' ? <PrimaryButton label="Edit" variant="text" onPress={() => start(r)} /> : null}
                   <PrimaryButton label="Remove" variant="text" onPress={() => remove(r)} />
                 </View>
               ) : null}

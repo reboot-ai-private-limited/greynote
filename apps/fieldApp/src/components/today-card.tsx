@@ -59,7 +59,8 @@ export function TodayCard() {
           : 'Not submitted';
   const badge = blocked ? RED : gate.planStatus ? (STATUS_BADGE[gate.planStatus] ?? GREY) : GREY;
 
-  const needsPlan = gate.state === 'closed' && gate.planStatus !== 'SUBMITTED';
+  // A plan exists (written from the Monthly Plan) but still needs the doctors picked and a submit. With no plan there is nothing to open.
+  const needsPlan = gate.state === 'closed' && gate.planStatus !== null && gate.planStatus !== 'SUBMITTED';
 
   return (
     <View style={[styles.card, { backgroundColor: theme.background, borderColor: blocked ? theme.danger : theme.border }]}>

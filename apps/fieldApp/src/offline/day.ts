@@ -46,10 +46,10 @@ export type DayGate = {
 };
 
 const PLAN_REASON: Record<PlanStatus | 'NONE', string> = {
-  NONE: 'You have no Tour Plan for today. Submit your Daily Plan first.',
-  DRAFT: 'Today’s Tour Plan is saved but not submitted yet. Submit it for approval.',
+  NONE: 'There is no plan for today. Ask your manager.',
+  DRAFT: 'Today’s Tour Plan isn’t submitted yet. Pick the day’s doctors and submit it for approval.',
   SUBMITTED: 'Today’s Tour Plan is waiting for your manager’s approval.',
-  REJECTED: 'Your manager rejected today’s Tour Plan. Update it and submit again.',
+  REJECTED: 'Your manager rejected today’s Tour Plan. Check the doctors and submit again.',
   WITHDRAWN: 'Today’s Tour Plan was withdrawn. Submit it again.',
   REOPENED: 'Today’s Tour Plan was reopened. Submit it again.',
   MANAGER_APPROVED: '',
@@ -57,7 +57,7 @@ const PLAN_REASON: Record<PlanStatus | 'NONE', string> = {
 };
 
 export const BLOCKED_REASON =
-  'Your account is blocked because daily reports were missed. You can still request leave and view reports — contact your Admin to clear the block.';
+  'You’re blocked for a missed daily report. Ask your manager or Admin to unblock you. You can still request leave and view reports.';
 
 export function computeDayGate(input: {
   today: string;

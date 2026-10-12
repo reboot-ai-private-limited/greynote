@@ -1,19 +1,21 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApprovalRow } from '@/components/approval-row';
 import { ChoiceChips } from '@/components/choice-chips';
 import { FyBanner } from '@/components/fy-banner';
 import { Notice } from '@/components/notice';
+import { PillToggle } from '@/components/pill-toggle';
 import { PrimaryButton } from '@/components/primary-button';
 import { Skeleton } from '@/components/skeleton';
 import { TeamTools } from '@/components/team-tools';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing, WideContentWidth } from '@/constants/theme';
+import { BottomTabInset, Gradients, Spacing, WideContentWidth } from '@/constants/theme';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
 import { bulkDecide, listInbox, listTeam, type ApprovalItem, type TeamScope } from '@/lib/approvals';
@@ -148,11 +150,43 @@ export default function TeamScreen() {
         <ScrollView
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
-          <ThemedText type="subtitle">Team</ThemedText>
+          <LinearGradient colors={Gradients.header} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+            <View style={styles.headerText}>
+              <ThemedText type="smallBold" style={styles.headerTitle}>
+                Team
+              </ThemedText>
+              <ThemedText type="small" style={styles.headerSub}>
+                Approvals and tools for your team
+              </ThemedText>
+            </View>
+            <View style={styles.waiting}>
+              <ThemedText type="smallBold" style={styles.waitingNumber}>
+                {view === 'inbox' && items ? String(actionable.length) : '–'}
+              </ThemedText>
+              <ThemedText type="small" style={styles.waitingLabel}>
+                waiting
+              </ThemedText>
+            </View>
+          </LinearGradient>
           <FyBanner />
+          <View style={styles.sectionHeader}>
+            <ThemedText type="smallBold" style={styles.sectionTitle}>
+              Manager tools
+            </ThemedText>
+          </View>
           <TeamTools />
-          <ChoiceChips options={VIEWS} value={view} onChange={switchView} />
+          <PillToggle options={VIEWS} value={view} onChange={switchView} />
           {view === 'team' ? <ChoiceChips options={SCOPES} value={scope} onChange={(s) => { setItems(null); setScope(s); }} /> : null}
+          <View style={styles.sectionHeader}>
+            <ThemedText type="smallBold" style={styles.sectionTitle}>
+              {view === 'inbox' ? 'Waiting for you' : 'Team activity'}
+            </ThemedText>
+            {items ? (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.sectionCount}>
+                {`${items.length} request${items.length === 1 ? '' : 's'}`}
+              </ThemedText>
+            ) : null}
+          </View>
 
           {view === 'inbox' && actionable.length > 0 && !selecting ? (
             <PrimaryButton label="Select several" variant="text" onPress={() => { setBulkMsg(null); setSelecting(true); }} />
@@ -208,6 +242,16 @@ export default function TeamScreen() {
 }
 
 const styles = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, borderRadius: 20, padding: Spacing.three },
+  headerText: { flex: 1, gap: 2 },
+  headerTitle: { color: '#FFFFFF', fontSize: 24, lineHeight: 30 },
+  headerSub: { color: 'rgba(255,255,255,0.88)', fontSize: 12, lineHeight: 16 },
+  waiting: { alignItems: 'center', borderRadius: Spacing.three, backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
+  waitingNumber: { color: '#FFFFFF', fontSize: 22, lineHeight: 26 },
+  waitingLabel: { color: 'rgba(255,255,255,0.9)', fontSize: 11, lineHeight: 14 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingTop: Spacing.one },
+  sectionTitle: { fontSize: 16, lineHeight: 22 },
+  sectionCount: { fontSize: 12, lineHeight: 16 },
   bulk: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   container: { flex: 1 },
   safeArea: { flex: 1 },

@@ -20,15 +20,18 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
-import { ApiError, NetworkError } from '@/lib/api';
 import {
   EDITABLE,
   EMPTY_DAY,
+  LATE_TEXT,
   getMonthlyPlanDetail,
   getRejectionReason,
+  isFieldDay,
+  planErrorText,
   saveMonthlyPlan,
   submitMonthlyPlan,
   withdrawPlan,
+  workingTypeLabel,
   type MonthlyPlanDetail,
   type PlanDay,
   type WorkingType,
@@ -39,7 +42,6 @@ import {
   addMonths,
   formatWhen,
   datesInMonth,
-  monthlyDeadlinePassed,
   monthOf,
   nowMs,
   prettyDay,
@@ -60,6 +62,7 @@ type Filter = 'ALL' | WorkingType | 'OFF' | 'UNPLANNED';
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'ALL', label: 'All' },
   { value: 'FIELD_WORK', label: 'Field Work' },
+  { value: 'DOCTOR_CAMPAIGN', label: 'Campaign' },
   { value: 'MEETING', label: 'Meeting' },
   { value: 'CONFERENCE', label: 'Conference' },
   { value: 'STRIKE', label: 'Strike' },
@@ -67,8 +70,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'OFF', label: 'Off' },
 ];
 
-const errorText = (err: unknown) =>
-  err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
+const errorText = planErrorText;
 
 /**
  * Monthly Plan (PRD §6.2.A): next month day by day, sent as one unit for the manager's approval.
@@ -169,11 +171,10 @@ export default function MonthlyPlanScreen() {
     }
   }, [rejectionKey, online]);
 
-  const cutoffDay = Number(config.data?.settings.MONTHLY_PLAN_SUBMIT_CUTOFF_DATE ?? 28);
-  // The plan's own deadline when the server has given one; otherwise worked out from the cutoff setting.
+  // The server's deadline only — never worked out on the phone (it ends with the business day, which follows DAY_START_TIME).
+  // Before the first save there is none to show; the server still judges the submit.
   const deadlineIso = detail?.submitDeadline ?? existing?.submitDeadline ?? null;
-  const deadlinePassed =
-    deadlineIso !== null ? nowMs() > Date.parse(deadlineIso) : monthlyDeadlinePassed(month, today, cutoffDay);
+  const deadlinePassed = deadlineIso !== null && nowMs() > Date.parse(deadlineIso);
   const resubmitUntil = detail?.resubmitAllowedUntil ?? null;
   const lateUntil = detail?.lateSubmitAllowedUntil ?? null;
   const lateButAllowed = editable && deadlinePassed && (resubmitUntil !== null || lateUntil !== null);
@@ -186,8 +187,8 @@ export default function MonthlyPlanScreen() {
   }
 
   function validDay(day: PlanDay): string | null {
-    return day.workingType === 'FIELD_WORK' && day.routeIds.length === 0
-      ? 'Pick at least one route for a Field Work day.'
+    return isFieldDay(day.workingType) && day.routeIds.length === 0
+      ? `Pick at least one route for a ${workingTypeLabel(day.workingType)} day.`
       : null;
   }
 
@@ -279,7 +280,7 @@ export default function MonthlyPlanScreen() {
   const counts: PlanCounts = {
     workingDays: days.filter((d) => !isOff(d)).length,
     planned: days.filter((d) => !isOff(d) && entries[d]).length,
-    field: days.filter((d) => entries[d]?.workingType === 'FIELD_WORK' && !isOff(d)).length,
+    field: days.filter((d) => isFieldDay(entries[d]?.workingType) && !isOff(d)).length,
     meetings: days.filter((d) => entries[d]?.workingType === 'MEETING' && !isOff(d)).length,
     others: days.filter((d) => (entries[d]?.workingType === 'CONFERENCE' || entries[d]?.workingType === 'STRIKE') && !isOff(d)).length,
   };
@@ -313,15 +314,15 @@ export default function MonthlyPlanScreen() {
         </ThemedText>
       </Pressable>
       <Pressable
-        disabled={busy}
+        disabled={busy || lateAndRefused}
         accessibilityRole="button"
         onPress={submit}
-        style={[styles.footerButton, styles.submit, { backgroundColor: theme.primary }, busy && styles.dim]}>
+        style={[styles.footerButton, styles.submit, { backgroundColor: theme.primary }, (busy || lateAndRefused) && styles.dim]}>
         {busy ? (
           <ActivityIndicator color={theme.onPrimary} />
         ) : (
           <ThemedText type="smallBold" themeColor="onPrimary" numberOfLines={1} style={styles.footerLabel}>
-            Submit plan
+            {status === 'REJECTED' ? 'Resubmit plan' : 'Submit plan'}
           </ThemedText>
         )}
       </Pressable>
@@ -334,7 +335,7 @@ export default function MonthlyPlanScreen() {
     <PlanCalendar month={month} days={days} entries={entries} isOff={isOff} today={today} onPressDay={editable ? openDay : undefined} />
   );
   const summary = <PlanSummaryCard counts={counts} />;
-  const approval = <PlanApprovalSteps status={status} rejection={rejection} />;
+  const approval = <PlanApprovalSteps status={status} rejection={rejection} approval={detail?.approval ?? null} timeZone={timeZone} />;
   const dayWise = (
     <View style={styles.dayWise}>
       <View style={styles.dayWiseHead}>
@@ -372,18 +373,23 @@ export default function MonthlyPlanScreen() {
       />
       {lateAndRefused ? (
         <Notice tone="warning" title="Deadline passed">
-          {`This plan was due by ${deadlineIso ? formatWhen(deadlineIso, timeZone) : `day ${cutoffDay} of the month before`}. A late submit is refused unless your manager gives you an exception.`}
+          {deadlineIso ? `${LATE_TEXT} (It was due by ${formatWhen(deadlineIso, timeZone)}.)` : LATE_TEXT}
         </Notice>
       ) : null}
-      {lateButAllowed && resubmitUntil ? (
+      {editable && resubmitUntil ? (
         <Notice tone="warning" title="You can still resubmit">
-          {`Because it was rejected, you may resubmit until ${formatWhen(resubmitUntil, timeZone)}.`}
+          {`You can still resubmit until ${formatWhen(resubmitUntil, timeZone)}.`}
         </Notice>
       ) : null}
-      {lateButAllowed && !resubmitUntil && lateUntil ? (
+      {editable && !resubmitUntil && lateUntil ? (
         <Notice tone="warning" title="Late-submission exception">
-          {`Your manager allowed a late submit. It expires ${formatWhen(lateUntil, timeZone)}.`}
+          {`Admin allowed a late submission until ${formatWhen(lateUntil, timeZone)}.`}
         </Notice>
+      ) : null}
+      {editable ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          The routes you plan for a day decide which doctors you can pick on that day’s Daily Plan.
+        </ThemedText>
       ) : null}
       {!online ? <Notice tone="info">You’re offline. You can plan the days and save them on this phone; submitting needs the internet.</Notice> : null}
 

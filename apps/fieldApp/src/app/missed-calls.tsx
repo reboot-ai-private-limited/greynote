@@ -8,8 +8,8 @@ import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { getDoctorVisits, type DoctorVisitMr, type DoctorVisitRow, type DoctorVisitsReport } from '@/lib/doctor-visits';
+import { Accents, Spacing, type Accent } from '@/constants/theme';
+import { getDoctorVisits, stageOf, type DoctorVisitMr, type DoctorVisitRow, type DoctorVisitsReport, type VisitStage } from '@/lib/doctor-visits';
 import { useFinancialYear } from '@/lib/financial-year';
 import { useSessionUser } from '@/lib/session';
 import { useOnline } from '@/offline';
@@ -18,6 +18,25 @@ import { formatWhen, monthOf, prettyDay, prettyMonth } from '@/offline/day';
 
 const visitsText = (made: number, missed: number) => (missed === 0 ? `${made} called · done` : `${made} called, ${missed} missed`);
 
+/** The stage badge: all visits made, some made, or none yet. */
+const STAGE: Record<VisitStage, { label: string; accent: Accent }> = {
+  COMPLETE: { label: 'Complete', accent: 'green' },
+  IN_PROGRESS: { label: 'In progress', accent: 'amber' },
+  NOT_STARTED: { label: 'Not started', accent: 'red' },
+};
+
+function StageBadge({ stage }: { stage: VisitStage }) {
+  const s = STAGE[stage];
+  return (
+    <View style={[styles.badge, { backgroundColor: Accents[s.accent].bg }]}>
+      <ThemedText type="smallBold" style={[styles.badgeText, { color: Accents[s.accent].solid }]}>
+        {s.label}
+      </ThemedText>
+    </View>
+  );
+}
+
+/** The doctors in the server's order: most still to visit first. */
 function DoctorRows({ rows }: { rows: DoctorVisitRow[] }) {
   return (
     <>
@@ -27,10 +46,11 @@ function DoctorRows({ rows }: { rows: DoctorVisitRow[] }) {
             <ThemedText type="smallBold" style={styles.grow}>
               {r.doctor.name}
             </ThemedText>
-            <ThemedText type="smallBold" themeColor={r.missed === 0 ? 'primary' : 'danger'}>
-              {visitsText(r.made, r.missed)}
-            </ThemedText>
+            <StageBadge stage={stageOf(r)} />
           </View>
+          <ThemedText type="small" themeColor={r.missed === 0 ? 'primary' : 'danger'}>
+            {r.missed === 0 ? `${r.made} of ${r.frequency} visited · done` : `${r.made} of ${r.frequency} visited · ${r.missed} still to visit`}
+          </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">{`${r.doctor.specialty} · ${r.frequency} visit${r.frequency === 1 ? '' : 's'} a month`}</ThemedText>
           {r.plannedDays !== undefined && r.plannedDays > 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
@@ -139,4 +159,6 @@ const styles = StyleSheet.create({
   card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1 },
+  badge: { borderRadius: 999, paddingVertical: 2, paddingHorizontal: 10 },
+  badgeText: { fontSize: 11, lineHeight: 16 },
 });

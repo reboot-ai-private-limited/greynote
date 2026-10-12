@@ -3,9 +3,10 @@ import type { GeoPoint } from '@/types/sync';
 import { apiGet, apiPatch, apiPut } from './api';
 
 /**
- * The doctors an MR added (LLD field-master-data.md, Doctor-creation approval): created `pending`, sent
- * to the manager and then Admin, and `active` once approved. A rejected or withdrawn one can be changed
- * and sent again — online only, and the phone's location is captured again.
+ * The doctors an MR added (docs/mobile/doctors.md): created `pending` and decided by the employee's manager or Admin — either
+ * one, in a single stage — then `active`. The approver may correct any detail and the location first, so after approval the
+ * approved values are shown. A rejected, withdrawn or reopened one can be changed and sent again — online only, and the phone's
+ * location is captured again.
  */
 export type AddedDoctor = {
   id: string;
@@ -13,12 +14,14 @@ export type AddedDoctor = {
   name: string;
   address: string;
   email: string | null;
+  clinicName?: string | null;
+  phone?: string | null;
   specialty: string;
   qualification: string;
   location: GeoPoint | null;
   dateOfBirth?: string | null;
   anniversary?: string | null;
-  /** Visits a month (1–6) the MR should make; `null` = none set. */
+  /** Visits a month (1–5) the MR should make; `null` = none set. */
   visitFrequency?: number | null;
   /** `pending` until approved. */
   status: 'pending' | 'active' | 'inactive';
@@ -32,6 +35,8 @@ export type AddedDoctorBody = {
   specialty: string;
   qualification: string;
   email: string | null;
+  clinicName?: string | null;
+  phone?: string | null;
   dateOfBirth?: string | null;
   anniversary?: string | null;
   visitFrequency?: number | null;
@@ -52,7 +57,7 @@ export const listAddedDoctors = async () =>
 export const editAddedDoctor = (id: string, body: AddedDoctorBody) =>
   apiPut<AddedDoctor>(`/field-master-data/doctors/added/${id}`, body);
 
-/** Manager or Admin: set a doctor’s monthly visit frequency (1–6), date of birth and anniversary. */
+/** Manager or Admin: set a doctor’s monthly visit frequency (1–5), date of birth and anniversary. */
 export const updateDoctorTargets = (id: string, body: DoctorTargetsBody) =>
   apiPatch<unknown>(`/field-master-data/doctors/${id}/targets`, body);
 

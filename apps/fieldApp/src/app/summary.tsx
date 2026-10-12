@@ -5,10 +5,13 @@ import { StyleSheet } from 'react-native';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
+import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { confirmRemove, removeDayRecord } from '@/lib/day-records';
 import { formatRupees } from '@/lib/money';
+import { isFieldDay, needsDayNote, workingTypeLabel } from '@/lib/planning';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { DAY_KINDS, finalSubmit, prettyDay, useOnline, useRecords, type OutboxRecord, type SyncKind } from '@/offline';
@@ -45,10 +48,10 @@ const DCR_TEXT: Record<string, string> = {
 type Msg = { tone: 'danger' | 'success' | 'info' | 'warning'; text: string };
 
 /**
- * Summary & Final Submission (PRD §6.2.D): everything logged today in one place, and the button that
- * sends the day to your manager. Calls, followups and expenses are kept on the phone until now;
- * Final Submission needs the internet, sends them in order, and a record the server refuses is shown
- * here with the reason so you can fix it and submit again.
+ * Summary & Final Submission (PRD §6.2.D, docs/mobile/dcr.md): everything logged today in one place, and the button that
+ * sends the day to your manager. Calls, followups and expenses are kept on the phone until now; Final Submission needs the
+ * internet, sends them in order, and a record the server refuses is shown here with the reason so you can fix it and submit
+ * again. Every day gets a report: on a Meeting or Conference day it is a note for the day (required), on a Strike day one tap.
  */
 export default function SummaryScreen() {
   const gate = useDayGate();
@@ -60,6 +63,7 @@ export default function SummaryScreen() {
 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
+  const [note, setNote] = useState('');
 
   const names = useMemo(
     () => new Map([...(master.data?.doctors ?? []), ...(master.data?.chemists ?? [])].map((o) => [o.id, o.name])),
@@ -78,6 +82,7 @@ export default function SummaryScreen() {
   const plan = planning.data?.dailyPlans.find((p) => p.planDate === today) ?? null;
   const plannedDoctorIds = useMemo(() => new Set((plan?.doctors ?? []).map((d) => d.doctorId)), [plan]);
   const hasPlannedDoctors = (plan?.doctors?.length ?? 0) > 0;
+  const noteRequired = plan ? needsDayNote(plan.workingType) : false;
 
   const describe = (r: OutboxRecord) => {
     const p = r.payload as { doctorId?: string; chemistId?: string; type?: string; amountPaise?: number };
@@ -89,10 +94,14 @@ export default function SummaryScreen() {
   };
 
   const submit = async () => {
+    if (noteRequired && !note.trim()) {
+      setMsg({ tone: 'danger', text: `Write a note for the day (agenda, venue) — it is required on a ${workingTypeLabel(plan!.workingType)} day.` });
+      return;
+    }
     setBusy(true);
     setMsg({ tone: 'info', text: 'Sending today’s report…' });
     try {
-      const result = await finalSubmit(today);
+      const result = await finalSubmit(today, note.trim() || null);
       if (result.offline) {
         setMsg({ tone: 'warning', text: 'The connection dropped. Nothing was lost — your report stays on this phone. Try again when you are online.' });
       } else if (result.submit?.status === 'SYNCED') {
@@ -152,6 +161,18 @@ export default function SummaryScreen() {
                   {r.errorMessage}
                 </ThemedText>
               ) : null}
+              {/* Refused for its location: nothing was stored, and sending it again won't help — drop it and add it at the place. */}
+              {r.status === 'FAILED' && r.errorCode === 'NOT_AT_LOCATION' ? (
+                <PrimaryButton
+                  label="Remove this record"
+                  variant="text"
+                  onPress={() =>
+                    confirmRemove(r.kind.endsWith('FOLLOWUP') ? 'follow-up' : 'call', () =>
+                      void removeDayRecord(r).catch((err) => setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Could not remove it.' })),
+                    )
+                  }
+                />
+              ) : null}
             </ThemedView>
           ))
         )}
@@ -162,6 +183,30 @@ export default function SummaryScreen() {
           {'Open the screen for each record marked “Not accepted”, correct it, and submit again.'}
         </Notice>
       ) : null}
+
+      {alreadySent ? null : (
+        <>
+          {plan && !isFieldDay(plan.workingType) ? (
+            <Notice tone="info" title={`Today is a ${workingTypeLabel(plan.workingType)} day`}>
+              {noteRequired
+                ? 'There are no calls today. Write a note for the day (agenda, venue) and submit — the note is required.'
+                : 'There are no calls today. Submit the day; a note is optional.'}
+            </Notice>
+          ) : null}
+          <TextField
+            label={noteRequired ? 'Note for the day (required)' : 'Note for the day (optional)'}
+            placeholder={noteRequired ? 'Agenda, venue…' : undefined}
+            value={note}
+            onChangeText={(t) => {
+              setNote(t);
+              setMsg(null);
+            }}
+            multiline
+            maxLength={1000}
+            editable={!busy}
+          />
+        </>
+      )}
 
       {alreadySent ? null : (
         <PrimaryButton

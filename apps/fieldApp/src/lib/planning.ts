@@ -1,6 +1,6 @@
 import type { PlanStatus } from '@/types/sync';
 
-import { apiGet, apiPatch, apiPost } from './api';
+import { ApiError, NetworkError, apiGet, apiPatch, apiPost } from './api';
 
 /**
  * The Planning endpoints (LLD/planning.md). Saving and submitting a Plan need a live connection —
@@ -8,24 +8,36 @@ import { apiGet, apiPatch, apiPost } from './api';
  * approval status (HLD 10). Callers check `isOnline()` first and say so, rather than queueing.
  */
 
-export type WorkingType = 'FIELD_WORK' | 'MEETING' | 'CONFERENCE' | 'STRIKE';
+export type WorkingType = 'FIELD_WORK' | 'DOCTOR_CAMPAIGN' | 'MEETING' | 'CONFERENCE' | 'STRIKE';
 
 export const WORKING_TYPES: { value: WorkingType; label: string }[] = [
   { value: 'FIELD_WORK', label: 'Field Work' },
+  { value: 'DOCTOR_CAMPAIGN', label: 'Doctor Campaign' },
   { value: 'MEETING', label: 'Meeting' },
   { value: 'CONFERENCE', label: 'Conference' },
   { value: 'STRIKE', label: 'Strike' },
 ];
 
-/** A single call is never a Strike (that is a whole-day type, with no TA/DA), so the call forms offer the other three. */
-export const CALL_WORKING_TYPES = WORKING_TYPES.filter((w) => w.value !== 'STRIKE');
+/**
+ * The days that go to doctors and chemists (packages/contracts `isFieldDay`): they have routes, doctors and calls.
+ * A campaign pays DA at the highest route type and no TA. Meeting, Conference and Strike days have no calls at all.
+ */
+export const isFieldDay = (t: WorkingType | string | null | undefined): boolean => t === 'FIELD_WORK' || t === 'DOCTOR_CAMPAIGN';
 
-export const workingTypeLabel = (t: WorkingType) => WORKING_TYPES.find((w) => w.value === t)?.label ?? t;
+/** On a Meeting or Conference day the daily report needs a note (agenda, venue); on a Strike day it is optional. */
+export const needsDayNote = (t: WorkingType | string | null | undefined): boolean => t === 'MEETING' || t === 'CONFERENCE';
+
+export const workingTypeLabel = (t: WorkingType | string) => WORKING_TYPES.find((w) => w.value === t)?.label ?? t;
+
+/** The kind of route a record was made on, as the server stamps it. */
+export type RouteType = 'HQ' | 'EX_STATION' | 'OUT_STATION';
+const ROUTE_TYPE_LABEL: Record<RouteType, string> = { HQ: 'HQ', EX_STATION: 'Ex-station', OUT_STATION: 'Out-station' };
+export const routeTypeLabel = (t: string | null | undefined) => (t ? (ROUTE_TYPE_LABEL[t as RouteType] ?? t) : null);
 
 /** One planned day: what a Daily Plan holds, and what each Monthly Plan entry holds. */
 export type PlanDay = {
   workingType: WorkingType;
-  /** Colleagues worked with. Always sent empty for now — no endpoint lists them for an MR yet. */
+  /** Colleagues worked with (ids from `GET /identity/work-with`), at most 20. */
   workWith: string[];
   routeIds: string[];
   remarks: string | null;
@@ -36,7 +48,8 @@ export const EMPTY_DAY: PlanDay = { workingType: 'FIELD_WORK', workWith: [], rou
 type StateView = {
   id: string;
   status: PlanStatus;
-  approval: { requestId: string } | null;
+  /** Who/when: the approval request the plan sits in (`decidedAt` null while waiting). */
+  approval: { requestId: string; cycle?: number; submittedAt?: string; decidedAt?: string | null } | null;
   submitDeadline: string;
   resubmitAllowedUntil: string | null;
   lateSubmitAllowedUntil: string | null;
@@ -51,15 +64,18 @@ export type MonthlyPlanView = StateView & { planMonth: string; entries: (PlanDay
 /** Statuses in which the owner may still change the Plan (no request yet, or sent back to them). */
 export const EDITABLE: (PlanStatus | null)[] = [null, 'DRAFT', 'REJECTED', 'WITHDRAWN', 'REOPENED'];
 
-export const saveDailyPlan = (planDate: string, day: PlanDay) =>
-  apiPost<DailyPlanView>('/planning/daily', { planDate, ...day }, { auth: true });
+/*
+ * A Daily Plan is written by the server from the approved Monthly Plan (docs/mobile/dailyplan.md): its working type, routes,
+ * work-with and remarks are read-only to the employee, and there is no endpoint to save them. The employee only sets the day's
+ * doctors and submits it. Changes to an approved day are made by the manager or Admin (amend), never requested in the app.
+ */
 
 export const submitDailyPlan = (id: string) =>
   apiPost<DailyPlanView>(`/planning/daily/${id}/submit`, {}, { auth: true });
 
 /**
- * Sets the doctors to call on a saved Field Work plan (also on a day inherited from the Monthly Plan). The server adds the
- * missed calls still owed and refuses a doctor that isn't the MR's or isn't on one of the plan's routes.
+ * Sets the doctors to call on a Field Work or Doctor Campaign day (at most 50). The server adds the missed calls still owed and
+ * refuses (400 on `doctorIds`) a doctor that isn't assigned to the employee or isn't on one of the day's routes.
  */
 export const setDailyPlanDoctors = (planDate: string, doctorIds: string[]) =>
   apiPost<DailyPlanView>('/planning/daily/doctors', { planDate, doctorIds }, { auth: true });
@@ -74,9 +90,6 @@ export const getCarryOver = (date: string) =>
  */
 export const amendDailyPlan = (planId: string, day: PlanDay, reason: string) =>
   apiPatch<DailyPlanView>(`/planning/daily/${planId}/amend`, { ...day, reason: reason.trim() });
-
-export const requestDailyPlanChange = (id: string, day: PlanDay, reason: string) =>
-  apiPost<unknown>(`/planning/daily/${id}/changes`, { ...day, reason }, { auth: true });
 
 export const saveMonthlyPlan = (planMonth: string, entries: (PlanDay & { planDate: string })[]) =>
   apiPost<MonthlyPlanView>('/planning/monthly', { planMonth, entries }, { auth: true });
@@ -126,24 +139,17 @@ export async function getMonthlyPlanDetail(planMonth: string): Promise<MonthlyPl
   return rows.find((r) => r.planMonth === planMonth) ?? null;
 }
 
-/** An in-day change request and where it is in the manager's approval. */
-export type DailyPlanChange = {
-  id: string;
-  planId: string;
-  planDate: string;
-  previous: PlanDay;
-  proposed: PlanDay;
-  reason: string;
-  /** The approval request's status: SUBMITTED, APPROVED, REJECTED or WITHDRAWN. */
-  status: string;
-  /** Waiting for a decision. */
-  open: boolean;
-  /** Approved and written into the plan. */
-  applied: boolean;
-  createdAt: string;
-  approval: { requestId: string; decidedAt: string | null } | null;
-};
+/** The deadline message the docs ask for when a submit is refused as late (`409 PLAN_SUBMIT_LATE`) or the deadline has passed. */
+export const LATE_TEXT = 'The deadline has passed. Ask Admin for a late-submission exception.';
+/** A blocked employee (a missed daily report) can't submit or log anything (`403`, `userBlocked`). */
+export const BLOCKED_TEXT = 'You’re blocked for a missed daily report. Ask your manager or Admin to unblock you.';
 
-/** Newest first. */
-export const listDailyPlanChanges = (planId: string) =>
-  apiGet<DailyPlanChange[]>(`/planning/daily/${planId}/changes`, { auth: true });
+/** A plan save or submit failure as the employee should read it: the docs' wording for blocked and late, else the server's message. */
+export function planErrorText(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 403) return BLOCKED_TEXT;
+    if (err.status === 409 && /late|deadline/i.test(err.message)) return LATE_TEXT;
+    return err.message;
+  }
+  return err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
+}

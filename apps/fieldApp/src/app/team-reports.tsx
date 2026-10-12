@@ -6,11 +6,13 @@ import { ChoiceChips } from '@/components/choice-chips';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
+import { PillToggle } from '@/components/pill-toggle';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Avatar, IconChip, Meter, Pill, sym } from '@/components/ui-cards';
+import { Accents, Spacing, type Accent } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { STATUS_LABEL, type ApprovalStatus } from '@/lib/approvals';
 import { useFinancialYear } from '@/lib/financial-year';
 import { formatRupees } from '@/lib/money';
@@ -27,6 +29,7 @@ const REPORTS: { value: Report; label: string }[] = [
 ];
 
 const statusText = (status: string) => STATUS_LABEL[status as ApprovalStatus] ?? (status === 'DRAFT' ? 'Not sent' : status);
+const STATUS_ACCENT: Record<string, Accent> = { SUBMITTED: 'amber', MANAGER_APPROVED: 'amber', APPROVED: 'green', REJECTED: 'red' };
 
 const bounds = (month: string) => {
   const days = datesInMonth(month);
@@ -41,6 +44,7 @@ const rupees = (paise: number | null) => (paise === null ? '—' : formatRupees(
  */
 export default function TeamReportsScreen() {
   const fy = useFinancialYear();
+  const theme = useTheme();
   const [report, setReport] = useState<Report>('dcr');
   const [picked, setPicked] = useState<string | null>(null);
 
@@ -49,10 +53,12 @@ export default function TeamReportsScreen() {
   const month = clamp(picked ?? start);
 
   return (
-    <ScreenShell title="Team reports">
+    <ScreenShell title="Team reports" subtitle="Your team’s reports, sales and plan compliance" wide>
       <FyBanner />
-      <ChoiceChips options={REPORTS} value={report} onChange={setReport} />
-      <MonthStepper value={month} onChange={setPicked} min={fy.firstMonth} max={fy.lastMonth} />
+      <PillToggle options={REPORTS} value={report} onChange={setReport} />
+      <View style={[styles.month, { backgroundColor: theme.background, borderColor: theme.border }]}>
+        <MonthStepper value={month} onChange={setPicked} min={fy.firstMonth} max={fy.lastMonth} />
+      </View>
       {report === 'dcr' ? <TeamDcrList month={month} year={fy.year} /> : <TeamSales month={month} year={fy.year} />}
     </ScreenShell>
   );
@@ -71,6 +77,7 @@ function Stale({ fetchedAt, stale, error, online }: { fetchedAt: string | null; 
 
 function TeamDcrList({ month, year }: { month: string; year: number }) {
   const online = useOnline();
+  const theme = useTheme();
   const { team } = useTeam();
   const names = useMemo(() => new Map(team.map((t) => [t.id, t.name])), [team]);
   const [who, setWho] = useState<string>('ALL');
@@ -83,23 +90,47 @@ function TeamDcrList({ month, year }: { month: string; year: number }) {
       {team.length > 1 ? (
         <ChoiceChips options={[{ value: 'ALL', label: 'Everyone' }, ...team.map((t) => ({ value: t.id, label: t.name }))]} value={who} onChange={setWho} />
       ) : null}
+      <View style={styles.sectionHeader}>
+        <ThemedText type="smallBold" style={styles.sectionTitle}>
+          Daily reports
+        </ThemedText>
+        {list.data ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
+            {`${rows.length} report${rows.length === 1 ? '' : 's'}`}
+          </ThemedText>
+        ) : null}
+      </View>
       <Stale fetchedAt={list.fetchedAt} stale={list.stale} error={list.error} online={online} />
       {list.loading && !list.data ? (
         <Skeleton cards={3} lines={2} />
       ) : rows.length === 0 ? (
         <Notice tone="info">{list.data ? 'No daily reports from your team this month.' : 'Connect once to load your team’s reports.'}</Notice>
       ) : (
-        rows.map((r) => (
-          <Pressable key={r.id} accessibilityRole="button" onPress={() => (online ? router.push({ pathname: '/dcr-report/[id]', params: { id: r.id } }) : undefined)}>
-            <ThemedView type="backgroundElement" style={styles.card}>
-              <ThemedText type="smallBold">{names.get(r.userId) ?? 'Employee'}</ThemedText>
-              <ThemedText type="small">{prettyDay(r.reportDate)}</ThemedText>
-              <ThemedText type="small" themeColor={r.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
-                {statusText(r.status)}
+        rows.map((r) => {
+          const name = names.get(r.userId) ?? 'Employee';
+          const accent = STATUS_ACCENT[r.status] ?? 'slate';
+          return (
+            <Pressable
+              key={r.id}
+              accessibilityRole="button"
+              onPress={() => (online ? router.push({ pathname: '/dcr-report/[id]', params: { id: r.id } }) : undefined)}
+              style={({ pressed }) => [styles.row, { backgroundColor: theme.background, borderColor: theme.border }, pressed && styles.pressed]}>
+              <Avatar name={name} accent="teal" />
+              <View style={styles.flex}>
+                <ThemedText type="smallBold" numberOfLines={1}>
+                  {name}
+                </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
+                  {prettyDay(r.reportDate)}
+                </ThemedText>
+              </View>
+              <Pill text={statusText(r.status)} accent={accent} />
+              <ThemedText type="subtitle" themeColor="textSecondary" style={styles.chevron}>
+                ›
               </ThemedText>
-            </ThemedView>
-          </Pressable>
-        ))
+            </Pressable>
+          );
+        })
       )}
     </View>
   );
@@ -107,24 +138,76 @@ function TeamDcrList({ month, year }: { month: string; year: number }) {
 
 /* ─────────────────────────── the team's sales and compliance ─────────────────────────── */
 
-const pair = (c: { submitted: number; approved: number }, of: number) => `${c.submitted}/${of} sent · ${c.approved} approved`;
+function Tile({ icon, accent, value, label }: { icon: ReturnType<typeof sym>; accent: Accent; value: string; label: string }) {
+  return (
+    <View style={[styles.tile, { backgroundColor: Accents[accent].bg, borderColor: Accents[accent].border }]}>
+      <IconChip icon={icon} accent={accent} size={32} />
+      <ThemedText type="smallBold" style={styles.tileValue} numberOfLines={1}>
+        {value}
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.small} numberOfLines={1}>
+        {label}
+      </ThemedText>
+    </View>
+  );
+}
+
+/** "3/20 sent · 2 approved" with a bar for how much of the working days it covers. */
+function Compliance({ label, c, of, accent }: { label: string; c: { submitted: number; approved: number }; of: number; accent: Accent }) {
+  return (
+    <View style={styles.compliance}>
+      <View style={styles.complianceHead}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
+          {label}
+        </ThemedText>
+        <ThemedText type="small" style={styles.small}>{`${c.submitted}/${of} sent · ${c.approved} approved`}</ThemedText>
+      </View>
+      <Meter value={c.submitted} total={of} accent={accent} />
+    </View>
+  );
+}
 
 function SalesCard({ row }: { row: SalesDashboardRow }) {
+  const theme = useTheme();
+  const achievedPct = row.targetPaise && row.achievedPaise !== null ? Math.round((row.achievedPaise / row.targetPaise) * 100) : null;
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
-      <ThemedText type="smallBold">{`${row.employee.name} · ${row.employee.employeeCode}`}</ThemedText>
-      {row.designation || row.zone ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          {[row.designation, row.zone].filter(Boolean).join(' · ')}
-        </ThemedText>
-      ) : null}
-      <ThemedText type="small">{`Working days: ${row.workingDays}`}</ThemedText>
-      <ThemedText type="small">{`Plans: ${pair(row.plan, row.workingDays)}`}</ThemedText>
-      <ThemedText type="small">{`Daily reports: ${pair(row.dcr, row.workingDays)}`}</ThemedText>
-      <ThemedText type="small">{`TA ${rupees(row.taPaise)} · DA ${rupees(row.daPaise)}`}</ThemedText>
-      <ThemedText type="small">{`Target ${rupees(row.targetPaise)} · Achieved ${rupees(row.achievedPaise)}`}</ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">{`Primary ${rupees(row.primaryPaise)}`}</ThemedText>
-    </ThemedView>
+    <View style={[styles.sales, { backgroundColor: theme.background, borderColor: theme.border }]}>
+      <View style={styles.salesHead}>
+        <Avatar name={row.employee.name} accent="blue" />
+        <View style={styles.flex}>
+          <ThemedText type="smallBold" numberOfLines={1}>
+            {row.employee.name}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.small} numberOfLines={1}>
+            {[row.employee.employeeCode, row.designation, row.zone].filter(Boolean).join(' · ')}
+          </ThemedText>
+        </View>
+        <Pill text={`${row.workingDays} working days`} accent="slate" />
+      </View>
+      <Compliance label="Plans" c={row.plan} of={row.workingDays} accent="indigo" />
+      <Compliance label="Daily reports" c={row.dcr} of={row.workingDays} accent="teal" />
+      <View style={styles.figures}>
+        <Figure label="TA" value={rupees(row.taPaise)} />
+        <Figure label="DA" value={rupees(row.daPaise)} />
+        <Figure label="Target" value={rupees(row.targetPaise)} />
+        <Figure label="Achieved" value={`${rupees(row.achievedPaise)}${achievedPct !== null ? ` (${achievedPct}%)` : ''}`} />
+        <Figure label="Primary" value={rupees(row.primaryPaise)} />
+      </View>
+    </View>
+  );
+}
+
+function Figure({ label, value }: { label: string; value: string }) {
+  const theme = useTheme();
+  return (
+    <View style={[styles.figure, { backgroundColor: theme.backgroundElement }]}>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.figureLabel}>
+        {label}
+      </ThemedText>
+      <ThemedText type="smallBold" style={styles.figureValue} numberOfLines={1}>
+        {value}
+      </ThemedText>
+    </View>
   );
 }
 
@@ -140,20 +223,57 @@ function TeamSales({ month, year }: { month: string; year: number }) {
       {dash.loading && !d ? <Skeleton cards={3} lines={4} /> : null}
       {d && d.rows.length === 0 ? <Notice tone="info">Nobody in your team yet.</Notice> : null}
       {d && d.rows.length > 0 ? (
-        <ThemedView type="backgroundElement" style={styles.card}>
-          <ThemedText type="smallBold">{`Team total · ${d.totals.employees} employee${d.totals.employees === 1 ? '' : 's'}`}</ThemedText>
-          <ThemedText type="small">{`TA ${rupees(d.totals.taPaise)} · DA ${rupees(d.totals.daPaise)}`}</ThemedText>
-          <ThemedText type="small">{`Target ${rupees(d.totals.targetPaise)} · Achieved ${rupees(d.totals.achievedPaise)}`}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">{`Primary ${rupees(d.totals.primaryPaise)}`}</ThemedText>
-        </ThemedView>
+        <>
+          <View style={styles.tiles}>
+            <Tile icon={sym('person.2', 'groups')} accent="blue" value={String(d.totals.employees)} label="Team members" />
+            <Tile icon={sym('target', 'track_changes')} accent="red" value={rupees(d.totals.targetPaise)} label="Target" />
+            <Tile icon={sym('chart.line.uptrend.xyaxis', 'trending_up')} accent="green" value={rupees(d.totals.achievedPaise)} label="Achieved" />
+            <Tile icon={sym('indianrupeesign.circle', 'payments')} accent="amber" value={rupees(d.totals.taPaise + d.totals.daPaise)} label="TA + DA" />
+          </View>
+          <View style={styles.sectionHeader}>
+            <ThemedText type="smallBold" style={styles.sectionTitle}>
+              By employee
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
+              {`Primary ${rupees(d.totals.primaryPaise)}`}
+            </ThemedText>
+          </View>
+        </>
       ) : null}
-      {d?.rows.map((r) => <SalesCard key={r.employee.id} row={r} />)}
+      <View style={styles.cards}>
+        {d?.rows.map((r) => (
+          <View key={r.employee.id} style={styles.cardCell}>
+            <SalesCard row={r} />
+          </View>
+        ))}
+      </View>
       {d && d.total > d.rows.length ? <Notice tone="info">{`Showing ${d.rows.length} of ${d.total} employees.`}</Notice> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   stack: { gap: Spacing.three },
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.half },
+  month: { borderRadius: Spacing.three, borderWidth: 1, padding: Spacing.two },
+  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  sectionTitle: { fontSize: 16, lineHeight: 22 },
+  small: { fontSize: 12, lineHeight: 16 },
+  pressed: { opacity: 0.8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, borderRadius: Spacing.three, borderWidth: 1, padding: Spacing.three },
+  chevron: { marginLeft: -Spacing.one },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  tile: { flexGrow: 1, flexBasis: '45%', borderRadius: Spacing.three, borderWidth: 1, padding: Spacing.three, gap: 2 },
+  tileValue: { fontSize: 18, lineHeight: 24, marginTop: Spacing.one },
+  // Cards sit one or two across; the padding on each cell makes the gap.
+  cards: { flexDirection: 'row', flexWrap: 'wrap', margin: -6 },
+  cardCell: { flexGrow: 1, flexBasis: 340, padding: 6 },
+  sales: { borderRadius: Spacing.three, borderWidth: 1, padding: Spacing.three, gap: Spacing.two },
+  salesHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  compliance: { gap: 4 },
+  complianceHead: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.two },
+  figures: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  figure: { flexGrow: 1, flexBasis: '30%', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 },
+  figureLabel: { fontSize: 11, lineHeight: 14 },
+  figureValue: { fontSize: 13, lineHeight: 18 },
 });

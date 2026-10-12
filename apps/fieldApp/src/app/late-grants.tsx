@@ -1,18 +1,20 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { DateStepper } from '@/components/date-stepper';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
+import { PillToggle } from '@/components/pill-toggle';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Avatar, CardSection, PersonDropdown, Pill, sym } from '@/components/ui-cards';
+import { Accents, Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
@@ -20,6 +22,7 @@ import {
   grantLateSubmit,
   listLateGrants,
   revokeLateGrant,
+  type GrantStatus,
   type LateGrant,
   type PlanKind,
 } from '@/lib/late-grants';
@@ -41,6 +44,8 @@ const DURATIONS = [
   { value: '168', label: '7 days' },
 ];
 
+const STATUS_ACCENT: Record<GrantStatus, Accent> = { OPEN: 'green', USED: 'slate', REVOKED: 'red', EXPIRED: 'amber' };
+
 const errorText = (err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
 
@@ -48,10 +53,12 @@ const errorText = (err: unknown) =>
  * Late submissions (managers): let one of your team submit one plan after its deadline. Pick the person, the plan (a day or a
  * month) and a reason; the exception is good for a limited time and is used up by the submit. An unused one can be revoked.
  * The server only lets a manager do this while Admin has switched that on, and says so when it is off. Needs a connection.
+ * On a tablet the form is on the left and the exceptions on the right.
  */
 export default function LateGrantsScreen() {
   const theme = useTheme();
   const online = useOnline();
+  const { isTablet } = useResponsive();
   const me = useSessionUser();
   const { today } = useDayGate();
   const { colleagues } = useColleagues();
@@ -66,7 +73,6 @@ export default function LateGrantsScreen() {
     [colleagues, team],
   );
 
-  const [search, setSearch] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
   const [kind, setKind] = useState<PlanKind>('DAILY_PLAN');
   const [day, setDay] = useState(today);
@@ -74,9 +80,6 @@ export default function LateGrantsScreen() {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'warning'; text: string } | null>(null);
-
-  const needle = search.trim().toLowerCase();
-  const shown = needle ? team.filter((t) => t.name.toLowerCase().includes(needle) || t.employeeCode.toLowerCase().includes(needle)) : team;
 
   async function grant() {
     if (!userId) return setMsg({ tone: 'warning', text: 'Pick the employee first.' });
@@ -111,74 +114,128 @@ export default function LateGrantsScreen() {
   }
 
   const items = grants.data?.items ?? [];
+  const picked = team.find((t) => t.id === userId) ?? null;
 
-  return (
-    <ScreenShell title="Late submissions" onRefresh={grants.reload} refreshing={grants.refreshing}>
-      {!online ? <Notice tone="info">You’re offline. Connect to the internet to allow or revoke a late submission.</Notice> : null}
+  const form = (
+    <View style={styles.stack}>
+      <CardSection icon={sym('person.2', 'groups')} accent="blue" title="Employee" count={team.length || undefined}>
+        {team.length === 0 ? (
+          <Notice tone="info">{teamLoaded ? 'You have nobody in your team to allow a late submission for.' : 'Loading your team…'}</Notice>
+        ) : (
+          <PersonDropdown
+            people={team.map((t) => ({ id: t.id, name: t.name, detail: [t.employeeCode, t.designation].filter(Boolean).join(' · ') }))}
+            value={userId}
+            onChange={setUserId}
+            disabled={busy}
+          />
+        )}
+      </CardSection>
 
-      <ThemedText type="smallBold">Employee</ThemedText>
-      {team.length === 0 ? (
-        <Notice tone="info">
-          {teamLoaded ? 'You have nobody in your team to allow a late submission for.' : 'Loading your team…'}
-        </Notice>
-      ) : (
-        <>
-          {team.length > 6 ? <TextField label="Search by name or code" value={search} onChangeText={setSearch} autoCapitalize="none" /> : null}
-          {shown.map((t) => {
-            const selected = t.id === userId;
-            return (
-              <Pressable key={t.id} accessibilityRole="radio" accessibilityState={{ selected }} disabled={busy} onPress={() => setUserId(t.id)}>
-                <ThemedView type="backgroundElement" style={[styles.card, selected && { borderColor: theme.primary }]}>
-                  <ThemedText type="smallBold">{t.name}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {[t.employeeCode, t.designation].filter(Boolean).join(' · ')}
-                  </ThemedText>
-                </ThemedView>
-              </Pressable>
-            );
-          })}
-        </>
-      )}
+      <CardSection icon={sym('calendar', 'event')} accent="amber" title="Plan">
+        <PillToggle options={KINDS} value={kind} onChange={setKind} disabled={busy} />
+        {kind === 'DAILY_PLAN' ? (
+          <DateStepper label="Day" value={day} onChange={setDay} disabled={busy} />
+        ) : (
+          <MonthStepper value={month} onChange={setMonth} />
+        )}
+        <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
+          Valid for
+        </ThemedText>
+        <ChoiceChips options={DURATIONS} value={durationHours} onChange={setDurationHours} disabled={busy} />
+      </CardSection>
 
-      <ThemedText type="smallBold">Plan</ThemedText>
-      <ChoiceChips options={KINDS} value={kind} onChange={setKind} disabled={busy} />
-      {kind === 'DAILY_PLAN' ? (
-        <DateStepper label="Day" value={day} onChange={setDay} disabled={busy} />
-      ) : (
-        <MonthStepper value={month} onChange={setMonth} />
-      )}
-      <ThemedText type="smallBold">Valid for</ThemedText>
-      <ChoiceChips options={DURATIONS} value={durationHours} onChange={setDurationHours} disabled={busy} />
-      <TextField label="Why is the exception needed? (required)" value={reason} onChangeText={(t) => { setReason(t); setMsg(null); }} multiline maxLength={1000} editable={!busy} />
+      <CardSection icon={sym('text.bubble', 'chat')} accent="purple" title="Reason">
+        <TextField
+          label="Why is the exception needed? (required)"
+          value={reason}
+          onChangeText={(t) => {
+            setReason(t);
+            setMsg(null);
+          }}
+          multiline
+          maxLength={1000}
+          editable={!busy}
+        />
+      </CardSection>
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-      <PrimaryButton label="Allow late submission" loading={busy} disabled={!online || team.length === 0} onPress={grant} />
+    </View>
+  );
 
-      <ThemedText type="smallBold">Exceptions</ThemedText>
-      {grants.stale && grants.fetchedAt && grants.data ? (
-        <Notice tone="info">{`Showing the list from ${formatWhen(grants.fetchedAt)}.`}</Notice>
-      ) : null}
+  const exceptions = (
+    <CardSection icon={sym('checklist', 'assignment_turned_in')} accent="green" title="Exceptions" count={items.length}>
+      {grants.stale && grants.fetchedAt && grants.data ? <Notice tone="info">{`Showing the list from ${formatWhen(grants.fetchedAt)}.`}</Notice> : null}
       {grants.error && !grants.data ? <Notice tone="danger">{grants.error}</Notice> : null}
       {grants.loading && !grants.data ? <Skeleton cards={2} lines={3} /> : null}
       {grants.data && items.length === 0 ? <Notice tone="info">No late-submission exceptions yet.</Notice> : null}
-      {items.map((g) => (
-        <ThemedView key={g.id} type="backgroundElement" style={styles.card}>
-          <ThemedText type="smallBold">{g.userId === me?.id ? 'You' : (names.get(g.userId) ?? 'Employee')}</ThemedText>
-          <ThemedText type="small">
-            {g.kind === 'DAILY_PLAN' ? `Daily plan · ${prettyDay(g.planKey)}` : `Monthly plan · ${prettyMonth(g.planKey)}`}
-          </ThemedText>
-          <ThemedText type="small" themeColor={g.status === 'OPEN' ? 'primary' : 'textSecondary'}>
-            {g.status === 'OPEN' ? `${GRANT_STATUS_LABEL.OPEN} · expires ${formatWhen(g.expiresAt)}` : GRANT_STATUS_LABEL[g.status]}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">{`“${g.reason}”`}</ThemedText>
-          {g.status === 'OPEN' && g.grantedBy === me?.id ? (
-            <PrimaryButton label="Revoke" variant="text" disabled={busy || !online} onPress={() => revoke(g.id)} />
-          ) : null}
-        </ThemedView>
-      ))}
+      {items.map((g) => {
+        const who = g.userId === me?.id ? 'You' : (names.get(g.userId) ?? 'Employee');
+        const open = g.status === 'OPEN';
+        return (
+          <View key={g.id} style={[styles.grant, { backgroundColor: theme.background, borderColor: theme.border }]}>
+            <View style={styles.grantHead}>
+              <Avatar name={who} accent={STATUS_ACCENT[g.status]} size={36} />
+              <View style={styles.flex}>
+                <ThemedText type="smallBold" numberOfLines={1}>
+                  {who}
+                </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
+                  {g.kind === 'DAILY_PLAN' ? `Daily plan · ${prettyDay(g.planKey)}` : `Monthly plan · ${prettyMonth(g.planKey)}`}
+                </ThemedText>
+              </View>
+              <Pill text={open ? 'Open' : GRANT_STATUS_LABEL[g.status]} accent={STATUS_ACCENT[g.status]} />
+            </View>
+            {open ? (
+              <ThemedText type="small" style={[styles.small, { color: Accents.green.solid }]}>{`Not used yet · expires ${formatWhen(g.expiresAt)}`}</ThemedText>
+            ) : null}
+            <ThemedText type="small" themeColor="textSecondary" style={styles.small}>{`“${g.reason}”`}</ThemedText>
+            {open && g.grantedBy === me?.id ? (
+              <PrimaryButton label="Revoke" variant="text" disabled={busy || !online} onPress={() => revoke(g.id)} />
+            ) : null}
+          </View>
+        );
+      })}
+    </CardSection>
+  );
+
+  const footer = (
+    <PrimaryButton
+      label={picked ? `Allow late submission for ${picked.name}` : 'Allow late submission'}
+      loading={busy}
+      disabled={!online || team.length === 0}
+      onPress={grant}
+    />
+  );
+
+  return (
+    <ScreenShell
+      title="Late submissions"
+      subtitle="Let someone submit a plan after its deadline"
+      wide
+      onRefresh={grants.reload}
+      refreshing={grants.refreshing}
+      footer={footer}>
+      {!online ? <Notice tone="info">You’re offline. Connect to the internet to allow or revoke a late submission.</Notice> : null}
+      {isTablet ? (
+        <View style={styles.columns}>
+          <View style={styles.flex}>{form}</View>
+          <View style={styles.flex}>{exceptions}</View>
+        </View>
+      ) : (
+        <>
+          {form}
+          {exceptions}
+        </>
+      )}
     </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one, borderWidth: 1, borderColor: 'transparent' },
+  flex: { flex: 1 },
+  stack: { gap: Spacing.three },
+  columns: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
+  label: { marginTop: Spacing.one },
+  grant: { borderRadius: Spacing.three, borderWidth: 1, padding: Spacing.three, gap: Spacing.one },
+  grantHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  small: { fontSize: 12, lineHeight: 16 },
 });

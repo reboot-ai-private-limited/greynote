@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Accents, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { formatWhen } from '@/offline/day';
 import type { PlanStatus } from '@/types/sync';
 
 import { ThemedText } from './themed-text';
@@ -9,21 +10,28 @@ import { ThemedText } from './themed-text';
 type StepState = 'done' | 'current' | 'warning' | 'danger' | 'pending';
 type Step = { title: string; note: string; state: StepState };
 
-/** Where the plan stands, worked out from its status alone (the phone has no per-step dates). */
-function stepsFor(status: PlanStatus | null, rejection: string | null): Step[] {
+/** The plan's approval request: when it was submitted and decided (`GET /planning/monthly` row's `approval`). */
+type ApprovalInfo = { cycle?: number; submittedAt?: string; decidedAt?: string | null } | null;
+
+/** Where the plan stands, from its status, with the submit and decision times when the server has sent them. */
+function stepsFor(status: PlanStatus | null, rejection: string | null, approval: ApprovalInfo, when: (iso: string) => string): Step[] {
   const sent = status === 'SUBMITTED' || status === 'MANAGER_APPROVED' || status === 'APPROVED' || status === 'REJECTED' || status === 'WITHDRAWN' || status === 'REOPENED';
   const approved = status === 'MANAGER_APPROVED' || status === 'APPROVED';
+  const submittedNote = approval?.submittedAt
+    ? `Sent ${when(approval.submittedAt)}${approval.cycle && approval.cycle > 1 ? ` (round ${approval.cycle})` : ''}`
+    : 'Sent for approval';
+  const decided = approval?.decidedAt ? ` · ${when(approval.decidedAt)}` : '';
   const steps: Step[] = [
     status ? { title: 'Draft saved', note: 'Your plan is saved', state: 'done' } : { title: 'Draft', note: 'Not started yet', state: 'current' },
-    sent ? { title: 'Submitted to manager', note: 'Sent for approval', state: 'done' } : { title: 'Submit to manager', note: 'Pending', state: 'pending' },
+    sent ? { title: 'Submitted to manager', note: submittedNote, state: 'done' } : { title: 'Submit to manager', note: 'Pending', state: 'pending' },
   ];
   if (status === 'WITHDRAWN') steps.push({ title: 'Withdrawn by you', note: 'Edit it and submit again', state: 'warning' });
   if (status === 'REOPENED') steps.push({ title: 'Reopened by Admin', note: 'Update it and submit again', state: 'warning' });
   steps.push(
     approved
-      ? { title: 'Manager approval', note: 'Approved', state: 'done' }
+      ? { title: 'Manager approval', note: `${status === 'APPROVED' ? 'Approved' : 'Approved by your manager'}${decided}`, state: 'done' }
       : status === 'REJECTED'
-        ? { title: 'Rejected by manager', note: rejection ? `Reason: ${rejection}` : 'Update it and submit again', state: 'danger' }
+        ? { title: 'Rejected by manager', note: rejection ? `Reason: ${rejection}${decided}` : `Update it and submit again${decided}`, state: 'danger' }
         : { title: 'Manager approval', note: status === 'SUBMITTED' ? 'Waiting for a decision' : 'Pending', state: status === 'SUBMITTED' ? 'current' : 'pending' },
   );
   return steps;
@@ -32,9 +40,19 @@ function stepsFor(status: PlanStatus | null, rejection: string | null): Step[] {
 const MARK: Record<StepState, string> = { done: '✓', current: '•', warning: '!', danger: '✕', pending: '' };
 
 /** The plan's approval path as a vertical list of steps. */
-export function PlanApprovalSteps({ status, rejection }: { status: PlanStatus | null; rejection: string | null }) {
+export function PlanApprovalSteps({
+  status,
+  rejection,
+  approval = null,
+  timeZone,
+}: {
+  status: PlanStatus | null;
+  rejection: string | null;
+  approval?: ApprovalInfo;
+  timeZone?: string | null;
+}) {
   const theme = useTheme();
-  const steps = stepsFor(status, rejection);
+  const steps = stepsFor(status, rejection, approval, (iso) => formatWhen(iso, timeZone));
   const color: Record<StepState, string> = {
     done: Accents.green.solid,
     current: theme.primary,

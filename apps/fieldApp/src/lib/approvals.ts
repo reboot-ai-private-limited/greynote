@@ -22,7 +22,7 @@ export type ApprovalAction = {
 
 export type ApprovalItem = {
   id: string;
-  /** DAILY_PLAN, MONTHLY_PLAN, DAILY_PLAN_CHANGE, DCR, LEAVE, NEW_DOCTOR, DOCTOR_SERVICE, EXPENSE_MONTH. */
+  /** DAILY_PLAN, MONTHLY_PLAN, DCR, LEAVE, NEW_DOCTOR, DOCTOR_SERVICE, EXPENSE_MONTH. */
   kind: string;
   recordId: string;
   status: ApprovalStatus;
@@ -47,7 +47,6 @@ export type TeamScope = 'direct' | 'indirect' | 'all';
 export const KIND_LABEL: Record<string, string> = {
   DAILY_PLAN: 'Daily plan',
   MONTHLY_PLAN: 'Monthly plan',
-  DAILY_PLAN_CHANGE: 'Plan change',
   DCR: 'Daily report',
   LEAVE: 'Leave',
   NEW_DOCTOR: 'New doctor',
@@ -117,27 +116,44 @@ export type GeofenceOutcome = {
   overrideComment: string | null;
 };
 
+/** packages/contracts fieldActivity.ts: the work type (the day's plan type) and route type are stamped by the server. */
 type CallBase = {
   id: string;
   workingType: string;
+  routeId?: string | null;
+  routeType?: string | null;
   remarks: string | null;
   accuracyMeters: number | null;
   geofence: GeofenceOutcome;
   recordedAt: string;
+  /** The call's route isn't one the day's plan lists. */
+  routeNotInPlan?: boolean;
 };
 export type DcrDoctorCall = CallBase & {
   doctorId: string;
   doctorName: string;
   samples: { productName: string; quantity: number }[];
+  /** The day's plan lists doctors and this one wasn't among them. */
   notInPlan?: boolean;
 };
 export type DcrChemistCall = CallBase & { chemistId: string; chemistName: string };
-export type DcrFollowup = { id: string; subject: 'DOCTOR' | 'CHEMIST'; subjectName: string; remarks: string };
+export type DcrFollowup = {
+  id: string;
+  subject: 'DOCTOR' | 'CHEMIST';
+  subjectName: string;
+  remarks: string;
+  /** `null` on follow-ups from before the work type, route type and GPS were recorded. */
+  workingType?: string | null;
+  routeType?: string | null;
+  notInPlan?: boolean;
+};
 export type DcrExpense = { id: string; type: string; source: 'AUTO' | 'MANUAL'; amountPaise: number; remarks: string | null; accepted: boolean };
 export type DcrDetail = {
   id: string;
   reportDate: string;
   status: string;
+  /** The employee's note on the day (required on a Meeting or Conference day). */
+  remarks?: string | null;
   doctorCalls: DcrDoctorCall[];
   chemistCalls: DcrChemistCall[];
   followups: DcrFollowup[];
@@ -158,10 +174,8 @@ export type DailyPlanRecord = PlanDayView & {
   doctors?: { doctorId: string; carriedFrom: string | null }[];
 };
 export type MonthlyPlanRecord = { id: string; planMonth: string; entries: (PlanDayView & { planDate: string })[] };
-export type PlanChangeRecord = { id: string; planDate: string; previous: PlanDayView; proposed: PlanDayView; reason: string };
 export const getDailyPlanRecord = (id: string) => apiGet<DailyPlanRecord>(`/planning/daily/${id}`);
 export const getMonthlyPlanRecord = (id: string) => apiGet<MonthlyPlanRecord>(`/planning/monthly/${id}`);
-export const getPlanChangeRecord = (id: string) => apiGet<PlanChangeRecord>(`/planning/changes/${id}`);
 
 export type LeaveRecord = {
   id: string;
@@ -181,8 +195,12 @@ export type DoctorRecord = {
   name: string;
   address: string;
   email: string | null;
+  clinicName?: string | null;
+  phone?: string | null;
   specialty: string;
   qualification: string;
+  visitFrequency?: number | null;
+  /** Where the doctor is registered — the approver may have corrected it — and where the phone was when it was added. */
   location: { latitude: number; longitude: number } | null;
   capturedLocation: { latitude: number; longitude: number } | null;
   status: string;

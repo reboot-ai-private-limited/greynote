@@ -11,7 +11,7 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ApiError, NetworkError } from '@/lib/api';
 import { getDailyPlanRecord, type DailyPlanRecord } from '@/lib/approvals';
-import { amendDailyPlan, WORKING_TYPES, workingTypeLabel, type WorkingType } from '@/lib/planning';
+import { amendDailyPlan, isFieldDay, WORKING_TYPES, workingTypeLabel, type WorkingType } from '@/lib/planning';
 import { useOnline } from '@/offline';
 import { prettyDay } from '@/offline/day';
 
@@ -21,8 +21,8 @@ const errorText = (err: unknown) =>
 /**
  * Amend a team member's Daily Plan (managers above them, and Admin): change the working type and remarks, with a required
  * reason. The plan keeps its approval; the old day is kept on it and the employee sees it was changed. The phone can't list
- * another employee's routes, so a Field Work day keeps the routes it already has and a day with none can't become Field Work
- * here. The server refuses an amend once the day is over or the employee has submitted that day's report.
+ * another employee's routes, so a Field Work or Doctor Campaign day keeps the routes it already has and a day with none can't
+ * become one here. The server refuses an amend once the day is over or the employee has submitted that day's report.
  */
 export default function AmendPlanScreen() {
   const { id, who } = useLocalSearchParams<{ id: string; who?: string }>();
@@ -57,8 +57,8 @@ export default function AmendPlanScreen() {
 
   async function save() {
     if (!plan) return;
-    if (workingType === 'FIELD_WORK' && noRoutes) {
-      return setMsg({ tone: 'warning', text: 'A Field Work day needs routes, and the phone can’t pick routes for another employee. Choose a different working type.' });
+    if (isFieldDay(workingType) && noRoutes) {
+      return setMsg({ tone: 'warning', text: `A ${workingTypeLabel(workingType)} day needs routes, and the phone can’t pick routes for another employee. Choose a different working type.` });
     }
     if (unchanged) return setMsg({ tone: 'warning', text: 'Change the working type or the remarks first.' });
     if (!reason.trim()) return setMsg({ tone: 'warning', text: 'Give the reason — the employee will see it.' });
@@ -67,7 +67,7 @@ export default function AmendPlanScreen() {
     try {
       await amendDailyPlan(
         plan.id,
-        { workingType, workWith: plan.workWith, routeIds: workingType === 'FIELD_WORK' ? plan.routeIds : [], remarks: remarks.trim() || null },
+        { workingType, workWith: plan.workWith, routeIds: isFieldDay(workingType) ? plan.routeIds : [], remarks: remarks.trim() || null },
         reason,
       );
       Alert.alert('Plan amended', 'The employee will see the change and your reason.', [{ text: 'OK', onPress: () => router.back() }]);
@@ -93,10 +93,10 @@ export default function AmendPlanScreen() {
 
           <ThemedText type="smallBold">Working type</ThemedText>
           <ChoiceChips options={WORKING_TYPES} value={workingType} onChange={(w) => { setWorkingType(w); setMsg(null); }} disabled={busy} />
-          {workingType === 'FIELD_WORK' && !noRoutes ? (
+          {isFieldDay(workingType) && !noRoutes ? (
             <ThemedText type="small" themeColor="textSecondary">Routes stay as they are.</ThemedText>
           ) : null}
-          {workingType !== 'FIELD_WORK' && plan.routeIds.length > 0 ? (
+          {!isFieldDay(workingType) && plan.routeIds.length > 0 ? (
             <ThemedText type="small" themeColor="textSecondary">Routes are cleared for this working type.</ThemedText>
           ) : null}
 

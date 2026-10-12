@@ -97,6 +97,14 @@ export async function removeRecord(clientId: string): Promise<void> {
   notify();
 }
 
+/** Forget a record the server has already deleted (a call or follow-up removed from the day's report). */
+export async function forgetSyncedRecord(clientId: string): Promise<void> {
+  const record = await store.getRecord(clientId);
+  if (!record) return;
+  await store.upsertRecord({ ...record, deleted: true, clientUpdatedAt: nowIso(), dirty: true });
+  notify();
+}
+
 export const getRecord = (clientId: string) => store.getRecord(clientId);
 
 export const listRecords = (filter?: { status?: OutboxStatus | OutboxStatus[]; kind?: SyncKind }) =>

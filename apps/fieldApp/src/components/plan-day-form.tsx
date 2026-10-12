@@ -3,7 +3,7 @@ import { Pressable, StyleSheet } from 'react-native';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useCachedSource } from '@/offline/cache';
-import { WORKING_TYPES, type PlanDay, type WorkingType } from '@/lib/planning';
+import { isFieldDay, WORKING_TYPES, type PlanDay, type WorkingType } from '@/lib/planning';
 import type { TerritorySnapshot } from '@/types/sync';
 
 import { ChoiceChips } from './choice-chips';
@@ -22,19 +22,19 @@ type Props = {
 };
 
 /**
- * One planned day: working type, routes, remarks. Shared by the Daily Plan, an in-day change
- * and each Monthly Plan day. Routes come from the cached `territory` pull, so it works offline.
- * "Work with" comes from the colleagues the server offers (offline/colleagues.ts).
+ * One planned day of the Monthly Plan: working type, routes, work-with, remarks. Routes come from the cached `territory`
+ * pull, so it works offline. "Work with" comes from the colleagues the server offers (offline/colleagues.ts). The routes
+ * chosen here decide which doctors can be planned on that day (docs/mobile/monthlyplan.md rule 15).
  */
 export function PlanDayForm({ value, onChange, disabled }: Props) {
   const theme = useTheme();
   const territory = useCachedSource<TerritorySnapshot>('territory');
   const routes = territory.data?.routes ?? [];
-  const needsRoute = value.workingType === 'FIELD_WORK';
+  const needsRoute = isFieldDay(value.workingType);
 
   function setType(workingType: WorkingType) {
-    // Only Field Work takes routes (the server refuses them on the other three) and colleagues to work with.
-    const field = workingType === 'FIELD_WORK';
+    // Only Field Work and Doctor Campaign take routes (the server refuses them on the other three) and colleagues to work with.
+    const field = isFieldDay(workingType);
     onChange({ ...value, workingType, routeIds: field ? value.routeIds : [], workWith: field ? value.workWith : [] });
   }
 
@@ -52,13 +52,18 @@ export function PlanDayForm({ value, onChange, disabled }: Props) {
 
       {!needsRoute ? (
         <ThemedText type="small" themeColor="textSecondary">
-          Routes and “Work with” are only picked for Field Work days.
+          Routes and “Work with” are only picked for Field Work and Doctor Campaign days.
         </ThemedText>
       ) : null}
 
       {needsRoute ? (
         <>
           <ThemedText type="smallBold">Routes</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {value.workingType === 'DOCTOR_CAMPAIGN'
+              ? 'Choose carefully: only your doctors on these routes can be planned that day. A campaign day pays DA at the highest route type and no TA.'
+              : 'Choose carefully: only your doctors on these routes can be planned that day.'}
+          </ThemedText>
           {routes.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
               {territory.loaded

@@ -1,11 +1,11 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Spacing } from '@/constants/theme';
-import { kindLabel, STATUS_LABEL, type ApprovalItem } from '@/lib/approvals';
+import { Accents, Spacing, type Accent } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { kindLabel, STATUS_LABEL, type ApprovalItem, type ApprovalStatus } from '@/lib/approvals';
 import { formatWhen } from '@/offline/day';
 
 import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
 
 type Props = {
   item: ApprovalItem;
@@ -17,48 +17,108 @@ type Props = {
   own?: boolean;
 };
 
-/** One request in a list: what it is, who sent it, when, and where it stands. */
+/** Each kind of request has its own colour, so a long list reads at a glance. */
+const KIND_ACCENT: Record<string, Accent> = {
+  DAILY_PLAN: 'blue',
+  MONTHLY_PLAN: 'indigo',
+  DCR: 'teal',
+  LEAVE: 'pink',
+  NEW_DOCTOR: 'purple',
+  DOCTOR_SERVICE: 'orange',
+  EXPENSE_MONTH: 'amber',
+};
+
+const STATUS_ACCENT: Record<ApprovalStatus, Accent> = {
+  SUBMITTED: 'amber',
+  MANAGER_APPROVED: 'amber',
+  APPROVED: 'green',
+  REJECTED: 'red',
+  WITHDRAWN: 'slate',
+  REOPENED: 'slate',
+};
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join('');
+
+/** One request in a list: who sent it, what it is, when, and where it stands. */
 export function ApprovalRow({ item, onPress, selecting, selected, own }: Props) {
-  const who = item.submitter ? `${item.submitter.name} · ${item.submitter.employeeCode}` : 'Unknown employee';
+  const theme = useTheme();
+  const kind = Accents[KIND_ACCENT[item.kind] ?? 'slate'];
+  const status = Accents[STATUS_ACCENT[item.status]];
+  const name = item.submitter?.name ?? 'Unknown employee';
+
   return (
-    <Pressable accessibilityRole="button" onPress={onPress}>
-      <ThemedView type="backgroundElement" style={styles.card}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
+      <View style={[styles.card, { backgroundColor: theme.background, borderColor: selected ? theme.primary : theme.border }]}>
         {selecting ? (
-          <View style={[styles.check, selected && styles.checked]}>
+          <View style={[styles.check, { borderColor: theme.border }, selected && { backgroundColor: theme.primary, borderColor: theme.primary }]}>
             {selected ? <ThemedText type="smallBold" themeColor="onPrimary">✓</ThemedText> : null}
           </View>
         ) : null}
+        <View style={[styles.avatar, { backgroundColor: kind.bg }]}>
+          <ThemedText type="smallBold" style={[styles.avatarText, { color: kind.solid }]}>
+            {own ? kindLabel(item.kind).charAt(0).toUpperCase() : initials(name)}
+          </ThemedText>
+        </View>
         <View style={styles.body}>
-          <ThemedText type="smallBold">{kindLabel(item.kind)}</ThemedText>
-          {own ? null : <ThemedText type="small">{who}</ThemedText>}
-          <ThemedText type="small" themeColor="textSecondary">
+          <View style={styles.topRow}>
+            <View style={[styles.kind, { backgroundColor: kind.bg }]}>
+              <ThemedText type="smallBold" style={[styles.kindText, { color: kind.solid }]}>
+                {kindLabel(item.kind)}
+              </ThemedText>
+            </View>
+            {item.overdue ? (
+              <ThemedText type="smallBold" themeColor="warning" style={styles.small}>
+                Overdue
+              </ThemedText>
+            ) : null}
+          </View>
+          {own ? null : (
+            <ThemedText type="smallBold" numberOfLines={1}>
+              {item.submitter ? `${item.submitter.name} · ${item.submitter.employeeCode}` : 'Unknown employee'}
+            </ThemedText>
+          )}
+          <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
             {`Sent ${formatWhen(item.submittedAt)}`}
           </ThemedText>
-          <ThemedText type="small" themeColor={item.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
-            {STATUS_LABEL[item.status]}
-          </ThemedText>
           {own && item.status === 'REJECTED' && item.lastAction.comment ? (
-            <ThemedText type="small">{`Reason: ${item.lastAction.comment}`}</ThemedText>
+            <ThemedText type="small" style={styles.small}>{`Reason: ${item.lastAction.comment}`}</ThemedText>
           ) : null}
-          {item.overdue ? (
-            <ThemedText type="small" themeColor="warning">
-              Overdue
+        </View>
+        <View style={styles.right}>
+          <View style={[styles.badge, { backgroundColor: status.bg, borderColor: status.border }]}>
+            <ThemedText type="smallBold" style={[styles.badgeText, { color: item.status === 'REJECTED' ? theme.danger : status.solid }]} numberOfLines={2}>
+              {STATUS_LABEL[item.status]}
             </ThemedText>
-          ) : null}
+          </View>
           {!item.canAct && !own ? (
-            <ThemedText type="small" themeColor="textSecondary">
+            <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
               View only
             </ThemedText>
           ) : null}
         </View>
-      </ThemedView>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, borderRadius: Spacing.three, padding: Spacing.three },
-  body: { flex: 1, gap: Spacing.half },
-  check: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: '#9A9EA6', alignItems: 'center', justifyContent: 'center' },
-  checked: { backgroundColor: '#208AEF', borderColor: '#208AEF' },
+  pressed: { opacity: 0.8 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, borderRadius: Spacing.three, borderWidth: 1, padding: Spacing.three },
+  check: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 14, lineHeight: 18 },
+  body: { flex: 1, gap: 2 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  kind: { borderRadius: 999, paddingVertical: 1, paddingHorizontal: 8 },
+  kindText: { fontSize: 11, lineHeight: 16 },
+  small: { fontSize: 12, lineHeight: 16 },
+  right: { alignItems: 'flex-end', gap: 4, maxWidth: 110 },
+  badge: { borderRadius: 999, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 9 },
+  badgeText: { fontSize: 11, lineHeight: 14, textAlign: 'center' },
 });
