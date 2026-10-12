@@ -14,9 +14,12 @@ import {
 } from '@/lib/approvals';
 import { getStatementById } from '@/lib/expense-months';
 import { formatRupees } from '@/lib/money';
+import { useDayGate } from '@/hooks/use-day-gate';
 import { useTheme } from '@/hooks/use-theme';
 import { isFieldDay, workingTypeLabel } from '@/lib/planning';
-import { prettyDay, prettyMonth } from '@/offline/day';
+import { useCachedSource } from '@/offline/cache';
+import { formatWhen, nowMs, prettyDay, prettyMonth } from '@/offline/day';
+import type { ConfigSnapshot } from '@/types/sync';
 
 import { DcrSummary } from './dcr-review';
 import { Notice } from './notice';
@@ -124,6 +127,7 @@ function MonthlyPlanSummary({ recordId }: { recordId: string }) {
 /* ───────────────────────────── leave, doctor, service ───────────────────────────── */
 
 function LeaveSummary({ recordId }: { recordId: string }) {
+  const { today } = useDayGate();
   const { data, error } = useRecord(() => getLeaveRecord(recordId), 0);
   return (
     <Frame title={data ? `Leave · ${data.leaveTypeName}` : 'Leave'} error={error} loading={!data}>
@@ -132,6 +136,7 @@ function LeaveSummary({ recordId }: { recordId: string }) {
           <Line label="Dates" value={data.startDate === data.endDate ? prettyDay(data.startDate) : `${prettyDay(data.startDate)} → ${prettyDay(data.endDate)}`} />
           <Line label="Days counted" value={String(data.daysCount)} />
           <Line label="Paid" value={data.isPaid ? 'Yes' : 'No (loss of pay)'} />
+          {data.startDate <= today && (data.status === 'SUBMITTED' || data.status === 'MANAGER_APPROVED') ? <Notice tone="warning">This leave has started, so it can only be rejected unless Admin allows a late approval.</Notice> : null}
           {data.reason ? <Line label="Reason" value={data.reason} /> : null}
           {data.attachments.length > 0 ? (
             <View style={styles.entry}>
@@ -203,6 +208,7 @@ function Box({ children }: { children: React.ReactNode }) {
 /* ───────────────────────────── monthly expenses ───────────────────────────── */
 
 function ExpenseMonthSummaryCard({ recordId }: { recordId: string }) {
+  const timeZone = useCachedSource<ConfigSnapshot>('config').data?.settings.BUSINESS_TIMEZONE;
   const { data, error } = useRecord(() => getStatementById(recordId), 0);
   return (
     <Frame title={data ? `Expenses · ${prettyMonth(data.month)}` : 'Monthly expenses'} error={error} loading={!data}>
@@ -212,6 +218,11 @@ function ExpenseMonthSummaryCard({ recordId }: { recordId: string }) {
           <Line label="DA" value={formatRupees(data.totals.daPaise)} />
           <Line label="Other" value={formatRupees(data.totals.otherPaise)} />
           <Line label="Total" value={formatRupees(data.totals.totalPaise)} />
+          {data.deadlines ? <Line label="Approve by" value={formatWhen(data.deadlines.approveBy, timeZone)} /> : null}
+          {data.deadlines && data.status === 'SUBMITTED' && !data.exceptions.approveUntil && Date.parse(data.deadlines.approveBy) < nowMs() ? (
+            <Notice tone="warning">Approval deadline passed — ask Admin to allow it, or reject it.</Notice>
+          ) : null}
+          {data.exceptions?.approveUntil ? <Notice tone="info">{`Allowed until ${formatWhen(data.exceptions.approveUntil, timeZone)}.`}</Notice> : null}
           {data.days.map((d) => (
             <View key={d.date} style={styles.tableRow}>
               <View style={styles.tableMain}>

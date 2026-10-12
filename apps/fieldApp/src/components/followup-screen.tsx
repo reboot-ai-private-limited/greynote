@@ -186,7 +186,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
           emptyText={`No ${noun}s yet. Connect to the internet once so your list can load.`}
         />
         {picked && notInPlan(picked) ? (
-          <Notice tone="info">Not in today’s plan: the followup is still saved, and marked that way for your manager.</Notice>
+          <Notice tone="warning" title="Not in your plan">Not in today’s plan: the followup is still saved, and marked that way for your manager.</Notice>
         ) : null}
         {picked && !picked.location ? (
           <Notice tone="warning">{`This ${noun} has no registered location, so a followup can’t be saved yet. Ask Admin to set it.`}</Notice>

@@ -18,7 +18,7 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Gradients, Spacing, WideContentWidth } from '@/constants/theme';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
-import { bulkDecide, listInbox, listTeam, type ApprovalItem, type TeamScope } from '@/lib/approvals';
+import { LATE_APPROVAL_TEXT, bulkDecide, isLateApproval, listInbox, listTeam, type ApprovalItem, type TeamScope } from '@/lib/approvals';
 import { useOnline } from '@/offline';
 
 type View_ = 'inbox' | 'team';
@@ -126,7 +126,7 @@ export default function TeamScreen() {
       setBulkMsg(
         failed.length === 0
           ? { tone: 'success', text: `${done} request${done === 1 ? '' : 's'} ${word}.` }
-          : { tone: 'warning', text: `${done} ${word}, ${failed.length} not done: ${failed.map((f) => (f.ok ? '' : f.message)).join('; ')}` },
+          : { tone: 'warning', text: `${done} ${word}, ${failed.length} not done: ${failed.map((f) => (f.ok ? '' : isLateApproval(f.statusCode, f.message) ? LATE_APPROVAL_TEXT : f.message)).join('; ')}` },
       );
       endSelecting();
       setReloadKey((k) => k + 1);

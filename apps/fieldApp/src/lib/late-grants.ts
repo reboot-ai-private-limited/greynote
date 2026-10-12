@@ -40,3 +40,30 @@ export const grantLateSubmit = (input: { userId: string; kind: PlanKind; planKey
 
 /** Withdraws a grant that has not been used — Admin or whoever granted it. */
 export const revokeLateGrant = (id: string) => apiPost<unknown>(`/planning/late-grants/${id}/revoke`, {}, { auth: true });
+
+/* ───────────────────────── late expense months ───────────────────────── */
+
+export type ExpensePhase = 'SUBMIT' | 'APPROVE';
+
+export type ExpenseGrant = {
+  id: string;
+  userId: string;
+  /** `YYYY-MM`. */
+  month: string;
+  phase: ExpensePhase;
+  reason: string;
+  grantedBy: string;
+  expiresAt: string;
+  status: GrantStatus;
+  /** `OPEN` past `expiresAt` reads as `EXPIRED` here. */
+  effectiveStatus: GrantStatus;
+};
+
+/** Exceptions that let one month of expenses be sent (SUBMIT) or approved (APPROVE) late. Admin: all; a manager: their own and their team's. */
+export const listExpenseGrants = (pageSize = 100) =>
+  apiGet<{ items: ExpenseGrant[]; total: number }>(`/field-activity/expense-grants?pageSize=${pageSize}`, { auth: true });
+
+export const grantExpenseLate = (input: { userId: string; month: string; phase: ExpensePhase; reason: string; expiresAt?: string }) =>
+  apiPost<ExpenseGrant>('/field-activity/expense-grants', { ...input, reason: input.reason.trim() }, { auth: true });
+
+export const revokeExpenseGrant = (id: string) => apiPost<unknown>(`/field-activity/expense-grants/${id}/revoke`, {}, { auth: true });

@@ -19,9 +19,14 @@ import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
   GRANT_STATUS_LABEL,
+  grantExpenseLate,
   grantLateSubmit,
+  listExpenseGrants,
   listLateGrants,
+  revokeExpenseGrant,
   revokeLateGrant,
+  type ExpenseGrant,
+  type ExpensePhase,
   type GrantStatus,
   type LateGrant,
   type PlanKind,
@@ -32,9 +37,17 @@ import { useCachedFetch } from '@/offline/cached-fetch';
 import { formatWhen, monthOf, prettyDay, prettyMonth } from '@/offline/day';
 import { useTeam } from '@/offline/team';
 
-const KINDS: { value: PlanKind; label: string }[] = [
+type Kind = PlanKind | 'EXPENSE';
+
+const KINDS: { value: Kind; label: string }[] = [
   { value: 'DAILY_PLAN', label: 'Daily plan' },
   { value: 'MONTHLY_PLAN', label: 'Monthly plan' },
+  { value: 'EXPENSE', label: 'Expenses' },
+];
+
+const PHASES: { value: ExpensePhase; label: string }[] = [
+  { value: 'SUBMIT', label: 'Let them send it' },
+  { value: 'APPROVE', label: 'Let it be approved' },
 ];
 
 /** How long the exception lasts, from the moment it is granted (hours). The server allows up to `LATE_PLAN_GRANT_MAX_HOURS`, 744 by default. */
@@ -65,6 +78,8 @@ export default function LateGrantsScreen() {
   const { team, loaded: teamLoaded } = useTeam();
   const grants = useCachedFetch<{ items: LateGrant[]; total: number }>('late-grants', () => listLateGrants());
 
+  const expenseGrants = useCachedFetch<{ items: ExpenseGrant[]; total: number }>('late-expense-grants', () => listExpenseGrants());
+  const [phase, setPhase] = useState<ExpensePhase>('SUBMIT');
   const [durationHours, setDurationHours] = useState('24');
 
   // The employees a manager may grant to are their own team; every name we know, for the list below.
@@ -74,7 +89,8 @@ export default function LateGrantsScreen() {
   );
 
   const [userId, setUserId] = useState<string | null>(null);
-  const [kind, setKind] = useState<PlanKind>('DAILY_PLAN');
+  const [kind, setKind] = useState<Kind>('DAILY_PLAN');
+  const isExpense = kind === 'EXPENSE';
   const [day, setDay] = useState(today);
   const [month, setMonth] = useState(monthOf(today));
   const [reason, setReason] = useState('');
@@ -88,10 +104,16 @@ export default function LateGrantsScreen() {
     setMsg(null);
     try {
       const expiresAt = new Date(Date.now() + Number(durationHours) * 3600_000).toISOString();
-      await grantLateSubmit({ userId, kind, planKey: kind === 'DAILY_PLAN' ? day : month, reason, expiresAt });
+      if (kind === 'EXPENSE') {
+        await grantExpenseLate({ userId, month, phase, reason, expiresAt });
+        setMsg({ tone: 'success', text: phase === 'SUBMIT' ? `${names.get(userId) ?? 'The employee'} can now send that month late.` : 'That month can now be approved late.' });
+        expenseGrants.reload();
+      } else {
+        await grantLateSubmit({ userId, kind, planKey: kind === 'DAILY_PLAN' ? day : month, reason, expiresAt });
+        setMsg({ tone: 'success', text: `${names.get(userId) ?? 'The employee'} can now submit that plan late.` });
+        grants.reload();
+      }
       setReason('');
-      setMsg({ tone: 'success', text: `${names.get(userId) ?? 'The employee'} can now submit that plan late.` });
-      grants.reload();
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
     } finally {
@@ -103,8 +125,13 @@ export default function LateGrantsScreen() {
     setBusy(true);
     setMsg(null);
     try {
-      await revokeLateGrant(id);
-      grants.reload();
+      if (isExpense) {
+        await revokeExpenseGrant(id);
+        expenseGrants.reload();
+      } else {
+        await revokeLateGrant(id);
+        grants.reload();
+      }
       setMsg({ tone: 'success', text: 'The exception was revoked.' });
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
@@ -113,7 +140,11 @@ export default function LateGrantsScreen() {
     }
   }
 
-  const items = grants.data?.items ?? [];
+  const source = isExpense ? expenseGrants : grants;
+  // Both kinds look the same in the list: who, what, the status and the reason.
+  const items = (isExpense
+    ? (expenseGrants.data?.items ?? []).map((g) => ({ id: g.id, userId: g.userId, grantedBy: g.grantedBy, reason: g.reason, expiresAt: g.expiresAt, status: g.effectiveStatus, what: `Expenses · ${prettyMonth(g.month)} · ${g.phase === 'SUBMIT' ? 'send late' : 'approve late'}` }))
+    : (grants.data?.items ?? []).map((g) => ({ id: g.id, userId: g.userId, grantedBy: g.grantedBy, reason: g.reason, expiresAt: g.expiresAt, status: g.status, what: g.kind === 'DAILY_PLAN' ? `Daily plan · ${prettyDay(g.planKey)}` : `Monthly plan · ${prettyMonth(g.planKey)}` })));
   const picked = team.find((t) => t.id === userId) ?? null;
 
   const form = (
@@ -138,6 +169,7 @@ export default function LateGrantsScreen() {
         ) : (
           <MonthStepper value={month} onChange={setMonth} />
         )}
+        {isExpense ? <PillToggle options={PHASES} value={phase} onChange={setPhase} disabled={busy} /> : null}
         <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
           Valid for
         </ThemedText>
@@ -163,10 +195,10 @@ export default function LateGrantsScreen() {
 
   const exceptions = (
     <CardSection icon={sym('checklist', 'assignment_turned_in')} accent="green" title="Exceptions" count={items.length}>
-      {grants.stale && grants.fetchedAt && grants.data ? <Notice tone="info">{`Showing the list from ${formatWhen(grants.fetchedAt)}.`}</Notice> : null}
-      {grants.error && !grants.data ? <Notice tone="danger">{grants.error}</Notice> : null}
-      {grants.loading && !grants.data ? <Skeleton cards={2} lines={3} /> : null}
-      {grants.data && items.length === 0 ? <Notice tone="info">No late-submission exceptions yet.</Notice> : null}
+      {source.stale && source.fetchedAt && source.data ? <Notice tone="info">{`Showing the list from ${formatWhen(source.fetchedAt)}.`}</Notice> : null}
+      {source.error && !source.data ? <Notice tone="danger">{source.error}</Notice> : null}
+      {source.loading && !source.data ? <Skeleton cards={2} lines={3} /> : null}
+      {source.data && items.length === 0 ? <Notice tone="info">No late-submission exceptions yet.</Notice> : null}
       {items.map((g) => {
         const who = g.userId === me?.id ? 'You' : (names.get(g.userId) ?? 'Employee');
         const open = g.status === 'OPEN';
@@ -179,7 +211,7 @@ export default function LateGrantsScreen() {
                   {who}
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
-                  {g.kind === 'DAILY_PLAN' ? `Daily plan · ${prettyDay(g.planKey)}` : `Monthly plan · ${prettyMonth(g.planKey)}`}
+                  {g.what}
                 </ThemedText>
               </View>
               <Pill text={open ? 'Open' : GRANT_STATUS_LABEL[g.status]} accent={STATUS_ACCENT[g.status]} />
@@ -209,10 +241,10 @@ export default function LateGrantsScreen() {
   return (
     <ScreenShell
       title="Late submissions"
-      subtitle="Let someone submit a plan after its deadline"
+      subtitle="Let someone submit a plan or expenses after the deadline"
       wide
-      onRefresh={grants.reload}
-      refreshing={grants.refreshing}
+      onRefresh={source.reload}
+      refreshing={source.refreshing}
       footer={footer}>
       {!online ? <Notice tone="info">You’re offline. Connect to the internet to allow or revoke a late submission.</Notice> : null}
       {isTablet ? (

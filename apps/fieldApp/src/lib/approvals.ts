@@ -85,6 +85,12 @@ export const approveRequest = (item: { id: string; cycle: number }, comment?: st
 export const rejectRequest = (item: { id: string; cycle: number }, comment: string) =>
   apiPost<unknown>(`/approvals/${item.id}/reject`, { cycle: item.cycle, comment: comment.trim() }, { auth: true });
 
+/** Past its cutoff a leave or an expense month can't be approved (only rejected) unless Admin allows it; the server's wording already says so, this makes it certain. */
+export const LATE_APPROVAL_TEXT = 'This can’t be approved any more: its deadline has passed. Ask Admin to allow it, or reject it.';
+
+export const isLateApproval = (status: number, message: string, code?: unknown) =>
+  code === 'LEAVE_APPROVAL_LATE' || code === 'EXPENSE_APPROVAL_LATE' || (status === 409 && /already started|deadline to approve|no longer be approved/i.test(message));
+
 export type BulkResult =
   | { requestId: string; ok: true; status: ApprovalStatus }
   | { requestId: string; ok: false; statusCode: number; message: string };
@@ -185,6 +191,7 @@ export type LeaveRecord = {
   endDate: string;
   reason: string | null;
   daysCount: number;
+  status?: ApprovalStatus;
   attachments: { id: string; url: string; fileName: string; sizeBytes: number }[];
 };
 export const getLeaveRecord = (id: string) => apiGet<LeaveRecord>(`/hr/leaves/${id}`);

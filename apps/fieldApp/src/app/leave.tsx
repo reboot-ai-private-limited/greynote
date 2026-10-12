@@ -29,7 +29,7 @@ import { formatSize, pickProofFile, type PickedProof } from '@/lib/proof-picker'
 import { getRejectionReason } from '@/lib/planning';
 import { useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
-import { addDays, prettyDay } from '@/offline/day';
+import { prettyDay } from '@/offline/day';
 import type { HrSnapshot } from '@/types/sync';
 
 const STATUS_TEXT: Record<string, string> = {
@@ -41,8 +41,15 @@ const STATUS_TEXT: Record<string, string> = {
   REOPENED: 'Reopened — change it and send it again',
 };
 
-const errorText = (err: unknown) =>
-  err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
+const errorText = (err: unknown, typeName?: string) => {
+  if (err instanceof ApiError) {
+    if (err.data?.code === 'PAYROLL_FINALIZED' || /salary .* already finalized/i.test(err.message)) return 'This month’s salary is already finalized.';
+    if (err.status === 409 && (/day\(s\) of .* left|not enough leave left/i.test(err.message) || err.data?.field === 'leaveTypeId')) {
+      return `Not enough ${typeName ?? 'leave'} left. Request Loss of Pay for the rest.`;
+    }
+  }
+  return err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
+};
 
 type Msg = { tone: 'danger' | 'success' | 'info'; text: string };
 
@@ -76,7 +83,8 @@ export default function LeaveScreen() {
   // A new request is for Casual, Sick or Earned leave (not Loss of Pay). The type of a leave already made is kept, so it can still be changed and sent again.
   const requestable = (name: string) => ['casual', 'sick', 'earned'].includes(name.trim().toLowerCase());
   const types = allTypes.filter((t) => requestable(t.name));
-  const earliest = addDays(today, -(hr.data?.leaveBackdateDays ?? 0));
+  // A leave can't start in the past (docs/mobile/leave.md rule 6).
+  const earliest = today;
 
   const [reloadKey, setReloadKey] = useState(0);
   const reload = () => setReloadKey((k) => k + 1);
@@ -159,7 +167,7 @@ export default function LeaveScreen() {
       );
       reload();
     } catch (err) {
-      setMsg({ tone: 'danger', text: errorText(err) });
+      setMsg({ tone: 'danger', text: errorText(err, allTypes.find((t) => t.id === typeId)?.name) });
     } finally {
       setBusy(false);
     }

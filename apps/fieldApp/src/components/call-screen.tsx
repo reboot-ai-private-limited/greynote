@@ -247,7 +247,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
           emptyText={`No ${noun}s for you yet. Connect to the internet once so your list can load.`}
         />
         {picked && flagsFor(picked).length > 0 ? (
-          <Notice tone="info">
+          <Notice tone="warning" title="Not in your plan">
             {`${flagsFor(picked).join(' and ')}: the call is still saved, and marked that way in your daily report for your manager.`}
           </Notice>
         ) : null}

@@ -15,6 +15,7 @@ import { Spacing } from '@/constants/theme';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
   STATUS_TEXT,
+  SUBMIT_LATE_TEXT,
   addExpenseProof,
   addOther,
   editOther,
@@ -34,8 +35,10 @@ import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { formatSize, pickProofFile, type PickedProof } from '@/lib/proof-picker';
 import { getRejectionReason } from '@/lib/planning';
 import { useOnline } from '@/offline';
+import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { formatWhen, monthOf, prettyDay, prettyMonth } from '@/offline/day';
+import type { ConfigSnapshot } from '@/types/sync';
+import { formatWhen, monthOf, nowMs, prettyDay, prettyMonth } from '@/offline/day';
 
 const errorText = (err: unknown) => (err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.');
 
@@ -59,6 +62,7 @@ const lastOf = (month: string) => {
  */
 export default function ExpensesScreen() {
   const online = useOnline();
+  const timeZone = useCachedSource<ConfigSnapshot>('config').data?.settings.BUSINESS_TIMEZONE;
   const fy = useFinancialYear();
   const today = fy.today;
   const thisMonth = monthOf(today);
@@ -182,7 +186,11 @@ export default function ExpensesScreen() {
       setMsg({ tone: 'success', text: 'Sent to your manager for approval.' });
       reloadAfterChange();
     } catch (err) {
-      setMsg({ tone: 'danger', text: errorText(err) });
+      // A race with the deadline: show the fresh statement with the same message the screen uses.
+      if (err instanceof ApiError && (err.data?.code === 'EXPENSE_SUBMIT_LATE' || (err.status === 409 && /deadline|exception/i.test(err.message)))) {
+        setMsg({ tone: 'danger', text: SUBMIT_LATE_TEXT });
+        reloadAfterChange();
+      } else setMsg({ tone: 'danger', text: errorText(err) });
     } finally {
       setBusy(false);
     }
@@ -310,7 +318,19 @@ export default function ExpensesScreen() {
           )}
 
           {statement.editable && !statement.monthEnded ? <Notice tone="info">You can send this month for approval from the 1st of next month.</Notice> : null}
-          {statement.canSubmit && canChange ? <PrimaryButton label="Send for approval" loading={busy} onPress={send} /> : null}
+          {statement.monthEnded && statement.status !== 'APPROVED' && statement.deadlines ? (
+            statement.exceptions.submitUntil ? (
+              <Notice tone="warning" title="Allowed late">{`Allowed until ${formatWhen(statement.exceptions.submitUntil, timeZone)}.`}</Notice>
+            ) : statement.submitLate ? (
+              <Notice tone="danger" title="Deadline passed">{SUBMIT_LATE_TEXT}</Notice>
+            ) : statement.status === 'DRAFT' || statement.status === 'REJECTED' ? (
+              <Notice tone="info">{`Send by ${formatWhen(statement.deadlines.submitBy, timeZone)}.`}</Notice>
+            ) : null
+          ) : null}
+          {statement.status === 'SUBMITTED' && statement.deadlines && !statement.exceptions.approveUntil && Date.parse(statement.deadlines.approveBy) < nowMs() ? (
+            <Notice tone="warning">Approval is late — your manager has to ask Admin.</Notice>
+          ) : null}
+          {statement.canSubmit && !statement.submitLate && canChange ? <PrimaryButton label="Send for approval" loading={busy} onPress={send} /> : null}
         </>
       ) : null}
 

@@ -9,6 +9,8 @@ import { describeDay, PlanDaySummary } from '@/components/plan-day-summary';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { ThemedText } from '@/components/themed-text';
+import { CardSection, sym } from '@/components/ui-cards';
+import { useTheme } from '@/hooks/use-theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import {
   BLOCKED_TEXT,
@@ -59,6 +61,7 @@ const errorText = planErrorText;
  * for approval every day (online only). An approved day can't be changed in the app: the manager or Admin amends it.
  */
 export default function DailyPlanScreen() {
+  const theme = useTheme();
   const planning = useCachedSource<PlanningSnapshot>('planning');
   const config = useCachedSource<ConfigSnapshot>('config');
   const territory = useCachedSource<TerritorySnapshot>('territory');
@@ -254,8 +257,27 @@ export default function DailyPlanScreen() {
 
   return (
     <ScreenShell title="Daily Plan">
-      <ThemedText type="smallBold">Date</ThemedText>
-      <ChoiceChips options={dateOptions} value={date} onChange={setDate} />
+      {existing ? (
+        <Notice tone={status === 'REJECTED' ? 'danger' : approved ? 'success' : 'info'} title={`${prettyDay(date)}: ${STATUS_TEXT[existing.status] ?? existing.status}`}>
+          {rejection ? `Reason: ${rejection}` : approved ? 'Need a change? Ask your manager.' : undefined}
+        </Notice>
+      ) : null}
+
+      <View style={[{ gap: 12, borderWidth: 1, borderRadius: 16, padding: 16 }, { backgroundColor: theme.background, borderColor: theme.border }]}>
+        <ThemedText type="smallBold">Date</ThemedText>
+        <ChoiceChips options={dateOptions} value={date} onChange={setDate} />
+        {existing ? (
+          <>
+            <ThemedText type="smallBold">Plan for the day</ThemedText>
+            <PlanDaySummary text={describeDay(existing, names)} />
+            {editable ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                Working type, routes, work-with and remarks come from your approved Monthly Plan. To change them, ask your manager.
+              </ThemedText>
+            ) : null}
+          </>
+        ) : null}
+      </View>
 
       {blocked ? <Notice tone="danger" title="Account blocked">{BLOCKED_TEXT}</Notice> : null}
 
@@ -270,22 +292,6 @@ export default function DailyPlanScreen() {
 
       {monthApproved && planning.loaded && !existing ? (
         <Notice tone="warning" title={prettyDay(date)}>There is no plan for this day. Ask your manager.</Notice>
-      ) : null}
-
-      {existing ? (
-        <>
-          <Notice tone={status === 'REJECTED' ? 'danger' : approved ? 'success' : 'info'} title={`${prettyDay(date)}: ${STATUS_TEXT[existing.status] ?? existing.status}`}>
-            {rejection ? `Reason: ${rejection}` : approved ? 'Need a change? Ask your manager.' : undefined}
-          </Notice>
-
-          <ThemedText type="smallBold">From your Monthly Plan</ThemedText>
-          <PlanDaySummary text={describeDay(existing, names)} />
-          {editable ? (
-            <ThemedText type="small" themeColor="textSecondary">
-              The working type, routes, work-with and remarks come from your approved Monthly Plan and can’t be edited here. To change them, ask your manager.
-            </ThemedText>
-          ) : null}
-        </>
       ) : null}
 
       {amendment ? (
@@ -313,14 +319,16 @@ export default function DailyPlanScreen() {
 
       {existing && fieldDay ? (
         editable ? (
-          <>
+          <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call">
             <PlanDoctorsPicker routeIds={existing.routeIds} picked={doctorIds} owed={owed} onChange={setDoctorIds} disabled={busy || blocked} />
             <ThemedText type="small" themeColor="textSecondary">
               Only your doctors on this day’s routes can be picked. Doctors you missed on earlier days stay on the plan until you call them.
             </ThemedText>
-          </>
+          </CardSection>
         ) : (
-          <PlanDoctorsPicker readOnly routeIds={existing.routeIds} picked={plannedPicks(existing)} owed={savedOwed} onChange={setDoctorIds} />
+          <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call">
+            <PlanDoctorsPicker readOnly routeIds={existing.routeIds} picked={plannedPicks(existing)} owed={savedOwed} onChange={setDoctorIds} />
+          </CardSection>
         )
       ) : null}
 

@@ -39,6 +39,7 @@ From `GET /hr/leaves/me`, `GET /hr/leave-balances/me` and the sync snapshot (lea
 - Date picker: earliest date is **today**. If the range has no working day, say so (the server answers `400`).
 - Not enough balance on a paid type: **"Not enough Casual leave left. Request Loss of Pay for the rest."**
 - `LEAVE_APPROVAL_LATE` is seen by the approver, not the employee. The employee whose leave starts without an approval sees it turn `REJECTED` with the comment "Automatic: the leave started before anyone approved it.": show that comment, and let them request again.
+- **Manager:** a leave that has started and is still waiting shows a warning on the approval card. Approving it (or approving in bulk) returns `LEAVE_APPROVAL_LATE`; the app says "This can't be approved any more… Ask Admin to allow it, or reject it." Rejecting still works.
 - `PAYROLL_FINALIZED`: **"This month's salary is already finalized."**
 
 ## 4. Endpoints

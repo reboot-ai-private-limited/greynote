@@ -14,7 +14,7 @@ type Tool = { title: string; about: string; href: Href; icon: SymbolViewProps['n
 /** What a manager can open besides the approvals lists. */
 const TOOLS: Tool[] = [
   { title: 'Team reports', about: 'Daily reports, sales and plan compliance', href: '/team-reports', icon: sym('chart.bar', 'bar_chart'), accent: 'blue' },
-  { title: 'Late submissions', about: 'Let someone submit a plan after its deadline', href: '/late-grants', icon: sym('clock.badge.checkmark', 'schedule'), accent: 'amber' },
+  { title: 'Late submissions', about: 'Let someone send a plan or expenses late', href: '/late-grants', icon: sym('clock.badge.checkmark', 'schedule'), accent: 'amber' },
   { title: 'Unblock', about: 'Clear a block for a missed report', href: '/unblock', icon: sym('lock.open', 'lock_open'), accent: 'purple' },
 ];
 

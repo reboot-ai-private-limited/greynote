@@ -27,6 +27,20 @@ What the field app must do for the Expenses screen, and the rules the server enf
 - Show `SUBMITTED` as "waiting for approval" and, if `approveBy` has passed with no `approveUntil`, add "approval is late — your manager has to ask Admin".
 - Times are ISO instants: format them in the business timezone from the app's config, not the phone's.
 
+**Built in the field app (2026-10-12):** the send-by date, the disabled Submit with the late message, "Allowed until …", the late-approval note on a `SUBMITTED` month, and a refresh on `EXPENSE_SUBMIT_LATE`.
+
+### Manager: allow a month late 📱
+
+Team → *Late submissions* → **Expenses**. A manager (while `LATE_EXPENSE_GRANT_BY_MANAGER` is on; Admin always) picks a team member, the month, and `SUBMIT` (let them send it) or `APPROVE` (let it be approved), a reason and how long it lasts.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/field-activity/expense-grants` | `{ userId, month, phase: SUBMIT\|APPROVE, reason, expiresAt? }`. `409` once any row of the month is paid. |
+| `GET` | `/field-activity/expense-grants` | Admin: all; others: their own and their team's. |
+| `POST` | `/field-activity/expense-grants/:id/revoke` | Revoke one not yet used. |
+
+On the approval card the manager sees **Approve by** and any `approveUntil`. After `approveBy` with no exception, approving fails with `EXPENSE_APPROVAL_LATE`: the app says to ask Admin or reject.
+
 ## 3. Settings
 
 `EXPENSE_SUBMIT_CUTOFF_DAY` (7), `EXPENSE_APPROVAL_CUTOFF_DAY` (10), `LATE_EXPENSE_GRANT_BY_MANAGER` (off), `LATE_EXPENSE_GRANT_VALID_HOURS` (24), `LATE_EXPENSE_GRANT_MAX_HOURS` (168). Admin changes them in System settings; the next call sees the change.
