@@ -33,8 +33,9 @@ export function PlanDayForm({ value, onChange, disabled }: Props) {
   const needsRoute = value.workingType === 'FIELD_WORK';
 
   function setType(workingType: WorkingType) {
-    // Only Field Work takes routes (the server refuses them on the other three).
-    onChange({ ...value, workingType, routeIds: workingType === 'FIELD_WORK' ? value.routeIds : [] });
+    // Only Field Work takes routes (the server refuses them on the other three) and colleagues to work with.
+    const field = workingType === 'FIELD_WORK';
+    onChange({ ...value, workingType, routeIds: field ? value.routeIds : [], workWith: field ? value.workWith : [] });
   }
 
   function toggleRoute(id: string) {
@@ -51,7 +52,7 @@ export function PlanDayForm({ value, onChange, disabled }: Props) {
 
       {!needsRoute ? (
         <ThemedText type="small" themeColor="textSecondary">
-          Routes are only picked for Field Work days.
+          Routes and “Work with” are only picked for Field Work days.
         </ThemedText>
       ) : null}
 
@@ -99,7 +100,9 @@ export function PlanDayForm({ value, onChange, disabled }: Props) {
         </>
       ) : null}
 
-      <WorkWithPicker value={value.workWith} onChange={(workWith) => onChange({ ...value, workWith })} disabled={disabled} />
+      {needsRoute ? (
+        <WorkWithPicker value={value.workWith} onChange={(workWith) => onChange({ ...value, workWith })} disabled={disabled} />
+      ) : null}
 
       <TextField
         label="Remarks (optional)"

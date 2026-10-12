@@ -38,6 +38,30 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
+/** Pastel tile backgrounds (`bg`, `border`) with the stronger colour (`solid`) for the icon chip on top. */
+export const Accents = {
+  blue: { bg: '#EAF1FF', border: '#D3E2FF', solid: '#3B82F6' },
+  indigo: { bg: '#EEEEFF', border: '#DCDCFB', solid: '#6366F1' },
+  teal: { bg: '#E2F5F0', border: '#C9ECE3', solid: '#14A38B' },
+  sky: { bg: '#E5F3FE', border: '#CBE6FA', solid: '#0EA5E9' },
+  green: { bg: '#E6F5E9', border: '#CDEBD3', solid: '#22A455' },
+  lime: { bg: '#EEF5DD', border: '#DEEBBF', solid: '#6AA311' },
+  purple: { bg: '#F1E8FE', border: '#E3D3FB', solid: '#9B5CF6' },
+  red: { bg: '#FDEAEA', border: '#F9D3D4', solid: '#E5484D' },
+  amber: { bg: '#FFF1DB', border: '#FCE2B8', solid: '#F59E0B' },
+  pink: { bg: '#FFE8F1', border: '#FBD0E1', solid: '#EC4899' },
+  orange: { bg: '#FFEADB', border: '#FCD5B8', solid: '#F97316' },
+  slate: { bg: '#ECEEF3', border: '#DADEE6', solid: '#64748B' },
+} as const;
+
+export type Accent = keyof typeof Accents;
+
+/** Home's blue header card, and the call-to-action gradient on the Summary & Submit tile. */
+export const Gradients = {
+  header: ['#2563EB', '#3B82F6', '#60A5FA'],
+  cta: ['#F97316', '#EF4444', '#DC2663'],
+} as const;
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */

@@ -1,11 +1,10 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useOnline } from '@/offline/connectivity';
 import { useOutboxCounts, useSyncStatus } from '@/offline/hooks';
 
 import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
 
 function ago(iso: string | null): string {
   if (!iso) return 'never';
@@ -16,7 +15,7 @@ function ago(iso: string | null): string {
   return hours < 24 ? `${hours} h ago` : `${Math.round(hours / 24)} d ago`;
 }
 
-/** One line on the Home header: connection, unsent records, and when reference data last refreshed. */
+/** The status strip at the bottom of the Home header: connection, unsent records, and when reference data last refreshed. Sits on the blue header, so it is white-on-translucent. */
 export function SyncChip() {
   const online = useOnline();
   const counts = useOutboxCounts();
@@ -29,24 +28,34 @@ export function SyncChip() {
     `Updated ${ago(lastPullAt)}`,
   ];
   return (
-    <ThemedView type="backgroundElement" style={styles.chip}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {parts.join(' · ')}
+    <View style={styles.chip}>
+      <ThemedText type="small" style={styles.text}>
+        {parts.join('  |  ')}
       </ThemedText>
       {counts.FAILED > 0 ? (
-        <ThemedText type="small" themeColor="danger">
+        <ThemedText type="small" style={styles.alert}>
           {counts.FAILED} record{counts.FAILED === 1 ? '' : 's'} failed — open Summary to fix.
         </ThemedText>
       ) : null}
       {lastError ? (
-        <ThemedText type="small" themeColor="warning">
+        <ThemedText type="small" style={styles.warning}>
           {lastError}
         </ThemedText>
       ) : null}
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  chip: { borderRadius: Spacing.three, padding: Spacing.two, gap: Spacing.half },
+  chip: {
+    borderRadius: 999,
+    paddingVertical: Spacing.one + 2,
+    paddingHorizontal: Spacing.three,
+    gap: Spacing.half,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignSelf: 'stretch',
+  },
+  text: { color: '#FFFFFF', fontSize: 12, lineHeight: 18 },
+  alert: { color: '#FFD9D9', fontSize: 12, lineHeight: 18 },
+  warning: { color: '#FFE9B8', fontSize: 12, lineHeight: 18 },
 });

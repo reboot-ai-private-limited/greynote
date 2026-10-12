@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { TextField } from '@/components/text-field';
@@ -78,69 +78,85 @@ export function WorkWithPicker({ value, onChange, disabled }: Props) {
         </View>
       ) : null}
 
+      {/* The select box: tapping it drops the colleague list down just below it. */}
       <Pressable
         disabled={disabled}
         accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
         onPress={() => setOpen((o) => !o)}
-        style={[styles.toggle, { borderColor: theme.border }, disabled && styles.disabled]}>
-        <ThemedText type="small" themeColor="primary">
-          {open ? 'Hide colleagues' : 'Add colleagues'}
+        style={[
+          styles.select,
+          { backgroundColor: theme.background, borderColor: open ? theme.primary : theme.border },
+          disabled && styles.disabled,
+        ]}>
+        <ThemedText type="small" themeColor={value.length > 0 ? 'text' : 'textSecondary'} style={styles.selectText}>
+          {value.length > 0 ? `${value.length} colleague${value.length === 1 ? '' : 's'} selected` : 'Add colleagues'}
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          {open ? '▲' : '▼'}
         </ThemedText>
       </Pressable>
 
       {open ? (
-        !loaded ? (
-          <ThemedText type="small" themeColor="textSecondary">
-            Loading colleagues…
-          </ThemedText>
-        ) : colleagues.length === 0 ? (
-          <ThemedText type="small" themeColor="textSecondary">
-            No colleagues to show yet. Connect to the internet once so your list can load.
-          </ThemedText>
-        ) : (
-          <View style={styles.group}>
-            <ChoiceChips options={SCOPE_OPTIONS} value={scope} onChange={setScope} />
-            <TextField
-              label="Search colleague"
-              placeholder="Name, code or designation…"
-              value={search}
-              onChangeText={setSearch}
-            />
-            {filtered.length === 0 ? (
-              <ThemedText type="small" themeColor="textSecondary">
-                No matching colleagues.
-              </ThemedText>
-            ) : (
-              filtered.map((c) => {
-                const picked = value.includes(c.id);
-                return (
-                  <Pressable
-                    key={c.id}
-                    disabled={disabled || (!picked && value.length >= MAX_PICKED)}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: picked }}
-                    onPress={() => toggle(c.id)}>
-                    <ThemedView
-                      type="backgroundElement"
-                      style={[styles.row, picked && { borderColor: theme.primary }]}>
-                      <ThemedView type={picked ? 'primary' : 'backgroundSelected'} style={styles.tick}>
-                        <ThemedText type="small" themeColor="onPrimary">
-                          {picked ? '✓' : ''}
-                        </ThemedText>
-                      </ThemedView>
-                      <ThemedView type="backgroundElement" style={styles.rowText}>
-                        <ThemedText type="smallBold">{c.label ?? c.name}</ThemedText>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          {[c.employeeCode, c.designation].filter(Boolean).join(' · ')}
-                        </ThemedText>
-                      </ThemedView>
-                    </ThemedView>
-                  </Pressable>
-                );
-              })
-            )}
-          </View>
-        )
+        <View style={[styles.dropdown, { backgroundColor: theme.background, borderColor: theme.border }]}>
+          {!loaded ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              Loading colleagues…
+            </ThemedText>
+          ) : colleagues.length === 0 ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              No colleagues to show yet. Connect to the internet once so your list can load.
+            </ThemedText>
+          ) : (
+            <>
+              <ChoiceChips options={SCOPE_OPTIONS} value={scope} onChange={setScope} />
+              <TextField
+                label="Search colleague"
+                placeholder="Name, code or designation…"
+                value={search}
+                onChangeText={setSearch}
+              />
+              {/* A fixed-height, scrollable list, so a long team doesn't push the rest of the form away. */}
+              <ScrollView style={styles.list} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                {filtered.length === 0 ? (
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
+                    No matching colleagues.
+                  </ThemedText>
+                ) : (
+                  filtered.map((c) => {
+                    const picked = value.includes(c.id);
+                    return (
+                      <Pressable
+                        key={c.id}
+                        disabled={disabled || (!picked && value.length >= MAX_PICKED)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: picked }}
+                        onPress={() => toggle(c.id)}
+                        style={[styles.row, { borderBottomColor: theme.border }, picked && { backgroundColor: theme.backgroundElement }]}>
+                        <ThemedView type={picked ? 'primary' : 'backgroundSelected'} style={styles.tick}>
+                          <ThemedText type="small" themeColor="onPrimary">
+                            {picked ? '✓' : ''}
+                          </ThemedText>
+                        </ThemedView>
+                        <View style={styles.rowText}>
+                          <ThemedText type="smallBold">{c.label ?? c.name}</ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {[c.employeeCode, c.designation].filter(Boolean).join(' · ')}
+                          </ThemedText>
+                        </View>
+                      </Pressable>
+                    );
+                  })
+                )}
+              </ScrollView>
+              <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.done}>
+                <ThemedText type="smallBold" themeColor="primary">
+                  Done
+                </ThemedText>
+              </Pressable>
+            </>
+          )}
+        </View>
       ) : null}
     </View>
   );
@@ -150,24 +166,40 @@ const styles = StyleSheet.create({
   box: { gap: Spacing.two },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   chip: { borderRadius: 999, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
-  toggle: {
-    alignSelf: 'flex-start',
+  select: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.three,
   },
+  selectText: { flex: 1 },
   disabled: { opacity: 0.5 },
-  group: { gap: Spacing.two },
+  dropdown: {
+    borderWidth: 1,
+    borderRadius: Spacing.two,
+    padding: Spacing.two,
+    gap: Spacing.two,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  list: { maxHeight: 240 },
+  empty: { padding: Spacing.two },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.two,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  done: { alignSelf: 'flex-end', paddingVertical: Spacing.one, paddingHorizontal: Spacing.two },
   tick: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   rowText: { flex: 1 },
 });
