@@ -41,6 +41,8 @@ export interface UserRepositoryPort {
   update(id: string, input: Partial<Omit<User, 'id'>>, ctx?: TransactionContext): Promise<User>;
   /** Ids of the active users with this role, no paging — for a job that visits each. */
   listActiveIdsByRole(role: 'FIELD'): Promise<string[]>;
+  /** Every active user, any role, by name — the audience an Inbox message is resolved against. */
+  listActive(): Promise<User[]>;
   existsByEmployeeCode(employeeCode: string): Promise<boolean>;
   existsByEmail(email: string): Promise<boolean>;
   /** Backs the bootstrap-admin seed's idempotency check. */

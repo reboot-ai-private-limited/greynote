@@ -131,6 +131,10 @@ const TIMELESS = [
   '/api/marketing/campaigns',
   // The upcoming-holidays list (PRD 6.2 D) — a calendar, not a report on a past year.
   '/api/hr/holidays',
+  // Messages to a person: a feed of what is current, not a record of any year.
+  '/api/inbox',
+  '/api/inbox/unread-count',
+  '/api/inbox/messages',
   // Background sync: the phone never sends the year header on it (decision-log 2026-09-30).
   '/api/sync/pull',
   '/api/sync/drafts',

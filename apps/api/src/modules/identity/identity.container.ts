@@ -354,6 +354,18 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       isBlocked: (userId) => isBlocked.execute(userId),
       blockUser: (userId, reason) => blockUser.execute(userId, reason),
       listActiveFieldUserIds: () => userRepository.listActiveIdsByRole('FIELD'),
+      listActiveRecipients: async () => {
+        const [users, roles] = await Promise.all([userRepository.listActive(), roleRepository.list()]);
+        const roleName = new Map(roles.map((r) => [r.id, r.name]));
+        const profiles = await employeeProfileRepository.findByUserIds(users.map((u) => u.id));
+        const profileOf = new Map(profiles.map((p) => [p.userId, p]));
+        return users.flatMap((u) => {
+          const role = roleName.get(u.roleId);
+          if (!role) return [];
+          const p = profileOf.get(u.id);
+          return [{ id: u.id, role, hqId: p?.hqId ?? null, zoneId: p?.zoneId ?? null }];
+        });
+      },
       listFieldEmployees: async (onlyIds) => {
         const active = await userRepository.listActiveIdsByRole('FIELD');
         const keep = onlyIds ? new Set(onlyIds) : null;

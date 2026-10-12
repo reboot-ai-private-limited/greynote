@@ -21,3 +21,4 @@ export * from './config.js';
 export * from './attendance.js';
 export * from './reports.js';
 export * from './marketing.js';
+export * from './inbox.js';

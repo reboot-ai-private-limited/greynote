@@ -23,6 +23,13 @@
 | 4.06 | Leave & holidays: leave types, policies, holidays | listed; no half-day | |
 | 4.06a | Onboard an employee with "On probation" ticked, then one without | only the first gets paid leave during probation (K6); the second is never on probation, however recently they joined | |
 | 4.06b | Approve a leave whose first day has passed | refused (`LEAVE_APPROVAL_LATE`); rejecting works; an Admin exception lets it through once; a pending leave whose first day passed turns Rejected by itself (balance freed) | |
+| 4.06c | Leave & holidays → Holidays → Upload list (Admin): download the template, fill 3 rows, choose the file | a preview lists each row as New; Import adds them; HR does not see the Upload button | |
+| 4.06d | Upload a file with one unknown Zone and one bad date | nothing is added; both problems are listed with their line numbers | |
+| 4.06e | Upload the same good file again | every row is "Already there"; Import is off | |
+| 4.06f | Inbox messages (Admin, Daily work) → New message to one Zone | the sent list shows it with "0 of N" opened; as an employee of that Zone `GET /inbox` has it and the unread count is 1; an employee of another Zone has nothing | |
+| 4.06g | As that employee mark it read; as Admin open the sent list | the unread count is 0 and the list shows "1 of N" | |
+| 4.06h | Take the message back | it leaves the employee's inbox and count; the sent list shows "Taken back" | |
+| 4.06i | Send with an expiry a minute ahead and wait | after it passes the message is gone from the list and the count | |
 | 4.07 | Leave balances follow the financial year (K17) | a new year starts fresh | |
 | 4.08 | Promotions → Promote an employee who has direct reports | cannot save until every report has a new manager or is marked "stay" (K14) | |
 | 4.09 | Effective date | only the 1st of a month, next month or later (K13) | |

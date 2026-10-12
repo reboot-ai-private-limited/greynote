@@ -10,9 +10,9 @@ import { CreateCampaignUseCase, CreateVisualUseCase, ListCampaignsUseCase, ListV
 const k = (t: TargetKey) => `${t.userId}|${t.month}|${t.toMonth}|${t.productId}|${t.campaignId}`;
 class FakeTargets implements TargetRepositoryPort {
   rows = new Map<string, Target>();
-  async upsert(key: TargetKey, amountPaise: number, by: string, at: Date) {
+  async upsert(key: TargetKey, amountPaise: number, qty: number | null, by: string, at: Date) {
     const old = this.rows.get(k(key));
-    const row: Target = { id: old?.id ?? `t${this.rows.size + 1}`, ...key, targetAmountPaise: amountPaise, createdBy: by, createdAt: old?.createdAt ?? at, updatedAt: at };
+    const row: Target = { id: old?.id ?? `t${this.rows.size + 1}`, ...key, targetAmountPaise: amountPaise, targetQty: qty, createdBy: by, createdAt: old?.createdAt ?? at, updatedAt: at };
     this.rows.set(k(key), row);
     return row;
   }
@@ -102,9 +102,22 @@ const users: UserDirectoryPort = {
     return below(m).map((id) => user(id));
   },
 };
-const products: ProductPort = { async getProduct(id) { return id === 'prod1' ? { id, status: 'active' } : id === 'prodOff' ? { id, status: 'inactive' } : null; } };
+const products: ProductPort = { async getProduct(id) { return id === 'prod1' ? { id, status: 'active', ptrPaise: 1200 } : id === 'prodOff' ? { id, status: 'inactive', ptrPaise: null } : id === 'prodNoPtr' ? { id, status: 'active', ptrPaise: null } : null; } };
 const admin = { id: 'admin', role: 'ADMIN' };
 const f = (id: string) => ({ id, role: 'FIELD' });
+
+describe('target units and amount', () => {
+  const code = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => (e instanceof MarketingRefusal ? e.code : 'OTHER'));
+  it('units × PTR is the amount; an amount restates as units; no PTR or all products means amount only', async () => {
+    const targets = new FakeTargets();
+    const set = new SetTargetUseCase(targets, {} as never, products, { findUserSummary: async () => ({ id: 'mr1', status: 'active', role: 'FIELD' }), getDownline: async () => [] } as never, config, () => new Date('2026-10-12T05:00:00Z'));
+    const base = { userId: 'mr1', month: '2026-10', productId: 'prod1', campaignId: null };
+    expect(await set.execute(admin, { ...base, targetQty: 50 })).toMatchObject({ targetQty: 50, targetAmountPaise: 60_000 });
+    expect(await set.execute(admin, { ...base, targetAmountPaise: 120_000 })).toMatchObject({ targetQty: 100, targetAmountPaise: 120_000 });
+    expect(await set.execute(admin, { ...base, productId: null, targetAmountPaise: 5_000 })).toMatchObject({ targetQty: null });
+    expect(await code(set.execute(admin, { ...base, productId: 'prodNoPtr', targetQty: 5 }))).toBe(MARKETING_CODES.invalidDates);
+  });
+});
 
 describe('targets', () => {
   let targets: FakeTargets;

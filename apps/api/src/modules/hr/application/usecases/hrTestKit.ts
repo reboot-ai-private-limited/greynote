@@ -181,6 +181,14 @@ export class FakeTerritory implements TerritoryPort {
     const status = this.zones.get(id as never);
     return status ? { id, status } : null;
   }
+  async findZoneByName(name: string) {
+    const id = { 'west bengal': 'zone-wb', assam: 'zone-as' }[name.toLowerCase()];
+    return id ? this.getZone(id) : null;
+  }
+  async findHqByName(zoneId: string, name: string) {
+    const id = ({ 'zone-wb/siliguri': 'hq-slg', 'zone-wb/jalpaiguri': 'hq-jpg', 'zone-wb/old': 'hq-old' } as Record<string, string>)[`${zoneId}/${name.toLowerCase()}`];
+    return id ? this.getHq(id) : null;
+  }
 }
 
 export class FakeConfig {

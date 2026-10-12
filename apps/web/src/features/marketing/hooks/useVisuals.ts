@@ -46,6 +46,15 @@ export function useDoctorVisuals(doctorId: string) {
   );
 }
 
+export function useAddDoctorVisual(doctorId: string, onDone?: () => void) {
+  return useApiMutation<string>({
+    call: (token, visualId) => marketingApi.addDoctorVisuals(token, doctorId, [visualId]),
+    invalidates: [keys.visuals.forDoctor(doctorId)],
+    successMessage: 'Added to the doctor’s list.',
+    ...(onDone && { onSuccess: onDone }),
+  });
+}
+
 export function useRemoveDoctorVisual(doctorId: string, onDone?: () => void) {
   return useApiMutation<string>({
     call: (token, visualId) => marketingApi.removeDoctorVisual(token, doctorId, visualId),

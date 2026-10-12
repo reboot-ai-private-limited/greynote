@@ -16,7 +16,7 @@ const SCOPE_OPTIONS = HOLIDAY_SCOPES.map((s) => ({
 }));
 
 /** A list of checkboxes to pick any number of zones or HQs from. */
-function Choices({ legend, options, chosen, onToggle, error }: {
+export function Choices({ legend, options, chosen, onToggle, error }: {
   legend: string;
   options: { value: string; label: string }[];
   chosen: readonly string[];

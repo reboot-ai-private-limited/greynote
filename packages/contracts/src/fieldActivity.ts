@@ -157,6 +157,11 @@ export interface DoctorServiceDto {
   /** `APPROVED` for an Admin-made one, otherwise its request's status. */
   status: string;
   approval: { requestId: string; cycle: number } | null;
+  /** Admin or Accounts marked it carried out — the last step, after approval. */
+  doneBy: string | null;
+  doneAt: string | null;
+  /** Approved and not yet marked done. */
+  awaitingDone: boolean;
 }
 
 /** TA, DA and the manual reimbursements (travel, meals, other) apart, in whole paise, and how many expenses. */

@@ -423,6 +423,11 @@ export interface EmployeeTargetFigureDto {
   /** The employee's secondary in those months (that product's, or all), at PTR. */
   achievedPaise: number;
   achievementPercent: number | null;
+  /** The target in units (a product target with a PTR); `null` otherwise. Units × PTR is the amount. */
+  targetQty: number | null;
+  /** Approved secondary units in those months. */
+  achievedQty: number;
+  achievementQtyPercent: number | null;
 }
 
 /** `GET /reports/employee-sales?userId=&from=&to=` (months): one employee's targets, primary and secondary by product. */

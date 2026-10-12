@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fieldActivityApi } from '@/lib/api/endpoints/fieldActivity';
 import { hrApi } from '@/lib/api/endpoints/hr';
 import { planningApi } from '@/lib/api/endpoints/planning';
+import { salesApi } from '@/lib/api/endpoints/sales';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
@@ -91,6 +92,18 @@ export function useDoctorService(id: string) {
       queryKey: keys.doctorServices.detail(id),
       fetch: (token, signal) => fieldActivityApi.doctorService(token, id, signal),
       staleTime: staleTime.live,
+    }),
+  );
+}
+
+/** One employee's month of secondary, by product — what a `SECONDARY_SALES` request asks the manager to approve. */
+export function useSecondaryMonth(userId: string, month: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.employeeMonth.month(userId, month),
+      fetch: (token, signal) => salesApi.employeeSales(token, { userId, month }, signal),
+      staleTime: staleTime.live,
+      enabled: Boolean(userId && month),
     }),
   );
 }

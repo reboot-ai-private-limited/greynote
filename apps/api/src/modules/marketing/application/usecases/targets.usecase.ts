@@ -3,7 +3,7 @@ import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { Paise } from '@/shared/money/paise.js';
 import type { Target, TargetKey } from '../../domain/marketing.entities.js';
 import type { CampaignRepositoryPort, TargetRepositoryPort } from '../../domain/marketing.repository.ports.js';
-import { targetShare } from '../../domain/targetRange.js';
+import { targetShare, targetShareQty } from '../../domain/targetRange.js';
 import { MARKETING_CODES, MarketingRefusal } from '../../domain/marketingRefusal.js';
 import type { ProductPort, SalesPort, UserDirectoryPort } from '../../domain/ports.js';
 import { assertMonthInCurrentFinancialYear } from './fyGuard.js';
@@ -49,7 +49,7 @@ export class SetTargetUseCase {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async execute(actor: Actor, input: TargetScope & { userId: string; targetAmountPaise: Paise }): Promise<Target> {
+  async execute(actor: Actor, input: TargetScope & { userId: string; targetAmountPaise?: Paise | undefined; targetQty?: number | undefined }): Promise<Target> {
     const toMonth = input.toMonth ?? input.month;
     if (toMonth < input.month) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A target cannot end before it starts.');
     // Both ends must sit in the current financial year, so the run can never straddle two.
@@ -60,7 +60,19 @@ export class SetTargetUseCase {
     await assertMayAct(this.users, actor, input.userId, 'set');
     await assertScope(this.products, this.campaigns, input);
     const key: TargetKey = { userId: input.userId, month: input.month, toMonth, productId: input.productId, campaignId: input.campaignId };
-    return this.targets.upsert(key, input.targetAmountPaise, actor.id, this.now());
+    // Units and amount are one figure at the product's PTR: either given, both kept. A target for all products is an amount only.
+    let amount = input.targetAmountPaise;
+    let qty: number | null = null;
+    if (input.productId) {
+      const ptr = (await this.products.getProduct(input.productId))?.ptrPaise ?? null;
+      if (input.targetQty !== undefined) {
+        if (!ptr) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'This product has no PTR set, so give the target as an amount.');
+        qty = input.targetQty;
+        amount = qty * ptr;
+      } else if (ptr && amount) qty = Math.max(1, Math.round(amount / ptr));
+    }
+    if (!amount) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A target must be more than zero.');
+    return this.targets.upsert(key, amount, qty, actor.id, this.now());
   }
 }
 
@@ -164,8 +176,11 @@ export interface TargetShareRow {
   fromMonth: string;
   toMonth: string;
   amountPaise: Paise;
+  /** In units, for a product target with a PTR; otherwise null. */
+  qty: number | null;
   /** The part of it inside the window that was asked about. */
   sharePaise: Paise;
+  shareQty: number | null;
 }
 
 /** The general (no campaign) targets of these users that touch a range of months, with the share inside it — the Sales Dashboard's and employee view's read. */
@@ -175,6 +190,6 @@ export class ListTargetSharesUseCase {
   async execute(userIds: string[], fromMonth: string, toMonth: string): Promise<TargetShareRow[]> {
     const rows = await this.targets.listOverlapping(userIds, fromMonth, toMonth, { campaignId: null });
     const window = { from: fromMonth, to: toMonth };
-    return rows.map((t) => ({ id: t.id, userId: t.userId, productId: t.productId, fromMonth: t.month, toMonth: t.toMonth, amountPaise: t.targetAmountPaise, sharePaise: targetShare(t, window) }));
+    return rows.map((t) => ({ id: t.id, userId: t.userId, productId: t.productId, fromMonth: t.month, toMonth: t.toMonth, amountPaise: t.targetAmountPaise, qty: t.targetQty, sharePaise: targetShare(t, window), shareQty: targetShareQty(t, window) }));
   }
 }

@@ -5,6 +5,7 @@ import { buildFieldActivityContainer } from '@/modules/field-activity/field-acti
 import { buildFieldMasterDataContainer } from '@/modules/field-master-data/field-master-data.container.js';
 import { buildHealthContainer } from '@/modules/health/health.container.js';
 import { buildHrContainer } from '@/modules/hr/hr.container.js';
+import { buildInboxContainer } from '@/modules/inbox/inbox.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
 import { buildMarketingContainer } from '@/modules/marketing/marketing.container.js';
 import { buildPayrollContainer } from '@/modules/payroll/payroll.container.js';
@@ -23,6 +24,7 @@ export interface AppContainers {
   approval: ReturnType<typeof buildApprovalContainer>;
   planning: ReturnType<typeof buildPlanningContainer>;
   hr: ReturnType<typeof buildHrContainer>;
+  inbox: ReturnType<typeof buildInboxContainer>;
   sync: ReturnType<typeof buildSyncContainer>;
   fieldActivity: ReturnType<typeof buildFieldActivityContainer>;
   fieldMasterData: ReturnType<typeof buildFieldMasterDataContainer>;
@@ -68,6 +70,9 @@ export function buildContainers(): AppContainers {
   // (Approval), the leave-year and weekly-off settings (Config).
   const hr = buildHrContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
 
+  // Tier 3 — Inbox: messages an Admin sends to an audience. Resolves it against Identity (who, in which role, HQ and Zone) and checks Zones and HQs with Territory.
+  const inbox = buildInboxContainer(identity.contract, territory.contract);
+
   // Tier 3 — Field Master Data: employees and their downline (Identity), the Routes Doctors and Chemists sit on and an MR covers (Territory), the NEW_DOCTOR workflow
   // (Approval), the daily report's push, where an offline-added Doctor arrives (Sync), and the visibility
   // and auto-assign switches (Config).
@@ -80,7 +85,7 @@ export function buildContainers(): AppContainers {
   planning.bindDayReported((userId, date) => fieldActivity.contract.hasQualifyingDcr(userId, date));
 
   // Tier 4 — Sales & Orders: monthly stock counts at Chemists and Distributors (Field Master Data), who may see whose (Identity), the daily push (Sync).
-  const sales = buildSalesContainer(identity.contract, fieldMasterData.contract, sync.contract, config.contract);
+  const sales = buildSalesContainer(identity.contract, fieldMasterData.contract, sync.contract, approval.contract, config.contract);
 
   // Tier 5 — Attendance: each day of a field employee's month as holiday, off, leave, strike, present or absent. Reads Identity, HR, Planning, Field Activity and Config; owns no data.
   const attendance = buildAttendanceContainer(identity.contract, hr.contract, planning.contract, fieldActivity.contract, config.contract);
@@ -101,5 +106,5 @@ export function buildContainers(): AppContainers {
   // slices of the phone's cache are wired here, from their public contracts.
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
-  return { health, config, identity, territory, approval, planning, hr, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance, reports };
+  return { health, config, identity, territory, approval, planning, hr, inbox, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance, reports };
 }

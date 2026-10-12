@@ -27,7 +27,7 @@ the day's drafts. The server's answer wins.
 
 **In the daily report (created offline, sent at Submit):** Doctors the MR added, Doctor and Chemist
 Calls with the samples given in them, Follow-ups, Expenses, Orders, Doctor Gifts marked done, Doctor
-Service requests, and the Monthly Stock counts. (Field Activity, Sales & Orders register these kinds
+Service requests, and the Monthly Stock counts (the phone no longer sends these since 2026-10-12; the kind is still accepted). (Field Activity, Sales & Orders register these kinds
 in Phase 6; today only *Add Doctor* exists to sync.)
 
 **Online only — needs a live connection at the moment of the action:** Daily and Monthly Plan

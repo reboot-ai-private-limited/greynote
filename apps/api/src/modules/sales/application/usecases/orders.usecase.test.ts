@@ -43,7 +43,7 @@ const mr1 = { id: 'mr1', role: 'FIELD' };
 const mr2 = { id: 'mr2', role: 'FIELD' };
 const asm = { id: 'asm', role: 'FIELD' };
 const admin = { id: 'admin', role: 'ADMIN' };
-const order = (over: Partial<PlaceOrderInput> = {}): PlaceOrderInput => ({ outlet: { type: 'CHEMIST', id: 'chem1' }, remarks: null, lines: [{ productId: 'prod1', quantity: 3, unitPricePaise: 12_50 }, { productId: 'prod2', quantity: 10, unitPricePaise: 99 }], ...over });
+const order = (over: Partial<PlaceOrderInput> = {}): PlaceOrderInput => ({ outlet: { type: 'DISTRIBUTOR', id: 'dist1' }, remarks: null, lines: [{ productId: 'prod1', quantity: 3, unitPricePaise: 12_50 }, { productId: 'prod2', quantity: 10, unitPricePaise: 99 }], ...over });
 
 describe('orders', () => {
   let orders: FakeOrders;
@@ -98,6 +98,13 @@ describe('orders', () => {
     expect(await code(finish.execute(mr1, 'o1', 'DONE'))).toBe(STOCK_CODES.orderNotPlaced);
     expect(await code(finish.execute(mr1, 'o1', 'CANCELLED'))).toBe(STOCK_CODES.orderNotPlaced);
     expect(orders.rows[0]!.status).toBe('DONE');
+  });
+
+  it('a chemist order is information only: it can be placed but never marked done or cancelled', async () => {
+    await place.execute(mr1, order({ outlet: { type: 'CHEMIST', id: 'chem1' } }));
+    expect(await code(finish.execute(mr1, 'o1', 'DONE'))).toBe(STOCK_CODES.orderInfoOnly);
+    expect(await code(finish.execute(admin, 'o1', 'CANCELLED'))).toBe(STOCK_CODES.orderInfoOnly);
+    expect(orders.rows[0]!.status).toBe('PLACED');
   });
 
   it('cancels a PLACED order, and a cancelled one cannot then be completed', async () => {

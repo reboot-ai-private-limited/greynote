@@ -43,6 +43,15 @@ export function useSaveSecondary(onDone: () => void) {
   });
 }
 
+export function useSubmitSecondary(onDone: () => void) {
+  return useApiMutation<{ month: string }, { requestId: string; sent: number }>({
+    call: (token, body) => salesApi.submitEmployeeSecondary(token, body),
+    invalidates: [...refreshes, keys.approvals.all()],
+    successMessage: 'Sent to your manager for approval.',
+    onSuccess: onDone,
+  });
+}
+
 export function useSavePrimary(onDone: () => void) {
   return useApiMutation<SaveEmployeePrimaryDto, { added: number; changed: number }>({
     call: (token, body) => salesApi.saveEmployeePrimary(token, body),

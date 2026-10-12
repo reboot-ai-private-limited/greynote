@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { EmployeeSale } from '../../domain/employeeSale.entity.js';
+import type { EmployeeSale, SecondaryStatus } from '../../domain/employeeSale.entity.js';
 import type { EmployeeSaleFilter, EmployeeSaleRepositoryPort } from '../../domain/employeeSale.repository.port.js';
 import type { MonthlyStockRepositoryPort } from '../../domain/monthlyStock.repository.port.js';
 import type { OrderRepositoryPort, UserOrderSum } from '../../domain/order.repository.port.js';
 import { StockRefusal } from '../../domain/stockRefusal.js';
 import { SalesClock } from '../salesClock.js';
-import { ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase } from './employeeSales.usecase.js';
+import type { SalesApprovalsPort } from '../../domain/approvals.port.js';
+import { linkQtyAndAmount, makeSecondaryStatusHandler, ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SubmitEmployeeSecondaryUseCase } from './employeeSales.usecase.js';
 import { FakeMaster, FakeUsers } from './salesTestKit.js';
 
 class FakeSales implements EmployeeSaleRepositoryPort {
@@ -15,12 +16,17 @@ class FakeSales implements EmployeeSaleRepositoryPort {
   }
   private row(userId: string, productId: string, month: string, by: string, at: Date) {
     let r = this.rows.find((x) => x.userId === userId && x.productId === productId && x.month === month);
-    if (!r) this.rows.push((r = { id: `e${this.rows.length}`, userId, productId, month, secondaryQty: null, adjustmentQty: 0, adjustmentReason: null, updatedBy: by, updatedAt: at, history: [] }));
+    if (!r) this.rows.push((r = { id: `e${this.rows.length}`, userId, productId, month, secondaryQty: null, secondaryAmountPaise: null, secondaryStatus: 'DRAFT', adjustmentQty: 0, adjustmentReason: null, updatedBy: by, updatedAt: at, history: [] }));
     return r;
   }
-  async setSecondary(userId: string, month: string, lines: Array<{ productId: string; qty: number }>, by: string, at: Date) {
-    for (const l of lines) Object.assign(this.row(userId, l.productId, month, by, at), { secondaryQty: l.qty, updatedBy: by, updatedAt: at });
+  async setSecondary(userId: string, month: string, lines: Array<{ productId: string; qty: number; amountPaise: number | null }>, status: SecondaryStatus, by: string, at: Date) {
+    for (const l of lines) Object.assign(this.row(userId, l.productId, month, by, at), { secondaryQty: l.qty, secondaryAmountPaise: l.amountPaise, secondaryStatus: status, updatedBy: by, updatedAt: at });
     return { added: lines.length, changed: 0 };
+  }
+  async setSecondaryStatus(userId: string, month: string, from: SecondaryStatus[], to: SecondaryStatus) {
+    const hit = this.rows.filter((r) => r.userId === userId && r.month === month && r.secondaryQty !== null && from.includes(r.secondaryStatus));
+    for (const r of hit) r.secondaryStatus = to;
+    return hit.length;
   }
   async setAdjustment(userId: string, month: string, lines: Array<{ productId: string; qty: number; reason: string | null }>, by: string, at: Date) {
     for (const l of lines) Object.assign(this.row(userId, l.productId, month, by, at), { adjustmentQty: l.qty, adjustmentReason: l.reason, updatedBy: by, updatedAt: at });
@@ -28,6 +34,8 @@ class FakeSales implements EmployeeSaleRepositoryPort {
   }
 }
 
+const submitted: Array<{ kind: string; recordId: string; submitterId: string }> = [];
+const approvals = { registerKind() {}, getForRecord: async () => null, submit: async (i: { kind: string; recordId: string; submitterId: string }) => { submitted.push(i); return { id: 'req1' }; } } as unknown as SalesApprovalsPort;
 let unlocked = false;
 const stock = { async isUnlocked() { return unlocked; } } as unknown as MonthlyStockRepositoryPort;
 const orderSums: UserOrderSum[] = [];
@@ -44,6 +52,7 @@ describe('employee sales', () => {
   let secondary: SaveEmployeeSecondaryUseCase;
   let primary: SaveEmployeePrimaryUseCase;
   let read: ReadEmployeeSalesUseCase;
+  let submit: SubmitEmployeeSecondaryUseCase;
 
   beforeEach(() => {
     unlocked = false;
@@ -55,6 +64,8 @@ describe('employee sales', () => {
     secondary = new SaveEmployeeSecondaryUseCase(users, master, sales, stock, clock, config);
     primary = new SaveEmployeePrimaryUseCase(users, master, sales, clock, config);
     read = new ReadEmployeeSalesUseCase(users, master, sales, orders, clock);
+    submit = new SubmitEmployeeSecondaryUseCase(sales, approvals, { run: (fn) => fn(undefined) }, clock, config);
+    submitted.length = 0;
   });
 
   it('lets an employee enter their own secondary, a manager their team\'s, and nobody anyone else\'s', async () => {
@@ -74,7 +85,7 @@ describe('employee sales', () => {
     expect(await code(secondary.execute(mr1, { userId: 'mr1', month: '2026-08', lines: line }))).toBe('MONTH_CLOSED');
     expect(await code(secondary.execute(admin, { userId: 'mr1', month: '2026-08', lines: line }))).toBeNull();
     unlocked = true;
-    expect(await code(secondary.execute(mr1, { userId: 'mr1', month: '2026-08', lines: line }))).toBeNull();
+    expect(await code(secondary.execute(mr1, { userId: 'mr1', month: '2026-08', lines: [{ productId: 'prod2', qty: 5 }] }))).toBeNull();
   });
 
   it('changes primary only for Admin-sized reasons: a reason is needed for a non-zero change', async () => {
@@ -93,5 +104,46 @@ describe('employee sales', () => {
     expect(dto.lines.find((l) => l.product.id === 'prod1')).toMatchObject({ orderPrimaryQty: 20, adjustmentQty: 5, primaryQty: 25, secondaryQty: 12 });
     expect(dto.lines.find((l) => l.product.id === 'prod2')).toMatchObject({ orderPrimaryQty: 0, primaryQty: 0, secondaryQty: null });
     expect(await code(read.execute(mr2, { userId: 'mr1', month: '2026-09' }))).toBe('NOT_YOUR_TEAM');
+  });
+
+  it('units and amount are one figure at PTR: either given, both kept', async () => {
+    expect(linkQtyAndAmount({ qty: 5 }, 1200)).toEqual({ qty: 5, amountPaise: 6000 });
+    expect(linkQtyAndAmount({ amountPaise: 6100 }, 1200)).toEqual({ qty: 5, amountPaise: 6000 });
+    expect(linkQtyAndAmount({ qty: 5 }, null)).toEqual({ qty: 5, amountPaise: null });
+    expect(() => linkQtyAndAmount({ amountPaise: 100 }, null)).toThrow(/no PTR/);
+    await secondary.execute(mr1, { userId: 'mr1', month: '2026-10', lines: [{ productId: 'prod1', amountPaise: 12_000 }] });
+    expect(sales.rows[0]).toMatchObject({ secondaryQty: 10, secondaryAmountPaise: 12_000, secondaryStatus: 'DRAFT' });
+  });
+
+  it('own entry is a draft; a manager’s or Admin’s is approved at once', async () => {
+    await secondary.execute(mr1, { userId: 'mr1', month: '2026-10', lines: [{ productId: 'prod1', qty: 3 }] });
+    expect(sales.rows[0]!.secondaryStatus).toBe('DRAFT');
+    await secondary.execute(asm, { userId: 'mr1', month: '2026-10', lines: [{ productId: 'prod1', qty: 4 }] });
+    expect(sales.rows[0]).toMatchObject({ secondaryQty: 4, secondaryStatus: 'APPROVED' });
+  });
+
+  it('sending a month starts the approval; it is then locked for the employee until withdrawn or reopened', async () => {
+    const line = (qty: number) => ({ userId: 'mr1', month: '2026-10', lines: [{ productId: 'prod1', qty }] });
+    expect(await code(submit.execute(mr1, '2026-10'))).toBe('SECONDARY_NOTHING_TO_SEND');
+    await secondary.execute(mr1, line(3));
+    expect(await submit.execute(mr1, '2026-10')).toEqual({ requestId: 'req1', sent: 1 });
+    expect(submitted[0]).toEqual({ kind: 'SECONDARY_SALES', recordId: 'mr1:2026-10', submitterId: 'mr1' });
+    expect(sales.rows[0]!.secondaryStatus).toBe('PENDING');
+    expect(await code(secondary.execute(mr1, line(9)))).toBe('SECONDARY_LOCKED');
+    const onChange = makeSecondaryStatusHandler(sales);
+    await onChange({ recordId: 'mr1:2026-10', status: 'APPROVED' }, undefined);
+    expect(sales.rows[0]!.secondaryStatus).toBe('APPROVED');
+    expect(await code(secondary.execute(mr1, line(9)))).toBe('SECONDARY_LOCKED');
+    await onChange({ recordId: 'mr1:2026-10', status: 'REOPENED' }, undefined);
+    expect(sales.rows[0]!.secondaryStatus).toBe('DRAFT');
+    expect(await code(secondary.execute(mr1, line(9)))).toBeNull();
+  });
+
+  it('a rejected month can be corrected and sent again', async () => {
+    await secondary.execute(mr1, { userId: 'mr1', month: '2026-10', lines: [{ productId: 'prod1', qty: 3 }] });
+    await submit.execute(mr1, '2026-10');
+    await makeSecondaryStatusHandler(sales)({ recordId: 'mr1:2026-10', status: 'REJECTED' }, undefined);
+    expect(sales.rows[0]!.secondaryStatus).toBe('REJECTED');
+    expect((await submit.execute(mr1, '2026-10')).sent).toBe(1);
   });
 });

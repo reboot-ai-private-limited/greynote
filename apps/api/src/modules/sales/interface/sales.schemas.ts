@@ -94,8 +94,13 @@ const uniqueProducts = (lines: Array<{ productId: string }>) => new Set(lines.ma
 export const saveEmployeeSecondaryBodySchema = z.object({
   userId: objectIdSchema,
   month: monthSchema,
-  lines: z.array(z.object({ productId: objectIdSchema, qty: qtySchemaWhole })).min(1).max(500).refine(uniqueProducts, { message: 'A product appears twice.' }),
+  lines: z
+    .array(z.object({ productId: objectIdSchema, qty: qtySchemaWhole.optional(), amountPaise: paiseSchema.optional() }).refine((l) => l.qty !== undefined || l.amountPaise !== undefined, { message: 'Give units or an amount.' }))
+    .min(1)
+    .max(500)
+    .refine(uniqueProducts, { message: 'A product appears twice.' }),
 });
+export const submitEmployeeSecondaryBodySchema = z.object({ month: monthSchema });
 export const saveEmployeePrimaryBodySchema = z.object({
   userId: objectIdSchema,
   month: monthSchema,

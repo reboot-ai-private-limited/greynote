@@ -71,6 +71,9 @@ export const fieldActivityApi = {
   overrideGeofence: (token: string, dcrId: string, callId: string, body: OverrideGeofenceDto) =>
     request<{ id: string }>(`/field-activity/dcr/${dcrId}/calls/${callId}/override-geofence`, { method: 'POST', token, body }),
 
+  /** Admin or Accounts: the last step of an approved service. */
+  markDoctorServiceDone: (token: string, id: string) =>
+    request<DoctorServiceDto>(`/field-activity/doctor-services/${id}/done`, { method: 'POST', token }),
   doctorService: (token: string, id: string, signal?: AbortSignal) =>
     request<DoctorServiceDto>(`/field-activity/doctor-services/${id}`, { token, signal }),
 };

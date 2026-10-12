@@ -3,7 +3,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { GateRefusal } from '../../domain/gateRefusal.js';
 import { LogRefusal } from '../../domain/logRefusal.js';
 import { faKit, Tx } from './faTestKit.js';
-import { GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase } from './servicesAndGifts.usecase.js';
+import { GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase, MarkDoctorServiceDoneUseCase } from './servicesAndGifts.usecase.js';
 
 const REC = { userId: 'mr1', clientId: 'c-1', recordedAt: new Date('2026-10-05T04:00:00Z') };
 const svc = { doctorId: 'd1', serviceType: 'TOUR_PACKAGE' as const, amountPaise: 1_500_000, remarks: null };
@@ -84,6 +84,31 @@ describe('Doctor Service by id', () => {
     expect((await get.execute({ id: 'mr1', role: 'FIELD' }, serverId)).id).toBe(serverId);
     expect(((await refusal(get.execute({ id: 'mr2', role: 'FIELD' }, serverId))) as AppError).statusCode).toBe(404);
     expect(((await refusal(get.execute({ id: 'admin', role: 'ADMIN' }, 'nope'))) as AppError).statusCode).toBe(404);
+  });
+});
+
+describe('Doctor Service done', () => {
+  let kit: ReturnType<typeof faKit>;
+  beforeEach(() => {
+    kit = faKit();
+  });
+
+  it('only once approved; then done once, by Admin or Accounts; Accounts can read the list', async () => {
+    const done = new MarkDoctorServiceDoneUseCase(kit.services, kit.approvals, kit.fmd, () => new Date('2026-10-12T05:00:00Z'));
+    const { serverId } = await kit.submitService.execute(REC, svc, new Tx());
+    expect(((await refusal(done.execute('acc', serverId))) as AppError).statusCode).toBe(409); // still SUBMITTED
+    kit.approvals.requests.get(`DOCTOR_SERVICE:${serverId}`)!.status = 'APPROVED';
+    const list = new ListDoctorServicesUseCase(kit.services, kit.approvals, kit.fmd);
+    expect((await list.execute({ id: 'acc', role: 'ACCOUNTANT' }, {}))[0]).toMatchObject({ awaitingDone: true });
+    expect(await done.execute('acc', serverId)).toMatchObject({ doneBy: 'acc', awaitingDone: false });
+    expect(((await refusal(done.execute('admin', serverId))) as AppError).statusCode).toBe(409); // already done
+    expect(((await refusal(done.execute('admin', 'nope'))) as AppError).statusCode).toBe(404);
+  });
+
+  it('an Admin-made service is approved already and waits only for Done', async () => {
+    const s = await kit.adminService.execute('admin', svc);
+    const done = new MarkDoctorServiceDoneUseCase(kit.services, kit.approvals, kit.fmd);
+    expect((await done.execute('admin', s.id)).doneAt).toBeInstanceOf(Date);
   });
 });
 

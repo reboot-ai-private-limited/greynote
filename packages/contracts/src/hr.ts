@@ -124,3 +124,27 @@ export interface AdjustLeaveBalanceDto {
   allocatedDays: number;
   reason: string;
 }
+
+/** One line of the holiday CSV the API refused (`data.errors` of the 400). `line` is the file's line; 0 = the file as a whole. */
+export interface HolidayImportErrorDto {
+  line: number;
+  message: string;
+}
+export interface HolidayImportRowDto {
+  line: number;
+  name: string;
+  date: string;
+  scope: HolidayScope;
+  zones: string[];
+  /** `Zone/HQ`. */
+  hqs: string[];
+  /** `NEW` will be added; `EXISTS` is already on the calendar and is skipped. */
+  status: 'NEW' | 'EXISTS';
+}
+/** Result of `POST /hr/holidays/import` (and of its `?dryRun=true` preview). */
+export interface HolidayImportResultDto {
+  dryRun: boolean;
+  created: number;
+  skipped: number;
+  rows: HolidayImportRowDto[];
+}

@@ -12,6 +12,9 @@ export interface EmployeeSaleDoc {
   productId: Types.ObjectId;
   month: string;
   secondaryQty: number | null;
+  secondaryAmountPaise?: number | null;
+  /** Absent on rows written before approval existed: those read as APPROVED. */
+  secondaryStatus?: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
   adjustmentQty: number;
   adjustmentReason: string | null;
   updatedBy: Types.ObjectId;
@@ -35,6 +38,8 @@ const employeeSaleSchema = new Schema<EmployeeSaleDoc>({
   productId: { type: Schema.Types.ObjectId, required: true, ref: 'Product' },
   month: { type: String, required: true, match: /^\d{4}-(0[1-9]|1[0-2])$/ },
   secondaryQty: { type: Number, default: null, min: 0, validate: whole },
+  secondaryAmountPaise: { type: Number, default: null, min: 0 },
+  secondaryStatus: { type: String, enum: ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED'] },
   adjustmentQty: { type: Number, required: true, default: 0, validate: whole },
   adjustmentReason: { type: String, default: null },
   updatedBy: { type: Schema.Types.ObjectId, required: true, ref: 'User' },

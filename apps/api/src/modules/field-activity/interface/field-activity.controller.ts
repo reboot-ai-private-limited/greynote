@@ -8,7 +8,7 @@ import type { ListExpensesUseCase, MarkExpensePaidUseCase } from '../application
 import type { GrantExpenseMonthUseCase, ListExpenseMonthGrantsUseCase, RevokeExpenseMonthGrantUseCase } from '../application/usecases/expenseMonthGrants.usecase.js';
 import type { ExpenseMonthService } from '../application/usecases/expenseMonth.usecase.js';
 import type { ListExpensePayoutsUseCase, PayMonthExpensesUseCase } from '../application/usecases/expensePayouts.usecase.js';
-import type { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase } from '../application/usecases/servicesAndGifts.usecase.js';
+import type { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase, MarkDoctorServiceDoneUseCase } from '../application/usecases/servicesAndGifts.usecase.js';
 import type { DeleteDcrRecordUseCase } from '../application/usecases/deleteDcrRecord.usecase.js';
 import type { OverrideGeofenceUseCase } from '../application/usecases/overrideGeofence.usecase.js';
 import type { GetDcrDetailUseCase } from '../application/usecases/getDcrDetail.usecase.js';
@@ -21,7 +21,7 @@ function actorOf(req: Request): Actor {
   return { id: req.user.sub, role: req.user.role };
 }
 
-export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'deleteCall' | 'deleteFollowup' | 'createAdminService' | 'listServices' | 'getService' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth' | 'grantExpenseMonth' | 'listExpenseGrants' | 'revokeExpenseGrant', RequestHandler>;
+export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'deleteCall' | 'deleteFollowup' | 'createAdminService' | 'listServices' | 'getService' | 'markServiceDone' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth' | 'grantExpenseMonth' | 'listExpenseGrants' | 'revokeExpenseGrant', RequestHandler>;
 
 export function makeFieldActivityControllers(u: {
   listMine: ListMyDcrsUseCase;
@@ -33,6 +33,7 @@ export function makeFieldActivityControllers(u: {
   adminService: CreateAdminDoctorServiceUseCase;
   listServices: ListDoctorServicesUseCase;
   getService: GetDoctorServiceUseCase;
+  markServiceDone: MarkDoctorServiceDoneUseCase;
   allocateGift: AllocateGiftUseCase;
   listGifts: ListGiftsUseCase;
   listExpenses: ListExpensesUseCase;
@@ -79,6 +80,7 @@ export function makeFieldActivityControllers(u: {
     listServices: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.listServices.execute(actorOf(req), req.query as unknown as z.output<typeof listServicesQuerySchema>), 'Doctor services.', 200),
     ),
+    markServiceDone: asyncHandler(async (req, res) => sendSuccess(req, res, await u.markServiceDone.execute(actorOf(req).id, requiredParam(req.params, 'id')), 'The service was marked done.', 200)),
     getService: asyncHandler(async (req, res) => sendSuccess(req, res, await u.getService.execute(actorOf(req), requiredParam(req.params, 'id')), 'Doctor service.', 200)),
     allocateGift: asyncHandler(async (req, res) => sendSuccess(req, res, await u.allocateGift.execute(actorOf(req).id, req.body as z.output<typeof allocateGiftBodySchema>), 'The gift was allocated.', 201)),
     listGifts: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listGifts.execute(actorOf(req), req.query as unknown as z.output<typeof listGiftsQuerySchema>), 'Doctor gifts.', 200)),

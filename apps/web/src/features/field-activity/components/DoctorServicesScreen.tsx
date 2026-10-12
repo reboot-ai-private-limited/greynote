@@ -18,7 +18,8 @@ import { serviceOriginLabel, serviceTypeLabel } from '@/features/approvals/lib/p
 import { toErrorState } from '@/lib/api/toErrorState';
 import { formatDate, formatMoney } from '@/lib/format';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useCreateDoctorService, useDoctorServices } from '../hooks/useDoctorSpend';
+import { useSession } from '@/lib/auth/SessionProvider';
+import { useCreateDoctorService, useDoctorServices, useMarkServiceDone } from '../hooks/useDoctorSpend';
 import { buildService, EMPTY_SERVICE, type ServiceDraft } from '../lib/doctorSpend';
 
 const TYPE_OPTIONS = DOCTOR_SERVICE_TYPES.map((t) => ({ value: t, label: serviceTypeLabel(t) }));
@@ -95,6 +96,9 @@ export function DoctorServicesScreen() {
   const [creating, setCreating] = useState(false);
   const query = useDoctorServices({});
   const rows = query.data ?? [];
+  const { user: me } = useSession();
+  const isAdmin = me?.role === 'ADMIN';
+  const markDone = useMarkServiceDone();
 
   const columns: readonly Column<DoctorServiceDto>[] = [
     {
@@ -109,32 +113,45 @@ export function DoctorServicesScreen() {
       key: 'status',
       header: 'Status',
       render: (s) => (
-        <Badge
-          tone={
-            s.status === 'APPROVED' ? 'success' : s.status === 'REJECTED' ? 'danger' : 'warning'
-          }
-        >
-          {s.status.replace(/_/g, ' ').toLowerCase()}
-        </Badge>
+        s.doneAt ? (
+          <Badge tone="success">Done</Badge>
+        ) : (
+          <Badge tone={s.status === 'APPROVED' ? 'accent' : s.status === 'REJECTED' ? 'danger' : 'warning'}>
+            {s.status === 'APPROVED' ? 'Approved, to do' : s.status.replace(/_/g, ' ').toLowerCase()}
+          </Badge>
+        )
       ),
     },
     { key: 'remarks', header: 'Remarks', render: (s) => s.remarks ?? '—' },
     { key: 'date', header: 'Date', render: (s) => formatDate(s.createdAt) },
+    {
+      key: 'actions',
+      header: '',
+      className: 'text-right',
+      render: (s) =>
+        s.awaitingDone ? (
+          <Button size="sm" disabled={readOnly || markDone.isPending} onClick={() => markDone.mutate(s.id)}>
+            Mark done
+          </Button>
+        ) : null,
+    },
   ];
 
   return (
     <>
       <PageHeader
         title="Doctor services"
-        description="Tour packages, gifts, online promotion and others given to doctors. An MR's request waits for approval; one Admin records takes effect at once."
+        description="Tour packages, gifts, online promotion and others given to doctors. An MR's request waits for approval; one Admin records is approved at once. Once approved, Admin or Accounts marks it done."
         actions={
-          <Button
-            disabled={readOnly}
-            title={readOnly ? 'A past financial year is read-only' : undefined}
-            onClick={() => setCreating(true)}
-          >
-            New service
-          </Button>
+          isAdmin ? (
+            <Button
+              disabled={readOnly}
+              title={readOnly ? 'A past financial year is read-only' : undefined}
+              onClick={() => setCreating(true)}
+            >
+              New service
+            </Button>
+          ) : undefined
         }
       />
       <Card flat>

@@ -98,7 +98,7 @@ applies because the design changed (the decision-log entry says how).
 | F7 | Salary override policy for Payroll (§21.5). | Not decided | Open |
 | F9 | Leave approval: straight to HR, or through the manager (§11.2)? | **Answered 2026-09-24:** Employee → Manager → HR or Admin | Confirmed |
 | F10 | After approval, can the employee edit? | **Answered 2026-09-24:** No — locked; Admin can override (reopen or edit) | Confirmed |
-| F8 | Notifications: which go to the employee, their manager, and Admin (§23.3)? | Not decided | Open |
+| F8 | Notifications: which go to the employee, their manager, and Admin (§23.3)? | **Partly answered 2026-10-12:** the Admin can send a message to an audience (Inbox, no push). Which *system events* (target set, exception granted, call assigned, approval decided) also notify, and whom, is still not decided | Open |
 | F11 | Leave year: financial year (April–March) or calendar year? | Financial year, from *config* `FY_START_MONTH` | Accepted 2026-09-28 |
 | F12 | Do the weekly off day and holidays inside a leave range count as leave days? | No — skipped (*config* `WEEKLY_OFF_DAY`, Sunday; holidays for the employee's HQ/Zone) | Accepted 2026-09-28 |
 | F13 | Someone joining mid-year: full allocation or a share? | A share for the months left in the leave year, rounded to half days | Accepted 2026-09-28 |
@@ -130,7 +130,7 @@ depends on are answered or explicitly accepted as "build with today's assumption
 
 | # | Question | Today | Status |
 |---|---|---|---|
-| G1 | When does the field app send its offline data? | Only when the MR taps the **daily report's Submit** with a live connection — one push for the whole day (Doctors added, calls, samples, follow-ups, expenses, orders, gifts done, service requests, monthly stock counts). Plans, Leave, approvals and login need a connection at the moment of the action. **Amended 2026-09-29 by G9:** nothing *counts* until Submit, but the phone also keeps a private backup copy on the server (below) | Accepted 2026-09-29 (amended by G9; confirmed 2026-09-29) |
+| G1 | When does the field app send its offline data? | Only when the MR taps the **daily report's Submit** with a live connection — one push for the whole day (Doctors added, calls, samples, follow-ups, expenses, orders, gifts done, service requests; monthly stock counts are no longer collected from the phone — the Monthly stock tab was removed 2026-10-12). Plans, Leave, approvals and login need a connection at the moment of the action. **Amended 2026-09-29 by G9:** nothing *counts* until Submit, but the phone also keeps a private backup copy on the server (below) | Accepted 2026-09-29 (amended by G9; confirmed 2026-09-29) |
 | G2 | How does the app refresh its cached Doctors, Routes, Products and balances? | A versioned snapshot per source, not a row-by-row delta (a delta can't see a Doctor appearing or vanishing when an MR's Routes change) | Accepted 2026-09-29 |
 | G3 | For a record made offline, which time decides whether it was late? | The phone's creation time — not in the future beyond 10 min, not older than 7 days (*config* `SYNC_CLOCK_SKEW_MINUTES`, `SYNC_MAX_AGE_DAYS`) | Accepted 2026-09-29 |
 | G4 | Where is the geofence radius set? | SystemConfig (`GEO_FENCE_RADIUS_METERS`, default 100 m), editable by Admin — see C5 | Accepted 2026-09-29 |

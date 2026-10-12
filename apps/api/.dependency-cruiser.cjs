@@ -37,8 +37,8 @@ const MODULE_TIERS = [
     ['health', 'config'], //          Tier 0 — SystemConfig; no dependencies
     ['identity'], //                  Tier 1 — User, Role, Designation, PayBand, UserSession
     ['territory', 'approval', 'sync'], // Tier 2 — Zone, HQ, Area, Route, RouteAssignment; ApprovalRequest; SyncReceipt
-    ['field-master-data', 'planning', 'hr'], //  Tier 3 — Doctor/Chemist/Distributor/Product/
-    //                                            allocations; DailyPlan/MonthlyPlan; leave & holidays
+    ['field-master-data', 'planning', 'hr', 'inbox'], //  Tier 3 — Doctor/Chemist/Distributor/Product/
+    //                                            allocations; DailyPlan/MonthlyPlan; leave & holidays; inbox messages
     ['field-activity', 'sales'], //   Tier 4 — DCR/calls/expenses; Order/MonthlyStock
     ['attendance'], //               Tier 5 — day-by-day status (reads HR, Planning, Field Activity); owns no data; Payroll and the reports read it
     ['marketing', 'payroll'], //      Tier 6 — Visual/Campaign/Target (reads Sales' order totals); PayrollRun

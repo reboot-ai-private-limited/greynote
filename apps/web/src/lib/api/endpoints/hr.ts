@@ -4,6 +4,7 @@ import type {
   CreateHolidayDto,
   CreateLeaveTypeDto,
   HolidayDto,
+  HolidayImportResultDto,
   HolidayScope,
   LeaveBalanceDto,
   LeaveDetailDto,
@@ -75,4 +76,10 @@ export const hrApi = {
     request<HolidayDto[]>('/hr/holidays', { token, query: { ...query }, signal }),
   createHoliday: (token: string, body: CreateHolidayDto) => request<HolidayDto>('/hr/holidays', { method: 'POST', token, body }),
   deleteHoliday: (token: string, id: string) => request<null>(`/hr/holidays/${id}`, { method: 'DELETE', token }),
+  /** Admin: a CSV of holidays. `dryRun` only checks it and previews. A bad file is a 400 whose `data.errors` lists each line. */
+  importHolidays: (token: string, file: File, dryRun: boolean) => {
+    const body = new FormData();
+    body.append('file', file);
+    return request<HolidayImportResultDto>('/hr/holidays/import', { method: 'POST', token, body, query: { dryRun } });
+  },
 };

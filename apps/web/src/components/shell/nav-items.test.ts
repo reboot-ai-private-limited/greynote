@@ -124,7 +124,8 @@ describe('Pay components', () => {
 describe('navGroupsFor', () => {
   it('groups items under their headings, in order, dropping empty groups', () => {
     const groups = navGroupsFor('ACCOUNTANT');
-    expect(groups.map((g) => g.group)).toEqual(['Home', 'Daily work', 'Money', 'Setup']);
+    expect(groups.map((g) => g.group)).toEqual(['Home', 'Daily work', 'Money', 'Master data', 'Setup']);
+    expect(groups.find((g) => g.group === 'Master data')?.items.map((i) => i.href)).toEqual(['/doctor-services']); // Accounts marks approved services done
     expect(groups.find((g) => g.group === 'Money')?.items.map((i) => i.href)).toEqual(['/payroll', '/expenses', '/expense-payouts']);
     expect(groups.find((g) => g.group === 'Daily work')?.items.map((i) => i.href)).toEqual(['/attendance']);
   });

@@ -44,7 +44,7 @@ export class SubmitDoctorServiceUseCase {
   async execute(rec: RecordContext, input: ServiceInput, ctx: TransactionContext): Promise<{ serverId: string }> {
     await assertNotBlocked(this.users, rec.userId);
     await this.checks.doctor(rec.userId, input.doctorId);
-    const service = await this.services.create({ ...input, userId: rec.userId, createdBy: rec.userId, origin: 'MR', clientId: rec.clientId, createdAt: rec.recordedAt }, ctx);
+    const service = await this.services.create({ ...input, userId: rec.userId, createdBy: rec.userId, origin: 'MR', clientId: rec.clientId, createdAt: rec.recordedAt, doneBy: null, doneAt: null }, ctx);
     await this.approvals.submit({ kind: DOCTOR_SERVICE_KIND, recordId: service.id, submitterId: rec.userId }, ctx);
     return { serverId: service.id };
   }
@@ -62,7 +62,7 @@ export class CreateAdminDoctorServiceUseCase {
     if (!(await this.master.getDoctor(input.doctorId))) throw AppError.notFound('No such doctor.');
     const userId = await this.master.getAssignedUserId(input.doctorId);
     if (!userId) throw AppError.conflict('This doctor has no assigned MR, so the service has nobody to be tied to. Assign the doctor first.');
-    return this.services.create({ ...input, userId, createdBy: adminId, origin: 'ADMIN', clientId: null, createdAt: this.now() });
+    return this.services.create({ ...input, userId, createdBy: adminId, origin: 'ADMIN', clientId: null, createdAt: this.now(), doneBy: null, doneAt: null });
   }
 }
 
@@ -71,15 +71,19 @@ export interface DoctorServiceView extends DoctorService {
   /** `APPROVED` for an Admin-made one; otherwise its request's status. */
   status: string;
   approval: { requestId: string; cycle: number } | null;
+  /** Approved and not yet marked done: waiting for Admin or Accounts. */
+  awaitingDone: boolean;
 }
 
 async function toServiceView(approvals: ApprovalsPort, master: FieldMasterDataPort, s: DoctorService): Promise<DoctorServiceView> {
   const request = s.origin === 'ADMIN' ? null : await approvals.getForRecord(DOCTOR_SERVICE_KIND, s.id);
+  const status = s.origin === 'ADMIN' ? 'APPROVED' : (request?.status ?? 'DRAFT');
   return {
     ...s,
     doctorName: (await master.getDoctor(s.doctorId))?.name ?? '',
-    status: s.origin === 'ADMIN' ? 'APPROVED' : (request?.status ?? 'DRAFT'),
+    status,
     approval: request && { requestId: request.id, cycle: request.cycle },
+    awaitingDone: status === 'APPROVED' && !s.doneAt,
   };
 }
 
@@ -92,7 +96,7 @@ export class ListDoctorServicesUseCase {
   ) {}
 
   async execute(actor: Actor, filter: { userId?: string | undefined; doctorId?: string | undefined }, limit = 200): Promise<DoctorServiceView[]> {
-    const scope = actor.role === 'ADMIN' ? { ...(filter.userId && { userId: filter.userId }), ...(filter.doctorId && { doctorId: filter.doctorId }) } : { userId: actor.id, ...(filter.doctorId && { doctorId: filter.doctorId }) };
+    const scope = actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT' ? { ...(filter.userId && { userId: filter.userId }), ...(filter.doctorId && { doctorId: filter.doctorId }) } : { userId: actor.id, ...(filter.doctorId && { doctorId: filter.doctorId }) };
     const rows = await this.services.list(scope, limit);
     return Promise.all(rows.map((s) => toServiceView(this.approvals, this.master, s)));
   }
@@ -111,8 +115,31 @@ export class GetDoctorServiceUseCase {
 
   async execute(actor: Actor, id: string): Promise<DoctorServiceView> {
     const service = await this.services.findById(id);
-    if (!service || (actor.role !== 'ADMIN' && service.userId !== actor.id)) throw AppError.notFound('No such doctor service.');
+    if (!service || (actor.role !== 'ADMIN' && actor.role !== 'ACCOUNTANT' && service.userId !== actor.id)) throw AppError.notFound('No such doctor service.');
     return toServiceView(this.approvals, this.master, service);
+  }
+}
+
+/**
+ * Admin or Accounts marks an approved Service done — the last step. Refused while the Service is still waiting for its
+ * approval (or was rejected), and when it is already done; the update is conditional so two people cannot both do it.
+ */
+export class MarkDoctorServiceDoneUseCase {
+  constructor(
+    private readonly services: DoctorServiceRepositoryPort,
+    private readonly approvals: ApprovalsPort,
+    private readonly master: FieldMasterDataPort,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
+
+  async execute(actorId: string, id: string): Promise<DoctorServiceView> {
+    const service = await this.services.findById(id);
+    if (!service) throw AppError.notFound('No such doctor service.');
+    const view = await toServiceView(this.approvals, this.master, service);
+    if (view.status !== 'APPROVED') throw AppError.conflict('This service is not approved yet, so it cannot be marked done.');
+    if (service.doneAt) throw AppError.conflict('This service is already marked done.');
+    if (!(await this.services.markDone(id, actorId, this.now()))) throw AppError.conflict('This service is already marked done.');
+    return toServiceView(this.approvals, this.master, (await this.services.findById(id)) ?? service);
   }
 }
 

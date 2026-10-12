@@ -685,7 +685,7 @@ local store is built to.
 - Auth (employee code + password, device-limit prompt), onboarding
 - Home tab: DCR (Daily Plan, Dr/Chemist Call & Followup, Expenses, Summary & Final Submission),
   Marketing (Sales & Orders, Visuals/Campaigns/Targets, Gifts & Services), Resources, Utility
-  (Holiday List, Forms, FY Toggle)
+  (Inbox, Holiday List, FY Toggle; Forms removed 2026-10-12)
 - Team tab (conditional, ASM+): approve direct reports, read-only for further downline
 - Reports tab
 - Full offline-first behaviour per Phase 5's design, including the "no connection at Submit"
@@ -888,3 +888,11 @@ Decision-log 2026-10-12; mobile contract in [`mobile/dailyplan.md`](mobile/daily
 ## Calls redesign (2026-10-12)
 
 Decision-log 2026-10-12, sign-off K40: all four records (doctor/chemist call and follow-up) need GPS within the radius or are refused `NOT_AT_LOCATION`; the server stamps work type and route type (HQ / Ex / Out); plan differences are flags (`notInPlan`, `routeNotInPlan`), `ALLOW_UNPLANNED_DOCTOR_CALLS` removed; new work type `DOCTOR_CAMPAIGN` (DA, no TA); Meeting/Conference/Strike days have no calls but still submit a report (note required for Meeting/Conference); a call or follow-up can be removed before the final submit. API, web, tests (API 1211, web 724) and `docs/mobile/dcr.md` done; **open:** phone app changes, browser check, Admin to set missing doctor/chemist locations. Uncommitted.
+
+## Orders, visuals, secondary, targets, gifts, services revisited (2026-10-12)
+
+Decision-log 2026-10-12. **Done:** chemist orders info-only (`409 ORDER_INFO_ONLY`); secondary as units or amount linked at PTR with employee → direct-manager approval (`SECONDARY_SALES`) and approved-only achievement; targets in units or amount; service "Done" step for Admin/Accounts; web: secondary grid with linked fields, status chip and Send for approval, approval preview, target dialog with units, Doctor services Mark done (Accounts nav), Admin add on the doctor's Visuals tab; docs incl. `docs/mobile/{orders-and-stock,secondary-and-targets,visuals-gifts-services}.md`. API and web tests pass; RBAC matrix regenerated. **Not browser-checked, no migration needed (old rows read as approved).** **Open:** the phone (another team) removes the Monthly stock tab and builds against the mobile notes; `financialYear.routes.test` flags `/expense-grants` (earlier work).
+
+## Utility section: Inbox, holiday upload, Forms removed (2026-10-12)
+
+Decision-log 2026-10-12. **Done:** new `inbox` module (Admin sends to everyone / roles / Zones / HQs / people; each recipient reads, counts unread, marks read; expiry and take-back; no push) with the `notify()` hook for later system events; Admin holiday upload from a CSV with preview (`POST /hr/holidays/import`, shared CSV reader moved to `shared/csv`); web: **Inbox messages** (Daily work) and **Upload list** on Leave & holidays; Forms dropped from the PRD; `docs/mobile/{utility,inbox,holidays,financial-year}.md`, `LLD/inbox.md`, `erd/10-inbox.md`. FY re-verified: holidays are timeless and the phone asks for the year's `from`/`to`; everything else honours `X-Financial-Year` (audit changed no code). API and web tests pass; RBAC matrix regenerated. **Not browser-checked; no migration (new collections).** **Open:** the phone (another team) replaces the demo Inbox and removes the Forms tile; push (FCM); which events notify whom (F8); a people picker in the web compose form; `financialYear.routes.test` still flags `/expense-grants` (earlier work).

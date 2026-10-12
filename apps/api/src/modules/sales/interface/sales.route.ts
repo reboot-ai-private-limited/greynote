@@ -6,7 +6,7 @@ import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js'
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { SalesHandlers } from './sales.controller.js';
-import { cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
+import { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 const TAG = 'Sales';
 
@@ -32,6 +32,7 @@ doc('get', '/distributor-payments', 'Admin or Accountant: one distributor’s pa
 doc('get', '/distributor-statement', 'Admin: one distributor\'s month by product — field counts, orders, the saved statement and the figures that follow', { query: statementQuerySchema });
 doc('get', '/employee-sales', 'An employee\'s month by product — their Done distributor orders (primary), Admin\'s change and the secondary entered; self, the manager above, or Admin', { query: employeeSalesQuerySchema });
 doc('post', '/employee-secondary', 'The secondary an employee sold, per product and month (their achievement): the employee, the manager above, or Admin; the stock deadline applies except to Admin', { body: saveEmployeeSecondaryBodySchema });
+doc('post', '/employee-secondary/submit', 'The employee sends a month\'s secondary to their manager for approval; only approved secondary counts toward achievement', { body: submitEmployeeSecondaryBodySchema });
 doc('post', '/employee-primary', 'Admin: change an employee\'s primary for a month, per product, with a reason (any past month of an open financial year)', { body: saveEmployeePrimaryBodySchema });
 doc('post', '/distributor-statement', 'Admin: save the month\'s statement lines (opening, secondary, adjustment with a reason); any past month, an open financial year', { body: saveStatementBodySchema });
 doc('get', '/distributor-payments/totals', 'Admin or Accountant: what each distributor paid in a date range (recorded payments only)', { query: paymentTotalsQuerySchema });
@@ -56,6 +57,7 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.get('/distributor-statement', requireRole('ADMIN'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: statementQuerySchema }), c.readStatement);
   router.get('/employee-sales', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: employeeSalesQuerySchema }), c.readEmployeeSales);
   router.post('/employee-secondary', requireRole('ADMIN', 'FIELD'), validate({ body: saveEmployeeSecondaryBodySchema }), c.saveEmployeeSecondary);
+  router.post('/employee-secondary/submit', requireRole('FIELD'), validate({ body: submitEmployeeSecondaryBodySchema }), c.submitEmployeeSecondary);
   router.post('/employee-primary', requireRole('ADMIN'), validate({ body: saveEmployeePrimaryBodySchema }), c.saveEmployeePrimary);
   router.post('/distributor-statement', requireRole('ADMIN'), validate({ body: saveStatementBodySchema }), c.saveStatement);
   router.get('/distributor-payments/totals', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: paymentTotalsQuerySchema }), c.paymentTotals);

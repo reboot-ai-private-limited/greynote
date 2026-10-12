@@ -159,6 +159,8 @@ export interface DoctorServiceRepositoryPort {
   findById(id: string): Promise<DoctorService | null>;
   /** Newest first, at most `limit`; every filter is optional. */
   list(filter: { userId?: string; doctorId?: string }, limit: number): Promise<DoctorService[]>;
+  /** One conditional update (only while not done); false if it was already done or is gone. */
+  markDone(id: string, by: string, at: Date): Promise<boolean>;
 }
 
 export interface DoctorGiftRepositoryPort {

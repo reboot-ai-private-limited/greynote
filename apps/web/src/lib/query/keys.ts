@@ -63,6 +63,10 @@ export const keys = {
     holidays: (query: object) => ['hr', fy(), 'holidays', query] as const,
     allHolidays: () => ['hr', fy(), 'holidays'] as const,
   },
+  inbox: {
+    all: () => ['inbox'] as const,
+    sent: (query: object) => ['inbox', 'sent', query] as const,
+  },
   userHq: { history: (userId: string) => ['userHq', fy(), userId] as const },
   dcr: { detail: (id: string) => ['dcr', fy(), 'detail', id] as const },
   plans: {
