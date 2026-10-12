@@ -158,6 +158,7 @@ describe('draft', () => {
     const withMore: WizardForm = {
       ...complete,
       ctc: '600000',
+      onProbation: true,
       probationMonths: '6',
       qualifications: [{ id: 'q', degree: 'BSc', institute: 'CU', yearOfPassing: '2014' }],
       experience: [{ id: 'x', companyName: 'Acme', joiningDate: '2015-01-01', endDate: '' }],

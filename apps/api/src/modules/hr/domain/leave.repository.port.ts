@@ -14,6 +14,8 @@ export interface LeaveRepositoryPort {
   findById(id: string): Promise<Leave | null>;
   /** One person's leaves whose range meets [from, to]. */
   listOverlapping(userId: string, from: string, to: string): Promise<Leave[]>;
+  /** Leaves that start in [from, before) — the sweep for ones that began without an approval. */
+  listStartingBetween(from: string, before: string): Promise<Leave[]>;
   /** Newest first. */
   list(filter: LeaveFilter, page: { page: number; pageSize: number }): Promise<{ items: Leave[]; total: number }>;
   create(userId: string, body: LeaveBody, ctx: TransactionContext): Promise<Leave>;

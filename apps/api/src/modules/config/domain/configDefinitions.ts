@@ -74,7 +74,9 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   integer('PLAN_RESUBMIT_GRACE_MAX', 'PLANNING', 'Most resubmits per plan', 'Most resubmits per Plan allowed through the after-rejection window. 0 switches the window off.', 2, 0, 99),
 
   // ── HR ──
-  integer('LEAVE_BACKDATE_DAYS', 'HR', 'Leave backdating limit', 'How many days back a leave may start (e.g. to cover a missed report).', 30, 1, 366, 'days'),
+  integer('LEAVE_BACKDATE_DAYS', 'HR', 'Leave backdating limit', 'How many days back a leave may start. 0: a leave starts today or later, because a leave can only be approved until its first day.', 0, 0, 366, 'days'),
+  integer('LATE_LEAVE_GRANT_VALID_HOURS', 'HR', 'Late-leave exception lasts', 'Hours an Admin exception that lets a started leave be approved stays usable after it is granted.', 24, 1, 744, 'hours'),
+  integer('LATE_LEAVE_GRANT_MAX_HOURS', 'HR', 'Longest late-leave exception', 'The furthest ahead (in hours from now) Admin can set the end of a late-leave exception.', 168, 1, 8760, 'hours'),
 
   toggle('PROBATION_LEAVE_PAID', 'HR', 'Leave is paid during probation', 'Whether unpaid leave taken during an employee’s probation is paid anyway (no salary deduction). Off: probation is treated like any other time.', true),
   integer('PROBATION_MONTHS', 'HR', 'Probation length', 'Months of probation from the joining date, unless the employee has their own length set.', 6, 0, 36, 'months'),
@@ -114,7 +116,12 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
 
   // ── Salary and payouts ──
   integer('SALARY_RUN_DAY', 'PAYROLL', 'Salary day', 'Day of the month the salary for the month just ended is run (1 = the 1st). Only drives the "due" flag on the payroll screen; nothing is refused for being early or late.', 1, 1, 28),
-  integer('EXPENSE_PAYOUT_DAY', 'PAYROLL', 'Expense payout day', 'Day of the month TA, DA and reimbursements of the month just ended are paid (15 = the 15th). Only drives the "due" and "overdue" flags; nothing is refused for being early or late.', 15, 1, 28),
+  integer('EXPENSE_SUBMIT_CUTOFF_DAY', 'PAYROLL', 'Expense submit deadline day', 'Day of the next month by which an employee must send a month of expenses for approval (7 = the 7th of the following month). After it, only an Admin (or manager, if allowed) exception lets the month be sent.', 7, 1, 28),
+  integer('EXPENSE_APPROVAL_CUTOFF_DAY', 'PAYROLL', 'Expense approval deadline day', 'Day of the next month by which a manager must approve a submitted month of expenses (10 = the 10th of the following month). After it, only an exception lets the approval go through. Must not be earlier than the submit deadline day.', 10, 1, 28),
+  toggle('LATE_EXPENSE_GRANT_BY_MANAGER', 'PAYROLL', 'Managers can allow late expenses', 'Whether a manager (not just Admin) may let someone in their team send or approve a month of expenses after its deadline. Never possible once any of the month has been paid.', false),
+  integer('LATE_EXPENSE_GRANT_VALID_HOURS', 'PAYROLL', 'Late-expense exception lasts', 'Hours a late-expense exception stays usable after it is granted.', 24, 1, 744, 'hours'),
+  integer('LATE_EXPENSE_GRANT_MAX_HOURS', 'PAYROLL', 'Longest late-expense exception', 'The furthest ahead (in hours from now) an Admin or manager can set the end of a late-expense exception.', 168, 1, 8760, 'hours'),
+  integer('EXPENSE_PAYOUT_DAY','PAYROLL', 'Expense payout day', 'Day of the month TA, DA and reimbursements of the month just ended are paid (15 = the 15th). Only drives the "due" and "overdue" flags; nothing is refused for being early or late.', 15, 1, 28),
 
   toggle('ABSENT_DEDUCTS_SALARY', 'PAYROLL', 'Absent days reduce salary', 'Whether a working day with no submitted report, no approved leave and no strike is deducted from salary, like an unpaid-leave day (monthly base ÷ 30). Off: absent days are shown on the calendar but never deducted.', true),
   toggle('STRIKE_DEDUCTS_SALARY', 'PAYROLL', 'Strike days reduce salary', 'Whether a day the approved plan marks as Strike is deducted from salary like an absent day. Off (the default): a strike day costs no salary. Only matters while absent days are deducted.', false),

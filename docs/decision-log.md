@@ -33,6 +33,19 @@ old one.
 
 ---
 
+## 2026-10-12 — Monthly expenses: submit and approval deadlines, with an exception that must come before payment
+
+**Decision:**
+- **Two deadlines from System settings**, each the end of a business day of the month *after* the expenses: the employee must **send** the month by `EXPENSE_SUBMIT_CUTOFF_DAY` (default the 7th) and the manager or Admin must **approve** it by `EXPENSE_APPROVAL_CUTOFF_DAY` (default the 10th, never earlier than the submit day). Past the first, submit is a 409 `EXPENSE_SUBMIT_LATE`; past the second, approving is a 409 `EXPENSE_APPROVAL_LATE` (and rolls back). Rejecting is never blocked.
+- **A one-off exception lifts either deadline** (same shape as the late Plan exception, B8): per employee, month and phase (`SUBMIT` / `APPROVE`), a reason, an end time (default `LATE_EXPENSE_GRANT_VALID_HOURS` 24, at most `LATE_EXPENSE_GRANT_MAX_HOURS` 168), used once with the send or approval. **Admin** can always grant; a **manager** only for their team and only while `LATE_EXPENSE_GRANT_BY_MANAGER` is on.
+- **It has to come before the money.** Once any row of the month is `PAID`, an exception cannot be granted and the month cannot be reopened (409 `EXPENSE_MONTH_PAID`).
+- **No exception, no month:** a missed month is not rolled into the next; only an exception revives it.
+- **Unchanged:** TA/DA stays automatic and arrives in the statement with the employee's Other entries; Other entries may be dated any past day while the month is still open.
+
+**Cost:** a separate `ExpenseMonthGrant` record (not the Plan grant), because the Plan grant is tied to the planning module's `PlanKind`. Endpoints `POST/GET /api/field-activity/expense-grants`, `POST …/:id/revoke`. Seed the five new settings before deploy (an unseeded database falls back to 7 / 10 / off / 24 / 168). A month already submitted before deploy and approved after its approval day needs an exception.
+
+---
+
 ## 2026-10-10 — Monthly expenses: one statement per month, approved by the manager or Admin, then paid
 
 **Decision:**
@@ -1950,3 +1963,16 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** the phone app (another team) must send `clinicName`/`phone`, cap frequency at 5, and the sync snapshot now carries both; not browser-checked.
 
 **Refs:** [`LLD/field-master-data.md`](LLD/field-master-data.md), [`LLD/reports.md`](LLD/reports.md), sign-off C4.
+
+## 2026-10-12 — Leave: probation switch at onboarding, approval cutoff at the leave's first day
+
+1. **Probation is a per-employee switch** (`onProbation`, default No), set in the onboarding wizard and editable by HR/Admin. Months default to `PROBATION_MONTHS`. Reason: the *software* is new, not the employees, so recently-joined existing staff must not be treated as probationers. No migration (absent = No). In probation all leave is paid (unchanged from 2026-10-05).
+2. **A leave can only be approved until its first day.** From the start date on, manager and HR approvals are refused with `409 LEAVE_APPROVAL_LATE` (reject / withdraw still work); an **Admin exception** (one use, expiring, reason required) lets one through. `LEAVE_BACKDATE_DAYS` defaults to **0** so a leave can't be requested for the past; an existing database keeps its stored value until Admin changes it in Settings.
+3. **Unapproved leave = as usual:** only approved / manager-approved leave exempts a day from the missed-report block and the absent deduction; a pending or expired request does not. Already built; now written down in [`mobile/leave.md`](mobile/leave.md).
+4. **Approvers:** manager, then HR or Admin (Admin may approve at any stage) — unchanged.
+
+**Added the same day:** a server job (every 30 min) auto-rejects pending leaves whose first day has passed (history: "Automatic: …", balance freed; skipped while an Admin exception is usable), and Admin gets "Allow late approval" in HR → Leaves.
+
+**Open:** employee cancel of an approved leave; not browser-checked; the phone app (another team) builds against [`mobile/leave.md`](mobile/leave.md).
+
+**Refs:** [`LLD/hr.md`](LLD/hr.md), [`mobile/leave.md`](mobile/leave.md), sign-off F3, F14, K6.

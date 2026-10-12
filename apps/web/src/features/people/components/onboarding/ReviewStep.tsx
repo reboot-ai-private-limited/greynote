@@ -77,7 +77,7 @@ export function ReviewStep({ form, problems, onEdit }: Pick<StepProps, 'form'> &
             ['Alternate mobile', form.alternateMobile],
             ['Date of birth', form.dateOfBirth],
             ['Joining date', form.dateOfJoining],
-            ['Probation', form.probationMonths ? `${form.probationMonths} months` : undefined],
+            ['Probation', form.onProbation ? (form.probationMonths ? `${form.probationMonths} months` : 'System length') : undefined],
             ['ESI number', form.esiNumber],
           ]}
         />

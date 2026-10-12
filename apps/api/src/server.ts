@@ -12,6 +12,8 @@ const PROMOTION_CHECK_MS = 60 * 60 * 1000;
  * How often the server runs the missed-DCR check. It judges whole days ending yesterday, so it acts shortly after each day rolls over
  * (`DAY_START_TIME`); the rest of the time it finds nothing new. Safe to run at any time and from several servers (one open block per user).
  */
+/** How often pending leaves that have already begun are rejected. Idempotent; the first day rolls over at `DAY_START_TIME`. */
+const LATE_LEAVE_CHECK_MS = 30 * 60 * 1000;
 const MISSED_DCR_CHECK_MS = 15 * 60 * 1000;
 
 async function start() {
@@ -25,8 +27,9 @@ async function start() {
 
     const jobs: IntervalJob[] = [];
     const app = createApp({
-        onContainers: ({ identity, fieldActivity }) => {
+        onContainers: ({ identity, fieldActivity, hr }) => {
             jobs.push(startIntervalJob('apply-due-promotions', PROMOTION_CHECK_MS, () => identity.applyDuePromotions()));
+            jobs.push(startIntervalJob('expire-late-leaves', LATE_LEAVE_CHECK_MS, () => hr.expireLateLeaves()));
             jobs.push(startIntervalJob('missed-dcr-check', MISSED_DCR_CHECK_MS, () => fieldActivity.runMissedDcrCheck()));
         },
     });

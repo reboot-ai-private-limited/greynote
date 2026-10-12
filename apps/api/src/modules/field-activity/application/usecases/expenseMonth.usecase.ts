@@ -12,6 +12,10 @@ import type { ExpenseMonthRepositoryPort, ExpenseRepositoryPort } from '../../do
 import type { ProofStoragePort } from '../../domain/proofStorage.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { DcrClock } from '../dcrClock.js';
+import { monthHasPaidRows } from './expenseMonthGrants.usecase.js';
+import type { ExpenseMonthDeadlines } from '../expenseMonthDeadlines.js';
+import type { ExpenseGrantPhase } from '../../domain/expenseMonthGrant.entity.js';
+import type { ExpenseMonthGrantRepositoryPort } from '../../domain/expenseMonthGrant.repository.port.js';
 import type { Actor } from './readDcrs.usecase.js';
 
 /** The approval kind of one employee's month of expenses. Its record id is the `ExpenseMonth` id. */
@@ -44,6 +48,12 @@ export interface ExpenseStatementView {
   submittedTotals: { taPaise: number; daPaise: number; otherPaise: number; totalPaise: number } | null;
   /** Payment of the month's rows, once approved: how much the Accountant has settled. */
   paidPaise: number;
+  /** The end of the day the month must be sent / approved by (ISO instants); after it only an exception lets it through. */
+  deadlines: { submitBy: string; approveBy: string };
+  /** The open exception, if any, for each deadline: when it ends (ISO). */
+  exceptions: { submitUntil: string | null; approveUntil: string | null };
+  /** The send deadline has passed and there is no exception: the employee can no longer submit. */
+  submitLate: boolean;
 }
 export interface ExpenseMonthSummaryView {
   month: string;
@@ -85,14 +95,35 @@ export class ExpenseMonthService {
     private readonly config: ConfigReader,
     private readonly transactions: TransactionRunnerPort,
     private readonly storage: ProofStoragePort,
+    private readonly grants: ExpenseMonthGrantRepositoryPort,
+    private readonly deadlines: ExpenseMonthDeadlines,
   ) {}
+
+  /**
+   * The exception that lets `phase` happen after its deadline, or `null` while the deadline has not passed. Throws `code` when it has
+   * passed and there is none.
+   */
+  private async lateException(userId: string, month: string, phase: ExpenseGrantPhase, code: string, message: string) {
+    const now = this.deadlines.now();
+    const deadline = phase === 'SUBMIT' ? await this.deadlines.submit(month) : await this.deadlines.approval(month);
+    if (now <= deadline) return null;
+    const grant = await this.grants.findUsable(userId, month, phase, now);
+    if (!grant) throw AppError.conflict(message, { code });
+    return grant;
+  }
 
   /** Runs inside the approval's transaction: approval makes the month's rows payable; sending it back takes that away. */
   async onStatusChange(recordId: string, status: ApprovalStatus, ctx: TransactionContext): Promise<void> {
     const record = await this.months.findById(recordId);
     if (!record) return;
-    if (status === 'APPROVED') await this.expenses.setMonthApproved(record.userId, monthRange(record.month), true, ctx);
-    else if (status === 'REJECTED' || status === 'REOPENED' || status === 'WITHDRAWN') await this.expenses.setMonthApproved(record.userId, monthRange(record.month), false, ctx);
+    if (status === 'APPROVED') {
+      // Past the approval deadline only an exception lets the approval through; a throw here rolls the approval back.
+      const grant = await this.lateException(record.userId, record.month, 'APPROVE', 'EXPENSE_APPROVAL_LATE', 'The deadline to approve this month’s expenses has passed. Ask Admin to allow it.');
+      if (grant && !(await this.grants.consume(grant.id, this.deadlines.now(), ctx))) throw AppError.conflict('That exception was used or ended just now. Try again.', { code: 'EXPENSE_APPROVAL_LATE' });
+      await this.expenses.setMonthApproved(record.userId, monthRange(record.month), true, ctx);
+    } else if (status === 'REOPENED' && (await monthHasPaidRows(this.expenses, record.userId, record.month))) {
+      throw AppError.conflict('Part of this month has already been paid, so it can no longer be reopened.', { code: 'EXPENSE_MONTH_PAID' });
+    } else if (status === 'REJECTED' || status === 'REOPENED' || status === 'WITHDRAWN') await this.expenses.setMonthApproved(record.userId, monthRange(record.month), false, ctx);
   }
 
   /** The owner, their managers (any level) and Admin may read a statement. */
@@ -122,6 +153,14 @@ export class ExpenseMonthService {
     }));
     const totals = totalsOf(rows);
     const editable = status === 'DRAFT' || status === 'REJECTED';
+    const now = this.deadlines.now();
+    const [submitBy, approveBy, submitGrant, approveGrant] = await Promise.all([
+      this.deadlines.submit(month),
+      this.deadlines.approval(month),
+      this.grants.findUsable(userId, month, 'SUBMIT', now),
+      this.grants.findUsable(userId, month, 'APPROVE', now),
+    ]);
+    const submitLate = now > submitBy && !submitGrant;
     return {
       userId,
       month,
@@ -129,11 +168,14 @@ export class ExpenseMonthService {
       requestId: request?.id ?? null,
       monthEnded,
       editable,
-      canSubmit: editable && monthEnded && totals.totalPaise > 0,
+      canSubmit: editable && monthEnded && totals.totalPaise > 0 && !submitLate,
       days,
       totals,
       submittedTotals: record?.submittedAt && status !== 'DRAFT' ? { taPaise: record.taPaise, daPaise: record.daPaise, otherPaise: record.otherPaise, totalPaise: record.taPaise + record.daPaise + record.otherPaise } : null,
       paidPaise: rows.filter((r) => r.paymentStatus === 'PAID').reduce((a, r) => a + r.amountPaise, 0),
+      deadlines: { submitBy: submitBy.toISOString(), approveBy: approveBy.toISOString() },
+      exceptions: { submitUntil: submitGrant?.expiresAt.toISOString() ?? null, approveUntil: approveGrant?.expiresAt.toISOString() ?? null },
+      submitLate,
     };
   }
 
@@ -212,7 +254,9 @@ export class ExpenseMonthService {
     await this.assertEditable(userId, month);
     const totals = totalsOf(await this.expenses.listForUserRange(userId, monthRange(month)));
     if (totals.totalPaise === 0) throw AppError.badRequest('There is nothing to claim for this month.', { field: 'month' });
+    const grant = await this.lateException(userId, month, 'SUBMIT', 'EXPENSE_SUBMIT_LATE', 'The deadline to send this month’s expenses has passed. Ask your manager or Admin to allow it.');
     await this.transactions.run(async (ctx) => {
+      if (grant && !(await this.grants.consume(grant.id, this.deadlines.now(), ctx))) throw AppError.conflict('That exception was used or ended just now. Ask for a new one.', { code: 'EXPENSE_SUBMIT_LATE' });
       const record = await this.months.markSubmitted(userId, month, totals, now, ctx);
       await this.approvals.submit({ kind: EXPENSE_MONTH_KIND, recordId: record.id, submitterId: userId }, ctx);
     });

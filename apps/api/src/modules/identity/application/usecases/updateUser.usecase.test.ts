@@ -25,6 +25,7 @@ const profile = (userId: string, managerId: string | null, extra: Partial<Employ
   payBandId: null,
   managerId,
   dateOfJoining: null,
+  onProbation: false,
   probationMonths: null,
   esiNumber: null,
   mobileNumber: null,

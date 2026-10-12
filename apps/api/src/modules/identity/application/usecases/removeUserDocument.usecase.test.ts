@@ -20,6 +20,7 @@ function makeProfile(documents: UserDocument[]): EmployeeProfile {
     payBandId: null,
     managerId: null,
     dateOfJoining: null,
+    onProbation: false,
     probationMonths: null,
     esiNumber: null,
     mobileNumber: null,

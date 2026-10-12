@@ -43,6 +43,7 @@ const basicDetailsPatchSchema = z.object({
   // A string first: `z.coerce.date()` alone turns `null` into 1 January 1970 instead of refusing it.
   dateOfBirth: z.string().min(1).pipe(z.coerce.date()).optional(),
   dateOfJoining: z.coerce.date().nullable().optional(),
+  onProbation: z.boolean().optional(),
   /** Whole months, 0 (none) to 36; `null` goes back to the `PROBATION_MONTHS` setting. */
   probationMonths: z.number().int().min(0).max(36).nullable().optional(),
   qualification: z.string().min(1).nullable().optional(),

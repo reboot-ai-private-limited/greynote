@@ -2,6 +2,7 @@ import type { Router } from 'express';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { logger } from '@/shared/logging/logger.js';
 import { ApprovalKindRegistry } from './application/approvalKindRegistry.js';
+import { AutoRejectApprovalUseCase } from './application/usecases/autoRejectApproval.usecase.js';
 import { BulkDecideApprovalUseCase } from './application/usecases/bulkDecideApproval.usecase.js';
 import { DecideApprovalUseCase } from './application/usecases/decideApproval.usecase.js';
 import { GetApprovalDetailUseCase } from './application/usecases/getApprovalDetail.usecase.js';
@@ -41,6 +42,7 @@ export function buildApprovalContainer(users: UserDirectoryPort, config: ConfigP
   const decide = new DecideApprovalUseCase(requestRepository, users, kinds, transactions);
   const withdraw = new WithdrawApprovalUseCase(requestRepository, kinds, transactions);
   const reopen = new ReopenApprovalUseCase(requestRepository, kinds, transactions);
+  const autoReject = new AutoRejectApprovalUseCase(requestRepository, kinds, transactions);
   const getForRecord = new GetApprovalForRecordUseCase(requestRepository);
   const list = new ListApprovalsUseCase(requestRepository, users, kinds, config);
   const detail = new GetApprovalDetailUseCase(requestRepository, users, kinds, config);
@@ -58,6 +60,7 @@ export function buildApprovalContainer(users: UserDirectoryPort, config: ConfigP
       submit: (input, ctx) => submit.execute(input, ctx),
       getForRecord: (kind, recordId) => getForRecord.execute(kind, recordId),
       listForRecords: (kind, recordIds) => requestRepository.findByRecords(kind, recordIds),
+      autoReject: (kind, recordId, reason) => autoReject.execute(kind, recordId, reason),
     },
     buildRouter: () => buildApprovalRouter(makeApprovalControllers({ list, detail, decide, bulk, withdraw, reopen })),
     decide,

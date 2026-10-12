@@ -24,7 +24,7 @@ export function BasicSection({ user, readOnly, startEditing = false }: { user: U
           <Field label="Date of birth">{p?.dateOfBirth ? formatDate(p.dateOfBirth) : null}</Field>
           <Field label="Date of joining">{p?.dateOfJoining ? formatDate(p.dateOfJoining) : null}</Field>
           <Field label="ESI number">{p?.esiNumber}</Field>
-          <Field label="Probation">{p?.probationMonths == null ? 'System default' : p.probationMonths === 0 ? 'None' : `${p.probationMonths} months`}</Field>
+          <Field label="Probation">{!p?.onProbation ? 'Not on probation' : p.probationMonths == null ? 'On probation (system length)' : `On probation (${p.probationMonths} months)`}</Field>
           <Field label="Guardian">{p?.guardianName}</Field>
           <Field label="Qualification">{p?.qualification}</Field>
         </FieldList>
@@ -65,7 +65,11 @@ function BasicForm({ user, onDone }: { user: UserDetailDto; onDone: () => void }
       <FormField label="ESI number" htmlFor="basic-esi" error={errors['esiNumber']} hint="Optional. 17 digits; printed on the salary slip.">
         <Input id="basic-esi" inputMode="numeric" maxLength={17} value={draft.esiNumber} onChange={(e) => set('esiNumber')(e.target.value)} aria-invalid={invalid('esiNumber')} />
       </FormField>
-      <FormField label="Probation (months)" htmlFor="basic-probation" error={errors['probationMonths']} hint="Counted from the date of joining. Leave empty to use the system's probation length; 0 means none. Leave taken in probation is paid.">
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" className="size-4 accent-[var(--color-accent)]" checked={draft.onProbation} onChange={(e) => setDraft((d) => ({ ...d, onProbation: e.target.checked }))} />
+        On probation
+      </label>
+      <FormField label="Probation (months)" htmlFor="basic-probation" error={errors['probationMonths']} hint="Used only while on probation, counted from the date of joining. Leave empty for the system's probation length. Leave taken in probation is paid.">
         <Input id="basic-probation" inputMode="numeric" value={draft.probationMonths} onChange={(e) => set('probationMonths')(e.target.value)} aria-invalid={invalid('probationMonths')} />
       </FormField>
       <FormField label="Guardian" htmlFor="basic-guardian" hint="Optional.">

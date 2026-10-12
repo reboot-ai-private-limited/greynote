@@ -87,6 +87,7 @@ export class FinalizeEmployeeDraftUseCase {
         guardianName: data.personal?.guardianName as string,
         dateOfBirth: date(data.personal?.dateOfBirth) as Date,
         dateOfJoining: date(data.personal?.dateOfJoining),
+        onProbation: data.personal?.onProbation ?? false,
         probationMonths: data.personal?.probationMonths ?? null,
         esiNumber: data.personal?.esiNumber ?? null,
         address: present,

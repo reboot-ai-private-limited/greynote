@@ -23,6 +23,7 @@ export interface EmployeeDraftData {
     dateOfBirth?: string;
     esiNumber?: string;
     dateOfJoining?: string;
+    onProbation?: boolean;
     probationMonths?: number;
   };
   address?: {

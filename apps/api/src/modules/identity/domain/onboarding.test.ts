@@ -20,6 +20,7 @@ function baseProfile(overrides: Partial<Omit<EmployeeProfile, 'id' | 'userId'>> 
     payBandId: 'payband-g1',
     managerId: 'manager-1',
     dateOfJoining: new Date('2024-01-01'),
+    onProbation: false,
     probationMonths: null,
     esiNumber: null,
     mobileNumber: '9999999999',

@@ -25,9 +25,15 @@ export function PersonalStep({ form, update, errors }: StepProps) {
         <FormField label="Joining date (optional)" htmlFor="p-doj" error={errors['dateOfJoining']}>
           <Input id="p-doj" type="date" value={form.dateOfJoining} onChange={(e) => update({ dateOfJoining: e.target.value })} aria-invalid={invalid('dateOfJoining')} />
         </FormField>
-        <FormField label="Probation, months (optional)" htmlFor="p-prob" error={errors['probationMonths']}>
-          <Input id="p-prob" inputMode="numeric" value={form.probationMonths} onChange={(e) => update({ probationMonths: e.target.value.replace(/\D/g, '') })} aria-invalid={invalid('probationMonths')} />
-        </FormField>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" className="size-4 accent-[var(--color-accent)]" checked={form.onProbation} onChange={(e) => update({ onProbation: e.target.checked })} />
+          On probation (leave is paid during it)
+        </label>
+        {form.onProbation && (
+          <FormField label="Probation, months (optional)" htmlFor="p-prob" error={errors['probationMonths']} hint="Empty: the system's probation length.">
+            <Input id="p-prob" inputMode="numeric" value={form.probationMonths} onChange={(e) => update({ probationMonths: e.target.value.replace(/\D/g, '') })} aria-invalid={invalid('probationMonths')} />
+          </FormField>
+        )}
         <FormField label="ESI number (optional)" htmlFor="p-esi" error={errors['esiNumber']}>
           <Input id="p-esi" inputMode="numeric" maxLength={17} value={form.esiNumber} onChange={(e) => update({ esiNumber: e.target.value.replace(/\D/g, '') })} aria-invalid={invalid('esiNumber')} />
         </FormField>

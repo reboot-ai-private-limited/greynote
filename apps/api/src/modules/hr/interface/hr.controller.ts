@@ -11,6 +11,7 @@ import type { CreateLeaveTypeUseCase } from '../application/usecases/createLeave
 import type { GetLeaveBalancesUseCase } from '../application/usecases/getLeaveBalances.usecase.js';
 import type { GetLeaveUseCase } from '../application/usecases/getLeave.usecase.js';
 import type { ListLeavesUseCase } from '../application/usecases/listLeaves.usecase.js';
+import type { LeaveApprovalCutoff } from '../application/leaveApprovalCutoff.js';
 import type { LeaveProof } from '../application/leaveProof.js';
 import type { LeaveRequests } from '../application/leaveRequests.js';
 import type { DeleteHolidayUseCase } from '../application/usecases/deleteHoliday.usecase.js';
@@ -23,6 +24,7 @@ import type {
   adjustBalanceBodySchema,
   balanceQuerySchema,
   createHolidayBodySchema,
+  leaveApprovalGrantBodySchema,
   leaveBodySchema,
   leavesQuerySchema,
   listHolidaysQuerySchema,
@@ -108,10 +110,16 @@ export function makeBalanceControllers(u: { get: GetLeaveBalancesUseCase; adjust
   };
 }
 
-export type LeaveHandlers = Record<'requestLeave' | 'editLeave' | 'myLeaves' | 'allLeaves' | 'getLeave' | 'addProof' | 'removeProof', RequestHandler>;
+export type LeaveHandlers = Record<'requestLeave' | 'editLeave' | 'myLeaves' | 'allLeaves' | 'getLeave' | 'addProof' | 'removeProof' | 'grantApproval' | 'revokeApproval', RequestHandler>;
 
-export function makeLeaveControllers(u: { requests: LeaveRequests; list: ListLeavesUseCase; get: GetLeaveUseCase; proof: LeaveProof }): LeaveHandlers {
+export function makeLeaveControllers(u: { requests: LeaveRequests; list: ListLeavesUseCase; get: GetLeaveUseCase; proof: LeaveProof; cutoff: LeaveApprovalCutoff }): LeaveHandlers {
   return {
+    grantApproval: asyncHandler(async (req, res) => {
+      sendSuccess(req, res, await u.cutoff.grant(actorOf(req), requiredParam(req.params, 'id'), req.body as z.output<typeof leaveApprovalGrantBodySchema>), 'Late approval allowed.', 201);
+    }),
+    revokeApproval: asyncHandler(async (req, res) => {
+      sendSuccess(req, res, await u.cutoff.revoke(actorOf(req), requiredParam(req.params, 'id')), 'Late approval withdrawn.', 200);
+    }),
     addProof: asyncHandler(async (req, res) => {
       if (!req.file) throw AppError.badRequest('A file is required.', { field: 'file' });
       const files = await u.proof.add(actorOf(req).id, requiredParam(req.params, 'id'), { buffer: req.file.buffer, name: req.file.originalname });

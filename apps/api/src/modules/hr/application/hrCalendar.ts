@@ -1,4 +1,4 @@
-import { readConfig, parsePositiveInt, readBusinessDay, type ConfigReader } from '@/shared/config/readConfig.js';
+import { readConfig, readBusinessDay, type ConfigReader } from '@/shared/config/readConfig.js';
 import {
   businessDate,
   leaveYearOf,
@@ -8,6 +8,13 @@ import {
   type WeekdayName,
 } from '@/shared/time/businessTime.js';
 import { HR_CONFIG_KEYS } from '../domain/configProvider.port.js';
+
+/** 0 is allowed: no backdating. */
+const parseDays = (value: string): number => {
+  const n = Number(value);
+  if (!/^\d+$/.test(value) || n > 366) throw new RangeError(`Not a whole number from 0 to 366: ${value}`);
+  return n;
+};
 
 /**
  * HR's calendar settings, read from Config on every call: the leave year's start month, the
@@ -29,7 +36,7 @@ export class HrCalendar {
   }
 
   backdateDays(): Promise<number> {
-    return readConfig(this.config, HR_CONFIG_KEYS.backdateDays, parsePositiveInt(366));
+    return readConfig(this.config, HR_CONFIG_KEYS.backdateDays, parseDays);
   }
 
   async today(): Promise<string> {

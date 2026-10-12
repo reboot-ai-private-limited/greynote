@@ -27,6 +27,7 @@ export interface UserDetail {
     payBandId: string | null;
     managerId: string | null;
     dateOfJoining: Date | null;
+    onProbation: boolean;
     probationMonths: number | null;
     esiNumber: string | null;
     hqId: string | null;
@@ -88,6 +89,7 @@ export class GetUserDetailUseCase {
             payBandId: profile.payBandId,
             managerId: profile.managerId,
             dateOfJoining: profile.dateOfJoining,
+            onProbation: profile.onProbation,
             probationMonths: profile.probationMonths,
             esiNumber: profile.esiNumber,
             hqId: profile.hqId,

@@ -19,6 +19,7 @@ import {
   holidayQueryObject,
   idParamsSchema,
   leaveBodySchema,
+  leaveApprovalGrantBodySchema,
   leavesQuerySchema,
   leavePolicyParamsSchema,
   listHolidaysQuerySchema,
@@ -99,6 +100,8 @@ openApiRegistry.registerPath({
   request: { params: attachmentParamsSchema },
   responses: { 200: { description: 'The leave’s remaining files' }, 404: { description: 'No such leave or file' } },
 });
+doc('post', '/leaves/{id}/approval-grant', 'Admin: let a leave that has already started be approved, once (409 LEAVE_APPROVAL_LATE otherwise)', { params: idParamsSchema, body: leaveApprovalGrantBodySchema });
+doc('delete', '/leaves/{id}/approval-grant', 'Admin: withdraw the open late-approval exception of a leave', { params: idParamsSchema });
 doc('get', '/leaves/{id}', 'One leave — the employee, their managers, HR, Admin', { params: idParamsSchema });
 
 /** Leave types, the Leave Master and holidays. */
@@ -137,6 +140,8 @@ export function buildLeavesRouter(c: LeaveHandlers): Router {
   router.get('/', requireRole('HR', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: leavesQuerySchema }), c.allLeaves);
   router.put('/:id', requireRole('FIELD'), validate({ params: idParamsSchema, body: leaveBodySchema }), c.editLeave);
   router.get('/:id', validate({ params: idParamsSchema }), c.getLeave);
+  router.post('/:id/approval-grant', requireRole('ADMIN'), validate({ params: idParamsSchema, body: leaveApprovalGrantBodySchema }), c.grantApproval);
+  router.delete('/:id/approval-grant', requireRole('ADMIN'), validate({ params: idParamsSchema }), c.revokeApproval);
   router.post('/:id/attachments', requireRole('FIELD'), validate({ params: idParamsSchema }), proofUpload, c.addProof);
   router.delete('/:id/attachments/:attachmentId', requireRole('FIELD'), validate({ params: attachmentParamsSchema }), c.removeProof);
   return router;

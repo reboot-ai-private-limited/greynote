@@ -21,4 +21,6 @@ export interface ApprovalPublicContract {
   getForRecord(kind: string, recordId: string): Promise<ApprovalRequest | null>;
   /** The requests of one kind for a batch of records in one query — a report's read; a record with no request is left out. */
   listForRecords(kind: string, recordIds: string[]): Promise<ApprovalRequest[]>;
+  /** Rejects a still-open request on the owning module's behalf (e.g. a leave that started unapproved); false if it was not open. */
+  autoReject(kind: string, recordId: string, reason: string): Promise<boolean>;
 }

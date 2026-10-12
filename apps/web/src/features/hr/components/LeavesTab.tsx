@@ -2,6 +2,7 @@
 
 import type { LeaveDetailDto } from '@greynote/contracts';
 import Link from 'next/link';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { Column } from '@/components/ui/DataTable';
@@ -9,8 +10,11 @@ import { Input } from '@/components/ui/Input';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
 import { STATUS_LABEL, STATUS_TONE } from '@/features/approvals/lib/approvals';
 import { EmployeeFilter, EmployeeName } from '@/features/people/components/EmployeePickerField';
+import { istDate } from '@/lib/dates';
+import { useSession } from '@/lib/auth/SessionProvider';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useAllLeaves } from '../hooks/useLeaves';
+import { AllowLateApprovalDialog } from './AllowLateApprovalDialog';
 import { daysLabel, leaveRangeLabel } from '../lib/leave';
 
 /**
@@ -18,9 +22,15 @@ import { daysLabel, leaveRangeLabel } from '../lib/leave';
  * place to approve.
  */
 export function LeavesTab() {
+  const isAdmin = useSession().user?.role === 'ADMIN';
+  const [allowing, setAllowing] = useState<LeaveDetailDto | null>(null);
+  const today = istDate();
   const { values, page, pageSize, update } = useFilterParams(['userId', 'from', 'to']);
   // A range is optional here (the API fills in the selected financial year); only a reversed one is held back.
-  const range = values.from && values.to && values.from > values.to ? 'The end date is before the start date.' : undefined;
+  const range =
+    values.from && values.to && values.from > values.to
+      ? 'The end date is before the start date.'
+      : undefined;
   const list = useAllLeaves({
     page,
     pageSize,
@@ -46,7 +56,11 @@ export function LeavesTab() {
         <span className="inline-flex items-center gap-2">
           {l.leaveTypeName}
           {l.isPaid ? null : <Badge tone="warning">Unpaid</Badge>}
-          {l.attachments.length > 0 ? <Badge tone="neutral">{l.attachments.length === 1 ? '1 file' : `${l.attachments.length} files`}</Badge> : null}
+          {l.attachments.length > 0 ? (
+            <Badge tone="neutral">
+              {l.attachments.length === 1 ? '1 file' : `${l.attachments.length} files`}
+            </Badge>
+          ) : null}
         </span>
       ),
     },
@@ -65,57 +79,102 @@ export function LeavesTab() {
       header: 'Status',
       render: (l) => {
         const status = l.status as keyof typeof STATUS_LABEL;
-        return <Badge tone={STATUS_TONE[status] ?? 'neutral'}>{STATUS_LABEL[status] ?? l.status}</Badge>;
+        return (
+          <Badge tone={STATUS_TONE[status] ?? 'neutral'}>{STATUS_LABEL[status] ?? l.status}</Badge>
+        );
       },
     },
     {
       key: 'open',
       header: '',
-      className: 'w-24 text-right',
-      render: (l) =>
-        l.approval ? (
-          <Link href={`/approvals/${l.approval.requestId}`} className="text-sm text-accent hover:underline">
-            Open
-          </Link>
-        ) : null,
+      className: 'w-48 text-right',
+      render: (l) => (
+        <span className="inline-flex items-center justify-end gap-3">
+          {isAdmin &&
+          l.startDate < today &&
+          (l.status === 'SUBMITTED' || l.status === 'MANAGER_APPROVED') ? (
+            <button
+              type="button"
+              className="text-sm text-accent hover:underline"
+              onClick={() => setAllowing(l)}
+            >
+              Allow late approval
+            </button>
+          ) : null}
+          {l.approval ? (
+            <Link
+              href={`/approvals/${l.approval.requestId}`}
+              className="text-sm text-accent hover:underline"
+            >
+              Open
+            </Link>
+          ) : null}
+        </span>
+      ),
     },
   ];
 
   return (
-    <PagedListFrame
-      title="Leaves"
-      description="Everyone's leave requests, newest first. Open one to see its history and decide it."
-      noun="leave"
-      readOnly={false}
-      hideHeader
-      filters={
-        <>
-          <EmployeeFilter allLabel="Any employee" value={values.userId} onChange={(v) => update({ userId: v })} />
-          <div className="flex items-center gap-2 text-sm text-text-muted">
-            <label htmlFor="leaves-from">Leaves between</label>
-            <Input id="leaves-from" type="date" value={values.from} onChange={(e) => update({ from: e.target.value })} className="w-40" />
-            <label htmlFor="leaves-to">and</label>
-            <Input id="leaves-to" type="date" value={values.to} onChange={(e) => update({ to: e.target.value })} className="w-40" aria-invalid={range ? true : undefined} />
-          </div>
-          {values.userId || values.from || values.to ? (
-            <Button variant="ghost" size="sm" onClick={() => update({ userId: '', from: '', to: '' })}>
-              Clear filters
-            </Button>
-          ) : null}
-          {range ? (
-            <p role="alert" className="basis-full text-[13px] text-danger-fg">
-              {range}
-            </p>
-          ) : null}
-        </>
-      }
-      query={list}
-      columns={columns}
-      emptyTitle="No leaves"
-      emptyDescription="No leave matches these filters."
-      onPageChange={(p) => update({ page: p })}
-      pageSize={pageSize}
-      onPageSizeChange={(n) => update({ pageSize: n })}
-    />
+    <>
+      <PagedListFrame
+        title="Leaves"
+        description="Everyone's leave requests, newest first. Open one to see its history and decide it."
+        noun="leave"
+        readOnly={false}
+        hideHeader
+        filters={
+          <>
+            <EmployeeFilter
+              allLabel="Any employee"
+              value={values.userId}
+              onChange={(v) => update({ userId: v })}
+            />
+            <div className="flex items-center gap-2 text-sm text-text-muted">
+              <label htmlFor="leaves-from">Leaves between</label>
+              <Input
+                id="leaves-from"
+                type="date"
+                value={values.from}
+                onChange={(e) => update({ from: e.target.value })}
+                className="w-40"
+              />
+              <label htmlFor="leaves-to">and</label>
+              <Input
+                id="leaves-to"
+                type="date"
+                value={values.to}
+                onChange={(e) => update({ to: e.target.value })}
+                className="w-40"
+                aria-invalid={range ? true : undefined}
+              />
+            </div>
+            {values.userId || values.from || values.to ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => update({ userId: '', from: '', to: '' })}
+              >
+                Clear filters
+              </Button>
+            ) : null}
+            {range ? (
+              <p role="alert" className="basis-full text-[13px] text-danger-fg">
+                {range}
+              </p>
+            ) : null}
+          </>
+        }
+        query={list}
+        columns={columns}
+        emptyTitle="No leaves"
+        emptyDescription="No leave matches these filters."
+        onPageChange={(p) => update({ page: p })}
+        pageSize={pageSize}
+        onPageSizeChange={(n) => update({ pageSize: n })}
+      />
+      {allowing ? (
+        <AllowLateApprovalDialog leave={allowing} onClose={() => setAllowing(null)} />
+      ) : null}
+    </>
   );
 }

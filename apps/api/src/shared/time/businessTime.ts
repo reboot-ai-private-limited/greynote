@@ -140,6 +140,21 @@ export function monthlyPlanDeadline(planMonth: string, cutoffDay: number, timeZo
   return endOfBusinessDay(formatCalendarDate({ year: prevYear, month: prevMonth, day }), dayStart, timeZone);
 }
 
+/**
+ * A month of expenses is due by the end of day `cutoffDay` of the month *after* `expenseMonth` (a day past that
+ * month's end means its last day). Returns the last millisecond of that business day.
+ */
+export function expenseMonthDeadline(expenseMonth: string, cutoffDay: number, timeZone: string, dayStart: string = DEFAULT_DAY_START): Date {
+  if (!Number.isInteger(cutoffDay) || cutoffDay < 1 || cutoffDay > 31) {
+    throw new RangeError(`Not a day of the month: ${cutoffDay}`);
+  }
+  const { year, month } = parseCalendarMonth(expenseMonth);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const day = Math.min(cutoffDay, daysInMonth(nextYear, nextMonth));
+  return endOfBusinessDay(formatCalendarDate({ year: nextYear, month: nextMonth, day }), dayStart, timeZone);
+}
+
 export const MONTH_NAMES = [
   'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
   'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',

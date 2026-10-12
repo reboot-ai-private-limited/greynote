@@ -5,6 +5,8 @@ import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { Holiday } from '../../domain/holiday.entity.js';
 import type { Leave, LeaveAttachment } from '../../domain/leave.entity.js';
 import type { LeaveBody, LeaveFilter, LeaveRepositoryPort } from '../../domain/leave.repository.port.js';
+import type { LeaveApprovalGrant } from '../../domain/leaveApprovalGrant.entity.js';
+import type { LeaveApprovalGrantRepositoryPort } from '../../domain/leaveApprovalGrant.repository.port.js';
 import type { LeaveBalance } from '../../domain/leaveBalance.entity.js';
 import type { BalanceKey, LeaveBalanceRepositoryPort } from '../../domain/leaveBalance.repository.port.js';
 import { holidayApplies } from '../../domain/holiday.entity.js';
@@ -100,14 +102,14 @@ export class FakeHolidays implements HolidayRepositoryPort {
 }
 
 export class FakeUsers implements UserDirectoryPort {
-  users = new Map<string, DirectoryUser & { managerId: string | null; payBandId: string | null; dateOfJoining: Date | null; probationMonths: number | null }>();
+  users = new Map<string, DirectoryUser & { managerId: string | null; payBandId: string | null; dateOfJoining: Date | null; onProbation: boolean; probationMonths: number | null }>();
   payBands = [
     { id: 'band-g1', name: 'G1' },
     { id: 'band-g2', name: 'G2' },
   ];
   add(
     id: string,
-    opts: { role?: DirectoryUser['role']; managerId?: string | null; payBandId?: string | null; dateOfJoining?: string | null; probationMonths?: number | null } = {},
+    opts: { role?: DirectoryUser['role']; managerId?: string | null; payBandId?: string | null; dateOfJoining?: string | null; onProbation?: boolean; probationMonths?: number | null } = {},
   ) {
     this.users.set(id, {
       id,
@@ -117,6 +119,7 @@ export class FakeUsers implements UserDirectoryPort {
       status: 'active',
       managerId: opts.managerId ?? null,
       payBandId: opts.payBandId === undefined ? 'band-g1' : opts.payBandId,
+      onProbation: opts.onProbation ?? opts.probationMonths !== undefined,
       probationMonths: opts.probationMonths ?? null,
       dateOfJoining: opts.dateOfJoining ? new Date(`${opts.dateOfJoining}T00:00:00+05:30`) : null,
     });
@@ -149,7 +152,7 @@ export class FakeUsers implements UserDirectoryPort {
   }
   async getEmploymentDetails(userId: string) {
     const u = this.users.get(userId);
-    return u && u.role === 'FIELD' ? { payBandId: u.payBandId, dateOfJoining: u.dateOfJoining, probationMonths: u.probationMonths } : null;
+    return u && u.role === 'FIELD' ? { payBandId: u.payBandId, dateOfJoining: u.dateOfJoining, onProbation: u.onProbation, probationMonths: u.probationMonths } : null;
   }
   async listPayBands() {
     return this.payBands;
@@ -186,6 +189,8 @@ export class FakeConfig {
     FY_START_MONTH: 'APRIL',
     WEEKLY_OFF_DAY: 'SUNDAY',
     LEAVE_BACKDATE_DAYS: '30',
+    LATE_LEAVE_GRANT_VALID_HOURS: '24',
+    LATE_LEAVE_GRANT_MAX_HOURS: '168',
     PROBATION_LEAVE_PAID: 'true',
     PROBATION_MONTHS: '6',
     LEAVE_LOCKED_AFTER_PAYROLL: 'true',
@@ -259,6 +264,9 @@ export class FakeLeaves implements LeaveRepositoryPort {
   async listOverlapping(userId: string, from: string, to: string) {
     return this.rows.filter((l) => l.userId === userId && l.startDate <= to && l.endDate >= from);
   }
+  async listStartingBetween(from: string, before: string) {
+    return this.rows.filter((l) => l.startDate >= from && l.startDate < before);
+  }
   async list(filter: LeaveFilter, page: { page: number; pageSize: number }) {
     const items = this.rows.filter(
       (l) =>
@@ -325,6 +333,15 @@ export class FakeApprovals implements ApprovalsPort {
   async getForRecord(kind: string, recordId: string) {
     return this.requests.get(`${kind}:${recordId}`) ?? null;
   }
+  async listForRecords(kind: string, recordIds: string[]) {
+    return recordIds.flatMap((id) => this.requests.get(`${kind}:${id}`) ?? []);
+  }
+  async autoReject(kind: string, recordId: string, _reason: string) {
+    const request = this.requests.get(`${kind}:${recordId}`);
+    if (!request || (request.status !== 'SUBMITTED' && request.status !== 'MANAGER_APPROVED')) return false;
+    await this.move(kind, recordId, 'REJECTED');
+    return true;
+  }
   /** Move a request to `status`, running the owner's callback as the approval module would. */
   async move(kind: string, recordId: string, status: ApprovalStatus) {
     const key = `${kind}:${recordId}`;
@@ -348,3 +365,32 @@ export class FakeApprovals implements ApprovalsPort {
 }
 
 export const inlineTransactions: TransactionRunnerPort = { run: (fn) => fn({}) };
+
+export class FakeLeaveApprovalGrants implements LeaveApprovalGrantRepositoryPort {
+  rows: LeaveApprovalGrant[] = [];
+  async findUsable(leaveId: string, now: Date) {
+    return this.rows.find((g) => g.leaveId === leaveId && g.status === 'OPEN' && g.expiresAt > now) ?? null;
+  }
+  async create(input: Omit<LeaveApprovalGrant, 'id' | 'status' | 'usedAt' | 'revokedAt' | 'revokedBy'>, now: Date) {
+    for (const g of this.rows) if (g.leaveId === input.leaveId && g.status === 'OPEN' && g.expiresAt <= now) g.status = 'EXPIRED';
+    if (this.rows.some((g) => g.leaveId === input.leaveId && g.status === 'OPEN')) return null;
+    const grant: LeaveApprovalGrant = { ...input, id: `grant-${this.rows.length + 1}`, status: 'OPEN', usedAt: null, revokedAt: null, revokedBy: null };
+    this.rows.push(grant);
+    return grant;
+  }
+  async consume(id: string, now: Date) {
+    const g = this.rows.find((r) => r.id === id && r.status === 'OPEN' && r.expiresAt > now);
+    if (!g) return false;
+    g.status = 'USED';
+    g.usedAt = now;
+    return true;
+  }
+  async revokeForLeave(leaveId: string, revokedBy: string, now: Date) {
+    const g = await this.findUsable(leaveId, now);
+    if (!g) return null;
+    g.status = 'REVOKED';
+    g.revokedAt = now;
+    g.revokedBy = revokedBy;
+    return g;
+  }
+}

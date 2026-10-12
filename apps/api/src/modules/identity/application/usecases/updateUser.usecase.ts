@@ -35,6 +35,7 @@ export interface UpdateUserInput {
     guardianName?: string | null;
     dateOfBirth?: Date;
     dateOfJoining?: Date | null;
+    onProbation?: boolean;
     probationMonths?: number | null;
     esiNumber?: string | null;
     qualification?: string | null;
@@ -102,6 +103,7 @@ export class UpdateUserUseCase {
       payBandId: input.payBandId ?? existingProfile?.payBandId ?? null,
       managerId: input.managerId ?? existingProfile?.managerId ?? null,
       dateOfJoining: pick(input.basicDetails?.dateOfJoining, existingProfile?.dateOfJoining),
+      onProbation: input.basicDetails?.onProbation ?? existingProfile?.onProbation ?? false,
       probationMonths: pick(input.basicDetails?.probationMonths, existingProfile?.probationMonths),
       esiNumber: pick(input.basicDetails?.esiNumber, existingProfile?.esiNumber),
       // Territory writes these; an onboarding edit carries them through untouched.

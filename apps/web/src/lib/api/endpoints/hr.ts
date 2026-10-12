@@ -1,5 +1,6 @@
 import type {
   AdjustLeaveBalanceDto,
+  AllowLateLeaveApprovalDto,
   CreateHolidayDto,
   CreateLeaveTypeDto,
   HolidayDto,
@@ -54,6 +55,10 @@ export const hrApi = {
   /** Sets one employee's allocation for a paid type and year. A one-off: it does not touch the Leave Master. */
   adjustBalance: (token: string, userId: string, leaveTypeId: string, body: AdjustLeaveBalanceDto) =>
     request<LeaveBalanceDto>(`/hr/leave-balances/${userId}/${leaveTypeId}`, { method: 'PATCH', token, body }),
+
+  /** Admin: let a leave that has already started be approved, once. */
+  allowLateApproval: (token: string, leaveId: string, body: AllowLateLeaveApprovalDto) =>
+    request<unknown>(`/hr/leaves/${leaveId}/approval-grant`, { method: 'POST', token, body }),
 
   leaveTypes: (token: string, signal?: AbortSignal) => request<LeaveTypeDto[]>('/hr/leave-types', { token, signal }),
   createLeaveType: (token: string, body: CreateLeaveTypeDto) =>

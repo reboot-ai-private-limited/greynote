@@ -43,6 +43,11 @@ export class MongoLeaveAdapter implements LeaveRepositoryPort {
     return docs.map(toLeave);
   }
 
+  async listStartingBetween(from: string, before: string): Promise<Leave[]> {
+    const docs = await LeaveModel.find({ startDate: { $gte: from, $lt: before } }).lean();
+    return docs.map(toLeave);
+  }
+
   async list(filter: LeaveFilter, page: { page: number; pageSize: number }): Promise<{ items: Leave[]; total: number }> {
     const query = {
       ...(filter.userIds && { userId: { $in: filter.userIds.map((id) => new Types.ObjectId(id)) } }),

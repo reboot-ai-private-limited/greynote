@@ -23,6 +23,11 @@ export const adjustBalanceBodySchema = z.object({
   reason: z.string().trim().min(1, 'A reason is required.').max(500),
 });
 
+export const leaveApprovalGrantBodySchema = z.object({
+  reason: z.string().trim().min(1, 'A reason is required.').max(500),
+  expiresAt: z.coerce.date().optional(),
+});
+
 export const createLeaveTypeBodySchema = z.object({ name: nameSchema, isPaid: z.boolean(), allowsProof: z.boolean().optional() });
 export const updateLeaveTypeBodySchema = z
   .object({ name: nameSchema.optional(), isPaid: z.boolean().optional(), allowsProof: z.boolean().optional(), active: z.boolean().optional() })
