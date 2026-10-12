@@ -22,7 +22,7 @@
 | 4.05 | Employee with no joining date | the attendance calendar shows days as "unknown", never absent | |
 | 4.06 | Leave & holidays: leave types, policies, holidays | listed; no half-day | |
 | 4.06a | Onboard an employee with "On probation" ticked, then one without | only the first gets paid leave during probation (K6); the second is never on probation, however recently they joined | |
-| 4.06b | Approve a leave whose first day has passed | refused (`LEAVE_APPROVAL_LATE`); rejecting works; an Admin exception lets it through once | |
+| 4.06b | Approve a leave whose first day has passed | refused (`LEAVE_APPROVAL_LATE`); rejecting works; an Admin exception lets it through once; a pending leave whose first day passed turns Rejected by itself (balance freed) | |
 | 4.07 | Leave balances follow the financial year (K17) | a new year starts fresh | |
 | 4.08 | Promotions → Promote an employee who has direct reports | cannot save until every report has a new manager or is marked "stay" (K14) | |
 | 4.09 | Effective date | only the 1st of a month, next month or later (K13) | |

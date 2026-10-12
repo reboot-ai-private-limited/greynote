@@ -1971,6 +1971,8 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 3. **Unapproved leave = as usual:** only approved / manager-approved leave exempts a day from the missed-report block and the absent deduction; a pending or expired request does not. Already built; now written down in [`mobile/leave.md`](mobile/leave.md).
 4. **Approvers:** manager, then HR or Admin (Admin may approve at any stage) — unchanged.
 
-**Open:** auto-reject of pending leaves whose first day passed (needs a system transition in the approval module); web screen for the Admin exception; employee cancel of an approved leave; not browser-checked; the phone app (another team) builds against [`mobile/leave.md`](mobile/leave.md).
+**Added the same day:** a server job (every 30 min) auto-rejects pending leaves whose first day has passed (history: "Automatic: …", balance freed; skipped while an Admin exception is usable), and Admin gets "Allow late approval" in HR → Leaves.
+
+**Open:** employee cancel of an approved leave; not browser-checked; the phone app (another team) builds against [`mobile/leave.md`](mobile/leave.md).
 
 **Refs:** [`LLD/hr.md`](LLD/hr.md), [`mobile/leave.md`](mobile/leave.md), sign-off F3, F14, K6.

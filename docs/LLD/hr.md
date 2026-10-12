@@ -144,7 +144,9 @@ Territory (`getUserHq`, `getHq`, `getZone`), Approval (the `LEAVE` workflow), Co
 - **Probation is per employee:** `EmployeeProfile.onProbation` (default false, set in the onboarding wizard, editable by HR/Admin). Only when it is true do `probationMonths` / `PROBATION_MONTHS` apply; the software being new does not make existing employees probationers. Everything below under "Probation (2026-10-05)" is unchanged once the switch is on. No migration: a missing field reads as false.
 - **Approval cutoff = the leave's first day:** `LeaveApprovalCutoff.assertMayApprove` runs in the `LEAVE` `onStatusChange` for `MANAGER_APPROVED` and `APPROVED`; if `startDate` is before today it throws `409 LEAVE_APPROVAL_LATE` and the approval rolls back (rejecting and withdrawing are unaffected). `LEAVE_BACKDATE_DAYS` now defaults to 0.
 - **Exception:** `LeaveApprovalGrant` (collection `leaveapprovalgrants`, one OPEN per leave, usable once, ends at `expiresAt`; `LATE_LEAVE_GRANT_VALID_HOURS` 24, `LATE_LEAVE_GRANT_MAX_HOURS` 168). Admin only: `POST` / `DELETE /api/hr/leaves/:id/approval-grant`. Consumed inside the approval transaction, like `ExpenseMonthGrant` and the late Plan grant (B8).
-- **Not done:** pending leaves past their first day are not auto-rejected, so their reserved balance stays until the approver rejects or the employee withdraws; there is no web screen for the exception yet.
+- **Auto-reject:** `ExpireLateLeaves` (server job every 30 min, `hr.expireLateLeaves`) rejects leaves still `SUBMITTED` / `MANAGER_APPROVED` whose start date has passed, through the approval module's `autoReject` (history entry with authority `AUTO`, comment "Automatic: …"), so the ledger frees the balance. A leave with a usable Admin exception is skipped.
+- **Web:** Admin sees "Allow late approval" on an open, started leave in HR → Leaves.
+- **Not done:** employee cancel of an approved leave.
 
 ## Probation (2026-10-05)
 

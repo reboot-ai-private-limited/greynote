@@ -14,7 +14,7 @@ What the field app must do for leave, and the rules the server enforces. The ser
 | 4 | **Probation:** an employee marked **On probation** at onboarding has all leave paid while the probation lasts (joining date + the employee's months, else `PROBATION_MONTHS`, only while `PROBATION_LEAVE_PAID` is on). A paid leave is never refused for balance then, and Loss of Pay inside probation is not deducted. Employees are **not** on probation unless HR marked them; the phone just shows what the server returns. | ✅ |
 | 5 | **Approval:** employee → their manager → HR or Admin (Admin may approve at any stage). Nobody approves their own leave. Balance is reserved (`pending`) on request and moves to `used` on final approval; reject or withdraw gives it back. | ✅ |
 | 6 | **Start date:** today or later (`LEAVE_BACKDATE_DAYS` = 0), inside this leave year or the next. | ✅ |
-| 7 | **Approval cutoff = the leave's first day.** Once that day has begun, a manager or HR can no longer approve it: `409 LEAVE_APPROVAL_LATE`. They can still **reject** it. Only an Admin **exception** (one use, ends at `expiresAt`, default `LATE_LEAVE_GRANT_VALID_HOURS`) lets one through. A leave left unapproved past its first day counts as ordinary working days: the missed-report and absent rules apply "as usual". | ✅ |
+| 7 | **Approval cutoff = the leave's first day.** Once that day has begun, a manager or HR can no longer approve it: `409 LEAVE_APPROVAL_LATE`. They can still **reject** it. Only an Admin **exception** (one use, ends at `expiresAt`, default `LATE_LEAVE_GRANT_VALID_HOURS`) lets one through. A leave still pending on its first day is **rejected automatically** (within about 30 minutes; the history shows "Automatic: …" and the balance is given back) unless Admin has allowed it; the days then count as ordinary working days: the missed-report and absent rules apply "as usual". | ✅ |
 | 8 | **An approved (or manager-approved) leave day never blocks the employee.** No daily report is expected that day, the missed-report block skips it, and work after the leave carries on as normal. A leave that is only `SUBMITTED` (not yet approved) does **not** exempt the day. | ✅ |
 | 9 | **Editing:** only a `REJECTED`, `WITHDRAWN` or `REOPENED` leave can be changed (`PUT /hr/leaves/:id`); saving resubmits it. The employee can **withdraw** before final approval (`POST /approvals/:id/withdraw`). Cancelling an already-approved leave is not in the app: ask Admin to reopen it. | ✅ |
 | 10 | **Proof (optional):** on a type that allows it (Sick), up to 3 files of 5 MB (`POST /hr/leaves/:id/attachments`, `DELETE …/:attachmentId`). | ✅ |
@@ -38,7 +38,7 @@ From `GET /hr/leaves/me`, `GET /hr/leave-balances/me` and the sync snapshot (lea
 
 - Date picker: earliest date is **today**. If the range has no working day, say so (the server answers `400`).
 - Not enough balance on a paid type: **"Not enough Casual leave left. Request Loss of Pay for the rest."**
-- `LEAVE_APPROVAL_LATE` is seen by the approver, not the employee. The employee whose leave starts without an approval sees it still `SUBMITTED`: show **"This leave has started and isn't approved. Ask your manager or Admin."** and offer Withdraw.
+- `LEAVE_APPROVAL_LATE` is seen by the approver, not the employee. The employee whose leave starts without an approval sees it turn `REJECTED` with the comment "Automatic: the leave started before anyone approved it.": show that comment, and let them request again.
 - `PAYROLL_FINALIZED`: **"This month's salary is already finalized."**
 
 ## 4. Endpoints
