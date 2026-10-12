@@ -30,7 +30,7 @@ export class DoctorVisitsReport {
             .map((d) => {
               const frequency = d.visitFrequency!;
               const made = Math.min(calls.get(d.id) ?? 0, frequency);
-              return { doctor: { id: d.id, name: d.name, specialty: d.specialty }, frequency, made, missed: frequency - made, plannedDays: planned.get(d.id)?.plannedDays ?? 0, missedSince: planned.get(d.id)?.missedSince ?? null };
+              return { doctor: { id: d.id, name: d.name, specialty: d.specialty }, frequency, made, missed: frequency - made, stage: made >= frequency ? ('COMPLETE' as const) : made > 0 ? ('IN_PROGRESS' as const) : ('NOT_STARTED' as const), plannedDays: planned.get(d.id)?.plannedDays ?? 0, missedSince: planned.get(d.id)?.missedSince ?? null };
             })
             .sort((a, b) => b.missed - a.missed || a.doctor.name.localeCompare(b.doctor.name));
           const quota = rows.reduce((n, r) => n + r.frequency, 0);

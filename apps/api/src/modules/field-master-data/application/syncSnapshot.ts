@@ -59,6 +59,8 @@ export function makeFieldMasterDataSource(deps: {
           name: d.name,
           address: d.address,
           email: d.email,
+          clinicName: d.clinicName,
+          phone: d.phone,
           specialty: d.specialty,
           qualification: d.qualification,
           dateOfBirth: d.dateOfBirth,

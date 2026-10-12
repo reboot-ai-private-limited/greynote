@@ -76,9 +76,12 @@ export interface NewDoctorPayload {
   specialty: string;
   qualification: string;
   email?: string | null;
+  /** Optional: the clinic or hospital, and a contact number. */
+  clinicName?: string | null;
+  phone?: string | null;
   dateOfBirth?: string | null;
   anniversary?: string | null;
-  /** Visits per month (1–6). */
+  /** Visits per month (1–5). */
   visitFrequency?: number | null;
   /** The phone's GPS when adding. */
   location: GeoPoint;
@@ -265,6 +268,8 @@ export interface FieldMasterDataSnapshot {
     name: string;
     address: string;
     email: string | null;
+    clinicName: string | null;
+    phone: string | null;
     specialty: string;
     qualification: string;
     dateOfBirth: string | null;

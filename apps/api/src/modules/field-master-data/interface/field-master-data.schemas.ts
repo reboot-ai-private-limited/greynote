@@ -90,8 +90,11 @@ export const listChemistsQuerySchema = z.object({ ...pageFields, routeId: object
 // ---- Doctors
 const emailSchema = z.string().trim().email().max(200);
 const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.').refine((v) => !Number.isNaN(Date.parse(v)), 'Not a real date.');
-const frequencySchema = z.number().int().min(1).max(6);
+const frequencySchema = z.number().int().min(1).max(5);
+const mobileSchema = z.string().trim().regex(/^\+?\d{10,15}$/, 'Must be a phone number of 10 to 15 digits.');
 const doctorExtras = {
+  clinicName: z.string().trim().max(150).nullish().transform((v) => (v ? v : null)),
+  phone: mobileSchema.nullish().transform((v) => v ?? null),
   dateOfBirth: dateOnly.nullish().transform((v) => v ?? null),
   anniversary: dateOnly.nullish().transform((v) => v ?? null),
   visitFrequency: frequencySchema.nullish().transform((v) => v ?? null),
@@ -110,8 +113,7 @@ export const createDoctorBodySchema = z.object({
   /** Picked on a Google map. Omit to add the Doctor now and set the point later. */
   location: locationSchema.nullish().transform((v) => v ?? null),
 });
-export const updateDoctorBodySchema = z
-  .object({
+const doctorChangeObject = z.object({
     routeId: objectIdSchema.optional(),
     name: nameSchema.optional(),
     address: textSchema.optional(),
@@ -121,13 +123,18 @@ export const updateDoctorBodySchema = z
     dateOfBirth: dateOnly.nullable().optional(),
     anniversary: dateOnly.nullable().optional(),
     visitFrequency: frequencySchema.nullable().optional(),
+    clinicName: z.string().trim().max(150).nullable().optional(),
+    phone: mobileSchema.nullable().optional(),
     /** `null` clears it. */
     email: emailSchema.nullable().optional(),
     /** `null` clears the registered location. */
     location: locationSchema.nullable().optional(),
     status: statusSchema.optional(),
-  })
-  .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
+});
+const nothingToChange = (b: object) => Object.keys(b).length > 0;
+export const updateDoctorBodySchema = doctorChangeObject.refine(nothingToChange, { message: 'Nothing to change.' });
+/** A manager (or Admin) correcting a doctor that is waiting for approval: any detail but the status. */
+export const reviewDoctorBodySchema = doctorChangeObject.omit({ status: true }).refine(nothingToChange, { message: 'Nothing to change.' });
 /** Manager/Admin: only the visit target and the two dates. */
 export const updateDoctorTargetsBodySchema = z
   .object({
@@ -176,7 +183,6 @@ const gstSchema = z
   .trim()
   .toUpperCase()
   .regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/, 'Must be a 15-character GST number.');
-const mobileSchema = z.string().trim().regex(/^\+?\d{10,15}$/, 'Must be a phone number of 10 to 15 digits.');
 const distributorFields = {
   name: nameSchema,
   gstNumber: gstSchema,

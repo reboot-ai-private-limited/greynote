@@ -1939,3 +1939,14 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** the phone app must drop the work-type picker from calls, add GPS to follow-ups and chemist calls, add the note to `DCR_SUBMIT` on Meeting/Conference days, and add the remove action; not browser-checked; Admin must set a location for any doctor or chemist that has none.
 
 **Refs:** [`mobile/dcr.md`](mobile/dcr.md), [`LLD/field-activity.md`](LLD/field-activity.md), [`erd/04-field-activity.md`](erd/04-field-activity.md), sign-off B12, B15, H1, K40.
+
+## 2026-10-12 — Doctor add: manager *or* Admin approves and may edit first; clinic name and phone; frequency 1–5
+
+1. **Approval:** an MR-added doctor is decided by the MR's manager or Admin — either one, no second stage (`NEW_DOCTOR` is `managerOnly`; reverses the Employee → Manager → Admin chain of C4). Admin-added doctors are active at once.
+2. **Edit before approving:** the manager or Admin can change any detail and the location (`PATCH /doctors/:id/review`, pending only). The phone's point is kept as `capturedLocation`.
+3. **New optional fields:** `clinicName`, `phone`. **Visit frequency is 1–5** (was 1–6; a stored 6 stays readable).
+4. **Missed calls:** each doctor row now has a `stage` (complete / in progress / not started) beside made, still-to-visit, planned days and "planned, not called since". Admin-added doctors count the same once assigned.
+
+**Open:** the phone app (another team) must send `clinicName`/`phone`, cap frequency at 5, and the sync snapshot now carries both; not browser-checked.
+
+**Refs:** [`LLD/field-master-data.md`](LLD/field-master-data.md), [`LLD/reports.md`](LLD/reports.md), sign-off C4.

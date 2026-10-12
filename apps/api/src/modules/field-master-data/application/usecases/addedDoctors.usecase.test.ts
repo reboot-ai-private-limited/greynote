@@ -7,6 +7,7 @@ import { AddedDoctors, type AddedDoctorInput } from './addedDoctors.js';
 import { FakeApprovals, FakeAssignments, FakeConfig, FakeDoctors, FakeTerritory, FakeTransactions, FakeUsers, FakeSpecialties } from './fmdTestKit.js';
 import { GetDoctorUseCase } from './getDoctor.usecase.js';
 import { ListAssignedDoctorsUseCase } from './listAssignedDoctors.usecase.js';
+import { ReviewPendingDoctorUseCase } from './reviewPendingDoctor.usecase.js';
 import { UpdateDoctorUseCase } from './updateDoctor.usecase.js';
 import { SpecialtyCatalog } from '../specialtyCatalog.js';
 
@@ -176,7 +177,7 @@ describe('An MR adds a Doctor', () => {
     });
 
     it('an Admin-added Doctor is not one an MR can edit', async () => {
-      const d = await doctors.create({ ...input, dateOfBirth: null, anniversary: null, visitFrequency: null, capturedLocation: null, clientRequestId: null, status: 'active', addedBy: 'mr1', approvedAt: new Date() });
+      const d = await doctors.create({ ...input, clinicName: null, phone: null, dateOfBirth: null, anniversary: null, visitFrequency: null, capturedLocation: null, clientRequestId: null, status: 'active', addedBy: 'mr1', approvedAt: new Date() });
       await expectStatus(added.edit('mr1', d.id, input), 404);
     });
   });
@@ -229,5 +230,27 @@ describe('An MR adds a Doctor', () => {
       ['Dr Mehta', 'SUBMITTED'],
     ]);
     expect((await added.list('mr2', page)).total).toBe(0);
+  });
+});
+
+describe('A manager or Admin corrects a pending Doctor before approving', () => {
+  it('lets the MR’s manager and Admin edit it, and nobody else', async () => {
+    const assignments = new FakeAssignments();
+    const doctors = new FakeDoctors(assignments);
+    const territory = new FakeTerritory();
+    territory.userRoutes.set('mr1', ['route-1']);
+    const users = new FakeUsers();
+    const views = new DoctorViews(assignments, users);
+    const specialties = new SpecialtyCatalog(new FakeSpecialties(['ENT']));
+    const added = new AddedDoctors(doctors, territory, new FakeApprovals(), new FakeTransactions(), views, specialties);
+    const { doctor } = await added.add('mr1', { ...input, clientRequestId: 'client-req-0001' });
+    const review = new ReviewPendingDoctorUseCase(doctors, users, new UpdateDoctorUseCase(doctors, assignments, territory, views, specialties));
+    const fixed = { latitude: 26.8, longitude: 88.5 };
+
+    const byManager = await review.execute(field('asm'), doctor.id, { location: fixed, clinicName: 'City Clinic', phone: '9876543210' });
+    expect(byManager).toMatchObject({ location: fixed, clinicName: 'City Clinic', phone: '9876543210', capturedLocation: phoneGps });
+    expect((await review.execute(admin, doctor.id, { address: '1 New Rd' })).address).toBe('1 New Rd');
+    await expectStatus(review.execute(field('stranger'), doctor.id, { address: 'x' }), 404);
+    await expectStatus(review.execute(field('mr1'), doctor.id, { address: 'x' }), 404);
   });
 });

@@ -61,8 +61,8 @@ whole data model. The contract below is complete for Phase 6's needs.
 ## What it owns
 
 - **Doctor** — `route_id`, category, name, address, email, specialty, qualification, and a
-  registered `latitude`/`longitude` captured once at creation. Also optional `date_of_birth`,
-  `anniversary` (`YYYY-MM-DD`) and `visit_frequency` (1–6 visits a month; null = no target). An MR sets them
+  registered `latitude`/`longitude` captured once at creation. Also optional `clinic_name` and `phone` (10–15 digits), and optional `date_of_birth`,
+  `anniversary` (`YYYY-MM-DD`) and `visit_frequency` (1–5 visits a month; null = no target). An MR sets them
   when adding the doctor; Admin edits all of the doctor, and a manager can change only these three for a
   doctor of someone in their downline (`PATCH /doctors/:id/targets`; the assigned MR cannot change their own target).
 - **Chemist** — the same shape minus specialty/qualification, its own registered
@@ -166,12 +166,12 @@ with a reduced field set, which goes through approval before the Doctor is usabl
 
 ## Doctor-creation approval
 
-Client sign-off C4 (answered 2026-09-24): a Doctor an MR adds needs approval **Employee →
-Manager → Admin**, through the `approval` module ([`approval.md`](approval.md),
+Client sign-off C4 (answered 2026-09-24), changed 2026-10-12: a Doctor an MR adds needs approval from **the MR's manager or Admin — either one decides** (the kind is `managerOnly`; no second stage), through the `approval` module ([`approval.md`](approval.md),
 [`../hld/05-approval-workflow-engine.md`](../hld/05-approval-workflow-engine.md)) — this module
 doesn't re-derive the state machine.
 
-- This module registers the `NEW_DOCTOR` kind (final approver `ADMIN`) and submits it from the MR's
+- Before deciding, the manager (or Admin) can correct any detail, including the location, with `PATCH /doctors/:id/review` (pending doctors only; a manager outside the MR's upline gets 404). The phone's own point stays in `capturedLocation`. Admin-added doctors need no approval.
+- This module registers the `NEW_DOCTOR` kind (final approver `ADMIN`, `managerOnly`) and submits it from the MR's
   create endpoint, in the same transaction as the insert, so a Doctor never exists without its
   request. The approve, reject and withdraw actions are the approval module's own `/api/approvals/*`
   endpoints; Admin opens the Doctor from a request's `recordId`.

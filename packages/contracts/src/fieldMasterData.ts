@@ -138,11 +138,13 @@ export interface DoctorDto {
   name: string;
   address: string;
   email: string | null;
+  clinicName: string | null;
+  phone: string | null;
   specialty: string;
   qualification: string;
   dateOfBirth: string | null;
   anniversary: string | null;
-  /** Visits per month the MR should make (1–6); `null` = no target. */
+  /** Visits per month the MR should make (1–5); `null` = no target. */
   visitFrequency: number | null;
   /** What the geofence compares against. `null` until set. */
   location: GeoPoint | null;
@@ -164,6 +166,8 @@ export interface CreateDoctorDto {
   specialty: string;
   qualification: string;
   email?: string | null;
+  clinicName?: string | null;
+  phone?: string | null;
   dateOfBirth?: string | null;
   anniversary?: string | null;
   visitFrequency?: number | null;
@@ -177,6 +181,8 @@ export interface UpdateDoctorDto {
   qualification?: string;
   /** `null` clears it. */
   email?: string | null;
+  clinicName?: string | null;
+  phone?: string | null;
   dateOfBirth?: string | null;
   anniversary?: string | null;
   visitFrequency?: number | null;

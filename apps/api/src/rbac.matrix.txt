@@ -119,6 +119,7 @@ PATCH  /api/config/:key  ADMIN
 PATCH  /api/field-master-data/chemists/:id  ADMIN
 PATCH  /api/field-master-data/distributors/:id  ADMIN
 PATCH  /api/field-master-data/doctors/:id  ADMIN
+PATCH  /api/field-master-data/doctors/:id/review  ADMIN,FIELD
 PATCH  /api/field-master-data/doctors/:id/sample-allocations/:productId  ADMIN
 PATCH  /api/field-master-data/doctors/:id/targets  ADMIN,FIELD
 PATCH  /api/field-master-data/products/:id  ADMIN

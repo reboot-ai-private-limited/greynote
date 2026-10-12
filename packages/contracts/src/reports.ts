@@ -261,11 +261,13 @@ export interface DcrCoverageDto {
 /** One Doctor's month against its visit frequency. `made` counts calls on reported (submitted or approved) daily reports only. */
 export interface DoctorVisitRowDto {
   doctor: { id: string; name: string; specialty: string };
-  /** The Doctor's visit frequency (1–6): calls expected this month. */
+  /** The Doctor's visit frequency (1–5): calls expected this month. */
   frequency: number;
   made: number;
   /** `max(0, frequency − made)`. */
   missed: number;
+  /** Where this month stands: all visits made, some made, or none yet. */
+  stage: 'COMPLETE' | 'IN_PROGRESS' | 'NOT_STARTED';
   /** Days this month the Doctor was on an approved daily plan, up to yesterday. */
   plannedDays: number;
   /** The day the Doctor was first planned and then never called on or after — the missed call carried forward; `null` if none. */

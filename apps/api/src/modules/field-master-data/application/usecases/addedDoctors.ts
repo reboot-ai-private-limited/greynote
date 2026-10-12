@@ -18,6 +18,8 @@ export interface AddedDoctorInput {
   name: string;
   address: string;
   email: string | null;
+  clinicName?: string | null;
+  phone?: string | null;
   specialty: string;
   qualification: string;
   dateOfBirth?: string | null;
@@ -82,7 +84,7 @@ export class AddedDoctors {
   private async insertAndSubmit(mrId: string, input: AddedDoctorInput & { clientRequestId: string }, ctx: TransactionContext): Promise<Doctor> {
     const { clientRequestId, location, ...fields } = input;
     const doctor = await this.doctors.createProposed(
-      { dateOfBirth: null, anniversary: null, visitFrequency: null, ...fields, location, capturedLocation: location, clientRequestId, status: 'pending', addedBy: mrId, approvedAt: null },
+      { clinicName: null, phone: null, dateOfBirth: null, anniversary: null, visitFrequency: null, ...fields, location, capturedLocation: location, clientRequestId, status: 'pending', addedBy: mrId, approvedAt: null },
       ctx,
     );
     await this.approvals.submit({ kind: NEW_DOCTOR_KIND, recordId: doctor.id, submitterId: mrId }, ctx);

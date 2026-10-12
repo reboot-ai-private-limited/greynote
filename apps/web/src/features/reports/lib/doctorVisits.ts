@@ -6,6 +6,8 @@ export function progressPercent(m: Pick<DoctorVisitMrDto, 'quota' | 'made'>): nu
   return m.quota <= 0 ? null : Math.round((m.made / m.quota) * 100);
 }
 
+export const STAGE_LABEL = { COMPLETE: 'Complete', IN_PROGRESS: 'In progress', NOT_STARTED: 'Not started' } as const;
+
 const HEADER = [
   'Employee code',
   'Employee',
@@ -14,6 +16,7 @@ const HEADER = [
   'Frequency',
   'Calls made',
   'Missed',
+  'Stage',
   'Planned days',
   'Planned, not called since',
 ] as const;
@@ -30,6 +33,7 @@ export function doctorVisitsCsv(mrs: readonly DoctorVisitMrDto[]): string {
         r.frequency,
         r.made,
         r.missed,
+        STAGE_LABEL[r.stage],
         r.plannedDays,
         r.missedSince ?? '',
       ]),

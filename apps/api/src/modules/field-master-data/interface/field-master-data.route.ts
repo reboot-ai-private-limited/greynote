@@ -30,6 +30,7 @@ import {
   teamDoctorsQuerySchema,
   updateChemistBodySchema,
   updateDistributorBodySchema,
+  reviewDoctorBodySchema,
   updateDoctorBodySchema,
   updateDoctorTargetsBodySchema,
   updateProductBodySchema,
@@ -81,6 +82,7 @@ doc('get', '/doctors/team', 'Managers: the doctors of everyone in my downline', 
 doc('get', '/doctors/added', 'Field staff: the doctors I added, with where each is in its approval', { query: listAddedDoctorsQuerySchema });
 doc('post', '/doctors/added', 'Field staff: add a doctor (offline-first) — it goes to my manager, then Admin', { body: addDoctorBodySchema });
 doc('put', '/doctors/added/{id}', 'Field staff: change a rejected, withdrawn or reopened doctor — resubmits it', { params: idParamsSchema, body: editAddedDoctorBodySchema });
+doc('patch', '/doctors/{id}/review', 'Manager or Admin: correct a doctor waiting for approval (any detail, including its location) before approving', { params: idParamsSchema, body: reviewDoctorBodySchema });
 doc('get', '/doctors/{id}', 'A doctor — Admin, the assigned MR, or their manager', { params: idParamsSchema });
 doc('patch', '/doctors/{id}', 'Admin: edit a doctor, including correcting its location', { params: idParamsSchema, body: updateDoctorBodySchema });
 doc('get', '/doctors/{id}/assignments', 'Admin: who has been responsible for a doctor', { params: idParamsSchema });
@@ -123,6 +125,7 @@ function doctorsRouter(c: DoctorHandlers): Router {
   router.post('/', admin, validate({ body: createDoctorBodySchema }), c.create);
   // Admin, or a FIELD employee the use case checks (the assigned MR, or their manager).
   router.get('/:id', requireRole('ADMIN', 'FIELD'), validate({ params: idParamsSchema }), c.get);
+  router.patch('/:id/review', requireRole('ADMIN', 'FIELD'), validate({ params: idParamsSchema, body: reviewDoctorBodySchema }), c.review);
   router.patch('/:id', admin, validate({ params: idParamsSchema, body: updateDoctorBodySchema }), c.update);
   router.patch('/:id/targets', requireRole('ADMIN', 'FIELD'), validate({ params: idParamsSchema, body: updateDoctorTargetsBodySchema }), c.updateTargets);
   router.get('/:id/assignments', admin, validate({ params: idParamsSchema }), c.listAssignments);
