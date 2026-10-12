@@ -6,7 +6,7 @@ const base: UserDetailDto = {
   id: 'u1', employeeCode: 'MR001', name: 'Asha Rao', email: null, phone: null, role: 'FIELD', status: 'pending', isBlocked: false, lastLoginAt: null, currentBlock: null, blockHistory: [], profile: null,
 };
 const profile = (over: Partial<NonNullable<UserDetailDto['profile']>> = {}): NonNullable<UserDetailDto['profile']> => ({
-  designationId: null, payBandId: null, managerId: null, dateOfJoining: null, probationMonths: null, esiNumber: null, mobileNumber: null, hqId: null, zoneId: null, alternateMobile: null, guardianName: null, dateOfBirth: null,
+  designationId: null, payBandId: null, managerId: null, dateOfJoining: null, onProbation: false, probationMonths: null, esiNumber: null, mobileNumber: null, hqId: null, zoneId: null, alternateMobile: null, guardianName: null, dateOfBirth: null,
   address: null, permanentAddress: null, permanentSameAsPresent: false, qualification: null, qualifications: [], previousEmployment: [], bankDetails: null, documents: [], ...over,
 });
 const keys = (steps: ReturnType<typeof setupSteps>) => steps.map((s) => [s.key, s.done]);

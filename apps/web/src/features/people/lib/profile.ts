@@ -30,6 +30,7 @@ export interface BasicDraft {
   guardianName: string;
   dateOfBirth: string;
   dateOfJoining: string;
+  onProbation: boolean;
   /** Whole months, '' = use the system's probation length. */
   probationMonths: string;
   /** Exactly 17 digits, '' = none. */
@@ -45,6 +46,7 @@ export function basicToDraft(user: UserDetailDto): BasicDraft {
     guardianName: p?.guardianName ?? '',
     dateOfBirth: toDateInput(p?.dateOfBirth),
     dateOfJoining: toDateInput(p?.dateOfJoining),
+    onProbation: p?.onProbation ?? false,
     probationMonths: p?.probationMonths == null ? '' : String(p.probationMonths),
     esiNumber: p?.esiNumber ?? '',
     qualification: p?.qualification ?? '',
@@ -81,6 +83,7 @@ export function buildBasic(user: UserDetailDto, draft: BasicDraft, today: string
     ...(guardian !== before.guardianName && { guardianName: guardian === '' ? null : guardian }),
     ...(draft.dateOfBirth !== before.dateOfBirth && { dateOfBirth: draft.dateOfBirth }),
     ...(draft.dateOfJoining !== before.dateOfJoining && { dateOfJoining: draft.dateOfJoining === '' ? null : draft.dateOfJoining }),
+    ...(draft.onProbation !== before.onProbation && { onProbation: draft.onProbation }),
     ...(draft.probationMonths.trim() !== before.probationMonths && { probationMonths: draft.probationMonths.trim() === '' ? null : Number(draft.probationMonths) }),
     ...(draft.esiNumber.trim() !== before.esiNumber && { esiNumber: draft.esiNumber.trim() === '' ? null : draft.esiNumber.trim() }),
     ...(qualification !== before.qualification && { qualification: qualification === '' ? null : qualification }),

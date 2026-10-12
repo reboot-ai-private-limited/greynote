@@ -57,6 +57,8 @@ export interface WizardForm {
   dateOfBirth: string;
   esiNumber: string;
   dateOfJoining: string;
+  /** On probation (off by default); the months below then apply, else the system length. */
+  onProbation: boolean;
   probationMonths: string;
   present: AddressForm;
   permanent: AddressForm;
@@ -91,6 +93,7 @@ export const EMPTY_FORM: WizardForm = {
   dateOfBirth: '',
   esiNumber: '',
   dateOfJoining: '',
+  onProbation: false,
   probationMonths: '',
   present: EMPTY_ADDRESS,
   permanent: EMPTY_ADDRESS,
@@ -219,7 +222,7 @@ export function stepErrors(step: StepKey, form: WizardForm, ctx: RuleContext): E
         );
       if (form.dateOfJoining)
         put(e, 'dateOfJoining', isRealDate(form.dateOfJoining) ? undefined : 'Enter a valid date.');
-      if (form.probationMonths.trim()) {
+      if (form.onProbation && form.probationMonths.trim()) {
         const months = Number(form.probationMonths);
         put(
           e,
@@ -407,7 +410,9 @@ export function toDraftData(
       ...(isRealDate(form.dateOfBirth) && { dateOfBirth: form.dateOfBirth }),
       ...(ESI.test(esi) && { esiNumber: esi }),
       ...(isRealDate(form.dateOfJoining) && { dateOfJoining: form.dateOfJoining }),
-      ...(months !== undefined &&
+      ...(form.onProbation && { onProbation: true }),
+      ...(form.onProbation &&
+        months !== undefined &&
         Number.isInteger(months) &&
         months >= 0 &&
         months <= 36 && { probationMonths: months }),
@@ -473,6 +478,7 @@ export function fromDraftData(data: EmployeeDraftDataDto): WizardForm {
     dateOfBirth: data.personal?.dateOfBirth ?? '',
     esiNumber: data.personal?.esiNumber ?? '',
     dateOfJoining: data.personal?.dateOfJoining ?? '',
+    onProbation: data.personal?.onProbation ?? false,
     probationMonths:
       data.personal?.probationMonths === undefined ? '' : String(data.personal.probationMonths),
     present: addressForm(data.address?.present),

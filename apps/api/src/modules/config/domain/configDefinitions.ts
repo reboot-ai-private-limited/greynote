@@ -74,7 +74,9 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   integer('PLAN_RESUBMIT_GRACE_MAX', 'PLANNING', 'Most resubmits per plan', 'Most resubmits per Plan allowed through the after-rejection window. 0 switches the window off.', 2, 0, 99),
 
   // ── HR ──
-  integer('LEAVE_BACKDATE_DAYS', 'HR', 'Leave backdating limit', 'How many days back a leave may start (e.g. to cover a missed report).', 30, 1, 366, 'days'),
+  integer('LEAVE_BACKDATE_DAYS', 'HR', 'Leave backdating limit', 'How many days back a leave may start. 0: a leave starts today or later, because a leave can only be approved until its first day.', 0, 0, 366, 'days'),
+  integer('LATE_LEAVE_GRANT_VALID_HOURS', 'HR', 'Late-leave exception lasts', 'Hours an Admin exception that lets a started leave be approved stays usable after it is granted.', 24, 1, 744, 'hours'),
+  integer('LATE_LEAVE_GRANT_MAX_HOURS', 'HR', 'Longest late-leave exception', 'The furthest ahead (in hours from now) Admin can set the end of a late-leave exception.', 168, 1, 8760, 'hours'),
 
   toggle('PROBATION_LEAVE_PAID', 'HR', 'Leave is paid during probation', 'Whether unpaid leave taken during an employee’s probation is paid anyway (no salary deduction). Off: probation is treated like any other time.', true),
   integer('PROBATION_MONTHS', 'HR', 'Probation length', 'Months of probation from the joining date, unless the employee has their own length set.', 6, 0, 36, 'months'),

@@ -28,6 +28,7 @@ export const draftDataSchema = z
         dateOfBirth: isoDate.optional(),
         esiNumber: z.string().regex(/^\d{17}$/, 'The ESI number is exactly 17 digits.').optional(),
         dateOfJoining: isoDate.optional(),
+        onProbation: z.boolean().optional(),
         probationMonths: z.number().int().min(0).max(36).optional(),
       })
       .optional(),

@@ -4,6 +4,7 @@ import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { makeHrSource } from './application/syncSnapshot.js';
 import { HolidayCalendar } from './application/holidayCalendar.js';
+import { LeaveApprovalCutoff } from './application/leaveApprovalCutoff.js';
 import { LeaveLock, type PayrollFinalizedCheck } from './application/leaveLock.js';
 import { Probation } from './application/probation.js';
 import { HrCalendar } from './application/hrCalendar.js';
@@ -31,6 +32,7 @@ import { DEFAULT_LEAVE_TYPES } from './domain/leaveType.entity.js';
 import type { TerritoryPort } from './domain/territory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
+import { MongoLeaveApprovalGrantAdapter } from './infrastructure/mongoLeaveApprovalGrant.adapter.js';
 import { MongoHolidayAdapter } from './infrastructure/mongoHoliday.adapter.js';
 import { MongoLeaveAdapter } from './infrastructure/mongoLeave.adapter.js';
 import { MongoLeaveBalanceAdapter } from './infrastructure/mongoLeaveBalance.adapter.js';
@@ -69,10 +71,11 @@ export function buildHrContainer(
   // Employee → Manager → HR or Admin (client §11.2). The ledger moves a paid leave's days on each
   // decision, in the approval module's transaction.
   const leaveLock = new LeaveLock(config);
-  approvals.registerKind({ kind: 'LEAVE', finalApproverRoles: ['HR', 'ADMIN'], onStatusChange: makeLeaveLedger(leaves, balanceRepository, leaveLock) });
+  const calendar = new HrCalendar(config);
+  const cutoff = new LeaveApprovalCutoff(leaves, new MongoLeaveApprovalGrantAdapter(), calendar, config);
+  approvals.registerKind({ kind: 'LEAVE', finalApproverRoles: ['HR', 'ADMIN'], onStatusChange: makeLeaveLedger(leaves, balanceRepository, leaveLock, cutoff) });
 
   // 2. Use cases
-  const calendar = new HrCalendar(config);
   const holidayCalendar = new HolidayCalendar(holidays, territory);
   const probation = new Probation(users, config, calendar);
   const balances = new LeaveBalances(balanceRepository, policies, leaveTypes, users, calendar);
@@ -140,6 +143,7 @@ export function buildHrContainer(
             list: new ListLeavesUseCase(leaves, leaveViews),
             get: new GetLeaveUseCase(leaves, users, leaveViews),
             proof: new LeaveProof(leaves, leaveTypes, new CloudinaryProofStorage()),
+            cutoff,
           }),
         ),
       );

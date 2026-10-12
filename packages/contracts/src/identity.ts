@@ -132,6 +132,8 @@ export interface UserDetailDto {
     payBandId: string | null;
     managerId: string | null;
     dateOfJoining: string | null;
+    /** On probation (off by default). While on, leave is paid for the probation months. */
+    onProbation: boolean;
     /** Null: the probation length setting applies. 0: no probation. */
     probationMonths: number | null;
     /** Exactly 17 digits, or null. */
@@ -164,6 +166,7 @@ export interface UpdateUserDto {
     guardianName?: string | null;
     dateOfBirth?: string;
     dateOfJoining?: string | null;
+    onProbation?: boolean;
     /** Whole months 0–36; `null` goes back to the setting. */
     probationMonths?: number | null;
     /** Exactly 17 digits; `null` clears it. */
@@ -204,6 +207,7 @@ export interface EmployeeDraftDataDto {
     /** Exactly 17 digits. */
     esiNumber?: string;
     dateOfJoining?: string;
+    onProbation?: boolean;
     probationMonths?: number;
   };
   address?: { present?: DraftAddressDto; permanent?: DraftAddressDto; permanentSameAsPresent?: boolean };

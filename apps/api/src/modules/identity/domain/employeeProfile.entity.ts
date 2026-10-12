@@ -64,7 +64,9 @@ export interface EmployeeProfile {
   payBandId: string | null;
   managerId: string | null;
   dateOfJoining: Date | null;
-  /** Months of probation from `dateOfJoining`. Null: use the `PROBATION_MONTHS` setting. 0: no probation. */
+  /** Whether the employee is on probation. Off by default: set at onboarding, because the software is new, not the employees. */
+  onProbation: boolean;
+  /** Months of probation from `dateOfJoining`, used only while `onProbation`. Null: use the `PROBATION_MONTHS` setting. 0: none. */
   probationMonths: number | null;
   /** The ESI insurance number: exactly 17 digits. Optional; printed on the salary slip. */
   esiNumber: string | null;

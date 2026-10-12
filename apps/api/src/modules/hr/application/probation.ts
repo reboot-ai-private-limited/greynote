@@ -10,7 +10,7 @@ const parseMonths = (value: string): number => {
 };
 
 /**
- * Who is on probation, and until when (decision-log 2026-10-05). Probation runs from the joining date for the employee's own
+ * Who is on probation, and until when (decision-log 2026-10-05). Only employees marked `onProbation` at onboarding have any. Probation runs from the joining date for the employee's own
  * `probationMonths`, else the `PROBATION_MONTHS` setting. With `PROBATION_LEAVE_PAID` off, or no joining date, or 0 months, nobody
  * is treated as on probation at all.
  */
@@ -25,7 +25,7 @@ export class Probation {
   async endsOn(userId: string): Promise<string | null> {
     if (!(await readConfig(this.config, 'PROBATION_LEAVE_PAID', parseBoolean))) return null;
     const employment = await this.users.getEmploymentDetails(userId);
-    if (!employment?.dateOfJoining) return null;
+    if (!employment?.dateOfJoining || !employment.onProbation) return null;
     const months = employment.probationMonths ?? (await readConfig(this.config, 'PROBATION_MONTHS', parseMonths));
     if (months === 0) return null;
     return probationEndsOn(await this.calendar.calendarDateOf(employment.dateOfJoining), months);
