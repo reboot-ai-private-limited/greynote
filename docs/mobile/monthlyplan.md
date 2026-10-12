@@ -22,6 +22,7 @@ What the field app must do for the Monthly Plan, and the rules the server enforc
 | 12 | **No approved Monthly Plan = no work that month.** Daily plans for the month can't be saved or submitted, and nothing can be logged. Refused with `MONTHLY_PLAN_NOT_APPROVED` (REST `409` on saving or submitting a daily plan, `publicDetails.planMonth`; a sync record or DCR submit is refused with the same code). The month of a day is its business date's month. A new joiner or anyone who missed the deadline asks Admin for a late-submission exception. Applies to every month, including the current one. | ✅ |
 | 13 | A blocked employee (missed reports) cannot submit; the server says so. | ✅ |
 | 14 | Every route must be one of the employee's own active routes; every work-with person must be an active employee; nobody lists themselves or a person twice. | ✅ |
+| 15 | **The routes chosen here decide the day's doctors.** The Daily Plan inherits each day's routes; the employee can then pick doctors only if they are **assigned to them and on that day's routes** (otherwise `400` on `doctorIds`). A missed call carried over from an earlier day is the one exception. So choose the routes carefully: a doctor on a route not planned for the day can't be added. See [`dailyplan.md`](dailyplan.md) rule 2a. | ✅ |
 
 ## 2. Statuses
 
