@@ -69,7 +69,7 @@ sequenceDiagram
 
 **Still available while blocked:** requesting `Leave` and viewing historical reports — the block only stops _new_, forward-looking submissions, so the MR can still retroactively explain the gap (e.g. file the missing Leave request) rather than being locked out of every screen.
 
-**Clearing the block is Admin-only** (ERD Module 1: `unblocked_by` must resolve to an `ADMIN`-role user), from the Web Portal — the Nearest Manager cannot clear it, even though the Nearest Manager is the Stage 1 approver for everything else this user submits (PRD §7.1). This mirrors Admin's existing role as the top-of-chain authority (HLD 5 §4) but is a deliberate exception: this is a compliance/punitive action, not a routine approval, so it's scoped to Admin alone.
+**Clearing the block** is for Admin or any manager above the employee in the reporting chain (changed 2026-10-12; it used to be Admin-only). A reason is required and is kept on the block row with who cleared it and in what role, so every unblock is auditable. The blocked employee, HR and managers outside the chain cannot.
 
 ## Next
 

@@ -1899,3 +1899,21 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Assumed (to confirm):** a plan that lists **no doctors** (approved before doctor lists, or none chosen) keeps the old route rule and flags nothing, so those days are not locked out when the rule is off; a database without the key (not re-seeded yet) reads as **on**; chemist calls keep the route rule; an unplanned call counts toward the visit-frequency report and clears a carried-over entry like any other call.
 
 **Open:** the phone should stop limiting the doctor picker to the plan's list (mobile team); run `pnpm --filter @greynote/api seed` so the setting exists; not browser-checked.
+
+## 2026-10-12 — Daily Plan revisit: doctors only, day-bound late exceptions, one-miss block with audited unblock, no change requests
+
+**Decided (owner):**
+1. **The employee edits only the day's doctors.** Working type, routes, work-with and remarks come from the approved Monthly Plan; a manager or Admin changes them by **amending** the day (reason kept). The employee's save endpoint (`POST /planning/daily`) is removed; a day the Monthly Plan did not cover has no plan.
+2. **Submit by the daily cutoff** (`DAILY_PLAN_SUBMIT_CUTOFF_TIME`). If missed, Admin (or a manager, while `LATE_PLAN_GRANT_BY_MANAGER` is on) grants a late-submit exception with a **custom end time, never later than the end of that plan's business day**.
+3. **A daily report not submitted by the next day start (`DAY_START_TIME`, e.g. 02:00) blocks the employee** (the whole employee, as today) until unblocked. **Admin or any manager above the employee can unblock; a reason is required and kept** with who and in which role, as the audit trail. This **reverses** the ERD-01 / HLD-10 "Admin only" carve-out.
+4. **Work needs an approved Daily Plan** — already the `LoggingGate` order (not blocked → monthly approved → daily approved); unchanged, documented.
+4a. **Doctors on a day come only from the routes selected for that employee that day** — assigned to them and on the day's routes (already enforced by `CarryOver.compose`; now stated in `mobile/dailyplan.md` rule 2a). Carried-over missed calls are the one exception.
+5. **The in-app "request a change" to an approved Daily Plan (B9) is removed.** The employee asks their manager or Admin outside the app; the manager amends.
+
+**Built (API + web only; the phone is another team's):** `SaveDailyPlanUseCase`, the `DailyPlanChange` module parts (use cases, entity, schema, adapter, handler, three routes, `DAILY_PLAN_CHANGE` kind, `DAILY_PLAN_CHANGE_MAX`) deleted; `GrantLateSubmitUseCase` caps a daily exception with `endOfBusinessDay`; `startIntervalJob('missed-dcr-check', 15 min)` in `server.ts`; `UnblockUserUseCase` takes the acting role and a reason, checks the chain with `getManagerChain`, and writes `unblockedByRole` / `unblockReason` on the `ComplianceBlock`; `GET /identity/users/:id` returns `blockHistory`; the employee page asks for the reason and lists the history. `migrate:drop-plan-changes` (dry run by default, `--apply`) deletes old change requests and the `dailyplanchanges` collection.
+
+**Assumed (to confirm):** "re-verify" means the doctor list is sent for approval again after the employee changes it (existing carry-over behaviour); a block placed at rollover refuses the next day's work, and the missed day's own report is not reopened by an unblock (Admin reopens it); a manager outside the chain gets `404`, not `403`.
+
+**Open:** run the migration; set `DCR_MISS_GRACE_DAYS` to `0` (the seed never overwrites a live value); the phone must drop the save and change calls (see [`mobile/dailyplan.md`](mobile/dailyplan.md)); a web screen for managers to unblock their team; not browser-checked.
+
+**Refs:** [`LLD/planning.md`](LLD/planning.md), [`LLD/identity.md`](LLD/identity.md), [`LLD/field-activity.md`](LLD/field-activity.md), [`hld/10-submission-gating-and-compliance-block.md`](hld/10-submission-gating-and-compliance-block.md), sign-off B6, B9.

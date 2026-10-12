@@ -63,7 +63,7 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
   transaction, so the status change and the rows commit together or not at all. Past the manager
   (`MANAGER_APPROVED`, or `APPROVED` for a top-of-chain submitter or an Admin override) and only if the DCR has no
   live `AUTO` rows yet, it reads the day's Plan (Planning's new `getDailyPlanDay`: working type and routes, with
-  an approved in-day change already in it), each Route (Territory's `getRoute`) and the Pay Band (Identity's
+  a manager's amendment already in it), each Route (Territory's `getRoute`) and the Pay Band (Identity's
   `getPayBandRates`), and writes `AUTO`, `UNPAID` rows — never from anything the phone sent. The rules are
   `application/taDaCalculator.ts`: `FIELD_WORK` gets **one TA row, for the day's longest non-HQ Route only** (the first on a tie; an `HQ` Route earns no TA, so a day on HQ Routes is DA alone; distance, at most `TA_MAX_KM` (99), × that Route's own rate, else
   the Pay Band's, rounded half up once; a Route with an unknown distance keeps a zero flagged row; decision-log 2026-10-05) and one DA row at the highest Route type of the day;
@@ -348,7 +348,7 @@ limits the run; the exit code is 1 if any employee could not be checked.
 `RunMissedDcrCheckUseCase` visits each active FIELD employee (Identity's `listActiveFieldUserIds`). It blocks
 (`Identity.blockUser`, reason `DCR_MISSED_NO_LEAVE: no report for <dates>`) anyone who has **missed more than
 `DCR_MISS_GRACE_DAYS` working days in a row, ending yesterday** (business timezone) — `0` blocks on the first
-miss, the default `1` on the second. Walking back from yesterday, a day is:
+miss, the seeded `1` on the second. **Set it to `0` for the rule "a daily report not submitted by the next day start blocks the employee"** (the seed never overwrites an existing value, so change it in Admin → Settings). Admin **or the employee's manager** clears the block, with a reason (see `identity.md`). Walking back from yesterday, a day is:
 
 - **reported** — a DCR that is `SUBMITTED`, `MANAGER_APPROVED` or `APPROVED` (sign-off B7's working assumption) —
   which ends the walk;

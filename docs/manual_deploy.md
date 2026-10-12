@@ -161,6 +161,17 @@ docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-inh
 Employees still submit each day. A fresh database has nothing to convert. Also: `MONTHLY_STOCK_GRACE_DAYS` is gone, replaced
 by `MONTHLY_STOCK_DEADLINE_DAY`. **Re-run the seed (Step 8; safe to repeat) so the three new settings (`DCR_APPROVAL_REQUIRED`, `APPROVAL_SLA_DAYS`, `MONTHLY_STOCK_DEADLINE_DAY`) appear in System settings** — it only adds missing keys. Schedule the stock check for the day after the deadline day.
 
+## Step 9c-2 — Drop the old plan-change requests, and set the missed-report grace (once, when upgrading past 2026-10-12)
+
+The employee's "request a change" to an approved Daily Plan is gone (`docs/decision-log.md`, 2026-10-12). Delete what it left behind — dry run first:
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-drop-daily-plan-changes.js
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-drop-daily-plan-changes.js --apply
+```
+
+The server now runs the missed-report check itself every 15 minutes; the `compliance:run` cron is no longer needed (the script stays for a dry run). To block on the **first** missed day, set **Missed-report grace** (`DCR_MISS_GRACE_DAYS`) to `0` in Admin → Settings — the seed never overwrites a live value.
+
 ## Step 9d — Build the speciality list, and re-run the seed (once, when upgrading past 2026-10-06)
 
 A doctor's speciality is now chosen from an Admin-kept list, and the doctor's *category* is gone (`docs/decision-log.md`, 2026-10-06). **Re-run the seed

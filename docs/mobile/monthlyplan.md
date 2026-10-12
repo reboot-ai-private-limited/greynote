@@ -1,6 +1,6 @@
 # Mobile — Monthly Plan and Work With
 
-What the field app must do for the Monthly Plan, and the rules the server enforces. The server is the authority: the phone's cached status is a UX gate only and may be stale. Design background: [`LLD/planning.md`](../LLD/planning.md), [`decision-log.md`](../decision-log.md).
+What the field app must do for the Monthly Plan, and the rules the server enforces (the Daily Plan is in [`dailyplan.md`](dailyplan.md)). The server is the authority: the phone's cached status is a UX gate only and may be stale. Design background: [`LLD/planning.md`](../LLD/planning.md), [`decision-log.md`](../decision-log.md).
 
 **Status key:** ✅ built on the server and web. The phone app is another team's; this is the contract it builds against.
 

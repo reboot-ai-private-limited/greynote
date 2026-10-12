@@ -169,8 +169,8 @@ database: 41 checks over real HTTP, real Mongo transactions and indexes. It incl
 where an edit races a late submit and the exception survives. Temporary data was removed
 afterwards.
 
-In-day changes to an approved Daily Plan (client §2.6) are built as their own manager-approved
-`DAILY_PLAN_CHANGE` request (`LLD/planning.md`); the rules are working assumptions, sign-off B9.
+In-day changes to an approved Daily Plan (client §2.6) were built as their own manager-approved
+`DAILY_PLAN_CHANGE` request and **removed 2026-10-12** (see *Daily Plan revisit* below).
 
 HR, step by step:
 
@@ -876,3 +876,7 @@ Decision-log 2026-10-10, B15: `ALLOW_UNPLANNED_DOCTOR_CALLS` (default on) lets a
 ## Monthly plan rules and Work With (2026-10-12)
 
 Decision-log 2026-10-12; mobile contract in [`mobile/monthlyplan.md`](mobile/monthlyplan.md). **Done:** `GET /identity/work-with` (every manager, or `?scope=all`; `Name (ASM)` label); no approved Monthly Plan means no daily plan save/submit and no logging (`MONTHLY_PLAN_NOT_APPROVED`); late-submission exceptions take an exact `expiresAt` capped by `LATE_PLAN_GRANT_MAX_HOURS`; web **Late submissions** screen (grant, list, revoke) and `Name (ASM)` in plan and call previews; the 2 AM day-start boundary is tested. Tests pass (API 1215, web 731). **Open:** seed `LATE_PLAN_GRANT_MAX_HOURS` before deploy; browser check of the new screen; the phone app (another team) builds against the mobile doc; `/identity/colleagues` is still missing for the phone's team screens; designation on old days is the current one.
+
+## Daily Plan revisit (2026-10-12)
+
+Decision-log 2026-10-12; mobile contract in [`mobile/dailyplan.md`](mobile/dailyplan.md). **Done (API + web, unit-tested):** the employee edits only the day's doctors (`POST /planning/daily` removed); a Daily Plan's late-submit exception ends at the latest at the end of its day; the missed-DCR check runs inside the server every 15 minutes; Admin or a manager above the employee unblocks, with a required reason, kept with who and in what role (block history on the employee page); the employee's "request a change" is removed (`migrate:drop-plan-changes`, **written, not run**). **Open:** run `migrate:drop-plan-changes`; set `DCR_MISS_GRACE_DAYS` to `0` in Admin → Settings; the phone app (another team's) still calls the removed endpoints; the unblock action for managers is API-only (no web screen for non-Admin managers yet); not browser-checked.
