@@ -87,6 +87,19 @@ export const listGiftsQuerySchema = z.object({ status: z.enum(['PENDING', 'DONE'
 const expenseMonthValue = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Must be a month like 2026-09.');
 export const expenseMonthParamsSchema = z.object({ month: expenseMonthValue });
 export const expenseMonthQuerySchema = z.object({ month: expenseMonthValue, userId: objectIdSchema.optional() });
+export const grantExpenseMonthBodySchema = z.object({
+  userId: objectIdSchema,
+  month: expenseMonthValue,
+  /** `SUBMIT`: the employee may send the month late. `APPROVE`: the manager may approve it late. */
+  phase: z.enum(['SUBMIT', 'APPROVE']),
+  reason: z.string().trim().min(1, 'A reason is required.').max(1000),
+  /** When the exception ends (ISO date-time). Omitted: `LATE_EXPENSE_GRANT_VALID_HOURS` from now; within `LATE_EXPENSE_GRANT_MAX_HOURS`. */
+  expiresAt: z.coerce.date().optional(),
+});
+export const listExpenseGrantsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+});
 export const expenseHistoryQuerySchema = z.object({ userId: objectIdSchema.optional() });
 /** An employee's own entry in the single "Other" category: a day, an amount in whole paise and a note. */
 export const otherExpenseBodySchema = z.object({

@@ -196,3 +196,4 @@ erDiagram
 ## Next
 
 **Module 5 — Planning (Daily/Monthly Plan) + Rules.** Tour Plan submission/approval (same two-stage pattern as this module's `DCR`), and the `SystemConfig` rule table referenced above (submission cutoffs, `GEO_FENCE_RADIUS_METERS`, device limits).
+- **2026-10-12 — expense deadlines (decision-log 2026-10-12):** new `ExpenseMonthGrant` (`user_id`, `month` `YYYY-MM`, `phase` SUBMIT/APPROVE, `reason`, `granted_by`, `granted_by_role`, `granted_at`, `expires_at`, `status` OPEN/USED/REVOKED/EXPIRED, `used_at`, `revoked_at/by`); unique on user + month + phase while `OPEN`. Consumed in the send or approval transaction.

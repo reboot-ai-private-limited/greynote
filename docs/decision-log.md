@@ -33,6 +33,19 @@ old one.
 
 ---
 
+## 2026-10-12 — Monthly expenses: submit and approval deadlines, with an exception that must come before payment
+
+**Decision:**
+- **Two deadlines from System settings**, each the end of a business day of the month *after* the expenses: the employee must **send** the month by `EXPENSE_SUBMIT_CUTOFF_DAY` (default the 7th) and the manager or Admin must **approve** it by `EXPENSE_APPROVAL_CUTOFF_DAY` (default the 10th, never earlier than the submit day). Past the first, submit is a 409 `EXPENSE_SUBMIT_LATE`; past the second, approving is a 409 `EXPENSE_APPROVAL_LATE` (and rolls back). Rejecting is never blocked.
+- **A one-off exception lifts either deadline** (same shape as the late Plan exception, B8): per employee, month and phase (`SUBMIT` / `APPROVE`), a reason, an end time (default `LATE_EXPENSE_GRANT_VALID_HOURS` 24, at most `LATE_EXPENSE_GRANT_MAX_HOURS` 168), used once with the send or approval. **Admin** can always grant; a **manager** only for their team and only while `LATE_EXPENSE_GRANT_BY_MANAGER` is on.
+- **It has to come before the money.** Once any row of the month is `PAID`, an exception cannot be granted and the month cannot be reopened (409 `EXPENSE_MONTH_PAID`).
+- **No exception, no month:** a missed month is not rolled into the next; only an exception revives it.
+- **Unchanged:** TA/DA stays automatic and arrives in the statement with the employee's Other entries; Other entries may be dated any past day while the month is still open.
+
+**Cost:** a separate `ExpenseMonthGrant` record (not the Plan grant), because the Plan grant is tied to the planning module's `PlanKind`. Endpoints `POST/GET /api/field-activity/expense-grants`, `POST …/:id/revoke`. Seed the five new settings before deploy (an unseeded database falls back to 7 / 10 / off / 24 / 168). A month already submitted before deploy and approved after its approval day needs an exception.
+
+---
+
 ## 2026-10-10 — Monthly expenses: one statement per month, approved by the manager or Admin, then paid
 
 **Decision:**

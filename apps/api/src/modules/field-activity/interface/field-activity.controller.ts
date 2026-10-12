@@ -5,6 +5,7 @@ import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { ListExpensesUseCase, MarkExpensePaidUseCase } from '../application/usecases/accountantExpenses.usecase.js';
+import type { GrantExpenseMonthUseCase, ListExpenseMonthGrantsUseCase, RevokeExpenseMonthGrantUseCase } from '../application/usecases/expenseMonthGrants.usecase.js';
 import type { ExpenseMonthService } from '../application/usecases/expenseMonth.usecase.js';
 import type { ListExpensePayoutsUseCase, PayMonthExpensesUseCase } from '../application/usecases/expensePayouts.usecase.js';
 import type { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase } from '../application/usecases/servicesAndGifts.usecase.js';
@@ -13,14 +14,14 @@ import type { OverrideGeofenceUseCase } from '../application/usecases/overrideGe
 import type { GetDcrDetailUseCase } from '../application/usecases/getDcrDetail.usecase.js';
 import type { Actor, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCase } from '../application/usecases/readDcrs.usecase.js';
 import type { ExpenseProof } from '../application/expenseProof.js';
-import type { expenseHistoryQuerySchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, allocateGiftBodySchema, doctorServiceFieldsSchema, listDcrsQuerySchema, listGiftsQuerySchema, listServicesQuerySchema, listTeamDcrsQuerySchema, overrideBodySchema } from './field-activity.schemas.js';
+import type { grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseHistoryQuerySchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, allocateGiftBodySchema, doctorServiceFieldsSchema, listDcrsQuerySchema, listGiftsQuerySchema, listServicesQuerySchema, listTeamDcrsQuerySchema, overrideBodySchema } from './field-activity.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
   return { id: req.user.sub, role: req.user.role };
 }
 
-export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'deleteCall' | 'deleteFollowup' | 'createAdminService' | 'listServices' | 'getService' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth', RequestHandler>;
+export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'deleteCall' | 'deleteFollowup' | 'createAdminService' | 'listServices' | 'getService' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth' | 'grantExpenseMonth' | 'listExpenseGrants' | 'revokeExpenseGrant', RequestHandler>;
 
 export function makeFieldActivityControllers(u: {
   listMine: ListMyDcrsUseCase;
@@ -39,6 +40,9 @@ export function makeFieldActivityControllers(u: {
   payExpenses: PayMonthExpensesUseCase;
   markPaid: MarkExpensePaidUseCase;
   expenseMonths: ExpenseMonthService;
+  grantExpense: GrantExpenseMonthUseCase;
+  listExpenseGrants: ListExpenseMonthGrantsUseCase;
+  revokeExpenseGrant: RevokeExpenseMonthGrantUseCase;
   expenseProof: ExpenseProof;
 }): FieldActivityHandlers {
   return {
@@ -107,6 +111,9 @@ export function makeFieldActivityControllers(u: {
     removeExpenseProof: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.expenseProof.remove(actorOf(req).id, requiredParam(req.params, 'id'), requiredParam(req.params, 'attachmentId')), 'Proof removed.', 200),
     ),
+    grantExpenseMonth: asyncHandler(async (req, res) => sendSuccess(req, res, await u.grantExpense.execute(actorOf(req), req.body as z.output<typeof grantExpenseMonthBodySchema>), 'Late expenses allowed.', 201)),
+    listExpenseGrants: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listExpenseGrants.execute(actorOf(req), req.query as unknown as z.output<typeof listExpenseGrantsQuerySchema>), 'Late-expense exceptions.', 200)),
+    revokeExpenseGrant: asyncHandler(async (req, res) => sendSuccess(req, res, await u.revokeExpenseGrant.execute(actorOf(req), requiredParam(req.params, 'id')), 'Late-expense exception revoked.', 200)),
     submitExpenseMonth: asyncHandler(async (req, res) => sendSuccess(req, res, await u.expenseMonths.submit(actorOf(req).id, requiredParam(req.params, 'month')), 'The month was sent for approval.', 200)),
     listExpensePayouts: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listPayouts.execute((req.query as { month: string }).month), 'Expense payouts.', 200)),
     payExpenses: asyncHandler(async (req, res) => {

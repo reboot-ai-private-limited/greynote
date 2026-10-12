@@ -9,7 +9,7 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { MAX_EXPENSE_ATTACHMENT_BYTES } from '../domain/expense.entity.js';
 import type { FieldActivityHandlers } from './field-activity.controller.js';
-import { expenseAttachmentParamsSchema, expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
+import { grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseAttachmentParamsSchema, expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
 
 const TAG = 'Field Activity';
 
@@ -96,6 +96,17 @@ openApiRegistry.registerPath({
   request: { params: expenseMonthParamsSchema },
   responses: { 200: { description: 'The statement, now SUBMITTED' }, 409: { description: 'The month has not ended, or is already sent / approved' } },
 });
+docPost('/expense-grants', 'Allow one employee’s month of expenses to be sent (SUBMIT) or approved (APPROVE) after its deadline — Admin; a manager for their team while LATE_EXPENSE_GRANT_BY_MANAGER is on. A 409 once any of the month is paid', grantExpenseMonthBodySchema);
+doc('/expense-grants', 'Late-expense exceptions, newest first — Admin: all; others: their own and their team’s', { query: listExpenseGrantsQuerySchema });
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/field-activity/expense-grants/{id}/revoke',
+  tags: [TAG],
+  summary: 'Revoke an unused late-expense exception — Admin, the grantor or a manager of the employee',
+  security: [{ bearerAuth: [] }],
+  request: { params: idParamsSchema },
+  responses: { 200: { description: 'The exception, REVOKED' }, 409: { description: 'Already used, revoked or expired' } },
+});
 docPost('/expenses/other', 'Add an expense in the single “Other” category, dated — while the month is still editable', otherExpenseBodySchema);
 openApiRegistry.registerPath({
   method: 'post',
@@ -150,6 +161,9 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.get('/expense-months/history', requireRole('FIELD', 'ADMIN'), validate({ query: expenseHistoryQuerySchema }), c.expenseHistory);
   router.get('/expense-months/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.expenseStatementById);
   router.post('/expense-months/:month/submit', requireRole('FIELD'), validate({ params: expenseMonthParamsSchema }), c.submitExpenseMonth);
+  router.post('/expense-grants', requireRole('FIELD', 'ADMIN'), validate({ body: grantExpenseMonthBodySchema }), c.grantExpenseMonth);
+  router.get('/expense-grants', requireRole('FIELD', 'ADMIN'), validate({ query: listExpenseGrantsQuerySchema }), c.listExpenseGrants);
+  router.post('/expense-grants/:id/revoke', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.revokeExpenseGrant);
   router.post('/expenses/other', requireRole('FIELD'), validate({ body: otherExpenseBodySchema }), c.addOtherExpense);
   router.put('/expenses/other/:id', requireRole('FIELD'), validate({ params: idParamsSchema, body: otherExpenseBodySchema }), c.updateOtherExpense);
   router.post('/expenses/other/:id/attachments', requireRole('FIELD'), validate({ params: idParamsSchema }), proofUpload, c.addExpenseProof);

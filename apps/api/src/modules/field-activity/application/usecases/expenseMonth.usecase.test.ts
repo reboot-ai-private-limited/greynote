@@ -1,11 +1,43 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AppError } from '@/shared/errors/AppError.js';
 import { DcrClock } from '../dcrClock.js';
+import { ExpenseMonthDeadlines } from '../expenseMonthDeadlines.js';
+import type { ExpenseMonthGrant } from '../../domain/expenseMonthGrant.entity.js';
+import type { ExpenseMonthGrantRepositoryPort } from '../../domain/expenseMonthGrant.repository.port.js';
+import { GrantExpenseMonthUseCase } from './expenseMonthGrants.usecase.js';
 import type { ExpenseMonthRecord, ExpenseMonthRepositoryPort } from '../../domain/records.repository.port.js';
 import type { ProofStoragePort } from '../../domain/proofStorage.port.js';
 import { ExpenseProof } from '../expenseProof.js';
 import { ExpenseMonthService, EXPENSE_MONTH_KIND } from './expenseMonth.usecase.js';
 import { faKit, Tx } from './faTestKit.js';
+
+class FakeGrants implements ExpenseMonthGrantRepositoryPort {
+  rows: ExpenseMonthGrant[] = [];
+  async findById(id: string) {
+    return this.rows.find((g) => g.id === id) ?? null;
+  }
+  async findUsable(userId: string, month: string, phase: ExpenseMonthGrant['phase'], now: Date) {
+    return this.rows.find((g) => g.userId === userId && g.month === month && g.phase === phase && g.status === 'OPEN' && g.expiresAt > now) ?? null;
+  }
+  async create(input: Omit<ExpenseMonthGrant, 'id' | 'status' | 'usedAt' | 'revokedAt' | 'revokedBy'>, now: Date) {
+    if (await this.findUsable(input.userId, input.month, input.phase, now)) return null;
+    const grant: ExpenseMonthGrant = { ...input, id: `g-${this.rows.length + 1}`, status: 'OPEN', usedAt: null, revokedAt: null, revokedBy: null };
+    this.rows.push(grant);
+    return grant;
+  }
+  async consume(id: string, now: Date) {
+    const g = this.rows.find((x) => x.id === id);
+    if (!g || g.status !== 'OPEN' || g.expiresAt <= now) return false;
+    Object.assign(g, { status: 'USED', usedAt: now });
+    return true;
+  }
+  async revoke() {
+    return null;
+  }
+  async list() {
+    return { items: this.rows, total: this.rows.length };
+  }
+}
 
 class FakeMonths implements ExpenseMonthRepositoryPort {
   rows: ExpenseMonthRecord[] = [];
@@ -50,13 +82,17 @@ const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
 describe('the monthly expense statement (decision-log 2026-10-10)', () => {
   let kit: ReturnType<typeof faKit>;
   let months: FakeMonths;
+  let grants: FakeGrants;
+  let grant: GrantExpenseMonthUseCase;
   let svc: ExpenseMonthService;
   const MR = { id: 'mr1', role: 'FIELD' as const };
 
   beforeEach(() => {
     kit = faKit(); // 2026-10-05, so September is over and October is not
     months = new FakeMonths();
-    svc = new ExpenseMonthService(kit.expenses, months, kit.users, kit.approvals, new DcrClock(kit.config, () => kit.clock.current), kit.config, { run: (fn) => fn(new Tx()) }, storage);
+    grants = new FakeGrants();
+    svc = new ExpenseMonthService(kit.expenses, months, kit.users, kit.approvals, new DcrClock(kit.config, () => kit.clock.current), kit.config, { run: (fn) => fn(new Tx()) }, storage, grants, new ExpenseMonthDeadlines(kit.config, () => kit.clock.current));
+    grant = new GrantExpenseMonthUseCase(grants, kit.expenses, kit.users, kit.config, () => kit.clock.current);
   });
 
   const seedAuto = (date: string, type: 'TA' | 'DA', amountPaise: number) =>
@@ -105,6 +141,68 @@ describe('the monthly expense statement (decision-log 2026-10-10)', () => {
     expect(kit.expenses.rows[1]).toMatchObject({ paymentStatus: 'PAID', monthApproved: true }); // the paid one is left
     kit.approvals.setStatus(record.id, 'REJECTED', EXPENSE_MONTH_KIND);
     expect(await svc.statement(MR, 'mr1', '2026-09')).toMatchObject({ status: 'REJECTED', editable: true });
+  });
+
+  describe('deadlines and the late exception (decision-log 2026-10-12)', () => {
+    const ADMIN = { id: 'admin', role: 'ADMIN' as const };
+    // The September statement is due on the 7th of October (default) and approvable until the 10th.
+    beforeEach(async () => {
+      await svc.addOther('mr1', { reportDate: '2026-09-10', amountPaise: 1500, remarks: null });
+    });
+
+    it('shows both deadlines and lets the month be sent on the last day', async () => {
+      kit.clock.current = new Date('2026-10-07T12:00:00+05:30');
+      const s = await svc.statement(MR, 'mr1', '2026-09');
+      expect(s.deadlines.submitBy).toBe(new Date('2026-10-07T23:59:59.999+05:30').toISOString());
+      expect(s).toMatchObject({ submitLate: false, canSubmit: true });
+      expect((await svc.submit('mr1', '2026-09')).status).toBe('SUBMITTED');
+    });
+
+    it('refuses a late submit without an exception, and reports it cannot be submitted', async () => {
+      kit.clock.current = new Date('2026-10-08T09:00:00+05:30');
+      expect(await svc.statement(MR, 'mr1', '2026-09')).toMatchObject({ submitLate: true, canSubmit: false });
+      expect(await code(svc.submit('mr1', '2026-09'))).toMatchObject({ code: 'EXPENSE_SUBMIT_LATE' });
+    });
+
+    it('lets a late submit through once with an Admin exception, then needs a new one', async () => {
+      kit.clock.current = new Date('2026-10-08T09:00:00+05:30');
+      await grant.execute(ADMIN, { userId: 'mr1', month: '2026-09', phase: 'SUBMIT', reason: 'was on leave' });
+      expect((await svc.statement(MR, 'mr1', '2026-09')).canSubmit).toBe(true);
+      expect((await svc.submit('mr1', '2026-09')).status).toBe('SUBMITTED');
+      expect(grants.rows[0]!.status).toBe('USED');
+      await svc.onStatusChange(months.rows[0]!.id, 'REJECTED', new Tx());
+      kit.approvals.setStatus(months.rows[0]!.id, 'REJECTED', EXPENSE_MONTH_KIND);
+      expect(await code(svc.submit('mr1', '2026-09'))).toMatchObject({ code: 'EXPENSE_SUBMIT_LATE' });
+    });
+
+    it('refuses a late approval without an exception and allows it with one', async () => {
+      await svc.submit('mr1', '2026-09');
+      const id = months.rows[0]!.id;
+      kit.clock.current = new Date('2026-10-11T09:00:00+05:30');
+      expect(await code(svc.onStatusChange(id, 'APPROVED', new Tx()))).toMatchObject({ code: 'EXPENSE_APPROVAL_LATE' });
+      expect(kit.expenses.rows[0]).toMatchObject({ monthApproved: false });
+      await grant.execute(ADMIN, { userId: 'mr1', month: '2026-09', phase: 'APPROVE', reason: 'manager travelling' });
+      await svc.onStatusChange(id, 'APPROVED', new Tx());
+      expect(kit.expenses.rows[0]).toMatchObject({ monthApproved: true });
+      expect(grants.rows[0]!.status).toBe('USED');
+    });
+
+    it('does not grant an exception once any of the month is paid, and a manager only while allowed', async () => {
+      await svc.submit('mr1', '2026-09');
+      await svc.onStatusChange(months.rows[0]!.id, 'APPROVED', new Tx());
+      await kit.markPaid.execute('acct', kit.expenses.rows[0]!.id);
+      kit.clock.current = new Date('2026-10-12T09:00:00+05:30');
+      expect(await code(grant.execute(ADMIN, { userId: 'mr1', month: '2026-09', phase: 'APPROVE', reason: 'x' }))).toMatchObject({ code: 'EXPENSE_MONTH_PAID' });
+      expect(await code(svc.onStatusChange(months.rows[0]!.id, 'REOPENED', new Tx()))).toMatchObject({ code: 'EXPENSE_MONTH_PAID' });
+    });
+
+    it('lets a manager grant only for their team and only while the toggle is on', async () => {
+      kit.clock.current = new Date('2026-10-08T09:00:00+05:30');
+      await expect(grant.execute({ id: 'asm', role: 'FIELD' }, { userId: 'mr1', month: '2026-09', phase: 'SUBMIT', reason: 'x' })).rejects.toMatchObject({ statusCode: 403 });
+      kit.config.values['LATE_EXPENSE_GRANT_BY_MANAGER'] = 'true';
+      await expect(grant.execute({ id: 'mr2', role: 'FIELD' }, { userId: 'mr1', month: '2026-09', phase: 'SUBMIT', reason: 'x' })).rejects.toMatchObject({ statusCode: 403 });
+      expect((await grant.execute({ id: 'asm', role: 'FIELD' }, { userId: 'mr1', month: '2026-09', phase: 'SUBMIT', reason: 'x' })).status).toBe('OPEN');
+    });
   });
 
   it('is readable by the owner, a manager above them and Admin only', async () => {

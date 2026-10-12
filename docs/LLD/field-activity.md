@@ -447,3 +447,7 @@ assigned MR, refused for a doctor with no MR). A doctor is picked by searching n
 ## Calls per doctor (2026-10-10)
 
 `countDoctorCalls(range)` on the public contract: calls per Doctor in the reported days of a range, by any employee (qualifying DCRs only). Feeds the Doctor visits report (LLD reports.md). Doctor calls gain the index `{doctorId, reportDate}`. Calls logged on a draft report are not counted until the day is submitted, so the phone may add its own unsubmitted calls when it shows "called / missed".
+
+## Expense deadlines and late exception (2026-10-12)
+
+`ExpenseMonthService` checks `ExpenseMonthDeadlines` (send: `EXPENSE_SUBMIT_CUTOFF_DAY`; approve: `EXPENSE_APPROVAL_CUTOFF_DAY`, both the end of a business day of the next month). Past one, `submit` / the `EXPENSE_MONTH` `onStatusChange(APPROVED)` need a usable `ExpenseMonthGrant` of that phase and consume it in the same transaction (a throw rolls the approval back). `GrantExpenseMonthUseCase`: Admin, or a manager for their team while `LATE_EXPENSE_GRANT_BY_MANAGER`; refused (409 `EXPENSE_MONTH_PAID`) once any row of the month is `PAID`, which also blocks reopening. Routes: `POST/GET /expense-grants`, `POST /expense-grants/:id/revoke`. Decision-log 2026-10-12.

@@ -161,6 +161,10 @@ docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-inh
 Employees still submit each day. A fresh database has nothing to convert. Also: `MONTHLY_STOCK_GRACE_DAYS` is gone, replaced
 by `MONTHLY_STOCK_DEADLINE_DAY`. **Re-run the seed (Step 8; safe to repeat) so the three new settings (`DCR_APPROVAL_REQUIRED`, `APPROVAL_SLA_DAYS`, `MONTHLY_STOCK_DEADLINE_DAY`) appear in System settings** — it only adds missing keys. Schedule the stock check for the day after the deadline day.
 
+## Step 9c-1 — Expense deadlines (once, when upgrading past 2026-10-12)
+
+Monthly expenses now have a send and an approval deadline and a late exception (decision-log 2026-10-12). **Re-run the seed (Step 8; safe to repeat)** so `EXPENSE_SUBMIT_CUTOFF_DAY`, `EXPENSE_APPROVAL_CUTOFF_DAY`, `LATE_EXPENSE_GRANT_BY_MANAGER`, `LATE_EXPENSE_GRANT_VALID_HOURS` and `LATE_EXPENSE_GRANT_MAX_HOURS` appear in System settings (until then the API uses 7, 10, off, 24 and 168). A month already sent that is approved after its approval day needs an exception first.
+
 ## Step 9c-2 — Drop the old plan-change requests, and set the missed-report grace (once, when upgrading past 2026-10-12)
 
 The employee's "request a change" to an approved Daily Plan is gone (`docs/decision-log.md`, 2026-10-12). Delete what it left behind — dry run first:

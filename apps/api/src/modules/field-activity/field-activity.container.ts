@@ -11,6 +11,9 @@ import { makeCallSyncHandlers } from './application/callsSync.js';
 import { makeExpenseSyncHandler } from './application/expenseSync.js';
 import { TaDaLifecycle } from './application/usecases/taDaLifecycle.usecase.js';
 import { EXPENSE_MONTH_KIND, ExpenseMonthService } from './application/usecases/expenseMonth.usecase.js';
+import { ExpenseMonthDeadlines } from './application/expenseMonthDeadlines.js';
+import { GrantExpenseMonthUseCase, ListExpenseMonthGrantsUseCase, RevokeExpenseMonthGrantUseCase } from './application/usecases/expenseMonthGrants.usecase.js';
+import { MongoExpenseMonthGrantAdapter } from './infrastructure/mongoExpenseMonthGrant.adapter.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { LogExpenseUseCase } from './application/usecases/logExpense.usecase.js';
 import { makeServiceGiftSyncHandlers } from './application/serviceGiftSync.js';
@@ -102,7 +105,8 @@ export function buildFieldActivityContainer(
 
   // A month of expenses goes to the manager, whose approval is the decision (Admin may act in their place); approval makes its rows payable.
   const proofStorage = new CloudinaryProofStorage();
-  const monthService = new ExpenseMonthService(expenses, expenseMonths, users, approvals, clock, config, new MongooseTransactionRunner(), proofStorage);
+  const expenseGrants = new MongoExpenseMonthGrantAdapter();
+  const monthService = new ExpenseMonthService(expenses, expenseMonths, users, approvals, clock, config, new MongooseTransactionRunner(), proofStorage, expenseGrants, new ExpenseMonthDeadlines(config));
   approvals.registerKind({ kind: EXPENSE_MONTH_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, onStatusChange: (change, ctx) => monthService.onStatusChange(change.recordId, change.status, ctx) });
   const gate = new LoggingGate(users, planning, approvals, dcrs, clock);
   const views = new DcrViews(approvals);
@@ -181,6 +185,9 @@ export function buildFieldActivityContainer(
           listExpenses: new ListExpensesUseCase(expenses, users),
           markPaid: new MarkExpensePaidUseCase(expenses, config),
           expenseMonths: monthService,
+          grantExpense: new GrantExpenseMonthUseCase(expenseGrants, expenses, users, config, () => new Date()),
+          listExpenseGrants: new ListExpenseMonthGrantsUseCase(expenseGrants, users, () => new Date()),
+          revokeExpenseGrant: new RevokeExpenseMonthGrantUseCase(expenseGrants, users, () => new Date()),
           expenseProof: new ExpenseProof(expenses, monthService, proofStorage),
           listPayouts: new ListExpensePayoutsUseCase(expenses, users, config, clock),
           payExpenses: new PayMonthExpensesUseCase(expenses, config),

@@ -27,6 +27,7 @@ GET    /api/field-activity/dcr/team  FIELD
 GET    /api/field-activity/doctor-gifts  ADMIN,FIELD
 GET    /api/field-activity/doctor-services  ADMIN,FIELD
 GET    /api/field-activity/doctor-services/:id  ADMIN,FIELD
+GET    /api/field-activity/expense-grants  ADMIN,FIELD
 GET    /api/field-activity/expense-months  ADMIN,FIELD
 GET    /api/field-activity/expense-months/:id  ADMIN,FIELD
 GET    /api/field-activity/expense-months/history  ADMIN,FIELD
@@ -149,6 +150,8 @@ POST   /api/config/financial-year/reopen  ADMIN
 POST   /api/field-activity/admin/doctor-gifts  ADMIN
 POST   /api/field-activity/admin/doctor-services  ADMIN
 POST   /api/field-activity/dcr/:id/calls/:callId/override-geofence  ADMIN,FIELD
+POST   /api/field-activity/expense-grants  ADMIN,FIELD
+POST   /api/field-activity/expense-grants/:id/revoke  ADMIN,FIELD
 POST   /api/field-activity/expense-months/:month/submit  FIELD
 POST   /api/field-activity/expense-payouts/pay  ACCOUNTANT,ADMIN
 POST   /api/field-activity/expenses/:id/mark-paid  ACCOUNTANT,ADMIN
