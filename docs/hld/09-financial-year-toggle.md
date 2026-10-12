@@ -60,3 +60,7 @@ The toggle above only makes a *viewed* past year read-only. Closing is the other
 (`assertFinancialYearOpen`, `shared/time/financialYearClose.ts`, 409 `FY_CLOSED`) whatever the toggle says. Reopening undoes it. The year is
 named by the year it starts in and stored in `FY_CLOSED_YEARS`. Why explicit, not automatic on a date: the March salary run (1 April) and the March
 expense payout (15 April) belong to the old year, so the Admin closes it after the last payout.
+
+### A closed year and daily work (2026-10-12)
+
+`assertFinancialYearOpen` now also guards the daily-work writes, by the date of the record: the daily-report gate (every call, follow-up and expense record, and the submit), plan deadlines (daily and monthly submit), placing an order, and leave (request, edit, approve). Closing needs the year to have ended, so the day being worked is never in a closed year; the guard refuses late, back-dated and past-month records. `GET /config/public` returns `closedFinancialYears` (start years) so the phone can show the read-only notice.

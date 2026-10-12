@@ -17,6 +17,20 @@ old one.
 
 ---
 
+## 2026-10-12 — Docs tab: payslips, shared documents; a closed year blocks daily work
+
+**Decided (owner's brief):** the phone's Docs tab shows the employee's own **payslips**, bounded by the financial year (older ones by switching year on the Financial Year screen), and **other documents the Admin adds**. A **closed** financial year turns the phone's daily work read-only, with a notice. The phone docs also say how to read back a past day's report, secondary sales, orders, monthly expense approval, leave and service requests.
+
+**Built:** `GET /payroll/me` (FIELD): finalized runs only, for the year in view; the slip logic moved to `packages/contracts` (`payslipOf`) so one calculation serves the portal and the phone (nothing stored, no PDF). New `documents` module: Admin uploads a PDF/JPG/PNG (≤ 10 MB) for everyone or named employees; employees list theirs; web Documents page. `assertFinancialYearOpen` extended to the daily-report gate, plan deadlines, orders and leave; `/config/public` returns `closedFinancialYears`.
+
+**Why:** drawing the slip from the run keeps one source of truth, as the web slip already does. Documents are their own module because Identity's per-user onboarding documents are HR's, not a library. Viewing a past year was already read-only on the server; "closed" is the Admin's lock after the last payout.
+
+**Cost:** a year can only be closed once it has ended, so today's work is never refused: the guard bites late and back-dated records and past-month plans and leave. Approving a leave dated in a closed year is now refused too. No per-document edit (remove and add). Phone screens are another team's job: [`mobile/docs.md`](mobile/docs.md), [`mobile/reports.md`](mobile/reports.md), [`mobile/leave-report.md`](mobile/leave-report.md), [`mobile/service-requests.md`](mobile/service-requests.md).
+
+**Rejected:** a stored payslip PDF (a second copy to keep right); a "closed" flag per employee (the year is the unit).
+
+---
+
 ## 2026-10-12 — Work With lists every manager in the org; monthly plan rules re-verified
 
 **Decision:**

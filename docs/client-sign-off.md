@@ -207,3 +207,12 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | K39 | Proof on an Other expense | **2026-10-10, built on our own assumption:** an employee may attach up to 3 files (PDF, JPG or PNG, 5 MB each) to an Other expense, optional, while the month is still editable. The approver and the Accountant can open them | Built 2026-10-10 (awaiting confirmation) — is proof compulsory above some amount? |
 | K40 | Calls and follow-ups redesign | **2026-10-12, from the owner:** doctor call, doctor follow-up, chemist call and chemist follow-up all need the phone's GPS within the radius (100 m, system config) or they are refused. Work type comes from the plan (not chosen on the call) and each record shows the route type (HQ / Ex-station / Out-station). Off-plan doctors, follow-ups and off-route chemists are flagged for the report, not refused. New work type **Doctor campaign** (DA at the highest route type, no TA). Meeting, Conference and Strike days have no calls but still submit a daily report (a note is required for Meeting and Conference). An employee can remove a call or follow-up before the final submit, after an "Are you sure?" in the app | Built 2026-10-12; **assumed:** follow-ups use the same strict location rule as calls, and a doctor or chemist with no registered location cannot be recorded until Admin sets it |
 | K41 | Expense deadlines and late exception | **2026-10-12, from the owner (our reading, to confirm):** the monthly statement must be sent by day 7 and approved by day 10 of the next month (*config* `EXPENSE_SUBMIT_CUTOFF_DAY`, `EXPENSE_APPROVAL_CUTOFF_DAY`). Later, only an Admin (or a manager, if `LATE_EXPENSE_GRANT_BY_MANAGER` is on) exception lets it through. The exception cannot be given, nor the month reopened, once any of it is paid. A missed month is not rolled over. | Built 2026-10-12 (assumed days 7 / 10; owner to confirm) |
+
+## L. Docs tab of 2026-10-12
+
+| # | Question | Today | Status |
+|---|---|---|---|
+| L1 | Which payslips can an employee see? | Their own, finalized months only, for the financial year in view; older years by switching year | Working assumption |
+| L2 | Who can add documents, and who sees them? | Admin only; for every field employee or chosen people; PDF/JPG/PNG up to 10 MB; remove and add again to change | Working assumption |
+| L3 | What does a closed financial year do on the phone? | Daily work dated inside it is refused (`FY_CLOSED`) and the phone shows a read-only notice. A year can be closed only after it ends | Working assumption |
+
