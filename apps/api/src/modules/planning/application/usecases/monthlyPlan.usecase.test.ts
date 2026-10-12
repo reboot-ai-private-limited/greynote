@@ -82,12 +82,47 @@ describe('Monthly Plan', () => {
       expect(none.entries.map((e) => e.dayKind)).toEqual(['NORMAL']);
     });
 
-    it('refuses a return date that is not after the trip, outside the month, on a meeting, or over another planned day', async () => {
+    it('refuses a return date that is not after the trip, more than a month on, on a meeting, or over another planned day', async () => {
       await expectError(save.execute(MR, MONTH, [trip('2026-10-02', '2026-10-02')]), 400);
-      await expectError(save.execute(MR, MONTH, [trip('2026-10-30', '2026-11-02')]), 400);
+      await expectError(save.execute(MR, MONTH, [trip('2026-10-30', '2026-12-02')]), 400);
       await expectError(save.execute(MR, MONTH, [entry('2026-10-02', { workingType: 'MEETING', routeIds: [], returnDate: '2026-10-04' })]), 400);
       await expectError(save.execute(MR, MONTH, [trip('2026-10-02', '2026-10-05'), entry('2026-10-04')]), 400);
       await expectError(save.execute(MR, MONTH, [trip('2026-10-02', '2026-10-05'), trip('2026-10-04', '2026-10-06')]), 400);
+    });
+
+    describe('across a month end', () => {
+      const NEXT = '2026-11';
+
+      it('puts the days after the month end into next month’s plan, made as a draft', async () => {
+        const plan = await save.execute(MR, MONTH, [trip('2026-10-30', '2026-11-02')]);
+        expect(plan.entries.map((e) => [e.planDate, e.dayKind])).toEqual([['2026-10-30', 'NORMAL'], ['2026-10-31', 'STAY']]);
+        const next = await kit.monthlyPlans.findByUserAndMonth(MR, NEXT);
+        expect(next!.entries.map((e) => [e.planDate, e.dayKind])).toEqual([['2026-11-01', 'STAY'], ['2026-11-02', 'TRANSIT']]);
+        expect(await status.monthly(MR, NEXT)).toBe('DRAFT');
+      });
+
+      it('keeps those days when next month is saved, and refuses to plan over them', async () => {
+        await save.execute(MR, MONTH, [trip('2026-10-30', '2026-11-02')]);
+        const next = await save.execute(MR, NEXT, [entry('2026-11-05')]);
+        expect(next.entries.map((e) => [e.planDate, e.dayKind])).toEqual([['2026-11-01', 'STAY'], ['2026-11-02', 'TRANSIT'], ['2026-11-05', 'NORMAL']]);
+        await expectError(save.execute(MR, NEXT, [entry('2026-11-02')]), 400);
+      });
+
+      it('refuses a trip into a day already planned next month, and removes the days when the trip is cut short', async () => {
+        await save.execute(MR, NEXT, [entry('2026-11-01')]);
+        await expectError(save.execute(MR, MONTH, [trip('2026-10-30', '2026-11-02')]), 400);
+        await save.execute(MR, NEXT, [entry('2026-11-05')]);
+        await save.execute(MR, MONTH, [trip('2026-10-30', '2026-11-02')]);
+        await save.execute(MR, MONTH, [trip('2026-10-30', '2026-10-31')]);
+        const next = await kit.monthlyPlans.findByUserAndMonth(MR, NEXT);
+        expect(next!.entries.map((e) => e.planDate)).toEqual(['2026-11-05']);
+      });
+
+      it('refuses the change while next month’s plan is waiting for approval', async () => {
+        const next = await save.execute(MR, NEXT, [entry('2026-11-05')]);
+        await submit.execute(MR, next.id);
+        await expectError(save.execute(MR, MONTH, [trip('2026-10-30', '2026-11-02')]), 409);
+      });
     });
 
     it('needs an out-station route to submit a trip', async () => {
