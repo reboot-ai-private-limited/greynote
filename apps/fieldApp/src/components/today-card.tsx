@@ -58,7 +58,12 @@ export function TodayCard() {
           You can log calls and expenses for today.
         </ThemedText>
       )}
-      {needsPlan ? (
+      {gate.cause === 'MONTHLY_PLAN' ? (
+        <PrimaryButton
+          label="Go to Monthly Plan"
+          onPress={() => router.push({ pathname: '/monthly-plan', params: { month: 'current' } })}
+        />
+      ) : needsPlan ? (
         <PrimaryButton
           label="Go to Daily Plan"
           onPress={() => router.push('/daily-plan')}

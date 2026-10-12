@@ -35,7 +35,7 @@ export const GRANT_STATUS_LABEL: Record<GrantStatus, string> = {
 export const listLateGrants = (pageSize = 100) =>
   apiGet<{ items: LateGrant[]; total: number }>(`/planning/late-grants?pageSize=${pageSize}`, { auth: true });
 
-export const grantLateSubmit = (input: { userId: string; kind: PlanKind; planKey: string; reason: string }) =>
+export const grantLateSubmit = (input: { userId: string; kind: PlanKind; planKey: string; reason: string; expiresAt?: string }) =>
   apiPost<LateGrant>('/planning/late-grants', { ...input, reason: input.reason.trim() }, { auth: true });
 
 /** Withdraws a grant that has not been used — Admin or whoever granted it. */

@@ -125,7 +125,12 @@ type CallBase = {
   geofence: GeofenceOutcome;
   recordedAt: string;
 };
-export type DcrDoctorCall = CallBase & { doctorId: string; doctorName: string; samples: { productName: string; quantity: number }[] };
+export type DcrDoctorCall = CallBase & {
+  doctorId: string;
+  doctorName: string;
+  samples: { productName: string; quantity: number }[];
+  notInPlan?: boolean;
+};
 export type DcrChemistCall = CallBase & { chemistId: string; chemistName: string };
 export type DcrFollowup = { id: string; subject: 'DOCTOR' | 'CHEMIST'; subjectName: string; remarks: string };
 export type DcrExpense = { id: string; type: string; source: 'AUTO' | 'MANUAL'; amountPaise: number; remarks: string | null; accepted: boolean };

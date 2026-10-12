@@ -15,9 +15,10 @@ import { STATUS_LABEL, type ApprovalStatus } from '@/lib/approvals';
 import { useFinancialYear } from '@/lib/financial-year';
 import { formatRupees } from '@/lib/money';
 import { getSalesDashboard, listTeamDcrs, type SalesDashboardRow } from '@/lib/team';
-import { useColleagues, useOnline } from '@/offline';
+import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { datesInMonth, formatWhen, monthOf, prettyDay } from '@/offline/day';
+import { useTeam } from '@/offline/team';
 
 type Report = 'dcr' | 'sales';
 const REPORTS: { value: Report; label: string }[] = [
@@ -70,9 +71,8 @@ function Stale({ fetchedAt, stale, error, online }: { fetchedAt: string | null; 
 
 function TeamDcrList({ month, year }: { month: string; year: number }) {
   const online = useOnline();
-  const { colleagues } = useColleagues();
-  const team = useMemo(() => colleagues.filter((c) => c.relation === 'TEAM'), [colleagues]);
-  const names = useMemo(() => new Map(colleagues.map((c) => [c.id, c.name])), [colleagues]);
+  const { team } = useTeam();
+  const names = useMemo(() => new Map(team.map((t) => [t.id, t.name])), [team]);
   const [who, setWho] = useState<string>('ALL');
   const { from, to } = bounds(month);
   const list = useCachedFetch(`team-dcr:${year}:${month}:${who}`, () => listTeamDcrs(from, to, who === 'ALL' ? null : who));

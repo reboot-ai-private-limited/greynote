@@ -26,6 +26,7 @@ export function useDayGate(): DayGate & { today: string } {
     today,
     plans: planning.data?.dailyPlans ?? null,
     blocked: activity.data?.blocked ?? null,
+    monthlyPlans: planning.data?.monthlyPlans ?? null,
   });
   return { ...gate, today };
 }

@@ -1,6 +1,6 @@
 import type { GeoPoint } from '@/types/sync';
 
-import { apiGet, apiPut } from './api';
+import { apiGet, apiPatch, apiPut } from './api';
 
 /**
  * The doctors an MR added (LLD field-master-data.md, Doctor-creation approval): created `pending`, sent
@@ -38,6 +38,12 @@ export type AddedDoctorBody = {
   location: GeoPoint;
 };
 
+export type DoctorTargetsBody = {
+  dateOfBirth?: string | null;
+  anniversary?: string | null;
+  visitFrequency?: number | null;
+};
+
 type Page<T> = { items: T[]; total: number };
 
 export const listAddedDoctors = async () =>
@@ -46,5 +52,10 @@ export const listAddedDoctors = async () =>
 export const editAddedDoctor = (id: string, body: AddedDoctorBody) =>
   apiPut<AddedDoctor>(`/field-master-data/doctors/added/${id}`, body);
 
+/** Manager or Admin: set a doctor’s monthly visit frequency (1–6), date of birth and anniversary. */
+export const updateDoctorTargets = (id: string, body: DoctorTargetsBody) =>
+  apiPatch<unknown>(`/field-master-data/doctors/${id}/targets`, body);
+
 /** A doctor the owner can still change: sent back, withdrawn or reopened. */
 export const ADDED_EDITABLE = ['REJECTED', 'WITHDRAWN', 'REOPENED'];
+

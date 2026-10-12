@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -22,7 +23,7 @@ import { CALL_WORKING_TYPES, workingTypeLabel, type WorkingType } from '@/lib/pl
 import { removeRecord, saveCall, serverGeofence, useRecords, type CallPayload, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import type { FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
+import type { ConfigSnapshot, FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
 
 type Subject = 'DOCTOR' | 'CHEMIST';
 
@@ -48,6 +49,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
   const gate = useDayGate();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const planning = useCachedSource<PlanningSnapshot>('planning');
+  const config = useCachedSource<ConfigSnapshot>('config');
   const reportSent = useReportSent(gate.today);
   const { records } = useRecords([kind]);
 
@@ -59,6 +61,9 @@ export function CallScreen({ subject }: { subject: Subject }) {
 
   const plan = planning.data?.dailyPlans.find((p) => p.planDate === gate.today) ?? null;
   const plannedRoutes = useMemo(() => new Set(plan?.routeIds ?? []), [plan]);
+  const plannedDoctorIds = useMemo(() => new Set((plan?.doctors ?? []).map((d) => d.doctorId)), [plan]);
+  const hasPlannedDoctors = (plan?.doctors?.length ?? 0) > 0;
+  const allowUnplanned = config.data?.settings.ALLOW_UNPLANNED_DOCTOR_CALLS !== 'false';
 
   const [editing, setEditing] = useState<OutboxRecord | 'new' | null>(null);
   const [outletId, setOutletId] = useState<string | null>(null);
@@ -74,11 +79,24 @@ export function CallScreen({ subject }: { subject: Subject }) {
     return (isDoctor ? p.doctorId : p.chemistId) ?? '';
   };
 
-  // The server only accepts a call on a route in today's approved plan.
+  // The server only accepts a call on a route in today's approved plan, unless an unplanned call is allowed.
   const outlets = useMemo(() => {
-    const list = isDoctor ? (master.data?.doctors ?? []) : (master.data?.chemists ?? []);
-    return list.filter((o) => plannedRoutes.has(o.routeId));
-  }, [master.data, isDoctor, plannedRoutes]);
+    if (!isDoctor) {
+      return (master.data?.chemists ?? []).filter((o) => plannedRoutes.has(o.routeId));
+    }
+    const allDoctors = master.data?.doctors ?? [];
+    if (hasPlannedDoctors) {
+      if (allowUnplanned) {
+        return [...allDoctors].sort((a, b) => {
+          const aIn = plannedDoctorIds.has(a.id) ? 0 : 1;
+          const bIn = plannedDoctorIds.has(b.id) ? 0 : 1;
+          return aIn - bIn || a.name.localeCompare(b.name);
+        });
+      }
+      return allDoctors.filter((d) => plannedDoctorIds.has(d.id));
+    }
+    return allDoctors.filter((d) => plannedRoutes.has(d.routeId));
+  }, [master.data, isDoctor, plannedRoutes, hasPlannedDoctors, plannedDoctorIds, allowUnplanned]);
   const outletById = useMemo(
     () => new Map([...(master.data?.doctors ?? []), ...(master.data?.chemists ?? [])].map((o) => [o.id, o])),
     [master.data],
@@ -171,11 +189,15 @@ export function CallScreen({ subject }: { subject: Subject }) {
   };
 
   if (gate.state !== 'open') {
+    const isMonthlyBlock = gate.cause === 'MONTHLY_PLAN';
     return (
       <ScreenShell title={title}>
-        <Notice tone="warning" title="Not available right now">
+        <Notice tone="warning" title={isMonthlyBlock ? 'Monthly plan not approved' : 'Not available right now'}>
           {gate.reason ?? 'Calls open once today’s Tour Plan is approved.'}
         </Notice>
+        {isMonthlyBlock ? (
+          <PrimaryButton label="Go to Monthly Plan" variant="text" onPress={() => router.push({ pathname: '/monthly-plan', params: { month: 'current' } })} />
+        ) : null}
       </ScreenShell>
     );
   }
@@ -186,13 +208,16 @@ export function CallScreen({ subject }: { subject: Subject }) {
       <ScreenShell title={editing === 'new' ? `New ${title}` : `Edit ${title}`}>
         <OutletPicker
           label={isDoctor ? 'Doctor' : 'Chemist'}
-          options={outlets.map((o) => ({
-            id: o.id,
-            name: o.name,
-            subtitle: `${'specialty' in o ? `${o.specialty} · ${o.address}` : o.address}${
-              'visitFrequency' in o && o.visitFrequency ? ` · ${madeBy.has(o.id) ? `${madeBy.get(o.id)} of ${o.visitFrequency}` : o.visitFrequency} visits${madeBy.has(o.id) ? ' this month' : ' a month'}` : ''
-            }${calledIds.has(o.id) ? ' · called today' : ''}`,
-          }))}
+          options={outlets.map((o) => {
+            const notInPlan = isDoctor && hasPlannedDoctors && !plannedDoctorIds.has(o.id);
+            return {
+              id: o.id,
+              name: o.name,
+              subtitle: `${notInPlan ? 'Not in plan · ' : ''}${'specialty' in o ? `${o.specialty} · ${o.address}` : o.address}${
+                'visitFrequency' in o && o.visitFrequency ? ` · ${madeBy.has(o.id) ? `${madeBy.get(o.id)} of ${o.visitFrequency}` : o.visitFrequency} visits${madeBy.has(o.id) ? ' this month' : ' a month'}` : ''
+              }${calledIds.has(o.id) ? ' · called today' : ''}`,
+            };
+          })}
           value={outletId}
           onChange={(id) => {
             setOutletId(id);
@@ -206,6 +231,11 @@ export function CallScreen({ subject }: { subject: Subject }) {
               : `No ${noun}s on today’s routes yet. Connect to the internet once so your list can load.`
           }
         />
+        {picked && isDoctor && hasPlannedDoctors && !plannedDoctorIds.has(picked.id) ? (
+          <Notice tone="info">
+            This doctor is not on today’s Tour Plan. The call will be marked as “Not in plan” in your daily report.
+          </Notice>
+        ) : null}
         {picked && !picked.location ? (
           <Notice tone="warning">{`This ${noun} has no registered location, so the call can’t be location-checked. It still saves.`}</Notice>
         ) : null}

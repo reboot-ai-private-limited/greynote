@@ -14,7 +14,7 @@ import { useFinancialYear } from '@/lib/financial-year';
 import { useSessionUser } from '@/lib/session';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { formatWhen, monthOf, prettyMonth } from '@/offline/day';
+import { formatWhen, monthOf, prettyDay, prettyMonth } from '@/offline/day';
 
 const visitsText = (made: number, missed: number) => (missed === 0 ? `${made} called · done` : `${made} called, ${missed} missed`);
 
@@ -32,6 +32,15 @@ function DoctorRows({ rows }: { rows: DoctorVisitRow[] }) {
             </ThemedText>
           </View>
           <ThemedText type="small" themeColor="textSecondary">{`${r.doctor.specialty} · ${r.frequency} visit${r.frequency === 1 ? '' : 's'} a month`}</ThemedText>
+          {r.plannedDays !== undefined && r.plannedDays > 0 ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {`${r.plannedDays} day${r.plannedDays === 1 ? '' : 's'} planned this month${r.missedSince ? ` · missed since ${prettyDay(r.missedSince)}` : ''}`}
+            </ThemedText>
+          ) : r.missedSince ? (
+            <ThemedText type="small" themeColor="danger">
+              {`Missed since ${prettyDay(r.missedSince)}`}
+            </ThemedText>
+          ) : null}
         </ThemedView>
       ))}
     </>

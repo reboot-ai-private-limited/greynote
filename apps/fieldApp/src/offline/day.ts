@@ -41,6 +41,8 @@ export type DayGate = {
   /** Why the day's calls and expenses are locked; null when open. */
   reason: string | null;
   planStatus: PlanStatus | null;
+  /** Set when the month's Monthly Plan isn't approved (the server's `MONTHLY_PLAN_NOT_APPROVED`): screens offer a way to the Monthly Plan. */
+  cause?: 'MONTHLY_PLAN';
 };
 
 const PLAN_REASON: Record<PlanStatus | 'NONE', string> = {
@@ -63,6 +65,8 @@ export function computeDayGate(input: {
   plans: { planDate: string; status: PlanStatus }[] | null;
   /** From the `fieldActivity` pull source; null when never pulled. */
   blocked: boolean | null;
+  /** From the `planning` pull source; null when never pulled. */
+  monthlyPlans?: { planMonth: string; status: PlanStatus }[] | null;
 }): DayGate {
   if (input.blocked === true) return { state: 'blocked', reason: BLOCKED_REASON, planStatus: null };
   if (input.plans === null || input.blocked === null) {
@@ -71,6 +75,20 @@ export function computeDayGate(input: {
       reason: 'Connect to the internet once so your plan and data can load.',
       planStatus: null,
     };
+  }
+  if (Array.isArray(input.monthlyPlans)) {
+    const month = monthOf(input.today);
+    const monthPlan = input.monthlyPlans.find((m) => m.planMonth === month);
+    const isApproved = monthPlan?.status === 'MANAGER_APPROVED' || monthPlan?.status === 'APPROVED';
+    if (!isApproved) {
+      return {
+        state: 'closed',
+        reason: `Your monthly plan for ${prettyMonth(month)} isn’t approved yet. Submit your Monthly Plan first.`,
+        // The status shown beside "Today's Tour Plan" is the day's own, not the month's.
+        planStatus: input.plans.find((p) => p.planDate === input.today)?.status ?? null,
+        cause: 'MONTHLY_PLAN',
+      };
+    }
   }
   const status = input.plans.find((p) => p.planDate === input.today)?.status ?? null;
   if (status === 'MANAGER_APPROVED' || status === 'APPROVED') {

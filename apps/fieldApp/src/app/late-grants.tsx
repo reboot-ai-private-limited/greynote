@@ -27,10 +27,18 @@ import { useSessionUser } from '@/lib/session';
 import { useColleagues, useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { formatWhen, monthOf, prettyDay, prettyMonth } from '@/offline/day';
+import { useTeam } from '@/offline/team';
 
 const KINDS: { value: PlanKind; label: string }[] = [
   { value: 'DAILY_PLAN', label: 'Daily plan' },
   { value: 'MONTHLY_PLAN', label: 'Monthly plan' },
+];
+
+/** How long the exception lasts, from the moment it is granted (hours). The server allows up to `LATE_PLAN_GRANT_MAX_HOURS`, 744 by default. */
+const DURATIONS = [
+  { value: '24', label: '24h' },
+  { value: '48', label: '48h' },
+  { value: '168', label: '7 days' },
 ];
 
 const errorText = (err: unknown) =>
@@ -47,10 +55,16 @@ export default function LateGrantsScreen() {
   const me = useSessionUser();
   const { today } = useDayGate();
   const { colleagues } = useColleagues();
+  const { team, loaded: teamLoaded } = useTeam();
   const grants = useCachedFetch<{ items: LateGrant[]; total: number }>('late-grants', () => listLateGrants());
 
-  const team = useMemo(() => colleagues.filter((c) => c.relation === 'TEAM'), [colleagues]);
-  const names = useMemo(() => new Map(colleagues.map((c) => [c.id, c.name])), [colleagues]);
+  const [durationHours, setDurationHours] = useState('24');
+
+  // The employees a manager may grant to are their own team; every name we know, for the list below.
+  const names = useMemo(
+    () => new Map([...colleagues.map((c) => [c.id, c.label ?? c.name] as const), ...team.map((t) => [t.id, t.name] as const)]),
+    [colleagues, team],
+  );
 
   const [search, setSearch] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
@@ -70,7 +84,8 @@ export default function LateGrantsScreen() {
     setBusy(true);
     setMsg(null);
     try {
-      await grantLateSubmit({ userId, kind, planKey: kind === 'DAILY_PLAN' ? day : month, reason });
+      const expiresAt = new Date(Date.now() + Number(durationHours) * 3600_000).toISOString();
+      await grantLateSubmit({ userId, kind, planKey: kind === 'DAILY_PLAN' ? day : month, reason, expiresAt });
       setReason('');
       setMsg({ tone: 'success', text: `${names.get(userId) ?? 'The employee'} can now submit that plan late.` });
       grants.reload();
@@ -104,7 +119,7 @@ export default function LateGrantsScreen() {
       <ThemedText type="smallBold">Employee</ThemedText>
       {team.length === 0 ? (
         <Notice tone="info">
-          {colleagues.length === 0 ? 'Loading your team…' : 'You have nobody in your team to allow a late submission for.'}
+          {teamLoaded ? 'You have nobody in your team to allow a late submission for.' : 'Loading your team…'}
         </Notice>
       ) : (
         <>
@@ -132,6 +147,8 @@ export default function LateGrantsScreen() {
       ) : (
         <MonthStepper value={month} onChange={setMonth} />
       )}
+      <ThemedText type="smallBold">Valid for</ThemedText>
+      <ChoiceChips options={DURATIONS} value={durationHours} onChange={setDurationHours} disabled={busy} />
       <TextField label="Why is the exception needed? (required)" value={reason} onChangeText={(t) => { setReason(t); setMsg(null); }} multiline maxLength={1000} editable={!busy} />
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
       <PrimaryButton label="Allow late submission" loading={busy} disabled={!online || team.length === 0} onPress={grant} />

@@ -10,8 +10,9 @@ import { ScreenShell } from '@/components/screen-shell';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { ApiError, NetworkError } from '@/lib/api';
-import { listStock, type OutletType, type StockRow } from '@/lib/marketing';
+import { listMissingStock, listStock, type MissingStockRow, type OutletType, type StockRow } from '@/lib/marketing';
 import { createRecord, getRecord, removeRecord, sendNow, updateRecord, useOnline, useRecords, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
@@ -39,6 +40,7 @@ const errorText = (err: unknown) =>
  */
 export default function MonthlyStockScreen() {
   const online = useOnline();
+  const { isManager } = useCurrentUser();
   const config = useCachedSource<ConfigSnapshot>('config');
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const thisMonth = monthOf(businessToday(config.data?.settings.BUSINESS_TIMEZONE, new Date(), config.data?.settings.DAY_START_TIME));
@@ -48,6 +50,11 @@ export default function MonthlyStockScreen() {
   const syncedCount = records.filter((r) => r.status === 'SYNCED').length;
   const counted = useCachedFetch<StockRow[]>(`stock:${month}`, () => listStock(month), syncedCount);
   const previous = useCachedFetch<StockRow[]>(`stock:${addMonths(month, -1)}`, () => listStock(addMonths(month, -1)));
+  // The same key online and offline, so a manager still sees the last copy with no signal; non-managers never ask the server.
+  const missingTeam = useCachedFetch<MissingStockRow[] | null>(
+    isManager ? `missing-stock:${month}` : 'missing-stock:none',
+    () => (isManager ? listMissingStock(month) : Promise.resolve(null)),
+  );
 
   const [outletType, setOutletType] = useState<OutletType>('CHEMIST');
   const [outletId, setOutletId] = useState<string | null>(null);
@@ -70,6 +77,8 @@ export default function MonthlyStockScreen() {
     });
   const rowsOf = (rows: StockRow[] | null, type: OutletType, id: string) => (rows ?? []).filter((r) => r.outlet.type === type && r.outlet.id === id);
   const isCounted = (type: OutletType, id: string) => rowsOf(counted.data, type, id).length > 0;
+  // Only once the month's counts have loaded: before that every outlet would read as missing.
+  const missingMine = counted.data === null ? [] : outlets.filter((o) => !isCounted(outletType, o.id));
 
   const choose = (id: string) => {
     setOutletId(id);
@@ -171,6 +180,13 @@ export default function MonthlyStockScreen() {
       {counted.error && online ? <Notice tone="danger">{counted.error}</Notice> : null}
 
       <ChoiceChips options={OUTLET_TYPES} value={outletType} onChange={(t) => (setOutletType(t), setOutletId(null))} />
+
+      {missingMine.length > 0 && !closed ? (
+        <Notice tone="warning" title="Missing stock counts">
+          {`${missingMine.length} of ${outlets.length} ${outletType === 'CHEMIST' ? 'chemists' : 'distributors'} have not had stock counted for ${prettyMonth(month)}.`}
+        </Notice>
+      ) : null}
+
       <OutletPicker
         label={`Count stock at a ${outletType === 'CHEMIST' ? 'chemist' : 'distributor'}`}
         options={outlets.map((o) => ({ id: o.id, name: o.name, subtitle: waitingFor(outletType, o.id, month) ? 'Waiting to be sent' : isCounted(outletType, o.id) ? (closed ? 'Counted' : 'Counted — tap to change') : closed ? 'Not counted' : 'Not counted yet' }))}
@@ -179,6 +195,20 @@ export default function MonthlyStockScreen() {
         onChange={choose}
         emptyText={`No ${outletType === 'CHEMIST' ? 'chemists' : 'distributors'} are on your routes yet.`}
       />
+
+      {missingTeam.data && missingTeam.data.length > 0 ? (
+        <>
+          <ThemedText type="smallBold">Team members with missing counts</ThemedText>
+          {missingTeam.data.map((row) => (
+            <ThemedView key={row.userId} type="backgroundElement" style={styles.card}>
+              <ThemedText type="smallBold">{row.userName}</ThemedText>
+              <ThemedText type="small" themeColor="danger">
+                {`${row.outlets.length} outlet${row.outlets.length === 1 ? '' : 's'} missing count: ${row.outlets.map((o) => o.name).slice(0, 3).join(', ')}${row.outlets.length > 3 ? '…' : ''}`}
+              </ThemedText>
+            </ThemedView>
+          ))}
+        </>
+      ) : null}
 
       {waiting.length > 0 ? (
         <>

@@ -44,8 +44,8 @@ export type SalesDashboard = {
 };
 
 /** A manager's team (Admin: everyone) over a range of at most 93 days, one page of employees plus the totals. */
-export const getSalesDashboard = (from: string, to: string, pageSize = 100) =>
-  apiGet<SalesDashboard>(`/reports/sales-dashboard?from=${from}&to=${to}&pageSize=${pageSize}`, { auth: true, fy: true });
+export const getSalesDashboard = (from: string, to: string, pageSize = 100, opts: { fy?: boolean } = {}) =>
+  apiGet<SalesDashboard>(`/reports/sales-dashboard?from=${from}&to=${to}&pageSize=${pageSize}`, { auth: true, fy: opts.fy ?? true });
 
 /** The downline's daily reports between two days (both inclusive), optionally for one person. */
 export const listTeamDcrs = (from: string, to: string, userId?: string | null) =>

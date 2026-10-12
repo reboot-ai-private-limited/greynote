@@ -12,6 +12,8 @@ export type DoctorVisitRow = {
   made: number;
   /** `max(0, frequency − made)`. */
   missed: number;
+  plannedDays?: number;
+  missedSince?: string | null;
 };
 
 export type DoctorVisitMr = {

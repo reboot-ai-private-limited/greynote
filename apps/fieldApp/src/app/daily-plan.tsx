@@ -32,7 +32,7 @@ import {
 } from '@/lib/planning';
 import { refreshNow, useColleagues, useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
-import { addDays, businessNowHHmm, dailyDeadlinePassed, formatWhen, nowMs, prettyDay } from '@/offline/day';
+import { addDays, businessNowHHmm, dailyDeadlinePassed, formatWhen, monthOf, nowMs, prettyDay, prettyMonth } from '@/offline/day';
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from '@/offline/local-draft';
 import type { ConfigSnapshot, FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
 
@@ -110,6 +110,10 @@ export default function DailyPlanScreen() {
   const editable = EDITABLE.includes(status);
   const approved = status === 'APPROVED' || status === 'MANAGER_APPROVED';
   const timeZone = config.data?.settings.BUSINESS_TIMEZONE;
+
+  const selectedMonth = monthOf(date);
+  const monthPlan = planning.data?.monthlyPlans.find((m) => m.planMonth === selectedMonth) ?? null;
+  const monthApproved = monthPlan?.status === 'MANAGER_APPROVED' || monthPlan?.status === 'APPROVED';
 
   /** Everything the server knows about this plan (online only). */
   const detailKey = `${date}:${existing?.id ?? 'new'}:${status}`;
@@ -266,6 +270,9 @@ export default function DailyPlanScreen() {
     run(async () => {
       const p = problem();
       if (p) return { tone: 'warning', text: p };
+      if (planning.loaded && !monthApproved) {
+        return { tone: 'danger', text: `Your monthly plan for ${prettyMonth(selectedMonth)} isn’t approved yet. Submit your Monthly Plan first.` };
+      }
       if (!online) {
         await saveLocalDraft(`daily:${date}`, { ...day, doctorIds } satisfies LocalDraft);
         return { tone: 'info', text: 'Saved on this phone. Connect to the internet to submit it.' };
@@ -289,6 +296,9 @@ export default function DailyPlanScreen() {
     return run(async () => {
       const p = problem();
       if (p) return { tone: 'warning', text: p };
+      if (planning.loaded && !monthApproved) {
+        return { tone: 'danger', text: `Your monthly plan for ${prettyMonth(selectedMonth)} isn’t approved yet. Submit your Monthly Plan first.` };
+      }
       // Save only what the MR changed: an unchanged plan is submitted as it is — the only way to send a
       // day inherited from the approved Monthly Plan, which the server won't let them re-save.
       const planId = existing && sameDay(day, existing) ? existing.id : (await saveDailyPlan(date, day)).id;
@@ -350,6 +360,15 @@ export default function DailyPlanScreen() {
     <ScreenShell title="Daily Plan">
       <ThemedText type="smallBold">Date</ThemedText>
       <ChoiceChips options={dateOptions} value={date} onChange={setDate} />
+
+      {!monthApproved && planning.loaded ? (
+        <>
+          <Notice tone="danger" title={`Monthly Plan for ${prettyMonth(selectedMonth)} isn’t approved`}>
+            {`Your monthly plan for ${prettyMonth(selectedMonth)} isn’t approved yet. Daily plans for this month can’t be saved or submitted.`}
+          </Notice>
+          <PrimaryButton label="Go to Monthly Plan" variant="text" onPress={() => router.push({ pathname: '/monthly-plan', params: selectedMonth === monthOf(today) ? { month: 'current' } : {} })} />
+        </>
+      ) : null}
 
       {status ? (
         <Notice tone={status === 'REJECTED' ? 'danger' : approved ? 'success' : 'info'} title={`${prettyDay(date)}: ${STATUS_TEXT[status] ?? status}`}>

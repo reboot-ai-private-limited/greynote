@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -74,7 +74,9 @@ export default function MonthlyPlanScreen() {
   const { colleagues } = useColleagues();
 
   const thisMonth = monthOf(today);
-  const [month, setMonth] = useState(addMonths(thisMonth, 1));
+  // Opens on next month, the one planned ahead; the "isn't approved" links pass `month=current` for the month being worked now.
+  const { month: startAt } = useLocalSearchParams<{ month?: string }>();
+  const [month, setMonth] = useState(startAt === 'current' ? thisMonth : addMonths(thisMonth, 1));
   const [entries, setEntries] = useState<Entries>({});
   const [editing, setEditing] = useState<Editing>(null);
   const [sheet, setSheet] = useState<PlanDay>(EMPTY_DAY);

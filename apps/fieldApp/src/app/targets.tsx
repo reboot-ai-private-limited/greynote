@@ -18,7 +18,8 @@ import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { useFinancialYear } from '@/lib/financial-year';
 import { getEmployeeSalesReport } from '@/lib/sales';
 import { useSessionUser } from '@/lib/session';
-import { useColleagues, useOnline } from '@/offline';
+import { useOnline } from '@/offline';
+import { useTeam } from '@/offline/team';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { MonthStepper } from '@/components/month-stepper';
@@ -41,7 +42,7 @@ export default function TargetsScreen() {
   const me = useSessionUser();
   const fy = useFinancialYear();
   const { isManager } = useCurrentUser();
-  const { colleagues } = useColleagues();
+  const { team } = useTeam();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
 
   const clamp = (m: string) => (m < fy.firstMonth ? fy.firstMonth : m > fy.lastMonth ? fy.lastMonth : m);
@@ -63,7 +64,6 @@ export default function TargetsScreen() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
 
-  const team = colleagues.filter((c) => c.relation === 'TEAM');
   const people = [{ id: me?.id ?? '', name: 'Me', subtitle: me?.employeeCode }, ...team.map((c) => ({ id: c.id, name: c.name, subtitle: c.designation ?? c.employeeCode }))];
 
   const save = async () => {

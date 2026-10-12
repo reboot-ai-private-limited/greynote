@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
@@ -12,7 +13,7 @@ import { useDayGate } from '@/hooks/use-day-gate';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { DAY_KINDS, finalSubmit, prettyDay, useOnline, useRecords, type OutboxRecord, type SyncKind } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
-import type { FieldActivitySnapshot, FieldMasterDataSnapshot } from '@/types/sync';
+import type { FieldActivitySnapshot, FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
 
 const KIND_LABEL: Partial<Record<SyncKind, string>> = {
   DOCTOR_CALL: 'Dr call',
@@ -54,6 +55,7 @@ export default function SummaryScreen() {
   const online = useOnline();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const activity = useCachedSource<FieldActivitySnapshot>('fieldActivity');
+  const planning = useCachedSource<PlanningSnapshot>('planning');
   const { records } = useRecords(DAY_KINDS);
 
   const [busy, setBusy] = useState(false);
@@ -73,13 +75,17 @@ export default function SummaryScreen() {
 
   const failed = dayRecords.filter((r) => r.status === 'FAILED');
 
+  const plan = planning.data?.dailyPlans.find((p) => p.planDate === today) ?? null;
+  const plannedDoctorIds = useMemo(() => new Set((plan?.doctors ?? []).map((d) => d.doctorId)), [plan]);
+  const hasPlannedDoctors = (plan?.doctors?.length ?? 0) > 0;
+
   const describe = (r: OutboxRecord) => {
     const p = r.payload as { doctorId?: string; chemistId?: string; type?: string; amountPaise?: number };
     const who = names.get(p.doctorId ?? p.chemistId ?? '');
     if (r.kind === 'EXPENSE') return `${EXPENSE_LABEL[p.type ?? ''] ?? 'Expense'} · ${formatRupees(p.amountPaise ?? 0)}`;
-    if (who) return who;
-    // Not in the cached lists: the doctor or chemist was deactivated since the last sync.
-    return p.doctorId ? 'Doctor (no longer active)' : p.chemistId ? 'Chemist (no longer active)' : 'Record';
+    const notInPlan = r.kind === 'DOCTOR_CALL' && Boolean(p.doctorId) && hasPlannedDoctors && !plannedDoctorIds.has(p.doctorId!);
+    const label = who ?? (p.doctorId ? 'Doctor (no longer active)' : p.chemistId ? 'Chemist (no longer active)' : 'Record');
+    return notInPlan ? `${label} (Not in plan)` : label;
   };
 
   const submit = async () => {
@@ -114,7 +120,16 @@ export default function SummaryScreen() {
       <ThemedText themeColor="textSecondary">{prettyDay(today)}</ThemedText>
 
       {blocked || gate.state === 'unknown' ? <Notice tone="warning">{gate.reason ?? ''}</Notice> : null}
-      {gate.state === 'closed' ? <Notice tone="warning" title="Today’s plan isn’t approved">{gate.reason ?? ''}</Notice> : null}
+      {gate.state === 'closed' ? (
+        <>
+          <Notice tone="warning" title={gate.cause === 'MONTHLY_PLAN' ? 'Monthly plan not approved' : 'Today’s plan isn’t approved'}>
+            {gate.reason ?? ''}
+          </Notice>
+          {gate.cause === 'MONTHLY_PLAN' ? (
+            <PrimaryButton label="Go to Monthly Plan" variant="text" onPress={() => router.push({ pathname: '/monthly-plan', params: { month: 'current' } })} />
+          ) : null}
+        </>
+      ) : null}
       {dcr ? <Notice tone={dcr.status === 'REJECTED' ? 'danger' : 'info'} title="Today’s report">{DCR_TEXT[dcr.status] ?? dcr.status}</Notice> : null}
       {!online ? <Notice tone="info">You’re offline. Your report is kept on this phone; Final Submission needs the internet.</Notice> : null}
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}

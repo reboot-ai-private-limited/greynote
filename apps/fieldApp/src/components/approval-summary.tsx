@@ -286,9 +286,16 @@ function CallCard({
   return (
     <Box>
       <View style={styles.boxHead}>
-        <ThemedText type="smallBold" style={styles.boxTitle}>
-          {name}
-        </ThemedText>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <ThemedText type="smallBold" style={styles.boxTitle}>
+            {name}
+          </ThemedText>
+          {'notInPlan' in call && call.notInPlan ? (
+            <ThemedText type="small" themeColor="warning">
+              (Not in plan)
+            </ThemedText>
+          ) : null}
+        </View>
         <ThemedText type="small" themeColor="textSecondary">
           {formatWhen(call.recordedAt)}
         </ThemedText>
@@ -346,6 +353,7 @@ export function DcrSummary({ recordId, canAct }: { recordId: string; canAct: boo
   };
 
   const flagged = data ? [...data.doctorCalls, ...data.chemistCalls].filter((c) => c.geofence.status !== 'PASS' && !c.geofence.overriddenAt).length : 0;
+  const unplanned = data ? data.doctorCalls.filter((c) => c.notInPlan).length : 0;
   const total = data?.expenses.reduce((sum, e) => sum + e.amountPaise, 0) ?? 0;
 
   return (
@@ -360,6 +368,9 @@ export function DcrSummary({ recordId, canAct }: { recordId: string; canAct: boo
           </View>
           {flagged > 0 ? (
             <Notice tone="warning">{`${flagged} call${flagged === 1 ? ' was' : 's were'} flagged by the location check.${canAct ? ' Accepting a call is separate from approving the day.' : ''}`}</Notice>
+          ) : null}
+          {unplanned > 0 ? (
+            <Notice tone="warning">{`${unplanned} doctor call${unplanned === 1 ? ' was' : 's were'} not in the day’s plan.`}</Notice>
           ) : null}
 
           {data.doctorCalls.length > 0 ? (

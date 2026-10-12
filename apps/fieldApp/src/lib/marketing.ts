@@ -49,6 +49,7 @@ export const getTarget = (userId: string, month: string, scope: { productId?: st
 /** `toMonth` makes it a run of months (`month` to `toMonth`, both in the current financial year); left out, it is one month. */
 export const setTarget = (body: { userId: string; month: string; toMonth?: string; targetAmountPaise: number; productId?: string | null }) =>
   apiPost<unknown>('/marketing/targets', body, { auth: true });
+export const deleteTarget = (id: string) => apiDelete<unknown>(`/marketing/targets/${id}`);
 
 /* ── Orders (reading and finishing; placing one goes through the outbox) ── */
 
@@ -73,6 +74,11 @@ export const cancelOrder = (id: string) => apiPost<OrderView>(`/sales/orders/${i
 
 export type StockRow = { outlet: { type: OutletType; id: string }; productId: string; month: string; openingQty: number; closingQty: number };
 export const listStock = (month: string) => apiGet<StockRow[]>(`/sales/monthly-stock?month=${month}`);
+
+export type MissingOutlet = { type: OutletType; id: string; name: string };
+export type MissingStockRow = { userId: string; userName: string; outlets: MissingOutlet[] };
+export const listMissingStock = (month: string) =>
+  apiGet<MissingStockRow[]>(`/sales/monthly-stock/missing?month=${month}`, { fy: true });
 
 /** Withdraws a Doctor Service request (same call the plans and leave use). */
 export const withdrawRequest = (requestId: string) => apiPost<unknown>(`/approvals/${requestId}/withdraw`, {}, { auth: true });

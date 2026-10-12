@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ChoiceChips } from '@/components/choice-chips';
+import { TextField } from '@/components/text-field';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useColleagues, type Colleague } from '@/offline/colleagues';
+import { useColleagues } from '@/offline/colleagues';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
@@ -11,10 +13,10 @@ import { ThemedView } from './themed-view';
 /** The server accepts at most this many colleagues on one day (planSchema `workWith.max(20)`). */
 const MAX_PICKED = 20;
 
-const GROUPS: { relation: Colleague['relation']; title: string }[] = [
-  { relation: 'MANAGER', title: 'Your managers' },
-  { relation: 'PEER', title: 'Under the same manager' },
-  { relation: 'TEAM', title: 'Your team' },
+type Scope = 'MANAGERS' | 'ALL';
+const SCOPE_OPTIONS: { value: Scope; label: string }[] = [
+  { value: 'MANAGERS', label: 'Managers' },
+  { value: 'ALL', label: 'All colleagues' },
 ];
 
 type Props = {
@@ -24,20 +26,32 @@ type Props = {
 };
 
 /**
- * "Work With": who joins you on a day or a call. Picks from the colleagues the server offers
- * (managers above you, peers under your manager, and your team). Chosen people show as chips;
- * the full list opens on demand so the form stays short.
+ * "Work With": who joins you on a day or a call (GET /identity/work-with).
+ * Offers active managers or all field employees. Shows labels like "Asha Rao (ASM)".
  */
 export function WorkWithPicker({ value, onChange, disabled }: Props) {
   const theme = useTheme();
   const { colleagues, loaded } = useColleagues();
   const [open, setOpen] = useState(false);
-  const byId = new Map(colleagues.map((c) => [c.id, c]));
+  const [scope, setScope] = useState<Scope>('MANAGERS');
+  const [search, setSearch] = useState('');
+  const byId = useMemo(() => new Map(colleagues.map((c) => [c.id, c])), [colleagues]);
 
   const toggle = (id: string) => {
     if (value.includes(id)) onChange(value.filter((v) => v !== id));
     else if (value.length < MAX_PICKED) onChange([...value, id]);
   };
+
+  const needle = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    let list = scope === 'MANAGERS' ? colleagues.filter((c) => c.isManager || c.relation === 'MANAGER') : colleagues;
+    // If no managers were found, fall back to showing everyone so the picker is never empty
+    if (scope === 'MANAGERS' && list.length === 0) list = colleagues;
+    if (needle) {
+      list = list.filter((c) => c.name.toLowerCase().includes(needle) || c.employeeCode.toLowerCase().includes(needle) || (c.designation ?? '').toLowerCase().includes(needle));
+    }
+    return list;
+  }, [colleagues, scope, needle]);
 
   return (
     <View style={styles.box}>
@@ -56,7 +70,7 @@ export function WorkWithPicker({ value, onChange, disabled }: Props) {
                 onPress={() => toggle(id)}
                 style={[styles.chip, { backgroundColor: theme.primary }]}>
                 <ThemedText type="small" themeColor="onPrimary">
-                  {c ? c.name : 'Colleague'}  ✕
+                  {c?.label ?? c?.name ?? 'Colleague'}  ✕
                 </ThemedText>
               </Pressable>
             );
@@ -84,44 +98,48 @@ export function WorkWithPicker({ value, onChange, disabled }: Props) {
             No colleagues to show yet. Connect to the internet once so your list can load.
           </ThemedText>
         ) : (
-          GROUPS.map((g) => {
-            const people = colleagues.filter((c) => c.relation === g.relation);
-            if (people.length === 0) return null;
-            return (
-              <View key={g.relation} style={styles.group}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {g.title}
-                </ThemedText>
-                {people.map((c) => {
-                  const picked = value.includes(c.id);
-                  return (
-                    <Pressable
-                      key={c.id}
-                      disabled={disabled || (!picked && value.length >= MAX_PICKED)}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: picked }}
-                      onPress={() => toggle(c.id)}>
-                      <ThemedView
-                        type="backgroundElement"
-                        style={[styles.row, picked && { borderColor: theme.primary }]}>
-                        <ThemedView type={picked ? 'primary' : 'backgroundSelected'} style={styles.tick}>
-                          <ThemedText type="small" themeColor="onPrimary">
-                            {picked ? '✓' : ''}
-                          </ThemedText>
-                        </ThemedView>
-                        <ThemedView type="backgroundElement" style={styles.rowText}>
-                          <ThemedText type="smallBold">{c.name}</ThemedText>
-                          <ThemedText type="small" themeColor="textSecondary">
-                            {[c.designation, c.employeeCode].filter(Boolean).join(' · ')}
-                          </ThemedText>
-                        </ThemedView>
+          <View style={styles.group}>
+            <ChoiceChips options={SCOPE_OPTIONS} value={scope} onChange={setScope} />
+            <TextField
+              label="Search colleague"
+              placeholder="Name, code or designation…"
+              value={search}
+              onChangeText={setSearch}
+            />
+            {filtered.length === 0 ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                No matching colleagues.
+              </ThemedText>
+            ) : (
+              filtered.map((c) => {
+                const picked = value.includes(c.id);
+                return (
+                  <Pressable
+                    key={c.id}
+                    disabled={disabled || (!picked && value.length >= MAX_PICKED)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: picked }}
+                    onPress={() => toggle(c.id)}>
+                    <ThemedView
+                      type="backgroundElement"
+                      style={[styles.row, picked && { borderColor: theme.primary }]}>
+                      <ThemedView type={picked ? 'primary' : 'backgroundSelected'} style={styles.tick}>
+                        <ThemedText type="small" themeColor="onPrimary">
+                          {picked ? '✓' : ''}
+                        </ThemedText>
                       </ThemedView>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            );
-          })
+                      <ThemedView type="backgroundElement" style={styles.rowText}>
+                        <ThemedText type="smallBold">{c.label ?? c.name}</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {[c.employeeCode, c.designation].filter(Boolean).join(' · ')}
+                        </ThemedText>
+                      </ThemedView>
+                    </ThemedView>
+                  </Pressable>
+                );
+              })
+            )}
+          </View>
         )
       ) : null}
     </View>
