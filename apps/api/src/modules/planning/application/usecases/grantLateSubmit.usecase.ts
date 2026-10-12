@@ -6,7 +6,7 @@ import type { LateSubmitGrantRepositoryPort } from '../../domain/lateSubmitGrant
 import type { PlanKind } from '../../domain/plan.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../planAccess.js';
-import { parseBoolean, parsePositiveInt, readConfig } from '@/shared/config/readConfig.js';
+import { parseBoolean, parsePositiveInt, readConfig, readConfigOr } from '@/shared/config/readConfig.js';
 
 export interface GrantLateSubmitInput {
   userId: string;
@@ -14,6 +14,8 @@ export interface GrantLateSubmitInput {
   /** `YYYY-MM-DD` for `DAILY_PLAN`, `YYYY-MM` for `MONTHLY_PLAN`. */
   planKey: string;
   reason: string;
+  /** When it ends; omitted: `LATE_PLAN_GRANT_VALID_HOURS` from now. */
+  expiresAt?: Date | undefined;
 }
 
 /**
@@ -38,8 +40,8 @@ export class GrantLateSubmitUseCase {
     }
     await this.assertMayGrant(actor, input.userId);
 
-    const hours = await readConfig(this.config, PLANNING_CONFIG_KEYS.grantValidHours, parsePositiveInt(24 * 31));
     const now = this.now();
+    const expiresAt = await this.expiry(now, input.expiresAt);
     const grant = await this.grants.create(
       {
         userId: input.userId,
@@ -49,12 +51,26 @@ export class GrantLateSubmitUseCase {
         grantedBy: actor.id,
         grantedByRole: actor.role,
         grantedAt: now,
-        expiresAt: new Date(now.getTime() + hours * 3_600_000),
+        expiresAt,
       },
       now,
     );
     if (!grant) throw AppError.conflict('There’s already an open late-submission exception for this plan.');
     return grant;
+  }
+
+  /** The end the caller picked — in the future and within the longest allowed — or the default length from now. */
+  private async expiry(now: Date, picked: Date | undefined): Promise<Date> {
+    if (!picked) {
+      const hours = await readConfig(this.config, PLANNING_CONFIG_KEYS.grantValidHours, parsePositiveInt(24 * 31));
+      return new Date(now.getTime() + hours * 3_600_000);
+    }
+    if (picked <= now) throw AppError.badRequest('The exception must end in the future.', { field: 'expiresAt' });
+    const maxHours = await readConfigOr(this.config, PLANNING_CONFIG_KEYS.grantMaxHours, parsePositiveInt(8760), 744);
+    if (picked.getTime() > now.getTime() + maxHours * 3_600_000) {
+      throw AppError.badRequest(`The exception can run at most ${maxHours} hours from now.`, { field: 'expiresAt' });
+    }
+    return picked;
   }
 
   private async assertMayGrant(actor: Actor, userId: string): Promise<void> {

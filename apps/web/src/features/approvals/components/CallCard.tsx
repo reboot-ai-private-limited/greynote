@@ -1,7 +1,7 @@
 import type { ChemistCallDto, DoctorCallDto } from '@greynote/contracts';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/Badge';
-import { EmployeeName } from '@/features/people/components/EmployeePickerField';
+import { WorkWithName } from '@/features/people/components/EmployeePickerField';
 import { formatDateTime } from '@/lib/format';
 import {
   GEOFENCE_LABEL,
@@ -64,7 +64,7 @@ export function CallCard({
           {call.workWith.map((id, i) => (
             <span key={id}>
               {i > 0 ? ', ' : ''}
-              <EmployeeName userId={id} />
+              <WorkWithName userId={id} />
             </span>
           ))}
         </p>

@@ -15,6 +15,8 @@ export interface PlanningPublicContract {
    * approved by default.
    */
   isDailyPlanApproved(userId: string, planDate: string): Promise<boolean>;
+  /** True when the user's Monthly Plan for `YYYY-MM` is past the manager (`MANAGER_APPROVED` or `APPROVED`). No Plan is never approved. */
+  isMonthlyPlanApproved(userId: string, planMonth: string): Promise<boolean>;
   /** `null` when there's no Plan for that day at all. */
   getDailyPlanStatus(userId: string, planDate: string): Promise<PlanApprovalStatus | null>;
   /**

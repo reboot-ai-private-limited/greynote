@@ -87,3 +87,32 @@ export interface DailyPlanChangeDto {
   status: string;
   approval: { requestId: string; cycle: number; submittedAt: string; decidedAt: string | null } | null;
 }
+
+export type LateSubmitGrantStatus = 'OPEN' | 'USED' | 'REVOKED' | 'EXPIRED';
+
+/** `GET /planning/late-grants`: a one-off exception that lets one employee submit one plan after its deadline. */
+export interface LateSubmitGrantDto {
+  id: string;
+  userId: string;
+  kind: 'DAILY_PLAN' | 'MONTHLY_PLAN';
+  /** `YYYY-MM-DD` for a daily plan, `YYYY-MM` for a monthly one. */
+  planKey: string;
+  reason: string;
+  grantedBy: string;
+  grantedByRole: string;
+  grantedAt: string;
+  expiresAt: string;
+  status: LateSubmitGrantStatus;
+  usedAt: string | null;
+  revokedAt: string | null;
+  revokedBy: string | null;
+}
+
+/** `POST /planning/late-grants`. `expiresAt` (ISO date-time) is when the exception ends; left out, the default length applies. */
+export interface GrantLateSubmitDto {
+  userId: string;
+  kind: 'DAILY_PLAN' | 'MONTHLY_PLAN';
+  planKey: string;
+  reason: string;
+  expiresAt?: string;
+}

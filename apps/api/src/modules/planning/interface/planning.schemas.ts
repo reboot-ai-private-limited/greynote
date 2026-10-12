@@ -55,6 +55,8 @@ export const grantLateSubmitBodySchema = z.object({
   /** `YYYY-MM-DD` for `DAILY_PLAN`, `YYYY-MM` for `MONTHLY_PLAN`. */
   planKey: z.string().trim().min(1),
   reason: z.string().trim().min(1, 'A reason is required.').max(1000),
+  /** When the exception ends (ISO date-time). Omitted: `LATE_PLAN_GRANT_VALID_HOURS` from now. Must be in the future and within `LATE_PLAN_GRANT_MAX_HOURS`. */
+  expiresAt: z.coerce.date().optional(),
 });
 
 export const listLateSubmitGrantsQuerySchema = z.object({

@@ -16,6 +16,7 @@ export const FAULT_CODES = [
   'CONFLICT',
   /** A Plan submitted after its deadline without a late-submission exception (409). */
   'PLAN_SUBMIT_LATE',
+  'MONTHLY_PLAN_NOT_APPROVED',
   /** The request body is bigger than the server accepts (413). */
   'PAYLOAD_TOO_LARGE',
   /** An external dependency (e.g. Google Maps) is unconfigured or down — retry later. */

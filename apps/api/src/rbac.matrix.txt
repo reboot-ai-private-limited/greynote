@@ -68,6 +68,7 @@ GET    /api/identity/users/:id  ADMIN,HR
 GET    /api/identity/users/:id/ctc  ACCOUNTANT,ADMIN,HR
 GET    /api/identity/users/:id/devices  ADMIN
 GET    /api/identity/users/:id/promotions  ADMIN,HR
+GET    /api/identity/work-with  FIELD
 GET    /api/marketing/campaigns  ADMIN,FIELD
 GET    /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 GET    /api/marketing/targets  ADMIN,FIELD

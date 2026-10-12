@@ -4,6 +4,7 @@ import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.
 import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { CarryOver } from '../carryOver.js';
+import { assertMonthlyApproved, type MonthlyApprovedCheck } from '../monthlyGate.js';
 import type { PlanDeadlines } from '../planDeadlines.js';
 import type { PlanSubmitter } from '../planSubmitter.js';
 
@@ -15,12 +16,14 @@ export class SubmitDailyPlanUseCase {
     private readonly submitter: PlanSubmitter,
     private readonly approvals: ApprovalsPort,
     private readonly carryOver: CarryOver,
+    private readonly monthlyApproved: MonthlyApprovedCheck,
   ) {}
 
   async execute(userId: string, planId: string): Promise<ApprovalRequest> {
     const found = await this.plans.findById(planId);
     // Someone else's plan is "not found" — the owner is the only one who can submit it.
     if (!found || found.userId !== userId) throw AppError.notFound('No such plan.');
+    await assertMonthlyApproved(this.monthlyApproved, userId, found.planDate);
     let plan = found;
 
     // The list sent for approval is the whole list: the MR's picks plus every missed call still owed. Only a plan that can still

@@ -88,6 +88,7 @@ const TIMELESS = [
   // Operational and master data — the same whichever year is being looked at.
   '/api/health',
   '/api/identity/auth/me',
+  '/api/identity/work-with', // who can be named on a plan — current staff, not a dated record
   '/api/identity/devices/pending',
   '/api/identity/users/:id/devices',
   '/api/identity/users',

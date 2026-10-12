@@ -38,6 +38,11 @@ export class GetPlanStatusUseCase {
     return plan && planStatus(await this.approvals.getForRecord('MONTHLY_PLAN', plan.id));
   }
 
+  async isMonthlyPlanApproved(userId: string, planMonth: string): Promise<boolean> {
+    const status = await this.monthly(userId, planMonth);
+    return status === 'MANAGER_APPROVED' || status === 'APPROVED';
+  }
+
   async isDailyPlanApproved(userId: string, planDate: string): Promise<boolean> {
     const status = await this.daily(userId, planDate);
     return status === 'MANAGER_APPROVED' || status === 'APPROVED';

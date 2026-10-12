@@ -55,6 +55,13 @@ describe('the logging gate', () => {
     expect(kit.dcrs.rows).toHaveLength(0); // and no envelope is made for a refused record
   });
 
+  it('refuses a month whose Monthly Plan is not approved, even with the day’s Plan approved — and says so before the daily check', async () => {
+    kit.planning.monthlyBlocked.add('mr1:2026-10');
+    expect((await refusal(kit.gate.open('mr1', DAY, AT))).code).toBe('MONTHLY_PLAN_NOT_APPROVED');
+    expect((await refusal(kit.gate.open('mr2', DAY, AT))).code).toBe('DAILY_PLAN_NOT_APPROVED'); // another month/user is unaffected
+    expect(kit.dcrs.rows).toHaveLength(0);
+  });
+
   it('a stale cache cannot get past it: the phone thought the Plan was approved, the server knows it was rejected since', async () => {
     kit.planning.approved.delete(`mr1:${DAY}`);
     expect((await refusal(kit.gate.open('mr1', DAY, AT))).code).toBe('DAILY_PLAN_NOT_APPROVED');

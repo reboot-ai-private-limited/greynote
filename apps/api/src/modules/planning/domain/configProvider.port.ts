@@ -9,6 +9,7 @@ export const PLANNING_CONFIG_KEYS = {
   monthlyCutoffDay: 'MONTHLY_PLAN_SUBMIT_CUTOFF_DATE',
   grantByManager: 'LATE_PLAN_GRANT_BY_MANAGER',
   grantValidHours: 'LATE_PLAN_GRANT_VALID_HOURS',
+  grantMaxHours: 'LATE_PLAN_GRANT_MAX_HOURS',
   dailyResubmitGraceMinutes: 'DAILY_PLAN_RESUBMIT_GRACE_MINUTES',
   dailyResubmitLatestTime: 'DAILY_PLAN_RESUBMIT_LATEST_TIME',
   monthlyResubmitGraceHours: 'MONTHLY_PLAN_RESUBMIT_GRACE_HOURS',
