@@ -20,10 +20,12 @@ type Props = {
   width: number;
   onOpen: () => void;
   onLockedPress: (reason: string) => void;
+  /** A count to show on the tile (the Inbox's unread messages); "99+" above 99, nothing at 0. */
+  badge?: string | null;
 };
 
 /** One Home tile. A locked tile stays visible (and tappable, to explain itself) but dimmed. */
-export function FeatureTile({ feature, lockedReason, width, onOpen, onLockedPress }: Props) {
+export function FeatureTile({ feature, lockedReason, width, onOpen, onLockedPress, badge }: Props) {
   const theme = useTheme();
   const locked = lockedReason !== null;
   const accent = Accents[feature.accent];
@@ -60,6 +62,13 @@ export function FeatureTile({ feature, lockedReason, width, onOpen, onLockedPres
         <View style={[styles.tile, { backgroundColor: accent.bg, borderColor: accent.border }]}>
           <View style={[styles.chip, { backgroundColor: locked ? theme.textSecondary : accent.solid }]}>
             <SymbolView name={locked ? LOCK : feature.icon} size={22} tintColor="#FFFFFF" />
+            {badge ? (
+              <View style={styles.badge} accessibilityLabel={`${badge} unread`}>
+                <ThemedText type="smallBold" style={styles.badgeText}>
+                  {badge}
+                </ThemedText>
+              </View>
+            ) : null}
           </View>
           <View style={styles.text}>
             <ThemedText type="smallBold" numberOfLines={2} style={styles.title}>
@@ -94,6 +103,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Accents.red.solid,
+  },
+  badgeText: { color: '#FFFFFF', fontSize: 11, lineHeight: 14 },
   text: { gap: Spacing.half },
   title: { fontSize: 15, lineHeight: 20 },
   subtitle: { fontSize: 12, lineHeight: 16, fontWeight: 400 },

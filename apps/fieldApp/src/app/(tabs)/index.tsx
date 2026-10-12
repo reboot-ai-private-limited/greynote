@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, PanResponder, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import { Accents, BottomTabInset, Spacing, WideContentWidth } from '@/constants/
 import { FEATURES, SECTIONS, type Feature, type Section } from '@/features/catalog';
 import { lockReason, useDayGate } from '@/hooks/use-day-gate';
 import { useResponsive } from '@/hooks/use-responsive';
+import { badgeText, useUnreadCount } from '@/lib/inbox';
 
 const SECTION_COLOR: Record<Section, string> = { DCR: Accents.blue.solid, Marketing: Accents.purple.solid, Utility: Accents.green.solid };
 const SECTION_TABS = SECTIONS.map((value) => ({ value, label: value, color: SECTION_COLOR[value] }));
@@ -50,6 +51,9 @@ function chunk(features: Feature[], columns: number): Placed[][] {
  */
 export default function HomeScreen() {
   const gate = useDayGate();
+  // The Inbox tile's badge: read when the app comes to the front, and again when Home is shown after reading messages.
+  const unread = useUnreadCount();
+  useFocusEffect(unread.refresh);
   const { columns } = useResponsive();
   const { width: windowWidth } = useWindowDimensions();
 
@@ -206,6 +210,7 @@ export default function HomeScreen() {
                           lockedReason={lockReason(feature, gate)}
                           onOpen={() => open(feature)}
                           onLockedPress={(reason) => Alert.alert(`${feature.title} is locked`, reason)}
+                          badge={feature.key === 'inbox' ? badgeText(unread.count) : null}
                         />
                       ))}
                     </View>

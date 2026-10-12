@@ -16,8 +16,8 @@ import type { Accent } from '@/constants/theme';
 export type FeatureKey =
   | 'daily-plan' | 'monthly-plan' | 'dr-call' | 'dr-followup' | 'chemist-call' | 'chemist-followup'
   | 'add-doctor' | 'missed-calls' | 'expenses' | 'leave' | 'summary'
-  | 'orders' | 'monthly-stock' | 'visuals' | 'targets' | 'secondary-sales' | 'gifts' | 'services'
-  | 'inbox' | 'my-requests' | 'holidays' | 'forms' | 'financial-year';
+  | 'orders' | 'visuals' | 'targets' | 'secondary-sales' | 'gifts' | 'services'
+  | 'inbox' | 'my-requests' | 'holidays' | 'financial-year';
 
 export type Gate = 'plan' | 'unblocked' | 'none';
 /** Home's categories. PRD §6.2 also lists Resources (the document library); that is the Docs tab, so Home has no tab for it. */
@@ -59,17 +59,15 @@ export const FEATURES: Feature[] = [
   { key: 'summary', title: 'Summary & Submit', subtitle: 'Review today’s DCR and submit to your manager', accent: 'orange', cta: true, section: 'DCR', gate: 'unblocked', stage: 4, route: '/summary', icon: icon('checkmark.seal', 'task_alt'), about: 'Review the whole day and send it with Final Submission. Needs a connection.' },
 
   { key: 'orders', title: 'Orders', subtitle: 'Chemist and distributor orders', accent: 'orange', section: 'Marketing', gate: 'none', stage: 6, route: '/orders', icon: icon('cart', 'shopping_cart'), about: 'Take chemist and distributor orders by product.' },
-  { key: 'monthly-stock', title: 'Monthly Stock', subtitle: 'Opening and closing stock', accent: 'amber', section: 'Marketing', gate: 'none', stage: 6, route: '/monthly-stock', icon: icon('shippingbox', 'inventory_2'), about: 'Record opening and closing stock for the month.' },
   { key: 'visuals', title: 'Visuals', subtitle: 'E-detailing for doctors', accent: 'purple', section: 'Marketing', gate: 'none', stage: 6, route: '/visuals', icon: icon('photo.on.rectangle', 'slideshow'), about: 'Show e-detailing visuals to doctors.' },
   { key: 'targets', title: 'Targets', subtitle: 'Your monthly targets', accent: 'red', section: 'Marketing', gate: 'none', stage: 6, route: '/targets', icon: icon('target', 'track_changes'), about: 'Your monthly targets, and your team’s if you manage one.' },
   { key: 'secondary-sales', title: 'Secondary Sales', subtitle: 'Units sold each month', accent: 'green', section: 'Marketing', gate: 'none', stage: 6, route: '/secondary-sales', icon: icon('chart.line.uptrend.xyaxis', 'trending_up'), about: 'Enter the units you sold each month, per product. This is your achievement.' },
   { key: 'gifts', title: 'Gifts', subtitle: 'Gifts for your doctors', accent: 'pink', section: 'Marketing', gate: 'none', stage: 6, route: '/gifts', icon: icon('gift', 'redeem'), about: 'Gifts Admin allocated to your doctors — mark each done once given.' },
   { key: 'services', title: 'Services', subtitle: 'Request a doctor service', accent: 'indigo', section: 'Marketing', gate: 'none', stage: 6, route: '/services', icon: icon('briefcase', 'work'), about: 'Request a service for a doctor; it goes through approval.' },
 
-  { key: 'inbox', title: 'Inbox', subtitle: 'Messages for you', accent: 'blue', section: 'Utility', gate: 'none', stage: 7, route: '/inbox', icon: icon('tray', 'inbox'), about: 'Messages for you (demo messages for now).' },
+  { key: 'inbox', title: 'Inbox', subtitle: 'Messages for you', accent: 'blue', section: 'Utility', gate: 'none', stage: 7, route: '/inbox', icon: icon('tray', 'inbox'), about: 'Messages your company sent you.' },
   { key: 'my-requests', title: 'My Requests', subtitle: 'Sent for approval', accent: 'teal', section: 'Utility', gate: 'none', stage: 7, route: '/my-requests', icon: icon('checklist', 'assignment_turned_in'), about: 'Everything you sent for approval, where it stands and why it was rejected.' },
   { key: 'holidays', title: 'Holiday List', subtitle: 'National, zone and HQ', accent: 'sky', section: 'Utility', gate: 'none', stage: 7, route: '/holidays', icon: icon('calendar.circle', 'event'), about: 'National, zone and HQ holidays.' },
-  { key: 'forms', title: 'Forms', subtitle: 'Company request forms', accent: 'slate', section: 'Utility', gate: 'none', stage: 7, icon: icon('doc.plaintext', 'assignment'), about: 'Standard company request forms.' },
   { key: 'financial-year', title: 'Financial Year', subtitle: 'Look back, read-only', accent: 'indigo', section: 'Utility', gate: 'none', stage: 7, route: '/financial-year', icon: icon('clock.arrow.circlepath', 'history'), about: 'Look back at a previous financial year (read-only).' },
 ];
 

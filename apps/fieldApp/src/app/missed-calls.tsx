@@ -7,8 +7,8 @@ import { Notice } from '@/components/notice';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Accents, Spacing, type Accent } from '@/constants/theme';
+import { Avatar, IconChip, InfoCard, Meter, Pill, StatusBanner, SummaryStrip, sym } from '@/components/ui-cards';
+import { Spacing, type Accent } from '@/constants/theme';
 import { getDoctorVisits, stageOf, type DoctorVisitMr, type DoctorVisitRow, type DoctorVisitsReport, type VisitStage } from '@/lib/doctor-visits';
 import { useFinancialYear } from '@/lib/financial-year';
 import { useSessionUser } from '@/lib/session';
@@ -25,29 +25,20 @@ const STAGE: Record<VisitStage, { label: string; accent: Accent }> = {
   NOT_STARTED: { label: 'Not started', accent: 'red' },
 };
 
-function StageBadge({ stage }: { stage: VisitStage }) {
-  const s = STAGE[stage];
-  return (
-    <View style={[styles.badge, { backgroundColor: Accents[s.accent].bg }]}>
-      <ThemedText type="smallBold" style={[styles.badgeText, { color: Accents[s.accent].solid }]}>
-        {s.label}
-      </ThemedText>
-    </View>
-  );
-}
-
 /** The doctors in the server's order: most still to visit first. */
 function DoctorRows({ rows }: { rows: DoctorVisitRow[] }) {
   return (
     <>
       {rows.map((r) => (
-        <ThemedView key={r.doctor.id} type="backgroundElement" style={styles.card}>
+        <InfoCard key={r.doctor.id}>
           <View style={styles.row}>
+            <IconChip icon={sym('stethoscope', 'medical_services')} accent={STAGE[stageOf(r)].accent} />
             <ThemedText type="smallBold" style={styles.grow}>
               {r.doctor.name}
             </ThemedText>
-            <StageBadge stage={stageOf(r)} />
+            <Pill text={STAGE[stageOf(r)].label} accent={STAGE[stageOf(r)].accent} />
           </View>
+          <Meter value={r.made} total={r.frequency} accent={STAGE[stageOf(r)].accent} />
           <ThemedText type="small" themeColor={r.missed === 0 ? 'primary' : 'danger'}>
             {r.missed === 0 ? `${r.made} of ${r.frequency} visited · done` : `${r.made} of ${r.frequency} visited · ${r.missed} still to visit`}
           </ThemedText>
@@ -61,7 +52,7 @@ function DoctorRows({ rows }: { rows: DoctorVisitRow[] }) {
               {`Missed since ${prettyDay(r.missedSince)}`}
             </ThemedText>
           ) : null}
-        </ThemedView>
+        </InfoCard>
       ))}
     </>
   );
@@ -73,13 +64,14 @@ function TeamMember({ item }: { item: DoctorVisitMr }) {
   return (
     <View style={styles.stack}>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((o) => !o)}>
-        <ThemedView type="backgroundElement" style={styles.card}>
+        <InfoCard>
           <View style={styles.row}>
+            <Avatar name={item.mr.name} accent={item.missed === 0 ? 'green' : 'amber'} size={36} />
             <ThemedText type="smallBold" style={styles.grow}>{`${item.mr.name} · ${item.mr.employeeCode}`}</ThemedText>
             <ThemedText type="small">{open ? '▴' : '▾'}</ThemedText>
           </View>
           <ThemedText type="small" themeColor={item.missed === 0 ? 'primary' : 'danger'}>{`${visitsText(item.made, item.missed)} · ${item.completedDoctors} of ${item.doctors} doctors done`}</ThemedText>
-        </ThemedView>
+        </InfoCard>
       </Pressable>
       {open ? <DoctorRows rows={item.rows} /> : null}
     </View>
@@ -108,9 +100,12 @@ export default function MissedCallsScreen() {
   const team = (data?.mrs ?? []).filter((m) => m.mr.id !== me?.id);
 
   return (
-    <ScreenShell title="Missed Calls" onRefresh={report.reload} refreshing={report.refreshing}>
+    <ScreenShell title="Missed Calls" subtitle="Doctors you still have to visit this month" onRefresh={report.reload} refreshing={report.refreshing}>
       <FyBanner />
-      <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={lastMonth} />
+      <InfoCard>
+        <ThemedText type="smallBold">Month</ThemedText>
+        <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={lastMonth} />
+      </InfoCard>
 
       {!online && !data ? <Notice tone="info">Connect once to load your visits for this month.</Notice> : null}
       {report.stale && report.fetchedAt && data && (!online || report.error) ? <Notice tone="info">{`Showing the copy from ${formatWhen(report.fetchedAt)}.`}</Notice> : null}
@@ -124,11 +119,19 @@ export default function MissedCallsScreen() {
 
       {data ? (
         <>
-          <ThemedView type="backgroundElement" style={styles.card}>
-            <ThemedText type="small" themeColor="textSecondary">{`${prettyMonth(data.month)} · visits against your targets`}</ThemedText>
-            <ThemedText type="subtitle">{`${data.totals.made} of ${data.totals.quota} visits`}</ThemedText>
-            <ThemedText type="small" themeColor={data.totals.missed === 0 ? 'primary' : 'danger'}>{`${visitsText(data.totals.made, data.totals.missed)} · ${data.totals.completedDoctors} of ${data.totals.doctors} doctors done`}</ThemedText>
-          </ThemedView>
+          <StatusBanner
+            accent={data.totals.missed === 0 ? 'green' : 'amber'}
+            icon={sym('phone.arrow.up.right', 'call_made')}
+            title={`${prettyMonth(data.month)} · visits against your targets`}
+            text={`${data.totals.made} of ${data.totals.quota} visits made`}
+          />
+          <SummaryStrip
+            items={[
+              { label: 'Called', value: data.totals.made, accent: 'green' },
+              { label: 'Missed', value: data.totals.missed, accent: data.totals.missed === 0 ? 'slate' : 'red' },
+              { label: 'Doctors done', value: `${data.totals.completedDoctors}/${data.totals.doctors}`, accent: 'blue' },
+            ]}
+          />
 
           {data.mrs.length === 0 ? (
             <Notice tone="info">{'No doctor has a visit target yet. Set “Visits a month” when you add a doctor, or ask your manager or Admin to set it.'}</Notice>
@@ -156,9 +159,6 @@ export default function MissedCallsScreen() {
 
 const styles = StyleSheet.create({
   stack: { gap: Spacing.three },
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1 },
-  badge: { borderRadius: 999, paddingVertical: 2, paddingHorizontal: 10 },
-  badgeText: { fontSize: 11, lineHeight: 16 },
 });

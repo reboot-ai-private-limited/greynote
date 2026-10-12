@@ -10,8 +10,8 @@ import { Skeleton } from '@/components/skeleton';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { CardSection, IconChip, InfoCard, Meter, Pill, sym } from '@/components/ui-cards';
+import { Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
@@ -198,9 +198,18 @@ export default function LeaveScreen() {
 
   if (editing) {
     return (
-      <ScreenShell title={editing === 'new' ? 'Request leave' : 'Change leave'}>
-        <View style={styles.block}>
-          <ThemedText type="smallBold">Leave type</ThemedText>
+      <ScreenShell
+        title={editing === 'new' ? 'Request leave' : 'Change leave'}
+        subtitle="Goes to your manager, then HR"
+        footer={
+          <View style={styles.block}>
+            <PrimaryButton label={editing === 'new' ? 'Send request' : 'Send again'} loading={busy} disabled={!online} onPress={send} />
+            <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setEditing(null)} />
+          </View>
+        }>
+        {!online ? <Notice tone="info">You’re offline. You can fill this in, but sending needs the internet.</Notice> : null}
+        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+        <CardSection icon={sym('tag', 'sell')} accent="purple" title="Leave type">
           {types.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
               Connect to the internet once so your leave types can load.
@@ -208,22 +217,25 @@ export default function LeaveScreen() {
           ) : (
             <ChoiceChips options={allTypes.filter((t) => requestable(t.name) || t.id === typeId).map((t) => ({ value: t.id, label: t.name }))} value={typeId} onChange={setTypeId} disabled={busy} />
           )}
-        </View>
-        <DateStepper
-          label="First day"
-          value={start}
-          min={earliest}
-          disabled={busy}
-          onChange={(d) => {
-            setStart(d);
-            if (end < d) setEnd(d);
-          }}
-        />
-        <DateStepper label="Last day" value={end} min={start} disabled={busy} onChange={setEnd} />
-        <TextField label="Reason" value={reason} onChangeText={setReason} multiline maxLength={1000} editable={!busy} />
+        </CardSection>
+        <CardSection icon={sym('calendar', 'event')} accent="blue" title="Dates">
+          <DateStepper
+            label="First day"
+            value={start}
+            min={earliest}
+            disabled={busy}
+            onChange={(d) => {
+              setStart(d);
+              if (end < d) setEnd(d);
+            }}
+          />
+          <DateStepper label="Last day" value={end} min={start} disabled={busy} onChange={setEnd} />
+        </CardSection>
+        <CardSection icon={sym('text.bubble', 'chat')} accent="teal" title="Reason">
+          <TextField label="Why do you need the leave?" value={reason} onChangeText={setReason} multiline maxLength={1000} editable={!busy} />
+        </CardSection>
         {typeId && proofTypeIds.has(typeId) ? (
-          <View style={styles.block}>
-            <ThemedText type="smallBold">Proof (optional)</ThemedText>
+          <CardSection icon={sym('paperclip', 'attach_file')} accent="amber" title="Proof (optional)">
             {chosen.map((f, i) => (
               <View key={`${f.uri}-${i}`} style={styles.fileRow}>
                 <ThemedText type="small" style={styles.fileName} numberOfLines={1}>
@@ -242,39 +254,53 @@ export default function LeaveScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               PDF, JPG or PNG, up to 5 MB, at most 3 files. Sent together with your request.
             </ThemedText>
-          </View>
+          </CardSection>
         ) : null}
-        {!online ? <Notice tone="info">You’re offline. You can fill this in, but sending needs the internet.</Notice> : null}
-        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-        <PrimaryButton label={editing === 'new' ? 'Send request' : 'Send again'} loading={busy} disabled={!online} onPress={send} />
-        <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setEditing(null)} />
       </ScreenShell>
     );
   }
 
   return (
-    <ScreenShell title="Leave">
+    <ScreenShell title="Leave" subtitle="Your balances and requests">
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
 
-      <ThemedText type="smallBold">{`Your balances${hr.data ? ` · ${hr.data.leaveYear}` : ''}`}</ThemedText>
       {!hr.data || hr.data.balances.length === 0 ? (
         <Notice tone="info">Your leave balances load when you’re online. Connect once to see them.</Notice>
       ) : (
-        hr.data.balances.map((b) => (
-          <ThemedView key={b.leaveTypeId} type="backgroundElement" style={styles.card}>
-            <ThemedText type="smallBold">{b.leaveTypeName}</ThemedText>
-            <ThemedText type="small">{`${b.availableDays} days available of ${b.allocatedDays}`}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {`${b.usedDays} used${b.pendingDays > 0 ? ` · ${b.pendingDays} waiting for approval` : ''}`}
-            </ThemedText>
-          </ThemedView>
-        ))
+        <>
+          <ThemedText type="smallBold">{`Your balances · ${hr.data.leaveYear}`}</ThemedText>
+          {hr.data.balances.map((b, i) => {
+            const accent = BALANCE_ACCENTS[i % BALANCE_ACCENTS.length]!;
+            return (
+              <InfoCard key={b.leaveTypeId}>
+                <View style={styles.head}>
+                  <IconChip icon={sym('calendar.badge.clock', 'event_available')} accent={accent} />
+                  <View style={styles.grow}>
+                    <ThemedText type="smallBold">{b.leaveTypeName}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {`${b.usedDays} used${b.pendingDays > 0 ? ` · ${b.pendingDays} waiting for approval` : ''}`}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.right}>
+                    <ThemedText type="smallBold">{b.availableDays}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">{`of ${b.allocatedDays} left`}</ThemedText>
+                  </View>
+                </View>
+                <Meter value={b.usedDays + b.pendingDays} total={b.allocatedDays} accent={accent} />
+              </InfoCard>
+            );
+          })}
+        </>
       )}
 
-      <PrimaryButton label="Request leave" disabled={!online || types.length === 0} onPress={() => startForm('new')} />
+      <View style={styles.head}>
+        <View style={styles.grow}>
+          <ThemedText type="smallBold" style={styles.sectionTitle}>Your requests</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">Newest first</ThemedText>
+        </View>
+        <PrimaryButton label="+ Request leave" style={styles.newButton} disabled={!online || types.length === 0} onPress={() => startForm('new')} />
+      </View>
       {!online ? <Notice tone="info">You’re offline. Requesting leave needs the internet.</Notice> : null}
-
-      <ThemedText type="smallBold">Your requests</ThemedText>
       {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
       {leaves === null && !loadError ? (
         online ? (
@@ -287,14 +313,16 @@ export default function LeaveScreen() {
       ) : null}
       {leaves !== null && leaves.length === 0 ? <Notice tone="info">You haven’t requested any leave yet.</Notice> : null}
       {(leaves ?? []).map((l) => (
-        <ThemedView key={l.id} type="backgroundElement" style={styles.card}>
-          <ThemedText type="smallBold">{`${l.leaveTypeName} · ${l.daysCount} ${l.daysCount === 1 ? 'day' : 'days'}`}</ThemedText>
-          <ThemedText type="small">
-            {l.startDate === l.endDate ? prettyDay(l.startDate) : `${prettyDay(l.startDate)} → ${prettyDay(l.endDate)}`}
-          </ThemedText>
-          <ThemedText type="small" themeColor={l.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
-            {STATUS_TEXT[l.status] ?? l.status}
-          </ThemedText>
+        <InfoCard key={l.id}>
+          <View style={styles.head}>
+            <View style={styles.grow}>
+              <ThemedText type="smallBold">{`${l.leaveTypeName} · ${l.daysCount} ${l.daysCount === 1 ? 'day' : 'days'}`}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {l.startDate === l.endDate ? prettyDay(l.startDate) : `${prettyDay(l.startDate)} → ${prettyDay(l.endDate)}`}
+              </ThemedText>
+            </View>
+          </View>
+          <Pill text={STATUS_TEXT[l.status] ?? l.status} accent={STATUS_ACCENT[l.status] ?? 'slate'} />
           {reasons[l.id] ? (
             <ThemedText type="small" themeColor="danger">
               {`“${reasons[l.id]}”`}
@@ -317,16 +345,23 @@ export default function LeaveScreen() {
               {l.status === 'SUBMITTED' ? <PrimaryButton label="Withdraw" variant="text" disabled={busy} onPress={() => withdraw(l)} /> : null}
             </View>
           ) : null}
-        </ThemedView>
+        </InfoCard>
       ))}
     </ScreenShell>
   );
 }
 
+const BALANCE_ACCENTS: Accent[] = ['blue', 'teal', 'purple', 'amber', 'green'];
+const STATUS_ACCENT: Record<string, Accent> = { SUBMITTED: 'amber', MANAGER_APPROVED: 'blue', APPROVED: 'green', REJECTED: 'red', WITHDRAWN: 'slate', REOPENED: 'slate', DRAFT: 'slate' };
+
 const styles = StyleSheet.create({
   block: { gap: Spacing.two },
   fileRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   fileName: { flex: 1 },
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   actions: { flexDirection: 'row', gap: Spacing.two },
+  head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  grow: { flex: 1, gap: Spacing.one },
+  right: { alignItems: 'flex-end' },
+  sectionTitle: { fontSize: 18, lineHeight: 24 },
+  newButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
 });

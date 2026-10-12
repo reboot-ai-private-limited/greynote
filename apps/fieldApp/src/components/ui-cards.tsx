@@ -214,6 +214,91 @@ export function PersonDropdown({
   );
 }
 
+/** A plain white bordered card (no header), for one record or a block of related lines. */
+export function InfoCard({ children }: { children: ReactNode }) {
+  const theme = useTheme();
+  return <View style={[styles.card, { backgroundColor: theme.background, borderColor: theme.border }]}>{children}</View>;
+}
+
+/** A tappable list row: an icon chip, two lines of text and something on the right (a value, a pill). */
+export function RowCard({
+  icon,
+  accent,
+  title,
+  subtitle,
+  right,
+  onPress,
+}: {
+  icon: SymbolViewProps['name'];
+  accent: Accent;
+  title: string;
+  subtitle?: string;
+  right?: ReactNode;
+  onPress?: () => void;
+}) {
+  const theme = useTheme();
+  const body = (
+    <View style={[styles.rowCard, { backgroundColor: theme.background, borderColor: theme.border }]}>
+      <IconChip icon={icon} accent={accent} />
+      <View style={styles.personText}>
+        <ThemedText type="smallBold" numberOfLines={1}>
+          {title}
+        </ThemedText>
+        {subtitle ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.small} numberOfLines={2}>
+            {subtitle}
+          </ThemedText>
+        ) : null}
+      </View>
+      {right}
+    </View>
+  );
+  return onPress ? (
+    <Pressable accessibilityRole="button" onPress={onPress}>
+      {body}
+    </Pressable>
+  ) : (
+    body
+  );
+}
+
+/** A row of small figures (a count, a total) at the top of a list. */
+export function SummaryStrip({ items }: { items: { label: string; value: string | number; accent: Accent }[] }) {
+  return (
+    <View style={styles.strip}>
+      {items.map((i) => (
+        <View key={i.label} style={[styles.stat, { backgroundColor: Accents[i.accent].bg, borderColor: Accents[i.accent].border }]}>
+          <ThemedText type="smallBold" style={{ color: Accents[i.accent].solid, fontSize: 22, lineHeight: 28 }} numberOfLines={1} adjustsFontSizeToFit>
+            {i.value}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.small} numberOfLines={1}>
+            {i.label}
+          </ThemedText>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** The coloured banner under a screen's title: what state this record is in. */
+export function StatusBanner({ accent, icon, title, text }: { accent: Accent; icon: SymbolViewProps['name']; title: string; text?: string }) {
+  return (
+    <View style={[styles.banner, { backgroundColor: Accents[accent].bg, borderColor: Accents[accent].border }]}>
+      <IconChip icon={icon} accent={accent} size={32} />
+      <View style={styles.personText}>
+        <ThemedText type="smallBold" style={{ color: Accents[accent].solid }}>
+          {title}
+        </ThemedText>
+        {text ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
+            {text}
+          </ThemedText>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 /** A filled bar showing part of a whole. */
 export function Meter({ value, total, accent }: { value: number; total: number; accent: Accent }) {
   const theme = useTheme();
@@ -248,6 +333,10 @@ const styles = StyleSheet.create({
   list: { maxHeight: 260 },
   option: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.two, paddingHorizontal: Spacing.two, borderBottomWidth: StyleSheet.hairlineWidth },
   empty: { padding: Spacing.two },
+  rowCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: Spacing.three, borderWidth: 1, padding: Spacing.three },
+  strip: { flexDirection: 'row', gap: Spacing.two },
+  stat: { flex: 1, borderRadius: Spacing.three, borderWidth: 1, padding: Spacing.two + 2, gap: 2 },
+  banner: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: Spacing.three, borderWidth: 1, padding: Spacing.three },
   meter: { height: 8, borderRadius: 4, overflow: 'hidden' },
   meterFill: { height: 8, borderRadius: 4 },
 });

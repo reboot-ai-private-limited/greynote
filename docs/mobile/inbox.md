@@ -15,9 +15,9 @@ What the field app shows in **Utility → Inbox**. Until now the phone had a dem
 | 5 | **Reading:** `POST /inbox/:id/read` when the person opens a message (the `:id` is the item's `id`); `POST /inbox/read-all` for "Mark all as read". Reading twice is fine; `readAt` keeps the first time. An id that is not in this person's inbox is `404`. | ✅ |
 | 6 | **Expiry:** an Admin may set `expiresAt`. After it the message is **gone from the list and the count** with no change to the phone. Do not keep it from an old cache. | ✅ |
 | 7 | **Taken back:** an Admin can take a message back. It disappears from the list and the count at once. A phone showing a cached copy should drop it on the next fetch. | ✅ |
-| 8 | **No push notifications yet.** The inbox is a list the app reads. Push (FCM) will be added later and will only tell the phone to refresh this list. | ✅ server; 📱 poll |
+| 8 | **No push notifications yet.** The inbox is a list the app reads. Push (FCM) will be added later and will only tell the phone to refresh this list. | ✅ server; ✅ phone polls (foreground, Home focus, reconnect) |
 | 9 | **System messages:** later, other events (a target set, a late-submission exception, a call assigned) will put items here with the same shape. Which events notify whom is sign-off F8 and is still open; the phone needs no change when they arrive. | open |
-| 10 | **Offline:** show the last fetched list with "Showing the list from …", the same as the Holiday List. Marking read while offline should be queued and sent when back online; an unsent read is only a missing tick, never lost mail. | 📱 |
+| 10 | **Offline:** show the last fetched list with "Showing the list from …", the same as the Holiday List. Marking read while offline should be queued and sent when back online; an unsent read is only a missing tick, never lost mail. | ✅ |
 
 ## 2. What an item holds (`GET /inbox` → `items[]`)
 

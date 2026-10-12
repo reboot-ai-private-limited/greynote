@@ -8,7 +8,7 @@ import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useReportSent } from '@/hooks/use-report-sent';
@@ -169,7 +169,17 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
   if (editing) {
     const picked = outletId ? byId.get(outletId) : undefined;
     return (
-      <ScreenShell title={editing === 'new' ? `New ${title}` : `Edit ${title}`}>
+      <ScreenShell
+        title={editing === 'new' ? `New ${title}` : `Edit ${title}`}
+        subtitle="Your location is checked when you save"
+        footer={
+          <View style={styles.actionsCol}>
+            <PrimaryButton label="Save followup" loading={busy} onPress={save} />
+            <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setEditing(null)} />
+          </View>
+        }>
+        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+        <CardSection icon={isDoctor ? sym('stethoscope', 'medical_services') : sym('cross.case', 'local_pharmacy')} accent={isDoctor ? 'blue' : 'teal'} title={isDoctor ? 'Doctor' : 'Chemist'}>
         <OutletPicker
           label={isDoctor ? 'Doctor' : 'Chemist'}
           options={outlets.map((o) => ({
@@ -191,38 +201,43 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
         {picked && !picked.location ? (
           <Notice tone="warning">{`This ${noun} has no registered location, so a followup can’t be saved yet. Ask Admin to set it.`}</Notice>
         ) : null}
-        <TextField
-          label="Remarks"
-          value={remarks}
-          onChangeText={(t) => {
-            setRemarks(t);
-            setMsg(null);
-          }}
-          multiline
-          maxLength={MAX_REMARKS}
-          editable={!busy}
-          placeholder="What needs following up?"
-        />
         <ThemedText type="small" themeColor="textSecondary">
-          {`You must be at the ${noun}’s place — your location is checked when you save.`}
+          {`You must be at the ${noun}’s place.`}
         </ThemedText>
-        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-        <PrimaryButton label="Save followup" loading={busy} onPress={save} />
-        <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setEditing(null)} />
+        </CardSection>
+        <CardSection icon={sym('text.bubble', 'chat')} accent="teal" title="Remarks">
+          <TextField
+            label="What needs following up?"
+            value={remarks}
+            onChangeText={(t) => {
+              setRemarks(t);
+              setMsg(null);
+            }}
+            multiline
+            maxLength={MAX_REMARKS}
+            editable={!busy}
+            placeholder="What needs following up?"
+          />
+        </CardSection>
       </ScreenShell>
     );
   }
 
   return (
-    <ScreenShell title={title}>
+    <ScreenShell title={title} subtitle={`${isDoctor ? 'Doctors' : 'Chemists'} to follow up today`}>
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
       {reportSent ? (
         <Notice tone="info" title="Today’s report is submitted">
           It can’t take more followups unless your manager sends it back.
         </Notice>
-      ) : (
-        <PrimaryButton label={`Add a ${title}`} onPress={() => start('new')} />
-      )}
+      ) : null}
+      <View style={styles.head}>
+        <View style={styles.grow}>
+          <ThemedText type="smallBold" style={styles.sectionTitle}>Today’s followups</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{`${todays.length} logged`}</ThemedText>
+        </View>
+        {reportSent ? null : <PrimaryButton label="+ Followup" style={styles.newButton} onPress={() => start('new')} />}
+      </View>
 
       {todays.length === 0 ? (
         <Notice tone="info">{`No ${noun} followups today.`}</Notice>
@@ -232,16 +247,17 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
           const removable = editable || (r.status === 'SYNCED' && !reportSent);
           const who = byId.get(idOf(r));
           return (
-            <ThemedView key={r.clientId} type="backgroundElement" style={styles.card}>
-              <ThemedText type="smallBold">{who?.name ?? `Unknown ${noun}`}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {[plan ? workingTypeLabel(plan.workingType) : null, routeTypeOf(who?.routeId), STATUS_TEXT[r.status]].filter(Boolean).join(' · ')}
-              </ThemedText>
-              {who && notInPlan(who) ? (
-                <ThemedText type="small" themeColor="warning">
-                  Not in plan
-                </ThemedText>
-              ) : null}
+            <InfoCard key={r.clientId}>
+              <View style={styles.head}>
+                <IconChip icon={isDoctor ? sym('stethoscope', 'medical_services') : sym('cross.case', 'local_pharmacy')} accent={r.status === 'FAILED' ? 'red' : who && notInPlan(who) ? 'amber' : isDoctor ? 'blue' : 'teal'} />
+                <View style={styles.grow}>
+                  <ThemedText type="smallBold">{who?.name ?? `Unknown ${noun}`}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {[plan ? workingTypeLabel(plan.workingType) : null, routeTypeOf(who?.routeId), STATUS_TEXT[r.status]].filter(Boolean).join(' · ')}
+                  </ThemedText>
+                </View>
+              </View>
+              {who && notInPlan(who) ? <Pill text="Not in plan" accent="amber" /> : null}
               <ThemedText type="small">{(r.payload as FollowupPayload).remarks}</ThemedText>
               {r.status === 'FAILED' && r.errorMessage ? (
                 <ThemedText type="small" themeColor="danger">
@@ -259,7 +275,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
                   <PrimaryButton label="Remove" variant="text" onPress={() => remove(r)} />
                 </View>
               ) : null}
-            </ThemedView>
+            </InfoCard>
           );
         })
       )}
@@ -268,6 +284,10 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   actions: { flexDirection: 'row', gap: Spacing.two },
+  actionsCol: { gap: Spacing.two },
+  head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  grow: { flex: 1, gap: Spacing.one },
+  sectionTitle: { fontSize: 18, lineHeight: 24 },
+  newButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
 });

@@ -10,8 +10,8 @@ import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { CardSection, InfoCard, Pill, StatusBanner, SummaryStrip, sym } from '@/components/ui-cards';
+import { Spacing, type Accent } from '@/constants/theme';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
   STATUS_TEXT,
@@ -25,6 +25,7 @@ import {
   removeOther,
   submitMonth,
   type ExpenseDayLine,
+  type ExpenseMonthStatus,
   type ExpenseMonthSummary,
   type ExpenseProofFile,
   type ExpenseStatement,
@@ -46,7 +47,9 @@ type Msg = { tone: 'danger' | 'success' | 'info'; text: string };
 /** `existing` are receipts the server already has (removing one is immediate); `files` are picked and go up when you save. */
 type Form = { id: string | null; date: string; amount: string; remarks: string; existing: ExpenseProofFile[]; files: PickedProof[] };
 
-const firstOf = (month: string) => `${month}-01`;
+const STATUS_ACCENT: Record<ExpenseMonthStatus, Accent> = { DRAFT: 'slate', SUBMITTED: 'amber', APPROVED: 'green', REJECTED: 'red' };
+
+const firstOf =(month: string) => `${month}-01`;
 const lastOf = (month: string) => {
   const [y, m] = month.split('-').map(Number) as [number, number];
   return `${month}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`;
@@ -198,32 +201,43 @@ export default function ExpensesScreen() {
 
   if (form) {
     return (
-      <ScreenShell title={form.id ? 'Edit expense' : 'Add an expense'}>
-        <DateStepper label="Date" value={form.date} onChange={(date) => date >= firstOf(month) && date <= lastOf(month) && date <= today && setForm({ ...form, date })} min={firstOf(month)} disabled={busy} />
-        <TextField
-          label="Amount (₹)"
-          value={form.amount}
-          onChangeText={(t) => {
-            setForm({ ...form, amount: t.replace(/[^0-9.]/g, '') });
-            setMsg(null);
-          }}
-          keyboardType="decimal-pad"
-          placeholder="0.00"
-          editable={!busy}
-        />
-        <TextField
-          label="Reason — what was it for?"
-          value={form.remarks}
-          onChangeText={(remarks) => {
-            setForm({ ...form, remarks });
-            setMsg(null);
-          }}
-          multiline
-          maxLength={1000}
-          editable={!busy}
-        />
-        <View style={styles.receipts}>
-          <ThemedText type="smallBold">Receipts (optional)</ThemedText>
+      <ScreenShell
+        title={form.id ? 'Edit expense' : 'Add an expense'}
+        subtitle={prettyMonth(month)}
+        footer={
+          <View style={styles.actionsCol}>
+            <PrimaryButton label="Save" loading={busy} onPress={save} />
+            <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setForm(null)} />
+          </View>
+        }>
+        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+        <Notice tone="info">TA and DA are worked out for you from your approved reports — don’t enter them here.</Notice>
+        <CardSection icon={sym('indianrupeesign.circle', 'payments')} accent="green" title="Expense">
+          <DateStepper label="Date" value={form.date} onChange={(date) => date >= firstOf(month) && date <= lastOf(month) && date <= today && setForm({ ...form, date })} min={firstOf(month)} disabled={busy} />
+          <TextField
+            label="Amount (₹)"
+            value={form.amount}
+            onChangeText={(t) => {
+              setForm({ ...form, amount: t.replace(/[^0-9.]/g, '') });
+              setMsg(null);
+            }}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            editable={!busy}
+          />
+          <TextField
+            label="Reason — what was it for?"
+            value={form.remarks}
+            onChangeText={(remarks) => {
+              setForm({ ...form, remarks });
+              setMsg(null);
+            }}
+            multiline
+            maxLength={1000}
+            editable={!busy}
+          />
+        </CardSection>
+        <CardSection icon={sym('paperclip', 'attach_file')} accent="amber" title="Receipts (optional)">
           <ThemedText type="small" themeColor="textSecondary">{`Up to ${MAX_PROOF_FILES} files, PDF, JPG or PNG, 5 MB each. Your approver can open them.`}</ThemedText>
           {form.existing.map((f) => (
             <View key={f.id} style={styles.row}>
@@ -239,19 +253,24 @@ export default function ExpensesScreen() {
             </View>
           ))}
           {form.existing.length + form.files.length < MAX_PROOF_FILES ? <PrimaryButton label="Attach a file" variant="text" disabled={busy} onPress={attach} /> : null}
-        </View>
-        <Notice tone="info">TA and DA are worked out for you from your approved reports — don’t enter them here.</Notice>
-        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-        <PrimaryButton label="Save" loading={busy} onPress={save} />
-        <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setForm(null)} />
+        </CardSection>
       </ScreenShell>
     );
   }
 
+  const canSend = statement?.canSubmit && !statement.submitLate && canChange;
   return (
-    <ScreenShell title="Expenses" onRefresh={list.reload} refreshing={list.refreshing}>
+    <ScreenShell
+      title="Expenses"
+      subtitle="Your month, date by date"
+      onRefresh={list.reload}
+      refreshing={list.refreshing}
+      footer={canSend ? <PrimaryButton label="Send for approval" loading={busy} onPress={send} /> : null}>
       <FyBanner />
-      <MonthStepper value={month} onChange={(m) => (setMonth(m), setMsg(null))} min={fy.firstMonth} max={lastMonth} />
+      <InfoCard>
+        <ThemedText type="smallBold">Month</ThemedText>
+        <MonthStepper value={month} onChange={(m) => (setMonth(m), setMsg(null))} min={fy.firstMonth} max={lastMonth} />
+      </InfoCard>
       {!online ? <Notice tone="info">You’re offline. You can read the last copy; adding, changing and sending need the internet.</Notice> : null}
       {list.stale && list.fetchedAt && statement && (!online || list.error) ? <Notice tone="info">{`Showing the copy from ${formatWhen(list.fetchedAt)}.`}</Notice> : null}
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
@@ -267,15 +286,22 @@ export default function ExpensesScreen() {
 
       {statement ? (
         <>
-          <ThemedView type="backgroundElement" style={styles.card}>
-            <ThemedText type="smallBold">{`${prettyMonth(statement.month)} · ${STATUS_TEXT[statement.status]}`}</ThemedText>
-            <ThemedText type="small">{`TA ${formatRupees(statement.totals.taPaise)}   DA ${formatRupees(statement.totals.daPaise)}   Other ${formatRupees(statement.totals.otherPaise)}`}</ThemedText>
-            <ThemedText type="smallBold">{`Total ${formatRupees(statement.totals.totalPaise)}`}</ThemedText>
-            {statement.submittedTotals && statement.submittedTotals.totalPaise !== statement.totals.totalPaise ? (
-              <ThemedText type="small" themeColor="danger">{`It was ${formatRupees(statement.submittedTotals.totalPaise)} when you sent it — TA/DA changed since.`}</ThemedText>
-            ) : null}
-            {statement.paidPaise > 0 ? <ThemedText type="small" themeColor="textSecondary">{`Paid so far ${formatRupees(statement.paidPaise)}`}</ThemedText> : null}
-          </ThemedView>
+          <StatusBanner
+            accent={STATUS_ACCENT[statement.status]}
+            icon={sym('doc.text', 'receipt_long')}
+            title={`${prettyMonth(statement.month)} · ${STATUS_TEXT[statement.status]}`}
+            text={`Total ${formatRupees(statement.totals.totalPaise)}${statement.paidPaise > 0 ? ` · Paid so far ${formatRupees(statement.paidPaise)}` : ''}`}
+          />
+          <SummaryStrip
+            items={[
+              { label: 'TA', value: formatRupees(statement.totals.taPaise), accent: 'blue' },
+              { label: 'DA', value: formatRupees(statement.totals.daPaise), accent: 'teal' },
+              { label: 'Other', value: formatRupees(statement.totals.otherPaise), accent: 'purple' },
+            ]}
+          />
+          {statement.submittedTotals && statement.submittedTotals.totalPaise !== statement.totals.totalPaise ? (
+            <Notice tone="warning">{`It was ${formatRupees(statement.submittedTotals.totalPaise)} when you sent it — TA/DA changed since.`}</Notice>
+          ) : null}
 
           {statement.status === 'REJECTED' ? (
             <Notice tone="danger" title="Sent back by your approver">
@@ -283,13 +309,19 @@ export default function ExpensesScreen() {
             </Notice>
           ) : null}
 
-          {statement.editable && canChange ? <PrimaryButton label="Add an expense" disabled={busy} onPress={() => startForm()} /> : null}
+          <View style={styles.row}>
+            <View style={styles.grow}>
+              <ThemedText type="smallBold" style={styles.sectionTitle}>Date by date</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">TA and DA are automatic; yours are “Other”</ThemedText>
+            </View>
+            {statement.editable && canChange ? <PrimaryButton label="+ Add expense" style={styles.newButton} disabled={busy} onPress={() => startForm()} /> : null}
+          </View>
 
           {statement.days.length === 0 ? (
             <Notice tone="info">Nothing for this month yet.</Notice>
           ) : (
             statement.days.map((day) => (
-              <ThemedView key={day.date} type="backgroundElement" style={styles.card}>
+              <InfoCard key={day.date}>
                 <View style={styles.row}>
                   <ThemedText type="smallBold">{prettyDay(day.date)}</ThemedText>
                   <ThemedText type="smallBold">{formatRupees(day.totalPaise)}</ThemedText>
@@ -313,7 +345,7 @@ export default function ExpensesScreen() {
                     ))}
                   </View>
                 ))}
-              </ThemedView>
+              </InfoCard>
             ))
           )}
 
@@ -330,7 +362,6 @@ export default function ExpensesScreen() {
           {statement.status === 'SUBMITTED' && statement.deadlines && !statement.exceptions.approveUntil && Date.parse(statement.deadlines.approveBy) < nowMs() ? (
             <Notice tone="warning">Approval is late — your manager has to ask Admin.</Notice>
           ) : null}
-          {statement.canSubmit && !statement.submitLate && canChange ? <PrimaryButton label="Send for approval" loading={busy} onPress={send} /> : null}
         </>
       ) : null}
 
@@ -346,14 +377,14 @@ export default function ExpensesScreen() {
           <ThemedText type="smallBold">Previous months</ThemedText>
           {history.map((h) => (
             <Pressable key={h.month} accessibilityRole="button" onPress={() => (setMonth(h.month), setMsg(null))}>
-              <ThemedView type="backgroundElement" style={styles.card}>
+              <InfoCard>
                 <View style={styles.row}>
                   <ThemedText type="smallBold">{prettyMonth(h.month)}</ThemedText>
                   <ThemedText type="smallBold">{formatRupees(h.totalPaise)}</ThemedText>
                 </View>
                 <ThemedText type="small" themeColor="textSecondary">{`TA ${formatRupees(h.taPaise)} · DA ${formatRupees(h.daPaise)} · Other ${formatRupees(h.otherPaise)}`}</ThemedText>
-                <ThemedText type="small">{STATUS_TEXT[h.status]}</ThemedText>
-              </ThemedView>
+                <Pill text={STATUS_TEXT[h.status]} accent={STATUS_ACCENT[h.status]} />
+              </InfoCard>
             </Pressable>
           ))}
         </>
@@ -363,11 +394,12 @@ export default function ExpensesScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1 },
   entry: { gap: Spacing.half },
-  receipts: { gap: Spacing.one },
+  actionsCol: { gap: Spacing.two },
+  sectionTitle: { fontSize: 18, lineHeight: 24 },
+  newButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
   loading: { gap: Spacing.three },
   actions: { flexDirection: 'row', gap: Spacing.one },
 });

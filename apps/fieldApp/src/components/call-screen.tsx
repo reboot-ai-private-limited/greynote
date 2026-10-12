@@ -10,7 +10,7 @@ import { SamplesEditor, type SampleLine } from '@/components/samples-editor';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-cards';
 import { WorkWithPicker } from '@/components/work-with-picker';
 import { Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
@@ -222,7 +222,17 @@ export function CallScreen({ subject }: { subject: Subject }) {
   if (editing) {
     const picked = outletId ? outletById.get(outletId) : undefined;
     return (
-      <ScreenShell title={editing === 'new' ? `New ${title}` : `Edit ${title}`}>
+      <ScreenShell
+        title={editing === 'new' ? `New ${title}` : `Edit ${title}`}
+        subtitle="Your location is checked when you save"
+        footer={
+          <View style={styles.block}>
+            <PrimaryButton label="Save call" loading={busy} onPress={save} />
+            <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setEditing(null)} />
+          </View>
+        }>
+        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+        <CardSection icon={isDoctor ? sym('stethoscope', 'medical_services') : sym('cross.case', 'local_pharmacy')} accent={isDoctor ? 'blue' : 'teal'} title={isDoctor ? 'Doctor' : 'Chemist'}>
         <OutletPicker
           label={isDoctor ? 'Doctor' : 'Chemist'}
           options={outlets.map((o) => {
@@ -256,15 +266,17 @@ export function CallScreen({ subject }: { subject: Subject }) {
         ) : null}
         {plan ? (
           <ThemedText type="small" themeColor="textSecondary">
-            {`Work type: ${workingTypeLabel(plan.workingType)} (from today’s plan). You must be within reach of the ${noun} — your location is checked when you save.`}
+            {`Work type: ${workingTypeLabel(plan.workingType)} (from today’s plan). You must be within reach of the ${noun}.`}
           </ThemedText>
         ) : null}
+        </CardSection>
 
-        <WorkWithPicker value={workWith} onChange={setWorkWith} disabled={busy} />
+        <CardSection icon={sym('person.2', 'groups')} accent="purple" title="Work with">
+          <WorkWithPicker value={workWith} onChange={setWorkWith} disabled={busy} />
+        </CardSection>
 
         {isDoctor ? (
-          <View style={styles.block}>
-            <ThemedText type="smallBold">Samples given (optional)</ThemedText>
+          <CardSection icon={sym('pills', 'medication')} accent="amber" title="Samples given (optional)">
             {outletId ? (
               <SamplesEditor options={sampleOptions} value={samples} onChange={setSamples} disabled={busy} />
             ) : (
@@ -272,28 +284,31 @@ export function CallScreen({ subject }: { subject: Subject }) {
                 Choose the doctor first.
               </ThemedText>
             )}
-          </View>
+          </CardSection>
         ) : null}
 
-        <TextField label="Remarks (optional)" value={remarks} onChangeText={setRemarks} multiline maxLength={1000} editable={!busy} />
-
-        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-        <PrimaryButton label="Save call" loading={busy} onPress={save} />
-        <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setEditing(null)} />
+        <CardSection icon={sym('text.bubble', 'chat')} accent="teal" title="Remarks">
+          <TextField label="Remarks (optional)" value={remarks} onChangeText={setRemarks} multiline maxLength={1000} editable={!busy} />
+        </CardSection>
       </ScreenShell>
     );
   }
 
   return (
-    <ScreenShell title={title}>
+    <ScreenShell title={title} subtitle={`${isDoctor ? 'Doctors' : 'Chemists'} you visited today`}>
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
       {reportSent ? (
         <Notice tone="info" title="Today’s report is submitted">
           It can’t take more calls unless your manager sends it back.
         </Notice>
-      ) : (
-        <PrimaryButton label={isDoctor ? 'Add a Doctor Call' : 'Add a Chemist Call'} onPress={() => start('new')} />
-      )}
+      ) : null}
+      <View style={styles.head}>
+        <View style={styles.grow}>
+          <ThemedText type="smallBold" style={styles.sectionTitle}>Today’s calls</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{`${todays.length} logged`}</ThemedText>
+        </View>
+        {reportSent ? null : <PrimaryButton label={isDoctor ? '+ Doctor call' : '+ Chemist call'} style={styles.newButton} onPress={() => start('new')} />}
+      </View>
 
       {todays.length === 0 ? (
         <Notice tone="info">{`No ${noun} calls logged today.`}</Notice>
@@ -306,16 +321,17 @@ export function CallScreen({ subject }: { subject: Subject }) {
           const removable = editable || (r.status === 'SYNCED' && !reportSent);
           const flags = who ? flagsFor(who) : [];
           return (
-            <ThemedView key={r.clientId} type="backgroundElement" style={styles.card}>
-              <ThemedText type="smallBold">{who?.name ?? `Unknown ${noun}`}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {[plan ? workingTypeLabel(plan.workingType) : null, routeTypeOf(who?.routeId), STATUS_TEXT[r.status]].filter(Boolean).join(' · ')}
-              </ThemedText>
-              {flags.length ? (
-                <ThemedText type="small" themeColor="warning">
-                  {flags.join(' · ')}
-                </ThemedText>
-              ) : null}
+            <InfoCard key={r.clientId}>
+              <View style={styles.head}>
+                <IconChip icon={isDoctor ? sym('stethoscope', 'medical_services') : sym('cross.case', 'local_pharmacy')} accent={r.status === 'FAILED' ? 'red' : flags.length ? 'amber' : isDoctor ? 'blue' : 'teal'} />
+                <View style={styles.grow}>
+                  <ThemedText type="smallBold">{who?.name ?? `Unknown ${noun}`}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {[plan ? workingTypeLabel(plan.workingType) : null, routeTypeOf(who?.routeId), STATUS_TEXT[r.status]].filter(Boolean).join(' · ')}
+                  </ThemedText>
+                </View>
+              </View>
+              {flags.length ? <Pill text={flags.join(' · ')} accent="amber" /> : null}
               <GeofenceBadge
                 result={serverGeofence(r)}
                 registered={who?.location ?? null}
@@ -348,7 +364,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
                   <PrimaryButton label="Remove" variant="text" onPress={() => remove(r)} />
                 </View>
               ) : null}
-            </ThemedView>
+            </InfoCard>
           );
         })
       )}
@@ -358,6 +374,9 @@ export function CallScreen({ subject }: { subject: Subject }) {
 
 const styles = StyleSheet.create({
   block: { gap: Spacing.two },
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   actions: { flexDirection: 'row', gap: Spacing.two },
+  head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  grow: { flex: 1, gap: Spacing.one },
+  sectionTitle: { fontSize: 18, lineHeight: 24 },
+  newButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
 });

@@ -10,8 +10,8 @@ import { Skeleton } from '@/components/skeleton';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-cards';
+import { Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { ApiError, NetworkError } from '@/lib/api';
 import { ADDED_EDITABLE, editAddedDoctor, listAddedDoctors, type AddedDoctor } from '@/lib/added-doctors';
@@ -263,9 +263,21 @@ export default function AddDoctorScreen() {
 
   if (target) {
     return (
-      <ScreenShell title={target === 'new' ? 'Add doctor' : 'Change doctor'}>
-        <View style={styles.block}>
-          <ThemedText type="smallBold">Route</ThemedText>
+      <ScreenShell
+        title={target === 'new' ? 'Add doctor' : 'Change doctor'}
+        subtitle="Your manager or Admin approves a new doctor"
+        footer={
+          <View style={styles.block}>
+            <PrimaryButton label={typeof target === 'object' && 'server' in target ? 'Send again' : 'Save and send'} loading={busy} onPress={save} />
+            <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setTarget(null)} />
+          </View>
+        }>
+        {!online ? <Notice tone="info">You’re offline. It will be kept on this phone and sent when you’re back online.</Notice> : null}
+        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+        <Notice tone="info">
+          The doctor’s location is your phone’s position when you save, so save this while you’re at the doctor’s place.
+        </Notice>
+        <CardSection icon={sym('signpost.right', 'route')} accent="blue" title="Route">
           {routes.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
               Connect to the internet once so your routes can load.
@@ -273,61 +285,63 @@ export default function AddDoctorScreen() {
           ) : (
             <ChoiceChips options={routes.map((r) => ({ value: r.id, label: r.name }))} value={routeId} onChange={setRouteId} disabled={busy} />
           )}
-        </View>
-        <TextField label="Name" value={name} onChangeText={setName} editable={!busy} maxLength={150} />
-        <TextField label="Address" value={address} onChangeText={setAddress} multiline editable={!busy} maxLength={500} />
-        <OutletPicker
-          label="Speciality"
-          options={specialties.map((s) => ({ id: s, name: s }))}
-          value={specialty}
-          onChange={setSpecialty}
-          disabled={busy}
-          emptyText="Connect to the internet once so the speciality list can load."
-        />
-        <TextField label="Qualification" value={qualification} onChangeText={setQualification} editable={!busy} maxLength={150} />
-        <TextField label="Clinic or hospital (optional)" value={clinicName} onChangeText={setClinicName} editable={!busy} maxLength={150} />
-        <TextField
-          label="Phone (optional)"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          placeholder="10 to 15 digits"
-          editable={!busy}
-          maxLength={20}
-        />
-        <TextField
-          label="Email (optional)"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!busy}
-        />
-        <DateField label="Date of birth (optional)" value={birth} onChange={setBirth} disabled={busy} />
-        <DateField label="Anniversary (optional)" value={anniversary} onChange={setAnniversary} disabled={busy} />
-        <View style={styles.block}>
-          <ThemedText type="smallBold">Visits a month (optional)</ThemedText>
+        </CardSection>
+        <CardSection icon={sym('stethoscope', 'medical_services')} accent="teal" title="Doctor">
+          <TextField label="Name" value={name} onChangeText={setName} editable={!busy} maxLength={150} />
+          <TextField label="Address" value={address} onChangeText={setAddress} multiline editable={!busy} maxLength={500} />
+          <OutletPicker
+            label="Speciality"
+            options={specialties.map((s) => ({ id: s, name: s }))}
+            value={specialty}
+            onChange={setSpecialty}
+            disabled={busy}
+            emptyText="Connect to the internet once so the speciality list can load."
+          />
+          <TextField label="Qualification" value={qualification} onChangeText={setQualification} editable={!busy} maxLength={150} />
+          <TextField label="Clinic or hospital (optional)" value={clinicName} onChangeText={setClinicName} editable={!busy} maxLength={150} />
+        </CardSection>
+        <CardSection icon={sym('phone', 'call')} accent="green" title="Contact (optional)">
+          <TextField
+            label="Phone (optional)"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            placeholder="10 to 15 digits"
+            editable={!busy}
+            maxLength={20}
+          />
+          <TextField
+            label="Email (optional)"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!busy}
+          />
+          <DateField label="Date of birth (optional)" value={birth} onChange={setBirth} disabled={busy} />
+          <DateField label="Anniversary (optional)" value={anniversary} onChange={setAnniversary} disabled={busy} />
+        </CardSection>
+        <CardSection icon={sym('repeat', 'repeat')} accent="purple" title="Visits a month (optional)">
           <ThemedText type="small" themeColor="textSecondary">
             How many times you should visit this doctor each month (1 to 5). Missed Calls counts against it; with no target the doctor isn’t tracked.
           </ThemedText>
           <ChoiceChips options={FREQUENCIES} value={frequency ?? NO_TARGET} onChange={(v) => setFrequency(v === NO_TARGET ? null : v)} disabled={busy} />
-        </View>
-        <Notice tone="info">
-          The doctor’s location is your phone’s position when you save, so save this while you’re at the doctor’s place.
-        </Notice>
-        {!online ? <Notice tone="info">You’re offline. It will be kept on this phone and sent when you’re back online.</Notice> : null}
-        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-        <PrimaryButton label={typeof target === 'object' && 'server' in target ? 'Send again' : 'Save and send'} loading={busy} onPress={save} />
-        <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setTarget(null)} />
+        </CardSection>
       </ScreenShell>
     );
   }
 
   return (
-    <ScreenShell title="Add Doctor">
+    <ScreenShell title="Add Doctor" subtitle="Doctors you add go to approval">
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-      <PrimaryButton label="Add a doctor" onPress={() => start('new')} />
+      <View style={styles.head}>
+        <View style={styles.grow}>
+          <ThemedText type="smallBold" style={styles.sectionTitle}>Your doctors</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">Added by you</ThemedText>
+        </View>
+        <PrimaryButton label="+ Add doctor" style={styles.newButton} onPress={() => start('new')} />
+      </View>
 
       {unsent.length > 0 ? (
         <>
@@ -335,11 +349,16 @@ export default function AddDoctorScreen() {
           {unsent.map((r) => {
             const p = r.payload as NewDoctorPayload;
             return (
-              <ThemedView key={r.clientId} type="backgroundElement" style={styles.card}>
-                <ThemedText type="smallBold">{p.name}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {`${p.specialty} · ${routeName.get(p.routeId) ?? 'Route'}`}
-                </ThemedText>
+              <InfoCard key={r.clientId}>
+                <View style={styles.head}>
+                  <IconChip icon={sym('stethoscope', 'medical_services')} accent="slate" />
+                  <View style={styles.grow}>
+                    <ThemedText type="smallBold">{p.name}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {`${p.specialty} · ${routeName.get(p.routeId) ?? 'Route'}`}
+                    </ThemedText>
+                  </View>
+                </View>
                 <ThemedText type="small" themeColor={r.status === 'FAILED' ? 'danger' : 'textSecondary'}>
                   {r.status === 'FAILED' ? 'Not accepted' : online ? 'Sending…' : 'Saved on this phone — sends when you’re online'}
                 </ThemedText>
@@ -352,7 +371,7 @@ export default function AddDoctorScreen() {
                   <PrimaryButton label="Edit" variant="text" disabled={busy} onPress={() => start({ local: r })} />
                   <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => removeLocal(r)} />
                 </View>
-              </ThemedView>
+              </InfoCard>
             );
           })}
         </>
@@ -376,15 +395,18 @@ export default function AddDoctorScreen() {
         // One stage: the manager's or Admin's decision is final, so only a request still waiting can be withdrawn.
         const waiting = state === 'SUBMITTED';
         return (
-          <ThemedView key={d.id} type="backgroundElement" style={styles.card}>
-            <ThemedText type="smallBold">{d.name}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {[d.specialty, d.clinicName, routeName.get(d.routeId) ?? 'Route'].filter(Boolean).join(' · ')}
-            </ThemedText>
+          <InfoCard key={d.id}>
+            <View style={styles.head}>
+              <IconChip icon={sym('stethoscope', 'medical_services')} accent={STATE_ACCENT[state] ?? 'slate'} />
+              <View style={styles.grow}>
+                <ThemedText type="smallBold">{d.name}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {[d.specialty, d.clinicName, routeName.get(d.routeId) ?? 'Route'].filter(Boolean).join(' · ')}
+                </ThemedText>
+              </View>
+            </View>
             {d.phone ? <PrimaryButton label={d.phone} variant="text" onPress={() => void Linking.openURL(`tel:${d.phone}`)} style={styles.phone} /> : null}
-            <ThemedText type="small" themeColor={state === 'REJECTED' ? 'danger' : 'textSecondary'}>
-              {APPROVAL_TEXT[state] ?? state}
-            </ThemedText>
+            <Pill text={APPROVAL_TEXT[state] ?? state} accent={STATE_ACCENT[state] ?? 'slate'} />
             {reasons[d.id] ? (
               <ThemedText type="small" themeColor="danger">
                 {`“${reasons[d.id]}”`}
@@ -396,16 +418,21 @@ export default function AddDoctorScreen() {
                 {waiting ? <PrimaryButton label="Withdraw" variant="text" disabled={busy} onPress={() => withdraw(d)} /> : null}
               </View>
             ) : null}
-          </ThemedView>
+          </InfoCard>
         );
       })}
     </ScreenShell>
   );
 }
 
+const STATE_ACCENT: Record<string, Accent> = { SUBMITTED: 'amber', MANAGER_APPROVED: 'blue', APPROVED: 'green', REJECTED: 'red', WITHDRAWN: 'slate', REOPENED: 'slate', DRAFT: 'slate' };
+
 const styles = StyleSheet.create({
   block: { gap: Spacing.two },
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  grow: { flex: 1, gap: Spacing.one },
+  sectionTitle: { fontSize: 18, lineHeight: 24 },
+  newButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
   actions: { flexDirection: 'row', gap: Spacing.two },
   phone: { alignSelf: 'flex-start' },
 });

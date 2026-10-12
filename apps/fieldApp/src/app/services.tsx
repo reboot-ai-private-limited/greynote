@@ -8,12 +8,13 @@ import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { CardSection, IconChip, InfoCard, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { ApiError, NetworkError } from '@/lib/api';
 import { withdrawRequest } from '@/lib/marketing';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { getRejectionReason } from '@/lib/planning';
+import { listMyServices, serviceStage, type ServiceView } from '@/lib/services';
 import {
   createRecord,
   getRecord,
@@ -26,7 +27,9 @@ import {
   type OutboxRecord,
 } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
-import type { DoctorServiceType, FieldActivitySnapshot, FieldMasterDataSnapshot, PlanStatus } from '@/types/sync';
+import { useCachedFetch } from '@/offline/cached-fetch';
+import { formatWhen } from '@/offline/day';
+import type { DoctorServiceType, FieldActivitySnapshot, FieldMasterDataSnapshot } from '@/types/sync';
 
 const TYPES: { value: DoctorServiceType; label: string }[] = [
   { value: 'TOUR_PACKAGE', label: 'Tour package' },
@@ -36,17 +39,8 @@ const TYPES: { value: DoctorServiceType; label: string }[] = [
 ];
 const TYPE_LABEL = Object.fromEntries(TYPES.map((t) => [t.value, t.label])) as Record<DoctorServiceType, string>;
 
-const STATUS_TEXT: Record<PlanStatus, string> = {
-  DRAFT: 'Draft',
-  SUBMITTED: 'Waiting for your manager',
-  MANAGER_APPROVED: 'Approved by your manager, waiting for Admin',
-  APPROVED: 'Approved',
-  REJECTED: 'Rejected',
-  WITHDRAWN: 'Withdrawn',
-  REOPENED: 'Reopened',
-};
-
-type ServicePayload = { doctorId: string; serviceType: DoctorServiceType; amountPaise: number; remarks: string | null };
+type ServiceRow = ServiceView;
+type ServicePayload ={ doctorId: string; serviceType: DoctorServiceType; amountPaise: number; remarks: string | null };
 type Msg = { tone: 'danger' | 'success' | 'info'; text: string };
 
 const errorText = (err: unknown) =>
@@ -75,7 +69,15 @@ export default function ServicesScreen() {
   const doctors = master.data?.doctors ?? [];
   const doctorName = (id: string) => doctors.find((d) => d.id === id)?.name ?? 'Doctor';
   const unsent = records.filter((r) => !r.deleted && r.status !== 'SYNCED').reverse();
-  const sent = activity.data?.doctorServices ?? [];
+  // The list from the server says whether each approved service was carried out; the offline snapshot is the fallback.
+  const list = useCachedFetch<ServiceView[]>('doctor-services', listMyServices, records.filter((r) => r.status === 'SYNCED').length);
+  const sent: ServiceRow[] = list.data ?? (activity.data?.doctorServices ?? []).map((s) => ({ ...s, approval: s.approvalRequestId ? { requestId: s.approvalRequestId, cycle: 0 } : null, doneAt: null, awaitingDone: false }));
+
+  // Approved and not carried out = to do; waiting = still with the manager or Admin.
+  const stageOf = (s: ServiceRow) => (s.doneAt ? 'DONE' : s.status === 'APPROVED' ? 'TODO' : s.status === 'SUBMITTED' || s.status === 'MANAGER_APPROVED' ? 'WAITING' : 'OTHER');
+  const waitingCount = sent.filter((s) => stageOf(s) === 'WAITING').length + unsent.length;
+  const toDoCount = sent.filter((s) => stageOf(s) === 'TODO').length;
+  const doneCount = sent.filter((s) => stageOf(s) === 'DONE').length;
 
   const start = (record: OutboxRecord | 'new') => {
     setMsg(null);
@@ -108,6 +110,7 @@ export default function ServicesScreen() {
       } else {
         await sendNow(['DOCTOR_SERVICE']);
         await refreshNow();
+        list.reload();
         const after = await getRecord(record.clientId);
         setMsg(
           after?.status === 'FAILED'
@@ -145,6 +148,7 @@ export default function ServicesScreen() {
     try {
       await withdrawRequest(requestId);
       await refreshNow();
+      list.reload();
       setMsg({ tone: 'success', text: 'Withdrawn.' });
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
@@ -164,54 +168,77 @@ export default function ServicesScreen() {
 
   if (editing) {
     return (
-      <ScreenShell title={editing === 'new' ? 'New service request' : 'Change request'}>
-        <OutletPicker
-          label="Doctor"
-          options={doctors.map((d) => ({ id: d.id, name: d.name, subtitle: d.address }))}
-          value={doctorId}
-          onChange={setDoctorId}
-          disabled={busy !== null}
-          emptyText="No doctors are assigned to you yet."
-        />
-        <View style={styles.block}>
-          <ThemedText type="smallBold">Service</ThemedText>
-          <ChoiceChips options={TYPES} value={type} onChange={setType} disabled={busy !== null} />
-        </View>
-        <TextField
-          label="Amount (₹)"
-          value={amount}
-          onChangeText={(t) => {
-            setAmount(t.replace(/[^0-9.]/g, ''));
-            setMsg(null);
-          }}
-          keyboardType="decimal-pad"
-          placeholder="0.00"
-          editable={busy === null}
-        />
-        <TextField label="Remarks (optional)" value={remarks} onChangeText={setRemarks} multiline maxLength={1000} editable={busy === null} />
+      <ScreenShell
+        title={editing === 'new' ? 'New service request' : 'Change request'}
+        subtitle="Your manager decides first, then Admin"
+        footer={
+          <View style={styles.block}>
+            <PrimaryButton label={online ? 'Send for approval' : 'Save on this phone'} loading={busy === 'save'} onPress={save} />
+            <PrimaryButton label="Cancel" variant="text" disabled={busy !== null} onPress={() => setEditing(null)} />
+          </View>
+        }>
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-        <PrimaryButton label={online ? 'Send for approval' : 'Save on this phone'} loading={busy === 'save'} onPress={save} />
-        <PrimaryButton label="Cancel" variant="text" disabled={busy !== null} onPress={() => setEditing(null)} />
+        <CardSection icon={sym('stethoscope', 'medical_services')} accent="indigo" title="Doctor">
+          <OutletPicker
+            label="Doctor"
+            options={doctors.map((d) => ({ id: d.id, name: d.name, subtitle: d.address }))}
+            value={doctorId}
+            onChange={setDoctorId}
+            disabled={busy !== null}
+            emptyText="No doctors are assigned to you yet."
+          />
+        </CardSection>
+        <CardSection icon={sym('briefcase', 'work')} accent="purple" title="Service">
+          <ChoiceChips options={TYPES} value={type} onChange={setType} disabled={busy !== null} />
+          <TextField
+            label="Amount (₹)"
+            value={amount}
+            onChangeText={(t) => {
+              setAmount(t.replace(/[^0-9.]/g, ''));
+              setMsg(null);
+            }}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            editable={busy === null}
+          />
+        </CardSection>
+        <CardSection icon={sym('text.bubble', 'chat')} accent="teal" title="Remarks">
+          <TextField label="Remarks (optional)" value={remarks} onChangeText={setRemarks} multiline maxLength={1000} editable={busy === null} />
+        </CardSection>
       </ScreenShell>
     );
   }
 
   return (
-    <ScreenShell title="Doctor Services">
+    <ScreenShell title="Doctor Services" subtitle="Request a service for a doctor and follow it to done" onRefresh={list.reload} refreshing={list.refreshing}>
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-      <PrimaryButton label="Request a service" onPress={() => start('new')} />
+      <SummaryStrip
+        items={[
+          { label: 'Waiting', value: String(waitingCount).padStart(2, '0'), accent: 'amber' },
+          { label: 'To do', value: String(toDoCount).padStart(2, '0'), accent: 'blue' },
+          { label: 'Done', value: String(doneCount).padStart(2, '0'), accent: 'green' },
+        ]}
+      />
+      <View style={styles.sectionHead}>
+        <View style={styles.grow}>
+          <ThemedText type="smallBold" style={styles.sectionTitle}>Your requests</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">Newest first</ThemedText>
+        </View>
+        <PrimaryButton label="+ Request" style={styles.newButton} onPress={() => start('new')} />
+      </View>
 
       {unsent.map((r) => {
         const p = r.payload as ServicePayload;
         return (
-          <ThemedView key={r.clientId} type="backgroundElement" style={styles.card}>
-            <ThemedText type="smallBold">{`${TYPE_LABEL[p.serviceType]} · ${formatRupees(p.amountPaise)}`}</ThemedText>
-            <ThemedText type="small">{doctorName(p.doctorId)}</ThemedText>
-            {p.remarks ? (
-              <ThemedText type="small" themeColor="textSecondary">
-                {p.remarks}
-              </ThemedText>
-            ) : null}
+          <InfoCard key={r.clientId}>
+            <View style={styles.spread}>
+              <IconChip icon={sym('briefcase', 'work')} accent="slate" />
+              <View style={styles.grow}>
+                <ThemedText type="smallBold" numberOfLines={1}>{doctorName(p.doctorId)}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">{`${TYPE_LABEL[p.serviceType]}${p.remarks ? ` · ${p.remarks}` : ''}`}</ThemedText>
+              </View>
+              <ThemedText type="smallBold">{formatRupees(p.amountPaise)}</ThemedText>
+            </View>
             <ThemedText type="small" themeColor={r.status === 'FAILED' ? 'danger' : 'textSecondary'}>
               {r.status === 'FAILED' ? (r.errorMessage ?? 'Not accepted') : 'Saved on this phone, waiting to be sent'}
             </ThemedText>
@@ -220,40 +247,44 @@ export default function ServicesScreen() {
               {r.status !== 'QUEUED' ? <PrimaryButton label="Change" variant="text" onPress={() => start(r)} /> : null}
               {r.status !== 'QUEUED' ? <PrimaryButton label="Remove" variant="text" onPress={() => remove(r)} /> : null}
             </View>
-          </ThemedView>
+          </InfoCard>
         );
       })}
 
-      {!activity.loaded ? (
+      {!activity.loaded && !list.data ? (
         <Notice tone="info">Loading…</Notice>
       ) : sent.length === 0 && unsent.length === 0 ? (
         <Notice tone="info">No service requests yet.</Notice>
       ) : (
-        sent.map((s) => (
-          <ThemedView key={s.id} type="backgroundElement" style={styles.card}>
-            <ThemedText type="smallBold">{`${TYPE_LABEL[s.serviceType]} · ${formatRupees(s.amountPaise)}`}</ThemedText>
-            <ThemedText type="small">{doctorName(s.doctorId)}</ThemedText>
-            {s.remarks ? (
-              <ThemedText type="small" themeColor="textSecondary">
-                {s.remarks}
-              </ThemedText>
-            ) : null}
-            <ThemedText type="small" themeColor={s.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
-              {s.origin === 'ADMIN' ? 'Set up by Admin' : STATUS_TEXT[s.status]}
-            </ThemedText>
-            {reasons[s.id] ? <ThemedText type="small">{`Reason: ${reasons[s.id]}`}</ThemedText> : null}
-            {s.approvalRequestId ? (
-              <View style={styles.row}>
-                {s.status === 'REJECTED' && !reasons[s.id] ? (
-                  <PrimaryButton label="See the reason" variant="text" onPress={() => showReason(s.id, s.approvalRequestId!)} />
-                ) : null}
-                {online && (s.status === 'SUBMITTED' || s.status === 'MANAGER_APPROVED') ? (
-                  <PrimaryButton label="Withdraw" variant="text" loading={busy === s.approvalRequestId} onPress={() => withdraw(s.approvalRequestId!)} />
-                ) : null}
+        sent.map((s) => {
+          const stage = s.origin === 'ADMIN' && !s.doneAt ? { text: 'Set up by Admin, to do', accent: 'blue' as const } : serviceStage(s);
+          const requestId = s.approval?.requestId ?? null;
+          return (
+            <InfoCard key={s.id}>
+              <View style={styles.spread}>
+                <IconChip icon={sym('briefcase', 'work')} accent="indigo" />
+                <View style={styles.grow}>
+                  <ThemedText type="smallBold" numberOfLines={1}>{doctorName(s.doctorId)}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">{`${TYPE_LABEL[s.serviceType]}${s.remarks ? ` · ${s.remarks}` : ''}`}</ThemedText>
+                </View>
+                <ThemedText type="smallBold">{formatRupees(s.amountPaise)}</ThemedText>
               </View>
-            ) : null}
-          </ThemedView>
-        ))
+              <Pill text={stage.text} accent={stage.accent} />
+              {s.doneAt ? <ThemedText type="small" themeColor="textSecondary">{`Carried out on ${formatWhen(s.doneAt)}`}</ThemedText> : null}
+              {reasons[s.id] ? <ThemedText type="small">{`Reason: ${reasons[s.id]}`}</ThemedText> : null}
+              {requestId ? (
+                <View style={styles.row}>
+                  {s.status === 'REJECTED' && !reasons[s.id] ? (
+                    <PrimaryButton label="See the reason" variant="text" onPress={() => showReason(s.id, requestId)} />
+                  ) : null}
+                  {online && (s.status === 'SUBMITTED' || s.status === 'MANAGER_APPROVED') ? (
+                    <PrimaryButton label="Withdraw" variant="text" loading={busy === requestId} onPress={() => withdraw(requestId)} />
+                  ) : null}
+                </View>
+              ) : null}
+            </InfoCard>
+          );
+        })
       )}
     </ScreenShell>
   );
@@ -261,6 +292,10 @@ export default function ServicesScreen() {
 
 const styles = StyleSheet.create({
   block: { gap: Spacing.two },
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  spread: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  grow: { flex: 1 },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  sectionTitle: { fontSize: 18, lineHeight: 24 },
+  newButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
 });
