@@ -9,11 +9,21 @@ export class OpenBlockExistsError extends Error {
   }
 }
 
+/** How a block was cleared. */
+export interface BlockClearing {
+  unblockedBy: string;
+  unblockedByRole: string;
+  unblockReason: string;
+  unblockedAt: Date;
+}
+
 export interface ComplianceBlockRepositoryPort {
   findOpenByUserId(userId: string): Promise<ComplianceBlockEvent | null>;
   /** The `unblockedAt` of the user's most recently cleared block, or `null` if none was ever cleared. */
   findLastClearedAt(userId: string): Promise<Date | null>;
   /** Throws `OpenBlockExistsError` if the user already has an open block. */
   create(input: Omit<ComplianceBlockEvent, 'id'>, ctx?: TransactionContext): Promise<ComplianceBlockEvent>;
-  close(id: string, unblockedBy: string, unblockedAt: Date, ctx?: TransactionContext): Promise<void>;
+  close(id: string, clearing: BlockClearing, ctx?: TransactionContext): Promise<void>;
+  /** Every block event on the user, newest first — the audit trail. */
+  listByUserId(userId: string): Promise<ComplianceBlockEvent[]>;
 }

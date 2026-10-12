@@ -2,8 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { AppError } from '@/shared/errors/AppError.js';
 import type { PlanDay } from '../../domain/plan.js';
 import { BackfillInheritedDaysUseCase } from './backfillInheritedDays.usecase.js';
-import { Clock, inlineTransactions, planningKit } from './planningTestKit.js';
-import { SaveDailyPlanUseCase } from './saveDailyPlan.usecase.js';
+import { Clock, inlineTransactions, planningKit, SeedDailyPlan } from './planningTestKit.js';
 import { SaveMonthlyPlanUseCase } from './saveMonthlyPlan.usecase.js';
 import { SubmitDailyPlanUseCase } from './submitDailyPlan.usecase.js';
 import { SubmitMonthlyPlanUseCase } from './submitMonthlyPlan.usecase.js';
@@ -21,7 +20,7 @@ const reason = (p: Promise<unknown>) => p.then(() => undefined, (e: AppError) =>
 
 describe('Daily Plans inherited from the Monthly Plan', () => {
   let kit: ReturnType<typeof planningKit>;
-  let saveDaily: SaveDailyPlanUseCase;
+  let saveDaily: SeedDailyPlan;
   let submitDaily: SubmitDailyPlanUseCase;
   let monthlyId: string;
   let clock: Clock;
@@ -36,7 +35,7 @@ describe('Daily Plans inherited from the Monthly Plan', () => {
     kit.users.add(STRANGER);
     kit.users.add(ADMIN, { role: 'ADMIN' });
     kit.routes.byUser.set(MR, [R1, R2]);
-    saveDaily = new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views, kit.monthlyApproved);
+    saveDaily = new SeedDailyPlan(kit.dailyPlans, kit.views);
     submitDaily = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, kit.monthlyApproved);
     const saveMonthly = new SaveMonthlyPlanUseCase(kit.monthlyPlans, kit.approvals, kit.views);
     const submitMonthly = new SubmitMonthlyPlanUseCase(kit.monthlyPlans, kit.deadlines, kit.submitter);
@@ -69,17 +68,10 @@ describe('Daily Plans inherited from the Monthly Plan', () => {
     expect(await daily('2026-10-06')).toMatchObject({ revision: 1 });
   });
 
-  it('the employee can’t edit an inherited day but can submit it as it is', async () => {
+  it('the employee submits an inherited day as it is', async () => {
     await kit.approvals.decide('MONTHLY_PLAN', monthlyId, 'APPROVED');
-    expect(await reason(saveDaily.execute(MR, '2026-10-06', field(R2)))).toBe('PLAN_INHERITED_READONLY');
     const request = await submitDaily.execute(MR, (await daily('2026-10-06'))!.id);
     expect(request.status).toBe('SUBMITTED');
-  });
-
-  it('a day the monthly plan did not cover is still the employee’s to write', async () => {
-    await kit.approvals.decide('MONTHLY_PLAN', monthlyId, 'APPROVED');
-    const plan = await saveDaily.execute(MR, '2026-10-08', field(R1));
-    expect(plan.source).toBe('MANUAL');
   });
 
   it('the backfill gives a month approved before inheritance its days: a dry run counts, apply writes, a repeat adds nothing', async () => {

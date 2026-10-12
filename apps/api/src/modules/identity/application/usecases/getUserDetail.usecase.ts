@@ -17,8 +17,10 @@ export interface UserDetail {
   status: UserStatus;
   isBlocked: boolean;
   lastLoginAt: Date | null;
-  /** The currently-open compliance block, if any — never the full history (that's an audit concern, not a display one). */
+  /** The currently-open compliance block, if any. */
   currentBlock: { reason: string; blockedAt: Date } | null;
+  /** Every block on the employee, newest first — who cleared each, in what role, and why. */
+  blockHistory: Array<{ reason: string; blockedAt: Date; unblockedAt: Date | null; unblockedBy: string | null; unblockedByRole: string | null; unblockReason: string | null }>;
   /** `null` for a non-FIELD user, or a FIELD user whose onboarding hasn't started yet. */
   profile: {
     designationId: string | null;
@@ -65,7 +67,8 @@ export class GetUserDetailUseCase {
     if (!role) throw AppError.internal('INTERNAL', { reason: 'ROLE_NOT_FOUND', roleId: user.roleId });
 
     const profile = await this.employeeProfileRepository.findByUserId(userId);
-    const openBlock = user.isBlocked ? await this.complianceBlockRepository.findOpenByUserId(userId) : null;
+    const history = await this.complianceBlockRepository.listByUserId(userId);
+    const openBlock = user.isBlocked ? (history.find((b) => b.unblockedAt === null) ?? null) : null;
 
     return {
       id: user.id,
@@ -78,6 +81,7 @@ export class GetUserDetailUseCase {
       isBlocked: user.isBlocked,
       lastLoginAt: user.lastLoginAt,
       currentBlock: openBlock ? { reason: openBlock.reason, blockedAt: openBlock.blockedAt } : null,
+      blockHistory: history.map(({ reason, blockedAt, unblockedAt, unblockedBy, unblockedByRole, unblockReason }) => ({ reason, blockedAt, unblockedAt, unblockedBy, unblockedByRole, unblockReason })),
       profile: profile
         ? {
             designationId: profile.designationId,

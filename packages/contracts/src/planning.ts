@@ -68,26 +68,6 @@ export interface MonthlyPlanDto extends PlanStateDto {
   updatedAt: string;
 }
 
-/** `GET /planning/changes/:id`: an in-day change to an approved daily plan. */
-export interface DailyPlanChangeDto {
-  id: string;
-  planId: string;
-  userId: string;
-  planDate: string;
-  /** The plan as it was when the change was asked for: what the approver compares against. */
-  previous: PlanDayDto;
-  proposed: PlanDayDto;
-  reason: string;
-  /** The plan revision it was made against; approving it fails if the plan has moved on. */
-  basedOnRevision: number;
-  open: boolean;
-  /** Approved and written into the plan. */
-  applied: boolean;
-  createdAt: string;
-  status: string;
-  approval: { requestId: string; cycle: number; submittedAt: string; decidedAt: string | null } | null;
-}
-
 export type LateSubmitGrantStatus = 'OPEN' | 'USED' | 'REVOKED' | 'EXPIRED';
 
 /** `GET /planning/late-grants`: a one-off exception that lets one employee submit one plan after its deadline. */

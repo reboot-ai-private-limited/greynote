@@ -25,8 +25,7 @@ export interface ApprovalKindDefinition {
   finalApproverRoles: RoleName[];
   /**
    * The kind never has a final stage: the manager's approval is the decision, whatever
-   * `APPROVAL_MANAGER_ONLY_KINDS` says. For a kind whose design is "the manager decides" (Planning's
-   * in-day change), as opposed to one Admin may relax later through that setting.
+   * `APPROVAL_MANAGER_ONLY_KINDS` says. For a kind whose design is "the manager decides" (no kind uses it today), as opposed to one Admin may relax later through that setting.
    */
   managerOnly?: boolean;
   /**

@@ -85,16 +85,6 @@ export function useMonthlyPlan(id: string) {
   );
 }
 
-export function usePlanChange(id: string) {
-  return useQuery(
-    authedQueryOptions({
-      queryKey: keys.plans.change(id),
-      fetch: (token, signal) => planningApi.change(token, id, signal),
-      staleTime: staleTime.live,
-    }),
-  );
-}
-
 export function useDoctorService(id: string) {
   return useQuery(
     authedQueryOptions({

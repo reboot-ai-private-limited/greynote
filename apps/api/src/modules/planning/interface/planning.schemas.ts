@@ -16,7 +16,6 @@ export const planDaySchema = z.object({
   remarks: z.string().trim().max(1000).nullish().transform((v) => v || null),
 });
 
-export const saveDailyPlanBodySchema = planDaySchema.extend({ planDate: planDateSchema });
 
 /** The doctors to call on a day (the route stays the Monthly Plan's). Missed calls still owed are added by the server. */
 export const setDailyPlanDoctorsBodySchema = z.object({
@@ -64,11 +63,6 @@ export const listLateSubmitGrantsQuerySchema = z.object({
   pageSize: z.coerce.number().int().positive().max(100).default(20),
   userId: objectIdSchema.optional(),
   kind: z.enum(PLAN_KINDS).optional(),
-});
-
-/** An in-day change to today's approved Daily Plan: the whole day as it should now be, and why. */
-export const requestDailyPlanChangeBodySchema = planDaySchema.extend({
-  reason: z.string().trim().min(1, 'A reason is required.').max(500),
 });
 
 /** A manager's or Admin's amendment of an employee's Daily Plan: the whole day as it should be, and why. */

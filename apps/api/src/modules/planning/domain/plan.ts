@@ -14,9 +14,6 @@ export type PlanSource = (typeof PLAN_SOURCES)[number];
 export const PLAN_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN'] as const;
 export type PlanKind = (typeof PLAN_KINDS)[number];
 
-/** The approval kind for an in-day change to an approved Daily Plan; `recordId` is the change's id. */
-export const DAILY_PLAN_CHANGE_KIND = 'DAILY_PLAN_CHANGE';
-
 /** One planned day — a `DailyPlan`'s body, and each `MonthlyPlanEntry`. */
 export interface PlanDay {
   workingType: WorkingType;

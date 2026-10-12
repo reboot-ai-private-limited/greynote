@@ -76,10 +76,8 @@ GET    /api/marketing/targets/:userId  ADMIN,FIELD
 GET    /api/marketing/visuals  ADMIN,FIELD
 GET    /api/payroll  ACCOUNTANT,ADMIN
 GET    /api/payroll/:id  ACCOUNTANT,ADMIN
-GET    /api/planning/changes/:id  ADMIN,FIELD
 GET    /api/planning/daily  FIELD
 GET    /api/planning/daily/:id  ADMIN,FIELD
-GET    /api/planning/daily/:id/changes  ADMIN,FIELD
 GET    /api/planning/daily/carry-over  FIELD
 GET    /api/planning/late-grants  ADMIN,FIELD
 GET    /api/planning/monthly  FIELD
@@ -188,15 +186,13 @@ POST   /api/identity/users/:id/documents  ADMIN,HR
 POST   /api/identity/users/:id/promotions  ADMIN,HR
 POST   /api/identity/users/:id/promotions/preview  ADMIN,HR
 POST   /api/identity/users/:id/reset-password  ADMIN
-POST   /api/identity/users/:id/unblock  ADMIN
+POST   /api/identity/users/:id/unblock  ADMIN,FIELD
 POST   /api/marketing/campaigns  ADMIN
 POST   /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 POST   /api/marketing/targets  ADMIN,FIELD
 POST   /api/marketing/visuals  ADMIN
 POST   /api/payroll/:id/finalize  ACCOUNTANT,ADMIN
 POST   /api/payroll/generate  ACCOUNTANT,ADMIN
-POST   /api/planning/daily  FIELD
-POST   /api/planning/daily/:id/changes  FIELD
 POST   /api/planning/daily/:id/submit  FIELD
 POST   /api/planning/daily/doctors  FIELD
 POST   /api/planning/late-grants  ADMIN,FIELD

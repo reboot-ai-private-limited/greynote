@@ -2,8 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
 import { GetPlanStatusUseCase } from './getPlanStatus.usecase.js';
-import { Clock, planningKit } from './planningTestKit.js';
-import { SaveDailyPlanUseCase } from './saveDailyPlan.usecase.js';
+import { Clock, planningKit, SeedDailyPlan } from './planningTestKit.js';
 import { SubmitDailyPlanUseCase } from './submitDailyPlan.usecase.js';
 import { SaveMonthlyPlanUseCase } from './saveMonthlyPlan.usecase.js';
 import { SubmitMonthlyPlanUseCase } from './submitMonthlyPlan.usecase.js';
@@ -107,38 +106,40 @@ describe('Monthly Plan', () => {
   });
 
   describe('no approved Monthly Plan, no work that month', () => {
-    let saveDaily: SaveDailyPlanUseCase;
+    let seedDaily: SeedDailyPlan;
     let submitDaily: SubmitDailyPlanUseCase;
     const day = { workingType: 'FIELD_WORK' as const, workWith: [], routeIds: [ROUTE], remarks: null };
 
     beforeEach(() => {
       const approved = (u: string, m: string) => status.isMonthlyPlanApproved(u, m);
-      saveDaily = new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views, approved);
+      seedDaily = new SeedDailyPlan(kit.dailyPlans, kit.views);
       submitDaily = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, approved);
     });
 
-    it('refuses a daily plan with no monthly plan, and while the month is only submitted', async () => {
-      const err = await expectError(saveDaily.execute(MR, '2026-10-06', day), 409, 'MONTHLY_PLAN_NOT_APPROVED');
+    it('refuses a daily submit with no monthly plan, and while the month is only submitted', async () => {
+      const daily = await seedDaily.execute(MR, '2026-10-06', day);
+      const err = await expectError(submitDaily.execute(MR, daily.id), 409, 'MONTHLY_PLAN_NOT_APPROVED');
       expect(err.publicDetails).toEqual({ planMonth: MONTH });
       const plan = await save.execute(MR, MONTH, [entry('2026-10-05')]);
       await submit.execute(MR, plan.id);
-      await expectError(saveDaily.execute(MR, '2026-10-06', day), 409, 'MONTHLY_PLAN_NOT_APPROVED');
+      await expectError(submitDaily.execute(MR, daily.id), 409, 'MONTHLY_PLAN_NOT_APPROVED');
     });
 
     it('allows it once the manager has approved the month, and only for that month', async () => {
       const plan = await save.execute(MR, MONTH, [entry('2026-10-05')]);
       await submit.execute(MR, plan.id);
       await kit.approvals.decide('MONTHLY_PLAN', plan.id, 'MANAGER_APPROVED');
-      const saved = await saveDaily.execute(MR, '2026-10-06', day);
-      expect(saved.status).toBe('DRAFT');
-      await expectError(saveDaily.execute(MR, '2026-11-03', day), 409, 'MONTHLY_PLAN_NOT_APPROVED');
+      const inMonth = await seedDaily.execute(MR, '2026-10-06', day);
+      expect((await submitDaily.execute(MR, inMonth.id)).status).toBe('SUBMITTED');
+      const otherMonth = await seedDaily.execute(MR, '2026-11-03', day);
+      await expectError(submitDaily.execute(MR, otherMonth.id), 409, 'MONTHLY_PLAN_NOT_APPROVED');
     });
 
-    it('stops a submit when the month is reopened after the day was saved', async () => {
+    it('stops a submit when the month is reopened after the day was seeded', async () => {
       const plan = await save.execute(MR, MONTH, [entry('2026-10-05')]);
       await submit.execute(MR, plan.id);
       await kit.approvals.decide('MONTHLY_PLAN', plan.id, 'MANAGER_APPROVED');
-      const saved = await saveDaily.execute(MR, '2026-10-06', day);
+      const saved = await seedDaily.execute(MR, '2026-10-06', day);
       await kit.approvals.decide('MONTHLY_PLAN', plan.id, 'REJECTED');
       await expectError(submitDaily.execute(MR, saved.id), 409, 'MONTHLY_PLAN_NOT_APPROVED');
     });

@@ -66,9 +66,9 @@ export const identityApi = {
   resetPassword: (token: string, userId: string, newPassword: string) =>
     request<Record<string, never>>(`/identity/users/${userId}/reset-password`, { method: 'POST', token, body: { newPassword } }),
 
-  /** Clears a compliance block. Admin only; a no-op for someone who is not blocked. */
-  unblockUser: (token: string, userId: string) =>
-    request<Record<string, never>>(`/identity/users/${userId}/unblock`, { method: 'POST', token }),
+  /** Clears a compliance block. Admin, or a manager above the employee; the reason is kept as the audit trail. A no-op for someone who is not blocked. */
+  unblockUser: (token: string, userId: string, reason: string) =>
+    request<Record<string, never>>(`/identity/users/${userId}/unblock`, { method: 'POST', token, body: { reason } }),
 
   user: (token: string, id: string, signal?: AbortSignal) =>
     request<UserDetailDto>(`/identity/users/${id}`, { token, signal }),

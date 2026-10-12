@@ -2,8 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { PlanDay } from '../../domain/plan.js';
 import { GrantLateSubmitUseCase } from './grantLateSubmit.usecase.js';
-import { Clock, planningKit } from './planningTestKit.js';
-import { SaveDailyPlanUseCase } from './saveDailyPlan.usecase.js';
+import { Clock, planningKit, SeedDailyPlan } from './planningTestKit.js';
 import { SaveMonthlyPlanUseCase } from './saveMonthlyPlan.usecase.js';
 import { SubmitDailyPlanUseCase } from './submitDailyPlan.usecase.js';
 import { SubmitMonthlyPlanUseCase } from './submitMonthlyPlan.usecase.js';
@@ -30,7 +29,7 @@ async function expectLate(promise: Promise<unknown>) {
 describe('Resubmit window after a rejection — Daily Plan', () => {
   let clock: Clock;
   let kit: ReturnType<typeof planningKit>;
-  let save: SaveDailyPlanUseCase;
+  let save: SeedDailyPlan;
   let submit: SubmitDailyPlanUseCase;
   let planId: string;
 
@@ -45,7 +44,7 @@ describe('Resubmit window after a rejection — Daily Plan', () => {
     kit = planningKit(clock);
     kit.users.add(MR);
     kit.routes.byUser.set(MR, [ROUTE]);
-    save = new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views, kit.monthlyApproved);
+    save = new SeedDailyPlan(kit.dailyPlans, kit.views);
     submit = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, kit.monthlyApproved);
     planId = (await save.execute(MR, DATE, day)).id;
     await submit.execute(MR, planId);

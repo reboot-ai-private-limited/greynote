@@ -6,6 +6,8 @@ export interface ComplianceBlockDoc {
   blockedAt: Date;
   unblockedBy: Types.ObjectId | null;
   unblockedAt: Date | null;
+  unblockedByRole?: string | null;
+  unblockReason?: string | null;
 }
 
 const complianceBlockSchema = new Schema<ComplianceBlockDoc>({
@@ -14,6 +16,8 @@ const complianceBlockSchema = new Schema<ComplianceBlockDoc>({
   blockedAt: { type: Date, required: true },
   unblockedBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
   unblockedAt: { type: Date, default: null },
+  unblockedByRole: { type: String, default: null },
+  unblockReason: { type: String, default: null },
 });
 
 // Backs `findOpenByUserId` — always filtered by userId first, then the open (unblockedAt: null) one.

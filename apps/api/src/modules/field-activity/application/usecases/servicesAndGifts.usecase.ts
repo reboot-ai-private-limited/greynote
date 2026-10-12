@@ -17,7 +17,7 @@ export const DOCTOR_SERVICE_KIND = 'DOCTOR_SERVICE';
 
 /** A blocked employee (HLD 10) can submit nothing new — the same rule the daily gate applies, minus the day. */
 async function assertNotBlocked(users: UserDirectoryPort, userId: string): Promise<void> {
-  if (await users.isBlocked(userId)) throw new GateRefusal(GATE_CODES.userBlocked, 'You are blocked for missed reports. Admin has to unblock you first.');
+  if (await users.isBlocked(userId)) throw new GateRefusal(GATE_CODES.userBlocked, 'You are blocked for missed reports. Your manager or Admin has to unblock you first.');
 }
 
 interface ServiceInput {

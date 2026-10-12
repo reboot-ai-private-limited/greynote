@@ -8,7 +8,6 @@ import { DoctorServicePreview } from './DoctorServicePreview';
 import { ExpenseMonthPreview } from './ExpenseMonthPreview';
 import { LeavePreview } from './LeavePreview';
 import { MonthlyPlanPreview } from './MonthlyPlanPreview';
-import { PlanChangePreview } from './PlanChangePreview';
 
 /**
  * What is being approved. Each kind adds its own read-only panel; a kind with none yet still shows
@@ -26,8 +25,6 @@ export function ApprovalPreview({ request }: { request: ApprovalDetailDto }) {
       return <MonthlyPlanPreview recordId={request.recordId} />;
     case 'DOCTOR_SERVICE':
       return <DoctorServicePreview recordId={request.recordId} />;
-    case 'DAILY_PLAN_CHANGE':
-      return <PlanChangePreview recordId={request.recordId} />;
     case 'LEAVE':
       return <LeavePreview recordId={request.recordId} />;
     case 'EXPENSE_MONTH':

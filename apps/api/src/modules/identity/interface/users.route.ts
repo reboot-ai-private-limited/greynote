@@ -13,6 +13,7 @@ import {
   documentTypeBodySchema,
   listUsersQuerySchema,
   resetPasswordBodySchema,
+  unblockUserBodySchema,
   updateUserBodySchema,
   userIdParamsSchema,
 } from './users.schemas.js';
@@ -119,9 +120,9 @@ openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/users/{id}/unblock',
   tags: ['Identity / Users'],
-  summary: 'Admin: clear a compliance block',
+  summary: 'Admin, or a manager above the employee: clear a compliance block — a reason is required and kept as the audit trail',
   security: [{ bearerAuth: [] }],
-  request: { params: userIdParamsSchema },
+  request: { params: userIdParamsSchema, body: { content: { 'application/json': { schema: unblockUserBodySchema } } } },
   responses: { 200: { description: 'Block cleared' } },
 });
 
@@ -197,8 +198,8 @@ export function buildUsersRouter(controllers: {
   router.post(
     '/:id/unblock',
     authenticate(),
-    requireRole('ADMIN'),
-    validate({ params: userIdParamsSchema }),
+    requireRole('ADMIN', 'FIELD'),
+    validate({ params: userIdParamsSchema, body: unblockUserBodySchema }),
     controllers.unblock,
   );
   router.post(

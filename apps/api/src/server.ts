@@ -8,6 +8,11 @@ import { createApp } from './app.js';
 const SHUTDOWN_TIMEOUT_MS = 15_000;
 /** How often the server looks for promotions whose month has come (it also looks once at start, which catches up a missed 1st). */
 const PROMOTION_CHECK_MS = 60 * 60 * 1000;
+/**
+ * How often the server runs the missed-DCR check. It judges whole days ending yesterday, so it acts shortly after each day rolls over
+ * (`DAY_START_TIME`); the rest of the time it finds nothing new. Safe to run at any time and from several servers (one open block per user).
+ */
+const MISSED_DCR_CHECK_MS = 15 * 60 * 1000;
 
 async function start() {
     try {
@@ -20,8 +25,9 @@ async function start() {
 
     const jobs: IntervalJob[] = [];
     const app = createApp({
-        onContainers: ({ identity }) => {
+        onContainers: ({ identity, fieldActivity }) => {
             jobs.push(startIntervalJob('apply-due-promotions', PROMOTION_CHECK_MS, () => identity.applyDuePromotions()));
+            jobs.push(startIntervalJob('missed-dcr-check', MISSED_DCR_CHECK_MS, () => fieldActivity.runMissedDcrCheck()));
         },
     });
 

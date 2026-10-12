@@ -222,7 +222,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const uploadUserDocument = new UploadUserDocumentUseCase(userRepository, employeeProfileRepository, documentStorage);
   const removeUserDocument = new RemoveUserDocumentUseCase(employeeProfileRepository, documentStorage);
   const blockUser = new BlockUserUseCase(userRepository, roleRepository, complianceBlockRepository, transactionRunner);
-  const unblockUser = new UnblockUserUseCase(userRepository, complianceBlockRepository, transactionRunner);
+  const unblockUser = new UnblockUserUseCase(userRepository, complianceBlockRepository, transactionRunner, (id) => getManagerChain.execute(id));
   const resetPassword = new ResetPasswordUseCase(userRepository, userSessionRepository, passwordHasher);
   const getUserDetail = new GetUserDetailUseCase(
     userRepository,
