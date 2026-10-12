@@ -111,6 +111,13 @@ export interface CreateHolidayDto {
   hqIds: string[];
 }
 
+/** Body of `POST /hr/leaves/:id/approval-grant` (Admin): lets a leave that has already started be approved, once. */
+export interface AllowLateLeaveApprovalDto {
+  reason: string;
+  /** ISO date-time; omitted: the server's default length. */
+  expiresAt?: string;
+}
+
 /** Body of `PATCH /hr/leave-balances/:userId/:leaveTypeId`. Never below what is used plus pending. */
 export interface AdjustLeaveBalanceDto {
   year: number;

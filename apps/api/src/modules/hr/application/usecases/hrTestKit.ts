@@ -264,6 +264,9 @@ export class FakeLeaves implements LeaveRepositoryPort {
   async listOverlapping(userId: string, from: string, to: string) {
     return this.rows.filter((l) => l.userId === userId && l.startDate <= to && l.endDate >= from);
   }
+  async listStartingBetween(from: string, before: string) {
+    return this.rows.filter((l) => l.startDate >= from && l.startDate < before);
+  }
   async list(filter: LeaveFilter, page: { page: number; pageSize: number }) {
     const items = this.rows.filter(
       (l) =>
@@ -329,6 +332,15 @@ export class FakeApprovals implements ApprovalsPort {
   }
   async getForRecord(kind: string, recordId: string) {
     return this.requests.get(`${kind}:${recordId}`) ?? null;
+  }
+  async listForRecords(kind: string, recordIds: string[]) {
+    return recordIds.flatMap((id) => this.requests.get(`${kind}:${id}`) ?? []);
+  }
+  async autoReject(kind: string, recordId: string, _reason: string) {
+    const request = this.requests.get(`${kind}:${recordId}`);
+    if (!request || (request.status !== 'SUBMITTED' && request.status !== 'MANAGER_APPROVED')) return false;
+    await this.move(kind, recordId, 'REJECTED');
+    return true;
   }
   /** Move a request to `status`, running the owner's callback as the approval module would. */
   async move(kind: string, recordId: string, status: ApprovalStatus) {

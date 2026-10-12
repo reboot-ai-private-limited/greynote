@@ -5,6 +5,7 @@ import { HolidayCalendar } from '../holidayCalendar.js';
 import { HrCalendar } from '../hrCalendar.js';
 import { Probation } from '../probation.js';
 import { LeaveBalances } from '../leaveBalances.js';
+import { ExpireLateLeaves } from '../expireLateLeaves.js';
 import { LeaveApprovalCutoff } from '../leaveApprovalCutoff.js';
 import { makeLeaveLedger } from '../leaveLedger.js';
 import { LeaveLock } from '../leaveLock.js';
@@ -236,6 +237,21 @@ describe('Leave requests', () => {
       expect(grants.rows[0]?.status).toBe('USED');
       await approvals.move('LEAVE', leave.id, 'REOPENED');
       await expect(approvals.move('LEAVE', leave.id, 'APPROVED')).rejects.toMatchObject({ publicDetails: { code: 'LEAVE_APPROVAL_LATE' } });
+    });
+
+    it('the sweep rejects a pending leave that has started and frees its balance; future, decided and excepted ones stay', async () => {
+      const sweep = new ExpireLateLeaves(leaves, grants, approvals, new HrCalendar(config, new Clock(NOW).now), new Clock(NOW).now);
+      const lateOne = await started(); // 25-26 Sep: 2 days pending
+      const future = await requests.request('mr', casual({ startDate: '2026-10-01', endDate: '2026-10-01' }));
+      const excepted = await requests.request('mr', casual({ startDate: '2026-09-22', endDate: '2026-09-22' }));
+      await cutoff.grant({ id: 'admin', role: 'ADMIN' }, excepted.id, { reason: 'x' });
+      expect(ledger().pending).toBe(4);
+      expect(await sweep.execute()).toBe(1);
+      expect(approvals.requests.get(`LEAVE:${lateOne.id}`)?.status).toBe('REJECTED');
+      expect(approvals.requests.get(`LEAVE:${future.id}`)?.status).toBe('SUBMITTED');
+      expect(approvals.requests.get(`LEAVE:${excepted.id}`)?.status).toBe('SUBMITTED');
+      expect(ledger().pending).toBe(2);
+      expect(await sweep.execute()).toBe(0);
     });
 
     it('a revoked or expired exception no longer works', async () => {
