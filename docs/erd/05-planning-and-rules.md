@@ -106,6 +106,7 @@ erDiagram
   - `SYNC_DRAFT_TTL_DAYS` = `30`, `SYNC_MAX_DRAFT_BYTES` = `65536`, `SYNC_MAX_DRAFTS` = `2000` — the private draft backup's retention and limits
   - `DCR_MISS_BLOCK_ENABLED` = `true` (Module 1/4, HLD 10) — kill switch for the missed-DCR compliance block
   - `DCR_MISS_GRACE_DAYS` = `1` (Module 1/4, HLD 10) — how many consecutive days without a submitted DCR (and without an approved Leave covering them) are allowed before the block triggers; `0` = the first missed day blocks
+  - `TEAM_NOT_STARTED_AFTER` = `11:00` (Module 4, 2026-10-12) — the time of day after which a field employee with no calls or follow-ups logged shows as "not started" on their manager's Team screen. Display only; blocks and flags nothing.
   - `ALLOW_UNPLANNED_DOCTOR_CALLS` — **removed 2026-10-12**: a call to a doctor off the day's list is always saved and flagged (decision-log 2026-10-12)
   - `DCR_APPROVAL_REQUIRED` = `true` (Module 4, decision-log 2026-10-03) — off: a submitted DCR is approved at once (authority `AUTO`) and its TA/DA generated then
   - `APPROVAL_SLA_DAYS` = `3` (Module 1/approval) — days an approver has before a request is flagged overdue; flag only, nothing is auto-approved

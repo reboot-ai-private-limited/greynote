@@ -12,7 +12,7 @@ How an employee reads back **their own** daily report (DCR), secondary sales, or
 | 2 | **An earlier year** is reached through the Financial Year screen (`X-Financial-Year`). Everything below then answers for that year and is read-only. Without the header, ranges and months must fall inside the current year or the answer is `400 OUTSIDE_FINANCIAL_YEAR`. | ✅ |
 | 3 | **A day's report:** `GET /field-activity/dcr?from=YYYY-MM-DD&to=YYYY-MM-DD` (own when no `userId`); one day = same date twice. Open one with `GET /field-activity/dcr/:id` for its calls, follow-ups, expenses, remarks and approval status. | ✅ |
 | 4 | **Secondary sales:** `GET /sales/employee-sales?userId=<own id>&month=YYYY-MM`: the month's entered secondary per product and the target achievement. | ✅ |
-| 5 | **Orders:** `GET /sales/orders?from&to&status`, own orders only; `GET /sales/orders/:id`. | ✅ |
+| 5 | **Orders:** `GET /sales/orders?from&to&status`, for a manager this also returns their downline's orders mixed in, so the Team section uses `GET /team/orders` ([`team.md`](team.md)) instead; `GET /sales/orders/:id`. | ✅ |
 | 6 | **Monthly expenses and their approval:** `GET /field-activity/expense-months?month=YYYY-MM` (own when no `userId`) gives the month's lines, totals, status (*Draft, Submitted, Approved, Paid*) and approval trail; `GET /field-activity/expense-months/history` lists the last twelve months across a year end; `/expense-months/:id` opens one. | ✅ |
 | 7 | **Monthly stock** (distributors): `GET /sales/monthly-stock?month` and `/monthly-stock/missing`. | ✅ |
 | 8 | **Plans:** `GET /planning/daily?from&to`, `/planning/daily/:id`, `/planning/monthly`. | ✅ |

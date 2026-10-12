@@ -2024,3 +2024,35 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** phone screens; leave and targets reuse `/hr/leave-balances/me` and `/reports/employee-sales`; sign-off K24a awaits the owner.
 
 **Refs:** [`mobile/reports.md`](mobile/reports.md), [`LLD/reports.md`](LLD/reports.md).
+
+## 2026-10-12 — Manager Team section: scope and first routes
+
+**Decision:** managers get the Team section on the **phone only**; the web portal stays Admin / HR / Accounts (PRD §4 unchanged). We build the API and the contract note [`mobile/team.md`](mobile/team.md); the phone team builds the screens. Every team read goes through one access rule (`resolveTeamScope`): the whole downline, or one named person who must be in it (403 otherwise). First routes: `GET /team/members` and `GET /approvals/inbox/summary` (a live count, not tied to a financial year).
+
+**Open:** the rest of the build order in `mobile/team.md`; client questions Q1–Q5 there (default depth, "not started" time, notifications F8, no salary for managers, no approving for an absent peer).
+
+**Refs:** [`mobile/team.md`](mobile/team.md), [`LLD/approval.md`](LLD/approval.md).
+
+## 2026-10-12 — Manager Team: Today, plans and leave calendar
+
+**Decision:** the Team home is computed live per person from Planning, Field Activity, HR and Identity (no new collections). "Not started" is a working assumption: nothing logged by `TEAM_NOT_STARTED_AFTER` (new Admin setting, default 11:00, display only). A leave counts as "on leave" only once the manager has approved it; one still waiting is shown but does not change the person's state. Work logged on a leave or off day still counts as working. A future day is refused on Today; plans may be read for any day so a manager can see who has no plan for tomorrow. HR gains one read, `listLeavesForUsers`.
+
+**Open:** client to confirm the not-started time (Q2); the rest of the build order; a team of more than ~500 may need a stored daily snapshot.
+
+**Refs:** [`mobile/team.md`](mobile/team.md), [`LLD/team.md`](LLD/team.md).
+
+## 2026-10-12 — Manager Team: overview report and person page
+
+**Decision:** the "employee overall report" is the Sales Dashboard extended, not a new calculation: same audience rule, same working-day and compliance counts, plus calls, follow-ups, late and unconfirmed (geofence fail + unverified) and what attendance made of each day. Money and counts therefore agree with the dashboard. The person page (`/team/members/:id/summary`) composes the roster row, the Today row and that overview row; deeper lists stay the existing routes with the person's `userId`. A person outside the downline is always `403`, including a manager asking about a peer. Reports gets its first public contract so Team can read the overview.
+
+**Open:** team orders and stock/secondary status (step 4); the overview reads the whole company's DCR summary for the month before narrowing (same as the Admin DCR report), fine today, revisit with a per-user query if it slows.
+
+**Refs:** [`mobile/team.md`](mobile/team.md), [`LLD/reports.md`](LLD/reports.md), [`LLD/team.md`](LLD/team.md).
+
+## 2026-10-12 — Manager Team: orders and stock
+
+**Decision:** the manager reads the team's orders and stock/secondary status; they decide nothing there. Orders: chemist orders stay information only, distributor orders stay the MR's to mark Done or Cancelled; the manager's only decision on this side is the monthly secondary, in Approvals (`SECONDARY_SALES`). The month's secondary is one word per person (not entered, draft, sent, approved, sent back); a draft or sent month is shown but never counted as achievement (unchanged rule). Missing stock is a report to chase with, not a block (unchanged). `Cancelled` orders are listed but left out of the amount, as in achievement.
+
+**Open:** notifications (F8). The team's API is complete; the phone screens are the other team's.
+
+**Refs:** [`mobile/team.md`](mobile/team.md), [`LLD/team.md`](LLD/team.md), [`LLD/sales-and-orders.md`](LLD/sales-and-orders.md).
