@@ -451,3 +451,7 @@ assigned MR, refused for a doctor with no MR). A doctor is picked by searching n
 ## Expense deadlines and late exception (2026-10-12)
 
 `ExpenseMonthService` checks `ExpenseMonthDeadlines` (send: `EXPENSE_SUBMIT_CUTOFF_DAY`; approve: `EXPENSE_APPROVAL_CUTOFF_DAY`, both the end of a business day of the next month). Past one, `submit` / the `EXPENSE_MONTH` `onStatusChange(APPROVED)` need a usable `ExpenseMonthGrant` of that phase and consume it in the same transaction (a throw rolls the approval back). `GrantExpenseMonthUseCase`: Admin, or a manager for their team while `LATE_EXPENSE_GRANT_BY_MANAGER`; refused (409 `EXPENSE_MONTH_PAID`) once any row of the month is `PAID`, which also blocks reopening. Routes: `POST/GET /expense-grants`, `POST /expense-grants/:id/revoke`. Decision-log 2026-10-12.
+
+## Doctor Service — final "Done" step (2026-10-12)
+
+After a service is approved, Admin or Accounts marks it carried out: `POST /api/field-activity/doctor-services/:id/done` (`MarkDoctorServiceDoneUseCase`, roles `ADMIN`, `ACCOUNTANT`; `409` while not approved or when already done; one conditional update on `doneAt`). `GET /doctor-services[/:id]` is open to Accounts (all services) and returns `awaitingDone`, `doneBy`, `doneAt`. Gifts are unchanged: Admin allocates, the doctor's MR marks done.

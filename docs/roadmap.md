@@ -888,3 +888,8 @@ Decision-log 2026-10-12; mobile contract in [`mobile/dailyplan.md`](mobile/daily
 ## Calls redesign (2026-10-12)
 
 Decision-log 2026-10-12, sign-off K40: all four records (doctor/chemist call and follow-up) need GPS within the radius or are refused `NOT_AT_LOCATION`; the server stamps work type and route type (HQ / Ex / Out); plan differences are flags (`notInPlan`, `routeNotInPlan`), `ALLOW_UNPLANNED_DOCTOR_CALLS` removed; new work type `DOCTOR_CAMPAIGN` (DA, no TA); Meeting/Conference/Strike days have no calls but still submit a report (note required for Meeting/Conference); a call or follow-up can be removed before the final submit. API, web, tests (API 1211, web 724) and `docs/mobile/dcr.md` done; **open:** phone app changes, browser check, Admin to set missing doctor/chemist locations. Uncommitted.
+
+## Orders, visuals, secondary, targets, gifts, services revisited (2026-10-12)
+
+Decision-log 2026-10-12. **Done:** chemist orders info-only (`409 ORDER_INFO_ONLY`); secondary as units or amount linked at PTR with employee → direct-manager approval (`SECONDARY_SALES`) and approved-only achievement; targets in units or amount; service "Done" step for Admin/Accounts; web: secondary grid with linked fields, status chip and Send for approval, approval preview, target dialog with units, Doctor services Mark done (Accounts nav), Admin add on the doctor's Visuals tab; docs incl. `docs/mobile/{orders-and-stock,secondary-and-targets,visuals-gifts-services}.md`. API and web tests pass; RBAC matrix regenerated. **Not browser-checked, no migration needed (old rows read as approved).** **Open:** the phone (another team) removes the Monthly stock tab and builds against the mobile notes; `financialYear.routes.test` flags `/expense-grants` (earlier work).
+

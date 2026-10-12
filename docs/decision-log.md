@@ -1976,3 +1976,18 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** employee cancel of an approved leave; not browser-checked; the phone app (another team) builds against [`mobile/leave.md`](mobile/leave.md).
 
 **Refs:** [`LLD/hr.md`](LLD/hr.md), [`mobile/leave.md`](mobile/leave.md), sign-off F3, F14, K6.
+
+## 2026-10-12 — Orders, visuals, secondary, targets, gifts, services revisited
+
+1. **Orders:** a chemist order is **information only** — `complete`/`cancel` on one is `409 ORDER_INFO_ONLY`. A distributor order is marked **done** (or cancelled) by the MR or Admin and only then counts as primary.
+2. **Visuals:** unchanged model — Admin owns the library, the MR **only adds** (from the library) per specific doctor, and a manager above them or Admin can add and take off. Web: Admin can add from the doctor page too.
+3. **Secondary** is monthly, by product, as **units or amount**: the other follows from the product's **PTR** and both are stored. The employee's entry is a draft; they **send the month** and their **direct manager (Admin may decide instead)** approves it (`SECONDARY_SALES`, manager-only). Only **approved** lines count toward achievement; entries by a manager or Admin are approved at once. Existing rows read as approved (no migration).
+4. **Targets** are per employee, per product, for a run of months, as an amount **or units** (units × PTR = amount; all-products targets are amounts). Achievement is the approved secondary against them, shown as amount % and units %.
+5. **Gifts:** no change — Admin assigns, the doctor's MR marks done.
+6. **Services:** after approval (Employee → Manager → Admin) a final step: **Admin or Accounts marks it done** (`doneBy`, `doneAt`). Accounts can see the Doctor services page.
+7. **Mobile:** the *Monthly stock* tab is removed from the phone; the app cannot be changed from here, so the rules live in [`mobile/orders-and-stock.md`](mobile/orders-and-stock.md), [`mobile/secondary-and-targets.md`](mobile/secondary-and-targets.md) and [`mobile/visuals-gifts-services.md`](mobile/visuals-gifts-services.md). The server still accepts `MONTHLY_STOCK` records.
+
+**Open:** the phone app (another team) builds against the three mobile notes; not browser-checked; `financialYear.routes.test` already lists `/expense-grants` as unclassified (earlier work, untouched).
+
+**Refs:** [`LLD/sales-and-orders.md`](LLD/sales-and-orders.md), sign-off E1, G1.
+

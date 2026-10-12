@@ -87,3 +87,7 @@ erDiagram
 ## `EmployeeSale` (2026-10-10)
 
 One field employee's figures for one product and one month: `user_id`, `product_id`, `month` (`YYYY-MM`), `secondary_qty` (what they say they sold; null = nothing entered), `adjustment_qty` (Admin's change to their primary, ± whole units) with `adjustment_reason` (required when ≠ 0), `updated_by/at` and a `history[]` of the old values. Unique on `(user_id, product_id, month)`. The two figures have separate writers (the employee, their manager or Admin for secondary; Admin only for the adjustment). Primary itself is not stored: it is the employee's Done distributor orders plus the adjustment. No distributor is recorded: nothing here feeds a distributor's stock.
+
+## `EmployeeSale` — approval and amount (2026-10-12)
+
+Adds `secondary_amount_paise` (units × the product's PTR when entered; null with no PTR) and `secondary_status` (`DRAFT`, `PENDING`, `APPROVED`, `REJECTED`; a row with no value reads as `APPROVED`). Only `APPROVED` secondary counts toward achievement. The approval request is `SECONDARY_SALES` with `record_id = user_id:month`. Order: a chemist `Order` is information only and never leaves `PLACED`; only a distributor order moves to `DONE`/`CANCELLED`.
