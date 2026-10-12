@@ -1,3 +1,4 @@
+import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import { readConfig, parseBoolean, type ConfigReader } from '@/shared/config/readConfig.js';
 import { AppError } from '@/shared/errors/AppError.js';
 
@@ -20,7 +21,10 @@ export class LeaveLock {
 
   /** `dates` are `YYYY-MM-DD`; refuses when any falls in a month already finalized for the employee. */
   async assertUnlocked(userId: string, dates: readonly string[]): Promise<void> {
-    if (!this.finalized || dates.length === 0) return;
+    if (dates.length === 0) return;
+    // A leave dated inside a financial year an Admin has closed is closed with it.
+    for (const month of new Set(dates.map((d) => d.slice(0, 7)))) await assertFinancialYearOpen(this.config, `${month}-01`, 'This leave');
+    if (!this.finalized) return;
     if (!(await readConfig(this.config, 'LEAVE_LOCKED_AFTER_PAYROLL', parseBoolean))) return;
     for (const month of [...new Set(dates.map((d) => d.slice(0, 7)))].sort()) {
       if (await this.finalized(userId, month)) {

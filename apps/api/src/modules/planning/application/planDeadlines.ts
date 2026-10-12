@@ -9,6 +9,7 @@ import {
 } from '@/shared/time/businessTime.js';
 import { PLANNING_CONFIG_KEYS, type ConfigProviderPort } from '../domain/configProvider.port.js';
 import type { ResubmitPolicy } from '../domain/resubmitWindow.js';
+import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import { parsePositiveInt, readBusinessDay, readConfig } from '@/shared/config/readConfig.js';
 
 /**
@@ -28,6 +29,7 @@ export class PlanDeadlines {
   }
 
   async daily(planDate: string): Promise<Date> {
+    await assertFinancialYearOpen(this.config, planDate, 'This plan');
     const [timeZone, cutoffTime] = await Promise.all([
       this.timeZone(),
       readConfig(this.config, PLANNING_CONFIG_KEYS.dailyCutoffTime, (v) => {
@@ -39,6 +41,7 @@ export class PlanDeadlines {
   }
 
   async monthly(planMonth: string): Promise<Date> {
+    await assertFinancialYearOpen(this.config, `${planMonth}-01`, 'This plan');
     const [{ timeZone, dayStart }, cutoffDay] = await Promise.all([
       readBusinessDay(this.config),
       readConfig(this.config, PLANNING_CONFIG_KEYS.monthlyCutoffDay, parsePositiveInt(31)),

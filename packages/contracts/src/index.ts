@@ -14,6 +14,8 @@ export * from './identity.js';
 export * from './hr.js';
 export * from './fieldActivity.js';
 export * from './payroll.js';
+export * from './payslip.js';
+export * from './documents.js';
 export * from './sales.js';
 export * from './fieldMasterData.js';
 export * from './planning.js';

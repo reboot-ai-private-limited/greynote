@@ -17,6 +17,7 @@ import {
   Smartphone,
   Gift,
   Inbox,
+  FileText,
   Images,
   HandCoins,
   Stethoscope,
@@ -72,6 +73,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Late expenses', href: '/late-expenses', icon: Clock, group: 'Daily work', roles: ['ADMIN'] },
   { label: 'Attendance', href: '/attendance', icon: CalendarCheck, group: 'Daily work', roles: ALL },
   { label: 'Inbox messages', href: '/inbox', icon: Inbox, group: 'Daily work', roles: ['ADMIN'] },
+  { label: 'Documents', href: '/documents', icon: FileText, group: 'Daily work', roles: ['ADMIN'] },
   { label: 'Orders', href: '/orders', icon: ShoppingCart, group: 'Daily work', roles: ['ADMIN'] },
 
   { label: 'Employees', href: '/employees', icon: Users, group: 'People', roles: ['ADMIN', 'HR'] },

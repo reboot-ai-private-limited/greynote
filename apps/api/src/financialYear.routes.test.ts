@@ -47,6 +47,7 @@ const SCOPED = [
   '/api/sales/employee-sales',
   '/api/reports/employee-sales',
   '/api/payroll',
+  '/api/payroll/me',
   '/api/attendance/month',
   '/api/attendance/payroll-calendar',
   '/api/reports/orders',
@@ -82,6 +83,8 @@ const TIMELESS = [
   '/api/field-activity/expense-months/history', // the last twelve months, across a year end
   '/api/config', // system settings: global, not a dated record
   '/api/config/public',
+  '/api/field-activity/expense-grants', // standing late-expense exceptions, not dated records
+  '/api/documents', // a library, not a dated record: the same whichever year is being looked at
   '/api/config/financial-year', // closing a year is an Admin action on the system, not a dated report
   // Operational and master data — the same whichever year is being looked at.
   '/api/health',

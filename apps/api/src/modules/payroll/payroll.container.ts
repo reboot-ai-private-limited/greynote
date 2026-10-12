@@ -1,6 +1,6 @@
 import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
-import { FinalizePayrollUseCase, GeneratePayrollUseCase, GetPayrollRunUseCase, ListPayrollRunsUseCase, PayrollClock } from './application/usecases/payroll.usecase.js';
+import { FinalizePayrollUseCase, GeneratePayrollUseCase, GetPayrollRunUseCase, ListMyPayslipsUseCase, ListPayrollRunsUseCase, PayrollClock } from './application/usecases/payroll.usecase.js';
 import { proratePaise } from '@/shared/money/paise.js';
 import { PayrollViews } from './application/payrollViews.js';
 import type { AttendancePort, HrPort, IdentityPort } from './domain/ports.js';
@@ -25,6 +25,7 @@ export function buildPayrollContainer(identity: IdentityPort, hr: HrPort, attend
   const finalize = new FinalizePayrollUseCase(runs, clock);
   const get = new GetPayrollRunUseCase(runs);
   const list = new ListPayrollRunsUseCase(runs);
+  const mine = new ListMyPayslipsUseCase(runs);
   const views = new PayrollViews(identity);
   return {
     contract: {
@@ -41,6 +42,6 @@ export function buildPayrollContainer(identity: IdentityPort, hr: HrPort, attend
           employerContributionPaise: proratePaise(r.ctcLines.filter((l) => l.kind === 'EMPLOYER_CONTRIBUTION').reduce((n, l) => n + l.amountPaise, 0), 1, 12),
         })),
       generate: (actor, input) => generate.execute(actor, input), finalize: (id) => finalize.execute(id), get: (id) => get.execute(id), list: (filter) => list.execute(filter), isMonthFinalized: (userId, month) => runs.isFinalized(userId, month) },
-    buildRouter: () => buildPayrollRouter(makePayrollControllers({ generate, finalize, get, list, views })),
+    buildRouter: () => buildPayrollRouter(makePayrollControllers({ generate, finalize, get, list, mine, views })),
   };
 }

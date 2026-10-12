@@ -1,4 +1,5 @@
 import { readConfig, readDayStart, type ConfigReader } from '@/shared/config/readConfig.js';
+import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import { addDays, assertTimeZone, businessDate } from '@/shared/time/businessTime.js';
 
 /** Business timezone and the stock deadline day, read from Config on every call. `now` is injectable for tests. */
@@ -7,6 +8,11 @@ export class SalesClock {
     private readonly config: ConfigReader,
     readonly now: () => Date = () => new Date(),
   ) {}
+
+  /** An order dated inside a financial year an Admin has closed cannot be placed. */
+  assertDayOpen(date: string): Promise<void> {
+    return assertFinancialYearOpen(this.config, date, 'This order');
+  }
 
   timeZone(): Promise<string> {
     return readConfig(this.config, 'BUSINESS_TIMEZONE', (v) => {
