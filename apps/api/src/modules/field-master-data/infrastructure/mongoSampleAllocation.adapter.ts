@@ -77,6 +77,10 @@ export class MongoSampleAllocationAdapter implements SampleAllocationRepositoryP
     return doc ? toAllocation(doc) : null;
   }
 
+  async restoreRemaining(allocationId: string, quantity: number, ctx?: TransactionContext): Promise<void> {
+    await SampleAllocationModel.updateOne({ _id: oid(allocationId) }, { $inc: { quantityRemaining: quantity } }, ctx === undefined ? {} : { session: ctx as ClientSession });
+  }
+
   async decrementRemaining(allocationId: string, quantity: number, ctx?: TransactionContext): Promise<boolean> {
     const result = await SampleAllocationModel.updateOne(
       { _id: oid(allocationId), quantityRemaining: { $gte: quantity } },

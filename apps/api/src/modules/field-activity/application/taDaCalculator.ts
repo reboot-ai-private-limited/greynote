@@ -1,5 +1,5 @@
 import { multiplyPaise, type Paise } from '@/shared/money/paise.js';
-import type { WorkingType } from '@greynote/contracts';
+import { isFieldDay, type WorkingType } from '@greynote/contracts';
 
 type RouteType = 'HQ' | 'EX_STATION' | 'OUT_STATION';
 
@@ -36,6 +36,7 @@ const RANK: Record<RouteType, number> = { HQ: 0, EX_STATION: 1, OUT_STATION: 2 }
  * - An `HQ` Route earns no TA (the day is within the HQ town): a day on HQ Routes only is DA alone.
  * - Of the day's other Routes only the **longest** is paid TA (the first, if two tie), for at most `maxKm` (`TA_MAX_KM`) of it, at that
  *   Route's own rate. The rest get no TA row. A Route whose distance is unknown is not a candidate and keeps a zero flagged row.
+ * - `DOCTOR_CAMPAIGN`: no TA; DA as for field work (the Pay Band's rate for the highest Route type).
  * - `MEETING` / `CONFERENCE`: DA at the HQ rate, no TA.
  * - `STRIKE`: nothing.
  * A DA of ₹0 (the HQ rate of some grades) and a genuinely zero-km TA are not written — nothing is claimed.
@@ -66,7 +67,7 @@ export function calculateTaDa(workingType: WorkingType, routes: Array<DayRoute |
     }
   }
 
-  const dayType = workingType === 'FIELD_WORK' ? known.reduce<RouteType>((top, r) => (RANK[r.routeType] > RANK[top] ? r.routeType : top), 'HQ') : 'HQ';
+  const dayType = isFieldDay(workingType) ? known.reduce<RouteType>((top, r) => (RANK[r.routeType] > RANK[top] ? r.routeType : top), 'HQ') : 'HQ';
   const da = dayType === 'OUT_STATION' ? rates.outStationDaPaise : dayType === 'EX_STATION' ? rates.exStationDaPaise : rates.hqDaPaise;
   if (da > 0) out.push({ type: 'DA', routeId: null, amountPaise: da, distanceFlag: false });
   return out;

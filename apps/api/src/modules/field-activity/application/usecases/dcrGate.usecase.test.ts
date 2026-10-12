@@ -104,6 +104,20 @@ describe('submitting the day’s DCR', () => {
     expect(kit.dcrs.rows).toHaveLength(1);
   });
 
+  it('a meeting or conference day needs the day’s note; a strike day or a field day does not, and the note is kept', async () => {
+    for (const workingType of ['MEETING', 'CONFERENCE'] as const) {
+      kit.planning.days.set(`mr1:${DAY}`, { workingType, routeIds: [] });
+      expect((await refusal(kit.submit.execute('mr1', DAY, AT, ctx))).code).toBe('REMARKS_REQUIRED');
+      expect((await refusal(kit.submit.execute('mr1', DAY, AT, ctx, '  '))).code).toBe('REMARKS_REQUIRED');
+    }
+    expect(kit.approvals.requests.size).toBe(0);
+    const { dcrId } = await kit.submit.execute('mr1', DAY, AT, ctx, 'Quarterly review at the Siliguri office');
+    expect(kit.dcrs.rows.find((d) => d.id === dcrId)!.remarks).toBe('Quarterly review at the Siliguri office');
+    kit.planning.days.set('mr1:2026-10-04', { workingType: 'STRIKE', routeIds: [] });
+    kit.planning.approve('mr1', '2026-10-04');
+    expect((await kit.submit.execute('mr1', '2026-10-04', new Date('2026-10-04T04:00:00Z'), ctx)).request.status).toBe('SUBMITTED');
+  });
+
   it('is refused by the same gate: blocked, a future day, another day’s record, an unapproved Plan', async () => {
     kit.users.users.get('mr2')!.blocked = true;
     kit.planning.approve('mr2', DAY);

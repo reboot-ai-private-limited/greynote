@@ -6,6 +6,7 @@ import type {
   GeofenceOutcomeDto,
   GeofenceReason,
   GeofenceStatus,
+  RecordRouteTypeDto,
   WorkingType,
 } from '@greynote/contracts';
 import type { BadgeTone } from '@/components/ui/Badge';
@@ -14,9 +15,17 @@ import type { BadgeTone } from '@/components/ui/Badge';
 
 export const WORKING_TYPE_LABEL: Record<WorkingType, string> = {
   FIELD_WORK: 'Field work',
+  DOCTOR_CAMPAIGN: 'Doctor campaign',
   MEETING: 'Meeting',
   CONFERENCE: 'Conference',
   STRIKE: 'Strike',
+};
+
+/** The kind of Route a record was made on, shown beside the work type. */
+export const ROUTE_TYPE_LABEL: Record<RecordRouteTypeDto, string> = {
+  HQ: 'HQ',
+  EX_STATION: 'Ex-station',
+  OUT_STATION: 'Out-station',
 };
 
 // ── Geofence ───────────────────────────────────────────────────────────────────────────────
@@ -83,6 +92,17 @@ export function flaggedNotice(dcr: Pick<DcrDetailDto, 'doctorCalls' | 'chemistCa
 export function notInPlanNotice(dcr: Pick<DcrDetailDto, 'doctorCalls'>): string | null {
   const n = dcr.doctorCalls.filter((c) => c.notInPlan).length;
   return n === 0 ? null : `${n} doctor ${n === 1 ? 'call was' : 'calls were'} not in the day’s plan.`;
+}
+
+/** "2 calls were on a route the plan did not list; 1 follow-up was not in the plan", or `null` when everything was on the plan. */
+export function offPlanNotice(dcr: Pick<DcrDetailDto, 'doctorCalls' | 'chemistCalls' | 'followups'>): string | null {
+  const calls = [...dcr.doctorCalls, ...dcr.chemistCalls].filter((c) => c.routeNotInPlan).length;
+  const followups = dcr.followups.filter((f) => f.notInPlan).length;
+  const parts = [
+    calls > 0 ? `${calls} ${calls === 1 ? 'call was' : 'calls were'} on a route the plan did not list` : null,
+    followups > 0 ? `${followups} ${followups === 1 ? 'follow-up was' : 'follow-ups were'} not in the plan` : null,
+  ].filter((p): p is string => p !== null);
+  return parts.length === 0 ? null : `${parts.join('; ')}.`;
 }
 
 /**

@@ -19,7 +19,8 @@ What the field app must do for the Daily Plan, and the rules the server enforces
 | 8 | **Unblocking:** Admin, or any manager above the employee, clears the block and must give a reason; the reason, who and their role are kept as the audit trail. After an unblock the employee starts with a clean slate (days before the unblock are not judged again). The employee can't unblock themselves. | ✅ |
 | 9 | **Changes to an approved plan are not made in the app.** The employee contacts their manager or Admin outside the app; the manager/Admin **amends** the day (`PATCH /planning/daily/:id/amend`, reason required, old body kept) until that day's report is submitted. | ✅ |
 | 10 | **Nothing else can be done until the day's plan is approved.** Calls, orders and every other record of the day are refused with `planNotApproved` until the plan is `MANAGER_APPROVED` or `APPROVED`. Order of checks: not blocked → monthly plan approved (`MONTHLY_PLAN_NOT_APPROVED`) → day is today and matches the record → daily plan approved (`planNotApproved`) → the day's report isn't already submitted (`dcrLocked`). | ✅ |
-| 11 | A call to a doctor not on the day's list is saved and flagged "Not in plan" while `ALLOW_UNPLANNED_DOCTOR_CALLS` is on; refused when it is off. | ✅ |
+| 11 | A call to a doctor not on the day's list, or on a route the plan doesn't list, is **saved and flagged** ("Not in plan" / "Route not in plan"); it is never refused for that. The config key `ALLOW_UNPLANNED_DOCTOR_CALLS` is removed. Calls and follow-ups are written up in [`dcr.md`](dcr.md). | ✅ |
+| 12 | **Working types:** `FIELD_WORK`, `DOCTOR_CAMPAIGN`, `MEETING`, `CONFERENCE`, `STRIKE`. `FIELD_WORK` and `DOCTOR_CAMPAIGN` need at least one route and have doctors; the other three have neither. A doctor campaign pays DA (highest route type) and **no TA**. | ✅ |
 
 ## 2. Statuses
 

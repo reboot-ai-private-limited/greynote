@@ -50,12 +50,19 @@ export interface GeofenceOutcomeDto {
   overrideComment: string | null;
 }
 
+/** HQ, Ex-station or Out-station: the kind of Route a record was made on. */
+export type RecordRouteTypeDto = 'HQ' | 'EX_STATION' | 'OUT_STATION';
+
 interface CallBaseDto {
   id: string;
   dcrId: string;
   userId: string;
   reportDate: string;
+  /** The day's plan type, stamped by the server. */
   workingType: WorkingType;
+  /** The Doctor's or Chemist's Route and its type, stamped by the server. */
+  routeId: string | null;
+  routeType: RecordRouteTypeDto | null;
   /** Accompanying colleagues' user ids. */
   workWith: string[];
   remarks: string | null;
@@ -71,12 +78,16 @@ export interface DoctorCallDto extends CallBaseDto {
   doctorName: string;
   /** The day's approved plan lists doctors and this one wasn't among them. */
   notInPlan: boolean;
+  /** The Doctor's Route isn't one the day's plan lists. */
+  routeNotInPlan: boolean;
   samples: { allocationId: string; productId: string; productName: string; quantity: number }[];
 }
 
 export interface ChemistCallDto extends CallBaseDto {
   chemistId: string;
   chemistName: string;
+  /** The Chemist's Route isn't one the day's plan lists. */
+  routeNotInPlan: boolean;
 }
 
 export interface FollowupDto {
@@ -85,6 +96,13 @@ export interface FollowupDto {
   subjectId: string;
   subjectName: string;
   remarks: string;
+  /** `null` on follow-ups from before the work type, route type and GPS were recorded. */
+  workingType: WorkingType | null;
+  routeId: string | null;
+  routeType: RecordRouteTypeDto | null;
+  /** A Doctor not on the day's list, or a Chemist whose Route the plan doesn't list. */
+  notInPlan: boolean;
+  geofence: GeofenceOutcomeDto | null;
   recordedAt: string;
 }
 
@@ -109,6 +127,8 @@ export interface DcrDetailDto {
   reportDate: string;
   status: DcrStatusName;
   approval: { requestId: string; cycle: number; submittedAt: string; decidedAt: string | null } | null;
+  /** The employee's note on the day (required on a meeting or conference day). */
+  remarks: string | null;
   doctorCalls: DoctorCallDto[];
   chemistCalls: ChemistCallDto[];
   followups: FollowupDto[];

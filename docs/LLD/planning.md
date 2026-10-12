@@ -191,7 +191,7 @@ changes) and were never amended; submitted, approved, employee-written (`MANUAL`
   an earlier APPROVED day and not called since (`listCalledDoctorIds` from the first-planned day), still the MR's, within
   the window from `CALL_CARRY_OVER_FOREVER` / `CALL_CARRY_OVER_DAYS` (0 = month end); exposed as
   `GET /planning/daily/carry-over?date=`. Those doctors are added to the list on save and on submit and can't be dropped,
-  so the whole list is what the manager approves. Field Activity's `ROUTE_NOT_IN_PLAN` check lets a doctor the plan lists
+  so the whole list is what the manager approves. Field Activity's `notInPlan` flag treats a doctor the plan lists
   as carried through (contract `getDailyPlanDay.carriedDoctorIds`). `listPlannedDoctors(user, month)` feeds the
   doctor-visits report (`plannedDays`, `missedSince`). The doctor directory and the called-doctors lookup are handed in
   after the containers are built (`bindDoctorSources`). Amendments do not carry the doctor list.

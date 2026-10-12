@@ -1,4 +1,5 @@
-import { Types } from 'mongoose';
+import { Types, type ClientSession } from 'mongoose';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { Dcr } from '../domain/dcr.entity.js';
 import type { DcrRepositoryPort } from '../domain/dcr.repository.port.js';
 import { DcrModel, type DcrDoc } from './dcr.schema.js';
@@ -7,6 +8,7 @@ const toDcr = (doc: DcrDoc & { _id: unknown }): Dcr => ({
   id: String(doc._id),
   userId: String(doc.userId),
   reportDate: doc.reportDate,
+  remarks: doc.remarks ?? null,
   createdAt: doc.createdAt,
 });
 
@@ -21,6 +23,10 @@ export class MongoDcrAdapter implements DcrRepositoryPort {
       if ((err as { code?: number }).code !== 11000) throw err;
       return toDcr((await upsert())!);
     }
+  }
+
+  async setRemarks(id: string, remarks: string | null, ctx: TransactionContext): Promise<void> {
+    await DcrModel.updateOne({ _id: new Types.ObjectId(id) }, { $set: { remarks } }, { session: ctx as ClientSession });
   }
 
   async findById(id: string): Promise<Dcr | null> {

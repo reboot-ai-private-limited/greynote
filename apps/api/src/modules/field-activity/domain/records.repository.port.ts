@@ -22,6 +22,8 @@ export interface DoctorCallRepositoryPort {
   countNotInPlan(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>>;
   /** Per daily report and geofence result, for report days in the range (both ends inclusive). */
   countByGeofence(range: { from: string; to: string }): Promise<GeofenceCount[]>;
+  /** Calls on a Route the day's plan doesn't list, per daily report, for report days in the range. */
+  countRouteNotInPlan(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>>;
   /** The distinct Doctors called in these daily reports. */
   distinctDoctorIds(dcrIds: string[]): Promise<string[]>;
   /** How many calls each Doctor had in these daily reports. */
@@ -30,22 +32,30 @@ export interface DoctorCallRepositoryPort {
   listForDcr(dcrId: string): Promise<DoctorCall[]>;
   countForDcrs(dcrIds: string[]): Promise<Map<string, number>>;
   findById(id: string): Promise<DoctorCall | null>;
+  /** Removes the call; false if it is not there. */
+  delete(id: string, ctx: TransactionContext): Promise<boolean>;
   /** One conditional update: only a still-`FAIL` / `UNVERIFIED` call becomes `OVERRIDE`. False if it no longer is (someone got there first). */
   overrideGeofence(id: string, override: GeofenceOverride): Promise<boolean>;
 }
 export interface ChemistCallRepositoryPort {
   countByGeofence(range: { from: string; to: string }): Promise<GeofenceCount[]>;
+  countRouteNotInPlan(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>>;
   create(input: Omit<ChemistCall, 'id'>, ctx: TransactionContext): Promise<ChemistCall>;
   listForDcr(dcrId: string): Promise<ChemistCall[]>;
   countForDcrs(dcrIds: string[]): Promise<Map<string, number>>;
   findById(id: string): Promise<ChemistCall | null>;
+  delete(id: string, ctx: TransactionContext): Promise<boolean>;
   overrideGeofence(id: string, override: GeofenceOverride): Promise<boolean>;
 }
 export interface FollowupRepositoryPort {
   /** Per daily report, for report days in the range (both ends inclusive). */
   countByDcrRange(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>>;
+  /** Follow-ups flagged `notInPlan`, per daily report, for report days in the range. */
+  countNotInPlan(range: { from: string; to: string }): Promise<Array<{ dcrId: string; count: number }>>;
   create(input: Omit<Followup, 'id'>, ctx: TransactionContext): Promise<Followup>;
   listForDcr(dcrId: string): Promise<Followup[]>;
+  findById(id: string): Promise<Followup | null>;
+  delete(id: string, ctx: TransactionContext): Promise<boolean>;
   countForDcrs(dcrIds: string[]): Promise<Map<string, number>>;
 }
 /** TA, DA and the manual reimbursements (travel, meals, other) apart, in whole paise, and how many rows. */

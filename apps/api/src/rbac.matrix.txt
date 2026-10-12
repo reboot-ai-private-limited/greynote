@@ -1,3 +1,5 @@
+DELETE /api/field-activity/dcr/:id/calls/:callId  FIELD
+DELETE /api/field-activity/dcr/:id/followups/:callId  FIELD
 DELETE /api/field-activity/expenses/other/:id  FIELD
 DELETE /api/field-activity/expenses/other/:id/attachments/:attachmentId  FIELD
 DELETE /api/field-master-data/doctors/:id/assignments/:userId  ADMIN

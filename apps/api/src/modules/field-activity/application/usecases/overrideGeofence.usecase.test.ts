@@ -27,10 +27,14 @@ describe('accepting a flagged call (geofence override)', () => {
     kit = faKit();
     kit.planning.approve('mr1', DAY);
     const tx = new Tx();
-    const doc = (over: object) => ({ reportDate: DAY, doctorId: 'd1', workingType: 'FIELD_WORK' as const, workWith: [], remarks: null, capturedLocation: CLINIC as typeof CLINIC | null, accuracyMeters: 5, samples: [], ...over });
-    failId = (await kit.logDoctorCall.execute(REC, doc({ capturedLocation: north(400) }), tx)).serverId;
-    passId = (await kit.logDoctorCall.execute({ ...REC, clientId: 'c-2' }, doc({}), tx)).serverId;
-    chemistFailId = (await kit.logChemistCall.execute({ ...REC, clientId: 'c-3' }, { reportDate: DAY, chemistId: 'c1', workingType: 'FIELD_WORK', workWith: [], remarks: null, capturedLocation: null, accuracyMeters: null }, tx)).serverId;
+    // Calls that failed the check can no longer be recorded (they are refused), so the flagged ones here are legacy rows kept from before.
+    const doc = { reportDate: DAY, doctorId: 'd1', workWith: [], remarks: null, capturedLocation: CLINIC as typeof CLINIC | null, accuracyMeters: 5, samples: [] };
+    passId = (await kit.logDoctorCall.execute(REC, doc, tx)).serverId;
+    failId = (await kit.logDoctorCall.execute({ ...REC, clientId: 'c-2' }, doc, tx)).serverId;
+    chemistFailId = (await kit.logChemistCall.execute({ ...REC, clientId: 'c-3' }, { reportDate: DAY, chemistId: 'c1', workWith: [], remarks: null, capturedLocation: CLINIC, accuracyMeters: 5 }, tx)).serverId;
+    const failing = { status: 'FAIL' as const, distanceMeters: 400, reason: null, overriddenBy: null, overriddenAt: null, overrideComment: null };
+    kit.doctorCalls.rows.find((r) => r.id === failId)!.geofence = failing;
+    kit.chemistCalls.rows.find((r) => r.id === chemistFailId)!.geofence = { ...failing, status: 'UNVERIFIED', distanceMeters: null, reason: 'NO_GPS_READING' };
     dcrId = (await kit.submit.execute('mr1', DAY, REC.recordedAt, tx)).dcrId;
     override = new OverrideGeofenceUseCase(kit.dcrs, kit.users, kit.views, kit.doctorCalls, kit.chemistCalls);
   });

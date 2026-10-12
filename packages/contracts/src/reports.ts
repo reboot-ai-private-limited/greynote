@@ -219,8 +219,12 @@ export interface DcrFiguresDto {
   geofence: { pass: number; fail: number; unverified: number; override: number };
   /** Calls the geofence could not confirm (failed or unverified) and nobody overrode. */
   unconfirmed: number;
-  /** Doctor calls to a doctor who wasn't on the day's plan (allowed by `ALLOW_UNPLANNED_DOCTOR_CALLS`). */
+  /** Doctor calls to a doctor who wasn't on the day's plan (allowed, and flagged). */
   notInPlan: number;
+  /** Follow-ups on a doctor not on the day's plan, or a chemist whose route the plan doesn't list. */
+  followupsNotInPlan: number;
+  /** Doctor and chemist calls on a route the day's plan doesn't list. */
+  offRouteCalls: number;
 }
 
 export interface DcrMonthDto extends DcrFiguresDto {

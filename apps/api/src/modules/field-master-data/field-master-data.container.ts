@@ -187,6 +187,7 @@ export function buildFieldMasterDataContainer(
       },
       getSampleAllocation: (doctorId, productId) => sampleAllocations.find(doctorId, productId),
       decrementRemaining: (allocationId, quantity, ctx) => sampleAllocations.decrementRemaining(allocationId, quantity, ctx),
+      restoreRemaining: (allocationId, quantity, ctx) => sampleAllocations.restoreRemaining(allocationId, quantity, ctx),
       getChemistLocation: async (id) => (await chemists.findById(id))?.location ?? null,
       getChemist: (id) => chemists.findById(id),
       getProduct: (id) => products.findById(id),

@@ -1,5 +1,5 @@
-import { AppError } from '@/shared/errors/AppError.js';
-import { parseBoolean, readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
+import { isFieldDay, type WorkingType } from '@greynote/contracts';
+import type { RecordRouteType } from '../domain/call.entity.js';
 import type { Doctor, Chemist } from '@/modules/field-master-data/field-master-data.public.js';
 import { LOG_CODES, LogRefusal } from '../domain/logRefusal.js';
 import type { PlanningPort } from '../domain/planning.port.js';
@@ -13,13 +13,19 @@ import type { UserDirectoryPort } from '../domain/userDirectory.port.js';
  * taken away — and the server's answer is authoritative. Each failure is a `LogRefusal` with the code the app
  * acts on.
  */
+/** The day's Plan as a record is stamped against it. */
+export interface DayContext {
+  workingType: WorkingType;
+  routeIds: string[];
+  doctorIds: string[];
+}
+
 export class CallChecks {
   constructor(
     private readonly master: FieldMasterDataPort,
     private readonly territory: TerritoryPort,
     private readonly users: UserDirectoryPort,
     private readonly planning: PlanningPort,
-    private readonly config: ConfigReader,
   ) {}
 
   /** An active Doctor the MR is still assigned to — and can still see, when visibility follows the Route. */
@@ -43,42 +49,30 @@ export class CallChecks {
   }
 
   /**
-   * A call stays inside the day's approved Plan: the Doctor's or Chemist's Route must be one the Plan lists. The report can't
-   * depart from the plan — the way to change the day is for the manager or Admin to amend the plan, then log. (A Plan with no
-   * Routes, a meeting day, has no calls.) The gate has already confirmed the Plan is approved.
+   * The day's approved Plan, for stamping a record. Only a field work or doctor campaign day has doctors and chemists to see: on a
+   * meeting, conference or strike day there is nothing to record. A day with no Plan row reads as plain field work (the gate has
+   * already confirmed an approved Plan, so this is only a gap in test data or old rows).
    */
-  async onPlannedRoute(userId: string, reportDate: string, routeId: string): Promise<void> {
+  async day(userId: string, reportDate: string): Promise<DayContext> {
     const day = await this.planning.getDailyPlanDay(userId, reportDate);
-    if (!day?.routeIds.includes(routeId)) {
-      throw new LogRefusal(LOG_CODES.routeNotInPlan, 'This call isn’t on a route in today’s approved plan. Ask your manager to amend the plan first.');
+    const workingType = day?.workingType ?? 'FIELD_WORK';
+    if (!isFieldDay(workingType)) {
+      throw new LogRefusal(LOG_CODES.callNotAllowedForWorkType, 'Today’s plan is not a field day, so there are no calls or follow-ups to record. Submit the report with your remarks.');
     }
+    return { workingType, routeIds: day?.routeIds ?? [], doctorIds: day?.doctorIds ?? [] };
+  }
+
+  /** The Route a Doctor or Chemist belongs to and its type (HQ / Ex-station / Out-station), and whether the day's plan lists that Route. */
+  async route(day: DayContext, routeId: string): Promise<{ routeId: string; routeType: RecordRouteType | null; routeNotInPlan: boolean }> {
+    return { routeId, routeType: (await this.territory.getRoute(routeId))?.routeType ?? null, routeNotInPlan: !day.routeIds.includes(routeId) };
   }
 
   /**
-   * A Doctor call against the day's Plan. A Doctor on the Plan's list (picked or carried over) is in plan, whatever their Route. When the
-   * Plan lists no Doctors at all (a day from before doctor lists, or none chosen) the Route rule above applies. Otherwise the Doctor is
-   * not in plan: allowed and flagged while `ALLOW_UNPLANNED_DOCTOR_CALLS` is on, refused when it is off.
+   * Whether a Doctor is "not in plan": not on the day's doctor list (picked or carried over). A plan with no doctor list at all (a day
+   * from before doctor lists) falls back to the Route, so every doctor on an unlisted Route is flagged. Flag only — never a refusal.
    */
-  async doctorInPlan(userId: string, reportDate: string, doctor: Doctor): Promise<{ notInPlan: boolean }> {
-    const day = await this.planning.getDailyPlanDay(userId, reportDate);
-    const listed = day?.doctorIds ?? [];
-    if (listed.includes(doctor.id)) return { notInPlan: false };
-    if (listed.length === 0) {
-      await this.onPlannedRoute(userId, reportDate, doctor.routeId);
-      return { notInPlan: false };
-    }
-    if (await this.allowUnplanned()) return { notInPlan: true };
-    throw new LogRefusal(LOG_CODES.routeNotInPlan, 'This doctor isn’t on today’s approved plan. Ask your manager to amend the plan first.');
-  }
-
-  /** Whether a Doctor outside the day's list may be called; a database not re-seeded yet reads as allowed. */
-  private async allowUnplanned(): Promise<boolean> {
-    try {
-      return await readConfig(this.config, 'ALLOW_UNPLANNED_DOCTOR_CALLS', parseBoolean);
-    } catch (err) {
-      if (err instanceof AppError && (err.details as { reason?: string } | undefined)?.reason === 'CONFIG_KEY_MISSING') return true;
-      throw err;
-    }
+  doctorNotInPlan(day: DayContext, doctorId: string, routeNotInPlan: boolean): boolean {
+    return day.doctorIds.length === 0 ? routeNotInPlan : !day.doctorIds.includes(doctorId);
   }
 
   /** Colleagues who worked with the MR: active employees, each once, never themselves. */

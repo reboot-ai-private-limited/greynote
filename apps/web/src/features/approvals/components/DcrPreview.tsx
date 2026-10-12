@@ -17,6 +17,9 @@ import {
   dcrCountsLabel,
   flaggedNotice,
   notInPlanNotice,
+  offPlanNotice,
+  ROUTE_TYPE_LABEL,
+  WORKING_TYPE_LABEL,
   hasDistanceFlag,
   splitExpenses,
   taDaNote,
@@ -80,6 +83,7 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
     ) : undefined;
   const notice = flaggedNotice(dcr);
   const unplanned = notInPlanNotice(dcr);
+  const offPlan = offPlanNotice(dcr);
   const { auto, manual } = splitExpenses(dcr.expenses);
   const note = taDaNote(dcr.status, dcr.expenses);
 
@@ -106,6 +110,21 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
           className="rounded-md border border-warning bg-warning-bg p-3 text-sm text-warning-fg"
         >
           {unplanned} Each is marked below.
+        </p>
+      ) : null}
+
+      {offPlan ? (
+        <p
+          role="status"
+          className="rounded-md border border-warning bg-warning-bg p-3 text-sm text-warning-fg"
+        >
+          {offPlan} Each is marked below.
+        </p>
+      ) : null}
+
+      {dcr.remarks ? (
+        <p className="rounded-md bg-surface-subtle px-3 py-2 text-sm text-text-muted">
+          Note for the day: “{dcr.remarks}”
         </p>
       ) : null}
 
@@ -138,7 +157,10 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
                   {f.subjectName || 'Unknown'}{' '}
                   <span className="font-normal text-text-subtle">
                     · {f.subject === 'DOCTOR' ? 'doctor' : 'chemist'}
-                  </span>
+                    {f.workingType ? ` · ${WORKING_TYPE_LABEL[f.workingType]}` : ''}
+                    {f.routeType ? ` · ${ROUTE_TYPE_LABEL[f.routeType]}` : ''}
+                  </span>{' '}
+                  {f.notInPlan ? <Badge tone="warning">Not in plan</Badge> : null}
                 </p>
                 <p className="mt-1 text-sm text-text-muted">{f.remarks}</p>
               </li>

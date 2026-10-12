@@ -8,7 +8,7 @@ What the field app must do for the Monthly Plan, and the rules the server enforc
 
 | # | Rule | Status |
 |---|---|---|
-| 1 | One Monthly Plan per employee per month: up to 31 day entries, each with a working type, routes, work-with people and remarks. | ✅ |
+| 1 | One Monthly Plan per employee per month: up to 31 day entries, each with a working type (`FIELD_WORK`, `DOCTOR_CAMPAIGN`, `MEETING`, `CONFERENCE`, `STRIKE`), routes, work-with people and remarks. Field work and doctor campaign need routes; the others have none. | ✅ |
 | 2 | **Deadline** for month *M* = the end of the business day of `MONTHLY_PLAN_SUBMIT_CUTOFF_DATE` (default the 28th) **of the month before**. | ✅ |
 | 3 | The business day follows the **global day start** (`DAY_START_TIME`, e.g. `02:00`) in `BUSINESS_TIMEZONE`. With `02:00`, the 28th ends at **01:59:59.999 on the 29th**, not at midnight. Never compute this on the phone — show `submitDeadline` from the server. | ✅ |
 | 4 | Save is free while the plan is a draft, and works **offline**. **Submit needs a live connection** (it is never queued). | ✅ |

@@ -8,6 +8,7 @@ import type { ListExpensesUseCase, MarkExpensePaidUseCase } from '../application
 import type { ExpenseMonthService } from '../application/usecases/expenseMonth.usecase.js';
 import type { ListExpensePayoutsUseCase, PayMonthExpensesUseCase } from '../application/usecases/expensePayouts.usecase.js';
 import type { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase } from '../application/usecases/servicesAndGifts.usecase.js';
+import type { DeleteDcrRecordUseCase } from '../application/usecases/deleteDcrRecord.usecase.js';
 import type { OverrideGeofenceUseCase } from '../application/usecases/overrideGeofence.usecase.js';
 import type { GetDcrDetailUseCase } from '../application/usecases/getDcrDetail.usecase.js';
 import type { Actor, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCase } from '../application/usecases/readDcrs.usecase.js';
@@ -19,7 +20,7 @@ function actorOf(req: Request): Actor {
   return { id: req.user.sub, role: req.user.role };
 }
 
-export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'createAdminService' | 'listServices' | 'getService' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth', RequestHandler>;
+export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'deleteCall' | 'deleteFollowup' | 'createAdminService' | 'listServices' | 'getService' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth', RequestHandler>;
 
 export function makeFieldActivityControllers(u: {
   listMine: ListMyDcrsUseCase;
@@ -27,6 +28,7 @@ export function makeFieldActivityControllers(u: {
   listTeam: ListTeamDcrsUseCase;
   get: GetDcrDetailUseCase;
   override: OverrideGeofenceUseCase;
+  deleteRecord: DeleteDcrRecordUseCase;
   adminService: CreateAdminDoctorServiceUseCase;
   listServices: ListDoctorServicesUseCase;
   getService: GetDoctorServiceUseCase;
@@ -58,6 +60,14 @@ export function makeFieldActivityControllers(u: {
       const { comment } = req.body as z.output<typeof overrideBodySchema>;
       const call = await u.override.execute(actorOf(req), requiredParam(req.params, 'id'), requiredParam(req.params, 'callId'), comment);
       sendSuccess(req, res, { id: call.id, geofence: call.geofence }, 'The call was accepted.', 200);
+    }),
+    deleteCall: asyncHandler(async (req, res) => {
+      await u.deleteRecord.deleteCall(actorOf(req).id, requiredParam(req.params, 'id'), requiredParam(req.params, 'callId'));
+      sendSuccess(req, res, null, 'The call was removed from today’s report.', 200);
+    }),
+    deleteFollowup: asyncHandler(async (req, res) => {
+      await u.deleteRecord.deleteFollowup(actorOf(req).id, requiredParam(req.params, 'id'), requiredParam(req.params, 'callId'));
+      sendSuccess(req, res, null, 'The follow-up was removed from today’s report.', 200);
     }),
     createAdminService: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.adminService.execute(actorOf(req).id, req.body as z.output<typeof doctorServiceFieldsSchema>), 'The service was recorded.', 201),

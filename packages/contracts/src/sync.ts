@@ -87,14 +87,17 @@ export type NewDoctorSyncRecord = SyncRecord<'NEW_DOCTOR', NewDoctorPayload>;
 
 // ---- The day's records (Field Activity) --------------------------------------------------------
 
-/** A Doctor Call (`DOCTOR_CALL`). The phone's own geofence result isn't sent: the server computes it. */
+/**
+ * A Doctor Call (`DOCTOR_CALL`). The phone's own geofence result isn't sent: the server computes it, and refuses the call
+ * (`NOT_AT_LOCATION`) unless the MR is within the radius of the doctor. The work type is not sent either: the server stamps the
+ * day's plan type and the doctor's route type.
+ */
 export interface DoctorCallPayload {
   reportDate: string;
   doctorId: string;
-  workingType: WorkingType;
   workWith: string[];
   remarks?: string | null;
-  /** The phone's GPS at the call; `null` if it got no reading at all (the check is then `UNVERIFIED`). */
+  /** The phone's GPS at the call; `null` if it got no reading at all (the server then refuses the call). */
   capturedLocation: GeoPoint | null;
   /** The phone's reported accuracy for that reading, in meters. */
   accuracyMeters?: number | null;
@@ -105,15 +108,26 @@ export interface DoctorCallPayload {
 /** A Chemist Call (`CHEMIST_CALL`) — the same, without samples. */
 export type ChemistCallPayload = Omit<DoctorCallPayload, 'doctorId' | 'samples'> & { chemistId: string };
 
+/** A follow-up (`DOCTOR_FOLLOWUP`, `CHEMIST_FOLLOWUP`): the name and remarks, recorded where the MR is — the same location rule as a call. */
 export interface DoctorFollowupPayload {
   reportDate: string;
   doctorId: string;
   remarks: string;
+  capturedLocation: GeoPoint | null;
+  accuracyMeters?: number | null;
 }
 export interface ChemistFollowupPayload {
   reportDate: string;
   chemistId: string;
   remarks: string;
+  capturedLocation: GeoPoint | null;
+  accuracyMeters?: number | null;
+}
+
+/** The final submit of the day (`DCR_SUBMIT`). `remarks` is required on a meeting or conference day, optional otherwise. */
+export interface DcrSubmitPayload {
+  reportDate: string;
+  remarks?: string | null;
 }
 
 /** What an MR may claim by hand; TA and DA are the server's to compute and are never sent. */
@@ -162,7 +176,9 @@ export const DCR_REFUSAL_CODES = [
   'DOCTOR_NOT_ASSIGNED',
   'CHEMIST_NOT_FOUND',
   'CHEMIST_ROUTE_NOT_ASSIGNED',
-  'ROUTE_NOT_IN_PLAN',
+  'NOT_AT_LOCATION',
+  'CALL_NOT_ALLOWED_FOR_WORK_TYPE',
+  'REMARKS_REQUIRED',
   'INVALID_WORK_WITH',
   'NO_SAMPLE_ALLOCATION',
   'SAMPLES_EXHAUSTED',
@@ -367,8 +383,10 @@ export interface FieldActivitySnapshot {
 
 export const PLAN_STATUSES = ['DRAFT', 'SUBMITTED', 'MANAGER_APPROVED', 'APPROVED', 'REJECTED', 'WITHDRAWN', 'REOPENED'] as const;
 export type PlanStatus = (typeof PLAN_STATUSES)[number];
-export const WORKING_TYPES = ['FIELD_WORK', 'MEETING', 'CONFERENCE', 'STRIKE'] as const;
+export const WORKING_TYPES = ['FIELD_WORK', 'DOCTOR_CAMPAIGN', 'MEETING', 'CONFERENCE', 'STRIKE'] as const;
 export type WorkingType = (typeof WORKING_TYPES)[number];
+/** The days that go to doctors and chemists: they have Routes and calls. A campaign pays DA but no TA. */
+export const isFieldDay = (t: WorkingType): boolean => t === 'FIELD_WORK' || t === 'DOCTOR_CAMPAIGN';
 
 export interface PlanningSnapshot {
   /** Today's date in the business timezone. */

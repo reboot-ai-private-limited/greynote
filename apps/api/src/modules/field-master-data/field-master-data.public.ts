@@ -74,4 +74,6 @@ export interface FieldMasterDataPublicContract {
    * Pass the caller's transaction `ctx` to make it part of the Dr Call's write.
    */
   decrementRemaining(allocationId: string, quantity: number, ctx?: TransactionContext): Promise<boolean>;
+  /** Gives `quantity` back to an allocation (a Dr Call deleted before the daily report was submitted). */
+  restoreRemaining(allocationId: string, quantity: number, ctx?: TransactionContext): Promise<void>;
 }

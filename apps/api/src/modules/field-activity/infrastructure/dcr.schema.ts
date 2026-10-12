@@ -3,6 +3,7 @@ import { Schema, model, type Types } from 'mongoose';
 export interface DcrDoc {
   userId: Types.ObjectId;
   reportDate: string;
+  remarks?: string | null;
   createdAt: Date;
 }
 
@@ -10,6 +11,7 @@ const dcrSchema = new Schema<DcrDoc>({
   userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   // A calendar day as `YYYY-MM-DD` — sorts as a string, and isn't an instant.
   reportDate: { type: String, required: true },
+  remarks: { type: String, default: null },
   createdAt: { type: Date, required: true },
 });
 

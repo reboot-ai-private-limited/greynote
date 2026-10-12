@@ -1,4 +1,4 @@
-import type { WorkingType } from '@greynote/contracts';
+import { isFieldDay, type WorkingType } from '@greynote/contracts';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { ApprovalStatus } from '@/modules/approval/approval.public.js';
 import type { DcrRepositoryPort } from '../../domain/dcr.repository.port.js';
@@ -57,7 +57,7 @@ export class TaDaLifecycle {
     // No Plan for the day, nothing to compute from: a gap for the Accountant's audit, not a number to invent.
     const day = await this.planning.getDailyPlanDay(dcr.userId, dcr.reportDate);
     if (!day) return;
-    const routes = day.workingType === 'FIELD_WORK' ? await Promise.all(day.routeIds.map((id) => this.territory.getRoute(id))) : [];
+    const routes = isFieldDay(day.workingType as WorkingType) ? await Promise.all(day.routeIds.map((id) => this.territory.getRoute(id))) : [];
     const rows = calculateTaDa(day.workingType as WorkingType, routes, day.routeIds, await this.users.getPayBandRates(dcr.userId), await readConfig(this.config, 'TA_MAX_KM', parsePositiveInt(5000)));
     for (const row of rows) {
       await this.expenses.create(

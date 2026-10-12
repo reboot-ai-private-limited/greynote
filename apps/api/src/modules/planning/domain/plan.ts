@@ -1,6 +1,8 @@
 /** What a planned day is for (ERD Module 5). */
-export const WORKING_TYPES = ['FIELD_WORK', 'MEETING', 'CONFERENCE', 'STRIKE'] as const;
+export const WORKING_TYPES = ['FIELD_WORK', 'DOCTOR_CAMPAIGN', 'MEETING', 'CONFERENCE', 'STRIKE'] as const;
 export type WorkingType = (typeof WORKING_TYPES)[number];
+/** Field work and a doctor campaign are the days that go to doctors and chemists: they have Routes and doctors. */
+export const isFieldDay = (t: WorkingType): boolean => t === 'FIELD_WORK' || t === 'DOCTOR_CAMPAIGN';
 
 /**
  * Where a Daily Plan's body came from. `MONTHLY`: written from an approved Monthly Plan's entry, so the owner can't edit it —

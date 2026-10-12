@@ -41,7 +41,7 @@ describe('summarizing the daily reports', () => {
     w.followup(a.id, 'u1', '2026-10-05');
     w.doctorCall(b.id, 'u1', '2026-10-06', 'd3', 'OVERRIDE', true);
     const [s] = await w.summarize.execute(range);
-    expect(s).toEqual({ userId: 'u1', month: '2026-10', reportedDays: 2, lateDays: 0, doctorCalls: 3, chemistCalls: 1, followups: 1, geofence: { pass: 1, fail: 1, unverified: 1, override: 1 }, notInPlan: 1 });
+    expect(s).toEqual({ userId: 'u1', month: '2026-10', reportedDays: 2, lateDays: 0, doctorCalls: 3, chemistCalls: 1, followups: 1, geofence: { pass: 1, fail: 1, unverified: 1, override: 1 }, notInPlan: 1, followupsNotInPlan: 0, offRouteCalls: 0 });
   });
 
   it('leaves out a day that is only a draft, rejected or withdrawn, together with its calls', async () => {

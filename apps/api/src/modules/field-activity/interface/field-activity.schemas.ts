@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { WORKING_TYPES } from '@greynote/contracts';
 import { paiseSchema } from '@/shared/money/paise.js';
 import { MANUAL_EXPENSE_TYPES } from '../domain/expense.entity.js';
 import { DOCTOR_SERVICE_TYPES } from '../domain/serviceGift.entity.js';
@@ -23,20 +22,22 @@ export const listDcrsQuerySchema = rangeRules(z.object({ ...rangeFields, userId:
 export const listTeamDcrsQuerySchema = rangeRules(z.object({ ...rangeFields, userId: objectIdSchema.optional() }));
 
 /** The payload of a `DCR_SUBMIT` sync record. */
-export const dcrSubmitPayloadSchema = z.object({ reportDate: calendarDateSchema });
+export const dcrSubmitPayloadSchema = z.object({ reportDate: calendarDateSchema, remarks: z.string().trim().max(1000).nullish().transform((v) => v || null) });
 
 // ---- Payloads of the day's records (sync kinds) ------------------------------------------------
 
 const locationSchema = z.object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) });
 const remarksSchema = z.string().trim().max(1000).nullish().transform((v) => v || null);
-const callFields = {
-  reportDate: calendarDateSchema,
-  workingType: z.enum(WORKING_TYPES),
-  workWith: z.array(objectIdSchema).max(20).default([]),
-  remarks: remarksSchema,
-  /** The phone's GPS at the call; `null` if it got no reading. Its own geofence result is not sent — the server computes it. */
+/** The phone's GPS at the record; `null` if it got no reading (the server then refuses it). Its own geofence result is not sent — the server computes it. The work type is not sent either: the server stamps the day's. */
+const gpsFields = {
   capturedLocation: locationSchema.nullable(),
   accuracyMeters: z.number().min(0).max(100_000).nullish().transform((v) => v ?? null),
+};
+const callFields = {
+  reportDate: calendarDateSchema,
+  workWith: z.array(objectIdSchema).max(20).default([]),
+  remarks: remarksSchema,
+  ...gpsFields,
 };
 
 export const doctorCallPayloadSchema = z
@@ -47,8 +48,8 @@ export const doctorCallPayloadSchema = z
   })
   .refine((c) => new Set(c.samples.map((s) => s.productId)).size === c.samples.length, { message: 'A product is listed twice — give it one line.', path: ['samples'] });
 export const chemistCallPayloadSchema = z.object({ ...callFields, chemistId: objectIdSchema });
-export const doctorFollowupPayloadSchema = z.object({ reportDate: calendarDateSchema, doctorId: objectIdSchema, remarks: z.string().trim().min(1, 'Remarks are required.').max(1000) });
-export const chemistFollowupPayloadSchema = z.object({ reportDate: calendarDateSchema, chemistId: objectIdSchema, remarks: z.string().trim().min(1, 'Remarks are required.').max(1000) });
+export const doctorFollowupPayloadSchema = z.object({ reportDate: calendarDateSchema, doctorId: objectIdSchema, remarks: z.string().trim().min(1, 'Remarks are required.').max(1000), ...gpsFields });
+export const chemistFollowupPayloadSchema = z.object({ reportDate: calendarDateSchema, chemistId: objectIdSchema, remarks: z.string().trim().min(1, 'Remarks are required.').max(1000), ...gpsFields });
 
 /** A manual expense: an MR-claimed TRAVEL, MEAL or MISC amount in whole paise. TA and DA are computed by the server, never sent. */
 export const expensePayloadSchema = z.object({

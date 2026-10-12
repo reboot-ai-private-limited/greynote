@@ -871,7 +871,7 @@ Decision-log 2026-10-10, B14: the MR picks the day's doctors (count = calls due)
 
 ## Calls outside the day's plan (2026-10-10)
 
-Decision-log 2026-10-10, B15: `ALLOW_UNPLANNED_DOCTOR_CALLS` (default on) lets a call to a doctor not on the day's doctor list be saved and flagged "Not in plan" (approval preview badge, DCR report column/tile/CSV); off refuses it. **Done:** API (`doctorInPlan` check, `notInPlan` on the call, report counts; tests pass) and web. **Open:** the phone's picker; seed the setting; browser check.
+Decision-log 2026-10-10, B15 (setting removed 2026-10-12, calls are now always flagged, see below): `ALLOW_UNPLANNED_DOCTOR_CALLS` (default on) lets a call to a doctor not on the day's doctor list be saved and flagged "Not in plan" (approval preview badge, DCR report column/tile/CSV); off refuses it. **Done:** API (`doctorInPlan` check, `notInPlan` on the call, report counts; tests pass) and web. **Open:** the phone's picker; seed the setting; browser check.
 
 ## Monthly plan rules and Work With (2026-10-12)
 
@@ -880,3 +880,7 @@ Decision-log 2026-10-12; mobile contract in [`mobile/monthlyplan.md`](mobile/mon
 ## Daily Plan revisit (2026-10-12)
 
 Decision-log 2026-10-12; mobile contract in [`mobile/dailyplan.md`](mobile/dailyplan.md). **Done (API + web, unit-tested):** the employee edits only the day's doctors (`POST /planning/daily` removed); a Daily Plan's late-submit exception ends at the latest at the end of its day; the missed-DCR check runs inside the server every 15 minutes; Admin or a manager above the employee unblocks, with a required reason, kept with who and in what role (block history on the employee page); the employee's "request a change" is removed (`migrate:drop-plan-changes`, **written, not run**). **Open:** run `migrate:drop-plan-changes`; set `DCR_MISS_GRACE_DAYS` to `0` in Admin → Settings; the phone app (another team's) still calls the removed endpoints; the unblock action for managers is API-only (no web screen for non-Admin managers yet); not browser-checked.
+
+## Calls redesign (2026-10-12)
+
+Decision-log 2026-10-12, sign-off K40: all four records (doctor/chemist call and follow-up) need GPS within the radius or are refused `NOT_AT_LOCATION`; the server stamps work type and route type (HQ / Ex / Out); plan differences are flags (`notInPlan`, `routeNotInPlan`), `ALLOW_UNPLANNED_DOCTOR_CALLS` removed; new work type `DOCTOR_CAMPAIGN` (DA, no TA); Meeting/Conference/Strike days have no calls but still submit a report (note required for Meeting/Conference); a call or follow-up can be removed before the final submit. API, web, tests (API 1211, web 724) and `docs/mobile/dcr.md` done; **open:** phone app changes, browser check, Admin to set missing doctor/chemist locations. Uncommitted.

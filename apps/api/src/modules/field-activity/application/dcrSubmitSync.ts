@@ -12,19 +12,22 @@ export const DCR_SUBMIT_SYNC_CODES = { invalidPayload: 'INVALID_PAYLOAD' } as co
  * day, so the sync engine only reaches it when they all applied. `parse` validates the payload (`{ reportDate }`);
  * a gate refusal becomes that record's reason with the gate's own code, so the phone can say exactly why.
  */
-export function makeDcrSubmitSyncHandler(submit: SubmitDcrUseCase, parse: (payload: unknown) => { reportDate: string }): SyncHandlerDefinition {
+export function makeDcrSubmitSyncHandler(submit: SubmitDcrUseCase, parse: (payload: unknown) => { reportDate: string; remarks?: string | null }): SyncHandlerDefinition {
   return {
     kind: DCR_SUBMIT_SYNC_KIND,
     async apply({ userId, clientCreatedAt, payload }, ctx) {
       let reportDate: string;
+      let remarks: string | null;
       try {
-        reportDate = parse(payload).reportDate;
+        const parsed = parse(payload);
+        reportDate = parsed.reportDate;
+        remarks = parsed.remarks ?? null;
       } catch (err) {
         const issue = (err as { issues?: Array<{ path: Array<string | number>; message: string }> }).issues?.[0];
         throw new SyncRejection(DCR_SUBMIT_SYNC_CODES.invalidPayload, issue ? `${issue.path.join('.') || 'The report'}: ${issue.message}` : 'The report’s details are not valid.');
       }
       try {
-        const { dcrId } = await submit.execute(userId, reportDate, clientCreatedAt, ctx);
+        const { dcrId } = await submit.execute(userId, reportDate, clientCreatedAt, ctx, remarks);
         return { serverId: dcrId };
       } catch (err) {
         if (err instanceof GateRefusal) throw new SyncRejection(err.code, err.message);

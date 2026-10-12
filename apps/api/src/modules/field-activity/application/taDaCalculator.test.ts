@@ -32,6 +32,12 @@ describe('TA/DA calculation (hld/06)', () => {
     expect(calc('FIELD_WORK', [route('a', { routeType: 'EX_STATION' }), route('b')], ['a', 'b'], rates).find((x) => x.type === 'DA')!.amountPaise).toBe(20000);
   });
 
+  it('DOCTOR_CAMPAIGN: no TA at all, whatever the distance; DA at the highest Route type like field work', () => {
+    const routes = [route('r1', { routeType: 'EX_STATION', distanceKm: '40.00' }), route('r2', { routeType: 'OUT_STATION', distanceKm: '80.00' })];
+    expect(calc('DOCTOR_CAMPAIGN', routes, ['r1', 'r2'], rates)).toEqual([{ type: 'DA', routeId: null, amountPaise: 50000, distanceFlag: false }]);
+    expect(calc('DOCTOR_CAMPAIGN', [route('r1', { routeType: 'HQ' })], ['r1'], rates)).toEqual([]); // an HQ day at a ₹0 HQ rate writes nothing
+  });
+
   it('MEETING and CONFERENCE: DA at the HQ rate only, no TA; a ₹0 HQ rate writes nothing', () => {
     expect(calc('MEETING', [], [], { ...rates, hqDaPaise: 15000 })).toEqual([{ type: 'DA', routeId: null, amountPaise: 15000, distanceFlag: false }]);
     expect(calc('CONFERENCE', [], [], { ...rates, hqDaPaise: 15000 }).map((x) => x.type)).toEqual(['DA']);

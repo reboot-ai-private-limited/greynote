@@ -33,6 +33,9 @@ const call = (id: string, g: GeofenceOutcomeDto, samples: DoctorCallDto['samples
   userId: 'u',
   reportDate: '2026-10-05',
   workingType: 'FIELD_WORK',
+  routeId: 'r',
+  routeType: 'HQ',
+  routeNotInPlan: false,
   workWith: [],
   remarks: null,
   capturedLocation: null,
@@ -141,7 +144,7 @@ describe('day at a glance', () => {
   const dcr = {
     doctorCalls: [call('a', geo(), [{ allocationId: 'x', productId: 'p', productName: 'Vit C', quantity: 3 }, { allocationId: 'y', productId: 'q', productName: 'Zinc', quantity: 2 }]), call('b', geo())],
     chemistCalls: [],
-    followups: [{ id: 'f', subject: 'DOCTOR' as const, subjectId: 'd', subjectName: 'Dr Rao', remarks: 'x', recordedAt: '' }],
+    followups: [{ id: 'f', subject: 'DOCTOR' as const, subjectId: 'd', subjectName: 'Dr Rao', remarks: 'x', workingType: 'FIELD_WORK' as const, routeId: 'r', routeType: 'HQ' as const, notInPlan: false, geofence: null, recordedAt: '' }],
   } satisfies Pick<DcrDetailDto, 'doctorCalls' | 'chemistCalls' | 'followups'>;
   it('counts calls, follow-ups and samples given', () => {
     expect(dcrCounts(dcr)).toEqual({ doctorCalls: 2, chemistCalls: 0, followups: 1, samples: 5 });

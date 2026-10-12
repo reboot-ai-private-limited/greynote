@@ -96,7 +96,9 @@ can't be trusted either way: the Doctor or Chemist has no registered location, o
 accuracy is worse than `GEO_MAX_ACCURACY_METERS`. The manager sees it like a `FAIL`. The radius,
 `GEO_FENCE_RADIUS_METERS`, is SystemConfig. Detail: [`../LLD/sync.md`](../LLD/sync.md).
 
-### 2.3 Design decision: FAIL flags, doesn't block
+### 2.3 Design decision: FAIL flags, doesn't block — **superseded 2026-10-12**
+
+> **Superseded.** The client now wants a call recorded only where the doctor or chemist is: the server refuses a `FAIL`, an `UNVERIFIED` (no GPS, weak GPS, no registered location) with `NOT_AT_LOCATION`, for all four records (doctor/chemist call and follow-up). See decision-log 2026-10-12, *Calls redesign*, and `docs/mobile/dcr.md`. The text below is the original reasoning, kept for history.
 
 A geofence `FAIL` does **not** prevent the MR from submitting the call. The call saves normally with `geofence_status = FAIL` attached, and that flag is visible to the **Nearest Manager** during the same DCR approval review described in PRD §7.3 — the manager sees it alongside the call's remarks and decides whether to approve or reject, exactly like any other judgment call in that review. This was a deliberate choice over a hard block: GPS drift, weak rural signal, or a doctor's clinic having moved slightly are all real-world cases where blocking submission would stop legitimate field work, whereas flagging preserves the audit trail without punishing the MR for something outside their control.
 

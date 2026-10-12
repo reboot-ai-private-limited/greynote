@@ -27,23 +27,22 @@ describe('the day’s records against the shared contract', () => {
   });
 
   it('the server accepts every payload exactly as the contract types it', () => {
-    const doctorCall: DoctorCallPayload = { reportDate: DAY, doctorId: oid('a'), workingType: 'FIELD_WORK', workWith: [oid('b')], capturedLocation: gps, accuracyMeters: 12, samples: [{ productId: oid('c'), quantity: 2 }] };
+    const doctorCall: DoctorCallPayload = { reportDate: DAY, doctorId: oid('a'), workWith: [oid('b')], capturedLocation: gps, accuracyMeters: 12, samples: [{ productId: oid('c'), quantity: 2 }] };
     expect(doctorCallPayloadSchema.parse(doctorCall)).toMatchObject({ doctorId: oid('a'), samples: [{ quantity: 2 }], remarks: null });
-    const minimal: DoctorCallPayload = { reportDate: DAY, doctorId: oid('a'), workingType: 'MEETING', workWith: [], capturedLocation: null };
+    const minimal: DoctorCallPayload = { reportDate: DAY, doctorId: oid('a'), workWith: [], capturedLocation: null };
     expect(doctorCallPayloadSchema.parse(minimal)).toMatchObject({ capturedLocation: null, accuracyMeters: null, samples: [] });
-    const chemistCall: ChemistCallPayload = { reportDate: DAY, chemistId: oid('d'), workingType: 'FIELD_WORK', workWith: [], capturedLocation: gps };
+    const chemistCall: ChemistCallPayload = { reportDate: DAY, chemistId: oid('d'), workWith: [], capturedLocation: gps };
     expect(chemistCallPayloadSchema.parse(chemistCall).chemistId).toBe(oid('d'));
-    const df: DoctorFollowupPayload = { reportDate: DAY, doctorId: oid('a'), remarks: 'call again' };
-    const cf: ChemistFollowupPayload = { reportDate: DAY, chemistId: oid('d'), remarks: 'restock' };
+    const df: DoctorFollowupPayload = { reportDate: DAY, doctorId: oid('a'), remarks: 'call again', capturedLocation: gps };
+    const cf: ChemistFollowupPayload = { reportDate: DAY, chemistId: oid('d'), remarks: 'restock', capturedLocation: gps };
     expect(doctorFollowupPayloadSchema.parse(df).remarks).toBe('call again');
     expect(chemistFollowupPayloadSchema.parse(cf).remarks).toBe('restock');
   });
 
   it('and refuses a malformed one: bad ids, out-of-range GPS, a repeated sample product, empty follow-up remarks', () => {
-    const ok = { reportDate: DAY, doctorId: oid('a'), workingType: 'FIELD_WORK', workWith: [], capturedLocation: gps };
+    const ok = { reportDate: DAY, doctorId: oid('a'), workWith: [], capturedLocation: gps };
     for (const bad of [
       { ...ok, doctorId: 'x' },
-      { ...ok, workingType: 'PICNIC' },
       { ...ok, capturedLocation: { latitude: 91, longitude: 0 } },
       { ...ok, samples: [{ productId: oid('c'), quantity: 0 }] },
       { ...ok, samples: [{ productId: oid('c'), quantity: 1.5 }] },
@@ -85,7 +84,7 @@ describe('the call handlers', () => {
     });
   });
 
-  const doctorPayload = { reportDate: DAY, doctorId: 'd1', workingType: 'FIELD_WORK', workWith: [] as string[], capturedLocation: gps };
+  const doctorPayload = { reportDate: DAY, doctorId: 'd1', workWith: [] as string[], capturedLocation: gps };
 
   it('registers the four kinds', () => {
     expect(handlers.map((h) => h.kind).sort()).toEqual(['CHEMIST_CALL', 'CHEMIST_FOLLOWUP', 'DOCTOR_CALL', 'DOCTOR_FOLLOWUP']);
