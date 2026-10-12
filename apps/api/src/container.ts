@@ -5,6 +5,8 @@ import { buildFieldActivityContainer } from '@/modules/field-activity/field-acti
 import { buildFieldMasterDataContainer } from '@/modules/field-master-data/field-master-data.container.js';
 import { buildHealthContainer } from '@/modules/health/health.container.js';
 import { buildHrContainer } from '@/modules/hr/hr.container.js';
+import { buildDocumentsContainer } from '@/modules/documents/documents.container.js';
+import { buildTeamContainer } from '@/modules/team/team.container.js';
 import { buildInboxContainer } from '@/modules/inbox/inbox.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
 import { buildMarketingContainer } from '@/modules/marketing/marketing.container.js';
@@ -25,6 +27,8 @@ export interface AppContainers {
   planning: ReturnType<typeof buildPlanningContainer>;
   hr: ReturnType<typeof buildHrContainer>;
   inbox: ReturnType<typeof buildInboxContainer>;
+  team: ReturnType<typeof buildTeamContainer>;
+  documents: ReturnType<typeof buildDocumentsContainer>;
   sync: ReturnType<typeof buildSyncContainer>;
   fieldActivity: ReturnType<typeof buildFieldActivityContainer>;
   fieldMasterData: ReturnType<typeof buildFieldMasterDataContainer>;
@@ -73,6 +77,9 @@ export function buildContainers(): AppContainers {
   // Tier 3 — Inbox: messages an Admin sends to an audience. Resolves it against Identity (who, in which role, HQ and Zone) and checks Zones and HQs with Territory.
   const inbox = buildInboxContainer(identity.contract, territory.contract);
 
+  // Tier 3 — Documents: the library of files an Admin shares with everyone or with named employees. Checks the named people with Identity.
+  const documents = buildDocumentsContainer(identity.contract);
+
   // Tier 3 — Field Master Data: employees and their downline (Identity), the Routes Doctors and Chemists sit on and an MR covers (Territory), the NEW_DOCTOR workflow
   // (Approval), the daily report's push, where an offline-added Doctor arrives (Sync), and the visibility
   // and auto-assign switches (Config).
@@ -102,9 +109,12 @@ export function buildContainers(): AppContainers {
   // Tier 7 — Reports: read-only reports for the Admin, over Sales, Field Master Data and Identity. Owns no data.
   const reports = buildReportsContainer(identity.contract, fieldMasterData.contract, sales.contract, fieldActivity.contract, territory.contract, payroll.contract, planning.contract, attendance.contract, marketing.contract, config.contract);
 
+  // Tier 7 — Team: a manager's view of their downline. Reads Identity, Territory, Planning, Field Activity, HR, Config, Reports, Sales and Field Master Data; owns no data.
+  const team = buildTeamContainer(identity.contract, territory.contract, planning.contract, fieldActivity.contract, hr.contract, config.contract, reports.contract, sales.contract, fieldMasterData.contract, approval.contract, inbox.contract, identity.contract);
+
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
-  return { health, config, identity, territory, approval, planning, hr, inbox, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance, reports };
+  return { health, config, identity, territory, approval, planning, hr, inbox, team, documents, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance, reports };
 }

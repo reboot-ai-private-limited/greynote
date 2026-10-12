@@ -1,4 +1,5 @@
 import { readBusinessDay, readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
+import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import { assertTimeZone, businessDate, dayStartInstant, parseCalendarMonth } from '@/shared/time/businessTime.js';
 
 /** "Today" and "the day an instant falls on" in the business timezone, read from Config on every call. `now` is injectable for tests. */
@@ -13,6 +14,11 @@ export class DcrClock {
       assertTimeZone(v);
       return v;
     });
+  }
+
+  /** A day inside a financial year an Admin has closed takes no more daily work. */
+  assertDayOpen(date: string): Promise<void> {
+    return assertFinancialYearOpen(this.config, date, 'This day');
   }
 
   async today(): Promise<string> {

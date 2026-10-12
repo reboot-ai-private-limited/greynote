@@ -177,6 +177,8 @@ lines a month at a time (a twelfth each, half up; a visible *Rounding* line if t
 contributions are left off), the unpaid-leave deduction and the net. It prints, or saves as a PDF from the print dialog; a draft is marked
 "not final". No new endpoint: it is drawn from the run.
 
+**Employee's own payslips (2026-10-12).** `GET /api/payroll/me?fromMonth&toMonth` (`FIELD` only, no user id) returns the caller's **finalized** runs for the financial year in view (`scopeToFinancialYear`, so an older year is reached with `X-Financial-Year`), each as `{ id, month, finalizedAt, slip }`. `payslipOf` moved to `packages/contracts` so the portal, the API and the phone draw the same slip. This replaces the earlier note that a field-employee payslip view was not specified.
+
 ## Absent days (2026-10-07)
 
 An absent day costs a day's pay, like an unpaid-leave day (decision-log 2026-10-06, sign-off K20, K26). Payroll asks the **Attendance** module

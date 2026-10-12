@@ -18,6 +18,10 @@ const UNKNOWN = '(removed)';
 
 export interface SalesDashboardInput {
   actor: { id: string; role: string };
+  /** A manager's level: direct reports, deeper people, or both (default). Admin sees everyone either way. */
+  scope?: 'direct' | 'indirect' | 'all' | undefined;
+  /** One person only. A manager must have them in their downline (403 otherwise). */
+  userId?: string | undefined;
   from: string;
   to: string;
   search?: string | undefined;
@@ -57,7 +61,7 @@ export class SalesDashboardReport {
     const dates = from <= to ? eachDate(from, to) : [];
     if (dates.length > SALES_DASHBOARD_MAX_DAYS) throw AppError.badRequest(`Pick at most ${SALES_DASHBOARD_MAX_DAYS} days.`);
 
-    const people = await this.audience(input.actor);
+    const people = await this.audience(input.actor, input.scope ?? 'all', input.userId);
     const needle = input.search?.toLowerCase();
     const matching = needle ? people.filter((p) => p.name.toLowerCase().includes(needle) || p.employeeCode.toLowerCase().includes(needle)) : people;
     const ids = matching.map((p) => p.id);
@@ -144,13 +148,21 @@ export class SalesDashboardReport {
     return { from, to, fromMonth, toMonth, rows, totals, page: input.page, pageSize: input.pageSize, total: matching.length, totalPages: pageCount };
   }
 
-  /** Who the reader may see: every active field employee for Admin; a manager's downline (not themselves); a field employee with no team, nobody. */
-  private async audience(actor: { id: string; role: string }) {
-    if (actor.role === 'ADMIN') return this.identity.listFieldEmployees();
+  /**
+   * Who the reader may see: every active field employee for Admin; a manager's downline at the chosen level (not themselves); a field employee
+   * with no team, nobody. `userId` narrows it to one person, who must be in a manager's downline whatever the level.
+   */
+  private async audience(actor: { id: string; role: string }, scope: 'direct' | 'indirect' | 'all', userId?: string) {
+    if (actor.role === 'ADMIN') return this.identity.listFieldEmployees(userId ? [userId] : undefined);
     if (actor.role !== 'FIELD') throw AppError.forbidden();
     const downline = await this.identity.getDownline(actor.id);
     if (downline.length === 0) throw AppError.forbidden('The Sales Dashboard is for managers and Admin.');
-    return this.identity.listFieldEmployees(downline.map((d) => d.id));
+    if (userId) {
+      if (!downline.some((d) => d.id === userId)) throw AppError.forbidden('That employee is not in your team.');
+      return this.identity.listFieldEmployees([userId]);
+    }
+    const level = downline.filter((d) => scope === 'all' || (scope === 'direct' ? (d.depth ?? 1) === 1 : (d.depth ?? 1) > 1));
+    return this.identity.listFieldEmployees(level.map((d) => d.id));
   }
 
   /** The dates among `dates` that were working days for this employee, from their attendance months. */

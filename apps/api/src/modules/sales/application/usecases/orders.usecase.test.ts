@@ -84,6 +84,13 @@ describe('orders', () => {
     expect(await code(place.execute(mr1, order({ orderDate: '2026-10-01' })))).toBe(STOCK_CODES.orderDateInFuture);
   });
 
+  it('refuses an order dated inside a closed financial year, writing nothing', async () => {
+    const master = new FakeMaster();
+    const closed = new PlaceOrderUseCase(new OutletAccess(master), master, orders, new SalesClock({ get: async (k: string) => (k === 'FY_CLOSED_YEARS' ? '2025' : config.get(k)) }, () => now));
+    await expect(closed.execute(mr1, order({ orderDate: '2025-08-01' }))).rejects.toMatchObject({ statusCode: 409, publicDetails: { code: 'FY_CLOSED' } });
+    expect(orders.rows).toEqual([]);
+  });
+
   it('refuses another MR’s outlet, an unknown or inactive product, and a runaway amount — writing nothing', async () => {
     expect(await code(place.execute(mr1, order({ outlet: { type: 'CHEMIST', id: 'chem2' } })))).toBe(STOCK_CODES.outletNotYours);
     expect(await code(place.execute(mr1, order({ lines: [{ productId: 'bad', quantity: 1, unitPricePaise: 1 }] })))).toBe(STOCK_CODES.productNotFound);

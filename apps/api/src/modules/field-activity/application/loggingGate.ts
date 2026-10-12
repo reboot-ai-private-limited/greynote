@@ -43,6 +43,7 @@ export class LoggingGate {
 
   /** The gate without touching the DCR — for the checks that don't need the envelope. */
   async assertMayAct(userId: string, reportDate: string, recordedAt: Date): Promise<void> {
+    await this.clock.assertDayOpen(reportDate);
     if (await this.users.isBlocked(userId)) {
       throw new GateRefusal(GATE_CODES.userBlocked, 'You are blocked for missed reports. Your manager or Admin has to unblock you first.');
     }

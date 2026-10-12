@@ -160,3 +160,11 @@ export class ListPayrollRunsUseCase {
   }
 }
 
+
+/** The employee's own finalized slips: a draft is the Accountant's working sheet, not yet the employee's pay. */
+export class ListMyPayslipsUseCase {
+  constructor(private readonly runs: PayrollRunRepositoryPort) {}
+  execute(userId: string, range: { month?: string | undefined; fromMonth?: string | undefined; toMonth?: string | undefined }): Promise<PayrollRun[]> {
+    return this.runs.list({ ...range, userId, status: 'FINALIZED' }, LIMIT);
+  }
+}

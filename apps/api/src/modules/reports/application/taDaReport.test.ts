@@ -22,6 +22,16 @@ function kit(summaries: ExpenseMonthRow[], expenses: ExpenseRecord[] = []) {
   return { report, calls };
 }
 
+describe('the TA/DA year for one employee', () => {
+  it('counts only that employee\'s rows and totals', async () => {
+    const { report } = kit([sum('u1', '2026-04', { taPaise: 30_000, paidPaise: 30_000 }), sum('u2', '2026-04', { taPaise: 10_000, unpaidPaise: 10_000 })]);
+    const r = await report.year({ year: 2026, userId: 'u1' });
+    expect(r.rows.map((x) => x.mr.name)).toEqual(['Asha Rao']);
+    expect(r.months[0]).toMatchObject({ employees: 1, taPaise: 30_000 });
+    expect(r.totals.totalPaise).toBe(30_000);
+  });
+});
+
 describe('the TA/DA year', () => {
   it('twelve months from April with each employee\'s month, the totals adding up, and the open and future months marked', async () => {
     const { report, calls } = kit([

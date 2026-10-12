@@ -50,11 +50,13 @@ export class TaDaReport {
     return businessDate(this.now(), zone, dayStart).slice(0, 7);
   }
 
-  async year(input: { year: number }): Promise<TaDaYearReportDto> {
+  /** `userId` narrows the year to one employee (their own report, from /reports/me). */
+  async year(input: { year: number; userId?: string }): Promise<TaDaYearReportDto> {
     const startMonth = await readConfig(this.config, 'FY_START_MONTH', parseMonthName);
     const range = leaveYearRange(input.year, startMonth);
     const months = yearMonths(range.from);
-    const [summaries, current] = await Promise.all([this.fieldActivity.summarizeExpenses(range), this.currentMonth()]);
+    const [all, current] = await Promise.all([this.fieldActivity.summarizeExpenses(range), this.currentMonth()]);
+    const summaries = input.userId ? all.filter((s) => s.userId === input.userId) : all;
     const people = await this.identity.getUserSummaries([...new Set(summaries.map((s) => s.userId))]);
     const who = new Map(people.map((p) => [p.id, p]));
 

@@ -27,7 +27,7 @@ function add(into: ReturnType<typeof zero>, r: Omit<DcrFiguresDto, 'calls' | 'ca
   for (const k of ['pass', 'fail', 'unverified', 'override'] as const) into.geofence[k] += r.geofence[k];
 }
 
-const counted = (r: DcrMonthRow) => ({ reportedDays: r.reportedDays, lateDays: r.lateDays, doctorCalls: r.doctorCalls, chemistCalls: r.chemistCalls, followups: r.followups, geofence: { ...r.geofence }, notInPlan: r.notInPlan, followupsNotInPlan: r.followupsNotInPlan, offRouteCalls: r.offRouteCalls });
+export const counted = (r: DcrMonthRow) => ({ reportedDays: r.reportedDays, lateDays: r.lateDays, doctorCalls: r.doctorCalls, chemistCalls: r.chemistCalls, followups: r.followups, geofence: { ...r.geofence }, notInPlan: r.notInPlan, followupsNotInPlan: r.followupsNotInPlan, offRouteCalls: r.offRouteCalls });
 
 /**
  * What the field force reported, for the financial year in view (sign-off K28: calls only): per month and per employee the reported days, doctor
@@ -49,11 +49,13 @@ export class DcrReport {
     return businessDate(this.now(), zone, dayStart).slice(0, 7);
   }
 
-  async year(input: { year: number }): Promise<DcrYearReportDto> {
+  /** `userId` narrows the year to one employee (their own report, from /reports/me). */
+  async year(input: { year: number; userId?: string }): Promise<DcrYearReportDto> {
     const startMonth = await readConfig(this.config, 'FY_START_MONTH', parseMonthName);
     const range = leaveYearRange(input.year, startMonth);
     const months = yearMonths(range.from);
-    const [summaries, current] = await Promise.all([this.fieldActivity.summarizeDcrs(range), this.currentMonth()]);
+    const [all, current] = await Promise.all([this.fieldActivity.summarizeDcrs(range), this.currentMonth()]);
+    const summaries = input.userId ? all.filter((s) => s.userId === input.userId) : all;
     const people = await this.identity.getUserSummaries([...new Set(summaries.map((s) => s.userId))]);
     const who = new Map(people.map((p) => [p.id, p]));
 

@@ -67,6 +67,7 @@ export const keys = {
     all: () => ['inbox'] as const,
     sent: (query: object) => ['inbox', 'sent', query] as const,
   },
+  documents: { all: () => ['documents'] as const },
   userHq: { history: (userId: string) => ['userHq', fy(), userId] as const },
   dcr: { detail: (id: string) => ['dcr', fy(), 'detail', id] as const },
   plans: {

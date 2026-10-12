@@ -193,7 +193,7 @@ export class FakeTerritory implements TerritoryPort {
 
 export class FakeConfig {
   values: Record<string, string> = {
-    BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00',
+    BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', FY_CLOSED_YEARS: 'NONE',
     FY_START_MONTH: 'APRIL',
     WEEKLY_OFF_DAY: 'SUNDAY',
     LEAVE_BACKDATE_DAYS: '30',

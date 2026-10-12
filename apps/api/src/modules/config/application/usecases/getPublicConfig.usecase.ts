@@ -1,5 +1,6 @@
 import { CONFIG_DEFINITIONS, validateConfigValue } from '../../domain/configDefinitions.js';
 import type { SystemConfigRepositoryPort } from '../../domain/systemConfig.repository.port.js';
+import { parseClosedYears } from '@/shared/time/financialYearClose.js';
 import { MONTH_NAMES } from '@/shared/time/businessTime.js';
 
 /** The two settings every client needs to read dates the way the server does. Nothing else is exposed to non-Admins. */
@@ -10,6 +11,8 @@ export interface PublicConfigView {
   businessTimezone: string;
   /** `HH:mm`: when the business day rolls over, e.g. `02:00`. */
   dayStartTime: string;
+  /** Start years of the financial years an Admin has closed: no daily work can be written into them. */
+  closedFinancialYears: number[];
 }
 
 const defaultOf = (key: string) => CONFIG_DEFINITIONS.find((d) => d.key === key)!.default;
@@ -32,7 +35,7 @@ export class GetPublicConfigUseCase {
   }
 
   async execute(): Promise<PublicConfigView> {
-    const [month, timezone, dayStart] = await Promise.all([this.valid('FY_START_MONTH'), this.valid('BUSINESS_TIMEZONE'), this.valid('DAY_START_TIME')]);
-    return { financialYearStartMonth: MONTH_NAMES.indexOf(month as (typeof MONTH_NAMES)[number]) + 1, businessTimezone: timezone, dayStartTime: dayStart };
+    const [month, timezone, dayStart, closed] = await Promise.all([this.valid('FY_START_MONTH'), this.valid('BUSINESS_TIMEZONE'), this.valid('DAY_START_TIME'), this.valid('FY_CLOSED_YEARS')]);
+    return { financialYearStartMonth: MONTH_NAMES.indexOf(month as (typeof MONTH_NAMES)[number]) + 1, businessTimezone: timezone, dayStartTime: dayStart, closedFinancialYears: parseClosedYears(closed) };
   }
 }

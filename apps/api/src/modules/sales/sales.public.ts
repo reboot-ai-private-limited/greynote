@@ -1,14 +1,14 @@
 import type { Order, OrderStatus } from './domain/order.entity.js';
 import type { MonthlyStock, Outlet } from './domain/monthlyStock.entity.js';
 import type { DistributorOrderSum, UserOrderSum } from './domain/order.repository.port.js';
-import type { EmployeeSale } from './domain/employeeSale.entity.js';
+import type { EmployeeSale, MonthSecondaryStatus } from './domain/employeeSale.entity.js';
 import type { StockStatement } from './domain/stockStatement.entity.js';
 import type { MissingStockRow } from './application/usecases/readMonthlyStock.usecase.js';
 
 export type { Order, OrderStatus } from './domain/order.entity.js';
 export type { MonthlyStock } from './domain/monthlyStock.entity.js';
 export type { DistributorOrderSum } from './domain/order.repository.port.js';
-export type { EmployeeSale } from './domain/employeeSale.entity.js';
+export type { EmployeeSale, MonthSecondaryStatus } from './domain/employeeSale.entity.js';
 export type { UserOrderSum } from './domain/order.repository.port.js';
 export type { StockStatement } from './domain/stockStatement.entity.js';
 export type { MissingStockRow } from './application/usecases/readMonthlyStock.usecase.js';
@@ -41,6 +41,8 @@ export interface SalesPublicContract {
   listEmployeeSales(filter: { fromMonth: string; toMonth: string; userIds?: string[]; productId?: string; limit?: number }): Promise<EmployeeSale[]>;
   /** One order by id, anyone's; `null` when there is none. */
   getOrder(orderId: string): Promise<Order | null>;
-  /** Outlets with no stock count for the month, by MR — for everyone (Admin's view). */
-  listMissingStock(month: string): Promise<MissingStockRow[]>;
+  /** Outlets with no stock count for the month, by MR — for everyone (Admin's view), or only the active field employees among `userIds`. */
+  listMissingStock(month: string, userIds?: string[]): Promise<MissingStockRow[]>;
+  /** Where each of these employees' secondary for the month stands (`NOT_ENTERED` when they entered none); every id asked for is answered, in the order given. */
+  listSecondaryStatus(month: string, userIds: string[]): Promise<Array<{ userId: string; status: MonthSecondaryStatus }>>;
 }

@@ -1,3 +1,4 @@
+DELETE /api/documents/:id  ADMIN
 DELETE /api/field-activity/dcr/:id/calls/:callId  FIELD
 DELETE /api/field-activity/dcr/:id/followups/:callId  FIELD
 DELETE /api/field-activity/expenses/other/:id  FIELD
@@ -16,6 +17,7 @@ DELETE /api/territory/routes/:id/assignments/:userId  ADMIN
 GET    /api/approvals/:id  ANY
 GET    /api/approvals/all  ADMIN,HR
 GET    /api/approvals/inbox  ADMIN,FIELD,HR
+GET    /api/approvals/inbox/summary  ADMIN,FIELD,HR
 GET    /api/approvals/mine  ANY
 GET    /api/approvals/team  FIELD
 GET    /api/attendance/month  ACCOUNTANT,ADMIN,HR
@@ -23,6 +25,7 @@ GET    /api/attendance/payroll-calendar  ACCOUNTANT,ADMIN,HR
 GET    /api/config  ADMIN
 GET    /api/config/financial-year  ADMIN
 GET    /api/config/public  ANY
+GET    /api/documents  ADMIN,FIELD
 GET    /api/field-activity/dcr  ADMIN,FIELD
 GET    /api/field-activity/dcr/:id  ADMIN,FIELD
 GET    /api/field-activity/dcr/team  FIELD
@@ -84,6 +87,7 @@ GET    /api/marketing/targets/:userId  ADMIN,FIELD
 GET    /api/marketing/visuals  ADMIN,FIELD
 GET    /api/payroll  ACCOUNTANT,ADMIN
 GET    /api/payroll/:id  ACCOUNTANT,ADMIN
+GET    /api/payroll/me  FIELD
 GET    /api/planning/daily  FIELD
 GET    /api/planning/daily/:id  ADMIN,FIELD
 GET    /api/planning/daily/carry-over  FIELD
@@ -94,6 +98,10 @@ GET    /api/reports/dcr  ADMIN
 GET    /api/reports/dcr/coverage  ADMIN
 GET    /api/reports/doctor-visits  ADMIN,FIELD
 GET    /api/reports/employee-sales  ADMIN,FIELD
+GET    /api/reports/me/dcr  FIELD
+GET    /api/reports/me/dcr/coverage  FIELD
+GET    /api/reports/me/ta-da  FIELD
+GET    /api/reports/me/ta-da/days  FIELD
 GET    /api/reports/orders  ADMIN
 GET    /api/reports/orders/:id  ADMIN
 GET    /api/reports/salary  ADMIN
@@ -103,6 +111,7 @@ GET    /api/reports/sales/statement  ADMIN
 GET    /api/reports/stock  ADMIN
 GET    /api/reports/ta-da  ADMIN
 GET    /api/reports/ta-da/days  ADMIN
+GET    /api/reports/team/overview  ADMIN,FIELD
 GET    /api/sales/distributor-payments  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-payments/totals  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-statement  ADMIN
@@ -113,6 +122,13 @@ GET    /api/sales/orders  ADMIN,FIELD
 GET    /api/sales/orders/:id  ADMIN,FIELD
 GET    /api/sync/drafts  FIELD
 GET    /api/sync/pull  FIELD
+GET    /api/team/leaves  FIELD
+GET    /api/team/members  FIELD
+GET    /api/team/members/:id/summary  FIELD
+GET    /api/team/orders  FIELD
+GET    /api/team/plans  FIELD
+GET    /api/team/stock  FIELD
+GET    /api/team/today  FIELD
 GET    /api/territory/hqs  ADMIN
 GET    /api/territory/my-routes  FIELD
 GET    /api/territory/places/search  ADMIN
@@ -152,6 +168,7 @@ POST   /api/approvals/:id/withdraw  ANY
 POST   /api/approvals/bulk  ADMIN,FIELD,HR
 POST   /api/config/financial-year/close  ADMIN
 POST   /api/config/financial-year/reopen  ADMIN
+POST   /api/documents  ADMIN
 POST   /api/field-activity/admin/doctor-gifts  ADMIN
 POST   /api/field-activity/admin/doctor-services  ADMIN
 POST   /api/field-activity/dcr/:id/calls/:callId/override-geofence  ADMIN,FIELD

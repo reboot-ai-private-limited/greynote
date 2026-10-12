@@ -8,12 +8,15 @@ import { SalesDashboardReport } from './application/salesDashboardReport.js';
 import { SalaryReport } from './application/salaryReport.js';
 import { SalesReport } from './application/salesReport.js';
 import { StockReport } from './application/stockReport.js';
+import { TeamOverviewReport } from './application/teamOverviewReport.js';
 import { TaDaReport } from './application/taDaReport.js';
 import type { AttendancePort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
+import type { ReportsPublicContract } from './reports.public.js';
 import { makeReportsControllers } from './interface/reports.controller.js';
 import { buildReportsRouter } from './interface/reports.route.js';
 
 export interface ReportsContainer {
+  contract: ReportsPublicContract;
   buildRouter: () => Router;
 }
 
@@ -43,5 +46,9 @@ export function buildReportsContainer(
   const salesDashboard = new SalesDashboardReport(identity, planning, attendance, fieldActivity, marketing, sales, master, territory, config);
   const employeeSales = new EmployeeSalesReport(sales, marketing, master, identity, identity);
   const doctorVisits = new DoctorVisitsReport(identity, master, fieldActivity, planning);
-  return { buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport, dcrReport, salaryReport, salesDashboard, employeeSales, doctorVisits)) };
+  const teamOverview = new TeamOverviewReport(salesDashboard, fieldActivity, attendance);
+  return {
+    contract: { readTeamOverview: (input) => teamOverview.read(input) },
+    buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport, dcrReport, salaryReport, salesDashboard, employeeSales, doctorVisits, teamOverview)),
+  };
 }

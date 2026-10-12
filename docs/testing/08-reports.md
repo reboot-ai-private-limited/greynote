@@ -14,3 +14,5 @@
 | 8.10 | Sales dashboard: a holiday or leave day in the range | N (working days) does not count it | |
 | 8.11 | Sales dashboard: Set a target and an achievement for this month | row updates; a month outside the current financial year is refused; both fields empty is refused | |
 | 8.12 | Sales dashboard in a past financial year | Set is disabled | |
+| 8.13 | Employee: `/reports/me/ta-da`, `/me/ta-da/days`, `/me/dcr`, `/me/dcr/coverage` | only that employee's figures; Admin gets 403 | |
+| 8.14 | Same with `X-Financial-Year` of a past year, and a month outside the year | the past year's figures; outside month → 400 `OUTSIDE_FINANCIAL_YEAR` | |

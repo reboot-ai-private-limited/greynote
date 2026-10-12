@@ -72,7 +72,7 @@ export interface FieldRosterPort {
   /** Active FIELD employees (never office staff), or only those among `onlyIds`, by name. */
   listFieldEmployees(onlyIds?: string[]): Promise<Array<{ id: string; employeeCode: string; name: string; designation: string | null; hqId: string | null; zoneId: string | null }>>;
   /** Everyone below a manager, at any depth. */
-  getDownline(managerId: string): Promise<Array<{ id: string }>>;
+  getDownline(managerId: string): Promise<Array<{ id: string; depth?: number }>>;
 }
 
 export interface FieldDaysPort {

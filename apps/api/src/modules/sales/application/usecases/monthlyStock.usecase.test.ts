@@ -137,5 +137,8 @@ describe('monthly stock', () => {
     // A manager sees only their downline; an MR with no downline sees nothing.
     expect((await missing.execute({ id: 'asm', role: 'FIELD' }, '2026-09')).length).toBe(2);
     expect(await missing.execute(mr1, '2026-09')).toEqual([]);
+    // A caller can narrow it to some people (the team screen asks for one team at a time).
+    expect((await missing.execute({ id: 'admin', role: 'ADMIN' }, '2026-09', ['mr2'])).map((r) => r.userId)).toEqual(['mr2']);
+    expect(await missing.execute({ id: 'admin', role: 'ADMIN' }, '2026-09', [])).toEqual([]);
   });
 });

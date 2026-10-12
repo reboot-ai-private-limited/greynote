@@ -38,6 +38,7 @@ export class PlaceOrderUseCase {
     const today = await this.clock.today();
     const orderDate = input.orderDate ?? today;
     if (orderDate > today) throw new StockRefusal(STOCK_CODES.orderDateInFuture, 'An order cannot be dated in the future.');
+    await this.clock.assertDayOpen(orderDate);
 
     const items: OrderItem[] = [];
     let total = 0;

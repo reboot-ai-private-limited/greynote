@@ -103,7 +103,7 @@ describe('Leave requests', () => {
     cutoff = new LeaveApprovalCutoff(leaves, grants, calendar, config, new Clock(NOW).now);
     approvals.registerKind({ kind: 'LEAVE', finalApproverRoles: ['HR', 'ADMIN'], onStatusChange: makeLeaveLedger(leaves, balanceRepo, lock, cutoff) });
     requests = new LeaveRequests(leaves, types, balanceRepo, balances, calendar, new HolidayCalendar(holidays, territory), approvals, inlineTransactions, views, probation, lock);
-    lookups = new LeaveLookups(leaves, approvals, probation);
+    lookups = new LeaveLookups(leaves, approvals, probation, types);
     get = new GetLeaveUseCase(leaves, users, views);
   });
 
@@ -188,6 +188,21 @@ describe('Leave requests', () => {
     await approvals.move('LEAVE', lop.id, 'APPROVED');
     expect(await lookups.unpaidDays('mr', '2026-10')).toBe(2); // Fri 30, Sat 31
     expect(await lookups.unpaidDays('mr', '2026-11')).toBe(2); // Sun 1 off; Mon 2, Tue 3
+  });
+
+  it('lists the live leaves of a set of people for a team calendar, leaving out rejected and withdrawn ones', async () => {
+    const waiting = await requests.request('mr', casual());
+    const rejected = await requests.request('asm', casual());
+    await approvals.move('LEAVE', rejected.id, 'REJECTED');
+
+    const rows = await lookups.leavesForUsers(['mr', 'asm'], '2026-10-01', '2026-10-31');
+    expect(rows.map((r) => [r.leaveId, r.userId, r.status])).toEqual([[waiting.id, 'mr', 'SUBMITTED']]);
+    expect(rows[0]).toMatchObject({ startDate: '2026-10-01', leaveType: 'Casual' });
+
+    await approvals.move('LEAVE', waiting.id, 'MANAGER_APPROVED');
+    expect((await lookups.leavesForUsers(['mr'], '2026-10-01', '2026-10-31'))[0]?.status).toBe('MANAGER_APPROVED');
+    expect(await lookups.leavesForUsers(['mr'], '2026-12-01', '2026-12-31')).toEqual([]); // outside the range
+    expect(await lookups.leavesForUsers([], '2026-10-01', '2026-10-31')).toEqual([]);
   });
 
   it('locks a leave type’s isPaid once a leave uses it', async () => {

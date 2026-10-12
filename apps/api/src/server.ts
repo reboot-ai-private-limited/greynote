@@ -15,6 +15,8 @@ const PROMOTION_CHECK_MS = 60 * 60 * 1000;
 /** How often pending leaves that have already begun are rejected. Idempotent; the first day rolls over at `DAY_START_TIME`. */
 const LATE_LEAVE_CHECK_MS = 30 * 60 * 1000;
 const MISSED_DCR_CHECK_MS = 15 * 60 * 1000;
+/** How often managers are told about new and overdue requests. Each request is announced once, so a short interval only means a short delay. */
+const TEAM_ALERTS_MS = 5 * 60 * 1000;
 
 async function start() {
     try {
@@ -27,10 +29,16 @@ async function start() {
 
     const jobs: IntervalJob[] = [];
     const app = createApp({
-        onContainers: ({ identity, fieldActivity, hr }) => {
+        onContainers: ({ identity, fieldActivity, hr, team }) => {
             jobs.push(startIntervalJob('apply-due-promotions', PROMOTION_CHECK_MS, () => identity.applyDuePromotions()));
             jobs.push(startIntervalJob('expire-late-leaves', LATE_LEAVE_CHECK_MS, () => hr.expireLateLeaves()));
-            jobs.push(startIntervalJob('missed-dcr-check', MISSED_DCR_CHECK_MS, () => fieldActivity.runMissedDcrCheck()));
+            jobs.push(startIntervalJob('missed-dcr-check', MISSED_DCR_CHECK_MS, async () => {
+                const run = await fieldActivity.runMissedDcrCheck();
+                // `blocked` holds only people blocked by this run (already-blocked ones are counted apart); tell their managers.
+                if (!run.dryRun) await team.notifyBlocked(run.blocked);
+                return run;
+            }));
+            jobs.push(startIntervalJob('team-alerts', TEAM_ALERTS_MS, () => team.runAlerts()));
         },
     });
 

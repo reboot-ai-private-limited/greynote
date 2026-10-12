@@ -8,6 +8,7 @@ import { OutletAccess } from './application/outletAccess.js';
 import { SalesClock } from './application/salesClock.js';
 import { ListMissingStockUseCase, ListMonthlyStockUseCase } from './application/usecases/readMonthlyStock.usecase.js';
 import { makeSecondaryStatusHandler, ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SECONDARY_SALES_KIND, SubmitEmployeeSecondaryUseCase } from './application/usecases/employeeSales.usecase.js';
+import { monthSecondaryStatus } from './domain/employeeSale.entity.js';
 import { ReadStatementUseCase, SaveStatementUseCase } from './application/usecases/stockStatement.usecase.js';
 import { CancelPaymentUseCase, ListPaymentsUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from './application/usecases/payments.usecase.js';
 import { RecordMonthlyStockUseCase } from './application/usecases/recordMonthlyStock.usecase.js';
@@ -80,7 +81,11 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
       listEmployeeSales: async (f) => (await employeeSales.list(f, f.limit ?? 20000)).map((s) => (s.secondaryStatus === 'APPROVED' ? s : { ...s, secondaryQty: null, secondaryAmountPaise: null })),
       listStatements: (f) => statements.list(f, f.limit ?? 20000),
       getOrder: (id) => (id.match(/^[a-f\d]{24}$/i) ? orders.findById(id) : Promise.resolve(null)),
-      listMissingStock: (month) => missing.execute({ id: 'system', role: 'ADMIN' }, month),
+      listMissingStock: (month, userIds) => missing.execute({ id: 'system', role: 'ADMIN' }, month, userIds),
+      listSecondaryStatus: async (month, userIds) => {
+        const rows = userIds.length ? await employeeSales.list({ fromMonth: month, toMonth: month, userIds }, 20000) : [];
+        return userIds.map((userId) => ({ userId, status: monthSecondaryStatus(rows.filter((r) => r.userId === userId)) }));
+      },
     },
     runStockCheck: async (month) => {
       const m = month ?? (await clock.previousMonth());

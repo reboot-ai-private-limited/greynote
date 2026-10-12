@@ -457,6 +457,36 @@ describe('lists', () => {
     expect((await lists.inbox(as('asm'), {}, PAGE)).items.map((i) => i.recordId)).toEqual(['mrLeave']);
   });
 
+  it('the inbox summary counts what the inbox lists, per kind, and follows each decision', async () => {
+    const r = await seed();
+    for (const [id, row] of requests.rows) requests.rows.set(id, { ...row, submittedAt: new Date() });
+    expect(await lists.inboxSummary(as('asm'))).toEqual({
+      total: 2,
+      overdue: 0,
+      byKind: [
+        { kind: LEAVE.kind, count: 1, overdue: 0 },
+        { kind: PLAN.kind, count: 1, overdue: 0 },
+      ],
+    });
+    requests.rows.set(r.mrPlan!.id, { ...requests.rows.get(r.mrPlan!.id)!, submittedAt: new Date(Date.now() - 40 * 86_400_000) });
+    expect(await lists.inboxSummary(as('asm'))).toMatchObject({ total: 2, overdue: 1 });
+    await approve(r.mrPlan!.id, 'asm');
+    expect(await lists.inboxSummary(as('asm'))).toMatchObject({ total: 1, overdue: 0, byKind: [{ kind: LEAVE.kind, count: 1 }] });
+    expect(await lists.inboxSummary(as('mr'))).toEqual({ total: 0, overdue: 0, byKind: [] });
+  });
+
+  it('lists what waits at Stage 1 with the manager, due time and overdue flag, leaving out those with no manager or already past Stage 1', async () => {
+    const r = await seed();
+    for (const [id, row] of requests.rows) requests.rows.set(id, { ...row, submittedAt: new Date() });
+    requests.rows.set(r.mrPlan!.id, { ...requests.rows.get(r.mrPlan!.id)!, submittedAt: new Date(Date.now() - 40 * 86_400_000) });
+    await approve(r.mrLeave!.id, 'asm');
+    const waiting = await lists.waitingOnManagers();
+    // mrLeave is past the manager; nsm has no manager. What is left: mrPlan (overdue) and asmPlan (waiting on nsm).
+    expect(waiting.map((w) => [w.recordId, w.managerId, w.overdue])).toEqual([['mrPlan', 'asm', true], ['asmPlan', 'nsm', false]]);
+    expect(waiting[0]).toMatchObject({ kind: PLAN.kind, submitterId: 'mr', cycle: 1 });
+    expect((await lists.waitingOnManagers({ kinds: [LEAVE.kind] })).map((w) => w.recordId)).toEqual([]);
+  });
+
   it("HR's inbox is Leave only: manager-approved, or from a submitter with no manager", async () => {
     const r = await seed();
     expect((await lists.inbox(as('hr'), {}, PAGE)).items.map((i) => i.recordId)).toEqual(['nsmLeave']);

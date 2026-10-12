@@ -17,6 +17,20 @@ old one.
 
 ---
 
+## 2026-10-12 — Docs tab: payslips, shared documents; a closed year blocks daily work
+
+**Decided (owner's brief):** the phone's Docs tab shows the employee's own **payslips**, bounded by the financial year (older ones by switching year on the Financial Year screen), and **other documents the Admin adds**. A **closed** financial year turns the phone's daily work read-only, with a notice. The phone docs also say how to read back a past day's report, secondary sales, orders, monthly expense approval, leave and service requests.
+
+**Built:** `GET /payroll/me` (FIELD): finalized runs only, for the year in view; the slip logic moved to `packages/contracts` (`payslipOf`) so one calculation serves the portal and the phone (nothing stored, no PDF). New `documents` module: Admin uploads a PDF/JPG/PNG (≤ 10 MB) for everyone or named employees; employees list theirs; web Documents page. `assertFinancialYearOpen` extended to the daily-report gate, plan deadlines, orders and leave; `/config/public` returns `closedFinancialYears`.
+
+**Why:** drawing the slip from the run keeps one source of truth, as the web slip already does. Documents are their own module because Identity's per-user onboarding documents are HR's, not a library. Viewing a past year was already read-only on the server; "closed" is the Admin's lock after the last payout.
+
+**Cost:** a year can only be closed once it has ended, so today's work is never refused: the guard bites late and back-dated records and past-month plans and leave. Approving a leave dated in a closed year is now refused too. No per-document edit (remove and add). Phone screens are another team's job: [`mobile/docs.md`](mobile/docs.md), [`mobile/reports.md`](mobile/reports.md), [`mobile/leave-report.md`](mobile/leave-report.md), [`mobile/service-requests.md`](mobile/service-requests.md).
+
+**Rejected:** a stored payslip PDF (a second copy to keep right); a "closed" flag per employee (the year is the unit).
+
+---
+
 ## 2026-10-12 — Work With lists every manager in the org; monthly plan rules re-verified
 
 **Decision:**
@@ -2002,4 +2016,52 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** the phone replaces its demo Inbox and removes Forms; push; F8; a people picker in the web compose form; not browser-checked.
 
 **Refs:** [`LLD/inbox.md`](LLD/inbox.md), [`LLD/hr.md`](LLD/hr.md), [`erd/10-inbox.md`](erd/10-inbox.md), sign-off F8.
+
+## 2026-10-12 — Employee's own reports (`/reports/me/*`)
+
+**Decision:** FIELD users read their own TA/DA (year, days) and DCR (year, coverage) through `/reports/me/*`; the figures are the Admin reports narrowed to the signed-in user (no `userId` parameter). Bound to the financial year by the existing mechanism: current year by default, older years only via `X-Financial-Year`, read-only. Phone consumes; no web page.
+
+**Open:** phone screens; leave and targets reuse `/hr/leave-balances/me` and `/reports/employee-sales`; sign-off K24a awaits the owner.
+
+**Refs:** [`mobile/reports.md`](mobile/reports.md), [`LLD/reports.md`](LLD/reports.md).
+
+## 2026-10-12 — Manager Team section: scope and first routes
+
+**Decision:** managers get the Team section on the **phone only**; the web portal stays Admin / HR / Accounts (PRD §4 unchanged). We build the API and the contract note [`mobile/team.md`](mobile/team.md); the phone team builds the screens. Every team read goes through one access rule (`resolveTeamScope`): the whole downline, or one named person who must be in it (403 otherwise). First routes: `GET /team/members` and `GET /approvals/inbox/summary` (a live count, not tied to a financial year).
+
+**Open:** the rest of the build order in `mobile/team.md`; client questions Q1–Q5 there (default depth, "not started" time, notifications F8, no salary for managers, no approving for an absent peer).
+
+**Refs:** [`mobile/team.md`](mobile/team.md), [`LLD/approval.md`](LLD/approval.md).
+
+## 2026-10-12 — Manager Team: Today, plans and leave calendar
+
+**Decision:** the Team home is computed live per person from Planning, Field Activity, HR and Identity (no new collections). "Not started" is a working assumption: nothing logged by `TEAM_NOT_STARTED_AFTER` (new Admin setting, default 11:00, display only). A leave counts as "on leave" only once the manager has approved it; one still waiting is shown but does not change the person's state. Work logged on a leave or off day still counts as working. A future day is refused on Today; plans may be read for any day so a manager can see who has no plan for tomorrow. HR gains one read, `listLeavesForUsers`.
+
+**Open:** client to confirm the not-started time (Q2); the rest of the build order; a team of more than ~500 may need a stored daily snapshot.
+
+**Refs:** [`mobile/team.md`](mobile/team.md), [`LLD/team.md`](LLD/team.md).
+
+## 2026-10-12 — Manager Team: overview report and person page
+
+**Decision:** the "employee overall report" is the Sales Dashboard extended, not a new calculation: same audience rule, same working-day and compliance counts, plus calls, follow-ups, late and unconfirmed (geofence fail + unverified) and what attendance made of each day. Money and counts therefore agree with the dashboard. The person page (`/team/members/:id/summary`) composes the roster row, the Today row and that overview row; deeper lists stay the existing routes with the person's `userId`. A person outside the downline is always `403`, including a manager asking about a peer. Reports gets its first public contract so Team can read the overview.
+
+**Open:** team orders and stock/secondary status (step 4); the overview reads the whole company's DCR summary for the month before narrowing (same as the Admin DCR report), fine today, revisit with a per-user query if it slows.
+
+**Refs:** [`mobile/team.md`](mobile/team.md), [`LLD/reports.md`](LLD/reports.md), [`LLD/team.md`](LLD/team.md).
+
+## 2026-10-12 — Manager Team: orders and stock
+
+**Decision:** the manager reads the team's orders and stock/secondary status; they decide nothing there. Orders: chemist orders stay information only, distributor orders stay the MR's to mark Done or Cancelled; the manager's only decision on this side is the monthly secondary, in Approvals (`SECONDARY_SALES`). The month's secondary is one word per person (not entered, draft, sent, approved, sent back); a draft or sent month is shown but never counted as achievement (unchanged rule). Missing stock is a report to chase with, not a block (unchanged). `Cancelled` orders are listed but left out of the amount, as in achievement.
+
+**Open:** notifications (F8). The team's API is complete; the phone screens are the other team's.
+
+**Refs:** [`mobile/team.md`](mobile/team.md), [`LLD/team.md`](LLD/team.md), [`LLD/sales-and-orders.md`](LLD/sales-and-orders.md).
+
+## 2026-10-12 — Manager Team: owner's answers and the manager's alerts
+
+**Decision:** the owner answered the five Team questions (sign-off K42): whole team by default and read-only below direct reports; no salary or CTC for managers; Admin only approves for an absent manager; "not started" is 11:00 (the existing setting). For notifications, the manager is told in the Inbox of: a new **leave, monthly-expenses or new-doctor** request from a direct report; any request waiting past `APPROVAL_SLA_DAYS` (reminder only, nothing escalates); a direct report **blocked** for missed reports. Plans, daily reports and the other kinds stay with the badge because they arrive many times a day. Messages are digests (one per manager per check) so a busy moment is not a flood. A request is announced once per cycle, tracked in a new small collection (`team_alert_marks`, expires after 90 days, safe from several servers); a 5-minute server job sends them, and the missed-report job tells managers of the people it has just blocked. Admin can switch all of it off with `TEAM_ALERTS_ENABLED` (default on). The Team module therefore now owns that one collection.
+
+**Open:** push (FCM) is the phone team's later work; notifying the *employee* of decisions (F8, other events) is still undecided.
+
+**Refs:** [`mobile/team.md`](mobile/team.md), [`LLD/team.md`](LLD/team.md), [`LLD/inbox.md`](LLD/inbox.md), sign-off F8, K42.
 

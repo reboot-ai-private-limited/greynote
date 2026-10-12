@@ -72,6 +72,7 @@ web portal and the app's Team tab can share one approval screen (client §19.6).
 | Method | Path | Role | Purpose |
 |---|---|---|---|
 | `GET` | `/inbox` | FIELD, HR, ADMIN | What I can act on now, oldest first. Manager: direct reports at Stage 1. HR: open requests of kinds where HR is a final approver that HR can act on. Admin: every open request. Filters: `kind`, `status`, `submitterId`, `managerId` (Admin), `from`, `to` (see below); paginated |
+| `GET` | `/inbox/summary` | FIELD, HR, ADMIN | A live count of what `/inbox` holds: `{ total, overdue, byKind: [{ kind, count, overdue }] }`, no paging, for a badge. Not tied to a financial year. `byKind` reads the oldest 2000 rows; `total` is the true count (HR's is the capped count) |
 | `GET` | `/all` | HR, ADMIN | The portal's History: **every** request in any status, newest first, same filters and row shape as `/inbox`. Admin sees all; HR sees the kinds it is a final approver of (Leave). It is how Admin finds an Approved request to reopen. Scoped to the selected Financial Year like the other lists |
 | `GET` | `/team` | FIELD | My downline's requests, any status, newest first; `scope=direct\|indirect\|all`. Direct reports' Stage-1 requests have `canAct: true`, deeper levels are read-only |
 | `GET` | `/mine` | any | My own requests, newest first |

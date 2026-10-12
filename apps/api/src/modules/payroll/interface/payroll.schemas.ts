@@ -11,3 +11,7 @@ export const generateBodySchema = z.object({ month: calendarMonthSchema, userIds
 export const listRunsQuerySchema = z
   .object({ month: calendarMonthSchema.optional(), fromMonth: calendarMonthSchema.optional(), toMonth: calendarMonthSchema.optional(), userId: objectIdSchema.optional(), status: z.enum(PAYROLL_STATUSES).optional() })
   .refine((q) => !q.fromMonth || !q.toMonth || q.fromMonth <= q.toMonth, { message: '`fromMonth` must not be after `toMonth`.', path: ['fromMonth'] });
+/** The employee's own list: months only; whose and which status are never the caller's to choose. */
+export const myPayslipsQuerySchema = z
+  .object({ month: calendarMonthSchema.optional(), fromMonth: calendarMonthSchema.optional(), toMonth: calendarMonthSchema.optional() })
+  .refine((q) => !q.fromMonth || !q.toMonth || q.fromMonth <= q.toMonth, { message: '`fromMonth` must not be after `toMonth`.', path: ['fromMonth'] });
