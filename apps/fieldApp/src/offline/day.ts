@@ -83,7 +83,7 @@ export function computeDayGate(input: {
     if (!isApproved) {
       return {
         state: 'closed',
-        reason: `Your monthly plan for ${prettyMonth(month)} isn’t approved yet. Submit your Monthly Plan first.`,
+        reason: `Your tour plan for ${prettyMonth(month)} isn’t approved yet. Submit your Tour Plan first.`,
         // The status shown beside "Today's Tour Plan" is the day's own, not the month's.
         planStatus: input.plans.find((p) => p.planDate === input.today)?.status ?? null,
         cause: 'MONTHLY_PLAN',

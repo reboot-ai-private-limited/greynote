@@ -11,7 +11,7 @@ What the field app does for a doctor's **service request**: the MR asks for a to
 | 1 | The MR **requests** a service for one of their doctors through the sync queue (`DOCTOR_SERVICE` record): `type` (tour package, gift, online promotion, others), `amountPaise`, `remarks`. It can be made offline. | ✅ |
 | 2 | It goes **Employee → Manager → Admin** for approval. An Admin-recorded service (web) is approved at once. | ✅ |
 | 3 | Once approved, **Admin or Accounts marks it done** on the web. `409` if it is not approved yet or already done. The MR never marks it done. | ✅ |
-| 4 | The list returns `status`, `awaitingDone` and `doneAt`. The journey to show: *Waiting for approval → Approved, to do → Done* (or *Rejected*). | ✅ / 📱 |
+| 4 | The list returns `status`, `awaitingDone` and `doneAt`. The journey to show: *Waiting for approval → Approved, to do → Done* (or *Rejected*). | ✅ |
 | 5 | The list follows the financial year in view; in a past year it is read-only. | ✅ |
 
 ## 2. What the phone should show

@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { router } from 'expo-router';
+
+import { ApprovalHistory } from '@/components/approval-history';
 import { ChoiceChips } from '@/components/choice-chips';
 import { DateStepper } from '@/components/date-stepper';
 import { LeaveProof } from '@/components/leave-proof';
@@ -26,10 +29,11 @@ import {
   type LeaveView,
 } from '@/lib/leave';
 import { formatSize, pickProofFile, type PickedProof } from '@/lib/proof-picker';
+import { getApproval, type ApprovalDetail } from '@/lib/approvals';
 import { getRejectionReason } from '@/lib/planning';
 import { useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
-import { prettyDay } from '@/offline/day';
+import { prettyDay, prettyMonth } from '@/offline/day';
 import type { HrSnapshot } from '@/types/sync';
 
 const STATUS_TEXT: Record<string, string> = {
@@ -117,6 +121,19 @@ export default function LeaveScreen() {
       alive = false;
     };
   }, [online, reloadKey]);
+
+  // The year's leaves, newest first, grouped by the month they start in; a leave's approval trail opens on request.
+  const sortedLeaves = [...(leaves ?? [])].sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const [trails, setTrails] = useState<Record<string, ApprovalDetail>>({});
+  const showTrail = async (l: LeaveView) => {
+    if (!l.approval) return;
+    try {
+      const detail = await getApproval(l.approval.requestId);
+      setTrails((t) => ({ ...t, [l.id]: detail }));
+    } catch (err) {
+      setMsg({ tone: 'danger', text: errorText(err) });
+    }
+  };
 
   const startForm = (leave: LeaveView | 'new') => {
     setMsg(null);
@@ -263,6 +280,7 @@ export default function LeaveScreen() {
   return (
     <ScreenShell title="Leave" subtitle="Your balances and requests">
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+      <PrimaryButton label="Look at another year" variant="text" onPress={() => router.push('/financial-year')} />
 
       {!hr.data || hr.data.balances.length === 0 ? (
         <Notice tone="info">Your leave balances load when you’re online. Connect once to see them.</Notice>
@@ -312,8 +330,12 @@ export default function LeaveScreen() {
         )
       ) : null}
       {leaves !== null && leaves.length === 0 ? <Notice tone="info">You haven’t requested any leave yet.</Notice> : null}
-      {(leaves ?? []).map((l) => (
-        <InfoCard key={l.id}>
+      {sortedLeaves.map((l, i) => (
+        <View key={l.id} style={styles.group}>
+        {i === 0 || sortedLeaves[i - 1]!.startDate.slice(0, 7) !== l.startDate.slice(0, 7) ? (
+          <ThemedText type="smallBold" themeColor="textSecondary">{prettyMonth(l.startDate.slice(0, 7))}</ThemedText>
+        ) : null}
+        <InfoCard>
           <View style={styles.head}>
             <View style={styles.grow}>
               <ThemedText type="smallBold">{`${l.leaveTypeName} · ${l.daysCount} ${l.daysCount === 1 ? 'day' : 'days'}`}</ThemedText>
@@ -339,13 +361,14 @@ export default function LeaveScreen() {
               {`Proof: ${(l.attachments ?? []).map((a) => a.fileName).join(', ')}`}
             </ThemedText>
           ) : null}
-          {l.status === 'SUBMITTED' || LEAVE_EDITABLE.includes(l.status) ? (
-            <View style={styles.actions}>
-              {LEAVE_EDITABLE.includes(l.status) ? <PrimaryButton label="Change" variant="text" disabled={busy} onPress={() => startForm(l)} /> : null}
-              {l.status === 'SUBMITTED' ? <PrimaryButton label="Withdraw" variant="text" disabled={busy} onPress={() => withdraw(l)} /> : null}
-            </View>
-          ) : null}
+          {trails[l.id] ? <ApprovalHistory request={trails[l.id]!} /> : null}
+          <View style={styles.actions}>
+            {l.approval && !trails[l.id] ? <PrimaryButton label="Show trail" variant="text" disabled={!online} onPress={() => showTrail(l)} /> : null}
+            {LEAVE_EDITABLE.includes(l.status) ? <PrimaryButton label="Change" variant="text" disabled={busy} onPress={() => startForm(l)} /> : null}
+            {l.status === 'SUBMITTED' ? <PrimaryButton label="Withdraw" variant="text" disabled={busy} onPress={() => withdraw(l)} /> : null}
+          </View>
         </InfoCard>
+        </View>
       ))}
     </ScreenShell>
   );
@@ -362,6 +385,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1, gap: Spacing.one },
   right: { alignItems: 'flex-end' },
+  group: { gap: Spacing.two },
   sectionTitle: { fontSize: 18, lineHeight: 24 },
   newButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
 });

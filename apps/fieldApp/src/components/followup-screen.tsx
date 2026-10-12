@@ -145,11 +145,11 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
   if (gate.state !== 'open') {
     return (
       <ScreenShell title={title}>
-        <Notice tone="warning" title={gate.cause === 'MONTHLY_PLAN' ? 'Monthly plan not approved' : 'Not available right now'}>
+        <Notice tone="warning" title={gate.cause === 'MONTHLY_PLAN' ? 'Tour plan not approved' : 'Not available right now'}>
           {gate.reason ?? 'Followups open once today’s Tour Plan is approved.'}
         </Notice>
         {gate.cause === 'MONTHLY_PLAN' ? (
-          <PrimaryButton label="Go to Monthly Plan" variant="text" onPress={() => router.push({ pathname: '/monthly-plan', params: { month: 'current' } })} />
+          <PrimaryButton label="Go to Tour Plan" variant="text" onPress={() => router.push({ pathname: '/monthly-plan', params: { month: 'current' } })} />
         ) : null}
       </ScreenShell>
     );

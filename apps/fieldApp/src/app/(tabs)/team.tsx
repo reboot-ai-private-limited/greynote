@@ -19,6 +19,7 @@ import { BottomTabInset, Gradients, Spacing, WideContentWidth } from '@/constant
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
 import { LATE_APPROVAL_TEXT, bulkDecide, isLateApproval, listInbox, listTeam, type ApprovalItem, type TeamScope } from '@/lib/approvals';
+import { useApprovalSummary } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 
 type View_ = 'inbox' | 'team';
@@ -79,11 +80,16 @@ export default function TeamScreen() {
     };
   }, [online, view, scope, reloadKey, fy.year]);
 
+  // The badge: what waits on you and how much of it is overdue (read again whenever this tab is shown).
+  const badge = useApprovalSummary();
+  const refreshBadge = badge.refresh;
+
   // Coming back from a request (after a decision) shows the list as it now stands.
   useFocusEffect(
     useCallback(() => {
       setReloadKey((k) => k + 1);
-    }, []),
+      refreshBadge();
+    }, [refreshBadge]),
   );
 
   const refresh = useCallback(() => {
@@ -161,10 +167,10 @@ export default function TeamScreen() {
             </View>
             <View style={styles.waiting}>
               <ThemedText type="smallBold" style={styles.waitingNumber}>
-                {view === 'inbox' && items ? String(actionable.length) : '–'}
+                {badge.summary ? String(badge.summary.total) : view === 'inbox' && items ? String(actionable.length) : '–'}
               </ThemedText>
               <ThemedText type="small" style={styles.waitingLabel}>
-                waiting
+                {badge.summary && badge.summary.overdue > 0 ? `waiting · ${badge.summary.overdue} overdue` : 'waiting'}
               </ThemedText>
             </View>
           </LinearGradient>

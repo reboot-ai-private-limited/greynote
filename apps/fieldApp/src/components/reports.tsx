@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { Spacing } from '@/constants/theme';
+import { Spacing, type Accent } from '@/constants/theme';
 import { apiGet } from '@/lib/api';
 import { STATUS_LABEL, type ApprovalStatus } from '@/lib/approvals';
 import { listStock, type OrderView, type StockRow } from '@/lib/marketing';
@@ -18,8 +18,10 @@ import { Notice } from './notice';
 import { PrimaryButton } from './primary-button';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
+import { Pill, RowCard, sym } from './ui-cards';
 
 const statusText = (status: string) => STATUS_LABEL[status as ApprovalStatus] ?? (status === 'DRAFT' ? 'Not sent' : status);
+const REPORT_ACCENT: Record<string, Accent> = { APPROVED: 'green', SUBMITTED: 'amber', MANAGER_APPROVED: 'blue', REJECTED: 'red', DRAFT: 'slate', WITHDRAWN: 'slate', REOPENED: 'slate' };
 const bounds = (month: string) => {
   const days = datesInMonth(month);
   return { from: days[0]!, to: days[days.length - 1]! };
@@ -53,14 +55,15 @@ export function DcrReport({ month, year }: { month: string; year: number }) {
         <Notice tone="info">{list.data ? 'No daily reports this month.' : 'Connect once to load your reports.'}</Notice>
       ) : (
         rows.map((r) => (
-          <Pressable key={r.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/dcr-report/[id]', params: { id: r.id } })}>
-            <ThemedView type="backgroundElement" style={styles.card}>
-              <ThemedText type="smallBold">{prettyDay(r.reportDate)}</ThemedText>
-              <ThemedText type="small" themeColor={r.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
-                {statusText(r.status)}
-              </ThemedText>
-            </ThemedView>
-          </Pressable>
+          <RowCard
+            key={r.id}
+            icon={sym('doc.text', 'description')}
+            accent={REPORT_ACCENT[r.status] ?? 'slate'}
+            title={prettyDay(r.reportDate)}
+            subtitle="Tap for its calls, followups and expenses"
+            right={<Pill text={statusText(r.status)} accent={REPORT_ACCENT[r.status] ?? 'slate'} />}
+            onPress={() => router.push({ pathname: '/dcr-report/[id]', params: { id: r.id } })}
+          />
         ))
       )}
     </View>
@@ -92,9 +95,9 @@ export function TpReport({ month, year }: { month: string; year: number }) {
     <View style={styles.stack}>
       <Stale {...daily} />
       <ThemedView type="backgroundElement" style={styles.card}>
-        <ThemedText type="smallBold">{`Monthly Plan · ${prettyMonth(month)}`}</ThemedText>
+        <ThemedText type="smallBold">{`Tour Plan · ${prettyMonth(month)}`}</ThemedText>
         <ThemedText type="small" themeColor={plan?.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
-          {plan ? statusText(plan.status) : monthly.loading ? 'Loading…' : 'No Monthly Plan for this month.'}
+          {plan ? statusText(plan.status) : monthly.loading ? 'Loading…' : 'No Tour Plan for this month.'}
         </ThemedText>
         {plan?.status === 'REJECTED' && plan.approval ? (
           reasons.monthly ? (

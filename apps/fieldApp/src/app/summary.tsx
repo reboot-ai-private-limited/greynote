@@ -131,11 +131,11 @@ export default function SummaryScreen() {
       {blocked || gate.state === 'unknown' ? <Notice tone="warning">{gate.reason ?? ''}</Notice> : null}
       {gate.state === 'closed' ? (
         <>
-          <Notice tone="warning" title={gate.cause === 'MONTHLY_PLAN' ? 'Monthly plan not approved' : 'Today’s plan isn’t approved'}>
+          <Notice tone="warning" title={gate.cause === 'MONTHLY_PLAN' ? 'Tour plan not approved' : 'Today’s plan isn’t approved'}>
             {gate.reason ?? ''}
           </Notice>
           {gate.cause === 'MONTHLY_PLAN' ? (
-            <PrimaryButton label="Go to Monthly Plan" variant="text" onPress={() => router.push({ pathname: '/monthly-plan', params: { month: 'current' } })} />
+            <PrimaryButton label="Go to Tour Plan" variant="text" onPress={() => router.push({ pathname: '/monthly-plan', params: { month: 'current' } })} />
           ) : null}
         </>
       ) : null}

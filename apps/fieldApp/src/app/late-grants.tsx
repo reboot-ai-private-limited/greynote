@@ -41,7 +41,7 @@ type Kind = PlanKind | 'EXPENSE';
 
 const KINDS: { value: Kind; label: string }[] = [
   { value: 'DAILY_PLAN', label: 'Daily plan' },
-  { value: 'MONTHLY_PLAN', label: 'Monthly plan' },
+  { value: 'MONTHLY_PLAN', label: 'Tour plan' },
   { value: 'EXPENSE', label: 'Expenses' },
 ];
 
@@ -144,7 +144,7 @@ export default function LateGrantsScreen() {
   // Both kinds look the same in the list: who, what, the status and the reason.
   const items = (isExpense
     ? (expenseGrants.data?.items ?? []).map((g) => ({ id: g.id, userId: g.userId, grantedBy: g.grantedBy, reason: g.reason, expiresAt: g.expiresAt, status: g.effectiveStatus, what: `Expenses · ${prettyMonth(g.month)} · ${g.phase === 'SUBMIT' ? 'send late' : 'approve late'}` }))
-    : (grants.data?.items ?? []).map((g) => ({ id: g.id, userId: g.userId, grantedBy: g.grantedBy, reason: g.reason, expiresAt: g.expiresAt, status: g.status, what: g.kind === 'DAILY_PLAN' ? `Daily plan · ${prettyDay(g.planKey)}` : `Monthly plan · ${prettyMonth(g.planKey)}` })));
+    : (grants.data?.items ?? []).map((g) => ({ id: g.id, userId: g.userId, grantedBy: g.grantedBy, reason: g.reason, expiresAt: g.expiresAt, status: g.status, what: g.kind === 'DAILY_PLAN' ? `Daily plan · ${prettyDay(g.planKey)}` : `Tour plan · ${prettyMonth(g.planKey)}` })));
   const picked = team.find((t) => t.id === userId) ?? null;
 
   const form = (

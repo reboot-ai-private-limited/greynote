@@ -89,6 +89,8 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.75 },
   locked: { opacity: 0.6 },
   tile: {
+    // Fill the cell, so every tile in a row is as tall as the tallest one.
+    flex: 1,
     minHeight: 128,
     borderRadius: Spacing.three,
     borderWidth: StyleSheet.hairlineWidth,

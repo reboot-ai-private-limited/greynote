@@ -272,7 +272,7 @@ export default function DailyPlanScreen() {
             <PlanDaySummary text={describeDay(existing, names)} />
             {editable ? (
               <ThemedText type="small" themeColor="textSecondary">
-                Working type, routes, work-with and remarks come from your approved Monthly Plan. To change them, ask your manager.
+                Working type, routes, work-with and remarks come from your approved Tour Plan. To change them, ask your manager.
               </ThemedText>
             ) : null}
           </>
@@ -283,10 +283,10 @@ export default function DailyPlanScreen() {
 
       {!monthApproved && planning.loaded ? (
         <>
-          <Notice tone="danger" title={`Monthly Plan for ${prettyMonth(selectedMonth)} isn’t approved`}>
-            {`Your monthly plan for ${prettyMonth(selectedMonth)} isn’t approved yet. There is no daily plan, and no work, until it is.`}
+          <Notice tone="danger" title={`Tour Plan for ${prettyMonth(selectedMonth)} isn’t approved`}>
+            {`Your tour plan for ${prettyMonth(selectedMonth)} isn’t approved yet. There is no daily plan, and no work, until it is.`}
           </Notice>
-          <PrimaryButton label="Go to Monthly Plan" variant="text" onPress={() => router.push({ pathname: '/monthly-plan', params: selectedMonth === monthOf(today) ? { month: 'current' } : {} })} />
+          <PrimaryButton label="Go to Tour Plan" variant="text" onPress={() => router.push({ pathname: '/monthly-plan', params: selectedMonth === monthOf(today) ? { month: 'current' } : {} })} />
         </>
       ) : null}
 

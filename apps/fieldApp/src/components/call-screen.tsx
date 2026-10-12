@@ -198,11 +198,11 @@ export function CallScreen({ subject }: { subject: Subject }) {
     const isMonthlyBlock = gate.cause === 'MONTHLY_PLAN';
     return (
       <ScreenShell title={title}>
-        <Notice tone="warning" title={isMonthlyBlock ? 'Monthly plan not approved' : 'Not available right now'}>
+        <Notice tone="warning" title={isMonthlyBlock ? 'Tour plan not approved' : 'Not available right now'}>
           {gate.reason ?? 'Calls open once today’s Tour Plan is approved.'}
         </Notice>
         {isMonthlyBlock ? (
-          <PrimaryButton label="Go to Monthly Plan" variant="text" onPress={() => router.push({ pathname: '/monthly-plan', params: { month: 'current' } })} />
+          <PrimaryButton label="Go to Tour Plan" variant="text" onPress={() => router.push({ pathname: '/monthly-plan', params: { month: 'current' } })} />
         ) : null}
       </ScreenShell>
     );

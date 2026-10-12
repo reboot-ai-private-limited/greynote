@@ -46,7 +46,7 @@ export type TeamScope = 'direct' | 'indirect' | 'all';
 
 export const KIND_LABEL: Record<string, string> = {
   DAILY_PLAN: 'Daily plan',
-  MONTHLY_PLAN: 'Monthly plan',
+  MONTHLY_PLAN: 'Tour plan',
   DCR: 'Daily report',
   LEAVE: 'Leave',
   NEW_DOCTOR: 'New doctor',

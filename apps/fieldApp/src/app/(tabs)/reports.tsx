@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChoiceChips } from '@/components/choice-chips';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
+import { MonthReport } from '@/components/month-report';
 import { DcrReport, SalesReport, TpReport } from '@/components/reports';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -12,8 +13,9 @@ import { BottomTabInset, Spacing, WideContentWidth } from '@/constants/theme';
 import { useFinancialYear } from '@/lib/financial-year';
 import { monthOf } from '@/offline/day';
 
-type Report = 'dcr' | 'tp' | 'sales';
+type Report = 'month' | 'dcr' | 'tp' | 'sales';
 const REPORTS: { value: Report; label: string }[] = [
+  { value: 'month', label: 'Month' },
   { value: 'dcr', label: 'DCR' },
   { value: 'tp', label: 'Tour Plan' },
   { value: 'sales', label: 'Gift & Sales' },
@@ -25,7 +27,7 @@ const REPORTS: { value: Report; label: string }[] = [
  */
 export default function ReportsScreen() {
   const fy = useFinancialYear();
-  const [report, setReport] = useState<Report>('dcr');
+  const [report, setReport] = useState<Report>('month');
   const [picked, setPicked] = useState<string | null>(null);
 
   const start = fy.isPast ? fy.lastMonth : monthOf(fy.today);
@@ -40,6 +42,7 @@ export default function ReportsScreen() {
           <FyBanner />
           <ChoiceChips options={REPORTS} value={report} onChange={setReport} />
           <MonthStepper value={month} onChange={setPicked} min={fy.firstMonth} max={fy.lastMonth} />
+          {report === 'month' ? <MonthReport month={month} year={fy.year} /> : null}
           {report === 'dcr' ? <DcrReport month={month} year={fy.year} /> : null}
           {report === 'tp' ? <TpReport month={month} year={fy.year} /> : null}
           {report === 'sales' ? <SalesReport month={month} year={fy.year} /> : null}

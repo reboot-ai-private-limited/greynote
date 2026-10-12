@@ -87,7 +87,7 @@ export function TodayCard() {
       </ThemedText>
       {gate.cause === 'MONTHLY_PLAN' ? (
         <PrimaryButton
-          label="Go to Monthly Plan"
+          label="Go to Tour Plan"
           onPress={() => router.push({ pathname: '/monthly-plan', params: { month: 'current' } })}
         />
       ) : needsPlan ? (

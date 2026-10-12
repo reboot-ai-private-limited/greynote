@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -73,6 +74,10 @@ export default function ServicesScreen() {
   const list = useCachedFetch<ServiceView[]>('doctor-services', listMyServices, records.filter((r) => r.status === 'SYNCED').length);
   const sent: ServiceRow[] = list.data ?? (activity.data?.doctorServices ?? []).map((s) => ({ ...s, approval: s.approvalRequestId ? { requestId: s.approvalRequestId, cycle: 0 } : null, doneAt: null, awaitingDone: false }));
 
+  // One doctor's requests, or all of them.
+  const [doctorFilter, setDoctorFilter] = useState('ALL');
+  const doctorsWithRequests = [...new Set(sent.map((s) => s.doctorId))].map((id) => ({ id, name: doctorName(id) }));
+  const shownSent = doctorFilter === 'ALL' ? sent : sent.filter((s) => s.doctorId === doctorFilter);
   // Approved and not carried out = to do; waiting = still with the manager or Admin.
   const stageOf = (s: ServiceRow) => (s.doneAt ? 'DONE' : s.status === 'APPROVED' ? 'TODO' : s.status === 'SUBMITTED' || s.status === 'MANAGER_APPROVED' ? 'WAITING' : 'OTHER');
   const waitingCount = sent.filter((s) => stageOf(s) === 'WAITING').length + unsent.length;
@@ -227,6 +232,10 @@ export default function ServicesScreen() {
         <PrimaryButton label="+ Request" style={styles.newButton} onPress={() => start('new')} />
       </View>
 
+      {doctorsWithRequests.length > 1 ? (
+        <ChoiceChips options={[{ value: 'ALL', label: 'All doctors' }, ...doctorsWithRequests.map((d) => ({ value: d.id, label: d.name }))]} value={doctorFilter} onChange={setDoctorFilter} />
+      ) : null}
+
       {unsent.map((r) => {
         const p = r.payload as ServicePayload;
         return (
@@ -256,7 +265,7 @@ export default function ServicesScreen() {
       ) : sent.length === 0 && unsent.length === 0 ? (
         <Notice tone="info">No service requests yet.</Notice>
       ) : (
-        sent.map((s) => {
+        shownSent.map((s) => {
           const stage = s.origin === 'ADMIN' && !s.doneAt ? { text: 'Set up by Admin, to do', accent: 'blue' as const } : serviceStage(s);
           const requestId = s.approval?.requestId ?? null;
           return (
@@ -272,6 +281,7 @@ export default function ServicesScreen() {
               <Pill text={stage.text} accent={stage.accent} />
               {s.doneAt ? <ThemedText type="small" themeColor="textSecondary">{`Carried out on ${formatWhen(s.doneAt)}`}</ThemedText> : null}
               {reasons[s.id] ? <ThemedText type="small">{`Reason: ${reasons[s.id]}`}</ThemedText> : null}
+              <PrimaryButton label="Details →" variant="text" disabled={!online} onPress={() => router.push({ pathname: '/service-detail', params: { id: s.id } })} />
               {requestId ? (
                 <View style={styles.row}>
                   {s.status === 'REJECTED' && !reasons[s.id] ? (

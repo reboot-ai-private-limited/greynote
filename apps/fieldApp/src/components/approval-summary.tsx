@@ -103,7 +103,7 @@ function DailyPlanSummary({ recordId }: { recordId: string }) {
               }
             />
           ) : null}
-          {data.source === 'MONTHLY' ?<ThemedText type="small" themeColor="textSecondary">From the approved Monthly Plan.</ThemedText> : null}
+          {data.source === 'MONTHLY' ?<ThemedText type="small" themeColor="textSecondary">From the approved Tour Plan.</ThemedText> : null}
         </>
       ) : null}
     </Frame>
@@ -113,7 +113,7 @@ function DailyPlanSummary({ recordId }: { recordId: string }) {
 function MonthlyPlanSummary({ recordId }: { recordId: string }) {
   const { data, error } = useRecord(() => getMonthlyPlanRecord(recordId), 0);
   return (
-    <Frame title={data ? `Monthly plan · ${prettyMonth(data.planMonth)}` : 'Monthly plan'} error={error} loading={!data}>
+    <Frame title={data ? `Tour plan · ${prettyMonth(data.planMonth)}` : 'Tour plan'} error={error} loading={!data}>
       {data?.entries.map((e) => (
         <Box key={e.planDate}>
           <ThemedText type="smallBold">{prettyDay(e.planDate)}</ThemedText>

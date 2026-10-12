@@ -360,7 +360,7 @@ export default function MonthlyPlanScreen() {
   );
 
   return (
-    <ScreenShell title="Monthly Plan" subtitle={`Your plan · ${prettyMonth(month)}`} wide footer={footer}>
+    <ScreenShell title="Tour Plan" subtitle={`Your plan · ${prettyMonth(month)}`} wide footer={footer}>
       <View style={isTablet && styles.toggleWide}>
         <PillToggle options={monthOptions} value={month} onChange={setMonth} />
       </View>
