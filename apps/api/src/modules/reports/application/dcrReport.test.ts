@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DcrMonthRow } from '../domain/ports.js';
 import { DcrReport, figuresOf } from './dcrReport.js';
 
-const row = (userId: string, month: string, over: Partial<DcrMonthRow> = {}): DcrMonthRow => ({ userId, month, reportedDays: 20, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 }, notInPlan: 0, ...over });
+const row = (userId: string, month: string, over: Partial<DcrMonthRow> = {}): DcrMonthRow => ({ userId, month, reportedDays: 20, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 }, notInPlan: 0, followupsNotInPlan: 0, offRouteCalls: 0, ...over });
 
 function kit(summaries: DcrMonthRow[], over: { called?: string[] } = {}) {
   const calls: Array<Record<string, unknown>> = [];
@@ -34,11 +34,11 @@ function kit(summaries: DcrMonthRow[], over: { called?: string[] } = {}) {
 
 describe('figuresOf', () => {
   it('adds up the calls, gives calls per reported day to one decimal, and counts what the geofence could not confirm', () => {
-    const f = figuresOf({ reportedDays: 20, lateDays: 1, doctorCalls: 100, chemistCalls: 33, followups: 4, geofence: { pass: 120, fail: 5, unverified: 5, override: 3 }, notInPlan: 7 });
-    expect(f).toMatchObject({ calls: 133, callsPerDay: 6.7, unconfirmed: 10, notInPlan: 7 });
+    const f = figuresOf({ reportedDays: 20, lateDays: 1, doctorCalls: 100, chemistCalls: 33, followups: 4, geofence: { pass: 120, fail: 5, unverified: 5, override: 3 }, notInPlan: 7, followupsNotInPlan: 2, offRouteCalls: 3 });
+    expect(f).toMatchObject({ calls: 133, callsPerDay: 6.7, unconfirmed: 10, notInPlan: 7, followupsNotInPlan: 2, offRouteCalls: 3 });
   });
   it('has no calls per day without a reported day', () => {
-    expect(figuresOf({ reportedDays: 0, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 }, notInPlan: 0 }).callsPerDay).toBeNull();
+    expect(figuresOf({ reportedDays: 0, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 }, notInPlan: 0, followupsNotInPlan: 0, offRouteCalls: 0 }).callsPerDay).toBeNull();
   });
 });
 

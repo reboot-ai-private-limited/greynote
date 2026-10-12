@@ -28,6 +28,7 @@ import { OverrideGeofenceUseCase } from './application/usecases/overrideGeofence
 import { GetDcrDetailUseCase } from './application/usecases/getDcrDetail.usecase.js';
 import { LogChemistCallUseCase, LogDoctorCallUseCase, LogFollowupUseCase } from './application/usecases/logCalls.usecase.js';
 import { GetDcrUseCase, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCase } from './application/usecases/readDcrs.usecase.js';
+import { DeleteDcrRecordUseCase } from './application/usecases/deleteDcrRecord.usecase.js';
 import { SubmitDcrUseCase } from './application/usecases/submitDcr.usecase.js';
 import type { ApprovalsPort } from './domain/approvals.port.js';
 import type { FieldMasterDataPort } from './domain/fieldMasterData.port.js';
@@ -105,7 +106,7 @@ export function buildFieldActivityContainer(
   approvals.registerKind({ kind: EXPENSE_MONTH_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, onStatusChange: (change, ctx) => monthService.onStatusChange(change.recordId, change.status, ctx) });
   const gate = new LoggingGate(users, planning, approvals, dcrs, clock);
   const views = new DcrViews(approvals);
-  const submitDcr = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config);
+  const submitDcr = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config, planning);
   const hasQualifyingDcr = new HasQualifyingDcrUseCase(dcrs, approvals);
   const listReportedDates = new ListReportedDatesUseCase(dcrs, approvals);
   const summarizeDcrs = new SummarizeDcrsUseCase(dcrs, approvals, doctorCalls, chemistCalls, followups, clock);
@@ -115,12 +116,12 @@ export function buildFieldActivityContainer(
   const dcrSummary = new GetDcrSummaryUseCase(dcrs, views, doctorCalls, chemistCalls, followups, expenses);
 
   // The day's calls and follow-ups, each checked against Field Master Data and Territory as they are at sync.
-  const checks = new CallChecks(master, territory, users, planning, config);
+  const checks = new CallChecks(master, territory, users, planning);
   const geofence = new GeofenceEvaluator(config);
   for (const definition of makeCallSyncHandlers({
     doctorCall: new LogDoctorCallUseCase(gate, checks, geofence, master, doctorCalls),
     chemistCall: new LogChemistCallUseCase(gate, checks, geofence, master, chemistCalls),
-    followup: new LogFollowupUseCase(gate, checks, followups),
+    followup: new LogFollowupUseCase(gate, checks, geofence, master, followups),
     parse: {
       doctorCall: (p) => doctorCallPayloadSchema.parse(p),
       chemistCall: (p) => chemistCallPayloadSchema.parse(p),
@@ -183,6 +184,7 @@ export function buildFieldActivityContainer(
           expenseProof: new ExpenseProof(expenses, monthService, proofStorage),
           listPayouts: new ListExpensePayoutsUseCase(expenses, users, config, clock),
           payExpenses: new PayMonthExpensesUseCase(expenses, config),
+          deleteRecord: new DeleteDcrRecordUseCase(dcrs, approvals, doctorCalls, chemistCalls, followups, master, new MongooseTransactionRunner()),
           override: new OverrideGeofenceUseCase(dcrs, users, views, doctorCalls, chemistCalls),
           get: new GetDcrDetailUseCase(new GetDcrUseCase(dcrs, users, views), doctorCalls, chemistCalls, followups, expenses, master),
         }),

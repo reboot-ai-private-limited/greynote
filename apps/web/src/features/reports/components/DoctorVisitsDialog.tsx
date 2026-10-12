@@ -7,6 +7,7 @@ import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Dialog } from '@/components/ui/Dialog';
 import { formatDate } from '@/lib/format';
 import { monthLabel } from '@/features/payroll/lib/payroll';
+import { STAGE_LABEL } from '../lib/doctorVisits';
 
 type Row = DoctorVisitMrDto['rows'][number];
 
@@ -19,6 +20,14 @@ const columns: readonly Column<Row>[] = [
   { key: 'specialty', header: 'Speciality', render: (r) => r.doctor.specialty },
   { key: 'frequency', header: 'Should visit', numeric: true, render: (r) => r.frequency },
   { key: 'made', header: 'Called', numeric: true, render: (r) => r.made },
+  { key: 'left', header: 'Still to visit', numeric: true, render: (r) => r.missed },
+  {
+    key: 'stage',
+    header: 'Stage',
+    render: (r) => (
+      <Badge tone={r.stage === 'COMPLETE' ? 'success' : r.stage === 'IN_PROGRESS' ? 'warning' : 'neutral'}>{STAGE_LABEL[r.stage]}</Badge>
+    ),
+  },
   { key: 'planned', header: 'Planned days', numeric: true, render: (r) => r.plannedDays },
   {
     key: 'missedSince',

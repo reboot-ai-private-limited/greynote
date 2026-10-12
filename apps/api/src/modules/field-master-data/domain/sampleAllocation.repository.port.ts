@@ -15,4 +15,6 @@ export interface SampleAllocationRepositoryPort {
   setAllocated(input: { doctorId: string; productId: string; total: number; by: string }): Promise<SampleAllocation | null>;
   /** Takes `quantity` off the remaining count in one conditional update — `false` if less than that is left. */
   decrementRemaining(allocationId: string, quantity: number, ctx?: TransactionContext): Promise<boolean>;
+  /** Puts `quantity` back on the remaining count: a call deleted before the report was submitted gives its samples back. */
+  restoreRemaining(allocationId: string, quantity: number, ctx?: TransactionContext): Promise<void>;
 }

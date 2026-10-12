@@ -76,7 +76,7 @@ export function GrantLateDialog({ onClose }: { onClose: () => void }) {
         label="Allowed until"
         htmlFor="grant-until"
         error={errors['expiresAt']}
-        hint={`Date and time in ${businessTimeZone()}. Leave empty for the default length.`}
+        hint={`Date and time in ${businessTimeZone()}. Leave empty for the default length.${form.kind === 'DAILY_PLAN' ? ' A daily plan’s exception ends at the latest at the end of its day.' : ''}`}
       >
         <div className="flex items-center gap-2">
           <Input

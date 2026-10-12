@@ -72,7 +72,6 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   { key: 'DAILY_PLAN_RESUBMIT_LATEST_TIME', module: 'PLANNING', label: 'Latest daily plan resubmit time', description: 'Time of day on the plan date after which a rejected Daily Plan can no longer be resubmitted.', type: 'TIME', default: '11:30', impact: 'NORMAL' },
   integer('MONTHLY_PLAN_RESUBMIT_GRACE_HOURS', 'PLANNING', 'Monthly plan resubmit window', 'After a rejection, hours a Monthly Plan may still be resubmitted past its deadline (never after the month starts).', 24, 1, 744, 'hours'),
   integer('PLAN_RESUBMIT_GRACE_MAX', 'PLANNING', 'Most resubmits per plan', 'Most resubmits per Plan allowed through the after-rejection window. 0 switches the window off.', 2, 0, 99),
-  integer('DAILY_PLAN_CHANGE_MAX', 'PLANNING', 'Most in-day changes per plan', 'Most in-day changes that can be applied to one approved Daily Plan.', 3, 1, 50),
 
   // ── HR ──
   integer('LEAVE_BACKDATE_DAYS', 'HR', 'Leave backdating limit', 'How many days back a leave may start (e.g. to cover a missed report).', 30, 1, 366, 'days'),
@@ -106,8 +105,7 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
     impact: 'HIGH',
     impactNote: 'Applies to reports submitted from now on. Off: nobody reviews a daily report before its TA/DA is generated. Reports already waiting keep their current approval path.',
   },
-  toggle('ALLOW_UNPLANNED_DOCTOR_CALLS', 'FIELD_ACTIVITY', 'Allow calls to doctors not on the day\u2019s plan', 'Whether an employee can log a call to a doctor who is not on that day\u2019s approved doctor list. On: the call is saved and shown as "Not in plan" in the daily report and the reports. Off: such a call is refused.', true),
-  integer('DCR_MISS_GRACE_DAYS', 'FIELD_ACTIVITY', 'Missed-report grace', 'Grace days before a missed DCR triggers the compliance block.', 1, 0, 365, 'days'),
+  integer('DCR_MISS_GRACE_DAYS', 'FIELD_ACTIVITY', 'Missed-report grace', 'Missed working days allowed before the compliance block. Set 0 for the rule "a daily report not submitted by the next day start blocks the employee until a manager or Admin unblocks them"; the seeded 1 allows one miss.', 1, 0, 365, 'days'),
 
   toggle('CALL_CARRY_OVER_FOREVER', 'FIELD_ACTIVITY', 'Missed calls carry over without limit', 'Whether a doctor planned for a day but not called stays on later days\u2019 plans until called. Off: the days setting below applies.', false),
   integer('CALL_CARRY_OVER_DAYS', 'FIELD_ACTIVITY', 'Missed calls carry over for', 'How long a planned but uncalled doctor carries over to later days\u2019 plans. 0 = until the end of that month; otherwise that many days after the planned day. Ignored while the setting above is on.', 0, 0, 365, 'days'),

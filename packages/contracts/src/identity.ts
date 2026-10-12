@@ -118,6 +118,15 @@ export interface UserDetailDto {
   isBlocked: boolean;
   lastLoginAt: string | null;
   currentBlock: { reason: string; blockedAt: string } | null;
+  /** Every block on the employee, newest first: who cleared each, in what role, and why. */
+  blockHistory: Array<{
+    reason: string;
+    blockedAt: string;
+    unblockedAt: string | null;
+    unblockedBy: string | null;
+    unblockedByRole: string | null;
+    unblockReason: string | null;
+  }>;
   profile: {
     designationId: string | null;
     payBandId: string | null;

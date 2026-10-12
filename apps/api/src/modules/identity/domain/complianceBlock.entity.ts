@@ -9,8 +9,12 @@ export interface ComplianceBlockEvent {
   userId: string;
   reason: string;
   blockedAt: Date;
-  /** Must resolve to an ADMIN-role user — never the target's manager. `null` while still open. */
+  /** An Admin, or a manager above the employee (decision-log 2026-10-12). `null` while still open. */
   unblockedBy: string | null;
   /** `null` = still open (the user is currently blocked because of this event). */
   unblockedAt: Date | null;
+  /** Who cleared it: Admin, or a manager above the employee. `null` while open. */
+  unblockedByRole: string | null;
+  /** Why they cleared it — required, and kept for audit. `null` while open. */
+  unblockReason: string | null;
 }

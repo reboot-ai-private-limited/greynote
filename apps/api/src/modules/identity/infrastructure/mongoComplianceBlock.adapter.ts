@@ -1,7 +1,7 @@
 import { Types, type ClientSession } from 'mongoose';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ComplianceBlockEvent } from '../domain/complianceBlock.entity.js';
-import { OpenBlockExistsError, type ComplianceBlockRepositoryPort } from '../domain/complianceBlock.repository.port.js';
+import { OpenBlockExistsError, type BlockClearing, type ComplianceBlockRepositoryPort } from '../domain/complianceBlock.repository.port.js';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { ComplianceBlockModel, type ComplianceBlockDoc } from './complianceBlock.schema.js';
 
@@ -13,6 +13,8 @@ function toComplianceBlockEvent(doc: ComplianceBlockDoc & { _id: unknown }): Com
     blockedAt: doc.blockedAt,
     unblockedBy: doc.unblockedBy ? String(doc.unblockedBy) : null,
     unblockedAt: doc.unblockedAt,
+    unblockedByRole: doc.unblockedByRole ?? null,
+    unblockReason: doc.unblockReason ?? null,
   };
 }
 
@@ -40,6 +42,8 @@ export class MongoComplianceBlockAdapter implements ComplianceBlockRepositoryPor
             blockedAt: input.blockedAt,
             unblockedBy: input.unblockedBy ? new Types.ObjectId(input.unblockedBy) : null,
             unblockedAt: input.unblockedAt,
+            unblockedByRole: input.unblockedByRole,
+            unblockReason: input.unblockReason,
           },
         ],
         { ...(ctx ? { session: ctx as ClientSession } : {}) },
@@ -54,11 +58,21 @@ export class MongoComplianceBlockAdapter implements ComplianceBlockRepositoryPor
     }
   }
 
-  async close(id: string, unblockedBy: string, unblockedAt: Date, ctx?: TransactionContext): Promise<void> {
+  async close(id: string, clearing: BlockClearing, ctx?: TransactionContext): Promise<void> {
     await ComplianceBlockModel.updateOne(
       { _id: id },
-      { unblockedBy: new Types.ObjectId(unblockedBy), unblockedAt },
+      {
+        unblockedBy: new Types.ObjectId(clearing.unblockedBy),
+        unblockedByRole: clearing.unblockedByRole,
+        unblockReason: clearing.unblockReason,
+        unblockedAt: clearing.unblockedAt,
+      },
       { ...(ctx ? { session: ctx as ClientSession } : {}) },
     );
+  }
+
+  async listByUserId(userId: string): Promise<ComplianceBlockEvent[]> {
+    const docs = await ComplianceBlockModel.find({ userId: new Types.ObjectId(userId) }).sort({ blockedAt: -1 }).lean();
+    return docs.map(toComplianceBlockEvent);
   }
 }

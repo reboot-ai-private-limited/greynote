@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { neighbour, requiredProgress, setupSteps, startStep } from './setup';
 
 const base: UserDetailDto = {
-  id: 'u1', employeeCode: 'MR001', name: 'Asha Rao', email: null, phone: null, role: 'FIELD', status: 'pending', isBlocked: false, lastLoginAt: null, currentBlock: null, profile: null,
+  id: 'u1', employeeCode: 'MR001', name: 'Asha Rao', email: null, phone: null, role: 'FIELD', status: 'pending', isBlocked: false, lastLoginAt: null, currentBlock: null, blockHistory: [], profile: null,
 };
 const profile = (over: Partial<NonNullable<UserDetailDto['profile']>> = {}): NonNullable<UserDetailDto['profile']> => ({
   designationId: null, payBandId: null, managerId: null, dateOfJoining: null, probationMonths: null, esiNumber: null, mobileNumber: null, hqId: null, zoneId: null, alternateMobile: null, guardianName: null, dateOfBirth: null,

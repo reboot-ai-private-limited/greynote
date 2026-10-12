@@ -1,3 +1,5 @@
+DELETE /api/field-activity/dcr/:id/calls/:callId  FIELD
+DELETE /api/field-activity/dcr/:id/followups/:callId  FIELD
 DELETE /api/field-activity/expenses/other/:id  FIELD
 DELETE /api/field-activity/expenses/other/:id/attachments/:attachmentId  FIELD
 DELETE /api/field-master-data/doctors/:id/assignments/:userId  ADMIN
@@ -76,10 +78,8 @@ GET    /api/marketing/targets/:userId  ADMIN,FIELD
 GET    /api/marketing/visuals  ADMIN,FIELD
 GET    /api/payroll  ACCOUNTANT,ADMIN
 GET    /api/payroll/:id  ACCOUNTANT,ADMIN
-GET    /api/planning/changes/:id  ADMIN,FIELD
 GET    /api/planning/daily  FIELD
 GET    /api/planning/daily/:id  ADMIN,FIELD
-GET    /api/planning/daily/:id/changes  ADMIN,FIELD
 GET    /api/planning/daily/carry-over  FIELD
 GET    /api/planning/late-grants  ADMIN,FIELD
 GET    /api/planning/monthly  FIELD
@@ -119,6 +119,7 @@ PATCH  /api/config/:key  ADMIN
 PATCH  /api/field-master-data/chemists/:id  ADMIN
 PATCH  /api/field-master-data/distributors/:id  ADMIN
 PATCH  /api/field-master-data/doctors/:id  ADMIN
+PATCH  /api/field-master-data/doctors/:id/review  ADMIN,FIELD
 PATCH  /api/field-master-data/doctors/:id/sample-allocations/:productId  ADMIN
 PATCH  /api/field-master-data/doctors/:id/targets  ADMIN,FIELD
 PATCH  /api/field-master-data/products/:id  ADMIN
@@ -188,15 +189,13 @@ POST   /api/identity/users/:id/documents  ADMIN,HR
 POST   /api/identity/users/:id/promotions  ADMIN,HR
 POST   /api/identity/users/:id/promotions/preview  ADMIN,HR
 POST   /api/identity/users/:id/reset-password  ADMIN
-POST   /api/identity/users/:id/unblock  ADMIN
+POST   /api/identity/users/:id/unblock  ADMIN,FIELD
 POST   /api/marketing/campaigns  ADMIN
 POST   /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 POST   /api/marketing/targets  ADMIN,FIELD
 POST   /api/marketing/visuals  ADMIN
 POST   /api/payroll/:id/finalize  ACCOUNTANT,ADMIN
 POST   /api/payroll/generate  ACCOUNTANT,ADMIN
-POST   /api/planning/daily  FIELD
-POST   /api/planning/daily/:id/changes  FIELD
 POST   /api/planning/daily/:id/submit  FIELD
 POST   /api/planning/daily/doctors  FIELD
 POST   /api/planning/late-grants  ADMIN,FIELD

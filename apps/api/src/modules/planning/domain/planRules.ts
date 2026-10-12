@@ -1,5 +1,5 @@
 import { AppError } from '@/shared/errors/AppError.js';
-import type { PlanDay } from './plan.js';
+import { isFieldDay, type PlanDay } from './plan.js';
 
 const hasDuplicates = (ids: string[]) => new Set(ids).size !== ids.length;
 
@@ -8,11 +8,11 @@ const hasDuplicates = (ids: string[]) => new Set(ids).size !== ids.length;
  * error's field name (`entries.3.` for a Monthly entry).
  */
 export function assertPlanDay(day: PlanDay, ownerId: string, field = ''): void {
-  if (day.workingType === 'FIELD_WORK' && day.routeIds.length === 0) {
-    throw AppError.badRequest('A field work day needs at least one route.', { field: `${field}routeIds` });
+  if (isFieldDay(day.workingType) && day.routeIds.length === 0) {
+    throw AppError.badRequest('A field work or doctor campaign day needs at least one route.', { field: `${field}routeIds` });
   }
-  if (day.workingType !== 'FIELD_WORK' && day.routeIds.length > 0) {
-    throw AppError.badRequest('Only a field work day has routes.', { field: `${field}routeIds` });
+  if (!isFieldDay(day.workingType) && day.routeIds.length > 0) {
+    throw AppError.badRequest('Only a field work or doctor campaign day has routes.', { field: `${field}routeIds` });
   }
   if (hasDuplicates(day.routeIds)) {
     throw AppError.badRequest('A route is listed twice.', { field: `${field}routeIds` });

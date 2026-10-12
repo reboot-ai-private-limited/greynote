@@ -65,7 +65,7 @@ describe('specialities (decision-log 2026-10-06)', () => {
   });
 
   it('an older doctor whose free-text speciality is not on the list can still be edited, until the speciality itself is changed', async () => {
-    const legacy = await doctors.create({ ...input, specialty: 'Cardio-vascular surgeon', dateOfBirth: null, anniversary: null, visitFrequency: null, capturedLocation: null, clientRequestId: null, status: 'active', addedBy: 'admin', approvedAt: new Date() });
+    const legacy = await doctors.create({ ...input, specialty: 'Cardio-vascular surgeon', clinicName: null, phone: null, dateOfBirth: null, anniversary: null, visitFrequency: null, capturedLocation: null, clientRequestId: null, status: 'active', addedBy: 'admin', approvedAt: new Date() });
     expect((await updateDoctor.execute(legacy.id, { name: 'Dr Rao Jr' })).name).toBe('Dr Rao Jr');
     expect((await updateDoctor.execute(legacy.id, { specialty: 'Cardio-vascular surgeon' })).specialty).toBe('Cardio-vascular surgeon');
     expect(await status(updateDoctor.execute(legacy.id, { specialty: 'Heart' }))).toBe(400);
@@ -73,7 +73,7 @@ describe('specialities (decision-log 2026-10-06)', () => {
 
   it('renaming a speciality renames it on its doctors, whatever case they had', async () => {
     const a = await createDoctor.execute(input, 'admin');
-    const b = await doctors.create({ ...input, name: 'Dr Old', specialty: ' ent', dateOfBirth: null, anniversary: null, visitFrequency: null, capturedLocation: null, clientRequestId: null, status: 'active', addedBy: 'admin', approvedAt: new Date() });
+    const b = await doctors.create({ ...input, name: 'Dr Old', specialty: ' ent', clinicName: null, phone: null, dateOfBirth: null, anniversary: null, visitFrequency: null, capturedLocation: null, clientRequestId: null, status: 'active', addedBy: 'admin', approvedAt: new Date() });
     const other = await createDoctor.execute({ ...input, name: 'Dr Heart', specialty: 'Cardiologist' }, 'admin');
     const renamed = await new UpdateSpecialtyUseCase(specialties, doctors).execute('sp-1', { name: 'ENT Specialist' });
     expect(renamed.name).toBe('ENT Specialist');

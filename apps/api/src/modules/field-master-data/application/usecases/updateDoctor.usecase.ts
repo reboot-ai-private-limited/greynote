@@ -8,7 +8,7 @@ import type { SpecialtyCatalog } from '../specialtyCatalog.js';
 import { requireActiveRoute } from '../requireActiveRoute.js';
 
 export type UpdateDoctorInput = Partial<
-  Pick<Doctor, 'routeId' | 'name' | 'address' | 'email' | 'specialty' | 'qualification' | 'location' | 'status' | 'dateOfBirth' | 'anniversary' | 'visitFrequency'>
+  Pick<Doctor, 'routeId' | 'name' | 'address' | 'email' | 'specialty' | 'qualification' | 'clinicName' | 'phone' | 'location' | 'status' | 'dateOfBirth' | 'anniversary' | 'visitFrequency'>
 >;
 
 /**

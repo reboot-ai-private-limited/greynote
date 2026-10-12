@@ -18,7 +18,7 @@ const doctor: DoctorDto = {
   email: 'roy@example.com',
   specialty: 'Cardiology',
   qualification: 'MD',
-  dateOfBirth: null,
+  clinicName: null, phone: null, dateOfBirth: null,
   anniversary: null,
   visitFrequency: null,
   location: { latitude: 26.7, longitude: 88.4 },
@@ -42,6 +42,8 @@ describe('buildDoctor', () => {
         specialty: 'Cardiology',
         qualification: 'MD',
         email: null,
+        clinicName: null,
+        phone: null,
         dateOfBirth: null,
         anniversary: null,
         visitFrequency: null,
@@ -136,5 +138,12 @@ describe('visit frequency and dates', () => {
   it('refuses a date in the future or a malformed one', () => {
     expect(doctorStepErrors({ ...filled, dateOfBirth: '2999-01-01' }, 'details')['dateOfBirth']).toBeDefined();
     expect(doctorStepErrors({ ...filled, anniversary: '02/05/1980' }, 'details')['anniversary']).toBeDefined();
+  });
+});
+
+describe('clinic name and phone', () => {
+  it('are optional, and a bad phone is reported', () => {
+    expect(buildDoctor({ ...filled, clinicName: ' City  Clinic ', phone: '98765 43210' })).toMatchObject({ ok: true, body: { clinicName: 'City Clinic', phone: '9876543210' } });
+    expect(buildDoctor({ ...filled, phone: '123' })).toMatchObject({ ok: false });
   });
 });

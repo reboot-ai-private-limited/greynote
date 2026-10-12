@@ -6,6 +6,7 @@ import { formatDateTime } from '@/lib/format';
 import {
   GEOFENCE_LABEL,
   GEOFENCE_TONE,
+  ROUTE_TYPE_LABEL,
   WORKING_TYPE_LABEL,
   geofenceDetail,
   isFlagged,
@@ -35,12 +36,14 @@ export function CallCard({
           <p className="text-sm font-medium text-text">{name || 'Unknown'}</p>
           <p className="text-xs text-text-subtle">
             {formatDateTime(call.recordedAt)} · {WORKING_TYPE_LABEL[call.workingType]}
+            {call.routeType ? ` · ${ROUTE_TYPE_LABEL[call.routeType]}` : ''}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {'doctorName' in call && call.notInPlan ? (
             <Badge tone="warning">Not in plan</Badge>
           ) : null}
+          {call.routeNotInPlan ? <Badge tone="warning">Route not in plan</Badge> : null}
           <Badge tone={GEOFENCE_TONE[call.geofence.status]}>
             {GEOFENCE_LABEL[call.geofence.status]}
           </Badge>

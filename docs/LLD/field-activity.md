@@ -47,7 +47,7 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
   is someone else (`INVALID_WORK_WITH`). The phone sends `capturedLocation` (nullable) and `accuracyMeters`;
   the **server** decides `PASS` / `FAIL` / `UNVERIFIED` with the radius and accuracy read from System Config on
   every call, stores it, and echoes it as the record's `data.geofence` (replayed unchanged on `ALREADY_SYNCED`).
-  A `FAIL` is flagged for the manager, never refused. No GPS reading at all is `UNVERIFIED / NO_GPS_READING`.
+  Only a `PASS` is stored; a `FAIL` or `UNVERIFIED` is **refused** `NOT_AT_LOCATION` (decision-log 2026-10-12).
   A Doctor call may carry `samples`: each line draws the Doctor's allocation down atomically
   (`decrementRemaining`), inside the record's transaction, so a line that cannot be met (`SAMPLES_EXHAUSTED`,
   saying how many remain; `NO_SAMPLE_ALLOCATION`) undoes the whole call including earlier lines; simultaneous
@@ -63,7 +63,7 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
   transaction, so the status change and the rows commit together or not at all. Past the manager
   (`MANAGER_APPROVED`, or `APPROVED` for a top-of-chain submitter or an Admin override) and only if the DCR has no
   live `AUTO` rows yet, it reads the day's Plan (Planning's new `getDailyPlanDay`: working type and routes, with
-  an approved in-day change already in it), each Route (Territory's `getRoute`) and the Pay Band (Identity's
+  a manager's amendment already in it), each Route (Territory's `getRoute`) and the Pay Band (Identity's
   `getPayBandRates`), and writes `AUTO`, `UNPAID` rows — never from anything the phone sent. The rules are
   `application/taDaCalculator.ts`: `FIELD_WORK` gets **one TA row, for the day's longest non-HQ Route only** (the first on a tie; an `HQ` Route earns no TA, so a day on HQ Routes is DA alone; distance, at most `TA_MAX_KM` (99), × that Route's own rate, else
   the Pay Band's, rounded half up once; a Route with an unknown distance keeps a zero flagged row; decision-log 2026-10-05) and one DA row at the highest Route type of the day;
@@ -199,17 +199,13 @@ specifically before this phase, for that reason). What's specific to this module
 - `DCR` and every child below it are transactional records per `hld/01` §1.1: client-generated
   UUID, local `sync_status` (`DRAFT → QUEUED → SYNCED/FAILED`), pushed in dependency order (the
   `DCR` envelope before its children) and idempotent on that UUID at the server.
-- `DoctorCall`/`ChemistCall` run the geofence check on-device first (`hld/01` §2.2) using the
-  cached registered coordinates from Field Master Data, then the server **recomputes and can
-  overwrite** `geofence_status` at sync time — the server's answer is authoritative over a
-  possibly-stale or spoofed device value.
-- A `FAIL` **does not block submission** (`hld/01` §2.3) — it saves normally with
-  `geofence_status = FAIL`, visible to the Nearest Manager during DCR review alongside the call's
-  remarks. `OVERRIDE` (the third `geofence_status` value the ERD carries) is how that manager's
-  judgment call gets recorded on the specific call row — this module's DCR-review use case is
-  where `FAIL → OVERRIDE` happens; nothing in `hld/01` or the ERD specifies a UI or API shape for
-  it beyond the state existing, so this is a genuine open item for whoever implements this
-  module's approval-review endpoint to close, not something to invent silently.
+- All four records (`DoctorCall`, `ChemistCall`, and both follow-ups) carry the phone's GPS. The server compares it with the
+  registered location of the doctor or chemist (`GeofenceEvaluator.requirePass`, radius `GEO_FENCE_RADIUS_METERS`, default 100 m) and
+  **refuses anything but a `PASS`** with `NOT_AT_LOCATION` — out of range, no GPS, weak GPS, or no registered location. A refused
+  record is never stored (decision-log 2026-10-12, *Calls redesign*; it reverses the earlier "flags, never blocks"). The device may
+  pre-check for a faster answer; the server's answer is the only one.
+- Because nothing but `PASS` is stored, the manager's `OVERRIDE` (`overrideGeofence`) only applies to records saved before this
+  change; the endpoint stays for them.
 - `DCR` Final Submission requires a **live connection at tap time**, same carve-out as
   `DailyPlan`/`MonthlyPlan` Submit (`hld/01` §1.2) — individual calls/expenses can queue offline,
   but the Final Submission action itself cannot, because it's what the missed-DCR compliance job
@@ -290,7 +286,7 @@ what needs a live connection or a role other than the MR's, all under `/api/fiel
 
 The server recomputes every call's `geofence_status` at sync from the Doctor's or Chemist's stored
 location and `GEO_FENCE_RADIUS_METERS` (`sync.md`, *Geofencing*); its answer overwrites the phone's. A
-`FAIL` or `UNVERIFIED` call is **flagged, never refused**, and the reviewing manager sees the flag next
+`FAIL` or `UNVERIFIED` call saved **before 2026-10-12** was flagged, never refused (since then such a call is refused, see *Offline sync & geofencing*), and the reviewing manager sees the flag next
 to the call's remarks. To accept one, **the manager marks that call `OVERRIDE` with a required
 comment** — `POST /dcr/:id/calls/:callId/override-geofence`. It's an action on the *call*, separate from
 approving the DCR, so a manager can accept two flagged calls and still reject the day. It records who,
@@ -315,19 +311,29 @@ is asked) and the TA/DA step below runs in the same transaction, since no status
 gate checks, including the approved Daily Plan, still apply, so there is no TA/DA without an approved Plan and
 a submitted DCR. When `true`, nothing changes.
 
-## Calls stay inside the day's Plan (decision-log 2026-10-03)
+## Calls follow the day's Plan, and flag when they differ (decision-log 2026-10-12, *Calls redesign*)
 
-A Doctor or Chemist Call is refused `ROUTE_NOT_IN_PLAN` unless the Doctor's or Chemist's Route is one of the approved
-Plan's `routeIds` (`CallChecks.onPlannedRoute`, after the existence/assignment checks). A meeting or conference day
-has no Routes, so no calls. Follow-ups are not route-checked. To differ from the Plan, the manager or Admin amends the
-Plan first (`planning.md`).
+The earlier rule (2026-10-03, refuse a call on a route the plan doesn't list) is replaced. `CallChecks.day` reads the approved
+Plan: a **Meeting, Conference or Strike** day has no calls or follow-ups (`CALL_NOT_ALLOWED_FOR_WORK_TYPE`); a **field work or
+doctor campaign** day is open. Each record is stamped by the server with the plan's `workingType`, the doctor's or chemist's
+`routeId` and its `routeType` (HQ / Ex-station / Out-station), and the flags:
 
-**Doctors outside the day's doctor list (decision-log 2026-10-10).** A Doctor Call is checked by `CallChecks.doctorInPlan`:
-a Doctor on the plan's list (`getDailyPlanDay().doctorIds`, picked or carried) is in plan whatever their Route; a plan that
-lists **no** Doctors keeps the Route rule above; otherwise the Doctor is **not in plan** — saved with `notInPlan = true`
-while `ALLOW_UNPLANNED_DOCTOR_CALLS` is on (default; a database without the key reads as on), refused `ROUTE_NOT_IN_PLAN`
-when it is off. Chemist Calls keep the Route rule. The flag shows as a "Not in plan" badge on the call in the approval
-preview and as a count in the DCR report (`DcrMonthSummary.notInPlan` from `DoctorCallRepositoryPort.countNotInPlan`).
+- Doctor call: `notInPlan` (doctor not on `doctorIds`; a plan with no doctor list falls back to the route) and `routeNotInPlan`.
+- Doctor follow-up: `notInPlan` (as for the call).
+- Chemist call: `routeNotInPlan`. Chemist follow-up: `notInPlan` = the chemist's route is not on the plan.
+
+Flags never refuse. `ALLOW_UNPLANNED_DOCTOR_CALLS` is removed. The phone no longer sends a work type; the chemist call has none of its
+own. Follow-ups have no carry-forward: missed *planned* doctors already carry through `CarryOver`. Reports count them
+(`DcrMonthSummary.notInPlan`, `followupsNotInPlan`, `offRouteCalls`) and the approval preview shows the badges.
+
+**Meeting / Conference / Strike days still have a daily report.** `DCR_SUBMIT` carries an optional `remarks`; on a Meeting or
+Conference day it is required (`REMARKS_REQUIRED`), kept on `Dcr.remarks` and shown in the approval preview. A Strike day submits
+with one tap. TA/DA is unchanged (Meeting/Conference DA at the HQ rate; Strike nothing); `DOCTOR_CAMPAIGN` pays DA at the highest
+route type and no TA.
+
+**Removing a record.** `DeleteDcrRecordUseCase`: `DELETE /dcr/:id/calls/:callId` and `/dcr/:id/followups/:followupId`, owner only,
+only while the report is open (not yet submitted, or sent back); a doctor call returns its samples to the allocation in the same
+transaction (`restoreRemaining`). The app asks "Are you sure?" first (`mobile/dcr.md`).
 
 ## When TA/DA is generated (decided 2026-09-29)
 
@@ -348,7 +354,7 @@ limits the run; the exit code is 1 if any employee could not be checked.
 `RunMissedDcrCheckUseCase` visits each active FIELD employee (Identity's `listActiveFieldUserIds`). It blocks
 (`Identity.blockUser`, reason `DCR_MISSED_NO_LEAVE: no report for <dates>`) anyone who has **missed more than
 `DCR_MISS_GRACE_DAYS` working days in a row, ending yesterday** (business timezone) — `0` blocks on the first
-miss, the default `1` on the second. Walking back from yesterday, a day is:
+miss, the seeded `1` on the second. **Set it to `0` for the rule "a daily report not submitted by the next day start blocks the employee"** (the seed never overwrites an existing value, so change it in Admin → Settings). Admin **or the employee's manager** clears the block, with a reason (see `identity.md`). Walking back from yesterday, a day is:
 
 - **reported** — a DCR that is `SUBMITTED`, `MANAGER_APPROVED` or `APPROVED` (sign-off B7's working assumption) —
   which ends the walk;

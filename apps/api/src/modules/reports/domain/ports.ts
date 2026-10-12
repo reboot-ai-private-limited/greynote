@@ -161,6 +161,8 @@ export interface DcrMonthRow {
   followups: number;
   geofence: { pass: number; fail: number; unverified: number; override: number };
   notInPlan: number;
+  followupsNotInPlan: number;
+  offRouteCalls: number;
 }
 
 export interface PayrollReportRow {

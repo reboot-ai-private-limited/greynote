@@ -3,13 +3,8 @@ import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalKindDefinition } from '@/modules/approval/approval.public.js';
-import type { DailyPlanChange } from '../../domain/dailyPlanChange.entity.js';
-import { OpenChangeExistsError, type DailyPlanChangeRepositoryPort } from '../../domain/dailyPlanChange.repository.port.js';
-import { makeDailyPlanChangeHandler } from '../dailyPlanChangeHandler.js';
 import { makeMonthlyPlanInheritHandler } from '../monthlyPlanInheritHandler.js';
 import { AmendDailyPlanUseCase } from './amendDailyPlan.usecase.js';
-import { GetDailyPlanChangeUseCase, ListDailyPlanChangesUseCase } from './listDailyPlanChanges.usecase.js';
-import { RequestDailyPlanChangeUseCase } from './requestDailyPlanChange.usecase.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { DailyPlan, PlanAmendment } from '../../domain/dailyPlan.entity.js';
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
@@ -90,31 +85,6 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
     if (!plan || plan.revision !== revision) return false;
     this.rows.set(id, { ...plan, revision: revision + 1, lateResubmits: plan.lateResubmits + (countLateResubmit ? 1 : 0) });
     return true;
-  }
-}
-
-export class FakeChanges implements DailyPlanChangeRepositoryPort {
-  rows: DailyPlanChange[] = [];
-  async findById(id: string) {
-    return this.rows.find((c) => c.id === id) ?? null;
-  }
-  async listForPlan(planId: string) {
-    return this.rows.filter((c) => c.planId === planId).reverse();
-  }
-  async countApplied(planId: string) {
-    return this.rows.filter((c) => c.planId === planId && c.applied).length;
-  }
-  async create(input: Omit<DailyPlanChange, 'id' | 'open' | 'applied' | 'createdAt'>) {
-    // Check and insert in one synchronous step, like the partial unique index does.
-    if (this.rows.some((c) => c.planId === input.planId && c.open)) throw new OpenChangeExistsError();
-    const row: DailyPlanChange = { ...input, id: `change-${this.rows.length + 1}`, open: true, applied: false, createdAt: new Date() };
-    this.rows.push(row);
-    return row;
-  }
-  async close(id: string, applied: boolean) {
-    const row = this.rows.find((c) => c.id === id)!;
-    row.open = false;
-    row.applied = applied;
   }
 }
 
@@ -338,7 +308,6 @@ export class FakeConfig {
     DAILY_PLAN_RESUBMIT_LATEST_TIME: '11:30',
     MONTHLY_PLAN_RESUBMIT_GRACE_HOURS: '24',
     PLAN_RESUBMIT_GRACE_MAX: '2',
-    DAILY_PLAN_CHANGE_MAX: '3',
     CALL_CARRY_OVER_FOREVER: 'false',
     CALL_CARRY_OVER_DAYS: '0',
   };
@@ -371,13 +340,6 @@ export function planningKit(clock: Clock) {
   const deadlines = new PlanDeadlines(config, clock.now);
   const views = new PlanViews(approvals, grants, deadlines);
   const submitter = new PlanSubmitter(users, routes, approvals, grants, inlineTransactions, clock.now);
-  const changes = new FakeChanges();
-  approvals.registerKind({
-    kind: 'DAILY_PLAN_CHANGE',
-    finalApproverRoles: ['ADMIN'],
-    managerOnly: true,
-    onStatusChange: makeDailyPlanChangeHandler(changes, dailyPlans, approvals, deadlines),
-  });
   approvals.registerKind({
     kind: 'MONTHLY_PLAN',
     finalApproverRoles: ['ADMIN'],
@@ -389,9 +351,6 @@ export function planningKit(clock: Clock) {
   const monthlyBlocked = new Set<string>();
   const monthlyApproved: MonthlyApprovedCheck = async (u, m) => !monthlyBlocked.has(`${u}:${m}`);
   const amend = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => async (u, d) => reported.has(`${u}:${d}`));
-  const requestChange = new RequestDailyPlanChangeUseCase(dailyPlans, changes, approvals, users, submitter, deadlines, inlineTransactions);
-  const listChanges = new ListDailyPlanChangesUseCase(dailyPlans, changes, approvals, users);
-  const getChange = new GetDailyPlanChangeUseCase(changes, approvals, users);
   /** Each user's visible doctors, and the calls they made (`userId` → `{ doctorId, date }`), as the test sets them. */
   const doctors = new Map<string, Array<{ id: string; routeId: string }>>();
   const calls: Array<{ userId: string; doctorId: string; date: string }> = [];
@@ -401,5 +360,21 @@ export function planningKit(clock: Clock) {
     async (userId, { from, to }) => calls.filter((c) => c.userId === userId && c.date >= from && c.date <= to).map((c) => c.doctorId),
   );
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views);
-  return { doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, changes, requestChange, listChanges, getChange, amend, reported, monthlyBlocked, monthlyApproved };
+  return { doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, amend, reported, monthlyBlocked, monthlyApproved };
+}
+
+/**
+ * Test seam: writes a day's draft the way the monthly inheritance or a manager's amendment leaves one. The employee has no
+ * save of their own any more — only doctors — so tests that need a plan to exist seed it here.
+ */
+export class SeedDailyPlan {
+  constructor(
+    private readonly plans: FakeDailyPlans,
+    private readonly views: PlanViews,
+  ) {}
+  async execute(userId: string, planDate: string, day: PlanDay) {
+    const existing = await this.plans.findByUserAndDate(userId, planDate);
+    const saved = await this.plans.save(userId, planDate, day, existing?.revision ?? null);
+    return this.views.daily(saved!);
+  }
 }

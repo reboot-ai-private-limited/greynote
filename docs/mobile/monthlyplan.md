@@ -1,6 +1,6 @@
 # Mobile — Monthly Plan and Work With
 
-What the field app must do for the Monthly Plan, and the rules the server enforces. The server is the authority: the phone's cached status is a UX gate only and may be stale. Design background: [`LLD/planning.md`](../LLD/planning.md), [`decision-log.md`](../decision-log.md).
+What the field app must do for the Monthly Plan, and the rules the server enforces (the Daily Plan is in [`dailyplan.md`](dailyplan.md)). The server is the authority: the phone's cached status is a UX gate only and may be stale. Design background: [`LLD/planning.md`](../LLD/planning.md), [`decision-log.md`](../decision-log.md).
 
 **Status key:** ✅ built on the server and web. The phone app is another team's; this is the contract it builds against.
 
@@ -8,7 +8,7 @@ What the field app must do for the Monthly Plan, and the rules the server enforc
 
 | # | Rule | Status |
 |---|---|---|
-| 1 | One Monthly Plan per employee per month: up to 31 day entries, each with a working type, routes, work-with people and remarks. | ✅ |
+| 1 | One Monthly Plan per employee per month: up to 31 day entries, each with a working type (`FIELD_WORK`, `DOCTOR_CAMPAIGN`, `MEETING`, `CONFERENCE`, `STRIKE`), routes, work-with people and remarks. Field work and doctor campaign need routes; the others have none. | ✅ |
 | 2 | **Deadline** for month *M* = the end of the business day of `MONTHLY_PLAN_SUBMIT_CUTOFF_DATE` (default the 28th) **of the month before**. | ✅ |
 | 3 | The business day follows the **global day start** (`DAY_START_TIME`, e.g. `02:00`) in `BUSINESS_TIMEZONE`. With `02:00`, the 28th ends at **01:59:59.999 on the 29th**, not at midnight. Never compute this on the phone — show `submitDeadline` from the server. | ✅ |
 | 4 | Save is free while the plan is a draft, and works **offline**. **Submit needs a live connection** (it is never queued). | ✅ |
@@ -22,6 +22,7 @@ What the field app must do for the Monthly Plan, and the rules the server enforc
 | 12 | **No approved Monthly Plan = no work that month.** Daily plans for the month can't be saved or submitted, and nothing can be logged. Refused with `MONTHLY_PLAN_NOT_APPROVED` (REST `409` on saving or submitting a daily plan, `publicDetails.planMonth`; a sync record or DCR submit is refused with the same code). The month of a day is its business date's month. A new joiner or anyone who missed the deadline asks Admin for a late-submission exception. Applies to every month, including the current one. | ✅ |
 | 13 | A blocked employee (missed reports) cannot submit; the server says so. | ✅ |
 | 14 | Every route must be one of the employee's own active routes; every work-with person must be an active employee; nobody lists themselves or a person twice. | ✅ |
+| 15 | **The routes chosen here decide the day's doctors.** The Daily Plan inherits each day's routes; the employee can then pick doctors only if they are **assigned to them and on that day's routes** (otherwise `400` on `doctorIds`). A missed call carried over from an earlier day is the one exception. So choose the routes carefully: a doctor on a route not planned for the day can't be added. See [`dailyplan.md`](dailyplan.md) rule 2a. | ✅ |
 
 ## 2. Statuses
 

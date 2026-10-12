@@ -19,6 +19,10 @@ export interface DcrMonthSummary {
   geofence: { pass: number; fail: number; unverified: number; override: number };
   /** Doctor calls to a Doctor who wasn't on the day's plan. */
   notInPlan: number;
+  /** Follow-ups on a doctor not on the day's plan, or a chemist whose route the plan doesn't list. */
+  followupsNotInPlan: number;
+  /** Doctor and chemist calls on a route the day's plan doesn't list. */
+  offRouteCalls: number;
 }
 
 /**
@@ -40,13 +44,21 @@ export class SummarizeDcrsUseCase {
     const requests = new Map((await this.approvals.listForRecords(DCR_KIND, all.map((d) => d.id))).map((r) => [r.recordId, r]));
     const reported = all.filter((d) => isQualifyingDcr(dcrStatus(requests.get(d.id) ?? null)));
     const byDcr = new Map(reported.map((d) => [d.id, d]));
-    const [doctor, chemist, follow, unplanned] = await Promise.all([this.doctorCalls.countByGeofence(range), this.chemistCalls.countByGeofence(range), this.followups.countByDcrRange(range), this.doctorCalls.countNotInPlan(range)]);
+    const [doctor, chemist, follow, unplanned, followUnplanned, doctorOffRoute, chemistOffRoute] = await Promise.all([
+      this.doctorCalls.countByGeofence(range),
+      this.chemistCalls.countByGeofence(range),
+      this.followups.countByDcrRange(range),
+      this.doctorCalls.countNotInPlan(range),
+      this.followups.countNotInPlan(range),
+      this.doctorCalls.countRouteNotInPlan(range),
+      this.chemistCalls.countRouteNotInPlan(range),
+    ]);
 
     const dateOf = await this.clock.dateConverter();
     const out = new Map<string, DcrMonthSummary>();
     const of = (userId: string, month: string): DcrMonthSummary => {
       const key = `${userId}|${month}`;
-      const cur = out.get(key) ?? { userId, month, reportedDays: 0, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 }, notInPlan: 0 };
+      const cur = out.get(key) ?? { userId, month, reportedDays: 0, lateDays: 0, doctorCalls: 0, chemistCalls: 0, followups: 0, geofence: { pass: 0, fail: 0, unverified: 0, override: 0 }, notInPlan: 0, followupsNotInPlan: 0, offRouteCalls: 0 };
       out.set(key, cur);
       return cur;
     };
@@ -69,6 +81,14 @@ export class SummarizeDcrsUseCase {
     for (const r of unplanned) {
       const d = byDcr.get(r.dcrId);
       if (d) of(d.userId, d.reportDate.slice(0, 7)).notInPlan += r.count;
+    }
+    for (const r of followUnplanned) {
+      const d = byDcr.get(r.dcrId);
+      if (d) of(d.userId, d.reportDate.slice(0, 7)).followupsNotInPlan += r.count;
+    }
+    for (const r of [...doctorOffRoute, ...chemistOffRoute]) {
+      const d = byDcr.get(r.dcrId);
+      if (d) of(d.userId, d.reportDate.slice(0, 7)).offRouteCalls += r.count;
     }
     for (const r of follow) {
       const d = byDcr.get(r.dcrId);

@@ -5,7 +5,7 @@ describe('approvalTabsFor', () => {
   it('gives Admin everything and then a tab for each kind', () => {
     const tabs = approvalTabsFor('ADMIN');
     expect(tabs[0]).toEqual({ value: '', label: 'All' });
-    expect(tabs.map((t) => t.value)).toEqual(expect.arrayContaining(['LEAVE', 'DCR', 'DAILY_PLAN', 'MONTHLY_PLAN', 'DAILY_PLAN_CHANGE', 'NEW_DOCTOR', 'DOCTOR_SERVICE']));
+    expect(tabs.map((t) => t.value)).toEqual(expect.arrayContaining(['LEAVE', 'DCR', 'DAILY_PLAN', 'MONTHLY_PLAN', 'NEW_DOCTOR', 'DOCTOR_SERVICE']));
     expect(new Set(tabs.map((t) => t.value)).size).toBe(tabs.length);
   });
   it('gives HR no tabs: it decides leave only', () => {

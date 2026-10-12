@@ -68,7 +68,6 @@ export const keys = {
   plans: {
     daily: (id: string) => ['plans', fy(), 'daily', id] as const,
     monthly: (id: string) => ['plans', fy(), 'monthly', id] as const,
-    change: (id: string) => ['plans', fy(), 'change', id] as const,
   },
   doctorServices: {
     all: () => ['doctorServices', fy()] as const,

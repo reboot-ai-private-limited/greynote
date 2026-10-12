@@ -7,6 +7,8 @@ export interface DcrView {
   userId: string;
   reportDate: string;
   status: DcrStatus;
+  /** The employee's note on the day, set at submit. */
+  remarks: string | null;
   /** For `/api/approvals/:id` — the history, and the `cycle` a decision must name. */
   approval: { requestId: string; cycle: number; submittedAt: Date; decidedAt: Date | null } | null;
 }
@@ -24,6 +26,7 @@ export class DcrViews {
           userId: d.userId,
           reportDate: d.reportDate,
           status: dcrStatus(request),
+          remarks: d.remarks,
           approval: request && { requestId: request.id, cycle: request.cycle, submittedAt: request.submittedAt, decidedAt: request.decidedAt },
         };
       }),

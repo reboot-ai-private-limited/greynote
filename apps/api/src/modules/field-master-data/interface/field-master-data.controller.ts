@@ -29,6 +29,7 @@ import type { UnassignDoctorUseCase } from '../application/usecases/unassignDoct
 import type { UpdateChemistUseCase } from '../application/usecases/updateChemist.usecase.js';
 import type { UpdateDistributorUseCase } from '../application/usecases/updateDistributor.usecase.js';
 import type { UpdateDoctorTargetsUseCase } from '../application/usecases/updateDoctorTargets.usecase.js';
+import type { ReviewPendingDoctorUseCase } from '../application/usecases/reviewPendingDoctor.usecase.js';
 import type { UpdateDoctorUseCase } from '../application/usecases/updateDoctor.usecase.js';
 import type { UpdateProductUseCase } from '../application/usecases/updateProduct.usecase.js';
 import type {
@@ -109,7 +110,7 @@ export function makeChemistControllers(u: {
 }
 
 export type DoctorHandlers = Record<
-  'list' | 'create' | 'get' | 'update' | 'updateTargets' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'listSamples' | 'issueSample' | 'adjustSample',
+  'list' | 'create' | 'get' | 'update' | 'review' | 'updateTargets' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'listSamples' | 'issueSample' | 'adjustSample',
   RequestHandler
 >;
 
@@ -118,6 +119,7 @@ export function makeDoctorControllers(u: {
   create: CreateDoctorUseCase;
   get: GetDoctorUseCase;
   update: UpdateDoctorUseCase;
+  review: ReviewPendingDoctorUseCase;
   updateTargets: UpdateDoctorTargetsUseCase;
   assigned: ListAssignedDoctorsUseCase;
   listAssignments: ListDoctorAssignmentsUseCase;
@@ -141,6 +143,9 @@ export function makeDoctorControllers(u: {
     ),
     update: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.update.execute(requiredParam(req.params, 'id'), req.body), 'Doctor updated.', 200),
+    ),
+    review: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.review.execute(actorOf(req), requiredParam(req.params, 'id'), req.body), 'Doctor updated.', 200),
     ),
     updateTargets: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.updateTargets.execute(actorOf(req), requiredParam(req.params, 'id'), req.body), 'Visit target updated.', 200),

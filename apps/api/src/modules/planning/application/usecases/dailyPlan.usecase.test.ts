@@ -3,8 +3,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { PlanDay } from '../../domain/plan.js';
 import { GetDailyPlanUseCase } from './getDailyPlan.usecase.js';
 import { GetPlanStatusUseCase } from './getPlanStatus.usecase.js';
-import { Clock, planningKit } from './planningTestKit.js';
-import { SaveDailyPlanUseCase } from './saveDailyPlan.usecase.js';
+import { Clock, planningKit, SeedDailyPlan } from './planningTestKit.js';
 import { SubmitDailyPlanUseCase } from './submitDailyPlan.usecase.js';
 
 const MR = 'aaaaaaaaaaaaaaaaaaaaaaa1';
@@ -38,7 +37,7 @@ async function expectError(promise: Promise<unknown>, statusCode: number, code?:
 describe('Daily Plan', () => {
   let clock: Clock;
   let kit: ReturnType<typeof planningKit>;
-  let save: SaveDailyPlanUseCase;
+  let save: SeedDailyPlan;
   let submit: SubmitDailyPlanUseCase;
   let get: GetDailyPlanUseCase;
   let status: GetPlanStatusUseCase;
@@ -50,7 +49,7 @@ describe('Daily Plan', () => {
     kit.users.add(MR, { managerId: ASM });
     kit.users.add(OTHER);
     kit.routes.byUser.set(MR, [ROUTE]);
-    save = new SaveDailyPlanUseCase(kit.dailyPlans, kit.approvals, kit.views, kit.monthlyApproved);
+    save = new SeedDailyPlan(kit.dailyPlans, kit.views);
     submit = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, kit.monthlyApproved);
     get = new GetDailyPlanUseCase(kit.dailyPlans, kit.users, kit.views);
     status = new GetPlanStatusUseCase(kit.dailyPlans, kit.monthlyPlans, kit.approvals);
@@ -102,25 +101,13 @@ describe('Daily Plan', () => {
     expect(err.message).toMatch(/already waiting/);
   });
 
-  it('freezes a plan while it waits, and unfreezes it after a rejection', async () => {
-    const plan = await save.execute(MR, DATE, fieldDay());
-    await submit.execute(MR, plan.id);
-    await expectError(save.execute(MR, DATE, fieldDay({ remarks: 'edit' })), 409);
-    kit.approvals.setStatus('DAILY_PLAN', plan.id, 'REJECTED');
-    expect((await save.execute(MR, DATE, fieldDay({ remarks: 'edit' }))).remarks).toBe('edit');
-  });
-
   it('refuses a blocked user', async () => {
     const plan = await save.execute(MR, DATE, fieldDay());
     kit.users.users.get(MR)!.isBlocked = true;
     await expectError(submit.execute(MR, plan.id), 403);
   });
 
-  it('checks the day’s shape on save, and routes and colleagues on submit', async () => {
-    await expectError(save.execute(MR, DATE, fieldDay({ routeIds: [] })), 400);
-    await expectError(save.execute(MR, DATE, { ...fieldDay(), workingType: 'MEETING' }), 400);
-    await expectError(save.execute(MR, DATE, fieldDay({ workWith: [MR] })), 400);
-
+  it('checks routes and colleagues on submit', async () => {
     const plan = await save.execute(MR, DATE, fieldDay({ routeIds: ['bbbbbbbbbbbbbbbbbbbbbbb9'] }));
     const err = await expectError(submit.execute(MR, plan.id), 400);
     expect(err.publicDetails).toMatchObject({ field: 'routeIds', routeIds: ['bbbbbbbbbbbbbbbbbbbbbbb9'] });

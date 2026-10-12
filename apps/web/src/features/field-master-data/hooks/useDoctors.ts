@@ -46,6 +46,16 @@ export function useUpdateDoctor(onDone?: (doctor: DoctorDto) => void) {
   });
 }
 
+/** A manager or Admin correcting a doctor that is waiting for approval. */
+export function useReviewDoctor(onDone?: (doctor: DoctorDto) => void) {
+  return useApiMutation<{ id: string; body: UpdateDoctorDto }, DoctorDto>({
+    call: (token, { id, body }) => doctorsApi.review(token, id, body),
+    invalidates: [keys.doctors.all()],
+    successMessage: 'Doctor updated. Approve it when it looks right.',
+    ...(onDone && { onSuccess: onDone }),
+  });
+}
+
 export function useDoctorAssignments(id: string) {
   return useQuery(
     authedQueryOptions({

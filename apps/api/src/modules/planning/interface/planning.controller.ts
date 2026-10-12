@@ -14,10 +14,7 @@ import type { GrantLateSubmitUseCase } from '../application/usecases/grantLateSu
 import type { ListDailyPlansUseCase } from '../application/usecases/listDailyPlans.usecase.js';
 import type { ListLateSubmitGrantsUseCase } from '../application/usecases/listLateSubmitGrants.usecase.js';
 import type { ListMonthlyPlansUseCase } from '../application/usecases/listMonthlyPlans.usecase.js';
-import type { GetDailyPlanChangeUseCase, ListDailyPlanChangesUseCase } from '../application/usecases/listDailyPlanChanges.usecase.js';
-import type { RequestDailyPlanChangeUseCase } from '../application/usecases/requestDailyPlanChange.usecase.js';
 import type { RevokeLateSubmitUseCase } from '../application/usecases/revokeLateSubmit.usecase.js';
-import type { SaveDailyPlanUseCase } from '../application/usecases/saveDailyPlan.usecase.js';
 import type { SaveMonthlyPlanUseCase } from '../application/usecases/saveMonthlyPlan.usecase.js';
 import type { SubmitDailyPlanUseCase } from '../application/usecases/submitDailyPlan.usecase.js';
 import type { SubmitMonthlyPlanUseCase } from '../application/usecases/submitMonthlyPlan.usecase.js';
@@ -29,8 +26,6 @@ import type {
   listDailyPlansQuerySchema,
   listLateSubmitGrantsQuerySchema,
   listMonthlyPlansQuerySchema,
-  requestDailyPlanChangeBodySchema,
-  saveDailyPlanBodySchema,
   saveMonthlyPlanBodySchema,
 } from './planning.schemas.js';
 
@@ -39,7 +34,6 @@ function actorOf(req: Request): Actor {
   return { id: req.user.sub, role: req.user.role };
 }
 
-type SaveDailyBody = z.output<typeof saveDailyPlanBodySchema>;
 type ListDailyQuery = z.output<typeof listDailyPlansQuerySchema>;
 type SaveMonthlyBody = z.output<typeof saveMonthlyPlanBodySchema>;
 type ListMonthlyQuery = z.output<typeof listMonthlyPlansQuerySchema>;
@@ -47,7 +41,6 @@ type GrantBody = z.output<typeof grantLateSubmitBodySchema>;
 type ListGrantsQuery = z.output<typeof listLateSubmitGrantsQuerySchema>;
 
 export type PlanningHandlers = Record<
-  | 'saveDaily'
   | 'setDoctors'
   | 'carryOver'
   | 'listDaily'
@@ -60,19 +53,12 @@ export type PlanningHandlers = Record<
   | 'grantLate'
   | 'listLateGrants'
   | 'revokeLate'
-  | 'requestChange'
-  | 'amendDaily'
-  | 'listChanges'
-  | 'getChange',
+  | 'amendDaily',
   RequestHandler
 >;
 
 export function makePlanningControllers(useCases: {
-  requestChange: RequestDailyPlanChangeUseCase;
   amendDaily: AmendDailyPlanUseCase;
-  listChanges: ListDailyPlanChangesUseCase;
-  getChange: GetDailyPlanChangeUseCase;
-  saveDaily: SaveDailyPlanUseCase;
   setDoctors: SetDailyPlanDoctorsUseCase;
   carryOver: CarryOver;
   listDaily: ListDailyPlansUseCase;
@@ -87,11 +73,6 @@ export function makePlanningControllers(useCases: {
   revokeLate: RevokeLateSubmitUseCase;
 }): PlanningHandlers {
   return {
-    saveDaily: asyncHandler(async (req, res) => {
-      const { planDate, ...day } = req.body as SaveDailyBody;
-      const plan = await useCases.saveDaily.execute(actorOf(req).id, planDate, day);
-      sendSuccess(req, res, plan, 'Plan saved.', 200);
-    }),
     setDoctors: asyncHandler(async (req, res) => {
       const { planDate, doctorIds } = req.body as z.output<typeof setDailyPlanDoctorsBodySchema>;
       sendSuccess(req, res, await useCases.setDoctors.execute(actorOf(req).id, planDate, doctorIds), 'Doctors saved.', 200);
@@ -138,23 +119,10 @@ export function makePlanningControllers(useCases: {
       const result = await useCases.listLateGrants.execute(actorOf(req), filter, { page, pageSize });
       sendSuccess(req, res, result, 'Late-submission exceptions.', 200);
     }),
-    requestChange: asyncHandler(async (req, res) => {
-      const { reason, ...day } = req.body as z.output<typeof requestDailyPlanChangeBodySchema>;
-      const change = await useCases.requestChange.execute(actorOf(req).id, requiredParam(req.params, 'id'), day, reason);
-      sendSuccess(req, res, change, 'Change sent to your manager for approval.', 201);
-    }),
     amendDaily: asyncHandler(async (req, res) => {
       const { reason, ...day } = req.body as z.output<typeof amendDailyPlanBodySchema>;
       const plan = await useCases.amendDaily.execute(actorOf(req), requiredParam(req.params, 'id'), day, reason);
       sendSuccess(req, res, plan, 'Plan amended.', 200);
-    }),
-    listChanges: asyncHandler(async (req, res) => {
-      const changes = await useCases.listChanges.execute(actorOf(req), requiredParam(req.params, 'id'));
-      sendSuccess(req, res, changes, 'Changes to this plan.', 200);
-    }),
-    getChange: asyncHandler(async (req, res) => {
-      const change = await useCases.getChange.execute(actorOf(req), requiredParam(req.params, 'id'));
-      sendSuccess(req, res, change, 'Plan change.', 200);
     }),
     revokeLate: asyncHandler(async (req, res) => {
       const grant = await useCases.revokeLate.execute(actorOf(req), requiredParam(req.params, 'id'));

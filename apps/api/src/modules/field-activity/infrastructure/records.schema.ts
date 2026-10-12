@@ -1,13 +1,16 @@
 import { Schema, model, type Types } from 'mongoose';
 
 const GEOFENCE_STATUSES = ['PASS', 'FAIL', 'UNVERIFIED', 'OVERRIDE'] as const;
-const WORKING_TYPES = ['FIELD_WORK', 'MEETING', 'CONFERENCE', 'STRIKE'] as const;
+const ROUTE_TYPES = ['HQ', 'EX_STATION', 'OUT_STATION'] as const;
+const WORKING_TYPES = ['FIELD_WORK', 'DOCTOR_CAMPAIGN', 'MEETING', 'CONFERENCE', 'STRIKE'] as const;
 
 interface CallDocBase {
   dcrId: Types.ObjectId;
   userId: Types.ObjectId;
   reportDate: string;
   workingType: (typeof WORKING_TYPES)[number];
+  routeId?: Types.ObjectId | null;
+  routeType?: (typeof ROUTE_TYPES)[number] | null;
   workWith: Types.ObjectId[];
   remarks: string | null;
   capturedLatitude: number | null;
@@ -28,9 +31,11 @@ export interface DoctorCallDoc extends CallDocBase {
   samples: Array<{ allocationId: Types.ObjectId; productId: Types.ObjectId; quantity: number }>;
   /** Absent on calls from before the rule: read as in plan. */
   notInPlan?: boolean;
+  routeNotInPlan?: boolean;
 }
 export interface ChemistCallDoc extends CallDocBase {
   chemistId: Types.ObjectId;
+  routeNotInPlan?: boolean;
 }
 export interface FollowupDoc {
   dcrId: Types.ObjectId;
@@ -39,6 +44,16 @@ export interface FollowupDoc {
   subject: 'DOCTOR' | 'CHEMIST';
   subjectId: Types.ObjectId;
   remarks: string;
+  workingType?: (typeof WORKING_TYPES)[number];
+  routeId?: Types.ObjectId | null;
+  routeType?: (typeof ROUTE_TYPES)[number] | null;
+  notInPlan?: boolean;
+  capturedLatitude?: number | null;
+  capturedLongitude?: number | null;
+  accuracyMeters?: number | null;
+  geofenceStatus?: (typeof GEOFENCE_STATUSES)[number];
+  geofenceDistanceMeters?: number | null;
+  geofenceReason?: string | null;
   clientId: string;
   recordedAt: Date;
 }
@@ -49,6 +64,8 @@ const callFields = {
   userId: ref('User'),
   reportDate: { type: String, required: true },
   workingType: { type: String, required: true, enum: WORKING_TYPES },
+  routeId: { type: Schema.Types.ObjectId, default: null, ref: 'Route' },
+  routeType: { type: String, enum: ROUTE_TYPES, default: null },
   workWith: { type: [Schema.Types.ObjectId], default: [], ref: 'User' },
   remarks: { type: String, default: null },
   capturedLatitude: { type: Number, default: null },
@@ -68,6 +85,7 @@ const doctorCallSchema = new Schema<DoctorCallDoc>({
   ...callFields,
   doctorId: ref('Doctor'),
   notInPlan: { type: Boolean, default: false },
+  routeNotInPlan: { type: Boolean, default: false },
   samples: {
     type: [new Schema({ allocationId: ref('SampleAllocation'), productId: ref('Product'), quantity: { type: Number, required: true, min: 1 } }, { _id: false })],
     default: [],
@@ -79,7 +97,7 @@ doctorCallSchema.index({ doctorId: 1, reportDate: 1 });
 // One call per phone record: a second guard behind the sync receipt.
 doctorCallSchema.index({ userId: 1, clientId: 1 }, { unique: true });
 
-const chemistCallSchema = new Schema<ChemistCallDoc>({ ...callFields, chemistId: ref('Chemist') });
+const chemistCallSchema = new Schema<ChemistCallDoc>({ ...callFields, chemistId: ref('Chemist'), routeNotInPlan: { type: Boolean, default: false } });
 chemistCallSchema.index({ dcrId: 1, recordedAt: 1 });
 chemistCallSchema.index({ userId: 1, clientId: 1 }, { unique: true });
 
@@ -90,6 +108,16 @@ const followupSchema = new Schema<FollowupDoc>({
   subject: { type: String, required: true, enum: ['DOCTOR', 'CHEMIST'] },
   subjectId: { type: Schema.Types.ObjectId, required: true },
   remarks: { type: String, required: true },
+  workingType: { type: String, enum: WORKING_TYPES },
+  routeId: { type: Schema.Types.ObjectId, default: null, ref: 'Route' },
+  routeType: { type: String, enum: ROUTE_TYPES, default: null },
+  notInPlan: { type: Boolean, default: false },
+  capturedLatitude: { type: Number, default: null },
+  capturedLongitude: { type: Number, default: null },
+  accuracyMeters: { type: Number, default: null },
+  geofenceStatus: { type: String, enum: GEOFENCE_STATUSES },
+  geofenceDistanceMeters: { type: Number, default: null },
+  geofenceReason: { type: String, default: null },
   clientId: { type: String, required: true },
   recordedAt: { type: Date, required: true },
 });

@@ -26,8 +26,6 @@ even if it wanted to enforce anything there.
   while the parent is `DRAFT`; the whole month submits together as one unit, not entry by entry.
 - **`LatePlanSubmitGrant`** — a one-off exception to a submit deadline (see *Late-submission
   exceptions*).
-- **`DailyPlanChange`** — a request to change an approved Daily Plan on its own day (see *In-day
-  changes to an approved Daily Plan*).
 
 Plan dates are calendar days (`YYYY-MM-DD`, months `YYYY-MM`), stored as strings, not instants.
 
@@ -155,8 +153,8 @@ this doc does not re-derive that state machine. As it applies here:
   `APPROVAL_MANAGER_ONLY_KINDS` and ends at the manager — no code change.
 - Once submitted, the employee can't edit a Plan (client §2.5) unless it's `REJECTED`,
   `WITHDRAWN` or Admin-`REOPENED` — Planning's edit endpoints check `isEditableBySubmitter`.
-  In-day changes to an approved Plan (client §2.6) are a separate `DAILY_PLAN_CHANGE` kind — see
-  the next section.
+  There is no employee-side "request a change" to an approved Plan (removed 2026-10-12): they ask
+  their manager or Admin outside the app, and the manager **amends** the day (below).
 - Planning reads a Plan's status with `getForRecord`; its `onStatusChange` handles anything that
   must happen on a decision, in the same transaction.
 - Approve/reject, the team view, Admin's org-wide queue and history are the approval module's
@@ -164,7 +162,7 @@ this doc does not re-derive that state machine. As it applies here:
 
 ## No approved Monthly Plan, no work (decision-log 2026-10-12)
 
-`SaveDailyPlanUseCase` and `SubmitDailyPlanUseCase` call `assertMonthlyApproved` (`monthlyGate.ts`) first: the owner's Monthly Plan for the day's month must be `MANAGER_APPROVED` or `APPROVED` (`getPlanStatus.isMonthlyPlanApproved`, also on the public contract). Otherwise `409 MONTHLY_PLAN_NOT_APPROVED` with `publicDetails.planMonth`. Field Activity's `LoggingGate` asks the same question through its `PlanningPort` before the daily-plan check and refuses with `GateRefusal` code `MONTHLY_PLAN_NOT_APPROVED`. The way in for a new joiner or a missed deadline is a late-submission exception for that month.
+`SubmitDailyPlanUseCase` calls `assertMonthlyApproved` (`monthlyGate.ts`) first: the owner's Monthly Plan for the day's month must be `MANAGER_APPROVED` or `APPROVED` (`getPlanStatus.isMonthlyPlanApproved`, also on the public contract). Otherwise `409 MONTHLY_PLAN_NOT_APPROVED` with `publicDetails.planMonth`. Field Activity's `LoggingGate` asks the same question through its `PlanningPort` before the daily-plan check and refuses with `GateRefusal` code `MONTHLY_PLAN_NOT_APPROVED`. The way in for a new joiner or a missed deadline is a late-submission exception for that month.
 
 ## Daily Plans inherit from the Monthly Plan (decision-log 2026-10-03)
 
@@ -176,8 +174,10 @@ changes) and were never amended; submitted, approved, employee-written (`MANUAL`
 
 - **Inheriting approves nothing.** The employee **submits every day** (the 10:00 cutoff, late rules and
   exceptions apply unchanged) and the manager approves it; the DCR gate still needs the day approved.
-- **The owner can't edit an inherited day:** `POST /planning/daily` for it is `409` with
-  `reason: PLAN_INHERITED_READONLY`. They submit it as it is. A day the month didn't cover is written by the owner (`MANUAL`).
+- **The owner edits doctors only (decision-log 2026-10-12).** Working type, routes, work-with and remarks come from the
+  approved Monthly Plan; the employee has no save endpoint for them (`POST /planning/daily` was removed). They choose the
+  day's doctors and submit it. A day the month didn't cover has no plan: nothing can be logged on it, and a manager or
+  Admin amends one in only if it exists.
 - **Amend** — `PATCH /planning/daily/:id/amend` `{ …the whole day, reason }`. Allowed for Admin and for anyone above the
   employee in the chain; never the employee (`403`), never outside the chain (`404`). Validated like a submit (the
   employee's own active routes and colleagues). Appends `{ by, at, reason, previous }` to `amendments` and bumps
@@ -191,64 +191,34 @@ changes) and were never amended; submitted, approved, employee-written (`MANUAL`
   an earlier APPROVED day and not called since (`listCalledDoctorIds` from the first-planned day), still the MR's, within
   the window from `CALL_CARRY_OVER_FOREVER` / `CALL_CARRY_OVER_DAYS` (0 = month end); exposed as
   `GET /planning/daily/carry-over?date=`. Those doctors are added to the list on save and on submit and can't be dropped,
-  so the whole list is what the manager approves. Field Activity's `ROUTE_NOT_IN_PLAN` check lets a doctor the plan lists
+  so the whole list is what the manager approves. Field Activity's `notInPlan` flag treats a doctor the plan lists
   as carried through (contract `getDailyPlanDay.carriedDoctorIds`). `listPlannedDoctors(user, month)` feeds the
   doctor-visits report (`plannedDays`, `missedSince`). The doctor directory and the called-doctors lookup are handed in
-  after the containers are built (`bindDoctorSources`). Amendments and in-day changes do not carry the doctor list.
-- The in-day change request below stays as the employee's way to **ask** for a change to today's approved plan.
+  after the containers are built (`bindDoctorSources`). Amendments do not carry the doctor list.
 - Plans approved before this change get their days from the one-off `migrate:inherit-monthly`.
 
-## In-day changes to an approved Daily Plan
+## Late submit of a Daily Plan (decision-log 2026-10-12)
 
-Client §2.6: the day's plan can change during the day, and the manager decides. Only Admin can
-reopen an approved request, so a change is **its own approvable record**, kind `DAILY_PLAN_CHANGE`,
-registered with `managerOnly: true` — the approval module gives it no final stage whatever
-`APPROVAL_MANAGER_ONLY_KINDS` says (`approval.md`). Admin can still act on it, and a top-of-chain
-employee's change goes to Admin. These are working assumptions (sign-off B9), not client answers.
-
-- **Asking:** `POST /planning/daily/:id/changes` with the whole day as it should now be, plus a
-  required reason. Only the plan's owner; only for **today** (the business timezone); only while
-  the plan is `MANAGER_APPROVED` or `APPROVED` — the states in which the day's gate is open. A draft
-  or rejected plan is edited and submitted, not "changed". A blocked employee can't ask. The
-  submit deadlines don't apply, since an in-day change is after them by nature. The proposed day
-  goes through the same checks as a submit (own active routes, active colleagues, a valid working
-  type) and must differ from the plan.
-- **While it waits, the plan doesn't move:** it stays approved with its old content, so the gate
-  stays open and the employee keeps working to it. **One waiting change per plan**, enforced by a
-  partial unique index, so two simultaneous requests can't both get in.
-- **Approving** (the employee's manager; Admin may override) writes the proposed day into the plan,
-  bumps its `revision`, and closes the change as applied — in the approval's transaction. The plan's
-  own approval is untouched. It is **refused (409)** if the plan is no longer approved (Admin
-  reopened it), was changed since the request (`basedOnRevision` no longer matches), or the day is
-  over; the manager then rejects it. Nothing changes on a refusal.
-- **Rejecting or withdrawing** closes the change and leaves the plan as it was; the employee may
-  ask again. A decided change can't be reopened — Admin reopens the plan itself instead.
-- **Cap:** at most `DAILY_PLAN_CHANGE_MAX` (seeded `3`) *applied* changes per plan; rejected and
-  withdrawn ones don't count.
-- **Reading:** `GET /planning/daily/:id/changes` — newest first, each with `previous`, `proposed`,
-  `reason`, and its approval status — for the owner, their managers (read-only) and Admin.
-  `GET /planning/changes/:id` reads one change by its own id, which is what an approval request's
-  `recordId` points at; same readers.
-- What happens to field activity already logged against the old plan is Field Activity's call
-  (Phase 6), as with any reopen.
+A Daily Plan is due at `DAILY_PLAN_SUBMIT_CUTOFF_TIME` on its own day. After that, submit is `409 PLAN_SUBMIT_LATE` unless the
+after-rejection window is open or a late-submission exception exists. The exception's end is **capped at the end of that plan's
+business day** (the next `DAY_START_TIME`, less a millisecond): a custom `expiresAt` later than that is `400` on `expiresAt`, the
+default length (`LATE_PLAN_GRANT_VALID_HOURS`) is cut to it, and a grant for a day that is already over is `400` on `planKey`.
+Monthly exceptions keep `LATE_PLAN_GRANT_MAX_HOURS`.
 
 ## HTTP surface
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| `POST` | `/planning/daily` | FIELD | Save (draft) or update a Daily Plan |
+| `POST` | `/planning/daily/doctors` | FIELD | Set the day's doctors (the only thing the employee edits) |
 | `POST` | `/planning/daily/:id/submit` | FIELD | Submit — requires connectivity, moves `DRAFT → SUBMITTED` |
 | `GET` | `/planning/daily` | FIELD | List own Daily Plans (date range) |
 | `GET` | `/planning/daily/:id` | FIELD, manager (read-only per visibility rules) | Fetch one |
 | `POST` | `/planning/monthly` | FIELD | Save/update a Monthly Plan and its entries |
 | `POST` | `/planning/monthly/:id/submit` | FIELD | Submit the whole month |
 | `PATCH` | `/planning/daily/:id/amend` | FIELD (owner's managers), ADMIN | Amend an employee's day, with a reason; the old body is kept |
-| `POST` | `/planning/daily/:id/changes` | FIELD (owner) | Ask to change today's approved plan — to the manager, with a reason |
-| `GET` | `/planning/daily/:id/changes` | FIELD (owner, managers), ADMIN | A plan's in-day changes with their approval status |
-| `GET` | `/planning/changes/:id` | FIELD (owner, managers), ADMIN | One change by its own id (an approval request's `recordId`) |
 | `GET` | `/planning/monthly` | FIELD | List own Monthly Plans (month range) |
 | `GET` | `/planning/monthly/:id` | FIELD, manager (read-only), Admin | Fetch one |
-| `POST` | `/planning/late-grants` | ADMIN; FIELD manager while `LATE_PLAN_GRANT_BY_MANAGER` is on | Grant a late-submission exception; optional `expiresAt` (future, within `LATE_PLAN_GRANT_MAX_HOURS`) |
+| `POST` | `/planning/late-grants` | ADMIN; FIELD manager while `LATE_PLAN_GRANT_BY_MANAGER` is on | Grant a late-submission exception; optional `expiresAt` (future, within `LATE_PLAN_GRANT_MAX_HOURS`; for a Daily Plan, no later than the end of its day) |
 | `GET` | `/planning/late-grants` | ADMIN (all), FIELD (own and downline) | List exceptions, newest first |
 | `POST` | `/planning/late-grants/:id/revoke` | ADMIN, the grantor | Revoke an unused exception |
 | `GET` | `/identity/work-with` | FIELD | Who can be named in *Work With*: every active manager in the org, or `?scope=all` for every active field employee; each with a `Name (ASM)` label (identity module) |
@@ -294,5 +264,4 @@ first endpoints establish, and keep Daily/Monthly symmetric.
 - **Plan-vs-actual adherence reporting** (comparing a `DailyPlan`'s planned routes against the
   DCR calls actually logged that day) — explicitly deferred in `erd/05`; would need a nullable FK
   from `DailyPlan` to `MonthlyPlanEntry` if the two are ever linked, which they currently are not.
-- **Editing a waiting or decided in-day change** — a change is immutable once asked; the employee withdraws it and asks again.
 - **How far ahead a Daily Plan may be made** — no limit yet.

@@ -4,6 +4,7 @@ import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { makeFieldMasterDataSource } from './application/syncSnapshot.js';
 import { makeNewDoctorSyncHandler } from './application/newDoctorSync.js';
+import { ReviewPendingDoctorUseCase } from './application/usecases/reviewPendingDoctor.usecase.js';
 import { makeDoctorApprovalHandler, NEW_DOCTOR_KIND } from './application/doctorApproval.js';
 import { DoctorVisibility } from './application/doctorVisibility.js';
 import { DoctorViews } from './application/doctorViews.js';
@@ -78,6 +79,8 @@ export function buildFieldMasterDataContainer(
   approvals.registerKind({
     kind: NEW_DOCTOR_KIND,
     finalApproverRoles: ['ADMIN'],
+    // The manager's approval is the decision (Admin can still decide at any time); no second stage.
+    managerOnly: true,
     onStatusChange: makeDoctorApprovalHandler(doctors, assignments, users, territory, config),
   });
 
@@ -110,11 +113,13 @@ export function buildFieldMasterDataContainer(
   // …and what the phone caches of this module, as one snapshot of what the caller may see.
   sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, products, specialties, distributors, allocations: sampleAllocations, visibility, territory }));
 
+  const updateDoctor = new UpdateDoctorUseCase(doctors, assignments, territory, views, specialtyCatalog);
   const doctorUseCases = {
     list: new ListDoctorsUseCase(doctors, views),
     create: new CreateDoctorUseCase(doctors, territory, views, specialtyCatalog),
     get: new GetDoctorUseCase(doctors, visibility, views),
-    update: new UpdateDoctorUseCase(doctors, assignments, territory, views, specialtyCatalog),
+    update: updateDoctor,
+    review: new ReviewPendingDoctorUseCase(doctors, users, updateDoctor),
     updateTargets: new UpdateDoctorTargetsUseCase(doctors, visibility, views),
     assigned: new ListAssignedDoctorsUseCase(doctors, visibility, users, views),
     listAssignments: new ListDoctorAssignmentsUseCase(doctors, assignments),
@@ -187,6 +192,7 @@ export function buildFieldMasterDataContainer(
       },
       getSampleAllocation: (doctorId, productId) => sampleAllocations.find(doctorId, productId),
       decrementRemaining: (allocationId, quantity, ctx) => sampleAllocations.decrementRemaining(allocationId, quantity, ctx),
+      restoreRemaining: (allocationId, quantity, ctx) => sampleAllocations.restoreRemaining(allocationId, quantity, ctx),
       getChemistLocation: async (id) => (await chemists.findById(id))?.location ?? null,
       getChemist: (id) => chemists.findById(id),
       getProduct: (id) => products.findById(id),

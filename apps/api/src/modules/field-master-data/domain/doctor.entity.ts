@@ -17,12 +17,16 @@ export interface Doctor {
   name: string;
   address: string;
   email: string | null;
+  /** Optional: the clinic or hospital the doctor sits at. */
+  clinicName: string | null;
+  /** Optional contact number. */
+  phone: string | null;
   specialty: string;
   qualification: string;
   /** `YYYY-MM-DD`, optional. */
   dateOfBirth: string | null;
   anniversary: string | null;
-  /** Visits the MR should make per month (1–6); `null` = no target, so no missed-call tracking. */
+  /** Visits the MR should make per month (1–5); `null` = no target, so no missed-call tracking. */
   visitFrequency: number | null;
   /** `null` until set — the geofence check can't run for it. */
   location: GeoPoint | null;

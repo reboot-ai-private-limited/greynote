@@ -223,7 +223,7 @@ evaluateGeofence({ registered, captured, accuracyMeters, radiusMeters, maxAccura
 
 - **`PASS` / `FAIL`** — the haversine distance between the captured point and the registered one,
   against `GEO_FENCE_RADIUS_METERS` (SystemConfig, seeded `100`, matching the client's document; Admin can change it —
-  sign-off C5). A `FAIL` **flags, it doesn't block** (HLD 01 §2.3).
+  sign-off C5). A `FAIL` **is refused** `NOT_AT_LOCATION` and nothing is stored (decision-log 2026-10-12; the earlier "flags, doesn't block", HLD 01 §2.3, no longer applies).
 - **`UNVERIFIED`** — the check can't be trusted either way, and the manager sees it like a `FAIL`.
   Two reasons: `NO_REGISTERED_LOCATION` (the Doctor or Chemist has none, so it can't be checked —
   Field Master Data's `getDoctorLocation` returns `null` for exactly this) and `LOW_ACCURACY` (the

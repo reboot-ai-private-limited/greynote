@@ -1,6 +1,7 @@
 import type { ApprovalRequest } from '@/modules/approval/approval.public.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
+import { isFieldDay } from '../../domain/plan.js';
 import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { CarryOver } from '../carryOver.js';
@@ -29,7 +30,7 @@ export class SubmitDailyPlanUseCase {
     // The list sent for approval is the whole list: the MR's picks plus every missed call still owed. Only a plan that can still
     // be edited is touched; one already waiting or approved is refused by the submitter below.
     const request = await this.approvals.getForRecord('DAILY_PLAN', plan.id);
-    if (plan.workingType === 'FIELD_WORK' && (!request || isEditableBySubmitter(request.status))) {
+    if (isFieldDay(plan.workingType) && (!request || isEditableBySubmitter(request.status))) {
       const doctors = await this.carryOver.compose(plan, plan.doctors.filter((d) => d.carriedFrom === null).map((d) => d.doctorId));
       const changed = doctors.length !== plan.doctors.length || doctors.some((d, i) => d.doctorId !== plan.doctors[i]?.doctorId || d.carriedFrom !== plan.doctors[i]?.carriedFrom);
       if (changed) {

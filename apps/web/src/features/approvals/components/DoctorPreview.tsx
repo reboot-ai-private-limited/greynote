@@ -1,6 +1,8 @@
 'use client';
 
-import Link from 'next/link';
+import { useState } from 'react';
+import { Button } from '@/components/ui/Button';
+import { DoctorDetailsForm } from '@/features/field-master-data/components/DoctorDetailsForm';
 import { Badge } from '@/components/ui/Badge';
 import { Field, FieldList } from '@/components/ui/FieldList';
 import { LocationMap } from '@/features/field-master-data/components/LocationMap';
@@ -15,6 +17,7 @@ export function DoctorPreview({ recordId }: { recordId: string }) {
   const query = useDoctor(recordId);
   const directory = useTerritoryDirectory();
   const doctor = query.data;
+  const [editing, setEditing] = useState(false);
 
   return (
     <PreviewFrame title="New doctor" description="Added by an MR. Check the details and the location before approving." query={query}>
@@ -26,6 +29,9 @@ export function DoctorPreview({ recordId }: { recordId: string }) {
             <Field label="Qualification">{doctor.qualification}</Field>
             <Field label="Route">{directory.routeLabel(doctor.routeId)}</Field>
             <Field label="Email">{doctor.email}</Field>
+            <Field label="Clinic">{doctor.clinicName}</Field>
+            <Field label="Phone">{doctor.phone}</Field>
+            <Field label="Visits a month">{doctor.visitFrequency}</Field>
             <Field label="Address">{doctor.address}</Field>
             <Field label="Status">
               <Badge tone={DOCTOR_STATUS_TONE[doctor.status]}>{DOCTOR_STATUS_LABEL[doctor.status]}</Badge>
@@ -48,12 +54,24 @@ export function DoctorPreview({ recordId }: { recordId: string }) {
             ) : null}
             <p className="text-[13px] text-text-subtle">
               Blue is the registered location; grey is where the phone was.{' '}
-              <Link href={`/doctors/${doctor.id}`} className="text-accent hover:underline">
-                Open the doctor
-              </Link>{' '}
-              to correct it before you approve.
+              Correct any detail or the location below before you approve.
             </p>
           </div>
+
+          {doctor.status === 'pending' ? (
+            editing ? (
+              <div className="space-y-3">
+                <DoctorDetailsForm key={doctor.id} doctor={doctor} review />
+                <Button variant="secondary" onClick={() => setEditing(false)}>
+                  Close editor
+                </Button>
+              </div>
+            ) : (
+              <Button variant="secondary" onClick={() => setEditing(true)}>
+                Edit before approving
+              </Button>
+            )
+          ) : null}
         </div>
       ) : null}
     </PreviewFrame>

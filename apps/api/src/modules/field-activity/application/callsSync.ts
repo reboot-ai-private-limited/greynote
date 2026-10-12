@@ -9,6 +9,13 @@ export const CHEMIST_CALL_SYNC_KIND = 'CHEMIST_CALL';
 export const DOCTOR_FOLLOWUP_SYNC_KIND = 'DOCTOR_FOLLOWUP';
 export const CHEMIST_FOLLOWUP_SYNC_KIND = 'CHEMIST_FOLLOWUP';
 
+interface FollowupPayload {
+  reportDate: string;
+  remarks: string;
+  capturedLocation: { latitude: number; longitude: number } | null;
+  accuracyMeters: number | null;
+}
+
 /** The first problem, named by its field — enough for the MR to fix, with none of the parser's internals. */
 function describeInvalid(err: unknown): string {
   const issue = (err as { issues?: Array<{ path: Array<string | number>; message: string }> }).issues?.[0];
@@ -52,18 +59,18 @@ export function makeCallSyncHandlers(deps: {
   parse: {
     doctorCall: (p: unknown) => Parameters<LogDoctorCallUseCase['execute']>[1];
     chemistCall: (p: unknown) => Parameters<LogChemistCallUseCase['execute']>[1];
-    doctorFollowup: (p: unknown) => { reportDate: string; doctorId: string; remarks: string };
-    chemistFollowup: (p: unknown) => { reportDate: string; chemistId: string; remarks: string };
+    doctorFollowup: (p: unknown) => FollowupPayload & { doctorId: string };
+    chemistFollowup: (p: unknown) => FollowupPayload & { chemistId: string };
   };
 }): SyncHandlerDefinition[] {
   return [
     recordHandler(DOCTOR_CALL_SYNC_KIND, deps.parse.doctorCall, (rec, input, ctx) => deps.doctorCall.execute(rec, input, ctx)),
     recordHandler(CHEMIST_CALL_SYNC_KIND, deps.parse.chemistCall, (rec, input, ctx) => deps.chemistCall.execute(rec, input, ctx)),
     recordHandler(DOCTOR_FOLLOWUP_SYNC_KIND, deps.parse.doctorFollowup, (rec, p, ctx) =>
-      deps.followup.execute(rec, { reportDate: p.reportDate, subject: 'DOCTOR', subjectId: p.doctorId, remarks: p.remarks }, ctx),
+      deps.followup.execute(rec, { reportDate: p.reportDate, subject: 'DOCTOR', subjectId: p.doctorId, remarks: p.remarks, capturedLocation: p.capturedLocation, accuracyMeters: p.accuracyMeters }, ctx),
     ),
     recordHandler(CHEMIST_FOLLOWUP_SYNC_KIND, deps.parse.chemistFollowup, (rec, p, ctx) =>
-      deps.followup.execute(rec, { reportDate: p.reportDate, subject: 'CHEMIST', subjectId: p.chemistId, remarks: p.remarks }, ctx),
+      deps.followup.execute(rec, { reportDate: p.reportDate, subject: 'CHEMIST', subjectId: p.chemistId, remarks: p.remarks, capturedLocation: p.capturedLocation, accuracyMeters: p.accuracyMeters }, ctx),
     ),
   ];
 }

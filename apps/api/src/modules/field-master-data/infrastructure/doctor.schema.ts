@@ -8,6 +8,8 @@ export interface DoctorDoc {
   name: string;
   address: string;
   email: string | null;
+  clinicName?: string | null;
+  phone?: string | null;
   specialty: string;
   qualification: string;
   dateOfBirth: string | null;
@@ -29,6 +31,8 @@ const doctorSchema = new Schema<DoctorDoc>({
   name: { type: String, required: true },
   address: { type: String, required: true },
   email: { type: String, default: null },
+  clinicName: { type: String, default: null },
+  phone: { type: String, default: null },
   specialty: { type: String, required: true },
   qualification: { type: String, required: true },
   dateOfBirth: { type: String, default: null },

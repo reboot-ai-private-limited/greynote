@@ -44,7 +44,7 @@ describe('what the phone caches of Field Activity', () => {
   it('carries the week’s reports with status, counts and money; a day outside the week is left out', async () => {
     await kit.logExpense.execute(REC, { reportDate: DAY, type: 'MEAL', amountPaise: 5000, remarks: null }, new Tx());
     const { dcrId } = await kit.submit.execute('mr1', DAY, REC.recordedAt, new Tx());
-    kit.dcrs.rows.push({ id: 'old', userId: 'mr1', reportDate: '2026-09-20', createdAt: new Date() });
+    kit.dcrs.rows.push({ id: 'old', userId: 'mr1', reportDate: '2026-09-20', remarks: null, createdAt: new Date() });
     const s = await snapshot();
     expect(s.dcrs).toEqual([{ id: dcrId, reportDate: DAY, status: 'SUBMITTED', approvalRequestId: expect.any(String), doctorCalls: 0, chemistCalls: 0, followups: 0, taPaise: 0, daPaise: 0, otherExpensesPaise: 5000, paidPaise: 0 }]);
   });

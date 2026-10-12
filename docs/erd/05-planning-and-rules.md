@@ -46,7 +46,7 @@ erDiagram
     LATE_PLAN_SUBMIT_GRANT {
         uuid id PK
         uuid user_id FK "the employee allowed to submit late"
-        string kind "DAILY_PLAN, MONTHLY_PLAN, DAILY_PLAN_CHANGE"
+        string kind "DAILY_PLAN, MONTHLY_PLAN"
         string plan_key "2026-10-05 or 2026-10"
         string reason
         uuid granted_by FK "Admin, or a manager in the user's chain"
@@ -95,7 +95,6 @@ erDiagram
   - `DAILY_PLAN_RESUBMIT_LATEST_TIME` = `11:30` — no Daily Plan resubmit window runs past this time on the plan's date
   - `MONTHLY_PLAN_RESUBMIT_GRACE_HOURS` = `24` — the same window for a Monthly Plan, never past the month's start
   - `PLAN_RESUBMIT_GRACE_MAX` = `2` — at most this many window resubmits per Plan
-  - `DAILY_PLAN_CHANGE_MAX` = `3` — at most this many in-day changes applied to one approved Daily Plan
   - `DOCTOR_VISIBILITY_FOLLOWS_ROUTE` = `true` (Module 3) — an MR sees only the assigned Doctors on their current Routes; off, they keep every assigned Doctor across a Route change
   - `AUTO_ASSIGN_DOCTOR_ON_APPROVAL` = `true` (Module 3) — approving an MR-added Doctor assigns it to that MR
   - `NEW_DOCTOR_COVERAGE_WAIT_DAYS` = `8` (Module 3) — days after approval before a new Doctor counts toward coverage
@@ -106,22 +105,14 @@ erDiagram
   - `SYNC_MAX_BATCH` = `100`, `SYNC_MAX_AGE_DAYS` = `7`, `SYNC_CLOCK_SKEW_MINUTES` = `10` — the daily-report push's limits (`LLD/sync.md`)
   - `SYNC_DRAFT_TTL_DAYS` = `30`, `SYNC_MAX_DRAFT_BYTES` = `65536`, `SYNC_MAX_DRAFTS` = `2000` — the private draft backup's retention and limits
   - `DCR_MISS_BLOCK_ENABLED` = `true` (Module 1/4, HLD 10) — kill switch for the missed-DCR compliance block
-  - `DCR_MISS_GRACE_DAYS` = `1` (Module 1/4, HLD 10) — how many consecutive days without a submitted DCR (and without an approved Leave covering them) before the block triggers
-  - `ALLOW_UNPLANNED_DOCTOR_CALLS` = `true` (Module 4/5, decision-log 2026-10-10) — on: a Doctor Call to a doctor not on the day's approved doctor list is saved and flagged `not_in_plan`; off: it is refused
+  - `DCR_MISS_GRACE_DAYS` = `1` (Module 1/4, HLD 10) — how many consecutive days without a submitted DCR (and without an approved Leave covering them) are allowed before the block triggers; `0` = the first missed day blocks
+  - `ALLOW_UNPLANNED_DOCTOR_CALLS` — **removed 2026-10-12**: a call to a doctor off the day's list is always saved and flagged (decision-log 2026-10-12)
   - `DCR_APPROVAL_REQUIRED` = `true` (Module 4, decision-log 2026-10-03) — off: a submitted DCR is approved at once (authority `AUTO`) and its TA/DA generated then
   - `APPROVAL_SLA_DAYS` = `3` (Module 1/approval) — days an approver has before a request is flagged overdue; flag only, nothing is auto-approved
   - `MONTHLY_STOCK_DEADLINE_DAY` = `5` (Module 6) — month *M*'s opening/closing stock is due by this day of the following month (replaces `MONTHLY_STOCK_GRACE_DAYS`)
   - `CALL_CARRY_OVER_FOREVER` = `false`, `CALL_CARRY_OVER_DAYS` = `0` (Module 5, decision-log 2026-10-10) — how long a planned but uncalled doctor carries over to later days' plans (0 = until the end of that month)
-  - `SystemConfig` values are Admin-writable at runtime, not just seed defaults — a `PATCH` per key, ADMIN-only, so e.g. `DCR_MISS_GRACE_DAYS` can be moved from its default `1` to `2` or `3` without a redeploy (decision-log 2026-09-24)
+  - `SystemConfig` values are Admin-writable at runtime, not just seed defaults — a `PATCH` per key, ADMIN-only, so e.g. `DCR_MISS_GRACE_DAYS` can be moved from its seeded `1` to `0` (block on the first miss) or `2` without a redeploy (decision-log 2026-09-24)
 - **`Submit` on `DailyPlan`/`MonthlyPlan` requires a live connection at tap time — unlike other transactional records (HLD 1 §1.1), it does not queue offline.** Saving as `DRAFT` still works fully offline for UX; only the state transition into the approval flow needs a synchronous server round-trip, since it's what the DailyPlan-approval gate (HLD 10) depends on. Same carve-out applies to `DCR` Final Submission (Module 4).
-
-### DailyPlanChange (in-day change to an approved Daily Plan)
-
-`plan_id`, `user_id`, `plan_date`, `previous` and `proposed` (a planned day each: `working_type`,
-`work_with`, `route_ids`, `remarks`), `reason`, `based_on_revision`, `open`, `applied`, `created_at`.
-Its approval state is the `DAILY_PLAN_CHANGE` `ApprovalRequest` (`record_id` = this id), manager-only.
-At most one row per plan has `open = true` (partial unique index). `applied` is set when an approval
-writes `proposed` into the plan and bumps its `revision`. See `LLD/planning.md`.
 
 ## Next
 

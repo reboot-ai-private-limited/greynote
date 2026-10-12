@@ -3,6 +3,7 @@ import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { GATE_CODES, GateRefusal } from '../../domain/gateRefusal.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { DcrRepositoryPort } from '../../domain/dcr.repository.port.js';
+import type { PlanningPort } from '../../domain/planning.port.js';
 import type { LoggingGate } from '../loggingGate.js';
 import { readConfig, parseBoolean, type ConfigReader } from '@/shared/config/readConfig.js';
 import { DCR_KIND, isOpenForLogging } from '../dcrStatus.js';
@@ -16,7 +17,8 @@ import type { TaDaLifecycle } from './taDaLifecycle.usecase.js';
  *
  * Refused while the employee is blocked, for a day in the future or not the day it was made, and when the
  * day's Plan isn't approved (an MR can't report a day they were never cleared to work). A day with no calls is
- * a valid report (a meeting day) and creates the envelope here. Resubmitting after a rejection, withdrawal or
+ * a valid report (a meeting, conference or strike day) and creates the envelope here. A meeting or conference day must carry
+ * a note (`remarksRequired`); a strike day's is optional. Resubmitting after a rejection, withdrawal or
  * reopen is a new cycle on the same request; submitting one that's waiting or approved is `DCR_LOCKED`.
  *
  * With `DCR_APPROVAL_REQUIRED` off the request is recorded already approved (nobody reviews it), and the TA/DA
@@ -29,14 +31,21 @@ export class SubmitDcrUseCase {
     private readonly approvals: ApprovalsPort,
     private readonly taDa: TaDaLifecycle,
     private readonly config: ConfigReader,
+    private readonly planning: PlanningPort,
   ) {}
 
-  async execute(userId: string, reportDate: string, recordedAt: Date, ctx: TransactionContext): Promise<{ dcrId: string; request: ApprovalRequest }> {
+  async execute(userId: string, reportDate: string, recordedAt: Date, ctx: TransactionContext, note: string | null = null): Promise<{ dcrId: string; request: ApprovalRequest }> {
+    const remarks = note?.trim() || null;
     await this.gate.assertMayAct(userId, reportDate, recordedAt);
+    const day = await this.planning.getDailyPlanDay(userId, reportDate);
+    if ((day?.workingType === 'MEETING' || day?.workingType === 'CONFERENCE') && !remarks) {
+      throw new GateRefusal(GATE_CODES.remarksRequired, 'Add a note about the day — the agenda and venue — before you submit.');
+    }
     const dcr = await this.dcrs.getOrCreate(userId, reportDate);
     if (!isOpenForLogging(await this.approvals.getForRecord(DCR_KIND, dcr.id))) {
       throw new GateRefusal(GATE_CODES.dcrLocked, 'This day’s report has already been submitted.');
     }
+    await this.dcrs.setRemarks(dcr.id, remarks, ctx);
     const autoApprove = !(await readConfig(this.config, 'DCR_APPROVAL_REQUIRED', parseBoolean));
     const request = await this.approvals.submit({ kind: DCR_KIND, recordId: dcr.id, submitterId: userId, autoApprove }, ctx);
     if (autoApprove) await this.taDa.onStatusChange(dcr.id, request.status, ctx, recordedAt);

@@ -92,7 +92,7 @@ export function useResetPassword(userId: string, onDone: () => void) {
 
 export function useUnblockUser(userId: string, onDone: () => void) {
   return useApiMutation({
-    call: (token) => identityApi.unblockUser(token, userId),
+    call: (token, reason: string) => identityApi.unblockUser(token, userId, reason),
     invalidates: [keys.users.all()],
     successMessage: 'Employee unblocked.',
     onSuccess: onDone,

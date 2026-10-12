@@ -7,8 +7,7 @@ import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
 /**
  * The trigger side of the compliance block (HLD 10): the missed-DCR job (Field Activity) calls this for a
  * field employee who has exceeded the grace with no covering Leave. It records the event and flips
- * `User.isBlocked` in one transaction — the mirror of `UnblockUserUseCase`, which is Admin-only and
- * closes both.
+ * `User.isBlocked` in one transaction — the mirror of `UnblockUserUseCase`, which closes both.
  *
  * Only an active FIELD employee can be blocked (the block stops *field* submissions; Admin, HR and
  * Accountant have none). **Idempotent**: blocking someone already blocked changes nothing and answers
@@ -35,7 +34,7 @@ export class BlockUserUseCase {
 
     try {
       await this.transactions.run(async (ctx) => {
-        await this.blocks.create({ userId, reason, blockedAt: this.now(), unblockedBy: null, unblockedAt: null }, ctx);
+        await this.blocks.create({ userId, reason, blockedAt: this.now(), unblockedBy: null, unblockedAt: null, unblockedByRole: null, unblockReason: null }, ctx);
         await this.users.update(userId, { isBlocked: true }, ctx);
       });
       return true;

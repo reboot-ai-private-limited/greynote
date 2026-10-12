@@ -9,5 +9,7 @@ export interface Dcr {
   userId: string;
   /** A calendar day, `YYYY-MM-DD` — not an instant. */
   reportDate: string;
+  /** The day's note, set at submit: required on a meeting or conference day (agenda, venue), optional otherwise. `null` before submit. */
+  remarks: string | null;
   createdAt: Date;
 }

@@ -99,6 +99,8 @@ export const doctorsApi = {
   update: (token: string, id: string, body: UpdateDoctorDto) =>
     request<DoctorDto>(`${BASE}/doctors/${id}`, { method: 'PATCH', token, body }),
 
+  review: (token: string, id: string, body: UpdateDoctorDto) =>
+    request<DoctorDto>(`${BASE}/doctors/${id}/review`, { method: 'PATCH', token, body }),
   assignments: (token: string, id: string, signal?: AbortSignal) =>
     request<DoctorAssignmentDto[]>(`${BASE}/doctors/${id}/assignments`, { token, signal }),
   /** Makes the MR responsible, replacing whoever was. The MR must have the Doctor's Route. */

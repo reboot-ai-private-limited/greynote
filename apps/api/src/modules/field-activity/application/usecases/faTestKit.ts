@@ -159,9 +159,13 @@ export class FakeDcrs implements DcrRepositoryPort {
   async getOrCreate(userId: string, reportDate: string) {
     const held = this.rows.find((d) => d.userId === userId && d.reportDate === reportDate);
     if (held) return held;
-    const row = { id: `dcr-${this.rows.length + 1}`, userId, reportDate, createdAt: new Date() };
+    const row = { id: `dcr-${this.rows.length + 1}`, userId, reportDate, remarks: null, createdAt: new Date() };
     this.rows.push(row);
     return row;
+  }
+  async setRemarks(id: string, remarks: string | null) {
+    const row = this.rows.find((d) => d.id === id);
+    if (row) row.remarks = remarks;
   }
   async findById(id: string) {
     return this.rows.find((d) => d.id === id) ?? null;
@@ -178,7 +182,7 @@ export class FakeDcrs implements DcrRepositoryPort {
 }
 
 export class FakeConfig implements ConfigReader {
-  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', ALLOW_UNPLANNED_DOCTOR_CALLS: 'true', TA_MAX_KM: '99', EXPENSE_PAYOUT_DAY: '15', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: 'NONE' };
+  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', TA_MAX_KM: '99', EXPENSE_PAYOUT_DAY: '15', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: 'NONE' };
   async get(key: string) {
     const v = this.values[key];
     // Like the real Config: an unseeded key is a CONFIG_KEY_MISSING fault.
@@ -252,6 +256,10 @@ export class FakeFmd implements FieldMasterDataPort {
     const a = this.allocations.get(`${doctorId}:${productId}`);
     return a ? ({ ...a, allocatedBy: 'admin', allocatedAt: new Date() } as never) : null;
   }
+  async restoreRemaining(allocationId: string, quantity: number) {
+    const a = [...this.allocations.values()].find((x) => x.id === allocationId);
+    if (a) a.quantityRemaining += quantity;
+  }
   /** One synchronous check-and-take, like the conditional update, undone if the caller's transaction rolls back. */
   async decrementRemaining(allocationId: string, quantity: number, ctx?: unknown) {
     const a = [...this.allocations.values()].find((x) => x.id === allocationId);
@@ -281,6 +289,18 @@ class FakeCalls<T extends { id: string; dcrId: string | null }> {
   }
   async findById(id: string) {
     return this.rows.find((r) => r.id === id) ?? null;
+  }
+  async delete(id: string) {
+    const i = this.rows.findIndex((r) => r.id === id);
+    if (i < 0) return false;
+    this.rows.splice(i, 1);
+    return true;
+  }
+  /** Rows carrying a true flag, per DCR, for report days in the range. */
+  protected countFlag(flag: string, range: { from: string; to: string }) {
+    const by = new Map<string, number>();
+    for (const r of this.rows as unknown as Array<Record<string, unknown> & { dcrId: string; reportDate: string }>) if (r[flag] && r.reportDate >= range.from && r.reportDate <= range.to) by.set(r.dcrId, (by.get(r.dcrId) ?? 0) + 1);
+    return [...by].map(([dcrId, count]) => ({ dcrId, count }));
   }
   async countForDcrs(dcrIds: string[]) {
     const m = new Map<string, number>();
@@ -324,9 +344,20 @@ export class FakeDoctorCalls extends FakeCalls<DoctorCall> implements DoctorCall
     for (const r of this.rows) if (r.notInPlan && r.reportDate >= range.from && r.reportDate <= range.to) by.set(r.dcrId, (by.get(r.dcrId) ?? 0) + 1);
     return [...by].map(([dcrId, count]) => ({ dcrId, count }));
   }
+  async countRouteNotInPlan(range: { from: string; to: string }) {
+    return this.countFlag('routeNotInPlan', range);
+  }
 }
-export class FakeChemistCalls extends FakeCalls<ChemistCall> implements ChemistCallRepositoryPort {}
-export class FakeFollowups extends FakeCalls<Followup> implements FollowupRepositoryPort {}
+export class FakeChemistCalls extends FakeCalls<ChemistCall> implements ChemistCallRepositoryPort {
+  async countRouteNotInPlan(range: { from: string; to: string }) {
+    return this.countFlag('routeNotInPlan', range);
+  }
+}
+export class FakeFollowups extends FakeCalls<Followup> implements FollowupRepositoryPort {
+  async countNotInPlan(range: { from: string; to: string }) {
+    return this.countFlag('notInPlan', range);
+  }
+}
 export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositoryPort {
   override async create(input: Omit<Expense, 'id' | 'attachments'>, ctx: unknown) {
     return super.create({ ...input, attachments: [] }, ctx);
@@ -523,14 +554,14 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const chemistCalls = new FakeChemistCalls();
   const followups = new FakeFollowups();
   const expenses = new FakeExpenses();
-  const checks = new CallChecks(fmd, territory, users, planning, config);
+  const checks = new CallChecks(fmd, territory, users, planning);
   const geofence = new GeofenceEvaluator(config);
   const logDoctorCall = new LogDoctorCallUseCase(gate, checks, geofence, fmd, doctorCalls);
   const logChemistCall = new LogChemistCallUseCase(gate, checks, geofence, fmd, chemistCalls);
-  const logFollowup = new LogFollowupUseCase(gate, checks, followups);
+  const logFollowup = new LogFollowupUseCase(gate, checks, geofence, fmd, followups);
   const logExpense = new LogExpenseUseCase(gate, expenses);
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses, config);
-  const submit = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config);
+  const submit = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config, planning);
   const listExpenses = new ListExpensesUseCase(expenses, users);
   const markPaid = new MarkExpensePaidUseCase(expenses, config, () => new Date(clock.current));
   const paidTaDa = new GetPaidTaDaTotalUseCase(expenses, dcrClock);

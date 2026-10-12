@@ -57,7 +57,7 @@ describe('BlockUserUseCase', () => {
     const { user, events, useCase } = setup();
     expect(await useCase.execute('u1', 'DCR_MISSED_NO_LEAVE')).toBe(true);
     expect(user.isBlocked).toBe(true);
-    expect(events).toEqual([{ id: 'b1', userId: 'u1', reason: 'DCR_MISSED_NO_LEAVE', blockedAt: new Date('2026-10-06T00:30:00Z'), unblockedBy: null, unblockedAt: null }]);
+    expect(events).toEqual([{ id: 'b1', userId: 'u1', reason: 'DCR_MISSED_NO_LEAVE', blockedAt: new Date('2026-10-06T00:30:00Z'), unblockedBy: null, unblockedAt: null, unblockedByRole: null, unblockReason: null }]);
   });
 
   it('is idempotent: blocking someone already blocked changes nothing and says so', async () => {

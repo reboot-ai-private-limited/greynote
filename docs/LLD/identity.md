@@ -39,7 +39,7 @@ other module depends on it, directly or through the Approval Workflow Engine —
   walking it, never stored separately), `date_of_joining`, and onboarding personal/bank details
   and uploaded documents; see "Onboarding" in `../erd/01-identity-hierarchy.md`.
 - **`ComplianceBlock`** — one row per block **event** (not a single overwritable field), FK to
-  `User`: `reason`, `blocked_at`, `unblocked_by`, `unblocked_at`. Retention is indefinite (no
+  `User`: `reason`, `blocked_at`, `unblocked_by`, `unblocked_by_role`, `unblock_reason`, `unblocked_at`. Retention is indefinite (no
   TTL). `User.is_blocked` is kept in sync with whether an "open" row (`unblocked_at: null`)
   exists for that user.
 - **`UserSession`** — one row per logged-in device: `device_id`, `refresh_token_hash`,
@@ -135,14 +135,13 @@ same shape as `health.public.ts`, just with real methods:
   employee out of their other phone.
 - **Password reset is Admin-only** (`client-sign-off.md` A5). It re-hashes the password and ends
   every session (`PASSWORD_RESET`); registered devices stay registered.
-- **The compliance block is system-set, Admin-only to clear.** A background job
+- **The compliance block is system-set; Admin or a manager above the employee clears it, with a reason (decision-log 2026-10-12).** A background job
   ([`hld/10`](../hld/10-submission-gating-and-compliance-block.md)) creates a new `ComplianceBlock`
   row and sets `User.is_blocked = true` — never a person, so there's no `blocked_by` on the row.
   Clearing it (closing the open row with `unblocked_by`/`unblocked_at`, plus flipping
-  `is_blocked` back to `false`) is restricted to an `ADMIN` user specifically, **not** the blocked
-  user's Nearest Higher Manager, even though that manager is otherwise the Stage-1 approver for
-  everything else this user submits. This is a deliberate carve-out: the block is
-  punitive/compliance-driven, not a routine approval. The close-the-row-and-flip-the-flag pair
+  `is_blocked` back to `false`) is allowed to an `ADMIN` or to any manager above the employee in the chain (`getManagerChain`); a
+  manager outside the chain gets `404`, the employee themselves and HR get `403`. The body `{ reason }` is **required** and is stored on the
+  block row with `unblocked_by_role` — that row is the audit trail. This replaces the earlier "Admin only" carve-out. The close-the-row-and-flip-the-flag pair
   happens inside a single MongoDB transaction — the first in this codebase — since either
   succeeding without the other would leave `is_blocked` disagreeing with the block history.
 - **Passwords are hashed, never stored or logged in plain text** — check
@@ -236,7 +235,7 @@ dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-l
 | `POST` | `/api/identity/ctc/reapply` | Admin, HR | `{effectiveFrom, reason?, userIds?}` → new revisions from the current formula; per-employee outcome |
 | `POST` | `/api/identity/users/:id/documents` | Admin, HR | Upload a document (`multipart/form-data`, field `file` + `documentType`, up to 10 MB) to Cloudinary and attach it to the user. Only a PDF, JPG or PNG, judged by the file's own header, not its name or declared type; anything else is a `400` before it reaches storage |
 | `DELETE` | `/api/identity/users/:id/documents/:documentId` | Admin, HR | Remove a document from Cloudinary **and** the user record |
-| `POST` | `/api/identity/users/:id/unblock` | Admin only | Clear a compliance block |
+| `POST` | `/api/identity/users/:id/unblock` | Admin, or a FIELD manager above the employee | Clear a compliance block; body `{ reason }` (required, kept as the audit trail) |
 | `POST` | `/api/identity/users/:id/reset-password` | Admin only | `{newPassword}` → re-hash, end every session |
 | `GET` | `/api/identity/devices/pending` | Admin only | Every `PENDING` phone across the org, oldest first, with employee code/name |
 | `GET` | `/api/identity/users/:id/devices` | Admin only | One employee's phones (all statuses), with `loggedIn` / `lastActiveAt` |

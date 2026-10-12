@@ -79,6 +79,9 @@ export const listUsersQuerySchema = paginationQuerySchema.extend({
   isBlocked: z.coerce.boolean().optional(),
 });
 
+/** Why the block is being cleared — required, and kept on the block event as the audit trail. */
+export const unblockUserBodySchema = z.object({ reason: z.string().trim().min(1, 'A reason is required.').max(500) });
+
 export const resetPasswordBodySchema = z.object({ newPassword: passwordSchema });
 
 export const userIdParamsSchema = z.object({

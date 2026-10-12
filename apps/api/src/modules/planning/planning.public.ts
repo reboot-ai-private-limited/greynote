@@ -21,7 +21,7 @@ export interface PlanningPublicContract {
   getDailyPlanStatus(userId: string, planDate: string): Promise<PlanApprovalStatus | null>;
   /**
    * What the day's Plan says — working type and routes — with its status, for TA/DA; `null` with no Plan.
-   * Read at the DCR's approval, so an approved in-day change is already in it.
+   * Read at the DCR's approval, so a manager's amendment is already in it.
    */
   getDailyPlanDay(userId: string, planDate: string): Promise<{ status: PlanApprovalStatus; workingType: WorkingType; routeIds: string[]; doctorIds: string[] } | null>;
   /** The user's daily plans in a date range (both ends inclusive), oldest first, each with its status, working type and Route ids. */

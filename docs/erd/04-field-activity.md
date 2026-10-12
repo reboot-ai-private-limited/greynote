@@ -40,14 +40,17 @@ erDiagram
         uuid id PK
         uuid dcr_id FK
         uuid doctor_id FK
-        string working_type "FIELD_WORK, MEETING, CONFERENCE, STRIKE"
+        string working_type "FIELD_WORK, DOCTOR_CAMPAIGN - stamped by the server from the day's plan"
+        uuid route_id FK "the doctor's route, stamped by the server"
+        string route_type "HQ, EX_STATION, OUT_STATION - the route's type, stamped"
         json work_with "array of accompanying user_ids"
         string remarks
         decimal captured_latitude "MR's GPS at call time"
         decimal captured_longitude
         decimal accuracy_meters "the phone's reported GPS accuracy"
-        boolean not_in_plan "true when the day's approved plan lists doctors and this one is not among them; default false"
-        string geofence_status "PASS, FAIL, UNVERIFIED, OVERRIDE"
+        boolean not_in_plan "true when the doctor is not on the day's plan list; default false"
+        boolean route_not_in_plan "true when the doctor's route is not on the day's plan; default false"
+        string geofence_status "PASS for every record saved since 2026-10-12 (anything else is refused NOT_AT_LOCATION); FAIL/UNVERIFIED/OVERRIDE only on older rows"
         int geofence_distance_meters "nullable - the server's computed distance, kept when overridden"
         uuid geofence_overridden_by FK "nullable - the manager who accepted a FAIL/UNVERIFIED"
         timestamp geofence_overridden_at "nullable"
@@ -65,19 +68,30 @@ erDiagram
         uuid dcr_id FK
         uuid doctor_id FK
         string remarks
+        string working_type "FIELD_WORK, DOCTOR_CAMPAIGN - stamped by the server from the day's plan"
+        uuid route_id FK
+        string route_type "HQ, EX_STATION, OUT_STATION"
+        boolean not_in_plan "the doctor is not on the day's plan list"
+        decimal captured_latitude
+        decimal captured_longitude
+        decimal accuracy_meters
+        string geofence_status "PASS (new rows)"
         timestamp created_at
     }
     CHEMIST_CALL {
         uuid id PK
         uuid dcr_id FK
         uuid chemist_id FK
-        string working_type "FIELD_WORK, MEETING, CONFERENCE, STRIKE"
+        string working_type "FIELD_WORK, DOCTOR_CAMPAIGN - stamped by the server from the day's plan" (the phone no longer sends one)
+        uuid route_id FK "the chemist's route, stamped"
+        string route_type "HQ, EX_STATION, OUT_STATION"
+        boolean route_not_in_plan "the chemist's route is not on the day's plan"
         json work_with "array of accompanying user_ids"
         string remarks
         decimal captured_latitude "MR's GPS at call time"
         decimal captured_longitude
         decimal accuracy_meters "the phone's reported GPS accuracy"
-        string geofence_status "PASS, FAIL, UNVERIFIED, OVERRIDE"
+        string geofence_status "PASS (new rows)"
         timestamp created_at
     }
     CHEMIST_FOLLOWUP {
@@ -85,6 +99,14 @@ erDiagram
         uuid dcr_id FK
         uuid chemist_id FK
         string remarks
+        string working_type "FIELD_WORK, DOCTOR_CAMPAIGN - stamped by the server from the day's plan"
+        uuid route_id FK
+        string route_type "HQ, EX_STATION, OUT_STATION"
+        boolean not_in_plan "the chemist's route is not on the day's plan"
+        decimal captured_latitude
+        decimal captured_longitude
+        decimal accuracy_meters
+        string geofence_status "PASS (new rows)"
         timestamp created_at
     }
     EXPENSE {
@@ -166,7 +188,7 @@ erDiagram
 - **Geofence check on both Doctor Call and Chemist Call.** Each stores the MR's captured GPS (`captured_latitude`/`captured_longitude`) and a `geofence_status` result, validated against the registered `latitude`/`longitude` on Doctor/Chemist (Module 3) using the radius rule (`GEO_FENCE_RADIUS_METERS`) that will live in `SystemConfig` (Module 5).
 - **Doctor Gift is now an Admin-issued allocation, same pattern as `DoctorSampleAllocation` (Module 3) — not an MR-logged entry.** Admin sets a gift (`product_name` as free text, plus `amount`) against a `Doctor`; the MR assigned to that doctor (via `DoctorAssignment`, Module 3) sees it and marks it `DONE` (`completed_by`/`completed_at`). Still no manager-approval step — it's Admin-authorized by construction, same as Sample.
 - **Creating any DCR child requires today's `DailyPlan` to already be `MANAGER_APPROVED` (Module 5, HLD 10).** `DoctorCall`, `ChemistCall`, `DoctorFollowup`, `ChemistFollowup`, and `Expense` are all gated on the user's `DailyPlan` for that same `report_date`/`plan_date` — checked client-side against the locally-synced `DailyPlan` status before the screen is even usable, and re-validated server-side at sync, the same re-check pattern HLD 1 §1.4 already uses for `DoctorAssignment` drift. `DCR` Final Submission carries the same connectivity carve-out as `DailyPlan`/`MonthlyPlan` Submit (Module 5) — it requires a live connection at tap time rather than queuing offline, since it's also what the missed-DCR compliance block (HLD 10) keys off of.
-- **A Doctor/Chemist Call's route must be in the day's approved Plan** (`ROUTE_NOT_IN_PLAN`), and a DCR's request is created already `APPROVED` (authority `AUTO`) when `DCR_APPROVAL_REQUIRED` is off — decision-log 2026-10-03.
+- **Calls follow the plan but flag where they differ (decision-log 2026-10-12, replaces 2026-10-03):** `not_in_plan` / `route_not_in_plan` flags, never a refusal; a Meeting, Conference or Strike day has no calls. **All four records need GPS within the radius** (`NOT_AT_LOCATION`, nothing stored otherwise). The server stamps `working_type`, `route_id` and `route_type`. `DCR.remarks` holds the day's note (required on a Meeting/Conference day). A DCR's request is created already `APPROVED` (authority `AUTO`) when `DCR_APPROVAL_REQUIRED` is off — decision-log 2026-10-03.
 - **Superseded 2026-09-24:** the `status`/`reviewed_by`/`reviewed_at` approval fields on `DCR` and `DoctorService` move to the `approval` module's `ApprovalRequest` (`../LLD/approval.md`); dropped when Field Activity is built.
 - **Doctor Service is the one that gets the approval workflow**, not Gift. An MR can request/submit a Service themselves (`service_type`: `TOUR_PACKAGE`, `GIFT`, `ONLINE_PROMOTION`, `OTHERS`, plus `amount`) — this goes through the same nearest-manager-then-Admin approval as `DCR` and the Tour Plans (`status`/`reviewed_by`/`reviewed_at`). Note `GIFT` appears here too, as a _service_type_ option (e.g. a sponsored, bigger-ticket gift needing approval) — distinct from the standalone `DoctorGift` allocation above, which is for smaller Admin-issued items with no approval needed.
 - **Admin can also create a Service directly for a doctor — auto-approved, no manager review.** `created_by` records who actually made the row. When Admin creates it, `status` is set straight to `MANAGER_APPROVED` and `reviewed_by`/`reviewed_at` stay null, since Admin is already the top of the approval chain. The `user_id` (the MR the service is tied to) is auto-selected from that doctor's single active `DoctorAssignment` (Module 3) at creation time and stored as a plain snapshot FK. If the doctor has no active assignment, Admin picks the MR explicitly rather than the system guessing.

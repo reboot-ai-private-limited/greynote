@@ -435,6 +435,10 @@ export class FakeSampleAllocations implements SampleAllocationRepositoryPort {
     Object.assign(row, { quantityAllocated: i.total, quantityRemaining: i.total - given, allocatedBy: i.by });
     return row;
   }
+  async restoreRemaining(id: string, quantity: number) {
+    const row = this.rows.find((a) => a.id === id);
+    if (row) row.quantityRemaining += quantity;
+  }
   /** One synchronous check-and-take, like the conditional update in Mongo. */
   async decrementRemaining(id: string, quantity: number) {
     const row = this.rows.find((a) => a.id === id);

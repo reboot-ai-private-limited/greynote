@@ -58,7 +58,7 @@ export class PlanSubmitter {
       );
     }
     if (await this.users.isBlocked(s.ownerId)) {
-      throw AppError.forbidden('You are blocked for missed reports. Admin has to unblock you before you can submit a plan.');
+      throw AppError.forbidden('You are blocked for missed reports. Your manager or Admin has to unblock you before you can submit a plan.');
     }
     await this.validateDays(s.ownerId, s.days);
 

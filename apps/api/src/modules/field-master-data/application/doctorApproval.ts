@@ -19,7 +19,7 @@ export const NEW_DOCTOR_KIND = 'NEW_DOCTOR';
  *   for Admin rather than failing the approval.
  * - `REOPENED` (Admin reopens an approved one) — back to `pending`, so nobody acts on it while it's
  *   reconsidered; an existing assignment is kept, hidden until it's approved again.
- * - Rejected, withdrawn or manager-approved — nothing to do; it stays `pending`.
+ * - Rejected or withdrawn — nothing to do; it stays `pending`.
  */
 export function makeDoctorApprovalHandler(
   doctors: DoctorRepositoryPort,

@@ -20,6 +20,8 @@ const toDoctor = (doc: DoctorDoc & { _id: unknown }): Doctor => ({
   name: doc.name,
   address: doc.address,
   email: doc.email,
+  clinicName: doc.clinicName ?? null,
+  phone: doc.phone ?? null,
   specialty: doc.specialty,
   qualification: doc.qualification,
   dateOfBirth: doc.dateOfBirth ?? null,

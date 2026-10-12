@@ -26,7 +26,7 @@ const complete: UserDetailDto = {
   status: 'active',
   isBlocked: false,
   lastLoginAt: null,
-  currentBlock: null,
+  currentBlock: null, blockHistory: [],
   profile: {
     designationId: 'd1',
     payBandId: 'b1',

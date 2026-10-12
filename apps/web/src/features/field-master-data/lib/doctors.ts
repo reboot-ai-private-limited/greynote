@@ -18,14 +18,17 @@ export interface DoctorDraft extends PlaceDraft {
   specialty: string;
   qualification: string;
   email: string;
+  /** Optional. */
+  clinicName: string;
+  phone: string;
   /** `YYYY-MM-DD` or empty. */
   dateOfBirth: string;
   anniversary: string;
-  /** `'1'`–`'6'` or empty (no target). */
+  /** `'1'`–`'5'` or empty (no target). */
   visitFrequency: string;
 }
 
-export const FREQUENCY_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({
+export const FREQUENCY_OPTIONS = [1, 2, 3, 4, 5].map((n) => ({
   value: String(n),
   label: n === 1 ? '1 visit a month' : `${n} visits a month`,
 }));
@@ -38,6 +41,8 @@ export const EMPTY_DOCTOR: DoctorDraft = {
   specialty: '',
   qualification: '',
   email: '',
+  clinicName: '',
+  phone: '',
   dateOfBirth: '',
   anniversary: '',
   visitFrequency: '',
@@ -52,6 +57,8 @@ export function doctorToDraft(d: DoctorDto): DoctorDraft {
     specialty: d.specialty,
     qualification: d.qualification,
     email: d.email ?? '',
+    clinicName: d.clinicName ?? '',
+    phone: d.phone ?? '',
     dateOfBirth: d.dateOfBirth ?? '',
     anniversary: d.anniversary ?? '',
     visitFrequency: d.visitFrequency === null ? '' : String(d.visitFrequency),
@@ -62,6 +69,11 @@ function dateError(v: string): string | undefined {
   if (v === '') return undefined;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(Date.parse(v))) return 'Enter a valid date.';
   return v > istDate() ? 'This date is in the future.' : undefined;
+}
+
+function phoneError(v: string): string | undefined {
+  const phone = v.replace(/[\s-]/g, '');
+  return phone !== '' && !/^\+?\d{10,15}$/.test(phone) ? 'Enter a phone number of 10 to 15 digits.' : undefined;
 }
 
 function errorsFor(draft: DoctorDraft): Record<string, string | undefined> {
@@ -83,6 +95,8 @@ function errorsFor(draft: DoctorDraft): Record<string, string | undefined> {
           ? `Keep it to ${TEXT_MAX} characters.`
           : undefined,
     email: email !== '' && !EMAIL.test(email) ? 'Enter a valid email address.' : undefined,
+    clinicName: squash(draft.clinicName).length > TEXT_MAX ? `Keep it to ${TEXT_MAX} characters.` : undefined,
+    phone: phoneError(draft.phone),
     dateOfBirth: dateError(draft.dateOfBirth),
     anniversary: dateError(draft.anniversary),
   };
@@ -104,6 +118,8 @@ const DETAIL_FIELDS = [
   'specialty',
   'qualification',
   'email',
+  'clinicName',
+  'phone',
   'dateOfBirth',
   'anniversary',
 ];
@@ -133,6 +149,8 @@ export function buildDoctor(draft: DoctorDraft): BuildResult<CreateDoctorDto> {
       specialty: squash(draft.specialty),
       qualification: squash(draft.qualification),
       email: draft.email.trim() === '' ? null : draft.email.trim(),
+      clinicName: squash(draft.clinicName) || null,
+      phone: draft.phone.replace(/[\s-]/g, '') || null,
       dateOfBirth: draft.dateOfBirth || null,
       anniversary: draft.anniversary || null,
       visitFrequency: draft.visitFrequency === '' ? null : Number(draft.visitFrequency),
@@ -154,6 +172,8 @@ export function buildDoctorUpdate(
   const specialty = squash(draft.specialty);
   const qualification = squash(draft.qualification);
   const email = draft.email.trim() === '' ? null : draft.email.trim();
+  const clinicName = squash(draft.clinicName) || null;
+  const phone = draft.phone.replace(/[\s-]/g, '') || null;
   const dateOfBirth = draft.dateOfBirth || null;
   const anniversary = draft.anniversary || null;
   const visitFrequency = draft.visitFrequency === '' ? null : Number(draft.visitFrequency);
@@ -166,6 +186,8 @@ export function buildDoctorUpdate(
       ...(specialty !== original.specialty && { specialty }),
       ...(qualification !== original.qualification && { qualification }),
       ...(email !== original.email && { email }),
+      ...(clinicName !== original.clinicName && { clinicName }),
+      ...(phone !== original.phone && { phone }),
       ...(dateOfBirth !== original.dateOfBirth && { dateOfBirth }),
       ...(anniversary !== original.anniversary && { anniversary }),
       ...(visitFrequency !== original.visitFrequency && { visitFrequency }),

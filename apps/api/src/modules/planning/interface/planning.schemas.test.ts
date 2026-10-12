@@ -3,7 +3,6 @@ import {
   grantLateSubmitBodySchema,
   listDailyPlansQuerySchema,
   listMonthlyPlansQuerySchema,
-  saveDailyPlanBodySchema,
   saveMonthlyPlanBodySchema,
 } from './planning.schemas.js';
 
@@ -11,14 +10,16 @@ const ID = 'aaaaaaaaaaaaaaaaaaaaaaa1';
 
 describe('planning schemas', () => {
   it('takes plan dates as calendar days, not instants or impossible days', () => {
-    const body = { planDate: '2026-10-05', workingType: 'MEETING' };
-    expect(saveDailyPlanBodySchema.parse(body)).toEqual({ ...body, workWith: [], routeIds: [], remarks: null });
-    expect(saveDailyPlanBodySchema.safeParse({ ...body, planDate: '2026-10-05T00:00:00Z' }).success).toBe(false);
-    expect(saveDailyPlanBodySchema.safeParse({ ...body, planDate: '2026-02-30' }).success).toBe(false);
+    const entry = { workingType: 'MEETING' };
+    const parse = (planDate: string) => saveMonthlyPlanBodySchema.safeParse({ planMonth: '2026-10', entries: [{ ...entry, planDate }] }).success;
+    expect(parse('2026-10-05')).toBe(true);
+    expect(parse('2026-10-05T00:00:00Z')).toBe(false);
+    expect(parse('2026-02-30')).toBe(false);
   });
 
   it('turns blank remarks into null', () => {
-    expect(saveDailyPlanBodySchema.parse({ planDate: '2026-10-05', workingType: 'STRIKE', remarks: '  ' }).remarks).toBeNull();
+    const parsed = saveMonthlyPlanBodySchema.parse({ planMonth: '2026-10', entries: [{ planDate: '2026-10-05', workingType: 'STRIKE', remarks: '  ' }] });
+    expect(parsed.entries[0]!.remarks).toBeNull();
   });
 
   it('bounds list ranges', () => {

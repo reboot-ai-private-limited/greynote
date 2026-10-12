@@ -75,7 +75,7 @@ export function makeRemoveUserDocumentController(useCase: RemoveUserDocumentUseC
 export function makeUnblockUserController(useCase: UnblockUserUseCase): RequestHandler {
   return asyncHandler(async (req, res) => {
     if (!req.user) throw AppError.unauthenticated();
-    await useCase.execute(req.user.sub, req.user.role, requiredParam(req.params, 'id'));
+    await useCase.execute(req.user.sub, req.user.role, requiredParam(req.params, 'id'), (req.body as { reason: string }).reason);
     sendSuccess(req, res, {}, 'User unblocked.', 200);
   });
 }

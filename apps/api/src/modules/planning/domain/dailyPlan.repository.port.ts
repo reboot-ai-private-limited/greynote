@@ -25,8 +25,8 @@ export interface DailyPlanRepositoryPort {
    */
   amend(id: string, expectedRevision: number, day: PlanDay, amendment: PlanAmendment): Promise<DailyPlan | null>;
   /**
-   * Inside an approval's transaction: replaces the plan's body with an approved in-day change, but
-   * only if the plan is still at `revision` (the one the change was made against), bumping it.
+   * Inside an approval's transaction: replaces the plan's body with a monthly-plan entry, but
+   * only if the plan is still at `revision` (the one the entry was read against), bumping it.
    */
   applyChange(id: string, revision: number, day: PlanDay, ctx: TransactionContext): Promise<boolean>;
   /**

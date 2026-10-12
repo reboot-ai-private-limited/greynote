@@ -1,3 +1,4 @@
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { Dcr } from './dcr.entity.js';
 
 export interface DcrRepositoryPort {
@@ -6,6 +7,8 @@ export interface DcrRepositoryPort {
    * records of a day (two phones, two pushes) get the same row, never two.
    */
   getOrCreate(userId: string, reportDate: string): Promise<Dcr>;
+  /** Sets the day's note when the DCR is submitted (inside the sync transaction). */
+  setRemarks(id: string, remarks: string | null, ctx: TransactionContext): Promise<void>;
   findById(id: string): Promise<Dcr | null>;
   findByUserAndDate(userId: string, reportDate: string): Promise<Dcr | null>;
   /** Both ends inclusive, newest first. */

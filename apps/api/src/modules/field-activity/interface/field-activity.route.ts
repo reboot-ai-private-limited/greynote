@@ -51,6 +51,25 @@ openApiRegistry.registerPath({
   responses: { 200: { description: 'The call, now OVERRIDE' }, 409: { description: 'Not under review, passed, or already accepted' } },
 });
 
+openApiRegistry.registerPath({
+  method: 'delete',
+  path: '/api/field-activity/dcr/{id}/calls/{callId}',
+  tags: [TAG],
+  summary: 'Remove one doctor or chemist call from my own report before it is submitted (samples go back to the allocation)',
+  security: [{ bearerAuth: [] }],
+  request: { params: callParamsSchema },
+  responses: { 200: { description: 'Removed' }, 404: { description: 'No such call on one of your reports' }, 409: { description: 'The report has been submitted' } },
+});
+openApiRegistry.registerPath({
+  method: 'delete',
+  path: '/api/field-activity/dcr/{id}/followups/{callId}',
+  tags: [TAG],
+  summary: 'Remove one follow-up from my own report before it is submitted',
+  security: [{ bearerAuth: [] }],
+  request: { params: callParamsSchema },
+  responses: { 200: { description: 'Removed' }, 404: { description: 'No such follow-up on one of your reports' }, 409: { description: 'The report has been submitted' } },
+});
+
 doc('/doctor-services', 'My Doctor Services with their approval status — Admin: everyone’s, optionally by userId / doctorId', { query: listServicesQuerySchema });
 doc('/doctor-services/{id}', 'One Doctor Service by its own id — what an approval request points at; Admin, or the MR it is tied to', { params: idParamsSchema });
 doc('/doctor-gifts', 'Gifts for my Doctors, pending and done — Admin: all', { query: listGiftsQuerySchema });
@@ -121,6 +140,8 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.get('/dcr/team', requireRole('FIELD'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listTeamDcrsQuerySchema }), c.teamDcrs);
   router.get('/dcr/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.getDcr);
   router.post('/dcr/:id/calls/:callId/override-geofence', requireRole('FIELD', 'ADMIN'), validate({ params: callParamsSchema, body: overrideBodySchema }), c.overrideGeofence);
+  router.delete('/dcr/:id/calls/:callId', requireRole('FIELD'), validate({ params: callParamsSchema }), c.deleteCall);
+  router.delete('/dcr/:id/followups/:callId', requireRole('FIELD'), validate({ params: callParamsSchema }), c.deleteFollowup);
   router.get('/expenses', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listExpensesQuerySchema }), c.listExpenses);
   router.get('/expense-payouts', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: listExpensePayoutsQuerySchema }), c.listExpensePayouts);
   router.post('/expense-payouts/pay', requireRole('ACCOUNTANT', 'ADMIN'), validate({ body: payExpensesBodySchema }), c.payExpenses);

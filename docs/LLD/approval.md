@@ -30,7 +30,7 @@ interface ApprovalPublicContract {
 interface ApprovalKindDefinition {
   kind: string;                                  // e.g. 'DAILY_PLAN'
   finalApproverRoles: RoleName[];                // must include 'ADMIN'; Leave: ['HR', 'ADMIN']
-  managerOnly?: boolean;                         // never a final stage, whatever APPROVAL_MANAGER_ONLY_KINDS says (Planning's DAILY_PLAN_CHANGE)
+  managerOnly?: boolean;                         // never a final stage, whatever APPROVAL_MANAGER_ONLY_KINDS says
   onStatusChange?: (change: ApprovalStatusChange, ctx: TransactionContext) => Promise<void>;
 }
 ```

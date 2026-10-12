@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ComplianceBlockEvent } from '../../domain/complianceBlock.entity.js';
-import type { ComplianceBlockRepositoryPort } from '../../domain/complianceBlock.repository.port.js';
+import type { BlockClearing, ComplianceBlockRepositoryPort } from '../../domain/complianceBlock.repository.port.js';
 import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { User } from '../../domain/user.entity.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
@@ -46,7 +46,7 @@ class FakeUserRepository implements Pick<UserRepositoryPort, 'findById' | 'updat
 class FakeComplianceBlockRepository
   implements Pick<ComplianceBlockRepositoryPort, 'findOpenByUserId' | 'close'>
 {
-  closed: Array<{ id: string; unblockedBy: string; ctx: TransactionContext | undefined }> = [];
+  closed: Array<{ id: string; clearing: BlockClearing; ctx: TransactionContext | undefined }> = [];
   constructor(
     private openBlock: ComplianceBlockEvent | null,
     private failClose = false,
@@ -54,9 +54,9 @@ class FakeComplianceBlockRepository
   async findOpenByUserId(): Promise<ComplianceBlockEvent | null> {
     return this.openBlock;
   }
-  async close(id: string, unblockedBy: string, unblockedAt: Date, ctx?: TransactionContext): Promise<void> {
+  async close(id: string, clearing: BlockClearing, ctx?: TransactionContext): Promise<void> {
     if (this.failClose) throw new Error('Mongo write failed');
-    this.closed.push({ id, unblockedBy, ctx });
+    this.closed.push({ id, clearing, ctx });
   }
 }
 
@@ -67,72 +67,86 @@ const OPEN_BLOCK: ComplianceBlockEvent = {
   blockedAt: new Date('2026-01-01'),
   unblockedBy: null,
   unblockedAt: null,
+  unblockedByRole: null,
+  unblockReason: null,
 };
 
+const NOW = new Date('2026-10-12T08:00:00Z');
+/** `manager-1` is the employee's manager; `other-1` is not in their chain. */
+const chain = async () => [{ id: 'manager-1' }, { id: 'boss-1' }];
+
+function setup(opts: { user?: User; block?: ComplianceBlockEvent | null; failClose?: boolean } = {}) {
+  const userRepository = new FakeUserRepository(opts.user ?? makeUser({ isBlocked: true }));
+  const blocks = new FakeComplianceBlockRepository(opts.block === undefined ? OPEN_BLOCK : opts.block, opts.failClose);
+  const useCase = new UnblockUserUseCase(
+    userRepository as unknown as UserRepositoryPort,
+    blocks as unknown as ComplianceBlockRepositoryPort,
+    new FakeTransactionRunner(),
+    chain,
+    () => NOW,
+  );
+  return { userRepository, blocks, useCase };
+}
+
 describe('UnblockUserUseCase', () => {
-  it('rejects a non-Admin caller', async () => {
-    const useCase = new UnblockUserUseCase(
-      new FakeUserRepository(makeUser()) as unknown as UserRepositoryPort,
-      new FakeComplianceBlockRepository(OPEN_BLOCK) as unknown as ComplianceBlockRepositoryPort,
-      new FakeTransactionRunner(),
-    );
-    await expect(useCase.execute('admin-1', 'HR', 'user-1')).rejects.toMatchObject({ statusCode: 403 });
+  it('rejects HR, and an employee unblocking themselves', async () => {
+    const { useCase } = setup();
+    await expect(useCase.execute('hr-1', 'HR', 'user-1', 'ok')).rejects.toMatchObject({ statusCode: 403 });
+    await expect(useCase.execute('user-1', 'FIELD', 'user-1', 'ok')).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it('closes the open ComplianceBlock and flips isBlocked, both in the same transaction context', async () => {
-    const userRepository = new FakeUserRepository(makeUser({ isBlocked: true }));
-    const complianceBlockRepository = new FakeComplianceBlockRepository(OPEN_BLOCK);
-    const useCase = new UnblockUserUseCase(
-      userRepository as unknown as UserRepositoryPort,
-      complianceBlockRepository as unknown as ComplianceBlockRepositoryPort,
-      new FakeTransactionRunner(),
-    );
+  it('rejects a manager who is not above the employee, as if the employee did not exist', async () => {
+    const { useCase, blocks } = setup();
+    await expect(useCase.execute('other-1', 'FIELD', 'user-1', 'ok')).rejects.toMatchObject({ statusCode: 404 });
+    expect(blocks.closed).toHaveLength(0);
+  });
 
-    await useCase.execute('admin-1', 'ADMIN', 'user-1');
+  it('requires a reason', async () => {
+    const { useCase, blocks } = setup();
+    await expect(useCase.execute('admin-1', 'ADMIN', 'user-1', '   ')).rejects.toMatchObject({ statusCode: 400 });
+    expect(blocks.closed).toHaveLength(0);
+  });
 
-    expect(complianceBlockRepository.closed).toEqual([{ id: 'block-1', unblockedBy: 'admin-1', ctx: FAKE_CTX }]);
+  it('closes the open ComplianceBlock with who, role and why, and flips isBlocked, in the same transaction context', async () => {
+    const { useCase, blocks, userRepository } = setup();
+
+    await useCase.execute('admin-1', 'ADMIN', 'user-1', '  Network was down  ');
+
+    expect(blocks.closed).toEqual([
+      { id: 'block-1', clearing: { unblockedBy: 'admin-1', unblockedByRole: 'ADMIN', unblockReason: 'Network was down', unblockedAt: NOW }, ctx: FAKE_CTX },
+    ]);
     expect(userRepository.updates).toEqual([{ id: 'user-1', input: { isBlocked: false }, ctx: FAKE_CTX }]);
   });
 
+  it('lets any manager above the employee clear the block, recording their role', async () => {
+    for (const manager of ['manager-1', 'boss-1']) {
+      const { useCase, blocks } = setup();
+      await useCase.execute(manager, 'FIELD', 'user-1', 'Was on a client visit');
+      expect(blocks.closed[0]?.clearing).toMatchObject({ unblockedBy: manager, unblockedByRole: 'FIELD', unblockReason: 'Was on a client visit' });
+    }
+  });
+
   it('is an idempotent no-op if the user is not currently blocked', async () => {
-    const userRepository = new FakeUserRepository(makeUser({ isBlocked: false }));
-    const complianceBlockRepository = new FakeComplianceBlockRepository(OPEN_BLOCK);
-    const useCase = new UnblockUserUseCase(
-      userRepository as unknown as UserRepositoryPort,
-      complianceBlockRepository as unknown as ComplianceBlockRepositoryPort,
-      new FakeTransactionRunner(),
-    );
+    const { useCase, blocks, userRepository } = setup({ user: makeUser({ isBlocked: false }) });
 
-    await useCase.execute('admin-1', 'ADMIN', 'user-1');
+    await useCase.execute('admin-1', 'ADMIN', 'user-1', 'ok');
 
-    expect(complianceBlockRepository.closed).toHaveLength(0);
+    expect(blocks.closed).toHaveLength(0);
     expect(userRepository.updates).toHaveLength(0);
   });
 
   it('still clears isBlocked when no open ComplianceBlock is found (defensive)', async () => {
-    const userRepository = new FakeUserRepository(makeUser({ isBlocked: true }));
-    const complianceBlockRepository = new FakeComplianceBlockRepository(null);
-    const useCase = new UnblockUserUseCase(
-      userRepository as unknown as UserRepositoryPort,
-      complianceBlockRepository as unknown as ComplianceBlockRepositoryPort,
-      new FakeTransactionRunner(),
-    );
+    const { useCase, userRepository } = setup({ block: null });
 
-    await useCase.execute('admin-1', 'ADMIN', 'user-1');
+    await useCase.execute('admin-1', 'ADMIN', 'user-1', 'ok');
 
     expect(userRepository.updates).toEqual([{ id: 'user-1', input: { isBlocked: false }, ctx: FAKE_CTX }]);
   });
 
   it('never flips isBlocked if closing the ComplianceBlock fails — nothing partially committed', async () => {
-    const userRepository = new FakeUserRepository(makeUser({ isBlocked: true }));
-    const complianceBlockRepository = new FakeComplianceBlockRepository(OPEN_BLOCK, true);
-    const useCase = new UnblockUserUseCase(
-      userRepository as unknown as UserRepositoryPort,
-      complianceBlockRepository as unknown as ComplianceBlockRepositoryPort,
-      new FakeTransactionRunner(),
-    );
+    const { useCase, userRepository } = setup({ failClose: true });
 
-    await expect(useCase.execute('admin-1', 'ADMIN', 'user-1')).rejects.toThrow('Mongo write failed');
+    await expect(useCase.execute('admin-1', 'ADMIN', 'user-1', 'ok')).rejects.toThrow('Mongo write failed');
     expect(userRepository.updates).toHaveLength(0);
   });
 });

@@ -14,7 +14,7 @@ import { WizardShell } from '@/components/ui/WizardShell';
 import { Grid } from '@/components/ui/WizardParts';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useCreateDoctor, useUpdateDoctor } from '../hooks/useDoctors';
+import { useCreateDoctor, useReviewDoctor, useUpdateDoctor } from '../hooks/useDoctors';
 import { useActiveSpecialtyNames } from '../hooks/useSpecialties';
 import {
   DOCTOR_STEPS,
@@ -42,14 +42,17 @@ const STEP_TITLE: Record<DoctorStep, string> = {
  * Create (no `doctor`) or edit (`doctor`). Mounted per loaded record, so its draft starts from the latest data.
  * Adding walks the same shell as the employee wizard (Details, Location, Review); editing shows the two sections on one page.
  */
-export function DoctorDetailsForm({ doctor }: { doctor?: DoctorDto }) {
+export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorDto; review?: boolean }) {
   const router = useRouter();
   const readOnly = useIsReadOnly();
   const { names, isLoading: specialtiesLoading } = useActiveSpecialtyNames();
   const [draft, setDraft] = useState<DoctorDraft>(doctor ? doctorToDraft(doctor) : EMPTY_DOCTOR);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const create = useCreateDoctor((created) => router.push(`/doctors/${created.id}`));
-  const update = useUpdateDoctor();
+  const adminUpdate = useUpdateDoctor();
+  const reviewUpdate = useReviewDoctor();
+  // `review`: a manager or Admin correcting a doctor in the approvals inbox, before approving it.
+  const update = review ? reviewUpdate : adminUpdate;
   const locked = readOnly || doctor?.status === 'inactive';
   const set = (field: keyof DoctorDraft) => (value: string) =>
     setDraft((d) => ({ ...d, [field]: value }));
@@ -161,6 +164,12 @@ export function DoctorDetailsForm({ doctor }: { doctor?: DoctorDto }) {
           aria-invalid={invalid('email')}
         />
       </FormField>
+      <FormField label="Clinic name (optional)" htmlFor="doctor-clinic" error={shown['clinicName']}>
+        <Input id="doctor-clinic" value={draft.clinicName} disabled={locked} onChange={(e) => set('clinicName')(e.target.value)} aria-invalid={invalid('clinicName')} />
+      </FormField>
+      <FormField label="Phone (optional)" htmlFor="doctor-phone" error={shown['phone']}>
+        <Input id="doctor-phone" type="tel" inputMode="tel" value={draft.phone} disabled={locked} onChange={(e) => set('phone')(e.target.value)} aria-invalid={invalid('phone')} />
+      </FormField>
       <FormField label="Date of birth (optional)" htmlFor="doctor-dob" error={shown['dateOfBirth']}>
         <Input id="doctor-dob" type="date" value={draft.dateOfBirth} disabled={locked} onChange={(e) => set('dateOfBirth')(e.target.value)} aria-invalid={invalid('dateOfBirth')} />
       </FormField>
@@ -216,9 +225,11 @@ export function DoctorDetailsForm({ doctor }: { doctor?: DoctorDto }) {
           <div className="p-5">{locationPicker}</div>
         </Card>
         <div className="flex justify-between gap-3">
-          <Button variant="secondary" onClick={() => router.push('/doctors')}>
-            Back to doctors
-          </Button>
+          {review ? <span /> : (
+            <Button variant="secondary" onClick={() => router.push('/doctors')}>
+              Back to doctors
+            </Button>
+          )}
           <Button
             type="submit"
             disabled={locked || pending}
@@ -261,6 +272,8 @@ export function DoctorDetailsForm({ doctor }: { doctor?: DoctorDto }) {
           <Field label="Speciality">{draft.specialty}</Field>
           <Field label="Qualification">{draft.qualification}</Field>
           <Field label="Email">{draft.email || null}</Field>
+          <Field label="Clinic">{draft.clinicName || null}</Field>
+          <Field label="Phone">{draft.phone || null}</Field>
           <Field label="Date of birth">{draft.dateOfBirth || null}</Field>
           <Field label="Anniversary">{draft.anniversary || null}</Field>
           <Field label="Visit frequency">{draft.visitFrequency ? `${draft.visitFrequency} a month` : null}</Field>

@@ -27,11 +27,6 @@ export class PlanDeadlines {
     return businessDate(this.now(), timeZone, dayStart);
   }
 
-  /** Most in-day changes that can be applied to one Daily Plan. */
-  changeMax(): Promise<number> {
-    return readConfig(this.config, PLANNING_CONFIG_KEYS.dailyChangeMax, parsePositiveInt(50));
-  }
-
   async daily(planDate: string): Promise<Date> {
     const [timeZone, cutoffTime] = await Promise.all([
       this.timeZone(),

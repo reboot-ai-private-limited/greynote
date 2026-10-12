@@ -21,9 +21,13 @@ async function refusal(p: Promise<unknown>): Promise<GateRefusal | LogRefusal> {
 describe('logging the day’s calls and follow-ups', () => {
   let kit: ReturnType<typeof faKit>;
   let tx: Tx;
-  const call = (over: Record<string, unknown> = {}) => ({ reportDate: DAY, doctorId: 'd1', workingType: 'FIELD_WORK' as const, workWith: [] as string[], remarks: null, capturedLocation: CLINIC as { latitude: number; longitude: number } | null, accuracyMeters: 10 as number | null, samples: [] as Array<{ productId: string; quantity: number }>, ...over });
-  const chemistCall = (over: Record<string, unknown> = {}) => ({ reportDate: DAY, chemistId: 'c1', workingType: 'FIELD_WORK' as const, workWith: [] as string[], remarks: null, capturedLocation: CLINIC as { latitude: number; longitude: number } | null, accuracyMeters: 10 as number | null, ...over });
+  const gps = { capturedLocation: CLINIC as { latitude: number; longitude: number } | null, accuracyMeters: 10 as number | null };
+  const call = (over: Record<string, unknown> = {}) => ({ reportDate: DAY, doctorId: 'd1', workWith: [] as string[], remarks: null, ...gps, samples: [] as Array<{ productId: string; quantity: number }>, ...over });
+  const chemistCall = (over: Record<string, unknown> = {}) => ({ reportDate: DAY, chemistId: 'c1', workWith: [] as string[], remarks: null, ...gps, ...over });
+  const followup = (subject: 'DOCTOR' | 'CHEMIST', subjectId: string, over: Record<string, unknown> = {}) => ({ reportDate: DAY, subject, subjectId, remarks: 'call again Friday', ...gps, ...over });
   const log = (over: Record<string, unknown> = {}, rec = REC) => kit.logDoctorCall.execute(rec, call(over), tx);
+  const plan = (over: { workingType?: 'FIELD_WORK' | 'DOCTOR_CAMPAIGN' | 'MEETING' | 'CONFERENCE' | 'STRIKE'; routeIds?: string[]; doctorIds?: string[] }) =>
+    kit.planning.days.set(`mr1:${DAY}`, { workingType: over.workingType ?? 'FIELD_WORK', routeIds: over.routeIds ?? ['route-1'], ...(over.doctorIds && { doctorIds: over.doctorIds }) });
 
   beforeEach(() => {
     kit = faKit();
@@ -31,71 +35,85 @@ describe('logging the day’s calls and follow-ups', () => {
     tx = new Tx();
   });
 
-  describe('the day’s approved Plan bounds the report', () => {
-    it('a call on a route the Plan doesn’t list is refused, Doctor or Chemist, and nothing is stored', async () => {
-      kit.planning.days.set(`mr1:${DAY}`, { workingType: 'FIELD_WORK', routeIds: ['route-2'] });
-      expect((await refusal(log())).code).toBe('ROUTE_NOT_IN_PLAN');
-      expect((await refusal(kit.logChemistCall.execute(REC, chemistCall(), tx))).code).toBe('ROUTE_NOT_IN_PLAN');
-      expect(kit.doctorCalls.rows).toHaveLength(0);
-      expect(kit.chemistCalls.rows).toHaveLength(0);
-    });
-
-    it('a meeting day (no routes) has no calls', async () => {
-      kit.planning.days.set(`mr1:${DAY}`, { workingType: 'MEETING', routeIds: [] });
-      expect((await refusal(log())).code).toBe('ROUTE_NOT_IN_PLAN');
-    });
-
-    it('once the manager amends the plan to include the route, the call is accepted', async () => {
-      kit.planning.days.set(`mr1:${DAY}`, { workingType: 'FIELD_WORK', routeIds: ['route-2'] });
-      await refusal(log());
-      kit.planning.days.set(`mr1:${DAY}`, { workingType: 'FIELD_WORK', routeIds: ['route-1', 'route-2'] });
+  describe('work type and route type are stamped by the server', () => {
+    it('every record carries the day’s plan type and the Route’s type (HQ / Ex-station / Out-station)', async () => {
       await log();
-      expect(kit.doctorCalls.rows).toHaveLength(1);
+      await kit.logChemistCall.execute({ ...REC, clientId: 'c2' }, chemistCall(), tx);
+      await kit.logFollowup.execute({ ...REC, clientId: 'c3' }, followup('DOCTOR', 'd1'), tx);
+      await kit.logFollowup.execute({ ...REC, clientId: 'c4' }, followup('CHEMIST', 'c1'), tx);
+      for (const row of [...kit.doctorCalls.rows, ...kit.chemistCalls.rows, ...kit.followups.rows]) expect(row).toMatchObject({ workingType: 'FIELD_WORK', routeId: 'route-1', routeType: 'EX_STATION' });
+    });
+
+    it('a doctor campaign day is stamped as such', async () => {
+      plan({ workingType: 'DOCTOR_CAMPAIGN' });
+      await log();
+      expect(kit.doctorCalls.rows[0]!.workingType).toBe('DOCTOR_CAMPAIGN');
+    });
+
+    it('the phone’s work type is ignored', async () => {
+      await kit.logDoctorCall.execute(REC, { ...call(), workingType: 'STRIKE' } as never, tx);
+      expect(kit.doctorCalls.rows[0]!.workingType).toBe('FIELD_WORK');
     });
   });
 
-  describe('a Doctor outside the day’s doctor list', () => {
-    const planned = (doctorIds: string[], routeIds = ['route-1']) => kit.planning.days.set(`mr1:${DAY}`, { workingType: 'FIELD_WORK', routeIds, doctorIds });
-
-    it('a listed Doctor is in plan, whatever their Route', async () => {
-      planned(['d1'], ['route-2']);
-      await log();
-      expect(kit.doctorCalls.rows[0]!.notInPlan).toBe(false);
-    });
-
-    it('an unlisted Doctor is saved and flagged while the setting is on', async () => {
-      planned(['d9']);
-      await log();
-      expect(kit.doctorCalls.rows[0]!.notInPlan).toBe(true);
-    });
-
-    it('an unlisted Doctor on a Route the plan doesn’t list is allowed and flagged too', async () => {
-      planned(['d9'], ['route-2']);
-      await log();
-      expect(kit.doctorCalls.rows[0]!.notInPlan).toBe(true);
-    });
-
-    it('is refused when the setting is off, and nothing is stored', async () => {
-      kit.config.values.ALLOW_UNPLANNED_DOCTOR_CALLS = 'false';
-      planned(['d9']);
-      expect((await refusal(log())).code).toBe('ROUTE_NOT_IN_PLAN');
+  describe('meeting, conference and strike days have no calls', () => {
+    it.each(['MEETING', 'CONFERENCE', 'STRIKE'] as const)('%s: calls and follow-ups are refused, nothing stored', async (workingType) => {
+      plan({ workingType, routeIds: [] });
+      expect((await refusal(log())).code).toBe('CALL_NOT_ALLOWED_FOR_WORK_TYPE');
+      expect((await refusal(kit.logChemistCall.execute(REC, chemistCall(), tx))).code).toBe('CALL_NOT_ALLOWED_FOR_WORK_TYPE');
+      expect((await refusal(kit.logFollowup.execute(REC, followup('DOCTOR', 'd1'), tx))).code).toBe('CALL_NOT_ALLOWED_FOR_WORK_TYPE');
       expect(kit.doctorCalls.rows).toHaveLength(0);
+      expect(kit.chemistCalls.rows).toHaveLength(0);
+      expect(kit.followups.rows).toHaveLength(0);
+    });
+  });
+
+  describe('the plan flags, it never refuses', () => {
+    it('a Doctor on the day’s list is in plan, whatever their Route', async () => {
+      plan({ routeIds: ['route-2'], doctorIds: ['d1'] });
+      await log();
+      expect(kit.doctorCalls.rows[0]).toMatchObject({ notInPlan: false, routeNotInPlan: true });
     });
 
-    it('a plan that lists no Doctors keeps the Route rule and flags nothing', async () => {
-      kit.config.values.ALLOW_UNPLANNED_DOCTOR_CALLS = 'false';
-      planned([]);
+    it('a Doctor not on the list is saved and flagged; on a listed Route only the Doctor flag shows', async () => {
+      plan({ doctorIds: ['d9'] });
+      await log();
+      expect(kit.doctorCalls.rows[0]).toMatchObject({ notInPlan: true, routeNotInPlan: false });
+    });
+
+    it('a Doctor on a Route the plan doesn’t list is saved with both flags', async () => {
+      plan({ routeIds: ['route-2'], doctorIds: ['d9'] });
+      await log();
+      expect(kit.doctorCalls.rows[0]).toMatchObject({ notInPlan: true, routeNotInPlan: true });
+    });
+
+    it('a plan that lists no Doctors falls back to the Route', async () => {
+      plan({ doctorIds: [] });
       await log();
       expect(kit.doctorCalls.rows[0]!.notInPlan).toBe(false);
-      planned([], ['route-2']);
-      expect((await refusal(log())).code).toBe('ROUTE_NOT_IN_PLAN');
+      plan({ routeIds: ['route-2'], doctorIds: [] });
+      await kit.logDoctorCall.execute({ ...REC, clientId: 'c2' }, call(), tx);
+      expect(kit.doctorCalls.rows[1]!.notInPlan).toBe(true);
     });
 
-    it('a database without the setting yet reads as allowed', async () => {
-      delete kit.config.values.ALLOW_UNPLANNED_DOCTOR_CALLS;
-      planned(['d9']);
-      await log();
-      expect(kit.doctorCalls.rows[0]!.notInPlan).toBe(true);
+    it('a Chemist call and follow-up are flagged when their Route isn’t on the plan', async () => {
+      await kit.logChemistCall.execute(REC, chemistCall(), tx);
+      await kit.logFollowup.execute({ ...REC, clientId: 'c2' }, followup('CHEMIST', 'c1'), tx);
+      expect(kit.chemistCalls.rows[0]!.routeNotInPlan).toBe(false);
+      expect(kit.followups.rows[0]!.notInPlan).toBe(false);
+      plan({ routeIds: ['route-2'] });
+      await kit.logChemistCall.execute({ ...REC, clientId: 'c3' }, chemistCall(), tx);
+      await kit.logFollowup.execute({ ...REC, clientId: 'c4' }, followup('CHEMIST', 'c1'), tx);
+      expect(kit.chemistCalls.rows[1]!.routeNotInPlan).toBe(true);
+      expect(kit.followups.rows[1]!.notInPlan).toBe(true);
+    });
+
+    it('a Doctor follow-up is flagged when the Doctor isn’t on the day’s list', async () => {
+      plan({ doctorIds: ['d1'] });
+      await kit.logFollowup.execute(REC, followup('DOCTOR', 'd1'), tx);
+      plan({ doctorIds: ['d9'] });
+      await kit.logFollowup.execute({ ...REC, clientId: 'c2' }, followup('DOCTOR', 'd1'), tx);
+      expect(kit.followups.rows.map((f) => f.notInPlan)).toEqual([false, true]);
     });
   });
 
@@ -110,34 +128,35 @@ describe('logging the day’s calls and follow-ups', () => {
       expect(kit.doctorCalls.rows).toHaveLength(2);
     });
 
-    describe('the geofence is the server’s own', () => {
-      it('PASS inside the radius, FAIL outside — flagged, never refused, and the call is still stored', async () => {
+    describe('the location rule: only where the Doctor is', () => {
+      it('inside the radius is stored; outside is refused with NOT_AT_LOCATION and nothing is stored', async () => {
         expect((await log({ capturedLocation: metersNorth(90) })).data.geofence).toMatchObject({ status: 'PASS', distanceMeters: 90 });
-        const far = await kit.logDoctorCall.execute({ ...REC, clientId: 'c2' }, call({ capturedLocation: metersNorth(400) }), tx);
-        expect(far.data.geofence).toMatchObject({ status: 'FAIL', distanceMeters: 400, reason: null });
-        expect(kit.doctorCalls.rows).toHaveLength(2);
-        expect(kit.doctorCalls.rows[1]!.geofence).toMatchObject({ status: 'FAIL', overriddenBy: null });
+        const err = await refusal(kit.logDoctorCall.execute({ ...REC, clientId: 'c2' }, call({ capturedLocation: metersNorth(400) }), tx));
+        expect(err.code).toBe('NOT_AT_LOCATION');
+        expect(err.message).toContain('400 m');
+        expect(err.message).toContain('100 m');
+        expect(kit.doctorCalls.rows).toHaveLength(1);
       });
 
       it('follows the radius in Config, so Admin can change it without a release', async () => {
         kit.config.values.GEO_FENCE_RADIUS_METERS = '50';
-        expect((await log({ capturedLocation: metersNorth(90) })).data.geofence.status).toBe('FAIL');
+        expect((await refusal(log({ capturedLocation: metersNorth(90) }))).code).toBe('NOT_AT_LOCATION');
         kit.config.values.GEO_FENCE_RADIUS_METERS = '150';
         expect((await kit.logDoctorCall.execute({ ...REC, clientId: 'c2' }, call({ capturedLocation: metersNorth(90) }), tx)).data.geofence.status).toBe('PASS');
       });
 
-      it('UNVERIFIED — flagged for the manager like a FAIL — when there is no registered location, no GPS reading, or a weak one', async () => {
+      it('no registered location, no GPS reading and a weak reading are all refused too', async () => {
         kit.fmd.doctorLocation['d1'] = null;
-        expect((await log()).data.geofence).toEqual({ status: 'UNVERIFIED', distanceMeters: null, reason: 'NO_REGISTERED_LOCATION' });
+        expect((await refusal(log())).message).toContain('no registered location');
         kit.fmd.doctorLocation['d1'] = CLINIC;
-        expect((await kit.logDoctorCall.execute({ ...REC, clientId: 'c2' }, call({ capturedLocation: null, accuracyMeters: null }), tx)).data.geofence.reason).toBe('NO_GPS_READING');
-        expect((await kit.logDoctorCall.execute({ ...REC, clientId: 'c3' }, call({ accuracyMeters: 300 }), tx)).data.geofence).toMatchObject({ status: 'UNVERIFIED', reason: 'LOW_ACCURACY', distanceMeters: 0 });
-        expect(kit.doctorCalls.rows).toHaveLength(3);
+        expect((await refusal(kit.logDoctorCall.execute({ ...REC, clientId: 'c2' }, call({ capturedLocation: null, accuracyMeters: null }), tx))).message).toContain('GPS');
+        expect((await refusal(kit.logDoctorCall.execute({ ...REC, clientId: 'c3' }, call({ accuracyMeters: 300 }), tx))).message).toContain('too weak');
+        expect(kit.doctorCalls.rows).toHaveLength(0);
       });
 
       it('a geofence result sent by the phone is never taken', async () => {
-        const { data } = await kit.logDoctorCall.execute(REC, { ...call({ capturedLocation: metersNorth(900) }), geofenceStatus: 'PASS' } as never, tx);
-        expect(data.geofence.status).toBe('FAIL');
+        const err = await refusal(kit.logDoctorCall.execute(REC, { ...call({ capturedLocation: metersNorth(900) }), geofenceStatus: 'PASS' } as never, tx));
+        expect(err.code).toBe('NOT_AT_LOCATION');
       });
     });
 
@@ -218,10 +237,13 @@ describe('logging the day’s calls and follow-ups', () => {
   });
 
   describe('a Chemist Call', () => {
-    it('is stored with the server’s geofence result, checked against the Chemist’s stored location', async () => {
-      const { data, serverId } = await kit.logChemistCall.execute(REC, chemistCall({ capturedLocation: metersNorth(250) }), tx);
-      expect(data.geofence).toMatchObject({ status: 'FAIL', distanceMeters: 250 });
+    it('is stored, checked against the Chemist’s stored location like a Doctor’s', async () => {
+      const { data, serverId } = await kit.logChemistCall.execute(REC, chemistCall(), tx);
+      expect(data.geofence).toMatchObject({ status: 'PASS' });
       expect(kit.chemistCalls.rows[0]).toMatchObject({ id: serverId, chemistId: 'c1', userId: 'mr1' });
+      expect((await refusal(kit.logChemistCall.execute({ ...REC, clientId: 'c2' }, chemistCall({ capturedLocation: metersNorth(250) }), tx))).code).toBe('NOT_AT_LOCATION');
+      expect((await refusal(kit.logChemistCall.execute({ ...REC, clientId: 'c3' }, chemistCall({ capturedLocation: null, accuracyMeters: null }), tx))).code).toBe('NOT_AT_LOCATION');
+      expect(kit.chemistCalls.rows).toHaveLength(1);
     });
 
     it('a Chemist that no longer exists → CHEMIST_NOT_FOUND; on a Route the MR lost → CHEMIST_ROUTE_NOT_ASSIGNED', async () => {
@@ -241,20 +263,27 @@ describe('logging the day’s calls and follow-ups', () => {
   });
 
   describe('follow-ups', () => {
-    it('a Doctor follow-up and a Chemist follow-up are attached to the day’s DCR', async () => {
-      const d = await kit.logFollowup.execute(REC, { reportDate: DAY, subject: 'DOCTOR', subjectId: 'd1', remarks: 'call again Friday' }, tx);
-      const c = await kit.logFollowup.execute({ ...REC, clientId: 'client-2' }, { reportDate: DAY, subject: 'CHEMIST', subjectId: 'c1', remarks: 'restock' }, tx);
+    it('a Doctor follow-up and a Chemist follow-up are attached to the day’s DCR, with where the MR was', async () => {
+      const d = await kit.logFollowup.execute(REC, followup('DOCTOR', 'd1'), tx);
+      const c = await kit.logFollowup.execute({ ...REC, clientId: 'client-2' }, followup('CHEMIST', 'c1', { remarks: 'restock' }), tx);
       expect(kit.followups.rows.map((f) => [f.id, f.subject, f.remarks])).toEqual([[d.serverId, 'DOCTOR', 'call again Friday'], [c.serverId, 'CHEMIST', 'restock']]);
+      expect(kit.followups.rows[0]).toMatchObject({ capturedLocation: CLINIC, geofence: { status: 'PASS' } });
       expect(kit.dcrs.rows).toHaveLength(1);
+    });
+
+    it('is refused away from the Doctor or Chemist, like a call, and nothing is stored', async () => {
+      expect((await refusal(kit.logFollowup.execute(REC, followup('DOCTOR', 'd1', { capturedLocation: metersNorth(500) }), tx))).code).toBe('NOT_AT_LOCATION');
+      expect((await refusal(kit.logFollowup.execute(REC, followup('CHEMIST', 'c1', { capturedLocation: null, accuracyMeters: null }), tx))).code).toBe('NOT_AT_LOCATION');
+      expect(kit.followups.rows).toHaveLength(0);
     });
 
     it('is refused by the gate and by the same checks on who it is about', async () => {
       kit.fmd.assigned.delete('mr1:d1');
-      expect((await refusal(kit.logFollowup.execute(REC, { reportDate: DAY, subject: 'DOCTOR', subjectId: 'd1', remarks: 'x' }, tx))).code).toBe('DOCTOR_NOT_ASSIGNED');
+      expect((await refusal(kit.logFollowup.execute(REC, followup('DOCTOR', 'd1'), tx))).code).toBe('DOCTOR_NOT_ASSIGNED');
       kit.territory.routesByUser.set('mr1', []);
-      expect((await refusal(kit.logFollowup.execute(REC, { reportDate: DAY, subject: 'CHEMIST', subjectId: 'c1', remarks: 'x' }, tx))).code).toBe('CHEMIST_ROUTE_NOT_ASSIGNED');
+      expect((await refusal(kit.logFollowup.execute(REC, followup('CHEMIST', 'c1'), tx))).code).toBe('CHEMIST_ROUTE_NOT_ASSIGNED');
       kit.users.users.get('mr1')!.blocked = true;
-      expect((await refusal(kit.logFollowup.execute(REC, { reportDate: DAY, subject: 'DOCTOR', subjectId: 'd1', remarks: 'x' }, tx))).code).toBe('USER_BLOCKED');
+      expect((await refusal(kit.logFollowup.execute(REC, followup('DOCTOR', 'd1'), tx))).code).toBe('USER_BLOCKED');
     });
   });
 });
