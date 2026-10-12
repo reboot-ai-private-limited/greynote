@@ -39,8 +39,8 @@ describe('EmployeeSalesReport', () => {
     {
       async listTargetShares() {
         return [
-          { id: 't1', userId: 'mr1', productId: 'p1', fromMonth: '2026-10', toMonth: '2026-12', amountPaise: 90_000, sharePaise: 60_000 },
-          { id: 't2', userId: 'mr1', productId: null, fromMonth: '2026-04', toMonth: '2027-03', amountPaise: 120_000, sharePaise: 20_000 },
+          { id: 't1', userId: 'mr1', productId: 'p1', fromMonth: '2026-10', toMonth: '2026-12', amountPaise: 90_000, qty: 75, sharePaise: 60_000, shareQty: 50 },
+          { id: 't2', userId: 'mr1', productId: null, fromMonth: '2026-04', toMonth: '2027-03', amountPaise: 120_000, qty: null, sharePaise: 20_000, shareQty: null },
         ];
       },
     },

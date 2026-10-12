@@ -96,7 +96,7 @@ export interface AttendancePort {
 
 export interface MarketingPort {
   /** The general targets of these users touching `fromMonth`–`toMonth`, each with its share inside that range. */
-  listTargetShares(userIds: string[], fromMonth: string, toMonth: string): Promise<Array<{ id: string; userId: string; productId: string | null; fromMonth: string; toMonth: string; amountPaise: number; sharePaise: number }>>;
+  listTargetShares(userIds: string[], fromMonth: string, toMonth: string): Promise<Array<{ id: string; userId: string; productId: string | null; fromMonth: string; toMonth: string; amountPaise: number; qty: number | null; sharePaise: number; shareQty: number | null }>>;
 }
 
 /** Sales' employee figures: Done distributor orders per employee, and what employees entered. Kept apart so the other reports' fakes stay small. */

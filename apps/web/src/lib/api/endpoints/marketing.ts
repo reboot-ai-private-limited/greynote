@@ -9,7 +9,10 @@ export interface SetTargetBody {
   toMonth?: string;
   /** `null` = a target for all products. */
   productId: string | null;
-  targetAmountPaise: number;
+  /** Give an amount or units; for a product target the other follows from its PTR. */
+  targetAmountPaise?: number;
+  /** Units: a product target only. */
+  targetQty?: number;
 }
 
 export const marketingApi = {
@@ -29,6 +32,9 @@ export const marketingApi = {
     request<VisualDto>(`/marketing/visuals/${id}`, { method: 'PATCH', token, body }),
   doctorVisuals: (token: string, doctorId: string, signal?: AbortSignal) =>
     request<DoctorVisualListDto>(`/marketing/doctors/${doctorId}/visuals`, { token, signal }),
+  /** Adds library visuals to a doctor's list: the doctor's MR, a manager above them, or Admin. */
+  addDoctorVisuals: (token: string, doctorId: string, visualIds: string[]) =>
+    request<unknown>(`/marketing/doctors/${doctorId}/visuals`, { method: 'POST', token, body: { visualIds } }),
   removeDoctorVisual: (token: string, doctorId: string, visualId: string) =>
     request<null>(`/marketing/doctors/${doctorId}/visuals/${visualId}`, {
       method: 'DELETE',

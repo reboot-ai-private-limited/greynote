@@ -23,6 +23,7 @@ export const KIND_LABEL: Record<string, string> = {
   DAILY_PLAN: 'Daily plan',
   MONTHLY_PLAN: 'Monthly plan',
   EXPENSE_MONTH: 'Monthly expenses',
+  SECONDARY_SALES: 'Monthly secondary',
 };
 
 export function kindLabel(kind: string): string {

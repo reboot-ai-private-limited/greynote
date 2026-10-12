@@ -137,6 +137,15 @@ function docPost(path: string, summary: string, schema: ZodTypeAny): void {
     responses: { 201: { description: 'Created' } },
   });
 }
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/field-activity/doctor-services/{id}/done',
+  tags: [TAG],
+  summary: 'Admin or Accounts: mark an approved Doctor Service done',
+  security: [{ bearerAuth: [] }],
+  request: { params: idParamsSchema },
+  responses: { 200: { description: 'Marked done' }, 404: { description: 'No such service' }, 409: { description: 'Not approved yet, or already done' } },
+});
 docPost('/admin/doctor-services', 'Admin: a Doctor Service, effective at once and tied to the Doctor’s assigned MR', doctorServiceFieldsSchema);
 docPost('/admin/doctor-gifts', 'Admin: allocate a gift to a Doctor; the assigned MR marks it done', allocateGiftBodySchema);
 
@@ -169,9 +178,10 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.post('/expenses/other/:id/attachments', requireRole('FIELD'), validate({ params: idParamsSchema }), proofUpload, c.addExpenseProof);
   router.delete('/expenses/other/:id/attachments/:attachmentId', requireRole('FIELD'), validate({ params: expenseAttachmentParamsSchema }), c.removeExpenseProof);
   router.delete('/expenses/other/:id', requireRole('FIELD'), validate({ params: idParamsSchema }), c.deleteOtherExpense);
-  router.get('/doctor-services', requireRole('FIELD', 'ADMIN'), validate({ query: listServicesQuerySchema }), c.listServices);
-  router.get('/doctor-services/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.getService);
+  router.get('/doctor-services', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ query: listServicesQuerySchema }), c.listServices);
+  router.get('/doctor-services/:id', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: idParamsSchema }), c.getService);
   router.get('/doctor-gifts', requireRole('FIELD', 'ADMIN'), validate({ query: listGiftsQuerySchema }), c.listGifts);
+  router.post('/doctor-services/:id/done', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: idParamsSchema }), c.markServiceDone);
   router.post('/admin/doctor-services', requireRole('ADMIN'), validate({ body: doctorServiceFieldsSchema }), c.createAdminService);
   router.post('/admin/doctor-gifts', requireRole('ADMIN'), validate({ body: allocateGiftBodySchema }), c.allocateGift);
   return router;

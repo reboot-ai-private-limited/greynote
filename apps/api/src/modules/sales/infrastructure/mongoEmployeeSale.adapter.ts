@@ -1,5 +1,6 @@
-import { Types, type FilterQuery } from 'mongoose';
-import type { EmployeeSale } from '../domain/employeeSale.entity.js';
+import { Types, type ClientSession, type FilterQuery } from 'mongoose';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
+import type { EmployeeSale, SecondaryStatus } from '../domain/employeeSale.entity.js';
 import type { EmployeeSaleFilter, EmployeeSaleRepositoryPort } from '../domain/employeeSale.repository.port.js';
 import { EmployeeSaleModel, type EmployeeSaleDoc } from './employeeSale.schema.js';
 
@@ -11,6 +12,8 @@ const toEmployeeSale = (d: EmployeeSaleDoc & { _id: unknown }): EmployeeSale => 
   productId: String(d.productId),
   month: d.month,
   secondaryQty: d.secondaryQty,
+  secondaryAmountPaise: d.secondaryAmountPaise ?? null,
+  secondaryStatus: d.secondaryStatus ?? 'APPROVED',
   adjustmentQty: d.adjustmentQty,
   adjustmentReason: d.adjustmentReason,
   updatedBy: String(d.updatedBy),
@@ -26,8 +29,14 @@ export class MongoEmployeeSaleAdapter implements EmployeeSaleRepositoryPort {
     return (await EmployeeSaleModel.find(q).sort({ month: 1, _id: 1 }).limit(limit).lean()).map(toEmployeeSale);
   }
 
-  setSecondary(userId: string, month: string, lines: Array<{ productId: string; qty: number }>, by: string, at: Date) {
-    return this.write(userId, month, lines.map((l) => ({ productId: l.productId, secondaryQty: l.qty })), by, at);
+  setSecondary(userId: string, month: string, lines: Array<{ productId: string; qty: number; amountPaise: number | null }>, status: SecondaryStatus, by: string, at: Date) {
+    return this.write(userId, month, lines.map((l) => ({ productId: l.productId, secondaryQty: l.qty, secondaryAmountPaise: l.amountPaise, secondaryStatus: status })), by, at);
+  }
+
+  async setSecondaryStatus(userId: string, month: string, from: SecondaryStatus[], to: SecondaryStatus, ctx?: TransactionContext): Promise<number> {
+    const statusMatch = from.includes('APPROVED') ? { $or: [{ secondaryStatus: { $in: from } }, { secondaryStatus: { $exists: false } }] } : { secondaryStatus: { $in: from } };
+    const res = await EmployeeSaleModel.updateMany({ userId: oid(userId), month, secondaryQty: { $ne: null }, ...statusMatch }, { $set: { secondaryStatus: to } }, ctx ? { session: ctx as ClientSession } : {});
+    return res.modifiedCount;
   }
 
   setAdjustment(userId: string, month: string, lines: Array<{ productId: string; qty: number; reason: string | null }>, by: string, at: Date) {
@@ -35,20 +44,20 @@ export class MongoEmployeeSaleAdapter implements EmployeeSaleRepositoryPort {
   }
 
   /** Inserts a line that is not there; for one that is, changes only the fields given, and only when they differ, keeping the old values in `history`. */
-  private async write(userId: string, month: string, changes: Array<{ productId: string; secondaryQty?: number; adjustmentQty?: number; adjustmentReason?: string | null }>, by: string, at: Date) {
+  private async write(userId: string, month: string, changes: Array<{ productId: string; secondaryQty?: number; secondaryAmountPaise?: number | null; secondaryStatus?: SecondaryStatus; adjustmentQty?: number; adjustmentReason?: string | null }>, by: string, at: Date) {
     const existing = new Map((await EmployeeSaleModel.find({ userId: oid(userId), month, productId: { $in: changes.map((c) => oid(c.productId)) } }).lean()).map((d) => [String(d.productId), d]));
     const ops: Parameters<typeof EmployeeSaleModel.bulkWrite>[0] = [];
     let added = 0;
     let changed = 0;
     for (const c of changes) {
       const old = existing.get(c.productId);
-      const next = { secondaryQty: c.secondaryQty ?? old?.secondaryQty ?? null, adjustmentQty: c.adjustmentQty ?? old?.adjustmentQty ?? 0, adjustmentReason: c.adjustmentReason !== undefined ? c.adjustmentReason : (old?.adjustmentReason ?? null) };
+      const next = { secondaryQty: c.secondaryQty ?? old?.secondaryQty ?? null, secondaryAmountPaise: c.secondaryAmountPaise !== undefined ? c.secondaryAmountPaise : (old?.secondaryAmountPaise ?? null), secondaryStatus: c.secondaryStatus ?? old?.secondaryStatus ?? (old ? 'APPROVED' : 'DRAFT'), adjustmentQty: c.adjustmentQty ?? old?.adjustmentQty ?? 0, adjustmentReason: c.adjustmentReason !== undefined ? c.adjustmentReason : (old?.adjustmentReason ?? null) };
       if (!old) {
         added += 1;
         ops.push({ insertOne: { document: { userId: oid(userId), productId: oid(c.productId), month, ...next, updatedBy: oid(by), updatedAt: at, history: [] } } });
         continue;
       }
-      if (old.secondaryQty === next.secondaryQty && old.adjustmentQty === next.adjustmentQty && old.adjustmentReason === next.adjustmentReason) continue;
+      if (old.secondaryQty === next.secondaryQty && (old.secondaryAmountPaise ?? null) === next.secondaryAmountPaise && (old.secondaryStatus ?? 'APPROVED') === next.secondaryStatus && old.adjustmentQty === next.adjustmentQty && old.adjustmentReason === next.adjustmentReason) continue;
       changed += 1;
       ops.push({
         updateOne: {

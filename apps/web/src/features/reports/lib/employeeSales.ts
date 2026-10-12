@@ -1,4 +1,5 @@
-import type { EmployeeSalesLineDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto } from '@greynote/contracts';
+import type { EmployeeSalesDto, EmployeeSalesLineDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto } from '@greynote/contracts';
+import { paiseToRupees, rupeesToPaise } from '@/lib/money';
 import { monthLabel } from '@/features/payroll/lib/payroll';
 
 export type Period = 'month' | 'quarter' | 'year' | 'custom';
@@ -36,6 +37,28 @@ export function periodMonths(
 /** "Oct 2026" for one month, "Oct 2026 – Dec 2026" for a run. */
 export const rangeLabel = (from: string, to: string): string =>
   from === to ? monthLabel(from) : `${monthLabel(from)} – ${monthLabel(to)}`;
+
+export type SecondaryState = NonNullable<EmployeeSalesLineDto['secondaryStatus']>;
+export const SECONDARY_LABEL: Record<SecondaryState, string> = { DRAFT: 'Draft', PENDING: 'Waiting for approval', APPROVED: 'Approved', REJECTED: 'Rejected' };
+export const SECONDARY_TONE: Record<SecondaryState, 'neutral' | 'warning' | 'success' | 'danger'> = { DRAFT: 'neutral', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger' };
+
+/** The employee cannot change a line that is waiting or approved; a manager or Admin can. */
+export const isLocked = (l: EmployeeSalesLineDto, isSelf: boolean): boolean => isSelf && (l.secondaryStatus === 'PENDING' || l.secondaryStatus === 'APPROVED');
+
+/** The amount (rupees, as typed) that the typed units make at the product's PTR; '' when either is missing. */
+export function amountFromUnits(l: EmployeeSalesLineDto, units: string): string {
+  const n = parse(units);
+  return n === null || Number.isNaN(n) || !l.ptrPaise ? '' : paiseToRupees(n * l.ptrPaise);
+}
+
+/** The whole units an amount typed in rupees buys at PTR; '' when the amount or PTR is missing. */
+export function unitsFromAmount(l: EmployeeSalesLineDto, rupees: string): string {
+  const paise = rupeesToPaise(rupees);
+  return paise === null || !l.ptrPaise ? '' : String(Math.round(paise / l.ptrPaise));
+}
+
+/** The month can be sent when something is a draft or was rejected and nothing is unsaved. */
+export const canSend = (status: EmployeeSalesDto['secondaryStatus'], dirty: boolean): boolean => !dirty && (status === 'DRAFT' || status === 'REJECTED');
 
 /** What one row of the entry grid holds while it is being edited, as typed. */
 export interface MonthDraft {

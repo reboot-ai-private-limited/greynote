@@ -10,7 +10,7 @@ const idOrNull = (id: Types.ObjectId | null) => (id ? String(id) : null);
 
 const toVisual = (d: VisualDoc & { _id: unknown }): Visual => ({ id: String(d._id), productId: idOrNull(d.productId), title: d.title, category: d.category, fileUrl: d.fileUrl, publicId: d.publicId, mimeType: d.mimeType, uploadedBy: String(d.uploadedBy), status: d.status, createdAt: d.createdAt });
 const toCampaign = (d: CampaignDoc & { _id: unknown }): Campaign => ({ id: String(d._id), name: d.name, description: d.description, startDate: d.startDate, endDate: d.endDate, status: d.status, createdBy: String(d.createdBy), createdAt: d.createdAt });
-const toTarget = (d: TargetDoc & { _id: unknown }): Target => ({ id: String(d._id), userId: String(d.userId), month: d.month, toMonth: d.toMonth ?? d.month, productId: idOrNull(d.productId), campaignId: idOrNull(d.campaignId), targetAmountPaise: d.targetAmountPaise, createdBy: String(d.createdBy), createdAt: d.createdAt, updatedAt: d.updatedAt });
+const toTarget = (d: TargetDoc & { _id: unknown }): Target => ({ id: String(d._id), userId: String(d.userId), month: d.month, toMonth: d.toMonth ?? d.month, productId: idOrNull(d.productId), campaignId: idOrNull(d.campaignId), targetAmountPaise: d.targetAmountPaise, targetQty: d.targetQty ?? null, createdBy: String(d.createdBy), createdAt: d.createdAt, updatedAt: d.updatedAt });
 
 export class MongoVisualAdapter implements VisualRepositoryPort {
   async create(input: Omit<Visual, 'id'>): Promise<Visual> {
@@ -99,9 +99,9 @@ export class MongoTargetAdapter implements TargetRepositoryPort {
     return { userId: oid(key.userId), month: key.month, toMonth: key.toMonth, productId: oidOrNull(key.productId), campaignId: oidOrNull(key.campaignId) };
   }
 
-  async upsert(key: TargetKey, amountPaise: number, by: string, at: Date): Promise<Target> {
+  async upsert(key: TargetKey, amountPaise: number, qty: number | null, by: string, at: Date): Promise<Target> {
     const run = () =>
-      TargetModel.findOneAndUpdate(this.filter(key), { $set: { targetAmountPaise: amountPaise, createdBy: oid(by), updatedAt: at }, $setOnInsert: { createdAt: at } }, { upsert: true, new: true, runValidators: true }).lean();
+      TargetModel.findOneAndUpdate(this.filter(key), { $set: { targetAmountPaise: amountPaise, targetQty: qty, createdBy: oid(by), updatedAt: at }, $setOnInsert: { createdAt: at } }, { upsert: true, new: true, runValidators: true }).lean();
     try {
       return toTarget((await run())!);
     } catch (err) {

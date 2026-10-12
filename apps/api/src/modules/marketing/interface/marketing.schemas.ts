@@ -40,9 +40,13 @@ export const setTargetBodySchema = z
     toMonth: calendarMonthSchema.optional(),
     productId: objectIdSchema.nullish().transform((v) => v ?? null),
     campaignId: objectIdSchema.nullish().transform((v) => v ?? null),
-    targetAmountPaise: paiseSchema.refine((n) => n > 0, 'A target must be more than zero.'),
+    targetAmountPaise: paiseSchema.refine((n) => n > 0, 'A target must be more than zero.').optional(),
+    /** Units, for a product target: the amount follows from the product's PTR. */
+    targetQty: z.number().int().min(1).max(100_000_000).optional(),
   })
-  .refine((b) => !b.toMonth || b.toMonth >= b.month, { message: 'A target cannot end before it starts.', path: ['toMonth'] });
+  .refine((b) => !b.toMonth || b.toMonth >= b.month, { message: 'A target cannot end before it starts.', path: ['toMonth'] })
+  .refine((b) => b.targetAmountPaise !== undefined || b.targetQty !== undefined, { message: 'Give an amount or units.', path: ['targetAmountPaise'] })
+  .refine((b) => b.targetQty === undefined || b.productId !== null, { message: 'Units need a product; a target for all products is an amount.', path: ['targetQty'] });
 export const listTargetsQuerySchema = z
   .object({ userId: objectIdSchema, from: calendarMonthSchema, to: calendarMonthSchema })
   .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] });

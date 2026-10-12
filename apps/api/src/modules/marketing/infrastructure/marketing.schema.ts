@@ -82,6 +82,7 @@ export interface TargetDoc {
   productId: Types.ObjectId | null;
   campaignId: Types.ObjectId | null;
   targetAmountPaise: number;
+  targetQty?: number | null;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -93,6 +94,7 @@ const targetSchema = new Schema<TargetDoc>({
   productId: { type: Schema.Types.ObjectId, default: null, ref: 'Product' },
   campaignId: { type: Schema.Types.ObjectId, default: null, ref: 'Campaign' },
   targetAmountPaise: { type: Number, required: true, min: 1, validate: { validator: isPaise, message: 'Must be a whole number of paise.' } },
+  targetQty: { type: Number, default: null, min: 1 },
   createdBy: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   createdAt: { type: Date, required: true },
   updatedAt: { type: Date, required: true },

@@ -65,6 +65,8 @@ export interface Target {
   productId: string | null;
   campaignId: string | null;
   targetAmountPaise: Paise;
+  /** The same target in units, for a product target: `units × PTR = amount` when it was set in units, else the amount's units at PTR. Null for all products or a product with no PTR. */
+  targetQty: number | null;
   /** Whoever set it last. */
   createdBy: string;
   createdAt: Date;

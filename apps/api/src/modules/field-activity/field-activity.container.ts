@@ -24,7 +24,7 @@ import { RunMissedDcrCheckUseCase } from './application/usecases/runMissedDcrChe
 import type { LeavePort } from './domain/leave.port.js';
 import { CountDoctorCallsUseCase, ListCalledDoctorsUseCase, SummarizeDcrsUseCase } from './application/usecases/dcrReports.usecase.js';
 import { GetDcrSummaryUseCase } from './application/usecases/getDcrSummary.usecase.js';
-import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, DOCTOR_SERVICE_KIND, GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './application/usecases/servicesAndGifts.usecase.js';
+import { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, DOCTOR_SERVICE_KIND, GetDoctorServiceUseCase, MarkDoctorServiceDoneUseCase, ListDoctorServicesUseCase, ListGiftsUseCase, MarkGiftDoneUseCase, SubmitDoctorServiceUseCase } from './application/usecases/servicesAndGifts.usecase.js';
 import { GeofenceEvaluator } from './application/geofenceEvaluator.js';
 import { LoggingGate } from './application/loggingGate.js';
 import { OverrideGeofenceUseCase } from './application/usecases/overrideGeofence.usecase.js';
@@ -180,6 +180,7 @@ export function buildFieldActivityContainer(
           adminService: new CreateAdminDoctorServiceUseCase(master, services),
           listServices: new ListDoctorServicesUseCase(services, approvals, master),
           getService: new GetDoctorServiceUseCase(services, approvals, master),
+          markServiceDone: new MarkDoctorServiceDoneUseCase(services, approvals, master),
           allocateGift: new AllocateGiftUseCase(master, gifts),
           listGifts: new ListGiftsUseCase(gifts, master),
           listExpenses: new ListExpensesUseCase(expenses, users),

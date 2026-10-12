@@ -72,8 +72,8 @@ export class EmployeeSalesReport {
 
     const generalTargetPaise = shares.filter((t) => t.productId === null).reduce((n, t) => n + t.sharePaise, 0);
     const targets = shares.map((t): EmployeeTargetFigureDto => {
-      const achievedPaise = secondaryOf(wide, prices, { userId: input.userId, productId: t.productId, fromMonth: t.fromMonth, toMonth: t.toMonth }).paise;
-      return { id: t.id, product: t.productId ? { id: t.productId, name: nameOf(t.productId) } : null, fromMonth: t.fromMonth, toMonth: t.toMonth, amountPaise: t.amountPaise, achievedPaise, achievementPercent: percentOf(achievedPaise, t.amountPaise) };
+      const achieved = secondaryOf(wide, prices, { userId: input.userId, productId: t.productId, fromMonth: t.fromMonth, toMonth: t.toMonth });
+      return { id: t.id, product: t.productId ? { id: t.productId, name: nameOf(t.productId) } : null, fromMonth: t.fromMonth, toMonth: t.toMonth, amountPaise: t.amountPaise, achievedPaise: achieved.paise, achievementPercent: percentOf(achieved.paise, t.amountPaise), targetQty: t.qty, achievedQty: achieved.qty, achievementQtyPercent: t.qty === null ? null : percentOf(achieved.qty, t.qty) };
     });
 
     const all = { ...range };

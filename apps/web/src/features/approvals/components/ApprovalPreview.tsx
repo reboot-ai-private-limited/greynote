@@ -8,6 +8,7 @@ import { DoctorServicePreview } from './DoctorServicePreview';
 import { ExpenseMonthPreview } from './ExpenseMonthPreview';
 import { LeavePreview } from './LeavePreview';
 import { MonthlyPlanPreview } from './MonthlyPlanPreview';
+import { SecondarySalesPreview } from './SecondarySalesPreview';
 
 /**
  * What is being approved. Each kind adds its own read-only panel; a kind with none yet still shows
@@ -29,6 +30,8 @@ export function ApprovalPreview({ request }: { request: ApprovalDetailDto }) {
       return <LeavePreview recordId={request.recordId} />;
     case 'EXPENSE_MONTH':
       return <ExpenseMonthPreview recordId={request.recordId} />;
+    case 'SECONDARY_SALES':
+      return <SecondarySalesPreview recordId={request.recordId} />;
     default:
       return (
         <Card title={kindLabel(request.kind)} description="The record this request is about.">

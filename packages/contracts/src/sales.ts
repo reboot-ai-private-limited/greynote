@@ -115,6 +115,12 @@ export interface EmployeeSalesLineDto {
   primaryQty: number;
   /** What the employee entered as sold; `null` = nothing entered. */
   secondaryQty: number | null;
+  /** The same at PTR, as entered; `null` = nothing entered or no PTR on the product. */
+  secondaryAmountPaise: number | null;
+  /** The product's PTR, which links units and amount; `null` = none set (units only). */
+  ptrPaise: number | null;
+  /** `null` = nothing entered. Only `APPROVED` counts toward achievement. */
+  secondaryStatus: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | null;
   updatedBy: { id: string; name: string } | null;
   updatedAt: string | null;
 }
@@ -122,13 +128,18 @@ export interface EmployeeSalesLineDto {
 export interface EmployeeSalesDto {
   userId: string;
   month: string;
+  /** The month's secondary as a whole: `PENDING` if any line waits, else `REJECTED`, `DRAFT`, `APPROVED`; `null` = nothing entered. */
+  secondaryStatus: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | null;
+  /** The approval request behind it, when the month was sent. */
+  approvalRequestId: string | null;
   lines: EmployeeSalesLineDto[];
 }
 
 export interface SaveEmployeeSecondaryDto {
   userId: string;
   month: string;
-  lines: Array<{ productId: string; qty: number }>;
+  /** Units or amount: give one, the other follows from the product's PTR (an amount is rounded to whole units). */
+  lines: Array<{ productId: string; qty?: number; amountPaise?: number }>;
 }
 
 export interface SaveEmployeePrimaryDto {

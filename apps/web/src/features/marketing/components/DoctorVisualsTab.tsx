@@ -10,16 +10,25 @@ import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useDoctorVisuals, useRemoveDoctorVisual } from '../hooks/useVisuals';
+import { Select } from '@/components/ui/Select';
+import { useAddDoctorVisual, useDoctorVisuals, useRemoveDoctorVisual, useVisuals } from '../hooks/useVisuals';
 import { visualKind } from '../lib/visuals';
 
-/** The visuals the doctor's MR chose to show this doctor. The MR only adds, from the app; Admin can take a pick off here. */
+/**
+ * The visuals shown to this doctor. The MR only adds, from the app; a manager above them or Admin can add, take off, and so edit the list — here
+ * (Admin) or in the app (managers).
+ */
 export function DoctorVisualsTab({ doctorId }: { doctorId: string }) {
   const readOnly = useIsReadOnly();
   const list = useDoctorVisuals(doctorId);
   const [removing, setRemoving] = useState<DoctorVisualDto | null>(null);
   const remove = useRemoveDoctorVisual(doctorId, () => setRemoving(null));
   const canRemove = (list.data?.canRemove ?? false) && !readOnly;
+  const library = useVisuals({ status: 'active' });
+  const [picking, setPicking] = useState('');
+  const add = useAddDoctorVisual(doctorId, () => setPicking(''));
+  const picked = new Set((list.data?.items ?? []).map((r) => r.visual.id));
+  const options = (library.data ?? []).filter((v) => !picked.has(v.id)).map((v) => ({ value: v.id, label: v.title }));
 
   const columns: readonly Column<DoctorVisualDto>[] = [
     {
@@ -85,8 +94,18 @@ export function DoctorVisualsTab({ doctorId }: { doctorId: string }) {
       <Card
         flat
         title="Visuals shown to this doctor"
-        description="Chosen by the doctor's MR in the app. An MR can only add; removing is for managers and Admin."
+        description="Chosen by the doctor's MR in the app. An MR can only add; managers above them and Admin can add and take off."
       >
+        {canRemove ? (
+          <div className="flex items-end gap-2 px-5 pt-4">
+            <div className="w-72">
+              <Select aria-label="Visual to add" value={picking} onValueChange={setPicking} options={options} placeholder={options.length ? 'Choose a visual to add' : 'Every active visual is already picked'} />
+            </div>
+            <Button disabled={!picking || add.isPending} onClick={() => add.mutate(picking)}>
+              Add
+            </Button>
+          </div>
+        ) : null}
         <DataState
           isLoading={list.isLoading}
           error={list.error ? toErrorState(list.error, () => void list.refetch()) : null}

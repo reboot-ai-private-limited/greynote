@@ -8,8 +8,9 @@ import { Select } from '@/components/ui/Select';
 import { monthLabel } from '@/features/payroll/lib/payroll';
 import { useActiveProducts } from '@/features/field-master-data/hooks/useProducts';
 import { istDate } from '@/lib/dates';
+import { formatMoney } from '@/lib/format';
 import { financialYearOf } from '@/lib/financial-year';
-import { rupeesToPaise } from '@/lib/money';
+import { paiseToRupees, rupeesToPaise } from '@/lib/money';
 import { useSetTarget } from '../hooks/useEmployeeSales';
 import { financialYearMonths } from '../lib/salesDashboard';
 
@@ -17,7 +18,8 @@ const ALL = 'all';
 
 /**
  * Set a target for one employee: a product (or all products), a run of whole months of the current financial year — one month, a quarter, the
- * year, anything between — and an amount in rupees at PTR. Setting the same product and months again replaces the amount.
+ * year, anything between — and an amount in rupees at PTR, or for one product its units: the two follow each other at the product's PTR.
+ * Setting the same product and months again replaces the target.
  */
 export function AddTargetDialog({
   userId,
@@ -37,9 +39,20 @@ export function AddTargetDialog({
   const [toMonth, setToMonth] = useState(months.includes(to) ? to : fromMonth);
   const [productId, setProductId] = useState(ALL);
   const [amount, setAmount] = useState('');
+  const [units, setUnits] = useState('');
   const [errors, setErrors] = useState<{ amount?: string; months?: string }>({});
   const products = useActiveProducts();
   const save = useSetTarget(onClose);
+  const ptr = productId === ALL ? null : ((products.data ?? []).find((p) => p.id === productId)?.ptrPaise ?? null);
+  const typeUnits = (v: string) => {
+    setUnits(v);
+    if (ptr && /^\d+$/.test(v.trim())) setAmount(paiseToRupees(Number(v) * ptr));
+  };
+  const typeAmount = (v: string) => {
+    setAmount(v);
+    const paise = rupeesToPaise(v);
+    if (ptr && paise) setUnits(String(Math.round(paise / ptr)));
+  };
   const monthOptions = months.map((m) => ({ value: m, label: monthLabel(m) }));
 
   function submit() {
@@ -55,7 +68,7 @@ export function AddTargetDialog({
       month: fromMonth,
       toMonth,
       productId: productId === ALL ? null : productId,
-      targetAmountPaise: paise,
+      ...(ptr && /^\d+$/.test(units.trim()) && Number(units) > 0 ? { targetQty: Number(units) } : { targetAmountPaise: paise }),
     });
   }
 
@@ -72,7 +85,10 @@ export function AddTargetDialog({
         <Select
           id="target-product"
           value={productId}
-          onValueChange={setProductId}
+          onValueChange={(id) => {
+            setProductId(id);
+            setUnits('');
+          }}
           options={[
             { value: ALL, label: 'All products' },
             ...(products.data ?? []).map((p) => ({ value: p.id, label: p.name })),
@@ -105,10 +121,15 @@ export function AddTargetDialog({
           id="target-amount"
           inputMode="decimal"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => typeAmount(e.target.value)}
           aria-invalid={errors.amount ? true : undefined}
         />
       </FormField>
+      {ptr ? (
+        <FormField label="Target (units)" htmlFor="target-units" hint={`Units × PTR (${formatMoney(ptr)}) is the amount; typing either fills the other.`}>
+          <Input id="target-units" inputMode="numeric" value={units} onChange={(e) => typeUnits(e.target.value)} />
+        </FormField>
+      ) : null}
     </FormDialog>
   );
 }

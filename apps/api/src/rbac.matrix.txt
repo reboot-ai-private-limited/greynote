@@ -26,8 +26,8 @@ GET    /api/field-activity/dcr  ADMIN,FIELD
 GET    /api/field-activity/dcr/:id  ADMIN,FIELD
 GET    /api/field-activity/dcr/team  FIELD
 GET    /api/field-activity/doctor-gifts  ADMIN,FIELD
-GET    /api/field-activity/doctor-services  ADMIN,FIELD
-GET    /api/field-activity/doctor-services/:id  ADMIN,FIELD
+GET    /api/field-activity/doctor-services  ACCOUNTANT,ADMIN,FIELD
+GET    /api/field-activity/doctor-services/:id  ACCOUNTANT,ADMIN,FIELD
 GET    /api/field-activity/expense-grants  ADMIN,FIELD
 GET    /api/field-activity/expense-months  ADMIN,FIELD
 GET    /api/field-activity/expense-months/:id  ADMIN,FIELD
@@ -151,6 +151,7 @@ POST   /api/config/financial-year/reopen  ADMIN
 POST   /api/field-activity/admin/doctor-gifts  ADMIN
 POST   /api/field-activity/admin/doctor-services  ADMIN
 POST   /api/field-activity/dcr/:id/calls/:callId/override-geofence  ADMIN,FIELD
+POST   /api/field-activity/doctor-services/:id/done  ACCOUNTANT,ADMIN
 POST   /api/field-activity/expense-grants  ADMIN,FIELD
 POST   /api/field-activity/expense-grants/:id/revoke  ADMIN,FIELD
 POST   /api/field-activity/expense-months/:month/submit  FIELD
@@ -212,6 +213,7 @@ POST   /api/sales/distributor-payments/:id/cancel  ACCOUNTANT,ADMIN
 POST   /api/sales/distributor-statement  ADMIN
 POST   /api/sales/employee-primary  ADMIN
 POST   /api/sales/employee-secondary  ADMIN,FIELD
+POST   /api/sales/employee-secondary/submit  FIELD
 POST   /api/sales/monthly-stock  ADMIN,FIELD
 POST   /api/sales/monthly-stock/unlock  ADMIN
 POST   /api/sales/orders  FIELD

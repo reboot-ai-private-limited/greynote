@@ -14,6 +14,12 @@ export function overlapMonths(a: { from: string; to: string }, b: { from: string
   return from > to ? 0 : monthCount(from, to);
 }
 
+/** The same share, in units; null when the target has none. */
+export function targetShareQty(target: Pick<Target, 'month' | 'toMonth' | 'targetQty'>, window: { from: string; to: string }): number | null {
+  if (target.targetQty === null) return null;
+  return Math.round((target.targetQty * overlapMonths({ from: target.month, to: target.toMonth }, window)) / monthCount(target.month, target.toMonth));
+}
+
 /**
  * The part of a target that falls in a window: its amount spread evenly over its months, times the months the window shares with it. A target for
  * a quarter of ₹3 lakh is ₹1 lakh for each month of it, and the whole of it when the window is the quarter or wider.

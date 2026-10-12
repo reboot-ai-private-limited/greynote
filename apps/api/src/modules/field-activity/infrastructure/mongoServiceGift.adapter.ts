@@ -17,6 +17,8 @@ const toService = (d: DoctorServiceDoc & { _id: unknown }): DoctorService => ({
   remarks: d.remarks,
   clientId: d.clientId,
   createdAt: d.createdAt,
+  doneBy: d.doneBy ? String(d.doneBy) : null,
+  doneAt: d.doneAt ?? null,
 });
 const toGift = (d: DoctorGiftDoc & { _id: unknown }): DoctorGift => ({
   id: String(d._id),
@@ -32,7 +34,7 @@ const toGift = (d: DoctorGiftDoc & { _id: unknown }): DoctorGift => ({
 
 export class MongoDoctorServiceAdapter implements DoctorServiceRepositoryPort {
   async create(input: Omit<DoctorService, 'id'>, ctx?: TransactionContext): Promise<DoctorService> {
-    const [doc] = await DoctorServiceModel.create([{ ...input, doctorId: oid(input.doctorId), userId: oid(input.userId), createdBy: oid(input.createdBy) }], ctx ? { session: ctx as ClientSession } : {});
+    const [doc] = await DoctorServiceModel.create([{ ...input, doctorId: oid(input.doctorId), userId: oid(input.userId), createdBy: oid(input.createdBy), doneBy: null, doneAt: null }], ctx ? { session: ctx as ClientSession } : {});
     return toService(doc!.toObject());
   }
   async findById(id: string): Promise<DoctorService | null> {
@@ -44,6 +46,10 @@ export class MongoDoctorServiceAdapter implements DoctorServiceRepositoryPort {
     if (filter.userId) q.userId = oid(filter.userId);
     if (filter.doctorId) q.doctorId = oid(filter.doctorId);
     return (await DoctorServiceModel.find(q).sort({ createdAt: -1, _id: -1 }).limit(limit).lean()).map(toService);
+  }
+  async markDone(id: string, by: string, at: Date): Promise<boolean> {
+    const res = await DoctorServiceModel.updateOne({ _id: oid(id), doneAt: null }, { $set: { doneBy: oid(by), doneAt: at } });
+    return res.modifiedCount === 1;
   }
 }
 

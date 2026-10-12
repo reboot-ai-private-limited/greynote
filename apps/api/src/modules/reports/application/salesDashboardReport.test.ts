@@ -34,7 +34,7 @@ function build(over: { downline?: string[] } = {}) {
       async summarizeTaDaByUser() { return [{ userId: 'mr1', taPaise: 5000, daPaise: 3000 }, { userId: 'mr2', taPaise: 100, daPaise: 200 }]; },
       async getDcrSummary(userId) { return userId === 'mr1' ? [{ reportDate: '2026-10-07', status: 'APPROVED' }, { reportDate: '2026-10-08', status: 'MANAGER_APPROVED' }, { reportDate: '2026-10-09', status: 'DRAFT' }] : []; },
     },
-    { async listTargetShares(ids) { return ids.includes('mr1') ? [{ id: 't1', userId: 'mr1', productId: null, fromMonth: '2026-10', toMonth: '2026-10', amountPaise: 90_000, sharePaise: 90_000 }] : []; } },
+    { async listTargetShares(ids) { return ids.includes('mr1') ? [{ id: 't1', userId: 'mr1', productId: null, fromMonth: '2026-10', toMonth: '2026-10', amountPaise: 90_000, qty: null, sharePaise: 90_000, shareQty: null }] : []; } },
     {
       async sumUserOrders() { return [{ userId: 'mr1', productId: 'p1', month: '2026-10', quantity: 5, amountPaise: 4_000 }]; },
       async listEmployeeSales() { return [{ userId: 'mr1', productId: 'p1', month: '2026-10', secondaryQty: 40, adjustmentQty: 0 }]; },

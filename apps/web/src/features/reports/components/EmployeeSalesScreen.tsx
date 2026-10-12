@@ -91,6 +91,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
     { key: 'amount', header: 'Target', numeric: true, render: (t) => money(t.amountPaise) },
     { key: 'achieved', header: 'Achieved', numeric: true, render: (t) => money(t.achievedPaise) },
     { key: 'pct', header: '%', numeric: true, render: (t) => percent(t.achievementPercent) },
+    { key: 'qty', header: 'Units (achieved / target)', numeric: true, render: (t) => (t.targetQty === null ? '—' : `${t.achievedQty} / ${t.targetQty} · ${percent(t.achievementQtyPercent)}`) },
     ...(canSetTargets
       ? [
           {
@@ -211,6 +212,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
               month={month}
               onMonthChange={setMonth}
               canAdjust={me?.role === 'ADMIN'}
+              isSelf={me?.id === userId}
             />
           </div>
         </Card>

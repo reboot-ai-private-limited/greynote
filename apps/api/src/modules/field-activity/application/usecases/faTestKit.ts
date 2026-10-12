@@ -503,6 +503,13 @@ export class FakeServices implements DoctorServiceRepositoryPort {
   async list(filter: { userId?: string; doctorId?: string }, limit: number) {
     return this.rows.filter((r) => (!filter.userId || r.userId === filter.userId) && (!filter.doctorId || r.doctorId === filter.doctorId)).slice(0, limit);
   }
+  async markDone(id: string, by: string, at: Date) {
+    const r = this.rows.find((x) => x.id === id);
+    if (!r || r.doneAt) return false;
+    r.doneBy = by;
+    r.doneAt = at;
+    return true;
+  }
 }
 export class FakeGifts implements DoctorGiftRepositoryPort {
   rows: DoctorGift[] = [];

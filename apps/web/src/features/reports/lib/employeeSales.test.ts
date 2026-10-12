@@ -1,9 +1,9 @@
 import type { EmployeeSalesLineDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { adjustmentOf, buildPrimary, buildSecondary, draftOf, isDirty, periodMonths, rangeLabel, rowErrors, type MonthDraft } from './employeeSales';
+import { amountFromUnits, canSend, isLocked, unitsFromAmount, adjustmentOf, buildPrimary, buildSecondary, draftOf, isDirty, periodMonths, rangeLabel, rowErrors, type MonthDraft } from './employeeSales';
 
 const FY = ['2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12', '2027-01', '2027-02', '2027-03'];
-const line = (over: Partial<EmployeeSalesLineDto> = {}): EmployeeSalesLineDto => ({ product: { id: 'p1', name: 'Amox', sku: 'AMX' }, orderPrimaryQty: 20, adjustmentQty: 0, adjustmentReason: null, primaryQty: 20, secondaryQty: null, updatedBy: null, updatedAt: null, ...over });
+const line = (over: Partial<EmployeeSalesLineDto> = {}): EmployeeSalesLineDto => ({ product: { id: 'p1', name: 'Amox', sku: 'AMX' }, orderPrimaryQty: 20, adjustmentQty: 0, adjustmentReason: null, primaryQty: 20, secondaryQty: null, secondaryAmountPaise: null, ptrPaise: 1200, secondaryStatus: null, updatedBy: null, updatedAt: null, ...over });
 const drafts = (d: Partial<MonthDraft>, l = line()) => new Map([[l.product.id, { ...draftOf(l), ...d }]]);
 
 describe('periods', () => {
@@ -54,5 +54,22 @@ describe('the entry grid', () => {
   it('putting the total back to the orders clears a saved change', () => {
     const l = line({ adjustmentQty: 5, primaryQty: 25, adjustmentReason: 'Direct' });
     expect(buildPrimary('u1', '2026-10', [l], drafts({ primary: '20' }, l))).toEqual({ userId: 'u1', month: '2026-10', lines: [{ productId: 'p1', adjustmentQty: 0, reason: null }] });
+  });
+});
+
+describe('secondary units and amount at PTR', () => {
+  it('each fills the other; no PTR means units only', () => {
+    expect(amountFromUnits(line(), '5')).toBe('60.00');
+    expect(unitsFromAmount(line(), '61')).toBe('5');
+    expect(amountFromUnits(line({ ptrPaise: null }), '5')).toBe('');
+    expect(unitsFromAmount(line(), 'abc')).toBe('');
+  });
+  it('locks a pending or approved line for the employee only; sends only a clean draft or rejected month', () => {
+    expect(isLocked(line({ secondaryStatus: 'PENDING' }), true)).toBe(true);
+    expect(isLocked(line({ secondaryStatus: 'APPROVED' }), false)).toBe(false);
+    expect(isLocked(line({ secondaryStatus: 'DRAFT' }), true)).toBe(false);
+    expect(canSend('DRAFT', false)).toBe(true);
+    expect(canSend('DRAFT', true)).toBe(false);
+    expect(canSend('PENDING', false)).toBe(false);
   });
 });

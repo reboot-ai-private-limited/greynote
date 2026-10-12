@@ -10,6 +10,8 @@ export interface DoctorServiceDoc {
   remarks: string | null;
   clientId: string | null;
   createdAt: Date;
+  doneBy?: Types.ObjectId | null;
+  doneAt?: Date | null;
 }
 const serviceSchema = new Schema<DoctorServiceDoc>({
   doctorId: { type: Schema.Types.ObjectId, required: true, ref: 'Doctor' },
@@ -21,6 +23,8 @@ const serviceSchema = new Schema<DoctorServiceDoc>({
   remarks: { type: String, default: null },
   clientId: { type: String, default: null },
   createdAt: { type: Date, required: true },
+  doneBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
+  doneAt: { type: Date, default: null },
 });
 serviceSchema.index({ userId: 1, createdAt: -1 });
 serviceSchema.index({ doctorId: 1, createdAt: -1 });

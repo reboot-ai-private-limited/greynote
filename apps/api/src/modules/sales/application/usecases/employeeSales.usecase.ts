@@ -1,13 +1,18 @@
+import type { ApprovalStatus } from '@/modules/approval/approval.public.js';
 import type { EmployeeSalesDto, EmployeeSalesLineDto } from '@greynote/contracts';
+import type { TransactionContext } from '@/shared/db/transaction.port.js';
+import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { monthRange } from '@/shared/time/businessTime.js';
 import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
+import type { SecondaryStatus } from '../../domain/employeeSale.entity.js';
 import type { EmployeeSaleRepositoryPort } from '../../domain/employeeSale.repository.port.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { MonthlyStockRepositoryPort } from '../../domain/monthlyStock.repository.port.js';
 import type { OrderRepositoryPort } from '../../domain/order.repository.port.js';
 import { monthWindow } from '../../domain/stockDeadline.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
+import type { SalesApprovalsPort } from '../../domain/approvals.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../outletAccess.js';
 import type { SalesClock } from '../salesClock.js';
@@ -50,7 +55,7 @@ export class SaveEmployeeSecondaryUseCase {
     private readonly config: ConfigReader,
   ) {}
 
-  async execute(actor: Actor, input: { userId: string; month: string; lines: Array<{ productId: string; qty: number }> }): Promise<{ added: number; changed: number }> {
+  async execute(actor: Actor, input: { userId: string; month: string; lines: Array<{ productId: string; qty?: number | undefined; amountPaise?: number | undefined }> }): Promise<{ added: number; changed: number }> {
     await assertMayAct(this.users, actor, input.userId);
     const now = this.clock.now();
     const window = monthWindow(input.month, now, await this.clock.deadlineDay(), await this.clock.timeZone(), await this.clock.dayStart());
@@ -59,9 +64,71 @@ export class SaveEmployeeSecondaryUseCase {
       throw new StockRefusal(STOCK_CODES.monthClosed, `The deadline for ${input.month} has passed. Ask an Admin to reopen it.`);
     }
     await assertFinancialYearOpen(this.config, `${input.month}-01`, 'This month');
-    await assertWhole(this.master, input.lines.map((l) => l.productId), input.lines.map((l) => l.qty), 0);
-    return this.sales.setSecondary(input.userId, input.month, input.lines, actor.id, now);
+    const products = new Map((await this.master.listActiveProducts()).map((p) => [p.id, p]));
+    const lines = input.lines.map((l) => {
+      const product = products.get(l.productId);
+      if (!product) throw new StockRefusal(STOCK_CODES.productNotFound, 'A product in the list does not exist or is no longer active.');
+      return { productId: l.productId, ...linkQtyAndAmount(l, product.ptrPaise) };
+    });
+    await assertWhole(this.master, [], lines.map((l) => l.qty), 0);
+    const own = actor.id === input.userId;
+    if (own) {
+      // Once sent, the month waits for its manager; once approved it only a manager or Admin changes (or reopens through the approval).
+      const locked = (await this.sales.list({ userIds: [input.userId], fromMonth: input.month, toMonth: input.month }, 5000)).filter((r) => lines.some((l) => l.productId === r.productId) && r.secondaryQty !== null && (r.secondaryStatus === 'PENDING' || r.secondaryStatus === 'APPROVED'));
+      if (locked.length > 0) throw new StockRefusal(STOCK_CODES.secondaryLocked, `This month is ${locked[0]!.secondaryStatus === 'PENDING' ? 'waiting for approval' : 'approved'}. Withdraw it, or ask your manager to reopen it, before changing it.`);
+    }
+    // The employee's own entry is a draft until sent; a manager's or Admin's is the approver's own word.
+    return this.sales.setSecondary(input.userId, input.month, lines, own ? 'DRAFT' : 'APPROVED', actor.id, now);
   }
+}
+
+/** Units and amount are one figure at the product's PTR: give either, get both. An amount is rounded to whole units and restated from them. */
+export function linkQtyAndAmount(entry: { qty?: number | undefined; amountPaise?: number | undefined }, ptrPaise: number | null): { qty: number; amountPaise: number | null } {
+  if (entry.qty !== undefined) return { qty: entry.qty, amountPaise: ptrPaise ? entry.qty * ptrPaise : null };
+  if (!ptrPaise) throw new StockRefusal(STOCK_CODES.secondaryNeedsPtr, 'This product has no PTR set, so give units rather than an amount.');
+  const qty = Math.round((entry.amountPaise ?? 0) / ptrPaise);
+  return { qty, amountPaise: qty * ptrPaise };
+}
+
+/** The kind of approval a month's secondary goes through; its record id is `userId:month`. */
+export const SECONDARY_SALES_KIND = 'SECONDARY_SALES';
+export const secondaryRecordId = (userId: string, month: string): string => `${userId}:${month}`;
+
+/**
+ * The employee sends a finished month's secondary to their manager (Admin if none): every DRAFT or REJECTED line becomes PENDING and an approval
+ * request is started (or restarted after a rejection or withdrawal), in one transaction. Approving makes the lines count toward achievement.
+ */
+export class SubmitEmployeeSecondaryUseCase {
+  constructor(
+    private readonly sales: EmployeeSaleRepositoryPort,
+    private readonly approvals: SalesApprovalsPort,
+    private readonly transactions: TransactionRunnerPort,
+    private readonly clock: SalesClock,
+    private readonly config: ConfigReader,
+  ) {}
+
+  async execute(actor: Actor, month: string): Promise<{ requestId: string; sent: number }> {
+    if (month > (await this.clock.today()).slice(0, 7)) throw new StockRefusal(STOCK_CODES.monthNotStarted, `${month} has not started yet.`);
+    await assertFinancialYearOpen(this.config, `${month}-01`, 'This month');
+    return this.transactions.run(async (ctx) => {
+      const sent = await this.sales.setSecondaryStatus(actor.id, month, ['DRAFT', 'REJECTED'], 'PENDING', ctx);
+      if (sent === 0) throw new StockRefusal(STOCK_CODES.secondaryNothingToSend, 'There is no secondary to send for this month.');
+      const request = await this.approvals.submit({ kind: SECONDARY_SALES_KIND, recordId: secondaryRecordId(actor.id, month), submitterId: actor.id }, ctx);
+      return { requestId: request.id, sent };
+    });
+  }
+}
+
+/** The approval's effect on the month's lines, inside the approval's own transaction. */
+export function makeSecondaryStatusHandler(sales: EmployeeSaleRepositoryPort): (change: { recordId: string; status: ApprovalStatus }, ctx: TransactionContext) => Promise<void> {
+  return async ({ recordId, status }, ctx) => {
+    const [userId, month] = recordId.split(':');
+    if (!userId || !month) return;
+    if (status === 'APPROVED') await sales.setSecondaryStatus(userId, month, ['PENDING'], 'APPROVED', ctx);
+    else if (status === 'REJECTED') await sales.setSecondaryStatus(userId, month, ['PENDING'], 'REJECTED', ctx);
+    // Withdrawn, or reopened by Admin after approval: back to a draft the employee can change and send again.
+    else if (status === 'WITHDRAWN' || status === 'REOPENED') await sales.setSecondaryStatus(userId, month, ['PENDING', 'APPROVED'], 'DRAFT', ctx);
+  };
 }
 
 /**
@@ -101,6 +168,7 @@ export class ReadEmployeeSalesUseCase {
     private readonly sales: EmployeeSaleRepositoryPort,
     private readonly orders: OrderRepositoryPort,
     private readonly clock: SalesClock,
+    private readonly approvals?: SalesApprovalsPort,
   ) {}
 
   async execute(actor: Actor, input: { userId: string; month: string }): Promise<EmployeeSalesDto> {
@@ -125,11 +193,18 @@ export class ReadEmployeeSalesUseCase {
           adjustmentReason: s?.adjustmentReason ?? null,
           primaryQty: orderPrimaryQty + (s?.adjustmentQty ?? 0),
           secondaryQty: s?.secondaryQty ?? null,
+          secondaryAmountPaise: s?.secondaryAmountPaise ?? null,
+          ptrPaise: p.ptrPaise,
+          secondaryStatus: s && s.secondaryQty !== null ? s.secondaryStatus : null,
           updatedBy: s ? { id: s.updatedBy, name: people.find((u) => u.id === s.updatedBy)?.name ?? UNKNOWN } : null,
           updatedAt: s ? s.updatedAt.toISOString() : null,
         };
       })
       .sort((a, b) => a.product.name.localeCompare(b.product.name));
-    return { userId: input.userId, month: input.month, lines };
+    const order: SecondaryStatus[] = ['PENDING', 'REJECTED', 'DRAFT', 'APPROVED'];
+    const entered = lines.flatMap((l) => (l.secondaryStatus ? [l.secondaryStatus] : []));
+    const secondaryStatus = order.find((st) => entered.includes(st)) ?? null;
+    const request = this.approvals ? await this.approvals.getForRecord(SECONDARY_SALES_KIND, secondaryRecordId(input.userId, input.month)) : null;
+    return { userId: input.userId, month: input.month, secondaryStatus, approvalRequestId: request?.id ?? null, lines };
   }
 }

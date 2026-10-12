@@ -27,7 +27,7 @@ export interface CampaignRepositoryPort {
 
 export interface TargetRepositoryPort {
   /** Creates the target for this key or replaces its amount and setter — one conditional write, so two racing sets leave one row. */
-  upsert(key: TargetKey, amountPaise: number, by: string, at: Date): Promise<Target>;
+  upsert(key: TargetKey, amountPaise: number, qty: number | null, by: string, at: Date): Promise<Target>;
   findById(id: string): Promise<Target | null>;
   remove(id: string): Promise<boolean>;
   /**

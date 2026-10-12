@@ -27,6 +27,14 @@ export function useCreateDoctorService(onDone: () => void) {
   });
 }
 
+export function useMarkServiceDone() {
+  return useApiMutation<string, unknown>({
+    call: (token, id) => fieldActivityApi.markDoctorServiceDone(token, id),
+    invalidates: [keys.doctorServices.all()],
+    successMessage: 'Marked done.',
+  });
+}
+
 /** Admin: every gift, newest first (a bare array, capped at 200), optionally only pending or done. */
 export function useDoctorGifts(query: { status?: 'PENDING' | 'DONE' | undefined }) {
   return useQuery(

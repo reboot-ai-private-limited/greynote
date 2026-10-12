@@ -28,6 +28,8 @@ export const salesApi = {
     request<EmployeeSalesDto>('/sales/employee-sales', { token, query: { ...query }, signal }),
   saveEmployeeSecondary: (token: string, body: SaveEmployeeSecondaryDto) => request<{ added: number; changed: number }>('/sales/employee-secondary', { method: 'POST', token, body }),
   /** Admin only. */
+  /** The employee sends a month's secondary to their manager for approval. */
+  submitEmployeeSecondary: (token: string, body: { month: string }) => request<{ requestId: string; sent: number }>('/sales/employee-secondary/submit', { method: 'POST', token, body }),
   saveEmployeePrimary: (token: string, body: SaveEmployeePrimaryDto) => request<{ added: number; changed: number }>('/sales/employee-primary', { method: 'POST', token, body }),
   recordPayment: (token: string, body: RecordDistributorPaymentDto) => request<DistributorPaymentDto>('/sales/distributor-payments', { method: 'POST', token, body }),
   cancelPayment: (token: string, id: string, reason: string) => request<DistributorPaymentDto>(`/sales/distributor-payments/${id}/cancel`, { method: 'POST', token, body: { reason } }),
