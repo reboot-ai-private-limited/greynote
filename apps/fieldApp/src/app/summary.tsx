@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
@@ -8,7 +8,8 @@ import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { CardSection, Pill, StatusBanner, SummaryStrip, sym } from '@/components/ui-cards';
+import { Accents, Spacing, type Accent } from '@/constants/theme';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
 import { formatRupees } from '@/lib/money';
 import { isFieldDay, needsDayNote, workingTypeLabel } from '@/lib/planning';
@@ -124,10 +125,23 @@ export default function SummaryScreen() {
   // Today's plan must be approved (gate open), and nothing the server refused may be left: fix those first.
   const canSubmit = online && gate.state === 'open' && !alreadySent && failed.length === 0;
 
-  return (
-    <ScreenShell title="Summary">
-      <ThemedText themeColor="textSecondary">{prettyDay(today)}</ThemedText>
+  const count = (kinds: SyncKind[]) => dayRecords.filter((r) => kinds.includes(r.kind)).length;
+  const dcrAccent: Accent = !dcr ? 'slate' : dcr.status === 'REJECTED' ? 'red' : dcr.status === 'APPROVED' ? 'green' : dcr.status === 'DRAFT' ? 'slate' : 'amber';
 
+  return (
+    <ScreenShell
+      title="Summary"
+      subtitle={`${prettyDay(today)} · send the day to your manager`}
+      footer={
+        alreadySent ? null : (
+          <PrimaryButton
+            label={dayRecords.length === 0 ? 'Submit today’s report (nothing logged)' : 'Final Submission'}
+            loading={busy}
+            disabled={!canSubmit}
+            onPress={submit}
+          />
+        )
+      }>
       {blocked || gate.state === 'unknown' ? <Notice tone="warning">{gate.reason ?? ''}</Notice> : null}
       {gate.state === 'closed' ? (
         <>
@@ -139,23 +153,35 @@ export default function SummaryScreen() {
           ) : null}
         </>
       ) : null}
-      {dcr ? <Notice tone={dcr.status === 'REJECTED' ? 'danger' : 'info'} title="Today’s report">{DCR_TEXT[dcr.status] ?? dcr.status}</Notice> : null}
+      {dcr ? (
+        <StatusBanner accent={dcrAccent} icon={sym('doc.text', 'description')} title="Today’s report" text={DCR_TEXT[dcr.status] ?? dcr.status} />
+      ) : alreadySent ? null : (
+        <StatusBanner accent="slate" icon={sym('square.and.pencil', 'edit')} title="Not submitted yet" text="Check what you logged below, then send the day." />
+      )}
       {!online ? <Notice tone="info">You’re offline. Your report is kept on this phone; Final Submission needs the internet.</Notice> : null}
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
 
-      <ThemedView type="backgroundElement" style={styles.card}>
-        <ThemedText type="smallBold">{`Logged today · ${dayRecords.length}`}</ThemedText>
+      <SummaryStrip
+        items={[
+          { label: 'Calls', value: count(['DOCTOR_CALL', 'CHEMIST_CALL']), accent: 'blue' },
+          { label: 'Follow-ups', value: count(['DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP']), accent: 'teal' },
+          { label: 'Expenses', value: count(['EXPENSE']), accent: 'purple' },
+          { label: 'To fix', value: failed.length, accent: failed.length > 0 ? 'red' : 'slate' },
+        ]}
+      />
+
+      <CardSection icon={sym('checklist', 'checklist')} accent="green" title="Logged today" count={dayRecords.length}>
         {dayRecords.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary">
             Nothing logged yet. Add calls, followups or expenses from Home.
           </ThemedText>
         ) : (
           dayRecords.map((r) => (
-            <ThemedView key={r.clientId} style={styles.row}>
-              <ThemedText type="small">{`${KIND_LABEL[r.kind] ?? r.kind} · ${describe(r)}`}</ThemedText>
-              <ThemedText type="small" themeColor={r.status === 'FAILED' ? 'danger' : 'textSecondary'}>
-                {STATUS_TEXT[r.status]}
-              </ThemedText>
+            <ThemedView key={r.clientId} style={[styles.row, { borderColor: r.status === 'FAILED' ? Accents.red.border : Accents.slate.border }]}>
+              <View style={styles.head}>
+                <ThemedText type="smallBold" style={styles.grow}>{`${KIND_LABEL[r.kind] ?? r.kind} · ${describe(r)}`}</ThemedText>
+                <Pill text={STATUS_TEXT[r.status]} accent={RECORD_ACCENT[r.status]} />
+              </View>
               {r.status === 'FAILED' && r.errorMessage ? (
                 <ThemedText type="small" themeColor="danger">
                   {r.errorMessage}
@@ -176,7 +202,7 @@ export default function SummaryScreen() {
             </ThemedView>
           ))
         )}
-      </ThemedView>
+      </CardSection>
 
       {failed.length > 0 ? (
         <Notice tone="danger" title="Fix before submitting">
@@ -193,34 +219,30 @@ export default function SummaryScreen() {
                 : 'There are no calls today. Submit the day; a note is optional.'}
             </Notice>
           ) : null}
-          <TextField
-            label={noteRequired ? 'Note for the day (required)' : 'Note for the day (optional)'}
-            placeholder={noteRequired ? 'Agenda, venue…' : undefined}
-            value={note}
-            onChangeText={(t) => {
-              setNote(t);
-              setMsg(null);
-            }}
-            multiline
-            maxLength={1000}
-            editable={!busy}
-          />
+          <CardSection icon={sym('text.bubble', 'chat')} accent="teal" title={noteRequired ? 'Note for the day (required)' : 'Note for the day (optional)'}>
+            <TextField
+              label="Note"
+              placeholder={noteRequired ? 'Agenda, venue…' : undefined}
+              value={note}
+              onChangeText={(t) => {
+                setNote(t);
+                setMsg(null);
+              }}
+              multiline
+              maxLength={1000}
+              editable={!busy}
+            />
+          </CardSection>
         </>
-      )}
-
-      {alreadySent ? null : (
-        <PrimaryButton
-          label={dayRecords.length === 0 ? 'Submit today’s report (nothing logged)' : 'Final Submission'}
-          loading={busy}
-          disabled={!canSubmit}
-          onPress={submit}
-        />
       )}
     </ScreenShell>
   );
 }
 
+const RECORD_ACCENT: Record<OutboxRecord['status'], Accent> = { DRAFT: 'slate', QUEUED: 'amber', SYNCED: 'green', FAILED: 'red' };
+
 const styles = StyleSheet.create({
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
-  row: { gap: Spacing.half, backgroundColor: 'transparent' },
+  row: { gap: Spacing.one, borderWidth: 1, borderRadius: Spacing.two + 2, padding: Spacing.two + 2, backgroundColor: 'transparent' },
+  head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  grow: { flex: 1 },
 });

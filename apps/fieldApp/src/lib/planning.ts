@@ -34,6 +34,13 @@ export type RouteType = 'HQ' | 'EX_STATION' | 'OUT_STATION';
 const ROUTE_TYPE_LABEL: Record<RouteType, string> = { HQ: 'HQ', EX_STATION: 'Ex-station', OUT_STATION: 'Out-station' };
 export const routeTypeLabel = (t: string | null | undefined) => (t ? (ROUTE_TYPE_LABEL[t as RouteType] ?? t) : null);
 
+/**
+ * `STAY` / `TRANSIT`: a day of an out-station trip the server wrote from the first day's `returnDate` (docs/mobile/monthlyplan.md
+ * rule 16). A stay day earns out-station DA only; a transit (return) day earns TA and ex-station DA. They are normal working days.
+ */
+export type DayKind = 'NORMAL' | 'STAY' | 'TRANSIT';
+export const isTripDay = (kind: DayKind | undefined) => kind === 'STAY' || kind === 'TRANSIT';
+
 /** One planned day: what a Daily Plan holds, and what each Monthly Plan entry holds. */
 export type PlanDay = {
   workingType: WorkingType;
@@ -41,6 +48,10 @@ export type PlanDay = {
   workWith: string[];
   routeIds: string[];
   remarks: string | null;
+  /** On a trip's first day: the day the employee comes back (after this day, this month or the next). Empty for a same-day return. */
+  returnDate?: string | null;
+  /** Read back from the server; the phone never sends it (the server rebuilds the stay/transit days from `returnDate`). */
+  dayKind?: DayKind;
 };
 
 export const EMPTY_DAY: PlanDay = { workingType: 'FIELD_WORK', workWith: [], routeIds: [], remarks: null };
@@ -91,8 +102,21 @@ export const getCarryOver = (date: string) =>
 export const amendDailyPlan = (planId: string, day: PlanDay, reason: string) =>
   apiPatch<DailyPlanView>(`/planning/daily/${planId}/amend`, { ...day, reason: reason.trim() });
 
+/**
+ * Saves the whole month as a draft. A trip's stay and transit days are left out: the server writes them again from the first
+ * day's `returnDate` (and from a trip into the next month), so sending them would only get in its way.
+ */
 export const saveMonthlyPlan = (planMonth: string, entries: (PlanDay & { planDate: string })[]) =>
-  apiPost<MonthlyPlanView>('/planning/monthly', { planMonth, entries }, { auth: true });
+  apiPost<MonthlyPlanView>(
+    '/planning/monthly',
+    {
+      planMonth,
+      entries: entries
+        .filter((e) => !isTripDay(e.dayKind))
+        .map(({ dayKind: _kind, returnDate, ...rest }) => ({ ...rest, ...(returnDate ? { returnDate } : {}) })),
+    },
+    { auth: true },
+  );
 
 export const submitMonthlyPlan = (id: string) =>
   apiPost<MonthlyPlanView>(`/planning/monthly/${id}/submit`, {}, { auth: true });

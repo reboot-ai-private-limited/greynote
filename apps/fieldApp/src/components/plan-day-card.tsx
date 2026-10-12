@@ -3,10 +3,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { workingTypeLabel, type PlanDay } from '@/lib/planning';
+import { isTripDay, workingTypeLabel, type PlanDay } from '@/lib/planning';
 import { OFF_COLORS, typeColors } from '@/lib/plan-style';
 import type { Colleague } from '@/offline/colleagues';
-import { weekdayName } from '@/offline/day';
+import { prettyDay, weekdayName } from '@/offline/day';
 
 import { ThemedText } from './themed-text';
 
@@ -73,6 +73,11 @@ export function PlanDayCard({ date, entry, off, editable, names, onPress }: Prop
               {workingTypeLabel(entry.workingType)}
             </ThemedText>
           </View>
+        ) : null}
+        {entry && !off && (isTripDay(entry.dayKind) || entry.returnDate) ? (
+          <ThemedText type="small" themeColor="primary" numberOfLines={1}>
+            {entry.dayKind === 'STAY' ? 'Trip · stay day (out-station DA)' : entry.dayKind === 'TRANSIT' ? 'Trip · return day' : `Trip · returns ${prettyDay(entry.returnDate!)}`}
+          </ThemedText>
         ) : null}
         <ThemedText type="smallBold" themeColor={entry ? 'text' : 'textSecondary'} numberOfLines={2}>
           {title}

@@ -27,6 +27,7 @@ import {
   getMonthlyPlanDetail,
   getRejectionReason,
   isFieldDay,
+  isTripDay,
   planErrorText,
   saveMonthlyPlan,
   submitMonthlyPlan,
@@ -157,7 +158,7 @@ export default function MonthlyPlanScreen() {
           Object.fromEntries(
             existing.entries.map((e) => [
               e.planDate,
-              { workingType: e.workingType, workWith: e.workWith, routeIds: e.routeIds, remarks: e.remarks },
+              { workingType: e.workingType, workWith: e.workWith, routeIds: e.routeIds, remarks: e.remarks, returnDate: e.returnDate ?? null, dayKind: e.dayKind ?? 'NORMAL' },
             ]),
           ),
         );
@@ -181,27 +182,50 @@ export default function MonthlyPlanScreen() {
   const lateAndRefused = editable && deadlinePassed && !lateButAllowed;
   const planned = Object.keys(entries).length;
 
+  // A stay or return day belongs to the trip on an earlier day: it can't be edited on its own.
+  const tripOf =
+    editing && editing !== 'ALL' && isTripDay(entries[editing.date]?.dayKind)
+      ? {
+          date: editing.date,
+          start:
+            Object.keys(entries)
+              .filter((d) => d < editing.date && entries[d]?.returnDate && entries[d]!.returnDate! >= editing.date)
+              .sort()
+              .at(-1) ?? editing.date,
+        }
+      : null;
+
   function openDay(date: string) {
     setSheet(entries[date] ?? EMPTY_DAY);
     setEditing({ date });
   }
 
-  function validDay(day: PlanDay): string | null {
-    return isFieldDay(day.workingType) && day.routeIds.length === 0
-      ? `Pick at least one route for a ${workingTypeLabel(day.workingType)} day.`
-      : null;
+  function validDay(day: PlanDay, date?: string): string | null {
+    if (isFieldDay(day.workingType) && day.routeIds.length === 0) return `Pick at least one route for a ${workingTypeLabel(day.workingType)} day.`;
+    if (day.returnDate && date) {
+      const hasOut = (territory.data?.routes ?? []).some((r) => r.routeType === 'OUT_STATION' && day.routeIds.includes(r.id));
+      if (!hasOut) return 'A trip needs at least one out-station route. Add one, or clear the return date.';
+      if (day.returnDate <= date) return 'The return date must be after the day you leave.';
+      if (day.returnDate.slice(0, 7) > addMonths(date.slice(0, 7), 1)) return 'A trip can’t return later than next month.';
+      // A trip can't run over another planned day of this month.
+      const clash = Object.keys(entries).find((d) => d > date && d <= day.returnDate! && !isTripDay(entries[d]?.dayKind));
+      if (clash) return `${prettyDay(clash)} is already planned. Clear it, or choose an earlier return date.`;
+    }
+    return null;
   }
 
   function applySheet() {
-    const p = validDay(sheet);
+    const p = validDay(sheet, editing && editing !== 'ALL' ? editing.date : undefined);
     if (p) {
       Alert.alert('Almost there', p);
       return;
     }
     if (editing === 'ALL') {
-      setEntries(Object.fromEntries(days.filter((d) => !isOff(d)).map((d) => [d, sheet])));
+      // One plan for every working day: no trips (a trip is planned from its first day), and a trip already planned stays as it is.
+      const plain: PlanDay = { ...sheet, returnDate: null, dayKind: 'NORMAL' };
+      setEntries((e) => ({ ...Object.fromEntries(days.filter((d) => !isOff(d) && !isTripDay(e[d]?.dayKind) && !e[d]?.returnDate).map((d) => [d, plain])), ...Object.fromEntries(Object.entries(e).filter(([, v]) => isTripDay(v.dayKind) || v.returnDate)) }));
     } else if (editing) {
-      setEntries((e) => ({ ...e, [editing.date]: sheet }));
+      setEntries((e) => ({ ...e, [editing.date]: { ...sheet, dayKind: 'NORMAL' } }));
     }
     setEditing(null);
   }
@@ -241,6 +265,8 @@ export default function MonthlyPlanScreen() {
       }
       await saveMonthlyPlan(month, list());
       await clearLocalDraft(`monthly:${month}`);
+      // The server may have written trip days (and some into next month): read the month again as it now stands.
+      loadedFor.current = null;
       await Promise.all([refreshNow(), loadDetail()]);
       return { tone: 'success', text: 'Draft saved.' };
     });
@@ -421,11 +447,22 @@ export default function MonthlyPlanScreen() {
               <ThemedText type="subtitle" style={styles.sheetTitle}>
                 {editing === 'ALL' ? 'Every working day' : editing ? prettyDay(editing.date) : ''}
               </ThemedText>
-              <PlanDayForm value={sheet} onChange={setSheet} />
-              <PrimaryButton label="Done" onPress={applySheet} />
-              {editing && editing !== 'ALL' && entries[editing.date] ? (
-                <PrimaryButton label="Clear this day" variant="text" onPress={clearDay} />
-              ) : null}
+              {tripOf ? (
+                <>
+                  <Notice tone="info" title={entries[tripOf.date]?.dayKind === 'TRANSIT' ? 'Return day of a trip' : 'Stay day of a trip'}>
+                    {`This day is part of the trip that starts on ${prettyDay(tripOf.start)}. To change it, edit that first day.`}
+                  </Notice>
+                  <PrimaryButton label="Open the first day" onPress={() => openDay(tripOf.start)} />
+                </>
+              ) : (
+                <>
+                  <PlanDayForm value={sheet} onChange={setSheet} date={editing && editing !== 'ALL' ? editing.date : undefined} />
+                  <PrimaryButton label="Done" onPress={applySheet} />
+                  {editing && editing !== 'ALL' && entries[editing.date] ? (
+                    <PrimaryButton label="Clear this day" variant="text" onPress={clearDay} />
+                  ) : null}
+                </>
+              )}
               <PrimaryButton label="Cancel" variant="text" onPress={() => setEditing(null)} />
             </ScrollView>
           </SafeAreaView>

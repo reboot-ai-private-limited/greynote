@@ -25,6 +25,8 @@ export type PlanningSnapshot = {
     routeIds: string[];
     /** The doctors to call: the MR's picks plus missed calls carried over (`carriedFrom` = the day first planned). Absent from older servers. */
     doctors?: { doctorId: string; carriedFrom: string | null }[];
+    /** A trip day the server wrote from the Tour Plan's `returnDate`. Absent from older servers. */
+    dayKind?: 'NORMAL' | 'STAY' | 'TRANSIT';
     remarks: string | null;
     status: PlanStatus;
     approvalRequestId: string | null;
@@ -39,6 +41,10 @@ export type PlanningSnapshot = {
       workWith: string[];
       routeIds: string[];
       remarks: string | null;
+      /** On a trip's first day: the day the employee comes back. Absent from older servers. */
+      returnDate?: string | null;
+      /** `STAY` / `TRANSIT` for the days the server wrote for an out-station trip. Absent from older servers. */
+      dayKind?: 'NORMAL' | 'STAY' | 'TRANSIT';
     }[];
     status: PlanStatus;
     approvalRequestId: string | null;
