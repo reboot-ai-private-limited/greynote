@@ -95,7 +95,19 @@ function DailyPlanSummary({ recordId }: { recordId: string }) {
       {data ? (
         <>
           {dayLines(data)}
-          {data.source === 'MONTHLY' ? <ThemedText type="small" themeColor="textSecondary">From the approved Monthly Plan.</ThemedText> : null}
+          {data.workingType === 'FIELD_WORK' && data.doctors ? (
+            <Line
+              label="Doctors"
+              value={
+                data.doctors.length === 0
+                  ? 'None chosen'
+                  : `${data.doctors.length} doctor${data.doctors.length === 1 ? '' : 's'}${
+                      data.doctors.some((d) => d.carriedFrom) ? ` (${data.doctors.filter((d) => d.carriedFrom).length} missed earlier)` : ''
+                    }`
+              }
+            />
+          ) : null}
+          {data.source === 'MONTHLY' ?<ThemedText type="small" themeColor="textSecondary">From the approved Monthly Plan.</ThemedText> : null}
         </>
       ) : null}
     </Frame>

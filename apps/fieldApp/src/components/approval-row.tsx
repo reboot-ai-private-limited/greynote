@@ -13,10 +13,12 @@ type Props = {
   /** Bulk mode: shows a check box and toggles on press. */
   selecting?: boolean;
   selected?: boolean;
+  /** The caller's own request (My Requests): no sender line, and no "View only" — it is theirs to read, not to decide. */
+  own?: boolean;
 };
 
 /** One request in a list: what it is, who sent it, when, and where it stands. */
-export function ApprovalRow({ item, onPress, selecting, selected }: Props) {
+export function ApprovalRow({ item, onPress, selecting, selected, own }: Props) {
   const who = item.submitter ? `${item.submitter.name} · ${item.submitter.employeeCode}` : 'Unknown employee';
   return (
     <Pressable accessibilityRole="button" onPress={onPress}>
@@ -28,19 +30,22 @@ export function ApprovalRow({ item, onPress, selecting, selected }: Props) {
         ) : null}
         <View style={styles.body}>
           <ThemedText type="smallBold">{kindLabel(item.kind)}</ThemedText>
-          <ThemedText type="small">{who}</ThemedText>
+          {own ? null : <ThemedText type="small">{who}</ThemedText>}
           <ThemedText type="small" themeColor="textSecondary">
             {`Sent ${formatWhen(item.submittedAt)}`}
           </ThemedText>
           <ThemedText type="small" themeColor={item.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
             {STATUS_LABEL[item.status]}
           </ThemedText>
+          {own && item.status === 'REJECTED' && item.lastAction.comment ? (
+            <ThemedText type="small">{`Reason: ${item.lastAction.comment}`}</ThemedText>
+          ) : null}
           {item.overdue ? (
             <ThemedText type="small" themeColor="warning">
               Overdue
             </ThemedText>
           ) : null}
-          {!item.canAct ? (
+          {!item.canAct && !own ? (
             <ThemedText type="small" themeColor="textSecondary">
               View only
             </ThemedText>

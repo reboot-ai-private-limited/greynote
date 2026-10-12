@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApprovalSummary } from '@/components/approval-summary';
@@ -19,12 +19,14 @@ import {
   kindLabel,
   rejectRequest,
   STATUS_LABEL,
+  withdrawRequest,
   type ApprovalAction,
   type ApprovalDetail,
 } from '@/lib/approvals';
 import { FyBanner } from '@/components/fy-banner';
 import { useFinancialYear } from '@/lib/financial-year';
-import { useOnline } from '@/offline';
+import { useSessionUser } from '@/lib/session';
+import { refreshNow, useOnline } from '@/offline';
 import { formatWhen } from '@/offline/day';
 
 const errorText = (err: unknown) =>
@@ -39,12 +41,13 @@ const ACTION_TEXT: Record<ApprovalAction['action'], string> = {
   REOPEN: 'Reopened',
 };
 
-type Step = null | 'approve' | 'reject';
+type Step = null | 'approve' | 'reject' | 'withdraw';
 
 /**
  * One request (PRD §7.3): what it is, the record behind it, its history, and — when you may decide it —
  * Approve (optional comment) and Reject (a reason is required). Each decision asks to be confirmed. The
  * server decides on the live state, so a request someone else already decided shows its message instead.
+ * The sender of a request still waiting can Withdraw it (optional comment): the record becomes editable again.
  */
 export default function ApprovalDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -57,6 +60,16 @@ export default function ApprovalDetailScreen() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const me = useSessionUser();
+
+  // Coming back from Amend (or any screen opened from here) shows the request as it now stands; the first focus is the initial load.
+  const focused = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (focused.current) setReloadKey((k) => k + 1);
+      focused.current = true;
+    }, []),
+  );
 
   useEffect(() => {
     if (!id || !online) return;
@@ -79,8 +92,11 @@ export default function ApprovalDetailScreen() {
     setMsg(null);
     try {
       if (step === 'approve') await approveRequest(request, comment);
-      else await rejectRequest(request, comment);
+      else if (step === 'reject') await rejectRequest(request, comment);
+      else await withdrawRequest(request.id, comment);
       refreshIsManager();
+      // A withdrawn plan, leave or report is the sender's again — bring the phone's copy up to date.
+      if (step === 'withdraw') void refreshNow();
       router.back();
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
@@ -111,7 +127,7 @@ export default function ApprovalDetailScreen() {
             {request.overdue ? <ThemedText type="small" themeColor="warning">Overdue</ThemedText> : null}
           </ThemedView>
 
-          <ApprovalSummary request={shown ?? request} />
+          <ApprovalSummary key={reloadKey} request={shown ?? request} />
 
           <ThemedView type="backgroundElement" style={styles.card}>
             <ThemedText type="smallBold">History</ThemedText>
@@ -125,6 +141,15 @@ export default function ApprovalDetailScreen() {
           </ThemedView>
 
           {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+
+          {request.kind === 'DAILY_PLAN' && request.submitter && request.submitter.id !== me?.id && !fy.isPast ? (
+            <PrimaryButton
+              label="Amend this plan"
+              variant="text"
+              disabled={!online || busy}
+              onPress={() => router.push({ pathname: '/amend-plan', params: { id: request.recordId, who: request.submitter?.name ?? '' } })}
+            />
+          ) : null}
 
           {shown?.canAct ? (
             step ? (
@@ -151,13 +176,29 @@ export default function ApprovalDetailScreen() {
               </View>
             )
           ) : (
-            <Notice tone="info">
-              {fy.isPast
-                ? 'A past financial year is read-only.'
-                : request.status === 'SUBMITTED' || request.status === 'MANAGER_APPROVED'
-                ? 'This request is view-only for you.'
-                : 'This request has already been decided.'}
-            </Notice>
+            <>
+              <Notice tone="info">
+                {fy.isPast
+                  ? 'A past financial year is read-only.'
+                  : request.canWithdraw
+                  ? 'Waiting for a decision. You can withdraw it until then, and edit it again.'
+                  : request.status === 'SUBMITTED' || request.status === 'MANAGER_APPROVED'
+                  ? 'This request is view-only for you.'
+                  : 'This request has already been decided.'}
+              </Notice>
+              {request.canWithdraw && !fy.isPast ? (
+                step === 'withdraw' ? (
+                  <ThemedView type="backgroundElement" style={styles.card}>
+                    <ThemedText type="smallBold">Withdraw this request?</ThemedText>
+                    <TextField label="Comment (optional)" value={comment} onChangeText={setComment} multiline maxLength={500} editable={!busy} />
+                    <PrimaryButton label="Confirm withdraw" loading={busy} disabled={!online} onPress={decide} />
+                    <PrimaryButton label="Back" variant="text" disabled={busy} onPress={() => setStep(null)} />
+                  </ThemedView>
+                ) : (
+                  <PrimaryButton label="Withdraw request" variant="text" disabled={!online} onPress={() => { setMsg(null); setComment(''); setStep('withdraw'); }} />
+                )
+              ) : null}
+            </>
           )}
         </>
       ) : null}

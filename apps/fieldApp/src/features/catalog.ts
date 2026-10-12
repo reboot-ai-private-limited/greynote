@@ -15,7 +15,7 @@ export type FeatureKey =
   | 'daily-plan' | 'monthly-plan' | 'dr-call' | 'dr-followup' | 'chemist-call' | 'chemist-followup'
   | 'add-doctor' | 'missed-calls' | 'expenses' | 'leave' | 'summary'
   | 'orders' | 'monthly-stock' | 'visuals' | 'targets' | 'secondary-sales' | 'gifts' | 'services'
-  | 'inbox' | 'holidays' | 'forms' | 'financial-year';
+  | 'inbox' | 'my-requests' | 'holidays' | 'forms' | 'financial-year';
 
 export type Gate = 'plan' | 'unblocked' | 'none';
 /** Home's categories. PRD §6.2 also lists Resources (the document library); that is the Docs tab, so Home has no tab for it. */
@@ -59,6 +59,7 @@ export const FEATURES: Feature[] = [
   { key: 'services', title: 'Services', section: 'Marketing', gate: 'none', stage: 6, route: '/services', icon: icon('briefcase', 'work'), about: 'Request a service for a doctor; it goes through approval.' },
 
   { key: 'inbox', title: 'Inbox', section: 'Utility', gate: 'none', stage: 7, route: '/inbox', icon: icon('tray', 'inbox'), about: 'Messages for you (demo messages for now).' },
+  { key: 'my-requests', title: 'My Requests', section: 'Utility', gate: 'none', stage: 7, route: '/my-requests', icon: icon('checklist', 'assignment_turned_in'), about: 'Everything you sent for approval, where it stands and why it was rejected.' },
   { key: 'holidays', title: 'Holiday List', section: 'Utility', gate: 'none', stage: 7, route: '/holidays', icon: icon('calendar.circle', 'event'), about: 'National, zone and HQ holidays.' },
   { key: 'forms', title: 'Forms', section: 'Utility', gate: 'none', stage: 7, icon: icon('doc.plaintext', 'assignment'), about: 'Standard company request forms.' },
   { key: 'financial-year', title: 'Financial Year', section: 'Utility', gate: 'none', stage: 7, route: '/financial-year', icon: icon('clock.arrow.circlepath', 'history'), about: 'Look back at a previous financial year (read-only).' },

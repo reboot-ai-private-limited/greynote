@@ -5,6 +5,7 @@ import { Alert, View } from 'react-native';
 import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
 import { PlanDayForm } from '@/components/plan-day-form';
+import { PlanDoctorsPicker } from '@/components/plan-doctors-picker';
 import { describeDay, PlanDaySummary } from '@/components/plan-day-summary';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
@@ -15,22 +16,25 @@ import { ApiError, NetworkError } from '@/lib/api';
 import {
   EDITABLE,
   EMPTY_DAY,
+  getCarryOver,
   getDailyPlanDetail,
   getRejectionReason,
   listDailyPlanChanges,
   requestDailyPlanChange,
   saveDailyPlan,
+  setDailyPlanDoctors,
   submitDailyPlan,
   withdrawPlan,
   type DailyPlanChange,
   type DailyPlanDetail,
   type PlanDay,
+  type PlannedDoctor,
 } from '@/lib/planning';
 import { refreshNow, useColleagues, useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { addDays, businessNowHHmm, dailyDeadlinePassed, formatWhen, nowMs, prettyDay } from '@/offline/day';
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from '@/offline/local-draft';
-import type { ConfigSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
+import type { ConfigSnapshot, FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
 
 type Msg = { tone: 'info' | 'warning' | 'danger' | 'success'; text: string };
 
@@ -59,6 +63,13 @@ function sameDay(a: PlanDay, b: PlanDay): boolean {
   return key(a) === key(b);
 }
 
+/** The doctors the MR picked on a saved plan (the owed ones, `carriedFrom` set, are the server's to add). */
+const plannedPicks = (plan: { doctors?: PlannedDoctor[] } | null): string[] =>
+  (plan?.doctors ?? []).filter((d) => d.carriedFrom === null).map((d) => d.doctorId);
+
+/** What an unsent form is kept as on the phone: the day plus the doctors picked for it. */
+type LocalDraft = PlanDay & { doctorIds?: string[] };
+
 const errorText = (err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
 
@@ -75,12 +86,16 @@ export default function DailyPlanScreen() {
   const planning = useCachedSource<PlanningSnapshot>('planning');
   const config = useCachedSource<ConfigSnapshot>('config');
   const territory = useCachedSource<TerritorySnapshot>('territory');
+  const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const { colleagues } = useColleagues();
   const { today } = useDayGate();
   const online = useOnline();
 
   const [date, setDate] = useState(today);
   const [day, setDay] = useState<PlanDay>(EMPTY_DAY);
+  // The doctors the MR ticked (not the owed ones) and the server's list of doctors owed from earlier days, kept with its date.
+  const [doctorIds, setDoctorIds] = useState<string[]>([]);
+  const [owedState, setOwedState] = useState<{ date: string; list: PlannedDoctor[] } | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
@@ -102,6 +117,10 @@ export default function DailyPlanScreen() {
   const changes = detailState?.key === detailKey ? detailState.changes : [];
   const rejectionKey = status === 'REJECTED' ? (existing?.approvalRequestId ?? null) : null;
   const rejection = rejectionKey !== null && rejectionState?.key === rejectionKey ? rejectionState.text : null;
+
+  // Owed doctors: the server's answer for this date when we have it, else the ones the saved plan already carries.
+  const savedOwed = useMemo(() => (existing?.doctors ?? []).filter((d) => d.carriedFrom !== null), [existing]);
+  const owed = owedState?.date === date ? owedState.list : savedOwed;
 
   const inherited = detail?.source === 'MONTHLY' || refusedAsInherited[date] === true;
   const openChange = changes.find((c) => c.open) ?? null;
@@ -147,13 +166,34 @@ export default function DailyPlanScreen() {
     loadedFor.current = key;
     setMsg(null);
     setReason('');
-    void loadLocalDraft<PlanDay>(`daily:${date}`).then((local) => {
-      if (local && editable) setDay(local);
-      else if (existing) {
+    void loadLocalDraft<LocalDraft>(`daily:${date}`).then((local) => {
+      if (local && editable) {
+        const { doctorIds: draftDoctors, ...draftDay } = local;
+        setDay(draftDay);
+        setDoctorIds(draftDoctors ?? plannedPicks(existing));
+      } else if (existing) {
         setDay({ workingType: existing.workingType, workWith: existing.workWith, routeIds: existing.routeIds, remarks: existing.remarks });
-      } else setDay(EMPTY_DAY);
+        setDoctorIds(plannedPicks(existing));
+      } else {
+        setDay(EMPTY_DAY);
+        setDoctorIds([]);
+      }
     });
   }, [planning.loaded, date, existing, editable]);
+
+  // Doctors still owed from earlier days (online only; offline the saved plan's own list is shown).
+  useEffect(() => {
+    if (!online) return;
+    let alive = true;
+    getCarryOver(date)
+      .then((list) => {
+        if (alive) setOwedState({ date, list });
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [date, online]);
 
   useEffect(() => {
     if (rejectionKey && online) {
@@ -188,6 +228,21 @@ export default function DailyPlanScreen() {
     return null;
   }
 
+  /**
+   * What to send for the day's doctors, and whether the server's list differs. Picks off the plan's routes are dropped (the server
+   * refuses them); with no Field Master Data on the phone nothing is sent, so a missing cache can't wipe the saved picks.
+   */
+  function doctorChange(): { ids: string[]; changed: boolean } {
+    const serverPicks = plannedPicks(existing);
+    if (!master.data) return { ids: serverPicks, changed: false };
+    const onRoutes = new Set(master.data.doctors.filter((d) => day.routeIds.includes(d.routeId)).map((d) => d.id));
+    const ids = day.workingType === 'FIELD_WORK' ? doctorIds.filter((id) => onRoutes.has(id)) : [];
+    const samePicks = ids.length === serverPicks.length && ids.every((id) => serverPicks.includes(id));
+    const onServer = new Set(savedOwed.map((d) => d.doctorId));
+    const owedCovered = day.workingType !== 'FIELD_WORK' || owed.every((o) => onServer.has(o.doctorId));
+    return { ids, changed: !samePicks || !owedCovered };
+  }
+
   async function run(action: () => Promise<Msg | null>) {
     setBusy(true);
     setMsg(null);
@@ -212,11 +267,14 @@ export default function DailyPlanScreen() {
       const p = problem();
       if (p) return { tone: 'warning', text: p };
       if (!online) {
-        await saveLocalDraft(`daily:${date}`, day);
+        await saveLocalDraft(`daily:${date}`, { ...day, doctorIds } satisfies LocalDraft);
         return { tone: 'info', text: 'Saved on this phone. Connect to the internet to submit it.' };
       }
-      if (existing && sameDay(day, existing)) return { tone: 'info', text: 'Nothing has changed since the last save.' };
-      await saveDailyPlan(date, day);
+      const dayChanged = !existing || !sameDay(day, existing);
+      const doctors = doctorChange();
+      if (!dayChanged && !doctors.changed) return { tone: 'info', text: 'Nothing has changed since the last save.' };
+      if (dayChanged) await saveDailyPlan(date, day);
+      if (doctors.changed) await setDailyPlanDoctors(date, doctors.ids);
       await clearLocalDraft(`daily:${date}`);
       await refreshAll();
       return { tone: 'success', text: 'Draft saved.' };
@@ -225,7 +283,7 @@ export default function DailyPlanScreen() {
   const submit = () => {
     if (!online) {
       Alert.alert('No connection', 'Submitting a plan needs the internet. Your form is kept — try again when you’re back online.');
-      void saveLocalDraft(`daily:${date}`, day);
+      void saveLocalDraft(`daily:${date}`, { ...day, doctorIds } satisfies LocalDraft);
       return;
     }
     return run(async () => {
@@ -234,6 +292,8 @@ export default function DailyPlanScreen() {
       // Save only what the MR changed: an unchanged plan is submitted as it is — the only way to send a
       // day inherited from the approved Monthly Plan, which the server won't let them re-save.
       const planId = existing && sameDay(day, existing) ? existing.id : (await saveDailyPlan(date, day)).id;
+      const doctors = doctorChange();
+      if (doctors.changed) await setDailyPlanDoctors(date, doctors.ids);
       await submitDailyPlan(planId);
       await clearLocalDraft(`daily:${date}`);
       await refreshAll();
@@ -272,6 +332,19 @@ export default function DailyPlanScreen() {
       await refreshAll();
       return { tone: 'info', text: 'Change request withdrawn. Your approved plan is unchanged.' };
     });
+
+  // Doctors are chosen while the plan is editable (an inherited day's route is locked, its doctors are not); after that they are only listed.
+  const doctorsSection =
+    editable && day.workingType === 'FIELD_WORK' ? (
+      <>
+        <PlanDoctorsPicker routeIds={day.routeIds} picked={doctorIds} owed={owed} onChange={setDoctorIds} disabled={busy} />
+        <ThemedText type="small" themeColor="textSecondary">
+          Doctors are saved with the plan. Doctors you missed on earlier days stay on the plan until you call them.
+        </ThemedText>
+      </>
+    ) : !editable && existing?.workingType === 'FIELD_WORK' ? (
+      <PlanDoctorsPicker readOnly routeIds={existing.routeIds} picked={plannedPicks(existing)} owed={savedOwed} onChange={setDoctorIds} />
+    ) : null;
 
   return (
     <ScreenShell title="Daily Plan">
@@ -322,6 +395,7 @@ export default function DailyPlanScreen() {
       {editable || canRequestChange ? (
         <>
           <PlanDayForm value={day} onChange={setDay} disabled={busy || (inherited && editable)} />
+          {doctorsSection}
 
           {canRequestChange ? (
             <>
@@ -333,7 +407,10 @@ export default function DailyPlanScreen() {
           ) : null}
         </>
       ) : existing ? (
-        <PlanDaySummary text={describeDay(existing, names)} />
+        <>
+          <PlanDaySummary text={describeDay(existing, names)} />
+          {doctorsSection}
+        </>
       ) : null}
 
       {changes.slice(0, 3).map((c) => {

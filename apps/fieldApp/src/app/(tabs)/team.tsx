@@ -9,6 +9,7 @@ import { FyBanner } from '@/components/fy-banner';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { Skeleton } from '@/components/skeleton';
+import { TeamTools } from '@/components/team-tools';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -149,6 +150,7 @@ export default function TeamScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
           <ThemedText type="subtitle">Team</ThemedText>
           <FyBanner />
+          <TeamTools />
           <ChoiceChips options={VIEWS} value={view} onChange={switchView} />
           {view === 'team' ? <ChoiceChips options={SCOPES} value={scope} onChange={(s) => { setItems(null); setScope(s); }} /> : null}
 

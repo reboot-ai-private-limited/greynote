@@ -71,6 +71,13 @@ export const listInbox = (pageSize = 50) => apiGet<Page<ApprovalItem>>(`/approva
 export const listTeam = (scope: TeamScope, pageSize = 50) =>
   apiGet<Page<ApprovalItem>>(`/approvals/team?scope=${scope}&pageSize=${pageSize}`, { fy: true });
 
+/** My own submissions, newest first, in any status — also bounded by the year switch. */
+export const listMine = (pageSize = 100) => apiGet<Page<ApprovalItem>>(`/approvals/mine?pageSize=${pageSize}`, { fy: true });
+
+/** Pulls back a request of mine that is still waiting (`ApprovalDetail.canWithdraw`); the record becomes editable again. */
+export const withdrawRequest = (id: string, comment?: string) =>
+  apiPost<unknown>(`/approvals/${id}/withdraw`, comment?.trim() ? { comment: comment.trim() } : {}, { auth: true });
+
 export const getApproval = (id: string) => apiGet<ApprovalDetail>(`/approvals/${id}`);
 
 export const approveRequest = (item: { id: string; cycle: number }, comment?: string) =>
@@ -138,7 +145,13 @@ export const acceptCall = (dcrId: string, callId: string, comment: string) =>
   apiPost<unknown>(`/field-activity/dcr/${dcrId}/calls/${callId}/override-geofence`, { comment: comment.trim() }, { auth: true });
 
 export type PlanDayView = { workingType: string; workWith: string[]; routeIds: string[]; remarks: string | null };
-export type DailyPlanRecord = PlanDayView & { id: string; planDate: string; source: 'MANUAL' | 'MONTHLY' };
+export type DailyPlanRecord = PlanDayView & {
+  id: string;
+  planDate: string;
+  source: 'MANUAL' | 'MONTHLY';
+  /** The doctors to call (`carriedFrom` = a missed call still owed). Absent from older servers. */
+  doctors?: { doctorId: string; carriedFrom: string | null }[];
+};
 export type MonthlyPlanRecord = { id: string; planMonth: string; entries: (PlanDayView & { planDate: string })[] };
 export type PlanChangeRecord = { id: string; planDate: string; previous: PlanDayView; proposed: PlanDayView; reason: string };
 export const getDailyPlanRecord = (id: string) => apiGet<DailyPlanRecord>(`/planning/daily/${id}`);

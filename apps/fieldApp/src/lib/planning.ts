@@ -1,6 +1,6 @@
 import type { PlanStatus } from '@/types/sync';
 
-import { apiGet, apiPost } from './api';
+import { apiGet, apiPatch, apiPost } from './api';
 
 /**
  * The Planning endpoints (LLD/planning.md). Saving and submitting a Plan need a live connection —
@@ -42,7 +42,10 @@ type StateView = {
   lateSubmitAllowedUntil: string | null;
 };
 
-export type DailyPlanView = PlanDay & StateView & { planDate: string };
+/** A doctor on a day's plan. `carriedFrom` = the day first planned, set when it is a missed call still owed (those cannot be dropped). */
+export type PlannedDoctor = { doctorId: string; carriedFrom: string | null };
+
+export type DailyPlanView = PlanDay & StateView & { planDate: string; doctors?: PlannedDoctor[] };
 export type MonthlyPlanView = StateView & { planMonth: string; entries: (PlanDay & { planDate: string })[] };
 
 /** Statuses in which the owner may still change the Plan (no request yet, or sent back to them). */
@@ -53,6 +56,24 @@ export const saveDailyPlan = (planDate: string, day: PlanDay) =>
 
 export const submitDailyPlan = (id: string) =>
   apiPost<DailyPlanView>(`/planning/daily/${id}/submit`, {}, { auth: true });
+
+/**
+ * Sets the doctors to call on a saved Field Work plan (also on a day inherited from the Monthly Plan). The server adds the
+ * missed calls still owed and refuses a doctor that isn't the MR's or isn't on one of the plan's routes.
+ */
+export const setDailyPlanDoctors = (planDate: string, doctorIds: string[]) =>
+  apiPost<DailyPlanView>('/planning/daily/doctors', { planDate, doctorIds }, { auth: true });
+
+/** Doctors planned on earlier days and not called since — owed on `date`, oldest first. */
+export const getCarryOver = (date: string) =>
+  apiGet<PlannedDoctor[]>(`/planning/daily/carry-over?date=${date}`, { auth: true });
+
+/**
+ * A manager or Admin changes an employee's plan for a day, with a reason; the old day is kept on the plan and the employee
+ * sees it was changed. The plan's approval is untouched. Refused once the day is over or its report is submitted.
+ */
+export const amendDailyPlan = (planId: string, day: PlanDay, reason: string) =>
+  apiPatch<DailyPlanView>(`/planning/daily/${planId}/amend`, { ...day, reason: reason.trim() });
 
 export const requestDailyPlanChange = (id: string, day: PlanDay, reason: string) =>
   apiPost<unknown>(`/planning/daily/${id}/changes`, { ...day, reason }, { auth: true });
