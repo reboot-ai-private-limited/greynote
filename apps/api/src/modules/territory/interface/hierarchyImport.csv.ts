@@ -1,5 +1,5 @@
 import type { HierarchyImportError, HierarchyImportRow } from '../domain/hierarchyImport.js';
-import { parseCsv } from './csv.js';
+import { parseCsv } from '@/shared/csv/csv.js';
 import { nameSchema } from './territory.schemas.js';
 
 export const MAX_IMPORT_ROWS = 2000;

@@ -15,11 +15,13 @@ import type { LeaveApprovalCutoff } from '../application/leaveApprovalCutoff.js'
 import type { LeaveProof } from '../application/leaveProof.js';
 import type { LeaveRequests } from '../application/leaveRequests.js';
 import type { DeleteHolidayUseCase } from '../application/usecases/deleteHoliday.usecase.js';
+import type { ImportHolidaysUseCase } from '../application/usecases/importHolidays.usecase.js';
 import type { ListHolidaysUseCase } from '../application/usecases/listHolidays.usecase.js';
 import type { ListLeavePoliciesUseCase } from '../application/usecases/listLeavePolicies.usecase.js';
 import type { ListLeaveTypesUseCase } from '../application/usecases/listLeaveTypes.usecase.js';
 import type { SetLeavePolicyUseCase } from '../application/usecases/setLeavePolicy.usecase.js';
 import type { UpdateLeaveTypeUseCase } from '../application/usecases/updateLeaveType.usecase.js';
+import { readHolidayCsv } from './holidayImport.csv.js';
 import type {
   adjustBalanceBodySchema,
   balanceQuerySchema,
@@ -37,7 +39,7 @@ export function actorOf(req: Request): Actor {
 }
 
 export type MastersHandlers = Record<
-  'listTypes' | 'createType' | 'updateType' | 'listPolicies' | 'setPolicy' | 'listHolidays' | 'createHoliday' | 'deleteHoliday',
+  'listTypes' | 'createType' | 'updateType' | 'listPolicies' | 'setPolicy' | 'listHolidays' | 'createHoliday' | 'deleteHoliday' | 'importHolidays',
   RequestHandler
 >;
 
@@ -50,6 +52,7 @@ export function makeMastersControllers(u: {
   listHolidays: ListHolidaysUseCase;
   createHoliday: CreateHolidayUseCase;
   deleteHoliday: DeleteHolidayUseCase;
+  importHolidays: ImportHolidaysUseCase;
 }): MastersHandlers {
   return {
     listTypes: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listTypes.execute(), 'Leave types.', 200)),
@@ -80,6 +83,14 @@ export function makeMastersControllers(u: {
     deleteHoliday: asyncHandler(async (req, res) => {
       await u.deleteHoliday.execute(requiredParam(req.params, 'id'));
       sendSuccess(req, res, null, 'Holiday removed.', 200);
+    }),
+    importHolidays: asyncHandler(async (req, res) => {
+      if (!req.file) throw AppError.badRequest('A CSV file is required.', { field: 'file' });
+      const { rows, errors } = readHolidayCsv(req.file.buffer.toString('utf8'));
+      if (errors.length > 0) throw AppError.badRequest(`The file has ${errors.length} problem(s); nothing was imported.`, { errors });
+      const dryRun = req.query.dryRun === 'true';
+      const result = await u.importHolidays.execute(rows, { dryRun }, actorOf(req).id);
+      sendSuccess(req, res, result, dryRun ? 'Dry run: nothing was written.' : 'Holidays imported.', dryRun ? 200 : 201);
     }),
   };
 }

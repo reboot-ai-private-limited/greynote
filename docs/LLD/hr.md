@@ -111,8 +111,19 @@ All under `/api/hr`.
 | `GET` | `/leaves/me` | FIELD | Own leaves |
 | `GET` | `/leaves` | HR, Admin | All leaves, filtered |
 | `GET` | `/leaves/:id` | owner, their managers, HR, Admin | One leave |
-| `GET` | `/holidays?year=` | any | FIELD: the ones that apply to them; HR/Admin: all, filterable |
+| `GET` | `/holidays?from=&to=&scope=&zoneId=&hqId=` | any | FIELD: the ones that apply to them; HR/Admin: all, filterable. `from`/`to` required, at most 400 days; not scoped by the financial-year header |
 | `POST` / `DELETE` | `/holidays`, `/holidays/:id` | HR, Admin | Maintain the calendar |
+| `POST` | `/holidays/import?dryRun=` | Admin | Bulk-add from a CSV (below) |
+
+## Holiday upload (2026-10-12)
+
+The Admin loads a year's list from one CSV (`multipart/form-data`, field `file`, ≤ 1 MB, ≤ 500 rows). Columns: `name`, `date` (`YYYY-MM-DD`), `scope` (`NATIONAL`/`ZONE`/`HQ`), `zones` (Zone names, `;`-separated), `hqs` (`Zone/HQ` pairs, `;`-separated; an HQ name is only unique inside its Zone). Same scope rules as adding one holiday.
+
+- **All or nothing.** Any problem (bad date, scope, unknown or inactive Zone/HQ, the same holiday twice in the file) is a `400` whose `data.errors` lists every problem with its file line; nothing is written.
+- **Re-upload is safe.** A holiday already on the calendar (same name, date, scope and places, ignoring case) is skipped, not duplicated.
+- **`?dryRun=true`** returns the preview (every row `NEW` or `EXISTS`, plus `created` / `skipped` counts) without writing. The web dialog always previews first.
+- Past and future dates are accepted. Excel users save as CSV. The CSV reader is `shared/csv/csv.ts`, shared with Territory's hierarchy import; Zone/HQ names are matched through Territory's `findZoneByName` / `findHqByName`.
+- Not scoped by the financial-year header, like the rest of `/hr/holidays`.
 
 ## Edge cases
 

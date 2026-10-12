@@ -1,7 +1,7 @@
 'use client';
 
 import type { HolidayDto, HolidayScope } from '@greynote/contracts';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Upload } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -16,10 +16,12 @@ import { istDate } from '@/lib/dates';
 import { financialYearOf, financialYearRange } from '@/lib/financial-year';
 import { formatDate } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
+import { useSession } from '@/lib/auth/SessionProvider';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDeleteHoliday, useHolidays } from '../hooks/useHolidays';
 import { HOLIDAY_SCOPE_LABEL, appliesTo, groupByMonth, rangeError } from '../lib/holidays';
 import { HolidayFormDialog } from './HolidayFormDialog';
+import { HolidayImportDialog } from './HolidayImportDialog';
 
 const ANY = 'all';
 const monthLabel = (month: string) => new Intl.DateTimeFormat('en-IN', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(new Date(`${month}-01T00:00:00Z`));
@@ -34,7 +36,9 @@ export function HolidaysTab() {
   const to = values.to || defaults.to;
   const range = rangeError(from, to);
   const directory = useTerritoryDirectory();
+  const isAdmin = useSession().user?.role === 'ADMIN';
   const [adding, setAdding] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState<HolidayDto | null>(null);
   const remove = useDeleteHoliday(() => setRemoving(null));
 
@@ -49,9 +53,16 @@ export function HolidaysTab() {
       title="Holidays"
       description="National holidays apply to everyone; Zone and HQ holidays only to employees there (an employee's HQ is set on their Leave tab)."
       actions={
+        <div className="flex items-center gap-2">
+          {isAdmin ? (
+            <Button variant="secondary" onClick={() => setUploading(true)}>
+              <Upload aria-hidden className="size-4" /> Upload list
+            </Button>
+          ) : null}
         <Button onClick={() => setAdding(true)} disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined}>
           <Plus aria-hidden className="size-4" /> New holiday
         </Button>
+        </div>
       }
     >
       <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
@@ -112,6 +123,7 @@ export function HolidaysTab() {
       </DataState>
 
       {adding ? <HolidayFormDialog onClose={() => setAdding(false)} /> : null}
+      {uploading ? <HolidayImportDialog onClose={() => setUploading(false)} /> : null}
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}

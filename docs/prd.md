@@ -122,9 +122,10 @@ Document library for price lists, product literatures, and training materials.
 
 #### D. Utility
 
-- **Holiday List:** View upcoming holidays scoped to National, Zone, or the employee's assigned HQ — a single holiday can apply to multiple Zones or HQs at once, or to everyone (National). The weekly off day (e.g. Sunday) is a configurable rule (Section 8), not an individually listed holiday.
-- **Forms:** Quick access to standard company request forms.
+- **Inbox:** Messages the Admin sends from the web portal to everyone, or to chosen roles, Zones, HQs or people (announcements, reminders, policy notes, updates). The app shows them newest first with an unread count; there is no phone push yet. Which system events (a target set, an exception granted, a call assigned) also put a message here is still to be decided (client sign-off F8).
+- **Holiday List:** View upcoming holidays scoped to National, Zone, or the employee's assigned HQ — a single holiday can apply to multiple Zones or HQs at once, or to everyone (National). The Admin uploads the year's list from the portal (a CSV, previewed before saving). The weekly off day (e.g. Sunday) is a configurable rule (Section 8), not an individually listed holiday.
 - **Financial Year Toggle:** A "time machine" allowing users to switch the app's context to a previous financial year to view old reports or pending items.
+- *Forms (quick access to company request forms) was removed from the scope on 2026-10-12.*
 
 ### 6.3 Reports Tab
 

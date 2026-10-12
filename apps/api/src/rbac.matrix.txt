@@ -9,6 +9,7 @@ DELETE /api/hr/leaves/:id/attachments/:attachmentId  FIELD
 DELETE /api/identity/employee-drafts/:id  ADMIN,HR
 DELETE /api/identity/users/:id/devices/:deviceRowId  ADMIN
 DELETE /api/identity/users/:id/documents/:documentId  ADMIN,HR
+DELETE /api/inbox/messages/:id  ADMIN
 DELETE /api/marketing/doctors/:doctorId/visuals/:visualId  ADMIN,FIELD
 DELETE /api/marketing/targets/:id  ADMIN,FIELD
 DELETE /api/territory/routes/:id/assignments/:userId  ADMIN
@@ -73,6 +74,9 @@ GET    /api/identity/users/:id/ctc  ACCOUNTANT,ADMIN,HR
 GET    /api/identity/users/:id/devices  ADMIN
 GET    /api/identity/users/:id/promotions  ADMIN,HR
 GET    /api/identity/work-with  FIELD
+GET    /api/inbox  ANY
+GET    /api/inbox/messages  ADMIN
+GET    /api/inbox/unread-count  ANY
 GET    /api/marketing/campaigns  ADMIN,FIELD
 GET    /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 GET    /api/marketing/targets  ADMIN,FIELD
@@ -168,6 +172,7 @@ POST   /api/field-master-data/doctors/added  FIELD
 POST   /api/field-master-data/products  ADMIN
 POST   /api/field-master-data/specialties  ADMIN
 POST   /api/hr/holidays  ADMIN,HR
+POST   /api/hr/holidays/import  ADMIN
 POST   /api/hr/leave-types  ADMIN,HR
 POST   /api/hr/leaves  FIELD
 POST   /api/hr/leaves/:id/approval-grant  ADMIN
@@ -196,6 +201,9 @@ POST   /api/identity/users/:id/promotions  ADMIN,HR
 POST   /api/identity/users/:id/promotions/preview  ADMIN,HR
 POST   /api/identity/users/:id/reset-password  ADMIN
 POST   /api/identity/users/:id/unblock  ADMIN,FIELD
+POST   /api/inbox/:id/read  ANY
+POST   /api/inbox/messages  ADMIN
+POST   /api/inbox/read-all  ANY
 POST   /api/marketing/campaigns  ADMIN
 POST   /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 POST   /api/marketing/targets  ADMIN,FIELD

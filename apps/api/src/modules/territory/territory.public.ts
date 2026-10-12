@@ -23,4 +23,7 @@ export interface TerritoryPublicContract {
   assignUserHq(userId: string, hqId: string, actorId: string): Promise<unknown>;
   getHq(hqId: string): Promise<{ id: string; zoneId: string; name: string; status: TerritoryStatus } | null>;
   getZone(zoneId: string): Promise<{ id: string; name: string; status: TerritoryStatus } | null>;
+  /** Case-insensitive name lookups — for files that name places (HR's holiday import). */
+  findZoneByName(name: string): Promise<{ id: string; name: string; status: TerritoryStatus } | null>;
+  findHqByName(zoneId: string, name: string): Promise<{ id: string; zoneId: string; name: string; status: TerritoryStatus } | null>;
 }

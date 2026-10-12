@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseCsv } from './csv.js';
+import { parseCsv } from '@/shared/csv/csv.js';
 import { readHierarchyCsv } from './hierarchyImport.csv.js';
 
 describe('parseCsv', () => {

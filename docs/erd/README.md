@@ -13,6 +13,7 @@ Built module by module (see PRD for feature context). Each module is its own fil
 | 7   | HR Ops (Leave, Holidays)                                          | [07-hr-ops.md](./07-hr-ops.md)                         | Done   |
 | 8   | Marketing (Visuals)                                               | [08-marketing.md](./08-marketing.md)                   | Done   |
 | 9   | Payroll & Compensation (PayrollRun)                               | [09-payroll.md](./09-payroll.md)                       | Done   |
+| 10  | Inbox (InboxMessage, InboxReceipt)                                | [10-inbox.md](./10-inbox.md)                           | Done   |
 
 Added after auditing coverage: Module 9 was added when reviewing HR/Accountant coverage against PRD §5.3 turned up that "generates final PAYROLL sheet" had no entity behind it. Module 1's `PayBand` also gained a `base_salary` field, and Module 4's `Expense` gained a `payment_status`/`paid_by`/`paid_at` settlement state, to support it.
 

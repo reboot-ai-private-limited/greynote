@@ -112,6 +112,8 @@ erDiagram
 
 - **Built 2026-09-28 (Phase 4) — what changed from the diagram above:** `Leave.status`/`reviewed_by`/`reviewed_at` are dropped (the `LEAVE` `ApprovalRequest` holds them); `HOLIDAY_ZONE`/`HOLIDAY_HQ` become embedded `zone_ids`/`hq_ids` arrays on `Holiday`; days are decimal (half days, removed for new leaves 2026-10-05; a new leave is whole days); `LeaveBalance` gains `pending_days` and is seeded lazily per leave year. An employee's HQ/Zone comes from Territory's `UserHqAssignment`. Rules: `../LLD/hr.md`.
 
+- **Holiday upload (2026-10-12):** no schema change. Holidays can be bulk-added from a CSV (`../LLD/hr.md`, "Holiday upload").
+
 ## Next
 
 **Module 8 — Marketing (Visuals).** The last module: e-detailing visuals and campaigns (PRD §6.2 B), plus wrapping up the full ERD set.

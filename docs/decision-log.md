@@ -1991,3 +1991,15 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 
 **Refs:** [`LLD/sales-and-orders.md`](LLD/sales-and-orders.md), sign-off E1, G1.
 
+## 2026-10-12 — Utility section: Inbox, holiday upload, Forms removed, FY re-verified
+
+1. **Forms is removed** from Utility (PRD §6.2 D). There was no endpoint and none is planned; the phone drops the tile. Utility is now **Inbox · Holiday List · Financial Year**.
+2. **Inbox is a server module.** The Admin sends a message (title, text, kind, optional expiry) to an audience: everyone, or any mix of roles, Zones, HQs and named people; a person matching several parts gets one copy. Recipients are fixed at send time (fan-out on write, text copied onto each person's receipt); expiry and "take back" make a message vanish from lists and the unread count. **No push** (the phone reads the list and the unread count); FCM later. The system-event feed (a target set, an exception granted, a call assigned) is **not wired**: `InboxPublicContract.notify()` is the hook, waiting on sign-off F8. Tier 3, depends on Identity and Territory. Not scoped by the financial-year header.
+3. **Holiday list is uploaded by the Admin** as one CSV (name, date, scope, zones, hqs), previewed with `?dryRun=true`, all-or-nothing with errors by line, re-upload safe (existing holidays skipped). **CSV only** (Excel: Save as CSV) to match the existing hierarchy import and avoid a spreadsheet dependency; adding/removing single holidays stays. The CSV reader moved from Territory to `shared/csv`. Territory's contract gained `findZoneByName` / `findHqByName`; Identity's gained `listActiveRecipients`.
+4. **Financial year re-verified, no code change.** Holidays stay timeless: previous years are shown by asking for that year's `from`/`to` (the phone and web already do). Every dated record list still honours `X-Financial-Year`, and a past year is read-only (HLD 9). The Admin year-close is unchanged.
+5. **Mobile:** the phone is another team's; the rules are in [`mobile/utility.md`](mobile/utility.md), [`mobile/inbox.md`](mobile/inbox.md), [`mobile/holidays.md`](mobile/holidays.md), [`mobile/financial-year.md`](mobile/financial-year.md).
+
+**Open:** the phone replaces its demo Inbox and removes Forms; push; F8; a people picker in the web compose form; not browser-checked.
+
+**Refs:** [`LLD/inbox.md`](LLD/inbox.md), [`LLD/hr.md`](LLD/hr.md), [`erd/10-inbox.md`](erd/10-inbox.md), sign-off F8.
+

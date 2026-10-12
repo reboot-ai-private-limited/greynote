@@ -129,6 +129,8 @@ export function buildTerritoryContainer(users: UserDirectoryPort, config: Config
       assignUserHq: (userId, hqId, actorId) => userHq.set.execute(userId, hqId, actorId),
       getHq: (hqId) => hqRepository.findById(hqId),
       getZone: (zoneId) => zoneRepository.findById(zoneId),
+      findZoneByName: (name) => zoneRepository.findByName(name),
+      findHqByName: (zoneId, name) => hqRepository.findByName(zoneId, name),
     },
 
     buildRouter: () => {

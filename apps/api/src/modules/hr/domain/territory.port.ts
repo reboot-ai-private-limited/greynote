@@ -4,4 +4,6 @@ export interface TerritoryPort {
   getUserHq(userId: string): Promise<{ hqId: string; zoneId: string } | null>;
   getHq(hqId: string): Promise<{ id: string; status: 'active' | 'inactive' } | null>;
   getZone(zoneId: string): Promise<{ id: string; status: 'active' | 'inactive' } | null>;
+  findZoneByName(name: string): Promise<{ id: string; status: 'active' | 'inactive' } | null>;
+  findHqByName(zoneId: string, name: string): Promise<{ id: string; status: 'active' | 'inactive' } | null>;
 }

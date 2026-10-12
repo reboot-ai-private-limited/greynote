@@ -1,6 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import multer from 'multer';
-import type { AnyZodObject, ZodTypeAny } from 'zod';
+import { z, type AnyZodObject, type ZodTypeAny } from 'zod';
 import { AppError } from '@/shared/errors/AppError.js';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
@@ -43,6 +43,19 @@ function proofUpload(req: Request, res: Response, next: NextFunction): void {
     next();
   });
 }
+const MAX_HOLIDAY_IMPORT_BYTES = 1024 * 1024;
+const uploadHolidays = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_HOLIDAY_IMPORT_BYTES, files: 1 } }).single('file');
+/** Same multer → AppError bridge as the proof upload. */
+function holidayUpload(req: Request, res: Response, next: NextFunction): void {
+  uploadHolidays(req, res, (err: unknown) => {
+    if (err) {
+      next(AppError.badRequest(err instanceof Error ? err.message : 'Invalid file upload.', { field: 'file' }));
+      return;
+    }
+    next();
+  });
+}
+const holidayImportQuerySchema = z.object({ dryRun: z.enum(['true', 'false']).optional() });
 const bearer = [{ bearerAuth: [] }];
 const json = (schema: ZodTypeAny) => ({ content: { 'application/json': { schema } } });
 
@@ -74,6 +87,22 @@ doc('get', '/leave-policies', 'HR/Admin: the Leave Master — every grade × pai
 doc('put', '/leave-policies/{payBandId}/{leaveTypeId}', 'HR/Admin: set a grade’s default days per leave year', { params: leavePolicyParamsSchema, body: setLeavePolicyBodySchema });
 doc('get', '/holidays', 'Holidays — field staff: the ones that apply to them; HR/Admin: all, filterable', { query: holidayQueryObject });
 doc('post', '/holidays', 'HR/Admin: add a National, Zone or HQ holiday', { body: createHolidayBodySchema });
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/hr/holidays/import',
+  tags: [TAG],
+  summary: 'Admin: add holidays in bulk from a CSV',
+  description:
+    'multipart/form-data with a `file` field (CSV, ≤1 MB, ≤500 rows). Columns: name, date (YYYY-MM-DD), scope (NATIONAL|ZONE|HQ), zones (`;`-separated Zone names), hqs (`;`-separated Zone/HQ). ' +
+    'A holiday already on the calendar (same name, date, scope, places) is skipped. Any problem rejects the whole file with every problem listed by line (publicDetails.errors). ' +
+    '`?dryRun=true` returns the preview (each row NEW or EXISTS) without writing.',
+  security: bearer,
+  request: {
+    query: holidayImportQuerySchema,
+    body: { content: { 'multipart/form-data': { schema: z.object({ file: z.string().openapi({ type: 'string', format: 'binary' }) }) } } },
+  },
+  responses: { 200: { description: 'Dry run preview' }, 201: { description: 'Imported' }, 400: { description: 'Problems found; nothing written' } },
+});
 doc('delete', '/holidays/{id}', 'HR/Admin: remove a holiday', { params: idParamsSchema });
 doc('get', '/leave-balances/me', 'Field staff: my leave balances for a leave year (the current one by default)', { query: balanceQuerySchema });
 doc('get', '/leave-balances/{userId}', 'An employee’s balances — HR/Admin, or their managers (read-only)', { params: userIdParamsSchema, query: balanceQuerySchema });
@@ -117,6 +146,7 @@ export function buildMastersRouter(c: MastersHandlers): Router {
   router.put('/leave-policies/:payBandId/:leaveTypeId', hr, validate({ params: leavePolicyParamsSchema, body: setLeavePolicyBodySchema }), c.setPolicy);
   router.get('/holidays', validate({ query: listHolidaysQuerySchema }), c.listHolidays);
   router.post('/holidays', hr, validate({ body: createHolidayBodySchema }), c.createHoliday);
+  router.post('/holidays/import', requireRole('ADMIN'), validate({ query: holidayImportQuerySchema }), holidayUpload, c.importHolidays);
   router.delete('/holidays/:id', hr, validate({ params: idParamsSchema }), c.deleteHoliday);
   return router;
 }

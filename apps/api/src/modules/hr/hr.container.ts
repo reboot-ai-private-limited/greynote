@@ -23,6 +23,7 @@ import { GetLeaveBalancesUseCase } from './application/usecases/getLeaveBalances
 import { CreateHolidayUseCase } from './application/usecases/createHoliday.usecase.js';
 import { CreateLeaveTypeUseCase } from './application/usecases/createLeaveType.usecase.js';
 import { DeleteHolidayUseCase } from './application/usecases/deleteHoliday.usecase.js';
+import { ImportHolidaysUseCase } from './application/usecases/importHolidays.usecase.js';
 import { ListHolidaysUseCase } from './application/usecases/listHolidays.usecase.js';
 import { ListLeavePoliciesUseCase } from './application/usecases/listLeavePolicies.usecase.js';
 import { ListLeaveTypesUseCase } from './application/usecases/listLeaveTypes.usecase.js';
@@ -104,6 +105,7 @@ export function buildHrContainer(
     leaveLock,
   );
   const lookups = new LeaveLookups(leaves, approvals, probation);
+  const createHoliday = new CreateHolidayUseCase(holidays, territory);
   const masters = {
     listTypes: new ListLeaveTypesUseCase(leaveTypes),
     createType: new CreateLeaveTypeUseCase(leaveTypes),
@@ -111,7 +113,8 @@ export function buildHrContainer(
     listPolicies: new ListLeavePoliciesUseCase(policies, leaveTypes, users),
     setPolicy: new SetLeavePolicyUseCase(policies, leaveTypes, users),
     listHolidays: new ListHolidaysUseCase(holidays, territory),
-    createHoliday: new CreateHolidayUseCase(holidays, territory),
+    createHoliday,
+    importHolidays: new ImportHolidaysUseCase(holidays, territory, createHoliday),
     deleteHoliday: new DeleteHolidayUseCase(holidays),
   };
 

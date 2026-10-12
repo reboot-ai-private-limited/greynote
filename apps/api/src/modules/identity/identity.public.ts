@@ -1,3 +1,4 @@
+import type { RoleName } from '@greynote/contracts';
 import type { LoginInput, LoginOutput } from './application/usecases/login.usecase.js';
 import type { RefreshSessionOutput } from './application/usecases/refreshSession.usecase.js';
 import type { DownlineMember } from './application/usecases/getDownline.usecase.js';
@@ -19,6 +20,14 @@ export interface FieldEmployeeRow {
   hqId: string | null;
   zoneId: string | null;
   managerId: string | null;
+}
+
+/** An active user as an Inbox audience is resolved: role, and (FIELD only) the HQ and Zone copied onto the profile. */
+export interface Recipient {
+  id: string;
+  role: RoleName;
+  hqId: string | null;
+  zoneId: string | null;
 }
 
 /** The only thing another module may import from `identity/`. */
@@ -48,6 +57,8 @@ export interface IdentityPublicContract {
   blockUser(userId: string, reason: string): Promise<boolean>;
   /** Every active FIELD employee's id — who the missed-DCR job checks. */
   listActiveFieldUserIds(): Promise<string[]>;
+  /** Every active user of any role, with the place a field employee sits in — who an Inbox message can reach. */
+  listActiveRecipients(): Promise<Recipient[]>;
   /** Every active FIELD employee (never office staff), or only those among `onlyIds`, by name — a dashboard's rows. */
   listFieldEmployees(onlyIds?: string[]): Promise<FieldEmployeeRow[]>;
   /** When an Admin last cleared a compliance block on this user, or `null` if none ever was. The missed-DCR job counts only days after it. */
