@@ -77,9 +77,9 @@ export function buildPlanningContainer(
   approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['ADMIN'], onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines) });
   const views = new PlanViews(approvals, grants, deadlines);
   const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now);
-  const saveDaily = new SaveDailyPlanUseCase(dailyPlans, approvals, views);
+  const saveDaily = new SaveDailyPlanUseCase(dailyPlans, approvals, views, (u, m) => status.isMonthlyPlanApproved(u, m));
   const carryOver = new CarryOver(dailyPlans, approvals, config);
-  const submitDaily = new SubmitDailyPlanUseCase(dailyPlans, deadlines, submitter, approvals, carryOver);
+  const submitDaily = new SubmitDailyPlanUseCase(dailyPlans, deadlines, submitter, approvals, carryOver, (u, m) => status.isMonthlyPlanApproved(u, m));
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views);
   const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views);
   const listDaily = new ListDailyPlansUseCase(dailyPlans, views);
@@ -114,6 +114,7 @@ export function buildPlanningContainer(
   return {
     contract: {
       isDailyPlanApproved: (userId, planDate) => status.isDailyPlanApproved(userId, planDate),
+      isMonthlyPlanApproved: (userId, planMonth) => status.isMonthlyPlanApproved(userId, planMonth),
       getDailyPlanDay: (userId, planDate) => status.day(userId, planDate),
       listDailyPlanDays: (userId, from, to) => status.days(userId, from, to),
       listPlannedDoctors: async (userId, planMonth) => {

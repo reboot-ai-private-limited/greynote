@@ -31,6 +31,10 @@ export const keys = {
     all: () => ['employeeDrafts', fy()] as const,
     detail: (id: string) => [...keys.employeeDrafts.all(), 'detail', id] as const,
   },
+  lateGrants: {
+    all: () => ['lateGrants', fy()] as const,
+    list: (query: object) => [...keys.lateGrants.all(), 'list', query] as const,
+  },
   designations: { all: () => ['designations', fy()] as const },
   payBands: { all: () => ['payBands', fy()] as const },
   payComponents: { all: () => ['payComponents', fy()] as const },

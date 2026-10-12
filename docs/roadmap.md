@@ -872,3 +872,7 @@ Decision-log 2026-10-10, B14: the MR picks the day's doctors (count = calls due)
 ## Calls outside the day's plan (2026-10-10)
 
 Decision-log 2026-10-10, B15: `ALLOW_UNPLANNED_DOCTOR_CALLS` (default on) lets a call to a doctor not on the day's doctor list be saved and flagged "Not in plan" (approval preview badge, DCR report column/tile/CSV); off refuses it. **Done:** API (`doctorInPlan` check, `notInPlan` on the call, report counts; tests pass) and web. **Open:** the phone's picker; seed the setting; browser check.
+
+## Monthly plan rules and Work With (2026-10-12)
+
+Decision-log 2026-10-12; mobile contract in [`mobile/monthlyplan.md`](mobile/monthlyplan.md). **Done:** `GET /identity/work-with` (every manager, or `?scope=all`; `Name (ASM)` label); no approved Monthly Plan means no daily plan save/submit and no logging (`MONTHLY_PLAN_NOT_APPROVED`); late-submission exceptions take an exact `expiresAt` capped by `LATE_PLAN_GRANT_MAX_HOURS`; web **Late submissions** screen (grant, list, revoke) and `Name (ASM)` in plan and call previews; the 2 AM day-start boundary is tested. Tests pass (API 1215, web 731). **Open:** seed `LATE_PLAN_GRANT_MAX_HOURS` before deploy; browser check of the new screen; the phone app (another team) builds against the mobile doc; `/identity/colleagues` is still missing for the phone's team screens; designation on old days is the current one.

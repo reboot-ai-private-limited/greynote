@@ -119,6 +119,8 @@ import {
   makeUploadUserDocumentController,
 } from './interface/users.controller.js';
 import { buildUsersRouter } from './interface/users.route.js';
+import { buildWorkWithRouter } from './interface/workWith.route.js';
+import { ListWorkWithUseCase } from './application/usecases/listWorkWith.usecase.js';
 import type { IdentityPublicContract } from './identity.public.js';
 
 export interface IdentityContainer {
@@ -295,6 +297,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const getUserSummary = new GetUserSummaryUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getManagerChain = new GetManagerChainUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getUserSummaries = new GetUserSummariesUseCase(userRepository, roleRepository, employeeProfileRepository);
+  const listWorkWith = new ListWorkWithUseCase(userRepository, employeeProfileRepository, designationRepository);
   const getDirectReports = new GetDirectReportsUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getDownline = new GetDownlineUseCase(userRepository, roleRepository, employeeProfileRepository);
   const isFieldRole = new IsFieldRoleUseCase(userRepository, roleRepository);
@@ -384,6 +387,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       router.use('/users', buildUserPromotionsRouter(promotionControllers));
       router.use('/promotions', buildPromotionsRouter(promotionControllers));
       router.use('/employee-drafts', buildEmployeeDraftsRouter(employeeDraftControllers));
+      router.use('/work-with', buildWorkWithRouter(listWorkWith));
       router.use('/users', buildUsersRouter(usersControllers));
       router.use('/pay-components', buildPayComponentsRouter({ list: listPayComponents, create: createPayComponent, update: updatePayComponent }));
       router.use('/ctc', buildCtcRouter(ctcControllers));

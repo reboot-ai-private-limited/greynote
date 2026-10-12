@@ -1,6 +1,7 @@
 /** The codes a refused log or submit carries — what the app tells the MR (LLD field-activity.md, *Submission gating*). */
 export const GATE_CODES = {
   userBlocked: 'USER_BLOCKED',
+  monthlyPlanNotApproved: 'MONTHLY_PLAN_NOT_APPROVED',
   planNotApproved: 'DAILY_PLAN_NOT_APPROVED',
   dateInFuture: 'DATE_IN_FUTURE',
   dateMismatch: 'DATE_MISMATCH',

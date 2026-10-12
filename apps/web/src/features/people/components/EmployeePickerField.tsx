@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
 import { ManagerPickerDialog } from './ManagerPickerDialog';
+import { useDesignations } from '../hooks/useMasterData';
 import { useUser } from '../hooks/useUsers';
 
 /** A person's name and code from their id, or a dash while it loads or for someone not found. */
@@ -11,6 +12,16 @@ export function EmployeeName({ userId }: { userId: string | null | undefined }) 
   const user = useUser(userId);
   if (!userId) return <span className="text-text-subtle">—</span>;
   return <>{user.data ? `${user.data.name} (${user.data.employeeCode})` : '—'}</>;
+}
+
+/** A person as the Work With lines print them: `Asha Rao (ASM)`. Just the name until the designation loads, or if they have none. */
+export function WorkWithName({ userId }: { userId: string }) {
+  const user = useUser(userId);
+  const designations = useDesignations();
+  if (!user.data) return <>—</>;
+  const designationId = user.data.profile?.designationId;
+  const designation = designations.data?.find((d) => d.id === designationId)?.name;
+  return <>{designation ? `${user.data.name} (${designation})` : user.data.name}</>;
 }
 
 /** Choose an active field employee, or clear the choice. The value is a user id. */

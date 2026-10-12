@@ -17,6 +17,22 @@ old one.
 
 ---
 
+## 2026-10-12 — Work With lists every manager in the org; monthly plan rules re-verified
+
+**Decision:**
+- **`GET /identity/work-with`** (FIELD) replaces the idea of a per-relation "colleagues" list for the Work With picker: by default **every active manager in the organisation** (anyone with direct reports, not just the caller's chain); `?scope=all` gives every active field employee. Each row has a `label` — `Name (ASM)` — and reports print people that way.
+- The phone app is another team's; it calls `GET /identity/colleagues`, which the API has never had (team targets and the orders team view depend on it). Not changed here.
+- **No approved Monthly Plan, no work that month.** A Daily Plan can't be saved or submitted for a day in a month whose Monthly Plan isn't past the manager (409 `MONTHLY_PLAN_NOT_APPROVED`), and the logging gate (calls, DCR submit, expenses) refuses with the same code, ahead of the daily check. Unconditional — no setting; current data is test data. A new joiner or someone who missed the deadline gets a late-submission exception for the month.
+- **Admin picks the exact end of a late-submission exception** (`expiresAt`), in the future and within the new `LATE_PLAN_GRANT_MAX_HOURS` (744). Left out, `LATE_PLAN_GRANT_VALID_HOURS` still applies. Web: **Late submissions** (Admin) — grant with a date and time in the business timezone, list, revoke.
+- **Work With in the web previews prints `Name (ASM)`** from the person's current designation. Keeping the designation as it was on the day (a snapshot on every plan day and call) was considered and not done; a promotion therefore changes how old days read.
+- Verified as already correct: the Monthly Plan deadline is the end of the business day of the cutoff day in the previous month, so it follows `DAY_START_TIME` (02:00 → 01:59:59.999 next morning).
+
+**Cost:** an employee whose month isn't approved is stopped from planning and logging until it is, or Admin grants an exception. The designation shown for old days can change after a promotion.
+
+**Mobile rules:** [`mobile/monthlyplan.md`](mobile/monthlyplan.md).
+
+---
+
 ## 2026-10-10 — Monthly expenses: one statement per month, approved by the manager or Admin, then paid
 
 **Decision:**

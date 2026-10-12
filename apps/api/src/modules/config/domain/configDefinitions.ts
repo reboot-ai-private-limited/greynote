@@ -67,6 +67,7 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   integer('MONTHLY_PLAN_SUBMIT_CUTOFF_DATE', 'PLANNING', 'Monthly plan deadline day', 'Day of the month by which a Monthly Plan must be submitted.', 28, 1, 31),
   toggle('LATE_PLAN_GRANT_BY_MANAGER', 'PLANNING', 'Managers can allow late plans', 'Whether a manager (not just Admin) may let someone in their team submit a Plan after its deadline.', false),
   integer('LATE_PLAN_GRANT_VALID_HOURS', 'PLANNING', 'Late-submission exception lasts', 'Hours a late-submission exception stays usable after it is granted.', 24, 1, 744, 'hours'),
+  integer('LATE_PLAN_GRANT_MAX_HOURS', 'PLANNING', 'Longest late-submission exception', 'The furthest ahead (in hours from now) an Admin or manager can set the end of a late-submission exception.', 744, 1, 8760, 'hours'),
   integer('DAILY_PLAN_RESUBMIT_GRACE_MINUTES', 'PLANNING', 'Daily plan resubmit window', 'After a rejection, minutes a Daily Plan may still be resubmitted past its deadline.', 30, 1, 1440, 'minutes'),
   { key: 'DAILY_PLAN_RESUBMIT_LATEST_TIME', module: 'PLANNING', label: 'Latest daily plan resubmit time', description: 'Time of day on the plan date after which a rejected Daily Plan can no longer be resubmitted.', type: 'TIME', default: '11:30', impact: 'NORMAL' },
   integer('MONTHLY_PLAN_RESUBMIT_GRACE_HOURS', 'PLANNING', 'Monthly plan resubmit window', 'After a rejection, hours a Monthly Plan may still be resubmitted past its deadline (never after the month starts).', 24, 1, 744, 'hours'),

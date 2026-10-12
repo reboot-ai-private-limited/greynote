@@ -19,6 +19,19 @@ export async function readConfig<T>(config: ConfigReader, key: string, parse: (v
   }
 }
 
+/**
+ * Like `readConfig`, but a key the database doesn't have yet (not re-seeded since the setting was added) reads as `fallback` — the
+ * seeded default — instead of a fault. A stored value that is present but malformed still surfaces as a fault naming its key.
+ */
+export async function readConfigOr<T>(config: ConfigReader, key: string, parse: (value: string) => T, fallback: T): Promise<T> {
+  try {
+    return await readConfig(config, key, parse);
+  } catch (err) {
+    if (err instanceof AppError && (err.details as { reason?: string } | undefined)?.reason === 'CONFIG_KEY_MISSING') return fallback;
+    throw err;
+  }
+}
+
 export function parseBoolean(value: string): boolean {
   if (value === 'true') return true;
   if (value === 'false') return false;

@@ -102,6 +102,11 @@ export class FakePlanning implements PlanningPort {
     this.approved.add(`${userId}:${date}`);
     if (!this.days.has(`${userId}:${date}`)) this.days.set(`${userId}:${date}`, { workingType: 'FIELD_WORK', routeIds: ['route-1'] });
   }
+  /** Months whose Monthly Plan isn't approved; every month is approved unless a test lists it (`userId:YYYY-MM`). */
+  monthlyBlocked = new Set<string>();
+  async isMonthlyPlanApproved(userId: string, month: string) {
+    return !this.monthlyBlocked.has(`${userId}:${month}`);
+  }
   async isDailyPlanApproved(userId: string, date: string) {
     return this.approved.has(`${userId}:${date}`);
   }
