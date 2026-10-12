@@ -1,9 +1,11 @@
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { SubmitApprovalInput } from './application/usecases/submitApproval.usecase.js';
+import type { WaitingOnManager } from './application/usecases/listApprovals.usecase.js';
 import type { ApprovalKindDefinition } from './domain/approvalKind.js';
 import type { ApprovalRequest } from './domain/approvalRequest.entity.js';
 
 export type { ApprovalKindDefinition, ApprovalStatusChange } from './domain/approvalKind.js';
+export type { WaitingOnManager } from './application/usecases/listApprovals.usecase.js';
 export type { ApprovalRequest, ApprovalStatus } from './domain/approvalRequest.entity.js';
 /** Whether the submitter may edit the record behind a request with this status. */
 export { isEditableBySubmitter } from './domain/approvalRequest.entity.js';
@@ -21,6 +23,8 @@ export interface ApprovalPublicContract {
   getForRecord(kind: string, recordId: string): Promise<ApprovalRequest | null>;
   /** The requests of one kind for a batch of records in one query — a report's read; a record with no request is left out. */
   listForRecords(kind: string, recordIds: string[]): Promise<ApprovalRequest[]>;
+  /** Requests waiting at Stage 1 whose submitter has a manager, oldest first — with the manager, the due time and whether it is past it. Alerts read this. */
+  listWaitingOnManagers(filter?: { kinds?: string[]; submittedFrom?: Date }): Promise<WaitingOnManager[]>;
   /** Rejects a still-open request on the owning module's behalf (e.g. a leave that started unapproved); false if it was not open. */
   autoReject(kind: string, recordId: string, reason: string): Promise<boolean>;
 }

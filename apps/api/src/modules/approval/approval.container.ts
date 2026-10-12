@@ -61,6 +61,7 @@ export function buildApprovalContainer(users: UserDirectoryPort, config: ConfigP
       getForRecord: (kind, recordId) => getForRecord.execute(kind, recordId),
       listForRecords: (kind, recordIds) => requestRepository.findByRecords(kind, recordIds),
       autoReject: (kind, recordId, reason) => autoReject.execute(kind, recordId, reason),
+      listWaitingOnManagers: (filter) => list.waitingOnManagers(filter),
     },
     buildRouter: () => buildApprovalRouter(makeApprovalControllers({ list, detail, decide, bulk, withdraw, reopen })),
     decide,

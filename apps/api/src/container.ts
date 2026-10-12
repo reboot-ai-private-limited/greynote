@@ -110,7 +110,7 @@ export function buildContainers(): AppContainers {
   const reports = buildReportsContainer(identity.contract, fieldMasterData.contract, sales.contract, fieldActivity.contract, territory.contract, payroll.contract, planning.contract, attendance.contract, marketing.contract, config.contract);
 
   // Tier 7 — Team: a manager's view of their downline. Reads Identity, Territory, Planning, Field Activity, HR, Config, Reports, Sales and Field Master Data; owns no data.
-  const team = buildTeamContainer(identity.contract, territory.contract, planning.contract, fieldActivity.contract, hr.contract, config.contract, reports.contract, sales.contract, fieldMasterData.contract);
+  const team = buildTeamContainer(identity.contract, territory.contract, planning.contract, fieldActivity.contract, hr.contract, config.contract, reports.contract, sales.contract, fieldMasterData.contract, approval.contract, inbox.contract, identity.contract);
 
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.

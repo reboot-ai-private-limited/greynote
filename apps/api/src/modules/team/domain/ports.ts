@@ -122,11 +122,54 @@ export interface TeamSalesPort {
 
 /** Team's narrow view of Field Master Data: outlet names. */
 export interface TeamMasterPort {
-  listNames(query: {
-    distributorIds?: string[];
-    chemistIds?: string[];
-  }): Promise<{
+  listNames(query: { distributorIds?: string[]; chemistIds?: string[] }): Promise<{
     distributors: Array<{ id: string; name: string }>;
     chemists: Array<{ id: string; name: string }>;
   }>;
+}
+
+export interface WaitingRequest {
+  requestId: string;
+  kind: string;
+  recordId: string;
+  cycle: number;
+  submitterId: string;
+  managerId: string;
+  submittedAt: Date;
+  dueAt: Date;
+  overdue: boolean;
+}
+
+/** Team's narrow view of Approval; `approval.contract` satisfies it structurally. */
+export interface TeamApprovalPort {
+  listWaitingOnManagers(filter?: {
+    kinds?: string[];
+    submittedFrom?: Date;
+  }): Promise<WaitingRequest[]>;
+}
+
+/** Team's narrow view of Inbox; `inbox.contract` satisfies it structurally. */
+export interface TeamInboxPort {
+  notify(
+    userIds: string[],
+    input: {
+      title: string;
+      body: string;
+      kind: 'UPDATE' | 'REMINDER';
+      expiresAt?: Date | undefined;
+    },
+  ): Promise<number>;
+}
+
+/** Team's narrow view of Identity for naming people and finding their manager. */
+export interface TeamPeoplePort {
+  getUserSummaries(
+    userIds: string[],
+  ): Promise<Array<{ id: string; name: string; employeeCode: string; managerId: string | null }>>;
+}
+
+/** What has already been told, so a job that runs every few minutes tells each thing once. */
+export interface AlertMarksPort {
+  /** Records these keys and returns only the ones that were not recorded before (safe from several servers at once). */
+  claim(keys: string[]): Promise<string[]>;
 }

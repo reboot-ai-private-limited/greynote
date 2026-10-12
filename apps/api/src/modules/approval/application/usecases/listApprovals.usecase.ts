@@ -6,7 +6,7 @@ import type { Actor } from '../../domain/approvalRules.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { ApprovalKindRegistry } from '../approvalKindRegistry.js';
 import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
-import { canActOn, loadPeople, loadSlaDays, toListItem, type ApprovalListItem } from '../approvalViews.js';
+import { canActOn, dueAt, loadPeople, loadSlaDays, toListItem, type ApprovalListItem } from '../approvalViews.js';
 
 const OPEN: ApprovalStatus[] = ['SUBMITTED', 'MANAGER_APPROVED'];
 /**
@@ -31,6 +31,19 @@ export interface InboxSummary {
   total: number;
   overdue: number;
   byKind: Array<{ kind: string; count: number; overdue: number }>;
+}
+
+/** A request still waiting on the submitter's manager (Stage 1) — what the Team alerts are built from. */
+export interface WaitingOnManager {
+  requestId: string;
+  kind: string;
+  recordId: string;
+  cycle: number;
+  submitterId: string;
+  managerId: string;
+  submittedAt: Date;
+  dueAt: Date;
+  overdue: boolean;
 }
 
 export interface PageQuery {
@@ -80,6 +93,23 @@ export class ListApprovalsUseCase {
     const submitterIds = filters.submitterId ? reportIds.filter((id) => id === filters.submitterId) : reportIds;
     if (submitterIds.length === 0) return buildPaginatedResult([], 0, page);
     return this.page(actor, { ...common, submitterIds, statuses: ['SUBMITTED'] }, page, 'asc');
+  }
+
+  /**
+   * Every request waiting at Stage 1 whose submitter has a manager, oldest first (at most `IN_MEMORY_CAP`), optionally of some kinds or
+   * submitted since a time. A submitter with no manager goes straight to Admin, so is left out. For alerts, not for a screen.
+   */
+  async waitingOnManagers(filter: { kinds?: string[] | undefined; submittedFrom?: Date | undefined } = {}): Promise<WaitingOnManager[]> {
+    const { items } = await this.requests.list({ statuses: ['SUBMITTED'], kinds: filter.kinds, submittedFrom: filter.submittedFrom }, { sortOrder: 'asc', pageSize: IN_MEMORY_CAP, page: 1 });
+    const people = await loadPeople(this.users, items);
+    const days = await loadSlaDays(this.config);
+    const now = Date.now();
+    return items.flatMap((r) => {
+      const managerId = people.get(r.submitterId)?.managerId;
+      const due = dueAt(r, days);
+      if (!managerId || !due) return [];
+      return [{ requestId: r.id, kind: r.kind, recordId: r.recordId, cycle: r.cycle, submitterId: r.submitterId, managerId, submittedAt: r.submittedAt, dueAt: due, overdue: now > due.getTime() }];
+    });
   }
 
   /**

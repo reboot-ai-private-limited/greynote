@@ -154,6 +154,7 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
     impactNote: 'Requests of a listed kind submitted from now on are decided by the manager alone, with no Admin or HR check. Requests already in progress are not affected.',
   },
 
+  toggle('TEAM_ALERTS_ENABLED', 'APPROVAL', 'Tell managers about their team’s requests', 'Whether a manager is sent an Inbox message for a new leave, monthly-expenses or new-doctor request from their team, for any request waiting past the approval turnaround, and when someone on their team is blocked for missed reports.', true),
   integer('APPROVAL_SLA_DAYS', 'APPROVAL', 'Approval turnaround', 'Days an approver has to act on a request. After that it is flagged overdue (nothing is approved automatically; Admin can always approve).', 3, 1, 30, 'days'),
 
   // ── System ──
