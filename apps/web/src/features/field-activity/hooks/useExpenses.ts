@@ -1,8 +1,14 @@
 'use client';
 
-import type { ExpensePaymentStatus, PayExpensesDto, PayOutcomeDto } from '@greynote/contracts';
+import type {
+  ExpenseMonthGrantDto,
+  ExpensePaymentStatus,
+  GrantExpenseMonthDto,
+  PayExpensesDto,
+  PayOutcomeDto,
+} from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
-import { fieldActivityApi } from '@/lib/api/endpoints/fieldActivity';
+import { fieldActivityApi, type ListExpenseGrantsQuery } from '@/lib/api/endpoints/fieldActivity';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
@@ -58,5 +64,34 @@ export function usePayExpenses(onResult: (outcomes: PayOutcomeDto[]) => void) {
     call: (token, body) => fieldActivityApi.payExpenses(token, body),
     invalidates: [keys.expenses.all()],
     onSuccess: onResult,
+  });
+}
+
+/** Late-expense exceptions, newest first. They get used up, so they are not held fresh. */
+export function useExpenseGrants(query: ListExpenseGrantsQuery) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.expenses.grants(query),
+      fetch: (token, signal) => fieldActivityApi.expenseGrants(token, query, signal),
+      staleTime: staleTime.live,
+    }),
+  );
+}
+
+export function useGrantExpenseMonth(onDone: () => void) {
+  return useApiMutation<GrantExpenseMonthDto, ExpenseMonthGrantDto>({
+    call: (token, body) => fieldActivityApi.grantExpenseMonth(token, body),
+    invalidates: [keys.expenses.all()],
+    successMessage: 'Late expenses allowed.',
+    onSuccess: onDone,
+  });
+}
+
+export function useRevokeExpenseGrant(onDone: () => void) {
+  return useApiMutation<string, ExpenseMonthGrantDto>({
+    call: (token, id) => fieldActivityApi.revokeExpenseGrant(token, id),
+    invalidates: [keys.expenses.all()],
+    successMessage: 'Exception revoked.',
+    onSuccess: onDone,
   });
 }

@@ -859,7 +859,7 @@ Expenses leave the DCR (decision-log 2026-10-10, K37): dated "Other" entries, a 
 
 ## Expense deadlines and late exception (2026-10-12)
 
-Decision-log 2026-10-12: the monthly expense statement now has a submit deadline and an approval deadline (System settings), and a one-off Admin / manager exception for each that cannot be granted, nor the month reopened, once any of it is paid. **Done:** API (`ExpenseMonthDeadlines`, `ExpenseMonthGrant`, checks in `ExpenseMonthService.submit` / `onStatusChange`, `/expense-grants` routes, five settings, statement shows `deadlines`, `exceptions`, `submitLate`; API tests pass). **Open:** web grant dialog and approver preview, phone Expenses screen (deadline + late state), contracts types, seed the five settings (`manual_deploy.md`), browser check.
+Decision-log 2026-10-12: the monthly expense statement now has a submit deadline and an approval deadline (System settings), and a one-off Admin / manager exception for each that cannot be granted, nor the month reopened, once any of it is paid. **Done:** API (`ExpenseMonthDeadlines`, `ExpenseMonthGrant`, checks in `ExpenseMonthService.submit` / `onStatusChange`, `/expense-grants` routes, five settings, statement shows `deadlines`, `exceptions`, `submitLate`; API tests pass). **Web done 2026-10-12:** contracts types, Admin **Late expenses** page (grant / revoke), deadlines and late-approval notice in the approver preview. **Phone:** not built here, documented in [`mobile/expenses.md`](mobile/expenses.md). **Open:** seed the five settings (`manual_deploy.md`), browser check.
 
 ## Visuals shown to doctors (2026-10-10)
 

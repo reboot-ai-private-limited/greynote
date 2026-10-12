@@ -5,7 +5,10 @@ import type {
   DoctorGiftDto,
   DoctorServiceDto,
   ExpenseAuditRowDto,
+  ExpenseMonthGrantDto,
   ExpenseStatementDto,
+  GrantExpenseMonthDto,
+  PaginatedDto,
   ExpensePaymentStatus,
   ExpensePayoutSheetDto,
   MarkedPaidDto,
@@ -15,7 +18,16 @@ import type {
 } from '@greynote/contracts';
 import { request } from '../client';
 
+export interface ListExpenseGrantsQuery {
+  page: number;
+  pageSize: number;
+}
+
 export const fieldActivityApi = {
+  expenseGrants: (token: string, query: ListExpenseGrantsQuery, signal?: AbortSignal) =>
+    request<PaginatedDto<ExpenseMonthGrantDto>>('/field-activity/expense-grants', { token, query: { ...query }, signal }),
+  grantExpenseMonth: (token: string, body: GrantExpenseMonthDto) => request<ExpenseMonthGrantDto>('/field-activity/expense-grants', { method: 'POST', token, body }),
+  revokeExpenseGrant: (token: string, id: string) => request<ExpenseMonthGrantDto>(`/field-activity/expense-grants/${id}/revoke`, { method: 'POST', token }),
   /** `from`/`to` are required (`YYYY-MM-DD`, at most 400 days). A bare array, capped at 500. */
   expenses: (
     token: string,

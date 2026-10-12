@@ -259,6 +259,41 @@ export interface ExpenseStatementDto {
   /** What was sent to the approver; differs from `totals` if TA/DA changed after the send. */
   submittedTotals: ExpenseTotalsDto | null;
   paidPaise: number;
+  /** The end of the day the month must be sent / approved by (ISO instants); after it only an exception lets it through (decision-log 2026-10-12). */
+  deadlines: { submitBy: string; approveBy: string };
+  /** The open exception for each deadline: when it ends (ISO), or null. */
+  exceptions: { submitUntil: string | null; approveUntil: string | null };
+  /** The send deadline has passed with no exception: the employee can no longer submit. */
+  submitLate: boolean;
+}
+
+export type ExpenseGrantPhaseDto = 'SUBMIT' | 'APPROVE';
+export type ExpenseGrantStatusDto = 'OPEN' | 'USED' | 'REVOKED' | 'EXPIRED';
+/** A one-off exception that lets a month of expenses be sent or approved after its deadline. */
+export interface ExpenseMonthGrantDto {
+  id: string;
+  userId: string;
+  month: string;
+  phase: ExpenseGrantPhaseDto;
+  reason: string;
+  grantedBy: string;
+  grantedByRole: string;
+  grantedAt: string;
+  expiresAt: string;
+  status: ExpenseGrantStatusDto;
+  /** `OPEN` past `expiresAt` reads as `EXPIRED` here. */
+  effectiveStatus: ExpenseGrantStatusDto;
+  usedAt: string | null;
+  revokedAt: string | null;
+  revokedBy: string | null;
+}
+/** `POST /field-activity/expense-grants`. `expiresAt` (ISO date-time) left out: the default length applies. */
+export interface GrantExpenseMonthDto {
+  userId: string;
+  month: string;
+  phase: ExpenseGrantPhaseDto;
+  reason: string;
+  expiresAt?: string;
 }
 export interface ExpenseMonthSummaryDto {
   month: string;

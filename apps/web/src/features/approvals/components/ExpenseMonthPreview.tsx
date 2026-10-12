@@ -3,7 +3,7 @@
 import type { ExpenseDayLineDto, ExpenseStatementDto } from '@greynote/contracts';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable, type Column } from '@/components/ui/DataTable';
-import { formatDate, formatMoney } from '@/lib/format';
+import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import { monthLabel } from '@/features/payroll/lib/payroll';
 import { useExpenseMonth } from '../hooks/usePreviews';
 import { PreviewFrame } from './PreviewFrame';
@@ -50,6 +50,10 @@ export function ExpenseMonthPreview({ recordId }: { recordId: string }) {
 
 function Body({ statement }: { statement: ExpenseStatementDto }) {
   const { totals, submittedTotals } = statement;
+  const approveLate =
+    statement.status === 'SUBMITTED' &&
+    new Date() > new Date(statement.deadlines.approveBy) &&
+    !statement.exceptions.approveUntil;
   const changed = submittedTotals !== null && submittedTotals.totalPaise !== totals.totalPaise;
   return (
     <div className="space-y-4 p-5">
@@ -65,6 +69,20 @@ function Body({ statement }: { statement: ExpenseStatementDto }) {
           Total was {formatMoney(submittedTotals.totalPaise)} when sent — TA/DA changed since
         </Badge>
       ) : null}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
+        <span>Send by {formatDateTime(statement.deadlines.submitBy)}</span>
+        <span>Approve by {formatDateTime(statement.deadlines.approveBy)}</span>
+        {approveLate ? (
+          <Badge tone="warning">
+            Approval deadline passed — Admin must allow it first (Late expenses)
+          </Badge>
+        ) : null}
+        {statement.exceptions.approveUntil ? (
+          <Badge tone="success">
+            Late approval allowed until {formatDateTime(statement.exceptions.approveUntil)}
+          </Badge>
+        ) : null}
+      </div>
       <DataTable columns={COLUMNS} rows={statement.days} rowKey={(d) => d.date} bleed={false} />
     </div>
   );

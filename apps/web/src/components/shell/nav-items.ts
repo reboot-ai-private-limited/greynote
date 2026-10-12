@@ -68,6 +68,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
 
   { label: 'Approvals', href: '/approvals', icon: ClipboardCheck, group: 'Daily work', roles: ['ADMIN', 'HR'] },
   { label: 'Late submissions', href: '/late-submissions', icon: Clock, group: 'Daily work', roles: ['ADMIN'] },
+  { label: 'Late expenses', href: '/late-expenses', icon: Clock, group: 'Daily work', roles: ['ADMIN'] },
   { label: 'Attendance', href: '/attendance', icon: CalendarCheck, group: 'Daily work', roles: ALL },
   { label: 'Orders', href: '/orders', icon: ShoppingCart, group: 'Daily work', roles: ['ADMIN'] },
 
