@@ -26,6 +26,13 @@ export interface ApprovalQueryFilters {
   to?: Date | undefined;
 }
 
+/** The badge on the Team screen: what is waiting on the caller, in total and by kind. */
+export interface InboxSummary {
+  total: number;
+  overdue: number;
+  byKind: Array<{ kind: string; count: number; overdue: number }>;
+}
+
 export interface PageQuery {
   page: number;
   pageSize: number;
@@ -73,6 +80,23 @@ export class ListApprovalsUseCase {
     const submitterIds = filters.submitterId ? reportIds.filter((id) => id === filters.submitterId) : reportIds;
     if (submitterIds.length === 0) return buildPaginatedResult([], 0, page);
     return this.page(actor, { ...common, submitterIds, statuses: ['SUBMITTED'] }, page, 'asc');
+  }
+
+  /**
+   * Counts of what `inbox` would list, so a phone can show a badge without paging. The kind counts read the oldest
+   * `IN_MEMORY_CAP` rows; `total` is always the true number of open rows the inbox holds (HR's is the capped count).
+   */
+  async inboxSummary(actor: Actor): Promise<InboxSummary> {
+    const { items, total } = await this.inbox(actor, {}, { page: 1, pageSize: IN_MEMORY_CAP });
+    const byKind = new Map<string, { kind: string; count: number; overdue: number }>();
+    for (const item of items) {
+      const row = byKind.get(item.kind) ?? { kind: item.kind, count: 0, overdue: 0 };
+      row.count += 1;
+      if (item.overdue) row.overdue += 1;
+      byKind.set(item.kind, row);
+    }
+    const rows = [...byKind.values()].sort((a, b) => a.kind.localeCompare(b.kind));
+    return { total, overdue: rows.reduce((n, r) => n + r.overdue, 0), byKind: rows };
   }
 
   /**

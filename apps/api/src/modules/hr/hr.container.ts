@@ -104,7 +104,7 @@ export function buildHrContainer(
     probation,
     leaveLock,
   );
-  const lookups = new LeaveLookups(leaves, approvals, probation);
+  const lookups = new LeaveLookups(leaves, approvals, probation, leaveTypes);
   const createHoliday = new CreateHolidayUseCase(holidays, territory);
   const masters = {
     listTypes: new ListLeaveTypesUseCase(leaveTypes),
@@ -122,6 +122,7 @@ export function buildHrContainer(
     contract: {
       isOnLeave: (userId, date) => lookups.isOnLeave(userId, date),
       listLeaveDates: (userId, from, to) => lookups.leaveDates(userId, from, to),
+      listLeavesForUsers: (userIds, from, to) => lookups.leavesForUsers(userIds, from, to),
       getUnpaidLeaveDays: (userId, month) => lookups.unpaidDays(userId, month),
       listOffDates: async (userId, from, to) => {
         const weeklyOff = await calendar.weeklyOff();

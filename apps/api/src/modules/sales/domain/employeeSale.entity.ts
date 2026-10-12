@@ -5,6 +5,21 @@
 export const SECONDARY_STATUSES = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED'] as const;
 export type SecondaryStatus = (typeof SECONDARY_STATUSES)[number];
 
+/** A month as a whole for one employee: nothing entered at all, or where the entered lines stand. */
+export type MonthSecondaryStatus = SecondaryStatus | 'NOT_ENTERED';
+
+/**
+ * The month's secondary as one word. Only lines where a quantity was entered count (a line that only carries Admin's primary change is not the
+ * employee's secondary). The month goes to the manager as a whole, so lines normally agree; if they do not, the one that still needs somebody
+ * wins: waiting for the manager, then sent back, then still a draft, and approved only when every entered line is.
+ */
+export function monthSecondaryStatus(rows: Array<Pick<EmployeeSale, 'secondaryQty' | 'secondaryStatus'>>): MonthSecondaryStatus {
+  const entered = rows.filter((r) => r.secondaryQty !== null);
+  if (entered.length === 0) return 'NOT_ENTERED';
+  for (const s of ['PENDING', 'REJECTED', 'DRAFT'] as const) if (entered.some((r) => r.secondaryStatus === s)) return s;
+  return 'APPROVED';
+}
+
 /** What a line was before a change: who changed it, when, and the values it had. */
 export interface EmployeeSaleRevision {
   by: string;

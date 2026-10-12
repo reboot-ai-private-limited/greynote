@@ -65,6 +65,7 @@ const SCOPED = [
   '/api/reports/me/dcr/coverage',
   '/api/reports/salary',
   '/api/reports/sales-dashboard',
+  '/api/reports/team/overview',
   '/api/approvals/inbox',
   '/api/approvals/all',
   '/api/approvals/team',
@@ -141,6 +142,14 @@ const TIMELESS = [
   // Messages to a person: a feed of what is current, not a record of any year.
   '/api/inbox',
   '/api/inbox/unread-count',
+  '/api/approvals/inbox/summary', // what waits on me right now: a live count, not a dated record
+  '/api/team/members', // who is on my team today, not a dated record
+  '/api/team/members/:id/summary', // one person of my team, today and the month asked for
+  '/api/team/today', // takes its own day (today or earlier), read live from the daily records
+  '/api/team/plans', // takes its own day, including tomorrow: a planning view, not a year's report
+  '/api/team/orders', // a short window the phone chooses (at most 93 days)
+  '/api/team/stock', // takes its own month
+  '/api/team/leaves', // a short window the phone chooses (at most 93 days)
   '/api/inbox/messages',
   // Background sync: the phone never sends the year header on it (decision-log 2026-09-30).
   '/api/sync/pull',

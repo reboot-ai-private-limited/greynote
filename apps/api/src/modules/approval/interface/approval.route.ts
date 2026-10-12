@@ -43,6 +43,7 @@ function doc(
 }
 
 doc('get', '/inbox', 'What I can approve now — manager: direct reports; HR: Leave; Admin: everything open (oldest first)', { query: inboxQuerySchema });
+doc('get', '/inbox/summary', 'How many requests wait on me, in total, overdue, and per kind — the badge; no paging', {});
 doc('get', '/all', 'Admin: every request in any status, newest first; HR: Leave requests in any status — the History view', { query: inboxQuerySchema });
 doc('get', '/team', 'Manager: my downline’s requests; direct reports actionable, deeper levels read-only', { query: teamQuerySchema });
 doc('get', '/mine', 'My own requests', { query: mineQuerySchema });
@@ -53,13 +54,14 @@ doc('post', '/bulk', 'Approve or reject up to 100 at once; per-item results', { 
 doc('post', '/{id}/withdraw', 'Submitter: withdraw before the manager acts', { params: approvalIdParamsSchema, body: withdrawBodySchema });
 doc('post', '/{id}/reopen', 'Admin: reopen an approved request for changes — reason required', { params: approvalIdParamsSchema, body: reopenBodySchema });
 
-export function buildApprovalRouter(c: Record<'inbox' | 'all' | 'team' | 'mine' | 'detail' | 'approve' | 'reject' | 'bulk' | 'withdraw' | 'reopen', RequestHandler>): Router {
+export function buildApprovalRouter(c: Record<'inbox' | 'inboxSummary' | 'all' | 'team' | 'mine' | 'detail' | 'approve' | 'reject' | 'bulk' | 'withdraw' | 'reopen', RequestHandler>): Router {
   const router = Router();
   router.use(authenticate());
   const withId = (body: ZodTypeAny) => validate({ params: approvalIdParamsSchema, body });
 
   // Literal paths before `/:id`, so "inbox" is never read as an id.
   router.get('/inbox', requireRole('FIELD', 'HR', 'ADMIN'), scopeToFinancialYear({ kind: 'instant', from: 'from', to: 'to', fill: true }), validate({ query: inboxQuerySchema }), c.inbox);
+  router.get('/inbox/summary', requireRole('FIELD', 'HR', 'ADMIN'), c.inboxSummary);
   router.get('/all', requireRole('HR', 'ADMIN'), scopeToFinancialYear({ kind: 'instant', from: 'from', to: 'to', fill: true }), validate({ query: inboxQuerySchema }), c.all);
   router.get('/team', requireRole('FIELD'), scopeToFinancialYear({ kind: 'instant', from: 'from', to: 'to', fill: true }), validate({ query: teamQuerySchema }), c.team);
   router.get('/mine', scopeToFinancialYear({ kind: 'instant', from: 'from', to: 'to', fill: true }), validate({ query: mineQuerySchema }), c.mine);

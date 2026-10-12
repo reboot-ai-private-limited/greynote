@@ -107,6 +107,7 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
     impact: 'HIGH',
     impactNote: 'Applies to reports submitted from now on. Off: nobody reviews a daily report before its TA/DA is generated. Reports already waiting keep their current approval path.',
   },
+  { key: 'TEAM_NOT_STARTED_AFTER', module: 'FIELD_ACTIVITY', label: 'Manager sees “not started” after', description: 'Time of day after which a field employee with no calls or follow-ups logged for the day shows as “not started” on their manager’s Team screen. Display only: nothing is blocked or flagged to anyone else.', type: 'TIME', default: '11:00', impact: 'NORMAL' },
   integer('DCR_MISS_GRACE_DAYS', 'FIELD_ACTIVITY', 'Missed-report grace', 'Missed working days allowed before the compliance block. Set 0 for the rule "a daily report not submitted by the next day start blocks the employee until a manager or Admin unblocks them"; the seeded 1 allows one miss.', 1, 0, 365, 'days'),
 
   toggle('CALL_CARRY_OVER_FOREVER', 'FIELD_ACTIVITY', 'Missed calls carry over without limit', 'Whether a doctor planned for a day but not called stays on later days\u2019 plans until called. Off: the days setting below applies.', false),

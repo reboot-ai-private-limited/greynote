@@ -34,6 +34,15 @@ export const salesDashboardQuerySchema = z
   })
   .refine((q) => q.from <= q.to, { message: 'The range ends before it starts.', path: ['to'] });
 
+export const teamOverviewQuerySchema = z.object({
+  month: monthSchema,
+  scope: z.enum(['direct', 'indirect', 'all']).default('all'),
+  userId: objectId.optional(),
+  search: z.string().trim().min(1).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(25),
+});
+
 export const employeeSalesQuerySchema = z
   .object({ userId: objectId, from: monthSchema, to: monthSchema })
   .refine((q) => q.from <= q.to, { message: 'The range ends before it starts.', path: ['to'] });

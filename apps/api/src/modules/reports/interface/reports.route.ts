@@ -5,7 +5,7 @@ import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js'
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { makeReportsControllers } from './reports.controller.js';
-import { myMonthQuerySchema, doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, dcrYearQuerySchema, orderIdParamsSchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
+import { myMonthQuerySchema, doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, dcrYearQuerySchema, orderIdParamsSchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, teamOverviewQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
 const tags = ['Reports'];
 const security = [{ bearerAuth: [] }];
@@ -26,6 +26,7 @@ openApiRegistry.registerPath({ method: 'get', path: '/api/reports/salary', tags,
 
 openApiRegistry.registerPath({ method: 'get', path: '/api/reports/sales-dashboard', tags, summary: 'Admin (all field employees) or a manager (their downline): plan and daily-report compliance, TA, DA, target and achievement over a date range', security, request: { query: salesDashboardQuerySchema }, responses: { 200: { description: 'The dashboard' } } });
 
+openApiRegistry.registerPath({ method: 'get', path: '/api/reports/team/overview', tags, summary: 'Manager (their downline) or Admin: one row per person for a month — working days, plan and daily-report compliance, calls and follow-ups, late and unconfirmed, attendance, TA, DA, target against what was entered', security, request: { query: teamOverviewQuerySchema }, responses: { 200: { description: 'OK' } } });
 openApiRegistry.registerPath({ method: 'get', path: '/api/reports/employee-sales', tags, summary: 'Admin, the employee, or their manager: targets, primary and secondary by product over a run of months', security, request: { query: employeeSalesQuerySchema }, responses: { 200: { description: 'The employee\'s figures' } } });
 
 openApiRegistry.registerPath({ method: 'get', path: '/api/reports/doctor-visits', tags, summary: 'Admin (any employee), a manager (themself and their downline) or an employee (themself): each doctor\'s visit frequency against the calls made in a month, with missed calls', security, request: { query: doctorVisitsQuerySchema }, responses: { 200: { description: 'Quota, made and missed per employee and doctor' } } });
@@ -41,6 +42,7 @@ export function buildReportsRouter(c: ReturnType<typeof makeReportsControllers>)
   router.use(authenticate());
   // The one report a manager may open: the report itself limits a manager to their downline.
   router.get('/sales-dashboard', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: salesDashboardQuerySchema }), c.salesDashboard);
+  router.get('/team/overview', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: teamOverviewQuerySchema }), c.teamOverview);
   router.get('/employee-sales', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'from', to: 'to', fill: false }), validate({ query: employeeSalesQuerySchema }), c.employeeSales);
   router.get('/doctor-visits', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: doctorVisitsQuerySchema }), c.doctorVisits);
   // The employee's own reports: always the signed-in user's figures; no userId is read.

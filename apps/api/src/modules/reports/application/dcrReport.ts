@@ -27,7 +27,7 @@ function add(into: ReturnType<typeof zero>, r: Omit<DcrFiguresDto, 'calls' | 'ca
   for (const k of ['pass', 'fail', 'unverified', 'override'] as const) into.geofence[k] += r.geofence[k];
 }
 
-const counted = (r: DcrMonthRow) => ({ reportedDays: r.reportedDays, lateDays: r.lateDays, doctorCalls: r.doctorCalls, chemistCalls: r.chemistCalls, followups: r.followups, geofence: { ...r.geofence }, notInPlan: r.notInPlan, followupsNotInPlan: r.followupsNotInPlan, offRouteCalls: r.offRouteCalls });
+export const counted = (r: DcrMonthRow) => ({ reportedDays: r.reportedDays, lateDays: r.lateDays, doctorCalls: r.doctorCalls, chemistCalls: r.chemistCalls, followups: r.followups, geofence: { ...r.geofence }, notInPlan: r.notInPlan, followupsNotInPlan: r.followupsNotInPlan, offRouteCalls: r.offRouteCalls });
 
 /**
  * What the field force reported, for the financial year in view (sign-off K28: calls only): per month and per employee the reported days, doctor

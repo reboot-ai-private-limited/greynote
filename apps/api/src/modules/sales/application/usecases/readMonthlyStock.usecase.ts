@@ -51,8 +51,10 @@ export class ListMissingStockUseCase {
     private readonly users: UserDirectoryPort,
   ) {}
 
-  async execute(actor: Actor, month: string): Promise<MissingStockRow[]> {
-    const ids = actor.role === 'ADMIN' ? await this.users.listActiveFieldUserIds() : (await this.users.getDownline(actor.id)).filter((u) => u.role === 'FIELD' && u.status === 'active').map((u) => u.id);
+  async execute(actor: Actor, month: string, onlyIds?: string[]): Promise<MissingStockRow[]> {
+    const everyone = actor.role === 'ADMIN' ? await this.users.listActiveFieldUserIds() : (await this.users.getDownline(actor.id)).filter((u) => u.role === 'FIELD' && u.status === 'active').map((u) => u.id);
+    const keep = onlyIds ? new Set(onlyIds) : null;
+    const ids = keep ? everyone.filter((id) => keep.has(id)) : everyone;
     const names = new Map((await this.users.getUserSummaries(ids)).map((u) => [u.id, u.name]));
     const rows: MissingStockRow[] = [];
     for (const userId of ids) {
