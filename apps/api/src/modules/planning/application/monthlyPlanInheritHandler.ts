@@ -10,6 +10,7 @@ import type { PlanDeadlines } from './planDeadlines.js';
 
 const sameDay = (a: PlanDay, b: PlanDay): boolean =>
   a.workingType === b.workingType &&
+  a.dayKind === b.dayKind &&
   a.remarks === b.remarks &&
   [...a.routeIds].sort().join() === [...b.routeIds].sort().join() &&
   [...a.workWith].sort().join() === [...b.workWith].sort().join();

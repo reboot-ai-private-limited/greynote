@@ -6,7 +6,7 @@ import { formatDate } from '@/lib/format';
 import { useDoctor } from '@/features/field-master-data/hooks/useDoctors';
 import { WorkWithName } from '@/features/people/components/EmployeePickerField';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
-import { WORKING_TYPE_LABEL } from '../lib/review';
+import { DAY_KIND_LABEL, WORKING_TYPE_LABEL } from '../lib/review';
 
 function DoctorName({ doctorId }: { doctorId: string }) {
   const { data } = useDoctor(doctorId);
@@ -21,6 +21,7 @@ export function PlanDayView({ day }: { day: PlanDayDto & { doctors?: PlannedDoct
       <Badge tone={day.workingType === 'FIELD_WORK' ? 'accent' : 'neutral'}>
         {WORKING_TYPE_LABEL[day.workingType]}
       </Badge>
+      {day.dayKind !== 'NORMAL' ? <Badge tone="neutral">{DAY_KIND_LABEL[day.dayKind]}</Badge> : null}
       {day.routeIds.length > 0 ? (
         <p>
           <span className="text-text-subtle">Routes: </span>

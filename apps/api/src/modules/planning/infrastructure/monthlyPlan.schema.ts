@@ -3,6 +3,7 @@ import { planDaySchemaFields, type PlanDayDoc } from './planDoc.js';
 
 export interface MonthlyPlanEntryDoc extends PlanDayDoc {
   planDate: string;
+  returnDate?: string | null;
 }
 
 export interface MonthlyPlanDoc {
@@ -17,7 +18,7 @@ export interface MonthlyPlanDoc {
 // Embedded: at most 31, always saved and submitted with their month, so one document keeps each
 // write atomic.
 const entrySchema = new Schema<MonthlyPlanEntryDoc>(
-  { planDate: { type: String, required: true }, ...planDaySchemaFields },
+  { planDate: { type: String, required: true }, returnDate: { type: String, default: null }, ...planDaySchemaFields },
   { _id: false },
 );
 

@@ -18,7 +18,7 @@ const AFTER_CUTOFF = '2026-10-05T05:00:00Z'; // 10:30 IST
 
 const admin = { id: ADMIN, role: 'ADMIN' as const };
 const field = (id: string) => ({ id, role: 'FIELD' as const });
-const day: PlanDay = { workingType: 'FIELD_WORK', workWith: [], routeIds: [ROUTE], remarks: null };
+const day: PlanDay = { workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [ROUTE], remarks: null };
 const grantInput = { userId: MR, kind: 'DAILY_PLAN' as const, planKey: DATE, reason: 'Network down at 9:45' };
 
 async function expectError(promise: Promise<unknown>, statusCode: number, code?: string) {

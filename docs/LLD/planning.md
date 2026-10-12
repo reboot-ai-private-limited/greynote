@@ -164,6 +164,10 @@ this doc does not re-derive that state machine. As it applies here:
 
 `SubmitDailyPlanUseCase` calls `assertMonthlyApproved` (`monthlyGate.ts`) first: the owner's Monthly Plan for the day's month must be `MANAGER_APPROVED` or `APPROVED` (`getPlanStatus.isMonthlyPlanApproved`, also on the public contract). Otherwise `409 MONTHLY_PLAN_NOT_APPROVED` with `publicDetails.planMonth`. Field Activity's `LoggingGate` asks the same question through its `PlanningPort` before the daily-plan check and refuses with `GateRefusal` code `MONTHLY_PLAN_NOT_APPROVED`. The way in for a new joiner or a missed deadline is a late-submission exception for that month.
 
+## Out-station trips: stay and transit days (decision-log 2026-10-12)
+
+`PlanDay.dayKind` is `NORMAL`, `STAY` or `TRANSIT`; a Monthly entry may carry `returnDate`. `SaveMonthlyPlanUseCase` drops any `STAY`/`TRANSIT` entries sent with the plan and rebuilds them with `expandTrips` (`domain/tripExpansion.ts`): days after the trip's first up to the day before `returnDate` are `STAY`, `returnDate` is `TRANSIT`, all copying the trip. It refuses a return date that isn't after the day, leaves the month, sits on a non-field day or runs over another planned day. The out-station check needs Territory, so `PlanSubmitter.validateDays` makes it at submit (`RouteDirectoryPort` now returns `routeType`): a stay or transit day must have an out-station route. `inheritDays` compares `dayKind`, so a re-approved month refreshes inherited days. A manager's amendment keeps the day's `dayKind`. `PlanningPort.getDailyPlanDay` hands `dayKind` to Field Activity's TA/DA (`calculateTaDa`), see `hld/06`.
+
 ## Daily Plans inherit from the Monthly Plan (decision-log 2026-10-03)
 
 The `MONTHLY_PLAN` kind's `onStatusChange` (`monthlyPlanInheritHandler.ts`) runs in the approval's

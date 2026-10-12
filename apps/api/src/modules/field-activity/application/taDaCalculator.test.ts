@@ -52,6 +52,29 @@ describe('TA/DA calculation (hld/06)', () => {
     for (const x of calc('FIELD_WORK', [route('r1', { distanceKm: '33.333', routeType: 'EX_STATION' })], ['r1'], rates)) expect(Number.isInteger(x.amountPaise)).toBe(true);
   });
 
+  describe('an out-station trip: first day, stay days, the way back', () => {
+    const out = [route('r1', { routeType: 'OUT_STATION', distanceKm: '80.00' })];
+    const tripDay = (kind: 'NORMAL' | 'STAY' | 'TRANSIT') => calculateTaDa('FIELD_WORK', out, ['r1'], rates, 99, kind);
+
+    it('the first day is TA and the out-station DA', () => {
+      expect(tripDay('NORMAL')).toEqual([
+        { type: 'TA', routeId: 'r1', amountPaise: 60000, distanceFlag: false },
+        { type: 'DA', routeId: null, amountPaise: 50000, distanceFlag: false },
+      ]);
+    });
+
+    it('a stay day is the out-station DA and no TA', () => {
+      expect(tripDay('STAY')).toEqual([{ type: 'DA', routeId: null, amountPaise: 50000, distanceFlag: false }]);
+    });
+
+    it('the transit day is TA, with DA at the ex-station rate', () => {
+      expect(tripDay('TRANSIT')).toEqual([
+        { type: 'TA', routeId: 'r1', amountPaise: 60000, distanceFlag: false },
+        { type: 'DA', routeId: null, amountPaise: 20000, distanceFlag: false },
+      ]);
+    });
+  });
+
   describe('only the day’s longest Route is paid, for at most maxKm', () => {
     const ta = (out: ReturnType<typeof calc>) => out.filter((x) => x.type === 'TA').map((x) => [x.routeId, x.amountPaise]);
     const r = { ...rates, taPerKmRatePaise: 100 };

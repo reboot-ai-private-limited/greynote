@@ -2065,3 +2065,11 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 
 **Refs:** [`mobile/team.md`](mobile/team.md), [`LLD/team.md`](LLD/team.md), [`LLD/inbox.md`](LLD/inbox.md), sign-off F8, K42.
 
+
+## 2026-10-12 — Out-station trips: stay and transit days
+
+**Decision:** a multi-day out-station trip is planned once. On the day the employee leaves they give a return date; the server fills the days between as stay days and the return day as a transit day. Pay: trip day TA + out-station DA; stay day out-station DA, no TA; transit day TA + ex-station DA (the pay band's existing ex-station rate). A same-day return has no return date and is an ordinary day. Stay and transit days are normal working days (approved daily plan, DCR, calls allowed), so the existing gates and TA/DA timing are unchanged. This is how the Night Stay question (D2) is answered for now: no separate allowance. Trips stay inside one month; the out-station route is checked at submit.
+
+**Open:** client to confirm (D2); a trip across a month end; the phone screens (mobile team).
+
+**Refs:** [`mobile/monthlyplan.md`](mobile/monthlyplan.md) rules 16-17, [`LLD/planning.md`](LLD/planning.md), [`hld/06-ta-da-auto-calculation.md`](hld/06-ta-da-auto-calculation.md), sign-off D2.

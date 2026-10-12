@@ -39,6 +39,7 @@ export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: List
           id: p.id,
           planDate: p.planDate,
           workingType: p.workingType,
+          dayKind: p.dayKind,
           workWith: p.workWith,
           routeIds: p.routeIds,
           doctors: p.doctors,

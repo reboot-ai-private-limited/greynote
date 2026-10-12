@@ -15,7 +15,7 @@ const ADMIN = 'aaaaaaaaaaaaaaaaaaaaaaa5';
 const R1 = 'bbbbbbbbbbbbbbbbbbbbbbb1';
 const R2 = 'bbbbbbbbbbbbbbbbbbbbbbb2';
 
-const field = (routeId: string): PlanDay => ({ workingType: 'FIELD_WORK', workWith: [], routeIds: [routeId], remarks: null });
+const field = (routeId: string): PlanDay => ({ workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [routeId], remarks: null });
 const reason = (p: Promise<unknown>) => p.then(() => undefined, (e: AppError) => (e.publicDetails as { reason?: string } | undefined)?.reason);
 
 describe('Daily Plans inherited from the Monthly Plan', () => {
@@ -40,9 +40,9 @@ describe('Daily Plans inherited from the Monthly Plan', () => {
     const saveMonthly = new SaveMonthlyPlanUseCase(kit.monthlyPlans, kit.approvals, kit.views);
     const submitMonthly = new SubmitMonthlyPlanUseCase(kit.monthlyPlans, kit.deadlines, kit.submitter);
     const plan = await saveMonthly.execute(MR, '2026-10', [
-      { planDate: '2026-10-02', ...field(R1) }, // already past
-      { planDate: '2026-10-06', ...field(R1) },
-      { planDate: '2026-10-07', ...field(R2) },
+      { planDate: '2026-10-02', returnDate: null, ...field(R1) }, // already past
+      { planDate: '2026-10-06', returnDate: null, ...field(R1) },
+      { planDate: '2026-10-07', returnDate: null, ...field(R2) },
     ]);
     monthlyId = plan.id;
     await submitMonthly.execute(MR, plan.id);

@@ -2,11 +2,13 @@
  * Plans over HTTP, as the approval previews read them. Dates are ISO strings on the wire; `planDate` is a
  * calendar day (`YYYY-MM-DD`), `planMonth` a month (`YYYY-MM`).
  */
-import type { WorkingType } from './sync.js';
+import type { DayKind, WorkingType } from './sync.js';
 
 /** One planned day, whether a daily plan's body or one entry of a monthly plan. */
 export interface PlanDayDto {
   workingType: WorkingType;
+  /** `STAY` / `TRANSIT`: a day of an out-station trip the server wrote from the first day's `returnDate`. */
+  dayKind: DayKind;
   /** Accompanying colleagues' user ids. */
   workWith: string[];
   routeIds: string[];
@@ -56,6 +58,8 @@ export interface DailyPlanDto extends PlanDayDto, PlanStateDto {
 
 export interface MonthlyPlanEntryDto extends PlanDayDto {
   planDate: string;
+  /** On a trip's first day: the day the employee comes back. The days between are `STAY`, the return day `TRANSIT`. Null otherwise. */
+  returnDate: string | null;
 }
 
 export interface MonthlyPlanDto extends PlanStateDto {

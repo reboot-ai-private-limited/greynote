@@ -21,6 +21,9 @@ export const WORKING_TYPE_LABEL: Record<WorkingType, string> = {
   STRIKE: 'Strike',
 };
 
+/** A day of an out-station trip, shown beside the work type; an ordinary day shows nothing. */
+export const DAY_KIND_LABEL = { STAY: 'Stay (DA only)', TRANSIT: 'Transit · return (TA, ex-station DA)' } as const;
+
 /** The kind of Route a record was made on, shown beside the work type. */
 export const ROUTE_TYPE_LABEL: Record<RecordRouteTypeDto, string> = {
   HQ: 'HQ',

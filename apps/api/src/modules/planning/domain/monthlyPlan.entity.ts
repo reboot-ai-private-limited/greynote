@@ -4,6 +4,12 @@ import type { PlanDay } from './plan.js';
 export interface MonthlyPlanEntry extends PlanDay {
   /** `YYYY-MM-DD`, inside the Plan's month. */
   planDate: string;
+  /**
+   * On the first day of an out-station trip: the day the employee comes back (`YYYY-MM-DD`, after `planDate`, same month).
+   * The days in between are `STAY` entries and this day a `TRANSIT` entry — the server writes them. Null for an ordinary day
+   * and for a same-day return.
+   */
+  returnDate: string | null;
 }
 
 /**

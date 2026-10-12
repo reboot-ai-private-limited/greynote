@@ -10,14 +10,14 @@ function toPlan(doc: MonthlyPlanDoc & { _id: unknown }): MonthlyPlan {
     id: String(doc._id),
     userId: String(doc.userId),
     planMonth: doc.planMonth,
-    entries: doc.entries.map((e) => ({ planDate: e.planDate, ...toPlanDay(e) })),
+    entries: doc.entries.map((e) => ({ planDate: e.planDate, returnDate: e.returnDate ?? null, ...toPlanDay(e) })),
     revision: doc.revision,
     lateResubmits: doc.lateResubmits ?? 0,
     updatedAt: doc.updatedAt,
   };
 }
 
-const toEntryDocs = (entries: MonthlyPlanEntry[]) => entries.map((e) => ({ planDate: e.planDate, ...toDayDoc(e) }));
+const toEntryDocs = (entries: MonthlyPlanEntry[]) => entries.map((e) => ({ planDate: e.planDate, returnDate: e.returnDate, ...toDayDoc(e) }));
 
 export class MongoMonthlyPlanAdapter implements MonthlyPlanRepositoryPort {
   async findById(id: string): Promise<MonthlyPlan | null> {
