@@ -1,12 +1,15 @@
-export const EMPLOYEE_CODE_PREFIX = 'GRN';
+export const EMPLOYEE_CODE_PREFIX = 'GH';
 
-/** GRN0001, GRN0002 … ; past 9999 it simply grows (GRN10000). */
+/** The first number handed out: GH101. */
+export const EMPLOYEE_CODE_FIRST = 101;
+
+/** GH101, GH102 …, no padding; past 999 it simply grows (GH1000). */
 export function formatEmployeeCode(sequence: number): string {
-  return `${EMPLOYEE_CODE_PREFIX}${String(sequence).padStart(4, '0')}`;
+  return `${EMPLOYEE_CODE_PREFIX}${sequence}`;
 }
 
-/** The number in a GRN code, or `null` for any other code (older, hand-typed ones). */
+/** The number in a GH code, or `null` for any other code (older GRN ones, hand-typed ones). */
 export function parseEmployeeCode(code: string): number | null {
-  const match = /^GRN(\d+)$/.exec(code);
+  const match = /^GH(\d+)$/.exec(code);
   return match ? Number(match[1]) : null;
 }

@@ -58,6 +58,8 @@ import { LoginUseCase } from './application/usecases/login.usecase.js';
 import { LogoutUseCase } from './application/usecases/logout.usecase.js';
 import { LogoutAllSessionsUseCase } from './application/usecases/logoutAllSessions.usecase.js';
 import { RefreshSessionUseCase } from './application/usecases/refreshSession.usecase.js';
+import { RemoveDraftPhotoUseCase, RemoveEmployeePhotoUseCase, SetDraftPhotoUseCase, SetEmployeePhotoUseCase } from './application/usecases/employeePhoto.usecase.js';
+import { CloudinaryPhotoStorage } from './infrastructure/cloudinaryPhotoStorage.adapter.js';
 import { RemoveUserDocumentUseCase } from './application/usecases/removeUserDocument.usecase.js';
 import { DeleteAccountUseCase } from './application/usecases/deleteAccount.usecase.js';
 import { ResetPasswordUseCase } from './application/usecases/resetPassword.usecase.js';
@@ -115,7 +117,9 @@ import {
   makeCreateUserController,
   makeGetUserDetailController,
   makeListUsersController,
+  makeRemoveEmployeePhotoController,
   makeRemoveUserDocumentController,
+  makeSetEmployeePhotoController,
   makeResetPasswordController,
   makeAnonymiseUserController,
   makeUnblockUserController,
@@ -174,6 +178,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const accessTokenSigner = new JwtAccessTokenSigner();
   const refreshTokenGenerator = new CryptoRefreshTokenGenerator();
   const documentStorage = new CloudinaryDocumentStorage();
+  const photoStorage = new CloudinaryPhotoStorage();
   const transactionRunner = new MongooseTransactionRunner();
 
   const tokenOpts = {
@@ -266,7 +271,9 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     list: new ListEmployeeDraftsUseCase(employeeDraftRepository),
     get: new GetEmployeeDraftUseCase(employeeDraftRepository),
     update: new UpdateEmployeeDraftUseCase(employeeDraftRepository),
-    remove: new DeleteEmployeeDraftUseCase(employeeDraftRepository),
+    remove: new DeleteEmployeeDraftUseCase(employeeDraftRepository, photoStorage),
+    setPhoto: new SetDraftPhotoUseCase(employeeDraftRepository, photoStorage),
+    removePhoto: new RemoveDraftPhotoUseCase(employeeDraftRepository, photoStorage),
     finalize: new FinalizeEmployeeDraftUseCase(
       employeeDraftRepository,
       userRepository,
@@ -282,6 +289,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
         return hqAssigner;
       },
       currentMonth,
+      employeeProfileRepository,
     ),
   });
   const listCtcHistory = new ListCtcHistoryUseCase(ctcAssignmentRepository);
@@ -339,6 +347,8 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     update: makeUpdateUserController(updateUser),
     uploadDocument: makeUploadUserDocumentController(uploadUserDocument),
     removeDocument: makeRemoveUserDocumentController(removeUserDocument),
+    setPhoto: makeSetEmployeePhotoController(new SetEmployeePhotoUseCase(userRepository, employeeProfileRepository, photoStorage)),
+    removePhoto: makeRemoveEmployeePhotoController(new RemoveEmployeePhotoUseCase(employeeProfileRepository, photoStorage)),
     unblock: makeUnblockUserController(unblockUser),
     resetPassword: makeResetPasswordController(resetPassword),
     anonymise: makeAnonymiseUserController(deleteAccount),

@@ -90,6 +90,7 @@ export class DeleteAccountUseCase {
     // Files first: if storage fails the DB still lists them and the request can simply be retried.
     const profile = await this.employeeProfileRepository.findByUserId(userId);
     for (const document of profile?.documents ?? []) await this.documentStorage.remove(document.publicId);
+    if (profile?.photo) await this.documentStorage.remove(profile.photo.publicId);
     if (profile) {
       await this.employeeProfileRepository.upsert(userId, {
         mobileNumber: null,
@@ -105,6 +106,7 @@ export class DeleteAccountUseCase {
         esiNumber: null,
         bankDetails: null,
         documents: [],
+        photo: null,
       });
     }
 

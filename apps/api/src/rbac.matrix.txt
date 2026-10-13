@@ -8,8 +8,10 @@ DELETE /api/hr/holidays/:id  ADMIN,HR
 DELETE /api/hr/leaves/:id/approval-grant  ADMIN
 DELETE /api/hr/leaves/:id/attachments/:attachmentId  FIELD
 DELETE /api/identity/employee-drafts/:id  ADMIN,HR
+DELETE /api/identity/employee-drafts/:id/photo  ADMIN,HR
 DELETE /api/identity/users/:id/devices/:deviceRowId  ADMIN
 DELETE /api/identity/users/:id/documents/:documentId  ADMIN,HR
+DELETE /api/identity/users/:id/photo  ADMIN,HR
 DELETE /api/inbox/messages/:id  ADMIN
 DELETE /api/marketing/doctors/:doctorId/visuals/:visualId  ADMIN,FIELD
 DELETE /api/marketing/targets/:id  ADMIN,FIELD
@@ -267,5 +269,7 @@ PUT    /api/field-activity/expenses/other/:id  FIELD
 PUT    /api/field-master-data/doctors/added/:id  FIELD
 PUT    /api/hr/leave-policies/:payBandId/:leaveTypeId  ADMIN,HR
 PUT    /api/hr/leaves/:id  FIELD
+PUT    /api/identity/employee-drafts/:id/photo  ADMIN,HR
+PUT    /api/identity/users/:id/photo  ADMIN,HR
 PUT    /api/sync/drafts  FIELD
 PUT    /api/territory/users/:userId/hq  ADMIN,HR

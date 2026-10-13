@@ -17,6 +17,7 @@ import {
   useFinalizeEmployeeDraft,
   useSaveEmployeeDraft,
 } from '../hooks/useEmployeeDrafts';
+import { useRemoveDraftPhoto, useSetDraftPhoto } from '../hooks/useEmployeeDrafts';
 import { usePayComponents } from '../hooks/useCtc';
 import { useDesignations } from '../hooks/useMasterData';
 import {
@@ -37,13 +38,14 @@ import { BankStep } from './onboarding/BankStep';
 import { CompensationStep } from './onboarding/CompensationStep';
 import { CredentialsCard } from './onboarding/CredentialsCard';
 import { PersonalStep } from './onboarding/PersonalStep';
+import { PhotoPicker } from './PhotoPicker';
 import { ReviewStep } from './onboarding/ReviewStep';
 import { ExperienceStep, QualificationsStep } from './onboarding/RowsSteps';
 import { WorkStep } from './onboarding/WorkStep';
 
 /**
  * Adding a field employee in one guided pass. A step opens only once the ones before it are valid. Every Next saves the
- * form as a draft, so leaving never loses anything, and the last step creates the login with the next GRN id and a
+ * form as a draft, so leaving never loses anything, and the last step creates the login with the next GH id and a
  * generated password.
  */
 export function EmployeeOnboardingScreen() {
@@ -69,6 +71,12 @@ export function EmployeeOnboardingScreen() {
 
   const finalize = useFinalizeEmployeeDraft(setResult);
 
+  // The saved photo's address, and a file chosen before the draft existed (uploaded as soon as the first save creates it).
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  const setDraftPhoto = useSetDraftPhoto();
+  const removeDraftPhoto = useRemoveDraftPhoto();
+
   const payComponents = usePayComponents();
   const orgCodes = useMemo(
     () => (payComponents.data ?? []).map((c) => c.code),
@@ -88,6 +96,7 @@ export function EmployeeOnboardingScreen() {
     const restored = fromDraftData(draft.data);
     setForm(restored);
     setDraftId(draft.id);
+    setPhotoUrl(draft.data.photoUrl ?? null);
     setStep(firstOpenStep(restored, { designations: designations.data, today: istDate() }));
   }, [loaded.data, designations.data]);
 
@@ -119,9 +128,42 @@ export function EmployeeOnboardingScreen() {
         setDraftId(saved.id);
         router.replace(`/employees/new?draft=${saved.id}`, { scroll: false });
       }
+      if (pendingPhoto) {
+        const file = pendingPhoto;
+        setPendingPhoto(null);
+        // A photo that fails to upload must not stop the form being saved: the toast says why, and it can be chosen again.
+        await uploadPhoto(saved.id, file);
+      }
       return saved.id;
     } catch {
       return null; // the mutation has already shown why
+    }
+  }
+
+  async function uploadPhoto(id: string, file: File) {
+    try {
+      setPhotoUrl((await setDraftPhoto.mutateAsync({ id, file })).photoUrl);
+    } catch {
+      // the mutation has already shown why
+    }
+  }
+
+  function pickPhoto(file: File) {
+    if (draftId) void uploadPhoto(draftId, file);
+    else setPendingPhoto(file);
+  }
+
+  async function removePhoto() {
+    if (pendingPhoto) {
+      setPendingPhoto(null);
+      return;
+    }
+    if (!draftId) return;
+    try {
+      await removeDraftPhoto.mutateAsync(draftId);
+      setPhotoUrl(null);
+    } catch {
+      // the mutation has already shown why
     }
   }
 
@@ -165,6 +207,8 @@ export function EmployeeOnboardingScreen() {
           setResult(null);
           setForm(EMPTY_FORM);
           setDraftId(null);
+          setPhotoUrl(null);
+          setPendingPhoto(null);
           setTried(new Set());
           setStep('personal');
           router.replace('/employees/new');
@@ -208,7 +252,22 @@ export function EmployeeOnboardingScreen() {
           ) : (
             <>
               {step === 'personal' ? (
-                <PersonalStep form={form} update={update} errors={errors} />
+                <PersonalStep
+                  form={form}
+                  update={update}
+                  errors={errors}
+                  photo={
+                    <PhotoPicker
+                      name={form.name}
+                      photoUrl={photoUrl}
+                      pendingFile={pendingPhoto}
+                      busy={setDraftPhoto.isPending || removeDraftPhoto.isPending}
+                      disabled={readOnly}
+                      onPick={pickPhoto}
+                      onRemove={() => void removePhoto()}
+                    />
+                  }
+                />
               ) : null}
               {step === 'address' ? (
                 <AddressStep form={form} update={update} errors={errors} />

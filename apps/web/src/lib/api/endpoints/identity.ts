@@ -12,6 +12,7 @@ import type {
   UpdatePayComponentDto,
   CreateUserDto,
   EmployeeDraftDto,
+  PhotoDto,
   FinalizedEmployeeDto,
   SaveEmployeeDraftDto,
   CreatePayBandDto,
@@ -85,12 +86,23 @@ export const identityApi = {
   removeDocument: (token: string, userId: string, documentId: string) =>
     request<Record<string, never>>(`/identity/users/${userId}/documents/${documentId}`, { method: 'DELETE', token }),
 
+  /** `multipart/form-data` with one `file`. Replaces any photo; the old file is deleted server side. */
+  setPhoto: (token: string, userId: string, body: FormData) =>
+    request<PhotoDto>(`/identity/users/${userId}/photo`, { method: 'PUT', token, body }),
+
+  removePhoto: (token: string, userId: string) =>
+    request<PhotoDto>(`/identity/users/${userId}/photo`, { method: 'DELETE', token }),
+
   createUser: (token: string, body: CreateUserDto) =>
     request<UserListItemDto>('/identity/users', { method: 'POST', token, body }),
 };
 
 /** Half-filled new-employee forms, and the last step that turns one into a login. */
 export const employeeDraftsApi = {
+  setPhoto: (token: string, id: string, body: FormData) =>
+    request<PhotoDto>(`/identity/employee-drafts/${id}/photo`, { method: 'PUT', token, body }),
+  removePhoto: (token: string, id: string) =>
+    request<PhotoDto>(`/identity/employee-drafts/${id}/photo`, { method: 'DELETE', token }),
   list: (token: string, signal?: AbortSignal) => request<EmployeeDraftDto[]>('/identity/employee-drafts', { token, signal }),
   get: (token: string, id: string, signal?: AbortSignal) => request<EmployeeDraftDto>(`/identity/employee-drafts/${id}`, { token, signal }),
   create: (token: string, body: SaveEmployeeDraftDto) =>

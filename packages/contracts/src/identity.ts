@@ -27,6 +27,7 @@ export interface UserListItemDto {
   hqId: string | null;
   zoneId: string | null;
   status: UserListStatus;
+  photoUrl?: string | null;
 }
 
 export const DESIGNATION_NAMES = ['MR', 'ASM', 'RSM', 'ZSM', 'NSM'] as const;
@@ -153,6 +154,7 @@ export interface UserDetailDto {
     previousEmployment: UserPreviousEmploymentDto[];
     bankDetails: UserBankDetailsDto | null;
     documents: UserDocumentDto[];
+    photoUrl?: string | null;
   } | null;
 }
 
@@ -197,6 +199,8 @@ export interface DraftAddressDto {
 
 /** The wizard's data, a section per step. Dates are `YYYY-MM-DD`; money is whole paise. */
 export interface EmployeeDraftDataDto {
+  /** Read-only: the draft photo's address, set by `PUT /employee-drafts/:id/photo`, never by a save. */
+  photoUrl?: string;
   personal?: {
     name?: string;
     /** 10 digits. */
@@ -473,4 +477,9 @@ export interface PromotionDto {
   createdAt: string;
   appliedAt: string | null;
   cancelledAt: string | null;
+}
+
+/** `PUT` / `DELETE /identity/users/:id/photo` and `/identity/employee-drafts/:id/photo`. */
+export interface PhotoDto {
+  photoUrl: string | null;
 }

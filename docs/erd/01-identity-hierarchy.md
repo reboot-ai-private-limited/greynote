@@ -63,6 +63,7 @@ erDiagram
         json address "nullable - {district, state, pincode, country}, country default India"
         json bank_details "nullable - {bank_name, ifsc, account_number, account_holder_name, branch_name}"
         json documents "array - [{id, type, url, publicId, uploadedAt}], uploaded to Cloudinary"
+        json photo "nullable - {url, publicId}, the profile picture; optional, not required for activation; only url is sent to clients"
     }
 
     COMPLIANCE_BLOCK {
@@ -136,7 +137,7 @@ pay-band/manager/joining-date/bank/documents don't apply to those roles.
 
 Since 2026-10-09 a new FIELD employee is added through a wizard backed by an `EmployeeDraft`
 (`created_by`, `step`, `data` per wizard step, `created_user_id` once the login exists) that is
-turned into the real records by one "finalize" call, so a `User` and its `GRN` code appear only at
+turned into the real records by one "finalize" call, so a `User` and its `GH` code appear only at
 the end. `EmployeeProfile` also holds `alternate_mobile`, `permanent_address` /
 `permanent_same_as_present`, `qualifications[]` (degree, institute, year) and `previous_employment[]`
 (company, joining date, end date); an address has `line1`/`line2`. A `counters` document (`_id:

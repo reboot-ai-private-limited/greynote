@@ -41,12 +41,14 @@ export interface UserSummary {
   designationId: string | null;
   managerId: string | null;
   status: UserStatus;
+  /** The profile picture's address (FIELD employees); null when there is none. */
+  photoUrl?: string | null;
 }
 
 export function toUserSummary(
   user: User,
   role: RoleName,
-  profile?: { designationId: string | null; managerId: string | null } | null,
+  profile?: { designationId: string | null; managerId: string | null; photo?: { url: string } | null } | null,
 ): UserSummary {
   return {
     id: user.id,
@@ -56,5 +58,6 @@ export function toUserSummary(
     designationId: profile?.designationId ?? null,
     managerId: profile?.managerId ?? null,
     status: user.status,
+    photoUrl: profile?.photo?.url ?? null,
   };
 }

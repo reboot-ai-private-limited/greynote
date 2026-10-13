@@ -10,6 +10,7 @@ import type { CreateUserUseCase } from '../application/usecases/createUser.useca
 import type { UpdateUserUseCase } from '../application/usecases/updateUser.usecase.js';
 import type { UploadUserDocumentUseCase } from '../application/usecases/uploadUserDocument.usecase.js';
 import type { RemoveUserDocumentUseCase } from '../application/usecases/removeUserDocument.usecase.js';
+import type { RemoveEmployeePhotoUseCase, SetEmployeePhotoUseCase } from '../application/usecases/employeePhoto.usecase.js';
 import type { DeleteAccountUseCase } from '../application/usecases/deleteAccount.usecase.js';
 import type { ResetPasswordUseCase } from '../application/usecases/resetPassword.usecase.js';
 import type { UnblockUserUseCase } from '../application/usecases/unblockUser.usecase.js';
@@ -92,5 +93,18 @@ export function makeAnonymiseUserController(useCase: DeleteAccountUseCase): Requ
   return asyncHandler(async (req, res) => {
     await useCase.anonymise(requiredParam(req.params, 'id'));
     sendSuccess(req, res, {}, 'Account deleted. Personal data removed; records kept.', 200);
+  });
+}
+
+export function makeSetEmployeePhotoController(useCase: SetEmployeePhotoUseCase): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    if (!req.file) throw AppError.badRequest('A file is required.', { field: 'file' });
+    sendSuccess(req, res, await useCase.execute(requiredParam(req.params, 'id'), req.file.buffer), 'Photo saved.', 200);
+  });
+}
+
+export function makeRemoveEmployeePhotoController(useCase: RemoveEmployeePhotoUseCase): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    sendSuccess(req, res, await useCase.execute(requiredParam(req.params, 'id')), 'Photo removed.', 200);
   });
 }

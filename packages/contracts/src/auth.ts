@@ -34,6 +34,8 @@ export interface UserSummaryDto {
   designationId: string | null;
   managerId: string | null;
   status: string;
+  /** The profile picture's address; null when there is none. */
+  photoUrl?: string | null;
 }
 
 export interface LoginRequestDto {

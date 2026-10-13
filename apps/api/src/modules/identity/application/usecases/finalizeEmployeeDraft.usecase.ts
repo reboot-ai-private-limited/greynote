@@ -7,6 +7,7 @@ import { draftGaps, type DraftAddress, type EmployeeDraft } from '../../domain/e
 import type { EmployeeDraftRepositoryPort } from '../../domain/employeeDraft.repository.port.js';
 import type { Address } from '../../domain/employeeProfile.entity.js';
 import { isTopDesignation } from '../../domain/onboarding.js';
+import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
 import type { PasswordHasherPort } from '../../domain/passwordHasher.port.js';
 import { generatePassword } from '../../domain/passwordGenerator.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
@@ -40,7 +41,7 @@ function toAddress(address: DraftAddress | undefined): Address {
 }
 
 /**
- * The wizard's last step: turns a complete draft into the real employee — login with the next GRN
+ * The wizard's last step: turns a complete draft into the real employee — login with the next GH
  * code and a generated password, profile, HQ, CTC — and removes the draft. Built on the use cases
  * that already own each piece, so every rule they enforce (loop-free manager, active status) holds.
  *
@@ -61,6 +62,7 @@ export class FinalizeEmployeeDraftUseCase {
     private readonly passwordHasher: PasswordHasherPort,
     private readonly assignHq: () => HqAssigner,
     private readonly currentMonth: () => Promise<string>,
+    private readonly profiles: EmployeeProfileRepositoryPort,
   ) {}
 
   async execute(actor: { id: string; role: RoleName }, draftId: string): Promise<FinalizedEmployee> {
@@ -115,6 +117,9 @@ export class FinalizeEmployeeDraftUseCase {
       payBandId: data.compensation?.payBandId as string,
       ...(!top && data.work?.managerId ? { managerId: data.work.managerId } : {}),
     });
+
+    // The photo file stays where it is; only the reference moves to the new employee.
+    if (data.photo) await this.profiles.upsert(userId, { photo: data.photo });
 
     await this.assignHq()(userId, data.work?.hqId as string, actor.id);
 

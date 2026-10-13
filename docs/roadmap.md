@@ -832,7 +832,7 @@ New read-only `reports` module (top tier, writes nothing; reads Sales, Field Act
 
 ## Employee onboarding wizard (2026-10-09)
 
-Built, not browser-checked: the eight-step new-employee wizard with drafts, `GRN` ids from a counter, server-generated password with Copy/Share, the top-designation rule, and the new profile fields (decision-log 2026-10-09). API and web unit tests pass. Still open: show and edit the new fields (alternate mobile, permanent address, qualifications, experience) on the profile screens; the old `/employees/:id/setup` stepper for employees already in onboarding; a browser walk-through against the dev database.
+Built, not browser-checked: the eight-step new-employee wizard with drafts, `GH` ids from a counter (was `GRN`, decision-log 2026-10-13), server-generated password with Copy/Share, the top-designation rule, and the new profile fields (decision-log 2026-10-09). API and web unit tests pass. Still open: show and edit the new fields (alternate mobile, permanent address, qualifications, experience) on the profile screens; the old `/employees/:id/setup` stepper for employees already in onboarding; a browser walk-through against the dev database.
 
 **Flat tables (2026-10-09):** all list tables, report tables and tab tables are flat and full width with a page-size select and an entries footer (decision-log 2026-10-09). Not yet checked at phone width; Promotion team table, the payroll calendar grid and chart cards keep their old look.
 
@@ -911,3 +911,7 @@ Plan and phone contract in [`mobile/team.md`](mobile/team.md) (the phone is anot
 ## Google Play: account deletion and demo Manager (2026-10-13)
 
 Decision-log 2026-10-13. **Done (API + docs, unit-tested):** `POST /identity/auth/delete-account` and Admin/HR `POST /identity/users/:id/anonymise` (scrub personal data, keep records, `deletedAt`); `isDemo` users and `seed:demo-manager` (DEMOMGR + 2 MRs, territory, 6 doctors); `mobile/account.md`. **Open:** the phone's Delete account screen; run the seed against the live database and sign in as DEMOMGR; add demo calls, DCRs, leave and expenses so the Team screens are not empty; privacy-policy text on retention; Play Console Data-safety and App-access forms; Play may still ask for a public deletion-request web page.
+
+## Employee photo and GH ids (2026-10-13)
+
+Decision-log 2026-10-13. **Done (API + web + docs, unit-tested, not browser-checked; branch `feat/employee-photo`):** new employee ids `GH101, GH102 …`; optional profile photo for FIELD employees — a picture at the top of the wizard's Personal step (choose, choose another, remove), the same on the employee page, avatar in the Employees list, `photoUrl` on user detail, list and `/auth/me`. Replacing or removing deletes the old file from Cloudinary. Open: the phone showing and changing the photo; a browser walk-through against the dev database and Cloudinary.

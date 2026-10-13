@@ -218,7 +218,7 @@ old one.
 
 ---
 
-## 2026-10-09 — New field employees are added in one guided wizard with drafts; the GRN id and password are generated at the end; the top designation has no manager
+## 2026-10-09 — New field employees are added in one guided wizard with drafts; the employee id and password are generated at the end; the top designation has no manager
 
 **Decision:**
 - `/employees/new` is one eight-step wizard: **Personal** (name, mobile, alternate mobile, guardian, date of birth, ESI number, joining date, probation), **Address** (present, and permanent with a "same as present" box), **Qualifications** (repeatable, optional), **Experience** (repeatable, optional), **Bank**, **Work** (designation, zone → HQ, manager), **Pay** (grade, optional CTC), **Review**. A step opens only once every step before it is valid. Required: personal, address, bank, work, pay grade. Optional: alternate mobile, ESI, joining date, probation, qualifications, experience, CTC.
@@ -2180,3 +2180,15 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** HR features the client still wants on this module (to be listed); "missing documents / no CTC" in the attention line needs a list endpoint that reports them; saved filters were not chosen.
 
 **Refs:** `apps/web/src/features/people/lib/employeeTabs.ts`, `employeeChips.ts`, `features/hr/components/LeaveSetupScreen.tsx`, [`testing/01-access-roles.md`](testing/01-access-roles.md).
+
+## 2026-10-13 — Employee ids are GH101, GH102 … (replaces the GRN0001 format)
+
+**Decision:** new employees get `GH` + a plain number from the same atomic counter, starting at `GH101` (no zero padding; past 999 it just grows). On first use the counter starts at the highest existing `GH\d+` code, or 100 if there is none. Employees who already have a `GRN` code (or a hand-typed one) keep it; nothing is renamed or migrated. Supersedes the "Employee id" line of 2026-10-09.
+
+**Open:** whether the old `GRN` employees should be renamed too (it would change what they log in with).
+
+## 2026-10-13 — Field employees get an optional profile photo
+
+**Decision:** the photo is picked at the top of the wizard's **Personal** step (step 1), is optional and does not affect activation. It lives on the FIELD profile (`photo {url, publicId}`) and, until the employee exists, in the draft's own `data.photo` section. JPG, PNG or WebP (checked by the file's first bytes), up to 5 MB, stored by Cloudinary at 512×512. Admin and HR set it (`PUT .../photo`) or remove it (`DELETE .../photo`) on the employee page as well. **Replacing or removing deletes the old file from Cloudinary**: new file saved first, then the old one deleted; a removal deletes the file before clearing the record, so a failure can be retried. A draft that is discarded, and a deleted account, delete their photo too. Clients only ever get `photoUrl`, never the storage id. If the draft does not exist yet when a file is chosen, it is held in the browser and uploaded right after the first Next creates the draft. Developed on its own branch (`feat/employee-photo`, in a separate worktree) because `main` had other work in progress.
+
+**Open:** the phone app showing and changing the photo (the API already returns `photoUrl` on `/auth/me`); whether a photo should become required for field employees.
