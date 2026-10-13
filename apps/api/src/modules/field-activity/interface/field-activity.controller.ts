@@ -8,6 +8,7 @@ import type { ListExpensesUseCase, MarkExpensePaidUseCase } from '../application
 import type { GrantExpenseMonthUseCase, ListExpenseMonthGrantsUseCase, RevokeExpenseMonthGrantUseCase } from '../application/usecases/expenseMonthGrants.usecase.js';
 import type { ExpenseMonthService } from '../application/usecases/expenseMonth.usecase.js';
 import type { ExpenseOverviewUseCase, ExpenseReviewService } from '../application/usecases/expenseReview.usecase.js';
+import type { AdjustExpenseService } from '../application/usecases/expenseAdjust.usecase.js';
 import type { ListExpensePayoutsUseCase, PayMonthExpensesUseCase } from '../application/usecases/expensePayouts.usecase.js';
 import type { AllocateGiftUseCase, CreateAdminDoctorServiceUseCase, GetDoctorServiceUseCase, ListDoctorServicesUseCase, ListGiftsUseCase, MarkDoctorServiceDoneUseCase } from '../application/usecases/servicesAndGifts.usecase.js';
 import type { DeleteDcrRecordUseCase } from '../application/usecases/deleteDcrRecord.usecase.js';
@@ -15,14 +16,14 @@ import type { OverrideGeofenceUseCase } from '../application/usecases/overrideGe
 import type { GetDcrDetailUseCase } from '../application/usecases/getDcrDetail.usecase.js';
 import type { Actor, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCase } from '../application/usecases/readDcrs.usecase.js';
 import type { ExpenseProof } from '../application/expenseProof.js';
-import type { grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseHistoryQuerySchema, expenseMonthQuerySchema, expenseReviewQuerySchema, expenseOverviewQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, allocateGiftBodySchema, doctorServiceFieldsSchema, listDcrsQuerySchema, listGiftsQuerySchema, listServicesQuerySchema, listTeamDcrsQuerySchema, overrideBodySchema } from './field-activity.schemas.js';
+import type { grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseHistoryQuerySchema, expenseMonthQuerySchema, expenseReviewQuerySchema, expenseOverviewQuerySchema, adjustExpenseRowBodySchema, addExpenseRowBodySchema, otherExpenseBodySchema, listExpensesQuerySchema, allocateGiftBodySchema, doctorServiceFieldsSchema, listDcrsQuerySchema, listGiftsQuerySchema, listServicesQuerySchema, listTeamDcrsQuerySchema, overrideBodySchema } from './field-activity.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
   return { id: req.user.sub, role: req.user.role };
 }
 
-export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'deleteCall' | 'deleteFollowup' | 'createAdminService' | 'listServices' | 'getService' | 'markServiceDone' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'expenseReview' | 'expenseOverview' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth' | 'grantExpenseMonth' | 'listExpenseGrants' | 'revokeExpenseGrant', RequestHandler>;
+export type FieldActivityHandlers = Record<'listDcrs' | 'teamDcrs' | 'getDcr' | 'overrideGeofence' | 'deleteCall' | 'deleteFollowup' | 'createAdminService' | 'listServices' | 'getService' | 'markServiceDone' | 'allocateGift' | 'listGifts' | 'listExpenses' | 'markExpensePaid' | 'listExpensePayouts' | 'payExpenses' | 'expenseStatement' | 'expenseHistory' | 'expenseStatementById' | 'expenseReview' | 'expenseOverview' | 'adjustExpenseRow' | 'addExpenseRow' | 'addOtherExpense' | 'updateOtherExpense' | 'deleteOtherExpense' | 'addExpenseProof' | 'removeExpenseProof' | 'submitExpenseMonth' | 'grantExpenseMonth' | 'listExpenseGrants' | 'revokeExpenseGrant', RequestHandler>;
 
 export function makeFieldActivityControllers(u: {
   listMine: ListMyDcrsUseCase;
@@ -44,6 +45,7 @@ export function makeFieldActivityControllers(u: {
   expenseMonths: ExpenseMonthService;
   expenseReview: ExpenseReviewService;
   expenseOverview: ExpenseOverviewUseCase;
+  expenseAdjust: AdjustExpenseService;
   grantExpense: GrantExpenseMonthUseCase;
   listExpenseGrants: ListExpenseMonthGrantsUseCase;
   revokeExpenseGrant: RevokeExpenseMonthGrantUseCase;
@@ -101,6 +103,8 @@ export function makeFieldActivityControllers(u: {
       const { month } = req.query as unknown as z.output<typeof expenseOverviewQuerySchema>;
       sendSuccess(req, res, await u.expenseOverview.execute(actorOf(req), month), 'Every employee’s expenses for the month.', 200);
     }),
+    adjustExpenseRow: asyncHandler(async (req, res) => sendSuccess(req, res, await u.expenseAdjust.editRow(actorOf(req), requiredParam(req.params, 'id'), req.body as z.output<typeof adjustExpenseRowBodySchema>), 'The amount was changed.', 200)),
+    addExpenseRow: asyncHandler(async (req, res) => sendSuccess(req, res, await u.expenseAdjust.addRow(actorOf(req), req.body as z.output<typeof addExpenseRowBodySchema>), 'The amount was added.', 201)),
     expenseStatementById: asyncHandler(async (req, res) => sendSuccess(req, res, await u.expenseMonths.statementByRecord(actorOf(req), requiredParam(req.params, 'id')), 'The expense statement.', 200)),
     expenseHistory: asyncHandler(async (req, res) => {
       const { userId } = req.query as unknown as z.output<typeof expenseHistoryQuerySchema>;

@@ -281,6 +281,44 @@ export type ReviewStationDto = 'HQ' | 'EX_STATION' | 'OUT_STATION';
 /** The day's daily report: not sent (none, a draft, or taken back), waiting on a manager, or decided. */
 export type ReviewDcrStateDto = 'NOT_SUBMITTED' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
 
+/** One expense row of a day, as the reviewer can change it. */
+export interface ExpenseReviewRowDto {
+  id: string;
+  type: 'TA' | 'DA' | 'OTHER' | 'TRAVEL' | 'MEAL' | 'MISC';
+  amountPaise: number;
+  /** What the row first held, if HR has changed it (0 for a row HR added); null if never adjusted. */
+  originalAmountPaise: number | null;
+  source: 'AUTO' | 'MANUAL';
+  remarks: string | null;
+  /** Paid rows cannot be changed. */
+  paid: boolean;
+}
+/** One change HR or Admin made to a day's amount: before, after, why, who and when. */
+export interface ExpenseAdjustmentDto {
+  id: string;
+  expenseId: string;
+  type: ExpenseReviewRowDto['type'];
+  kind: 'EDIT' | 'ADD';
+  beforePaise: number;
+  afterPaise: number;
+  reason: string;
+  by: { id: string; name: string; role: string };
+  at: string;
+}
+/** HR changes one row's amount (up or down, to zero allowed); the reason is required. */
+export interface AdjustExpenseRowDto {
+  amountPaise: number;
+  reason: string;
+}
+/** HR puts a TA or DA amount on a day that had none. */
+export interface AddExpenseRowDto {
+  userId: string;
+  date: string;
+  type: 'TA' | 'DA';
+  amountPaise: number;
+  reason: string;
+}
+
 export interface ExpenseReviewDayDto {
   date: string;
   dayType: ReviewDayTypeDto;
@@ -303,6 +341,10 @@ export interface ExpenseReviewDayDto {
   /** TA could not be worked out for a route (its distance failed), so the amount is artificially low. */
   distanceFlag: boolean;
   others: Array<{ id: string; amountPaise: number; remarks: string | null }>;
+  /** Every row of the day, with its first amount if HR changed it. */
+  rows: ExpenseReviewRowDto[];
+  /** What HR changed on this day, oldest first. */
+  adjustments: ExpenseAdjustmentDto[];
 }
 
 /** One employee's month, day by day (every calendar day to today), with the statement's totals and status. */

@@ -140,6 +140,7 @@ GET    /api/territory/routes/:id/assignments  ADMIN
 GET    /api/territory/users/:userId/hq  ADMIN,HR
 GET    /api/territory/zones  ADMIN
 PATCH  /api/config/:key  ADMIN
+PATCH  /api/field-activity/expense-months/rows/:id  ADMIN,HR
 PATCH  /api/field-master-data/chemists/:id  ADMIN
 PATCH  /api/field-master-data/distributors/:id  ADMIN
 PATCH  /api/field-master-data/doctors/:id  ADMIN
@@ -178,6 +179,7 @@ POST   /api/field-activity/doctor-services/:id/done  ADMIN
 POST   /api/field-activity/expense-grants  ADMIN,FIELD
 POST   /api/field-activity/expense-grants/:id/revoke  ADMIN,FIELD
 POST   /api/field-activity/expense-months/:month/submit  FIELD
+POST   /api/field-activity/expense-months/rows  ADMIN,HR
 POST   /api/field-activity/expense-payouts/pay  ACCOUNTANT,ADMIN
 POST   /api/field-activity/expenses/:id/mark-paid  ACCOUNTANT,ADMIN
 POST   /api/field-activity/expenses/other  FIELD

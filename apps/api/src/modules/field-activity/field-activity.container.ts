@@ -10,6 +10,8 @@ import { CallChecks } from './application/callChecks.js';
 import { makeCallSyncHandlers } from './application/callsSync.js';
 import { makeExpenseSyncHandler } from './application/expenseSync.js';
 import { TaDaLifecycle } from './application/usecases/taDaLifecycle.usecase.js';
+import { MongoExpenseAdjustmentAdapter } from './infrastructure/mongoExpenseAdjustment.adapter.js';
+import { AdjustExpenseService } from './application/usecases/expenseAdjust.usecase.js';
 import { ExpenseOverviewUseCase, ExpenseReviewService } from './application/usecases/expenseReview.usecase.js';
 import { EXPENSE_MONTH_KIND, ExpenseMonthService } from './application/usecases/expenseMonth.usecase.js';
 import { ExpenseMonthDeadlines } from './application/expenseMonthDeadlines.js';
@@ -107,6 +109,7 @@ export function buildFieldActivityContainer(
   // A month of expenses goes to the manager, whose approval is the decision (Admin may act in their place); approval makes its rows payable.
   const proofStorage = new CloudinaryProofStorage();
   const expenseGrants = new MongoExpenseMonthGrantAdapter();
+  const expenseAdjustments = new MongoExpenseAdjustmentAdapter();
   const monthService = new ExpenseMonthService(expenses, expenseMonths, users, approvals, clock, config, new MongooseTransactionRunner(), proofStorage, expenseGrants, new ExpenseMonthDeadlines(config));
   approvals.registerKind({ kind: EXPENSE_MONTH_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, onStatusChange: (change, ctx) => monthService.onStatusChange(change.recordId, change.status, ctx) });
   const gate = new LoggingGate(users, planning, approvals, dcrs, clock);
@@ -187,7 +190,8 @@ export function buildFieldActivityContainer(
           listExpenses: new ListExpensesUseCase(expenses, users),
           markPaid: new MarkExpensePaidUseCase(expenses, config),
           expenseMonths: monthService,
-          expenseReview: new ExpenseReviewService(monthService, expenses, dcrs, approvals, planning, territory, leave, users, clock),
+          expenseReview: new ExpenseReviewService(monthService, expenses, dcrs, approvals, planning, territory, leave, users, clock, expenseAdjustments),
+          expenseAdjust: new AdjustExpenseService(expenses, expenseAdjustments, users, new MongooseTransactionRunner(), config, clock),
           expenseOverview: new ExpenseOverviewUseCase(expenses, expenseMonths, approvals, users, config),
           grantExpense: new GrantExpenseMonthUseCase(expenseGrants, expenses, users, config, () => new Date()),
           listExpenseGrants: new ListExpenseMonthGrantsUseCase(expenseGrants, users, () => new Date()),

@@ -124,6 +124,8 @@ export interface ExpenseRepositoryPort {
   /** Sets `accepted` on the DCR's rows that aren't `PAID` (a paid row keeps what it was). */
   setAccepted(dcrId: string, accepted: boolean, ctx: TransactionContext): Promise<void>;
   findById(id: string): Promise<Expense | null>;
+  /** HR's change to an unpaid row's amount: one conditional update, only while it still holds `expectedPaise` (so two edits cannot both win); keeps the first amount as `originalPaise`. False if it was paid or changed meanwhile. */
+  adjustAmount(id: string, expectedPaise: number, toPaise: number, originalPaise: number, ctx: TransactionContext): Promise<boolean>;
   /** One conditional update: only an `accepted`, still-`UNPAID` row becomes `PAID`. False if it isn't one. */
   markPaid(id: string, by: string, at: Date): Promise<boolean>;
   /** The accepted rows in a date range, `UNPAID` first then `PAID`, oldest day first; at most `limit`. */

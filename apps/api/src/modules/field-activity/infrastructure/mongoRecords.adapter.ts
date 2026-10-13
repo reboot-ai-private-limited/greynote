@@ -262,6 +262,7 @@ const toExpense = (d: ExpenseDoc & { _id: unknown }): Expense => ({
   paidAt: d.paidAt,
   clientId: d.clientId,
   recordedAt: d.recordedAt,
+  originalAmountPaise: d.originalAmountPaise ?? null,
   attachments: (d.attachments ?? []).map((a) => ({ id: String(a._id), url: a.url, publicId: a.publicId, fileName: a.fileName, mimeType: a.mimeType, sizeBytes: a.sizeBytes, uploadedAt: a.uploadedAt })),
 });
 
@@ -281,7 +282,7 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
     return doc ? toExpense(doc) : null;
   }
   async updateOther(id: string, userId: string, patch: { reportDate: string; amountPaise: number; remarks: string | null }): Promise<boolean> {
-    return (await ExpenseModel.updateOne({ _id: oid(id), userId: oid(userId), type: 'OTHER', paymentStatus: 'UNPAID' }, { $set: patch })).matchedCount === 1;
+    return (await ExpenseModel.updateOne({ _id: oid(id), userId: oid(userId), type: 'OTHER', paymentStatus: 'UNPAID', originalAmountPaise: null }, { $set: patch })).matchedCount === 1;
   }
   async addAttachment(id: string, userId: string, attachment: Omit<ExpenseAttachment, 'id'>, max: number): Promise<Expense | null> {
     if (!Types.ObjectId.isValid(id)) return null;
@@ -302,7 +303,7 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
     return before ? (toExpense(before).attachments.find((a) => a.id === attachmentId) ?? null) : null;
   }
   async deleteOther(id: string, userId: string): Promise<boolean> {
-    return (await ExpenseModel.deleteOne({ _id: oid(id), userId: oid(userId), type: 'OTHER', paymentStatus: 'UNPAID' })).deletedCount === 1;
+    return (await ExpenseModel.deleteOne({ _id: oid(id), userId: oid(userId), type: 'OTHER', paymentStatus: 'UNPAID', originalAmountPaise: null })).deletedCount === 1;
   }
   async setMonthApproved(userId: string, range: { from: string; to: string }, approved: boolean, ctx: TransactionContext): Promise<void> {
     const base = { userId: oid(userId), paymentStatus: 'UNPAID', reportDate: { $gte: range.from, $lte: range.to } };
@@ -315,6 +316,10 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
   async findById(id: string): Promise<Expense | null> {
     const doc = await ExpenseModel.findById(id).lean();
     return doc ? toExpense(doc) : null;
+  }
+  async adjustAmount(id: string, expectedPaise: number, toPaise: number, originalPaise: number, ctx: TransactionContext): Promise<boolean> {
+    const res = await ExpenseModel.updateOne({ _id: oid(id), paymentStatus: 'UNPAID', amountPaise: expectedPaise }, { $set: { amountPaise: toPaise, originalAmountPaise: originalPaise } }, session(ctx));
+    return res.modifiedCount === 1;
   }
   async markPaid(id: string, by: string, at: Date): Promise<boolean> {
     const res = await ExpenseModel.updateOne({ _id: oid(id), accepted: true, monthApproved: true, paymentStatus: 'UNPAID' }, { $set: { paymentStatus: 'PAID', paidBy: oid(by), paidAt: at } });

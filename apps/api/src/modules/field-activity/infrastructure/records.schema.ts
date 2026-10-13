@@ -141,6 +141,7 @@ export interface ExpenseDoc {
   paidAt: Date | null;
   clientId: string | null;
   recordedAt: Date;
+  originalAmountPaise?: number | null;
   attachments?: Array<{ _id: Types.ObjectId; url: string; publicId: string; fileName: string; mimeType: string; sizeBytes: number; uploadedAt: Date }>;
 }
 const expenseAttachmentSchema = new Schema(
@@ -163,6 +164,7 @@ const expenseSchema = new Schema<ExpenseDoc>({
   paidAt: { type: Date, default: null },
   clientId: { type: String, default: null },
   recordedAt: { type: Date, required: true },
+  originalAmountPaise: { type: Number, default: null, min: 0 },
   attachments: { type: [expenseAttachmentSchema], default: [] },
 });
 expenseSchema.index({ dcrId: 1, recordedAt: 1 });

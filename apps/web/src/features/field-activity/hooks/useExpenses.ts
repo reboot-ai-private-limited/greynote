@@ -13,6 +13,7 @@ import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
 import { markRowsPaid, type MarkPaidResult } from '../lib/expenses';
+import type { DayOp } from '../lib/expenseAdjust';
 
 export interface ExpenseAuditQuery {
   from: string;
@@ -100,6 +101,34 @@ export function useExpenseGrants(query: ListExpenseGrantsQuery) {
       staleTime: staleTime.live,
     }),
   );
+}
+
+export interface AdjustDayInput {
+  userId: string;
+  date: string;
+  reason: string;
+  ops: DayOp[];
+}
+
+/**
+ * HR's changes to one day, sent one after another (an edit per changed row, an add per new TA or DA). It stops at the first refusal, so a
+ * paid or already-changed row says so; whatever went through stays, and the review refetches either way.
+ */
+export function useAdjustDay(onDone: () => void) {
+  return useApiMutation<AdjustDayInput, number>({
+    call: async (token, input) => {
+      let done = 0;
+      for (const op of input.ops) {
+        if (op.kind === 'edit') await fieldActivityApi.adjustExpenseRow(token, op.id, { amountPaise: op.amountPaise, reason: input.reason });
+        else await fieldActivityApi.addExpenseRow(token, { userId: input.userId, date: input.date, type: op.type, amountPaise: op.amountPaise, reason: input.reason });
+        done += 1;
+      }
+      return done;
+    },
+    invalidates: [keys.expenses.all()],
+    successMessage: 'The day was changed.',
+    onSuccess: onDone,
+  });
 }
 
 export function useGrantExpenseMonth(onDone: () => void) {

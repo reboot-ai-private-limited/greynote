@@ -5,6 +5,9 @@ import type {
   DoctorGiftDto,
   DoctorServiceDto,
   ExpenseAuditRowDto,
+  AddExpenseRowDto,
+  AdjustExpenseRowDto,
+  ExpenseAdjustmentDto,
   ExpenseOverviewDto,
   ExpenseReviewDto,
   ExpenseMonthGrantDto,
@@ -54,6 +57,13 @@ export const fieldActivityApi = {
   /** Admin, HR, Accountant: one employee's month day by day. */
   expenseReview: (token: string, userId: string, month: string, signal?: AbortSignal) =>
     request<ExpenseReviewDto>('/field-activity/expense-months/review', { token, query: { userId, month }, signal }),
+
+  /** Admin, HR: changes one expense row's amount, up or down, with a reason. The first amount and the change are kept. */
+  adjustExpenseRow: (token: string, id: string, body: AdjustExpenseRowDto) =>
+    request<ExpenseAdjustmentDto>(`/field-activity/expense-months/rows/${id}`, { method: 'PATCH', token, body }),
+  /** Admin, HR: puts a TA or DA amount on a day that had none. */
+  addExpenseRow: (token: string, body: AddExpenseRowDto) =>
+    request<ExpenseAdjustmentDto>('/field-activity/expense-months/rows', { method: 'POST', token, body }),
 
   /** Pays a month's unpaid expenses for the named employees, or for everyone owed. Paying twice pays nothing twice. */
   payExpenses: (token: string, body: PayExpensesDto) => request<PayOutcomeDto[]>('/field-activity/expense-payouts/pay', { method: 'POST', token, body }),

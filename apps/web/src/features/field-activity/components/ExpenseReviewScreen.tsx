@@ -2,17 +2,23 @@
 
 import type { ExpenseReviewDayDto } from '@greynote/contracts';
 import Link from 'next/link';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatTile } from '@/components/ui/StatTile';
 import { toErrorState } from '@/lib/api/toErrorState';
-import { formatDate, formatMoney } from '@/lib/format';
+import { useSession } from '@/lib/auth/SessionProvider';
+import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
+import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { monthLabel } from '@/features/payroll/lib/payroll';
 import { useExpenseReview } from '../hooks/useExpenses';
+import { describeAdjustment, wasPaise } from '../lib/expenseAdjust';
+import { AdjustDayDialog } from './AdjustDayDialog';
 import {
   DAY_KIND_LABEL,
   DAY_TYPE_LABEL,
@@ -28,6 +34,16 @@ import {
 
 const money = (paise: number) => (paise === 0 ? <span className="text-text-subtle">—</span> : formatMoney(paise));
 
+/** An amount, with "was ₹X" under it when HR changed it. */
+function Amount({ paise, was }: { paise: number; was: number | null }) {
+  return (
+    <span>
+      {money(paise)}
+      {was !== null ? <span className="block text-xs font-normal text-warning-fg">was {formatMoney(was)}</span> : null}
+    </span>
+  );
+}
+
 /**
  * One employee's month, day by day: what each day was (working, off, holiday, leave paid or unpaid), what was planned (work type, routes,
  * HQ / ex-station / out-station), whether the daily report was sent, and the TA, DA and other amounts. Read only for now.
@@ -37,6 +53,10 @@ export function ExpenseReviewScreen({ userId }: { userId: string }) {
   const month = /^\d{4}-\d{2}$/.test(values.month) ? values.month : '';
   const review = useExpenseReview(userId, month, month !== '');
   const data = review.data;
+  const { user } = useSession();
+  const canEdit = user?.role === 'HR' || user?.role === 'ADMIN';
+  const readOnly = useIsReadOnly();
+  const [changing, setChanging] = useState<ExpenseReviewDayDto | null>(null);
 
   const columns: readonly Column<ExpenseReviewDayDto>[] = [
     {
@@ -87,22 +107,42 @@ export function ExpenseReviewScreen({ userId }: { userId: string }) {
       numeric: true,
       render: (d) => (
         <span className={d.distanceFlag ? 'text-warning-fg' : undefined} title={d.distanceFlag ? 'The route distance could not be worked out, so this is too low' : undefined}>
-          {money(d.taPaise)}
+          <Amount paise={d.taPaise} was={wasPaise(d, 'TA')} />
         </span>
       ),
     },
-    { key: 'da', header: 'DA', numeric: true, render: (d) => money(d.daPaise) },
+    { key: 'da', header: 'DA', numeric: true, render: (d) => <Amount paise={d.daPaise} was={wasPaise(d, 'DA')} /> },
     {
       key: 'other',
       header: 'Other',
       numeric: true,
-      render: (d) => (d.others.length > 0 ? <span title={d.others.map((o) => `${formatMoney(o.amountPaise)}${o.remarks ? ` · ${o.remarks}` : ''}`).join('\n')}>{money(d.otherPaise)}</span> : money(d.otherPaise)),
+      render: (d) => (
+        <span title={d.others.map((o) => `${formatMoney(o.amountPaise)}${o.remarks ? ` · ${o.remarks}` : ''}`).join('\n') || undefined}>
+          <Amount paise={d.otherPaise} was={wasPaise(d, 'OTHER')} />
+        </span>
+      ),
     },
     { key: 'total', header: 'Total', numeric: true, render: (d) => <span className="font-semibold">{money(d.totalPaise)}</span> },
     {
       key: 'counted',
       header: '',
-      render: (d) => (d.taDaAccepted === false ? <Badge tone="warning">Not counted</Badge> : null),
+      render: (d) => (
+        <div className="flex flex-col items-start gap-1">
+          {d.taDaAccepted === false ? <Badge tone="warning">Not counted</Badge> : null}
+          {d.adjustments.length > 0 ? <Badge tone="accent">Edited</Badge> : null}
+        </div>
+      ),
+    },
+    {
+      key: 'change',
+      header: '',
+      className: 'w-24 text-right',
+      render: (d) =>
+        canEdit && d.dayType !== 'WEEKLY_OFF' ? (
+          <Button variant="ghost" size="sm" disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setChanging(d)}>
+            Change
+          </Button>
+        ) : null,
     },
   ];
 
@@ -140,6 +180,27 @@ export function ExpenseReviewScreen({ userId }: { userId: string }) {
               <Card flat>
                 <DataTable columns={columns} rows={data.days} rowKey={(d) => d.date} />
               </Card>
+              {data.days.some((d) => d.adjustments.length > 0) ? (
+                <Card flat className="mt-6">
+                  <div className="border-b border-border px-4 py-3">
+                    <h2 className="text-sm font-semibold text-text">Changes made by HR or Admin</h2>
+                    <p className="text-xs text-text-muted">What each amount was, what it is now, and why. The employee sees the same.</p>
+                  </div>
+                  <ul className="divide-y divide-border">
+                    {data.days.flatMap((d) => d.adjustments).map((a) => (
+                      <li key={a.id} className="px-4 py-3 text-sm">
+                        <p className="font-medium text-text">
+                          {formatDate(data.days.find((d) => d.adjustments.some((x) => x.id === a.id))?.date ?? '')} · {describeAdjustment(a)}
+                        </p>
+                        <p className="text-text-muted">{a.reason}</p>
+                        <p className="text-xs text-text-subtle">
+                          {a.by.name || 'Someone'} ({a.by.role}) · {formatDateTime(a.at)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              ) : null}
               <p className="mt-3 text-xs text-text-subtle">
                 A day with no daily report claims nothing. "Not counted": the day's report is not approved, so its TA and DA are claimed but cannot be paid yet.
               </p>
@@ -147,6 +208,7 @@ export function ExpenseReviewScreen({ userId }: { userId: string }) {
           ) : null}
         </DataState>
       )}
+      {changing && data ? <AdjustDayDialog userId={data.userId} day={changing} onClose={() => setChanging(null)} /> : null}
     </>
   );
 }

@@ -1,8 +1,9 @@
-import type { ExpenseOverviewDto, ExpenseReviewDayDto, ExpenseReviewDto, ReviewDayTypeDto, ReviewStationDto } from '@greynote/contracts';
+import type { ExpenseAdjustmentDto, ExpenseOverviewDto, ExpenseReviewDayDto, ExpenseReviewDto, ReviewDayTypeDto, ReviewStationDto } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { monthRange, parseCalendarMonth } from '@/shared/time/businessTime.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
+import type { ExpenseAdjustmentRepositoryPort } from '../../domain/expenseAdjustment.entity.js';
 import type { DcrRepositoryPort } from '../../domain/dcr.repository.port.js';
 import type { LeavePort } from '../../domain/leave.port.js';
 import type { PlanningPort } from '../../domain/planning.port.js';
@@ -45,6 +46,7 @@ export class ExpenseReviewService {
     private readonly leave: LeavePort,
     private readonly users: UserDirectoryPort,
     private readonly clock: DcrClock,
+    private readonly adjustments: ExpenseAdjustmentRepositoryPort,
   ) {}
 
   async review(actor: Actor, userId: string, month: string): Promise<ExpenseReviewDto> {
@@ -57,14 +59,16 @@ export class ExpenseReviewService {
     const lastDay = today < range.to ? today : range.to;
     const dates = lastDay < range.from ? [] : eachDay(range.from, lastDay);
 
-    const [statement, rows, dcrRows, leaveDays, offDates, holidayDates] = await Promise.all([
+    const [statement, rows, dcrRows, leaveDays, offDates, holidayDates, adjustmentRows] = await Promise.all([
       this.months.statement(actor, userId, month),
       this.expenses.listForUserRange(userId, range),
       this.dcrs.listForUsers([userId], range.from, range.to),
       this.leave.listLeaveDays(userId, range.from, range.to),
       this.leave.listOffDates(userId, range.from, range.to),
       this.leave.listHolidayDates(userId, range.from, range.to),
+      this.adjustments.listForUserMonth(userId, month),
     ]);
+    const editors = new Map((await this.users.getUserSummaries([...new Set(adjustmentRows.map((a) => a.by))])).map((u) => [u.id, u]));
     const requests = await this.approvals.listForRecords('DCR', dcrRows.map((d) => d.id));
     const dcrStateOf = new Map<string, ExpenseReviewDayDto['dcr']>();
     for (const d of dcrRows) {
@@ -108,6 +112,10 @@ export class ExpenseReviewService {
         taDaAccepted: dayRows.some((r) => r.type === 'TA' || r.type === 'DA') ? dayRows.filter((r) => r.type === 'TA' || r.type === 'DA').every((r) => r.accepted) : null,
         distanceFlag: dayRows.some((r) => r.distanceFlag),
         others: dayRows.filter((r) => r.type === 'OTHER').map((r) => ({ id: r.id, amountPaise: r.amountPaise, remarks: r.remarks })),
+        rows: dayRows.map((r) => ({ id: r.id, type: r.type, amountPaise: r.amountPaise, originalAmountPaise: r.originalAmountPaise ?? null, source: r.source, remarks: r.remarks, paid: r.paymentStatus === 'PAID' })),
+        adjustments: adjustmentRows
+          .filter((x) => x.reportDate === date)
+          .map((x): ExpenseAdjustmentDto => ({ id: x.id, expenseId: x.expenseId, type: x.type, kind: x.kind, beforePaise: x.beforePaise, afterPaise: x.afterPaise, reason: x.reason, by: { id: x.by, name: editors.get(x.by)?.name ?? '', role: x.byRole }, at: x.at.toISOString() })),
       });
     }
     const countLeave = (paid: boolean) => days.filter((d) => d.leave && d.leave.paid === paid).reduce((sum, d) => sum + (d.leave?.portion ?? 0), 0);

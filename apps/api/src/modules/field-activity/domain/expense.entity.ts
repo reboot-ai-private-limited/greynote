@@ -54,6 +54,8 @@ export interface Expense {
   /** The phone's id for a MANUAL expense — the sync client id; null for AUTO rows. */
   clientId: string | null;
   recordedAt: Date;
+  /** The first amount this row ever had, set the first time HR changes it (0 for a row HR added); null if it was never adjusted (decision-log 2026-10-13). */
+  originalAmountPaise?: number | null;
   /** Proof of an `OTHER` row; always empty for every other row. */
   attachments: ExpenseAttachment[];
 }

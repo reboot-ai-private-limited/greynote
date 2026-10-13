@@ -467,3 +467,11 @@ Two read endpoints for the people who review a month, `ADMIN`, `HR`, `ACCOUNTANT
 - HR's public contract gains `listLeaveDays(userId, from, to)`; Field Activity's Territory port gains the route `name`.
 
 Web (2026-10-13): `/expense-months` (the month table) and `/expense-months/[userId]?month=` (the day-by-day review), under Payouts as **Expenses by month** for Admin, HR and the Accountant; read only for now. They will replace `/expenses` and `/expense-payouts` once edits and Finalize exist.
+
+### HR edits a month's amounts (2026-10-13, Track A step 2)
+
+- `PATCH /api/field-activity/expense-months/rows/:id` `{amountPaise, reason}` (`AdjustExpenseService.editRow`) raises or lowers one expense row (TA, DA or another claim; zero allowed); `POST /api/field-activity/expense-months/rows` `{userId, date, type: TA|DA, amountPaise, reason}` (`addRow`) puts a TA or DA on a day that had none (a `MANUAL` row, accepted, payable at once if the month is already approved). Roles `ADMIN`, `HR`. A reason (1 to 500 characters) is required. Refused: the same amount (400), a paid row (409 `EXPENSE_PAID`), a row changed or paid meanwhile (409 `EXPENSE_CHANGED`, one conditional update on the amount it was read with), a day that has not happened (400), a day that already has that TA or DA (409), a closed financial year (409 `FY_CLOSED`).
+- The row keeps the first amount it ever held in `originalAmountPaise` (0 for an added row); each change is also appended to `expense_adjustments` (`ExpenseAdjustment`: user, month, date, expense, type, `EDIT` or `ADD`, before, after, reason, by, role, at), in the same transaction. The log is never edited.
+- An employee can no longer edit or delete an `OTHER` row HR has changed.
+- The review (`/expense-months/review`) now carries each day's `rows` (with `originalAmountPaise`, `paid`) and `adjustments` (with who changed it). The web review page shows "was ₹X" under a changed amount, an "Edited" mark, a "Changes made by HR or Admin" list, and a **Change** button per day (HR and Admin) that opens one form for the day's rows plus an add for a missing TA or DA.
+- Not yet: the employee is not notified, the phone does not show "edited by HR", and nothing locks the month: Finalize is the next step.

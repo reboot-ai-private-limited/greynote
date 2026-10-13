@@ -2137,3 +2137,12 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** the phone's "edited by HR" display (mobile team); whether HR gets a read view of the expense approval list.
 
 **Refs:** the plan in `/home/arjit/.claude/plans/payouts-redesign.md`, [`LLD/field-activity.md`](LLD/field-activity.md), [`LLD/payroll.md`](LLD/payroll.md).
+
+
+## 2026-10-13 — HR can change a month's amounts, with a record (Track A step 2)
+
+**Decision:** HR (and Admin) can raise or lower any unpaid expense amount of a day, or add a TA or DA to a day that had none, from the review page. A reason is mandatory. The first amount stays on the row and every change is kept in an append-only log (before, after, reason, who, when), shown on the review page as "was ₹X" and a list of changes. Paid rows and closed financial years cannot change. An employee can no longer edit an `OTHER` claim HR has changed.
+
+**Open:** notifying the employee (inbox) and the phone display; locking the month at Finalize (step 3); whether the Accountant may also edit (for now no: the Accountant finalizes and pays).
+
+**Refs:** [`LLD/field-activity.md`](LLD/field-activity.md) (HR edits a month's amounts).

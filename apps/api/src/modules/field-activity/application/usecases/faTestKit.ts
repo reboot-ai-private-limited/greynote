@@ -374,6 +374,12 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
     const i = r?.attachments.findIndex((a) => a.id === attachmentId) ?? -1;
     return r && i >= 0 ? r.attachments.splice(i, 1)[0]! : null;
   }
+  async adjustAmount(id: string, expectedPaise: number, toPaise: number, originalPaise: number) {
+    const r = this.rows.find((x) => x.id === id);
+    if (!r || r.paymentStatus !== 'UNPAID' || r.amountPaise !== expectedPaise) return false;
+    Object.assign(r, { amountPaise: toPaise, originalAmountPaise: originalPaise });
+    return true;
+  }
   async summarizeClaimedByMonth(range: { from: string; to: string }) {
     const by = new Map<string, ExpenseMonthClaimSummary>();
     for (const r of this.rows.filter((x) => x.paymentStatus !== 'CANCELLED' && x.reportDate >= range.from && x.reportDate <= range.to)) {
