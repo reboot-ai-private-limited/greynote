@@ -88,10 +88,10 @@ export class MongoPayrollAdapter implements PayrollRunRepositoryPort {
     return res.modifiedCount === 1;
   }
 
-  async saveAdjustments(id: string, expectedCount: number, next: { adjustments: PayrollAdjustment[]; adjustmentPaise: number; netPayablePaise: number }): Promise<boolean> {
+  async saveAdjustments(id: string, expectedCount: number, next: { adjustments: PayrollAdjustment[]; adjustmentPaise: number; netPayablePaise: number; originalNetPayablePaise: number }): Promise<boolean> {
     const res = await PayrollRunModel.updateOne(
       { _id: oid(id), status: 'DRAFT', $expr: { $eq: [{ $size: { $ifNull: ['$adjustments', []] } }, expectedCount] } },
-      { $set: { adjustments: next.adjustments.map((x) => ({ ...x, by: oid(x.by) })), adjustmentPaise: next.adjustmentPaise, netPayablePaise: next.netPayablePaise } },
+      { $set: { adjustments: next.adjustments.map((x) => ({ ...x, by: oid(x.by) })), adjustmentPaise: next.adjustmentPaise, netPayablePaise: next.netPayablePaise, originalNetPayablePaise: next.originalNetPayablePaise } },
     );
     return res.modifiedCount === 1;
   }

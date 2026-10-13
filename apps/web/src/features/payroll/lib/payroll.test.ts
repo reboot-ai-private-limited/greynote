@@ -39,12 +39,20 @@ const run = (over: Partial<PayrollRunDto> = {}): PayrollRunDto => ({
   absentDays: 0,
   absentDeductionPaise: 0,
   netPayablePaise: 3_632_050,
+  days: [],
+  adjustments: [],
+  adjustmentPaise: 0,
+  originalNetPayablePaise: 0,
   esiNumber: null,
   joinedInMonth: false,
   status: 'DRAFT',
   generatedBy: 'acc',
   generatedAt: '2026-10-01T00:00:00Z',
   finalizedAt: null,
+  finalizedByName: null,
+  paidAt: null,
+  paidByName: null,
+  paymentReference: null,
   ...over,
 });
 
@@ -170,5 +178,35 @@ describe('absent days on a run', () => {
     expect(absentExplanation(r)).toMatch(/^3 absent days × ₹30,000\.00 ÷ 30 = ₹3,000\.00/);
     expect(absentExplanation({ ...r, absentDays: 1, absentDeductionPaise: 100_000 })).toMatch(/^1 absent day ×/);
     expect(absentExplanation({ ...r, absentDays: 0, absentDeductionPaise: 0 })).toMatch(/nothing is deducted/);
+  });
+});
+
+describe('stage, days and adjustments', () => {
+  const run = (over: object) => ({ status: 'DRAFT', paidAt: null, adjustments: [], ...over }) as never;
+
+  it('reads the stage from the status and the paid time', async () => {
+    const { runStage, RUN_STAGE_LABEL } = await import('./payroll');
+    expect(runStage(run({}))).toBe('DRAFT');
+    expect(runStage(run({ status: 'FINALIZED' }))).toBe('FINALIZED');
+    expect(runStage(run({ status: 'FINALIZED', paidAt: '2026-11-03T00:00:00Z' }))).toBe('PAID');
+    expect(RUN_STAGE_LABEL.PAID).toBe('Paid');
+  });
+
+  it('counts the adjustments in the sum, so an adjusted run is not flagged as wrong', async () => {
+    const { netAddsUp } = await import('./payroll');
+    const base = { baseSalaryPaise: 3_000_000, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 100_000, absentDeductionPaise: 0 };
+    expect(netAddsUp({ ...base, netPayablePaise: 2_900_000 })).toBe(true);
+    expect(netAddsUp({ ...base, adjustmentPaise: 50_000, netPayablePaise: 2_950_000 })).toBe(true);
+    expect(netAddsUp({ ...base, adjustmentPaise: 50_000, netPayablePaise: 2_900_000 })).toBe(false);
+  });
+
+  it('keeps the latest change to a date, and words a charge and an adjustment', async () => {
+    const { latestDayOverrides, chargeLabel, describePayrollAdjustment } = await import('./payroll');
+    const adj = (id: string, date: string, setDays: number) => ({ id, kind: 'DAY', date, setDays, ruleDays: 1, amountPaise: 0, reason: id });
+    const latest = latestDayOverrides(run({ adjustments: [adj('a', '2026-10-05', 0), adj('b', '2026-10-05', 0.5), { id: 'c', kind: 'AMOUNT', date: null, setDays: null, ruleDays: null, amountPaise: 100, reason: 'x' }] }));
+    expect([...latest.entries()]).toEqual([['2026-10-05', { setDays: 0.5, reason: 'b' }]]);
+    expect([chargeLabel(0), chargeLabel(0.5), chargeLabel(1)]).toEqual(['—', 'Half day', '1 day']);
+    expect(describePayrollAdjustment({ kind: 'DAY', setDays: 0, ruleDays: 1, amountPaise: 100_000 })).toMatch(/^Day not charged \(rules: full\): adds .*1,000/);
+    expect(describePayrollAdjustment({ kind: 'AMOUNT', setDays: null, ruleDays: null, amountPaise: -20_000 })).toMatch(/^Amount taken off .*200/);
   });
 });

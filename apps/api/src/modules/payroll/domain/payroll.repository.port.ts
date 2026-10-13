@@ -30,7 +30,7 @@ export interface PayrollRunRepositoryPort {
    * HR's change to a draft: replaces the adjustments and the net they give, one conditional update, only while the run is still `DRAFT` and
    * still holds `expectedCount` adjustments (so two edits cannot both win). `false` if it was finalized or changed meanwhile.
    */
-  saveAdjustments(id: string, expectedCount: number, next: { adjustments: PayrollAdjustment[]; adjustmentPaise: number; netPayablePaise: number }): Promise<boolean>;
+  saveAdjustments(id: string, expectedCount: number, next: { adjustments: PayrollAdjustment[]; adjustmentPaise: number; netPayablePaise: number; originalNetPayablePaise: number }): Promise<boolean>;
   /** `FINALIZED` and not yet paid → paid, in one conditional update; `false` otherwise. */
   markPaid(id: string, by: string, at: Date, reference: string | null): Promise<boolean>;
 }

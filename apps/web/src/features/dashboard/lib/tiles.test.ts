@@ -44,12 +44,20 @@ const run = (status: PayrollRunDto['status']): PayrollRunDto => ({
   absentDays: 0,
   absentDeductionPaise: 0,
   netPayablePaise: 100,
+  days: [],
+  adjustments: [],
+  adjustmentPaise: 0,
+  originalNetPayablePaise: 0,
   esiNumber: null,
   joinedInMonth: false,
   generatedBy: 'acc',
   status,
   generatedAt: '2026-10-01T00:00:00Z',
   finalizedAt: null,
+  finalizedByName: null,
+  paidAt: null,
+  paidByName: null,
+  paymentReference: null,
 });
 
 describe('approvalsTile', () => {

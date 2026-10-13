@@ -75,10 +75,8 @@ describe('Expense claims (the row-by-row list)', () => {
 });
 
 describe('Payroll', () => {
-  it('is built, and shown to Admin and the Accountant, not HR', () => {
-    expect(navFor('ADMIN').map((i) => i.href)).toContain('/payroll');
-    expect(navFor('ACCOUNTANT').map((i) => i.href)).toContain('/payroll');
-    expect(navFor('HR').map((i) => i.href)).not.toContain('/payroll');
+  it('is built, and shown to Admin, the Accountant, and HR (who reviews and adjusts a draft)', () => {
+    for (const role of ['ADMIN', 'ACCOUNTANT', 'HR'] as const) expect(navFor(role).map((i) => i.href)).toContain('/payroll');
     expect(isRouteBuilt('/payroll')).toBe(true);
   });
 });
@@ -212,7 +210,8 @@ describe('Expenses (the month table, which replaced Expense payouts and Late exp
   it('is for Admin, HR (who reviews and edits) and the Accountant (who finalizes and pays)', () => {
     for (const role of ['ADMIN', 'HR', 'ACCOUNTANT'] as const) expect(navFor(role).map((i) => i.href)).toContain('/expenses');
     expect(canOpen('HR', '/expenses/u1')).toBe(true);
-    expect(canOpen('HR', '/payroll')).toBe(false);
+    expect(canOpen('HR', '/payroll')).toBe(true);
+    expect(canOpen('HR', '/expense-claims')).toBe(false);
     expect(isRouteBuilt('/expenses')).toBe(true);
   });
 
@@ -250,7 +249,7 @@ describe('canOpen', () => {
   });
 
   it('refuses a screen the role does not have, even when typed in', () => {
-    expect(canOpen('HR', '/payroll')).toBe(false);
+    expect(canOpen('HR', '/expense-claims')).toBe(false);
     expect(canOpen('ACCOUNTANT', '/employees')).toBe(false);
     expect(canOpen('HR', '/settings')).toBe(false);
     expect(canOpen('HR', '/reports/sales')).toBe(false);

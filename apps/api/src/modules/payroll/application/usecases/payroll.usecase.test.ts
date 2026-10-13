@@ -34,7 +34,7 @@ class FakeRuns implements PayrollRunRepositoryPort {
     Object.assign(r, { status: 'FINALIZED', finalizedAt: at, finalizedBy: by });
     return true;
   }
-  async saveAdjustments(id: string, expectedCount: number, next: { adjustments: PayrollAdjustment[]; adjustmentPaise: number; netPayablePaise: number }) {
+  async saveAdjustments(id: string, expectedCount: number, next: { adjustments: PayrollAdjustment[]; adjustmentPaise: number; netPayablePaise: number; originalNetPayablePaise: number }) {
     const r = this.rows.find((x) => x.id === id);
     if (!r || r.status !== 'DRAFT' || r.adjustments.length !== expectedCount) return false;
     Object.assign(r, next);
@@ -313,6 +313,15 @@ describe('payroll', () => {
       const second = await adjust.overrideDay(admin, run.id, { date: '2026-10-07', setDays: 0.5, reason: 'Only half' });
       expect(second.adjustmentPaise).toBe(-50_000); // the earlier change to the 7th counts for nothing now
       expect(second.adjustments).toHaveLength(2); // but stays on record
+    });
+
+    it('keeps the net the rules gave when a run from before adjustments existed is adjusted', async () => {
+      const run = await draftOf('mr2');
+      delete (runs.rows[0] as Partial<PayrollRun>).originalNetPayablePaise; // an old run holds no original net
+      runs.rows[0]!.originalNetPayablePaise = runs.rows[0]!.netPayablePaise; // what the repository reads it as
+      const changed = await adjust.addAmount(hr, run.id, { amountPaise: 1_000, reason: 'x' });
+      expect(runs.rows[0]).toMatchObject({ originalNetPayablePaise: 3_000_000, adjustmentPaise: 1_000, netPayablePaise: 3_001_000 });
+      expect(changed.originalNetPayablePaise).toBe(3_000_000);
     });
 
     it('adds or takes off an amount, never zero, never below zero net', async () => {

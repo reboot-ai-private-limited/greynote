@@ -1,6 +1,6 @@
 'use client';
 
-import type { GenerateOutcomeDto } from '@greynote/contracts';
+import type { AdjustPayrollAmountDto, GenerateOutcomeDto, OverridePayrollDayDto, PayPayrollDto, PayrollRunDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { payrollApi } from '@/lib/api/endpoints/payroll';
 import { authedQueryOptions } from '@/lib/query/factory';
@@ -49,5 +49,35 @@ export function useFinalize(onResult: (result: FinalizeResult) => void) {
     call: (token, ids) => finalizeRuns((id) => payrollApi.finalize(token, id), ids),
     invalidates: [keys.payroll.all()],
     onSuccess: onResult,
+  });
+}
+
+/** HR charges a day differently from the rules, on a draft; the run and the sheet refetch. */
+export function useOverrideDay(runId: string, onDone: () => void) {
+  return useApiMutation<OverridePayrollDayDto, PayrollRunDto>({
+    call: (token, body) => payrollApi.overrideDay(token, runId, body),
+    invalidates: [keys.payroll.all()],
+    successMessage: 'The day was changed.',
+    onSuccess: onDone,
+  });
+}
+
+/** HR adds or takes off an amount on a draft. */
+export function useAdjustAmount(runId: string, onDone: () => void) {
+  return useApiMutation<AdjustPayrollAmountDto, PayrollRunDto>({
+    call: (token, body) => payrollApi.adjustAmount(token, runId, body),
+    invalidates: [keys.payroll.all()],
+    successMessage: 'The amount was added.',
+    onSuccess: onDone,
+  });
+}
+
+/** The Accountant marks a finalized run's salary paid. */
+export function usePayRun(runId: string, onDone: () => void) {
+  return useApiMutation<PayPayrollDto, PayrollRunDto>({
+    call: (token, body) => payrollApi.pay(token, runId, body),
+    invalidates: [keys.payroll.all()],
+    successMessage: 'The salary was marked paid.',
+    onSuccess: onDone,
   });
 }

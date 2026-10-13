@@ -1,4 +1,4 @@
-import type { GenerateOutcomeDto, GeneratePayrollDto, PayrollRunDto, PayrollStatus } from '@greynote/contracts';
+import type { AdjustPayrollAmountDto, GenerateOutcomeDto, GeneratePayrollDto, OverridePayrollDayDto, PayPayrollDto, PayrollRunDto, PayrollStatus } from '@greynote/contracts';
 import { request } from '../client';
 
 export interface ListPayrollQuery {
@@ -23,6 +23,13 @@ export const payrollApi = {
    */
   generate: (token: string, body: GeneratePayrollDto) =>
     request<GenerateOutcomeDto[]>('/payroll/generate', { method: 'POST', token, body }),
+
+  /** HR, Admin: charge one day of a DRAFT 0, a half or a whole day instead of what the rules gave. A reason is required. */
+  overrideDay: (token: string, id: string, body: OverridePayrollDayDto) => request<PayrollRunDto>(`/payroll/${id}/days`, { method: 'POST', token, body }),
+  /** HR, Admin: add (positive) or take off (negative) an amount on a DRAFT. A reason is required. */
+  adjustAmount: (token: string, id: string, body: AdjustPayrollAmountDto) => request<PayrollRunDto>(`/payroll/${id}/adjustments`, { method: 'POST', token, body }),
+  /** Accountant, Admin: marks a FINALIZED run's salary paid, once, with an optional reference. */
+  pay: (token: string, id: string, body: PayPayrollDto) => request<PayrollRunDto>(`/payroll/${id}/pay`, { method: 'POST', token, body }),
 
   /** Locks a DRAFT, once. A second call is a 409. */
   finalize: (token: string, id: string) => request<PayrollRunDto>(`/payroll/${id}/finalize`, { method: 'POST', token }),

@@ -18,6 +18,7 @@ import { istDate } from '@/lib/dates';
 import { financialYearOf } from '@/lib/financial-year';
 import { formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
+import { useSession } from '@/lib/auth/SessionProvider';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
 import { useGenerate, usePayrollMonth } from '../hooks/usePayroll';
 import {
@@ -25,6 +26,9 @@ import {
   endedMonthsInYear,
   monthLabel,
   monthState,
+  RUN_STAGE_LABEL,
+  RUN_STAGE_TONE,
+  runStage,
   payrollCsv,
   payrollFilename,
   runTotals,
@@ -32,10 +36,15 @@ import {
 import { FinalizeDialog } from './FinalizeDialog';
 import { GenerateDialog } from './GenerateDialog';
 import { GenerateResultDialog } from './GenerateResultDialog';
+import { PayRunDialog } from './PayRunDialog';
 
 /** One month's salary sheet: generate it, review it, and finalize it to lock it. */
 export function PayrollScreen() {
   const readOnly = useIsReadOnly();
+  // HR reads the month and adjusts a draft on its page; the Accountant (and Admin) generate, finalize and pay (decision-log 2026-10-13).
+  const { user } = useSession();
+  const canRun = user?.role === 'ACCOUNTANT' || user?.role === 'ADMIN';
+  const [paying, setPaying] = useState<PayrollRunDto | null>(null);
   const { year } = useFinancialYear();
   const today = istDate();
   // The list is scoped to the financial year in view and refuses a month outside it.
@@ -112,6 +121,12 @@ export function PayrollScreen() {
         r.absentDays === 0 ? '—' : `${r.absentDays} d · −${formatMoney(r.absentDeductionPaise)}`,
     },
     {
+      key: 'adjust',
+      header: 'Adjusted',
+      numeric: true,
+      render: (r) => (r.adjustmentPaise === 0 ? '—' : <span className="text-warning-fg" title="Changed by HR: see the run">{`${r.adjustmentPaise > 0 ? '+' : '−'}${formatMoney(Math.abs(r.adjustmentPaise))}`}</span>),
+    },
+    {
       key: 'net',
       header: 'Net payable',
       numeric: true,
@@ -121,9 +136,7 @@ export function PayrollScreen() {
       key: 'status',
       header: 'Status',
       render: (r) => (
-        <Badge tone={r.status === 'FINALIZED' ? 'success' : 'warning'}>
-          {r.status === 'FINALIZED' ? 'Finalized' : 'Draft'}
-        </Badge>
+        <Badge tone={RUN_STAGE_TONE[runStage(r)]}>{RUN_STAGE_LABEL[runStage(r)]}</Badge>
       ),
     },
     {
@@ -135,7 +148,12 @@ export function PayrollScreen() {
           <Link href={`/payroll/${r.id}`} className="text-sm text-accent hover:underline">
             Details
           </Link>
-          {r.status === 'DRAFT' ? (
+          {canRun && runStage(r) === 'FINALIZED' ? (
+            <Button size="sm" disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setPaying(r)}>
+              Mark paid
+            </Button>
+          ) : null}
+          {canRun && r.status === 'DRAFT' ? (
             <>
               <Button
                 size="sm"
@@ -165,7 +183,7 @@ export function PayrollScreen() {
     <>
       <PageHeader
         title="Payroll"
-        description="A sheet per month for every active field employee: base salary less unpaid leave. TA, DA and reimbursements are paid separately, on the 15th."
+        description="A sheet per month for every active field employee: base salary less unpaid leave and absent days, and what HR adjusted. HR reviews and adjusts a draft, the Accountant finalizes and pays. TA, DA and reimbursements are paid separately, on the 15th."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -175,7 +193,7 @@ export function PayrollScreen() {
             >
               Download CSV
             </Button>
-            {drafts.length > 0 ? (
+            {canRun && drafts.length > 0 ? (
               <Button
                 variant="secondary"
                 disabled={readOnly}
@@ -185,6 +203,7 @@ export function PayrollScreen() {
                 Finalize {drafts.length === 1 ? 'the draft' : `all ${drafts.length} drafts`}
               </Button>
             ) : null}
+            {canRun ? (
             <Button
               disabled={readOnly || month === ''}
               title={readOnly ? 'A past financial year is read-only' : undefined}
@@ -192,6 +211,7 @@ export function PayrollScreen() {
             >
               {state === 'none' ? 'Generate sheet' : 'Regenerate drafts'}
             </Button>
+            ) : null}
           </div>
         }
       />
@@ -278,6 +298,7 @@ export function PayrollScreen() {
           }
         />
       ) : null}
+      {paying ? <PayRunDialog run={paying} onClose={() => setPaying(null)} /> : null}
       {finalizing ? (
         <FinalizeDialog runs={finalizing} month={month} onClose={() => setFinalizing(null)} />
       ) : null}

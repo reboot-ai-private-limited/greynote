@@ -55,7 +55,7 @@ export class AdjustPayrollUseCase {
     const { totalPaise } = adjustmentEffects(run.baseSalaryPaise, run.days, adjustments);
     const net = run.originalNetPayablePaise + totalPaise;
     if (net < 0) throw new PayrollRefusal(PAYROLL_CODES.negativeNet, 'That would take the net pay below zero.');
-    if (!(await this.runs.saveAdjustments(run.id, run.adjustments.length, { adjustments, adjustmentPaise: totalPaise, netPayablePaise: net }))) {
+    if (!(await this.runs.saveAdjustments(run.id, run.adjustments.length, { adjustments, adjustmentPaise: totalPaise, netPayablePaise: net, originalNetPayablePaise: run.originalNetPayablePaise }))) {
       throw new PayrollRefusal(PAYROLL_CODES.changed, 'This payroll run was finalized or changed just now. Reload and try again.');
     }
     return (await this.runs.findById(run.id)) ?? run;

@@ -91,8 +91,8 @@ export function monthState(runs: readonly Pick<PayrollRunDto, 'status'>[]): 'non
 }
 
 /** The month's `net = base + TA/DA + reimbursement − leave deduction − absent deduction`, checked here so a sheet that does not add up is never shown as fine. */
-export function netAddsUp(r: Pick<PayrollRunDto, 'baseSalaryPaise' | 'totalTaDaPaise' | 'reimbursementPaise' | 'leaveDeductionPaise' | 'absentDeductionPaise' | 'netPayablePaise'>): boolean {
-  return r.baseSalaryPaise + r.totalTaDaPaise + r.reimbursementPaise - r.leaveDeductionPaise - r.absentDeductionPaise === r.netPayablePaise;
+export function netAddsUp(r: Pick<PayrollRunDto, 'baseSalaryPaise' | 'totalTaDaPaise' | 'reimbursementPaise' | 'leaveDeductionPaise' | 'absentDeductionPaise' | 'netPayablePaise'> & { adjustmentPaise?: number }): boolean {
+  return r.baseSalaryPaise + r.totalTaDaPaise + r.reimbursementPaise - r.leaveDeductionPaise - r.absentDeductionPaise + (r.adjustmentPaise ?? 0) === r.netPayablePaise;
 }
 
 /** The absent deduction in words, like the leave deduction: whole days at a thirtieth of the base each. */
@@ -202,3 +202,47 @@ export function payrollCsv(runs: readonly PayrollRunDto[]): string {
 }
 
 export const payrollFilename = (month: string): string => `payroll-${month}.csv`;
+
+// ── Stage, days and adjustments (decision-log 2026-10-13) ───────────────────────────────────
+
+export type RunStage = 'DRAFT' | 'FINALIZED' | 'PAID';
+
+/** Where a run stands: a draft, finalized (locked), or paid. */
+export const runStage = (r: Pick<PayrollRunDto, 'status' | 'paidAt'>): RunStage => (r.paidAt ? 'PAID' : r.status === 'FINALIZED' ? 'FINALIZED' : 'DRAFT');
+export const RUN_STAGE_LABEL: Record<RunStage, string> = { DRAFT: 'Draft', FINALIZED: 'Finalized', PAID: 'Paid' };
+export const RUN_STAGE_TONE: Record<RunStage, 'warning' | 'accent' | 'success'> = { DRAFT: 'warning', FINALIZED: 'accent', PAID: 'success' };
+
+export const PAYROLL_DAY_LABEL: Record<string, string> = {
+  PRESENT: 'Present',
+  ABSENT: 'Absent',
+  LEAVE: 'Leave',
+  HOLIDAY: 'Holiday',
+  WEEKLY_OFF: 'Weekly off',
+  STRIKE: 'Strike',
+  NOT_YET: 'Not yet',
+  BEFORE_JOINING: 'Before joining',
+  UNKNOWN: 'Unknown',
+};
+
+/** The days HR may charge differently: a day the employee was expected to work. */
+export const CHARGEABLE_DAY_STATUSES = new Set(['PRESENT', 'ABSENT', 'LEAVE', 'STRIKE', 'UNKNOWN']);
+
+/** The days of pay a day is charged, as the reviewer reads it: "—", "Half day", "1 day". */
+export const chargeLabel = (days: number): string => (days === 0 ? '—' : days === 0.5 ? 'Half day' : days === 1 ? '1 day' : `${days} days`);
+
+/** The days HR charged differently, by date: the latest change to a date is the one that counts. */
+export function latestDayOverrides(run: Pick<PayrollRunDto, 'adjustments'>): Map<string, { setDays: number; reason: string }> {
+  const out = new Map<string, { setDays: number; reason: string }>();
+  for (const a of run.adjustments) if (a.kind === 'DAY' && a.date && a.setDays !== null) out.set(a.date, { setDays: a.setDays, reason: a.reason });
+  return out;
+}
+
+/** "Absent day not charged: adds ₹1,000.00", "Day charged half: takes off ₹500.00", "Amount added ₹200.00". */
+export function describePayrollAdjustment(a: Pick<PayrollRunDto['adjustments'][number], 'kind' | 'setDays' | 'ruleDays' | 'amountPaise'>): string {
+  const effect = `${a.amountPaise >= 0 ? 'adds' : 'takes off'} ${formatMoney(Math.abs(a.amountPaise))}`;
+  if (a.kind === 'AMOUNT') return `Amount ${a.amountPaise >= 0 ? 'added' : 'taken off'} ${formatMoney(Math.abs(a.amountPaise))}`;
+  const was = a.ruleDays ?? 0;
+  const now = a.setDays ?? 0;
+  const what = now === 0 ? 'Day not charged' : now === 0.5 ? 'Day charged half' : 'Day charged in full';
+  return `${what} (rules: ${was === 0 ? 'none' : was === 0.5 ? 'half' : 'full'}): ${effect}`;
+}
