@@ -1,11 +1,13 @@
+import type { ReactNode } from 'react';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { Grid, StepFrame, type StepProps } from './StepFrame';
 
-export function PersonalStep({ form, update, errors }: StepProps) {
+export function PersonalStep({ form, update, errors, photo }: StepProps & { photo?: ReactNode }) {
   const invalid = (key: string) => (errors[key] ? true : undefined);
   return (
     <StepFrame title="Personal details">
+      {photo ? <div className="mb-5">{photo}</div> : null}
       <Grid>
         <FormField label="Full name" htmlFor="p-name" error={errors['name']}>
           <Input id="p-name" value={form.name} onChange={(e) => update({ name: e.target.value })} aria-invalid={invalid('name')} />

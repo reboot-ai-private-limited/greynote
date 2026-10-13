@@ -1,8 +1,9 @@
 'use client';
 
-import type { EmployeeDraftDto, FinalizedEmployeeDto, SaveEmployeeDraftDto } from '@greynote/contracts';
+import type { EmployeeDraftDto, FinalizedEmployeeDto, PhotoDto, SaveEmployeeDraftDto } from '@greynote/contracts';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { employeeDraftsApi } from '@/lib/api/endpoints/identity';
+import { photoForm } from '../lib/photo';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
@@ -71,5 +72,31 @@ export function useFinalizeEmployeeDraft(onDone: (result: FinalizedEmployeeDto) 
       forgetDraft(queryClient, id);
       onDone(result);
     },
+  });
+}
+
+/** Keeps the cached draft's `photoUrl` in step, so "Continue" reopens with the photo that is really saved. */
+function withPhotoUrl(queryClient: QueryClient, id: string, photoUrl: string | null): void {
+  queryClient.setQueryData<EmployeeDraftDto>(keys.employeeDrafts.detail(id), (draft) => {
+    if (!draft) return draft;
+    const data = { ...draft.data };
+    delete data.photoUrl;
+    return { ...draft, data: photoUrl ? { ...data, photoUrl } : data };
+  });
+}
+
+export function useSetDraftPhoto() {
+  const queryClient = useQueryClient();
+  return useApiMutation<{ id: string; file: File }, PhotoDto>({
+    call: (token, { id, file }) => employeeDraftsApi.setPhoto(token, id, photoForm(file)),
+    onSuccess: (result, { id }) => withPhotoUrl(queryClient, id, result.photoUrl),
+  });
+}
+
+export function useRemoveDraftPhoto() {
+  const queryClient = useQueryClient();
+  return useApiMutation<string, PhotoDto>({
+    call: (token, id) => employeeDraftsApi.removePhoto(token, id),
+    onSuccess: (_result, id) => withPhotoUrl(queryClient, id, null),
   });
 }

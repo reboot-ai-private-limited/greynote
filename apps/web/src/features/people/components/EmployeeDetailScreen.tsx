@@ -1,5 +1,6 @@
 'use client';
 
+import type { UserDetailDto } from '@greynote/contracts';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Badge } from '@/components/ui/Badge';
@@ -14,7 +15,7 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { formatDate } from '@/lib/format';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useUser } from '../hooks/useUsers';
+import { useRemovePhoto, useSetPhoto, useUser } from '../hooks/useUsers';
 import { missingForActive } from '../lib/profile';
 import { ROLE_LABEL, STATUS_LABEL, STATUS_TONE } from '../lib/user';
 import { AddressSection } from './AddressSection';
@@ -22,6 +23,7 @@ import { BankSection } from './BankSection';
 import { DocumentsSection } from './DocumentsSection';
 import { BasicSection } from './BasicSection';
 import { CompensationTab } from './CompensationTab';
+import { PhotoPicker } from './PhotoPicker';
 import { PromotionTab } from './PromotionTab';
 import { Field, FieldList } from './SectionCard';
 import { SecuritySection } from './SecuritySection';
@@ -83,6 +85,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 </div>
               }
             />
+            {user.role === 'FIELD' ? <ProfilePhoto user={user} readOnly={readOnly} /> : null}
             {missing.length > 0 ? (
               <div
                 role="status"
@@ -171,5 +174,23 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
         ) : null}
       </DataState>
     </>
+  );
+}
+
+/** The employee's photo with Choose another / Remove. Both delete the old file from Cloudinary on the server. */
+function ProfilePhoto({ user, readOnly }: { user: UserDetailDto; readOnly: boolean }) {
+  const set = useSetPhoto(user.id);
+  const remove = useRemovePhoto(user.id);
+  return (
+    <div className="mb-6">
+      <PhotoPicker
+        name={user.name}
+        photoUrl={user.profile?.photoUrl ?? null}
+        busy={set.isPending || remove.isPending}
+        disabled={readOnly}
+        onPick={(file) => set.mutate(file)}
+        onRemove={() => remove.mutate()}
+      />
+    </div>
   );
 }

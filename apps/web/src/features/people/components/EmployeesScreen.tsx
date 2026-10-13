@@ -21,6 +21,7 @@ import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { EmployeeDraftsCard } from './EmployeeDraftsCard';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
 import { useAllZones } from '@/features/territory/hooks/useZones';
+import { Avatar } from './Avatar';
 import { useDesignations } from '../hooks/useMasterData';
 import { useUsers } from '../hooks/useUsers';
 import { ROLE_LABEL, STATUS_LABEL, STATUS_TONE } from '../lib/user';
@@ -81,8 +82,9 @@ export function EmployeesScreen() {
       render: (u) => (
         <Link
           href={`/employees/${u.id}`}
-          className="font-medium text-text hover:text-accent hover:underline"
+          className="flex items-center gap-2 font-medium text-text hover:text-accent hover:underline"
         >
+          <Avatar name={u.name} url={u.photoUrl} />
           {u.name}
         </Link>
       ),

@@ -911,3 +911,7 @@ Plan and phone contract in [`mobile/team.md`](mobile/team.md) (the phone is anot
 ## Google Play: account deletion and demo Manager (2026-10-13)
 
 Decision-log 2026-10-13. **Done (API + docs, unit-tested):** `POST /identity/auth/delete-account` and Admin/HR `POST /identity/users/:id/anonymise` (scrub personal data, keep records, `deletedAt`); `isDemo` users and `seed:demo-manager` (DEMOMGR + 2 MRs, territory, 6 doctors); `mobile/account.md`. **Open:** the phone's Delete account screen; run the seed against the live database and sign in as DEMOMGR; add demo calls, DCRs, leave and expenses so the Team screens are not empty; privacy-policy text on retention; Play Console Data-safety and App-access forms; Play may still ask for a public deletion-request web page.
+
+## Employee photo and GH ids (2026-10-13)
+
+Decision-log 2026-10-13. **Done (API + web + docs, unit-tested, not browser-checked; branch `feat/employee-photo`):** new employee ids `GH101, GH102 …`; optional profile photo for FIELD employees — a picture at the top of the wizard's Personal step (choose, choose another, remove), the same on the employee page, avatar in the Employees list, `photoUrl` on user detail, list and `/auth/me`. Replacing or removing deletes the old file from Cloudinary. Open: the phone showing and changing the photo; a browser walk-through against the dev database and Cloudinary.

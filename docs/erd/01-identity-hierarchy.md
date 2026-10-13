@@ -63,6 +63,7 @@ erDiagram
         json address "nullable - {district, state, pincode, country}, country default India"
         json bank_details "nullable - {bank_name, ifsc, account_number, account_holder_name, branch_name}"
         json documents "array - [{id, type, url, publicId, uploadedAt}], uploaded to Cloudinary"
+        json photo "nullable - {url, publicId}, the profile picture; optional, not required for activation; only url is sent to clients"
     }
 
     COMPLIANCE_BLOCK {

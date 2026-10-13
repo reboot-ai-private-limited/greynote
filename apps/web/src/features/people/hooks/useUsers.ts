@@ -1,6 +1,6 @@
 'use client';
 
-import type { CreateUserDto, UpdateUserDto, UserDocumentDto, UserListItemDto } from '@greynote/contracts';
+import type { CreateUserDto, PhotoDto, UpdateUserDto, UserDocumentDto, UserListItemDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { identityApi, type ListUsersQuery } from '@/lib/api/endpoints/identity';
 import { timing } from '@/lib/hooks/timing';
@@ -8,6 +8,7 @@ import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
+import { photoForm } from '../lib/photo';
 
 export function useUsers(query: ListUsersQuery) {
   return useQuery(
@@ -106,5 +107,22 @@ export function useDeactivateUser(userId: string, onDone: () => void) {
     invalidates: [keys.users.all(), keys.devices.all()],
     successMessage: 'Account deactivated.',
     onSuccess: onDone,
+  });
+}
+
+/** Sets or replaces an employee's photo; the server deletes the old file from Cloudinary. */
+export function useSetPhoto(userId: string) {
+  return useApiMutation<File, PhotoDto>({
+    call: (token, file) => identityApi.setPhoto(token, userId, photoForm(file)),
+    invalidates: [keys.users.all()],
+    successMessage: 'Photo saved.',
+  });
+}
+
+export function useRemovePhoto(userId: string) {
+  return useApiMutation<void, PhotoDto>({
+    call: (token) => identityApi.removePhoto(token, userId),
+    invalidates: [keys.users.all()],
+    successMessage: 'Photo removed.',
   });
 }
