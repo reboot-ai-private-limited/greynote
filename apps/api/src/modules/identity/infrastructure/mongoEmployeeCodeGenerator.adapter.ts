@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { formatEmployeeCode } from '../domain/employeeCode.js';
+import { EMPLOYEE_CODE_FIRST, formatEmployeeCode } from '../domain/employeeCode.js';
 import type { EmployeeCodeGeneratorPort } from '../domain/employeeCode.generator.port.js';
 import type { UserRepositoryPort } from '../domain/user.repository.port.js';
 import { UserModel } from './user.schema.js';
@@ -18,7 +18,7 @@ const DUPLICATE_KEY = 11000;
 
 /**
  * A counter document, bumped with one atomic `$inc`, so two people creating employees at once never
- * get the same number. The first time, the counter starts at the highest GRN code already in use,
+ * get the same number. The first time, the counter starts at the highest GH code already in use (or just below GH101),
  * so it never collides with codes typed by hand before.
  */
 export class MongoEmployeeCodeGenerator implements EmployeeCodeGeneratorPort {
@@ -39,10 +39,10 @@ export class MongoEmployeeCodeGenerator implements EmployeeCodeGeneratorPort {
   private async ensureSeeded(): Promise<void> {
     if (await CounterModel.exists({ _id: KEY })) return;
     const rows = await UserModel.aggregate<{ max: number | null }>([
-      { $match: { employeeCode: /^GRN\d+$/ } },
-      { $group: { _id: null, max: { $max: { $toInt: { $substrBytes: ['$employeeCode', 3, 20] } } } } },
+      { $match: { employeeCode: /^GH\d+$/ } },
+      { $group: { _id: null, max: { $max: { $toInt: { $substrBytes: ['$employeeCode', 2, 20] } } } } },
     ]);
-    const start = rows[0]?.max ?? 0;
+    const start = Math.max(rows[0]?.max ?? 0, EMPLOYEE_CODE_FIRST - 1);
     try {
       await CounterModel.create({ _id: KEY, seq: start });
     } catch (error) {

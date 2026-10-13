@@ -2,15 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { formatEmployeeCode, parseEmployeeCode } from './employeeCode.js';
 
 describe('employee code', () => {
-  it('pads to four digits and grows past 9999', () => {
-    expect(formatEmployeeCode(1)).toBe('GRN0001');
-    expect(formatEmployeeCode(42)).toBe('GRN0042');
-    expect(formatEmployeeCode(10000)).toBe('GRN10000');
+  it('has no padding and grows past 999', () => {
+    expect(formatEmployeeCode(101)).toBe('GH101');
+    expect(formatEmployeeCode(102)).toBe('GH102');
+    expect(formatEmployeeCode(1000)).toBe('GH1000');
   });
 
-  it('reads only GRN codes', () => {
-    expect(parseEmployeeCode('GRN0042')).toBe(42);
+  it('reads only GH codes', () => {
+    expect(parseEmployeeCode('GH142')).toBe(142);
+    expect(parseEmployeeCode('GRN0042')).toBeNull();
     expect(parseEmployeeCode('EMP-7')).toBeNull();
-    expect(parseEmployeeCode('GRN')).toBeNull();
+    expect(parseEmployeeCode('GH')).toBeNull();
   });
 });

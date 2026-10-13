@@ -43,7 +43,7 @@ import { WorkStep } from './onboarding/WorkStep';
 
 /**
  * Adding a field employee in one guided pass. A step opens only once the ones before it are valid. Every Next saves the
- * form as a draft, so leaving never loses anything, and the last step creates the login with the next GRN id and a
+ * form as a draft, so leaving never loses anything, and the last step creates the login with the next GH id and a
  * generated password.
  */
 export function EmployeeOnboardingScreen() {

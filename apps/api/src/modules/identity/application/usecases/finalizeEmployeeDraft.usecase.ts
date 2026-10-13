@@ -40,7 +40,7 @@ function toAddress(address: DraftAddress | undefined): Address {
 }
 
 /**
- * The wizard's last step: turns a complete draft into the real employee — login with the next GRN
+ * The wizard's last step: turns a complete draft into the real employee — login with the next GH
  * code and a generated password, profile, HQ, CTC — and removes the draft. Built on the use cases
  * that already own each piece, so every rule they enforce (loop-free manager, active status) holds.
  *

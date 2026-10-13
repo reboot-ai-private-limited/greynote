@@ -2,7 +2,7 @@
 
 | Id | Do | Expect | Result |
 |---|---|---|---|
-| 4.00a | Employees → New employee: go through all eight steps | each Next saves a draft; a later step cannot be opened before the earlier ones are valid; Create gives a GRN id and password | |
+| 4.00a | Employees → New employee: go through all eight steps | each Next saves a draft; a later step cannot be opened before the earlier ones are valid; Create gives a GH id (GH101, GH102 …) and password | |
 | 4.00b | Address step: tick "Same as present" | the permanent fields lock and show the present address; untick lets you edit them | |
 | 4.00c | Qualifications / Experience: add several rows, remove the middle one | the others keep their text; both steps can be skipped empty | |
 | 4.00d | Work step: pick the top designation | no manager is asked for; any other designation needs one | |

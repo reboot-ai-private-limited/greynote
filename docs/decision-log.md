@@ -218,7 +218,7 @@ old one.
 
 ---
 
-## 2026-10-09 — New field employees are added in one guided wizard with drafts; the GRN id and password are generated at the end; the top designation has no manager
+## 2026-10-09 — New field employees are added in one guided wizard with drafts; the employee id and password are generated at the end; the top designation has no manager
 
 **Decision:**
 - `/employees/new` is one eight-step wizard: **Personal** (name, mobile, alternate mobile, guardian, date of birth, ESI number, joining date, probation), **Address** (present, and permanent with a "same as present" box), **Qualifications** (repeatable, optional), **Experience** (repeatable, optional), **Bank**, **Work** (designation, zone → HQ, manager), **Pay** (grade, optional CTC), **Review**. A step opens only once every step before it is valid. Required: personal, address, bank, work, pay grade. Optional: alternate mobile, ESI, joining date, probation, qualifications, experience, CTC.
@@ -2162,3 +2162,9 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Decision:** one **Expenses** page: the month table with Finalize, Pay and "Allow late" on each row, a Late exceptions tab for Admin, and the day-by-day review one click away. Expense payouts and Late expenses are no longer separate pages (their old addresses redirect). The row-by-row list of claims stays as **Expense claims** for the Accountant and Admin. "Allow late" is offered only where it is needed: a month past its send or approval deadline that has something claimed.
 
 **Open:** the phone showing "edited by HR" and "finalized" (step 5); HR still sees only Expenses under Payouts.
+
+## 2026-10-13 — Employee ids are GH101, GH102 … (replaces the GRN0001 format)
+
+**Decision:** new employees get `GH` + a plain number from the same atomic counter, starting at `GH101` (no zero padding; past 999 it just grows). On first use the counter starts at the highest existing `GH\d+` code, or 100 if there is none. Employees who already have a `GRN` code (or a hand-typed one) keep it; nothing is renamed or migrated. Supersedes the "Employee id" line of 2026-10-09.
+
+**Open:** whether the old `GRN` employees should be renamed too (it would change what they log in with).
