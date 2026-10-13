@@ -212,6 +212,8 @@ docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-spe
 docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-specialties.js --apply
 ```
 
+These scripts are bundled into the image (`apps/api/esbuild.config.mjs`); if `Cannot find module` appears, the image is older: `git pull` then `docker compose -f docker-compose.prod.yml up -d --build`.
+
 Safe to run again. A fresh database gets the starter list and nothing else to convert. Old doctor `category` values stay in the database and are never read.
 
 ## Step 9e — Drop the CTC range from pay grades (once, when upgrading past 2026-10-06)
