@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { AnyZodObject, ZodTypeAny } from 'zod';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
+import type { RoleName } from '@greynote/contracts';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { CrudHandlers, DoctorHandlers } from './field-master-data.controller.js';
@@ -100,13 +101,16 @@ doc('patch', '/doctors/{id}/sample-allocations/{productId}', 'Admin: correct the
 function crudRouter(
   c: CrudHandlers,
   schemas: { list: AnyZodObject; create: ZodTypeAny; update: ZodTypeAny },
+  /** Who may read (the list and one record); writing is always Admin's. */
+  readers: readonly RoleName[] = ['ADMIN'],
 ): Router {
   const router = Router();
-  router.use(authenticate(), requireRole('ADMIN'));
-  router.get('/', validate({ query: schemas.list }), c.list);
-  router.post('/', validate({ body: schemas.create }), c.create);
-  router.get('/:id', validate({ params: idParamsSchema }), c.get);
-  router.patch('/:id', validate({ params: idParamsSchema, body: schemas.update }), c.update);
+  const admin = requireRole('ADMIN');
+  router.use(authenticate());
+  router.get('/', requireRole(...readers), validate({ query: schemas.list }), c.list);
+  router.post('/', admin, validate({ body: schemas.create }), c.create);
+  router.get('/:id', requireRole(...readers), validate({ params: idParamsSchema }), c.get);
+  router.patch('/:id', admin, validate({ params: idParamsSchema, body: schemas.update }), c.update);
   return router;
 }
 
@@ -150,7 +154,7 @@ export function buildFieldMasterDataRouter(c: {
   router.use('/specialties', crudRouter(c.specialties, { list: listSpecialtiesQuerySchema, create: createSpecialtyBodySchema, update: updateSpecialtyBodySchema }));
   router.use(
     '/distributors',
-    crudRouter(c.distributors, { list: listDistributorsQuerySchema, create: createDistributorBodySchema, update: updateDistributorBodySchema }),
+    crudRouter(c.distributors, { list: listDistributorsQuerySchema, create: createDistributorBodySchema, update: updateDistributorBodySchema }, ['ADMIN', 'ACCOUNTANT']), // the Accountant reads them to record payments
   );
   router.use('/chemists', crudRouter(c.chemists, { list: listChemistsQuerySchema, create: createChemistBodySchema, update: updateChemistBodySchema }));
   return router;

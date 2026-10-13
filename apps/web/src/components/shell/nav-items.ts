@@ -44,6 +44,8 @@ export interface NavItem {
   group: NavGroupName;
   /** A smaller heading inside a long group (Master data), shown while that group is open. */
   section?: string;
+  /** A second door to a screen whose main entry is in another group: listed, but the screen counts as belonging to the main one. */
+  secondDoor?: boolean;
   /** Other screens that belong to this item (reached from it, not listed in the rail). */
   alsoOpens?: readonly string[];
   /** Roles that see this item. Cosmetic: the API returns 403 regardless. */
@@ -81,7 +83,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Devices', href: '/devices', icon: Smartphone, group: 'HR', roles: ['ADMIN'] },
 
   { label: 'Sales dashboard', href: '/reports/sales-dashboard', icon: LayoutDashboard, group: 'Sales & Distribution', roles: ['ADMIN'] },
-  { label: 'Orders', href: '/orders', icon: ShoppingCart, group: 'Sales & Distribution', roles: ['ADMIN'] },
+  { label: 'Orders', href: '/orders', icon: ShoppingCart, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
+  { label: 'Distributors', href: '/distributors', icon: Truck, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
 
   { label: 'Payroll', href: '/payroll', icon: Banknote, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Expenses', href: '/expenses', icon: Receipt, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
@@ -99,7 +102,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'HQs', href: '/hqs', icon: Building2, group: 'Master data', section: 'Territory', roles: ['ADMIN'] },
   { label: 'Routes', href: '/routes', icon: Route, group: 'Master data', section: 'Territory', roles: ['ADMIN'] },
   { label: 'Doctors', href: '/doctors', icon: Stethoscope, group: 'Master data', section: 'Outlets', roles: ['ADMIN'] },
-  { label: 'Distributors', href: '/distributors', icon: Truck, group: 'Master data', section: 'Outlets', roles: ['ADMIN'] },
+  { label: 'Distributors', href: '/distributors', icon: Truck, group: 'Master data', section: 'Outlets', roles: ['ADMIN'], secondDoor: true },
   { label: 'Chemists', href: '/chemists', icon: Pill, group: 'Master data', section: 'Outlets', roles: ['ADMIN'] },
   { label: 'Products', href: '/products', icon: Package, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
   { label: 'Specialities', href: '/specialties', icon: Tags, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
@@ -141,13 +144,20 @@ export const isActiveItem = (item: Pick<NavItem, 'href'> & { alsoOpens?: readonl
  * `/reports/sales-dashboard` is not read as `/reports/sales`). A path no item claims is not refused here: it is a 404 or a shared screen.
  */
 export function canOpen(role: RoleName, pathname: string): boolean {
-  const owner = NAV_ITEMS.filter((i) => isActiveItem(i, pathname)).sort((a, b) => b.href.length - a.href.length)[0];
-  return owner === undefined || owner.roles.includes(role);
+  const owners = NAV_ITEMS.filter((i) => isActiveItem(i, pathname));
+  if (owners.length === 0) return true;
+  const longest = Math.max(...owners.map((i) => i.href.length));
+  const exception = Object.entries(ADMIN_ONLY_SCREENS).find(([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  if (exception && !exception[1].includes(role)) return false;
+  return owners.some((i) => i.href.length === longest && i.roles.includes(role));
 }
+
+/** Screens inside a shared area that only some of its roles may open (the Accountant reads distributors but never adds one). */
+const ADMIN_ONLY_SCREENS: Readonly<Record<string, readonly RoleName[]>> = { '/distributors/new': ['ADMIN'] };
 
 /** The group that holds the screen being looked at, if any. */
 export function activeGroupOf(role: RoleName, pathname: string): NavGroupName | null {
-  return navGroupsFor(role).find((g) => g.items.some((i) => isActiveItem(i, pathname)))?.group ?? null;
+  return navGroupsFor(role).find((g) => g.items.some((i) => !i.secondDoor && isActiveItem(i, pathname)))?.group ?? navGroupsFor(role).find((g) => g.items.some((i) => isActiveItem(i, pathname)))?.group ?? null;
 }
 
 /** The open groups as remembered in the browser: a JSON list of group names; anything else, or a name that is not a group, is ignored. */

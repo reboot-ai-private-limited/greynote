@@ -2111,3 +2111,14 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** the apex domain `greynotehealth.com` if used; a support email on the page for office roles, which this route refuses.
 
 **Refs:** [`LLD/identity.md`](LLD/identity.md), [`mobile/account.md`](mobile/account.md), `apps/api/src/modules/identity/interface/auth.route.ts`.
+
+
+## 2026-10-13 — Accountant marks orders Done; Doctor services become read-only for Accounts
+
+**Decision:** the Accountant may see every order and mark a placed distributor order **Done** or **Cancelled**, the same as Admin (`/sales/orders/:id/complete` and `/cancel`, `GET /sales/orders`, `GET /reports/orders`); Orders sits under Sales & Distribution for Admin and Accountant. No new status: "dispatched" is the existing **Done**, so a Done order still counts as a primary sale in the month it is marked. Doctor services: Accounts keeps the page and the status, but **only Admin marks an approved service done** (this reverses the earlier rule, in the Doctor services decision, that let Accounts do it).
+
+**Distributor payments (same day):** the Accountant records and cancels distributor payments on the web (the API already allowed it) and, to do so, reads the distributor list and one distributor (`GET /field-master-data/distributors[/:id]`) and the monthly statement (`GET /sales/distributor-statement`: stock, primary, secondary), all read only; adding or editing a distributor and saving a statement stay Admin's. Distributors now has a door in Sales & Distribution (Admin, Accountant) as well as Master data > Outlets (Admin). The Accountant's page has Payments, Orders and Stock tabs, and no territory filters (territory stays Admin's).
+
+**Open:** an "awaiting" default filter on Orders.
+
+**Refs:** [`LLD/sales-and-orders.md`](LLD/sales-and-orders.md), [`LLD/field-activity.md`](LLD/field-activity.md), `apps/api/src/rbac.matrix.txt`.

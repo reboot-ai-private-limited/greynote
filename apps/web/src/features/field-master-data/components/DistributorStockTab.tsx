@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { monthLabel } from '@/features/payroll/lib/payroll';
 import { financialYearMonths } from '@/features/reports/lib/salesDashboard';
+import { useSession } from '@/lib/auth/SessionProvider';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { istDate } from '@/lib/dates';
 import { financialYearOf } from '@/lib/financial-year';
@@ -57,7 +58,9 @@ export function DistributorStockTab({
   const [drafts, setDrafts] = useState<Map<string, StockDraft>>(new Map());
   const [shown, setShown] = useState(false);
   const save = useSaveStatement(() => setShown(false));
-  const locked = readOnly || inactive;
+  // Only Admin enters the statement; the Accountant reads it.
+  const { user } = useSession();
+  const locked = readOnly || inactive || user?.role !== 'ADMIN';
 
   // A fresh read (another month, or after a save) starts every row from what the server has.
   useEffect(() => {

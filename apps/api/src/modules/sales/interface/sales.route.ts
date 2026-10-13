@@ -29,7 +29,7 @@ doc('post', '/orders', 'Place an order for one of my Chemists or Distributors, s
 doc('get', '/orders', 'Orders — my own; a manager also sees their downline’s, Admin all; filter by status, dates, outlet', { query: listOrdersQuerySchema });
 doc('post', '/distributor-payments', 'Admin or Accountant: record money received from a distributor (date not in the future, open financial year)', { body: recordPaymentBodySchema });
 doc('get', '/distributor-payments', 'Admin or Accountant: one distributor’s payments in a date range, with the total collected and the total ordered', { query: listPaymentsQuerySchema });
-doc('get', '/distributor-statement', 'Admin: one distributor\'s month by product — field counts, orders, the saved statement and the figures that follow', { query: statementQuerySchema });
+doc('get', '/distributor-statement', 'Admin and the Accountant (read only): one distributor\'s month by product — field counts, orders, the saved statement and the figures that follow', { query: statementQuerySchema });
 doc('get', '/employee-sales', 'An employee\'s month by product — their Done distributor orders (primary), Admin\'s change and the secondary entered; self, the manager above, or Admin', { query: employeeSalesQuerySchema });
 doc('post', '/employee-secondary', 'The secondary an employee sold, per product and month (their achievement): the employee, the manager above, or Admin; the stock deadline applies except to Admin', { body: saveEmployeeSecondaryBodySchema });
 doc('post', '/employee-secondary/submit', 'The employee sends a month\'s secondary to their manager for approval; only approved secondary counts toward achievement', { body: submitEmployeeSecondaryBodySchema });
@@ -39,7 +39,7 @@ doc('get', '/distributor-payments/totals', 'Admin or Accountant: what each distr
 openApiRegistry.registerPath({ method: 'post', path: '/api/sales/distributor-payments/{id}/cancel', tags: [TAG], summary: 'Admin or Accountant: cancel a recorded payment, with a reason; a 409 if it is already cancelled', security: [{ bearerAuth: [] }], request: { params: orderIdParamsSchema, body: { content: { 'application/json': { schema: cancelPaymentBodySchema } } } }, responses: { 200: { description: 'OK' }, 409: { description: 'Already cancelled' } } });
 for (const [path, summary] of [
   ['/orders/{id}', 'One order with its lines'],
-  ['/orders/{id}/complete', 'Mark a PLACED order DONE — the MR who placed it, or Admin; a 409 if it is not PLACED'],
+  ['/orders/{id}/complete', 'Mark a PLACED order DONE — the MR who placed it, Admin or the Accountant; a 409 if it is not PLACED'],
   ['/orders/{id}/cancel', 'Cancel a PLACED order — the MR who placed it, or Admin; a 409 if it is not PLACED'],
 ] as const) {
   openApiRegistry.registerPath({ method: path === '/orders/{id}' ? 'get' : 'post', path: `/api/sales${path}`, tags: [TAG], summary, security: [{ bearerAuth: [] }], request: { params: orderIdParamsSchema }, responses: { 200: { description: 'OK' }, 409: { description: 'The order is not PLACED' } } });
@@ -54,7 +54,7 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.get('/monthly-stock/missing', requireRole('FIELD', 'ADMIN'), validate({ query: missingQuerySchema }), c.missingStock);
   router.post('/distributor-payments', requireRole('ACCOUNTANT', 'ADMIN'), validate({ body: recordPaymentBodySchema }), c.recordPayment);
   router.get('/distributor-payments', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: listPaymentsQuerySchema }), c.listPayments);
-  router.get('/distributor-statement', requireRole('ADMIN'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: statementQuerySchema }), c.readStatement);
+  router.get('/distributor-statement', requireRole('ADMIN', 'ACCOUNTANT'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: statementQuerySchema }), c.readStatement);
   router.get('/employee-sales', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: employeeSalesQuerySchema }), c.readEmployeeSales);
   router.post('/employee-secondary', requireRole('ADMIN', 'FIELD'), validate({ body: saveEmployeeSecondaryBodySchema }), c.saveEmployeeSecondary);
   router.post('/employee-secondary/submit', requireRole('FIELD'), validate({ body: submitEmployeeSecondaryBodySchema }), c.submitEmployeeSecondary);
@@ -63,9 +63,9 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.get('/distributor-payments/totals', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: paymentTotalsQuerySchema }), c.paymentTotals);
   router.post('/distributor-payments/:id/cancel', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: orderIdParamsSchema, body: cancelPaymentBodySchema }), c.cancelPayment);
   router.post('/orders', requireRole('FIELD'), validate({ body: placeOrderBodySchema }), c.placeOrder);
-  router.get('/orders', requireRole('FIELD', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listOrdersQuerySchema }), c.listOrders);
-  router.get('/orders/:id', requireRole('FIELD', 'ADMIN'), validate({ params: orderIdParamsSchema }), c.getOrder);
-  router.post('/orders/:id/complete', requireRole('FIELD', 'ADMIN'), validate({ params: orderIdParamsSchema }), c.completeOrder);
-  router.post('/orders/:id/cancel', requireRole('FIELD', 'ADMIN'), validate({ params: orderIdParamsSchema }), c.cancelOrder);
+  router.get('/orders', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listOrdersQuerySchema }), c.listOrders);
+  router.get('/orders/:id', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema }), c.getOrder);
+  router.post('/orders/:id/complete', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema }), c.completeOrder);
+  router.post('/orders/:id/cancel', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema }), c.cancelOrder);
   return router;
 }

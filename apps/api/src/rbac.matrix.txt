@@ -40,8 +40,8 @@ GET    /api/field-activity/expense-payouts  ACCOUNTANT,ADMIN
 GET    /api/field-activity/expenses  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists  ADMIN
 GET    /api/field-master-data/chemists/:id  ADMIN
-GET    /api/field-master-data/distributors  ADMIN
-GET    /api/field-master-data/distributors/:id  ADMIN
+GET    /api/field-master-data/distributors  ACCOUNTANT,ADMIN
+GET    /api/field-master-data/distributors/:id  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/doctors  ADMIN
 GET    /api/field-master-data/doctors/:id  ADMIN,FIELD
 GET    /api/field-master-data/doctors/:id/assignments  ADMIN
@@ -102,8 +102,8 @@ GET    /api/reports/me/dcr  FIELD
 GET    /api/reports/me/dcr/coverage  FIELD
 GET    /api/reports/me/ta-da  FIELD
 GET    /api/reports/me/ta-da/days  FIELD
-GET    /api/reports/orders  ADMIN
-GET    /api/reports/orders/:id  ADMIN
+GET    /api/reports/orders  ACCOUNTANT,ADMIN
+GET    /api/reports/orders/:id  ACCOUNTANT,ADMIN
 GET    /api/reports/salary  ADMIN
 GET    /api/reports/sales  ADMIN
 GET    /api/reports/sales-dashboard  ADMIN,FIELD
@@ -114,12 +114,12 @@ GET    /api/reports/ta-da/days  ADMIN
 GET    /api/reports/team/overview  ADMIN,FIELD
 GET    /api/sales/distributor-payments  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-payments/totals  ACCOUNTANT,ADMIN
-GET    /api/sales/distributor-statement  ADMIN
+GET    /api/sales/distributor-statement  ACCOUNTANT,ADMIN
 GET    /api/sales/employee-sales  ADMIN,FIELD
 GET    /api/sales/monthly-stock  ADMIN,FIELD
 GET    /api/sales/monthly-stock/missing  ADMIN,FIELD
-GET    /api/sales/orders  ADMIN,FIELD
-GET    /api/sales/orders/:id  ADMIN,FIELD
+GET    /api/sales/orders  ACCOUNTANT,ADMIN,FIELD
+GET    /api/sales/orders/:id  ACCOUNTANT,ADMIN,FIELD
 GET    /api/sync/drafts  FIELD
 GET    /api/sync/pull  FIELD
 GET    /api/team/leaves  FIELD
@@ -172,7 +172,7 @@ POST   /api/documents  ADMIN
 POST   /api/field-activity/admin/doctor-gifts  ADMIN
 POST   /api/field-activity/admin/doctor-services  ADMIN
 POST   /api/field-activity/dcr/:id/calls/:callId/override-geofence  ADMIN,FIELD
-POST   /api/field-activity/doctor-services/:id/done  ACCOUNTANT,ADMIN
+POST   /api/field-activity/doctor-services/:id/done  ADMIN
 POST   /api/field-activity/expense-grants  ADMIN,FIELD
 POST   /api/field-activity/expense-grants/:id/revoke  ADMIN,FIELD
 POST   /api/field-activity/expense-months/:month/submit  FIELD
@@ -245,8 +245,8 @@ POST   /api/sales/employee-secondary/submit  FIELD
 POST   /api/sales/monthly-stock  ADMIN,FIELD
 POST   /api/sales/monthly-stock/unlock  ADMIN
 POST   /api/sales/orders  FIELD
-POST   /api/sales/orders/:id/cancel  ADMIN,FIELD
-POST   /api/sales/orders/:id/complete  ADMIN,FIELD
+POST   /api/sales/orders/:id/cancel  ACCOUNTANT,ADMIN,FIELD
+POST   /api/sales/orders/:id/complete  ACCOUNTANT,ADMIN,FIELD
 POST   /api/sync/push  FIELD
 POST   /api/territory/hqs  ADMIN
 POST   /api/territory/import  ADMIN

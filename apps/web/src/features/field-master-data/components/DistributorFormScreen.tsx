@@ -21,6 +21,8 @@ import { WizardShell } from '@/components/ui/WizardShell';
 import { EmployeeName } from '@/features/people/components/EmployeePickerField';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { toErrorState } from '@/lib/api/toErrorState';
+import { useSession } from '@/lib/auth/SessionProvider';
+import { DistributorAccountsPage } from './DistributorAccountsScreen';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import {
   useCreateDistributor,
@@ -55,6 +57,12 @@ const STEP_TITLE: Record<DistributorStep, string> = {
 
 /** `/distributors/new` (no id) walks the add wizard; `/distributors/[id]` is the distributor's page: Details, Payments and Orders. */
 export function DistributorFormScreen({ id }: { id?: string }) {
+  const { user } = useSession();
+  if (user?.role === 'ACCOUNTANT' && id) return <DistributorAccountsPage id={id} />;
+  return <AdminDistributorScreen id={id} />;
+}
+
+function AdminDistributorScreen({ id }: { id?: string | undefined }) {
   const query = useDistributor(id ?? '');
   if (!id) return <NewDistributor />;
   return (

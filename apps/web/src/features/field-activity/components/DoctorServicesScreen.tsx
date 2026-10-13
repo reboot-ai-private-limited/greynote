@@ -129,7 +129,7 @@ export function DoctorServicesScreen() {
       header: '',
       className: 'text-right',
       render: (s) =>
-        s.awaitingDone ? (
+        isAdmin && s.awaitingDone ? (
           <Button size="sm" disabled={readOnly || markDone.isPending} onClick={() => markDone.mutate(s.id)}>
             Mark done
           </Button>
@@ -141,7 +141,7 @@ export function DoctorServicesScreen() {
     <>
       <PageHeader
         title="Doctor services"
-        description="Tour packages, gifts, online promotion and others given to doctors. An MR's request waits for approval; one Admin records is approved at once. Once approved, Admin or Accounts marks it done."
+        description="Tour packages, gifts, online promotion and others given to doctors. An MR's request waits for approval; one Admin records is approved at once. Once approved, Admin marks it done."
         actions={
           isAdmin ? (
             <Button

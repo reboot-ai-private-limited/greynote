@@ -454,4 +454,4 @@ assigned MR, refused for a doctor with no MR). A doctor is picked by searching n
 
 ## Doctor Service — final "Done" step (2026-10-12)
 
-After a service is approved, Admin or Accounts marks it carried out: `POST /api/field-activity/doctor-services/:id/done` (`MarkDoctorServiceDoneUseCase`, roles `ADMIN`, `ACCOUNTANT`; `409` while not approved or when already done; one conditional update on `doneAt`). `GET /doctor-services[/:id]` is open to Accounts (all services) and returns `awaitingDone`, `doneBy`, `doneAt`. Gifts are unchanged: Admin allocates, the doctor's MR marks done.
+After a service is approved, Admin marks it carried out (Accounts, from 2026-10-13, only reads): `POST /api/field-activity/doctor-services/:id/done` (`MarkDoctorServiceDoneUseCase`, role `ADMIN`; `409` while not approved or when already done; one conditional update on `doneAt`). `GET /doctor-services[/:id]` is open to Accounts (all services) and returns `awaitingDone`, `doneBy`, `doneAt`. Gifts are unchanged: Admin allocates, the doctor's MR marks done.

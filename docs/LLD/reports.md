@@ -20,7 +20,7 @@ Nothing is stored. A **read model** at the top tier (7), above Payroll and Marke
 
 ## Built: the Orders report
 
-`GET /api/reports/orders?month=&type=&status=&mrId=` — one month of orders by **order date**, each with the MR and outlet named, plus totals by status (count and amount), capped at 2000 rows (`truncated` says when it may be short). `GET /api/reports/orders/:id` — one order in full with product names and who finished it. Names come from Identity's `getUserSummaries` and Field Master Data's `listNames` (three queries however many rows). Web: `/orders` (Admin), two tabs — *To distributors* and *Chemist orders* — month, status and MR filters, status totals as tiles, an order dialog, Done / Cancel for a placed distributor order, CSV.
+`GET /api/reports/orders?month=&type=&status=&mrId=` — one month of orders by **order date**, each with the MR and outlet named, plus totals by status (count and amount), capped at 2000 rows (`truncated` says when it may be short). `GET /api/reports/orders/:id` — one order in full with product names and who finished it. Names come from Identity's `getUserSummaries` and Field Master Data's `listNames` (three queries however many rows). Web: `/orders` (Admin and the Accountant, who can also Done / Cancel), two tabs — *To distributors* and *Chemist orders* — month, status and MR filters, status totals as tiles, an order dialog, Done / Cancel for a placed distributor order, CSV.
 
 Added to the modules below for it: Sales `listOrders` and `getOrder` (contract), Field Master Data `findByIds` on the Distributor, Chemist and Product repositories and `listNames` (contract).
 

@@ -200,4 +200,4 @@ erDiagram
 
 ## `DoctorService` — done step (2026-10-12)
 
-Adds `done_by` and `done_at` (null until Admin or Accounts marks an approved service carried out). `awaitingDone` is derived: approved (an Admin-made service is approved at once) and `done_at` null. Marked once, by a conditional update.
+Adds `done_by` and `done_at` (null until Admin marks an approved service carried out). `awaitingDone` is derived: approved (an Admin-made service is approved at once) and `done_at` null. Marked once, by a conditional update.

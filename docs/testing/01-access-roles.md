@@ -10,7 +10,7 @@
 | 1.06 | Log in as HR on a new device | held as pending until Admin approves it under **Devices** (if the device rule applies to the web) — note what happens | |
 | 1.07 | Side menu as **Admin** | Home (always open); HR, Sales & Distribution, Payouts, Reports, Master data, System collapsible | |
 | 1.08 | Side menu as **HR** | Home (Dashboard, Approvals), HR, and Master data > Pay structure only; no Sales & Distribution, Payouts or Reports | |
-| 1.09 | Side menu as **Accountant** | Home: Dashboard only; HR: Attendance only; Payouts: Payroll, Expenses, Expense payouts; Master data: Doctor services (until Step 0b), Pay grades, Pay components (read) | |
+| 1.09 | Side menu as **Accountant** | Home: Dashboard only; HR: Attendance only; Sales & Distribution: Orders (mark Done / Cancel), Distributors (Payments, Orders, Stock tabs; no Details, no add); Payouts: Payroll, Expenses, Expense payouts; Master data: Doctor services (read only, no Mark done), Pay grades, Pay components (read) | |
 | 1.09a | Sign in on the web as a **field employee** | refused: "The web portal is for office staff. Please use the mobile app."; phone app sign-in still works | |
 | 1.09b | Type an Admin-only address as HR / Accountant (e.g. `/settings`) | "You do not have access to this page" inside the portal, not an API error | |
 | 1.10 | As HR / Accountant, type an Admin-only address (e.g. `/reports/sales`, `/orders`, `/zones`) | refused or redirected, never shows data | |

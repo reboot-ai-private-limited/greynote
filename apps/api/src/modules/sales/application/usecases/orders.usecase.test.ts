@@ -127,6 +127,15 @@ describe('orders', () => {
     expect((await finish.execute(admin, 'o1', 'DONE')).status).toBe('DONE');
   });
 
+  it('the Accountant sees every order and may mark it done or cancel it, like Admin', async () => {
+    await place.execute(mr1, order());
+    await place.execute(mr1, order());
+    const accountant = { ...admin, id: 'acc1', role: 'ACCOUNTANT' as const };
+    expect((await list.execute(accountant, {})).length).toBe(2);
+    expect(await finish.execute(accountant, 'o1', 'DONE')).toMatchObject({ status: 'DONE', completedBy: 'acc1' });
+    expect((await finish.execute(accountant, 'o2', 'CANCELLED')).status).toBe('CANCELLED');
+  });
+
   it('lists: own for an MR, the team’s for a manager, all for Admin', async () => {
     await place.execute(mr1, order());
     await place.execute(mr2, order({ outlet: { type: 'CHEMIST', id: 'chem2' } }));

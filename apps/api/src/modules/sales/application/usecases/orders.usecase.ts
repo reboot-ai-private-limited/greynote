@@ -59,9 +59,12 @@ export class PlaceOrderUseCase {
   }
 }
 
-/** Who may see an order: its MR, their managers, Admin. */
+/** Admin and the Accountant (who marks orders dispatched) see and finish every order; an MR only their own. */
+const seesEveryOrder = (actor: Actor): boolean => actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT';
+
+/** Who may see an order: its MR, their managers, Admin, the Accountant. */
 async function visibleUserIds(users: UserDirectoryPort, actor: Actor): Promise<string[] | undefined> {
-  return actor.role === 'ADMIN' ? undefined : [actor.id, ...(await users.getDownline(actor.id)).map((u) => u.id)];
+  return seesEveryOrder(actor) ? undefined : [actor.id, ...(await users.getDownline(actor.id)).map((u) => u.id)];
 }
 
 export class ListOrdersUseCase {
@@ -90,7 +93,7 @@ export class GetOrderUseCase {
   }
 }
 
-/** Distributor orders only (a chemist order is information, never marked). `PLACED` → `DONE` or `CANCELLED`, by the MR who placed it or an Admin; one conditional update, so of two racing calls exactly one wins and the other is a 409. */
+/** Distributor orders only (a chemist order is information, never marked). `PLACED` → `DONE` or `CANCELLED`, by the MR who placed it, an Admin or the Accountant; one conditional update, so of two racing calls exactly one wins and the other is a 409. */
 export class FinishOrderUseCase {
   constructor(
     private readonly get: GetOrderUseCase,
@@ -101,7 +104,7 @@ export class FinishOrderUseCase {
   async execute(actor: Actor, id: string, to: 'DONE' | 'CANCELLED'): Promise<Order> {
     const order = await this.get.execute(actor, id);
     if (order.outlet.type === 'CHEMIST') throw new StockRefusal(STOCK_CODES.orderInfoOnly, 'A chemist order is for information only; only a distributor order is marked done.');
-    if (actor.role !== 'ADMIN' && order.userId !== actor.id) throw new StockRefusal(STOCK_CODES.orderNotYours, 'Only the MR who placed the order can do that.');
+    if (!seesEveryOrder(actor) && order.userId !== actor.id) throw new StockRefusal(STOCK_CODES.orderNotYours, 'Only the MR who placed the order can do that.');
     if (!(await this.orders.transition(id, to, actor.id, this.clock.now()))) {
       const now = (await this.orders.findById(id))?.status ?? order.status;
       throw new StockRefusal(STOCK_CODES.orderNotPlaced, `The order is already ${now}.`);

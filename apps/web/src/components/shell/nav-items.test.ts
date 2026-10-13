@@ -38,7 +38,7 @@ describe('Employees', () => {
 });
 
 describe('Field master data', () => {
-  it.each(['/products', '/chemists', '/distributors', '/doctors'])('%s is an Admin-only Master data screen', (href) => {
+  it.each(['/products', '/chemists', '/doctors'])('%s is an Admin-only Master data screen', (href) => {
     expect(navFor('ADMIN').map((i) => i.href)).toContain(href);
     expect(navFor('HR').map((i) => i.href)).not.toContain(href);
     expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain(href);
@@ -126,7 +126,8 @@ describe('Pay components', () => {
 describe('navGroupsFor', () => {
   it('groups items under their headings, in order, dropping empty groups', () => {
     const groups = navGroupsFor('ACCOUNTANT');
-    expect(groups.map((g) => g.group)).toEqual(['Home', 'HR', 'Payouts', 'Master data']);
+    expect(groups.map((g) => g.group)).toEqual(['Home', 'HR', 'Sales & Distribution', 'Payouts', 'Master data']);
+    expect(groups.find((g) => g.group === 'Sales & Distribution')?.items.map((i) => i.href)).toEqual(['/orders', '/distributors']);
     expect(groups.find((g) => g.group === 'Master data')?.items.map((i) => i.href)).toEqual(['/doctor-services', '/pay-grades', '/pay-components']); // doctor services leave the Accountant in Step 0b
     expect(groups.find((g) => g.group === 'Payouts')?.items.map((i) => i.href)).toEqual(['/payroll', '/expenses', '/expense-payouts']);
     expect(groups.find((g) => g.group === 'HR')?.items.map((i) => i.href)).toEqual(['/attendance']);
@@ -139,9 +140,9 @@ describe('navGroupsFor', () => {
   });
 
   it('puts every screen in exactly one group', () => {
-    const grouped = navGroupsFor('ADMIN').flatMap((g) => g.items.map((i) => i.href));
+    const grouped = navGroupsFor('ADMIN').flatMap((g) => g.items.filter((i) => !i.secondDoor).map((i) => i.href));
     expect(new Set(grouped).size).toBe(grouped.length);
-    expect(grouped.length).toBe(navFor('ADMIN').length);
+    expect(grouped.length).toBe(navFor('ADMIN').filter((i) => !i.secondDoor).length);
     expect(NAV_ITEMS.length).toBeGreaterThanOrEqual(grouped.length);
   });
 });
@@ -188,9 +189,9 @@ describe('Attendance', () => {
 });
 
 describe('Orders', () => {
-  it('is for Admin only', () => {
-    expect(navFor('ADMIN').map((i) => i.href)).toContain('/orders');
-    for (const role of ['HR', 'ACCOUNTANT'] as const) expect(navFor(role).map((i) => i.href)).not.toContain('/orders');
+  it('is for Admin and the Accountant (who marks orders done), not HR', () => {
+    for (const role of ['ADMIN', 'ACCOUNTANT'] as const) expect(navFor(role).map((i) => i.href)).toContain('/orders');
+    expect(navFor('HR').map((i) => i.href)).not.toContain('/orders');
     expect(isRouteBuilt('/orders')).toBe(true);
   });
 });
@@ -203,6 +204,24 @@ describe('Reports', () => {
     for (const role of ['HR', 'ACCOUNTANT'] as const) expect(navGroupsFor(role).some((g) => g.group === 'Reports')).toBe(false);
     expect(isRouteBuilt('/reports/sales')).toBe(true);
     expect(isRouteBuilt('/reports/sales-dashboard')).toBe(true);
+  });
+});
+
+describe('Distributors', () => {
+  it('has a door in Sales & Distribution (Admin, Accountant) and one in Master data (Admin)', () => {
+    const doors = (role: 'ADMIN' | 'ACCOUNTANT' | 'HR') => navGroupsFor(role).filter((g) => g.items.some((i) => i.href === '/distributors')).map((g) => g.group);
+    expect(doors('ADMIN')).toEqual(['Sales & Distribution', 'Master data']);
+    expect(doors('ACCOUNTANT')).toEqual(['Sales & Distribution']);
+    expect(doors('HR')).toEqual([]);
+    expect(activeGroupOf('ADMIN', '/distributors/d1')).toBe('Sales & Distribution');
+  });
+
+  it('lets the Accountant open a distributor but never the add wizard', () => {
+    expect(canOpen('ACCOUNTANT', '/distributors')).toBe(true);
+    expect(canOpen('ACCOUNTANT', '/distributors/d1')).toBe(true);
+    expect(canOpen('ACCOUNTANT', '/distributors/new')).toBe(false);
+    expect(canOpen('ADMIN', '/distributors/new')).toBe(true);
+    expect(canOpen('HR', '/distributors')).toBe(false);
   });
 });
 

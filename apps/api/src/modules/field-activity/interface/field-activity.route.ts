@@ -181,7 +181,7 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.get('/doctor-services', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ query: listServicesQuerySchema }), c.listServices);
   router.get('/doctor-services/:id', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: idParamsSchema }), c.getService);
   router.get('/doctor-gifts', requireRole('FIELD', 'ADMIN'), validate({ query: listGiftsQuerySchema }), c.listGifts);
-  router.post('/doctor-services/:id/done', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: idParamsSchema }), c.markServiceDone);
+  router.post('/doctor-services/:id/done', requireRole('ADMIN'), validate({ params: idParamsSchema }), c.markServiceDone);
   router.post('/admin/doctor-services', requireRole('ADMIN'), validate({ body: doctorServiceFieldsSchema }), c.createAdminService);
   router.post('/admin/doctor-gifts', requireRole('ADMIN'), validate({ body: allocateGiftBodySchema }), c.allocateGift);
   return router;

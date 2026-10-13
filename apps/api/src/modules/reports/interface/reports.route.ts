@@ -50,8 +50,10 @@ export function buildReportsRouter(c: ReturnType<typeof makeReportsControllers>)
   router.get('/me/ta-da/days', requireRole('FIELD'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: myMonthQuerySchema }), c.myTaDaDays);
   router.get('/me/dcr', requireRole('FIELD'), scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: dcrYearQuerySchema }), c.myDcrYear);
   router.get('/me/dcr/coverage', requireRole('FIELD'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: myMonthQuerySchema }), c.myDcrCoverage);
+  // The orders list and one order: Admin, and the Accountant, who marks them done from the same screen.
+  router.get('/orders', requireRole('ADMIN', 'ACCOUNTANT'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: ordersQuerySchema }), c.orders);
+  router.get('/orders/:id', requireRole('ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema }), c.order);
   router.use(requireRole('ADMIN'));
-  router.get('/orders', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: ordersQuerySchema }), c.orders);
   router.get('/sales', scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: salesYearQuerySchema }), c.salesYear);
   router.get('/sales/statement', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: salesStatementQuerySchema }), c.salesStatement);
   router.get('/stock', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: stockQuerySchema }), c.stock);
@@ -60,6 +62,5 @@ export function buildReportsRouter(c: ReturnType<typeof makeReportsControllers>)
   router.get('/dcr', scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: dcrYearQuerySchema }), c.dcrYear);
   router.get('/dcr/coverage', scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: dcrCoverageQuerySchema }), c.dcrCoverage);
   router.get('/salary', scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: salaryYearQuerySchema }), c.salaryYear);
-  router.get('/orders/:id', validate({ params: orderIdParamsSchema }), c.order);
   return router;
 }

@@ -91,7 +91,8 @@ the contract starts narrow and grows on demand (per
 | `POST` | `/sales/orders` | MR | Create an Order with its lines, status `PLACED` (also the `ORDER` sync kind) |
 | `GET` | `/sales/orders` | MR, Manager, Admin | List Orders (MR: own; manager: plus downline's; Admin: all); filter by status, dates, outlet |
 | `GET` | `/sales/orders/:id` | MR, Manager, Admin | Order detail with lines; not visible = `404` |
-| `POST` | `/sales/orders/:id/complete` | MR (own), Admin | Transition `PLACED → DONE`, sets `completed_by`/`completed_at` |
+| `GET` | `/sales/distributor-statement` | Admin, Accountant (read) | A distributor's month: opening, primary, secondary, closing; saving stays Admin |
+| `POST` | `/sales/orders/:id/complete` | MR (own), Admin, Accountant (any) | Transition `PLACED → DONE`, sets `completed_by`/`completed_at` |
 | `POST` | `/sales/orders/:id/cancel` | MR (own), Admin | Transition `PLACED → CANCELLED`, same fields |
 | `POST` | `/sales/monthly-stock` | MR, Admin | Record/update opening+closing counts for one outlet, one month, several products |
 | `GET` | `/sales/monthly-stock` | MR, Manager, Admin | List stock counts, filterable by outlet/product/month |
