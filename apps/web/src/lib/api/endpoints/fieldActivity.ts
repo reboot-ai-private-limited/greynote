@@ -5,6 +5,8 @@ import type {
   DoctorGiftDto,
   DoctorServiceDto,
   ExpenseAuditRowDto,
+  ExpenseOverviewDto,
+  ExpenseReviewDto,
   ExpenseMonthGrantDto,
   ExpenseStatementDto,
   GrantExpenseMonthDto,
@@ -45,6 +47,13 @@ export const fieldActivityApi = {
   /** One month's accepted expenses per employee (by the month they were incurred), with the day they are due. */
   expensePayouts: (token: string, month: string, signal?: AbortSignal) =>
     request<ExpensePayoutSheetDto>('/field-activity/expense-payouts', { token, query: { month }, signal }),
+
+  /** Admin, HR, Accountant: every active field employee's month: claimed, accepted, paid and where the month stands. */
+  expenseOverview: (token: string, month: string, signal?: AbortSignal) =>
+    request<ExpenseOverviewDto>('/field-activity/expense-months/overview', { token, query: { month }, signal }),
+  /** Admin, HR, Accountant: one employee's month day by day. */
+  expenseReview: (token: string, userId: string, month: string, signal?: AbortSignal) =>
+    request<ExpenseReviewDto>('/field-activity/expense-months/review', { token, query: { userId, month }, signal }),
 
   /** Pays a month's unpaid expenses for the named employees, or for everyone owed. Paying twice pays nothing twice. */
   payExpenses: (token: string, body: PayExpensesDto) => request<PayOutcomeDto[]>('/field-activity/expense-payouts/pay', { method: 'POST', token, body }),

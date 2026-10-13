@@ -129,7 +129,7 @@ describe('navGroupsFor', () => {
     expect(groups.map((g) => g.group)).toEqual(['Home', 'HR', 'Sales & Distribution', 'Payouts', 'Master data']);
     expect(groups.find((g) => g.group === 'Sales & Distribution')?.items.map((i) => i.href)).toEqual(['/orders', '/distributors']);
     expect(groups.find((g) => g.group === 'Master data')?.items.map((i) => i.href)).toEqual(['/doctor-services', '/pay-grades', '/pay-components']); // doctor services leave the Accountant in Step 0b
-    expect(groups.find((g) => g.group === 'Payouts')?.items.map((i) => i.href)).toEqual(['/payroll', '/expenses', '/expense-payouts']);
+    expect(groups.find((g) => g.group === 'Payouts')?.items.map((i) => i.href)).toEqual(['/expense-months', '/payroll', '/expenses', '/expense-payouts']);
     expect(groups.find((g) => g.group === 'HR')?.items.map((i) => i.href)).toEqual(['/attendance']);
   });
 
@@ -204,6 +204,15 @@ describe('Reports', () => {
     for (const role of ['HR', 'ACCOUNTANT'] as const) expect(navGroupsFor(role).some((g) => g.group === 'Reports')).toBe(false);
     expect(isRouteBuilt('/reports/sales')).toBe(true);
     expect(isRouteBuilt('/reports/sales-dashboard')).toBe(true);
+  });
+});
+
+describe('Expenses by month', () => {
+  it('is for Admin, HR (who reviews and edits) and the Accountant (who finalizes and pays)', () => {
+    for (const role of ['ADMIN', 'HR', 'ACCOUNTANT'] as const) expect(navFor(role).map((i) => i.href)).toContain('/expense-months');
+    expect(canOpen('HR', '/expense-months/u1')).toBe(true);
+    expect(canOpen('HR', '/payroll')).toBe(false);
+    expect(isRouteBuilt('/expense-months')).toBe(true);
   });
 });
 

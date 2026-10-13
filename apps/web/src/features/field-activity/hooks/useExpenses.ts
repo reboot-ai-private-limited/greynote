@@ -46,6 +46,30 @@ export function useMarkPaid(onResult: (result: MarkPaidResult) => void) {
   });
 }
 
+/** The month table: every active field employee's expenses for the month. */
+export function useExpenseOverview(month: string, enabled: boolean) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.expenses.overview(month),
+      fetch: (token, signal) => fieldActivityApi.expenseOverview(token, month, signal),
+      staleTime: staleTime.live,
+      enabled,
+    }),
+  );
+}
+
+/** One employee's month, day by day. */
+export function useExpenseReview(userId: string, month: string, enabled: boolean) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.expenses.review(userId, month),
+      fetch: (token, signal) => fieldActivityApi.expenseReview(token, userId, month, signal),
+      staleTime: staleTime.live,
+      enabled,
+    }),
+  );
+}
+
 /** One month's expense payout sheet. `enabled` is off while no month is chosen. */
 export function useExpensePayouts(month: string, enabled: boolean) {
   return useQuery(

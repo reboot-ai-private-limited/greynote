@@ -3,6 +3,7 @@ import {
   Award,
   Banknote,
   Calculator,
+  CalendarRange,
   Building2,
   CalendarDays,
   ClipboardCheck,
@@ -86,6 +87,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Orders', href: '/orders', icon: ShoppingCart, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Distributors', href: '/distributors', icon: Truck, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
 
+  { label: 'Expenses by month', href: '/expense-months', icon: CalendarRange, group: 'Payouts', roles: ['ADMIN', 'HR', 'ACCOUNTANT'] },
   { label: 'Payroll', href: '/payroll', icon: Banknote, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Expenses', href: '/expenses', icon: Receipt, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Expense payouts', href: '/expense-payouts', icon: Coins, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
