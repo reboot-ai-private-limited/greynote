@@ -1,12 +1,6 @@
-import { Suspense } from 'react';
-import { SkeletonTable } from '@/components/ui/Skeleton';
-import { ExpenseMonthsScreen } from '@/features/field-activity/components/ExpenseMonthsScreen';
+import { redirect } from 'next/navigation';
 
-// The screen reads `useSearchParams`, which needs a Suspense boundary to prerender.
+/** The month table is Expenses now; kept for links made while it was called Expenses by month. */
 export default function ExpenseMonthsPage() {
-  return (
-    <Suspense fallback={<SkeletonTable />}>
-      <ExpenseMonthsScreen />
-    </Suspense>
-  );
+  redirect('/expenses');
 }

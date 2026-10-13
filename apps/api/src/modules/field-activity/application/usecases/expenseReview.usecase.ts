@@ -1,6 +1,8 @@
 import type { ExpenseAdjustmentDto, ExpenseOverviewDto, ExpenseReviewDayDto, ExpenseReviewDto, ExpenseStageDto, ReviewDayTypeDto, ReviewStationDto } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
+import type { ExpenseMonthGrantRepositoryPort } from '../../domain/expenseMonthGrant.repository.port.js';
+import type { ExpenseMonthDeadlines } from '../expenseMonthDeadlines.js';
 import { monthRange, parseCalendarMonth } from '@/shared/time/businessTime.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { ExpenseAdjustmentRepositoryPort } from '../../domain/expenseAdjustment.entity.js';
@@ -149,6 +151,21 @@ export class ExpenseReviewService {
   }
 }
 
+/** Which deadline is in the way of a month, and the exception already open for it, if any. */
+function lateOf(
+  status: ExpenseStageDto,
+  now: Date,
+  submitBy: Date,
+  approveBy: Date,
+  grants: Array<{ phase: 'SUBMIT' | 'APPROVE'; expiresAt: Date }>,
+  /** Something is claimed for the month: an employee with nothing to send needs no exception. */
+  hasClaims: boolean,
+): { lateNeeded: 'SUBMIT' | 'APPROVE' | null; lateGrant: { phase: 'SUBMIT' | 'APPROVE'; until: string } | null } {
+  const phase: 'SUBMIT' | 'APPROVE' | null = status === 'NOT_SUBMITTED' || status === 'DRAFT' || status === 'REJECTED' ? (hasClaims && now > submitBy ? 'SUBMIT' : null) : status === 'SUBMITTED' ? (now > approveBy ? 'APPROVE' : null) : null;
+  const open = grants.find((g) => g.phase === phase) ?? grants[0] ?? null;
+  return { lateNeeded: phase !== null && !grants.some((g) => g.phase === phase) ? phase : null, lateGrant: open ? { phase: open.phase, until: open.expiresAt.toISOString() } : null };
+}
+
 /** The month table: every active field employee, with what was claimed, how much of it is accepted and paid, and where the month stands. */
 export class ExpenseOverviewUseCase {
   constructor(
@@ -157,6 +174,8 @@ export class ExpenseOverviewUseCase {
     private readonly approvals: ApprovalsPort,
     private readonly users: UserDirectoryPort,
     private readonly config: ConfigReader,
+    private readonly grants: ExpenseMonthGrantRepositoryPort,
+    private readonly deadlines: ExpenseMonthDeadlines,
   ) {}
 
   async execute(actor: Actor, month: string): Promise<ExpenseOverviewDto> {
@@ -170,6 +189,8 @@ export class ExpenseOverviewUseCase {
     const recordOf = new Map(records.map((r) => [r.userId, r]));
     const requests = await this.approvals.listForRecords(EXPENSE_MONTH_KIND, records.map((r) => r.id));
     const requestOf = new Map(requests.map((r) => [r.recordId, r]));
+    const now = this.deadlines.now();
+    const [submitBy, approveBy, openGrants] = await Promise.all([this.deadlines.submit(month), this.deadlines.approval(month), this.grants.listUsableForMonth(month, now)]);
     const rows = userIds
       .map((userId) => {
         const s = byUser.get(userId);
@@ -177,6 +198,7 @@ export class ExpenseOverviewUseCase {
         const taPaise = s?.taPaise ?? 0;
         const daPaise = s?.daPaise ?? 0;
         const otherPaise = s?.reimbursementPaise ?? 0;
+        const totalPaise = taPaise + daPaise + otherPaise;
         const status = record ? expenseMonthStatusOf(requestOf.get(record.id) ?? null) : ('NOT_SUBMITTED' as const);
         return {
           userId,
@@ -185,12 +207,13 @@ export class ExpenseOverviewUseCase {
           taPaise,
           daPaise,
           otherPaise,
-          totalPaise: taPaise + daPaise + otherPaise,
+          totalPaise,
           acceptedPaise: s?.acceptedPaise ?? 0,
           paidPaise: s?.paidPaise ?? 0,
           status,
           stage: stageOf(status, record?.finalizedAt != null, s?.acceptedPaise ?? 0, s?.paidPaise ?? 0),
           finalizedAt: record?.finalizedAt?.toISOString() ?? null,
+          ...lateOf(status, now, submitBy, approveBy, openGrants.filter((g) => g.userId === userId), totalPaise > 0),
           submittedAt: record?.submittedAt?.toISOString() ?? null,
           flaggedRows: s?.flaggedRows ?? 0,
         };
@@ -199,6 +222,6 @@ export class ExpenseOverviewUseCase {
     const [y, m] = month.split('-').map(Number) as [number, number];
     const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
     const payDay = Number(await this.config.get('EXPENSE_PAYOUT_DAY'));
-    return { month, payoutDueDate: `${next}-${String(payDay).padStart(2, '0')}`, rows };
+    return { month, deadlines: { submitBy: submitBy.toISOString(), approveBy: approveBy.toISOString() }, payoutDueDate: `${next}-${String(payDay).padStart(2, '0')}`, rows };
   }
 }

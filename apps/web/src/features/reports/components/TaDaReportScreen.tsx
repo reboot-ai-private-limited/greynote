@@ -165,7 +165,7 @@ export function TaDaReportScreen() {
         description={`Accepted travel, daily allowance and reimbursements, ${financialYearLabel(fy)}, by the day reported. Only what is past the manager and not sent back counts.`}
         actions={
           <div className="flex items-center gap-2">
-            <Link href="/expense-payouts" className="text-sm text-accent hover:underline">
+            <Link href="/expenses" className="text-sm text-accent hover:underline">
               Pay on Expense payouts
             </Link>
             <Button

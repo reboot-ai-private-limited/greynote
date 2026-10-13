@@ -64,12 +64,13 @@ describe('Leave & holidays', () => {
   });
 });
 
-describe('Expenses', () => {
-  it('is built, and shown to Admin and the Accountant, not HR', () => {
-    expect(navFor('ADMIN').map((i) => i.href)).toContain('/expenses');
-    expect(navFor('ACCOUNTANT').map((i) => i.href)).toContain('/expenses');
-    expect(navFor('HR').map((i) => i.href)).not.toContain('/expenses');
-    expect(isRouteBuilt('/expenses')).toBe(true);
+describe('Expense claims (the row-by-row list)', () => {
+  it('is for Admin and the Accountant, not HR', () => {
+    expect(navFor('ADMIN').map((i) => i.href)).toContain('/expense-claims');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).toContain('/expense-claims');
+    expect(navFor('HR').map((i) => i.href)).not.toContain('/expense-claims');
+    expect(canOpen('HR', '/expense-claims')).toBe(false);
+    expect(isRouteBuilt('/expense-claims')).toBe(true);
   });
 });
 
@@ -129,7 +130,7 @@ describe('navGroupsFor', () => {
     expect(groups.map((g) => g.group)).toEqual(['Home', 'HR', 'Sales & Distribution', 'Payouts', 'Master data']);
     expect(groups.find((g) => g.group === 'Sales & Distribution')?.items.map((i) => i.href)).toEqual(['/orders', '/distributors']);
     expect(groups.find((g) => g.group === 'Master data')?.items.map((i) => i.href)).toEqual(['/doctor-services', '/pay-grades', '/pay-components']); // doctor services leave the Accountant in Step 0b
-    expect(groups.find((g) => g.group === 'Payouts')?.items.map((i) => i.href)).toEqual(['/expense-months', '/payroll', '/expenses', '/expense-payouts']);
+    expect(groups.find((g) => g.group === 'Payouts')?.items.map((i) => i.href)).toEqual(['/expenses', '/payroll', '/expense-claims']);
     expect(groups.find((g) => g.group === 'HR')?.items.map((i) => i.href)).toEqual(['/attendance']);
   });
 
@@ -207,12 +208,19 @@ describe('Reports', () => {
   });
 });
 
-describe('Expenses by month', () => {
+describe('Expenses (the month table, which replaced Expense payouts and Late expenses)', () => {
   it('is for Admin, HR (who reviews and edits) and the Accountant (who finalizes and pays)', () => {
-    for (const role of ['ADMIN', 'HR', 'ACCOUNTANT'] as const) expect(navFor(role).map((i) => i.href)).toContain('/expense-months');
-    expect(canOpen('HR', '/expense-months/u1')).toBe(true);
+    for (const role of ['ADMIN', 'HR', 'ACCOUNTANT'] as const) expect(navFor(role).map((i) => i.href)).toContain('/expenses');
+    expect(canOpen('HR', '/expenses/u1')).toBe(true);
     expect(canOpen('HR', '/payroll')).toBe(false);
-    expect(isRouteBuilt('/expense-months')).toBe(true);
+    expect(isRouteBuilt('/expenses')).toBe(true);
+  });
+
+  it('keeps the old addresses working, under Expenses', () => {
+    for (const path of ['/expense-payouts', '/late-expenses', '/expense-months', '/expense-months/u1']) {
+      expect(canOpen('ACCOUNTANT', path)).toBe(true);
+      expect(activeGroupOf('ADMIN', path)).toBe('Payouts');
+    }
   });
 });
 

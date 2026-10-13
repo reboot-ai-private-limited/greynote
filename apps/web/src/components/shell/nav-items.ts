@@ -25,7 +25,6 @@ import {
   Tags,
   Truck,
   Users,
-  Coins,
   Wallet,
   BarChart3,
   Boxes,
@@ -87,11 +86,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Orders', href: '/orders', icon: ShoppingCart, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Distributors', href: '/distributors', icon: Truck, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
 
-  { label: 'Expenses by month', href: '/expense-months', icon: CalendarRange, group: 'Payouts', roles: ['ADMIN', 'HR', 'ACCOUNTANT'] },
+  { label: 'Expenses', href: '/expenses', alsoOpens: ['/expense-months', '/expense-payouts', '/late-expenses'], icon: Receipt, group: 'Payouts', roles: ['ADMIN', 'HR', 'ACCOUNTANT'] },
   { label: 'Payroll', href: '/payroll', icon: Banknote, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
-  { label: 'Expenses', href: '/expenses', icon: Receipt, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
-  { label: 'Expense payouts', href: '/expense-payouts', icon: Coins, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
-  { label: 'Late expenses', href: '/late-expenses', icon: Clock, group: 'Payouts', roles: ['ADMIN'] },
+  { label: 'Expense claims', href: '/expense-claims', icon: CalendarRange, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
 
   { label: 'Sales report', href: '/reports/sales', icon: BarChart3, group: 'Reports', roles: ['ADMIN'] },
   { label: 'Stock report', href: '/reports/stock', icon: Boxes, group: 'Reports', roles: ['ADMIN'] },

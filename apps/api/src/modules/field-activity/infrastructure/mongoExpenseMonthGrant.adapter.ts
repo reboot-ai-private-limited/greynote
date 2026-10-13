@@ -39,6 +39,10 @@ export class MongoExpenseMonthGrantAdapter implements ExpenseMonthGrantRepositor
     return doc ? toGrant(doc) : null;
   }
 
+  async listUsableForMonth(month: string, now: Date): Promise<ExpenseMonthGrant[]> {
+    return (await ExpenseMonthGrantModel.find({ month, ...usable(now) }).lean()).map(toGrant);
+  }
+
   async create(input: Omit<ExpenseMonthGrant, 'id' | 'status' | 'usedAt' | 'revokedAt' | 'revokedBy'>, now: Date): Promise<ExpenseMonthGrant | null> {
     const userId = new Types.ObjectId(input.userId);
     // An expired grant still holds the one-OPEN slot until it is closed here.

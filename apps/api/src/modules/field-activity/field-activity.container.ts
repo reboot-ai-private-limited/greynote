@@ -194,7 +194,7 @@ export function buildFieldActivityContainer(
           expenseReview: new ExpenseReviewService(monthService, expenses, dcrs, approvals, planning, territory, leave, users, clock, expenseAdjustments, expenseMonths),
           finalizeExpenses: new FinalizeExpenseMonthsUseCase(expenseMonths, expenses, approvals, users, new MongooseTransactionRunner(), config, clock),
           expenseAdjust: new AdjustExpenseService(expenses, expenseAdjustments, users, new MongooseTransactionRunner(), config, clock),
-          expenseOverview: new ExpenseOverviewUseCase(expenses, expenseMonths, approvals, users, config),
+          expenseOverview: new ExpenseOverviewUseCase(expenses, expenseMonths, approvals, users, config, expenseGrants, new ExpenseMonthDeadlines(config)),
           grantExpense: new GrantExpenseMonthUseCase(expenseGrants, expenses, users, config, () => new Date()),
           listExpenseGrants: new ListExpenseMonthGrantsUseCase(expenseGrants, users, () => new Date()),
           revokeExpenseGrant: new RevokeExpenseMonthGrantUseCase(expenseGrants, users, () => new Date()),

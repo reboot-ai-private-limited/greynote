@@ -403,6 +403,13 @@ export interface ExpenseOverviewRowDto {
   /** `status`, or Finalized / Paid once the Accountant has finalized the month. */
   stage: ExpenseStageDto;
   finalizedAt: string | null;
+  /**
+   * The step whose deadline has passed with nothing yet allowed to get past it: `SUBMIT` (the employee has not sent the month, or it was sent
+   * back) or `APPROVE` (it waits on the manager). Admin can allow it late; null when no deadline is in the way.
+   */
+  lateNeeded: 'SUBMIT' | 'APPROVE' | null;
+  /** An exception that is open now: the phase it covers and when it ends (ISO). */
+  lateGrant: { phase: 'SUBMIT' | 'APPROVE'; until: string } | null;
   /** The month was sent (even if it is back with the employee since). */
   submittedAt: string | null;
   /** AUTO TA rows whose distance failed. */
@@ -410,6 +417,8 @@ export interface ExpenseOverviewRowDto {
 }
 export interface ExpenseOverviewDto {
   month: string;
+  /** The end of the day the month must be sent / approved by (ISO instants). */
+  deadlines: { submitBy: string; approveBy: string };
   /** The day the month's expenses should be paid by (`EXPENSE_PAYOUT_DAY` of the next month). */
   payoutDueDate: string;
   rows: ExpenseOverviewRowDto[];

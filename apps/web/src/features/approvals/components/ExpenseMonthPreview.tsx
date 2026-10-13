@@ -74,7 +74,7 @@ function Body({ statement }: { statement: ExpenseStatementDto }) {
         <span>Approve by {formatDateTime(statement.deadlines.approveBy)}</span>
         {approveLate ? (
           <Badge tone="warning">
-            Approval deadline passed — Admin must allow it first (Late expenses)
+            Approval deadline passed — Admin must allow it first (Expenses, Late exceptions)
           </Badge>
         ) : null}
         {statement.exceptions.approveUntil ? (

@@ -15,6 +15,9 @@ class FakeGrants implements ExpenseMonthGrantRepositoryPort {
   async findById(id: string) {
     return this.rows.find((g) => g.id === id) ?? null;
   }
+  async listUsableForMonth(month: string, now: Date) {
+    return this.rows.filter((g) => g.month === month && g.status === 'OPEN' && g.expiresAt > now);
+  }
   async findUsable(userId: string, month: string, phase: ExpenseMonthGrant['phase'], now: Date) {
     return this.rows.find((g) => g.userId === userId && g.month === month && g.phase === phase && g.status === 'OPEN' && g.expiresAt > now) ?? null;
   }

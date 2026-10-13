@@ -1,5 +1,6 @@
-import { LateExpensesScreen } from '@/features/field-activity/components/LateExpensesScreen';
+import { redirect } from 'next/navigation';
 
+/** Late exceptions are a tab of Expenses now; this address is kept so old links still work. */
 export default function LateExpensesPage() {
-  return <LateExpensesScreen />;
+  redirect('/expenses?tab=late');
 }

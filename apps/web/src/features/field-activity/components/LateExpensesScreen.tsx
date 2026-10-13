@@ -21,7 +21,7 @@ import {
 import { GrantLateExpenseDialog } from './GrantLateExpenseDialog';
 
 /** Admin: whose month of expenses may be sent or approved after its deadline, until when, and why. Grant one, or revoke one not yet used. */
-export function LateExpensesScreen() {
+export function LateExpensesScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const readOnly = useIsReadOnly();
   const { page, pageSize, update } = useFilterParams([]);
   const list = useExpenseGrants({ page, pageSize });
@@ -89,7 +89,8 @@ export function LateExpensesScreen() {
 
   return (
     <PagedListFrame
-      title="Late expenses"
+      title="Late exceptions"
+      hideHeader={embedded}
       description="One-off exceptions that let a month of expenses be sent or approved after its deadline. Each works once, until the time set, and never after any of the month is paid."
       noun="exception"
       readOnly={readOnly}

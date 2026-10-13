@@ -154,8 +154,8 @@ export function ExpenseReviewScreen({ userId }: { userId: string }) {
   return (
     <>
       <p className="mb-2 text-sm">
-        <Link href={`/expense-months${month ? `?month=${month}` : ''}`} className="text-text-muted hover:text-accent hover:underline">
-          ← Expenses by month
+        <Link href={`/expenses${month ? `?month=${month}` : ''}`} className="text-text-muted hover:text-accent hover:underline">
+          ← Expenses
         </Link>
       </p>
       <PageHeader

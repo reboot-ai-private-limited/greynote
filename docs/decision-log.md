@@ -2155,3 +2155,10 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Cutover:** months from before the cutover keep being payable through `migrate:expense-finalized` (not run yet); months after it are finalized in the portal.
 
 **Open:** merging Expenses, Expense payouts and the inline "Allow late" into the one page (step 4); the phone showing "edited by HR" and "finalized" (step 5).
+
+
+## 2026-10-13 — Expenses, Expense payouts and Late expenses become one page (Track A step 4)
+
+**Decision:** one **Expenses** page: the month table with Finalize, Pay and "Allow late" on each row, a Late exceptions tab for Admin, and the day-by-day review one click away. Expense payouts and Late expenses are no longer separate pages (their old addresses redirect). The row-by-row list of claims stays as **Expense claims** for the Accountant and Admin. "Allow late" is offered only where it is needed: a month past its send or approval deadline that has something claimed.
+
+**Open:** the phone showing "edited by HR" and "finalized" (step 5); HR still sees only Expenses under Payouts.

@@ -466,7 +466,7 @@ Two read endpoints for the people who review a month, `ADMIN`, `HR`, `ACCOUNTANT
 - Nothing here edits a figure. Edits with an audit trail, Finalize and the merged web page are the next steps of Track A ([decision log 2026-10-13](../decision-log.md)).
 - HR's public contract gains `listLeaveDays(userId, from, to)`; Field Activity's Territory port gains the route `name`.
 
-Web (2026-10-13): `/expense-months` (the month table) and `/expense-months/[userId]?month=` (the day-by-day review), under Payouts as **Expenses by month** for Admin, HR and the Accountant; read only for now. They will replace `/expenses` and `/expense-payouts` once edits and Finalize exist.
+Web (2026-10-13): the month table and the day-by-day review, first at `/expense-months` as **Expenses by month**, now at `/expenses` and `/expenses/[userId]?month=` (see "One Expenses page" below).
 
 ### HR edits a month's amounts (2026-10-13, Track A step 2)
 
@@ -482,4 +482,10 @@ Web (2026-10-13): `/expense-months` (the month table) and `/expense-months/[user
 - After Finalize: HR's edits and adds are refused (409 `EXPENSE_MONTH_FINALIZED`); the approval cannot be sent back, reopened or withdrawn (the approval hook throws `EXPENSE_MONTH_FINALIZED`, rolling the decision back). There is no un-finalize.
 - **Payable now needs `accepted` + `monthApproved` + `monthFinalized`** (mark-paid, pay-all and the payout sheet). Rows written before this existed are not finalized: run `pnpm --filter @greynote/api migrate:expense-finalized -- --before YYYY-MM` (dry run first, then `--apply`) so months before the cutover keep being payable. Months from the cutover on are finalized in the portal.
 - `stage` on the month table and the review: the employee's status (`NOT_SUBMITTED`, `DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`), then `FINALIZED`, then `PAID` once every accepted amount is paid. The employee's statement carries `finalizedAt`.
-- Web: **Finalize** on an approved row of Expenses by month (and **Finalize N approved** for all), and on the review page, for the Accountant and Admin; a finalized review hides **Change** and says who finalized it and when.
+- Web: **Finalize** on an approved row of Expenses (and **Finalize N approved** for all), and on the review page, for the Accountant and Admin; a finalized review hides **Change** and says who finalized it and when.
+
+### One Expenses page (2026-10-13, Track A step 4)
+
+- `/expenses` is the month table (it replaces **Expense payouts** and **Late expenses**; `/expense-payouts`, `/late-expenses` and `/expense-months` redirect to it). `/expenses/[userId]?month=` is the day-by-day review. The old row-by-row list of claims, with mark-paid and CSV, moved to `/expense-claims` ("Expense claims", Admin and Accountant).
+- Row actions: **Finalize** (approved months) and **Pay** (finalized months with an accepted amount unpaid; header **Pay all N finalized**) for the Accountant and Admin; **Allow late** for Admin, opening the late-exception form for the employee, month and phase; **Review** for all. A second tab, **Late exceptions** (Admin), lists and revokes the exceptions.
+- The overview carries what the late actions need: `deadlines` for the month, and per row `lateNeeded` (`SUBMIT` when the send deadline has passed and the employee has something claimed but has not sent it, or it came back; `APPROVE` when it waits on the manager past the approval deadline; null once an exception covers it or no deadline is in the way) and `lateGrant` (the open exception and when it ends). Uses `listUsableForMonth` on the grants port.

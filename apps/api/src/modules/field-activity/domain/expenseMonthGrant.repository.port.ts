@@ -10,6 +10,8 @@ export interface ExpenseMonthGrantRepositoryPort {
   findById(id: string): Promise<ExpenseMonthGrant | null>;
   /** The usable grant for this month and phase: `OPEN` and not yet expired at `now`. */
   findUsable(userId: string, month: string, phase: ExpenseGrantPhase, now: Date): Promise<ExpenseMonthGrant | null>;
+  /** Every grant for the month that is usable at `now` (any employee, either phase): the month table's "late allowed" marks. */
+  listUsableForMonth(month: string, now: Date): Promise<ExpenseMonthGrant[]>;
   /** Closes any expired `OPEN` grant for the same month and phase, then inserts. `null` if a usable one already exists. */
   create(input: Omit<ExpenseMonthGrant, 'id' | 'status' | 'usedAt' | 'revokedAt' | 'revokedBy'>, now: Date): Promise<ExpenseMonthGrant | null>;
   /** Inside the submit / approval transaction; false if it was used, revoked or expired meanwhile. */

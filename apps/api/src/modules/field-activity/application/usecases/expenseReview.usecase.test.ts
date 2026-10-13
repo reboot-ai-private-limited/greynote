@@ -20,7 +20,16 @@ class FakeAdjustments implements ExpenseAdjustmentRepositoryPort {
     return this.rows.filter((r) => r.userId === userId && r.month === month);
   }
 }
-const noGrants = { findUsable: async () => null } as unknown as ExpenseMonthGrantRepositoryPort;
+class FakeGrants {
+  rows: Array<{ id: string; userId: string; month: string; phase: 'SUBMIT' | 'APPROVE'; expiresAt: Date; status: 'OPEN' }> = [];
+  async findUsable() {
+    return null;
+  }
+  async listUsableForMonth(month: string, now: Date) {
+    return this.rows.filter((g) => g.month === month && g.expiresAt > now);
+  }
+}
+const noGrants = new FakeGrants() as unknown as ExpenseMonthGrantRepositoryPort;
 
 const HR = { id: 'hr1', role: 'HR' as const };
 const ACCOUNTANT = { id: 'acc1', role: 'ACCOUNTANT' as const };
@@ -34,6 +43,7 @@ describe('the expense review (decision-log 2026-10-13)', () => {
   let overview: ExpenseOverviewUseCase;
   let adjustments: FakeAdjustments;
   let adjust: AdjustExpenseService;
+  let grants: FakeGrants;
   let finalize: FinalizeExpenseMonthsUseCase;
 
   beforeEach(() => {
@@ -46,7 +56,8 @@ describe('the expense review (decision-log 2026-10-13)', () => {
     adjust = new AdjustExpenseService(kit.expenses, adjustments, kit.users, { run: (fn) => fn(new Tx()) }, kit.config, clock, () => new Date('2026-10-05T07:00:00Z'));
     finalize = new FinalizeExpenseMonthsUseCase(months, kit.expenses, kit.approvals, kit.users, { run: (fn) => fn(new Tx()) }, kit.config, clock, () => new Date('2026-10-06T07:00:00Z'));
     review = new ExpenseReviewService(svc, kit.expenses, kit.dcrs, kit.approvals, kit.planning, kit.territory, kit.leave, kit.users, clock, adjustments, months);
-    overview = new ExpenseOverviewUseCase(kit.expenses, months, kit.approvals, kit.users, kit.config);
+    grants = new FakeGrants();
+    overview = new ExpenseOverviewUseCase(kit.expenses, months, kit.approvals, kit.users, kit.config, grants as unknown as ExpenseMonthGrantRepositoryPort, new ExpenseMonthDeadlines(kit.config, () => kit.clock.current));
   });
 
   const claim = (date: string, type: 'TA' | 'DA' | 'OTHER', amountPaise: number, routeId: string | null = null, accepted = true) =>
@@ -192,6 +203,36 @@ describe('the expense review (decision-log 2026-10-13)', () => {
       await adjust.editRow(HR, kit.expenses.rows[0]!.id, { amountPaise: 5000, reason: 'Fix' });
       const row = (await overview.execute(HR, '2026-09')).rows.find((r) => r.userId === 'mr1')!;
       expect(row).toMatchObject({ taPaise: 5000, totalPaise: 5000, acceptedPaise: 5000 });
+    });
+  });
+
+  describe('late deadlines on the month table', () => {
+    const lateOf = async (id: string) => {
+      const row = (await overview.execute(HR, '2026-09')).rows.find((r) => r.userId === id)!;
+      return { needed: row.lateNeeded, grant: row.lateGrant?.phase ?? null };
+    };
+
+    it('asks for a late exception only once the deadline has passed, and not once one is open', async () => {
+      await claim('2026-09-10', 'TA', 8000, 'route-1');
+      expect(await lateOf('mr1')).toEqual({ needed: null, grant: null }); // 2026-10-05: before the 7th
+      kit.clock.current = new Date('2026-10-08T06:30:00Z');
+      expect(await lateOf('mr1')).toEqual({ needed: 'SUBMIT', grant: null });
+      grants.rows.push({ id: 'g1', userId: 'mr1', month: '2026-09', phase: 'SUBMIT', expiresAt: new Date('2026-10-09T06:30:00Z'), status: 'OPEN' });
+      expect(await lateOf('mr1')).toEqual({ needed: null, grant: 'SUBMIT' });
+    });
+
+    it('does not ask for one from an employee with nothing claimed', async () => {
+      kit.clock.current = new Date('2026-10-08T06:30:00Z');
+      expect(await lateOf('mr2')).toEqual({ needed: null, grant: null });
+    });
+
+    it('waits on the approval deadline for a month that was sent', async () => {
+      await claim('2026-09-10', 'TA', 8000, 'route-1');
+      await svc.submit('mr1', '2026-09');
+      kit.clock.current = new Date('2026-10-09T06:30:00Z'); // after the submit day, before the approval day (10th)
+      expect(await lateOf('mr1')).toEqual({ needed: null, grant: null });
+      kit.clock.current = new Date('2026-10-12T06:30:00Z');
+      expect(await lateOf('mr1')).toEqual({ needed: 'APPROVE', grant: null });
     });
   });
 

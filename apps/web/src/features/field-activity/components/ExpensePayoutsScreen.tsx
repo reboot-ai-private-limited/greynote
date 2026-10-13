@@ -193,7 +193,7 @@ export function ExpensePayoutsScreen() {
               empty={{
                 title: `No accepted expenses for ${monthLabel(month)}`,
                 description:
-                  'Expenses appear here once the month has been approved by the manager and finalized by the Accountant, in Expenses by month.',
+                  'Expenses appear here once the month has been approved by the manager and finalized by the Accountant, in Expenses.',
               }}
             >
               <DataTable columns={columns} rows={rows} rowKey={(r) => r.userId} />

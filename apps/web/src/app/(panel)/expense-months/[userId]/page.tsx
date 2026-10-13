@@ -1,12 +1,7 @@
-import { Suspense } from 'react';
-import { SkeletonTable } from '@/components/ui/Skeleton';
-import { ExpenseReviewScreen } from '@/features/field-activity/components/ExpenseReviewScreen';
+import { redirect } from 'next/navigation';
 
-export default async function ExpenseReviewPage({ params }: { params: Promise<{ userId: string }> }) {
+export default async function ExpenseMonthReviewRedirect({ params, searchParams }: { params: Promise<{ userId: string }>; searchParams: Promise<{ month?: string }> }) {
   const { userId } = await params;
-  return (
-    <Suspense fallback={<SkeletonTable />}>
-      <ExpenseReviewScreen userId={userId} />
-    </Suspense>
-  );
+  const { month } = await searchParams;
+  redirect(`/expenses/${userId}${month ? `?month=${encodeURIComponent(month)}` : ''}`);
 }
