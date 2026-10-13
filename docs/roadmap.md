@@ -437,6 +437,8 @@ Step by step (decision-log 2026-09-30):
 
 ## Phase 9 — Web Portal (`apps/web`, Next.js)
 
+**Web refactor (started 2026-10-13):** easier-to-operate menu and pages, one step at a time. Step 0 done (new menu, role guard, field staff refused on web). Next: 0b order dispatch, then HR, Payouts, Sales & Distribution, Reports (one landing page), Master data, System settings, global dashboard. Not yet browser-checked. Plan and decisions: [decision log 2026-10-13](decision-log.md).
+
 Admin/HR/Accountant screens. Starts once there is something to configure — Territory (Phase 2)
 and Field Master Data (Phase 4) — and in practice overlaps Phases 4 through 7 rather than
 following them strictly: master-data screens can be built the moment their API lands, while

@@ -20,6 +20,11 @@ export function isMobileClient(req: Request): boolean {
   return req.header(CLIENT_HEADER)?.toLowerCase() === 'mobile';
 }
 
+/** The web portal says so explicitly (`X-Client: web`); a caller that sends nothing is not assumed to be it. */
+export function isWebClient(req: Request): boolean {
+  return req.header(CLIENT_HEADER)?.toLowerCase() === 'web';
+}
+
 function cookieOptions(): CookieOptions {
   return {
     httpOnly: true,

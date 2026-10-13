@@ -1,8 +1,11 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { useFinancialYear } from '@/lib/useFinancialYear';
+import { canOpen } from './nav-items';
+import { FieldNotAllowedScreen, NoAccessScreen } from './NoAccessScreen';
 import { SideNav } from './SideNav';
 import { TopBar } from './TopBar';
 
@@ -10,7 +13,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user } = useSession();
   const { year } = useFinancialYear();
   const [navOpen, setNavOpen] = useState(false);
+  const pathname = usePathname();
   if (user === null) return null;
+  if (user.role === 'FIELD') return <FieldNotAllowedScreen />;
 
   return (
     <div className="flex min-h-screen">
@@ -26,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             Viewing financial year {year}–{String(year + 1).slice(2)}. This view is read-only.
           </div>
         ) : null}
-        <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">{children}</main>
+        <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">{canOpen(user.role, pathname) ? children : <NoAccessScreen />}</main>
       </div>
     </div>
   );

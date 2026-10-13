@@ -2089,3 +2089,14 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** the phone screens (mobile team).
 
 **Refs:** [`mobile/monthlyplan.md`](mobile/monthlyplan.md) rules 16-17, [`LLD/planning.md`](LLD/planning.md), [`hld/06-ta-da-auto-calculation.md`](hld/06-ta-da-auto-calculation.md), sign-off D2.
+
+
+## 2026-10-13 — Web portal refactor: new menu, role guard, field staff kept off the web
+
+**Decision:** the web portal is reorganised in steps (plan: Foundation, order dispatch, HR, Payouts, Sales & Distribution, Reports, Master data, System settings, global dashboard). Step 0 done: the side menu has eight places (Home, HR, Sales & Distribution, Payouts, Reports, Master data, System; Home is always open) instead of seven loose groups; late submissions sit under HR, late expenses under Payouts, pay structure (designations, pay grades, pay components) under Master data. A page a role has no menu item for now shows a "no access" message instead of an API error (`canOpen` in `nav-items.ts`; a test checks every page belongs to a menu item). A field employee is refused at web sign-in (`X-Client: web`, `403`) and sees a "use the mobile app" screen if a session somehow exists. Admin, HR and Accountant can still use the phone app.
+
+**Decided for later steps:** one distributor workspace reached from both Master data and Sales; Reports become one landing page of cards (each report its own page); the Accountant marks orders **dispatched** (new Orders status, Step 0b) and loses Doctor services; HR sees leave approvals only.
+
+**Open:** the Reports link and the other items in Step 4 are still the seven separate entries until that step.
+
+**Refs:** `apps/web/src/components/shell/nav-items.ts`, `NoAccessScreen.tsx`, [`LLD/identity.md`](LLD/identity.md), [`testing/01-access-roles.md`](testing/01-access-roles.md).

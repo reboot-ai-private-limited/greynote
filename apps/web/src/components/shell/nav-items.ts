@@ -44,21 +44,23 @@ export interface NavItem {
   group: NavGroupName;
   /** A smaller heading inside a long group (Master data), shown while that group is open. */
   section?: string;
+  /** Other screens that belong to this item (reached from it, not listed in the rail). */
+  alsoOpens?: readonly string[];
   /** Roles that see this item. Cosmetic: the API returns 403 regardless. */
   roles: readonly RoleName[];
   /** Backend exists but the screen is not built yet: rendered disabled. */
   comingSoon?: boolean;
 }
 
-/** The groups, in the order the rail shows them. Home and Daily work are what people open every day, so they are always open. */
+/** The groups, in the order the rail shows them (most-used first). Home is what people open every day, so it is always open. */
 export const NAV_GROUPS = [
   { name: 'Home', alwaysOpen: true },
-  { name: 'Daily work', alwaysOpen: true },
-  { name: 'People', alwaysOpen: false },
-  { name: 'Money', alwaysOpen: false },
+  { name: 'HR', alwaysOpen: false },
+  { name: 'Sales & Distribution', alwaysOpen: false },
+  { name: 'Payouts', alwaysOpen: false },
   { name: 'Reports', alwaysOpen: false },
   { name: 'Master data', alwaysOpen: false },
-  { name: 'Setup', alwaysOpen: false },
+  { name: 'System', alwaysOpen: false },
 ] as const;
 export type NavGroupName = (typeof NAV_GROUPS)[number]['name'];
 
@@ -67,25 +69,25 @@ const ALL: readonly RoleName[] = ['ADMIN', 'HR', 'ACCOUNTANT'];
 /** The portal's navigation. Mirrors `apps/api/src/modules/*`; PRD §4 decides who sees what. Order here is the order within a group. */
 export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, group: 'Home', roles: ALL },
+  { label: 'Approvals', href: '/approvals', icon: ClipboardCheck, group: 'Home', roles: ['ADMIN', 'HR'] },
 
-  { label: 'Approvals', href: '/approvals', icon: ClipboardCheck, group: 'Daily work', roles: ['ADMIN', 'HR'] },
-  { label: 'Late submissions', href: '/late-submissions', icon: Clock, group: 'Daily work', roles: ['ADMIN'] },
-  { label: 'Late expenses', href: '/late-expenses', icon: Clock, group: 'Daily work', roles: ['ADMIN'] },
-  { label: 'Attendance', href: '/attendance', icon: CalendarCheck, group: 'Daily work', roles: ALL },
-  { label: 'Inbox messages', href: '/inbox', icon: Inbox, group: 'Daily work', roles: ['ADMIN'] },
-  { label: 'Documents', href: '/documents', icon: FileText, group: 'Daily work', roles: ['ADMIN'] },
-  { label: 'Orders', href: '/orders', icon: ShoppingCart, group: 'Daily work', roles: ['ADMIN'] },
+  { label: 'Employees', href: '/employees', icon: Users, group: 'HR', roles: ['ADMIN', 'HR'] },
+  { label: 'Attendance', href: '/attendance', icon: CalendarCheck, group: 'HR', roles: ALL },
+  { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'HR', roles: ['ADMIN', 'HR'] },
+  { label: 'Promotions', href: '/promotions', icon: TrendingUp, group: 'HR', roles: ['ADMIN', 'HR'] },
+  { label: 'Late submissions', href: '/late-submissions', icon: Clock, group: 'HR', roles: ['ADMIN'] },
+  { label: 'Documents', href: '/documents', icon: FileText, group: 'HR', roles: ['ADMIN'] },
+  { label: 'Inbox messages', href: '/inbox', icon: Inbox, group: 'HR', roles: ['ADMIN'] },
+  { label: 'Devices', href: '/devices', icon: Smartphone, group: 'HR', roles: ['ADMIN'] },
 
-  { label: 'Employees', href: '/employees', icon: Users, group: 'People', roles: ['ADMIN', 'HR'] },
-  { label: 'Promotions', href: '/promotions', icon: TrendingUp, group: 'People', roles: ['ADMIN', 'HR'] },
-  { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'People', roles: ['ADMIN', 'HR'] },
-  { label: 'Devices', href: '/devices', icon: Smartphone, group: 'People', roles: ['ADMIN'] },
+  { label: 'Sales dashboard', href: '/reports/sales-dashboard', icon: LayoutDashboard, group: 'Sales & Distribution', roles: ['ADMIN'] },
+  { label: 'Orders', href: '/orders', icon: ShoppingCart, group: 'Sales & Distribution', roles: ['ADMIN'] },
 
-  { label: 'Payroll', href: '/payroll', icon: Banknote, group: 'Money', roles: ['ADMIN', 'ACCOUNTANT'] },
-  { label: 'Expenses', href: '/expenses', icon: Receipt, group: 'Money', roles: ['ADMIN', 'ACCOUNTANT'] },
-  { label: 'Expense payouts', href: '/expense-payouts', icon: Coins, group: 'Money', roles: ['ADMIN', 'ACCOUNTANT'] },
+  { label: 'Payroll', href: '/payroll', icon: Banknote, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
+  { label: 'Expenses', href: '/expenses', icon: Receipt, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
+  { label: 'Expense payouts', href: '/expense-payouts', icon: Coins, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
+  { label: 'Late expenses', href: '/late-expenses', icon: Clock, group: 'Payouts', roles: ['ADMIN'] },
 
-  { label: 'Sales dashboard', href: '/reports/sales-dashboard', icon: LayoutDashboard, group: 'Reports', roles: ['ADMIN'] },
   { label: 'Sales report', href: '/reports/sales', icon: BarChart3, group: 'Reports', roles: ['ADMIN'] },
   { label: 'Stock report', href: '/reports/stock', icon: Boxes, group: 'Reports', roles: ['ADMIN'] },
   { label: 'Daily reports', href: '/reports/dcr', icon: ClipboardList, group: 'Reports', roles: ['ADMIN'] },
@@ -104,11 +106,11 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Doctor services', href: '/doctor-services', icon: HandCoins, group: 'Master data', section: 'Catalogue', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Doctor gifts', href: '/doctor-gifts', icon: Gift, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
   { label: 'Visuals', href: '/visuals', icon: Images, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
+  { label: 'Designations', href: '/designations', icon: Award, group: 'Master data', section: 'Pay structure', roles: ['ADMIN', 'HR'] },
+  { label: 'Pay grades', href: '/pay-grades', alsoOpens: ['/pay-bands'], icon: Wallet, group: 'Master data', section: 'Pay structure', roles: ALL },
+  { label: 'Pay components', href: '/pay-components', icon: Calculator, group: 'Master data', section: 'Pay structure', roles: ALL },
 
-  { label: 'Designations', href: '/designations', icon: Award, group: 'Setup', roles: ['ADMIN', 'HR'] },
-  { label: 'Pay grades', href: '/pay-grades', icon: Wallet, group: 'Setup', roles: ALL },
-  { label: 'Pay components', href: '/pay-components', icon: Calculator, group: 'Setup', roles: ALL },
-  { label: 'System settings', href: '/settings', icon: Settings2, group: 'Setup', roles: ['ADMIN'] },
+  { label: 'System settings', href: '/settings', icon: Settings2, group: 'System', roles: ['ADMIN'] },
 ];
 
 export function navFor(role: RoleName): readonly NavItem[] {
@@ -129,7 +131,19 @@ export function navGroupsFor(role: RoleName): NavGroup[] {
 }
 
 /** Whether the screen at `pathname` is this item's (the item itself or anything under it). */
-export const isActiveItem = (item: Pick<NavItem, 'href'>, pathname: string): boolean => pathname === item.href || pathname.startsWith(`${item.href}/`);
+const under = (href: string, pathname: string): boolean => pathname === href || pathname.startsWith(`${href}/`);
+
+export const isActiveItem = (item: Pick<NavItem, 'href'> & { alsoOpens?: readonly string[] }, pathname: string): boolean =>
+  under(item.href, pathname) || (item.alsoOpens ?? []).some((h) => under(h, pathname));
+
+/**
+ * Whether `role` may open the screen at `pathname`: the roles of the item it belongs to (the longest matching item wins, so
+ * `/reports/sales-dashboard` is not read as `/reports/sales`). A path no item claims is not refused here: it is a 404 or a shared screen.
+ */
+export function canOpen(role: RoleName, pathname: string): boolean {
+  const owner = NAV_ITEMS.filter((i) => isActiveItem(i, pathname)).sort((a, b) => b.href.length - a.href.length)[0];
+  return owner === undefined || owner.roles.includes(role);
+}
 
 /** The group that holds the screen being looked at, if any. */
 export function activeGroupOf(role: RoleName, pathname: string): NavGroupName | null {

@@ -214,7 +214,7 @@ dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-l
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| `POST` | `/api/identity/auth/login` | any | `{employee_code, password, device_id, device_name, device_model, platform}` → tokens (`refreshToken` in the body only with `X-Client: mobile`; otherwise an httpOnly cookie, `SameSite=Strict`, path `/api/identity/auth`); for FIELD, `409`/`403` with `data.reason` when the phone isn't approved (see rules above) |
+| `POST` | `/api/identity/auth/login` | any | `{employee_code, password, device_id, device_name, device_model, platform}` → tokens (`refreshToken` in the body only with `X-Client: mobile`; otherwise an httpOnly cookie, `SameSite=Strict`, path `/api/identity/auth`); with `X-Client: web` a FIELD employee is refused `403` (after the password check); for FIELD on the phone, `409`/`403` with `data.reason` when the phone isn't approved (see rules above) |
 | `POST` | `/api/identity/auth/refresh` | any (via refresh token) | Rotate a session. Token from the body (mobile) or, for a browser, the httpOnly `gn_refresh` cookie (needs an `X-Client` header) |
 | `GET` | `/api/identity/auth/me` | any | The signed-in `UserSummary` (web boot) |
 | `POST` | `/api/identity/auth/logout` | any | Revoke the calling session |

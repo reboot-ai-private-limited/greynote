@@ -188,6 +188,35 @@ describe('LoginUseCase — credentials', () => {
   });
 });
 
+describe('LoginUseCase — web portal', () => {
+  const ADMIN = { ...FIELD_ROLE, name: 'ADMIN' } as Role;
+
+  it('refuses a field employee on the web, before any device lookup or session', async () => {
+    const { useCase, devices, sessions } = build({});
+    await expect(useCase.execute(loginInput, { viaWeb: true })).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'The web portal is for office staff. Please use the mobile app.',
+    });
+    expect(devices.lookups).toBe(0);
+    expect(sessions.created).toHaveLength(0);
+  });
+
+  it('does not reveal a field account to someone with the wrong password', async () => {
+    const { useCase } = build({});
+    await expect(useCase.execute({ ...loginInput, password: 'wrong' }, { viaWeb: true })).rejects.toMatchObject({ statusCode: 401 });
+  });
+
+  it('lets office staff in on the web', async () => {
+    const { useCase } = build({ role: ADMIN });
+    await expect(useCase.execute(loginInput, { viaWeb: true })).resolves.toMatchObject({ accessToken: 'signed-jwt' });
+  });
+
+  it('lets a field employee in from the phone app', async () => {
+    const { useCase } = build({});
+    await expect(useCase.execute(loginInput, { viaWeb: false })).resolves.toMatchObject({ accessToken: 'signed-jwt' });
+  });
+});
+
 describe('LoginUseCase — FIELD device registry', () => {
   it('logs in on a REGISTERED device', async () => {
     const { useCase, sessions } = build({});

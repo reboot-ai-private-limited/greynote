@@ -8,11 +8,11 @@ import type { LogoutAllSessionsUseCase } from '../application/usecases/logoutAll
 import type { DeleteAccountUseCase } from '../application/usecases/deleteAccount.usecase.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { GetUserSummaryUseCase } from '../application/usecases/getUserSummary.usecase.js';
-import { clearRefreshCookie, deliverRefreshToken, readRefreshToken } from './refreshCookie.js';
+import { clearRefreshCookie, deliverRefreshToken, isWebClient, readRefreshToken } from './refreshCookie.js';
 
 export function makeLoginController(useCase: LoginUseCase): RequestHandler {
   return asyncHandler(async (req, res) => {
-    const result = await useCase.execute(req.body);
+    const result = await useCase.execute(req.body, { viaWeb: isWebClient(req) });
     sendSuccess(req, res, deliverRefreshToken(req, res, result), 'Logged in.', 200);
   });
 }

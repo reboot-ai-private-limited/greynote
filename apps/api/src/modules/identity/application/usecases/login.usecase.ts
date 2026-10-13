@@ -29,6 +29,9 @@ export interface LoginOutput {
   user: UserSummary;
 }
 
+/** Shown when a field employee signs in on the web portal, which is for Admin, HR and Accountant only. */
+export const WEB_NOT_FOR_FIELD_MESSAGE = 'The web portal is for office staff. Please use the mobile app.';
+
 /** Sent in `publicDetails.reason` so the app can show the right screen, not a generic error. */
 export type DeviceBlockReason = 'DEVICE_APPROVAL_PENDING' | 'DEVICE_REJECTED' | 'DEVICE_LIMIT_REACHED';
 
@@ -45,7 +48,7 @@ export class LoginUseCase {
     private readonly opts: { accessTokenTtlSeconds: number; refreshTokenTtlDays: number },
   ) {}
 
-  async execute(input: LoginInput): Promise<LoginOutput> {
+  async execute(input: LoginInput, ctx: { viaWeb?: boolean } = {}): Promise<LoginOutput> {
     const user = await this.userRepository.findByEmployeeCode(input.employeeCode);
     // Same message whether the employee code or the password was wrong — never reveal which.
     const invalidCredentials = () => AppError.unauthenticated('Invalid employee code or password.');
@@ -60,6 +63,9 @@ export class LoginUseCase {
 
     const role = await this.roleRepository.findById(user.roleId);
     if (!role) throw AppError.internal('INTERNAL', { reason: 'ROLE_NOT_FOUND', roleId: user.roleId });
+
+    // After the password check, like the deactivated message: the account's existence is not revealed to a guesser.
+    if (ctx.viaWeb && role.name === 'FIELD') throw AppError.forbidden(WEB_NOT_FOR_FIELD_MESSAGE);
 
     // A blocked user's login still succeeds — the compliance block gates future submissions
     // (hld/10), not authentication. Flagged in docs/LLD/identity.md as needing confirmation.
