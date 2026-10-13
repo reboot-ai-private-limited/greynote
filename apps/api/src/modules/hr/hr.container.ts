@@ -122,6 +122,7 @@ export function buildHrContainer(
     contract: {
       isOnLeave: (userId, date) => lookups.isOnLeave(userId, date),
       listLeaveDates: (userId, from, to) => lookups.leaveDates(userId, from, to),
+      listLeaveDays: (userId, from, to) => lookups.leaveDays(userId, from, to),
       listLeavesForUsers: (userIds, from, to) => lookups.leavesForUsers(userIds, from, to),
       getUnpaidLeaveDays: (userId, month) => lookups.unpaidDays(userId, month),
       listOffDates: async (userId, from, to) => {

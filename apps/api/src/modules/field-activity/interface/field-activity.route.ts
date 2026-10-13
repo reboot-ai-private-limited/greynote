@@ -9,7 +9,7 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { MAX_EXPENSE_ATTACHMENT_BYTES } from '../domain/expense.entity.js';
 import type { FieldActivityHandlers } from './field-activity.controller.js';
-import { grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseAttachmentParamsSchema, expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
+import { expenseReviewQuerySchema, expenseOverviewQuerySchema, grantExpenseMonthBodySchema, listExpenseGrantsQuerySchema, expenseAttachmentParamsSchema, expenseHistoryQuerySchema, expenseMonthParamsSchema, expenseMonthQuerySchema, otherExpenseBodySchema, listExpensesQuerySchema, listExpensePayoutsQuerySchema, payExpensesBodySchema, allocateGiftBodySchema, callParamsSchema, doctorServiceFieldsSchema, idParamsSchema, listGiftsQuerySchema, listServicesQuerySchema, overrideBodySchema, listDcrsQuerySchema, listTeamDcrsQuerySchema } from './field-activity.schemas.js';
 
 const TAG = 'Field Activity';
 
@@ -85,6 +85,8 @@ openApiRegistry.registerPath({
   responses: { 200: { description: 'The expense, PAID' }, 409: { description: 'Cancelled, or its report is not approved' } },
 });
 doc('/expense-months', 'The month’s expense statement — date-wise TA, DA and Other with its approval status. Own; a manager reads their team’s, Admin anyone’s (userId)', { query: expenseMonthQuerySchema });
+doc('/expense-months/overview', 'Admin, HR, Accountant: every active field employee’s month — TA, DA, other, total, paid and where the month stands', { query: expenseOverviewQuerySchema });
+doc('/expense-months/review', 'Admin, HR, Accountant: one employee’s month day by day — day type, leave paid or unpaid, working type, routes and station, report sent or not, TA, DA, other', { query: expenseReviewQuerySchema });
 doc('/expense-months/{id}', 'One month’s statement by its own id — what an approval request points at; the owner, their managers, Admin', { params: idParamsSchema });
 doc('/expense-months/history', 'Previous months’ expenses with totals and whether each was approved (default: the last 12)', { query: expenseHistoryQuerySchema });
 openApiRegistry.registerPath({
@@ -167,6 +169,8 @@ export function buildFieldActivityRouter(c: FieldActivityHandlers): Router {
   router.post('/expense-payouts/pay', requireRole('ACCOUNTANT', 'ADMIN'), validate({ body: payExpensesBodySchema }), c.payExpenses);
   router.post('/expenses/:id/mark-paid', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: idParamsSchema }), c.markExpensePaid);
   router.get('/expense-months', requireRole('FIELD', 'ADMIN'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: expenseMonthQuerySchema }), c.expenseStatement);
+  router.get('/expense-months/overview', requireRole('ADMIN', 'HR', 'ACCOUNTANT'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: expenseOverviewQuerySchema }), c.expenseOverview);
+  router.get('/expense-months/review', requireRole('ADMIN', 'HR', 'ACCOUNTANT'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: expenseReviewQuerySchema }), c.expenseReview);
   router.get('/expense-months/history', requireRole('FIELD', 'ADMIN'), validate({ query: expenseHistoryQuerySchema }), c.expenseHistory);
   router.get('/expense-months/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.expenseStatementById);
   router.post('/expense-months/:month/submit', requireRole('FIELD'), validate({ params: expenseMonthParamsSchema }), c.submitExpenseMonth);

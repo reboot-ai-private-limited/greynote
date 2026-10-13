@@ -10,6 +10,7 @@ import { CallChecks } from './application/callChecks.js';
 import { makeCallSyncHandlers } from './application/callsSync.js';
 import { makeExpenseSyncHandler } from './application/expenseSync.js';
 import { TaDaLifecycle } from './application/usecases/taDaLifecycle.usecase.js';
+import { ExpenseOverviewUseCase, ExpenseReviewService } from './application/usecases/expenseReview.usecase.js';
 import { EXPENSE_MONTH_KIND, ExpenseMonthService } from './application/usecases/expenseMonth.usecase.js';
 import { ExpenseMonthDeadlines } from './application/expenseMonthDeadlines.js';
 import { GrantExpenseMonthUseCase, ListExpenseMonthGrantsUseCase, RevokeExpenseMonthGrantUseCase } from './application/usecases/expenseMonthGrants.usecase.js';
@@ -186,6 +187,8 @@ export function buildFieldActivityContainer(
           listExpenses: new ListExpensesUseCase(expenses, users),
           markPaid: new MarkExpensePaidUseCase(expenses, config),
           expenseMonths: monthService,
+          expenseReview: new ExpenseReviewService(monthService, expenses, dcrs, approvals, planning, territory, leave, users, clock),
+          expenseOverview: new ExpenseOverviewUseCase(expenses, expenseMonths, approvals, users, config),
           grantExpense: new GrantExpenseMonthUseCase(expenseGrants, expenses, users, config, () => new Date()),
           listExpenseGrants: new ListExpenseMonthGrantsUseCase(expenseGrants, users, () => new Date()),
           revokeExpenseGrant: new RevokeExpenseMonthGrantUseCase(expenseGrants, users, () => new Date()),

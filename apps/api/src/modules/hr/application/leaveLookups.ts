@@ -1,7 +1,7 @@
 import type { ApprovalsPort } from '../domain/approvals.port.js';
 import type { LeaveRepositoryPort } from '../domain/leave.repository.port.js';
 import type { LeaveTypeRepositoryPort } from '../domain/leaveType.repository.port.js';
-import type { TeamLeave } from '../hr.public.js';
+import type { LeaveDay, TeamLeave } from '../hr.public.js';
 import type { Probation } from './probation.js';
 
 /** The most leaves one team-calendar read looks at: a team's leaves in a month or two are far fewer. */
@@ -38,6 +38,25 @@ export class LeaveLookups {
       for (const day of leave.days) if (day.date >= from && day.date <= to) dates.add(day.date);
     }
     return [...dates].sort();
+  }
+
+  /**
+   * `leaveDates` with the pay of each day: a leave's own `isPaid`, except that a day inside the employee's probation is paid (payroll's rule).
+   * Sorted by date.
+   */
+  async leaveDays(userId: string, from: string, to: string): Promise<LeaveDay[]> {
+    const [probationEnd, types] = await Promise.all([this.probation.endsOn(userId), this.leaveTypes.list()]);
+    const typeName = new Map(types.map((t) => [t.id, t.name as string]));
+    const out: LeaveDay[] = [];
+    for (const leave of await this.leaves.listOverlapping(userId, from, to)) {
+      const status = (await this.approvals.getForRecord('LEAVE', leave.id))?.status;
+      if (status !== 'MANAGER_APPROVED' && status !== 'APPROVED') continue;
+      for (const day of leave.days) {
+        if (day.date < from || day.date > to) continue;
+        out.push({ date: day.date, portion: day.portion, paid: leave.isPaid || (probationEnd !== null && day.date < probationEnd), leaveType: typeName.get(leave.leaveTypeId) ?? null, status });
+      }
+    }
+    return out.sort((a, b) => a.date.localeCompare(b.date));
   }
 
   /**

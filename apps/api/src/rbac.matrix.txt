@@ -36,6 +36,8 @@ GET    /api/field-activity/expense-grants  ADMIN,FIELD
 GET    /api/field-activity/expense-months  ADMIN,FIELD
 GET    /api/field-activity/expense-months/:id  ADMIN,FIELD
 GET    /api/field-activity/expense-months/history  ADMIN,FIELD
+GET    /api/field-activity/expense-months/overview  ACCOUNTANT,ADMIN,HR
+GET    /api/field-activity/expense-months/review  ACCOUNTANT,ADMIN,HR
 GET    /api/field-activity/expense-payouts  ACCOUNTANT,ADMIN
 GET    /api/field-activity/expenses  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists  ADMIN

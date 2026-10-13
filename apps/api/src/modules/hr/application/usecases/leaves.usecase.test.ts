@@ -190,6 +190,18 @@ describe('Leave requests', () => {
     expect(await lookups.unpaidDays('mr', '2026-11')).toBe(2); // Sun 1 off; Mon 2, Tue 3
   });
 
+  it('lists the covered days with whether each is paid, for a month review', async () => {
+    const paid = await requests.request('mr', casual());
+    expect(await lookups.leaveDays('mr', '2026-10-01', '2026-10-31')).toEqual([]); // only submitted
+    await approvals.move('LEAVE', paid.id, 'MANAGER_APPROVED');
+    const lop = await requests.request('mr', casual({ leaveTypeId: typeId('Loss of Pay'), startDate: '2026-10-30', endDate: '2026-11-03' }));
+    await approvals.move('LEAVE', lop.id, 'APPROVED');
+    const october = await lookups.leaveDays('mr', '2026-10-01', '2026-10-31');
+    expect(october[0]).toMatchObject({ date: '2026-10-01', paid: true, portion: 1, status: 'MANAGER_APPROVED' });
+    expect(october.filter((d) => !d.paid).map((d) => d.date)).toEqual(['2026-10-30', '2026-10-31']); // the days after the range are not in it
+    expect(october.every((d, i) => i === 0 || october[i - 1]!.date <= d.date)).toBe(true);
+  });
+
   it('lists the live leaves of a set of people for a team calendar, leaving out rejected and withdrawn ones', async () => {
     const waiting = await requests.request('mr', casual());
     const rejected = await requests.request('asm', casual());

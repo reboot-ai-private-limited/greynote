@@ -87,6 +87,8 @@ export const listGiftsQuerySchema = z.object({ status: z.enum(['PENDING', 'DONE'
 const expenseMonthValue = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Must be a month like 2026-09.');
 export const expenseMonthParamsSchema = z.object({ month: expenseMonthValue });
 export const expenseMonthQuerySchema = z.object({ month: expenseMonthValue, userId: objectIdSchema.optional() });
+export const expenseReviewQuerySchema = z.object({ month: expenseMonthValue, userId: objectIdSchema });
+export const expenseOverviewQuerySchema = z.object({ month: expenseMonthValue });
 export const grantExpenseMonthBodySchema = z.object({
   userId: objectIdSchema,
   month: expenseMonthValue,

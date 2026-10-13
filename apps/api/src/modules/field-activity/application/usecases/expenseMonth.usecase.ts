@@ -68,12 +68,12 @@ export interface ExpenseMonthSummaryView {
 const taOf = (rows: Expense[]) => rows.filter((r) => r.type === 'TA').reduce((a, r) => a + r.amountPaise, 0);
 const daOf = (rows: Expense[]) => rows.filter((r) => r.type === 'DA').reduce((a, r) => a + r.amountPaise, 0);
 const otherOf = (rows: Expense[]) => rows.filter((r) => r.type !== 'TA' && r.type !== 'DA').reduce((a, r) => a + r.amountPaise, 0);
-const totalsOf = (rows: Expense[]) => {
+export const totalsOf = (rows: Expense[]) => {
   const t = { taPaise: taOf(rows), daPaise: daOf(rows), otherPaise: otherOf(rows) };
   return { ...t, totalPaise: t.taPaise + t.daPaise + t.otherPaise };
 };
 
-const statusOf = (request: { status: ApprovalStatus } | null): ExpenseMonthStatus => {
+export const expenseMonthStatusOf = (request: { status: ApprovalStatus } | null): ExpenseMonthStatus => {
   if (!request) return 'DRAFT';
   if (request.status === 'APPROVED') return 'APPROVED';
   if (request.status === 'SUBMITTED' || request.status === 'MANAGER_APPROVED') return 'SUBMITTED';
@@ -126,9 +126,9 @@ export class ExpenseMonthService {
     } else if (status === 'REJECTED' || status === 'REOPENED' || status === 'WITHDRAWN') await this.expenses.setMonthApproved(record.userId, monthRange(record.month), false, ctx);
   }
 
-  /** The owner, their managers (any level) and Admin may read a statement. */
+  /** The owner, their managers (any level), Admin, and the office roles that review a month (HR, the Accountant) may read a statement. */
   private async assertCanRead(actor: Actor, userId: string): Promise<void> {
-    if (actor.id === userId || actor.role === 'ADMIN') return;
+    if (actor.id === userId || actor.role === 'ADMIN' || actor.role === 'HR' || actor.role === 'ACCOUNTANT') return;
     if (!(await this.users.getManagerChain(userId)).some((m) => m.id === actor.id)) throw AppError.forbidden();
   }
 
@@ -142,7 +142,7 @@ export class ExpenseMonthService {
     const range = monthRange(month);
     const [rows, record] = await Promise.all([this.expenses.listForUserRange(userId, range), this.months.find(userId, month)]);
     const request = record ? await this.approvals.getForRecord(EXPENSE_MONTH_KIND, record.id) : null;
-    const status = statusOf(request);
+    const status = expenseMonthStatusOf(request);
     const monthEnded = await this.monthEnded(month);
     const byDate = new Map<string, Expense[]>();
     for (const r of rows) byDate.set(r.reportDate, [...(byDate.get(r.reportDate) ?? []), r]);
@@ -198,7 +198,7 @@ export class ExpenseMonthService {
       if (rows.length > 0) {
         const record = await this.months.find(userId, month);
         const request = record ? await this.approvals.getForRecord(EXPENSE_MONTH_KIND, record.id) : null;
-        out.push({ month, status: statusOf(request), ...totalsOf(rows), paidPaise: rows.filter((r) => r.paymentStatus === 'PAID').reduce((a, r) => a + r.amountPaise, 0) });
+        out.push({ month, status: expenseMonthStatusOf(request), ...totalsOf(rows), paidPaise: rows.filter((r) => r.paymentStatus === 'PAID').reduce((a, r) => a + r.amountPaise, 0) });
       }
       [year, m] = m === 1 ? [year - 1, 12] : [year, m - 1];
     }
@@ -209,7 +209,7 @@ export class ExpenseMonthService {
   async assertEditable(userId: string, month: string): Promise<void> {
     const record = await this.months.find(userId, month);
     const request = record ? await this.approvals.getForRecord(EXPENSE_MONTH_KIND, record.id) : null;
-    const status = statusOf(request);
+    const status = expenseMonthStatusOf(request);
     if (status !== 'DRAFT' && status !== 'REJECTED') throw AppError.conflict('This month has been sent for approval, so it can no longer be changed.', { code: 'EXPENSE_MONTH_LOCKED' });
   }
 

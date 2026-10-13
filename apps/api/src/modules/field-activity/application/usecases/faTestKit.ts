@@ -11,7 +11,7 @@ import type { ChemistCall, DoctorCall, Followup } from '../../domain/call.entity
 import type { DoctorGift, DoctorService } from '../../domain/serviceGift.entity.js';
 import type { Expense, ExpenseAttachment } from '../../domain/expense.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
-import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, DoctorGiftRepositoryPort, DoctorServiceRepositoryPort, ExpenseBucket, ExpenseMonthSummary, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, DoctorGiftRepositoryPort, DoctorServiceRepositoryPort, ExpenseBucket, ExpenseMonthClaimSummary, ExpenseMonthSummary, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
 import type { LeavePort } from '../../domain/leave.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -205,8 +205,8 @@ export class FakeTerritory implements TerritoryPort {
   async listRoutesForUser(userId: string) {
     return (this.routesByUser.get(userId) ?? []).map((id) => ({ id }));
   }
-  routes = new Map<string, { id: string; routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION'; distanceKm: string | null; distanceStatus: string; taPerKmRateOverridePaise: number | null }>([
-    ['route-1', { id: 'route-1', routeType: 'EX_STATION', distanceKm: '10.67', distanceStatus: 'CALCULATED', taPerKmRateOverridePaise: null }],
+  routes = new Map<string, { id: string; name: string; routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION'; distanceKm: string | null; distanceStatus: string; taPerKmRateOverridePaise: number | null }>([
+    ['route-1', { id: 'route-1', name: 'Route 1', routeType: 'EX_STATION', distanceKm: '10.67', distanceStatus: 'CALCULATED', taPerKmRateOverridePaise: null }],
   ]);
   async getRoute(id: string) {
     return this.routes.get(id) ?? null;
@@ -373,6 +373,22 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
     const r = this.rows.find((x) => x.id === id && x.userId === userId && x.type === 'OTHER' && x.paymentStatus === 'UNPAID');
     const i = r?.attachments.findIndex((a) => a.id === attachmentId) ?? -1;
     return r && i >= 0 ? r.attachments.splice(i, 1)[0]! : null;
+  }
+  async summarizeClaimedByMonth(range: { from: string; to: string }) {
+    const by = new Map<string, ExpenseMonthClaimSummary>();
+    for (const r of this.rows.filter((x) => x.paymentStatus !== 'CANCELLED' && x.reportDate >= range.from && x.reportDate <= range.to)) {
+      const key = `${r.userId}|${r.reportDate.slice(0, 7)}`;
+      const s = by.get(key) ?? { userId: r.userId, month: r.reportDate.slice(0, 7), taPaise: 0, daPaise: 0, reimbursementPaise: 0, paidPaise: 0, unpaidPaise: 0, flaggedRows: 0, acceptedPaise: 0 };
+      if (r.type === 'TA') s.taPaise += r.amountPaise;
+      else if (r.type === 'DA') s.daPaise += r.amountPaise;
+      else s.reimbursementPaise += r.amountPaise;
+      if (r.paymentStatus === 'PAID') s.paidPaise += r.amountPaise;
+      else s.unpaidPaise += r.amountPaise;
+      if (r.accepted) s.acceptedPaise += r.amountPaise;
+      if (r.distanceFlag) s.flaggedRows += 1;
+      by.set(key, s);
+    }
+    return [...by.values()];
   }
   async summarizeByMonth(range: { from: string; to: string }) {
     const by = new Map<string, ExpenseMonthSummary>();
@@ -541,6 +557,15 @@ export class FakeLeave implements LeavePort {
   }
   async listOffDates(_userId: string, from: string, to: string) {
     return [...this.offDays].filter((d) => d >= from && d <= to);
+  }
+  holidays = new Set<string>();
+  async listHolidayDates(_userId: string, from: string, to: string) {
+    return [...this.holidays].filter((d) => d >= from && d <= to);
+  }
+  /** `date` -> paid? for the leave days of any user; a test sets it. */
+  leavePay = new Map<string, boolean>();
+  async listLeaveDays(_userId: string, from: string, to: string) {
+    return [...this.leavePay].filter(([d]) => d >= from && d <= to).map(([date, paid]) => ({ date, portion: 1, paid, leaveType: 'Casual', status: 'APPROVED' as const }));
   }
 }
 

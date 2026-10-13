@@ -86,7 +86,14 @@ export interface ExpenseMonthSummary {
   flaggedRows: number;
 }
 
+/** `ExpenseMonthSummary`, but of everything claimed (accepted or not): `acceptedPaise` is the part whose report was approved. */
+export interface ExpenseMonthClaimSummary extends ExpenseMonthSummary {
+  acceptedPaise: number;
+}
+
 export interface ExpenseRepositoryPort {
+  /** Per employee and month, everything claimed in the range (`CANCELLED` left out), with how much of it is accepted — the review's month table. */
+  summarizeClaimedByMonth(range: { from: string; to: string }): Promise<ExpenseMonthClaimSummary[]>;
   /** The accepted expenses whose report day falls in the range (`YYYY-MM-DD`, both inclusive), per employee and month. */
   summarizeByMonth(range: { from: string; to: string }): Promise<ExpenseMonthSummary[]>;
   /** Every row of the employee dated in the range (both inclusive, `YYYY-MM-DD`), `CANCELLED` left out, oldest day first: the month statement's lines. */

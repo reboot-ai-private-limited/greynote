@@ -272,6 +272,83 @@ export interface ExpenseStatementDto {
   submitLate: boolean;
 }
 
+// ---- Expense review (Admin, HR, Accountant) — decision-log 2026-10-13 ----------------------------
+
+/** What a calendar day is for this employee: a working day, or why it is not (leave wins over a holiday, a holiday over the weekly off). */
+export type ReviewDayTypeDto = 'WORKING' | 'WEEKLY_OFF' | 'HOLIDAY' | 'LEAVE';
+/** The kind of Route a day was on; it decides DA. */
+export type ReviewStationDto = 'HQ' | 'EX_STATION' | 'OUT_STATION';
+/** The day's daily report: not sent (none, a draft, or taken back), waiting on a manager, or decided. */
+export type ReviewDcrStateDto = 'NOT_SUBMITTED' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+
+export interface ExpenseReviewDayDto {
+  date: string;
+  dayType: ReviewDayTypeDto;
+  /** A leave day: paid or unpaid (an unpaid day is deducted by payroll), whole or half. */
+  leave: { paid: boolean; portion: number; leaveType: string | null } | null;
+  /** From the day's Daily Plan; null with no plan. */
+  workingType: 'FIELD_WORK' | 'DOCTOR_CAMPAIGN' | 'MEETING' | 'CONFERENCE' | 'STRIKE' | null;
+  /** An out-station trip's stay or transit day; `NORMAL` otherwise. */
+  dayKind: 'NORMAL' | 'STAY' | 'TRANSIT' | null;
+  /** The farthest of the day's Routes (out-station over ex-station over HQ); null with no route. */
+  station: ReviewStationDto | null;
+  routes: Array<{ id: string; name: string; routeType: ReviewStationDto }>;
+  dcr: ReviewDcrStateDto;
+  taPaise: number;
+  daPaise: number;
+  otherPaise: number;
+  totalPaise: number;
+  /** The day's TA and DA are payable: its report was approved. `false` (a report not approved, or rejected) means they are claimed but not counted; null with no TA or DA. */
+  taDaAccepted: boolean | null;
+  /** TA could not be worked out for a route (its distance failed), so the amount is artificially low. */
+  distanceFlag: boolean;
+  others: Array<{ id: string; amountPaise: number; remarks: string | null }>;
+}
+
+/** One employee's month, day by day (every calendar day to today), with the statement's totals and status. */
+export interface ExpenseReviewDto {
+  userId: string;
+  userName: string;
+  employeeCode: string;
+  month: string;
+  status: ExpenseMonthStatusDto;
+  /** Everything claimed in the month. */
+  totals: ExpenseTotalsDto;
+  /** The part of `totals` that is payable (its report is approved); the month table's `acceptedPaise`. */
+  acceptedPaise: number;
+  submittedTotals: ExpenseTotalsDto | null;
+  paidPaise: number;
+  deadlines: { submitBy: string; approveBy: string };
+  exceptions: { submitUntil: string | null; approveUntil: string | null };
+  leave: { paidDays: number; unpaidDays: number };
+  days: ExpenseReviewDayDto[];
+}
+
+/** One employee's row of the month table: everything claimed, with how much of it is accepted (its report is approved) and how much is paid. */
+export interface ExpenseOverviewRowDto {
+  userId: string;
+  userName: string;
+  employeeCode: string;
+  taPaise: number;
+  daPaise: number;
+  otherPaise: number;
+  totalPaise: number;
+  /** The part of `totalPaise` whose report is approved: what a payout can pay. */
+  acceptedPaise: number;
+  paidPaise: number;
+  status: ExpenseMonthStatusDto | 'NOT_SUBMITTED';
+  /** The month was sent (even if it is back with the employee since). */
+  submittedAt: string | null;
+  /** AUTO TA rows whose distance failed. */
+  flaggedRows: number;
+}
+export interface ExpenseOverviewDto {
+  month: string;
+  /** The day the month's expenses should be paid by (`EXPENSE_PAYOUT_DAY` of the next month). */
+  payoutDueDate: string;
+  rows: ExpenseOverviewRowDto[];
+}
+
 export type ExpenseGrantPhaseDto = 'SUBMIT' | 'APPROVE';
 export type ExpenseGrantStatusDto = 'OPEN' | 'USED' | 'REVOKED' | 'EXPIRED';
 /** A one-off exception that lets a month of expenses be sent or approved after its deadline. */

@@ -455,3 +455,13 @@ assigned MR, refused for a doctor with no MR). A doctor is picked by searching n
 ## Doctor Service — final "Done" step (2026-10-12)
 
 After a service is approved, Admin marks it carried out (Accounts, from 2026-10-13, only reads): `POST /api/field-activity/doctor-services/:id/done` (`MarkDoctorServiceDoneUseCase`, role `ADMIN`; `409` while not approved or when already done; one conditional update on `doneAt`). `GET /doctor-services[/:id]` is open to Accounts (all services) and returns `awaitingDone`, `doneBy`, `doneAt`. Gifts are unchanged: Admin allocates, the doctor's MR marks done.
+
+
+## Expense review and month table (2026-10-13, read side of Track A)
+
+Two read endpoints for the people who review a month, `ADMIN`, `HR`, `ACCOUNTANT` (the month statement `GET /expense-months?userId=` is now readable by HR and the Accountant too). Both are financial-year scoped.
+
+- `GET /api/field-activity/expense-months/overview?month=YYYY-MM` (`ExpenseOverviewUseCase`): every active field employee, with TA, DA, other (the manual claims) and total of everything **claimed** (`CANCELLED` left out), `acceptedPaise` (the part whose report is approved, i.e. what a payout can pay) and `paidPaise`, plus `status` (`NOT_SUBMITTED`, `DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`), `submittedAt`, `flaggedRows`, and `payoutDueDate` (`EXPENSE_PAYOUT_DAY` of the next month).
+- `GET /api/field-activity/expense-months/review?month=&userId=` (`ExpenseReviewService`): one employee's month **day by day, every calendar day to today**. Each day has `dayType` (`WORKING`, `WEEKLY_OFF`, `HOLIDAY`, `LEAVE`; leave wins over a holiday, a holiday over the weekly off), `leave` (paid or unpaid, whole or half, from HR's new `listLeaveDays`; a day inside probation is paid), `workingType` and `dayKind` from the Daily Plan, `routes` (names) and `station` (the farthest route type: out-station over ex-station over HQ), `dcr` (`NOT_SUBMITTED`: none, a draft or taken back; `SUBMITTED`: waiting; `APPROVED`; `REJECTED`), TA, DA, other, total (all claimed), `taDaAccepted` (false when the day's report is not approved: claimed but not counted; null with no TA or DA), `distanceFlag`, and the employee's own `others`. The header carries the statement's status, `totals` (claimed), `acceptedPaise` (the same figure as the month table), `submittedTotals`, paid, deadlines and exceptions, and the month's paid and unpaid leave days.
+- Nothing here edits a figure. Edits with an audit trail, Finalize and the merged web page are the next steps of Track A ([decision log 2026-10-13](../decision-log.md)).
+- HR's public contract gains `listLeaveDays(userId, from, to)`; Field Activity's Territory port gains the route `name`.

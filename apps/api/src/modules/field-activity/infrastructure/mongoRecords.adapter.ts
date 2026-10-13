@@ -3,7 +3,7 @@ import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { ChemistCall, DoctorCall, Followup, GeofenceOutcome } from '../domain/call.entity.js';
 import type { Expense, ExpenseAttachment } from '../domain/expense.entity.js';
 import type { GeofenceOverride } from '../domain/records.repository.port.js';
-import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseBucket, ExpenseMonthRecord, ExpenseMonthRepositoryPort, ExpenseMonthSummary, GeofenceCount, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../domain/records.repository.port.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, ExpenseBucket, ExpenseMonthRecord, ExpenseMonthRepositoryPort, ExpenseMonthClaimSummary, ExpenseMonthSummary, GeofenceCount, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../domain/records.repository.port.js';
 import { ChemistCallModel, DoctorCallModel, ExpenseModel, ExpenseMonthModel, FollowupModel, type ChemistCallDoc, type DoctorCallDoc, type ExpenseDoc, type ExpenseMonthDoc, type FollowupDoc } from './records.schema.js';
 
 const oid = (id: string) => new Types.ObjectId(id);
@@ -326,6 +326,26 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
     if (filter.paymentStatus) return fetch(filter.paymentStatus, limit);
     const unpaid = await fetch('UNPAID', limit);
     return unpaid.length >= limit ? unpaid : [...unpaid, ...(await fetch('PAID', limit - unpaid.length))];
+  }
+  async summarizeClaimedByMonth(range: { from: string; to: string }): Promise<ExpenseMonthClaimSummary[]> {
+    const rows = await ExpenseModel.aggregate<{ _id: { userId: unknown; month: string; status: 'UNPAID' | 'PAID'; type: string; accepted: boolean }; total: number; flagged: number }>([
+      { $match: { paymentStatus: { $in: ['UNPAID', 'PAID'] }, reportDate: { $gte: range.from, $lte: range.to } } },
+      { $group: { _id: { userId: '$userId', month: { $substrBytes: ['$reportDate', 0, 7] }, status: '$paymentStatus', type: '$type', accepted: '$accepted' }, total: { $sum: '$amountPaise' }, flagged: { $sum: { $cond: ['$distanceFlag', 1, 0] } } } },
+    ]);
+    const byKey = new Map<string, ExpenseMonthClaimSummary>();
+    for (const r of rows) {
+      const key = `${String(r._id.userId)}|${r._id.month}`;
+      const s = byKey.get(key) ?? { userId: String(r._id.userId), month: r._id.month, taPaise: 0, daPaise: 0, reimbursementPaise: 0, paidPaise: 0, unpaidPaise: 0, flaggedRows: 0, acceptedPaise: 0 };
+      if (r._id.type === 'TA') s.taPaise += r.total;
+      else if (r._id.type === 'DA') s.daPaise += r.total;
+      else s.reimbursementPaise += r.total;
+      if (r._id.status === 'PAID') s.paidPaise += r.total;
+      else s.unpaidPaise += r.total;
+      if (r._id.accepted) s.acceptedPaise += r.total;
+      s.flaggedRows += r.flagged;
+      byKey.set(key, s);
+    }
+    return [...byKey.values()];
   }
   async summarizeByMonth(range: { from: string; to: string }): Promise<ExpenseMonthSummary[]> {
     const rows = await ExpenseModel.aggregate<{ _id: { userId: unknown; month: string; status: 'UNPAID' | 'PAID'; type: string }; total: number; flagged: number }>([
