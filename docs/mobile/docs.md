@@ -3,6 +3,7 @@
 What the field app does for the **Docs** tab (PRD §6.2 C): the employee's own **payslips** and the **documents** an Admin shares. The server decides what is shown to whom; the phone lists and opens files. Design: [`LLD/payroll.md`](../LLD/payroll.md), [`LLD/documents.md`](../LLD/documents.md), [`decision-log.md`](../decision-log.md) (2026-10-12). Related: [`financial-year.md`](financial-year.md), [`utility.md`](utility.md).
 
 **Status key:** ✅ built on the server and web. 📱 the phone still has to show it. The phone app is another team's; these notes are the contract it builds against.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - the Docs tab with Payslips (`/payroll/me`, bounded by the financial year, slip opens with earnings, deductions, gross and net) and Documents (`/documents`, by category, opens the file).
 
 ## 1. The rules
 

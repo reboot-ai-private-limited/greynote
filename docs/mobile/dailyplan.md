@@ -3,6 +3,7 @@
 What the field app must do for the Daily Plan, and the rules the server enforces. The server is the authority: the phone's cached status is a UX gate only and may be stale. Companion to [`monthlyplan.md`](monthlyplan.md). Design background: [`LLD/planning.md`](../LLD/planning.md), [`LLD/field-activity.md`](../LLD/field-activity.md), [`decision-log.md`](../decision-log.md) (2026-10-12).
 
 **Status key:** ✅ built on the server and web. The phone app is another team's; this is the contract it builds against. **Changed 2026-10-12:** the phone must stop calling `POST /planning/daily`, `POST /planning/daily/:id/changes`, `GET /planning/daily/:id/changes` and `GET /planning/changes/:id` — all four are gone (404).
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** the Daily Plan keeps only the doctor picker with carried-over doctors; no create or change-request calls remain; it shows the deadline, resubmit and late windows, "There is no plan for this day", and "Need a change? Ask your manager"; a manager can amend a plan.
 
 ## 1. The rules
 

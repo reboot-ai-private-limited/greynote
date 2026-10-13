@@ -3,6 +3,7 @@
 How an employee's monthly **secondary** is entered and approved, and how **targets** and **achievement** relate to it. Online only. Decision: decision-log 2026-10-12.
 
 **Status key:** ✅ built on the server and web. 📱 the phone still has to show it.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - Secondary Sales (units and amount, status per line and month, Send for approval, locked states) and read-only Targets with achievement; a manager can set and now **remove** a target.
 
 ## 1. Secondary (what the employee sold)
 

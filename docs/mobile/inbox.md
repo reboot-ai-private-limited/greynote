@@ -3,6 +3,7 @@
 What the field app shows in **Utility → Inbox**. Until now the phone had a demo screen with made-up messages ("the server has no inbox yet"); the server side now exists, so the demo (`inbox-demo.ts`) and the on-phone read flags (`inbox:read:<userId>`) should go. The server is the authority for what is in someone's inbox and whether they have read it. Design: [`LLD/inbox.md`](../LLD/inbox.md), [`decision-log.md`](../decision-log.md) (2026-10-12). Related: [`utility.md`](utility.md).
 
 **Status key:** ✅ built on the server and web (Admin: **Daily work → Inbox messages**). 📱 the phone still has to show it.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - list and message screens, unread badge on Home (99+), mark as read and mark all, offline copy, reads made offline sent later; the demo inbox and on-phone read flags are gone.
 
 ## 1. The rules
 

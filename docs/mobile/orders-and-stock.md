@@ -3,6 +3,7 @@
 What the field app must do for orders, and what to **remove**: the *Monthly stock* tab. The server is the authority. The phone app is another team's and cannot be changed from this repo, so this note is the contract. Decision: decision-log 2026-10-12 (orders, secondary, targets, services).
 
 **Status key:** ✅ built on the server. 📱 the phone still has to do it.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - orders show "Information only" for a chemist order with no Done or Cancel, Done or Cancel for a distributor order; the **Monthly stock tile is removed** (the `MONTHLY_STOCK` sync kind is kept in the queue code as the doc asks).
 
 ## 1. Orders
 

@@ -3,6 +3,7 @@
 What the field app must do for the Monthly Plan, and the rules the server enforces (the Daily Plan is in [`dailyplan.md`](dailyplan.md)). The server is the authority: the phone's cached status is a UX gate only and may be stale. Design background: [`LLD/planning.md`](../LLD/planning.md), [`decision-log.md`](../decision-log.md).
 
 **Status key:** ✅ built on the server and web. The phone app is another team's; this is the contract it builds against.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - the Tour Plan with day entries, out-station trips (`returnDate`, stay and transit days), deadline and resubmit and late windows, rejection reason, and Work With from `/identity/work-with`.
 
 ## 1. The rules
 

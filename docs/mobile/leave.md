@@ -3,6 +3,7 @@
 What the field app must do for leave, and the rules the server enforces. The server is the authority: the phone's cached balances and holidays are a UX aid only and may be stale. Design background: [`LLD/hr.md`](../LLD/hr.md), [`decision-log.md`](../decision-log.md) (2026-10-05, 2026-10-06, 2026-10-12). Related: [`dailyplan.md`](dailyplan.md) rule 7 (leave and the missed-report block).
 
 **Status key:** ✅ built on the server and web. The phone app is another team's; this is the contract it builds against. **Changed 2026-10-12:** a leave can no longer start in the past (`LEAVE_BACKDATE_DAYS` is now `0`), and a leave that has started can no longer be approved (rule 7).
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - balances, request, change and resend, withdraw, proof files on types that allow them, the earliest date is today, and the salary-finalized and late-approval messages.
 
 ## 1. The rules
 

@@ -3,6 +3,7 @@
 What the field app must do to add a doctor and to show the month's missed calls, and the rules the server enforces. The server is the authority. Companion to [`dailyplan.md`](dailyplan.md) and [`dcr.md`](dcr.md).
 
 **Status key:** ✅ built on the server and web. The phone app is another team's; this is the contract it builds against. Changed 2026-10-12 (see [decision log](../decision-log.md)).
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** section 1 rules 1-6 and 8, the clinic name and phone, the 1-5 frequency picker, the Missed Calls stage badge and the tappable phone number were already in the app. **Now built:** rule 7 - the approver can correct a pending doctor (any detail and the location) before deciding, from the request ("Correct details or location", `PATCH /field-master-data/doctors/:id/review`; the route cannot be changed because no endpoint lists another employee routes); and a manager can set a doctors visit frequency, date of birth and anniversary (Team -> Visit targets, `PATCH /field-master-data/doctors/:id/targets`).
 
 ## 1. Adding a doctor
 

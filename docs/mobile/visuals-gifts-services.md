@@ -3,6 +3,7 @@
 What each role may do and what the phone must show. The server is the authority.
 
 **Status key:** ✅ built on the server and web. 📱 the phone still has to show it.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - Visuals (the MR adds; Remove only when `canRemove`), Gifts (mark Done, works offline) and Services.
 
 ## 1. Visuals
 

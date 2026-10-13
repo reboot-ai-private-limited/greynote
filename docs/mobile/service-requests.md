@@ -3,6 +3,7 @@
 What the field app does for a doctor's **service request**: the MR asks for a tour package, gift, online promotion or something else for a doctor, it is approved, and Admin or Accounts marks it done. The phone shows the journey; the server owns every transition. Design: [`LLD/field-activity.md`](../LLD/field-activity.md), [`decision-log.md`](../decision-log.md). Related: [`visuals-gifts-services.md`](visuals-gifts-services.md) (§3 is the short version), [`doctors.md`](doctors.md), [`financial-year.md`](financial-year.md).
 
 **Status key:** ✅ built on the server and web. 📱 the phone still has to show it.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - the Services list, request form, detail with the approval trail, and the Waiting, Approved and Done journey.
 
 ## 1. The rules
 
