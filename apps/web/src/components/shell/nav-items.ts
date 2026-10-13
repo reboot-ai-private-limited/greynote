@@ -108,7 +108,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Doctor services', href: '/doctor-services', icon: HandCoins, group: 'Master data', section: 'Catalogue', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Doctor gifts', href: '/doctor-gifts', icon: Gift, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
   { label: 'Visuals', href: '/visuals', icon: Images, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
-  { label: 'Designations', href: '/designations', icon: Award, group: 'Master data', section: 'Pay structure', roles: ['ADMIN', 'HR'] },
+  { label: 'Designations', href: '/designations', icon: Award, group: 'Master data', section: 'HR setup', roles: ['ADMIN', 'HR'] },
+  { label: 'Leave setup', href: '/leave-setup', icon: CalendarDays, group: 'Master data', section: 'HR setup', roles: ['ADMIN', 'HR'] },
   { label: 'Pay grades', href: '/pay-grades', alsoOpens: ['/pay-bands'], icon: Wallet, group: 'Master data', section: 'Pay structure', roles: ALL },
   { label: 'Pay components', href: '/pay-components', icon: Calculator, group: 'Master data', section: 'Pay structure', roles: ALL },
 

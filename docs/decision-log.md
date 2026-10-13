@@ -2171,3 +2171,12 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** the web screens (month table, review with the day grid, adjust and pay dialogs), the payslip on the phone showing adjustments (it uses the shared `payslipOf`), and a Paid mark in the salary report.
 
 **Refs:** [`LLD/payroll.md`](LLD/payroll.md) (HR adjusts a draft).
+
+
+## 2026-10-13 — Web refactor, Step 1 (HR): five-tab employee page, Leave setup, Employees list chips
+
+**Decision:** the employee page has five tabs, each one job: **Profile** (basic, address, work, documents), **Pay** (bank and compensation/CTC), **Time off** (calendar and leave), **Career** (promotion history) and **Access** (devices and security, Admin only). The nine old tab names still work in a link (`?tab=compensation` opens Pay). The rules HR sets once (**leave types** and the **leave master**) moved from Leave & holidays to **Leave setup** under Master data (a new "HR setup" section with Designations); Leave & holidays keeps Leaves and Holidays, and `/hr?tab=types|master` redirects. The Employees list shows **status chips with counts** (All, Active, Onboarding, Inactive) in place of the status dropdown, and a **needs attention** line (still being onboarded, blocked from submitting) that filters the list.
+
+**Open:** HR features the client still wants on this module (to be listed); "missing documents / no CTC" in the attention line needs a list endpoint that reports them; saved filters were not chosen.
+
+**Refs:** `apps/web/src/features/people/lib/employeeTabs.ts`, `employeeChips.ts`, `features/hr/components/LeaveSetupScreen.tsx`, [`testing/01-access-roles.md`](testing/01-access-roles.md).

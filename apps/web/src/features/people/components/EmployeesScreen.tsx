@@ -22,7 +22,8 @@ import { EmployeeDraftsCard } from './EmployeeDraftsCard';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
 import { useAllZones } from '@/features/territory/hooks/useZones';
 import { useDesignations } from '../hooks/useMasterData';
-import { useUsers } from '../hooks/useUsers';
+import { useStatusCounts, useUsers } from '../hooks/useUsers';
+import { attentionItems, statusChips } from '../lib/employeeChips';
 import { ROLE_LABEL, STATUS_LABEL, STATUS_TONE } from '../lib/user';
 
 const ANY = 'all';
@@ -35,10 +36,6 @@ const ROLE_OPTIONS = withAny(
   'All roles',
   Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label })),
 );
-const STATUS_OPTIONS = withAny(
-  'All statuses',
-  Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label })),
-);
 
 export function EmployeesScreen() {
   const { values, page, pageSize, update } = useFilterParams([
@@ -46,6 +43,7 @@ export function EmployeesScreen() {
     'role',
     'status',
     'designationId',
+    'blocked',
   ]);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const router = useRouter();
@@ -61,9 +59,17 @@ export function EmployeesScreen() {
     ...(values.search && { search: values.search }),
     ...(values.role && { role: values.role as UserListItemDto['role'] }),
     ...(values.status && { status: values.status as UserListStatus }),
+    ...(values.blocked && { isBlocked: true as const }),
     ...(values.designationId && { designationId: values.designationId }),
   });
 
+  // The chips count what the search, role and designation leave; the status chip and the blocked filter are the choice they offer.
+  const { counts, ready } = useStatusCounts({
+    ...(values.search && { search: values.search }),
+    ...(values.role && { role: values.role as UserListItemDto['role'] }),
+    ...(values.designationId && { designationId: values.designationId }),
+  });
+  const attention = attentionItems(counts);
   const zoneName = new Map((zones.data ?? []).map((z) => [z.id, z.name]));
   const hqName = new Map((hqs.data ?? []).map((h) => [h.id, h.name]));
   const designationName = new Map((designations.data ?? []).map((d) => [d.id, d.name]));
@@ -159,6 +165,37 @@ export function EmployeesScreen() {
         }
       />
       <EmployeeDraftsCard />
+      {ready && attention.length > 0 && !values.status && !values.blocked ? (
+        <div role="status" className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border bg-warning-bg px-4 py-2.5 text-sm text-warning-fg">
+          <span className="font-medium">Needs attention:</span>
+          {attention.map((a) => (
+            <button key={a.key} type="button" className="underline hover:no-underline" onClick={() => update({ status: a.filter.status ?? '', blocked: a.filter.blocked ?? '' })}>
+              {a.text}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div role="group" aria-label="Filter by status" className="mb-4 flex flex-wrap items-center gap-2">
+        {statusChips(counts).map((c) => {
+          const selected = !values.blocked && (values.status || '') === c.value;
+          return (
+            <button
+              key={c.label}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => update({ status: c.value, blocked: '' })}
+              className={`rounded-full border px-3 py-1 text-sm transition-colors focus-visible:shadow-focus focus-visible:outline-none ${selected ? 'border-accent bg-accent-soft font-medium text-accent-soft-text' : 'border-border text-text-muted hover:bg-surface-hover'}`}
+            >
+              {c.label} <span className="tabular-nums">{ready ? c.count : '…'}</span>
+            </button>
+          );
+        })}
+        {values.blocked ? (
+          <button type="button" aria-pressed className="rounded-full border border-danger bg-danger-bg px-3 py-1 text-sm font-medium text-danger-fg" onClick={() => update({ blocked: '' })}>
+            Blocked {counts.blocked} ✕
+          </button>
+        ) : null}
+      </div>
       <ListToolbar>
         <SearchInput
           label="Search employees"
@@ -172,14 +209,6 @@ export function EmployeesScreen() {
             value={values.role || ANY}
             options={ROLE_OPTIONS}
             onValueChange={(v) => update({ role: v === ANY ? '' : v })}
-          />
-        </div>
-        <div className="w-44">
-          <Select
-            aria-label="Status"
-            value={values.status || ANY}
-            options={STATUS_OPTIONS}
-            onValueChange={(v) => update({ status: v === ANY ? '' : v })}
           />
         </div>
         <div className="w-44">

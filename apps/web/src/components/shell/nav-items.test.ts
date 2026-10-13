@@ -223,6 +223,15 @@ describe('Expenses (the month table, which replaced Expense payouts and Late exp
   });
 });
 
+describe('Leave setup', () => {
+  it('is HR setup under Master data, for Admin and HR (the leave types and master are theirs), not the Accountant', () => {
+    for (const role of ['ADMIN', 'HR'] as const) expect(navFor(role).find((i) => i.href === '/leave-setup')).toMatchObject({ group: 'Master data', section: 'HR setup' });
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/leave-setup');
+    expect(canOpen('ACCOUNTANT', '/leave-setup')).toBe(false);
+    expect(navFor('HR').find((i) => i.href === '/designations')?.section).toBe('HR setup');
+  });
+});
+
 describe('Distributors', () => {
   it('has a door in Sales & Distribution (Admin, Accountant) and one in Master data (Admin)', () => {
     const doors = (role: 'ADMIN' | 'ACCOUNTANT' | 'HR') => navGroupsFor(role).filter((g) => g.items.some((i) => i.href === '/distributors')).map((g) => g.group);

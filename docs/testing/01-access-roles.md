@@ -13,6 +13,7 @@
 | 1.09 | Side menu as **Accountant** | Home: Dashboard only; HR: Attendance only; Sales & Distribution: Orders (mark Done / Cancel), Distributors (Payments, Orders, Stock tabs; no Details, no add); Payouts: Payroll, Expenses, Expense payouts; Master data: Doctor services (read only, no Mark done), Pay grades, Pay components (read) | |
 | 1.09c | Open **Expenses** (the month table) as Admin, HR and Accountant; open an employee | the month table (claimed, accepted, paid, status) and the day-by-day review load for all three; HR sees only Expenses under Payouts; the old /expense-payouts and /late-expenses addresses land on it | |
 | 1.09d | Open **Payroll** as HR | the month sheet and a run open; no Generate, Finalize or Mark paid buttons; on a draft, Change on a day and Add or take off an amount work; a finalized run offers no change | |
+| 1.09e | HR: open an employee; Leave setup; Employees list | five tabs (Profile, Pay, Time off, Career; no Access); Leave setup under Master data > HR setup holds leave types and the leave master; the list shows status chips and a needs-attention line | |
 | 1.09a | Sign in on the web as a **field employee** | refused: "The web portal is for office staff. Please use the mobile app."; phone app sign-in still works | |
 | 1.09b | Type an Admin-only address as HR / Accountant (e.g. `/settings`) | "You do not have access to this page" inside the portal, not an API error | |
 | 1.10 | As HR / Accountant, type an Admin-only address (e.g. `/reports/sales`, `/orders`, `/zones`) | refused or redirected, never shows data | |

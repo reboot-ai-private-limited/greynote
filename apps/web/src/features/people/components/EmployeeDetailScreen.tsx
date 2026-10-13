@@ -27,18 +27,7 @@ import { Field, FieldList } from './SectionCard';
 import { SecuritySection } from './SecuritySection';
 import { UserDevicesSection } from './UserDevicesSection';
 import { WorkSection } from './WorkSection';
-
-const DETAIL_TABS = [
-  'profile',
-  'bank',
-  'documents',
-  'compensation',
-  'promotion',
-  'calendar',
-  'leave',
-  'devices',
-  'security',
-];
+import { EMPLOYEE_TAB_LABEL, employeeTabOf, employeeTabsFor } from '../lib/employeeTabs';
 
 export function EmployeeDetailScreen({ id }: { id: string }) {
   const readOnly = useIsReadOnly();
@@ -49,7 +38,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
   const user = query.data;
   // Coming back from the CTC screen lands on the Compensation tab.
   const requested = useSearchParams().get('tab');
-  const initialTab = requested && DETAIL_TABS.includes(requested) ? requested : 'profile';
+  const initialTab = employeeTabOf(requested, isAdmin);
   const missing = user ? missingForActive(user) : [];
 
   return (
@@ -102,46 +91,32 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
             {user.role === 'FIELD' ? (
               <Tabs defaultValue={initialTab}>
                 <TabsList>
-                  <TabsTrigger value="profile">Profile</TabsTrigger>
-                  <TabsTrigger value="bank">Bank</TabsTrigger>
-                  <TabsTrigger value="documents">Documents</TabsTrigger>
-                  <TabsTrigger value="compensation">Compensation</TabsTrigger>
-                  <TabsTrigger value="promotion">Promotion</TabsTrigger>
-                  <TabsTrigger value="calendar">Calendar</TabsTrigger>
-                  <TabsTrigger value="leave">Leave</TabsTrigger>
-                  {isAdmin ? <TabsTrigger value="devices">Devices</TabsTrigger> : null}
-                  {isAdmin ? <TabsTrigger value="security">Security</TabsTrigger> : null}
+                  {employeeTabsFor(isAdmin).map((t) => (
+                    <TabsTrigger key={t} value={t}>
+                      {EMPLOYEE_TAB_LABEL[t]}
+                    </TabsTrigger>
+                  ))}
                 </TabsList>
                 <TabsContent value="profile" className="mt-6 space-y-6">
                   <BasicSection user={user} readOnly={readOnly} />
                   <AddressSection user={user} readOnly={readOnly} />
                   <WorkSection user={user} readOnly={readOnly} />
-                </TabsContent>
-                <TabsContent value="bank" className="mt-6">
-                  <BankSection user={user} readOnly={readOnly} />
-                </TabsContent>
-                <TabsContent value="documents" className="mt-6">
                   <DocumentsSection user={user} readOnly={readOnly} />
                 </TabsContent>
-                <TabsContent value="compensation" className="mt-6">
+                <TabsContent value="pay" className="mt-6 space-y-6">
+                  <BankSection user={user} readOnly={readOnly} />
                   <CompensationTab user={user} readOnly={readOnly} />
                 </TabsContent>
-                <TabsContent value="promotion" className="mt-6">
-                  <PromotionTab user={user} readOnly={readOnly} />
-                </TabsContent>
-                <TabsContent value="calendar" className="mt-6">
+                <TabsContent value="time" className="mt-6 space-y-6">
                   <EmployeeCalendarTab userId={user.id} />
-                </TabsContent>
-                <TabsContent value="leave" className="mt-6">
                   <EmployeeLeaveTab userId={user.id} />
                 </TabsContent>
+                <TabsContent value="career" className="mt-6">
+                  <PromotionTab user={user} readOnly={readOnly} />
+                </TabsContent>
                 {isAdmin ? (
-                  <TabsContent value="devices" className="mt-6">
+                  <TabsContent value="access" className="mt-6 space-y-6">
                     <UserDevicesSection userId={user.id} />
-                  </TabsContent>
-                ) : null}
-                {isAdmin ? (
-                  <TabsContent value="security" className="mt-6">
                     <SecuritySection user={user} selfId={session?.id} readOnly={readOnly} />
                   </TabsContent>
                 ) : null}

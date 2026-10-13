@@ -41,6 +41,8 @@ export interface ListUsersQuery {
   role?: UserListItemDto['role'] | undefined;
   designationId?: string | undefined;
   search?: string | undefined;
+  /** Only blocked employees. Send `true` or leave out: the API reads any present value as true. */
+  isBlocked?: true | undefined;
 }
 
 export const identityApi = {

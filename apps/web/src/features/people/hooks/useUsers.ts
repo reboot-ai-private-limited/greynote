@@ -108,3 +108,20 @@ export function useDeactivateUser(userId: string, onDone: () => void) {
     onSuccess: onDone,
   });
 }
+
+/**
+ * How many employees are in each status, and how many are blocked, for the current search, role and designation (not the status filter, which the
+ * chips are). Each is a one-row list read for its total.
+ */
+export function useStatusCounts(base: { search?: string; role?: ListUsersQuery['role']; designationId?: string }) {
+  const one = { page: 1, pageSize: 1, ...base };
+  const active = useUsers({ ...one, status: 'active' });
+  const pending = useUsers({ ...one, status: 'pending' });
+  const inactive = useUsers({ ...one, status: 'inactive' });
+  const blocked = useUsers({ ...one, isBlocked: true });
+  const total = (q: typeof active) => q.data?.total ?? 0;
+  return {
+    counts: { active: total(active), pending: total(pending), inactive: total(inactive), blocked: total(blocked) },
+    ready: !active.isLoading && !pending.isLoading && !inactive.isLoading && !blocked.isLoading,
+  };
+}
