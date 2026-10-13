@@ -69,7 +69,6 @@ export class DeleteAccountUseCase {
   private async run(userId: string): Promise<void> {
     const user = await this.userRepository.findById(userId);
     if (!user) throw AppError.notFound();
-    if (user.isDemo) throw AppError.forbidden('The demo account cannot be deleted.');
     if (user.deletedAt) throw AppError.conflict('This account has already been deleted.');
 
     const role = await this.roleRepository.findById(user.roleId);

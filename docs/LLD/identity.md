@@ -219,7 +219,7 @@ dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-l
 | `GET` | `/api/identity/auth/me` | any | The signed-in `UserSummary` (web boot) |
 | `POST` | `/api/identity/auth/logout` | any | Revoke the calling session |
 | `POST` | `/api/identity/auth/delete-account` | FIELD (own) | `{password}` — deletes my account: personal data scrubbed, sessions and phones ended, records kept as "Deleted user"; `403` wrong password, `409 HAS_ACTIVE_REPORTS`. Allowed while a past year is viewed |
-| `POST` | `/api/identity/auth/delete-account-public` | Public | `{employeeCode, password}` — the form on the company website (Google Play's deletion URL). Same deletion; no token or cookie issued. `401` wrong code or password (same message, same timing), `400` not a field account, `403` demo, `409 HAS_ACTIVE_REPORTS` or already deleted, `429` more than 5 tries in 15 min per address or per code |
+| `POST` | `/api/identity/auth/delete-account-public` | Public | `{employeeCode, password}` — the form on the company website (Google Play's deletion URL). Same deletion; no token or cookie issued. `401` wrong code or password (same message, same timing), `400` not a field account, `409 HAS_ACTIVE_REPORTS` or already deleted, `429` more than 5 tries in 15 min per address or per code |
 | `POST` | `/api/identity/users/:id/anonymise` | Admin, HR | The same, on an employee's written request; `409` if already deleted |
 | `POST` | `/api/identity/auth/logout-all` | Admin (on behalf of a user) | Revoke every session for a user — offboarding |
 | `GET` | `/api/identity/users` | Admin, HR (read) | List/search/paginate/filter users — summary shape only, no personal/bank details |

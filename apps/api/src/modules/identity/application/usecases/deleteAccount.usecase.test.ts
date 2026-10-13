@@ -76,6 +76,12 @@ describe('DeleteAccountUseCase', () => {
     await expect(left.useCase.anonymise('u1')).resolves.toBeUndefined();
   });
 
+  it('deletes a demo account like any other (Play reviewers test deletion on one)', async () => {
+    const t = setup({ user: { ...USER, isDemo: true } });
+    await t.useCase.deleteOwn('u1', 'secret123');
+    expect(t.users.update).toHaveBeenCalledWith('u1', expect.objectContaining({ status: 'inactive', name: DELETED_NAME }));
+  });
+
   it('refuses an account that is already deleted', async () => {
     const t = setup({ user: { ...USER, deletedAt: new Date() } });
     await expect(t.useCase.anonymise('u1')).rejects.toMatchObject({ statusCode: 409 });
@@ -110,14 +116,10 @@ describe('DeleteAccountUseCase', () => {
       expect(wrong.users.update).not.toHaveBeenCalled();
     });
 
-    it('refuses office roles, the demo account and an already-deleted account', async () => {
+    it('refuses office roles and an already-deleted account', async () => {
       const admin = setup({ role: 'ADMIN' });
       withLookup(admin, USER);
       await expect(admin.useCase.deleteByCredentials('MR001', 'x')).rejects.toMatchObject({ statusCode: 400 });
-      const demoUser = { ...USER, isDemo: true };
-      const demo = setup({ user: demoUser });
-      withLookup(demo, demoUser);
-      await expect(demo.useCase.deleteByCredentials('MR001', 'x')).rejects.toMatchObject({ statusCode: 403 });
       const goneUser = { ...USER, deletedAt: new Date() };
       const gone = setup({ user: goneUser });
       withLookup(gone, goneUser);
