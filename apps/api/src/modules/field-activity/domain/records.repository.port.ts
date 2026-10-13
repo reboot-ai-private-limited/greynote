@@ -124,6 +124,8 @@ export interface ExpenseRepositoryPort {
   /** Sets `accepted` on the DCR's rows that aren't `PAID` (a paid row keeps what it was). */
   setAccepted(dcrId: string, accepted: boolean, ctx: TransactionContext): Promise<void>;
   findById(id: string): Promise<Expense | null>;
+  /** Finalize: flags every row of the employee in the range `monthFinalized` (the paid ones too: the month is closed). */
+  setMonthFinalized(userId: string, range: { from: string; to: string }, ctx: TransactionContext): Promise<void>;
   /** HR's change to an unpaid row's amount: one conditional update, only while it still holds `expectedPaise` (so two edits cannot both win); keeps the first amount as `originalPaise`. False if it was paid or changed meanwhile. */
   adjustAmount(id: string, expectedPaise: number, toPaise: number, originalPaise: number, ctx: TransactionContext): Promise<boolean>;
   /** One conditional update: only an `accepted`, still-`UNPAID` row becomes `PAID`. False if it isn't one. */
@@ -150,6 +152,9 @@ export interface ExpenseMonthRecord {
   month: string;
   status: 'DRAFT' | 'SUBMITTED';
   submittedAt: Date | null;
+  /** The month was finalized: its amounts are locked and it is payable (decision-log 2026-10-13). */
+  finalizedAt?: Date | null;
+  finalizedBy?: string | null;
   taPaise: number;
   daPaise: number;
   otherPaise: number;
@@ -159,6 +164,8 @@ export interface ExpenseMonthRepositoryPort {
   findById(id: string): Promise<ExpenseMonthRecord | null>;
   /** Creates the month's record if needed and marks it submitted with the totals sent. */
   markSubmitted(userId: string, month: string, totals: { taPaise: number; daPaise: number; otherPaise: number }, at: Date, ctx: TransactionContext): Promise<ExpenseMonthRecord>;
+  /** Finalizes the month's record: one conditional update, only while it is not finalized. False if it already is, or there is no record. */
+  finalize(userId: string, month: string, by: string, at: Date, ctx: TransactionContext): Promise<boolean>;
   /** The records of these users for the month, one query. */
   listForUsers(userIds: string[], month: string): Promise<ExpenseMonthRecord[]>;
 }

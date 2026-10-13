@@ -19,6 +19,7 @@ import { monthLabel } from '@/features/payroll/lib/payroll';
 import { useExpenseReview } from '../hooks/useExpenses';
 import { describeAdjustment, wasPaise } from '../lib/expenseAdjust';
 import { AdjustDayDialog } from './AdjustDayDialog';
+import { FinalizeDialog } from './FinalizeDialog';
 import {
   DAY_KIND_LABEL,
   DAY_TYPE_LABEL,
@@ -26,8 +27,9 @@ import {
   DCR_TONE,
   isMissedReport,
   leaveLabel,
-  MONTH_STATUS_LABEL,
-  MONTH_STATUS_TONE,
+  canFinalize,
+  STAGE_LABEL,
+  STAGE_TONE,
   STATION_LABEL,
   WORKING_TYPE_LABEL,
 } from '../lib/expenseMonths';
@@ -57,6 +59,9 @@ export function ExpenseReviewScreen({ userId }: { userId: string }) {
   const canEdit = user?.role === 'HR' || user?.role === 'ADMIN';
   const readOnly = useIsReadOnly();
   const [changing, setChanging] = useState<ExpenseReviewDayDto | null>(null);
+  const [finalizing, setFinalizing] = useState(false);
+  const locked = data?.finalizedAt != null;
+  const canClose = user?.role === 'ACCOUNTANT' || user?.role === 'ADMIN';
 
   const columns: readonly Column<ExpenseReviewDayDto>[] = [
     {
@@ -138,7 +143,7 @@ export function ExpenseReviewScreen({ userId }: { userId: string }) {
       header: '',
       className: 'w-24 text-right',
       render: (d) =>
-        canEdit && d.dayType !== 'WEEKLY_OFF' ? (
+        canEdit && !locked && d.dayType !== 'WEEKLY_OFF' ? (
           <Button variant="ghost" size="sm" disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setChanging(d)}>
             Change
           </Button>
@@ -156,7 +161,18 @@ export function ExpenseReviewScreen({ userId }: { userId: string }) {
       <PageHeader
         title={data ? data.userName : 'Expenses'}
         description={data ? `${data.employeeCode} · ${monthLabel(data.month)}` : month === '' ? 'Choose a month from the list.' : undefined}
-        actions={data ? <Badge tone={MONTH_STATUS_TONE[data.status]}>{MONTH_STATUS_LABEL[data.status]}</Badge> : undefined}
+        actions={
+          data ? (
+            <div className="flex items-center gap-2">
+              <Badge tone={STAGE_TONE[data.stage]}>{STAGE_LABEL[data.stage]}</Badge>
+              {canClose && canFinalize(data.stage) ? (
+                <Button disabled={readOnly} onClick={() => setFinalizing(true)}>
+                  Finalize
+                </Button>
+              ) : null}
+            </div>
+          ) : undefined
+        }
       />
       {month === '' ? (
         <Card>
@@ -171,6 +187,11 @@ export function ExpenseReviewScreen({ userId }: { userId: string }) {
         >
           {data ? (
             <>
+              {locked ? (
+                <p role="status" className="mb-6 rounded-lg border border-border bg-surface-subtle p-4 text-sm text-text-muted">
+                  Finalized{data.finalizedBy ? ` by ${data.finalizedBy}` : ''} on {formatDate(data.finalizedAt!)}. The amounts are locked and the month can be paid.
+                </p>
+              ) : null}
               <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatTile label="Claimed" value={formatMoney(data.totals.totalPaise)} note={`TA ${formatMoney(data.totals.taPaise)} · DA ${formatMoney(data.totals.daPaise)} · Other ${formatMoney(data.totals.otherPaise)}`} />
                 <StatTile label="Accepted" value={formatMoney(data.acceptedPaise)} note="Daily report approved" tone={data.acceptedPaise < data.totals.totalPaise ? 'warning' : undefined} />
@@ -209,6 +230,7 @@ export function ExpenseReviewScreen({ userId }: { userId: string }) {
         </DataState>
       )}
       {changing && data ? <AdjustDayDialog userId={data.userId} day={changing} onClose={() => setChanging(null)} /> : null}
+      {finalizing && data ? <FinalizeDialog month={data.month} userIds={[data.userId]} count={1} name={data.userName} onClose={() => setFinalizing(false)} onDone={() => undefined} /> : null}
     </>
   );
 }

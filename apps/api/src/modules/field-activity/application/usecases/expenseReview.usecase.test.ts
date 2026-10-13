@@ -2,30 +2,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { DcrClock } from '../dcrClock.js';
 import { ExpenseMonthDeadlines } from '../expenseMonthDeadlines.js';
 import type { ExpenseMonthGrantRepositoryPort } from '../../domain/expenseMonthGrant.repository.port.js';
-import type { ExpenseMonthRecord, ExpenseMonthRepositoryPort } from '../../domain/records.repository.port.js';
 import type { ExpenseAdjustment, ExpenseAdjustmentRepositoryPort } from '../../domain/expenseAdjustment.entity.js';
 import { AdjustExpenseService } from './expenseAdjust.usecase.js';
+import { FinalizeExpenseMonthsUseCase } from './expenseFinalize.usecase.js';
 import { ExpenseMonthService } from './expenseMonth.usecase.js';
 import { eachDay, ExpenseOverviewUseCase, ExpenseReviewService } from './expenseReview.usecase.js';
-import { faKit, Tx } from './faTestKit.js';
+import { FakeExpenseMonths as FakeMonths, faKit, Tx } from './faTestKit.js';
 
-class FakeMonths implements ExpenseMonthRepositoryPort {
-  rows: ExpenseMonthRecord[] = [];
-  async find(userId: string, month: string) {
-    return this.rows.find((r) => r.userId === userId && r.month === month) ?? null;
-  }
-  async findById(id: string) {
-    return this.rows.find((r) => r.id === id) ?? null;
-  }
-  async markSubmitted(userId: string, month: string, totals: { taPaise: number; daPaise: number; otherPaise: number }, at: Date) {
-    const row: ExpenseMonthRecord = { id: `em-${this.rows.length + 1}`, userId, month, status: 'SUBMITTED', submittedAt: at, ...totals };
-    this.rows.push(row);
-    return row;
-  }
-  async listForUsers(userIds: string[], month: string) {
-    return this.rows.filter((r) => userIds.includes(r.userId) && r.month === month);
-  }
-}
 class FakeAdjustments implements ExpenseAdjustmentRepositoryPort {
   rows: ExpenseAdjustment[] = [];
   async create(input: Omit<ExpenseAdjustment, 'id'>) {
@@ -51,6 +34,7 @@ describe('the expense review (decision-log 2026-10-13)', () => {
   let overview: ExpenseOverviewUseCase;
   let adjustments: FakeAdjustments;
   let adjust: AdjustExpenseService;
+  let finalize: FinalizeExpenseMonthsUseCase;
 
   beforeEach(() => {
     kit = faKit(); // 2026-10-05: September is over
@@ -60,7 +44,8 @@ describe('the expense review (decision-log 2026-10-13)', () => {
     svc = new ExpenseMonthService(kit.expenses, months, kit.users, kit.approvals, clock, kit.config, { run: (fn) => fn(new Tx()) }, { upload: async () => ({ url: '', publicId: '' }), remove: async () => undefined }, noGrants, new ExpenseMonthDeadlines(kit.config, () => kit.clock.current));
     adjustments = new FakeAdjustments();
     adjust = new AdjustExpenseService(kit.expenses, adjustments, kit.users, { run: (fn) => fn(new Tx()) }, kit.config, clock, () => new Date('2026-10-05T07:00:00Z'));
-    review = new ExpenseReviewService(svc, kit.expenses, kit.dcrs, kit.approvals, kit.planning, kit.territory, kit.leave, kit.users, clock, adjustments);
+    finalize = new FinalizeExpenseMonthsUseCase(months, kit.expenses, kit.approvals, kit.users, { run: (fn) => fn(new Tx()) }, kit.config, clock, () => new Date('2026-10-06T07:00:00Z'));
+    review = new ExpenseReviewService(svc, kit.expenses, kit.dcrs, kit.approvals, kit.planning, kit.territory, kit.leave, kit.users, clock, adjustments, months);
     overview = new ExpenseOverviewUseCase(kit.expenses, months, kit.approvals, kit.users, kit.config);
   });
 
@@ -207,6 +192,70 @@ describe('the expense review (decision-log 2026-10-13)', () => {
       await adjust.editRow(HR, kit.expenses.rows[0]!.id, { amountPaise: 5000, reason: 'Fix' });
       const row = (await overview.execute(HR, '2026-09')).rows.find((r) => r.userId === 'mr1')!;
       expect(row).toMatchObject({ taPaise: 5000, totalPaise: 5000, acceptedPaise: 5000 });
+    });
+  });
+
+  describe('Finalize (decision-log 2026-10-13)', () => {
+    const ADMIN = { id: 'admin', role: 'ADMIN' as const };
+    /** mr1 sends September and the manager approves it. */
+    const approvedMonth = async () => {
+      await claim('2026-09-10', 'TA', 8000, 'route-1');
+      await claim('2026-09-10', 'DA', 20000, 'route-1');
+      await svc.submit('mr1', '2026-09');
+      await svc.onStatusChange(months.rows[0]!.id, 'APPROVED', new Tx());
+      kit.approvals.setStatus(months.rows[0]!.id, 'APPROVED', 'EXPENSE_MONTH');
+    };
+    const stageOfMr1 = async () => (await overview.execute(HR, '2026-09')).rows.find((r) => r.userId === 'mr1')!.stage;
+
+    it('closes an approved month: record and rows together, and shows it as finalized', async () => {
+      await approvedMonth();
+      expect(await stageOfMr1()).toBe('APPROVED');
+      expect(await finalize.execute(ACCOUNTANT, { month: '2026-09' })).toEqual([{ userId: 'mr1', result: 'FINALIZED' }]); // only what can be finalized
+      expect(kit.expenses.rows.every((r) => r.monthFinalized)).toBe(true);
+      expect(months.rows[0]).toMatchObject({ finalizedBy: 'acc1' });
+      expect(await stageOfMr1()).toBe('FINALIZED');
+      const r = await review.review(HR, 'mr1', '2026-09');
+      expect(r).toMatchObject({ stage: 'FINALIZED' });
+      expect(r.finalizedAt).not.toBeNull();
+    });
+
+    it('is Finalized until every accepted amount is paid, then Paid', async () => {
+      await approvedMonth();
+      await finalize.execute(ACCOUNTANT, { month: '2026-09', userIds: ['mr1'] });
+      await kit.markPaid.execute('acc1', kit.expenses.rows[0]!.id);
+      expect(await stageOfMr1()).toBe('FINALIZED');
+      await kit.markPaid.execute('acc1', kit.expenses.rows[1]!.id);
+      expect(await stageOfMr1()).toBe('PAID');
+    });
+
+    it('is idempotent, and tells a named employee whose month is not approved', async () => {
+      await approvedMonth();
+      await finalize.execute(ACCOUNTANT, { month: '2026-09', userIds: ['mr1'] });
+      expect(await finalize.execute(ACCOUNTANT, { month: '2026-09', userIds: ['mr1', 'mr2'] })).toEqual([{ userId: 'mr1', result: 'ALREADY_FINALIZED' }, { userId: 'mr2', result: 'NOT_APPROVED' }]);
+    });
+
+    it('does not finalize a month that is only submitted, or not over, and is for the Accountant and Admin only', async () => {
+      await claim('2026-09-10', 'TA', 8000, 'route-1');
+      await svc.submit('mr1', '2026-09');
+      expect(await finalize.execute(ADMIN, { month: '2026-09', userIds: ['mr1'] })).toEqual([{ userId: 'mr1', result: 'NOT_APPROVED' }]);
+      await expect(finalize.execute(HR, { month: '2026-09' })).rejects.toMatchObject({ statusCode: 403 });
+      await expect(finalize.execute(ACCOUNTANT, { month: '2026-10' })).rejects.toMatchObject({ statusCode: 409 }); // October is not over
+    });
+
+    it('locks the amounts, the add, and any reopening once finalized', async () => {
+      await approvedMonth();
+      await finalize.execute(ACCOUNTANT, { month: '2026-09' });
+      await expect(adjust.editRow(HR, kit.expenses.rows[0]!.id, { amountPaise: 1, reason: 'x' })).rejects.toMatchObject({ statusCode: 409, publicDetails: { code: 'EXPENSE_MONTH_FINALIZED' } });
+      await expect(adjust.addRow(HR, { userId: 'mr1', date: '2026-09-16', type: 'DA', amountPaise: 5, reason: 'x' })).rejects.toMatchObject({ statusCode: 409, publicDetails: { code: 'EXPENSE_MONTH_FINALIZED' } });
+      await expect(svc.onStatusChange(months.rows[0]!.id, 'REOPENED', new Tx())).rejects.toMatchObject({ publicDetails: { code: 'EXPENSE_MONTH_FINALIZED' } });
+      await expect(svc.onStatusChange(months.rows[0]!.id, 'REJECTED', new Tx())).rejects.toMatchObject({ publicDetails: { code: 'EXPENSE_MONTH_FINALIZED' } });
+    });
+
+    it('can be paid only once finalized', async () => {
+      await approvedMonth();
+      expect(await kit.markPaid.execute('acc1', kit.expenses.rows[0]!.id).then(() => 'paid', () => 'refused')).toBe('refused');
+      await finalize.execute(ACCOUNTANT, { month: '2026-09' });
+      expect((await kit.markPaid.execute('acc1', kit.expenses.rows[0]!.id)).paymentStatus).toBe('PAID');
     });
   });
 });

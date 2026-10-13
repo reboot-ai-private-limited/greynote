@@ -136,6 +136,7 @@ export interface ExpenseDoc {
   paymentStatus: 'UNPAID' | 'PAID' | 'CANCELLED';
   accepted: boolean;
   monthApproved: boolean;
+  monthFinalized?: boolean;
   distanceFlag: boolean;
   paidBy: Types.ObjectId | null;
   paidAt: Date | null;
@@ -159,6 +160,7 @@ const expenseSchema = new Schema<ExpenseDoc>({
   paymentStatus: { type: String, required: true, enum: ['UNPAID', 'PAID', 'CANCELLED'], default: 'UNPAID' },
   accepted: { type: Boolean, default: false },
   monthApproved: { type: Boolean, default: false },
+  monthFinalized: { type: Boolean, default: false },
   distanceFlag: { type: Boolean, default: false },
   paidBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
   paidAt: { type: Date, default: null },
@@ -181,6 +183,8 @@ export interface ExpenseMonthDoc {
   month: string;
   status: 'DRAFT' | 'SUBMITTED';
   submittedAt: Date | null;
+  finalizedAt?: Date | null;
+  finalizedBy?: Types.ObjectId | null;
   /** Totals at submit, so the approver sees what was sent even if a DCR changes later. */
   taPaise: number;
   daPaise: number;
@@ -192,6 +196,8 @@ const expenseMonthSchema = new Schema<ExpenseMonthDoc>(
     month: { type: String, required: true },
     status: { type: String, required: true, enum: ['DRAFT', 'SUBMITTED'], default: 'DRAFT' },
     submittedAt: { type: Date, default: null },
+    finalizedAt: { type: Date, default: null },
+    finalizedBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
     taPaise: { type: Number, default: 0, min: 0 },
     daPaise: { type: Number, default: 0, min: 0 },
     otherPaise: { type: Number, default: 0, min: 0 },

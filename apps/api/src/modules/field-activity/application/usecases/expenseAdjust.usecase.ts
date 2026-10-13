@@ -36,6 +36,7 @@ export class AdjustExpenseService {
     const row = await this.expenses.findById(rowId);
     if (!row || row.paymentStatus === 'CANCELLED') throw AppError.notFound('No such expense.');
     if (row.paymentStatus === 'PAID') throw AppError.conflict('This amount has already been paid, so it can no longer be changed.', { code: 'EXPENSE_PAID' });
+    if (row.monthFinalized) throw AppError.conflict('This month has been finalized, so its amounts can no longer be changed.', { code: 'EXPENSE_MONTH_FINALIZED' });
     if (input.amountPaise === row.amountPaise) throw AppError.badRequest('That is the amount it already has.', { field: 'amountPaise' });
     await assertFinancialYearOpen(this.config, row.reportDate, `The expenses of ${row.reportDate}`);
     const before = row.amountPaise;
@@ -57,7 +58,9 @@ export class AdjustExpenseService {
     const sameDay = (await this.expenses.listForUserRange(input.userId, { from: input.date, to: input.date })).filter((r) => r.type === input.type);
     if (sameDay.length > 0) throw AppError.conflict(`That day already has ${input.type}. Change it instead of adding another.`, { code: 'EXPENSE_EXISTS' });
     // Part of the statement from the start: payable once its month is (or already is) approved.
-    const monthApproved = (await this.expenses.listForUserRange(input.userId, monthRange(month))).some((r) => r.monthApproved);
+    const monthRows = await this.expenses.listForUserRange(input.userId, monthRange(month));
+    if (monthRows.some((r) => r.monthFinalized)) throw AppError.conflict('This month has been finalized, so its amounts can no longer be changed.', { code: 'EXPENSE_MONTH_FINALIZED' });
+    const monthApproved = monthRows.some((r) => r.monthApproved);
     return this.transactions.run(async (ctx) => {
       const row = await this.expenses.create(
         { dcrId: null, userId: input.userId, reportDate: input.date, routeId: null, type: input.type, source: 'MANUAL', amountPaise: input.amountPaise, remarks: null, paymentStatus: 'UNPAID', accepted: true, monthApproved, distanceFlag: false, paidBy: null, paidAt: null, clientId: null, recordedAt: this.now(), originalAmountPaise: 0 },

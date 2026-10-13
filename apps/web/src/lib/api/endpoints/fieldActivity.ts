@@ -9,6 +9,8 @@ import type {
   AdjustExpenseRowDto,
   ExpenseAdjustmentDto,
   ExpenseOverviewDto,
+  FinalizeExpensesDto,
+  FinalizeOutcomeDto,
   ExpenseReviewDto,
   ExpenseMonthGrantDto,
   ExpenseStatementDto,
@@ -58,6 +60,9 @@ export const fieldActivityApi = {
   expenseReview: (token: string, userId: string, month: string, signal?: AbortSignal) =>
     request<ExpenseReviewDto>('/field-activity/expense-months/review', { token, query: { userId, month }, signal }),
 
+  /** Accountant, Admin: finalizes approved months (named employees, or every approved one): locks the amounts and makes them payable. */
+  finalizeExpenses: (token: string, body: FinalizeExpensesDto) =>
+    request<FinalizeOutcomeDto[]>('/field-activity/expense-months/finalize', { method: 'POST', token, body }),
   /** Admin, HR: changes one expense row's amount, up or down, with a reason. The first amount and the change are kept. */
   adjustExpenseRow: (token: string, id: string, body: AdjustExpenseRowDto) =>
     request<ExpenseAdjustmentDto>(`/field-activity/expense-months/rows/${id}`, { method: 'PATCH', token, body }),

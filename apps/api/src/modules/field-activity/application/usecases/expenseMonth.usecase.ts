@@ -54,6 +54,8 @@ export interface ExpenseStatementView {
   exceptions: { submitUntil: string | null; approveUntil: string | null };
   /** The send deadline has passed and there is no exception: the employee can no longer submit. */
   submitLate: boolean;
+  /** When the Accountant finalized the month (ISO); null before. */
+  finalizedAt: string | null;
 }
 export interface ExpenseMonthSummaryView {
   month: string;
@@ -116,6 +118,8 @@ export class ExpenseMonthService {
   async onStatusChange(recordId: string, status: ApprovalStatus, ctx: TransactionContext): Promise<void> {
     const record = await this.months.findById(recordId);
     if (!record) return;
+    // A finalized month is closed: it cannot be sent back, reopened or withdrawn (decision-log 2026-10-13).
+    if (record.finalizedAt && status !== 'APPROVED') throw AppError.conflict('This month has been finalized, so it can no longer be reopened.', { code: 'EXPENSE_MONTH_FINALIZED' });
     if (status === 'APPROVED') {
       // Past the approval deadline only an exception lets the approval through; a throw here rolls the approval back.
       const grant = await this.lateException(record.userId, record.month, 'APPROVE', 'EXPENSE_APPROVAL_LATE', 'The deadline to approve this month’s expenses has passed. Ask Admin to allow it.');
@@ -176,6 +180,7 @@ export class ExpenseMonthService {
       deadlines: { submitBy: submitBy.toISOString(), approveBy: approveBy.toISOString() },
       exceptions: { submitUntil: submitGrant?.expiresAt.toISOString() ?? null, approveUntil: approveGrant?.expiresAt.toISOString() ?? null },
       submitLate,
+      finalizedAt: record?.finalizedAt?.toISOString() ?? null,
     };
   }
 

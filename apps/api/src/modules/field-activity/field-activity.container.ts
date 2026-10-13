@@ -11,6 +11,7 @@ import { makeCallSyncHandlers } from './application/callsSync.js';
 import { makeExpenseSyncHandler } from './application/expenseSync.js';
 import { TaDaLifecycle } from './application/usecases/taDaLifecycle.usecase.js';
 import { MongoExpenseAdjustmentAdapter } from './infrastructure/mongoExpenseAdjustment.adapter.js';
+import { FinalizeExpenseMonthsUseCase } from './application/usecases/expenseFinalize.usecase.js';
 import { AdjustExpenseService } from './application/usecases/expenseAdjust.usecase.js';
 import { ExpenseOverviewUseCase, ExpenseReviewService } from './application/usecases/expenseReview.usecase.js';
 import { EXPENSE_MONTH_KIND, ExpenseMonthService } from './application/usecases/expenseMonth.usecase.js';
@@ -190,7 +191,8 @@ export function buildFieldActivityContainer(
           listExpenses: new ListExpensesUseCase(expenses, users),
           markPaid: new MarkExpensePaidUseCase(expenses, config),
           expenseMonths: monthService,
-          expenseReview: new ExpenseReviewService(monthService, expenses, dcrs, approvals, planning, territory, leave, users, clock, expenseAdjustments),
+          expenseReview: new ExpenseReviewService(monthService, expenses, dcrs, approvals, planning, territory, leave, users, clock, expenseAdjustments, expenseMonths),
+          finalizeExpenses: new FinalizeExpenseMonthsUseCase(expenseMonths, expenses, approvals, users, new MongooseTransactionRunner(), config, clock),
           expenseAdjust: new AdjustExpenseService(expenses, expenseAdjustments, users, new MongooseTransactionRunner(), config, clock),
           expenseOverview: new ExpenseOverviewUseCase(expenses, expenseMonths, approvals, users, config),
           grantExpense: new GrantExpenseMonthUseCase(expenseGrants, expenses, users, config, () => new Date()),

@@ -1,4 +1,4 @@
-import type { ExpenseOverviewRowDto, ExpenseReviewDayDto } from '@greynote/contracts';
+import type { ExpenseOverviewRowDto, ExpenseReviewDayDto, ExpenseStageDto } from '@greynote/contracts';
 import type { BadgeTone } from '@/components/ui/Badge';
 
 export type MonthStatus = ExpenseOverviewRowDto['status'];
@@ -18,6 +18,21 @@ export const MONTH_STATUS_TONE: Record<MonthStatus, BadgeTone> = {
   APPROVED: 'success',
   REJECTED: 'danger',
 };
+
+/** Where a month stands for the people who run it, from the employee's status to Finalized (locked, payable) and Paid. */
+export const STAGE_LABEL: Record<ExpenseStageDto, string> = {
+  ...MONTH_STATUS_LABEL,
+  FINALIZED: 'Finalized',
+  PAID: 'Paid',
+};
+export const STAGE_TONE: Record<ExpenseStageDto, BadgeTone> = {
+  ...MONTH_STATUS_TONE,
+  FINALIZED: 'accent',
+  PAID: 'success',
+};
+
+/** A month the Accountant can finalize: approved, and not yet finalized. */
+export const canFinalize = (stage: ExpenseStageDto): boolean => stage === 'APPROVED';
 
 export const DAY_TYPE_LABEL: Record<ExpenseReviewDayDto['dayType'], string> = {
   WORKING: 'Working day',
@@ -73,14 +88,15 @@ export function isMissedReport(day: Pick<ExpenseReviewDayDto, 'dayType' | 'dcr' 
 }
 
 /** The month's totals row of the table: what is claimed, accepted and paid across the people listed. */
-export function overviewTotals(rows: readonly ExpenseOverviewRowDto[]): { claimedPaise: number; acceptedPaise: number; paidPaise: number; waiting: number; notSubmitted: number } {
-  const t = { claimedPaise: 0, acceptedPaise: 0, paidPaise: 0, waiting: 0, notSubmitted: 0 };
+export function overviewTotals(rows: readonly ExpenseOverviewRowDto[]): { claimedPaise: number; acceptedPaise: number; paidPaise: number; waiting: number; notSubmitted: number; toFinalize: number } {
+  const t = { claimedPaise: 0, acceptedPaise: 0, paidPaise: 0, waiting: 0, notSubmitted: 0, toFinalize: 0 };
   for (const r of rows) {
     t.claimedPaise += r.totalPaise;
     t.acceptedPaise += r.acceptedPaise;
     t.paidPaise += r.paidPaise;
-    if (r.status === 'SUBMITTED') t.waiting += 1;
-    if (r.status === 'NOT_SUBMITTED' || r.status === 'DRAFT') t.notSubmitted += 1;
+    if (r.stage === 'SUBMITTED') t.waiting += 1;
+    if (canFinalize(r.stage)) t.toFinalize += 1;
+    if (r.stage === 'NOT_SUBMITTED' || r.stage === 'DRAFT') t.notSubmitted += 1;
   }
   return t;
 }

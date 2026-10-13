@@ -14,7 +14,12 @@ async function status(p: Promise<unknown>) {
 describe('the Accountant’s side', () => {
   let kit: ReturnType<typeof faKit>;
   let dcrId: string;
-  const approveMonth = () => kit.expenses.setMonthApproved('mr1', { from: '2026-10-01', to: '2026-10-31' }, true, new Tx());
+  const OCT = { from: '2026-10-01', to: '2026-10-31' };
+  // Approved by the manager's chain and finalized by the Accountant: the month is payable.
+  const approveMonth = async () => {
+    await kit.expenses.setMonthApproved('mr1', OCT, true, new Tx());
+    await kit.expenses.setMonthFinalized('mr1', OCT, new Tx());
+  };
   /** The DCR is accepted by the manager and the month statement is approved: the two things a row needs to be payable. */
   const approve = async () => {
     await kit.taDa.onStatusChange(dcrId, 'MANAGER_APPROVED', new Tx());

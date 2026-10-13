@@ -2,6 +2,8 @@
 
 import type {
   ExpenseMonthGrantDto,
+  FinalizeExpensesDto,
+  FinalizeOutcomeDto,
   ExpensePaymentStatus,
   GrantExpenseMonthDto,
   PayExpensesDto,
@@ -128,6 +130,15 @@ export function useAdjustDay(onDone: () => void) {
     invalidates: [keys.expenses.all()],
     successMessage: 'The day was changed.',
     onSuccess: onDone,
+  });
+}
+
+/** Finalizes months; the sheets refetch whatever the outcome. */
+export function useFinalizeExpenses(onResult: (outcomes: FinalizeOutcomeDto[]) => void) {
+  return useApiMutation<FinalizeExpensesDto, FinalizeOutcomeDto[]>({
+    call: (token, body) => fieldActivityApi.finalizeExpenses(token, body),
+    invalidates: [keys.expenses.all()],
+    onSuccess: onResult,
   });
 }
 

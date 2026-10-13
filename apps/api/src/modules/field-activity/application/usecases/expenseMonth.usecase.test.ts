@@ -5,11 +5,10 @@ import { ExpenseMonthDeadlines } from '../expenseMonthDeadlines.js';
 import type { ExpenseMonthGrant } from '../../domain/expenseMonthGrant.entity.js';
 import type { ExpenseMonthGrantRepositoryPort } from '../../domain/expenseMonthGrant.repository.port.js';
 import { GrantExpenseMonthUseCase } from './expenseMonthGrants.usecase.js';
-import type { ExpenseMonthRecord, ExpenseMonthRepositoryPort } from '../../domain/records.repository.port.js';
 import type { ProofStoragePort } from '../../domain/proofStorage.port.js';
 import { ExpenseProof } from '../expenseProof.js';
 import { ExpenseMonthService, EXPENSE_MONTH_KIND } from './expenseMonth.usecase.js';
-import { faKit, Tx } from './faTestKit.js';
+import { FakeExpenseMonths as FakeMonths, faKit, Tx } from './faTestKit.js';
 
 class FakeGrants implements ExpenseMonthGrantRepositoryPort {
   rows: ExpenseMonthGrant[] = [];
@@ -36,25 +35,6 @@ class FakeGrants implements ExpenseMonthGrantRepositoryPort {
   }
   async list() {
     return { items: this.rows, total: this.rows.length };
-  }
-}
-
-class FakeMonths implements ExpenseMonthRepositoryPort {
-  rows: ExpenseMonthRecord[] = [];
-  async find(userId: string, month: string) {
-    return this.rows.find((r) => r.userId === userId && r.month === month) ?? null;
-  }
-  async findById(id: string) {
-    return this.rows.find((r) => r.id === id) ?? null;
-  }
-  async markSubmitted(userId: string, month: string, totals: { taPaise: number; daPaise: number; otherPaise: number }, at: Date) {
-    const row = (await this.find(userId, month)) ?? { id: `em-${this.rows.length + 1}`, userId, month, status: 'DRAFT' as const, submittedAt: null, taPaise: 0, daPaise: 0, otherPaise: 0 };
-    Object.assign(row, { status: 'SUBMITTED', submittedAt: at, ...totals });
-    if (!this.rows.includes(row)) this.rows.push(row);
-    return row;
-  }
-  async listForUsers(userIds: string[], month: string) {
-    return this.rows.filter((r) => userIds.includes(r.userId) && r.month === month);
   }
 }
 
@@ -132,6 +112,7 @@ describe('the monthly expense statement (decision-log 2026-10-10)', () => {
     const record = months.rows[0]!;
     await svc.onStatusChange(record.id, 'APPROVED', new Tx());
     expect(kit.expenses.rows.map((r) => [r.type, r.monthApproved, r.accepted])).toEqual([['TA', true, true], ['OTHER', true, true]]);
+    await kit.expenses.setMonthFinalized('mr1', { from: '2026-09-01', to: '2026-09-30' }, new Tx()); // paying needs a finalized month
     kit.approvals.setStatus(record.id, 'APPROVED', EXPENSE_MONTH_KIND);
     expect((await svc.statement(MR, 'mr1', '2026-09')).status).toBe('APPROVED');
     expect((await kit.markPaid.execute('acct', kit.expenses.rows[1]!.id)).paymentStatus).toBe('PAID');
@@ -190,6 +171,7 @@ describe('the monthly expense statement (decision-log 2026-10-10)', () => {
     it('does not grant an exception once any of the month is paid, and a manager only while allowed', async () => {
       await svc.submit('mr1', '2026-09');
       await svc.onStatusChange(months.rows[0]!.id, 'APPROVED', new Tx());
+      await kit.expenses.setMonthFinalized('mr1', { from: '2026-09-01', to: '2026-09-30' }, new Tx());
       await kit.markPaid.execute('acct', kit.expenses.rows[0]!.id);
       kit.clock.current = new Date('2026-10-12T09:00:00+05:30');
       expect(await code(grant.execute(ADMIN, { userId: 'mr1', month: '2026-09', phase: 'APPROVE', reason: 'x' }))).toMatchObject({ code: 'EXPENSE_MONTH_PAID' });

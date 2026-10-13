@@ -1,4 +1,4 @@
-import type { ExpenseAdjustmentDto, ExpenseOverviewDto, ExpenseReviewDayDto, ExpenseReviewDto, ReviewDayTypeDto, ReviewStationDto } from '@greynote/contracts';
+import type { ExpenseAdjustmentDto, ExpenseOverviewDto, ExpenseReviewDayDto, ExpenseReviewDto, ExpenseStageDto, ReviewDayTypeDto, ReviewStationDto } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { monthRange, parseCalendarMonth } from '@/shared/time/businessTime.js';
@@ -28,6 +28,12 @@ export function eachDay(from: string, to: string): string[] {
   return out;
 }
 
+/** The month's stage: its own status, then Finalized once the Accountant has closed it, and Paid when every accepted amount has been paid. */
+export function stageOf(status: ExpenseStageDto, finalized: boolean, acceptedPaise: number, paidPaise: number): ExpenseStageDto {
+  if (!finalized) return status;
+  return acceptedPaise > 0 && paidPaise >= acceptedPaise ? 'PAID' : 'FINALIZED';
+}
+
 const STATION_RANK: Record<ReviewStationDto, number> = { HQ: 0, EX_STATION: 1, OUT_STATION: 2 };
 
 /**
@@ -47,6 +53,7 @@ export class ExpenseReviewService {
     private readonly users: UserDirectoryPort,
     private readonly clock: DcrClock,
     private readonly adjustments: ExpenseAdjustmentRepositoryPort,
+    private readonly monthRecords: ExpenseMonthRepositoryPort,
   ) {}
 
   async review(actor: Actor, userId: string, month: string): Promise<ExpenseReviewDto> {
@@ -68,7 +75,9 @@ export class ExpenseReviewService {
       this.leave.listHolidayDates(userId, range.from, range.to),
       this.adjustments.listForUserMonth(userId, month),
     ]);
-    const editors = new Map((await this.users.getUserSummaries([...new Set(adjustmentRows.map((a) => a.by))])).map((u) => [u.id, u]));
+    const record = await this.monthRecords.find(userId, month);
+    const acceptedPaise = rows.filter((r) => r.accepted).reduce((sum, r) => sum + r.amountPaise, 0);
+    const editors = new Map((await this.users.getUserSummaries([...new Set([...adjustmentRows.map((a) => a.by), ...(record?.finalizedBy ? [record.finalizedBy] : [])])])).map((u) => [u.id, u]));
     const requests = await this.approvals.listForRecords('DCR', dcrRows.map((d) => d.id));
     const dcrStateOf = new Map<string, ExpenseReviewDayDto['dcr']>();
     for (const d of dcrRows) {
@@ -125,8 +134,11 @@ export class ExpenseReviewService {
       employeeCode: person.employeeCode,
       month,
       status: statement.status,
+      stage: stageOf(statement.status, record?.finalizedAt != null, acceptedPaise, statement.paidPaise),
+      finalizedAt: record?.finalizedAt?.toISOString() ?? null,
+      finalizedBy: record?.finalizedBy ? (editors.get(record.finalizedBy)?.name ?? '') : null,
       totals: statement.totals,
-      acceptedPaise: rows.filter((r) => r.accepted).reduce((sum, r) => sum + r.amountPaise, 0),
+      acceptedPaise,
       submittedTotals: statement.submittedTotals,
       paidPaise: statement.paidPaise,
       deadlines: statement.deadlines,
@@ -165,6 +177,7 @@ export class ExpenseOverviewUseCase {
         const taPaise = s?.taPaise ?? 0;
         const daPaise = s?.daPaise ?? 0;
         const otherPaise = s?.reimbursementPaise ?? 0;
+        const status = record ? expenseMonthStatusOf(requestOf.get(record.id) ?? null) : ('NOT_SUBMITTED' as const);
         return {
           userId,
           userName: nameOf.get(userId)?.name ?? '',
@@ -175,7 +188,9 @@ export class ExpenseOverviewUseCase {
           totalPaise: taPaise + daPaise + otherPaise,
           acceptedPaise: s?.acceptedPaise ?? 0,
           paidPaise: s?.paidPaise ?? 0,
-          status: record ? expenseMonthStatusOf(requestOf.get(record.id) ?? null) : ('NOT_SUBMITTED' as const),
+          status,
+          stage: stageOf(status, record?.finalizedAt != null, s?.acceptedPaise ?? 0, s?.paidPaise ?? 0),
+          finalizedAt: record?.finalizedAt?.toISOString() ?? null,
           submittedAt: record?.submittedAt?.toISOString() ?? null,
           flaggedRows: s?.flaggedRows ?? 0,
         };

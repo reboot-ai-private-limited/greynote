@@ -21,6 +21,7 @@ describe('the expense payout (decision-log 2026-10-06)', () => {
     const { dcrId } = await kit.submit.execute('mr1', DAY, REC.recordedAt, new Tx());
     await kit.taDa.onStatusChange(dcrId, 'MANAGER_APPROVED', new Tx());
     await kit.expenses.setMonthApproved('mr1', { from: '2026-10-01', to: '2026-10-31' }, true, new Tx());
+    await kit.expenses.setMonthFinalized('mr1', { from: '2026-10-01', to: '2026-10-31' }, new Tx());
     kit.users.rates.exStationDaPaise = 20000;
     const clock = new DcrClock(kit.config, () => at);
     list = new ListExpensePayoutsUseCase(kit.expenses, kit.users, kit.config, clock);

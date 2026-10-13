@@ -23,6 +23,7 @@
         "migrate:distributors": "tsx src/scripts/migrate-distributors.ts",
         "migrate:targets": "tsx src/scripts/migrate-targets-to-ranges.ts",
         "migrate:expense-months": "tsx src/scripts/migrate-expense-month-approval.ts",
+        "migrate:expense-finalized": "tsx src/scripts/migrate-expense-finalized.ts",
         "migrate:inherit-monthly": "tsx src/scripts/migrate-inherit-monthly-plans.ts",
         "migrate:drop-plan-changes": "tsx src/scripts/migrate-drop-daily-plan-changes.ts",
         "compliance:run": "tsx src/scripts/run-compliance.ts",

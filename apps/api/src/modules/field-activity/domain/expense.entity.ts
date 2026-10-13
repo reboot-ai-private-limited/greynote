@@ -47,6 +47,11 @@ export interface Expense {
   accepted: boolean;
   /** The employee's month statement was approved — the Accountant pays only these rows. Set and cleared by the statement's approval hook. */
   monthApproved: boolean;
+  /**
+   * The month was finalized (decision-log 2026-10-13): amounts are locked and the row is payable. Payment needs `accepted`, `monthApproved` and this.
+   * Optional so rows written before it existed read as not finalized; the migration sets it on rows that were already payable.
+   */
+  monthFinalized?: boolean;
   /** AUTO TA only: a Route's distance could not be calculated, so the amount is artificially low. */
   distanceFlag: boolean;
   paidBy: string | null;

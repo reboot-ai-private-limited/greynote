@@ -257,6 +257,7 @@ const toExpense = (d: ExpenseDoc & { _id: unknown }): Expense => ({
   paymentStatus: d.paymentStatus,
   accepted: d.accepted,
   monthApproved: d.monthApproved,
+  monthFinalized: d.monthFinalized ?? false,
   distanceFlag: d.distanceFlag,
   paidBy: d.paidBy ? String(d.paidBy) : null,
   paidAt: d.paidAt,
@@ -310,6 +311,9 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
     await ExpenseModel.updateMany(base, { $set: { monthApproved: approved } }, session(ctx));
     await ExpenseModel.updateMany({ ...base, type: 'OTHER' }, { $set: { accepted: approved } }, session(ctx));
   }
+  async setMonthFinalized(userId: string, range: { from: string; to: string }, ctx: TransactionContext): Promise<void> {
+    await ExpenseModel.updateMany({ userId: oid(userId), paymentStatus: { $ne: 'CANCELLED' }, reportDate: { $gte: range.from, $lte: range.to } }, { $set: { monthFinalized: true } }, session(ctx));
+  }
   async setAccepted(dcrId: string, accepted: boolean, ctx: TransactionContext): Promise<void> {
     await ExpenseModel.updateMany({ dcrId: oid(dcrId), paymentStatus: { $ne: 'PAID' } }, { $set: { accepted } }, session(ctx));
   }
@@ -322,7 +326,7 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
     return res.modifiedCount === 1;
   }
   async markPaid(id: string, by: string, at: Date): Promise<boolean> {
-    const res = await ExpenseModel.updateOne({ _id: oid(id), accepted: true, monthApproved: true, paymentStatus: 'UNPAID' }, { $set: { paymentStatus: 'PAID', paidBy: oid(by), paidAt: at } });
+    const res = await ExpenseModel.updateOne({ _id: oid(id), accepted: true, monthApproved: true, monthFinalized: true, paymentStatus: 'UNPAID' }, { $set: { paymentStatus: 'PAID', paidBy: oid(by), paidAt: at } });
     return res.modifiedCount === 1;
   }
   async listAccepted(filter: { from: string; to: string; userId?: string; paymentStatus?: 'UNPAID' | 'PAID' }, limit: number): Promise<Expense[]> {
@@ -373,7 +377,7 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
   }
   async statementsForRange(range: { from: string; to: string }, options: { payableOnly?: boolean } = {}): Promise<ExpenseStatement[]> {
     const rows = await ExpenseModel.aggregate<{ _id: { userId: unknown; status: 'UNPAID' | 'PAID'; type: string }; total: number; count: number; lastPaidAt: Date | null }>([
-      { $match: { accepted: true, ...(options.payableOnly && { monthApproved: true }), paymentStatus: { $in: ['UNPAID', 'PAID'] }, reportDate: { $gte: range.from, $lte: range.to } } },
+      { $match: { accepted: true, ...(options.payableOnly && { monthApproved: true, monthFinalized: true }), paymentStatus: { $in: ['UNPAID', 'PAID'] }, reportDate: { $gte: range.from, $lte: range.to } } },
       { $group: { _id: { userId: '$userId', status: '$paymentStatus', type: '$type' }, total: { $sum: '$amountPaise' }, count: { $sum: 1 }, lastPaidAt: { $max: '$paidAt' } } },
     ]);
     const empty = (): ExpenseBucket => ({ taPaise: 0, daPaise: 0, reimbursementPaise: 0, count: 0 });
@@ -393,7 +397,7 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
   }
   async payAllForUser(userId: string, range: { from: string; to: string }, by: string, at: Date): Promise<number> {
     const res = await ExpenseModel.updateMany(
-      { userId: oid(userId), accepted: true, monthApproved: true, paymentStatus: 'UNPAID', reportDate: { $gte: range.from, $lte: range.to } },
+      { userId: oid(userId), accepted: true, monthApproved: true, monthFinalized: true, paymentStatus: 'UNPAID', reportDate: { $gte: range.from, $lte: range.to } },
       { $set: { paymentStatus: 'PAID', paidBy: oid(by), paidAt: at } },
     );
     return res.modifiedCount;
@@ -432,7 +436,7 @@ export class MongoExpenseAdapter implements ExpenseRepositoryPort {
   }
 }
 
-const toExpenseMonth = (d: ExpenseMonthDoc & { _id: unknown }): ExpenseMonthRecord => ({ id: String(d._id), userId: String(d.userId), month: d.month, status: d.status, submittedAt: d.submittedAt, taPaise: d.taPaise, daPaise: d.daPaise, otherPaise: d.otherPaise });
+const toExpenseMonth = (d: ExpenseMonthDoc & { _id: unknown }): ExpenseMonthRecord => ({ id: String(d._id), userId: String(d.userId), month: d.month, status: d.status, submittedAt: d.submittedAt, finalizedAt: d.finalizedAt ?? null, finalizedBy: d.finalizedBy ? String(d.finalizedBy) : null, taPaise: d.taPaise, daPaise: d.daPaise, otherPaise: d.otherPaise });
 
 export class MongoExpenseMonthAdapter implements ExpenseMonthRepositoryPort {
   async find(userId: string, month: string): Promise<ExpenseMonthRecord | null> {
@@ -446,6 +450,10 @@ export class MongoExpenseMonthAdapter implements ExpenseMonthRepositoryPort {
   async markSubmitted(userId: string, month: string, totals: { taPaise: number; daPaise: number; otherPaise: number }, at: Date, ctx: TransactionContext): Promise<ExpenseMonthRecord> {
     const doc = await ExpenseMonthModel.findOneAndUpdate({ userId: oid(userId), month }, { $set: { status: 'SUBMITTED', submittedAt: at, ...totals } }, { upsert: true, new: true, ...session(ctx) }).lean();
     return toExpenseMonth(doc!);
+  }
+  async finalize(userId: string, month: string, by: string, at: Date, ctx: TransactionContext): Promise<boolean> {
+    const res = await ExpenseMonthModel.updateOne({ userId: oid(userId), month, finalizedAt: null }, { $set: { finalizedAt: at, finalizedBy: oid(by) } }, session(ctx));
+    return res.modifiedCount === 1;
   }
   async listForUsers(userIds: string[], month: string): Promise<ExpenseMonthRecord[]> {
     return (await ExpenseMonthModel.find({ userId: { $in: userIds.map(oid) }, month }).lean()).map(toExpenseMonth);

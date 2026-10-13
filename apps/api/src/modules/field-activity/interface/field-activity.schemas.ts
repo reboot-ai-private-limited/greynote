@@ -90,6 +90,7 @@ export const expenseMonthQuerySchema = z.object({ month: expenseMonthValue, user
 export const expenseReviewQuerySchema = z.object({ month: expenseMonthValue, userId: objectIdSchema });
 export const adjustExpenseRowBodySchema = z.object({ amountPaise: paiseSchema, reason: z.string().trim().min(1, 'A reason is required.').max(500) });
 export const addExpenseRowBodySchema = z.object({ userId: objectIdSchema, date: calendarDateSchema, type: z.enum(['TA', 'DA']), amountPaise: paiseSchema.refine((v) => v > 0, 'The amount must be more than zero.'), reason: z.string().trim().min(1, 'A reason is required.').max(500) });
+export const finalizeExpensesBodySchema = z.object({ month: expenseMonthValue, userIds: z.array(objectIdSchema).max(500).optional() });
 export const expenseOverviewQuerySchema = z.object({ month: expenseMonthValue });
 export const grantExpenseMonthBodySchema = z.object({
   userId: objectIdSchema,

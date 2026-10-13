@@ -270,9 +270,26 @@ export interface ExpenseStatementDto {
   exceptions: { submitUntil: string | null; approveUntil: string | null };
   /** The send deadline has passed with no exception: the employee can no longer submit. */
   submitLate: boolean;
+  /** When the Accountant finalized the month (ISO): its amounts are locked and it can be paid. Null before. */
+  finalizedAt: string | null;
 }
 
 // ---- Expense review (Admin, HR, Accountant) — decision-log 2026-10-13 ----------------------------
+
+/** Where a month stands for the people who run it: the employee's own status, then Finalized (locked, payable) and Paid. */
+export type ExpenseStageDto = ExpenseMonthStatusDto | 'NOT_SUBMITTED' | 'FINALIZED' | 'PAID';
+
+/** The Accountant (or Admin) finalizes months: only an approved month can be, and it locks the amounts and makes the month payable. */
+export interface FinalizeExpensesDto {
+  month: string;
+  /** Omitted: every approved, not yet finalized month. */
+  userIds?: string[] | undefined;
+}
+export type FinalizeResultDto = 'FINALIZED' | 'ALREADY_FINALIZED' | 'NOT_APPROVED';
+export interface FinalizeOutcomeDto {
+  userId: string;
+  result: FinalizeResultDto;
+}
 
 /** What a calendar day is for this employee: a working day, or why it is not (leave wins over a holiday, a holiday over the weekly off). */
 export type ReviewDayTypeDto = 'WORKING' | 'WEEKLY_OFF' | 'HOLIDAY' | 'LEAVE';
@@ -354,6 +371,10 @@ export interface ExpenseReviewDto {
   employeeCode: string;
   month: string;
   status: ExpenseMonthStatusDto;
+  stage: ExpenseStageDto;
+  /** Finalized: the amounts are locked, nobody can change them. */
+  finalizedAt: string | null;
+  finalizedBy: string | null;
   /** Everything claimed in the month. */
   totals: ExpenseTotalsDto;
   /** The part of `totals` that is payable (its report is approved); the month table's `acceptedPaise`. */
@@ -379,6 +400,9 @@ export interface ExpenseOverviewRowDto {
   acceptedPaise: number;
   paidPaise: number;
   status: ExpenseMonthStatusDto | 'NOT_SUBMITTED';
+  /** `status`, or Finalized / Paid once the Accountant has finalized the month. */
+  stage: ExpenseStageDto;
+  finalizedAt: string | null;
   /** The month was sent (even if it is back with the employee since). */
   submittedAt: string | null;
   /** AUTO TA rows whose distance failed. */

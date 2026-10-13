@@ -11,7 +11,7 @@ import type { ChemistCall, DoctorCall, Followup } from '../../domain/call.entity
 import type { DoctorGift, DoctorService } from '../../domain/serviceGift.entity.js';
 import type { Expense, ExpenseAttachment } from '../../domain/expense.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
-import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, DoctorGiftRepositoryPort, DoctorServiceRepositoryPort, ExpenseBucket, ExpenseMonthClaimSummary, ExpenseMonthSummary, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
+import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, DoctorGiftRepositoryPort, DoctorServiceRepositoryPort, ExpenseBucket, ExpenseMonthClaimSummary, ExpenseMonthRecord, ExpenseMonthRepositoryPort, ExpenseMonthSummary, ExpenseRepositoryPort, ExpenseStatement, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
 import type { LeavePort } from '../../domain/leave.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -422,7 +422,7 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
   }
   async markPaid(id: string, by: string, at: Date) {
     const r = this.rows.find((x) => x.id === id);
-    if (!r || !r.accepted || !r.monthApproved || r.paymentStatus !== 'UNPAID') return false;
+    if (!r || !r.accepted || !r.monthApproved || !r.monthFinalized || r.paymentStatus !== 'UNPAID') return false;
     Object.assign(r, { paymentStatus: 'PAID', paidBy: by, paidAt: at });
     return true;
   }
@@ -448,6 +448,13 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
     this.rows.splice(i, 1);
     return true;
   }
+  async setMonthFinalized(userId: string, range: { from: string; to: string }, ctx: unknown) {
+    for (const r of this.rows.filter((x) => x.userId === userId && x.paymentStatus !== 'CANCELLED' && x.reportDate >= range.from && x.reportDate <= range.to)) {
+      const before = r.monthFinalized;
+      r.monthFinalized = true;
+      (ctx as Tx).undo.push(() => Object.assign(r, { monthFinalized: before }));
+    }
+  }
   async setMonthApproved(userId: string, range: { from: string; to: string }, approved: boolean, ctx: unknown) {
     for (const r of this.rows.filter((x) => x.userId === userId && x.paymentStatus === 'UNPAID' && x.reportDate >= range.from && x.reportDate <= range.to)) {
       const before = { monthApproved: r.monthApproved, accepted: r.accepted };
@@ -459,7 +466,7 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
   async statementsForRange(range: { from: string; to: string }, options: { payableOnly?: boolean } = {}) {
     const out = new Map<string, ExpenseStatement>();
     const empty = (): ExpenseBucket => ({ taPaise: 0, daPaise: 0, reimbursementPaise: 0, count: 0 });
-    for (const r of this.rows.filter((x) => x.accepted && (!options.payableOnly || x.monthApproved) && (x.paymentStatus === 'UNPAID' || x.paymentStatus === 'PAID') && x.reportDate >= range.from && x.reportDate <= range.to)) {
+    for (const r of this.rows.filter((x) => x.accepted && (!options.payableOnly || (x.monthApproved && x.monthFinalized)) && (x.paymentStatus === 'UNPAID' || x.paymentStatus === 'PAID') && x.reportDate >= range.from && x.reportDate <= range.to)) {
       const s = out.get(r.userId) ?? { userId: r.userId, unpaid: empty(), paid: empty(), lastPaidAt: null };
       const b = r.paymentStatus === 'PAID' ? s.paid : s.unpaid;
       if (r.type === 'TA') b.taPaise += r.amountPaise;
@@ -472,7 +479,7 @@ export class FakeExpenses extends FakeCalls<Expense> implements ExpenseRepositor
     return [...out.values()];
   }
   async payAllForUser(userId: string, range: { from: string; to: string }, by: string, at: Date) {
-    const hit = this.rows.filter((r) => r.userId === userId && r.accepted && r.monthApproved && r.paymentStatus === 'UNPAID' && r.reportDate >= range.from && r.reportDate <= range.to);
+    const hit = this.rows.filter((r) => r.userId === userId && r.accepted && r.monthApproved && r.monthFinalized && r.paymentStatus === 'UNPAID' && r.reportDate >= range.from && r.reportDate <= range.to);
     for (const r of hit) Object.assign(r, { paymentStatus: 'PAID', paidBy: by, paidAt: at });
     return hit.length;
   }
@@ -614,4 +621,30 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const allocateGift = new AllocateGiftUseCase(fmd, gifts, () => new Date(clock.current));
   const markGiftDone = new MarkGiftDoneUseCase(users, checks, gifts);
   return { users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, expenses, logDoctorCall, logChemistCall, logFollowup, logExpense, taDa, leave, missedCheck, listExpenses, markPaid, paidTaDa, dcrSummary, services, gifts, submitService, adminService, allocateGift, markGiftDone };
+}
+
+/** The month records, shared by the tests that need them. */
+export class FakeExpenseMonths implements ExpenseMonthRepositoryPort {
+  rows: ExpenseMonthRecord[] = [];
+  async find(userId: string, month: string) {
+    return this.rows.find((r) => r.userId === userId && r.month === month) ?? null;
+  }
+  async findById(id: string) {
+    return this.rows.find((r) => r.id === id) ?? null;
+  }
+  async markSubmitted(userId: string, month: string, totals: { taPaise: number; daPaise: number; otherPaise: number }, at: Date) {
+    const row = (await this.find(userId, month)) ?? { id: `em-${this.rows.length + 1}`, userId, month, status: 'DRAFT' as const, submittedAt: null, taPaise: 0, daPaise: 0, otherPaise: 0 };
+    Object.assign(row, { status: 'SUBMITTED', submittedAt: at, ...totals });
+    if (!this.rows.includes(row)) this.rows.push(row);
+    return row;
+  }
+  async finalize(userId: string, month: string, by: string, at: Date) {
+    const row = await this.find(userId, month);
+    if (!row || row.finalizedAt) return false;
+    Object.assign(row, { finalizedAt: at, finalizedBy: by });
+    return true;
+  }
+  async listForUsers(userIds: string[], month: string) {
+    return this.rows.filter((r) => userIds.includes(r.userId) && r.month === month);
+  }
 }

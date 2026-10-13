@@ -2146,3 +2146,12 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** notifying the employee (inbox) and the phone display; locking the month at Finalize (step 3); whether the Accountant may also edit (for now no: the Accountant finalizes and pays).
 
 **Refs:** [`LLD/field-activity.md`](LLD/field-activity.md) (HR edits a month's amounts).
+
+
+## 2026-10-13 — Finalize closes a month of expenses; only a finalized month is paid (Track A step 3)
+
+**Decision:** after the manager's approval and HR's review, the Accountant (or Admin) **finalizes** an employee's month. Finalizing locks the amounts (no HR edit or add), makes the month impossible to reopen or send back, and makes it payable: payment (single, pay-all, payout sheet) now needs `accepted`, `monthApproved` and `monthFinalized`. Only an approved month, once it is over, can be finalized; there is no un-finalize. Stages shown to the people running it: Not submitted, Waiting for approval, Approved, Finalized, Paid.
+
+**Cutover:** months from before the cutover keep being payable through `migrate:expense-finalized` (not run yet); months after it are finalized in the portal.
+
+**Open:** merging Expenses, Expense payouts and the inline "Allow late" into the one page (step 4); the phone showing "edited by HR" and "finalized" (step 5).
