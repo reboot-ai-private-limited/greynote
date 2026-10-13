@@ -83,7 +83,7 @@ describe('financialYearContext', () => {
 
   it('reads pass, and so do login, refresh and logout', async () => {
     for (const method of ['GET', 'HEAD', 'OPTIONS']) expect((await run(at('2026-09-30T10:00:00+05:30'), withHeader('2025', { method }))).error).toBeUndefined();
-    for (const path of ['/identity/auth/login', '/identity/auth/refresh', '/identity/auth/logout']) {
+    for (const path of ['/identity/auth/login', '/identity/auth/refresh', '/identity/auth/logout', '/identity/auth/delete-account']) {
       expect((await run(at('2026-09-30T10:00:00+05:30'), withHeader('2025', { method: 'POST', path }))).error, path).toBeUndefined();
     }
     // …but not the neighbours.

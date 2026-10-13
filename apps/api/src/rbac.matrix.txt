@@ -194,6 +194,7 @@ POST   /api/hr/leave-types  ADMIN,HR
 POST   /api/hr/leaves  FIELD
 POST   /api/hr/leaves/:id/approval-grant  ADMIN
 POST   /api/hr/leaves/:id/attachments  FIELD
+POST   /api/identity/auth/delete-account  ANY
 POST   /api/identity/auth/login  PUBLIC
 POST   /api/identity/auth/logout  ANY
 POST   /api/identity/auth/logout-all  ADMIN
@@ -209,6 +210,7 @@ POST   /api/identity/promotions/:promotionId/cancel  ADMIN,HR
 POST   /api/identity/promotions/apply-due  ADMIN,HR
 POST   /api/identity/roles  ADMIN
 POST   /api/identity/users  ADMIN,HR
+POST   /api/identity/users/:id/anonymise  ADMIN,HR
 POST   /api/identity/users/:id/ctc  ADMIN,HR
 POST   /api/identity/users/:id/devices/:deviceRowId/approve  ADMIN
 POST   /api/identity/users/:id/devices/:deviceRowId/logout  ADMIN

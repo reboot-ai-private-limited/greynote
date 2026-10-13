@@ -5,6 +5,7 @@ import type { LoginUseCase } from '../application/usecases/login.usecase.js';
 import type { RefreshSessionUseCase } from '../application/usecases/refreshSession.usecase.js';
 import type { LogoutUseCase } from '../application/usecases/logout.usecase.js';
 import type { LogoutAllSessionsUseCase } from '../application/usecases/logoutAllSessions.usecase.js';
+import type { DeleteAccountUseCase } from '../application/usecases/deleteAccount.usecase.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { GetUserSummaryUseCase } from '../application/usecases/getUserSummary.usecase.js';
 import { clearRefreshCookie, deliverRefreshToken, readRefreshToken } from './refreshCookie.js';
@@ -46,5 +47,14 @@ export function makeMeController(useCase: GetUserSummaryUseCase): RequestHandler
   return asyncHandler(async (req, res) => {
     if (!req.user) throw AppError.unauthenticated();
     sendSuccess(req, res, await useCase.execute(req.user.sub), 'OK', 200);
+  });
+}
+
+export function makeDeleteAccountController(useCase: DeleteAccountUseCase): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    if (!req.user) throw AppError.unauthenticated();
+    await useCase.deleteOwn(req.user.sub, req.body.password);
+    clearRefreshCookie(res);
+    sendSuccess(req, res, {}, 'Your account has been deleted.', 200);
   });
 }

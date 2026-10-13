@@ -59,6 +59,7 @@ import { LogoutUseCase } from './application/usecases/logout.usecase.js';
 import { LogoutAllSessionsUseCase } from './application/usecases/logoutAllSessions.usecase.js';
 import { RefreshSessionUseCase } from './application/usecases/refreshSession.usecase.js';
 import { RemoveUserDocumentUseCase } from './application/usecases/removeUserDocument.usecase.js';
+import { DeleteAccountUseCase } from './application/usecases/deleteAccount.usecase.js';
 import { ResetPasswordUseCase } from './application/usecases/resetPassword.usecase.js';
 import type { BootstrapAdminInput } from './application/usecases/seedBootstrapAdmin.usecase.js';
 import { SeedBootstrapAdminUseCase } from './application/usecases/seedBootstrapAdmin.usecase.js';
@@ -88,6 +89,7 @@ import { readBusinessDay } from '@/shared/config/readConfig.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import {
   makeLoginController,
+  makeDeleteAccountController,
   makeLogoutAllController,
   makeLogoutController,
   makeMeController,
@@ -114,6 +116,7 @@ import {
   makeListUsersController,
   makeRemoveUserDocumentController,
   makeResetPasswordController,
+  makeAnonymiseUserController,
   makeUnblockUserController,
   makeUpdateUserController,
   makeUploadUserDocumentController,
@@ -224,6 +227,15 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const blockUser = new BlockUserUseCase(userRepository, roleRepository, complianceBlockRepository, transactionRunner);
   const unblockUser = new UnblockUserUseCase(userRepository, complianceBlockRepository, transactionRunner, (id) => getManagerChain.execute(id));
   const resetPassword = new ResetPasswordUseCase(userRepository, userSessionRepository, passwordHasher);
+  const deleteAccount = new DeleteAccountUseCase(
+    userRepository,
+    roleRepository,
+    employeeProfileRepository,
+    userSessionRepository,
+    userDeviceRepository,
+    passwordHasher,
+    documentStorage,
+  );
   const getUserDetail = new GetUserDetailUseCase(
     userRepository,
     roleRepository,
@@ -316,6 +328,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     logout: makeLogoutController(logout),
     logoutAll: makeLogoutAllController(logoutAllSessions),
     me: makeMeController(getUserSummary),
+    deleteAccount: makeDeleteAccountController(deleteAccount),
   };
   const usersControllers = {
     list: makeListUsersController(listUsers),
@@ -326,6 +339,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     removeDocument: makeRemoveUserDocumentController(removeUserDocument),
     unblock: makeUnblockUserController(unblockUser),
     resetPassword: makeResetPasswordController(resetPassword),
+    anonymise: makeAnonymiseUserController(deleteAccount),
   };
   const ctcControllers = makeCtcControllers({ preview: previewCtc, assign: assignCtc, history: listCtcHistory, reapply: reapplyCtc });
   const promotionControllers = makePromotionControllers({ preview: previewPromotion, schedule: schedulePromotion, list: listPromotions, listAll: listAllPromotions, cancel: cancelPromotion, applyDue: applyDuePromotions });

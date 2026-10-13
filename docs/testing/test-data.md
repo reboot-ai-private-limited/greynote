@@ -23,5 +23,8 @@ If a figure differs, first check the date: absent-day and "today" figures move w
 ## Logins
 The Admin you created with `pnpm --filter @greynote/api seed`. Create an HR and an Accountant user yourself in case 1 (people → employees → add); note their codes here (never passwords): HR = ______, Accountant = ______.
 
+## Demo logins for the Google Play reviewers
+`DEMO_MANAGER_PASSWORD='…' pnpm --filter @greynote/api seed:demo-manager` creates DEMOMGR (manager) with DEMOMR1 and DEMOMR2, a demo zone/HQ/route and six doctors; `-- --remove` deletes them, `-- --reset-password` changes the password. Safe in production: demo users are left out of payroll, attendance and the daily jobs, skip device approval at login and cannot be deleted. The password is given to Play Console's "App access" form and never written here.
+
 ## Resetting
 `-- --remove` then `-- --apply` returns the sample set to its generated state. Real records you added by hand are not touched.

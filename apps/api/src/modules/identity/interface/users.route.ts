@@ -23,6 +23,7 @@ import type {
   makeListUsersController,
   makeRemoveUserDocumentController,
   makeResetPasswordController,
+  makeAnonymiseUserController,
   makeUnblockUserController,
   makeUpdateUserController,
   makeUploadUserDocumentController,
@@ -139,6 +140,16 @@ openApiRegistry.registerPath({
   responses: { 200: { description: 'Password reset' } },
 });
 
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/identity/users/{id}/anonymise',
+  tags: ['Identity / Users'],
+  summary: "Admin/HR: delete a FIELD employee's account on their request — personal data removed, records kept",
+  security: [{ bearerAuth: [] }],
+  request: { params: userIdParamsSchema },
+  responses: { 200: { description: 'Account deleted' }, 409: { description: 'Already deleted, or still has active reports' } },
+});
+
 export function buildUsersRouter(controllers: {
   list: ReturnType<typeof makeListUsersController>;
   detail: ReturnType<typeof makeGetUserDetailController>;
@@ -148,6 +159,7 @@ export function buildUsersRouter(controllers: {
   removeDocument: ReturnType<typeof makeRemoveUserDocumentController>;
   unblock: ReturnType<typeof makeUnblockUserController>;
   resetPassword: ReturnType<typeof makeResetPasswordController>;
+  anonymise: ReturnType<typeof makeAnonymiseUserController>;
 }): Router {
   const router = Router();
 
@@ -208,6 +220,13 @@ export function buildUsersRouter(controllers: {
     requireRole('ADMIN'),
     validate({ params: userIdParamsSchema, body: resetPasswordBodySchema }),
     controllers.resetPassword,
+  );
+  router.post(
+    '/:id/anonymise',
+    authenticate(),
+    requireRole('ADMIN', 'HR'),
+    validate({ params: userIdParamsSchema }),
+    controllers.anonymise,
   );
 
   return router;

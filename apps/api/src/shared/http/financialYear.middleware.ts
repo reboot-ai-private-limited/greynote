@@ -23,7 +23,7 @@ export interface FinancialYearContext {
 export const FINANCIAL_YEAR_HEADER = 'x-financial-year';
 
 /** The routes (relative to `/api`) that stay open while a past year is being viewed: signing in and out, and keeping the session alive. */
-const OPEN_WHILE_VIEWING = new Set(['/identity/auth/login', '/identity/auth/refresh', '/identity/auth/logout']);
+const OPEN_WHILE_VIEWING = new Set(['/identity/auth/login', '/identity/auth/refresh', '/identity/auth/logout', '/identity/auth/delete-account']);
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 const invalid = (message: string) => AppError.badRequest(message, { code: 'INVALID_FINANCIAL_YEAR' });

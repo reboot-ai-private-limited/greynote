@@ -10,6 +10,7 @@ import type { CreateUserUseCase } from '../application/usecases/createUser.useca
 import type { UpdateUserUseCase } from '../application/usecases/updateUser.usecase.js';
 import type { UploadUserDocumentUseCase } from '../application/usecases/uploadUserDocument.usecase.js';
 import type { RemoveUserDocumentUseCase } from '../application/usecases/removeUserDocument.usecase.js';
+import type { DeleteAccountUseCase } from '../application/usecases/deleteAccount.usecase.js';
 import type { ResetPasswordUseCase } from '../application/usecases/resetPassword.usecase.js';
 import type { UnblockUserUseCase } from '../application/usecases/unblockUser.usecase.js';
 import type { UserListFilters } from '../domain/user.repository.port.js';
@@ -84,5 +85,12 @@ export function makeResetPasswordController(useCase: ResetPasswordUseCase): Requ
   return asyncHandler(async (req, res) => {
     await useCase.execute(requiredParam(req.params, 'id'), req.body.newPassword);
     sendSuccess(req, res, {}, 'Password reset. The user has been logged out everywhere.', 200);
+  });
+}
+
+export function makeAnonymiseUserController(useCase: DeleteAccountUseCase): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    await useCase.anonymise(requiredParam(req.params, 'id'));
+    sendSuccess(req, res, {}, 'Account deleted. Personal data removed; records kept.', 200);
   });
 }

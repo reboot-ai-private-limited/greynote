@@ -17,6 +17,20 @@ old one.
 
 ---
 
+## 2026-10-13 — Google Play: delete-my-account, and a demo Manager for the reviewers
+
+**Decided:** Play needs an in-app way to delete the account and working reviewer logins. **Deletion** (FIELD only) scrubs the person and keeps the records: name becomes "Deleted user", email, phone, personal details, bank details and uploaded documents (files removed from storage) go, the password is replaced, the account is made inactive, every session ends and phones are unregistered; `deletedAt` is stamped. Payroll, calls, DCRs, expenses and approvals stay under the employee code, as do designation, pay band, manager, HQ and joining date. `POST /identity/auth/delete-account {password}` (the person, password asked again) and `POST /identity/users/:id/anonymise` (Admin/HR, on a written request). A manager with active reports is refused (`HAS_ACTIVE_REPORTS`) until the team is moved. **Demo:** `seed:demo-manager` creates DEMOMGR (ASM) with DEMOMR1/2, a demo zone/HQ/route and six doctors; users carry `isDemo`: login skips device approval for them, payroll, attendance and the daily jobs leave them out (`listActiveIdsByRole`), and they cannot be deleted. The password comes from `DEMO_MANAGER_PASSWORD` and is never stored in the repo.
+
+**Why:** statutory (payroll) and audit records must outlive the account; Play accepts retention that the privacy policy discloses. A POST rather than DELETE-with-body, which some phone HTTP clients drop.
+
+**Cost:** ADMIN/HR/ACCOUNTANT accounts are not self-deletable (an Admin deactivates them; this also protects the last Admin). The demo has no calls, DCRs, leave or expenses yet, so the Team screens for those show empty. Play may also want a public web page for deletion requests; not built (decided in-app only). The privacy policy must say what is kept and why.
+
+**Rejected:** hard delete (breaks payroll and manager reports); a request-only route (slow, and Play expects it in the app).
+
+**Refs:** [`mobile/account.md`](mobile/account.md), `LLD/identity.md`.
+
+---
+
 ## 2026-10-12 — Docs tab: payslips, shared documents; a closed year blocks daily work
 
 **Decided (owner's brief):** the phone's Docs tab shows the employee's own **payslips**, bounded by the financial year (older ones by switching year on the Financial Year screen), and **other documents the Admin adds**. A **closed** financial year turns the phone's daily work read-only, with a notice. The phone docs also say how to read back a past day's report, secondary sales, orders, monthly expense approval, leave and service requests.

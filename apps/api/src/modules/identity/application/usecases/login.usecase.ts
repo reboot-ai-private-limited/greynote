@@ -65,7 +65,8 @@ export class LoginUseCase {
     // (hld/10), not authentication. Flagged in docs/LLD/identity.md as needing confirmation.
 
     // Only after the password check, so only a real employee can ever create a device request.
-    if (role.name === 'FIELD') await this.assertDeviceAllowed(user, input);
+    // The Play reviewers' demo account skips it: nobody can approve their phone, and it only ever holds demo data.
+    if (role.name === 'FIELD' && !user.isDemo) await this.assertDeviceAllowed(user, input);
     // Web-portal roles (ADMIN/HR/ACCOUNTANT) have no device registry or limit.
 
     const existingSession = await this.userSessionRepository.findActiveByDeviceId(user.id, input.deviceId);

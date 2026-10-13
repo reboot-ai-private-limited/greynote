@@ -11,6 +11,8 @@ export interface UserDoc {
   passwordHash: string;
   lastLoginAt: Date | null;
   isBlocked: boolean;
+  deletedAt?: Date | null;
+  isDemo?: boolean;
 }
 
 const userSchema = new Schema<UserDoc>({
@@ -23,6 +25,8 @@ const userSchema = new Schema<UserDoc>({
   passwordHash: { type: String, required: true },
   lastLoginAt: { type: Date, default: null },
   isBlocked: { type: Boolean, required: true, default: false },
+  deletedAt: { type: Date, default: null },
+  isDemo: { type: Boolean, default: false },
 });
 
 // `sparse: true` on the field alone doesn't work here — every FIELD user's `email` is explicitly

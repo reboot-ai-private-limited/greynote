@@ -20,6 +20,10 @@ export const logoutBodySchema = z.object({
   refreshToken: z.string().min(1).optional(),
 });
 
+export const deleteAccountBodySchema = z.object({
+  password: passwordSchema,
+});
+
 export const logoutAllBodySchema = z.object({
   userId: z.string().min(1),
 });

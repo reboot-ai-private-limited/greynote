@@ -18,6 +18,7 @@
         "migrate:payband-ctc": "tsx src/scripts/migrate-payband-salary-to-ctc.ts",
         "migrate:paybands": "tsx src/scripts/migrate-paybands.ts",
         "seed:sample-sales": "tsx src/scripts/seed-sample-sales.ts",
+        "seed:demo-manager": "tsx src/scripts/seed-demo-manager.ts",
         "migrate:specialties": "tsx src/scripts/migrate-specialties.ts",
         "migrate:distributors": "tsx src/scripts/migrate-distributors.ts",
         "migrate:targets": "tsx src/scripts/migrate-targets-to-ranges.ts",

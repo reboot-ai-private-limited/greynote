@@ -21,6 +21,10 @@ export interface User {
   passwordHash: string;
   lastLoginAt: Date | null;
   isBlocked: boolean;
+  /** Set when the account was deleted (personal data scrubbed, records kept). Absent/null: never deleted. */
+  deletedAt?: Date | null;
+  /** A reviewer's demo account (Play Store). Left out of payroll, attendance and the daily jobs; cannot be deleted. */
+  isDemo?: boolean;
 }
 
 /**

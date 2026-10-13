@@ -4,12 +4,14 @@ import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import {
+  deleteAccountBodySchema,
   loginBodySchema,
   logoutAllBodySchema,
   logoutBodySchema,
   refreshBodySchema,
 } from './auth.schemas.js';
 import type {
+  makeDeleteAccountController,
   makeLoginController,
   makeLogoutAllController,
   makeLogoutController,
@@ -72,12 +74,28 @@ openApiRegistry.registerPath({
   responses: { 200: { description: 'Every session revoked' } },
 });
 
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/identity/auth/delete-account',
+  tags: ['Identity / Auth'],
+  summary:
+    'Delete my own account (FIELD). Re-confirms the password, scrubs personal data, ends every session; payroll and activity records are kept',
+  security: [{ bearerAuth: [] }],
+  request: { body: { content: { 'application/json': { schema: deleteAccountBodySchema } } } },
+  responses: {
+    200: { description: 'Account deleted' },
+    403: { description: 'Wrong password' },
+    409: { description: 'Manager still has active reports (reason HAS_ACTIVE_REPORTS)' },
+  },
+});
+
 export function buildAuthRouter(controllers: {
   login: ReturnType<typeof makeLoginController>;
   refresh: ReturnType<typeof makeRefreshController>;
   logout: ReturnType<typeof makeLogoutController>;
   logoutAll: ReturnType<typeof makeLogoutAllController>;
   me: ReturnType<typeof makeMeController>;
+  deleteAccount: ReturnType<typeof makeDeleteAccountController>;
 }): Router {
   const router = Router();
 
@@ -85,6 +103,7 @@ export function buildAuthRouter(controllers: {
   router.post('/refresh', validate({ body: refreshBodySchema }), controllers.refresh);
   router.post('/logout', authenticate(), validate({ body: logoutBodySchema }), controllers.logout);
   router.get('/me', authenticate(), controllers.me);
+  router.post('/delete-account', authenticate(), validate({ body: deleteAccountBodySchema }), controllers.deleteAccount);
   router.post(
     '/logout-all',
     authenticate(),

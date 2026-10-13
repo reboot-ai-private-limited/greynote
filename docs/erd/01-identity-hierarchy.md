@@ -42,6 +42,8 @@ erDiagram
         string password_hash
         timestamp last_login_at
         boolean is_blocked "default false - see HLD 10, compliance block; historical detail is in COMPLIANCE_BLOCK, not here"
+        timestamp deleted_at "null - set when the account was deleted (2026-10-13): personal data scrubbed, name becomes Deleted user, records kept"
+        boolean is_demo "default false - Play reviewers demo account; left out of payroll, attendance and the daily jobs"
     }
 
     EMPLOYEE_PROFILE {
