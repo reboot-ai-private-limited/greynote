@@ -17,11 +17,14 @@ import {
   updateUserBodySchema,
   userIdParamsSchema,
 } from './users.schemas.js';
+import { photoUpload } from './photoUpload.middleware.js';
 import type {
   makeCreateUserController,
   makeGetUserDetailController,
   makeListUsersController,
+  makeRemoveEmployeePhotoController,
   makeRemoveUserDocumentController,
+  makeSetEmployeePhotoController,
   makeResetPasswordController,
   makeAnonymiseUserController,
   makeUnblockUserController,
@@ -150,6 +153,25 @@ openApiRegistry.registerPath({
   responses: { 200: { description: 'Account deleted' }, 409: { description: 'Already deleted, or still has active reports' } },
 });
 
+openApiRegistry.registerPath({
+  method: 'put',
+  path: '/api/identity/users/{id}/photo',
+  tags: ['Identity / Users'],
+  summary: 'Admin/HR: set or replace an employee photo (multipart `file`, JPG/PNG/WebP, 5 MB); the old one is deleted from Cloudinary',
+  security: [{ bearerAuth: [] }],
+  request: { params: userIdParamsSchema },
+  responses: { 200: { description: 'Photo saved; returns photoUrl' } },
+});
+openApiRegistry.registerPath({
+  method: 'delete',
+  path: '/api/identity/users/{id}/photo',
+  tags: ['Identity / Users'],
+  summary: 'Admin/HR: remove an employee photo (deleted from Cloudinary)',
+  security: [{ bearerAuth: [] }],
+  request: { params: userIdParamsSchema },
+  responses: { 200: { description: 'Photo removed' } },
+});
+
 export function buildUsersRouter(controllers: {
   list: ReturnType<typeof makeListUsersController>;
   detail: ReturnType<typeof makeGetUserDetailController>;
@@ -157,6 +179,8 @@ export function buildUsersRouter(controllers: {
   update: ReturnType<typeof makeUpdateUserController>;
   uploadDocument: ReturnType<typeof makeUploadUserDocumentController>;
   removeDocument: ReturnType<typeof makeRemoveUserDocumentController>;
+  setPhoto: ReturnType<typeof makeSetEmployeePhotoController>;
+  removePhoto: ReturnType<typeof makeRemoveEmployeePhotoController>;
   unblock: ReturnType<typeof makeUnblockUserController>;
   resetPassword: ReturnType<typeof makeResetPasswordController>;
   anonymise: ReturnType<typeof makeAnonymiseUserController>;
@@ -206,6 +230,21 @@ export function buildUsersRouter(controllers: {
     requireRole('ADMIN', 'HR'),
     validate({ params: documentParamsSchema }),
     controllers.removeDocument,
+  );
+  router.put(
+    '/:id/photo',
+    authenticate(),
+    requireRole('ADMIN', 'HR'),
+    validate({ params: userIdParamsSchema }),
+    photoUpload,
+    controllers.setPhoto,
+  );
+  router.delete(
+    '/:id/photo',
+    authenticate(),
+    requireRole('ADMIN', 'HR'),
+    validate({ params: userIdParamsSchema }),
+    controllers.removePhoto,
   );
   router.post(
     '/:id/unblock',

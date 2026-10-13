@@ -57,6 +57,7 @@ function build(data: EmployeeDraftData, opts: { createdUserId?: string; failHqOn
       calls.push(`hq ${userId} ${hqId}`);
     },
     async () => '2026-10',
+    { upsert: async (id: string, patch: { photo?: { url: string } }) => { if (patch.photo) calls.push(`photo ${id} ${patch.photo.url}`); } } as never,
   );
   return { useCase, calls, users, ctcInput, draftNow: () => draft };
 }
@@ -70,6 +71,12 @@ describe('FinalizeEmployeeDraftUseCase', () => {
     expect(result).toMatchObject({ userId: 'u1', employeeCode: 'GH101' });
     expect(result.password).toHaveLength(12);
     expect(calls).toEqual(['create GH101', 'update u1 boss', 'hq u1 hq-1', 'ctc', 'draft deleted']);
+  });
+
+  it('carries the draft photo onto the new employee', async () => {
+    const { useCase, calls } = build(complete({ photo: { url: 'https://img/p.jpg', publicId: 'greynote/drafts/d1/photo/x' } }));
+    await useCase.execute(actor, 'd1');
+    expect(calls).toContain('photo u1 https://img/p.jpg');
   });
 
   it('refuses an incomplete draft and creates nothing', async () => {

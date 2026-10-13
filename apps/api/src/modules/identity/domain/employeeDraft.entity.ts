@@ -15,6 +15,8 @@ export interface DraftAddress {
 }
 
 export interface EmployeeDraftData {
+  /** Set only by the photo endpoints (never by the Personal save), so saving the form can't drop it. */
+  photo?: { url: string; publicId: string };
   personal?: {
     name?: string;
     mobileNumber?: string;

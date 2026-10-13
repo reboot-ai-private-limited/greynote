@@ -60,6 +60,7 @@ export interface EmployeeProfileDoc {
   previousEmployment?: PreviousEmploymentDoc[];
   bankDetails: BankDetailsDoc | null;
   documents: UserDocumentDoc[];
+  photo?: { url: string; publicId: string } | null;
 }
 
 const addressSchema = new Schema<AddressDoc>(
@@ -137,6 +138,7 @@ const employeeProfileSchema = new Schema<EmployeeProfileDoc>({
   previousEmployment: { type: [previousEmploymentSchema], default: [] },
   bankDetails: { type: bankDetailsSchema, default: null },
   documents: { type: [userDocumentSchema], default: [] },
+  photo: { type: new Schema({ url: { type: String, required: true }, publicId: { type: String, required: true } }, { _id: false }), default: null },
 });
 
 // "Who reports to X" (listUsers' manager filter, getDirectReports) and every hop of the

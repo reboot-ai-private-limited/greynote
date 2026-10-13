@@ -32,6 +32,12 @@ export interface BankDetails {
   branchName: string | null;
 }
 
+/** The employee's profile picture. `publicId` is the Cloudinary id, used to delete it; never sent to a client. */
+export interface ProfilePhoto {
+  url: string;
+  publicId: string;
+}
+
 export interface UserDocument {
   /**
    * Internal uuid v7, separate from Cloudinary's `publicId` — routing a DELETE by `publicId`
@@ -91,4 +97,6 @@ export interface EmployeeProfile {
   previousEmployment: PreviousEmployment[];
   bankDetails: BankDetails | null;
   documents: UserDocument[];
+  /** Optional profile picture (FIELD employees). Not needed for activation. */
+  photo?: ProfilePhoto | null;
 }

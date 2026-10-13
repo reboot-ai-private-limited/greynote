@@ -44,6 +44,8 @@ export interface UserDetail {
     previousEmployment: PreviousEmployment[];
     bankDetails: BankDetails | null;
     documents: UserDocument[];
+    /** The photo's address; its storage id is never sent. */
+    photoUrl: string | null;
   } | null;
 }
 
@@ -106,6 +108,7 @@ export class GetUserDetailUseCase {
             previousEmployment: profile.previousEmployment,
             bankDetails: profile.bankDetails,
             documents: profile.documents,
+            photoUrl: profile.photo?.url ?? null,
           }
         : null,
     };

@@ -1,6 +1,7 @@
 import { AppError } from '@/shared/errors/AppError.js';
 import type { EmployeeDraft, EmployeeDraftData } from '../../domain/employeeDraft.entity.js';
 import type { EmployeeDraftRepositoryPort } from '../../domain/employeeDraft.repository.port.js';
+import type { PhotoStoragePort } from '../../domain/photoStorage.port.js';
 
 export interface EmployeeDraftInput {
   step?: number;
@@ -54,7 +55,10 @@ export class UpdateEmployeeDraftUseCase {
 }
 
 export class DeleteEmployeeDraftUseCase {
-  constructor(private readonly drafts: EmployeeDraftRepositoryPort) {}
+  constructor(
+    private readonly drafts: EmployeeDraftRepositoryPort,
+    private readonly photos: PhotoStoragePort,
+  ) {}
 
   async execute(id: string): Promise<void> {
     const existing = await this.drafts.findById(id);
@@ -62,6 +66,14 @@ export class DeleteEmployeeDraftUseCase {
     if (existing.createdUserId) {
       throw AppError.conflict('This draft already created a login. Finish it instead of deleting it.');
     }
+    // Storage first: if it fails the draft still points at the photo and the delete can be retried.
+    if (existing.data.photo) await this.photos.remove(existing.data.photo.publicId);
     await this.drafts.delete(id);
   }
+}
+
+/** What a client sees of a draft: the photo's address only, never its storage id. */
+export function toDraftView(draft: EmployeeDraft): Omit<EmployeeDraft, 'data'> & { data: Omit<EmployeeDraftData, 'photo'> & { photoUrl?: string } } {
+  const { photo, ...data } = draft.data;
+  return { ...draft, data: { ...data, ...(photo && { photoUrl: photo.url }) } };
 }

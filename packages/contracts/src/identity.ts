@@ -27,6 +27,7 @@ export interface UserListItemDto {
   hqId: string | null;
   zoneId: string | null;
   status: UserListStatus;
+  photoUrl?: string | null;
 }
 
 export const DESIGNATION_NAMES = ['MR', 'ASM', 'RSM', 'ZSM', 'NSM'] as const;
@@ -153,6 +154,7 @@ export interface UserDetailDto {
     previousEmployment: UserPreviousEmploymentDto[];
     bankDetails: UserBankDetailsDto | null;
     documents: UserDocumentDto[];
+    photoUrl: string | null;
   } | null;
 }
 

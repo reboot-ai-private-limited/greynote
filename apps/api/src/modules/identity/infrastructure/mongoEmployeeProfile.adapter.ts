@@ -31,6 +31,7 @@ function toEmployeeProfile(doc: EmployeeProfileDoc & { _id: unknown }): Employee
     previousEmployment: doc.previousEmployment ?? [],
     bankDetails: doc.bankDetails,
     documents: doc.documents,
+    photo: doc.photo ?? null,
   };
 }
 
