@@ -1,6 +1,34 @@
 import type { Paise } from '@/shared/money/paise.js';
 import type { CtcLineSnapshot } from './ports.js';
 
+/** One calendar day of the month as payroll saw it when the run was generated: what the day was and how much of it the rules charge (0, 0.5 or 1). */
+export interface PayrollDay {
+  date: string;
+  /** The attendance status: `PRESENT`, `ABSENT`, `LEAVE`, `HOLIDAY`, `WEEKLY_OFF`, `STRIKE`, `NOT_YET`, `BEFORE_JOINING` or `UNKNOWN`. */
+  status: string;
+  /** Days of pay charged for this day by the rules: an absent day 1, an unpaid leave day its portion; 0 otherwise. */
+  deductedDays: number;
+  leaveType: string | null;
+}
+
+/**
+ * HR's (or Admin's) change to a draft run, kept for good (decision-log 2026-10-13). `DAY`: the day is charged `setDays` instead of what the rules
+ * gave (`ruleDays`), e.g. an absent day not charged; the latest change to a date is the one that counts. `AMOUNT`: a signed amount added to
+ * (or taken off) the net. `amountPaise` is the effect on the net when it was made.
+ */
+export interface PayrollAdjustment {
+  id: string;
+  kind: 'DAY' | 'AMOUNT';
+  date: string | null;
+  ruleDays: number | null;
+  setDays: number | null;
+  amountPaise: number;
+  reason: string;
+  by: string;
+  byRole: string;
+  at: Date;
+}
+
 export const PAYROLL_STATUSES = ['DRAFT', 'FINALIZED'] as const;
 export type PayrollStatus = (typeof PAYROLL_STATUSES)[number];
 
@@ -40,8 +68,16 @@ export interface PayrollRun {
   absentDays: number;
   /** `absent days × base ÷ 30`, rounded half up once and frozen; `0` on older runs. */
   absentDeductionPaise: Paise;
-  /** `base − leave deduction − absent deduction` (older runs also add TA/DA and reimbursement). */
+  /** `base − leave deduction − absent deduction + adjustments` (older runs also add TA/DA and reimbursement). */
   netPayablePaise: Paise;
+  /** The month day by day as payroll saw it; empty on runs from before 2026-10-13. */
+  days: PayrollDay[];
+  /** What HR changed on the draft, oldest first. */
+  adjustments: PayrollAdjustment[];
+  /** The sum of the adjustments' effect on the net (signed). */
+  adjustmentPaise: number;
+  /** The net before any adjustment: what the rules gave. */
+  originalNetPayablePaise: Paise;
   /** The employee's ESI number when generated (a snapshot, printed on the salary slip); null if none was set. */
   esiNumber: string | null;
   /** The joining date falls in this month; the full base salary is paid (no proration) and the Accountant is told. */
@@ -50,6 +86,11 @@ export interface PayrollRun {
   generatedBy: string;
   generatedAt: Date;
   finalizedAt: Date | null;
+  finalizedBy: string | null;
+  /** The Accountant marked the salary paid (the run is final from then on, and stays so). */
+  paidAt: Date | null;
+  paidBy: string | null;
+  paymentReference: string | null;
 }
 
-export type PayrollDraft = Omit<PayrollRun, 'id' | 'status' | 'finalizedAt'>;
+export type PayrollDraft = Omit<PayrollRun, 'id' | 'status' | 'finalizedAt' | 'finalizedBy' | 'paidAt' | 'paidBy' | 'paymentReference'>;

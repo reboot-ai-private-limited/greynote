@@ -2162,3 +2162,12 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Decision:** one **Expenses** page: the month table with Finalize, Pay and "Allow late" on each row, a Late exceptions tab for Admin, and the day-by-day review one click away. Expense payouts and Late expenses are no longer separate pages (their old addresses redirect). The row-by-row list of claims stays as **Expense claims** for the Accountant and Admin. "Allow late" is offered only where it is needed: a month past its send or approval deadline that has something claimed.
 
 **Open:** the phone showing "edited by HR" and "finalized" (step 5); HR still sees only Expenses under Payouts.
+
+
+## 2026-10-13 — Payroll: HR adjusts a draft, Finalize locks it, the Accountant marks it paid (Track B, API)
+
+**Decision:** payroll follows the same pattern as expenses. A generated run is a **draft** that HR (or Admin) can adjust: charge a day differently (an absent day not charged, a worked day charged) or add or take off an amount, each with a reason; every change is kept with what the rules gave, who and when, and the run shows the net the rules gave beside the net now. Regenerating a draft keeps the adjustments. **Finalize** (Accountant or Admin) locks it and now records who; the Accountant then marks the salary **paid**, with an optional reference. HR can read the whole month (not generate, finalize or pay). Payroll and expenses stay independent: salary can be generated from the 1st of the next month.
+
+**Open:** the web screens (month table, review with the day grid, adjust and pay dialogs), the payslip on the phone showing adjustments (it uses the shared `payslipOf`), and a Paid mark in the salary report.
+
+**Refs:** [`LLD/payroll.md`](LLD/payroll.md) (HR adjusts a draft).

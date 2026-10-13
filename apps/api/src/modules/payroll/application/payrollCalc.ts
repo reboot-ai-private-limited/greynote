@@ -1,4 +1,5 @@
 import { MAX_PAISE, proratePaise, type Paise } from '@/shared/money/paise.js';
+import type { PayrollAdjustment, PayrollDay } from '../domain/payrollRun.entity.js';
 import type { CtcLineSnapshot } from '../domain/ports.js';
 
 /** A month is priced as 30 days whatever its length (HLD 7): more unpaid days than that cannot deduct more than the base. */
@@ -43,4 +44,38 @@ export function netPayablePaise(p: { baseSalaryPaise: Paise; totalTaDaPaise: Pai
 export function monthlyGrossPaise(lines: readonly CtcLineSnapshot[]): Paise {
   const annual = lines.filter((l) => l.kind === 'EARNING').reduce((sum, l) => sum + l.amountPaise, 0);
   return proratePaise(annual, 1, 12);
+}
+
+/**
+ * What setting a day to `setDays` instead of the `ruleDays` the rules gave does to the net: not charging an absent day adds a day of pay,
+ * charging a worked day takes one off. A day is `base ÷ 30`, rounded half up once; halves come out of the same rounding.
+ */
+export function dayAdjustmentPaise(baseSalaryPaise: Paise, ruleDays: number, setDays: number): number {
+  const halves = Math.round((setDays - ruleDays) * 2);
+  if (halves === 0) return 0;
+  const amount = proratePaise(baseSalaryPaise, Math.abs(halves), DEDUCTION_DAYS * 2);
+  return halves > 0 ? -amount : amount;
+}
+
+/**
+ * The effect of a run's adjustments on its net, and each one's effect now. The latest change to a date counts and an earlier one to the same
+ * date counts for nothing; the rules' own charge for the day is read from the run's days as they are now (a regenerated draft may differ), so a
+ * day change keeps meaning "charge this day X" whatever the rules say later.
+ */
+export function adjustmentEffects(baseSalaryPaise: Paise, days: readonly PayrollDay[], adjustments: readonly PayrollAdjustment[]): { totalPaise: number; effects: Map<string, number> } {
+  const latest = new Map<string, string>();
+  for (const a of adjustments) if (a.kind === 'DAY' && a.date) latest.set(a.date, a.id);
+  const effects = new Map<string, number>();
+  let totalPaise = 0;
+  for (const a of adjustments) {
+    let effect = 0;
+    if (a.kind === 'AMOUNT') effect = a.amountPaise;
+    else if (a.date && latest.get(a.date) === a.id && a.setDays !== null) {
+      const rule = days.find((d) => d.date === a.date)?.deductedDays ?? a.ruleDays ?? 0;
+      effect = dayAdjustmentPaise(baseSalaryPaise, rule, a.setDays);
+    }
+    effects.set(a.id, effect);
+    totalPaise += effect;
+  }
+  return { totalPaise, effects };
 }

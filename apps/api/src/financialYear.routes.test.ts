@@ -49,6 +49,7 @@ const SCOPED = [
   '/api/sales/employee-sales',
   '/api/reports/employee-sales',
   '/api/payroll',
+  '/api/payroll/overview',
   '/api/payroll/me',
   '/api/attendance/month',
   '/api/attendance/payroll-calendar',

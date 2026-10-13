@@ -87,9 +87,10 @@ GET    /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 GET    /api/marketing/targets  ADMIN,FIELD
 GET    /api/marketing/targets/:userId  ADMIN,FIELD
 GET    /api/marketing/visuals  ADMIN,FIELD
-GET    /api/payroll  ACCOUNTANT,ADMIN
-GET    /api/payroll/:id  ACCOUNTANT,ADMIN
+GET    /api/payroll  ACCOUNTANT,ADMIN,HR
+GET    /api/payroll/:id  ACCOUNTANT,ADMIN,HR
 GET    /api/payroll/me  FIELD
+GET    /api/payroll/overview  ACCOUNTANT,ADMIN,HR
 GET    /api/planning/daily  FIELD
 GET    /api/planning/daily/:id  ADMIN,FIELD
 GET    /api/planning/daily/carry-over  FIELD
@@ -233,7 +234,10 @@ POST   /api/marketing/campaigns  ADMIN
 POST   /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 POST   /api/marketing/targets  ADMIN,FIELD
 POST   /api/marketing/visuals  ADMIN
+POST   /api/payroll/:id/adjustments  ADMIN,HR
+POST   /api/payroll/:id/days  ADMIN,HR
 POST   /api/payroll/:id/finalize  ACCOUNTANT,ADMIN
+POST   /api/payroll/:id/pay  ACCOUNTANT,ADMIN
 POST   /api/payroll/generate  ACCOUNTANT,ADMIN
 POST   /api/planning/daily/:id/submit  FIELD
 POST   /api/planning/daily/doctors  FIELD

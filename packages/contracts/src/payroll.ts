@@ -7,6 +7,70 @@ export interface PayrollCtcLineDto {
 }
 
 export type PayrollStatus = 'DRAFT' | 'FINALIZED';
+/** Where a month's salary stands for one employee, from not yet generated to paid. */
+export type PayrollStageDto = 'NOT_GENERATED' | 'DRAFT' | 'FINALIZED' | 'PAID';
+
+/** One day of the month as payroll saw it, and how much of it the rules charge. */
+export interface PayrollDayDto {
+  date: string;
+  /** `PRESENT`, `ABSENT`, `LEAVE`, `HOLIDAY`, `WEEKLY_OFF`, `STRIKE`, `NOT_YET`, `BEFORE_JOINING` or `UNKNOWN`. */
+  status: string;
+  /** Days of pay charged by the rules: an absent day 1, an unpaid leave day its portion, else 0. */
+  deductedDays: number;
+  leaveType: string | null;
+}
+/** What HR (or Admin) changed on a draft: a day charged differently, or an amount added or taken off. */
+export interface PayrollAdjustmentDto {
+  id: string;
+  kind: 'DAY' | 'AMOUNT';
+  date: string | null;
+  ruleDays: number | null;
+  setDays: number | null;
+  /** The effect on the net, signed (a day not charged adds a day of pay). */
+  amountPaise: number;
+  reason: string;
+  by: { id: string; name: string; role: string };
+  at: string;
+}
+export interface OverridePayrollDayDto {
+  date: string;
+  /** Days of pay to charge for the day: 0, 0.5 or 1. */
+  setDays: number;
+  reason: string;
+}
+export interface AdjustPayrollAmountDto {
+  /** Signed whole paise, never zero: positive adds to the net, negative takes off. */
+  amountPaise: number;
+  reason: string;
+}
+export interface PayPayrollDto {
+  reference?: string | null | undefined;
+}
+
+/** One employee's row of the month table. */
+export interface PayrollOverviewRowDto {
+  userId: string;
+  userName: string;
+  employeeCode: string;
+  stage: PayrollStageDto;
+  runId: string | null;
+  baseSalaryPaise: number | null;
+  unpaidLeaveDays: number;
+  absentDays: number;
+  /** Leave and absent deductions together. */
+  deductionPaise: number;
+  adjustmentPaise: number;
+  netPayablePaise: number | null;
+  finalizedAt: string | null;
+  paidAt: string | null;
+}
+export interface PayrollOverviewDto {
+  month: string;
+  /** The first day payroll can be generated (the month is over). */
+  generateFrom: string;
+  canGenerate: boolean;
+  rows: PayrollOverviewRowDto[];
+}
 
 /**
  * One payroll run: one field employee, one month. Money is integer paise. `base`, `TA/DA`, `reimbursement` and the deduction
@@ -38,8 +102,15 @@ export interface PayrollRunDto {
   absentDays: number;
   /** `absent days × base ÷ 30`, rounded half up once and frozen. */
   absentDeductionPaise: number;
-  /** `base − leave deduction − absent deduction` (older runs also add TA/DA and reimbursement). */
+  /** `base − leave deduction − absent deduction + adjustments` (older runs also add TA/DA and reimbursement). */
   netPayablePaise: number;
+  /** The month day by day as payroll saw it; empty on runs from before 2026-10-13. */
+  days: PayrollDayDto[];
+  adjustments: PayrollAdjustmentDto[];
+  /** The adjustments' total effect on the net, signed. */
+  adjustmentPaise: number;
+  /** The net the rules gave, before any adjustment. */
+  originalNetPayablePaise: number;
   /** The employee's ESI number when generated (a snapshot for the salary slip); null if none was set. */
   esiNumber: string | null;
   /** The joining date falls in this month: the full base is paid (no proration) and the Accountant is told. */
@@ -48,6 +119,11 @@ export interface PayrollRunDto {
   generatedBy: string;
   generatedAt: string;
   finalizedAt: string | null;
+  finalizedByName: string | null;
+  /** The Accountant marked the salary paid. */
+  paidAt: string | null;
+  paidByName: string | null;
+  paymentReference: string | null;
 }
 
 export type PayrollSkipReason = 'MONTH_NOT_ENDED' | 'ALREADY_FINALIZED' | 'RUN_NOT_FOUND' | 'USER_NOT_FOUND' | 'NOT_FIELD_EMPLOYEE' | 'NO_CTC' | 'ERROR';

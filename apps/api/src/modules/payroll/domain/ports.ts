@@ -25,9 +25,13 @@ export interface CtcLineSnapshot {
 export interface HrPort {
   /** Approved unpaid-leave days in the month, halves allowed. */
   getUnpaidLeaveDays(userId: string, month: string): Promise<number>;
+  /** The days of a range covered by a manager-approved or approved leave, each with whether it is paid (a probation day is paid), whole or half. */
+  listLeaveDays(userId: string, from: string, to: string): Promise<Array<{ date: string; portion: number; paid: boolean; leaveType: string | null; status: 'MANAGER_APPROVED' | 'APPROVED' }>>;
 }
 
 export interface AttendancePort {
+  /** The month day by day, with whether absent and strike days are deducted. */
+  getMonth(userId: string, month: string): Promise<{ days: Array<{ date: string; status: string }>; absentDeducts: boolean; strikeDeducts: boolean }>;
   /** The days of the month payroll would deduct (absent, and strike where switched on), 0 when absent days are not deducted. */
   countDeductibleDays(userId: string, month: string): Promise<{ absentDays: number; strikeDays: number; deductibleDays: number }>;
 }

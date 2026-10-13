@@ -4,9 +4,9 @@ import { readConfig, readDayStart, type ConfigReader } from '@/shared/config/rea
 import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import type { PayrollFilter, PayrollRunRepositoryPort } from '../../domain/payroll.repository.port.js';
 import { PAYROLL_CODES, PayrollRefusal, type PayrollCode } from '../../domain/payrollRefusal.js';
-import type { PayrollRun } from '../../domain/payrollRun.entity.js';
+import type { PayrollDay, PayrollRun } from '../../domain/payrollRun.entity.js';
 import type { AttendancePort, HrPort, IdentityPort } from '../../domain/ports.js';
-import { absentDeductionPaise, chargeableAbsentDays, leaveDeductionPaise, monthlyGrossPaise, netPayablePaise } from '../payrollCalc.js';
+import { absentDeductionPaise, adjustmentEffects, chargeableAbsentDays, leaveDeductionPaise, monthlyGrossPaise, netPayablePaise } from '../payrollCalc.js';
 
 export interface Actor {
   id: string;
@@ -87,6 +87,11 @@ export class GeneratePayrollUseCase {
     return results;
   }
 
+  private async dayRows(userId: string, month: string): Promise<PayrollDay[]> {
+    const [attendance, leave] = await Promise.all([this.attendance.getMonth(userId, month), this.hr.listLeaveDays(userId, `${month}-01`, `${month}-31`)]);
+    return buildDayRows(attendance, leave);
+  }
+
   private async one(actor: Actor, month: string, userId: string): Promise<GenerateOutcome> {
     const user = await this.identity.findUserSummary(userId);
     if (!user) throw new PayrollRefusal(PAYROLL_CODES.userNotFound, 'No such employee.');
@@ -101,6 +106,12 @@ export class GeneratePayrollUseCase {
     // Working days with no report, leave or strike cost a day's pay too (decision-log 2026-10-06, K20); never more than a month with the leave.
     const absentDays = chargeableAbsentDays(unpaidLeaveDays, (await this.attendance.countDeductibleDays(userId, month)).deductibleDays);
     const absentDeduction = absentDeductionPaise(absentDays, baseSalaryPaise);
+    // The month day by day, as payroll saw it: what each day was and how much of it the rules charge. HR's changes to this draft (if it has any)
+    // are kept through a regeneration and re-applied to the new figures.
+    const days = await this.dayRows(userId, month);
+    const adjustments = (await this.runs.findByUserMonth(userId, month))?.adjustments ?? [];
+    const originalNet = netPayablePaise({ baseSalaryPaise, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: deduction, absentDeductionPaise: absentDeduction });
+    const adjustmentPaise = adjustmentEffects(baseSalaryPaise, days, adjustments).totalPaise;
     const joinedInMonth = employment?.dateOfJoining ? (await this.clock.calendarDateOf(employment.dateOfJoining)).startsWith(`${month}-`) : false;
 
     const saved = await this.runs.saveDraft({
@@ -118,7 +129,11 @@ export class GeneratePayrollUseCase {
       leaveDeductionPaise: deduction,
       absentDays,
       absentDeductionPaise: absentDeduction,
-      netPayablePaise: netPayablePaise({ baseSalaryPaise, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: deduction, absentDeductionPaise: absentDeduction }),
+      netPayablePaise: originalNet + adjustmentPaise,
+      days,
+      adjustments,
+      adjustmentPaise,
+      originalNetPayablePaise: originalNet,
       joinedInMonth,
       generatedBy: actor.id,
       generatedAt: this.clock.now(),
@@ -128,6 +143,23 @@ export class GeneratePayrollUseCase {
   }
 }
 
+/** The days of a month with what each was and what the rules charge for it (decision-log 2026-10-13). */
+export function buildDayRows(
+  attendance: { days: Array<{ date: string; status: string }>; absentDeducts: boolean; strikeDeducts: boolean },
+  leave: Array<{ date: string; portion: number; paid: boolean; leaveType: string | null; status: string }>,
+): PayrollDay[] {
+  const leaveOn = new Map(leave.map((l) => [l.date, l]));
+  return attendance.days.map((d) => {
+    const l = leaveOn.get(d.date);
+    let deductedDays = 0;
+    // Only a fully approved unpaid leave is deducted by payroll; a manager-approved one is not yet.
+    if (d.status === 'LEAVE') deductedDays = l && !l.paid && l.status === 'APPROVED' ? l.portion : 0;
+    else if (d.status === 'ABSENT') deductedDays = attendance.absentDeducts ? 1 : 0;
+    else if (d.status === 'STRIKE') deductedDays = attendance.strikeDeducts ? 1 : 0;
+    return { date: d.date, status: d.status, deductedDays, leaveType: d.status === 'LEAVE' ? (l?.leaveType ?? null) : null };
+  });
+}
+
 /** `DRAFT` → `FINALIZED`, once: one conditional update, so of two racing finalizes exactly one wins. */
 export class FinalizePayrollUseCase {
   constructor(
@@ -135,11 +167,11 @@ export class FinalizePayrollUseCase {
     private readonly clock: PayrollClock,
   ) {}
 
-  async execute(id: string): Promise<PayrollRun> {
+  async execute(id: string, by: string): Promise<PayrollRun> {
     const run = await this.runs.findById(id);
     if (!run) throw new PayrollRefusal(PAYROLL_CODES.runNotFound, 'No such payroll run.');
     await this.clock.assertMonthOpen(run.month);
-    if (!(await this.runs.finalize(id, this.clock.now()))) throw new PayrollRefusal(PAYROLL_CODES.alreadyFinalized, 'This payroll run is already finalized.');
+    if (!(await this.runs.finalize(id, this.clock.now(), by))) throw new PayrollRefusal(PAYROLL_CODES.alreadyFinalized, 'This payroll run is already finalized.');
     return (await this.runs.findById(id)) ?? run;
   }
 }

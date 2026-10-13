@@ -26,7 +26,7 @@ export interface PayrollReportRow {
  */
 export interface PayrollPublicContract {
   generate(actor: { id: string; role: string }, input: { month: string; userIds?: string[] }): Promise<GenerateOutcome[]>;
-  finalize(payrollRunId: string): Promise<PayrollRun>;
+  finalize(payrollRunId: string, by: string): Promise<PayrollRun>;
   get(payrollRunId: string): Promise<PayrollRun>;
   list(filter: PayrollFilter): Promise<PayrollRun[]>;
   /** Every run in a range of months (both ends inclusive), light, newest month first — a report's read, with no cap of 1000. */

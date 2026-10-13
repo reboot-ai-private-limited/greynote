@@ -8,7 +8,8 @@ import { PayrollRefusal } from '../domain/payrollRefusal.js';
 import type { PayrollViews } from '../application/payrollViews.js';
 import type { Actor, FinalizePayrollUseCase, GeneratePayrollUseCase, GetPayrollRunUseCase, ListMyPayslipsUseCase, ListPayrollRunsUseCase } from '../application/usecases/payroll.usecase.js';
 import { payslipOf, type MyPayslipDto } from '@greynote/contracts';
-import type { generateBodySchema, listRunsQuerySchema } from './payroll.schemas.js';
+import type { AdjustPayrollUseCase, PayPayrollUseCase, PayrollOverviewUseCase } from '../application/usecases/payrollAdjust.usecase.js';
+import type { adjustAmountBodySchema, generateBodySchema, listRunsQuerySchema, overrideDayBodySchema, overviewQuerySchema, payBodySchema } from './payroll.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -28,17 +29,25 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type PayrollHandlers = Record<'generate' | 'finalize' | 'get' | 'list' | 'mine', RequestHandler>;
+export type PayrollHandlers = Record<'generate' | 'finalize' | 'get' | 'list' | 'mine' | 'overview' | 'overrideDay' | 'adjustAmount' | 'pay', RequestHandler>;
 
-export function makePayrollControllers(u: { generate: GeneratePayrollUseCase; finalize: FinalizePayrollUseCase; get: GetPayrollRunUseCase; list: ListPayrollRunsUseCase; mine: ListMyPayslipsUseCase; views: PayrollViews }): PayrollHandlers {
+export function makePayrollControllers(u: { generate: GeneratePayrollUseCase; finalize: FinalizePayrollUseCase; get: GetPayrollRunUseCase; list: ListPayrollRunsUseCase; mine: ListMyPayslipsUseCase; views: PayrollViews; overview: PayrollOverviewUseCase; adjust: AdjustPayrollUseCase; payRun: PayPayrollUseCase }): PayrollHandlers {
   return {
     generate: asyncHandler(async (req, res) => {
       const b = req.body as z.output<typeof generateBodySchema>;
       sendSuccess(req, res, await u.views.outcomes(await refusing(() => u.generate.execute(actorOf(req), b))), 'The payroll sheet was generated.', 200);
     }),
-    finalize: asyncHandler(async (req, res) => sendSuccess(req, res, await u.views.one(await refusing(() => u.finalize.execute(requiredParam(req.params, 'id')))), 'The payroll run is finalized.', 200)),
+    finalize: asyncHandler(async (req, res) => sendSuccess(req, res, await u.views.one(await refusing(() => u.finalize.execute(requiredParam(req.params, 'id'), actorOf(req).id))), 'The payroll run is finalized.', 200)),
     get: asyncHandler(async (req, res) => sendSuccess(req, res, await u.views.one(await refusing(() => u.get.execute(requiredParam(req.params, 'id')))), 'The payroll run.', 200)),
     list: asyncHandler(async (req, res) => sendSuccess(req, res, await u.views.many(await u.list.execute(req.query as z.output<typeof listRunsQuerySchema>)), 'Payroll runs.', 200)),
+    overview: asyncHandler(async (req, res) => {
+      const { month } = req.query as unknown as z.output<typeof overviewQuerySchema>;
+      const o = await refusing(() => u.overview.execute(actorOf(req), month));
+      sendSuccess(req, res, { ...o, rows: o.rows.map((r) => ({ ...r, finalizedAt: r.finalizedAt?.toISOString() ?? null, paidAt: r.paidAt?.toISOString() ?? null })) }, 'Every employee’s salary for the month.', 200);
+    }),
+    overrideDay: asyncHandler(async (req, res) => sendSuccess(req, res, await u.views.one(await refusing(() => u.adjust.overrideDay(actorOf(req), requiredParam(req.params, 'id'), req.body as z.output<typeof overrideDayBodySchema>))), 'The day was changed.', 200)),
+    adjustAmount: asyncHandler(async (req, res) => sendSuccess(req, res, await u.views.one(await refusing(() => u.adjust.addAmount(actorOf(req), requiredParam(req.params, 'id'), req.body as z.output<typeof adjustAmountBodySchema>))), 'The amount was added.', 200)),
+    pay: asyncHandler(async (req, res) => sendSuccess(req, res, await u.views.one(await refusing(() => u.payRun.execute(actorOf(req), requiredParam(req.params, 'id'), req.body as z.output<typeof payBodySchema>))), 'The salary was marked paid.', 200)),
     mine: asyncHandler(async (req, res) => {
       const runs = await u.mine.execute(actorOf(req).id, req.query as z.output<typeof listRunsQuerySchema>);
       const slips: MyPayslipDto[] = runs.map((r) => ({ id: r.id, month: r.month, finalizedAt: r.finalizedAt?.toISOString() ?? null, slip: payslipOf(r) }));

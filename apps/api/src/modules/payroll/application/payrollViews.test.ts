@@ -18,12 +18,20 @@ const run = (userId: string): PayrollRun => ({
   absentDays: 0,
   absentDeductionPaise: 0,
   netPayablePaise: 3_100_000,
+  days: [],
+  adjustments: [],
+  adjustmentPaise: 0,
+  originalNetPayablePaise: 3_100_000,
   esiNumber: null,
   joinedInMonth: false,
   status: 'DRAFT',
   generatedBy: 'acc',
   generatedAt: new Date('2026-10-01T00:00:00Z'),
   finalizedAt: null,
+  finalizedBy: null,
+  paidAt: null,
+  paidBy: null,
+  paymentReference: null,
 });
 
 function build() {
