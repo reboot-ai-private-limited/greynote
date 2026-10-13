@@ -915,3 +915,7 @@ Decision-log 2026-10-13. **Done (API + docs, unit-tested):** `POST /identity/aut
 ## Employee photo and GH ids (2026-10-13)
 
 Decision-log 2026-10-13. **Done (API + web + docs, unit-tested, not browser-checked; branch `feat/employee-photo`):** new employee ids `GH101, GH102 …`; optional profile photo for FIELD employees — a picture at the top of the wizard's Personal step (choose, choose another, remove), the same on the employee page, avatar in the Employees list, `photoUrl` on user detail, list and `/auth/me`. Replacing or removing deletes the old file from Cloudinary. Open: the phone showing and changing the photo; a browser walk-through against the dev database and Cloudinary.
+
+## Production database (2026-10-13)
+
+Decision-log 2026-10-13. **Done (unit-tested; rehearsed once on a scratch Atlas database, then dropped; branch `chore/prod-seed`):** `seed-production` and `export-pay-bands` scripts, both scripts built into the image, runbook step 8a in `manual_deploy.md`. **Open before go-live:** real pay band rates, the Admin's details, a prod Atlas database, prod Cloudinary account and `.env.prod`, then the real run.

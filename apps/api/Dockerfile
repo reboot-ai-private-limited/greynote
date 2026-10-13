@@ -56,6 +56,8 @@ ENV NODE_ENV=production
 # second layer.
 COPY --from=build --chown=node:node /prod/api/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/apps/api/dist     ./dist
+# The reviewed pay bands that `seed-production` reads (apps/api/prod-seed/payBands.json).
+COPY --chown=node:node apps/api/prod-seed ./prod-seed
 
 # Never root. Nothing here writes to disk — logs go to stdout for the container runtime.
 USER node

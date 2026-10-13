@@ -1,13 +1,8 @@
 import mongoose from 'mongoose';
 import prompts from 'prompts';
-import { buildApprovalContainer } from '@/modules/approval/approval.container.js';
-import { buildConfigContainer } from '@/modules/config/config.container.js';
-import { buildHrContainer } from '@/modules/hr/hr.container.js';
-import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
-import { buildSyncContainer } from '@/modules/sync/sync.container.js';
-import { buildTerritoryContainer } from '@/modules/territory/territory.container.js';
 import { env } from '@/config/env.js';
 import { logger } from '@/shared/logging/logger.js';
+import { seedBaseline } from './baselineSeed.js';
 
 /**
  * A second composition root (docs/engineering/module-anatomy.md's "worker process, a script"
@@ -28,22 +23,7 @@ async function main(): Promise<void> {
   await mongoose.connect(env.MONGO_URI);
   logger.info('connected to MongoDB');
 
-  const config = buildConfigContainer();
-  await config.seed();
-  logger.info('SystemConfig defaults seeded (existing Admin-edited values untouched)');
-
-  const identity = buildIdentityContainer(config.contract);
-  await identity.seedRoles();
-  logger.info('Role rows seeded');
-  await identity.seedPayComponents();
-  logger.info('CTC pay components seeded (existing Admin-edited formula untouched)');
-
-  const approval = buildApprovalContainer(identity.contract, config.contract);
-  // HR registers its slice of the phone's cache with Sync as it builds; a seed run just needs somewhere to put it.
-  const sync = buildSyncContainer(identity.contract, config.contract);
-  const hr = buildHrContainer(identity.contract, buildTerritoryContainer(identity.contract, config.contract).contract, approval.contract, sync.contract, config.contract);
-  await hr.seed();
-  logger.info('Starting leave types seeded (existing ones untouched)');
+  const identity = await seedBaseline();
 
   if (await identity.hasAdmin()) {
     logger.info('An ADMIN user already exists — skipping bootstrap Admin creation.');

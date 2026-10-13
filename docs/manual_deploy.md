@@ -109,6 +109,29 @@ only if no `ADMIN` user exists yet, prompts interactively for the first Admin's 
 entry masked, typed twice). `docker compose exec` allocates a terminal for this automatically when
 run from an interactive shell, so the prompts appear normally.
 
+### Step 8a — A brand-new production database (go-live)
+
+For the real production database, which starts empty and is **not** the dev database (decision-log 2026-10-13), use the
+non-interactive seed instead of `seed.js`:
+
+1. In Atlas create a database with its own name (e.g. `greynote-prod`) and put it in `MONGO_URI` in `.env.prod`. Use new
+   JWT secrets and the production Cloudinary account there too.
+2. Check `apps/api/prod-seed/payBands.json` (pay bands / grades with TA and DA in paise). It was exported from dev with
+   `pnpm --filter @greynote/api export:pay-bands`; edit the numbers to the real ones before building the image.
+3. Rehearse on a scratch database name first, then drop it. Then, for real:
+
+```bash
+docker compose -f docker-compose.prod.yml exec \
+  -e ADMIN_CODE=… -e ADMIN_NAME=… -e ADMIN_EMAIL=… -e ADMIN_PHONE=… -e DEMO_MANAGER_PASSWORD=… \
+  api node dist/scripts/seed-production.js --confirm-db=greynote-prod
+```
+
+It refuses unless the database named in `MONGO_URI` is repeated in `--confirm-db` and has no users. It seeds the config
+defaults, roles, pay components, leave types, the five designations, the pay bands, the Admin and the Play reviewer's
+demo accounts (DEMOMGR, DEMOMR1-3, same password as in Play Console). The Admin's password is random, printed once to the
+terminal and not stored — copy it into a password manager and change it after the first sign-in. Everything else
+(zones, HQs, routes, doctors, employees) is entered in the portal.
+
 ## Step 9 — Convert money to paise (once, when upgrading past 2026-09-29)
 
 Money became whole paise under new field names (`docs/decision-log.md`, 2026-09-29). A database that

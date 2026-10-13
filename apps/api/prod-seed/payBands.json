@@ -1,0 +1,30 @@
+[
+  {
+    "name": "G1",
+    "taPerKmRatePaise": 1000,
+    "hqDaPaise": 10000,
+    "exStationDaPaise": 20000,
+    "outStationDaPaise": 30000
+  },
+  {
+    "name": "G2",
+    "taPerKmRatePaise": 1000,
+    "hqDaPaise": 10000,
+    "exStationDaPaise": 20000,
+    "outStationDaPaise": 30000
+  },
+  {
+    "name": "G3",
+    "taPerKmRatePaise": 1000,
+    "hqDaPaise": 10000,
+    "exStationDaPaise": 20000,
+    "outStationDaPaise": 30000
+  },
+  {
+    "name": "Trainee",
+    "taPerKmRatePaise": 1000,
+    "hqDaPaise": 10000,
+    "exStationDaPaise": 20000,
+    "outStationDaPaise": 30000
+  }
+]

@@ -19,6 +19,8 @@
         "migrate:paybands": "tsx src/scripts/migrate-paybands.ts",
         "seed:sample-sales": "tsx src/scripts/seed-sample-sales.ts",
         "seed:demo-manager": "tsx src/scripts/seed-demo-manager.ts",
+        "export:pay-bands": "tsx src/scripts/export-pay-bands.ts",
+        "seed:production": "tsx src/scripts/seed-production.ts",
         "migrate:specialties": "tsx src/scripts/migrate-specialties.ts",
         "migrate:distributors": "tsx src/scripts/migrate-distributors.ts",
         "migrate:targets": "tsx src/scripts/migrate-targets-to-ranges.ts",
