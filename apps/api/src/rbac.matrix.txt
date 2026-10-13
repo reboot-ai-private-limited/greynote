@@ -195,6 +195,7 @@ POST   /api/hr/leaves  FIELD
 POST   /api/hr/leaves/:id/approval-grant  ADMIN
 POST   /api/hr/leaves/:id/attachments  FIELD
 POST   /api/identity/auth/delete-account  ANY
+POST   /api/identity/auth/delete-account-public  PUBLIC
 POST   /api/identity/auth/login  PUBLIC
 POST   /api/identity/auth/logout  ANY
 POST   /api/identity/auth/logout-all  ADMIN

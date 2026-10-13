@@ -24,6 +24,12 @@ export const deleteAccountBodySchema = z.object({
   password: passwordSchema,
 });
 
+// No complexity rules: this only checks the password they already have.
+export const deleteAccountPublicBodySchema = z.object({
+  employeeCode: z.string().trim().min(1).max(50),
+  password: z.string().min(1).max(200),
+});
+
 export const logoutAllBodySchema = z.object({
   userId: z.string().min(1),
 });

@@ -1,10 +1,13 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
+import { AppError } from '@/shared/errors/AppError.js';
+import { rateLimit } from 'express-rate-limit';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import {
   deleteAccountBodySchema,
+  deleteAccountPublicBodySchema,
   loginBodySchema,
   logoutAllBodySchema,
   logoutBodySchema,
@@ -12,6 +15,7 @@ import {
 } from './auth.schemas.js';
 import type {
   makeDeleteAccountController,
+  makeDeleteAccountPublicController,
   makeLoginController,
   makeLogoutAllController,
   makeLogoutController,
@@ -89,6 +93,48 @@ openApiRegistry.registerPath({
   },
 });
 
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/identity/auth/delete-account-public',
+  tags: ['Identity / Auth'],
+  summary:
+    'Public deletion page on the company website (Google Play URL): employee code + password, no session. FIELD only; rate limited',
+  request: { body: { content: { 'application/json': { schema: deleteAccountPublicBodySchema } } } },
+  responses: {
+    200: { description: 'Account deleted' },
+    401: { description: 'Invalid employee code or password' },
+    409: { description: 'Manager still has active reports (reason HAS_ACTIVE_REPORTS), or already deleted' },
+    429: { description: 'Too many attempts' },
+  },
+});
+
+const tooMany: RequestHandler = (_req, _res, next) =>
+  next(
+    new AppError({
+      statusCode: 429,
+      code: 'FORBIDDEN',
+      message: 'Too many attempts. Try again in 15 minutes.',
+      publicDetails: { reason: 'RATE_LIMITED' },
+    }),
+  );
+const WINDOW_MS = 15 * 60 * 1000;
+
+/** A public door that checks passwords and then destroys data: capped per address and per employee code. */
+function deletePublicLimiters() {
+  return [
+    rateLimit({ windowMs: WINDOW_MS, limit: 5, standardHeaders: true, legacyHeaders: false, handler: tooMany }),
+    rateLimit({
+      windowMs: WINDOW_MS,
+      limit: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      handler: tooMany,
+      keyGenerator: (req) => `code:${String(req.body?.employeeCode ?? '').trim().toLowerCase()}`,
+      validate: { keyGeneratorIpFallback: false },
+    }),
+  ];
+}
+
 export function buildAuthRouter(controllers: {
   login: ReturnType<typeof makeLoginController>;
   refresh: ReturnType<typeof makeRefreshController>;
@@ -96,6 +142,7 @@ export function buildAuthRouter(controllers: {
   logoutAll: ReturnType<typeof makeLogoutAllController>;
   me: ReturnType<typeof makeMeController>;
   deleteAccount: ReturnType<typeof makeDeleteAccountController>;
+  deleteAccountPublic: ReturnType<typeof makeDeleteAccountPublicController>;
 }): Router {
   const router = Router();
 
@@ -104,6 +151,12 @@ export function buildAuthRouter(controllers: {
   router.post('/logout', authenticate(), validate({ body: logoutBodySchema }), controllers.logout);
   router.get('/me', authenticate(), controllers.me);
   router.post('/delete-account', authenticate(), validate({ body: deleteAccountBodySchema }), controllers.deleteAccount);
+  router.post(
+    '/delete-account-public',
+    ...deletePublicLimiters(),
+    validate({ body: deleteAccountPublicBodySchema }),
+    controllers.deleteAccountPublic,
+  );
   router.post(
     '/logout-all',
     authenticate(),

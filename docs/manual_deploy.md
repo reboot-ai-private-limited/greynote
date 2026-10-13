@@ -82,7 +82,8 @@ cp apps/api/.env.prod.example apps/api/.env.prod
 # nano apps/api/.env.prod
 #   - MONGO_URI: the staging Atlas connection string from Step 5
 #   - CORS_ORIGINS: this VM's own origin, the portal's own origin, e.g. http://your_staging_vm_ip:3001 —
-#     the example ships http://localhost:3001, which is the local dev origin only
+#     the example ships http://localhost:3001, which is the local dev origin only.
+#     In production add https://www.greynotehealth.com too (comma-separated): the public account-deletion form lives there
 ```
 
 ## Step 7 — Build and run the stack

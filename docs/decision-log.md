@@ -2100,3 +2100,14 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** the Reports link and the other items in Step 4 are still the seven separate entries until that step.
 
 **Refs:** `apps/web/src/components/shell/nav-items.ts`, `NoAccessScreen.tsx`, [`LLD/identity.md`](LLD/identity.md), [`testing/01-access-roles.md`](testing/01-access-roles.md).
+
+
+## 2026-10-13 — Public account-deletion page and the first rate limit
+
+**Decision:** Google Play needs a public deletion URL, so the company website gets a form (employee code + password) that calls a new unauthenticated route, `POST /api/identity/auth/delete-account-public`. It runs the same deletion as the in-app route, so the account is closed and cannot sign in again. A wrong code and a wrong password give the same `401` in the same time. Only field accounts; office roles are refused. The route is limited to 5 tries per 15 minutes per address and per employee code (`express-rate-limit`), because it checks passwords and then destroys data. `https://www.greynotehealth.com` is added to the production `CORS_ORIGINS`.
+
+**Cost:** this is the API's first rate limit; sign-in has none (follow-up). The limiter is in memory per process, so it is per server instance.
+
+**Open:** the apex domain `greynotehealth.com` if used; a support email on the page for office roles, which this route refuses.
+
+**Refs:** [`LLD/identity.md`](LLD/identity.md), [`mobile/account.md`](mobile/account.md), `apps/api/src/modules/identity/interface/auth.route.ts`.

@@ -39,6 +39,28 @@ export class DeleteAccountUseCase {
     await this.run(userId);
   }
 
+  /**
+   * The public deletion page on the company website (Google Play's account-deletion URL): no session,
+   * so the employee code and password are the proof. Same message for a wrong code and a wrong password.
+   */
+  async deleteByCredentials(employeeCode: string, password: string): Promise<void> {
+    const invalid = () => AppError.unauthenticated('Invalid employee code or password.');
+    const user = await this.userRepository.findByEmployeeCode(employeeCode);
+    if (!user) {
+      // Spend the same time as a real check so response time doesn't reveal which codes exist.
+      await this.passwordHasher.verify(password, await this.dummyHash());
+      throw invalid();
+    }
+    if (!(await this.passwordHasher.verify(password, user.passwordHash))) throw invalid();
+    await this.run(user.id);
+  }
+
+  private dummyHashPromise?: Promise<string>;
+  private dummyHash(): Promise<string> {
+    this.dummyHashPromise ??= this.passwordHasher.hash(randomBytes(16).toString('hex'));
+    return this.dummyHashPromise;
+  }
+
   /** Admin/HR doing it on an employee's written request. */
   async anonymise(userId: string): Promise<void> {
     await this.run(userId);

@@ -19,3 +19,7 @@ Errors: `403` the password is wrong (the account is untouched); `409` with `data
 ## Screen
 
 Profile → **Delete account** → confirm text above → password field → red **Delete my account** button. Needs a network connection (no offline queue). The route also works while a past financial year is being viewed.
+
+## Public deletion page (Google Play URL)
+
+`https://www.greynotehealth.com/delete-account` — a form on the company website: employee code + password, then the same deletion via `POST /api/identity/auth/delete-account-public` (no sign-in). The website origin must be in the API's `CORS_ORIGINS`. Five tries per 15 minutes per address and per code (`429`). Field accounts only; a deleted account can no longer sign in to the app.

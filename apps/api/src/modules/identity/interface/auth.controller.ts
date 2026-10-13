@@ -58,3 +58,10 @@ export function makeDeleteAccountController(useCase: DeleteAccountUseCase): Requ
     sendSuccess(req, res, {}, 'Your account has been deleted.', 200);
   });
 }
+
+export function makeDeleteAccountPublicController(useCase: DeleteAccountUseCase): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    await useCase.deleteByCredentials(req.body.employeeCode, req.body.password);
+    sendSuccess(req, res, {}, 'Your account has been deleted.', 200);
+  });
+}

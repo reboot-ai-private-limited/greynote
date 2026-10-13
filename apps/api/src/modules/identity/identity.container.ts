@@ -90,6 +90,7 @@ import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner
 import {
   makeLoginController,
   makeDeleteAccountController,
+  makeDeleteAccountPublicController,
   makeLogoutAllController,
   makeLogoutController,
   makeMeController,
@@ -329,6 +330,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     logoutAll: makeLogoutAllController(logoutAllSessions),
     me: makeMeController(getUserSummary),
     deleteAccount: makeDeleteAccountController(deleteAccount),
+    deleteAccountPublic: makeDeleteAccountPublicController(deleteAccount),
   };
   const usersControllers = {
     list: makeListUsersController(listUsers),

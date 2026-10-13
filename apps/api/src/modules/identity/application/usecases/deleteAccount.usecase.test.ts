@@ -80,4 +80,48 @@ describe('DeleteAccountUseCase', () => {
     const t = setup({ user: { ...USER, deletedAt: new Date() } });
     await expect(t.useCase.anonymise('u1')).rejects.toMatchObject({ statusCode: 409 });
   });
+
+  describe('deleteByCredentials (public page)', () => {
+    function withLookup(t: ReturnType<typeof setup>, found: User | null) {
+      (t.users as unknown as { findByEmployeeCode: unknown }).findByEmployeeCode = vi.fn(async () => found);
+    }
+
+    it('deletes with the right code and password', async () => {
+      const t = setup();
+      withLookup(t, USER);
+      await t.useCase.deleteByCredentials('MR001', 'secret123');
+      expect(t.users.update).toHaveBeenCalledWith('u1', expect.objectContaining({ status: 'inactive', name: DELETED_NAME }));
+      expect(t.sessions.revokeAllForUser).toHaveBeenCalledWith('u1', 'ADMIN');
+    });
+
+    it('gives the same 401 for an unknown code and a wrong password, and changes nothing', async () => {
+      const unknown = setup();
+      withLookup(unknown, null);
+      await expect(unknown.useCase.deleteByCredentials('NOPE', 'x')).rejects.toMatchObject({
+        statusCode: 401,
+        message: 'Invalid employee code or password.',
+      });
+      const wrong = setup({ passwordOk: false });
+      withLookup(wrong, USER);
+      await expect(wrong.useCase.deleteByCredentials('MR001', 'x')).rejects.toMatchObject({
+        statusCode: 401,
+        message: 'Invalid employee code or password.',
+      });
+      expect(wrong.users.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses office roles, the demo account and an already-deleted account', async () => {
+      const admin = setup({ role: 'ADMIN' });
+      withLookup(admin, USER);
+      await expect(admin.useCase.deleteByCredentials('MR001', 'x')).rejects.toMatchObject({ statusCode: 400 });
+      const demoUser = { ...USER, isDemo: true };
+      const demo = setup({ user: demoUser });
+      withLookup(demo, demoUser);
+      await expect(demo.useCase.deleteByCredentials('MR001', 'x')).rejects.toMatchObject({ statusCode: 403 });
+      const goneUser = { ...USER, deletedAt: new Date() };
+      const gone = setup({ user: goneUser });
+      withLookup(gone, goneUser);
+      await expect(gone.useCase.deleteByCredentials('MR001', 'x')).rejects.toMatchObject({ statusCode: 409 });
+    });
+  });
 });
