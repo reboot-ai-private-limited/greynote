@@ -20,9 +20,9 @@ import { useCachedFetch } from '@/offline/cached-fetch';
 import { monthOf } from '@/offline/day';
 
 const SCOPES: { value: TeamScopeFilter; label: string }[] = [
-  { value: 'all', label: 'Everyone' },
-  { value: 'direct', label: 'Direct reports' },
-  { value: 'indirect', label: 'Further down' },
+  { value: 'all', label: 'All my team' },
+  { value: 'direct', label: 'My direct reports' },
+  { value: 'indirect', label: 'Their teams' },
 ];
 
 /**
@@ -80,7 +80,7 @@ export default function TeamOverviewScreen() {
               </View>
             </View>
             <ThemedText type="small">{`${r.workingDays} working days · plans ${r.plan.submitted} sent, ${r.plan.approved} approved · reports ${r.dcr.submitted} sent, ${r.dcr.approved} approved`}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">{`${r.field.calls} calls${r.field.callsPerDay === null ? '' : ` (${r.field.callsPerDay.toFixed(1)} a day)`} · ${r.field.followups} follow-ups · ${r.field.lateDays} late · ${r.field.notInPlan} not in plan`}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">{`${r.field.calls} calls${r.field.callsPerDay === null ? '' : ` (${r.field.callsPerDay.toFixed(1)} a day)`} · ${r.field.followups} follow-up${r.field.followups === 1 ? '' : 's'} · ${r.field.lateDays} late · ${r.field.notInPlan} not in plan`}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">{`${r.attendance.present} present · ${r.attendance.leave} leave · ${r.attendance.absent} absent`}</ThemedText>
             {r.targetPaise > 0 ? (
               <>

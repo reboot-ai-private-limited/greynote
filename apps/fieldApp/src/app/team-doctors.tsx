@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -36,7 +37,8 @@ export default function TeamDoctorsScreen() {
   const { today } = useDayGate();
   const { team, loaded } = useTeam();
 
-  const [userId, setUserId] = useState<string | null>(null);
+  const preset = useLocalSearchParams<{ userId?: string }>().userId;
+  const [userId, setUserId] = useState<string | null>(typeof preset === 'string' && preset !== '' ? preset : null);
   const [search, setSearch] = useState('');
   const [doctors, setDoctors] = useState<TeamDoctor[] | null>(null);
   const [loading, setLoading] = useState(false);

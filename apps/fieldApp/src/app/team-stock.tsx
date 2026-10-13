@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
+import { UserFilterBanner, useUserFilter } from '@/components/team/user-filter';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
@@ -18,9 +19,9 @@ import { useCachedFetch } from '@/offline/cached-fetch';
 import { monthOf } from '@/offline/day';
 
 const SCOPES: { value: TeamScopeFilter; label: string }[] = [
-  { value: 'all', label: 'Everyone' },
-  { value: 'direct', label: 'Direct reports' },
-  { value: 'indirect', label: 'Further down' },
+  { value: 'all', label: 'All my team' },
+  { value: 'direct', label: 'My direct reports' },
+  { value: 'indirect', label: 'Their teams' },
 ];
 
 const STATE_ACCENT: Record<SecondaryState, Accent> = { NOT_ENTERED: 'slate', DRAFT: 'slate', PENDING: 'amber', APPROVED: 'green', REJECTED: 'red' };
@@ -41,16 +42,18 @@ export default function TeamStockScreen() {
   const [scope, setScope] = useState<TeamScopeFilter>('all');
   const [focus, setFocus] = useState<Focus>('ALL');
 
-  const list = useCachedFetch<TeamStock>(`team-stock:${fy.year}:${month}:${scope}:${focus}`, () =>
-    getTeamStock({ month, scope, missingStock: focus === 'MISSING' ? true : undefined, secondary: focus === 'WAITING' ? 'PENDING' : undefined }),
+  const { userId, clear } = useUserFilter();
+  const list = useCachedFetch<TeamStock>(`team-stock:${fy.year}:${month}:${scope}:${focus}:${userId ?? ''}`, () =>
+    getTeamStock({ month, scope, userId, missingStock: focus === 'MISSING' ? true : undefined, secondary: focus === 'WAITING' ? 'PENDING' : undefined }),
   );
   const data = list.data;
 
   return (
     <ScreenShell title="Stock & secondary" subtitle="Who still has to send their month" onRefresh={list.reload} refreshing={list.refreshing}>
       <FyBanner />
+      <UserFilterBanner userId={userId} onClear={clear} />
       <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={fy.lastMonth} />
-      <ChoiceChips options={SCOPES} value={scope} onChange={setScope} />
+      {userId ? null : <ChoiceChips options={SCOPES} value={scope} onChange={setScope} />}
       <ChoiceChips
         options={[{ value: 'ALL' as const, label: 'All' }, { value: 'MISSING' as const, label: 'Missing stock' }, { value: 'WAITING' as const, label: 'Sent to me' }]}
         value={focus}

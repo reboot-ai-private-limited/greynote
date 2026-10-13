@@ -26,6 +26,7 @@ const KIND_ACCENT: Record<string, Accent> = {
   NEW_DOCTOR: 'purple',
   DOCTOR_SERVICE: 'orange',
   EXPENSE_MONTH: 'amber',
+  SECONDARY_SALES: 'green',
 };
 
 const STATUS_ACCENT: Record<ApprovalStatus, Accent> = {
@@ -35,6 +36,16 @@ const STATUS_ACCENT: Record<ApprovalStatus, Accent> = {
   REJECTED: 'red',
   WITHDRAWN: 'slate',
   REOPENED: 'slate',
+};
+
+/** In a manager's list the status is one or two words, so the person's name keeps its room. */
+const STATUS_SHORT: Record<ApprovalStatus, string> = {
+  SUBMITTED: 'Waiting',
+  MANAGER_APPROVED: 'With Admin',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  WITHDRAWN: 'Withdrawn',
+  REOPENED: 'Reopened',
 };
 
 const initials = (name: string) =>
@@ -73,18 +84,20 @@ export function ApprovalRow({ item, onPress, selecting, selected, own }: Props) 
               </ThemedText>
             </View>
             {item.overdue ? (
-              <ThemedText type="smallBold" themeColor="warning" style={styles.small}>
-                Overdue
-              </ThemedText>
+              <View style={[styles.kind, { backgroundColor: Accents.red.bg }]}>
+                <ThemedText type="smallBold" style={[styles.kindText, { color: Accents.red.solid }]}>
+                  Overdue
+                </ThemedText>
+              </View>
             ) : null}
           </View>
           {own ? null : (
-            <ThemedText type="smallBold" numberOfLines={1}>
-              {item.submitter ? `${item.submitter.name} · ${item.submitter.employeeCode}` : 'Unknown employee'}
+            <ThemedText type="smallBold" numberOfLines={2}>
+              {item.submitter ? item.submitter.name : 'Unknown employee'}
             </ThemedText>
           )}
           <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
-            {`Sent ${formatWhen(item.submittedAt)}`}
+            {`${!own && item.submitter ? `${item.submitter.employeeCode} · ` : ''}Sent ${formatWhen(item.submittedAt)}`}
           </ThemedText>
           {own && item.status === 'REJECTED' && item.lastAction.comment ? (
             <ThemedText type="small" style={styles.small}>{`Reason: ${item.lastAction.comment}`}</ThemedText>
@@ -93,7 +106,7 @@ export function ApprovalRow({ item, onPress, selecting, selected, own }: Props) 
         <View style={styles.right}>
           <View style={[styles.badge, { backgroundColor: status.bg, borderColor: status.border }]}>
             <ThemedText type="smallBold" style={[styles.badgeText, { color: item.status === 'REJECTED' ? theme.danger : status.solid }]} numberOfLines={2}>
-              {STATUS_LABEL[item.status]}
+              {own ? STATUS_LABEL[item.status] : STATUS_SHORT[item.status]}
             </ThemedText>
           </View>
           {!item.canAct && !own ? (

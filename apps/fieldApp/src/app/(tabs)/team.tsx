@@ -1,173 +1,72 @@
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApprovalRow } from '@/components/approval-row';
-import { ChoiceChips } from '@/components/choice-chips';
 import { FyBanner } from '@/components/fy-banner';
-import { Notice } from '@/components/notice';
 import { PillToggle } from '@/components/pill-toggle';
-import { PrimaryButton } from '@/components/primary-button';
-import { Skeleton } from '@/components/skeleton';
-import { TeamTools } from '@/components/team-tools';
-import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ApprovalsPanel } from '@/components/team/approvals-panel';
+import { PeoplePanel } from '@/components/team/people-panel';
+import { ReportsPanel } from '@/components/team/reports-panel';
 import { BottomTabInset, Gradients, Spacing, WideContentWidth } from '@/constants/theme';
-import { ApiError, NetworkError } from '@/lib/api';
-import { useFinancialYear } from '@/lib/financial-year';
-import { LATE_APPROVAL_TEXT, bulkDecide, isLateApproval, listInbox, listTeam, type ApprovalItem, type TeamScope } from '@/lib/approvals';
 import { useApprovalSummary } from '@/lib/team-section';
-import { useOnline } from '@/offline';
 
-type View_ = 'inbox' | 'team';
-type TeamFilter = Extract<TeamScope, 'all' | 'direct' | 'indirect'>;
-
-const VIEWS: { value: View_; label: string }[] = [
-  { value: 'inbox', label: 'Inbox' },
-  { value: 'team', label: 'Team activity' },
-];
-const SCOPES: { value: TeamFilter; label: string }[] = [
-  { value: 'all', label: 'Everyone' },
-  { value: 'direct', label: 'Direct reports' },
-  { value: 'indirect', label: 'Further down' },
-];
-
-const errorText = (err: unknown) =>
-  err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
+type Section = 'approvals' | 'people' | 'reports';
 
 /**
- * Team (PRD §7.1, managers only). Inbox: what your direct reports sent that waits on you. Team activity: your whole
- * downline's requests — direct reports you can act on, deeper levels are read-only. Tap a request to review it.
- * Needs a connection: approvals are decided on the server's live state.
+ * Team (PRD §7.1, managers only), in three sections: Approvals (what waits on you, and everything your team sent, with filters),
+ * People (your team as a list you can drill into, with today's state for each) and Reports (the team-wide views and the few things you
+ * set for someone). `?section=` opens one directly. Needs a connection: approvals are decided on the server's live state.
  */
 export default function TeamScreen() {
-  const online = useOnline();
-  const fy = useFinancialYear();
-  const [view, setView] = useState<View_>('inbox');
-  const [scope, setScope] = useState<TeamFilter>('all');
-  const [items, setItems] = useState<ApprovalItem[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const params = useLocalSearchParams<{ section?: string }>();
+  const [section, setSection] = useState<Section>(params.section === 'people' || params.section === 'reports' ? params.section : 'approvals');
   const [refreshing, setRefreshing] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
-  // Bulk: tick several requests you can act on and decide them together.
-  const [selecting, setSelecting] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkStep, setBulkStep] = useState<null | 'approve' | 'reject'>(null);
-  const [bulkComment, setBulkComment] = useState('');
-  const [bulkBusy, setBulkBusy] = useState(false);
-  const [bulkMsg, setBulkMsg] = useState<{ tone: 'danger' | 'success' | 'warning'; text: string } | null>(null);
-
-  useEffect(() => {
-    if (!online) return;
-    let alive = true;
-    (async () => {
-      try {
-        const page = view === 'inbox' ? await listInbox() : await listTeam(scope);
-        if (!alive) return;
-        setItems(page.items);
-        setError(null);
-      } catch (err) {
-        if (alive) setError(errorText(err));
-      } finally {
-        if (alive) setRefreshing(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [online, view, scope, reloadKey, fy.year]);
+  // Changing this remounts the open section, which reads everything again.
+  const [round, setRound] = useState(0);
 
   // The badge: what waits on you and how much of it is overdue (read again whenever this tab is shown).
   const badge = useApprovalSummary();
   const refreshBadge = badge.refresh;
-
-  // Coming back from a request (after a decision) shows the list as it now stands.
   useFocusEffect(
     useCallback(() => {
-      setReloadKey((k) => k + 1);
       refreshBadge();
     }, [refreshBadge]),
   );
 
-  const refresh = useCallback(() => {
+  const refresh = () => {
     setRefreshing(true);
-    setReloadKey((k) => k + 1);
-  }, []);
-
-  // A past year is read-only: nothing in it can be decided from here.
-  const actionable = fy.isPast ? [] : (items ?? []).filter((i) => i.canAct);
-  const pickedItems = actionable.filter((i) => selected.has(i.id));
-
-  const toggle = (id: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  const endSelecting = () => {
-    setSelecting(false);
-    setSelected(new Set());
-    setBulkStep(null);
-    setBulkComment('');
+    refreshBadge();
+    setRound((r) => r + 1);
+    setTimeout(() => setRefreshing(false), 600);
   };
 
-  const runBulk = async () => {
-    if (!bulkStep || pickedItems.length === 0) return;
-    if (bulkStep === 'reject' && !bulkComment.trim()) {
-      setBulkMsg({ tone: 'danger', text: 'Give the reason for rejecting — the employees will see it.' });
-      return;
-    }
-    setBulkBusy(true);
-    setBulkMsg(null);
-    try {
-      const { results } = await bulkDecide(bulkStep === 'approve' ? 'APPROVE' : 'REJECT', pickedItems, bulkComment);
-      const done = results.filter((r) => r.ok).length;
-      const failed = results.filter((r) => !r.ok);
-      const word = bulkStep === 'approve' ? 'approved' : 'rejected';
-      setBulkMsg(
-        failed.length === 0
-          ? { tone: 'success', text: `${done} request${done === 1 ? '' : 's'} ${word}.` }
-          : { tone: 'warning', text: `${done} ${word}, ${failed.length} not done: ${failed.map((f) => (f.ok ? '' : isLateApproval(f.statusCode, f.message) ? LATE_APPROVAL_TEXT : f.message)).join('; ')}` },
-      );
-      endSelecting();
-      setReloadKey((k) => k + 1);
-    } catch (err) {
-      setBulkMsg({ tone: 'danger', text: errorText(err) });
-    } finally {
-      setBulkBusy(false);
-    }
-  };
-
-  const switchView = (next: View_) => {
-    endSelecting();
-    setItems(null);
-    setError(null);
-    setView(next);
-  };
+  const waiting = badge.summary?.total ?? null;
+  const sections: { value: Section; label: string; badge?: number | null }[] = [
+    { value: 'approvals', label: 'Approvals', badge: waiting },
+    { value: 'people', label: 'People' },
+    { value: 'reports', label: 'Reports' },
+  ];
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <ScrollView
-          contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
+        <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
           <LinearGradient colors={Gradients.header} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
             <View style={styles.headerText}>
               <ThemedText type="smallBold" style={styles.headerTitle}>
                 Team
               </ThemedText>
               <ThemedText type="small" style={styles.headerSub}>
-                Approvals and tools for your team
+                Approvals, people and reports for your team
               </ThemedText>
             </View>
             <View style={styles.waiting}>
               <ThemedText type="smallBold" style={styles.waitingNumber}>
-                {badge.summary ? String(badge.summary.total) : view === 'inbox' && items ? String(actionable.length) : '–'}
+                {waiting === null ? '–' : String(waiting)}
               </ThemedText>
               <ThemedText type="small" style={styles.waitingLabel}>
                 {badge.summary && badge.summary.overdue > 0 ? `waiting · ${badge.summary.overdue} overdue` : 'waiting'}
@@ -175,72 +74,11 @@ export default function TeamScreen() {
             </View>
           </LinearGradient>
           <FyBanner />
-          <View style={styles.sectionHeader}>
-            <ThemedText type="smallBold" style={styles.sectionTitle}>
-              Manager tools
-            </ThemedText>
-          </View>
-          <TeamTools />
-          <PillToggle options={VIEWS} value={view} onChange={switchView} />
-          {view === 'team' ? <ChoiceChips options={SCOPES} value={scope} onChange={(s) => { setItems(null); setScope(s); }} /> : null}
-          <View style={styles.sectionHeader}>
-            <ThemedText type="smallBold" style={styles.sectionTitle}>
-              {view === 'inbox' ? 'Waiting for you' : 'Team activity'}
-            </ThemedText>
-            {items ? (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.sectionCount}>
-                {`${items.length} request${items.length === 1 ? '' : 's'}`}
-              </ThemedText>
-            ) : null}
-          </View>
+          <PillToggle options={sections} value={section} onChange={setSection} />
 
-          {view === 'inbox' && actionable.length > 0 && !selecting ? (
-            <PrimaryButton label="Select several" variant="text" onPress={() => { setBulkMsg(null); setSelecting(true); }} />
-          ) : null}
-          {selecting ? (
-            <ThemedView type="backgroundElement" style={styles.bulk}>
-              <ThemedText type="smallBold">{`${pickedItems.length} selected`}</ThemedText>
-              {bulkStep ? (
-                <>
-                  <TextField
-                    label={bulkStep === 'approve' ? 'Comment (optional)' : 'Reason (required)'}
-                    value={bulkComment}
-                    onChangeText={(t) => { setBulkComment(t); setBulkMsg(null); }}
-                    multiline
-                    maxLength={500}
-                    editable={!bulkBusy}
-                  />
-                  <PrimaryButton label={bulkStep === 'approve' ? `Confirm: approve ${pickedItems.length}` : `Confirm: reject ${pickedItems.length}`} loading={bulkBusy} onPress={runBulk} />
-                  <PrimaryButton label="Back" variant="text" disabled={bulkBusy} onPress={() => setBulkStep(null)} />
-                </>
-              ) : (
-                <>
-                  <PrimaryButton label={`Approve ${pickedItems.length}`} disabled={pickedItems.length === 0} onPress={() => { setBulkMsg(null); setBulkStep('approve'); }} />
-                  <PrimaryButton label={`Reject ${pickedItems.length}`} variant="text" disabled={pickedItems.length === 0} onPress={() => { setBulkMsg(null); setBulkStep('reject'); }} />
-                  <PrimaryButton label="Cancel" variant="text" onPress={endSelecting} />
-                </>
-              )}
-            </ThemedView>
-          ) : null}
-          {bulkMsg ? <Notice tone={bulkMsg.tone}>{bulkMsg.text}</Notice> : null}
-
-          {!online ? <Notice tone="info">You’re offline. Approvals need the internet — connect to see and decide requests.</Notice> : null}
-          {error ? <Notice tone="danger">{error}</Notice> : null}
-          {online && items === null && !error ? <Skeleton cards={3} lines={3} /> : null}
-          {items !== null && items.length === 0 ? (
-            <Notice tone="info">
-              {view === 'inbox' ? 'Nothing is waiting for you. New requests from your team show up here.' : 'No requests from your team yet.'}
-            </Notice>
-          ) : null}
-          {(items ?? []).map((item) => (
-            <ApprovalRow
-              key={item.id}
-              item={item}
-              selecting={selecting && item.canAct}
-              selected={selected.has(item.id)}
-              onPress={() => (selecting ? (item.canAct ? toggle(item.id) : undefined) : router.push({ pathname: '/approval/[id]', params: { id: item.id } }))}
-            />
-          ))}
+          {section === 'approvals' ? <ApprovalsPanel key={`a${round}`} summary={badge.summary} refreshSummary={refreshBadge} /> : null}
+          {section === 'people' ? <PeoplePanel key={`p${round}`} onShowApprovals={() => setSection('approvals')} /> : null}
+          {section === 'reports' ? <ReportsPanel /> : null}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -255,10 +93,6 @@ const styles = StyleSheet.create({
   waiting: { alignItems: 'center', borderRadius: Spacing.three, backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
   waitingNumber: { color: '#FFFFFF', fontSize: 22, lineHeight: 26 },
   waitingLabel: { color: 'rgba(255,255,255,0.9)', fontSize: 11, lineHeight: 14 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingTop: Spacing.one },
-  sectionTitle: { fontSize: 16, lineHeight: 22 },
-  sectionCount: { fontSize: 12, lineHeight: 16 },
-  bulk: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   container: { flex: 1 },
   safeArea: { flex: 1 },
   content: {

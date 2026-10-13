@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -88,7 +89,8 @@ export default function LateGrantsScreen() {
     [colleagues, team],
   );
 
-  const [userId, setUserId] = useState<string | null>(null);
+  const preset = useLocalSearchParams<{ userId?: string }>().userId;
+  const [userId, setUserId] = useState<string | null>(typeof preset === 'string' && preset !== '' ? preset : null);
   const [kind, setKind] = useState<Kind>('DAILY_PLAN');
   const isExpense = kind === 'EXPENSE';
   const [day, setDay] = useState(today);

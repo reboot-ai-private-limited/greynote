@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -25,7 +26,9 @@ export default function UnblockScreen() {
   const online = useOnline();
   const { team, loaded } = useTeam();
 
-  const [userId, setUserId] = useState<string | null>(null);
+  // Opened from a person (their page, or a blocked row) it starts with them chosen.
+  const preset = useLocalSearchParams<{ userId?: string }>().userId;
+  const [userId, setUserId] = useState<string | null>(typeof preset === 'string' && preset !== '' ? preset : null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'warning'; text: string } | null>(null);

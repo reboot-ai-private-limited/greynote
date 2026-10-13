@@ -27,9 +27,9 @@ const STATE_ACCENT: Record<DayState, Accent> = {
 };
 
 const SCOPES: { value: TeamScopeFilter; label: string }[] = [
-  { value: 'all', label: 'Everyone' },
-  { value: 'direct', label: 'Direct reports' },
-  { value: 'indirect', label: 'Further down' },
+  { value: 'all', label: 'All my team' },
+  { value: 'direct', label: 'My direct reports' },
+  { value: 'indirect', label: 'Their teams' },
 ];
 
 type Focus = 'ALL' | 'ATTENTION';

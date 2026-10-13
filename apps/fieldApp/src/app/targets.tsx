@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -67,8 +67,11 @@ export default function TargetsScreen() {
   const report = useCachedFetch(`emp-report:${fy.year}:${month}`, () => getEmployeeSalesReport(me?.id ?? '', month, month), tick);
   const figures = report.data;
 
-  const [setting, setSetting] = useState(false);
-  const [who, setWho] = useState<string | null>(null);
+  // Opened from a person's page it starts on "Set a target" for them.
+  const preset = useLocalSearchParams<{ userId?: string }>().userId;
+  const presetWho = typeof preset === 'string' && preset !== '' ? preset : null;
+  const [setting, setSetting] = useState(presetWho !== null && isManager);
+  const [who, setWho] = useState<string | null>(presetWho);
   const [unit, setUnit] = useState<Unit>('AMOUNT');
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
+import { UserFilterBanner, useUserFilter } from '@/components/team/user-filter';
 import { DateStepper } from '@/components/date-stepper';
 import { Notice } from '@/components/notice';
 import { ScreenShell } from '@/components/screen-shell';
@@ -17,9 +18,9 @@ import { useCachedFetch } from '@/offline/cached-fetch';
 import { prettyDay, prettyMonth } from '@/offline/day';
 
 const SCOPES: { value: TeamScopeFilter; label: string }[] = [
-  { value: 'all', label: 'Everyone' },
-  { value: 'direct', label: 'Direct reports' },
-  { value: 'indirect', label: 'Further down' },
+  { value: 'all', label: 'All my team' },
+  { value: 'direct', label: 'My direct reports' },
+  { value: 'indirect', label: 'Their teams' },
 ];
 
 const STATUS_ACCENT: Record<string, Accent> = { APPROVED: 'green', SUBMITTED: 'amber', MANAGER_APPROVED: 'blue', REJECTED: 'red', DRAFT: 'slate', WITHDRAWN: 'slate', REOPENED: 'slate' };
@@ -37,14 +38,16 @@ export default function TeamPlansScreen() {
   const [scope, setScope] = useState<TeamScopeFilter>('all');
   const [status, setStatus] = useState<string>('ALL');
 
-  const list = useCachedFetch<TeamPlans>(`team-plans:${day}:${scope}:${status}`, () => getTeamPlans({ date: day, scope, planStatus: status === 'ALL' ? undefined : status }));
+  const { userId, clear } = useUserFilter();
+  const list = useCachedFetch<TeamPlans>(`team-plans:${day}:${scope}:${status}:${userId ?? ''}`, () => getTeamPlans({ date: day, scope, userId, planStatus: status === 'ALL' ? undefined : status }));
   const data = list.data;
   const statuses = Object.keys(data?.counts ?? {}).filter((k) => (data?.counts[k] ?? 0) > 0);
 
   return (
     <ScreenShell title="Team plans" subtitle={prettyDay(day)} onRefresh={list.reload} refreshing={list.refreshing}>
+      <UserFilterBanner userId={userId} onClear={clear} />
       <DateStepper label="Day" value={day} onChange={setDate} />
-      <ChoiceChips options={SCOPES} value={scope} onChange={setScope} />
+      {userId ? null : <ChoiceChips options={SCOPES} value={scope} onChange={setScope} />}
       {!online ? <Notice tone="info">You’re offline. Connect to see your team’s plans.</Notice> : null}
       {list.error && online ? <Notice tone="danger">{list.error}</Notice> : null}
       {list.loading && !data ? <Skeleton cards={3} lines={2} /> : null}

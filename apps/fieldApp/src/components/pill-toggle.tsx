@@ -5,7 +5,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { ThemedText } from './themed-text';
 
 type Props<T extends string> = {
-  options: { value: T; label: string }[];
+  /** `badge`: a count shown in a small red circle after the label (hidden at 0). */
+  options: { value: T; label: string; badge?: number | null }[];
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean;
@@ -26,9 +27,18 @@ export function PillToggle<T extends string>({ options, value, onChange, disable
             accessibilityState={{ selected, disabled }}
             onPress={() => onChange(o.value)}
             style={[styles.option, selected && { backgroundColor: theme.background }, selected && styles.selected]}>
-            <ThemedText type="smallBold" themeColor={selected ? 'primary' : 'textSecondary'} numberOfLines={1}>
-              {o.label}
-            </ThemedText>
+            <View style={styles.labelRow}>
+              <ThemedText type="smallBold" themeColor={selected ? 'primary' : 'textSecondary'} numberOfLines={1}>
+                {o.label}
+              </ThemedText>
+              {o.badge ? (
+                <View style={[styles.badge, { backgroundColor: theme.danger }]}>
+                  <ThemedText type="smallBold" themeColor="onPrimary" style={styles.badgeText}>
+                    {o.badge > 99 ? '99+' : String(o.badge)}
+                  </ThemedText>
+                </View>
+              ) : null}
+            </View>
           </Pressable>
         );
       })}
@@ -37,8 +47,11 @@ export function PillToggle<T extends string>({ options, value, onChange, disable
 }
 
 const styles = StyleSheet.create({
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  badge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { fontSize: 11, lineHeight: 14 },
   track: { flexDirection: 'row', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 4 },
-  option: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 9, paddingVertical: 8, paddingHorizontal: 16 },
+  option: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 9, paddingVertical: 8, paddingHorizontal: 8 },
   selected: {
     shadowColor: '#1E3A8A',
     shadowOpacity: 0.12,

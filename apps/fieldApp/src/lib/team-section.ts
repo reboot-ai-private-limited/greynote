@@ -74,6 +74,9 @@ export type TeamMember = {
 export const listTeamMembers = (p: { scope?: TeamScopeFilter; search?: string; page?: number; pageSize?: number } = {}) =>
   apiGet<Paged<TeamMember>>(`/team/members${query({ status: 'active', pageSize: 100, ...p })}`, { auth: true, fy: true });
 
+/** The whole roster, however many pages. */
+export const listAllTeamMembers = () => allPages((page) => listTeamMembers({ page }));
+
 /* ── today ── */
 
 export type DayState = 'REPORTED' | 'WORKING' | 'NOT_YET' | 'NOT_STARTED' | 'MISSED' | 'ON_LEAVE' | 'OFF';
@@ -94,8 +97,18 @@ export type TeamToday = Paged<TeamDayRow> & {
   tiles: { total: number; blocked: number; noPlan: number; attention: number } & Partial<Record<DayState, number>>;
 };
 
-export const getTeamToday = (p: { date?: string; scope?: TeamScopeFilter; state?: DayState; attention?: boolean; page?: number } = {}) =>
+export const getTeamToday = (p: { date?: string; scope?: TeamScopeFilter; userId?: string; state?: DayState; attention?: boolean; page?: number } = {}) =>
   apiGet<TeamToday>(`/team/today${query({ pageSize: 100, ...p })}`, { auth: true, fy: true });
+
+/** Every page of a list the server cuts at 100, so a big team (a ZSM's) is counted whole. Stops at 20 pages. */
+async function allPages<T, P extends Paged<T>>(read: (page: number) => Promise<P>): Promise<P> {
+  const first = await read(1);
+  const items = [...first.items];
+  for (let page = 2; page <= Math.min(first.totalPages, 20); page++) items.push(...(await read(page)).items);
+  return { ...first, items };
+}
+
+export const getAllTeamToday = (p: { date?: string; scope?: TeamScopeFilter } = {}) => allPages((page) => getTeamToday({ ...p, page }));
 
 /* ── plans ── */
 
@@ -107,7 +120,7 @@ export type TeamPlanRow = {
 
 export type TeamPlans = Paged<TeamPlanRow> & { date: string; month: string; counts: Record<string, number> };
 
-export const getTeamPlans = (p: { date?: string; scope?: TeamScopeFilter; planStatus?: string; page?: number } = {}) =>
+export const getTeamPlans = (p: { date?: string; scope?: TeamScopeFilter; userId?: string; planStatus?: string; page?: number } = {}) =>
   apiGet<TeamPlans>(`/team/plans${query({ pageSize: 100, ...p })}`, { auth: true, fy: true });
 
 /* ── leave calendar ── */
@@ -124,7 +137,7 @@ export type TeamLeave = {
 };
 
 /** A window of at most 93 days; not paged. */
-export const getTeamLeaves = (p: { from: string; to: string; scope?: TeamScopeFilter; status?: TeamLeave['status'] }) =>
+export const getTeamLeaves = (p: { from: string; to: string; scope?: TeamScopeFilter; userId?: string; status?: TeamLeave['status'] }) =>
   apiGet<{ from: string; to: string; items: TeamLeave[] }>(`/team/leaves${query(p)}`, { auth: true, fy: true });
 
 /* ── orders ── */
@@ -148,7 +161,7 @@ export type TeamOrders = Paged<TeamOrderRow> & {
   truncated?: boolean;
 };
 
-export const getTeamOrders = (p: { from: string; to: string; scope?: TeamScopeFilter; status?: TeamOrderRow['status']; outletType?: 'CHEMIST' | 'DISTRIBUTOR'; page?: number }) =>
+export const getTeamOrders = (p: { from: string; to: string; scope?: TeamScopeFilter; userId?: string; status?: TeamOrderRow['status']; outletType?: 'CHEMIST' | 'DISTRIBUTOR'; page?: number }) =>
   apiGet<TeamOrders>(`/team/orders${query({ pageSize: 100, ...p })}`, { auth: true, fy: true });
 
 /* ── stock and secondary ── */
@@ -168,7 +181,7 @@ export type TeamStock = Paged<TeamStockRow> & {
   tiles: { total: number; withMissingStock: number; secondary: Partial<Record<SecondaryState, number>> };
 };
 
-export const getTeamStock = (p: { month: string; scope?: TeamScopeFilter; missingStock?: boolean; secondary?: SecondaryState; page?: number }) =>
+export const getTeamStock = (p: { month: string; scope?: TeamScopeFilter; userId?: string; missingStock?: boolean; secondary?: SecondaryState; page?: number }) =>
   apiGet<TeamStock>(`/team/stock${query({ pageSize: 100, ...p })}`, { auth: true, fy: true });
 
 /* ── overview report ── */
@@ -212,7 +225,7 @@ export type TeamOverview = Omit<Paged<TeamOverviewRow>, 'items'> & {
   totals: Record<string, number>;
 };
 
-export const getTeamOverview = (p: { month: string; scope?: TeamScopeFilter; search?: string; page?: number }) =>
+export const getTeamOverview = (p: { month: string; scope?: TeamScopeFilter; userId?: string; search?: string; page?: number }) =>
   apiGet<TeamOverview>(`/reports/team/overview${query({ pageSize: 100, ...p })}`, { auth: true, fy: true });
 
 /* ── one person ── */

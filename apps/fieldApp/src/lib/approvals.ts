@@ -52,7 +52,11 @@ export const KIND_LABEL: Record<string, string> = {
   NEW_DOCTOR: 'New doctor',
   DOCTOR_SERVICE: 'Doctor service',
   EXPENSE_MONTH: 'Monthly expenses',
+  SECONDARY_SALES: 'Secondary sales',
 };
+
+/** The request types a manager can filter by, in the order the chips show them. */
+export const APPROVAL_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN', 'DCR', 'LEAVE', 'EXPENSE_MONTH', 'NEW_DOCTOR', 'DOCTOR_SERVICE', 'SECONDARY_SALES'] as const;
 export const kindLabel = (kind: string) => KIND_LABEL[kind] ?? kind;
 
 export const STATUS_LABEL: Record<ApprovalStatus, string> = {
@@ -64,11 +68,27 @@ export const STATUS_LABEL: Record<ApprovalStatus, string> = {
   REOPENED: 'Reopened',
 };
 
-/** The year switch (lib/financial-year.ts) bounds both lists: a past year shows that year's requests. */
-export const listInbox = (pageSize = 50) => apiGet<Page<ApprovalItem>>(`/approvals/inbox?pageSize=${pageSize}`, { fy: true });
+/**
+ * What both lists can be narrowed by (the server's own parameters). `from` and `to` are instants with an offset; "overdue" is
+ * not a server filter, so the screen applies it to what came back.
+ */
+export type ApprovalFilter = { kind?: string; status?: ApprovalStatus; submitterId?: string; from?: Date; to?: Date };
 
-export const listTeam = (scope: TeamScope, pageSize = 50) =>
-  apiGet<Page<ApprovalItem>>(`/approvals/team?scope=${scope}&pageSize=${pageSize}`, { fy: true });
+const filterQuery = (f: ApprovalFilter) =>
+  [
+    f.kind ? `&kind=${encodeURIComponent(f.kind)}` : '',
+    f.status ? `&status=${f.status}` : '',
+    f.submitterId ? `&submitterId=${f.submitterId}` : '',
+    f.from ? `&from=${encodeURIComponent(f.from.toISOString())}` : '',
+    f.to ? `&to=${encodeURIComponent(f.to.toISOString())}` : '',
+  ].join('');
+
+/** The year switch (lib/financial-year.ts) bounds both lists: a past year shows that year's requests. */
+export const listInbox = (pageSize = 50, filter: ApprovalFilter = {}) =>
+  apiGet<Page<ApprovalItem>>(`/approvals/inbox?pageSize=${pageSize}${filterQuery(filter)}`, { fy: true });
+
+export const listTeam = (scope: TeamScope, pageSize = 50, filter: ApprovalFilter = {}) =>
+  apiGet<Page<ApprovalItem>>(`/approvals/team?scope=${scope}&pageSize=${pageSize}${filterQuery(filter)}`, { fy: true });
 
 /** My own submissions, newest first, in any status — also bounded by the year switch. */
 export const listMine = (pageSize = 100) => apiGet<Page<ApprovalItem>>(`/approvals/mine?pageSize=${pageSize}`, { fy: true });

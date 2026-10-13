@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -28,7 +28,9 @@ const REPORTS: { value: Report; label: string }[] = [
   { value: 'sales', label: 'Sales & compliance' },
 ];
 
-const statusText = (status: string) => STATUS_LABEL[status as ApprovalStatus] ?? (status === 'DRAFT' ? 'Not sent' : status);
+/** One or two words, so the person's name keeps its room on the row. */
+const SHORT_STATUS: Record<string, string> = { SUBMITTED: 'Waiting', MANAGER_APPROVED: 'With Admin' };
+const statusText = (status: string) => SHORT_STATUS[status] ?? STATUS_LABEL[status as ApprovalStatus] ?? (status === 'DRAFT' ? 'Not sent' : status);
 const STATUS_ACCENT: Record<string, Accent> = { SUBMITTED: 'amber', MANAGER_APPROVED: 'amber', APPROVED: 'green', REJECTED: 'red' };
 
 const bounds = (month: string) => {
@@ -80,7 +82,8 @@ function TeamDcrList({ month, year }: { month: string; year: number }) {
   const theme = useTheme();
   const { team } = useTeam();
   const names = useMemo(() => new Map(team.map((t) => [t.id, t.name])), [team]);
-  const [who, setWho] = useState<string>('ALL');
+  const preset = useLocalSearchParams<{ userId?: string }>().userId;
+  const [who, setWho] = useState<string>(typeof preset === 'string' && preset !== '' ? preset : 'ALL');
   const { from, to } = bounds(month);
   const list = useCachedFetch(`team-dcr:${year}:${month}:${who}`, () => listTeamDcrs(from, to, who === 'ALL' ? null : who));
   const rows = [...(list.data ?? [])].sort((a, b) => b.reportDate.localeCompare(a.reportDate) || (names.get(a.userId) ?? '').localeCompare(names.get(b.userId) ?? ''));

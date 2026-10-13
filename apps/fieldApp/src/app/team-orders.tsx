@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
+import { UserFilterBanner, useUserFilter } from '@/components/team/user-filter';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
@@ -18,9 +19,9 @@ import { useCachedFetch } from '@/offline/cached-fetch';
 import { datesInMonth, monthOf, prettyDay } from '@/offline/day';
 
 const SCOPES: { value: TeamScopeFilter; label: string }[] = [
-  { value: 'all', label: 'Everyone' },
-  { value: 'direct', label: 'Direct reports' },
-  { value: 'indirect', label: 'Further down' },
+  { value: 'all', label: 'All my team' },
+  { value: 'direct', label: 'My direct reports' },
+  { value: 'indirect', label: 'Their teams' },
 ];
 
 type Filter = 'ALL' | TeamOrderRow['status'];
@@ -43,14 +44,16 @@ export default function TeamOrdersScreen() {
   const days = datesInMonth(month);
   const from = days[0]!;
   const to = days[days.length - 1]!;
-  const list = useCachedFetch<TeamOrders>(`team-orders:${fy.year}:${month}:${scope}:${status}`, () => getTeamOrders({ from, to, scope, status: status === 'ALL' ? undefined : status }));
+  const { userId, clear } = useUserFilter();
+  const list = useCachedFetch<TeamOrders>(`team-orders:${fy.year}:${month}:${scope}:${status}:${userId ?? ''}`, () => getTeamOrders({ from, to, scope, userId, status: status === 'ALL' ? undefined : status }));
   const data = list.data;
 
   return (
     <ScreenShell title="Team orders" subtitle="Orders placed by your team" onRefresh={list.reload} refreshing={list.refreshing}>
       <FyBanner />
+      <UserFilterBanner userId={userId} onClear={clear} />
       <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={fy.lastMonth} />
-      <ChoiceChips options={SCOPES} value={scope} onChange={setScope} />
+      {userId ? null : <ChoiceChips options={SCOPES} value={scope} onChange={setScope} />}
       <ChoiceChips
         options={[{ value: 'ALL' as const, label: 'All' }, { value: 'PLACED' as const, label: 'Placed' }, { value: 'DONE' as const, label: 'Done' }, { value: 'CANCELLED' as const, label: 'Cancelled' }]}
         value={status}
