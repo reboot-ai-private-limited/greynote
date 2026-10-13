@@ -2122,3 +2122,18 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Open:** an "awaiting" default filter on Orders.
 
 **Refs:** [`LLD/sales-and-orders.md`](LLD/sales-and-orders.md), [`LLD/field-activity.md`](LLD/field-activity.md), `apps/api/src/rbac.matrix.txt`.
+
+
+## 2026-10-13 — Payouts redesign: Expenses and Payroll as two independent month-runs (decided, not built)
+
+**Decision:** Expenses and Payroll each become a month page on the same pattern: month picker, a table of employees, a review page for one employee-month, HR edits, **Accountant finalizes and pays**, Admin can do everything. They run on **different clocks and never block each other**: expenses are submitted by the 7th, approved by the 10th and paid by the 15th of the next month (`EXPENSE_PAYOUT_DAY`); a month's payroll can be run from the 1st of the next month. Each page shows its own due date.
+
+**Expenses (Track A, built first):** Expenses and Expense payouts merge into one page (name, code, TA, DA, other, total, status: Not submitted, Submitted, Approved, Finalized, Paid). The review page shows each day: date, work type, workstation (HQ, ex-station, out-station), route, TA, DA, other, and whether a leave day is paid or unpaid (read only there). HR may raise or lower a day's amounts with a mandatory reason; the original, the new value, who and when are kept, shown as "edited by HR" to the employee, Accountant and Admin. **Finalize** locks the month and payout is made only from a finalized month. The Late expenses page goes away: Admin's "Allow late" is a button on the month row.
+
+**Payroll (Track B, after A):** same pattern. HR can mark a day paid or unpaid (an override on the payroll run, with a reason; the leave request is not rewritten) and add a plus or minus adjustment (reason), audited the same way. Generate makes an editable draft; **Finalize locks it**; a new **Paid** state (date, reference) follows. The payslip shows the adjustments.
+
+**Today (for the record):** no one can edit expense amounts after submit (Admin reopen is the only way); payroll has Draft and Finalized only, is run by Accountant and Admin (not HR), and cannot be edited; there is no original-versus-edited record anywhere.
+
+**Open:** the phone's "edited by HR" display (mobile team); whether HR gets a read view of the expense approval list.
+
+**Refs:** the plan in `/home/arjit/.claude/plans/payouts-redesign.md`, [`LLD/field-activity.md`](LLD/field-activity.md), [`LLD/payroll.md`](LLD/payroll.md).
