@@ -194,7 +194,8 @@ export type TeamOverviewRow = {
     chemistCalls: number;
     followups: number;
     calls: number;
-    callsPerDay: number;
+    /** `null` when the person has no reported day in the month. */
+    callsPerDay: number | null;
     unconfirmed: number;
     notInPlan: number;
     offRouteCalls: number;
@@ -203,7 +204,9 @@ export type TeamOverviewRow = {
   attendance: { present: number; leave: number; absent: number; strike: number; off: number };
 };
 
-export type TeamOverview = Paged<TeamOverviewRow> & {
+/** Unlike the other team lists, the overview names its list `rows`, not `items`. */
+export type TeamOverview = Omit<Paged<TeamOverviewRow>, 'items'> & {
+  rows: TeamOverviewRow[];
   from: string;
   to: string;
   totals: Record<string, number>;

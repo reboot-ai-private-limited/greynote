@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
@@ -152,7 +153,7 @@ function LeaveSummary({ recordId }: { recordId: string }) {
   );
 }
 
-function NewDoctorSummary({ recordId }: { recordId: string }) {
+function NewDoctorSummary({ recordId, canCorrect, who }: { recordId: string; canCorrect: boolean; who?: string }) {
   const { data, error } = useRecord(() => getDoctorRecord(recordId), 0);
   const where = data?.capturedLocation ?? data?.location ?? null;
   return (
@@ -174,6 +175,9 @@ function NewDoctorSummary({ recordId }: { recordId: string }) {
               variant="text"
               onPress={() => void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${where.latitude},${where.longitude}`)}
             />
+          ) : null}
+          {canCorrect && data.status === 'pending' ? (
+            <PrimaryButton label="Correct details or location" variant="text" onPress={() => router.push({ pathname: '/review-doctor', params: { id: recordId, who: who ?? '' } })} />
           ) : null}
         </>
       ) : null}
@@ -270,7 +274,7 @@ export function ApprovalSummary({ request, aside }: { request: ApprovalDetail; a
       record = <LeaveSummary recordId={request.recordId} />;
       break;
     case 'NEW_DOCTOR':
-      record = <NewDoctorSummary recordId={request.recordId} />;
+      record = <NewDoctorSummary recordId={request.recordId} canCorrect={request.canAct} who={request.submitter?.name} />;
       break;
     case 'DOCTOR_SERVICE':
       record = <DoctorServiceSummary recordId={request.recordId} />;

@@ -16,7 +16,7 @@ import { Spacing, type Accent } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
-import { setTarget } from '@/lib/marketing';
+import { deleteTarget, setTarget } from '@/lib/marketing';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { getEmployeeSalesReport } from '@/lib/sales';
 import { useSessionUser } from '@/lib/session';
@@ -111,6 +111,24 @@ export default function TargetsScreen() {
     }
   };
 
+  // A target is taken off only after a second tap ("Remove" then "Yes, remove"); the server decides who may.
+  const [removing, setRemoving] = useState<string | null>(null);
+  const remove = async (id: string) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await deleteTarget(id);
+      setMsg({ tone: 'success', text: 'Target removed.' });
+      setRemoving(null);
+      setTick((t) => t + 1);
+    } catch (err) {
+      setMsg({ tone: 'danger', text: errorText(err) });
+      setRemoving(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   // Products worth a row: one with a target or a secondary entered (primary alone is shown in the totals).
   const rows = (figures?.products ?? []).filter((p) => p.targetPaise > 0 || p.secondaryQty > 0 || p.primaryQty !== 0);
 
@@ -159,6 +177,16 @@ export default function TargetsScreen() {
                   <Meter value={t.achievedQty} total={t.targetQty} accent={accentFor(t.achievementQtyPercent)} />
                   <ThemedText type="small">{`${t.achievedQty} of ${t.targetQty} units · ${percentText(t.achievementQtyPercent)}`}</ThemedText>
                 </>
+              ) : null}
+              {isManager && online && !fy.isPast ? (
+                removing === t.id ? (
+                  <View style={styles.head}>
+                    <PrimaryButton label="Yes, remove" loading={busy} onPress={() => remove(t.id)} />
+                    <PrimaryButton label="Keep it" variant="text" disabled={busy} onPress={() => setRemoving(null)} />
+                  </View>
+                ) : (
+                  <PrimaryButton label="Remove this target" variant="text" disabled={busy} onPress={() => setRemoving(t.id)} />
+                )
               ) : null}
             </InfoCard>
           ))}

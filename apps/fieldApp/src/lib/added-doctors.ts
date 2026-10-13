@@ -64,3 +64,36 @@ export const updateDoctorTargets = (id: string, body: DoctorTargetsBody) =>
 /** A doctor the owner can still change: sent back, withdrawn or reopened. */
 export const ADDED_EDITABLE = ['REJECTED', 'WITHDRAWN', 'REOPENED'];
 
+
+/** What an approver may correct on a doctor that is waiting for approval. Send only what changed; `null` clears an optional detail. */
+export type ReviewDoctorBody = Partial<{
+  name: string;
+  address: string;
+  specialty: string;
+  qualification: string;
+  email: string | null;
+  clinicName: string | null;
+  phone: string | null;
+  dateOfBirth: string | null;
+  anniversary: string | null;
+  visitFrequency: number | null;
+  location: GeoPoint;
+}>;
+
+/** Manager or Admin: correct a pending doctor (any detail and its location) before approving. Online only. */
+export const reviewDoctor = (id: string, body: ReviewDoctorBody) => apiPatch<unknown>(`/field-master-data/doctors/${id}/review`, body);
+
+/** A doctor assigned to someone in a manager's team, as `GET /field-master-data/doctors/team` returns it. */
+export type TeamDoctor = {
+  id: string;
+  name: string;
+  specialty: string;
+  clinicName?: string | null;
+  dateOfBirth?: string | null;
+  anniversary?: string | null;
+  visitFrequency?: number | null;
+  assignedTo: { userId: string; name: string; employeeCode: string } | null;
+};
+
+export const listTeamDoctors = async (userId: string, search?: string) =>
+  (await apiGet<Page<TeamDoctor>>(`/field-master-data/doctors/team?userId=${userId}&pageSize=100${search ? `&search=${encodeURIComponent(search)}` : ''}`)).items;

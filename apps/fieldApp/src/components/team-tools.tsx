@@ -21,6 +21,7 @@ const TOOLS: Tool[] = [
   { title: 'Orders', about: 'Orders placed by your team', href: '/team-orders', icon: sym('cart', 'shopping_cart'), accent: 'orange' },
   { title: 'Stock & secondary', about: 'Who still has to send their month', href: '/team-stock', icon: sym('shippingbox', 'inventory_2'), accent: 'lime' },
   { title: 'Team reports', about: 'Daily reports, sales and plan compliance', href: '/team-reports', icon: sym('chart.bar', 'bar_chart'), accent: 'blue' },
+  { title: 'Visit targets', about: 'How often each doctor is visited', href: '/team-doctors', icon: sym('target', 'track_changes'), accent: 'red' },
   { title: 'Late submissions', about: 'Let someone send a plan or expenses late', href: '/late-grants', icon: sym('clock.badge.checkmark', 'schedule'), accent: 'amber' },
   { title: 'Unblock', about: 'Clear a block for a missed report', href: '/unblock', icon: sym('lock.open', 'lock_open'), accent: 'purple' },
 ];

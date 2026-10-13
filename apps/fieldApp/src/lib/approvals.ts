@@ -207,6 +207,8 @@ export type DoctorRecord = {
   specialty: string;
   qualification: string;
   visitFrequency?: number | null;
+  dateOfBirth?: string | null;
+  anniversary?: string | null;
   /** Where the doctor is registered — the approver may have corrected it — and where the phone was when it was added. */
   location: { latitude: number; longitude: number } | null;
   capturedLocation: { latitude: number; longitude: number } | null;

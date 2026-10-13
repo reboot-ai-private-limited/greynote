@@ -11,7 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Avatar, InfoCard, Pill, SummaryStrip } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
-import { DAY_STATE_TEXT, getTeamToday, type DayState, type TeamScopeFilter, type TeamToday } from '@/lib/team-section';
+import { DAY_STATE_TEXT, getTeamToday, useApprovalSummary, type DayState, type TeamScopeFilter, type TeamToday } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { prettyDay } from '@/offline/day';
@@ -49,6 +49,8 @@ export default function TeamTodayScreen() {
   const list = useCachedFetch<TeamToday>(`team-today:${day}:${scope}:${focus}`, () => getTeamToday({ date: day, scope, attention: focus === 'ATTENTION' ? true : undefined }));
   const data = list.data;
   const t = data?.tiles;
+  // The approvals waiting on me today, whichever day is shown below.
+  const pending = useApprovalSummary();
 
   return (
     <ScreenShell title="Team today" subtitle={prettyDay(day)} onRefresh={list.reload} refreshing={list.refreshing}>
@@ -60,10 +62,11 @@ export default function TeamTodayScreen() {
       {t ? (
         <SummaryStrip
           items={[
-            { label: 'People', value: t.total, accent: 'blue' },
-            { label: 'Need you', value: t.attention, accent: t.attention > 0 ? 'amber' : 'slate' },
+            // What the team doc suggests: what waits on me, who has not started, who is away, who is blocked.
+            { label: 'Pending approvals', value: pending.summary ? pending.summary.total : '–', accent: pending.summary && pending.summary.total > 0 ? 'amber' : 'slate' },
+            { label: 'Not started', value: t.NOT_STARTED ?? 0, accent: (t.NOT_STARTED ?? 0) > 0 ? 'red' : 'slate' },
+            { label: 'On leave', value: t.ON_LEAVE ?? 0, accent: (t.ON_LEAVE ?? 0) > 0 ? 'purple' : 'slate' },
             { label: 'Blocked', value: t.blocked, accent: t.blocked > 0 ? 'red' : 'slate' },
-            { label: 'No plan', value: t.noPlan, accent: t.noPlan > 0 ? 'orange' : 'slate' },
           ]}
         />
       ) : null}

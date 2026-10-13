@@ -6,17 +6,18 @@ import { ChoiceChips } from '@/components/choice-chips';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { MonthReport } from '@/components/month-report';
-import { DcrReport, SalesReport, TpReport } from '@/components/reports';
+import { DcrReport, SalesReport, TaDaReport, TpReport } from '@/components/reports';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing, WideContentWidth } from '@/constants/theme';
 import { useFinancialYear } from '@/lib/financial-year';
 import { monthOf } from '@/offline/day';
 
-type Report = 'month' | 'dcr' | 'tp' | 'sales';
+type Report = 'month' | 'dcr' | 'tada' | 'tp' | 'sales';
 const REPORTS: { value: Report; label: string }[] = [
   { value: 'month', label: 'Month' },
   { value: 'dcr', label: 'DCR' },
+  { value: 'tada', label: 'TA / DA' },
   { value: 'tp', label: 'Tour Plan' },
   { value: 'sales', label: 'Gift & Sales' },
 ];
@@ -44,6 +45,7 @@ export default function ReportsScreen() {
           <MonthStepper value={month} onChange={setPicked} min={fy.firstMonth} max={fy.lastMonth} />
           {report === 'month' ? <MonthReport month={month} year={fy.year} /> : null}
           {report === 'dcr' ? <DcrReport month={month} year={fy.year} /> : null}
+          {report === 'tada' ? <TaDaReport month={month} year={fy.year} /> : null}
           {report === 'tp' ? <TpReport month={month} year={fy.year} /> : null}
           {report === 'sales' ? <SalesReport month={month} year={fy.year} /> : null}
         </ScrollView>

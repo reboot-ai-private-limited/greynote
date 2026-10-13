@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, Platform, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChoiceChips } from '@/components/choice-chips';
@@ -30,6 +30,15 @@ const CATEGORY_ACCENT: Record<DocumentCategory, Accent> = { POLICY: 'purple', CI
 const KIND_LABEL = { pdf: 'PDF', jpeg: 'JPG', png: 'PNG' } as const;
 
 type Filter = 'ALL' | DocumentCategory;
+
+/** The phone's share sheet with the document's title and link (docs.md rule 7: a share option beside Open, which the viewer also offers Save on). */
+async function shareDocument(title: string, url: string) {
+  try {
+    await Share.share(Platform.OS === 'ios' ? { title, url } : { title, message: `${title}\n${url}` });
+  } catch {
+    // The sheet could not open; Open still works.
+  }
+}
 
 /** One payslip opened: earnings, deductions, gross and net. The phone adds nothing up itself; the server did. */
 function SlipView({ slip, onBack }: { slip: MyPayslip; onBack: () => void }) {
@@ -141,6 +150,7 @@ function Documents() {
           </View>
           <View style={styles.actions}>
             <PrimaryButton label="Open" variant="text" disabled={!online} onPress={() => void Linking.openURL(d.url)} />
+            <PrimaryButton label="Share" variant="text" disabled={!online} onPress={() => void shareDocument(d.title, d.url)} />
           </View>
         </InfoCard>
       ))}

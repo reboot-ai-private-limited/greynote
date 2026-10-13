@@ -64,9 +64,9 @@ export default function TeamOverviewScreen() {
           ]}
         />
       ) : null}
-      {data && data.items.length === 0 ? <Notice tone="info">No one matches.</Notice> : null}
+      {data && (data.rows ?? []).length === 0 ? <Notice tone="info">No one matches.</Notice> : null}
 
-      {(data?.items ?? []).map((r) => {
+      {(data?.rows ?? []).map((r) => {
         const percent = r.targetPaise > 0 && r.achievedPaise !== null ? Math.round((r.achievedPaise / r.targetPaise) * 100) : null;
         return (
           <InfoCard key={r.employee.id}>
@@ -80,7 +80,7 @@ export default function TeamOverviewScreen() {
               </View>
             </View>
             <ThemedText type="small">{`${r.workingDays} working days · plans ${r.plan.submitted} sent, ${r.plan.approved} approved · reports ${r.dcr.submitted} sent, ${r.dcr.approved} approved`}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">{`${r.field.calls} calls (${r.field.callsPerDay.toFixed(1)} a day) · ${r.field.followups} follow-ups · ${r.field.lateDays} late · ${r.field.notInPlan} not in plan`}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">{`${r.field.calls} calls${r.field.callsPerDay === null ? '' : ` (${r.field.callsPerDay.toFixed(1)} a day)`} · ${r.field.followups} follow-ups · ${r.field.lateDays} late · ${r.field.notInPlan} not in plan`}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">{`${r.attendance.present} present · ${r.attendance.leave} leave · ${r.attendance.absent} absent`}</ThemedText>
             {r.targetPaise > 0 ? (
               <>

@@ -349,7 +349,9 @@ export default function ExpensesScreen() {
             ))
           )}
 
-          {statement.editable && !statement.monthEnded ? <Notice tone="info">You can send this month for approval from the 1st of next month.</Notice> : null}
+          {statement.editable && !statement.monthEnded ? (
+            <Notice tone="info">{`You can send this month for approval from the 1st of next month${statement.deadlines ? `, by ${formatWhen(statement.deadlines.submitBy, timeZone)}` : ''}.`}</Notice>
+          ) : null}
           {statement.monthEnded && statement.status !== 'APPROVED' && statement.deadlines ? (
             statement.exceptions.submitUntil ? (
               <Notice tone="warning" title="Allowed late">{`Allowed until ${formatWhen(statement.exceptions.submitUntil, timeZone)}.`}</Notice>
