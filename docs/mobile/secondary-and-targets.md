@@ -3,14 +3,15 @@
 How an employee's monthly **secondary** is entered and approved, and how **targets** and **achievement** relate to it. Online only. Decision: decision-log 2026-10-12.
 
 **Status key:** ✅ built on the server and web. 📱 the phone still has to show it.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - Secondary Sales (units and amount, status per line and month, Send for approval, locked states) and read-only Targets with achievement; a manager can set and now **remove** a target.
 
 ## 1. Secondary (what the employee sold)
 
 | # | Rule | Status |
 |---|---|---|
 | 1 | One figure per **product per month**: `GET /api/sales/employee-sales?userId=&month=` lists every active product with `secondaryQty`, `secondaryAmountPaise`, `ptrPaise` and `secondaryStatus`. | ✅ |
-| 2 | **Units and amount are one figure at the product's PTR.** Save with `POST /api/sales/employee-secondary` giving `qty` **or** `amountPaise` for each line; the server returns both. An amount is rounded to whole units and restated (units × PTR). A product with no PTR takes units only (`400 SECONDARY_NEEDS_PTR` for an amount). | ✅ 📱 |
-| 3 | The employee's own entry is a **`DRAFT`**. They **send the month** with `POST /api/sales/employee-secondary/submit { month }`; every draft or rejected line becomes `PENDING` and a `SECONDARY_SALES` approval request goes to the **direct manager** (Admin may decide in their place). | ✅ 📱 |
+| 2 | **Units and amount are one figure at the product's PTR.** Save with `POST /api/sales/employee-secondary` giving `qty` **or** `amountPaise` for each line; the server returns both. An amount is rounded to whole units and restated (units × PTR). A product with no PTR takes units only (`400 SECONDARY_NEEDS_PTR` for an amount). | ✅ |
+| 3 | The employee's own entry is a **`DRAFT`**. They **send the month** with `POST /api/sales/employee-secondary/submit { month }`; every draft or rejected line becomes `PENDING` and a `SECONDARY_SALES` approval request goes to the **direct manager** (Admin may decide in their place). | ✅ |
 | 4 | While `PENDING` or `APPROVED` the employee cannot change the month (`409 SECONDARY_LOCKED`). It opens again after a rejection, or when the request is withdrawn or Admin reopens it. A line a manager or Admin enters for the employee is `APPROVED` at once. | ✅ |
 | 5 | **Only `APPROVED` secondary counts** toward achievement. Months entered before approval existed read as approved. | ✅ |
 | 6 | Same window as before: the month must have started; after `MONTHLY_STOCK_DEADLINE_DAY` of the next month only Admin, or a month Admin reopened, takes entries. | ✅ |

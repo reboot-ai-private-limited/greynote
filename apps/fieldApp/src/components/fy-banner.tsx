@@ -16,10 +16,10 @@ export function FyBanner() {
   return (
     <ThemedView type="backgroundElement" style={styles.box}>
       <ThemedText type="smallBold" themeColor="warning">
-        {`Viewing ${fy.label} · read only`}
+        {fy.closed ? `${fy.label} is closed. Read-only.` : `Viewing ${fy.label} · read only`}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        Nothing can be added or changed while you look at a past year.
+        {fy.closed ? 'Admin has closed this year, so nothing dated in it can be added or changed.' : 'Nothing can be added or changed while you look at a past year.'}
       </ThemedText>
       <PrimaryButton label="Back to the current year" variant="text" onPress={() => selectFinancialYear(null, me.id)} />
     </ThemedView>

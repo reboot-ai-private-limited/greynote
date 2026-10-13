@@ -22,7 +22,7 @@ export type ApprovalAction = {
 
 export type ApprovalItem = {
   id: string;
-  /** DAILY_PLAN, MONTHLY_PLAN, DAILY_PLAN_CHANGE, DCR, LEAVE, NEW_DOCTOR, DOCTOR_SERVICE, EXPENSE_MONTH. */
+  /** DAILY_PLAN, MONTHLY_PLAN, DCR, LEAVE, NEW_DOCTOR, DOCTOR_SERVICE, EXPENSE_MONTH. */
   kind: string;
   recordId: string;
   status: ApprovalStatus;
@@ -46,14 +46,17 @@ export type TeamScope = 'direct' | 'indirect' | 'all';
 
 export const KIND_LABEL: Record<string, string> = {
   DAILY_PLAN: 'Daily plan',
-  MONTHLY_PLAN: 'Monthly plan',
-  DAILY_PLAN_CHANGE: 'Plan change',
+  MONTHLY_PLAN: 'Tour plan',
   DCR: 'Daily report',
   LEAVE: 'Leave',
   NEW_DOCTOR: 'New doctor',
   DOCTOR_SERVICE: 'Doctor service',
   EXPENSE_MONTH: 'Monthly expenses',
+  SECONDARY_SALES: 'Secondary sales',
 };
+
+/** The request types a manager can filter by, in the order the chips show them. */
+export const APPROVAL_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN', 'DCR', 'LEAVE', 'EXPENSE_MONTH', 'NEW_DOCTOR', 'DOCTOR_SERVICE', 'SECONDARY_SALES'] as const;
 export const kindLabel = (kind: string) => KIND_LABEL[kind] ?? kind;
 
 export const STATUS_LABEL: Record<ApprovalStatus, string> = {
@@ -65,11 +68,34 @@ export const STATUS_LABEL: Record<ApprovalStatus, string> = {
   REOPENED: 'Reopened',
 };
 
-/** The year switch (lib/financial-year.ts) bounds both lists: a past year shows that year's requests. */
-export const listInbox = (pageSize = 50) => apiGet<Page<ApprovalItem>>(`/approvals/inbox?pageSize=${pageSize}`, { fy: true });
+/**
+ * What both lists can be narrowed by (the server's own parameters). `from` and `to` are instants with an offset; "overdue" is
+ * not a server filter, so the screen applies it to what came back.
+ */
+export type ApprovalFilter = { kind?: string; status?: ApprovalStatus; submitterId?: string; from?: Date; to?: Date };
 
-export const listTeam = (scope: TeamScope, pageSize = 50) =>
-  apiGet<Page<ApprovalItem>>(`/approvals/team?scope=${scope}&pageSize=${pageSize}`, { fy: true });
+const filterQuery = (f: ApprovalFilter) =>
+  [
+    f.kind ? `&kind=${encodeURIComponent(f.kind)}` : '',
+    f.status ? `&status=${f.status}` : '',
+    f.submitterId ? `&submitterId=${f.submitterId}` : '',
+    f.from ? `&from=${encodeURIComponent(f.from.toISOString())}` : '',
+    f.to ? `&to=${encodeURIComponent(f.to.toISOString())}` : '',
+  ].join('');
+
+/** The year switch (lib/financial-year.ts) bounds both lists: a past year shows that year's requests. */
+export const listInbox = (pageSize = 50, filter: ApprovalFilter = {}) =>
+  apiGet<Page<ApprovalItem>>(`/approvals/inbox?pageSize=${pageSize}${filterQuery(filter)}`, { fy: true });
+
+export const listTeam = (scope: TeamScope, pageSize = 50, filter: ApprovalFilter = {}) =>
+  apiGet<Page<ApprovalItem>>(`/approvals/team?scope=${scope}&pageSize=${pageSize}${filterQuery(filter)}`, { fy: true });
+
+/** My own submissions, newest first, in any status — also bounded by the year switch. */
+export const listMine = (pageSize = 100) => apiGet<Page<ApprovalItem>>(`/approvals/mine?pageSize=${pageSize}`, { fy: true });
+
+/** Pulls back a request of mine that is still waiting (`ApprovalDetail.canWithdraw`); the record becomes editable again. */
+export const withdrawRequest = (id: string, comment?: string) =>
+  apiPost<unknown>(`/approvals/${id}/withdraw`, comment?.trim() ? { comment: comment.trim() } : {}, { auth: true });
 
 export const getApproval = (id: string) => apiGet<ApprovalDetail>(`/approvals/${id}`);
 
@@ -78,6 +104,12 @@ export const approveRequest = (item: { id: string; cycle: number }, comment?: st
 
 export const rejectRequest = (item: { id: string; cycle: number }, comment: string) =>
   apiPost<unknown>(`/approvals/${item.id}/reject`, { cycle: item.cycle, comment: comment.trim() }, { auth: true });
+
+/** Past its cutoff a leave or an expense month can't be approved (only rejected) unless Admin allows it; the server's wording already says so, this makes it certain. */
+export const LATE_APPROVAL_TEXT = 'This can’t be approved any more: its deadline has passed. Ask Admin to allow it, or reject it.';
+
+export const isLateApproval = (status: number, message: string, code?: unknown) =>
+  code === 'LEAVE_APPROVAL_LATE' || code === 'EXPENSE_APPROVAL_LATE' || (status === 409 && /already started|deadline to approve|no longer be approved/i.test(message));
 
 export type BulkResult =
   | { requestId: string; ok: true; status: ApprovalStatus }
@@ -110,22 +142,44 @@ export type GeofenceOutcome = {
   overrideComment: string | null;
 };
 
+/** packages/contracts fieldActivity.ts: the work type (the day's plan type) and route type are stamped by the server. */
 type CallBase = {
   id: string;
   workingType: string;
+  routeId?: string | null;
+  routeType?: string | null;
   remarks: string | null;
   accuracyMeters: number | null;
   geofence: GeofenceOutcome;
   recordedAt: string;
+  /** The call's route isn't one the day's plan lists. */
+  routeNotInPlan?: boolean;
 };
-export type DcrDoctorCall = CallBase & { doctorId: string; doctorName: string; samples: { productName: string; quantity: number }[] };
+export type DcrDoctorCall = CallBase & {
+  doctorId: string;
+  doctorName: string;
+  samples: { productName: string; quantity: number }[];
+  /** The day's plan lists doctors and this one wasn't among them. */
+  notInPlan?: boolean;
+};
 export type DcrChemistCall = CallBase & { chemistId: string; chemistName: string };
-export type DcrFollowup = { id: string; subject: 'DOCTOR' | 'CHEMIST'; subjectName: string; remarks: string };
+export type DcrFollowup = {
+  id: string;
+  subject: 'DOCTOR' | 'CHEMIST';
+  subjectName: string;
+  remarks: string;
+  /** `null` on follow-ups from before the work type, route type and GPS were recorded. */
+  workingType?: string | null;
+  routeType?: string | null;
+  notInPlan?: boolean;
+};
 export type DcrExpense = { id: string; type: string; source: 'AUTO' | 'MANUAL'; amountPaise: number; remarks: string | null; accepted: boolean };
 export type DcrDetail = {
   id: string;
   reportDate: string;
   status: string;
+  /** The employee's note on the day (required on a Meeting or Conference day). */
+  remarks?: string | null;
   doctorCalls: DcrDoctorCall[];
   chemistCalls: DcrChemistCall[];
   followups: DcrFollowup[];
@@ -138,12 +192,16 @@ export const acceptCall = (dcrId: string, callId: string, comment: string) =>
   apiPost<unknown>(`/field-activity/dcr/${dcrId}/calls/${callId}/override-geofence`, { comment: comment.trim() }, { auth: true });
 
 export type PlanDayView = { workingType: string; workWith: string[]; routeIds: string[]; remarks: string | null };
-export type DailyPlanRecord = PlanDayView & { id: string; planDate: string; source: 'MANUAL' | 'MONTHLY' };
+export type DailyPlanRecord = PlanDayView & {
+  id: string;
+  planDate: string;
+  source: 'MANUAL' | 'MONTHLY';
+  /** The doctors to call (`carriedFrom` = a missed call still owed). Absent from older servers. */
+  doctors?: { doctorId: string; carriedFrom: string | null }[];
+};
 export type MonthlyPlanRecord = { id: string; planMonth: string; entries: (PlanDayView & { planDate: string })[] };
-export type PlanChangeRecord = { id: string; planDate: string; previous: PlanDayView; proposed: PlanDayView; reason: string };
 export const getDailyPlanRecord = (id: string) => apiGet<DailyPlanRecord>(`/planning/daily/${id}`);
 export const getMonthlyPlanRecord = (id: string) => apiGet<MonthlyPlanRecord>(`/planning/monthly/${id}`);
-export const getPlanChangeRecord = (id: string) => apiGet<PlanChangeRecord>(`/planning/changes/${id}`);
 
 export type LeaveRecord = {
   id: string;
@@ -153,6 +211,7 @@ export type LeaveRecord = {
   endDate: string;
   reason: string | null;
   daysCount: number;
+  status?: ApprovalStatus;
   attachments: { id: string; url: string; fileName: string; sizeBytes: number }[];
 };
 export const getLeaveRecord = (id: string) => apiGet<LeaveRecord>(`/hr/leaves/${id}`);
@@ -163,8 +222,14 @@ export type DoctorRecord = {
   name: string;
   address: string;
   email: string | null;
+  clinicName?: string | null;
+  phone?: string | null;
   specialty: string;
   qualification: string;
+  visitFrequency?: number | null;
+  dateOfBirth?: string | null;
+  anniversary?: string | null;
+  /** Where the doctor is registered — the approver may have corrected it — and where the phone was when it was added. */
   location: { latitude: number; longitude: number } | null;
   capturedLocation: { latitude: number; longitude: number } | null;
   status: string;

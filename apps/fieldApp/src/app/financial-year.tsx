@@ -21,7 +21,7 @@ export default function FinancialYearScreen() {
 
   return (
     <ScreenShell title="Financial Year">
-      <Notice tone={fy.isPast ? 'warning' : 'info'} title={fy.isPast ? `Viewing ${fy.label}` : 'Current year'}>
+      <Notice tone={fy.isPast ? 'warning' : 'info'} title={fy.closed ? `${fy.label} is closed. Read-only.` : fy.isPast ? `Viewing ${fy.label}` : 'Current year'}>
         {fy.isPast
           ? 'Reports, Holidays and Orders show this past year and are read-only. Pick the current year to go back to normal.'
           : 'Pick a past year to look back at it. It is read-only, and your own work stays as it is.'}
@@ -38,7 +38,7 @@ export default function FinancialYearScreen() {
             onPress={() => me && selectFinancialYear(o.year === fy.current ? null : o.year, me.id)}>
             <ThemedView type="backgroundElement" style={[styles.row, chosen && { borderColor: theme.primary, borderWidth: 2 }]}>
               <View style={styles.flex}>
-                <ThemedText type="smallBold">{o.year === fy.current ? `${o.label} · current` : o.label}</ThemedText>
+                <ThemedText type="smallBold">{o.year === fy.current ? `${o.label} · current` : fy.closedYears.includes(o.year) ? `${o.label} · closed` : o.label}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">{`${prettyDay(range.from)} ${range.from.slice(0, 4)} – ${prettyDay(range.to)} ${range.to.slice(0, 4)}`}</ThemedText>
               </View>
               {chosen ? (

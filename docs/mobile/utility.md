@@ -11,5 +11,6 @@ The **Utility** section of the Home tab (PRD §6.2 D) is now exactly three entri
 The Team tab's "Inbox" (approvals waiting for a manager, `GET /approvals/inbox`) is a different thing and is not part of this section.
 
 **Status key:** ✅ built on the server and web. 📱 the phone still has to show it. The phone app is another team's; these notes are the contract it builds against.
+**Field app, checked 2026-10-13:** Inbox, Holiday List and Financial Year are built; the **Forms tile and screen are gone**. Typechecked and linted, not yet run on a phone.
 
 The **Docs** tab is separate from this section: [`docs.md`](docs.md).

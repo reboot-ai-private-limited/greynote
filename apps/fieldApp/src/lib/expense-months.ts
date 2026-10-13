@@ -34,7 +34,15 @@ export type ExpenseStatement = {
   totals: ExpenseTotals;
   submittedTotals: ExpenseTotals | null;
   paidPaise: number;
+  /** End of the day the month must be sent / approved by (ISO). Never worked out on the phone. */
+  deadlines: { submitBy: string; approveBy: string };
+  /** The open exception for each deadline: when it ends (ISO), or null. */
+  exceptions: { submitUntil: string | null; approveUntil: string | null };
+  /** The send deadline has passed with no exception. */
+  submitLate: boolean;
 };
+
+export const SUBMIT_LATE_TEXT = 'The deadline has passed — ask your manager or Admin to allow it.';
 
 export type ExpenseMonthSummary = ExpenseTotals & { month: string; status: ExpenseMonthStatus; paidPaise: number };
 

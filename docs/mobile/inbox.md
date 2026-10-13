@@ -3,6 +3,7 @@
 What the field app shows in **Utility → Inbox**. Until now the phone had a demo screen with made-up messages ("the server has no inbox yet"); the server side now exists, so the demo (`inbox-demo.ts`) and the on-phone read flags (`inbox:read:<userId>`) should go. The server is the authority for what is in someone's inbox and whether they have read it. Design: [`LLD/inbox.md`](../LLD/inbox.md), [`decision-log.md`](../decision-log.md) (2026-10-12). Related: [`utility.md`](utility.md).
 
 **Status key:** ✅ built on the server and web (Admin: **Daily work → Inbox messages**). 📱 the phone still has to show it.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - list and message screens, unread badge on Home (99+), mark as read and mark all, offline copy, reads made offline sent later; the demo inbox and on-phone read flags are gone.
 
 ## 1. The rules
 
@@ -15,9 +16,9 @@ What the field app shows in **Utility → Inbox**. Until now the phone had a dem
 | 5 | **Reading:** `POST /inbox/:id/read` when the person opens a message (the `:id` is the item's `id`); `POST /inbox/read-all` for "Mark all as read". Reading twice is fine; `readAt` keeps the first time. An id that is not in this person's inbox is `404`. | ✅ |
 | 6 | **Expiry:** an Admin may set `expiresAt`. After it the message is **gone from the list and the count** with no change to the phone. Do not keep it from an old cache. | ✅ |
 | 7 | **Taken back:** an Admin can take a message back. It disappears from the list and the count at once. A phone showing a cached copy should drop it on the next fetch. | ✅ |
-| 8 | **No push notifications yet.** The inbox is a list the app reads. Push (FCM) will be added later and will only tell the phone to refresh this list. | ✅ server; 📱 poll |
+| 8 | **No push notifications yet.** The inbox is a list the app reads. Push (FCM) will be added later and will only tell the phone to refresh this list. | ✅ server; ✅ phone polls (foreground, Home focus, reconnect) |
 | 9 | **System messages:** a manager already gets some from the server (a new leave, monthly-expenses or new-doctor request from their team, a request waiting too long, a team member blocked: see [`team.md`](team.md)); they look like any other item (kind `UPDATE` or `REMINDER`, sent by the system). Later, other events (a target set, a late-submission exception, a call assigned) will put items here with the same shape. Which events notify whom is sign-off F8 and is still open; the phone needs no change when they arrive. | open |
-| 10 | **Offline:** show the last fetched list with "Showing the list from …", the same as the Holiday List. Marking read while offline should be queued and sent when back online; an unsent read is only a missing tick, never lost mail. | 📱 |
+| 10 | **Offline:** show the last fetched list with "Showing the list from …", the same as the Holiday List. Marking read while offline should be queued and sent when back online; an unsent read is only a missing tick, never lost mail. | ✅ |
 
 ## 2. What an item holds (`GET /inbox` → `items[]`)
 

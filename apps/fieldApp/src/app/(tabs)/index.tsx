@@ -1,27 +1,41 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, PanResponder, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FeatureTile } from '@/components/feature-tile';
-import { PrimaryButton } from '@/components/primary-button';
+import { HomeHeader } from '@/components/home-header';
 import { SegmentedTabs } from '@/components/segmented-tabs';
-import { SyncChip } from '@/components/sync-chip';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { TodayCard } from '@/components/today-card';
-import { BottomTabInset, Spacing, WideContentWidth } from '@/constants/theme';
+import { Accents, BottomTabInset, Spacing, WideContentWidth } from '@/constants/theme';
 import { FEATURES, SECTIONS, type Feature, type Section } from '@/features/catalog';
 import { lockReason, useDayGate } from '@/hooks/use-day-gate';
-import { useCurrentUser } from '@/hooks/use-current-user';
 import { useResponsive } from '@/hooks/use-responsive';
+import { badgeText, useUnreadCount } from '@/lib/inbox';
 
-const SECTION_TABS: { value: Section; label: string }[] = SECTIONS.map((value) => ({ value, label: value }));
+const SECTION_COLOR: Record<Section, string> = { DCR: Accents.blue.solid, Marketing: Accents.purple.solid, Utility: Accents.green.solid };
+const SECTION_TABS = SECTIONS.map((value) => ({ value, label: value, color: SECTION_COLOR[value] }));
+const SECTION_TITLE: Record<Section, string> = { DCR: 'Daily Activities', Marketing: 'Marketing Tools', Utility: 'Utilities' };
 const LAST = SECTIONS.length - 1;
+const TILE_GAP = 12;
 
-function chunk<T>(items: T[], size: number): T[][] {
-  const rows: T[][] = [];
-  for (let i = 0; i < items.length; i += size) rows.push(items.slice(i, i + size));
+type Placed = { feature: Feature; /** Grid columns the tile covers. */ span: number };
+
+/** Lay tiles out in rows of `columns` slots; a wide tile covers two and wraps to a new row if it does not fit. */
+function chunk(features: Feature[], columns: number): Placed[][] {
+  const rows: Placed[][] = [];
+  let used = columns;
+  for (const feature of features) {
+    const span = feature.cta ? Math.min(2, columns) : 1;
+    if (used + span > columns) {
+      rows.push([]);
+      used = 0;
+    }
+    rows[rows.length - 1]!.push({ feature, span });
+    used += span;
+  }
   return rows;
 }
 
@@ -36,8 +50,10 @@ function chunk<T>(items: T[], size: number): T[][] {
  * current ones. The tab underline is driven by the same position, so it moves with the strip.
  */
 export default function HomeScreen() {
-  const user = useCurrentUser();
   const gate = useDayGate();
+  // The Inbox tile's badge: read when the app comes to the front, and again when Home is shown after reading messages.
+  const unread = useUnreadCount();
+  useFocusEffect(unread.refresh);
   const { columns } = useResponsive();
   const { width: windowWidth } = useWindowDimensions();
 
@@ -123,6 +139,10 @@ export default function HomeScreen() {
   );
 
   const stripHeight = holdHeight ?? heights[index] ?? 420;
+  const tileWidth = (pageWidth - (columns - 1) * TILE_GAP) / columns;
+  const sectionFeatures = Object.fromEntries(
+    SECTIONS.map((s) => [s, FEATURES.filter((f) => f.section === s)]),
+  ) as Record<Section, Feature[]>;
 
   return (
     <ThemedView style={styles.flex}>
@@ -130,20 +150,8 @@ export default function HomeScreen() {
         {/* The tabs are child 3: sticky, so they stay in view while the tiles scroll. */}
         {/* removeClippedSubviews off: Android would otherwise drop the off-screen pages from drawing,
             and they would pop in late instead of sliding in beside the current one. */}
-        <ScrollView contentContainerStyle={styles.content} stickyHeaderIndices={[3]} removeClippedSubviews={false}>
-          <View style={styles.header}>
-            <View style={styles.flex}>
-              <ThemedText type="smallBold" style={styles.greeting} numberOfLines={1}>
-                Hello, {user.name || 'there'}
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {user.employeeCode} · {user.designation}
-              </ThemedText>
-            </View>
-            <PrimaryButton label="Profile" variant="text" onPress={() => router.push('/profile')} />
-          </View>
-
-          <SyncChip />
+        <ScrollView contentContainerStyle={styles.content} stickyHeaderIndices={[2]} removeClippedSubviews={false}>
+          <HomeHeader />
           <TodayCard />
 
           <SegmentedTabs
@@ -184,23 +192,26 @@ export default function HomeScreen() {
                     const h = e.nativeEvent.layout.height;
                     setHeights((prev) => (prev[i] === h ? prev : Object.assign([...prev], { [i]: h })));
                   }}>
-                  {chunk(
-                    FEATURES.filter((f) => f.section === section),
-                    columns,
-                  ).map((row) => (
-                    <View key={row[0]!.key} style={styles.row}>
-                      {row.map((feature) => (
+                  <View style={styles.sectionHeader}>
+                    <ThemedText type="smallBold" style={styles.sectionTitle}>
+                      {SECTION_TITLE[section]}
+                    </ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.sectionCount}>
+                      {sectionFeatures[section].length} actions
+                    </ThemedText>
+                  </View>
+                  {chunk(sectionFeatures[section], columns).map((row) => (
+                    <View key={row[0]!.feature.key} style={styles.row}>
+                      {row.map(({ feature, span }) => (
                         <FeatureTile
                           key={feature.key}
                           feature={feature}
+                          width={span * tileWidth + (span - 1) * TILE_GAP}
                           lockedReason={lockReason(feature, gate)}
                           onOpen={() => open(feature)}
                           onLockedPress={(reason) => Alert.alert(`${feature.title} is locked`, reason)}
+                          badge={feature.key === 'inbox' ? badgeText(unread.count) : null}
                         />
-                      ))}
-                      {/* Keep the last row's tiles the same width as the others. */}
-                      {Array.from({ length: columns - row.length }, (_, k) => (
-                        <View key={`pad-${k}`} style={styles.flex} />
                       ))}
                     </View>
                   ))}
@@ -225,10 +236,11 @@ const styles = StyleSheet.create({
     paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.three,
   },
-  greeting: { fontSize: 20, lineHeight: 26 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  // The four pages side by side; each takes its own natural height.
+  // The pages side by side; each takes its own natural height.
   strip: { flexDirection: 'row', alignItems: 'flex-start' },
-  page: { gap: Spacing.two },
-  row: { flexDirection: 'row', gap: Spacing.two },
+  page: { gap: TILE_GAP },
+  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingTop: Spacing.one },
+  sectionTitle: { fontSize: 16, lineHeight: 22 },
+  sectionCount: { fontSize: 12, lineHeight: 16 },
+  row: { flexDirection: 'row', gap: TILE_GAP },
 });

@@ -3,10 +3,14 @@ import { Pressable, StyleSheet } from 'react-native';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useCachedSource } from '@/offline/cache';
-import { WORKING_TYPES, type PlanDay, type WorkingType } from '@/lib/planning';
+import { isFieldDay, WORKING_TYPES, type PlanDay, type WorkingType } from '@/lib/planning';
 import type { TerritorySnapshot } from '@/types/sync';
 
+import { addDays, addMonths, datesInMonth } from '@/offline/day';
+
 import { ChoiceChips } from './choice-chips';
+import { DateStepper } from './date-stepper';
+import { PrimaryButton } from './primary-button';
 import { WorkWithPicker } from './work-with-picker';
 import { TextField } from './text-field';
 import { ThemedText } from './themed-text';
@@ -19,29 +23,40 @@ type Props = {
   value: PlanDay;
   onChange: (next: PlanDay) => void;
   disabled?: boolean;
+  /** The day being planned (`YYYY-MM-DD`). Given for a single day, it lets an out-station trip name its return day. */
+  date?: string;
 };
 
 /**
- * One planned day: working type, routes, remarks. Shared by the Daily Plan, an in-day change
- * and each Monthly Plan day. Routes come from the cached `territory` pull, so it works offline.
- * "Work with" comes from the colleagues the server offers (offline/colleagues.ts).
+ * One planned day of the Monthly Plan: working type, routes, work-with, remarks. Routes come from the cached `territory`
+ * pull, so it works offline. "Work with" comes from the colleagues the server offers (offline/colleagues.ts). The routes
+ * chosen here decide which doctors can be planned on that day (docs/mobile/monthlyplan.md rule 15).
  */
-export function PlanDayForm({ value, onChange, disabled }: Props) {
+export function PlanDayForm({ value, onChange, disabled, date }: Props) {
   const theme = useTheme();
   const territory = useCachedSource<TerritorySnapshot>('territory');
   const routes = territory.data?.routes ?? [];
-  const needsRoute = value.workingType === 'FIELD_WORK';
+  const needsRoute = isFieldDay(value.workingType);
+  // A trip needs at least one out-station route; the return day is then asked for.
+  const outStation = routes.some((r) => r.routeType === 'OUT_STATION' && value.routeIds.includes(r.id));
+  const canTrip = needsRoute && outStation && date !== undefined;
+  // The return day: after this day, this month or the next.
+  const earliest = date ? addDays(date, 1) : undefined;
+  const latest = date ? datesInMonth(addMonths(date.slice(0, 7), 1)).at(-1) : undefined;
 
   function setType(workingType: WorkingType) {
-    // Only Field Work takes routes (the server refuses them on the other three).
-    onChange({ ...value, workingType, routeIds: workingType === 'FIELD_WORK' ? value.routeIds : [] });
+    // Only Field Work and Doctor Campaign take routes (the server refuses them on the other three) and colleagues to work with.
+    const field = isFieldDay(workingType);
+    onChange({ ...value, workingType, routeIds: field ? value.routeIds : [], workWith: field ? value.workWith : [], returnDate: field ? value.returnDate : null });
   }
 
   function toggleRoute(id: string) {
     const routeIds = value.routeIds.includes(id)
       ? value.routeIds.filter((r) => r !== id)
       : [...value.routeIds, id];
-    onChange({ ...value, routeIds });
+    // Without an out-station route there is no trip, so the return day goes.
+    const stillOut = routes.some((r) => r.routeType === 'OUT_STATION' && routeIds.includes(r.id));
+    onChange({ ...value, routeIds, returnDate: stillOut ? value.returnDate : null });
   }
 
   return (
@@ -51,13 +66,18 @@ export function PlanDayForm({ value, onChange, disabled }: Props) {
 
       {!needsRoute ? (
         <ThemedText type="small" themeColor="textSecondary">
-          Routes are only picked for Field Work days.
+          Routes and “Work with” are only picked for Field Work and Doctor Campaign days.
         </ThemedText>
       ) : null}
 
       {needsRoute ? (
         <>
           <ThemedText type="smallBold">Routes</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {value.workingType === 'DOCTOR_CAMPAIGN'
+              ? 'Choose carefully: only your doctors on these routes can be planned that day. A campaign day pays DA at the highest route type and no TA.'
+              : 'Choose carefully: only your doctors on these routes can be planned that day.'}
+          </ThemedText>
           {routes.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
               {territory.loaded
@@ -99,7 +119,37 @@ export function PlanDayForm({ value, onChange, disabled }: Props) {
         </>
       ) : null}
 
-      <WorkWithPicker value={value.workWith} onChange={(workWith) => onChange({ ...value, workWith })} disabled={disabled} />
+      {canTrip && earliest && latest ? (
+        <ThemedView type="backgroundElement" style={styles.trip}>
+          <ThemedText type="smallBold">Out-station trip</ThemedText>
+          {value.returnDate ? (
+            <>
+              <DateStepper
+                label="Return date"
+                value={value.returnDate}
+                min={earliest}
+                disabled={disabled}
+                onChange={(d) => onChange({ ...value, returnDate: d < earliest ? earliest : d > latest ? latest : d })}
+              />
+              <ThemedText type="small" themeColor="textSecondary">
+                The days in between are stay days (out-station DA, no TA). The return day earns TA and ex-station DA. Each is a working day: it needs its own Daily Plan and report.
+              </ThemedText>
+              <PrimaryButton label="Same-day return (no trip)" variant="text" disabled={disabled} onPress={() => onChange({ ...value, returnDate: null })} />
+            </>
+          ) : (
+            <>
+              <ThemedText type="small" themeColor="textSecondary">
+                Leave this empty for a same-day return. If you stay away, add the day you come back.
+              </ThemedText>
+              <PrimaryButton label="+ Add a return date" variant="text" disabled={disabled} onPress={() => onChange({ ...value, returnDate: earliest })} />
+            </>
+          )}
+        </ThemedView>
+      ) : null}
+
+      {needsRoute ? (
+        <WorkWithPicker value={value.workWith} onChange={(workWith) => onChange({ ...value, workWith })} disabled={disabled} />
+      ) : null}
 
       <TextField
         label="Remarks (optional)"
@@ -124,6 +174,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   disabled: { opacity: 0.6 },
+  trip: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   box: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   routeText: { flex: 1 },
 });
