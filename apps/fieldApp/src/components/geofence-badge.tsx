@@ -13,7 +13,7 @@ const TEXT: Record<GeofenceResult['status'], string> = {
   UNVERIFIED: 'Location not verified',
 };
 
-/** One line saying whether the call's GPS matched the registered place. A flag for the manager, never a block. */
+/** One line saying whether the call's GPS matched the registered place (a FAIL only appears on records from before the location rule). */
 export function GeofenceBadge({
   result,
   registered,

@@ -1,137 +1,155 @@
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
+import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { IconChip, InfoCard, Pill, SummaryStrip, sym } from '@/components/ui-cards';
+import { Spacing, type Accent } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { DEMO_MESSAGES, type InboxMessage } from '@/features/inbox-demo';
+import { ApiError, NetworkError } from '@/lib/api';
+import { KIND_LABEL, listInbox, markAllInboxRead, markInboxRead, queueRead, type InboxItem, type InboxKind } from '@/lib/inbox';
 import { useSessionUser } from '@/lib/session';
-import { nowMs } from '@/offline/day';
-import { store } from '@/offline/store';
+import { useOnline } from '@/offline';
+import { useCachedFetch } from '@/offline/cached-fetch';
+import { formatWhen, nowMs } from '@/offline/day';
 
 type Filter = 'ALL' | 'UNREAD';
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'ALL', label: 'All' },
-  { value: 'UNREAD', label: 'Unread' },
-];
 
-const agoText = (minutes: number) => {
-  if (minutes < 60) return `${Math.max(1, minutes)} min ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  const days = Math.floor(hours / 24);
-  return days === 1 ? 'Yesterday' : `${days} days ago`;
+const KIND_STYLE: Record<InboxKind, { accent: Accent; icon: ReturnType<typeof sym> }> = {
+  ANNOUNCEMENT: { accent: 'blue', icon: sym('megaphone', 'campaign') },
+  REMINDER: { accent: 'amber', icon: sym('bell', 'notifications') },
+  POLICY: { accent: 'purple', icon: sym('doc.text', 'description') },
+  UPDATE: { accent: 'green', icon: sym('arrow.triangle.2.circlepath', 'update') },
+};
+
+const errorText = (err: unknown) =>
+  err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
+
+/** "Today", "Yesterday" or the date, in the phone's calendar (the exact time is on the message). */
+const sentText = (iso: string) => {
+  const sent = new Date(iso);
+  if (Number.isNaN(sent.getTime())) return iso;
+  const dayOf = (d: Date) => Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 86_400_000);
+  const diff = dayOf(new Date(nowMs())) - dayOf(sent);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  return sent.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 /**
- * Inbox (Utility): messages for you. These are DEMO messages for preview — the server has no inbox yet — so they are
- * made up in the app (features/inbox-demo.ts). Which ones you have read is kept on this phone, per employee.
+ * Inbox (Utility, docs/mobile/inbox.md): messages the Admin sent you. The server decides what is in your inbox and what is
+ * read; opening a message tells it. Offline you see the last list, and a read made offline is sent when you are back.
  */
 export default function InboxScreen() {
   const theme = useTheme();
+  const online = useOnline();
   const me = useSessionUser();
-  const metaKey = `inbox:read:${me?.id ?? 'anon'}`;
-
-  // Read ids are kept with the key they were read from, so another employee on a shared phone starts clean.
-  const [readState, setReadState] = useState<{ key: string; ids: string[] } | null>(null);
-  const read = new Set(readState?.key === metaKey ? readState.ids : []);
+  const [tick, setTick] = useState(0);
+  const list = useCachedFetch<InboxItem[]>('inbox', listInbox, tick);
   const [filter, setFilter] = useState<Filter>('ALL');
   const [openId, setOpenId] = useState<string | null>(null);
-  // When the screen opened, so "35 min ago" stays steady while it is open.
-  const [openedAt] = useState(nowMs);
+  // Ids read here this session, so the dot goes at once without waiting for the next fetch.
+  const [readHere, setReadHere] = useState<string[]>([]);
+  const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
 
-  useEffect(() => {
-    let alive = true;
-    store
-      .getMeta(metaKey)
-      .then((raw) => {
-        let ids: string[] = [];
-        try {
-          ids = raw ? (JSON.parse(raw) as string[]) : [];
-        } catch {
-          ids = [];
-        }
-        if (alive) setReadState({ key: metaKey, ids });
-      })
-      .catch(() => alive && setReadState({ key: metaKey, ids: [] }));
-    return () => {
-      alive = false;
-    };
-  }, [metaKey]);
+  const items = (list.data ?? []).map((m) => (readHere.includes(m.id) ? { ...m, read: true } : m));
+  const unread = items.filter((m) => !m.read);
+  const shown = filter === 'UNREAD' ? unread : items;
+  const open = items.find((m) => m.id === openId) ?? null;
 
-  const save = (ids: string[]) => {
-    setReadState({ key: metaKey, ids });
-    void store.setMeta(metaKey, JSON.stringify(ids)).catch(() => undefined);
+  const markRead = async (m: InboxItem) => {
+    if (m.read) return;
+    setReadHere((ids) => [...ids, m.id]);
+    if (!online) return void (me && queueRead(me.id, m.id));
+    try {
+      await markInboxRead(m.id);
+    } catch (err) {
+      // A message taken back meanwhile (404) just goes on the next fetch; anything else is kept to send later.
+      if (me && !(err instanceof ApiError && err.status === 404)) void queueRead(me.id, m.id);
+    }
   };
-  const markRead = (id: string) => {
-    if (!read.has(id)) save([...read, id]);
-  };
-  const markAllRead = () => save(DEMO_MESSAGES.map((m) => m.id));
 
-  const unread = DEMO_MESSAGES.filter((m) => !read.has(m.id));
-  const shown = filter === 'UNREAD' ? unread : DEMO_MESSAGES;
-  const open: InboxMessage | null = DEMO_MESSAGES.find((m) => m.id === openId) ?? null;
-  const ago = (m: InboxMessage) => agoText(m.minutesAgo + Math.floor((nowMs() - openedAt) / 60000));
+  const markAll = async () => {
+    setMsg(null);
+    setReadHere(items.map((m) => m.id));
+    try {
+      await markAllInboxRead();
+      setTick((t) => t + 1);
+    } catch (err) {
+      setMsg({ tone: 'danger', text: errorText(err) });
+    }
+  };
 
   if (open) {
+    const style = KIND_STYLE[open.kind];
     return (
-      <ScreenShell title="Message">
-        <ThemedView type="backgroundElement" style={styles.card}>
-          <ThemedText type="small" themeColor="primary">
-            {open.kind}
-          </ThemedText>
+      <ScreenShell title="Message" footer={<PrimaryButton label="Back to inbox" variant="text" onPress={() => setOpenId(null)} />}>
+        <InfoCard>
+          <View style={styles.head}>
+            <IconChip icon={style.icon} accent={style.accent} />
+            <View style={styles.grow}>
+              <Pill text={KIND_LABEL[open.kind]} accent={style.accent} />
+              <ThemedText type="small" themeColor="textSecondary">{formatWhen(open.sentAt)}</ThemedText>
+            </View>
+          </View>
           <ThemedText type="subtitle">{open.title}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">{`${open.from} · ${ago(open)}`}</ThemedText>
-          <ThemedText type="default" style={styles.body}>
-            {open.body}
-          </ThemedText>
-        </ThemedView>
-        <PrimaryButton label="Back to inbox" onPress={() => setOpenId(null)} />
+          <ThemedText type="default" style={styles.body}>{open.body}</ThemedText>
+          {open.expiresAt ? <ThemedText type="small" themeColor="textSecondary">{`Until ${formatWhen(open.expiresAt)}`}</ThemedText> : null}
+        </InfoCard>
       </ScreenShell>
     );
   }
 
   return (
-    <ScreenShell title="Inbox">
-      <Notice tone="info">These are demo messages for preview. Nothing here is sent by the server yet.</Notice>
-      <ChoiceChips
-        options={FILTERS.map((f) => ({ value: f.value, label: f.value === 'UNREAD' && unread.length > 0 ? `Unread (${unread.length})` : f.label }))}
-        value={filter}
-        onChange={setFilter}
+    <ScreenShell title="Inbox" subtitle="Messages from your company" onRefresh={() => setTick((t) => t + 1)} refreshing={list.refreshing}>
+      {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+      {list.stale && list.fetchedAt && list.data ? <Notice tone="info">{`Showing the list from ${formatWhen(list.fetchedAt)}.`}</Notice> : null}
+      {list.error && online && !list.data ? <Notice tone="danger">{list.error}</Notice> : null}
+      <SummaryStrip
+        items={[
+          { label: 'Unread', value: String(unread.length).padStart(2, '0'), accent: 'blue' },
+          { label: 'Messages', value: String(items.length).padStart(2, '0'), accent: 'purple' },
+        ]}
       />
-      {unread.length > 0 ? <PrimaryButton label="Mark all as read" variant="text" onPress={markAllRead} /> : null}
+      <View style={styles.head}>
+        <View style={styles.grow}>
+          <ChoiceChips
+            options={[{ value: 'ALL' as const, label: 'All' }, { value: 'UNREAD' as const, label: unread.length > 0 ? `Unread (${unread.length})` : 'Unread' }]}
+            value={filter}
+            onChange={setFilter}
+          />
+        </View>
+        {unread.length > 0 ? <PrimaryButton label="Mark all as read" variant="text" onPress={markAll} /> : null}
+      </View>
 
-      {shown.length === 0 ? (
-        <Notice tone="info">{filter === 'UNREAD' ? 'You have no unread messages.' : 'Your inbox is empty.'}</Notice>
+      {list.loading && !list.data ? (
+        <Skeleton cards={3} lines={3} />
+      ) : shown.length === 0 ? (
+        <Notice tone="info">{filter === 'UNREAD' ? 'You have no unread messages.' : list.data ? 'No messages.' : 'Connect once to load your messages.'}</Notice>
       ) : (
         shown.map((m) => {
-          const isRead = read.has(m.id);
+          const style = KIND_STYLE[m.kind];
           return (
-            <Pressable
-              key={m.id}
-              accessibilityRole="button"
-              accessibilityLabel={`${isRead ? '' : 'Unread. '}${m.title}, from ${m.from}`}
-              onPress={() => (markRead(m.id), setOpenId(m.id))}>
-              <ThemedView type="backgroundElement" style={styles.card}>
-                <View style={styles.row}>
-                  <View style={[styles.dot, { backgroundColor: isRead ? 'transparent' : theme.primary }]} />
+            <View key={m.id}>
+              <InfoCard>
+                <View style={styles.head}>
+                  <IconChip icon={style.icon} accent={style.accent} />
                   <View style={styles.grow}>
-                    <ThemedText type={isRead ? 'default' : 'smallBold'} numberOfLines={2}>
-                      {m.title}
-                    </ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">{`${m.kind} · ${m.from} · ${ago(m)}`}</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
-                      {m.body}
-                    </ThemedText>
+                    <ThemedText type={m.read ? 'default' : 'smallBold'} numberOfLines={2}>{m.title}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">{`${KIND_LABEL[m.kind]} · ${sentText(m.sentAt)}`}</ThemedText>
                   </View>
+                  {m.read ? null : <View style={[styles.dot, { backgroundColor: theme.primary }]} />}
                 </View>
-              </ThemedView>
-            </Pressable>
+                <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>{m.body}</ThemedText>
+                <View style={styles.actions}>
+                  <PrimaryButton label="Read →" variant="text" onPress={() => (void markRead(m), setOpenId(m.id))} />
+                </View>
+              </InfoCard>
+            </View>
           );
         })
       )}
@@ -140,9 +158,9 @@ export default function InboxScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
-  row: { flexDirection: 'row', gap: Spacing.two, alignItems: 'flex-start' },
+  head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1, gap: Spacing.one },
-  dot: { width: 10, height: 10, borderRadius: 5, marginTop: 6 },
-  body: { marginTop: Spacing.two },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  body: { marginTop: Spacing.one },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end' },
 });

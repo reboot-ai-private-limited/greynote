@@ -12,17 +12,21 @@ export type PlanStatus =
   | 'WITHDRAWN'
   | 'REOPENED';
 
+export type WorkingTypeName = 'FIELD_WORK' | 'DOCTOR_CAMPAIGN' | 'MEETING' | 'CONFERENCE' | 'STRIKE';
+
 export type PlanningSnapshot = {
   /** Today's date in the business timezone, as of the pull. */
   today: string;
   dailyPlans: {
     id: string;
     planDate: string;
-    workingType: 'FIELD_WORK' | 'MEETING' | 'CONFERENCE' | 'STRIKE';
+    workingType: WorkingTypeName;
     workWith: string[];
     routeIds: string[];
     /** The doctors to call: the MR's picks plus missed calls carried over (`carriedFrom` = the day first planned). Absent from older servers. */
     doctors?: { doctorId: string; carriedFrom: string | null }[];
+    /** A trip day the server wrote from the Tour Plan's `returnDate`. Absent from older servers. */
+    dayKind?: 'NORMAL' | 'STAY' | 'TRANSIT';
     remarks: string | null;
     status: PlanStatus;
     approvalRequestId: string | null;
@@ -33,10 +37,14 @@ export type PlanningSnapshot = {
     planMonth: string;
     entries: {
       planDate: string;
-      workingType: 'FIELD_WORK' | 'MEETING' | 'CONFERENCE' | 'STRIKE';
+      workingType: WorkingTypeName;
       workWith: string[];
       routeIds: string[];
       remarks: string | null;
+      /** On a trip's first day: the day the employee comes back. Absent from older servers. */
+      returnDate?: string | null;
+      /** `STAY` / `TRANSIT` for the days the server wrote for an out-station trip. Absent from older servers. */
+      dayKind?: 'NORMAL' | 'STAY' | 'TRANSIT';
     }[];
     status: PlanStatus;
     approvalRequestId: string | null;
@@ -45,11 +53,11 @@ export type PlanningSnapshot = {
 };
 
 export type FieldActivitySnapshot = {
-  /** Compliance block: missed reports with no approved leave. Only an Admin clears it. */
+  /** Compliance block: a missed daily report. Admin or a manager above the employee clears it, with a reason. */
   blocked: boolean;
   today: string;
   /** The last week's daily reports, oldest first. */
-  dcrs?: { id: string; reportDate: string; status: PlanStatus; doctorCalls: number; chemistCalls: number; followups: number }[];
+  dcrs?: { id: string; reportDate: string; status: PlanStatus; approvalRequestId?: string | null; doctorCalls: number; chemistCalls: number; followups: number }[];
   /** The MR's own Doctor Services, newest first (an Admin-made one is APPROVED). */
   doctorServices?: {
     id: string;
@@ -91,13 +99,16 @@ export type FieldMasterDataSnapshot = {
     name: string;
     address: string;
     email: string | null;
+    /** The clinic or hospital, and a contact number; `null` when not set (absent from older servers). */
+    clinicName?: string | null;
+    phone?: string | null;
     specialty: string;
     qualification: string;
     location: GeoPoint | null;
     /** `YYYY-MM-DD`, optional. */
     dateOfBirth?: string | null;
     anniversary?: string | null;
-    /** How many visits a month the MR should make (1–6); `null` = no target. */
+    /** How many visits a month the MR should make (1–5); `null` = no target. */
     visitFrequency?: number | null;
   }[];
   chemists: { id: string; routeId: string; name: string; address: string; location: GeoPoint | null }[];

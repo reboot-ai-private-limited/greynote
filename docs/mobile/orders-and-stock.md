@@ -3,17 +3,18 @@
 What the field app must do for orders, and what to **remove**: the *Monthly stock* tab. The server is the authority. The phone app is another team's and cannot be changed from this repo, so this note is the contract. Decision: decision-log 2026-10-12 (orders, secondary, targets, services).
 
 **Status key:** ✅ built on the server. 📱 the phone still has to do it.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - orders show "Information only" for a chemist order with no Done or Cancel, Done or Cancel for a distributor order; the **Monthly stock tile is removed** (the `MONTHLY_STOCK` sync kind is kept in the queue code as the doc asks).
 
 ## 1. Orders
 
 | # | Rule | Status |
 |---|---|---|
 | 1 | An MR places an order for a **Chemist** or a **Distributor** on their Routes (`ORDER` sync kind / `POST /api/sales/orders`). The MR types the unit price; the server computes line amounts and the total. | ✅ |
-| 2 | A **chemist order is information only.** It is recorded and shown, but never marked done or cancelled: `POST /orders/:id/complete` and `/cancel` on a chemist order return **`409 ORDER_INFO_ONLY`**. Hide Done / Cancel for chemist orders. | ✅ 📱 |
+| 2 | A **chemist order is information only.** It is recorded and shown, but never marked done or cancelled: `POST /orders/:id/complete` and `/cancel` on a chemist order return **`409 ORDER_INFO_ONLY`**. Hide Done / Cancel for chemist orders. | ✅ |
 | 3 | A **distributor order** starts `PLACED` and must be marked **done** (or cancelled) by the MR who placed it, or by Admin. Only a **Done** distributor order is a primary sale. | ✅ |
 | 4 | Done / Cancel is one-way: a second call returns `409 ORDER_NOT_PLACED` naming the state. | ✅ |
 
-## 2. Remove the Monthly stock tab 📱
+## 2. Remove the Monthly stock tab ✅
 
 The *Monthly stock* tab (opening / closing counts per chemist and distributor) is **removed from the app**:
 

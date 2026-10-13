@@ -10,7 +10,7 @@ How an employee looks back at their own leave: what they took, what is waiting, 
 |---|---|---|
 | 1 | **Balances:** `GET /hr/leave-balances/me?year=` gives, per leave type, `allocatedDays`, `usedDays`, `pendingDays` (reserved, waiting for approval) and `availableDays` for a leave year. | ✅ |
 | 2 | **Leaves:** `GET /hr/leaves/me` lists the employee's own leaves, newest first, with dates, type, days, status and the approval trail. It follows the financial year in view (`X-Financial-Year`); dates outside it are `400 OUTSIDE_FINANCIAL_YEAR`. | ✅ |
-| 3 | **Looking at an earlier year** = select it on the Financial Year screen; both reads then answer for that year, read-only. | ✅ / 📱 |
+| 3 | **Looking at an earlier year** = select it on the Financial Year screen; both reads then answer for that year, read-only. | ✅ |
 | 4 | **Statuses** to show: *Waiting*, *Approved*, *Rejected*, *Withdrawn*, *Reopened*. `pendingDays` count against the balance until the leave is decided. | ✅ |
 | 5 | **Cannot be edited** once approved or when its month's salary is finalized (`PAYROLL_FINALIZED`); a pending leave is withdrawn first, and a leave in a closed financial year is refused (`FY_CLOSED`). | ✅ |
 

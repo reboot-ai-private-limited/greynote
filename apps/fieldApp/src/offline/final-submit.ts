@@ -43,7 +43,11 @@ export async function sendNewDoctors(): Promise<PushSummary> {
   return pushPending(['NEW_DOCTOR']);
 }
 
-export async function finalSubmit(reportDate: string): Promise<FinalSubmitResult> {
+/**
+ * `remarks` is the employee's note on the day (`DCR_SUBMIT` payload): required on a Meeting or Conference day — the server
+ * refuses without it (`REMARKS_REQUIRED`) — and optional otherwise.
+ */
+export async function finalSubmit(reportDate: string, remarks: string | null = null): Promise<FinalSubmitResult> {
   await sendNewDoctors().catch(() => undefined); // a failed new doctor is shown on its own screen; it must not stop the day
   const unsent = await unsentForDay(reportDate);
   for (const r of unsent) if (r.status === 'DRAFT') await queueRecord(r.clientId);
@@ -58,6 +62,7 @@ export async function finalSubmit(reportDate: string): Promise<FinalSubmitResult
     // Left from an earlier try (offline, or a record failed): same submit, with today's dependency list.
     await store.upsertRecord({
       ...existing,
+      payload: { reportDate, remarks },
       status: 'QUEUED',
       dependsOn,
       errorCode: null,
@@ -67,7 +72,7 @@ export async function finalSubmit(reportDate: string): Promise<FinalSubmitResult
     });
     notifyOutboxChanged();
   } else {
-    submitId = (await createRecord('DCR_SUBMIT', { reportDate }, { dependsOn, status: 'QUEUED' })).clientId;
+    submitId = (await createRecord('DCR_SUBMIT', { reportDate, remarks }, { dependsOn, status: 'QUEUED' })).clientId;
   }
 
   const summary = await pushPending();

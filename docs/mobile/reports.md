@@ -3,6 +3,7 @@
 How an employee reads back **their own** daily report (DCR), secondary sales, orders and monthly expenses: today's, an earlier day's or an earlier year's. All of these are existing self-scoped reads; nothing new on the server. Related: [`dcr.md`](dcr.md), [`secondary-and-targets.md`](secondary-and-targets.md), [`orders-and-stock.md`](orders-and-stock.md), [`expenses.md`](expenses.md), [`financial-year.md`](financial-year.md), [`leave-report.md`](leave-report.md), [`service-requests.md`](service-requests.md), [`docs.md`](docs.md).
 
 **Status key:** ✅ built on the server. 📱 the phone still has to show it.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** rules 1-10 and the day, month and year views were already in the Reports tab. **Rule 11 own-data routes now built:** a **TA / DA** tab (`/reports/me/ta-da`, `/ta-da/days`) and, on the DCR tab, the month call figures and the doctors not yet visited (`/reports/me/dcr`, `/dcr/coverage`).
 
 ## 1. The rules
 

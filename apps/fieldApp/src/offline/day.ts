@@ -41,13 +41,15 @@ export type DayGate = {
   /** Why the day's calls and expenses are locked; null when open. */
   reason: string | null;
   planStatus: PlanStatus | null;
+  /** Set when the month's Monthly Plan isn't approved (the server's `MONTHLY_PLAN_NOT_APPROVED`): screens offer a way to the Monthly Plan. */
+  cause?: 'MONTHLY_PLAN';
 };
 
 const PLAN_REASON: Record<PlanStatus | 'NONE', string> = {
-  NONE: 'You have no Tour Plan for today. Submit your Daily Plan first.',
-  DRAFT: 'Today’s Tour Plan is saved but not submitted yet. Submit it for approval.',
+  NONE: 'There is no plan for today. Ask your manager.',
+  DRAFT: 'Today’s Tour Plan isn’t submitted yet. Pick the day’s doctors and submit it for approval.',
   SUBMITTED: 'Today’s Tour Plan is waiting for your manager’s approval.',
-  REJECTED: 'Your manager rejected today’s Tour Plan. Update it and submit again.',
+  REJECTED: 'Your manager rejected today’s Tour Plan. Check the doctors and submit again.',
   WITHDRAWN: 'Today’s Tour Plan was withdrawn. Submit it again.',
   REOPENED: 'Today’s Tour Plan was reopened. Submit it again.',
   MANAGER_APPROVED: '',
@@ -55,7 +57,7 @@ const PLAN_REASON: Record<PlanStatus | 'NONE', string> = {
 };
 
 export const BLOCKED_REASON =
-  'Your account is blocked because daily reports were missed. You can still request leave and view reports — contact your Admin to clear the block.';
+  'You’re blocked for a missed daily report. Ask your manager or Admin to unblock you. You can still request leave and view reports.';
 
 export function computeDayGate(input: {
   today: string;
@@ -63,6 +65,8 @@ export function computeDayGate(input: {
   plans: { planDate: string; status: PlanStatus }[] | null;
   /** From the `fieldActivity` pull source; null when never pulled. */
   blocked: boolean | null;
+  /** From the `planning` pull source; null when never pulled. */
+  monthlyPlans?: { planMonth: string; status: PlanStatus }[] | null;
 }): DayGate {
   if (input.blocked === true) return { state: 'blocked', reason: BLOCKED_REASON, planStatus: null };
   if (input.plans === null || input.blocked === null) {
@@ -71,6 +75,20 @@ export function computeDayGate(input: {
       reason: 'Connect to the internet once so your plan and data can load.',
       planStatus: null,
     };
+  }
+  if (Array.isArray(input.monthlyPlans)) {
+    const month = monthOf(input.today);
+    const monthPlan = input.monthlyPlans.find((m) => m.planMonth === month);
+    const isApproved = monthPlan?.status === 'MANAGER_APPROVED' || monthPlan?.status === 'APPROVED';
+    if (!isApproved) {
+      return {
+        state: 'closed',
+        reason: `Your tour plan for ${prettyMonth(month)} isn’t approved yet. Submit your Tour Plan first.`,
+        // The status shown beside "Today's Tour Plan" is the day's own, not the month's.
+        planStatus: input.plans.find((p) => p.planDate === input.today)?.status ?? null,
+        cause: 'MONTHLY_PLAN',
+      };
+    }
   }
   const status = input.plans.find((p) => p.planDate === input.today)?.status ?? null;
   if (status === 'MANAGER_APPROVED' || status === 'APPROVED') {

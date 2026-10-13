@@ -2,9 +2,10 @@ import { useState } from 'react';
 
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
-import { Notice } from '@/components/notice';
 import { ScreenShell } from '@/components/screen-shell';
 import { SecondarySalesPanel } from '@/components/secondary-sales-panel';
+import { ThemedText } from '@/components/themed-text';
+import { InfoCard, StatusBanner, sym } from '@/components/ui-cards';
 import { useFinancialYear } from '@/lib/financial-year';
 import { addMonths, monthOf, prettyMonth } from '@/offline/day';
 
@@ -25,10 +26,15 @@ export default function SecondarySalesScreen() {
   const closed = !fy.isPast && month < addMonths(thisMonth, -1);
 
   return (
-    <ScreenShell title="Secondary Sales">
+    <ScreenShell title="Secondary Sales" subtitle="What you sold each month, sent to your manager for approval">
       <FyBanner />
-      <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={lastMonth} />
-      {closed ? <Notice tone="info">{`${prettyMonth(month)} is closed for secondary sales. Only an Admin can reopen it.`}</Notice> : null}
+      <InfoCard>
+        <ThemedText type="smallBold">Month</ThemedText>
+        <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={lastMonth} />
+      </InfoCard>
+      {closed ? (
+        <StatusBanner accent="amber" icon={sym('lock', 'lock')} title="Month closed" text={`${prettyMonth(month)} is closed for secondary sales. Only an Admin can reopen it.`} />
+      ) : null}
       <SecondarySalesPanel month={month} locked={closed} />
     </ScreenShell>
   );

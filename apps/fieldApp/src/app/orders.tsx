@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
@@ -10,7 +10,8 @@ import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { CardSection, IconChip, InfoCard, Pill, StatusBanner, SummaryStrip, sym } from '@/components/ui-cards';
+import { Spacing, type Accent } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { FyBanner } from '@/components/fy-banner';
 import { ApiError, NetworkError } from '@/lib/api';
@@ -40,13 +41,29 @@ const OUTLET_TYPES: { value: OutletType; label: string }[] = [
   { value: 'DISTRIBUTOR', label: 'Distributor' },
 ];
 
+const STATUS_ACCENT: Record<OrderStatus, Accent> = { PLACED: 'orange', DONE: 'green', CANCELLED: 'red' };
+
+/** The pill on an order: a chemist order is information only, so it shows that instead of a status. */
+const pillFor = (o: OrderView): { text: string; accent: Accent } =>
+  o.outlet.type === 'CHEMIST' ? { text: 'Info only', accent: 'slate' } : { text: TAB_LABEL[o.status], accent: STATUS_ACCENT[o.status] };
+
+const bannerFor = (o: OrderView): { accent: Accent; icon: ReturnType<typeof sym>; title: string; text: string } => {
+  if (o.outlet.type === 'CHEMIST') {
+    return { accent: 'slate', icon: sym('info.circle', 'info'), title: 'Information only', text: 'A chemist order is recorded and shown. It is not marked done or cancelled.' };
+  }
+  if (o.status === 'DONE') return { accent: 'green', icon: sym('checkmark.circle', 'check_circle'), title: 'Done', text: 'Counted as a primary sale.' };
+  if (o.status === 'CANCELLED') return { accent: 'red', icon: sym('xmark.circle', 'cancel'), title: 'Cancelled', text: 'This order was cancelled.' };
+  return { accent: 'orange', icon: sym('clock', 'schedule'), title: 'Placed', text: 'Mark it done once the distributor has supplied it.' };
+};
+
 const errorText = (err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError || err instanceof Error ? err.message : 'Something went wrong. Please try again.';
 
 /**
- * Orders (PRD §6.2): an order for one of your chemists or distributors, by product. There is no approval:
- * once it reaches the server it is Placed, and you mark it Done or Cancel it. Placing works offline —
- * the order is kept on the phone and sent when you're back online. Marking Done or Cancelled needs a connection.
+ * Orders (PRD §6.2, docs/mobile/orders-and-stock.md): an order for one of your chemists or distributors, by product.
+ * A distributor order is Placed, then you mark it Done or Cancel it. A chemist order is information only: it is
+ * recorded and shown, never marked done or cancelled. Placing works offline — the order is kept on the phone and
+ * sent when you're back online. Marking Done or Cancelled needs a connection.
  */
 export default function OrdersScreen() {
   const online = useOnline();
@@ -82,7 +99,8 @@ export default function OrdersScreen() {
 
   const waiting = records.filter((r) => !r.deleted && r.status !== 'SYNCED').reverse();
   const mine = (server.data ?? []).filter((o) => (scope === 'team' ? !!me && o.userId !== me.id : !me || o.userId === me.id));
-  const byStatus = (s: OrderStatus) => mine.filter((o) => o.status === s);
+  // Chemist orders are information only: they sit in Placed (labelled) and never reach Done or Cancelled.
+  const byStatus = (s: OrderStatus) => mine.filter((o) => o.status === s && (s === 'PLACED' || o.outlet.type === 'DISTRIBUTOR'));
   const ownerName = (userId: string) => colleagues.find((c) => c.id === userId)?.name ?? 'Team member';
   const isMine = (o: OrderView) => !me || o.userId === me.id;
 
@@ -180,7 +198,12 @@ export default function OrdersScreen() {
       server.reload();
       setMsg({ tone: 'success', text: to === 'DONE' ? 'Marked done.' : 'Order cancelled.' });
     } catch (err) {
-      setMsg({ tone: 'danger', text: errorText(err) });
+      // The order may have moved on (done elsewhere) or be a chemist order: say so, and show its current state.
+      const code = err instanceof ApiError ? err.data?.code : undefined;
+      if (code === 'ORDER_INFO_ONLY') setMsg({ tone: 'info', text: 'A chemist order is for information only. It is not marked done or cancelled.' });
+      else if (code === 'ORDER_NOT_PLACED') setMsg({ tone: 'info', text: 'This order has already been marked done or cancelled.' });
+      else setMsg({ tone: 'danger', text: errorText(err) });
+      if (code === 'ORDER_INFO_ONLY' || code === 'ORDER_NOT_PLACED') server.reload();
     } finally {
       setBusy(null);
     }
@@ -188,9 +211,16 @@ export default function OrdersScreen() {
 
   if (mode === 'form') {
     return (
-      <ScreenShell title={editing ? 'Change order' : 'New order'}>
-        <View style={styles.block}>
-          <ThemedText type="smallBold">Order for</ThemedText>
+      <ScreenShell
+        title={editing ? 'Change order' : 'New order'}
+        footer={
+          <View style={styles.block}>
+            <PrimaryButton label={online ? 'Place order' : 'Save on this phone'} loading={busy === 'save'} onPress={save} />
+            <PrimaryButton label="Cancel" variant="text" disabled={busy !== null} onPress={() => setMode('list')} />
+          </View>
+        }>
+        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+        <CardSection icon={sym('building.2', 'domain')} accent="orange" title="Order for">
           <ChoiceChips
             options={OUTLET_TYPES}
             value={outletType}
@@ -201,77 +231,121 @@ export default function OrdersScreen() {
             }}
             disabled={busy !== null}
           />
-        </View>
-        <OutletPicker
-          label={outletType === 'CHEMIST' ? 'Chemist' : 'Distributor'}
-          options={outlets.map((o) => ({ id: o.id, name: o.name, subtitle: o.address }))}
-          value={outletId}
-          onChange={setOutletId}
-          disabled={busy !== null}
-          emptyText={`No ${outletType === 'CHEMIST' ? 'chemists' : 'distributors'} are on your routes yet.`}
-        />
-        <ProductLinesEditor
-          products={products.map((p) => ({ id: p.id, name: p.name, subtitle: p.packSize ?? undefined }))}
-          columns={[{ label: 'Quantity' }, { label: 'Price (₹)', decimal: true }]}
-          lines={lines}
-          onChange={(l) => (setLines(l), setMsg(null))}
-          defaults={(id) => ['', defaultPrice(id, outletType)]}
-          disabled={busy !== null}
-          footer={(l) => {
-            const qty = Number(l.values[0]);
-            const price = rupeesToPaise(l.values[1] ?? '');
-            return qty > 0 && price ? `Amount ${formatRupees(qty * price)}` : null;
-          }}
-        />
-        <TextField label="Remarks (optional)" value={remarks} onChangeText={setRemarks} multiline maxLength={1000} editable={busy === null} />
-        <ThemedText type="smallBold">{`Total ${formatRupees(total)}`}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          The server works out the final amounts from your quantities and prices.
-        </ThemedText>
-        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-        <PrimaryButton label={online ? 'Place order' : 'Save on this phone'} loading={busy === 'save'} onPress={save} />
-        <PrimaryButton label="Cancel" variant="text" disabled={busy !== null} onPress={() => setMode('list')} />
+          {outletType === 'CHEMIST' ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              A chemist order is for information only: it is recorded, not marked done or cancelled.
+            </ThemedText>
+          ) : null}
+          <OutletPicker
+            label={outletType === 'CHEMIST' ? 'Chemist' : 'Distributor'}
+            options={outlets.map((o) => ({ id: o.id, name: o.name, subtitle: o.address }))}
+            value={outletId}
+            onChange={setOutletId}
+            disabled={busy !== null}
+            emptyText={`No ${outletType === 'CHEMIST' ? 'chemists' : 'distributors'} are on your routes yet.`}
+          />
+        </CardSection>
+        <CardSection icon={sym('shippingbox', 'inventory_2')} accent="teal" title="Products" count={lines.length || undefined}>
+          <ProductLinesEditor
+            products={products.map((p) => ({ id: p.id, name: p.name, subtitle: p.packSize ?? undefined }))}
+            columns={[{ label: 'Quantity' }, { label: 'Price (₹)', decimal: true }]}
+            lines={lines}
+            onChange={(l) => (setLines(l), setMsg(null))}
+            defaults={(id) => ['', defaultPrice(id, outletType)]}
+            disabled={busy !== null}
+            footer={(l) => {
+              const qty = Number(l.values[0]);
+              const price = rupeesToPaise(l.values[1] ?? '');
+              return qty > 0 && price ? `Amount ${formatRupees(qty * price)}` : null;
+            }}
+          />
+          <View style={styles.spread}>
+            <ThemedText type="smallBold">Total</ThemedText>
+            <ThemedText type="smallBold">{formatRupees(total)}</ThemedText>
+          </View>
+          <ThemedText type="small" themeColor="textSecondary">
+            The server works out the final amounts from your quantities and prices.
+          </ThemedText>
+        </CardSection>
+        <CardSection icon={sym('text.bubble', 'chat')} accent="purple" title="Remarks">
+          <TextField label="Remarks (optional)" value={remarks} onChangeText={setRemarks} multiline maxLength={1000} editable={busy === null} />
+        </CardSection>
       </ScreenShell>
     );
   }
 
   if (mode === 'detail' && detail) {
+    const infoOnly = detail.outlet.type === 'CHEMIST';
+    const canAct = detail.status === 'PLACED' && isMine(detail) && !infoOnly;
     return (
-      <ScreenShell title="Order">
+      <ScreenShell
+        title="Order"
+        footer={
+          <View style={styles.block}>
+            {canAct && online ? (
+              <>
+                <PrimaryButton label="Mark done" loading={busy === 'DONE'} disabled={busy !== null} onPress={() => finish(detail, 'DONE')} />
+                <PrimaryButton label="Cancel this order" variant="text" loading={busy === 'CANCELLED'} disabled={busy !== null} onPress={() => finish(detail, 'CANCELLED')} />
+              </>
+            ) : null}
+            <PrimaryButton label="Back to orders" variant="text" onPress={() => setMode('list')} />
+          </View>
+        }>
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-        <ThemedView type="backgroundElement" style={styles.card}>
+        <StatusBanner {...bannerFor(detail)} />
+        {canAct && !online ? <Notice tone="info">Marking an order done or cancelling it needs a connection.</Notice> : null}
+        <InfoCard>
           {isMine(detail) ? null : <ThemedText type="small" themeColor="textSecondary">{`Placed by ${ownerName(detail.userId)}`}</ThemedText>}
           <ThemedText type="smallBold">{outletName(detail.outlet.type, detail.outlet.id)}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {`${detail.outlet.type === 'CHEMIST' ? 'Chemist' : 'Distributor'} · ${prettyDay(detail.orderDate)} · ${TAB_LABEL[detail.status]}`}
-          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{`${infoOnly ? 'Chemist' : 'Distributor'} · ${prettyDay(detail.orderDate)}`}</ThemedText>
+        </InfoCard>
+        <CardSection icon={sym('shippingbox', 'inventory_2')} accent="teal" title="Products" count={detail.items.length}>
           {detail.items.map((i) => (
-            <ThemedText key={i.productId} type="small">{`${productName(i.productId)} — ${i.quantity} × ${formatRupees(i.unitPricePaise)} = ${formatRupees(i.amountPaise)}`}</ThemedText>
+            <View key={i.productId} style={styles.spread}>
+              <View style={styles.grow}>
+                <ThemedText type="smallBold">{productName(i.productId)}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">{`${i.quantity} × ${formatRupees(i.unitPricePaise)}`}</ThemedText>
+              </View>
+              <ThemedText type="smallBold">{formatRupees(i.amountPaise)}</ThemedText>
+            </View>
           ))}
-          <ThemedText type="smallBold">{`Total ${formatRupees(detail.totalAmountPaise)}`}</ThemedText>
-          {detail.remarks ? <ThemedText type="small">{detail.remarks}</ThemedText> : null}
-        </ThemedView>
-        {detail.status === 'PLACED' && isMine(detail) ? (
-          online ? (
-            <>
-              <PrimaryButton label="Mark done" loading={busy === 'DONE'} disabled={busy !== null} onPress={() => finish(detail, 'DONE')} />
-              <PrimaryButton label="Cancel this order" variant="text" loading={busy === 'CANCELLED'} disabled={busy !== null} onPress={() => finish(detail, 'CANCELLED')} />
-            </>
-          ) : (
-            <Notice tone="info">Marking an order done or cancelling it needs a connection.</Notice>
-          )
+          <View style={styles.spread}>
+            <ThemedText type="smallBold">Total</ThemedText>
+            <ThemedText type="smallBold">{formatRupees(detail.totalAmountPaise)}</ThemedText>
+          </View>
+        </CardSection>
+        {detail.remarks ? (
+          <CardSection icon={sym('text.bubble', 'chat')} accent="purple" title="Remarks">
+            <ThemedText type="small">{detail.remarks}</ThemedText>
+          </CardSection>
         ) : null}
-        <PrimaryButton label="Back to orders" variant="text" onPress={() => setMode('list')} />
       </ScreenShell>
     );
   }
 
   const shown = tab === 'WAITING' ? [] : byStatus(tab);
+  const shownValue = shown.reduce((s, o) => s + o.totalAmountPaise, 0);
+  const shownProducts = shown.reduce((s, o) => s + o.items.length, 0);
   return (
-    <ScreenShell title="Orders">
+    <ScreenShell title="Orders" subtitle="Manage your chemist orders and fulfilment status">
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
       <FyBanner />
-      {fy.isPast || scope === 'team' ? null : <PrimaryButton label="New order" onPress={() => startForm(null)} />}
+      {tab !== 'WAITING' ? (
+        <SummaryStrip
+          items={[
+            { label: `${TAB_LABEL[tab]} orders`, value: String(shown.length).padStart(2, '0'), accent: 'blue' },
+            { label: 'Order value', value: formatRupees(shownValue), accent: 'teal' },
+            { label: 'Products', value: String(shownProducts).padStart(2, '0'), accent: 'purple' },
+          ]}
+        />
+      ) : null}
+      <View style={styles.sectionHead}>
+        <View style={styles.grow}>
+          <ThemedText type="smallBold" style={styles.sectionTitle}>{scope === 'team' ? 'Team orders' : 'Your orders'}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{`Latest ${TAB_LABEL[tab].toLowerCase()} orders`}</ThemedText>
+        </View>
+        {fy.isPast || scope === 'team' ? null : <PrimaryButton label="+ New order" style={styles.newOrder} onPress={() => startForm(null)} />}
+      </View>
       {isManager ? (
         <ChoiceChips
           options={[{ value: 'mine' as const, label: 'My orders' }, { value: 'team' as const, label: 'Team orders' }]}
@@ -317,14 +391,27 @@ export default function OrdersScreen() {
       ) : shown.length === 0 ? (
         <Notice tone="info">{server.data ? `No ${TAB_LABEL[tab].toLowerCase()} orders.` : 'Connect once to load the orders.'}</Notice>
       ) : (
-        shown.map((o) => (
-          <Pressable key={o.id} accessibilityRole="button" onPress={() => (setMsg(null), setDetail(o), setMode('detail'))}>
-            <ThemedView type="backgroundElement" style={styles.card}>
-              <ThemedText type="smallBold">{`${scope === 'team' ? ownerName(o.userId) : outletName(o.outlet.type, o.outlet.id)} · ${formatRupees(o.totalAmountPaise)}`}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">{`${o.outlet.type === 'CHEMIST' ? 'Chemist' : 'Distributor'} · ${prettyDay(o.orderDate)} · ${o.items.length} product${o.items.length === 1 ? '' : 's'}`}</ThemedText>
-            </ThemedView>
-          </Pressable>
-        ))
+        shown.map((o) => {
+          const chemist = o.outlet.type === 'CHEMIST';
+          return (
+            <InfoCard key={o.id}>
+              <View style={styles.spread}>
+                <IconChip icon={chemist ? sym('cross.case', 'medical_services') : sym('building.2', 'domain')} accent={chemist ? 'teal' : 'orange'} />
+                <View style={styles.grow}>
+                  <ThemedText type="smallBold" numberOfLines={1}>
+                    {scope === 'team' ? `${ownerName(o.userId)} · ${outletName(o.outlet.type, o.outlet.id)}` : outletName(o.outlet.type, o.outlet.id)}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">{`${chemist ? 'Chemist' : 'Distributor'} · ${prettyDay(o.orderDate)} · ${o.items.length} product${o.items.length === 1 ? '' : 's'}`}</ThemedText>
+                </View>
+                <ThemedText type="smallBold">{formatRupees(o.totalAmountPaise)}</ThemedText>
+              </View>
+              <View style={styles.spread}>
+                <Pill {...pillFor(o)} />
+                <PrimaryButton label="View order →" variant="text" onPress={() => (setMsg(null), setDetail(o), setMode('detail'))} />
+              </View>
+            </InfoCard>
+          );
+        })
       )}
     </ScreenShell>
   );
@@ -334,4 +421,9 @@ const styles = StyleSheet.create({
   block: { gap: Spacing.two },
   card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  spread: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
+  grow: { flex: 1 },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  sectionTitle: { fontSize: 18, lineHeight: 24 },
+  newOrder: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
 });

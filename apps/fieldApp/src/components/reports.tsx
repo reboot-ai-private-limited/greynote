@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { Spacing } from '@/constants/theme';
+import { Spacing, type Accent } from '@/constants/theme';
 import { apiGet } from '@/lib/api';
 import { STATUS_LABEL, type ApprovalStatus } from '@/lib/approvals';
 import { listStock, type OrderView, type StockRow } from '@/lib/marketing';
 import { formatRupees } from '@/lib/money';
+import { getMyDcrCoverage, getMyDcrYear, getMyTaDaDays, getMyTaDaYear, type TaDaDay } from '@/lib/my-reports';
 import { getRejectionReason, workingTypeLabel, type DailyPlanDetail, type MonthlyPlanDetail } from '@/lib/planning';
 import { useSessionUser } from '@/lib/session';
 import { useCachedSource } from '@/offline/cache';
@@ -18,8 +19,10 @@ import { Notice } from './notice';
 import { PrimaryButton } from './primary-button';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
+import { InfoCard, Pill, RowCard, SummaryStrip, sym } from './ui-cards';
 
 const statusText = (status: string) => STATUS_LABEL[status as ApprovalStatus] ?? (status === 'DRAFT' ? 'Not sent' : status);
+const REPORT_ACCENT: Record<string, Accent> = { APPROVED: 'green', SUBMITTED: 'amber', MANAGER_APPROVED: 'blue', REJECTED: 'red', DRAFT: 'slate', WITHDRAWN: 'slate', REOPENED: 'slate' };
 const bounds = (month: string) => {
   const days = datesInMonth(month);
   return { from: days[0]!, to: days[days.length - 1]! };
@@ -43,26 +46,128 @@ export function DcrReport({ month, year }: { month: string; year: number }) {
   const { from, to } = bounds(month);
   const list = useCachedFetch<DcrRow[]>(`rep-dcr:${year}:${month}`, () => apiGet<DcrRow[]>(`/field-activity/dcr?from=${from}&to=${to}`, { auth: true, fy: true }));
   const rows = [...(list.data ?? [])].sort((a, b) => b.reportDate.localeCompare(a.reportDate));
+  // The month's call figures and the doctors not yet visited: the server counts them (docs/mobile/reports.md rule 11).
+  const year_ = useCachedFetch(`rep-dcr-year:${year}`, () => getMyDcrYear(year));
+  const coverage = useCachedFetch(`rep-dcr-cover:${year}:${month}`, () => getMyDcrCoverage(month));
+  const figures = year_.data?.months.find((m) => m.month === month) ?? null;
 
   return (
     <View style={styles.stack}>
       <Stale {...list} />
+      {figures && figures.reportedDays > 0 ? (
+        <>
+          <SummaryStrip
+            items={[
+              { label: 'Reported days', value: figures.reportedDays, accent: 'blue' },
+              { label: 'Calls', value: figures.calls, accent: 'green' },
+              { label: 'Follow-ups', value: figures.followups, accent: 'purple' },
+            ]}
+          />
+          <ThemedText type="small" themeColor="textSecondary">
+            {`${figures.doctorCalls} doctor and ${figures.chemistCalls} chemist calls${figures.callsPerDay !== null ? `, ${figures.callsPerDay} a day` : ''}${figures.lateDays ? ` · ${figures.lateDays} sent late` : ''}${figures.unconfirmed ? ` · ${figures.unconfirmed} location not confirmed` : ''}${figures.notInPlan ? ` · ${figures.notInPlan} not in plan` : ''}`}
+          </ThemedText>
+        </>
+      ) : null}
+      {coverage.data ? (
+        <InfoCard>
+          <ThemedText type="smallBold">{`Doctors visited: ${coverage.data.visited} of ${coverage.data.assigned}`}</ThemedText>
+          {coverage.data.notVisited.length === 0 ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {coverage.data.assigned === 0 ? 'No doctors are assigned to you.' : 'You have called on every doctor assigned to you.'}
+            </ThemedText>
+          ) : (
+            <>
+              <ThemedText type="small" themeColor="textSecondary">
+                Not called on yet this month:
+              </ThemedText>
+              {coverage.data.notVisited.slice(0, 10).map((d) => (
+                <ThemedText key={d.id} type="small">{`${d.name} · ${d.specialty}`}</ThemedText>
+              ))}
+              {coverage.data.notVisited.length > 10 ? (
+                <ThemedText type="small" themeColor="textSecondary">{`…and ${coverage.data.notVisited.length - 10} more`}</ThemedText>
+              ) : null}
+            </>
+          )}
+        </InfoCard>
+      ) : null}
       {list.loading && !list.data ? (
         <Notice tone="info">Loading…</Notice>
       ) : rows.length === 0 ? (
         <Notice tone="info">{list.data ? 'No daily reports this month.' : 'Connect once to load your reports.'}</Notice>
       ) : (
         rows.map((r) => (
-          <Pressable key={r.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/dcr-report/[id]', params: { id: r.id } })}>
-            <ThemedView type="backgroundElement" style={styles.card}>
-              <ThemedText type="smallBold">{prettyDay(r.reportDate)}</ThemedText>
-              <ThemedText type="small" themeColor={r.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
-                {statusText(r.status)}
-              </ThemedText>
-            </ThemedView>
-          </Pressable>
+          <RowCard
+            key={r.id}
+            icon={sym('doc.text', 'description')}
+            accent={REPORT_ACCENT[r.status] ?? 'slate'}
+            title={prettyDay(r.reportDate)}
+            subtitle="Tap for its calls, followups and expenses"
+            right={<Pill text={statusText(r.status)} accent={REPORT_ACCENT[r.status] ?? 'slate'} />}
+            onPress={() => router.push({ pathname: '/dcr-report/[id]', params: { id: r.id } })}
+          />
         ))
       )}
+    </View>
+  );
+}
+
+/* ───────────────────────────────── TA / DA Report ───────────────────────────────── */
+
+const EXPENSE_TYPE: Record<TaDaDay['type'], string> = { TA: 'TA', DA: 'DA', TRAVEL: 'Travel', MEAL: 'Meal', MISC: 'Other', OTHER: 'Other' };
+
+/**
+ * Your TA, DA and claims the company has accepted: the month's totals with what is paid and unpaid, then each day. The server
+ * adds it all up; the phone only shows it.
+ */
+export function TaDaReport({ month, year }: { month: string; year: number }) {
+  const yearly = useCachedFetch(`rep-tada-year:${year}`, () => getMyTaDaYear(year));
+  const days = useCachedFetch(`rep-tada-days:${year}:${month}`, () => getMyTaDaDays(month));
+  const figures = yearly.data?.months.find((m) => m.month === month) ?? null;
+  const rows = days.data?.rows ?? [];
+
+  return (
+    <View style={styles.stack}>
+      <Stale {...days} />
+      {figures ? (
+        <>
+          <SummaryStrip
+            items={[
+              { label: 'TA', value: formatRupees(figures.taPaise), accent: 'blue' },
+              { label: 'DA', value: formatRupees(figures.daPaise), accent: 'green' },
+              { label: 'Total', value: formatRupees(figures.totalPaise), accent: 'purple' },
+            ]}
+          />
+          <ThemedText type="small" themeColor="textSecondary">
+            {`${figures.reimbursementPaise > 0 ? `Claims ${formatRupees(figures.reimbursementPaise)} · ` : ''}Paid ${formatRupees(figures.paidPaise)} · Not paid yet ${formatRupees(figures.unpaidPaise)}`}
+          </ThemedText>
+          {figures.flaggedRows > 0 ? <Notice tone="warning">{`${figures.flaggedRows} travel amount${figures.flaggedRows === 1 ? '' : 's'} could not be worked out from the route distance and may be low. Ask Admin.`}</Notice> : null}
+        </>
+      ) : null}
+      {yearly.data ? (
+        <ThemedText type="small" themeColor="textSecondary">{`Whole year: ${formatRupees(yearly.data.totals.totalPaise)} (paid ${formatRupees(yearly.data.totals.paidPaise)})`}</ThemedText>
+      ) : null}
+      {days.loading && !days.data ? (
+        <Notice tone="info">Loading…</Notice>
+      ) : rows.length === 0 ? (
+        <Notice tone="info">{days.data ? 'No accepted expenses this month. TA and DA appear once a daily report is approved.' : 'Connect once to load your expenses.'}</Notice>
+      ) : (
+        rows.map((r, i) => (
+          <RowCard
+            key={`${r.date}-${r.type}-${i}`}
+            icon={sym('indianrupeesign.circle', 'payments')}
+            accent={r.status === 'PAID' ? 'green' : 'amber'}
+            title={`${prettyDay(r.date)} · ${EXPENSE_TYPE[r.type]}`}
+            subtitle={[r.route?.name, r.remarks].filter(Boolean).join(' · ') || (r.source === 'AUTO' ? 'Worked out by the server' : 'Entered by you')}
+            right={
+              <View>
+                <ThemedText type="smallBold">{formatRupees(r.amountPaise)}</ThemedText>
+                <Pill text={r.status === 'PAID' ? 'Paid' : 'Not paid'} accent={r.status === 'PAID' ? 'green' : 'amber'} />
+              </View>
+            }
+          />
+        ))
+      )}
+      {days.data?.truncated ? <Notice tone="info">The list is long and may be cut short. The totals above are complete.</Notice> : null}
     </View>
   );
 }
@@ -92,9 +197,9 @@ export function TpReport({ month, year }: { month: string; year: number }) {
     <View style={styles.stack}>
       <Stale {...daily} />
       <ThemedView type="backgroundElement" style={styles.card}>
-        <ThemedText type="smallBold">{`Monthly Plan · ${prettyMonth(month)}`}</ThemedText>
+        <ThemedText type="smallBold">{`Tour Plan · ${prettyMonth(month)}`}</ThemedText>
         <ThemedText type="small" themeColor={plan?.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
-          {plan ? statusText(plan.status) : monthly.loading ? 'Loading…' : 'No Monthly Plan for this month.'}
+          {plan ? statusText(plan.status) : monthly.loading ? 'Loading…' : 'No Tour Plan for this month.'}
         </ThemedText>
         {plan?.status === 'REJECTED' && plan.approval ? (
           reasons.monthly ? (

@@ -3,6 +3,7 @@
 What the field app must do for the day's records and the final submit, and the rules the server enforces. The server is the authority; the phone's checks are only for a quick answer. Companion to [`dailyplan.md`](dailyplan.md) and [`monthlyplan.md`](monthlyplan.md). Design background: [`LLD/field-activity.md`](../LLD/field-activity.md), [`decision-log.md`](../decision-log.md) (2026-10-12, *Calls redesign*).
 
 **Status key:** ✅ built on the server and web. The phone app is another team's; this is the contract it builds against.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - the four records with the work type from the plan, no calls on Meeting, Conference or Strike days, the required note for the day on Meeting and Conference days, "Not in plan" flags, and removing a record before the final submit.
 
 ## 1. The four records
 

@@ -62,7 +62,7 @@ The financial year, from `FY_START_MONTH` (April): leave year 2026 is 2026-04-01
   holidays that apply to the employee — National, their HQ's and their HQ's Zone's. Half-day leave was removed
   (2026-10-05): every day counts 1, though a leave made earlier as a half keeps counting 0.5. Stored on the Leave at submit, so a later holiday edit doesn't
   rewrite past leave; Payroll's per-month count and the DCR "on leave" check read these days.
-- **Rules:** at least one counted day; start no more than `LEAVE_BACKDATE_DAYS` (30) days back and
+- **Rules:** at least one counted day; start no more than `LEAVE_BACKDATE_DAYS` (default 0: not in the past) days back and
   within the current leave year (F15), or in the next one; no overlap with the employee's own
   leave that's waiting or approved; paid types need the balance.
 - **A blocked user can still request leave** (PRD §7.5) — unlike Plans — to cover the gap that

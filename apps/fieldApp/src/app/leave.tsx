@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { router } from 'expo-router';
+
+import { ApprovalHistory } from '@/components/approval-history';
 import { ChoiceChips } from '@/components/choice-chips';
 import { DateStepper } from '@/components/date-stepper';
 import { LeaveProof } from '@/components/leave-proof';
@@ -10,8 +13,8 @@ import { Skeleton } from '@/components/skeleton';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { CardSection, IconChip, InfoCard, Meter, Pill, sym } from '@/components/ui-cards';
+import { Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
@@ -26,10 +29,11 @@ import {
   type LeaveView,
 } from '@/lib/leave';
 import { formatSize, pickProofFile, type PickedProof } from '@/lib/proof-picker';
+import { getApproval, type ApprovalDetail } from '@/lib/approvals';
 import { getRejectionReason } from '@/lib/planning';
 import { useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
-import { addDays, prettyDay } from '@/offline/day';
+import { prettyDay, prettyMonth } from '@/offline/day';
 import type { HrSnapshot } from '@/types/sync';
 
 const STATUS_TEXT: Record<string, string> = {
@@ -41,8 +45,15 @@ const STATUS_TEXT: Record<string, string> = {
   REOPENED: 'Reopened — change it and send it again',
 };
 
-const errorText = (err: unknown) =>
-  err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
+const errorText = (err: unknown, typeName?: string) => {
+  if (err instanceof ApiError) {
+    if (err.data?.code === 'PAYROLL_FINALIZED' || /salary .* already finalized/i.test(err.message)) return 'This month’s salary is already finalized.';
+    if (err.status === 409 && (/day\(s\) of .* left|not enough leave left/i.test(err.message) || err.data?.field === 'leaveTypeId')) {
+      return `Not enough ${typeName ?? 'leave'} left. Request Loss of Pay for the rest.`;
+    }
+  }
+  return err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
+};
 
 type Msg = { tone: 'danger' | 'success' | 'info'; text: string };
 
@@ -76,7 +87,8 @@ export default function LeaveScreen() {
   // A new request is for Casual, Sick or Earned leave (not Loss of Pay). The type of a leave already made is kept, so it can still be changed and sent again.
   const requestable = (name: string) => ['casual', 'sick', 'earned'].includes(name.trim().toLowerCase());
   const types = allTypes.filter((t) => requestable(t.name));
-  const earliest = addDays(today, -(hr.data?.leaveBackdateDays ?? 0));
+  // A leave can't start in the past (docs/mobile/leave.md rule 6).
+  const earliest = today;
 
   const [reloadKey, setReloadKey] = useState(0);
   const reload = () => setReloadKey((k) => k + 1);
@@ -109,6 +121,19 @@ export default function LeaveScreen() {
       alive = false;
     };
   }, [online, reloadKey]);
+
+  // The year's leaves, newest first, grouped by the month they start in; a leave's approval trail opens on request.
+  const sortedLeaves = [...(leaves ?? [])].sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const [trails, setTrails] = useState<Record<string, ApprovalDetail>>({});
+  const showTrail = async (l: LeaveView) => {
+    if (!l.approval) return;
+    try {
+      const detail = await getApproval(l.approval.requestId);
+      setTrails((t) => ({ ...t, [l.id]: detail }));
+    } catch (err) {
+      setMsg({ tone: 'danger', text: errorText(err) });
+    }
+  };
 
   const startForm = (leave: LeaveView | 'new') => {
     setMsg(null);
@@ -159,7 +184,7 @@ export default function LeaveScreen() {
       );
       reload();
     } catch (err) {
-      setMsg({ tone: 'danger', text: errorText(err) });
+      setMsg({ tone: 'danger', text: errorText(err, allTypes.find((t) => t.id === typeId)?.name) });
     } finally {
       setBusy(false);
     }
@@ -190,9 +215,18 @@ export default function LeaveScreen() {
 
   if (editing) {
     return (
-      <ScreenShell title={editing === 'new' ? 'Request leave' : 'Change leave'}>
-        <View style={styles.block}>
-          <ThemedText type="smallBold">Leave type</ThemedText>
+      <ScreenShell
+        title={editing === 'new' ? 'Request leave' : 'Change leave'}
+        subtitle="Goes to your manager, then HR"
+        footer={
+          <View style={styles.block}>
+            <PrimaryButton label={editing === 'new' ? 'Send request' : 'Send again'} loading={busy} disabled={!online} onPress={send} />
+            <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setEditing(null)} />
+          </View>
+        }>
+        {!online ? <Notice tone="info">You’re offline. You can fill this in, but sending needs the internet.</Notice> : null}
+        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+        <CardSection icon={sym('tag', 'sell')} accent="purple" title="Leave type">
           {types.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
               Connect to the internet once so your leave types can load.
@@ -200,22 +234,25 @@ export default function LeaveScreen() {
           ) : (
             <ChoiceChips options={allTypes.filter((t) => requestable(t.name) || t.id === typeId).map((t) => ({ value: t.id, label: t.name }))} value={typeId} onChange={setTypeId} disabled={busy} />
           )}
-        </View>
-        <DateStepper
-          label="First day"
-          value={start}
-          min={earliest}
-          disabled={busy}
-          onChange={(d) => {
-            setStart(d);
-            if (end < d) setEnd(d);
-          }}
-        />
-        <DateStepper label="Last day" value={end} min={start} disabled={busy} onChange={setEnd} />
-        <TextField label="Reason" value={reason} onChangeText={setReason} multiline maxLength={1000} editable={!busy} />
+        </CardSection>
+        <CardSection icon={sym('calendar', 'event')} accent="blue" title="Dates">
+          <DateStepper
+            label="First day"
+            value={start}
+            min={earliest}
+            disabled={busy}
+            onChange={(d) => {
+              setStart(d);
+              if (end < d) setEnd(d);
+            }}
+          />
+          <DateStepper label="Last day" value={end} min={start} disabled={busy} onChange={setEnd} />
+        </CardSection>
+        <CardSection icon={sym('text.bubble', 'chat')} accent="teal" title="Reason">
+          <TextField label="Why do you need the leave?" value={reason} onChangeText={setReason} multiline maxLength={1000} editable={!busy} />
+        </CardSection>
         {typeId && proofTypeIds.has(typeId) ? (
-          <View style={styles.block}>
-            <ThemedText type="smallBold">Proof (optional)</ThemedText>
+          <CardSection icon={sym('paperclip', 'attach_file')} accent="amber" title="Proof (optional)">
             {chosen.map((f, i) => (
               <View key={`${f.uri}-${i}`} style={styles.fileRow}>
                 <ThemedText type="small" style={styles.fileName} numberOfLines={1}>
@@ -234,39 +271,54 @@ export default function LeaveScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               PDF, JPG or PNG, up to 5 MB, at most 3 files. Sent together with your request.
             </ThemedText>
-          </View>
+          </CardSection>
         ) : null}
-        {!online ? <Notice tone="info">You’re offline. You can fill this in, but sending needs the internet.</Notice> : null}
-        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-        <PrimaryButton label={editing === 'new' ? 'Send request' : 'Send again'} loading={busy} disabled={!online} onPress={send} />
-        <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setEditing(null)} />
       </ScreenShell>
     );
   }
 
   return (
-    <ScreenShell title="Leave">
+    <ScreenShell title="Leave" subtitle="Your balances and requests">
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+      <PrimaryButton label="Look at another year" variant="text" onPress={() => router.push('/financial-year')} />
 
-      <ThemedText type="smallBold">{`Your balances${hr.data ? ` · ${hr.data.leaveYear}` : ''}`}</ThemedText>
       {!hr.data || hr.data.balances.length === 0 ? (
         <Notice tone="info">Your leave balances load when you’re online. Connect once to see them.</Notice>
       ) : (
-        hr.data.balances.map((b) => (
-          <ThemedView key={b.leaveTypeId} type="backgroundElement" style={styles.card}>
-            <ThemedText type="smallBold">{b.leaveTypeName}</ThemedText>
-            <ThemedText type="small">{`${b.availableDays} days available of ${b.allocatedDays}`}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {`${b.usedDays} used${b.pendingDays > 0 ? ` · ${b.pendingDays} waiting for approval` : ''}`}
-            </ThemedText>
-          </ThemedView>
-        ))
+        <>
+          <ThemedText type="smallBold">{`Your balances · ${hr.data.leaveYear}`}</ThemedText>
+          {hr.data.balances.map((b, i) => {
+            const accent = BALANCE_ACCENTS[i % BALANCE_ACCENTS.length]!;
+            return (
+              <InfoCard key={b.leaveTypeId}>
+                <View style={styles.head}>
+                  <IconChip icon={sym('calendar.badge.clock', 'event_available')} accent={accent} />
+                  <View style={styles.grow}>
+                    <ThemedText type="smallBold">{b.leaveTypeName}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {`${b.usedDays} used${b.pendingDays > 0 ? ` · ${b.pendingDays} waiting for approval` : ''}`}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.right}>
+                    <ThemedText type="smallBold">{b.availableDays}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">{`of ${b.allocatedDays} left`}</ThemedText>
+                  </View>
+                </View>
+                <Meter value={b.usedDays + b.pendingDays} total={b.allocatedDays} accent={accent} />
+              </InfoCard>
+            );
+          })}
+        </>
       )}
 
-      <PrimaryButton label="Request leave" disabled={!online || types.length === 0} onPress={() => startForm('new')} />
+      <View style={styles.head}>
+        <View style={styles.grow}>
+          <ThemedText type="smallBold" style={styles.sectionTitle}>Your requests</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">Newest first</ThemedText>
+        </View>
+        <PrimaryButton label="+ Request leave" style={styles.newButton} disabled={!online || types.length === 0} onPress={() => startForm('new')} />
+      </View>
       {!online ? <Notice tone="info">You’re offline. Requesting leave needs the internet.</Notice> : null}
-
-      <ThemedText type="smallBold">Your requests</ThemedText>
       {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
       {leaves === null && !loadError ? (
         online ? (
@@ -278,15 +330,21 @@ export default function LeaveScreen() {
         )
       ) : null}
       {leaves !== null && leaves.length === 0 ? <Notice tone="info">You haven’t requested any leave yet.</Notice> : null}
-      {(leaves ?? []).map((l) => (
-        <ThemedView key={l.id} type="backgroundElement" style={styles.card}>
-          <ThemedText type="smallBold">{`${l.leaveTypeName} · ${l.daysCount} ${l.daysCount === 1 ? 'day' : 'days'}`}</ThemedText>
-          <ThemedText type="small">
-            {l.startDate === l.endDate ? prettyDay(l.startDate) : `${prettyDay(l.startDate)} → ${prettyDay(l.endDate)}`}
-          </ThemedText>
-          <ThemedText type="small" themeColor={l.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
-            {STATUS_TEXT[l.status] ?? l.status}
-          </ThemedText>
+      {sortedLeaves.map((l, i) => (
+        <View key={l.id} style={styles.group}>
+        {i === 0 || sortedLeaves[i - 1]!.startDate.slice(0, 7) !== l.startDate.slice(0, 7) ? (
+          <ThemedText type="smallBold" themeColor="textSecondary">{prettyMonth(l.startDate.slice(0, 7))}</ThemedText>
+        ) : null}
+        <InfoCard>
+          <View style={styles.head}>
+            <View style={styles.grow}>
+              <ThemedText type="smallBold">{`${l.leaveTypeName} · ${l.daysCount} ${l.daysCount === 1 ? 'day' : 'days'}`}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {l.startDate === l.endDate ? prettyDay(l.startDate) : `${prettyDay(l.startDate)} → ${prettyDay(l.endDate)}`}
+              </ThemedText>
+            </View>
+          </View>
+          <Pill text={STATUS_TEXT[l.status] ?? l.status} accent={STATUS_ACCENT[l.status] ?? 'slate'} />
           {reasons[l.id] ? (
             <ThemedText type="small" themeColor="danger">
               {`“${reasons[l.id]}”`}
@@ -303,22 +361,31 @@ export default function LeaveScreen() {
               {`Proof: ${(l.attachments ?? []).map((a) => a.fileName).join(', ')}`}
             </ThemedText>
           ) : null}
-          {l.status === 'SUBMITTED' || LEAVE_EDITABLE.includes(l.status) ? (
-            <View style={styles.actions}>
-              {LEAVE_EDITABLE.includes(l.status) ? <PrimaryButton label="Change" variant="text" disabled={busy} onPress={() => startForm(l)} /> : null}
-              {l.status === 'SUBMITTED' ? <PrimaryButton label="Withdraw" variant="text" disabled={busy} onPress={() => withdraw(l)} /> : null}
-            </View>
-          ) : null}
-        </ThemedView>
+          {trails[l.id] ? <ApprovalHistory request={trails[l.id]!} /> : null}
+          <View style={styles.actions}>
+            {l.approval && !trails[l.id] ? <PrimaryButton label="Show trail" variant="text" disabled={!online} onPress={() => showTrail(l)} /> : null}
+            {LEAVE_EDITABLE.includes(l.status) ? <PrimaryButton label="Change" variant="text" disabled={busy} onPress={() => startForm(l)} /> : null}
+            {l.status === 'SUBMITTED' ? <PrimaryButton label="Withdraw" variant="text" disabled={busy} onPress={() => withdraw(l)} /> : null}
+          </View>
+        </InfoCard>
+        </View>
       ))}
     </ScreenShell>
   );
 }
 
+const BALANCE_ACCENTS: Accent[] = ['blue', 'teal', 'purple', 'amber', 'green'];
+const STATUS_ACCENT: Record<string, Accent> = { SUBMITTED: 'amber', MANAGER_APPROVED: 'blue', APPROVED: 'green', REJECTED: 'red', WITHDRAWN: 'slate', REOPENED: 'slate', DRAFT: 'slate' };
+
 const styles = StyleSheet.create({
   block: { gap: Spacing.two },
   fileRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   fileName: { flex: 1 },
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   actions: { flexDirection: 'row', gap: Spacing.two },
+  head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  grow: { flex: 1, gap: Spacing.one },
+  right: { alignItems: 'flex-end' },
+  group: { gap: Spacing.two },
+  sectionTitle: { fontSize: 18, lineHeight: 24 },
+  newButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
 });

@@ -3,6 +3,7 @@
 What the field app does for **Utility → Financial Year**, the "time machine" of PRD §6.2 D. Reports, the Holiday List and the Orders list can show a past financial year, read-only. The server decides what a past year means; the phone just names the year in a header. Design: [`hld/09-financial-year-toggle.md`](../hld/09-financial-year-toggle.md), [`decision-log.md`](../decision-log.md) (2026-09-30, 2026-10-12). Related: [`holidays.md`](holidays.md), [`utility.md`](utility.md).
 
 **Status key:** ✅ built on the server and web (the portal's top bar has the same switch). 📱 built on the phone but **not yet run on a real phone**.
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** rules 1-6 and 8 were already in the app. **Rule 7 is now built:** the year list and banner read `closedFinancialYears` from `/config/public` (kept for offline), the banner says "FY 2024-25 is closed. Read-only.", the Financial Year list marks closed years, and an `FY_CLOSED` refusal shows the server message.
 
 ## 1. The rules
 

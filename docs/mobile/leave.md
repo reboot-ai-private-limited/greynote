@@ -3,6 +3,7 @@
 What the field app must do for leave, and the rules the server enforces. The server is the authority: the phone's cached balances and holidays are a UX aid only and may be stale. Design background: [`LLD/hr.md`](../LLD/hr.md), [`decision-log.md`](../decision-log.md) (2026-10-05, 2026-10-06, 2026-10-12). Related: [`dailyplan.md`](dailyplan.md) rule 7 (leave and the missed-report block).
 
 **Status key:** ✅ built on the server and web. The phone app is another team's; this is the contract it builds against. **Changed 2026-10-12:** a leave can no longer start in the past (`LEAVE_BACKDATE_DAYS` is now `0`), and a leave that has started can no longer be approved (rule 7).
+**Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - balances, request, change and resend, withdraw, proof files on types that allow them, the earliest date is today, and the salary-finalized and late-approval messages.
 
 ## 1. The rules
 
@@ -39,6 +40,7 @@ From `GET /hr/leaves/me`, `GET /hr/leave-balances/me` and the sync snapshot (lea
 - Date picker: earliest date is **today**. If the range has no working day, say so (the server answers `400`).
 - Not enough balance on a paid type: **"Not enough Casual leave left. Request Loss of Pay for the rest."**
 - `LEAVE_APPROVAL_LATE` is seen by the approver, not the employee. The employee whose leave starts without an approval sees it turn `REJECTED` with the comment "Automatic: the leave started before anyone approved it.": show that comment, and let them request again.
+- **Manager:** a leave that has started and is still waiting shows a warning on the approval card. Approving it (or approving in bulk) returns `LEAVE_APPROVAL_LATE`; the app says "This can't be approved any more… Ask Admin to allow it, or reject it." Rejecting still works.
 - `PAYROLL_FINALIZED`: **"This month's salary is already finalized."**
 
 ## 4. Endpoints

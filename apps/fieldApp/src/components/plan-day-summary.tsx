@@ -8,6 +8,9 @@ export function describeDay(
   names: { routes: Map<string, string>; colleagues: Map<string, Colleague> },
 ): string {
   const parts = [workingTypeLabel(day.workingType)];
+  // A day of an out-station trip is still a working day; say which part of the trip it is.
+  if (day.dayKind === 'STAY') parts.push('Trip stay day');
+  else if (day.dayKind === 'TRANSIT') parts.push('Trip return day');
   const routes = day.routeIds.map((id) => names.routes.get(id) ?? 'Route');
   if (routes.length > 0) parts.push(routes.join(', '));
   const people = day.workWith.map((id) => names.colleagues.get(id)?.name ?? 'Colleague');
