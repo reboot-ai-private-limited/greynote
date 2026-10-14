@@ -119,7 +119,7 @@ export function VisualFormDialog({
           label="File"
           htmlFor="visual-file"
           error={errors['file']}
-          hint="An image, a PDF or an MP4/MOV/WebM video, up to 25 MB."
+          hint="An image (PNG, JPG, WebP or GIF), up to 25 MB."
         >
           <input
             id="visual-file"

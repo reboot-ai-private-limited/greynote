@@ -300,7 +300,9 @@ describe('campaigns and visuals', () => {
     const create = new CreateVisualUseCase(visuals, products, storage);
     const file = (mimeType: string) => ({ buffer: Buffer.from('x'), mimeType });
     await create.execute(admin, { productId: null, title: 'Brand', category: 'BRANDING', file: file('image/png') });
-    await create.execute(admin, { productId: 'prod1', title: 'Detail', category: 'E_DETAILING', file: file('application/pdf') });
+    await create.execute(admin, { productId: 'prod1', title: 'Detail', category: 'E_DETAILING', file: file('image/jpeg') });
+    await expect(create.execute(admin, { productId: null, title: 'x', category: 'OTHER', file: file('application/pdf') })).rejects.toMatchObject({ code: MARKETING_CODES.unsupportedFile });
+    await expect(create.execute(admin, { productId: null, title: 'x', category: 'OTHER', file: file('video/mp4') })).rejects.toMatchObject({ code: MARKETING_CODES.unsupportedFile });
     await expect(create.execute(admin, { productId: null, title: 'x', category: 'OTHER', file: file('application/x-msdownload') })).rejects.toMatchObject({ code: MARKETING_CODES.unsupportedFile });
     await expect(create.execute(admin, { productId: 'prodOff', title: 'x', category: 'OTHER', file: file('image/png') })).rejects.toMatchObject({ code: MARKETING_CODES.productNotFound });
     expect(storage.files.size).toBe(2);

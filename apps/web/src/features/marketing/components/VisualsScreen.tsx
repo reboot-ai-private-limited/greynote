@@ -17,6 +17,8 @@ import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useUpdateVisual, useVisuals } from '../hooks/useVisuals';
 import { visualKind } from '../lib/visuals';
 import { VisualFormDialog } from './VisualFormDialog';
+import { VisualPreviewDialog } from './VisualPreviewDialog';
+import { VisualThumb } from './VisualThumb';
 
 const ANY = 'all';
 const GENERAL = 'general';
@@ -27,6 +29,7 @@ export function VisualsScreen() {
   const [status, setStatus] = useState('');
   const [productFilter, setProductFilter] = useState(ANY);
   const [form, setForm] = useState<{ visual?: VisualDto } | null>(null);
+  const [preview, setPreview] = useState<VisualDto | null>(null);
   const [toggling, setToggling] = useState<VisualDto | null>(null);
   const update = useUpdateVisual(() => setToggling(null));
   const products = useActiveProducts();
@@ -46,16 +49,18 @@ export function VisualsScreen() {
       key: 'title',
       header: 'Visual',
       render: (v) => (
-        <div>
-          <a
-            href={v.fileUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium hover:text-accent hover:underline"
-          >
-            {v.title}
-          </a>
-          <p className="text-xs text-text-subtle">{visualKind(v.mimeType)}</p>
+        <div className="flex items-center gap-3">
+          <VisualThumb visual={v} onOpen={() => setPreview(v)} />
+          <div>
+            <button
+              type="button"
+              onClick={() => setPreview(v)}
+              className="text-left font-medium hover:text-accent hover:underline"
+            >
+              {v.title}
+            </button>
+            <p className="text-xs text-text-subtle">{visualKind(v.mimeType)}</p>
+          </div>
         </div>
       ),
     },
@@ -120,6 +125,7 @@ export function VisualsScreen() {
       >
         <DataTable columns={columns} rows={rows} rowKey={(v) => v.id} />
       </DataState>
+      <VisualPreviewDialog visual={preview} onClose={() => setPreview(null)} />
       {form ? <VisualFormDialog visual={form.visual} onClose={() => setForm(null)} /> : null}
       <StatusToggleDialog
         item={toggling ? { id: toggling.id, name: toggling.title, status: toggling.status } : null}

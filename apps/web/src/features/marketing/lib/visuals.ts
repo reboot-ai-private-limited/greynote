@@ -8,10 +8,6 @@ export const ACCEPTED_VISUAL_EXTENSIONS = [
   'jpeg',
   'webp',
   'gif',
-  'pdf',
-  'mp4',
-  'mov',
-  'webm',
 ] as const;
 export const VISUAL_ACCEPT_ATTRIBUTE = ACCEPTED_VISUAL_EXTENSIONS.map((e) => `.${e}`).join(',');
 
@@ -21,7 +17,7 @@ export function visualFileError(file: { name: string; size: number }): string | 
   if (file.size === 0) return 'That file is empty.';
   if (file.size > MAX_VISUAL_BYTES) return 'That file is over 25 MB.';
   if (!(ACCEPTED_VISUAL_EXTENSIONS as readonly string[]).includes(extensionOf(file.name)))
-    return 'Use an image, a PDF or an MP4/MOV/WebM video.';
+    return 'Use a PNG, JPG, WebP or GIF image.';
   return undefined;
 }
 

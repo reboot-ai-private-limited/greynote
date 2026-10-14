@@ -13,6 +13,8 @@ import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { Select } from '@/components/ui/Select';
 import { useAddDoctorVisual, useDoctorVisuals, useRemoveDoctorVisual, useVisuals } from '../hooks/useVisuals';
 import { visualKind } from '../lib/visuals';
+import { VisualPreviewDialog } from './VisualPreviewDialog';
+import { VisualThumb } from './VisualThumb';
 
 /**
  * The visuals shown to this doctor. The MR only adds, from the app; a manager above them or Admin can add, take off, and so edit the list — here
@@ -21,6 +23,7 @@ import { visualKind } from '../lib/visuals';
 export function DoctorVisualsTab({ doctorId }: { doctorId: string }) {
   const readOnly = useIsReadOnly();
   const list = useDoctorVisuals(doctorId);
+  const [preview, setPreview] = useState<DoctorVisualDto['visual'] | null>(null);
   const [removing, setRemoving] = useState<DoctorVisualDto | null>(null);
   const remove = useRemoveDoctorVisual(doctorId, () => setRemoving(null));
   const canRemove = (list.data?.canRemove ?? false) && !readOnly;
@@ -35,16 +38,18 @@ export function DoctorVisualsTab({ doctorId }: { doctorId: string }) {
       key: 'visual',
       header: 'Visual',
       render: (r) => (
-        <div>
-          <a
-            href={r.visual.fileUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium hover:text-accent hover:underline"
-          >
-            {r.visual.title}
-          </a>
-          <p className="text-xs text-text-subtle">{visualKind(r.visual.mimeType)}</p>
+        <div className="flex items-center gap-3">
+          <VisualThumb visual={r.visual} onOpen={() => setPreview(r.visual)} />
+          <div>
+            <button
+              type="button"
+              onClick={() => setPreview(r.visual)}
+              className="text-left font-medium hover:text-accent hover:underline"
+            >
+              {r.visual.title}
+            </button>
+            <p className="text-xs text-text-subtle">{visualKind(r.visual.mimeType)}</p>
+          </div>
         </div>
       ),
     },
@@ -123,6 +128,7 @@ export function DoctorVisualsTab({ doctorId }: { doctorId: string }) {
           />
         </DataState>
       </Card>
+      <VisualPreviewDialog visual={preview} onClose={() => setPreview(null)} />
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
