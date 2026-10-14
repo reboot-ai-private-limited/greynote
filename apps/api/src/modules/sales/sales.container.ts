@@ -2,7 +2,7 @@ import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { makeOrderSyncHandler } from './application/orderSync.js';
-import { FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase } from './application/usecases/orders.usecase.js';
+import { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase } from './application/usecases/orders.usecase.js';
 import { makeMonthlyStockSyncHandler } from './application/monthlyStockSync.js';
 import { OutletAccess } from './application/outletAccess.js';
 import { SalesClock } from './application/salesClock.js';
@@ -51,7 +51,7 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
   const list = new ListMonthlyStockUseCase(stock, master, users);
   const missing = new ListMissingStockUseCase(stock, master, users);
   const unlock = new UnlockMonthUseCase(stock, clock);
-  const place = new PlaceOrderUseCase(access, master, orders, clock);
+  const place = new PlaceOrderUseCase(access, master, orders, clock, users);
   const getOrder = new GetOrderUseCase(orders, users);
   // A month's secondary is approved by the employee's manager (Admin may act in their place); only approved lines count toward achievement.
   approvals.registerKind({ kind: SECONDARY_SALES_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, onStatusChange: makeSecondaryStatusHandler(employeeSales) });
@@ -91,6 +91,6 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
       const m = month ?? (await clock.previousMonth());
       return { month: m, missing: await missing.execute({ id: 'system', role: 'ADMIN' }, m) };
     },
-    buildRouter: () => buildSalesRouter(makeSalesControllers({ record, list, unlock, missing, place, listOrders: new ListOrdersUseCase(orders, users), getOrder, finish: new FinishOrderUseCase(getOrder, orders, clock), recordPayment: new RecordPaymentUseCase(master, payments, clock, config, users), listPayments: new ListPaymentsUseCase(payments, orders, users, master), cancelPayment: new CancelPaymentUseCase(payments, clock, config, users), paymentTotals: new PaymentTotalsUseCase(payments), readStatement: new ReadStatementUseCase(master, statements, stock, orders, users, clock), saveStatement: new SaveStatementUseCase(master, statements, clock, config), readEmployeeSales: new ReadEmployeeSalesUseCase(users, master, employeeSales, orders, clock, approvals), submitEmployeeSecondary: new SubmitEmployeeSecondaryUseCase(employeeSales, approvals, new MongooseTransactionRunner(), clock, config), saveEmployeeSecondary: new SaveEmployeeSecondaryUseCase(users, master, employeeSales, stock, clock, config), saveEmployeePrimary: new SaveEmployeePrimaryUseCase(users, master, employeeSales, clock, config) })),
+    buildRouter: () => buildSalesRouter(makeSalesControllers({ record, list, unlock, missing, place, listOrders: new ListOrdersUseCase(orders, users), getOrder, finish: new FinishOrderUseCase(getOrder, orders, clock), edit: new EditOrderUseCase(getOrder, master, orders, clock), recordPayment: new RecordPaymentUseCase(master, payments, clock, config, users), listPayments: new ListPaymentsUseCase(payments, orders, users, master), cancelPayment: new CancelPaymentUseCase(payments, clock, config, users), paymentTotals: new PaymentTotalsUseCase(payments), readStatement: new ReadStatementUseCase(master, statements, stock, orders, users, clock), saveStatement: new SaveStatementUseCase(master, statements, clock, config), readEmployeeSales: new ReadEmployeeSalesUseCase(users, master, employeeSales, orders, clock, approvals), submitEmployeeSecondary: new SubmitEmployeeSecondaryUseCase(employeeSales, approvals, new MongooseTransactionRunner(), clock, config), saveEmployeeSecondary: new SaveEmployeeSecondaryUseCase(users, master, employeeSales, stock, clock, config), saveEmployeePrimary: new SaveEmployeePrimaryUseCase(users, master, employeeSales, clock, config) })),
   };
 }

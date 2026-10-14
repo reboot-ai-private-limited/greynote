@@ -213,3 +213,7 @@ Web (2026-10-13): **Payroll** is open to HR. The month sheet shows an **Adjusted
 - **Net** = base − statutory deductions − leave deduction − absent deduction + `rounding_paise` + adjustments. The net the rules give is rounded to the **nearest rupee**, half up (`rounding_paise` is the signed difference); the schema validator checks the whole equation.
 - New snapshot fields for the slip: `designation_name`, `bank_name`, `bank_account_number`, `date_of_joining`.
 - **Slip** (`payslipOf` in `packages/contracts`, web `/payroll/:id/slip`): earnings; deductions (EPF, ESI, professional tax, then leave, absent, adjustments); totals; net with "Rounded off". Layout as the company sample; "UAN Code" is the EPF number.
+
+## Salary paid, by month (2026-10-14)
+
+`GET /api/payroll/paid-totals?fromMonth&toMonth` (ACCOUNTANT/ADMIN, scoped to the financial year in view): `PaidTotalsUseCase` sums `netPayablePaise` of finalized runs with `paidAt` set, by month, with the count of employees. Company totals only: no names, no per-employee amounts. Shown as the "Salary paid" card on the Payroll page for the Accountant and Admin.

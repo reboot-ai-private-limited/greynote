@@ -41,7 +41,7 @@ export const setTargetBodySchema = z
     productId: objectIdSchema.nullish().transform((v) => v ?? null),
     campaignId: objectIdSchema.nullish().transform((v) => v ?? null),
     targetAmountPaise: paiseSchema.refine((n) => n > 0, 'A target must be more than zero.').optional(),
-    /** Units, for a product target: the amount follows from the product's PTR. */
+    /** Units, for a product target: the amount follows from the product's PTS. */
     targetQty: z.number().int().min(1).max(100_000_000).optional(),
   })
   .refine((b) => !b.toMonth || b.toMonth >= b.month, { message: 'A target cannot end before it starts.', path: ['toMonth'] })

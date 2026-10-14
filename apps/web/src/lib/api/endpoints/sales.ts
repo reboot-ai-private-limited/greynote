@@ -1,4 +1,4 @@
-import type { EmployeeSalesDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto } from '@greynote/contracts';
+import type { EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto } from '@greynote/contracts';
 import { request } from '../client';
 
 /** One order as `GET /sales/orders` returns it; the distributor's Orders tab shows only these fields. */
@@ -40,6 +40,11 @@ export const salesApi = {
   /** ADMIN only (HR and Accountant get 403). `month` is `YYYY-MM`. */
   missingStock: (token: string, query: { month: string }, signal?: AbortSignal) =>
     request<MissingStockRowDto[]>('/sales/monthly-stock/missing', { token, query: { ...query }, signal }),
+
+  /** Admin or the Accountant adds an order for a field employee. */
+  placeOrderFor: (token: string, body: PlaceOrderForDto) => request<{ serverId: string; totalAmountPaise: number }>('/sales/orders/on-behalf', { method: 'POST', token, body }),
+  /** Admin or the Accountant changes a PLACED order's lines and remarks; a 409 if it is no longer PLACED. */
+  editOrder: (token: string, id: string, body: EditOrderDto) => request<{ id: string; status: string }>(`/sales/orders/${id}`, { method: 'PATCH', token, body }),
 
   /** `PLACED` → `DONE`, by the MR who placed it or Admin; a second call is a 409. */
   completeOrder: (token: string, id: string) => request<{ id: string; status: string }>(`/sales/orders/${id}/complete`, { method: 'POST', token }),

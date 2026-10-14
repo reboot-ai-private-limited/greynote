@@ -102,20 +102,20 @@ const users: UserDirectoryPort = {
     return below(m).map((id) => user(id));
   },
 };
-const products: ProductPort = { async getProduct(id) { return id === 'prod1' ? { id, status: 'active', ptrPaise: 1200 } : id === 'prodOff' ? { id, status: 'inactive', ptrPaise: null } : id === 'prodNoPtr' ? { id, status: 'active', ptrPaise: null } : null; } };
+const products: ProductPort = { async getProduct(id) { return id === 'prod1' ? { id, status: 'active', ptsPaise: 1200 } : id === 'prodOff' ? { id, status: 'inactive', ptsPaise: null } : id === 'prodNoPts' ? { id, status: 'active', ptsPaise: null } : null; } };
 const admin = { id: 'admin', role: 'ADMIN' };
 const f = (id: string) => ({ id, role: 'FIELD' });
 
 describe('target units and amount', () => {
   const code = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => (e instanceof MarketingRefusal ? e.code : 'OTHER'));
-  it('units × PTR is the amount; an amount restates as units; no PTR or all products means amount only', async () => {
+  it('units × PTS is the amount; an amount restates as units; no PTS or all products means amount only', async () => {
     const targets = new FakeTargets();
     const set = new SetTargetUseCase(targets, {} as never, products, { findUserSummary: async () => ({ id: 'mr1', status: 'active', role: 'FIELD' }), getDownline: async () => [] } as never, config, () => new Date('2026-10-12T05:00:00Z'));
     const base = { userId: 'mr1', month: '2026-10', productId: 'prod1', campaignId: null };
     expect(await set.execute(admin, { ...base, targetQty: 50 })).toMatchObject({ targetQty: 50, targetAmountPaise: 60_000 });
     expect(await set.execute(admin, { ...base, targetAmountPaise: 120_000 })).toMatchObject({ targetQty: 100, targetAmountPaise: 120_000 });
     expect(await set.execute(admin, { ...base, productId: null, targetAmountPaise: 5_000 })).toMatchObject({ targetQty: null });
-    expect(await code(set.execute(admin, { ...base, productId: 'prodNoPtr', targetQty: 5 }))).toBe(MARKETING_CODES.invalidDates);
+    expect(await code(set.execute(admin, { ...base, productId: 'prodNoPts', targetQty: 5 }))).toBe(MARKETING_CODES.invalidDates);
   });
 });
 

@@ -143,24 +143,27 @@ export function buildRoutesRouter(controllers: {
   unassign: RequestHandler;
 }): Router {
   const router = Router();
-  router.use(authenticate(), requireRole('ADMIN'));
+  router.use(authenticate());
+  const admin = requireRole('ADMIN');
+  // The Accountant reads the list (the distributor form's route picker); everything else here is Admin's.
   const withId = (body?: Parameters<typeof validate>[0]['body']) =>
     validate({ params: territoryIdParamsSchema, ...(body && { body }) });
 
-  router.get('/', validate({ query: listRoutesQuerySchema }), controllers.list);
-  router.post('/', validate({ body: createRouteBodySchema }), controllers.create);
-  router.get('/:id', withId(), controllers.get);
-  router.patch('/:id', withId(updateRouteBodySchema), controllers.update);
-  router.patch('/:id/destination', withId(updateRouteDestinationBodySchema), controllers.updateDestination);
-  router.patch('/:id/distance', withId(overrideRouteDistanceBodySchema), controllers.overrideDistance);
-  router.post('/:id/recalculate', withId(), controllers.recalculate);
-  router.post('/:id/assignments', withId(assignRouteBodySchema), controllers.assign);
+  router.get('/', requireRole('ADMIN', 'ACCOUNTANT'), validate({ query: listRoutesQuerySchema }), controllers.list);
+  router.post('/', admin, validate({ body: createRouteBodySchema }), controllers.create);
+  router.get('/:id', admin, withId(), controllers.get);
+  router.patch('/:id', admin, withId(updateRouteBodySchema), controllers.update);
+  router.patch('/:id/destination', admin, withId(updateRouteDestinationBodySchema), controllers.updateDestination);
+  router.patch('/:id/distance', admin, withId(overrideRouteDistanceBodySchema), controllers.overrideDistance);
+  router.post('/:id/recalculate', admin, withId(), controllers.recalculate);
+  router.post('/:id/assignments', admin, withId(assignRouteBodySchema), controllers.assign);
   router.get(
     '/:id/assignments',
+    admin,
     validate({ params: territoryIdParamsSchema, query: listRouteAssignmentsQuerySchema }),
     controllers.listAssignments,
   );
-  router.delete('/:id/assignments/:userId', validate({ params: routeAssignmentParamsSchema }), controllers.unassign);
+  router.delete('/:id/assignments/:userId', admin, validate({ params: routeAssignmentParamsSchema }), controllers.unassign);
   return router;
 }
 

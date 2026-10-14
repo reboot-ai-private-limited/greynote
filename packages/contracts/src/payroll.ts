@@ -167,3 +167,12 @@ export interface GeneratePayrollDto {
   /** Omit for every active field employee. */
   userIds?: string[];
 }
+
+/** `GET /payroll/paid-totals`: the company total of salary marked paid in one month. No names, no per-employee amounts. */
+export interface PaidMonthTotalDto {
+  /** `YYYY-MM`. */
+  month: string;
+  /** How many employees were paid. */
+  employees: number;
+  paidPaise: number;
+}

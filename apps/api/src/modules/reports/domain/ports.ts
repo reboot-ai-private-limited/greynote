@@ -101,7 +101,7 @@ export interface MarketingPort {
 
 /** Sales' employee figures: Done distributor orders per employee, and what employees entered. Kept apart so the other reports' fakes stay small. */
 export interface EmployeeSalesPort {
-  sumUserOrders(filter: { from: string; to: string; userIds?: string[]; productId?: string }): Promise<Array<{ userId: string; productId: string; month: string; quantity: number; amountPaise: number }>>;
+  sumUserOrders(filter: { from: string; to: string; userIds?: string[]; productId?: string }): Promise<Array<{ userId: string; distributorId?: string; productId: string; month: string; quantity: number; amountPaise: number }>>;
   listEmployeeSales(filter: { fromMonth: string; toMonth: string; userIds?: string[]; productId?: string }): Promise<Array<{ userId: string; productId: string; month: string; secondaryQty: number | null; adjustmentQty: number }>>;
 }
 

@@ -23,9 +23,23 @@ openApiRegistry.registerPath({
   request: { query: workWithQuerySchema },
   responses: { 200: { description: 'Work-with candidates, sorted by name' } },
 });
+openApiRegistry.registerPath({
+  method: 'get',
+  path: '/api/identity/work-with/directory',
+  tags: ['Identity / Work With'],
+  summary: 'Admin, HR, Accountant: every active field employee as id, name, code and designation only — for the pickers on screens (such as the distributor form) the Accountant uses without seeing employee records.',
+  security: [{ bearerAuth: [] }],
+  responses: { 200: { description: 'Active field employees, sorted by name' } },
+});
 
 export function buildWorkWithRouter(useCase: ListWorkWithUseCase): Router {
   const router = Router();
+  router.get(
+    '/directory',
+    authenticate(),
+    requireRole('ADMIN', 'HR', 'ACCOUNTANT'),
+    asyncHandler(async (req, res) => sendSuccess(req, res, await useCase.execute('', 'all'), 'Field employees fetched.', 200)),
+  );
   router.get(
     '/',
     authenticate(),

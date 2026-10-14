@@ -9,7 +9,7 @@ export interface SetTargetBody {
   toMonth?: string;
   /** `null` = a target for all products. */
   productId: string | null;
-  /** Give an amount or units; for a product target the other follows from its PTR. */
+  /** Give an amount or units; for a product target the other follows from its PTS. */
   targetAmountPaise?: number;
   /** Units: a product target only. */
   targetQty?: number;

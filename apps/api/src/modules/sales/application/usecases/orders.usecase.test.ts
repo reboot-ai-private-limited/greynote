@@ -4,7 +4,7 @@ import type { OrderFilter, OrderRepositoryPort } from '../../domain/order.reposi
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import { OutletAccess } from '../outletAccess.js';
 import { SalesClock } from '../salesClock.js';
-import { FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase, type PlaceOrderInput } from './orders.usecase.js';
+import { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase, type PlaceOrderInput } from './orders.usecase.js';
 import { FakeMaster, FakeUsers, config } from './salesTestKit.js';
 
 class FakeOrders implements OrderRepositoryPort {
@@ -31,6 +31,12 @@ class FakeOrders implements OrderRepositoryPort {
   async list(f: OrderFilter) {
     return this.rows.filter((o) => (!f.userIds || f.userIds.includes(o.userId)) && (!f.status || o.status === f.status) && (!f.outlet || (o.outlet.type === f.outlet.type && o.outlet.id === f.outlet.id)));
   }
+  async update(id: string, change: { items: Order['items']; totalAmountPaise: number; remarks: string | null }, by: string, at: Date) {
+    const o = this.rows.find((r) => r.id === id);
+    if (!o || o.status !== 'PLACED') return false;
+    Object.assign(o, { ...change, editedBy: by, editedAt: at });
+    return true;
+  }
   async transition(id: string, to: 'DONE' | 'CANCELLED', by: string, at: Date) {
     const o = this.rows.find((r) => r.id === id);
     if (!o || o.status !== 'PLACED') return false;
@@ -43,6 +49,7 @@ const mr1 = { id: 'mr1', role: 'FIELD' };
 const mr2 = { id: 'mr2', role: 'FIELD' };
 const asm = { id: 'asm', role: 'FIELD' };
 const admin = { id: 'admin', role: 'ADMIN' };
+const acct = { id: 'acct', role: 'ACCOUNTANT' };
 const order = (over: Partial<PlaceOrderInput> = {}): PlaceOrderInput => ({ outlet: { type: 'DISTRIBUTOR', id: 'dist1' }, remarks: null, lines: [{ productId: 'prod1', quantity: 3, unitPricePaise: 12_50 }, { productId: 'prod2', quantity: 10, unitPricePaise: 99 }], ...over });
 
 describe('orders', () => {
@@ -51,6 +58,7 @@ describe('orders', () => {
   let get: GetOrderUseCase;
   let finish: FinishOrderUseCase;
   let list: ListOrdersUseCase;
+  let edit: EditOrderUseCase;
   const now = new Date('2026-09-30T10:00:00+05:30');
 
   beforeEach(() => {
@@ -58,7 +66,8 @@ describe('orders', () => {
     const master = new FakeMaster();
     const users = new FakeUsers();
     const clock = new SalesClock(config, () => now);
-    place = new PlaceOrderUseCase(new OutletAccess(master), master, orders, clock);
+    place = new PlaceOrderUseCase(new OutletAccess(master), master, orders, clock, users);
+    edit = new EditOrderUseCase(new GetOrderUseCase(orders, users), master, orders, clock);
     get = new GetOrderUseCase(orders, users);
     finish = new FinishOrderUseCase(get, orders, clock);
     list = new ListOrdersUseCase(orders, users);
@@ -86,7 +95,7 @@ describe('orders', () => {
 
   it('refuses an order dated inside a closed financial year, writing nothing', async () => {
     const master = new FakeMaster();
-    const closed = new PlaceOrderUseCase(new OutletAccess(master), master, orders, new SalesClock({ get: async (k: string) => (k === 'FY_CLOSED_YEARS' ? '2025' : config.get(k)) }, () => now));
+    const closed = new PlaceOrderUseCase(new OutletAccess(master), master, orders, new SalesClock({ get: async (k: string) => (k === 'FY_CLOSED_YEARS' ? '2025' : config.get(k)) }, () => now), new FakeUsers());
     await expect(closed.execute(mr1, order({ orderDate: '2025-08-01' }))).rejects.toMatchObject({ statusCode: 409, publicDetails: { code: 'FY_CLOSED' } });
     expect(orders.rows).toEqual([]);
   });
@@ -163,5 +172,28 @@ describe('orders', () => {
 
   it('an unknown order is NOT_FOUND', async () => {
     expect(await code(get.execute(admin, 'nope'))).toBe(STOCK_CODES.orderNotFound);
+  });
+
+  it('Admin or the Accountant adds an order for a field employee, credited to them, on any active outlet', async () => {
+    const r = await place.executeFor(acct, 'mr2', order());
+    const saved = await orders.findById(r.serverId);
+    expect(saved).toMatchObject({ userId: 'mr2', createdBy: 'acct', status: 'PLACED' });
+    expect(await code(place.executeFor(acct, 'admin', order()))).toBe(STOCK_CODES.employeeNotFound);
+    expect(await code(place.executeFor(acct, 'mr1', order({ outlet: { type: 'DISTRIBUTOR', id: 'nope' } })))).toBe(STOCK_CODES.outletNotFound);
+  });
+
+  it('Admin or the Accountant edits a PLACED order, then marks it done; the lines are repriced by the server', async () => {
+    const { serverId } = await place.execute(mr1, order());
+    const o = await edit.execute(acct, serverId, { remarks: 'fixed', lines: [{ productId: 'prod1', quantity: 2, unitPricePaise: 1000 }] });
+    expect(o).toMatchObject({ totalAmountPaise: 2000, remarks: 'fixed', editedBy: 'acct', userId: 'mr1' });
+    expect((await finish.execute(acct, serverId, 'DONE')).status).toBe('DONE');
+    expect(await code(edit.execute(acct, serverId, { remarks: null, lines: [{ productId: 'prod1', quantity: 1, unitPricePaise: 1 }] }))).toBe(STOCK_CODES.orderNotPlaced);
+  });
+
+  it('a field employee cannot edit an order, and an unknown product is refused', async () => {
+    const { serverId } = await place.execute(mr1, order());
+    expect(await code(edit.execute(mr1, serverId, { remarks: null, lines: [{ productId: 'prod1', quantity: 1, unitPricePaise: 1 }] }))).toBe(STOCK_CODES.orderNotYours);
+    expect(await code(edit.execute(admin, serverId, { remarks: null, lines: [{ productId: 'zzz', quantity: 1, unitPricePaise: 1 }] }))).toBe(STOCK_CODES.productNotFound);
+    expect((await orders.findById(serverId))?.totalAmountPaise).toBe(4740);
   });
 });

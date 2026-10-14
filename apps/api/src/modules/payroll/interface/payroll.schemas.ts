@@ -7,6 +7,9 @@ const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.')
 export const idParamsSchema = z.object({ id: objectIdSchema });
 /** No `userIds` = every active FIELD employee. */
 export const generateBodySchema = z.object({ month: calendarMonthSchema, userIds: z.array(objectIdSchema).min(1).max(2000).optional() });
+export const paidTotalsQuerySchema = z
+  .object({ month: calendarMonthSchema.optional(), fromMonth: calendarMonthSchema.optional(), toMonth: calendarMonthSchema.optional() })
+  .refine((q) => !q.fromMonth || !q.toMonth || q.fromMonth <= q.toMonth, { message: '`fromMonth` must not be after `toMonth`.', path: ['fromMonth'] });
 export const overviewQuerySchema = z.object({ month: calendarMonthSchema });
 const reasonSchema = z.string().trim().min(1, 'A reason is required.').max(500);
 export const overrideDayBodySchema = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be a date.'), setDays: z.union([z.literal(0), z.literal(0.5), z.literal(1)]), reason: reasonSchema });

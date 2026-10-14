@@ -409,7 +409,7 @@ export interface EmployeeProductFigureDto {
   secondaryPaise: number;
   /** Achievement as a whole percent of `targetPaise`; `null` = no target. */
   achievementPercent: number | null;
-  flags: Array<'NO_PTR' | 'NO_PTS'>;
+  flags: Array<'NO_PTS' | 'NO_PTS_CHANGE'>;
 }
 
 /** One target, measured over its own months. */
@@ -442,4 +442,18 @@ export interface EmployeeSalesReportDto {
   totals: { targetPaise: number; primaryPaise: number; secondaryPaise: number; achievementPercent: number | null };
   /** Every target touching the months, each measured over its own months. */
   targets: EmployeeTargetFigureDto[];
+  /**
+   * The employee's primary by distributor: Done orders to each distributor in the months (the month marked Done), by name. The rows add up to
+   * the order part of `totals.primaryPaise`. Secondary is entered per product, not per distributor, so it has no row here; a distributor's own
+   * secondary is on the Sales report.
+   */
+  distributors: EmployeeDistributorFigureDto[];
+}
+
+export interface EmployeeDistributorFigureDto {
+  distributor: { id: string; name: string };
+  /** Units on the Done orders. */
+  orderQty: number;
+  /** What those orders add up to, as ordered. */
+  orderPaise: number;
 }

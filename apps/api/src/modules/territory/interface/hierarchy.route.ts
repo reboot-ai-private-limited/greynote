@@ -94,10 +94,11 @@ type LevelUseCases = Parameters<typeof makeHierarchyController>[0];
 function buildLevelRouter(spec: LevelSpec, useCases: LevelUseCases): Router {
   const router = Router();
   const controller = makeHierarchyController(useCases, spec.noun.charAt(0).toUpperCase() + spec.noun.slice(1));
-  router.use(authenticate(), requireRole('ADMIN'));
-  router.get('/', validate({ query: spec.listQuery }), controller.list);
-  router.post('/', validate({ body: spec.createBody }), controller.create);
-  router.patch('/:id', validate({ params: territoryIdParamsSchema, body: spec.updateBody }), controller.update);
+  router.use(authenticate());
+  // The Accountant reads the list (the distributor form's pickers); changing it is Admin's.
+  router.get('/', requireRole('ADMIN', 'ACCOUNTANT'), validate({ query: spec.listQuery }), controller.list);
+  router.post('/', requireRole('ADMIN'), validate({ body: spec.createBody }), controller.create);
+  router.patch('/:id', requireRole('ADMIN'), validate({ params: territoryIdParamsSchema, body: spec.updateBody }), controller.update);
   return router;
 }
 

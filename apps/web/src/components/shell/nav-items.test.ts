@@ -126,7 +126,7 @@ describe('navGroupsFor', () => {
   it('groups items under their headings, in order, dropping empty groups', () => {
     const groups = navGroupsFor('ACCOUNTANT');
     expect(groups.map((g) => g.group)).toEqual(['Home', 'HR', 'Sales & Distribution', 'Payouts', 'Master data']);
-    expect(groups.find((g) => g.group === 'Sales & Distribution')?.items.map((i) => i.href)).toEqual(['/orders', '/distributors']);
+    expect(groups.find((g) => g.group === 'Sales & Distribution')?.items.map((i) => i.href)).toEqual(['/reports/sales-dashboard', '/orders', '/distributors']);
     expect(groups.find((g) => g.group === 'Master data')?.items.map((i) => i.href)).toEqual(['/doctor-services', '/pay-grades', '/pay-components']); // doctor services leave the Accountant in Step 0b
     expect(groups.find((g) => g.group === 'Payouts')?.items.map((i) => i.href)).toEqual(['/expenses', '/payroll', '/expense-claims']);
     expect(groups.find((g) => g.group === 'HR')?.items.map((i) => i.href)).toEqual(['/attendance']);
@@ -241,10 +241,10 @@ describe('Distributors', () => {
     expect(activeGroupOf('ADMIN', '/distributors/d1')).toBe('Sales & Distribution');
   });
 
-  it('lets the Accountant open a distributor but never the add wizard', () => {
+  it('lets the Accountant open a distributor and the add wizard', () => {
     expect(canOpen('ACCOUNTANT', '/distributors')).toBe(true);
     expect(canOpen('ACCOUNTANT', '/distributors/d1')).toBe(true);
-    expect(canOpen('ACCOUNTANT', '/distributors/new')).toBe(false);
+    expect(canOpen('ACCOUNTANT', '/distributors/new')).toBe(true);
     expect(canOpen('ADMIN', '/distributors/new')).toBe(true);
     expect(canOpen('HR', '/distributors')).toBe(false);
   });

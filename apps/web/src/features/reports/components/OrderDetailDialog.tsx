@@ -1,16 +1,20 @@
 'use client';
 
+import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import { useOrderDetail } from '../hooks/useOrders';
 import { ORDER_STATUS_LABEL, ORDER_STATUS_TONE } from '../lib/orders';
+import { EditOrderDialog } from './OrderFormDialog';
 
 /** One order in full: who, where, when, and each product with its quantity, price and amount. */
 export function OrderDetailDialog({ id, onClose }: { id: string; onClose: () => void }) {
   const query = useOrderDetail(id);
   const o = query.data;
+  const [editing, setEditing] = useState(false);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()} title="Order" description={o ? `${o.outlet.name} · ${formatDate(o.orderDate)}` : undefined}>
       {query.isLoading ? (
@@ -60,6 +64,14 @@ export function OrderDetailDialog({ id, onClose }: { id: string; onClose: () => 
             </table>
           </div>
           {o.remarks ? <p className="text-sm text-text-muted">Remarks: {o.remarks}</p> : null}
+          {o.status === 'PLACED' ? (
+            <div className="flex justify-end">
+              <Button variant="secondary" onClick={() => setEditing(true)}>
+                Change order
+              </Button>
+            </div>
+          ) : null}
+          {editing ? <EditOrderDialog order={o} onClose={() => setEditing(false)} /> : null}
         </div>
       )}
     </Dialog>

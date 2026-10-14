@@ -115,9 +115,11 @@ export interface EmployeeSalesLineDto {
   primaryQty: number;
   /** What the employee entered as sold; `null` = nothing entered. */
   secondaryQty: number | null;
-  /** The same at PTR, as entered; `null` = nothing entered or no PTR on the product. */
+  /** The same at PTS (units × the product's PTS); `null` = nothing entered or no PTS on the product. */
   secondaryAmountPaise: number | null;
-  /** The product's PTR, which links units and amount; `null` = none set (units only). */
+  /** The product's PTS, which links units and amount; `null` = none set (units only). */
+  ptsPaise: number | null;
+  /** The product's PTR, for reference only; sales are no longer valued at it. */
   ptrPaise: number | null;
   /** `null` = nothing entered. Only `APPROVED` counts toward achievement. */
   secondaryStatus: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | null;
@@ -146,4 +148,31 @@ export interface SaveEmployeePrimaryDto {
   userId: string;
   month: string;
   lines: Array<{ productId: string; adjustmentQty: number; reason?: string | null }>;
+}
+
+// ── Orders added or changed by the office ────────────────────────────────────────────────────────
+
+export interface OrderLineInputDto {
+  productId: string;
+  /** Whole units, at least 1. */
+  quantity: number;
+  unitPricePaise: number;
+}
+
+/** `POST /sales/orders/on-behalf`: Admin or the Accountant adds an order for a field employee, credited to them. */
+export interface PlaceOrderForDto {
+  /** The field employee the order is credited to. */
+  userId: string;
+  outletType: 'DISTRIBUTOR' | 'CHEMIST';
+  outletId: string;
+  /** `YYYY-MM-DD`, not in the future; defaults to today. */
+  orderDate?: string;
+  remarks?: string | null;
+  lines: OrderLineInputDto[];
+}
+
+/** `PATCH /sales/orders/:id`: replaces a PLACED order's lines (with the server's own arithmetic) and remarks. */
+export interface EditOrderDto {
+  remarks?: string | null;
+  lines: OrderLineInputDto[];
 }

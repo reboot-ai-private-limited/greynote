@@ -16,7 +16,7 @@ export interface EmployeeSalesInput {
 
 /**
  * One employee over a run of months (decision-log 2026-10-10): their targets, their primary (Done distributor orders plus Admin's change, at the
- * order amounts and PTS) and their secondary (what they entered, at PTR), product by product. Achievement is the secondary. The employee sees their
+ * order amounts and PTS) and their secondary (what they entered, at PTS), product by product. Achievement is the secondary. The employee sees their
  * own, a manager their downline's, Admin anyone's. Reads only.
  */
 export class EmployeeSalesReport {
@@ -65,7 +65,7 @@ export class EmployeeSalesReport {
           secondaryQty: secondary.qty,
           secondaryPaise: secondary.paise,
           achievementPercent: percentOf(secondary.paise, targetPaise),
-          flags: [...(secondary.unpricedQty > 0 ? (['NO_PTR'] as const) : []), ...(primary.unpricedQty !== 0 ? (['NO_PTS'] as const) : [])],
+          flags: [...(secondary.unpricedQty > 0 ? (['NO_PTS'] as const) : []), ...(primary.unpricedQty !== 0 ? (['NO_PTS_CHANGE'] as const) : [])],
         };
       })
       .sort((a, b) => a.product.name.localeCompare(b.product.name));
@@ -75,6 +75,18 @@ export class EmployeeSalesReport {
       const achieved = secondaryOf(wide, prices, { userId: input.userId, productId: t.productId, fromMonth: t.fromMonth, toMonth: t.toMonth });
       return { id: t.id, product: t.productId ? { id: t.productId, name: nameOf(t.productId) } : null, fromMonth: t.fromMonth, toMonth: t.toMonth, amountPaise: t.amountPaise, achievedPaise: achieved.paise, achievementPercent: percentOf(achieved.paise, t.amountPaise), targetQty: t.qty, achievedQty: achieved.qty, achievementQtyPercent: t.qty === null ? null : percentOf(achieved.qty, t.qty) };
     });
+
+    const byDistributor = new Map<string, { qty: number; paise: number }>();
+    for (const o of orders) {
+      if (o.month < input.from || o.month > input.to) continue;
+      const key = o.distributorId ?? '';
+      const row = byDistributor.get(key) ?? { qty: 0, paise: 0 };
+      row.qty += o.quantity;
+      row.paise += o.amountPaise;
+      byDistributor.set(key, row);
+    }
+    const distributorNames = byDistributor.size ? await this.master.listNames({ distributorIds: [...byDistributor.keys()].filter(Boolean) }) : { distributors: [] };
+    const distributors = [...byDistributor].map(([id, v]) => ({ distributor: { id, name: distributorNames.distributors.find((d) => d.id === id)?.name ?? 'Unknown' }, orderQty: v.qty, orderPaise: v.paise })).sort((a, b) => a.distributor.name.localeCompare(b.distributor.name));
 
     const all = { ...range };
     const totalSecondary = secondaryOf(entries, prices, all).paise;
@@ -87,11 +99,12 @@ export class EmployeeSalesReport {
       generalTargetPaise,
       totals: { targetPaise: totalTarget, primaryPaise: primaryOf(orders, entries, prices, all).paise, secondaryPaise: totalSecondary, achievementPercent: percentOf(totalSecondary, totalTarget) },
       targets,
+      distributors,
     };
   }
 
   private async assertMayRead(actor: { id: string; role: string }, userId: string): Promise<void> {
-    if (actor.role === 'ADMIN' || actor.id === userId) return;
+    if (actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT' || actor.id === userId) return;
     if (actor.role === 'FIELD' && (await this.roster.getDownline(actor.id)).some((u) => u.id === userId)) return;
     throw AppError.forbidden('You can only see your own figures and your team\'s.');
   }

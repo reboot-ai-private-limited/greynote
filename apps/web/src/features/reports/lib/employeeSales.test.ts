@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { amountFromUnits, canSend, isLocked, unitsFromAmount, adjustmentOf, buildPrimary, buildSecondary, draftOf, isDirty, periodMonths, rangeLabel, rowErrors, type MonthDraft } from './employeeSales';
 
 const FY = ['2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12', '2027-01', '2027-02', '2027-03'];
-const line = (over: Partial<EmployeeSalesLineDto> = {}): EmployeeSalesLineDto => ({ product: { id: 'p1', name: 'Amox', sku: 'AMX' }, orderPrimaryQty: 20, adjustmentQty: 0, adjustmentReason: null, primaryQty: 20, secondaryQty: null, secondaryAmountPaise: null, ptrPaise: 1200, secondaryStatus: null, updatedBy: null, updatedAt: null, ...over });
+const line = (over: Partial<EmployeeSalesLineDto> = {}): EmployeeSalesLineDto => ({ product: { id: 'p1', name: 'Amox', sku: 'AMX' }, orderPrimaryQty: 20, adjustmentQty: 0, adjustmentReason: null, primaryQty: 20, secondaryQty: null, secondaryAmountPaise: null, ptsPaise: 1200, ptrPaise: 1500, secondaryStatus: null, updatedBy: null, updatedAt: null, ...over });
 const drafts = (d: Partial<MonthDraft>, l = line()) => new Map([[l.product.id, { ...draftOf(l), ...d }]]);
 
 describe('periods', () => {
@@ -57,11 +57,11 @@ describe('the entry grid', () => {
   });
 });
 
-describe('secondary units and amount at PTR', () => {
-  it('each fills the other; no PTR means units only', () => {
+describe('secondary units and amount at PTS', () => {
+  it('each fills the other; no PTS means units only', () => {
     expect(amountFromUnits(line(), '5')).toBe('60.00');
     expect(unitsFromAmount(line(), '61')).toBe('5');
-    expect(amountFromUnits(line({ ptrPaise: null }), '5')).toBe('');
+    expect(amountFromUnits(line({ ptsPaise: null }), '5')).toBe('');
     expect(unitsFromAmount(line(), 'abc')).toBe('');
   });
   it('locks a pending or approved line for the employee only; sends only a clean draft or rejected month', () => {

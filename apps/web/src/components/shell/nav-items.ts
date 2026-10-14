@@ -82,7 +82,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Inbox messages', href: '/inbox', icon: Inbox, group: 'HR', roles: ['ADMIN'] },
   { label: 'Devices', href: '/devices', icon: Smartphone, group: 'HR', roles: ['ADMIN'] },
 
-  { label: 'Sales dashboard', href: '/reports/sales-dashboard', icon: LayoutDashboard, group: 'Sales & Distribution', roles: ['ADMIN'] },
+  { label: 'Sales dashboard', href: '/reports/sales-dashboard', icon: LayoutDashboard, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Orders', href: '/orders', icon: ShoppingCart, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Distributors', href: '/distributors', icon: Truck, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
 
@@ -152,8 +152,8 @@ export function canOpen(role: RoleName, pathname: string): boolean {
   return owners.some((i) => i.href.length === longest && i.roles.includes(role));
 }
 
-/** Screens inside a shared area that only some of its roles may open (the Accountant reads distributors but never adds one). */
-const ADMIN_ONLY_SCREENS: Readonly<Record<string, readonly RoleName[]>> = { '/distributors/new': ['ADMIN'] };
+/** Screens inside a shared area that only some of its roles may open. None today: the Accountant adds and edits distributors as Admin does. */
+const ADMIN_ONLY_SCREENS: Readonly<Record<string, readonly RoleName[]>> = {};
 
 /** The group that holds the screen being looked at, if any. */
 export function activeGroupOf(role: RoleName, pathname: string): NavGroupName | null {

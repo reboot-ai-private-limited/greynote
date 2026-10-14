@@ -13,6 +13,8 @@ What the field app must do for orders, and what to **remove**: the *Monthly stoc
 | 2 | A **chemist order is information only.** It is recorded and shown, but never marked done or cancelled: `POST /orders/:id/complete` and `/cancel` on a chemist order return **`409 ORDER_INFO_ONLY`**. Hide Done / Cancel for chemist orders. | ✅ |
 | 3 | A **distributor order** starts `PLACED` and must be marked **done** (or cancelled) by the MR who placed it, or by Admin. Only a **Done** distributor order is a primary sale. | ✅ |
 | 4 | Done / Cancel is one-way: a second call returns `409 ORDER_NOT_PLACED` naming the state. | ✅ |
+| 5 | **One outlet per order:** a distributor order names exactly one distributor; a chemist order exactly one chemist (the order form must not allow both, or a mix of outlets). Prefill the unit price with the product's **PTS for a distributor, PTR for a chemist** (still editable). | ✅ server / 📱 form |
+| 6 | **The office can add and change orders** (2026-10-14). Admin or the Accountant may add an order for an employee (`POST /api/sales/orders/on-behalf`) and change the lines, prices and remarks of a `PLACED` order (`PATCH /api/sales/orders/:id`) before marking it Done. The employee's list shows these orders after the next sync/refresh with the edited lines and total. A pending (not yet synced) phone edit of the same order loses to the server: if the order is no longer `PLACED` the sync returns `409 ORDER_NOT_PLACED`; show the server's state. Order objects gain `createdBy`, `editedBy`, `editedAt` (all nullable); the phone may show "Added by office" / "Changed by office". | ✅ server / 📱 display |
 
 ## 2. Remove the Monthly stock tab ✅
 

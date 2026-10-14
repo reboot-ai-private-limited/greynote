@@ -45,16 +45,16 @@ export const SECONDARY_TONE: Record<SecondaryState, 'neutral' | 'warning' | 'suc
 /** The employee cannot change a line that is waiting or approved; a manager or Admin can. */
 export const isLocked = (l: EmployeeSalesLineDto, isSelf: boolean): boolean => isSelf && (l.secondaryStatus === 'PENDING' || l.secondaryStatus === 'APPROVED');
 
-/** The amount (rupees, as typed) that the typed units make at the product's PTR; '' when either is missing. */
+/** The amount (rupees, as typed) that the typed units make at the product's PTS; '' when either is missing. */
 export function amountFromUnits(l: EmployeeSalesLineDto, units: string): string {
   const n = parse(units);
-  return n === null || Number.isNaN(n) || !l.ptrPaise ? '' : paiseToRupees(n * l.ptrPaise);
+  return n === null || Number.isNaN(n) || !l.ptsPaise ? '' : paiseToRupees(n * l.ptsPaise);
 }
 
-/** The whole units an amount typed in rupees buys at PTR; '' when the amount or PTR is missing. */
+/** The whole units an amount typed in rupees buys at PTS; '' when the amount or PTS is missing. */
 export function unitsFromAmount(l: EmployeeSalesLineDto, rupees: string): string {
   const paise = rupeesToPaise(rupees);
-  return paise === null || !l.ptrPaise ? '' : String(Math.round(paise / l.ptrPaise));
+  return paise === null || !l.ptsPaise ? '' : String(Math.round(paise / l.ptsPaise));
 }
 
 /** The month can be sent when something is a draft or was rejected and nothing is unsaved. */

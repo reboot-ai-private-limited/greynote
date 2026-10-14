@@ -36,6 +36,7 @@ import {
 import { FinalizeDialog } from './FinalizeDialog';
 import { GenerateDialog } from './GenerateDialog';
 import { GenerateResultDialog } from './GenerateResultDialog';
+import { PaidTotalsCard } from './PaidTotalsCard';
 import { PayrollWarnings } from './PayrollWarnings';
 import { PayRunDialog } from './PayRunDialog';
 
@@ -246,6 +247,7 @@ export function PayrollScreen() {
           </div>
 
           <PayrollWarnings warnings={warnings.data} className="mb-6" />
+          {canRun ? <div className="mb-6"><PaidTotalsCard /></div> : null}
           <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile
               label="Employees"

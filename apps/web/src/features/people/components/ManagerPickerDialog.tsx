@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { toErrorState } from '@/lib/api/toErrorState';
-import { useManagerCandidates } from '../hooks/useUsers';
+import { useSession } from '@/lib/auth/SessionProvider';
+import { useFieldDirectory, useManagerCandidates } from '../hooks/useUsers';
 
 /**
  * Search active field employees and choose one. For a manager, the employee themselves is not
@@ -25,8 +26,17 @@ export function ManagerPickerDialog({
   onClose: () => void;
 }) {
   const [term, setTerm] = useState('');
-  const candidates = useManagerCandidates(term, true);
-  const rows = (candidates.data?.items ?? []).filter((u) => u.id !== selfId);
+  const { user: me } = useSession();
+  // The Accountant picks from the names-only directory and searches it here; Admin and HR search the employee list.
+  const viaDirectory = me?.role === 'ACCOUNTANT';
+  const listed = useManagerCandidates(term, !viaDirectory);
+  const directory = useFieldDirectory(viaDirectory);
+  const candidates = viaDirectory ? directory : listed;
+  const needle = term.trim().toLowerCase();
+  const found = viaDirectory
+    ? (directory.data ?? []).filter((u) => !needle || u.name.toLowerCase().includes(needle) || u.employeeCode.toLowerCase().includes(needle))
+    : (listed.data?.items ?? []);
+  const rows = found.filter((u) => u.id !== selfId);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()} title={title} description="Search by name or employee code.">

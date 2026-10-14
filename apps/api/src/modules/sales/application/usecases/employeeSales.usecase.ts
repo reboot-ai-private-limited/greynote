@@ -68,7 +68,7 @@ export class SaveEmployeeSecondaryUseCase {
     const lines = input.lines.map((l) => {
       const product = products.get(l.productId);
       if (!product) throw new StockRefusal(STOCK_CODES.productNotFound, 'A product in the list does not exist or is no longer active.');
-      return { productId: l.productId, ...linkQtyAndAmount(l, product.ptrPaise) };
+      return { productId: l.productId, ...linkQtyAndAmount(l, product.ptsPaise) };
     });
     await assertWhole(this.master, [], lines.map((l) => l.qty), 0);
     const own = actor.id === input.userId;
@@ -82,12 +82,12 @@ export class SaveEmployeeSecondaryUseCase {
   }
 }
 
-/** Units and amount are one figure at the product's PTR: give either, get both. An amount is rounded to whole units and restated from them. */
-export function linkQtyAndAmount(entry: { qty?: number | undefined; amountPaise?: number | undefined }, ptrPaise: number | null): { qty: number; amountPaise: number | null } {
-  if (entry.qty !== undefined) return { qty: entry.qty, amountPaise: ptrPaise ? entry.qty * ptrPaise : null };
-  if (!ptrPaise) throw new StockRefusal(STOCK_CODES.secondaryNeedsPtr, 'This product has no PTR set, so give units rather than an amount.');
-  const qty = Math.round((entry.amountPaise ?? 0) / ptrPaise);
-  return { qty, amountPaise: qty * ptrPaise };
+/** Units and amount are one figure at the product's PTS: give either, get both. An amount is rounded to whole units and restated from them. */
+export function linkQtyAndAmount(entry: { qty?: number | undefined; amountPaise?: number | undefined }, ptsPaise: number | null): { qty: number; amountPaise: number | null } {
+  if (entry.qty !== undefined) return { qty: entry.qty, amountPaise: ptsPaise ? entry.qty * ptsPaise : null };
+  if (!ptsPaise) throw new StockRefusal(STOCK_CODES.secondaryNeedsPtr, 'This product has no PTS set, so give units rather than an amount.');
+  const qty = Math.round((entry.amountPaise ?? 0) / ptsPaise);
+  return { qty, amountPaise: qty * ptsPaise };
 }
 
 /** The kind of approval a month's secondary goes through; its record id is `userId:month`. */
@@ -193,7 +193,9 @@ export class ReadEmployeeSalesUseCase {
           adjustmentReason: s?.adjustmentReason ?? null,
           primaryQty: orderPrimaryQty + (s?.adjustmentQty ?? 0),
           secondaryQty: s?.secondaryQty ?? null,
-          secondaryAmountPaise: s?.secondaryAmountPaise ?? null,
+          // Restated at today's PTS from the units, so entries saved before the switch from PTR read the same as new ones.
+          secondaryAmountPaise: s?.secondaryQty != null && p.ptsPaise ? s.secondaryQty * p.ptsPaise : null,
+          ptsPaise: p.ptsPaise,
           ptrPaise: p.ptrPaise,
           secondaryStatus: s && s.secondaryQty !== null ? s.secondaryStatus : null,
           updatedBy: s ? { id: s.updatedBy, name: people.find((u) => u.id === s.updatedBy)?.name ?? UNKNOWN } : null,

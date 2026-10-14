@@ -70,9 +70,9 @@ doc('get', '/specialties', 'Admin: list the specialities a doctor can have', { q
 doc('post', '/specialties', 'Admin: add a speciality', { body: createSpecialtyBodySchema });
 doc('get', '/specialties/{id}', 'Admin: one speciality', { params: idParamsSchema });
 doc('patch', '/specialties/{id}', 'Admin: rename (also on its doctors) or deactivate a speciality', { params: idParamsSchema, body: updateSpecialtyBodySchema });
-doc('get', '/chemists', 'Admin: list chemists', { query: listChemistsQuerySchema });
+doc('get', '/chemists', 'Admin or Accountant: list chemists', { query: listChemistsQuerySchema });
 doc('post', '/chemists', 'Admin: add a chemist on a route, with a map-picked location', { body: createChemistBodySchema });
-doc('get', '/chemists/{id}', 'Admin: one chemist', { params: idParamsSchema });
+doc('get', '/chemists/{id}', 'Admin or Accountant: one chemist', { params: idParamsSchema });
 doc('patch', '/chemists/{id}', 'Admin: edit a chemist, including correcting its location', { params: idParamsSchema, body: updateChemistBodySchema });
 
 doc('get', '/doctors', 'Admin: list doctors', { query: listDoctorsQuerySchema });
@@ -91,9 +91,9 @@ doc('post', '/doctors/{id}/assignments', 'Admin: make an MR responsible for a do
 doc('delete', '/doctors/{id}/assignments/{userId}', 'Admin: remove an MR’s assignment', { params: doctorAssignmentParamsSchema });
 
 doc('get', '/distributors', 'Admin: list distributors, by route or the HQ / zone above it', { query: listDistributorsQuerySchema });
-doc('post', '/distributors', 'Admin: add a distributor on a route', { body: createDistributorBodySchema });
+doc('post', '/distributors', 'Admin or Accountant: add a distributor on a route', { body: createDistributorBodySchema });
 doc('get', '/distributors/{id}', 'Admin: one distributor, with its zone → HQ → route breadcrumb', { params: idParamsSchema });
-doc('patch', '/distributors/{id}', 'Admin: edit a distributor, reassign its MR / ASM', { params: idParamsSchema, body: updateDistributorBodySchema });
+doc('patch', '/distributors/{id}', 'Admin or Accountant: edit a distributor, reassign its MR / ASM', { params: idParamsSchema, body: updateDistributorBodySchema });
 doc('get', '/doctors/{id}/sample-allocations', 'A doctor’s sample allocations and what is left — Admin, the assigned MR, or their manager', { params: idParamsSchema });
 doc('post', '/doctors/{id}/sample-allocations', 'Admin: issue samples of a product for a doctor (adds to an existing allocation)', { params: idParamsSchema, body: issueSampleBodySchema });
 doc('patch', '/doctors/{id}/sample-allocations/{productId}', 'Admin: correct the allocated total (not below what was given out)', { params: sampleAllocationParamsSchema, body: adjustSampleBodySchema });
@@ -101,11 +101,13 @@ doc('patch', '/doctors/{id}/sample-allocations/{productId}', 'Admin: correct the
 function crudRouter(
   c: CrudHandlers,
   schemas: { list: AnyZodObject; create: ZodTypeAny; update: ZodTypeAny },
-  /** Who may read (the list and one record); writing is always Admin's. */
+  /** Who may read (the list and one record). */
   readers: readonly RoleName[] = ['ADMIN'],
+  /** Who may add and edit; Admin alone unless given. */
+  writers: readonly RoleName[] = ['ADMIN'],
 ): Router {
   const router = Router();
-  const admin = requireRole('ADMIN');
+  const admin = requireRole(...writers);
   router.use(authenticate());
   router.get('/', requireRole(...readers), validate({ query: schemas.list }), c.list);
   router.post('/', admin, validate({ body: schemas.create }), c.create);
@@ -154,8 +156,8 @@ export function buildFieldMasterDataRouter(c: {
   router.use('/specialties', crudRouter(c.specialties, { list: listSpecialtiesQuerySchema, create: createSpecialtyBodySchema, update: updateSpecialtyBodySchema }));
   router.use(
     '/distributors',
-    crudRouter(c.distributors, { list: listDistributorsQuerySchema, create: createDistributorBodySchema, update: updateDistributorBodySchema }, ['ADMIN', 'ACCOUNTANT']), // the Accountant reads them to record payments
+    crudRouter(c.distributors, { list: listDistributorsQuerySchema, create: createDistributorBodySchema, update: updateDistributorBodySchema }, ['ADMIN', 'ACCOUNTANT'], ['ADMIN', 'ACCOUNTANT']), // the Accountant adds and edits them, and records their payments
   );
-  router.use('/chemists', crudRouter(c.chemists, { list: listChemistsQuerySchema, create: createChemistBodySchema, update: updateChemistBodySchema }));
+  router.use('/chemists', crudRouter(c.chemists, { list: listChemistsQuerySchema, create: createChemistBodySchema, update: updateChemistBodySchema }, ['ADMIN', 'ACCOUNTANT'])); // the Accountant reads them to add an order for a chemist
   return router;
 }

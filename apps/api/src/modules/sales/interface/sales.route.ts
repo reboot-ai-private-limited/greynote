@@ -6,11 +6,11 @@ import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js'
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { SalesHandlers } from './sales.controller.js';
-import { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
+import { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 const TAG = 'Sales';
 
-function doc(method: 'get' | 'post', path: string, summary: string, request: { query?: ZodTypeAny; body?: ZodTypeAny }): void {
+function doc(method: 'get' | 'post' | 'patch', path: string, summary: string, request: { query?: ZodTypeAny; body?: ZodTypeAny }): void {
   openApiRegistry.registerPath({
     method,
     path: `/api/sales${path}`,
@@ -26,6 +26,8 @@ doc('get', '/monthly-stock', 'Stock counts for my outlets — a manager also see
 doc('post', '/monthly-stock/unlock', 'Admin: reopen a month after its deadline', { body: unlockBodySchema });
 doc('get', '/monthly-stock/missing', 'Outlets with no stock count for a month, by MR — a manager’s downline, or everyone for Admin', { query: missingQuerySchema });
 doc('post', '/orders', 'Place an order for one of my Chemists or Distributors, several products at once — amounts are worked out from quantity and unit price; no approval', { body: placeOrderBodySchema });
+doc('post', '/orders/on-behalf', 'Admin or Accountant: add an order for a field employee (credited to them), to a distributor or one chemist', { body: placeOrderForBodySchema });
+openApiRegistry.registerPath({ method: 'patch', path: '/api/sales/orders/{id}', tags: [TAG], summary: 'Admin or Accountant: change a PLACED order\'s lines, prices and remarks; a 409 if it is no longer PLACED', security: [{ bearerAuth: [] }], request: { params: orderIdParamsSchema, body: { content: { 'application/json': { schema: editOrderBodySchema } } } }, responses: { 200: { description: 'OK' }, 409: { description: 'The order is not PLACED' } } });
 doc('get', '/orders', 'Orders — my own; a manager also sees their downline’s, Admin all; filter by status, dates, outlet', { query: listOrdersQuerySchema });
 doc('post', '/distributor-payments', 'Admin or Accountant: record money received from a distributor (date not in the future, open financial year)', { body: recordPaymentBodySchema });
 doc('get', '/distributor-payments', 'Admin or Accountant: one distributor’s payments in a date range, with the total collected and the total ordered', { query: listPaymentsQuerySchema });
@@ -63,6 +65,8 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.get('/distributor-payments/totals', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: paymentTotalsQuerySchema }), c.paymentTotals);
   router.post('/distributor-payments/:id/cancel', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: orderIdParamsSchema, body: cancelPaymentBodySchema }), c.cancelPayment);
   router.post('/orders', requireRole('FIELD'), validate({ body: placeOrderBodySchema }), c.placeOrder);
+  router.post('/orders/on-behalf', requireRole('ACCOUNTANT', 'ADMIN'), validate({ body: placeOrderForBodySchema }), c.placeOrderFor);
+  router.patch('/orders/:id', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: orderIdParamsSchema, body: editOrderBodySchema }), c.editOrder);
   router.get('/orders', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listOrdersQuerySchema }), c.listOrders);
   router.get('/orders/:id', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema }), c.getOrder);
   router.post('/orders/:id/complete', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema }), c.completeOrder);

@@ -34,6 +34,7 @@ import {
   tabOf,
 } from '../lib/orders';
 import { OrderDetailDialog } from './OrderDetailDialog';
+import { AddOrderDialog } from './OrderFormDialog';
 
 const ANY = 'all';
 
@@ -60,6 +61,7 @@ export function OrdersScreen() {
   );
   const report = query.data;
   const [open, setOpen] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const [finishing, setFinishing] = useState<{
     row: ReportOrderRowDto;
     to: 'DONE' | 'CANCELLED';
@@ -136,13 +138,18 @@ export function OrdersScreen() {
         title="Orders"
         description="Orders by the day they were placed, a month at a time for the financial year in view."
         actions={
-          <Button
-            variant="secondary"
-            disabled={!report || report.rows.length === 0}
-            onClick={() => report && downloadCsv(ordersFilename(month, tab), ordersCsv(report))}
-          >
-            Download CSV
-          </Button>
+          <>
+            <Button variant="secondary" disabled={readOnly} onClick={() => setAdding(true)}>
+              Add order
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={!report || report.rows.length === 0}
+              onClick={() => report && downloadCsv(ordersFilename(month, tab), ordersCsv(report))}
+            >
+              Download CSV
+            </Button>
+          </>
         }
       />
       {months.length === 0 ? (
@@ -233,6 +240,7 @@ export function OrdersScreen() {
         </>
       )}
 
+      {adding ? <AddOrderDialog onClose={() => setAdding(false)} /> : null}
       {open ? <OrderDetailDialog id={open} onClose={() => setOpen(null)} /> : null}
       <ConfirmDialog
         open={finishing !== null}

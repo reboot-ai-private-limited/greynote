@@ -2,7 +2,7 @@ import type { RoleName } from '@greynote/contracts';
 
 /** Marketing's narrow views of the modules below it; their public contracts satisfy these structurally. */
 export interface ProductPort {
-  getProduct(id: string): Promise<{ id: string; status: 'active' | 'inactive'; ptrPaise: number | null } | null>;
+  getProduct(id: string): Promise<{ id: string; status: 'active' | 'inactive'; ptsPaise: number | null } | null>;
 }
 
 /** The Doctor side of Field Master Data: who may act on a Doctor and which MR it is with. */

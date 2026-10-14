@@ -22,8 +22,6 @@ import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDistributorPaymentTotals } from '../hooks/useDistributorPayments';
 import { useDistributors, useUpdateDistributor } from '../hooks/useDistributors';
 import { paymentRange } from '../lib/payments';
-import { useSession } from '@/lib/auth/SessionProvider';
-import { DistributorAccountsScreen } from './DistributorAccountsScreen';
 import { RecordPaymentDialog } from './RecordPaymentDialog';
 import { EmployeeFilter } from '@/features/people/components/EmployeePickerField';
 import { RouteFilter } from './RoutePickerField';
@@ -35,13 +33,8 @@ const money = (paise: number): string => formatMoney(paise);
 const routesText = (labels: string[]) =>
   labels.length <= 2 ? labels.join(', ') : `${labels.slice(0, 2).join(', ')} +${labels.length - 2}`;
 
-/** Admin gets the full master-data list; the Accountant a payments-only view of the same distributors. */
+/** The distributors list: Admin and the Accountant both add, edit and record payments here. */
 export function DistributorsScreen() {
-  const { user } = useSession();
-  return user?.role === 'ACCOUNTANT' ? <DistributorAccountsScreen /> : <AdminDistributorsScreen />;
-}
-
-function AdminDistributorsScreen() {
   const router = useRouter();
   const { values, page, pageSize, update } = useFilterParams([
     'search',

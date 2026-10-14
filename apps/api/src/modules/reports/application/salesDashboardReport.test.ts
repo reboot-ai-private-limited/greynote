@@ -53,7 +53,7 @@ describe('SalesDashboardReport', () => {
     const { report } = build();
     const out = await report.read({ actor: { id: 'a', role: 'ADMIN' }, ...base });
     const mr1 = out.rows.find((r) => r.employee.id === 'mr1')!;
-    expect(mr1).toMatchObject({ designation: 'MR', zone: 'North', routes: ['Route r1', 'Route r2'], workingDays: 3, taPaise: 5000, daPaise: 3000, targetPaise: 90_000, achievedPaise: 40_000, primaryPaise: 4_000 });
+    expect(mr1).toMatchObject({ designation: 'MR', zone: 'North', routes: ['Route r1', 'Route r2'], workingDays: 3, taPaise: 5000, daPaise: 3000, targetPaise: 90_000, achievedPaise: 32_000, primaryPaise: 4_000 });
     expect(mr1.plan).toEqual({ submitted: 2, approved: 1 }); // the rejected one on the 9th is neither
     expect(mr1.dcr).toEqual({ submitted: 2, approved: 1 }); // MANAGER_APPROVED is submitted, not yet approved; the draft is neither
     expect(out.rows.find((r) => r.employee.id === 'mr2')!.plan).toEqual({ submitted: 0, approved: 0 });
@@ -63,7 +63,7 @@ describe('SalesDashboardReport', () => {
     const { report } = build();
     const out = await report.read({ actor: { id: 'a', role: 'ADMIN' }, ...base, pageSize: 1 });
     expect(out.rows).toHaveLength(1);
-    expect(out).toMatchObject({ total: 3, totalPages: 3, totals: { employees: 3, taPaise: 5100, daPaise: 3200, targetPaise: 90_000, achievedPaise: 40_000, primaryPaise: 4_000 } });
+    expect(out).toMatchObject({ total: 3, totalPages: 3, totals: { employees: 3, taPaise: 5100, daPaise: 3200, targetPaise: 90_000, achievedPaise: 32_000, primaryPaise: 4_000 } });
   });
 
   it('holds a future end to today and reports the months of both ends', async () => {

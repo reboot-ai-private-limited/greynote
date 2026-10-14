@@ -22,6 +22,9 @@ export interface OrderDoc {
   completedAt: Date | null;
   clientId: string | null;
   createdAt: Date;
+  createdBy?: Types.ObjectId | null;
+  editedBy?: Types.ObjectId | null;
+  editedAt?: Date | null;
 }
 
 const paise = { type: Number, required: true, min: 0, validate: { validator: isPaise, message: 'Must be a whole number of paise.' } };
@@ -47,6 +50,9 @@ const orderSchema = new Schema<OrderDoc>({
   completedAt: { type: Date, default: null },
   clientId: { type: String, default: null },
   createdAt: { type: Date, required: true },
+  createdBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
+  editedBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
+  editedAt: { type: Date, default: null },
 });
 orderSchema.pre('validate', function () {
   if (Boolean(this.chemistId) === Boolean(this.distributorId)) this.invalidate('chemistId', 'Exactly one of chemistId and distributorId is required.');

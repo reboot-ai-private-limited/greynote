@@ -6,6 +6,7 @@ import { salesApi } from '@/lib/api/endpoints/sales';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
+import type { EditOrderDto, PlaceOrderForDto } from '@greynote/contracts';
 
 /** A month of orders. Live: an MR places one or finishes one. */
 export function useOrdersReport(query: OrdersReportQuery, enabled = true) {
@@ -35,6 +36,26 @@ export function useFinishOrder(to: 'DONE' | 'CANCELLED', onDone: () => void) {
     call: (token, id) => (to === 'DONE' ? salesApi.completeOrder(token, id) : salesApi.cancelOrder(token, id)).then(() => undefined),
     invalidates: [keys.reports.all()],
     successMessage: to === 'DONE' ? 'The order is marked Done.' : 'The order is cancelled.',
+    onSuccess: onDone,
+  });
+}
+
+/** Admin or the Accountant adds an order for a field employee; every report moves with it. */
+export function useAddOrder(onDone: () => void) {
+  return useApiMutation<PlaceOrderForDto>({
+    call: (token, body) => salesApi.placeOrderFor(token, body).then(() => undefined),
+    invalidates: [keys.reports.all()],
+    successMessage: 'The order was added.',
+    onSuccess: onDone,
+  });
+}
+
+/** Changes a PLACED order's lines and remarks. */
+export function useEditOrder(id: string, onDone: () => void) {
+  return useApiMutation<EditOrderDto>({
+    call: (token, body) => salesApi.editOrder(token, id, body).then(() => undefined),
+    invalidates: [keys.reports.all()],
+    successMessage: 'The order was changed.',
     onSuccess: onDone,
   });
 }

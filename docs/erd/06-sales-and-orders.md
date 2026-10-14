@@ -91,3 +91,7 @@ One field employee's figures for one product and one month: `user_id`, `product_
 ## `EmployeeSale` — approval and amount (2026-10-12)
 
 Adds `secondary_amount_paise` (units × the product's PTR when entered; null with no PTR) and `secondary_status` (`DRAFT`, `PENDING`, `APPROVED`, `REJECTED`; a row with no value reads as `APPROVED`). Only `APPROVED` secondary counts toward achievement. The approval request is `SECONDARY_SALES` with `record_id = user_id:month`. Order: a chemist `Order` is information only and never leaves `PLACED`; only a distributor order moves to `DONE`/`CANCELLED`.
+
+## 2026-10-14 — office orders, edits, PTS
+
+`orders` gains `created_by` (the Admin/Accountant who added it for the employee; null when the employee placed it), `edited_by` and `edited_at` (the last change to a `PLACED` order's lines or remarks). `employee_sales.secondary_amount_paise` is units × the product's **PTS** (rows saved earlier at PTR are restated on read). No new collection; no migration needed (the fields default to null).

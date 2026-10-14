@@ -29,4 +29,9 @@ export interface Order {
   /** The phone's id for the record, if it came through sync; `null` for one placed online. */
   clientId: string | null;
   createdAt: Date;
+  /** The Admin or Accountant who added it for the employee; `null`/absent when the employee placed it. */
+  createdBy?: string | null;
+  /** Set when Admin or the Accountant last changed the lines or remarks while it was `PLACED`. */
+  editedBy?: string | null;
+  editedAt?: Date | null;
 }

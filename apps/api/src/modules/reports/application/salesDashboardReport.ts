@@ -153,7 +153,7 @@ export class SalesDashboardReport {
    * with no team, nobody. `userId` narrows it to one person, who must be in a manager's downline whatever the level.
    */
   private async audience(actor: { id: string; role: string }, scope: 'direct' | 'indirect' | 'all', userId?: string) {
-    if (actor.role === 'ADMIN') return this.identity.listFieldEmployees(userId ? [userId] : undefined);
+    if (actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT') return this.identity.listFieldEmployees(userId ? [userId] : undefined);
     if (actor.role !== 'FIELD') throw AppError.forbidden();
     const downline = await this.identity.getDownline(actor.id);
     if (downline.length === 0) throw AppError.forbidden('The Sales Dashboard is for managers and Admin.');

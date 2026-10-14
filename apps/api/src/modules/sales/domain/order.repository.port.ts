@@ -43,10 +43,11 @@ export interface DistributorOrderSumFilter {
   productId?: string | undefined;
 }
 
-/** What one employee's Done orders **to distributors** add up to for one product in one month (the month they were marked Done). */
+/** What one employee's Done orders **to one distributor** add up to for one product in one month (the month they were marked Done). */
 export interface UserOrderSum {
   month: string;
   userId: string;
+  distributorId: string;
   productId: string;
   quantity: number;
   amountPaise: Paise;
@@ -73,6 +74,8 @@ export interface OrderRepositoryPort {
   create(input: Omit<Order, 'id'>, ctx?: TransactionContext): Promise<Order>;
   findById(id: string): Promise<Order | null>;
   list(filter: OrderFilter, limit: number): Promise<Order[]>;
+  /** Replace a `PLACED` order's lines, total and remarks in one conditional update; `false` if it is no longer `PLACED`. */
+  update(id: string, change: { items: Order['items']; totalAmountPaise: Paise; remarks: string | null }, by: string, at: Date): Promise<boolean>;
   /** `PLACED` → `DONE` / `CANCELLED` in one conditional update; `false` (nothing changed) if it was not `PLACED`. */
   transition(id: string, to: 'DONE' | 'CANCELLED', by: string, at: Date): Promise<boolean>;
 }

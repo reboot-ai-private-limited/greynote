@@ -47,6 +47,17 @@ export const placeOrderBodySchema = z
   })
   .refine((b) => new Set(b.lines.map((l) => l.productId)).size === b.lines.length, { message: 'A product appears twice.', path: ['lines'] });
 
+/** Body of `POST /sales/orders/on-behalf`: Admin or the Accountant adds an order for a field employee. */
+export const placeOrderForBodySchema = placeOrderBodySchema.and(z.object({ userId: objectIdSchema }));
+
+/** Body of `PATCH /sales/orders/:id`: the new lines (replacing the old) and remarks. */
+export const editOrderBodySchema = z
+  .object({
+    remarks: z.string().trim().max(1000).nullish().transform((v) => v || null),
+    lines: z.array(orderLineSchema).min(1).max(200),
+  })
+  .refine((b) => new Set(b.lines.map((l) => l.productId)).size === b.lines.length, { message: 'A product appears twice.', path: ['lines'] });
+
 export const orderIdParamsSchema = z.object({ id: objectIdSchema });
 export const listOrdersQuerySchema = z
   .object({ status: z.enum(ORDER_STATUSES).optional(), from: calendarDateSchema.optional(), to: calendarDateSchema.optional(), outletType: z.enum(OUTLET_TYPES).optional(), outletId: objectIdSchema.optional() })
