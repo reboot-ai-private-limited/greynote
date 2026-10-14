@@ -21,7 +21,7 @@ const keyOf = (name: string) => name.toLowerCase();
 
 /**
  * Bulk-creates Zones / HQs from CSV rows (decision-log 2026-09-24, Area dropped 2026-10-03).
- * Routes are excluded, and an imported HQ has no base place yet: both need a map-confirmed pin.
+ * Routes are excluded, because a Route needs a destination and a km.
  *
  * All-or-nothing on validation: every row is checked against the database and the rest of the
  * file first, and any problem rejects the whole file with every problem listed. Names that
@@ -118,7 +118,7 @@ export class ImportHierarchyUseCase {
       node.id = (await this.zones.create({ name: node.name, status: 'active' })).id;
     }
     for (const node of toCreate.hqs) {
-      node.id = (await this.hqs.create({ zoneId: parentId(node), name: node.name, basePlace: null, status: 'active' })).id;
+      node.id = (await this.hqs.create({ zoneId: parentId(node), name: node.name, status: 'active' })).id;
     }
   }
 }

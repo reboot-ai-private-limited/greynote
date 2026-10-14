@@ -11,9 +11,10 @@ export interface RouteSummary {
   hqName: string;
   /** Decides the DA rate for a day on this route (HLD 06 §2). */
   routeType: RouteType;
-  /** Null when `distanceStatus` is `FAILED` — TA must flag that, never read it as 0 km. */
+  /** Null only for a Route that has no km yet (`distanceStatus` `FAILED`) — TA must flag that, never read it as 0 km. */
   distanceKm: string | null;
-  distanceStatus: Route['distanceStatus'];
+  /** `FAILED` exactly when `distanceKm` is null. Kept so TA and the phone's snapshot did not change with the map's removal. */
+  distanceStatus: 'CALCULATED' | 'FAILED';
   taPerKmRateOverridePaise: number | null;
   status: Route['status'];
 }

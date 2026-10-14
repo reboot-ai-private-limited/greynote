@@ -1,26 +1,24 @@
 # Territory
 
-The spatial hierarchy field operations are organized against — `Zone → HQ → Route` — and the
-mechanism that turns a route into a travel-allowance figure: the real road distance from the HQ's
-base place to the route's destination place. PRD §5.1; full entity model in
-[`../erd/02-territory-master.md`](../erd/02-territory-master.md); the distance algorithm in full
-in [`../hld/02-route-distance-calculation.md`](../hld/02-route-distance-calculation.md).
+The hierarchy field operations are organized against — `Zone → HQ → Route` — and what turns a route
+into a travel-allowance figure: the **km Admin types** for "HQ to destination". There is no map and
+no distance lookup (decision-log 2026-10-14). PRD §5.1; full entity model in
+[`../erd/02-territory-master.md`](../erd/02-territory-master.md); the rule in full in
+[`../hld/02-route-distance-calculation.md`](../hld/02-route-distance-calculation.md).
 
 ## What it owns
 
 - **`Zone`** — top of the hierarchy (e.g. West Bengal Zone). Name only at this tier; nothing
   spatial is stored on it directly.
 - **`HQ`** — belongs to one `Zone`. A headquarters (e.g. SLG-1 and SLG-2, two HQs in Siliguri).
-  Carries a **base place** (`{label, latitude, longitude, place_id}`, e.g. Siliguri) — the origin
-  of every one of its Routes. Required on create; an HQ that predates the base place has none
-  until an Admin sets it, and can't get a Route until then.
-- **`Route`** — belongs to one `HQ`. One **destination place** (`{label, latitude, longitude,
-  place_id}`, e.g. Naxalbari), a `type` (`HQ` | `EX_STATION` | `OUT_STATION`, which decides which
-  of a grade's DA rates applies to a day worked there — HLD 06 §2), a computed road distance from
-  the HQ's base place to the destination (`distance_km`), and that distance's provenance/status
-  (`distance_source`: `AUTO_CALCULATED` | `MANUAL_OVERRIDE`; `distance_status`: `CALCULATED` |
-  `FAILED`; `distance_calculated_at`; `revision`). Decision-log 2026-10-03 (this replaced `Area`
-  and the waypoint list).
+  A name only. (It had a map-confirmed *base place* until 2026-10-14; that was the origin of the
+  Google distance and is gone.) Renaming an HQ re-names its Routes.
+- **`Route`** — belongs to one `HQ`. A **destination name** (typed, e.g. Naxalbari), the **km**
+  Admin typed (`distance_km`, one way, used as-is), a `type` (`HQ` | `EX_STATION` | `OUT_STATION`,
+  which decides which of a grade's DA rates applies to a day worked there — HLD 06 §2) and its
+  `type_source` (`AUTO` | `MANUAL`). Its **name is always "<HQ> to <destination>"** (SLG-1 to
+  Naxalbari), made by the server. Decision-log 2026-10-14 (this replaced the map and the Google
+  distance).
 - **`RouteAssignment`** — the MR ↔ `Route` join. Many-to-many: a route can have several MRs
   (shared coverage), an MR can cover several routes. Carries `assigned_at` and `status`
   (`active`/`inactive`) as a lightweight assignment history, rather than a single FK that
@@ -67,8 +65,8 @@ interface TerritoryPublicContract {
 interface RouteSummary {
   id: string; name: string; hqId: string; hqName: string;
   routeType: RouteType;                // decides DA
-  distanceKm: string | null;           // null exactly when distanceStatus is FAILED; never doubled
-  distanceStatus: 'CALCULATED' | 'FAILED';
+  distanceKm: string | null;           // typed by Admin; null only for a Route migrated without a km; never doubled
+  distanceStatus: 'CALCULATED' | 'FAILED';   // FAILED exactly when distanceKm is null (kept so TA and the phone did not change)
   taPerKmRateOverridePaise: number | null;   // whole paise per km
   status: 'active' | 'inactive';
 }
@@ -88,7 +86,7 @@ Consumers, per [`../roadmap.md`](../roadmap.md):
   to offer only routes the submitting MR is actually assigned.
 - **Field Activity** (Tier 4) — TA/DA auto-calculation
   ([`../hld/06-ta-da-auto-calculation.md`](../hld/06-ta-da-auto-calculation.md)) reads
-  `getRoute` for TA (`distanceKm`, `taPerKmRateOverridePaise`), and must handle a `FAILED` status as a
+  `getRoute` for TA (`distanceKm`, `taPerKmRateOverridePaise`), and must handle a Route with no km (`FAILED`) as a
   flag, not a silent zero (see Edge cases below). `routeType` on the same summary gives DA.
 
 Territory itself depends only on Identity (Tier 1) — a `RouteAssignment.user_id` is validated
@@ -99,73 +97,35 @@ Mongoose model directly.
 ## Write-path rules & invariants
 
 - **A `Route` always belongs to exactly one `HQ`, which belongs to exactly one `Zone`.** No
-  orphaned routes; creating a `Route` requires a valid, active `hq_id` **that has a base place**,
-  a `destination` and a `type`.
-- **Places are entered as resolved points, never raw text.** Per HLD 02 §1, Admin searches a
-  Geocoding/Places API and confirms a pin on a map preview; what gets stored — for an HQ's base
-  place and a Route's destination alike — is `{label, latitude, longitude, place_id}`, not the
-  typed string. A place with no confirmed coordinates cannot be saved.
-- **A `Route` may save before its distance resolves.** Master-data entry is never blocked on an
-  external API being up — a route with `distance_status: FAILED` (the Directions call errored
-  or timed out, ~5 s) is a valid, saved `Route`. Admin retries with `POST
-  /routes/:id/recalculate`. See Edge cases.
+  orphaned routes; creating a `Route` requires a valid, active `hq_id`, a **destination name** and a
+  **km** (more than 0, up to 2 decimals). The `type` is optional (see Route type below).
+- **The name is made, not typed:** `"<HQ name> to <destination name>"`. Changing the destination
+  re-makes it; renaming the HQ re-makes it for all of that HQ's Routes, active or not.
 - **Names are unique within their parent**, case-insensitive: Zone globally, HQ per Zone, Route
-  per HQ.
+  per HQ — and since the HQ is part of the Route's name, that is one Route per destination per HQ.
 - **Nothing is hard-deleted.** A Zone can't be deactivated while it has an active HQ, an HQ can't
   be deactivated while it has an active Route, and a Route can't be deactivated while it has an
   active `RouteAssignment`.
   Nothing can be created or reactivated under an inactive parent. A node's parent can't be
   changed (no reparenting; see Deliberately deferred).
-- **`distance_km` is used as-is for TA — never doubled for a return trip.** Admin enters the
-  route (or overrides the distance) to cover the full paid travel (decision-log 2026-09-24).
-- **Distance is recalculated, not frozen, on every destination edit.** Changing a Route's
-  destination immediately triggers a fresh Directions-API call (blocking — the web portal is not
-  offline-first, so this is acceptable at save time) and resets `distance_source` back to
-  `AUTO_CALCULATED`, overwriting any prior manual override. A route's distance therefore always
-  reflects the route's *current* geography — never a stale figure left over from before an edit.
-- **Changing an HQ's base place recalculates its active Routes** — except those with
-  `distance_source: MANUAL_OVERRIDE`, which keep their hand-entered distance. The response lists
-  how many were recalculated, how many failed, and which overridden Routes were left alone, so an
-  Admin can re-check those. Without this an HQ edit would either leave every distance stale or
-  silently throw away overrides.
-- **Admin may manually override the calculated distance directly**, setting
-  `distance_source: MANUAL_OVERRIDE`. This exists because real money (TA) moves on this number,
-  and an inaccurate auto-calculated figure shouldn't be locked in until someone notices. The
-  override does **not** survive the next destination edit — see above.
-- **Distance is a real road distance, not straight-line/Haversine** — consistent with TA being a
-  reimbursement figure, not an estimate.
+- **`distance_km` is used as-is for TA — never doubled for a return trip.** Admin types the full paid
+  travel (decision-log 2026-09-24).
+- **The km is typed, so it is right when it is saved.** The map version asked Google for a road distance
+  and it came back very wrong on real routes; with TA paid on the number, a person who knows the road
+  is more reliable. There is no recalculation, no override flag and no revision check: a km edit is a
+  plain write, and last write wins.
 - **`RouteAssignment` is additive, never a silent overwrite.** Reassigning or deactivating an
   MR's coverage of a route changes a `RouteAssignment` row's `status`; it does not delete or
   overwrite prior assignment history.
 
-## Route-distance integration
+## Route km (no map)
 
-Google Maps Platform's current APIs (new projects can no longer enable the legacy Directions /
-Places APIs), behind two ports so swapping providers is one adapter (decision-log 2026-09-24):
+Admin picks an HQ, types the destination name and the km, and saves. Nothing calls Google for a
+route. Google is still used for one thing: **place search** (`GET /api/territory/places/search`,
+`PlaceSearchPort` → Places API (New) Text Search), which the doctor / chemist / distributor location
+picker uses. It needs `GOOGLE_MAPS_API_KEY`; without it the search returns `503`.
 
-- `PlaceSearchPort` → **Places API (New)** Text Search, India-biased, 10 candidates; one call
-  returns coordinates, so no separate Place Details lookup.
-- `DistanceProviderPort` → **Routes API** `computeRoutes`, `DRIVE`, origin = the HQ's base place,
-  destination = the Route's destination, field mask `routes.distanceMeters` (cheapest SKU). Never
-  throws: any failure (HTTP error, no drivable route, 5 s timeout) is logged and the route is
-  saved `FAILED`.
-
-Needs `GOOGLE_MAPS_API_KEY` with both APIs enabled; without it the API boots, place search
-returns `503 SERVICE_UNAVAILABLE`, and routes save as `FAILED`. Unit tests use a fake provider.
-
-Full sequence diagrams and failure-handling rationale:
-[`../hld/02-route-distance-calculation.md`](../hld/02-route-distance-calculation.md). Summary at
-this module's depth:
-
-1. Admin types a place name (the HQ's base place, or a Route's destination) → Places search →
-   candidates shown as pins on a map preview → Admin confirms one → `{label, latitude, longitude,
-   place_id}` stored.
-2. On Route save, the HQ's base place and the destination go to the Routes API → road distance
-   comes back → `distance_km`, `distance_source: AUTO_CALCULATED`, `distance_status: CALCULATED`
-   are written together.
-3. A later destination edit re-runs step 2 automatically, and so does a change to the HQ's base
-   place (for its non-overridden Routes). A direct edit to `distance_km` instead sets
-   `distance_source: MANUAL_OVERRIDE` and leaves the destination untouched.
+Full rule, and why the map went: [`../hld/02-route-distance-calculation.md`](../hld/02-route-distance-calculation.md).
 
 ## HTTP surface
 
@@ -173,20 +133,17 @@ this module's depth:
 |---|---|---|---|
 | `POST` | `/api/territory/zones` | Admin | Create a Zone |
 | `GET` | `/api/territory/zones` | Admin | List Zones |
-| `POST` | `/api/territory/hqs` | Admin | Create an HQ under a Zone, with its base place |
+| `POST` | `/api/territory/hqs` | Admin | Create an HQ under a Zone (name only) |
 | `GET` | `/api/territory/hqs` | Admin | List HQs, optionally filtered by Zone |
-| `POST` | `/api/territory/routes` | Admin | Create a Route (with `type` and `destination`) under an HQ — triggers the distance calculation |
+| `POST` | `/api/territory/routes` | Admin | Create a Route from `hqId`, `destinationName`, `distanceKm` and an optional `type` — named "<HQ> to <destination>" |
 | `GET` | `/api/territory/routes` | Admin | List Routes, optionally filtered by HQ, Zone or `type` |
-| `GET` | `/api/territory/routes/:id` | Admin | Route detail, including current `distance_status` (an MR sees their routes via `my-routes`; manager views of a downline's routes come with the Team tab) |
-| `PATCH` | `/api/territory/routes/:id/destination` | Admin | Change the destination place — re-triggers distance recalculation |
-| `PATCH` | `/api/territory/routes/:id/distance` | Admin | Manually override `distance_km` |
+| `GET` | `/api/territory/routes/:id` | Admin | Route detail (an MR sees their routes via `my-routes`; manager views of a downline's routes come with the Team tab) |
 | `POST` | `/api/territory/routes/:id/assignments` | Admin | Assign a FIELD employee to this Route |
 | `GET` | `/api/territory/routes/:id/assignments` | Admin | Who covers this Route, with employee code/name; full history unless `?status=` |
 | `DELETE` | `/api/territory/routes/:id/assignments/:userId` | Admin | End an employee's assignment — the row becomes `inactive` history, not deleted |
-| `POST` | `/api/territory/routes/:id/recalculate` | Admin | Retry the Directions call (e.g. after `FAILED`); resets any manual override like a destination edit |
-| `PATCH` | `/api/territory/zones/:id`, `/hqs/:id`, `/routes/:id` | Admin | Rename, deactivate/reactivate (and an HQ's `basePlace` — recalculates its non-overridden Routes; a Route's `type` and `taPerKmRateOverridePaise`) |
-| `GET` | `/api/territory/places/search?q=` | Admin | Proxy to Google Places — candidates with `{label, latitude, longitude, place_id}`; the API key never leaves the server |
-| `POST` | `/api/territory/import` | Admin | CSV bulk import of Zone / HQ rows (not Routes, and an HQ's base place is set afterwards in the app — both need confirmed pins); `?dryRun=true` previews. See CSV import below |
+| `PATCH` | `/api/territory/zones/:id`, `/hqs/:id`, `/routes/:id` | Admin | Rename (an HQ rename re-names its Routes), deactivate/reactivate; on a Route also `destinationName`, `distanceKm`, `type` / `typeSource: 'AUTO'` and `taPerKmRateOverridePaise` |
+| `GET` | `/api/territory/places/search?q=` | Admin | Proxy to Google Places for registered locations (doctors, chemists, distributors) — candidates with `{label, address, latitude, longitude, placeId}`; the API key never leaves the server |
+| `POST` | `/api/territory/import` | Admin | CSV bulk import of Zone / HQ rows (not Routes: a Route needs a destination and a km); `?dryRun=true` previews. See CSV import below |
 | `GET` | `/api/territory/my-routes` | FIELD roles | The calling MR's own assigned Routes — consumed by Planning's route picker |
 | `PUT` | `/api/territory/users/:userId/hq` | Admin, HR | Set a FIELD employee's HQ (ends the previous one) |
 | `GET` | `/api/territory/users/:userId/hq` | Admin, HR | The employee's current HQ and its history |
@@ -203,8 +160,7 @@ Sikkim,
 ```
 
 - `zone` is required; `hq` is optional. Headers are case-insensitive. Excel's BOM, quoted fields
-  and CRLF are handled. An HQ created by import has **no base place yet** (it needs a
-  map-confirmed pin); an Admin sets it in the app, and until then the HQ can't get a Route.
+  and CRLF are handled. Routes are added afterwards in the app.
 - **Existing names are reused, never changed** (same case-insensitive match as the API), so
   re-uploading a file is a no-op and a write interrupted part-way can be re-run.
 - **All or nothing on validation.** The whole file is checked first — row shape, inactive
@@ -212,49 +168,32 @@ Sikkim,
   nothing written. Line numbers are the file's own (blank lines counted).
 - `?dryRun=true` returns the same `{ created, existing }` report without writing — the web
   portal's preview step.
-- Import never changes an existing HQ, including its base place; that stays a deliberate edit in
-  the app, because it recalculates distances.
+- Import never changes an existing HQ; renaming one stays a deliberate edit in the app, because it
+  re-names its Routes.
 
 ## Edge cases
 
-- **The Directions call errors or times out.** The `Route` still
-  saves (master-data entry is never blocked on an external dependency); `distance_status` stays
-  `FAILED` and `distance_km` stays null. Anything downstream — TA auto-calculation
-  specifically — must check this status and **flag** it rather than silently treat a null
-  distance as zero. This is the one failure mode every consumer of `getRouteDistance` must
-  handle explicitly.
-- **Two Admins edit the same Route at once, or an edit races a slow recalculation.** Every write
-  that changes the destination or distance (destination edit, recalculate, override) is conditional on the
-  `revision` it started from and bumps it. A destination edit sends the `revision` the Admin's screen
-  showed; recalculate and override use the one read at the start of the request. A stale revision
-  gets `409 Conflict` (with `currentRevision`) instead of silently overwriting the newer write.
-  Rename, status and the TA rate override don't touch distance and aren't revision-checked.
+- **A Route has no km** (only one migrated from the map version whose Google lookup had failed). It is
+  valid and saved, `distanceKm` is null and `distanceStatus` reads `FAILED`. Anything downstream — TA
+  auto-calculation specifically — must **flag** it rather than silently treat a null distance as
+  zero. Admin types the km on the Route, which clears it. New Routes cannot be created without one.
+- **Two Admins edit the same Route at once.** Last write wins; there is no revision check any more
+  (it existed to stop an edit racing a slow Google call).
 - **An MR is assigned to overlapping or geographically nonsensical routes.** Nothing in the ERD
   or PRD constrains this — shared coverage is explicitly allowed ("a route may have more than one
   MR assigned"), and Territory has no reason to reject it.
-- **Route type follows the distance (2026-10-05).** `type` is `AUTO` or `MANUAL` (`typeSource`). Created without a type,
+- **Route type follows the km (2026-10-05, 2026-10-14).** `type` is `AUTO` or `MANUAL` (`typeSource`). Created without a type,
   a Route is AUTO: over `EX_STATION_MIN_KM` (15) km it is `EX_STATION`, over `OUT_STATION_MIN_KM` (50) `OUT_STATION`, otherwise
-  `HQ` (strictly "over"); with no usable distance it starts as `HQ` and follows the distance once one is known. A destination
-  edit, a distance override, a recalculation and an HQ base-place change all re-apply it to AUTO Routes. Choosing a type makes
-  the Route MANUAL, kept as chosen; if the distance disagrees the Route read carries `typeWarning` (the warning is never a
-  refusal, and DA uses the type that is set). `PATCH` with `typeSource: 'AUTO'` hands it back to the distance. Routes saved
-  before this existed read as MANUAL, so nothing changes for them and no migration is needed.
+  `HQ` (strictly "over"); with no km it starts as `HQ` and follows the km once one is typed. A km edit re-applies it to AUTO
+  Routes. The web form shows what Automatic gives while the km is typed, and the dropdown can pick another type. Choosing a type makes
+  the Route MANUAL, kept as chosen; if the km disagrees the Route read carries `typeWarning` (the warning is never a
+  refusal, and DA uses the type that is set). `PATCH` with `typeSource: 'AUTO'` hands it back to the km.
 - **A Route's `type` is edited after DA has already been generated for days worked on it.** Past
   `AUTO` DA `Expense` rows stay as generated (the locked-snapshot rule in HLD 06 §3); only future
   approvals use the new type.
-- **An HQ's base place is changed while some of its Routes have a manual override.** Those Routes
-  keep their distance and are named in the response. Recalculating the others can partly fail (a
-  Route that comes back `FAILED`); the response counts those too, and Admin retries each with
-  `POST /routes/:id/recalculate`.
 - **A Route's `HQ` (or an `HQ`'s `Zone`) is reassigned after children already exist under it.**
   Not addressed by the ERD; treat as deliberately deferred (see below) rather than inventing a
   cascade/reparenting rule that isn't asked for.
-- **Manual override, then the same admin "re-saves" the destination unchanged.** Per the ERD's `status`
-  semantics, *any* destination write resets to `AUTO_CALCULATED` — there's no distinction between an
-  edit that changed geography and a no-op re-save. Accepted as-is; the ERD doesn't ask for one.
-- **An HQ with no base place** (it predates the base place, or came from CSV import). It can't get a
-  Route; creating one is refused with a message saying to set the base place first. Its existing
-  Routes (from before the change) keep their stored distance until the base place is set.
 
 ## Dependencies
 
@@ -270,9 +209,9 @@ Sikkim,
   Doctor/Chemist's covering territory," which is this module's Phase 3-onward dependent, not
   something Territory itself does — worth correcting there to avoid implying this module owns
   that join.)*
-- **Multi-stop Routes and route geometry.** A Route is one destination; the path between the base
-  place and the destination is not stored, because only the distance matters. A trip with a stop
-  in the middle is one Route per destination, or a manual distance override. Revisit if the
+- **Multi-stop Routes and route geometry.** A Route is one destination; the path is not stored,
+  because only the km matters. A trip with a stop in the middle is one Route per destination, or one
+  Route with the total km typed. Revisit if the
   client needs "via" stops (decision-log 2026-10-03 lists it as rejected).
 - **A `Zone`/`HQ` reparenting or cascade-delete design.** Not specified by the ERD; don't invent
   one preemptively.

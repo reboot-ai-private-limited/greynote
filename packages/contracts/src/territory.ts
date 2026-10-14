@@ -5,15 +5,6 @@ export type TerritoryStatus = (typeof TERRITORY_STATUSES)[number];
 export const ROUTE_TYPES = ['HQ', 'EX_STATION', 'OUT_STATION'] as const;
 export type RouteType = (typeof ROUTE_TYPES)[number];
 
-/** A point Admin confirmed on the map: an HQ's base place or a Route's destination. */
-export interface PlaceDto {
-  label: string;
-  latitude: number;
-  longitude: number;
-  /** Google place id. Only a place found by search can be saved. */
-  placeId: string;
-}
-
 export interface ZoneDto {
   id: string;
   name: string;
@@ -24,21 +15,8 @@ export interface HqDto {
   id: string;
   zoneId: string;
   name: string;
-  /** The origin of every Route's distance. Null only for an HQ that predates it or came from CSV import. */
-  basePlace: PlaceDto | null;
   status: TerritoryStatus;
 }
-
-/** What an HQ base-place change did to its Routes. Manually overridden Routes are left as they were. */
-export interface RouteRecalculationDto {
-  recalculated: number;
-  /** Could not be calculated, or changed under us. Retry each from the Route. */
-  failed: number;
-  overridden: Array<{ id: string; name: string }>;
-}
-
-/** `PATCH /territory/hqs/:id`: the HQ, plus a report when the base place changed. */
-export type UpdateHqResultDto = HqDto & { routeRecalculation?: RouteRecalculationDto };
 
 export interface CreateZoneDto {
   name: string;
@@ -52,65 +30,54 @@ export interface UpdateZoneDto {
 export interface CreateHqDto {
   zoneId: string;
   name: string;
-  basePlace: PlaceDto;
 }
-/** At least one field; the server rejects an empty update. Changing `basePlace` recalculates the HQ's Routes. */
+/** At least one field; the server rejects an empty update. Renaming an HQ re-names its Routes. */
 export interface UpdateHqDto {
   name?: string | undefined;
   status?: TerritoryStatus | undefined;
-  basePlace?: PlaceDto | undefined;
 }
 
-export type DistanceStatus = 'CALCULATED' | 'FAILED';
-export type DistanceSource = 'AUTO_CALCULATED' | 'MANUAL_OVERRIDE';
-
 /**
- * A Route. `distanceKm` is a two-decimal string, and null exactly when `distanceStatus` is FAILED.
- * There is no route geometry, and no HQ name (join it client-side).
+ * A Route: "<HQ> to <destination>" with a km typed by Admin. `distanceKm` is a two-decimal string,
+ * null only for a Route migrated from the map version that has no km yet. There is no HQ name
+ * (join it client-side).
  */
 export interface RouteDto {
   id: string;
   hqId: string;
   name: string;
   type: RouteType;
-  /** `AUTO`: the type follows the distance. `MANUAL`: chosen by a person. Routes from before this existed are MANUAL. */
+  /** `AUTO`: the type follows the km. `MANUAL`: chosen by a person. Routes from before this existed are MANUAL. */
   typeSource: 'AUTO' | 'MANUAL';
-  /** Set on a single Route's reads and writes (not lists): the distance suggests another type than the one set. A warning, never a refusal. */
+  /** Set on a single Route's reads and writes (not lists): the km suggests another type than the one set. A warning, never a refusal. */
   typeWarning?: string | null | undefined;
-  destination: PlaceDto;
+  destinationName: string;
   distanceKm: string | null;
-  distanceSource: DistanceSource;
-  distanceStatus: DistanceStatus;
-  distanceCalculatedAt: string | null;
   /** Paise per km; null means the pay band's rate applies. */
   taPerKmRateOverridePaise: number | null;
-  revision: number;
   status: TerritoryStatus;
 }
 
 export interface CreateRouteDto {
   hqId: string;
-  name: string;
-  /** Left out: the type follows the distance (AUTO). */
+  /** The route's name is made from it: "<HQ> to <destination>". */
+  destinationName: string;
+  /** Typed by Admin: more than 0, up to 2 decimals. */
+  distanceKm: string;
+  /** Left out: the type follows the km (AUTO). */
   type?: RouteType | undefined;
-  destination: PlaceDto;
   taPerKmRateOverridePaise?: number | null | undefined;
 }
 
 export interface UpdateRouteDto {
-  name?: string | undefined;
+  destinationName?: string | undefined;
+  distanceKm?: string | undefined;
   type?: RouteType | undefined;
-  /** `AUTO` hands the type back to the distance. */
+  /** `AUTO` hands the type back to the km. */
   typeSource?: 'AUTO' | undefined;
   status?: TerritoryStatus | undefined;
   /** `null` clears the override. */
   taPerKmRateOverridePaise?: number | null | undefined;
-}
-
-export interface UpdateDestinationDto {
-  destination: PlaceDto;
-  /** The `revision` of the route as loaded — a stale one is a 409. */
-  revision: number;
 }
 
 export interface RouteAssignmentDto {
@@ -125,7 +92,7 @@ export interface RouteAssignmentDto {
   user: { id: string; employeeCode: string; name: string } | null;
 }
 
-/** One result of `GET /territory/places/search`. Maps directly onto a Place. */
+/** One result of `GET /territory/places/search`: used to place a doctor, chemist or distributor on the map. */
 export interface PlaceCandidateDto {
   label: string;
   address: string;

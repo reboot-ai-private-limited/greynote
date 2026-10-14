@@ -13,18 +13,9 @@ function toRoute(doc: RouteDoc & { _id: unknown }): Route {
     name: doc.name,
     type: doc.type,
     typeSource: doc.typeSource ?? 'MANUAL',
-    destination: {
-      label: doc.destination.label,
-      latitude: doc.destination.latitude,
-      longitude: doc.destination.longitude,
-      placeId: doc.destination.placeId,
-    },
+    destinationName: doc.destinationName,
     distanceKm: doc.distanceKm?.toString() ?? null,
-    distanceSource: doc.distanceSource,
-    distanceStatus: doc.distanceStatus,
-    distanceCalculatedAt: doc.distanceCalculatedAt,
     taPerKmRateOverridePaise: doc.taPerKmRateOverridePaise ?? null,
-    revision: doc.revision,
     status: doc.status,
   };
 }
@@ -91,8 +82,8 @@ export class MongoRouteAdapter implements RouteRepositoryPort {
     return RouteModel.countDocuments({ hqId: new Types.ObjectId(hqId), status: 'active' });
   }
 
-  async listActiveInHq(hqId: string): Promise<Route[]> {
-    const docs = await RouteModel.find({ hqId: new Types.ObjectId(hqId), status: 'active' }).lean();
+  async listInHq(hqId: string): Promise<Route[]> {
+    const docs = await RouteModel.find({ hqId: new Types.ObjectId(hqId) }).lean();
     return docs.map(toRoute);
   }
 
@@ -105,7 +96,10 @@ export class MongoRouteAdapter implements RouteRepositoryPort {
     }
   }
 
-  async update(id: string, input: Partial<Pick<Route, 'name' | 'type' | 'typeSource' | 'status' | 'taPerKmRateOverridePaise'>>): Promise<Route> {
+  async update(
+    id: string,
+    input: Partial<Pick<Route, 'name' | 'destinationName' | 'type' | 'typeSource' | 'distanceKm' | 'status' | 'taPerKmRateOverridePaise'>>,
+  ): Promise<Route> {
     try {
       const doc = await RouteModel.findByIdAndUpdate(id, toDocChange(input), { new: true }).lean();
       if (!doc) throw AppError.internal('INTERNAL', { reason: 'ROUTE_NOT_FOUND', id });
@@ -113,18 +107,5 @@ export class MongoRouteAdapter implements RouteRepositoryPort {
     } catch (err) {
       return rethrowDuplicateName(err, 'route');
     }
-  }
-
-  async updateAtRevision(
-    id: string,
-    expectedRevision: number,
-    change: Partial<Omit<Route, 'id' | 'hqId'>>,
-  ): Promise<Route | null> {
-    const doc = await RouteModel.findOneAndUpdate(
-      { _id: id, revision: expectedRevision },
-      { ...toDocChange(change), $inc: { revision: 1 } },
-      { new: true },
-    ).lean();
-    return doc ? toRoute(doc) : null;
   }
 }

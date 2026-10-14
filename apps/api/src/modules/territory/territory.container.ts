@@ -23,15 +23,11 @@ import { SetUserHqUseCase } from './application/usecases/setUserHq.usecase.js';
 import { MongoUserHqAssignmentAdapter } from './infrastructure/mongoUserHqAssignment.adapter.js';
 import { buildUserHqRouter } from './interface/userHq.route.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
-import { OverrideRouteDistanceUseCase } from './application/usecases/overrideRouteDistance.usecase.js';
-import { RecalculateRouteDistanceUseCase } from './application/usecases/recalculateRouteDistance.usecase.js';
 import { SearchPlacesUseCase } from './application/usecases/searchPlaces.usecase.js';
 import { UpdateRouteUseCase } from './application/usecases/updateRoute.usecase.js';
-import { UpdateRouteDestinationUseCase } from './application/usecases/updateRouteDestination.usecase.js';
 import { MongoHqAdapter } from './infrastructure/mongoHq.adapter.js';
 import { MongoZoneAdapter } from './infrastructure/mongoZone.adapter.js';
 import { GooglePlaceSearchAdapter } from './infrastructure/googlePlaceSearch.adapter.js';
-import { GoogleRoutesDistanceAdapter } from './infrastructure/googleRoutesDistance.adapter.js';
 import { MongoRouteAdapter } from './infrastructure/mongoRoute.adapter.js';
 import { MongoRouteAssignmentAdapter } from './infrastructure/mongoRouteAssignment.adapter.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
@@ -44,10 +40,7 @@ import {
   makeListRouteAssignmentsController,
   makeMyRoutesController,
   makeUnassignRouteController,
-  makeOverrideRouteDistanceController,
-  makeRecalculateRouteDistanceController,
   makeSearchPlacesController,
-  makeUpdateRouteDestinationController,
 } from './interface/routes.controller.js';
 import { buildMyRoutesRouter, buildPlacesRouter, buildRoutesRouter } from './interface/routes.route.js';
 import type { TerritoryPublicContract } from './territory.public.js';
@@ -64,7 +57,6 @@ export function buildTerritoryContainer(users: UserDirectoryPort, config: Config
   const hqRepository = new MongoHqAdapter();
   const routeRepository = new MongoRouteAdapter();
   const assignmentRepository = new MongoRouteAssignmentAdapter();
-  const distanceProvider = new GoogleRoutesDistanceAdapter();
   const placeSearch = new GooglePlaceSearchAdapter();
   const userHqRepository = new MongoUserHqAssignmentAdapter();
   const transactions = new MongooseTransactionRunner();
@@ -79,15 +71,15 @@ export function buildTerritoryContainer(users: UserDirectoryPort, config: Config
   const hqs = {
     list: new ListHqsUseCase(hqRepository),
     create: new CreateHqUseCase(hqRepository, zoneRepository),
-    update: new UpdateHqUseCase(hqRepository, zoneRepository, routeRepository, distanceProvider, typeRules),
+    update: new UpdateHqUseCase(hqRepository, zoneRepository, routeRepository),
   };
 
-  // 3. Controllers — Routes share the list/create/update shape with the levels above, plus four
-  // distance-specific actions.
+  // 3. Controllers — Routes share the list/create/update shape with the levels above, plus
+  // assignments.
   const routeCrud = makeHierarchyController(
     {
       list: new ListRoutesUseCase(routeRepository),
-      create: new CreateRouteUseCase(routeRepository, hqRepository, distanceProvider, typeRules),
+      create: new CreateRouteUseCase(routeRepository, hqRepository, typeRules),
       update: new UpdateRouteUseCase(routeRepository, hqRepository, assignmentRepository, typeRules),
     },
     'Route',
@@ -95,13 +87,6 @@ export function buildTerritoryContainer(users: UserDirectoryPort, config: Config
   const routeControllers = {
     ...routeCrud,
     get: makeGetRouteController(new GetRouteUseCase(routeRepository, typeRules)),
-    updateDestination: makeUpdateRouteDestinationController(
-      new UpdateRouteDestinationUseCase(routeRepository, hqRepository, distanceProvider, typeRules),
-    ),
-    overrideDistance: makeOverrideRouteDistanceController(new OverrideRouteDistanceUseCase(routeRepository, typeRules)),
-    recalculate: makeRecalculateRouteDistanceController(
-      new RecalculateRouteDistanceUseCase(routeRepository, hqRepository, distanceProvider, typeRules),
-    ),
     assign: makeAssignRouteController(new AssignRouteUseCase(routeRepository, assignmentRepository, users)),
     listAssignments: makeListRouteAssignmentsController(
       new ListRouteAssignmentsUseCase(routeRepository, assignmentRepository, users),

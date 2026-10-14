@@ -49,7 +49,7 @@ const LEVELS = {
     listQuery: listHqsQuerySchema,
     createBody: createHqBodySchema,
     updateBody: updateHqBodySchema,
-    updateSummary: 'rename, change the base place (recalculates its routes), deactivate (only with no active routes) or reactivate',
+    updateSummary: 'rename (re-names its routes), deactivate (only with no active routes) or reactivate',
   },
 } satisfies Record<string, LevelSpec>;
 

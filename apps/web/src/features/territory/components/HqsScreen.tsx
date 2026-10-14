@@ -39,11 +39,6 @@ export function HqsScreen() {
     { key: 'name', header: 'HQ', render: (h) => <span className="font-medium">{h.name}</span> },
     { key: 'zone', header: 'Zone', render: (h) => zones.nameOf.get(h.zoneId) ?? '—' },
     {
-      key: 'base',
-      header: 'Base place',
-      render: (h) => h.basePlace?.label ?? <Badge tone="danger">Not set</Badge>,
-    },
-    {
       key: 'status',
       header: 'Status',
       render: (h) => <Badge tone={h.status === 'active' ? 'success' : 'neutral'}>{h.status === 'active' ? 'Active' : 'Inactive'}</Badge>,
@@ -61,7 +56,7 @@ export function HqsScreen() {
   return (
     <PagedListFrame
       title="HQs"
-      description="Headquarters, each under one zone, with the base place its routes start from."
+      description="Headquarters, each under one zone."
       noun="HQ"
       readOnly={readOnly}
       onNew={() => setForm({})}

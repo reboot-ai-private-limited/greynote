@@ -60,7 +60,6 @@ describe('ImportHierarchyUseCase', () => {
 
   it('creates HQs without a base place — that needs a map-confirmed pin, set later in the app', async () => {
     await useCase.execute(ROWS, { dryRun: false });
-    expect(store.hqs.every((h) => h.basePlace === null)).toBe(true);
   });
 
   it('writes nothing in a dry run, but reports the same plan', async () => {
@@ -81,7 +80,7 @@ describe('ImportHierarchyUseCase', () => {
   it('rejects the whole file, listing every problem, when any row names an inactive parent', async () => {
     store.zones.push({ id: 'z-old', name: 'Assam', status: 'inactive' });
     store.zones.push({ id: 'z-bihar', name: 'Bihar', status: 'active' });
-    store.hqs.push({ id: 'h-old', zoneId: 'z-bihar', name: 'Patna', basePlace: null, status: 'inactive' });
+    store.hqs.push({ id: 'h-old', zoneId: 'z-bihar', name: 'Patna', status: 'inactive' });
     const before = store.hqs.length;
 
     await expect(

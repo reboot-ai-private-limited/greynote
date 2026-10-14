@@ -170,8 +170,6 @@ PATCH  /api/planning/daily/:id/amend  ADMIN,FIELD
 PATCH  /api/sales/orders/:id  ACCOUNTANT,ADMIN
 PATCH  /api/territory/hqs/:id  ADMIN
 PATCH  /api/territory/routes/:id  ADMIN
-PATCH  /api/territory/routes/:id/destination  ADMIN
-PATCH  /api/territory/routes/:id/distance  ADMIN
 PATCH  /api/territory/zones/:id  ADMIN
 POST   /api/approvals/:id/approve  ANY
 POST   /api/approvals/:id/reject  ANY
@@ -271,7 +269,6 @@ POST   /api/territory/hqs  ADMIN
 POST   /api/territory/import  ADMIN
 POST   /api/territory/routes  ADMIN
 POST   /api/territory/routes/:id/assignments  ADMIN
-POST   /api/territory/routes/:id/recalculate  ADMIN
 POST   /api/territory/zones  ADMIN
 PUT    /api/field-activity/expenses/other/:id  FIELD
 PUT    /api/field-master-data/doctors/added/:id  FIELD

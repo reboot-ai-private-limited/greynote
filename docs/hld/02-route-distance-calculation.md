@@ -1,80 +1,45 @@
-# HLD 2: Route Distance Calculation
+# HLD 2: Route Distance
 
-How `Route.distance_km` actually gets populated (PRD §5.1: "an external API calculates the total distance"), and what drives the TA portion of `Expense` (ERD Modules 2 & 4).
+Where `Route.distance_km` comes from (PRD §5.1), and what drives the TA portion of `Expense` (ERD Modules 2 & 4).
 
-A Route runs from its HQ's **base place** to one **destination place** (e.g. SLG-1's base place Siliguri → Naxalbari). The distance is the road distance between those two places. Before 2026-10-03 a Route was an ordered list of 2–25 waypoints; see `decision-log.md`.
+**Since 2026-10-14 the distance is typed by Admin.** Until then it was a Google road distance between the HQ's base place and a map-picked destination; on real routes it came back very wrong, and TA is paid on this number. The map, the HQ base place, the Google distance call, the recalculate / override actions and the revision check are gone. Decision-log 2026-10-14.
 
-## 1. Place entry: search + map confirmation
-
-Admin enters two kinds of place the same way: an HQ's **base place**, and a Route's **destination**. Each is typed as a place name/address. A typed label alone has no coordinates and is inherently ambiguous — a place name can exist in more than one district — so text input alone isn't enough to resolve a place.
-
-The Admin UI pairs a **search box with a map preview**: typing queries a Geocoding/Places API for candidate matches, and each candidate drops a pin on an embedded map so Admin can _see_ exactly where it is before picking it — not just read a text suggestion and guess. Selecting a candidate is what actually gets stored — `{label, latitude, longitude, place_id}` — not the raw typed string. This removes the ambiguity at the source: by the time a place is saved, Admin has visually confirmed the exact point, so the coordinates feeding the distance calculation (below) are never a guess.
-
-## 2. Distance calculation flow
+## 1. Creating a route
 
 ```mermaid
 sequenceDiagram
-    participant Admin
-    participant Portal as Web Portal
-    participant API as Server
-    participant Geo as Places API
-    participant Dir as Routes API
-    participant DB as Server DB
+    actor Admin
+    participant Portal
+    participant API
+    participant DB
 
-    Admin->>Portal: Type destination ("Naxalbari")
-    Portal->>API: Search places
-    API->>Geo: Text search
-    Geo-->>API: Candidate matches (place_id, lat/long)
-    API-->>Portal: Candidates
-    Portal-->>Admin: Show candidates as pins on map preview
-    Admin->>Portal: Confirm the correct pin
-    Admin->>Portal: Save Route (HQ SLG-1, type, destination)
-    Portal->>API: Create Route
-    API->>DB: Read HQ base place (Siliguri)
-    API->>Dir: origin = base place, destination
-    Dir-->>API: Road distance
-    API->>DB: distance_km = result, distance_source = AUTO_CALCULATED, distance_status = CALCULATED
-    API-->>Portal: Route saved with calculated distance
+    Admin->>Portal: 1. Choose the HQ (SLG-1)
+    Admin->>Portal: 2. Type the destination name (Naxalbari)
+    Admin->>Portal: 3. Type the km (e.g. 18.50)
+    Portal-->>Admin: 4. Type shown as "Automatic - Ex-station" (from EX/OUT_STATION_MIN_KM); dropdown can pick another
+    Admin->>Portal: 5. Save
+    Portal->>API: POST /territory/routes { hqId, destinationName, distanceKm, type? }
+    API->>DB: name = "SLG-1 to Naxalbari", type, type_source, distance_km
+    API-->>Portal: Route (with typeWarning if a chosen type disagrees with the km)
 ```
 
-The call goes from the server, so the API key never reaches the browser. The result is a real road-distance route (drive mode), not a straight-line (Haversine) distance — consistent with TA being a travel reimbursement figure. The distance is one-way and is used as-is, never doubled (sign-off D7).
+- **The name is made by the server:** `"<HQ> to <destination>"`. It is unique within the HQ, so one Route per destination per HQ.
+- **The km is one way and is used as-is for TA** — never doubled (sign-off D7). More than 0, up to 2 decimals.
+- **The type** is `AUTO` (follows the km: over `EX_STATION_MIN_KM` Ex-station, over `OUT_STATION_MIN_KM` Out-station, otherwise HQ) unless Admin picks one, which makes it `MANUAL`. A MANUAL type that disagrees with the km saves with a warning, never a refusal. Choosing "Automatic" on an edit hands it back to the km.
 
-**An HQ without a base place can't get a Route.** Creating one is refused until an Admin sets the HQ's base place.
+## 2. Editing
 
-## 3. Recalculation and manual override
+- **Destination** — re-makes the name. **Km** — a plain write; an `AUTO` type moves with it. **Type, TA rate, active / inactive** as before.
+- **Renaming an HQ** re-names all its Routes ("<HQ> to <destination>"); their km is untouched.
+- There is no recalculation and no "manual override" state: what is stored is what Admin typed. Two Admins editing at once: last write wins.
 
-```mermaid
-sequenceDiagram
-    participant Admin
-    participant Portal as Web Portal
-    participant API as Server
-    participant Dir as Routes API
-    participant DB as Server DB
+## 3. A Route with no km
 
-    Admin->>Portal: Edit distance_km directly
-    Portal->>DB: distance_km = admin value, distance_source = MANUAL_OVERRIDE
-    Note over Admin,Portal: ...later...
-    Admin->>Portal: Change the destination
-    API->>Dir: Auto-recalculate (destination changed)
-    Dir-->>API: New distance
-    API->>DB: distance_km = new result, distance_source resets to AUTO_CALCULATED
-    API-->>Portal: "Distance recalculated - prior manual value no longer applies"
-    Note over Admin,Portal: ...or...
-    Admin->>Portal: Change the HQ's base place
-    API->>Dir: Recalculate each active Route that is not MANUAL_OVERRIDE
-    API->>DB: Update those Routes; leave overridden Routes alone
-    API-->>Portal: Counts: recalculated, failed, overridden Routes left as they were
-```
+Only a Route migrated from the map version whose Google lookup had failed. It is valid, `distance_km` is null, and TA for a day on it is **flagged**, never counted as 0 km (HLD 06). Admin types the km on the Route. `pnpm migrate:route-km` lists these.
 
-- **Any destination edit auto-recalculates immediately** — the web portal isn't offline-first, so a blocking API call at save time is acceptable, and it keeps `distance_km` from silently drifting out of date.
-- **A base-place change recalculates the HQ's active Routes**, one call per Route. This is a batch, so each Route is handled on its own: one `FAILED` does not stop the rest, and the response says how many succeeded and failed.
-- **Admin can override the calculated value** directly (real money moves on this number — an inaccurate auto-calculated distance shouldn't be locked in).
-- **An override doesn't survive the next destination edit.** Changing the destination resets `distance_source` back to `AUTO_CALCULATED` and overwrites whatever was manually set — a changed geography makes the old override stale by definition.
-- **An override does survive a base-place change.** An HQ edit is not an edit to that Route, and discarding hand-entered distances in bulk would be a silent loss. The response names the overridden Routes so Admin can re-check them, or retry with `POST /routes/:id/recalculate`, which does reset the override.
+## 4. What stays on Google
 
-## 4. Failure handling
-
-If the Routes API call fails/errors, the `Route` still saves — Admin isn't blocked from entering master data — but `distance_status` is `FAILED` and `distance_km` stays null. The call has a ~5 s timeout; Admin retries with `POST /routes/:id/recalculate`. This status is what anything downstream must check: **Expense/TA generation for a route with `distance_status != CALCULATED` must flag it rather than silently compute a TA of zero.** Blocking master-data entry on an external API being up would be too strict; blocking the financial calculation that depends on it is the right place for that constraint.
+Place search for registered locations (doctors, chemists, distributors) — `GET /territory/places/search`, `GOOGLE_MAPS_API_KEY`. Routes do not use it.
 
 ## Next
 

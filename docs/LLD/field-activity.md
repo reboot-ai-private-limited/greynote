@@ -384,7 +384,7 @@ treated specially (D6); an MR's day **counts as reported when the DCR is submitt
 - **A `DailyPlan` cached as approved on-device is actually not**, at sync time (manager rejected
   it after the last delta sync) — every gated write is rejected server-side even though the
   device let the MR fill the screen; see [`hld/10`](../hld/10-submission-gating-and-compliance-block.md) §1.
-- **A route referenced by the day's plan has `distance_status != CALCULATED`** (Territory) — that
+- **A route referenced by the day's plan has `distance_status != CALCULATED`** (Territory; since 2026-10-14 that means a Route with no km typed yet) — that
   route contributes zero to the TA sum rather than blocking DCR approval; the resulting `Expense`
   should carry a flag so the Accountant's audit doesn't mistake it for a legitimately short
   route (`hld/06` §4).

@@ -7,7 +7,7 @@ export type { RoutePath, RouteSummary } from './domain/routeView.js';
 export interface TerritoryPublicContract {
   /**
    * A Route's TA/DA inputs, or `null` for an unknown id. `distanceKm` is null exactly when
-   * `distanceStatus` is `FAILED`: TA must flag that day, never compute it as 0 km (HLD 02 §4).
+   * `distanceStatus` is `FAILED` (a Route with no km typed yet): TA must flag that day, never compute it as 0 km (HLD 02 §4).
    * Use `distanceKm` as-is — it is never doubled for a return trip (sign-off D7).
    */
   getRoute(routeId: string): Promise<RouteSummary | null>;

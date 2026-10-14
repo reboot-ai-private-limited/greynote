@@ -40,9 +40,9 @@ class FakeAssignments implements UserHqAssignmentRepositoryPort {
 }
 
 const hqs: Hq[] = [
-  { id: 'hq1', zoneId: 'z1', name: 'Siliguri', basePlace: null, status: 'active' },
-  { id: 'hq2', zoneId: 'z1', name: 'Jalpaiguri', basePlace: null, status: 'active' },
-  { id: 'hq3', zoneId: 'z2', name: 'Closed', basePlace: null, status: 'inactive' },
+  { id: 'hq1', zoneId: 'z1', name: 'Siliguri', status: 'active' },
+  { id: 'hq2', zoneId: 'z1', name: 'Jalpaiguri', status: 'active' },
+  { id: 'hq3', zoneId: 'z2', name: 'Closed', status: 'inactive' },
 ];
 const hqRepo = { findById: async (id: string) => hqs.find((h) => h.id === id) ?? null } as unknown as HqRepositoryPort;
 const recorded: Array<{ userId: string; hqId: string; zoneId: string }> = [];

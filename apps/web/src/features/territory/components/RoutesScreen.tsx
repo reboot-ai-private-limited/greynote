@@ -14,7 +14,7 @@ import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useHqOptions, useZoneOptions } from '../hooks/useParentOptions';
 import { useRoutes } from '../hooks/useRoutes';
 import { ROUTE_TYPE_LABEL } from '../lib/draft';
-import { distanceSummary } from '../lib/routeDraft';
+import { kmLabel } from '../lib/routeDraft';
 import { StatusFilter } from '@/components/ui/StatusFilter';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
 
@@ -47,20 +47,13 @@ export function RoutesScreen() {
       ),
     },
     { key: 'hq', header: 'HQ', render: (r) => hqs.nameOf.get(r.hqId) ?? '—' },
-    { key: 'destination', header: 'To', render: (r) => r.destination.label },
+    { key: 'destination', header: 'To', render: (r) => r.destinationName },
     { key: 'type', header: 'Type', render: (r) => ROUTE_TYPE_LABEL[r.type] },
     {
       key: 'distance',
       header: 'Distance',
-      render: (r) => {
-        const d = distanceSummary(r);
-        return (
-          <span className="flex items-center gap-2">
-            <span className="tabular-nums">{d.km}</span>
-            {d.label !== 'Calculated' ? <Badge tone={d.tone}>{d.label}</Badge> : null}
-          </span>
-        );
-      },
+      numeric: true,
+      render: (r) => (r.distanceKm === null ? <Badge tone="danger">Not set</Badge> : <span className="tabular-nums">{kmLabel(r)}</span>),
     },
     {
       key: 'rate',
@@ -78,7 +71,7 @@ export function RoutesScreen() {
   return (
     <PagedListFrame
       title="Routes"
-      description="Where an MR travels from an HQ, with the distance TA is paid on."
+      description="Where an MR travels from an HQ, with the km TA is paid on."
       noun="route"
       readOnly={readOnly}
       onNew={() => router.push('/routes/new')}

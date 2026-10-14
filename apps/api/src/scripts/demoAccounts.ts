@@ -177,20 +177,16 @@ export async function seedDemoAccounts(password: string | undefined, opts: { res
 
   const now = new Date();
   const zone = await ZoneModel.create({ name: ZONE, nameKey: keyOf(ZONE), status: 'active' });
-  const hq = await HqModel.create({ zoneId: zone._id, name: HQ, nameKey: keyOf(HQ), basePlace: PLACE, status: 'active' });
+  const hq = await HqModel.create({ zoneId: zone._id, name: HQ, nameKey: keyOf(HQ), status: 'active' });
   const route = await RouteModel.create({
     hqId: hq._id,
     name: ROUTE,
     nameKey: keyOf(ROUTE),
     type: 'HQ',
     typeSource: 'MANUAL',
-    destination: PLACE,
+    destinationName: ROUTE,
     distanceKm: null,
-    distanceSource: 'MANUAL_OVERRIDE',
-    distanceStatus: 'CALCULATED',
-    distanceCalculatedAt: now,
     taPerKmRateOverridePaise: null,
-    revision: 1,
     status: 'active',
   });
 

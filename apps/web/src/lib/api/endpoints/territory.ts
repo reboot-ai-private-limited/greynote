@@ -10,9 +10,7 @@ import type {
   RouteDto,
   RouteType,
   TerritoryStatus,
-  UpdateDestinationDto,
   UpdateHqDto,
-  UpdateHqResultDto,
   UpdateRouteDto,
   UpdateZoneDto,
   UserHqAssignmentDto,
@@ -40,9 +38,9 @@ export const hqsApi = {
   list: (token: string, query: ListHqsQuery | undefined, signal?: AbortSignal) =>
     request<PaginatedDto<HqDto>>('/territory/hqs', { token, ...(query && { query: { ...query } }), signal }),
   create: (token: string, body: CreateHqDto) => request<HqDto>('/territory/hqs', { method: 'POST', token, body }),
-  /** Changing `basePlace` recalculates the HQ's Routes; the response then carries a `routeRecalculation` report. */
+  /** Renaming an HQ re-names its Routes. */
   update: (token: string, id: string, body: UpdateHqDto) =>
-    request<UpdateHqResultDto>(`/territory/hqs/${id}`, { method: 'PATCH', token, body }),
+    request<HqDto>(`/territory/hqs/${id}`, { method: 'PATCH', token, body }),
 };
 
 export interface ListRoutesQuery extends ListZonesQuery {
@@ -60,13 +58,6 @@ export const routesApi = {
     request<RouteDto>('/territory/routes', { method: 'POST', token, body }),
   update: (token: string, id: string, body: UpdateRouteDto) =>
     request<RouteDto>(`/territory/routes/${id}`, { method: 'PATCH', token, body }),
-  saveDestination: (token: string, id: string, body: UpdateDestinationDto) =>
-    request<RouteDto>(`/territory/routes/${id}/destination`, { method: 'PATCH', token, body }),
-  /** Manual distance override. `distanceKm` is a positive string with at most 2 decimals. */
-  setDistance: (token: string, id: string, distanceKm: string) =>
-    request<RouteDto>(`/territory/routes/${id}/distance`, { method: 'PATCH', token, body: { distanceKm } }),
-  recalculate: (token: string, id: string) =>
-    request<RouteDto>(`/territory/routes/${id}/recalculate`, { method: 'POST', token }),
 };
 
 export const assignmentsApi = {

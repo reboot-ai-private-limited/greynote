@@ -290,3 +290,15 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 `up -d --build` only rebuilds and restarts what changed; a deploy with no code changes since the
 last one is a no-op.
+
+## Step 9h — Routes become HQ + destination + km (once, when upgrading past 2026-10-14)
+
+The map and the Google distance were removed from Routes (`docs/decision-log.md`, 2026-10-14). A Route now has a typed **destination name** and a typed **km**, and is named "HQ to destination"; an HQ no longer has a base place. A database in the old shape must be converted **before the new version starts**. Run Step 9b first if it has not been run. Dry run (changes nothing, lists what it would do), then apply (saves a backup first):
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-route-km.js
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-route-km.js --apply --backup /tmp/route-km-backup.json
+```
+
+Each Route's destination becomes the first part of its old map label (Naxalbari, West Bengal, India → Naxalbari) and its name becomes "SLG-1 to Naxalbari"; the distance already stored is kept. If two routes of one HQ would share a destination, the second keeps its old route name as the destination and is listed. **Routes whose Google lookup had failed have no km: the run lists them; open each in the portal and type it** (until then TA for a day on it is flagged). `basePlace` is removed from every HQ. Safe to run again. `GOOGLE_MAPS_API_KEY` is still needed, only for the doctor / chemist / distributor location search.
+

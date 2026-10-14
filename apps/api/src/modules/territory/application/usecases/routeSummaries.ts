@@ -18,7 +18,7 @@ export async function toRouteSummaries(hqs: HqRepositoryPort, routes: Route[]): 
       hqName: hq.name,
       routeType: route.type,
       distanceKm: route.distanceKm,
-      distanceStatus: route.distanceStatus,
+      distanceStatus: route.distanceKm === null ? 'FAILED' : 'CALCULATED',
       taPerKmRateOverridePaise: route.taPerKmRateOverridePaise,
       status: route.status,
     };

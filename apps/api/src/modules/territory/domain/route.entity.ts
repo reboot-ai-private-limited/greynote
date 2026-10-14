@@ -1,4 +1,3 @@
-import type { Place } from './place.js';
 import type { TerritoryStatus } from './territoryStatus.js';
 
 /** Which of a grade's three DA rates applies to a day worked on this Route (HLD 06 §2). */
@@ -9,45 +8,30 @@ export type RouteType = (typeof ROUTE_TYPES)[number];
 export const ROUTE_TYPE_SOURCES = ['AUTO', 'MANUAL'] as const;
 export type RouteTypeSource = (typeof ROUTE_TYPE_SOURCES)[number];
 
-export const DISTANCE_SOURCES = ['AUTO_CALCULATED', 'MANUAL_OVERRIDE'] as const;
-export type DistanceSource = (typeof DISTANCE_SOURCES)[number];
-
-/** No `PENDING`: distance is calculated during the save, so nothing is ever waiting (decision-log 2026-09-24). */
-export const DISTANCE_STATUSES = ['CALCULATED', 'FAILED'] as const;
-export type DistanceStatus = (typeof DISTANCE_STATUSES)[number];
-
 /**
- * One destination place reached from its HQ's base place, and the road distance TA is paid on.
- * Name is unique within its HQ, ignoring case. `type` decides the DA rate (decision-log 2026-10-03).
+ * One destination reached from its HQ, and the distance TA is paid on. Admin types the destination
+ * and the km; there is no map (decision-log 2026-10-14). `name` is always "<HQ> to <destination>",
+ * so it is unique within the HQ exactly when the destination is, ignoring case.
  *
  * `distanceKm` is a decimal string with up to 2 places (a distance, not money; the `Decimal128`
- * conversion lives only in the Mongo adapter). `taPerKmRateOverridePaise` is money: whole paise.
+ * conversion lives only in the Mongo adapter). It is null only for a Route migrated from the map
+ * version that never got a distance: TA flags such a day until Admin types the km.
+ * `taPerKmRateOverridePaise` is money: whole paise.
  */
 export interface Route {
   id: string;
   hqId: string;
   name: string;
+  destinationName: string;
   type: RouteType;
   /** `AUTO`: the type follows the distance (`EX_STATION_MIN_KM` / `OUT_STATION_MIN_KM`). `MANUAL`: chosen by a person, kept as chosen. */
   typeSource: RouteTypeSource;
-  destination: Place;
-  /** Null exactly when `distanceStatus` is `FAILED`. Used as-is for TA — never doubled (sign-off D7). */
+  /** Used as-is for TA — never doubled (sign-off D7). */
   distanceKm: string | null;
-  distanceSource: DistanceSource;
-  distanceStatus: DistanceStatus;
-  distanceCalculatedAt: Date | null;
-  /** Paise per km; overrides the MR's `PayBand.taPerKmRatePaise` on this route. Survives destination edits. */
+  /** Paise per km; overrides the MR's `PayBand.taPerKmRatePaise` on this route. */
   taPerKmRateOverridePaise: number | null;
-  /**
-   * Bumped by every write that changes the destination or the distance. Each of those writes is
-   * conditional on the revision it started from, so two concurrent edits (or an edit racing a
-   * slow recalculation) produce a 409, never a silent overwrite.
-   */
-  revision: number;
   status: TerritoryStatus;
 }
 
-export type RouteDistanceFields = Pick<
-  Route,
-  'distanceKm' | 'distanceSource' | 'distanceStatus' | 'distanceCalculatedAt'
->;
+/** "SLG-1 to Naxalbari" — the only way a Route's name is made. */
+export const routeNameFor = (hqName: string, destinationName: string): string => `${hqName} to ${destinationName}`;

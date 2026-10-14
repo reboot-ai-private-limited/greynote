@@ -1,5 +1,4 @@
-import type { CreateHqDto, CreateZoneDto, HqDto, PlaceDto, RouteType, UpdateHqDto, UpdateZoneDto, ZoneDto } from '@greynote/contracts';
-import { samePlace } from './place';
+import type { CreateHqDto, CreateZoneDto, HqDto, RouteType, UpdateHqDto, UpdateZoneDto, ZoneDto } from '@greynote/contracts';
 
 /**
  * Form drafts → request bodies. Forms hold strings; these turn them into what the API accepts, or
@@ -30,15 +29,11 @@ export function buildZone(draft: { name: string }): BuildResult<CreateZoneDto> {
   return error ? fail({ name: error }) : { ok: true, body: { name } };
 }
 
-export function buildHq(draft: { zoneId: string; name: string; basePlace: PlaceDto | null }): BuildResult<CreateHqDto> {
+export function buildHq(draft: { zoneId: string; name: string }): BuildResult<CreateHqDto> {
   const name = normalizeName(draft.name);
-  const errors = {
-    zoneId: draft.zoneId ? undefined : 'Choose a zone.',
-    name: nameError(name),
-    basePlace: draft.basePlace ? undefined : 'Search for the base place and pick it on the map.',
-  };
-  if (errors.zoneId || errors.name || errors.basePlace || !draft.basePlace) return fail(errors);
-  return { ok: true, body: { zoneId: draft.zoneId, name, basePlace: draft.basePlace } };
+  const errors = { zoneId: draft.zoneId ? undefined : 'Choose a zone.', name: nameError(name) };
+  if (errors.zoneId || errors.name) return fail(errors);
+  return { ok: true, body: { zoneId: draft.zoneId, name } };
 }
 
 /**
@@ -50,21 +45,18 @@ export function changedZoneFields(original: ZoneDto, draft: { name: string }): U
   return name !== original.name ? { name } : {};
 }
 
-/**
- * An HQ edit's changed fields: the name, and the base place when it moved. A new base place makes the
- * server recalculate the HQ's routes, so it is sent only when it actually differs.
- */
-export function changedHqFields(original: HqDto, draft: { name: string; basePlace: PlaceDto | null }): UpdateHqDto {
+/** An HQ edit's changed fields: just the name (renaming an HQ re-names its routes). */
+export function changedHqFields(original: HqDto, draft: { name: string }): UpdateHqDto {
   const name = normalizeName(draft.name);
-  return {
-    ...(name !== original.name && { name }),
-    ...(draft.basePlace && !samePlace(draft.basePlace, original.basePlace) && { basePlace: draft.basePlace }),
-  };
+  return name !== original.name ? { name } : {};
 }
 
-/** The type select's "follow the distance" choice. */
+/** The type select's "follow the km" choice. */
 export const AUTO_ROUTE_TYPE = 'AUTO';
-export const AUTO_ROUTE_TYPE_LABEL = 'Automatic (from the distance)';
+/** The Automatic option's label, naming what it gives for the km typed so far. */
+export function autoTypeLabel(suggested: RouteType | null): string {
+  return suggested ? `Automatic — ${ROUTE_TYPE_LABEL[suggested]}` : 'Automatic (from the km)';
+}
 
 export const ROUTE_TYPE_LABEL: Record<RouteType, string> = {
   HQ: 'HQ',

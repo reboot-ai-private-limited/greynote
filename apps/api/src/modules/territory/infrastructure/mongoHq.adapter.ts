@@ -7,14 +7,10 @@ import { HqModel, type HqDoc } from './hq.schema.js';
 import { listOptions, rethrowDuplicateName, toNameKey } from './mongoHelpers.js';
 
 function toHq(doc: HqDoc & { _id: unknown }): Hq {
-  const place = doc.basePlace;
   return {
     id: String(doc._id),
     zoneId: String(doc.zoneId),
     name: doc.name,
-    basePlace: place
-      ? { label: place.label, latitude: place.latitude, longitude: place.longitude, placeId: place.placeId }
-      : null,
     status: doc.status,
   };
 }

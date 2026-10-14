@@ -7,11 +7,8 @@ import type { AssignRouteUseCase } from '../application/usecases/assignRoute.use
 import type { GetRouteUseCase } from '../application/usecases/getRoute.usecase.js';
 import type { ListRouteAssignmentsUseCase } from '../application/usecases/listRouteAssignments.usecase.js';
 import type { ListRoutesForUserUseCase } from '../application/usecases/listRoutesForUser.usecase.js';
-import type { OverrideRouteDistanceUseCase } from '../application/usecases/overrideRouteDistance.usecase.js';
-import type { RecalculateRouteDistanceUseCase } from '../application/usecases/recalculateRouteDistance.usecase.js';
 import type { SearchPlacesUseCase } from '../application/usecases/searchPlaces.usecase.js';
 import type { UnassignRouteUseCase } from '../application/usecases/unassignRoute.usecase.js';
-import type { UpdateRouteDestinationUseCase } from '../application/usecases/updateRouteDestination.usecase.js';
 import type { TerritoryStatus } from '../domain/territoryStatus.js';
 
 function callerId(req: Parameters<RequestHandler>[0]): string {
@@ -23,33 +20,6 @@ export function makeGetRouteController(useCase: GetRouteUseCase): RequestHandler
   return asyncHandler(async (req, res) => {
     const route = await useCase.execute(requiredParam(req.params, 'id'));
     sendSuccess(req, res, route, 'Route fetched.', 200);
-  });
-}
-
-export function makeUpdateRouteDestinationController(useCase: UpdateRouteDestinationUseCase): RequestHandler {
-  return asyncHandler(async (req, res) => {
-    const route = await useCase.execute(requiredParam(req.params, 'id'), req.body);
-    const message =
-      route.distanceStatus === 'CALCULATED'
-        ? 'Destination updated and distance recalculated.'
-        : 'Destination updated, but the distance could not be calculated. Retry with recalculate.';
-    sendSuccess(req, res, route, message, 200);
-  });
-}
-
-export function makeRecalculateRouteDistanceController(useCase: RecalculateRouteDistanceUseCase): RequestHandler {
-  return asyncHandler(async (req, res) => {
-    const route = await useCase.execute(requiredParam(req.params, 'id'));
-    const message =
-      route.distanceStatus === 'CALCULATED' ? 'Distance recalculated.' : 'The distance could not be calculated.';
-    sendSuccess(req, res, route, message, 200);
-  });
-}
-
-export function makeOverrideRouteDistanceController(useCase: OverrideRouteDistanceUseCase): RequestHandler {
-  return asyncHandler(async (req, res) => {
-    const route = await useCase.execute(requiredParam(req.params, 'id'), req.body);
-    sendSuccess(req, res, route, 'Distance overridden. The next destination edit will recalculate it.', 200);
   });
 }
 

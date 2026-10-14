@@ -69,7 +69,7 @@ Unlike `Route.distance_km` or `Route.ta_per_km_rate_override` (both Admin-editab
 ## 4. Edge cases
 
 - **No matching `DailyPlan` for that date** at approval time — no `AUTO` TA row is generated (DA still generates if the working type qualifies and a plan/working-type is known some other way — in practice this means Manager approval should require a resolved working type, which normally comes from that day's `DailyPlan`). A day with no plan at all is a gap for the Accountant's audit step (PRD §5.3) to catch, not something the system fabricates a number for.
-- **A route with `distance_status != CALCULATED`** (HLD 2) contributes **zero** to the TA sum rather than blocking approval entirely, and the resulting `Expense` should be flagged so the Accountant's audit doesn't mistake an artificially-low TA for a legitimately short route.
+- **A route with `distance_status != CALCULATED`** (HLD 2: since 2026-10-14 this only means a Route with no km typed yet) contributes **zero** to the TA sum rather than blocking approval entirely, and the resulting `Expense` should be flagged so the Accountant's audit doesn't mistake an artificially-low TA for a legitimately short route.
 - **Generation happens exactly once per DCR.** Since it's tied to the one-way `SUBMITTED → MANAGER_APPROVED` transition (a `DCR` doesn't get re-approved), there's no "regenerate on resubmission" case to handle — a `REJECTED` DCR that gets fixed and resubmitted goes through the same one-time trigger on its next approval.
 
 ## Next

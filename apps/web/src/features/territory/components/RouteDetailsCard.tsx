@@ -9,13 +9,12 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { paiseToRupees } from '@/lib/money';
 import { useUpdateRoute } from '../hooks/useRouteMutations';
-import { AUTO_ROUTE_TYPE, AUTO_ROUTE_TYPE_LABEL, ROUTE_TYPE_LABEL } from '../lib/draft';
-import { changedRouteFields } from '../lib/routeDraft';
+import { useStationThresholds } from '../hooks/useStationThresholds';
+import { AUTO_ROUTE_TYPE, ROUTE_TYPE_LABEL, autoTypeLabel } from '../lib/draft';
+import { changedRouteFields, suggestedType } from '../lib/routeDraft';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 
-const TYPE_OPTIONS = [{ value: AUTO_ROUTE_TYPE, label: AUTO_ROUTE_TYPE_LABEL }, ...ROUTE_TYPES.map((t) => ({ value: t, label: ROUTE_TYPE_LABEL[t] }))];
-
-/** Name, type, TA rate override and status. The HQ is read-only: a route cannot be re-parented. */
+/** Destination, km, type, TA rate override and status. The HQ is read-only: a route cannot be re-parented. */
 export function RouteDetailsCard({
   route,
   hqLabel,
@@ -25,14 +24,17 @@ export function RouteDetailsCard({
   hqLabel: string;
   readOnly: boolean;
 }) {
-  const [name, setName] = useState(route.name);
+  const thresholds = useStationThresholds();
+  const [destinationName, setDestinationName] = useState(route.destinationName);
+  const [distanceKm, setDistanceKm] = useState(route.distanceKm ?? '');
   const [type, setType] = useState<string>(route.typeSource === 'AUTO' ? AUTO_ROUTE_TYPE : route.type);
   const [rate, setRate] = useState(route.taPerKmRateOverridePaise === null ? '' : paiseToRupees(route.taPerKmRateOverridePaise));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toggling, setToggling] = useState(false);
   const update = useUpdateRoute(route.id, () => setToggling(false));
 
-  const built = changedRouteFields(route, { name, type: type as RouteType | typeof AUTO_ROUTE_TYPE, rate });
+  const built = changedRouteFields(route, { destinationName, distanceKm, type: type as RouteType | typeof AUTO_ROUTE_TYPE, rate });
+  const typeOptions = [{ value: AUTO_ROUTE_TYPE, label: autoTypeLabel(suggestedType(distanceKm, thresholds)) }, ...ROUTE_TYPES.map((t) => ({ value: t, label: ROUTE_TYPE_LABEL[t] }))];
   const unchanged = built.ok && Object.keys(built.body).length === 0;
 
   function save() {
@@ -58,14 +60,22 @@ export function RouteDetailsCard({
           save();
         }}
       >
-        <FormField label="Name" htmlFor="route-name" error={errors['name']}>
-          <Input id="route-name" value={name} onChange={(e) => setName(e.target.value)} disabled={readOnly} aria-invalid={errors['name'] ? true : undefined} />
+        <FormField label="Destination" htmlFor="route-destination" error={errors['destinationName']} hint="The route is named “HQ to destination”, so changing this renames it.">
+          <Input id="route-destination" value={destinationName} onChange={(e) => setDestinationName(e.target.value)} disabled={readOnly} aria-invalid={errors['destinationName'] ? true : undefined} />
+        </FormField>
+        <FormField
+          label="Distance (km)"
+          htmlFor="route-km"
+          error={errors['distanceKm']}
+          hint={route.distanceKm === null ? 'No distance yet — TA for a day on this route is flagged until you enter it.' : 'One way, by road. TA is paid on exactly this number.'}
+        >
+          <Input id="route-km" inputMode="decimal" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} disabled={readOnly} aria-invalid={errors['distanceKm'] ? true : undefined} />
         </FormField>
         <FormField label="TA rate override (₹ per km)" htmlFor="route-rate" error={errors['rate']} hint="Leave empty to use the employee's pay band rate.">
           <Input id="route-rate" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} disabled={readOnly} aria-invalid={errors['rate'] ? true : undefined} />
         </FormField>
-        <FormField label="Type" htmlFor="route-type" hint="Sets which DA rate a day on this route earns. Automatic follows the distance. A change affects DA from now on, not days already approved.">
-          <Select id="route-type" value={type} onValueChange={setType} options={TYPE_OPTIONS} disabled={readOnly} />
+        <FormField label="Type" htmlFor="route-type" hint="Sets which DA rate a day on this route earns. Automatic follows the km. A change affects DA from now on, not days already approved.">
+          <Select id="route-type" value={type} onValueChange={setType} options={typeOptions} disabled={readOnly} />
           {route.typeWarning ? (
             <p role="status" className="text-[13px] text-warning-fg">
               {route.typeWarning}

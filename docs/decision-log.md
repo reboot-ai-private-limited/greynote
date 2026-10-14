@@ -2275,3 +2275,19 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Assumed (confirm with the client):** a distributor handed to two MRs of one manager counts for each, so the manager's achievement can exceed what the distributor sold (the manager row is the sum of the MR rows shown under them); a manager with no MR below has no figures ("No MRs under them"), not 0%; a person on leave or off can still be picked (the phone shows their plan status from `team-suggest` and `/team/today`; the server does not refuse); the manager's own doctors owed from earlier days are kept even if the day's routes change.
 
 **Open:** phone app: docs updated, no code. Web has no screen for planning a day (it is phone only). Browser check of the dashboard roll-up.
+
+## 2026-10-14 — Routes are HQ + destination name + a typed km; the map and Google distance are removed
+
+**Decision:**
+- **Creating a route is four steps:** choose the HQ, type the destination name, type the km, and see the type (Automatic, from `EX_STATION_MIN_KM` / `OUT_STATION_MIN_KM`, changeable in a dropdown) — then save or edit. No map, no place search, no Google distance call for routes: the client saw very wrong distances, and TA is paid on this number.
+- **The route's name is `"<HQ> to <destination>"`**, made by the server (SLG-1 to Naxalbari). Unique per HQ ignoring case, so one route per destination per HQ. A destination edit re-makes it; **renaming an HQ re-names its routes**.
+- **The HQ's base place is removed** (it only existed as the origin of the Google distance). An HQ is a name under a Zone; CSV import is unchanged.
+- **Removed from Route:** `destination` (map pin), `distanceSource`, `distanceStatus`, `distanceCalculatedAt`, `revision`; the `destination` / `distance` / `recalculate` endpoints and the HQ-rename-of-base-place recalculation report. A km edit is a plain write, last write wins.
+- **Kept:** the km is one way and never doubled (D7); the Auto/Manual type with `typeWarning`; the per-route TA rate override; `GET /territory/places/search`, because the doctor / chemist / distributor location picker uses it.
+- **Compatibility:** a Route with no km (only one migrated whose Google lookup had failed) still reads `distanceStatus: FAILED` in `RouteSummary` and the phone snapshot, so TA and the phone app did not change; TA flags such a day.
+- **Migration:** `pnpm --filter @greynote/api migrate:route-km` (dry run, then `--apply`; manual_deploy Step 9c). Destination = the first part of the old map label; kept distances stay; routes with no km are listed for Admin to fill.
+
+**Supersedes** the 2026-09-24 Google distance decision and the base-place part of 2026-10-03; sign-off D8 is amended.
+
+**Open:** browser check of the new Routes / HQs screens; run the migration on dev and prod; the demo account still carries a placeholder route name.
+

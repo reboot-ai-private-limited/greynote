@@ -70,7 +70,7 @@ applies because the design changed (the decision-log entry says how).
 | D5 | Can a Route have a different Area Type from its Area? | **Retired 2026-10-03:** there is no Area any more; the type is on the Route itself (D8). Was answered 2026-09-24: no | Retired |
 | D6 | Is TA/DA paid on holidays / weekly offs (§8.5, §25.3)? | Not decided | Open |
 | D7 | Is TA paid on a Route's one-way distance, or doubled for the return trip? | **Answered 2026-09-24:** used as-is, no ×2 — Admin enters the distance to cover the full paid travel | Confirmed |
-| D8 | Territory shape and the Route distance. | **Accepted 2026-10-03:** `Zone → HQ → Route`, no Area. Each HQ has a base place (e.g. Siliguri); a Route is one destination (e.g. Naxalbari) and its distance is base place → destination, with Admin override. The DA type (HQ / Ex Station / Out Station) is set on the Route. Changing an HQ's base place recalculates its Routes except manually overridden ones | Designed |
+| D8 | Territory shape and the Route distance. | **Accepted 2026-10-03:** `Zone → HQ → Route`, no Area. Each HQ has a base place (e.g. Siliguri); a Route is one destination (e.g. Naxalbari) and its distance is base place → destination, with Admin override. The DA type (HQ / Ex Station / Out Station) is set on the Route. Changing an HQ's base place recalculates its Routes except manually overridden ones. **Amended 2026-10-14 (decision-log):** the base place, the map and the Google distance are removed — Admin picks the HQ, types the destination name and the km, and the route is named "HQ to destination"; the type still follows the km and can be changed | Designed |
 
 ## E. Sales & Distributors (Phase 6)
 

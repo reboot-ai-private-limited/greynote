@@ -1,17 +1,15 @@
 'use client';
 
-import type { TerritoryStatus, UpdateHqDto, UpdateHqResultDto, UpdateZoneDto, ZoneDto } from '@greynote/contracts';
-import { toast } from '@/components/ui/toast';
+import type { TerritoryStatus, UpdateHqDto, UpdateZoneDto, ZoneDto } from '@greynote/contracts';
 import { hqsApi, zonesApi } from '@/lib/api/endpoints/territory';
 import { useApiMutation } from '@/lib/query/mutation';
 import { keys } from '@/lib/query/keys';
 import type { CreateHqDto, CreateZoneDto } from '@greynote/contracts';
-import { describeRecalculation } from '../lib/recalculation';
 
 /**
  * Writes for Zones and HQs. They reference each other, so a change at one level invalidates both
- * lists (a renamed zone shows in the HQ table's zone column). An HQ's base place also moves its
- * routes' distances, so HQ writes refresh the routes too.
+ * lists (a renamed zone shows in the HQ table's zone column). Renaming an HQ re-names
+ * its routes, so HQ writes refresh the routes too.
  */
 const invalidates = () => [keys.zones.all(), keys.hqs.all(), keys.routes.all()];
 
@@ -41,16 +39,11 @@ export function useCreateHq(onDone: () => void) {
   });
 }
 export function useUpdateHq(onDone?: () => void) {
-  return useApiMutation<{ id: string; body: UpdateHqDto }, UpdateHqResultDto>({
+  return useApiMutation<{ id: string; body: UpdateHqDto }>({
     call: (token, { id, body }) => hqsApi.update(token, id, body),
     invalidates: invalidates(),
-    // A base-place change reports what it did to the HQ's routes; that is the message.
-    onSuccess: (hq) => {
-      const { message, tone } = describeRecalculation(hq.routeRecalculation);
-      if (tone === 'error') toast.error(message);
-      else toast.success(message);
-      onDone?.();
-    },
+    successMessage: 'HQ updated.',
+    ...(onDone && { onSuccess: onDone }),
   });
 }
 

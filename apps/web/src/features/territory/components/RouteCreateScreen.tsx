@@ -1,6 +1,6 @@
 'use client';
 
-import { ROUTE_TYPES, type PlaceDto } from '@greynote/contracts';
+import { ROUTE_TYPES } from '@greynote/contracts';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -13,37 +13,33 @@ import { Select } from '@/components/ui/Select';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useHqs } from '../hooks/useHqs';
 import { useCreateRoute } from '../hooks/useRouteMutations';
-import { AUTO_ROUTE_TYPE, AUTO_ROUTE_TYPE_LABEL, ROUTE_TYPE_LABEL } from '../lib/draft';
-import { buildRoute } from '../lib/routeDraft';
-import { PlacePicker } from './PlacePicker';
+import { useStationThresholds } from '../hooks/useStationThresholds';
+import { AUTO_ROUTE_TYPE, ROUTE_TYPE_LABEL, autoTypeLabel } from '../lib/draft';
+import { buildRoute, suggestedType } from '../lib/routeDraft';
 
-const TYPE_OPTIONS = [{ value: AUTO_ROUTE_TYPE, label: AUTO_ROUTE_TYPE_LABEL }, ...ROUTE_TYPES.map((t) => ({ value: t, label: ROUTE_TYPE_LABEL[t] }))];
-
+/** HQ → destination → km → type (Automatic by default, changeable) → save. The route is named "<HQ> to <destination>". */
 export function RouteCreateScreen() {
   const router = useRouter();
   const readOnly = useIsReadOnly();
+  const thresholds = useStationThresholds();
   // One page of 100 (the API's cap), as for the other pickers.
   const hqs = useHqs({ page: 1, pageSize: 100, status: 'active' });
   const [hqId, setHqId] = useState('');
-  const [name, setName] = useState('');
+  const [destinationName, setDestinationName] = useState('');
+  const [distanceKm, setDistanceKm] = useState('');
   const [type, setType] = useState<string>(AUTO_ROUTE_TYPE);
   const [rate, setRate] = useState('');
-  const [destination, setDestination] = useState<PlaceDto | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const create = useCreateRoute((route) => router.push(`/routes/${route.id}`));
 
-  // Only an HQ with a base place can have a route: that is where the distance is measured from.
-  const { options, withoutBase } = useMemo(() => {
-    const items = hqs.data?.items ?? [];
-    return {
-      options: items.filter((h) => h.basePlace).map((h) => ({ value: h.id, label: h.name })),
-      withoutBase: items.filter((h) => !h.basePlace).length,
-    };
-  }, [hqs.data]);
+  const options = useMemo(() => (hqs.data?.items ?? []).map((h) => ({ value: h.id, label: h.name })), [hqs.data]);
   const hq = hqs.data?.items.find((h) => h.id === hqId);
+  const suggestion = suggestedType(distanceKm, thresholds);
+  const typeOptions = [{ value: AUTO_ROUTE_TYPE, label: autoTypeLabel(suggestion) }, ...ROUTE_TYPES.map((t) => ({ value: t, label: ROUTE_TYPE_LABEL[t] }))];
+  const routeName = hq && destinationName.trim() ? `${hq.name} to ${destinationName.trim().replace(/\s+/g, ' ')}` : null;
 
   function submit() {
-    const built = buildRoute({ hqId, name, type, rate, destination });
+    const built = buildRoute({ hqId, destinationName, distanceKm, type, rate });
     if (!built.ok) return setErrors(built.errors);
     setErrors({});
     create.mutate(built.body);
@@ -56,7 +52,7 @@ export function RouteCreateScreen() {
           ← Routes
         </Link>
       </p>
-      <PageHeader title="New route" description="Choose the HQ it starts from, name the route, and pick where it goes." />
+      <PageHeader title="New route" description="Choose the HQ, name the destination and enter the distance in km." />
       <form
         noValidate
         onSubmit={(e) => {
@@ -65,14 +61,9 @@ export function RouteCreateScreen() {
         }}
         className="space-y-6"
       >
-        <Card title="Details">
+        <Card title="Details" description={routeName ? `The route will be named “${routeName}”.` : 'The route is named “HQ to destination”.'}>
           <div className="grid gap-5 p-5 sm:grid-cols-2">
-            <FormField
-              label="HQ"
-              htmlFor="new-hq"
-              error={errors['hqId']}
-              hint={withoutBase > 0 ? `${withoutBase} HQ${withoutBase === 1 ? '' : 's'} without a base place ${withoutBase === 1 ? 'is' : 'are'} not listed. Set the base place on the HQs page first.` : 'The route starts from this HQ’s base place.'}
-            >
+            <FormField label="HQ" htmlFor="new-hq" error={errors['hqId']}>
               <Select
                 id="new-hq"
                 value={hqId}
@@ -82,35 +73,23 @@ export function RouteCreateScreen() {
                 aria-invalid={errors['hqId'] ? true : undefined}
               />
             </FormField>
-            <FormField label="Name" htmlFor="new-name" error={errors['name']}>
-              <Input id="new-name" value={name} onChange={(e) => setName(e.target.value)} aria-invalid={errors['name'] ? true : undefined} />
-            </FormField>
-            <FormField label="Type" htmlFor="new-type" error={errors['type']} hint="Sets which DA rate a day on this route earns. Automatic follows the distance; you can choose another type and will only be warned.">
-              <Select
-                id="new-type"
-                value={type}
-                onValueChange={setType}
-                options={TYPE_OPTIONS}
-                aria-invalid={errors['type'] ? true : undefined}
+            <FormField label="Destination" htmlFor="new-destination" error={errors['destinationName']} hint="The place the MR travels to, e.g. Naxalbari.">
+              <Input
+                id="new-destination"
+                value={destinationName}
+                onChange={(e) => setDestinationName(e.target.value)}
+                aria-invalid={errors['destinationName'] ? true : undefined}
               />
+            </FormField>
+            <FormField label="Distance (km)" htmlFor="new-km" error={errors['distanceKm']} hint="One way, by road. TA is paid on exactly this number.">
+              <Input id="new-km" inputMode="decimal" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} aria-invalid={errors['distanceKm'] ? true : undefined} />
+            </FormField>
+            <FormField label="Type" htmlFor="new-type" error={errors['type']} hint="Sets which DA rate a day on this route earns. Automatic follows the km; you can choose another type and will only be warned.">
+              <Select id="new-type" value={type} onValueChange={setType} options={typeOptions} aria-invalid={errors['type'] ? true : undefined} />
             </FormField>
             <FormField label="TA rate override (₹ per km)" htmlFor="new-rate" error={errors['rate']} hint="Optional. Empty uses the pay band rate.">
               <Input id="new-rate" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} aria-invalid={errors['rate'] ? true : undefined} />
             </FormField>
-          </div>
-        </Card>
-
-        <Card title="Destination" description={hq?.basePlace ? `The distance is measured by road from ${hq.basePlace.label} to the place you pick.` : 'Pick an HQ first to see where the route starts.'}>
-          <div className="p-5">
-            <PlacePicker
-              id="new-destination"
-              label="Destination"
-              value={destination}
-              onChange={setDestination}
-              from={hq?.basePlace ?? null}
-              disabled={readOnly}
-              error={errors['destination']}
-            />
           </div>
         </Card>
 
@@ -119,7 +98,7 @@ export function RouteCreateScreen() {
             Cancel
           </Button>
           <Button type="submit" disabled={readOnly || create.isPending} title={readOnly ? 'A past financial year is read-only' : undefined}>
-            {create.isPending ? 'Creating…' : 'Create route'}
+            {create.isPending ? 'Saving…' : 'Save route'}
           </Button>
         </div>
       </form>

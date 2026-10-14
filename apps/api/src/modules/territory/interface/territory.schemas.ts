@@ -28,17 +28,9 @@ export const updateZoneBodySchema = z
   .refine((body) => Object.keys(body).length > 0, 'Nothing to update.');
 export const listZonesQuerySchema = listQuerySchema;
 
-/** A place Admin confirmed on the map: an HQ's base place or a Route's destination. */
-export const placeBodySchema = z.object({
-  label: z.string().trim().min(1).max(200),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-  placeId: z.string().trim().min(1),
-});
-
-export const createHqBodySchema = z.object({ zoneId: objectIdSchema, name: nameSchema, basePlace: placeBodySchema });
+export const createHqBodySchema = z.object({ zoneId: objectIdSchema, name: nameSchema });
 export const updateHqBodySchema = z
-  .object({ name: nameSchema, status: z.enum(TERRITORY_STATUSES), basePlace: placeBodySchema })
+  .object({ name: nameSchema, status: z.enum(TERRITORY_STATUSES) })
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'Nothing to update.');
 export const listHqsQuerySchema = listQuerySchema.extend({ zoneId: objectIdSchema.optional() });
@@ -46,20 +38,25 @@ export const listHqsQuerySchema = listQuerySchema.extend({ zoneId: objectIdSchem
 /** Non-negative, up to 2 decimal places — what `Decimal128` stores losslessly (as `PayBand`). */
 const decimalSchema = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a number with up to 2 decimal places.');
 
+/** Typed by Admin: more than 0, up to 2 decimal places. */
+const distanceKmSchema = decimalSchema.refine((value) => Number(value) > 0, 'Must be greater than 0.');
+
 export const createRouteBodySchema = z.object({
   hqId: objectIdSchema,
-  name: nameSchema,
-  /** Left out: the type follows the distance. Given: kept as chosen, with a warning if the distance disagrees. */
+  /** The route's name is made from it: "<HQ> to <destination>". */
+  destinationName: nameSchema,
+  distanceKm: distanceKmSchema,
+  /** Left out: the type follows the km. Given: kept as chosen, with a warning if the km disagrees. */
   type: z.enum(ROUTE_TYPES).optional(),
-  destination: placeBodySchema,
   /** Paise per km (₹7.50 = 750). */
   taPerKmRateOverridePaise: paiseSchema.nullable().optional(),
 });
 export const updateRouteBodySchema = z
   .object({
-    name: nameSchema,
+    destinationName: nameSchema,
+    distanceKm: distanceKmSchema,
     type: z.enum(ROUTE_TYPES),
-    /** `AUTO`: hand the type back to the distance. Choosing a `type` makes it MANUAL. */
+    /** `AUTO`: hand the type back to the km. Choosing a `type` makes it MANUAL. */
     typeSource: z.literal('AUTO'),
     status: z.enum(TERRITORY_STATUSES),
     /** `null` clears the override, falling back to the MR's PayBand rate. */
@@ -67,14 +64,6 @@ export const updateRouteBodySchema = z
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'Nothing to update.');
-export const updateRouteDestinationBodySchema = z.object({
-  destination: placeBodySchema,
-  /** The route's `revision` this edit was made against. */
-  revision: z.number().int().positive(),
-});
-export const overrideRouteDistanceBodySchema = z.object({
-  distanceKm: decimalSchema.refine((value) => Number(value) > 0, 'Must be greater than 0.'),
-});
 export const listRoutesQuerySchema = listQuerySchema.extend({
   hqId: objectIdSchema.optional(),
   zoneId: objectIdSchema.optional(),

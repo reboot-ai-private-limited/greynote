@@ -10,11 +10,9 @@ import {
   listRouteAssignmentsQuerySchema,
   routeAssignmentParamsSchema,
   listRoutesQuerySchema,
-  overrideRouteDistanceBodySchema,
   searchPlacesQuerySchema,
   territoryIdParamsSchema,
   updateRouteBodySchema,
-  updateRouteDestinationBodySchema,
 } from './territory.schemas.js';
 
 const ROUTES_TAG = 'Territory / Routes';
@@ -25,7 +23,7 @@ openApiRegistry.registerPath({
   method: 'get',
   path: '/api/territory/places/search',
   tags: [ROUTES_TAG],
-  summary: 'Admin: search places to use as an HQ base place or a Route destination (Google Places proxy)',
+  summary: 'Admin: search places for a registered location (Google Places proxy)',
   security: bearer,
   request: { query: searchPlacesQuerySchema },
   responses: { 200: { description: 'Candidates with coordinates' }, 503: { description: 'Google unavailable' } },
@@ -43,10 +41,10 @@ openApiRegistry.registerPath({
   method: 'post',
   path: '/api/territory/routes',
   tags: [ROUTES_TAG],
-  summary: 'Admin: create a route — calculates its road distance',
+  summary: 'Admin: create a route from an HQ, a destination name and a km — named "<HQ> to <destination>"',
   security: bearer,
   request: { body: json(createRouteBodySchema) },
-  responses: { 201: { description: 'Route created (distanceStatus FAILED if Google could not answer)' } },
+  responses: { 201: { description: 'Route created' } },
 });
 openApiRegistry.registerPath({
   method: 'get',
@@ -61,37 +59,10 @@ openApiRegistry.registerPath({
   method: 'patch',
   path: '/api/territory/routes/{id}',
   tags: [ROUTES_TAG],
-  summary: 'Admin: rename, deactivate/reactivate, or set/clear the TA per-km rate override',
+  summary: 'Admin: change the destination, km or type, deactivate/reactivate, or set/clear the TA per-km rate override',
   security: bearer,
   request: { params: territoryIdParamsSchema, body: json(updateRouteBodySchema) },
   responses: { 200: { description: 'Route updated' } },
-});
-openApiRegistry.registerPath({
-  method: 'patch',
-  path: '/api/territory/routes/{id}/destination',
-  tags: [ROUTES_TAG],
-  summary: 'Admin: change the destination — recalculates distance and clears any manual override',
-  security: bearer,
-  request: { params: territoryIdParamsSchema, body: json(updateRouteDestinationBodySchema) },
-  responses: { 200: { description: 'Destination updated' }, 409: { description: 'Stale revision' } },
-});
-openApiRegistry.registerPath({
-  method: 'patch',
-  path: '/api/territory/routes/{id}/distance',
-  tags: [ROUTES_TAG],
-  summary: 'Admin: manually override the distance (until the next destination edit)',
-  security: bearer,
-  request: { params: territoryIdParamsSchema, body: json(overrideRouteDistanceBodySchema) },
-  responses: { 200: { description: 'Distance overridden' } },
-});
-openApiRegistry.registerPath({
-  method: 'post',
-  path: '/api/territory/routes/{id}/recalculate',
-  tags: [ROUTES_TAG],
-  summary: 'Admin: retry the distance calculation — clears any manual override',
-  security: bearer,
-  request: { params: territoryIdParamsSchema },
-  responses: { 200: { description: 'Recalculated (check distanceStatus)' } },
 });
 
 openApiRegistry.registerPath({
@@ -135,9 +106,6 @@ export function buildRoutesRouter(controllers: {
   create: RequestHandler;
   update: RequestHandler;
   get: RequestHandler;
-  updateDestination: RequestHandler;
-  overrideDistance: RequestHandler;
-  recalculate: RequestHandler;
   assign: RequestHandler;
   listAssignments: RequestHandler;
   unassign: RequestHandler;
@@ -153,9 +121,6 @@ export function buildRoutesRouter(controllers: {
   router.post('/', admin, validate({ body: createRouteBodySchema }), controllers.create);
   router.get('/:id', admin, withId(), controllers.get);
   router.patch('/:id', admin, withId(updateRouteBodySchema), controllers.update);
-  router.patch('/:id/destination', admin, withId(updateRouteDestinationBodySchema), controllers.updateDestination);
-  router.patch('/:id/distance', admin, withId(overrideRouteDistanceBodySchema), controllers.overrideDistance);
-  router.post('/:id/recalculate', admin, withId(), controllers.recalculate);
   router.post('/:id/assignments', admin, withId(assignRouteBodySchema), controllers.assign);
   router.get(
     '/:id/assignments',

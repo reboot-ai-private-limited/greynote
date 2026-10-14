@@ -931,3 +931,8 @@ Decision-log 2026-10-14 (second entry). **Done (API + web + docs, unit-tested):*
 ## Manager's day plan and target roll-up (2026-10-14)
 
 Decision-log 2026-10-14 (last entry). **Done (API + web + docs, unit-tested; not browser-checked):** a manager (designation above MR) edits their inherited Daily Plan: Work With from the whole downline, routes and doctors that fill in from those people (`POST /planning/daily/team-plan`, `GET /planning/daily/team-suggest`), checked again at submit and amend, doctor cap `MANAGER_PLAN_DOCTORS_MAX`; a manager's target, achievement and primary are the sum of the MRs below them (Sales dashboard and employee report; no target can be set on a manager; `report:manager-targets` lists the ignored ones). Phone docs updated (`dailyplan.md`, `monthlyplan.md`, `team.md`, `secondary-and-targets.md`). **Open:** phone code; browser check of the dashboard roll-up; run `report:manager-targets` once on each database; seed needs no change.
+
+## Routes: HQ + destination + typed km (2026-10-14)
+
+Decision-log 2026-10-14 (Routes entry). **Done (API + web + docs, unit-tested; not browser-checked):** Route = HQ + destination name + km Admin types, named "HQ to destination"; type Automatic from the km (shown live in the form) or picked; HQ base place, the map, the Google distance and recalculate / override / revision removed; HQ rename re-names its routes; `pnpm migrate:route-km` (manual_deploy Step 9h). **Open:** run the migration on dev/prod and type the km on any route that had none; browser check of Routes and HQs.
+

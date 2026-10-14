@@ -1,6 +1,5 @@
 'use client';
 
-import type { PlaceDto } from '@greynote/contracts';
 import { Plus } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/Badge';
@@ -21,8 +20,6 @@ import { StatTile } from '@/components/ui/StatTile';
 import { ActionTile } from '@/features/dashboard/components/ActionTile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { toast } from '@/components/ui/toast';
-import { PlacePicker } from '@/features/territory/components/PlacePicker';
-import type { PlaceSearchState } from '@/features/territory/hooks/usePlaceSearch';
 import { palette, semantic, status } from '@/styles/tokens';
 
 interface Row {
@@ -38,20 +35,6 @@ const rows: Row[] = [
   { id: '2', name: 'Vikram Shah', hq: 'Siliguri', amount: 842000, state: 'Pending' },
   { id: '3', name: 'Meera Nair', hq: 'Durgapur', amount: 56075, state: 'Rejected' },
 ];
-
-const PLACES = [
-  { label: 'Siliguri Junction', address: 'Siliguri, West Bengal', latitude: 26.7109, longitude: 88.4283, placeId: 'p-siliguri' },
-  { label: 'Matigara Bus Stand', address: 'Matigara, Siliguri', latitude: 26.6866, longitude: 88.3921, placeId: 'p-matigara' },
-  { label: 'Bagdogra Airport', address: 'Bagdogra, West Bengal', latitude: 26.6812, longitude: 88.3286, placeId: 'p-bagdogra' },
-  { label: 'Sevoke Road Market', address: 'Sevoke Rd, Siliguri', latitude: 26.7381, longitude: 88.4204, placeId: 'p-sevoke' },
-];
-
-/** A search that costs nothing: filters a fixed list, so the editor can be tried without the API or a key. */
-function useStubSearch(term: string): PlaceSearchState {
-  const t = term.trim().toLowerCase();
-  const ready = t.length >= 3;
-  return { ready, isLoading: false, error: null, candidates: ready ? PLACES.filter((p) => p.label.toLowerCase().includes(t)) : [] };
-}
 
 const tone = { Approved: 'success', Pending: 'warning', Rejected: 'danger' } as const;
 
@@ -75,7 +58,6 @@ export function DesignScreen() {
   const [sort, setSort] = useState<SortState>({ key: 'name', order: 'asc' });
   const [dialog, setDialog] = useState(false);
   const [select, setSelect] = useState('');
-  const [place, setPlace] = useState<PlaceDto | null>(null);
 
   return (
     <main className="mx-auto max-w-5xl space-y-12 px-8 py-10">
@@ -193,12 +175,6 @@ export function DesignScreen() {
           <ActionTile label="Ready" query={{ data: 12, error: null, isLoading: false, refetch: () => undefined }} map={(n) => ({ value: String(n), note: 'Oldest waiting 3d', tone: 'warning' })} />
           <ActionTile label="Linked (Zones)" href="/zones" query={{ data: 4, error: null, isLoading: false, refetch: () => undefined }} map={(n) => ({ value: String(n), note: 'All clear', tone: 'success' })} />
         </div>
-      </Section>
-
-      <Section title="Place picker — stub search (try &ldquo;sil&rdquo;, &ldquo;mat&rdquo;, &ldquo;bag&rdquo;, &ldquo;sev&rdquo;)">
-        <Card className="p-5">
-          <PlacePicker id="design-place" label="Destination" value={place} onChange={setPlace} useSearch={useStubSearch} />
-        </Card>
       </Section>
 
       <Section title="Table, pagination, tabs">

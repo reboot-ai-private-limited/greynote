@@ -1,36 +1,55 @@
-import type { PlaceDto, RouteDto } from '@greynote/contracts';
+import type { RouteDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { ApiError } from '@/lib/api/ApiError';
-import { buildDistanceOverride, buildRoute, changedRouteFields, distanceSummary, staleRevisionOf } from './routeDraft';
+import { buildRoute, changedRouteFields, kmLabel, parseKm, suggestedType } from './routeDraft';
 
-const place = (id: string): PlaceDto => ({ label: id, latitude: 1, longitude: 2, placeId: id });
 const route = (over: Partial<RouteDto> = {}): RouteDto => ({
   id: 'r1',
   hqId: 'h1',
-  name: 'Morning run',
+  name: 'SLG-1 to Naxalbari',
+  destinationName: 'Naxalbari',
   type: 'EX_STATION',
   typeSource: 'MANUAL',
-  destination: place('naxalbari'),
   distanceKm: '12.50',
-  distanceSource: 'AUTO_CALCULATED',
-  distanceStatus: 'CALCULATED',
-  distanceCalculatedAt: '2026-10-01T00:00:00Z',
   taPerKmRateOverridePaise: null,
-  revision: 3,
   status: 'active',
   ...over,
 });
-const conflict = (data: unknown, status = 409) =>
-  new ApiError({ success: false, statusCode: status, code: 'CONFLICT', message: 'm', data, request: { method: 'PATCH', url: '/x', requestId: 'r' } });
+const limits = { exStationKm: 15, outStationKm: 50 };
+
+describe('parseKm', () => {
+  it('accepts a positive number with up to 2 decimals', () => {
+    expect(parseKm(' 12.5 ')).toEqual({ ok: true, km: '12.5' });
+    expect(parseKm('40')).toEqual({ ok: true, km: '40' });
+  });
+  it('rejects empty, zero, negative, too many decimals and words', () => {
+    for (const bad of ['', '0', '0.00', '-3', '1.234', 'abc', '1,5']) expect(parseKm(bad).ok).toBe(false);
+  });
+});
+
+describe('suggestedType', () => {
+  it('follows the server: strictly over a limit moves up', () => {
+    expect(suggestedType('15', limits)).toBe('HQ');
+    expect(suggestedType('15.5', limits)).toBe('EX_STATION');
+    expect(suggestedType('50', limits)).toBe('EX_STATION');
+    expect(suggestedType('51', limits)).toBe('OUT_STATION');
+  });
+  it('suggests nothing without a usable km or the limits', () => {
+    expect(suggestedType('', limits)).toBeNull();
+    expect(suggestedType('abc', limits)).toBeNull();
+    expect(suggestedType('20', null)).toBeNull();
+  });
+});
 
 describe('buildRoute', () => {
-  const base = { hqId: 'h1', name: '  Morning   run ', type: 'EX_STATION', rate: '', destination: place('naxalbari') };
+  const base = { hqId: 'h1', destinationName: '  Naxal   bari ', distanceKm: '12.5', type: 'EX_STATION', rate: '' };
 
   it('builds a normalized body and omits an empty rate', () => {
-    expect(buildRoute(base)).toEqual({
-      ok: true,
-      body: { hqId: 'h1', name: 'Morning run', type: 'EX_STATION', destination: place('naxalbari') },
-    });
+    expect(buildRoute(base)).toEqual({ ok: true, body: { hqId: 'h1', destinationName: 'Naxal bari', distanceKm: '12.5', type: 'EX_STATION' } });
+  });
+
+  it('Automatic sends no type', () => {
+    const r = buildRoute({ ...base, type: 'AUTO' });
+    expect(r.ok && 'type' in r.body).toBe(false);
   });
 
   it('converts a rupee rate to integer paise', () => {
@@ -38,10 +57,10 @@ describe('buildRoute', () => {
     expect(r.ok && r.body.taPerKmRateOverridePaise).toBe(750);
   });
 
-  it('rejects a bad rate, a missing HQ, type and destination, all at once', () => {
-    const r = buildRoute({ hqId: '', name: '', type: '', rate: 'abc', destination: null });
+  it('reports every problem at once', () => {
+    const r = buildRoute({ hqId: '', destinationName: '', distanceKm: '', type: '', rate: 'abc' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(['destination', 'hqId', 'name', 'rate', 'type']);
+    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(['destinationName', 'distanceKm', 'hqId', 'rate', 'type']);
   });
 
   it('rejects a type that is not one of the three', () => {
@@ -50,79 +69,38 @@ describe('buildRoute', () => {
 });
 
 describe('changedRouteFields', () => {
-  const same = { name: ' Morning run ', type: 'EX_STATION' as const, rate: '' };
+  const same = { destinationName: ' Naxalbari ', distanceKm: '12.5', type: 'EX_STATION' as const, rate: '' };
 
-  it('is empty when nothing changed', () => {
+  it('is empty when nothing changed — 12.5 equals 12.50', () => {
     expect(changedRouteFields(route(), same)).toEqual({ ok: true, body: {} });
   });
 
-  it('sends only the name when only the name changed', () => {
-    expect(changedRouteFields(route(), { ...same, name: 'Evening run' })).toEqual({ ok: true, body: { name: 'Evening run' } });
+  it('sends only what changed', () => {
+    expect(changedRouteFields(route(), { ...same, destinationName: 'Dhupguri' })).toEqual({ ok: true, body: { destinationName: 'Dhupguri' } });
+    expect(changedRouteFields(route(), { ...same, distanceKm: '40' })).toEqual({ ok: true, body: { distanceKm: '40' } });
   });
 
-  it('sends the type when it changed — it decides DA', () => {
-    expect(changedRouteFields(route(), { ...same, type: 'OUT_STATION' })).toEqual({ ok: true, body: { type: 'OUT_STATION' } });
+  it('sets a km on a route that had none', () => {
+    expect(changedRouteFields(route({ distanceKm: null }), same)).toEqual({ ok: true, body: { distanceKm: '12.5' } });
   });
 
-  it('sets, changes and CLEARS the rate (clearing is null, not absent)', () => {
-    expect(changedRouteFields(route(), { ...same, rate: '8' })).toEqual({ ok: true, body: { taPerKmRateOverridePaise: 800 } });
-    const withRate = route({ taPerKmRateOverridePaise: 750 });
-    expect(changedRouteFields(withRate, { ...same, rate: '' })).toEqual({ ok: true, body: { taPerKmRateOverridePaise: null } });
-    expect(changedRouteFields(withRate, { ...same, rate: '7.5' })).toEqual({ ok: true, body: {} });
+  it('Automatic hands the type back to the km, once', () => {
+    expect(changedRouteFields(route(), { ...same, type: 'AUTO' })).toEqual({ ok: true, body: { typeSource: 'AUTO' } });
+    expect(changedRouteFields(route({ typeSource: 'AUTO' }), { ...same, type: 'AUTO' })).toEqual({ ok: true, body: {} });
+  });
+
+  it('a chosen type replaces Automatic even when it equals the current one', () => {
+    expect(changedRouteFields(route({ typeSource: 'AUTO' }), same)).toEqual({ ok: true, body: { type: 'EX_STATION' } });
+  });
+
+  it('clearing a rate sends null', () => {
+    expect(changedRouteFields(route({ taPerKmRateOverridePaise: 750 }), same)).toEqual({ ok: true, body: { taPerKmRateOverridePaise: null } });
   });
 });
 
-describe('buildDistanceOverride', () => {
-  it('accepts a positive figure with up to 2 decimals', () => {
-    expect(buildDistanceOverride(' 12.5 ')).toEqual({ ok: true, distanceKm: '12.5' });
-  });
-  it.each(['0', '0.00', '-1', '1.234', 'abc', ''])('rejects %j', (value) => {
-    expect(buildDistanceOverride(value).ok).toBe(false);
-  });
-});
-
-describe('distanceSummary', () => {
-  it('never shows a failed route as 0 km', () => {
-    expect(distanceSummary(route({ distanceKm: null, distanceStatus: 'FAILED' }))).toEqual({ km: '—', label: 'Failed', tone: 'danger' });
-  });
-  it('distinguishes calculated from a manual override', () => {
-    expect(distanceSummary(route())).toMatchObject({ km: '12.50 km', label: 'Calculated' });
-    expect(distanceSummary(route({ distanceSource: 'MANUAL_OVERRIDE' }))).toMatchObject({ label: 'Manual', tone: 'accent' });
-  });
-});
-
-describe('staleRevisionOf', () => {
-  it('reads currentRevision from the revision conflict', () => {
-    expect(staleRevisionOf(conflict({ field: 'revision', currentRevision: 7 }))).toEqual({ currentRevision: 7 });
-  });
-  it('ignores other conflicts and other errors', () => {
-    expect(staleRevisionOf(conflict({ field: 'name' }))).toBeNull();
-    expect(staleRevisionOf(conflict(undefined))).toBeNull();
-    expect(staleRevisionOf(new Error('x'))).toBeNull();
-  });
-});
-
-describe('route type: Automatic or chosen', () => {
-  const base = { hqId: 'h1', name: 'Run', rate: '', destination: place('naxalbari') };
-
-  it('Automatic sends no type, so the server follows the distance', () => {
-    const built = buildRoute({ ...base, type: 'AUTO' });
-    expect(built).toMatchObject({ ok: true });
-    expect(built.ok && 'type' in built.body).toBe(false);
-  });
-
-  it('a chosen type is sent', () => {
-    expect(buildRoute({ ...base, type: 'OUT_STATION' })).toMatchObject({ ok: true, body: { type: 'OUT_STATION' } });
-    expect(buildRoute({ ...base, type: 'nonsense' })).toMatchObject({ ok: false });
-  });
-
-  it('on edit: Automatic on a MANUAL route hands it back; unchanged Automatic sends nothing', () => {
-    expect(changedRouteFields(route(), { name: 'Morning run', type: 'AUTO', rate: '' })).toEqual({ ok: true, body: { typeSource: 'AUTO' } });
-    expect(changedRouteFields(route({ typeSource: 'AUTO' }), { name: 'Morning run', type: 'AUTO', rate: '' })).toEqual({ ok: true, body: {} });
-  });
-
-  it('on edit: choosing the type an AUTO route already has still makes it MANUAL; an unchanged MANUAL type sends nothing', () => {
-    expect(changedRouteFields(route({ typeSource: 'AUTO' }), { name: 'Morning run', type: 'EX_STATION', rate: '' })).toEqual({ ok: true, body: { type: 'EX_STATION' } });
-    expect(changedRouteFields(route(), { name: 'Morning run', type: 'EX_STATION', rate: '' })).toEqual({ ok: true, body: {} });
+describe('kmLabel', () => {
+  it('never shows a missing km as 0', () => {
+    expect(kmLabel({ distanceKm: '12.50' })).toBe('12.50 km');
+    expect(kmLabel({ distanceKm: null })).toBe('Not set');
   });
 });
