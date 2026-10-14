@@ -37,6 +37,14 @@ export interface PlanDay {
   remarks: string | null;
 }
 
+/** Two planned days say the same thing: working type, kind, remarks, and the same routes and colleagues in any order. */
+export const sameDay = (a: PlanDay, b: PlanDay): boolean =>
+  a.workingType === b.workingType &&
+  a.dayKind === b.dayKind &&
+  a.remarks === b.remarks &&
+  [...a.routeIds].sort().join() === [...b.routeIds].sort().join() &&
+  [...a.workWith].sort().join() === [...b.workWith].sort().join();
+
 /**
  * One doctor on a Daily Plan. `carriedFrom` is the day the doctor was first planned when this entry is a missed call carried
  * over to this day; `null` for a doctor the MR picked for the day.

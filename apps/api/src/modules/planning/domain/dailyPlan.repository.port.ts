@@ -1,6 +1,6 @@
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { DailyPlan, PlanAmendment } from './dailyPlan.entity.js';
-import type { PlanDay, PlannedDoctor } from './plan.js';
+import type { PlanDay, PlannedDoctor, PlanSource } from './plan.js';
 
 export interface DailyPlanRepositoryPort {
   findById(id: string): Promise<DailyPlan | null>;
@@ -20,11 +20,12 @@ export interface DailyPlanRepositoryPort {
    */
   createInherited(userId: string, planDate: string, day: PlanDay, ctx: TransactionContext): Promise<boolean>;
   /**
-   * A manager's own edit of their day (work with, routes, remarks and doctors together) while the plan is editable: replaces the
-   * body and the doctors, marks the plan `MANUAL` so a later Monthly Plan approval won't overwrite it, and bumps `revision`, only
-   * if the plan is still at `expectedRevision`. `null` when it moved on.
+   * The owner's own edit of their day (working type, work with, routes, remarks and doctors together) while the plan is editable:
+   * replaces the body and the doctors, sets `source` and `plannedFrom` (the Monthly Plan's version while the day differs from it;
+   * `MANUAL` keeps a later Monthly Plan approval from overwriting it), and bumps `revision`, only if the plan is still at
+   * `expectedRevision`. `null` when it moved on.
    */
-  saveManagerDay(id: string, expectedRevision: number, day: PlanDay, doctors: PlannedDoctor[]): Promise<DailyPlan | null>;
+  saveOwnDay(id: string, expectedRevision: number, day: PlanDay, doctors: PlannedDoctor[], origin: { source: PlanSource; plannedFrom: PlanDay | null }): Promise<DailyPlan | null>;
   /**
    * A manager's or Admin's amendment: replaces the body and appends `amendment`, bumping `revision`, only if the plan is still
    * at `expectedRevision`. `null` when it moved on.

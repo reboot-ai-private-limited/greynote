@@ -21,6 +21,8 @@ export interface TeamPlanRow {
     workingType: string;
     routeCount: number;
     doctorCount: number;
+    /** The employee changed the day the Monthly Plan wrote. */
+    changedFromMonthly: boolean;
   } | null;
   /** The month the date falls in. */
   monthlyPlanStatus: string | null;
@@ -55,6 +57,7 @@ export class TeamPlansUseCase {
           workingType: day.workingType,
           routeCount: day.routeIds.length,
           doctorCount: day.doctorIds.length,
+          changedFromMonthly: day.changedFromMonthly ?? false,
         },
         monthlyPlanStatus: monthly,
       };

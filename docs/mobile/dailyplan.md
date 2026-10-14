@@ -2,7 +2,7 @@
 
 What the field app must do for the Daily Plan, and the rules the server enforces. The server is the authority: the phone's cached status is a UX gate only and may be stale. Companion to [`monthlyplan.md`](monthlyplan.md). Design background: [`LLD/planning.md`](../LLD/planning.md), [`LLD/field-activity.md`](../LLD/field-activity.md), [`decision-log.md`](../decision-log.md) (2026-10-12).
 
-**Manager's own day, 2026-10-14:** a manager (any designation above MR) picks the team members to work with and edits the routes and doctors that fill in from them: section 1b, `POST /planning/daily/team-plan`, `GET /planning/daily/team-suggest`. The phone app has not built it yet.
+**Changing the day, 2026-10-14:** every field employee can now change the day's working type, work with and doctors while the plan is editable (section 1a, `POST /planning/daily/plan`); **routes and remarks stay the Monthly Plan's** (routes follow the working type, and a manager's follow the people they work with); the server keeps what the Monthly Plan said and flags the day "changed from monthly". A manager picks team members to work with, and the routes fill in from them and the doctors can be chosen from theirs (section 1b, `GET /planning/daily/team-suggest`). **This supersedes the doctors-only rule below and the 2026-10-13 phone note.** `POST /planning/daily/team-plan` (briefly there the same day) is replaced by `/planning/daily/plan`. The phone app has not built any of it yet.
 **Status key:** ✅ built on the server and web. The phone app is another team's; this is the contract it builds against. **Changed 2026-10-12:** the phone must stop calling `POST /planning/daily`, `POST /planning/daily/:id/changes`, `GET /planning/daily/:id/changes` and `GET /planning/changes/:id` — all four are gone (404).
 **Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** the Daily Plan keeps only the doctor picker with carried-over doctors; no create or change-request calls remain; it shows the deadline, resubmit and late windows, "There is no plan for this day", and "Need a change? Ask your manager"; a manager can amend a plan.
 
@@ -10,8 +10,8 @@ What the field app must do for the Daily Plan, and the rules the server enforces
 
 | # | Rule | Status |
 |---|---|---|
-| 1 | A Daily Plan comes **from the approved Monthly Plan**: working type, routes, work-with and remarks are **read-only** to an MR. There is no save endpoint for them (a manager has one for their own day: section 1b). A date the Monthly Plan did not cover has no plan (and so no work that day). | ✅ |
-| 2 | The employee's only edit is **the day's doctors** (`POST /planning/daily/doctors`), while the plan is a draft, rejected, withdrawn or reopened. Missed calls still owed from earlier days are added by the server and can't be dropped. | ✅ |
+| 1 | A Daily Plan **starts from the approved Monthly Plan**: working type, routes, work-with and remarks are copied in as a draft. The employee can change the working type and work with (and the doctors), not the routes or remarks (section 1a). A date the Monthly Plan did not cover has no plan (and so no work that day). | ✅ |
+| 2 | The employee changes the day (section 1a) while the plan is a draft, rejected, withdrawn or reopened; `POST /planning/daily/doctors` still sets only the doctors. Missed calls still owed from earlier days are added by the server and can't be dropped. | ✅ |
 | 2a | **Doctors come only from the day's routes.** A doctor can be picked only if they are **assigned to this employee** (for a manager: to them or to a team member they work with, section 1b) and sit on **one of the routes the Monthly Plan gave that day**; any other id is refused with `400` on `doctorIds` (`publicDetails.doctorIds` lists them). The picker should offer only those doctors. The one exception is a missed call carried over from an earlier day: it stays on the list even if that day's routes differ. | ✅ |
 | 3 | The employee **submits every day** (`POST /planning/daily/:id/submit`, online only, never queued). The manager approves, then Admin (unless `APPROVAL_MANAGER_ONLY_KINDS` lists `DAILY_PLAN`). Changing the doctors of a submitted or approved plan is not possible: ask the manager (rule 8). | ✅ |
 | 4 | **Deadline:** `DAILY_PLAN_SUBMIT_CUTOFF_TIME` (default `10:00`) on the plan's own date, in `BUSINESS_TIMEZONE`. Show `submitDeadline` from the server; never compute it on the phone. | ✅ |
@@ -24,22 +24,39 @@ What the field app must do for the Daily Plan, and the rules the server enforces
 | 11 | A call to a doctor not on the day's list, or on a route the plan doesn't list, is **saved and flagged** ("Not in plan" / "Route not in plan"); it is never refused for that. The config key `ALLOW_UNPLANNED_DOCTOR_CALLS` is removed. Calls and follow-ups are written up in [`dcr.md`](dcr.md). | ✅ |
 | 12 | **Working types:** `FIELD_WORK`, `DOCTOR_CAMPAIGN`, `MEETING`, `CONFERENCE`, `STRIKE`. `FIELD_WORK` and `DOCTOR_CAMPAIGN` need at least one route and have doctors; the other three have neither. A doctor campaign pays DA (highest route type) and **no TA**. | ✅ |
 
+## 1a. Changing the day (2026-10-14)
+
+Any field employee can change their own Daily Plan's **working type, work with and doctors**, not only the doctors. **Routes and remarks are not theirs to change**: the Monthly Plan's routes and remarks stay. The Monthly Plan stays the plan of record: the server keeps what it said and shows the day as changed.
+
+| # | Rule | Status |
+|---|---|---|
+| C1 | **Save:** `POST /planning/daily/plan` with `{ planDate, workingType, workWith[], doctorIds[] }` replaces the day's working type, work with and doctors together. No `routeIds` or `remarks` are sent (they are ignored if sent). The response is the whole plan with the routes the server set. `404` for a date the Monthly Plan did not cover. | ✅ |
+| C2 | **Only while the plan can be edited:** a draft, rejected, withdrawn or reopened. Waiting for approval or approved: `409`; an approved day is still changed through the manager's amend (rule 9). The deadline, resubmit and late rules are unchanged: they apply to the submit. | ✅ |
+| C3 | **Routes follow the working type, they are never chosen.** A field work or doctor campaign day has **the Monthly Plan's routes** (also after the day was switched to a meeting and back: the server remembers them). A manager who names team members to work with gets **those people's routes** instead (section 1b). Doctors: assigned to the employee (a manager: or to a named team member) and on the day's routes (rule 2a); anything else is `400` on `doctorIds`. | ✅ |
+| C4 | **Working type decides what the day has.** `FIELD_WORK` and `DOCTOR_CAMPAIGN` have routes and doctors. `MEETING`, `CONFERENCE` and `STRIKE` have no routes and no doctors: switching to one clears them, and sending doctors with one is `400` on `doctorIds`. A doctor still owed from an earlier day stays owed for a later day. A day the Monthly Plan made a meeting (no routes) **can't become field work**: `400` on `workingType`, "The monthly plan has no routes for this day". A doctor campaign pays DA at the highest route type and no TA (rule 12). | ✅ |
+| C5 | **A trip's stay and transit days keep their working type and routes** (`400` on `workingType` if the type is changed); work with and doctors can change. To change the trip, change its first day in the Monthly Plan. | ✅ |
+| C6 | **A changed day is the employee's own** (`source: MANUAL`): approving the month again does not overwrite it. | ✅ |
+| C7 | **"Changed from monthly".** The first change saves what the Monthly Plan said (`plannedFrom`: working type, routes, work with, remarks; the doctors are not part of it; a day whose work with or routes match it again is not changed) and sets `changedFromMonthly: true`. Later edits keep that first original. Saving the day back as the Monthly Plan wrote it clears both (`source` is `MONTHLY` again). The approver sees the flag and the original in the approval screen. | ✅ |
+| C8 | **Submit, approval, gates and flags** are as before (rules 3–11). TA and DA follow the working type and routes the plan has when the report is approved. | ✅ |
+
+**Phone screen:** working type and work with above the doctor picker, with **Save**; routes and remarks are shown read-only; a "Changed from monthly" chip and a "Show the monthly plan" line from `plannedFrom`; a **Back to monthly plan** action that saves the day as `plannedFrom` says. Changing the type to a non-field day empties and hides the routes and doctors (the server clears them); changing back to a field day shows the monthly routes again.
+
 ## 1b. A manager's Daily Plan (2026-10-14)
 
 A **manager** is anyone whose designation is above MR (ASM, RSM, ZSM, NSM), whether or not they have a team yet (`isManager` is read on the server; the phone knows it from the profile's designation). A manager works with people from their team, so the rules above change for them:
 
 | # | Rule | Status |
 |---|---|---|
-| M1 | The manager still has a Monthly Plan, and the day is created from it as a draft. For a manager the draft is **editable**: **Work With**, routes, doctors and remarks. Nothing else (working type, a trip's days) is theirs to change. | ✅ |
+| M1 | The manager still has a Monthly Plan, and the day is created from it as a draft; they change it as in section 1a, and choose **Work With** from their team, which decides the routes (M3, M4). | ✅ |
 | M2 | **Work With** is a multi-select of the manager's **whole downline** (any depth, active people only). Anyone else is refused with `400` on `workWith`. A non-MR with nobody below gets an empty list: show "No team members under you yet" and let them plan as an MR does (doctor picker only). | ✅ |
-| M3 | Picking people fills the routes and doctors: `GET /planning/daily/team-suggest?date=YYYY-MM-DD&userIds=a,b` returns, per person, the routes and doctors of **their Daily Plan** for that date (`source: DAILY_PLAN`, with `planStatus`), else their Monthly Plan's routes and the doctors assigned to them on those routes (`source: MONTHLY_PLAN`), else nothing (`source: NONE`); plus the two lists merged (`routeIds`, `doctorIds`). The phone puts the merged lists into the form; the manager can add or remove routes and doctors. Show each person's `source`/`planStatus` so "not planned yet" is visible. | ✅ |
-| M4 | **Allowed routes and doctors** = the manager's own plus those of the people named in Work With. Other ids are refused (`400` on `routeIds` / `doctorIds`). Offer only those in the pickers. | ✅ |
-| M5 | The fill is a **snapshot**. If a team member's plan changes later, the manager's list does not change; a **Refresh from team** button calls `team-suggest` again and replaces the lists (the manager then saves). | ✅ |
-| M6 | **Save:** `POST /planning/daily/team-plan` with `{ planDate, workWith[], routeIds[], doctorIds[], remarks }`, while the plan is a draft, rejected, withdrawn or reopened (otherwise `409`). It replaces the whole day. Missed calls still owed from earlier days are added by the server (rule 2). | ✅ |
+| M3 | Picking people fills the routes and doctors: `GET /planning/daily/team-suggest?date=YYYY-MM-DD&userIds=a,b` returns, per person, the routes and doctors of **their Daily Plan** for that date (`source: DAILY_PLAN`, with `planStatus`), else their Monthly Plan's routes and the doctors assigned to them on those routes (`source: MONTHLY_PLAN`), else nothing (`source: NONE`); plus the two lists merged (`routeIds`, `doctorIds`). The merged `routeIds` are the routes the day takes (the manager does not edit them; show them read-only); the merged `doctorIds` fill the doctor list, which the manager can add to or remove from. Show each person's `source`/`planStatus` so "not planned yet" is visible. | ✅ |
+| M4 | **The day's routes** = the routes of the people named in Work With (their Daily Plan's, else their Monthly Plan's), set by the server on save. With nobody named the routes are the manager's own monthly ones. If none of the people named has a route planned that day the save is `400` on `workWith`. **Allowed doctors** = the manager's own plus those assigned to the people named, on those routes (`400` on `doctorIds` otherwise); offer only those in the picker. | ✅ |
+| M5 | The fill is a **snapshot**. If a team member's plan changes later, the manager's list does not change; a **Refresh from team** button calls `team-suggest` again (the manager saves to apply the new routes, which the server recomputes from the people named). | ✅ |
+| M6 | **Save:** `POST /planning/daily/plan` (section 1a), the same call as an MR's. For a manager `workWith` must be in the downline. | ✅ |
 | M7 | **Doctor cap:** at most `MANAGER_PLAN_DOCTORS_MAX` (default 100) doctors on a manager's day; an MR's stays 50. `400` on `doctorIds` beyond it. | ✅ |
 | M8 | **Submit, deadline, approval, gates, flags** are exactly as in rules 3–11: submit each day (`POST /planning/daily/:id/submit`); the manager's own manager approves, then Admin. The routes and doctors are checked again at submit against the team members named, so a route or doctor removed from a team member since the save fails the submit (`400`) until the manager saves again. | ✅ |
-| M9 | A **trip's** stay and transit days keep the trip's routes (`400` if changed): change the first day of the trip in the Monthly Plan. A meeting, conference or strike day has no routes or doctors. | ✅ |
-| M10 | Saving as a manager makes the plan `source: MANUAL`: a later Monthly Plan re-approval does not overwrite it. | ✅ |
+| M9 | The trip and non-field-day rules are those of section 1a (C4, C5). | ✅ |
+| M10 | The `MANUAL` and "changed from monthly" rules are those of section 1a (C6, C7). | ✅ |
 
 **Phone screen for a manager:** Work With picker (downline, search by name or code) → on pick, call `team-suggest` and fill → routes list and doctors list, both editable → remarks → Save → Submit. Also show who from the team is on leave or off (`/team/today`, [`team.md`](team.md)): the server does not stop a manager picking them.
 
@@ -57,7 +74,8 @@ From `GET /planning/daily?from&to` (and the sync snapshot):
 | `submitDeadline` | "Submit by …" in the business timezone |
 | `resubmitAllowedUntil` | non-null: "You can still resubmit until …" |
 | `lateSubmitAllowedUntil` | non-null: "Admin allowed a late submission until …" |
-| `source` | `MONTHLY` for every normal day; the day's fields are shown, not editable |
+| `source` | `MONTHLY`: the day is as the Monthly Plan wrote it; `MANUAL`: the employee changed it |
+| `changedFromMonthly`, `plannedFrom` | set once the employee changed the day: show "Changed from monthly" and, on request, what the Monthly Plan said (`plannedFrom`: working type, routes, work with, remarks) |
 | `doctors` | the day's list; each with `carriedFrom` (a missed call carried over) |
 | `amendments` | a manager's changes to the day, with reason |
 
@@ -66,7 +84,7 @@ From `GET /planning/daily?from&to` (and the sync snapshot):
 - Approved plan: show it read-only, with **"Need a change? Ask your manager."** — no request button.
 - Blocked (`403` on submit, `userBlocked` on logging): **"You're blocked for a missed daily report. Ask your manager or Admin to unblock you."**
 - The doctor picker lists only the employee's assigned doctors on the day's routes (rule 2a).
-- Remove the form for working type, routes, work-with and remarks from the Daily Plan screen; keep only the doctor picker (see [`monthlyplan.md`](monthlyplan.md) §5 for the work-with list, which now applies to the Monthly Plan only).
+- The Daily Plan screen has the working type, work-with (the list in [`monthlyplan.md`](monthlyplan.md) §5; for a manager their team) and the doctor picker, editable while the plan is (section 1a); the routes and remarks are shown but not editable. A trip's stay and transit days show their type locked.
 
 ## 4. Endpoints
 
@@ -74,8 +92,8 @@ From `GET /planning/daily?from&to` (and the sync snapshot):
 |---|---|---|
 | `GET` | `/planning/daily?from&to` | Own plans in a date range (≤ 93 days), with the state fields above. |
 | `GET` | `/planning/daily/:id` | One plan (owner, their managers read-only, Admin). |
-| `POST` | `/planning/daily/doctors` | `{ planDate, doctorIds[≤50] }` — set the day's doctors; carried-over doctors are added. For a manager the doctors may also be a named team member's (section 1b). |
-| `POST` | `/planning/daily/team-plan` | **Manager only** (`403` for an MR): `{ planDate, workWith[], routeIds[], doctorIds[≤500], remarks }` — the manager's whole day (section 1b). |
+| `POST` | `/planning/daily/plan` | `{ planDate, workingType, workWith[], doctorIds[] }` — change the day's working type, work with and doctors (section 1a); the server sets the routes. `doctorIds` ≤ 50 for an MR, ≤ `MANAGER_PLAN_DOCTORS_MAX` for a manager. |
+| `POST` | `/planning/daily/doctors` | `{ planDate, doctorIds[≤50] }` — set only the day's doctors; carried-over doctors are added. For a manager the doctors may also be a named team member's (section 1b). |
 | `GET` | `/planning/daily/team-suggest?date&userIds=` | **Manager only:** the routes and doctors of the team members they would work with, from those people's plans (section 1b). `userIds` is comma-separated, at most 20, all in the manager's downline. |
 | `GET` | `/planning/daily/carry-over?date=` | Doctors owed from earlier days. |
 | `POST` | `/planning/daily/:id/submit` | Submit; online only. |

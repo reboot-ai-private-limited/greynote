@@ -2,7 +2,7 @@ import { Types, type ClientSession } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { DailyPlan, PlanAmendment } from '../domain/dailyPlan.entity.js';
 import type { DailyPlanRepositoryPort } from '../domain/dailyPlan.repository.port.js';
-import type { PlanDay, PlannedDoctor } from '../domain/plan.js';
+import type { PlanDay, PlannedDoctor, PlanSource } from '../domain/plan.js';
 import { DailyPlanModel, type DailyPlanDoc } from './dailyPlan.schema.js';
 import { isDuplicateKey, toDayDoc, toPlanDay } from './planDoc.js';
 
@@ -13,6 +13,7 @@ function toPlan(doc: DailyPlanDoc & { _id: unknown }): DailyPlan {
     planDate: doc.planDate,
     ...toPlanDay(doc),
     source: doc.source ?? 'MANUAL',
+    plannedFrom: doc.plannedFrom ? toPlanDay(doc.plannedFrom) : null,
     doctors: (doc.doctors ?? []).map((d) => ({ doctorId: String(d.doctorId), carriedFrom: d.carriedFrom ?? null })),
     amendments: (doc.amendments ?? []).map((a) => ({ by: String(a.by), at: a.at, reason: a.reason, previous: toPlanDay(a.previous) })),
     revision: doc.revision,
@@ -81,13 +82,14 @@ export class MongoDailyPlanAdapter implements DailyPlanRepositoryPort {
     return doc ? toPlan(doc) : null;
   }
 
-  async saveManagerDay(id: string, expectedRevision: number, day: PlanDay, doctors: PlannedDoctor[]): Promise<DailyPlan | null> {
+  async saveOwnDay(id: string, expectedRevision: number, day: PlanDay, doctors: PlannedDoctor[], origin: { source: PlanSource; plannedFrom: PlanDay | null }): Promise<DailyPlan | null> {
     const doc = await DailyPlanModel.findOneAndUpdate(
       { _id: id, revision: expectedRevision },
       {
         $set: {
           ...toDayDoc(day),
-          source: 'MANUAL',
+          source: origin.source,
+          plannedFrom: origin.plannedFrom ? toDayDoc(origin.plannedFrom) : null,
           doctors: doctors.map((d) => ({ doctorId: new Types.ObjectId(d.doctorId), carriedFrom: d.carriedFrom })),
           updatedAt: new Date(),
         },

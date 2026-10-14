@@ -26,7 +26,8 @@ export interface PlanStateView {
   lateSubmitAllowedUntil: Date | null;
 }
 
-export type DailyPlanView = DailyPlan & PlanStateView;
+/** `changedFromMonthly`: the employee changed the day the Monthly Plan wrote; `plannedFrom` is what it said. */
+export type DailyPlanView = DailyPlan & PlanStateView & { changedFromMonthly: boolean };
 export type MonthlyPlanView = MonthlyPlan & PlanStateView;
 
 export const planStatus = (request: ApprovalRequest | null): PlanApprovalStatus => request?.status ?? 'DRAFT';
@@ -43,7 +44,7 @@ export class PlanViews {
       this.deadlines.daily(plan.planDate),
       this.deadlines.dailyResubmitPolicy(plan.planDate),
     ]);
-    return { ...plan, ...(await this.state('DAILY_PLAN', plan, plan.planDate, deadline, policy)) };
+    return { ...plan, changedFromMonthly: plan.plannedFrom !== null, ...(await this.state('DAILY_PLAN', plan, plan.planDate, deadline, policy)) };
   }
 
   async monthly(plan: MonthlyPlan): Promise<MonthlyPlanView> {

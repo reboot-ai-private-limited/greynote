@@ -229,3 +229,11 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | M4 | What is a manager's target and achievement? | The total of every MR in their team; a manager cannot be given a target; targets already set on managers are ignored, not deleted | Working assumption |
 | M5 | A distributor handed to two MRs of one manager | Counts for each, so the manager's achievement can be more than the distributor sold | Working assumption |
 | M6 | An MR who changes manager mid-month | Counts wholly for the manager they have now | Working assumption |
+
+## N. Changing the day, 2026-10-14
+
+| # | Question | Today | Status |
+|---|---|---|---|
+| N1 | Can the employee change the day's working type? | Yes: type, work with and doctors, while the plan is a draft, rejected, withdrawn or reopened (routes and remarks stay the Monthly Plan's; a manager's routes follow the people they work with); an approved day still goes through the manager | Working assumption |
+| N2 | How does the approver know? | The day shows "changed from monthly" with what the Monthly Plan said | Working assumption |
+| N3 | Does a changed type need its own approval? | No: the approver decides the day as usual | Working assumption |

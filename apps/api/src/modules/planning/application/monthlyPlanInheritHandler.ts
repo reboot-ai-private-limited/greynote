@@ -5,15 +5,8 @@ import type { ApprovalsPort } from '../domain/approvals.port.js';
 import type { DailyPlanRepositoryPort } from '../domain/dailyPlan.repository.port.js';
 import type { MonthlyPlan } from '../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../domain/monthlyPlan.repository.port.js';
-import type { PlanDay } from '../domain/plan.js';
+import { sameDay, type PlanDay } from '../domain/plan.js';
 import type { PlanDeadlines } from './planDeadlines.js';
-
-const sameDay = (a: PlanDay, b: PlanDay): boolean =>
-  a.workingType === b.workingType &&
-  a.dayKind === b.dayKind &&
-  a.remarks === b.remarks &&
-  [...a.routeIds].sort().join() === [...b.routeIds].sort().join() &&
-  [...a.workWith].sort().join() === [...b.workWith].sort().join();
 
 /**
  * The `MONTHLY_PLAN` kind's `onStatusChange`, run inside the approval module's transaction: once the month is past the manager

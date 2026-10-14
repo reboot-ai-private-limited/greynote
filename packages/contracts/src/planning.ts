@@ -47,8 +47,12 @@ export interface DailyPlanDto extends PlanDayDto, PlanStateDto {
   doctors: PlannedDoctorDto[];
   userId: string;
   planDate: string;
-  /** `MONTHLY`: written from the approved monthly plan — the owner submits it as it is and can't edit it. */
+  /** `MONTHLY`: the day is as the approved monthly plan wrote it. `MANUAL`: the owner changed it (or it never came from one). */
   source: 'MANUAL' | 'MONTHLY';
+  /** What the monthly plan said for this day, once the owner changed it; `null` while the day is the monthly plan's. */
+  plannedFrom: PlanDayDto | null;
+  /** `plannedFrom` is set: show "changed from monthly". */
+  changedFromMonthly: boolean;
   /** Oldest first. */
   amendments: PlanAmendmentDto[];
   /** Bumped on every save. */

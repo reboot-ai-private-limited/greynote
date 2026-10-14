@@ -7,7 +7,7 @@ import { isFieldDay } from '../../domain/plan.js';
 import type { CarryOver } from '../carryOver.js';
 import type { ManagerScope } from '../managerScope.js';
 import { planStatus } from '../planViews.js';
-import { assertInDownline } from './setManagerDayPlan.usecase.js';
+import { assertInDownline } from './setDailyPlan.usecase.js';
 
 export interface TeamSuggestionPerson {
   userId: string;
@@ -30,8 +30,8 @@ export interface TeamSuggestion {
 
 /**
  * What a manager's plan would start with if they work with these team members that day: each person's routes and doctors from
- * their Daily Plan, else (no plan yet) their Monthly Plan's routes and the doctors assigned to them on those routes. Read-only;
- * the manager then edits the list and saves it.
+ * their Daily Plan, else (no plan yet) their Monthly Plan's routes and the doctors assigned to them on those routes. Read-only.
+ * The routes are what the manager's day takes (a manager can't choose them); the doctors are the starting list, which they can edit.
  */
 export class SuggestFromTeamUseCase {
   constructor(
@@ -47,6 +47,11 @@ export class SuggestFromTeamUseCase {
     if (!(await this.scope.isManager(managerId))) throw AppError.forbidden('Only a manager can plan the day with their team.');
     const ids = [...new Set(userIds)];
     await assertInDownline(this.users, managerId, ids, 'userIds');
+    return this.forPeople(planDate, ids);
+  }
+
+  /** The suggestion for these people, without checking who is asking. */
+  async forPeople(planDate: string, ids: string[]): Promise<TeamSuggestion> {
     const names = new Map((await this.users.getUserSummaries(ids)).map((u) => [u.id, u.name]));
 
     const people: TeamSuggestionPerson[] = [];

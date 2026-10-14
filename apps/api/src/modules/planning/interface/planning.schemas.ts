@@ -24,15 +24,15 @@ export const setDailyPlanDoctorsBodySchema = z.object({
 });
 
 /**
- * A manager's own plan for a day: who they work with (their team), the routes and the doctors. Routes and doctors may come from
- * the manager or the team members named; a day that isn't field work sends none.
+ * The owner's own change to their day: working type, who they work with and the doctors. Routes and remarks are not sent: the routes
+ * follow the type (and, for a manager, the people they work with) and the remarks are the Monthly Plan's. A day that isn't field work
+ * or a doctor campaign sends no doctors.
  */
-export const setManagerDayPlanBodySchema = z.object({
+export const setDailyPlanBodySchema = z.object({
   planDate: planDateSchema,
+  workingType: z.enum(WORKING_TYPES),
   workWith: z.array(objectIdSchema).max(20).default([]),
-  routeIds: z.array(objectIdSchema).max(20).default([]),
   doctorIds: z.array(objectIdSchema).max(500).default([]),
-  remarks: z.string().trim().max(1000).nullish().transform((v) => v || null),
 });
 
 /** `userIds` is a comma-separated list of team members' ids. */

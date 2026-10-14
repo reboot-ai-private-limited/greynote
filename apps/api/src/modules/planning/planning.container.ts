@@ -11,7 +11,7 @@ import { BackfillInheritedDaysUseCase } from './application/usecases/backfillInh
 import { AmendDailyPlanUseCase, type DayReportedCheck } from './application/usecases/amendDailyPlan.usecase.js';
 import { CarryOver } from './application/carryOver.js';
 import { ManagerScope } from './application/managerScope.js';
-import { SetManagerDayPlanUseCase } from './application/usecases/setManagerDayPlan.usecase.js';
+import { SetDailyPlanUseCase } from './application/usecases/setDailyPlan.usecase.js';
 import { SuggestFromTeamUseCase } from './application/usecases/suggestFromTeam.usecase.js';
 import { SetDailyPlanDoctorsUseCase } from './application/usecases/setDailyPlanDoctors.usecase.js';
 import type { CalledDoctorsPort, DoctorDirectoryPort } from './domain/doctorDirectory.port.js';
@@ -77,8 +77,8 @@ export function buildPlanningContainer(
   const scope = new ManagerScope(users, config);
   const submitDaily = new SubmitDailyPlanUseCase(dailyPlans, deadlines, submitter, approvals, carryOver, (u, m) => status.isMonthlyPlanApproved(u, m), scope);
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);
-  const setManagerDay = new SetManagerDayPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, views);
   const teamSuggest = new SuggestFromTeamUseCase(dailyPlans, monthlyPlans, approvals, users, carryOver, scope);
+  const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, teamSuggest, views);
   const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views);
   const listDaily = new ListDailyPlansUseCase(dailyPlans, views);
   const saveMonthly = new SaveMonthlyPlanUseCase(monthlyPlans, approvals, views);
@@ -121,7 +121,7 @@ export function buildPlanningContainer(
       buildPlanningRouter(
         makePlanningControllers({
           setDoctors,
-          setManagerDay,
+          setDay,
           teamSuggest,
           carryOver,
           listDaily,

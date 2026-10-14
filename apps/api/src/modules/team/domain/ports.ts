@@ -44,6 +44,7 @@ export interface TeamPlanningPort {
     workingType: string;
     routeIds: string[];
     doctorIds: string[];
+    changedFromMonthly?: boolean;
   } | null>;
   getMonthlyPlanStatus(userId: string, planMonth: string): Promise<string | null>;
 }

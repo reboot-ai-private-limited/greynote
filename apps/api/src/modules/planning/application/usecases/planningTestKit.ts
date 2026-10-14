@@ -12,14 +12,14 @@ import type { LateSubmitGrant } from '../../domain/lateSubmitGrant.entity.js';
 import type { LateSubmitGrantFilter, LateSubmitGrantRepositoryPort } from '../../domain/lateSubmitGrant.repository.port.js';
 import type { MonthlyPlan, MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
-import type { PlanDay, PlanKind, PlannedDoctor } from '../../domain/plan.js';
+import type { PlanDay, PlanKind, PlannedDoctor, PlanSource } from '../../domain/plan.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { MonthlyApprovedCheck } from '../monthlyGate.js';
 import { PlanDeadlines } from '../planDeadlines.js';
 import { PlanSubmitter } from '../planSubmitter.js';
 import { CarryOver } from '../carryOver.js';
 import { ManagerScope } from '../managerScope.js';
-import { SetManagerDayPlanUseCase } from './setManagerDayPlan.usecase.js';
+import { SetDailyPlanUseCase } from './setDailyPlan.usecase.js';
 import { SuggestFromTeamUseCase } from './suggestFromTeam.usecase.js';
 import { SetDailyPlanDoctorsUseCase } from './setDailyPlanDoctors.usecase.js';
 import { PlanViews } from '../planViews.js';
@@ -50,6 +50,7 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
       revision: (existing?.revision ?? 0) + 1,
       lateResubmits: existing?.lateResubmits ?? 0,
       source: existing?.source ?? 'MANUAL',
+      plannedFrom: existing?.plannedFrom ?? null,
       doctors: existing?.doctors ?? [],
       amendments: existing?.amendments ?? [],
       updatedAt: new Date(),
@@ -60,7 +61,7 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
   async createInherited(userId: string, planDate: string, day: PlanDay) {
     if (await this.findByUserAndDate(userId, planDate)) return false;
     const id = `plan-${this.rows.size + 1}`;
-    this.rows.set(id, { id, userId, planDate, ...day, source: 'MONTHLY', doctors: [], amendments: [], revision: 1, lateResubmits: 0, updatedAt: new Date() });
+    this.rows.set(id, { id, userId, planDate, ...day, source: 'MONTHLY', plannedFrom: null, doctors: [], amendments: [], revision: 1, lateResubmits: 0, updatedAt: new Date() });
     return true;
   }
   async saveDoctors(id: string, expectedRevision: number, doctors: PlannedDoctor[]) {
@@ -70,10 +71,10 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
     this.rows.set(id, next);
     return next;
   }
-  async saveManagerDay(id: string, expectedRevision: number, day: PlanDay, doctors: PlannedDoctor[]) {
+  async saveOwnDay(id: string, expectedRevision: number, day: PlanDay, doctors: PlannedDoctor[], origin: { source: PlanSource; plannedFrom: PlanDay | null }) {
     const plan = this.rows.get(id);
     if (!plan || plan.revision !== expectedRevision) return null;
-    const next = { ...plan, ...day, source: 'MANUAL' as const, doctors, revision: plan.revision + 1, updatedAt: new Date() };
+    const next = { ...plan, ...day, source: origin.source, plannedFrom: origin.plannedFrom, doctors, revision: plan.revision + 1, updatedAt: new Date() };
     this.rows.set(id, next);
     return next;
   }
@@ -377,9 +378,9 @@ export function planningKit(clock: Clock) {
     async (userId, { from, to }) => calls.filter((c) => c.userId === userId && c.date >= from && c.date <= to).map((c) => c.doctorId),
   );
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);
-  const setManagerDay = new SetManagerDayPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, views);
   const teamSuggest = new SuggestFromTeamUseCase(dailyPlans, monthlyPlans, approvals, users, carryOver, scope);
-  return { scope, setManagerDay, teamSuggest, doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, amend, reported, monthlyBlocked, monthlyApproved };
+  const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, teamSuggest, views);
+  return { scope, setDay, teamSuggest, doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, amend, reported, monthlyBlocked, monthlyApproved };
 }
 
 /**
