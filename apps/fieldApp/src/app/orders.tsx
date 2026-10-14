@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
+import { FormField } from '@/components/form-field';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
 import { ProductLinesEditor, type ProductLine } from '@/components/product-lines-editor';
@@ -14,9 +15,10 @@ import { CardSection, IconChip, InfoCard, Pill, StatusBanner, SummaryStrip, sym 
 import { Spacing, type Accent } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { FyBanner } from '@/components/fy-banner';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
-import { cancelOrder, completeOrder, listOrders, type OrderStatus, type OrderView, type OutletType } from '@/lib/marketing';
+import { cancelOrder, completeOrder, deliveredOf, listOrders, orderValue, type OrderStatus, type OrderView, type OutletType } from '@/lib/marketing';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { useSessionUser } from '@/lib/session';
 import { createRecord, getRecord, removeRecord, sendNow, updateRecord, useColleagues, useOnline, useRecords, type OutboxRecord } from '@/offline';
@@ -51,12 +53,14 @@ const bannerFor = (o: OrderView): { accent: Accent; icon: ReturnType<typeof sym>
   if (o.outlet.type === 'CHEMIST') {
     return { accent: 'slate', icon: sym('info.circle', 'info'), title: 'Information only', text: 'A chemist order is recorded and shown. It is not marked done or cancelled.' };
   }
-  if (o.status === 'DONE') return { accent: 'green', icon: sym('checkmark.circle', 'check_circle'), title: 'Done', text: 'Counted as a primary sale.' };
+  if (o.status === 'DONE') return { accent: 'green', icon: sym('checkmark.circle', 'check_circle'), title: 'Done', text: 'Counted as a primary sale at what was delivered.' };
   if (o.status === 'CANCELLED') return { accent: 'red', icon: sym('xmark.circle', 'cancel'), title: 'Cancelled', text: 'This order was cancelled.' };
   return { accent: 'orange', icon: sym('clock', 'schedule'), title: 'Placed', text: 'Mark it done once the distributor has supplied it.' };
 };
 
-const errorText = (err: unknown) =>
+/** The order form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
+const FIELD_ORDER = ['outlet', 'lines'];
+const errorText =(err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError || err instanceof Error ? err.message : 'Something went wrong. Please try again.';
 
 /**
@@ -88,6 +92,8 @@ export default function OrdersScreen() {
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<Msg | null>(null);
+  const fe = useFormErrors(FIELD_ORDER);
+  const [lineErrors, setLineErrors] = useState<Record<string, (string | undefined)[]>>({});
 
   const today = businessToday(config.data?.settings.BUSINESS_TIMEZONE, new Date(), config.data?.settings.DAY_START_TIME);
   const products = master.data?.products ?? [];
@@ -136,16 +142,28 @@ export default function OrdersScreen() {
   };
 
   const save = async () => {
-    if (!outletId) return setMsg({ tone: 'danger', text: `Choose the ${outletType === 'CHEMIST' ? 'chemist' : 'distributor'}.` });
-    if (lines.length === 0) return setMsg({ tone: 'danger', text: 'Add at least one product.' });
+    const problems: Record<string, string> = {};
+    const rowProblems: Record<string, (string | undefined)[]> = {};
+    if (!outletId) problems.outlet = `Choose the ${outletType === 'CHEMIST' ? 'chemist' : 'distributor'}.`;
+    if (lines.length === 0) problems.lines = 'Add at least one product.';
     const payloadLines: OrderPayload['lines'] = [];
     for (const l of lines) {
       const quantity = Number(l.values[0]);
       const unitPricePaise = rupeesToPaise(l.values[1] ?? '');
-      if (!Number.isInteger(quantity) || quantity < 1) return setMsg({ tone: 'danger', text: `Enter a whole quantity for ${productName(l.productId)}.` });
-      if (unitPricePaise === null) return setMsg({ tone: 'danger', text: `Enter the price for ${productName(l.productId)} in rupees.` });
-      payloadLines.push({ productId: l.productId, quantity, unitPricePaise });
+      const quantityProblem = !Number.isInteger(quantity) || quantity < 1 ? 'Enter a whole quantity.' : undefined;
+      const priceProblem = unitPricePaise === null ? 'Enter the price in rupees.' : undefined;
+      if (quantityProblem || priceProblem) {
+        rowProblems[l.productId] = [quantityProblem, priceProblem];
+        problems.lines = `Check ${productName(l.productId)}: ${quantityProblem ?? priceProblem}`;
+      } else if (unitPricePaise !== null) payloadLines.push({ productId: l.productId, quantity, unitPricePaise });
     }
+    if (!outletId || Object.keys(problems).length > 0) {
+      setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
+      setLineErrors(rowProblems);
+      return fe.fail(problems);
+    }
+    setLineErrors({});
+    fe.clearAll();
     const payload: OrderPayload = { outletType, outletId, orderDate: today, remarks: remarks.trim() || null, lines: payloadLines };
     setBusy('save');
     try {
@@ -236,29 +254,43 @@ export default function OrdersScreen() {
               A chemist order is for information only: it is recorded, not marked done or cancelled.
             </ThemedText>
           ) : null}
-          <OutletPicker
-            label={outletType === 'CHEMIST' ? 'Chemist' : 'Distributor'}
-            options={outlets.map((o) => ({ id: o.id, name: o.name, subtitle: o.address }))}
-            value={outletId}
-            onChange={setOutletId}
-            disabled={busy !== null}
-            emptyText={`No ${outletType === 'CHEMIST' ? 'chemists' : 'distributors'} are on your routes yet.`}
-          />
+          <FormField form={fe} name="outlet">
+            <OutletPicker
+              label={outletType === 'CHEMIST' ? 'Chemist' : 'Distributor'}
+              options={[...outlets].sort((a, b) => a.name.localeCompare(b.name)).map((o) => ({ id: o.id, name: o.name, subtitle: o.address }))}
+              value={outletId}
+              onChange={(id) => {
+                setOutletId(id);
+                fe.clear('outlet');
+              }}
+              disabled={busy !== null}
+              emptyText={`No ${outletType === 'CHEMIST' ? 'chemists' : 'distributors'} are on your routes yet.`}
+            />
+          </FormField>
         </CardSection>
         <CardSection icon={sym('shippingbox', 'inventory_2')} accent="teal" title="Products" count={lines.length || undefined}>
-          <ProductLinesEditor
-            products={products.map((p) => ({ id: p.id, name: p.name, subtitle: p.packSize ?? undefined }))}
-            columns={[{ label: 'Quantity' }, { label: 'Price (₹)', decimal: true }]}
-            lines={lines}
-            onChange={(l) => (setLines(l), setMsg(null))}
-            defaults={(id) => ['', defaultPrice(id, outletType)]}
-            disabled={busy !== null}
-            footer={(l) => {
-              const qty = Number(l.values[0]);
-              const price = rupeesToPaise(l.values[1] ?? '');
-              return qty > 0 && price ? `Amount ${formatRupees(qty * price)}` : null;
-            }}
-          />
+          {/* A row with a problem shows it on its own box; the whole-list outline is for "no products yet". */}
+          <FormField form={fe} name="lines" outline={Object.keys(lineErrors).length === 0}>
+            <ProductLinesEditor
+              products={products.map((p) => ({ id: p.id, name: p.name, subtitle: p.packSize ?? undefined }))}
+              columns={[{ label: 'Quantity' }, { label: 'Price (₹)', decimal: true }]}
+              lines={lines}
+              onChange={(l) => {
+                setLines(l);
+                setMsg(null);
+                setLineErrors({});
+                fe.clear('lines');
+              }}
+              defaults={(id) => ['', defaultPrice(id, outletType)]}
+              disabled={busy !== null}
+              errors={lineErrors}
+              footer={(l) => {
+                const qty = Number(l.values[0]);
+                const price = rupeesToPaise(l.values[1] ?? '');
+                return qty > 0 && price ? `Amount ${formatRupees(qty * price)}` : null;
+              }}
+            />
+          </FormField>
           <View style={styles.spread}>
             <ThemedText type="smallBold">Total</ThemedText>
             <ThemedText type="smallBold">{formatRupees(total)}</ThemedText>
@@ -298,21 +330,59 @@ export default function OrdersScreen() {
           {isMine(detail) ? null : <ThemedText type="small" themeColor="textSecondary">{`Placed by ${ownerName(detail.userId)}`}</ThemedText>}
           <ThemedText type="smallBold">{outletName(detail.outlet.type, detail.outlet.id)}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">{`${infoOnly ? 'Chemist' : 'Distributor'} · ${prettyDay(detail.orderDate)}`}</ThemedText>
+          {detail.createdBy ? <ThemedText type="small" themeColor="textSecondary">Added by the office for you</ThemedText> : detail.editedBy ? <ThemedText type="small" themeColor="textSecondary">Changed by the office</ThemedText> : null}
         </InfoCard>
-        <CardSection icon={sym('shippingbox', 'inventory_2')} accent="teal" title="Products" count={detail.items.length}>
-          {detail.items.map((i) => (
-            <View key={i.productId} style={styles.spread}>
-              <View style={styles.grow}>
-                <ThemedText type="smallBold">{productName(i.productId)}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">{`${i.quantity} × ${formatRupees(i.unitPricePaise)}`}</ThemedText>
+        {detail.originalItems && detail.originalItems.length > 0 ? (
+          <CardSection icon={sym('clock.arrow.circlepath', 'history')} accent="slate" title="You ordered">
+            {detail.originalItems.map((i) => (
+              <View key={i.productId} style={styles.spread}>
+                <View style={styles.grow}>
+                  <ThemedText type="smallBold">{productName(i.productId)}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">{`${i.quantity} × ${formatRupees(i.unitPricePaise)}`}</ThemedText>
+                </View>
+                <ThemedText type="smallBold">{formatRupees(i.amountPaise)}</ThemedText>
               </View>
-              <ThemedText type="smallBold">{formatRupees(i.amountPaise)}</ThemedText>
-            </View>
-          ))}
+            ))}
+            {detail.originalTotalAmountPaise != null ? (
+              <View style={styles.spread}>
+                <ThemedText type="smallBold">Your total</ThemedText>
+                <ThemedText type="smallBold">{formatRupees(detail.originalTotalAmountPaise)}</ThemedText>
+              </View>
+            ) : null}
+          </CardSection>
+        ) : null}
+        <CardSection icon={sym('shippingbox', 'inventory_2')} accent="teal" title={detail.originalItems ? 'Products now' : 'Products'} count={detail.items.length}>
+          {detail.items.map((i) => {
+            const done = detail.status === 'DONE' && !infoOnly;
+            const d = deliveredOf(i);
+            return (
+              <View key={i.productId} style={styles.spread}>
+                <View style={styles.grow}>
+                  <ThemedText type="smallBold">{productName(i.productId)}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">{`Ordered ${i.quantity} × ${formatRupees(i.unitPricePaise)}`}</ThemedText>
+                  {done ? (
+                    <ThemedText type="small">{`Supplied ${d.suppliedQty}${d.freeQty > 0 ? ` · Free ${d.freeQty}` : ''}${d.shortQty > 0 ? ` · Not supplied ${d.shortQty}` : ''}`}</ThemedText>
+                  ) : (i.freeQty ?? 0) > 0 ? (
+                    <ThemedText type="small">{`+ ${i.freeQty} free planned`}</ThemedText>
+                  ) : null}
+                </View>
+                <ThemedText type="smallBold">{formatRupees(done ? d.suppliedQty * i.unitPricePaise : i.amountPaise)}</ThemedText>
+              </View>
+            );
+          })}
           <View style={styles.spread}>
-            <ThemedText type="smallBold">Total</ThemedText>
+            <ThemedText type="smallBold">{detail.status === 'DONE' && !infoOnly ? 'Ordered total' : 'Total'}</ThemedText>
             <ThemedText type="smallBold">{formatRupees(detail.totalAmountPaise)}</ThemedText>
           </View>
+          {detail.status === 'DONE' && !infoOnly ? (
+            <View style={styles.spread}>
+              <ThemedText type="smallBold">Delivered amount</ThemedText>
+              <ThemedText type="smallBold">{formatRupees(orderValue(detail))}</ThemedText>
+            </View>
+          ) : null}
+          {detail.status === 'DONE' && !infoOnly ? (
+            <ThemedText type="small" themeColor="textSecondary">Free units are never charged.</ThemedText>
+          ) : null}
         </CardSection>
         {detail.remarks ? (
           <CardSection icon={sym('text.bubble', 'chat')} accent="purple" title="Remarks">
@@ -324,7 +394,7 @@ export default function OrdersScreen() {
   }
 
   const shown = tab === 'WAITING' ? [] : byStatus(tab);
-  const shownValue = shown.reduce((s, o) => s + o.totalAmountPaise, 0);
+  const shownValue = shown.reduce((s, o) => s + orderValue(o), 0);
   const shownProducts = shown.reduce((s, o) => s + o.items.length, 0);
   return (
     <ScreenShell title="Orders" subtitle="Manage your chemist orders and fulfilment status">
@@ -403,10 +473,11 @@ export default function OrdersScreen() {
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">{`${chemist ? 'Chemist' : 'Distributor'} · ${prettyDay(o.orderDate)} · ${o.items.length} product${o.items.length === 1 ? '' : 's'}`}</ThemedText>
                 </View>
-                <ThemedText type="smallBold">{formatRupees(o.totalAmountPaise)}</ThemedText>
+                <ThemedText type="smallBold">{formatRupees(orderValue(o))}</ThemedText>
               </View>
               <View style={styles.spread}>
                 <Pill {...pillFor(o)} />
+                {o.createdBy ? <Pill text="Added by office" accent="slate" /> : o.editedBy ? <Pill text="Changed by office" accent="slate" /> : null}
                 <PrimaryButton label="View order →" variant="text" onPress={() => (setMsg(null), setDetail(o), setMode('detail'))} />
               </View>
             </InfoCard>

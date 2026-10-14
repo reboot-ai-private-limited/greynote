@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { FormField } from '@/components/form-field';
 import { GeofenceBadge } from '@/components/geofence-badge';
 import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
@@ -14,6 +15,7 @@ import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-card
 import { WorkWithPicker } from '@/components/work-with-picker';
 import { Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { getDoctorVisits, type DoctorVisitsReport } from '@/lib/doctor-visits';
 import { useFinancialYear } from '@/lib/financial-year';
@@ -27,6 +29,8 @@ import type { FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } fro
 
 type Subject = 'DOCTOR' | 'CHEMIST';
 
+/** The call form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
+const FIELD_ORDER = ['outlet'];
 const STATUS_TEXT: Record<OutboxRecord['status'], string> = {
   DRAFT: 'Saved on this phone',
   QUEUED: 'Ready to send',
@@ -85,6 +89,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'info'; text: string } | null>(null);
+  const fe = useFormErrors(FIELD_ORDER);
 
   const idOf = (r: OutboxRecord) => {
     const p = r.payload as CallPayload;
@@ -131,6 +136,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
 
   const start = (record: OutboxRecord | 'new') => {
     setMsg(null);
+    fe.clearAll();
     if (record === 'new') {
       setOutletId(null);
       setWorkWith([]); // picked per call; not copied from the day's plan
@@ -148,9 +154,11 @@ export function CallScreen({ subject }: { subject: Subject }) {
 
   const save = async () => {
     if (!outletId) {
-      setMsg({ tone: 'danger', text: `Choose the ${noun} you visited.` });
+      setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
+      fe.fail({ outlet: `Choose the ${noun} you visited.` });
       return;
     }
+    fe.clearAll();
     setBusy(true);
     setMsg({ tone: 'info', text: 'Getting your location…' });
     try {
@@ -158,7 +166,9 @@ export function CallScreen({ subject }: { subject: Subject }) {
       // The server stores a call only at the place: check here first so a call that would be refused is never kept.
       const away = await notAtLocationReason(outletById.get(outletId)?.location ?? null, fix, noun);
       if (away) {
-        setMsg({ tone: 'danger', text: away });
+        // Not at the place: the doctor or chemist field is the one to look at.
+        setMsg({ tone: 'danger', text: 'The call was not saved.' });
+        fe.fail({ outlet: away });
         return;
       }
       const payload: CallPayload = {
@@ -228,11 +238,21 @@ export function CallScreen({ subject }: { subject: Subject }) {
         footer={
           <View style={styles.block}>
             <PrimaryButton label="Save call" loading={busy} onPress={save} />
-            <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setEditing(null)} />
+            <PrimaryButton
+              label="Cancel"
+              variant="text"
+              disabled={busy}
+              onPress={() => {
+                setEditing(null);
+                setMsg(null);
+                fe.clearAll();
+              }}
+            />
           </View>
         }>
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
         <CardSection icon={isDoctor ? sym('stethoscope', 'medical_services') : sym('cross.case', 'local_pharmacy')} accent={isDoctor ? 'blue' : 'teal'} title={isDoctor ? 'Doctor' : 'Chemist'}>
+        <FormField form={fe} name="outlet">
         <OutletPicker
           label={isDoctor ? 'Doctor' : 'Chemist'}
           options={outlets.map((o) => {
@@ -252,10 +272,12 @@ export function CallScreen({ subject }: { subject: Subject }) {
             setOutletId(id);
             setSamples([]);
             setMsg(null);
+            fe.clear('outlet');
           }}
           disabled={busy}
           emptyText={`No ${noun}s for you yet. Connect to the internet once so your list can load.`}
         />
+        </FormField>
         {picked && flagsFor(picked).length > 0 ? (
           <Notice tone="warning" title="Not in your plan">
             {`${flagsFor(picked).join(' and ')}: the call is still saved, and marked that way in your daily report for your manager.`}

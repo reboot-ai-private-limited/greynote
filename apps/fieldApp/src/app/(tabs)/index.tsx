@@ -9,6 +9,7 @@ import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { TodayCard } from '@/components/today-card';
+import { VisualsSlider } from '@/components/visuals-slider';
 import { Accents, BottomTabInset, Spacing, WideContentWidth } from '@/constants/theme';
 import { FEATURES, SECTIONS, type Feature, type Section } from '@/features/catalog';
 import { lockReason, useDayGate } from '@/hooks/use-day-gate';
@@ -150,8 +151,9 @@ export default function HomeScreen() {
         {/* The tabs are child 3: sticky, so they stay in view while the tiles scroll. */}
         {/* removeClippedSubviews off: Android would otherwise drop the off-screen pages from drawing,
             and they would pop in late instead of sliding in beside the current one. */}
-        <ScrollView contentContainerStyle={styles.content} stickyHeaderIndices={[2]} removeClippedSubviews={false}>
+        <ScrollView contentContainerStyle={styles.content} stickyHeaderIndices={[3]} removeClippedSubviews={false}>
           <HomeHeader />
+          <VisualsSlider />
           <TodayCard />
 
           <SegmentedTabs

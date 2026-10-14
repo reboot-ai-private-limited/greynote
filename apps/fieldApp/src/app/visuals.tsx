@@ -8,9 +8,11 @@ import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
+import { VisualViewer } from '@/components/visual-viewer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { LARGE_TABLET_MIN_WIDTH, TABLET_MIN_WIDTH, useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
 import { addDoctorVisuals, listDoctorVisuals, listVisuals, removeDoctorVisual, type Visual } from '@/lib/marketing';
@@ -39,6 +41,9 @@ const messageOf = (err: unknown) => (err instanceof ApiError || err instanceof N
  */
 export default function VisualsScreen() {
   const theme = useTheme();
+  const { width } = useResponsive();
+  // One card per row on a phone; two on a tablet, three on a large one.
+  const columns = width >= LARGE_TABLET_MIN_WIDTH ? 3 : width >= TABLET_MIN_WIDTH ? 2 : 1;
   const list = useCachedFetch('visuals', () => listVisuals());
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const [doctorId, setDoctorId] = useState<string | null>(null);
@@ -78,6 +83,12 @@ export default function VisualsScreen() {
     } catch {
       setError('Could not open this file. Check your connection and try again.');
     }
+  };
+
+  /** Full screen, with the shown list so swiping goes to the next and previous visual. */
+  const view = (v: Visual) => {
+    setError(null);
+    setViewing({ items: shown, index: Math.max(0, shown.indexOf(v)) });
   };
 
   const toggle = (v: Visual) => {
@@ -127,40 +138,8 @@ export default function VisualsScreen() {
       },
     ]);
 
-  if (viewing) {
-    const current = viewing.items[viewing.index]!;
-    const last = viewing.items.length - 1;
-    return (
-      <ScreenShell title={current.title}>
-        {kindOf(current) === 'image' ? (
-          <Image source={{ uri: current.fileUrl }} style={styles.full} contentFit="contain" accessibilityLabel={current.title} />
-        ) : (
-          <ThemedView type="backgroundElement" style={[styles.full, styles.fileThumb]}>
-            <ThemedText type="subtitle" themeColor="textSecondary">
-              {kindLabel(current)}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {'Opens in your phone’s viewer.'}
-            </ThemedText>
-          </ThemedView>
-        )}
-        <ThemedText type="small" themeColor="textSecondary">
-          {`${CATEGORY[current.category]} · ${productName(current.productId)}${last > 0 ? ` · ${viewing.index + 1} of ${last + 1}` : ''}`}
-        </ThemedText>
-        {last > 0 ? (
-          <View style={styles.pager}>
-            <PrimaryButton label="Previous" variant="text" disabled={viewing.index === 0} onPress={() => setViewing({ ...viewing, index: viewing.index - 1 })} />
-            <PrimaryButton label="Next" variant="text" disabled={viewing.index === last} onPress={() => setViewing({ ...viewing, index: viewing.index + 1 })} />
-          </View>
-        ) : null}
-        {kindOf(current) !== 'image' ? <PrimaryButton label="Open file" onPress={() => open(current)} /> : null}
-        <PrimaryButton label="Close" variant="text" onPress={() => setViewing(null)} />
-      </ScreenShell>
-    );
-  }
-
   return (
-    <ScreenShell title="Visuals">
+    <ScreenShell title="Visuals" wide>
       {list.error ? <Notice tone="danger">{list.error}</Notice> : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
       {saved ? <Notice tone="info">{saved}</Notice> : null}
@@ -168,7 +147,7 @@ export default function VisualsScreen() {
 
       <OutletPicker
         label="Show to doctor"
-        options={doctors.map((d) => ({ id: d.id, name: d.name, subtitle: `${d.specialty} · ${d.address}` }))}
+        options={[...doctors].sort((a, b) => a.name.localeCompare(b.name)).map((d) => ({ id: d.id, name: d.name, subtitle: `${d.specialty} · ${d.address}` }))}
         value={doctorId}
         onChange={chooseDoctor}
         emptyText="No doctors yet. Connect to the internet once so your list can load."
@@ -201,65 +180,90 @@ export default function VisualsScreen() {
       ) : shown.length === 0 ? (
         <Notice tone="info">{list.data ? 'No visuals here yet.' : 'Connect once to load the visuals.'}</Notice>
       ) : (
-        shown.map((v) => {
-          const locked = already.has(v.id);
-          const ticked = locked || picked.has(v.id);
-          return (
-            <Pressable
-              key={v.id}
-              accessibilityRole={doctorId ? 'checkbox' : 'button'}
-              accessibilityState={doctorId ? { checked: ticked, disabled: locked } : undefined}
-              accessibilityLabel={doctorId ? `${v.title}${locked ? ', already chosen' : ''}` : `Open ${v.title}`}
-              onPress={() => (doctorId ? toggle(v) : open(v))}>
-              <ThemedView type="backgroundElement" style={[styles.card, locked && styles.locked]}>
-                {doctorId ? (
-                  <View style={[styles.box, { borderColor: ticked ? theme.primary : theme.border }, ticked && { backgroundColor: theme.primary }]}>
-                    {ticked ? (
-                      <ThemedText type="smallBold" themeColor="onPrimary">
-                        ✓
+        // One card per row on a phone, two or three on a tablet.
+        <View style={styles.grid}>
+          {shown.map((v) => {
+            const locked = already.has(v.id);
+            const ticked = locked || picked.has(v.id);
+            return (
+              <View key={v.id} style={[styles.cell, { width: `${100 / columns}%` }]}>
+                <Pressable
+                  accessibilityRole={doctorId ? 'checkbox' : 'button'}
+                  accessibilityState={doctorId ? { checked: ticked, disabled: locked } : undefined}
+                  accessibilityLabel={doctorId ? `${v.title}${locked ? ', already chosen' : ''}` : `Open ${v.title}`}
+                  onPress={() => (doctorId ? toggle(v) : view(v))}>
+                  <ThemedView type="backgroundElement" style={[styles.card, locked && styles.locked]}>
+                    <View style={styles.media}>
+                      {kindOf(v) === 'image' ? (
+                        <Image source={{ uri: v.fileUrl }} style={styles.thumb} contentFit="cover" />
+                      ) : (
+                        <View style={[styles.thumb, styles.fileThumb]}>
+                          <ThemedText type="subtitle" themeColor="textSecondary">
+                            {kindLabel(v)}
+                          </ThemedText>
+                        </View>
+                      )}
+                      {doctorId ? (
+                        <View style={[styles.box, { borderColor: ticked ? theme.primary : '#fff' }, ticked ? { backgroundColor: theme.primary } : styles.boxOff]}>
+                          {ticked ? (
+                            <ThemedText type="smallBold" themeColor="onPrimary">
+                              ✓
+                            </ThemedText>
+                          ) : null}
+                        </View>
+                      ) : null}
+                      {doctorId ? (
+                        <Pressable accessibilityRole="button" accessibilityLabel={`View ${v.title} full screen`} hitSlop={8} onPress={() => view(v)} style={styles.viewChip}>
+                          <ThemedText type="smallBold" style={styles.viewChipText}>
+                            View
+                          </ThemedText>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                    <View style={styles.body}>
+                      <ThemedText type="smallBold" numberOfLines={2}>
+                        {v.title}
                       </ThemedText>
-                    ) : null}
-                  </View>
-                ) : null}
-                {kindOf(v) === 'image' ? (
-                  <Image source={{ uri: v.fileUrl }} style={styles.thumb} contentFit="cover" />
-                ) : (
-                  <View style={[styles.thumb, styles.fileThumb]}>
-                    <ThemedText type="smallBold" themeColor="textSecondary">
-                      {kindLabel(v)}
-                    </ThemedText>
-                  </View>
-                )}
-                <View style={styles.body}>
-                  <ThemedText type="smallBold">{v.title}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {`${CATEGORY[v.category]} · ${productName(v.productId)}`}
-                  </ThemedText>
-                </View>
-                {doctorId ? (
-                  <View>
-                    <PrimaryButton label="View" variant="text" accessibilityLabel={`View ${v.title}`} onPress={() => open(v)} />
-                    {locked && canRemove ? <PrimaryButton label="Remove" variant="text" accessibilityLabel={`Remove ${v.title}`} onPress={() => confirmRemove(v)} /> : null}
-                  </View>
-                ) : null}
-              </ThemedView>
-            </Pressable>
-          );
-        })
+                      <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
+                        {`${CATEGORY[v.category]} · ${productName(v.productId)}${locked ? ' · chosen' : ''}`}
+                      </ThemedText>
+                      {locked && canRemove ? <PrimaryButton label="Remove" variant="text" accessibilityLabel={`Remove ${v.title}`} onPress={() => confirmRemove(v)} /> : null}
+                    </View>
+                  </ThemedView>
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
       )}
 
       {doctorId && picked.size > 0 ? <PrimaryButton label={`Submit ${picked.size} visual${picked.size === 1 ? '' : 's'}`} loading={saving} onPress={submit} /> : null}
+
+      {viewing ? (
+        <VisualViewer
+          items={viewing.items}
+          startIndex={viewing.index}
+          onClose={() => setViewing(null)}
+          onOpenFile={(v) => void open(v)}
+          caption={(v) => `${CATEGORY[v.category]} · ${productName(v.productId)}`}
+        />
+      ) : null}
     </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', gap: Spacing.three, borderRadius: Spacing.three, padding: Spacing.two, alignItems: 'center' },
+  // The cells carry the gap as padding (and the grid pulls back by the same), so any number of columns lines up.
+  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -Spacing.one },
+  cell: { padding: Spacing.one },
+  card: { borderRadius: Spacing.three, overflow: 'hidden' },
   locked: { opacity: 0.7 },
-  box: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  thumb: { width: 72, height: 72, borderRadius: Spacing.two },
+  media: { width: '100%', aspectRatio: 16 / 9 },
+  thumb: { width: '100%', height: '100%' },
   fileThumb: { alignItems: 'center', justifyContent: 'center' },
-  body: { flex: 1, gap: Spacing.half },
-  full: { width: '100%', height: 420 },
-  pager: { flexDirection: 'row', justifyContent: 'space-between' },
+  box: { position: 'absolute', top: Spacing.two, left: Spacing.two, width: 26, height: 26, borderRadius: 7, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  boxOff: { backgroundColor: 'rgba(0,0,0,0.25)' },
+  viewChip: { position: 'absolute', right: Spacing.two, bottom: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.one, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.55)' },
+  viewChipText: { color: '#fff' },
+  body: { padding: Spacing.three, gap: Spacing.half },
 });

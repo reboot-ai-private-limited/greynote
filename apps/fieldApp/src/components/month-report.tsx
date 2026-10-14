@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Spacing, type Accent } from '@/constants/theme';
 import { getStatement, STATUS_TEXT as EXPENSE_STATUS, type ExpenseMonthStatus, type ExpenseStatement } from '@/lib/expense-months';
-import { listOrders, type OrderView } from '@/lib/marketing';
+import { listOrders, orderValue, type OrderView } from '@/lib/marketing';
 import { formatRupees } from '@/lib/money';
 import { getEmployeeSalesReport, type EmployeeSalesReport } from '@/lib/sales';
 import { useSessionUser } from '@/lib/session';
@@ -31,18 +31,18 @@ export function MonthReport({ month, year }: { month: string; year: number }) {
   const t = sales.data?.totals;
   const mine = (orders.data ?? []).filter((o) => o.orderDate.startsWith(month) && (!me || o.userId === me.id));
   const distributor = mine.filter((o) => o.outlet.type === 'DISTRIBUTOR');
-  const placedValue = distributor.filter((o) => o.status !== 'CANCELLED').reduce((s, o) => s + o.totalAmountPaise, 0);
+  const placedValue = distributor.filter((o) => o.status !== 'CANCELLED').reduce((s, o) => s + orderValue(o), 0);
 
   return (
     <View style={styles.stack}>
-      <CardSection icon={sym('target', 'track_changes')} accent="red" title={`Secondary vs target · ${prettyMonth(month)}`}>
+      <CardSection icon={sym('target', 'track_changes')} accent="red" title={`Achievement vs target · ${prettyMonth(month)}`}>
         {sales.error ? <Notice tone="danger">{sales.error}</Notice> : null}
         {sales.loading && !t ? <ThemedText type="small" themeColor="textSecondary">Loading…</ThemedText> : null}
         {t ? (
           <>
             <ThemedText type="small">{`Target ${formatRupees(t.targetPaise)} · Achieved ${formatRupees(t.secondaryPaise)}${t.achievementPercent === null ? '' : ` · ${t.achievementPercent}%`}`}</ThemedText>
             {t.targetPaise > 0 ? <Meter value={t.secondaryPaise} total={t.targetPaise} accent={t.achievementPercent !== null && t.achievementPercent >= 100 ? 'green' : 'amber'} /> : <ThemedText type="small" themeColor="textSecondary">No target is set for this month.</ThemedText>}
-            <ThemedText type="small" themeColor="textSecondary">Only secondary your manager approved counts.</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">Counted from your distributors’ stock, at PTS. It shows 0 until their stock is counted.</ThemedText>
             <PrimaryButton label="Open targets" variant="text" onPress={() => router.push('/targets')} />
           </>
         ) : null}

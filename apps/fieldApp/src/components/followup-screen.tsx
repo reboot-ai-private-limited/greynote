@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { FormField } from '@/components/form-field';
 import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
@@ -11,6 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
 import { captureLocation } from '@/lib/location';
@@ -22,6 +24,8 @@ import type { FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } fro
 type Subject = 'DOCTOR' | 'CHEMIST';
 
 const MAX_REMARKS = 1000;
+/** The followup form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
+const FIELD_ORDER = ['outlet', 'remarks'];
 
 const STATUS_TEXT: Record<OutboxRecord['status'], string> = {
   DRAFT: 'Saved on this phone',
@@ -55,6 +59,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'info'; text: string } | null>(null);
+  const fe = useFormErrors(FIELD_ORDER);
 
   const plan = planning.data?.dailyPlans.find((p) => p.planDate === gate.today) ?? null;
   const fieldDay = plan ? isFieldDay(plan.workingType) : true;
@@ -83,6 +88,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
 
   const start = (record: OutboxRecord | 'new') => {
     setMsg(null);
+    fe.clearAll();
     if (record === 'new') {
       setOutletId(null);
       setRemarks('');
@@ -94,21 +100,24 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
   };
 
   const save = async () => {
-    if (!outletId) {
-      setMsg({ tone: 'danger', text: `Choose the ${noun}.` });
+    const problems: Record<string, string> = {};
+    if (!outletId) problems.outlet = `Choose the ${noun}.`;
+    if (!remarks.trim()) problems.remarks = 'Write what the followup is about.';
+    if (!outletId || !remarks.trim()) {
+      setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
+      fe.fail(problems);
       return;
     }
-    if (!remarks.trim()) {
-      setMsg({ tone: 'danger', text: 'Write what the followup is about.' });
-      return;
-    }
+    fe.clearAll();
     setBusy(true);
     setMsg({ tone: 'info', text: 'Getting your location…' });
     try {
       const fix = await captureLocation();
       const away = await notAtLocationReason(byId.get(outletId)?.location ?? null, fix, noun);
       if (away) {
-        setMsg({ tone: 'danger', text: away });
+        // Not at the place: the doctor or chemist field is the one to look at.
+        setMsg({ tone: 'danger', text: 'The followup was not saved.' });
+        fe.fail({ outlet: away });
         return;
       }
       const payload: FollowupPayload = {
@@ -175,11 +184,21 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
         footer={
           <View style={styles.actionsCol}>
             <PrimaryButton label="Save followup" loading={busy} onPress={save} />
-            <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => setEditing(null)} />
+            <PrimaryButton
+              label="Cancel"
+              variant="text"
+              disabled={busy}
+              onPress={() => {
+                setEditing(null);
+                setMsg(null);
+                fe.clearAll();
+              }}
+            />
           </View>
         }>
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
         <CardSection icon={isDoctor ? sym('stethoscope', 'medical_services') : sym('cross.case', 'local_pharmacy')} accent={isDoctor ? 'blue' : 'teal'} title={isDoctor ? 'Doctor' : 'Chemist'}>
+        <FormField form={fe} name="outlet">
         <OutletPicker
           label={isDoctor ? 'Doctor' : 'Chemist'}
           options={outlets.map((o) => ({
@@ -191,10 +210,12 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
           onChange={(id) => {
             setOutletId(id);
             setMsg(null);
+            fe.clear('outlet');
           }}
           disabled={busy}
           emptyText={`No ${noun}s yet. Connect to the internet once so your list can load.`}
         />
+        </FormField>
         {picked && notInPlan(picked) ? (
           <Notice tone="warning" title="Not in your plan">Not in today’s plan: the followup is still saved, and marked that way for your manager.</Notice>
         ) : null}
@@ -206,18 +227,22 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
         </ThemedText>
         </CardSection>
         <CardSection icon={sym('text.bubble', 'chat')} accent="teal" title="Remarks">
-          <TextField
-            label="What needs following up?"
-            value={remarks}
-            onChangeText={(t) => {
-              setRemarks(t);
-              setMsg(null);
-            }}
-            multiline
-            maxLength={MAX_REMARKS}
-            editable={!busy}
-            placeholder="What needs following up?"
-          />
+          <FormField form={fe} name="remarks" outline={false}>
+            <TextField
+              label="What needs following up?"
+              value={remarks}
+              onChangeText={(t) => {
+                setRemarks(t);
+                setMsg(null);
+                fe.clear('remarks');
+              }}
+              error={fe.errors.remarks}
+              multiline
+              maxLength={MAX_REMARKS}
+              editable={!busy}
+              placeholder="What needs following up?"
+            />
+          </FormField>
         </CardSection>
       </ScreenShell>
     );

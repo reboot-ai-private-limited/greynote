@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MaxContentWidth, Spacing, WideContentWidth } from '@/constants/theme';
+import { ScrollAreaContext } from '@/hooks/use-form-errors';
 import { useTheme } from '@/hooks/use-theme';
 
 import { PrimaryButton } from './primary-button';
@@ -30,11 +31,21 @@ type Props = {
 export function ScreenShell({ title, children, onRefresh, refreshing = false, subtitle, wide, footer }: Props) {
   const theme = useTheme();
   const maxWidth = wide ? WideContentWidth : MaxContentWidth;
+  const scrollRef = useRef<ScrollView>(null);
+  const offset = useRef(0);
+  const frameRef = useRef<View>(null);
+  const [area] = useState(() => ({ ref: scrollRef, frame: frameRef, offset }));
   return (
     <ThemedView style={styles.flex}>
       <SafeAreaView style={styles.flex}>
         <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+          <View ref={frameRef} collapsable={false} style={styles.flex}>
           <ScrollView
+            ref={scrollRef}
+            onScroll={(e) => {
+              offset.current = e.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={32}
             contentContainerStyle={[styles.content, { maxWidth }]}
             keyboardShouldPersistTaps="handled"
             refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> : undefined}>
@@ -51,8 +62,9 @@ export function ScreenShell({ title, children, onRefresh, refreshing = false, su
               </View>
               <PrimaryButton label="Back" variant="text" onPress={() => router.back()} />
             </View>
-            {children}
+            <ScrollAreaContext.Provider value={area}>{children}</ScrollAreaContext.Provider>
           </ScrollView>
+          </View>
           {footer ? (
             <View style={[styles.footer, { borderTopColor: theme.border, backgroundColor: theme.background }]}>
               <View style={[styles.footerInner, { maxWidth }]}>{footer}</View>

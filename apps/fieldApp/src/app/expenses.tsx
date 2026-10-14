@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { DateStepper } from '@/components/date-stepper';
+import { FormField } from '@/components/form-field';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
@@ -12,6 +13,7 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { CardSection, InfoCard, Pill, StatusBanner, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
   STATUS_TEXT,
@@ -41,7 +43,9 @@ import { useCachedFetch } from '@/offline/cached-fetch';
 import type { ConfigSnapshot } from '@/types/sync';
 import { formatWhen, monthOf, nowMs, prettyDay, prettyMonth } from '@/offline/day';
 
-const errorText = (err: unknown) => (err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.');
+/** The add-expense form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
+const FIELD_ORDER = ['amount', 'remarks'];
+const errorText =(err: unknown) => (err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.');
 
 type Msg = { tone: 'danger' | 'success' | 'info'; text: string };
 /** `existing` are receipts the server already has (removing one is immediate); `files` are picked and go up when you save. */
@@ -88,6 +92,7 @@ export default function ExpensesScreen() {
   const [form, setForm] = useState<Form | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
+  const fe = useFormErrors(FIELD_ORDER);
 
   // Why the manager sent a month back, kept with the request it belongs to.
   const [reason, setReason] = useState<{ key: string; text: string | null } | null>(null);
@@ -138,9 +143,15 @@ export default function ExpensesScreen() {
   const save = async () => {
     if (!form) return;
     const amountPaise = rupeesToPaise(form.amount);
-    if (amountPaise === null) return setMsg({ tone: 'danger', text: 'Enter the amount in rupees, more than zero, with at most two decimals (for example 250 or 250.50).' });
     const remarks = form.remarks.trim();
-    if (remarks === '') return setMsg({ tone: 'danger', text: 'Say what the expense was for.' });
+    const problems: Record<string, string> = {};
+    if (amountPaise === null) problems.amount = 'Enter the amount in rupees, more than zero, with at most two decimals (for example 250 or 250.50).';
+    if (remarks === '') problems.remarks = 'Say what the expense was for.';
+    if (amountPaise === null || remarks === '') {
+      setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
+      return fe.fail(problems);
+    }
+    fe.clearAll();
     setBusy(true);
     const body = { reportDate: form.date, amountPaise, remarks };
     try {
@@ -214,28 +225,36 @@ export default function ExpensesScreen() {
         <Notice tone="info">TA and DA are worked out for you from your approved reports — don’t enter them here.</Notice>
         <CardSection icon={sym('indianrupeesign.circle', 'payments')} accent="green" title="Expense">
           <DateStepper label="Date" value={form.date} onChange={(date) => date >= firstOf(month) && date <= lastOf(month) && date <= today && setForm({ ...form, date })} min={firstOf(month)} disabled={busy} />
-          <TextField
-            label="Amount (₹)"
-            value={form.amount}
-            onChangeText={(t) => {
-              setForm({ ...form, amount: t.replace(/[^0-9.]/g, '') });
-              setMsg(null);
-            }}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-            editable={!busy}
-          />
-          <TextField
-            label="Reason — what was it for?"
-            value={form.remarks}
-            onChangeText={(remarks) => {
-              setForm({ ...form, remarks });
-              setMsg(null);
-            }}
-            multiline
-            maxLength={1000}
-            editable={!busy}
-          />
+          <FormField form={fe} name="amount" outline={false}>
+            <TextField
+              label="Amount (₹)"
+              value={form.amount}
+              onChangeText={(t) => {
+                setForm({ ...form, amount: t.replace(/[^0-9.]/g, '') });
+                setMsg(null);
+                fe.clear('amount');
+              }}
+              error={fe.errors.amount}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              editable={!busy}
+            />
+          </FormField>
+          <FormField form={fe} name="remarks" outline={false}>
+            <TextField
+              label="Reason — what was it for?"
+              value={form.remarks}
+              onChangeText={(remarks) => {
+                setForm({ ...form, remarks });
+                setMsg(null);
+                fe.clear('remarks');
+              }}
+              error={fe.errors.remarks}
+              multiline
+              maxLength={1000}
+              editable={!busy}
+            />
+          </FormField>
         </CardSection>
         <CardSection icon={sym('paperclip', 'attach_file')} accent="amber" title="Receipts (optional)">
           <ThemedText type="small" themeColor="textSecondary">{`Up to ${MAX_PROOF_FILES} files, PDF, JPG or PNG, 5 MB each. Your approver can open them.`}</ThemedText>

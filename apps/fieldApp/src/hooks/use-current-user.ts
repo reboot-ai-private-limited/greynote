@@ -13,11 +13,13 @@ export type CurrentUser = {
   name: string;
   employeeCode: string;
   designation: string;
+  /** The profile picture's address, or null when the employee has none. */
+  photoUrl: string | null;
   /** ASM/RSM/ZSM/NSM — anyone with direct reports. Shows the Team tab (PRD §6.1, §7.1). */
   isManager: boolean;
 };
 
-const SIGNED_OUT: CurrentUser = { name: '', employeeCode: '', designation: '', isManager: false };
+const SIGNED_OUT: CurrentUser = { name: '', employeeCode: '', designation: '', photoUrl: null, isManager: false };
 
 export function useCurrentUser(): CurrentUser {
   const user = useSessionUser();
@@ -27,6 +29,7 @@ export function useCurrentUser(): CurrentUser {
     name: user.name,
     employeeCode: user.employeeCode,
     designation: user.role,
+    photoUrl: user.photoUrl ?? null,
     isManager,
   };
 }
