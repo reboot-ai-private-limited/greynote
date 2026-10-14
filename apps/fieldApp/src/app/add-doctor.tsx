@@ -3,6 +3,7 @@ import { Linking, StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { DateField, EMPTY_PARTS, isoFromParts, partsFromIso, type DateParts } from '@/components/date-field';
+import { FormField } from '@/components/form-field';
 import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
@@ -13,6 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { ADDED_EDITABLE, editAddedDoctor, listAddedDoctors, type AddedDoctor } from '@/lib/added-doctors';
 import { captureLocation } from '@/lib/location';
@@ -43,7 +45,9 @@ const APPROVAL_TEXT: Record<string, string> = {
   REOPENED: 'Reopened by Admin — change it and send it again',
 };
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** The form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
+const FIELD_ORDER = ['route', 'name', 'address', 'specialty', 'qualification', 'phone', 'email', 'birth', 'anniversary'];
+const EMAIL =/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** 10 to 15 digits, with an optional leading `+` (spaces and dashes are stripped before checking). */
 const PHONE = /^\+?\d{10,15}$/;
 const cleanPhone = (s: string) => s.replace(/[\s-]/g, '');
@@ -90,6 +94,7 @@ export default function AddDoctorScreen() {
   const [frequency, setFrequency] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
+  const form = useFormErrors(FIELD_ORDER);
 
   const routes = useMemo(() => territory.data?.routes ?? [], [territory.data]);
   const specialties = master.data?.specialties ?? [];
@@ -131,7 +136,8 @@ export default function AddDoctorScreen() {
   const start = (t: Target) => {
     setMsg(null);
     if (t === 'new') {
-      setRouteId(routes[0]?.id ?? null);
+      // No route is pre-picked unless there is only one: a doctor must not land on the wrong route unnoticed.
+      setRouteId(routes.length === 1 ? routes[0]!.id : null);
       setName('');
       setAddress('');
       setSpecialty(null);
@@ -161,17 +167,23 @@ export default function AddDoctorScreen() {
   };
 
   const save = async () => {
-    if (!routeId) return setMsg({ tone: 'danger', text: 'Choose the route this doctor is on.' });
-    if (!name.trim()) return setMsg({ tone: 'danger', text: 'Enter the doctor’s name.' });
-    if (!address.trim()) return setMsg({ tone: 'danger', text: 'Enter the doctor’s address.' });
-    if (!specialty) return setMsg({ tone: 'danger', text: 'Choose the speciality.' });
-    if (!qualification.trim()) return setMsg({ tone: 'danger', text: 'Enter the qualification.' });
-    if (email.trim() && !EMAIL.test(email.trim())) return setMsg({ tone: 'danger', text: 'That email doesn’t look right.' });
-    if (phone.trim() && !PHONE.test(cleanPhone(phone))) return setMsg({ tone: 'danger', text: 'Enter a phone number of 10 to 15 digits.' });
     const dob = isoFromParts(birth, today);
-    if (dob.error) return setMsg({ tone: 'danger', text: `Date of birth: ${dob.error}` });
     const wedding = isoFromParts(anniversary, today);
-    if (wedding.error) return setMsg({ tone: 'danger', text: `Anniversary: ${wedding.error}` });
+    const problems: Record<string, string> = {};
+    if (!routeId) problems.route = 'Choose the route this doctor is on.';
+    if (!name.trim()) problems.name = 'Enter the doctor’s name.';
+    if (!address.trim()) problems.address = 'Enter the doctor’s address.';
+    if (!specialty) problems.specialty = 'Choose the speciality.';
+    if (!qualification.trim()) problems.qualification = 'Enter the qualification.';
+    if (phone.trim() && !PHONE.test(cleanPhone(phone))) problems.phone = 'Enter a phone number of 10 to 15 digits.';
+    if (email.trim() && !EMAIL.test(email.trim())) problems.email = 'That email doesn’t look right.';
+    if (dob.error) problems.birth = dob.error;
+    if (wedding.error) problems.anniversary = wedding.error;
+    if (Object.keys(problems).length > 0 || !routeId || !specialty) {
+      setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
+      return form.fail(problems);
+    }
+    form.clearAll();
     if (target && typeof target === 'object' && 'server' in target && !online) {
       return setMsg({ tone: 'info', text: 'You’re offline. Connect to the internet to send this again.' });
     }
@@ -283,44 +295,132 @@ export default function AddDoctorScreen() {
               Connect to the internet once so your routes can load.
             </ThemedText>
           ) : (
-            <ChoiceChips options={routes.map((r) => ({ value: r.id, label: r.name }))} value={routeId} onChange={setRouteId} disabled={busy} />
+            <FormField form={form} name="route">
+              <OutletPicker
+                label="Route"
+                options={[...routes].sort((a, b) => a.name.localeCompare(b.name)).map((r) => ({ id: r.id, name: r.name, subtitle: r.hqName }))}
+                value={routeId}
+                onChange={(v) => {
+                  setRouteId(v);
+                  form.clear('route');
+                }}
+                disabled={busy}
+                emptyText="Connect to the internet once so your routes can load."
+              />
+            </FormField>
           )}
         </CardSection>
         <CardSection icon={sym('stethoscope', 'medical_services')} accent="teal" title="Doctor">
-          <TextField label="Name" value={name} onChangeText={setName} editable={!busy} maxLength={150} />
-          <TextField label="Address" value={address} onChangeText={setAddress} multiline editable={!busy} maxLength={500} />
-          <OutletPicker
-            label="Speciality"
-            options={specialties.map((s) => ({ id: s, name: s }))}
-            value={specialty}
-            onChange={setSpecialty}
-            disabled={busy}
-            emptyText="Connect to the internet once so the speciality list can load."
-          />
-          <TextField label="Qualification" value={qualification} onChangeText={setQualification} editable={!busy} maxLength={150} />
+          <FormField form={form} name="name" outline={false}>
+            <TextField
+              label="Name"
+              value={name}
+              onChangeText={(v) => {
+                setName(v);
+                form.clear('name');
+              }}
+              error={form.errors.name}
+              editable={!busy}
+              maxLength={150}
+            />
+          </FormField>
+          <FormField form={form} name="address" outline={false}>
+            <TextField
+              label="Address"
+              value={address}
+              onChangeText={(v) => {
+                setAddress(v);
+                form.clear('address');
+              }}
+              error={form.errors.address}
+              multiline
+              editable={!busy}
+              maxLength={500}
+            />
+          </FormField>
+          <FormField form={form} name="specialty">
+            <OutletPicker
+              label="Speciality"
+              options={specialties.map((s) => ({ id: s, name: s }))}
+              value={specialty}
+              onChange={(v) => {
+                setSpecialty(v);
+                form.clear('specialty');
+              }}
+              disabled={busy}
+              emptyText="Connect to the internet once so the speciality list can load."
+            />
+          </FormField>
+          <FormField form={form} name="qualification" outline={false}>
+            <TextField
+              label="Qualification"
+              value={qualification}
+              onChangeText={(v) => {
+                setQualification(v);
+                form.clear('qualification');
+              }}
+              error={form.errors.qualification}
+              editable={!busy}
+              maxLength={150}
+            />
+          </FormField>
           <TextField label="Clinic or hospital (optional)" value={clinicName} onChangeText={setClinicName} editable={!busy} maxLength={150} />
         </CardSection>
         <CardSection icon={sym('phone', 'call')} accent="green" title="Contact (optional)">
-          <TextField
-            label="Phone (optional)"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            placeholder="10 to 15 digits"
-            editable={!busy}
-            maxLength={20}
-          />
-          <TextField
-            label="Email (optional)"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!busy}
-          />
-          <DateField label="Date of birth (optional)" value={birth} onChange={setBirth} disabled={busy} />
-          <DateField label="Anniversary (optional)" value={anniversary} onChange={setAnniversary} disabled={busy} />
+          <FormField form={form} name="phone" outline={false}>
+            <TextField
+              label="Phone (optional)"
+              value={phone}
+              onChangeText={(v) => {
+                setPhone(v);
+                form.clear('phone');
+              }}
+              error={form.errors.phone}
+              keyboardType="phone-pad"
+              placeholder="10 to 15 digits"
+              editable={!busy}
+              maxLength={20}
+            />
+          </FormField>
+          <FormField form={form} name="email" outline={false}>
+            <TextField
+              label="Email (optional)"
+              value={email}
+              onChangeText={(v) => {
+                setEmail(v);
+                form.clear('email');
+              }}
+              error={form.errors.email}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!busy}
+            />
+          </FormField>
+          <FormField form={form} name="birth" outline={false}>
+            <DateField
+              label="Date of birth (optional)"
+              value={birth}
+              onChange={(v) => {
+                setBirth(v);
+                form.clear('birth');
+              }}
+              error={form.errors.birth}
+              disabled={busy}
+            />
+          </FormField>
+          <FormField form={form} name="anniversary" outline={false}>
+            <DateField
+              label="Anniversary (optional)"
+              value={anniversary}
+              onChange={(v) => {
+                setAnniversary(v);
+                form.clear('anniversary');
+              }}
+              error={form.errors.anniversary}
+              disabled={busy}
+            />
+          </FormField>
         </CardSection>
         <CardSection icon={sym('repeat', 'repeat')} accent="purple" title="Visits a month (optional)">
           <ThemedText type="small" themeColor="textSecondary">

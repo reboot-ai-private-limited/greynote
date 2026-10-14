@@ -96,6 +96,7 @@ export default function MonthlyPlanScreen() {
   const [entries, setEntries] = useState<Entries>({});
   const [editing, setEditing] = useState<Editing>(null);
   const [sheet, setSheet] = useState<PlanDay>(EMPTY_DAY);
+  const [sheetErrors, setSheetErrors] = useState<{ routes?: string; returnDate?: string }>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
   // What the server said, kept with the plan it belongs to: another month or plan reads as "not loaded yet".
@@ -197,19 +198,21 @@ export default function MonthlyPlanScreen() {
 
   function openDay(date: string) {
     setSheet(entries[date] ?? EMPTY_DAY);
+    setSheetErrors({});
     setEditing({ date });
   }
 
-  function validDay(day: PlanDay, date?: string): string | null {
-    if (isFieldDay(day.workingType) && day.routeIds.length === 0) return `Pick at least one route for a ${workingTypeLabel(day.workingType)} day.`;
+  /** What is wrong with the day being edited, and which field it belongs to (null when it is fine). */
+  function validDay(day: PlanDay, date?: string): { field: 'routes' | 'returnDate'; text: string } | null {
+    if (isFieldDay(day.workingType) && day.routeIds.length === 0) return { field: 'routes', text: `Pick at least one route for a ${workingTypeLabel(day.workingType)} day.` };
     if (day.returnDate && date) {
       const hasOut = (territory.data?.routes ?? []).some((r) => r.routeType === 'OUT_STATION' && day.routeIds.includes(r.id));
-      if (!hasOut) return 'A trip needs at least one out-station route. Add one, or clear the return date.';
-      if (day.returnDate <= date) return 'The return date must be after the day you leave.';
-      if (day.returnDate.slice(0, 7) > addMonths(date.slice(0, 7), 1)) return 'A trip can’t return later than next month.';
+      if (!hasOut) return { field: 'routes', text: 'A trip needs at least one out-station route. Add one, or clear the return date.' };
+      if (day.returnDate <= date) return { field: 'returnDate', text: 'The return date must be after the day you leave.' };
+      if (day.returnDate.slice(0, 7) > addMonths(date.slice(0, 7), 1)) return { field: 'returnDate', text: 'A trip can’t return later than next month.' };
       // A trip can't run over another planned day of this month.
       const clash = Object.keys(entries).find((d) => d > date && d <= day.returnDate! && !isTripDay(entries[d]?.dayKind));
-      if (clash) return `${prettyDay(clash)} is already planned. Clear it, or choose an earlier return date.`;
+      if (clash) return { field: 'returnDate', text: `${prettyDay(clash)} is already planned. Clear it, or choose an earlier return date.` };
     }
     return null;
   }
@@ -217,9 +220,10 @@ export default function MonthlyPlanScreen() {
   function applySheet() {
     const p = validDay(sheet, editing && editing !== 'ALL' ? editing.date : undefined);
     if (p) {
-      Alert.alert('Almost there', p);
+      setSheetErrors({ [p.field]: p.text });
       return;
     }
+    setSheetErrors({});
     if (editing === 'ALL') {
       // One plan for every working day: no trips (a trip is planned from its first day), and a trip already planned stays as it is.
       const plain: PlanDay = { ...sheet, returnDate: null, dayKind: 'NORMAL' };
@@ -324,7 +328,7 @@ export default function MonthlyPlanScreen() {
       <Pressable
         disabled={busy}
         accessibilityRole="button"
-        onPress={() => { setSheet(EMPTY_DAY); setEditing('ALL'); }}
+        onPress={() => { setSheet(EMPTY_DAY); setSheetErrors({}); setEditing('ALL'); }}
         style={[styles.footerButton, styles.outlined, { borderColor: theme.primary }, busy && styles.dim]}>
         <ThemedText type="smallBold" themeColor="primary" numberOfLines={2} style={styles.footerLabel}>
           {isTablet ? 'Fill every working day' : 'Fill all days'}
@@ -456,7 +460,15 @@ export default function MonthlyPlanScreen() {
                 </>
               ) : (
                 <>
-                  <PlanDayForm value={sheet} onChange={setSheet} date={editing && editing !== 'ALL' ? editing.date : undefined} />
+                  <PlanDayForm
+                    value={sheet}
+                    onChange={(next) => {
+                      setSheet(next);
+                      setSheetErrors({});
+                    }}
+                    errors={sheetErrors}
+                    date={editing && editing !== 'ALL' ? editing.date : undefined}
+                  />
                   <PrimaryButton label="Done" onPress={applySheet} />
                   {editing && editing !== 'ALL' && entries[editing.date] ? (
                     <PrimaryButton label="Clear this day" variant="text" onPress={clearDay} />

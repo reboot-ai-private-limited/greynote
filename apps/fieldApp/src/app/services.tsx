@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
+import { FormField } from '@/components/form-field';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
@@ -11,6 +12,7 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { CardSection, IconChip, InfoCard, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { withdrawRequest } from '@/lib/marketing';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
@@ -44,7 +46,9 @@ type ServiceRow = ServiceView;
 type ServicePayload ={ doctorId: string; serviceType: DoctorServiceType; amountPaise: number; remarks: string | null };
 type Msg = { tone: 'danger' | 'success' | 'info'; text: string };
 
-const errorText = (err: unknown) =>
+/** The request form's fields top to bottom, so a failed send scrolls to the first one with a problem. */
+const FIELD_ORDER = ['doctor', 'amount'];
+const errorText =(err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError || err instanceof Error ? err.message : 'Something went wrong. Please try again.';
 
 /**
@@ -65,6 +69,7 @@ export default function ServicesScreen() {
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<Msg | null>(null);
+  const fe = useFormErrors(FIELD_ORDER);
   const [reasons, setReasons] = useState<Record<string, string>>({});
 
   const doctors = master.data?.doctors ?? [];
@@ -103,8 +108,14 @@ export default function ServicesScreen() {
 
   const save = async () => {
     const amountPaise = rupeesToPaise(amount);
-    if (!doctorId) return setMsg({ tone: 'danger', text: 'Choose the doctor.' });
-    if (amountPaise === null) return setMsg({ tone: 'danger', text: 'Enter the amount in rupees, more than zero, with at most two decimals.' });
+    const problems: Record<string, string> = {};
+    if (!doctorId) problems.doctor = 'Choose the doctor.';
+    if (amountPaise === null) problems.amount = 'Enter the amount in rupees, more than zero, with at most two decimals.';
+    if (!doctorId || amountPaise === null) {
+      setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
+      return fe.fail(problems);
+    }
+    fe.clearAll();
     const payload: ServicePayload = { doctorId, serviceType: type, amountPaise, remarks: remarks.trim() || null };
     setBusy('save');
     try {
@@ -184,28 +195,37 @@ export default function ServicesScreen() {
         }>
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
         <CardSection icon={sym('stethoscope', 'medical_services')} accent="indigo" title="Doctor">
-          <OutletPicker
-            label="Doctor"
-            options={doctors.map((d) => ({ id: d.id, name: d.name, subtitle: d.address }))}
-            value={doctorId}
-            onChange={setDoctorId}
-            disabled={busy !== null}
-            emptyText="No doctors are assigned to you yet."
-          />
+          <FormField form={fe} name="doctor">
+            <OutletPicker
+              label="Doctor"
+              options={[...doctors].sort((a, b) => a.name.localeCompare(b.name)).map((d) => ({ id: d.id, name: d.name, subtitle: d.address }))}
+              value={doctorId}
+              onChange={(id) => {
+                setDoctorId(id);
+                fe.clear('doctor');
+              }}
+              disabled={busy !== null}
+              emptyText="No doctors are assigned to you yet."
+            />
+          </FormField>
         </CardSection>
         <CardSection icon={sym('briefcase', 'work')} accent="purple" title="Service">
           <ChoiceChips options={TYPES} value={type} onChange={setType} disabled={busy !== null} />
-          <TextField
-            label="Amount (₹)"
-            value={amount}
-            onChangeText={(t) => {
-              setAmount(t.replace(/[^0-9.]/g, ''));
-              setMsg(null);
-            }}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-            editable={busy === null}
-          />
+          <FormField form={fe} name="amount" outline={false}>
+            <TextField
+              label="Amount (₹)"
+              value={amount}
+              onChangeText={(t) => {
+                setAmount(t.replace(/[^0-9.]/g, ''));
+                setMsg(null);
+                fe.clear('amount');
+              }}
+              error={fe.errors.amount}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              editable={busy === null}
+            />
+          </FormField>
         </CardSection>
         <CardSection icon={sym('text.bubble', 'chat')} accent="teal" title="Remarks">
           <TextField label="Remarks (optional)" value={remarks} onChangeText={setRemarks} multiline maxLength={1000} editable={busy === null} />

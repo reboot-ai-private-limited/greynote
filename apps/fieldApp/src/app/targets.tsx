@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
+import { FormField } from '@/components/form-field';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PillToggle } from '@/components/pill-toggle';
 import { PrimaryButton } from '@/components/primary-button';
@@ -14,6 +15,7 @@ import { ThemedText } from '@/components/themed-text';
 import { CardSection, InfoCard, Meter, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
 import { deleteTarget, setTarget } from '@/lib/marketing';
@@ -27,7 +29,9 @@ import { monthOf, prettyMonth } from '@/offline/day';
 import { useTeam } from '@/offline/team';
 import type { FieldMasterDataSnapshot } from '@/types/sync';
 
-const errorText = (err: unknown) =>
+/** The set-a-target form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
+const FIELD_ORDER = ['who', 'value'];
+const errorText =(err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
 
 type Unit = 'AMOUNT' | 'UNITS';
@@ -76,10 +80,11 @@ export default function TargetsScreen() {
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
+  const fe = useFormErrors(FIELD_ORDER);
 
   const people = [{ id: me?.id ?? '', name: 'Me', subtitle: me?.employeeCode }, ...team.map((c) => ({ id: c.id, name: c.name, subtitle: c.designation ?? c.employeeCode }))];
   const products = master.data?.products ?? [];
-  const productOptions = [{ id: '', name: 'All products' }, ...products.map((p) => ({ id: p.id, name: p.name }))];
+  const productOptions = [{ id: '', name: 'All products' }, ...[...products].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ id: p.id, name: p.name }))];
   // Units only make sense for one product that has a PTR (units × PTR is the amount); anything else is an amount.
   const ptr = products.find((p) => p.id === productId)?.ptrPaise ?? null;
   const canUseUnits = productId !== '' && ptr !== null && ptr > 0;
@@ -88,17 +93,23 @@ export default function TargetsScreen() {
   const worth = effectiveUnit === 'UNITS' && ptr && unitsEntered > 0 ? formatRupees(unitsEntered * ptr) : null;
 
   const save = async () => {
-    if (!who) return setMsg({ tone: 'danger', text: 'Choose who the target is for.' });
     const range = until > month ? { toMonth: until } : {};
-    let amountOrUnits: { targetAmountPaise: number } | { targetQty: number };
+    const problems: Record<string, string> = {};
+    if (!who) problems.who = 'Choose who the target is for.';
+    let amountOrUnits: { targetAmountPaise: number } | { targetQty: number } | null = null;
     if (effectiveUnit === 'UNITS') {
-      if (!Number.isInteger(unitsEntered) || unitsEntered < 1) return setMsg({ tone: 'danger', text: 'Enter the units as a whole number, at least 1.' });
-      amountOrUnits = { targetQty: unitsEntered };
+      if (!Number.isInteger(unitsEntered) || unitsEntered < 1) problems.value = 'Enter the units as a whole number, at least 1.';
+      else amountOrUnits = { targetQty: unitsEntered };
     } else {
       const targetAmountPaise = rupeesToPaise(value);
-      if (targetAmountPaise === null) return setMsg({ tone: 'danger', text: 'Enter the amount in rupees, more than zero.' });
-      amountOrUnits = { targetAmountPaise };
+      if (targetAmountPaise === null) problems.value = 'Enter the amount in rupees, more than zero.';
+      else amountOrUnits = { targetAmountPaise };
     }
+    if (!who || !amountOrUnits) {
+      setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
+      return fe.fail(problems);
+    }
+    fe.clearAll();
     setBusy(true);
     try {
       await setTarget({ userId: who, month, ...range, ...amountOrUnits, productId: productId || null });
@@ -214,20 +225,38 @@ export default function TargetsScreen() {
             accent="red"
             title={until > month ? `Set a target for ${prettyMonth(month)} to ${prettyMonth(until)}` : `Set a target for ${prettyMonth(month)}`}>
             <OutletPicker label="Product" options={productOptions} value={productId} onChange={setProductId} disabled={busy} emptyText="No products yet." />
-            <OutletPicker label="For" options={people} value={who} onChange={setWho} disabled={busy} emptyText="No one to choose." />
+            <FormField form={fe} name="who">
+              <OutletPicker
+                label="For"
+                options={people}
+                value={who}
+                onChange={(id) => {
+                  setWho(id);
+                  fe.clear('who');
+                }}
+                disabled={busy}
+                emptyText="No one to choose."
+              />
+            </FormField>
             <ThemedText type="small" themeColor="textSecondary">
               Until (the same month means just that month):
             </ThemedText>
             <MonthStepper value={until} onChange={setUntil} min={month} max={fy.lastMonth} />
             {canUseUnits ? <PillToggle options={UNITS} value={effectiveUnit} onChange={setUnit} disabled={busy} /> : null}
-            <TextField
-              label={effectiveUnit === 'UNITS' ? 'Target (units)' : 'Target (₹)'}
-              value={value}
-              onChangeText={(t) => setValue(effectiveUnit === 'UNITS' ? t.replace(/[^0-9]/g, '') : t.replace(/[^0-9.]/g, ''))}
-              keyboardType={effectiveUnit === 'UNITS' ? 'number-pad' : 'decimal-pad'}
-              placeholder={effectiveUnit === 'UNITS' ? '0' : '0.00'}
-              editable={!busy}
-            />
+            <FormField form={fe} name="value" outline={false}>
+              <TextField
+                label={effectiveUnit === 'UNITS' ? 'Target (units)' : 'Target (₹)'}
+                value={value}
+                onChangeText={(t) => {
+                  setValue(effectiveUnit === 'UNITS' ? t.replace(/[^0-9]/g, '') : t.replace(/[^0-9.]/g, ''));
+                  fe.clear('value');
+                }}
+                error={fe.errors.value}
+                keyboardType={effectiveUnit === 'UNITS' ? 'number-pad' : 'decimal-pad'}
+                placeholder={effectiveUnit === 'UNITS' ? '0' : '0.00'}
+                editable={!busy}
+              />
+            </FormField>
             {worth ? <ThemedText type="small" themeColor="textSecondary">{`That is ${worth} at the product's retail price.`}</ThemedText> : null}
             {productId === '' ? <ThemedText type="small" themeColor="textSecondary">A target for all products is an amount only.</ThemedText> : null}
             <PrimaryButton label="Save target" loading={busy} onPress={save} />

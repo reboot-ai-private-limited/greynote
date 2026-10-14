@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { FormField } from '@/components/form-field';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { InfoCard, Pill, StatusBanner, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
@@ -51,6 +53,7 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
 
   const lines = sales.data?.lines ?? [];
+  const fe = useFormErrors(lines.map((l) => l.product.id));
   const status = sales.data?.secondaryStatus ?? null;
   const outsideYear = month < fy.firstMonth || month > fy.lastMonth;
   // Pending and approved months are the manager's now; draft, sent-back and untouched months can be changed.
@@ -60,6 +63,7 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
 
   const setValue = (productId: string, field: Typed['field'], text: string) => {
     setMsg(null);
+    fe.clear(productId);
     setTyped({ month, values: { ...edits, [productId]: { field, text: field === 'qty' ? text.replace(/[^0-9]/g, '') : text.replace(/[^0-9.]/g, '') } } });
   };
 
@@ -82,14 +86,25 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
 
   const save = async () => {
     if (!me) return;
+    // Check every typed figure first: a bad amount must be marked, never quietly left out of what is saved.
+    const problems: Record<string, string> = {};
     const toSend = lines.flatMap((l): { productId: string; qty?: number; amountPaise?: number }[] => {
       const t = edits[l.product.id];
       if (!t || t.text === '') return [];
       if (t.field === 'qty') return [{ productId: l.product.id, qty: Number(t.text) }];
       const amountPaise = rupeesToPaise(t.text);
-      return amountPaise === null ? [] : [{ productId: l.product.id, amountPaise }];
+      if (amountPaise === null) {
+        problems[l.product.id] = 'Enter the amount in rupees, more than zero, with at most two decimals.';
+        return [];
+      }
+      return [{ productId: l.product.id, amountPaise }];
     });
+    if (Object.keys(problems).length > 0) {
+      setMsg({ tone: 'danger', text: 'Fix the fields marked in red. Nothing was saved.' });
+      return fe.fail(problems);
+    }
     if (toSend.length === 0) return setMsg({ tone: 'danger', text: 'Enter the units or the amount for at least one product.' });
+    fe.clearAll();
     setBusy('save');
     setMsg(null);
     try {
@@ -164,30 +179,33 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
                   </View>
                   {lineStatus ? <Pill text={SECONDARY_STATUS_TEXT[lineStatus]} accent={STATUS_ACCENT[lineStatus]} /> : null}
                 </View>
-                <View style={styles.pair}>
-                  <View style={styles.grow}>
-                    <TextField
-                      label="Units sold"
-                      value={f.qty}
-                      onChangeText={(t) => setValue(l.product.id, 'qty', t)}
-                      keyboardType="number-pad"
-                      placeholder="0"
-                      editable={busy === null && !readOnly && online}
-                    />
-                  </View>
-                  {l.ptrPaise ? (
+                <FormField form={fe} name={l.product.id} outline={false}>
+                  <View style={styles.pair}>
                     <View style={styles.grow}>
                       <TextField
-                        label="Amount (₹)"
-                        value={f.amount}
-                        onChangeText={(t) => setValue(l.product.id, 'amount', t)}
-                        keyboardType="decimal-pad"
-                        placeholder="0.00"
+                        label="Units sold"
+                        value={f.qty}
+                        onChangeText={(t) => setValue(l.product.id, 'qty', t)}
+                        keyboardType="number-pad"
+                        placeholder="0"
                         editable={busy === null && !readOnly && online}
                       />
                     </View>
-                  ) : null}
-                </View>
+                    {l.ptrPaise ? (
+                      <View style={styles.grow}>
+                        <TextField
+                          label="Amount (₹)"
+                          value={f.amount}
+                          onChangeText={(t) => setValue(l.product.id, 'amount', t)}
+                          error={fe.errors[l.product.id]}
+                          keyboardType="decimal-pad"
+                          placeholder="0.00"
+                          editable={busy === null && !readOnly && online}
+                        />
+                      </View>
+                    ) : null}
+                  </View>
+                </FormField>
               </InfoCard>
             );
           })}

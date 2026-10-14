@@ -9,6 +9,7 @@ import { listStock, type OrderView, type StockRow } from '@/lib/marketing';
 import { formatRupees } from '@/lib/money';
 import { getMyDcrCoverage, getMyDcrYear, getMyTaDaDays, getMyTaDaYear, type TaDaDay } from '@/lib/my-reports';
 import { getRejectionReason, workingTypeLabel, type DailyPlanDetail, type MonthlyPlanDetail } from '@/lib/planning';
+import { getEmployeeSalesReport, type EmployeeSalesReport } from '@/lib/sales';
 import { useSessionUser } from '@/lib/session';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
@@ -17,9 +18,10 @@ import type { ConfigSnapshot, FieldMasterDataSnapshot } from '@/types/sync';
 
 import { Notice } from './notice';
 import { PrimaryButton } from './primary-button';
+import { ReportCards } from './report-cards';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
-import { InfoCard, Pill, RowCard, SummaryStrip, sym } from './ui-cards';
+import { InfoCard, Pill, SummaryStrip } from './ui-cards';
 
 const statusText = (status: string) => STATUS_LABEL[status as ApprovalStatus] ?? (status === 'DRAFT' ? 'Not sent' : status);
 const REPORT_ACCENT: Record<string, Accent> = { APPROVED: 'green', SUBMITTED: 'amber', MANAGER_APPROVED: 'blue', REJECTED: 'red', DRAFT: 'slate', WITHDRAWN: 'slate', REOPENED: 'slate' };
@@ -34,6 +36,15 @@ function Stale({ fetchedAt, stale, error }: { fetchedAt: string | null; stale: b
       {error ? <Notice tone="danger">{error}</Notice> : null}
       {stale && fetchedAt ? <Notice tone="info">{`Showing the copy from ${formatWhen(fetchedAt)}.`}</Notice> : null}
     </>
+  );
+}
+
+/** A small heading above one of a report's tables. */
+function TableTitle({ children }: { children: string }) {
+  return (
+    <ThemedText type="smallBold" style={styles.tableTitle}>
+      {children}
+    </ThemedText>
   );
 }
 
@@ -95,17 +106,19 @@ export function DcrReport({ month, year }: { month: string; year: number }) {
       ) : rows.length === 0 ? (
         <Notice tone="info">{list.data ? 'No daily reports this month.' : 'Connect once to load your reports.'}</Notice>
       ) : (
-        rows.map((r) => (
-          <RowCard
-            key={r.id}
-            icon={sym('doc.text', 'description')}
-            accent={REPORT_ACCENT[r.status] ?? 'slate'}
-            title={prettyDay(r.reportDate)}
-            subtitle="Tap for its calls, followups and expenses"
-            right={<Pill text={statusText(r.status)} accent={REPORT_ACCENT[r.status] ?? 'slate'} />}
-            onPress={() => router.push({ pathname: '/dcr-report/[id]', params: { id: r.id } })}
+        <>
+          <ThemedText type="small" themeColor="textSecondary">
+            Tap a day for its calls, followups and expenses.
+          </ThemedText>
+          <ReportCards
+            rows={rows}
+            rowKey={(r) => r.id}
+            title={(r) => prettyDay(r.reportDate)}
+            right={(r) => <Pill text={statusText(r.status)} accent={REPORT_ACCENT[r.status] ?? 'slate'} />}
+            onRowPress={(r) => router.push({ pathname: '/dcr-report/[id]', params: { id: r.id } })}
+            totals={[{ label: 'Reports this month', value: String(rows.length) }]}
           />
-        ))
+        </>
       )}
     </View>
   );
@@ -116,8 +129,8 @@ export function DcrReport({ month, year }: { month: string; year: number }) {
 const EXPENSE_TYPE: Record<TaDaDay['type'], string> = { TA: 'TA', DA: 'DA', TRAVEL: 'Travel', MEAL: 'Meal', MISC: 'Other', OTHER: 'Other' };
 
 /**
- * Your TA, DA and claims the company has accepted: the month's totals with what is paid and unpaid, then each day. The server
- * adds it all up; the phone only shows it.
+ * Your TA, DA and claims the company has accepted: the month's totals with what is paid and unpaid, then each day as a card. The
+ * server adds up the month and the year; the phone only shows them (and the table's own total is of the rows shown).
  */
 export function TaDaReport({ month, year }: { month: string; year: number }) {
   const yearly = useCachedFetch(`rep-tada-year:${year}`, () => getMyTaDaYear(year));
@@ -151,21 +164,22 @@ export function TaDaReport({ month, year }: { month: string; year: number }) {
       ) : rows.length === 0 ? (
         <Notice tone="info">{days.data ? 'No accepted expenses this month. TA and DA appear once a daily report is approved.' : 'Connect once to load your expenses.'}</Notice>
       ) : (
-        rows.map((r, i) => (
-          <RowCard
-            key={`${r.date}-${r.type}-${i}`}
-            icon={sym('indianrupeesign.circle', 'payments')}
-            accent={r.status === 'PAID' ? 'green' : 'amber'}
-            title={`${prettyDay(r.date)} · ${EXPENSE_TYPE[r.type]}`}
-            subtitle={[r.route?.name, r.remarks].filter(Boolean).join(' · ') || (r.source === 'AUTO' ? 'Worked out by the server' : 'Entered by you')}
-            right={
-              <View>
-                <ThemedText type="smallBold">{formatRupees(r.amountPaise)}</ThemedText>
-                <Pill text={r.status === 'PAID' ? 'Paid' : 'Not paid'} accent={r.status === 'PAID' ? 'green' : 'amber'} />
-              </View>
-            }
-          />
-        ))
+        <ReportCards
+          rows={rows}
+          rowKey={(r, i) => `${r.date}-${r.type}-${i}`}
+          title={(r) => `${prettyDay(r.date)} · ${EXPENSE_TYPE[r.type]}`}
+          right={(r) => <ThemedText type="smallBold">{formatRupees(r.amountPaise)}</ThemedText>}
+          fields={(r) => [
+            { label: 'Payment', value: <Pill text={r.status === 'PAID' ? 'Paid' : 'Not paid yet'} accent={r.status === 'PAID' ? 'green' : 'amber'} /> },
+            { label: 'Route', value: r.route?.name ?? '' },
+            { label: 'Note', value: r.remarks ?? '' },
+            { label: 'Source', value: r.source === 'AUTO' ? 'Worked out by the server' : 'Entered by you' },
+          ]}
+          totals={[
+            { label: 'Lines shown', value: String(rows.length) },
+            { label: 'Total of these lines', value: formatRupees(rows.reduce((n, r) => n + r.amountPaise, 0)) },
+          ]}
+        />
       )}
       {days.data?.truncated ? <Notice tone="info">The list is long and may be cut short. The totals above are complete.</Notice> : null}
     </View>
@@ -215,22 +229,29 @@ export function TpReport({ month, year }: { month: string; year: number }) {
       ) : days.length === 0 ? (
         <Notice tone="info">{daily.data ? 'No daily plans this month.' : 'Connect once to load your plans.'}</Notice>
       ) : (
-        days.map((d) => (
-          <ThemedView key={d.planDate} type="backgroundElement" style={styles.card}>
-            <ThemedText type="smallBold">{`${prettyDay(d.planDate)} · ${workingTypeLabel(d.workingType)}`}</ThemedText>
-            <ThemedText type="small" themeColor={d.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
-              {statusText(d.status)}
-            </ThemedText>
-            {d.remarks ? <ThemedText type="small">{d.remarks}</ThemedText> : null}
-            {d.status === 'REJECTED' && d.approval ? (
-              reasons[d.planDate] ? (
-                <ThemedText type="small">{`Reason: ${reasons[d.planDate]}`}</ThemedText>
-              ) : (
-                <PrimaryButton label="See the reason" variant="text" onPress={() => showReason(d.planDate, d.approval!.requestId)} />
-              )
-            ) : null}
-          </ThemedView>
-        ))
+        <ReportCards
+          rows={days}
+          rowKey={(d) => d.planDate}
+          title={(d) => `${prettyDay(d.planDate)} · ${workingTypeLabel(d.workingType)}`}
+          right={(d) => <Pill text={statusText(d.status)} accent={REPORT_ACCENT[d.status] ?? 'slate'} />}
+          fields={(d) => [
+            { label: 'Remarks', value: d.remarks ?? '' },
+            {
+              label: 'Reason',
+              value:
+                d.status === 'REJECTED' && d.approval ? (
+                  reasons[d.planDate] ? (
+                    reasons[d.planDate]!
+                  ) : (
+                    <PrimaryButton label="See the reason" variant="text" onPress={() => showReason(d.planDate, d.approval!.requestId)} />
+                  )
+                ) : (
+                  ''
+                ),
+            },
+          ]}
+          totals={[{ label: 'Days planned', value: String(days.length) }]}
+        />
       )}
     </View>
   );
@@ -239,17 +260,21 @@ export function TpReport({ month, year }: { month: string; year: number }) {
 /* ─────────────────────────────── Gift & Sales Report ─────────────────────────────── */
 
 type GiftRow = { id: string; doctorName: string; productName: string; amountPaise: number; completedAt: string | null };
+type StatusLine = { status: string; count: number; value: number };
+
+const percent = (value: number | null) => (value === null ? 'No target' : `${value}%`);
 
 /**
- * What you ordered, counted and gave in the month: orders by status, how many of your outlets have a stock count,
- * the gifts you handed over, and the samples given so far (a running total — the phone only knows what is left of
- * each allocation, not when it was given).
+ * What you sold, ordered, counted and gave in the month, as cards: your secondary against target by product, orders by status,
+ * how many of your outlets have a stock count, the gifts you handed over, and the samples given so far (a running total — the phone
+ * only knows what is left of each allocation, not when it was given).
  */
 export function SalesReport({ month, year }: { month: string; year: number }) {
   const me = useSessionUser();
   const config = useCachedSource<ConfigSnapshot>('config');
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const { from, to } = bounds(month);
+  const secondary = useCachedFetch<EmployeeSalesReport>(`rep-sec:${year}:${month}`, () => getEmployeeSalesReport(me?.id ?? '', month, month));
   const orders = useCachedFetch<OrderView[]>(`rep-ord:${year}:${month}`, () => apiGet<OrderView[]>(`/sales/orders?from=${from}&to=${to}`, { auth: true, fy: true }));
   const stock = useCachedFetch<StockRow[]>(`rep-stock:${month}`, () => listStock(month));
   const gifts = useCachedFetch<GiftRow[]>('rep-gifts', () => apiGet<GiftRow[]>('/field-activity/doctor-gifts?status=DONE', { auth: true }));
@@ -258,6 +283,11 @@ export function SalesReport({ month, year }: { month: string; year: number }) {
   const mine = (orders.data ?? []).filter((o) => !me || o.userId === me.id);
   const by = (s: OrderView['status']) => mine.filter((o) => o.status === s);
   const sum = (list: OrderView[]) => list.reduce((t, o) => t + o.totalAmountPaise, 0);
+  const orderLines: StatusLine[] = [
+    { status: 'Placed', count: by('PLACED').length, value: sum(by('PLACED')) },
+    { status: 'Done', count: by('DONE').length, value: sum(by('DONE')) },
+    { status: 'Cancelled', count: by('CANCELLED').length, value: sum(by('CANCELLED')) },
+  ];
 
   const outlets = [...(master.data?.chemists ?? []).map((c) => `CHEMIST:${c.id}`), ...(master.data?.distributors ?? []).map((d) => `DISTRIBUTOR:${d.id}`)];
   const counted = new Set((stock.data ?? []).map((r) => `${r.outlet.type}:${r.outlet.id}`));
@@ -267,60 +297,104 @@ export function SalesReport({ month, year }: { month: string; year: number }) {
 
   const given = new Map<string, number>();
   for (const a of master.data?.sampleAllocations ?? []) given.set(a.productId, (given.get(a.productId) ?? 0) + (a.quantityAllocated - a.quantityRemaining));
-  const samples = [...given.entries()].filter(([, qty]) => qty > 0);
   const productName = (id: string) => master.data?.products.find((p) => p.id === id)?.name ?? 'Product';
+  const samples = [...given.entries()].filter(([, qty]) => qty > 0).map(([id, qty]) => ({ name: productName(id), qty }));
+
+  const sec = secondary.data;
+  const secondaryRows = (sec?.products ?? []).filter((p) => p.secondaryQty > 0 || p.targetPaise > 0 || p.primaryQty > 0);
 
   return (
     <View style={styles.stack}>
+      <Stale fetchedAt={secondary.fetchedAt} stale={secondary.stale} error={secondary.error} />
       <Stale fetchedAt={orders.fetchedAt} stale={orders.stale} error={orders.error} />
 
-      <ThemedView type="backgroundElement" style={styles.card}>
-        <ThemedText type="smallBold">Orders</ThemedText>
-        {orders.loading && !orders.data ? (
+      <TableTitle>{`Secondary sales · ${prettyMonth(month)}`}</TableTitle>
+      {secondary.loading && !sec ? (
+        <Notice tone="info">Loading…</Notice>
+      ) : secondaryRows.length === 0 ? (
+        <Notice tone="info">{sec ? 'No secondary sales, primary or target for this month.' : 'Connect once to load your sales.'}</Notice>
+      ) : (
+        <>
+          <ReportCards
+            rows={secondaryRows}
+            rowKey={(r) => r.product.id}
+            title={(r) => r.product.name}
+            right={(r) => <ThemedText type="smallBold">{percent(r.achievementPercent)}</ThemedText>}
+            fields={(r) => [
+              { label: 'Primary (units)', value: String(r.primaryQty) },
+              { label: 'Secondary (units)', value: String(r.secondaryQty) },
+              { label: 'Secondary value', value: formatRupees(r.secondaryPaise) },
+              { label: 'Target', value: formatRupees(r.targetPaise) },
+            ]}
+            totals={[
+              { label: 'Primary (units)', value: String(secondaryRows.reduce((n, r) => n + r.primaryQty, 0)) },
+              { label: 'Secondary (units)', value: String(secondaryRows.reduce((n, r) => n + r.secondaryQty, 0)) },
+              { label: 'Secondary value', value: formatRupees(sec!.totals.secondaryPaise) },
+              { label: 'Target', value: formatRupees(sec!.totals.targetPaise) },
+              { label: 'Achieved', value: percent(sec!.totals.achievementPercent) },
+            ]}
+          />
           <ThemedText type="small" themeColor="textSecondary">
-            Loading…
+            Only secondary your manager approved counts toward your achievement.
           </ThemedText>
-        ) : (
-          <>
-            <ThemedText type="small">{`Placed ${by('PLACED').length} · ${formatRupees(sum(by('PLACED')))}`}</ThemedText>
-            <ThemedText type="small">{`Done ${by('DONE').length} · ${formatRupees(sum(by('DONE')))}`}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">{`Cancelled ${by('CANCELLED').length}`}</ThemedText>
-            <ThemedText type="smallBold">{`Sales (placed and done): ${formatRupees(sum(by('PLACED')) + sum(by('DONE')))}`}</ThemedText>
-          </>
-        )}
-      </ThemedView>
+        </>
+      )}
+
+      <TableTitle>Orders</TableTitle>
+      {orders.loading && !orders.data ? (
+        <Notice tone="info">Loading…</Notice>
+      ) : (
+        <ReportCards
+          rows={orderLines}
+          rowKey={(r) => r.status}
+          title={(r) => r.status}
+          right={(r) => <ThemedText type="smallBold">{formatRupees(r.value)}</ThemedText>}
+          fields={(r) => [{ label: 'Orders', value: String(r.count) }]}
+          totals={[
+            { label: 'Orders placed and done', value: String(by('PLACED').length + by('DONE').length) },
+            { label: 'Sales (placed and done)', value: formatRupees(sum(by('PLACED')) + sum(by('DONE'))) },
+          ]}
+        />
+      )}
 
       <ThemedView type="backgroundElement" style={styles.card}>
         <ThemedText type="smallBold">Stock counts</ThemedText>
         <ThemedText type="small">{stock.data ? `${countedMine} of ${outlets.length} outlets counted for ${prettyMonth(month)}` : stock.loading ? 'Loading…' : 'Connect once to load the counts.'}</ThemedText>
       </ThemedView>
 
-      <ThemedView type="backgroundElement" style={styles.card}>
-        <ThemedText type="smallBold">Gifts given</ThemedText>
-        {gifts.data ? (
-          <>
-            <ThemedText type="small">{`${giftsThisMonth.length} gift${giftsThisMonth.length === 1 ? '' : 's'} · ${formatRupees(giftsThisMonth.reduce((t, g) => t + g.amountPaise, 0))}`}</ThemedText>
-            {giftsThisMonth.map((g) => (
-              <ThemedText key={g.id} type="small" themeColor="textSecondary">{`${g.productName} — ${g.doctorName}`}</ThemedText>
-            ))}
-          </>
+      <TableTitle>Gifts given</TableTitle>
+      {gifts.data ? (
+        giftsThisMonth.length === 0 ? (
+          <Notice tone="info">No gifts given this month.</Notice>
         ) : (
-          <ThemedText type="small" themeColor="textSecondary">
-            {gifts.loading ? 'Loading…' : 'Connect once to load the gifts.'}
-          </ThemedText>
-        )}
-      </ThemedView>
+          <ReportCards
+            rows={giftsThisMonth}
+            rowKey={(g) => g.id}
+            title={(g) => g.productName}
+            right={(g) => <ThemedText type="smallBold">{formatRupees(g.amountPaise)}</ThemedText>}
+            fields={(g) => [{ label: 'Given to', value: g.doctorName }]}
+            totals={[
+              { label: 'Gifts given', value: String(giftsThisMonth.length) },
+              { label: 'Total value', value: formatRupees(giftsThisMonth.reduce((t, g) => t + g.amountPaise, 0)) },
+            ]}
+          />
+        )
+      ) : (
+        <Notice tone="info">{gifts.loading ? 'Loading…' : 'Connect once to load the gifts.'}</Notice>
+      )}
 
-      <ThemedView type="backgroundElement" style={styles.card}>
-        <ThemedText type="smallBold">Samples given so far</ThemedText>
-        {samples.length === 0 ? (
-          <ThemedText type="small" themeColor="textSecondary">
-            No samples given yet.
-          </ThemedText>
-        ) : (
-          samples.map(([id, qty]) => <ThemedText key={id} type="small">{`${productName(id)} — ${qty}`}</ThemedText>)
-        )}
-      </ThemedView>
+      <TableTitle>Samples given so far</TableTitle>
+      {samples.length === 0 ? (
+        <Notice tone="info">No samples given yet.</Notice>
+      ) : (
+        <ReportCards
+          rows={samples}
+          rowKey={(r) => r.name}
+          title={(r) => r.name}
+          right={(r) => <ThemedText type="smallBold">{`${r.qty} given`}</ThemedText>}
+          totals={[{ label: 'Total samples given', value: String(samples.reduce((n, r) => n + r.qty, 0)) }]}
+        />
+      )}
     </View>
   );
 }
@@ -328,4 +402,5 @@ export function SalesReport({ month, year }: { month: string; year: number }) {
 const styles = StyleSheet.create({
   stack: { gap: Spacing.three },
   card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  tableTitle: { marginTop: Spacing.one },
 });

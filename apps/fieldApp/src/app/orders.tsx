@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
+import { FormField } from '@/components/form-field';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
 import { ProductLinesEditor, type ProductLine } from '@/components/product-lines-editor';
@@ -14,6 +15,7 @@ import { CardSection, IconChip, InfoCard, Pill, StatusBanner, SummaryStrip, sym 
 import { Spacing, type Accent } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { FyBanner } from '@/components/fy-banner';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
 import { cancelOrder, completeOrder, listOrders, type OrderStatus, type OrderView, type OutletType } from '@/lib/marketing';
@@ -56,7 +58,9 @@ const bannerFor = (o: OrderView): { accent: Accent; icon: ReturnType<typeof sym>
   return { accent: 'orange', icon: sym('clock', 'schedule'), title: 'Placed', text: 'Mark it done once the distributor has supplied it.' };
 };
 
-const errorText = (err: unknown) =>
+/** The order form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
+const FIELD_ORDER = ['outlet', 'lines'];
+const errorText =(err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError || err instanceof Error ? err.message : 'Something went wrong. Please try again.';
 
 /**
@@ -88,6 +92,8 @@ export default function OrdersScreen() {
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<Msg | null>(null);
+  const fe = useFormErrors(FIELD_ORDER);
+  const [lineErrors, setLineErrors] = useState<Record<string, (string | undefined)[]>>({});
 
   const today = businessToday(config.data?.settings.BUSINESS_TIMEZONE, new Date(), config.data?.settings.DAY_START_TIME);
   const products = master.data?.products ?? [];
@@ -136,16 +142,28 @@ export default function OrdersScreen() {
   };
 
   const save = async () => {
-    if (!outletId) return setMsg({ tone: 'danger', text: `Choose the ${outletType === 'CHEMIST' ? 'chemist' : 'distributor'}.` });
-    if (lines.length === 0) return setMsg({ tone: 'danger', text: 'Add at least one product.' });
+    const problems: Record<string, string> = {};
+    const rowProblems: Record<string, (string | undefined)[]> = {};
+    if (!outletId) problems.outlet = `Choose the ${outletType === 'CHEMIST' ? 'chemist' : 'distributor'}.`;
+    if (lines.length === 0) problems.lines = 'Add at least one product.';
     const payloadLines: OrderPayload['lines'] = [];
     for (const l of lines) {
       const quantity = Number(l.values[0]);
       const unitPricePaise = rupeesToPaise(l.values[1] ?? '');
-      if (!Number.isInteger(quantity) || quantity < 1) return setMsg({ tone: 'danger', text: `Enter a whole quantity for ${productName(l.productId)}.` });
-      if (unitPricePaise === null) return setMsg({ tone: 'danger', text: `Enter the price for ${productName(l.productId)} in rupees.` });
-      payloadLines.push({ productId: l.productId, quantity, unitPricePaise });
+      const quantityProblem = !Number.isInteger(quantity) || quantity < 1 ? 'Enter a whole quantity.' : undefined;
+      const priceProblem = unitPricePaise === null ? 'Enter the price in rupees.' : undefined;
+      if (quantityProblem || priceProblem) {
+        rowProblems[l.productId] = [quantityProblem, priceProblem];
+        problems.lines = `Check ${productName(l.productId)}: ${quantityProblem ?? priceProblem}`;
+      } else if (unitPricePaise !== null) payloadLines.push({ productId: l.productId, quantity, unitPricePaise });
     }
+    if (!outletId || Object.keys(problems).length > 0) {
+      setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
+      setLineErrors(rowProblems);
+      return fe.fail(problems);
+    }
+    setLineErrors({});
+    fe.clearAll();
     const payload: OrderPayload = { outletType, outletId, orderDate: today, remarks: remarks.trim() || null, lines: payloadLines };
     setBusy('save');
     try {
@@ -236,29 +254,43 @@ export default function OrdersScreen() {
               A chemist order is for information only: it is recorded, not marked done or cancelled.
             </ThemedText>
           ) : null}
-          <OutletPicker
-            label={outletType === 'CHEMIST' ? 'Chemist' : 'Distributor'}
-            options={outlets.map((o) => ({ id: o.id, name: o.name, subtitle: o.address }))}
-            value={outletId}
-            onChange={setOutletId}
-            disabled={busy !== null}
-            emptyText={`No ${outletType === 'CHEMIST' ? 'chemists' : 'distributors'} are on your routes yet.`}
-          />
+          <FormField form={fe} name="outlet">
+            <OutletPicker
+              label={outletType === 'CHEMIST' ? 'Chemist' : 'Distributor'}
+              options={[...outlets].sort((a, b) => a.name.localeCompare(b.name)).map((o) => ({ id: o.id, name: o.name, subtitle: o.address }))}
+              value={outletId}
+              onChange={(id) => {
+                setOutletId(id);
+                fe.clear('outlet');
+              }}
+              disabled={busy !== null}
+              emptyText={`No ${outletType === 'CHEMIST' ? 'chemists' : 'distributors'} are on your routes yet.`}
+            />
+          </FormField>
         </CardSection>
         <CardSection icon={sym('shippingbox', 'inventory_2')} accent="teal" title="Products" count={lines.length || undefined}>
-          <ProductLinesEditor
-            products={products.map((p) => ({ id: p.id, name: p.name, subtitle: p.packSize ?? undefined }))}
-            columns={[{ label: 'Quantity' }, { label: 'Price (₹)', decimal: true }]}
-            lines={lines}
-            onChange={(l) => (setLines(l), setMsg(null))}
-            defaults={(id) => ['', defaultPrice(id, outletType)]}
-            disabled={busy !== null}
-            footer={(l) => {
-              const qty = Number(l.values[0]);
-              const price = rupeesToPaise(l.values[1] ?? '');
-              return qty > 0 && price ? `Amount ${formatRupees(qty * price)}` : null;
-            }}
-          />
+          {/* A row with a problem shows it on its own box; the whole-list outline is for "no products yet". */}
+          <FormField form={fe} name="lines" outline={Object.keys(lineErrors).length === 0}>
+            <ProductLinesEditor
+              products={products.map((p) => ({ id: p.id, name: p.name, subtitle: p.packSize ?? undefined }))}
+              columns={[{ label: 'Quantity' }, { label: 'Price (₹)', decimal: true }]}
+              lines={lines}
+              onChange={(l) => {
+                setLines(l);
+                setMsg(null);
+                setLineErrors({});
+                fe.clear('lines');
+              }}
+              defaults={(id) => ['', defaultPrice(id, outletType)]}
+              disabled={busy !== null}
+              errors={lineErrors}
+              footer={(l) => {
+                const qty = Number(l.values[0]);
+                const price = rupeesToPaise(l.values[1] ?? '');
+                return qty > 0 && price ? `Amount ${formatRupees(qty * price)}` : null;
+              }}
+            />
+          </FormField>
           <View style={styles.spread}>
             <ThemedText type="smallBold">Total</ThemedText>
             <ThemedText type="smallBold">{formatRupees(total)}</ThemedText>

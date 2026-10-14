@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { UserAvatar } from '@/components/user-avatar';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { logout } from '@/lib/auth';
@@ -50,6 +51,11 @@ export default function ProfileScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <ThemedText type="subtitle">Profile</ThemedText>
 
+          <ThemedView type="backgroundElement" style={styles.photo}>
+            <UserAvatar name={user.name} photoUrl={user.photoUrl} size={96} tone="plain" />
+            <ThemedText type="smallBold">{user.name}</ThemedText>
+          </ThemedView>
+
           <ThemedView type="backgroundElement" style={styles.card}>
             <Row label="Name" value={user.name} />
             <Row label="Employee code" value={user.employeeCode} />
@@ -90,6 +96,7 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     gap: Spacing.three,
   },
+  photo: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two, alignItems: 'center' },
   card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },
 });

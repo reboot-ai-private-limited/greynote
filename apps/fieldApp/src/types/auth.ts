@@ -18,6 +18,8 @@ export type SessionUser = {
   designationId: string | null;
   managerId: string | null;
   status: string;
+  /** The profile picture's address; null or missing when there is none (older servers do not send it). */
+  photoUrl?: string | null;
 };
 
 export type LoginResponse = {

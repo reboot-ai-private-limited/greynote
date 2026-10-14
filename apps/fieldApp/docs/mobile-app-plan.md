@@ -72,10 +72,10 @@ Login ─► Device Status
 (tabs)
 ├─ Home
 │   ├─ DCR:        Daily Plan · Monthly Plan · Dr Call · Dr Followup · Chemist Call
-│   │              · Chemist Followup · Add Doctor · Expenses · Leave · Summary & Final Submission
+│   │              · Chemist Followup · Add Doctor · Missed Calls · Summary & Final Submission
 │   ├─ Marketing:  Orders · Monthly Stock · Visuals · Targets · Gifts · Services
 │   ├─ Resources:  → Docs tab
-│   └─ Utility:    Holidays · Forms · Financial-Year switch
+│   └─ Utility:    Expenses · Leave · Inbox · My Requests · Holidays · Financial-Year switch (Expenses and Leave moved here 2026-10-14)
 ├─ Docs      (resource library)
 ├─ Reports   (DCR · Tour Plan · Gift & Sales)
 └─ Team      (managers only: Inbox · Team activity · Request detail)
