@@ -20,7 +20,7 @@ import { formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
-import { useGenerate, usePayrollMonth } from '../hooks/usePayroll';
+import { useGenerate, usePayrollMonth, usePayrollWarnings } from '../hooks/usePayroll';
 import {
   draftRuns,
   endedMonthsInYear,
@@ -36,6 +36,7 @@ import {
 import { FinalizeDialog } from './FinalizeDialog';
 import { GenerateDialog } from './GenerateDialog';
 import { GenerateResultDialog } from './GenerateResultDialog';
+import { PayrollWarnings } from './PayrollWarnings';
 import { PayRunDialog } from './PayRunDialog';
 
 /** One month's salary sheet: generate it, review it, and finalize it to lock it. */
@@ -56,6 +57,7 @@ export function PayrollScreen() {
   const [finalizing, setFinalizing] = useState<PayrollRunDto[] | null>(null);
 
   const sheet = usePayrollMonth(month, month !== '');
+  const warnings = usePayrollWarnings(month, month !== '');
   const runs = sheet.data ?? [];
   const totals = runTotals(runs);
   const state = monthState(runs);
@@ -243,6 +245,7 @@ export function PayrollScreen() {
             ) : null}
           </div>
 
+          <PayrollWarnings warnings={warnings.data} className="mb-6" />
           <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile
               label="Employees"
@@ -303,7 +306,7 @@ export function PayrollScreen() {
         <FinalizeDialog runs={finalizing} month={month} onClose={() => setFinalizing(null)} />
       ) : null}
       {outcomes ? (
-        <GenerateResultDialog outcomes={outcomes} onClose={() => setOutcomes(null)} />
+        <GenerateResultDialog outcomes={outcomes} month={month} onClose={() => setOutcomes(null)} />
       ) : null}
     </>
   );

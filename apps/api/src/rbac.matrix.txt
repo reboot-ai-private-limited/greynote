@@ -93,6 +93,7 @@ GET    /api/payroll  ACCOUNTANT,ADMIN,HR
 GET    /api/payroll/:id  ACCOUNTANT,ADMIN,HR
 GET    /api/payroll/me  FIELD
 GET    /api/payroll/overview  ACCOUNTANT,ADMIN,HR
+GET    /api/payroll/warnings  ACCOUNTANT,ADMIN,HR
 GET    /api/planning/daily  FIELD
 GET    /api/planning/daily/:id  ADMIN,FIELD
 GET    /api/planning/daily/carry-over  FIELD

@@ -46,6 +46,7 @@ export interface EmployeeProfileDoc {
   onProbation?: boolean;
   probationMonths?: number | null;
   esiNumber?: string | null;
+  epfNumber?: string | null;
   hqId?: Types.ObjectId | null;
   zoneId?: Types.ObjectId | null;
   mobileNumber: string | null;
@@ -124,6 +125,7 @@ const employeeProfileSchema = new Schema<EmployeeProfileDoc>({
   onProbation: { type: Boolean, default: false },
   probationMonths: { type: Number, default: null, min: 0, max: 36 },
   esiNumber: { type: String, default: null, match: /^\d{17}$/ },
+  epfNumber: { type: String, default: null, match: /^[A-Z0-9/-]{1,30}$/ },
   hqId: { type: Schema.Types.ObjectId, default: null, ref: 'Hq' },
   zoneId: { type: Schema.Types.ObjectId, default: null, ref: 'Zone' },
   mobileNumber: { type: String, default: null },

@@ -351,6 +351,7 @@ async function main(): Promise<void> {
         totalTaDaPaise: 0,
         reimbursementPaise: 0,
         esiNumber: null,
+        epfNumber: null,
         unpaidLeaveDays: leaveDays,
         leaveDeductionPaise: leaveDeduction,
         absentDays,

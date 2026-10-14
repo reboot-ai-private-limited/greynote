@@ -70,6 +70,10 @@ export function PayslipScreen({ id }: { id: string }) {
                 <dd className="font-medium">{run.esiNumber ?? '—'}</dd>
               </div>
               <div>
+                <dt className="text-text-subtle">EPF number</dt>
+                <dd className="font-medium">{run.epfNumber ?? '—'}</dd>
+              </div>
+              <div>
                 <dt className="text-text-subtle">Unpaid leave days</dt>
                 <dd className="font-medium">{run.unpaidLeaveDays}</dd>
               </div>

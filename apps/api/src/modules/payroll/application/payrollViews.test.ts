@@ -23,6 +23,7 @@ const run = (userId: string): PayrollRun => ({
   adjustmentPaise: 0,
   originalNetPayablePaise: 3_100_000,
   esiNumber: null,
+  epfNumber: null,
   joinedInMonth: false,
   status: 'DRAFT',
   generatedBy: 'acc',

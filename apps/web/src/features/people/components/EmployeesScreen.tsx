@@ -24,6 +24,7 @@ import { useAllZones } from '@/features/territory/hooks/useZones';
 import { Avatar } from './Avatar';
 import { useDesignations } from '../hooks/useMasterData';
 import { useStatusCounts, useUsers } from '../hooks/useUsers';
+import { missingChipLabel } from '@/features/payroll/lib/payrollWarnings';
 import { attentionItems, statusChips } from '../lib/employeeChips';
 import { ROLE_LABEL, STATUS_LABEL, STATUS_TONE } from '../lib/user';
 
@@ -45,6 +46,8 @@ export function EmployeesScreen() {
     'status',
     'designationId',
     'blocked',
+    'ids',
+    'missing',
   ]);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const router = useRouter();
@@ -61,6 +64,7 @@ export function EmployeesScreen() {
     ...(values.role && { role: values.role as UserListItemDto['role'] }),
     ...(values.status && { status: values.status as UserListStatus }),
     ...(values.blocked && { isBlocked: true as const }),
+    ...(values.ids && { ids: values.ids }),
     ...(values.designationId && { designationId: values.designationId }),
   });
 
@@ -167,7 +171,7 @@ export function EmployeesScreen() {
         }
       />
       <EmployeeDraftsCard />
-      {ready && attention.length > 0 && !values.status && !values.blocked ? (
+      {ready && attention.length > 0 && !values.status && !values.blocked && !values.ids ? (
         <div role="status" className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border bg-warning-bg px-4 py-2.5 text-sm text-warning-fg">
           <span className="font-medium">Needs attention:</span>
           {attention.map((a) => (
@@ -177,7 +181,20 @@ export function EmployeesScreen() {
           ))}
         </div>
       ) : null}
-      <div role="group" aria-label="Filter by status" className="mb-4 flex flex-wrap items-center gap-2">
+      {values.ids ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            aria-pressed
+            title="Show everyone again"
+            className="rounded-full border border-warning bg-warning-bg px-3 py-1 text-sm font-medium text-warning-fg"
+            onClick={() => update({ ids: '', missing: '' })}
+          >
+            {missingChipLabel(values.missing, users.data?.total ?? values.ids.split(',').length) || `Only ${values.ids.split(',').length} chosen employees`} ✕
+          </button>
+        </div>
+      ) : null}
+      <div role="group" aria-label="Filter by status" hidden={Boolean(values.ids)} className="mb-4 flex flex-wrap items-center gap-2">
         {statusChips(counts).map((c) => {
           const selected = !values.blocked && (values.status || '') === c.value;
           return (

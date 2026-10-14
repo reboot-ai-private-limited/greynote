@@ -56,6 +56,7 @@ erDiagram
         boolean on_probation "default false; set at onboarding"
         int probation_months "nullable, 0-36; used only while on_probation; null = PROBATION_MONTHS setting"
         string esi_number "nullable, exactly 17 digits - printed on the salary slip"
+        string epf_number "nullable, 1-30 of A-Z 0-9 / - (upper-cased) - printed on the salary slip"
         string mobile_number "nullable - onboarding basic details"
         string guardian_name "nullable, optional - not required for activation"
         date date_of_birth "nullable - onboarding basic details"

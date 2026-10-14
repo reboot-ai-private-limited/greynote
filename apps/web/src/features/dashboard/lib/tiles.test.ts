@@ -49,6 +49,7 @@ const run = (status: PayrollRunDto['status']): PayrollRunDto => ({
   adjustmentPaise: 0,
   originalNetPayablePaise: 0,
   esiNumber: null,
+  epfNumber: null,
   joinedInMonth: false,
   generatedBy: 'acc',
   status,

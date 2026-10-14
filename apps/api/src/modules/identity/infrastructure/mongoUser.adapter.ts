@@ -90,6 +90,12 @@ export class MongoUserAdapter implements UserRepositoryPort {
         .lean();
       query._id = { $in: matchingUserIds.map((doc) => doc.userId) };
     }
+    if (filters.ids) {
+      // Intersect with what the profile filters above already allowed, if they ran.
+      const wanted = new Set(filters.ids);
+      const allowed = query._id && '$in' in (query._id as object) ? (query._id as { $in: Types.ObjectId[] }).$in : null;
+      query._id = { $in: (allowed ? allowed.filter((id) => wanted.has(String(id))) : filters.ids).map((id) => new Types.ObjectId(String(id))) };
+    }
     if (filters.status) query.status = filters.status;
     if (filters.isBlocked !== undefined) query.isBlocked = filters.isBlocked;
     if (filters.search) {

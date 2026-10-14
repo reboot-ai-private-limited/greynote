@@ -17,6 +17,7 @@ function toEmployeeProfile(doc: EmployeeProfileDoc & { _id: unknown }): Employee
     onProbation: doc.onProbation ?? false,
     probationMonths: doc.probationMonths ?? null,
     esiNumber: doc.esiNumber ?? null,
+    epfNumber: doc.epfNumber ?? null,
     hqId: doc.hqId ? String(doc.hqId) : null,
     zoneId: doc.zoneId ? String(doc.zoneId) : null,
     mobileNumber: doc.mobileNumber,

@@ -23,6 +23,7 @@ function makeProfile(documents: UserDocument[]): EmployeeProfile {
     onProbation: false,
     probationMonths: null,
     esiNumber: null,
+    epfNumber: null,
     mobileNumber: null,
     hqId: null, zoneId: null, alternateMobile: null,
     guardianName: null,

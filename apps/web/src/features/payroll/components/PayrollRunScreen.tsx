@@ -153,6 +153,7 @@ export function PayrollRunScreen({ id }: { id: string }) {
                     <Field label="Finalized">{run.finalizedAt ? `${formatDateTime(run.finalizedAt)}${run.finalizedByName ? ` by ${run.finalizedByName}` : ''}` : null}</Field>
                     <Field label="Paid">{run.paidAt ? `${formatDateTime(run.paidAt)}${run.paidByName ? ` by ${run.paidByName}` : ''}${run.paymentReference ? ` · ${run.paymentReference}` : ''}` : null}</Field>
                     <Field label="ESI number">{run.esiNumber}</Field>
+                    <Field label="EPF number">{run.epfNumber}</Field>
                     <Field label="Employee">
                       <Link href={`/employees/${run.userId}`} className="text-accent hover:underline">
                         {run.userName || 'Open the employee'}

@@ -17,6 +17,7 @@ const toRun = (d: PayrollRunDoc & { _id: unknown }): PayrollRun => ({
   totalTaDaPaise: d.totalTaDaPaise,
   reimbursementPaise: d.reimbursementPaise,
   esiNumber: d.esiNumber ?? null,
+  epfNumber: d.epfNumber ?? null,
   unpaidLeaveDays: d.unpaidLeaveDays,
   leaveDeductionPaise: d.leaveDeductionPaise,
   absentDays: d.absentDays ?? 0,

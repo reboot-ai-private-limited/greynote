@@ -116,6 +116,7 @@ export const keys = {
   payroll: {
     all: () => ['payroll', fy()] as const,
     month: (query: object) => [...keys.payroll.all(), 'month', query] as const,
+    warnings: (month: string) => [...keys.payroll.all(), 'warnings', month] as const,
     detail: (id: string) => [...keys.payroll.all(), 'detail', id] as const,
   },
   monthlyStock: { missing: (month: string) => ['monthlyStock', fy(), 'missing', month] as const },

@@ -129,6 +129,7 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
 
   toggle('LEAVE_LOCKED_AFTER_PAYROLL', 'PAYROLL', 'Lock leave once salary is finalized', 'Whether an employee\'s leave in a month can still change (be requested, edited, approved or reopened) after their salary run for that month is finalized. Daily reports and expenses are never locked by this.', true),
 
+  integer('ESI_WAGE_CEILING', 'PAYROLL', 'ESI wage ceiling', 'Monthly gross (salary) at or below which an employee is covered by ESI. Payroll warns, and never blocks, when such an employee has no ESI number.', 21000, 1, 1_000_000, '₹'),
   integer('CTC_JUMP_WARN_PERCENT', 'PAYROLL', 'CTC jump warning', 'A new CTC this many percent above the employee\'s previous one shows a warning (a likely typo). Nothing is refused.', 50, 1, 1000, '%'),
 
   // ── Sales ──

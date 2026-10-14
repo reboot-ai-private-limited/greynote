@@ -139,6 +139,7 @@ export interface UserDetailDto {
     probationMonths: number | null;
     /** Exactly 17 digits, or null. */
     esiNumber: string | null;
+    epfNumber: string | null;
     hqId: string | null;
     zoneId: string | null;
     mobileNumber: string | null;
@@ -173,6 +174,7 @@ export interface UpdateUserDto {
     probationMonths?: number | null;
     /** Exactly 17 digits; `null` clears it. */
     esiNumber?: string | null;
+    epfNumber?: string | null;
     qualification?: string | null;
     address?: UserAddressDto;
     permanentAddress?: UserAddressDto;
@@ -210,6 +212,7 @@ export interface EmployeeDraftDataDto {
     dateOfBirth?: string;
     /** Exactly 17 digits. */
     esiNumber?: string;
+    epfNumber?: string;
     dateOfJoining?: string;
     onProbation?: boolean;
     probationMonths?: number;

@@ -12,6 +12,7 @@ export interface PayrollRunDoc {
   totalTaDaPaise: number;
   reimbursementPaise: number;
   esiNumber?: string | null;
+  epfNumber?: string | null;
   unpaidLeaveDays: number;
   leaveDeductionPaise: number;
   absentDays?: number;
@@ -43,6 +44,7 @@ const schema = new Schema<PayrollRunDoc>({
   totalTaDaPaise: paise,
   reimbursementPaise: paise,
   esiNumber: { type: String, default: null },
+  epfNumber: { type: String, default: null },
   unpaidLeaveDays: { type: Number, required: true, min: 0, validate: { validator: (v: number) => Number.isInteger(v * 2), message: 'Whole or half days only.' } },
   leaveDeductionPaise: paise,
   absentDays: { type: Number, default: 0, min: 0, max: 30, validate: { validator: Number.isInteger, message: 'Whole days only.' } },

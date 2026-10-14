@@ -1,12 +1,15 @@
 'use client';
 
 import type { GenerateOutcomeDto } from '@greynote/contracts';
+import { PayrollWarnings } from './PayrollWarnings';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
+import { usePayrollWarnings } from '../hooks/usePayroll';
 import { generateMessage, needsAttention, skipLabel, summariseGenerate } from '../lib/payroll';
 
 /** What generating did, per employee. A skipped line names the employee and says why. */
-export function GenerateResultDialog({ outcomes, onClose }: { outcomes: readonly GenerateOutcomeDto[]; onClose: () => void }) {
+export function GenerateResultDialog({ outcomes, month, onClose }: { outcomes: readonly GenerateOutcomeDto[]; month: string; onClose: () => void }) {
+  const warnings = usePayrollWarnings(month, true);
   const summary = summariseGenerate(outcomes);
   const attention = needsAttention(summary);
   const finalized = summary.skipped.length - attention.length;
@@ -31,6 +34,7 @@ export function GenerateResultDialog({ outcomes, onClose }: { outcomes: readonly
           ))}
         </ul>
       ) : null}
+      <PayrollWarnings warnings={warnings.data} className="mt-3" />
       {finalized > 0 ? (
         <p className="mt-3 text-[13px] text-text-subtle">
           {finalized} already finalized {finalized === 1 ? 'was' : 'were'} left as they are.

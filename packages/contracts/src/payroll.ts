@@ -113,6 +113,8 @@ export interface PayrollRunDto {
   originalNetPayablePaise: number;
   /** The employee's ESI number when generated (a snapshot for the salary slip); null if none was set. */
   esiNumber: string | null;
+  /** The employee's EPF number when generated (a snapshot for the salary slip); null if none was set. */
+  epfNumber: string | null;
   /** The joining date falls in this month: the full base is paid (no proration) and the Accountant is told. */
   joinedInMonth: boolean;
   status: PayrollStatus;
@@ -132,6 +134,21 @@ export type PayrollSkipReason = 'MONTH_NOT_ENDED' | 'ALREADY_FINALIZED' | 'RUN_N
 export type GenerateOutcomeDto =
   | { userId: string; userName: string; employeeCode: string; outcome: 'created' | 'updated'; run: PayrollRunDto }
   | { userId: string; userName: string; employeeCode: string; outcome: 'skipped'; reason: PayrollSkipReason; message: string };
+
+/** `GET /payroll/warnings?month=`: who is missing a number. A warning only; nothing is refused. */
+export interface PayrollWarningPersonDto {
+  userId: string;
+  name: string;
+  employeeCode: string;
+}
+export interface PayrollWarningsDto {
+  /** The `ESI_WAGE_CEILING` setting in force, in whole rupees: ESI covers a monthly gross at or below it. */
+  esiCeilingRupees: number;
+  /** In the month's payroll, at or below the ceiling, with no ESI number. */
+  esiMissing: PayrollWarningPersonDto[];
+  /** In the month's payroll with no EPF number. */
+  epfMissing: PayrollWarningPersonDto[];
+}
 
 export interface GeneratePayrollDto {
   /** `YYYY-MM`, a month that has ended. */

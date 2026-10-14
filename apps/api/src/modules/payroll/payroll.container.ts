@@ -3,6 +3,7 @@ import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { FinalizePayrollUseCase, GeneratePayrollUseCase, GetPayrollRunUseCase, ListMyPayslipsUseCase, ListPayrollRunsUseCase, PayrollClock } from './application/usecases/payroll.usecase.js';
 import { proratePaise } from '@/shared/money/paise.js';
 import { AdjustPayrollUseCase, PayPayrollUseCase, PayrollOverviewUseCase } from './application/usecases/payrollAdjust.usecase.js';
+import { PayrollWarningsUseCase } from './application/usecases/payrollWarnings.usecase.js';
 import { PayrollViews } from './application/payrollViews.js';
 import type { AttendancePort, HrPort, IdentityPort } from './domain/ports.js';
 import { MongoPayrollAdapter } from './infrastructure/mongoPayroll.adapter.js';
@@ -43,6 +44,6 @@ export function buildPayrollContainer(identity: IdentityPort, hr: HrPort, attend
           employerContributionPaise: proratePaise(r.ctcLines.filter((l) => l.kind === 'EMPLOYER_CONTRIBUTION').reduce((n, l) => n + l.amountPaise, 0), 1, 12),
         })),
       generate: (actor, input) => generate.execute(actor, input), finalize: (id, by) => finalize.execute(id, by), get: (id) => get.execute(id), list: (filter) => list.execute(filter), isMonthFinalized: (userId, month) => runs.isFinalized(userId, month) },
-    buildRouter: () => buildPayrollRouter(makePayrollControllers({ generate, finalize, get, list, mine, views, overview: new PayrollOverviewUseCase(runs, identity, clock), adjust: new AdjustPayrollUseCase(runs, clock), payRun: new PayPayrollUseCase(runs, clock) })),
+    buildRouter: () => buildPayrollRouter(makePayrollControllers({ generate, finalize, get, list, mine, views, warnings: new PayrollWarningsUseCase(runs, identity, config), overview: new PayrollOverviewUseCase(runs, identity, clock), adjust: new AdjustPayrollUseCase(runs, clock), payRun: new PayPayrollUseCase(runs, clock) })),
   };
 }

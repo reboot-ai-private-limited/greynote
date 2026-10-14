@@ -35,6 +35,7 @@ const complete: UserDetailDto = {
     onProbation: false,
     probationMonths: null,
     esiNumber: null,
+    epfNumber: null,
     mobileNumber: '9830012345',
     hqId: null, zoneId: null, alternateMobile: null,
     guardianName: null,
@@ -238,6 +239,11 @@ describe('ESI number', () => {
     const set = { ...complete, profile: { ...complete.profile!, esiNumber: '12345678901234567' } };
     expect(buildBasic(set, basicToDraft(set), TODAY)).toEqual({ ok: true, body: {} });
     expect(buildBasic(set, { ...basicToDraft(set), esiNumber: '' }, TODAY)).toEqual({ ok: true, body: { basicDetails: { esiNumber: null } } });
+    // EPF: optional, upper-cased, free-format; null clears it.
+    expect(buildBasic(complete, { ...basicToDraft(complete), epfNumber: ' mh/ban/123 ' }, TODAY)).toEqual({ ok: true, body: { basicDetails: { epfNumber: 'MH/BAN/123' } } });
+    expect(buildBasic(complete, { ...basicToDraft(complete), epfNumber: 'no spaces!' }, TODAY)).toMatchObject({ ok: false });
+    const withEpf = { ...complete, profile: { ...complete.profile!, epfNumber: 'E1' } };
+    expect(buildBasic(withEpf, { ...basicToDraft(withEpf), epfNumber: '' }, TODAY)).toEqual({ ok: true, body: { basicDetails: { epfNumber: null } } });
   });
 
   it('refuses anything that is not 17 digits', () => {

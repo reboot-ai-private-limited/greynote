@@ -24,6 +24,7 @@ function doc(method: 'get' | 'post' | 'patch', path: string, summary: string, re
 doc('post', '/generate', 'Accountant/Admin: generate (or recompute) the DRAFT payroll for a month that has ended — every active field employee, or the userIds given. One outcome per employee; a finalized run is never overwritten', { body: generateBodySchema });
 doc('post', '/{id}/finalize', 'Accountant/Admin: lock a DRAFT run. Once only; a second call is a 409', { params: idParamsSchema });
 doc('get', '/overview', 'Admin, HR, Accountant: every active field employee\'s salary for a month — base, deductions, adjustments, net and where it stands (not generated, draft, finalized, paid)', { query: overviewQuerySchema });
+doc('get', '/warnings', 'Admin, HR, Accountant: employees in the month\'s payroll under the ESI wage ceiling (ESI_WAGE_CEILING) with no ESI number, and employees with no EPF number. Read live from the profile; a warning only, nothing is refused', { query: overviewQuerySchema });
 doc('post', '/{id}/days', 'Admin, HR: charge one day of a DRAFT run 0, a half or a whole day instead of what the rules gave, with a reason; kept with who and when', { params: idParamsSchema, body: overrideDayBodySchema });
 doc('post', '/{id}/adjustments', 'Admin, HR: add (positive) or take off (negative) an amount on a DRAFT run, with a reason; kept with who and when', { params: idParamsSchema, body: adjustAmountBodySchema });
 doc('post', '/{id}/pay', 'Accountant/Admin: mark a FINALIZED run\'s salary paid, with an optional reference. Once', { params: idParamsSchema, body: payBodySchema });
@@ -41,6 +42,7 @@ export function buildPayrollRouter(c: PayrollHandlers): Router {
   const hrEdit = requireRole('ADMIN', 'HR');
   const accounts = requireRole('ACCOUNTANT', 'ADMIN');
   router.get('/overview', office, scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', single: 'month', fill: false }), validate({ query: overviewQuerySchema }), c.overview);
+  router.get('/warnings', office, scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', single: 'month', fill: false }), validate({ query: overviewQuerySchema }), c.warnings);
   router.post('/generate', accounts, validate({ body: generateBodySchema }), c.generate);
   router.post('/:id/finalize', accounts, validate({ params: idParamsSchema }), c.finalize);
   router.post('/:id/pay', accounts, validate({ params: idParamsSchema, body: payBodySchema }), c.pay);

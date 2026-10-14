@@ -1,3 +1,5 @@
+import { AppError } from '@/shared/errors/AppError.js';
+import { PayrollWarningsUseCase } from './payrollWarnings.usecase.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { PayrollFilter, PayrollRunRepositoryPort, SaveDraftResult } from '../../domain/payroll.repository.port.js';
 import { PAYROLL_CODES, PayrollRefusal } from '../../domain/payrollRefusal.js';
@@ -48,7 +50,7 @@ class FakeRuns implements PayrollRunRepositoryPort {
   }
 }
 
-type Emp = { role?: string; status?: 'active' | 'inactive'; ctc?: boolean; base?: number; joined?: Date | null; unpaid?: number; esi?: string | null; deductible?: number };
+type Emp = { role?: string; status?: 'active' | 'inactive'; ctc?: boolean; base?: number; joined?: Date | null; unpaid?: number; esi?: string | null; epf?: string | null; deductible?: number };
 class World implements IdentityPort, HrPort, AttendancePort {
   emps = new Map<string, Emp>();
   add(id: string, e: Emp = {}) {
@@ -66,7 +68,7 @@ class World implements IdentityPort, HrPort, AttendancePort {
   }
   async getEmploymentDetails(id: string) {
     const e = this.emps.get(id);
-    return e ? { dateOfJoining: e.joined ?? new Date('2024-01-01'), esiNumber: e.esi ?? null } : null;
+    return e ? { dateOfJoining: e.joined ?? new Date('2024-01-01'), esiNumber: e.esi ?? null, epfNumber: e.epf ?? null } : null;
   }
   ctcMonths: string[] = [];
   /** `base` is the monthly gross; the CTC also carries an employer EPF line that must not be paid out. */
@@ -383,5 +385,26 @@ describe('payroll', () => {
       expect(row('mr1').stage).toBe('PAID');
       await expect(overview.execute({ id: 'mr1', role: 'FIELD' }, '2026-10')).rejects.toMatchObject({ statusCode: 403 });
     });
+  });
+
+  it('warns, never blocks: ESI missing at or under the ceiling, EPF missing for anyone, read live from the profile', async () => {
+    world.add('rich', { base: 5_000_000 }); // 50,000 a month: over the ceiling, so only EPF can be missing
+    world.add('low', { base: 2_100_000, epf: 'E1' }); // exactly 21,000: still covered by ESI
+    const outcomes = await generate.execute(acct, { month: '2026-10' });
+    expect(outcomes.every((o) => o.outcome === 'created')).toBe(true);
+    const warnings = new PayrollWarningsUseCase(runs, world, { get: async (k: string) => (k === 'ESI_WAGE_CEILING' ? '21000' : '') });
+    const w = await warnings.execute('2026-10');
+    expect(w.esiCeilingRupees).toBe(21_000);
+    // mr1 has an ESI number; mr2 (30,000) is over the ceiling; only `low` is covered and has none.
+    expect(w.esiMissing.map((p) => p.userId)).toEqual(['low']);
+    expect(w.epfMissing.map((p) => p.userId).sort()).toEqual(['mr1', 'mr2', 'rich']);
+    // Fixing the profile clears the warning without generating again.
+    world.emps.get('low')!.esi = '12345678901234567';
+    world.emps.get('rich')!.epf = 'E2';
+    const after = await warnings.execute('2026-10');
+    expect(after.esiMissing).toEqual([]);
+    expect(after.epfMissing.map((p) => p.userId).sort()).toEqual(['mr1', 'mr2']);
+    // A database not re-seeded yet has no such key: the seeded default applies.
+    expect((await new PayrollWarningsUseCase(runs, world, { get: async (key: string) => { throw AppError.internal('INTERNAL', { reason: 'CONFIG_KEY_MISSING', key }); } }).execute('2026-10')).esiCeilingRupees).toBe(21_000);
   });
 });

@@ -2208,3 +2208,11 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Decision:** an employee's uploaded documents (Profile tab) and the company document library show a thumbnail per row, and clicking opens a near-fullscreen viewer (image fitted, PDF in a frame, Esc closes, "Open in new tab" stays). The viewer and thumbnail are shared components in `apps/web/src/components/ui` (`FilePreviewDialog`, `FileThumb`), which the Visuals screens now use too. The kind of an employee document is read from the extension on its stored URL. Web only; no change to who can see or change documents, or to the document types.
 
 **Open:** whether Cloudinary's PDF URLs render inside the frame in a real browser (the "Open in new tab" link is the fallback).
+
+## 2026-10-14 — EPF number, the ESI wage ceiling from config, and ESI/EPF warnings in payroll
+
+**Decision:** an employee gets an optional **EPF number** beside the ESI number (employee page, onboarding wizard, payslip and the run's snapshot). Which employees need ESI comes from a new setting `ESI_WAGE_CEILING` (PAYROLL, whole rupees, seeded 21000): ESI covers a monthly gross **at or below** it (the statute says "₹21,000 or less"), measured on the run's monthly gross. Payroll **warns, never blocks**: employees at or below the ceiling with no ESI number, and anyone with no EPF number. The warning is on the month's payroll page and in the Generate result; each line opens the Employees list narrowed to exactly those people (`ids` filter) with a chip to clear it. It is computed live from the profile, so fixing a number clears it with no regeneration.
+
+**Assumed (confirm with the client):** the EPF number's format. Regions format member ids differently, so only 1–30 letters, digits, `/` or `-` is checked (stored upper-case). A 12-digit UAN fits. Tighten when the client names one. The EPF warning covers every employee, with no salary limit.
+
+**Open:** run `seed` on dev and prod so `ESI_WAGE_CEILING` is in the database (until then the seeded 21000 is used). Old payroll runs show no EPF number on their slip (snapshot is null); regenerate a draft to fill it.

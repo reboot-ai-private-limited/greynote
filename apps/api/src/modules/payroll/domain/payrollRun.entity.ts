@@ -80,6 +80,8 @@ export interface PayrollRun {
   originalNetPayablePaise: Paise;
   /** The employee's ESI number when generated (a snapshot, printed on the salary slip); null if none was set. */
   esiNumber: string | null;
+  /** The employee's EPF number when generated (a snapshot for the salary slip); null if none was set. */
+  epfNumber: string | null;
   /** The joining date falls in this month; the full base salary is paid (no proration) and the Accountant is told. */
   joinedInMonth: boolean;
   status: PayrollStatus;

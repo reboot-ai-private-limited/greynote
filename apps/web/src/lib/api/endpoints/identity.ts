@@ -44,6 +44,8 @@ export interface ListUsersQuery {
   search?: string | undefined;
   /** Only blocked employees. Send `true` or leave out: the API reads any present value as true. */
   isBlocked?: true | undefined;
+  /** Only these employees, comma-separated ids (at most 500). */
+  ids?: string | undefined;
 }
 
 export const identityApi = {

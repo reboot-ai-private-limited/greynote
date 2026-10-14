@@ -44,6 +44,7 @@ const run = (over: Partial<PayrollRunDto> = {}): PayrollRunDto => ({
   adjustmentPaise: 0,
   originalNetPayablePaise: 0,
   esiNumber: null,
+  epfNumber: null,
   joinedInMonth: false,
   status: 'DRAFT',
   generatedBy: 'acc',

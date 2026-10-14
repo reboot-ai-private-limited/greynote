@@ -25,6 +25,7 @@ export function makeListUsersController(useCase: ListUsersUseCase): RequestHandl
       ...(query.managerId !== undefined && { managerId: query.managerId }),
       ...(query.status !== undefined && { status: query.status }),
       ...(query.isBlocked !== undefined && { isBlocked: query.isBlocked }),
+      ...(query.ids !== undefined && { ids: query.ids }),
       ...(query.search !== undefined && { search: query.search }),
     };
     const result = await useCase.execute(query, filters);

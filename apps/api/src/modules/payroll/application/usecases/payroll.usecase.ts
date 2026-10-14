@@ -125,6 +125,7 @@ export class GeneratePayrollUseCase {
       totalTaDaPaise: 0,
       reimbursementPaise: 0,
       esiNumber: employment?.esiNumber ?? null,
+      epfNumber: employment?.epfNumber ?? null,
       unpaidLeaveDays,
       leaveDeductionPaise: deduction,
       absentDays,

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ctcStructureSchema } from './ctc.schemas.js';
+import { epfSchema } from './epf.schema.js';
 
 const text = z.string().trim().min(1).max(200);
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.');
@@ -27,6 +28,7 @@ export const draftDataSchema = z
         guardianName: text.optional(),
         dateOfBirth: isoDate.optional(),
         esiNumber: z.string().regex(/^\d{17}$/, 'The ESI number is exactly 17 digits.').optional(),
+        epfNumber: epfSchema.optional(),
         dateOfJoining: isoDate.optional(),
         onProbation: z.boolean().optional(),
         probationMonths: z.number().int().min(0).max(36).optional(),

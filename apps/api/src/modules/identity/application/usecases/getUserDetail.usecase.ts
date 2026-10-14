@@ -30,6 +30,7 @@ export interface UserDetail {
     onProbation: boolean;
     probationMonths: number | null;
     esiNumber: string | null;
+    epfNumber: string | null;
     hqId: string | null;
     zoneId: string | null;
     mobileNumber: string | null;
@@ -94,6 +95,7 @@ export class GetUserDetailUseCase {
             onProbation: profile.onProbation,
             probationMonths: profile.probationMonths,
             esiNumber: profile.esiNumber,
+            epfNumber: profile.epfNumber,
             hqId: profile.hqId,
             zoneId: profile.zoneId,
             mobileNumber: profile.mobileNumber,
