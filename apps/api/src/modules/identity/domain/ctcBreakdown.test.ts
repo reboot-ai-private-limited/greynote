@@ -98,9 +98,9 @@ describe('computeCtcBreakdown', () => {
     expect(tax(500_000)).toBe(150);
   });
 
-  it('refuses a monthly salary below the first slab', () => {
-    expect(() => computeCtcBreakdown(orgFormula(), 9_999 * 12 * RUPEE, {}, CTX)).toThrow(/lowest monthly salary/);
-    expect(() => computeCtcBreakdown(orgFormula(), 119_999 * RUPEE, {}, CTX)).toThrow(CtcBreakdownError);
+  it('a monthly salary below the first slab pays no professional tax', () => {
+    const lines = computeCtcBreakdown(orgFormula(), 9_999 * 12 * RUPEE, {}, CTX);
+    expect(lines.find((l) => l.code === 'PTAX')?.amountPaise).toBe(0);
   });
 
   it('follows the slabs it is given', () => {

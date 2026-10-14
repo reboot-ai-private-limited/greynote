@@ -136,11 +136,11 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
     key: 'PTAX_SLABS',
     module: 'PAYROLL',
     label: 'Professional tax slabs',
-    description: 'Professional tax taken from the monthly salary, by band of the total monthly salary (gross). The first band starts at the lowest monthly salary that can be assigned: a CTC below it is refused. Each band starts right after the one before; the last has no upper end. Salaries already set keep their tax until their CTC is re-applied.',
+    description: 'Professional tax taken from the monthly salary, by band of the total monthly salary (gross). A monthly salary below the first band pays no professional tax. Each band starts right after the one before; the last has no upper end. Salaries already set keep their tax until their CTC is re-applied.',
     type: 'SLAB_LIST',
     default: DEFAULT_PTAX_SLABS,
     impact: 'HIGH',
-    impactNote: 'Applies to every CTC saved or re-applied from now on, and the first band sets the lowest monthly salary that can be assigned. Salaries already saved keep their tax until re-applied.',
+    impactNote: 'Applies to every CTC saved or re-applied from now on. Salaries already saved keep their tax until re-applied.',
   },
   integer('CTC_JUMP_WARN_PERCENT', 'PAYROLL', 'CTC jump warning', 'A new CTC this many percent above the employee\'s previous one shows a warning (a likely typo). Nothing is refused.', 50, 1, 1000, '%'),
 

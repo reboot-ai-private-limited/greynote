@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, Lock } from 'lucide-react';
+import { ChevronDown, Lock, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/components/ui/cn';
 import { formatMoney } from '@/lib/format';
@@ -26,6 +26,7 @@ export function CtcLineRow({
   onRemove,
   removeBlocked,
   error,
+  readOnly = false,
 }: {
   row: EditorRow;
   annualPaise: number | undefined;
@@ -39,8 +40,10 @@ export function CtcLineRow({
   /** Why it cannot be removed right now, or `null`. */
   removeBlocked: string | null;
   error: string | undefined;
+  /** Shown only, with no way to open or change it (the breakdown while "Customise components" is closed). */
+  readOnly?: boolean;
 }) {
-  const locked = row.lockedReason !== null;
+  const locked = row.lockedReason !== null || readOnly;
   const chip = describeRule(row.rule, nameOf, inr);
   const body = (
     <>
@@ -54,7 +57,7 @@ export function CtcLineRow({
               className="size-1.5 rounded-full bg-accent"
             />
           ) : null}
-          {locked ? <Lock aria-hidden className="size-3.5 text-text-subtle" /> : null}
+          {row.lockedReason !== null ? <Lock aria-hidden className="size-3.5 text-text-subtle" /> : null}
         </span>
         <span className="mt-1 inline-flex max-w-full rounded-md bg-surface-hover px-2 py-0.5 text-xs text-text-muted">
           {chip}
@@ -92,14 +95,26 @@ export function CtcLineRow({
           {body}
         </div>
       ) : (
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={onToggle}
-          className="flex w-full items-center gap-4 px-4 py-3 text-left hover:bg-surface-subtle focus-visible:shadow-focus focus-visible:outline-none sm:px-5"
-        >
-          {body}
-        </button>
+        <div className="flex items-center">
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={onToggle}
+            className="flex min-w-0 flex-1 items-center gap-4 px-4 py-3 text-left hover:bg-surface-subtle focus-visible:shadow-focus focus-visible:outline-none sm:px-5"
+          >
+            {body}
+          </button>
+          <button
+            type="button"
+            aria-label={`Remove ${row.name} for this employee`}
+            title={removeBlocked ?? 'Remove for this employee'}
+            disabled={removeBlocked !== null}
+            onClick={onRemove}
+            className="mr-3 rounded-md p-2 text-text-subtle hover:bg-surface-hover hover:text-danger-fg focus-visible:shadow-focus focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40 sm:mr-4"
+          >
+            <X aria-hidden className="size-4" />
+          </button>
+        </div>
       )}
       {open && row.rule !== 'BALANCER' ? (
         <div className="space-y-4 border-t border-border bg-surface-subtle px-4 py-4 sm:px-5">

@@ -17,6 +17,19 @@ old one.
 
 ---
 
+
+## 2026-10-14 — Basic 100% means Basic only; a CTC under the first PTax slab is allowed
+
+**Decision:**
+- **Basic = 100% of the CTC (or a monthly Basic of CTC ÷ 12) is the exception:** no other earning, no EPF, no ESI. Only the mandatory professional tax comes off. ₹100 a month with ₹10 PTax is ₹90 in the bank. Derived from the inputs (`isBasicOnly`, `ctcBreakdown.ts`), nothing new stored. Added lines, rule changes and typed amounts are refused in this mode rather than dropped silently.
+- **Professional tax stays the `PTAX_SLABS` system setting, measured on the monthly gross** (₹10,000–14,999 → ₹110, ₹15,000–19,999 → ₹130, ₹20,000 and above → ₹150). **A gross below the first slab pays no PTax**; it is no longer refused.
+- **Assign / revise screen:** CTC and Basic are the inputs and the breakdown is shown read-only. "Customise components" opens editing, with a visible × to remove a line and chips to restore a removed one. Basic 100% shows a one-line explanation and the net in the bank instead.
+
+**Assumed (confirm with the client):** Basic 100% also drops EPF and ESI even when the employee has an EPF/ESI number.
+
+**Open:** browser check; the Pay components screen has no sample-CTC preview yet.
+
+
 ## 2026-10-13 — Google Play: delete-my-account, and a demo Manager for the reviewers
 
 **Decided:** Play needs an in-app way to delete the account and working reviewer logins. **Deletion** (FIELD only) scrubs the person and keeps the records: name becomes "Deleted user", email, phone, personal details, bank details and uploaded documents (files removed from storage) go, the password is replaced, the account is made inactive, every session ends and phones are unregistered; `deletedAt` is stamped. Payroll, calls, DCRs, expenses and approvals stay under the employee code, as do designation, pay band, manager, HQ and joining date. `POST /identity/auth/delete-account {password}` (the person, password asked again) and `POST /identity/users/:id/anonymise` (Admin/HR, on a written request). A manager with active reports is refused (`HAS_ACTIVE_REPORTS`) until the team is moved. **Demo:** `seed:demo-manager` creates DEMOMGR (ASM) with DEMOMR1/2/3, a demo zone/HQ/route and six doctors; users carry `isDemo`: login skips device approval for them, payroll, attendance and the daily jobs leave them out (`listActiveIdsByRole`). **Demo accounts can be deleted** (Play's reviewers must test deletion): DEMOMR1 is the reviewer's login, DEMOMR2 is kept for our internal testing, DEMOMR3 is the one the reviewer deletes. The seed tops up missing demo users without touching existing passwords, so a deleted one is restored by `--remove` and a re-seed with the same password. The password comes from `DEMO_MANAGER_PASSWORD` and is never stored in the repo.

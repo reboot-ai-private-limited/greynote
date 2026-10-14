@@ -127,7 +127,7 @@ describe('structure: what is refused', () => {
     expect(() => compute(org, CTC, structure({ basicBasisPoints: 4500 }))).not.toThrow();
     // HRA, FDA and Conveyance are shares of Basic, so with them Basic cannot pass about 45%; with them removed it can reach 100%.
     expect(refused({ basicBasisPoints: 6500 })).toThrow(/more than the CTC/);
-    expect(refused({ basicBasisPoints: 10_000 })).toThrow(/more than the CTC/);
+    expect(() => compute(org, CTC, structure({ basicBasisPoints: 10_000 }))).not.toThrow();
     const all = compute(org, CTC, structure({ basicBasisPoints: 10_000, removed: ['HRA', 'FDA', 'CONVEYANCE', 'EPF'] }));
     expect(amount(all, 'BASIC')).toBe(CTC);
     expect(total(all)).toBe(CTC);
@@ -145,8 +145,22 @@ describe('structure: what is refused', () => {
     expect(refused({ ruleOverrides: { PTAX: { type: 'FIXED', amountPaise: 1 } } })).toThrow(/mandatory/);
   });
 
-  it('a CTC under the lowest monthly salary is refused for any structure', () => {
-    expect(() => compute(org, 119_999 * RUPEE, structure({}))).toThrow(/lowest monthly salary/);
+  it('a CTC under the first professional tax slab pays no professional tax', () => {
+    expect(amount(compute(org, 119_999 * RUPEE, structure({})), 'PTAX')).toBe(0);
+  });
+
+  it('Basic 100% leaves only Basic and professional tax: no other earning, no EPF or ESI', () => {
+    for (const s of [structure({ basicBasisPoints: 10_000 }), structure({ basicMonthlyPaise: 12_000 * RUPEE })]) {
+      const lines = compute(org, CTC, s);
+      expect(lines.map((l) => l.code)).toEqual(['BASIC', 'PTAX']);
+      expect(amount(lines, 'BASIC')).toBe(CTC);
+      expect(amount(lines, 'PTAX')).toBe(110 * 12 * RUPEE);
+    }
+  });
+
+  it('Basic 100% refuses added lines and rule changes; 40% still works as before', () => {
+    expect(refused({ basicBasisPoints: 10_000, ruleOverrides: { FDA: { type: 'FIXED', amountPaise: 1 } } })).toThrow(/whole CTC/);
+    expect(compute(org, CTC, structure({ basicBasisPoints: 4_000 })).map((l) => l.code)).toContain('EPF');
   });
 
   it('a line another line is worked out from cannot be removed', () => {

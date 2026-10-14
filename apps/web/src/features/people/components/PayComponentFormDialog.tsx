@@ -100,7 +100,7 @@ export function PayComponentFormDialog({
       </FormField>
       {draft.ruleType === 'PTAX_SLAB' ? (
         <p className="text-sm text-text-muted">
-          The amount for each salary band is set in Settings → Payroll → Professional tax slabs. The first band is also the lowest monthly salary that can be assigned.
+          The amount for each salary band is set in Settings → Payroll → Professional tax slabs. A salary below the first band pays no professional tax.
         </p>
       ) : null}
       {draft.ruleType === 'PERCENT_OF_CTC' || draft.ruleType === 'PERCENT_OF_COMPONENTS' || draft.ruleType === 'ESI_PERCENT' ? (

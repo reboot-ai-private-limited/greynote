@@ -153,10 +153,10 @@ describe('assigning a CTC', () => {
     expect(saved).toHaveLength(3);
   });
 
-  it('refuses a CTC under the lowest monthly salary (the first professional tax slab), saving nothing', async () => {
+  it('saves a CTC under the first professional tax slab, with no professional tax', async () => {
     const { assign, saved } = await seeded();
-    await expect(assign.execute('field1', { ctcAnnualPaise: 119_999 * RUPEE, effectiveFrom: '2026-10' }, 'hr1')).rejects.toMatchObject({ statusCode: 400 });
-    expect(saved).toHaveLength(0);
+    await assign.execute('field1', { ctcAnnualPaise: 119_999 * RUPEE, effectiveFrom: '2026-10' }, 'hr1');
+    expect(saved).toHaveLength(1);
   });
 
   it('warns, never refuses, when the CTC is more than the set percent above the previous one', async () => {

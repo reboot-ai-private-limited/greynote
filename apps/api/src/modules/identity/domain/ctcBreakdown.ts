@@ -33,7 +33,6 @@ export interface CtcContext {
 }
 
 const BASIS_POINTS = 10_000;
-const rupees = (paise: number): string => `₹${Math.round(paise / 100).toLocaleString('en-IN')}`;
 
 /** The formula itself must be coherent before any employee is computed against it. */
 export function validatePayComponents(components: readonly PayComponent[]): void {
@@ -108,7 +107,7 @@ function detectCycle(active: readonly PayComponent[]): void {
  * overridden line follow it, and the balancer re-absorbs the difference. The balancer cannot be overridden — it is the difference —
  * and a deduction cannot be typed.
  *
- * A monthly salary below the first professional-tax slab is refused: that is the lowest salary the company assigns.
+ * A monthly salary below the first professional-tax slab pays no professional tax.
  */
 export function computeCtcBreakdown(
   components: readonly PayComponent[],
@@ -132,10 +131,6 @@ export function computeCtcBreakdown(
   }
 
   const monthlySalaryPaise = monthlyPaise(ctcAnnualPaise);
-  const lowest = ctx.ptaxSlabs[0]?.from ?? 0;
-  if (monthlySalaryPaise < lowest * 100) {
-    throw new CtcBreakdownError(`This CTC is ${rupees(monthlySalaryPaise)} a month, below ${rupees(lowest * 100)}, the lowest monthly salary that can be assigned (the first professional tax slab).`);
-  }
 
   const amounts = new Map<string, number>();
   const resolve = (c: PayComponent): number => {
@@ -326,5 +321,21 @@ export function computeStructuredBreakdown(
   overrides: Readonly<Record<string, number>> = {},
   ctx: CtcContext,
 ): CtcLine[] {
-  return computeCtcBreakdown(applyStructure(org, structure), ctcAnnualPaise, overrides, ctx);
+  if (!isBasicOnly(structure, ctcAnnualPaise)) {
+    return computeCtcBreakdown(applyStructure(org, structure), ctcAnnualPaise, overrides, ctx);
+  }
+  // Basic is the whole CTC: the other earnings and EPF/ESI have nothing to work on, only the mandatory lines (professional tax) stay.
+  if (structure.extras.length > 0 || Object.keys(structure.ruleOverrides).length > 0 || Object.keys(overrides).length > 0) {
+    throw new CtcBreakdownError('Basic is the whole CTC, so no other line can be added or changed. Lower Basic to use them.');
+  }
+  const reduced = applyStructure(org, { ...structure, ruleOverrides: {}, removed: [], extras: [] });
+  const kept = reduced.filter((c) => c.code === BASIC_CODE || c.mandatory || c.rule.type === 'BALANCER');
+  return computeCtcBreakdown(kept, ctcAnnualPaise, {}, ctx).filter((l) => l.code === BASIC_CODE || l.kind === 'DEDUCTION');
+}
+
+/** Basic takes the whole CTC (100%, or a monthly amount of CTC ÷ 12): then Basic and professional tax are all there is. */
+export function isBasicOnly(structure: CtcStructure, ctcAnnualPaise: number): boolean {
+  if (structure.basicBasisPoints !== undefined) return structure.basicBasisPoints === BASIS_POINTS;
+  if (structure.basicMonthlyPaise !== undefined) return structure.basicMonthlyPaise * 12 === ctcAnnualPaise;
+  return false;
 }

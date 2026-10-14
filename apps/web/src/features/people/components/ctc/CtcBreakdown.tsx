@@ -1,9 +1,11 @@
 'use client';
 
 import type { PayComponentKind } from '@greynote/contracts';
-import { Plus } from 'lucide-react';
+import { Plus, Settings2 } from 'lucide-react';
 import { useState } from 'react';
+import { Button } from '@/components/ui/Button';
 import { cn } from '@/components/ui/cn';
+import { formatMoney } from '@/lib/format';
 import type { CtcEditorState } from '../../hooks/useCtcEditor';
 import {
   addExtra,
@@ -43,7 +45,26 @@ export function CtcBreakdown({
   const { rows, org, preview, structureErrors } = editor;
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState<PayComponentKind | null>(null);
+  const changed =
+    structure.removed.length > 0 ||
+    structure.extras.length > 0 ||
+    Object.keys(structure.rules).length > 0;
+  const [customise, setCustomise] = useState(changed);
   const lines = preview.data?.lines ?? [];
+  const basicEntered =
+    structure.basicMode === 'percent'
+      ? structure.basicPercent.trim() !== ''
+      : structure.basicAmount.trim() !== '';
+  // Basic is the whole CTC: nothing else is worked out, only professional tax comes off (the server decides; this just explains it).
+  const basicOnly =
+    basicEntered &&
+    !preview.isFetching &&
+    lines.length > 0 &&
+    lines.filter((l) => l.kind === 'EARNING').every((l) => l.code === 'BASIC') &&
+    (structure.basicMode === 'amount' || Number(structure.basicPercent) === 100);
+  const ptaxMonthly = Math.round(
+    (lines.find((l) => l.kind === 'DEDUCTION' && l.code === 'PTAX')?.amountPaise ?? 0) / 12,
+  );
   const amountOf = (code: string) => lines.find((l) => l.code === code)?.amountPaise;
   const nameOf = (code: string) =>
     rows.find((r) => r.code === code)?.name ?? org.find((c) => c.code === code)?.name ?? code;
@@ -58,8 +79,59 @@ export function CtcBreakdown({
         : setRule(structure, row.code, rule),
     );
 
+  if (basicOnly) {
+    const grossMonthly = Math.round(
+      lines.filter((l) => l.kind === 'EARNING').reduce((n, l) => n + l.amountPaise, 0) / 12,
+    );
+    return (
+      <section
+        aria-label="Basic only"
+        className="rounded-lg border border-border bg-surface p-5 text-sm"
+      >
+        <p className="font-medium text-text">Basic is 100% of the CTC.</p>
+        <p className="mt-1 text-text-muted">
+          There is no HRA, allowance, EPF or ESI. Only professional tax comes off:{' '}
+          {formatMoney(grossMonthly)} a month − {formatMoney(ptaxMonthly)} PTax ={' '}
+          <span className="font-semibold text-text">{formatMoney(grossMonthly - ptaxMonthly)}</span>{' '}
+          in the bank.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <div className={cn('space-y-6 transition-opacity', preview.isFetching && 'opacity-60')}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-text-muted">
+          {customise
+            ? 'Remove a line with ×, open it to change how it is worked out, or add one.'
+            : 'Split by the company pay components from Basic and the CTC.'}
+        </p>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setCustomise(!customise)}
+          aria-pressed={customise}
+        >
+          <Settings2 aria-hidden className="size-4" />{' '}
+          {customise ? 'Done customising' : 'Customise components'}
+        </Button>
+      </div>
+      {customise && removedLines(org, structure).length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-text-subtle">Removed:</span>
+          {removedLines(org, structure).map((c) => (
+            <button
+              key={c.code}
+              type="button"
+              onClick={() => onStructureChange(restoreLine(structure, c.code))}
+              className="rounded-full border border-border px-3 py-1 text-xs text-text-muted hover:bg-surface-hover focus-visible:shadow-focus focus-visible:outline-none"
+            >
+              + {c.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {GROUPS.map((group) => {
         const groupRows = rows.filter((r) => r.kind === group.kind);
         return (
@@ -81,6 +153,7 @@ export function CtcBreakdown({
                 return (
                   <CtcLineRow
                     key={keyOf(row)}
+                    readOnly={!customise}
                     row={row}
                     annualPaise={amountOf(row.code)}
                     nameOf={nameOf}
@@ -108,15 +181,17 @@ export function CtcBreakdown({
                   />
                 );
               })}
-              <li>
-                <button
-                  type="button"
-                  onClick={() => setAdding(group.kind)}
-                  className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-accent hover:bg-surface-subtle focus-visible:shadow-focus focus-visible:outline-none sm:px-5"
-                >
-                  <Plus aria-hidden className="size-4" /> {group.add}
-                </button>
-              </li>
+              {customise ? (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setAdding(group.kind)}
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-accent hover:bg-surface-subtle focus-visible:shadow-focus focus-visible:outline-none sm:px-5"
+                  >
+                    <Plus aria-hidden className="size-4" /> {group.add}
+                  </button>
+                </li>
+              ) : null}
             </ul>
           </section>
         );

@@ -11,7 +11,7 @@ export interface Slab {
   amount: number;
 }
 
-/** The professional tax table the company starts with: ₹110 from ₹10,000, ₹130 from ₹15,000, ₹150 from ₹20,000. Below ₹10,000 is not allowed. */
+/** The professional tax table the company starts with: ₹110 from ₹10,000, ₹130 from ₹15,000, ₹150 from ₹20,000. Below ₹10,000 pays nothing. */
 export const DEFAULT_PTAX_SLABS = '[{"from":10000,"to":14999,"amount":110},{"from":15000,"to":19999,"amount":130},{"from":20000,"to":null,"amount":150}]';
 
 export const MAX_SLABS = 20;
