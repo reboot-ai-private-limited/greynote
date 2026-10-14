@@ -4,6 +4,8 @@ import { VISUAL_CATEGORY_LABEL, type VisualDto } from '@greynote/contracts';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { FilePreviewDialog } from '@/components/ui/FilePreviewDialog';
+import { FileThumb } from '@/components/ui/FileThumb';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -15,10 +17,8 @@ import { useActiveProducts } from '@/features/field-master-data/hooks/useProduct
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useUpdateVisual, useVisuals } from '../hooks/useVisuals';
-import { visualKind } from '../lib/visuals';
+import { visualKind, visualPreviewKind } from '../lib/visuals';
 import { VisualFormDialog } from './VisualFormDialog';
-import { VisualPreviewDialog } from './VisualPreviewDialog';
-import { VisualThumb } from './VisualThumb';
 
 const ANY = 'all';
 const GENERAL = 'general';
@@ -50,7 +50,7 @@ export function VisualsScreen() {
       header: 'Visual',
       render: (v) => (
         <div className="flex items-center gap-3">
-          <VisualThumb visual={v} onOpen={() => setPreview(v)} />
+          <FileThumb title={v.title} url={v.fileUrl} kind={visualPreviewKind(v.mimeType)} onOpen={() => setPreview(v)} />
           <div>
             <button
               type="button"
@@ -125,7 +125,7 @@ export function VisualsScreen() {
       >
         <DataTable columns={columns} rows={rows} rowKey={(v) => v.id} />
       </DataState>
-      <VisualPreviewDialog visual={preview} onClose={() => setPreview(null)} />
+      <FilePreviewDialog file={preview ? { title: preview.title, url: preview.fileUrl, kind: visualPreviewKind(preview.mimeType) } : null} onClose={() => setPreview(null)} />
       {form ? <VisualFormDialog visual={form.visual} onClose={() => setForm(null)} /> : null}
       <StatusToggleDialog
         item={toggling ? { id: toggling.id, name: toggling.title, status: toggling.status } : null}

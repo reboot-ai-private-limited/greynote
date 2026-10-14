@@ -62,6 +62,10 @@ export function buildVisualForm(draft: VisualDraft, file: File): FormData {
   return form;
 }
 
+/** What the viewer can draw: an image; anything else is only openable in a new tab. */
+export const visualPreviewKind = (mimeType: string): 'image' | 'other' =>
+  mimeType.startsWith('image/') ? 'image' : 'other';
+
 export function visualKind(mimeType: string): 'Image' | 'PDF' | 'Video' | 'File' {
   if (mimeType.startsWith('image/')) return 'Image';
   if (mimeType === 'application/pdf') return 'PDF';

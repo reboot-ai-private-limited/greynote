@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { FilePreviewDialog } from '@/components/ui/FilePreviewDialog';
+import { FileThumb } from '@/components/ui/FileThumb';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -15,11 +17,14 @@ import { useDocuments, useRemoveDocument } from '../hooks/useDocuments';
 import { CATEGORY_LABEL, sizeLabel } from '../lib/documents';
 import { DocumentFormDialog } from './DocumentFormDialog';
 
+const kindOf = (d: CompanyDocumentDto) => (d.fileKind === 'pdf' ? 'pdf' : 'image');
+
 /** The document library (Admin): files employees see in the Docs tab of the phone app. */
 export function DocumentsScreen() {
   const readOnly = useIsReadOnly();
   const list = useDocuments();
   const [adding, setAdding] = useState(false);
+  const [preview, setPreview] = useState<CompanyDocumentDto | null>(null);
   const [removing, setRemoving] = useState<CompanyDocumentDto | null>(null);
   const remove = useRemoveDocument(() => setRemoving(null));
   const rows = list.data ?? [];
@@ -29,18 +34,20 @@ export function DocumentsScreen() {
       key: 'title',
       header: 'Document',
       render: (d) => (
-        <div>
-          <a
-            href={d.url}
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium hover:text-accent hover:underline"
-          >
-            {d.title}
-          </a>
-          <p className="text-xs text-text-subtle">
-            {d.fileKind.toUpperCase()} · {sizeLabel(d.sizeBytes)}
-          </p>
+        <div className="flex items-center gap-3">
+          <FileThumb title={d.title} url={d.url} kind={kindOf(d)} onOpen={() => setPreview(d)} />
+          <div>
+            <button
+              type="button"
+              onClick={() => setPreview(d)}
+              className="text-left font-medium hover:text-accent hover:underline"
+            >
+              {d.title}
+            </button>
+            <p className="text-xs text-text-subtle">
+              {d.fileKind.toUpperCase()} · {sizeLabel(d.sizeBytes)}
+            </p>
+          </div>
         </div>
       ),
     },
@@ -70,6 +77,10 @@ export function DocumentsScreen() {
 
   return (
     <>
+      <FilePreviewDialog
+        file={preview ? { title: preview.title, url: preview.url, kind: kindOf(preview) } : null}
+        onClose={() => setPreview(null)}
+      />
       <PageHeader
         title="Documents"
         description="Files for the Docs tab of the phone app: policies, circulars, forms. Share with every field employee or with chosen people. Payslips appear there on their own once payroll is finalized."

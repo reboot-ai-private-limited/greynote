@@ -2,18 +2,24 @@
 
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { ExternalLink, X } from 'lucide-react';
-import type { VisualDto } from '@greynote/contracts';
+import type { FileKind } from './FileThumb';
 
-/** A near-fullscreen view of one visual. Esc or the close button dismisses it. */
-export function VisualPreviewDialog({
-  visual,
+export interface PreviewFile {
+  title: string;
+  url: string;
+  kind: FileKind;
+}
+
+/** A near-fullscreen view of one file: an image fitted to the screen, a PDF in a frame. Esc or the close button dismisses it. */
+export function FilePreviewDialog({
+  file,
   onClose,
 }: {
-  visual: Pick<VisualDto, 'title' | 'fileUrl' | 'mimeType'> | null;
+  file: PreviewFile | null;
   onClose: () => void;
 }) {
   return (
-    <RadixDialog.Root open={visual !== null} onOpenChange={(open) => !open && onClose()}>
+    <RadixDialog.Root open={file !== null} onOpenChange={(open) => !open && onClose()}>
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="fixed inset-0 z-40 bg-neutral-900/80" />
         <RadixDialog.Content
@@ -22,12 +28,12 @@ export function VisualPreviewDialog({
         >
           <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-4 py-3">
             <RadixDialog.Title className="truncate text-base font-semibold text-text">
-              {visual?.title}
+              {file?.title}
             </RadixDialog.Title>
             <div className="flex shrink-0 items-center gap-3">
-              {visual ? (
+              {file ? (
                 <a
-                  href={visual.fileUrl}
+                  href={file.url}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-accent"
@@ -45,12 +51,10 @@ export function VisualPreviewDialog({
             </div>
           </div>
           <div className="flex min-h-0 flex-1 items-center justify-center bg-neutral-900/5 p-4">
-            {visual?.mimeType.startsWith('image/') ? (
-              <img
-                src={visual.fileUrl}
-                alt={visual.title}
-                className="max-h-full max-w-full object-contain"
-              />
+            {file?.kind === 'image' ? (
+              <img src={file.url} alt={file.title} className="max-h-full max-w-full object-contain" />
+            ) : file?.kind === 'pdf' ? (
+              <iframe src={file.url} title={file.title} className="size-full rounded border border-border bg-white" />
             ) : (
               <p className="text-sm text-text-muted">
                 This file can’t be previewed here. Use “Open in new tab”.

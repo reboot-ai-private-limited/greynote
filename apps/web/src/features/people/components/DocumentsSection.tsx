@@ -5,6 +5,8 @@ import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { FilePreviewDialog } from '@/components/ui/FilePreviewDialog';
+import { FileThumb } from '@/components/ui/FileThumb';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormField } from '@/components/ui/FormField';
 import { Select } from '@/components/ui/Select';
@@ -16,11 +18,13 @@ import {
   buildDocumentForm,
   documentErrors,
   documentTypeLabel,
+  fileKindOfUrl,
 } from '../lib/documents';
 
 /** Uploaded identity and qualification documents. Uploading and removing save immediately; there is no draft. */
 export function DocumentsSection({ user, readOnly }: { user: UserDetailDto; readOnly: boolean }) {
   const documents = user.profile?.documents ?? [];
+  const [preview, setPreview] = useState<UserDocumentDto | null>(null);
   const [removing, setRemoving] = useState<UserDocumentDto | null>(null);
   const remove = useRemoveDocument(user.id, () => setRemoving(null));
 
@@ -34,16 +38,18 @@ export function DocumentsSection({ user, readOnly }: { user: UserDetailDto; read
           <ul className="divide-y divide-border">
             {documents.map((d) => (
               <li key={d.id} className="flex items-center justify-between gap-4 px-5 py-3">
-                <div className="min-w-0">
-                  <a
-                    href={d.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium text-text hover:text-accent hover:underline"
-                  >
-                    {documentTypeLabel(d.type)}
-                  </a>
-                  <p className="text-xs text-text-subtle">Uploaded {formatDate(d.uploadedAt)}</p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <FileThumb title={documentTypeLabel(d.type)} url={d.url} kind={fileKindOfUrl(d.url)} onOpen={() => setPreview(d)} />
+                  <div className="min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setPreview(d)}
+                      className="text-left font-medium text-text hover:text-accent hover:underline"
+                    >
+                      {documentTypeLabel(d.type)}
+                    </button>
+                    <p className="text-xs text-text-subtle">Uploaded {formatDate(d.uploadedAt)}</p>
+                  </div>
                 </div>
                 <Button
                   variant="ghost"
@@ -60,6 +66,10 @@ export function DocumentsSection({ user, readOnly }: { user: UserDetailDto; read
           </ul>
         )}
       </Card>
+      <FilePreviewDialog
+        file={preview ? { title: documentTypeLabel(preview.type), url: preview.url, kind: fileKindOfUrl(preview.url) } : null}
+        onClose={() => setPreview(null)}
+      />
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}

@@ -19,6 +19,15 @@ export function documentTypeLabel(type: string): string {
   return DOCUMENT_TYPES.find((t) => t.value === type)?.label ?? type;
 }
 
+/** How the viewer draws a stored file, from the extension Cloudinary keeps on its URL. */
+export function fileKindOfUrl(url: string): 'image' | 'pdf' | 'other' {
+  const path = url.split(/[?#]/)[0] ?? '';
+  const ext = path.split('.').pop()?.toLowerCase() ?? '';
+  if (ext === 'pdf') return 'pdf';
+  if (['jpg', 'jpeg', 'png'].includes(ext)) return 'image';
+  return 'other';
+}
+
 export const ACCEPTED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'] as const;
 export const ACCEPT_ATTRIBUTE = ACCEPTED_EXTENSIONS.map((e) => `.${e}`).join(',');
 

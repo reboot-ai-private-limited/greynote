@@ -2202,3 +2202,9 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 ## 2026-10-14 — Visuals are images only; the Visuals page shows previews
 
 **Decision:** Admin can upload only images (PNG, JPG, WebP, GIF, ≤ 25 MB) as Visuals; PDFs and videos are refused by the API and the upload form. This supersedes the "image / PDF / MP4-MOV-WebM" line of the Marketing entry above. Visuals already uploaded as PDF/video are left as they are. The Visuals page and a doctor's Visuals tab show a thumbnail per row, and clicking it opens a near-fullscreen view (Esc closes; "Open in new tab" stays).
+
+## 2026-10-14 — Files open in a viewer on the employee page and the Documents library
+
+**Decision:** an employee's uploaded documents (Profile tab) and the company document library show a thumbnail per row, and clicking opens a near-fullscreen viewer (image fitted, PDF in a frame, Esc closes, "Open in new tab" stays). The viewer and thumbnail are shared components in `apps/web/src/components/ui` (`FilePreviewDialog`, `FileThumb`), which the Visuals screens now use too. The kind of an employee document is read from the extension on its stored URL. Web only; no change to who can see or change documents, or to the document types.
+
+**Open:** whether Cloudinary's PDF URLs render inside the frame in a real browser (the "Open in new tab" link is the fallback).

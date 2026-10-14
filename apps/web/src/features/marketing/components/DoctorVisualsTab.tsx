@@ -6,15 +6,15 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { FilePreviewDialog } from '@/components/ui/FilePreviewDialog';
+import { FileThumb } from '@/components/ui/FileThumb';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { Select } from '@/components/ui/Select';
 import { useAddDoctorVisual, useDoctorVisuals, useRemoveDoctorVisual, useVisuals } from '../hooks/useVisuals';
-import { visualKind } from '../lib/visuals';
-import { VisualPreviewDialog } from './VisualPreviewDialog';
-import { VisualThumb } from './VisualThumb';
+import { visualKind, visualPreviewKind } from '../lib/visuals';
 
 /**
  * The visuals shown to this doctor. The MR only adds, from the app; a manager above them or Admin can add, take off, and so edit the list — here
@@ -39,7 +39,7 @@ export function DoctorVisualsTab({ doctorId }: { doctorId: string }) {
       header: 'Visual',
       render: (r) => (
         <div className="flex items-center gap-3">
-          <VisualThumb visual={r.visual} onOpen={() => setPreview(r.visual)} />
+          <FileThumb title={r.visual.title} url={r.visual.fileUrl} kind={visualPreviewKind(r.visual.mimeType)} onOpen={() => setPreview(r.visual)} />
           <div>
             <button
               type="button"
@@ -128,7 +128,7 @@ export function DoctorVisualsTab({ doctorId }: { doctorId: string }) {
           />
         </DataState>
       </Card>
-      <VisualPreviewDialog visual={preview} onClose={() => setPreview(null)} />
+      <FilePreviewDialog file={preview ? { title: preview.title, url: preview.fileUrl, kind: visualPreviewKind(preview.mimeType) } : null} onClose={() => setPreview(null)} />
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
