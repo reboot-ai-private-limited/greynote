@@ -112,3 +112,7 @@ erDiagram
 ## Next
 
 **Module 4 — Field Activity: Calls & Follow-ups.** Doctor Call, Doctor Followup, Chemist Call, Chemist Followup, Doctor Service, Doctor Gifts — including the sample-given transaction that consumes `DoctorSampleAllocation`, and the geofence check against the `latitude`/`longitude` stored here.
+
+## 2026-10-14 — opening dues
+
+`distributors.opening_dues_paise` (integer paise, default 0).

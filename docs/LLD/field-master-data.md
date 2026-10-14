@@ -306,3 +306,7 @@ Adding a chemist (Details, Location, Review) and a distributor (Details, Coverag
 ## Accountant adds and edits distributors (2026-10-14)
 
 `POST` and `PATCH /api/field-master-data/distributors` are ACCOUNTANT/ADMIN; chemists are readable by the Accountant (the add-order picker). The Accountant's pickers read zone, HQ and route *lists* (`GET /api/territory/zones|hqs|routes`) and `GET /api/identity/work-with/directory` (active field employees: id, code, name, designation); everything else in Territory and the employee records stay Admin/HR. The old payments-only distributor screens for the Accountant are gone: both roles use the same list and page (Details, Payments, Orders, Stock).
+
+## Opening dues (2026-10-14)
+
+`Distributor.openingDuesPaise` (whole paise, default 0, set on create and PATCH by Admin/Accountant). Dues = opening + Done orders delivered − recorded payments (see sales-and-orders.md). `listDistributorAssignees()` on the public contract gives Reports each active distributor's assigned employees.

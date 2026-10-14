@@ -101,12 +101,18 @@ export function DistributorPaymentsTab({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          label="Dues"
+          value={money(data?.dues.duesPaise ?? 0)}
+          tone={data && data.dues.duesPaise > 0 ? 'warning' : 'success'}
+          note={data ? `Opening ${money(data.dues.openingPaise)} + delivered ${money(data.dues.deliveredPaise)} − paid ${money(data.dues.collectedPaise)}` : undefined}
+        />
         <StatTile label="Collected" value={money(data?.collectedPaise ?? 0)} tone="success" />
         <StatTile
           label="Ordered"
           value={money(data?.orderedPaise ?? 0)}
-          note="Orders not cancelled"
+          note="Done orders as delivered; the rest as ordered"
         />
         <StatTile label="Collected of ordered" value={percent === null ? '—' : `${percent}%`} />
       </div>

@@ -82,3 +82,7 @@ Web `/reports/sales-dashboard`: tiles, a Today / Last 7 days / Custom filter (`D
 ## Accountant reads, primary by distributor, PTS (2026-10-14)
 
 `GET /api/reports/sales-dashboard` and `GET /api/reports/employee-sales` now allow the ACCOUNTANT (read only; `audience()` and `assertMayRead` treat the Accountant like Admin). The employee report adds `distributors[]` (`distributor`, `orderQty`, `orderPaise`: Done orders to each distributor in the months, adding up to the order part of `totals.primaryPaise`). Secondary and achievement are valued at **PTS** (the `valued at PTR` wording above is superseded); flags are `NO_PTS` and `NO_PTS_CHANGE`. See decision-log 2026-10-14.
+
+## Achievement from distributors' secondary (2026-10-14)
+
+`DistributorAchievement.entries(userIds, fromMonth, toMonth)` builds, for each employee, product and month, the sum of the secondary of every active distributor handed to them (`MasterPort.listDistributorAssignees`), reusing `buildStatement`/`stockFigure` (Admin's statement, else field counts; negative left out; no count adds nothing). The rows are shaped like the employee's own entries so `secondaryOf` values them at PTS. `EmployeeSalesReport` and `SalesDashboardReport` use it for secondary, achievement and target achievement; the employee's entered secondary only feeds nothing there any more (Admin's primary adjustment still comes from the employee entries). The Orders report and Team orders show a Done order's delivered amount (`suppliedAmountPaise`) and, per line, `suppliedQty`/`freeQty`.

@@ -15,11 +15,16 @@ import { EmployeePickerField } from '@/features/people/components/EmployeePicker
 import { istDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/format';
 import { paiseToRupees } from '@/lib/money';
-import { useAddOrder, useEditOrder } from '../hooks/useOrders';
+import { useAddOrder, useCompleteOrder, useEditOrder, useOrderDetail } from '../hooks/useOrders';
 import {
   REMARKS_MAX,
   buildEdit,
   buildNewOrder,
+  buildSupply,
+  deliveredPaise,
+  notSupplied,
+  supplyDraftOf,
+  type SupplyDraft,
   defaultPricePaise,
   emptyLine,
   emptyOrder,
@@ -29,15 +34,29 @@ import {
   type OrderDraft,
 } from '../lib/orderForm';
 
+/** Under a line of a changed order: what the employee originally ordered, in a warning colour where the line now differs. */
+function OriginalNote({ line, original }: { line: OrderDraft['lines'][number]; original: { quantity: number; unitPricePaise: number } | undefined }) {
+  if (!original) return <span className="text-warning-fg">Added by the office; not in the original order</span>;
+  const changed = String(original.quantity) !== line.quantity.trim() || paiseToRupees(original.unitPricePaise) !== paiseToRupees(Math.round(Number(line.price || 0) * 100));
+  return (
+    <span className={changed ? 'text-warning-fg' : undefined}>
+      Originally ordered: {original.quantity} × {formatMoney(original.unitPricePaise)}
+    </span>
+  );
+}
+
 /** The lines table both forms share: product, quantity, price (₹), the amount that follows, and a way to add or drop a line. */
 function LinesEditor({
   draft,
   setDraft,
   errors,
+  originals,
 }: {
   draft: Pick<OrderDraft, 'outletType' | 'lines'>;
   setDraft: (change: (d: Pick<OrderDraft, 'outletType' | 'lines'>) => Pick<OrderDraft, 'outletType' | 'lines'>) => void;
   errors: Record<string, string>;
+  /** What the employee originally ordered, per product, when changing an existing order: shown under each line so a change is seen against it. */
+  originals?: ReadonlyMap<string, { productName: string; quantity: number; unitPricePaise: number }>;
 }) {
   const products = useActiveProducts();
   const options = (products.data ?? []).map((p) => ({ value: p.id, label: `${p.name} (${p.sku})` }));
@@ -52,12 +71,20 @@ function LinesEditor({
     <div className="space-y-2">
       <p className="text-sm font-medium text-text">Products</p>
       {errors['lines'] ? <p role="alert" className="text-[13px] text-danger-fg">{errors['lines']}</p> : null}
+      <div className="grid grid-cols-[minmax(0,1fr)_5rem_6rem_4.5rem_auto] gap-2 text-xs font-medium uppercase tracking-wide text-text-subtle">
+        <span>Product</span>
+        <span className="text-right">Qty</span>
+        <span className="text-right">₹ each</span>
+        <span className="text-right" title="Units given free on top: not charged, not in any amount">Free</span>
+        <span className="w-9" />
+      </div>
       {draft.lines.map((l, i) => (
         <div key={i} className="space-y-1">
-          <div className="grid grid-cols-[minmax(0,1fr)_5rem_6rem_auto] items-center gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_5rem_6rem_4.5rem_auto] items-center gap-2">
             <Select aria-label={`Product ${i + 1}`} value={l.productId} onValueChange={(v) => pick(i, v)} options={options} placeholder="Product" />
             <Input aria-label={`Quantity ${i + 1}`} inputMode="numeric" placeholder="Qty" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} className="text-right tabular-nums" />
             <Input aria-label={`Price ${i + 1} (₹)`} inputMode="decimal" placeholder="₹ each" value={l.price} onChange={(e) => setLine(i, { price: e.target.value })} className="text-right tabular-nums" />
+            <Input aria-label={`Free units ${i + 1}`} inputMode="numeric" placeholder="0" value={l.free} onChange={(e) => setLine(i, { free: e.target.value })} className="text-right tabular-nums" />
             <Button
               variant="ghost"
               size="sm"
@@ -68,12 +95,25 @@ function LinesEditor({
               <Trash2 className="h-4 w-4" aria-hidden />
             </Button>
           </div>
-          <div className="flex justify-between text-xs text-text-subtle">
-            <span role={errors[`line${i}`] ? 'alert' : undefined} className={errors[`line${i}`] ? 'text-danger-fg' : undefined}>{errors[`line${i}`] ?? ''}</span>
+          <div className="flex justify-between gap-3 text-xs text-text-subtle">
+            {errors[`line${i}`] ? (
+              <span role="alert" className="text-danger-fg">{errors[`line${i}`]}</span>
+            ) : originals ? (
+              <OriginalNote line={l} original={originals.get(l.productId)} />
+            ) : (
+              <span />
+            )}
             <span className="tabular-nums">{lineAmountPaise(l) === null ? '' : formatMoney(lineAmountPaise(l) ?? 0)}</span>
           </div>
         </div>
       ))}
+      {originals
+        ? [...originals].filter(([id]) => !draft.lines.some((l) => l.productId === id)).map(([id, o]) => (
+            <p key={id} className="text-xs text-warning-fg">
+              Removed: {o.productName}, originally {o.quantity} × {formatMoney(o.unitPricePaise)}
+            </p>
+          ))
+        : null}
       <div className="flex items-center justify-between">
         <Button variant="secondary" size="sm" onClick={() => setDraft((d) => ({ ...d, lines: [...d.lines, emptyLine()] }))}>
           <Plus className="mr-1 h-4 w-4" aria-hidden /> Add a product
@@ -144,6 +184,8 @@ export function EditOrderDialog({ order, onClose }: { order: ReportOrderDetailDt
   const [draft, setDraft] = useState<Pick<OrderDraft, 'outletType' | 'remarks' | 'lines'>>({ outletType: order.outletType, remarks: order.remarks ?? '', lines: linesOf(order.items) });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const edit = useEditOrder(order.id, onClose);
+  // What the employee ordered: the saved original once the order has been changed, else the order as it stands.
+  const originals = new Map((order.original ?? order.items.map((i) => ({ productId: i.productId, productName: i.productName, quantity: i.quantity, unitPricePaise: i.unitPricePaise }))).map((o) => [o.productId, o]));
 
   function submit() {
     const built = buildEdit(draft);
@@ -153,11 +195,80 @@ export function EditOrderDialog({ order, onClose }: { order: ReportOrderDetailDt
   }
 
   return (
-    <FormDialog title="Change the order" description={`${order.outlet.name} · placed by ${order.mr.name}. Employee, outlet and date stay as they are.`} formId="edit-order-form" pending={edit.isPending} onClose={onClose} onSubmit={submit} wide>
-      <LinesEditor draft={draft} setDraft={(change) => setDraft((d) => ({ ...d, ...change(d) }))} errors={errors} />
+    <FormDialog title="Change the order" description={`${order.outlet.name} · placed by ${order.mr.name}. Employee, outlet and date stay as they are; what they ordered is kept.`} formId="edit-order-form" pending={edit.isPending} onClose={onClose} onSubmit={submit} wide>
+      <LinesEditor draft={draft} setDraft={(change) => setDraft((d) => ({ ...d, ...change(d) }))} errors={errors} originals={originals} />
       <FormField label="Remarks (optional)" htmlFor="edit-order-remarks" error={errors['remarks']}>
         <Textarea id="edit-order-remarks" value={draft.remarks} maxLength={REMARKS_MAX} onChange={(e) => setDraft((d) => ({ ...d, remarks: e.target.value }))} />
       </FormField>
+    </FormDialog>
+  );
+}
+
+/**
+ * Mark a distributor order Done with what was actually delivered: per product the units supplied (up to what was ordered) and any given free on
+ * top. It starts as a full supply, so Save with no change is a plain Done. Primary counts the supplied units at the order's prices; free units are
+ * stock and sales for the distributor but never rupees. The employee's own order stays as they placed it.
+ */
+export function CompleteOrderDialog({ id, onClose }: { id: string; onClose: () => void }) {
+  const query = useOrderDetail(id);
+  const order = query.data;
+  const [drafts, setDrafts] = useState<SupplyDraft[] | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const complete = useCompleteOrder(id, onClose);
+  const lines = drafts ?? (order ? supplyDraftOf(order.items) : []);
+  const set = (i: number, change: Partial<SupplyDraft>) => setDrafts(lines.map((l, at) => (at === i ? { ...l, ...change } : l)));
+
+  function submit() {
+    const built = buildSupply(lines);
+    if (!built.ok) return setErrors(built.errors);
+    setErrors({});
+    complete.mutate(built.body);
+  }
+
+  return (
+    <FormDialog
+      title="Mark the order Done"
+      {...(order && { description: `${order.outlet.name} · placed by ${order.mr.name}. Enter what was actually supplied; it then counts as primary and cannot be changed.` })}
+      formId="complete-order-form"
+      pending={complete.isPending}
+      disabled={!order}
+      onClose={onClose}
+      onSubmit={submit}
+      wide
+    >
+      {!order ? (
+        <p className="text-sm text-text-muted">{query.error ? 'The order could not be loaded.' : 'Loading…'}</p>
+      ) : (
+        <div className="space-y-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_4rem_5rem_5rem_4.5rem] items-center gap-2 text-xs font-medium uppercase tracking-wide text-text-subtle">
+            <span>Product</span>
+            <span className="text-right">Ordered</span>
+            <span className="text-right">Supplied</span>
+            <span className="text-right">Free</span>
+            <span className="text-right">Short</span>
+          </div>
+          {lines.map((l, i) => {
+            const item = order.items[i];
+            const short = notSupplied(l);
+            return (
+              <div key={l.productId} className="space-y-1">
+                <div className="grid grid-cols-[minmax(0,1fr)_4rem_5rem_5rem_4.5rem] items-center gap-2">
+                  <span className="truncate text-sm">{item?.productName}</span>
+                  <span className="text-right text-sm tabular-nums">{l.ordered}</span>
+                  <Input aria-label={`Supplied, ${item?.productName}`} inputMode="numeric" value={l.supplied} onChange={(e) => set(i, { supplied: e.target.value })} className="text-right tabular-nums" />
+                  <Input aria-label={`Free, ${item?.productName}`} inputMode="numeric" value={l.free} onChange={(e) => set(i, { free: e.target.value })} className="text-right tabular-nums" />
+                  <span className="text-right text-sm tabular-nums">{short === null ? '—' : short}</span>
+                </div>
+                {errors[`line${i}`] ? <p role="alert" className="text-[13px] text-danger-fg">{errors[`line${i}`]}</p> : null}
+              </div>
+            );
+          })}
+          <div className="flex items-center justify-between border-t border-border pt-2 text-sm">
+            <span className="text-text-muted">Ordered {formatMoney(order.totalAmountPaise)}</span>
+            <span className="font-medium tabular-nums">Delivered {formatMoney(deliveredPaise(lines))}</span>
+          </div>
+        </div>
+      )}
     </FormDialog>
   );
 }

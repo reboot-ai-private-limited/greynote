@@ -9,11 +9,11 @@ import type { ListMissingStockUseCase, ListMonthlyStockUseCase } from '../applic
 import type { Actor } from '../application/outletAccess.js';
 import type { RecordMonthlyStockUseCase } from '../application/usecases/recordMonthlyStock.usecase.js';
 import type { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase } from '../application/usecases/orders.usecase.js';
-import type { CancelPaymentUseCase, ListPaymentsUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from '../application/usecases/payments.usecase.js';
+import type { CancelPaymentUseCase, DistributorBalancesUseCase, ListPaymentsUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from '../application/usecases/payments.usecase.js';
 import type { ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SubmitEmployeeSecondaryUseCase } from '../application/usecases/employeeSales.usecase.js';
 import type { ReadStatementUseCase, SaveStatementUseCase } from '../application/usecases/stockStatement.usecase.js';
 import type { UnlockMonthUseCase } from '../application/usecases/unlockMonth.usecase.js';
-import type { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
+import type { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -34,7 +34,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary', RequestHandler>;
+export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary', RequestHandler>;
 
 export function makeSalesControllers(u: {
   record: RecordMonthlyStockUseCase;
@@ -50,6 +50,7 @@ export function makeSalesControllers(u: {
   listPayments: ListPaymentsUseCase;
   cancelPayment: CancelPaymentUseCase;
   paymentTotals: PaymentTotalsUseCase;
+  balances: DistributorBalancesUseCase;
   readStatement: ReadStatementUseCase;
   saveStatement: SaveStatementUseCase;
   readEmployeeSales: ReadEmployeeSalesUseCase;
@@ -100,6 +101,7 @@ export function makeSalesControllers(u: {
     listPayments: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.listPayments.execute(req.query as unknown as z.output<typeof listPaymentsQuerySchema>)), 'Payments.', 200),
     ),
+    distributorBalances: asyncHandler(async (req, res) => sendSuccess(req, res, await u.balances.execute(), 'What each distributor was delivered and paid.', 200)),
     paymentTotals: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.paymentTotals.execute(req.query as unknown as z.output<typeof paymentTotalsQuerySchema>), 'What each distributor paid.', 200),
     ),
@@ -124,7 +126,7 @@ export function makeSalesControllers(u: {
     cancelPayment: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.cancelPayment.execute(actorOf(req), requiredParam(req.params, 'id'), (req.body as z.output<typeof cancelPaymentBodySchema>).reason)), 'The payment was cancelled.', 200),
     ),
-    completeOrder: asyncHandler(async (req, res) => sendSuccess(req, res, await refusing(() => u.finish.execute(actorOf(req), requiredParam(req.params, 'id'), 'DONE')), 'The order is done.', 200)),
+    completeOrder: asyncHandler(async (req, res) => sendSuccess(req, res, await refusing(() => u.finish.execute(actorOf(req), requiredParam(req.params, 'id'), 'DONE', (req.body as z.output<typeof completeOrderBodySchema> | undefined)?.supply)), 'The order is done.', 200)),
     cancelOrder: asyncHandler(async (req, res) => sendSuccess(req, res, await refusing(() => u.finish.execute(actorOf(req), requiredParam(req.params, 'id'), 'CANCELLED')), 'The order was cancelled.', 200)),
   };
 }

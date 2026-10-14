@@ -42,6 +42,7 @@ function build(over: { downline?: string[] } = {}) {
     { async listNames() { return { distributors: [], chemists: [], products: [{ id: 'p1', name: 'P', sku: 'P', ptrPaise: 1000, ptsPaise: 800 }] }; } } as never,
     { async getRoute(id) { return { id, name: `Route ${id}` }; }, async getZone() { return { id: 'z1', name: 'North' }; } },
     config,
+    { entries: async () => [{ userId: 'mr1', productId: 'p1', month: '2026-10', secondaryQty: 40, adjustmentQty: 0 }] } as never,
     now,
   );
   return { report, asked };

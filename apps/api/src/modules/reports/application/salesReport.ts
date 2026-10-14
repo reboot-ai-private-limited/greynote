@@ -6,8 +6,8 @@ import type { MasterPort, SalesPort, StatementRow, StatementsPort, StockRow } fr
 
 const UNKNOWN = '(removed)';
 
-const toStatements = (rows: readonly StatementRow[]): StatementCount[] => rows.map((r) => ({ distributorId: r.distributorId, productId: r.productId, month: r.month, openingQty: r.openingQty, secondaryQty: r.secondaryQty, adjustmentQty: r.adjustmentQty }));
-const toCounts = (rows: readonly StockRow[]): StockCount[] => rows.map((r) => ({ distributorId: r.outlet.id, productId: r.productId, month: r.month, openingQty: r.openingQty, closingQty: r.closingQty }));
+export const toStatements = (rows: readonly StatementRow[]): StatementCount[] => rows.map((r) => ({ distributorId: r.distributorId, productId: r.productId, month: r.month, openingQty: r.openingQty, secondaryQty: r.secondaryQty, adjustmentQty: r.adjustmentQty }));
+export const toCounts = (rows: readonly StockRow[]): StockCount[] => rows.map((r) => ({ distributorId: r.outlet.id, productId: r.productId, month: r.month, openingQty: r.openingQty, closingQty: r.closingQty }));
 
 /**
  * Primary and secondary sales (sign-off K9, K21, K22, K31): primary is every Done order to a distributor, in the month marked Done; secondary is

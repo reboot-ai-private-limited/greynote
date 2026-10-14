@@ -1,4 +1,4 @@
-import type { DistributorPaymentDto, DistributorPaymentsDto, DistributorPaymentTotalDto } from '@greynote/contracts';
+import type { DistributorBalanceDto, DistributorPaymentDto, DistributorPaymentsDto, DistributorPaymentTotalDto } from '@greynote/contracts';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { Paise } from '@/shared/money/paise.js';
 import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
@@ -92,16 +92,39 @@ export class ListPaymentsUseCase {
   ) {}
 
   async execute(filter: { distributorId: string; from: string; to: string }): Promise<DistributorPaymentsDto> {
-    if (!(await this.master.getDistributor(filter.distributorId))) throw new StockRefusal(STOCK_CODES.outletNotFound, 'No such distributor.');
-    const [rows, orders] = await Promise.all([this.payments.list(filter, LIMIT), this.orders.list({ outlet: { type: 'DISTRIBUTOR', id: filter.distributorId }, from: filter.from, to: filter.to }, LIMIT)]);
+    const distributor = await this.master.getDistributor(filter.distributorId);
+    if (!distributor) throw new StockRefusal(STOCK_CODES.outletNotFound, 'No such distributor.');
+    const [rows, orders, delivered, collected] = await Promise.all([
+      this.payments.list(filter, LIMIT),
+      this.orders.list({ outlet: { type: 'DISTRIBUTOR', id: filter.distributorId }, from: filter.from, to: filter.to }, LIMIT),
+      this.orders.sumDoneByDistributor([filter.distributorId]),
+      this.payments.collectedAllTime(),
+    ]);
+    const opening = distributor.openingDuesPaise ?? 0;
+    const deliveredPaise = delivered.get(filter.distributorId) ?? 0;
+    const collectedPaise = collected.get(filter.distributorId) ?? 0;
     const payments = await toDtos(this.users, rows);
     return {
       from: filter.from,
       to: filter.to,
       payments,
       collectedPaise: rows.filter((p) => p.status === 'RECORDED').reduce((n, p) => n + p.amountPaise, 0),
-      orderedPaise: orders.filter((o) => o.status !== 'CANCELLED').reduce((n, o) => n + o.totalAmountPaise, 0),
+      orderedPaise: orders.filter((o) => o.status !== 'CANCELLED').reduce((n, o) => n + (o.status === 'DONE' ? (o.suppliedAmountPaise ?? o.totalAmountPaise) : o.totalAmountPaise), 0),
+      dues: { openingPaise: opening, deliveredPaise, collectedPaise, duesPaise: opening + deliveredPaise - collectedPaise },
     };
+  }
+}
+
+/** What every distributor was delivered and paid, all time, for the Distributors list's "Dues" column (the list adds each one's opening dues): one pair of queries however many distributors. */
+export class DistributorBalancesUseCase {
+  constructor(
+    private readonly payments: PaymentRepositoryPort,
+    private readonly orders: OrderRepositoryPort,
+  ) {}
+
+  async execute(): Promise<DistributorBalanceDto[]> {
+    const [delivered, collected] = await Promise.all([this.orders.sumDoneByDistributor(), this.payments.collectedAllTime()]);
+    return [...new Set([...delivered.keys(), ...collected.keys()])].map((distributorId) => ({ distributorId, deliveredPaise: delivered.get(distributorId) ?? 0, collectedPaise: collected.get(distributorId) ?? 0 }));
   }
 }
 

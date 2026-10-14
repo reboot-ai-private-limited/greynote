@@ -10,6 +10,20 @@ export interface OrderItem {
   unitPricePaise: Paise;
   /** `quantity × unitPricePaise`, computed by the server — never taken from the phone. */
   amountPaise: Paise;
+  /**
+   * What the distributor actually supplied of `quantity`, set when the order is marked Done (`0 ≤ suppliedQty ≤ quantity`). `null`/absent on a
+   * Placed order and on orders marked Done before supply was recorded: those read as fully supplied.
+   */
+  suppliedQty?: number | null;
+  /** Units given on top, free of charge: stock and secondary count them, the rupees never do. `0`/absent = none. */
+  freeQty?: number;
+}
+
+/** What one line came to when it was delivered: units that arrived and what they cost. Orders without a recorded supply are read as fully supplied. */
+export function deliveredOf(item: OrderItem): { suppliedQty: number; freeQty: number; unitsQty: number; amountPaise: Paise } {
+  const suppliedQty = item.suppliedQty ?? item.quantity;
+  const freeQty = item.freeQty ?? 0;
+  return { suppliedQty, freeQty, unitsQty: suppliedQty + freeQty, amountPaise: suppliedQty * item.unitPricePaise };
 }
 
 /** A Chemist or Distributor order, placed on its own (not tied to a call). No approval; `PLACED` → `DONE` or `CANCELLED`, once. */
@@ -22,6 +36,11 @@ export interface Order {
   status: OrderStatus;
   /** The sum of the items' amounts. */
   totalAmountPaise: Paise;
+  /** What was delivered, at the order's prices, free units excluded: set when marked Done. `null`/absent before, and on older Done orders (read as the total). */
+  suppliedAmountPaise?: Paise | null;
+  /** What the employee ordered, kept the first time the office changes the order (lines and total); `null`/absent if never changed. */
+  originalItems?: OrderItem[] | null;
+  originalTotalAmountPaise?: Paise | null;
   remarks: string | null;
   items: OrderItem[];
   completedBy: string | null;

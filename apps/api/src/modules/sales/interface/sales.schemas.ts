@@ -34,6 +34,8 @@ const orderLineSchema = z.object({
   productId: objectIdSchema,
   quantity: z.number().int('Whole units only.').min(1).max(1_000_000),
   unitPricePaise: paiseSchema,
+  /** Units to give free on top: the office's (an employee's own order ignores it). */
+  freeQty: z.number().int('Whole units only.').min(0).max(1_000_000).default(0),
 });
 
 /** Body of `POST /sales/orders` and payload of an `ORDER` sync record. Amounts are worked out by the server. */
@@ -57,6 +59,17 @@ export const editOrderBodySchema = z
     lines: z.array(orderLineSchema).min(1).max(200),
   })
   .refine((b) => new Set(b.lines.map((l) => l.productId)).size === b.lines.length, { message: 'A product appears twice.', path: ['lines'] });
+
+/** Body of `POST /sales/orders/:id/complete` (optional; Admin or the Accountant): what was supplied and given free, per line. A product left out is supplied in full. */
+export const completeOrderBodySchema = z
+  .object({
+    supply: z
+      .array(z.object({ productId: objectIdSchema, suppliedQty: z.number().int('Whole units only.').min(0).max(1_000_000), freeQty: z.number().int('Whole units only.').min(0).max(1_000_000).default(0) }))
+      .min(1)
+      .max(200)
+      .optional(),
+  })
+  .refine((b) => !b.supply || new Set(b.supply.map((l) => l.productId)).size === b.supply.length, { message: 'A product appears twice.', path: ['supply'] });
 
 export const orderIdParamsSchema = z.object({ id: objectIdSchema });
 export const listOrdersQuerySchema = z

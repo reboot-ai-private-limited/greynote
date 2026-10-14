@@ -60,3 +60,21 @@
 | 7.49 | As Accountant, Payroll → "Salary paid" | one row per month with the total and the number paid; no names | |
 | 7.50 | Secondary 40 of a product with PTS ₹80 and PTR ₹100 | Secondary tile = ₹3,200 (PTS), not ₹4,000 | |
 | 7.51 | Set a product target as 50 units | the amount = 50 × PTS | |
+
+## Part supply, free units, dues (2026-10-14)
+
+| # | Step | Expect | Result |
+|---|---|---|---|
+| 7.60 | Orders → Done on a distributor order of 12 | a dialog lists each product: Ordered 12, Supplied 12, Free 0, Short 0, Delivered = Ordered | |
+| 7.61 | Set Supplied 10, Free 2, Save | Done; the order shows Ordered 12 / Supplied 10 / Free 2; the row amount is 10 × price; the ordered total is shown in the note | |
+| 7.62 | Supplied above the ordered quantity, or a decimal | refused in the dialog | |
+| 7.63 | Employee page, By distributor / Primary | primary counts 10 × price (units 12, free included); the ordered figure is not used | |
+| 7.64 | Mark Done as the MR on the phone (or POST /complete with `supply` as FIELD) | full supply; `supply` as FIELD is 403 | |
+| 7.65 | Stock tab for that distributor and month | the order's primary units are 12 (supplied + free) | |
+| 7.66 | Employee page, a product: Secondary / Achievement | secondary = the sum of that product's secondary over the employee's assigned distributors (see Sales report), at PTS; a distributor with no count adds nothing | |
+| 7.67 | Add a distributor with Opening dues ₹25,000 | the Payments tab shows Dues ₹25,000 = Opening + delivered − paid; the Distributors list shows the same | |
+| 7.68 | Mark an order Done (delivered ₹6,000), record a payment of ₹10,000 | Dues become ₹21,000 on both screens; cancelling the payment puts it back | |
+
+| 7.69 | Orders → Open a Placed order → Change order | each line has Qty, ₹ each and **Free**, with "Originally ordered: qty × price" under it | |
+| 7.70 | Change a quantity, add 6 free, Save; open the order again | the order shows the new lines with a Free column and an "Originally ordered by the employee" block with the first values; changing it a second time keeps that same original | |
+| 7.71 | Add order: put 2 free on a line | saved; Mark Done opens with Free 2 prefilled | |

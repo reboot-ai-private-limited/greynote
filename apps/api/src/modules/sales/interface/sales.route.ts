@@ -6,7 +6,7 @@ import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js'
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { SalesHandlers } from './sales.controller.js';
-import { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
+import { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 const TAG = 'Sales';
 
@@ -37,11 +37,12 @@ doc('post', '/employee-secondary', 'The secondary an employee sold, per product 
 doc('post', '/employee-secondary/submit', 'The employee sends a month\'s secondary to their manager for approval; only approved secondary counts toward achievement', { body: submitEmployeeSecondaryBodySchema });
 doc('post', '/employee-primary', 'Admin: change an employee\'s primary for a month, per product, with a reason (any past month of an open financial year)', { body: saveEmployeePrimaryBodySchema });
 doc('post', '/distributor-statement', 'Admin: save the month\'s statement lines (opening, secondary, adjustment with a reason); any past month, an open financial year', { body: saveStatementBodySchema });
+openApiRegistry.registerPath({ method: 'get', path: '/api/sales/distributor-payments/balances', tags: [TAG], summary: 'Admin or Accountant: what each distributor was delivered (Done orders, free units excluded) and paid, all time — the Dues column adds each distributor\'s opening dues', security: [{ bearerAuth: [] }], responses: { 200: { description: 'OK' } } });
 doc('get', '/distributor-payments/totals', 'Admin or Accountant: what each distributor paid in a date range (recorded payments only)', { query: paymentTotalsQuerySchema });
 openApiRegistry.registerPath({ method: 'post', path: '/api/sales/distributor-payments/{id}/cancel', tags: [TAG], summary: 'Admin or Accountant: cancel a recorded payment, with a reason; a 409 if it is already cancelled', security: [{ bearerAuth: [] }], request: { params: orderIdParamsSchema, body: { content: { 'application/json': { schema: cancelPaymentBodySchema } } } }, responses: { 200: { description: 'OK' }, 409: { description: 'Already cancelled' } } });
 for (const [path, summary] of [
   ['/orders/{id}', 'One order with its lines'],
-  ['/orders/{id}/complete', 'Mark a PLACED order DONE — the MR who placed it, Admin or the Accountant; a 409 if it is not PLACED'],
+  ['/orders/{id}/complete', 'Mark a PLACED order DONE, delivered in full — the MR who placed it, Admin or the Accountant; Admin or the Accountant may send `supply` (per product: suppliedQty, freeQty) for a part supply and free units; a 409 if it is not PLACED'],
   ['/orders/{id}/cancel', 'Cancel a PLACED order — the MR who placed it, or Admin; a 409 if it is not PLACED'],
 ] as const) {
   openApiRegistry.registerPath({ method: path === '/orders/{id}' ? 'get' : 'post', path: `/api/sales${path}`, tags: [TAG], summary, security: [{ bearerAuth: [] }], request: { params: orderIdParamsSchema }, responses: { 200: { description: 'OK' }, 409: { description: 'The order is not PLACED' } } });
@@ -62,6 +63,7 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.post('/employee-secondary/submit', requireRole('FIELD'), validate({ body: submitEmployeeSecondaryBodySchema }), c.submitEmployeeSecondary);
   router.post('/employee-primary', requireRole('ADMIN'), validate({ body: saveEmployeePrimaryBodySchema }), c.saveEmployeePrimary);
   router.post('/distributor-statement', requireRole('ADMIN'), validate({ body: saveStatementBodySchema }), c.saveStatement);
+  router.get('/distributor-payments/balances', requireRole('ACCOUNTANT', 'ADMIN'), c.distributorBalances);
   router.get('/distributor-payments/totals', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: paymentTotalsQuerySchema }), c.paymentTotals);
   router.post('/distributor-payments/:id/cancel', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: orderIdParamsSchema, body: cancelPaymentBodySchema }), c.cancelPayment);
   router.post('/orders', requireRole('FIELD'), validate({ body: placeOrderBodySchema }), c.placeOrder);
@@ -69,7 +71,7 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.patch('/orders/:id', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: orderIdParamsSchema, body: editOrderBodySchema }), c.editOrder);
   router.get('/orders', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listOrdersQuerySchema }), c.listOrders);
   router.get('/orders/:id', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema }), c.getOrder);
-  router.post('/orders/:id/complete', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema }), c.completeOrder);
+  router.post('/orders/:id/complete', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema, body: completeOrderBodySchema }), c.completeOrder);
   router.post('/orders/:id/cancel', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema }), c.cancelOrder);
   return router;
 }

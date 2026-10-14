@@ -15,7 +15,10 @@ const toOrder = (d: OrderDoc & { _id: unknown }): Order => ({
   status: d.status,
   totalAmountPaise: d.totalAmountPaise,
   remarks: d.remarks,
-  items: d.items.map((i) => ({ productId: String(i.productId), quantity: i.quantity, unitPricePaise: i.unitPricePaise, amountPaise: i.amountPaise })),
+  items: d.items.map((i) => ({ productId: String(i.productId), quantity: i.quantity, unitPricePaise: i.unitPricePaise, amountPaise: i.amountPaise, suppliedQty: i.suppliedQty ?? null, freeQty: i.freeQty ?? 0 })),
+  suppliedAmountPaise: d.suppliedAmountPaise ?? null,
+  originalItems: d.originalItems && d.originalItems.length > 0 ? d.originalItems.map((i) => ({ productId: String(i.productId), quantity: i.quantity, unitPricePaise: i.unitPricePaise, amountPaise: i.amountPaise, suppliedQty: null, freeQty: i.freeQty ?? 0 })) : null,
+  originalTotalAmountPaise: d.originalTotalAmountPaise ?? null,
   completedBy: d.completedBy ? String(d.completedBy) : null,
   completedAt: d.completedAt,
   clientId: d.clientId,
@@ -31,6 +34,11 @@ function shiftedBy(dayStart: string, field: string) {
   const minutes = hour * 60 + minute;
   return minutes === 0 ? field : { $dateSubtract: { startDate: field, unit: 'minute', amount: minutes } };
 }
+
+/** Per unwound line of a Done order: the units that arrived (supplied + free; an order marked Done before supply was recorded reads as fully supplied) and the rupees (supplied × price, free excluded). */
+const SUPPLIED = { $ifNull: ['$items.suppliedQty', '$items.quantity'] };
+const DELIVERED_UNITS = { $add: [SUPPLIED, { $ifNull: ['$items.freeQty', 0] }] };
+const DELIVERED_PAISE = { $multiply: [SUPPLIED, '$items.unitPricePaise'] };
 
 export class MongoOrderAdapter implements OrderRepositoryPort {
   async create(input: Omit<Order, 'id'>, ctx?: TransactionContext): Promise<Order> {
@@ -54,11 +62,11 @@ export class MongoOrderAdapter implements OrderRepositoryPort {
     const end = dayStartInstant(parseCalendarDate(addDays(f.to, 1)), dayStart, f.timeZone);
     const outlet = { distributorId: f.distributorId ? oid(f.distributorId) : { $type: 'objectId' } };
     const lines = [{ $unwind: '$items' }, ...(f.productId ? [{ $match: { 'items.productId': oid(f.productId) } }] : [])];
-    const group = (month: unknown) => ({ $group: { _id: { m: month, d: '$distributorId', p: '$items.productId' }, quantity: { $sum: '$items.quantity' }, amountPaise: { $sum: '$items.amountPaise' } } });
+    const group = (month: unknown, done: boolean) => ({ $group: { _id: { m: month, d: '$distributorId', p: '$items.productId' }, quantity: { $sum: done ? DELIVERED_UNITS : '$items.quantity' }, amountPaise: { $sum: done ? DELIVERED_PAISE : '$items.amountPaise' } } });
     type Row = { _id: { m: string; d: Types.ObjectId; p: Types.ObjectId }; quantity: number; amountPaise: number };
     const [done, placed] = await Promise.all([
-      OrderModel.aggregate<Row>([{ $match: { ...outlet, status: 'DONE', completedAt: { $gte: start, $lt: end } } }, ...lines, group({ $dateToString: { format: '%Y-%m', date: shiftedBy(dayStart, '$completedAt'), timezone: f.timeZone } })]),
-      OrderModel.aggregate<Row>([{ $match: { ...outlet, status: 'PLACED', orderDate: { $gte: f.from, $lte: f.to } } }, ...lines, group({ $substrBytes: ['$orderDate', 0, 7] })]),
+      OrderModel.aggregate<Row>([{ $match: { ...outlet, status: 'DONE', completedAt: { $gte: start, $lt: end } } }, ...lines, group({ $dateToString: { format: '%Y-%m', date: shiftedBy(dayStart, '$completedAt'), timezone: f.timeZone } }, true)]),
+      OrderModel.aggregate<Row>([{ $match: { ...outlet, status: 'PLACED', orderDate: { $gte: f.from, $lte: f.to } } }, ...lines, group({ $substrBytes: ['$orderDate', 0, 7] }, false)]),
     ]);
     const rows = (status: 'DONE' | 'PLACED') => (r: Row): DistributorOrderSum => ({ month: r._id.m, distributorId: String(r._id.d), productId: String(r._id.p), status, quantity: r.quantity, amountPaise: r.amountPaise });
     return [...done.map(rows('DONE')), ...placed.map(rows('PLACED'))];
@@ -75,7 +83,7 @@ export class MongoOrderAdapter implements OrderRepositoryPort {
       { $match: match },
       { $unwind: '$items' },
       ...(f.productId ? [{ $match: { 'items.productId': oid(f.productId) } }] : []),
-      { $group: { _id: { m: { $dateToString: { format: '%Y-%m', date: shiftedBy(dayStart, '$completedAt'), timezone: f.timeZone } }, u: '$userId', d: '$distributorId', p: '$items.productId' }, quantity: { $sum: '$items.quantity' }, amountPaise: { $sum: '$items.amountPaise' } } },
+      { $group: { _id: { m: { $dateToString: { format: '%Y-%m', date: shiftedBy(dayStart, '$completedAt'), timezone: f.timeZone } }, u: '$userId', d: '$distributorId', p: '$items.productId' }, quantity: { $sum: DELIVERED_UNITS }, amountPaise: { $sum: DELIVERED_PAISE } } },
     ]);
     return rows.map((r) => ({ month: r._id.m, userId: String(r._id.u), distributorId: String(r._id.d), productId: String(r._id.p), quantity: r.quantity, amountPaise: r.amountPaise }));
   }
@@ -104,10 +112,37 @@ export class MongoOrderAdapter implements OrderRepositoryPort {
     return (await OrderModel.find(q).sort({ orderDate: -1, _id: -1 }).limit(limit).lean()).map(toOrder);
   }
 
-  async update(id: string, change: { items: Order['items']; totalAmountPaise: number; remarks: string | null }, by: string, at: Date): Promise<boolean> {
+  async update(id: string, change: { items: Order['items']; totalAmountPaise: number; remarks: string | null; original?: { items: Order['items']; totalAmountPaise: number } }, by: string, at: Date, ifEditedAt: Date | null): Promise<boolean> {
     const res = await OrderModel.updateOne(
-      { _id: oid(id), status: 'PLACED' },
-      { $set: { items: change.items.map((i) => ({ ...i, productId: oid(i.productId) })), totalAmountPaise: change.totalAmountPaise, remarks: change.remarks, editedBy: oid(by), editedAt: at } },
+      { _id: oid(id), status: 'PLACED', editedAt: ifEditedAt },
+      {
+        $set: {
+          items: change.items.map((i) => ({ ...i, productId: oid(i.productId) })),
+          totalAmountPaise: change.totalAmountPaise,
+          remarks: change.remarks,
+          editedBy: oid(by),
+          editedAt: at,
+          ...(change.original && { originalItems: change.original.items.map((i) => ({ ...i, productId: oid(i.productId) })), originalTotalAmountPaise: change.original.totalAmountPaise }),
+        },
+      },
+    );
+    return res.modifiedCount === 1;
+  }
+
+  async sumDoneByDistributor(distributorIds?: string[]): Promise<Map<string, number>> {
+    if (distributorIds && distributorIds.length === 0) return new Map();
+    const rows = await OrderModel.aggregate<{ _id: Types.ObjectId; amountPaise: number }>([
+      { $match: { distributorId: distributorIds ? { $in: distributorIds.map(oid) } : { $type: 'objectId' }, status: 'DONE' } },
+      { $unwind: '$items' },
+      { $group: { _id: '$distributorId', amountPaise: { $sum: DELIVERED_PAISE } } },
+    ]);
+    return new Map(rows.map((r) => [String(r._id), r.amountPaise]));
+  }
+
+  async complete(id: string, supply: { items: Order['items']; suppliedAmountPaise: number; ifEditedAt: Date | null }, by: string, at: Date): Promise<boolean> {
+    const res = await OrderModel.updateOne(
+      { _id: oid(id), status: 'PLACED', editedAt: supply.ifEditedAt },
+      { $set: { status: 'DONE', completedBy: oid(by), completedAt: at, items: supply.items.map((i) => ({ ...i, productId: oid(i.productId) })), suppliedAmountPaise: supply.suppliedAmountPaise } },
     );
     return res.modifiedCount === 1;
   }

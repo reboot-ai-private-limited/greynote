@@ -29,6 +29,7 @@ function kit(orders: OrderRecord[]) {
     },
     {
       listActiveOutlets: async () => ({ distributors: [], chemists: [] }),
+      listDistributorAssignees: async () => [],
       listAssignedDoctors: async () => [],
       listNames: async (q) => ({
         distributors: (q.distributorIds ?? []).filter((id) => id === 'd1').map((id) => ({ id, name: 'Shree Distributors' })),

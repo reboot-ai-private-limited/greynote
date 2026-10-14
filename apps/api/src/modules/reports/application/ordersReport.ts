@@ -29,7 +29,7 @@ export class OrdersReport {
     for (const r of rows) {
       const bucket = r.status === 'DONE' ? totals.done : r.status === 'PLACED' ? totals.placed : totals.cancelled;
       bucket.count += 1;
-      bucket.amountPaise += r.totalAmountPaise;
+      bucket.amountPaise += r.status === 'DONE' ? (r.suppliedAmountPaise ?? r.totalAmountPaise) : r.totalAmountPaise;
     }
     return { month: input.month, rows, totals, truncated: fetched.length >= ORDERS_LIMIT };
   }
@@ -38,12 +38,14 @@ export class OrdersReport {
     const order = await this.sales.getOrder(orderId);
     if (!order) throw AppError.notFound();
     const [row] = await this.rows([order]);
-    const names = await this.master.listNames({ productIds: order.items.map((i) => i.productId) });
+    const names = await this.master.listNames({ productIds: [...order.items, ...(order.originalItems ?? [])].map((i) => i.productId) });
     const product = new Map(names.products.map((p) => [p.id, p]));
     const [by] = order.completedBy ? await this.identity.getUserSummaries([order.completedBy]) : [];
     return {
       ...row!,
-      items: order.items.map((i) => ({ productId: i.productId, productName: product.get(i.productId)?.name ?? UNKNOWN, sku: product.get(i.productId)?.sku ?? '', quantity: i.quantity, unitPricePaise: i.unitPricePaise, amountPaise: i.amountPaise })),
+      items: order.items.map((i) => ({ productId: i.productId, productName: product.get(i.productId)?.name ?? UNKNOWN, sku: product.get(i.productId)?.sku ?? '', quantity: i.quantity, unitPricePaise: i.unitPricePaise, amountPaise: i.amountPaise, suppliedQty: order.status === 'DONE' ? (i.suppliedQty ?? i.quantity) : null, freeQty: i.freeQty ?? 0 })),
+      original: order.originalItems ? order.originalItems.map((i) => ({ productId: i.productId, productName: product.get(i.productId)?.name ?? UNKNOWN, quantity: i.quantity, unitPricePaise: i.unitPricePaise })) : null,
+      originalTotalAmountPaise: order.originalTotalAmountPaise ?? null,
       completedBy: by ? { id: by.id, name: by.name } : null,
     };
   }
@@ -69,6 +71,7 @@ export class OrdersReport {
       mr: { id: o.userId, name: mr.get(o.userId)?.name ?? UNKNOWN, employeeCode: mr.get(o.userId)?.employeeCode ?? '' },
       itemCount: o.items.length,
       totalAmountPaise: o.totalAmountPaise,
+      suppliedAmountPaise: o.status === 'DONE' ? (o.suppliedAmountPaise ?? o.totalAmountPaise) : null,
       completedAt: o.completedAt ? o.completedAt.toISOString() : null,
       remarks: o.remarks,
     }));

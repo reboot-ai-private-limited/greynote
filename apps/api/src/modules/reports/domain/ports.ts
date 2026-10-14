@@ -6,8 +6,11 @@ export interface OrderRecord {
   orderDate: string;
   status: 'PLACED' | 'DONE' | 'CANCELLED';
   totalAmountPaise: number;
+  suppliedAmountPaise?: number | null;
+  originalItems?: Array<{ productId: string; quantity: number; unitPricePaise: number }> | null;
+  originalTotalAmountPaise?: number | null;
   remarks: string | null;
-  items: Array<{ productId: string; quantity: number; unitPricePaise: number; amountPaise: number }>;
+  items: Array<{ productId: string; quantity: number; unitPricePaise: number; amountPaise: number; suppliedQty?: number | null; freeQty?: number }>;
   completedBy: string | null;
   completedAt: Date | null;
 }
@@ -56,6 +59,8 @@ export interface MasterPort {
   /** The doctors an employee covers now: those the employee is assigned and can see. */
   listAssignedDoctors(userId: string): Promise<Array<{ id: string; name: string; specialty: string; visitFrequency?: number | null }>>;
   listActiveOutlets(): Promise<{ distributors: Array<{ id: string; name: string }>; chemists: Array<{ id: string; name: string }> }>;
+  /** Every active distributor with the field employees it is handed to: whose achievement its secondary counts toward. */
+  listDistributorAssignees(): Promise<Array<{ id: string; assignedUserIds: string[] }>>;
   listNames(query: { distributorIds?: string[]; chemistIds?: string[]; productIds?: string[] }): Promise<{
     distributors: Array<{ id: string; name: string }>;
     chemists: Array<{ id: string; name: string }>;

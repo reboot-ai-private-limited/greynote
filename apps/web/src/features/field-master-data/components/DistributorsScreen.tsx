@@ -19,7 +19,7 @@ import { istDate } from '@/lib/dates';
 import { financialYearOf, financialYearRange } from '@/lib/financial-year';
 import { formatMoney } from '@/lib/format';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
-import { useDistributorPaymentTotals } from '../hooks/useDistributorPayments';
+import { useDistributorBalances, useDistributorPaymentTotals } from '../hooks/useDistributorPayments';
 import { useDistributors, useUpdateDistributor } from '../hooks/useDistributors';
 import { paymentRange } from '../lib/payments';
 import { RecordPaymentDialog } from './RecordPaymentDialog';
@@ -54,6 +54,7 @@ export function DistributorsScreen() {
   const collected = useDistributorPaymentTotals(
     paymentRange('month', today, financialYearRange(year ?? financialYearOf(today))),
   ).data;
+  const balances = useDistributorBalances().data;
   const updateDistributor = useUpdateDistributor(() => setToggling(null));
 
   const distributors = useDistributors({
@@ -119,6 +120,17 @@ export function DistributorsScreen() {
       render: (d) => {
         const paise = collected?.get(d.id);
         return paise ? money(paise) : <span className="text-text-subtle">—</span>;
+      },
+    },
+    {
+      key: 'dues',
+      header: 'Dues',
+      numeric: true,
+      render: (d) => {
+        if (!balances) return <span className="text-text-subtle">—</span>;
+        const b = balances.get(d.id);
+        const dues = d.openingDuesPaise + (b?.deliveredPaise ?? 0) - (b?.collectedPaise ?? 0);
+        return dues === 0 ? <span className="text-text-subtle">—</span> : <span className={dues > 0 ? 'font-medium' : 'text-success-fg'}>{money(dues)}</span>;
       },
     },
     {

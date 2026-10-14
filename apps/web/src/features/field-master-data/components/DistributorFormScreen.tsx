@@ -141,6 +141,16 @@ function DetailsFields({
           aria-invalid={invalid('mobile')}
         />
       </FormField>
+      <FormField label="Opening dues (₹, optional)" htmlFor="dist-opening-dues" error={errors['openingDues']} hint="What they already owed before this system. Their dues = this + what is delivered − what they pay.">
+        <Input
+          id="dist-opening-dues"
+          inputMode="decimal"
+          value={draft.openingDues}
+          disabled={locked}
+          onChange={(e) => set('openingDues')(e.target.value)}
+          aria-invalid={invalid('openingDues')}
+        />
+      </FormField>
       <div className="sm:col-span-2">
         <FormField label="Address" htmlFor="dist-address" error={errors['address']}>
           <Input
@@ -280,6 +290,7 @@ function NewDistributor() {
           <Field label="Contact person">{draft.contactPerson}</Field>
           <Field label="Mobile">{draft.mobile}</Field>
           <Field label="Address">{draft.address}</Field>
+          <Field label="Opening dues">{draft.openingDues ? `₹${draft.openingDues}` : null}</Field>
           <Field label="Zone">{draft.zoneId ? directory.zoneName(draft.zoneId) : null}</Field>
           <Field label="Routes">
             {draft.routeIds.map((r) => directory.routeLabel(r)).join(', ') || null}

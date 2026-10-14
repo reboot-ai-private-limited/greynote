@@ -30,6 +30,7 @@ function kit(orderSums: OrderSumRow[], stock: StockRow[], statements: StatementR
   };
   const master = {
     listAssignedDoctors: async () => [],
+    listDistributorAssignees: async () => [],
     listActiveOutlets: async () => ({ distributors: names.distributors.filter((x) => x.id !== 'd3'), chemists: names.chemists }), // d3 is inactive
     listNames: async (q: { distributorIds?: string[]; chemistIds?: string[]; productIds?: string[] }) => ({
       distributors: names.distributors.filter((x) => (q.distributorIds ?? []).includes(x.id)),

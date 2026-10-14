@@ -67,7 +67,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
   const monthOptions = fyMonths.map((m) => ({ value: m, label: monthLabel(m) }));
   const distributorColumns: readonly Column<EmployeeDistributorFigureDto>[] = [
     { key: 'distributor', header: 'Distributor', render: (d) => <span className="font-medium">{d.distributor.name}</span> },
-    { key: 'qty', header: 'Units ordered', numeric: true, render: (d) => d.orderQty.toLocaleString('en-IN') },
+    { key: 'qty', header: 'Units delivered', numeric: true, render: (d) => d.orderQty.toLocaleString('en-IN') },
     { key: 'paise', header: 'Primary (₹)', numeric: true, render: (d) => money(d.orderPaise) },
   ];
   const productColumns: readonly Column<EmployeeProductFigureDto>[] = [
@@ -191,14 +191,14 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
               </p>
             )}
           </Card>
-          <Card title="By product" description="Primary is valued as ordered (and Admin's change at PTS); secondary at PTS.">
+          <Card title="By product" description="Primary is what was delivered, at the order's prices (and Admin's change at PTS). Secondary is what the employee's distributors sold on, at PTS: it is the achievement.">
             {data && data.products.length > 0 ? (
               <DataTable columns={productColumns} rows={data.products} rowKey={(p) => p.product.id} bleed={false} />
             ) : (
               <p className="px-5 py-6 text-[13px] text-text-muted">Nothing ordered or entered in these months yet.</p>
             )}
           </Card>
-          <Card title="By distributor" description="Done orders to each distributor (primary). Secondary is entered per product; a distributor's own secondary is on the Sales report.">
+          <Card title="By distributor" description="Done orders to each distributor (primary, as delivered: free units in the units, never in the rupees). A distributor's own secondary is on the Sales report.">
             {data && data.distributors.length > 0 ? (
               <>
                 <DataTable columns={distributorColumns} rows={data.distributors} rowKey={(d) => d.distributor.id} bleed={false} />
@@ -217,8 +217,8 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
           title="Enter the month's figures"
           description={
             me?.role === 'ADMIN'
-              ? 'Secondary is what they sold. Admin can also change the primary (a reason is needed).'
-              : 'Secondary is what they sold in the month.'
+              ? 'The secondary entered here is a record; achievement counts what their distributors sold on. Admin can also change the primary (a reason is needed).'
+              : 'The secondary entered here is a record; achievement counts what their distributors sold on.'
           }
         >
           <div className="p-5">

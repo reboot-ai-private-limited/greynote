@@ -95,3 +95,7 @@ Adds `secondary_amount_paise` (units × the product's PTR when entered; null wit
 ## 2026-10-14 — office orders, edits, PTS
 
 `orders` gains `created_by` (the Admin/Accountant who added it for the employee; null when the employee placed it), `edited_by` and `edited_at` (the last change to a `PLACED` order's lines or remarks). `employee_sales.secondary_amount_paise` is units × the product's **PTS** (rows saved earlier at PTR are restated on read). No new collection; no migration needed (the fields default to null).
+
+## 2026-10-14 — part supply, free units
+
+`orders.items[]` gains `supplied_qty` (null until Done, then 0..quantity) and `free_qty` (default 0); `orders` gains `supplied_amount_paise` (null until Done). Nothing existing is rewritten: a Done order with nulls reads as fully supplied. Aggregations count units as supplied + free and rupees as supplied × price.

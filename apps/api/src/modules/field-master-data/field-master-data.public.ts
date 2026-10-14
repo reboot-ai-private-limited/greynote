@@ -50,6 +50,8 @@ export interface FieldMasterDataPublicContract {
    * prices a report values stock with. An id that is not there is left out.
    */
   /** Every active Distributor and Chemist, by name: who a report expects a stock count from. */
+  /** Every active Distributor with the field employees it is handed to: whose achievement its secondary counts toward. */
+  listDistributorAssignees(): Promise<Array<{ id: string; assignedUserIds: string[] }>>;
   listActiveOutlets(): Promise<{ distributors: Array<{ id: string; name: string }>; chemists: Array<{ id: string; name: string }> }>;
   listNames(query: { distributorIds?: string[]; chemistIds?: string[]; productIds?: string[] }): Promise<{
     distributors: Array<{ id: string; name: string }>;

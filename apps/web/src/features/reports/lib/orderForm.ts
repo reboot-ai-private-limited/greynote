@@ -1,4 +1,4 @@
-import type { EditOrderDto, PlaceOrderForDto } from '@greynote/contracts';
+import type { CompleteOrderDto, EditOrderDto, PlaceOrderForDto } from '@greynote/contracts';
 import { paiseToRupees, rupeesToPaise } from '@/lib/money';
 
 export const REMARKS_MAX = 1000;
@@ -8,6 +8,8 @@ export interface LineDraft {
   quantity: string;
   /** Rupees as typed. */
   price: string;
+  /** Units to give free on top; empty = none. */
+  free: string;
 }
 
 export interface OrderDraft {
@@ -19,7 +21,7 @@ export interface OrderDraft {
   lines: LineDraft[];
 }
 
-export const emptyLine = (): LineDraft => ({ productId: '', quantity: '', price: '' });
+export const emptyLine = (): LineDraft => ({ productId: '', quantity: '', price: '', free: '' });
 
 export const emptyOrder = (today: string): OrderDraft => ({ userId: '', outletType: 'DISTRIBUTOR', outletId: '', orderDate: today, remarks: '', lines: [emptyLine()] });
 
@@ -37,8 +39,8 @@ export const lineAmountPaise = (l: LineDraft): number | null => {
 export const totalPaise = (lines: readonly LineDraft[]): number => lines.reduce((n, l) => n + (lineAmountPaise(l) ?? 0), 0);
 
 /** An order's lines as the form starts them when it is opened for a change. */
-export const linesOf = (items: ReadonlyArray<{ productId: string; quantity: number; unitPricePaise: number }>): LineDraft[] =>
-  items.map((i) => ({ productId: i.productId, quantity: String(i.quantity), price: paiseToRupees(i.unitPricePaise) }));
+export const linesOf = (items: ReadonlyArray<{ productId: string; quantity: number; unitPricePaise: number; freeQty?: number }>): LineDraft[] =>
+  items.map((i) => ({ productId: i.productId, quantity: String(i.quantity), price: paiseToRupees(i.unitPricePaise), free: i.freeQty ? String(i.freeQty) : '' }));
 
 type Built<T> = { ok: true; body: T } | { ok: false; errors: Record<string, string> };
 
@@ -53,7 +55,9 @@ function buildLines(lines: readonly LineDraft[], errors: Record<string, string>)
     if (!/^\d+$/.test(qty) || Number(qty) < 1) return void (errors[`line${i}`] = 'Quantity must be a whole number, at least 1.');
     const price = rupeesToPaise(l.price);
     if (price === null) return void (errors[`line${i}`] = 'Enter the price in rupees, e.g. 12.50.');
-    out.push({ productId: l.productId, quantity: Number(qty), unitPricePaise: price });
+    const free = l.free.trim();
+    if (free !== '' && !/^\d+$/.test(free)) return void (errors[`line${i}`] = 'Free units must be a whole number, 0 or more.');
+    out.push({ productId: l.productId, quantity: Number(qty), unitPricePaise: price, freeQty: free === '' ? 0 : Number(free) });
   });
   if (lines.length === 0) errors['lines'] = 'Add at least one product.';
   return out;
@@ -77,4 +81,44 @@ export function buildNewOrder(draft: OrderDraft, today: string): Built<PlaceOrde
   if (!edit.ok) Object.assign(errors, edit.errors);
   if (Object.keys(errors).length > 0 || !edit.ok) return { ok: false, errors };
   return { ok: true, body: { userId: draft.userId, outletType: draft.outletType, outletId: draft.outletId, orderDate: draft.orderDate, ...edit.body } };
+}
+
+// ── Marking Done with what was supplied ─────────────────────────────────────────────────────────
+
+export interface SupplyDraft {
+  productId: string;
+  /** Units ordered, for the limit and the "not supplied" figure. */
+  ordered: number;
+  unitPricePaise: number;
+  supplied: string;
+  free: string;
+}
+
+/** The form starts as a full supply with the free units the office planned (none by default): what Mark Done does with no form at all. */
+export const supplyDraftOf = (items: ReadonlyArray<{ productId: string; quantity: number; unitPricePaise: number; freeQty?: number }>): SupplyDraft[] =>
+  items.map((i) => ({ productId: i.productId, ordered: i.quantity, unitPricePaise: i.unitPricePaise, supplied: String(i.quantity), free: String(i.freeQty ?? 0) }));
+
+const wholeUnits = (v: string): number | null => (/^\d+$/.test(v.trim()) ? Number(v) : null);
+
+/** Units not supplied of what was ordered; `null` while the supplied figure is not a valid number. */
+export const notSupplied = (d: SupplyDraft): number | null => {
+  const s = wholeUnits(d.supplied);
+  return s === null || s > d.ordered ? null : d.ordered - s;
+};
+
+/** What the supplied units come to (free units are not charged); lines with a bad figure add nothing. */
+export const deliveredPaise = (drafts: readonly SupplyDraft[]): number => drafts.reduce((n, d) => n + (wholeUnits(d.supplied) ?? 0) * d.unitPricePaise, 0);
+
+export function buildSupply(drafts: readonly SupplyDraft[]): Built<CompleteOrderDto> {
+  const errors: Record<string, string> = {};
+  const supply: NonNullable<CompleteOrderDto['supply']> = [];
+  drafts.forEach((d, i) => {
+    const supplied = wholeUnits(d.supplied);
+    const free = wholeUnits(d.free);
+    if (supplied === null || supplied > d.ordered) return void (errors[`line${i}`] = `Supplied must be a whole number from 0 to ${d.ordered}.`);
+    if (free === null) return void (errors[`line${i}`] = 'Free units must be a whole number, 0 or more.');
+    supply.push({ productId: d.productId, suppliedQty: supplied, freeQty: free });
+  });
+  if (Object.keys(errors).length > 0) return { ok: false, errors };
+  return { ok: true, body: { supply } };
 }

@@ -3,6 +3,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { readBusinessDay, type ConfigReader } from '@/shared/config/readConfig.js';
 import { businessDate, eachDate } from '@/shared/time/businessTime.js';
 import { monthRange } from '@/shared/time/businessTime.js';
+import type { DistributorAchievement } from './distributorAchievement.js';
 import { primaryOf, secondaryOf, type PriceRow } from '../domain/employeeFigures.js';
 import type { AttendancePort, EmployeeSalesPort, FieldDaysPort, FieldRosterPort, MarketingPort, MasterPort, PlanningPort, TerritoryPort, ZoneNamePort } from '../domain/ports.js';
 
@@ -47,6 +48,7 @@ export class SalesDashboardReport {
     private readonly master: MasterPort,
     private readonly territory: TerritoryPort & ZoneNamePort,
     private readonly config: ConfigReader,
+    private readonly achievement: DistributorAchievement,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -68,23 +70,25 @@ export class SalesDashboardReport {
 
     const range = { from, to };
     const months = { from: monthRange(fromMonth).from, to: monthRange(toMonth).to };
-    const [taDa, shares, orders, entries] = await Promise.all([
+    const [taDa, shares, orders, entries, sold] = await Promise.all([
       dates.length ? this.fieldActivity.summarizeTaDaByUser(range) : Promise.resolve([]),
       this.marketing.listTargetShares(ids, fromMonth, toMonth),
       this.employeeSales.sumUserOrders({ ...months, userIds: ids }),
       this.employeeSales.listEmployeeSales({ fromMonth, toMonth, userIds: ids }),
+      // Achievement is what the employee's distributors sold on (decision-log 2026-10-14), not what the employee entered.
+      this.achievement.entries(ids, fromMonth, toMonth),
     ]);
     const taDaOf = new Map(taDa.map((t) => [t.userId, t]));
-    const productIds = [...new Set([...orders.map((o) => o.productId), ...entries.map((e) => e.productId)])];
+    const productIds = [...new Set([...orders.map((o) => o.productId), ...entries.map((e) => e.productId), ...sold.map((e) => e.productId)])];
     const names = productIds.length ? await this.master.listNames({ productIds }) : { products: [] };
     const prices = new Map<string, PriceRow>(names.products.map((p) => [p.id, { id: p.id, name: p.name, sku: p.sku, ptrPaise: p.ptrPaise, ptsPaise: p.ptsPaise ?? null }]));
     const figureOf = (userId: string) => {
       const mine = shares.filter((t) => t.userId === userId);
-      const has = entries.some((e) => e.userId === userId && e.secondaryQty !== null);
+      const has = sold.some((e) => e.userId === userId);
       const sel = { userId, fromMonth, toMonth };
       return {
         targetPaise: mine.length ? mine.reduce((n, t) => n + t.sharePaise, 0) : null,
-        achievedPaise: mine.length || has ? secondaryOf(entries, prices, sel).paise : null,
+        achievedPaise: mine.length || has ? secondaryOf(sold, prices, sel).paise : null,
         primaryPaise: primaryOf(orders, entries, prices, sel).paise,
       };
     };

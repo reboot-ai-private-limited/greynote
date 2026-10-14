@@ -923,3 +923,7 @@ Decision-log 2026-10-13. **Done (unit-tested; rehearsed once on a scratch Atlas 
 ## Office orders, Accountant access, PTS (2026-10-14)
 
 Decision-log 2026-10-14. **Done (API + web + docs, unit-tested; not browser-checked):** Admin/Accountant add an order for an employee and change a Placed order before marking it Done; the Accountant adds/edits distributors (read-only territory and names-only employee pickers), reads the Sales dashboard and employee report, and sees the monthly total salary paid; the employee report lists primary by distributor; sales, targets and achievement are valued at PTS (was PTR). Phone docs updated (`docs/mobile/orders-and-stock.md`, `secondary-and-targets.md`, `team.md`); phone code open. **Open:** browser check, `seed` not needed; existing rupee targets are not converted; per-distributor secondary per employee not built.
+
+## Part supply, free units, achievement from distributors, dues (2026-10-14)
+
+Decision-log 2026-10-14 (second entry). **Done (API + web + docs, unit-tested):** Mark Done with supplied/free per line; primary at supplied × price, free units in stock and secondary only; achievement per product = sum of the employee's distributors' secondary at PTS; opening dues on a distributor and a running Dues figure (Payments tab, Distributors list). Phone docs updated, phone code open. **Open:** browser check; achievement shows a gap until a distributor has a count or statement; employees' entered secondary is now informational.

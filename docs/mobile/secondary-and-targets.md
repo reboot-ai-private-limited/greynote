@@ -28,6 +28,10 @@ Show a status chip per line and for the month (`secondaryStatus`: Draft / Waitin
 
 The web employee report lists an employee's Done orders **by distributor** (`GET /api/reports/employee-sales` → `distributors[]`: `distributor`, `orderQty`, `orderPaise`), adding up to the order part of their primary. Secondary is still one figure per product, not per distributor. A manager sees this for their downline through the same endpoint; the phone may show it on the employee's sales screen (📱).
 
+## 2c. Achievement now comes from the distributors (2026-10-14)
+
+An employee's **achievement per product is the sum, over the distributors handed to them, of that product's secondary** (opening + units delivered, free included, − closing, from the distributor's stock statement or count), valued at **PTS**. The secondary the employee enters on the phone (and its approval) is kept as a record but **no longer counts** toward targets: label it informational, or hide it (📱). `primary` is now **supplied × price** (see [`orders-and-stock.md`](orders-and-stock.md)); units include free goods. Targets are still set by Admin or a manager (Sales dashboard > employee > Set a target on the web; the field app's targets screen for a manager).
+
 ## 3. Refs
 
 [`LLD/sales-and-orders.md`](../LLD/sales-and-orders.md), [`LLD/marketing.md`](../LLD/marketing.md), [`orders-and-stock.md`](orders-and-stock.md), sign-off E1.

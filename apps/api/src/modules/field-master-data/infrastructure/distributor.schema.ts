@@ -11,6 +11,7 @@ export interface DistributorDoc {
   latitude: number | null;
   longitude: number | null;
   assignedUserIds: Types.ObjectId[];
+  openingDuesPaise?: number;
   status: MasterStatus;
 }
 
@@ -24,6 +25,7 @@ const distributorSchema = new Schema<DistributorDoc>({
   latitude: { type: Number, default: null },
   longitude: { type: Number, default: null },
   assignedUserIds: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
+  openingDuesPaise: { type: Number, default: 0, min: 0 },
   status: { type: String, required: true, enum: MASTER_STATUSES },
 });
 distributorSchema.index({ routeIds: 1, status: 1 });

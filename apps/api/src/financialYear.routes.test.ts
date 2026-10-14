@@ -101,6 +101,7 @@ const TIMELESS = [
   '/api/identity/auth/me',
   '/api/identity/work-with', // who can be named on a plan — current staff, not a dated record
   '/api/identity/work-with/directory', // active field employees by name, for the Accountant's pickers — not a dated record
+  '/api/sales/distributor-payments/balances', // all-time dues of every distributor, whatever the year in view
   '/api/identity/devices/pending',
   '/api/identity/users/:id/devices',
   '/api/identity/users',

@@ -102,7 +102,7 @@ describe('the phone’s cache of Field Master Data', () => {
   });
 
   it('Distributors: assigned to the MR or on one of their Routes, active only', async () => {
-    const base = { gstNumber: 'G', contactPerson: 'c', mobile: '9', address: 'a', location: null };
+    const base = { gstNumber: 'G', contactPerson: 'c', mobile: '9', address: 'a', location: null, openingDuesPaise: 0 };
     await distributors.create({ ...base, routeIds: ['route-1'], name: 'On My Route', assignedUserIds: [], status: 'active' });
     await distributors.create({ ...base, routeIds: ['route-2'], name: 'Assigned To Me', assignedUserIds: ['mr1'], status: 'active' });
     await distributors.create({ ...base, routeIds: ['route-2'], name: 'Not Mine', assignedUserIds: ['mr2'], status: 'active' });

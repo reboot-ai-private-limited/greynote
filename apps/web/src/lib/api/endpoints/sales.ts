@@ -1,4 +1,4 @@
-import type { EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto } from '@greynote/contracts';
+import type { DistributorBalanceDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto } from '@greynote/contracts';
 import { request } from '../client';
 
 /** One order as `GET /sales/orders` returns it; the distributor's Orders tab shows only these fields. */
@@ -19,6 +19,8 @@ export const salesApi = {
   /** Admin or Accountant. What each distributor paid in a range (recorded payments only); distributors with none are left out. */
   distributorPaymentTotals: (token: string, query: { from: string; to: string }, signal?: AbortSignal) =>
     request<DistributorPaymentTotalDto[]>('/sales/distributor-payments/totals', { token, query: { ...query }, signal }),
+  /** Admin or Accountant. What each distributor was delivered (Done orders, free units excluded) and paid, all time; the list adds each one's opening dues. */
+  distributorBalances: (token: string, signal?: AbortSignal) => request<DistributorBalanceDto[]>('/sales/distributor-payments/balances', { token, signal }),
   /** Admin. One distributor's month by product: field counts, orders, the saved statement and the figures that follow. */
   distributorStatement: (token: string, query: { distributorId: string; month: string }, signal?: AbortSignal) =>
     request<DistributorStatementDto>('/sales/distributor-statement', { token, query: { ...query }, signal }),
@@ -47,7 +49,7 @@ export const salesApi = {
   editOrder: (token: string, id: string, body: EditOrderDto) => request<{ id: string; status: string }>(`/sales/orders/${id}`, { method: 'PATCH', token, body }),
 
   /** `PLACED` → `DONE`, by the MR who placed it or Admin; a second call is a 409. */
-  completeOrder: (token: string, id: string) => request<{ id: string; status: string }>(`/sales/orders/${id}/complete`, { method: 'POST', token }),
+  completeOrder: (token: string, id: string, body?: CompleteOrderDto) => request<{ id: string; status: string }>(`/sales/orders/${id}/complete`, { method: 'POST', token, ...(body && { body }) }),
   /** `PLACED` → `CANCELLED`, by the MR who placed it or Admin. */
   cancelOrder: (token: string, id: string) => request<{ id: string; status: string }>(`/sales/orders/${id}/cancel`, { method: 'POST', token }),
 };

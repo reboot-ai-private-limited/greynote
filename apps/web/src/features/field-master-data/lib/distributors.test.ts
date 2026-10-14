@@ -20,6 +20,7 @@ const distributor: DistributorDto = {
   contactPerson: 'S. Das',
   mobile: '9830012345',
   address: 'Sevoke Road, Siliguri',
+  openingDuesPaise: 0,
   location: { latitude: 26.7, longitude: 88.4 },
   assignedUserIds: ['mr1', 'rsm1'],
   status: 'active',
@@ -53,8 +54,15 @@ describe('buildDistributor', () => {
         address: 'Sevoke Road, Siliguri',
         location: { latitude: 26.7, longitude: 88.4 },
         assignedUserIds: ['mr1', 'rsm1'],
+        openingDuesPaise: 0,
       },
     });
+  });
+  it('carries opening dues in rupees as whole paise, refuses a bad amount, and sends a change only when it changed', () => {
+    expect(buildDistributor({ ...filled, openingDues: '25000.50' })).toMatchObject({ ok: true, body: { openingDuesPaise: 2_500_050 } });
+    expect(buildDistributor({ ...filled, openingDues: '12x' })).toMatchObject({ ok: false });
+    expect(buildDistributorUpdate(distributor, { ...filled, openingDues: '100' })).toEqual({ ok: true, body: { openingDuesPaise: 10_000 } });
+    expect(buildDistributorUpdate(distributor, filled)).toEqual({ ok: true, body: {} });
   });
   it('needs a zone and at least one route, and reports every missing field at once', () => {
     const result = buildDistributor(EMPTY_DISTRIBUTOR);

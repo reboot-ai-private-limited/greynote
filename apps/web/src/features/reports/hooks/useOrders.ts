@@ -6,7 +6,7 @@ import { salesApi } from '@/lib/api/endpoints/sales';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
-import type { EditOrderDto, PlaceOrderForDto } from '@greynote/contracts';
+import type { CompleteOrderDto, EditOrderDto, PlaceOrderForDto } from '@greynote/contracts';
 
 /** A month of orders. Live: an MR places one or finishes one. */
 export function useOrdersReport(query: OrdersReportQuery, enabled = true) {
@@ -56,6 +56,16 @@ export function useEditOrder(id: string, onDone: () => void) {
     call: (token, body) => salesApi.editOrder(token, id, body).then(() => undefined),
     invalidates: [keys.reports.all()],
     successMessage: 'The order was changed.',
+    onSuccess: onDone,
+  });
+}
+
+/** Marks a distributor order Done with what was supplied and given free (Admin or the Accountant); primary counts the supplied part. */
+export function useCompleteOrder(id: string, onDone: () => void) {
+  return useApiMutation<CompleteOrderDto>({
+    call: (token, body) => salesApi.completeOrder(token, id, body).then(() => undefined),
+    invalidates: [keys.reports.all(), keys.distributorPayments.all()],
+    successMessage: 'The order is marked Done.',
     onSuccess: onDone,
   });
 }

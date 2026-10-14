@@ -2243,3 +2243,20 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Assumed (confirm with the client):** existing targets entered in rupees are **not** converted: they now read as PTS rupees (a target set as units is unchanged). Secondary amounts saved before today are restated at PTS from their units when read. The report flag `NO_PTR` is now `NO_PTS` (secondary has no price) and `NO_PTS_CHANGE` (Admin's change has no price). A product without a PTS can take units only, as before without a PTR.
 
 **Open:** per-distributor *secondary per employee* would need the employee to enter secondary by distributor (not built). Phone app: docs updated, no code.
+
+## 2026-10-14 — Part supply and free units at Mark Done; achievement from distributors' secondary; distributor dues
+
+**Decision:**
+- **Mark Done records what was delivered.** Admin or the Accountant mark a distributor order Done with, per product, the units **supplied** (0 up to what was ordered) and any given **free** on top (`POST /sales/orders/:id/complete` with `supply`). With no `supply` (the phone's Done, or the web with nothing changed) the order is delivered in full. The employee's ordered lines and total are never rewritten; the order also keeps `suppliedQty`, `freeQty` per line and `suppliedAmountPaise`. An MR marking their own order done cannot send a supply (403). Done is final.
+- **Money:** primary counts **supplied × the order's price**; free units are never rupees. **Units** (stock, secondary) count supplied + free. An order marked Done before this change reads as fully supplied (no migration). The employee sees ordered / supplied / free / short on their order (phone doc); the office sees them on the web.
+- **Achievement per product = the sum, across the distributors handed to the employee (`assignedUserIds`), of that product's secondary** (opening + units delivered − closing, from Admin's statement or the field counts, as on the Sales report), valued at PTS, over the target's months. **Supersedes** "achievement = the secondary the employee enters" (2026-10-10/12): the entered secondary and its approval stay as records but no longer count; the Sales dashboard and employee report use the distributors' figure. `GET /marketing/targets/:userId` (orders-based) is unchanged.
+- **Distributor dues = opening dues + Done orders delivered − recorded payments**, all time. `openingDuesPaise` is set when adding a distributor (Admin or Accountant) and editable. Shown on the distributor's Payments tab and as a Dues column on the Distributors list.
+- **Setting a target** is unchanged: Admin, or a manager for their downline, Sales dashboard > employee > Set a target.
+
+**Assumed (confirm with the client):** a distributor handed to several employees counts in full for each (achievements can add up to more than the distributor sold); a month with no count or statement for a distributor adds nothing (a gap, not zero); a negative derived secondary is left out; only **active** distributors count; dues use Done orders by completion date with no financial-year cut-off, and opening dues is one editable number with no history; an all-zero supply is allowed (Done with nothing delivered).
+
+**Open:** achievement needs a stock count or Admin statement per distributor and month: until then it reads 0 or a gap. Phone app: docs updated, no code.
+
+## 2026-10-14 — Free units can be planned in Add/Change order; the first change keeps what the employee ordered
+
+**Decision:** Admin/Accountant can set **free units** per line when adding or changing an order (`freeQty`); Mark Done prefills them and a line not named at Done keeps them. An employee's own order never carries free units (ignored). The **first change** to an order keeps what the employee ordered (`originalItems`, `originalTotalAmountPaise`; later changes keep that first record). The Change order form shows "Originally ordered: qty × price" under each line (highlighted where it now differs, "Removed" for dropped lines) and the order detail lists the original. The change itself is guarded against a concurrent edit (`editedAt` unchanged since read).

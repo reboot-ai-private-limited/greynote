@@ -45,9 +45,10 @@ describe('EmployeeSalesReport', () => {
         ];
       },
     },
-    { async listNames() { return { distributors: [{ id: 'd1', name: 'Shree' }, { id: 'd2', name: 'Maa Tara' }], chemists: [], products: [...prices.values()] }; }, async listAssignedDoctors() { return []; }, async listActiveOutlets() { return { distributors: [], chemists: [] }; } },
+    { async listNames() { return { distributors: [{ id: 'd1', name: 'Shree' }, { id: 'd2', name: 'Maa Tara' }], chemists: [], products: [...prices.values()] }; }, async listAssignedDoctors() { return []; }, async listActiveOutlets() { return { distributors: [], chemists: [] }; }, async listDistributorAssignees() { return []; } },
     { async getUserSummaries() { return [{ id: 'mr1', name: 'Asha', employeeCode: 'E1' }]; } },
     { async getDownline(id) { return id === 'asm' ? [{ id: 'mr1' }] : []; } },
+    { entries: async (ids: readonly string[]) => entries.filter((e) => ids.includes(e.userId) && e.secondaryQty !== null) } as never,
   );
   const input = { userId: 'mr1', from: '2026-10', to: '2026-11' };
 

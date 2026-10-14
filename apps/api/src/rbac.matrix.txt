@@ -121,6 +121,7 @@ GET    /api/reports/ta-da  ADMIN
 GET    /api/reports/ta-da/days  ADMIN
 GET    /api/reports/team/overview  ADMIN,FIELD
 GET    /api/sales/distributor-payments  ACCOUNTANT,ADMIN
+GET    /api/sales/distributor-payments/balances  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-payments/totals  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-statement  ACCOUNTANT,ADMIN
 GET    /api/sales/employee-sales  ADMIN,FIELD
