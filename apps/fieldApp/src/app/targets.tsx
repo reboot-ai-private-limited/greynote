@@ -215,6 +215,16 @@ export default function TargetsScreen() {
               {p.flags.includes('NO_PTS') ? <ThemedText type="small" themeColor="warning">This product has no PTS price, so its achievement is counted in units only.</ThemedText> : null}
             </InfoCard>
           ))}
+          {figures.distributors && figures.distributors.length > 0 ? <ThemedText type="smallBold">Primary by distributor</ThemedText> : null}
+          {(figures.distributors ?? []).map((d) => (
+            <InfoCard key={d.distributor.id}>
+              <View style={styles.head}>
+                <ThemedText type="smallBold" style={styles.grow}>{d.distributor.name}</ThemedText>
+                <ThemedText type="smallBold">{formatRupees(d.orderPaise)}</ThemedText>
+              </View>
+              <ThemedText type="small" themeColor="textSecondary">{`${d.orderQty} unit${d.orderQty === 1 ? '' : 's'} on Done orders`}</ThemedText>
+            </InfoCard>
+          ))}
           <PrimaryButton label="Enter secondary sales" variant="text" onPress={() => router.push('/secondary-sales')} />
         </>
       ) : null}

@@ -105,7 +105,8 @@ export const cancelOrder = (id: string) => apiPost<OrderView>(`/sales/orders/${i
 /* ── Monthly stock ── */
 
 export type StockRow = { outlet: { type: OutletType; id: string }; productId: string; month: string; openingQty: number; closingQty: number };
-export const listStock = (month: string) => apiGet<StockRow[]>(`/sales/monthly-stock?month=${month}`);
+export const listStock = (month: string, distributorId?: string) =>
+  apiGet<StockRow[]>(`/sales/monthly-stock?month=${month}${distributorId ? `&outletType=DISTRIBUTOR&outletId=${distributorId}` : ''}`);
 
 export type MissingOutlet = { type: OutletType; id: string; name: string };
 export type MissingStockRow = { userId: string; userName: string; outlets: MissingOutlet[] };
