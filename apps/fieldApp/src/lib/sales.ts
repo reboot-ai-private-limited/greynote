@@ -16,9 +16,11 @@ export type EmployeeSalesLine = {
   primaryQty: number;
   /** What the employee entered; `null` = nothing entered yet. */
   secondaryQty: number | null;
-  /** The same at PTR; `null` = nothing entered, or the product has no PTR (units only). */
+  /** The same at PTS (units × the product's PTS); `null` = nothing entered, or the product has no PTS (units only). */
   secondaryAmountPaise: number | null;
-  /** The product's PTR, which links units and amount; `null` = none set. */
+  /** The product's PTS, which links units and amount since 2026-10-14; `null` = none set. */
+  ptsPaise: number | null;
+  /** The product's PTR, for reference only: sales are no longer valued at it. */
   ptrPaise: number | null;
   secondaryStatus: SecondaryStatus | null;
   updatedBy: { id: string; name: string } | null;
@@ -33,7 +35,7 @@ export const getEmployeeSales = (userId: string, month: string) =>
 
 /**
  * Saves the secondary for a month as a draft (the server refuses a closed or future month). Give units or an amount for each
- * line: the other follows from the product's PTR, and an amount is rounded to whole units.
+ * line: the other follows from the product's PTS, and an amount is rounded to whole units.
  */
 export const saveEmployeeSecondary = (body: { userId: string; month: string; lines: { productId: string; qty?: number; amountPaise?: number }[] }) =>
   apiPost<{ added: number; changed: number }>('/sales/employee-secondary', body, { auth: true });
@@ -59,7 +61,7 @@ export type EmployeeProductFigure = {
   secondaryPaise: number;
   /** A whole percent of the target; `null` = no target. */
   achievementPercent: number | null;
-  flags: ('NO_PTR' | 'NO_PTS')[];
+  flags: ('NO_PTS' | 'NO_PTS_CHANGE')[];
 };
 export type EmployeeTargetFigure = {
   id: string;
@@ -69,13 +71,17 @@ export type EmployeeTargetFigure = {
   amountPaise: number;
   achievedPaise: number;
   achievementPercent: number | null;
-  /** The target in units (a product target with a PTR); `null` otherwise. Units × PTR is the amount. */
+  /** The target in units (a product target with a PTS); `null` otherwise. Units × PTS is the amount. */
   targetQty: number | null;
-  /** Approved secondary units in those months, and as a percent of `targetQty`. */
+  /** Units achieved in those months (counted from the distributors' stock since 2026-10-14), and as a percent of `targetQty`. */
   achievedQty: number;
   achievementQtyPercent: number | null;
 };
+/** The employee's Done orders to one distributor in the months; the rows add up to the order part of `totals.primaryPaise`. */
+export type EmployeeDistributorFigure = { distributor: { id: string; name: string }; orderQty: number; orderPaise: number };
 export type EmployeeSalesReport = {
+  /** From 2026-10-14; missing from an older server. */
+  distributors?: EmployeeDistributorFigure[];
   employee: { id: string; name: string; employeeCode: string };
   fromMonth: string;
   toMonth: string;

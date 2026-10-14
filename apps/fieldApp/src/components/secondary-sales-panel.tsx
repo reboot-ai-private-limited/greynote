@@ -24,18 +24,19 @@ const STATUS_ACCENT: Record<SecondaryStatus, Accent> = { DRAFT: 'slate', PENDING
 const errorText = (err: unknown) => {
   if (err instanceof ApiError) {
     if (err.data?.code === 'SECONDARY_LOCKED') return 'This month is with your manager or approved, so it can’t be changed. Ask for it to be sent back, or wait for the decision.';
-    if (err.data?.code === 'SECONDARY_NEEDS_PTR') return 'This product has no retail price (PTR), so enter units, not an amount.';
+    if (err.data?.code === 'SECONDARY_NEEDS_PTR') return 'This product has no PTS price, so enter units, not an amount.';
   }
   return err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
 };
 
-/** What was typed for a product: which of the two boxes, and the text. The other box follows from the PTR. */
+/** What was typed for a product: which of the two boxes, and the text. The other box follows from the PTS. */
 type Typed = { field: 'qty' | 'amount'; text: string };
 
 /**
  * Secondary sales (docs/mobile/secondary-and-targets.md): the units of each product you sold on in the month, or the same as an
- * amount at the product's PTR — one figure, so typing one fills the other. You save a draft, then send the month to your
- * manager; only approved secondary counts toward your achievement. It is saved for you, not for an outlet, so it needs a
+ * amount at the product's PTS — one figure, so typing one fills the other. You save a draft, then send the month to your
+ * manager. Since 2026-10-14 this is **your own record only**: achievement is counted from your distributors' stock, so what is
+ * entered here (and its approval) no longer counts toward targets. It is saved for you, not for an outlet, so it needs a
  * connection. `locked` is a month the server will not take entries for; a month outside the selected financial year is read-only.
  */
 export function SecondarySalesPanel({ month, locked }: { month: string; locked: boolean }) {
@@ -67,10 +68,10 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
     setTyped({ month, values: { ...edits, [productId]: { field, text: field === 'qty' ? text.replace(/[^0-9]/g, '') : text.replace(/[^0-9.]/g, '') } } });
   };
 
-  /** Units and amount for a line as the screen shows them: what was typed, and the other worked out from the PTR. */
+  /** Units and amount for a line as the screen shows them: what was typed, and the other worked out from the PTS. */
   const figures = (l: (typeof lines)[number]) => {
     const t = edits[l.product.id];
-    const ptr = l.ptrPaise;
+    const ptr = l.ptsPaise;
     if (!t) return { qty: l.secondaryQty === null ? '' : String(l.secondaryQty), amount: l.secondaryAmountPaise === null ? '' : String(l.secondaryAmountPaise / 100) };
     if (t.field === 'qty') {
       const qty = Number(t.text || 0);
@@ -82,7 +83,7 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
   };
 
   const totalQty = lines.reduce((n, l) => n + Number(figures(l).qty || 0), 0);
-  const totalPaise = lines.reduce((n, l) => n + (l.ptrPaise ? Number(figures(l).qty || 0) * l.ptrPaise : 0), 0);
+  const totalPaise = lines.reduce((n, l) => n + (l.ptsPaise ? Number(figures(l).qty || 0) * l.ptsPaise : 0), 0);
 
   const save = async () => {
     if (!me) return;
@@ -135,17 +136,20 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
 
   const banner =
     status === 'PENDING'
-      ? { accent: 'amber' as const, icon: sym('clock', 'schedule'), title: 'Waiting for approval', text: 'Your manager has this month. It counts toward your achievement once approved.' }
+      ? { accent: 'amber' as const, icon: sym('clock', 'schedule'), title: 'Waiting for approval', text: 'Your manager has this month. It stays as your record once approved.' }
       : status === 'APPROVED'
-        ? { accent: 'green' as const, icon: sym('checkmark.circle', 'check_circle'), title: 'Approved', text: 'This month counts toward your achievement.' }
+        ? { accent: 'green' as const, icon: sym('checkmark.circle', 'check_circle'), title: 'Approved', text: 'This month is approved as your record.' }
         : status === 'REJECTED'
           ? { accent: 'red' as const, icon: sym('arrow.uturn.left.circle', 'undo'), title: 'Sent back', text: 'Change what is needed and send it again.' }
           : status === 'DRAFT'
-            ? { accent: 'slate' as const, icon: sym('square.and.pencil', 'edit'), title: 'Draft', text: 'Not sent yet. Only approved secondary counts toward your achievement.' }
+            ? { accent: 'slate' as const, icon: sym('square.and.pencil', 'edit'), title: 'Draft', text: 'Not sent yet. Send it for approval when it is complete.' }
             : null;
 
   return (
     <View style={styles.stack}>
+      <Notice tone="info" title="Your own record">
+        Your achievement is counted from your distributors’ stock, so what you enter here is kept as your record and does not change it.
+      </Notice>
       {banner ? <StatusBanner {...banner} /> : null}
       {!online ? <Notice tone="warning">Secondary sales are saved on the server. Connect to enter them.</Notice> : null}
       {outsideYear && !locked ? <Notice tone="info">This month is outside the selected financial year, so it can only be read.</Notice> : null}
@@ -162,7 +166,7 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
           <SummaryStrip
             items={[
               { label: 'Units sold', value: totalQty, accent: 'green' },
-              { label: 'Value at PTR', value: formatRupees(totalPaise), accent: 'teal' },
+              { label: 'Value at PTS', value: formatRupees(totalPaise), accent: 'teal' },
             ]}
           />
           {lines.map((l) => {
@@ -174,7 +178,7 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
                   <View style={styles.grow}>
                     <ThemedText type="smallBold">{l.product.name}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
-                      {`Primary ${l.primaryQty}${l.adjustmentQty !== 0 ? ` (includes Admin's change of ${l.adjustmentQty})` : ''}${l.ptrPaise ? ` · PTR ${formatRupees(l.ptrPaise)}` : ' · no PTR, units only'}`}
+                      {`Primary ${l.primaryQty}${l.adjustmentQty !== 0 ? ` (includes Admin's change of ${l.adjustmentQty})` : ''}${l.ptsPaise ? ` · PTS ${formatRupees(l.ptsPaise)}` : ' · no PTS, units only'}`}
                     </ThemedText>
                   </View>
                   {lineStatus ? <Pill text={SECONDARY_STATUS_TEXT[lineStatus]} accent={STATUS_ACCENT[lineStatus]} /> : null}
@@ -191,7 +195,7 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
                         editable={busy === null && !readOnly && online}
                       />
                     </View>
-                    {l.ptrPaise ? (
+                    {l.ptsPaise ? (
                       <View style={styles.grow}>
                         <TextField
                           label="Amount (₹)"
@@ -210,7 +214,7 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
             );
           })}
           <ThemedText type="small" themeColor="textSecondary">
-            Units and amount are one figure at the product’s PTR: type either and the other follows (an amount is rounded to whole units).
+            Units and amount are one figure at the product’s PTS: type either and the other follows (an amount is rounded to whole units).
           </ThemedText>
           {readOnly ? null : (
             <View style={styles.actions}>

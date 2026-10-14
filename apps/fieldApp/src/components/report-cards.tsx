@@ -31,11 +31,11 @@ export function ReportCards<R>({ rows, rowKey, title, right, fields, onRowPress,
 
   const value = (content: ReactNode) =>
     typeof content === 'string' || typeof content === 'number' ? (
-      <ThemedText type="small" style={styles.value}>
+      <ThemedText type="small" style={[styles.value, styles.valueText]}>
         {content}
       </ThemedText>
     ) : (
-      <View style={styles.value}>{content}</View>
+      <View style={[styles.value, styles.valueBox]}>{content}</View>
     );
 
   return (
@@ -103,8 +103,11 @@ const styles = StyleSheet.create({
   right: { alignItems: 'flex-end' },
   lines: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.two, gap: Spacing.one },
   line: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
-  label: { width: '38%' },
-  value: { flex: 1 },
+  // Label on the left (it may wrap), value on the right edge: the same shape as the totals box under the cards.
+  label: { flex: 1 },
+  value: { flexShrink: 1, maxWidth: '60%' },
+  valueText: { textAlign: 'right' },
+  valueBox: { alignItems: 'flex-end' },
   totalLabel: { flex: 1 },
   totalValue: { textAlign: 'right' },
   totals: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },

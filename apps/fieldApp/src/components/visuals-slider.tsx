@@ -11,12 +11,20 @@ import { useCachedFetch } from '@/offline/cached-fetch';
 import { ThemedText } from './themed-text';
 
 const SLIDE_MS = 4000;
-const ASPECT = 16 / 7;
+const GAP = Spacing.two + 4;
+/** Width over height of one slide: a wide, low banner. */
+const ASPECT = 2.3;
+/** A slide never grows taller than this, however wide the screen. */
+const MAX_HEIGHT = 170;
+
+/** How many slides fit side by side: one on a phone, two on a tablet, three on a large tablet (by the width it is given). */
+const perViewFor = (width: number) => (width >= 900 ? 3 : width >= 560 ? 2 : 1);
 
 /**
- * Home's visuals slider: the active pictures Admin uploaded, one at a time, sliding on its own and by swipe.
- * Tapping a picture opens Visuals. Videos and PDFs are left out (they open outside the app); with no picture
- * (or nothing cached yet) the slider is not drawn at all.
+ * Home's visuals slider: the active pictures Admin uploaded, as a low banner that slides on its own and by swipe. A phone shows
+ * one picture at a time; a tablet shows two or three side by side and moves one picture at a time. Tapping a picture opens
+ * Visuals. Videos and PDFs are left out (they open outside the app); with no picture (or nothing cached yet) the slider is not
+ * drawn at all.
  */
 export function VisualsSlider() {
   const theme = useTheme();
@@ -28,18 +36,26 @@ export function VisualsSlider() {
   const touching = useRef(false);
   const count = slides.length;
 
+  // Never more slides across than there are pictures, so two pictures on a wide screen are not left with an empty third.
+  const perView = Math.max(1, Math.min(perViewFor(width), count));
+  const itemWidth = width > 0 ? (width - GAP * (perView - 1)) / perView : 0;
+  const itemHeight = Math.min(itemWidth / ASPECT, MAX_HEIGHT);
+  const step = itemWidth + GAP;
+  /** The last position the strip can rest at: the final picture sits at the right edge. */
+  const maxIndex = Math.max(0, count - perView);
+
   useEffect(() => {
-    if (count < 2 || width === 0) return;
+    if (maxIndex < 1 || width === 0) return;
     const id = setInterval(() => {
       if (touching.current) return;
       setIndex((i) => {
-        const next = (i + 1) % count;
-        listRef.current?.scrollToOffset({ offset: next * width, animated: true });
+        const next = i >= maxIndex ? 0 : i + 1;
+        listRef.current?.scrollToOffset({ offset: next * step, animated: true });
         return next;
       });
     }, SLIDE_MS);
     return () => clearInterval(id);
-  }, [count, width]);
+  }, [maxIndex, width, step]);
 
   // Not null: Home's sticky tab bar is found by child position, and a missing child would shift it. The negative
   // margin cancels the gap Home puts between its children.
@@ -47,20 +63,25 @@ export function VisualsSlider() {
 
   const onEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     touching.current = false;
-    if (width > 0) setIndex(Math.round(e.nativeEvent.contentOffset.x / width));
+    if (step > 0) setIndex(Math.max(0, Math.min(maxIndex, Math.round(e.nativeEvent.contentOffset.x / step))));
   };
 
   return (
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={styles.wrap}>
       {width > 0 ? (
         <FlatList
+          // A new width (rotation) lays the strip out again from the start.
+          key={`${perView}-${Math.round(width)}`}
           ref={listRef}
           data={slides}
           keyExtractor={(v) => v.id}
           horizontal
-          pagingEnabled
+          snapToInterval={step}
+          snapToAlignment="start"
+          decelerationRate="fast"
           showsHorizontalScrollIndicator={false}
-          getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+          ItemSeparatorComponent={() => <View style={{ width: GAP }} />}
+          getItemLayout={(_, i) => ({ length: step, offset: step * i, index: i })}
           onScrollBeginDrag={() => {
             touching.current = true;
           }}
@@ -73,7 +94,7 @@ export function VisualsSlider() {
               accessibilityRole="imagebutton"
               accessibilityLabel={item.title}
               onPress={() => router.push('/visuals')}
-              style={{ width, height: width / ASPECT }}>
+              style={[styles.card, { width: itemWidth, height: itemHeight }]}>
               <Image source={{ uri: item.fileUrl }} contentFit="cover" style={[styles.image, { backgroundColor: theme.backgroundElement }]} />
               <View style={styles.caption}>
                 <ThemedText type="smallBold" numberOfLines={1} style={styles.captionText}>
@@ -84,10 +105,10 @@ export function VisualsSlider() {
           )}
         />
       ) : null}
-      {count > 1 ? (
+      {maxIndex > 0 ? (
         <View style={styles.dots} pointerEvents="none">
-          {slides.map((v, i) => (
-            <View key={v.id} style={[styles.dot, i === index && styles.dotOn]} />
+          {Array.from({ length: maxIndex + 1 }, (_, i) => (
+            <View key={i} style={[styles.dot, i === index && styles.dotOn]} />
           ))}
         </View>
       ) : null}
@@ -96,7 +117,8 @@ export function VisualsSlider() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { borderRadius: 16, overflow: 'hidden' },
+  wrap: { overflow: 'hidden' },
+  card: { borderRadius: 16, overflow: 'hidden' },
   none: { height: 0, marginTop: -Spacing.three },
   image: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   caption: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, backgroundColor: 'rgba(0,0,0,0.4)' },

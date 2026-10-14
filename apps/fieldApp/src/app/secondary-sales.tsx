@@ -10,8 +10,8 @@ import { useFinancialYear } from '@/lib/financial-year';
 import { addMonths, monthOf, prettyMonth } from '@/offline/day';
 
 /**
- * Secondary Sales: the units of each product you sold on in a month. This is your achievement, measured against
- * the targets set per product. The server takes entries for a month until its stock deadline, so a month two or more
+ * Secondary Sales: the units of each product you sold on in a month. Since 2026-10-14 this is your own record: your achievement
+ * against the targets is counted from your distributors' stock. The server takes entries for a month until its stock deadline, so a month two or more
  * back is shown closed here and the previous one is left to the server. Needs a connection.
  */
 export default function SecondarySalesScreen() {

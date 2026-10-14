@@ -18,7 +18,7 @@ import { FyBanner } from '@/components/fy-banner';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
-import { cancelOrder, completeOrder, listOrders, type OrderStatus, type OrderView, type OutletType } from '@/lib/marketing';
+import { cancelOrder, completeOrder, deliveredOf, listOrders, orderValue, type OrderStatus, type OrderView, type OutletType } from '@/lib/marketing';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { useSessionUser } from '@/lib/session';
 import { createRecord, getRecord, removeRecord, sendNow, updateRecord, useColleagues, useOnline, useRecords, type OutboxRecord } from '@/offline';
@@ -53,7 +53,7 @@ const bannerFor = (o: OrderView): { accent: Accent; icon: ReturnType<typeof sym>
   if (o.outlet.type === 'CHEMIST') {
     return { accent: 'slate', icon: sym('info.circle', 'info'), title: 'Information only', text: 'A chemist order is recorded and shown. It is not marked done or cancelled.' };
   }
-  if (o.status === 'DONE') return { accent: 'green', icon: sym('checkmark.circle', 'check_circle'), title: 'Done', text: 'Counted as a primary sale.' };
+  if (o.status === 'DONE') return { accent: 'green', icon: sym('checkmark.circle', 'check_circle'), title: 'Done', text: 'Counted as a primary sale at what was delivered.' };
   if (o.status === 'CANCELLED') return { accent: 'red', icon: sym('xmark.circle', 'cancel'), title: 'Cancelled', text: 'This order was cancelled.' };
   return { accent: 'orange', icon: sym('clock', 'schedule'), title: 'Placed', text: 'Mark it done once the distributor has supplied it.' };
 };
@@ -330,21 +330,59 @@ export default function OrdersScreen() {
           {isMine(detail) ? null : <ThemedText type="small" themeColor="textSecondary">{`Placed by ${ownerName(detail.userId)}`}</ThemedText>}
           <ThemedText type="smallBold">{outletName(detail.outlet.type, detail.outlet.id)}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">{`${infoOnly ? 'Chemist' : 'Distributor'} · ${prettyDay(detail.orderDate)}`}</ThemedText>
+          {detail.createdBy ? <ThemedText type="small" themeColor="textSecondary">Added by the office for you</ThemedText> : detail.editedBy ? <ThemedText type="small" themeColor="textSecondary">Changed by the office</ThemedText> : null}
         </InfoCard>
-        <CardSection icon={sym('shippingbox', 'inventory_2')} accent="teal" title="Products" count={detail.items.length}>
-          {detail.items.map((i) => (
-            <View key={i.productId} style={styles.spread}>
-              <View style={styles.grow}>
-                <ThemedText type="smallBold">{productName(i.productId)}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">{`${i.quantity} × ${formatRupees(i.unitPricePaise)}`}</ThemedText>
+        {detail.originalItems && detail.originalItems.length > 0 ? (
+          <CardSection icon={sym('clock.arrow.circlepath', 'history')} accent="slate" title="You ordered">
+            {detail.originalItems.map((i) => (
+              <View key={i.productId} style={styles.spread}>
+                <View style={styles.grow}>
+                  <ThemedText type="smallBold">{productName(i.productId)}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">{`${i.quantity} × ${formatRupees(i.unitPricePaise)}`}</ThemedText>
+                </View>
+                <ThemedText type="smallBold">{formatRupees(i.amountPaise)}</ThemedText>
               </View>
-              <ThemedText type="smallBold">{formatRupees(i.amountPaise)}</ThemedText>
-            </View>
-          ))}
+            ))}
+            {detail.originalTotalAmountPaise != null ? (
+              <View style={styles.spread}>
+                <ThemedText type="smallBold">Your total</ThemedText>
+                <ThemedText type="smallBold">{formatRupees(detail.originalTotalAmountPaise)}</ThemedText>
+              </View>
+            ) : null}
+          </CardSection>
+        ) : null}
+        <CardSection icon={sym('shippingbox', 'inventory_2')} accent="teal" title={detail.originalItems ? 'Products now' : 'Products'} count={detail.items.length}>
+          {detail.items.map((i) => {
+            const done = detail.status === 'DONE' && !infoOnly;
+            const d = deliveredOf(i);
+            return (
+              <View key={i.productId} style={styles.spread}>
+                <View style={styles.grow}>
+                  <ThemedText type="smallBold">{productName(i.productId)}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">{`Ordered ${i.quantity} × ${formatRupees(i.unitPricePaise)}`}</ThemedText>
+                  {done ? (
+                    <ThemedText type="small">{`Supplied ${d.suppliedQty}${d.freeQty > 0 ? ` · Free ${d.freeQty}` : ''}${d.shortQty > 0 ? ` · Not supplied ${d.shortQty}` : ''}`}</ThemedText>
+                  ) : (i.freeQty ?? 0) > 0 ? (
+                    <ThemedText type="small">{`+ ${i.freeQty} free planned`}</ThemedText>
+                  ) : null}
+                </View>
+                <ThemedText type="smallBold">{formatRupees(done ? d.suppliedQty * i.unitPricePaise : i.amountPaise)}</ThemedText>
+              </View>
+            );
+          })}
           <View style={styles.spread}>
-            <ThemedText type="smallBold">Total</ThemedText>
+            <ThemedText type="smallBold">{detail.status === 'DONE' && !infoOnly ? 'Ordered total' : 'Total'}</ThemedText>
             <ThemedText type="smallBold">{formatRupees(detail.totalAmountPaise)}</ThemedText>
           </View>
+          {detail.status === 'DONE' && !infoOnly ? (
+            <View style={styles.spread}>
+              <ThemedText type="smallBold">Delivered amount</ThemedText>
+              <ThemedText type="smallBold">{formatRupees(orderValue(detail))}</ThemedText>
+            </View>
+          ) : null}
+          {detail.status === 'DONE' && !infoOnly ? (
+            <ThemedText type="small" themeColor="textSecondary">Free units are never charged.</ThemedText>
+          ) : null}
         </CardSection>
         {detail.remarks ? (
           <CardSection icon={sym('text.bubble', 'chat')} accent="purple" title="Remarks">
@@ -356,7 +394,7 @@ export default function OrdersScreen() {
   }
 
   const shown = tab === 'WAITING' ? [] : byStatus(tab);
-  const shownValue = shown.reduce((s, o) => s + o.totalAmountPaise, 0);
+  const shownValue = shown.reduce((s, o) => s + orderValue(o), 0);
   const shownProducts = shown.reduce((s, o) => s + o.items.length, 0);
   return (
     <ScreenShell title="Orders" subtitle="Manage your chemist orders and fulfilment status">
@@ -435,10 +473,11 @@ export default function OrdersScreen() {
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">{`${chemist ? 'Chemist' : 'Distributor'} · ${prettyDay(o.orderDate)} · ${o.items.length} product${o.items.length === 1 ? '' : 's'}`}</ThemedText>
                 </View>
-                <ThemedText type="smallBold">{formatRupees(o.totalAmountPaise)}</ThemedText>
+                <ThemedText type="smallBold">{formatRupees(orderValue(o))}</ThemedText>
               </View>
               <View style={styles.spread}>
                 <Pill {...pillFor(o)} />
+                {o.createdBy ? <Pill text="Added by office" accent="slate" /> : o.editedBy ? <Pill text="Changed by office" accent="slate" /> : null}
                 <PrimaryButton label="View order →" variant="text" onPress={() => (setMsg(null), setDetail(o), setMode('detail'))} />
               </View>
             </InfoCard>

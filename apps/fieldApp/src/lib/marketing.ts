@@ -61,10 +61,42 @@ export type OrderView = {
   outlet: { type: OutletType; id: string };
   orderDate: string;
   status: OrderStatus;
+  /** What the MR ordered, at the order's prices. */
   totalAmountPaise: number;
+  /** A Done order: what was delivered, free units excluded. `null`/missing while Placed, once Cancelled, and on older Done orders (read as the total). */
+  suppliedAmountPaise?: number | null;
   remarks: string | null;
-  items: { productId: string; quantity: number; unitPricePaise: number; amountPaise: number }[];
+  items: OrderItem[];
+  /** What the employee originally ordered, kept the first time the office changed the order; `null`/missing if never changed. */
+  originalItems?: OrderItem[] | null;
+  originalTotalAmountPaise?: number | null;
+  /** Set (a user id) when Admin or the Accountant added the order for the employee. */
+  createdBy?: string | null;
+  /** Set when Admin or the Accountant last changed a Placed order's lines or remarks. */
+  editedBy?: string | null;
+  editedAt?: string | null;
 };
+export type OrderItem = {
+  productId: string;
+  /** Ordered. */
+  quantity: number;
+  unitPricePaise: number;
+  /** Ordered × price. */
+  amountPaise: number;
+  /** A Done order: units supplied of `quantity`; `null`/missing = all of it (Placed, or Done before supply was recorded). */
+  suppliedQty?: number | null;
+  /** Units given on top, free: never charged. `0`/missing = none. */
+  freeQty?: number;
+};
+
+/** What a line was delivered as: units that arrived, units given free, and units not supplied. Missing supply reads as delivered in full. */
+export const deliveredOf = (i: OrderItem) => {
+  const suppliedQty = i.suppliedQty ?? i.quantity;
+  return { suppliedQty, freeQty: i.freeQty ?? 0, shortQty: Math.max(0, i.quantity - suppliedQty) };
+};
+/** The rupees an order counts for: a Done order at what was delivered (free units never charged), any other as ordered. */
+export const orderValue = (o: Pick<OrderView, 'status' | 'totalAmountPaise' | 'suppliedAmountPaise'>) =>
+  o.status === 'DONE' ? (o.suppliedAmountPaise ?? o.totalAmountPaise) : o.totalAmountPaise;
 /** The year switch (lib/financial-year.ts) bounds this list: a past year shows that year's orders. */
 export const listOrders = () => apiGet<OrderView[]>('/sales/orders', { fy: true });
 export const completeOrder = (id: string) => apiPost<OrderView>(`/sales/orders/${id}/complete`, {}, { auth: true });

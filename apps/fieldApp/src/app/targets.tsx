@@ -45,9 +45,10 @@ const accentFor = (p: number | null): Accent => (p === null ? 'slate' : p >= 100
 
 /**
  * Targets (docs/mobile/secondary-and-targets.md): what you are meant to sell in a month, per product, as an amount or as units,
- * against your achievement: the secondary you entered and your manager approved (Secondary Sales). Primary is shown beside it.
- * The figures are your own. A manager can set a target for themselves or someone below them, for one month or a run of months;
- * for a product with a retail price (PTR) units and amount are one figure, and a target for all products is an amount only.
+ * against your achievement: counted from the stock of the distributors handed to you, valued at PTS (not from what you enter on
+ * Secondary Sales). Primary is shown beside it. The figures are your own. A manager can set a target for themselves or someone
+ * below them, for one month or a run of months; for a product with a PTS price units and amount are one figure, and a target
+ * for all products is an amount only.
  * The server only takes targets inside the current financial year, so setting is off while a past year is selected.
  * Needs a connection: the figures are worked out live.
  */
@@ -85,8 +86,8 @@ export default function TargetsScreen() {
   const people = [{ id: me?.id ?? '', name: 'Me', subtitle: me?.employeeCode }, ...team.map((c) => ({ id: c.id, name: c.name, subtitle: c.designation ?? c.employeeCode }))];
   const products = master.data?.products ?? [];
   const productOptions = [{ id: '', name: 'All products' }, ...[...products].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ id: p.id, name: p.name }))];
-  // Units only make sense for one product that has a PTR (units × PTR is the amount); anything else is an amount.
-  const ptr = products.find((p) => p.id === productId)?.ptrPaise ?? null;
+  // Units only make sense for one product that has a PTS (units × PTS is the amount); anything else is an amount.
+  const ptr = products.find((p) => p.id === productId)?.ptsPaise ?? null;
   const canUseUnits = productId !== '' && ptr !== null && ptr > 0;
   const effectiveUnit: Unit = canUseUnits ? unit : 'AMOUNT';
   const unitsEntered = Number(value || 0);
@@ -147,7 +148,7 @@ export default function TargetsScreen() {
   const rows = (figures?.products ?? []).filter((p) => p.targetPaise > 0 || p.secondaryQty > 0 || p.primaryQty !== 0);
 
   return (
-    <ScreenShell title="Targets" subtitle="Your targets against what your manager approved">
+    <ScreenShell title="Targets" subtitle="Your targets against what your distributors sold">
       <FyBanner />
       <InfoCard>
         <ThemedText type="smallBold">Month</ThemedText>
@@ -169,7 +170,7 @@ export default function TargetsScreen() {
             ]}
           />
           <ThemedText type="small" themeColor="textSecondary">
-            {`Achieved is your approved secondary. Primary this month: ${formatRupees(figures.totals.primaryPaise)}.${figures.generalTargetPaise > 0 ? ` Includes ${formatRupees(figures.generalTargetPaise)} for all products.` : ''}`}
+            {`Achieved is counted from your distributors' stock, at PTS. It shows 0 until their stock is counted. Primary this month: ${formatRupees(figures.totals.primaryPaise)}.${figures.generalTargetPaise > 0 ? ` Includes ${formatRupees(figures.generalTargetPaise)} for all products.` : ''}`}
           </ThemedText>
           {figures.totals.targetPaise === 0 ? <Notice tone="info">No target is set for this month.</Notice> : null}
 
@@ -209,9 +210,9 @@ export default function TargetsScreen() {
           {rows.map((p) => (
             <InfoCard key={p.product.id}>
               <ThemedText type="smallBold">{p.product.name}</ThemedText>
-              <ThemedText type="small">{`Target ${formatRupees(p.targetPaise)} · Secondary ${p.secondaryQty} units, ${formatRupees(p.secondaryPaise)} · ${percentText(p.achievementPercent)}`}</ThemedText>
+              <ThemedText type="small">{`Target ${formatRupees(p.targetPaise)} · Achieved ${p.secondaryQty} units, ${formatRupees(p.secondaryPaise)} · ${percentText(p.achievementPercent)}`}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">{`Primary ${p.primaryQty} units, ${formatRupees(p.primaryPaise)}`}</ThemedText>
-              {p.flags.includes('NO_PTR') ? <ThemedText type="small" themeColor="warning">This product has no retail price, so its secondary is counted in units only.</ThemedText> : null}
+              {p.flags.includes('NO_PTS') ? <ThemedText type="small" themeColor="warning">This product has no PTS price, so its achievement is counted in units only.</ThemedText> : null}
             </InfoCard>
           ))}
           <PrimaryButton label="Enter secondary sales" variant="text" onPress={() => router.push('/secondary-sales')} />
@@ -257,7 +258,7 @@ export default function TargetsScreen() {
                 editable={!busy}
               />
             </FormField>
-            {worth ? <ThemedText type="small" themeColor="textSecondary">{`That is ${worth} at the product's retail price.`}</ThemedText> : null}
+            {worth ? <ThemedText type="small" themeColor="textSecondary">{`That is ${worth} at the product's PTS price.`}</ThemedText> : null}
             {productId === '' ? <ThemedText type="small" themeColor="textSecondary">A target for all products is an amount only.</ThemedText> : null}
             <PrimaryButton label="Save target" loading={busy} onPress={save} />
             <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => (setSetting(false), setUntil(null))} />

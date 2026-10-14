@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { Spacing, type Accent } from '@/constants/theme';
 import { apiGet } from '@/lib/api';
 import { STATUS_LABEL, type ApprovalStatus } from '@/lib/approvals';
-import { listStock, type OrderView, type StockRow } from '@/lib/marketing';
+import { listStock, orderValue, type OrderView, type StockRow } from '@/lib/marketing';
 import { formatRupees } from '@/lib/money';
 import { getMyDcrCoverage, getMyDcrYear, getMyTaDaDays, getMyTaDaYear, type TaDaDay } from '@/lib/my-reports';
 import { getRejectionReason, workingTypeLabel, type DailyPlanDetail, type MonthlyPlanDetail } from '@/lib/planning';
@@ -282,7 +282,7 @@ export function SalesReport({ month, year }: { month: string; year: number }) {
 
   const mine = (orders.data ?? []).filter((o) => !me || o.userId === me.id);
   const by = (s: OrderView['status']) => mine.filter((o) => o.status === s);
-  const sum = (list: OrderView[]) => list.reduce((t, o) => t + o.totalAmountPaise, 0);
+  const sum = (list: OrderView[]) => list.reduce((t, o) => t + orderValue(o), 0);
   const orderLines: StatusLine[] = [
     { status: 'Placed', count: by('PLACED').length, value: sum(by('PLACED')) },
     { status: 'Done', count: by('DONE').length, value: sum(by('DONE')) },
@@ -308,7 +308,7 @@ export function SalesReport({ month, year }: { month: string; year: number }) {
       <Stale fetchedAt={secondary.fetchedAt} stale={secondary.stale} error={secondary.error} />
       <Stale fetchedAt={orders.fetchedAt} stale={orders.stale} error={orders.error} />
 
-      <TableTitle>{`Secondary sales · ${prettyMonth(month)}`}</TableTitle>
+      <TableTitle>{`Sales and achievement · ${prettyMonth(month)}`}</TableTitle>
       {secondary.loading && !sec ? (
         <Notice tone="info">Loading…</Notice>
       ) : secondaryRows.length === 0 ? (
@@ -322,23 +322,40 @@ export function SalesReport({ month, year }: { month: string; year: number }) {
             right={(r) => <ThemedText type="smallBold">{percent(r.achievementPercent)}</ThemedText>}
             fields={(r) => [
               { label: 'Primary (units)', value: String(r.primaryQty) },
-              { label: 'Secondary (units)', value: String(r.secondaryQty) },
-              { label: 'Secondary value', value: formatRupees(r.secondaryPaise) },
+              { label: 'Achieved (units)', value: String(r.secondaryQty) },
+              { label: 'Achieved value', value: formatRupees(r.secondaryPaise) },
               { label: 'Target', value: formatRupees(r.targetPaise) },
             ]}
             totals={[
               { label: 'Primary (units)', value: String(secondaryRows.reduce((n, r) => n + r.primaryQty, 0)) },
-              { label: 'Secondary (units)', value: String(secondaryRows.reduce((n, r) => n + r.secondaryQty, 0)) },
-              { label: 'Secondary value', value: formatRupees(sec!.totals.secondaryPaise) },
+              { label: 'Achieved (units)', value: String(secondaryRows.reduce((n, r) => n + r.secondaryQty, 0)) },
+              { label: 'Achieved value', value: formatRupees(sec!.totals.secondaryPaise) },
               { label: 'Target', value: formatRupees(sec!.totals.targetPaise) },
               { label: 'Achieved', value: percent(sec!.totals.achievementPercent) },
             ]}
           />
           <ThemedText type="small" themeColor="textSecondary">
-            Only secondary your manager approved counts toward your achievement.
+            Secondary and achievement here are counted from your distributors’ stock, at PTS. They show 0 until their stock is counted.
           </ThemedText>
         </>
       )}
+
+      {sec?.distributors && sec.distributors.length > 0 ? (
+        <>
+          <TableTitle>Primary by distributor</TableTitle>
+          <ReportCards
+            rows={sec.distributors}
+            rowKey={(r) => r.distributor.id}
+            title={(r) => r.distributor.name}
+            right={(r) => <ThemedText type="smallBold">{formatRupees(r.orderPaise)}</ThemedText>}
+            fields={(r) => [{ label: 'Units on Done orders', value: String(r.orderQty) }]}
+            totals={[
+              { label: 'Units', value: String(sec.distributors.reduce((n, r) => n + r.orderQty, 0)) },
+              { label: 'Order value', value: formatRupees(sec.distributors.reduce((n, r) => n + r.orderPaise, 0)) },
+            ]}
+          />
+        </>
+      ) : null}
 
       <TableTitle>Orders</TableTitle>
       {orders.loading && !orders.data ? (

@@ -11,6 +11,8 @@ export type Payslip = {
   deductions: SlipLine[];
   grossPaise: number;
   deductionPaise: number;
+  /** What brought the net to a whole rupee (signed), from 2026-10-14; shown beside the net, in neither table. Missing on an old slip. */
+  roundingPaise?: number;
   netPaise: number;
 };
 

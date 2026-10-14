@@ -29,7 +29,7 @@ export type SalesDashboardRow = {
   daPaise: number;
   /** `null` = no target set. */
   targetPaise: number | null;
-  /** The secondary the employee entered, at PTR; `null` = nothing entered and no target. */
+  /** The achievement, valued at PTS (counted from the employee's distributors' stock); `null` = nothing counted and no target. */
   achievedPaise: number | null;
   primaryPaise: number;
 };
