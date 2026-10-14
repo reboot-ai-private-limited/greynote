@@ -9,6 +9,7 @@ function toStructure(raw: unknown): CtcStructure {
   const s = (raw ?? {}) as Partial<CtcStructure>;
   return {
     ...(s.basicBasisPoints !== undefined && { basicBasisPoints: s.basicBasisPoints }),
+    ...(s.basicMonthlyPaise !== undefined && { basicMonthlyPaise: s.basicMonthlyPaise }),
     ruleOverrides: s.ruleOverrides ?? EMPTY_STRUCTURE.ruleOverrides,
     removed: s.removed ?? [],
     extras: s.extras ?? [],

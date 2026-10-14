@@ -97,7 +97,7 @@ describe('employee sales', () => {
   });
 
   it('reads primary as orders plus the change, and the secondary entered, per product', async () => {
-    orderSums.push({ month: '2026-09', userId: 'mr1', productId: 'prod1', quantity: 20, amountPaise: 2000 });
+    orderSums.push({ month: '2026-09', userId: 'mr1', distributorId: 'dist1', productId: 'prod1', quantity: 20, amountPaise: 2000 });
     await primary.execute(admin, { userId: 'mr1', month: '2026-09', lines: [{ productId: 'prod1', adjustmentQty: 5, reason: 'Direct supply' }] });
     await secondary.execute(admin, { userId: 'mr1', month: '2026-09', lines: [{ productId: 'prod1', qty: 12 }] });
     const dto = await read.execute(mr1, { userId: 'mr1', month: '2026-09' });
@@ -106,13 +106,13 @@ describe('employee sales', () => {
     expect(await code(read.execute(mr2, { userId: 'mr1', month: '2026-09' }))).toBe('NOT_YOUR_TEAM');
   });
 
-  it('units and amount are one figure at PTR: either given, both kept', async () => {
+  it('units and amount are one figure at PTS: either given, both kept', async () => {
     expect(linkQtyAndAmount({ qty: 5 }, 1200)).toEqual({ qty: 5, amountPaise: 6000 });
     expect(linkQtyAndAmount({ amountPaise: 6100 }, 1200)).toEqual({ qty: 5, amountPaise: 6000 });
     expect(linkQtyAndAmount({ qty: 5 }, null)).toEqual({ qty: 5, amountPaise: null });
-    expect(() => linkQtyAndAmount({ amountPaise: 100 }, null)).toThrow(/no PTR/);
+    expect(() => linkQtyAndAmount({ amountPaise: 100 }, null)).toThrow(/no PTS/);
     await secondary.execute(mr1, { userId: 'mr1', month: '2026-10', lines: [{ productId: 'prod1', amountPaise: 12_000 }] });
-    expect(sales.rows[0]).toMatchObject({ secondaryQty: 10, secondaryAmountPaise: 12_000, secondaryStatus: 'DRAFT' });
+    expect(sales.rows[0]).toMatchObject({ secondaryQty: 12, secondaryAmountPaise: 12_000, secondaryStatus: 'DRAFT' });
   });
 
   it('own entry is a draft; a manager’s or Admin’s is approved at once', async () => {

@@ -198,6 +198,8 @@ export const createDistributorBodySchema = z.object({
   location: locationSchema.nullish().transform((v) => v ?? null),
   /** Any active field employees, of any designation. */
   assignedUserIds: z.array(objectIdSchema).max(100).default([]),
+  /** What the distributor owed before this system, in paise; `0` if nothing. */
+  openingDuesPaise: paiseSchema.default(0),
 });
 export const updateDistributorBodySchema = z
   .object({
@@ -211,6 +213,7 @@ export const updateDistributorBodySchema = z
     location: locationSchema.nullable().optional(),
     /** The whole new list; `[]` un-assigns everyone. */
     assignedUserIds: z.array(objectIdSchema).max(100).optional(),
+    openingDuesPaise: paiseSchema.optional(),
     status: statusSchema.optional(),
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });

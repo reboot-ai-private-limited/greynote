@@ -63,7 +63,7 @@ function kit(initial: Promotion[], opts: { month?: string; inactive?: string[]; 
   const profiles = new Map<string, EmployeeProfile>();
   const addPerson = (id: string, designationId: string, managerId: string | null) => {
     users.set(id, { id, employeeCode: id.toUpperCase(), name: id, email: null, phone: null, status: opts.inactive?.includes(id) ? 'inactive' : 'active', roleId: 'r-field', passwordHash: 'x', lastLoginAt: null, isBlocked: false });
-    profiles.set(id, { id: `p-${id}`, userId: id, designationId, payBandId: 'g1', managerId, dateOfJoining: null, onProbation: false, probationMonths: null, esiNumber: null, mobileNumber: null, hqId: null, zoneId: null, alternateMobile: null, guardianName: null, dateOfBirth: null, address: null, permanentAddress: null, permanentSameAsPresent: false, qualification: null, qualifications: [], previousEmployment: [], bankDetails: null, documents: [] });
+    profiles.set(id, { id: `p-${id}`, userId: id, designationId, payBandId: 'g1', managerId, dateOfJoining: null, onProbation: false, probationMonths: null, esiNumber: null, epfNumber: null, mobileNumber: null, hqId: null, zoneId: null, alternateMobile: null, guardianName: null, dateOfBirth: null, address: null, permanentAddress: null, permanentSameAsPresent: false, qualification: null, qualifications: [], previousEmployment: [], bankDetails: null, documents: [] });
   };
   for (const [id, d, m] of TREE) addPerson(id, d, m);
   for (const id of opts.extraReports ?? []) addPerson(id, 'd-mr', 'raj');
@@ -117,9 +117,10 @@ function kit(initial: Promotion[], opts: { month?: string; inactive?: string[]; 
     },
     history: { record: async (input: Record<string, unknown>) => (history.push(input), input) },
   };
-  const apply = new ApplyDuePromotionsUseCase(repos.promotions as never, repos.profiles as never, repos.users as never, repos.components as never, repos.assignments as never, repos.history as never, async () => month, () => clock);
+  const apply = new ApplyDuePromotionsUseCase(repos.promotions as never, repos.profiles as never, repos.users as never, repos.components as never, repos.assignments as never, repos.history as never, async () => month, ctxPort as never, () => clock);
   const planner = new PromotionPlanner({
     ...repos,
+    context: ctxPort,
     roles: { findById: async () => ({ id: 'r-field', name: 'FIELD' }) },
     designations: { findById: async (id: string) => DESIGNATIONS.find((d) => d.id === id) ?? null, list: async () => DESIGNATIONS },
     payBands: { findById: async (id: string) => ({ id, name: id.toUpperCase() }), list: async () => [{ id: 'g1', name: 'G1' }, { id: 'g2', name: 'G2' }] },
@@ -140,6 +141,9 @@ function kit(initial: Promotion[], opts: { month?: string; inactive?: string[]; 
     managerOf: (id: string) => profiles.get(id)?.managerId,
   };
 }
+
+/** The ESI ceiling and the professional tax slabs a CTC is worked out against. */
+const ctxPort = { read: async () => ({ esiCeilingPaise: 2_100_000, ptaxSlabs: [{ from: 10_000, to: 14_999, amount: 110 }, { from: 15_000, to: 19_999, amount: 130 }, { from: 20_000, to: null, amount: 150 }] }) };
 
 describe('applying due promotions', () => {
   it('on the month: changes designation, grade and manager, moves the team, and keeps the history', async () => {

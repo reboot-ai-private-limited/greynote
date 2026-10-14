@@ -11,6 +11,7 @@ import {
   EMPTY_COMPONENT_DRAFT,
   KIND_LABEL,
   RULE_LABEL,
+  ruleTypesFor,
   buildPayComponent,
   buildPayComponentUpdate,
   componentToDraft,
@@ -49,8 +50,11 @@ export function PayComponentFormDialog({
     create.mutate(built.body);
   }
 
-  // A percentage can be taken of any other earning or contribution — never of the balancer, and never of itself.
-  const referable = all.filter((c) => c.rule.type !== 'BALANCER' && c.code !== draft.code.trim().toUpperCase());
+  // A percentage can be taken of any other earning — never of the balancer, a deduction, or itself.
+  const referable = all.filter((c) => c.rule.type !== 'BALANCER' && c.kind === 'EARNING' && c.code !== draft.code.trim().toUpperCase());
+  // A mandatory line (professional tax) keeps its kind and rule: only its name and place in the list change.
+  const locked = component?.mandatory === true;
+  const ruleOptions = ruleTypesFor(draft.kind).filter((r) => r !== 'PTAX_SLAB' || draft.ruleType === 'PTAX_SLAB');
   const toggleOf = (code: string) => set({ of: draft.of.includes(code) ? draft.of.filter((c) => c !== code) : [...draft.of, code] });
 
   return (
@@ -76,19 +80,30 @@ export function PayComponentFormDialog({
         <Select
           id="pc-kind"
           value={draft.kind}
-          onValueChange={(v) => set({ kind: v as PayComponentKind })}
-          options={(Object.keys(KIND_LABEL) as PayComponentKind[]).map((k) => ({ value: k, label: KIND_LABEL[k] }))}
+          disabled={locked}
+          onValueChange={(v) => {
+            const kind = v as PayComponentKind;
+            // A rule that only fits one kind is dropped when the kind changes.
+            set({ kind, ruleType: ruleTypesFor(kind).includes(draft.ruleType) ? draft.ruleType : 'PERCENT_OF_CTC' });
+          }}
+          options={(['EARNING', 'DEDUCTION'] as PayComponentKind[]).map((k) => ({ value: k, label: KIND_LABEL[k] }))}
         />
       </FormField>
       <FormField label="How it is worked out" htmlFor="pc-rule">
         <Select
           id="pc-rule"
           value={draft.ruleType}
+          disabled={locked}
           onValueChange={(v) => set({ ruleType: v as RuleType })}
-          options={(Object.keys(RULE_LABEL) as RuleType[]).map((r) => ({ value: r, label: RULE_LABEL[r] }))}
+          options={ruleOptions.map((r) => ({ value: r, label: RULE_LABEL[r] }))}
         />
       </FormField>
-      {draft.ruleType === 'PERCENT_OF_CTC' || draft.ruleType === 'PERCENT_OF_COMPONENTS' ? (
+      {draft.ruleType === 'PTAX_SLAB' ? (
+        <p className="text-sm text-text-muted">
+          The amount for each salary band is set in Settings → Payroll → Professional tax slabs. The first band is also the lowest monthly salary that can be assigned.
+        </p>
+      ) : null}
+      {draft.ruleType === 'PERCENT_OF_CTC' || draft.ruleType === 'PERCENT_OF_COMPONENTS' || draft.ruleType === 'ESI_PERCENT' ? (
         <FormField label="Percentage (%)" htmlFor="pc-percent" error={errors['percent']}>
           <Input id="pc-percent" inputMode="decimal" value={draft.percent} placeholder="0.75" onChange={(e) => set({ percent: e.target.value })} aria-invalid={errors['percent'] ? true : undefined} />
         </FormField>
@@ -115,10 +130,14 @@ export function PayComponentFormDialog({
       </FormField>
       {component ? (
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={draft.isActive} onChange={(e) => set({ isActive: e.target.checked })} className="size-4 accent-accent" />
+          <input type="checkbox" checked={draft.isActive} disabled={locked} onChange={(e) => set({ isActive: e.target.checked })} className="size-4 accent-accent" />
           In use (untick to leave it out of new CTCs)
         </label>
       ) : null}
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={draft.mandatory} disabled={locked} onChange={(e) => set({ mandatory: e.target.checked })} className="size-4 accent-accent" />
+        Mandatory (every employee has it: it cannot be switched off or removed for one employee)
+      </label>
     </FormDialog>
   );
 }

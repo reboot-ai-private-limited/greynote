@@ -15,6 +15,7 @@ const toDistributor = (doc: DistributorDoc & { _id: unknown }): Distributor => (
   address: doc.address,
   location: doc.latitude === null || doc.longitude === null ? null : { latitude: doc.latitude, longitude: doc.longitude },
   assignedUserIds: (doc.assignedUserIds ?? []).map(String),
+  openingDuesPaise: doc.openingDuesPaise ?? 0,
   status: doc.status,
 });
 

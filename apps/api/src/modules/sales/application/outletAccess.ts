@@ -14,7 +14,7 @@ export class OutletAccess {
   async assertUsable(actor: Actor, outlet: Outlet): Promise<void> {
     const found = outlet.type === 'CHEMIST' ? await this.master.getChemist(outlet.id) : await this.master.getDistributor(outlet.id);
     if (!found || found.status !== 'active') throw new StockRefusal(STOCK_CODES.outletNotFound, 'That outlet does not exist or is no longer active.');
-    if (actor.role === 'ADMIN') return;
+    if (actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT') return;
     const allowed = outlet.type === 'CHEMIST' ? await this.master.canActOnChemist(actor.id, outlet.id) : await this.master.canActOnDistributor(actor.id, outlet.id);
     if (!allowed) throw new StockRefusal(STOCK_CODES.outletNotYours, 'That outlet is not on your Routes.');
   }

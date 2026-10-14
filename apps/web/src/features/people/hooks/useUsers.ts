@@ -51,6 +51,18 @@ export function useUpdateUser(id: string, onDone: () => void) {
   });
 }
 
+/** Every active field employee by name only: the Accountant's pickers, which may not read employee records. */
+export function useFieldDirectory(enabled: boolean) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.fieldDirectory(),
+      fetch: (token, signal) => identityApi.fieldDirectory(token, signal),
+      staleTime: staleTime.live,
+      enabled,
+    }),
+  );
+}
+
 /** Active FIELD employees matching a search, for the manager picker. */
 export function useManagerCandidates(term: string, enabled: boolean) {
   const debounced = useDebouncedValue(term.trim(), timing.searchDebounceMs);

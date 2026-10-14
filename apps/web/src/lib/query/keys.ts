@@ -116,6 +116,8 @@ export const keys = {
   payroll: {
     all: () => ['payroll', fy()] as const,
     month: (query: object) => [...keys.payroll.all(), 'month', query] as const,
+    warnings: (month: string) => [...keys.payroll.all(), 'warnings', month] as const,
+    paidTotals: () => [...keys.payroll.all(), 'paidTotals'] as const,
     detail: (id: string) => [...keys.payroll.all(), 'detail', id] as const,
   },
   monthlyStock: { missing: (month: string) => ['monthlyStock', fy(), 'missing', month] as const },
@@ -157,6 +159,7 @@ export const keys = {
     list: (query: object) => [...keys.distributorPayments.all(), 'list', query] as const,
     orders: (query: object) => [...keys.distributorPayments.all(), 'orders', query] as const,
     totals: (query: object) => [...keys.distributorPayments.all(), 'totals', query] as const,
+    balances: () => [...keys.distributorPayments.all(), 'balances'] as const,
   },
   distributors: {
     all: () => ['distributors', fy()] as const,
@@ -183,6 +186,7 @@ export const keys = {
     public: () => ['config', 'public'] as const,
   },
   places: { search: (q: string) => ['places', 'search', q] as const },
+  fieldDirectory: () => ['users', fy(), 'field-directory'] as const,
   fieldEmployees: { search: (q: string) => ['users', fy(), 'field', q] as const },
   zones: {
     all: () => ['zones', fy()] as const,

@@ -6,7 +6,7 @@ import type { PayrollFilter, PayrollRunRepositoryPort } from '../../domain/payro
 import { PAYROLL_CODES, PayrollRefusal, type PayrollCode } from '../../domain/payrollRefusal.js';
 import type { PayrollDay, PayrollRun } from '../../domain/payrollRun.entity.js';
 import type { AttendancePort, HrPort, IdentityPort } from '../../domain/ports.js';
-import { absentDeductionPaise, adjustmentEffects, chargeableAbsentDays, leaveDeductionPaise, monthlyGrossPaise, netPayablePaise } from '../payrollCalc.js';
+import { absentDeductionPaise, adjustmentEffects, chargeableAbsentDays, deductionLinesOf, leaveDeductionPaise, monthlyGrossPaise, netPayablePaise, roundNetToRupee, statutoryTakenPaise } from '../payrollCalc.js';
 
 export interface Actor {
   id: string;
@@ -110,7 +110,11 @@ export class GeneratePayrollUseCase {
     // are kept through a regeneration and re-applied to the new figures.
     const days = await this.dayRows(userId, month);
     const adjustments = (await this.runs.findByUserMonth(userId, month))?.adjustments ?? [];
-    const originalNet = netPayablePaise({ baseSalaryPaise, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: deduction, absentDeductionPaise: absentDeduction });
+    // EPF, ESI and professional tax, on the full contract salary: leave and absent days do not reduce them. The net is brought to a whole rupee.
+    const deductionLines = deductionLinesOf(ctc.lines);
+    const statutory = statutoryTakenPaise(deductionLines.reduce((n, l) => n + l.amountPaise, 0), baseSalaryPaise, deduction, absentDeduction);
+    const unrounded = netPayablePaise({ baseSalaryPaise, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: deduction, absentDeductionPaise: absentDeduction, statutoryDeductionPaise: statutory });
+    const { netPaise: originalNet, roundingPaise } = roundNetToRupee(unrounded);
     const adjustmentPaise = adjustmentEffects(baseSalaryPaise, days, adjustments).totalPaise;
     const joinedInMonth = employment?.dateOfJoining ? (await this.clock.calendarDateOf(employment.dateOfJoining)).startsWith(`${month}-`) : false;
 
@@ -125,6 +129,14 @@ export class GeneratePayrollUseCase {
       totalTaDaPaise: 0,
       reimbursementPaise: 0,
       esiNumber: employment?.esiNumber ?? null,
+      epfNumber: employment?.epfNumber ?? null,
+      designationName: employment?.designationName ?? null,
+      bankName: employment?.bankName ?? null,
+      bankAccountNumber: employment?.bankAccountNumber ?? null,
+      dateOfJoining: employment?.dateOfJoining ? await this.clock.calendarDateOf(employment.dateOfJoining) : null,
+      deductionLines,
+      statutoryDeductionPaise: statutory,
+      roundingPaise,
       unpaidLeaveDays,
       leaveDeductionPaise: deduction,
       absentDays,

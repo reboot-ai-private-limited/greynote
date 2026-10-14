@@ -43,10 +43,11 @@ export interface DistributorOrderSumFilter {
   productId?: string | undefined;
 }
 
-/** What one employee's Done orders **to distributors** add up to for one product in one month (the month they were marked Done). */
+/** What one employee's Done orders **to one distributor** add up to for one product in one month (the month they were marked Done). */
 export interface UserOrderSum {
   month: string;
   userId: string;
+  distributorId: string;
   productId: string;
   quantity: number;
   amountPaise: Paise;
@@ -64,7 +65,7 @@ export interface UserOrderSumFilter {
 }
 
 export interface OrderRepositoryPort {
-  /** Done orders **to distributors** by month, employee and product — an employee's primary. Placed and cancelled orders never appear; chemist orders neither. */
+  /** Done orders **to distributors** by month, employee and product — an employee's primary. Quantity is the units delivered (supplied + free), the amount is supplied × price. Placed and cancelled orders never appear; chemist orders neither. */
   sumUserOrders(filter: UserOrderSumFilter): Promise<UserOrderSum[]>;
   /** Orders **to distributors** by month, distributor, product and status (cancelled ones never appear, chemist orders neither). */
   sumDistributorOrders(filter: DistributorOrderSumFilter): Promise<DistributorOrderSum[]>;
@@ -73,6 +74,12 @@ export interface OrderRepositoryPort {
   create(input: Omit<Order, 'id'>, ctx?: TransactionContext): Promise<Order>;
   findById(id: string): Promise<Order | null>;
   list(filter: OrderFilter, limit: number): Promise<Order[]>;
+  /** Replace a `PLACED` order's lines, total and remarks in one conditional update, keeping `original` (what the employee ordered) the first time; `false` if it is no longer `PLACED` or was changed since it was read (`ifEditedAt`). */
+  update(id: string, change: { items: Order['items']; totalAmountPaise: Paise; remarks: string | null; original?: { items: Order['items']; totalAmountPaise: Paise } }, by: string, at: Date, ifEditedAt: Date | null): Promise<boolean>;
+  /** Everything delivered by these distributors (all of them when omitted) in Done orders, in whole paise (supplied × price, free units left out), all time. */
+  sumDoneByDistributor(distributorIds?: string[]): Promise<Map<string, number>>;
+  /** `PLACED` → `DONE` with what was delivered, in one conditional update; `false` if the order is no longer `PLACED` or was changed since it was read (`ifEditedAt`). */
+  complete(id: string, supply: { items: Order['items']; suppliedAmountPaise: Paise; ifEditedAt: Date | null }, by: string, at: Date): Promise<boolean>;
   /** `PLACED` → `DONE` / `CANCELLED` in one conditional update; `false` (nothing changed) if it was not `PLACED`. */
   transition(id: string, to: 'DONE' | 'CANCELLED', by: string, at: Date): Promise<boolean>;
 }

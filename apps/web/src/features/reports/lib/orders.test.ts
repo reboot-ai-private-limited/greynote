@@ -10,6 +10,7 @@ const row = (over: Partial<ReportOrderRowDto> = {}): ReportOrderRowDto => ({
   outlet: { id: 'd1', name: 'Shree, Distributors' },
   mr: { id: 'u1', name: 'Asha Rao', employeeCode: 'MR001' },
   itemCount: 3,
+  suppliedAmountPaise: null,
   totalAmountPaise: 123_450,
   completedAt: null,
   remarks: null,

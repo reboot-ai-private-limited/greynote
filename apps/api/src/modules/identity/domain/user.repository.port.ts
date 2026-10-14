@@ -15,6 +15,8 @@ export interface UserListFilters {
   managerId?: string | undefined;
   status?: UserStatus | undefined;
   isBlocked?: boolean | undefined;
+  /** Narrow to these users (combines with the other filters). */
+  ids?: string[] | undefined;
   /** Free-text match over employeeCode/name/email. */
   search?: string | undefined;
 }

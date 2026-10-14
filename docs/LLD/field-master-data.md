@@ -302,3 +302,11 @@ Adding a doctor on the web is three steps (**Details → Location → Review**) 
 ## Distributor and chemist forms (2026-10-09)
 
 Adding a chemist (Details, Location, Review) and a distributor (Details, Coverage, Location, Review) uses the employee wizard's shell (`WizardShell`); Coverage is the zone (with "Add zone"), the routes of that zone, and the assigned people. A distributor's page is tabs: **Details** (the edit form), **Payments** and **Orders** (see LLD sales-and-orders.md, *Distributor payments*). Existing distributors were moved to the new shape by `pnpm --filter @greynote/api migrate:distributors` (dry run, then `-- --apply`).
+
+## Accountant adds and edits distributors (2026-10-14)
+
+`POST` and `PATCH /api/field-master-data/distributors` are ACCOUNTANT/ADMIN; chemists are readable by the Accountant (the add-order picker). The Accountant's pickers read zone, HQ and route *lists* (`GET /api/territory/zones|hqs|routes`) and `GET /api/identity/work-with/directory` (active field employees: id, code, name, designation); everything else in Territory and the employee records stay Admin/HR. The old payments-only distributor screens for the Accountant are gone: both roles use the same list and page (Details, Payments, Orders, Stock).
+
+## Opening dues (2026-10-14)
+
+`Distributor.openingDuesPaise` (whole paise, default 0, set on create and PATCH by Admin/Accountant). Dues = opening + Done orders delivered − recorded payments (see sales-and-orders.md). `listDistributorAssignees()` on the public contract gives Reports each active distributor's assigned employees.

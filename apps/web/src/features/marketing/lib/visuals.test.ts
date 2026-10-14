@@ -8,11 +8,11 @@ import {
 } from './visuals';
 
 describe('visual upload checks', () => {
-  it('accepts images, PDFs and videos and refuses the rest', () => {
+  it('accepts images only', () => {
     expect(visualFileError({ name: 'a.PNG', size: 10 })).toBeUndefined();
-    expect(visualFileError({ name: 'a.pdf', size: 10 })).toBeUndefined();
-    expect(visualFileError({ name: 'a.mp4', size: 10 })).toBeUndefined();
-    expect(visualFileError({ name: 'a.exe', size: 10 })).toMatch(/Use an image/);
+    expect(visualFileError({ name: 'a.pdf', size: 10 })).toMatch(/Use a PNG/);
+    expect(visualFileError({ name: 'a.mp4', size: 10 })).toMatch(/Use a PNG/);
+    expect(visualFileError({ name: 'a.exe', size: 10 })).toMatch(/Use a PNG/);
     expect(visualFileError({ name: 'a.png', size: 0 })).toMatch(/empty/);
     expect(visualFileError({ name: 'a.png', size: 26 * 1024 * 1024 })).toMatch(/25 MB/);
   });

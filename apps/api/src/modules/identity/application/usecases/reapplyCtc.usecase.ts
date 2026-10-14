@@ -1,6 +1,7 @@
 import { computeStructuredBreakdown } from '../../domain/ctcBreakdown.js';
 import type { CtcAssignmentRepositoryPort } from '../../domain/ctcAssignment.repository.port.js';
 import type { PayComponentRepositoryPort } from '../../domain/payComponent.repository.port.js';
+import type { CtcContextPort } from './ctcContext.js';
 
 export type ReapplyOutcome =
   | { userId: string; outcome: 'revised'; revisionId: string }
@@ -17,10 +18,12 @@ export class ReapplyCtcUseCase {
   constructor(
     private readonly components: PayComponentRepositoryPort,
     private readonly assignments: CtcAssignmentRepositoryPort,
+    private readonly context: CtcContextPort,
   ) {}
 
   async execute(input: { effectiveFrom: string; reason?: string | null; userIds?: string[] }, createdBy: string): Promise<ReapplyOutcome[]> {
     const formula = await this.components.list();
+    const ctx = await this.context.read();
     const userIds = input.userIds ?? (await this.assignments.listUserIds());
     const outcomes: ReapplyOutcome[] = [];
     for (const userId of userIds) {
@@ -35,6 +38,7 @@ export class ReapplyCtcUseCase {
           latest.ctcAnnualPaise,
           latest.structure,
           latest.overrides,
+          ctx,
         );
         const created = await this.assignments.create({
           userId,

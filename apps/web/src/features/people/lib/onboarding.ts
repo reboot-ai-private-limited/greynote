@@ -1,6 +1,7 @@
 import type { DesignationDto, EmployeeDraftDataDto } from '@greynote/contracts';
 import { paiseToRupees } from '@/lib/money';
 import { parseCtc } from './ctc';
+import { EPF_PATTERN, epfError } from './profile';
 import {
   EMPTY_STRUCTURE_DRAFT,
   buildStructure,
@@ -56,6 +57,7 @@ export interface WizardForm {
   guardianName: string;
   dateOfBirth: string;
   esiNumber: string;
+  epfNumber: string;
   dateOfJoining: string;
   /** On probation (off by default); the months below then apply, else the system length. */
   onProbation: boolean;
@@ -92,6 +94,7 @@ export const EMPTY_FORM: WizardForm = {
   guardianName: '',
   dateOfBirth: '',
   esiNumber: '',
+  epfNumber: '',
   dateOfJoining: '',
   onProbation: false,
   probationMonths: '',
@@ -220,6 +223,7 @@ export function stepErrors(step: StepKey, form: WizardForm, ctx: RuleContext): E
           'esiNumber',
           ESI.test(form.esiNumber.trim()) ? undefined : 'The ESI number is exactly 17 digits.',
         );
+      if (form.epfNumber.trim()) put(e, 'epfNumber', epfError(form.epfNumber));
       if (form.dateOfJoining)
         put(e, 'dateOfJoining', isRealDate(form.dateOfJoining) ? undefined : 'Enter a valid date.');
       if (form.onProbation && form.probationMonths.trim()) {
@@ -397,6 +401,7 @@ export function toDraftData(
   const mobile = form.mobileNumber.trim();
   const alternate = form.alternateMobile.trim();
   const esi = form.esiNumber.trim();
+  const epf = form.epfNumber.trim().toUpperCase();
   const account = form.accountNumber.trim();
   const ifsc = form.ifsc.trim().toUpperCase();
   const { body: structure } = buildStructure(form.structure, orgCodes);
@@ -409,6 +414,7 @@ export function toDraftData(
       ...some('guardianName', text(form.guardianName)),
       ...(isRealDate(form.dateOfBirth) && { dateOfBirth: form.dateOfBirth }),
       ...(ESI.test(esi) && { esiNumber: esi }),
+      ...(EPF_PATTERN.test(epf) && { epfNumber: epf }),
       ...(isRealDate(form.dateOfJoining) && { dateOfJoining: form.dateOfJoining }),
       ...(form.onProbation && { onProbation: true }),
       ...(form.onProbation &&
@@ -477,6 +483,7 @@ export function fromDraftData(data: EmployeeDraftDataDto): WizardForm {
     guardianName: data.personal?.guardianName ?? '',
     dateOfBirth: data.personal?.dateOfBirth ?? '',
     esiNumber: data.personal?.esiNumber ?? '',
+    epfNumber: data.personal?.epfNumber ?? '',
     dateOfJoining: data.personal?.dateOfJoining ?? '',
     onProbation: data.personal?.onProbation ?? false,
     probationMonths:

@@ -30,9 +30,12 @@ export function absentDeductionPaise(days: number, baseSalaryPaise: Paise): Pais
   return proratePaise(baseSalaryPaise, days, DEDUCTION_DAYS);
 }
 
-/** `base + TA/DA + reimbursement − leave deduction − absent deduction`. The deductions together are at most the base, so this is never negative. */
-export function netPayablePaise(p: { baseSalaryPaise: Paise; totalTaDaPaise: Paise; reimbursementPaise: Paise; leaveDeductionPaise: Paise; absentDeductionPaise?: Paise }): Paise {
-  const net = p.baseSalaryPaise + p.totalTaDaPaise + p.reimbursementPaise - p.leaveDeductionPaise - (p.absentDeductionPaise ?? 0);
+/**
+ * `base + TA/DA + reimbursement − statutory deductions − leave deduction − absent deduction + rounding`. The leave and absent deductions
+ * together are at most the base, and `statutoryTakenPaise` never takes more than what is left of it, so this is never negative.
+ */
+export function netPayablePaise(p: { baseSalaryPaise: Paise; totalTaDaPaise: Paise; reimbursementPaise: Paise; leaveDeductionPaise: Paise; absentDeductionPaise?: Paise; statutoryDeductionPaise?: Paise; roundingPaise?: number }): Paise {
+  const net = p.baseSalaryPaise + p.totalTaDaPaise + p.reimbursementPaise - (p.statutoryDeductionPaise ?? 0) - p.leaveDeductionPaise - (p.absentDeductionPaise ?? 0) + (p.roundingPaise ?? 0);
   if (!Number.isSafeInteger(net) || net < 0 || net > MAX_PAISE * 3) throw new RangeError(`Net pay out of range: ${net}`);
   return net;
 }
@@ -78,4 +81,26 @@ export function adjustmentEffects(baseSalaryPaise: Paise, days: readonly Payroll
     totalPaise += effect;
   }
   return { totalPaise, effects };
+}
+
+/** A line's monthly amount: one twelfth of the annual, rounded half up once. */
+export const monthlyOfAnnualPaise = (annualPaise: Paise): Paise => proratePaise(annualPaise, 1, 12);
+
+/** The employee's own EPF, ESI and professional tax for the month, from the CTC's deduction lines, one line each. */
+export function deductionLinesOf(lines: readonly CtcLineSnapshot[]): Array<{ code: string; name: string; amountPaise: Paise }> {
+  return lines.filter((l) => l.kind === 'DEDUCTION').map((l) => ({ code: l.code, name: l.name, amountPaise: monthlyOfAnnualPaise(l.amountPaise) }));
+}
+
+/**
+ * What is actually taken for statutory deductions: all of them, unless the pay left after unpaid leave and absent days is smaller than
+ * that, in which case no more than is left (so the net is never negative).
+ */
+export function statutoryTakenPaise(totalPaise: Paise, baseSalaryPaise: Paise, leaveDeductionPaise: Paise, absentDeductionPaise: Paise): Paise {
+  return Math.max(0, Math.min(totalPaise, baseSalaryPaise - leaveDeductionPaise - absentDeductionPaise));
+}
+
+/** The net as a whole rupee, half up, and the signed difference to get there. */
+export function roundNetToRupee(netPaise: Paise): { netPaise: Paise; roundingPaise: number } {
+  const rounded = Math.floor((netPaise + 50) / 100) * 100;
+  return { netPaise: rounded, roundingPaise: rounded - netPaise };
 }

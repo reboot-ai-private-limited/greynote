@@ -1,3 +1,4 @@
+import type { CtcContextPort } from './ctcContext.js';
 import type {
   CtcLineDto,
   PromotionAttentionDto,
@@ -98,6 +99,7 @@ export interface PlannerDeps {
   payBands: PayBandRepositoryPort;
   profiles: EmployeeProfileRepositoryPort;
   components: PayComponentRepositoryPort;
+  context: CtcContextPort;
   assignments: CtcAssignmentRepositoryPort;
   promotions: PromotionRepositoryPort;
   config: ConfigProviderPort;
@@ -159,7 +161,7 @@ export class PromotionPlanner {
       const previous = await d.assignments.findEffective(userId, FAR_FUTURE);
       let breakdownError: string | null = null;
       try {
-        lines = computeStructuredBreakdown(await d.components.list(), request.ctc.ctcAnnualPaise, previous?.structure ?? EMPTY_STRUCTURE, request.ctc.overrides ?? {});
+        lines = computeStructuredBreakdown(await d.components.list(), request.ctc.ctcAnnualPaise, previous?.structure ?? EMPTY_STRUCTURE, request.ctc.overrides ?? {}, await d.context.read());
       } catch (error) {
         if (!(error instanceof CtcBreakdownError)) throw error;
         breakdownError = error.message;

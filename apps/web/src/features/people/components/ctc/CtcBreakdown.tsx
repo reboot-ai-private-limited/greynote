@@ -23,12 +23,12 @@ import { CtcAddLineDialog } from './CtcAddLineDialog';
 import { CtcLineRow } from './CtcLineRow';
 
 const GROUPS: Array<{ kind: PayComponentKind; title: string; add: string }> = [
-  { kind: 'EARNING', title: 'Earnings', add: 'Add earning' },
-  { kind: 'EMPLOYER_CONTRIBUTION', title: 'Employer contributions', add: 'Add contribution' },
+  { kind: 'EARNING', title: 'Earnings (they add up to the CTC)', add: 'Add earning' },
+  { kind: 'DEDUCTION', title: 'Deductions (taken from the pay each month)', add: 'Add deduction' },
 ];
 
 /**
- * The breakdown as two lists, what the employee is paid and what the employer puts in on top, with every line editable in place.
+ * The breakdown as two lists, what the employee earns (it adds up to the CTC) and what is deducted from it, with every line editable in place.
  * It fades while a new result is being worked out, so figures never look final when they are not.
  */
 export function CtcBreakdown({
@@ -48,7 +48,8 @@ export function CtcBreakdown({
   const nameOf = (code: string) =>
     rows.find((r) => r.code === code)?.name ?? org.find((c) => c.code === code)?.name ?? code;
   const keyOf = (r: EditorRow) => r.extraId ?? r.code;
-  const bases = rows.filter((r) => r.rule !== 'BALANCER');
+  // A percentage can only be taken of earnings, never of the balancer or a deduction.
+  const bases = rows.filter((r) => r.rule !== 'BALANCER' && r.kind === 'EARNING');
 
   const changeRule = (row: EditorRow, rule: RuleDraft) =>
     onStructureChange(

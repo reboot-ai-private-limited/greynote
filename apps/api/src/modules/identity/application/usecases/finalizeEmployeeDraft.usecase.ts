@@ -92,6 +92,7 @@ export class FinalizeEmployeeDraftUseCase {
         onProbation: data.personal?.onProbation ?? false,
         probationMonths: data.personal?.probationMonths ?? null,
         esiNumber: data.personal?.esiNumber ?? null,
+        epfNumber: data.personal?.epfNumber ?? null,
         address: present,
         permanentAddress: sameAsPresent ? present : toAddress(data.address?.permanent),
         permanentSameAsPresent: sameAsPresent,

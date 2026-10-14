@@ -238,6 +238,8 @@ export interface DistributorDto {
   location: GeoPoint | null;
   /** Field employees (any designation) the Distributor is handed to. */
   assignedUserIds: string[];
+  /** What the distributor owed before this system, in whole paise. */
+  openingDuesPaise: number;
   status: MasterStatus;
 }
 /** `GET /distributors/:id`: the Distributor with each Route's place in the hierarchy (ids only). */
@@ -253,6 +255,8 @@ export interface CreateDistributorDto {
   address: string;
   location?: GeoPoint | null;
   assignedUserIds?: string[];
+  /** Defaults to 0. */
+  openingDuesPaise?: number;
 }
 export interface UpdateDistributorDto {
   routeIds?: string[];
@@ -264,5 +268,6 @@ export interface UpdateDistributorDto {
   location?: GeoPoint | null;
   /** The whole new list; `[]` un-assigns everyone. */
   assignedUserIds?: string[];
+  openingDuesPaise?: number;
   status?: MasterStatus;
 }

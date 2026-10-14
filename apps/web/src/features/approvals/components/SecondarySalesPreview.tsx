@@ -11,7 +11,7 @@ import { PreviewFrame } from './PreviewFrame';
 const COLUMNS: readonly Column<EmployeeSalesLineDto>[] = [
   { key: 'product', header: 'Product', render: (l) => <span className="font-medium">{l.product.name}</span> },
   { key: 'qty', header: 'Units', numeric: true, render: (l) => l.secondaryQty },
-  { key: 'amount', header: 'Amount at PTR', numeric: true, render: (l) => (l.secondaryAmountPaise === null ? '—' : formatMoney(l.secondaryAmountPaise)) },
+  { key: 'amount', header: 'Amount at PTS', numeric: true, render: (l) => (l.secondaryAmountPaise === null ? '—' : formatMoney(l.secondaryAmountPaise)) },
 ];
 
 /** A month of one employee's secondary, product by product, as sent: what the manager is asked to approve. */

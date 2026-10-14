@@ -33,7 +33,10 @@ export interface TeamOrderRow {
   outlet: { type: 'CHEMIST' | 'DISTRIBUTOR'; id: string; name: string };
   orderDate: string;
   status: TeamOrder['status'];
+  /** What was ordered. */
   totalAmountPaise: number;
+  /** A Done order: what was delivered, free units excluded (the total if no supply was recorded); null otherwise. */
+  suppliedAmountPaise: number | null;
   itemCount: number;
   remarks: string | null;
 }
@@ -100,7 +103,7 @@ export class TeamOrdersUseCase {
     };
     for (const o of orders) {
       byStatus[o.status].count += 1;
-      byStatus[o.status].amountPaise += o.totalAmountPaise;
+      byStatus[o.status].amountPaise += o.status === 'DONE' ? (o.suppliedAmountPaise ?? o.totalAmountPaise) : o.totalAmountPaise;
     }
     const totals = {
       count: orders.length,
@@ -134,6 +137,7 @@ export class TeamOrdersUseCase {
           orderDate: o.orderDate,
           status: o.status,
           totalAmountPaise: o.totalAmountPaise,
+          suppliedAmountPaise: o.status === 'DONE' ? (o.suppliedAmountPaise ?? o.totalAmountPaise) : null,
           itemCount: o.items.length,
           remarks: o.remarks,
         },

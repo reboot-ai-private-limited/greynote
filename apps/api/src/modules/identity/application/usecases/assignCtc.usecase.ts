@@ -11,6 +11,7 @@ import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
 import type { PayComponentRepositoryPort } from '../../domain/payComponent.repository.port.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
+import type { CtcContextPort } from './ctcContext.js';
 import { asBadRequest } from './payComponentFormula.js';
 
 export interface AssignCtcInput {
@@ -38,6 +39,7 @@ export class AssignCtcUseCase {
     private readonly components: PayComponentRepositoryPort,
     private readonly assignments: CtcAssignmentRepositoryPort,
     private readonly config: ConfigProviderPort,
+    private readonly context: CtcContextPort,
   ) {}
 
   async execute(userId: string, input: AssignCtcInput, createdBy: string): Promise<{ assignment: CtcAssignment; warning: string | null }> {
@@ -49,8 +51,9 @@ export class AssignCtcUseCase {
     const overrides = input.overrides ?? {};
     const formula = await this.components.list();
     const structure = input.structure ?? EMPTY_STRUCTURE;
+    const ctx = await this.context.read();
     const lines = asBadRequest(() =>
-      computeStructuredBreakdown(formula, input.ctcAnnualPaise, structure, overrides),
+      computeStructuredBreakdown(formula, input.ctcAnnualPaise, structure, overrides, ctx),
     );
     const previous = await this.assignments.findEffective(userId, FAR_FUTURE);
     const warning = ctcJumpWarning(previous?.ctcAnnualPaise ?? null, input.ctcAnnualPaise, Number(await this.config.get('CTC_JUMP_WARN_PERCENT')));

@@ -31,7 +31,7 @@ import {
 /**
  * One month, product by product: the employee's Done distributor orders (primary), the secondary they sold — typed by the employee, or for them
  * by their manager or Admin — and, for Admin only, a change to the primary with its reason. The secondary is the achievement. Nothing here
- * touches a distributor's stock. Units and amount are one figure at the product's PTR: typing either fills the other. The employee's own
+ * touches a distributor's stock. Units and amount are one figure at the product's PTS: typing either fills the other. The employee's own
  * entry is a draft until they send the month to their manager; only approved secondary counts toward achievement.
  */
 export function EmployeeMonthGrid({
@@ -152,10 +152,10 @@ export function EmployeeMonthGrid({
     },
     {
       key: 'amount',
-      header: 'Secondary (₹ at PTR)',
+      header: 'Secondary (₹ at PTS)',
       numeric: true,
       render: (l) =>
-        l.ptrPaise ? (
+        l.ptsPaise ? (
           <Input
             aria-label={`Secondary amount, ${l.product.name}`}
             value={amounts.get(l.product.id) ?? amountFromUnits(l, draftFor(l).secondary)}
@@ -165,7 +165,7 @@ export function EmployeeMonthGrid({
             className="h-9 w-28 text-right tabular-nums"
           />
         ) : (
-          <span className="text-xs text-text-subtle" title="This product has no PTR set">units only</span>
+          <span className="text-xs text-text-subtle" title="This product has no PTS set">units only</span>
         ),
     },
     {

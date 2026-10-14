@@ -38,6 +38,7 @@ export interface UpdateUserInput {
     onProbation?: boolean;
     probationMonths?: number | null;
     esiNumber?: string | null;
+    epfNumber?: string | null;
     qualification?: string | null;
     address?: Address;
     permanentAddress?: Address;
@@ -106,6 +107,7 @@ export class UpdateUserUseCase {
       onProbation: input.basicDetails?.onProbation ?? existingProfile?.onProbation ?? false,
       probationMonths: pick(input.basicDetails?.probationMonths, existingProfile?.probationMonths),
       esiNumber: pick(input.basicDetails?.esiNumber, existingProfile?.esiNumber),
+      epfNumber: pick(input.basicDetails?.epfNumber, existingProfile?.epfNumber),
       // Territory writes these; an onboarding edit carries them through untouched.
       hqId: existingProfile?.hqId ?? null,
       zoneId: existingProfile?.zoneId ?? null,

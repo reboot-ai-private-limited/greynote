@@ -102,20 +102,20 @@ const users: UserDirectoryPort = {
     return below(m).map((id) => user(id));
   },
 };
-const products: ProductPort = { async getProduct(id) { return id === 'prod1' ? { id, status: 'active', ptrPaise: 1200 } : id === 'prodOff' ? { id, status: 'inactive', ptrPaise: null } : id === 'prodNoPtr' ? { id, status: 'active', ptrPaise: null } : null; } };
+const products: ProductPort = { async getProduct(id) { return id === 'prod1' ? { id, status: 'active', ptsPaise: 1200 } : id === 'prodOff' ? { id, status: 'inactive', ptsPaise: null } : id === 'prodNoPts' ? { id, status: 'active', ptsPaise: null } : null; } };
 const admin = { id: 'admin', role: 'ADMIN' };
 const f = (id: string) => ({ id, role: 'FIELD' });
 
 describe('target units and amount', () => {
   const code = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => (e instanceof MarketingRefusal ? e.code : 'OTHER'));
-  it('units × PTR is the amount; an amount restates as units; no PTR or all products means amount only', async () => {
+  it('units × PTS is the amount; an amount restates as units; no PTS or all products means amount only', async () => {
     const targets = new FakeTargets();
     const set = new SetTargetUseCase(targets, {} as never, products, { findUserSummary: async () => ({ id: 'mr1', status: 'active', role: 'FIELD' }), getDownline: async () => [] } as never, config, () => new Date('2026-10-12T05:00:00Z'));
     const base = { userId: 'mr1', month: '2026-10', productId: 'prod1', campaignId: null };
     expect(await set.execute(admin, { ...base, targetQty: 50 })).toMatchObject({ targetQty: 50, targetAmountPaise: 60_000 });
     expect(await set.execute(admin, { ...base, targetAmountPaise: 120_000 })).toMatchObject({ targetQty: 100, targetAmountPaise: 120_000 });
     expect(await set.execute(admin, { ...base, productId: null, targetAmountPaise: 5_000 })).toMatchObject({ targetQty: null });
-    expect(await code(set.execute(admin, { ...base, productId: 'prodNoPtr', targetQty: 5 }))).toBe(MARKETING_CODES.invalidDates);
+    expect(await code(set.execute(admin, { ...base, productId: 'prodNoPts', targetQty: 5 }))).toBe(MARKETING_CODES.invalidDates);
   });
 });
 
@@ -300,7 +300,9 @@ describe('campaigns and visuals', () => {
     const create = new CreateVisualUseCase(visuals, products, storage);
     const file = (mimeType: string) => ({ buffer: Buffer.from('x'), mimeType });
     await create.execute(admin, { productId: null, title: 'Brand', category: 'BRANDING', file: file('image/png') });
-    await create.execute(admin, { productId: 'prod1', title: 'Detail', category: 'E_DETAILING', file: file('application/pdf') });
+    await create.execute(admin, { productId: 'prod1', title: 'Detail', category: 'E_DETAILING', file: file('image/jpeg') });
+    await expect(create.execute(admin, { productId: null, title: 'x', category: 'OTHER', file: file('application/pdf') })).rejects.toMatchObject({ code: MARKETING_CODES.unsupportedFile });
+    await expect(create.execute(admin, { productId: null, title: 'x', category: 'OTHER', file: file('video/mp4') })).rejects.toMatchObject({ code: MARKETING_CODES.unsupportedFile });
     await expect(create.execute(admin, { productId: null, title: 'x', category: 'OTHER', file: file('application/x-msdownload') })).rejects.toMatchObject({ code: MARKETING_CODES.unsupportedFile });
     await expect(create.execute(admin, { productId: 'prodOff', title: 'x', category: 'OTHER', file: file('image/png') })).rejects.toMatchObject({ code: MARKETING_CODES.productNotFound });
     expect(storage.files.size).toBe(2);

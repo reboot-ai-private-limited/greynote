@@ -16,7 +16,7 @@
 | 4.02d | Try to remove FDA (EPF is worked out from it), Basic or Other allowance | the remove button is off; Basic and Other allowance have no remove | |
 | 4.02e | Add a ₹2 lakh fixed line to a ₹1.44 lakh CTC | a message says the lines add up to more than the CTC; Save is off | |
 | 4.02f | Admin changes the org FDA %, then Pay components → re-apply | an employee with their own 14% keeps it; one without follows the new %; Conveyance stays | |
-| 4.02 | Employee setup: set a CTC | monthly gross shown = CTC less employer contributions ÷ 12 | |
+| 4.02 | Employee setup: set a CTC | total earnings = the CTC ("Total earnings = CTC ✓"); deductions (EPF, ESI, professional tax) and take-home shown; a CTC under ₹10,000 a month is refused; Basic accepts up to 100% or a monthly amount | |
 | 4.03 | CTC change that jumps more than `CTC_JUMP_WARN_PERCENT` | a typo warning, but it can be saved (K10) | |
 | 4.04 | CTC change effective a past or future month | history keeps both revisions with effective months | |
 | 4.05 | Employee with no joining date | the attendance calendar shows days as "unknown", never absent | |

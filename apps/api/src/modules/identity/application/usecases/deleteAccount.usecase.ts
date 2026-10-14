@@ -104,6 +104,7 @@ export class DeleteAccountUseCase {
         qualifications: [],
         previousEmployment: [],
         esiNumber: null,
+        epfNumber: null,
         bankDetails: null,
         documents: [],
         photo: null,

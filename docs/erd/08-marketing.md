@@ -98,4 +98,4 @@ What one field employee sold in one month, **typed in** by Admin or the manager 
 
 ## `Target` — units (2026-10-12)
 
-Adds `target_qty` (whole units, nullable): for a product target it is the same figure as `target_amount_paise` at the product's PTR (set in units: amount = units × PTR; set as an amount: units = amount ÷ PTR, rounded). Null for an all-products target or a product with no PTR. Achievement is still derived, from approved secondary.
+Adds `target_qty` (whole units, nullable): for a product target it is the same figure as `target_amount_paise` at the product's **PTS** from 2026-10-14 (set in units: amount = units × PTS; set as an amount: units = amount ÷ PTS, rounded). Null for an all-products target or a product with no PTS. Targets saved as amounts before then are not converted. Achievement is still derived, from approved secondary.

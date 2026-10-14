@@ -5,11 +5,12 @@ import { formatMoney } from '@/lib/format';
 import { monthlyOf } from '../lib/ctc';
 
 /**
- * A saved or previewed CTC split, annual and monthly: what the employee is paid, then what the employer puts in on top
- * (inside the CTC), then the CTC itself.
+ * A saved or previewed CTC split, annual and monthly: the earnings (they add up to the CTC), the deductions taken from them, and the
+ * take-home. A revision saved before 2026-10-14 also lists the employer contributions that were inside its CTC.
  */
 export function CtcBreakdownTable({ lines, ctcAnnualPaise }: { lines: readonly CtcLineDto[]; ctcAnnualPaise: number }) {
   const earnings = lines.filter((l) => l.kind === 'EARNING');
+  const deductions = lines.filter((l) => l.kind === 'DEDUCTION');
   const employer = lines.filter((l) => l.kind === 'EMPLOYER_CONTRIBUTION');
   const sum = (ls: readonly CtcLineDto[]) => ls.reduce((s, l) => s + l.amountPaise, 0);
   const row = (key: string, label: ReactNode, annual: number, strong = false) => (
@@ -25,6 +26,7 @@ export function CtcBreakdownTable({ lines, ctcAnnualPaise }: { lines: readonly C
       {l.isOverridden ? <Badge tone="accent">Edited</Badge> : null}
     </span>
   );
+  const monthlyDeductions = deductions.reduce((n, l) => n + monthlyOf(l.amountPaise), 0);
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -37,9 +39,17 @@ export function CtcBreakdownTable({ lines, ctcAnnualPaise }: { lines: readonly C
         </thead>
         <tbody>
           {earnings.map((l) => row(l.code, lineLabel(l), l.amountPaise))}
-          {row('gross', 'Paid to the employee', sum(earnings), true)}
-          {employer.map((l) => row(l.code, lineLabel(l), l.amountPaise))}
-          {row('ctc', 'CTC', ctcAnnualPaise, true)}
+          {row('gross', employer.length > 0 ? 'Paid to the employee' : 'Total earnings (the CTC)', sum(earnings), true)}
+          {employer.map((l) => row(l.code, <>{lineLabel(l)} <span className="text-xs text-text-subtle">(employer, inside the CTC)</span></>, l.amountPaise))}
+          {employer.length > 0 ? row('ctc', 'CTC', ctcAnnualPaise, true) : null}
+          {deductions.map((l) => row(l.code, <>{lineLabel(l)} <span className="text-xs text-text-subtle">(deduction)</span></>, l.amountPaise))}
+          {deductions.length > 0 ? (
+            <tr key="takehome" className="border-t border-border font-medium">
+              <td className="px-3 py-2">Take-home a month</td>
+              <td className="px-3 py-2" />
+              <td className="px-3 py-2 text-right tabular-nums">{formatMoney(monthlyOf(sum(earnings)) - monthlyDeductions)}</td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>

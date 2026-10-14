@@ -68,6 +68,8 @@ describe('role-by-route matrix', () => {
     // The Accountant marks orders done from the Orders list, so reads it as well.
     for (const l of lines.filter((x) => /\/api\/reports\/orders/.test(x))) expect(l.endsWith('  ACCOUNTANT,ADMIN'), l).toBe(true);
     for (const l of lines.filter((x) => !x.includes('/api/reports/me/') && !/\/api\/reports\/orders/.test(x) && !open.some((o) => x.includes(o)))) expect(l.endsWith('  ADMIN'), l).toBe(true);
-    for (const o of open) expect(lines.some((l) => l.endsWith(`${o}  ADMIN,FIELD`))).toBe(true);
+    // The Accountant reads the Sales Dashboard and the employee view as well (read only, all employees).
+    const withAccountant = ['/api/reports/sales-dashboard', '/api/reports/employee-sales'];
+    for (const o of open) expect(lines.some((l) => l.endsWith(`${o}  ${withAccountant.includes(o) ? 'ACCOUNTANT,ADMIN,FIELD' : 'ADMIN,FIELD'}`))).toBe(true);
   });
 });

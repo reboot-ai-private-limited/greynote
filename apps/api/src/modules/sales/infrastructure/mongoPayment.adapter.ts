@@ -49,6 +49,14 @@ export class MongoPaymentAdapter implements PaymentRepositoryPort {
     return rows.map((r) => ({ distributorId: String(r._id), collectedPaise: r.total }));
   }
 
+  async collectedAllTime(): Promise<Map<string, number>> {
+    const rows = await PaymentModel.aggregate<{ _id: Types.ObjectId; total: number }>([
+      { $match: { status: 'RECORDED' } },
+      { $group: { _id: '$distributorId', total: { $sum: '$amountPaise' } } },
+    ]);
+    return new Map(rows.map((r) => [String(r._id), r.total]));
+  }
+
   async cancel(id: string, by: string, at: Date, reason: string): Promise<boolean> {
     const res = await PaymentModel.updateOne({ _id: oid(id), status: 'RECORDED' }, { $set: { status: 'CANCELLED', cancelledBy: oid(by), cancelledAt: at, cancelReason: reason } });
     return res.modifiedCount === 1;

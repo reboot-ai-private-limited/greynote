@@ -44,6 +44,8 @@ export interface ListUsersQuery {
   search?: string | undefined;
   /** Only blocked employees. Send `true` or leave out: the API reads any present value as true. */
   isBlocked?: true | undefined;
+  /** Only these employees, comma-separated ids (at most 500). */
+  ids?: string | undefined;
 }
 
 export const identityApi = {
@@ -53,6 +55,10 @@ export const identityApi = {
 
   users: (token: string, query: ListUsersQuery, signal?: AbortSignal) =>
     request<PaginatedDto<UserListItemDto>>('/identity/users', { token, query: { ...query }, signal }),
+
+  /** Active field employees by name, code and designation only: what the Accountant's pickers may see. */
+  fieldDirectory: (token: string, signal?: AbortSignal) =>
+    request<Array<{ id: string; employeeCode: string; name: string; designation: string | null; label: string }>>('/identity/work-with/directory', { token, signal }),
 
   userDevices: (token: string, userId: string, signal?: AbortSignal) =>
     request<UserDeviceDto[]>(`/identity/users/${userId}/devices`, { token, signal }),

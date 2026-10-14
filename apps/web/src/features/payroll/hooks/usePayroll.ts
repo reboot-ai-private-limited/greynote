@@ -20,6 +20,30 @@ export function usePayrollMonth(month: string, enabled: boolean) {
   );
 }
 
+/** Missing ESI/EPF numbers for a month, read live, so adding a number clears the warning. Never blocks anything. */
+export function usePayrollWarnings(month: string, enabled: boolean) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.payroll.warnings(month),
+      fetch: (token, signal) => payrollApi.warnings(token, month, signal),
+      staleTime: staleTime.live,
+      enabled,
+    }),
+  );
+}
+
+/** The company total of salary marked paid, by month, for the year in view. */
+export function usePaidTotals(enabled: boolean) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.payroll.paidTotals(),
+      fetch: (token, signal) => payrollApi.paidTotals(token, signal),
+      staleTime: staleTime.live,
+      enabled,
+    }),
+  );
+}
+
 /** One employee asked for by name that is already finalized is a 409; in a batch it is that employee's skipped line. */
 export function useGenerate(onResult: (outcomes: GenerateOutcomeDto[]) => void) {
   return useApiMutation<{ month: string; userIds?: string[] }, GenerateOutcomeDto[]>({

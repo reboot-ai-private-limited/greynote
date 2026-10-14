@@ -27,7 +27,7 @@ export function monthNote(m: SalesMonthDto): string {
   if (m.secondaryQty === null) return 'No stock count or statement was entered, so there is no secondary.';
   const parts = [m.complete ? `All ${m.expectedDistributors} distributors counted.` : `${m.countedDistributors} of ${m.expectedDistributors} distributors counted: the secondary is only part of the picture.`];
   if (m.negativeRows > 0) parts.push(`${m.negativeRows} count${m.negativeRows === 1 ? '' : 's'} came out below zero and ${m.negativeRows === 1 ? 'is' : 'are'} left out.`);
-  if (m.unpricedRows > 0) parts.push(`${m.unpricedRows} count${m.unpricedRows === 1 ? '' : 's'} of a product with no PTR ${m.unpricedRows === 1 ? 'is' : 'are'} left out of the value.`);
+  if (m.unpricedRows > 0) parts.push(`${m.unpricedRows} count${m.unpricedRows === 1 ? '' : 's'} of a product with no PTS ${m.unpricedRows === 1 ? 'is' : 'are'} left out of the value.`);
   return parts.join(' ');
 }
 

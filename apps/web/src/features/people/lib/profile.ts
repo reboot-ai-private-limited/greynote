@@ -35,7 +35,16 @@ export interface BasicDraft {
   probationMonths: string;
   /** Exactly 17 digits, '' = none. */
   esiNumber: string;
+  /** 1-30 letters, digits, / or -; '' = none. */
+  epfNumber: string;
   qualification: string;
+}
+
+/** The EPF number is optional; regions format it differently, so only the characters and the length (30) are checked. */
+export const EPF_PATTERN = /^[A-Z0-9/-]{1,30}$/;
+export function epfError(value: string): string | undefined {
+  const v = value.trim();
+  return v === '' || EPF_PATTERN.test(v.toUpperCase()) ? undefined : 'The EPF number is 1 to 30 letters, digits, / or -.';
 }
 
 export function basicToDraft(user: UserDetailDto): BasicDraft {
@@ -49,6 +58,7 @@ export function basicToDraft(user: UserDetailDto): BasicDraft {
     onProbation: p?.onProbation ?? false,
     probationMonths: p?.probationMonths == null ? '' : String(p.probationMonths),
     esiNumber: p?.esiNumber ?? '',
+    epfNumber: p?.epfNumber ?? '',
     qualification: p?.qualification ?? '',
   };
 }
@@ -68,6 +78,7 @@ export function buildBasic(user: UserDetailDto, draft: BasicDraft, today: string
           : undefined,
     dateOfJoining: draft.dateOfJoining && !isRealDate(draft.dateOfJoining) ? 'Enter a real date.' : undefined,
     esiNumber: /^(\d{17})?$/.test(draft.esiNumber.trim()) ? undefined : 'The ESI number is exactly 17 digits.',
+    epfNumber: epfError(draft.epfNumber),
     probationMonths: /^(\d{1,2})?$/.test(draft.probationMonths.trim()) && Number(draft.probationMonths) <= 36 ? undefined : 'Use a whole number of months from 0 to 36, or leave it empty.',
   };
   if (Object.values(errors).some(Boolean)) return fail(errors);
@@ -86,6 +97,7 @@ export function buildBasic(user: UserDetailDto, draft: BasicDraft, today: string
     ...(draft.onProbation !== before.onProbation && { onProbation: draft.onProbation }),
     ...(draft.probationMonths.trim() !== before.probationMonths && { probationMonths: draft.probationMonths.trim() === '' ? null : Number(draft.probationMonths) }),
     ...(draft.esiNumber.trim() !== before.esiNumber && { esiNumber: draft.esiNumber.trim() === '' ? null : draft.esiNumber.trim() }),
+    ...(draft.epfNumber.trim().toUpperCase() !== before.epfNumber && { epfNumber: draft.epfNumber.trim() === '' ? null : draft.epfNumber.trim().toUpperCase() }),
     ...(qualification !== before.qualification && { qualification: qualification === '' ? null : qualification }),
   };
   return { ok: true, body: Object.keys(basicDetails).length ? { basicDetails } : {} };

@@ -5,13 +5,18 @@ import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
 import { ManagerPickerDialog } from './ManagerPickerDialog';
 import { useDesignations } from '../hooks/useMasterData';
-import { useUser } from '../hooks/useUsers';
+import { useSession } from '@/lib/auth/SessionProvider';
+import { useFieldDirectory, useUser } from '../hooks/useUsers';
 
 /** A person's name and code from their id, or a dash while it loads or for someone not found. */
 export function EmployeeName({ userId }: { userId: string | null | undefined }) {
-  const user = useUser(userId);
+  const { user: me } = useSession();
+  const viaDirectory = me?.role === 'ACCOUNTANT';
+  const user = useUser(viaDirectory ? null : userId);
+  const directory = useFieldDirectory(viaDirectory);
   if (!userId) return <span className="text-text-subtle">—</span>;
-  return <>{user.data ? `${user.data.name} (${user.data.employeeCode})` : '—'}</>;
+  const person = viaDirectory ? directory.data?.find((p) => p.id === userId) : user.data;
+  return <>{person ? `${person.name} (${person.employeeCode})` : '—'}</>;
 }
 
 /** A person as the Work With lines print them: `Asha Rao (ASM)`. Just the name until the designation loads, or if they have none. */

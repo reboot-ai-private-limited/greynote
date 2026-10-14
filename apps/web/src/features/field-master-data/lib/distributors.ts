@@ -3,6 +3,7 @@ import type {
   DistributorDto,
   UpdateDistributorDto,
 } from '@greynote/contracts';
+import { paiseToRupees, rupeesToPaise } from '@/lib/money';
 import { fail, squash, type BuildResult } from '@/lib/forms';
 import { placeErrors } from './chemists';
 import {
@@ -29,6 +30,8 @@ export interface DistributorDraft {
   zoneId: string;
   routeIds: string[];
   assignedUserIds: string[];
+  /** Rupees as typed: what the distributor already owed before this system. Empty = nothing. */
+  openingDues: string;
 }
 
 export const EMPTY_DISTRIBUTOR: DistributorDraft = {
@@ -41,6 +44,7 @@ export const EMPTY_DISTRIBUTOR: DistributorDraft = {
   zoneId: '',
   routeIds: [],
   assignedUserIds: [],
+  openingDues: '',
 };
 
 export function distributorToDraft(d: DistributorDto, zoneId = ''): DistributorDraft {
@@ -54,6 +58,7 @@ export function distributorToDraft(d: DistributorDto, zoneId = ''): DistributorD
     zoneId,
     routeIds: d.routeIds,
     assignedUserIds: d.assignedUserIds,
+    openingDues: d.openingDuesPaise > 0 ? paiseToRupees(d.openingDuesPaise) : '',
   };
 }
 
@@ -91,6 +96,7 @@ function errorsFor(draft: DistributorDraft): Record<string, string | undefined> 
         : MOBILE.test(mobile)
           ? undefined
           : 'Use 10 to 15 digits, with an optional leading +.',
+    openingDues: draft.openingDues.trim() !== '' && rupeesToPaise(draft.openingDues) === null ? 'Enter the amount in rupees, e.g. 25000 or 25000.50.' : undefined,
     zoneId: draft.zoneId === '' ? 'Choose a zone.' : undefined,
     routeIds: draft.routeIds.length === 0 ? 'Choose at least one route.' : undefined,
   };
@@ -107,7 +113,7 @@ export const DISTRIBUTOR_STEP_LABEL: Record<DistributorStep, string> = {
 };
 
 const STEP_FIELDS: Record<DistributorStep, readonly string[] | null> = {
-  details: ['name', 'gstNumber', 'contactPerson', 'mobile', 'address'],
+  details: ['name', 'gstNumber', 'contactPerson', 'mobile', 'address', 'openingDues'],
   coverage: ['zoneId', 'routeIds'],
   location: ['latitude', 'longitude'],
   review: null,
@@ -141,6 +147,7 @@ export function buildDistributor(draft: DistributorDraft): BuildResult<CreateDis
       address: squash(draft.address),
       location: point.point,
       assignedUserIds: draft.assignedUserIds,
+      openingDuesPaise: rupeesToPaise(draft.openingDues) ?? 0,
     },
   };
 }
@@ -173,6 +180,9 @@ export function buildDistributorUpdate(
       ...locationChange(original.location, point.point),
       ...(!sameList(draft.assignedUserIds, original.assignedUserIds) && {
         assignedUserIds: draft.assignedUserIds,
+      }),
+      ...((rupeesToPaise(draft.openingDues) ?? 0) !== original.openingDuesPaise && {
+        openingDuesPaise: rupeesToPaise(draft.openingDues) ?? 0,
       }),
     },
   };

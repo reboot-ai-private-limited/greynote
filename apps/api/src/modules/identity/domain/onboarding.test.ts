@@ -23,6 +23,7 @@ function baseProfile(overrides: Partial<Omit<EmployeeProfile, 'id' | 'userId'>> 
     onProbation: false,
     probationMonths: null,
     esiNumber: null,
+    epfNumber: null,
     mobileNumber: '9999999999',
     hqId: null, zoneId: null, alternateMobile: null,
     guardianName: null,

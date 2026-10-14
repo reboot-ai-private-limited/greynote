@@ -32,8 +32,28 @@ export interface DistributorPaymentsDto {
   payments: DistributorPaymentDto[];
   /** The sum of the `RECORDED` payments in the range. */
   collectedPaise: number;
-  /** The sum of this distributor's non-cancelled orders dated in the range. */
+  /** The sum of this distributor's non-cancelled orders dated in the range: a Done order at what was delivered (free units excluded), the others as ordered. */
   orderedPaise: number;
+  /** Where the distributor stands today, whatever the range. */
+  dues: DistributorDuesDto;
+}
+
+/** What a distributor owes: `openingPaise + deliveredPaise − collectedPaise` (can be negative: paid ahead). */
+export interface DistributorDuesDto {
+  /** Owed before this system, set on the distributor. */
+  openingPaise: number;
+  /** Every Done order, at what was delivered (supplied × price; free units are not charged). */
+  deliveredPaise: number;
+  /** Every recorded payment (cancelled ones left out). */
+  collectedPaise: number;
+  duesPaise: number;
+}
+
+/** One row of `GET /sales/distributor-payments/balances`: what a distributor was delivered and paid, all time. Add the distributor's own opening dues for what they owe. Distributors with neither are left out. */
+export interface DistributorBalanceDto {
+  distributorId: string;
+  deliveredPaise: number;
+  collectedPaise: number;
 }
 
 /** One row of `GET /sales/distributor-payments/totals`: what a distributor paid over the range. Distributors with nothing recorded are left out. */
@@ -115,9 +135,11 @@ export interface EmployeeSalesLineDto {
   primaryQty: number;
   /** What the employee entered as sold; `null` = nothing entered. */
   secondaryQty: number | null;
-  /** The same at PTR, as entered; `null` = nothing entered or no PTR on the product. */
+  /** The same at PTS (units × the product's PTS); `null` = nothing entered or no PTS on the product. */
   secondaryAmountPaise: number | null;
-  /** The product's PTR, which links units and amount; `null` = none set (units only). */
+  /** The product's PTS, which links units and amount; `null` = none set (units only). */
+  ptsPaise: number | null;
+  /** The product's PTR, for reference only; sales are no longer valued at it. */
   ptrPaise: number | null;
   /** `null` = nothing entered. Only `APPROVED` counts toward achievement. */
   secondaryStatus: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | null;
@@ -146,4 +168,38 @@ export interface SaveEmployeePrimaryDto {
   userId: string;
   month: string;
   lines: Array<{ productId: string; adjustmentQty: number; reason?: string | null }>;
+}
+
+// ── Orders added or changed by the office ────────────────────────────────────────────────────────
+
+export interface OrderLineInputDto {
+  productId: string;
+  /** Whole units, at least 1. */
+  quantity: number;
+  unitPricePaise: number;
+  /** Units to give free on top (the office's; an employee's own order ignores it). Defaults to 0. */
+  freeQty?: number;
+}
+
+/** `POST /sales/orders/on-behalf`: Admin or the Accountant adds an order for a field employee, credited to them. */
+export interface PlaceOrderForDto {
+  /** The field employee the order is credited to. */
+  userId: string;
+  outletType: 'DISTRIBUTOR' | 'CHEMIST';
+  outletId: string;
+  /** `YYYY-MM-DD`, not in the future; defaults to today. */
+  orderDate?: string;
+  remarks?: string | null;
+  lines: OrderLineInputDto[];
+}
+
+/** `PATCH /sales/orders/:id`: replaces a PLACED order's lines (with the server's own arithmetic) and remarks. */
+export interface EditOrderDto {
+  remarks?: string | null;
+  lines: OrderLineInputDto[];
+}
+
+/** `POST /sales/orders/:id/complete` (optional body, Admin or the Accountant): what was delivered, per ordered product. A product left out is supplied in full. */
+export interface CompleteOrderDto {
+  supply?: Array<{ productId: string; suppliedQty: number; freeQty: number }>;
 }

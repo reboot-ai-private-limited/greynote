@@ -88,7 +88,7 @@ publishes, or a reporting layer above both — were rejected as machinery the fi
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| `POST` | `/api/marketing/visuals` | Admin | Upload a Visual — multipart: `file` (image, PDF or MP4/MOV/WebM, ≤ 25 MB) plus `title`, `category`, optional `productId` |
+| `POST` | `/api/marketing/visuals` | Admin | Upload a Visual — multipart: `file` (image — PNG, JPG, WebP or GIF, ≤ 25 MB) plus `title`, `category`, optional `productId` |
 | `GET` | `/api/marketing/visuals` | Admin, FIELD | List active Visuals, optionally filtered by product |
 | `PATCH` | `/api/marketing/visuals/:id` | Admin | Change title, category or product, or set status (active/inactive); send at least one |
 | `GET` | `/api/marketing/doctors/:doctorId/visuals` | Admin, FIELD | The Visuals picked for a Doctor, with `canRemove` — the Doctor's MR, a manager above them, or Admin |

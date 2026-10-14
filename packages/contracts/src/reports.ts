@@ -9,7 +9,10 @@ export interface ReportOrderRowDto {
   outlet: { id: string; name: string };
   mr: { id: string; name: string; employeeCode: string };
   itemCount: number;
+  /** What the MR ordered, at the order's prices. */
   totalAmountPaise: number;
+  /** A Done order: what was delivered, free units excluded (the total when no supply was recorded); `null` while Placed or once Cancelled. This is what primary counts. */
+  suppliedAmountPaise: number | null;
   /** When it was marked Done or Cancelled. */
   completedAt: string | null;
   remarks: string | null;
@@ -19,13 +22,22 @@ export interface ReportOrderItemDto {
   productId: string;
   productName: string;
   sku: string;
+  /** Ordered. */
   quantity: number;
   unitPricePaise: number;
+  /** Ordered × price. */
   amountPaise: number;
+  /** A Done order: units supplied of `quantity` (all of it when no supply was recorded); `null` otherwise. */
+  suppliedQty: number | null;
+  /** Units to be given (a Done order: given) free on top; not charged, in no amount. `0` if none. */
+  freeQty: number;
 }
 
 export interface ReportOrderDetailDto extends ReportOrderRowDto {
   items: ReportOrderItemDto[];
+  /** What the employee originally ordered, kept when the office first changed the order; `null` if it was never changed. Lines match `items` by product (a line the office removed or added is only on one side). */
+  original: Array<{ productId: string; productName: string; quantity: number; unitPricePaise: number }> | null;
+  originalTotalAmountPaise: number | null;
   completedBy: { id: string; name: string } | null;
 }
 
@@ -409,7 +421,7 @@ export interface EmployeeProductFigureDto {
   secondaryPaise: number;
   /** Achievement as a whole percent of `targetPaise`; `null` = no target. */
   achievementPercent: number | null;
-  flags: Array<'NO_PTR' | 'NO_PTS'>;
+  flags: Array<'NO_PTS' | 'NO_PTS_CHANGE'>;
 }
 
 /** One target, measured over its own months. */
@@ -442,4 +454,18 @@ export interface EmployeeSalesReportDto {
   totals: { targetPaise: number; primaryPaise: number; secondaryPaise: number; achievementPercent: number | null };
   /** Every target touching the months, each measured over its own months. */
   targets: EmployeeTargetFigureDto[];
+  /**
+   * The employee's primary by distributor: Done orders to each distributor in the months (the month marked Done), by name. The rows add up to
+   * the order part of `totals.primaryPaise`. Secondary is entered per product, not per distributor, so it has no row here; a distributor's own
+   * secondary is on the Sales report.
+   */
+  distributors: EmployeeDistributorFigureDto[];
+}
+
+export interface EmployeeDistributorFigureDto {
+  distributor: { id: string; name: string };
+  /** Units on the Done orders. */
+  orderQty: number;
+  /** What those orders add up to, as ordered. */
+  orderPaise: number;
 }

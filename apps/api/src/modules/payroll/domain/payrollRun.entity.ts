@@ -68,7 +68,16 @@ export interface PayrollRun {
   absentDays: number;
   /** `absent days × base ÷ 30`, rounded half up once and frozen; `0` on older runs. */
   absentDeductionPaise: Paise;
-  /** `base − leave deduction − absent deduction + adjustments` (older runs also add TA/DA and reimbursement). */
+  /**
+   * The employee's own EPF, ESI and professional tax for the month, one line each, from the CTC's deduction lines (a month at a time,
+   * frozen with the run). Taken on the full contract salary, not reduced by leave days. Empty on runs from before 2026-10-14.
+   */
+  deductionLines: Array<{ code: string; name: string; amountPaise: Paise }>;
+  /** The sum of `deductionLines`; `0` on older runs. */
+  statutoryDeductionPaise: Paise;
+  /** What was added (or taken) to bring the net the rules gave to a whole rupee; signed, `0` on older runs. */
+  roundingPaise: number;
+  /** `base − statutory deductions − leave deduction − absent deduction + rounding + adjustments` (older runs also add TA/DA and reimbursement). */
   netPayablePaise: Paise;
   /** The month day by day as payroll saw it; empty on runs from before 2026-10-13. */
   days: PayrollDay[];
@@ -80,6 +89,13 @@ export interface PayrollRun {
   originalNetPayablePaise: Paise;
   /** The employee's ESI number when generated (a snapshot, printed on the salary slip); null if none was set. */
   esiNumber: string | null;
+  /** The employee's EPF number when generated (a snapshot for the salary slip); null if none was set. */
+  epfNumber: string | null;
+  /** Slip snapshot: designation, bank and joining date (`YYYY-MM-DD`) when generated; null if none was set. */
+  designationName: string | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  dateOfJoining: string | null;
   /** The joining date falls in this month; the full base salary is paid (no proration) and the Accountant is told. */
   joinedInMonth: boolean;
   status: PayrollStatus;

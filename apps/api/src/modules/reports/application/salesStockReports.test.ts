@@ -30,6 +30,7 @@ function kit(orderSums: OrderSumRow[], stock: StockRow[], statements: StatementR
   };
   const master = {
     listAssignedDoctors: async () => [],
+    listDistributorAssignees: async () => [],
     listActiveOutlets: async () => ({ distributors: names.distributors.filter((x) => x.id !== 'd3'), chemists: names.chemists }), // d3 is inactive
     listNames: async (q: { distributorIds?: string[]; chemistIds?: string[]; productIds?: string[] }) => ({
       distributors: names.distributors.filter((x) => (q.distributorIds ?? []).includes(x.id)),
@@ -50,10 +51,10 @@ describe('the sales year', () => {
     ).sales.year({ year: 2026 });
     expect(r.months.map((m) => m.month)[0]).toBe('2026-04');
     expect(r.months).toHaveLength(12);
-    expect(r.months[0]).toMatchObject({ state: 'ENDED', primaryQty: 100, primaryPaise: 80_000, secondaryQty: 90, secondaryPaise: 90_000, countedDistributors: 2, expectedDistributors: 2, complete: true });
+    expect(r.months[0]).toMatchObject({ state: 'ENDED', primaryQty: 100, primaryPaise: 80_000, secondaryQty: 90, secondaryPaise: 72_000, countedDistributors: 2, expectedDistributors: 2, complete: true });
     expect(r.months[6]).toMatchObject({ month: '2026-10', state: 'OPEN', primaryPaise: 16_000, secondaryQty: null });
     expect(r.months[7]!.state).toBe('FUTURE');
-    expect(r.totals).toEqual({ primaryQty: 120, primaryPaise: 96_000, secondaryQty: 90, secondaryPaise: 90_000 });
+    expect(r.totals).toEqual({ primaryQty: 120, primaryPaise: 96_000, secondaryQty: 90, secondaryPaise: 72_000 });
   });
 
   it('asks Sales for the whole year and, for one distributor, only that one — whose completeness is its own', async () => {
@@ -75,9 +76,9 @@ describe('the sales statement', () => {
       ['Maa Tara', 'Cetirizine', ['NO_COUNT']],
       ['Shree', 'XYZ-500', []],
     ]);
-    expect(r.rows[1]).toMatchObject({ openingQty: 40, primaryQty: 100, placedQty: 7, closingQty: 50, secondaryQty: 90, secondaryPaise: 90_000 });
+    expect(r.rows[1]).toMatchObject({ openingQty: 40, primaryQty: 100, placedQty: 7, closingQty: 50, secondaryQty: 90, secondaryPaise: 72_000 });
     expect(r.missingDistributors.map((x) => x.name)).toEqual(['Maa Tara']);
-    expect(r.totals).toEqual({ primaryQty: 110, primaryPaise: 98_000, placedPaise: 5_600, secondaryQty: 90, secondaryPaise: 90_000 });
+    expect(r.totals).toEqual({ primaryQty: 110, primaryPaise: 98_000, placedPaise: 5_600, secondaryQty: 90, secondaryPaise: 72_000 });
   });
 });
 
@@ -123,8 +124,8 @@ describe('with an Admin statement', () => {
       [st('d1', 'p1', '2026-09', 10, 30, 5)],
     ).sales.statement({ month: '2026-09' });
     expect(r.rows).toHaveLength(1);
-    expect(r.rows[0]).toMatchObject({ openingQty: 10, orderPrimaryQty: 40, adjustmentQty: 5, primaryQty: 45, primaryPaise: 32_000 + 5 * 800, secondaryQty: 30, secondaryPaise: 30_000, closingQty: 25, source: 'STATEMENT', flags: [] });
-    expect(r.totals).toMatchObject({ primaryQty: 45, secondaryQty: 30, secondaryPaise: 30_000 });
+    expect(r.rows[0]).toMatchObject({ openingQty: 10, orderPrimaryQty: 40, adjustmentQty: 5, primaryQty: 45, primaryPaise: 32_000 + 5 * 800, secondaryQty: 30, secondaryPaise: 24_000, closingQty: 25, source: 'STATEMENT', flags: [] });
+    expect(r.totals).toMatchObject({ primaryQty: 45, secondaryQty: 30, secondaryPaise: 24_000 });
     expect(r.missingDistributors.map((x) => x.id)).toEqual(['d2']); // d1 is stated; d2 has nothing
   });
 
@@ -144,11 +145,11 @@ describe('with an Admin statement', () => {
 
   it('a product with no PTS leaves the adjustment unvalued', async () => {
     const r = await kit([], [], [st('d1', 'p2', '2026-09', 0, 0, 3)]).sales.year({ year: 2026 });
-    expect(r.months[5]).toMatchObject({ month: '2026-09', primaryQty: 3, primaryPaise: 0, unpricedRows: 1 });
+    expect(r.months[5]).toMatchObject({ month: '2026-09', primaryQty: 3, primaryPaise: 0, unpricedRows: 2 });
   });
 
   it('the year chart counts a statement as counted, with the adjustment in primary', async () => {
     const r = await kit([d('2026-05', 'd1', 'p1', 'DONE', 40, 32_000)], [], [st('d1', 'p1', '2026-05', 10, 30, 5), st('d2', 'p1', '2026-05', 0, 0, 0)]).sales.year({ year: 2026 });
-    expect(r.months[1]).toMatchObject({ month: '2026-05', primaryQty: 45, primaryPaise: 32_000 + 4_000, secondaryQty: 30, secondaryPaise: 30_000, countedDistributors: 2, complete: true });
+    expect(r.months[1]).toMatchObject({ month: '2026-05', primaryQty: 45, primaryPaise: 32_000 + 4_000, secondaryQty: 30, secondaryPaise: 24_000, countedDistributors: 2, complete: true });
   });
 });

@@ -20,7 +20,7 @@ What the field app does for the **Docs** tab (PRD §6.2 C): the employee's own *
 
 ## 2. What the phone should show
 
-- **Payslips:** one row per month, newest first: "September 2026 · Net ₹…". Tapping opens the slip: earnings, deductions, gross, net. Empty state: "No payslips for FY 2026-27 yet. They appear once payroll is finalized."
+- **Payslips:** one row per month, newest first: "September 2026 · Net ₹…". Tapping opens the slip: earnings, deductions (EPF, ESI, professional tax first, then leave, absent, adjustments), totals, net. `slip.roundingPaise` is what brought the net to a whole rupee (from 2026-10-14): show it beside the net, e.g. "Rounded off +₹0.20". Empty state: "No payslips for FY 2026-27 yet. They appear once payroll is finalized."
 - **Documents:** grouped or filterable by category; a row shows the title, kind and size.
 - In a past year the Payslips list shows that year's slips and the Documents list is unchanged.
 

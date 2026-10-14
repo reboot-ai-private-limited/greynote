@@ -1,5 +1,6 @@
 import type {
   CreatePayComponentDto,
+  CtcLineKind,
   PayComponentDto,
   PayComponentKind,
   PayComponentRuleDto,
@@ -26,8 +27,9 @@ export function inForce<T extends { effectiveFrom: string }>(
 /** Annual → monthly, half up (the server rounds the same way). */
 export const monthlyOf = (annualPaise: number): number => Math.floor(annualPaise / 12 + 0.5);
 
-export const KIND_LABEL: Record<PayComponentKind, string> = {
+export const KIND_LABEL: Record<CtcLineKind, string> = {
   EARNING: 'Earning',
+  DEDUCTION: 'Deduction',
   EMPLOYER_CONTRIBUTION: 'Employer contribution',
 };
 
@@ -64,6 +66,10 @@ export function ruleSummary(
       return `Fixed ${money(rule.amountPaise)} a year`;
     case 'BALANCER':
       return 'The rest of the CTC';
+    case 'ESI_PERCENT':
+      return `${basisPointsToPercent(rule.basisPoints)}% of the total while the salary is within the ESI ceiling`;
+    case 'PTAX_SLAB':
+      return 'From the professional tax slabs in Settings';
   }
 }
 
@@ -73,7 +79,16 @@ export const RULE_LABEL: Record<RuleType, string> = {
   PERCENT_OF_COMPONENTS: 'Percentage of other components',
   FIXED: 'Fixed amount a year',
   BALANCER: 'The rest of the CTC',
+  ESI_PERCENT: 'ESI: percentage of the total, within the ESI ceiling',
+  PTAX_SLAB: 'Professional tax: from the slabs in Settings',
 };
+
+/** The ways a line of each kind can be worked out: the balancer and "of other lines" are earnings; ESI and professional tax are deductions. */
+export function ruleTypesFor(kind: PayComponentKind): RuleType[] {
+  return kind === 'EARNING'
+    ? ['PERCENT_OF_CTC', 'PERCENT_OF_COMPONENTS', 'FIXED', 'BALANCER']
+    : ['PERCENT_OF_CTC', 'PERCENT_OF_COMPONENTS', 'FIXED', 'ESI_PERCENT', 'PTAX_SLAB'];
+}
 
 export interface ComponentDraft {
   code: string;
@@ -87,6 +102,7 @@ export interface ComponentDraft {
   amount: string;
   order: string;
   isActive: boolean;
+  mandatory: boolean;
 }
 
 export const EMPTY_COMPONENT_DRAFT: ComponentDraft = {
@@ -99,6 +115,7 @@ export const EMPTY_COMPONENT_DRAFT: ComponentDraft = {
   amount: '',
   order: '',
   isActive: true,
+  mandatory: false,
 };
 
 export function componentToDraft(c: PayComponentDto): ComponentDraft {
@@ -108,13 +125,14 @@ export function componentToDraft(c: PayComponentDto): ComponentDraft {
     kind: c.kind,
     ruleType: c.rule.type,
     percent:
-      c.rule.type === 'PERCENT_OF_CTC' || c.rule.type === 'PERCENT_OF_COMPONENTS'
+      c.rule.type === 'PERCENT_OF_CTC' || c.rule.type === 'PERCENT_OF_COMPONENTS' || c.rule.type === 'ESI_PERCENT'
         ? basisPointsToPercent(c.rule.basisPoints)
         : '',
     of: c.rule.type === 'PERCENT_OF_COMPONENTS' ? c.rule.of : [],
     amount: c.rule.type === 'FIXED' ? (c.rule.amountPaise / 100).toFixed(2) : '',
     order: String(c.order),
     isActive: c.isActive,
+    mandatory: c.mandatory,
   };
 }
 
@@ -125,6 +143,8 @@ function buildRule(
   switch (d.ruleType) {
     case 'BALANCER':
       return { type: 'BALANCER' };
+    case 'PTAX_SLAB':
+      return { type: 'PTAX_SLAB' };
     case 'FIXED': {
       const paise = rupeesToPaise(d.amount);
       if (paise === null) errors['amount'] = 'Use rupees with at most two decimals, e.g. 6000.';
@@ -139,6 +159,7 @@ function buildRule(
       if (d.ruleType === 'PERCENT_OF_COMPONENTS' && d.of.length === 0)
         errors['of'] = 'Choose at least one component.';
       if (bp === null || (d.ruleType === 'PERCENT_OF_COMPONENTS' && d.of.length === 0)) return null;
+      if (d.ruleType === 'ESI_PERCENT') return { type: 'ESI_PERCENT', basisPoints: bp };
       return d.ruleType === 'PERCENT_OF_CTC'
         ? { type: 'PERCENT_OF_CTC', basisPoints: bp }
         : { type: 'PERCENT_OF_COMPONENTS', basisPoints: bp, of: d.of };
@@ -170,6 +191,7 @@ export function buildPayComponent(d: ComponentDraft): BuildResult<CreatePayCompo
       rule,
       order: Number(d.order),
       isActive: d.isActive,
+      mandatory: d.mandatory,
     },
   };
 }
@@ -188,6 +210,7 @@ export function buildPayComponentUpdate(
   if (JSON.stringify(rule) !== JSON.stringify(original.rule)) body.rule = rule;
   if (Number(d.order) !== original.order) body.order = Number(d.order);
   if (d.isActive !== original.isActive) body.isActive = d.isActive;
+  if (d.mandatory !== original.mandatory) body.mandatory = d.mandatory;
   return { ok: true, body };
 }
 

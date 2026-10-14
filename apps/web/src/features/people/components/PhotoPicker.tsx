@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { FilePreviewDialog } from '@/components/ui/FilePreviewDialog';
 import { Avatar } from './Avatar';
 import { PHOTO_ACCEPT, photoError } from '../lib/photo';
 
@@ -25,6 +26,7 @@ export function PhotoPicker({ name, photoUrl, pendingFile, busy, disabled, onPic
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [viewing, setViewing] = useState(false);
 
   useEffect(() => {
     if (!pendingFile) {
@@ -48,7 +50,22 @@ export function PhotoPicker({ name, photoUrl, pendingFile, busy, disabled, onPic
 
   return (
     <div className="flex items-center gap-4">
-      <Avatar name={name} url={shown} className="size-20 text-xl" />
+      {shown ? (
+        <button
+          type="button"
+          onClick={() => setViewing(true)}
+          aria-label={`View ${name}'s photo`}
+          className="rounded-full focus-visible:shadow-focus focus-visible:outline-none"
+        >
+          <Avatar name={name} url={shown} className="size-20 text-xl" />
+        </button>
+      ) : (
+        <Avatar name={name} url={shown} className="size-20 text-xl" />
+      )}
+      <FilePreviewDialog
+        file={viewing && shown ? { title: name, url: shown, kind: 'image' } : null}
+        onClose={() => setViewing(false)}
+      />
       <div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" size="sm" disabled={disabled || busy} onClick={() => input.current?.click()}>

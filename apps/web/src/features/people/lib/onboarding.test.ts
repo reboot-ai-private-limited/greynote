@@ -183,7 +183,9 @@ describe('draft', () => {
       ...complete,
       ctc: '144000',
       structure: {
+        basicMode: 'percent',
         basicPercent: '40',
+        basicAmount: '',
         rules: { FDA: { type: 'PERCENT_OF_COMPONENTS', percent: '14', of: ['BASIC'] } },
         removed: ['MEDICAL'],
         extras: [],
@@ -202,7 +204,7 @@ describe('draft', () => {
   it('the pay step is blocked by an unfinished percentage', () => {
     const form: WizardForm = {
       ...complete,
-      structure: { basicPercent: '4x', rules: {}, removed: [], extras: [] },
+      structure: { basicMode: 'percent', basicPercent: '4x', basicAmount: '', rules: {}, removed: [], extras: [] },
     };
     expect(stepErrors('compensation', form, ctx)['basicPercent']).toBeDefined();
   });

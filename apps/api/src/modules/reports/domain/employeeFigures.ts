@@ -46,15 +46,15 @@ export interface Valued {
   unpricedQty: number;
 }
 
-/** What the employee(s) entered as secondary in the selection, valued at each product's PTR. */
+/** What the employee(s) entered as secondary in the selection, valued at each product's PTS. */
 export function secondaryOf(entries: readonly EntryRow[], prices: ReadonlyMap<string, PriceRow>, s: Selection): Valued {
   const out: Valued = { qty: 0, paise: 0, unpricedQty: 0 };
   for (const e of entries) {
     if (!wanted(e, s) || e.secondaryQty === null) continue;
-    const ptr = prices.get(e.productId)?.ptrPaise ?? null;
+    const pts = prices.get(e.productId)?.ptsPaise ?? null;
     out.qty += e.secondaryQty;
-    if (ptr === null) out.unpricedQty += e.secondaryQty;
-    else out.paise += e.secondaryQty * ptr;
+    if (pts === null) out.unpricedQty += e.secondaryQty;
+    else out.paise += e.secondaryQty * pts;
   }
   return out;
 }

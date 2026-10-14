@@ -18,7 +18,7 @@ const ALL = 'all';
 
 /**
  * Set a target for one employee: a product (or all products), a run of whole months of the current financial year — one month, a quarter, the
- * year, anything between — and an amount in rupees at PTR, or for one product its units: the two follow each other at the product's PTR.
+ * year, anything between — and an amount in rupees at PTS, or for one product its units: the two follow each other at the product's PTS.
  * Setting the same product and months again replaces the target.
  */
 export function AddTargetDialog({
@@ -43,15 +43,15 @@ export function AddTargetDialog({
   const [errors, setErrors] = useState<{ amount?: string; months?: string }>({});
   const products = useActiveProducts();
   const save = useSetTarget(onClose);
-  const ptr = productId === ALL ? null : ((products.data ?? []).find((p) => p.id === productId)?.ptrPaise ?? null);
+  const pts = productId === ALL ? null : ((products.data ?? []).find((p) => p.id === productId)?.ptsPaise ?? null);
   const typeUnits = (v: string) => {
     setUnits(v);
-    if (ptr && /^\d+$/.test(v.trim())) setAmount(paiseToRupees(Number(v) * ptr));
+    if (pts && /^\d+$/.test(v.trim())) setAmount(paiseToRupees(Number(v) * pts));
   };
   const typeAmount = (v: string) => {
     setAmount(v);
     const paise = rupeesToPaise(v);
-    if (ptr && paise) setUnits(String(Math.round(paise / ptr)));
+    if (pts && paise) setUnits(String(Math.round(paise / pts)));
   };
   const monthOptions = months.map((m) => ({ value: m, label: monthLabel(m) }));
 
@@ -68,7 +68,7 @@ export function AddTargetDialog({
       month: fromMonth,
       toMonth,
       productId: productId === ALL ? null : productId,
-      ...(ptr && /^\d+$/.test(units.trim()) && Number(units) > 0 ? { targetQty: Number(units) } : { targetAmountPaise: paise }),
+      ...(pts && /^\d+$/.test(units.trim()) && Number(units) > 0 ? { targetQty: Number(units) } : { targetAmountPaise: paise }),
     });
   }
 
@@ -115,7 +115,7 @@ export function AddTargetDialog({
         label="Target (₹)"
         htmlFor="target-amount"
         error={errors.amount}
-        hint="Secondary sales at PTR over all of these months."
+        hint="Secondary sales at PTS over all of these months."
       >
         <Input
           id="target-amount"
@@ -125,8 +125,8 @@ export function AddTargetDialog({
           aria-invalid={errors.amount ? true : undefined}
         />
       </FormField>
-      {ptr ? (
-        <FormField label="Target (units)" htmlFor="target-units" hint={`Units × PTR (${formatMoney(ptr)}) is the amount; typing either fills the other.`}>
+      {pts ? (
+        <FormField label="Target (units)" htmlFor="target-units" hint={`Units × PTS (${formatMoney(pts)}) is the amount; typing either fills the other.`}>
           <Input id="target-units" inputMode="numeric" value={units} onChange={(e) => typeUnits(e.target.value)} />
         </FormField>
       ) : null}

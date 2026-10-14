@@ -57,6 +57,8 @@ const HISTORICAL_DEFAULTS: Record<string, string> = {
   FY_CLOSED_YEARS: 'NONE',
   LEAVE_LOCKED_AFTER_PAYROLL: 'true',
   CTC_JUMP_WARN_PERCENT: '50',
+  ESI_WAGE_CEILING: '21000',
+  PTAX_SLABS: '[{"from":10000,"to":14999,"amount":110},{"from":15000,"to":19999,"amount":130},{"from":20000,"to":null,"amount":150}]',
   ABSENT_DEDUCTS_SALARY: 'true',
   STRIKE_DEDUCTS_SALARY: 'false',
 };
@@ -97,7 +99,7 @@ describe('the definitions registry', () => {
 
   it('says what moves for every high-impact setting', () => {
     const high = CONFIG_DEFINITIONS.filter((d) => d.impact === 'HIGH');
-    expect(high.map((d) => d.key).sort()).toEqual(['APPROVAL_MANAGER_ONLY_KINDS', 'BUSINESS_TIMEZONE', 'DAY_START_TIME', 'DCR_APPROVAL_REQUIRED', 'DCR_MISS_BLOCK_ENABLED', 'FY_START_MONTH', 'WEEKLY_OFF_DAY']);
+    expect(high.map((d) => d.key).sort()).toEqual(['APPROVAL_MANAGER_ONLY_KINDS', 'BUSINESS_TIMEZONE', 'DAY_START_TIME', 'DCR_APPROVAL_REQUIRED', 'DCR_MISS_BLOCK_ENABLED', 'FY_START_MONTH', 'PTAX_SLABS', 'WEEKLY_OFF_DAY']);
     for (const d of high) expect(d.impactNote?.length, d.key).toBeGreaterThan(20);
   });
 });

@@ -25,6 +25,7 @@ const input: CreateDistributorInput = {
   address: '1 Market Rd',
   location: null,
   assignedUserIds: ['mr1', 'asm'],
+  openingDuesPaise: 0,
 };
 
 describe('Distributors', () => {

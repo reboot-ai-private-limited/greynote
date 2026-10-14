@@ -21,8 +21,6 @@ import { WizardShell } from '@/components/ui/WizardShell';
 import { EmployeeName } from '@/features/people/components/EmployeePickerField';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { toErrorState } from '@/lib/api/toErrorState';
-import { useSession } from '@/lib/auth/SessionProvider';
-import { DistributorAccountsPage } from './DistributorAccountsScreen';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import {
   useCreateDistributor,
@@ -57,8 +55,6 @@ const STEP_TITLE: Record<DistributorStep, string> = {
 
 /** `/distributors/new` (no id) walks the add wizard; `/distributors/[id]` is the distributor's page: Details, Payments and Orders. */
 export function DistributorFormScreen({ id }: { id?: string }) {
-  const { user } = useSession();
-  if (user?.role === 'ACCOUNTANT' && id) return <DistributorAccountsPage id={id} />;
   return <AdminDistributorScreen id={id} />;
 }
 
@@ -143,6 +139,16 @@ function DetailsFields({
           disabled={locked}
           onChange={(e) => set('mobile')(e.target.value)}
           aria-invalid={invalid('mobile')}
+        />
+      </FormField>
+      <FormField label="Opening dues (₹, optional)" htmlFor="dist-opening-dues" error={errors['openingDues']} hint="What they already owed before this system. Their dues = this + what is delivered − what they pay.">
+        <Input
+          id="dist-opening-dues"
+          inputMode="decimal"
+          value={draft.openingDues}
+          disabled={locked}
+          onChange={(e) => set('openingDues')(e.target.value)}
+          aria-invalid={invalid('openingDues')}
         />
       </FormField>
       <div className="sm:col-span-2">
@@ -284,6 +290,7 @@ function NewDistributor() {
           <Field label="Contact person">{draft.contactPerson}</Field>
           <Field label="Mobile">{draft.mobile}</Field>
           <Field label="Address">{draft.address}</Field>
+          <Field label="Opening dues">{draft.openingDues ? `₹${draft.openingDues}` : null}</Field>
           <Field label="Zone">{draft.zoneId ? directory.zoneName(draft.zoneId) : null}</Field>
           <Field label="Routes">
             {draft.routeIds.map((r) => directory.routeLabel(r)).join(', ') || null}

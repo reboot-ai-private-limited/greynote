@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { paginationQuerySchema } from '@/shared/http/pagination.js';
+import { epfSchema } from './epf.schema.js';
 import { passwordSchema } from './password.schema.js';
 
 export const addressSchema = z.object({
@@ -49,6 +50,8 @@ const basicDetailsPatchSchema = z.object({
   qualification: z.string().min(1).nullable().optional(),
   /** Exactly 17 digits (the ESI insurance number); `null` clears it. */
   esiNumber: z.string().regex(/^\d{17}$/, 'The ESI number is exactly 17 digits.').nullable().optional(),
+  /** EPF member id, 1-30 letters, digits, `/` or `-` (upper-cased); `null` clears it. */
+  epfNumber: epfSchema.nullable().optional(),
   address: addressSchema.optional(),
   permanentAddress: addressSchema.optional(),
   permanentSameAsPresent: z.boolean().optional(),
@@ -78,6 +81,12 @@ export const listUsersQuerySchema = paginationQuerySchema.extend({
   managerId: z.string().min(1).optional(),
   status: z.enum(['active', 'pending', 'inactive']).optional(),
   isBlocked: z.coerce.boolean().optional(),
+  /** Only these users (comma-separated ids, at most 500): how a payroll warning opens the list of the people it names. */
+  ids: z
+    .string()
+    .transform((v) => v.split(',').map((id) => id.trim()).filter(Boolean))
+    .pipe(z.array(z.string().regex(/^[a-f0-9]{24}$/i, 'Not a user id.')).max(500))
+    .optional(),
 });
 
 /** Why the block is being cleared — required, and kept on the block event as the audit trail. */

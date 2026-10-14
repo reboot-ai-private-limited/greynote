@@ -5,7 +5,17 @@ import {
   documentErrors,
   documentTypeLabel,
   fileError,
+  fileKindOfUrl,
 } from './documents';
+
+describe('fileKindOfUrl', () => {
+  it('reads the kind from the extension, ignoring a query string', () => {
+    expect(fileKindOfUrl('https://x/a/b.pdf')).toBe('pdf');
+    expect(fileKindOfUrl('https://x/a/b.JPG?v=1')).toBe('image');
+    expect(fileKindOfUrl('https://x/a/b.png')).toBe('image');
+    expect(fileKindOfUrl('https://x/a/b')).toBe('other');
+  });
+});
 
 describe('fileError', () => {
   it('accepts a PDF, JPG, JPEG and PNG in any case', () => {

@@ -7,8 +7,9 @@ const prices = new Map<string, PriceRow>([
   ['p2', { id: 'p2', name: 'Cetri', sku: 'CET', ptrPaise: null, ptsPaise: null }],
 ]);
 const orders = [
-  { userId: 'mr1', productId: 'p1', month: '2026-10', quantity: 10, amountPaise: 8_500 },
-  { userId: 'mr1', productId: 'p1', month: '2026-11', quantity: 5, amountPaise: 4_000 },
+  { userId: 'mr1', distributorId: 'd1', productId: 'p1', month: '2026-10', quantity: 10, amountPaise: 8_500 },
+  { userId: 'mr1', distributorId: 'd2', productId: 'p1', month: '2026-11', quantity: 5, amountPaise: 4_000 },
+  { userId: 'mr1', distributorId: 'd1', productId: 'p1', month: '2026-11', quantity: 2, amountPaise: 1_600 },
 ];
 const entries = [
   { userId: 'mr1', productId: 'p1', month: '2026-10', secondaryQty: 20, adjustmentQty: 2 },
@@ -18,10 +19,10 @@ const entries = [
 ];
 
 describe('employee figures', () => {
-  it('values secondary at PTR; a product with no PTR is counted in units only', () => {
-    expect(secondaryOf(entries, prices, { userId: 'mr1', fromMonth: '2026-10', toMonth: '2026-11' })).toEqual({ qty: 57, paise: 50_000, unpricedQty: 7 });
-    expect(secondaryOf(entries, prices, { userId: 'mr1', productId: 'p1', fromMonth: '2026-10', toMonth: '2026-10' })).toMatchObject({ qty: 20, paise: 20_000 });
-    expect(secondaryOf(entries, prices, { userId: 'mr1', productId: null, fromMonth: '2026-11', toMonth: '2026-11' }).paise).toBe(30_000);
+  it('values secondary at PTS; a product with no PTS is counted in units only', () => {
+    expect(secondaryOf(entries, prices, { userId: 'mr1', fromMonth: '2026-10', toMonth: '2026-11' })).toEqual({ qty: 57, paise: 40_000, unpricedQty: 7 });
+    expect(secondaryOf(entries, prices, { userId: 'mr1', productId: 'p1', fromMonth: '2026-10', toMonth: '2026-10' })).toMatchObject({ qty: 20, paise: 16_000 });
+    expect(secondaryOf(entries, prices, { userId: 'mr1', productId: null, fromMonth: '2026-11', toMonth: '2026-11' }).paise).toBe(24_000);
   });
 
   it('primary is the Done orders at their amounts plus Admin\'s change at PTS', () => {
@@ -44,21 +45,30 @@ describe('EmployeeSalesReport', () => {
         ];
       },
     },
-    { async listNames() { return { distributors: [], chemists: [], products: [...prices.values()] }; }, async listAssignedDoctors() { return []; }, async listActiveOutlets() { return { distributors: [], chemists: [] }; } },
+    { async listNames() { return { distributors: [{ id: 'd1', name: 'Shree' }, { id: 'd2', name: 'Maa Tara' }], chemists: [], products: [...prices.values()] }; }, async listAssignedDoctors() { return []; }, async listActiveOutlets() { return { distributors: [], chemists: [] }; }, async listDistributorAssignees() { return []; } },
     { async getUserSummaries() { return [{ id: 'mr1', name: 'Asha', employeeCode: 'E1' }]; } },
     { async getDownline(id) { return id === 'asm' ? [{ id: 'mr1' }] : []; } },
+    { entries: async (ids: readonly string[]) => entries.filter((e) => ids.includes(e.userId) && e.secondaryQty !== null) } as never,
   );
   const input = { userId: 'mr1', from: '2026-10', to: '2026-11' };
 
   it('shows each product\'s target share, primary, secondary and achievement, and each target over its own months', async () => {
     const out = await report.read({ actor: { id: 'admin', role: 'ADMIN' }, ...input });
     expect(out.products.map((p) => p.product.name)).toEqual(['Amox', 'Cetri']);
-    expect(out.products[0]).toMatchObject({ targetPaise: 60_000, primaryQty: 17, secondaryQty: 50, secondaryPaise: 50_000, achievementPercent: 83, flags: [] });
-    expect(out.products[1]).toMatchObject({ secondaryQty: 7, secondaryPaise: 0, flags: ['NO_PTR', 'NO_PTS'] });
+    expect(out.products[0]).toMatchObject({ targetPaise: 60_000, primaryQty: 19, secondaryQty: 50, secondaryPaise: 40_000, achievementPercent: 67, flags: [] });
+    expect(out.products[1]).toMatchObject({ secondaryQty: 7, secondaryPaise: 0, flags: ['NO_PTS', 'NO_PTS_CHANGE'] });
     expect(out.generalTargetPaise).toBe(20_000);
-    expect(out.totals).toMatchObject({ targetPaise: 80_000, secondaryPaise: 50_000 });
-    expect(out.targets[0]).toMatchObject({ id: 't1', product: { id: 'p1', name: 'Amox' }, achievedPaise: 50_000, achievementPercent: 56 });
-    expect(out.targets[1]).toMatchObject({ id: 't2', product: null, achievedPaise: 50_000 });
+    expect(out.totals).toMatchObject({ targetPaise: 80_000, secondaryPaise: 40_000 });
+    expect(out.targets[0]).toMatchObject({ id: 't1', product: { id: 'p1', name: 'Amox' }, achievedPaise: 40_000, achievementPercent: 44 });
+    expect(out.targets[1]).toMatchObject({ id: 't2', product: null, achievedPaise: 40_000 });
+  });
+
+  it('lists the employee\'s Done orders by distributor, adding up to their order primary', async () => {
+    const out = await report.read({ actor: { id: 'acct', role: 'ACCOUNTANT' }, ...input });
+    expect(out.distributors).toEqual([
+      { distributor: { id: 'd2', name: 'Maa Tara' }, orderQty: 5, orderPaise: 4_000 },
+      { distributor: { id: 'd1', name: 'Shree' }, orderQty: 12, orderPaise: 10_100 },
+    ]);
   });
 
   it('is open to Admin, the employee and their manager, and to nobody else', async () => {

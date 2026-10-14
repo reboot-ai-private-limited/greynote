@@ -10,6 +10,7 @@ import { SalesReport } from './application/salesReport.js';
 import { StockReport } from './application/stockReport.js';
 import { TeamOverviewReport } from './application/teamOverviewReport.js';
 import { TaDaReport } from './application/taDaReport.js';
+import { DistributorAchievement } from './application/distributorAchievement.js';
 import type { AttendancePort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
 import type { ReportsPublicContract } from './reports.public.js';
 import { makeReportsControllers } from './interface/reports.controller.js';
@@ -37,14 +38,15 @@ export function buildReportsContainer(
   marketing: MarketingPort,
   config: ConfigReader,
 ): ReportsContainer {
+  const achievement = new DistributorAchievement(sales, master);
   const orders = new OrdersReport(sales, master, identity);
   const salesReport = new SalesReport(sales, master, config);
   const stockReport = new StockReport(sales, master);
   const taDaReport = new TaDaReport(fieldActivity, territory, identity, config);
   const dcrReport = new DcrReport(fieldActivity, master, identity, config);
   const salaryReport = new SalaryReport(payroll, fieldActivity, identity, config);
-  const salesDashboard = new SalesDashboardReport(identity, planning, attendance, fieldActivity, marketing, sales, master, territory, config);
-  const employeeSales = new EmployeeSalesReport(sales, marketing, master, identity, identity);
+  const salesDashboard = new SalesDashboardReport(identity, planning, attendance, fieldActivity, marketing, sales, master, territory, config, achievement);
+  const employeeSales = new EmployeeSalesReport(sales, marketing, master, identity, identity, achievement);
   const doctorVisits = new DoctorVisitsReport(identity, master, fieldActivity, planning);
   const teamOverview = new TeamOverviewReport(salesDashboard, fieldActivity, attendance);
   return {

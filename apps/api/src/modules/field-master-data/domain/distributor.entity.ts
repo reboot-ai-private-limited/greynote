@@ -16,5 +16,7 @@ export interface Distributor {
   address: string;
   location: GeoPoint | null;
   assignedUserIds: string[];
+  /** What the distributor already owed before this system (whole paise): the starting point of their dues. */
+  openingDuesPaise: number;
   status: MasterStatus;
 }

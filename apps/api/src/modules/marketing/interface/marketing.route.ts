@@ -29,7 +29,7 @@ function doc(method: 'get' | 'post' | 'patch' | 'delete', path: string, summary:
     responses: { 200: { description: 'OK' } },
   });
 }
-doc('post', '/visuals', 'Admin: upload a Visual (multipart: file + title, category, optional productId) — image, PDF or MP4/MOV/WebM, up to 25 MB', { body: createVisualBodySchema });
+doc('post', '/visuals', 'Admin: upload a Visual (multipart: file + title, category, optional productId) — image (PNG, JPG, WebP or GIF), up to 25 MB', { body: createVisualBodySchema });
 doc('get', '/visuals', 'Visuals — field staff see the active ones; Admin all. General (no-product) ones are included', { query: listVisualsQuerySchema });
 doc('patch', '/visuals/{id}', 'Admin: change a Visual\'s title, category or product, or set it active or inactive', { params: idParamsSchema, body: updateVisualBodySchema });
 doc('get', '/doctors/{doctorId}/visuals', 'The visuals picked for a doctor — the doctor\'s MR, a manager above them, or Admin', { params: doctorIdParamsSchema });

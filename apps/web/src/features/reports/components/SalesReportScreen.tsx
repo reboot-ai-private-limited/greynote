@@ -32,7 +32,7 @@ const money = (paise: number | null): string => (paise === null ? '—' : format
 /**
  * Primary and secondary sales for the financial year in view (sign-off K9, K21, K22, K27, K29, K31). Primary is every Done order to a distributor,
  * in the month it was marked Done; secondary is what the distributors sold on, worked out from their stock counts (opening + primary − closing) and
- * valued at PTR. The chart is the year; clicking a month opens its stock and sales statement beneath it.
+ * valued at PTS. The chart is the year; clicking a month opens its stock and sales statement beneath it.
  */
 export function SalesReportScreen() {
   const { values, update } = useFilterParams(['month', 'metric', 'distributorId', 'productId']);

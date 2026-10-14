@@ -19,11 +19,9 @@ import { istDate } from '@/lib/dates';
 import { financialYearOf, financialYearRange } from '@/lib/financial-year';
 import { formatMoney } from '@/lib/format';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
-import { useDistributorPaymentTotals } from '../hooks/useDistributorPayments';
+import { useDistributorBalances, useDistributorPaymentTotals } from '../hooks/useDistributorPayments';
 import { useDistributors, useUpdateDistributor } from '../hooks/useDistributors';
 import { paymentRange } from '../lib/payments';
-import { useSession } from '@/lib/auth/SessionProvider';
-import { DistributorAccountsScreen } from './DistributorAccountsScreen';
 import { RecordPaymentDialog } from './RecordPaymentDialog';
 import { EmployeeFilter } from '@/features/people/components/EmployeePickerField';
 import { RouteFilter } from './RoutePickerField';
@@ -35,13 +33,8 @@ const money = (paise: number): string => formatMoney(paise);
 const routesText = (labels: string[]) =>
   labels.length <= 2 ? labels.join(', ') : `${labels.slice(0, 2).join(', ')} +${labels.length - 2}`;
 
-/** Admin gets the full master-data list; the Accountant a payments-only view of the same distributors. */
+/** The distributors list: Admin and the Accountant both add, edit and record payments here. */
 export function DistributorsScreen() {
-  const { user } = useSession();
-  return user?.role === 'ACCOUNTANT' ? <DistributorAccountsScreen /> : <AdminDistributorsScreen />;
-}
-
-function AdminDistributorsScreen() {
   const router = useRouter();
   const { values, page, pageSize, update } = useFilterParams([
     'search',
@@ -61,6 +54,7 @@ function AdminDistributorsScreen() {
   const collected = useDistributorPaymentTotals(
     paymentRange('month', today, financialYearRange(year ?? financialYearOf(today))),
   ).data;
+  const balances = useDistributorBalances().data;
   const updateDistributor = useUpdateDistributor(() => setToggling(null));
 
   const distributors = useDistributors({
@@ -126,6 +120,17 @@ function AdminDistributorsScreen() {
       render: (d) => {
         const paise = collected?.get(d.id);
         return paise ? money(paise) : <span className="text-text-subtle">—</span>;
+      },
+    },
+    {
+      key: 'dues',
+      header: 'Dues',
+      numeric: true,
+      render: (d) => {
+        if (!balances) return <span className="text-text-subtle">—</span>;
+        const b = balances.get(d.id);
+        const dues = d.openingDuesPaise + (b?.deliveredPaise ?? 0) - (b?.collectedPaise ?? 0);
+        return dues === 0 ? <span className="text-text-subtle">—</span> : <span className={dues > 0 ? 'font-medium' : 'text-success-fg'}>{money(dues)}</span>;
       },
     },
     {

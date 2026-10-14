@@ -28,6 +28,7 @@ const profile = (userId: string, managerId: string | null, extra: Partial<Employ
   onProbation: false,
   probationMonths: null,
   esiNumber: null,
+  epfNumber: null,
   mobileNumber: null,
   hqId: null, zoneId: null, alternateMobile: null,
   guardianName: null,
@@ -239,6 +240,10 @@ describe('UpdateUserUseCase — deactivation', () => {
     expect(profiles.get('a')).toMatchObject({ esiNumber: '12345678901234567', probationMonths: 3 });
     await useCase.execute('a', { basicDetails: { esiNumber: null, probationMonths: null } });
     expect(profiles.get('a')).toMatchObject({ esiNumber: null, probationMonths: null });
+    await useCase.execute('a', { basicDetails: { epfNumber: 'MH/BAN/123' } });
+    expect(profiles.get('a')).toMatchObject({ epfNumber: 'MH/BAN/123' });
+    await useCase.execute('a', { basicDetails: { epfNumber: null } });
+    expect(profiles.get('a')).toMatchObject({ epfNumber: null });
   });
 });
 

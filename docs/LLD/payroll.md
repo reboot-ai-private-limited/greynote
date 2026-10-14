@@ -21,7 +21,7 @@ by a filter someone could forget.
 | Field | Meaning |
 |---|---|
 | `base_salary` | **Snapshot** of the employee's monthly gross at generation time: the earning lines of the CTC in force for the month (CTC less the employer's EPF/ESI), ÷ 12, rounded half up |
-| `ctc_annual_paise`, `ctc_effective_from`, `ctc_lines` | The CTC, the revision's first month, and its breakdown (annual amounts, employer contributions included), frozen with the run. Empty/`null` on runs from before CTC existed |
+| `ctc_annual_paise`, `ctc_effective_from`, `ctc_lines` | The CTC (the total earnings), the revision's first month, and its breakdown (annual amounts; deduction lines EPF/ESI/professional tax from 2026-10-14, employer contributions on older runs included), frozen with the run. Empty/`null` on runs from before CTC existed |
 | `total_ta_da` | Sum of the `TA` and `DA` `Expense` rows **paid during** that month (Field Activity's `getPaidTaDaTotal`, by paid date) |
 | `reimbursement` | Sum of the manual `Expense` rows paid during that month — travel, meals, other — from the same call |
 | `unpaid_leave_days` | Snapshot of the approved unpaid days (halves allowed) the deduction was computed from |
@@ -31,6 +31,7 @@ by a filter someone could forget.
 | `absent_deduction_paise` | `absent_days × base_salary_paise / 30`, rounded half up to a whole paise once, frozen |
 | `net_payable` | `base_salary − leave_deduction − absent_deduction` (2026-10-07; before that `base − leave_deduction`, and runs finalized before 2026-10-06 also add `total_ta_da + reimbursement`) |
 | `esi_number` | The employee's ESI number when generated (a snapshot, printed on the salary slip), or null |
+| `epf_number` | The employee's EPF number when generated (a snapshot, printed on the salary slip), or null |
 | `status` | `DRAFT` → `FINALIZED` |
 | `generated_by` / `generated_at`, `finalized_at` | Accountant, and when |
 
@@ -198,3 +199,21 @@ finalizing: a report submitted or a leave approved later cannot change a finaliz
 - **Payslip:** `payslipOf` shows a positive adjustment with the earnings and a negative one with the deductions.
 
 Web (2026-10-13): **Payroll** is open to HR. The month sheet shows an **Adjusted** column, the stage (Draft, Finalized, Paid), **Mark paid** on a finalized row (Accountant, Admin) and hides Generate, Finalize and Mark paid from HR. A run's page has a **Finalize** or **Mark paid** button (Accountant, Admin), a **day-by-day** card (what each day was, what the rules charge, what it is charged now, **Change** per chargeable day for HR and Admin while the run is a draft), **Add or take off an amount**, and a **Changes made by HR or Admin** list (what, why, who, when). A run generated before 2026-10-13 has no days: it says so and offers only the amount, until it is regenerated. The overview endpoint is not used by the sheet yet (employees with nothing generated are still not listed on it).
+
+## Missing ESI / EPF numbers (2026-10-14)
+
+- **Rule:** ESI covers a monthly gross **at or below** `ESI_WAGE_CEILING` (a setting, whole rupees, seeded 21000). Payroll **warns, never blocks**, about (a) an employee in the month's payroll at or below the ceiling with no ESI number and (b) any employee in the month's payroll with no EPF number. The ESI test uses the run's `base_salary` (the monthly gross). A database not re-seeded since the key was added reads the seeded 21000.
+- **`GET /api/payroll/warnings?month=YYYY-MM`** (`ADMIN`, `HR`, `ACCOUNTANT`) returns `{ esiCeilingRupees, esiMissing[], epfMissing[] }`, each person `{ userId, name, employeeCode }`. It is read **live from the employee's profile**, not from the run's snapshot, so adding a number clears the warning without generating again.
+- **Web:** a yellow block on the month's payroll page and in the result of Generate. Each line links to `/employees?ids=<ids>&missing=esi|epf`; the Employees list (`GET /identity/users?ids=` accepts up to 500 comma-separated ids) shows exactly those people with a removable chip.
+
+## Deductions, rounding and the slip (2026-10-14)
+
+- **Base** is the CTC's earning lines ÷ 12: the CTC is the total earnings, so it is the CTC ÷ 12.
+- **Statutory deductions** (`deduction_lines` monthly, `statutory_deduction_paise`): the CTC's EPF, ESI and professional-tax lines ÷ 12, each rounded half up, frozen with the run. Taken on the full contract salary, not reduced by leave days; if the pay left after unpaid-leave and absent deductions is smaller, only that much is taken (the slip shows "Not deducted (pay too low)").
+- **Net** = base − statutory deductions − leave deduction − absent deduction + `rounding_paise` + adjustments. The net the rules give is rounded to the **nearest rupee**, half up (`rounding_paise` is the signed difference); the schema validator checks the whole equation.
+- New snapshot fields for the slip: `designation_name`, `bank_name`, `bank_account_number`, `date_of_joining`.
+- **Slip** (`payslipOf` in `packages/contracts`, web `/payroll/:id/slip`): earnings; deductions (EPF, ESI, professional tax, then leave, absent, adjustments); totals; net with "Rounded off". Layout as the company sample; "UAN Code" is the EPF number.
+
+## Salary paid, by month (2026-10-14)
+
+`GET /api/payroll/paid-totals?fromMonth&toMonth` (ACCOUNTANT/ADMIN, scoped to the financial year in view): `PaidTotalsUseCase` sums `netPayablePaise` of finalized runs with `paidAt` set, by month, with the count of employees. Company totals only: no names, no per-employee amounts. Shown as the "Salary paid" card on the Payroll page for the Accountant and Admin.

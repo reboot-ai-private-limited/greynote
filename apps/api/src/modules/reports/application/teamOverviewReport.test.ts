@@ -96,6 +96,7 @@ function build() {
       },
     },
     config,
+    { entries: async () => [] } as never,
     now,
   );
   return new TeamOverviewReport(

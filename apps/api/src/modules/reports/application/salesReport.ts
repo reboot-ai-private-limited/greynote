@@ -6,12 +6,12 @@ import type { MasterPort, SalesPort, StatementRow, StatementsPort, StockRow } fr
 
 const UNKNOWN = '(removed)';
 
-const toStatements = (rows: readonly StatementRow[]): StatementCount[] => rows.map((r) => ({ distributorId: r.distributorId, productId: r.productId, month: r.month, openingQty: r.openingQty, secondaryQty: r.secondaryQty, adjustmentQty: r.adjustmentQty }));
-const toCounts = (rows: readonly StockRow[]): StockCount[] => rows.map((r) => ({ distributorId: r.outlet.id, productId: r.productId, month: r.month, openingQty: r.openingQty, closingQty: r.closingQty }));
+export const toStatements = (rows: readonly StatementRow[]): StatementCount[] => rows.map((r) => ({ distributorId: r.distributorId, productId: r.productId, month: r.month, openingQty: r.openingQty, secondaryQty: r.secondaryQty, adjustmentQty: r.adjustmentQty }));
+export const toCounts = (rows: readonly StockRow[]): StockCount[] => rows.map((r) => ({ distributorId: r.outlet.id, productId: r.productId, month: r.month, openingQty: r.openingQty, closingQty: r.closingQty }));
 
 /**
  * Primary and secondary sales (sign-off K9, K21, K22, K31): primary is every Done order to a distributor, in the month marked Done; secondary is
- * what the distributors sold on, derived from their own counts (opening + primary − closing) and valued at each product's PTR. The year view feeds the
+ * what the distributors sold on, derived from their own counts (opening + primary − closing) and valued at each product's PTS. The year view feeds the
  * bar chart; the statement is one month in full. Reads only.
  */
 export class SalesReport {
@@ -40,10 +40,9 @@ export class SalesReport {
       this.currentMonth(),
     ]);
     const names = await this.master.listNames({ productIds: [...new Set([...stockRows.map((r) => r.productId), ...orderSums.map((s) => s.productId), ...statementRows.map((r) => r.productId)])] });
-    const ptr = new Map(names.products.map((p) => [p.id, p.ptrPaise]));
     const pts = new Map(names.products.map((p) => [p.id, p.ptsPaise ?? null]));
     const expected = outlets.distributors.map((d) => d.id).filter((id) => !input.distributorId || id === input.distributorId);
-    const built = buildSalesMonths({ months, currentMonth, orderSums, stock: toCounts(stockRows), statements: toStatements(statementRows), ptr, pts, expectedDistributorIds: expected });
+    const built = buildSalesMonths({ months, currentMonth, orderSums, stock: toCounts(stockRows), statements: toStatements(statementRows), pts, expectedDistributorIds: expected });
     const totals = built.reduce((t, m) => ({ primaryQty: t.primaryQty + m.primaryQty, primaryPaise: t.primaryPaise + m.primaryPaise, secondaryQty: t.secondaryQty + (m.secondaryQty ?? 0), secondaryPaise: t.secondaryPaise + (m.secondaryPaise ?? 0) }), { primaryQty: 0, primaryPaise: 0, secondaryQty: 0, secondaryPaise: 0 });
     return { year: input.year, months: built, totals };
   }
@@ -63,12 +62,11 @@ export class SalesReport {
     const stated = statements.filter((c) => c.month === input.month);
     const distributorIds = [...new Set([...monthSums.map((s) => s.distributorId), ...stock.filter((c) => c.month === input.month).map((c) => c.distributorId), ...stated.map((c) => c.distributorId)])];
     const names = await this.master.listNames({ distributorIds, productIds: [...new Set([...monthSums.map((s) => s.productId), ...stock.map((c) => c.productId), ...statements.map((c) => c.productId)])] });
-    const ptr = new Map(names.products.map((p) => [p.id, p.ptrPaise]));
     const pts = new Map(names.products.map((p) => [p.id, p.ptsPaise ?? null]));
     const distributor = new Map(names.distributors.map((d) => [d.id, d.name]));
     const product = new Map(names.products.map((p) => [p.id, p]));
 
-    const rows = buildStatement({ month: input.month, orderSums, stock, statements, ptr, pts })
+    const rows = buildStatement({ month: input.month, orderSums, stock, statements, pts })
       .map(({ distributorId, productId, ...rest }) => ({
         distributor: { id: distributorId, name: distributor.get(distributorId) ?? UNKNOWN },
         product: { id: productId, name: product.get(productId)?.name ?? UNKNOWN, sku: product.get(productId)?.sku ?? '' },

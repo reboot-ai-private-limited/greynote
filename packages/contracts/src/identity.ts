@@ -139,6 +139,7 @@ export interface UserDetailDto {
     probationMonths: number | null;
     /** Exactly 17 digits, or null. */
     esiNumber: string | null;
+    epfNumber: string | null;
     hqId: string | null;
     zoneId: string | null;
     mobileNumber: string | null;
@@ -173,6 +174,7 @@ export interface UpdateUserDto {
     probationMonths?: number | null;
     /** Exactly 17 digits; `null` clears it. */
     esiNumber?: string | null;
+    epfNumber?: string | null;
     qualification?: string | null;
     address?: UserAddressDto;
     permanentAddress?: UserAddressDto;
@@ -210,6 +212,7 @@ export interface EmployeeDraftDataDto {
     dateOfBirth?: string;
     /** Exactly 17 digits. */
     esiNumber?: string;
+    epfNumber?: string;
     dateOfJoining?: string;
     onProbation?: boolean;
     probationMonths?: number;
@@ -278,14 +281,20 @@ export interface UserDeviceDto {
 }
 
 /** One line of the org-wide CTC formula (`GET /identity/pay-components`, a bare array in display order). */
-export type PayComponentKind = 'EARNING' | 'EMPLOYER_CONTRIBUTION';
+export type PayComponentKind = 'EARNING' | 'DEDUCTION';
+/** A saved line can also be an employer contribution: CTC revisions from before employer EPF/ESI left the CTC (2026-10-14) still carry them. */
+export type CtcLineKind = PayComponentKind | 'EMPLOYER_CONTRIBUTION';
 
 /** Percentages are whole basis points (1% = 100, so ESI 0.75% is `75`); money is annual whole paise. */
 export type PayComponentRuleDto =
   | { type: 'PERCENT_OF_CTC'; basisPoints: number }
   | { type: 'PERCENT_OF_COMPONENTS'; basisPoints: number; of: string[] }
   | { type: 'FIXED'; amountPaise: number }
-  | { type: 'BALANCER' };
+  | { type: 'BALANCER' }
+  /** Deduction: a share of the total earnings, only while the monthly salary is at or below the ESI wage ceiling. */
+  | { type: 'ESI_PERCENT'; basisPoints: number }
+  /** Deduction: the professional tax for the monthly salary, from the PTAX_SLABS setting. */
+  | { type: 'PTAX_SLAB' };
 
 export interface PayComponentDto {
   id: string;
@@ -296,6 +305,8 @@ export interface PayComponentDto {
   rule: PayComponentRuleDto;
   order: number;
   isActive: boolean;
+  /** Every employee has this line: it cannot be switched off, removed for one employee or given another rule. */
+  mandatory: boolean;
 }
 export type CreatePayComponentDto = Omit<PayComponentDto, 'id'>;
 export type UpdatePayComponentDto = Partial<Omit<PayComponentDto, 'id' | 'code'>>;
@@ -304,7 +315,7 @@ export type UpdatePayComponentDto = Partial<Omit<PayComponentDto, 'id' | 'code'>
 export interface CtcLineDto {
   code: string;
   name: string;
-  kind: PayComponentKind;
+  kind: CtcLineKind;
   amountPaise: number;
   /** HR typed this amount for this employee instead of taking the formula's. */
   isOverridden: boolean;
@@ -316,8 +327,10 @@ export interface CtcLineDto {
  * lines left out, lines added. Basic and the balancer (the rest of the CTC) can be neither removed nor re-ruled.
  */
 export interface CtcStructureDto {
-  /** Basic as a share of CTC in basis points (40% = 4000); between 3000 and 6000. The org's own when absent. */
+  /** Basic as a share of CTC in basis points (40% = 4000), up to 10000. The org's own when absent. Not together with `basicMonthlyPaise`. */
   basicBasisPoints?: number;
+  /** Basic as a monthly amount in paise, instead of a share of the CTC. */
+  basicMonthlyPaise?: number;
   ruleOverrides: Record<string, PayComponentRuleDto>;
   /** Codes of org components not used for this employee. */
   removed: string[];
@@ -333,9 +346,12 @@ export interface PreviewCtcDto {
 export interface CtcPreviewDto {
   ctcAnnualPaise: number;
   lines: CtcLineDto[];
-  /** CTC less the employer's own EPF/ESI: what the employee is paid before any deduction. */
+  /** The earnings, which add up to the CTC: what the employee is paid before any deduction. */
   grossAnnualPaise: number;
   grossMonthlyPaise: number;
+  /** EPF, ESI and professional tax, a month at a time (each line rounded), and what is left of the monthly pay after them. */
+  deductionsMonthlyPaise: number;
+  takeHomeMonthlyPaise: number;
 }
 
 /** One saved revision of an employee's CTC. Never edited; a change is a new revision. */

@@ -1,7 +1,7 @@
 export interface PayrollCtcLineDto {
   code: string;
   name: string;
-  kind: 'EARNING' | 'EMPLOYER_CONTRIBUTION';
+  kind: 'EARNING' | 'DEDUCTION' | 'EMPLOYER_CONTRIBUTION';
   amountPaise: number;
   isOverridden: boolean;
 }
@@ -113,6 +113,19 @@ export interface PayrollRunDto {
   originalNetPayablePaise: number;
   /** The employee's ESI number when generated (a snapshot for the salary slip); null if none was set. */
   esiNumber: string | null;
+  /** The employee's EPF number when generated (a snapshot for the salary slip); null if none was set. */
+  epfNumber: string | null;
+  /** Slip snapshot: designation, bank and joining date (`YYYY-MM-DD`) when generated; null if none was set. */
+  designationName: string | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  dateOfJoining: string | null;
+  /** The employee's own EPF, ESI and professional tax for the month, one line each; empty on runs from before 2026-10-14. */
+  deductionLines: Array<{ code: string; name: string; amountPaise: number }>;
+  /** What was actually taken for them (their sum, unless the pay left was smaller). */
+  statutoryDeductionPaise: number;
+  /** What was added (or taken) to bring the net to a whole rupee; signed. */
+  roundingPaise: number;
   /** The joining date falls in this month: the full base is paid (no proration) and the Accountant is told. */
   joinedInMonth: boolean;
   status: PayrollStatus;
@@ -133,9 +146,33 @@ export type GenerateOutcomeDto =
   | { userId: string; userName: string; employeeCode: string; outcome: 'created' | 'updated'; run: PayrollRunDto }
   | { userId: string; userName: string; employeeCode: string; outcome: 'skipped'; reason: PayrollSkipReason; message: string };
 
+/** `GET /payroll/warnings?month=`: who is missing a number. A warning only; nothing is refused. */
+export interface PayrollWarningPersonDto {
+  userId: string;
+  name: string;
+  employeeCode: string;
+}
+export interface PayrollWarningsDto {
+  /** The `ESI_WAGE_CEILING` setting in force, in whole rupees: ESI covers a monthly gross at or below it. */
+  esiCeilingRupees: number;
+  /** In the month's payroll, at or below the ceiling, with no ESI number. */
+  esiMissing: PayrollWarningPersonDto[];
+  /** In the month's payroll with no EPF number. */
+  epfMissing: PayrollWarningPersonDto[];
+}
+
 export interface GeneratePayrollDto {
   /** `YYYY-MM`, a month that has ended. */
   month: string;
   /** Omit for every active field employee. */
   userIds?: string[];
+}
+
+/** `GET /payroll/paid-totals`: the company total of salary marked paid in one month. No names, no per-employee amounts. */
+export interface PaidMonthTotalDto {
+  /** `YYYY-MM`. */
+  month: string;
+  /** How many employees were paid. */
+  employees: number;
+  paidPaise: number;
 }

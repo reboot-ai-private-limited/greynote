@@ -26,6 +26,7 @@ const org: PayComponentDto[] = [
     kind: 'EARNING',
     order: 1,
     isActive: true,
+    mandatory: false,
     rule: { type: 'PERCENT_OF_CTC', basisPoints: 3000 },
   },
   {
@@ -35,6 +36,7 @@ const org: PayComponentDto[] = [
     kind: 'EARNING',
     order: 2,
     isActive: true,
+    mandatory: false,
     rule: { type: 'PERCENT_OF_COMPONENTS', basisPoints: 1000, of: ['BASIC'] },
   },
   {
@@ -44,6 +46,7 @@ const org: PayComponentDto[] = [
     kind: 'EARNING',
     order: 3,
     isActive: true,
+    mandatory: false,
     rule: { type: 'FIXED', amountPaise: 0 },
   },
   {
@@ -53,15 +56,17 @@ const org: PayComponentDto[] = [
     kind: 'EARNING',
     order: 4,
     isActive: true,
+    mandatory: false,
     rule: { type: 'BALANCER' },
   },
   {
     id: '5',
     code: 'EPF',
-    name: 'EPF (employer)',
-    kind: 'EMPLOYER_CONTRIBUTION',
+    name: 'EPF Contribution',
+    kind: 'DEDUCTION',
     order: 5,
     isActive: true,
+    mandatory: false,
     rule: { type: 'PERCENT_OF_COMPONENTS', basisPoints: 1200, of: ['BASIC', 'FDA'] },
   },
 ];
@@ -111,21 +116,24 @@ describe('buildStructure', () => {
     expect(built.body).toBeUndefined();
   });
 
-  it('refuses a Basic % outside 30 to 60', () => {
-    expect(
-      buildStructure({ ...EMPTY_STRUCTURE_DRAFT, basicPercent: '25' }, codes).errors[
-        'basicPercent'
-      ],
-    ).toMatch(/between 30% and 60%/);
-    expect(
-      buildStructure({ ...EMPTY_STRUCTURE_DRAFT, basicPercent: '61' }, codes).errors[
-        'basicPercent'
-      ],
-    ).toBeDefined();
-    expect(
-      buildStructure({ ...EMPTY_STRUCTURE_DRAFT, basicPercent: '37.5' }, codes).body
-        ?.basicBasisPoints,
-    ).toBe(3750);
+  it('takes any Basic % from 0.01 up to 100, and refuses nothing or more than all of it', () => {
+    for (const ok of ['0.01', '25', '37.5', '61', '100']) expect(buildStructure({ ...EMPTY_STRUCTURE_DRAFT, basicPercent: ok }, codes).errors['basicPercent'], ok).toBeUndefined();
+    expect(buildStructure({ ...EMPTY_STRUCTURE_DRAFT, basicPercent: '37.5' }, codes).body?.basicBasisPoints).toBe(3750);
+    for (const bad of ['0', '100.01', '101', '-5']) expect(buildStructure({ ...EMPTY_STRUCTURE_DRAFT, basicPercent: bad }, codes).errors['basicPercent'], bad).toMatch(/0.01 to 100/);
+  });
+
+  it('takes Basic as a monthly amount instead', () => {
+    const built = buildStructure({ ...EMPTY_STRUCTURE_DRAFT, basicMode: 'amount', basicAmount: '5600' }, codes);
+    expect(built.errors).toEqual({});
+    expect(built.body).toEqual({ basicMonthlyPaise: 560_000, ruleOverrides: {}, removed: [], extras: [] });
+    expect(buildStructure({ ...EMPTY_STRUCTURE_DRAFT, basicMode: 'amount', basicAmount: '56x' }, codes).errors['basicPercent']).toMatch(/monthly Basic/);
+    // The percentage typed earlier is not sent while the amount is the input.
+    expect(buildStructure({ ...EMPTY_STRUCTURE_DRAFT, basicMode: 'amount', basicPercent: '40', basicAmount: '' }, codes).body).toBeUndefined();
+  });
+
+  it('brings a saved monthly Basic back as an amount', () => {
+    const d = structureToDraft({ basicMonthlyPaise: 560_000, ruleOverrides: {}, removed: [], extras: [] });
+    expect(d).toMatchObject({ basicMode: 'amount', basicAmount: '5600', basicPercent: '' });
   });
 
   it('drops the rule change of a line that was then removed', () => {
@@ -177,7 +185,7 @@ describe('editorRows', () => {
 
   it('knows which lines depend on another, so it cannot be removed under them', () => {
     const rows = editorRows(org, EMPTY_STRUCTURE_DRAFT);
-    expect(dependentsOf('FDA', rows)).toEqual(['EPF (employer)']);
+    expect(dependentsOf('FDA', rows)).toEqual(['EPF Contribution']);
     expect(dependentsOf('MEDICAL', rows)).toEqual([]);
   });
 });
@@ -290,13 +298,15 @@ describe('the CTC form', () => {
 });
 
 describe('ctcTotals', () => {
-  it('splits what the employee is paid from what the employer puts in, and adds them to the CTC', () => {
+  it('splits the earnings (the CTC) from the deductions, and keeps an old revision’s employer lines', () => {
     const t = ctcTotals([
-      { kind: 'EARNING', amountPaise: 10_000_000 },
-      { kind: 'EARNING', amountPaise: 3_000_000 },
-      { kind: 'EMPLOYER_CONTRIBUTION', amountPaise: 1_400_000 },
+      { kind: 'EARNING', amountPaise: 14_400_000 },
+      { kind: 'DEDUCTION', amountPaise: 887_040 },
+      { kind: 'DEDUCTION', amountPaise: 132_000 },
     ]);
-    expect(t).toEqual({ paidPaise: 13_000_000, employerPaise: 1_400_000, totalPaise: 14_400_000 });
-    expect(ctcTotals([])).toEqual({ paidPaise: 0, employerPaise: 0, totalPaise: 0 });
+    expect(t).toEqual({ paidPaise: 14_400_000, deductionsPaise: 1_019_040, employerPaise: 0, totalPaise: 14_400_000 });
+    const old = ctcTotals([{ kind: 'EARNING', amountPaise: 13_000_000 }, { kind: 'EMPLOYER_CONTRIBUTION', amountPaise: 1_400_000 }]);
+    expect(old).toEqual({ paidPaise: 13_000_000, deductionsPaise: 0, employerPaise: 1_400_000, totalPaise: 14_400_000 });
+    expect(ctcTotals([])).toEqual({ paidPaise: 0, deductionsPaise: 0, employerPaise: 0, totalPaise: 0 });
   });
 });

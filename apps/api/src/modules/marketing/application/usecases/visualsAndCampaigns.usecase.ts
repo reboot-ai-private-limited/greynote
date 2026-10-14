@@ -4,7 +4,7 @@ import { MARKETING_CODES, MarketingRefusal } from '../../domain/marketingRefusal
 import type { ProductPort } from '../../domain/ports.js';
 
 const LIMIT = 500;
-const ALLOWED = [/^image\/(png|jpe?g|webp|gif)$/, /^application\/pdf$/, /^video\/(mp4|quicktime|webm)$/];
+const ALLOWED = [/^image\/(png|jpe?g|webp|gif)$/];
 
 export interface Actor {
   id: string;
@@ -21,7 +21,7 @@ export class CreateVisualUseCase {
   ) {}
 
   async execute(admin: Actor, input: { productId: string | null; title: string; category: VisualCategory; file: { buffer: Buffer; mimeType: string } }): Promise<Visual> {
-    if (!ALLOWED.some((re) => re.test(input.file.mimeType))) throw new MarketingRefusal(MARKETING_CODES.unsupportedFile, 'Upload an image, a PDF or an MP4/MOV/WebM video.');
+    if (!ALLOWED.some((re) => re.test(input.file.mimeType))) throw new MarketingRefusal(MARKETING_CODES.unsupportedFile, 'Upload an image (PNG, JPG, WebP or GIF).');
     if (input.productId) {
       const product = await this.products.getProduct(input.productId);
       if (!product || product.status !== 'active') throw new MarketingRefusal(MARKETING_CODES.productNotFound, 'That product does not exist or is no longer active.');

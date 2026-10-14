@@ -41,9 +41,9 @@ export function buildReportsRouter(c: ReturnType<typeof makeReportsControllers>)
   const router = Router();
   router.use(authenticate());
   // The one report a manager may open: the report itself limits a manager to their downline.
-  router.get('/sales-dashboard', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: salesDashboardQuerySchema }), c.salesDashboard);
+  router.get('/sales-dashboard', requireRole('ADMIN', 'ACCOUNTANT', 'FIELD'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: salesDashboardQuerySchema }), c.salesDashboard);
   router.get('/team/overview', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: teamOverviewQuerySchema }), c.teamOverview);
-  router.get('/employee-sales', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'from', to: 'to', fill: false }), validate({ query: employeeSalesQuerySchema }), c.employeeSales);
+  router.get('/employee-sales', requireRole('ADMIN', 'ACCOUNTANT', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'from', to: 'to', fill: false }), validate({ query: employeeSalesQuerySchema }), c.employeeSales);
   router.get('/doctor-visits', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'fromMonth', to: 'toMonth', fill: false, single: 'month' }), validate({ query: doctorVisitsQuerySchema }), c.doctorVisits);
   // The employee's own reports: always the signed-in user's figures; no userId is read.
   router.get('/me/ta-da', requireRole('FIELD'), scopeToFinancialYear({ kind: 'year', param: 'year' }), validate({ query: taDaYearQuerySchema }), c.myTaDaYear);

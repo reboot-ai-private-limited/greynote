@@ -6,7 +6,7 @@ import type { DistributorPayment } from '../../domain/payment.entity.js';
 import type { PaymentRepositoryPort } from '../../domain/payment.repository.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import { SalesClock } from '../salesClock.js';
-import { CancelPaymentUseCase, ListPaymentsUseCase, PaymentTotalsUseCase, RecordPaymentUseCase, type RecordPaymentInput } from './payments.usecase.js';
+import { CancelPaymentUseCase, DistributorBalancesUseCase, ListPaymentsUseCase, PaymentTotalsUseCase, RecordPaymentUseCase, type RecordPaymentInput } from './payments.usecase.js';
 import { FakeMaster, FakeUsers } from './salesTestKit.js';
 
 class FakePayments implements PaymentRepositoryPort {
@@ -27,6 +27,11 @@ class FakePayments implements PaymentRepositoryPort {
     for (const p of this.rows) if (p.status === 'RECORDED' && p.paymentDate >= f.from && p.paymentDate <= f.to) sums.set(p.distributorId, (sums.get(p.distributorId) ?? 0) + p.amountPaise);
     return [...sums].map(([distributorId, collectedPaise]) => ({ distributorId, collectedPaise }));
   }
+  async collectedAllTime() {
+    const sums = new Map<string, number>();
+    for (const p of this.rows) if (p.status === 'RECORDED') sums.set(p.distributorId, (sums.get(p.distributorId) ?? 0) + p.amountPaise);
+    return sums;
+  }
   async cancel(id: string, by: string, at: Date, reason: string) {
     const p = this.rows.find((r) => r.id === id);
     if (!p || p.status !== 'RECORDED') return false;
@@ -39,6 +44,11 @@ const distributorOrders: Order[] = [];
 const orders = {
   async list(f: { outlet?: { id: string }; from?: string; to?: string }) {
     return distributorOrders.filter((o) => o.outlet.id === f.outlet?.id && (!f.from || o.orderDate >= f.from) && (!f.to || o.orderDate <= f.to));
+  },
+  async sumDoneByDistributor(ids?: string[]) {
+    const out = new Map<string, number>();
+    for (const o of distributorOrders) if (o.status === 'DONE' && (!ids || ids.includes(o.outlet.id))) out.set(o.outlet.id, (out.get(o.outlet.id) ?? 0) + (o.suppliedAmountPaise ?? o.totalAmountPaise));
+    return out;
   },
 } as unknown as OrderRepositoryPort;
 const order = (id: string, orderDate: string, status: Order['status'], totalAmountPaise: number): Order =>
@@ -122,5 +132,23 @@ describe('distributor payments', () => {
     const totals = new PaymentTotalsUseCase(payments);
     expect(await totals.execute({ from: '2026-10-01', to: '2026-10-31' })).toEqual([{ distributorId: 'dist1', collectedPaise: 30_000 }]);
     expect(await totals.execute({ from: '2026-01-01', to: '2026-01-31' })).toEqual([]);
+  });
+
+  it('dues = opening + delivered (Done, free units not charged) − recorded payments, over all time, whatever the range', async () => {
+    const master = new FakeMaster();
+    master.openingDues['dist1'] = 20_000;
+    const withOpening = new ListPaymentsUseCase(payments, orders, new FakeUsers(), master);
+    const a = await record.execute(admin, input({ paymentDate: '2026-02-02', amountPaise: 10_000 }));
+    await record.execute(admin, input({ paymentDate: '2026-10-06', amountPaise: 25_000 }));
+    await cancel.execute(admin, a.id, 'typo');
+    distributorOrders.push(
+      { ...order('o1', '2026-01-01', 'DONE', 70_000), suppliedAmountPaise: 60_000 }, // part supplied: 60,000 delivered of 70,000 ordered
+      order('o2', '2026-10-03', 'DONE', 5_000), // an older Done order with no supply recorded: the total
+      order('o3', '2026-10-03', 'PLACED', 30_000), // not delivered yet
+    );
+    const out = await withOpening.execute({ distributorId: 'dist1', from: '2026-10-01', to: '2026-10-31' });
+    expect(out.dues).toEqual({ openingPaise: 20_000, deliveredPaise: 65_000, collectedPaise: 25_000, duesPaise: 60_000 });
+    expect(out.orderedPaise).toBe(5_000 + 30_000); // October: the Done order at what was delivered, the Placed one as ordered
+    expect(await new DistributorBalancesUseCase(payments, orders).execute()).toEqual([{ distributorId: 'dist1', deliveredPaise: 65_000, collectedPaise: 25_000 }]);
   });
 });

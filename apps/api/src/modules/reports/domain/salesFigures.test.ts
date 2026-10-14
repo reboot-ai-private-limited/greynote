@@ -3,7 +3,7 @@ import { buildSalesMonths, buildStatement, previousMonth, secondaryQty, valueOf,
 
 const sum = (month: string, distributorId: string, productId: string, status: 'DONE' | 'PLACED', quantity: number, amountPaise: number): OrderSum => ({ month, distributorId, productId, status, quantity, amountPaise });
 const count = (month: string, distributorId: string, productId: string, openingQty: number, closingQty: number): StockCount => ({ distributorId, productId, month, openingQty, closingQty });
-const ptr = new Map<string, number | null>([['p1', 1000], ['p2', 2000], ['pNone', null]]);
+const pts = new Map<string, number | null>([['p1', 1000], ['p2', 2000], ['pNone', null]]);
 
 describe('the arithmetic', () => {
   it('secondary is opening + primary − closing, and a value needs a price', () => {
@@ -22,9 +22,9 @@ describe('the arithmetic', () => {
 
 describe('buildSalesMonths', () => {
   const months = yearMonths('2026-04-01');
-  const base = { months, currentMonth: '2026-06', ptr, expectedDistributorIds: ['d1', 'd2'] };
+  const base = { months, currentMonth: '2026-06', pts, expectedDistributorIds: ['d1', 'd2'] };
 
-  it('adds up the Done orders as primary, the Placed ones apart, and derives secondary from the counts at PTR', () => {
+  it('adds up the Done orders as primary, the Placed ones apart, and derives secondary from the counts at PTS', () => {
     const r = buildSalesMonths({
       ...base,
       orderSums: [sum('2026-04', 'd1', 'p1', 'DONE', 100, 80_000), sum('2026-04', 'd2', 'p2', 'DONE', 50, 90_000), sum('2026-04', 'd1', 'p1', 'PLACED', 10, 8_000)],
@@ -51,7 +51,7 @@ describe('buildSalesMonths', () => {
     expect(r[0]).toMatchObject({ negativeRows: 1, secondaryQty: 6, secondaryPaise: 12_000 });
   });
 
-  it('a product with no PTR counts in the quantity, not in the value', () => {
+  it('a product with no PTS counts in the quantity, not in the value', () => {
     const r = buildSalesMonths({ ...base, orderSums: [], stock: [count('2026-04', 'd1', 'pNone', 10, 4), count('2026-04', 'd1', 'p1', 10, 4)] });
     expect(r[0]).toMatchObject({ secondaryQty: 12, secondaryPaise: 6_000, unpricedRows: 1 });
   });
@@ -63,9 +63,9 @@ describe('buildSalesMonths', () => {
 });
 
 describe('buildStatement', () => {
-  const stmt = (orderSums: OrderSum[], stock: StockCount[]) => buildStatement({ month: '2026-05', orderSums, stock, ptr });
+  const stmt = (orderSums: OrderSum[], stock: StockCount[]) => buildStatement({ month: '2026-05', orderSums, stock, pts });
 
-  it('a row per distributor and product with a count or an order: opening, primary, closing, and secondary at PTR', () => {
+  it('a row per distributor and product with a count or an order: opening, primary, closing, and secondary at PTS', () => {
     const rows = stmt(
       [sum('2026-05', 'd1', 'p1', 'DONE', 100, 80_000), sum('2026-05', 'd1', 'p1', 'PLACED', 7, 5_600), sum('2026-04', 'd1', 'p1', 'DONE', 999, 1)],
       [count('2026-05', 'd1', 'p1', 40, 50), count('2026-04', 'd1', 'p1', 30, 40)],
@@ -84,7 +84,7 @@ describe('buildStatement', () => {
     expect(rows[0]).toMatchObject({ distributorId: 'd2', openingQty: null, closingQty: null, secondaryQty: null, secondaryPaise: null, primaryQty: 10, flags: ['NO_COUNT'] });
   });
 
-  it('a negative secondary is flagged and has no value; a product without a PTR is flagged unpriced', () => {
+  it('a negative secondary is flagged and has no value; a product without a PTS is flagged unpriced', () => {
     const rows = stmt([], [count('2026-05', 'd1', 'p1', 5, 50), count('2026-05', 'd1', 'pNone', 10, 4)]);
     const byProduct = Object.fromEntries(rows.map((r) => [r.productId, r]));
     expect(byProduct['p1']).toMatchObject({ secondaryQty: -45, secondaryPaise: null, flags: ['NEGATIVE_SECONDARY'] });

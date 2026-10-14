@@ -34,6 +34,7 @@ import {
   tabOf,
 } from '../lib/orders';
 import { OrderDetailDialog } from './OrderDetailDialog';
+import { AddOrderDialog, CompleteOrderDialog } from './OrderFormDialog';
 
 const ANY = 'all';
 
@@ -60,13 +61,13 @@ export function OrdersScreen() {
   );
   const report = query.data;
   const [open, setOpen] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const [finishing, setFinishing] = useState<{
     row: ReportOrderRowDto;
     to: 'DONE' | 'CANCELLED';
   } | null>(null);
-  const done = useFinishOrder('DONE', () => setFinishing(null));
+  const [completing, setCompleting] = useState<string | null>(null);
   const cancel = useFinishOrder('CANCELLED', () => setFinishing(null));
-  const finish = finishing?.to === 'DONE' ? done : cancel;
 
   const columns: readonly Column<ReportOrderRowDto>[] = [
     { key: 'date', header: 'Date', render: (r) => formatDate(r.orderDate) },
@@ -81,7 +82,12 @@ export function OrdersScreen() {
       key: 'amount',
       header: 'Amount',
       numeric: true,
-      render: (r) => formatMoney(r.totalAmountPaise),
+      render: (r) =>
+        r.suppliedAmountPaise !== null && r.suppliedAmountPaise !== r.totalAmountPaise ? (
+          <span title={`Ordered ${formatMoney(r.totalAmountPaise)}`}>{formatMoney(r.suppliedAmountPaise)}</span>
+        ) : (
+          formatMoney(r.totalAmountPaise)
+        ),
     },
     {
       key: 'status',
@@ -109,7 +115,7 @@ export function OrdersScreen() {
               <Button
                 size="sm"
                 disabled={readOnly}
-                onClick={() => setFinishing({ row: r, to: 'DONE' })}
+                onClick={() => setCompleting(r.id)}
               >
                 Done
               </Button>
@@ -136,13 +142,18 @@ export function OrdersScreen() {
         title="Orders"
         description="Orders by the day they were placed, a month at a time for the financial year in view."
         actions={
-          <Button
-            variant="secondary"
-            disabled={!report || report.rows.length === 0}
-            onClick={() => report && downloadCsv(ordersFilename(month, tab), ordersCsv(report))}
-          >
-            Download CSV
-          </Button>
+          <>
+            <Button variant="secondary" disabled={readOnly} onClick={() => setAdding(true)}>
+              Add order
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={!report || report.rows.length === 0}
+              onClick={() => report && downloadCsv(ordersFilename(month, tab), ordersCsv(report))}
+            >
+              Download CSV
+            </Button>
+          </>
         }
       />
       {months.length === 0 ? (
@@ -233,22 +244,18 @@ export function OrdersScreen() {
         </>
       )}
 
+      {adding ? <AddOrderDialog onClose={() => setAdding(false)} /> : null}
+      {completing ? <CompleteOrderDialog id={completing} onClose={() => setCompleting(null)} /> : null}
       {open ? <OrderDetailDialog id={open} onClose={() => setOpen(null)} /> : null}
       <ConfirmDialog
         open={finishing !== null}
         onOpenChange={(o) => !o && setFinishing(null)}
-        title={finishing?.to === 'DONE' ? 'Mark this order Done?' : 'Cancel this order?'}
-        description={
-          finishing
-            ? finishing.to === 'DONE'
-              ? `${finishing.row.outlet.name}, ${formatMoney(finishing.row.totalAmountPaise)}. It then counts as a primary sale, and this cannot be undone.`
-              : `${finishing.row.outlet.name}, ${formatMoney(finishing.row.totalAmountPaise)}. A cancelled order is never counted, and this cannot be undone.`
-            : undefined
-        }
-        confirmLabel={finishing?.to === 'DONE' ? 'Mark Done' : 'Cancel the order'}
-        tone={finishing?.to === 'DONE' ? 'primary' : 'danger'}
-        pending={finish.isPending}
-        onConfirm={() => finishing && finish.mutate(finishing.row.id)}
+        title="Cancel this order?"
+        description={finishing ? `${finishing.row.outlet.name}, ${formatMoney(finishing.row.totalAmountPaise)}. A cancelled order is never counted, and this cannot be undone.` : undefined}
+        confirmLabel="Cancel the order"
+        tone="danger"
+        pending={cancel.isPending}
+        onConfirm={() => finishing && cancel.mutate(finishing.row.id)}
       />
     </>
   );

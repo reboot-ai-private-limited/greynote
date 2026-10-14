@@ -24,6 +24,7 @@ export interface EmployeeDraftData {
     guardianName?: string;
     dateOfBirth?: string;
     esiNumber?: string;
+    epfNumber?: string;
     dateOfJoining?: string;
     onProbation?: boolean;
     probationMonths?: number;

@@ -1,4 +1,4 @@
-import type { AdjustPayrollAmountDto, GenerateOutcomeDto, GeneratePayrollDto, OverridePayrollDayDto, PayPayrollDto, PayrollRunDto, PayrollStatus } from '@greynote/contracts';
+import type { AdjustPayrollAmountDto, GenerateOutcomeDto, GeneratePayrollDto, OverridePayrollDayDto, PaidMonthTotalDto, PayPayrollDto, PayrollRunDto, PayrollStatus, PayrollWarningsDto } from '@greynote/contracts';
 import { request } from '../client';
 
 export interface ListPayrollQuery {
@@ -14,6 +14,12 @@ export const payrollApi = {
   /** A bare array, capped at 1000, each row with the employee's name and code. */
   list: (token: string, query: ListPayrollQuery, signal?: AbortSignal) =>
     request<PayrollRunDto[]>('/payroll', { token, query: { ...query }, signal }),
+
+  /** Who is missing an ESI (at or under the wage ceiling) or EPF number for the month. A warning only. */
+  warnings: (token: string, month: string, signal?: AbortSignal) => request<PayrollWarningsDto>('/payroll/warnings', { token, query: { month }, signal }),
+
+  /** Admin, Accountant: the total salary marked paid, month by month, for the financial year in view. */
+  paidTotals: (token: string, signal?: AbortSignal) => request<PaidMonthTotalDto[]>('/payroll/paid-totals', { token, signal }),
 
   get: (token: string, id: string, signal?: AbortSignal) => request<PayrollRunDto>(`/payroll/${id}`, { token, signal }),
 

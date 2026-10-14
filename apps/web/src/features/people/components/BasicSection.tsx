@@ -24,6 +24,7 @@ export function BasicSection({ user, readOnly, startEditing = false }: { user: U
           <Field label="Date of birth">{p?.dateOfBirth ? formatDate(p.dateOfBirth) : null}</Field>
           <Field label="Date of joining">{p?.dateOfJoining ? formatDate(p.dateOfJoining) : null}</Field>
           <Field label="ESI number">{p?.esiNumber}</Field>
+          <Field label="EPF number">{p?.epfNumber}</Field>
           <Field label="Probation">{!p?.onProbation ? 'Not on probation' : p.probationMonths == null ? 'On probation (system length)' : `On probation (${p.probationMonths} months)`}</Field>
           <Field label="Guardian">{p?.guardianName}</Field>
           <Field label="Qualification">{p?.qualification}</Field>
@@ -64,6 +65,9 @@ function BasicForm({ user, onDone }: { user: UserDetailDto; onDone: () => void }
       </FormField>
       <FormField label="ESI number" htmlFor="basic-esi" error={errors['esiNumber']} hint="Optional. 17 digits; printed on the salary slip.">
         <Input id="basic-esi" inputMode="numeric" maxLength={17} value={draft.esiNumber} onChange={(e) => set('esiNumber')(e.target.value)} aria-invalid={invalid('esiNumber')} />
+      </FormField>
+      <FormField label="EPF number" htmlFor="basic-epf" error={errors['epfNumber']} hint="Optional. Letters, digits, / or -; printed on the salary slip.">
+        <Input id="basic-epf" maxLength={30} value={draft.epfNumber} onChange={(e) => set('epfNumber')(e.target.value.toUpperCase())} aria-invalid={invalid('epfNumber')} />
       </FormField>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" className="size-4 accent-[var(--color-accent)]" checked={draft.onProbation} onChange={(e) => setDraft((d) => ({ ...d, onProbation: e.target.checked }))} />

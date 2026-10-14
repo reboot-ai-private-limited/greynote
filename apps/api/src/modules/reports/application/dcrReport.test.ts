@@ -15,6 +15,7 @@ function kit(summaries: DcrMonthRow[], over: { called?: string[] } = {}) {
     },
     {
       listActiveOutlets: async () => ({ distributors: [], chemists: [] }),
+      listDistributorAssignees: async () => [],
       listNames: async () => ({ distributors: [], chemists: [], products: [] }),
       listAssignedDoctors: async (userId) =>
         userId === 'u1'

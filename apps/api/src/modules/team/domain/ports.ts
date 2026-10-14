@@ -90,6 +90,8 @@ export interface TeamOrder {
   orderDate: string;
   status: 'PLACED' | 'DONE' | 'CANCELLED';
   totalAmountPaise: number;
+  /** Done orders: what was delivered (free units excluded); null/absent otherwise or when no supply was recorded. */
+  suppliedAmountPaise?: number | null;
   remarks: string | null;
   items: unknown[];
 }

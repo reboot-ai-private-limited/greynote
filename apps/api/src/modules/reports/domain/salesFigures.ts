@@ -87,10 +87,8 @@ export function buildSalesMonths(input: {
   stock: readonly StockCount[];
   /** Admin's statements; none is the same as before they existed. */
   statements?: readonly StatementCount[];
-  /** Product id → PTR in paise, `null` when the card has none. */
-  ptr: ReadonlyMap<string, number | null>;
-  /** Product id → PTS in paise, for valuing an adjustment to primary. */
-  pts?: ReadonlyMap<string, number | null>;
+  /** Product id → PTS in paise, `null` when the card has none: values the secondary and an adjustment to primary. */
+  pts: ReadonlyMap<string, number | null>;
   /** Ids of the active distributors, for the completeness of each month. */
   expectedDistributorIds: readonly string[];
 }): SalesMonthDto[] {
@@ -145,7 +143,7 @@ export function buildSalesMonths(input: {
         continue;
       }
       secQty += figure.secondaryQty;
-      const value = valueOf(figure.secondaryQty, input.ptr.get(productId));
+      const value = valueOf(figure.secondaryQty, input.pts.get(productId));
       if (value === null) unpricedRows += 1;
       else secPaise += value;
     }
@@ -176,8 +174,7 @@ export function buildStatement(input: {
   orderSums: readonly OrderSum[];
   stock: readonly StockCount[];
   statements?: readonly StatementCount[];
-  ptr: ReadonlyMap<string, number | null>;
-  pts?: ReadonlyMap<string, number | null>;
+  pts: ReadonlyMap<string, number | null>;
 }): Array<Omit<SalesStatementRowDto, 'distributor' | 'product'> & { distributorId: string; productId: string }> {
   const { month } = input;
   const prev = previousMonth(month);
@@ -214,11 +211,11 @@ export function buildStatement(input: {
     flags.push(...figure.flags);
     let secPaise: number | null = null;
     if (figure.secondaryQty !== null && figure.secondaryQty >= 0) {
-      secPaise = valueOf(figure.secondaryQty, input.ptr.get(productId));
+      secPaise = valueOf(figure.secondaryQty, input.pts.get(productId));
       if (secPaise === null) flags.push('UNPRICED');
     }
     if (figure.openingQty !== null && last.closingQty !== null && last.closingQty !== figure.openingQty) flags.push('OPENING_MISMATCH');
-    const adjustmentPaise = figure.adjustmentQty === 0 ? 0 : valueOf(figure.adjustmentQty, input.pts?.get(productId));
+    const adjustmentPaise = figure.adjustmentQty === 0 ? 0 : valueOf(figure.adjustmentQty, input.pts.get(productId));
     return {
       distributorId,
       productId,

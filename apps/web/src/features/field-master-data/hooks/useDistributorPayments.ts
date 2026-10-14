@@ -41,6 +41,17 @@ export function useDistributorPaymentTotals(range: { from: string; to: string })
   );
 }
 
+/** Each distributor's delivered and collected, all time, keyed by distributor id. Refreshes when a payment is recorded or cancelled, or an order is marked Done. */
+export function useDistributorBalances() {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.distributorPayments.balances(),
+      fetch: async (token, signal) => new Map((await salesApi.distributorBalances(token, signal)).map((b) => [b.distributorId, b])),
+      staleTime: staleTime.live,
+    }),
+  );
+}
+
 export function useDistributorOrders(query: DistributorRangeQuery, enabled = true) {
   return useQuery(
     authedQueryOptions({

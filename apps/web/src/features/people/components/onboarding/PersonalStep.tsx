@@ -39,6 +39,9 @@ export function PersonalStep({ form, update, errors, photo }: StepProps & { phot
         <FormField label="ESI number (optional)" htmlFor="p-esi" error={errors['esiNumber']}>
           <Input id="p-esi" inputMode="numeric" maxLength={17} value={form.esiNumber} onChange={(e) => update({ esiNumber: e.target.value.replace(/\D/g, '') })} aria-invalid={invalid('esiNumber')} />
         </FormField>
+        <FormField label="EPF number (optional)" htmlFor="p-epf" error={errors['epfNumber']}>
+          <Input id="p-epf" maxLength={30} value={form.epfNumber} onChange={(e) => update({ epfNumber: e.target.value.toUpperCase() })} aria-invalid={invalid('epfNumber')} />
+        </FormField>
       </Grid>
     </StepFrame>
   );

@@ -12,7 +12,7 @@ describe('monthNote', () => {
     expect(monthNote(m({ state: 'OPEN', secondaryQty: 30 }))).toMatch(/only what has been counted or stated so far/);
     expect(monthNote(m())).toBe('All 3 distributors counted.');
     expect(monthNote(m({ countedDistributors: 2, complete: false }))).toMatch(/2 of 3 distributors counted: the secondary is only part of the picture/);
-    expect(monthNote(m({ negativeRows: 2, unpricedRows: 1 }))).toMatch(/2 counts came out below zero and are left out\. 1 count of a product with no PTR is left out/);
+    expect(monthNote(m({ negativeRows: 2, unpricedRows: 1 }))).toMatch(/2 counts came out below zero and are left out\. 1 count of a product with no PTS is left out/);
   });
 });
 

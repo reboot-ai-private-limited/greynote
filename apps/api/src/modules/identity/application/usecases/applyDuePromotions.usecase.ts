@@ -1,3 +1,4 @@
+import type { CtcContextPort } from './ctcContext.js';
 import { logger } from '@/shared/logging/logger.js';
 import { CtcBreakdownError, EMPTY_STRUCTURE, computeStructuredBreakdown } from '../../domain/ctcBreakdown.js';
 import type { CtcAssignmentRepositoryPort } from '../../domain/ctcAssignment.repository.port.js';
@@ -36,6 +37,7 @@ export class ApplyDuePromotionsUseCase {
     private readonly assignments: CtcAssignmentRepositoryPort,
     private readonly history: ManagerHistoryRepositoryPort,
     private readonly currentMonth: () => Promise<string>,
+    private readonly context: CtcContextPort,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -67,7 +69,7 @@ export class ApplyDuePromotionsUseCase {
     if (p.ctc && !ctcAssignmentId) {
       // The employee keeps their own shape of the formula (Basic %, edited and added lines) through a promotion.
       const structure = (await this.assignments.findEffective(p.userId, '9999-12'))?.structure ?? EMPTY_STRUCTURE;
-      const lines = computeStructuredBreakdown(await this.components.list(), p.ctc.ctcAnnualPaise, structure, p.ctc.overrides);
+      const lines = computeStructuredBreakdown(await this.components.list(), p.ctc.ctcAnnualPaise, structure, p.ctc.overrides, await this.context.read());
       const created = await this.assignments.create({ userId: p.userId, ctcAnnualPaise: p.ctc.ctcAnnualPaise, effectiveFrom: p.effectiveFrom, overrides: p.ctc.overrides, structure, lines, reason: 'Promotion', createdBy: p.createdBy });
       ctcAssignmentId = created.id;
       await this.promotions.markCtcAssignment(p.id, created.id);

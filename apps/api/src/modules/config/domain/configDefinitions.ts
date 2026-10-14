@@ -1,3 +1,4 @@
+import { DEFAULT_PTAX_SLABS, parseSlabs, serialiseSlabs } from '@greynote/contracts';
 import { MONTH_NAMES, WEEKDAY_NAMES, assertTimeZone, parseTimeOfDay } from '@/shared/time/businessTime.js';
 
 /**
@@ -9,7 +10,7 @@ import { MONTH_NAMES, WEEKDAY_NAMES, assertTimeZone, parseTimeOfDay } from '@/sh
  * a value this accepts is one the system will accept when it reads it back. Change a reader's limit and change it here too: a test
  * checks that every default passes its own definition, and the readers' own tests cover their side.
  */
-export const CONFIG_TYPES = ['BOOLEAN', 'INTEGER', 'TIME', 'MONTH', 'WEEKDAY', 'TIMEZONE', 'KIND_LIST', 'YEAR_LIST'] as const;
+export const CONFIG_TYPES = ['BOOLEAN', 'INTEGER', 'TIME', 'MONTH', 'WEEKDAY', 'TIMEZONE', 'KIND_LIST', 'YEAR_LIST', 'SLAB_LIST'] as const;
 export type ConfigType = (typeof CONFIG_TYPES)[number];
 
 export const CONFIG_IMPACTS = ['NORMAL', 'HIGH'] as const;
@@ -129,6 +130,17 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
 
   toggle('LEAVE_LOCKED_AFTER_PAYROLL', 'PAYROLL', 'Lock leave once salary is finalized', 'Whether an employee\'s leave in a month can still change (be requested, edited, approved or reopened) after their salary run for that month is finalized. Daily reports and expenses are never locked by this.', true),
 
+  integer('ESI_WAGE_CEILING', 'PAYROLL', 'ESI wage ceiling', 'Monthly gross (salary) at or below which an employee is covered by ESI. Payroll warns, and never blocks, when such an employee has no ESI number.', 21000, 1, 1_000_000, '₹'),
+  {
+    key: 'PTAX_SLABS',
+    module: 'PAYROLL',
+    label: 'Professional tax slabs',
+    description: 'Professional tax taken from the monthly salary, by band of the total monthly salary (gross). The first band starts at the lowest monthly salary that can be assigned: a CTC below it is refused. Each band starts right after the one before; the last has no upper end. Salaries already set keep their tax until their CTC is re-applied.',
+    type: 'SLAB_LIST',
+    default: DEFAULT_PTAX_SLABS,
+    impact: 'HIGH',
+    impactNote: 'Applies to every CTC saved or re-applied from now on, and the first band sets the lowest monthly salary that can be assigned. Salaries already saved keep their tax until re-applied.',
+  },
   integer('CTC_JUMP_WARN_PERCENT', 'PAYROLL', 'CTC jump warning', 'A new CTC this many percent above the employee\'s previous one shows a warning (a likely typo). Nothing is refused.', 50, 1, 1000, '%'),
 
   // ── Sales ──
@@ -284,6 +296,10 @@ export function validateConfigValue(def: ConfigDefinition, raw: string): ConfigV
       if (years.some((y) => !/^\d{4}$/.test(y))) return fail('Use NONE, or comma-separated four-digit years.');
       const sorted = [...new Set(years.map(Number))].sort((a, b) => a - b);
       return { ok: true, value: sorted.join(',') };
+    }
+    case 'SLAB_LIST': {
+      const parsed = parseSlabs(value);
+      return parsed.ok ? { ok: true, value: serialiseSlabs(parsed.slabs) } : fail(parsed.error);
     }
     case 'KIND_LIST': {
       if (value.toUpperCase() === 'NONE') return { ok: true, value: 'NONE' };

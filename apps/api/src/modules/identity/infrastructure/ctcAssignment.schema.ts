@@ -1,5 +1,5 @@
 import { Schema, model, type Types } from 'mongoose';
-import type { PayComponentKind } from '../domain/payComponent.entity.js';
+import type { CtcLineKind } from '../domain/payComponent.entity.js';
 
 export interface CtcAssignmentDocument {
   userId: Types.ObjectId;
@@ -7,7 +7,7 @@ export interface CtcAssignmentDocument {
   effectiveFrom: string;
   overrides: Record<string, number>;
   structure?: unknown;
-  lines: Array<{ code: string; name: string; kind: PayComponentKind; amountPaise: number; isOverridden: boolean }>;
+  lines: Array<{ code: string; name: string; kind: CtcLineKind; amountPaise: number; isOverridden: boolean }>;
   reason: string | null;
   createdBy: Types.ObjectId;
   createdAt: Date;
@@ -17,7 +17,7 @@ const lineSchema = new Schema(
   {
     code: { type: String, required: true },
     name: { type: String, required: true },
-    kind: { type: String, required: true, enum: ['EARNING', 'EMPLOYER_CONTRIBUTION'] },
+    kind: { type: String, required: true, enum: ['EARNING', 'DEDUCTION', 'EMPLOYER_CONTRIBUTION'] },
     amountPaise: { type: Number, required: true },
     isOverridden: { type: Boolean, required: true },
   },
