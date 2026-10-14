@@ -19,10 +19,10 @@ erDiagram
         uuid id PK
         uuid user_id FK
         string month "e.g. 2026-10"
-        int base_salary_paise "snapshot: monthly gross of the CTC in force for the month (CTC less employer EPF/ESI, /12)"
+        int base_salary_paise "snapshot: monthly gross of the CTC in force for the month (the CTC total earnings, /12)"
         int ctc_annual_paise "nullable - null on runs from before CTC existed"
         string ctc_effective_from "nullable, YYYY-MM"
-        json ctc_lines "frozen breakdown, annual paise, employer contributions included"
+        json ctc_lines "frozen breakdown, annual paise; deduction lines from 2026-10-14, employer contributions on older runs"
         int total_ta_da_paise "sum of that month's PAID TA and DA Expense rows (Module 4)"
         int reimbursement_paise "sum of that month's PAID manual Expense rows - travel, meals, other (Module 4)"
         number unpaid_leave_days "snapshot: approved unpaid days that month, halves allowed (Module 7)"

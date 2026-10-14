@@ -1,7 +1,7 @@
 export interface PayrollCtcLineDto {
   code: string;
   name: string;
-  kind: 'EARNING' | 'EMPLOYER_CONTRIBUTION';
+  kind: 'EARNING' | 'DEDUCTION' | 'EMPLOYER_CONTRIBUTION';
   amountPaise: number;
   isOverridden: boolean;
 }
@@ -115,6 +115,17 @@ export interface PayrollRunDto {
   esiNumber: string | null;
   /** The employee's EPF number when generated (a snapshot for the salary slip); null if none was set. */
   epfNumber: string | null;
+  /** Slip snapshot: designation, bank and joining date (`YYYY-MM-DD`) when generated; null if none was set. */
+  designationName: string | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  dateOfJoining: string | null;
+  /** The employee's own EPF, ESI and professional tax for the month, one line each; empty on runs from before 2026-10-14. */
+  deductionLines: Array<{ code: string; name: string; amountPaise: number }>;
+  /** What was actually taken for them (their sum, unless the pay left was smaller). */
+  statutoryDeductionPaise: number;
+  /** What was added (or taken) to bring the net to a whole rupee; signed. */
+  roundingPaise: number;
   /** The joining date falls in this month: the full base is paid (no proration) and the Accountant is told. */
   joinedInMonth: boolean;
   status: PayrollStatus;

@@ -16,9 +16,11 @@ const TYPE_OPTIONS: Array<{ value: RuleType; label: string }> = [
 /** A fresh rule of a type, carrying over what was typed where it still makes sense. */
 export function switchRuleType(current: RuleDraft, type: RuleType): RuleDraft {
   if (type === current.type) return current;
-  const percent = current.type === 'FIXED' ? '' : current.percent;
+  const percent = current.type === 'FIXED' || current.type === 'PTAX_SLAB' ? '' : current.percent;
   if (type === 'FIXED') return { type, amount: '' };
   if (type === 'PERCENT_OF_CTC') return { type, percent };
+  if (type === 'ESI_PERCENT') return { type, percent };
+  if (type === 'PTAX_SLAB') return { type };
   return { type, percent, of: current.type === 'PERCENT_OF_COMPONENTS' ? current.of : ['BASIC'] };
 }
 
@@ -44,10 +46,14 @@ export function RuleFields({
           id={`${idPrefix}-type`}
           value={value.type}
           onValueChange={(v) => onChange(switchRuleType(value, v as RuleType))}
-          options={TYPE_OPTIONS}
+          options={
+            value.type === 'ESI_PERCENT'
+              ? [...TYPE_OPTIONS, { value: 'ESI_PERCENT' as RuleType, label: 'A percentage of the total, within the ESI ceiling' }]
+              : TYPE_OPTIONS
+          }
         />
       </FormField>
-      {value.type === 'FIXED' ? (
+      {value.type === 'PTAX_SLAB' ? null : value.type === 'FIXED' ? (
         <FormField label="Amount a year (₹)" htmlFor={`${idPrefix}-amount`} error={error}>
           <Input
             id={`${idPrefix}-amount`}

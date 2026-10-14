@@ -45,6 +45,13 @@ const run = (over: Partial<PayrollRunDto> = {}): PayrollRunDto => ({
   originalNetPayablePaise: 0,
   esiNumber: null,
   epfNumber: null,
+  designationName: null,
+  bankName: null,
+  bankAccountNumber: null,
+  dateOfJoining: null,
+  deductionLines: [],
+  statutoryDeductionPaise: 0,
+  roundingPaise: 0,
   joinedInMonth: false,
   status: 'DRAFT',
   generatedBy: 'acc',
@@ -113,6 +120,11 @@ describe('the sheet', () => {
     expect(netAddsUp(run())).toBe(true);
     expect(netAddsUp(run({ netPayablePaise: 1 }))).toBe(false);
     expect(netAddsUp(run({ leaveDeductionPaise: 100_000, netPayablePaise: 3_532_050 }))).toBe(true);
+  });
+  it('counts the statutory deductions and the rounding to the rupee', () => {
+    const r = run({ baseSalaryPaise: 1_400_000, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 0, absentDeductionPaise: 0, statutoryDeductionPaise: 84_920, roundingPaise: 20, netPayablePaise: 1_315_100 });
+    expect(netAddsUp(r)).toBe(true);
+    expect(netAddsUp({ ...r, netPayablePaise: 1_315_080 })).toBe(false);
   });
   it('explains the deduction in words, with no deduction when there was no unpaid leave', () => {
     expect(deductionExplanation(run())).toBe('No unpaid leave, so nothing is deducted.');

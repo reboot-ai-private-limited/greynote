@@ -1,4 +1,5 @@
-import type { ConfigSettingDto, ConfigType } from '@greynote/contracts';
+import { parseSlabs, serialiseSlabs, type ConfigSettingDto, type ConfigType } from '@greynote/contracts';
+import { summariseSlabs } from './slabRows';
 
 // ── Grouping and search ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,8 @@ export function displayValue(s: Pick<ConfigSettingDto, 'type' | 'unit'>, value: 
       return TITLE(value);
     case 'KIND_LIST':
       return value === 'NONE' ? 'None' : value.split(',').join(', ');
+    case 'SLAB_LIST':
+      return summariseSlabs(value);
     default:
       return value;
   }
@@ -68,6 +71,8 @@ export function rangeHint(s: Pick<ConfigSettingDto, 'type' | 'min' | 'max' | 'un
       return 'An IANA timezone, e.g. Asia/Kolkata';
     case 'KIND_LIST':
       return 'NONE, or approval kinds separated by commas, e.g. DAILY_PLAN,LEAVE';
+    case 'SLAB_LIST':
+      return 'Salary bands with an amount each; the first band is the lowest salary allowed';
   }
 }
 
@@ -112,6 +117,10 @@ export function draftError(s: Pick<ConfigSettingDto, 'type' | 'min' | 'max' | 'o
       return (s.options ?? []).includes(value.toUpperCase()) ? undefined : 'Choose one from the list.';
     case 'TIMEZONE':
       return value !== '' && isTimezone(value) ? undefined : 'Use an IANA timezone name, e.g. Asia/Kolkata.';
+    case 'SLAB_LIST': {
+      const parsed = parseSlabs(value);
+      return parsed.ok ? undefined : parsed.error;
+    }
     case 'KIND_LIST': {
       if (value.toUpperCase() === 'NONE') return undefined;
       const kinds = value.split(',').map((k) => k.trim().toUpperCase()).filter((k) => k !== '');
@@ -134,6 +143,10 @@ export function normalizeDraft(type: ConfigType, draft: string): string {
     case 'MONTH':
     case 'WEEKDAY':
       return value.toUpperCase();
+    case 'SLAB_LIST': {
+      const parsed = parseSlabs(value);
+      return parsed.ok ? serialiseSlabs(parsed.slabs) : value;
+    }
     case 'KIND_LIST': {
       if (value.toUpperCase() === 'NONE') return 'NONE';
       return [...new Set(value.split(',').map((k) => k.trim().toUpperCase()).filter((k) => k !== ''))].join(',');

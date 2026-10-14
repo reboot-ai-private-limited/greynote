@@ -9,9 +9,11 @@ export const payComponentRuleSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('PERCENT_OF_COMPONENTS'), basisPoints, of: z.array(z.string().min(1)).min(1) }),
   z.object({ type: z.literal('FIXED'), amountPaise: paiseSchema }),
   z.object({ type: z.literal('BALANCER') }),
+  z.object({ type: z.literal('ESI_PERCENT'), basisPoints }),
+  z.object({ type: z.literal('PTAX_SLAB') }),
 ]);
 
-const kindSchema = z.enum(['EARNING', 'EMPLOYER_CONTRIBUTION']);
+const kindSchema = z.enum(['EARNING', 'DEDUCTION']);
 
 export const createPayComponentBodySchema = z.object({
   code: z.string().regex(/^[A-Z][A-Z0-9_]{1,23}$/, 'Use capitals, digits and underscores, e.g. HRA.'),
@@ -20,6 +22,7 @@ export const createPayComponentBodySchema = z.object({
   rule: payComponentRuleSchema,
   order: z.number().int().min(0),
   isActive: z.boolean().default(true),
+  mandatory: z.boolean().default(false),
 });
 // The code is what overrides and other components refer to, so it never changes.
 export const updatePayComponentBodySchema = createPayComponentBodySchema.omit({ code: true }).partial();
@@ -30,7 +33,9 @@ const componentCode = z.string().regex(/^[A-Z][A-Z0-9_]{1,23}$/, 'Use capitals, 
 
 /** One employee's own shape of the org formula (decision-log 2026-10-09). The domain checks what may be removed or re-ruled. */
 export const ctcStructureSchema = z.object({
-  basicBasisPoints: z.number().int().min(0).max(10_000).optional(),
+  /** Basic as a share of CTC, or as a monthly amount: one or the other. */
+  basicBasisPoints: z.number().int().min(1).max(10_000).optional(),
+  basicMonthlyPaise: paiseSchema.refine((v) => v > 0, 'Basic must be more than zero.').optional(),
   ruleOverrides: z.record(z.string().min(1), payComponentRuleSchema).default({}),
   removed: z.array(z.string().min(1)).max(50).default([]),
   extras: z

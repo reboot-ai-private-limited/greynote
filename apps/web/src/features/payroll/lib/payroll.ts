@@ -90,9 +90,12 @@ export function monthState(runs: readonly Pick<PayrollRunDto, 'status'>[]): 'non
   return runs.every((r) => r.status === 'FINALIZED') ? 'final' : 'draft';
 }
 
-/** The month's `net = base + TA/DA + reimbursement − leave deduction − absent deduction`, checked here so a sheet that does not add up is never shown as fine. */
-export function netAddsUp(r: Pick<PayrollRunDto, 'baseSalaryPaise' | 'totalTaDaPaise' | 'reimbursementPaise' | 'leaveDeductionPaise' | 'absentDeductionPaise' | 'netPayablePaise'> & { adjustmentPaise?: number }): boolean {
-  return r.baseSalaryPaise + r.totalTaDaPaise + r.reimbursementPaise - r.leaveDeductionPaise - r.absentDeductionPaise + (r.adjustmentPaise ?? 0) === r.netPayablePaise;
+/**
+ * The month's `net = base + TA/DA + reimbursement − statutory deductions − leave deduction − absent deduction + rounding + adjustments`, checked here so a
+ * sheet that does not add up is never shown as fine. A run from before 2026-10-14 has no statutory deductions or rounding.
+ */
+export function netAddsUp(r: Pick<PayrollRunDto, 'baseSalaryPaise' | 'totalTaDaPaise' | 'reimbursementPaise' | 'leaveDeductionPaise' | 'absentDeductionPaise' | 'netPayablePaise'> & { adjustmentPaise?: number; statutoryDeductionPaise?: number; roundingPaise?: number }): boolean {
+  return r.baseSalaryPaise + r.totalTaDaPaise + r.reimbursementPaise - (r.statutoryDeductionPaise ?? 0) - r.leaveDeductionPaise - r.absentDeductionPaise + (r.roundingPaise ?? 0) + (r.adjustmentPaise ?? 0) === r.netPayablePaise;
 }
 
 /** The absent deduction in words, like the leave deduction: whole days at a thirtieth of the base each. */

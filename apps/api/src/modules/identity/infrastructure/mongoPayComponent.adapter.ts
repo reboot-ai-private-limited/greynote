@@ -4,7 +4,7 @@ import type { PayComponentRepositoryPort } from '../domain/payComponent.reposito
 import { PayComponentModel, type PayComponentDocument } from './payComponent.schema.js';
 
 function toPayComponent(doc: PayComponentDocument & { _id: unknown }): PayComponent {
-  return { id: String(doc._id), code: doc.code, name: doc.name, kind: doc.kind, rule: doc.rule, order: doc.order, isActive: doc.isActive };
+  return { id: String(doc._id), code: doc.code, name: doc.name, kind: doc.kind, rule: doc.rule, order: doc.order, isActive: doc.isActive, mandatory: doc.mandatory ?? false };
 }
 
 export class MongoPayComponentAdapter implements PayComponentRepositoryPort {

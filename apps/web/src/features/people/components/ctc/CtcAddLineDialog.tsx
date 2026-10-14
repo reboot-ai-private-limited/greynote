@@ -58,7 +58,7 @@ export function CtcAddLineDialog({
 
   return (
     <FormDialog
-      title={kind === 'EARNING' ? 'Add an earning' : 'Add an employer contribution'}
+      title={kind === 'EARNING' ? 'Add an earning' : 'Add a deduction'}
       formId="ctc-add-line"
       pending={false}
       onClose={onClose}

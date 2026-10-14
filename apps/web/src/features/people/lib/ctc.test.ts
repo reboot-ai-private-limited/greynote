@@ -9,6 +9,7 @@ import {
   monthlyOf,
   percentToBasisPoints,
   ruleSummary,
+  ruleTypesFor,
 } from './ctc';
 
 const fda: PayComponentDto = {
@@ -18,6 +19,7 @@ const fda: PayComponentDto = {
   kind: 'EARNING',
   order: 2,
   isActive: true,
+  mandatory: false,
   rule: { type: 'PERCENT_OF_COMPONENTS', basisPoints: 1000, of: ['BASIC'] },
 };
 
@@ -88,8 +90,19 @@ describe('buildPayComponent', () => {
         rule: { type: 'PERCENT_OF_CTC', basisPoints: 1000 },
         order: 3,
         isActive: true,
+        mandatory: false,
       },
     });
+  });
+  it('builds ESI and professional tax deductions, and a mandatory flag', () => {
+    expect(buildPayComponent({ ...draft, code: 'esi', kind: 'DEDUCTION', ruleType: 'ESI_PERCENT', percent: '0.75' })).toMatchObject({ ok: true, body: { code: 'ESI', kind: 'DEDUCTION', rule: { type: 'ESI_PERCENT', basisPoints: 75 } } });
+    expect(buildPayComponent({ ...draft, code: 'PTAX', kind: 'DEDUCTION', ruleType: 'PTAX_SLAB', mandatory: true })).toMatchObject({ ok: true, body: { rule: { type: 'PTAX_SLAB' }, mandatory: true } });
+  });
+  it('offers each kind only the rules that fit it', () => {
+    expect(ruleTypesFor('EARNING')).toContain('BALANCER');
+    expect(ruleTypesFor('EARNING')).not.toContain('PTAX_SLAB');
+    expect(ruleTypesFor('DEDUCTION')).toEqual(expect.arrayContaining(['ESI_PERCENT', 'PTAX_SLAB']));
+    expect(ruleTypesFor('DEDUCTION')).not.toContain('BALANCER');
   });
   it('builds a fixed amount in paise', () => {
     expect(buildPayComponent({ ...draft, ruleType: 'FIXED', amount: '6000' })).toMatchObject({

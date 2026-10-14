@@ -2,6 +2,7 @@
 
 import type { PayComponentDto } from '@greynote/contracts';
 import { useState } from 'react';
+import { Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { Column } from '@/components/ui/DataTable';
@@ -24,7 +25,20 @@ export function PayComponentsScreen({ canWrite }: { canWrite: boolean }) {
   const names = new Map(all.map((c) => [c.code, c.name]));
 
   const columns: readonly Column<PayComponentDto>[] = [
-    { key: 'name', header: 'Component', render: (c) => <span className="font-medium">{c.name}</span> },
+    {
+      key: 'name',
+      header: 'Component',
+      render: (c) => (
+        <span className="flex items-center gap-2 font-medium">
+          {c.name}
+          {c.mandatory ? (
+            <span title="Mandatory: every employee has it" className="inline-flex items-center gap-1 text-xs font-normal text-text-subtle">
+              <Lock aria-hidden className="size-3.5" /> Mandatory
+            </span>
+          ) : null}
+        </span>
+      ),
+    },
     { key: 'code', header: 'Code', render: (c) => <span className="text-text-muted">{c.code}</span> },
     { key: 'rule', header: 'Worked out as', render: (c) => ruleSummary(c.rule, names, formatMoney) },
     { key: 'kind', header: 'Kind', render: (c) => KIND_LABEL[c.kind] },
@@ -45,7 +59,7 @@ export function PayComponentsScreen({ canWrite }: { canWrite: boolean }) {
     <>
       <MasterDataFrame
         title="Pay components"
-        description="How every employee's CTC is split: Basic, FDA, EPF, ESI, Medical and the allowances. The balancer takes the rest. Each employee's own CTC is set under Compensation."
+        description="How every employee's CTC is split. The CTC is the total earnings: Basic (an input, with the CTC) and the allowances worked out from it, the balancer taking the rest. EPF, ESI and professional tax are deductions taken from that pay. Each employee's own CTC is set under Compensation."
         noun="component"
         readOnly={readOnly || !canWrite}
         canCreate

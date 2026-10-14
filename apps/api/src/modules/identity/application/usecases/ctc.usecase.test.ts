@@ -8,11 +8,17 @@ import { CreatePayComponentUseCase } from './createPayComponent.usecase.js';
 import { GetCtcForMonthUseCase } from './getCtcForMonth.usecase.js';
 import { PreviewCtcUseCase } from './previewCtc.usecase.js';
 import { ReapplyCtcUseCase } from './reapplyCtc.usecase.js';
+import type { CtcContextPort } from './ctcContext.js';
 import { SeedDefaultPayComponentsUseCase } from './seedDefaultPayComponents.usecase.js';
 import { UpdatePayComponentUseCase } from './updatePayComponent.usecase.js';
 
 const RUPEE = 100;
 const CTC = 144_000 * RUPEE;
+const ctcContext: CtcContextPort = {
+  read: async () => ({ esiCeilingPaise: 21_000 * RUPEE, ptaxSlabs: [{ from: 10_000, to: 14_999, amount: 110 }, { from: 15_000, to: 19_999, amount: 130 }, { from: 20_000, to: null, amount: 150 }] }),
+};
+/** The earnings: they add up to the CTC. */
+const earned = (lines: Array<{ kind: string; amountPaise: number }>) => lines.filter((l) => l.kind === 'EARNING').reduce((s, l) => s + l.amountPaise, 0);
 
 function kit() {
   const components: PayComponent[] = [];
@@ -57,7 +63,7 @@ function kit() {
 async function seeded() {
   const k = kit();
   await new SeedDefaultPayComponentsUseCase(k.componentRepo as never).execute();
-  const useCase = new AssignCtcUseCase(k.users as never, k.roles as never, k.componentRepo as never, k.assignmentRepo as never, k.config as never);
+  const useCase = new AssignCtcUseCase(k.users as never, k.roles as never, k.componentRepo as never, k.assignmentRepo as never, k.config as never, ctcContext);
   const assign = { execute: async (...args: Parameters<typeof useCase.execute>) => (await useCase.execute(...args)).assignment };
   return { ...k, assign, useCase };
 }
@@ -73,39 +79,57 @@ describe('pay component formula', () => {
     expect(components.find((c) => c.code === 'MEDICAL')!.rule).toEqual({ type: 'FIXED', amountPaise: 6_000_00 });
   });
 
-  it('refuses a change that breaks the formula (Basic 20%, a second balancer, a duplicate code)', async () => {
+  it('refuses a change that breaks the formula (Basic of nothing, a second balancer, a duplicate code)', async () => {
     const { components, componentRepo } = await seeded();
     const update = new UpdatePayComponentUseCase(componentRepo as never);
     const create = new CreatePayComponentUseCase(componentRepo as never);
     const basic = components.find((c) => c.code === 'BASIC')!;
-    await expect(update.execute(basic.id, { rule: { type: 'PERCENT_OF_CTC', basisPoints: 2000 } })).rejects.toMatchObject({ statusCode: 400 } satisfies Partial<AppError>);
-    await expect(create.execute({ code: 'EXTRA', name: 'Extra', kind: 'EARNING', order: 9, isActive: true, rule: { type: 'BALANCER' } })).rejects.toMatchObject({ statusCode: 400 });
-    await expect(create.execute({ code: 'BASIC', name: 'Dup', kind: 'EARNING', order: 9, isActive: true, rule: { type: 'FIXED', amountPaise: 0 } })).rejects.toMatchObject({ statusCode: 409 });
-    expect(basic.rule).toEqual({ type: 'PERCENT_OF_CTC', basisPoints: 3000 });
+    await expect(update.execute(basic.id, { rule: { type: 'PERCENT_OF_CTC', basisPoints: 0 } })).rejects.toMatchObject({ statusCode: 400 } satisfies Partial<AppError>);
+    await expect(create.execute({ code: 'EXTRA', name: 'Extra', kind: 'EARNING', order: 9, isActive: true, mandatory: false, rule: { type: 'BALANCER' } })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(create.execute({ code: 'BASIC', name: 'Dup', kind: 'EARNING', order: 9, isActive: true, mandatory: false, rule: { type: 'FIXED', amountPaise: 0 } })).rejects.toMatchObject({ statusCode: 409 });
+    expect(basic.rule).toEqual({ type: 'PERCENT_OF_CTC', basisPoints: 4000 });
   });
 
   it('lets Admin add an allowance as data', async () => {
     const { componentRepo, components } = await seeded();
-    await new CreatePayComponentUseCase(componentRepo as never).execute({ code: 'HRA', name: 'HRA', kind: 'EARNING', order: 3, isActive: true, rule: { type: 'PERCENT_OF_CTC', basisPoints: 1000 } });
-    const preview = await new PreviewCtcUseCase(componentRepo as never).execute(CTC);
-    expect(preview.lines.find((l) => l.code === 'HRA')!.amountPaise).toBe(14_400 * RUPEE);
-    expect(preview.lines.reduce((s, l) => s + l.amountPaise, 0)).toBe(CTC);
-    expect(components.some((c) => c.code === 'HRA')).toBe(true);
+    await new CreatePayComponentUseCase(componentRepo as never).execute({ code: 'BONUS', name: 'Bonus', kind: 'EARNING', order: 3, isActive: true, mandatory: false, rule: { type: 'PERCENT_OF_CTC', basisPoints: 1000 } });
+    const preview = await new PreviewCtcUseCase(componentRepo as never, ctcContext).execute(CTC);
+    expect(preview.lines.find((l) => l.code === 'BONUS')!.amountPaise).toBe(14_400 * RUPEE);
+    expect(earned(preview.lines)).toBe(CTC);
+    expect(components.some((c) => c.code === 'BONUS')).toBe(true);
+  });
+});
+
+describe('the mandatory professional tax line', () => {
+  it('cannot be switched off, made optional, or given another kind or rule; its name can change', async () => {
+    const { components, componentRepo } = await seeded();
+    const update = new UpdatePayComponentUseCase(componentRepo as never);
+    const ptax = components.find((c) => c.code === 'PTAX')!;
+    await expect(update.execute(ptax.id, { isActive: false })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(update.execute(ptax.id, { mandatory: false })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(update.execute(ptax.id, { kind: 'EARNING' })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(update.execute(ptax.id, { rule: { type: 'FIXED', amountPaise: 1 } })).rejects.toMatchObject({ statusCode: 400 });
+    await update.execute(ptax.id, { name: 'PTax' });
+    expect(components.find((c) => c.code === 'PTAX')).toMatchObject({ name: 'PTax', isActive: true, mandatory: true });
   });
 });
 
 describe('CTC preview', () => {
   it('returns lines plus gross, without saving', async () => {
     const { componentRepo, saved } = await seeded();
-    const p = await new PreviewCtcUseCase(componentRepo as never).execute(CTC);
-    expect(p.grossAnnualPaise).toBe(CTC - 570_240 - 1_080 * RUPEE);
-    expect(p.grossMonthlyPaise).toBe(Math.round(p.grossAnnualPaise / 12));
+    const p = await new PreviewCtcUseCase(componentRepo as never, ctcContext).execute(CTC);
+    expect(p.grossAnnualPaise).toBe(CTC);
+    expect(p.grossMonthlyPaise).toBe(12_000 * RUPEE);
+    // 12,000 a month: EPF 12% of Basic + FDA, ESI 0.75%, professional tax ₹110.
+    expect(p.deductionsMonthlyPaise).toBe(p.lines.filter((l) => l.kind === 'DEDUCTION').reduce((n, l) => n + Math.round(l.amountPaise / 12), 0));
+    expect(p.lines.find((l) => l.code === 'PTAX')!.amountPaise).toBe(110 * 12 * RUPEE);
+    expect(p.takeHomeMonthlyPaise).toBe(p.grossMonthlyPaise - p.deductionsMonthlyPaise);
     expect(saved).toHaveLength(0);
   });
 
   it('a bad override is a 400', async () => {
     const { componentRepo } = await seeded();
-    await expect(new PreviewCtcUseCase(componentRepo as never).execute(CTC, { OTHER: 5 })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(new PreviewCtcUseCase(componentRepo as never, ctcContext).execute(CTC, { OTHER: 5 })).rejects.toMatchObject({ statusCode: 400 });
   });
 });
 
@@ -113,7 +137,7 @@ describe('assigning a CTC', () => {
   it('saves a frozen breakdown for a field employee', async () => {
     const { assign, saved } = await seeded();
     const a = await assign.execute('field1', { ctcAnnualPaise: CTC, effectiveFrom: '2026-10' }, 'hr1');
-    expect(a.lines.reduce((s, l) => s + l.amountPaise, 0)).toBe(CTC);
+    expect(earned(a.lines)).toBe(CTC);
     expect(saved).toHaveLength(1);
   });
 
@@ -123,17 +147,23 @@ describe('assigning a CTC', () => {
     await expect(assign.execute('ghost', { ctcAnnualPaise: CTC, effectiveFrom: '2026-10' }, 'hr1')).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it('does not tie the CTC to a grade: any positive amount is saved, whatever the grade', async () => {
+  it('does not tie the CTC to a grade: any CTC from the lowest monthly salary up is saved, whatever the grade', async () => {
     const { assign, saved } = await seeded();
-    for (const [i, ctc] of [1, 14_400 * RUPEE, 900_000 * RUPEE].entries()) await assign.execute('field2', { ctcAnnualPaise: ctc, effectiveFrom: `2026-0${i + 1}` }, 'hr1');
+    for (const [i, ctc] of [120_000 * RUPEE, 144_000 * RUPEE, 900_000 * RUPEE].entries()) await assign.execute('field2', { ctcAnnualPaise: ctc, effectiveFrom: `2026-0${i + 1}` }, 'hr1');
     expect(saved).toHaveLength(3);
+  });
+
+  it('refuses a CTC under the lowest monthly salary (the first professional tax slab), saving nothing', async () => {
+    const { assign, saved } = await seeded();
+    await expect(assign.execute('field1', { ctcAnnualPaise: 119_999 * RUPEE, effectiveFrom: '2026-10' }, 'hr1')).rejects.toMatchObject({ statusCode: 400 });
+    expect(saved).toHaveLength(0);
   });
 
   it('warns, never refuses, when the CTC is more than the set percent above the previous one', async () => {
     const { useCase, saved } = await seeded();
-    const first = await useCase.execute('field1', { ctcAnnualPaise: 100_000 * RUPEE, effectiveFrom: '2026-04' }, 'hr1');
+    const first = await useCase.execute('field1', { ctcAnnualPaise: 150_000 * RUPEE, effectiveFrom: '2026-04' }, 'hr1');
     expect(first.warning).toBeNull();
-    expect((await useCase.execute('field1', { ctcAnnualPaise: 150_000 * RUPEE, effectiveFrom: '2026-07' }, 'hr1')).warning).toBeNull();
+    expect((await useCase.execute('field1', { ctcAnnualPaise: 200_000 * RUPEE, effectiveFrom: '2026-07' }, 'hr1')).warning).toBeNull();
     const jump = await useCase.execute('field1', { ctcAnnualPaise: 1_500_000 * RUPEE, effectiveFrom: '2026-10' }, 'hr1');
     expect(jump.warning).toMatch(/more than 50%/);
     expect(saved).toHaveLength(3);
@@ -168,20 +198,20 @@ describe('re-applying the formula', () => {
   it('creates new revisions on the current formula, keeping each employee\'s overrides', async () => {
     const { assign, saved, components, componentRepo, assignmentRepo } = await seeded();
     await assign.execute('field1', { ctcAnnualPaise: CTC, effectiveFrom: '2026-04', overrides: { MEDICAL: 6_000 * RUPEE } }, 'hr1');
-    await new UpdatePayComponentUseCase(componentRepo as never).execute(components.find((c) => c.code === 'BASIC')!.id, { rule: { type: 'PERCENT_OF_CTC', basisPoints: 4000 } });
-    const out = await new ReapplyCtcUseCase(componentRepo as never, assignmentRepo as never).execute({ effectiveFrom: '2026-11' }, 'hr1');
+    await new UpdatePayComponentUseCase(componentRepo as never).execute(components.find((c) => c.code === 'BASIC')!.id, { rule: { type: 'PERCENT_OF_CTC', basisPoints: 3500 } });
+    const out = await new ReapplyCtcUseCase(componentRepo as never, assignmentRepo as never, ctcContext).execute({ effectiveFrom: '2026-11' }, 'hr1');
     expect(out).toEqual([expect.objectContaining({ userId: 'field1', outcome: 'revised' })]);
     const revised = saved[1]!;
-    expect(revised.lines.find((l) => l.code === 'BASIC')!.amountPaise).toBe(57_600 * RUPEE);
+    expect(revised.lines.find((l) => l.code === 'BASIC')!.amountPaise).toBe(50_400 * RUPEE);
     expect(revised.lines.find((l) => l.code === 'MEDICAL')!.amountPaise).toBe(6_000 * RUPEE);
-    expect(saved[0]!.lines.find((l) => l.code === 'BASIC')!.amountPaise).toBe(43_200 * RUPEE);
+    expect(saved[0]!.lines.find((l) => l.code === 'BASIC')!.amountPaise).toBe(57_600 * RUPEE);
   });
 
   it('skips one employee without failing the rest', async () => {
     const { assign, saved, componentRepo, assignmentRepo } = await seeded();
     await assign.execute('field1', { ctcAnnualPaise: CTC, effectiveFrom: '2026-04' }, 'hr1');
     saved.push({ ...saved[0]!, id: 'x', userId: 'field2', overrides: { GONE: 1 } });
-    const out = await new ReapplyCtcUseCase(componentRepo as never, assignmentRepo as never).execute({ effectiveFrom: '2026-11' }, 'hr1');
+    const out = await new ReapplyCtcUseCase(componentRepo as never, assignmentRepo as never, ctcContext).execute({ effectiveFrom: '2026-11' }, 'hr1');
     expect(out.map((o) => o.outcome).sort()).toEqual(['revised', 'skipped']);
   });
 });
@@ -195,8 +225,8 @@ describe("an employee's own structure", () => {
     removed: ['MEDICAL'],
     extras: [
       {
-        code: 'CONVEYANCE',
-        name: 'Conveyance',
+        code: 'TRAVEL',
+        name: 'Travel',
         kind: 'EARNING' as const,
         rule: { type: 'FIXED' as const, amountPaise: 9_600 * RUPEE },
       },
@@ -205,17 +235,17 @@ describe("an employee's own structure", () => {
 
   it('previews the shaped breakdown, which still adds up to the CTC', async () => {
     const { componentRepo } = await seeded();
-    const p = await new PreviewCtcUseCase(componentRepo as never).execute(CTC, {}, own);
+    const p = await new PreviewCtcUseCase(componentRepo as never, ctcContext).execute(CTC, {}, own);
     expect(p.lines.find((l) => l.code === 'BASIC')!.amountPaise).toBe(57_600 * RUPEE);
     expect(p.lines.find((l) => l.code === 'FDA')!.amountPaise).toBe(8_064 * RUPEE);
     expect(p.lines.find((l) => l.code === 'MEDICAL')).toBeUndefined();
-    expect(p.lines.reduce((s, l) => s + l.amountPaise, 0)).toBe(CTC);
+    expect(earned(p.lines)).toBe(CTC);
   });
 
   it('refuses removing Basic as a 400', async () => {
     const { componentRepo } = await seeded();
     await expect(
-      new PreviewCtcUseCase(componentRepo as never).execute(
+      new PreviewCtcUseCase(componentRepo as never, ctcContext).execute(
         CTC,
         {},
         { ...own, removed: ['BASIC'] },
@@ -237,14 +267,14 @@ describe("an employee's own structure", () => {
       components.find((c) => c.code === 'FDA')!.id,
       { rule: { type: 'PERCENT_OF_COMPONENTS', basisPoints: 1200, of: ['BASIC'] } },
     );
-    await new ReapplyCtcUseCase(componentRepo as never, assignmentRepo as never).execute(
+    await new ReapplyCtcUseCase(componentRepo as never, assignmentRepo as never, ctcContext).execute(
       { effectiveFrom: '2026-11' },
       'hr1',
     );
     const revised = saved[1]!;
     expect(revised.structure).toEqual(own);
     expect(revised.lines.find((l) => l.code === 'FDA')!.amountPaise).toBe(8_064 * RUPEE);
-    expect(revised.lines.find((l) => l.code === 'CONVEYANCE')!.amountPaise).toBe(9_600 * RUPEE);
+    expect(revised.lines.find((l) => l.code === 'TRAVEL')!.amountPaise).toBe(9_600 * RUPEE);
   });
 
   it('a revision with no structure reads as the org formula', async () => {

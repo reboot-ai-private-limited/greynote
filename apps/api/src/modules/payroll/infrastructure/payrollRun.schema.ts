@@ -8,11 +8,18 @@ export interface PayrollRunDoc {
   baseSalaryPaise: number;
   ctcAnnualPaise: number | null;
   ctcEffectiveFrom: string | null;
-  ctcLines: Array<{ code: string; name: string; kind: 'EARNING' | 'EMPLOYER_CONTRIBUTION'; amountPaise: number; isOverridden: boolean }>;
+  ctcLines: Array<{ code: string; name: string; kind: 'EARNING' | 'DEDUCTION' | 'EMPLOYER_CONTRIBUTION'; amountPaise: number; isOverridden: boolean }>;
   totalTaDaPaise: number;
   reimbursementPaise: number;
   esiNumber?: string | null;
   epfNumber?: string | null;
+  designationName?: string | null;
+  bankName?: string | null;
+  bankAccountNumber?: string | null;
+  dateOfJoining?: string | null;
+  deductionLines?: Array<{ code: string; name: string; amountPaise: number }>;
+  statutoryDeductionPaise?: number;
+  roundingPaise?: number;
   unpaidLeaveDays: number;
   leaveDeductionPaise: number;
   absentDays?: number;
@@ -45,6 +52,13 @@ const schema = new Schema<PayrollRunDoc>({
   reimbursementPaise: paise,
   esiNumber: { type: String, default: null },
   epfNumber: { type: String, default: null },
+  designationName: { type: String, default: null },
+  bankName: { type: String, default: null },
+  bankAccountNumber: { type: String, default: null },
+  dateOfJoining: { type: String, default: null },
+  deductionLines: { type: [new Schema({ code: String, name: String, amountPaise: Number }, { _id: false })], default: [] },
+  statutoryDeductionPaise: { type: Number, default: 0 },
+  roundingPaise: { type: Number, default: 0 },
   unpaidLeaveDays: { type: Number, required: true, min: 0, validate: { validator: (v: number) => Number.isInteger(v * 2), message: 'Whole or half days only.' } },
   leaveDeductionPaise: paise,
   absentDays: { type: Number, default: 0, min: 0, max: 30, validate: { validator: Number.isInteger, message: 'Whole days only.' } },
@@ -69,7 +83,7 @@ const schema = new Schema<PayrollRunDoc>({
 });
 // The sheet must add up, whatever wrote it.
 schema.pre('validate', function () {
-  if (this.baseSalaryPaise + this.totalTaDaPaise + this.reimbursementPaise - this.leaveDeductionPaise - (this.absentDeductionPaise ?? 0) + (this.adjustmentPaise ?? 0) !== this.netPayablePaise) this.invalidate('netPayablePaise', 'Net pay must equal base + TA/DA + reimbursement − leave deduction − absent deduction + adjustments.');
+  if (this.baseSalaryPaise + this.totalTaDaPaise + this.reimbursementPaise - (this.statutoryDeductionPaise ?? 0) - this.leaveDeductionPaise - (this.absentDeductionPaise ?? 0) + (this.roundingPaise ?? 0) + (this.adjustmentPaise ?? 0) !== this.netPayablePaise) this.invalidate('netPayablePaise', 'Net pay must equal base + TA/DA + reimbursement − statutory deductions − leave deduction − absent deduction + rounding + adjustments.');
   if ((this.status === 'FINALIZED') !== (this.finalizedAt !== null)) this.invalidate('finalizedAt', 'A run is finalized exactly when it has a finalization time.');
 });
 schema.index({ userId: 1, month: 1 }, { unique: true });

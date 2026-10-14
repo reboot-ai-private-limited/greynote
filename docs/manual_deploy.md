@@ -267,6 +267,19 @@ has the `<user>`/`<password>`/`<cluster>` placeholders from the example file.
 
 ---
 
+## Step 9g — Re-run the seed and move the pay components (once, when upgrading past 2026-10-14)
+
+The CTC is now the total earnings, EPF/ESI/professional tax are the employee's deductions and professional tax comes from a new setting (`docs/decision-log.md`, 2026-10-14). **Re-run the seed (Step 8; safe to repeat)** so `PTAX_SLABS` and `ESI_WAGE_CEILING` appear in System settings (until then the API uses ₹110/₹130/₹150 from ₹10,000/15,000/20,000 and 21000). Then move the pay components and re-apply every employee's CTC from the month the payslips should follow. Dry run first:
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-ctc-statutory.js --from 2026-10
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-ctc-statutory.js --from 2026-10 --apply
+```
+
+It turns EPF and ESI into deductions, adds HRA, Conveyance and a mandatory Professional Tax line if missing, and saves a new CTC revision for each employee (same CTC and own structure). Anyone under ₹10,000 a month, or whose lines no longer fit, is listed and left as they are: fix their CTC by hand. Check **Pay components** afterwards (Basic is left as set; the slip uses 40%; HRA and Conveyance are the slip's shares of Basic).
+
+---
+
 ## Updating a running deploy
 
 ```bash

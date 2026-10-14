@@ -15,6 +15,7 @@ import { CreatePayComponentUseCase } from './application/usecases/createPayCompo
 import { GetCtcForMonthUseCase } from './application/usecases/getCtcForMonth.usecase.js';
 import { ListCtcHistoryUseCase } from './application/usecases/listCtcHistory.usecase.js';
 import { ListPayComponentsUseCase } from './application/usecases/listPayComponents.usecase.js';
+import { ConfigCtcContext } from './application/usecases/ctcContext.js';
 import { PreviewCtcUseCase } from './application/usecases/previewCtc.usecase.js';
 import { ReapplyCtcUseCase } from './application/usecases/reapplyCtc.usecase.js';
 import { SeedDefaultPayComponentsUseCase } from './application/usecases/seedDefaultPayComponents.usecase.js';
@@ -264,8 +265,9 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const createPayComponent = new CreatePayComponentUseCase(payComponentRepository);
   const updatePayComponent = new UpdatePayComponentUseCase(payComponentRepository);
   const seedDefaultPayComponents = new SeedDefaultPayComponentsUseCase(payComponentRepository);
-  const previewCtc = new PreviewCtcUseCase(payComponentRepository);
-  const assignCtc = new AssignCtcUseCase(userRepository, roleRepository, payComponentRepository, ctcAssignmentRepository, configProvider);
+  const ctcContext = new ConfigCtcContext(configProvider);
+  const previewCtc = new PreviewCtcUseCase(payComponentRepository, ctcContext);
+  const assignCtc = new AssignCtcUseCase(userRepository, roleRepository, payComponentRepository, ctcAssignmentRepository, configProvider, ctcContext);
   const employeeDraftControllers = makeEmployeeDraftControllers({
     create: new CreateEmployeeDraftUseCase(employeeDraftRepository),
     list: new ListEmployeeDraftsUseCase(employeeDraftRepository),
@@ -294,7 +296,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   });
   const listCtcHistory = new ListCtcHistoryUseCase(ctcAssignmentRepository);
   const getCtcForMonth = new GetCtcForMonthUseCase(ctcAssignmentRepository);
-  const reapplyCtc = new ReapplyCtcUseCase(payComponentRepository, ctcAssignmentRepository);
+  const reapplyCtc = new ReapplyCtcUseCase(payComponentRepository, ctcAssignmentRepository, ctcContext);
 
   const promotionPlanner = new PromotionPlanner({
     users: userRepository,
@@ -303,6 +305,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     payBands: payBandRepository,
     profiles: employeeProfileRepository,
     components: payComponentRepository,
+    context: ctcContext,
     assignments: ctcAssignmentRepository,
     promotions: promotionRepository,
     config: configProvider,
@@ -313,7 +316,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const listPromotions = new ListPromotionsUseCase(promotionPlanner, promotionRepository, userRepository);
   const listAllPromotions = new ListAllPromotionsUseCase(promotionPlanner, promotionRepository);
   const cancelPromotion = new CancelPromotionUseCase(promotionPlanner, promotionRepository);
-  const applyDuePromotions = new ApplyDuePromotionsUseCase(promotionRepository, employeeProfileRepository, userRepository, payComponentRepository, ctcAssignmentRepository, managerHistoryRepository, currentMonth);
+  const applyDuePromotions = new ApplyDuePromotionsUseCase(promotionRepository, employeeProfileRepository, userRepository, payComponentRepository, ctcAssignmentRepository, managerHistoryRepository, currentMonth, ctcContext);
 
   const getUserSummary = new GetUserSummaryUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getManagerChain = new GetManagerChainUseCase(userRepository, roleRepository, employeeProfileRepository);
@@ -323,7 +326,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const getDownline = new GetDownlineUseCase(userRepository, roleRepository, employeeProfileRepository);
   const isFieldRole = new IsFieldRoleUseCase(userRepository, roleRepository);
   const isBlocked = new IsBlockedUseCase(userRepository);
-  const getEmploymentDetails = new GetEmploymentDetailsUseCase(employeeProfileRepository);
+  const getEmploymentDetails = new GetEmploymentDetailsUseCase(employeeProfileRepository, designationRepository);
   const getPayBandRates = new GetPayBandRatesUseCase(userRepository, employeeProfileRepository, payBandRepository);
   const getActiveDeviceCount = new GetActiveDeviceCountUseCase(userRepository, userSessionRepository);
 

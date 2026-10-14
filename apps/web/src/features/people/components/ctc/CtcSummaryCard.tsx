@@ -20,7 +20,8 @@ function status(
   if (editor.previewError) return { tone: 'danger', text: editor.previewError };
   if (editor.preview.isFetching) return { tone: 'muted', text: 'Working it out…' };
   if (totalPaise === ctcPaise && editor.preview.data)
-    return { tone: 'success', text: 'The lines add up to the CTC.' };
+    return { tone: 'success', text: 'Total earnings = CTC ✓ The earnings add up to the CTC exactly.' };
+  if (editor.preview.data) return { tone: 'danger', text: 'The earnings do not add up to the CTC.' };
   return null;
 }
 
@@ -61,23 +62,16 @@ export function CtcSummaryCard({
   const totals = ctcTotals(lines);
   const orgBasic = editor.org.find((c) => c.code === 'BASIC');
   const orgBasicPercent =
-    orgBasic?.rule.type === 'PERCENT_OF_CTC' ? String(orgBasic.rule.basisPoints / 100) : '30';
-  const state = status(editor, ctcPaise, totals.totalPaise);
+    orgBasic?.rule.type === 'PERCENT_OF_CTC' ? String(orgBasic.rule.basisPoints / 100) : '40';
+  const state = status(editor, ctcPaise, totals.paidPaise);
   const basicError = errors['basicPercent'] ?? editor.structureErrors['basicPercent'];
+  const preview = editor.preview.data;
   const showFigures = ctcPaise !== null && lines.length > 0 && !editor.previewError;
 
   const figures: Array<[string, string, string]> = [
-    ['CTC a month', formatMoney(monthlyOf(ctcPaise ?? 0)), ''],
-    [
-      'Paid to the employee',
-      formatMoney(totals.paidPaise),
-      `${formatMoney(monthlyOf(totals.paidPaise))} a month`,
-    ],
-    [
-      'Employer contributions',
-      formatMoney(totals.employerPaise),
-      `${formatMoney(monthlyOf(totals.employerPaise))} a month`,
-    ],
+    ['Total earnings a month', formatMoney(monthlyOf(totals.paidPaise)), `${formatMoney(totals.paidPaise)} a year`],
+    ['Deductions a month', formatMoney(preview?.deductionsMonthlyPaise ?? 0), 'EPF, ESI, professional tax'],
+    ['Take-home a month', formatMoney(preview?.takeHomeMonthlyPaise ?? 0), 'before leave and absent days'],
   ];
 
   return (
@@ -95,20 +89,48 @@ export function CtcSummaryCard({
           />
         </FormField>
         <FormField
-          label="Basic salary (% of CTC)"
+          label={structure.basicMode === 'percent' ? 'Basic salary (% of CTC)' : 'Basic salary (₹ a month)'}
           htmlFor="ctc-basic"
           error={basicError}
-          hint={`Between 30% and 60%. Leave empty for the usual ${orgBasicPercent}%.`}
+          hint={
+            structure.basicMode === 'percent'
+              ? `Up to 100%. Leave empty for the usual ${orgBasicPercent}%. Every other line is worked out from Basic and the CTC.`
+              : 'The monthly Basic. Every other line is worked out from it and the CTC.'
+          }
         >
-          <Input
-            id="ctc-basic"
-            inputMode="decimal"
-            className="h-11 text-base font-medium"
-            value={structure.basicPercent}
-            placeholder={orgBasicPercent}
-            onChange={(e) => onStructureChange({ ...structure, basicPercent: e.target.value })}
-            aria-invalid={basicError ? true : undefined}
-          />
+          <div className="flex gap-2">
+            <Input
+              id="ctc-basic"
+              inputMode="decimal"
+              className="h-11 flex-1 text-base font-medium"
+              value={structure.basicMode === 'percent' ? structure.basicPercent : structure.basicAmount}
+              placeholder={structure.basicMode === 'percent' ? orgBasicPercent : '5600'}
+              onChange={(e) =>
+                onStructureChange(
+                  structure.basicMode === 'percent'
+                    ? { ...structure, basicPercent: e.target.value }
+                    : { ...structure, basicAmount: e.target.value },
+                )
+              }
+              aria-invalid={basicError ? true : undefined}
+            />
+            <div role="group" aria-label="Enter Basic as" className="flex shrink-0 overflow-hidden rounded-md border border-border-strong">
+              {(['percent', 'amount'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={structure.basicMode === mode}
+                  onClick={() => onStructureChange({ ...structure, basicMode: mode })}
+                  className={cn(
+                    'px-3 text-sm font-medium focus-visible:shadow-focus focus-visible:outline-none',
+                    structure.basicMode === mode ? 'bg-accent text-white' : 'bg-surface text-text hover:bg-surface-hover',
+                  )}
+                >
+                  {mode === 'percent' ? '%' : '₹'}
+                </button>
+              ))}
+            </div>
+          </div>
         </FormField>
       </div>
 

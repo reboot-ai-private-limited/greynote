@@ -2,7 +2,7 @@
  * System settings over HTTP. The Admin screen is built from `GET /config`: each setting carries its own type, limits, default and
  * impact, so the screen needs no list of keys of its own.
  */
-export const CONFIG_TYPES = ['BOOLEAN', 'INTEGER', 'TIME', 'MONTH', 'WEEKDAY', 'TIMEZONE', 'KIND_LIST'] as const;
+export const CONFIG_TYPES = ['BOOLEAN', 'INTEGER', 'TIME', 'MONTH', 'WEEKDAY', 'TIMEZONE', 'KIND_LIST', 'SLAB_LIST'] as const;
 export type ConfigType = (typeof CONFIG_TYPES)[number];
 
 /** `HIGH` changes how the system reads dates or who can act: the screen asks for a deliberate confirmation first. */

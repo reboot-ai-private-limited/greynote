@@ -121,7 +121,7 @@ export function PayrollRunScreen({ id }: { id: string }) {
             />
             {!netAddsUp(run) ? (
               <p role="alert" className="mb-6 rounded-lg border border-danger bg-danger-bg p-4 text-sm text-danger-fg">
-                The net payable does not equal the base salary minus the deduction (plus TA/DA and reimbursements on an older run). Do not finalize this run: regenerate it, and report it if it
+                The net payable does not equal the base salary minus the deductions (plus TA/DA and reimbursements on an older run). Do not finalize this run: regenerate it, and report it if it
                 happens again.
               </p>
             ) : null}
@@ -133,15 +133,19 @@ export function PayrollRunScreen({ id }: { id: string }) {
             <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
               <Card title="How the net is worked out">
                 <div className="divide-y divide-border">
-                  <Line label="Base salary" note="Monthly gross from the CTC in force when this was generated (the CTC less the employer's EPF and ESI, ÷ 12); a later change does not alter it." amount={formatMoney(run.baseSalaryPaise)} />
+                  <Line label="Base salary" note="Monthly gross from the CTC in force when this was generated (the total earnings, which are the CTC, ÷ 12); a later change does not alter it." amount={formatMoney(run.baseSalaryPaise)} />
                   {run.totalTaDaPaise !== 0 || run.reimbursementPaise !== 0 ? (
                     <>
                       <Line label="TA and DA paid" note={`Marked paid during ${monthLabel(run.month)} (a run from before TA/DA moved to its own payout).`} amount={`+ ${formatMoney(run.totalTaDaPaise)}`} />
                       <Line label="Reimbursements paid" note="Travel, meals and other claims marked paid in the month." amount={`+ ${formatMoney(run.reimbursementPaise)}`} />
                     </>
                   ) : null}
+ {run.deductionLines.length > 0 ? (
+                    <Line label="EPF, ESI and professional tax" note={`${run.deductionLines.map((d) => `${d.name} ${formatMoney(d.amountPaise)}`).join(' · ')}. Taken on the full salary, not reduced by leave days.`} amount={`− ${formatMoney(run.statutoryDeductionPaise)}`} />
+                  ) : null}
                   <Line label="Leave deduction" note={deductionExplanation(run)} amount={`− ${formatMoney(run.leaveDeductionPaise)}`} />
                   <Line label="Absent deduction" note={absentExplanation(run)} amount={`− ${formatMoney(run.absentDeductionPaise)}`} />
+                  {run.roundingPaise !== 0 ? <Line label="Rounding to the rupee" note="The net is brought to a whole rupee, half up." amount={`${run.roundingPaise > 0 ? '+' : '−'} ${formatMoney(Math.abs(run.roundingPaise))}`} /> : null}
                   {run.adjustments.length > 0 ? <Line label="Adjustments by HR" note={`The net the rules gave was ${formatMoney(run.originalNetPayablePaise)}. See the changes below.`} amount={`${run.adjustmentPaise >= 0 ? '+' : '−'} ${formatMoney(Math.abs(run.adjustmentPaise))}`} /> : null}
                   <Line strong label="Net payable" amount={formatMoney(run.netPayablePaise)} />
                 </div>

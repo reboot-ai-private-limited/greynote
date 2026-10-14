@@ -59,6 +59,7 @@ function kit(over: { status?: Record<string, User['status']>; scheduled?: Promot
       findUserIdsByFilter: async (f: { managerId?: string }) => [...profiles.values()].filter((p) => p.managerId === f.managerId).map((p) => p.userId),
     },
     components: { list: async () => DEFAULT_PAY_COMPONENTS.map((c, i) => ({ ...c, id: `c${i}` })) },
+    context: { read: async () => ({ esiCeilingPaise: 2_100_000, ptaxSlabs: [{ from: 10_000, to: 14_999, amount: 110 }, { from: 15_000, to: 19_999, amount: 130 }, { from: 20_000, to: null, amount: 150 }] }) },
     assignments: { findEffective: async () => ({ ctcAnnualPaise: 3 * LAKH }) },
     promotions,
     config: { get: async (key: string) => (key === 'CTC_JUMP_WARN_PERCENT' ? '50' : '') },
@@ -132,7 +133,7 @@ describe('previewing a promotion', () => {
     const ok = await kit().preview.execute('mr1', { effectiveFrom: '2026-11', toDesignationId: 'd-asm', ctc: { ctcAnnualPaise: 9 * LAKH }, teamMoves: [] });
     expect(ok.problems).toEqual([]);
     expect(ok.ctc).toMatchObject({ previousAnnualPaise: 3 * LAKH, newAnnualPaise: 9 * LAKH });
-    expect(ok.ctc!.lines.reduce((s, l) => s + l.amountPaise, 0)).toBe(9 * LAKH);
+    expect(ok.ctc!.lines.filter((l) => l.kind === 'EARNING').reduce((s, l) => s + l.amountPaise, 0)).toBe(9 * LAKH);
     expect(ok.warnings.join(' ')).toMatch(/more than 50%/);
   });
 });

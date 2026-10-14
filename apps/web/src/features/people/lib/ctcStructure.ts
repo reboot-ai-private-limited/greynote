@@ -2,6 +2,7 @@ import type {
   AssignCtcDto,
   CtcStructureDto,
   PayComponentDto,
+  CtcLineKind,
   PayComponentKind,
   PayComponentRuleDto,
   PreviewCtcDto,
@@ -19,7 +20,11 @@ import { MAX_PAISE } from './masterData';
 export type RuleDraft =
   | { type: 'PERCENT_OF_CTC'; percent: string }
   | { type: 'PERCENT_OF_COMPONENTS'; percent: string; of: string[] }
-  | { type: 'FIXED'; amount: string };
+  | { type: 'FIXED'; amount: string }
+  /** A deduction: a share of the total while the salary is within the ESI ceiling. */
+  | { type: 'ESI_PERCENT'; percent: string }
+  /** The professional tax, from the Settings slabs: shown, never edited. */
+  | { type: 'PTAX_SLAB' };
 
 export interface ExtraDraft {
   /** Client-only, so a row keeps its identity while others are removed. */
@@ -30,8 +35,12 @@ export interface ExtraDraft {
 }
 
 export interface StructureDraft {
-  /** '' = the org's own Basic %. */
+  /** Basic is one of the two inputs: a share of the CTC, or a monthly amount. */
+  basicMode: 'percent' | 'amount';
+  /** '' = the org's own Basic %. Used while `basicMode` is `percent`. */
   basicPercent: string;
+  /** Rupees a month; '' = the org's own Basic %. Used while `basicMode` is `amount`. */
+  basicAmount: string;
   /** Org lines whose rule was changed for this employee. */
   rules: Record<string, RuleDraft>;
   /** Org lines not used for this employee. */
@@ -40,15 +49,15 @@ export interface StructureDraft {
 }
 
 export const EMPTY_STRUCTURE_DRAFT: StructureDraft = {
+  basicMode: 'percent',
   basicPercent: '',
+  basicAmount: '',
   rules: {},
   removed: [],
   extras: [],
 };
 
 export const BASIC_CODE = 'BASIC';
-export const BASIC_MIN_PERCENT = 30;
-export const BASIC_MAX_PERCENT = 60;
 
 let extraSeq = 0;
 export const newExtraId = (): string => `extra-${++extraSeq}`;
@@ -67,6 +76,10 @@ export function ruleToDraft(rule: PayComponentRuleDto): RuleDraft | null {
       };
     case 'FIXED':
       return { type: 'FIXED', amount: paiseToRupees(rule.amountPaise).replace(/\.00$/, '') };
+    case 'ESI_PERCENT':
+      return { type: 'ESI_PERCENT', percent: basisPointsToPercent(rule.basisPoints) };
+    case 'PTAX_SLAB':
+      return { type: 'PTAX_SLAB' };
     case 'BALANCER':
       return null;
   }
@@ -74,6 +87,7 @@ export function ruleToDraft(rule: PayComponentRuleDto): RuleDraft | null {
 
 /** The request form of a rule, or `null` while it is not yet a valid one (a half-typed percentage). */
 export function draftToRule(draft: RuleDraft): PayComponentRuleDto | null {
+  if (draft.type === 'PTAX_SLAB') return { type: 'PTAX_SLAB' };
   if (draft.type === 'FIXED') {
     const paise = rupeesToPaise(draft.amount);
     return paise === null || paise > MAX_PAISE ? null : { type: 'FIXED', amountPaise: paise };
@@ -81,6 +95,7 @@ export function draftToRule(draft: RuleDraft): PayComponentRuleDto | null {
   const bp = percentToBasisPoints(draft.percent);
   if (bp === null) return null;
   if (draft.type === 'PERCENT_OF_CTC') return { type: 'PERCENT_OF_CTC', basisPoints: bp };
+  if (draft.type === 'ESI_PERCENT') return { type: 'ESI_PERCENT', basisPoints: bp };
   return draft.of.length === 0
     ? null
     : { type: 'PERCENT_OF_COMPONENTS', basisPoints: bp, of: [...draft.of] };
@@ -93,6 +108,8 @@ export function describeRule(
   money: (rupees: string) => string,
 ): string {
   if (rule === 'BALANCER') return 'The rest of the CTC';
+  if (rule.type === 'PTAX_SLAB') return 'From the professional tax slabs in Settings';
+  if (rule.type === 'ESI_PERCENT') return `${rule.percent}% of the total, within the ESI ceiling`;
   if (rule.type === 'FIXED') return `${money(rule.amount)} a year`;
   if (rule.type === 'PERCENT_OF_CTC') return `${rule.percent}% of CTC`;
   return `${rule.percent}% of ${rule.of.map(nameOf).join(' + ')}`;
@@ -112,7 +129,10 @@ export function structureToDraft(
     const draft = ruleToDraft(rule);
     if (draft) rules[code] = draft;
   }
+  const monthly = structure?.basicMonthlyPaise;
   return {
+    basicMode: monthly === undefined ? 'percent' : 'amount',
+    basicAmount: monthly === undefined ? '' : paiseToRupees(monthly).replace(/\.00$/, ''),
     basicPercent:
       structure?.basicBasisPoints === undefined
         ? ''
@@ -157,14 +177,18 @@ export interface StructureBuild {
 export function buildStructure(draft: StructureDraft, orgCodes: readonly string[]): StructureBuild {
   const errors: Record<string, string> = {};
 
+  // Basic is an input: a share of the CTC (up to 100%) or a monthly amount. Which fits the rest is the server's call.
   let basicBasisPoints: number | undefined;
-  if (draft.basicPercent.trim() !== '') {
+  let basicMonthlyPaise: number | undefined;
+  if (draft.basicMode === 'percent' && draft.basicPercent.trim() !== '') {
     const bp = percentToBasisPoints(draft.basicPercent);
-    if (bp === null) errors['basicPercent'] = 'Enter a percentage, e.g. 40 or 37.5.';
-    else if (bp < BASIC_MIN_PERCENT * 100 || bp > BASIC_MAX_PERCENT * 100)
-      errors['basicPercent'] =
-        `Basic must be between ${BASIC_MIN_PERCENT}% and ${BASIC_MAX_PERCENT}% of CTC.`;
+    if (bp === null || bp < 1) errors['basicPercent'] = 'Enter a percentage from 0.01 to 100, e.g. 40 or 37.5.';
     else basicBasisPoints = bp;
+  }
+  if (draft.basicMode === 'amount' && draft.basicAmount.trim() !== '') {
+    const paise = rupeesToPaise(draft.basicAmount);
+    if (paise === null || paise < 1 || paise > MAX_PAISE) errors['basicPercent'] = 'Enter the monthly Basic in rupees, e.g. 5600.';
+    else basicMonthlyPaise = paise;
   }
 
   const ruleOverrides: Record<string, PayComponentRuleDto> = {};
@@ -195,6 +219,7 @@ export function buildStructure(draft: StructureDraft, orgCodes: readonly string[
 
   const empty =
     basicBasisPoints === undefined &&
+    basicMonthlyPaise === undefined &&
     Object.keys(ruleOverrides).length === 0 &&
     draft.removed.length === 0 &&
     extras.length === 0;
@@ -203,6 +228,7 @@ export function buildStructure(draft: StructureDraft, orgCodes: readonly string[
       ? undefined
       : {
           ...(basicBasisPoints !== undefined && { basicBasisPoints }),
+          ...(basicMonthlyPaise !== undefined && { basicMonthlyPaise }),
           ruleOverrides,
           removed: [...draft.removed],
           extras,
@@ -240,8 +266,12 @@ export function editorRows(org: readonly PayComponentDto[], draft: StructureDraf
         : (ruleToDraft(c.rule) as RuleDraft);
       let edited = false;
       if (c.code === BASIC_CODE) {
-        if (draft.basicPercent.trim() !== '') {
+        if (draft.basicMode === 'percent' && draft.basicPercent.trim() !== '') {
           rule = { type: 'PERCENT_OF_CTC', percent: draft.basicPercent };
+          edited = true;
+        } else if (draft.basicMode === 'amount' && draft.basicAmount.trim() !== '') {
+          const rupees = Number(draft.basicAmount);
+          rule = { type: 'FIXED', amount: Number.isFinite(rupees) ? String(rupees * 12) : '' };
           edited = true;
         }
       } else if (draft.rules[c.code]) {
@@ -256,10 +286,12 @@ export function editorRows(org: readonly PayComponentDto[], draft: StructureDraf
         edited,
         lockedReason:
           c.code === BASIC_CODE
-            ? 'Basic stays: its percentage sets the split.'
+            ? 'Basic stays: it is one of the two inputs (with the CTC) that set the split.'
             : isBalancer
               ? 'This line takes whatever is left, so the total always matches the CTC.'
-              : null,
+              : c.mandatory
+                ? 'Mandatory: every employee has it, worked out from the Settings.'
+                : null,
       };
     });
   const extras = draft.extras.map((e): EditorRow => {
@@ -386,21 +418,22 @@ export function buildAssignCtc(
 // ── Totals ─────────────────────────────────────────────────────────────────────────────────
 
 export interface CtcTotals {
-  /** What the employee is paid before any deduction: the earnings. Annual paise. */
+  /** What the employee is paid before any deduction: the earnings, which add up to the CTC. Annual paise. */
   paidPaise: number;
-  /** What the employer puts in on top, inside the CTC. Annual paise. */
+  /** EPF, ESI and professional tax. Annual paise. */
+  deductionsPaise: number;
+  /** What an old CTC revision put in on top (employer EPF/ESI, before 2026-10-14). Annual paise; 0 on a new one. */
   employerPaise: number;
+  /** Earnings plus any employer lines: the CTC of an old revision. */
   totalPaise: number;
 }
 
 export function ctcTotals(
-  lines: ReadonlyArray<{ kind: PayComponentKind; amountPaise: number }>,
+  lines: ReadonlyArray<{ kind: CtcLineKind; amountPaise: number }>,
 ): CtcTotals {
-  const paidPaise = lines
-    .filter((l) => l.kind === 'EARNING')
-    .reduce((sum, l) => sum + l.amountPaise, 0);
-  const employerPaise = lines
-    .filter((l) => l.kind === 'EMPLOYER_CONTRIBUTION')
-    .reduce((sum, l) => sum + l.amountPaise, 0);
-  return { paidPaise, employerPaise, totalPaise: paidPaise + employerPaise };
+  const sum = (kind: CtcLineKind) =>
+    lines.filter((l) => l.kind === kind).reduce((n, l) => n + l.amountPaise, 0);
+  const paidPaise = sum('EARNING');
+  const employerPaise = sum('EMPLOYER_CONTRIBUTION');
+  return { paidPaise, deductionsPaise: sum('DEDUCTION'), employerPaise, totalPaise: paidPaise + employerPaise };
 }

@@ -50,7 +50,7 @@ class FakeRuns implements PayrollRunRepositoryPort {
   }
 }
 
-type Emp = { role?: string; status?: 'active' | 'inactive'; ctc?: boolean; base?: number; joined?: Date | null; unpaid?: number; esi?: string | null; epf?: string | null; deductible?: number };
+type Emp = { role?: string; status?: 'active' | 'inactive'; ctc?: boolean; base?: number; joined?: Date | null; unpaid?: number; esi?: string | null; epf?: string | null; deductible?: number; /** Carry EPF and professional tax deduction lines, as a CTC from 2026-10-14 does. */ ded?: boolean };
 class World implements IdentityPort, HrPort, AttendancePort {
   emps = new Map<string, Emp>();
   add(id: string, e: Emp = {}) {
@@ -68,7 +68,7 @@ class World implements IdentityPort, HrPort, AttendancePort {
   }
   async getEmploymentDetails(id: string) {
     const e = this.emps.get(id);
-    return e ? { dateOfJoining: e.joined ?? new Date('2024-01-01'), esiNumber: e.esi ?? null, epfNumber: e.epf ?? null } : null;
+    return e ? { dateOfJoining: e.joined ?? new Date('2024-01-01'), esiNumber: e.esi ?? null, epfNumber: e.epf ?? null, designationName: 'MR', bankName: 'Canara Bank', bankAccountNumber: '11030331161' } : null;
   }
   ctcMonths: string[] = [];
   /** `base` is the monthly gross; the CTC also carries an employer EPF line that must not be paid out. */
@@ -80,6 +80,11 @@ class World implements IdentityPort, HrPort, AttendancePort {
     const lines = [
       { code: 'BASIC', name: 'Basic', kind: 'EARNING' as const, amountPaise: gross, isOverridden: false },
       { code: 'EPF', name: 'EPF (employer)', kind: 'EMPLOYER_CONTRIBUTION' as const, amountPaise: 600_000, isOverridden: false },
+      ...(e.ded ? [
+        { code: 'EPF', name: 'EPF Contribution', kind: 'DEDUCTION' as const, amountPaise: 887_040, isOverridden: false },
+        { code: 'ESI', name: 'ESI Contribution', kind: 'DEDUCTION' as const, amountPaise: 0, isOverridden: false },
+        { code: 'PTAX', name: 'Professional Tax', kind: 'DEDUCTION' as const, amountPaise: 132_000, isOverridden: false },
+      ] : []),
     ];
     return { ctcAnnualPaise: gross + 600_000, effectiveFrom: '2026-04', lines };
   }
@@ -385,6 +390,36 @@ describe('payroll', () => {
       expect(row('mr1').stage).toBe('PAID');
       await expect(overview.execute({ id: 'mr1', role: 'FIELD' }, '2026-10')).rejects.toMatchObject({ statusCode: 403 });
     });
+  });
+
+  it('takes EPF, ESI and professional tax out of the pay and brings the net to a whole rupee (the salary slip: ₹14,000 → ₹13,151)', async () => {
+    world.add('slip', { base: 1_400_000, ded: true });
+    const [, , o] = await generate.execute(acct, { month: '2026-10' });
+    const run = (o as { run: PayrollRun }).run;
+    expect(run.deductionLines).toEqual([
+      { code: 'EPF', name: 'EPF Contribution', amountPaise: 73_920 },
+      { code: 'ESI', name: 'ESI Contribution', amountPaise: 0 },
+      { code: 'PTAX', name: 'Professional Tax', amountPaise: 11_000 },
+    ]);
+    expect(run).toMatchObject({ baseSalaryPaise: 1_400_000, statutoryDeductionPaise: 84_920, roundingPaise: 20, netPayablePaise: 1_315_100, originalNetPayablePaise: 1_315_100, designationName: 'MR', bankName: 'Canara Bank', bankAccountNumber: '11030331161', dateOfJoining: '2024-01-01' });
+  });
+
+  it('statutory deductions are on the full contract salary: unpaid leave comes off as well, not instead', async () => {
+    world.add('leave', { base: 3_000_000, unpaid: 1, ded: true });
+    const [, , o] = await generate.execute(acct, { month: '2026-10' });
+    const run = (o as { run: PayrollRun }).run;
+    expect(run.leaveDeductionPaise).toBe(100_000);
+    expect(run.statutoryDeductionPaise).toBe(84_920);
+    expect(run.netPayablePaise).toBe(Math.round((3_000_000 - 84_920 - 100_000) / 100) * 100);
+  });
+
+  it('never takes more statutory deduction than the pay left after leave and absent days', async () => {
+    world.add('gone', { base: 1_400_000, unpaid: 30, ded: true });
+    const [, , o] = await generate.execute(acct, { month: '2026-10' });
+    const run = (o as { run: PayrollRun }).run;
+    expect(run.leaveDeductionPaise).toBe(1_400_000);
+    expect(run.statutoryDeductionPaise).toBe(0);
+    expect(run.netPayablePaise).toBe(0);
   });
 
   it('warns, never blocks: ESI missing at or under the ceiling, EPF missing for anyone, read live from the profile', async () => {
