@@ -7,6 +7,8 @@
 
 **Earlier check, same day:** the person page and approvals inbox existed with the tiles. Fixed today: Overview read `items` but the server sends `rows`, and calls-per-day can be `null`. Section 5 item 5 (actions on a person) is built: unblock, late plan or expense, set a target (Targets screen, with remove), and set a doctor visit target. Not built: push (FCM).
 
+**Manager's own Daily Plan, 2026-10-14:** a manager picks team members to work with and plans the day from their routes and doctors - [`dailyplan.md`](dailyplan.md) section 1b. A manager's target and achievement are the total of the MRs in their team - [`secondary-and-targets.md`](secondary-and-targets.md) section 2.
+
 **Goal:** a manager can run **daily operations** (approve what is waiting, unblock people, grant exceptions) and **monitor the team** (who is working, who is behind, how sales and visits compare with target) from the phone (through the API), without Admin.
 
 ## 1. Scope

@@ -380,6 +380,14 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       getDirectReports: (managerId) => getDirectReports.execute(managerId),
       getDownline: (managerId) => getDownline.execute(managerId),
       isFieldRole: (userId) => isFieldRole.execute(userId),
+      getDesignationLevels: async (userIds) => {
+        const [profiles, designations] = await Promise.all([employeeProfileRepository.findByUserIds(userIds), designationRepository.list()]);
+        const levelOf = new Map(designations.map((d) => [d.id, d.level]));
+        return profiles.flatMap((p) => {
+          const level = p.designationId ? levelOf.get(p.designationId) : undefined;
+          return level === undefined ? [] : [{ userId: p.userId, level }];
+        });
+      },
       isBlocked: (userId) => isBlocked.execute(userId),
       blockUser: (userId, reason) => blockUser.execute(userId, reason),
       listActiveFieldUserIds: () => userRepository.listActiveIdsByRole('FIELD'),

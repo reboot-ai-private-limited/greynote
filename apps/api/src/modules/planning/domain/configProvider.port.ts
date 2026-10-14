@@ -16,4 +16,5 @@ export const PLANNING_CONFIG_KEYS = {
   resubmitGraceMax: 'PLAN_RESUBMIT_GRACE_MAX',
   carryOverForever: 'CALL_CARRY_OVER_FOREVER',
   carryOverDays: 'CALL_CARRY_OVER_DAYS',
+  managerMaxDoctors: 'MANAGER_PLAN_DOCTORS_MAX',
 } as const;

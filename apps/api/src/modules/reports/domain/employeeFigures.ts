@@ -28,6 +28,8 @@ export interface EntryRow {
 
 export interface Selection {
   userId?: string;
+  /** Several employees at once — a manager's figures are the sum of their MRs'. Used instead of `userId`. */
+  userIds?: ReadonlySet<string>;
   /** `undefined` = every product. */
   productId?: string | null;
   /** `YYYY-MM`, both inclusive. */
@@ -37,7 +39,7 @@ export interface Selection {
 
 const within = (month: string, s: Selection) => month >= s.fromMonth && month <= s.toMonth;
 const wanted = (r: { userId: string; productId: string; month: string }, s: Selection) =>
-  within(r.month, s) && (s.userId === undefined || r.userId === s.userId) && (s.productId === undefined || s.productId === null || r.productId === s.productId);
+  within(r.month, s) && (s.userId === undefined || r.userId === s.userId) && (s.userIds === undefined || s.userIds.has(r.userId)) && (s.productId === undefined || s.productId === null || r.productId === s.productId);
 
 export interface Valued {
   qty: number;

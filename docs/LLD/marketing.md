@@ -159,3 +159,7 @@ A Visual deactivated later is hidden from the MR and shown, with its status, to 
 ## Targets in units; manager edits to a doctor's visuals (2026-10-12)
 
 `Target.targetQty` (nullable): `POST /marketing/targets` takes `targetAmountPaise` **or** `targetQty` (units need a product; a product with no PTR takes amounts only). With units the amount is `targetQty × ptr`; with an amount the units are `round(amount ÷ ptr)`. `listTargetShares` returns `qty` and `shareQty`; the employee report's per-target rows add `targetQty`, `achievedQty` and `achievementQtyPercent`. Achievement counts approved secondary only (see sales-and-orders.md). Visuals: the MR only adds to a doctor's list; a manager above the MR or Admin can add and remove (`canRemove`).
+
+## A manager has no target of their own (2026-10-14)
+
+A manager (designation above MR) has no target: it is the sum of the MRs in their downline, worked out by Reports (decision-log 2026-10-14). `SetTargetUseCase` refuses a target for a manager (`400`: set it on the MRs); `ListTargetsUseCase` returns `[]` for one; `GetTargetSummaryUseCase` leaves out targets belonging to managers (own and in the downline), so an old manager target cannot double a total. Nothing is deleted: `pnpm --filter @greynote/api report:manager-targets` lists the ignored rows. `UserDirectoryPort` gains `getDesignationLevels`.

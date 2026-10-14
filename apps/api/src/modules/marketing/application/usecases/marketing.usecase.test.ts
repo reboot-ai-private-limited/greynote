@@ -101,6 +101,9 @@ const users: UserDirectoryPort = {
     const below = (id: string): string[] => Object.keys(tree).filter((c) => tree[c] === id).flatMap((c) => [c, ...below(c)]);
     return below(m).map((id) => user(id));
   },
+  async getDesignationLevels(ids) {
+    return ids.filter((id) => id in tree).map((userId) => ({ userId, level: userId === 'rsm' ? 3 : userId === 'asm' ? 2 : 1 }));
+  },
 };
 const products: ProductPort = { async getProduct(id) { return id === 'prod1' ? { id, status: 'active', ptsPaise: 1200 } : id === 'prodOff' ? { id, status: 'inactive', ptsPaise: null } : id === 'prodNoPts' ? { id, status: 'active', ptsPaise: null } : null; } };
 const admin = { id: 'admin', role: 'ADMIN' };
@@ -110,7 +113,7 @@ describe('target units and amount', () => {
   const code = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => (e instanceof MarketingRefusal ? e.code : 'OTHER'));
   it('units × PTS is the amount; an amount restates as units; no PTS or all products means amount only', async () => {
     const targets = new FakeTargets();
-    const set = new SetTargetUseCase(targets, {} as never, products, { findUserSummary: async () => ({ id: 'mr1', status: 'active', role: 'FIELD' }), getDownline: async () => [] } as never, config, () => new Date('2026-10-12T05:00:00Z'));
+    const set = new SetTargetUseCase(targets, {} as never, products, { findUserSummary: async () => ({ id: 'mr1', status: 'active', role: 'FIELD' }), getDownline: async () => [], getDesignationLevels: async () => [{ userId: 'mr1', level: 1 }] } as never, config, () => new Date('2026-10-12T05:00:00Z'));
     const base = { userId: 'mr1', month: '2026-10', productId: 'prod1', campaignId: null };
     expect(await set.execute(admin, { ...base, targetQty: 50 })).toMatchObject({ targetQty: 50, targetAmountPaise: 60_000 });
     expect(await set.execute(admin, { ...base, targetAmountPaise: 120_000 })).toMatchObject({ targetQty: 100, targetAmountPaise: 120_000 });
@@ -153,7 +156,7 @@ describe('targets', () => {
   it('a manager sets their own and their downline’s (any depth), and no one else’s', async () => {
     await set.execute(f('asm'), { userId: 'mr1', ...general, targetAmountPaise: 1 });
     await set.execute(f('rsm'), { userId: 'mr1', ...general, targetAmountPaise: 2 }); // two levels down
-    await set.execute(f('asm'), { userId: 'asm', ...general, targetAmountPaise: 3 });
+    expect(await code(set.execute(f('asm'), { userId: 'asm', ...general, targetAmountPaise: 3 }))).toBe(MARKETING_CODES.invalidDates); // a manager's is the sum of their MRs
     expect(await code(set.execute(f('asm'), { userId: 'mr3', ...general, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam);
     expect(await code(set.execute(f('asm'), { userId: 'rsm', ...general, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam); // upward
   });
@@ -170,13 +173,13 @@ describe('targets', () => {
     expect(targets.rows.size).toBe(0);
   });
 
-  it('a manager’s effective target is their own plus everyone below; a member with none adds 0', async () => {
-    await set.execute(admin, { userId: 'asm', ...general, targetAmountPaise: 100 });
+  it('a manager’s effective target is the sum of the MRs below; a target set on a manager before is ignored', async () => {
+    await targets.upsert({ userId: 'asm', ...general, toMonth: general.month }, 100, null, 'admin', new Date()); // legacy, set before 2026-10-14
     await set.execute(admin, { userId: 'mr1', ...general, targetAmountPaise: 40 }); // mr2 has none
     await set.execute(admin, { userId: 'mr3', ...general, targetAmountPaise: 9999 }); // outside the tree
     const s = await summary.execute(f('asm'), 'asm', general);
-    expect(s).toMatchObject({ ownTargetPaise: 100, downlineTargetPaise: 40, downlineCount: 2, effectiveTargetPaise: 140 });
-    expect((await summary.execute(f('rsm'), 'rsm', general)).effectiveTargetPaise).toBe(140); // rsm has none of their own; asm's counted through the tree
+    expect(s).toMatchObject({ ownTargetPaise: 0, downlineTargetPaise: 40, downlineCount: 2, effectiveTargetPaise: 40 });
+    expect((await summary.execute(f('rsm'), 'rsm', general)).effectiveTargetPaise).toBe(40); // asm's own is not counted again through the tree
   });
 
   it('achieved is what the user and their whole downline ordered over the month', async () => {

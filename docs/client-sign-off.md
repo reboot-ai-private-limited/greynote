@@ -218,3 +218,14 @@ depends on are answered or explicitly accepted as "build with today's assumption
 | L2 | Who can add documents, and who sees them? | Admin only; for every field employee or chosen people; PDF/JPG/PNG up to 10 MB; remove and add again to change | Working assumption |
 | L3 | What does a closed financial year do on the phone? | Daily work dated inside it is refused (`FY_CLOSED`) and the phone shows a read-only notice. A year can be closed only after it ends | Working assumption |
 
+
+## M. Manager's day and target of 2026-10-14
+
+| # | Question | Today | Status |
+|---|---|---|---|
+| M1 | Who is a manager? | Anyone whose designation is above MR (ASM, RSM, ZSM, NSM), with or without a team | Working assumption |
+| M2 | How does a manager plan the day? | They keep the Monthly Plan; each day they choose team members to work with (whole downline) and the routes and doctors fill in from those people's plans; they can edit the lists and submit as usual | Working assumption |
+| M3 | How many doctors can a manager's day list? | 100 (Admin setting `MANAGER_PLAN_DOCTORS_MAX`); an MR's stays 50 | Working assumption |
+| M4 | What is a manager's target and achievement? | The total of every MR in their team; a manager cannot be given a target; targets already set on managers are ignored, not deleted | Working assumption |
+| M5 | A distributor handed to two MRs of one manager | Counts for each, so the manager's achievement can be more than the distributor sold | Working assumption |
+| M6 | An MR who changes manager mid-month | Counts wholly for the manager they have now | Working assumption |

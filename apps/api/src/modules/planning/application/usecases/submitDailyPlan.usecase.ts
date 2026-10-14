@@ -7,6 +7,7 @@ import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { CarryOver } from '../carryOver.js';
 import { assertMonthlyApproved, type MonthlyApprovedCheck } from '../monthlyGate.js';
 import type { PlanDeadlines } from '../planDeadlines.js';
+import type { ManagerScope } from '../managerScope.js';
 import type { PlanSubmitter } from '../planSubmitter.js';
 
 /** Submit — or resubmit — the caller's own Daily Plan. Needs a live connection (LLD). */
@@ -18,6 +19,7 @@ export class SubmitDailyPlanUseCase {
     private readonly approvals: ApprovalsPort,
     private readonly carryOver: CarryOver,
     private readonly monthlyApproved: MonthlyApprovedCheck,
+    private readonly scope: ManagerScope,
   ) {}
 
   async execute(userId: string, planId: string): Promise<ApprovalRequest> {
@@ -31,7 +33,7 @@ export class SubmitDailyPlanUseCase {
     // be edited is touched; one already waiting or approved is refused by the submitter below.
     const request = await this.approvals.getForRecord('DAILY_PLAN', plan.id);
     if (isFieldDay(plan.workingType) && (!request || isEditableBySubmitter(request.status))) {
-      const doctors = await this.carryOver.compose(plan, plan.doctors.filter((d) => d.carriedFrom === null).map((d) => d.doctorId));
+      const doctors = await this.carryOver.compose(plan, plan.doctors.filter((d) => d.carriedFrom === null).map((d) => d.doctorId), await this.scope.doctorScope(plan.userId, plan.workWith));
       const changed = doctors.length !== plan.doctors.length || doctors.some((d, i) => d.doctorId !== plan.doctors[i]?.doctorId || d.carriedFrom !== plan.doctors[i]?.carriedFrom);
       if (changed) {
         const saved = await this.plans.saveDoctors(plan.id, plan.revision, doctors);
@@ -49,6 +51,7 @@ export class SubmitDailyPlanUseCase {
       resubmitPolicy: await this.deadlines.dailyResubmitPolicy(plan.planDate),
       lateResubmits: plan.lateResubmits,
       days: [{ day: plan, field: '' }],
+      alsoRoutesOf: await this.scope.team(plan.userId, plan.workWith),
       confirmRevision: (count, ctx) => this.plans.confirmRevision(plan.id, plan.revision, count, ctx),
     });
   }

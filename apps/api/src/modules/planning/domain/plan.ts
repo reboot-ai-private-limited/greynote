@@ -1,3 +1,6 @@
+/** The designation level of an MR; every level above it is a manager (a manager needs no direct report to be one). */
+export const MR_LEVEL = 1;
+
 /** What a planned day is for (ERD Module 5). */
 export const WORKING_TYPES = ['FIELD_WORK', 'DOCTOR_CAMPAIGN', 'MEETING', 'CONFERENCE', 'STRIKE'] as const;
 export type WorkingType = (typeof WORKING_TYPES)[number];

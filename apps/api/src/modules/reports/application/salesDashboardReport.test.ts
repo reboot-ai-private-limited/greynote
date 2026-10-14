@@ -15,6 +15,7 @@ function build(over: { downline?: string[] } = {}) {
     {
       async listFieldEmployees(only) { return only ? people.filter((p) => only.includes(p.id)) : people; },
       async getDownline() { return (over.downline ?? []).map((id) => ({ id })); },
+      async getDesignationLevels(ids) { return ids.flatMap((userId) => { const p = people.find((x) => x.id === userId); return p ? [{ userId, level: p.designation === 'MR' ? 1 : 2 }] : []; }); },
     },
     {
       async listDailyPlanDays(userId) {
@@ -83,6 +84,20 @@ describe('SalesDashboardReport', () => {
     const out = await build({ downline: ['mr1', 'mr2'] }).report.read({ actor: { id: 'asm', role: 'FIELD' }, ...base });
     expect(out.rows.map((r) => r.employee.id)).toEqual(['mr1', 'mr2']);
     await expect(build().report.read({ actor: { id: 'mr1', role: 'FIELD' }, ...base })).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('a manager’s target, achievement and primary are the sum of the MRs below them, and the totals count each MR once', async () => {
+    const { report } = build({ downline: ['mr1', 'mr2'] });
+    const out = await report.read({ actor: { id: 'a', role: 'ADMIN' }, ...base });
+    const asm = out.rows.find((r) => r.employee.id === 'asm')!;
+    expect(asm).toMatchObject({ designation: 'ASM', mrCount: 2, targetPaise: 90_000, achievedPaise: 32_000, primaryPaise: 4_000 });
+    expect(out.rows.find((r) => r.employee.id === 'mr1')!.mrCount).toBeNull();
+    expect(out.totals).toMatchObject({ targetPaise: 90_000, achievedPaise: 32_000, primaryPaise: 4_000 });
+  });
+
+  it('a manager with no MRs below them has no figures, not zero percent', async () => {
+    const out = await build().report.read({ actor: { id: 'a', role: 'ADMIN' }, ...base });
+    expect(out.rows.find((r) => r.employee.id === 'asm')!).toMatchObject({ mrCount: 0, targetPaise: null, achievedPaise: null, primaryPaise: 0 });
   });
 
   it('refuses more than 93 days', async () => {

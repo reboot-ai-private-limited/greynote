@@ -80,6 +80,12 @@ export interface FieldRosterPort {
   getDownline(managerId: string): Promise<Array<{ id: string; depth?: number }>>;
 }
 
+/** Identity's designation levels — what tells an MR (1) from a manager (above 1) when a manager's figures are summed over their MRs. */
+export interface DesignationLevelsPort {
+  /** Designation level (MR 1 … NSM 5) of each user; users without one are left out. */
+  getDesignationLevels(userIds: string[]): Promise<Array<{ userId: string; level: number }>>;
+}
+
 export interface FieldDaysPort {
   summarizeTaDaByUser(range: { from: string; to: string }): Promise<Array<{ userId: string; taPaise: number; daPaise: number }>>;
   /** This user's reports in the range, each with its status (`DRAFT` until submitted). */

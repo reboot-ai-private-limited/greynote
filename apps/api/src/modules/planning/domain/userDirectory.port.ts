@@ -19,4 +19,6 @@ export interface UserDirectoryPort {
   /** Everyone below this manager, at any depth. */
   getDownline(managerId: string): Promise<DirectoryUser[]>;
   isBlocked(userId: string): Promise<boolean>;
+  /** Designation level of each user (MR 1 … NSM 5); users without a designation are left out. */
+  getDesignationLevels(userIds: string[]): Promise<Array<{ userId: string; level: number }>>;
 }

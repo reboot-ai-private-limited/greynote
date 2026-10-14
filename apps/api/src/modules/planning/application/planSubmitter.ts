@@ -23,6 +23,8 @@ export interface PlanSubmission {
   lateResubmits: number;
   /** Every day in the Plan, with the field prefix its errors carry. */
   days: Array<{ day: PlanDay; field: string }>;
+  /** A manager's Daily Plan may also use the routes of the team members it works with. */
+  alsoRoutesOf?: string[];
   /**
    * Inside the transaction: false if the Plan was edited after it was validated here.
    * `countLateResubmit` records a submit through the resubmit window.
@@ -60,7 +62,7 @@ export class PlanSubmitter {
     if (await this.users.isBlocked(s.ownerId)) {
       throw AppError.forbidden('You are blocked for missed reports. Your manager or Admin has to unblock you before you can submit a plan.');
     }
-    await this.validateDays(s.ownerId, s.days);
+    await this.validateDays(s.ownerId, s.days, s.alsoRoutesOf);
 
     // Late (sign-off B8): the after-rejection window first, so an exception is kept for later;
     // otherwise a late-submission exception, used up by this submit.
@@ -86,11 +88,11 @@ export class PlanSubmitter {
   }
 
   /** Every day is well-formed, on the owner's own active routes, with active colleagues — checked against today's state. */
-  async validateDays(ownerId: string, days: Array<{ day: PlanDay; field: string }>): Promise<void> {
+  async validateDays(ownerId: string, days: Array<{ day: PlanDay; field: string }>, alsoRoutesOf: string[] = []): Promise<void> {
     const s = { ownerId, days };
     for (const { day, field } of s.days) assertPlanDay(day, s.ownerId, field);
 
-    const mine = await this.routes.listRoutesForUser(s.ownerId);
+    const mine = (await Promise.all([s.ownerId, ...alsoRoutesOf].map((id) => this.routes.listRoutesForUser(id)))).flat();
     const allowed = new Set(mine.map((r) => r.id));
     const outStation = new Set(mine.filter((r) => r.routeType === 'OUT_STATION').map((r) => r.id));
     for (const { day, field } of s.days) {
@@ -102,7 +104,7 @@ export class PlanSubmitter {
       }
       const notYours = day.routeIds.filter((id) => !allowed.has(id));
       if (notYours.length > 0) {
-        throw AppError.badRequest('A route in this plan isn’t one of your active routes.', {
+        throw AppError.badRequest(alsoRoutesOf.length > 0 ? 'A route in this plan isn’t one of your active routes or those of the team you work with.' : 'A route in this plan isn’t one of your active routes.', {
           field: `${field}routeIds`,
           routeIds: notYours,
         });

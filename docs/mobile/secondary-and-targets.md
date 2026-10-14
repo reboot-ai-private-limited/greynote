@@ -20,6 +20,8 @@ Show a status chip per line and for the month (`secondaryStatus`: Draft / Waitin
 
 ## 2. Targets
 
+**Manager targets, 2026-10-14.** A manager (any designation above MR) has **no target of their own**: their target, achievement and primary are the **sum of every MR in their whole downline**, worked out when read (`GET /reports/employee-sales` for a manager returns the MRs' targets merged, one line per product and run of months, and `team: { mrCount }`; the Sales dashboard row carries `mrCount`). `POST /marketing/targets` for a manager is refused with `400` ("set the target on each MR"); `GET /marketing/targets/:userId` returns `[]` for a manager. A target a manager already has is ignored, not deleted (`report:manager-targets` lists them). The phone's manager targets screen should show the team total with a per-MR breakdown, hide **Set a target** for a manager row, and show "No MRs under you" when `mrCount` is 0. A manager still sets targets on the MRs in their team.
+
 - Set by Admin, or by a manager for themselves and their team; an MR only reads. The phone shows them read-only.
 - A target is **per product, for a run of months** of the current financial year, as an **amount or as units**: for a product with a PTS, one follows the other (`units × PTS = amount`) and both are returned (`targetQty`, `targetAmountPaise`). A target for **all products** is an amount only.
 - **Achievement** = the employee's **approved** secondary for the product in those months, against the target — shown as amount % and, when the target has units, units %. It is computed when read, never stored.

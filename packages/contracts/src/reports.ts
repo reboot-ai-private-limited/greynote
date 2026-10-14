@@ -390,6 +390,11 @@ export interface SalesDashboardRowDto {
   achievedPaise: number | null;
   /** Their Done distributor orders plus Admin's change, in those months. */
   primaryPaise: number;
+  /**
+   * A manager (any designation above MR): how many MRs in their whole team the target, achievement and primary columns add up.
+   * `null` for an MR, whose figures are their own.
+   */
+  mrCount?: number | null;
 }
 
 /** `GET /reports/sales-dashboard?from=&to=`: the field force over a range, one page of rows and the totals of all of them. */
@@ -452,8 +457,10 @@ export interface EmployeeSalesReportDto {
   /** The share of targets for all products in the months. */
   generalTargetPaise: number;
   totals: { targetPaise: number; primaryPaise: number; secondaryPaise: number; achievementPercent: number | null };
-  /** Every target touching the months, each measured over its own months. */
+  /** Every target touching the months, each measured over its own months. For a manager the targets of their MRs, one row per product and run of months. */
   targets: EmployeeTargetFigureDto[];
+  /** A manager's figures are the sum of the MRs in their whole team: how many there are. `null` for an MR. */
+  team?: { mrCount: number } | null;
   /**
    * The employee's primary by distributor: Done orders to each distributor in the months (the month marked Done), by name. The rows add up to
    * the order part of `totals.primaryPaise`. Secondary is entered per product, not per distributor, so it has no row here; a distributor's own

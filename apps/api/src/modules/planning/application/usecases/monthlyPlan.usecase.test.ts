@@ -195,7 +195,7 @@ describe('Monthly Plan', () => {
     beforeEach(() => {
       const approved = (u: string, m: string) => status.isMonthlyPlanApproved(u, m);
       seedDaily = new SeedDailyPlan(kit.dailyPlans, kit.views);
-      submitDaily = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, approved);
+      submitDaily = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, approved, kit.scope);
     });
 
     it('refuses a daily submit with no monthly plan, and while the month is only submitted', async () => {

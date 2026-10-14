@@ -61,7 +61,8 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
   const [month, setMonth] = useState(
     enterable.includes(thisMonth) ? thisMonth : (enterable[enterable.length - 1] ?? thisMonth),
   );
-  const canSetTargets = me?.role === 'ADMIN' || (me?.role === 'FIELD' && me.id !== userId);
+  // A manager's target is the total of their MRs, so there is nothing to set (or remove) on a manager.
+  const canSetTargets = !data?.team && (me?.role === 'ADMIN' || (me?.role === 'FIELD' && me.id !== userId));
   const name = data?.employee.name ?? 'Employee';
 
   const monthOptions = fyMonths.map((m) => ({ value: m, label: monthLabel(m) }));
@@ -130,7 +131,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
         title={name}
         description={
           data
-            ? `${data.employee.employeeCode} · Targets, primary (Done orders to distributors) and secondary (what they sold, their achievement) for ${rangeLabel(data.fromMonth, data.toMonth)}.`
+            ? `${data.employee.employeeCode} · ${data.team ? `The total of the ${data.team.mrCount} MRs in their team. ` : ''}Targets, primary (Done orders to distributors) and secondary (what they sold, their achievement) for ${rangeLabel(data.fromMonth, data.toMonth)}.`
             : 'Targets, primary and secondary.'
         }
         actions={
@@ -187,7 +188,11 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
               <DataTable columns={targetColumns} rows={data.targets} rowKey={(t) => t.id} bleed={false} />
             ) : (
               <p className="px-5 py-6 text-[13px] text-text-muted">
-                No target touches these months{canSetTargets ? '. Use “Set a target”.' : '.'}
+                {data?.team
+                  ? data.team.mrCount === 0
+                    ? 'No MRs under them yet, so there is nothing to add up.'
+                    : 'No target touches these months. Set targets on the MRs; a manager’s is their total.'
+                  : `No target touches these months${canSetTargets ? '. Use “Set a target”.' : '.'}`}
               </p>
             )}
           </Card>
@@ -211,7 +216,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
         </div>
       </DataState>
 
-      {me?.role === 'ACCOUNTANT' ? null : (
+      {me?.role === 'ACCOUNTANT' || data?.team ? null : (
       <div className="mt-6">
         <Card
           title="Enter the month's figures"

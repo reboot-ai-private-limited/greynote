@@ -109,10 +109,15 @@ export function SalesDashboardScreen() {
       header: 'Target',
       numeric: true,
       render: (r) =>
-        r.targetPaise === null ? (
+        r.mrCount === 0 ? (
+          <span className="text-text-subtle">No MRs under them</span>
+        ) : r.targetPaise === null ? (
           <span className="text-text-subtle">Not set</span>
         ) : (
-          money(r.targetPaise)
+          <>
+            {money(r.targetPaise)}
+            {r.mrCount ? <span className="ml-1.5 text-xs text-text-muted">{r.mrCount} MRs</span> : null}
+          </>
         ),
     },
     { key: 'primary', header: 'Primary', numeric: true, render: (r) => money(r.primaryPaise) },
@@ -121,6 +126,7 @@ export function SalesDashboardScreen() {
       header: 'Achievement',
       numeric: true,
       render: (r) => {
+        if (r.mrCount === 0) return <span className="text-text-subtle">—</span>;
         if (r.achievedPaise === null) return <span className="text-text-subtle">Nothing entered</span>;
         const percent = achievementPercent(r);
         return (

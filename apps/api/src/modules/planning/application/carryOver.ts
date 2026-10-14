@@ -111,13 +111,21 @@ export class CarryOver {
 
   /**
    * The list a plan should carry: the doctors the MR picked (`pickedIds`) plus every doctor still owed, which can't be dropped.
-   * Picked doctors must be the MR's own and on one of the plan's routes.
+   * Picked doctors must be assigned to the owner — or, for a manager, to a team member they work with (`scope.people`) — and be
+   * on one of the plan's routes. `scope.max` is the most doctors the day may list.
    */
-  async compose(plan: Pick<DailyPlan, 'userId' | 'planDate' | 'routeIds'>, pickedIds: string[]): Promise<PlannedDoctor[]> {
+  async compose(
+    plan: Pick<DailyPlan, 'userId' | 'planDate' | 'routeIds'>,
+    pickedIds: string[],
+    scope: { people: string[]; max: number } = { people: [plan.userId], max: MAX_PLAN_DOCTORS },
+  ): Promise<PlannedDoctor[]> {
     const unique = [...new Set(pickedIds)];
     const owed = await this.pending(plan.userId, plan.planDate);
     const owedIds = new Set(owed.map((d) => d.doctorId));
-    const mine = new Map((await this.directory().listAssignedDoctors(plan.userId)).map((d) => [d.id, d.routeId]));
+    const mine = new Map<string, string>();
+    for (const person of scope.people) {
+      for (const d of await this.directory().listAssignedDoctors(person)) if (!mine.has(d.id)) mine.set(d.id, d.routeId);
+    }
     const routes = new Set(plan.routeIds);
     const picked = unique.filter((id) => !owedIds.has(id));
     const notYours = picked.filter((id) => !mine.has(id));
@@ -129,8 +137,8 @@ export class CarryOver {
       throw AppError.badRequest('A doctor in this plan is not on the routes planned for the day.', { field: 'doctorIds', doctorIds: offRoute });
     }
     const all = [...owed, ...picked.map((doctorId) => ({ doctorId, carriedFrom: null }))];
-    if (all.length > MAX_PLAN_DOCTORS) {
-      throw AppError.badRequest(`A day can list at most ${MAX_PLAN_DOCTORS} doctors.`, { field: 'doctorIds' });
+    if (all.length > scope.max) {
+      throw AppError.badRequest(`A day can list at most ${scope.max} doctors.`, { field: 'doctorIds' });
     }
     return all;
   }

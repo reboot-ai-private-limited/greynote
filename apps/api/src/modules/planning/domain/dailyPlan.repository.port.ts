@@ -20,6 +20,12 @@ export interface DailyPlanRepositoryPort {
    */
   createInherited(userId: string, planDate: string, day: PlanDay, ctx: TransactionContext): Promise<boolean>;
   /**
+   * A manager's own edit of their day (work with, routes, remarks and doctors together) while the plan is editable: replaces the
+   * body and the doctors, marks the plan `MANUAL` so a later Monthly Plan approval won't overwrite it, and bumps `revision`, only
+   * if the plan is still at `expectedRevision`. `null` when it moved on.
+   */
+  saveManagerDay(id: string, expectedRevision: number, day: PlanDay, doctors: PlannedDoctor[]): Promise<DailyPlan | null>;
+  /**
    * A manager's or Admin's amendment: replaces the body and appends `amendment`, bumping `revision`, only if the plan is still
    * at `expectedRevision`. `null` when it moved on.
    */

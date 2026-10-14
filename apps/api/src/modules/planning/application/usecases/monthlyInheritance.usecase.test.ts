@@ -36,7 +36,7 @@ describe('Daily Plans inherited from the Monthly Plan', () => {
     kit.users.add(ADMIN, { role: 'ADMIN' });
     kit.routes.byUser.set(MR, [R1, R2]);
     saveDaily = new SeedDailyPlan(kit.dailyPlans, kit.views);
-    submitDaily = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, kit.monthlyApproved);
+    submitDaily = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, kit.monthlyApproved, kit.scope);
     const saveMonthly = new SaveMonthlyPlanUseCase(kit.monthlyPlans, kit.approvals, kit.views);
     const submitMonthly = new SubmitMonthlyPlanUseCase(kit.monthlyPlans, kit.deadlines, kit.submitter);
     const plan = await saveMonthly.execute(MR, '2026-10', [

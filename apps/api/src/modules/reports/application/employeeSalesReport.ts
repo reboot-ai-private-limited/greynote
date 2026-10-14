@@ -2,10 +2,31 @@ import type { EmployeeProductFigureDto, EmployeeSalesReportDto, EmployeeTargetFi
 import { AppError } from '@/shared/errors/AppError.js';
 import { monthRange } from '@/shared/time/businessTime.js';
 import type { DistributorAchievement } from './distributorAchievement.js';
+import { MrRollup } from './mrRollup.js';
 import { percentOf, primaryOf, secondaryOf, type PriceRow } from '../domain/employeeFigures.js';
-import type { EmployeeSalesPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort } from '../domain/ports.js';
+import type { DesignationLevelsPort, EmployeeSalesPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort } from '../domain/ports.js';
 
 const UNKNOWN = '(removed)';
+
+type Share = Awaited<ReturnType<MarketingPort['listTargetShares']>>[number];
+
+/** Targets of several MRs for the same product and run of months added into one line. */
+function mergeShares(rows: readonly Share[]): Share[] {
+  const merged = new Map<string, Share>();
+  for (const t of rows) {
+    const key = `${t.productId ?? ''}|${t.fromMonth}|${t.toMonth}`;
+    const into = merged.get(key);
+    if (!into) {
+      merged.set(key, { ...t });
+      continue;
+    }
+    into.amountPaise += t.amountPaise;
+    into.sharePaise += t.sharePaise;
+    into.qty = into.qty === null && t.qty === null ? null : (into.qty ?? 0) + (t.qty ?? 0);
+    into.shareQty = into.shareQty === null && t.shareQty === null ? null : (into.shareQty ?? 0) + (t.shareQty ?? 0);
+  }
+  return [...merged.values()];
+}
 
 export interface EmployeeSalesInput {
   actor: { id: string; role: string };
@@ -26,9 +47,13 @@ export class EmployeeSalesReport {
     private readonly marketing: MarketingPort,
     private readonly master: MasterPort,
     private readonly identity: IdentityPort,
-    private readonly roster: Pick<FieldRosterPort, 'getDownline'>,
+    private readonly roster: Pick<FieldRosterPort, 'getDownline'> & DesignationLevelsPort,
     private readonly achievement: DistributorAchievement,
-  ) {}
+  ) {
+    this.rollup = new MrRollup(roster);
+  }
+
+  private readonly rollup: MrRollup;
 
   async read(input: EmployeeSalesInput): Promise<EmployeeSalesReportDto> {
     if (input.to < input.from) throw AppError.badRequest('The range ends before it starts.');
@@ -36,24 +61,30 @@ export class EmployeeSalesReport {
     const [employee] = await this.identity.getUserSummaries([input.userId]);
     if (!employee) throw AppError.notFound('No such employee.');
 
+    // A manager's figures are the sum of the MRs in their whole team; an MR's are their own.
+    const memberIds = (await this.rollup.scopes([input.userId])).get(input.userId) ?? [];
+    const isManager = memberIds[0] !== input.userId;
+    const members: ReadonlySet<string> = new Set(memberIds);
     const window = { from: monthRange(input.from).from, to: monthRange(input.to).to };
-    const [orders, entries, shares] = await Promise.all([
-      this.sales.sumUserOrders({ ...window, userIds: [input.userId] }),
-      this.sales.listEmployeeSales({ fromMonth: input.from, toMonth: input.to, userIds: [input.userId] }),
-      this.marketing.listTargetShares([input.userId], input.from, input.to),
+    const [orders, entries, rawShares] = await Promise.all([
+      this.sales.sumUserOrders({ ...window, userIds: memberIds }),
+      this.sales.listEmployeeSales({ fromMonth: input.from, toMonth: input.to, userIds: memberIds }),
+      this.marketing.listTargetShares(memberIds, input.from, input.to),
     ]);
+    // Each MR's target for the same product and months is one line for the manager.
+    const shares = isManager ? mergeShares(rawShares) : rawShares;
     // A target may reach beyond the window, so its own achievement needs the secondary over all its months.
     const reach = shares.reduce((r, t) => ({ from: t.fromMonth < r.from ? t.fromMonth : r.from, to: t.toMonth > r.to ? t.toMonth : r.to }), { from: input.from, to: input.to });
     // Achievement is what the employee's distributors sold on, not what the employee entered (decision-log 2026-10-14).
-    const sold = await this.achievement.entries([input.userId], input.from, input.to);
-    const soldWide = reach.from === input.from && reach.to === input.to ? sold : await this.achievement.entries([input.userId], reach.from, reach.to);
+    const sold = await this.achievement.entries(memberIds, input.from, input.to);
+    const soldWide = reach.from === input.from && reach.to === input.to ? sold : await this.achievement.entries(memberIds, reach.from, reach.to);
 
     const productIds = [...new Set([...orders.map((o) => o.productId), ...entries.map((e) => e.productId), ...sold.map((e) => e.productId), ...shares.flatMap((t) => (t.productId ? [t.productId] : []))])];
     const names = productIds.length ? await this.master.listNames({ productIds }) : { products: [] };
     const prices = new Map<string, PriceRow>(names.products.map((p) => [p.id, { id: p.id, name: p.name, sku: p.sku, ptrPaise: p.ptrPaise, ptsPaise: p.ptsPaise ?? null }]));
     const nameOf = (id: string) => prices.get(id)?.name ?? UNKNOWN;
 
-    const range = { userId: input.userId, fromMonth: input.from, toMonth: input.to };
+    const range = { userIds: members, fromMonth: input.from, toMonth: input.to };
     const products = productIds
       .map((id): EmployeeProductFigureDto => {
         const sel = { ...range, productId: id };
@@ -76,7 +107,7 @@ export class EmployeeSalesReport {
 
     const generalTargetPaise = shares.filter((t) => t.productId === null).reduce((n, t) => n + t.sharePaise, 0);
     const targets = shares.map((t): EmployeeTargetFigureDto => {
-      const achieved = secondaryOf(soldWide, prices, { userId: input.userId, productId: t.productId, fromMonth: t.fromMonth, toMonth: t.toMonth });
+      const achieved = secondaryOf(soldWide, prices, { userIds: members, productId: t.productId, fromMonth: t.fromMonth, toMonth: t.toMonth });
       return { id: t.id, product: t.productId ? { id: t.productId, name: nameOf(t.productId) } : null, fromMonth: t.fromMonth, toMonth: t.toMonth, amountPaise: t.amountPaise, achievedPaise: achieved.paise, achievementPercent: percentOf(achieved.paise, t.amountPaise), targetQty: t.qty, achievedQty: achieved.qty, achievementQtyPercent: t.qty === null ? null : percentOf(achieved.qty, t.qty) };
     });
 
@@ -104,6 +135,7 @@ export class EmployeeSalesReport {
       totals: { targetPaise: totalTarget, primaryPaise: primaryOf(orders, entries, prices, all).paise, secondaryPaise: totalSecondary, achievementPercent: percentOf(totalSecondary, totalTarget) },
       targets,
       distributors,
+      team: isManager ? { mrCount: memberIds.length } : null,
     };
   }
 

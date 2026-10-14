@@ -7,6 +7,8 @@ import { sendSuccess } from '@/shared/http/response.util.js';
 import type { Actor } from '../application/planAccess.js';
 import type { AmendDailyPlanUseCase } from '../application/usecases/amendDailyPlan.usecase.js';
 import type { CarryOver } from '../application/carryOver.js';
+import type { SetManagerDayPlanUseCase } from '../application/usecases/setManagerDayPlan.usecase.js';
+import type { SuggestFromTeamUseCase } from '../application/usecases/suggestFromTeam.usecase.js';
 import type { SetDailyPlanDoctorsUseCase } from '../application/usecases/setDailyPlanDoctors.usecase.js';
 import type { GetDailyPlanUseCase } from '../application/usecases/getDailyPlan.usecase.js';
 import type { GetMonthlyPlanUseCase } from '../application/usecases/getMonthlyPlan.usecase.js';
@@ -22,6 +24,8 @@ import type {
   amendDailyPlanBodySchema,
   carryOverQuerySchema,
   setDailyPlanDoctorsBodySchema,
+  setManagerDayPlanBodySchema,
+  teamSuggestQuerySchema,
   grantLateSubmitBodySchema,
   listDailyPlansQuerySchema,
   listLateSubmitGrantsQuerySchema,
@@ -42,6 +46,8 @@ type ListGrantsQuery = z.output<typeof listLateSubmitGrantsQuerySchema>;
 
 export type PlanningHandlers = Record<
   | 'setDoctors'
+  | 'setManagerDay'
+  | 'teamSuggest'
   | 'carryOver'
   | 'listDaily'
   | 'getDaily'
@@ -60,6 +66,8 @@ export type PlanningHandlers = Record<
 export function makePlanningControllers(useCases: {
   amendDaily: AmendDailyPlanUseCase;
   setDoctors: SetDailyPlanDoctorsUseCase;
+  setManagerDay: SetManagerDayPlanUseCase;
+  teamSuggest: SuggestFromTeamUseCase;
   carryOver: CarryOver;
   listDaily: ListDailyPlansUseCase;
   getDaily: GetDailyPlanUseCase;
@@ -76,6 +84,14 @@ export function makePlanningControllers(useCases: {
     setDoctors: asyncHandler(async (req, res) => {
       const { planDate, doctorIds } = req.body as z.output<typeof setDailyPlanDoctorsBodySchema>;
       sendSuccess(req, res, await useCases.setDoctors.execute(actorOf(req).id, planDate, doctorIds), 'Doctors saved.', 200);
+    }),
+    setManagerDay: asyncHandler(async (req, res) => {
+      const { planDate, ...input } = req.body as z.output<typeof setManagerDayPlanBodySchema>;
+      sendSuccess(req, res, await useCases.setManagerDay.execute(actorOf(req).id, planDate, input), 'Plan saved.', 200);
+    }),
+    teamSuggest: asyncHandler(async (req, res) => {
+      const { date, userIds } = req.query as unknown as z.output<typeof teamSuggestQuerySchema>;
+      sendSuccess(req, res, await useCases.teamSuggest.execute(actorOf(req).id, date, userIds), 'Routes and doctors of the people you would work with.', 200);
     }),
     carryOver: asyncHandler(async (req, res) => {
       const { date } = req.query as unknown as z.output<typeof carryOverQuerySchema>;

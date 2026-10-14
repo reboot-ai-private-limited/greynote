@@ -213,7 +213,9 @@ Monthly exceptions keep `LATE_PLAN_GRANT_MAX_HOURS`.
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| `POST` | `/planning/daily/doctors` | FIELD | Set the day's doctors (the only thing the employee edits) |
+| `POST` | `/planning/daily/doctors` | FIELD | Set the day's doctors (the only thing an MR edits; a manager's may also be a named team member's) |
+| `POST` | `/planning/daily/team-plan` | FIELD (manager: designation above MR) | A manager's whole day: work with, routes, doctors, remarks (2026-10-14, below) |
+| `GET` | `/planning/daily/team-suggest` | FIELD (manager) | Routes and doctors of the team members they would work with, from those people's plans |
 | `POST` | `/planning/daily/:id/submit` | FIELD | Submit — requires connectivity, moves `DRAFT → SUBMITTED` |
 | `GET` | `/planning/daily` | FIELD | List own Daily Plans (date range) |
 | `GET` | `/planning/daily/:id` | FIELD, manager (read-only per visibility rules) | Fetch one |
@@ -269,3 +271,7 @@ first endpoints establish, and keep Daily/Monthly symmetric.
   DCR calls actually logged that day) — explicitly deferred in `erd/05`; would need a nullable FK
   from `DailyPlan` to `MonthlyPlanEntry` if the two are ever linked, which they currently are not.
 - **How far ahead a Daily Plan may be made** — no limit yet.
+
+## A manager plans the day with the team (decision-log 2026-10-14)
+
+A manager is a user whose designation level is above MR (Identity's `getDesignationLevels`; `ManagerScope.isManager`). `SetManagerDayPlanUseCase` replaces the inherited draft's body and doctors in one revision-checked write (`saveManagerDay`, which also sets `source: MANUAL` so the Monthly Plan's re-approval handler leaves it alone). `workWith` must be active people in the manager's downline (`assertInDownline`). `PlanSubmitter.validateDays` takes `alsoRoutesOf`: routes may be the owner's or any named team member's; submit and amend pass the named team members (`ManagerScope.team`), so the check repeats against today's routes. `CarryOver.compose` takes `{ people, max }`: a picked doctor must be assigned to the owner or a named team member and be on one of the day's routes; `max` is 50 for an MR and `MANAGER_PLAN_DOCTORS_MAX` (default 100) for a manager. `SuggestFromTeamUseCase` is read-only: per person their Daily Plan (routes and doctors), else their Monthly Plan entry's routes and the doctors assigned to them on those routes, plus the merged lists. Trip stay/transit days keep the trip's routes; non-field days take no routes or doctors. The Monthly Plan is unchanged (own routes only).

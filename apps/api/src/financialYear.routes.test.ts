@@ -90,6 +90,7 @@ const BY_ID = [
 ];
 const TIMELESS = [
   '/api/planning/daily/carry-over',
+  '/api/planning/daily/team-suggest', // one named day's suggestion for a manager; the day is chosen by the caller
   '/api/field-activity/expense-months/history', // the last twelve months, across a year end
   '/api/config', // system settings: global, not a dated record
   '/api/config/public',

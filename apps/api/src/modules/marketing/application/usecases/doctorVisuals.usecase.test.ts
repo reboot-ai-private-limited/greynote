@@ -44,6 +44,9 @@ const users: UserDirectoryPort = {
     const below = (id: string): string[] => Object.keys(tree).filter((c) => tree[c] === id).flatMap((c) => [c, ...below(c)]);
     return below(m).map(person);
   },
+  async getDesignationLevels(ids) {
+    return ids.filter((id) => id in tree).map((userId) => ({ userId, level: userId === 'asm' ? 2 : 1 }));
+  },
 };
 const doctors: DoctorPort = {
   async getDoctor(id) {

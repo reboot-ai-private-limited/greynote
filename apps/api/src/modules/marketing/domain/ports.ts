@@ -22,6 +22,8 @@ export interface UserDirectoryPort {
   findUserSummary(userId: string): Promise<DirectoryUser | null>;
   /** Everyone below this manager, at any depth. */
   getDownline(managerId: string): Promise<DirectoryUser[]>;
+  /** Designation level (MR 1 … NSM 5) of each user; users without one are left out. */
+  getDesignationLevels(userIds: string[]): Promise<Array<{ userId: string; level: number }>>;
 }
 
 export interface SalesPort {

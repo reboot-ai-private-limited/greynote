@@ -18,6 +18,9 @@ import type { MonthlyApprovedCheck } from '../monthlyGate.js';
 import { PlanDeadlines } from '../planDeadlines.js';
 import { PlanSubmitter } from '../planSubmitter.js';
 import { CarryOver } from '../carryOver.js';
+import { ManagerScope } from '../managerScope.js';
+import { SetManagerDayPlanUseCase } from './setManagerDayPlan.usecase.js';
+import { SuggestFromTeamUseCase } from './suggestFromTeam.usecase.js';
 import { SetDailyPlanDoctorsUseCase } from './setDailyPlanDoctors.usecase.js';
 import { PlanViews } from '../planViews.js';
 
@@ -64,6 +67,13 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
     const plan = this.rows.get(id);
     if (!plan || plan.revision !== expectedRevision) return null;
     const next = { ...plan, doctors, revision: plan.revision + 1, updatedAt: new Date() };
+    this.rows.set(id, next);
+    return next;
+  }
+  async saveManagerDay(id: string, expectedRevision: number, day: PlanDay, doctors: PlannedDoctor[]) {
+    const plan = this.rows.get(id);
+    if (!plan || plan.revision !== expectedRevision) return null;
+    const next = { ...plan, ...day, source: 'MANUAL' as const, doctors, revision: plan.revision + 1, updatedAt: new Date() };
     this.rows.set(id, next);
     return next;
   }
@@ -243,8 +253,8 @@ export class FakeApprovals implements ApprovalsPort {
 }
 
 export class FakeUsers implements UserDirectoryPort {
-  users = new Map<string, DirectoryUser & { managerId: string | null; isBlocked: boolean }>();
-  add(id: string, opts: { role?: DirectoryUser['role']; managerId?: string | null; status?: DirectoryUser['status'] } = {}) {
+  users = new Map<string, DirectoryUser & { managerId: string | null; isBlocked: boolean; level: number }>();
+  add(id: string, opts: { role?: DirectoryUser['role']; managerId?: string | null; status?: DirectoryUser['status']; level?: number } = {}) {
     this.users.set(id, {
       id,
       name: id,
@@ -252,6 +262,7 @@ export class FakeUsers implements UserDirectoryPort {
       status: opts.status ?? 'active',
       managerId: opts.managerId ?? null,
       isBlocked: false,
+      level: opts.level ?? 1,
     });
   }
   async getUserSummaries(ids: string[]) {
@@ -280,6 +291,9 @@ export class FakeUsers implements UserDirectoryPort {
     };
     walk(managerId);
     return below;
+  }
+  async getDesignationLevels(userIds: string[]) {
+    return userIds.flatMap((userId) => (this.users.has(userId) ? [{ userId, level: this.users.get(userId)!.level }] : []));
   }
   async isBlocked(userId: string) {
     return this.users.get(userId)?.isBlocked ?? false;
@@ -352,7 +366,8 @@ export function planningKit(clock: Clock) {
   /** Months (`userId:YYYY-MM`) whose Monthly Plan the test says is not approved; every other month is. */
   const monthlyBlocked = new Set<string>();
   const monthlyApproved: MonthlyApprovedCheck = async (u, m) => !monthlyBlocked.has(`${u}:${m}`);
-  const amend = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => async (u, d) => reported.has(`${u}:${d}`));
+  const scope = new ManagerScope(users, config);
+  const amend = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => async (u, d) => reported.has(`${u}:${d}`), scope);
   /** Each user's visible doctors, and the calls they made (`userId` → `{ doctorId, date }`), as the test sets them. */
   const doctors = new Map<string, Array<{ id: string; routeId: string }>>();
   const calls: Array<{ userId: string; doctorId: string; date: string }> = [];
@@ -361,8 +376,10 @@ export function planningKit(clock: Clock) {
     { listAssignedDoctors: async (userId) => doctors.get(userId) ?? [] },
     async (userId, { from, to }) => calls.filter((c) => c.userId === userId && c.date >= from && c.date <= to).map((c) => c.doctorId),
   );
-  const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views);
-  return { doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, amend, reported, monthlyBlocked, monthlyApproved };
+  const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);
+  const setManagerDay = new SetManagerDayPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, views);
+  const teamSuggest = new SuggestFromTeamUseCase(dailyPlans, monthlyPlans, approvals, users, carryOver, scope);
+  return { scope, setManagerDay, teamSuggest, doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, amend, reported, monthlyBlocked, monthlyApproved };
 }
 
 /**

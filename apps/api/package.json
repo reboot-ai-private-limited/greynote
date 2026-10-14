@@ -24,6 +24,7 @@
         "migrate:specialties": "tsx src/scripts/migrate-specialties.ts",
         "migrate:distributors": "tsx src/scripts/migrate-distributors.ts",
         "migrate:targets": "tsx src/scripts/migrate-targets-to-ranges.ts",
+        "report:manager-targets": "tsx src/scripts/report-manager-targets.ts",
         "migrate:expense-months": "tsx src/scripts/migrate-expense-month-approval.ts",
         "migrate:expense-finalized": "tsx src/scripts/migrate-expense-finalized.ts",
         "migrate:ctc-statutory": "tsx src/scripts/migrate-ctc-statutory.ts",

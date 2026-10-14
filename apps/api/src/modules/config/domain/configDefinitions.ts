@@ -72,6 +72,7 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   integer('DAILY_PLAN_RESUBMIT_GRACE_MINUTES', 'PLANNING', 'Daily plan resubmit window', 'After a rejection, minutes a Daily Plan may still be resubmitted past its deadline.', 30, 1, 1440, 'minutes'),
   { key: 'DAILY_PLAN_RESUBMIT_LATEST_TIME', module: 'PLANNING', label: 'Latest daily plan resubmit time', description: 'Time of day on the plan date after which a rejected Daily Plan can no longer be resubmitted.', type: 'TIME', default: '11:30', impact: 'NORMAL' },
   integer('MONTHLY_PLAN_RESUBMIT_GRACE_HOURS', 'PLANNING', 'Monthly plan resubmit window', 'After a rejection, hours a Monthly Plan may still be resubmitted past its deadline (never after the month starts).', 24, 1, 744, 'hours'),
+  integer('MANAGER_PLAN_DOCTORS_MAX', 'PLANNING', 'Most doctors on a manager’s day', 'Most doctors a manager’s Daily Plan may list. A manager’s list is built from the team members they work with, so it can be longer than an MR’s 50.', 100, 50, 500),
   integer('PLAN_RESUBMIT_GRACE_MAX', 'PLANNING', 'Most resubmits per plan', 'Most resubmits per Plan allowed through the after-rejection window. 0 switches the window off.', 2, 0, 99),
 
   // ── HR ──

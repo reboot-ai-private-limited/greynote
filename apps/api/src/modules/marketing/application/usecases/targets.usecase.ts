@@ -30,6 +30,13 @@ async function assertMayAct(users: UserDirectoryPort, actor: Actor, userId: stri
   throw new MarketingRefusal(MARKETING_CODES.notYourTeam, mode === 'set' ? 'You can only set targets for yourself and your team.' : 'You can only see targets for yourself and your team.');
 }
 
+/** An MR is the only one with a target of their own: a manager's is the total of the MRs in their team (decision-log 2026-10-14). */
+const MR_LEVEL = 1;
+const isManagerLevel = (level: number | undefined): boolean => level !== undefined && level > MR_LEVEL;
+async function managerIds(users: UserDirectoryPort, ids: string[]): Promise<Set<string>> {
+  return new Set((await users.getDesignationLevels(ids)).filter((l) => isManagerLevel(l.level)).map((l) => l.userId));
+}
+
 async function assertScope(products: ProductPort, campaigns: CampaignRepositoryPort, scope: TargetScope): Promise<void> {
   if (scope.productId) {
     const product = await products.getProduct(scope.productId);
@@ -58,6 +65,9 @@ export class SetTargetUseCase {
     const subject = await this.users.findUserSummary(input.userId);
     if (!subject || subject.status !== 'active' || subject.role !== 'FIELD') throw new MarketingRefusal(MARKETING_CODES.userNotFound, 'That employee does not exist or cannot be given a target.');
     await assertMayAct(this.users, actor, input.userId, 'set');
+    if ((await managerIds(this.users, [input.userId])).has(input.userId)) {
+      throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A manager’s target is the total of the MRs in their team. Set the target on each MR instead.');
+    }
     await assertScope(this.products, this.campaigns, input);
     const key: TargetKey = { userId: input.userId, month: input.month, toMonth, productId: input.productId, campaignId: input.campaignId };
     // Units and amount are one figure at the product's PTS: either given, both kept. A target for all products is an amount only.
@@ -104,6 +114,8 @@ export class ListTargetsUseCase {
   async execute(actor: Actor, input: { userId: string; fromMonth: string; toMonth: string }): Promise<Array<Target & { sharePaise: Paise }>> {
     if (!(await this.users.findUserSummary(input.userId))) throw new MarketingRefusal(MARKETING_CODES.userNotFound, 'No such employee.');
     await assertMayAct(this.users, actor, input.userId, 'read');
+    // A manager has no target of their own; any set before 2026-10-14 is ignored (the report adds up their MRs').
+    if ((await managerIds(this.users, [input.userId])).has(input.userId)) return [];
     const rows = await this.targets.listOverlapping([input.userId], input.fromMonth, input.toMonth, { campaignId: null });
     const window = { from: input.fromMonth, to: input.toMonth };
     return rows.map((t) => ({ ...t, sharePaise: targetShare(t, window) }));
@@ -158,7 +170,10 @@ export class GetTargetSummaryUseCase {
 
     const downlineIds = (await this.users.getDownline(userId)).map((u) => u.id);
     const window = { from: scope.month, to: scope.month };
-    const rows = await this.targets.listOverlapping([userId, ...downlineIds], scope.month, scope.month, { productId: scope.productId, campaignId: scope.campaignId });
+    const everyone = [userId, ...downlineIds];
+    const managers = await managerIds(this.users, everyone);
+    // Only MRs carry targets: a manager's own (set before 2026-10-14) would count their MRs' twice.
+    const rows = (await this.targets.listOverlapping(everyone, scope.month, scope.month, { productId: scope.productId, campaignId: scope.campaignId })).filter((t) => !managers.has(t.userId));
     const share = (ids: string[]) => rows.filter((t) => ids.includes(t.userId)).reduce((n, t) => n + targetShare(t, window), 0);
     const ownTargetPaise = share([userId]);
     const downlineTargetPaise = share(downlineIds);

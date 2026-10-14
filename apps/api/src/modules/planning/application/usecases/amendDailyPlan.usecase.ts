@@ -2,6 +2,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
 import type { PlanDay } from '../../domain/plan.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
+import type { ManagerScope } from '../managerScope.js';
 import type { Actor } from '../planAccess.js';
 import type { PlanDeadlines } from '../planDeadlines.js';
 import type { PlanSubmitter } from '../planSubmitter.js';
@@ -28,6 +29,7 @@ export class AmendDailyPlanUseCase {
     private readonly deadlines: PlanDeadlines,
     private readonly views: PlanViews,
     private readonly isDayReported: () => DayReportedCheck,
+    private readonly scope: ManagerScope,
   ) {}
 
   async execute(actor: Actor, planId: string, body: Omit<PlanDay, 'dayKind'>, reason: string): Promise<DailyPlanView> {
@@ -49,7 +51,7 @@ export class AmendDailyPlanUseCase {
       });
     }
 
-    await this.submitter.validateDays(plan.userId, [{ day, field: '' }]);
+    await this.submitter.validateDays(plan.userId, [{ day, field: '' }], await this.scope.team(plan.userId, day.workWith));
     const { workingType, dayKind, workWith, routeIds, remarks } = plan;
     const saved = await this.plans.amend(plan.id, plan.revision, day, {
       by: actor.id,

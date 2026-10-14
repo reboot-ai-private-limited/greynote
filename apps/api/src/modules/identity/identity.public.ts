@@ -47,6 +47,8 @@ export interface IdentityPublicContract {
   /** Everyone below this user at any depth (`depth` 1 = direct report), by depth then name. */
   getDownline(managerId: string): Promise<DownlineMember[]>;
   isFieldRole(userId: string): Promise<boolean>;
+  /** The designation level of each of these users (MR 1 … NSM 5); users without a designation (office staff, Admin) are left out. */
+  getDesignationLevels(userIds: string[]): Promise<Array<{ userId: string; level: number }>>;
   /** Whether a compliance block (HLD 10) stops this user submitting anything new. */
   isBlocked(userId: string): Promise<boolean>;
   /**

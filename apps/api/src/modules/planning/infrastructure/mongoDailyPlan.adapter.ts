@@ -81,6 +81,23 @@ export class MongoDailyPlanAdapter implements DailyPlanRepositoryPort {
     return doc ? toPlan(doc) : null;
   }
 
+  async saveManagerDay(id: string, expectedRevision: number, day: PlanDay, doctors: PlannedDoctor[]): Promise<DailyPlan | null> {
+    const doc = await DailyPlanModel.findOneAndUpdate(
+      { _id: id, revision: expectedRevision },
+      {
+        $set: {
+          ...toDayDoc(day),
+          source: 'MANUAL',
+          doctors: doctors.map((d) => ({ doctorId: new Types.ObjectId(d.doctorId), carriedFrom: d.carriedFrom })),
+          updatedAt: new Date(),
+        },
+        $inc: { revision: 1 },
+      },
+      { new: true },
+    ).lean();
+    return doc ? toPlan(doc) : null;
+  }
+
   async amend(id: string, expectedRevision: number, day: PlanDay, amendment: PlanAmendment): Promise<DailyPlan | null> {
     const doc = await DailyPlanModel.findOneAndUpdate(
       { _id: id, revision: expectedRevision },

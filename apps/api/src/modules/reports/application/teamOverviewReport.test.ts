@@ -43,6 +43,9 @@ function build() {
       async getDownline(id) {
         return id === 'rsm' ? DOWNLINE : [];
       },
+      async getDesignationLevels(ids) {
+        return ids.map((userId) => ({ userId, level: 1 }));
+      },
     },
     {
       async listDailyPlanDays() {

@@ -4,8 +4,9 @@ import { readBusinessDay, type ConfigReader } from '@/shared/config/readConfig.j
 import { businessDate, eachDate } from '@/shared/time/businessTime.js';
 import { monthRange } from '@/shared/time/businessTime.js';
 import type { DistributorAchievement } from './distributorAchievement.js';
+import { MrRollup } from './mrRollup.js';
 import { primaryOf, secondaryOf, type PriceRow } from '../domain/employeeFigures.js';
-import type { AttendancePort, EmployeeSalesPort, FieldDaysPort, FieldRosterPort, MarketingPort, MasterPort, PlanningPort, TerritoryPort, ZoneNamePort } from '../domain/ports.js';
+import type { AttendancePort, DesignationLevelsPort, EmployeeSalesPort, FieldDaysPort, FieldRosterPort, MarketingPort, MasterPort, PlanningPort, TerritoryPort, ZoneNamePort } from '../domain/ports.js';
 
 /** The most days one dashboard read covers. A year's worth would mean a year of attendance for every employee on the page. */
 export const SALES_DASHBOARD_MAX_DAYS = 93;
@@ -35,11 +36,12 @@ const monthsOf = (dates: string[]): string[] => [...new Set(dates.map((d) => d.s
 /**
  * The field force over a date range in one table: plan and daily-report compliance, TA and DA, and the month's target against what was entered
  * as sold. Admin sees every active field employee; a manager sees their downline, and nobody else may read it. Office staff are never listed.
+ * A manager's target, achievement and primary are the sum of the MRs in their whole team (`MrRollup`), so the totals add up each MR once.
  * "Of N days" counts the employee's working days (attendance), so a holiday or approved leave never makes anyone look late.
  */
 export class SalesDashboardReport {
   constructor(
-    private readonly identity: FieldRosterPort,
+    private readonly identity: FieldRosterPort & DesignationLevelsPort,
     private readonly planning: PlanningPort,
     private readonly attendance: AttendancePort,
     private readonly fieldActivity: FieldDaysPort,
@@ -50,7 +52,11 @@ export class SalesDashboardReport {
     private readonly config: ConfigReader,
     private readonly achievement: DistributorAchievement,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+  ) {
+    this.rollup = new MrRollup(identity);
+  }
+
+  private readonly rollup: MrRollup;
 
   async read(input: SalesDashboardInput): Promise<SalesDashboardDto> {
     const { timeZone: zone, dayStart } = await readBusinessDay(this.config);
@@ -68,24 +74,27 @@ export class SalesDashboardReport {
     const matching = needle ? people.filter((p) => p.name.toLowerCase().includes(needle) || p.employeeCode.toLowerCase().includes(needle)) : people;
     const ids = matching.map((p) => p.id);
 
+    // Whose figures each row adds up: an MR's own, a manager's MRs. Everything is read once for all of them.
+    const scopes = await this.rollup.scopes(ids);
+    const figureIds = [...new Set([...scopes.values()].flat())];
     const range = { from, to };
     const months = { from: monthRange(fromMonth).from, to: monthRange(toMonth).to };
     const [taDa, shares, orders, entries, sold] = await Promise.all([
       dates.length ? this.fieldActivity.summarizeTaDaByUser(range) : Promise.resolve([]),
-      this.marketing.listTargetShares(ids, fromMonth, toMonth),
-      this.employeeSales.sumUserOrders({ ...months, userIds: ids }),
-      this.employeeSales.listEmployeeSales({ fromMonth, toMonth, userIds: ids }),
+      this.marketing.listTargetShares(figureIds, fromMonth, toMonth),
+      this.employeeSales.sumUserOrders({ ...months, userIds: figureIds }),
+      this.employeeSales.listEmployeeSales({ fromMonth, toMonth, userIds: figureIds }),
       // Achievement is what the employee's distributors sold on (decision-log 2026-10-14), not what the employee entered.
-      this.achievement.entries(ids, fromMonth, toMonth),
+      this.achievement.entries(figureIds, fromMonth, toMonth),
     ]);
     const taDaOf = new Map(taDa.map((t) => [t.userId, t]));
     const productIds = [...new Set([...orders.map((o) => o.productId), ...entries.map((e) => e.productId), ...sold.map((e) => e.productId)])];
     const names = productIds.length ? await this.master.listNames({ productIds }) : { products: [] };
     const prices = new Map<string, PriceRow>(names.products.map((p) => [p.id, { id: p.id, name: p.name, sku: p.sku, ptrPaise: p.ptrPaise, ptsPaise: p.ptsPaise ?? null }]));
-    const figureOf = (userId: string) => {
-      const mine = shares.filter((t) => t.userId === userId);
-      const has = sold.some((e) => e.userId === userId);
-      const sel = { userId, fromMonth, toMonth };
+    const figuresOf = (members: ReadonlySet<string>) => {
+      const mine = shares.filter((t) => members.has(t.userId));
+      const has = sold.some((e) => members.has(e.userId));
+      const sel = { userIds: members, fromMonth, toMonth };
       return {
         targetPaise: mine.length ? mine.reduce((n, t) => n + t.sharePaise, 0) : null,
         achievedPaise: mine.length || has ? secondaryOf(sold, prices, sel).paise : null,
@@ -93,15 +102,18 @@ export class SalesDashboardReport {
       };
     };
 
+    const figureOf = (userId: string) => figuresOf(new Set(scopes.get(userId) ?? []));
+
     const totals = { employees: matching.length, taPaise: 0, daPaise: 0, targetPaise: 0, achievedPaise: 0, primaryPaise: 0 };
     for (const p of matching) {
-      const f = figureOf(p.id);
       totals.taPaise += taDaOf.get(p.id)?.taPaise ?? 0;
       totals.daPaise += taDaOf.get(p.id)?.daPaise ?? 0;
-      totals.targetPaise += f.targetPaise ?? 0;
-      totals.achievedPaise += f.achievedPaise ?? 0;
-      totals.primaryPaise += f.primaryPaise;
     }
+    // Each MR once, however many managers above them are listed.
+    const all = figuresOf(new Set(figureIds));
+    totals.targetPaise = all.targetPaise ?? 0;
+    totals.achievedPaise = all.achievedPaise ?? 0;
+    totals.primaryPaise = all.primaryPaise;
 
     const pageCount = Math.max(1, Math.ceil(matching.length / input.pageSize));
     const slice = matching.slice((input.page - 1) * input.pageSize, input.page * input.pageSize);
@@ -145,6 +157,7 @@ export class SalesDashboardReport {
           targetPaise: f.targetPaise,
           achievedPaise: f.achievedPaise,
           primaryPaise: f.primaryPaise,
+          mrCount: scopes.get(p.id)?.[0] === p.id ? null : (scopes.get(p.id)?.length ?? 0),
         };
       }),
     );

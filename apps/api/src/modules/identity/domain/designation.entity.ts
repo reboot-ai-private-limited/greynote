@@ -10,3 +10,6 @@ export interface Designation {
   /** `DESIGNATION_LEVEL[name]`. */
   level: number;
 }
+
+/** A manager is anyone whose designation is above MR, whether or not anyone reports to them yet. */
+export const isManagerLevel = (level: number): boolean => level > DESIGNATION_LEVEL.MR;

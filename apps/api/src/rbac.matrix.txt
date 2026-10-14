@@ -99,6 +99,7 @@ GET    /api/payroll/warnings  ACCOUNTANT,ADMIN,HR
 GET    /api/planning/daily  FIELD
 GET    /api/planning/daily/:id  ADMIN,FIELD
 GET    /api/planning/daily/carry-over  FIELD
+GET    /api/planning/daily/team-suggest  FIELD
 GET    /api/planning/late-grants  ADMIN,FIELD
 GET    /api/planning/monthly  FIELD
 GET    /api/planning/monthly/:id  ADMIN,FIELD
@@ -248,6 +249,7 @@ POST   /api/payroll/:id/pay  ACCOUNTANT,ADMIN
 POST   /api/payroll/generate  ACCOUNTANT,ADMIN
 POST   /api/planning/daily/:id/submit  FIELD
 POST   /api/planning/daily/doctors  FIELD
+POST   /api/planning/daily/team-plan  FIELD
 POST   /api/planning/late-grants  ADMIN,FIELD
 POST   /api/planning/late-grants/:id/revoke  ADMIN,FIELD
 POST   /api/planning/monthly  FIELD

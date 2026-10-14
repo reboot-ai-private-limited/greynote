@@ -47,7 +47,7 @@ describe('EmployeeSalesReport', () => {
     },
     { async listNames() { return { distributors: [{ id: 'd1', name: 'Shree' }, { id: 'd2', name: 'Maa Tara' }], chemists: [], products: [...prices.values()] }; }, async listAssignedDoctors() { return []; }, async listActiveOutlets() { return { distributors: [], chemists: [] }; }, async listDistributorAssignees() { return []; } },
     { async getUserSummaries() { return [{ id: 'mr1', name: 'Asha', employeeCode: 'E1' }]; } },
-    { async getDownline(id) { return id === 'asm' ? [{ id: 'mr1' }] : []; } },
+    { async getDownline(id) { return id === 'asm' ? [{ id: 'mr1' }] : []; }, async getDesignationLevels(ids) { return ids.map((userId) => ({ userId, level: userId === 'asm' ? 2 : 1 })); } },
     { entries: async (ids: readonly string[]) => entries.filter((e) => ids.includes(e.userId) && e.secondaryQty !== null) } as never,
   );
   const input = { userId: 'mr1', from: '2026-10', to: '2026-11' };
@@ -69,6 +69,15 @@ describe('EmployeeSalesReport', () => {
       { distributor: { id: 'd2', name: 'Maa Tara' }, orderQty: 5, orderPaise: 4_000 },
       { distributor: { id: 'd1', name: 'Shree' }, orderQty: 12, orderPaise: 10_100 },
     ]);
+  });
+
+  it('a manager’s figures are the sum of the MRs below them; an MR’s carry no team', async () => {
+    const mr = await report.read({ actor: { id: 'admin', role: 'ADMIN' }, ...input });
+    expect(mr.team).toBeNull();
+    const asm = await report.read({ actor: { id: 'admin', role: 'ADMIN' }, ...input, userId: 'asm' });
+    expect(asm.team).toEqual({ mrCount: 1 });
+    expect(asm.totals).toMatchObject({ targetPaise: 80_000, secondaryPaise: 40_000 });
+    expect(asm.targets).toHaveLength(2);
   });
 
   it('is open to Admin, the employee and their manager, and to nobody else', async () => {

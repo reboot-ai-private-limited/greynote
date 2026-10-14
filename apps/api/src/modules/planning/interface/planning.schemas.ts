@@ -23,6 +23,27 @@ export const setDailyPlanDoctorsBodySchema = z.object({
   doctorIds: z.array(objectIdSchema).max(50),
 });
 
+/**
+ * A manager's own plan for a day: who they work with (their team), the routes and the doctors. Routes and doctors may come from
+ * the manager or the team members named; a day that isn't field work sends none.
+ */
+export const setManagerDayPlanBodySchema = z.object({
+  planDate: planDateSchema,
+  workWith: z.array(objectIdSchema).max(20).default([]),
+  routeIds: z.array(objectIdSchema).max(20).default([]),
+  doctorIds: z.array(objectIdSchema).max(500).default([]),
+  remarks: z.string().trim().max(1000).nullish().transform((v) => v || null),
+});
+
+/** `userIds` is a comma-separated list of team members' ids. */
+export const teamSuggestQuerySchema = z.object({
+  date: planDateSchema,
+  userIds: z
+    .string()
+    .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean))
+    .pipe(z.array(objectIdSchema).min(1).max(20)),
+});
+
 export const carryOverQuerySchema = z.object({ date: planDateSchema });
 
 /** Both ends inclusive. The unrefined object is what the OpenAPI doc shows. */
