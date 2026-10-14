@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -25,6 +25,8 @@ type Props = {
   disabled?: boolean;
   /** The day being planned (`YYYY-MM-DD`). Given for a single day, it lets an out-station trip name its return day. */
   date?: string;
+  /** What is wrong with the day, by field: marks the Routes list or the return date in red with the message. */
+  errors?: { routes?: string; returnDate?: string };
 };
 
 /**
@@ -32,7 +34,7 @@ type Props = {
  * pull, so it works offline. "Work with" comes from the colleagues the server offers (offline/colleagues.ts). The routes
  * chosen here decide which doctors can be planned on that day (docs/mobile/monthlyplan.md rule 15).
  */
-export function PlanDayForm({ value, onChange, disabled, date }: Props) {
+export function PlanDayForm({ value, onChange, disabled, date, errors }: Props) {
   const theme = useTheme();
   const territory = useCachedSource<TerritorySnapshot>('territory');
   const routes = territory.data?.routes ?? [];
@@ -85,7 +87,8 @@ export function PlanDayForm({ value, onChange, disabled, date }: Props) {
                 : 'Loading your routes…'}
             </ThemedText>
           ) : (
-            routes.map((r) => {
+            <View style={errors?.routes ? [styles.marked, { borderColor: theme.danger }] : styles.routeList}>
+            {routes.map((r) => {
               const selected = value.routeIds.includes(r.id);
               return (
                 <Pressable
@@ -114,7 +117,13 @@ export function PlanDayForm({ value, onChange, disabled, date }: Props) {
                   </ThemedView>
                 </Pressable>
               );
-            })
+            })}
+            {errors?.routes ? (
+              <ThemedText type="small" themeColor="danger">
+                {errors.routes}
+              </ThemedText>
+            ) : null}
+            </View>
           )}
         </>
       ) : null}
@@ -131,6 +140,11 @@ export function PlanDayForm({ value, onChange, disabled, date }: Props) {
                 disabled={disabled}
                 onChange={(d) => onChange({ ...value, returnDate: d < earliest ? earliest : d > latest ? latest : d })}
               />
+              {errors?.returnDate ? (
+                <ThemedText type="small" themeColor="danger">
+                  {errors.returnDate}
+                </ThemedText>
+              ) : null}
               <ThemedText type="small" themeColor="textSecondary">
                 The days in between are stay days (out-station DA, no TA). The return day earns TA and ex-station DA. Each is a working day: it needs its own Daily Plan and report.
               </ThemedText>
@@ -174,6 +188,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   disabled: { opacity: 0.6 },
+  routeList: { gap: Spacing.two },
+  marked: { gap: Spacing.two, borderWidth: 1.5, borderRadius: Spacing.three, padding: Spacing.two },
   trip: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   box: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   routeText: { flex: 1 },

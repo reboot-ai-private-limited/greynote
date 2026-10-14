@@ -48,6 +48,9 @@ function SlipView({ slip, onBack }: { slip: MyPayslip; onBack: () => void }) {
       <InfoCard>
         <ThemedText type="small" themeColor="textSecondary">{prettyMonth(slip.month)}</ThemedText>
         <ThemedText type="subtitle">{`Net ${formatRupees(s.netPaise)}`}</ThemedText>
+        {s.roundingPaise ? (
+          <ThemedText type="small" themeColor="textSecondary">{`Rounded off ${s.roundingPaise > 0 ? '+' : '−'}${formatRupees(Math.abs(s.roundingPaise))}`}</ThemedText>
+        ) : null}
         {slip.finalizedAt ? <ThemedText type="small" themeColor="textSecondary">{`Finalized ${formatWhen(slip.finalizedAt)}`}</ThemedText> : null}
       </InfoCard>
       <SummaryStrip

@@ -8,6 +8,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 
 import { SyncChip } from './sync-chip';
 import { ThemedText } from './themed-text';
+import { UserAvatar } from './user-avatar';
 
 const BELL: SymbolViewProps['name'] = { ios: 'bell', android: 'notifications', web: 'notifications' } as SymbolViewProps['name'];
 const PERSON: SymbolViewProps['name'] = { ios: 'person', android: 'person', web: 'person' } as SymbolViewProps['name'];
@@ -20,11 +21,7 @@ export function HomeHeader() {
   return (
     <LinearGradient colors={Gradients.header} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
       <View style={styles.row}>
-        <View style={styles.avatar}>
-          <ThemedText type="smallBold" style={styles.avatarLetter}>
-            {name.charAt(0).toUpperCase()}
-          </ThemedText>
-        </View>
+        <UserAvatar name={name} photoUrl={user.photoUrl} size={44} />
         <View style={styles.who}>
           <ThemedText type="smallBold" numberOfLines={1} style={styles.greeting}>
             Hello, {name}
@@ -45,10 +42,7 @@ export function HomeHeader() {
           accessibilityLabel="Profile"
           onPress={() => router.push('/profile')}
           style={({ pressed }) => [styles.profile, pressed && styles.pressed]}>
-          <SymbolView name={PERSON} size={16} tintColor="#2563EB" />
-          <ThemedText type="smallBold" style={styles.profileLabel}>
-            Profile
-          </ThemedText>
+          <SymbolView name={PERSON} size={20} tintColor="#2563EB" />
         </Pressable>
       </View>
       <SyncChip />
@@ -57,39 +51,26 @@ export function HomeHeader() {
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 20, padding: Spacing.three, gap: Spacing.three },
+  card: { borderRadius: 16, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three, gap: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.7)',
-  },
-  avatarLetter: { color: '#FFFFFF', fontSize: 20, lineHeight: 26 },
   who: { flex: 1 },
-  greeting: { color: '#FFFFFF', fontSize: 20, lineHeight: 26 },
+  greeting: { color: '#FFFFFF', fontSize: 16, lineHeight: 22 },
   role: { color: 'rgba(255,255,255,0.88)', fontSize: 12, lineHeight: 16 },
   bell: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
   profile: {
-    flexDirection: 'row',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
-    gap: 6,
-    height: 40,
-    paddingHorizontal: Spacing.three,
-    borderRadius: 20,
+    justifyContent: 'center',
     backgroundColor: '#FFFFFF',
   },
-  profileLabel: { color: '#1E3A8A' },
   pressed: { opacity: 0.8 },
 });

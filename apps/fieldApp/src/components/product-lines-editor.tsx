@@ -23,12 +23,14 @@ type Props = {
   disabled?: boolean;
   /** Shown under a row, e.g. its amount. */
   footer?: (line: ProductLine) => string | null;
+  /** Messages per product, then per column (same order as `columns`): `{ [productId]: [quantityMessage, priceMessage] }`. */
+  errors?: Record<string, (string | undefined)[]>;
 };
 
 /** A list of product rows with one or more typed numbers each; products are added by search. Used by Orders and Monthly Stock. */
-export function ProductLinesEditor({ products, columns, lines, onChange, defaults, disabled, footer }: Props) {
+export function ProductLinesEditor({ products, columns, lines, onChange, defaults, disabled, footer, errors }: Props) {
   const name = (id: string) => products.find((p) => p.id === id)?.name ?? 'Product';
-  const available = products.filter((p) => !lines.some((l) => l.productId === p.id));
+  const available = products.filter((p) => !lines.some((l) => l.productId === p.id)).sort((a, b) => a.name.localeCompare(b.name));
   const clean = (t: string, decimal?: boolean) => t.replace(decimal ? /[^0-9.]/g : /[^0-9]/g, '');
 
   return (
@@ -47,6 +49,7 @@ export function ProductLinesEditor({ products, columns, lines, onChange, default
                 <TextField
                   label={c.label}
                   value={line.values[i] ?? ''}
+                  error={errors?.[line.productId]?.[i]}
                   keyboardType={c.decimal ? 'decimal-pad' : 'number-pad'}
                   editable={!disabled}
                   onChangeText={(t) =>

@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
+import { FormField } from '@/components/form-field';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PillToggle } from '@/components/pill-toggle';
 import { PrimaryButton } from '@/components/primary-button';
@@ -14,6 +15,7 @@ import { ThemedText } from '@/components/themed-text';
 import { CardSection, InfoCard, Meter, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
 import { deleteTarget, setTarget } from '@/lib/marketing';
@@ -27,7 +29,9 @@ import { monthOf, prettyMonth } from '@/offline/day';
 import { useTeam } from '@/offline/team';
 import type { FieldMasterDataSnapshot } from '@/types/sync';
 
-const errorText = (err: unknown) =>
+/** The set-a-target form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
+const FIELD_ORDER = ['who', 'value'];
+const errorText =(err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
 
 type Unit = 'AMOUNT' | 'UNITS';
@@ -41,9 +45,10 @@ const accentFor = (p: number | null): Accent => (p === null ? 'slate' : p >= 100
 
 /**
  * Targets (docs/mobile/secondary-and-targets.md): what you are meant to sell in a month, per product, as an amount or as units,
- * against your achievement: the secondary you entered and your manager approved (Secondary Sales). Primary is shown beside it.
- * The figures are your own. A manager can set a target for themselves or someone below them, for one month or a run of months;
- * for a product with a retail price (PTR) units and amount are one figure, and a target for all products is an amount only.
+ * against your achievement: counted from the stock of the distributors handed to you, valued at PTS (not from what you enter on
+ * Secondary Sales). Primary is shown beside it. The figures are your own. A manager can set a target for themselves or someone
+ * below them, for one month or a run of months; for a product with a PTS price units and amount are one figure, and a target
+ * for all products is an amount only.
  * The server only takes targets inside the current financial year, so setting is off while a past year is selected.
  * Needs a connection: the figures are worked out live.
  */
@@ -76,29 +81,36 @@ export default function TargetsScreen() {
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
+  const fe = useFormErrors(FIELD_ORDER);
 
   const people = [{ id: me?.id ?? '', name: 'Me', subtitle: me?.employeeCode }, ...team.map((c) => ({ id: c.id, name: c.name, subtitle: c.designation ?? c.employeeCode }))];
   const products = master.data?.products ?? [];
-  const productOptions = [{ id: '', name: 'All products' }, ...products.map((p) => ({ id: p.id, name: p.name }))];
-  // Units only make sense for one product that has a PTR (units × PTR is the amount); anything else is an amount.
-  const ptr = products.find((p) => p.id === productId)?.ptrPaise ?? null;
+  const productOptions = [{ id: '', name: 'All products' }, ...[...products].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ id: p.id, name: p.name }))];
+  // Units only make sense for one product that has a PTS (units × PTS is the amount); anything else is an amount.
+  const ptr = products.find((p) => p.id === productId)?.ptsPaise ?? null;
   const canUseUnits = productId !== '' && ptr !== null && ptr > 0;
   const effectiveUnit: Unit = canUseUnits ? unit : 'AMOUNT';
   const unitsEntered = Number(value || 0);
   const worth = effectiveUnit === 'UNITS' && ptr && unitsEntered > 0 ? formatRupees(unitsEntered * ptr) : null;
 
   const save = async () => {
-    if (!who) return setMsg({ tone: 'danger', text: 'Choose who the target is for.' });
     const range = until > month ? { toMonth: until } : {};
-    let amountOrUnits: { targetAmountPaise: number } | { targetQty: number };
+    const problems: Record<string, string> = {};
+    if (!who) problems.who = 'Choose who the target is for.';
+    let amountOrUnits: { targetAmountPaise: number } | { targetQty: number } | null = null;
     if (effectiveUnit === 'UNITS') {
-      if (!Number.isInteger(unitsEntered) || unitsEntered < 1) return setMsg({ tone: 'danger', text: 'Enter the units as a whole number, at least 1.' });
-      amountOrUnits = { targetQty: unitsEntered };
+      if (!Number.isInteger(unitsEntered) || unitsEntered < 1) problems.value = 'Enter the units as a whole number, at least 1.';
+      else amountOrUnits = { targetQty: unitsEntered };
     } else {
       const targetAmountPaise = rupeesToPaise(value);
-      if (targetAmountPaise === null) return setMsg({ tone: 'danger', text: 'Enter the amount in rupees, more than zero.' });
-      amountOrUnits = { targetAmountPaise };
+      if (targetAmountPaise === null) problems.value = 'Enter the amount in rupees, more than zero.';
+      else amountOrUnits = { targetAmountPaise };
     }
+    if (!who || !amountOrUnits) {
+      setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
+      return fe.fail(problems);
+    }
+    fe.clearAll();
     setBusy(true);
     try {
       await setTarget({ userId: who, month, ...range, ...amountOrUnits, productId: productId || null });
@@ -136,7 +148,7 @@ export default function TargetsScreen() {
   const rows = (figures?.products ?? []).filter((p) => p.targetPaise > 0 || p.secondaryQty > 0 || p.primaryQty !== 0);
 
   return (
-    <ScreenShell title="Targets" subtitle="Your targets against what your manager approved">
+    <ScreenShell title="Targets" subtitle="Your targets against what your distributors sold">
       <FyBanner />
       <InfoCard>
         <ThemedText type="smallBold">Month</ThemedText>
@@ -158,7 +170,7 @@ export default function TargetsScreen() {
             ]}
           />
           <ThemedText type="small" themeColor="textSecondary">
-            {`Achieved is your approved secondary. Primary this month: ${formatRupees(figures.totals.primaryPaise)}.${figures.generalTargetPaise > 0 ? ` Includes ${formatRupees(figures.generalTargetPaise)} for all products.` : ''}`}
+            {`Achieved is counted from your distributors' stock, at PTS. It shows 0 until their stock is counted. Primary this month: ${formatRupees(figures.totals.primaryPaise)}.${figures.generalTargetPaise > 0 ? ` Includes ${formatRupees(figures.generalTargetPaise)} for all products.` : ''}`}
           </ThemedText>
           {figures.totals.targetPaise === 0 ? <Notice tone="info">No target is set for this month.</Notice> : null}
 
@@ -198,9 +210,19 @@ export default function TargetsScreen() {
           {rows.map((p) => (
             <InfoCard key={p.product.id}>
               <ThemedText type="smallBold">{p.product.name}</ThemedText>
-              <ThemedText type="small">{`Target ${formatRupees(p.targetPaise)} · Secondary ${p.secondaryQty} units, ${formatRupees(p.secondaryPaise)} · ${percentText(p.achievementPercent)}`}</ThemedText>
+              <ThemedText type="small">{`Target ${formatRupees(p.targetPaise)} · Achieved ${p.secondaryQty} units, ${formatRupees(p.secondaryPaise)} · ${percentText(p.achievementPercent)}`}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">{`Primary ${p.primaryQty} units, ${formatRupees(p.primaryPaise)}`}</ThemedText>
-              {p.flags.includes('NO_PTR') ? <ThemedText type="small" themeColor="warning">This product has no retail price, so its secondary is counted in units only.</ThemedText> : null}
+              {p.flags.includes('NO_PTS') ? <ThemedText type="small" themeColor="warning">This product has no PTS price, so its achievement is counted in units only.</ThemedText> : null}
+            </InfoCard>
+          ))}
+          {figures.distributors && figures.distributors.length > 0 ? <ThemedText type="smallBold">Primary by distributor</ThemedText> : null}
+          {(figures.distributors ?? []).map((d) => (
+            <InfoCard key={d.distributor.id}>
+              <View style={styles.head}>
+                <ThemedText type="smallBold" style={styles.grow}>{d.distributor.name}</ThemedText>
+                <ThemedText type="smallBold">{formatRupees(d.orderPaise)}</ThemedText>
+              </View>
+              <ThemedText type="small" themeColor="textSecondary">{`${d.orderQty} unit${d.orderQty === 1 ? '' : 's'} on Done orders`}</ThemedText>
             </InfoCard>
           ))}
           <PrimaryButton label="Enter secondary sales" variant="text" onPress={() => router.push('/secondary-sales')} />
@@ -214,21 +236,39 @@ export default function TargetsScreen() {
             accent="red"
             title={until > month ? `Set a target for ${prettyMonth(month)} to ${prettyMonth(until)}` : `Set a target for ${prettyMonth(month)}`}>
             <OutletPicker label="Product" options={productOptions} value={productId} onChange={setProductId} disabled={busy} emptyText="No products yet." />
-            <OutletPicker label="For" options={people} value={who} onChange={setWho} disabled={busy} emptyText="No one to choose." />
+            <FormField form={fe} name="who">
+              <OutletPicker
+                label="For"
+                options={people}
+                value={who}
+                onChange={(id) => {
+                  setWho(id);
+                  fe.clear('who');
+                }}
+                disabled={busy}
+                emptyText="No one to choose."
+              />
+            </FormField>
             <ThemedText type="small" themeColor="textSecondary">
               Until (the same month means just that month):
             </ThemedText>
             <MonthStepper value={until} onChange={setUntil} min={month} max={fy.lastMonth} />
             {canUseUnits ? <PillToggle options={UNITS} value={effectiveUnit} onChange={setUnit} disabled={busy} /> : null}
-            <TextField
-              label={effectiveUnit === 'UNITS' ? 'Target (units)' : 'Target (₹)'}
-              value={value}
-              onChangeText={(t) => setValue(effectiveUnit === 'UNITS' ? t.replace(/[^0-9]/g, '') : t.replace(/[^0-9.]/g, ''))}
-              keyboardType={effectiveUnit === 'UNITS' ? 'number-pad' : 'decimal-pad'}
-              placeholder={effectiveUnit === 'UNITS' ? '0' : '0.00'}
-              editable={!busy}
-            />
-            {worth ? <ThemedText type="small" themeColor="textSecondary">{`That is ${worth} at the product's retail price.`}</ThemedText> : null}
+            <FormField form={fe} name="value" outline={false}>
+              <TextField
+                label={effectiveUnit === 'UNITS' ? 'Target (units)' : 'Target (₹)'}
+                value={value}
+                onChangeText={(t) => {
+                  setValue(effectiveUnit === 'UNITS' ? t.replace(/[^0-9]/g, '') : t.replace(/[^0-9.]/g, ''));
+                  fe.clear('value');
+                }}
+                error={fe.errors.value}
+                keyboardType={effectiveUnit === 'UNITS' ? 'number-pad' : 'decimal-pad'}
+                placeholder={effectiveUnit === 'UNITS' ? '0' : '0.00'}
+                editable={!busy}
+              />
+            </FormField>
+            {worth ? <ThemedText type="small" themeColor="textSecondary">{`That is ${worth} at the product's PTS price.`}</ThemedText> : null}
             {productId === '' ? <ThemedText type="small" themeColor="textSecondary">A target for all products is an amount only.</ThemedText> : null}
             <PrimaryButton label="Save target" loading={busy} onPress={save} />
             <PrimaryButton label="Cancel" variant="text" disabled={busy} onPress={() => (setSetting(false), setUntil(null))} />

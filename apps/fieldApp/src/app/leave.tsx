@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 
 import { ApprovalHistory } from '@/components/approval-history';
 import { ChoiceChips } from '@/components/choice-chips';
+import { FormField } from '@/components/form-field';
 import { DateStepper } from '@/components/date-stepper';
 import { LeaveProof } from '@/components/leave-proof';
 import { Notice } from '@/components/notice';
@@ -16,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { CardSection, IconChip, InfoCard, Meter, Pill, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import {
   addLeaveProof,
@@ -45,6 +47,8 @@ const STATUS_TEXT: Record<string, string> = {
   REOPENED: 'Reopened — change it and send it again',
 };
 
+/** The request form's fields top to bottom, so a failed send scrolls to the first one with a problem. */
+const FIELD_ORDER = ['type', 'end', 'reason'];
 const errorText = (err: unknown, typeName?: string) => {
   if (err instanceof ApiError) {
     if (err.data?.code === 'PAYROLL_FINALIZED' || /salary .* already finalized/i.test(err.message)) return 'This month’s salary is already finalized.';
@@ -78,6 +82,7 @@ export default function LeaveScreen() {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
+  const fe = useFormErrors(FIELD_ORDER);
   // Which leave types take proof (from the server), and the files chosen on the form before it is sent.
   const [proofTypeIds, setProofTypeIds] = useState<Set<string>>(new Set());
   const [chosen, setChosen] = useState<PickedProof[]>([]);
@@ -158,9 +163,15 @@ export default function LeaveScreen() {
       setMsg({ tone: 'info', text: 'You’re offline. Connect to the internet to send a leave request.' });
       return;
     }
-    if (!typeId) return setMsg({ tone: 'danger', text: 'Choose a leave type.' });
-    if (end < start) return setMsg({ tone: 'danger', text: 'The last day can’t be before the first day.' });
-    if (!reason.trim()) return setMsg({ tone: 'danger', text: 'Say why you need the leave.' });
+    const problems: Record<string, string> = {};
+    if (!typeId) problems.type = 'Choose a leave type.';
+    if (end < start) problems.end = 'The last day can’t be before the first day.';
+    if (!reason.trim()) problems.reason = 'Say why you need the leave.';
+    if (!typeId || end < start || !reason.trim()) {
+      setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
+      return fe.fail(problems);
+    }
+    fe.clearAll();
     setBusy(true);
     const body = { leaveTypeId: typeId, startDate: start, endDate: end, reason: reason.trim() };
     try {
@@ -232,7 +243,17 @@ export default function LeaveScreen() {
               Connect to the internet once so your leave types can load.
             </ThemedText>
           ) : (
-            <ChoiceChips options={allTypes.filter((t) => requestable(t.name) || t.id === typeId).map((t) => ({ value: t.id, label: t.name }))} value={typeId} onChange={setTypeId} disabled={busy} />
+            <FormField form={fe} name="type">
+              <ChoiceChips
+                options={allTypes.filter((t) => requestable(t.name) || t.id === typeId).map((t) => ({ value: t.id, label: t.name }))}
+                value={typeId}
+                onChange={(v) => {
+                  setTypeId(v);
+                  fe.clear('type');
+                }}
+                disabled={busy}
+              />
+            </FormField>
           )}
         </CardSection>
         <CardSection icon={sym('calendar', 'event')} accent="blue" title="Dates">
@@ -246,10 +267,34 @@ export default function LeaveScreen() {
               if (end < d) setEnd(d);
             }}
           />
-          <DateStepper label="Last day" value={end} min={start} disabled={busy} onChange={setEnd} />
+          <FormField form={fe} name="end">
+            <DateStepper
+              label="Last day"
+              value={end}
+              min={start}
+              disabled={busy}
+              onChange={(d) => {
+                setEnd(d);
+                fe.clear('end');
+              }}
+            />
+          </FormField>
         </CardSection>
         <CardSection icon={sym('text.bubble', 'chat')} accent="teal" title="Reason">
-          <TextField label="Why do you need the leave?" value={reason} onChangeText={setReason} multiline maxLength={1000} editable={!busy} />
+          <FormField form={fe} name="reason" outline={false}>
+            <TextField
+              label="Why do you need the leave?"
+              value={reason}
+              onChangeText={(v) => {
+                setReason(v);
+                fe.clear('reason');
+              }}
+              error={fe.errors.reason}
+              multiline
+              maxLength={1000}
+              editable={!busy}
+            />
+          </FormField>
         </CardSection>
         {typeId && proofTypeIds.has(typeId) ? (
           <CardSection icon={sym('paperclip', 'attach_file')} accent="amber" title="Proof (optional)">
