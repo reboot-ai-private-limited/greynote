@@ -3,6 +3,9 @@ import type {
   CreateRouteDto,
   CreateZoneDto,
   HqDto,
+  ManagerCandidateDto,
+  ManagerCoverageDto,
+  SetManagerCoverageDto,
   PaginatedDto,
   PaginationQueryDto,
   PlaceCandidateDto,
@@ -87,4 +90,17 @@ export const userHqApi = {
   /** Sets the HQ and ends the previous one. */
   set: (token: string, userId: string, hqId: string) =>
     request<UserHqAssignmentDto>(`/territory/users/${userId}/hq`, { method: 'PUT', token, body: { hqId } }),
+};
+
+/** Who can be an employee's manager (higher designation, covering their HQ), and the HQs and Zones a manager covers. Admin and HR; the Accountant may read candidates. */
+export const managerApi = {
+  candidates: (token: string, query: { level: number; hqId?: string; search?: string; excludeUserId?: string }, signal?: AbortSignal) => {
+    const params = new URLSearchParams({ level: String(query.level) });
+    if (query.hqId) params.set('hqId', query.hqId);
+    if (query.search) params.set('search', query.search);
+    if (query.excludeUserId) params.set('excludeUserId', query.excludeUserId);
+    return request<ManagerCandidateDto[]>(`/territory/manager-candidates?${params}`, { token, signal });
+  },
+  coverage: (token: string, userId: string, signal?: AbortSignal) => request<ManagerCoverageDto>(`/territory/users/${userId}/coverage`, { token, signal }),
+  setCoverage: (token: string, userId: string, body: SetManagerCoverageDto) => request<ManagerCoverageDto>(`/territory/users/${userId}/coverage`, { method: 'PUT', token, body }),
 };

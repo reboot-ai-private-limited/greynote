@@ -86,10 +86,10 @@ function addressGaps(address: DraftAddress | undefined, prefix: string): DraftGa
 
 /**
  * What the last step still lacks. Optional: alternate mobile, ESI number, joining date, probation,
- * address line 2, qualifications, experience, CTC amount. `isTopDesignation`: the chosen
- * designation reports to nobody, so no manager is needed.
+ * address line 2, qualifications, experience, CTC amount. A manager is optional: with none,
+ * approvals go straight to Admin/HR.
  */
-export function draftGaps(data: EmployeeDraftData, isTopDesignation: boolean): DraftGap[] {
+export function draftGaps(data: EmployeeDraftData): DraftGap[] {
   const gaps: DraftGap[] = [];
   const need = (step: DraftStep, field: string, value: string | undefined) => {
     if (blank(value)) gaps.push({ step, field });
@@ -111,7 +111,6 @@ export function draftGaps(data: EmployeeDraftData, isTopDesignation: boolean): D
 
   need('work', 'designationId', data.work?.designationId);
   need('work', 'hqId', data.work?.hqId);
-  if (!isTopDesignation) need('work', 'managerId', data.work?.managerId);
 
   need('compensation', 'payBandId', data.compensation?.payBandId);
 

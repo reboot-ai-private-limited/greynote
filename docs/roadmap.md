@@ -944,3 +944,7 @@ Decision-log 2026-10-14 (last entry). **Done (API + web + docs, unit-tested):** 
 ## Discounts on distributor orders (2026-10-15)
 
 Decision-log 2026-10-15. **Done (API + web + phone read-only + docs, unit-tested):** line and order discounts (percent or flat) by Admin/Accountant, net flows into totals, primary/secondary, dues and reports. **Open:** browser and phone check.
+
+## Reporting managers: higher level, coverage, optional (2026-10-15)
+
+Decision-log 2026-10-15 (second entry). **Done (API + web + docs, unit-tested):** level rule, optional manager, manager coverage (HQs / Zones), filtered picker showing designations. **Open:** browser check.

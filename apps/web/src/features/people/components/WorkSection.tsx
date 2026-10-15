@@ -56,6 +56,7 @@ function WorkForm({ user, onDone }: { user: UserDetailDto; onDone: () => void })
     update.mutate(built.body);
   }
 
+  const designationLevel = (designations.data ?? []).find((d) => d.id === draft.designationId)?.level;
   const shownManager = managerName ?? (draft.managerId === user.profile?.managerId ? currentManager.data?.name : null) ?? null;
 
   return (
@@ -86,15 +87,16 @@ function WorkForm({ user, onDone }: { user: UserDetailDto; onDone: () => void })
             <span id="work-manager" className="min-w-0 flex-1 truncate text-sm">
               {shownManager ?? <span className="text-text-subtle">No manager chosen</span>}
             </span>
-            <Button variant="secondary" size="sm" onClick={() => setPicking(true)}>
+            <Button variant="secondary" size="sm" disabled={!designationLevel} onClick={() => setPicking(true)}>
               {draft.managerId ? 'Change' : 'Choose'}
             </Button>
           </div>
         </FormField>
       </SectionForm>
-      {picking ? (
+      {picking && designationLevel ? (
         <ManagerPickerDialog
           selfId={user.id}
+          above={{ level: designationLevel, hqId: user.profile?.hqId ?? undefined }}
           onClose={() => setPicking(false)}
           onPick={(m) => {
             setDraft((d) => ({ ...d, managerId: m.id }));

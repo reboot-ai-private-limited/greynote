@@ -22,6 +22,11 @@ import { GetUserHqUseCase } from './application/usecases/getUserHq.usecase.js';
 import { SetUserHqUseCase } from './application/usecases/setUserHq.usecase.js';
 import { MongoUserHqAssignmentAdapter } from './infrastructure/mongoUserHqAssignment.adapter.js';
 import { buildUserHqRouter } from './interface/userHq.route.js';
+import { GetManagerCoverageUseCase, SetManagerCoverageUseCase } from './application/usecases/managerCoverage.usecase.js';
+import { ListManagerCandidatesUseCase } from './application/usecases/listManagerCandidates.usecase.js';
+import { MongoManagerCoverageAdapter } from './infrastructure/mongoManagerCoverage.adapter.js';
+import { buildManagerCandidatesRouter, buildManagerCoverageRouter } from './interface/managerCoverage.route.js';
+import type { ManagerDirectoryPort } from './domain/managerDirectory.port.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { SearchPlacesUseCase } from './application/usecases/searchPlaces.usecase.js';
 import { UpdateRouteUseCase } from './application/usecases/updateRoute.usecase.js';
@@ -51,7 +56,7 @@ export interface TerritoryContainer {
 }
 
 /** `users` is Identity's public contract, passed in by the top-level composition root. */
-export function buildTerritoryContainer(users: UserDirectoryPort, config: ConfigReader): TerritoryContainer {
+export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirectoryPort, config: ConfigReader): TerritoryContainer {
   // 1. Adapters
   const zoneRepository = new MongoZoneAdapter();
   const hqRepository = new MongoHqAdapter();
@@ -59,6 +64,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort, config: Config
   const assignmentRepository = new MongoRouteAssignmentAdapter();
   const placeSearch = new GooglePlaceSearchAdapter();
   const userHqRepository = new MongoUserHqAssignmentAdapter();
+  const coverageRepository = new MongoManagerCoverageAdapter();
   const transactions = new MongooseTransactionRunner();
   const typeRules = new RouteTypeRules(config);
 
@@ -104,6 +110,12 @@ export function buildTerritoryContainer(users: UserDirectoryPort, config: Config
     get: new GetUserHqUseCase(userHqRepository, hqRepository),
   };
 
+  const managerCoverage = {
+    get: new GetManagerCoverageUseCase(coverageRepository),
+    set: new SetManagerCoverageUseCase(coverageRepository, hqRepository, zoneRepository, users),
+  };
+  const managerCandidates = new ListManagerCandidatesUseCase(users, coverageRepository, hqRepository);
+
   return {
     contract: {
       getRoute: (routeId) => getRouteSummary.execute(routeId),
@@ -125,6 +137,8 @@ export function buildTerritoryContainer(users: UserDirectoryPort, config: Config
       router.use('/import', buildImportRouter(importHierarchy));
       router.use('/my-routes', buildMyRoutesRouter(makeMyRoutesController(listRoutesForUser)));
       router.use('/users', buildUserHqRouter(userHq));
+      router.use('/users', buildManagerCoverageRouter(managerCoverage));
+      router.use('/manager-candidates', buildManagerCandidatesRouter(managerCandidates));
       return router;
     },
   };

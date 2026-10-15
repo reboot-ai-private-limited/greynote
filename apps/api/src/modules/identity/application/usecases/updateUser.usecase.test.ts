@@ -59,7 +59,10 @@ function build(chain: Record<string, string | null>, extra: Record<string, Parti
     } as never,
     { findById: async () => ({ id: 'role-field', name: 'FIELD' as RoleName }) } as never,
     {
-      findById: async (id: string) => (id === 'des-1' || id === 'des-top' ? { id } : null),
+      findById: async (id: string) => {
+        const level = { 'des-1': 1, 'des-2': 2, 'des-3': 3, 'des-top': 5 }[id];
+        return level ? { id, name: id, level } : null;
+      },
       list: async () => [
         { id: 'des-1', level: 1 },
         { id: 'des-top', level: 5 },
@@ -279,9 +282,33 @@ describe('UpdateUserUseCase — the top designation needs no manager', () => {
     expect(result.status).toBe('active');
   });
 
-  it('stays pending below the top designation until a manager is chosen', async () => {
-    const { useCase } = build({ a: null, boss: null }, complete);
-    expect((await useCase.execute('a', { designationId: 'des-1' })).status).toBe('pending');
-    expect((await useCase.execute('a', { managerId: 'boss' })).status).toBe('active');
+  it('is active below the top designation with no manager too (a vacant level reports to Admin/HR)', async () => {
+    const { useCase } = build({ a: null }, complete);
+    expect((await useCase.execute('a', { designationId: 'des-1' })).status).toBe('active');
+  });
+});
+
+describe('UpdateUserUseCase — the manager must be higher', () => {
+  const levels = { mr: { designationId: 'des-1' }, asm: { designationId: 'des-2' }, asm2: { designationId: 'des-2' }, rsm: { designationId: 'des-3' }, nsm: { designationId: 'des-top' } };
+
+  it('refuses a manager of the same or a lower designation', async () => {
+    const { useCase, writes } = build({ mr: null, asm: null, asm2: null }, levels);
+    expect(await rejection(useCase.execute('asm', { managerId: 'asm2' }))).toMatchObject({ statusCode: 400 });
+    expect(await rejection(useCase.execute('asm', { managerId: 'mr' }))).toMatchObject({ statusCode: 400 });
+    expect(writes).toEqual([]);
+  });
+
+  it('allows any higher level, skipping vacant ones (an RSM straight under an NSM, an MR under an RSM)', async () => {
+    const { useCase, profiles } = build({ mr: null, rsm: null, nsm: null }, levels);
+    await useCase.execute('rsm', { managerId: 'nsm' });
+    await useCase.execute('mr', { managerId: 'rsm' });
+    expect(profiles.get('rsm')?.managerId).toBe('nsm');
+    expect(profiles.get('mr')?.managerId).toBe('rsm');
+  });
+
+  it('judges the designation sent in the same call', async () => {
+    const { useCase } = build({ x: null, asm: null }, levels);
+    await useCase.execute('x', { designationId: 'des-1', managerId: 'asm' });
+    expect(await rejection(useCase.execute('x', { designationId: 'des-3', managerId: 'asm' }))).toMatchObject({ statusCode: 400 });
   });
 });

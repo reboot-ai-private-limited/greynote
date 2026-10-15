@@ -59,8 +59,8 @@ describe('computeUserStatus', () => {
     expect(computeUserStatus(baseUser(), baseProfile(), 'FIELD')).toBe('active');
   });
 
-  it('is pending for a FIELD user missing a manager', () => {
-    expect(computeUserStatus(baseUser(), baseProfile({ managerId: null }), 'FIELD')).toBe('pending');
+  it('is active for a FIELD user with no manager (a vacant level reports to Admin/HR)', () => {
+    expect(computeUserStatus(baseUser(), baseProfile({ managerId: null }), 'FIELD')).toBe('active');
   });
 
   it('is pending for a FIELD user with an incomplete address', () => {
@@ -100,7 +100,6 @@ describe('top designation', () => {
 
   it('needs no manager to be active', () => {
     const profile = baseProfile({ managerId: null });
-    expect(computeUserStatus(baseUser(), profile, 'FIELD')).toBe('pending');
-    expect(computeUserStatus(baseUser(), profile, 'FIELD', true)).toBe('active');
+    expect(computeUserStatus(baseUser(), profile, 'FIELD')).toBe('active');
   });
 });

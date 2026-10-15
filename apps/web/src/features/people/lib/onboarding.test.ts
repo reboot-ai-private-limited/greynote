@@ -98,10 +98,9 @@ describe('step rules', () => {
     expect(stepErrors('bank', { ...complete, ifsc: 'sbin0001234' }, ctx)).toEqual({});
   });
 
-  it('work: a manager is needed below the top designation and not at it', () => {
+  it('work: a manager is optional (with none, approvals go to Admin or HR)', () => {
     const noManager = { ...complete, managerId: '' };
-    expect(stepErrors('work', noManager, ctx)['managerId']).toBeDefined();
-    expect(stepErrors('work', { ...noManager, designationId: 'zsm' }, ctx)).toEqual({});
+    expect(stepErrors('work', noManager, ctx)).toEqual({});
   });
 
   it('pay: the grade is needed, the CTC is optional but must be an amount', () => {

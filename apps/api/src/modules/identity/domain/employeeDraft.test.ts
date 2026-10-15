@@ -13,29 +13,27 @@ const complete: EmployeeDraftData = {
 
 describe('draftGaps', () => {
   it('is empty for a complete draft; qualifications, experience and CTC amount are optional', () => {
-    expect(draftGaps(complete, false)).toEqual([]);
+    expect(draftGaps(complete)).toEqual([]);
   });
 
   it('lists everything for an empty draft', () => {
-    const gaps = draftGaps({}, false);
+    const gaps = draftGaps({});
     expect(gaps.map((g) => g.step)).toEqual(expect.arrayContaining(['personal', 'address', 'bank', 'work', 'compensation']));
     expect(gaps).toContainEqual({ step: 'address', field: 'permanent.pincode' });
   });
 
   it('wants the permanent address unless it is the same as present', () => {
     const data = { ...complete, address: { present: address, permanentSameAsPresent: false } };
-    expect(draftGaps(data, false)).toContainEqual({ step: 'address', field: 'permanent.line1' });
+    expect(draftGaps(data)).toContainEqual({ step: 'address', field: 'permanent.line1' });
   });
 
-  it('wants a manager unless the designation is the top one', () => {
-    const data = { ...complete, work: { designationId: 'd', hqId: 'h' } };
-    expect(draftGaps(data, false)).toEqual([{ step: 'work', field: 'managerId' }]);
-    expect(draftGaps(data, true)).toEqual([]);
+  it('does not need a manager', () => {
+    expect(draftGaps({ ...complete, work: { designationId: 'd', hqId: 'h' } })).toEqual([]);
   });
 
   it('refuses a half-filled qualification or job', () => {
     const data = { ...complete, qualifications: [{ degree: 'BSc' }], experience: [{ companyName: 'X' }] };
-    expect(draftGaps(data, false)).toEqual([
+    expect(draftGaps(data)).toEqual([
       { step: 'qualifications', field: '0.institute' },
       { step: 'qualifications', field: '0.yearOfPassing' },
       { step: 'experience', field: '0.joiningDate' },

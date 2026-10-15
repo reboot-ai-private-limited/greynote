@@ -37,10 +37,18 @@ those joins belong to Field Master Data (ERD Module 3), deferred there because
 `Doctor`/`Chemist`/`Distributor` don't exist as entities yet at this tier. Territory's own
 `RouteAssignment` is MR ↔ Route only.
 
-**No per-designation territory scope.** Managers (ASM/RSM/ZSM/NSM) are not assigned to an
-HQ/Zone here. Client rules §18 define manager visibility purely by reporting chain, which
-Identity's `manager_id` + `getDownline` (HLD 05 §3) already covers, whatever a manager's
-geography is and however many levels an org actually has.
+**Manager visibility is still the reporting chain** (client rules §18): Identity's `manager_id` + `getDownline` (HLD 05 §3).
+Since 2026-10-15 a manager may also carry a **coverage** (below), used only to decide who is *offered* as a reporting
+manager. It never changes approvals or the downline.
+
+### Manager coverage (2026-10-15)
+
+`ManagerCoverage { userId, hqIds[], zoneIds[] }` (one document per manager, replaced whole). ASM and RSM cover a set of HQs (an
+RSM's "region" is just that set; there is no Region entity); a ZSM covers whole Zones; the NSM needs none and covers everywhere.
+- `PUT/GET /api/territory/users/:userId/coverage` (Admin, HR): HQs/zones must exist and be active; only a field employee at ASM or above.
+- `GET /api/territory/manager-candidates?level&hqId&search&excludeUserId` (Admin, HR, Accountant): active field employees above `level`
+  (any higher designation, vacant levels may be skipped), whose HQ coverage or Zone coverage includes `hqId`; the NSM always; a manager
+  with no coverage recorded is listed with `coverage: 'none'` (not blocked). Nearest level first, covering managers before `none`.
 
 ## Public contract
 

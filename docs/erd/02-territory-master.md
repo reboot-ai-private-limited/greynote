@@ -75,3 +75,7 @@ erDiagram
 ## Next
 
 **Module 3 — Field Master Data.** Doctor, Chemist, Distributor, Product, Sample — plus the Doctor/Chemist/Distributor ↔ Route attachment deferred from this module.
+
+## 2026-10-15 — manager coverage
+
+New `ManagerCoverage` collection: `user_id` (unique), `hq_ids[]`, `zone_ids[]`, `updated_at`, `updated_by`. Only for ASM and above; absent = none set.

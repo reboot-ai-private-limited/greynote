@@ -2327,3 +2327,13 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 - The MR sees the discount and the net on the phone, read only.
 
 **Open:** migration not needed (older orders read net = gross); browser and phone check pending.
+
+## 2026-10-15 — Reporting managers: higher designation, covering the HQ, optional
+
+**Decision:**
+- **The manager must be at a higher designation**; any higher level is allowed, so a vacant ZSM/NSM level is simply skipped. The API now refuses an equal or lower one.
+- **The manager is optional for every designation.** With none, approvals go straight to Admin (HR for leave), as already happened at the top of a chain. No change to approval routing.
+- **Coverage per manager** (no Region entity): an ASM or RSM covers a list of HQs, a ZSM covers Zones, the NSM covers everywhere. The manager picker (wizard, profile Work section) lists only managers above the employee's designation who cover the employee's HQ, each shown as "Name (ASM)"; a manager with no coverage yet is still listed, marked "no coverage set". Coverage is eligibility only: approvals and the downline still follow the direct manager.
+- The wizard clears a chosen manager when the designation, zone or HQ changes.
+
+**Open:** existing employees whose manager is the same or a lower level are not touched (no migration); browser check pending.

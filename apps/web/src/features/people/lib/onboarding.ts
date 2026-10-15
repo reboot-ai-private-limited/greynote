@@ -313,9 +313,6 @@ export function stepErrors(step: StepKey, form: WizardForm, ctx: RuleContext): E
       put(e, 'designationId', form.designationId ? undefined : 'Choose a designation.');
       put(e, 'zoneId', form.zoneId ? undefined : 'Choose a zone.');
       put(e, 'hqId', form.hqId ? undefined : 'Choose an HQ.');
-      if (!isTopDesignation(form.designationId, ctx.designations)) {
-        put(e, 'managerId', form.managerId ? undefined : 'Choose a manager.');
-      }
       break;
     case 'compensation':
       put(e, 'payBandId', form.payBandId ? undefined : 'Choose a pay grade.');

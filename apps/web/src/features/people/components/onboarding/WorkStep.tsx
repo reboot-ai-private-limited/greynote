@@ -19,6 +19,7 @@ export function WorkStep({ form, update, errors }: StepProps) {
   const [picking, setPicking] = useState(false);
 
   const top = isTopDesignation(form.designationId, designations.data ?? []);
+  const level = (designations.data ?? []).find((d) => d.id === form.designationId)?.level;
   const managerName = form.managerName || savedManager.data?.name || '';
   const zoneHqs = (hqs.data ?? []).filter((h) => h.zoneId === form.zoneId && (h.status === 'active' || h.id === form.hqId));
 
@@ -29,8 +30,8 @@ export function WorkStep({ form, update, errors }: StepProps) {
           <Select
             id="w-designation"
             value={form.designationId}
-            // Top of the hierarchy reports to nobody, so a manager picked earlier is let go.
-            onValueChange={(v) => update({ designationId: v, ...(isTopDesignation(v, designations.data ?? []) ? { managerId: '', managerName: '' } : {}) })}
+            // The manager must sit above the designation, so one picked earlier is let go (and the top reports to nobody).
+            onValueChange={(v) => update({ designationId: v, managerId: '', managerName: '' })}
             options={[...(designations.data ?? [])].sort((a, b) => a.level - b.level).map((d) => ({ value: d.id, label: DESIGNATION_LABEL[d.name] }))}
             placeholder={designations.isLoading ? 'Loading…' : 'Choose a designation'}
             aria-invalid={errors['designationId'] ? true : undefined}
@@ -41,7 +42,7 @@ export function WorkStep({ form, update, errors }: StepProps) {
           <Select
             id="w-zone"
             value={form.zoneId}
-            onValueChange={(v) => update({ zoneId: v, hqId: '' })}
+            onValueChange={(v) => update({ zoneId: v, hqId: '', managerId: '', managerName: '' })}
             options={(zones.data ?? []).filter((z) => z.status === 'active' || z.id === form.zoneId).map((z) => ({ value: z.id, label: z.name }))}
             placeholder={zones.isLoading ? 'Loading…' : 'Choose a zone'}
             aria-invalid={errors['zoneId'] ? true : undefined}
@@ -51,7 +52,7 @@ export function WorkStep({ form, update, errors }: StepProps) {
           <Select
             id="w-hq"
             value={form.hqId}
-            onValueChange={(v) => update({ hqId: v })}
+            onValueChange={(v) => update({ hqId: v, managerId: '', managerName: '' })}
             options={zoneHqs.map((h) => ({ value: h.id, label: h.name }))}
             placeholder={!form.zoneId ? 'Choose a zone first' : hqs.isLoading ? 'Loading…' : zoneHqs.length === 0 ? 'No HQ in this zone' : 'Choose an HQ'}
             disabled={!form.zoneId}
@@ -62,12 +63,17 @@ export function WorkStep({ form, update, errors }: StepProps) {
           <p className="rounded-lg bg-accent-soft px-4 py-3 text-sm text-accent-soft-text sm:col-span-2">Top of the hierarchy: this designation has no manager.</p>
         ) : (
           <div className="sm:col-span-2">
-            <FormField label="Manager" htmlFor="w-manager" error={errors['managerId']}>
+            <FormField
+              label="Manager (optional)"
+              htmlFor="w-manager"
+              error={errors['managerId']}
+              hint="Anyone at a higher designation who covers this HQ; a vacant level can be skipped. With no manager, approvals go straight to Admin or HR."
+            >
               <div className="flex items-center gap-3">
                 <span id="w-manager" className="min-w-0 flex-1 truncate rounded-md border border-border-strong px-3 py-2 text-sm">
                   {managerName || <span className="text-text-subtle">No manager chosen</span>}
                 </span>
-                <Button variant="secondary" onClick={() => setPicking(true)}>
+                <Button variant="secondary" disabled={!level || !form.hqId} onClick={() => setPicking(true)}>
                   {form.managerId ? 'Change' : 'Choose'}
                 </Button>
               </div>
@@ -75,8 +81,9 @@ export function WorkStep({ form, update, errors }: StepProps) {
           </div>
         )}
       </Grid>
-      {picking ? (
+      {picking && level ? (
         <ManagerPickerDialog
+          above={{ level, hqId: form.hqId }}
           onClose={() => setPicking(false)}
           onPick={(m) => {
             update({ managerId: m.id, managerName: m.name });

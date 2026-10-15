@@ -112,3 +112,22 @@ export interface UserHqAssignmentDto {
   unassignedAt: string | null;
   unassignedBy: string | null;
 }
+
+/** One row of `GET /territory/manager-candidates`: someone who can be chosen as an employee's reporting manager. */
+export interface ManagerCandidateDto {
+  id: string;
+  employeeCode: string;
+  name: string;
+  /** `name` is MR, ASM, RSM, ZSM or NSM; `level` 1 to 5. */
+  designation: { id: string | null; name: string; level: number };
+  /** `covers`: their coverage includes the employee's HQ (the NSM covers everywhere). `none`: no coverage recorded yet, so listed unfiltered. */
+  coverage: 'covers' | 'none';
+}
+
+/** `GET` and `PUT /territory/users/:userId/coverage`: the HQs (ASM, RSM) or Zones (ZSM) a manager covers. Eligibility only; approvals still follow the direct manager. */
+export interface ManagerCoverageDto {
+  userId: string;
+  hqIds: string[];
+  zoneIds: string[];
+}
+export type SetManagerCoverageDto = Pick<ManagerCoverageDto, 'hqIds' | 'zoneIds'>;

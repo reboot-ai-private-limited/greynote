@@ -124,6 +124,8 @@ const TIMELESS = [
   '/api/territory/places/search',
   '/api/territory/my-routes',
   '/api/territory/users/:userId/hq',
+  '/api/territory/users/:userId/coverage',
+  '/api/territory/manager-candidates',
   '/api/field-master-data/doctors/mine',
   '/api/field-master-data/doctors/team',
   '/api/field-master-data/doctors/added',

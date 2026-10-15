@@ -71,7 +71,7 @@ export class FinalizeEmployeeDraftUseCase {
     const { data } = draft;
 
     const top = isTopDesignation(data.work?.designationId ?? null, await this.designations.list());
-    const gaps = draftGaps(data, top);
+    const gaps = draftGaps(data);
     if (gaps.length > 0) {
       throw AppError.badRequest('Some required details are missing.', { gaps });
     }

@@ -410,10 +410,11 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
         const [users, profiles, designations] = await Promise.all([userRepository.findByIds(ids), employeeProfileRepository.findByUserIds(ids), designationRepository.list()]);
         const profileOf = new Map(profiles.map((p) => [p.userId, p]));
         const designationName = new Map(designations.map((d) => [d.id, d.name as string]));
+        const designationLevel = new Map(designations.map((d) => [d.id, d.level]));
         return users
           .map((u) => {
             const p = profileOf.get(u.id);
-            return { id: u.id, employeeCode: u.employeeCode, name: u.name, designation: (p?.designationId && designationName.get(p.designationId)) || null, hqId: p?.hqId ?? null, zoneId: p?.zoneId ?? null, managerId: p?.managerId ?? null };
+            return { id: u.id, employeeCode: u.employeeCode, name: u.name, designation: (p?.designationId && designationName.get(p.designationId)) || null, designationId: p?.designationId ?? null, designationLevel: (p?.designationId && designationLevel.get(p.designationId)) || null, hqId: p?.hqId ?? null, zoneId: p?.zoneId ?? null, managerId: p?.managerId ?? null };
           })
           .sort((a, b) => a.name.localeCompare(b.name));
       },

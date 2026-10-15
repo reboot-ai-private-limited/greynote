@@ -17,16 +17,14 @@ import type { User, UserStatus } from './user.entity.js';
  * Required for activation (FIELD only) — flagged as a default assumption in
  * docs/decision-log.md, not fully pinned by the PRD/ERD: name, mobileNumber, dateOfBirth, a
  * complete address, designationId, payBandId, managerId, and the bank details needed to actually
- * pay someone (bankName/ifsc/accountNumber/accountHolderName). A manager is required unless the
- * designation is the top one. NOT required: guardianName,
+ * pay someone (bankName/ifsc/accountNumber/accountHolderName). A manager is NOT required (a client
+ * with a vacant level reports straight to Admin/HR). NOT required: guardianName,
  * qualification, bankDetails.branchName, documents, dateOfJoining, probationMonths, esiNumber.
  */
 export function computeUserStatus(
   user: Pick<User, 'status' | 'name'>,
   profile: Omit<EmployeeProfile, 'id' | 'userId'> | null,
   role: RoleName,
-  /** The employee's designation is the top of the client's hierarchy, so there is nobody for them to report to. */
-  isTopDesignation = false,
 ): UserStatus {
   if (user.status === 'inactive') return 'inactive';
   if (role !== 'FIELD') return 'active';
@@ -50,7 +48,6 @@ export function computeUserStatus(
     hasCompleteAddress &&
     !!profile.designationId &&
     !!profile.payBandId &&
-    (isTopDesignation || !!profile.managerId) &&
     hasRequiredBankDetails;
 
   return isComplete ? 'active' : 'pending';

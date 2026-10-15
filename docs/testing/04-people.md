@@ -41,3 +41,15 @@
 | 4.15 | Leave the wizard after adding a photo, then Continue the draft | the photo is still there; Create keeps it on the new employee | |
 | 4.16 | Employee page and Employees list | photo shows (initials when none); Choose another / Remove work; deleting a draft removes its photo from Cloudinary | |
 | 4.17 | New employee ids | first new employee gets GH101, the next GH102; older GRN ids unchanged | |
+
+## Reporting managers and coverage (2026-10-15)
+
+| # | Do | Expect | Pass |
+|---|---|---|---|
+| 4.30 | Profile of an ASM/RSM (Admin or HR) → Coverage → Edit: tick several HQs, Save | saved; the card lists those HQs | |
+| 4.31 | Same for a ZSM | Zones are offered instead of HQs | |
+| 4.32 | New employee (MR) in HQ A: Work step, Choose manager | only ASM/RSM/ZSM/NSM covering HQ A (by HQ or Zone), each as "Name (ASM)"; an ASM covering only HQ B is absent; one with no coverage shows "no coverage set" | |
+| 4.33 | Create an RSM with no manager when no ZSM exists | saved and active | |
+| 4.34 | Change the designation or HQ after choosing a manager | the manager is cleared | |
+| 4.35 | Via API set an MR's manager to another MR | refused with a message naming the designations | |
+| 4.36 | An employee with no manager submits a Daily Plan | it appears for Admin to approve in one step | |

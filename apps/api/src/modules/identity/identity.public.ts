@@ -17,6 +17,9 @@ export interface FieldEmployeeRow {
   employeeCode: string;
   name: string;
   designation: string | null;
+  designationId: string | null;
+  /** MR 1 … NSM 5; `null` without a designation. */
+  designationLevel: number | null;
   hqId: string | null;
   zoneId: string | null;
   managerId: string | null;

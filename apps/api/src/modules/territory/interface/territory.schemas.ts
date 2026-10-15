@@ -75,5 +75,14 @@ export const searchPlacesQuerySchema = z.object({ q: z.string().trim().min(2).ma
 export const assignRouteBodySchema = z.object({ userId: objectIdSchema });
 export const userIdParamsSchema = z.object({ userId: objectIdSchema });
 export const setUserHqBodySchema = z.object({ hqId: objectIdSchema });
+export const setManagerCoverageBodySchema = z.object({ hqIds: z.array(objectIdSchema).max(200).default([]), zoneIds: z.array(objectIdSchema).max(50).default([]) });
+export const managerCandidatesQuerySchema = z.object({
+  /** The employee's designation level (MR 1 … NSM 5): only managers above it are listed. */
+  level: z.coerce.number().int().min(1).max(5),
+  hqId: objectIdSchema.optional(),
+  search: z.string().trim().max(100).optional(),
+  /** The employee being edited, left out of their own list. */
+  excludeUserId: objectIdSchema.optional(),
+});
 export const routeAssignmentParamsSchema = z.object({ id: objectIdSchema, userId: objectIdSchema });
 export const listRouteAssignmentsQuerySchema = z.object({ status: z.enum(TERRITORY_STATUSES).optional() });

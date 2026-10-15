@@ -123,7 +123,7 @@ export function ReviewStep({ form, problems, onEdit }: Pick<StepProps, 'form'> &
             ['Designation', designation ? DESIGNATION_LABEL[designation.name] : undefined],
             ['Zone', zones.data?.find((z) => z.id === form.zoneId)?.name],
             ['HQ', hqs.data?.find((h) => h.id === form.hqId)?.name],
-            ['Manager', top ? 'None (top of the hierarchy)' : form.managerName || manager.data?.name],
+            ['Manager', top ? 'None (top of the hierarchy)' : form.managerName || manager.data?.name || 'None (approvals go to Admin or HR)'],
           ]}
         />
         <Section

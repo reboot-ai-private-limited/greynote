@@ -28,6 +28,7 @@ import { PromotionTab } from './PromotionTab';
 import { Field, FieldList } from './SectionCard';
 import { SecuritySection } from './SecuritySection';
 import { UserDevicesSection } from './UserDevicesSection';
+import { CoverageSection } from './CoverageSection';
 import { WorkSection } from './WorkSection';
 import { EMPLOYEE_TAB_LABEL, employeeTabOf, employeeTabsFor } from '../lib/employeeTabs';
 
@@ -104,6 +105,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                   <BasicSection user={user} readOnly={readOnly} />
                   <AddressSection user={user} readOnly={readOnly} />
                   <WorkSection user={user} readOnly={readOnly} />
+                  <CoverageSection user={user} readOnly={readOnly} />
                   <DocumentsSection user={user} readOnly={readOnly} />
                 </TabsContent>
                 <TabsContent value="pay" className="mt-6 space-y-6">

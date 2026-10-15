@@ -1,5 +1,5 @@
 import { AppError } from '@/shared/errors/AppError.js';
-import { computeUserStatus, isTopDesignation } from '../../domain/onboarding.js';
+import { computeUserStatus } from '../../domain/onboarding.js';
 import type { Address, BankDetails, EmployeeProfile, PreviousEmployment, Qualification } from '../../domain/employeeProfile.entity.js';
 import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
 import type { ManagerHistoryRepositoryPort } from '../../domain/managerHistory.repository.port.js';
@@ -95,6 +95,7 @@ export class UpdateUserUseCase {
       const manager = await this.userRepository.findById(input.managerId);
       if (!manager) throw AppError.badRequest('Unknown manager.', { field: 'managerId' });
       await this.assertNoReportingLoop(targetUserId, input.managerId);
+      await this.assertManagerIsHigher(targetUserId, input.designationId, input.managerId);
     }
 
     const existingProfile = await this.employeeProfileRepository.findByUserId(targetUserId);
@@ -126,13 +127,10 @@ export class UpdateUserUseCase {
     };
 
     const mergedName = input.basicDetails?.name ?? existing.name;
-    const top =
-      role.name === 'FIELD' && isTopDesignation(mergedProfile.designationId, await this.designationRepository.list());
     const status = computeUserStatus(
       { status: input.status ?? existing.status, name: mergedName },
       mergedProfile,
       role.name,
-      top,
     );
 
     const touchesProfile =
@@ -172,6 +170,20 @@ export class UpdateUserUseCase {
     }
 
     return toUserSummary(updated, role.name, touchesProfile ? mergedProfile : existingProfile);
+  }
+
+  /**
+   * A manager must sit at a higher designation than the employee (levels may be skipped: an RSM can report to an NSM when there is no ZSM).
+   * Only checked when both designations are known; an Admin or HR user used as a manager has none and is left alone.
+   */
+  private async assertManagerIsHigher(employeeId: string, newDesignationId: string | undefined, managerId: string): Promise<void> {
+    const employeeDesignationId = newDesignationId ?? (await this.employeeProfileRepository.findByUserId(employeeId))?.designationId ?? null;
+    const managerDesignationId = (await this.employeeProfileRepository.findByUserId(managerId))?.designationId ?? null;
+    if (!employeeDesignationId || !managerDesignationId) return;
+    const [employee, manager] = await Promise.all([this.designationRepository.findById(employeeDesignationId), this.designationRepository.findById(managerDesignationId)]);
+    if (employee && manager && manager.level <= employee.level) {
+      throw AppError.badRequest(`A ${manager.name} cannot be the manager of a ${employee.name}: choose someone at a higher designation.`, { field: 'managerId' });
+    }
   }
 
   /**
