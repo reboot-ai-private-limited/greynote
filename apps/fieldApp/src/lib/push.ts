@@ -40,9 +40,9 @@ export function notifications(): NotificationsModule | null {
 }
 
 /** The user switched notifications off in the app: nothing is registered until they switch them on again. */
-const OFF_KEY = 'push:off';
+const OFF_KEY = 'push.off'; // SecureStore keys allow only letters, digits, '.', '-' and '_' ('push:off' threw on every read).
 
-export const isPushOff = async () => (await storage.get(OFF_KEY)) === '1';
+export const isPushOff = async () => (await storage.get(OFF_KEY).catch(() => null)) === '1';
 
 /** Shows a push while the app is open (a banner and an entry in the list). Called once at start. */
 export function setUpForegroundPush() {
