@@ -37,7 +37,7 @@ async function main(): Promise<void> {
       {
         type: 'text',
         name: 'employeeCode',
-        message: 'Employee code',
+        message: 'Employee code (e.g. GHC001)',
         validate: (value: string) => value.trim().length > 0 || 'Required',
       },
       {

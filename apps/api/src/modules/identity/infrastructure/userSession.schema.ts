@@ -13,6 +13,8 @@ export interface UserSessionDoc {
   lastActiveAt: Date;
   revokedAt: Date | null;
   revokedReason: RevokedReason | null;
+  pushToken?: string | null;
+  pushTokenAt?: Date | null;
 }
 
 const userSessionSchema = new Schema<UserSessionDoc>({
@@ -27,7 +29,12 @@ const userSessionSchema = new Schema<UserSessionDoc>({
   lastActiveAt: { type: Date, required: true },
   revokedAt: { type: Date, default: null },
   revokedReason: { type: String, enum: [...REVOKED_REASONS, null], default: null },
+  pushToken: { type: String, default: null },
+  pushTokenAt: { type: Date, default: null },
 });
+
+// Backs the push lookups: tokens of a user's live sessions, and clearing a token that moved to another account.
+userSessionSchema.index({ pushToken: 1 }, { sparse: true });
 
 // Backs `findActiveByDeviceId`/`countActive` — always filtered by userId first.
 userSessionSchema.index({ userId: 1, deviceId: 1 });

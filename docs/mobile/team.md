@@ -5,7 +5,7 @@
 **Status key:** ✅ exists on the server. 🟡 exists but not open to a manager, or not shaped for a team. ❌ missing (we build it). 📱 the phone team shows it.
 **Field app layout, redesigned 2026-10-13 (typechecked and linted, not yet run on a phone):** the Team tab has three sections instead of a tile grid. **Approvals:** *To approve* and *All team requests*, type chips with the counts from `/approvals/inbox/summary`, and filters by person, period, status (second list) and overdue; "Whose" is *All my team / My direct reports / Their teams*; bulk approve and reject, with "Select all <n> <type>"; Secondary sales now has a label. **People:** today's four numbers (pending approvals, not started, on leave, blocked), the team as a list that drills into managers (breadcrumb, roll-up line per manager such as "8 people · 2 not started · 1 blocked", counted on the phone from `/team/members` and `/team/today`), search and role filters, "You decide / View only" on each row, Unblock on a blocked row. **Person page:** quick actions (unblock, late exception, set a target, set a doctor visit target) and "See their…" links (daily reports, plans, leave, orders, stock), each opening the existing screen already filtered to that person. **Reports:** a plain list - Today board, Plans, Daily reports; Monthly overview, Leave calendar, Orders, Stock and secondary; Manage: Late exceptions, Visit targets, Unblock. Every earlier screen is still reachable.
 
-**Earlier check, same day:** the person page and approvals inbox existed with the tiles. Fixed today: Overview read `items` but the server sends `rows`, and calls-per-day can be `null`. Section 5 item 5 (actions on a person) is built: unblock, late plan or expense, set a target (Targets screen, with remove), and set a doctor visit target. Not built: push (FCM).
+**Earlier check, same day:** the person page and approvals inbox existed with the tiles. Fixed today: Overview read `items` but the server sends `rows`, and calls-per-day can be `null`. Section 5 item 5 (actions on a person) is built: unblock, late plan or expense, set a target (Targets screen, with remove), and set a doctor visit target. Push (FCM): server built 2026-10-15, see [`notifications.md`](notifications.md); the phone is open.
 
 **Manager's own Daily Plan, 2026-10-14:** a manager picks team members to work with and plans the day from their routes and doctors - [`dailyplan.md`](dailyplan.md) section 1b. `GET /team/plans` rows carry `dailyPlan.changedFromMonthly` (the employee changed the day the Monthly Plan wrote; show a chip). A manager's target and achievement are the total of the MRs in their team - [`secondary-and-targets.md`](secondary-and-targets.md) section 2.
 
@@ -40,7 +40,7 @@ Everything a manager's phone calls, in one place. **Available** = built and test
 
 ### Messages the manager receives (in `GET /inbox`, no new route)
 
-The server puts these in the manager's Inbox ([`inbox.md`](inbox.md)) — the phone just shows them like any message and refreshes the unread count. No push yet; the phone polls. A background job checks every 5 minutes; each request is announced **once** (a resubmission after a rejection counts again). Admin can switch all of it off with the setting `TEAM_ALERTS_ENABLED` (default on).
+The server puts these in the manager's Inbox ([`inbox.md`](inbox.md)) — the phone just shows them like any message and refreshes the unread count. Each is also pushed to the phone ([`notifications.md`](notifications.md)); the phone still polls. A background job checks every 5 minutes; each request is announced **once** (a resubmission after a rejection counts again). Admin can switch all of it off with the setting `TEAM_ALERTS_ENABLED` (default on).
 
 | When | `kind` | Title / body |
 |---|---|---|
@@ -67,7 +67,7 @@ Daily plans, monthly plans, daily reports, secondary sales and doctor services a
 
 | Gap | Route (proposed) | For |
 |---|---|---|
-| — | push notification (FCM) | The phone team; the messages below already reach the Inbox. |
+| — | push notification (FCM) | ✅ server 2026-10-15 ([`notifications.md`](notifications.md): token route, team reminders, approvals digest). The phone registers the token and opens the routes. |
 
 ## 3. What exists today
 
@@ -101,7 +101,7 @@ These are why a manager cannot yet "monitor the team": the data exists, but ther
 | T9 | **Person drill-down.** | ✅ built | `GET /team/members/:id/summary` (section 2), plus a `userId` filter on `/team/today`, `/plans`, `/leaves`, `/members`, and `/reports/team/overview`. |
 | T10 | **Access check, single source.** | ✅ built | `resolveTeamScope` in `shared/access/teamScope.ts`: the whole downline, or one named person who must be in it (else `403`). Every new team route uses it. Existing routes (`/dcr/team`, doctors `/team`) keep their own copies for now. |
 | T11 | **Reports after a team move.** Reports must show the team as it was in that month (sign-off K18). | ✅ design, check | Verify the new team reads use the dated manager history, not today's `managerId`. |
-| T12 | **Notifications** to the manager. | ✅ built (Inbox only) | Section 2, *Messages the manager receives*. No push yet. |
+| T12 | **Notifications** to the manager. | ✅ built (Inbox + push) | Section 2, *Messages the manager receives*, and [`notifications.md`](notifications.md) for the deadline and approvals-waiting messages. |
 
 Not a gap (do not build): chemist orders approval (info-only, decision 2026-10-12), manager approval of Admin-owned things, any second manager stage (Stage 1 manager → Admin is fixed, PRD §7.1).
 

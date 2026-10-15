@@ -92,7 +92,7 @@ describe('Inbox', () => {
       getZone: async (id: string) => (id.startsWith('z') ? { id, status: 'active' as const } : null),
       getHq: async (id: string) => (id.startsWith('hq') ? { id, status: 'active' as const } : null),
     };
-    publish = new PublishMessageUseCase(messages, receipts, { listActiveRecipients: async () => people }, territory, () => NOW);
+    publish = new PublishMessageUseCase(messages, receipts, { listActiveRecipients: async () => people }, territory, null, () => NOW);
     mine = new MyInboxUseCases(receipts, () => NOW);
     sent = new SentMessagesUseCases(messages, receipts, () => NOW);
   });

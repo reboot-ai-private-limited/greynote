@@ -27,3 +27,6 @@ Thumbs.db
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Firebase service-account keys: secrets, never commit (the server reads FIREBASE_SERVICE_ACCOUNT_JSON from .env.prod)
+*-firebase-adminsdk-*.json

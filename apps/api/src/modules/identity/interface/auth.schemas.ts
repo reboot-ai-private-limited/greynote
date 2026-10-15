@@ -33,3 +33,12 @@ export const deleteAccountPublicBodySchema = z.object({
 export const logoutAllBodySchema = z.object({
   userId: z.string().min(1),
 });
+
+export const pushTokenBodySchema = z.object({
+  deviceId: z.string().min(1),
+  token: z.string().trim().min(20).max(4096),
+});
+
+export const pushTokenClearBodySchema = z.object({
+  deviceId: z.string().min(1),
+});

@@ -87,6 +87,8 @@ import { MongoRoleAdapter } from './infrastructure/mongoRole.adapter.js';
 import { MongoUserAdapter } from './infrastructure/mongoUser.adapter.js';
 import { MongoUserDeviceAdapter } from './infrastructure/mongoUserDevice.adapter.js';
 import { MongoUserSessionAdapter } from './infrastructure/mongoUserSession.adapter.js';
+import { MongoPushTokenAdapter } from './infrastructure/mongoPushToken.adapter.js';
+import { PushTokenUseCase } from './application/usecases/pushToken.usecase.js';
 import { businessDate } from '@/shared/time/businessTime.js';
 import { readBusinessDay } from '@/shared/config/readConfig.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
@@ -96,6 +98,7 @@ import {
   makeDeleteAccountPublicController,
   makeLogoutAllController,
   makeLogoutController,
+  makePushTokenController,
   makeMeController,
   makeRefreshController,
 } from './interface/auth.controller.js';
@@ -217,7 +220,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const removeDevice = new RemoveDeviceUseCase(userDeviceRepository, userSessionRepository, transactionRunner);
   const logoutDevice = new LogoutDeviceUseCase(userDeviceRepository, userSessionRepository);
 
-  const createUser = new CreateUserUseCase(userRepository, roleRepository, passwordHasher);
+  const createUser = new CreateUserUseCase(userRepository, roleRepository, passwordHasher, employeeCodeGenerator);
   const updateUser = new UpdateUserUseCase(
     userRepository,
     roleRepository,
@@ -329,6 +332,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const getEmploymentDetails = new GetEmploymentDetailsUseCase(employeeProfileRepository, designationRepository);
   const getPayBandRates = new GetPayBandRatesUseCase(userRepository, employeeProfileRepository, payBandRepository);
   const getActiveDeviceCount = new GetActiveDeviceCountUseCase(userRepository, userSessionRepository);
+  const pushToken = new PushTokenUseCase(new MongoPushTokenAdapter());
 
   const seedDefaultRoles = new SeedDefaultRolesUseCase(roleRepository);
   const seedBootstrapAdminUseCase = new SeedBootstrapAdminUseCase(userRepository, roleRepository, passwordHasher);
@@ -342,6 +346,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     me: makeMeController(getUserSummary),
     deleteAccount: makeDeleteAccountController(deleteAccount),
     deleteAccountPublic: makeDeleteAccountPublicController(deleteAccount),
+    pushToken: makePushTokenController(pushToken),
   };
   const usersControllers = {
     list: makeListUsersController(listUsers),
@@ -424,6 +429,8 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       getPayBandRates: (userId) => getPayBandRates.execute(userId),
       getCtcForMonth: (userId, month) => getCtcForMonth.execute(userId, month),
       getActiveDeviceCount: (userId) => getActiveDeviceCount.execute(userId),
+      listPushTokens: (userIds) => pushToken.listForUsers(userIds),
+      clearPushTokens: (tokens) => pushToken.clear(tokens),
       recordUserTerritory: async (userId, territory) => {
         await employeeProfileRepository.upsert(userId, territory);
       },

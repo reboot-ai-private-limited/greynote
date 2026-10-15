@@ -76,6 +76,10 @@ export interface IdentityPublicContract {
   /** The CTC revision in force for a payroll month (`YYYY-MM`), or `null` if none was assigned by then. */
   getCtcForMonth(userId: string, month: string): Promise<CtcAssignment | null>;
   getActiveDeviceCount(userId: string): Promise<number>;
+  /** FCM tokens of these users' live sessions (a phone that never registered has none). Feeds the push sender. */
+  listPushTokens(userIds: string[]): Promise<string[]>;
+  /** Drops tokens Firebase reported as dead, so they are not tried again. */
+  clearPushTokens(tokens: string[]): Promise<void>;
   /**
    * Territory's write-back: copies a field employee's CURRENT HQ and zone onto their profile, so the employee list can show
    * them without reading Territory. Called by `SetUserHq` after the assignment itself is saved.

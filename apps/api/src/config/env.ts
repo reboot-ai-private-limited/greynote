@@ -47,6 +47,12 @@ const schema = z.object({
    * boot, like Cloudinary: without it place search answers 503 and routes save as `FAILED`.
    */
   GOOGLE_MAPS_API_KEY: z.string().min(1).optional(),
+
+  /**
+   * Firebase service-account key (the whole JSON file, on one line) for push notifications. Optional at boot, like
+   * Cloudinary: without it nothing is pushed and the Inbox keeps working. Never commit it.
+   */
+  FIREBASE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
 });
 
 const parsed = schema.safeParse(process.env);

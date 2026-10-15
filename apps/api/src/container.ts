@@ -12,9 +12,15 @@ import { buildIdentityContainer } from '@/modules/identity/identity.container.js
 import { buildMarketingContainer } from '@/modules/marketing/marketing.container.js';
 import { buildPayrollContainer } from '@/modules/payroll/payroll.container.js';
 import { buildPlanningContainer } from '@/modules/planning/planning.container.js';
+import { buildRemindersContainer } from '@/modules/reminders/reminders.container.js';
 import { buildReportsContainer } from '@/modules/reports/reports.container.js';
 import { buildSalesContainer } from '@/modules/sales/sales.container.js';
 import { buildSyncContainer } from '@/modules/sync/sync.container.js';
+import { env } from '@/config/env.js';
+import { parseBoolean, readConfigOr } from '@/shared/config/readConfig.js';
+import { buildPushSender } from '@/shared/push/fcmPushSender.adapter.js';
+import { PushNotifier } from '@/shared/push/pushNotifier.js';
+import { registerPushEvents } from './pushEvents.js';
 import { registerCompositionSyncSources } from './syncSources.js';
 import { buildTerritoryContainer } from '@/modules/territory/territory.container.js';
 
@@ -28,6 +34,7 @@ export interface AppContainers {
   hr: ReturnType<typeof buildHrContainer>;
   inbox: ReturnType<typeof buildInboxContainer>;
   team: ReturnType<typeof buildTeamContainer>;
+  reminders: ReturnType<typeof buildRemindersContainer>;
   documents: ReturnType<typeof buildDocumentsContainer>;
   sync: ReturnType<typeof buildSyncContainer>;
   fieldActivity: ReturnType<typeof buildFieldActivityContainer>;
@@ -75,7 +82,11 @@ export function buildContainers(): AppContainers {
   const hr = buildHrContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
 
   // Tier 3 — Inbox: messages an Admin sends to an audience. Resolves it against Identity (who, in which role, HQ and Zone) and checks Zones and HQs with Territory.
-  const inbox = buildInboxContainer(identity.contract, territory.contract);
+  // Every message it saves is also pushed to the phones of the people it reaches (Firebase key in the env; off or unset: Inbox only).
+  const push = new PushNotifier(identity.contract, buildPushSender(env.FIREBASE_SERVICE_ACCOUNT_JSON), () =>
+    readConfigOr(config.contract, 'PUSH_ENABLED', parseBoolean, true),
+  );
+  const inbox = buildInboxContainer(identity.contract, territory.contract, push);
 
   // Tier 3 — Documents: the library of files an Admin shares with everyone or with named employees. Checks the named people with Identity.
   const documents = buildDocumentsContainer(identity.contract);
@@ -112,9 +123,14 @@ export function buildContainers(): AppContainers {
   // Tier 7 — Team: a manager's view of their downline. Reads Identity, Territory, Planning, Field Activity, HR, Config, Reports, Sales and Field Master Data; owns no data.
   const team = buildTeamContainer(identity.contract, territory.contract, planning.contract, fieldActivity.contract, hr.contract, config.contract, reports.contract, sales.contract, fieldMasterData.contract, approval.contract, inbox.contract, identity.contract);
 
+  // Tier 7 — Reminders: deadline reminders to employees and "N not submitted" / "N waiting" messages to managers, through the Inbox (which also pushes). Owns only its dedupe marks.
+  const reminders = buildRemindersContainer(identity.contract, hr.contract, planning.contract, fieldActivity.contract, sales.contract, approval.contract, inbox.contract, config.contract);
+
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
-  return { health, config, identity, territory, approval, planning, hr, inbox, team, documents, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance, reports };
+  registerPushEvents(inbox.contract, config.contract);
+
+  return { health, config, identity, territory, approval, planning, hr, inbox, team, reminders, documents, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance, reports };
 }

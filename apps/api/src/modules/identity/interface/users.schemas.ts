@@ -28,7 +28,8 @@ export const bankDetailsSchema = z.object({
  */
 export const createUserBodySchema = z.object({
   role: z.enum(['ADMIN', 'HR', 'ACCOUNTANT', 'FIELD']),
-  employeeCode: z.string().min(1),
+  // Optional: office staff get the next GHC code generated.
+  employeeCode: z.string().min(1).optional(),
   name: z.string().min(1),
   password: passwordSchema,
   email: z.string().email().optional(),

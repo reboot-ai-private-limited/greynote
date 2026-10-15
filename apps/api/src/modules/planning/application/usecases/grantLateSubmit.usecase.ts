@@ -1,4 +1,5 @@
 import { AppError } from '@/shared/errors/AppError.js';
+import { appEvents } from '@/shared/events/appEvents.js';
 import { endOfBusinessDay, parseCalendarDate, parseCalendarMonth } from '@/shared/time/businessTime.js';
 import { PLANNING_CONFIG_KEYS, type ConfigProviderPort } from '../../domain/configProvider.port.js';
 import type { LateSubmitGrant } from '../../domain/lateSubmitGrant.entity.js';
@@ -56,6 +57,7 @@ export class GrantLateSubmitUseCase {
       now,
     );
     if (!grant) throw AppError.conflict('There’s already an open late-submission exception for this plan.');
+    appEvents.emit('submit.exception.granted', { userId: input.userId, kind: input.kind, planKey: input.planKey, expiresAt, grantedBy: actor.id });
     return grant;
   }
 

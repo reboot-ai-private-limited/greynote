@@ -20,7 +20,7 @@ function build(data: EmployeeDraftData, opts: { createdUserId?: string; failHqOn
   };
   const calls: string[] = [];
   const users = new Map<string, { id: string; employeeCode: string; passwordHash: string }>();
-  if (opts.createdUserId) users.set(opts.createdUserId, { id: opts.createdUserId, employeeCode: 'GH107', passwordHash: 'old' });
+  if (opts.createdUserId) users.set(opts.createdUserId, { id: opts.createdUserId, employeeCode: 'GHC107', passwordHash: 'old' });
   let ctcSaved = false;
   const ctcInput: unknown[] = [];
   let hqFailures = opts.failHqOnce ? 1 : 0;
@@ -40,7 +40,7 @@ function build(data: EmployeeDraftData, opts: { createdUserId?: string; failHqOn
       update: async (id: string, patch: { passwordHash: string }) => { Object.assign(users.get(id) as object, patch); },
     } as never,
     { list: async () => [{ id: 'des-1', level: 1 }, { id: 'des-top', level: 5 }] } as never,
-    { next: async () => `GH10${++codeSeq}` } as never,
+    { next: async () => `GHC10${++codeSeq}` } as never,
     {
       execute: async (_role: string, input: { employeeCode: string; password: string }) => {
         calls.push(`create ${input.employeeCode}`);
@@ -68,9 +68,9 @@ describe('FinalizeEmployeeDraftUseCase', () => {
   it('creates the login, fills the profile, sets the HQ and CTC, and removes the draft', async () => {
     const { useCase, calls } = build(complete());
     const result = await useCase.execute(actor, 'd1');
-    expect(result).toMatchObject({ userId: 'u1', employeeCode: 'GH101' });
+    expect(result).toMatchObject({ userId: 'u1', employeeCode: 'GHC101' });
     expect(result.password).toHaveLength(12);
-    expect(calls).toEqual(['create GH101', 'update u1 boss', 'hq u1 hq-1', 'ctc', 'draft deleted']);
+    expect(calls).toEqual(['create GHC101', 'update u1 boss', 'hq u1 hq-1', 'ctc', 'draft deleted']);
   });
 
   it('carries the draft photo onto the new employee', async () => {
@@ -98,7 +98,7 @@ describe('FinalizeEmployeeDraftUseCase', () => {
     expect(draftNow()?.createdUserId).toBe('u1');
 
     const result = await useCase.execute(actor, 'd1');
-    expect(result.employeeCode).toBe('GH101');
+    expect(result.employeeCode).toBe('GHC101');
     expect(calls.filter((c) => c.startsWith('create'))).toHaveLength(1);
     expect(calls.filter((c) => c === 'ctc')).toHaveLength(1);
     expect(users.get('u1')?.passwordHash).toBe(`hash:${result.password}`);

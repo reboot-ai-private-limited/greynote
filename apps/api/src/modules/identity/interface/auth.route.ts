@@ -11,6 +11,8 @@ import {
   loginBodySchema,
   logoutAllBodySchema,
   logoutBodySchema,
+  pushTokenBodySchema,
+  pushTokenClearBodySchema,
   refreshBodySchema,
 } from './auth.schemas.js';
 import type {
@@ -20,6 +22,7 @@ import type {
   makeLogoutAllController,
   makeLogoutController,
   makeMeController,
+  makePushTokenController,
   makeRefreshController,
 } from './auth.controller.js';
 
@@ -108,6 +111,27 @@ openApiRegistry.registerPath({
   },
 });
 
+openApiRegistry.registerPath({
+  method: 'put',
+  path: '/api/identity/auth/push-token',
+  tags: ['Identity / Auth'],
+  summary:
+    "Save this phone's Firebase (FCM) token on its live session. Call after login and whenever Firebase rotates the token. The same token on another account is moved here",
+  security: [{ bearerAuth: [] }],
+  request: { body: { content: { 'application/json': { schema: pushTokenBodySchema } } } },
+  responses: { 200: { description: 'Saved' }, 404: { description: 'No live session for this deviceId' } },
+});
+
+openApiRegistry.registerPath({
+  method: 'delete',
+  path: '/api/identity/auth/push-token',
+  tags: ['Identity / Auth'],
+  summary: 'Stop pushes to this phone (user turned notifications off). Logout does this by itself',
+  security: [{ bearerAuth: [] }],
+  request: { body: { content: { 'application/json': { schema: pushTokenClearBodySchema } } } },
+  responses: { 200: { description: 'Removed (also when there was nothing to remove)' } },
+});
+
 const tooMany: RequestHandler = (_req, _res, next) =>
   next(
     new AppError({
@@ -143,6 +167,7 @@ export function buildAuthRouter(controllers: {
   me: ReturnType<typeof makeMeController>;
   deleteAccount: ReturnType<typeof makeDeleteAccountController>;
   deleteAccountPublic: ReturnType<typeof makeDeleteAccountPublicController>;
+  pushToken: ReturnType<typeof makePushTokenController>;
 }): Router {
   const router = Router();
 
@@ -150,6 +175,8 @@ export function buildAuthRouter(controllers: {
   router.post('/refresh', validate({ body: refreshBodySchema }), controllers.refresh);
   router.post('/logout', authenticate(), validate({ body: logoutBodySchema }), controllers.logout);
   router.get('/me', authenticate(), controllers.me);
+  router.put('/push-token', authenticate(), validate({ body: pushTokenBodySchema }), controllers.pushToken.register);
+  router.delete('/push-token', authenticate(), validate({ body: pushTokenClearBodySchema }), controllers.pushToken.unregister);
   router.post('/delete-account', authenticate(), validate({ body: deleteAccountBodySchema }), controllers.deleteAccount);
   router.post(
     '/delete-account-public',

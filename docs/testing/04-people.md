@@ -2,7 +2,7 @@
 
 | Id | Do | Expect | Result |
 |---|---|---|---|
-| 4.00a | Employees → New employee: go through all eight steps | each Next saves a draft; a later step cannot be opened before the earlier ones are valid; Create gives a GH id (GH101, GH102 …) and password | |
+| 4.00a | Employees → New employee: go through all eight steps | each Next saves a draft; a later step cannot be opened before the earlier ones are valid; Create gives a GHC id (GHC001, GHC002 …) and password | |
 | 4.00b | Address step: tick "Same as present" | the permanent fields lock and show the present address; untick lets you edit them | |
 | 4.00c | Qualifications / Experience: add several rows, remove the middle one | the others keep their text; both steps can be skipped empty | |
 | 4.00d | Work step: pick the top designation | no manager is asked for; any other designation needs one | |
@@ -40,7 +40,7 @@
 | 4.14 | Employees → New employee, Personal step: add a photo, choose another, remove it | preview shows at once; the old file is gone from Cloudinary after each change; a PDF or a file over 5 MB is refused with a message | |
 | 4.15 | Leave the wizard after adding a photo, then Continue the draft | the photo is still there; Create keeps it on the new employee | |
 | 4.16 | Employee page and Employees list | photo shows (initials when none); Choose another / Remove work; deleting a draft removes its photo from Cloudinary | |
-| 4.17 | New employee ids | first new employee gets GH101, the next GH102; older GRN ids unchanged | |
+| 4.17 | New employee ids | after `migrate:employee-codes --apply`, everyone (incl. Admin) is GHC###, oldest joiner first; the next new employee, field or office staff, gets the next number | |
 
 ## Reporting managers and coverage (2026-10-15)
 

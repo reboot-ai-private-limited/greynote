@@ -2,9 +2,11 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
+  '@firebase/util': false
   '@scarf/scarf': false
   bcrypt: true
   esbuild: false
+  protobufjs: false
   unrs-resolver: false
 
 # One React for the whole workspace, and it is Expo's choice (apps/fieldApp pins 19.2.3 exactly).

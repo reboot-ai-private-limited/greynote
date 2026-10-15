@@ -39,6 +39,7 @@ undefined yet.
 | 10 | Reports | [`reports.md`](reports.md) | — (a read model, owns no data) | Identity, Field Master Data, Sales (later Field Activity, Payroll, Marketing) |
 | 10b | Team | [`team.md`](team.md) | — (reads Identity, Territory) | Identity, Territory |
 | 5b | Inbox | [`inbox.md`](inbox.md) | [`10-inbox`](../erd/10-inbox.md) | Identity, Territory |
+| 5c | Notifications (push, reminders) | [`notifications.md`](notifications.md) | [`13-notifications`](../erd/13-notifications.md) | Identity, Inbox, Planning, HR, Field Activity, Sales, Approval, Config |
 | 5c | Documents | [`documents.md`](documents.md) | [`11-documents`](../erd/11-documents.md) | Identity |
 | 9b | Attendance | [`attendance.md`](attendance.md) | — (a read model, owns no data) | Identity, HR, Planning, Field Activity |
 

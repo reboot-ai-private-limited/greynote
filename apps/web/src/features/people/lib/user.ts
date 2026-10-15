@@ -43,25 +43,22 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface UserDraft {
   role: string;
-  employeeCode: string;
   name: string;
   password: string;
   email: string;
   phone: string;
 }
 
-export const EMPTY_USER_DRAFT: UserDraft = { role: '', employeeCode: '', name: '', password: '', email: '', phone: '' };
+export const EMPTY_USER_DRAFT: UserDraft = { role: '', name: '', password: '', email: '', phone: '' };
 
 export function buildUser(draft: UserDraft, acting: string | undefined): BuildResult<CreateUserDto> {
   const allowed = creatableRoles(acting);
   const role = allowed.find((r) => r === draft.role);
-  const employeeCode = draft.employeeCode.trim();
   const name = draft.name.trim().replace(/\s+/g, ' ');
   const email = draft.email.trim();
   const phone = draft.phone.trim();
   const errors = {
     role: role ? undefined : 'Choose a role.',
-    employeeCode: employeeCode === '' ? 'Enter an employee code.' : /\s/.test(employeeCode) ? 'No spaces in an employee code.' : undefined,
     name: name === '' ? 'Enter a name.' : undefined,
     password: passwordError(draft.password),
     email: email !== '' && !EMAIL.test(email) ? 'Enter a valid email address.' : undefined,
@@ -70,7 +67,7 @@ export function buildUser(draft: UserDraft, acting: string | undefined): BuildRe
   // The password is sent exactly as typed: trimming would change what the person has to type to sign in.
   return {
     ok: true,
-    body: { role, employeeCode, name, password: draft.password, ...(email && { email }), ...(phone && { phone }) },
+    body: { role, name, password: draft.password, ...(email && { email }), ...(phone && { phone }) },
   };
 }
 
