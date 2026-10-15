@@ -67,7 +67,11 @@ export async function flushPendingReads(userId: string) {
   await store.setMeta(pendingKey(userId), JSON.stringify(left)).catch(() => undefined);
 }
 
-/** The badge count: read when the app comes to the front, after a connection returns, and on `refresh()` (no push yet). */
+/** A push arrived (or was opened): every unread badge reads the count again. A push only nudges; the server's count is the truth. */
+const nudges = new Set<() => void>();
+export const nudgeInbox = () => nudges.forEach((n) => n());
+
+/** The badge count: read when the app comes to the front, after a connection returns, when a push arrives, and on `refresh()`. */
 export function useUnreadCount() {
   const online = useOnline();
   const userId = useSessionUser()?.id ?? null;
@@ -77,7 +81,11 @@ export function useUnreadCount() {
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => state === 'active' && refresh());
-    return () => sub.remove();
+    nudges.add(refresh);
+    return () => {
+      sub.remove();
+      nudges.delete(refresh);
+    };
   }, [refresh]);
 
   useEffect(() => {
