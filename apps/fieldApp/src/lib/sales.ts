@@ -89,6 +89,8 @@ export type EmployeeSalesReport = {
   generalTargetPaise: number;
   totals: { targetPaise: number; primaryPaise: number; secondaryPaise: number; achievementPercent: number | null };
   targets: EmployeeTargetFigure[];
+  /** Only for a manager: their figures are the sum of every MR in their downline (they have no target of their own). */
+  team?: { mrCount: number };
 };
 
 /** Months are `YYYY-MM`, both inclusive. */

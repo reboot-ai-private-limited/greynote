@@ -83,7 +83,26 @@ export default function TargetsScreen() {
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
   const fe = useFormErrors(FIELD_ORDER);
 
-  const people = [{ id: me?.id ?? '', name: 'Me', subtitle: me?.employeeCode }, ...team.map((c) => ({ id: c.id, name: c.name, subtitle: c.designation ?? c.employeeCode }))];
+  // A manager has no target of their own (theirs is the total of their MRs), and the server refuses one on a manager: only MRs are offered.
+  const mrs = team.filter((c) => c.designation === null || c.designation === 'MR');
+  const people = [...(isManager ? [] : [{ id: me?.id ?? '', name: 'Me', subtitle: me?.employeeCode }]), ...mrs.map((c) => ({ id: c.id, name: c.name, subtitle: c.designation ?? c.employeeCode }))];
+  // A manager's own screen is the sum of their MRs; this is each MR's share of the month.
+  const perMr = useCachedFetch(
+    `emp-report-mrs:${fy.year}:${month}`,
+    async () => {
+      const rows = await Promise.all(
+        mrs.slice(0, 30).map(async (m) => {
+          try {
+            return { member: m, report: await getEmployeeSalesReport(m.id, month, month) };
+          } catch {
+            return { member: m, report: null };
+          }
+        }),
+      );
+      return rows;
+    },
+    `${tick}:${mrs.length}:${isManager}`,
+  );
   const products = master.data?.products ?? [];
   const productOptions = [{ id: '', name: 'All products' }, ...[...products].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ id: p.id, name: p.name }))];
   // Units only make sense for one product that has a PTS (units × PTS is the amount); anything else is an amount.
@@ -172,7 +191,14 @@ export default function TargetsScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             {`Achieved is counted from your distributors' stock, at PTS. It shows 0 until their stock is counted. Primary this month: ${formatRupees(figures.totals.primaryPaise)}.${figures.generalTargetPaise > 0 ? ` Includes ${formatRupees(figures.generalTargetPaise)} for all products.` : ''}`}
           </ThemedText>
-          {figures.totals.targetPaise === 0 ? <Notice tone="info">No target is set for this month.</Notice> : null}
+          {figures.team ? (
+            figures.team.mrCount === 0 ? (
+              <Notice tone="info">No MRs under you, so there is nothing to total yet.</Notice>
+            ) : (
+              <Notice tone="info">{`These figures are the total of the ${figures.team.mrCount} MR${figures.team.mrCount === 1 ? '' : 's'} in your team. Set targets on each MR.`}</Notice>
+            )
+          ) : null}
+          {figures.totals.targetPaise === 0 && !(figures.team && figures.team.mrCount === 0) ? <Notice tone="info">No target is set for this month.</Notice> : null}
 
           {figures.targets.map((t) => (
             <InfoCard key={t.id}>
@@ -193,7 +219,7 @@ export default function TargetsScreen() {
                   <ThemedText type="small">{`${t.achievedQty} of ${t.targetQty} units · ${percentText(t.achievementQtyPercent)}`}</ThemedText>
                 </>
               ) : null}
-              {isManager && online && !fy.isPast ? (
+              {isManager && online && !fy.isPast && !figures.team ? (
                 removing === t.id ? (
                   <View style={styles.head}>
                     <PrimaryButton label="Yes, remove" loading={busy} onPress={() => remove(t.id)} />
@@ -205,6 +231,23 @@ export default function TargetsScreen() {
               ) : null}
             </InfoCard>
           ))}
+
+          {figures.team && figures.team.mrCount > 0 && perMr.data && perMr.data.length > 0 ? (
+            <>
+              <ThemedText type="smallBold">By MR</ThemedText>
+              {perMr.data.map(({ member, report: r }) => (
+                <InfoCard key={member.id}>
+                  <View style={styles.head}>
+                    <ThemedText type="smallBold" style={styles.grow}>{`${member.name} · ${member.employeeCode}`}</ThemedText>
+                    {r ? <Pill text={percentText(r.totals.achievementPercent)} accent={accentFor(r.totals.achievementPercent)} /> : null}
+                  </View>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {r ? `Target ${formatRupees(r.totals.targetPaise)} · Achieved ${formatRupees(r.totals.secondaryPaise)}` : 'Couldn’t load this MR’s figures.'}
+                  </ThemedText>
+                </InfoCard>
+              ))}
+            </>
+          ) : null}
 
           {rows.length > 0 ? <ThemedText type="smallBold">By product</ThemedText> : null}
           {rows.map((p) => (

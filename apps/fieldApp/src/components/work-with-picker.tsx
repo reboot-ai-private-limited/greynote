@@ -5,7 +5,7 @@ import { ChoiceChips } from '@/components/choice-chips';
 import { TextField } from '@/components/text-field';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useColleagues } from '@/offline/colleagues';
+import { useColleagues, type Colleague } from '@/offline/colleagues';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
@@ -23,15 +23,22 @@ type Props = {
   value: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
+  /**
+   * A fixed list to pick from instead of GET /identity/work-with (a manager's downline on their Daily Plan). It is searched
+   * but has no Managers / All switch; `emptyText` says what an empty list means.
+   */
+  people?: { list: Colleague[]; loaded: boolean; emptyText: string };
 };
 
 /**
  * "Work With": who joins you on a day or a call (GET /identity/work-with).
  * Offers active managers or all field employees. Shows labels like "Asha Rao (ASM)".
  */
-export function WorkWithPicker({ value, onChange, disabled }: Props) {
+export function WorkWithPicker({ value, onChange, disabled, people }: Props) {
   const theme = useTheme();
-  const { colleagues, loaded } = useColleagues();
+  const fetched = useColleagues();
+  const colleagues = people ? people.list : fetched.colleagues;
+  const loaded = people ? people.loaded : fetched.loaded;
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<Scope>('MANAGERS');
   const [search, setSearch] = useState('');
@@ -44,14 +51,14 @@ export function WorkWithPicker({ value, onChange, disabled }: Props) {
 
   const needle = search.trim().toLowerCase();
   const filtered = useMemo(() => {
-    let list = scope === 'MANAGERS' ? colleagues.filter((c) => c.isManager || c.relation === 'MANAGER') : colleagues;
+    let list = !people && scope === 'MANAGERS' ? colleagues.filter((c) => c.isManager || c.relation === 'MANAGER') : colleagues;
     // If no managers were found, fall back to showing everyone so the picker is never empty
-    if (scope === 'MANAGERS' && list.length === 0) list = colleagues;
+    if (!people && scope === 'MANAGERS' && list.length === 0) list = colleagues;
     if (needle) {
       list = list.filter((c) => c.name.toLowerCase().includes(needle) || c.employeeCode.toLowerCase().includes(needle) || (c.designation ?? '').toLowerCase().includes(needle));
     }
     return list;
-  }, [colleagues, scope, needle]);
+  }, [colleagues, scope, needle, people]);
 
   return (
     <View style={styles.box}>
@@ -105,11 +112,11 @@ export function WorkWithPicker({ value, onChange, disabled }: Props) {
             </ThemedText>
           ) : colleagues.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
-              No colleagues to show yet. Connect to the internet once so your list can load.
+              {people ? people.emptyText : 'No colleagues to show yet. Connect to the internet once so your list can load.'}
             </ThemedText>
           ) : (
             <>
-              <ChoiceChips options={SCOPE_OPTIONS} value={scope} onChange={setScope} />
+              {people ? null : <ChoiceChips options={SCOPE_OPTIONS} value={scope} onChange={setScope} />}
               <TextField
                 label="Search colleague"
                 placeholder="Name, code or designation…"

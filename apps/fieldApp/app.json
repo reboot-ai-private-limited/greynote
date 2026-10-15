@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.greynote.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -28,6 +29,14 @@
     "plugins": [
       "expo-router",
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#2563EB",
+          "defaultChannel": "default"
+        }
+      ],
+      [
         "expo-location",
         { "locationWhenInUsePermission": "My Greynote uses your location to confirm where a doctor or chemist call took place." }
       ],
@@ -36,7 +45,12 @@
         {
           "backgroundColor": "#FFFFFF",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 240
+          "imageWidth": 240,
+          "android": {
+            "image": "./assets/images/splash-icon-padded.png",
+            "imageWidth": 288,
+            "backgroundColor": "#FFFFFF"
+          }
         }
       ]
     ],

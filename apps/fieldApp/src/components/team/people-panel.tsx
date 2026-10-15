@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Accents, Spacing, type Accent } from '@/constants/theme';
 import { useTeamBoard } from '@/hooks/use-team-board';
 import { DAY_STATE_TEXT, useApprovalSummary, type DayState } from '@/lib/team-section';
-import { pathTo, rollupText, sortByAttention, type TeamNode } from '@/lib/team-tree';
+import { rollupText, sortByAttention, type TeamNode } from '@/lib/team-tree';
 import { useOnline } from '@/offline';
 import { formatWhen } from '@/offline/day';
 
@@ -67,12 +67,16 @@ function Tile({ label, value, accent, active, onPress }: { label: string; value:
   );
 }
 
-function PersonRow({ node, onOpenTeam }: { node: TeamNode; onOpenTeam: (id: string) => void }) {
+/** Each level sits this far in from the one above, with a line down the left to show whose team it is. */
+const INDENT = 14;
+
+function PersonRow({ node, level, expanded, onToggle }: { node: TeamNode; level: number; expanded: boolean; onToggle: (id: string) => void }) {
   const { member, day } = node;
   const state = day?.state ?? 'NOT_YET';
   const isManager = node.children.length > 0;
   const canDecide = member.depth === 1;
   return (
+    <View style={level > 0 ? [styles.nested, { marginLeft: Math.min(level, 4) * INDENT }] : undefined}>
     <InfoCard>
       <Pressable
         accessibilityRole="button"
@@ -101,9 +105,10 @@ function PersonRow({ node, onOpenTeam }: { node: TeamNode; onOpenTeam: (id: stri
       <View style={styles.actions}>
         <Pill text={canDecide ? 'You decide' : 'View only'} accent={canDecide ? 'blue' : 'slate'} />
         {day?.blocked ? <PrimaryButton label="Unblock" variant="text" onPress={() => router.push({ pathname: '/unblock', params: { userId: member.id } })} /> : null}
-        {isManager ? <PrimaryButton label={`Team (${node.children.length}) ›`} variant="text" onPress={() => onOpenTeam(member.id)} /> : null}
+        {isManager ? <PrimaryButton label={expanded ? `Hide team (${node.children.length}) ▾` : `Show team (${node.children.length}) ▸`} variant="text" onPress={() => onToggle(member.id)} /> : null}
       </View>
     </InfoCard>
+    </View>
   );
 }
 
@@ -116,7 +121,8 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
   const online = useOnline();
   const board = useTeamBoard();
   const pending = useApprovalSummary();
-  const [parentId, setParentId] = useState<string | null>(null);
+  // The managers whose team is shown under them. Your direct reports are always listed; each manager among them opens in place.
+  const [open, setOpen] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [focus, setFocus] = useState<Focus>('ALL');
   const [designation, setDesignation] = useState('ALL');
@@ -124,12 +130,23 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
 
   const all = useMemo(() => [...board.byId.values()], [board.byId]);
   const designations = useMemo(() => [...new Set(all.map((n) => n.member.designation).filter((d): d is string => !!d))].sort(), [all]);
-  const trail = pathTo(board.byId, parentId);
+  const toggle = (id: string) =>
+    setOpen((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const expandAll = () => setOpen(new Set(all.filter((n) => n.children.length > 0).map((n) => n.member.id)));
+
+  /** The team in hierarchical order: each person, then (if opened) their own people below them, level by level. */
+  const treeRows = (nodes: TeamNode[], level: number): { node: TeamNode; level: number }[] =>
+    sortByAttention(nodes).flatMap((n) => [{ node: n, level }, ...(open.has(n.member.id) ? treeRows(n.children, level + 1) : [])]);
 
   const flat = term !== '' || focus !== 'ALL' || designation !== 'ALL';
-  const source = flat ? all : (parentId ? board.byId.get(parentId)?.children : board.roots) ?? [];
+  const hasManagers = all.some((n) => n.children.length > 0);
   const shown = sortByAttention(
-    source.filter(
+    all.filter(
       (n) =>
         matches(n, focus) &&
         (designation === 'ALL' || n.member.designation === designation) &&
@@ -172,18 +189,13 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
 
       {!flat ? (
         <View style={styles.trail}>
-          <ThemedText type="small" themeColor={trail.length === 0 ? 'text' : 'primary'} onPress={() => setParentId(null)}>
-            {trail.length === 0 ? 'My direct reports' : 'My team'}
-          </ThemedText>
-          {trail.map((n, i) => (
-            <ThemedText
-              key={n.member.id}
-              type="small"
-              themeColor={i === trail.length - 1 ? 'text' : 'primary'}
-              onPress={() => setParentId(n.member.id)}>
-              {` › ${n.member.designation ? `${n.member.designation} ` : ''}${n.member.name}`}
-            </ThemedText>
-          ))}
+          <ThemedText type="small" themeColor="text">My team</ThemedText>
+          {hasManagers ? (
+            <View style={styles.actions}>
+              <PrimaryButton label="Expand all" variant="text" onPress={expandAll} />
+              <PrimaryButton label="Collapse all" variant="text" onPress={() => setOpen(new Set())} />
+            </View>
+          ) : null}
         </View>
       ) : (
         <View style={styles.trail}>
@@ -192,21 +204,14 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
         </View>
       )}
 
-      {!board.loading && shown.length === 0 ? (
-        <Notice tone="info">
-          {flat ? 'Nobody matches.' : parentId ? 'This person has nobody below them.' : 'You have nobody in your team yet.'}
-        </Notice>
+      {!board.loading && (flat ? shown.length === 0 : board.roots.length === 0) ? (
+        <Notice tone="info">{flat ? 'Nobody matches.' : 'You have nobody in your team yet.'}</Notice>
       ) : null}
-      {shown.map((n) => (
-        <PersonRow
-          key={n.member.id}
-          node={n}
-          onOpenTeam={(id) => {
-            clear();
-            setParentId(id);
-          }}
-        />
-      ))}
+      {flat
+        ? shown.map((n) => <PersonRow key={n.member.id} node={n} level={0} expanded={false} onToggle={toggle} />)
+        : treeRows(board.roots, 0).map(({ node, level }) => (
+            <PersonRow key={node.member.id} node={node} level={level} expanded={open.has(node.member.id)} onToggle={toggle} />
+          ))}
     </View>
   );
 }
@@ -217,6 +222,7 @@ const styles = StyleSheet.create({
   tile: { flex: 1, borderRadius: Spacing.three, padding: Spacing.two, gap: 2, minHeight: 74, justifyContent: 'space-between' },
   tileLabel: { fontSize: 11, lineHeight: 14 },
   trail: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' },
+  nested: { borderLeftWidth: 2, borderLeftColor: '#CBD5E1', paddingLeft: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1, gap: 2 },
   pills: { alignItems: 'flex-end', gap: Spacing.one },
