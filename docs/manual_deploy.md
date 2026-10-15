@@ -320,3 +320,17 @@ Until it is re-run, the reminders use their defaults (every setting is read with
 3. Rebuild and restart (`docker compose -f docker-compose.prod.yml up -d --build`). The log line `push skipped: Firebase not configured` (debug level) means the key is missing; `push send failed` means Firebase rejected it.
 
 4. The reminder job (`deadline-reminders`, every 5 minutes) starts with the server. Admin can switch it off with `REMINDERS_ENABLED`, and push alone with `PUSH_ENABLED` (Settings → Notifications). Run one API instance, or several: each reminder stage is claimed once.
+
+## Admin forgot-password email (2026-10-15)
+
+1. In the Google account that will send the mail: turn on 2-step verification, then create an **App password** (Google Account → Security → App passwords).
+2. In `apps/api/.env.prod` set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER=<that address>`, `SMTP_PASSWORD=<the app password>`, `MAIL_FROM=<same address>`. Never commit them.
+3. Re-run the seed so the two settings exist (it never overwrites a value already set), then rebuild and restart:
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/seed.js
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+4. In the web portal: Settings → Sign-in security → set **Owner email for admin password resets** and check the daily limit (default 3). Until the owner email is set (it starts as `NONE`) the feature is off.
+5. Try it: sign out, "Forgot password? (Admin)", enter an Admin code; the owner receives the code. Log lines `PASSWORD_RESET_*` say why nothing was sent.

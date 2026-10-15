@@ -2372,3 +2372,7 @@ A company-wide tree cannot use page numbers, so each level is its own paged read
 ## 2026-10-15: Moving a team to a new manager is all-or-nothing, from the current month
 
 Bulk move validates every person with the same rules as a single edit and changes no one if any fails, so a half-moved team never exists. Dated from the current month like a profile edit (no month picker). No notification yet.
+
+## 2026-10-15: Admin forgot-password goes to the owner, by emailed code
+
+Only Admin accounts; the one-time code is emailed to a single owner address held in Settings (not to the Admin, not in environment) so the owner decides who is let back in. Cap of 3 codes a day for the whole system, also a Setting. Trade-off accepted: a stranger who finds the page can use up the day's codes for a real Admin (limited by 5 tries per 15 min per address and only counted for real Admin IDs). Mail credentials stay in server environment. Gmail SMTP behind `MailerPort` so it can change later.

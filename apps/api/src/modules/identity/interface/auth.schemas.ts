@@ -42,3 +42,14 @@ export const pushTokenBodySchema = z.object({
 export const pushTokenClearBodySchema = z.object({
   deviceId: z.string().min(1),
 });
+
+/** Both steps of an Admin's forgotten-password reset. The first answers the same whoever asks. */
+export const forgotPasswordBodySchema = z.object({
+  employeeCode: z.string().trim().min(1).max(50),
+});
+
+export const resetAdminPasswordBodySchema = z.object({
+  employeeCode: z.string().trim().min(1).max(50),
+  otp: z.string().trim().regex(/^\d{6}$/, 'The code is 6 digits.'),
+  newPassword: passwordSchema,
+});

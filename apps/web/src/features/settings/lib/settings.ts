@@ -71,6 +71,8 @@ export function rangeHint(s: Pick<ConfigSettingDto, 'type' | 'min' | 'max' | 'un
       return 'An IANA timezone, e.g. Asia/Kolkata';
     case 'KIND_LIST':
       return 'NONE, or approval kinds separated by commas, e.g. DAILY_PLAN,LEAVE';
+    case 'EMAIL':
+      return 'NONE, or an email address';
     case 'SLAB_LIST':
       return 'Salary bands with an amount each; the first band is the lowest salary allowed';
   }
@@ -121,6 +123,8 @@ export function draftError(s: Pick<ConfigSettingDto, 'type' | 'min' | 'max' | 'o
       const parsed = parseSlabs(value);
       return parsed.ok ? undefined : parsed.error;
     }
+    case 'EMAIL':
+      return value.toUpperCase() === 'NONE' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? undefined : 'Use NONE, or an email address like owner@example.com.';
     case 'KIND_LIST': {
       if (value.toUpperCase() === 'NONE') return undefined;
       const kinds = value.split(',').map((k) => k.trim().toUpperCase()).filter((k) => k !== '');
@@ -143,6 +147,8 @@ export function normalizeDraft(type: ConfigType, draft: string): string {
     case 'MONTH':
     case 'WEEKDAY':
       return value.toUpperCase();
+    case 'EMAIL':
+      return value.toUpperCase() === 'NONE' ? 'NONE' : value.toLowerCase();
     case 'SLAB_LIST': {
       const parsed = parseSlabs(value);
       return parsed.ok ? serialiseSlabs(parsed.slabs) : value;

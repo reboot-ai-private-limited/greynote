@@ -10,7 +10,7 @@ import { MONTH_NAMES, WEEKDAY_NAMES, assertTimeZone, parseTimeOfDay } from '@/sh
  * a value this accepts is one the system will accept when it reads it back. Change a reader's limit and change it here too: a test
  * checks that every default passes its own definition, and the readers' own tests cover their side.
  */
-export const CONFIG_TYPES = ['BOOLEAN', 'INTEGER', 'TIME', 'MONTH', 'WEEKDAY', 'TIMEZONE', 'KIND_LIST', 'YEAR_LIST', 'SLAB_LIST'] as const;
+export const CONFIG_TYPES = ['BOOLEAN', 'INTEGER', 'TIME', 'MONTH', 'WEEKDAY', 'TIMEZONE', 'KIND_LIST', 'YEAR_LIST', 'SLAB_LIST', 'EMAIL'] as const;
 export type ConfigType = (typeof CONFIG_TYPES)[number];
 
 export const CONFIG_IMPACTS = ['NORMAL', 'HIGH'] as const;
@@ -170,6 +170,19 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   toggle('TEAM_ALERTS_ENABLED', 'APPROVAL', 'Tell managers about their team’s requests', 'Whether a manager is sent an Inbox message for a new leave, monthly-expenses or new-doctor request from their team, for any request waiting past the approval turnaround, and when someone on their team is blocked for missed reports.', true),
   integer('APPROVAL_SLA_DAYS', 'APPROVAL', 'Approval turnaround', 'Days an approver has to act on a request. After that it is flagged overdue (nothing is approved automatically; Admin can always approve).', 3, 1, 30, 'days'),
 
+  // ── Sign-in security (admin forgot-password; docs/LLD/identity.md) ──
+  {
+    key: 'PASSWORD_RESET_OWNER_EMAIL',
+    module: 'SECURITY',
+    label: 'Owner email for admin password resets',
+    description: 'Where the one-time code is sent when an Admin forgets their password. NONE = admin self-service reset is off. Needs the mail server settings on the server.',
+    type: 'EMAIL',
+    default: 'NONE',
+    impact: 'HIGH',
+    impactNote: 'Whoever can read this mailbox can take over any Admin account. Use an address only the owner controls.',
+  },
+  integer('PASSWORD_RESET_DAILY_LIMIT', 'SECURITY', 'Admin password reset codes per day', 'Most reset codes the whole system will send in 24 hours, for all Admins together. Once reached, no more are sent until the oldest is a day old.', 3, 1, 20, 'codes'),
+
   // ── Notifications (phone push + deadline reminders; docs/LLD/notifications.md) ──
   toggle('PUSH_ENABLED', 'NOTIFICATIONS', 'Send push notifications', 'Whether Inbox messages and reminders are also pushed to the phone (needs the Firebase key on the server). Off: they appear in the Inbox only.', true),
   toggle('REMINDERS_ENABLED', 'NOTIFICATIONS', 'Send deadline reminders', 'Whether employees are reminded before a plan, expense or stock deadline, and managers are told how many of their team have not submitted or are waiting for approval.', true),
@@ -246,6 +259,7 @@ export const CONFIG_MODULE_LABEL: Record<string, string> = {
   SYNC: 'Phone sync',
   APPROVAL: 'Approvals',
   NOTIFICATIONS: 'Notifications',
+  SECURITY: 'Sign-in security',
   SYSTEM: 'System',
 };
 
@@ -313,6 +327,11 @@ export function validateConfigValue(def: ConfigDefinition, raw: string): ConfigV
     case 'SLAB_LIST': {
       const parsed = parseSlabs(value);
       return parsed.ok ? { ok: true, value: serialiseSlabs(parsed.slabs) } : fail(parsed.error);
+    }
+    case 'EMAIL': {
+      if (value.toUpperCase() === 'NONE') return { ok: true, value: 'NONE' };
+      const email = value.toLowerCase();
+      return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? { ok: true, value: email } : fail('Use NONE, or an email address like owner@example.com.');
     }
     case 'KIND_LIST': {
       if (value.toUpperCase() === 'NONE') return { ok: true, value: 'NONE' };

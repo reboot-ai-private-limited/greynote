@@ -72,6 +72,7 @@ GET    /api/identity/designations  ADMIN,HR
 GET    /api/identity/devices/pending  ADMIN
 GET    /api/identity/employee-drafts  ADMIN,HR
 GET    /api/identity/employee-drafts/:id  ADMIN,HR
+GET    /api/identity/org/children  ADMIN,HR
 GET    /api/identity/pay-bands  ACCOUNTANT,ADMIN,HR
 GET    /api/identity/pay-components  ACCOUNTANT,ADMIN,HR
 GET    /api/identity/promotions  ADMIN,HR
@@ -81,6 +82,7 @@ GET    /api/identity/users/:id  ADMIN,HR
 GET    /api/identity/users/:id/ctc  ACCOUNTANT,ADMIN,HR
 GET    /api/identity/users/:id/devices  ADMIN
 GET    /api/identity/users/:id/promotions  ADMIN,HR
+GET    /api/identity/users/:id/reporting  ADMIN,HR
 GET    /api/identity/work-with  FIELD
 GET    /api/identity/work-with/directory  ACCOUNTANT,ADMIN,HR
 GET    /api/inbox  ANY
@@ -211,10 +213,12 @@ POST   /api/hr/leaves/:id/approval-grant  ADMIN
 POST   /api/hr/leaves/:id/attachments  FIELD
 POST   /api/identity/auth/delete-account  ANY
 POST   /api/identity/auth/delete-account-public  PUBLIC
+POST   /api/identity/auth/forgot-password  PUBLIC
 POST   /api/identity/auth/login  PUBLIC
 POST   /api/identity/auth/logout  ANY
 POST   /api/identity/auth/logout-all  ADMIN
 POST   /api/identity/auth/refresh  PUBLIC
+POST   /api/identity/auth/reset-admin-password  PUBLIC
 POST   /api/identity/ctc/preview  ADMIN,HR
 POST   /api/identity/ctc/reapply  ADMIN,HR
 POST   /api/identity/designations  ADMIN,HR
@@ -236,6 +240,7 @@ POST   /api/identity/users/:id/promotions  ADMIN,HR
 POST   /api/identity/users/:id/promotions/preview  ADMIN,HR
 POST   /api/identity/users/:id/reset-password  ADMIN
 POST   /api/identity/users/:id/unblock  ADMIN,FIELD
+POST   /api/identity/users/manager-changes  ADMIN,HR
 POST   /api/inbox/:id/read  ANY
 POST   /api/inbox/messages  ADMIN
 POST   /api/inbox/read-all  ANY

@@ -116,6 +116,8 @@ export function SettingControl({
         </div>
       );
     }
+    case 'EMAIL':
+      return <Input {...aria} type="email" value={draft} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="w-80" />;
     case 'KIND_LIST':
       return <Input {...aria} value={draft} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="w-72" />;
   }

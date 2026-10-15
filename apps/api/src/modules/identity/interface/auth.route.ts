@@ -8,22 +8,26 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import {
   deleteAccountBodySchema,
   deleteAccountPublicBodySchema,
+  forgotPasswordBodySchema,
   loginBodySchema,
   logoutAllBodySchema,
   logoutBodySchema,
   pushTokenBodySchema,
   pushTokenClearBodySchema,
   refreshBodySchema,
+  resetAdminPasswordBodySchema,
 } from './auth.schemas.js';
 import type {
   makeDeleteAccountController,
   makeDeleteAccountPublicController,
+  makeForgotPasswordController,
   makeLoginController,
   makeLogoutAllController,
   makeLogoutController,
   makeMeController,
   makePushTokenController,
   makeRefreshController,
+  makeResetAdminPasswordController,
 } from './auth.controller.js';
 
 openApiRegistry.registerPath({
@@ -132,6 +136,24 @@ openApiRegistry.registerPath({
   responses: { 200: { description: 'Removed (also when there was nothing to remove)' } },
 });
 
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/identity/auth/forgot-password',
+  tags: ['Identity / Auth'],
+  summary: 'Admin only: email a one-time reset code to the owner address in Settings. Answers the same for any employee ID; nothing is sent unless it is an active Admin. Capped per day by a Setting',
+  request: { body: { content: { 'application/json': { schema: forgotPasswordBodySchema } } } },
+  responses: { 200: { description: 'Always the same answer' }, 429: { description: 'Too many attempts from this address or for this ID' } },
+});
+
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/identity/auth/reset-admin-password',
+  tags: ['Identity / Auth'],
+  summary: "Admin only: set a new password with the emailed code (6 digits, 10 minutes, single use, 5 wrong tries). Ends every session",
+  request: { body: { content: { 'application/json': { schema: resetAdminPasswordBodySchema } } } },
+  responses: { 200: { description: 'Password changed' }, 400: { description: 'Code not valid or expired' }, 429: { description: 'Too many attempts' } },
+});
+
 const tooMany: RequestHandler = (_req, _res, next) =>
   next(
     new AppError({
@@ -167,6 +189,8 @@ export function buildAuthRouter(controllers: {
   me: ReturnType<typeof makeMeController>;
   deleteAccount: ReturnType<typeof makeDeleteAccountController>;
   deleteAccountPublic: ReturnType<typeof makeDeleteAccountPublicController>;
+  forgotPassword: ReturnType<typeof makeForgotPasswordController>;
+  resetAdminPassword: ReturnType<typeof makeResetAdminPasswordController>;
   pushToken: ReturnType<typeof makePushTokenController>;
 }): Router {
   const router = Router();
@@ -184,6 +208,8 @@ export function buildAuthRouter(controllers: {
     validate({ body: deleteAccountPublicBodySchema }),
     controllers.deleteAccountPublic,
   );
+  router.post('/forgot-password', ...deletePublicLimiters(), validate({ body: forgotPasswordBodySchema }), controllers.forgotPassword);
+  router.post('/reset-admin-password', ...deletePublicLimiters(), validate({ body: resetAdminPasswordBodySchema }), controllers.resetAdminPassword);
   router.post(
     '/logout-all',
     authenticate(),

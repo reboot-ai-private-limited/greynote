@@ -53,6 +53,17 @@ const schema = z.object({
    * Cloudinary: without it nothing is pushed and the Inbox keeps working. Never commit it.
    */
   FIREBASE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
+
+  /**
+   * Outgoing mail (Gmail SMTP with an App password) for the Admin password-reset code. Optional at boot, like Cloudinary: without
+   * it no mail is sent and the reset request is logged as an error. Where the code goes (the owner's address) and the daily cap are
+   * Settings, not environment. Never commit the password.
+   */
+  SMTP_HOST: z.string().min(1).optional(),
+  SMTP_PORT: z.coerce.number().int().positive().optional(),
+  SMTP_USER: z.string().min(1).optional(),
+  SMTP_PASSWORD: z.string().min(1).optional(),
+  MAIL_FROM: z.string().min(1).optional(),
 });
 
 const parsed = schema.safeParse(process.env);

@@ -964,3 +964,7 @@ Decision-log 2026-10-15; design in [`LLD/notifications.md`](LLD/notifications.md
 ## Bulk manager change (2026-10-15, done, not browser-checked)
 
 Tick several people on the employee **Team** tab, then "Move to a new manager…". `POST /identity/users/manager-changes` checks everyone first (the single edit's rules, now shared in `ManagerRules`) and moves all or none; a refusal lists each person and why. History source `BULK_REASSIGN`, effective from the current month. Unit-tested. **Open:** browser check; no Inbox message to the moved people or the new manager yet; no choice of effective month.
+
+## Admin forgot-password by email OTP (2026-10-15, done, not tried with a real mailbox)
+
+`/forgot-password` page and two public routes (`forgot-password`, `reset-admin-password`). The code goes to the owner address set in **Settings → Sign-in security** (`PASSWORD_RESET_OWNER_EMAIL`, new `EMAIL` setting type; `NONE` = off) and only for an active Admin; the daily cap is `PASSWORD_RESET_DAILY_LIMIT` (default 3, whole system, counted in the database). Sending is Gmail SMTP through nodemailer behind a `MailerPort`. Unit-tested. **Open:** set `SMTP_*` (Gmail App password) on dev and prod, re-run the seed so the two settings are listed, set the owner email in Settings, then a live test.

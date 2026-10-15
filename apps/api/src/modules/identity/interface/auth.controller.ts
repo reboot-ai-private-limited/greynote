@@ -7,6 +7,7 @@ import type { LogoutUseCase } from '../application/usecases/logout.usecase.js';
 import type { LogoutAllSessionsUseCase } from '../application/usecases/logoutAllSessions.usecase.js';
 import type { PushTokenUseCase } from '../application/usecases/pushToken.usecase.js';
 import type { DeleteAccountUseCase } from '../application/usecases/deleteAccount.usecase.js';
+import type { ConfirmAdminPasswordResetUseCase, RequestAdminPasswordResetUseCase } from '../application/usecases/adminPasswordReset.usecase.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { GetUserSummaryUseCase } from '../application/usecases/getUserSummary.usecase.js';
 import { clearRefreshCookie, deliverRefreshToken, isWebClient, readRefreshToken } from './refreshCookie.js';
@@ -80,4 +81,19 @@ export function makePushTokenController(useCase: PushTokenUseCase): { register: 
       sendSuccess(req, res, {}, 'Push token removed.', 200);
     }),
   };
+}
+
+export function makeForgotPasswordController(useCase: RequestAdminPasswordResetUseCase): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    await useCase.execute(req.body.employeeCode);
+    // The same answer for every employee ID, Admin or not.
+    sendSuccess(req, res, {}, 'If that is an Admin account, a code has been sent to the owner.', 200);
+  });
+}
+
+export function makeResetAdminPasswordController(useCase: ConfirmAdminPasswordResetUseCase): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    await useCase.execute(req.body);
+    sendSuccess(req, res, {}, 'Password changed. Sign in with the new password.', 200);
+  });
 }

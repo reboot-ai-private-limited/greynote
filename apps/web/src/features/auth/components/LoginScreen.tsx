@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/Button';
@@ -31,7 +32,11 @@ export function LoginScreen() {
       await signIn(employeeCode.trim(), password);
     } catch (cause) {
       // The server's wording, verbatim — it deliberately does not say which field was wrong.
-      setError(cause instanceof ApiError || cause instanceof NetworkError ? cause.message : 'Sign-in failed.');
+      setError(
+        cause instanceof ApiError || cause instanceof NetworkError
+          ? cause.message
+          : 'Sign-in failed.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -41,7 +46,14 @@ export function LoginScreen() {
     <main className="grid min-h-screen lg:grid-cols-[1fr_1.1fr]">
       <section className="hidden flex-col justify-between bg-accent-900 p-12 text-accent-50 lg:flex">
         <div className="inline-flex self-start rounded-xl bg-surface px-5 py-3">
-          <Image src="/brand/logo.png" alt="Greynote Healthcare" width={702} height={523} priority className="h-20 w-auto" />
+          <Image
+            src="/brand/logo.png"
+            alt="Greynote Healthcare"
+            width={702}
+            height={523}
+            priority
+            className="h-20 w-auto"
+          />
         </div>
         <div className="flex flex-col items-center text-center">
           <Image
@@ -55,20 +67,34 @@ export function LoginScreen() {
           <p className="mt-6 max-w-sm text-3xl font-semibold leading-tight tracking-tight">
             Field force, plans and payroll in one place.
           </p>
-          <p className="mt-3 max-w-sm text-sm text-accent-200">The Admin, HR and Accountant portal.</p>
+          <p className="mt-3 max-w-sm text-sm text-accent-200">
+            The Admin, HR and Accountant portal.
+          </p>
         </div>
         <p className="text-xs text-accent-300">© Greynote</p>
       </section>
 
       <section className="grid place-items-center bg-surface p-6">
         <form onSubmit={onSubmit} className="w-full max-w-sm space-y-5">
-          <Image src="/brand/logo.png" alt="Greynote Healthcare" width={702} height={523} className="h-16 w-auto lg:hidden" />
+          <Image
+            src="/brand/logo.png"
+            alt="Greynote Healthcare"
+            width={702}
+            height={523}
+            className="h-16 w-auto lg:hidden"
+          />
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-text">Sign in</h1>
             <p className="mt-1 text-sm text-text-muted">Use your employee code and password.</p>
           </div>
           <FormField label="Employee code" htmlFor="employeeCode">
-            <Input id="employeeCode" value={employeeCode} onChange={(e) => setEmployeeCode(e.target.value)} autoComplete="username" required />
+            <Input
+              id="employeeCode"
+              value={employeeCode}
+              onChange={(e) => setEmployeeCode(e.target.value)}
+              autoComplete="username"
+              required
+            />
           </FormField>
           <FormField label="Password" htmlFor="password" error={error ?? undefined}>
             <Input
@@ -84,6 +110,11 @@ export function LoginScreen() {
           <Button type="submit" disabled={submitting} className="w-full">
             {submitting ? 'Signing in…' : 'Sign in'}
           </Button>
+          <p className="text-sm">
+            <Link href="/forgot-password" className="text-accent hover:underline">
+              Forgot password? (Admin)
+            </Link>
+          </p>
         </form>
       </section>
     </main>
