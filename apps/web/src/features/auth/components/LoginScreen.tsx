@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/Button';
@@ -39,14 +40,19 @@ export function LoginScreen() {
   return (
     <main className="grid min-h-screen lg:grid-cols-[1fr_1.1fr]">
       <section className="hidden flex-col justify-between bg-accent-900 p-12 text-accent-50 lg:flex">
-        <div className="flex items-center gap-2.5">
-          <span aria-hidden className="grid size-9 place-items-center rounded-md bg-surface text-base font-bold text-accent-900">
-            G
-          </span>
-          <span className="text-xl font-semibold tracking-tight">Greynote</span>
+        <div className="inline-flex self-start rounded-xl bg-surface px-5 py-3">
+          <Image src="/brand/logo.png" alt="Greynote Healthcare" width={702} height={523} priority className="h-20 w-auto" />
         </div>
-        <div>
-          <p className="max-w-sm text-3xl font-semibold leading-tight tracking-tight">
+        <div className="flex flex-col items-center text-center">
+          <Image
+            src="/brand/ganesha.webp"
+            alt="Lord Ganesha"
+            width={600}
+            height={600}
+            priority
+            className="size-80 rounded-full object-cover ring-4 ring-accent-200/40"
+          />
+          <p className="mt-6 max-w-sm text-3xl font-semibold leading-tight tracking-tight">
             Field force, plans and payroll in one place.
           </p>
           <p className="mt-3 max-w-sm text-sm text-accent-200">The Admin, HR and Accountant portal.</p>
@@ -56,6 +62,7 @@ export function LoginScreen() {
 
       <section className="grid place-items-center bg-surface p-6">
         <form onSubmit={onSubmit} className="w-full max-w-sm space-y-5">
+          <Image src="/brand/logo.png" alt="Greynote Healthcare" width={702} height={523} className="h-16 w-auto lg:hidden" />
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-text">Sign in</h1>
             <p className="mt-1 text-sm text-text-muted">Use your employee code and password.</p>

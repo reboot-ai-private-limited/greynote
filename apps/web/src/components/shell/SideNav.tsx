@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
@@ -97,9 +98,8 @@ export function SideNav({
         )}
       >
         <div className="flex h-16 shrink-0 items-center gap-3 px-4">
-          <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-md bg-accent text-sm font-bold text-accent-text">
-            G
-          </span>
+          {/* Collapsed rail shows the icon-only mark; the "Greynote" text fades in beside it when expanded. */}
+          <Image src="/brand/logo-mark.png" alt="" width={36} height={36} priority className="size-9 shrink-0 object-contain" />
           <span className={cn('text-[17px] font-semibold tracking-tight text-text', labelClass)}>Greynote</span>
         </div>
 
