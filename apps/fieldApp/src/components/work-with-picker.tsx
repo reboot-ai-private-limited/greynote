@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ChoiceChips } from '@/components/choice-chips';
 import { TextField } from '@/components/text-field';
 import { Spacing } from '@/constants/theme';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { useTheme } from '@/hooks/use-theme';
 import { useColleagues, type Colleague } from '@/offline/colleagues';
 
@@ -40,7 +41,10 @@ export function WorkWithPicker({ value, onChange, disabled, people }: Props) {
   const colleagues = people ? people.list : fetched.colleagues;
   const loaded = people ? people.loaded : fetched.loaded;
   const [open, setOpen] = useState(false);
-  const [scope, setScope] = useState<Scope>('MANAGERS');
+  // A manager is offered everyone, with no Managers / All switch (an MR gets the switch).
+  const { isManager } = useCurrentUser();
+  const [mrScope, setScope] = useState<Scope>('MANAGERS');
+  const scope: Scope = isManager ? 'ALL' : mrScope;
   const [search, setSearch] = useState('');
   const byId = useMemo(() => new Map(colleagues.map((c) => [c.id, c])), [colleagues]);
 
@@ -116,7 +120,7 @@ export function WorkWithPicker({ value, onChange, disabled, people }: Props) {
             </ThemedText>
           ) : (
             <>
-              {people ? null : <ChoiceChips options={SCOPE_OPTIONS} value={scope} onChange={setScope} />}
+              {people || isManager ? null : <ChoiceChips options={SCOPE_OPTIONS} value={scope} onChange={setScope} />}
               <TextField
                 label="Search colleague"
                 placeholder="Name, code or designation…"

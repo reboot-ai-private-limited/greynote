@@ -207,11 +207,11 @@ export function PeoplePanel({ onShowApprovals }: { onShowApprovals: () => void }
       {!board.loading && (flat ? shown.length === 0 : board.roots.length === 0) ? (
         <Notice tone="info">{flat ? 'Nobody matches.' : 'You have nobody in your team yet.'}</Notice>
       ) : null}
-      {flat
-        ? shown.map((n) => <PersonRow key={n.member.id} node={n} level={0} expanded={false} onToggle={toggle} />)
-        : treeRows(board.roots, 0).map(({ node, level }) => (
-            <PersonRow key={node.member.id} node={node} level={level} expanded={open.has(node.member.id)} onToggle={toggle} />
-          ))}
+      {(flat ? shown.flatMap((n) => [{ node: n, level: 0, key: n.member.id }, ...(open.has(n.member.id) ? treeRows(n.children, 1).map((r) => ({ ...r, key: `${n.member.id}>${r.node.member.id}` })) : [])]) : treeRows(board.roots, 0).map((r) => ({ ...r, key: r.node.member.id }))).map(
+        ({ node, level, key }) => (
+          <PersonRow key={key} node={node} level={level} expanded={open.has(node.member.id)} onToggle={toggle} />
+        ),
+      )}
     </View>
   );
 }
