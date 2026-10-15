@@ -85,19 +85,34 @@ async function sendToken(token: string) {
  */
 export async function registerForPush(): Promise<boolean> {
   const n = notifications();
-  if (!n || Platform.OS !== 'android' || !Device.isDevice) return false;
-  if (await isPushOff()) return false;
+  if (!n) return fail('notifications module not loaded');
+  if (Platform.OS !== 'android') return fail(`platform is ${Platform.OS}`);
+  if (!Device.isDevice) return fail('not a real device');
+  if (await isPushOff()) return fail('switched off in the app');
+  let step = 'channel';
   try {
     await ensureChannel(n);
-    if (!(await allowed(n))) return false;
+    step = 'permission';
+    if (!(await allowed(n))) return fail('permission not granted');
+    step = 'firebase token';
     const token = await n.getDevicePushTokenAsync();
-    if (typeof token.data !== 'string' || token.data === '') return false;
+    if (typeof token.data !== 'string' || token.data === '') return fail('empty token');
+    step = 'sending token to server';
     await sendToken(token.data);
+    pushStatus = 'registered';
     return true;
-  } catch {
+  } catch (err) {
     // Expo Go (no Firebase), no Google services, or the network: push stays off; the Inbox still works.
-    return false;
+    return fail(`${step}: ${err instanceof Error ? err.message : String(err)}`);
   }
+}
+
+/** Why push is not working, or 'registered'; shown on Profile so a build that stays silent can be diagnosed. */
+let pushStatus = 'not tried yet';
+export const getPushStatus = () => pushStatus;
+function fail(reason: string): false {
+  pushStatus = reason;
+  return false;
 }
 
 /** Firebase gave this phone a new token: send it. Returns the stop function. */

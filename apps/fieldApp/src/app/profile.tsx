@@ -11,7 +11,7 @@ import { UserAvatar } from '@/components/user-avatar';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { logout } from '@/lib/auth';
-import { disablePush, enablePush, isPushOff } from '@/lib/push';
+import { disablePush, enablePush, getPushStatus, isPushOff } from '@/lib/push';
 import { countUnsent, isOnline } from '@/offline';
 
 /** Who is signed in, which phone this is, and Logout. Opened from the Home header. */
@@ -95,6 +95,7 @@ export default function ProfileScreen() {
                   : 'Reminders and messages from your office arrive as notifications, and always in your Inbox.'}
               </ThemedText>
               {pushMsg ? <ThemedText type="small" themeColor="warning">{pushMsg}</ThemedText> : null}
+              <ThemedText type="small" themeColor="textSecondary">Push status: {getPushStatus()}</ThemedText>
               <PrimaryButton label={pushOff ? 'Turn notifications on' : 'Turn notifications off'} variant="text" disabled={pushOff === null} onPress={togglePush} />
             </ThemedView>
           ) : null}
