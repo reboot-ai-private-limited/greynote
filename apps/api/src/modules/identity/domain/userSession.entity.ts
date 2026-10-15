@@ -24,4 +24,7 @@ export interface UserSession {
   /** `null` = active. */
   revokedAt: Date | null;
   revokedReason: RevokedReason | null;
+  /** The phone's FCM registration token, set by `PUT /auth/push-token`. Only read while the session is live. */
+  pushToken?: string | null;
+  pushTokenAt?: Date | null;
 }

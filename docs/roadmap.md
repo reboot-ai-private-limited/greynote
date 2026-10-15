@@ -948,3 +948,7 @@ Decision-log 2026-10-15. **Done (API + web + phone read-only + docs, unit-tested
 ## Reporting managers: higher level, coverage, optional (2026-10-15)
 
 Decision-log 2026-10-15 (second entry). **Done (API + web + docs, unit-tested):** level rule, optional manager, manager coverage (HQs / Zones), filtered picker showing designations. **Open:** browser check.
+
+## Push notifications and deadline reminders: API (2026-10-15, done)
+
+Decision-log 2026-10-15; design in [`LLD/notifications.md`](LLD/notifications.md), phone contract with the MR and manager tables in [`mobile/notifications.md`](mobile/notifications.md). **Done (unit-tested, RBAC matrix regenerated):** `firebase-admin` sender behind `PushSenderPort` (no-op without the key), `UserSession.pushToken` and the token routes, Inbox pushes every message it saves, new `reminders` module with the `deadline-reminders` job (daily plan, monthly plan, expense send and approval, stock, twice-daily approvals digest), immediate messages for decisions, late exceptions and unblocks over `shared/events/appEvents`, nine *Notifications* settings. **Open:** the phone app; a Firebase key on the server and `manual_deploy.md` Step 9i; a live send to a test phone; client confirmation of F8's assumed table.

@@ -28,6 +28,8 @@ export interface FieldActivityPublicContract {
    * claim must not reach a payroll run.
    */
   getPaidTaDaTotal(userId: string, month: string): Promise<{ taPaise: number; daPaise: number; reimbursementPaise: number }>;
+  /** Among these employees, who has expenses in the month (`YYYY-MM`) but has not sent them to the approver — the reminder job's question. */
+  listUnsubmittedExpenseUsers(month: string, userIds: string[]): Promise<string[]>;
   /** The accepted expenses by employee and report month over a date range (both ends inclusive): TA, DA, manual claims, paid and unpaid — the TA/DA report's input. */
   summarizeExpenses(range: { from: string; to: string }): Promise<ExpenseMonthSummary[]>;
   /** The accepted TA and DA of each employee over a date range (both ends inclusive), paid and unpaid together, cancelled left out — the Sales Dashboard's TA and DA columns. */

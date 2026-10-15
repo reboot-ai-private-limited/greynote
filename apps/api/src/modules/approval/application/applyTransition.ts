@@ -1,5 +1,6 @@
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
+import { appEvents } from '@/shared/events/appEvents.js';
 import type { ApprovalRequest } from '../domain/approvalRequest.entity.js';
 import type { ApprovalRequestRepositoryPort, ApprovalTransition } from '../domain/approvalRequest.repository.port.js';
 import type { ApprovalKindRegistry } from './approvalKindRegistry.js';
@@ -15,7 +16,7 @@ export async function applyTransition(
   change: ApprovalTransition,
 ): Promise<ApprovalRequest> {
   const kind = deps.kinds.get(request.kind);
-  return deps.transactions.run(async (ctx) => {
+  const updated = await deps.transactions.run(async (ctx) => {
     const expected = { status: request.status, cycle: request.cycle };
     const updated = await deps.requests.transition(request.id, expected, change, ctx);
     if (!updated) throw AppError.conflict('Someone else acted on this request first. Reload it.');
@@ -34,4 +35,17 @@ export async function applyTransition(
     );
     return updated;
   });
+  // After the commit, so a retried transaction never announces twice. The submitter hears the answer; not when they gave it themselves.
+  if ((updated.status === 'APPROVED' || updated.status === 'REJECTED') && (change.action.authority === 'AUTO' || change.action.actorId !== updated.submitterId)) {
+    appEvents.emit('approval.decided', {
+      kind: updated.kind,
+      recordId: updated.recordId,
+      submitterId: updated.submitterId,
+      status: updated.status,
+      comment: change.action.comment,
+      actorId: change.action.actorId,
+      auto: change.action.authority === 'AUTO',
+    });
+  }
+  return updated;
 }

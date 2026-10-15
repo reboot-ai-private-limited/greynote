@@ -20,7 +20,7 @@ Team's manager alerts call `notify` (2026-10-12, see [`team.md`](team.md)); noth
 - **Expiry** (`expiresAt`, must be in the future) is on the receipt too, so an expired message drops out of the list and the unread count in the query, with no job.
 - **Retract** (Admin) marks the message `retractedAt` and deletes its receipts. Recipients lose it at once; the sent list keeps the row (shown "Taken back", no read count). A second retract is `409`.
 - **Read** sets `readAt` once (the first open). `POST /inbox/:id/read` on a message not in the caller's inbox is `404`.
-- **No push.** Delivery is the phone reading `GET /inbox` and `GET /inbox/unread-count`. FCM can be added later as a notifier that only tells the phone to refresh.
+- **Push is a nudge on top (2026-10-15).** Every message saved here is also pushed to the recipients' phones when Firebase is set up ([`notifications.md`](notifications.md)); the phone still reads `GET /inbox` and `GET /inbox/unread-count`, and a missed push loses nothing. `notify()` takes `data` (`type`, `route` for the phone) and `push: false` to skip the push.
 - Not scoped by the financial-year header (`/api/inbox*` are "timeless" in `financialYear.routes.test.ts`).
 
 ## HTTP surface (`/api/inbox`)
@@ -44,4 +44,4 @@ Team's manager alerts call `notify` (2026-10-12, see [`team.md`](team.md)); noth
 
 ## Deferred
 
-Push (FCM); which system events notify whom (sign-off F8); scheduled sending; attachments and links; per-person delete from the phone.
+Which further system events notify whom (sign-off F8, the rest is in [`notifications.md`](notifications.md)); scheduled sending; attachments and links; per-person delete from the phone.

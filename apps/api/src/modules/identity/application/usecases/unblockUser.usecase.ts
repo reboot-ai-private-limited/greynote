@@ -1,5 +1,6 @@
 import type { RoleName } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
+import { appEvents } from '@/shared/events/appEvents.js';
 import type { ComplianceBlockRepositoryPort } from '../../domain/complianceBlock.repository.port.js';
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
@@ -46,6 +47,7 @@ export class UnblockUserUseCase {
       }
       await this.userRepository.update(targetUserId, { isBlocked: false }, ctx);
     });
+    appEvents.emit('user.unblocked', { userId: targetUserId, by: actingUserId });
   }
 
   private async assertMayClear(actingUserId: string, actingRole: RoleName, targetUserId: string): Promise<void> {

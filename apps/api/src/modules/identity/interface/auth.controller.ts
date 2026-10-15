@@ -5,6 +5,7 @@ import type { LoginUseCase } from '../application/usecases/login.usecase.js';
 import type { RefreshSessionUseCase } from '../application/usecases/refreshSession.usecase.js';
 import type { LogoutUseCase } from '../application/usecases/logout.usecase.js';
 import type { LogoutAllSessionsUseCase } from '../application/usecases/logoutAllSessions.usecase.js';
+import type { PushTokenUseCase } from '../application/usecases/pushToken.usecase.js';
 import type { DeleteAccountUseCase } from '../application/usecases/deleteAccount.usecase.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { GetUserSummaryUseCase } from '../application/usecases/getUserSummary.usecase.js';
@@ -64,4 +65,19 @@ export function makeDeleteAccountPublicController(useCase: DeleteAccountUseCase)
     await useCase.deleteByCredentials(req.body.employeeCode, req.body.password);
     sendSuccess(req, res, {}, 'Your account has been deleted.', 200);
   });
+}
+
+export function makePushTokenController(useCase: PushTokenUseCase): { register: RequestHandler; unregister: RequestHandler } {
+  return {
+    register: asyncHandler(async (req, res) => {
+      if (!req.user) throw AppError.unauthenticated();
+      await useCase.register(req.user.sub, req.body.deviceId, req.body.token);
+      sendSuccess(req, res, {}, 'Push token saved.', 200);
+    }),
+    unregister: asyncHandler(async (req, res) => {
+      if (!req.user) throw AppError.unauthenticated();
+      await useCase.unregister(req.user.sub, req.body.deviceId);
+      sendSuccess(req, res, {}, 'Push token removed.', 200);
+    }),
+  };
 }

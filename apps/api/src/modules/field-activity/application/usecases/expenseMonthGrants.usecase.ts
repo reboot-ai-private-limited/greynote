@@ -1,4 +1,5 @@
 import { AppError } from '@/shared/errors/AppError.js';
+import { appEvents } from '@/shared/events/appEvents.js';
 import { parseCalendarMonth, monthRange } from '@/shared/time/businessTime.js';
 import { parseBoolean, parsePositiveInt, readConfigOr, type ConfigReader } from '@/shared/config/readConfig.js';
 import { effectiveExpenseGrantStatus, type ExpenseGrantPhase, type ExpenseMonthGrant } from '../../domain/expenseMonthGrant.entity.js';
@@ -54,6 +55,8 @@ export class GrantExpenseMonthUseCase {
       now,
     );
     if (!grant) throw AppError.conflict('There’s already an open late-expense exception for this month.');
+    // Only the submit phase is the employee's; an approve-phase exception is for the approver.
+    if (input.phase === 'SUBMIT') appEvents.emit('submit.exception.granted', { userId: input.userId, kind: 'EXPENSE_MONTH', planKey: input.month, expiresAt: grant.expiresAt, grantedBy: actor.id });
     return grant;
   }
 

@@ -3,7 +3,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { isEmptyAudience, resolveAudience } from '../../domain/audience.js';
 import type { InboxKind, InboxMessage } from '../../domain/inboxMessage.entity.js';
 import type { InboxMessageRepositoryPort, InboxReceiptRepositoryPort } from '../../domain/inbox.repository.port.js';
-import type { RecipientDirectoryPort, TerritoryPort } from '../../domain/ports.js';
+import type { PushData, PushPort, RecipientDirectoryPort, TerritoryPort } from '../../domain/ports.js';
 
 export interface PublishMessageInput {
   title: string;
@@ -11,6 +11,10 @@ export interface PublishMessageInput {
   kind: InboxKind;
   audience: InboxAudienceDto;
   expiresAt?: Date | undefined;
+  /** Sent with the push only (not stored): `type` and `route` for the phone. */
+  data?: PushData | undefined;
+  /** `false` keeps it in the Inbox without buzzing the phone. */
+  push?: boolean | undefined;
 }
 
 const dedupe = (audience: InboxAudienceDto): InboxAudienceDto => ({
@@ -32,6 +36,7 @@ export class PublishMessageUseCase {
     private readonly receipts: InboxReceiptRepositoryPort,
     private readonly directory: RecipientDirectoryPort,
     private readonly territory: TerritoryPort,
+    private readonly push: PushPort | null = null,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -72,6 +77,10 @@ export class PublishMessageUseCase {
     await this.receipts.insertMany(
       recipients.map((userId) => ({ messageId: message.id, userId, title: message.title, body: message.body, kind: message.kind, sentAt: message.createdAt, expiresAt, readAt: null })),
     );
+    if (this.push && input.push !== false) {
+      // After the receipts are saved: the Inbox row is the record, the push only a nudge, and it never fails the send.
+      await this.push.pushTo(recipients, { title: message.title, body: message.body, data: { type: 'INBOX', route: '/inbox', ...input.data, messageId: message.id } });
+    }
     return message;
   }
 }

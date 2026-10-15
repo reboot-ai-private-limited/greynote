@@ -7,6 +7,7 @@ DELETE /api/field-master-data/doctors/:id/assignments/:userId  ADMIN
 DELETE /api/hr/holidays/:id  ADMIN,HR
 DELETE /api/hr/leaves/:id/approval-grant  ADMIN
 DELETE /api/hr/leaves/:id/attachments/:attachmentId  FIELD
+DELETE /api/identity/auth/push-token  ANY
 DELETE /api/identity/employee-drafts/:id  ADMIN,HR
 DELETE /api/identity/employee-drafts/:id/photo  ADMIN,HR
 DELETE /api/identity/users/:id/devices/:deviceRowId  ADMIN
@@ -276,6 +277,7 @@ PUT    /api/field-activity/expenses/other/:id  FIELD
 PUT    /api/field-master-data/doctors/added/:id  FIELD
 PUT    /api/hr/leave-policies/:payBandId/:leaveTypeId  ADMIN,HR
 PUT    /api/hr/leaves/:id  FIELD
+PUT    /api/identity/auth/push-token  ANY
 PUT    /api/identity/employee-drafts/:id/photo  ADMIN,HR
 PUT    /api/identity/users/:id/photo  ADMIN,HR
 PUT    /api/sync/drafts  FIELD

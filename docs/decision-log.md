@@ -2337,3 +2337,18 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 - The wizard clears a chosen manager when the designation, zone or HQ changes.
 
 **Open:** existing employees whose manager is the same or a lower level are not touched (no migration); browser check pending.
+
+## 2026-10-15 — Push notifications and deadline reminders (backend)
+
+**Decision:**
+- **Firebase push, backend only.** Every Inbox message is also pushed to the recipients' phones. The push is a nudge; the Inbox row is the record, so a missed push loses nothing. Without the Firebase key (`FIREBASE_SERVICE_ACCOUNT_JSON`) or with `PUSH_ENABLED` off, nothing is pushed.
+- **Tokens live on the session** (`UserSession.pushToken`, `PUT`/`DELETE /identity/auth/push-token`). A logged-out session is never pushed to; a token that moves to another account leaves the old one; Firebase's "not registered" answer clears it.
+- **Reminders to employees** before the daily plan (2 h, 30 min, and "missed" at the deadline) and before the monthly plan, expense and stock deadlines (3 days, 1 day, and the morning after). Skipped for leave, weekly offs and holidays (daily plan), before joining, blocked, closed financial years.
+- **Reminders to managers**: how many of their whole team have not submitted (daily plan 2 h before and 30 min after; monthly plan and expenses 3 days, 1 day before and after); expense months waiting before the approval cutoff; and a twice-daily "100 daily plans, 10 monthly plans, 5 expenses… waiting" count of direct reports' requests (10:30, 17:00). Counts, not names.
+- **Immediate messages** to the employee: request approved or rejected (with the reason), late-submission exception given, unblocked. Existing team alerts and Admin broadcasts push too.
+- **One job, claimed stages.** `deadline-reminders` every 5 minutes; each stage fires once across servers (`ReminderMark`); after downtime only the latest due stage is sent. Lead times and digest times are Admin settings (group *Notifications*).
+- **Events by an in-process bus** (`shared/events/appEvents.ts`) so Approval and Identity, below the Inbox, can cause a message without importing it.
+
+**Assumed (confirm with the client; sign-off F8):** the MR gets the same stages as the manager; "missed" goes to the employee at the deadline and to the manager 30 minutes later; digest at 10:30 and 17:00; approval counts are direct reports only, submission counts the whole downline; no quiet hours; target set and call assigned do not notify yet.
+
+**Open:** the phone app (token registration, tap routes, foreground banner); a Firebase key on the server; browser/phone check; Admin screen shows the new settings only after the seed is re-run.

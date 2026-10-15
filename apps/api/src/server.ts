@@ -17,6 +17,7 @@ const LATE_LEAVE_CHECK_MS = 30 * 60 * 1000;
 const MISSED_DCR_CHECK_MS = 15 * 60 * 1000;
 /** How often managers are told about new and overdue requests. Each request is announced once, so a short interval only means a short delay. */
 const TEAM_ALERTS_MS = 5 * 60 * 1000;
+const REMINDERS_MS = 5 * 60 * 1000;
 
 async function start() {
     try {
@@ -29,7 +30,7 @@ async function start() {
 
     const jobs: IntervalJob[] = [];
     const app = createApp({
-        onContainers: ({ identity, fieldActivity, hr, team }) => {
+        onContainers: ({ identity, fieldActivity, hr, team, reminders }) => {
             jobs.push(startIntervalJob('apply-due-promotions', PROMOTION_CHECK_MS, () => identity.applyDuePromotions()));
             jobs.push(startIntervalJob('expire-late-leaves', LATE_LEAVE_CHECK_MS, () => hr.expireLateLeaves()));
             jobs.push(startIntervalJob('missed-dcr-check', MISSED_DCR_CHECK_MS, async () => {
@@ -39,6 +40,7 @@ async function start() {
                 return run;
             }));
             jobs.push(startIntervalJob('team-alerts', TEAM_ALERTS_MS, () => team.runAlerts()));
+            jobs.push(startIntervalJob('deadline-reminders', REMINDERS_MS, () => reminders.contract.run()));
         },
     });
 

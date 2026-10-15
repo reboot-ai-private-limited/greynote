@@ -1,3 +1,4 @@
+import { monthRange } from '@/shared/time/businessTime.js';
 import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
@@ -169,6 +170,16 @@ export function buildFieldActivityContainer(
       listReportedDates: (userId, from, to) => listReportedDates.execute(userId, from, to),
       getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),
       summarizeExpenses: (range) => expenses.summarizeByMonth(range),
+      listUnsubmittedExpenseUsers: async (month, userIds) => {
+        const wanted = new Set(userIds);
+        const withMoney = new Set(
+          (await expenses.summarizeByMonth(monthRange(month)))
+            .filter((r) => wanted.has(r.userId) && r.month === month && r.taPaise + r.daPaise + r.reimbursementPaise > 0)
+            .map((r) => r.userId),
+        );
+        const sent = new Set((await expenseMonths.listForUsers([...withMoney], month)).filter((m) => m.status === 'SUBMITTED').map((m) => m.userId));
+        return [...withMoney].filter((id) => !sent.has(id));
+      },
       summarizeTaDaByUser: async (range) => (await expenses.statementsForRange(range)).map((s) => ({ userId: s.userId, taPaise: s.paid.taPaise + s.unpaid.taPaise, daPaise: s.paid.daPaise + s.unpaid.daPaise })),
       summarizeDcrs: (range) => summarizeDcrs.execute(range),
       listCalledDoctorIds: (userId, range) => listCalledDoctors.execute(userId, range),

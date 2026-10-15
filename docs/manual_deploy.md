@@ -302,3 +302,21 @@ docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-rou
 
 Each Route's destination becomes the first part of its old map label (Naxalbari, West Bengal, India → Naxalbari) and its name becomes "SLG-1 to Naxalbari"; the distance already stored is kept. If two routes of one HQ would share a destination, the second keeps its old route name as the destination and is listed. **Routes whose Google lookup had failed have no km: the run lists them; open each in the portal and type it** (until then TA for a day on it is flagged). `basePlace` is removed from every HQ. Safe to run again. `GOOGLE_MAPS_API_KEY` is still needed, only for the doctor / chemist / distributor location search.
 
+
+## Step 9i — Turn on push notifications (once, when upgrading past 2026-10-15)
+
+Push and deadline reminders (`docs/LLD/notifications.md`). Nothing to migrate: older sessions simply have no token until the phone registers one.
+
+1. **Re-run the seed** so the new *Notifications* settings exist (it never overwrites a value already set):
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/seed.js
+```
+
+Until it is re-run, the reminders use their defaults (every setting is read with a fallback), but the settings screen does not list them.
+
+2. **Give the server the Firebase key.** In the Firebase console: Project settings → Service accounts → Generate new private key. Put the whole JSON file on **one line** in `apps/api/.env.prod` as `FIREBASE_SERVICE_ACCOUNT_JSON=...` (single-quote it; the file is not committed). Without it the server runs normally and sends no push; Inbox messages still appear.
+
+3. Rebuild and restart (`docker compose -f docker-compose.prod.yml up -d --build`). The log line `push skipped: Firebase not configured` (debug level) means the key is missing; `push send failed` means Firebase rejected it.
+
+4. The reminder job (`deadline-reminders`, every 5 minutes) starts with the server. Admin can switch it off with `REMINDERS_ENABLED`, and push alone with `PUSH_ENABLED` (Settings → Notifications). Run one API instance, or several: each reminder stage is claimed once.

@@ -170,6 +170,17 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   toggle('TEAM_ALERTS_ENABLED', 'APPROVAL', 'Tell managers about their team’s requests', 'Whether a manager is sent an Inbox message for a new leave, monthly-expenses or new-doctor request from their team, for any request waiting past the approval turnaround, and when someone on their team is blocked for missed reports.', true),
   integer('APPROVAL_SLA_DAYS', 'APPROVAL', 'Approval turnaround', 'Days an approver has to act on a request. After that it is flagged overdue (nothing is approved automatically; Admin can always approve).', 3, 1, 30, 'days'),
 
+  // ── Notifications (phone push + deadline reminders; docs/LLD/notifications.md) ──
+  toggle('PUSH_ENABLED', 'NOTIFICATIONS', 'Send push notifications', 'Whether Inbox messages and reminders are also pushed to the phone (needs the Firebase key on the server). Off: they appear in the Inbox only.', true),
+  toggle('REMINDERS_ENABLED', 'NOTIFICATIONS', 'Send deadline reminders', 'Whether employees are reminded before a plan, expense or stock deadline, and managers are told how many of their team have not submitted or are waiting for approval.', true),
+  integer('REMINDER_DAILY_FIRST_MINUTES', 'NOTIFICATIONS', 'Daily plan: first reminder', 'Minutes before the Daily Plan deadline of the first reminder.', 120, 5, 720, 'minutes'),
+  integer('REMINDER_DAILY_SECOND_MINUTES', 'NOTIFICATIONS', 'Daily plan: second reminder', 'Minutes before the Daily Plan deadline of the second reminder. Keep it smaller than the first.', 30, 5, 720, 'minutes'),
+  integer('REMINDER_DAILY_AFTER_MINUTES', 'NOTIFICATIONS', 'Daily plan: manager told after', 'Minutes after the Daily Plan deadline when a manager is told how many of their team missed it.', 30, 5, 720, 'minutes'),
+  integer('REMINDER_MONTHLY_FIRST_DAYS', 'NOTIFICATIONS', 'Monthly plan, expenses, stock: first reminder', 'Days before the Monthly Plan, expense or stock deadline of the first reminder.', 3, 1, 14, 'days'),
+  integer('REMINDER_MONTHLY_SECOND_DAYS', 'NOTIFICATIONS', 'Monthly plan, expenses, stock: second reminder', 'Days before the Monthly Plan, expense or stock deadline of the second reminder. Keep it smaller than the first.', 1, 1, 14, 'days'),
+  { key: 'REMINDER_DIGEST_MORNING_TIME', module: 'NOTIFICATIONS', label: 'Manager approvals digest: morning', description: 'Time of day a manager is told how many requests are waiting for them (only when something is).', type: 'TIME', default: '10:30', impact: 'NORMAL' },
+  { key: 'REMINDER_DIGEST_EVENING_TIME', module: 'NOTIFICATIONS', label: 'Manager approvals digest: evening', description: 'Time of day of the second approvals digest.', type: 'TIME', default: '17:00', impact: 'NORMAL' },
+
   // ── System ──
   {
     key: 'BUSINESS_TIMEZONE',
@@ -234,6 +245,7 @@ export const CONFIG_MODULE_LABEL: Record<string, string> = {
   SALES: 'Sales',
   SYNC: 'Phone sync',
   APPROVAL: 'Approvals',
+  NOTIFICATIONS: 'Notifications',
   SYSTEM: 'System',
 };
 
