@@ -3,7 +3,6 @@ import { EMPTY_USER_DRAFT, buildUser, creatableRoles, generatePassword, password
 
 const draft: UserDraft = {
   role: 'FIELD',
-  employeeCode: 'MR001',
   name: 'Asha  Rao',
   password: 'Sup3rSecret',
   email: '',
@@ -37,7 +36,7 @@ describe('buildUser', () => {
   it('builds a body, normalizing the name and leaving blanks out', () => {
     expect(buildUser(draft, 'HR')).toEqual({
       ok: true,
-      body: { role: 'FIELD', employeeCode: 'MR001', name: 'Asha Rao', password: 'Sup3rSecret' },
+      body: { role: 'FIELD', name: 'Asha Rao', password: 'Sup3rSecret' },
     });
   });
   it('includes email and phone when given', () => {
@@ -51,14 +50,14 @@ describe('buildUser', () => {
     expect(buildUser({ ...draft, role: 'ADMIN' }, 'HR')).toMatchObject({ ok: false, errors: { role: 'Choose a role.' } });
     expect(buildUser(draft, 'ACCOUNTANT')).toMatchObject({ ok: false });
   });
-  it('refuses a code with spaces and a malformed email', () => {
-    const result = buildUser({ ...draft, employeeCode: 'MR 001', email: 'nope' }, 'ADMIN');
-    expect(result).toMatchObject({ ok: false, errors: { employeeCode: 'No spaces in an employee code.', email: 'Enter a valid email address.' } });
+  it('refuses a malformed email', () => {
+    const result = buildUser({ ...draft, email: 'nope' }, 'ADMIN');
+    expect(result).toMatchObject({ ok: false, errors: { email: 'Enter a valid email address.' } });
   });
   it('reports every missing field at once', () => {
     const result = buildUser(EMPTY_USER_DRAFT, 'ADMIN');
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['employeeCode', 'name', 'password', 'role']);
+    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['name', 'password', 'role']);
   });
 });
 

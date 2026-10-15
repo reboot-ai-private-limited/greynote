@@ -44,7 +44,7 @@ export function EmployeeCreateScreen() {
           ← Employees
         </Link>
       </p>
-      <PageHeader title="Add office staff" />
+      <PageHeader title="Add office staff" description="The employee code (GHC…) is generated automatically." />
       <form
         noValidate
         onSubmit={(e) => {
@@ -64,9 +64,6 @@ export function EmployeeCreateScreen() {
                 placeholder="Choose a role"
                 aria-invalid={invalid('role')}
               />
-            </FormField>
-            <FormField label="Employee code" htmlFor="user-code" error={errors['employeeCode']}>
-              <Input id="user-code" value={draft.employeeCode} onChange={(e) => set('employeeCode')(e.target.value)} aria-invalid={invalid('employeeCode')} />
             </FormField>
             <FormField label="Full name" htmlFor="user-name" error={errors['name']}>
               <Input id="user-name" value={draft.name} onChange={(e) => set('name')(e.target.value)} aria-invalid={invalid('name')} />

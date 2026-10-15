@@ -2198,7 +2198,7 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 
 **Decision:** new employees get `GH` + a plain number from the same atomic counter, starting at `GH101` (no zero padding; past 999 it just grows). On first use the counter starts at the highest existing `GH\d+` code, or 100 if there is none. Employees who already have a `GRN` code (or a hand-typed one) keep it; nothing is renamed or migrated. Supersedes the "Employee id" line of 2026-10-09.
 
-**Open:** whether the old `GRN` employees should be renamed too (it would change what they log in with).
+**Open:** whether the old `GRN` employees should be renamed too (it would change what they log in with). *Closed by 2026-10-15 below.*
 
 ## 2026-10-13 — Field employees get an optional profile photo
 
@@ -2352,3 +2352,11 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Assumed (confirm with the client; sign-off F8):** the MR gets the same stages as the manager; "missed" goes to the employee at the deadline and to the manager 30 minutes later; digest at 10:30 and 17:00; approval counts are direct reports only, submission counts the whole downline; no quiet hours; target set and call assigned do not notify yet.
 
 **Open:** the phone app (token registration, tap routes, foreground banner); a Firebase key on the server; browser/phone check; Admin screen shows the new settings only after the seed is re-run.
+
+## 2026-10-15 — Employee ids are GHC001, GHC002 … for everyone; existing ones renumbered; DEMO accounts removed
+
+**Decision:** one shared counter hands out `GHC` + three digits (GHC001 … GHC999, then GHC1000) to field employees (wizard) and office staff (`/employees/new/staff`, no code field any more; `CreateUser` generates it). Supersedes 2026-10-13. Existing employees, the Admin included, are renumbered once by `migrate:employee-codes` (dry run, then `--apply`): oldest `dateOfJoining` first, then creation time; anyone already on a GHC code keeps it, so it can be re-run; the counter is set to the last number. The old-to-new list is printed. The DEMO accounts (DEMOMGR, DEMOMR1-3, their zone, HQ, route and doctors) are deleted with `seed:demo-manager -- --remove` and no longer created by `seed-production`.
+
+**Consequences:** everyone signs in with the new code (the phone app caches the old one until re-login); the Google Play reviewer's DEMOMR logins stop working; the public delete-account page also asks for the new code.
+
+**Open:** run the demo removal and the migration on dev/prod; then delete `seed-demo-manager.ts` / `demoAccounts.ts` and the `isDemo` handling; tell staff their new codes; browser check.

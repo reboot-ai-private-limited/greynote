@@ -1,6 +1,7 @@
 import type { RoleName } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import { computeUserStatus } from '../../domain/onboarding.js';
+import type { EmployeeCodeGeneratorPort } from '../../domain/employeeCode.generator.port.js';
 import type { PasswordHasherPort } from '../../domain/passwordHasher.port.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
 import { toUserSummary, type User, type UserSummary } from '../../domain/user.entity.js';
@@ -13,7 +14,8 @@ import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
  */
 export type CreateUserInput = {
   role: RoleName;
-  employeeCode: string;
+  /** Left out for office staff: the next GHC code is generated. */
+  employeeCode?: string;
   name: string;
   password: string;
   email?: string;
@@ -25,6 +27,7 @@ export class CreateUserUseCase {
     private readonly userRepository: UserRepositoryPort,
     private readonly roleRepository: RoleRepositoryPort,
     private readonly passwordHasher: PasswordHasherPort,
+    private readonly codes: EmployeeCodeGeneratorPort,
   ) {}
 
   /** `actingRole` is the authenticated caller's own role — enforced here, not just at the route. */
@@ -37,7 +40,10 @@ export class CreateUserUseCase {
       throw AppError.forbidden();
     }
 
-    if (await this.userRepository.existsByEmployeeCode(input.employeeCode)) {
+    let employeeCode = input.employeeCode;
+    if (employeeCode === undefined) {
+      employeeCode = await this.codes.next();
+    } else if (await this.userRepository.existsByEmployeeCode(employeeCode)) {
       throw AppError.conflict('That employee code is already in use.', { field: 'employeeCode' });
     }
     if (input.email && (await this.userRepository.existsByEmail(input.email))) {
@@ -50,7 +56,7 @@ export class CreateUserUseCase {
     const passwordHash = await this.passwordHasher.hash(input.password);
 
     const draft: Omit<User, 'id'> = {
-      employeeCode: input.employeeCode,
+      employeeCode,
       name: input.name,
       email: input.email ?? null,
       phone: input.phone ?? null,

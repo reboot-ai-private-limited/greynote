@@ -220,7 +220,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const removeDevice = new RemoveDeviceUseCase(userDeviceRepository, userSessionRepository, transactionRunner);
   const logoutDevice = new LogoutDeviceUseCase(userDeviceRepository, userSessionRepository);
 
-  const createUser = new CreateUserUseCase(userRepository, roleRepository, passwordHasher);
+  const createUser = new CreateUserUseCase(userRepository, roleRepository, passwordHasher, employeeCodeGenerator);
   const updateUser = new UpdateUserUseCase(
     userRepository,
     roleRepository,
