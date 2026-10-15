@@ -23,6 +23,7 @@ import type {
   PromotionDto,
   PromotionPreviewDto,
   PromotionRequestDto,
+  OrgNodeDto,
   ReportingLineDto,
   PromotionStatus,
   PendingDeviceDto,
@@ -85,6 +86,10 @@ export const identityApi = {
 
   reportingLine: (token: string, id: string, signal?: AbortSignal) =>
     request<ReportingLineDto>(`/identity/users/${id}/reporting`, { token, signal }),
+
+  /** One level of the organisation tree: the people under `parentId`, or the top when it is left out. */
+  orgChildren: (token: string, query: { parentId?: string; page: number; pageSize: number }, signal?: AbortSignal) =>
+    request<PaginatedDto<OrgNodeDto>>('/identity/org/children', { token, query: { ...query }, signal }),
 
   updateUser: (token: string, id: string, body: UpdateUserDto) =>
     request<UserListItemDto>(`/identity/users/${id}`, { method: 'PATCH', token, body }),

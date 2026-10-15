@@ -107,3 +107,10 @@ export const documentParamsSchema = z.object({
   id: z.string().min(1),
   documentId: z.string().min(1),
 });
+
+/** `GET /identity/org/children`: one level of the organisation tree. No `parentId` = the people at the top. */
+export const orgChildrenQuerySchema = z.object({
+  parentId: z.string().min(1).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(25),
+});

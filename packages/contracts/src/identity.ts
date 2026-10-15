@@ -518,3 +518,10 @@ export interface ReportingLineDto {
   upline: ReportingMemberDto[];
   downline: Array<ReportingMemberDto & { depth: number }>;
 }
+
+/** One person in `GET /identity/org/children`: a level of the organisation tree. */
+export interface OrgNodeDto extends ReportingMemberDto {
+  hqId: string | null;
+  /** How many people report directly to them. */
+  directCount: number;
+}

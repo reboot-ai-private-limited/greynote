@@ -9,7 +9,7 @@ const person = (id: string, managerId: string | null): UserSummary => ({
   role: 'FIELD',
   designationId: null,
   managerId,
-  status: 'ACTIVE',
+  status: 'active',
 });
 
 describe('GetReportingLineUseCase', () => {

@@ -122,6 +122,7 @@ import {
   makeCreateUserController,
   makeGetUserDetailController,
   makeGetReportingLineController,
+  makeListOrgChildrenController,
   makeListUsersController,
   makeRemoveEmployeePhotoController,
   makeRemoveUserDocumentController,
@@ -133,6 +134,8 @@ import {
   makeUploadUserDocumentController,
 } from './interface/users.controller.js';
 import { buildUsersRouter } from './interface/users.route.js';
+import { buildOrgRouter } from './interface/org.route.js';
+import { ListOrgChildrenUseCase } from './application/usecases/listOrgChildren.usecase.js';
 import { buildWorkWithRouter } from './interface/workWith.route.js';
 import { ListWorkWithUseCase } from './application/usecases/listWorkWith.usecase.js';
 import type { IdentityPublicContract } from './identity.public.js';
@@ -330,6 +333,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const getDirectReports = new GetDirectReportsUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getDownline = new GetDownlineUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getReportingLine = new GetReportingLineUseCase((id) => getManagerChain.execute(id), (id) => getDownline.execute(id));
+  const listOrgChildren = new ListOrgChildrenUseCase(userRepository, roleRepository, employeeProfileRepository);
   const isFieldRole = new IsFieldRoleUseCase(userRepository, roleRepository);
   const isBlocked = new IsBlockedUseCase(userRepository);
   const getEmploymentDetails = new GetEmploymentDetailsUseCase(employeeProfileRepository, designationRepository);
@@ -450,6 +454,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       router.use('/employee-drafts', buildEmployeeDraftsRouter(employeeDraftControllers));
       router.use('/work-with', buildWorkWithRouter(listWorkWith));
       router.use('/users', buildUsersRouter(usersControllers));
+      router.use('/org', buildOrgRouter({ children: makeListOrgChildrenController(listOrgChildren) }));
       router.use('/pay-components', buildPayComponentsRouter({ list: listPayComponents, create: createPayComponent, update: updatePayComponent }));
       router.use('/ctc', buildCtcRouter(ctcControllers));
       router.use('/roles', buildRolesRouter({ list: listRoles, create: createRole, update: updateRole }));

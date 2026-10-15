@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import type { EmployeeProfile } from '../domain/employeeProfile.entity.js';
 import type { EmployeeProfileRepositoryPort } from '../domain/employeeProfile.repository.port.js';
+import { UserModel } from './user.schema.js';
 import { EmployeeProfileModel, type EmployeeProfileDoc } from './employeeProfile.schema.js';
 
 /** Real chains are ~5 levels (MR→ASM→RSM→ZSM→NSM); this only bounds a corrupted, looping tree. */
@@ -132,5 +133,34 @@ export class MongoEmployeeProfileAdapter implements EmployeeProfileRepositoryPor
   async findManagerIds(): Promise<string[]> {
     const ids = await EmployeeProfileModel.distinct('managerId', { managerId: { $ne: null } });
     return ids.map(String);
+  }
+
+  async findChildrenPage(
+    parentId: string | null,
+    paging: { skip: number; limit: number },
+  ): Promise<{ items: Array<{ userId: string; directCount: number }>; total: number }> {
+    const match = { managerId: parentId ? new Types.ObjectId(parentId) : null };
+    const [total, page] = await Promise.all([
+      EmployeeProfileModel.countDocuments(match),
+      // Names live on the User row, so join to sort by them; the page is small, the join is by indexed _id.
+      EmployeeProfileModel.aggregate<{ userId: Types.ObjectId }>([
+        { $match: match },
+        { $lookup: { from: UserModel.collection.name, localField: 'userId', foreignField: '_id', as: 'u' } },
+        { $addFields: { sortName: { $toLower: { $ifNull: [{ $arrayElemAt: ['$u.name', 0] }, ''] } } } },
+        { $sort: { sortName: 1, _id: 1 } },
+        { $skip: paging.skip },
+        { $limit: paging.limit },
+        { $project: { userId: 1 } },
+      ]),
+    ]);
+    const ids = page.map((p) => p.userId);
+    const counts = ids.length
+      ? await EmployeeProfileModel.aggregate<{ _id: Types.ObjectId; n: number }>([
+          { $match: { managerId: { $in: ids } } },
+          { $group: { _id: '$managerId', n: { $sum: 1 } } },
+        ])
+      : [];
+    const countOf = new Map(counts.map((c) => [String(c._id), c.n]));
+    return { items: page.map((p) => ({ userId: String(p.userId), directCount: countOf.get(String(p.userId)) ?? 0 })), total };
   }
 }

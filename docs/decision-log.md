@@ -2364,3 +2364,7 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 ## 2026-10-15: Team tab on the employee page
 
 The web employee page gets a read-only **Team** tab: the managers above (top down) and the people below (a tree, opened level by level). One route, `GET /identity/users/:id/reporting` (Admin, HR), because `/team/*` only serves a signed-in manager's own downline. Changing the manager stays in Profile → Work, which already enforces "a higher designation"; reassigning from the tab was left out.
+
+## 2026-10-15: Organisation tree is lazy, not paged as a whole
+
+A company-wide tree cannot use page numbers, so each level is its own paged read (`/identity/org/children`) and a branch loads when opened. Search is flat. Reuses the Team tab's person row. Also fixed in the Team tab: the "not active" badge compared the status in capitals and showed on everyone.

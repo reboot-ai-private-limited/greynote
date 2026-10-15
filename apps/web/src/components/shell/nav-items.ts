@@ -25,6 +25,7 @@ import {
   Tags,
   Truck,
   Users,
+  Network,
   Wallet,
   BarChart3,
   Boxes,
@@ -74,6 +75,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Approvals', href: '/approvals', icon: ClipboardCheck, group: 'Home', roles: ['ADMIN', 'HR'] },
 
   { label: 'Employees', href: '/employees', icon: Users, group: 'HR', roles: ['ADMIN', 'HR'] },
+  { label: 'Organisation', href: '/organisation', icon: Network, group: 'HR', roles: ['ADMIN', 'HR'] },
   { label: 'Attendance', href: '/attendance', icon: CalendarCheck, group: 'HR', roles: ALL },
   { label: 'Leave & holidays', href: '/hr', icon: CalendarDays, group: 'HR', roles: ['ADMIN', 'HR'] },
   { label: 'Promotions', href: '/promotions', icon: TrendingUp, group: 'HR', roles: ['ADMIN', 'HR'] },

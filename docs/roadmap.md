@@ -956,3 +956,7 @@ Decision-log 2026-10-15; design in [`LLD/notifications.md`](LLD/notifications.md
 ## Employee page: Team tab (2026-10-15, done, not browser-checked)
 
 `GET /identity/users/:id/reporting` (Admin, HR) plus a **Team** tab on the web employee page: "Reports to" (the chain from the top down to this person) and "Team" (direct reports, each opening to its own reports). Read-only; the manager is still changed in Profile → Work. Unit-tested; **open:** browser check on an MR, a manager and the top of the line.
+
+## Organisation tree page (2026-10-15, done, not browser-checked)
+
+`/organisation` (Admin, HR; HR nav group) and `GET /identity/org/children`. The tree loads one level at a time, 25 a page with "Show more", so it stays light as the company grows; search lists matches flat; each name opens the employee. Unit-tested. **Open:** browser check; a "Not placed" group (no manager, not at the top designation) was suggested and **not built**; levels sort by name, not designation.

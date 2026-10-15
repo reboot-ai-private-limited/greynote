@@ -19,4 +19,12 @@ export interface EmployeeProfileRepositoryPort {
    * data holds a cycle.
    */
   findDownline(managerId: string): Promise<Array<{ userId: string; managerId: string; depth: number }>>;
+  /**
+   * One page of the people directly under `parentId` (`null` = nobody above them: the top of the tree), by name, with
+   * each one's own direct-report count. Backs the organisation tree, which opens one level at a time.
+   */
+  findChildrenPage(
+    parentId: string | null,
+    paging: { skip: number; limit: number },
+  ): Promise<{ items: Array<{ userId: string; directCount: number }>; total: number }>;
 }
