@@ -500,3 +500,21 @@ export interface PromotionDto {
 export interface PhotoDto {
   photoUrl: string | null;
 }
+
+/** One person in `GET /identity/users/:id/reporting`. `depth` is 1 for a direct report. */
+export interface ReportingMemberDto {
+  id: string;
+  employeeCode: string;
+  name: string;
+  designationId: string | null;
+  managerId: string | null;
+  status: string;
+  photoUrl?: string | null;
+  depth?: number;
+}
+
+/** `GET /identity/users/:id/reporting`: managers above (nearest first) and everyone below at any depth. */
+export interface ReportingLineDto {
+  upline: ReportingMemberDto[];
+  downline: Array<ReportingMemberDto & { depth: number }>;
+}

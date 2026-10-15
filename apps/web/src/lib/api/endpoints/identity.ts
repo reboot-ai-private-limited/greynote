@@ -23,6 +23,7 @@ import type {
   PromotionDto,
   PromotionPreviewDto,
   PromotionRequestDto,
+  ReportingLineDto,
   PromotionStatus,
   PendingDeviceDto,
   UpdatePayBandDto,
@@ -81,6 +82,9 @@ export const identityApi = {
 
   user: (token: string, id: string, signal?: AbortSignal) =>
     request<UserDetailDto>(`/identity/users/${id}`, { token, signal }),
+
+  reportingLine: (token: string, id: string, signal?: AbortSignal) =>
+    request<ReportingLineDto>(`/identity/users/${id}/reporting`, { token, signal }),
 
   updateUser: (token: string, id: string, body: UpdateUserDto) =>
     request<UserListItemDto>(`/identity/users/${id}`, { method: 'PATCH', token, body }),

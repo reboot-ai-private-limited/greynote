@@ -1,12 +1,13 @@
 /**
- * The employee page's tabs (web refactor, 2026-10-13): each is one job. Profile (who they are: basic, address, work, documents), Pay (bank and
+ * The employee page's tabs (web refactor, 2026-10-13): each is one job. Profile (who they are: basic, address, work, documents), Team (managers above, people below), Pay (bank and
  * compensation), Time off (calendar and leave), Career (promotion history) and Access (devices and security: Admin only).
  */
-export const EMPLOYEE_TABS = ['profile', 'pay', 'time', 'career', 'access'] as const;
+export const EMPLOYEE_TABS = ['profile', 'team', 'pay', 'time', 'career', 'access'] as const;
 export type EmployeeTab = (typeof EMPLOYEE_TABS)[number];
 
 export const EMPLOYEE_TAB_LABEL: Record<EmployeeTab, string> = {
   profile: 'Profile',
+  team: 'Team',
   pay: 'Pay',
   time: 'Time off',
   career: 'Career',

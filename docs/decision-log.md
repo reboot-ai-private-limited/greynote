@@ -2360,3 +2360,7 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Consequences:** everyone signs in with the new code (the phone app caches the old one until re-login); the Google Play reviewer's DEMOMR logins stop working; the public delete-account page also asks for the new code.
 
 **Open:** run the demo removal and the migration on dev/prod; then delete `seed-demo-manager.ts` / `demoAccounts.ts` and the `isDemo` handling; tell staff their new codes; browser check.
+
+## 2026-10-15: Team tab on the employee page
+
+The web employee page gets a read-only **Team** tab: the managers above (top down) and the people below (a tree, opened level by level). One route, `GET /identity/users/:id/reporting` (Admin, HR), because `/team/*` only serves a signed-in manager's own downline. Changing the manager stays in Profile → Work, which already enforces "a higher designation"; reassigning from the tab was left out.

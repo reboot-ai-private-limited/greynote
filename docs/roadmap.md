@@ -952,3 +952,7 @@ Decision-log 2026-10-15 (second entry). **Done (API + web + docs, unit-tested):*
 ## Push notifications and deadline reminders: API (2026-10-15, done)
 
 Decision-log 2026-10-15; design in [`LLD/notifications.md`](LLD/notifications.md), phone contract with the MR and manager tables in [`mobile/notifications.md`](mobile/notifications.md). **Done (unit-tested, RBAC matrix regenerated):** `firebase-admin` sender behind `PushSenderPort` (no-op without the key), `UserSession.pushToken` and the token routes, Inbox pushes every message it saves, new `reminders` module with the `deadline-reminders` job (daily plan, monthly plan, expense send and approval, stock, twice-daily approvals digest), immediate messages for decisions, late exceptions and unblocks over `shared/events/appEvents`, nine *Notifications* settings. **Open:** the phone app; a Firebase key on the server and `manual_deploy.md` Step 9i; a live send to a test phone; client confirmation of F8's assumed table.
+
+## Employee page: Team tab (2026-10-15, done, not browser-checked)
+
+`GET /identity/users/:id/reporting` (Admin, HR) plus a **Team** tab on the web employee page: "Reports to" (the chain from the top down to this person) and "Team" (direct reports, each opening to its own reports). Read-only; the manager is still changed in Profile → Work. Unit-tested; **open:** browser check on an MR, a manager and the top of the line.

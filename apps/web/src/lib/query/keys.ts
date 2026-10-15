@@ -26,6 +26,7 @@ export const keys = {
     all: () => ['users', fy()] as const,
     list: (query: object) => [...keys.users.all(), 'list', query] as const,
     detail: (id: string) => [...keys.users.all(), 'detail', id] as const,
+    reporting: (id: string) => [...keys.users.all(), 'reporting', id] as const,
   },
   employeeDrafts: {
     all: () => ['employeeDrafts', fy()] as const,

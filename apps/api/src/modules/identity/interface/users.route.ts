@@ -21,6 +21,7 @@ import { photoUpload } from './photoUpload.middleware.js';
 import type {
   makeCreateUserController,
   makeGetUserDetailController,
+  makeGetReportingLineController,
   makeListUsersController,
   makeRemoveEmployeePhotoController,
   makeRemoveUserDocumentController,
@@ -111,6 +112,16 @@ openApiRegistry.registerPath({
 });
 
 openApiRegistry.registerPath({
+  method: 'get',
+  path: '/api/identity/users/{id}/reporting',
+  tags: ['Identity / Users'],
+  summary: "Admin/HR: an employee's reporting line — managers above (nearest first) and everyone below with depth",
+  security: [{ bearerAuth: [] }],
+  request: { params: userIdParamsSchema },
+  responses: { 200: { description: '{ upline, downline }' } },
+});
+
+openApiRegistry.registerPath({
   method: 'delete',
   path: '/api/identity/users/{id}/documents/{documentId}',
   tags: ['Identity / Users'],
@@ -175,6 +186,7 @@ openApiRegistry.registerPath({
 export function buildUsersRouter(controllers: {
   list: ReturnType<typeof makeListUsersController>;
   detail: ReturnType<typeof makeGetUserDetailController>;
+  reporting: ReturnType<typeof makeGetReportingLineController>;
   create: ReturnType<typeof makeCreateUserController>;
   update: ReturnType<typeof makeUpdateUserController>;
   uploadDocument: ReturnType<typeof makeUploadUserDocumentController>;
@@ -200,6 +212,13 @@ export function buildUsersRouter(controllers: {
     requireRole('ADMIN', 'HR'),
     validate({ params: userIdParamsSchema }),
     controllers.detail,
+  );
+  router.get(
+    '/:id/reporting',
+    authenticate(),
+    requireRole('ADMIN', 'HR'),
+    validate({ params: userIdParamsSchema }),
+    controllers.reporting,
   );
   router.post(
     '/',

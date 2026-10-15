@@ -41,6 +41,17 @@ export function useUser(id: string | null | undefined) {
   );
 }
 
+/** An employee's managers above and everyone below, for the Team tab. */
+export function useReportingLine(id: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.users.reporting(id),
+      fetch: (token, signal) => identityApi.reportingLine(token, id, signal),
+      staleTime: staleTime.live,
+    }),
+  );
+}
+
 /** One onboarding section's PATCH. Refetches the detail and the list (the status badge may have flipped). */
 export function useUpdateUser(id: string, onDone: () => void) {
   return useApiMutation<UpdateUserDto, UserListItemDto>({

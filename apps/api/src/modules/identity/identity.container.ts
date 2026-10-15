@@ -43,6 +43,7 @@ import { GetActiveDeviceCountUseCase } from './application/usecases/getActiveDev
 import { GetDirectReportsUseCase } from './application/usecases/getDirectReports.usecase.js';
 import { GetDownlineUseCase } from './application/usecases/getDownline.usecase.js';
 import { GetEmploymentDetailsUseCase } from './application/usecases/getEmploymentDetails.usecase.js';
+import { GetReportingLineUseCase } from './application/usecases/getReportingLine.usecase.js';
 import { GetManagerChainUseCase } from './application/usecases/getManagerChain.usecase.js';
 import { GetPayBandRatesUseCase } from './application/usecases/getPayBandRates.usecase.js';
 import { GetUserDetailUseCase } from './application/usecases/getUserDetail.usecase.js';
@@ -120,6 +121,7 @@ import { buildRolesRouter } from './interface/roles.route.js';
 import {
   makeCreateUserController,
   makeGetUserDetailController,
+  makeGetReportingLineController,
   makeListUsersController,
   makeRemoveEmployeePhotoController,
   makeRemoveUserDocumentController,
@@ -327,6 +329,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const listWorkWith = new ListWorkWithUseCase(userRepository, employeeProfileRepository, designationRepository);
   const getDirectReports = new GetDirectReportsUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getDownline = new GetDownlineUseCase(userRepository, roleRepository, employeeProfileRepository);
+  const getReportingLine = new GetReportingLineUseCase((id) => getManagerChain.execute(id), (id) => getDownline.execute(id));
   const isFieldRole = new IsFieldRoleUseCase(userRepository, roleRepository);
   const isBlocked = new IsBlockedUseCase(userRepository);
   const getEmploymentDetails = new GetEmploymentDetailsUseCase(employeeProfileRepository, designationRepository);
@@ -351,6 +354,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const usersControllers = {
     list: makeListUsersController(listUsers),
     detail: makeGetUserDetailController(getUserDetail),
+    reporting: makeGetReportingLineController(getReportingLine),
     create: makeCreateUserController(createUser),
     update: makeUpdateUserController(updateUser),
     uploadDocument: makeUploadUserDocumentController(uploadUserDocument),
