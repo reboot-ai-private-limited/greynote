@@ -75,7 +75,7 @@ export interface OrderRepositoryPort {
   findById(id: string): Promise<Order | null>;
   list(filter: OrderFilter, limit: number): Promise<Order[]>;
   /** Replace a `PLACED` order's lines, total and remarks in one conditional update, keeping `original` (what the employee ordered) the first time; `false` if it is no longer `PLACED` or was changed since it was read (`ifEditedAt`). */
-  update(id: string, change: { items: Order['items']; totalAmountPaise: Paise; remarks: string | null; original?: { items: Order['items']; totalAmountPaise: Paise } }, by: string, at: Date, ifEditedAt: Date | null): Promise<boolean>;
+  update(id: string, change: { items: Order['items']; totalAmountPaise: Paise; discount: Order['discount']; orderDiscountPaise: Paise; remarks: string | null; original?: { items: Order['items']; totalAmountPaise: Paise } }, by: string, at: Date, ifEditedAt: Date | null): Promise<boolean>;
   /** Everything delivered by these distributors (all of them when omitted) in Done orders, in whole paise (supplied × price, free units left out), all time. */
   sumDoneByDistributor(distributorIds?: string[]): Promise<Map<string, number>>;
   /** `PLACED` → `DONE` with what was delivered, in one conditional update; `false` if the order is no longer `PLACED` or was changed since it was read (`ifEditedAt`). */

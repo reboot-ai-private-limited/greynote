@@ -78,3 +78,15 @@
 | 7.69 | Orders → Open a Placed order → Change order | each line has Qty, ₹ each and **Free**, with "Originally ordered: qty × price" under it | |
 | 7.70 | Change a quantity, add 6 free, Save; open the order again | the order shows the new lines with a Free column and an "Originally ordered by the employee" block with the first values; changing it a second time keeps that same original | |
 | 7.71 | Add order: put 2 free on a line | saved; Mark Done opens with Free 2 prefilled | |
+
+## Discounts (2026-10-15)
+
+| # | Do | Expect | Pass |
+|---|---|---|---|
+| 7.90 | Add order (distributor): 10 × ₹100 with 10% off the line, 5 × ₹100 no discount | the line shows ₹1,000 → ₹900; total ₹1,400 | |
+| 7.91 | Same order, order discount ₹14 flat | total ₹1,386; Order discount − ₹14 shown | |
+| 7.92 | Order discount 2.5% instead | total = subtotal − 2.5% | |
+| 7.93 | Flat discount above its line / above the order | refused with a message; nothing saved | |
+| 7.94 | Switch the order to a chemist | discount controls disappear; a chemist order saves with none | |
+| 7.95 | Mark Done with part supply on a flat-discounted line | delivered = net × supplied ÷ ordered; Employee page primary and the distributor's dues use it | |
+| 7.96 | Open the order on the phone as the MR | discount under the line, net amounts, Order discount row; the MR cannot set a discount | |

@@ -9,6 +9,14 @@ interface OrderItemDoc {
   amountPaise: number;
   suppliedQty?: number | null;
   freeQty?: number;
+  discount?: DiscountDoc | null;
+  netAmountPaise?: number;
+  suppliedNetPaise?: number | null;
+}
+interface DiscountDoc {
+  type: 'PERCENT' | 'FIXED';
+  percent?: number;
+  amountPaise?: number;
 }
 export interface OrderDoc {
   userId: Types.ObjectId;
@@ -18,6 +26,8 @@ export interface OrderDoc {
   orderDate: string;
   status: OrderStatus;
   totalAmountPaise: number;
+  discount?: DiscountDoc | null;
+  orderDiscountPaise?: number;
   suppliedAmountPaise?: number | null;
   originalItems?: OrderItemDoc[] | null;
   originalTotalAmountPaise?: number | null;
@@ -33,6 +43,14 @@ export interface OrderDoc {
 }
 
 const paise = { type: Number, required: true, min: 0, validate: { validator: isPaise, message: 'Must be a whole number of paise.' } };
+const discountSchema = new Schema<DiscountDoc>(
+  {
+    type: { type: String, required: true, enum: ['PERCENT', 'FIXED'] },
+    percent: { type: Number, min: 0, max: 100 },
+    amountPaise: { type: Number, min: 0, validate: { validator: isPaise, message: 'Must be a whole number of paise.' } },
+  },
+  { _id: false },
+);
 const itemSchema = new Schema<OrderItemDoc>(
   {
     productId: { type: Schema.Types.ObjectId, required: true, ref: 'Product' },
@@ -41,6 +59,9 @@ const itemSchema = new Schema<OrderItemDoc>(
     amountPaise: paise,
     suppliedQty: { type: Number, default: null, min: 0, validate: { validator: (v: number | null) => v === null || Number.isInteger(v), message: 'Whole units only.' } },
     freeQty: { type: Number, default: 0, min: 0, validate: { validator: Number.isInteger, message: 'Whole units only.' } },
+    discount: { type: discountSchema, default: null },
+    netAmountPaise: { type: Number, min: 0 },
+    suppliedNetPaise: { type: Number, default: null, min: 0 },
   },
   { _id: false },
 );
@@ -51,6 +72,8 @@ const orderSchema = new Schema<OrderDoc>({
   orderDate: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ },
   status: { type: String, required: true, enum: ORDER_STATUSES },
   totalAmountPaise: paise,
+  discount: { type: discountSchema, default: null },
+  orderDiscountPaise: { type: Number, default: 0, min: 0 },
   suppliedAmountPaise: { type: Number, default: null, min: 0 },
   originalItems: { type: [itemSchema], default: undefined },
   originalTotalAmountPaise: { type: Number, default: null, min: 0 },
@@ -67,7 +90,7 @@ const orderSchema = new Schema<OrderDoc>({
 orderSchema.pre('validate', function () {
   if (Boolean(this.chemistId) === Boolean(this.distributorId)) this.invalidate('chemistId', 'Exactly one of chemistId and distributorId is required.');
   if (this.items.some((i) => i.suppliedQty != null && i.suppliedQty > i.quantity)) this.invalidate('items', 'Supplied cannot be more than ordered.');
-  if (this.items.reduce((n, i) => n + i.amountPaise, 0) !== this.totalAmountPaise) this.invalidate('totalAmountPaise', 'The total must equal the sum of the lines.');
+  if (this.items.reduce((n, i) => n + (i.netAmountPaise ?? i.amountPaise), 0) !== this.totalAmountPaise) this.invalidate('totalAmountPaise', 'The total must equal the sum of the lines after discounts.');
 });
 orderSchema.index({ userId: 1, orderDate: -1 });
 orderSchema.index({ chemistId: 1, orderDate: -1 }, { partialFilterExpression: { chemistId: { $type: 'objectId' } } });

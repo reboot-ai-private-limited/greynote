@@ -172,6 +172,9 @@ export interface SaveEmployeePrimaryDto {
 
 // ── Orders added or changed by the office ────────────────────────────────────────────────────────
 
+/** A discount the office gives on a distributor order's line or on the whole order: a percentage (up to two decimals) or a flat amount in paise. */
+export type DiscountDto = { type: 'PERCENT'; percent: number } | { type: 'FIXED'; amountPaise: number };
+
 export interface OrderLineInputDto {
   productId: string;
   /** Whole units, at least 1. */
@@ -179,6 +182,8 @@ export interface OrderLineInputDto {
   unitPricePaise: number;
   /** Units to give free on top (the office's; an employee's own order ignores it). Defaults to 0. */
   freeQty?: number;
+  /** Discount on this line; distributor orders only, office only. */
+  discount?: DiscountDto | null;
 }
 
 /** `POST /sales/orders/on-behalf`: Admin or the Accountant adds an order for a field employee, credited to them. */
@@ -191,12 +196,16 @@ export interface PlaceOrderForDto {
   orderDate?: string;
   remarks?: string | null;
   lines: OrderLineInputDto[];
+  /** Discount on the whole order, taken off after the line discounts; distributor orders only, office only. */
+  discount?: DiscountDto | null;
 }
 
 /** `PATCH /sales/orders/:id`: replaces a PLACED order's lines (with the server's own arithmetic) and remarks. */
 export interface EditOrderDto {
   remarks?: string | null;
   lines: OrderLineInputDto[];
+  /** Discount on the whole order, taken off after the line discounts; distributor orders only, office only. */
+  discount?: DiscountDto | null;
 }
 
 /** `POST /sales/orders/:id/complete` (optional body, Admin or the Accountant): what was delivered, per ordered product. A product left out is supplied in full. */

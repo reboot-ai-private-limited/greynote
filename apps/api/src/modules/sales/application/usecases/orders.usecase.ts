@@ -2,7 +2,8 @@ import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { MAX_PAISE, type Paise } from '@/shared/money/paise.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { Outlet } from '../../domain/monthlyStock.entity.js';
-import type { Order, OrderItem, OrderStatus } from '../../domain/order.entity.js';
+import { netOf, type Order, type OrderItem, type OrderStatus } from '../../domain/order.entity.js';
+import { netLines, suppliedNet, type Discount } from '../../domain/orderDiscount.js';
 import type { OrderRepositoryPort } from '../../domain/order.repository.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -17,7 +18,9 @@ export interface PlaceOrderInput {
   orderDate?: string | undefined;
   remarks: string | null;
   /** `freeQty`: units to be given free on top (the office sets it; an employee's own order never carries any). */
-  lines: Array<{ productId: string; quantity: number; unitPricePaise: Paise; freeQty?: number | undefined }>;
+  lines: Array<{ productId: string; quantity: number; unitPricePaise: Paise; freeQty?: number | undefined; discount?: Discount | null | undefined }>;
+  /** Discount on the whole order. Like the line discounts, only the office gives it, and only on a distributor order. */
+  discount?: Discount | null | undefined;
 }
 
 /**
@@ -38,7 +41,7 @@ export class PlaceOrderUseCase {
   async execute(actor: Actor, input: PlaceOrderInput, clientId: string | null = null, ctx?: TransactionContext): Promise<{ serverId: string; totalAmountPaise: Paise }> {
     await this.access.assertUsable(actor, input.outlet);
     // An employee's own order never carries free units: those are the office's to give.
-    return this.write(actor.id, null, { ...input, lines: input.lines.map((l) => ({ ...l, freeQty: 0 })) }, clientId, ctx);
+    return this.write(actor.id, null, { ...input, discount: null, lines: input.lines.map((l) => ({ ...l, freeQty: 0, discount: null })) }, clientId, ctx);
   }
 
   /** Admin or the Accountant adds an order for a field employee, credited to that employee; the outlet need not be on their Routes. */
@@ -54,28 +57,46 @@ export class PlaceOrderUseCase {
     const orderDate = input.orderDate ?? today;
     if (orderDate > today) throw new StockRefusal(STOCK_CODES.orderDateInFuture, 'An order cannot be dated in the future.');
     await this.clock.assertDayOpen(orderDate);
-    const { items, total } = await priceLines(this.master, input.lines);
+    const { items, total, discount, orderDiscountPaise } = await priceLines(this.master, input.outlet, input.lines, input.discount);
     const order = await this.orders.create(
-      { userId, outlet: input.outlet, orderDate, status: 'PLACED', totalAmountPaise: total, remarks: input.remarks, items, completedBy: null, completedAt: null, clientId, createdAt: this.clock.now(), createdBy, editedBy: null, editedAt: null },
+      { userId, outlet: input.outlet, orderDate, status: 'PLACED', totalAmountPaise: total, discount, orderDiscountPaise, remarks: input.remarks, items, completedBy: null, completedAt: null, clientId, createdAt: this.clock.now(), createdBy, editedBy: null, editedAt: null },
       ctx,
     );
     return { serverId: order.id, totalAmountPaise: order.totalAmountPaise };
   }
 }
 
-/** Each line's amount and the order's total, worked out from quantity and unit price; every product must exist and be active. */
-async function priceLines(master: FieldMasterDataPort, lines: PlaceOrderInput['lines']): Promise<{ items: OrderItem[]; total: Paise }> {
-  const items: OrderItem[] = [];
-  let total = 0;
+/**
+ * Each line's gross amount and net (after its own discount and its share of the order discount), and the order's total (the sum of the nets).
+ * Every product must exist and be active. Discounts are for distributor orders only (a chemist order is information, never billed).
+ */
+async function priceLines(master: FieldMasterDataPort, outlet: Outlet, lines: PlaceOrderInput['lines'], orderDiscount: Discount | null | undefined): Promise<{ items: OrderItem[]; total: Paise; discount: Discount | null; orderDiscountPaise: Paise }> {
+  if (outlet.type === 'CHEMIST' && (orderDiscount || lines.some((l) => l.discount))) throw new StockRefusal(STOCK_CODES.invalidPayload, 'A discount can only be given on a distributor order.');
+  let gross = 0;
+  const priced: Array<{ line: PlaceOrderInput['lines'][number]; amountPaise: Paise }> = [];
   for (const l of lines) {
     const product = await master.getProduct(l.productId);
     if (!product || product.status !== 'active') throw new StockRefusal(STOCK_CODES.productNotFound, 'A product in the list does not exist or is no longer active.');
     const amountPaise = l.quantity * l.unitPricePaise;
-    total += amountPaise;
-    if (amountPaise > MAX_PAISE || total > MAX_PAISE) throw new StockRefusal(STOCK_CODES.amountTooLarge, 'The order’s amount is too large.');
-    items.push({ productId: l.productId, quantity: l.quantity, unitPricePaise: l.unitPricePaise, amountPaise, suppliedQty: null, freeQty: l.freeQty ?? 0 });
+    gross += amountPaise;
+    if (amountPaise > MAX_PAISE || gross > MAX_PAISE) throw new StockRefusal(STOCK_CODES.amountTooLarge, 'The order’s amount is too large.');
+    if (l.discount?.type === 'FIXED' && l.discount.amountPaise > amountPaise) throw new StockRefusal(STOCK_CODES.invalidPayload, 'A flat discount on a line cannot be more than the line’s amount.');
+    priced.push({ line: l, amountPaise });
   }
-  return { items, total };
+  const net = netLines(priced.map((p) => ({ grossPaise: p.amountPaise, lineDiscount: p.line.discount ?? null })), orderDiscount);
+  const subtotal = net.netTotalPaise + net.orderDiscountPaise;
+  if (orderDiscount?.type === 'FIXED' && orderDiscount.amountPaise > subtotal) throw new StockRefusal(STOCK_CODES.invalidPayload, 'A flat discount on the order cannot be more than the order’s amount after line discounts.');
+  const items = priced.map(({ line, amountPaise }, i): OrderItem => ({
+    productId: line.productId,
+    quantity: line.quantity,
+    unitPricePaise: line.unitPricePaise,
+    amountPaise,
+    suppliedQty: null,
+    freeQty: line.freeQty ?? 0,
+    discount: line.discount ?? null,
+    netAmountPaise: net.lines[i]!.netPaise,
+  }));
+  return { items, total: net.netTotalPaise, discount: orderDiscount ?? null, orderDiscountPaise: net.orderDiscountPaise };
 }
 
 /** Admin or the Accountant corrects a `PLACED` order's lines, prices and remarks before marking it done; employee, outlet and date stay. One conditional update, so a racing Done/Cancel wins cleanly and this is a 409. */
@@ -87,15 +108,15 @@ export class EditOrderUseCase {
     private readonly clock: SalesClock,
   ) {}
 
-  async execute(actor: Actor, id: string, input: Pick<PlaceOrderInput, 'lines' | 'remarks'>): Promise<Order> {
+  async execute(actor: Actor, id: string, input: Pick<PlaceOrderInput, 'lines' | 'remarks' | 'discount'>): Promise<Order> {
     if (!seesEveryOrder(actor)) throw new StockRefusal(STOCK_CODES.orderNotYours, 'Only Admin or the Accountant can change an order.');
     const order = await this.get.execute(actor, id);
     if (order.status !== 'PLACED') throw new StockRefusal(STOCK_CODES.orderNotPlaced, `The order is already ${order.status}.`);
     await this.clock.assertDayOpen(order.orderDate);
-    const { items, total } = await priceLines(this.master, input.lines);
+    const { items, total, discount, orderDiscountPaise } = await priceLines(this.master, order.outlet, input.lines, input.discount);
     // The first change keeps what the employee ordered, so it is never lost to later edits.
     const original = order.originalItems ? undefined : { items: order.items, totalAmountPaise: order.totalAmountPaise };
-    if (!(await this.orders.update(id, { items, totalAmountPaise: total, remarks: input.remarks, ...(original && { original }) }, actor.id, this.clock.now(), order.editedAt ?? null))) {
+    if (!(await this.orders.update(id, { items, totalAmountPaise: total, discount, orderDiscountPaise, remarks: input.remarks, ...(original && { original }) }, actor.id, this.clock.now(), order.editedAt ?? null))) {
       const now = (await this.orders.findById(id))?.status ?? order.status;
       throw new StockRefusal(STOCK_CODES.orderNotPlaced, `The order is already ${now}.`);
     }
@@ -150,7 +171,7 @@ export interface SupplyLine {
  * Accountant; one conditional update, so of two racing calls exactly one wins and the other is a 409.
  *
  * Marking Done records what was actually delivered: by default every line in full (what was ordered), or, when Admin or the Accountant send `supply`,
- * per line the units supplied and the free units on top. The ordered lines and total are never rewritten; primary counts what was supplied × price
+ * per line the units supplied and the free units on top. The ordered lines and total are never rewritten; primary counts what was supplied at the order's prices, after discounts
  * (free units are stock and secondary, never rupees). An MR marking their own order done cannot change the supply.
  */
 export class FinishOrderUseCase {
@@ -185,9 +206,11 @@ export class FinishOrderUseCase {
     const items = order.items.map((i) => {
       const l = given.get(i.productId);
       // A line not named is delivered in full, with the free units the office planned for it when it changed the order.
-      return { ...i, suppliedQty: l ? l.suppliedQty : i.quantity, freeQty: l ? l.freeQty : (i.freeQty ?? 0) };
+      const suppliedQty = l ? l.suppliedQty : i.quantity;
+      // What was delivered costs the line's net for those units: a flat discount shrinks with the supply.
+      return { ...i, suppliedQty, freeQty: l ? l.freeQty : (i.freeQty ?? 0), suppliedNetPaise: suppliedNet(netOf(i), i.quantity, suppliedQty) };
     });
-    const suppliedAmountPaise = items.reduce((n, i) => n + (i.suppliedQty ?? 0) * i.unitPricePaise, 0);
+    const suppliedAmountPaise = items.reduce((n, i) => n + (i.suppliedNetPaise ?? 0), 0);
     return this.orders.complete(order.id, { items, suppliedAmountPaise, ifEditedAt: order.editedAt ?? null }, actor.id, this.clock.now());
   }
 }

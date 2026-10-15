@@ -77,17 +77,17 @@ export function makeSalesControllers(u: {
     ),
     placeOrder: asyncHandler(async (req, res) => {
       const b = req.body as z.output<typeof placeOrderBodySchema>;
-      const result = await refusing(() => u.place.execute(actorOf(req), { outlet: { type: b.outletType, id: b.outletId }, orderDate: b.orderDate, remarks: b.remarks, lines: b.lines }));
+      const result = await refusing(() => u.place.execute(actorOf(req), { outlet: { type: b.outletType, id: b.outletId }, orderDate: b.orderDate, remarks: b.remarks, lines: b.lines, discount: b.discount }));
       sendSuccess(req, res, result, 'The order was placed.', 201);
     }),
     placeOrderFor: asyncHandler(async (req, res) => {
       const b = req.body as z.output<typeof placeOrderForBodySchema>;
-      const result = await refusing(() => u.place.executeFor(actorOf(req), b.userId, { outlet: { type: b.outletType, id: b.outletId }, orderDate: b.orderDate, remarks: b.remarks, lines: b.lines }));
+      const result = await refusing(() => u.place.executeFor(actorOf(req), b.userId, { outlet: { type: b.outletType, id: b.outletId }, orderDate: b.orderDate, remarks: b.remarks, lines: b.lines, discount: b.discount }));
       sendSuccess(req, res, result, 'The order was placed.', 201);
     }),
     editOrder: asyncHandler(async (req, res) => {
       const b = req.body as z.output<typeof editOrderBodySchema>;
-      sendSuccess(req, res, await refusing(() => u.edit.execute(actorOf(req), requiredParam(req.params, 'id'), { remarks: b.remarks, lines: b.lines })), 'The order was changed.', 200);
+      sendSuccess(req, res, await refusing(() => u.edit.execute(actorOf(req), requiredParam(req.params, 'id'), { remarks: b.remarks, lines: b.lines, discount: b.discount })), 'The order was changed.', 200);
     }),
     listOrders: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof listOrdersQuerySchema>;

@@ -18,7 +18,7 @@ import { FyBanner } from '@/components/fy-banner';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
-import { cancelOrder, completeOrder, deliveredOf, listOrders, orderValue, type OrderStatus, type OrderView, type OutletType } from '@/lib/marketing';
+import { cancelOrder, completeOrder, deliveredOf, discountLabel, lineValue, listOrders, orderValue, type OrderStatus, type OrderView, type OutletType } from '@/lib/marketing';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { useSessionUser } from '@/lib/session';
 import { createRecord, getRecord, removeRecord, sendNow, updateRecord, useColleagues, useOnline, useRecords, type OutboxRecord } from '@/offline';
@@ -360,16 +360,23 @@ export default function OrdersScreen() {
                 <View style={styles.grow}>
                   <ThemedText type="smallBold">{productName(i.productId)}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">{`Ordered ${i.quantity} × ${formatRupees(i.unitPricePaise)}`}</ThemedText>
+                  {i.discount ? <ThemedText type="small">{`Discount ${discountLabel(i.discount, formatRupees)}`}</ThemedText> : null}
                   {done ? (
                     <ThemedText type="small">{`Supplied ${d.suppliedQty}${d.freeQty > 0 ? ` · Free ${d.freeQty}` : ''}${d.shortQty > 0 ? ` · Not supplied ${d.shortQty}` : ''}`}</ThemedText>
                   ) : (i.freeQty ?? 0) > 0 ? (
                     <ThemedText type="small">{`+ ${i.freeQty} free planned`}</ThemedText>
                   ) : null}
                 </View>
-                <ThemedText type="smallBold">{formatRupees(done ? d.suppliedQty * i.unitPricePaise : i.amountPaise)}</ThemedText>
+                <ThemedText type="smallBold">{formatRupees(lineValue(i, done))}</ThemedText>
               </View>
             );
           })}
+          {detail.discount ? (
+            <View style={styles.spread}>
+              <ThemedText type="small">{`Order discount (${discountLabel(detail.discount, formatRupees)})`}</ThemedText>
+              <ThemedText type="small">{`− ${formatRupees(detail.orderDiscountPaise ?? 0)}`}</ThemedText>
+            </View>
+          ) : null}
           <View style={styles.spread}>
             <ThemedText type="smallBold">{detail.status === 'DONE' && !infoOnly ? 'Ordered total' : 'Total'}</ThemedText>
             <ThemedText type="smallBold">{formatRupees(detail.totalAmountPaise)}</ThemedText>

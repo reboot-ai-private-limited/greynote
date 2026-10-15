@@ -31,7 +31,7 @@ class FakeOrders implements OrderRepositoryPort {
   async list(f: OrderFilter) {
     return this.rows.filter((o) => (!f.userIds || f.userIds.includes(o.userId)) && (!f.status || o.status === f.status) && (!f.outlet || (o.outlet.type === f.outlet.type && o.outlet.id === f.outlet.id)));
   }
-  async update(id: string, change: { items: Order['items']; totalAmountPaise: number; remarks: string | null; original?: { items: Order['items']; totalAmountPaise: number } }, by: string, at: Date, ifEditedAt: Date | null) {
+  async update(id: string, change: { items: Order['items']; totalAmountPaise: number; discount: Order['discount']; orderDiscountPaise: number; remarks: string | null; original?: { items: Order['items']; totalAmountPaise: number } }, by: string, at: Date, ifEditedAt: Date | null) {
     const o = this.rows.find((r) => r.id === id);
     if (!o || o.status !== 'PLACED' || (o.editedAt ?? null) !== ifEditedAt) return false;
     const { original, ...rest } = change;
@@ -247,5 +247,47 @@ describe('orders', () => {
     expect(changed.items[0]).toMatchObject({ quantity: 9, freeQty: 2 });
     const done = await finish.execute(acct, serverId, 'DONE');
     expect(done.items[0]).toMatchObject({ suppliedQty: 9, freeQty: 2 });
+  });
+
+  describe('discounts', () => {
+    const dist = { type: 'DISTRIBUTOR' as const, id: 'dist1' };
+    const two = [{ productId: 'prod1', quantity: 10, unitPricePaise: 10_000 }, { productId: 'prod2', quantity: 5, unitPricePaise: 10_000 }];
+
+    it('the office discounts one line by percent or a flat amount, and the total is the sum of the nets', async () => {
+      const { serverId } = await place.executeFor(acct, 'mr1', order({ outlet: dist, lines: [{ ...two[0]!, discount: { type: 'PERCENT', percent: 10 } }, { ...two[1]!, discount: { type: 'FIXED', amountPaise: 5_000 } }] }));
+      const o = (await orders.findById(serverId))!;
+      expect(o.items.map((i) => [i.amountPaise, i.netAmountPaise])).toEqual([[100_000, 90_000], [50_000, 45_000]]);
+      expect(o.totalAmountPaise).toBe(135_000);
+    });
+
+    it('an order discount comes off the subtotal after line discounts and is shared into the lines exactly', async () => {
+      const { serverId } = await place.executeFor(acct, 'mr1', order({ outlet: dist, lines: [{ ...two[0]!, discount: { type: 'PERCENT', percent: 10 } }, two[1]!], discount: { type: 'FIXED', amountPaise: 1_400 } }));
+      const o = (await orders.findById(serverId))!;
+      expect(o.orderDiscountPaise).toBe(1_400);
+      expect(o.items.map((i) => i.netAmountPaise)).toEqual([89_100, 49_500]);
+      expect(o.totalAmountPaise).toBe(138_600);
+      const pct = (await orders.findById((await place.executeFor(acct, 'mr1', order({ outlet: dist, lines: two, discount: { type: 'PERCENT', percent: 2.5 } }))).serverId))!;
+      expect(pct.totalAmountPaise).toBe(150_000 - 3_750);
+      expect(pct.items.reduce((n, i) => n + (i.netAmountPaise ?? 0), 0)).toBe(pct.totalAmountPaise);
+    });
+
+    it('an employee’s own order never carries a discount; a chemist order cannot have one; a flat amount over the line or order is refused', async () => {
+      const { serverId } = await place.execute(mr1, order({ lines: [{ ...two[0]!, discount: { type: 'PERCENT', percent: 50 } }], discount: { type: 'PERCENT', percent: 50 } }));
+      expect((await orders.findById(serverId))?.totalAmountPaise).toBe(100_000);
+      expect(await code(place.executeFor(acct, 'mr1', order({ outlet: { type: 'CHEMIST', id: 'chem1' }, lines: [{ ...two[0]!, discount: { type: 'PERCENT', percent: 5 } }] })))).toBe(STOCK_CODES.invalidPayload);
+      expect(await code(place.executeFor(acct, 'mr1', order({ outlet: dist, lines: [{ ...two[0]!, discount: { type: 'FIXED', amountPaise: 100_001 } }] })))).toBe(STOCK_CODES.invalidPayload);
+      expect(await code(place.executeFor(acct, 'mr1', order({ outlet: dist, lines: two, discount: { type: 'FIXED', amountPaise: 150_001 } })))).toBe(STOCK_CODES.invalidPayload);
+    });
+
+    it('Admin or the Accountant add a discount while editing; Done values the supplied units at the net, a flat discount shrinking with the supply', async () => {
+      const { serverId } = await place.executeFor(acct, 'mr1', order({ outlet: dist, lines: two }));
+      const edited = await edit.execute(admin, serverId, { remarks: null, lines: [{ ...two[0]!, discount: { type: 'FIXED', amountPaise: 20_000 } }, two[1]!], discount: { type: 'PERCENT', percent: 10 } });
+      // 100000 − 20000 = 80000, 50000; subtotal 130000; −10% = 13000.
+      expect(edited.totalAmountPaise).toBe(117_000);
+      const done = await finish.execute(acct, serverId, 'DONE', [{ productId: 'prod1', suppliedQty: 5, freeQty: 0 }]);
+      // prod1 net 72000 × 5/10 = 36000; prod2 net 45000 in full.
+      expect(done.suppliedAmountPaise).toBe(36_000 + 45_000);
+      expect(done.totalAmountPaise).toBe(117_000);
+    });
   });
 });

@@ -940,3 +940,7 @@ Decision-log 2026-10-14 (Routes entry). **Done (API + web + docs, unit-tested; n
 ## Employee changes the day (2026-10-14)
 
 Decision-log 2026-10-14 (last entry). **Done (API + web + docs, unit-tested):** every field employee changes the day's working type, work with and doctors with `POST /planning/daily/plan` while the plan is editable (replaces `team-plan`; routes and remarks stay the Monthly Plan's, a manager's routes follow the people they work with); the first change keeps the Monthly Plan's version (`plannedFrom`) and flags the day `changedFromMonthly` in the approval preview and `GET /team/plans`; back to the original clears it. Phone docs updated (`dailyplan.md` section 1a, `monthlyplan.md`, `team.md`); phone code open. **Open:** browser check of the approval preview; no migration (the new field is optional).
+
+## Discounts on distributor orders (2026-10-15)
+
+Decision-log 2026-10-15. **Done (API + web + phone read-only + docs, unit-tested):** line and order discounts (percent or flat) by Admin/Accountant, net flows into totals, primary/secondary, dues and reports. **Open:** browser and phone check.

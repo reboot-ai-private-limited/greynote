@@ -1,3 +1,4 @@
+import type { DiscountDto } from '@greynote/contracts';
 /** Reports' narrow views of the modules below it; their public contracts satisfy these structurally. */
 export interface OrderRecord {
   id: string;
@@ -9,8 +10,10 @@ export interface OrderRecord {
   suppliedAmountPaise?: number | null;
   originalItems?: Array<{ productId: string; quantity: number; unitPricePaise: number }> | null;
   originalTotalAmountPaise?: number | null;
+  discount?: DiscountDto | null;
+  orderDiscountPaise?: number;
   remarks: string | null;
-  items: Array<{ productId: string; quantity: number; unitPricePaise: number; amountPaise: number; suppliedQty?: number | null; freeQty?: number }>;
+  items: Array<{ productId: string; quantity: number; unitPricePaise: number; amountPaise: number; suppliedQty?: number | null; freeQty?: number; discount?: DiscountDto | null; netAmountPaise?: number }>;
   completedBy: string | null;
   completedAt: Date | null;
 }

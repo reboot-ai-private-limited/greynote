@@ -30,3 +30,7 @@ The *Monthly stock* tab (opening / closing counts per chemist and distributor) i
 ## 3. Refs
 
 [`LLD/sales-and-orders.md`](../LLD/sales-and-orders.md), [`LLD/sync.md`](../LLD/sync.md), sign-off E1, G1.
+
+## Discounts (2026-10-15)
+
+The office may discount a distributor order (per line and/or the whole order). The MR cannot set one (the field is ignored on `POST /sales/orders`). `GET /sales/orders[/:id]` items carry `discount` (`{type:'PERCENT',percent}` or `{type:'FIXED',amountPaise}`), `netAmountPaise` and, on a Done order, `suppliedNetPaise`; the order carries `discount` and `orderDiscountPaise`. `amountPaise` is still ordered × price (gross); **`totalAmountPaise`, `suppliedAmountPaise` and everything counted from them are net.** The phone shows "Discount 5% off" under a line, the line at its net, and an "Order discount" row. Done: ✅ (read only).

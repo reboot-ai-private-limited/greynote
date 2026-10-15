@@ -2316,3 +2316,14 @@ an unpaid leave stuck at the manager is neither deducted nor absent; the first p
 **Assumed (confirm with the client):** an approver still decides each day as before (changing the type needs no extra approval of its own); a manager who works with several people gets the union of their routes, not their own; a manager working with someone with no plan that day can't save until they pick someone else or work alone; if the month is approved again after a day was changed, the changed day keeps the employee's version and `plannedFrom` is not refreshed; TA and DA follow the type and routes the plan has when the report is approved.
 
 **Open:** phone app: docs updated, no code. Browser check of the approval preview.
+
+## 2026-10-15 — Discounts on distributor orders
+
+**Decision:**
+- **Admin and the Accountant can discount a distributor order**, when they add it for an employee or change it while it is Placed: **per line** (percent, or a flat amount off) and/or **on the whole order** (percent, or a flat amount off). A "partial order" discount is simply line discounts on some lines. **A chemist order never carries a discount** (information only); an employee's own order never does either (ignored).
+- **Order of work:** the line discount comes off first; the order discount is worked out on the subtotal after line discounts and shared into the lines in proportion (remainder to the largest line), so every line has a **net** and the order total is the sum of the nets.
+- **Net is the value everywhere:** `totalAmountPaise`, primary and secondary achievement, targets roll-ups, reports, distributor dues all use the net. A Done order values each line at its net for the units supplied (net × supplied ÷ ordered, so a flat discount shrinks with a part supply). Free units stay unpriced.
+- A flat amount may not exceed its line (or, for the order, the subtotal after line discounts); a percentage is above 0 and at most 100 with at most two decimals. No limit or approval step; the edit trail (`editedBy`, `editedAt`, the kept original order) is the audit.
+- The MR sees the discount and the net on the phone, read only.
+
+**Open:** migration not needed (older orders read net = gross); browser and phone check pending.

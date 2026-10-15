@@ -30,12 +30,20 @@ export const missingQuerySchema = z.object({ month: monthSchema });
 
 // ---- Orders
 
+/** A discount: a percentage (up to two decimals) or a flat amount in paise. Only the office may send one, on a distributor order. */
+export const discountSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('PERCENT'), percent: z.number().gt(0).max(100).refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6, 'At most two decimals.') }),
+  z.object({ type: z.literal('FIXED'), amountPaise: paiseSchema.refine((v) => v > 0, 'Must be more than zero.') }),
+]);
+
 const orderLineSchema = z.object({
   productId: objectIdSchema,
   quantity: z.number().int('Whole units only.').min(1).max(1_000_000),
   unitPricePaise: paiseSchema,
   /** Units to give free on top: the office's (an employee's own order ignores it). */
   freeQty: z.number().int('Whole units only.').min(0).max(1_000_000).default(0),
+  /** Discount on this line (the office's; an employee's own order ignores it). */
+  discount: discountSchema.nullish(),
 });
 
 /** Body of `POST /sales/orders` and payload of an `ORDER` sync record. Amounts are worked out by the server. */
@@ -46,6 +54,8 @@ export const placeOrderBodySchema = z
     orderDate: calendarDateSchema.optional(),
     remarks: z.string().trim().max(1000).nullish().transform((v) => v || null),
     lines: z.array(orderLineSchema).min(1).max(200),
+    /** Discount on the whole order (the office's). */
+    discount: discountSchema.nullish(),
   })
   .refine((b) => new Set(b.lines.map((l) => l.productId)).size === b.lines.length, { message: 'A product appears twice.', path: ['lines'] });
 
@@ -57,6 +67,8 @@ export const editOrderBodySchema = z
   .object({
     remarks: z.string().trim().max(1000).nullish().transform((v) => v || null),
     lines: z.array(orderLineSchema).min(1).max(200),
+    /** Discount on the whole order (the office's). */
+    discount: discountSchema.nullish(),
   })
   .refine((b) => new Set(b.lines.map((l) => l.productId)).size === b.lines.length, { message: 'A product appears twice.', path: ['lines'] });
 

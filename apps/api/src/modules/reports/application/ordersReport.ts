@@ -43,9 +43,11 @@ export class OrdersReport {
     const [by] = order.completedBy ? await this.identity.getUserSummaries([order.completedBy]) : [];
     return {
       ...row!,
-      items: order.items.map((i) => ({ productId: i.productId, productName: product.get(i.productId)?.name ?? UNKNOWN, sku: product.get(i.productId)?.sku ?? '', quantity: i.quantity, unitPricePaise: i.unitPricePaise, amountPaise: i.amountPaise, suppliedQty: order.status === 'DONE' ? (i.suppliedQty ?? i.quantity) : null, freeQty: i.freeQty ?? 0 })),
+      items: order.items.map((i) => ({ productId: i.productId, productName: product.get(i.productId)?.name ?? UNKNOWN, sku: product.get(i.productId)?.sku ?? '', quantity: i.quantity, unitPricePaise: i.unitPricePaise, amountPaise: i.amountPaise, discount: i.discount ?? null, netAmountPaise: i.netAmountPaise ?? i.amountPaise, suppliedQty: order.status === 'DONE' ? (i.suppliedQty ?? i.quantity) : null, freeQty: i.freeQty ?? 0 })),
       original: order.originalItems ? order.originalItems.map((i) => ({ productId: i.productId, productName: product.get(i.productId)?.name ?? UNKNOWN, quantity: i.quantity, unitPricePaise: i.unitPricePaise })) : null,
       originalTotalAmountPaise: order.originalTotalAmountPaise ?? null,
+      discount: order.discount ?? null,
+      orderDiscountPaise: order.orderDiscountPaise ?? 0,
       completedBy: by ? { id: by.id, name: by.name } : null,
     };
   }

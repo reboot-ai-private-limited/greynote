@@ -99,3 +99,7 @@ Adds `secondary_amount_paise` (units × the product's PTR when entered; null wit
 ## 2026-10-14 — part supply, free units
 
 `orders.items[]` gains `supplied_qty` (null until Done, then 0..quantity) and `free_qty` (default 0); `orders` gains `supplied_amount_paise` (null until Done). Nothing existing is rewritten: a Done order with nulls reads as fully supplied. Aggregations count units as supplied + free and rupees as supplied × price.
+
+## 2026-10-15 — discounts
+
+`orders.items[]` gains `discount` ({type, percent | amount_paise}), `net_amount_paise` and `supplied_net_paise` (null until Done); `orders` gains `discount` and `order_discount_paise`. `amount_paise` stays gross; `total_amount_paise` is the net total. Nothing is rewritten: a missing net reads as the gross.

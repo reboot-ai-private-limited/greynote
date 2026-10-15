@@ -1,3 +1,5 @@
+import type { DiscountDto } from './sales.js';
+
 /** One order in the Orders report: who placed it, for which outlet, how much, and where it stands. Money is whole paise. */
 export interface ReportOrderRowDto {
   id: string;
@@ -9,7 +11,7 @@ export interface ReportOrderRowDto {
   outlet: { id: string; name: string };
   mr: { id: string; name: string; employeeCode: string };
   itemCount: number;
-  /** What the MR ordered, at the order's prices. */
+  /** What the order comes to at the order's prices, after any discounts. */
   totalAmountPaise: number;
   /** A Done order: what was delivered, free units excluded (the total when no supply was recorded); `null` while Placed or once Cancelled. This is what primary counts. */
   suppliedAmountPaise: number | null;
@@ -25,8 +27,12 @@ export interface ReportOrderItemDto {
   /** Ordered. */
   quantity: number;
   unitPricePaise: number;
-  /** Ordered × price. */
+  /** Ordered × price, before the discount. */
   amountPaise: number;
+  /** Discount given on this line; `null` if none. */
+  discount: DiscountDto | null;
+  /** The line after its own discount and its share of the order discount. */
+  netAmountPaise: number;
   /** A Done order: units supplied of `quantity` (all of it when no supply was recorded); `null` otherwise. */
   suppliedQty: number | null;
   /** Units to be given (a Done order: given) free on top; not charged, in no amount. `0` if none. */
@@ -38,6 +44,10 @@ export interface ReportOrderDetailDto extends ReportOrderRowDto {
   /** What the employee originally ordered, kept when the office first changed the order; `null` if it was never changed. Lines match `items` by product (a line the office removed or added is only on one side). */
   original: Array<{ productId: string; productName: string; quantity: number; unitPricePaise: number }> | null;
   originalTotalAmountPaise: number | null;
+  /** Discount on the whole order; `null` if none. */
+  discount: DiscountDto | null;
+  /** What the order discount came to in rupees (already inside the lines' nets). */
+  orderDiscountPaise: number;
   completedBy: { id: string; name: string } | null;
 }
 

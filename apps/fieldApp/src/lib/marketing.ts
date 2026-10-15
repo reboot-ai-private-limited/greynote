@@ -61,7 +61,7 @@ export type OrderView = {
   outlet: { type: OutletType; id: string };
   orderDate: string;
   status: OrderStatus;
-  /** What the MR ordered, at the order's prices. */
+  /** What the order comes to at the order's prices, after any discounts. */
   totalAmountPaise: number;
   /** A Done order: what was delivered, free units excluded. `null`/missing while Placed, once Cancelled, and on older Done orders (read as the total). */
   suppliedAmountPaise?: number | null;
@@ -70,6 +70,9 @@ export type OrderView = {
   /** What the employee originally ordered, kept the first time the office changed the order; `null`/missing if never changed. */
   originalItems?: OrderItem[] | null;
   originalTotalAmountPaise?: number | null;
+  /** The office's discount on the whole order; `totalAmountPaise` is already after it. */
+  discount?: Discount | null;
+  orderDiscountPaise?: number;
   /** Set (a user id) when Admin or the Accountant added the order for the employee. */
   createdBy?: string | null;
   /** Set when Admin or the Accountant last changed a Placed order's lines or remarks. */
@@ -87,6 +90,21 @@ export type OrderItem = {
   suppliedQty?: number | null;
   /** Units given on top, free: never charged. `0`/missing = none. */
   freeQty?: number;
+  /** The office's discount on this line (distributor orders); `null`/missing = none. */
+  discount?: Discount | null;
+  /** The line after its discount and its share of the order discount; missing = `amountPaise`. */
+  netAmountPaise?: number;
+  /** A Done order: the net for the units supplied; missing = read from `netAmountPaise`. */
+  suppliedNetPaise?: number | null;
+};
+export type Discount = { type: 'PERCENT'; percent: number } | { type: 'FIXED'; amountPaise: number };
+/** A discount in words for a line or the order: "5% off" or "₹50 off". */
+export const discountLabel = (d: Discount | null | undefined, rupees: (paise: number) => string) => (!d ? null : d.type === 'PERCENT' ? `${d.percent}% off` : `${rupees(d.amountPaise)} off`);
+/** What a line comes to, after discounts; a Done order's line for the units that arrived. */
+export const lineValue = (i: OrderItem, done: boolean) => {
+  const net = i.netAmountPaise ?? i.amountPaise;
+  if (!done) return net;
+  return i.suppliedNetPaise ?? Math.round((net * (i.suppliedQty ?? i.quantity)) / i.quantity);
 };
 
 /** What a line was delivered as: units that arrived, units given free, and units not supplied. Missing supply reads as delivered in full. */

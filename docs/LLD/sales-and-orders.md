@@ -225,3 +225,11 @@ Public contract additions: `listMissingStock(month, userIds?)` (the Admin view, 
 ## Planned free units, original order kept (2026-10-14)
 
 `PlaceOrderUseCase.execute` forces `freeQty: 0` (employee); `executeFor` and `EditOrderUseCase` keep the office's `freeQty` on the line (`suppliedQty` stays null until Done). `EditOrderUseCase` passes `original` (the order's lines and total) to `OrderRepositoryPort.update` only when `originalItems` is not yet set, and updates with `ifEditedAt` so two editors cannot overwrite each other. `FinishOrderUseCase.complete` delivers an unnamed line in full with its planned free units. The Orders report detail returns `original` and `originalTotalAmountPaise`.
+
+## Discounts (2026-10-15)
+
+- `domain/orderDiscount.ts`: `Discount = PERCENT {percent} | FIXED {amountPaise}`; `netLines()` takes each line's gross and line discount, then the order discount on the subtotal after line discounts, shared pro rata with the rounding remainder on the largest line; `suppliedNet(net, qty, supplied)` scales a line's net to the units supplied.
+- `OrderItem` gains `discount`, `netAmountPaise` (absent on older orders: read as `amountPaise`, see `netOf`) and `suppliedNetPaise` (set by Done); `Order` gains `discount` and `orderDiscountPaise`. **`amountPaise` stays the gross; `totalAmountPaise` is now the net total** (the schema check is "sum of nets = total"). `deliveredOf().amountPaise` and `suppliedAmountPaise` are nets.
+- `priceLines(master, outlet, lines, orderDiscount)` is shared by Place (on behalf), Edit; refuses discounts on a chemist outlet and flat amounts above their base (`INVALID_PAYLOAD`). `PlaceOrderUseCase.execute` (employee) strips discounts like it strips free units.
+- Aggregations: DONE side `DELIVERED_PAISE = ifNull(items.suppliedNetPaise, supplied × unitPrice)`; PLACED side and `sumAmount(productId)` use `ifNull(items.netAmountPaise, items.amountPaise)`.
+- API: `discount` on the order body and on each line (`{type:'PERCENT',percent}` or `{type:'FIXED',amountPaise}`) for `POST /sales/orders/on-behalf` and `PATCH /sales/orders/:id`; reads return them with `netAmountPaise` and `orderDiscountPaise`.

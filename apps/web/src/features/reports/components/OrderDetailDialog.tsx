@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReportOrderItemDto } from '@greynote/contracts';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -9,6 +10,11 @@ import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import { useOrderDetail } from '../hooks/useOrders';
 import { ORDER_STATUS_LABEL, ORDER_STATUS_TONE } from '../lib/orders';
 import { EditOrderDialog } from './OrderFormDialog';
+
+const discountText = (d: NonNullable<ReportOrderItemDto['discount']>) => (d.type === 'PERCENT' ? `${d.percent}% off` : `${formatMoney(d.amountPaise)} off`);
+
+/** A Done line for the units that arrived: its net, scaled by supplied ÷ ordered. */
+const suppliedNetOf = (i: ReportOrderItemDto) => ((i.suppliedQty ?? i.quantity) >= i.quantity ? i.netAmountPaise : Math.round((i.netAmountPaise * (i.suppliedQty ?? i.quantity)) / i.quantity));
 
 /** One order in full: who, where, when, and each product with its quantity, price and amount. */
 export function OrderDetailDialog({ id, onClose }: { id: string; onClose: () => void }) {
@@ -21,12 +27,16 @@ export function OrderDetailDialog({ id, onClose }: { id: string; onClose: () => 
       {query.isLoading ? (
         <p className="text-sm text-text-muted">Loading…</p>
       ) : query.error || !o ? (
-        <p role="alert" className="text-sm text-danger-fg">{query.error ? toErrorState(query.error).message : 'Order not found.'}</p>
+        <p role="alert" className="text-sm text-danger-fg">
+          {query.error ? toErrorState(query.error).message : 'Order not found.'}
+        </p>
       ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={ORDER_STATUS_TONE[o.status]}>{ORDER_STATUS_LABEL[o.status]}</Badge>
-            <span className="text-sm text-text-muted">{o.outletType === 'DISTRIBUTOR' ? 'Distributor' : 'Chemist'} · placed by {o.mr.name} ({o.mr.employeeCode})</span>
+            <span className="text-sm text-text-muted">
+              {o.outletType === 'DISTRIBUTOR' ? 'Distributor' : 'Chemist'} · placed by {o.mr.name} ({o.mr.employeeCode})
+            </span>
           </div>
           {o.completedAt ? (
             <p className="text-sm text-text-muted">
@@ -38,12 +48,28 @@ export function OrderDetailDialog({ id, onClose }: { id: string; onClose: () => 
             <table className="w-full text-sm">
               <thead className="bg-surface-subtle text-xs uppercase tracking-wide text-text-subtle">
                 <tr>
-                  <th scope="col" className="px-3 py-2 text-left font-medium">Product</th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">{o.status === 'DONE' ? 'Ordered' : 'Qty'}</th>
-                  {o.status === 'DONE' ? <th scope="col" className="px-3 py-2 text-right font-medium">Supplied</th> : null}
-                  {o.status === 'DONE' || hasFree ? <th scope="col" className="px-3 py-2 text-right font-medium">Free</th> : null}
-                  <th scope="col" className="px-3 py-2 text-right font-medium">Price</th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">Amount</th>
+                  <th scope="col" className="px-3 py-2 text-left font-medium">
+                    Product
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">
+                    {o.status === 'DONE' ? 'Ordered' : 'Qty'}
+                  </th>
+                  {o.status === 'DONE' ? (
+                    <th scope="col" className="px-3 py-2 text-right font-medium">
+                      Supplied
+                    </th>
+                  ) : null}
+                  {o.status === 'DONE' || hasFree ? (
+                    <th scope="col" className="px-3 py-2 text-right font-medium">
+                      Free
+                    </th>
+                  ) : null}
+                  <th scope="col" className="px-3 py-2 text-right font-medium">
+                    Price
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">
+                    Amount
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -51,14 +77,23 @@ export function OrderDetailDialog({ id, onClose }: { id: string; onClose: () => 
                   <tr key={item.productId} className="border-t border-border">
                     <td className="px-3 py-2">
                       {item.productName} <span className="text-xs text-text-subtle">{item.sku}</span>
+                      {item.discount ? <span className="ml-1 text-xs text-success-fg">{discountText(item.discount)}</span> : null}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">{item.quantity}</td>
                     {o.status === 'DONE' ? <td className="px-3 py-2 text-right tabular-nums">{item.suppliedQty ?? item.quantity}</td> : null}
                     {o.status === 'DONE' || hasFree ? <td className="px-3 py-2 text-right tabular-nums">{item.freeQty}</td> : null}
                     <td className="px-3 py-2 text-right tabular-nums">{formatMoney(item.unitPricePaise)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatMoney(o.status === 'DONE' ? (item.suppliedQty ?? item.quantity) * item.unitPricePaise : item.amountPaise)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatMoney(o.status === 'DONE' ? suppliedNetOf(item) : item.netAmountPaise)}</td>
                   </tr>
                 ))}
+                {o.discount ? (
+                  <tr className="border-t border-border text-text-muted">
+                    <td className="px-3 py-2" colSpan={o.status === 'DONE' ? 5 : hasFree ? 4 : 3}>
+                      Order discount ({discountText(o.discount)}), already in the amounts above
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">− {formatMoney(o.orderDiscountPaise)}</td>
+                  </tr>
+                ) : null}
                 <tr className="border-t border-border font-medium">
                   <td className="px-3 py-2" colSpan={o.status === 'DONE' ? 5 : hasFree ? 4 : 3}>
                     {o.status === 'DONE' ? 'Delivered' : 'Total'}
@@ -82,7 +117,9 @@ export function OrderDetailDialog({ id, onClose }: { id: string; onClose: () => 
             </div>
           ) : null}
           {o.status === 'DONE' && o.suppliedAmountPaise !== null && o.suppliedAmountPaise !== o.totalAmountPaise ? (
-            <p className="text-sm text-text-muted">Ordered {formatMoney(o.totalAmountPaise)}; {formatMoney(o.suppliedAmountPaise)} was delivered. Free units are not charged.</p>
+            <p className="text-sm text-text-muted">
+              Ordered {formatMoney(o.totalAmountPaise)}; {formatMoney(o.suppliedAmountPaise)} was delivered. Free units are not charged.
+            </p>
           ) : null}
           {o.remarks ? <p className="text-sm text-text-muted">Remarks: {o.remarks}</p> : null}
           {o.status === 'PLACED' ? (
