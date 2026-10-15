@@ -15,6 +15,9 @@ import { useDesignations } from '@/features/people/hooks/useMasterData';
 import { useUsers } from '@/features/people/hooks/useUsers';
 import { ORG_PAGE_SIZE, useOrgChildren } from '../hooks/useOrg';
 
+/** Designations whose team shows without a click: everything above RSM. */
+const OPEN_BY_DEFAULT: ReadonlySet<string> = new Set(['NSM', 'ZSM']);
+
 /**
  * The whole reporting tree, one level at a time: the people at the top first, a person's direct reports only when their row is opened,
  * and "Show more" when a level has more than a page. Search lists matches flat; each name opens the employee.
@@ -165,7 +168,8 @@ function OrgRow({
   depth: number;
   label: (m: { designationId: string | null }) => string;
 }) {
-  const [open, setOpen] = useState(false);
+  // Branches above RSM start open, so the page lands showing everyone down to the RSMs; RSMs and below open on click.
+  const [open, setOpen] = useState(OPEN_BY_DEFAULT.has(label(node)));
   return (
     <li>
       <div
