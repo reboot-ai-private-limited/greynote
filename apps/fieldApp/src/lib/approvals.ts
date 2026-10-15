@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './api';
+import { ApiError, apiGet, apiPost } from './api';
 
 /**
  * The approval endpoints a manager uses (LLD approval.md): the inbox (what I can decide), the team list (my
@@ -122,13 +122,27 @@ export const bulkDecide = (decision: 'APPROVE' | 'REJECT', items: { id: string; 
     { auth: true },
   );
 
-/** Whether the caller has any team request at all — what decides if the Team tab shows (no backend flag exists). */
-export async function probeHasTeam(): Promise<boolean> {
+/**
+ * Whether the caller is a manager (anyone whose designation is above MR, with or without a team yet) — what decides if the Team
+ * tab shows. The backend has no flag, so two signals are combined: any team request at all (inbox or team), or the planning
+ * API's own answer. `GET /planning/daily/team-suggest` refuses a non-manager with `403` before it looks at anything else, and
+ * refuses a manager's own id with `400` (not in their team), so asking about oneself tells the two apart. When the backend adds
+ * a flag, this function is the one thing to swap.
+ */
+export async function probeHasTeam(userId: string): Promise<boolean> {
   const [inbox, team] = await Promise.all([
     apiGet<Page<ApprovalItem>>('/approvals/inbox?pageSize=1'),
     apiGet<Page<ApprovalItem>>('/approvals/team?scope=all&pageSize=1'),
   ]);
-  return inbox.total > 0 || team.total > 0;
+  if (inbox.total > 0 || team.total > 0) return true;
+  try {
+    // Only the answer's kind matters, so the date is just any valid one.
+    await apiGet(`/planning/daily/team-suggest?date=${new Date().toISOString().slice(0, 10)}&userIds=${userId}`, { auth: true });
+    return true;
+  } catch (err) {
+    if (err instanceof ApiError) return err.status !== 403;
+    throw err;
+  }
 }
 
 /* ───────────────────────── the record behind a request ───────────────────────── */

@@ -80,6 +80,7 @@ export default function TeamPlansScreen() {
             </View>
             {r.dailyPlan ? <Pill text={label(r.dailyPlan.status)} accent={STATUS_ACCENT[r.dailyPlan.status] ?? 'slate'} /> : <Pill text="No plan" accent="red" />}
           </View>
+          {r.dailyPlan?.changedFromMonthly ? <Pill text="Changed from monthly" accent="amber" /> : null}
           <ThemedText type="small" themeColor="textSecondary">{`Tour plan ${prettyMonth(data?.month ?? day.slice(0, 7))}: ${r.monthlyPlanStatus ? label(r.monthlyPlanStatus) : 'none'}`}</ThemedText>
           <ThemedText type="small" themeColor="primary" onPress={() => router.push({ pathname: '/team-member', params: { id: r.user.id } })}>
             View person →

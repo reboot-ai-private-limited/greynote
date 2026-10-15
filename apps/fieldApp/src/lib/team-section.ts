@@ -114,7 +114,8 @@ export const getAllTeamToday = (p: { date?: string; scope?: TeamScopeFilter } = 
 
 export type TeamPlanRow = {
   user: TeamUser;
-  dailyPlan: { status: string; workingType: string; routeCount: number; doctorCount: number } | null;
+  /** `changedFromMonthly`: the employee changed the day the Monthly Plan wrote (missing from an older server). */
+  dailyPlan: { status: string; workingType: string; routeCount: number; doctorCount: number; changedFromMonthly?: boolean } | null;
   monthlyPlanStatus: string | null;
 };
 

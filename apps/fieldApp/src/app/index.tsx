@@ -4,7 +4,6 @@ import { ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandLogo } from '@/components/brand-logo';
-import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { ApiError } from '@/lib/api';
@@ -54,12 +53,6 @@ export default function SplashScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <BrandLogo width={240} />
-        <ThemedText type="subtitle" style={styles.appName}>
-          My Greynote
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          Field Force Sales Automation
-        </ThemedText>
         <ActivityIndicator style={styles.spinner} color={theme.primary} />
       </SafeAreaView>
     </ThemedView>
@@ -76,9 +69,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.two,
     paddingHorizontal: Spacing.four,
-  },
-  appName: {
-    textAlign: 'center',
   },
   spinner: {
     marginTop: Spacing.five,
