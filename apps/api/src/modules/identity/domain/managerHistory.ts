@@ -1,9 +1,9 @@
 /**
  * Every change of an employee's manager, dated by the month it takes effect, so a report for a past month can use the team
  * as it was then (decision-log 2026-10-06, K18). Append-only. A change made by editing the profile takes the whole month it is
- * made in; one made by a promotion takes the promotion's month.
+ * made in; one made by a promotion takes the promotion's month; a bulk move takes the month it is made in.
  */
-export type ManagerChangeSource = 'PROFILE_EDIT' | 'PROMOTION';
+export type ManagerChangeSource = 'PROFILE_EDIT' | 'PROMOTION' | 'BULK_REASSIGN';
 
 export interface ManagerChange {
   id: string;

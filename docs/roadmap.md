@@ -960,3 +960,7 @@ Decision-log 2026-10-15; design in [`LLD/notifications.md`](LLD/notifications.md
 ## Organisation tree page (2026-10-15, done, not browser-checked)
 
 `/organisation` (Admin, HR; HR nav group) and `GET /identity/org/children`. The tree loads one level at a time, 25 a page with "Show more", so it stays light as the company grows; search lists matches flat; each name opens the employee. Unit-tested. **Open:** browser check; a "Not placed" group (no manager, not at the top designation) was suggested and **not built**; levels sort by name, not designation.
+
+## Bulk manager change (2026-10-15, done, not browser-checked)
+
+Tick several people on the employee **Team** tab or the **Organisation** tree, then "Move to a new manager…". `POST /identity/users/manager-changes` checks everyone first (the single edit's rules, now shared in `ManagerRules`) and moves all or none; a refusal lists each person and why. History source `BULK_REASSIGN`, effective from the current month. Unit-tested. **Open:** browser check; no Inbox message to the moved people or the new manager yet; no choice of effective month.

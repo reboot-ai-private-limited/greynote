@@ -8,6 +8,7 @@ import type { ListUsersUseCase } from '../application/usecases/listUsers.usecase
 import type { GetUserDetailUseCase } from '../application/usecases/getUserDetail.usecase.js';
 import type { GetReportingLineUseCase } from '../application/usecases/getReportingLine.usecase.js';
 import type { ListOrgChildrenUseCase } from '../application/usecases/listOrgChildren.usecase.js';
+import type { ReassignManagerUseCase } from '../application/usecases/reassignManager.usecase.js';
 import type { CreateUserUseCase } from '../application/usecases/createUser.usecase.js';
 import type { UpdateUserUseCase } from '../application/usecases/updateUser.usecase.js';
 import type { UploadUserDocumentUseCase } from '../application/usecases/uploadUserDocument.usecase.js';
@@ -54,6 +55,14 @@ export function makeListOrgChildrenController(useCase: ListOrgChildrenUseCase): 
     const query = req.query as unknown as { parentId?: string; page: number; pageSize: number };
     const result = await useCase.execute(query.parentId ?? null, { page: query.page, pageSize: query.pageSize });
     sendSuccess(req, res, result, 'Organisation level listed.', 200);
+  });
+}
+
+export function makeReassignManagerController(useCase: ReassignManagerUseCase): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    if (!req.user) throw AppError.unauthenticated();
+    const result = await useCase.execute(req.user.sub, req.body);
+    sendSuccess(req, res, result, 'Manager changed.', 200);
   });
 }
 

@@ -123,6 +123,7 @@ import {
   makeGetUserDetailController,
   makeGetReportingLineController,
   makeListOrgChildrenController,
+  makeReassignManagerController,
   makeListUsersController,
   makeRemoveEmployeePhotoController,
   makeRemoveUserDocumentController,
@@ -134,6 +135,7 @@ import {
   makeUploadUserDocumentController,
 } from './interface/users.controller.js';
 import { buildUsersRouter } from './interface/users.route.js';
+import { ReassignManagerUseCase } from './application/usecases/reassignManager.usecase.js';
 import { buildOrgRouter } from './interface/org.route.js';
 import { ListOrgChildrenUseCase } from './application/usecases/listOrgChildren.usecase.js';
 import { buildWorkWithRouter } from './interface/workWith.route.js';
@@ -333,6 +335,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const getDirectReports = new GetDirectReportsUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getDownline = new GetDownlineUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getReportingLine = new GetReportingLineUseCase((id) => getManagerChain.execute(id), (id) => getDownline.execute(id));
+  const reassignManager = new ReassignManagerUseCase(userRepository, employeeProfileRepository, designationRepository, managerHistoryRepository, currentMonth);
   const listOrgChildren = new ListOrgChildrenUseCase(userRepository, roleRepository, employeeProfileRepository);
   const isFieldRole = new IsFieldRoleUseCase(userRepository, roleRepository);
   const isBlocked = new IsBlockedUseCase(userRepository);
@@ -359,6 +362,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     list: makeListUsersController(listUsers),
     detail: makeGetUserDetailController(getUserDetail),
     reporting: makeGetReportingLineController(getReportingLine),
+    reassignManager: makeReassignManagerController(reassignManager),
     create: makeCreateUserController(createUser),
     update: makeUpdateUserController(updateUser),
     uploadDocument: makeUploadUserDocumentController(uploadUserDocument),

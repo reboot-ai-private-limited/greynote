@@ -2368,3 +2368,7 @@ The web employee page gets a read-only **Team** tab: the managers above (top dow
 ## 2026-10-15: Organisation tree is lazy, not paged as a whole
 
 A company-wide tree cannot use page numbers, so each level is its own paged read (`/identity/org/children`) and a branch loads when opened. Search is flat. Reuses the Team tab's person row. Also fixed in the Team tab: the "not active" badge compared the status in capitals and showed on everyone.
+
+## 2026-10-15: Moving a team to a new manager is all-or-nothing, from the current month
+
+Bulk move validates every person with the same rules as a single edit and changes no one if any fails, so a half-moved team never exists. Dated from the current month like a profile edit (no month picker). No notification yet.

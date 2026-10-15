@@ -1,6 +1,6 @@
 'use client';
 
-import type { CreateUserDto, PhotoDto, UpdateUserDto, UserDocumentDto, UserListItemDto } from '@greynote/contracts';
+import type { CreateUserDto, ReassignManagerDto, ReassignManagerResultDto, PhotoDto, UpdateUserDto, UserDocumentDto, UserListItemDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { identityApi, type ListUsersQuery } from '@/lib/api/endpoints/identity';
 import { timing } from '@/lib/hooks/timing';
@@ -164,5 +164,14 @@ export function useRemovePhoto(userId: string) {
     call: (token) => identityApi.removePhoto(token, userId),
     invalidates: [keys.users.all()],
     successMessage: 'Photo removed.',
+  });
+}
+
+/** Move several employees under one manager. The caller shows a refusal's per-person problems, so no error toast here. */
+export function useReassignManager(onDone: (result: ReassignManagerResultDto) => void) {
+  return useApiMutation<ReassignManagerDto, ReassignManagerResultDto>({
+    call: (token, body) => identityApi.reassignManager(token, body),
+    invalidates: [keys.users.all(), keys.org.all()],
+    onSuccess: onDone,
   });
 }

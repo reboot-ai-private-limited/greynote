@@ -6,6 +6,7 @@ import type { ManagerHistoryRepositoryPort } from '../../domain/managerHistory.r
 import type { DesignationRepositoryPort } from '../../domain/designation.repository.port.js';
 import type { PayBandRepositoryPort } from '../../domain/payBand.repository.port.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
+import { ManagerRules } from './managerRules.js';
 import type { User, UserSummary } from '../../domain/user.entity.js';
 import { toUserSummary } from '../../domain/user.entity.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
@@ -53,15 +54,14 @@ export interface UpdateUserInput {
   status?: 'inactive';
 }
 
-/** Real chains are ~5 levels; this only bounds a walk through already-corrupted data. */
-const MAX_CHAIN_DEPTH = 50;
-
 /** An incoming value wins, even `null` (a clear); only a missing key keeps what is stored. */
 function pick<T>(incoming: T | null | undefined, stored: T | null | undefined): T | null {
   return incoming !== undefined ? incoming : (stored ?? null);
 }
 
 export class UpdateUserUseCase {
+  private readonly managerRules: ManagerRules;
+
   constructor(
     private readonly userRepository: UserRepositoryPort,
     private readonly roleRepository: RoleRepositoryPort,
@@ -72,7 +72,9 @@ export class UpdateUserUseCase {
     private readonly managerHistory: ManagerHistoryRepositoryPort,
     /** The current month (`YYYY-MM`) in the business timezone. */
     private readonly currentMonth: () => Promise<string>,
-  ) {}
+  ) {
+    this.managerRules = new ManagerRules(employeeProfileRepository, designationRepository);
+  }
 
   async execute(targetUserId: string, input: UpdateUserInput): Promise<UserSummary> {
     const existing = await this.userRepository.findById(targetUserId);
@@ -94,8 +96,8 @@ export class UpdateUserUseCase {
     if (input.managerId !== undefined) {
       const manager = await this.userRepository.findById(input.managerId);
       if (!manager) throw AppError.badRequest('Unknown manager.', { field: 'managerId' });
-      await this.assertNoReportingLoop(targetUserId, input.managerId);
-      await this.assertManagerIsHigher(targetUserId, input.designationId, input.managerId);
+      await this.managerRules.assertNoReportingLoop(targetUserId, input.managerId);
+      await this.managerRules.assertManagerIsHigher(targetUserId, input.designationId, input.managerId);
     }
 
     const existingProfile = await this.employeeProfileRepository.findByUserId(targetUserId);
@@ -170,43 +172,5 @@ export class UpdateUserUseCase {
     }
 
     return toUserSummary(updated, role.name, touchesProfile ? mergedProfile : existingProfile);
-  }
-
-  /**
-   * A manager must sit at a higher designation than the employee (levels may be skipped: an RSM can report to an NSM when there is no ZSM).
-   * Only checked when both designations are known; an Admin or HR user used as a manager has none and is left alone.
-   */
-  private async assertManagerIsHigher(employeeId: string, newDesignationId: string | undefined, managerId: string): Promise<void> {
-    const employeeDesignationId = newDesignationId ?? (await this.employeeProfileRepository.findByUserId(employeeId))?.designationId ?? null;
-    const managerDesignationId = (await this.employeeProfileRepository.findByUserId(managerId))?.designationId ?? null;
-    if (!employeeDesignationId || !managerDesignationId) return;
-    const [employee, manager] = await Promise.all([this.designationRepository.findById(employeeDesignationId), this.designationRepository.findById(managerDesignationId)]);
-    if (employee && manager && manager.level <= employee.level) {
-      throw AppError.badRequest(`A ${manager.name} cannot be the manager of a ${employee.name}: choose someone at a higher designation.`, { field: 'managerId' });
-    }
-  }
-
-  /**
-   * Walks upward from the proposed manager. Reaching the employee means they would report to
-   * themselves; that includes the trivial case of choosing themselves. A loop that does not
-   * involve the employee (bad data from before this check) ends the walk without an error.
-   */
-  private async assertNoReportingLoop(employeeId: string, managerId: string): Promise<void> {
-    const seen = new Set<string>();
-    let current: string | null = managerId;
-    for (let depth = 0; current !== null && depth < MAX_CHAIN_DEPTH; depth++) {
-      if (current === employeeId) {
-        throw AppError.badRequest(
-          current === managerId
-            ? 'An employee cannot report to themselves.'
-            : 'That manager already reports to this employee, directly or through the chain.',
-          { field: 'managerId' },
-        );
-      }
-      if (seen.has(current)) return;
-      seen.add(current);
-      const profile = await this.employeeProfileRepository.findByUserId(current);
-      current = profile?.managerId ?? null;
-    }
   }
 }

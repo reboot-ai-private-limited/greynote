@@ -12,6 +12,7 @@ import {
   documentParamsSchema,
   documentTypeBodySchema,
   listUsersQuerySchema,
+  reassignManagerBodySchema,
   resetPasswordBodySchema,
   unblockUserBodySchema,
   updateUserBodySchema,
@@ -23,6 +24,7 @@ import type {
   makeGetUserDetailController,
   makeGetReportingLineController,
   makeListUsersController,
+  makeReassignManagerController,
   makeRemoveEmployeePhotoController,
   makeRemoveUserDocumentController,
   makeSetEmployeePhotoController,
@@ -112,6 +114,16 @@ openApiRegistry.registerPath({
 });
 
 openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/identity/users/manager-changes',
+  tags: ['Identity / Users'],
+  summary: 'Admin/HR: move up to 100 employees under one new manager. All checked first (higher designation, no loop); any problem and nothing moves (`details.problems`)',
+  security: [{ bearerAuth: [] }],
+  request: { body: { content: { 'application/json': { schema: reassignManagerBodySchema } } } },
+  responses: { 200: { description: '{ moved, unchanged }' }, 400: { description: 'Nothing moved: `details.problems` lists each person' } },
+});
+
+openApiRegistry.registerPath({
   method: 'get',
   path: '/api/identity/users/{id}/reporting',
   tags: ['Identity / Users'],
@@ -187,6 +199,7 @@ export function buildUsersRouter(controllers: {
   list: ReturnType<typeof makeListUsersController>;
   detail: ReturnType<typeof makeGetUserDetailController>;
   reporting: ReturnType<typeof makeGetReportingLineController>;
+  reassignManager: ReturnType<typeof makeReassignManagerController>;
   create: ReturnType<typeof makeCreateUserController>;
   update: ReturnType<typeof makeUpdateUserController>;
   uploadDocument: ReturnType<typeof makeUploadUserDocumentController>;
@@ -212,6 +225,13 @@ export function buildUsersRouter(controllers: {
     requireRole('ADMIN', 'HR'),
     validate({ params: userIdParamsSchema }),
     controllers.detail,
+  );
+  router.post(
+    '/manager-changes',
+    authenticate(),
+    requireRole('ADMIN', 'HR'),
+    validate({ body: reassignManagerBodySchema }),
+    controllers.reassignManager,
   );
   router.get(
     '/:id/reporting',

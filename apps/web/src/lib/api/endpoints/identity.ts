@@ -24,6 +24,8 @@ import type {
   PromotionPreviewDto,
   PromotionRequestDto,
   OrgNodeDto,
+  ReassignManagerDto,
+  ReassignManagerResultDto,
   ReportingLineDto,
   PromotionStatus,
   PendingDeviceDto,
@@ -90,6 +92,10 @@ export const identityApi = {
   /** One level of the organisation tree: the people under `parentId`, or the top when it is left out. */
   orgChildren: (token: string, query: { parentId?: string; page: number; pageSize: number }, signal?: AbortSignal) =>
     request<PaginatedDto<OrgNodeDto>>('/identity/org/children', { token, query: { ...query }, signal }),
+
+  /** Move several employees under one manager; all checked first, a refusal moves no one. */
+  reassignManager: (token: string, body: ReassignManagerDto) =>
+    request<ReassignManagerResultDto>('/identity/users/manager-changes', { method: 'POST', token, body }),
 
   updateUser: (token: string, id: string, body: UpdateUserDto) =>
     request<UserListItemDto>(`/identity/users/${id}`, { method: 'PATCH', token, body }),

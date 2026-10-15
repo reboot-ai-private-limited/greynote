@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { PersonLink } from './PersonLink';
+import { ReportSelection, RowCheck } from './ReportSelection';
 import { useDesignations } from '../hooks/useMasterData';
 import { useReportingLine } from '../hooks/useUsers';
 
@@ -35,7 +36,7 @@ export function TeamTab({ user }: { user: UserDetailDto }) {
   const direct = childrenOf.get(user.id) ?? [];
 
   return (
-    <>
+    <ReportSelection>
       <Card
         title="Reports to"
         description="From the top of the reporting line down to this person. Change the manager in Profile → Work."
@@ -78,7 +79,7 @@ export function TeamTab({ user }: { user: UserDetailDto }) {
           </ul>
         )}
       </Card>
-    </>
+    </ReportSelection>
   );
 }
 
@@ -99,6 +100,7 @@ function TeamNode({
         className="flex items-center gap-2 py-2 pr-5"
         style={{ paddingLeft: `${12 + (member.depth - 1) * 20}px` }}
       >
+        <RowCheck id={member.id} name={member.name} />
         {kids.length > 0 ? (
           <button
             type="button"

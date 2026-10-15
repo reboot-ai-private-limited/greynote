@@ -525,3 +525,22 @@ export interface OrgNodeDto extends ReportingMemberDto {
   /** How many people report directly to them. */
   directCount: number;
 }
+
+/** `POST /identity/users/manager-changes`: move several employees under one manager. */
+export interface ReassignManagerDto {
+  userIds: string[];
+  managerId: string;
+}
+
+export interface ReassignManagerResultDto {
+  moved: Array<{ userId: string; name: string; fromManagerId: string | null }>;
+  /** Already under that manager. */
+  unchanged: Array<{ userId: string; name: string }>;
+}
+
+/** One person the move was refused for, in the `400`'s `data.problems`. */
+export interface ReassignProblemDto {
+  userId: string;
+  name: string;
+  message: string;
+}

@@ -18,7 +18,7 @@ const managerChangeSchema = new Schema<ManagerChangeDocument>(
     managerId: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
     previousManagerId: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
     effectiveFrom: { type: String, required: true },
-    source: { type: String, required: true, enum: ['PROFILE_EDIT', 'PROMOTION'] },
+    source: { type: String, required: true, enum: ['PROFILE_EDIT', 'PROMOTION', 'BULK_REASSIGN'] },
     promotionId: { type: Schema.Types.ObjectId, default: null },
     createdBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
   },

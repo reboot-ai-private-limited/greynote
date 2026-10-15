@@ -10,6 +10,7 @@ import { ListToolbar, SearchInput } from '@/components/ui/ListToolbar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
+import { ReportSelection, RowCheck } from '@/features/people/components/ReportSelection';
 import { PersonLink } from '@/features/people/components/PersonLink';
 import { useDesignations } from '@/features/people/hooks/useMasterData';
 import { useUsers } from '@/features/people/hooks/useUsers';
@@ -44,13 +45,15 @@ export function OrganisationScreen() {
           label="Find an employee"
         />
       </ListToolbar>
-      <Card>
-        {term ? (
-          <SearchResults term={term} label={label} />
-        ) : (
-          <Level parentId={null} depth={0} label={label} />
-        )}
-      </Card>
+      <ReportSelection>
+        <Card>
+          {term ? (
+            <SearchResults term={term} label={label} />
+          ) : (
+            <Level parentId={null} depth={0} label={label} />
+          )}
+        </Card>
+      </ReportSelection>
     </>
   );
 }
@@ -176,6 +179,7 @@ function OrgRow({
         className="flex items-center gap-2 py-2 pr-5"
         style={{ paddingLeft: `${12 + depth * 20}px` }}
       >
+        <RowCheck id={node.id} name={node.name} />
         {node.directCount > 0 ? (
           <button
             type="button"

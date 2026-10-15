@@ -29,6 +29,7 @@ export const keys = {
     reporting: (id: string) => [...keys.users.all(), 'reporting', id] as const,
   },
   org: {
+    all: () => ['org', fy()] as const,
     children: (parentId: string | null, page: number) => ['org', fy(), 'children', parentId, page] as const,
   },
   employeeDrafts: {
