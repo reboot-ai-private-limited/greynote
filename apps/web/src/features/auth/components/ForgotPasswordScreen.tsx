@@ -7,6 +7,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { toast } from '@/components/ui/toast';
 import { ApiError, NetworkError } from '@/lib/api/ApiError';
 import { authApi } from '@/lib/api/endpoints/auth';
@@ -123,9 +124,8 @@ export function ForgotPasswordScreen() {
               />
             </FormField>
             <FormField label="New password" htmlFor="newPassword">
-              <Input
+              <PasswordInput
                 id="newPassword"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
@@ -133,9 +133,8 @@ export function ForgotPasswordScreen() {
               />
             </FormField>
             <FormField label="New password again" htmlFor="again" error={error ?? undefined}>
-              <Input
+              <PasswordInput
                 id="again"
-                type="password"
                 value={again}
                 onChange={(e) => setAgain(e.target.value)}
                 autoComplete="new-password"

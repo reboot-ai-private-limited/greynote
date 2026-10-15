@@ -7,6 +7,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { ApiError, NetworkError } from '@/lib/api/ApiError';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { destinationAfterLogin } from '@/lib/auth/next-path';
@@ -97,9 +98,8 @@ export function LoginScreen() {
             />
           </FormField>
           <FormField label="Password" htmlFor="password" error={error ?? undefined}>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
