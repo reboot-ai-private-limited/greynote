@@ -1,6 +1,6 @@
-import { Image } from 'expo-image';
 import { useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Spacing } from '@/constants/theme';
@@ -8,6 +8,7 @@ import type { Visual } from '@/lib/marketing';
 
 import { PrimaryButton } from './primary-button';
 import { ThemedText } from './themed-text';
+import { ZoomableImage } from './zoomable-image';
 
 type Props = {
   items: Visual[];
@@ -30,13 +31,15 @@ export function VisualViewer({ items, startIndex, onClose, onOpenFile }: Props) 
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(startIndex);
+  const [zoomed, setZoomed] = useState(false);
   const last = items.length - 1;
 
   const onEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width));
 
   return (
     <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
-      <View style={styles.root}>
+      {/* A Modal is a separate native window on Android: gestures inside it need their own root view. */}
+      <GestureHandlerRootView style={styles.root}>
         <FlatList
           // A new size (rotation) lays the pages out again, on the picture being looked at.
           key={`${Math.round(width)}x${Math.round(height)}`}
@@ -44,6 +47,8 @@ export function VisualViewer({ items, startIndex, onClose, onOpenFile }: Props) 
           keyExtractor={(v) => v.id}
           horizontal
           pagingEnabled
+          // A zoomed picture is dragged around with the finger; the list waits until it is back to normal size.
+          scrollEnabled={!zoomed}
           showsHorizontalScrollIndicator={false}
           initialScrollIndex={Math.min(index, last)}
           getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
@@ -51,7 +56,7 @@ export function VisualViewer({ items, startIndex, onClose, onOpenFile }: Props) 
           renderItem={({ item }) => (
             <View style={{ width, height }}>
               {isImage(item) ? (
-                <Image source={{ uri: item.fileUrl }} style={styles.fill} contentFit="contain" accessibilityLabel={item.title} />
+                <ZoomableImage uri={item.fileUrl} width={width} height={height} label={item.title} onZoomChange={setZoomed} />
               ) : (
                 <View style={styles.fileCard}>
                   <ThemedText type="subtitle" style={styles.light}>
@@ -85,14 +90,13 @@ export function VisualViewer({ items, startIndex, onClose, onOpenFile }: Props) 
             ))}
           </View>
         ) : null}
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
-  fill: { width: '100%', height: '100%' },
   light: { color: '#fff' },
   dim: { color: 'rgba(255,255,255,0.7)' },
   fileCard: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, padding: Spacing.four },
