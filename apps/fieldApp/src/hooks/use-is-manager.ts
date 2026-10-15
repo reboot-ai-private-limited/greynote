@@ -5,9 +5,9 @@ import { isOnline, onReconnect } from '@/offline/connectivity';
 import { store } from '@/offline/store';
 
 /**
- * Whether the signed-in employee manages anyone, so the Team tab shows (PRD §6.1). The backend has no
- * "has direct reports" flag, so this asks the approvals lists once per sign-in: any team request, past or
- * present, means a manager. The answer is kept on the phone so the tab is steady offline and across launches;
+ * Whether the signed-in employee is a manager (designation above MR, team or not), so the Team tab shows (PRD §6.1). The
+ * backend has no flag, so this asks once per sign-in (see `probeHasTeam`: any team request, or the planning API's own
+ * answer). The answer is kept on the phone so the tab is steady offline and across launches;
  * it is refreshed whenever the phone reconnects. When the backend adds a flag, `probeHasTeam` is the one thing to swap.
  */
 let current: { userId: string | null; value: boolean } = { userId: null, value: false };
@@ -28,7 +28,7 @@ const publish = (userId: string | null, value: boolean) => {
 async function refresh(userId: string) {
   if (!isOnline()) return;
   try {
-    const value = await probeHasTeam();
+    const value = await probeHasTeam(userId);
     await store.setMeta(KEY(userId), value ? '1' : '0');
     if (startedFor === userId) publish(userId, value);
   } catch {

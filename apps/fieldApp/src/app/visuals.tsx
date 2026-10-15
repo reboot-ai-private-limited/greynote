@@ -53,6 +53,8 @@ export default function VisualsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Each picture's width over height once it has loaded (kept between 0.6 and 2.2 so a very long picture cannot take over the screen).
+  const [ratios, setRatios] = useState<Record<string, number>>({});
   const doctorList = useCachedFetch(`doctorVisuals:${doctorId ?? 'none'}`, () => (doctorId ? listDoctorVisuals(doctorId) : Promise.resolve(null)));
 
   const doctors = master.data?.doctors ?? [];
@@ -193,9 +195,18 @@ export default function VisualsScreen() {
                   accessibilityLabel={doctorId ? `${v.title}${locked ? ', already chosen' : ''}` : `Open ${v.title}`}
                   onPress={() => (doctorId ? toggle(v) : view(v))}>
                   <ThemedView type="backgroundElement" style={[styles.card, locked && styles.locked]}>
-                    <View style={styles.media}>
+                    <View style={[styles.media, kindOf(v) === 'image' && { aspectRatio: ratios[v.id] ?? 16 / 9 }]}>
                       {kindOf(v) === 'image' ? (
-                        <Image source={{ uri: v.fileUrl }} style={styles.thumb} contentFit="cover" />
+                        // The card takes the picture's own proportions once it has loaded, so it is shown whole, not cropped.
+                        <Image
+                          source={{ uri: v.fileUrl }}
+                          style={styles.thumb}
+                          contentFit="contain"
+                          onLoad={(e) => {
+                            const { width: w, height: h } = e.source;
+                            if (w > 0 && h > 0) setRatios((r) => (r[v.id] ? r : { ...r, [v.id]: Math.max(0.6, Math.min(2.2, w / h)) }));
+                          }}
+                        />
                       ) : (
                         <View style={[styles.thumb, styles.fileThumb]}>
                           <ThemedText type="subtitle" themeColor="textSecondary">
@@ -245,7 +256,6 @@ export default function VisualsScreen() {
           startIndex={viewing.index}
           onClose={() => setViewing(null)}
           onOpenFile={(v) => void open(v)}
-          caption={(v) => `${CATEGORY[v.category]} · ${productName(v.productId)}`}
         />
       ) : null}
     </ScreenShell>

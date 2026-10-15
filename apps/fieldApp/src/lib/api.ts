@@ -170,4 +170,4 @@ export const apiPost = <T>(path: string, body: unknown, opts?: Options) =>
   request<T>('POST', path, body, opts);
 export const apiPatch = <T>(path: string, body: unknown, opts?: Options) =>
   request<T>('PATCH', path, body, { auth: true, ...opts });
-export const apiDelete = <T>(path: string, opts?: Options) => request<T>('DELETE', path, undefined, { auth: true, ...opts });
+export const apiDelete = <T>(path: string, opts?: Options, body?: unknown) => request<T>('DELETE', path, body, { auth: true, ...opts });

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -47,9 +47,16 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
       .filter((d) => routeIds.includes(d.routeId) && !owedIds.has(d.id))
       .map((d) => row(d.id))
       .sort((a, b) => a.name.localeCompare(b.name));
+    // A manager's doctors from the people they work with are not in the phone's own list (the server holds them): they are shown
+    // as ticked rows with no details, so they can be seen and unticked.
+    const known = new Set(doctors.map((d) => d.id));
+    const others = picked
+      .filter((id) => !known.has(id) && !owedIds.has(id))
+      .map((id) => ({ id, name: 'Team member’s doctor', sub: 'From the people you work with' }));
+    const mine = readOnly ? onRoutes.filter((r) => picked.includes(r.id)) : onRoutes;
     return {
       owedRows: owed.map((o) => ({ ...row(o.doctorId), since: o.carriedFrom })),
-      pickRows: readOnly ? onRoutes.filter((r) => picked.includes(r.id)) : onRoutes,
+      pickRows: [...mine, ...others],
     };
   }, [master.data, territory.data, routeIds, owed, picked, readOnly]);
 
@@ -57,8 +64,9 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
 
   const toggle = (id: string) => onChange(picked.includes(id) ? picked.filter((p) => p !== id) : [...picked, id]);
 
+  // Its own column with a gap: inside a wrapper (such as a form field) the rows would otherwise sit flush against each other.
   return (
-    <>
+    <View style={styles.list}>
       <ThemedText type="smallBold">Doctors to call</ThemedText>
 
       {owedRows.map((r) => (
@@ -118,11 +126,12 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
           </Pressable>
         );
       })}
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  list: { gap: Spacing.two },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

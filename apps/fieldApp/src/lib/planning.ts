@@ -76,10 +76,33 @@ export type MonthlyPlanView = StateView & { planMonth: string; entries: (PlanDay
 export const EDITABLE: (PlanStatus | null)[] = [null, 'DRAFT', 'REJECTED', 'WITHDRAWN', 'REOPENED'];
 
 /*
- * A Daily Plan is written by the server from the approved Monthly Plan (docs/mobile/dailyplan.md): its working type, routes,
- * work-with and remarks are read-only to the employee, and there is no endpoint to save them. The employee only sets the day's
- * doctors and submits it. Changes to an approved day are made by the manager or Admin (amend), never requested in the app.
+ * A Daily Plan starts from the approved Monthly Plan (docs/mobile/dailyplan.md). While it is editable the employee can change
+ * its working type, work with and doctors (`saveDailyPlan`); the routes and remarks stay the Monthly Plan's and the server sets
+ * the routes. Changes to an approved day are made by the manager or Admin (amend), never requested in the app.
  */
+
+/**
+ * Changes the day's working type, work with and doctors together (POST /planning/daily/plan). Routes and remarks are not sent:
+ * the server sets the routes (the Monthly Plan's, or for a manager those of the people named) and returns the whole plan.
+ * `doctorIds` is at most 50 for an MR and 100 for a manager.
+ */
+export const saveDailyPlan = (planDate: string, day: { workingType: WorkingType; workWith: string[]; doctorIds: string[] }) =>
+  apiPost<DailyPlanDetail>('/planning/daily/plan', { planDate, ...day }, { auth: true });
+
+/** One team member's routes and doctors for a date: from their Daily Plan, else their Monthly Plan, else nothing. */
+export type TeamSuggestPerson = {
+  userId: string;
+  name: string;
+  source: 'DAILY_PLAN' | 'MONTHLY_PLAN' | 'NONE';
+  planStatus?: PlanStatus | null;
+  routeIds: string[];
+  doctorIds: string[];
+};
+export type TeamSuggestion = { planDate: string; people: TeamSuggestPerson[]; routeIds: string[]; doctorIds: string[] };
+
+/** Manager only: the routes and doctors of the people they would work with (at most 20, all in their downline). */
+export const getTeamSuggest = (date: string, userIds: string[]) =>
+  apiGet<TeamSuggestion>(`/planning/daily/team-suggest?date=${date}&userIds=${userIds.join(',')}`, { auth: true });
 
 export const submitDailyPlan = (id: string) =>
   apiPost<DailyPlanView>(`/planning/daily/${id}/submit`, {}, { auth: true });
@@ -146,9 +169,12 @@ export type PlanAmendment = { by: string; at: string; reason: string; previous: 
  * the manager's amendments, and the two windows that let a late submit through. Fetched online only.
  */
 export type DailyPlanDetail = DailyPlanView & {
-  /** `MONTHLY` = inherited from an approved Monthly Plan (read-only, submit as it is); `MANUAL` = written by the MR. */
+  /** `MONTHLY` = the day is as the Monthly Plan wrote it; `MANUAL` = the employee changed it (not overwritten when the month is approved again). */
   source: 'MONTHLY' | 'MANUAL';
   amendments: PlanAmendment[];
+  /** True once the employee changed the day the Monthly Plan wrote; `plannedFrom` is what the Monthly Plan said (doctors are not part of it). */
+  changedFromMonthly?: boolean;
+  plannedFrom?: PlanDay | null;
 };
 
 export type MonthlyPlanDetail = MonthlyPlanView;
