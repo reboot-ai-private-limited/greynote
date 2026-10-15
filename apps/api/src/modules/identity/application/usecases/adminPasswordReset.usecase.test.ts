@@ -5,8 +5,8 @@ import { ConfirmAdminPasswordResetUseCase, RequestAdminPasswordResetUseCase } fr
 
 const NOW = new Date('2026-10-15T10:00:00Z');
 
-function build(opts: { config?: Record<string, string>; failMail?: boolean } = {}) {
-  const config: Record<string, string> = { PASSWORD_RESET_OWNER_EMAIL: 'owner@example.com', PASSWORD_RESET_DAILY_LIMIT: '3', ...opts.config };
+function build(opts: { ownerEmail?: string | undefined; dailyLimit?: number; failMail?: boolean } = {}) {
+  const ownerEmail = 'ownerEmail' in opts ? opts.ownerEmail : 'owner@example.com';
   const accounts: Record<string, { id: string; employeeCode: string; name: string; status: string; roleId: string; passwordHash: string }> = {
     GHC001: { id: 'u1', employeeCode: 'GHC001', name: 'Admin One', status: 'active', roleId: 'admin', passwordHash: 'old' },
     GHC002: { id: 'u2', employeeCode: 'GHC002', name: 'Field', status: 'active', roleId: 'field', passwordHash: 'old' },
@@ -50,13 +50,7 @@ function build(opts: { config?: Record<string, string>; failMail?: boolean } = {
       sent.push(m);
     },
   };
-  const configReader = {
-    get: async (k: string) => {
-      if (!(k in config)) throw AppError.internal('INTERNAL', { reason: 'CONFIG_KEY_MISSING', key: k });
-      return config[k]!;
-    },
-  };
-  const deps = { users, roles, requests, hasher, mailer, config: configReader, now: () => NOW } as never;
+  const deps = { users, roles, requests, hasher, mailer, ownerEmail, dailyLimit: opts.dailyLimit ?? 3, now: () => NOW } as never;
   const sessions = { revokeAllForUser: async (id: string) => void revoked.push(id) };
   return {
     request: new RequestAdminPasswordResetUseCase(deps),
@@ -85,14 +79,14 @@ describe('RequestAdminPasswordResetUseCase', () => {
     expect(t.rows).toHaveLength(0);
   });
 
-  it('sends nothing when the owner email is NONE', async () => {
-    const t = build({ config: { PASSWORD_RESET_OWNER_EMAIL: 'NONE' } });
+  it('sends nothing when no owner email is set', async () => {
+    const t = build({ ownerEmail: undefined });
     await t.request.execute('GHC001');
     expect(t.sent).toHaveLength(0);
   });
 
-  it('stops after the daily limit from Settings', async () => {
-    const t = build({ config: { PASSWORD_RESET_DAILY_LIMIT: '2' } });
+  it('stops after the daily limit', async () => {
+    const t = build({ dailyLimit: 2 });
     for (let i = 0; i < 4; i++) await t.request.execute('GHC001');
     expect(t.sent).toHaveLength(2);
   });

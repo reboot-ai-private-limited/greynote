@@ -56,14 +56,17 @@ const schema = z.object({
 
   /**
    * Outgoing mail (Gmail SMTP with an App password) for the Admin password-reset code. Optional at boot, like Cloudinary: without
-   * it no mail is sent and the reset request is logged as an error. Where the code goes (the owner's address) and the daily cap are
-   * Settings, not environment. Never commit the password.
+   * it no mail is sent and the reset request is logged as an error. The owner's address and the daily cap are below. Never commit the password.
    */
   SMTP_HOST: z.string().min(1).optional(),
   SMTP_PORT: z.coerce.number().int().positive().optional(),
   SMTP_USER: z.string().min(1).optional(),
   SMTP_PASSWORD: z.string().min(1).optional(),
   MAIL_FROM: z.string().min(1).optional(),
+  /** Where the reset code is sent: the owner's address. Unset = admin self-service reset is off. Whoever reads this mailbox can take over any Admin account. */
+  PASSWORD_RESET_OWNER_EMAIL: z.string().email().optional(),
+  /** Most reset codes sent in any 24 hours, for all Admins together. */
+  PASSWORD_RESET_DAILY_LIMIT: z.coerce.number().int().min(1).max(20).default(3),
 });
 
 const parsed = schema.safeParse(process.env);

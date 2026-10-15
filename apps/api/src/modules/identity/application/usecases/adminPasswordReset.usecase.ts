@@ -2,7 +2,6 @@ import { randomInt } from 'node:crypto';
 import { AppError } from '@/shared/errors/AppError.js';
 import { logger } from '@/shared/logging/logger.js';
 import type { MailerPort } from '@/shared/mail/mailer.port.js';
-import { parsePositiveInt, readConfigOr, type ConfigReader } from '@/shared/config/readConfig.js';
 import type { PasswordHasherPort } from '../../domain/passwordHasher.port.js';
 import type { PasswordResetRequestRepositoryPort } from '../../domain/passwordResetRequest.repository.port.js';
 import type { RoleRepositoryPort } from '../../domain/role.repository.port.js';
@@ -10,16 +9,11 @@ import type { User } from '../../domain/user.entity.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
 import type { UserSessionRepositoryPort } from '../../domain/userSession.repository.port.js';
 
-export const OWNER_EMAIL_KEY = 'PASSWORD_RESET_OWNER_EMAIL';
-export const DAILY_LIMIT_KEY = 'PASSWORD_RESET_DAILY_LIMIT';
 export const OTP_TTL_MINUTES = 10;
 export const MAX_WRONG_CODES = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const INVALID_CODE = 'That code is not valid or has expired. Ask for a new one.';
-
-/** The email address in Settings, or null when the feature is off (`NONE`). */
-const parseOwnerEmail = (value: string): string | null => (value.trim().toUpperCase() === 'NONE' || value.trim() === '' ? null : value.trim());
 
 interface Deps {
   users: UserRepositoryPort;
@@ -27,7 +21,10 @@ interface Deps {
   requests: PasswordResetRequestRepositoryPort;
   hasher: PasswordHasherPort;
   mailer: MailerPort;
-  config: ConfigReader;
+  /** The owner's address (`PASSWORD_RESET_OWNER_EMAIL` in the environment); undefined = the feature is off. */
+  ownerEmail: string | undefined;
+  /** `PASSWORD_RESET_DAILY_LIMIT` in the environment. */
+  dailyLimit: number;
   now?: () => Date;
 }
 
@@ -40,9 +37,9 @@ async function activeAdmin(deps: Pick<Deps, 'users' | 'roles'>, employeeCode: st
 }
 
 /**
- * An Admin who forgot their password asks for a code. It goes to the owner's address from Settings, never to the requester, and only
+ * An Admin who forgot their password asks for a code. It goes to the owner's address from the environment, never to the requester, and only
  * when the employee ID is an active Admin: any other ID does nothing at all (no code, no email, nothing counted) and gets the same
- * answer. At most `PASSWORD_RESET_DAILY_LIMIT` codes are sent in any 24 hours, for the whole system.
+ * answer. At most `PASSWORD_RESET_DAILY_LIMIT` (environment) codes are sent in any 24 hours, for the whole system.
  */
 export class RequestAdminPasswordResetUseCase {
   private readonly now: () => Date;
@@ -52,20 +49,18 @@ export class RequestAdminPasswordResetUseCase {
   }
 
   async execute(employeeCode: string): Promise<void> {
-    const { users, requests, hasher, mailer, config } = this.deps;
+    const { requests, hasher, mailer, ownerEmail, dailyLimit } = this.deps;
     const admin = await activeAdmin(this.deps, employeeCode);
     if (!admin) return;
 
-    const ownerEmail = await readConfigOr(config, OWNER_EMAIL_KEY, parseOwnerEmail, null);
     if (!ownerEmail) {
-      logger.error({ reason: 'PASSWORD_RESET_OWNER_EMAIL_NOT_SET' }, 'Admin password reset asked for, but no owner email is set in Settings.');
+      logger.error({ reason: 'PASSWORD_RESET_OWNER_EMAIL_NOT_SET' }, 'Admin password reset asked for, but PASSWORD_RESET_OWNER_EMAIL is not set.');
       return;
     }
 
     const now = this.now();
-    const limit = await readConfigOr(config, DAILY_LIMIT_KEY, parsePositiveInt(20), 3);
-    if ((await requests.countCreatedSince(new Date(now.getTime() - DAY_MS))) >= limit) {
-      logger.warn({ reason: 'PASSWORD_RESET_DAILY_LIMIT_REACHED', limit }, 'Admin password reset not sent: daily limit reached.');
+    if ((await requests.countCreatedSince(new Date(now.getTime() - DAY_MS))) >= dailyLimit) {
+      logger.warn({ reason: 'PASSWORD_RESET_DAILY_LIMIT_REACHED', limit: dailyLimit }, 'Admin password reset not sent: daily limit reached.');
       return;
     }
 
@@ -105,7 +100,7 @@ export class ConfirmAdminPasswordResetUseCase {
   }
 
   async execute(input: { employeeCode: string; otp: string; newPassword: string }): Promise<void> {
-    const { users, requests, hasher, sessions, mailer, config } = this.deps;
+    const { users, requests, hasher, sessions, mailer, ownerEmail } = this.deps;
     const invalid = () => AppError.badRequest(INVALID_CODE, { field: 'otp' });
 
     const admin = await activeAdmin(this.deps, input.employeeCode);
@@ -125,7 +120,6 @@ export class ConfirmAdminPasswordResetUseCase {
     await sessions.revokeAllForUser(admin.id, 'PASSWORD_RESET');
     logger.info({ userId: admin.id, reason: 'ADMIN_PASSWORD_RESET' }, 'Admin password reset with an emailed code.');
 
-    const ownerEmail = await readConfigOr(config, OWNER_EMAIL_KEY, parseOwnerEmail, null);
     if (ownerEmail) {
       await mailer
         .send({

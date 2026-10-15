@@ -341,7 +341,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const getDownline = new GetDownlineUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getReportingLine = new GetReportingLineUseCase((id) => getManagerChain.execute(id), (id) => getDownline.execute(id));
   const reassignManager = new ReassignManagerUseCase(userRepository, employeeProfileRepository, designationRepository, managerHistoryRepository, currentMonth);
-  const resetDeps = { users: userRepository, roles: roleRepository, requests: new MongoPasswordResetRequestAdapter(), hasher: passwordHasher, mailer: new SmtpMailer(), config: configProvider };
+  const resetDeps = { users: userRepository, roles: roleRepository, requests: new MongoPasswordResetRequestAdapter(), hasher: passwordHasher, mailer: new SmtpMailer(), ownerEmail: env.PASSWORD_RESET_OWNER_EMAIL, dailyLimit: env.PASSWORD_RESET_DAILY_LIMIT };
   const requestAdminPasswordReset = new RequestAdminPasswordResetUseCase(resetDeps);
   const confirmAdminPasswordReset = new ConfirmAdminPasswordResetUseCase({ ...resetDeps, sessions: userSessionRepository });
   const listOrgChildren = new ListOrgChildrenUseCase(userRepository, roleRepository, employeeProfileRepository);

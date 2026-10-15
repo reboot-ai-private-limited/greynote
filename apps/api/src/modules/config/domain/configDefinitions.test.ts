@@ -64,8 +64,6 @@ const HISTORICAL_DEFAULTS: Record<string, string> = {
   STRIKE_DEDUCTS_SALARY: 'false',
   PUSH_ENABLED: 'true',
   REMINDERS_ENABLED: 'true',
-  PASSWORD_RESET_OWNER_EMAIL: 'NONE',
-  PASSWORD_RESET_DAILY_LIMIT: '3',
   REMINDER_DAILY_FIRST_MINUTES: '120',
   REMINDER_DAILY_SECOND_MINUTES: '30',
   REMINDER_DAILY_AFTER_MINUTES: '30',
@@ -111,7 +109,7 @@ describe('the definitions registry', () => {
 
   it('says what moves for every high-impact setting', () => {
     const high = CONFIG_DEFINITIONS.filter((d) => d.impact === 'HIGH');
-    expect(high.map((d) => d.key).sort()).toEqual(['APPROVAL_MANAGER_ONLY_KINDS', 'BUSINESS_TIMEZONE', 'DAY_START_TIME', 'DCR_APPROVAL_REQUIRED', 'DCR_MISS_BLOCK_ENABLED', 'FY_START_MONTH', 'PASSWORD_RESET_OWNER_EMAIL', 'PTAX_SLABS', 'WEEKLY_OFF_DAY']);
+    expect(high.map((d) => d.key).sort()).toEqual(['APPROVAL_MANAGER_ONLY_KINDS', 'BUSINESS_TIMEZONE', 'DAY_START_TIME', 'DCR_APPROVAL_REQUIRED', 'DCR_MISS_BLOCK_ENABLED', 'FY_START_MONTH', 'PTAX_SLABS', 'WEEKLY_OFF_DAY']);
     for (const d of high) expect(d.impactNote?.length, d.key).toBeGreaterThan(20);
   });
 });
@@ -173,15 +171,5 @@ describe('validateConfigValue', () => {
     expect(validateConfigValue(d, 'NONE,LEAVE').ok).toBe(false);
     for (const bad of ['', ',', 'daily plan', '9LEAVE', 'LEAVE;DCR']) expect(validateConfigValue(d, bad).ok, bad).toBe(false);
     expect(validateConfigValue(d, Array.from({ length: 21 }, (_, i) => `K${i}`).join(',')).ok).toBe(false);
-  });
-});
-
-describe('the EMAIL type', () => {
-  const def = CONFIG_DEFINITIONS.find((d) => d.key === 'PASSWORD_RESET_OWNER_EMAIL')!;
-  it('accepts NONE or an address, lower-cased, and refuses anything else', () => {
-    expect(validateConfigValue(def, ' none ')).toEqual({ ok: true, value: 'NONE' });
-    expect(validateConfigValue(def, 'Owner@Example.com')).toEqual({ ok: true, value: 'owner@example.com' });
-    expect(validateConfigValue(def, 'not an email').ok).toBe(false);
-    expect(validateConfigValue(def, 'a@b').ok).toBe(false);
   });
 });
