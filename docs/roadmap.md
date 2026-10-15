@@ -963,4 +963,4 @@ Decision-log 2026-10-15; design in [`LLD/notifications.md`](LLD/notifications.md
 
 ## Bulk manager change (2026-10-15, done, not browser-checked)
 
-Tick several people on the employee **Team** tab or the **Organisation** tree, then "Move to a new manager…". `POST /identity/users/manager-changes` checks everyone first (the single edit's rules, now shared in `ManagerRules`) and moves all or none; a refusal lists each person and why. History source `BULK_REASSIGN`, effective from the current month. Unit-tested. **Open:** browser check; no Inbox message to the moved people or the new manager yet; no choice of effective month.
+Tick several people on the employee **Team** tab, then "Move to a new manager…". `POST /identity/users/manager-changes` checks everyone first (the single edit's rules, now shared in `ManagerRules`) and moves all or none; a refusal lists each person and why. History source `BULK_REASSIGN`, effective from the current month. Unit-tested. **Open:** browser check; no Inbox message to the moved people or the new manager yet; no choice of effective month.
