@@ -3,8 +3,8 @@
  * page's Territory card and the onboarding Work step. Everything may hold several values; the designation only decides which levels are
  * picked, which are required, and which are just ways to browse. Pure, so it is tested without a browser.
  *
- * - MR: HQs (required) and routes (required). Zones only help to find the HQs.
- * - ASM and RSM: HQs (required) and routes (optional).
+ * - MR: Zone, then its HQs (required) and routes (required). The Zones ticked only list the HQs; the Zones kept are those of the HQs chosen.
+ * - ASM and RSM: Zone, then HQs (required) and routes (optional).
  * - ZSM: Zones (required), HQs optional: none ticked means every HQ of the Zones.
  * - NSM: Zones, optional: none ticked means every Zone. No HQs, no routes.
  */
@@ -25,16 +25,16 @@ const NONE: TerritoryRule = {
 };
 
 const RULES: Record<string, TerritoryRule> = {
-  MR: { zones: 'browse', zonesRequired: false, hqs: 'pick', hqsRequired: true, routes: 'required' },
+  MR: { zones: 'pick', zonesRequired: false, hqs: 'pick', hqsRequired: true, routes: 'required' },
   ASM: {
-    zones: 'browse',
+    zones: 'pick',
     zonesRequired: false,
     hqs: 'pick',
     hqsRequired: true,
     routes: 'optional',
   },
   RSM: {
-    zones: 'browse',
+    zones: 'pick',
     zonesRequired: false,
     hqs: 'pick',
     hqsRequired: true,

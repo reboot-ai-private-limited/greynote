@@ -35,8 +35,9 @@ export function TerritoryCard({ user, readOnly }: { user: UserDetailDto; readOnl
   const zoneName = new Map((zones.data ?? []).map((z) => [z.id, z.name]));
   const hqName = new Map((hqs.data ?? []).map((h) => [h.id, h.name]));
   const hqIds = coverage.data?.hqIds ?? [];
-  const zoneIds =
-    rule.zones === 'pick' ? (coverage.data?.zoneIds ?? []) : zonesOfHqs(hqIds, hqs.data ?? []);
+  const zoneIds = [
+    ...new Set([...(coverage.data?.zoneIds ?? []), ...zonesOfHqs(hqIds, hqs.data ?? [])]),
+  ];
   const names = (ids: readonly string[], map: Map<string, string>) =>
     ids.map((id) => map.get(id) ?? id).join(', ');
 
@@ -93,7 +94,9 @@ function TerritoryForm({
   onDone: () => void;
 }) {
   const hqs = useAllHqs();
-  const [zoneIds, setZoneIds] = useState(rule.zones === 'pick' ? initial.zoneIds : []);
+  const [zoneIds, setZoneIds] = useState(() => [
+    ...new Set([...initial.zoneIds, ...zonesOfHqs(initial.hqIds, hqs.data ?? [])]),
+  ]);
   const [hqIds, setHqIds] = useState(initial.hqIds);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const save = useSetManagerCoverage(user.id, onDone);
@@ -104,7 +107,8 @@ function TerritoryForm({
     // Zones that are only a way to browse HQs are not stored: the HQs carry their Zone.
     save.mutate({
       hqIds: rule.hqs === 'none' ? [] : hqIds,
-      zoneIds: rule.zones === 'pick' ? zoneIds : [],
+      // An MR, ASM or RSM keeps the Zones of their HQs, which the server fills in; a ZSM or NSM sends the Zones picked.
+      zoneIds: rule.hqsRequired ? [] : zoneIds,
     });
   }
 

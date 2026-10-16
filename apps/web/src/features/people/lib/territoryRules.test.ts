@@ -15,7 +15,7 @@ const routes = [
 const sel = (over: Partial<{ zoneIds: string[]; hqIds: string[]; routeIds: string[] }> = {}) => ({ zoneIds: [], hqIds: [], routeIds: [], ...over });
 
 describe('territory rules by designation', () => {
-  it('MR needs HQs and routes; ASM and RSM need HQs; ZSM needs Zones; NSM needs nothing', () => {
+  it('MR needs HQs and routes (Zones are ticked to list the HQs, not required themselves); ASM and RSM need HQs; ZSM needs Zones; NSM needs nothing', () => {
     expect(Object.keys(territoryErrors(territoryRule('MR'), sel()))).toEqual(['hqIds', 'routeIds']);
     expect(Object.keys(territoryErrors(territoryRule('ASM'), sel()))).toEqual(['hqIds']);
     expect(Object.keys(territoryErrors(territoryRule('RSM'), sel({ hqIds: ['a'] })))).toEqual([]);

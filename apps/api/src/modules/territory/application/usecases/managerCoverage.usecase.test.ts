@@ -58,7 +58,7 @@ function setup(mainHq: Record<string, string> = {}) {
     coverage,
     mainHq,
     set: new SetManagerCoverageUseCase(coverage, hqRepo, zoneRepo, directory, userHqs, setMainHq),
-    get: new GetManagerCoverageUseCase(coverage, userHqs),
+    get: new GetManagerCoverageUseCase(coverage, userHqs, hqRepo),
     territory: new GetUserTerritoryUseCase(coverage, userHqs, hqRepo),
     list: new ListManagerCandidatesUseCase(directory, coverage, hqRepo),
   };
@@ -81,13 +81,14 @@ describe('manager coverage', () => {
     await set.execute('mr', { hqIds: ['hqA', 'hqB'], zoneIds: [] }, 'admin');
     expect((await get.execute('mr')).hqIds).toEqual(['hqA', 'hqB']);
     expect(mainHq['mr']).toBe('hqA');
+    expect((await get.execute('mr')).zoneIds).toEqual(['z1']);
     await set.execute('mr', { hqIds: ['hqB', 'hqA'], zoneIds: [] }, 'admin');
     expect(mainHq['mr']).toBe('hqA');
   });
 
   it('reads an employee with no coverage as covering their single HQ', async () => {
     const { get } = setup({ mr: 'hqA' });
-    expect(await get.execute('mr')).toEqual({ userId: 'mr', hqIds: ['hqA'], zoneIds: [] });
+    expect(await get.execute('mr')).toEqual({ userId: 'mr', hqIds: ['hqA'], zoneIds: ['z1'] });
   });
 
   it('refuses an unknown person, an unknown or inactive HQ, and an unknown zone', async () => {

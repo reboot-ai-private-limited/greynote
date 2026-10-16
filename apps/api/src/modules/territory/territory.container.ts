@@ -114,7 +114,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
   };
 
   const managerCoverage = {
-    get: new GetManagerCoverageUseCase(coverageRepository, userHqRepository),
+    get: new GetManagerCoverageUseCase(coverageRepository, userHqRepository, hqRepository),
     set: new SetManagerCoverageUseCase(coverageRepository, hqRepository, zoneRepository, users, userHqRepository, userHq.set),
     territory: new GetUserTerritoryUseCase(coverageRepository, userHqRepository, hqRepository),
   };

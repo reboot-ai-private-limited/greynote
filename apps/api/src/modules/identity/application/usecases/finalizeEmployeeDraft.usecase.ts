@@ -82,7 +82,9 @@ export class FinalizeEmployeeDraftUseCase {
     const top = isTopDesignation(data.work?.designationId ?? null, designations);
     const designation = designations.find((d) => d.id === data.work?.designationId)?.name;
     const hqIds = data.work?.hqIds?.length ? data.work.hqIds : data.work?.hqId ? [data.work.hqId] : [];
-    const zoneIds = data.work?.zoneIds ?? [];
+    // An MR, ASM or RSM keeps the Zones of their HQs (Territory fills them in); a Zone ticked only to list HQs is not kept.
+    const namesHqs = designation === 'MR' || designation === 'ASM' || designation === 'RSM';
+    const zoneIds = namesHqs ? [] : (data.work?.zoneIds ?? []);
     const routeIds = data.work?.routeIds ?? [];
     const gaps = draftGaps(data);
     // What a designation must have: an MR, ASM or RSM an HQ, a ZSM a Zone (the NSM nothing), and an MR at least one route to plan a day.

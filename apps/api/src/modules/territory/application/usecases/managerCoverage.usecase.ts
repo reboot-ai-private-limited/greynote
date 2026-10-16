@@ -11,6 +11,7 @@ export class GetManagerCoverageUseCase {
   constructor(
     private readonly coverage: ManagerCoverageRepositoryPort,
     private readonly userHqs: UserHqAssignmentRepositoryPort,
+    private readonly hqs: HqRepositoryPort,
   ) {}
 
   /**
@@ -21,7 +22,8 @@ export class GetManagerCoverageUseCase {
     const found = await this.coverage.find(userId);
     if (found && (found.hqIds.length > 0 || found.zoneIds.length > 0)) return { userId, hqIds: found.hqIds, zoneIds: found.zoneIds };
     const active = await this.userHqs.findActive(userId);
-    return { userId, hqIds: active ? [active.hqId] : [], zoneIds: [] };
+    const hq = active ? await this.hqs.findById(active.hqId) : null;
+    return { userId, hqIds: active ? [active.hqId] : [], zoneIds: hq ? [hq.zoneId] : [] };
   }
 }
 
@@ -47,9 +49,10 @@ export class SetManagerCoverageUseCase {
     if (user.status === 'inactive') throw AppError.conflict('That employee is inactive.', { field: 'userId' });
 
     const hqIds = [...new Set(input.hqIds)];
-    const zoneIds = [...new Set(input.zoneIds)];
     const foundHqs = await this.hqs.findByIds(hqIds);
     if (foundHqs.length !== hqIds.length || foundHqs.some((h) => h.status !== 'active')) throw AppError.badRequest('Every HQ must exist and be active.', { field: 'hqIds' });
+    // The Zone of every HQ covered is stored too, so the list and filters need not work it out from the HQs.
+    const zoneIds = [...new Set([...input.zoneIds, ...foundHqs.map((h) => h.zoneId)])];
     for (const zoneId of zoneIds) {
       const zone = await this.zones.findById(zoneId);
       if (!zone || zone.status !== 'active') throw AppError.badRequest('Every Zone must exist and be active.', { field: 'zoneIds' });

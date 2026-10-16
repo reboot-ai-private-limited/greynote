@@ -3,7 +3,7 @@
 import { FormField } from '@/components/ui/FormField';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
 import { useAllZones } from '@/features/territory/hooks/useZones';
-import type { TerritoryRule } from '../lib/territoryRules';
+import { zonesOfHqs, type TerritoryRule } from '../lib/territoryRules';
 
 const checkbox = 'size-4 rounded border-border-strong accent-[var(--color-accent)]';
 
@@ -34,8 +34,9 @@ export function TerritoryPicker({
   const activeZones = (zones.data ?? []).filter(
     (z) => z.status === 'active' || zoneIds.includes(z.id),
   );
-  const shownZones =
-    rule.hqs === 'narrow' ? activeZones.filter((z) => zoneIds.includes(z.id)) : activeZones;
+  // The Zones in play: those ticked and those of the HQs chosen (an employee saved before Zones were stored has HQs only). HQs are listed under these.
+  const inPlay = [...new Set([...zoneIds, ...zonesOfHqs(hqIds, hqs.data ?? [])])];
+  const shownZones = activeZones.filter((z) => inPlay.includes(z.id));
 
   return (
     <div className="space-y-5 sm:col-span-2">
@@ -44,7 +45,7 @@ export function TerritoryPicker({
           label="Zones"
           htmlFor="t-zones"
           error={errors['zoneIds']}
-          {...(!rule.zonesRequired && { hint: 'None ticked means every Zone.' })}
+          {...(rule.hqs === 'none' && { hint: 'None ticked means every Zone.' })}
         >
           <div id="t-zones" className="grid gap-2 sm:grid-cols-2">
             {activeZones.map((z) => (
@@ -52,8 +53,8 @@ export function TerritoryPicker({
                 <input
                   type="checkbox"
                   className={checkbox}
-                  checked={zoneIds.includes(z.id)}
-                  onChange={() => onZonesChange(toggle(zoneIds, z.id))}
+                  checked={inPlay.includes(z.id)}
+                  onChange={() => onZonesChange(toggle(inPlay, z.id))}
                 />
                 {z.name}
               </label>
@@ -73,9 +74,7 @@ export function TerritoryPicker({
         >
           <div id="t-hqs" className="space-y-4">
             {shownZones.length === 0 ? (
-              <p className="text-[13px] text-text-subtle">
-                {rule.hqs === 'narrow' ? 'Choose a zone first.' : 'Loading…'}
-              </p>
+              <p className="text-[13px] text-text-subtle">Tick a zone above to list its HQs.</p>
             ) : null}
             {shownZones.map((z) => {
               const inZone = (hqs.data ?? []).filter(
