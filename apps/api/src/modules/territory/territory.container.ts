@@ -22,6 +22,7 @@ import { GetUserHqUseCase } from './application/usecases/getUserHq.usecase.js';
 import { SetUserHqUseCase } from './application/usecases/setUserHq.usecase.js';
 import { MongoUserHqAssignmentAdapter } from './infrastructure/mongoUserHqAssignment.adapter.js';
 import { buildUserHqRouter } from './interface/userHq.route.js';
+import { GetUserTerritoryUseCase } from './application/usecases/getUserTerritory.usecase.js';
 import { GetManagerCoverageUseCase, SetManagerCoverageUseCase } from './application/usecases/managerCoverage.usecase.js';
 import { ListManagerCandidatesUseCase } from './application/usecases/listManagerCandidates.usecase.js';
 import { MongoManagerCoverageAdapter } from './infrastructure/mongoManagerCoverage.adapter.js';
@@ -113,8 +114,9 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
   };
 
   const managerCoverage = {
-    get: new GetManagerCoverageUseCase(coverageRepository),
-    set: new SetManagerCoverageUseCase(coverageRepository, hqRepository, zoneRepository, users),
+    get: new GetManagerCoverageUseCase(coverageRepository, userHqRepository),
+    set: new SetManagerCoverageUseCase(coverageRepository, hqRepository, zoneRepository, users, userHqRepository, userHq.set),
+    territory: new GetUserTerritoryUseCase(coverageRepository, userHqRepository, hqRepository),
   };
   const managerCandidates = new ListManagerCandidatesUseCase(users, coverageRepository, hqRepository);
 
@@ -125,6 +127,10 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
       getRoutePath: (routeId) => getRoutePath.execute(routeId),
       listRouteIdsInScope: (scope) => listRouteIdsInScope.execute(scope),
       getUserHq: (userId) => userHq.get.current(userId),
+      getUserTerritory: (userId) => managerCoverage.territory.execute(userId),
+      assignUserCoverage: async (userId, input, actorId) => {
+        await managerCoverage.set.execute(userId, input, actorId);
+      },
       assignUserHq: (userId, hqId, actorId) => userHq.set.execute(userId, hqId, actorId),
       assignUserRoutes: async (userId, routeIds, actorId) => {
         for (const routeId of routeIds) {

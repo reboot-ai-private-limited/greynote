@@ -1,6 +1,7 @@
 import type { DesignationDto, EmployeeDraftDataDto } from '@greynote/contracts';
 import { paiseToRupees } from '@/lib/money';
 import { parseCtc } from './ctc';
+import { territoryErrors, territoryRule } from './territoryRules';
 import { EPF_PATTERN, epfError } from './profile';
 import {
   EMPTY_STRUCTURE_DRAFT,
@@ -73,8 +74,10 @@ export interface WizardForm {
   ifsc: string;
   branchName: string;
   designationId: string;
-  zoneId: string;
-  hqId: string;
+  /** Zones covered: a ZSM's or NSM's. */
+  zoneIds: string[];
+  /** HQs covered; the first is the main HQ. */
+  hqIds: string[];
   /** The routes an MR will cover (this HQ's routes only), required for the MR designation. */
   routeIds: string[];
   managerId: string;
@@ -111,8 +114,8 @@ export const EMPTY_FORM: WizardForm = {
   ifsc: '',
   branchName: '',
   designationId: '',
-  zoneId: '',
-  hqId: '',
+  zoneIds: [],
+  hqIds: [],
   routeIds: [],
   managerId: '',
   managerName: '',
@@ -164,9 +167,12 @@ export function isTopDesignation(
   return designations.some((d) => d.id === designationId && d.level === top);
 }
 
-/** Whether this designation is MR, the one that must have routes before the employee can be created. */
-export function isMrDesignation(designationId: string, designations: readonly { id: string; name?: string }[]): boolean {
-  return designations.some((d) => d.id === designationId && d.name === 'MR');
+/** The designation's name (MR, ASM …), which decides what territory the employee must have. */
+export function designationName(
+  designationId: string,
+  designations: readonly { id: string; name?: string }[],
+): string | undefined {
+  return designations.find((d) => d.id === designationId)?.name;
 }
 
 export interface RuleContext {
@@ -319,10 +325,10 @@ export function stepErrors(step: StepKey, form: WizardForm, ctx: RuleContext): E
       break;
     case 'work':
       put(e, 'designationId', form.designationId ? undefined : 'Choose a designation.');
-      put(e, 'zoneId', form.zoneId ? undefined : 'Choose a zone.');
-      put(e, 'hqId', form.hqId ? undefined : 'Choose an HQ.');
-      if (isMrDesignation(form.designationId, ctx.designations))
-        put(e, 'routeIds', form.routeIds.length > 0 ? undefined : 'Choose at least one route.');
+      Object.assign(
+        e,
+        territoryErrors(territoryRule(designationName(form.designationId, ctx.designations)), form),
+      );
       break;
     case 'compensation':
       put(e, 'payBandId', form.payBandId ? undefined : 'Choose a pay grade.');
@@ -457,7 +463,9 @@ export function toDraftData(
     },
     work: {
       ...(form.designationId && { designationId: form.designationId }),
-      ...(form.hqId && { hqId: form.hqId }),
+      ...(form.hqIds[0] && { hqId: form.hqIds[0] }),
+      ...(form.hqIds.length > 0 && { hqIds: form.hqIds }),
+      ...(form.zoneIds.length > 0 && { zoneIds: form.zoneIds }),
       ...(form.routeIds.length > 0 && { routeIds: form.routeIds }),
       ...(form.managerId && { managerId: form.managerId }),
     },
@@ -481,7 +489,7 @@ const addressForm = (
   pincode: a?.pincode ?? '',
 });
 
-/** A saved draft back into the form. `zoneId` is not stored: the page works it out from the HQ. */
+/** A saved draft back into the form. A draft from before several HQs carries one `hqId`, read as the one HQ covered. */
 export function fromDraftData(data: EmployeeDraftDataDto): WizardForm {
   return {
     ...EMPTY_FORM,
@@ -517,7 +525,8 @@ export function fromDraftData(data: EmployeeDraftDataDto): WizardForm {
     ifsc: data.bank?.ifsc ?? '',
     branchName: data.bank?.branchName ?? '',
     designationId: data.work?.designationId ?? '',
-    hqId: data.work?.hqId ?? '',
+    hqIds: data.work?.hqIds ?? (data.work?.hqId ? [data.work.hqId] : []),
+    zoneIds: data.work?.zoneIds ?? [],
     routeIds: data.work?.routeIds ?? [],
     managerId: data.work?.managerId ?? '',
     payBandId: data.compensation?.payBandId ?? '',

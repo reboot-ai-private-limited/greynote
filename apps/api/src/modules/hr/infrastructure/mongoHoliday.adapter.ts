@@ -33,11 +33,11 @@ export class MongoHolidayAdapter implements HolidayRepositoryPort {
     return docs.map(toHoliday);
   }
 
-  async listApplicable(from: string, to: string, place: { hqId: string; zoneId: string } | null): Promise<Holiday[]> {
+  async listApplicable(from: string, to: string, place: { hqIds: string[]; zoneIds: string[] } | null): Promise<Holiday[]> {
     const scopes: Record<string, unknown>[] = [{ scope: 'NATIONAL' }];
     if (place) {
-      scopes.push({ scope: 'ZONE', zoneIds: new Types.ObjectId(place.zoneId) });
-      scopes.push({ scope: 'HQ', hqIds: new Types.ObjectId(place.hqId) });
+      scopes.push({ scope: 'ZONE', zoneIds: { $in: place.zoneIds.map((id) => new Types.ObjectId(id)) } });
+      scopes.push({ scope: 'HQ', hqIds: { $in: place.hqIds.map((id) => new Types.ObjectId(id)) } });
     }
     const docs = await HolidayModel.find({ date: { $gte: from, $lte: to }, $or: scopes }).sort({ date: 1, name: 1 }).lean();
     return docs.map(toHoliday);

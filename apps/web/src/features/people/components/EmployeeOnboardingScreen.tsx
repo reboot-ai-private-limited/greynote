@@ -9,7 +9,6 @@ import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Stepper } from '@/components/ui/Stepper';
 import { toast } from '@/components/ui/toast';
-import { useAllHqs } from '@/features/territory/hooks/useHqs';
 import { istDate } from '@/lib/dates';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import {
@@ -55,7 +54,6 @@ export function EmployeeOnboardingScreen() {
   const draftParam = params.get('draft');
 
   const designations = useDesignations();
-  const hqs = useAllHqs();
   const loaded = useEmployeeDraft(draftParam);
   const save = useSaveEmployeeDraft();
 
@@ -99,14 +97,6 @@ export function EmployeeOnboardingScreen() {
     setPhotoUrl(draft.data.photoUrl ?? null);
     setStep(firstOpenStep(restored, { designations: designations.data, today: istDate() }));
   }, [loaded.data, designations.data]);
-
-  // The zone is not stored in a draft; it follows from the HQ.
-  useEffect(() => {
-    if (form.hqId && !form.zoneId && hqs.data) {
-      const hq = hqs.data.find((h) => h.id === form.hqId);
-      if (hq) setForm((f) => ({ ...f, zoneId: hq.zoneId }));
-    }
-  }, [form.hqId, form.zoneId, hqs.data]);
 
   const update = (patch: Partial<WizardForm>) => setForm((f) => ({ ...f, ...patch }));
   const errors: Record<string, string> = tried.has(step)

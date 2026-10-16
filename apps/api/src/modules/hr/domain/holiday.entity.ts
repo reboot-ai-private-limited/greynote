@@ -17,9 +17,15 @@ export interface Holiday {
   createdAt: Date;
 }
 
-/** Does this holiday apply to an employee in this HQ/Zone (either may be unknown)? */
-export function holidayApplies(holiday: Holiday, place: { hqId: string; zoneId: string } | null): boolean {
+/** The HQs and Zones an employee covers (an MR's HQ, a ZSM's Zones …). */
+export interface HolidayPlace {
+  hqIds: string[];
+  zoneIds: string[];
+}
+
+/** Does this holiday apply to an employee covering these HQs and Zones? One match is enough; `null` covers nothing. */
+export function holidayApplies(holiday: Holiday, place: HolidayPlace | null): boolean {
   if (holiday.scope === 'NATIONAL') return true;
   if (!place) return false;
-  return holiday.scope === 'ZONE' ? holiday.zoneIds.includes(place.zoneId) : holiday.hqIds.includes(place.hqId);
+  return holiday.scope === 'ZONE' ? holiday.zoneIds.some((id) => place.zoneIds.includes(id)) : holiday.hqIds.some((id) => place.hqIds.includes(id));
 }

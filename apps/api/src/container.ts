@@ -65,6 +65,7 @@ export function buildContainers(): AppContainers {
   // Identity sits below Territory, so the employee wizard's "set the HQ" comes through a port.
   identity.bindHqAssigner((userId, hqId, actorId) => territory.contract.assignUserHq(userId, hqId, actorId));
 
+  identity.bindCoverageAssigner((userId, input, actorId) => territory.contract.assignUserCoverage(userId, input, actorId));
   identity.bindRouteAssigner((userId, routeIds, actorId) => territory.contract.assignUserRoutes(userId, routeIds, actorId));
 
   // Tier 2 — Approval reads Identity (who manages the submitter, right now) and Config (which

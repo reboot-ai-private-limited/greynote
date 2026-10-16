@@ -43,17 +43,24 @@ const complete: WizardForm = {
   ifsc: 'SBIN0001234',
   branchName: 'Park Street',
   designationId: 'mr',
-  zoneId: 'z1',
-  hqId: 'h1',
+  zoneIds: [],
+  hqIds: ['h1'],
   routeIds: ['r1'],
   managerId: 'm1',
   payBandId: 'g1',
 };
 
 describe('step rules', () => {
-  it('work: an MR must choose a route, a manager designation need not', () => {
+  it('work: an MR must choose an HQ and a route; a ZSM must choose a zone, and no HQ or route', () => {
     expect(stepErrors('work', { ...complete, routeIds: [] }, ctx)['routeIds']).toBeTruthy();
-    expect(stepErrors('work', { ...complete, designationId: 'zsm', routeIds: [] }, ctx)['routeIds']).toBeUndefined();
+    expect(stepErrors('work', { ...complete, hqIds: [] }, ctx)['hqIds']).toBeTruthy();
+    const zsm = { ...complete, designationId: 'zsm', hqIds: [], routeIds: [] };
+    expect(stepErrors('work', zsm, ctx)).toEqual({ zoneIds: 'Choose at least one zone.' });
+    expect(stepErrors('work', { ...zsm, zoneIds: ['z1'] }, ctx)).toEqual({});
+  });
+
+  it('an old draft with one HQ reads as covering that HQ', () => {
+    expect(fromDraftData({ work: { designationId: 'mr', hqId: 'h9' } }).hqIds).toEqual(['h9']);
   });
 
   it('a complete form has no errors on any step', () => {
@@ -174,7 +181,7 @@ describe('draft', () => {
       qualifications: f.qualifications.map(({ id: _id, ...rest }) => rest),
       experience: f.experience.map(({ id: _id, ...rest }) => rest),
     });
-    expect(noIds(back)).toEqual({ ...noIds(withMore), zoneId: '', managerName: '' });
+    expect(noIds(back)).toEqual({ ...noIds(withMore), managerName: '' });
   });
 
   it('keeps the CTC in paise', () => {

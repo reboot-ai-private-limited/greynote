@@ -17,11 +17,11 @@ export function useUserHq(userId: string) {
   );
 }
 
-/** Setting an HQ ends the previous one. Holidays that apply to the employee change with it, so leave data refetches too. */
+/** Setting an HQ ends the previous one. Holidays that apply to the employee change with it, so leave data refetches too, and the employee's profile shows the new HQ and zone. */
 export function useSetUserHq(userId: string, onDone: () => void) {
   return useApiMutation<string>({
     call: (token, hqId) => userHqApi.set(token, userId, hqId),
-    invalidates: [keys.userHq.history(userId), keys.leaves.root()],
+    invalidates: [keys.userHq.history(userId), keys.leaves.root(), keys.users.all()],
     successMessage: 'HQ changed.',
     onSuccess: onDone,
   });

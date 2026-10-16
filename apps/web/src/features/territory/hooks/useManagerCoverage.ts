@@ -22,8 +22,9 @@ export function useManagerCoverage(userId: string, enabled = true) {
 export function useSetManagerCoverage(userId: string, onDone: () => void) {
   return useApiMutation<SetManagerCoverageDto>({
     call: (token, body) => managerApi.setCoverage(token, userId, body),
-    invalidates: [keys.managerCoverage(userId), ['managerCandidates']],
-    successMessage: 'Coverage saved.',
+    // The main HQ may change with it, and holidays follow the territory, so the profile, HQ history and leave data refetch too.
+    invalidates: [keys.managerCoverage(userId), ['managerCandidates'], keys.users.all(), keys.userHq.history(userId), keys.leaves.root(), keys.routes.all()],
+    successMessage: 'Territory saved.',
     onSuccess: onDone,
   });
 }

@@ -24,13 +24,13 @@ import { DocumentsSection } from './DocumentsSection';
 import { BasicSection } from './BasicSection';
 import { CompensationTab } from './CompensationTab';
 import { PhotoPicker } from './PhotoPicker';
+import { TerritoryCard } from './TerritoryCard';
 import { RoutesSection } from './RoutesSection';
 import { TeamTab } from './TeamTab';
 import { PromotionTab } from './PromotionTab';
 import { Field, FieldList } from './SectionCard';
 import { SecuritySection } from './SecuritySection';
 import { UserDevicesSection } from './UserDevicesSection';
-import { CoverageSection } from './CoverageSection';
 import { WorkSection } from './WorkSection';
 import { EMPLOYEE_TAB_LABEL, employeeTabOf, employeeTabsFor } from '../lib/employeeTabs';
 
@@ -107,7 +107,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                   <BasicSection user={user} readOnly={readOnly} />
                   <AddressSection user={user} readOnly={readOnly} />
                   <WorkSection user={user} readOnly={readOnly} />
-                  <CoverageSection user={user} readOnly={readOnly} />
+                  {user.role === 'FIELD' ? <TerritoryCard user={user} readOnly={readOnly} /> : null}
                   {user.role === 'FIELD' && isAdmin ? <RoutesSection user={user} readOnly={readOnly} /> : null}
                   <DocumentsSection user={user} readOnly={readOnly} />
                 </TabsContent>

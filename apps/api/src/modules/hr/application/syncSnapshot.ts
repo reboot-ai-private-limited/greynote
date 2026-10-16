@@ -29,7 +29,7 @@ export function makeHrSource(deps: {
       const [types, balances, holidays, weeklyOffDay, backdateDays] = await Promise.all([
         deps.leaveTypes.list(),
         deps.balances.views(userId, leaveYear),
-        deps.territory.getUserHq(userId).then((place) => deps.holidays.listApplicable(range.from, range.to, place)),
+        deps.territory.getUserTerritory(userId).then((place) => deps.holidays.listApplicable(range.from, range.to, place)),
         deps.calendar.weeklyOff(),
         deps.calendar.backdateDays(),
       ]);

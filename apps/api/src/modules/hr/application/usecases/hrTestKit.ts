@@ -86,7 +86,7 @@ export class FakeHolidays implements HolidayRepositoryPort {
       )
       .sort((a, b) => a.date.localeCompare(b.date));
   }
-  async listApplicable(from: string, to: string, place: { hqId: string; zoneId: string } | null) {
+  async listApplicable(from: string, to: string, place: { hqIds: string[]; zoneIds: string[] } | null) {
     return this.rows.filter((h) => h.date >= from && h.date <= to && holidayApplies(h, place)).sort((a, b) => a.date.localeCompare(b.date));
   }
   async create(input: Omit<Holiday, 'id' | 'createdAt'>) {
@@ -170,8 +170,9 @@ export class FakeTerritory implements TerritoryPort {
     ['zone-wb', 'active'],
     ['zone-as', 'active'],
   ] as const);
-  async getUserHq(userId: string) {
-    return this.userHq.get(userId) ?? null;
+  async getUserTerritory(userId: string) {
+    const place = this.userHq.get(userId);
+    return place ? { hqIds: [place.hqId], zoneIds: [place.zoneId] } : null;
   }
   async getHq(id: string) {
     const status = this.hqs.get(id as never);

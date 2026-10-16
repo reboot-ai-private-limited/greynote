@@ -39,7 +39,7 @@ function build(data: EmployeeDraftData, opts: { createdUserId?: string; failHqOn
       findById: async (id: string) => users.get(id) ?? null,
       update: async (id: string, patch: { passwordHash: string }) => { Object.assign(users.get(id) as object, patch); },
     } as never,
-    { list: async () => [{ id: 'des-1', name: 'MR', level: 1 }, { id: 'des-top', name: 'NSM', level: 5 }] } as never,
+    { list: async () => [{ id: 'des-1', name: 'MR', level: 1 }, { id: 'des-zsm', name: 'ZSM', level: 4 }, { id: 'des-top', name: 'NSM', level: 5 }] } as never,
     { next: async () => `GHC10${++codeSeq}` } as never,
     {
       execute: async (_role: string, input: { employeeCode: string; password: string }) => {
@@ -59,6 +59,7 @@ function build(data: EmployeeDraftData, opts: { createdUserId?: string; failHqOn
     async () => '2026-10',
     { upsert: async (id: string, patch: { photo?: { url: string } }) => { if (patch.photo) calls.push(`photo ${id} ${patch.photo.url}`); } } as never,
     () => async (userId: string, routeIds: string[]) => { calls.push(`routes ${userId} ${routeIds.join(',')}`); },
+    () => async (userId: string, input: { hqIds: string[]; zoneIds: string[] }) => { calls.push(`coverage ${userId} ${input.hqIds.join(',')}|${input.zoneIds.join(',')}`); },
   );
   return { useCase, calls, users, ctcInput, draftNow: () => draft };
 }
@@ -71,7 +72,7 @@ describe('FinalizeEmployeeDraftUseCase', () => {
     const result = await useCase.execute(actor, 'd1');
     expect(result).toMatchObject({ userId: 'u1', employeeCode: 'GHC101' });
     expect(result.password).toHaveLength(12);
-    expect(calls).toEqual(['create GHC101', 'update u1 boss', 'hq u1 hq-1', 'routes u1 r1,r2', 'ctc', 'draft deleted']);
+    expect(calls).toEqual(['create GHC101', 'update u1 boss', 'hq u1 hq-1', 'coverage u1 hq-1|', 'routes u1 r1,r2', 'ctc', 'draft deleted']);
   });
 
   it('refuses an MR with no route and creates nothing', async () => {
@@ -84,6 +85,24 @@ describe('FinalizeEmployeeDraftUseCase', () => {
     const { useCase, calls } = build(complete({ work: { designationId: 'des-top', hqId: 'hq-1' } }));
     await useCase.execute(actor, 'd1');
     expect(calls.some((c) => c.startsWith('routes'))).toBe(false);
+  });
+
+  it('an MR needs an HQ, a ZSM needs a Zone but no HQ, and the NSM needs neither', async () => {
+    await expect(build(complete({ work: { designationId: 'des-1', routeIds: ['r1'] } })).useCase.execute(actor, 'd1')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(build(complete({ work: { designationId: 'des-zsm' } })).useCase.execute(actor, 'd1')).rejects.toMatchObject({ statusCode: 400 });
+    const zsm = build(complete({ work: { designationId: 'des-zsm', zoneIds: ['z1', 'z2'] } }));
+    await zsm.useCase.execute(actor, 'd1');
+    expect(zsm.calls).toContain('coverage u1 |z1,z2');
+    expect(zsm.calls.some((c) => c.startsWith('hq '))).toBe(false);
+    const nsm = build(complete({ work: { designationId: 'des-top' } }));
+    await nsm.useCase.execute(actor, 'd1');
+    expect(nsm.calls.some((c) => c.startsWith('coverage'))).toBe(false);
+  });
+
+  it('covers several HQs, the first being the main one, and assigns the routes it was given', async () => {
+    const { useCase, calls } = build(complete({ work: { designationId: 'des-1', hqIds: ['hq-2', 'hq-1'], routeIds: ['r9'] } }));
+    await useCase.execute(actor, 'd1');
+    expect(calls).toEqual(expect.arrayContaining(['hq u1 hq-2', 'coverage u1 hq-2,hq-1|', 'routes u1 r9']));
   });
 
   it('carries the draft photo onto the new employee', async () => {

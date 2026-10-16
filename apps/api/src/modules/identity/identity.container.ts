@@ -33,7 +33,7 @@ import {
   ListEmployeeDraftsUseCase,
   UpdateEmployeeDraftUseCase,
 } from './application/usecases/employeeDrafts.usecase.js';
-import { FinalizeEmployeeDraftUseCase, type HqAssigner, type RouteAssigner } from './application/usecases/finalizeEmployeeDraft.usecase.js';
+import { FinalizeEmployeeDraftUseCase, type CoverageAssigner, type HqAssigner, type RouteAssigner } from './application/usecases/finalizeEmployeeDraft.usecase.js';
 import { MongoEmployeeDraftAdapter } from './infrastructure/mongoEmployeeDraft.adapter.js';
 import { MongoEmployeeCodeGenerator } from './infrastructure/mongoEmployeeCodeGenerator.adapter.js';
 import { makeEmployeeDraftControllers } from './interface/employeeDrafts.controller.js';
@@ -164,6 +164,8 @@ export interface IdentityContainer {
   applyDuePromotions: () => Promise<{ applied: number; failed: number }>;
   /** Territory sits above Identity, so the employee wizard's "set the HQ" is handed in once both are built. */
   bindHqAssigner: (assign: HqAssigner) => void;
+  /** Likewise the new employee's covered Zones and HQs. */
+  bindCoverageAssigner: (assign: CoverageAssigner) => void;
   /** Likewise the new MR's routes. */
   bindRouteAssigner: (assign: RouteAssigner) => void;
   hasAdmin: () => Promise<boolean>;
@@ -189,6 +191,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const employeeCodeGenerator = new MongoEmployeeCodeGenerator(userRepository);
   let hqAssigner: HqAssigner | null = null;
   let routeAssigner: RouteAssigner | null = null;
+  let coverageAssigner: CoverageAssigner | null = null;
   const employeeProfileRepository = new MongoEmployeeProfileAdapter();
   const complianceBlockRepository = new MongoComplianceBlockAdapter();
   const userSessionRepository = new MongoUserSessionAdapter();
@@ -313,6 +316,10 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       () => {
         if (!routeAssigner) throw new Error('The route assigner was not bound.');
         return routeAssigner;
+      },
+      () => {
+        if (!coverageAssigner) throw new Error('The coverage assigner was not bound.');
+        return coverageAssigner;
       },
     ),
   });
@@ -495,6 +502,9 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     applyDuePromotions: () => applyDuePromotions.execute(),
     bindHqAssigner: (assign) => {
       hqAssigner = assign;
+    },
+    bindCoverageAssigner: (assign) => {
+      coverageAssigner = assign;
     },
     bindRouteAssigner: (assign) => {
       routeAssigner = assign;

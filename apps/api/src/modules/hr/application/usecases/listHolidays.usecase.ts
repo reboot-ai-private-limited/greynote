@@ -12,6 +12,6 @@ export class ListHolidaysUseCase {
 
   async execute(actor: Actor, filter: HolidayFilter): Promise<Holiday[]> {
     if (isHrOrAdmin(actor)) return this.holidays.list(filter);
-    return this.holidays.listApplicable(filter.from, filter.to, await this.territory.getUserHq(actor.id));
+    return this.holidays.listApplicable(filter.from, filter.to, await this.territory.getUserTerritory(actor.id));
   }
 }

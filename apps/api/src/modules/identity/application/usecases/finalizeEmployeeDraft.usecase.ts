@@ -19,6 +19,9 @@ import type { UpdateUserUseCase } from './updateUser.usecase.js';
 export type HqAssigner = (userId: string, hqId: string, actorId: string) => Promise<unknown>;
 
 /** Gives the new employee their routes (already-held ones are skipped, so a retry is safe). Territory sits above Identity, so this is bound after both are built. */
+/** Sets the new employee's covered Zones and HQs. Bound like the HQ assigner. */
+export type CoverageAssigner = (userId: string, input: { hqIds: string[]; zoneIds: string[] }, actorId: string) => Promise<unknown>;
+
 export type RouteAssigner = (userId: string, routeIds: string[], actorId: string) => Promise<unknown>;
 
 export interface FinalizedEmployee {
@@ -67,6 +70,7 @@ export class FinalizeEmployeeDraftUseCase {
     private readonly currentMonth: () => Promise<string>,
     private readonly profiles: EmployeeProfileRepositoryPort,
     private readonly assignRoutes: () => RouteAssigner,
+    private readonly assignCoverage: () => CoverageAssigner,
   ) {}
 
   async execute(actor: { id: string; role: RoleName }, draftId: string): Promise<FinalizedEmployee> {
@@ -76,10 +80,15 @@ export class FinalizeEmployeeDraftUseCase {
 
     const designations = await this.designations.list();
     const top = isTopDesignation(data.work?.designationId ?? null, designations);
-    const isMr = designations.some((d) => d.id === data.work?.designationId && d.name === 'MR');
+    const designation = designations.find((d) => d.id === data.work?.designationId)?.name;
+    const hqIds = data.work?.hqIds?.length ? data.work.hqIds : data.work?.hqId ? [data.work.hqId] : [];
+    const zoneIds = data.work?.zoneIds ?? [];
+    const routeIds = data.work?.routeIds ?? [];
     const gaps = draftGaps(data);
-    // An MR with no route cannot plan a day, so routes are required for the MR designation only.
-    if (isMr && (data.work?.routeIds ?? []).length === 0) gaps.push({ step: 'work', field: 'routeIds' });
+    // What a designation must have: an MR, ASM or RSM an HQ, a ZSM a Zone (the NSM nothing), and an MR at least one route to plan a day.
+    if ((designation === 'MR' || designation === 'ASM' || designation === 'RSM') && hqIds.length === 0) gaps.push({ step: 'work', field: 'hqIds' });
+    if (designation === 'ZSM' && zoneIds.length === 0) gaps.push({ step: 'work', field: 'zoneIds' });
+    if (designation === 'MR' && routeIds.length === 0) gaps.push({ step: 'work', field: 'routeIds' });
     if (gaps.length > 0) {
       throw AppError.badRequest('Some required details are missing.', { gaps });
     }
@@ -130,8 +139,9 @@ export class FinalizeEmployeeDraftUseCase {
     // The photo file stays where it is; only the reference moves to the new employee.
     if (data.photo) await this.profiles.upsert(userId, { photo: data.photo });
 
-    await this.assignHq()(userId, data.work?.hqId as string, actor.id);
-    if (isMr) await this.assignRoutes()(userId, data.work?.routeIds ?? [], actor.id);
+    if (hqIds[0]) await this.assignHq()(userId, hqIds[0], actor.id);
+    if (hqIds.length > 0 || zoneIds.length > 0) await this.assignCoverage()(userId, { hqIds, zoneIds }, actor.id);
+    if (routeIds.length > 0) await this.assignRoutes()(userId, routeIds, actor.id);
 
     const ctc = data.compensation?.ctcAnnualPaise;
     if (ctc && !(await this.ctcAssignments.findEffective(userId, FAR_FUTURE))) {

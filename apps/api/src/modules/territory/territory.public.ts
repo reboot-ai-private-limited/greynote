@@ -19,6 +19,10 @@ export interface TerritoryPublicContract {
   listRouteIdsInScope(scope: { hqId?: string | undefined; zoneId?: string | undefined }): Promise<string[]>;
   /** A FIELD employee's current HQ and its Zone, or `null` if none is set — HR's holiday scope. */
   getUserHq(userId: string): Promise<{ hqId: string; zoneId: string } | null>;
+  /** Every HQ and Zone the employee covers (a covered Zone brings its HQs, a covered HQ its Zone), or `null` for none: what HR's holidays follow. */
+  getUserTerritory(userId: string): Promise<{ hqIds: string[]; zoneIds: string[] } | null>;
+  /** Sets the Zones and HQs a FIELD employee covers (and their main HQ) — the employee wizard's last step. */
+  assignUserCoverage(userId: string, input: { hqIds: string[]; zoneIds: string[] }, actorId: string): Promise<void>;
   /** Sets a FIELD employee's HQ (ends the previous one) — the employee wizard's last step. */
   assignUserHq(userId: string, hqId: string, actorId: string): Promise<unknown>;
   /** Gives a FIELD employee these routes (ones they already hold are skipped) — the employee wizard's last step. */

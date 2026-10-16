@@ -43,7 +43,7 @@ export interface EmployeeDraftData {
     ifsc?: string;
     branchName?: string;
   };
-  work?: { designationId?: string; hqId?: string; managerId?: string; routeIds?: string[] };
+  work?: { designationId?: string; hqId?: string; managerId?: string; zoneIds?: string[]; hqIds?: string[]; routeIds?: string[] };
   compensation?: {
     payBandId?: string;
     ctcAnnualPaise?: number;
@@ -110,7 +110,7 @@ export function draftGaps(data: EmployeeDraftData): DraftGap[] {
   need('bank', 'branchName', data.bank?.branchName);
 
   need('work', 'designationId', data.work?.designationId);
-  need('work', 'hqId', data.work?.hqId);
+  // Which of Zone, HQ and routes are required depends on the designation, so that is checked when the draft is finalised.
 
   need('compensation', 'payBandId', data.compensation?.payBandId);
 

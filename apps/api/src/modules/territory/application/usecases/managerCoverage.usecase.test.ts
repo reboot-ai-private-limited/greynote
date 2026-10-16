@@ -3,6 +3,7 @@ import type { ManagerCoverage } from '../../domain/managerCoverage.entity.js';
 import type { ManagerCoverageRepositoryPort } from '../../domain/managerCoverage.repository.port.js';
 import { ListManagerCandidatesUseCase } from './listManagerCandidates.usecase.js';
 import { GetManagerCoverageUseCase, SetManagerCoverageUseCase } from './managerCoverage.usecase.js';
+import { GetUserTerritoryUseCase } from './getUserTerritory.usecase.js';
 
 class FakeCoverage implements ManagerCoverageRepositoryPort {
   rows = new Map<string, ManagerCoverage>();
@@ -25,7 +26,11 @@ const hqs = [
   { id: 'hqC', zoneId: 'z2', name: 'C', status: 'active' as const },
   { id: 'hqOff', zoneId: 'z1', name: 'Off', status: 'inactive' as const },
 ];
-const hqRepo = { findById: async (id: string) => hqs.find((h) => h.id === id) ?? null, findByIds: async (ids: string[]) => hqs.filter((h) => ids.includes(h.id)) } as never;
+const hqRepo = {
+  findById: async (id: string) => hqs.find((h) => h.id === id) ?? null,
+  findByIds: async (ids: string[]) => hqs.filter((h) => ids.includes(h.id)),
+  list: async (q: { zoneId?: string }) => ({ items: hqs.filter((h) => h.status === 'active' && (!q.zoneId || h.zoneId === q.zoneId)), total: 0 }),
+} as never;
 const zoneRepo = { findById: async (id: string) => (id === 'z1' || id === 'z2' ? { id, name: id, status: 'active' } : null) } as never;
 
 const people = [
@@ -44,12 +49,17 @@ const directory = {
   recordUserTerritory: async () => {},
 } as never;
 
-function setup() {
+/** The main HQ each person has; a real set-HQ use case would end and start rows, here it only records the change. */
+function setup(mainHq: Record<string, string> = {}) {
   const coverage = new FakeCoverage();
+  const userHqs = { findActive: async (id: string) => (mainHq[id] ? { hqId: mainHq[id] } : null) } as never;
+  const setMainHq = { execute: async (id: string, hqId: string) => void (mainHq[id] = hqId) } as never;
   return {
     coverage,
-    set: new SetManagerCoverageUseCase(coverage, hqRepo, zoneRepo, directory),
-    get: new GetManagerCoverageUseCase(coverage),
+    mainHq,
+    set: new SetManagerCoverageUseCase(coverage, hqRepo, zoneRepo, directory, userHqs, setMainHq),
+    get: new GetManagerCoverageUseCase(coverage, userHqs),
+    territory: new GetUserTerritoryUseCase(coverage, userHqs, hqRepo),
     list: new ListManagerCandidatesUseCase(directory, coverage, hqRepo),
   };
 }
@@ -66,13 +76,45 @@ describe('manager coverage', () => {
     expect((await get.execute('zsm')).zoneIds).toEqual(['z2']);
   });
 
-  it('refuses an MR, an unknown person, an unknown or inactive HQ, and an unknown zone', async () => {
+  it('lets an MR cover HQs too, and makes the first one the main HQ when the current one is not among them', async () => {
+    const { set, get, mainHq } = setup({ mr: 'hqC' });
+    await set.execute('mr', { hqIds: ['hqA', 'hqB'], zoneIds: [] }, 'admin');
+    expect((await get.execute('mr')).hqIds).toEqual(['hqA', 'hqB']);
+    expect(mainHq['mr']).toBe('hqA');
+    await set.execute('mr', { hqIds: ['hqB', 'hqA'], zoneIds: [] }, 'admin');
+    expect(mainHq['mr']).toBe('hqA');
+  });
+
+  it('reads an employee with no coverage as covering their single HQ', async () => {
+    const { get } = setup({ mr: 'hqA' });
+    expect(await get.execute('mr')).toEqual({ userId: 'mr', hqIds: ['hqA'], zoneIds: [] });
+  });
+
+  it('refuses an unknown person, an unknown or inactive HQ, and an unknown zone', async () => {
     const { set } = setup();
-    await expect(set.execute('mr', { hqIds: ['hqA'], zoneIds: [] }, 'admin')).rejects.toMatchObject({ statusCode: 400 });
     await expect(set.execute('ghost', { hqIds: [], zoneIds: [] }, 'admin')).rejects.toMatchObject({ statusCode: 404 });
     await expect(set.execute('asm1', { hqIds: ['hqOff'], zoneIds: [] }, 'admin')).rejects.toMatchObject({ statusCode: 400 });
     await expect(set.execute('asm1', { hqIds: ['nope'], zoneIds: [] }, 'admin')).rejects.toMatchObject({ statusCode: 400 });
     await expect(set.execute('zsm', { hqIds: [], zoneIds: ['zz'] }, 'admin')).rejects.toMatchObject({ statusCode: 400 });
+  });
+});
+
+describe('territory for holidays', () => {
+  it('a covered Zone brings all its active HQs, a covered HQ brings its Zone, and nothing covered is null', async () => {
+    const { set, territory } = setup();
+    expect(await territory.execute('nsm')).toBeNull();
+    await set.execute('zsm', { hqIds: [], zoneIds: ['z1'] }, 'admin');
+    const z = (await territory.execute('zsm'))!;
+    expect(z.zoneIds).toEqual(['z1']);
+    expect(z.hqIds.sort()).toEqual(['hqA', 'hqB']);
+    await set.execute('asm1', { hqIds: ['hqC'], zoneIds: [] }, 'admin');
+    expect(await territory.execute('asm1')).toEqual({ hqIds: ['hqC'], zoneIds: ['z2'] });
+  });
+
+  it('naming some HQs of a covered Zone narrows it to those', async () => {
+    const { set, territory } = setup();
+    await set.execute('zsm', { hqIds: ['hqA'], zoneIds: ['z1'] }, 'admin');
+    expect((await territory.execute('zsm'))!.hqIds).toEqual(['hqA']);
   });
 });
 

@@ -223,7 +223,18 @@ export interface EmployeeDraftDataDto {
   experience?: Array<{ companyName?: string; joiningDate?: string; endDate?: string }>;
   bank?: { bankName?: string; accountNumber?: string; accountHolderName?: string; ifsc?: string; branchName?: string };
   /** `managerId` is not needed when the designation is the top of the hierarchy. */
-  work?: { designationId?: string; hqId?: string; managerId?: string; /** The routes the new MR will cover; required for an MR. */ routeIds?: string[] };
+  work?: {
+    designationId?: string;
+    /** The main HQ; the first of `hqIds` when those are sent. Older drafts carry only this. */
+    hqId?: string;
+    managerId?: string;
+    /** Zones covered: a ZSM's or NSM's. */
+    zoneIds?: string[];
+    /** HQs covered: an MR's, ASM's or RSM's (a ZSM may narrow a Zone to some of its HQs). */
+    hqIds?: string[];
+    /** The routes the new employee will hold; required for an MR. */
+    routeIds?: string[];
+  };
   compensation?: {
     payBandId?: string;
     ctcAnnualPaise?: number;

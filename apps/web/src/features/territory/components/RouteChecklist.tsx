@@ -12,11 +12,14 @@ export function RouteChecklist({
   selected,
   onChange,
   emptyText,
+  flag,
 }: {
   routes: readonly RouteDto[];
   selected: readonly string[];
   onChange: (ids: string[]) => void;
   emptyText: string;
+  /** A note shown beside a route that needs one (a warning, never a block). */
+  flag?: (route: RouteDto) => string | null;
 }) {
   const [term, setTerm] = useState('');
   const t = term.trim().toLowerCase();
@@ -68,6 +71,7 @@ export function RouteChecklist({
                     type="checkbox"
                     className={checkbox}
                     checked={selected.includes(r.id)}
+                    aria-label={r.name}
                     onChange={() => toggle(r.id)}
                   />
                   <span className="min-w-0">
@@ -75,6 +79,7 @@ export function RouteChecklist({
                     <span className="block text-xs text-text-subtle">
                       {r.type}
                       {r.distanceKm ? ` · ${r.distanceKm} km` : ''}
+                      {flag?.(r) ? <span className="ml-2 text-warning-fg">{flag(r)}</span> : null}
                     </span>
                   </span>
                 </label>

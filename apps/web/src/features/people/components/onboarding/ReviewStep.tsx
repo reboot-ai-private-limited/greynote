@@ -7,7 +7,8 @@ import { useDesignations, usePayBands } from '../../hooks/useMasterData';
 import { useUser } from '../../hooks/useUsers';
 import { parseCtc } from '../../lib/ctc';
 import { DESIGNATION_LABEL } from '../../lib/masterData';
-import { STEPS, effectivePermanent, isMrDesignation, isTopDesignation, type AddressForm, type StepKey } from '../../lib/onboarding';
+import { territoryRule } from '../../lib/territoryRules';
+import { STEPS, effectivePermanent, isTopDesignation, type AddressForm, type StepKey } from '../../lib/onboarding';
 import { StepFrame, type StepProps } from './StepFrame';
 
 const address = (a: AddressForm) => [a.line1, a.line2, a.district, a.state, a.pincode].filter(Boolean).join(', ');
@@ -46,6 +47,8 @@ export function ReviewStep({ form, problems, onEdit }: Pick<StepProps, 'form'> &
   const manager = useUser(form.managerName ? null : form.managerId || null);
 
   const designation = designations.data?.find((d) => d.id === form.designationId);
+  const rule = territoryRule(designation?.name);
+  const names = (ids: readonly string[], list: readonly { id: string; name: string }[] | undefined) => ids.map((id) => list?.find((x) => x.id === id)?.name ?? '…').join(', ');
   const top = isTopDesignation(form.designationId, designations.data ?? []);
   const ctc = parseCtc(form.ctc);
   const labelOf = (key: StepKey) => STEPS.find((s) => s.key === key)?.label ?? key;
@@ -121,9 +124,13 @@ export function ReviewStep({ form, problems, onEdit }: Pick<StepProps, 'form'> &
           onEdit={onEdit}
           rows={[
             ['Designation', designation ? DESIGNATION_LABEL[designation.name] : undefined],
-            ['Zone', zones.data?.find((z) => z.id === form.zoneId)?.name],
-            ['HQ', hqs.data?.find((h) => h.id === form.hqId)?.name],
-            ...(isMrDesignation(form.designationId, designations.data ?? []) ? [['Routes', `${form.routeIds.length} chosen`] as [string, string]] : []),
+            ...(rule.zones === 'pick'
+              ? [['Zones', form.zoneIds.length > 0 ? names(form.zoneIds, zones.data) : 'Every zone'] as [string, string]]
+              : []),
+            ...(rule.hqs !== 'none'
+              ? [['HQs', form.hqIds.length > 0 ? names(form.hqIds, hqs.data) : 'Every HQ of the zones'] as [string, string]]
+              : []),
+            ...(rule.routes !== 'none' ? [['Routes', `${form.routeIds.length} chosen`] as [string, string]] : []),
             ['Manager', top ? 'None (top of the hierarchy)' : form.managerName || manager.data?.name || 'None (approvals go to Admin or HR)'],
           ]}
         />
