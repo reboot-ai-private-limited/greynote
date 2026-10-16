@@ -9,7 +9,12 @@ import { useDesignations } from '../../hooks/useMasterData';
 import { useUser } from '../../hooks/useUsers';
 import { DESIGNATION_LABEL } from '../../lib/masterData';
 import { isTopDesignation } from '../../lib/onboarding';
-import { afterHqsChange, afterZonesChange, territoryRule } from '../../lib/territoryRules';
+import {
+  afterHqsChange,
+  afterZonesChange,
+  territoryRule,
+  zonesOfHqs,
+} from '../../lib/territoryRules';
 import { ManagerPickerDialog } from '../ManagerPickerDialog';
 import { TerritoryPicker } from '../TerritoryPicker';
 import { Grid, StepFrame, type StepProps } from './StepFrame';
@@ -67,9 +72,14 @@ export function WorkStep({ form, update, errors }: StepProps) {
             hqIds={form.hqIds}
             errors={errors}
             onZonesChange={(zoneIds) => {
+              const before = {
+                zoneIds: [...new Set([...form.zoneIds, ...zonesOfHqs(form.hqIds, hqs.data ?? [])])],
+                hqIds: form.hqIds,
+              };
               const next = afterZonesChange(
                 rule,
                 { zoneIds, hqIds: form.hqIds, routeIds: form.routeIds },
+                before,
                 hqs.data ?? [],
                 routes,
               );

@@ -18,6 +18,7 @@ import {
 } from '../hooks/useEmployeeDrafts';
 import { useRemoveDraftPhoto, useSetDraftPhoto } from '../hooks/useEmployeeDrafts';
 import { usePayComponents } from '../hooks/useCtc';
+import { useAllHqs } from '@/features/territory/hooks/useHqs';
 import { useDesignations } from '../hooks/useMasterData';
 import {
   EMPTY_FORM,
@@ -54,6 +55,7 @@ export function EmployeeOnboardingScreen() {
   const draftParam = params.get('draft');
 
   const designations = useDesignations();
+  const hqs = useAllHqs();
   const loaded = useEmployeeDraft(draftParam);
   const save = useSaveEmployeeDraft();
 
@@ -81,8 +83,8 @@ export function EmployeeOnboardingScreen() {
     [payComponents.data],
   );
   const ctx: RuleContext = useMemo(
-    () => ({ designations: designations.data ?? [], today: istDate(), orgCodes }),
-    [designations.data, orgCodes],
+    () => ({ designations: designations.data ?? [], today: istDate(), orgCodes, hqs: hqs.data ?? [] }),
+    [designations.data, orgCodes, hqs.data],
   );
   const index = STEPS.findIndex((s) => s.key === step);
 

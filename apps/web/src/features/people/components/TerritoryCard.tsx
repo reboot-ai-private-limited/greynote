@@ -102,7 +102,11 @@ function TerritoryForm({
   const save = useSetManagerCoverage(user.id, onDone);
 
   function submit() {
-    const found = territoryErrors({ ...rule, routes: 'none' }, { zoneIds, hqIds, routeIds: [] });
+    const found = territoryErrors(
+      { ...rule, routes: 'none' },
+      { zoneIds, hqIds, routeIds: [] },
+      hqs.data ?? [],
+    );
     if (Object.keys(found).length > 0) return setErrors(found);
     // Zones that are only a way to browse HQs are not stored: the HQs carry their Zone.
     save.mutate({
@@ -121,10 +125,15 @@ function TerritoryForm({
         errors={errors}
         onZonesChange={(ids) => {
           setErrors({});
-          setZoneIds(ids);
-          setHqIds(
-            afterZonesChange(rule, { zoneIds: ids, hqIds, routeIds: [] }, hqs.data ?? [], []).hqIds,
+          const next = afterZonesChange(
+            rule,
+            { zoneIds: ids, hqIds, routeIds: [] },
+            { zoneIds, hqIds },
+            hqs.data ?? [],
+            [],
           );
+          setZoneIds(ids);
+          setHqIds(next.hqIds);
         }}
         onHqsChange={(ids) => {
           setErrors({});

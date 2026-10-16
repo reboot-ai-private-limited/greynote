@@ -181,6 +181,8 @@ export interface RuleContext {
   today: string;
   /** Codes of the org's pay components, so a line added for this employee gets a code of its own. */
   orgCodes?: readonly string[];
+  /** Every HQ, so a ticked Zone left with no HQ is caught. */
+  hqs?: readonly { id: string; zoneId: string }[];
 }
 
 type Errors = Record<string, string>;
@@ -327,7 +329,7 @@ export function stepErrors(step: StepKey, form: WizardForm, ctx: RuleContext): E
       put(e, 'designationId', form.designationId ? undefined : 'Choose a designation.');
       Object.assign(
         e,
-        territoryErrors(territoryRule(designationName(form.designationId, ctx.designations)), form),
+        territoryErrors(territoryRule(designationName(form.designationId, ctx.designations)), form, ctx.hqs),
       );
       break;
     case 'compensation':

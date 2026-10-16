@@ -56,33 +56,66 @@ export interface Selection {
 interface HqLike {
   id: string;
   zoneId: string;
+  status?: string;
 }
 interface RouteLike {
   id: string;
   hqId: string;
 }
 
-/** What is missing, by field. */
-export function territoryErrors(rule: TerritoryRule, sel: Selection): Record<string, string> {
+/** Ticked Zones with no HQ ticked under them: for a designation that names HQs such a Zone would be lost on saving. */
+export function zonesWithoutHqs(
+  rule: TerritoryRule,
+  sel: Selection,
+  hqs: readonly HqLike[],
+): string[] {
+  if (!rule.hqsRequired) return [];
+  const withHq = new Set(sel.hqIds.map((id) => hqs.find((h) => h.id === id)?.zoneId));
+  return sel.zoneIds.filter((z) => !withHq.has(z));
+}
+
+/** What is missing, by field. `hqs` (every HQ) lets it also catch a ticked Zone left with no HQ. */
+export function territoryErrors(
+  rule: TerritoryRule,
+  sel: Selection,
+  hqs?: readonly HqLike[],
+): Record<string, string> {
   const e: Record<string, string> = {};
   if (rule.zonesRequired && sel.zoneIds.length === 0) e['zoneIds'] = 'Choose at least one zone.';
   if (rule.hqsRequired && sel.hqIds.length === 0) e['hqIds'] = 'Choose at least one HQ.';
+  else if (hqs && zonesWithoutHqs(rule, sel, hqs).length > 0)
+    e['hqIds'] = 'Tick an HQ under every ticked zone, or untick the zone.';
   if (rule.routes === 'required' && sel.routeIds.length === 0)
     e['routeIds'] = 'Choose at least one route.';
   return e;
 }
 
-/** After the zones change: HQs of a zone no longer ticked go (only where Zones are picked), and so do their routes. */
+/**
+ * After the zones change: HQs of a zone no longer ticked go, and so do their routes; where the designation picks HQs, every active HQ of a newly
+ * ticked zone is ticked by default (untick any not wanted) and so its routes. `before` is the selection before the change.
+ */
 export function afterZonesChange(
   rule: TerritoryRule,
   sel: Selection,
+  before: { zoneIds: readonly string[]; hqIds: readonly string[] },
   hqs: readonly HqLike[],
   routes: readonly RouteLike[],
 ): Selection {
   if (rule.zones !== 'pick') return sel;
   const zone = new Set(sel.zoneIds);
-  const hqIds = sel.hqIds.filter((id) => zone.has(hqs.find((h) => h.id === id)?.zoneId ?? ''));
-  return afterHqsChange({ ...sel, hqIds }, sel.hqIds, routes, rule);
+  const kept = sel.hqIds.filter((id) => zone.has(hqs.find((h) => h.id === id)?.zoneId ?? ''));
+  const wasZone = new Set(before.zoneIds);
+  const added =
+    rule.hqs === 'pick'
+      ? hqs
+          .filter(
+            (h) =>
+              zone.has(h.zoneId) && !wasZone.has(h.zoneId) && (h.status ?? 'active') === 'active',
+          )
+          .map((h) => h.id)
+      : [];
+  const hqIds = [...new Set([...kept, ...added])];
+  return afterHqsChange({ ...sel, hqIds }, before.hqIds, routes, rule);
 }
 
 /**

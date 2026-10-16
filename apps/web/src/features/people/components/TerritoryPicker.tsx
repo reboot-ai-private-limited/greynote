@@ -80,7 +80,13 @@ export function TerritoryPicker({
               const inZone = (hqs.data ?? []).filter(
                 (h) => h.zoneId === z.id && (h.status === 'active' || hqIds.includes(h.id)),
               );
-              if (inZone.length === 0) return null;
+              if (inZone.length === 0)
+                return (
+                  <p key={z.id} className="text-[13px] text-text-subtle">
+                    <span className="font-medium text-text">{z.name}</span> has no HQs yet. Create
+                    one under Territory, or untick the zone.
+                  </p>
+                );
               const all = inZone.every((h) => hqIds.includes(h.id));
               const ids = new Set(inZone.map((h) => h.id));
               return (
