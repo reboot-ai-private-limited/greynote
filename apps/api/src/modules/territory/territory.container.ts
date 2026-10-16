@@ -1,4 +1,4 @@
-import type { Router } from 'express';
+import { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { RouteTypeRules } from './application/usecases/routeTypeRules.js';
 import { AssignRouteUseCase } from './application/usecases/assignRoute.usecase.js';
@@ -22,6 +22,9 @@ import { GetUserHqUseCase } from './application/usecases/getUserHq.usecase.js';
 import { SetUserHqUseCase } from './application/usecases/setUserHq.usecase.js';
 import { MongoUserHqAssignmentAdapter } from './infrastructure/mongoUserHqAssignment.adapter.js';
 import { buildUserHqRouter } from './interface/userHq.route.js';
+import { TerritoryDeletionUseCase, type ReferenceCounter } from './application/usecases/territoryDeletion.usecase.js';
+import { MongoTerritoryDeletionAdapter } from './infrastructure/mongoTerritoryDeletion.adapter.js';
+import { buildTerritoryDeletionRouter } from './interface/territoryDeletion.route.js';
 import { GetUserTerritoryUseCase } from './application/usecases/getUserTerritory.usecase.js';
 import { GetManagerCoverageUseCase, SetManagerCoverageUseCase } from './application/usecases/managerCoverage.usecase.js';
 import { ListManagerCandidatesUseCase } from './application/usecases/listManagerCandidates.usecase.js';
@@ -55,6 +58,8 @@ import type { TerritoryPublicContract } from './territory.public.js';
 export interface TerritoryContainer {
   contract: TerritoryPublicContract;
   buildRouter: () => Router;
+  /** Counts, from the modules above Territory, of what points at an item about to be deleted. Bound by the composition root. */
+  bindReferenceCounter: (counter: ReferenceCounter) => void;
 }
 
 /** `users` is Identity's public contract, passed in by the top-level composition root. */
@@ -69,6 +74,8 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
   const coverageRepository = new MongoManagerCoverageAdapter();
   const transactions = new MongooseTransactionRunner();
   const typeRules = new RouteTypeRules(config);
+  const deletionStore = new MongoTerritoryDeletionAdapter();
+  const deletion = new TerritoryDeletionUseCase(deletionStore);
 
   // 2. Use cases
   const zones = {
@@ -122,9 +129,32 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
 
   return {
     contract: {
-      getRoute: (routeId) => getRouteSummary.execute(routeId),
+      // A deleted item is still read by history (calls, plans, TA, reports) through its archive row, shown as inactive: reads work, new writes refuse it.
+      getRoute: async (routeId) => {
+        const live = await getRouteSummary.execute(routeId);
+        if (live) return live;
+        const gone = await deletionStore.findArchived('ROUTE', routeId);
+        return gone
+          ? {
+              id: gone.id,
+              name: gone.name,
+              hqId: gone.hqId ?? '',
+              hqName: gone.hqName ?? '',
+              routeType: gone.routeType ?? 'HQ',
+              distanceKm: gone.distanceKm,
+              distanceStatus: gone.distanceKm === null ? 'FAILED' : 'CALCULATED',
+              taPerKmRateOverridePaise: gone.taPerKmRateOverridePaise,
+              status: 'inactive',
+            }
+          : null;
+      },
       listRoutesForUser: (userId) => listRoutesForUser.execute(userId),
-      getRoutePath: (routeId) => getRoutePath.execute(routeId),
+      getRoutePath: async (routeId) => {
+        const live = await getRoutePath.execute(routeId);
+        if (live) return live;
+        const gone = await deletionStore.findArchived('ROUTE', routeId);
+        return gone && gone.hqId && gone.zoneId && gone.routeType ? { routeId, routeType: gone.routeType, hqId: gone.hqId, zoneId: gone.zoneId } : null;
+      },
       listRouteIdsInScope: (scope) => listRouteIdsInScope.execute(scope),
       getUserHq: (userId) => userHq.get.current(userId),
       getUserTerritory: (userId) => managerCoverage.territory.execute(userId),
@@ -138,14 +168,29 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
           await assignRoute.execute(routeId, userId, actorId);
         }
       },
-      getHq: (hqId) => hqRepository.findById(hqId),
-      getZone: (zoneId) => zoneRepository.findById(zoneId),
+      getHq: async (hqId) => {
+        const live = await hqRepository.findById(hqId);
+        if (live) return live;
+        const gone = await deletionStore.findArchived('HQ', hqId);
+        return gone && gone.zoneId ? { id: gone.id, zoneId: gone.zoneId, name: gone.name, status: 'inactive' } : null;
+      },
+      getZone: async (zoneId) => {
+        const live = await zoneRepository.findById(zoneId);
+        if (live) return live;
+        const gone = await deletionStore.findArchived('ZONE', zoneId);
+        return gone ? { id: gone.id, name: gone.name, status: 'inactive' } : null;
+      },
       findZoneByName: (name) => zoneRepository.findByName(name),
       findHqByName: (zoneId, name) => hqRepository.findByName(zoneId, name),
     },
 
+    bindReferenceCounter: (counter) => deletion.bindReferenceCounter(counter),
+
     buildRouter: () => {
-      const router = buildHierarchyRouter({ zones, hqs });
+      const router = Router();
+      // Delete routes first: they share the level routers' paths and are Admin-only.
+      router.use(buildTerritoryDeletionRouter(deletion));
+      router.use(buildHierarchyRouter({ zones, hqs }));
       router.use('/routes', buildRoutesRouter(routeControllers));
       router.use('/places', buildPlacesRouter(searchPlaces));
       router.use('/import', buildImportRouter(importHierarchy));

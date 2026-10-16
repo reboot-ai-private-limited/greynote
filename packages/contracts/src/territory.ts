@@ -131,3 +131,38 @@ export interface ManagerCoverageDto {
   zoneIds: string[];
 }
 export type SetManagerCoverageDto = Pick<ManagerCoverageDto, 'hqIds' | 'zoneIds'>;
+
+/** What a permanent delete of a Zone, HQ or Route would take with it (`GET /territory/{zones|hqs|routes}/:id/delete-impact`). Counts, so Admin can see before confirming. */
+export interface TerritoryDeleteImpactDto {
+  kind: 'ZONE' | 'HQ' | 'ROUTE';
+  id: string;
+  name: string;
+  /** Deleted together with it (the item itself is not counted). */
+  alsoDeleted: { zones: number; hqs: number; routes: number };
+  /** The first few names of what is also deleted, to recognise it. */
+  alsoDeletedNames: string[];
+  people: {
+    /** Distinct employees touched in any of the ways below. */
+    total: number;
+    /** Hold one of the routes. */
+    routes: number;
+    /** Have one of the HQs as their main HQ. */
+    hq: number;
+    /** Cover one of the HQs or Zones. */
+    coverage: number;
+  };
+  /** Records elsewhere that point at it and stay: they show the old name, and doctors and chemists need a new route. */
+  references: {
+    doctors: number;
+    chemists: number;
+    distributors: number;
+    holidays: number;
+    /** Daily plans from today on that use one of the routes. */
+    plannedDays: number;
+  };
+}
+
+/** `DELETE /territory/{zones|hqs|routes}/:id`. */
+export interface TerritoryDeleteResultDto {
+  deleted: { zones: number; hqs: number; routes: number };
+}

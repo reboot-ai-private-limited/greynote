@@ -1,4 +1,8 @@
 import type { Router } from 'express';
+import { Types } from 'mongoose';
+import { ChemistModel } from './infrastructure/chemist.schema.js';
+import { DistributorModel } from './infrastructure/distributor.schema.js';
+import { DoctorModel } from './infrastructure/doctor.schema.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
@@ -139,6 +143,16 @@ export function buildFieldMasterDataContainer(
 
   return {
     contract: {
+      countOnRoutes: async (routeIds) => {
+        if (routeIds.length === 0) return { doctors: 0, chemists: 0, distributors: 0 };
+        const ids = routeIds.map((id) => new Types.ObjectId(id));
+        const [doctorCount, chemistCount, distributorCount] = await Promise.all([
+          DoctorModel.countDocuments({ routeId: { $in: ids } }),
+          ChemistModel.countDocuments({ routeId: { $in: ids } }),
+          DistributorModel.countDocuments({ routeIds: { $in: ids } }),
+        ]);
+        return { doctors: doctorCount, chemists: chemistCount, distributors: distributorCount };
+      },
             // A `pending` Doctor doesn't exist yet as far as other modules are concerned.
       getDoctorLocation: async (id) => {
         const doctor = await doctors.findById(id);

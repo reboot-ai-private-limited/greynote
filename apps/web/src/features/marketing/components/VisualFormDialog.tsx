@@ -12,7 +12,7 @@ import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { useActiveProducts } from '@/features/field-master-data/hooks/useProducts';
-import { useUpdateVisual, useUploadVisual } from '../hooks/useVisuals';
+import { useReplaceVisualFile, useUpdateVisual, useUploadVisual } from '../hooks/useVisuals';
 import {
   EMPTY_VISUAL,
   VISUAL_ACCEPT_ATTRIBUTE,
@@ -27,7 +27,7 @@ const CATEGORY_OPTIONS = VISUAL_CATEGORIES.map((c) => ({
   label: VISUAL_CATEGORY_LABEL[c],
 }));
 
-/** Upload (no `visual`) or edit (`visual`; the file itself cannot be replaced — upload a new visual instead). */
+/** Upload (no `visual`) or edit (`visual`): an edit can also put a new image on it, and the old file is removed from storage. */
 export function VisualFormDialog({
   visual,
   onClose,
@@ -49,6 +49,7 @@ export function VisualFormDialog({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const upload = useUploadVisual(onClose);
   const update = useUpdateVisual(onClose);
+  const replace = useReplaceVisualFile();
   const products = useActiveProducts();
   const productOptions = [
     { value: GENERAL, label: 'General (no product)' },
@@ -56,11 +57,19 @@ export function VisualFormDialog({
   ];
   const invalid = (field: string) => (errors[field] ? true : undefined);
 
-  function submit() {
+  async function submit() {
     const found = visualErrors({ ...draft, file }, !visual);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     if (visual) {
+      // A new image goes up first; if that fails nothing else is saved and the old image stays.
+      if (file) {
+        try {
+          await replace.mutateAsync({ id: visual.id, file });
+        } catch {
+          return;
+        }
+      }
       update.mutate({
         id: visual.id,
         body: {
@@ -79,7 +88,7 @@ export function VisualFormDialog({
       title={visual ? 'Edit visual' : 'Upload a visual'}
       description="MRs pick visuals from this library to show each doctor. Product visuals group under their product."
       formId="visual-form"
-      pending={upload.isPending || update.isPending}
+      pending={upload.isPending || update.isPending || replace.isPending}
       onClose={onClose}
       onSubmit={submit}
     >
@@ -114,23 +123,25 @@ export function VisualFormDialog({
           />
         </FormField>
       </div>
-      {visual ? null : (
-        <FormField
-          label="File"
-          htmlFor="visual-file"
-          error={errors['file']}
-          hint="An image (PNG, JPG, WebP or GIF), up to 25 MB."
-        >
-          <input
-            id="visual-file"
-            type="file"
-            accept={VISUAL_ACCEPT_ATTRIBUTE}
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            aria-invalid={invalid('file')}
-            className="block w-full text-sm text-text file:mr-3 file:h-10 file:cursor-pointer file:rounded-md file:border file:border-border-strong file:bg-surface file:px-4 file:text-sm file:font-medium file:text-text hover:file:bg-surface-hover"
-          />
-        </FormField>
-      )}
+      <FormField
+        label={visual ? 'Replace the image (optional)' : 'File'}
+        htmlFor="visual-file"
+        error={errors['file']}
+        hint={
+          visual
+            ? 'Choose a new image to put on this visual. The old one is removed for good; doctors’ lists keep the visual and show the new image.'
+            : 'An image (PNG, JPG, WebP or GIF), up to 25 MB.'
+        }
+      >
+        <input
+          id="visual-file"
+          type="file"
+          accept={VISUAL_ACCEPT_ATTRIBUTE}
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          aria-invalid={invalid('file')}
+          className="block w-full text-sm text-text file:mr-3 file:h-10 file:cursor-pointer file:rounded-md file:border file:border-border-strong file:bg-surface file:px-4 file:text-sm file:font-medium file:text-text hover:file:bg-surface-hover"
+        />
+      </FormField>
     </FormDialog>
   );
 }

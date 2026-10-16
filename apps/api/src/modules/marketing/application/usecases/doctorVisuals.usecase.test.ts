@@ -31,6 +31,12 @@ class FakeDoctorVisuals implements DoctorVisualRepositoryPort {
     Object.assign(row, { removedBy: by, removedAt: at });
     return true;
   }
+  async countDoctorsWith(visualId: string) {
+    return new Set(this.rows.filter((r) => r.visualId === visualId && !r.removedAt).map((r) => r.doctorId)).size;
+  }
+  async deleteAllFor(visualId: string) {
+    this.rows = this.rows.filter((r) => r.visualId !== visualId);
+  }
 }
 
 // asm manages mr1; mr2 is a peer with no team; mr3 stands alone. doc1 is mr1's.

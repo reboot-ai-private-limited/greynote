@@ -7,7 +7,7 @@ import { sendSuccess } from '@/shared/http/response.util.js';
 import { MarketingRefusal } from '../domain/marketingRefusal.js';
 import type { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetsUseCase, SetTargetUseCase } from '../application/usecases/targets.usecase.js';
 import type { AddDoctorVisualsUseCase, ListDoctorVisualsUseCase, RemoveDoctorVisualUseCase } from '../application/usecases/doctorVisuals.usecase.js';
-import type { Actor, CreateCampaignUseCase, CreateVisualUseCase, ListCampaignsUseCase, ListVisualsUseCase, SetCampaignStatusUseCase, UpdateVisualUseCase } from '../application/usecases/visualsAndCampaigns.usecase.js';
+import type { Actor, CreateCampaignUseCase, CreateVisualUseCase, DeleteVisualUseCase, GetVisualDeleteImpactUseCase, ReplaceVisualFileUseCase, ListCampaignsUseCase, ListVisualsUseCase, SetCampaignStatusUseCase, UpdateVisualUseCase } from '../application/usecases/visualsAndCampaigns.usecase.js';
 import type { addDoctorVisualsBodySchema, createCampaignBodySchema, createVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, updateVisualBodySchema, setTargetBodySchema, listTargetsQuerySchema, targetQuerySchema } from './marketing.schemas.js';
 
 function actorOf(req: Request): Actor {
@@ -27,10 +27,13 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type MarketingHandlers = Record<'createVisual' | 'listVisuals' | 'updateVisual' | 'listDoctorVisuals' | 'addDoctorVisuals' | 'removeDoctorVisual' | 'createCampaign' | 'listCampaigns' | 'setCampaignStatus' | 'setTarget' | 'deleteTarget' | 'listTargets' | 'getTarget', RequestHandler>;
+export type MarketingHandlers = Record<'replaceVisualFile' | 'visualDeleteImpact' | 'deleteVisual' | 'createVisual' | 'listVisuals' | 'updateVisual' | 'listDoctorVisuals' | 'addDoctorVisuals' | 'removeDoctorVisual' | 'createCampaign' | 'listCampaigns' | 'setCampaignStatus' | 'setTarget' | 'deleteTarget' | 'listTargets' | 'getTarget', RequestHandler>;
 
 export function makeMarketingControllers(u: {
   createVisual: CreateVisualUseCase;
+  replaceVisualFile: ReplaceVisualFileUseCase;
+  getVisualDeleteImpact: GetVisualDeleteImpactUseCase;
+  deleteVisual: DeleteVisualUseCase;
   listVisuals: ListVisualsUseCase;
   updateVisual: UpdateVisualUseCase;
   listDoctorVisuals: ListDoctorVisualsUseCase;
@@ -50,6 +53,16 @@ export function makeMarketingControllers(u: {
       if (!req.file) throw AppError.badRequest('Attach the file as the "file" field.', { field: 'file' });
       const visual = await refusing(() => u.createVisual.execute(actorOf(req), { productId: b.productId ?? null, title: b.title, category: b.category, file: { buffer: req.file!.buffer, mimeType: req.file!.mimetype } }));
       sendSuccess(req, res, visual, 'The visual was uploaded.', 201);
+    }),
+    replaceVisualFile: asyncHandler(async (req, res) => {
+      if (!req.file) throw AppError.badRequest('Attach the file as the "file" field.', { field: 'file' });
+      const visual = await refusing(() => u.replaceVisualFile.execute(requiredParam(req.params, 'id'), { buffer: req.file!.buffer, mimeType: req.file!.mimetype }));
+      sendSuccess(req, res, visual, 'The visual’s file was replaced.', 200);
+    }),
+    visualDeleteImpact: asyncHandler(async (req, res) => sendSuccess(req, res, await refusing(() => u.getVisualDeleteImpact.execute(requiredParam(req.params, 'id'))), 'Delete impact.', 200)),
+    deleteVisual: asyncHandler(async (req, res) => {
+      await refusing(() => u.deleteVisual.execute(requiredParam(req.params, 'id')));
+      sendSuccess(req, res, null, 'The visual was deleted.', 200);
     }),
     listVisuals: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listVisuals.execute(actorOf(req), req.query as z.output<typeof listVisualsQuerySchema>), 'Visuals.', 200)),
     updateVisual: asyncHandler(async (req, res) =>

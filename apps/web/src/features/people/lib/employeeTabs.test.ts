@@ -20,7 +20,7 @@ describe('employeeTabOf', () => {
   it('keeps Access (devices, security) for Admin', () => {
     expect(employeeTabOf('devices', true)).toBe('access');
     expect(employeeTabOf('security', false)).toBe('profile');
-    expect(employeeTabsFor(true)).toEqual(['profile', 'pay', 'time', 'career', 'access']);
-    expect(employeeTabsFor(false)).toEqual(['profile', 'pay', 'time', 'career']);
+    expect(employeeTabsFor(true)).toEqual(['profile', 'team', 'pay', 'time', 'career', 'access']);
+    expect(employeeTabsFor(false)).toEqual(['profile', 'team', 'pay', 'time', 'career']);
   });
 });

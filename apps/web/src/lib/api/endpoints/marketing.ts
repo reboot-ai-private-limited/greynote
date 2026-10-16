@@ -30,6 +30,13 @@ export const marketingApi = {
     request<VisualDto>('/marketing/visuals', { method: 'POST', token, body }),
   updateVisual: (token: string, id: string, body: UpdateVisualDto) =>
     request<VisualDto>(`/marketing/visuals/${id}`, { method: 'PATCH', token, body }),
+  /** Puts a new image on a visual (Admin); the old file is removed from Cloudinary. `body` carries the file under `file`. */
+  replaceVisualFile: (token: string, id: string, body: FormData) =>
+    request<VisualDto>(`/marketing/visuals/${id}/file`, { method: 'POST', token, body }),
+  visualDeleteImpact: (token: string, id: string, signal?: AbortSignal) =>
+    request<{ id: string; title: string; doctors: number }>(`/marketing/visuals/${id}/delete-impact`, { token, signal }),
+  /** Deletes the visual for good: its row, every doctor's pick of it and its file in Cloudinary. */
+  deleteVisual: (token: string, id: string) => request<null>(`/marketing/visuals/${id}`, { method: 'DELETE', token }),
   doctorVisuals: (token: string, doctorId: string, signal?: AbortSignal) =>
     request<DoctorVisualListDto>(`/marketing/doctors/${doctorId}/visuals`, { token, signal }),
   /** Adds library visuals to a doctor's list: the doctor's MR, a manager above them, or Admin. */

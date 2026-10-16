@@ -9,6 +9,8 @@ export type { PlanApprovalStatus } from './domain/approvals.port.js';
  * reason to extend this, not to reach past it.
  */
 export interface PlanningPublicContract {
+  /** How many daily plans from this date on use any of these Routes: what a permanent route delete would leave pointing at nothing. */
+  countPlannedDaysOnRoutes(routeIds: string[], fromDate: string): Promise<number>;
   /**
    * The DCR gate (HLD 10, sign-off B4): may this user log field activity on this date? True once
    * the day's Plan is past the manager — `MANAGER_APPROVED` or `APPROVED`. No Plan is never

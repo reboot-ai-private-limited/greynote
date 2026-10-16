@@ -18,6 +18,7 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useUpdateVisual, useVisuals } from '../hooks/useVisuals';
 import { visualKind, visualPreviewKind } from '../lib/visuals';
+import { DeleteVisualDialog } from './DeleteVisualDialog';
 import { VisualFormDialog } from './VisualFormDialog';
 
 const ANY = 'all';
@@ -31,6 +32,7 @@ export function VisualsScreen() {
   const [form, setForm] = useState<{ visual?: VisualDto } | null>(null);
   const [preview, setPreview] = useState<VisualDto | null>(null);
   const [toggling, setToggling] = useState<VisualDto | null>(null);
+  const [deleting, setDeleting] = useState<VisualDto | null>(null);
   const update = useUpdateVisual(() => setToggling(null));
   const products = useActiveProducts();
   const visuals = useVisuals({
@@ -86,6 +88,7 @@ export function VisualsScreen() {
           disabled={readOnly}
           onEdit={() => setForm({ visual: v })}
           onToggleStatus={() => setToggling(v)}
+          onDelete={() => setDeleting(v)}
         />
       ),
     },
@@ -127,6 +130,7 @@ export function VisualsScreen() {
       </DataState>
       <FilePreviewDialog file={preview ? { title: preview.title, url: preview.fileUrl, kind: visualPreviewKind(preview.mimeType) } : null} onClose={() => setPreview(null)} />
       {form ? <VisualFormDialog visual={form.visual} onClose={() => setForm(null)} /> : null}
+      <DeleteVisualDialog visual={deleting} onClose={() => setDeleting(null)} />
       <StatusToggleDialog
         item={toggling ? { id: toggling.id, name: toggling.title, status: toggling.status } : null}
         noun="visual"

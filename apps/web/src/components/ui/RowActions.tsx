@@ -3,7 +3,7 @@
 import { MoreHorizontal } from 'lucide-react';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 
-/** Edit and (de)activate. These records are soft-deleted only, so there is no delete. */
+/** Edit and (de)activate, and a permanent delete where a screen offers one (it asks for confirmation with a warning of what it affects). */
 type ActiveStatus = 'active' | 'inactive';
 
 export function RowActions({
@@ -12,12 +12,14 @@ export function RowActions({
   disabled,
   onEdit,
   onToggleStatus,
+  onDelete,
 }: {
   label: string;
   status: ActiveStatus;
   disabled: boolean;
   onEdit: () => void;
   onToggleStatus: () => void;
+  onDelete?: () => void;
 }) {
   return (
     <DropdownMenu
@@ -37,6 +39,7 @@ export function RowActions({
         status === 'active'
           ? { label: 'Deactivate', onSelect: onToggleStatus, tone: 'danger' }
           : { label: 'Reactivate', onSelect: onToggleStatus },
+        ...(onDelete ? [{ label: 'Delete…', onSelect: onDelete, tone: 'danger' as const }] : []),
       ]}
     />
   );

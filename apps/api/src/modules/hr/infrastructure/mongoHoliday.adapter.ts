@@ -43,6 +43,16 @@ export class MongoHolidayAdapter implements HolidayRepositoryPort {
     return docs.map(toHoliday);
   }
 
+  async countScopedTo(scope: { zoneIds: string[]; hqIds: string[] }): Promise<number> {
+    const toIds = (ids: string[]) => ids.map((id) => new Types.ObjectId(id));
+    return HolidayModel.countDocuments({
+      $or: [
+        { scope: 'ZONE', zoneIds: { $in: toIds(scope.zoneIds) } },
+        { scope: 'HQ', hqIds: { $in: toIds(scope.hqIds) } },
+      ],
+    });
+  }
+
   async create(input: Omit<Holiday, 'id' | 'createdAt'>): Promise<Holiday> {
     const doc = await HolidayModel.create({
       ...input,

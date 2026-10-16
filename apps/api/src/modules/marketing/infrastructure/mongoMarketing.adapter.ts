@@ -44,6 +44,14 @@ export class MongoVisualAdapter implements VisualRepositoryPort {
     const doc = await VisualModel.findByIdAndUpdate(id, { $set: set }, { new: true }).lean();
     return doc ? toVisual(doc) : null;
   }
+  async replaceFile(id: string, file: { fileUrl: string; publicId: string; mimeType: string }): Promise<Visual | null> {
+    const before = await VisualModel.findByIdAndUpdate(id, { $set: file }, { new: false }).lean();
+    return before ? toVisual(before) : null;
+  }
+  async delete(id: string): Promise<Visual | null> {
+    const doc = await VisualModel.findByIdAndDelete(id).lean();
+    return doc ? toVisual(doc) : null;
+  }
 }
 
 const toDoctorVisual = (d: DoctorVisualDoc & { _id: unknown }): DoctorVisual => ({ id: String(d._id), doctorId: String(d.doctorId), visualId: String(d.visualId), addedBy: String(d.addedBy), addedAt: d.addedAt, removedBy: idOrNull(d.removedBy), removedAt: d.removedAt });
@@ -73,6 +81,12 @@ export class MongoDoctorVisualAdapter implements DoctorVisualRepositoryPort {
   async remove(doctorId: string, visualId: string, by: string, at: Date): Promise<boolean> {
     const res = await DoctorVisualModel.updateOne({ doctorId: oid(doctorId), visualId: oid(visualId), removedAt: null }, { $set: { removedAt: at, removedBy: oid(by) } });
     return res.modifiedCount === 1;
+  }
+  async countDoctorsWith(visualId: string): Promise<number> {
+    return (await DoctorVisualModel.distinct('doctorId', { visualId: oid(visualId), removedAt: null })).length;
+  }
+  async deleteAllFor(visualId: string): Promise<void> {
+    await DoctorVisualModel.deleteMany({ visualId: oid(visualId) });
   }
 }
 

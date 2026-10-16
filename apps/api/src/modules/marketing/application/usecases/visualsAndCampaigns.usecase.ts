@@ -1,5 +1,5 @@
 import type { Campaign, CampaignStatus, Visual, VisualCategory, VisualStatus } from '../../domain/marketing.entities.js';
-import type { CampaignRepositoryPort, VisualRepositoryPort, VisualStoragePort } from '../../domain/marketing.repository.ports.js';
+import type { CampaignRepositoryPort, DoctorVisualRepositoryPort, VisualRepositoryPort, VisualStoragePort } from '../../domain/marketing.repository.ports.js';
 import { MARKETING_CODES, MarketingRefusal } from '../../domain/marketingRefusal.js';
 import type { ProductPort } from '../../domain/ports.js';
 
@@ -58,6 +58,68 @@ export class UpdateVisualUseCase {
     const visual = await this.visuals.update(id, patch);
     if (!visual) throw new MarketingRefusal(MARKETING_CODES.visualNotFound, 'No such visual.');
     return visual;
+  }
+}
+
+/**
+ * Admin puts a new file on an existing Visual: the new one goes to storage first, the Visual is pointed at it, and only then is the old file taken
+ * out of Cloudinary. If the Visual cannot be updated the new file is taken back out; if the old one cannot be removed the Visual still works (the
+ * leftover is logged by the caller's storage adapter and costs only space). Everyone who has the Visual on a doctor's list sees the new file.
+ */
+export class ReplaceVisualFileUseCase {
+  constructor(
+    private readonly visuals: VisualRepositoryPort,
+    private readonly storage: VisualStoragePort,
+  ) {}
+
+  async execute(id: string, file: { buffer: Buffer; mimeType: string }): Promise<Visual> {
+    if (!ALLOWED.some((re) => re.test(file.mimeType))) throw new MarketingRefusal(MARKETING_CODES.unsupportedFile, 'Upload an image (PNG, JPG, WebP or GIF).');
+    if (!(await this.visuals.findById(id))) throw new MarketingRefusal(MARKETING_CODES.visualNotFound, 'No such visual.');
+    const stored = await this.storage.upload(file.buffer, { mimeType: file.mimeType, folder: 'greynote/marketing/visuals' });
+    let before: Visual | null;
+    try {
+      before = await this.visuals.replaceFile(id, { fileUrl: stored.url, publicId: stored.publicId, mimeType: file.mimeType });
+    } catch (err) {
+      await this.storage.remove(stored.publicId).catch(() => undefined);
+      throw err;
+    }
+    if (!before) {
+      await this.storage.remove(stored.publicId).catch(() => undefined);
+      throw new MarketingRefusal(MARKETING_CODES.visualNotFound, 'No such visual.');
+    }
+    await this.storage.remove(before.publicId).catch(() => undefined);
+    const after = await this.visuals.findById(id);
+    return after as Visual;
+  }
+}
+
+/** What deleting a Visual would take away: how many doctors have it on their list. A warning only. */
+export class GetVisualDeleteImpactUseCase {
+  constructor(
+    private readonly visuals: VisualRepositoryPort,
+    private readonly doctorVisuals: DoctorVisualRepositoryPort,
+  ) {}
+
+  async execute(id: string): Promise<{ id: string; title: string; doctors: number }> {
+    const visual = await this.visuals.findById(id);
+    if (!visual) throw new MarketingRefusal(MARKETING_CODES.visualNotFound, 'No such visual.');
+    return { id, title: visual.title, doctors: await this.doctorVisuals.countDoctorsWith(id) };
+  }
+}
+
+/** Admin deletes a Visual for good: the row, every doctor's pick of it, and its file in Cloudinary (a file that cannot be removed does not undo the delete). */
+export class DeleteVisualUseCase {
+  constructor(
+    private readonly visuals: VisualRepositoryPort,
+    private readonly doctorVisuals: DoctorVisualRepositoryPort,
+    private readonly storage: VisualStoragePort,
+  ) {}
+
+  async execute(id: string): Promise<void> {
+    const visual = await this.visuals.delete(id);
+    if (!visual) throw new MarketingRefusal(MARKETING_CODES.visualNotFound, 'No such visual.');
+    await this.doctorVisuals.deleteAllFor(id);
+    await this.storage.remove(visual.publicId).catch(() => undefined);
   }
 }
 

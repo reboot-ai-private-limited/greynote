@@ -14,6 +14,7 @@ import { RowActions } from '@/components/ui/RowActions';
 import { StatusFilter } from '@/components/ui/StatusFilter';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
+import { DeleteTerritoryDialog } from './DeleteTerritoryDialog';
 import { ZoneFormDialog } from './ZoneFormDialog';
 
 export function ZonesScreen() {
@@ -22,6 +23,7 @@ export function ZonesScreen() {
   const readOnly = useIsReadOnly();
   const [form, setForm] = useState<{ zone?: ZoneDto } | null>(null);
   const [toggling, setToggling] = useState<ZoneDto | null>(null);
+  const [deleting, setDeleting] = useState<ZoneDto | null>(null);
   const updateZone = useUpdateZone(() => setToggling(null));
 
   const zones = useZones({
@@ -49,6 +51,7 @@ export function ZonesScreen() {
           disabled={readOnly}
           onEdit={() => setForm({ zone: z })}
           onToggleStatus={() => setToggling(z)}
+          onDelete={() => setDeleting(z)}
         />
       ),
     },
@@ -75,6 +78,7 @@ export function ZonesScreen() {
       onPageSizeChange={(n) => update({ pageSize: n })}
     >
       {form ? <ZoneFormDialog zone={form.zone} onClose={() => setForm(null)} /> : null}
+      <DeleteTerritoryDialog segment="zones" item={deleting} onClose={() => setDeleting(null)} />
       <StatusToggleDialog
         item={toggling}
         noun="zone"

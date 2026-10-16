@@ -120,6 +120,7 @@ export function buildHrContainer(
 
   return {
     contract: {
+      countHolidaysScopedTo: (scope) => holidays.countScopedTo(scope),
       isOnLeave: (userId, date) => lookups.isOnLeave(userId, date),
       listLeaveDates: (userId, from, to) => lookups.leaveDates(userId, from, to),
       listLeaveDays: (userId, from, to) => lookups.leaveDays(userId, from, to),

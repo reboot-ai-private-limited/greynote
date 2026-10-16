@@ -127,6 +127,10 @@ const TIMELESS = [
   '/api/territory/my-routes',
   '/api/territory/users/:userId/hq',
   '/api/territory/users/:userId/coverage',
+  '/api/territory/users/:userId/routes',
+  '/api/territory/zones/:id/delete-impact',
+  '/api/territory/hqs/:id/delete-impact',
+  '/api/territory/routes/:id/delete-impact',
   '/api/territory/manager-candidates',
   '/api/field-master-data/doctors/mine',
   '/api/field-master-data/doctors/team',
@@ -146,6 +150,7 @@ const TIMELESS = [
   '/api/hr/leave-types',
   '/api/hr/leave-policies',
   '/api/marketing/visuals',
+  '/api/marketing/visuals/:id/delete-impact',
   // The visuals picked for a doctor: a standing list, not a record of any year.
   '/api/marketing/doctors/:doctorId/visuals',
   '/api/marketing/campaigns',

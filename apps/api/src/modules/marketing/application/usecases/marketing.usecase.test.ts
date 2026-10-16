@@ -5,7 +5,7 @@ import { MARKETING_CODES, MarketingRefusal } from '../../domain/marketingRefusal
 import type { DirectoryUser, ProductPort, SalesPort, UserDirectoryPort } from '../../domain/ports.js';
 import { targetShare } from '../../domain/targetRange.js';
 import { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetSharesUseCase, SetTargetUseCase } from './targets.usecase.js';
-import { CreateCampaignUseCase, CreateVisualUseCase, ListCampaignsUseCase, ListVisualsUseCase } from './visualsAndCampaigns.usecase.js';
+import { CreateCampaignUseCase, CreateVisualUseCase, DeleteVisualUseCase, GetVisualDeleteImpactUseCase, ListCampaignsUseCase, ListVisualsUseCase, ReplaceVisualFileUseCase } from './visualsAndCampaigns.usecase.js';
 
 const k = (t: TargetKey) => `${t.userId}|${t.month}|${t.toMonth}|${t.productId}|${t.campaignId}`;
 class FakeTargets implements TargetRepositoryPort {
@@ -76,6 +76,19 @@ class FakeVisuals implements VisualRepositoryPort {
     const v = this.rows.find((r) => r.id === id);
     if (v) Object.assign(v, Object.fromEntries(Object.entries(patch).filter(([, x]) => x !== undefined)));
     return v ?? null;
+  }
+  failReplace = false;
+  async replaceFile(id: string, file: { fileUrl: string; publicId: string; mimeType: string }) {
+    if (this.failReplace) throw new Error('db down');
+    const v = this.rows.find((r) => r.id === id);
+    if (!v) return null;
+    const before = { ...v };
+    Object.assign(v, file);
+    return before;
+  }
+  async delete(id: string) {
+    const i = this.rows.findIndex((r) => r.id === id);
+    return i < 0 ? null : (this.rows.splice(i, 1)[0] as Visual);
   }
 }
 class FakeStorage implements VisualStoragePort {
@@ -321,5 +334,56 @@ describe('campaigns and visuals', () => {
     const storage = new FakeStorage();
     await expect(new CreateVisualUseCase(visuals, products, storage).execute(admin, { productId: null, title: 'x', category: 'OTHER', file: { buffer: Buffer.from('x'), mimeType: 'image/png' } })).rejects.toThrow('db down');
     expect(storage.files.size).toBe(0);
+  });
+});
+
+describe('replace and delete a visual', () => {
+  const png = { buffer: Buffer.from('x'), mimeType: 'image/png' };
+  const seed = async () => {
+    const visuals = new FakeVisuals();
+    const storage = new FakeStorage();
+    const created = await new CreateVisualUseCase(visuals, products, storage).execute(admin, { productId: null, title: 'Poster', category: 'GENERAL' as never, file: png });
+    return { visuals, storage, created };
+  };
+
+  it('puts the new file on the visual and takes the old one out of storage', async () => {
+    const { visuals, storage, created } = await seed();
+    const oldId = created.publicId; // the fake repository hands out the stored row itself, so keep the id before it changes
+    const after = await new ReplaceVisualFileUseCase(visuals, storage).execute(created.id, png);
+    expect(after.publicId).not.toBe(oldId);
+    expect(storage.files.has(oldId)).toBe(false);
+    expect(storage.files.has(after.publicId)).toBe(true);
+    expect(storage.files.size).toBe(1);
+  });
+
+  it('keeps the old file and removes the new one when the visual cannot be updated', async () => {
+    const { visuals, storage, created } = await seed();
+    const oldId = created.publicId;
+    visuals.failReplace = true;
+    await expect(new ReplaceVisualFileUseCase(visuals, storage).execute(created.id, png)).rejects.toThrow('db down');
+    expect([...storage.files]).toEqual([oldId]);
+  });
+
+  it('refuses a file that is not an image and an unknown visual, uploading nothing', async () => {
+    const { visuals, storage, created } = await seed();
+    const replace = new ReplaceVisualFileUseCase(visuals, storage);
+    await expect(replace.execute(created.id, { buffer: Buffer.from('x'), mimeType: 'application/pdf' })).rejects.toMatchObject({ code: MARKETING_CODES.unsupportedFile });
+    await expect(replace.execute('nope', png)).rejects.toMatchObject({ code: MARKETING_CODES.visualNotFound });
+    expect(storage.files.size).toBe(1);
+  });
+
+  it('counts the doctors who have it, then deletes the visual, their picks and the file', async () => {
+    const { visuals, storage, created } = await seed();
+    const picks = { rows: ['d1', 'd2', 'd2'], deleted: false };
+    const doctorVisuals = {
+      countDoctorsWith: async () => new Set(picks.rows).size,
+      deleteAllFor: async () => void (picks.deleted = true),
+    } as never;
+    expect(await new GetVisualDeleteImpactUseCase(visuals, doctorVisuals).execute(created.id)).toEqual({ id: created.id, title: 'Poster', doctors: 2 });
+    await new DeleteVisualUseCase(visuals, doctorVisuals, storage).execute(created.id);
+    expect(visuals.rows).toHaveLength(0);
+    expect(picks.deleted).toBe(true);
+    expect(storage.files.size).toBe(0);
+    await expect(new DeleteVisualUseCase(visuals, doctorVisuals, storage).execute(created.id)).rejects.toMatchObject({ code: MARKETING_CODES.visualNotFound });
   });
 });

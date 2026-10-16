@@ -35,6 +35,38 @@ export function useUpdateVisual(onDone?: () => void) {
   });
 }
 
+export function useReplaceVisualFile() {
+  return useApiMutation<{ id: string; file: File }>({
+    call: (token, { id, file }) => {
+      const body = new FormData();
+      body.set('file', file);
+      return marketingApi.replaceVisualFile(token, id, body);
+    },
+    invalidates: [keys.visuals.all()],
+  });
+}
+
+/** How many doctors have a visual on their list: read when the delete dialog opens. */
+export function useVisualDeleteImpact(id: string | null) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: [...keys.visuals.all(), 'delete-impact', id] as const,
+      fetch: (token, signal) => marketingApi.visualDeleteImpact(token, id as string, signal),
+      staleTime: 0,
+      enabled: id !== null,
+    }),
+  );
+}
+
+export function useDeleteVisual(onDone: () => void) {
+  return useApiMutation<string>({
+    call: (token, id) => marketingApi.deleteVisual(token, id),
+    invalidates: [keys.visuals.all()],
+    successMessage: 'Visual deleted.',
+    onSuccess: onDone,
+  });
+}
+
 /** What was picked for one doctor, with whether the viewer may take picks off. */
 export function useDoctorVisuals(doctorId: string) {
   return useQuery(

@@ -14,6 +14,8 @@ export interface HolidayRepositoryPort {
   list(filter: HolidayFilter): Promise<Holiday[]>;
   /** National ones plus those tagged with this HQ or Zone, oldest first. */
   listApplicable(from: string, to: string, place: { hqIds: string[]; zoneIds: string[] } | null): Promise<Holiday[]>;
+  /** Holidays scoped to any of these Zones or HQs. */
+  countScopedTo(scope: { zoneIds: string[]; hqIds: string[] }): Promise<number>;
   create(input: Omit<Holiday, 'id' | 'createdAt'>): Promise<Holiday>;
   delete(id: string): Promise<boolean>;
 }

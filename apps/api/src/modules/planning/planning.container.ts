@@ -1,4 +1,6 @@
 import type { Router } from 'express';
+import { Types } from 'mongoose';
+import { DailyPlanModel } from './infrastructure/dailyPlan.schema.js';
 import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { monthRange } from '@/shared/time/businessTime.js';
@@ -99,6 +101,8 @@ export function buildPlanningContainer(
 
   return {
     contract: {
+      countPlannedDaysOnRoutes: async (routeIds, fromDate) =>
+        routeIds.length === 0 ? 0 : DailyPlanModel.countDocuments({ planDate: { $gte: fromDate }, routeIds: { $in: routeIds.map((id) => new Types.ObjectId(id)) } }),
       isDailyPlanApproved: (userId, planDate) => status.isDailyPlanApproved(userId, planDate),
       isMonthlyPlanApproved: (userId, planMonth) => status.isMonthlyPlanApproved(userId, planMonth),
       getDailyPlanDay: (userId, planDate) => status.day(userId, planDate),

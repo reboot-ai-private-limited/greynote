@@ -24,6 +24,8 @@ export interface LeaveDay {
  * The only thing another module may import from `hr/`. Dates are calendar days (`YYYY-MM-DD`).
  */
 export interface HrPublicContract {
+  /** How many holidays are scoped to these Zones or HQs: what a permanent territory delete would leave pointing at nothing. */
+  countHolidaysScopedTo(scope: { zoneIds: string[]; hqIds: string[] }): Promise<number>;
   /** Phase 6's missed-DCR job (PRD §7.5): does a Manager-Approved (or fully approved) leave cover this day? */
   isOnLeave(userId: string, date: string): Promise<boolean>;
   /** The days in a range covered by a Manager-Approved (or fully approved) leave, sorted — `isOnLeave` for a whole calendar at once. */

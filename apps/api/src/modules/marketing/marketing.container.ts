@@ -2,7 +2,7 @@ import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetSharesUseCase, ListTargetsUseCase, SetTargetUseCase } from './application/usecases/targets.usecase.js';
 import { AddDoctorVisualsUseCase, ListDoctorVisualsUseCase, RemoveDoctorVisualUseCase } from './application/usecases/doctorVisuals.usecase.js';
-import { CreateCampaignUseCase, CreateVisualUseCase, ListCampaignsUseCase, ListVisualsUseCase, SetCampaignStatusUseCase, UpdateVisualUseCase } from './application/usecases/visualsAndCampaigns.usecase.js';
+import { CreateCampaignUseCase, CreateVisualUseCase, DeleteVisualUseCase, GetVisualDeleteImpactUseCase, ListCampaignsUseCase, ListVisualsUseCase, ReplaceVisualFileUseCase, SetCampaignStatusUseCase, UpdateVisualUseCase } from './application/usecases/visualsAndCampaigns.usecase.js';
 import type { DoctorPort, ProductPort, SalesPort, UserDirectoryPort } from './domain/ports.js';
 import { CloudinaryVisualStorage } from './infrastructure/cloudinaryVisualStorage.adapter.js';
 import { MongoCampaignAdapter, MongoDoctorVisualAdapter, MongoTargetAdapter, MongoVisualAdapter } from './infrastructure/mongoMarketing.adapter.js';
@@ -36,6 +36,9 @@ export function buildMarketingContainer(users: UserDirectoryPort, master: Produc
       buildMarketingRouter(
         makeMarketingControllers({
           createVisual: new CreateVisualUseCase(visuals, master, new CloudinaryVisualStorage()),
+          replaceVisualFile: new ReplaceVisualFileUseCase(visuals, new CloudinaryVisualStorage()),
+          getVisualDeleteImpact: new GetVisualDeleteImpactUseCase(visuals, doctorVisuals),
+          deleteVisual: new DeleteVisualUseCase(visuals, doctorVisuals, new CloudinaryVisualStorage()),
           listVisuals: new ListVisualsUseCase(visuals),
           updateVisual: new UpdateVisualUseCase(visuals, master),
           listDoctorVisuals: new ListDoctorVisualsUseCase(doctorVisuals, visuals, master, users),

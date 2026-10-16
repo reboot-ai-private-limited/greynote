@@ -18,6 +18,8 @@ export type { Product } from './domain/product.entity.js';
  * assignments, Distributors and sample allocations join it in the steps that build them.
  */
 export interface FieldMasterDataPublicContract {
+  /** How many Doctors, Chemists and Distributors sit on these Routes (any status): what a permanent route delete would leave without one. */
+  countOnRoutes(routeIds: string[]): Promise<{ doctors: number; chemists: number; distributors: number }>;
   /**
    * Where the Chemist is supposed to be. `null` means the geofence check **cannot run** — either
    * the Chemist doesn't exist or has no registered location — never that the check passed.

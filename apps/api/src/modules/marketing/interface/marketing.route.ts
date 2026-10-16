@@ -32,6 +32,9 @@ function doc(method: 'get' | 'post' | 'patch' | 'delete', path: string, summary:
 doc('post', '/visuals', 'Admin: upload a Visual (multipart: file + title, category, optional productId) — image (PNG, JPG, WebP or GIF), up to 25 MB', { body: createVisualBodySchema });
 doc('get', '/visuals', 'Visuals — field staff see the active ones; Admin all. General (no-product) ones are included', { query: listVisualsQuerySchema });
 doc('patch', '/visuals/{id}', 'Admin: change a Visual\'s title, category or product, or set it active or inactive', { params: idParamsSchema, body: updateVisualBodySchema });
+doc('post', '/visuals/{id}/file', 'Admin: put a new image on a Visual (multipart: file); the old file is removed from Cloudinary', { params: idParamsSchema });
+doc('get', '/visuals/{id}/delete-impact', 'Admin: how many doctors have this Visual on their list', { params: idParamsSchema });
+doc('delete', '/visuals/{id}', 'Admin: delete a Visual for good, with every doctor\'s pick of it and its file in Cloudinary', { params: idParamsSchema });
 doc('get', '/doctors/{doctorId}/visuals', 'The visuals picked for a doctor — the doctor\'s MR, a manager above them, or Admin', { params: doctorIdParamsSchema });
 doc('post', '/doctors/{doctorId}/visuals', 'Add visuals to a doctor\'s list (add-only) — the doctor\'s MR, a manager above them, or Admin', { params: doctorIdParamsSchema, body: addDoctorVisualsBodySchema });
 doc('delete', '/doctors/{doctorId}/visuals/{visualId}', 'Take a visual off a doctor\'s list — a manager above the doctor\'s MR, or Admin (not the MR)', { params: doctorVisualParamsSchema });
@@ -49,6 +52,9 @@ export function buildMarketingRouter(c: MarketingHandlers): Router {
   router.post('/visuals', requireRole('ADMIN'), uploadMiddleware, validate({ body: createVisualBodySchema }), c.createVisual);
   router.get('/visuals', requireRole('FIELD', 'ADMIN'), validate({ query: listVisualsQuerySchema }), c.listVisuals);
   router.patch('/visuals/:id', requireRole('ADMIN'), validate({ params: idParamsSchema, body: updateVisualBodySchema }), c.updateVisual);
+  router.post('/visuals/:id/file', requireRole('ADMIN'), uploadMiddleware, validate({ params: idParamsSchema }), c.replaceVisualFile);
+  router.get('/visuals/:id/delete-impact', requireRole('ADMIN'), validate({ params: idParamsSchema }), c.visualDeleteImpact);
+  router.delete('/visuals/:id', requireRole('ADMIN'), validate({ params: idParamsSchema }), c.deleteVisual);
   router.get('/doctors/:doctorId/visuals', requireRole('FIELD', 'ADMIN'), validate({ params: doctorIdParamsSchema }), c.listDoctorVisuals);
   router.post('/doctors/:doctorId/visuals', requireRole('FIELD', 'ADMIN'), validate({ params: doctorIdParamsSchema, body: addDoctorVisualsBodySchema }), c.addDoctorVisuals);
   router.delete('/doctors/:doctorId/visuals/:visualId', requireRole('FIELD', 'ADMIN'), validate({ params: doctorVisualParamsSchema }), c.removeDoctorVisual);

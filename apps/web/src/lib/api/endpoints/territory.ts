@@ -10,6 +10,8 @@ import type {
   PaginationQueryDto,
   PlaceCandidateDto,
   RouteAssignmentDto,
+  TerritoryDeleteImpactDto,
+  TerritoryDeleteResultDto,
   RouteDto,
   RouteType,
   TerritoryStatus,
@@ -120,4 +122,14 @@ export const managerApi = {
   },
   coverage: (token: string, userId: string, signal?: AbortSignal) => request<ManagerCoverageDto>(`/territory/users/${userId}/coverage`, { token, signal }),
   setCoverage: (token: string, userId: string, body: SetManagerCoverageDto) => request<ManagerCoverageDto>(`/territory/users/${userId}/coverage`, { method: 'PUT', token, body }),
+};
+
+export type TerritorySegment = 'zones' | 'hqs' | 'routes';
+
+/** Permanent delete of a Zone, HQ or Route with everything under it (Admin): `impact` first, to show what it would take and touch. */
+export const territoryDeleteApi = {
+  impact: (token: string, segment: TerritorySegment, id: string, signal?: AbortSignal) =>
+    request<TerritoryDeleteImpactDto>(`/territory/${segment}/${id}/delete-impact`, { token, signal }),
+  remove: (token: string, segment: TerritorySegment, id: string) =>
+    request<TerritoryDeleteResultDto>(`/territory/${segment}/${id}`, { method: 'DELETE', token }),
 };

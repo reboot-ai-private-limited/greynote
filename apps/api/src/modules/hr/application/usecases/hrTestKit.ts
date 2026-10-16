@@ -89,6 +89,9 @@ export class FakeHolidays implements HolidayRepositoryPort {
   async listApplicable(from: string, to: string, place: { hqIds: string[]; zoneIds: string[] } | null) {
     return this.rows.filter((h) => h.date >= from && h.date <= to && holidayApplies(h, place)).sort((a, b) => a.date.localeCompare(b.date));
   }
+  async countScopedTo(scope: { zoneIds: string[]; hqIds: string[] }) {
+    return this.rows.filter((h) => h.zoneIds.some((z) => scope.zoneIds.includes(z)) || h.hqIds.some((q) => scope.hqIds.includes(q))).length;
+  }
   async create(input: Omit<Holiday, 'id' | 'createdAt'>) {
     const row = { ...input, id: `holiday-${this.rows.length + 1}`, createdAt: new Date() };
     this.rows.push(row);

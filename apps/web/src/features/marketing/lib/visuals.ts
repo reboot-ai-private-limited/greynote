@@ -2,13 +2,7 @@ import type { VisualCategory } from '@greynote/contracts';
 
 /** What the upload form offers and what it refuses before anything is sent. The API enforces the 25 MB cap and the real type. */
 export const MAX_VISUAL_BYTES = 25 * 1024 * 1024;
-export const ACCEPTED_VISUAL_EXTENSIONS = [
-  'png',
-  'jpg',
-  'jpeg',
-  'webp',
-  'gif',
-] as const;
+export const ACCEPTED_VISUAL_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif'] as const;
 export const VISUAL_ACCEPT_ATTRIBUTE = ACCEPTED_VISUAL_EXTENSIONS.map((e) => `.${e}`).join(',');
 
 const extensionOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? '';
@@ -35,19 +29,18 @@ export const EMPTY_VISUAL: VisualDraft = {
   file: null,
 };
 
-/** Errors for the upload form; `needsFile` is false when editing, where the file cannot be replaced. */
+/** Errors for the upload form; `needsFile` is false when editing, where a new file is optional. */
 export function visualErrors(draft: VisualDraft, needsFile: boolean): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!draft.title.trim()) errors['title'] = 'Give the visual a title.';
   else if (draft.title.trim().length > 200)
     errors['title'] = 'Keep the title under 200 characters.';
   if (!draft.category) errors['category'] = 'Choose a category.';
-  if (needsFile) {
-    if (!draft.file) errors['file'] = 'Choose a file.';
-    else {
-      const problem = visualFileError(draft.file);
-      if (problem) errors['file'] = problem;
-    }
+  // Editing needs no file, but one that is chosen is checked like an upload.
+  if (needsFile && !draft.file) errors['file'] = 'Choose a file.';
+  else if (draft.file) {
+    const problem = visualFileError(draft.file);
+    if (problem) errors['file'] = problem;
   }
   return errors;
 }

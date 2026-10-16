@@ -16,7 +16,11 @@ DELETE /api/identity/users/:id/photo  ADMIN,HR
 DELETE /api/inbox/messages/:id  ADMIN
 DELETE /api/marketing/doctors/:doctorId/visuals/:visualId  ADMIN,FIELD
 DELETE /api/marketing/targets/:id  ADMIN,FIELD
+DELETE /api/marketing/visuals/:id  ADMIN
+DELETE /api/territory/hqs/:id  ADMIN
+DELETE /api/territory/routes/:id  ADMIN
 DELETE /api/territory/routes/:id/assignments/:userId  ADMIN
+DELETE /api/territory/zones/:id  ADMIN
 GET    /api/approvals/:id  ANY
 GET    /api/approvals/all  ADMIN,HR
 GET    /api/approvals/inbox  ADMIN,FIELD,HR
@@ -93,6 +97,7 @@ GET    /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 GET    /api/marketing/targets  ADMIN,FIELD
 GET    /api/marketing/targets/:userId  ADMIN,FIELD
 GET    /api/marketing/visuals  ADMIN,FIELD
+GET    /api/marketing/visuals/:id/delete-impact  ADMIN
 GET    /api/payroll  ACCOUNTANT,ADMIN,HR
 GET    /api/payroll/:id  ACCOUNTANT,ADMIN,HR
 GET    /api/payroll/me  FIELD
@@ -143,15 +148,19 @@ GET    /api/team/plans  FIELD
 GET    /api/team/stock  FIELD
 GET    /api/team/today  FIELD
 GET    /api/territory/hqs  ACCOUNTANT,ADMIN
+GET    /api/territory/hqs/:id/delete-impact  ADMIN
 GET    /api/territory/manager-candidates  ACCOUNTANT,ADMIN,HR
 GET    /api/territory/my-routes  FIELD
 GET    /api/territory/places/search  ADMIN
 GET    /api/territory/routes  ACCOUNTANT,ADMIN
 GET    /api/territory/routes/:id  ADMIN
 GET    /api/territory/routes/:id/assignments  ADMIN
+GET    /api/territory/routes/:id/delete-impact  ADMIN
 GET    /api/territory/users/:userId/coverage  ADMIN,HR
 GET    /api/territory/users/:userId/hq  ADMIN,HR
+GET    /api/territory/users/:userId/routes  ADMIN,HR
 GET    /api/territory/zones  ACCOUNTANT,ADMIN
+GET    /api/territory/zones/:id/delete-impact  ADMIN
 PATCH  /api/config/:key  ADMIN
 PATCH  /api/field-activity/expense-months/rows/:id  ADMIN,HR
 PATCH  /api/field-master-data/chemists/:id  ADMIN
@@ -248,6 +257,7 @@ POST   /api/marketing/campaigns  ADMIN
 POST   /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 POST   /api/marketing/targets  ADMIN,FIELD
 POST   /api/marketing/visuals  ADMIN
+POST   /api/marketing/visuals/:id/file  ADMIN
 POST   /api/payroll/:id/adjustments  ADMIN,HR
 POST   /api/payroll/:id/days  ADMIN,HR
 POST   /api/payroll/:id/finalize  ACCOUNTANT,ADMIN

@@ -8,6 +8,10 @@ export interface VisualRepositoryPort {
   setStatus(id: string, status: VisualStatus): Promise<Visual | null>;
   /** Changes what was given; a key left out stays as it was. `productId: null` makes it a general Visual. */
   update(id: string, patch: { title?: string | undefined; category?: Visual['category'] | undefined; productId?: string | null | undefined; status?: VisualStatus | undefined }): Promise<Visual | null>;
+  /** Points the Visual at a new file and returns the Visual as it was before (so its old file can be removed), or `null` for an unknown id. */
+  replaceFile(id: string, file: { fileUrl: string; publicId: string; mimeType: string }): Promise<Visual | null>;
+  /** Removes the row and returns it, or `null` for an unknown id. */
+  delete(id: string): Promise<Visual | null>;
 }
 
 export interface DoctorVisualRepositoryPort {
@@ -16,6 +20,10 @@ export interface DoctorVisualRepositoryPort {
   addMany(doctorId: string, visualIds: string[], by: string, at: Date): Promise<void>;
   /** `false` if that Visual is not on the list now. */
   remove(doctorId: string, visualId: string, by: string, at: Date): Promise<boolean>;
+  /** How many Doctors have this Visual on their list now. */
+  countDoctorsWith(visualId: string): Promise<number>;
+  /** Drops every pick of this Visual, current and removed: the Visual itself is being deleted. */
+  deleteAllFor(visualId: string): Promise<void>;
 }
 
 export interface CampaignRepositoryPort {

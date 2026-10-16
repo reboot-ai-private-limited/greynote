@@ -129,6 +129,17 @@ export function buildContainers(): AppContainers {
   // Tier 7 — Reminders: deadline reminders to employees and "N not submitted" / "N waiting" messages to managers, through the Inbox (which also pushes). Owns only its dedupe marks.
   const reminders = buildRemindersContainer(identity.contract, hr.contract, planning.contract, fieldActivity.contract, sales.contract, approval.contract, inbox.contract, config.contract);
 
+  // Territory sits below the modules whose records point at its Zones, HQs and Routes, so what a permanent delete would leave pointing at nothing is counted
+  // through their public contracts and handed to it here.
+  territory.bindReferenceCounter(async ({ zoneIds, hqIds, routeIds }) => {
+    const [onRoutes, holidays, plannedDays] = await Promise.all([
+      fieldMasterData.contract.countOnRoutes(routeIds),
+      hr.contract.countHolidaysScopedTo({ zoneIds, hqIds }),
+      planning.contract.countPlannedDaysOnRoutes(routeIds, new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })),
+    ]);
+    return { ...onRoutes, holidays, plannedDays };
+  });
+
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });

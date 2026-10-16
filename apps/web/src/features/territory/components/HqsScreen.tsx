@@ -12,6 +12,7 @@ import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useHqs } from '../hooks/useHqs';
 import { useZoneOptions } from '../hooks/useParentOptions';
 import { useUpdateHq } from '../hooks/useTerritoryMutations';
+import { DeleteTerritoryDialog } from './DeleteTerritoryDialog';
 import { HqFormDialog } from './HqFormDialog';
 import { RowActions } from '@/components/ui/RowActions';
 import { StatusFilter } from '@/components/ui/StatusFilter';
@@ -25,6 +26,7 @@ export function HqsScreen() {
   const zones = useZoneOptions();
   const [form, setForm] = useState<{ hq?: HqDto } | null>(null);
   const [toggling, setToggling] = useState<HqDto | null>(null);
+  const [deleting, setDeleting] = useState<HqDto | null>(null);
   const updateHq = useUpdateHq(() => setToggling(null));
 
   const hqs = useHqs({
@@ -48,7 +50,7 @@ export function HqsScreen() {
       header: '',
       className: 'w-12 text-right',
       render: (h) => (
-        <RowActions label={h.name} status={h.status} disabled={readOnly} onEdit={() => setForm({ hq: h })} onToggleStatus={() => setToggling(h)} />
+        <RowActions label={h.name} status={h.status} disabled={readOnly} onEdit={() => setForm({ hq: h })} onToggleStatus={() => setToggling(h)} onDelete={() => setDeleting(h)} />
       ),
     },
   ];
@@ -82,6 +84,7 @@ export function HqsScreen() {
       onPageSizeChange={(n) => update({ pageSize: n })}
     >
       {form ? <HqFormDialog hq={form.hq} onClose={() => setForm(null)} /> : null}
+      <DeleteTerritoryDialog segment="hqs" item={deleting} onClose={() => setDeleting(null)} />
       <StatusToggleDialog
         item={toggling}
         noun="HQ"
