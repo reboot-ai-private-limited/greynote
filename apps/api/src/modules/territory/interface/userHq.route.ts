@@ -35,7 +35,17 @@ openApiRegistry.registerPath({
   responses: { 200: { description: 'HQ assignments' } },
 });
 
-export function buildUserHqRouter(useCases: { set: SetUserHqUseCase; get: GetUserHqUseCase }): Router {
+openApiRegistry.registerPath({
+  method: 'get',
+  path: '/api/territory/users/{userId}/routes',
+  tags: [TAG],
+  summary: 'Admin/HR: the active routes an employee covers',
+  security: bearer,
+  request: { params: userIdParamsSchema },
+  responses: { 200: { description: 'Routes with HQ name, type and distance' } },
+});
+
+export function buildUserHqRouter(useCases: { set: SetUserHqUseCase; get: GetUserHqUseCase; routes: RequestHandler }): Router {
   const set: RequestHandler = asyncHandler(async (req, res) => {
     if (!req.user) throw AppError.unauthenticated();
     const assignment = await useCases.set.execute(requiredParam(req.params, 'userId'), req.body.hqId, req.user.sub);
@@ -49,5 +59,6 @@ export function buildUserHqRouter(useCases: { set: SetUserHqUseCase; get: GetUse
   router.use(authenticate(), requireRole('ADMIN', 'HR'));
   router.put('/:userId/hq', validate({ params: userIdParamsSchema, body: setUserHqBodySchema }), set);
   router.get('/:userId/hq', validate({ params: userIdParamsSchema }), get);
+  router.get('/:userId/routes', validate({ params: userIdParamsSchema }), useCases.routes);
   return router;
 }

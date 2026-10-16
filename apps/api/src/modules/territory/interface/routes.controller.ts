@@ -62,3 +62,10 @@ export function makeMyRoutesController(useCase: ListRoutesForUserUseCase): Reque
     sendSuccess(req, res, routes, 'Your routes.', 200);
   });
 }
+
+export function makeUserRoutesController(useCase: ListRoutesForUserUseCase): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    const routes = await useCase.execute(requiredParam(req.params, 'userId'));
+    sendSuccess(req, res, routes, 'Employee routes.', 200);
+  });
+}

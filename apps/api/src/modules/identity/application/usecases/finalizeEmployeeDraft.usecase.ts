@@ -18,6 +18,9 @@ import type { UpdateUserUseCase } from './updateUser.usecase.js';
 /** Sets the new employee's HQ. Territory sits above Identity, so the container binds this after both are built. */
 export type HqAssigner = (userId: string, hqId: string, actorId: string) => Promise<unknown>;
 
+/** Gives the new employee their routes (already-held ones are skipped, so a retry is safe). Territory sits above Identity, so this is bound after both are built. */
+export type RouteAssigner = (userId: string, routeIds: string[], actorId: string) => Promise<unknown>;
+
 export interface FinalizedEmployee {
   userId: string;
   employeeCode: string;
@@ -63,6 +66,7 @@ export class FinalizeEmployeeDraftUseCase {
     private readonly assignHq: () => HqAssigner,
     private readonly currentMonth: () => Promise<string>,
     private readonly profiles: EmployeeProfileRepositoryPort,
+    private readonly assignRoutes: () => RouteAssigner,
   ) {}
 
   async execute(actor: { id: string; role: RoleName }, draftId: string): Promise<FinalizedEmployee> {
@@ -70,8 +74,12 @@ export class FinalizeEmployeeDraftUseCase {
     if (!draft) throw AppError.notFound('No such draft.');
     const { data } = draft;
 
-    const top = isTopDesignation(data.work?.designationId ?? null, await this.designations.list());
+    const designations = await this.designations.list();
+    const top = isTopDesignation(data.work?.designationId ?? null, designations);
+    const isMr = designations.some((d) => d.id === data.work?.designationId && d.name === 'MR');
     const gaps = draftGaps(data);
+    // An MR with no route cannot plan a day, so routes are required for the MR designation only.
+    if (isMr && (data.work?.routeIds ?? []).length === 0) gaps.push({ step: 'work', field: 'routeIds' });
     if (gaps.length > 0) {
       throw AppError.badRequest('Some required details are missing.', { gaps });
     }
@@ -123,6 +131,7 @@ export class FinalizeEmployeeDraftUseCase {
     if (data.photo) await this.profiles.upsert(userId, { photo: data.photo });
 
     await this.assignHq()(userId, data.work?.hqId as string, actor.id);
+    if (isMr) await this.assignRoutes()(userId, data.work?.routeIds ?? [], actor.id);
 
     const ctc = data.compensation?.ctcAnnualPaise;
     if (ctc && !(await this.ctcAssignments.findEffective(userId, FAR_FUTURE))) {

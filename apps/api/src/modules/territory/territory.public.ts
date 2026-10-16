@@ -21,6 +21,8 @@ export interface TerritoryPublicContract {
   getUserHq(userId: string): Promise<{ hqId: string; zoneId: string } | null>;
   /** Sets a FIELD employee's HQ (ends the previous one) — the employee wizard's last step. */
   assignUserHq(userId: string, hqId: string, actorId: string): Promise<unknown>;
+  /** Gives a FIELD employee these routes (ones they already hold are skipped) — the employee wizard's last step. */
+  assignUserRoutes(userId: string, routeIds: string[], actorId: string): Promise<void>;
   getHq(hqId: string): Promise<{ id: string; zoneId: string; name: string; status: TerritoryStatus } | null>;
   getZone(zoneId: string): Promise<{ id: string; name: string; status: TerritoryStatus } | null>;
   /** Case-insensitive name lookups — for files that name places (HR's holiday import). */

@@ -15,8 +15,8 @@ import {
 
 const ctx: RuleContext = {
   designations: [
-    { id: 'mr', level: 1 },
-    { id: 'zsm', level: 4 },
+    { id: 'mr', name: 'MR', level: 1 },
+    { id: 'zsm', name: 'ZSM', level: 4 },
   ],
   today: '2026-10-09',
 };
@@ -45,11 +45,17 @@ const complete: WizardForm = {
   designationId: 'mr',
   zoneId: 'z1',
   hqId: 'h1',
+  routeIds: ['r1'],
   managerId: 'm1',
   payBandId: 'g1',
 };
 
 describe('step rules', () => {
+  it('work: an MR must choose a route, a manager designation need not', () => {
+    expect(stepErrors('work', { ...complete, routeIds: [] }, ctx)['routeIds']).toBeTruthy();
+    expect(stepErrors('work', { ...complete, designationId: 'zsm', routeIds: [] }, ctx)['routeIds']).toBeUndefined();
+  });
+
   it('a complete form has no errors on any step', () => {
     for (const s of STEPS) expect(stepErrors(s.key, complete, ctx)).toEqual({});
   });

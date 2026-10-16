@@ -3,11 +3,13 @@ import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
 import { Select } from '@/components/ui/Select';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
+import { RouteChecklist } from '@/features/territory/components/RouteChecklist';
+import { useActiveRoutes } from '@/features/territory/hooks/useRoutes';
 import { useAllZones } from '@/features/territory/hooks/useZones';
 import { useDesignations } from '../../hooks/useMasterData';
 import { useUser } from '../../hooks/useUsers';
 import { DESIGNATION_LABEL } from '../../lib/masterData';
-import { isTopDesignation } from '../../lib/onboarding';
+import { isMrDesignation, isTopDesignation } from '../../lib/onboarding';
 import { ManagerPickerDialog } from '../ManagerPickerDialog';
 import { Grid, StepFrame, type StepProps } from './StepFrame';
 
@@ -17,6 +19,9 @@ export function WorkStep({ form, update, errors }: StepProps) {
   const hqs = useAllHqs();
   const savedManager = useUser(form.managerName ? null : form.managerId || null);
   const [picking, setPicking] = useState(false);
+  const isMr = isMrDesignation(form.designationId, designations.data ?? []);
+  // Only this HQ's routes are offered; none load until an MR has an HQ.
+  const routes = useActiveRoutes(form.hqId || undefined, isMr && Boolean(form.hqId));
 
   const top = isTopDesignation(form.designationId, designations.data ?? []);
   const level = (designations.data ?? []).find((d) => d.id === form.designationId)?.level;
@@ -42,7 +47,7 @@ export function WorkStep({ form, update, errors }: StepProps) {
           <Select
             id="w-zone"
             value={form.zoneId}
-            onValueChange={(v) => update({ zoneId: v, hqId: '', managerId: '', managerName: '' })}
+            onValueChange={(v) => update({ zoneId: v, hqId: '', routeIds: [], managerId: '', managerName: '' })}
             options={(zones.data ?? []).filter((z) => z.status === 'active' || z.id === form.zoneId).map((z) => ({ value: z.id, label: z.name }))}
             placeholder={zones.isLoading ? 'Loading…' : 'Choose a zone'}
             aria-invalid={errors['zoneId'] ? true : undefined}
@@ -52,13 +57,26 @@ export function WorkStep({ form, update, errors }: StepProps) {
           <Select
             id="w-hq"
             value={form.hqId}
-            onValueChange={(v) => update({ hqId: v, managerId: '', managerName: '' })}
+            onValueChange={(v) => update({ hqId: v, routeIds: [], managerId: '', managerName: '' })}
             options={zoneHqs.map((h) => ({ value: h.id, label: h.name }))}
             placeholder={!form.zoneId ? 'Choose a zone first' : hqs.isLoading ? 'Loading…' : zoneHqs.length === 0 ? 'No HQ in this zone' : 'Choose an HQ'}
             disabled={!form.zoneId}
             aria-invalid={errors['hqId'] ? true : undefined}
           />
         </FormField>
+        {isMr ? (
+          <div className="sm:col-span-2">
+            <FormField label="Routes" htmlFor="w-routes" error={errors['routeIds']} hint="Required for an MR. Only this HQ's routes are listed; more can be added later from the employee page.">
+              {!form.hqId ? (
+                <p className="text-[13px] text-text-subtle">Choose an HQ first.</p>
+              ) : routes.isLoading ? (
+                <p className="text-[13px] text-text-subtle">Loading…</p>
+              ) : (
+                <RouteChecklist routes={routes.data ?? []} selected={form.routeIds} onChange={(ids) => update({ routeIds: ids })} emptyText="This HQ has no active routes yet. Create one under Territory → Routes first." />
+              )}
+            </FormField>
+          </div>
+        ) : null}
         {top ? (
           <p className="rounded-lg bg-accent-soft px-4 py-3 text-sm text-accent-soft-text sm:col-span-2">Top of the hierarchy: this designation has no manager.</p>
         ) : (

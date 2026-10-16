@@ -44,6 +44,7 @@ import {
   makeGetRouteController,
   makeListRouteAssignmentsController,
   makeMyRoutesController,
+  makeUserRoutesController,
   makeUnassignRouteController,
   makeSearchPlacesController,
 } from './interface/routes.controller.js';
@@ -90,10 +91,11 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
     },
     'Route',
   );
+  const assignRoute = new AssignRouteUseCase(routeRepository, assignmentRepository, users);
   const routeControllers = {
     ...routeCrud,
     get: makeGetRouteController(new GetRouteUseCase(routeRepository, typeRules)),
-    assign: makeAssignRouteController(new AssignRouteUseCase(routeRepository, assignmentRepository, users)),
+    assign: makeAssignRouteController(assignRoute),
     listAssignments: makeListRouteAssignmentsController(
       new ListRouteAssignmentsUseCase(routeRepository, assignmentRepository, users),
     ),
@@ -124,6 +126,12 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
       listRouteIdsInScope: (scope) => listRouteIdsInScope.execute(scope),
       getUserHq: (userId) => userHq.get.current(userId),
       assignUserHq: (userId, hqId, actorId) => userHq.set.execute(userId, hqId, actorId),
+      assignUserRoutes: async (userId, routeIds, actorId) => {
+        for (const routeId of routeIds) {
+          if (await assignmentRepository.findActive(routeId, userId)) continue;
+          await assignRoute.execute(routeId, userId, actorId);
+        }
+      },
       getHq: (hqId) => hqRepository.findById(hqId),
       getZone: (zoneId) => zoneRepository.findById(zoneId),
       findZoneByName: (name) => zoneRepository.findByName(name),
@@ -136,7 +144,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
       router.use('/places', buildPlacesRouter(searchPlaces));
       router.use('/import', buildImportRouter(importHierarchy));
       router.use('/my-routes', buildMyRoutesRouter(makeMyRoutesController(listRoutesForUser)));
-      router.use('/users', buildUserHqRouter(userHq));
+      router.use('/users', buildUserHqRouter({ ...userHq, routes: makeUserRoutesController(listRoutesForUser) }));
       router.use('/users', buildManagerCoverageRouter(managerCoverage));
       router.use('/manager-candidates', buildManagerCandidatesRouter(managerCandidates));
       return router;

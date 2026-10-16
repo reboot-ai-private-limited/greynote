@@ -155,6 +155,7 @@ Full rule, and why the map went: [`../hld/02-route-distance-calculation.md`](../
 | `GET` | `/api/territory/my-routes` | FIELD roles | The calling MR's own assigned Routes — consumed by Planning's route picker |
 | `PUT` | `/api/territory/users/:userId/hq` | Admin, HR | Set a FIELD employee's HQ (ends the previous one) |
 | `GET` | `/api/territory/users/:userId/hq` | Admin, HR | The employee's current HQ and its history |
+| `GET` | `/api/territory/users/:userId/routes` | Admin, HR | The active routes the employee covers (employee page Routes card; add/remove use the route assignment endpoints, Admin) |
 
 ## CSV import
 

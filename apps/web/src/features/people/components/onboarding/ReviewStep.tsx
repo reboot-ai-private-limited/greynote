@@ -7,7 +7,7 @@ import { useDesignations, usePayBands } from '../../hooks/useMasterData';
 import { useUser } from '../../hooks/useUsers';
 import { parseCtc } from '../../lib/ctc';
 import { DESIGNATION_LABEL } from '../../lib/masterData';
-import { STEPS, effectivePermanent, isTopDesignation, type AddressForm, type StepKey } from '../../lib/onboarding';
+import { STEPS, effectivePermanent, isMrDesignation, isTopDesignation, type AddressForm, type StepKey } from '../../lib/onboarding';
 import { StepFrame, type StepProps } from './StepFrame';
 
 const address = (a: AddressForm) => [a.line1, a.line2, a.district, a.state, a.pincode].filter(Boolean).join(', ');
@@ -123,6 +123,7 @@ export function ReviewStep({ form, problems, onEdit }: Pick<StepProps, 'form'> &
             ['Designation', designation ? DESIGNATION_LABEL[designation.name] : undefined],
             ['Zone', zones.data?.find((z) => z.id === form.zoneId)?.name],
             ['HQ', hqs.data?.find((h) => h.id === form.hqId)?.name],
+            ...(isMrDesignation(form.designationId, designations.data ?? []) ? [['Routes', `${form.routeIds.length} chosen`] as [string, string]] : []),
             ['Manager', top ? 'None (top of the hierarchy)' : form.managerName || manager.data?.name || 'None (approvals go to Admin or HR)'],
           ]}
         />

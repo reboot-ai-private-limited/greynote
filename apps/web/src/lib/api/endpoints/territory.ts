@@ -92,6 +92,23 @@ export const userHqApi = {
     request<UserHqAssignmentDto>(`/territory/users/${userId}/hq`, { method: 'PUT', token, body: { hqId } }),
 };
 
+/** What the routes list of one employee returns (the API's RouteSummary). */
+export interface UserRouteDto {
+  id: string;
+  name: string;
+  hqId: string;
+  hqName: string;
+  routeType: string;
+  distanceKm: string | null;
+  status: TerritoryStatus;
+}
+
+/** The active routes one field employee covers. Admin and HR read; assigning and removing stay on the route endpoints (Admin). */
+export const userRoutesApi = {
+  list: (token: string, userId: string, signal?: AbortSignal) =>
+    request<UserRouteDto[]>(`/territory/users/${userId}/routes`, { token, signal }),
+};
+
 /** Who can be an employee's manager (higher designation, covering their HQ), and the HQs and Zones a manager covers. Admin and HR; the Accountant may read candidates. */
 export const managerApi = {
   candidates: (token: string, query: { level: number; hqId?: string; search?: string; excludeUserId?: string }, signal?: AbortSignal) => {

@@ -33,7 +33,7 @@ import {
   ListEmployeeDraftsUseCase,
   UpdateEmployeeDraftUseCase,
 } from './application/usecases/employeeDrafts.usecase.js';
-import { FinalizeEmployeeDraftUseCase, type HqAssigner } from './application/usecases/finalizeEmployeeDraft.usecase.js';
+import { FinalizeEmployeeDraftUseCase, type HqAssigner, type RouteAssigner } from './application/usecases/finalizeEmployeeDraft.usecase.js';
 import { MongoEmployeeDraftAdapter } from './infrastructure/mongoEmployeeDraft.adapter.js';
 import { MongoEmployeeCodeGenerator } from './infrastructure/mongoEmployeeCodeGenerator.adapter.js';
 import { makeEmployeeDraftControllers } from './interface/employeeDrafts.controller.js';
@@ -164,6 +164,8 @@ export interface IdentityContainer {
   applyDuePromotions: () => Promise<{ applied: number; failed: number }>;
   /** Territory sits above Identity, so the employee wizard's "set the HQ" is handed in once both are built. */
   bindHqAssigner: (assign: HqAssigner) => void;
+  /** Likewise the new MR's routes. */
+  bindRouteAssigner: (assign: RouteAssigner) => void;
   hasAdmin: () => Promise<boolean>;
   seedBootstrapAdmin: (input: BootstrapAdminInput) => Promise<void>;
 }
@@ -186,6 +188,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const employeeDraftRepository = new MongoEmployeeDraftAdapter();
   const employeeCodeGenerator = new MongoEmployeeCodeGenerator(userRepository);
   let hqAssigner: HqAssigner | null = null;
+  let routeAssigner: RouteAssigner | null = null;
   const employeeProfileRepository = new MongoEmployeeProfileAdapter();
   const complianceBlockRepository = new MongoComplianceBlockAdapter();
   const userSessionRepository = new MongoUserSessionAdapter();
@@ -307,6 +310,10 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       },
       currentMonth,
       employeeProfileRepository,
+      () => {
+        if (!routeAssigner) throw new Error('The route assigner was not bound.');
+        return routeAssigner;
+      },
     ),
   });
   const listCtcHistory = new ListCtcHistoryUseCase(ctcAssignmentRepository);
@@ -488,6 +495,9 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     applyDuePromotions: () => applyDuePromotions.execute(),
     bindHqAssigner: (assign) => {
       hqAssigner = assign;
+    },
+    bindRouteAssigner: (assign) => {
+      routeAssigner = assign;
     },
     hasAdmin: () => userRepository.existsAdmin(),
     seedBootstrapAdmin: (input) => seedBootstrapAdminUseCase.execute(input),

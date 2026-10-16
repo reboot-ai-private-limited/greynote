@@ -134,6 +134,7 @@ export const keys = {
     /** Every row, all pages: for pickers and labels. Under `all`, so a territory edit refreshes it. */
     directory: () => [...keys.routes.all(), 'directory'] as const,
     detail: (id: string) => [...keys.routes.all(), 'detail', id] as const,
+    forUser: (userId: string) => [...keys.routes.all(), 'for-user', userId] as const,
     assignments: (id: string, includeHistory: boolean) => [...keys.routes.all(), 'assignments', id, includeHistory] as const,
   },
   products: {

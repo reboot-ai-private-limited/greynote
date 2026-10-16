@@ -75,6 +75,8 @@ export interface WizardForm {
   designationId: string;
   zoneId: string;
   hqId: string;
+  /** The routes an MR will cover (this HQ's routes only), required for the MR designation. */
+  routeIds: string[];
   managerId: string;
   /** For display only; not saved. */
   managerName: string;
@@ -111,6 +113,7 @@ export const EMPTY_FORM: WizardForm = {
   designationId: '',
   zoneId: '',
   hqId: '',
+  routeIds: [],
   managerId: '',
   managerName: '',
   payBandId: '',
@@ -161,8 +164,13 @@ export function isTopDesignation(
   return designations.some((d) => d.id === designationId && d.level === top);
 }
 
+/** Whether this designation is MR, the one that must have routes before the employee can be created. */
+export function isMrDesignation(designationId: string, designations: readonly { id: string; name?: string }[]): boolean {
+  return designations.some((d) => d.id === designationId && d.name === 'MR');
+}
+
 export interface RuleContext {
-  designations: readonly Pick<DesignationDto, 'id' | 'level'>[];
+  designations: readonly (Pick<DesignationDto, 'id' | 'level'> & { name?: string })[];
   /** Today, `YYYY-MM-DD`, for "not in the future" checks. */
   today: string;
   /** Codes of the org's pay components, so a line added for this employee gets a code of its own. */
@@ -313,6 +321,8 @@ export function stepErrors(step: StepKey, form: WizardForm, ctx: RuleContext): E
       put(e, 'designationId', form.designationId ? undefined : 'Choose a designation.');
       put(e, 'zoneId', form.zoneId ? undefined : 'Choose a zone.');
       put(e, 'hqId', form.hqId ? undefined : 'Choose an HQ.');
+      if (isMrDesignation(form.designationId, ctx.designations))
+        put(e, 'routeIds', form.routeIds.length > 0 ? undefined : 'Choose at least one route.');
       break;
     case 'compensation':
       put(e, 'payBandId', form.payBandId ? undefined : 'Choose a pay grade.');
@@ -448,6 +458,7 @@ export function toDraftData(
     work: {
       ...(form.designationId && { designationId: form.designationId }),
       ...(form.hqId && { hqId: form.hqId }),
+      ...(form.routeIds.length > 0 && { routeIds: form.routeIds }),
       ...(form.managerId && { managerId: form.managerId }),
     },
     compensation: {
@@ -507,6 +518,7 @@ export function fromDraftData(data: EmployeeDraftDataDto): WizardForm {
     branchName: data.bank?.branchName ?? '',
     designationId: data.work?.designationId ?? '',
     hqId: data.work?.hqId ?? '',
+    routeIds: data.work?.routeIds ?? [],
     managerId: data.work?.managerId ?? '',
     payBandId: data.compensation?.payBandId ?? '',
     ctc:

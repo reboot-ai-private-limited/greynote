@@ -43,7 +43,7 @@ export interface EmployeeDraftData {
     ifsc?: string;
     branchName?: string;
   };
-  work?: { designationId?: string; hqId?: string; managerId?: string };
+  work?: { designationId?: string; hqId?: string; managerId?: string; routeIds?: string[] };
   compensation?: {
     payBandId?: string;
     ctcAnnualPaise?: number;

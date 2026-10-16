@@ -64,7 +64,7 @@ export const draftDataSchema = z
         branchName: text.optional(),
       })
       .optional(),
-    work: z.object({ designationId: text.optional(), hqId: text.optional(), managerId: text.optional() }).optional(),
+    work: z.object({ designationId: text.optional(), hqId: text.optional(), managerId: text.optional(), routeIds: z.array(text).max(200).optional() }).optional(),
     compensation: z
       .object({
         payBandId: text.optional(),

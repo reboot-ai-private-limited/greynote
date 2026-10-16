@@ -223,7 +223,7 @@ export interface EmployeeDraftDataDto {
   experience?: Array<{ companyName?: string; joiningDate?: string; endDate?: string }>;
   bank?: { bankName?: string; accountNumber?: string; accountHolderName?: string; ifsc?: string; branchName?: string };
   /** `managerId` is not needed when the designation is the top of the hierarchy. */
-  work?: { designationId?: string; hqId?: string; managerId?: string };
+  work?: { designationId?: string; hqId?: string; managerId?: string; /** The routes the new MR will cover; required for an MR. */ routeIds?: string[] };
   compensation?: {
     payBandId?: string;
     ctcAnnualPaise?: number;

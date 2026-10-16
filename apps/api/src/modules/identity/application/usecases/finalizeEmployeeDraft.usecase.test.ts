@@ -8,7 +8,7 @@ const complete = (extra: Partial<EmployeeDraftData> = {}): EmployeeDraftData => 
   personal: { name: 'Asha', mobileNumber: '9830012345', guardianName: 'R. Rao', dateOfBirth: '1990-01-01', dateOfJoining: '2026-10-01' },
   address: { present: address, permanentSameAsPresent: true },
   bank: { bankName: 'SBI', accountNumber: '1', accountHolderName: 'Asha', ifsc: 'SBIN0000001', branchName: 'Park St' },
-  work: { designationId: 'des-1', hqId: 'hq-1', managerId: 'boss' },
+  work: { designationId: 'des-1', hqId: 'hq-1', managerId: 'boss', routeIds: ['r1', 'r2'] },
   compensation: { payBandId: 'g1', ctcAnnualPaise: 60000000 },
   ...extra,
 });
@@ -39,7 +39,7 @@ function build(data: EmployeeDraftData, opts: { createdUserId?: string; failHqOn
       findById: async (id: string) => users.get(id) ?? null,
       update: async (id: string, patch: { passwordHash: string }) => { Object.assign(users.get(id) as object, patch); },
     } as never,
-    { list: async () => [{ id: 'des-1', level: 1 }, { id: 'des-top', level: 5 }] } as never,
+    { list: async () => [{ id: 'des-1', name: 'MR', level: 1 }, { id: 'des-top', name: 'NSM', level: 5 }] } as never,
     { next: async () => `GHC10${++codeSeq}` } as never,
     {
       execute: async (_role: string, input: { employeeCode: string; password: string }) => {
@@ -58,6 +58,7 @@ function build(data: EmployeeDraftData, opts: { createdUserId?: string; failHqOn
     },
     async () => '2026-10',
     { upsert: async (id: string, patch: { photo?: { url: string } }) => { if (patch.photo) calls.push(`photo ${id} ${patch.photo.url}`); } } as never,
+    () => async (userId: string, routeIds: string[]) => { calls.push(`routes ${userId} ${routeIds.join(',')}`); },
   );
   return { useCase, calls, users, ctcInput, draftNow: () => draft };
 }
@@ -70,7 +71,19 @@ describe('FinalizeEmployeeDraftUseCase', () => {
     const result = await useCase.execute(actor, 'd1');
     expect(result).toMatchObject({ userId: 'u1', employeeCode: 'GHC101' });
     expect(result.password).toHaveLength(12);
-    expect(calls).toEqual(['create GHC101', 'update u1 boss', 'hq u1 hq-1', 'ctc', 'draft deleted']);
+    expect(calls).toEqual(['create GHC101', 'update u1 boss', 'hq u1 hq-1', 'routes u1 r1,r2', 'ctc', 'draft deleted']);
+  });
+
+  it('refuses an MR with no route and creates nothing', async () => {
+    const { useCase, calls } = build(complete({ work: { designationId: 'des-1', hqId: 'hq-1', managerId: 'boss' } }));
+    await expect(useCase.execute(actor, 'd1')).rejects.toMatchObject({ statusCode: 400 });
+    expect(calls).toEqual([]);
+  });
+
+  it('needs no route for a manager designation', async () => {
+    const { useCase, calls } = build(complete({ work: { designationId: 'des-top', hqId: 'hq-1' } }));
+    await useCase.execute(actor, 'd1');
+    expect(calls.some((c) => c.startsWith('routes'))).toBe(false);
   });
 
   it('carries the draft photo onto the new employee', async () => {

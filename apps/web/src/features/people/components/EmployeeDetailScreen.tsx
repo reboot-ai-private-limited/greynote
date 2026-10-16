@@ -24,6 +24,7 @@ import { DocumentsSection } from './DocumentsSection';
 import { BasicSection } from './BasicSection';
 import { CompensationTab } from './CompensationTab';
 import { PhotoPicker } from './PhotoPicker';
+import { RoutesSection } from './RoutesSection';
 import { TeamTab } from './TeamTab';
 import { PromotionTab } from './PromotionTab';
 import { Field, FieldList } from './SectionCard';
@@ -107,6 +108,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                   <AddressSection user={user} readOnly={readOnly} />
                   <WorkSection user={user} readOnly={readOnly} />
                   <CoverageSection user={user} readOnly={readOnly} />
+                  {user.role === 'FIELD' && isAdmin ? <RoutesSection user={user} readOnly={readOnly} /> : null}
                   <DocumentsSection user={user} readOnly={readOnly} />
                 </TabsContent>
                 <TabsContent value="team" className="mt-6 space-y-6">
