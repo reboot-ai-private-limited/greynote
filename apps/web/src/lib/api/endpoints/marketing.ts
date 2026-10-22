@@ -15,6 +15,9 @@ export interface SetTargetBody {
   targetQty?: number;
 }
 
+/** `PATCH /marketing/targets/:id`: the target as it should now be. The employee stays, so it isn't sent. */
+export type UpdateTargetBody = Omit<SetTargetBody, 'userId'>;
+
 export const marketingApi = {
   /** Admin sees every visual, filtered by status and product; the API returns up to 500 in one list. */
   listVisuals: (
@@ -51,6 +54,9 @@ export const marketingApi = {
   /** A target over a run of whole months of the current financial year; setting the same range and product again replaces it. */
   setTarget: (token: string, body: SetTargetBody) =>
     request<unknown>('/marketing/targets', { method: 'POST', token, body }),
+  /** Edits a target in place (months, product, amount or units); `409 TARGET_CLASH` if another target already has that product and months. */
+  updateTarget: (token: string, id: string, body: UpdateTargetBody) =>
+    request<unknown>(`/marketing/targets/${id}`, { method: 'PATCH', token, body }),
   deleteTarget: (token: string, id: string) =>
     request<null>(`/marketing/targets/${id}`, { method: 'DELETE', token }),
 };

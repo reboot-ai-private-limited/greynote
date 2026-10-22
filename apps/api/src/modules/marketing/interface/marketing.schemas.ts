@@ -33,20 +33,26 @@ export const createCampaignBodySchema = z.object({
 export const listCampaignsQuerySchema = z.object({ status: z.enum(CAMPAIGN_STATUSES).optional() });
 export const setCampaignStatusBodySchema = z.object({ status: z.enum(CAMPAIGN_STATUSES) });
 
+/** What a target is: a run of months, a product or all products, and an amount or (for a product) units. */
+const targetFields = {
+  month: calendarMonthSchema,
+  toMonth: calendarMonthSchema.optional(),
+  productId: objectIdSchema.nullish().transform((v) => v ?? null),
+  targetAmountPaise: paiseSchema.refine((n) => n > 0, 'A target must be more than zero.').optional(),
+  /** Units, for a product target: the amount follows from the product's PTS. */
+  targetQty: z.number().int().min(1).max(100_000_000).optional(),
+};
+type TargetFields = { month: string; toMonth?: string | undefined; productId: string | null; targetAmountPaise?: number | undefined; targetQty?: number | undefined };
+function checkTarget(b: TargetFields, ctx: z.RefinementCtx): void {
+  if (b.toMonth && b.toMonth < b.month) ctx.addIssue({ code: 'custom', message: 'A target cannot end before it starts.', path: ['toMonth'] });
+  if (b.targetAmountPaise === undefined && b.targetQty === undefined) ctx.addIssue({ code: 'custom', message: 'Give an amount or units.', path: ['targetAmountPaise'] });
+  if (b.targetQty !== undefined && b.productId === null) ctx.addIssue({ code: 'custom', message: 'Units need a product; a target for all products is an amount.', path: ['targetQty'] });
+}
 export const setTargetBodySchema = z
-  .object({
-    userId: objectIdSchema,
-    month: calendarMonthSchema,
-    toMonth: calendarMonthSchema.optional(),
-    productId: objectIdSchema.nullish().transform((v) => v ?? null),
-    campaignId: objectIdSchema.nullish().transform((v) => v ?? null),
-    targetAmountPaise: paiseSchema.refine((n) => n > 0, 'A target must be more than zero.').optional(),
-    /** Units, for a product target: the amount follows from the product's PTS. */
-    targetQty: z.number().int().min(1).max(100_000_000).optional(),
-  })
-  .refine((b) => !b.toMonth || b.toMonth >= b.month, { message: 'A target cannot end before it starts.', path: ['toMonth'] })
-  .refine((b) => b.targetAmountPaise !== undefined || b.targetQty !== undefined, { message: 'Give an amount or units.', path: ['targetAmountPaise'] })
-  .refine((b) => b.targetQty === undefined || b.productId !== null, { message: 'Units need a product; a target for all products is an amount.', path: ['targetQty'] });
+  .object({ userId: objectIdSchema, ...targetFields, campaignId: objectIdSchema.nullish().transform((v) => v ?? null) })
+  .superRefine(checkTarget);
+/** `PATCH /targets/:id`: the whole target as it should now be; the employee (and any campaign) stays. */
+export const updateTargetBodySchema = z.object(targetFields).superRefine(checkTarget);
 export const listTargetsQuerySchema = z
   .object({ userId: objectIdSchema, from: calendarMonthSchema, to: calendarMonthSchema })
   .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] });

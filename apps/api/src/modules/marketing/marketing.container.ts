@@ -2,7 +2,7 @@ import type { Router } from 'express';
 import { Types } from 'mongoose';
 import { DoctorVisualModel } from './infrastructure/marketing.schema.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
-import { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetSharesUseCase, ListTargetsUseCase, SetTargetUseCase } from './application/usecases/targets.usecase.js';
+import { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetSharesUseCase, ListTargetsUseCase, SetTargetUseCase, UpdateTargetUseCase } from './application/usecases/targets.usecase.js';
 import { AddDoctorVisualsUseCase, ListDoctorVisualsUseCase, RemoveDoctorVisualUseCase } from './application/usecases/doctorVisuals.usecase.js';
 import { CreateCampaignUseCase, CreateVisualUseCase, DeleteVisualUseCase, GetVisualDeleteImpactUseCase, ListCampaignsUseCase, ListVisualsUseCase, ReplaceVisualFileUseCase, SetCampaignStatusUseCase, UpdateVisualUseCase } from './application/usecases/visualsAndCampaigns.usecase.js';
 import type { DoctorPort, ProductPort, SalesPort, UserDirectoryPort } from './domain/ports.js';
@@ -51,6 +51,7 @@ export function buildMarketingContainer(users: UserDirectoryPort, master: Produc
           listCampaigns: new ListCampaignsUseCase(campaigns),
           setCampaignStatus: new SetCampaignStatusUseCase(campaigns),
           setTarget: new SetTargetUseCase(targets, campaigns, master, users, config),
+          updateTarget: new UpdateTargetUseCase(targets, campaigns, master, users, config),
           deleteTarget: new DeleteTargetUseCase(targets, users, config),
           listTargets: new ListTargetsUseCase(targets, users),
           getTarget,

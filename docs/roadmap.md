@@ -995,3 +995,9 @@ Admin, web only. An impact check before deactivating or deleting (MR, plans, cal
 deactivating ends the assignment in the same step (no more "unassign first"); a permanent delete archives the doctor so history
 keeps its name; an inactive doctor can be edited. Whenever an MR loses a doctor (unassign, reassign, deactivate, delete) it comes
 off their editable Daily Plans. Phone: `mobile/doctors.md` section 2a (docs only). `LLD/field-master-data.md`.
+
+## Targets: edit in place (2026-10-22, done, not browser-checked)
+
+`PATCH /marketing/targets/:id` edits a target's months, product (or all products), amount or units without remove-and-add; a clash
+with another existing target is `409`. The employee's Targets table on the Sales dashboard has an Edit button per row opening the
+target dialog filled in. `LLD/marketing.md`, `mobile/secondary-and-targets.md`.

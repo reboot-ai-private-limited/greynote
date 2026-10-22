@@ -2396,3 +2396,7 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Also fixed:** an MR losing a doctor (unassign, reassign, deactivate, delete) left it on their draft Daily Plans, whose next submit was then refused ("isn't one of your doctors"). Planning now takes it off the plans from today that are still editable; submitted and approved ones keep it. And Admin could allocate a gift to an inactive doctor (only its existence was checked); that is now `409`, which also covers a deleted doctor answered from the archive.
 
 **Open:** browser check; the field app follows `mobile/doctors.md` 2a (mostly existing behaviour).
+
+## 2026-10-22: Targets are edited in place, and an edit never merges two targets
+
+**Decision:** a target can be edited (`PATCH /marketing/targets/:id`): months, product (or all products) and amount or units; the employee can't change (that's another person's target). Before, the only change was re-setting the exact same product and months, and anything else made a second target beside the old one. If an edit would land on another target's product and months, it is refused (`409 TARGET_CLASH`) rather than merged, so no amount disappears silently. The web puts Edit on each row of the employee's Targets table.

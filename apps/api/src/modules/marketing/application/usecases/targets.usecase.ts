@@ -45,6 +45,51 @@ async function assertScope(products: ProductPort, campaigns: CampaignRepositoryP
   if (scope.campaignId && !(await campaigns.findById(scope.campaignId))) throw new MarketingRefusal(MARKETING_CODES.campaignNotFound, 'No such campaign.');
 }
 
+/** What a target says, as a form sends it: when it is set and when it is edited. */
+type TargetInput = TargetScope & { targetAmountPaise?: Paise | undefined; targetQty?: number | undefined };
+
+const monthName = (month: string): string =>
+  new Intl.DateTimeFormat('en-IN', { timeZone: 'UTC', month: 'short', year: 'numeric' }).format(new Date(`${month}-01T00:00:00Z`));
+
+/**
+ * The checks and arithmetic a target goes through whether it is new or edited: the months inside the current financial year, an active
+ * FIELD MR as its subject (a manager's is their team's total), the actor allowed to act on them, an active product, and units and amount
+ * as one figure at the product's PTS. Returns the target's key, amount and units.
+ */
+async function resolveTarget(
+  deps: { products: ProductPort; campaigns: CampaignRepositoryPort; users: UserDirectoryPort; config: ConfigReader; now: () => Date },
+  actor: Actor,
+  userId: string,
+  input: TargetInput,
+): Promise<{ key: TargetKey; amount: Paise; qty: number | null }> {
+  const toMonth = input.toMonth ?? input.month;
+  if (toMonth < input.month) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A target cannot end before it starts.');
+  // Both ends must sit in the current financial year, so the run can never straddle two.
+  await assertMonthInCurrentFinancialYear(deps.config, input.month, deps.now(), 'A target');
+  await assertMonthInCurrentFinancialYear(deps.config, toMonth, deps.now(), 'A target');
+  const subject = await deps.users.findUserSummary(userId);
+  if (!subject || subject.status !== 'active' || subject.role !== 'FIELD') throw new MarketingRefusal(MARKETING_CODES.userNotFound, 'That employee does not exist or cannot be given a target.');
+  await assertMayAct(deps.users, actor, userId, 'set');
+  if ((await managerIds(deps.users, [userId])).has(userId)) {
+    throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A manager’s target is the total of the MRs in their team. Set the target on each MR instead.');
+  }
+  await assertScope(deps.products, deps.campaigns, input);
+  const key: TargetKey = { userId, month: input.month, toMonth, productId: input.productId, campaignId: input.campaignId };
+  // Units and amount are one figure at the product's PTS: either given, both kept. A target for all products is an amount only.
+  let amount = input.targetAmountPaise;
+  let qty: number | null = null;
+  if (input.productId) {
+    const pts = (await deps.products.getProduct(input.productId))?.ptsPaise ?? null;
+    if (input.targetQty !== undefined) {
+      if (!pts) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'This product has no PTS set, so give the target as an amount.');
+      qty = input.targetQty;
+      amount = qty * pts;
+    } else if (pts && amount) qty = Math.max(1, Math.round(amount / pts));
+  }
+  if (!amount) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A target must be more than zero.');
+  return { key, amount, qty };
+}
+
 /** Set (or replace) one target over a run of months. A manager sets their own and their downline's; Admin anyone's. */
 export class SetTargetUseCase {
   constructor(
@@ -56,33 +101,41 @@ export class SetTargetUseCase {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async execute(actor: Actor, input: TargetScope & { userId: string; targetAmountPaise?: Paise | undefined; targetQty?: number | undefined }): Promise<Target> {
-    const toMonth = input.toMonth ?? input.month;
-    if (toMonth < input.month) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A target cannot end before it starts.');
-    // Both ends must sit in the current financial year, so the run can never straddle two.
-    await assertMonthInCurrentFinancialYear(this.config, input.month, this.now(), 'A target');
-    await assertMonthInCurrentFinancialYear(this.config, toMonth, this.now(), 'A target');
-    const subject = await this.users.findUserSummary(input.userId);
-    if (!subject || subject.status !== 'active' || subject.role !== 'FIELD') throw new MarketingRefusal(MARKETING_CODES.userNotFound, 'That employee does not exist or cannot be given a target.');
-    await assertMayAct(this.users, actor, input.userId, 'set');
-    if ((await managerIds(this.users, [input.userId])).has(input.userId)) {
-      throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A manager’s target is the total of the MRs in their team. Set the target on each MR instead.');
-    }
-    await assertScope(this.products, this.campaigns, input);
-    const key: TargetKey = { userId: input.userId, month: input.month, toMonth, productId: input.productId, campaignId: input.campaignId };
-    // Units and amount are one figure at the product's PTS: either given, both kept. A target for all products is an amount only.
-    let amount = input.targetAmountPaise;
-    let qty: number | null = null;
-    if (input.productId) {
-      const pts = (await this.products.getProduct(input.productId))?.ptsPaise ?? null;
-      if (input.targetQty !== undefined) {
-        if (!pts) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'This product has no PTS set, so give the target as an amount.');
-        qty = input.targetQty;
-        amount = qty * pts;
-      } else if (pts && amount) qty = Math.max(1, Math.round(amount / pts));
-    }
-    if (!amount) throw new MarketingRefusal(MARKETING_CODES.invalidDates, 'A target must be more than zero.');
+  async execute(actor: Actor, input: TargetInput & { userId: string }): Promise<Target> {
+    const { key, amount, qty } = await resolveTarget({ products: this.products, campaigns: this.campaigns, users: this.users, config: this.config, now: this.now }, actor, input.userId, input);
     return this.targets.upsert(key, amount, qty, actor.id, this.now());
+  }
+}
+
+/**
+ * Edit a target in place (decision-log 2026-10-22): its months, product (or all products), amount or units. The employee and any campaign
+ * stay. Refused (`409`) when the employee already has another target with that product and those months, rather than merging the two;
+ * and when the target as it stands is outside the current financial year, like removing it.
+ */
+export class UpdateTargetUseCase {
+  constructor(
+    private readonly targets: TargetRepositoryPort,
+    private readonly campaigns: CampaignRepositoryPort,
+    private readonly products: ProductPort,
+    private readonly users: UserDirectoryPort,
+    private readonly config: ConfigReader,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
+
+  async execute(actor: Actor, id: string, input: Omit<TargetInput, 'campaignId'>): Promise<Target> {
+    const current = await this.targets.findById(id);
+    if (!current) throw new MarketingRefusal(MARKETING_CODES.targetNotFound, 'No such target.');
+    await assertMayAct(this.users, actor, current.userId, 'set');
+    await assertMonthInCurrentFinancialYear(this.config, current.month, this.now(), 'A target');
+    const { key, amount, qty } = await resolveTarget({ products: this.products, campaigns: this.campaigns, users: this.users, config: this.config, now: this.now }, actor, current.userId, { ...input, campaignId: current.campaignId });
+    const saved = await this.targets.update(id, key, amount, qty, actor.id, this.now());
+    if (saved === null) throw new MarketingRefusal(MARKETING_CODES.targetNotFound, 'No such target.');
+    if (saved === 'clash') {
+      const product = key.productId ? ((await this.products.getProduct(key.productId))?.name ?? 'this product') : 'all products';
+      const months = key.month === key.toMonth ? monthName(key.month) : `${monthName(key.month)} – ${monthName(key.toMonth)}`;
+      throw new MarketingRefusal(MARKETING_CODES.targetClash, `There is already a target for ${product} over ${months}. Edit that one instead.`);
+    }
+    return saved;
   }
 }
 

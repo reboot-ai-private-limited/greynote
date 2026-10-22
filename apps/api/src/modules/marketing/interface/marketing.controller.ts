@@ -5,10 +5,10 @@ import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import { MarketingRefusal } from '../domain/marketingRefusal.js';
-import type { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetsUseCase, SetTargetUseCase } from '../application/usecases/targets.usecase.js';
+import type { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetsUseCase, SetTargetUseCase, UpdateTargetUseCase } from '../application/usecases/targets.usecase.js';
 import type { AddDoctorVisualsUseCase, ListDoctorVisualsUseCase, RemoveDoctorVisualUseCase } from '../application/usecases/doctorVisuals.usecase.js';
 import type { Actor, CreateCampaignUseCase, CreateVisualUseCase, DeleteVisualUseCase, GetVisualDeleteImpactUseCase, ReplaceVisualFileUseCase, ListCampaignsUseCase, ListVisualsUseCase, SetCampaignStatusUseCase, UpdateVisualUseCase } from '../application/usecases/visualsAndCampaigns.usecase.js';
-import type { addDoctorVisualsBodySchema, createCampaignBodySchema, createVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, updateVisualBodySchema, setTargetBodySchema, listTargetsQuerySchema, targetQuerySchema } from './marketing.schemas.js';
+import type { addDoctorVisualsBodySchema, createCampaignBodySchema, createVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, updateVisualBodySchema, setTargetBodySchema, updateTargetBodySchema, listTargetsQuerySchema, targetQuerySchema } from './marketing.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -27,7 +27,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type MarketingHandlers = Record<'replaceVisualFile' | 'visualDeleteImpact' | 'deleteVisual' | 'createVisual' | 'listVisuals' | 'updateVisual' | 'listDoctorVisuals' | 'addDoctorVisuals' | 'removeDoctorVisual' | 'createCampaign' | 'listCampaigns' | 'setCampaignStatus' | 'setTarget' | 'deleteTarget' | 'listTargets' | 'getTarget', RequestHandler>;
+export type MarketingHandlers = Record<'replaceVisualFile' | 'visualDeleteImpact' | 'deleteVisual' | 'createVisual' | 'listVisuals' | 'updateVisual' | 'listDoctorVisuals' | 'addDoctorVisuals' | 'removeDoctorVisual' | 'createCampaign' | 'listCampaigns' | 'setCampaignStatus' | 'setTarget' | 'updateTarget' | 'deleteTarget' | 'listTargets' | 'getTarget', RequestHandler>;
 
 export function makeMarketingControllers(u: {
   createVisual: CreateVisualUseCase;
@@ -43,6 +43,7 @@ export function makeMarketingControllers(u: {
   listCampaigns: ListCampaignsUseCase;
   setCampaignStatus: SetCampaignStatusUseCase;
   setTarget: SetTargetUseCase;
+  updateTarget: UpdateTargetUseCase;
   deleteTarget: DeleteTargetUseCase;
   listTargets: ListTargetsUseCase;
   getTarget: GetTargetSummaryUseCase;
@@ -86,6 +87,15 @@ export function makeMarketingControllers(u: {
     ),
     setTarget: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.setTarget.execute(actorOf(req), req.body as z.output<typeof setTargetBodySchema>)), 'The target was saved.', 200),
+    ),
+    updateTarget: asyncHandler(async (req, res) =>
+      sendSuccess(
+        req,
+        res,
+        await refusing(() => u.updateTarget.execute(actorOf(req), requiredParam(req.params, 'id'), req.body as z.output<typeof updateTargetBodySchema>)),
+        'The target was changed.',
+        200,
+      ),
     ),
     deleteTarget: asyncHandler(async (req, res) => {
       await refusing(() => u.deleteTarget.execute(actorOf(req), requiredParam(req.params, 'id')));

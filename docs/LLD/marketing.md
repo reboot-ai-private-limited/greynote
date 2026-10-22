@@ -98,6 +98,7 @@ publishes, or a reporting layer above both — were rejected as machinery the fi
 | `GET` | `/api/marketing/campaigns` | Admin, FIELD | List Campaigns, optionally filtered by status |
 | `PATCH` | `/api/marketing/campaigns/:id` | Admin | Update status (active/inactive/completed) |
 | `POST` | `/api/marketing/targets` | Admin, manager (FIELD) | Set a Target for self or a downline member |
+| `PATCH` | `/api/marketing/targets/:id` | Admin, manager (FIELD) | Edit a Target in place: months, product, amount or units (2026-10-22) |
 | `GET` | `/api/marketing/targets/:userId?month=&productId=&campaignId=` | Admin, manager (FIELD, own downline), self | Own + downline target, and achieved, for a month |
 
 **As built (2026-09-30):** Visual files go to Cloudinary through `shared/storage/cloudinary.ts` (also used by Identity's
@@ -163,3 +164,9 @@ A Visual deactivated later is hidden from the MR and shown, with its status, to 
 ## A manager has no target of their own (2026-10-14)
 
 A manager (designation above MR) has no target: it is the sum of the MRs in their downline, worked out by Reports (decision-log 2026-10-14). `SetTargetUseCase` refuses a target for a manager (`400`: set it on the MRs); `ListTargetsUseCase` returns `[]` for one; `GetTargetSummaryUseCase` leaves out targets belonging to managers (own and in the downline), so an old manager target cannot double a total. Nothing is deleted: `pnpm --filter @greynote/api report:manager-targets` lists the ignored rows. `UserDirectoryPort` gains `getDesignationLevels`.
+
+## Editing a target (2026-10-22)
+
+`PATCH /api/marketing/targets/:id` `{ month, toMonth?, productId (null = all products), targetAmountPaise | targetQty }` changes a target **in place**: same id, the employee and any campaign unchanged, `createdBy`/`updatedAt` set to the editor and now. It goes through the same checks as setting one (`resolveTarget` in `targets.usecase.ts`): who may act (Admin, or a manager for their downline), both months in the current financial year, an active FIELD MR (never a manager), an active product, units ↔ amount at PTS. The target as it stands must also be in the current year. If the new product and months are another existing target's (the unique key), it is `409 TARGET_CLASH` ("There is already a target for X over Oct 2026 – Dec 2026. Edit that one instead."), never a merge. `POST` keeps replacing a target with the same key; the web's "Set a target" now points at the row's Edit for changes.
+
+**Web:** the employee's Targets table (Sales dashboard → employee) has an **Edit** (pencil) and a **Remove** button on each row; Edit opens the "Set a target" dialog filled in (`features/reports/lib/targetForm.ts`).

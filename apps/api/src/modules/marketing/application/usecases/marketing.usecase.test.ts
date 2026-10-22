@@ -4,7 +4,7 @@ import type { CampaignRepositoryPort, TargetRepositoryPort, VisualRepositoryPort
 import { MARKETING_CODES, MarketingRefusal } from '../../domain/marketingRefusal.js';
 import type { DirectoryUser, ProductPort, SalesPort, UserDirectoryPort } from '../../domain/ports.js';
 import { targetShare } from '../../domain/targetRange.js';
-import { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetSharesUseCase, SetTargetUseCase } from './targets.usecase.js';
+import { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetSharesUseCase, SetTargetUseCase, UpdateTargetUseCase } from './targets.usecase.js';
 import { CreateCampaignUseCase, CreateVisualUseCase, DeleteVisualUseCase, GetVisualDeleteImpactUseCase, ListCampaignsUseCase, ListVisualsUseCase, ReplaceVisualFileUseCase } from './visualsAndCampaigns.usecase.js';
 
 const k = (t: TargetKey) => `${t.userId}|${t.month}|${t.toMonth}|${t.productId}|${t.campaignId}`;
@@ -18,6 +18,16 @@ class FakeTargets implements TargetRepositoryPort {
   }
   async findById(id: string) {
     return [...this.rows.values()].find((t) => t.id === id) ?? null;
+  }
+  async update(id: string, key: TargetKey, amountPaise: number, qty: number | null, by: string, at: Date) {
+    const row = await this.findById(id);
+    if (!row) return null;
+    const other = this.rows.get(k(key));
+    if (other && other.id !== id) return 'clash' as const;
+    this.rows.delete(k(row));
+    const next: Target = { ...row, ...key, targetAmountPaise: amountPaise, targetQty: qty, createdBy: by, updatedAt: at };
+    this.rows.set(k(key), next);
+    return next;
   }
   async remove(id: string) {
     const row = await this.findById(id);
@@ -172,6 +182,43 @@ describe('targets', () => {
     expect(await code(set.execute(f('asm'), { userId: 'asm', ...general, targetAmountPaise: 3 }))).toBe(MARKETING_CODES.invalidDates); // a manager's is the sum of their MRs
     expect(await code(set.execute(f('asm'), { userId: 'mr3', ...general, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam);
     expect(await code(set.execute(f('asm'), { userId: 'rsm', ...general, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam); // upward
+  });
+
+  describe('editing a target in place', () => {
+    const edit = () => new UpdateTargetUseCase(targets, campaigns, products, users, config, today);
+    const first = async () => set.execute(admin, { userId: 'mr1', ...general, targetAmountPaise: 500_000 });
+
+    it('changes the months, the product and the amount on the same target, and records who changed it', async () => {
+      const t = await first();
+      const edited = await edit().execute(f('asm'), t.id, { month: '2026-11', toMonth: '2027-01', productId: 'prod1', targetAmountPaise: 120_000 });
+      expect(edited).toMatchObject({ id: t.id, userId: 'mr1', month: '2026-11', toMonth: '2027-01', productId: 'prod1', targetAmountPaise: 120_000, targetQty: 100, createdBy: 'asm' });
+      expect(targets.rows.size).toBe(1);
+      // Back to all products, as an amount; units only go with a product.
+      expect(await edit().execute(admin, t.id, { month: '2026-11', productId: null, targetAmountPaise: 90_000 })).toMatchObject({ productId: null, toMonth: '2026-11', targetQty: null });
+    });
+
+    it('takes units for a product target: the amount follows at PTS', async () => {
+      const t = await first();
+      expect(await edit().execute(admin, t.id, { month: '2026-10', productId: 'prod1', targetQty: 50 })).toMatchObject({ targetQty: 50, targetAmountPaise: 60_000 });
+    });
+
+    it('refuses to become another target the employee already has, and leaves both as they were', async () => {
+      const t = await first();
+      await set.execute(admin, { userId: 'mr1', ...general, productId: 'prod1', targetAmountPaise: 100_000 });
+      const err = await edit().execute(admin, t.id, { month: '2026-10', productId: 'prod1', targetAmountPaise: 1 }).catch((e: unknown) => e);
+      expect(err).toMatchObject({ code: MARKETING_CODES.targetClash, message: 'There is already a target for this product over Oct 2026. Edit that one instead.' });
+      expect((err as MarketingRefusal).status).toBe(409);
+      expect(targets.rows.size).toBe(2);
+      expect((await targets.findById(t.id))!.targetAmountPaise).toBe(500_000);
+    });
+
+    it('same rules as setting: the team, the financial year, an active product, an unknown target', async () => {
+      const t = await first();
+      expect(await code(edit().execute(f('mr1'), t.id, { month: '2026-10', productId: null, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam);
+      expect(await code(edit().execute(admin, t.id, { month: '2027-04', productId: null, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.outsideFinancialYear);
+      expect(await code(edit().execute(admin, t.id, { month: '2026-10', productId: 'prodOff', targetAmountPaise: 1 }))).toBe(MARKETING_CODES.productNotFound);
+      expect(await code(edit().execute(admin, 'nope', { month: '2026-10', productId: null, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.targetNotFound);
+    });
   });
 
   it('an MR without a team cannot set targets, not even their own', async () => {
