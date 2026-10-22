@@ -19,6 +19,8 @@ export type SyncStatus = (typeof SYNC_STATUSES)[number];
 export interface SyncReason {
   code: string;
   message: string;
+  /** Facts beside the message for the phone (e.g. a date); absent for most codes. */
+  details?: Record<string, string>;
 }
 
 /** The outcome for one record. There is one per record sent, never one verdict for the batch. */

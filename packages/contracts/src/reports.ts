@@ -283,7 +283,7 @@ export interface DcrCoverageDto {
 /** One Doctor's month against its visit frequency. `made` counts calls on reported (submitted or approved) daily reports only. */
 export interface DoctorVisitRowDto {
   doctor: { id: string; name: string; specialty: string };
-  /** The Doctor's visit frequency (1–5): calls expected this month. */
+  /** The Doctor's visit frequency (1–4): calls expected this month. */
   frequency: number;
   made: number;
   /** `max(0, frequency − made)`. */

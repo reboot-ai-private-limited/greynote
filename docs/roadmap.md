@@ -1001,3 +1001,10 @@ off their editable Daily Plans. Phone: `mobile/doctors.md` section 2a (docs only
 `PATCH /marketing/targets/:id` edits a target's months, product (or all products), amount or units without remove-and-add; a clash
 with another existing target is `409`. The employee's Targets table on the Sales dashboard has an Edit button per row opening the
 target dialog filled in. `LLD/marketing.md`, `mobile/secondary-and-targets.md`.
+
+## Days between doctor visits; visit frequency at most 4 (2026-10-22, done, not browser-checked)
+
+New setting `DOCTOR_VISIT_GAP_DAYS` (8, 0–9): after a doctor call or follow-up, the same employee can't visit that doctor again for
+that many days (`DOCTOR_VISIT_TOO_SOON` at sync, with the dates in `reason.details`). Visit frequency is 1–4 everywhere
+(`MAX_VISIT_FREQUENCY`). The unused `NEW_DOCTOR_COVERAGE_WAIT_DAYS` setting is removed. Run `migrate:doctor-visits` (dry run,
+then `--apply`) to move 5s to 4 and delete the old setting row. Phone: `mobile/dcr.md` rule 11, `mobile/doctors.md` rule 4.

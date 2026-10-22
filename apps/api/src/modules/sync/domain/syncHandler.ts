@@ -37,6 +37,8 @@ export class SyncRejection extends Error {
   constructor(
     readonly code: string,
     message: string,
+    /** Facts the phone can act on (a date, a count), beside the message; left out when there are none. */
+    readonly details?: Record<string, string>,
   ) {
     super(message);
     this.name = 'SyncRejection';

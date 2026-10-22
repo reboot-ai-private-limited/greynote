@@ -28,6 +28,7 @@ import { LogChemistCallUseCase, LogDoctorCallUseCase, LogFollowupUseCase } from 
 import { DcrClock } from '../dcrClock.js';
 import { DcrViews } from '../dcrViews.js';
 import { LoggingGate } from '../loggingGate.js';
+import { DoctorVisitGap } from '../doctorVisitGap.js';
 import { SubmitDcrUseCase } from './submitDcr.usecase.js';
 
 /** In-memory fakes for Field Activity's use-case tests — no Mongo, no other module's internals. */
@@ -182,7 +183,7 @@ export class FakeDcrs implements DcrRepositoryPort {
 }
 
 export class FakeConfig implements ConfigReader {
-  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', TA_MAX_KM: '99', EXPENSE_PAYOUT_DAY: '15', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: 'NONE' };
+  values: Record<string, string> = { BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', GEO_FENCE_RADIUS_METERS: '100', GEO_MAX_ACCURACY_METERS: '100', DCR_APPROVAL_REQUIRED: 'true', TA_MAX_KM: '99', EXPENSE_PAYOUT_DAY: '15', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: 'NONE', DOCTOR_VISIT_GAP_DAYS: '0' };
   async get(key: string) {
     const v = this.values[key];
     // Like the real Config: an unseeded key is a CONFIG_KEY_MISSING fault.
@@ -339,6 +340,9 @@ class FakeCalls<T extends { id: string; dcrId: string | null }> {
   }
 }
 export class FakeDoctorCalls extends FakeCalls<DoctorCall> implements DoctorCallRepositoryPort {
+  async listVisitDates(userId: string, doctorId: string, range: { from: string; to: string }) {
+    return [...new Set(this.rows.filter((r) => r.userId === userId && r.doctorId === doctorId && r.reportDate >= range.from && r.reportDate <= range.to).map((r) => r.reportDate))];
+  }
   async countNotInPlan(range: { from: string; to: string }) {
     const by = new Map<string, number>();
     for (const r of this.rows) if (r.notInPlan && r.reportDate >= range.from && r.reportDate <= range.to) by.set(r.dcrId, (by.get(r.dcrId) ?? 0) + 1);
@@ -354,6 +358,9 @@ export class FakeChemistCalls extends FakeCalls<ChemistCall> implements ChemistC
   }
 }
 export class FakeFollowups extends FakeCalls<Followup> implements FollowupRepositoryPort {
+  async listDoctorVisitDates(userId: string, doctorId: string, range: { from: string; to: string }) {
+    return [...new Set(this.rows.filter((r) => r.userId === userId && r.subject === 'DOCTOR' && r.subjectId === doctorId && r.reportDate >= range.from && r.reportDate <= range.to).map((r) => r.reportDate))];
+  }
   async countNotInPlan(range: { from: string; to: string }) {
     return this.countFlag('notInPlan', range);
   }
@@ -601,9 +608,10 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const expenses = new FakeExpenses();
   const checks = new CallChecks(fmd, territory, users, planning);
   const geofence = new GeofenceEvaluator(config);
-  const logDoctorCall = new LogDoctorCallUseCase(gate, checks, geofence, fmd, doctorCalls);
+  const visitGap = new DoctorVisitGap(config, doctorCalls, followups);
+  const logDoctorCall = new LogDoctorCallUseCase(gate, checks, geofence, fmd, doctorCalls, visitGap);
   const logChemistCall = new LogChemistCallUseCase(gate, checks, geofence, fmd, chemistCalls);
-  const logFollowup = new LogFollowupUseCase(gate, checks, geofence, fmd, followups);
+  const logFollowup = new LogFollowupUseCase(gate, checks, geofence, fmd, followups, visitGap);
   const logExpense = new LogExpenseUseCase(gate, expenses);
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses, config);
   const submit = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config, planning);

@@ -130,6 +130,9 @@ export interface UpdateSpecialtyDto {
   status?: MasterStatus;
 }
 
+/** A doctor's visit frequency is 1 to this many visits a month (2026-10-22: 4; with the days between visits, more can't fit). */
+export const MAX_VISIT_FREQUENCY = 4;
+
 // ── Doctors ────────────────────────────────────────────────────────────────────────────────
 
 export interface DoctorDto {
@@ -144,7 +147,7 @@ export interface DoctorDto {
   qualification: string;
   dateOfBirth: string | null;
   anniversary: string | null;
-  /** Visits per month the MR should make (1–5); `null` = no target. */
+  /** Visits per month the MR should make (1–4); `null` = no target. */
   visitFrequency: number | null;
   /** What the geofence compares against. `null` until set. */
   location: GeoPoint | null;

@@ -62,7 +62,7 @@ whole data model. The contract below is complete for Phase 6's needs.
 
 - **Doctor** — `route_id`, category, name, address, email, specialty, qualification, and a
   registered `latitude`/`longitude` captured once at creation. Also optional `clinic_name` and `phone` (10–15 digits), and optional `date_of_birth`,
-  `anniversary` (`YYYY-MM-DD`) and `visit_frequency` (1–5 visits a month; null = no target). An MR sets them
+  `anniversary` (`YYYY-MM-DD`) and `visit_frequency` (1–4 visits a month since 2026-10-22, `MAX_VISIT_FREQUENCY` in contracts; null = no target). An MR sets them
   when adding the doctor; Admin edits all of the doctor, and a manager can change only these three for a
   doctor of someone in their downline (`PATCH /doctors/:id/targets`; the assigned MR cannot change their own target).
 - **Chemist** — the same shape minus specialty/qualification, its own registered
@@ -209,8 +209,8 @@ doesn't re-derive the state machine.
   the MR's own) and the location — the phone's GPS when adding. After approval the MR can't change
   it; only Admin can.
 - **Admin-created Doctors** pick the location on a Google map and are `active` at once, no approval.
-- **`approvedAt`** is stored on the Doctor. Phase 6 combines it with `NEW_DOCTOR_COVERAGE_WAIT_DAYS`
-  (8) to decide when visits count toward coverage.
+- **`approvedAt`** is stored on the Doctor, for a coverage wait (client sign-off C7) when coverage reporting is built. The
+  `NEW_DOCTOR_COVERAGE_WAIT_DAYS` setting was removed on 2026-10-22: nothing read it.
 
 ## Who can see a Doctor
 

@@ -12,7 +12,7 @@ What the field app must do to add a doctor and to show the month's missed calls,
 | 1 | An employee adds a doctor **offline-first**: queue a `NEW_DOCTOR` sync record, or call `POST /field-master-data/doctors/added`. Send a `clientRequestId` (≥ 8 characters, one per add) so a retry never creates a second doctor. | ✅ |
 | 2 | **Required:** `routeId` (one of the employee's own routes), `name`, `address`, `specialty` (must be on the speciality list in the snapshot's `specialties`), `qualification`, `location` (the phone's GPS at the moment of adding). | ✅ |
 | 3 | **Optional:** `email`, **`clinicName`** (max 150), **`phone`** (10–15 digits, optional leading `+`), `dateOfBirth`, `anniversary` (`YYYY-MM-DD`, not in the future), `visitFrequency`. Send `null` or leave out for none. | ✅ new: `clinicName`, `phone` |
-| 4 | **`visitFrequency` is 1–5** visits a month (was 1–6). Offer 1, 2, 3, 4, 5 and "No target". Empty = no target, so no missed-call tracking for that doctor. | ✅ |
+| 4 | **`visitFrequency` is 1–4** visits a month (2026-10-22; was 1–5, before that 1–6). Offer 1, 2, 3, 4 and "No target"; 5 or more is refused with `400` on `visitFrequency`. Empty = no target, so no missed-call tracking for that doctor. Four is the most that fits with the days between visits ([`dcr.md`](dcr.md) rule 11). | ✅ changed |
 | 5 | **The doctor is `pending` until approved.** It can't be called on, planned, or given samples. It shows under "My added doctors" (`GET /field-master-data/doctors/added`) with its `approval` status, and in the snapshot's `pendingDoctors`. | ✅ |
 | 6 | **Approval: the employee's manager or Admin — either one decides.** There is no second stage. On approval the doctor becomes active and, with `AUTO_ASSIGN_DOCTOR_ON_APPROVAL` on, is assigned to the employee who added it. | ✅ changed |
 | 7 | **The approver may edit before deciding:** any detail and the **location** (`PATCH /field-master-data/doctors/:id/review`, pending only). The location the doctor ends up with can differ from the phone's point (the server keeps the phone's as `capturedLocation`). After approval, show the approved values. | ✅ new |
@@ -74,6 +74,6 @@ Per employee: `quota` (sum of frequencies), `made`, `missed`, `doctors`, `comple
 ## 5. What changed for the phone (2026-10-12)
 
 1. Add **clinic name** and **phone** (both optional) to the add-doctor form, the offline queue payload and the doctor card.
-2. Change the frequency picker to **1–5**.
+2. Change the frequency picker to **1–4** (2026-10-22; it was 1–5).
 3. Stop expecting a second (Admin) approval stage: a manager's approval makes the doctor active.
 4. Show the new **stage** badge on the missed-calls screen.

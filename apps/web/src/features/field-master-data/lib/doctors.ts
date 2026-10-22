@@ -1,4 +1,4 @@
-import type { CreateDoctorDto, DoctorDto, DoctorImpactDto, DoctorStatus, UpdateDoctorDto } from '@greynote/contracts';
+import { MAX_VISIT_FREQUENCY, type CreateDoctorDto, type DoctorDto, type DoctorImpactDto, type DoctorStatus, type UpdateDoctorDto } from '@greynote/contracts';
 import { istDate } from '@/lib/dates';
 import { fail, squash, type BuildResult } from '@/lib/forms';
 import type { BadgeTone } from '@/components/ui/Badge';
@@ -23,7 +23,7 @@ export interface DoctorDraft extends PlaceDraft {
   visitFrequency: string;
 }
 
-export const FREQUENCY_OPTIONS = [1, 2, 3, 4, 5].map((n) => ({
+export const FREQUENCY_OPTIONS = Array.from({ length: MAX_VISIT_FREQUENCY }, (_, i) => i + 1).map((n) => ({
   value: String(n),
   label: n === 1 ? '1 visit a month' : `${n} visits a month`,
 }));

@@ -1,4 +1,4 @@
-import { PRODUCT_TYPES } from '@greynote/contracts';
+import { MAX_VISIT_FREQUENCY, PRODUCT_TYPES } from '@greynote/contracts';
 import { z } from 'zod';
 import { paiseSchema } from '@/shared/money/paise.js';
 import { DOCTOR_STATUSES } from '../domain/doctor.entity.js';
@@ -90,7 +90,7 @@ export const listChemistsQuerySchema = z.object({ ...pageFields, routeId: object
 // ---- Doctors
 const emailSchema = z.string().trim().email().max(200);
 const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.').refine((v) => !Number.isNaN(Date.parse(v)), 'Not a real date.');
-const frequencySchema = z.number().int().min(1).max(5);
+const frequencySchema = z.number().int().min(1).max(MAX_VISIT_FREQUENCY, `At most ${MAX_VISIT_FREQUENCY} visits a month.`);
 const mobileSchema = z.string().trim().regex(/^\+?\d{10,15}$/, 'Must be a phone number of 10 to 15 digits.');
 const doctorExtras = {
   clinicName: z.string().trim().max(150).nullish().transform((v) => (v ? v : null)),

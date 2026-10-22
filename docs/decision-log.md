@@ -2400,3 +2400,11 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 ## 2026-10-22: Targets are edited in place, and an edit never merges two targets
 
 **Decision:** a target can be edited (`PATCH /marketing/targets/:id`): months, product (or all products) and amount or units; the employee can't change (that's another person's target). Before, the only change was re-setting the exact same product and months, and anything else made a second target beside the old one. If an edit would land on another target's product and months, it is refused (`409 TARGET_CLASH`) rather than merged, so no amount disappears silently. The web puts Edit on each row of the employee's Targets table.
+
+## 2026-10-22: A minimum gap between visits to a doctor; visit frequency at most 4; the coverage-wait setting removed
+
+**Decision:** a new Admin setting `DOCTOR_VISIT_GAP_DAYS` (default 8, 0–9): after a doctor call or doctor follow-up, the same employee can't record another call or follow-up on that doctor for that many days (both directions, so an out-of-order push is caught too). Per employee rather than per doctor, so a manager's joint visit with the MR can be recorded. Enforced at sync (`DOCTOR_VISIT_TOO_SOON`); the phone can pre-check from its own records. The cap of 9 keeps 4 visits possible in February. A doctor's visit frequency is now 1–4 (`MAX_VISIT_FREQUENCY`), since more can't fit with the gap; existing 5s are moved to 4 by `migrate:doctor-visits`. Sync refusals gained an optional `details` map so the phone gets the dates as data.
+
+**Also:** `NEW_DOCTOR_COVERAGE_WAIT_DAYS` (client sign-off C7) was removed. It was defined and seeded but never read, and it was being mistaken for the visit gap. The doctor's approval date is still stored, so the coverage wait can be added back with coverage reporting.
+
+**Open:** run `migrate:doctor-visits` on dev and production; the field app adds the pre-check and the 1–4 picker; browser check.

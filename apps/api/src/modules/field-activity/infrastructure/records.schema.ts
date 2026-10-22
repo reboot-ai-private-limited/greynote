@@ -123,6 +123,8 @@ const followupSchema = new Schema<FollowupDoc>({
 });
 followupSchema.index({ dcrId: 1, recordedAt: 1 });
 followupSchema.index({ userId: 1, clientId: 1 }, { unique: true });
+// The days between visits to a doctor (DOCTOR_VISIT_GAP_DAYS): one employee's follow-ups on one doctor around a date.
+followupSchema.index({ subjectId: 1, userId: 1, reportDate: 1 });
 
 export interface ExpenseDoc {
   dcrId: Types.ObjectId | null;
