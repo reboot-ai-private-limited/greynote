@@ -4,11 +4,13 @@ import type { Paise } from '@/shared/money/paise.js';
 export interface IdentityPort {
   /** Every active FIELD employee's id. */
   listActiveFieldUserIds(): Promise<string[]>;
+  /** Active field employees and the leavers still paid for this month (last working day in it or later). */
+  listPayableFieldUserIds(month: string): Promise<string[]>;
   /** Names and codes for a batch of employees, in one call. A missing id is left out. */
   getUserSummaries(userIds: string[]): Promise<Array<{ id: string; name: string; employeeCode: string }>>;
   findUserSummary(userId: string): Promise<{ id: string; name: string; role: string; status: 'active' | 'pending' | 'inactive' } | null>;
   /** The joining date, ESI and EPF numbers, designation and bank (for the slip) (`null` if not set); `null` without an EmployeeProfile. */
-  getEmploymentDetails(userId: string): Promise<{ dateOfJoining: Date | null; esiNumber: string | null; epfNumber: string | null; designationName: string | null; bankName: string | null; bankAccountNumber: string | null } | null>;
+  getEmploymentDetails(userId: string): Promise<{ dateOfJoining: Date | null; lastWorkingDay?: string | null; esiNumber: string | null; epfNumber: string | null; designationName: string | null; bankName: string | null; bankAccountNumber: string | null } | null>;
   /** The CTC revision in force for the month, with its frozen breakdown; `null` if none was assigned by then. */
   getCtcForMonth(userId: string, month: string): Promise<{ ctcAnnualPaise: Paise; effectiveFrom: string; lines: CtcLineSnapshot[] } | null>;
 }

@@ -3,7 +3,7 @@ export interface IdentityPort {
   listActiveFieldUserIds(): Promise<string[]>;
   getUserSummaries(userIds: string[]): Promise<Array<{ id: string; name: string; employeeCode: string }>>;
   /** The joining date; `null` without an EmployeeProfile. */
-  getEmploymentDetails(userId: string): Promise<{ dateOfJoining: Date | null } | null>;
+  getEmploymentDetails(userId: string): Promise<{ dateOfJoining: Date | null; lastWorkingDay?: string | null; rejoinedOn?: string | null } | null>;
 }
 
 export interface HrPort {

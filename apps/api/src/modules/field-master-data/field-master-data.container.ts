@@ -13,6 +13,7 @@ import { makeDoctorApprovalHandler, NEW_DOCTOR_KIND } from './application/doctor
 import { DoctorVisibility } from './application/doctorVisibility.js';
 import { DoctorViews } from './application/doctorViews.js';
 import { DoctorRetirement } from './application/doctorRetirement.js';
+import { LeaverWork } from './application/leaverWork.js';
 import type { DoctorReferencesPort } from './domain/doctorRetirement.js';
 import { MongoDoctorArchiveAdapter } from './infrastructure/mongoDoctorArchive.adapter.js';
 import { AddedDoctors } from './application/usecases/addedDoctors.js';
@@ -127,6 +128,8 @@ export function buildFieldMasterDataContainer(
 
   const retirement = new DoctorRetirement(doctors, assignments, sampleAllocations, new MongoDoctorArchiveAdapter(), users, transactions);
   const updateDoctor = new UpdateDoctorUseCase(doctors, assignments, territory, views, specialtyCatalog, transactions, retirement);
+  const assignDoctor = new AssignDoctorUseCase(doctors, assignments, users, territory, transactions, retirement);
+  const leaverWork = new LeaverWork(doctors, assignments, distributors, territory, assignDoctor, retirement);
   const doctorUseCases = {
     list: new ListDoctorsUseCase(doctors, views),
     create: new CreateDoctorUseCase(doctors, territory, views, specialtyCatalog),
@@ -136,7 +139,7 @@ export function buildFieldMasterDataContainer(
     updateTargets: new UpdateDoctorTargetsUseCase(doctors, visibility, views),
     assigned: new ListAssignedDoctorsUseCase(doctors, visibility, users, views),
     listAssignments: new ListDoctorAssignmentsUseCase(doctors, assignments),
-    assign: new AssignDoctorUseCase(doctors, assignments, users, territory, transactions, retirement),
+    assign: assignDoctor,
     unassign: new UnassignDoctorUseCase(assignments, retirement),
     retirement,
     addedDoctors,
@@ -153,6 +156,9 @@ export function buildFieldMasterDataContainer(
 
   return {
     contract: {
+      countLeaverWork: (userId) => leaverWork.count(userId),
+      releaseLeaverDoctors: (userId, handoverTo, actorId) => leaverWork.releaseDoctors(userId, handoverTo, actorId),
+      releaseLeaverDistributors: (userId) => leaverWork.releaseDistributors(userId),
       countOnRoutes: async (routeIds) => {
         if (routeIds.length === 0) return { doctors: 0, chemists: 0, distributors: 0 };
         const ids = routeIds.map((id) => new Types.ObjectId(id));

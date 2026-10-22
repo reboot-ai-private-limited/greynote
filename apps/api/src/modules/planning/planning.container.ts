@@ -13,6 +13,7 @@ import { BackfillInheritedDaysUseCase } from './application/usecases/backfillInh
 import { AmendDailyPlanUseCase, type DayReportedCheck } from './application/usecases/amendDailyPlan.usecase.js';
 import { CarryOver } from './application/carryOver.js';
 import { DoctorReleases } from './application/doctorReleases.js';
+import { LeaverPlans } from './application/leaverPlans.js';
 import { OffDays } from './application/offDays.js';
 import type { PlanOffDaysSource } from './domain/offDays.js';
 import { ManagerScope } from './application/managerScope.js';
@@ -98,6 +99,7 @@ export function buildPlanningContainer(
   const listLateGrants = new ListLateSubmitGrantsUseCase(grants, users, deadlines.now);
   const revokeLate = new RevokeLateSubmitUseCase(grants, deadlines.now);
   const doctorReleases = new DoctorReleases(dailyPlans, approvals, deadlines);
+  const leaverPlans = new LeaverPlans(dailyPlans, monthlyPlans, approvals);
 
   // What the phone caches of Planning: the MR's own Plans, with their status for the day's gate.
   sync.registerSource(makePlanningSource({ deadlines, daily: listDaily, monthly: listMonthly, offDays }));
@@ -110,6 +112,8 @@ export function buildPlanningContainer(
     contract: {
       countPlannedDaysOnRoutes: async (routeIds, fromDate) =>
         routeIds.length === 0 ? 0 : DailyPlanModel.countDocuments({ planDate: { $gte: fromDate }, routeIds: { $in: routeIds.map((id) => new Types.ObjectId(id)) } }),
+      countLeaverPlans: (userId, lastWorkingDay) => leaverPlans.count(userId, lastWorkingDay),
+      closeLeaverPlans: (userId, lastWorkingDay) => leaverPlans.close(userId, lastWorkingDay),
       countPlansWithDoctor: (doctorId) => doctorReleases.count(doctorId),
       releaseDoctor: (doctorId, userId) => doctorReleases.release(doctorId, userId),
       isDailyPlanApproved: (userId, planDate) => status.isDailyPlanApproved(userId, planDate),

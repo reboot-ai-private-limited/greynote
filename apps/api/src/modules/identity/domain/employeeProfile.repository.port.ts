@@ -11,6 +11,8 @@ export interface EmployeeProfileRepositoryPort {
   upsert(userId: string, input: Partial<Omit<EmployeeProfile, 'id' | 'userId'>>): Promise<EmployeeProfile>;
   /** Backs `listUsers`'s designation/manager filters — resolves which users a profile-level filter matches. */
   findUserIdsByFilter(filter: { designationId?: string; managerId?: string }): Promise<string[]>;
+  /** Employees whose last working day is on or after `date` (`YYYY-MM-DD`): a leaver still paid for that month. */
+  findUserIdsLeftOnOrAfter(date: string): Promise<string[]>;
   /** Ids of everyone who is some employee's manager — the distinct `managerId`s, no paging. */
   findManagerIds(): Promise<string[]>;
   /**

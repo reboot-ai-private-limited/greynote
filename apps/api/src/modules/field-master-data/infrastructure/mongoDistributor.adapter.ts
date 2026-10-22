@@ -31,6 +31,15 @@ const toColumns = (change: Partial<Omit<Distributor, 'id'>>): Record<string, unk
 };
 
 export class MongoDistributorAdapter implements DistributorRepositoryPort {
+  countAssignee(userId: string): Promise<number> {
+    return DistributorModel.countDocuments({ assignedUserIds: new Types.ObjectId(userId) });
+  }
+
+  async removeAssignee(userId: string): Promise<number> {
+    const id = new Types.ObjectId(userId);
+    return (await DistributorModel.updateMany({ assignedUserIds: id }, { $pull: { assignedUserIds: id } })).modifiedCount;
+  }
+
   async list(filter: DistributorFilter): Promise<PaginatedResult<Distributor>> {
     const query: Record<string, unknown> = {};
     if (filter.routeIds) query['routeIds'] = { $in: filter.routeIds.map((id) => new Types.ObjectId(id)) };

@@ -49,4 +49,8 @@ export interface HrPublicContract {
    * of their main HQ (or its Zone) — not every HQ they cover. See `application/planOffDays.ts`.
    */
   listPlanOffDays(userId: string, from: string, to: string): Promise<PlanOffDay[]>;
+  /** A leaver's leave requests starting after their last working day and still waiting for a decision. */
+  countLeaverLeaves(userId: string, lastWorkingDay: string): Promise<number>;
+  /** Rejects those with the reason (their days go back to the balance); returns how many. Safe to run again. */
+  closeLeaverLeaves(userId: string, lastWorkingDay: string): Promise<number>;
 }

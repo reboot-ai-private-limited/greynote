@@ -11,6 +11,7 @@ Nothing is stored. A **read model** at its own tier (5, below Payroll and Market
 ## The rule (`classifyDay`) — first match wins
 
 1. before the employee's joining day → `BEFORE_JOINING`
+1a. after their last working day (deactivated, 2026-10-22), until a rejoining day if they were reactivated → `NOT_EMPLOYED` (never absent, never deducted)
 2. after today → `NOT_YET`
 3. a holiday that applies to them (National, their HQ's, its Zone's) → `HOLIDAY`
 4. their weekly off → `WEEKLY_OFF` (a holiday that is also an off date is a holiday)

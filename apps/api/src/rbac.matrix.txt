@@ -86,6 +86,7 @@ GET    /api/identity/roles  ADMIN
 GET    /api/identity/users  ADMIN,HR
 GET    /api/identity/users/:id  ADMIN,HR
 GET    /api/identity/users/:id/ctc  ACCOUNTANT,ADMIN,HR
+GET    /api/identity/users/:id/deactivation  ADMIN
 GET    /api/identity/users/:id/devices  ADMIN
 GET    /api/identity/users/:id/promotions  ADMIN,HR
 GET    /api/identity/users/:id/reporting  ADMIN,HR
@@ -244,12 +245,14 @@ POST   /api/identity/roles  ADMIN
 POST   /api/identity/users  ADMIN,HR
 POST   /api/identity/users/:id/anonymise  ADMIN,HR
 POST   /api/identity/users/:id/ctc  ADMIN,HR
+POST   /api/identity/users/:id/deactivate  ADMIN
 POST   /api/identity/users/:id/devices/:deviceRowId/approve  ADMIN
 POST   /api/identity/users/:id/devices/:deviceRowId/logout  ADMIN
 POST   /api/identity/users/:id/devices/:deviceRowId/reject  ADMIN
 POST   /api/identity/users/:id/documents  ADMIN,HR
 POST   /api/identity/users/:id/promotions  ADMIN,HR
 POST   /api/identity/users/:id/promotions/preview  ADMIN,HR
+POST   /api/identity/users/:id/reactivate  ADMIN
 POST   /api/identity/users/:id/reset-password  ADMIN
 POST   /api/identity/users/:id/unblock  ADMIN,FIELD
 POST   /api/identity/users/manager-changes  ADMIN,HR

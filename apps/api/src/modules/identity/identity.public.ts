@@ -10,6 +10,7 @@ import type { UserSummary } from './domain/user.entity.js';
 export type { CtcAssignment } from './domain/ctcAssignment.entity.js';
 export type { DownlineMember } from './application/usecases/getDownline.usecase.js';
 export type { EmploymentDetails } from './application/usecases/getEmploymentDetails.usecase.js';
+export type { OffboardingImpact, OffboardingPort, OffboardingStep } from './domain/offboarding.port.js';
 
 /** An active field employee as the Sales Dashboard lists them: designation name and the HQ and Zone copied onto the profile. */
 export interface FieldEmployeeRow {
@@ -62,6 +63,11 @@ export interface IdentityPublicContract {
   blockUser(userId: string, reason: string): Promise<boolean>;
   /** Every active FIELD employee's id — who the missed-DCR job checks. */
   listActiveFieldUserIds(): Promise<string[]>;
+  /**
+   * The field employees whose salary a month can carry: every active one, and each deactivated one whose last working day is in that
+   * month or later (decision-log 2026-10-22).
+   */
+  listPayableFieldUserIds(month: string): Promise<string[]>;
   /** Every active user of any role, with the place a field employee sits in — who an Inbox message can reach. */
   listActiveRecipients(): Promise<Recipient[]>;
   /** Every active FIELD employee (never office staff), or only those among `onlyIds`, by name — a dashboard's rows. */

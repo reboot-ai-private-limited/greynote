@@ -13,7 +13,7 @@ export type PayrollStageDto = 'NOT_GENERATED' | 'DRAFT' | 'FINALIZED' | 'PAID';
 /** One day of the month as payroll saw it, and how much of it the rules charge. */
 export interface PayrollDayDto {
   date: string;
-  /** `PRESENT`, `ABSENT`, `LEAVE`, `HOLIDAY`, `WEEKLY_OFF`, `STRIKE`, `NOT_YET`, `BEFORE_JOINING` or `UNKNOWN`. */
+  /** `PRESENT`, `ABSENT`, `LEAVE`, `HOLIDAY`, `WEEKLY_OFF`, `STRIKE`, `NOT_YET`, `BEFORE_JOINING`, `NOT_EMPLOYED` or `UNKNOWN`. */
   status: string;
   /** Days of pay charged by the rules: an absent day 1, an unpaid leave day its portion, else 0. */
   deductedDays: number;
@@ -128,6 +128,8 @@ export interface PayrollRunDto {
   roundingPaise: number;
   /** The joining date falls in this month: the full base is paid (no proration) and the Accountant is told. */
   joinedInMonth: boolean;
+  /** The employee's last working day falls in this month: the full base salary is paid, as for joining. */
+  leftInMonth: boolean;
   status: PayrollStatus;
   generatedBy: string;
   generatedAt: string;

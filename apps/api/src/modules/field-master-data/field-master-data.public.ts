@@ -18,6 +18,12 @@ export type { Product } from './domain/product.entity.js';
  * assignments, Distributors and sample allocations join it in the steps that build them.
  */
 export interface FieldMasterDataPublicContract {
+  /** A leaving employee's doctors and the distributors that list them (decision-log 2026-10-22). */
+  countLeaverWork(userId: string): Promise<{ doctors: number; distributors: number }>;
+  /** Their doctors go to `handoverTo` where that person has the route, the rest are left unassigned (and leave their plans). */
+  releaseLeaverDoctors(userId: string, handoverTo: string | null, actorId: string): Promise<{ handedOver: number; unassigned: number }>;
+  /** They come off every distributor's assigned people; returns how many distributors changed. */
+  releaseLeaverDistributors(userId: string): Promise<number>;
   /** How many Doctors, Chemists and Distributors sit on these Routes (any status): what a permanent route delete would leave without one. */
   countOnRoutes(routeIds: string[]): Promise<{ doctors: number; chemists: number; distributors: number }>;
   /**

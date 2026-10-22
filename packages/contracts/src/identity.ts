@@ -134,6 +134,10 @@ export interface UserDetailDto {
     payBandId: string | null;
     managerId: string | null;
     dateOfJoining: string | null;
+    /** `YYYY-MM-DD`: the last day worked, set when deactivated (2026-10-22); null if they never left. */
+    lastWorkingDay: string | null;
+    /** `YYYY-MM-DD`: the first day back after a reactivation (rehire), or null. */
+    rejoinedOn: string | null;
     /** On probation (off by default). While on, leave is paid for the probation months. */
     onProbation: boolean;
     /** Null: the probation length setting applies. 0: no probation. */
@@ -187,7 +191,6 @@ export interface UpdateUserDto {
   designationId?: string;
   payBandId?: string;
   managerId?: string;
-  status?: 'inactive';
 }
 
 /** One address of the onboarding wizard; every field optional while a draft is half-filled. Pincode is 6 digits. */
@@ -555,3 +558,54 @@ export interface ReassignProblemDto {
   name: string;
   message: string;
 }
+
+// ── Deactivating an employee (2026-10-22) ──
+
+type DeactivationPerson = { id: string; name: string; employeeCode: string };
+
+/** `GET /identity/users/:id/deactivation?lastWorkingDay=` (Admin): what deactivating would do. */
+export interface DeactivationImpactDto {
+  user: DeactivationPerson & { role: string; status: string; lastWorkingDay: string | null };
+  /** Today in business time: the latest (and default) last working day. */
+  today: string;
+  /** People who report to them directly: they need a new manager first. */
+  directReports: DeactivationPerson[];
+  /** Their own manager: the suggested new manager for the team. */
+  suggestedManager: DeactivationPerson | null;
+  work: {
+    routes: number;
+    coverage: number;
+    doctors: number;
+    distributors: number;
+    /** Their plans and leave requests after the last working day still waiting for a decision: closed. */
+    plansAfter: number;
+    leavesAfter: number;
+    /** Their targets running past the leaving month: cut at that month. */
+    targetsAfter: number;
+    /** Requests from their team waiting on them: they follow the team to the new manager. */
+    waitingOnThem: number;
+  };
+}
+
+/** `POST /identity/users/:id/deactivate` (Admin). */
+export interface DeactivateUserDto {
+  /** `YYYY-MM-DD`, today or earlier, not before joining. */
+  lastWorkingDay: string;
+  /** Required when they manage anyone: who the team reports to now. */
+  newManagerId?: string | null;
+  /** Who takes over their doctors (those on routes this person has); the rest are left unassigned. */
+  doctorHandoverTo?: string | null;
+}
+
+export interface DeactivationResultDto {
+  /** The account was already inactive: only the hand-over ran again. */
+  alreadyInactive: boolean;
+  teamMoved: number;
+  steps: Array<{ step: 'TERRITORY' | 'DOCTORS' | 'DISTRIBUTORS' | 'PLANS' | 'LEAVE' | 'TARGETS'; ok: boolean; detail: string }>;
+}
+
+/** `POST /identity/users/:id/reactivate` (Admin): a rehire, usable again from `rejoinedOn` (after the last working day, today or earlier). */
+export interface ReactivateUserDto {
+  rejoinedOn: string;
+}
+

@@ -49,7 +49,6 @@ function build(chain: Record<string, string | null>, extra: Record<string, Parti
   const ids = new Set([...Object.keys(chain), ...Object.values(chain).filter((v): v is string => v !== null)]);
   const profiles = new Map(Object.entries(chain).map(([id, mgr]) => [id, profile(id, mgr, extra[id])]));
   const writes: Array<{ userId: string; input: Partial<EmployeeProfile> }> = [];
-  const revokedAll: Array<{ userId: string; reason: string }> = [];
   const history: Array<Record<string, unknown>> = [];
   const users = new Map([...ids].map((id) => [id, user(id)]));
   const useCase = new UpdateUserUseCase(
@@ -79,11 +78,6 @@ function build(chain: Record<string, string | null>, extra: Record<string, Parti
       },
     } as never,
     {
-      revokeAllForUser: async (userId: string, reason: string) => {
-        revokedAll.push({ userId, reason });
-      },
-    } as never,
-    {
       record: async (input: Record<string, unknown>) => {
         history.push(input);
         return input;
@@ -91,7 +85,7 @@ function build(chain: Record<string, string | null>, extra: Record<string, Parti
     } as never,
     async () => '2026-10',
   );
-  return { useCase, writes, profiles, revokedAll, users, history };
+  return { useCase, writes, profiles, users, history };
 }
 
 async function rejection(promise: Promise<unknown>): Promise<AppError> {
@@ -207,27 +201,7 @@ describe('UpdateUserUseCase — clearing an optional field', () => {
   });
 });
 
-describe('UpdateUserUseCase — deactivation', () => {
-  it('sets the account inactive and signs the employee out everywhere', async () => {
-    const { useCase, revokedAll } = build({ a: null });
-    const result = await useCase.execute('a', { status: 'inactive' });
-    expect(result.status).toBe('inactive');
-    expect(revokedAll).toEqual([{ userId: 'a', reason: 'ADMIN' }]);
-  });
-
-  it('does not sign anyone out for an ordinary edit', async () => {
-    const { useCase, revokedAll } = build({ a: null });
-    await useCase.execute('a', { basicDetails: { name: 'New Name' } });
-    expect(revokedAll).toEqual([]);
-  });
-
-  it('does not revoke again for an account that is already inactive', async () => {
-    const { useCase, revokedAll, users } = build({ a: null });
-    users.set('a', { ...(users.get('a') as User), status: 'inactive' });
-    await useCase.execute('a', { status: 'inactive' });
-    expect(revokedAll).toEqual([]);
-  });
-
+describe('UpdateUserUseCase — an inactive account', () => {
   it('keeps an inactive account inactive through a later edit', async () => {
     const { useCase, users } = build({ a: null });
     users.set('a', { ...(users.get('a') as User), status: 'inactive' });

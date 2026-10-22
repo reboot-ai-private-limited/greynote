@@ -45,6 +45,8 @@ export interface UserRepositoryPort {
   listActiveIdsByRole(role: 'FIELD'): Promise<string[]>;
   /** Every active user, any role, by name — the audience an Inbox message is resolved against. */
   listActive(): Promise<User[]>;
+  /** Inactive accounts deactivated at or after `since`: whose access tokens may still be unexpired. */
+  listDeactivatedSince(since: Date): Promise<Array<{ id: string; deactivatedAt: Date }>>;
   existsByEmployeeCode(employeeCode: string): Promise<boolean>;
   existsByEmail(email: string): Promise<boolean>;
   /** Backs the bootstrap-admin seed's idempotency check. */

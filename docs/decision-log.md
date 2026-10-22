@@ -2408,3 +2408,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Also:** `NEW_DOCTOR_COVERAGE_WAIT_DAYS` (client sign-off C7) was removed. It was defined and seeded but never read, and it was being mistaken for the visit gap. The doctor's approval date is still stored, so the coverage wait can be added back with coverage reporting.
 
 **Open:** run `migrate:doctor-visits` on dev and production; the field app adds the pre-check and the 1–4 picker; browser check.
+
+## 2026-10-22: Deactivating an employee hands everything over, and signs them out at once
+
+**Decision:** deactivation is no longer an edit (`PATCH status`) but its own Admin action with a **last working day** (today or earlier; no scheduling). A manager's team must be moved to an active new manager in the same step (their own manager suggested), so no request is left waiting on someone who can't sign in. Their doctors go to a chosen colleague where that person has the route, else unassigned; routes and coverage end (the main HQ stays on record); distributors drop them; their plans and leave after the last day that still wait are rejected; targets past the leaving month are cut, keeping their share. Each part is reported and can be re-run. Access tokens issued before the deactivation are refused immediately (an in-memory list, re-filled on restart), not after up to 15 minutes. Payroll pays a leaver up to the leaving month in full, like joining, with `leftInMonth`; days after it are `NOT_EMPLOYED`. Admin can reactivate a rehire from a rejoining date; nothing handed over is restored. A deactivated person can't be made a manager.
+
+**Open:** a final-settlement proration rule if the client wants one (today: full month, HR adjusts); browser check.

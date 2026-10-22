@@ -130,6 +130,12 @@ export function PayrollRunScreen({ id }: { id: string }) {
                 This employee joined in {monthLabel(run.month)}. The full base salary is paid; there is no proration.
               </p>
             ) : null}
+            {run.leftInMonth ? (
+              <p className="mb-6 rounded-lg border border-border bg-surface-subtle p-4 text-sm text-text-muted">
+                This employee left in {monthLabel(run.month)}. The full base salary is paid; there is no proration, and the days after they left are not
+                counted as absent. Adjust it here if their final settlement should differ.
+              </p>
+            ) : null}
             <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
               <Card title="How the net is worked out">
                 <div className="divide-y divide-border">

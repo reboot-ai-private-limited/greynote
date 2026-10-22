@@ -62,6 +62,8 @@ export class AttendanceCalendar {
         date,
         today,
         joinedOn,
+        leftOn: employment?.lastWorkingDay ?? null,
+        rejoinedOn: employment?.rejoinedOn ?? null,
         holiday: holidaySet.has(date),
         weeklyOff: offSet.has(date) && !holidaySet.has(date),
         onLeave: leaveSet.has(date),

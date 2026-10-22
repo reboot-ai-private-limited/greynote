@@ -30,6 +30,7 @@ export interface PayrollRunDoc {
   adjustmentPaise?: number;
   originalNetPayablePaise?: number;
   joinedInMonth: boolean;
+  leftInMonth?: boolean;
   status: PayrollStatus;
   generatedBy: Types.ObjectId;
   generatedAt: Date;
@@ -72,6 +73,8 @@ const schema = new Schema<PayrollRunDoc>({
   adjustmentPaise: { type: Number, default: 0 },
   originalNetPayablePaise: { type: Number, default: 0 },
   joinedInMonth: { type: Boolean, required: true },
+  // Runs from before 2026-10-22 have none: read as false.
+  leftInMonth: { type: Boolean, default: false },
   status: { type: String, required: true, enum: PAYROLL_STATUSES },
   generatedBy: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   generatedAt: { type: Date, required: true },

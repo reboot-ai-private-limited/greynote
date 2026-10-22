@@ -13,4 +13,8 @@ export interface MarketingPublicContract {
   listTargetShares(userIds: string[], fromMonth: string, toMonth: string): Promise<TargetShareRow[]>;
   /** How many visuals are picked to show this doctor now: for its deactivate/delete warning. */
   countDoctorVisuals(doctorId: string): Promise<number>;
+  /** A leaver's targets that run past the month of their last working day. */
+  countLeaverTargets(userId: string, lastWorkingDay: string): Promise<number>;
+  /** Cuts those at the leaving month (keeping their share of it) and removes the ones that start later. Safe to run again. */
+  cutLeaverTargets(userId: string, lastWorkingDay: string, actorId: string): Promise<{ cut: number; removed: number }>;
 }

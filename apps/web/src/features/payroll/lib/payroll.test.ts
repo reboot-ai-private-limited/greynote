@@ -1,26 +1,6 @@
 import type { GenerateOutcomeDto, PayrollRunDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import {
-  deductionExplanation,
-  draftRuns,
-  endedMonths,
-  endedMonthsInYear,
-  finalizeMessage,
-  finalizeRuns,
-  generateMessage,
-  isGeneratable,
-  monthBounds,
-  monthLabel,
-  monthState,
-  needsAttention,
-  netAddsUp,
-  absentExplanation,
-  payrollCsv,
-  payrollFilename,
-  runTotals,
-  skipLabel,
-  summariseGenerate,
-} from './payroll';
+import { absentExplanation, deductionExplanation, draftRuns, endedMonths, endedMonthsInYear, finalizeMessage, finalizeRuns, generateMessage, isGeneratable, joinedLeftNote, monthBounds, monthLabel, monthState, needsAttention, netAddsUp, payrollCsv, payrollFilename, runTotals, skipLabel, summariseGenerate } from './payroll';
 
 const run = (over: Partial<PayrollRunDto> = {}): PayrollRunDto => ({
   id: 'r1',
@@ -53,6 +33,7 @@ const run = (over: Partial<PayrollRunDto> = {}): PayrollRunDto => ({
   statutoryDeductionPaise: 0,
   roundingPaise: 0,
   joinedInMonth: false,
+  leftInMonth: false,
   status: 'DRAFT',
   generatedBy: 'acc',
   generatedAt: '2026-10-01T00:00:00Z',
@@ -102,6 +83,7 @@ describe('the sheet', () => {
       drafts: 1,
       finalized: 1,
       joinedInMonth: 1,
+      leftInMonth: 0,
       basePaise: 6_000_000,
       taDaPaise: 1_234_000,
       reimbursementPaise: 30_100,
@@ -173,9 +155,9 @@ describe('finalizeRuns', () => {
 describe('payrollCsv', () => {
   it('writes one row per employee with plain-number rupees and the status', () => {
     const lines = payrollCsv([run(), run({ id: 'r2', userName: '=cmd', status: 'FINALIZED', joinedInMonth: true, unpaidLeaveDays: 2.5 })]).trimEnd().split('\r\n');
-    expect(lines[0]).toBe('Employee code,Employee,Month,Base salary (INR),TA and DA paid (INR),Reimbursements paid (INR),Unpaid leave days,Leave deduction (INR),Absent days,Absent deduction (INR),Net payable (INR),Joined this month,Status');
-    expect(lines[1]).toBe('MR001,Asha Rao,2026-09,30000.00,6170.00,150.50,0,0.00,0,0.00,36320.50,,Draft');
-    expect(lines[2]).toBe("MR001,'=cmd,2026-09,30000.00,6170.00,150.50,2.5,0.00,0,0.00,36320.50,Yes,Finalized");
+    expect(lines[0]).toBe('Employee code,Employee,Month,Base salary (INR),TA and DA paid (INR),Reimbursements paid (INR),Unpaid leave days,Leave deduction (INR),Absent days,Absent deduction (INR),Net payable (INR),Joined this month,Left this month,Status');
+    expect(lines[1]).toBe('MR001,Asha Rao,2026-09,30000.00,6170.00,150.50,0,0.00,0,0.00,36320.50,,,Draft');
+    expect(lines[2]).toBe("MR001,'=cmd,2026-09,30000.00,6170.00,150.50,2.5,0.00,0,0.00,36320.50,Yes,,Finalized");
   });
   it('names the file by its month', () => {
     expect(payrollFilename('2026-09')).toBe('payroll-2026-09.csv');
@@ -223,3 +205,12 @@ describe('stage, days and adjustments', () => {
     expect(describePayrollAdjustment({ kind: 'AMOUNT', setDays: null, ruleDays: null, amountPaise: -20_000 })).toMatch(/^Amount taken off .*200/);
   });
 });
+
+describe('joinedLeftNote', () => {
+  it('says who joined and who left this month, or nothing', () => {
+    expect(joinedLeftNote({ joinedInMonth: 2, leftInMonth: 1 })).toBe('2 joined, 1 left this month, paid in full');
+    expect(joinedLeftNote({ joinedInMonth: 0, leftInMonth: 1 })).toBe('1 left this month, paid in full');
+    expect(joinedLeftNote({ joinedInMonth: 0, leftInMonth: 0 })).toBeUndefined();
+  });
+});
+

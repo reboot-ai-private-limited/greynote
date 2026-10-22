@@ -11,6 +11,10 @@ export type { PlanApprovalStatus } from './domain/approvals.port.js';
 export interface PlanningPublicContract {
   /** How many daily plans from this date on use any of these Routes: what a permanent route delete would leave pointing at nothing. */
   countPlannedDaysOnRoutes(routeIds: string[], fromDate: string): Promise<number>;
+  /** A leaver's Plans after their last working day still waiting for a decision (Daily after that day, Monthly of later months). */
+  countLeaverPlans(userId: string, lastWorkingDay: string): Promise<number>;
+  /** Rejects those, with the reason, so no manager keeps them waiting; returns how many. Safe to run again. */
+  closeLeaverPlans(userId: string, lastWorkingDay: string): Promise<number>;
   /** Daily Plans from today on that list this doctor: still editable by the employee, or submitted/approved. */
   countPlansWithDoctor(doctorId: string): Promise<{ editable: number; locked: number }>;
   /**

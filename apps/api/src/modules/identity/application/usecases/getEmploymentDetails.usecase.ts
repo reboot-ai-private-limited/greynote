@@ -4,6 +4,10 @@ import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile
 export interface EmploymentDetails {
   payBandId: string | null;
   dateOfJoining: Date | null;
+  /** `YYYY-MM-DD`: the last day worked before a deactivation; null if they never left. Days after it are not employed. */
+  lastWorkingDay: string | null;
+  /** `YYYY-MM-DD`: the first day back after a reactivation; the days from `lastWorkingDay` up to it are not employed. */
+  rejoinedOn: string | null;
   onProbation: boolean;
   /** Null: the `PROBATION_MONTHS` setting applies. */
   probationMonths: number | null;
@@ -34,6 +38,8 @@ export class GetEmploymentDetailsUseCase {
     return {
       payBandId: profile.payBandId,
       dateOfJoining: profile.dateOfJoining,
+      lastWorkingDay: profile.lastWorkingDay ?? null,
+      rejoinedOn: profile.rejoinedOn ?? null,
       onProbation: profile.onProbation,
       probationMonths: profile.probationMonths,
       esiNumber: profile.esiNumber,

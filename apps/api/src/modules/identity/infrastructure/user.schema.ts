@@ -11,6 +11,7 @@ export interface UserDoc {
   passwordHash: string;
   lastLoginAt: Date | null;
   isBlocked: boolean;
+  deactivatedAt?: Date | null;
   deletedAt?: Date | null;
   isDemo?: boolean;
 }
@@ -25,6 +26,7 @@ const userSchema = new Schema<UserDoc>({
   passwordHash: { type: String, required: true },
   lastLoginAt: { type: Date, default: null },
   isBlocked: { type: Boolean, required: true, default: false },
+  deactivatedAt: { type: Date, default: null },
   deletedAt: { type: Date, default: null },
   isDemo: { type: Boolean, default: false },
 });

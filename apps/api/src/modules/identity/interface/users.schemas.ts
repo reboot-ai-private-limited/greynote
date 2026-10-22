@@ -73,8 +73,19 @@ export const updateUserBodySchema = z.object({
   designationId: z.string().min(1).optional(),
   payBandId: z.string().min(1).optional(),
   managerId: z.string().min(1).optional(),
-  status: z.literal('inactive').optional(),
 });
+
+const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be a date as YYYY-MM-DD.');
+const objectId = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.');
+/** `POST /users/:id/deactivate` (Admin). `newManagerId` is required when they have direct reports. */
+export const deactivateUserBodySchema = z.object({
+  lastWorkingDay: dateOnly,
+  newManagerId: objectId.nullish(),
+  doctorHandoverTo: objectId.nullish(),
+});
+export const deactivationImpactQuerySchema = z.object({ lastWorkingDay: dateOnly.optional() });
+/** `POST /users/:id/reactivate` (Admin): a rehire, usable again from this day. */
+export const reactivateUserBodySchema = z.object({ rejoinedOn: dateOnly });
 
 export const listUsersQuerySchema = paginationQuerySchema.extend({
   role: z.enum(['ADMIN', 'HR', 'ACCOUNTANT', 'FIELD']).optional(),

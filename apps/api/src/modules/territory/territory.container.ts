@@ -162,6 +162,18 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
         await managerCoverage.set.execute(userId, input, actorId);
       },
       assignUserHq: (userId, hqId, actorId) => userHq.set.execute(userId, hqId, actorId),
+      countUserHoldings: async (userId) => {
+        const [routes, coverage] = await Promise.all([assignmentRepository.listActiveForUser(userId), coverageRepository.find(userId)]);
+        return { routes: routes.length, coverage: (coverage?.hqIds.length ?? 0) + (coverage?.zoneIds.length ?? 0) };
+      },
+      releaseUserHoldings: async (userId, actorId) => {
+        const routes = await assignmentRepository.listActiveForUser(userId);
+        for (const a of routes) await assignmentRepository.deactivate(a.id, actorId);
+        const coverage = await coverageRepository.find(userId);
+        const covered = (coverage?.hqIds.length ?? 0) + (coverage?.zoneIds.length ?? 0);
+        if (covered > 0) await coverageRepository.save({ userId, hqIds: [], zoneIds: [], updatedBy: actorId });
+        return { routes: routes.length, coverage: covered };
+      },
       assignUserRoutes: async (userId, routeIds, actorId) => {
         for (const routeId of routeIds) {
           if (await assignmentRepository.findActive(routeId, userId)) continue;

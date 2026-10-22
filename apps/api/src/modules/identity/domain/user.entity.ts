@@ -21,6 +21,8 @@ export interface User {
   passwordHash: string;
   lastLoginAt: Date | null;
   isBlocked: boolean;
+  /** When Admin last deactivated the account; null once reactivated. Access tokens issued before it are refused (shared/http/accessRevocations.ts). */
+  deactivatedAt?: Date | null;
   /** Set when the account was deleted (personal data scrubbed, records kept). Absent/null: never deleted. */
   deletedAt?: Date | null;
   /** A reviewer's demo account (Play Store). Left out of payroll, attendance and the daily jobs; cannot be deleted. */

@@ -43,6 +43,8 @@ export interface EmployeeProfileDoc {
   payBandId: Types.ObjectId | null;
   managerId: Types.ObjectId | null;
   dateOfJoining: Date | null;
+  lastWorkingDay?: string | null;
+  rejoinedOn?: string | null;
   onProbation?: boolean;
   probationMonths?: number | null;
   esiNumber?: string | null;
@@ -122,6 +124,9 @@ const employeeProfileSchema = new Schema<EmployeeProfileDoc>({
   payBandId: { type: Schema.Types.ObjectId, default: null, ref: 'PayBand' },
   managerId: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
   dateOfJoining: { type: Date, default: null },
+  // Calendar days (`YYYY-MM-DD`), set by deactivation and reactivation.
+  lastWorkingDay: { type: String, default: null },
+  rejoinedOn: { type: String, default: null },
   onProbation: { type: Boolean, default: false },
   probationMonths: { type: Number, default: null, min: 0, max: 36 },
   esiNumber: { type: String, default: null, match: /^\d{17}$/ },

@@ -15,6 +15,8 @@ function toEmployeeProfile(doc: EmployeeProfileDoc & { _id: unknown }): Employee
     payBandId: doc.payBandId ? String(doc.payBandId) : null,
     managerId: doc.managerId ? String(doc.managerId) : null,
     dateOfJoining: doc.dateOfJoining,
+    lastWorkingDay: doc.lastWorkingDay ?? null,
+    rejoinedOn: doc.rejoinedOn ?? null,
     onProbation: doc.onProbation ?? false,
     probationMonths: doc.probationMonths ?? null,
     esiNumber: doc.esiNumber ?? null,
@@ -119,6 +121,10 @@ export class MongoEmployeeProfileAdapter implements EmployeeProfileRepositoryPor
       for (const below of row.below) add(below.userId, below.managerId, below.depth + 2);
     }
     return [...byUser.values()];
+  }
+
+  async findUserIdsLeftOnOrAfter(date: string): Promise<string[]> {
+    return (await EmployeeProfileModel.find({ lastWorkingDay: { $gte: date } }).select('userId').lean()).map((d) => String(d.userId));
   }
 
   async findUserIdsByFilter(filter: { designationId?: string; managerId?: string }): Promise<string[]> {

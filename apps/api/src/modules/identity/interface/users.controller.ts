@@ -4,6 +4,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { PaginationQuery } from '@/shared/http/pagination.js';
+import type { DeactivateEmployeeUseCase } from '../application/usecases/deactivateEmployee.usecase.js';
 import type { ListUsersUseCase } from '../application/usecases/listUsers.usecase.js';
 import type { GetUserDetailUseCase } from '../application/usecases/getUserDetail.usecase.js';
 import type { GetReportingLineUseCase } from '../application/usecases/getReportingLine.usecase.js';
@@ -135,3 +136,21 @@ export function makeRemoveEmployeePhotoController(useCase: RemoveEmployeePhotoUs
     sendSuccess(req, res, await useCase.execute(requiredParam(req.params, 'id')), 'Photo removed.', 200);
   });
 }
+
+export function makeDeactivationControllers(useCase: DeactivateEmployeeUseCase): Record<'impact' | 'deactivate' | 'reactivate', RequestHandler> {
+  return {
+    impact: asyncHandler(async (req, res) => {
+      const q = req.query as { lastWorkingDay?: string };
+      sendSuccess(req, res, await useCase.impact(requiredParam(req.params, 'id'), q.lastWorkingDay), 'What deactivating would do.', 200);
+    }),
+    deactivate: asyncHandler(async (req, res) => {
+      if (!req.user) throw AppError.unauthenticated();
+      const result = await useCase.deactivate(req.user.sub, requiredParam(req.params, 'id'), req.body);
+      sendSuccess(req, res, result, result.alreadyInactive ? 'The hand-over was run again.' : 'Employee deactivated.', 200);
+    }),
+    reactivate: asyncHandler(async (req, res) => {
+      sendSuccess(req, res, await useCase.reactivate(requiredParam(req.params, 'id'), req.body), 'Employee reactivated.', 200);
+    }),
+  };
+}
+

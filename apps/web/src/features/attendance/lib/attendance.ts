@@ -11,11 +11,12 @@ export const STATUS_LABEL: Record<DayStatus, string> = {
   WEEKLY_OFF: 'Weekly off',
   NOT_YET: 'Not yet',
   BEFORE_JOINING: 'Before joining',
+  NOT_EMPLOYED: 'Not employed (left)',
   UNKNOWN: 'Unknown (no joining date)',
 };
 
 /** One letter on the cell, so a day never depends on colour alone. */
-export const STATUS_CODE: Record<DayStatus, string> = { PRESENT: 'P', ABSENT: 'A', LEAVE: 'L', STRIKE: 'S', HOLIDAY: 'H', WEEKLY_OFF: 'O', NOT_YET: '', BEFORE_JOINING: '', UNKNOWN: '?' };
+export const STATUS_CODE: Record<DayStatus, string> = { PRESENT: 'P', ABSENT: 'A', LEAVE: 'L', STRIKE: 'S', HOLIDAY: 'H', WEEKLY_OFF: 'O', NOT_YET: '', BEFORE_JOINING: '', NOT_EMPLOYED: '', UNKNOWN: '?' };
 
 export const STATUS_TONE: Record<DayStatus, BadgeTone> = {
   PRESENT: 'success',
@@ -26,6 +27,7 @@ export const STATUS_TONE: Record<DayStatus, BadgeTone> = {
   WEEKLY_OFF: 'neutral',
   NOT_YET: 'neutral',
   BEFORE_JOINING: 'neutral',
+  NOT_EMPLOYED: 'neutral',
   UNKNOWN: 'warning',
 };
 
@@ -42,6 +44,7 @@ export const CELL_CLASS: Record<DayStatus, string> = {
   WEEKLY_OFF: 'bg-surface-subtle text-text-subtle',
   NOT_YET: 'text-text-subtle',
   BEFORE_JOINING: 'text-text-subtle',
+  NOT_EMPLOYED: 'text-text-subtle',
   UNKNOWN: 'border border-dashed border-warning text-warning-fg',
 };
 

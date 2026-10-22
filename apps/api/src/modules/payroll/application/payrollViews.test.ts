@@ -32,6 +32,7 @@ const run = (userId: string): PayrollRun => ({
   statutoryDeductionPaise: 0,
   roundingPaise: 0,
   joinedInMonth: false,
+  leftInMonth: false,
   status: 'DRAFT',
   generatedBy: 'acc',
   generatedAt: new Date('2026-10-01T00:00:00Z'),

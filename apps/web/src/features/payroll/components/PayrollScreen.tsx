@@ -21,18 +21,7 @@ import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
 import { useGenerate, usePayrollMonth, usePayrollWarnings } from '../hooks/usePayroll';
-import {
-  draftRuns,
-  endedMonthsInYear,
-  monthLabel,
-  monthState,
-  RUN_STAGE_LABEL,
-  RUN_STAGE_TONE,
-  runStage,
-  payrollCsv,
-  payrollFilename,
-  runTotals,
-} from '../lib/payroll';
+import { RUN_STAGE_LABEL, RUN_STAGE_TONE, draftRuns, endedMonthsInYear, joinedLeftNote, monthLabel, monthState, payrollCsv, payrollFilename, runStage, runTotals } from '../lib/payroll';
 import { FinalizeDialog } from './FinalizeDialog';
 import { GenerateDialog } from './GenerateDialog';
 import { GenerateResultDialog } from './GenerateResultDialog';
@@ -86,6 +75,7 @@ export function PayrollScreen() {
           <div className="flex flex-wrap items-center gap-2 text-xs text-text-subtle">
             {r.employeeCode}
             {r.joinedInMonth ? <Badge tone="accent">Joined this month</Badge> : null}
+            {r.leftInMonth ? <Badge tone="warning">Left this month</Badge> : null}
           </div>
         </div>
       ),
@@ -253,9 +243,7 @@ export function PayrollScreen() {
               label="Employees"
               value={totals.employees}
               note={
-                totals.joinedInMonth > 0
-                  ? `${totals.joinedInMonth} joined this month, paid in full`
-                  : undefined
+joinedLeftNote(totals)
               }
             />
             <StatTile label="Net payable" value={formatMoney(totals.netPaise)} />

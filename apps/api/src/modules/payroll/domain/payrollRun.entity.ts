@@ -4,7 +4,7 @@ import type { CtcLineSnapshot } from './ports.js';
 /** One calendar day of the month as payroll saw it when the run was generated: what the day was and how much of it the rules charge (0, 0.5 or 1). */
 export interface PayrollDay {
   date: string;
-  /** The attendance status: `PRESENT`, `ABSENT`, `LEAVE`, `HOLIDAY`, `WEEKLY_OFF`, `STRIKE`, `NOT_YET`, `BEFORE_JOINING` or `UNKNOWN`. */
+  /** The attendance status: `PRESENT`, `ABSENT`, `LEAVE`, `HOLIDAY`, `WEEKLY_OFF`, `STRIKE`, `NOT_YET`, `BEFORE_JOINING`, `NOT_EMPLOYED` or `UNKNOWN`. */
   status: string;
   /** Days of pay charged for this day by the rules: an absent day 1, an unpaid leave day its portion; 0 otherwise. */
   deductedDays: number;
@@ -98,6 +98,8 @@ export interface PayrollRun {
   dateOfJoining: string | null;
   /** The joining date falls in this month; the full base salary is paid (no proration) and the Accountant is told. */
   joinedInMonth: boolean;
+  /** The last working day falls in this month (2026-10-22): the full base salary is paid, as for joining, and the Accountant is told. */
+  leftInMonth: boolean;
   status: PayrollStatus;
   generatedBy: string;
   generatedAt: Date;

@@ -1008,3 +1008,11 @@ New setting `DOCTOR_VISIT_GAP_DAYS` (8, 0–9): after a doctor call or follow-up
 that many days (`DOCTOR_VISIT_TOO_SOON` at sync, with the dates in `reason.details`). Visit frequency is 1–4 everywhere
 (`MAX_VISIT_FREQUENCY`). The unused `NEW_DOCTOR_COVERAGE_WAIT_DAYS` setting is removed. Run `migrate:doctor-visits` (dry run,
 then `--apply`) to move 5s to 4 and delete the old setting row. Phone: `mobile/dcr.md` rule 11, `mobile/doctors.md` rule 4.
+
+## Deactivating an employee: team, work and payroll handed over (2026-10-22, done, not browser-checked)
+
+Admin deactivates from the employee page with a last working day: a manager's team moves to a chosen new manager (their waiting
+requests follow), the account signs out everywhere **at once** (open screens included), and their doctors (optionally to someone
+with the routes), routes, coverage, distributors, later plans and leave, and later targets are released, each part reported and
+retryable. Payroll pays them up to the leaving month (`leftInMonth`); attendance marks later days `NOT_EMPLOYED`. Admin can
+reactivate (rehire) from a rejoining date. `LLD/identity.md`, `mobile/account.md`.

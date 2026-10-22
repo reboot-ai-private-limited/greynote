@@ -60,6 +60,7 @@ export interface RunTotals {
   drafts: number;
   finalized: number;
   joinedInMonth: number;
+  leftInMonth: number;
   basePaise: number;
   taDaPaise: number;
   reimbursementPaise: number;
@@ -67,12 +68,19 @@ export interface RunTotals {
   netPaise: number;
 }
 
+/** "2 joined, 1 left this month, paid in full", or nothing when nobody did either. */
+export function joinedLeftNote(t: Pick<RunTotals, 'joinedInMonth' | 'leftInMonth'>): string | undefined {
+  const parts = [t.joinedInMonth > 0 ? `${t.joinedInMonth} joined` : '', t.leftInMonth > 0 ? `${t.leftInMonth} left` : ''].filter(Boolean);
+  return parts.length > 0 ? `${parts.join(', ')} this month, paid in full` : undefined;
+}
+
 export function runTotals(runs: readonly PayrollRunDto[]): RunTotals {
-  const t: RunTotals = { employees: runs.length, drafts: 0, finalized: 0, joinedInMonth: 0, basePaise: 0, taDaPaise: 0, reimbursementPaise: 0, deductionPaise: 0, netPaise: 0 };
+  const t: RunTotals = { employees: runs.length, drafts: 0, finalized: 0, joinedInMonth: 0, leftInMonth: 0, basePaise: 0, taDaPaise: 0, reimbursementPaise: 0, deductionPaise: 0, netPaise: 0 };
   for (const r of runs) {
     if (r.status === 'DRAFT') t.drafts += 1;
     else t.finalized += 1;
     if (r.joinedInMonth) t.joinedInMonth += 1;
+    if (r.leftInMonth) t.leftInMonth += 1;
     t.basePaise += r.baseSalaryPaise;
     t.taDaPaise += r.totalTaDaPaise;
     t.reimbursementPaise += r.reimbursementPaise;
@@ -180,7 +188,7 @@ export function finalizeMessage(result: FinalizeResult, total: number): string {
 // ── CSV ────────────────────────────────────────────────────────────────────────────────────
 
 export const PAYROLL_CSV_HEADER = [
-  'Employee code', 'Employee', 'Month', 'Base salary (INR)', 'TA and DA paid (INR)', 'Reimbursements paid (INR)', 'Unpaid leave days', 'Leave deduction (INR)', 'Absent days', 'Absent deduction (INR)', 'Net payable (INR)', 'Joined this month', 'Status',
+  'Employee code', 'Employee', 'Month', 'Base salary (INR)', 'TA and DA paid (INR)', 'Reimbursements paid (INR)', 'Unpaid leave days', 'Leave deduction (INR)', 'Absent days', 'Absent deduction (INR)', 'Net payable (INR)', 'Joined this month', 'Left this month', 'Status',
 ] as const;
 
 export function payrollCsv(runs: readonly PayrollRunDto[]): string {
@@ -199,6 +207,7 @@ export function payrollCsv(runs: readonly PayrollRunDto[]): string {
       rupeesForCsv(r.absentDeductionPaise),
       rupeesForCsv(r.netPayablePaise),
       r.joinedInMonth ? 'Yes' : '',
+      r.leftInMonth ? 'Yes' : '',
       r.status === 'FINALIZED' ? 'Finalized' : 'Draft',
     ]),
   );
@@ -224,6 +233,7 @@ export const PAYROLL_DAY_LABEL: Record<string, string> = {
   STRIKE: 'Strike',
   NOT_YET: 'Not yet',
   BEFORE_JOINING: 'Before joining',
+  NOT_EMPLOYED: 'Not employed (left)',
   UNKNOWN: 'Unknown',
 };
 

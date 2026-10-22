@@ -10,6 +10,10 @@ export interface DayFacts {
   today: string;
   /** The day they joined (business date), or `null` when not recorded — then no day can be called absent. */
   joinedOn: string | null;
+  /** The last day worked before a deactivation, or `null`. The days after it are not employed (decision-log 2026-10-22). */
+  leftOn?: string | null;
+  /** After a rehire, the first day back: not employed again from then. */
+  rejoinedOn?: string | null;
   holiday: boolean;
   weeklyOff: boolean;
   /** Covered by a Manager-Approved or fully approved leave, paid or not (unpaid leave is deducted by Payroll's own leave line). */
@@ -21,12 +25,13 @@ export interface DayFacts {
 }
 
 /**
- * The day's status, first match wins: before they joined → not yet (a future day, or today with no report yet) → holiday → weekly off →
+ * The day's status, first match wins: before they joined → after they left (until a rejoining day) → not yet (a future day, or today with no report yet) → holiday → weekly off →
  * leave → strike → present (a report) → absent. A working day only becomes absent once it is over: today without a report is still "not yet".
  * Without a recorded joining date a would-be-absent day is `UNKNOWN`, never absent: a missing date must not cost anyone a month's pay.
  */
 export function classifyDay(f: DayFacts): DayStatus {
   if (f.joinedOn !== null && f.date < f.joinedOn) return 'BEFORE_JOINING';
+  if (f.leftOn && f.date > f.leftOn && (!f.rejoinedOn || f.date < f.rejoinedOn)) return 'NOT_EMPLOYED';
   if (f.date > f.today) return 'NOT_YET';
   if (f.holiday) return 'HOLIDAY';
   if (f.weeklyOff) return 'WEEKLY_OFF';

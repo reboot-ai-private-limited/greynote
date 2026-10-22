@@ -35,6 +35,7 @@ const toRun = (d: PayrollRunDoc & { _id: unknown }): PayrollRun => ({
   adjustmentPaise: d.adjustmentPaise ?? 0,
   originalNetPayablePaise: d.originalNetPayablePaise ?? d.netPayablePaise,
   joinedInMonth: d.joinedInMonth,
+  leftInMonth: d.leftInMonth ?? false,
   status: d.status,
   generatedBy: String(d.generatedBy),
   generatedAt: d.generatedAt,

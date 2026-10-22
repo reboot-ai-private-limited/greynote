@@ -174,6 +174,9 @@ export class FakeAssignments implements DoctorAssignmentRepositoryPort {
   async findActiveForDoctors(doctorIds: string[]) {
     return this.rows.filter((a) => a.status === 'active' && doctorIds.includes(a.doctorId));
   }
+  async listActiveForUser(userId: string) {
+    return this.rows.filter((a) => a.status === 'active' && a.userId === userId);
+  }
   async listForDoctor(doctorId: string) {
     return this.rows.filter((a) => a.doctorId === doctorId).reverse();
   }
@@ -368,6 +371,14 @@ export class FakeApprovals implements ApprovalsPort {
 
 export class FakeDistributors implements DistributorRepositoryPort {
   rows: Distributor[] = [];
+  async countAssignee(userId: string) {
+    return this.rows.filter((d) => d.assignedUserIds.includes(userId)).length;
+  }
+  async removeAssignee(userId: string) {
+    const hit = this.rows.filter((d) => d.assignedUserIds.includes(userId));
+    for (const d of hit) d.assignedUserIds = d.assignedUserIds.filter((u) => u !== userId);
+    return hit.length;
+  }
   async listActiveForUser(userId: string, routeIds: string[]) {
     return this.rows.filter((d) => d.status === 'active' && (d.assignedUserIds.includes(userId) || d.routeIds.some((r) => routeIds.includes(r))));
   }

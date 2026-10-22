@@ -132,12 +132,16 @@ import {
   makeSetEmployeePhotoController,
   makeResetPasswordController,
   makeAnonymiseUserController,
+  makeDeactivationControllers,
   makeUnblockUserController,
   makeUpdateUserController,
   makeUploadUserDocumentController,
 } from './interface/users.controller.js';
 import { buildUsersRouter } from './interface/users.route.js';
 import { ReassignManagerUseCase } from './application/usecases/reassignManager.usecase.js';
+import { revokeAccessTokens } from '@/shared/http/accessRevocations.js';
+import { DeactivateEmployeeUseCase } from './application/usecases/deactivateEmployee.usecase.js';
+import type { OffboardingPort } from './domain/offboarding.port.js';
 import { ConfirmAdminPasswordResetUseCase, RequestAdminPasswordResetUseCase } from './application/usecases/adminPasswordReset.usecase.js';
 import { MongoPasswordResetRequestAdapter } from './infrastructure/mongoPasswordResetRequest.adapter.js';
 import { SmtpMailer } from '@/shared/mail/smtpMailer.adapter.js';
@@ -162,6 +166,13 @@ export interface IdentityContainer {
   seedPayComponents: () => Promise<void>;
   /** Applies every promotion whose month has come. The server calls it on start and hourly; safe at any time and from any number of servers. */
   applyDuePromotions: () => Promise<{ applied: number; failed: number }>;
+  /**
+   * The modules above Identity hold what a leaving employee had (routes, doctors, plans, leave, targets); deactivation releases it
+   * through this port, handed in once they are built.
+   */
+  bindOffboarding: (port: OffboardingPort) => void;
+  /** After a restart: refuses again the access tokens of accounts deactivated within the last token lifetime. */
+  restoreAccessRevocations: () => Promise<number>;
   /** Territory sits above Identity, so the employee wizard's "set the HQ" is handed in once both are built. */
   bindHqAssigner: (assign: HqAssigner) => void;
   /** Likewise the new employee's covered Zones and HQs. */
@@ -245,7 +256,6 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     designationRepository,
     payBandRepository,
     employeeProfileRepository,
-    userSessionRepository,
     managerHistoryRepository,
     currentMonth,
   );
@@ -355,6 +365,12 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const getDownline = new GetDownlineUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getReportingLine = new GetReportingLineUseCase((id) => getManagerChain.execute(id), (id) => getDownline.execute(id));
   const reassignManager = new ReassignManagerUseCase(userRepository, employeeProfileRepository, designationRepository, managerHistoryRepository, currentMonth);
+  /** Today in the business timezone (`YYYY-MM-DD`). */
+  const today = async (): Promise<string> => {
+    const { timeZone, dayStart } = await readBusinessDay(configProvider);
+    return businessDate(new Date(), timeZone, dayStart);
+  };
+  const deactivation = new DeactivateEmployeeUseCase(userRepository, employeeProfileRepository, roleRepository, userSessionRepository, reassignManager, today);
   const resetDeps = { users: userRepository, roles: roleRepository, requests: new MongoPasswordResetRequestAdapter(), hasher: passwordHasher, mailer: new SmtpMailer(), ownerEmail: env.PASSWORD_RESET_OWNER_EMAIL, dailyLimit: env.PASSWORD_RESET_DAILY_LIMIT };
   const requestAdminPasswordReset = new RequestAdminPasswordResetUseCase(resetDeps);
   const confirmAdminPasswordReset = new ConfirmAdminPasswordResetUseCase({ ...resetDeps, sessions: userSessionRepository });
@@ -396,6 +412,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     unblock: makeUnblockUserController(unblockUser),
     resetPassword: makeResetPasswordController(resetPassword),
     anonymise: makeAnonymiseUserController(deleteAccount),
+    deactivation: makeDeactivationControllers(deactivation),
   };
   const ctcControllers = makeCtcControllers({ preview: previewCtc, assign: assignCtc, history: listCtcHistory, reapply: reapplyCtc });
   const promotionControllers = makePromotionControllers({ preview: previewPromotion, schedule: schedulePromotion, list: listPromotions, listAll: listAllPromotions, cancel: cancelPromotion, applyDue: applyDuePromotions });
@@ -432,6 +449,11 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       isBlocked: (userId) => isBlocked.execute(userId),
       blockUser: (userId, reason) => blockUser.execute(userId, reason),
       listActiveFieldUserIds: () => userRepository.listActiveIdsByRole('FIELD'),
+      listPayableFieldUserIds: async (month) => {
+        const [active, leftIds] = await Promise.all([userRepository.listActiveIdsByRole('FIELD'), employeeProfileRepository.findUserIdsLeftOnOrAfter(`${month}-01`)]);
+        const leavers = (await userRepository.findByIds(leftIds)).filter((u) => u.status === 'inactive' && !u.isDemo).map((u) => u.id);
+        return [...new Set([...active, ...leavers])];
+      },
       listActiveRecipients: async () => {
         const [users, roles] = await Promise.all([userRepository.listActive(), roleRepository.list()]);
         const roleName = new Map(roles.map((r) => [r.id, r.name]));
@@ -500,6 +522,13 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     seedRoles: () => seedDefaultRoles.execute(),
     seedPayComponents: () => seedDefaultPayComponents.execute(),
     applyDuePromotions: () => applyDuePromotions.execute(),
+    bindOffboarding: (port) => deactivation.bindOffboarding(port),
+    restoreAccessRevocations: async () => {
+      const since = new Date(Date.now() - env.JWT_ACCESS_TOKEN_TTL_SECONDS * 1000);
+      const recent = await userRepository.listDeactivatedSince(since);
+      for (const u of recent) revokeAccessTokens(u.id, u.deactivatedAt);
+      return recent.length;
+    },
     bindHqAssigner: (assign) => {
       hqAssigner = assign;
     },

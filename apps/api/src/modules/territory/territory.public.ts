@@ -27,6 +27,13 @@ export interface TerritoryPublicContract {
   assignUserHq(userId: string, hqId: string, actorId: string): Promise<unknown>;
   /** Gives a FIELD employee these routes (ones they already hold are skipped) — the employee wizard's last step. */
   assignUserRoutes(userId: string, routeIds: string[], actorId: string): Promise<void>;
+  /** What a leaving employee holds: active routes, and HQs/Zones covered beyond their main HQ. */
+  countUserHoldings(userId: string): Promise<{ routes: number; coverage: number }>;
+  /**
+   * A leaving employee (decision-log 2026-10-22): every route assignment ends (kept as history) and the covered HQs and Zones are
+   * cleared. Their main HQ stays on record, as where they were based. Safe to run again.
+   */
+  releaseUserHoldings(userId: string, actorId: string): Promise<{ routes: number; coverage: number }>;
   getHq(hqId: string): Promise<{ id: string; zoneId: string; name: string; status: TerritoryStatus } | null>;
   getZone(zoneId: string): Promise<{ id: string; name: string; status: TerritoryStatus } | null>;
   /** Case-insensitive name lookups — for files that name places (HR's holiday import). */

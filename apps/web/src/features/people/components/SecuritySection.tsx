@@ -7,9 +7,10 @@ import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { FormField } from '@/components/ui/FormField';
-import { Textarea } from '@/components/ui/Input';
+import { Input, Textarea } from '@/components/ui/Input';
+import { toast } from '@/components/ui/toast';
 import { formatDate } from '@/lib/format';
-import { useDeactivateUser, useResetPassword, useUnblockUser } from '../hooks/useUsers';
+import { useDeactivateUser, useReactivateUser, useResetPassword, useUnblockUser } from '../hooks/useUsers';
 import {
   DEACTIVATE_BLOCK_COPY,
   DEACTIVATE_CONSEQUENCE,
@@ -17,6 +18,7 @@ import {
   deactivateBlock,
   resetPasswordError,
 } from '../lib/security';
+import { DeactivateEmployeeDialog } from './DeactivateEmployeeDialog';
 import { PasswordField } from './PasswordField';
 
 /** Admin account controls: reset the password, clear a compliance block (with a reason), deactivate. */
@@ -194,33 +196,68 @@ function DeactivateCard({
   selfId: string | undefined;
   readOnly: boolean;
 }) {
-  const [confirming, setConfirming] = useState(false);
-  const deactivate = useDeactivateUser(user.id, () => setConfirming(false));
+  const [open, setOpen] = useState(false);
   const block = deactivateBlock(user, selfId);
+  if (user.status === 'inactive') return <InactiveCard user={user} readOnly={readOnly} />;
   return (
-    <Card title="Deactivate account" description="For an employee who has left.">
+    <Card title="Deactivate employee" description="For an employee who has left: their team, routes and doctors are handed over in the same step.">
       <div className="flex flex-wrap items-center justify-between gap-4 p-5">
-        <p className="max-w-xl text-sm text-text-muted">
-          {block ? DEACTIVATE_BLOCK_COPY[block] : DEACTIVATE_CONSEQUENCE}
-        </p>
-        <Button
-          variant="danger"
-          disabled={readOnly || block !== null}
-          title={readOnly ? 'A past financial year is read-only' : undefined}
-          onClick={() => setConfirming(true)}
-        >
-          Deactivate
+        <p className="max-w-xl text-sm text-text-muted">{block ? DEACTIVATE_BLOCK_COPY[block] : DEACTIVATE_CONSEQUENCE}</p>
+        <Button variant="danger" disabled={readOnly || block !== null} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setOpen(true)}>
+          Deactivate…
         </Button>
       </div>
-      <ConfirmDialog
-        open={confirming}
-        onOpenChange={setConfirming}
-        title={`Deactivate ${user.name}`}
-        description={DEACTIVATE_CONSEQUENCE}
-        confirmLabel="Deactivate"
-        pending={deactivate.isPending}
-        onConfirm={() => deactivate.mutate(undefined)}
-      />
+      {open ? <DeactivateEmployeeDialog user={user} onClose={() => setOpen(false)} /> : null}
+    </Card>
+  );
+}
+
+/** A deactivated employee: when they left, a rehire (reactivate from a rejoining date), and running the hand-over again if a part failed. */
+function InactiveCard({ user, readOnly }: { user: UserDetailDto; readOnly: boolean }) {
+  const [rejoining, setRejoining] = useState(false);
+  const [rejoinedOn, setRejoinedOn] = useState('');
+  const [error, setError] = useState<string | undefined>();
+  const reactivate = useReactivateUser(user.id, () => setRejoining(false));
+  const retry = useDeactivateUser(user.id, () => undefined);
+  const left = user.profile?.lastWorkingDay ?? null;
+  return (
+    <Card title="Deactivated" description={left ? `Left on ${formatDate(left)}. They cannot sign in.` : 'They cannot sign in.'}>
+      <div className="flex flex-wrap items-center justify-between gap-4 p-5">
+        <p className="max-w-xl text-sm text-text-muted">
+          Reactivating (a rehire) lets them sign in again from a rejoining date. Nothing handed over comes back: set their manager, routes and doctors again.
+        </p>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            disabled={readOnly || retry.isPending || !left}
+            title="Runs the hand-over of routes, doctors, plans, leave and targets again, for any part that failed"
+            onClick={() => left && retry.mutate({ lastWorkingDay: left }, { onSuccess: () => toast.success('The hand-over was run again.') })}
+          >
+            {retry.isPending ? 'Running…' : 'Run the hand-over again'}
+          </Button>
+          <Button disabled={readOnly} onClick={() => setRejoining(true)}>
+            Reactivate…
+          </Button>
+        </div>
+      </div>
+      {rejoining ? (
+        <FormDialog
+          title={`Reactivate ${user.name}`}
+          description={left ? `They left on ${formatDate(left)}. The rejoining date must be after it, and today or earlier.` : 'Today or earlier.'}
+          formId="reactivate-form"
+          pending={reactivate.isPending}
+          onClose={() => setRejoining(false)}
+          onSubmit={() => {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(rejoinedOn)) return setError('Choose the rejoining date.');
+            setError(undefined);
+            reactivate.mutate({ rejoinedOn });
+          }}
+        >
+          <FormField label="Rejoining date" htmlFor="rejoin-date" error={error}>
+            <Input id="rejoin-date" type="date" value={rejoinedOn} onChange={(e) => setRejoinedOn(e.target.value)} />
+          </FormField>
+        </FormDialog>
+      ) : null}
     </Card>
   );
 }

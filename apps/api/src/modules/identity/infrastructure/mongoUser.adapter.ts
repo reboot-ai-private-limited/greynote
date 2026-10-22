@@ -29,6 +29,7 @@ function toUser(doc: UserDoc & { _id: unknown }): User {
     passwordHash: doc.passwordHash,
     lastLoginAt: doc.lastLoginAt,
     isBlocked: doc.isBlocked,
+    deactivatedAt: doc.deactivatedAt ?? null,
     deletedAt: doc.deletedAt ?? null,
     isDemo: doc.isDemo ?? false,
   };
@@ -134,6 +135,11 @@ export class MongoUserAdapter implements UserRepositoryPort {
     if (!found) return [];
     return (await UserModel.find({ roleId: found._id, status: 'active', isDemo: { $ne: true } }, { _id: 1 }).sort({ _id: 1 }).lean()).map((u) => String(u._id));
   }
+  async listDeactivatedSince(since: Date): Promise<Array<{ id: string; deactivatedAt: Date }>> {
+    const docs = await UserModel.find({ status: 'inactive', deactivatedAt: { $gte: since } }, { _id: 1, deactivatedAt: 1 }).lean();
+    return docs.map((d) => ({ id: String(d._id), deactivatedAt: d.deactivatedAt! }));
+  }
+
   async listActive(): Promise<User[]> {
     return (await UserModel.find({ status: 'active' }).sort({ name: 1 }).lean()).map(toUser);
   }

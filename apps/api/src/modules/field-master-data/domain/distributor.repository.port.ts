@@ -21,4 +21,8 @@ export interface DistributorRepositoryPort {
   listActiveForUser(userId: string, routeIds: string[]): Promise<Distributor[]>;
   create(input: Omit<Distributor, 'id'>): Promise<Distributor>;
   update(id: string, change: Partial<Omit<Distributor, 'id'>>): Promise<Distributor | null>;
+  /** How many distributors list this employee among their assigned people. */
+  countAssignee(userId: string): Promise<number>;
+  /** Takes this employee off every distributor's assigned people; returns how many distributors changed. */
+  removeAssignee(userId: string): Promise<number>;
 }

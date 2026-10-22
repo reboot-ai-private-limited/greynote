@@ -13,6 +13,9 @@ import {
   documentTypeBodySchema,
   listUsersQuerySchema,
   reassignManagerBodySchema,
+  deactivateUserBodySchema,
+  deactivationImpactQuerySchema,
+  reactivateUserBodySchema,
   resetPasswordBodySchema,
   unblockUserBodySchema,
   updateUserBodySchema,
@@ -30,6 +33,7 @@ import type {
   makeSetEmployeePhotoController,
   makeResetPasswordController,
   makeAnonymiseUserController,
+  makeDeactivationControllers,
   makeUnblockUserController,
   makeUpdateUserController,
   makeUploadUserDocumentController,
@@ -51,6 +55,33 @@ function uploadMiddleware(req: Request, res: Response, next: NextFunction): void
   });
 }
 
+openApiRegistry.registerPath({
+  method: 'get',
+  path: '/api/identity/users/{id}/deactivation',
+  tags: ['Identity / Users'],
+  summary: 'Admin: what deactivating an employee would do — direct reports and the suggested new manager, routes, coverage, doctors, distributors, plans and leave after the last working day, targets, requests waiting on them',
+  security: [{ bearerAuth: [] }],
+  request: { params: userIdParamsSchema, query: deactivationImpactQuerySchema },
+  responses: { 200: { description: 'The impact' } },
+});
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/identity/users/{id}/deactivate',
+  tags: ['Identity / Users'],
+  summary: 'Admin: deactivate an employee from a last working day (today or earlier): the team moves to newManagerId (required if they manage anyone), every session and access token ends, and their routes, doctors (to doctorHandoverTo where possible), distributors, later plans and leave, and later targets are released. On an inactive account it runs the release again.',
+  security: [{ bearerAuth: [] }],
+  request: { params: userIdParamsSchema, body: { content: { 'application/json': { schema: deactivateUserBodySchema } } } },
+  responses: { 200: { description: 'Deactivated, with each release step' } },
+});
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/identity/users/{id}/reactivate',
+  tags: ['Identity / Users'],
+  summary: 'Admin: reactivate (rehire) an employee from a rejoining date; nothing released is given back',
+  security: [{ bearerAuth: [] }],
+  request: { params: userIdParamsSchema, body: { content: { 'application/json': { schema: reactivateUserBodySchema } } } },
+  responses: { 200: { description: 'Reactivated' } },
+});
 openApiRegistry.registerPath({
   method: 'get',
   path: '/api/identity/users',
@@ -209,6 +240,7 @@ export function buildUsersRouter(controllers: {
   unblock: ReturnType<typeof makeUnblockUserController>;
   resetPassword: ReturnType<typeof makeResetPasswordController>;
   anonymise: ReturnType<typeof makeAnonymiseUserController>;
+  deactivation: ReturnType<typeof makeDeactivationControllers>;
 }): Router {
   const router = Router();
 
@@ -292,6 +324,10 @@ export function buildUsersRouter(controllers: {
     validate({ params: userIdParamsSchema, body: unblockUserBodySchema }),
     controllers.unblock,
   );
+  // Deactivating hands the team and the work over (decision-log 2026-10-22); Admin only, like resetting a password.
+  router.get('/:id/deactivation', authenticate(), requireRole('ADMIN'), validate({ params: userIdParamsSchema, query: deactivationImpactQuerySchema }), controllers.deactivation.impact);
+  router.post('/:id/deactivate', authenticate(), requireRole('ADMIN'), validate({ params: userIdParamsSchema, body: deactivateUserBodySchema }), controllers.deactivation.deactivate);
+  router.post('/:id/reactivate', authenticate(), requireRole('ADMIN'), validate({ params: userIdParamsSchema, body: reactivateUserBodySchema }), controllers.deactivation.reactivate);
   router.post(
     '/:id/reset-password',
     authenticate(),

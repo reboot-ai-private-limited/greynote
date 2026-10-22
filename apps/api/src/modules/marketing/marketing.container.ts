@@ -1,6 +1,7 @@
 import type { Router } from 'express';
 import { Types } from 'mongoose';
 import { DoctorVisualModel } from './infrastructure/marketing.schema.js';
+import { LeaverTargets } from './application/leaverTargets.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { DeleteTargetUseCase, GetTargetSummaryUseCase, ListTargetSharesUseCase, ListTargetsUseCase, SetTargetUseCase, UpdateTargetUseCase } from './application/usecases/targets.usecase.js';
 import { AddDoctorVisualsUseCase, ListDoctorVisualsUseCase, RemoveDoctorVisualUseCase } from './application/usecases/doctorVisuals.usecase.js';
@@ -26,6 +27,7 @@ export function buildMarketingContainer(users: UserDirectoryPort, master: Produc
   const doctorVisuals = new MongoDoctorVisualAdapter();
   const campaigns = new MongoCampaignAdapter();
   const targets = new MongoTargetAdapter();
+  const leaverTargets = new LeaverTargets(targets);
 
   const getTarget = new GetTargetSummaryUseCase(targets, campaigns, users, sales);
   const listTargetShares = new ListTargetSharesUseCase(targets);
@@ -33,6 +35,8 @@ export function buildMarketingContainer(users: UserDirectoryPort, master: Produc
     contract: {
       getTargetSummary: (userId, scope) => getTarget.execute({ id: 'system', role: 'ADMIN' }, userId, { month: scope.month, productId: scope.productId ?? null, campaignId: scope.campaignId ?? null }),
       listTargetShares: (userIds, fromMonth, toMonth) => listTargetShares.execute(userIds, fromMonth, toMonth),
+      countLeaverTargets: (userId, lastWorkingDay) => leaverTargets.count(userId, lastWorkingDay),
+      cutLeaverTargets: (userId, lastWorkingDay, actorId) => leaverTargets.cut(userId, lastWorkingDay, actorId),
       countDoctorVisuals: async (doctorId) => (Types.ObjectId.isValid(doctorId) ? DoctorVisualModel.countDocuments({ doctorId: new Types.ObjectId(doctorId), removedAt: null }) : 0),
     },
     buildRouter: () =>

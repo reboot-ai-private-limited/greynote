@@ -1,35 +1,39 @@
 import type {
+  ApplyDuePromotionsResultDto,
   AssignCtcDto,
   AssignCtcResultDto,
   CreateDesignationDto,
+  CreatePayBandDto,
   CreatePayComponentDto,
+  CreateUserDto,
   CtcAssignmentDto,
   CtcPreviewDto,
-  PayComponentDto,
-  PreviewCtcDto,
-  ReapplyCtcDto,
-  ReapplyOutcomeDto,
-  UpdatePayComponentDto,
-  CreateUserDto,
-  EmployeeDraftDto,
-  PhotoDto,
-  FinalizedEmployeeDto,
-  SaveEmployeeDraftDto,
-  CreatePayBandDto,
+  DeactivateUserDto,
+  DeactivationImpactDto,
+  DeactivationResultDto,
   DesignationDto,
+  EmployeeDraftDto,
+  FinalizedEmployeeDto,
+  OrgNodeDto,
   PaginatedDto,
   PayBandDto,
-  ApplyDuePromotionsResultDto,
+  PayComponentDto,
+  PendingDeviceDto,
+  PhotoDto,
+  PreviewCtcDto,
   PromotionDto,
   PromotionPreviewDto,
   PromotionRequestDto,
-  OrgNodeDto,
+  PromotionStatus,
+  ReactivateUserDto,
+  ReapplyCtcDto,
+  ReapplyOutcomeDto,
   ReassignManagerDto,
   ReassignManagerResultDto,
   ReportingLineDto,
-  PromotionStatus,
-  PendingDeviceDto,
+  SaveEmployeeDraftDto,
   UpdatePayBandDto,
+  UpdatePayComponentDto,
   UpdateUserDto,
   UserDetailDto,
   UserDeviceDto,
@@ -99,6 +103,16 @@ export const identityApi = {
 
   updateUser: (token: string, id: string, body: UpdateUserDto) =>
     request<UserListItemDto>(`/identity/users/${id}`, { method: 'PATCH', token, body }),
+
+  /** Admin: what deactivating would do, for a chosen last working day (default today). */
+  deactivation: (token: string, id: string, lastWorkingDay: string | undefined, signal?: AbortSignal) =>
+    request<DeactivationImpactDto>(`/identity/users/${id}/deactivation`, { token, signal, ...(lastWorkingDay && { query: { lastWorkingDay } }) }),
+  /** Admin: deactivate, moving the team and handing the work over. On an inactive account it runs the hand-over again. */
+  deactivate: (token: string, id: string, body: DeactivateUserDto) =>
+    request<DeactivationResultDto>(`/identity/users/${id}/deactivate`, { method: 'POST', token, body }),
+  /** Admin: a rehire, usable again from the rejoining date. */
+  reactivate: (token: string, id: string, body: ReactivateUserDto) =>
+    request<{ status: string }>(`/identity/users/${id}/reactivate`, { method: 'POST', token, body }),
 
   /** `multipart/form-data`: the document type, then the file. Returns the stored document. */
   uploadDocument: (token: string, userId: string, body: FormData) =>

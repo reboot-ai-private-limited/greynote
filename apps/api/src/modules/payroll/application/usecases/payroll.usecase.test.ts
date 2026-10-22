@@ -50,7 +50,7 @@ class FakeRuns implements PayrollRunRepositoryPort {
   }
 }
 
-type Emp = { role?: string; status?: 'active' | 'inactive'; ctc?: boolean; base?: number; joined?: Date | null; unpaid?: number; esi?: string | null; epf?: string | null; deductible?: number; /** Carry EPF and professional tax deduction lines, as a CTC from 2026-10-14 does. */ ded?: boolean };
+type Emp = { role?: string; status?: 'active' | 'inactive'; ctc?: boolean; base?: number; joined?: Date | null; /** `YYYY-MM-DD`: deactivated with this last working day. */ left?: string; unpaid?: number; esi?: string | null; epf?: string | null; deductible?: number; /** Carry EPF and professional tax deduction lines, as a CTC from 2026-10-14 does. */ ded?: boolean };
 class World implements IdentityPort, HrPort, AttendancePort {
   emps = new Map<string, Emp>();
   add(id: string, e: Emp = {}) {
@@ -58,6 +58,11 @@ class World implements IdentityPort, HrPort, AttendancePort {
   }
   async listActiveFieldUserIds() {
     return [...this.emps].filter(([, e]) => (e.role ?? 'FIELD') === 'FIELD' && (e.status ?? 'active') === 'active').map(([id]) => id);
+  }
+  async listPayableFieldUserIds(month: string) {
+    return [...this.emps]
+      .filter(([, e]) => (e.role ?? 'FIELD') === 'FIELD' && ((e.status ?? 'active') === 'active' || (e.left !== undefined && e.left >= `${month}-01`)))
+      .map(([id]) => id);
   }
   async getUserSummaries(ids: string[]) {
     return ids.filter((id) => this.emps.has(id)).map((id) => ({ id, name: `Name ${id}`, employeeCode: `E-${id}` }));
@@ -68,7 +73,7 @@ class World implements IdentityPort, HrPort, AttendancePort {
   }
   async getEmploymentDetails(id: string) {
     const e = this.emps.get(id);
-    return e ? { dateOfJoining: e.joined ?? new Date('2024-01-01'), esiNumber: e.esi ?? null, epfNumber: e.epf ?? null, designationName: 'MR', bankName: 'Canara Bank', bankAccountNumber: '11030331161' } : null;
+    return e ? { dateOfJoining: e.joined ?? new Date('2024-01-01'), lastWorkingDay: e.left ?? null, esiNumber: e.esi ?? null, epfNumber: e.epf ?? null, designationName: 'MR', bankName: 'Canara Bank', bankAccountNumber: '11030331161' } : null;
   }
   ctcMonths: string[] = [];
   /** `base` is the monthly gross; the CTC also carries an employer EPF line that must not be paid out. */
@@ -219,6 +224,16 @@ describe('payroll', () => {
       ['nobody', 'skipped', PAYROLL_CODES.userNotFound],
       ['mr1', 'updated', ''],
     ]);
+  });
+
+  it('a leaver is paid up to the month of their last working day, flagged, in a bulk run and by name; not after', async () => {
+    world.add('left', { status: 'inactive', left: '2026-10-12' });
+    world.add('leftBefore', { status: 'inactive', left: '2026-09-20' });
+    expect((await generate.execute(acct, { month: '2026-10' })).map((o) => o.userId)).toEqual(['mr1', 'mr2', 'left']);
+    const left = (await generate.execute(acct, { month: '2026-10', userIds: ['left'] }))[0] as { run: PayrollRun };
+    expect(left.run).toMatchObject({ leftInMonth: true, joinedInMonth: false });
+    const before = await generate.execute(acct, { month: '2026-10', userIds: ['leftBefore'] });
+    expect(before.map((o) => [o.outcome, 'reason' in o ? o.reason : ''])).toEqual([['skipped', PAYROLL_CODES.notFieldEmployee]]);
   });
 
   it('flags — and does not prorate — someone who joined during the month', async () => {

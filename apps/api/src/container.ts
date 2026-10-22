@@ -22,6 +22,7 @@ import { buildPushSender } from '@/shared/push/fcmPushSender.adapter.js';
 import { PushNotifier } from '@/shared/push/pushNotifier.js';
 import { registerPushEvents } from './pushEvents.js';
 import { registerCompositionSyncSources } from './syncSources.js';
+import { makeOffboarding } from './offboarding.js';
 import { buildTerritoryContainer } from '@/modules/territory/territory.container.js';
 
 export interface AppContainers {
@@ -156,6 +157,11 @@ export function buildContainers(): AppContainers {
     ]);
     return { ...onRoutes, holidays, plannedDays };
   });
+
+  // Identity sits below every module that holds what a leaving employee had: deactivation releases it through their contracts.
+  identity.bindOffboarding(
+    makeOffboarding({ territory: territory.contract, fieldMasterData: fieldMasterData.contract, planning: planning.contract, hr: hr.contract, marketing: marketing.contract, approval: approval.contract }),
+  );
 
   // Territory and Config sit at or below Sync's tier, so they can't register with it themselves; their
   // slices of the phone's cache are wired here, from their public contracts.

@@ -10,7 +10,6 @@ import { ManagerRules } from './managerRules.js';
 import type { User, UserSummary } from '../../domain/user.entity.js';
 import { toUserSummary } from '../../domain/user.entity.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
-import type { UserSessionRepositoryPort } from '../../domain/userSession.repository.port.js';
 
 /**
  * Every section optional — this is the incremental-onboarding PATCH (decision 13), and now the
@@ -23,10 +22,8 @@ import type { UserSessionRepositoryPort } from '../../domain/userSession.reposit
  * cleared, since clearing one would silently demote an active employee to `pending`.
  * A manager is refused if it would make an employee report to themselves, directly or through
  * the chain — the approval routing walks that chain upward and must reach the top.
- * `status: 'inactive'` may be set explicitly (deactivation/offboarding): it ends every session, login and
- * refresh then refuse the account, and — once set, it's sticky:
- * `computeUserStatus` never upgrades an `inactive` user back to `active`/`pending` as a side
- * effect of a later onboarding PATCH.
+ * Deactivating is not an edit (decision-log 2026-10-22): it is `DeactivateEmployeeUseCase`, which also hands the team and the work
+ * over. An `inactive` account stays inactive here: `computeUserStatus` never upgrades it as a side effect of a later edit.
  */
 export interface UpdateUserInput {
   basicDetails?: {
@@ -51,7 +48,6 @@ export interface UpdateUserInput {
   designationId?: string;
   payBandId?: string;
   managerId?: string;
-  status?: 'inactive';
 }
 
 /** An incoming value wins, even `null` (a clear); only a missing key keeps what is stored. */
@@ -68,7 +64,6 @@ export class UpdateUserUseCase {
     private readonly designationRepository: DesignationRepositoryPort,
     private readonly payBandRepository: PayBandRepositoryPort,
     private readonly employeeProfileRepository: EmployeeProfileRepositoryPort,
-    private readonly userSessionRepository: UserSessionRepositoryPort,
     private readonly managerHistory: ManagerHistoryRepositoryPort,
     /** The current month (`YYYY-MM`) in the business timezone. */
     private readonly currentMonth: () => Promise<string>,
@@ -96,6 +91,8 @@ export class UpdateUserUseCase {
     if (input.managerId !== undefined) {
       const manager = await this.userRepository.findById(input.managerId);
       if (!manager) throw AppError.badRequest('Unknown manager.', { field: 'managerId' });
+      // Someone who has left can't be anyone's manager: nobody could approve that team's requests.
+      if (manager.status === 'inactive' && manager.id !== (await this.employeeProfileRepository.findByUserId(targetUserId))?.managerId) throw AppError.badRequest('That person has left (deactivated) and can’t be a manager.', { field: 'managerId' });
       await this.managerRules.assertNoReportingLoop(targetUserId, input.managerId);
       await this.managerRules.assertManagerIsHigher(targetUserId, input.designationId, input.managerId);
     }
@@ -130,7 +127,7 @@ export class UpdateUserUseCase {
 
     const mergedName = input.basicDetails?.name ?? existing.name;
     const status = computeUserStatus(
-      { status: input.status ?? existing.status, name: mergedName },
+      { status: existing.status, name: mergedName },
       mergedProfile,
       role.name,
     );
@@ -164,12 +161,6 @@ export class UpdateUserUseCase {
     if (input.basicDetails?.name !== undefined) userPatch.name = input.basicDetails.name;
 
     const updated = await this.userRepository.update(targetUserId, userPatch);
-
-    // Deactivation signs the employee out everywhere. Login and refresh already refuse an inactive
-    // account, so a failure here leaves nothing usable: this is clean-up, run only on the change.
-    if (input.status === 'inactive' && existing.status !== 'inactive') {
-      await this.userSessionRepository.revokeAllForUser(targetUserId, 'ADMIN');
-    }
 
     return toUserSummary(updated, role.name, touchesProfile ? mergedProfile : existingProfile);
   }

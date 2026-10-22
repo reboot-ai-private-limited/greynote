@@ -7,6 +7,8 @@ export interface DoctorAssignmentRepositoryPort {
   findActiveForDoctors(doctorIds: string[]): Promise<DoctorAssignment[]>;
   /** Newest first. */
   listForDoctor(doctorId: string): Promise<DoctorAssignment[]>;
+  /** Every doctor this employee is assigned to now. */
+  listActiveForUser(userId: string): Promise<DoctorAssignment[]>;
   /** Ends the Doctor's active assignment, if any. */
   endActive(doctorId: string, by: string, ctx: TransactionContext): Promise<void>;
   /** Throws `DuplicateRecordError` if another active assignment for the Doctor appeared meanwhile. */

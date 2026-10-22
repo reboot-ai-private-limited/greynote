@@ -37,6 +37,10 @@ export class MongoDoctorAssignmentAdapter implements DoctorAssignmentRepositoryP
     return (await DoctorAssignmentModel.find({ doctorId: oid(doctorId) }).sort({ assignedAt: -1, _id: -1 }).lean()).map(toAssignment);
   }
 
+  async listActiveForUser(userId: string): Promise<DoctorAssignment[]> {
+    return (await DoctorAssignmentModel.find({ userId: oid(userId), status: 'active' }).lean()).map(toAssignment);
+  }
+
   async endActive(doctorId: string, by: string, ctx: TransactionContext): Promise<void> {
     await DoctorAssignmentModel.updateOne({ doctorId: oid(doctorId), status: 'active' }, ending(by), { session: session(ctx) });
   }

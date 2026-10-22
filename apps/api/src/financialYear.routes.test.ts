@@ -108,6 +108,7 @@ const TIMELESS = [
   '/api/identity/users',
   '/api/identity/users/:id',
   '/api/identity/users/:id/reporting', // an employee's managers and team now, not a dated record
+  '/api/identity/users/:id/deactivation', // what deactivating would release now
   '/api/identity/org/children', // one level of the reporting tree now, not a dated record
   '/api/identity/roles',
   '/api/identity/designations',

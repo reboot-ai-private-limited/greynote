@@ -19,6 +19,15 @@ describe('classifyDay', () => {
     expect(day({ ...everything, holiday: false, weeklyOff: false, onLeave: false, strikePlan: false })).toBe('PRESENT');
   });
 
+  it('after the last working day is not employed, until a rejoining day; never absent and never deducted', () => {
+    expect(day({ date: '2026-10-05', leftOn: '2026-10-04' })).toBe('NOT_EMPLOYED');
+    expect(day({ date: '2026-10-04', leftOn: '2026-10-04' })).toBe('ABSENT');
+    expect(day({ date: '2026-10-25', leftOn: '2026-10-04' })).toBe('NOT_EMPLOYED'); // even in the future
+    expect(day({ date: '2026-10-09', leftOn: '2026-10-04', rejoinedOn: '2026-10-10' })).toBe('NOT_EMPLOYED');
+    expect(day({ date: '2026-10-12', leftOn: '2026-10-04', rejoinedOn: '2026-10-10' })).toBe('ABSENT');
+    expect(isDeductible('NOT_EMPLOYED', { absentDeducts: true, strikeDeducts: true })).toBe(false);
+  });
+
   it('before joining and the future come first, even on a holiday', () => {
     expect(day({ date: '2025-12-31', holiday: true })).toBe('BEFORE_JOINING');
     expect(day({ date: '2026-10-21', holiday: true })).toBe('NOT_YET');

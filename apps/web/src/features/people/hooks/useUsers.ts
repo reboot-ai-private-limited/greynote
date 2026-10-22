@@ -1,6 +1,6 @@
 'use client';
 
-import type { CreateUserDto, ReassignManagerDto, ReassignManagerResultDto, PhotoDto, UpdateUserDto, UserDocumentDto, UserListItemDto } from '@greynote/contracts';
+import type { CreateUserDto, DeactivateUserDto, DeactivationResultDto, PhotoDto, ReactivateUserDto, ReassignManagerDto, ReassignManagerResultDto, UpdateUserDto, UserDocumentDto, UserListItemDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { identityApi, type ListUsersQuery } from '@/lib/api/endpoints/identity';
 import { timing } from '@/lib/hooks/timing';
@@ -123,12 +123,35 @@ export function useUnblockUser(userId: string, onDone: () => void) {
   });
 }
 
-export function useDeactivateUser(userId: string, onDone: () => void) {
-  return useApiMutation({
-    call: (token) => identityApi.updateUser(token, userId, { status: 'inactive' }),
-    // The status badge, the list and the employee's phones (their sessions ended) all change.
-    invalidates: [keys.users.all(), keys.devices.all()],
-    successMessage: 'Account deactivated.',
+/** What deactivating would do on that last working day; read while the dialog is open, always fresh. */
+export function useDeactivationImpact(userId: string, lastWorkingDay: string | undefined, enabled: boolean) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: [...keys.users.detail(userId), 'deactivation', lastWorkingDay ?? ''],
+      fetch: (token, signal) => identityApi.deactivation(token, userId, lastWorkingDay, signal),
+      staleTime: 0,
+      enabled,
+    }),
+  );
+}
+
+/**
+ * Deactivates (or, on an inactive account, runs the hand-over again). Everything that holds people changes: the list, the team, devices,
+ * doctors, routes and plans; so every list the screens read is refreshed.
+ */
+export function useDeactivateUser(userId: string, onDone: (result: DeactivationResultDto) => void) {
+  return useApiMutation<DeactivateUserDto, DeactivationResultDto>({
+    call: (token, body) => identityApi.deactivate(token, userId, body),
+    invalidates: [keys.users.all(), keys.org.all(), keys.devices.all(), keys.doctors.all(), keys.routes.all(), keys.distributors.all(), keys.approvals.all(), keys.reports.all(), keys.attendance.all(), keys.payroll.all()],
+    onSuccess: onDone,
+  });
+}
+
+export function useReactivateUser(userId: string, onDone: () => void) {
+  return useApiMutation<ReactivateUserDto>({
+    call: (token, body) => identityApi.reactivate(token, userId, body),
+    invalidates: [keys.users.all()],
+    successMessage: 'Employee reactivated.',
     onSuccess: onDone,
   });
 }

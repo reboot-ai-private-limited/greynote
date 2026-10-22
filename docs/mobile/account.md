@@ -23,3 +23,14 @@ Profile → **Delete account** → confirm text above → password field → red
 ## Public deletion page (Google Play URL)
 
 `https://www.greynotehealth.com/delete-account` — a form on the company website: employee code + password, then the same deletion via `POST /api/identity/auth/delete-account-public` (no sign-in). The website origin must be in the API's `CORS_ORIGINS`. Five tries per 15 minutes per address and per code (`429`). Field accounts only; a deleted account can no longer sign in to the app.
+
+## When Admin deactivates an employee (2026-10-22)
+
+Deactivation is done by Admin on the web (nothing in the app). What the phone sees (docs only; the app is another team's):
+
+- **At once:** the next request with the current access token gets `401` (it no longer waits for the token to expire), and refreshing the session
+  gets `401` "This account has been deactivated". Treat it like any signed-out state: clear the session and show the login screen.
+- **Login** is refused with `403` "This account has been deactivated". Show the message; don't retry.
+- **Records still queued on the phone** are refused when pushed (the account can't sync), so they are lost unless pushed before the last
+  working day: nothing else to do.
+- If Admin later **reactivates** the account (a rehire), login works again. Deactivation ends the sessions but leaves the phones registered, so a phone they used before signs in without a new approval.

@@ -203,6 +203,14 @@ export class FakeApprovals implements ApprovalsPort {
    * Like the approval module: runs the kind's `onStatusChange` first and only moves the request if
    * it doesn't throw (the real one rolls the decision back).
    */
+  /** Like the approval module: an open request becomes REJECTED with the reason; false if it was not open. */
+  async autoReject(kind: string, recordId: string, reason: string) {
+    const request = this.requests.get(`${kind}:${recordId}`);
+    if (!request || (request.status !== 'SUBMITTED' && request.status !== 'MANAGER_APPROVED')) return false;
+    await this.decide(kind, recordId, 'REJECTED');
+    void reason;
+    return true;
+  }
   async decide(kind: string, recordId: string, status: ApprovalStatus) {
     const request = this.requests.get(`${kind}:${recordId}`);
     if (!request) throw new Error('no request');

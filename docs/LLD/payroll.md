@@ -217,3 +217,10 @@ Web (2026-10-13): **Payroll** is open to HR. The month sheet shows an **Adjusted
 ## Salary paid, by month (2026-10-14)
 
 `GET /api/payroll/paid-totals?fromMonth&toMonth` (ACCOUNTANT/ADMIN, scoped to the financial year in view): `PaidTotalsUseCase` sums `netPayablePaise` of finalized runs with `paidAt` set, by month, with the count of employees. Company totals only: no names, no per-employee amounts. Shown as the "Salary paid" card on the Payroll page for the Accountant and Admin.
+
+## Leavers (2026-10-22)
+
+A deactivated field employee is still paid up to the month of their last working day: "generate all" takes Identity's
+`listPayableFieldUserIds(month)`, and generating one is refused only for a month after they left ("left on …; salary can be run for months up to
+then"). The leaving month is paid in full like a joining month (`leftInMonth`, shown as "Left this month"); the days after the last working day
+are `NOT_EMPLOYED`, so they are never charged as absent. A final settlement that should differ is an HR adjustment on the run.

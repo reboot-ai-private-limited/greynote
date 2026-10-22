@@ -68,7 +68,7 @@ export class GeneratePayrollUseCase {
 
     await this.clock.assertMonthOpen(input.month);
     const single = input.userIds?.length === 1;
-    const ids = input.userIds ? [...new Set(input.userIds)] : await this.identity.listActiveFieldUserIds();
+    const ids = input.userIds ? [...new Set(input.userIds)] : await this.identity.listPayableFieldUserIds(input.month);
     const results: GenerateOutcome[] = [];
     for (const userId of ids) {
       try {
@@ -95,8 +95,16 @@ export class GeneratePayrollUseCase {
   private async one(actor: Actor, month: string, userId: string): Promise<GenerateOutcome> {
     const user = await this.identity.findUserSummary(userId);
     if (!user) throw new PayrollRefusal(PAYROLL_CODES.userNotFound, 'No such employee.');
-    if (user.role !== 'FIELD' || user.status !== 'active') throw new PayrollRefusal(PAYROLL_CODES.notFieldEmployee, 'Payroll covers active field employees only.');
+    if (user.role !== 'FIELD') throw new PayrollRefusal(PAYROLL_CODES.notFieldEmployee, 'Payroll covers field employees only.');
     const employment = await this.identity.getEmploymentDetails(userId);
+    // A leaver is still paid up to the month of their last working day (decision-log 2026-10-22); later months are not theirs.
+    const lastWorkingDay = employment?.lastWorkingDay ?? null;
+    if (user.status !== 'active' && !(user.status === 'inactive' && lastWorkingDay && lastWorkingDay >= `${month}-01`)) {
+      throw new PayrollRefusal(
+        PAYROLL_CODES.notFieldEmployee,
+        user.status === 'inactive' && lastWorkingDay ? `${user.name} left on ${lastWorkingDay}; salary can be run for months up to then.` : 'Payroll covers active field employees only.',
+      );
+    }
     const ctc = await this.identity.getCtcForMonth(userId, month);
     if (!ctc) throw new PayrollRefusal(PAYROLL_CODES.noCtc, `${user.name} has no CTC in force for ${month}, so there is no salary to pay.`);
 
@@ -117,6 +125,8 @@ export class GeneratePayrollUseCase {
     const { netPaise: originalNet, roundingPaise } = roundNetToRupee(unrounded);
     const adjustmentPaise = adjustmentEffects(baseSalaryPaise, days, adjustments).totalPaise;
     const joinedInMonth = employment?.dateOfJoining ? (await this.clock.calendarDateOf(employment.dateOfJoining)).startsWith(`${month}-`) : false;
+    // Like joining: the full base salary is paid for the leaving month (the days after are not employed, never absent), and it is flagged.
+    const leftInMonth = lastWorkingDay ? lastWorkingDay.startsWith(`${month}-`) : false;
 
     const saved = await this.runs.saveDraft({
       userId,
@@ -147,6 +157,7 @@ export class GeneratePayrollUseCase {
       adjustmentPaise,
       originalNetPayablePaise: originalNet,
       joinedInMonth,
+      leftInMonth,
       generatedBy: actor.id,
       generatedAt: this.clock.now(),
     });

@@ -12,7 +12,7 @@ import type { AttendancePort, DesignationLevelsPort, EmployeeSalesPort, FieldDay
 export const SALES_DASHBOARD_MAX_DAYS = 93;
 
 /** Days that are not the employee's to work: they had not joined, or it was a holiday, their weekly off, or approved leave. */
-const NOT_WORKING: ReadonlySet<string> = new Set(['BEFORE_JOINING', 'HOLIDAY', 'WEEKLY_OFF', 'LEAVE']);
+const NOT_WORKING: ReadonlySet<string> = new Set(['BEFORE_JOINING', 'NOT_EMPLOYED', 'HOLIDAY', 'WEEKLY_OFF', 'LEAVE']);
 /** Past the employee and into the approval chain — "submitted" in the sense sign-off B7 counts it. */
 const SUBMITTED: ReadonlySet<string> = new Set(['SUBMITTED', 'MANAGER_APPROVED', 'APPROVED']);
 

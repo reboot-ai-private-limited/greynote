@@ -70,6 +70,13 @@ export interface EmployeeProfile {
   payBandId: string | null;
   managerId: string | null;
   dateOfJoining: Date | null;
+  /**
+   * The last day the employee worked, `YYYY-MM-DD`, set when Admin deactivates them (decision-log 2026-10-22): days after it are
+   * "not employed" for attendance and payroll, and salary can still be run up to it. Null: never left.
+   */
+  lastWorkingDay?: string | null;
+  /** After a reactivation (rehire), the first day back, `YYYY-MM-DD`: the days between `lastWorkingDay` and it are not employed. */
+  rejoinedOn?: string | null;
   /** Whether the employee is on probation. Off by default: set at onboarding, because the software is new, not the employees. */
   onProbation: boolean;
   /** Months of probation from `dateOfJoining`, used only while `onProbation`. Null: use the `PROBATION_MONTHS` setting. 0: none. */

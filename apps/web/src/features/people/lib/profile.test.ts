@@ -32,6 +32,8 @@ const complete: UserDetailDto = {
     payBandId: 'b1',
     managerId: 'm1',
     dateOfJoining: '2024-04-01T00:00:00.000Z',
+    lastWorkingDay: null,
+    rejoinedOn: null,
     onProbation: false,
     probationMonths: null,
     esiNumber: null,

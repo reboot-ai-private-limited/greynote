@@ -94,6 +94,11 @@ Every way a session ends records why, in `revoked_reason`:
 | `POST /users/:id/reset-password {newPassword}` | Admin only | every session; registered phones stay registered | `PASSWORD_RESET` |
 | `POST /auth/delete-account {password}` / `POST /users/:id/anonymise` | the user / Admin, HR | every session, and the phones are unregistered (account deleted) | `ADMIN` |
 
+**Deactivation** (`POST /users/:id/deactivate`, Admin, 2026-10-22) ends every session too (`ADMIN`) and also refuses, from that
+moment, every access token the account was issued before it (an in-memory list in `shared/http/accessRevocations.ts`, checked
+by `authenticate` against the token's `iat`; no database read per request, re-filled on restart from recent deactivations).
+Without it a deactivated employee's open screens kept working until their access token expired (up to 15 minutes).
+
 None of these trigger theft detection (§3), so ending one phone's session never logs the
 employee out of another.
 

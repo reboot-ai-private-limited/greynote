@@ -31,6 +31,11 @@ async function start() {
     const jobs: IntervalJob[] = [];
     const app = createApp({
         onContainers: ({ identity, fieldActivity, hr, team, reminders }) => {
+            // Accounts deactivated just before a restart: their access tokens stay refused until they would have expired anyway.
+            identity.restoreAccessRevocations().then(
+                (n) => logger.info({ accounts: n }, 'access revocations restored'),
+                (err: unknown) => logger.error({ err }, 'access revocations not restored'),
+            );
             jobs.push(startIntervalJob('apply-due-promotions', PROMOTION_CHECK_MS, () => identity.applyDuePromotions()));
             jobs.push(startIntervalJob('expire-late-leaves', LATE_LEAVE_CHECK_MS, () => hr.expireLateLeaves()));
             jobs.push(startIntervalJob('missed-dcr-check', MISSED_DCR_CHECK_MS, async () => {

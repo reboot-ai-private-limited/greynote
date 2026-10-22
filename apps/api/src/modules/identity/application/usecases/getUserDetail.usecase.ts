@@ -27,6 +27,8 @@ export interface UserDetail {
     payBandId: string | null;
     managerId: string | null;
     dateOfJoining: Date | null;
+    lastWorkingDay: string | null;
+    rejoinedOn: string | null;
     onProbation: boolean;
     probationMonths: number | null;
     esiNumber: string | null;
@@ -92,6 +94,8 @@ export class GetUserDetailUseCase {
             payBandId: profile.payBandId,
             managerId: profile.managerId,
             dateOfJoining: profile.dateOfJoining,
+            lastWorkingDay: profile.lastWorkingDay ?? null,
+            rejoinedOn: profile.rejoinedOn ?? null,
             onProbation: profile.onProbation,
             probationMonths: profile.probationMonths,
             esiNumber: profile.esiNumber,

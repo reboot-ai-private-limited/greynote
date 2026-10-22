@@ -104,12 +104,13 @@ same shape as `health.public.ts`, just with real methods:
   fields `computeUserStatus` needs (name, mobile, date of birth, address, designation, pay band,
   manager, bank details) can be changed but not cleared, since clearing one would quietly demote an
   active employee to `pending`. Bank `branchName` clears by sending the whole bank object without it.
-- **A deactivated account cannot sign in.** `status: inactive` (set through the onboarding `PATCH`, and
-  never reversed by it) ends every session of the employee at that moment. Login, after the password
+- **A deactivated account cannot sign in.** `status: inactive` (set by `POST /users/:id/deactivate`, see *Deactivating an
+  employee*; never reversed by an edit) ends every session of the employee at that moment. Login, after the password
   check and before the device registry, and refresh both refuse an inactive account (`403` on login,
-  `401` on refresh, "This account has been deactivated"). An access token already issued stays valid
-  until it expires (`JWT_ACCESS_TOKEN_TTL_SECONDS`, 15 minutes), because the middleware reads the
-  token only.
+  `401` on refresh, "This account has been deactivated"). Since 2026-10-22 an access token already issued
+  stops working at once too: `shared/http/accessRevocations.ts` keeps, in memory, the time each account was
+  deactivated, and `authenticate` refuses (`401`) a token issued before it, still without a database read; after a
+  restart the server re-fills it from the accounts deactivated within the last token lifetime.
 - **One auth mechanism for every role**: `employee_code` + `password_hash`, web and mobile alike.
   No OTP for now — the client confirmed password login (`client-sign-off.md` A1).
 - **Every new phone a field employee uses needs Admin approval, including the first**
@@ -230,7 +231,10 @@ dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-l
 | `GET` | `/api/identity/org/children?parentId&page&pageSize` | Admin, HR | One level of the organisation tree: the people under `parentId` (omit for the top: no manager), by name, each with `directCount` and `hqId`. Paged (default 25, max 100); the web opens one branch at a time. `ListOrgChildrenUseCase` |
 | `POST` | `/api/identity/users/manager-changes` | Admin, HR | `{userIds[1–100], managerId}`: move several employees under one manager. Everyone is checked first with the single-edit rules (`ManagerRules`: higher designation, no loop, manager not in the selection by loop rule); any failure is a `400` with `data.problems[{userId,name,message}]` and **nothing moves**. People already under that manager are `unchanged`. Each move is a `ManagerChange` (`source: BULK_REASSIGN`, effective from the current month, `createdBy` = caller) |
 | `POST` | `/api/identity/users` | Admin, HR | Create a user — `{role, employeeCode, name, password, email?, phone?}`, identical shape for every role now (decision 12's split is about who's allowed to submit which `role`, enforced in the use case, not a field difference). Always writes only `User`; `status: active` for non-FIELD, `pending` for FIELD (no `EmployeeProfile` yet). HR may only submit `role: FIELD` (PRD §5.3); non-FIELD creation is Admin-only. |
-| `PATCH` | `/api/identity/users/:id` | Admin, HR | Incremental onboarding update — any of `basicDetails` (now including `dateOfJoining`), `bankDetails`, `designationId`, `payBandId`, `managerId` (each optional per call); upserts `EmployeeProfile` into existence on the first call. `status` is recomputed automatically after each call, not set directly (except `status: 'inactive'` for explicit deactivation, a direct `User` field toggle) |
+| `PATCH` | `/api/identity/users/:id` | Admin, HR | Incremental onboarding update — any of `basicDetails` (now including `dateOfJoining`), `bankDetails`, `designationId`, `payBandId`, `managerId` (each optional per call); upserts `EmployeeProfile` into existence on the first call. `status` is recomputed automatically after each call, never set here: deactivating is its own action (below, 2026-10-22). A deactivated person can't be made anyone's new manager |
+| `GET` | `/api/identity/users/:id/deactivation?lastWorkingDay=` | Admin | What deactivating would do: direct reports and the suggested new manager, and what they hold elsewhere |
+| `POST` | `/api/identity/users/:id/deactivate` | Admin | `{ lastWorkingDay, newManagerId?, doctorHandoverTo? }`: deactivate and hand everything over; on an inactive account, run the hand-over again |
+| `POST` | `/api/identity/users/:id/reactivate` | Admin | `{ rejoinedOn }`: a rehire |
 | `GET`/`POST`/`PATCH` | `/api/identity/pay-components` | read: Admin, HR, Accountant; write: Admin, HR | The org-wide CTC formula. Every write re-validates the whole formula: one balancer, no loops, Basic above 0 (any share up to 100% of the CTC, or a fixed amount), exactly one mandatory professional-tax line. A mandatory line cannot be switched off, made optional or given another kind or rule (2026-10-14) |
 | `POST` | `/api/identity/ctc/preview` | Admin, HR | `{ctcAnnualPaise, overrides?, structure?}` → breakdown, gross (the CTC), monthly deductions and take-home, nothing saved. Refused (400) when the earnings exceed the CTC or the monthly salary is below the first `PTAX_SLABS` slab |
 | `GET`/`POST` | `/api/identity/users/:id/ctc` | read: Admin, HR, Accountant; write: Admin, HR | An employee's CTC revisions / save a new one `{ctcAnnualPaise, effectiveFrom, overrides?, reason?}`; no grade and no range needed; the response carries `warning` when the CTC is more than `CTC_JUMP_WARN_PERCENT` (50) above the previous revision (saved anyway) |
@@ -327,3 +331,31 @@ The CTC is the employee's **total earnings** (decision-log 2026-10-14): `EARNING
 - A manager must have a **higher designation** than the employee (`UpdateUserUseCase.assertManagerIsHigher`); levels may be skipped, so an RSM can report to an NSM when there is no ZSM. Admin/HR users used as a manager have no designation and are not checked.
 - The manager is **optional for everyone** (`computeUserStatus` and `draftGaps` no longer require it). With no manager, approval goes straight to the final approver role (Admin; HR for leave): `TOP_OF_CHAIN` in `approval/domain/approvalRules.ts`, unchanged.
 - `FieldEmployeeRow` carries `designationId` and `designationLevel`. The wizard and profile pick the manager through Territory's `manager-candidates` (see LLD territory.md).
+
+## Deactivating an employee (decision-log 2026-10-22)
+
+`application/usecases/deactivateEmployee.usecase.ts`; Admin only, on the web (employee page → Security → Deactivate…).
+
+1. **Checks:** not oneself; `lastWorkingDay` today or earlier and not before joining; a `doctorHandoverTo` must be an active employee; if they
+   have **direct reports** (not inactive), `newManagerId` is required: an active person, not the leaver.
+2. **The team moves first,** through the bulk-move rules (`ReassignManagerUseCase`: higher designation, no loop, all or nothing; dated manager
+   history). If it refuses, nothing has changed. Their team's waiting requests follow, because an approver is read from the current manager.
+3. **The account:** `status: inactive`, `deactivatedAt`, `EmployeeProfile.lastWorkingDay` (field employees; `rejoinedOn` cleared), every session
+   revoked (`ADMIN`) and every access token issued before now refused at once.
+4. **The hand-over** (`OffboardingPort`, composed in `src/offboarding.ts` from the other modules' contracts and bound with
+   `identity.bindOffboarding`), each part on its own, reported as `steps[]` (`ok`, `detail`):
+   - **Doctors** (Field Master Data): handed to `doctorHandoverTo` where that person has the doctor's route (the usual assignment), the rest
+     unassigned; both leave the leaver's editable plans.
+   - **Distributors:** the leaver comes off every `assignedUserIds`.
+   - **Territory:** route assignments end (history kept), covered HQs/Zones cleared; the main HQ stays on record as where they were based.
+   - **Plans** (Planning): Daily Plans after the last day and Monthly Plans of later months that still wait for a decision are rejected
+     (`approval.autoReject`, "The employee left on …"). The leaving month's Monthly Plan stays.
+   - **Leave** (HR): requests starting after the last day still waiting are rejected (their pending days go back).
+   - **Targets** (Marketing): one running past the leaving month is cut there, keeping its share of the months left; one starting later is removed.
+   A failed part is logged; deactivating the inactive account again runs the hand-over again on the recorded day.
+5. **Reactivate** (`{ rejoinedOn }`, after the last day, today or earlier; not for an account deleted at the employee's request): status as a
+   new account with that profile would have (`active` or `pending`), `deactivatedAt` cleared, tokens work again. Nothing handed over comes back.
+
+**Attendance and payroll:** days after `lastWorkingDay` (until a `rejoinedOn`) are `NOT_EMPLOYED`, never absent. The contract's
+`listPayableFieldUserIds(month)` (active field employees plus leavers whose last day is in that month or later) is what payroll's "generate all"
+uses; a leaver's run is allowed up to the leaving month and carries `leftInMonth`, paid in full like a joining month.

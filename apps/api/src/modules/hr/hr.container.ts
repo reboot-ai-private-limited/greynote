@@ -5,6 +5,7 @@ import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { makeHrSource } from './application/syncSnapshot.js';
 import { HolidayCalendar } from './application/holidayCalendar.js';
 import { PlanOffDays } from './application/planOffDays.js';
+import { LeaverLeaves } from './application/leaverLeaves.js';
 import { ExpireLateLeaves } from './application/expireLateLeaves.js';
 import { LeaveApprovalCutoff } from './application/leaveApprovalCutoff.js';
 import { LeaveLock, type PayrollFinalizedCheck } from './application/leaveLock.js';
@@ -84,6 +85,7 @@ export function buildHrContainer(
   // 2. Use cases
   const holidayCalendar = new HolidayCalendar(holidays, territory);
   const planOffDays = new PlanOffDays(holidays, territory, () => calendar.weeklyOff());
+  const leaverLeaves = new LeaverLeaves(leaves, approvals);
   const probation = new Probation(users, config, calendar);
   const balances = new LeaveBalances(balanceRepository, policies, leaveTypes, users, calendar);
   // What the phone caches of HR: leave types, the MR's balances and the holidays that apply to them.
@@ -135,6 +137,8 @@ export function buildHrContainer(
       },
       listHolidayDates: async (userId, from, to) => [...(await holidayCalendar.datesFor(userId, from, to))].sort(),
       listPlanOffDays: (userId, from, to) => planOffDays.list(userId, from, to),
+      countLeaverLeaves: (userId, lastWorkingDay) => leaverLeaves.count(userId, lastWorkingDay),
+      closeLeaverLeaves: (userId, lastWorkingDay) => leaverLeaves.close(userId, lastWorkingDay),
     },
     buildRouter: () => {
       const router = Router();

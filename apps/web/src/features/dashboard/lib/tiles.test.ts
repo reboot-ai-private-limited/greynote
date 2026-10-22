@@ -58,6 +58,7 @@ const run = (status: PayrollRunDto['status']): PayrollRunDto => ({
   statutoryDeductionPaise: 0,
   roundingPaise: 0,
   joinedInMonth: false,
+  leftInMonth: false,
   generatedBy: 'acc',
   status,
   generatedAt: '2026-10-01T00:00:00Z',

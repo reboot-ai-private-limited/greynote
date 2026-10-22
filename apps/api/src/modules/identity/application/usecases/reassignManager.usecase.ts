@@ -38,6 +38,7 @@ export class ReassignManagerUseCase {
     }
     const manager = await this.userRepository.findById(input.managerId);
     if (!manager) throw AppError.badRequest('Unknown manager.', { field: 'managerId' });
+    if (manager.status === 'inactive') throw AppError.badRequest('That person has left (deactivated) and can’t be a manager.', { field: 'managerId' });
 
     const users = new Map((await this.userRepository.findByIds(userIds)).map((u) => [u.id, u]));
     const profiles = new Map((await this.employeeProfileRepository.findByUserIds(userIds)).map((p) => [p.userId, p]));
