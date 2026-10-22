@@ -31,6 +31,8 @@ Deactivation is done by Admin on the web (nothing in the app). What the phone se
 - **At once:** the next request with the current access token gets `401` (it no longer waits for the token to expire), and refreshing the session
   gets `401` "This account has been deactivated". Treat it like any signed-out state: clear the session and show the login screen.
 - **Login** is refused with `403` "This account has been deactivated". Show the message; don't retry.
-- **Records still queued on the phone** are refused when pushed (the account can't sync), so they are lost unless pushed before the last
-  working day: nothing else to do.
+- **Records still queued on the phone** stay saved there, unsent: a signed-out phone doesn't sync. They go up only if the account is
+  reactivated and the same person signs in on that phone, and then only if they are not older than `SYNC_MAX_AGE_DAYS` (7). Nothing to do.
+- Optional: when the app signs someone out because the refresh was refused, say so ("You've been signed out") instead of only showing Login;
+  they see "This account has been deactivated" when they try to sign in.
 - If Admin later **reactivates** the account (a rehire), login works again. Deactivation ends the sessions but leaves the phones registered, so a phone they used before signs in without a new approval.
