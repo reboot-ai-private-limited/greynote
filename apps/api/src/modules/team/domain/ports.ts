@@ -29,6 +29,18 @@ export interface TeamTerritoryPort {
   getZone(zoneId: string): Promise<{ id: string; name: string } | null>;
 }
 
+/** A route a plan names, as a manager sees it: the type says HQ, ex-station or out-station. */
+export interface TeamPlanRoute {
+  id: string;
+  name: string;
+  routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION';
+}
+
+/** Team's narrow view of Territory's routes; `territory.contract` satisfies it structurally (a deleted route still answers). */
+export interface TeamRoutesPort {
+  getRoute(routeId: string): Promise<TeamPlanRoute | null>;
+}
+
 /** Identity's compliance block, one person at a time. */
 export interface TeamBlockPort {
   isBlocked(userId: string): Promise<boolean>;

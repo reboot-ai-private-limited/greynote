@@ -37,7 +37,7 @@ const build = () => {
     getHq: async () => null,
     getZone: async () => null,
   });
-  const today = new TeamTodayUseCase(fake, fake, fake, fake, fake, clock);
+  const today = new TeamTodayUseCase(fake, fake, fake, fake, fake, fake, clock);
   return new TeamMemberSummaryUseCase(members, today, overview, clock);
 };
 
@@ -91,8 +91,8 @@ describe('TeamMemberSummary', () => {
 describe('one person on the team reads', () => {
   const clock = () => clockAt(NOON);
   const reads = () => ({
-    today: new TeamTodayUseCase(fake, fake, fake, fake, fake, clock()),
-    plans: new TeamPlansUseCase(fake, fake),
+    today: new TeamTodayUseCase(fake, fake, fake, fake, fake, fake, clock()),
+    plans: new TeamPlansUseCase(fake, fake, fake),
     leaves: new TeamLeavesUseCase(fake, fake),
   });
 

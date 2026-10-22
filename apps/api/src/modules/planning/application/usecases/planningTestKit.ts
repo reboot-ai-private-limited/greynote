@@ -325,6 +325,10 @@ export class FakeRoutes {
     await this.onList?.();
     return (this.byUser.get(userId) ?? []).map((id) => ({ id, routeType: this.types.get(id) ?? ('HQ' as const) }));
   }
+  /** Any id is a route named after it, except `gone` (unknown). */
+  async getRoute(routeId: string) {
+    return routeId === 'gone' ? null : { id: routeId, name: `Route ${routeId}`, routeType: this.types.get(routeId) ?? ('HQ' as const) };
+  }
 }
 
 export class FakeConfig {

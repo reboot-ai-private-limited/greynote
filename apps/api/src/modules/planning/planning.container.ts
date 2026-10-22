@@ -88,11 +88,11 @@ export function buildPlanningContainer(
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);
   const teamSuggest = new SuggestFromTeamUseCase(dailyPlans, monthlyPlans, approvals, users, carryOver, scope);
   const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, teamSuggest, views);
-  const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views);
+  const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views, routes);
   const listDaily = new ListDailyPlansUseCase(dailyPlans, views);
   const saveMonthly = new SaveMonthlyPlanUseCase(monthlyPlans, approvals, views, offDays);
   const submitMonthly = new SubmitMonthlyPlanUseCase(monthlyPlans, deadlines, submitter, offDays);
-  const getMonthly = new GetMonthlyPlanUseCase(monthlyPlans, users, views);
+  const getMonthly = new GetMonthlyPlanUseCase(monthlyPlans, users, views, routes);
   const listMonthly = new ListMonthlyPlansUseCase(monthlyPlans, views);
   const status = new GetPlanStatusUseCase(dailyPlans, monthlyPlans, approvals);
   const grantLate = new GrantLateSubmitUseCase(grants, users, config, deadlines.now);

@@ -52,7 +52,7 @@ describe('Daily Plan', () => {
     kit.routes.byUser.set(MR, [ROUTE]);
     save = new SeedDailyPlan(kit.dailyPlans, kit.views);
     submit = new SubmitDailyPlanUseCase(kit.dailyPlans, kit.deadlines, kit.submitter, kit.approvals, kit.carryOver, kit.monthlyApproved, kit.scope);
-    get = new GetDailyPlanUseCase(kit.dailyPlans, kit.users, kit.views);
+    get = new GetDailyPlanUseCase(kit.dailyPlans, kit.users, kit.views, kit.routes);
     status = new GetPlanStatusUseCase(kit.dailyPlans, kit.monthlyPlans, kit.approvals);
   });
 
@@ -139,6 +139,14 @@ describe('Daily Plan', () => {
     await expect(get.execute({ id: ASM, role: 'FIELD' }, plan.id)).resolves.toMatchObject({ id: plan.id });
     await expect(get.execute({ id: OTHER, role: 'ADMIN' }, plan.id)).resolves.toMatchObject({ id: plan.id });
     await expectError(get.execute({ id: OTHER, role: 'FIELD' }, plan.id), 403);
+  });
+
+  it('names the plan’s routes with their type for the reader', async () => {
+    kit.routes.types.set(ROUTE, 'EX_STATION');
+    const plan = await save.execute(MR, DATE, fieldDay());
+    await expect(get.execute({ id: ASM, role: 'FIELD' }, plan.id)).resolves.toMatchObject({
+      routes: [{ id: ROUTE, name: `Route ${ROUTE}`, routeType: 'EX_STATION' }],
+    });
   });
 
   it('opens the DCR gate only once the plan is past the manager', async () => {

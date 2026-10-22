@@ -7,8 +7,11 @@ import type {
   TeamHrPort,
   TeamLeaveEntry,
   TeamPlanningPort,
+  TeamPlanRoute,
+  TeamRoutesPort,
 } from '../../domain/ports.js';
 import { mapInChunks } from '../inChunks.js';
+import { makeRouteNamer } from '../planRoutes.js';
 import { activeMembers, type TeamLevel } from '../teamScope.js';
 import type { TeamClock } from '../teamClock.js';
 
@@ -43,7 +46,8 @@ export interface TeamTodayQuery {
 export interface TeamTodayRow {
   user: { id: string; employeeCode: string; name: string; depth: number };
   state: DayState;
-  plan: { status: string; workingType: string; routeCount: number; doctorCount: number } | null;
+  /** `routes`: the day's routes with their names and types (HQ, ex-station, out-station). */
+  plan: { status: string; workingType: string; routeCount: number; routes: TeamPlanRoute[]; doctorCount: number } | null;
   dcr: { status: string; doctorCalls: number; chemistCalls: number; followups: number } | null;
   leave: {
     leaveId: string;
@@ -77,6 +81,7 @@ export class TeamTodayUseCase {
     private readonly directory: TeamDirectoryPort,
     private readonly blocks: TeamBlockPort,
     private readonly planning: TeamPlanningPort,
+    private readonly routes: TeamRoutesPort,
     private readonly fieldActivity: TeamFieldActivityPort,
     private readonly hr: TeamHrPort,
     private readonly clock: TeamClock,
@@ -89,6 +94,7 @@ export class TeamTodayUseCase {
       throw AppError.badRequest('That day has not happened yet.', { field: 'date' });
 
     const members = await activeMembers(this.directory, managerId, query.scope, query.userId);
+    const routesOf = makeRouteNamer(this.routes);
     const leaves = await this.hr.listLeavesForUsers(
       members.map((m) => m.id),
       date,
@@ -127,6 +133,7 @@ export class TeamTodayUseCase {
           status: plan.status,
           workingType: plan.workingType,
           routeCount: plan.routeIds.length,
+          routes: await routesOf(plan.routeIds),
           doctorCount: plan.doctorIds.length,
         },
         dcr: dcr && {

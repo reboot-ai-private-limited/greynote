@@ -22,6 +22,7 @@ import type {
   TeamOverviewPort,
   TeamPeoplePort,
   TeamPlanningPort,
+  TeamRoutesPort,
   TeamTerritoryPort,
 } from './domain/ports.js';
 import { makeTeamControllers } from './interface/team.controller.js';
@@ -41,7 +42,7 @@ export interface TeamContainer {
  */
 export function buildTeamContainer(
   identity: TeamDirectoryPort & TeamBlockPort,
-  territory: TeamTerritoryPort,
+  territory: TeamTerritoryPort & TeamRoutesPort,
   planning: TeamPlanningPort,
   fieldActivity: TeamFieldActivityPort,
   hr: TeamHrPort,
@@ -55,8 +56,8 @@ export function buildTeamContainer(
 ): TeamContainer {
   const clock = new TeamClock(config);
   const members = new ListTeamMembersUseCase(identity, territory);
-  const today = new TeamTodayUseCase(identity, identity, planning, fieldActivity, hr, clock);
-  const plans = new TeamPlansUseCase(identity, planning);
+  const today = new TeamTodayUseCase(identity, identity, planning, territory, fieldActivity, hr, clock);
+  const plans = new TeamPlansUseCase(identity, planning, territory);
   const leaves = new TeamLeavesUseCase(identity, hr);
   const orders = new TeamOrdersUseCase(identity, sales, master);
   const stock = new TeamStockUseCase(identity, sales);

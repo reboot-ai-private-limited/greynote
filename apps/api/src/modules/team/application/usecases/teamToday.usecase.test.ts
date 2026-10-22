@@ -15,7 +15,7 @@ const plan = {
 
 let fake: FakeTeam;
 const useCase = (at = NOON, settings = {}) =>
-  new TeamTodayUseCase(fake, fake, fake, fake, fake, clockAt(at, settings));
+  new TeamTodayUseCase(fake, fake, fake, fake, fake, fake, clockAt(at, settings));
 const stateOf = async (id: string, q: Partial<TeamTodayQuery> = {}, at = NOON) =>
   (await useCase(at).execute('rsm', { ...base, ...q })).items.find((r) => r.user.id === id)?.state;
 
@@ -38,6 +38,7 @@ describe('TeamToday', () => {
 
   it('reads the not-started time from Config', async () => {
     const early = await new TeamTodayUseCase(
+      fake,
       fake,
       fake,
       fake,

@@ -12,6 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Avatar, InfoCard, Pill, SummaryStrip } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { doctorCountText, routeCountText } from '@/lib/planning';
 import { getTeamPlans, type TeamPlans, type TeamScopeFilter } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
@@ -75,7 +76,7 @@ export default function TeamPlansScreen() {
             <View style={styles.grow}>
               <ThemedText type="smallBold" numberOfLines={1}>{`${r.user.name} · ${r.user.employeeCode}`}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {r.dailyPlan ? `${label(r.dailyPlan.workingType)} · ${r.dailyPlan.routeCount} routes, ${r.dailyPlan.doctorCount} doctors` : 'No daily plan for this day'}
+                {r.dailyPlan ? `${label(r.dailyPlan.workingType)} · ${routeCountText(r.dailyPlan.routeCount, r.dailyPlan.routes)}, ${doctorCountText(r.dailyPlan.doctorCount)}` : 'No daily plan for this day'}
               </ThemedText>
             </View>
             {r.dailyPlan ? <Pill text={label(r.dailyPlan.status)} accent={STATUS_ACCENT[r.dailyPlan.status] ?? 'slate'} /> : <Pill text="No plan" accent="red" />}

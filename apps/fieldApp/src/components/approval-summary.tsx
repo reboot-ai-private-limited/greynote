@@ -17,7 +17,7 @@ import { getStatementById } from '@/lib/expense-months';
 import { formatRupees } from '@/lib/money';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useTheme } from '@/hooks/use-theme';
-import { isFieldDay, workingTypeLabel } from '@/lib/planning';
+import { isFieldDay, routeNamesText, workingTypeLabel, type NamedRoute } from '@/lib/planning';
 import { useCachedSource } from '@/offline/cache';
 import { formatWhen, nowMs, prettyDay, prettyMonth } from '@/offline/day';
 import type { ConfigSnapshot } from '@/types/sync';
@@ -74,11 +74,11 @@ const Line = ({ label, value }: { label: string; value: string }) => (
 
 /* ───────────────────────────── plans ───────────────────────────── */
 
-function dayLines(day: PlanDayView) {
+function dayLines(day: PlanDayView, routes?: NamedRoute[]) {
   return (
     <>
       <Line label="Working type" value={workingTypeLabel(day.workingType)} />
-      <Line label="Routes" value={day.routeIds.length === 0 ? 'None' : `${day.routeIds.length} route${day.routeIds.length === 1 ? '' : 's'}`} />
+      <Line label="Routes" value={routeNamesText(day.routeIds, routes)} />
       <Line label="Works with" value={day.workWith.length === 0 ? 'Nobody' : `${day.workWith.length} colleague${day.workWith.length === 1 ? '' : 's'}`} />
       {day.remarks ? <Line label="Remarks" value={day.remarks} /> : null}
     </>
@@ -91,7 +91,7 @@ function DailyPlanSummary({ recordId }: { recordId: string }) {
     <Frame title={data ? `Daily plan · ${prettyDay(data.planDate)}` : 'Daily plan'} error={error} loading={!data}>
       {data ? (
         <>
-          {dayLines(data)}
+          {dayLines(data, data.routes)}
           {isFieldDay(data.workingType) && data.doctors ? (
             <Line
               label="Doctors"
@@ -118,7 +118,7 @@ function MonthlyPlanSummary({ recordId }: { recordId: string }) {
       {data?.entries.map((e) => (
         <Box key={e.planDate}>
           <ThemedText type="smallBold">{prettyDay(e.planDate)}</ThemedText>
-          {dayLines(e)}
+          {dayLines(e, data.routes)}
         </Box>
       ))}
     </Frame>

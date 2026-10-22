@@ -34,6 +34,31 @@ export type RouteType = 'HQ' | 'EX_STATION' | 'OUT_STATION';
 const ROUTE_TYPE_LABEL: Record<RouteType, string> = { HQ: 'HQ', EX_STATION: 'Ex-station', OUT_STATION: 'Out-station' };
 export const routeTypeLabel = (t: string | null | undefined) => (t ? (ROUTE_TYPE_LABEL[t as RouteType] ?? t) : null);
 
+/** A route a plan names, as the server sends it to a reader (a manager) who doesn't hold that route. Absent from older servers. */
+export type NamedRoute = { id: string; name: string; routeType: string };
+
+const countOf = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+export const doctorCountText = (n: number) => countOf(n, 'doctor');
+
+/** "1 route (Ex-station)", "2 routes (HQ, Out-station)"; only the count when the server sent no route names. */
+export function routeCountText(count: number, routes?: NamedRoute[]): string {
+  const types = [...new Set((routes ?? []).map((r) => routeTypeLabel(r.routeType)).filter((t): t is string => t !== null))];
+  return types.length > 0 ? `${countOf(count, 'route')} (${types.join(', ')})` : countOf(count, 'route');
+}
+
+/** "Naxalbari (Ex-station), Matigara (HQ)" for a day's route ids; the count instead when the server sent no route names. */
+export function routeNamesText(routeIds: string[], routes?: NamedRoute[]): string {
+  if (routeIds.length === 0) return 'None';
+  if (!routes) return routeCountText(routeIds.length);
+  const byId = new Map(routes.map((r) => [r.id, r]));
+  return routeIds
+    .map((id) => {
+      const r = byId.get(id);
+      return r ? `${r.name} (${routeTypeLabel(r.routeType)})` : 'Route no longer exists';
+    })
+    .join(', ');
+}
+
 /**
  * `STAY` / `TRANSIT`: a day of an out-station trip the server wrote from the first day's `returnDate` (docs/mobile/monthlyplan.md
  * rule 16). A stay day earns out-station DA only; a transit (return) day earns TA and ex-station DA. They are normal working days.

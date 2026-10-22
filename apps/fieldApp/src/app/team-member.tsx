@@ -12,6 +12,7 @@ import { Avatar, CardSection, InfoCard, Meter, Pill, RowCard, SummaryStrip, sym 
 import { Spacing, type Accent } from '@/constants/theme';
 import { useFinancialYear } from '@/lib/financial-year';
 import { formatRupees } from '@/lib/money';
+import { doctorCountText, routeCountText } from '@/lib/planning';
 import { DAY_STATE_TEXT, NOT_IN_TEAM_TEXT, getTeamMemberSummary, type DayState, type TeamMemberSummary } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
@@ -62,7 +63,7 @@ export default function TeamMemberScreen() {
               <>
                 <ThemedText type="small" themeColor="textSecondary">{prettyDay(data.date)}</ThemedText>
                 <ThemedText type="small">
-                  {data.today.plan ? `${data.today.plan.workingType.replace(/_/g, ' ').toLowerCase()} · ${data.today.plan.routeCount} routes, ${data.today.plan.doctorCount} doctors` : 'No daily plan'}
+                  {data.today.plan ? `${data.today.plan.workingType.replace(/_/g, ' ').toLowerCase()} · ${routeCountText(data.today.plan.routeCount, data.today.plan.routes)}, ${doctorCountText(data.today.plan.doctorCount)}` : 'No daily plan'}
                 </ThemedText>
                 {data.today.dcr ? <ThemedText type="small">{`${data.today.dcr.doctorCalls} doctor, ${data.today.dcr.chemistCalls} chemist calls · ${data.today.dcr.followups} follow-up${data.today.dcr.followups === 1 ? '' : 's'}`}</ThemedText> : null}
               </>
