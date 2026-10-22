@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Avatar, InfoCard, Pill, SummaryStrip } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { doctorCountText, routeCountText } from '@/lib/planning';
 import { DAY_STATE_TEXT, getTeamToday, useApprovalSummary, type DayState, type TeamScopeFilter, type TeamToday } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
@@ -86,7 +87,7 @@ export default function TeamTodayScreen() {
             <View style={styles.grow}>
               <ThemedText type="smallBold" numberOfLines={1}>{`${r.user.name} · ${r.user.employeeCode}`}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {r.plan ? `${r.plan.workingType.replace(/_/g, ' ').toLowerCase()} · ${r.plan.routeCount} route${r.plan.routeCount === 1 ? '' : 's'}, ${r.plan.doctorCount} doctor${r.plan.doctorCount === 1 ? '' : 's'}` : 'No daily plan'}
+                {r.plan ? `${r.plan.workingType.replace(/_/g, ' ').toLowerCase()} · ${routeCountText(r.plan.routeCount, r.plan.routes)}, ${doctorCountText(r.plan.doctorCount)}` : 'No daily plan'}
               </ThemedText>
             </View>
             <Pill text={DAY_STATE_TEXT[r.state]} accent={STATE_ACCENT[r.state]} />

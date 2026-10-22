@@ -360,6 +360,7 @@ const styles = StyleSheet.create({
   activeChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.three, paddingVertical: Spacing.one },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   sectionTitle: { fontSize: 16, lineHeight: 22 },
-  selectRow: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
+  // Text buttons carry no padding of their own, so the row spaces them apart.
+  selectRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: Spacing.four, rowGap: Spacing.two, paddingVertical: Spacing.one },
   bulk: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
 });

@@ -1,4 +1,5 @@
 import { ApiError, apiGet, apiPost } from './api';
+import type { NamedRoute } from './planning';
 
 /**
  * The approval endpoints a manager uses (LLD approval.md): the inbox (what I can decide), the team list (my
@@ -212,8 +213,11 @@ export type DailyPlanRecord = PlanDayView & {
   source: 'MANUAL' | 'MONTHLY';
   /** The doctors to call (`carriedFrom` = a missed call still owed). Absent from older servers. */
   doctors?: { doctorId: string; carriedFrom: string | null }[];
+  /** The plan's routes named and typed. Absent from older servers. */
+  routes?: NamedRoute[];
 };
-export type MonthlyPlanRecord = { id: string; planMonth: string; entries: (PlanDayView & { planDate: string })[] };
+/** `routes`: every route the entries name, once each (absent from older servers). */
+export type MonthlyPlanRecord = { id: string; planMonth: string; entries: (PlanDayView & { planDate: string })[]; routes?: NamedRoute[] };
 export const getDailyPlanRecord = (id: string) => apiGet<DailyPlanRecord>(`/planning/daily/${id}`);
 export const getMonthlyPlanRecord = (id: string) => apiGet<MonthlyPlanRecord>(`/planning/monthly/${id}`);
 

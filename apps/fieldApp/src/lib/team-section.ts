@@ -4,6 +4,7 @@ import { AppState } from 'react-native';
 import { useOnline } from '@/offline';
 
 import { apiGet } from './api';
+import type { NamedRoute } from './planning';
 
 /**
  * The manager's Team section (docs/mobile/team.md). Every route covers only the caller's downline; a person outside it is a 403.
@@ -84,7 +85,8 @@ export type DayState = 'REPORTED' | 'WORKING' | 'NOT_YET' | 'NOT_STARTED' | 'MIS
 export type TeamDayRow = {
   user: TeamUser;
   state: DayState;
-  plan: { status: string; workingType: string; routeCount: number; doctorCount: number } | null;
+  /** `routes`: the day's routes named and typed (missing from an older server). */
+  plan: { status: string; workingType: string; routeCount: number; routes?: NamedRoute[]; doctorCount: number } | null;
   dcr: { status: string; doctorCalls: number; chemistCalls: number; followups: number } | null;
   leave: { leaveId: string; leaveType: string | null; status: string; startDate: string; endDate: string } | null;
   blocked: boolean;
@@ -115,7 +117,7 @@ export const getAllTeamToday = (p: { date?: string; scope?: TeamScopeFilter } = 
 export type TeamPlanRow = {
   user: TeamUser;
   /** `changedFromMonthly`: the employee changed the day the Monthly Plan wrote (missing from an older server). */
-  dailyPlan: { status: string; workingType: string; routeCount: number; doctorCount: number; changedFromMonthly?: boolean } | null;
+  dailyPlan: { status: string; workingType: string; routeCount: number; routes?: NamedRoute[]; doctorCount: number; changedFromMonthly?: boolean } | null;
   monthlyPlanStatus: string | null;
 };
 
