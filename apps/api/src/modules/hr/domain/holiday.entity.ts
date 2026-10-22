@@ -1,8 +1,11 @@
 export const HOLIDAY_SCOPES = ['NATIONAL', 'ZONE', 'HQ'] as const;
 export type HolidayScope = (typeof HOLIDAY_SCOPES)[number];
 
+/** The longest run of days one holiday can be added for (a festival week, Durga Puja …). */
+export const MAX_HOLIDAY_DAYS = 31;
+
 /**
- * A dated holiday. `NATIONAL` applies to everyone; `ZONE`/`HQ` to employees whose HQ (or its
+ * A dated holiday: one row per day, so a range (2–8 Oct) is several rows sharing a `groupId`. `NATIONAL` applies to everyone; `ZONE`/`HQ` to employees whose HQ (or its
  * Zone) is listed — one festival can span several. The weekly off day is a Config rule, not rows.
  */
 export interface Holiday {
@@ -13,6 +16,8 @@ export interface Holiday {
   scope: HolidayScope;
   zoneIds: string[];
   hqIds: string[];
+  /** Shared by the days of a holiday added as a range; `null` for a single day. */
+  groupId: string | null;
   createdBy: string;
   createdAt: Date;
 }

@@ -3,6 +3,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { DEFAULT_LEAVE_TYPES } from '../../domain/leaveType.entity.js';
 import { HolidayCalendar } from '../holidayCalendar.js';
 import { CreateHolidayUseCase } from './createHoliday.usecase.js';
+import { DeleteHolidayUseCase } from './deleteHoliday.usecase.js';
 import { CreateLeaveTypeUseCase } from './createLeaveType.usecase.js';
 import { FakeHolidays, FakeLeaveTypes, FakePolicies, FakeTerritory, FakeUsers } from './hrTestKit.js';
 import { ListHolidaysUseCase } from './listHolidays.usecase.js';
@@ -108,6 +109,46 @@ describe('Holidays', () => {
   it('shows HR every holiday, filterable', async () => {
     expect(await list.execute({ id: 'hr', role: 'HR' }, range)).toHaveLength(4);
     expect((await list.execute({ id: 'hr', role: 'HR' }, { ...range, zoneId: 'zone-wb' })).map((h) => h.name)).toEqual(['Durga Puja']);
+  });
+
+  it('stores a range as one row per day sharing a group, across a month end', async () => {
+    const days = await create.execute({ name: 'Puja week', date: '2026-10-29', endDate: '2026-11-02', scope: 'ZONE', zoneIds: ['zone-wb'], hqIds: [] }, 'hr');
+    expect(days.map((d) => d.date)).toEqual(['2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02']);
+    expect(new Set(days.map((d) => d.groupId)).size).toBe(1);
+    expect(days[0]!.groupId).not.toBeNull();
+    expect(days.every((d) => d.name === 'Puja week' && d.zoneIds[0] === 'zone-wb')).toBe(true);
+  });
+
+  it('keeps a single day ungrouped, whether endDate is left out or the same day', async () => {
+    const [one] = await create.execute({ name: 'A', date: '2026-11-05', scope: 'NATIONAL', zoneIds: [], hqIds: [] }, 'hr');
+    const same = await create.execute({ name: 'B', date: '2026-11-06', endDate: '2026-11-06', scope: 'NATIONAL', zoneIds: [], hqIds: [] }, 'hr');
+    expect(one!.groupId).toBeNull();
+    expect(same).toHaveLength(1);
+    expect(same[0]!.groupId).toBeNull();
+  });
+
+  it('refuses a range that ends before it starts or runs past 31 days, writing nothing', async () => {
+    const before = holidays.rows.length;
+    const base = { name: 'X', scope: 'NATIONAL' as const, zoneIds: [] as string[], hqIds: [] as string[] };
+    await expectStatus(create.execute({ ...base, date: '2026-11-08', endDate: '2026-11-02' }, 'hr'), 400);
+    await expectStatus(create.execute({ ...base, date: '2026-11-01', endDate: '2026-12-02' }, 'hr'), 400);
+    expect(await create.execute({ ...base, date: '2026-11-01', endDate: '2026-12-01' }, 'hr')).toHaveLength(31);
+    await expectStatus(create.execute({ ...base, date: '2026-12-10', endDate: '2026-12-12', scope: 'ZONE', zoneIds: ['zone-nope'] }, 'hr'), 400);
+    expect(holidays.rows.length).toBe(before + 31);
+  });
+
+  it('removes one day of a range, or with group every day of it', async () => {
+    const remove = new DeleteHolidayUseCase(holidays);
+    const days = await create.execute({ name: 'Puja', date: '2026-12-02', endDate: '2026-12-08', scope: 'NATIONAL', zoneIds: [], hqIds: [] }, 'hr');
+    const before = holidays.rows.length;
+    expect(await remove.execute(days[0]!.id)).toBe(1);
+    expect(holidays.rows.length).toBe(before - 1);
+    expect(await remove.execute(days[1]!.id, { group: true })).toBe(6);
+    expect(holidays.rows.some((h) => h.name === 'Puja')).toBe(false);
+    // A single-day holiday with group: just that day; an unknown id: 404.
+    const gandhi = holidays.rows.find((h) => h.name === 'Gandhi Jayanti')!;
+    expect(await remove.execute(gandhi.id, { group: true })).toBe(1);
+    await expectStatus(remove.execute('nope', { group: true }), 404);
   });
 
   it('gives other modules an employee’s holiday dates', async () => {

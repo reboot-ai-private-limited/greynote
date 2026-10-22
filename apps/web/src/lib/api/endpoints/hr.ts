@@ -74,8 +74,11 @@ export const hrApi = {
 
   holidays: (token: string, query: ListHolidaysQuery, signal?: AbortSignal) =>
     request<HolidayDto[]>('/hr/holidays', { token, query: { ...query }, signal }),
-  createHoliday: (token: string, body: CreateHolidayDto) => request<HolidayDto>('/hr/holidays', { method: 'POST', token, body }),
-  deleteHoliday: (token: string, id: string) => request<null>(`/hr/holidays/${id}`, { method: 'DELETE', token }),
+  /** One row per day: a range comes back as several days sharing a `groupId`. */
+  createHoliday: (token: string, body: CreateHolidayDto) => request<HolidayDto[]>('/hr/holidays', { method: 'POST', token, body }),
+  /** `group`: every day of the range this day belongs to. */
+  deleteHoliday: (token: string, id: string, group = false) =>
+    request<null>(`/hr/holidays/${id}`, { method: 'DELETE', token, ...(group && { query: { group: true } }) }),
   /** Admin: a CSV of holidays. `dryRun` only checks it and previews. A bad file is a 400 whose `data.errors` lists each line. */
   importHolidays: (token: string, file: File, dryRun: boolean) => {
     const body = new FormData();

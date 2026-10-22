@@ -15,6 +15,7 @@ import {
   balanceParamsSchema,
   balanceQuerySchema,
   createHolidayBodySchema,
+  deleteHolidayQuerySchema,
   createLeaveTypeBodySchema,
   holidayQueryObject,
   idParamsSchema,
@@ -86,7 +87,7 @@ doc('patch', '/leave-types/{id}', 'HR/Admin: rename, (de)activate, or change isP
 doc('get', '/leave-policies', 'HR/Admin: the Leave Master — every grade × paid type');
 doc('put', '/leave-policies/{payBandId}/{leaveTypeId}', 'HR/Admin: set a grade’s default days per leave year', { params: leavePolicyParamsSchema, body: setLeavePolicyBodySchema });
 doc('get', '/holidays', 'Holidays — field staff: the ones that apply to them; HR/Admin: all, filterable', { query: holidayQueryObject });
-doc('post', '/holidays', 'HR/Admin: add a National, Zone or HQ holiday', { body: createHolidayBodySchema });
+doc('post', '/holidays', 'HR/Admin: add a National, Zone or HQ holiday — one day, or `date`…`endDate` (at most 31 days, one row per day sharing a groupId); returns the days created', { body: createHolidayBodySchema });
 openApiRegistry.registerPath({
   method: 'post',
   path: '/api/hr/holidays/import',
@@ -103,7 +104,7 @@ openApiRegistry.registerPath({
   },
   responses: { 200: { description: 'Dry run preview' }, 201: { description: 'Imported' }, 400: { description: 'Problems found; nothing written' } },
 });
-doc('delete', '/holidays/{id}', 'HR/Admin: remove a holiday', { params: idParamsSchema });
+doc('delete', '/holidays/{id}', 'HR/Admin: remove a holiday day, or with `group=true` every day of its range', { params: idParamsSchema, query: deleteHolidayQuerySchema });
 doc('get', '/leave-balances/me', 'Field staff: my leave balances for a leave year (the current one by default)', { query: balanceQuerySchema });
 doc('get', '/leave-balances/{userId}', 'An employee’s balances — HR/Admin, or their managers (read-only)', { params: userIdParamsSchema, query: balanceQuerySchema });
 doc('patch', '/leave-balances/{userId}/{leaveTypeId}', 'HR/Admin: set one employee’s allocation (never below used + pending)', { params: balanceParamsSchema, body: adjustBalanceBodySchema });
@@ -147,7 +148,7 @@ export function buildMastersRouter(c: MastersHandlers): Router {
   router.get('/holidays', validate({ query: listHolidaysQuerySchema }), c.listHolidays);
   router.post('/holidays', hr, validate({ body: createHolidayBodySchema }), c.createHoliday);
   router.post('/holidays/import', requireRole('ADMIN'), validate({ query: holidayImportQuerySchema }), holidayUpload, c.importHolidays);
-  router.delete('/holidays/:id', hr, validate({ params: idParamsSchema }), c.deleteHoliday);
+  router.delete('/holidays/:id', hr, validate({ params: idParamsSchema, query: deleteHolidayQuerySchema }), c.deleteHoliday);
   return router;
 }
 

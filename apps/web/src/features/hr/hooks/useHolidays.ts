@@ -30,8 +30,8 @@ export function useCreateHoliday(onDone: () => void) {
 }
 
 export function useDeleteHoliday(onDone: () => void) {
-  return useApiMutation<string>({
-    call: (token, id) => hrApi.deleteHoliday(token, id),
+  return useApiMutation<{ id: string; group: boolean }>({
+    call: (token, { id, group }) => hrApi.deleteHoliday(token, id, group),
     invalidates: [keys.hr.allHolidays()],
     successMessage: 'Holiday removed.',
     onSuccess: onDone,

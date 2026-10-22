@@ -97,10 +97,20 @@ export class FakeHolidays implements HolidayRepositoryPort {
     this.rows.push(row);
     return row;
   }
+  async createMany(inputs: Omit<Holiday, 'id' | 'createdAt'>[]) {
+    const created: Holiday[] = [];
+    for (const input of inputs) created.push(await this.create(input));
+    return created;
+  }
   async delete(id: string) {
     const before = this.rows.length;
     this.rows = this.rows.filter((h) => h.id !== id);
     return this.rows.length < before;
+  }
+  async deleteGroup(groupId: string) {
+    const before = this.rows.length;
+    this.rows = this.rows.filter((h) => h.groupId !== groupId);
+    return before - this.rows.length;
   }
 }
 

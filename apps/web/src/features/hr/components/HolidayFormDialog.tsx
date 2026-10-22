@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { useCreateHoliday } from '../hooks/useHolidays';
-import { EMPTY_HOLIDAY, HOLIDAY_SCOPE_LABEL, buildHoliday, toggleId, withScope, type HolidayDraft } from '../lib/holidays';
+import { EMPTY_HOLIDAY, HOLIDAY_SCOPE_LABEL, buildHoliday, dateSpan, holidayDays, toggleId, withScope, type HolidayDraft } from '../lib/holidays';
 
 const SCOPE_OPTIONS = HOLIDAY_SCOPES.map((s) => ({
   value: s,
@@ -45,12 +45,13 @@ export function Choices({ legend, options, chosen, onToggle, error }: {
   );
 }
 
-/** Add a holiday. The API has no edit, so a correction is remove and add. Mounted only while open. */
+/** Add a holiday for one day or a run of days (Durga Puja, 2–8 Oct). The API has no edit, so a correction is remove and add. Mounted only while open. */
 export function HolidayFormDialog({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState<HolidayDraft>(EMPTY_HOLIDAY);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const directory = useTerritoryDirectory();
   const create = useCreateHoliday(onClose);
+  const days = holidayDays(draft.date, draft.endDate || draft.date);
 
   function submit() {
     const built = buildHoliday(draft);
@@ -70,9 +71,28 @@ export function HolidayFormDialog({ onClose }: { onClose: () => void }) {
       <FormField label="Name" htmlFor="holiday-name" error={errors['name']}>
         <Input id="holiday-name" value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} aria-invalid={errors['name'] ? true : undefined} />
       </FormField>
-      <FormField label="Date" htmlFor="holiday-date" error={errors['date']}>
-        <Input id="holiday-date" type="date" value={draft.date} onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value }))} aria-invalid={errors['date'] ? true : undefined} />
-      </FormField>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <FormField label="From" htmlFor="holiday-date" error={errors['date']}>
+          <Input id="holiday-date" type="date" value={draft.date} onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value }))} aria-invalid={errors['date'] ? true : undefined} />
+        </FormField>
+        <FormField label="To (optional)" htmlFor="holiday-end-date" error={errors['endDate']}>
+          <Input
+            id="holiday-end-date"
+            type="date"
+            value={draft.endDate}
+            min={draft.date || undefined}
+            onChange={(e) => setDraft((d) => ({ ...d, endDate: e.target.value }))}
+            aria-invalid={errors['endDate'] ? true : undefined}
+          />
+        </FormField>
+      </div>
+      {days !== null ? (
+        <p className="-mt-2 text-[13px] text-text-subtle">
+          {days === 1 ? `One day: ${dateSpan(draft.date, draft.date)}.` : `${days} days: ${dateSpan(draft.date, draft.endDate)}.`}
+        </p>
+      ) : (
+        <p className="-mt-2 text-[13px] text-text-subtle">Leave “To” empty for a one-day holiday.</p>
+      )}
       <FormField label="Applies to" htmlFor="holiday-scope" error={errors['scope']}>
         <Select
           id="holiday-scope"

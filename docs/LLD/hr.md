@@ -112,7 +112,7 @@ All under `/api/hr`.
 | `GET` | `/leaves` | HR, Admin | All leaves, filtered |
 | `GET` | `/leaves/:id` | owner, their managers, HR, Admin | One leave |
 | `GET` | `/holidays?from=&to=&scope=&zoneId=&hqId=` | any | FIELD: the ones that apply to them; HR/Admin: all, filterable. `from`/`to` required, at most 400 days; not scoped by the financial-year header |
-| `POST` / `DELETE` | `/holidays`, `/holidays/:id` | HR, Admin | Maintain the calendar |
+| `POST` / `DELETE` | `/holidays`, `/holidays/:id?group=` | HR, Admin | Maintain the calendar. `POST` takes `date` and an optional `endDate` (a range, at most 31 days) and returns the days created; `DELETE` with `group=true` removes every day of a range |
 | `POST` | `/holidays/import?dryRun=` | Admin | Bulk-add from a CSV (below) |
 
 ## Holiday upload (2026-10-12)
@@ -136,6 +136,11 @@ The Admin loads a year's list from one CSV (`multipart/form-data`, field `file`,
 - **Reopening an approved leave** gives the days back (`usedDays − days`); the edited resubmit
   reserves them again.
 - **A Holiday spanning several Zones or HQs** — one row with several ids.
+- **A Holiday running several days** (Durga Puja, 2–8 Oct; added 2026-10-22) — one row per day, sharing a `groupId`
+  (`null` on a single day and on rows from before ranges), so everything reading holidays by `date` (leave counting,
+  attendance, payroll, the phone's snapshot) is unchanged. A range includes the weekly off day if it falls inside;
+  leave counting skips either. The web shows a range as one line; deleting it removes every day, while the API can
+  still remove a single day. The CSV upload stays one row per date.
 
 ## Dependencies
 

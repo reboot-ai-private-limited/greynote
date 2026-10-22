@@ -91,6 +91,8 @@ export interface LeavePolicyDto {
 
 export const HOLIDAY_SCOPES = ['NATIONAL', 'ZONE', 'HQ'] as const;
 export type HolidayScope = (typeof HOLIDAY_SCOPES)[number];
+/** The longest run of days one holiday can be added for. */
+export const MAX_HOLIDAY_DAYS = 31;
 
 export interface HolidayDto {
   id: string;
@@ -100,12 +102,18 @@ export interface HolidayDto {
   scope: HolidayScope;
   zoneIds: string[];
   hqIds: string[];
+  /** Shared by the days of a holiday added as a range (one row per day); `null` for a single day. */
+  groupId: string | null;
   createdBy: string;
   createdAt: string;
 }
+/** Body of `POST /hr/holidays`; the response is the days created (`HolidayDto[]`). */
 export interface CreateHolidayDto {
   name: string;
+  /** The first (or only) day. */
   date: string;
+  /** The last day of a holiday that runs several days, at most `MAX_HOLIDAY_DAYS` in all; omitted: one day. */
+  endDate?: string;
   scope: HolidayScope;
   zoneIds: string[];
   hqIds: string[];

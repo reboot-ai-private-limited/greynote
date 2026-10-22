@@ -17,5 +17,9 @@ export interface HolidayRepositoryPort {
   /** Holidays scoped to any of these Zones or HQs. */
   countScopedTo(scope: { zoneIds: string[]; hqIds: string[] }): Promise<number>;
   create(input: Omit<Holiday, 'id' | 'createdAt'>): Promise<Holiday>;
+  /** One write, returned in the order given. */
+  createMany(inputs: Omit<Holiday, 'id' | 'createdAt'>[]): Promise<Holiday[]>;
   delete(id: string): Promise<boolean>;
+  /** Every day of a holiday added as a range; how many were removed. */
+  deleteGroup(groupId: string): Promise<number>;
 }

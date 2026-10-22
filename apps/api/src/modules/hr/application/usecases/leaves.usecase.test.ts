@@ -90,7 +90,7 @@ describe('Leave requests', () => {
     const territory = new FakeTerritory();
     territory.userHq.set('mr', { hqId: 'hq-slg', zoneId: 'zone-wb' });
     const holidays = new FakeHolidays();
-    await holidays.create({ name: 'Durga Puja', date: '2026-10-02', scope: 'ZONE', zoneIds: ['zone-wb'], hqIds: [], createdBy: 'hr' });
+    await holidays.create({ name: 'Durga Puja', date: '2026-10-02', scope: 'ZONE', zoneIds: ['zone-wb'], hqIds: [], groupId: null, createdBy: 'hr' });
     config = new FakeConfig();
     const calendar = new HrCalendar(config, new Clock(NOW).now);
     const probation = new Probation(users, config, calendar);

@@ -10,6 +10,7 @@ const toHoliday = (doc: HolidayDoc & { _id: unknown }): Holiday => ({
   scope: doc.scope,
   zoneIds: doc.zoneIds.map(String),
   hqIds: doc.hqIds.map(String),
+  groupId: doc.groupId ?? null,
   createdBy: String(doc.createdBy),
   createdAt: doc.createdAt,
 });
@@ -54,18 +55,32 @@ export class MongoHolidayAdapter implements HolidayRepositoryPort {
   }
 
   async create(input: Omit<Holiday, 'id' | 'createdAt'>): Promise<Holiday> {
-    const doc = await HolidayModel.create({
-      ...input,
-      zoneIds: input.zoneIds.map((id) => new Types.ObjectId(id)),
-      hqIds: input.hqIds.map((id) => new Types.ObjectId(id)),
-      createdBy: new Types.ObjectId(input.createdBy),
-      createdAt: new Date(),
-    });
-    return toHoliday(doc.toObject());
+    const [created] = await this.createMany([input]);
+    return created!;
+  }
+
+  async createMany(inputs: Omit<Holiday, 'id' | 'createdAt'>[]): Promise<Holiday[]> {
+    const createdAt = new Date();
+    // Mongoose validates every row before inserting any; `ordered` keeps the days in the order given.
+    const docs = await HolidayModel.insertMany(
+      inputs.map((input) => ({
+        ...input,
+        zoneIds: input.zoneIds.map((id) => new Types.ObjectId(id)),
+        hqIds: input.hqIds.map((id) => new Types.ObjectId(id)),
+        createdBy: new Types.ObjectId(input.createdBy),
+        createdAt,
+      })),
+      { ordered: true },
+    );
+    return docs.map((doc) => toHoliday(doc.toObject()));
   }
 
   async delete(id: string): Promise<boolean> {
     if (!Types.ObjectId.isValid(id)) return false;
     return (await HolidayModel.deleteOne({ _id: id })).deletedCount === 1;
+  }
+
+  async deleteGroup(groupId: string): Promise<number> {
+    return (await HolidayModel.deleteMany({ groupId })).deletedCount;
   }
 }

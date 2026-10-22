@@ -1,6 +1,6 @@
 'use client';
 
-import type { HolidayDto, HolidayScope } from '@greynote/contracts';
+import type { HolidayScope } from '@greynote/contracts';
 import { Plus, Trash2, Upload } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
@@ -14,19 +14,18 @@ import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDi
 import { toErrorState } from '@/lib/api/toErrorState';
 import { istDate } from '@/lib/dates';
 import { financialYearOf, financialYearRange } from '@/lib/financial-year';
-import { formatDate } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDeleteHoliday, useHolidays } from '../hooks/useHolidays';
-import { HOLIDAY_SCOPE_LABEL, appliesTo, groupByMonth, rangeError } from '../lib/holidays';
+import { HOLIDAY_SCOPE_LABEL, appliesTo, dateSpan, groupByMonth, rangeError, type HolidayEntry } from '../lib/holidays';
 import { HolidayFormDialog } from './HolidayFormDialog';
 import { HolidayImportDialog } from './HolidayImportDialog';
 
 const ANY = 'all';
 const monthLabel = (month: string) => new Intl.DateTimeFormat('en-IN', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(new Date(`${month}-01T00:00:00Z`));
 
-/** The holiday calendar. The range defaults to the financial year in view, and the API lists at most 400 days at a time. */
+/** The holiday calendar; a holiday added for several days shows as one line. The range defaults to the financial year in view, and the API lists at most 400 days at a time. */
 export function HolidaysTab() {
   const readOnly = useIsReadOnly();
   const { year } = useFinancialYear();
@@ -39,7 +38,7 @@ export function HolidaysTab() {
   const isAdmin = useSession().user?.role === 'ADMIN';
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [removing, setRemoving] = useState<HolidayDto | null>(null);
+  const [removing, setRemoving] = useState<HolidayEntry | null>(null);
   const remove = useDeleteHoliday(() => setRemoving(null));
 
   const holidays = useHolidays(
@@ -104,7 +103,7 @@ export function HolidaysTab() {
                   <li key={h.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-surface-hover">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-text">
-                        {h.name} <span className="font-normal text-text-subtle">· {formatDate(h.date)}</span>
+                        {h.name} <span className="font-normal text-text-subtle">· {dateSpan(h.from, h.to)}{h.days > 1 ? ` · ${h.days} days` : ''}</span>
                       </p>
                       <p className="text-[13px] text-text-muted">{appliesTo(h, directory.zoneName, directory.hqName)}</p>
                     </div>
@@ -128,10 +127,14 @@ export function HolidaysTab() {
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
         title="Remove holiday"
-        description={removing ? `“${removing.name}” on ${formatDate(removing.date)} is removed from the calendar. Leaves already counted keep the days they were counted with.` : undefined}
-        confirmLabel="Remove"
+        description={
+          removing
+            ? `“${removing.name}” ${removing.groupId ? `(${dateSpan(removing.from, removing.to)}) is removed from the calendar, every day of it` : `on ${dateSpan(removing.from, removing.to)} is removed from the calendar`}. Leaves already counted keep the days they were counted with.`
+            : undefined
+        }
+        confirmLabel={removing?.groupId ? 'Remove every day' : 'Remove'}
         pending={remove.isPending}
-        onConfirm={() => removing && remove.mutate(removing.id)}
+        onConfirm={() => removing && remove.mutate({ id: removing.id, group: removing.groupId !== null })}
       />
     </Card>
   );

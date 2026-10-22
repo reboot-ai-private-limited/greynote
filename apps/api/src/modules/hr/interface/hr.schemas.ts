@@ -38,11 +38,17 @@ export const setLeavePolicyBodySchema = z.object({ defaultDays: daysSchema });
 
 export const createHolidayBodySchema = z.object({
   name: nameSchema,
+  /** The first (or only) day. */
   date: calendarDateSchema,
+  /** The last day of a holiday that runs several days, at most 31 in all; one row is stored per day. */
+  endDate: calendarDateSchema.optional(),
   scope: z.enum(HOLIDAY_SCOPES),
   zoneIds: z.array(objectIdSchema).max(50).default([]),
   hqIds: z.array(objectIdSchema).max(200).default([]),
 });
+
+/** `group=true` removes every day of a holiday added as a range, not only this one. */
+export const deleteHolidayQuerySchema = z.object({ group: z.enum(['true', 'false']).optional() });
 
 /** Both ends inclusive, at most ~13 months. The unrefined object is what the OpenAPI doc shows. */
 export const holidayQueryObject = z.object({

@@ -968,3 +968,9 @@ Tick several people on the employee **Team** tab, then "Move to a new manager…
 ## Admin forgot-password by email OTP (2026-10-15, done, not tried with a real mailbox)
 
 `/forgot-password` page and two public routes (`forgot-password`, `reset-admin-password`). The code goes to `PASSWORD_RESET_OWNER_EMAIL` and only for an active Admin; the daily cap is `PASSWORD_RESET_DAILY_LIMIT` (default 3, whole system, counted in the database). Both are **environment**, not Settings (changed from the first version the same day). Sending is Gmail SMTP through nodemailer behind a `MailerPort`. Unit-tested. **Open:** set `SMTP_*`, the owner email and the limit in `.env.prod` (Gmail App password), then a live test.
+
+## Holidays over a range of days (2026-10-22, done, not browser-checked)
+
+HR adds a holiday for a run of days (From/To, at most 31) instead of one date at a time. Stored as one row per day
+sharing a `groupId`, so nothing that reads holidays changes; the web lists a range as one line and removes it whole.
+`../LLD/hr.md`, Edge cases.

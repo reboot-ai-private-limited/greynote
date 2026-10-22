@@ -26,6 +26,7 @@ import type {
   adjustBalanceBodySchema,
   balanceQuerySchema,
   createHolidayBodySchema,
+  deleteHolidayQuerySchema,
   leaveApprovalGrantBodySchema,
   leaveBodySchema,
   leavesQuerySchema,
@@ -77,12 +78,13 @@ export function makeMastersControllers(u: {
       sendSuccess(req, res, await u.listHolidays.execute(actorOf(req), query), 'Holidays.', 200);
     }),
     createHoliday: asyncHandler(async (req, res) => {
-      const holiday = await u.createHoliday.execute(req.body as z.output<typeof createHolidayBodySchema>, actorOf(req).id);
-      sendSuccess(req, res, holiday, 'Holiday added.', 201);
+      const days = await u.createHoliday.execute(req.body as z.output<typeof createHolidayBodySchema>, actorOf(req).id);
+      sendSuccess(req, res, days, days.length === 1 ? 'Holiday added.' : `Holiday added for ${days.length} days.`, 201);
     }),
     deleteHoliday: asyncHandler(async (req, res) => {
-      await u.deleteHoliday.execute(requiredParam(req.params, 'id'));
-      sendSuccess(req, res, null, 'Holiday removed.', 200);
+      const { group } = req.query as unknown as z.output<typeof deleteHolidayQuerySchema>;
+      const removed = await u.deleteHoliday.execute(requiredParam(req.params, 'id'), { group: group === 'true' });
+      sendSuccess(req, res, null, removed === 1 ? 'Holiday removed.' : `Holiday removed: ${removed} days.`, 200);
     }),
     importHolidays: asyncHandler(async (req, res) => {
       if (!req.file) throw AppError.badRequest('A CSV file is required.', { field: 'file' });
