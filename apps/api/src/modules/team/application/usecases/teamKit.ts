@@ -9,6 +9,8 @@ import type {
   TeamMasterPort,
   TeamOrder,
   TeamPlanningPort,
+  TeamPlanRoute,
+  TeamRoutesPort,
   TeamSalesPort,
 } from '../../domain/ports.js';
 import { AppError } from '@/shared/errors/AppError.js';
@@ -42,6 +44,7 @@ export class FakeTeam
     TeamDirectoryPort,
     TeamBlockPort,
     TeamPlanningPort,
+    TeamRoutesPort,
     TeamFieldActivityPort,
     TeamHrPort,
     TeamSalesPort,
@@ -53,6 +56,8 @@ export class FakeTeam
     { status: string; workingType: string; routeIds: string[]; doctorIds: string[] }
   >();
   monthly = new Map<string, string>();
+  /** Route types; a route not listed is `HQ`, and `gone` is unknown. */
+  routeTypes = new Map<string, TeamPlanRoute['routeType']>();
   dcrs = new Map<
     string,
     { status: string; doctorCalls: number; chemistCalls: number; followups: number }
@@ -113,6 +118,10 @@ export class FakeTeam
   }
   async getMonthlyPlanStatus(userId: string, month: string) {
     return this.monthly.get(`${userId}|${month}`) ?? null;
+  }
+  async getRoute(routeId: string): Promise<TeamPlanRoute | null> {
+    if (routeId === 'gone') return null;
+    return { id: routeId, name: `Route ${routeId}`, routeType: this.routeTypes.get(routeId) ?? 'HQ' };
   }
   async getDcrSummary(userId: string, range: { from: string }) {
     const d = this.dcrs.get(`${userId}|${range.from}`);

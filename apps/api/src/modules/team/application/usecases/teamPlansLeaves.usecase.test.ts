@@ -9,21 +9,31 @@ beforeEach(() => {
 });
 
 describe('TeamPlans', () => {
-  const plans = () => new TeamPlansUseCase(fake, fake);
+  const plans = () => new TeamPlansUseCase(fake, fake, fake);
   const base = { date: '2026-10-13', scope: 'all', page: 1, pageSize: 50 } as const;
 
   it('shows who has a plan for the day, who has none, and the month’s plan', async () => {
     fake.plans.set('asm1|2026-10-13', {
       status: 'MANAGER_APPROVED',
       workingType: 'FIELD_WORK',
-      routeIds: ['r1', 'r2'],
+      routeIds: ['r1', 'r2', 'gone'],
       doctorIds: ['d1'],
     });
     fake.monthly.set('asm1|2026-10', 'APPROVED');
+    fake.routeTypes.set('r2', 'EX_STATION');
     const r = await plans().execute('rsm', base);
     expect(r.month).toBe('2026-10');
     expect(r.items.find((i) => i.user.id === 'asm1')).toMatchObject({
-      dailyPlan: { status: 'MANAGER_APPROVED', routeCount: 2, doctorCount: 1 },
+      dailyPlan: {
+        status: 'MANAGER_APPROVED',
+        routeCount: 3,
+        // An unknown route is left out of the names; the count is still the plan's.
+        routes: [
+          { id: 'r1', name: 'Route r1', routeType: 'HQ' },
+          { id: 'r2', name: 'Route r2', routeType: 'EX_STATION' },
+        ],
+        doctorCount: 1,
+      },
       monthlyPlanStatus: 'APPROVED',
     });
     expect(r.items.find((i) => i.user.id === 'mr1')).toMatchObject({

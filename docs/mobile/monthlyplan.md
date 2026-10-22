@@ -57,7 +57,7 @@ From `GET /planning/monthly?from=YYYY-MM&to=YYYY-MM` (each row):
 |---|---|---|
 | `POST` | `/planning/monthly` | Save the whole month (draft). Body `{ planMonth: "YYYY-MM", entries: [{ planDate, workingType, routeIds, workWith, remarks, returnDate? }] }` (entries read back also carry `dayKind`: `NORMAL`, `STAY`, `TRANSIT`)`, ≤ 31 entries, each date inside the month, no date twice. |
 | `GET` | `/planning/monthly?from&to` | Own plans, ≤ 12 months, with the state fields above. |
-| `GET` | `/planning/monthly/:id` | One plan. |
+| `GET` | `/planning/monthly/:id` | One plan. Also `routes[{id,name,routeType}]` (2026-10-22): every route the entries name, once each; look an entry's `routeIds` up in it. |
 | `POST` | `/planning/monthly/:id/submit` | Submit; online only. |
 | `GET` | `/identity/work-with` | Work-with candidates (below). |
 | `GET` | `/planning/late-grants` | Own late-submission exceptions (`status`, `expiresAt`) — the same time the plan row's `lateSubmitAllowedUntil` shows. |

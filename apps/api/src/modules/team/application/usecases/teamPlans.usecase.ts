@@ -1,6 +1,7 @@
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
-import type { TeamDirectoryPort, TeamPlanningPort } from '../../domain/ports.js';
+import type { TeamDirectoryPort, TeamPlanningPort, TeamPlanRoute, TeamRoutesPort } from '../../domain/ports.js';
 import { mapInChunks } from '../inChunks.js';
+import { makeRouteNamer } from '../planRoutes.js';
 import { activeMembers, type TeamLevel } from '../teamScope.js';
 
 export interface TeamPlansQuery {
@@ -20,6 +21,8 @@ export interface TeamPlanRow {
     status: string;
     workingType: string;
     routeCount: number;
+    /** The day's routes with their names and types (HQ, ex-station, out-station). */
+    routes: TeamPlanRoute[];
     doctorCount: number;
     /** The employee changed the day the Monthly Plan wrote. */
     changedFromMonthly: boolean;
@@ -40,11 +43,13 @@ export class TeamPlansUseCase {
   constructor(
     private readonly directory: TeamDirectoryPort,
     private readonly planning: TeamPlanningPort,
+    private readonly routes: TeamRoutesPort,
   ) {}
 
   async execute(managerId: string, query: TeamPlansQuery): Promise<TeamPlansResult> {
     const month = query.date.slice(0, 7);
     const members = await activeMembers(this.directory, managerId, query.scope, query.userId);
+    const routesOf = makeRouteNamer(this.routes);
     const rows = await mapInChunks(members, async (m): Promise<TeamPlanRow> => {
       const [day, monthly] = await Promise.all([
         this.planning.getDailyPlanDay(m.id, query.date),
@@ -56,6 +61,7 @@ export class TeamPlansUseCase {
           status: day.status,
           workingType: day.workingType,
           routeCount: day.routeIds.length,
+          routes: await routesOf(day.routeIds),
           doctorCount: day.doctorIds.length,
           changedFromMonthly: day.changedFromMonthly ?? false,
         },
