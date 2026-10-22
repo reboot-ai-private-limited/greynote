@@ -27,6 +27,8 @@ type Props = {
   date?: string;
   /** What is wrong with the day, by field: marks the Routes list or the return date in red with the message. */
   errors?: { routes?: string; returnDate?: string };
+  /** Locked days (weekly off, holidays). A trip can't run over one, so its return date stops the day before the next one. */
+  lockedDates?: string[];
 };
 
 /**
@@ -34,7 +36,7 @@ type Props = {
  * pull, so it works offline. "Work with" comes from the colleagues the server offers (offline/colleagues.ts). The routes
  * chosen here decide which doctors can be planned on that day (docs/mobile/monthlyplan.md rule 15).
  */
-export function PlanDayForm({ value, onChange, disabled, date, errors }: Props) {
+export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDates }: Props) {
   const theme = useTheme();
   const territory = useCachedSource<TerritorySnapshot>('territory');
   const routes = territory.data?.routes ?? [];
@@ -44,7 +46,10 @@ export function PlanDayForm({ value, onChange, disabled, date, errors }: Props) 
   const canTrip = needsRoute && outStation && date !== undefined;
   // The return day: after this day, this month or the next.
   const earliest = date ? addDays(date, 1) : undefined;
-  const latest = date ? datesInMonth(addMonths(date.slice(0, 7), 1)).at(-1) : undefined;
+  const nextMonthEnd = date ? datesInMonth(addMonths(date.slice(0, 7), 1)).at(-1) : undefined;
+  const nextLocked = date ? (lockedDates ?? []).filter((d) => d > date).sort()[0] : undefined;
+  const latest = nextLocked && nextMonthEnd ? (addDays(nextLocked, -1) < nextMonthEnd ? addDays(nextLocked, -1) : nextMonthEnd) : nextMonthEnd;
+  const tripPossible = earliest !== undefined && latest !== undefined && earliest <= latest;
 
   function setType(workingType: WorkingType) {
     // Only Field Work and Doctor Campaign take routes (the server refuses them on the other three) and colleagues to work with.
@@ -145,6 +150,11 @@ export function PlanDayForm({ value, onChange, disabled, date, errors }: Props) 
                   {errors.returnDate}
                 </ThemedText>
               ) : null}
+              {nextLocked && latest && latest < (nextMonthEnd ?? latest) ? (
+                <ThemedText type="small" themeColor="textSecondary">
+                  A trip can’t run over a weekly off or a holiday, so the latest return is the day before it.
+                </ThemedText>
+              ) : null}
               <ThemedText type="small" themeColor="textSecondary">
                 The days in between are stay days (out-station DA, no TA). The return day earns TA and ex-station DA. Each is a working day: it needs its own Daily Plan and report.
               </ThemedText>
@@ -155,7 +165,13 @@ export function PlanDayForm({ value, onChange, disabled, date, errors }: Props) 
               <ThemedText type="small" themeColor="textSecondary">
                 Leave this empty for a same-day return. If you stay away, add the day you come back.
               </ThemedText>
-              <PrimaryButton label="+ Add a return date" variant="text" disabled={disabled} onPress={() => onChange({ ...value, returnDate: earliest })} />
+              {tripPossible ? (
+                <PrimaryButton label="+ Add a return date" variant="text" disabled={disabled} onPress={() => onChange({ ...value, returnDate: earliest })} />
+              ) : (
+                <ThemedText type="small" themeColor="textSecondary">
+                  The next day is a weekly off or a holiday, so a trip can’t start today.
+                </ThemedText>
+              )}
             </>
           )}
         </ThemedView>

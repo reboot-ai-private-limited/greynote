@@ -81,7 +81,8 @@ export default function VisualsScreen() {
       return;
     }
     try {
-      await WebBrowser.openBrowserAsync(v.fileUrl);
+      // Same task as the app (the default is a new one), so Back from the file returns to this list instead of leaving the app.
+      await WebBrowser.openBrowserAsync(v.fileUrl, { createTask: false });
     } catch {
       setError('Could not open this file. Check your connection and try again.');
     }

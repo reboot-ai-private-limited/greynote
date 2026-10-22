@@ -13,10 +13,27 @@ import { useSessionUser } from './session';
  */
 export type InboxKind = 'ANNOUNCEMENT' | 'REMINDER' | 'POLICY' | 'UPDATE';
 
+/** A file sent with a message (docs/mobile/inbox.md rule 11). `downloadUrl` saves it under `name`; for Office files it equals `url`. */
+export type InboxAttachment = {
+  id: string;
+  name: string;
+  kind: 'pdf' | 'jpeg' | 'png' | 'webp' | 'docx' | 'xlsx' | 'pptx';
+  sizeBytes: number;
+  url: string;
+  downloadUrl: string;
+};
+
+export const ATTACHMENT_KIND_LABEL: Record<InboxAttachment['kind'], string> = {
+  pdf: 'PDF', jpeg: 'JPG', png: 'PNG', webp: 'WebP', docx: 'Word', xlsx: 'Excel', pptx: 'PowerPoint',
+};
+
 export type InboxItem = {
   id: string;
   title: string;
+  /** Plain text of any length (no 2,000-character limit any more); keep its line breaks. */
   body: string;
+  /** Absent from an older server or an older cached list: read it as none. */
+  attachments?: InboxAttachment[];
   kind: InboxKind;
   sentAt: string;
   expiresAt: string | null;

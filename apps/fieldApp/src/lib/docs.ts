@@ -32,6 +32,8 @@ export type CompanyDocument = {
   category: DocumentCategory;
   fileKind: 'pdf' | 'jpeg' | 'png';
   url: string;
+  /** Saves the file under the document's title instead of showing it (docs.md rule 8). Absent from an older server or cached list. */
+  downloadUrl?: string;
   sizeBytes: number;
   uploadedAt: string;
 };

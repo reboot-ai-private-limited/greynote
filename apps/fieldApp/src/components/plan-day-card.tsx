@@ -16,6 +16,8 @@ type Props = {
   date: string;
   entry: PlanDay | undefined;
   off: boolean;
+  /** What a locked day is called ("Weekly off", "Holiday · Durga Puja"); defaults to "Weekly off". */
+  offLabel?: string;
   /** The plan can be edited, so a working day can be tapped. */
   editable: boolean;
   names: { routes: Map<string, string>; colleagues: Map<string, Colleague> };
@@ -23,14 +25,14 @@ type Props = {
 };
 
 /** One day of the month: a coloured date block, the type, where, and who with. */
-export function PlanDayCard({ date, entry, off, editable, names, onPress }: Props) {
+export function PlanDayCard({ date, entry, off, offLabel, editable, names, onPress }: Props) {
   const theme = useTheme();
   const colors = off ? OFF_COLORS : entry ? typeColors(entry.workingType) : null;
 
   const routes = entry ? entry.routeIds.map((id) => names.routes.get(id) ?? 'Route') : [];
   const people = entry ? entry.workWith.map((id) => names.colleagues.get(id)?.name ?? 'Colleague') : [];
   const title = off
-    ? 'Weekly off'
+    ? (offLabel ?? 'Weekly off')
     : entry
       ? routes.length > 0
         ? routes.join(', ')

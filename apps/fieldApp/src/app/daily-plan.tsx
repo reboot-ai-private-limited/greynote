@@ -27,6 +27,7 @@ import {
   getDailyPlanDetail,
   getRejectionReason,
   isFieldDay,
+  offDayLabel,
   planErrorText,
   saveDailyPlan,
   submitDailyPlan,
@@ -117,6 +118,8 @@ export default function DailyPlanScreen() {
   const selectedMonth = monthOf(date);
   const monthPlan = planning.data?.monthlyPlans.find((m) => m.planMonth === selectedMonth) ?? null;
   const monthApproved = monthPlan?.status === 'MANAGER_APPROVED' || monthPlan?.status === 'APPROVED';
+  // The weekly off or holiday this date falls on, from the sync snapshot (this and next month). Absent from an older server.
+  const offDay = planning.data?.planOffDays?.find((o) => o.date === date) ?? null;
 
   /** Everything the server knows about this plan (online only). */
   const detailKey = `${date}:${existing?.id ?? 'none'}:${status}`;
@@ -411,7 +414,7 @@ export default function DailyPlanScreen() {
 
       {blocked ? <Notice tone="danger" title="Account blocked">{BLOCKED_TEXT}</Notice> : null}
 
-      {!monthApproved && planning.loaded ? (
+      {!monthApproved && planning.loaded && !offDay ? (
         <>
           <Notice tone="danger" title={`Tour Plan for ${prettyMonth(selectedMonth)} isn’t approved`}>
             {`Your tour plan for ${prettyMonth(selectedMonth)} isn’t approved yet. There is no daily plan, and no work, until it is.`}
@@ -420,8 +423,15 @@ export default function DailyPlanScreen() {
         </>
       ) : null}
 
-      {monthApproved && planning.loaded && !existing ? (
+      {offDay && !existing ? (
+        // A weekly off or a holiday can't be on the Monthly Plan, so it has no Daily Plan (docs/mobile/dailyplan.md rule 1).
+        <Notice tone="info" title={`${prettyDay(date)}: ${offDayLabel(offDay)}`}>There is no Daily Plan for this day. Nothing needs to be planned or reported.</Notice>
+      ) : monthApproved && planning.loaded && !existing ? (
         <Notice tone="warning" title={prettyDay(date)}>There is no plan for this day. Ask your manager.</Notice>
+      ) : null}
+      {offDay && existing ? (
+        // HR added the day off after this plan was written, so the server keeps the plan as it is.
+        <Notice tone="info" title={`${prettyDay(date)}: ${offDayLabel(offDay)}`}>This day was planned before it became a holiday or weekly off, so the plan stays. Ask your manager if it should change.</Notice>
       ) : null}
 
       {amendment ? (

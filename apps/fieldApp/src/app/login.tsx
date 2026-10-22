@@ -80,9 +80,6 @@ export default function LoginScreen() {
             automaticallyAdjustKeyboardInsets>
             <ThemedView style={styles.header}>
               <BrandLogo width={200} />
-              <ThemedText type="title" style={styles.title}>
-                My Greynote
-              </ThemedText>
               <ThemedText themeColor="textSecondary">Sign in to continue</ThemedText>
             </ThemedView>
 
@@ -150,10 +147,6 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
     alignItems: 'center',
     marginBottom: Spacing.three,
-  },
-  title: {
-    fontSize: 32,
-    lineHeight: 38,
   },
   form: {
     gap: Spacing.three,

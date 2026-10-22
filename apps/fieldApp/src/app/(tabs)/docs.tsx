@@ -1,5 +1,6 @@
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { Linking, Platform, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChoiceChips } from '@/components/choice-chips';
@@ -37,6 +38,27 @@ async function shareDocument(title: string, url: string) {
     await Share.share(Platform.OS === 'ios' ? { title, url } : { title, message: `${title}\n${url}` });
   } catch {
     // The sheet could not open; Open still works.
+  }
+}
+
+/** Shows the file in an in-app browser tab (a PDF or picture), so the employee stays in the app and Back returns to the list. */
+async function openDocument(url: string, setMsg: (text: string | null) => void) {
+  setMsg(null);
+  try {
+    // Same task as the app (the default is a new one), so Back from the file returns to this list instead of leaving the app.
+    await WebBrowser.openBrowserAsync(url, { createTask: false });
+  } catch {
+    setMsg('Couldn’t open the document. Check your connection and try again.');
+  }
+}
+
+/** Hands the download link to the phone, which saves the file under the document's title (docs.md rule 8). */
+async function downloadDocument(url: string, setMsg: (text: string | null) => void) {
+  setMsg(null);
+  try {
+    await Linking.openURL(url);
+  } catch {
+    setMsg('Couldn’t download. Try again.');
   }
 }
 
@@ -125,6 +147,7 @@ function Documents() {
   // Documents are not tied to a year, so the key does not carry one.
   const list = useCachedFetch<CompanyDocument[]>('company-documents', listMyDocuments);
   const [filter, setFilter] = useState<Filter>('ALL');
+  const [msg, setMsg] = useState<string | null>(null);
   const docs = (list.data ?? []).filter((d) => filter === 'ALL' || d.category === filter);
   const present = new Set((list.data ?? []).map((d) => d.category));
 
@@ -132,6 +155,7 @@ function Documents() {
     <View style={styles.stack}>
       {list.stale && list.fetchedAt && list.data ? <Notice tone="info">{`Showing the list from ${formatWhen(list.fetchedAt)}.`}</Notice> : null}
       {list.error && online && !list.data ? <Notice tone="danger">{list.error}</Notice> : null}
+      {msg ? <Notice tone="danger">{msg}</Notice> : null}
       {list.loading && !list.data ? <Skeleton cards={3} lines={2} /> : null}
       {!list.data && !online ? <Notice tone="info">Connect once to load your documents.</Notice> : null}
       {list.data && list.data.length > 0 ? (
@@ -143,7 +167,15 @@ function Documents() {
       ) : null}
       {list.data && list.data.length === 0 ? <Notice tone="info">No documents have been shared with you yet.</Notice> : null}
       {docs.map((d) => (
-        <InfoCard key={d.id}>
+        // The whole card opens the document; Open, Download and Share inside still do their own thing.
+        <Pressable
+          key={d.id}
+          disabled={!online}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${d.title}`}
+          onPress={() => void openDocument(d.url, setMsg)}
+          style={({ pressed }) => pressed && styles.pressed}>
+        <InfoCard>
           <View style={styles.line}>
             <View style={styles.grow}>
               <ThemedText type="smallBold" numberOfLines={2}>{d.title}</ThemedText>
@@ -152,10 +184,14 @@ function Documents() {
             <Pill text={CATEGORY_LABEL[d.category]} accent={CATEGORY_ACCENT[d.category]} />
           </View>
           <View style={styles.actions}>
-            <PrimaryButton label="Open" variant="text" disabled={!online} onPress={() => void Linking.openURL(d.url)} />
+            <PrimaryButton label="Open" variant="text" disabled={!online} onPress={() => void openDocument(d.url, setMsg)} />
+            {d.downloadUrl ? (
+              <PrimaryButton label="Download" variant="text" disabled={!online} onPress={() => void downloadDocument(d.downloadUrl!, setMsg)} />
+            ) : null}
             <PrimaryButton label="Share" variant="text" disabled={!online} onPress={() => void shareDocument(d.title, d.url)} />
           </View>
         </InfoCard>
+        </Pressable>
       ))}
     </View>
   );
@@ -197,7 +233,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   stack: { gap: Spacing.three },
+  pressed: { opacity: 0.75 },
   line: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1, gap: Spacing.one },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end' },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', columnGap: Spacing.four },
 });

@@ -19,8 +19,8 @@ export default function AppTabs() {
       backgroundColor={colors.background}
       indicatorColor={colors.backgroundElement}
       // Android's default ('auto') labels every tab with 3 items but only the selected one with 4+.
-      // Pin the manager look (only the selected tab shows its name) so field and manager logins match.
-      labelVisibilityMode="selected"
+      // Pin 'labeled' so every tab always shows its name, for field and manager logins alike.
+      labelVisibilityMode="labeled"
       iconColor={{ default: colors.textSecondary, selected: colors.primary }}
       labelStyle={{ selected: { color: colors.primary } }}>
       <NativeTabs.Trigger name="index">
