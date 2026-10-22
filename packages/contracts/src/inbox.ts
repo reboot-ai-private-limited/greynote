@@ -15,6 +15,26 @@ export interface InboxAudienceDto {
   userIds: string[];
 }
 
+/** What an inbox attachment may be; the API reads the type from the file's own bytes. */
+export const INBOX_ATTACHMENT_KINDS = ['pdf', 'jpeg', 'png', 'webp', 'docx', 'xlsx', 'pptx'] as const;
+export type InboxAttachmentKind = (typeof INBOX_ATTACHMENT_KINDS)[number];
+/** At most this many files on one message, each at most `INBOX_ATTACHMENT_MAX_BYTES`. */
+export const INBOX_MAX_ATTACHMENTS = 5;
+export const INBOX_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+
+/** A file sent with a message. */
+export interface InboxAttachmentDto {
+  id: string;
+  /** The name it was uploaded with, e.g. `Price list Oct.pdf`. */
+  name: string;
+  kind: InboxAttachmentKind;
+  sizeBytes: number;
+  /** Opens the file (a PDF or image shows in the browser or viewer). */
+  url: string;
+  /** Saves the file under its name instead of opening it. Same as `url` for Word, Excel and PowerPoint, which always download. */
+  downloadUrl: string;
+}
+
 /** One row of `GET /inbox`: a message as one recipient sees it. */
 export interface InboxItemDto {
   /** The message id — what `POST /inbox/:id/read` takes. */
@@ -26,6 +46,8 @@ export interface InboxItemDto {
   sentAt: string;
   /** After this the message disappears from the list; `null` = never. */
   expiresAt: string | null;
+  /** Files sent with it; empty for most messages. */
+  attachments: InboxAttachmentDto[];
   read: boolean;
   readAt: string | null;
 }
@@ -34,7 +56,10 @@ export interface InboxUnreadCountDto {
   unread: number;
 }
 
-/** Body of `POST /inbox/messages` (Admin). */
+/**
+ * Body of `POST /inbox/messages` (Admin): JSON, or `multipart/form-data` with this object as JSON in a `payload` field and
+ * up to `INBOX_MAX_ATTACHMENTS` files in `files`. The body has no length limit of its own.
+ */
 export interface PublishInboxMessageDto {
   title: string;
   body: string;
@@ -50,6 +75,7 @@ export interface SentInboxMessageDto {
   body: string;
   kind: InboxKind;
   audience: InboxAudienceDto;
+  attachments: InboxAttachmentDto[];
   recipientCount: number;
   readCount: number;
   /** `null` for a message the system sent. */

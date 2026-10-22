@@ -1,46 +1,78 @@
 'use client';
 
-import { useState } from 'react';
+import { Paperclip, X } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Button } from '@/components/ui/Button';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { FormField } from '@/components/ui/FormField';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Choices } from '@/features/hr/components/HolidayFormDialog';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
-import { usePublishMessage } from '../hooks/useInbox';
+import { sizeLabel } from '@/lib/format';
+import { useMessageRecipients, usePublishMessage } from '../hooks/useInbox';
 import {
-  BODY_MAX,
+  ATTACHMENT_ACCEPT,
   EMPTY_MESSAGE,
   KIND_OPTIONS,
   ROLE_OPTIONS,
   TITLE_MAX,
+  attachmentError,
   buildMessage,
   toggle,
+  togglePerson,
   type MessageDraft,
 } from '../lib/inbox';
 import { toast } from '@/components/ui/toast';
 import type { InboxKind } from '@greynote/contracts';
 
-/** Send a message to an audience. It reaches the people who match now; later joiners do not get it. Mounted only while open. */
+/**
+ * Send a message to an audience, with files if wanted. It reaches the people who match now; later joiners do not get
+ * it. Mounted only while open.
+ */
 export function ComposeMessageDialog({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState<MessageDraft>(EMPTY_MESSAGE);
+  const [files, setFiles] = useState<File[]>([]);
+  const [search, setSearch] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const picker = useRef<HTMLInputElement>(null);
   const directory = useTerritoryDirectory();
+  const people = useMessageRecipients(search, !draft.everyone);
   const publish = usePublishMessage(onClose);
   const set = <K extends keyof MessageDraft>(key: K, value: MessageDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    const added = [...list].filter(
+      (f) => !files.some((x) => x.name === f.name && x.size === f.size),
+    );
+    setFiles((fs) => [...fs, ...added]);
+    setErrors(({ files: _dropped, ...rest }) => rest);
+  }
+
   function submit() {
     const built = buildMessage(draft);
-    if (!built.ok) return setErrors(built.errors);
+    const fileProblem = attachmentError(files);
+    if (!built.ok || fileProblem) {
+      return setErrors({
+        ...(built.ok ? {} : built.errors),
+        ...(fileProblem && { files: fileProblem }),
+      });
+    }
     setErrors({});
-    publish.mutate(built.body, {
-      onSuccess: (r) =>
-        toast.success(
-          `Sent to ${r.recipientCount} ${r.recipientCount === 1 ? 'person' : 'people'}.`,
-        ),
-    });
+    publish.mutate(
+      { body: built.body, files },
+      {
+        onSuccess: (r) =>
+          toast.success(
+            `Sent to ${r.recipientCount} ${r.recipientCount === 1 ? 'person' : 'people'}.`,
+          ),
+      },
+    );
   }
+
+  const found = people.data?.items ?? [];
 
   return (
     <FormDialog
@@ -61,20 +93,66 @@ export function ComposeMessageDialog({ onClose }: { onClose: () => void }) {
           aria-invalid={errors['title'] ? true : undefined}
         />
       </FormField>
-      <FormField
-        label="Message"
-        htmlFor="inbox-body"
-        error={errors['body']}
-        hint={`${draft.body.length} / ${BODY_MAX}`}
-      >
+      <FormField label="Message" htmlFor="inbox-body" error={errors['body']}>
         <Textarea
           id="inbox-body"
-          rows={5}
+          rows={8}
           value={draft.body}
           onChange={(e) => set('body', e.target.value)}
           aria-invalid={errors['body'] ? true : undefined}
         />
       </FormField>
+
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium text-text">Attachments</legend>
+        {files.length > 0 ? (
+          <ul className="divide-y divide-border rounded-md border border-border">
+            {files.map((f) => (
+              <li
+                key={`${f.name}-${f.size}`}
+                className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+              >
+                <span className="min-w-0 truncate">
+                  {f.name} <span className="text-text-subtle">· {sizeLabel(f.size)}</span>
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Remove ${f.name}`}
+                  onClick={() => setFiles((fs) => fs.filter((x) => x !== f))}
+                >
+                  <X aria-hidden className="size-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <input
+          ref={picker}
+          type="file"
+          multiple
+          accept={ATTACHMENT_ACCEPT}
+          className="hidden"
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = '';
+          }}
+        />
+        <Button variant="secondary" size="sm" onClick={() => picker.current?.click()}>
+          <Paperclip aria-hidden className="size-4" /> Attach files
+        </Button>
+        {errors['files'] ? (
+          <p role="alert" className="text-[13px] text-danger-fg">
+            {errors['files']}
+          </p>
+        ) : (
+          <p className="text-[13px] text-text-subtle">
+            Optional. Up to 5 files, 10 MB each: PDF, JPG, PNG, WebP, Word, Excel or PowerPoint.
+            People can open or download them from the app.
+          </p>
+        )}
+      </fieldset>
+
       <FormField label="Kind" htmlFor="inbox-kind">
         <Select
           id="inbox-kind"
@@ -97,6 +175,45 @@ export function ComposeMessageDialog({ onClose }: { onClose: () => void }) {
         </label>
         {draft.everyone ? null : (
           <div className="space-y-4">
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-text">People</p>
+              {draft.people.length > 0 ? (
+                <ul className="flex flex-wrap gap-1.5" aria-label="Chosen people">
+                  {draft.people.map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex items-center gap-1 rounded-full border border-border bg-surface-hover py-0.5 pl-2.5 pr-1 text-[13px]"
+                    >
+                      {p.label}
+                      <button
+                        type="button"
+                        aria-label={`Remove ${p.label}`}
+                        onClick={() => set('people', togglePerson(draft.people, p))}
+                        className="rounded-full p-0.5 text-text-subtle hover:text-text"
+                      >
+                        <X aria-hidden className="size-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <Input
+                aria-label="Search employees"
+                placeholder="Search any employee by name or code"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <Choices
+                legend="Matching employees"
+                options={found.map((u) => ({ value: u.id, label: `${u.name} (${u.employeeCode})` }))}
+                chosen={draft.people.map((p) => p.id)}
+                onToggle={(id) => {
+                  const u = found.find((x) => x.id === id);
+                  if (u)
+                    set('people', togglePerson(draft.people, { id, label: `${u.name} (${u.employeeCode})` }));
+                }}
+              />
+            </div>
             <Choices
               legend="Roles"
               options={ROLE_OPTIONS}

@@ -1,6 +1,7 @@
 'use client';
 
 import type { SentInboxMessageDto } from '@greynote/contracts';
+import { Paperclip } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -29,6 +30,16 @@ export function InboxScreen() {
         <div className="max-w-md">
           <div className="font-medium">{m.title}</div>
           <div className="line-clamp-2 text-xs text-text-muted">{m.body}</div>
+          {m.attachments.length > 0 ? (
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-text-subtle">
+              <Paperclip aria-hidden className="size-3.5" />
+              {m.attachments.map((a) => (
+                <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+                  {a.name}
+                </a>
+              ))}
+            </div>
+          ) : null}
         </div>
       ),
     },
@@ -82,7 +93,7 @@ export function InboxScreen() {
   return (
     <PagedListFrame
       title="Inbox messages"
-      description="Messages that show in the phone app's Inbox. Pick everyone, or any mix of roles, zones and HQs; each person gets one copy."
+      description="Messages that show in the phone app's Inbox, with files if you attach them. Pick everyone, or any mix of named people, roles, zones and HQs; each person gets one copy."
       noun="message"
       readOnly={false}
       onNew={() => setComposing(true)}

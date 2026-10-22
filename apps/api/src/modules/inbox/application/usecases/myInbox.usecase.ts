@@ -3,6 +3,7 @@ import { AppError } from '@/shared/errors/AppError.js';
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
 import type { InboxReceiptRepositoryPort } from '../../domain/inbox.repository.port.js';
 import type { InboxReceipt } from '../../domain/inboxReceipt.entity.js';
+import { toAttachmentDto } from '../attachments.js';
 
 const toItem = (r: InboxReceipt): InboxItemDto => ({
   id: r.messageId,
@@ -11,6 +12,7 @@ const toItem = (r: InboxReceipt): InboxItemDto => ({
   kind: r.kind,
   sentAt: r.sentAt.toISOString(),
   expiresAt: r.expiresAt?.toISOString() ?? null,
+  attachments: r.attachments.map(toAttachmentDto),
   read: r.readAt !== null,
   readAt: r.readAt?.toISOString() ?? null,
 });

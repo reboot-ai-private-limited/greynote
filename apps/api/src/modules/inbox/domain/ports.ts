@@ -18,6 +18,12 @@ export interface TerritoryPort {
   getZone(zoneId: string): Promise<{ id: string; status: 'active' | 'inactive' } | null>;
 }
 
+/** Where attachment files are kept (Cloudinary); the composition root supplies it. */
+export interface AttachmentStoragePort {
+  upload(file: Buffer, meta: { resourceType: 'image' | 'raw'; extension: string; mimeType: string }): Promise<{ url: string; publicId: string }>;
+  remove(publicId: string, resourceType: 'image' | 'raw'): Promise<void>;
+}
+
 /** What the phone gets alongside the title and body: `type` names the kind of event, `route` the screen a tap opens. */
 export type PushData = Record<string, string>;
 

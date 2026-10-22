@@ -14,7 +14,8 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { formatDateTime } from '@/lib/format';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDocuments, useRemoveDocument } from '../hooks/useDocuments';
-import { CATEGORY_LABEL, sizeLabel } from '../lib/documents';
+import { sizeLabel } from '@/lib/format';
+import { CATEGORY_LABEL } from '../lib/documents';
 import { DocumentFormDialog } from './DocumentFormDialog';
 
 const kindOf = (d: CompanyDocumentDto) => (d.fileKind === 'pdf' ? 'pdf' : 'image');

@@ -1,4 +1,5 @@
 import type { InboxAudienceDto, InboxKind } from '@greynote/contracts';
+import type { InboxAttachment } from './attachment.js';
 
 export { INBOX_KINDS } from '@greynote/contracts';
 export type { InboxKind } from '@greynote/contracts';
@@ -10,6 +11,8 @@ export interface InboxMessage {
   body: string;
   kind: InboxKind;
   audience: InboxAudienceDto;
+  /** Files sent with it, in the order attached; none for a system message. */
+  attachments: InboxAttachment[];
   recipientCount: number;
   createdBy: string | null;
   createdAt: Date;

@@ -1,5 +1,7 @@
 import { Schema, model, type Types } from 'mongoose';
+import type { ReceiptAttachment } from '../domain/attachment.js';
 import { INBOX_KINDS, type InboxKind } from '../domain/inboxMessage.entity.js';
+import { attachmentFields } from './inboxMessage.schema.js';
 
 export interface InboxReceiptDoc {
   messageId: Types.ObjectId;
@@ -7,6 +9,7 @@ export interface InboxReceiptDoc {
   title: string;
   body: string;
   kind: InboxKind;
+  attachments: ReceiptAttachment[];
   sentAt: Date;
   expiresAt: Date | null;
   readAt: Date | null;
@@ -18,6 +21,7 @@ const inboxReceiptSchema = new Schema<InboxReceiptDoc>({
   title: { type: String, required: true },
   body: { type: String, required: true },
   kind: { type: String, required: true, enum: INBOX_KINDS },
+  attachments: { type: [new Schema(attachmentFields, { _id: false })], default: [] },
   sentAt: { type: Date, required: true },
   expiresAt: { type: Date, default: null },
   readAt: { type: Date, default: null },

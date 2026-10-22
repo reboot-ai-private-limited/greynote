@@ -27,3 +27,9 @@ export function formatDateTime(value: string | Date): string {
 export function formatMoney(paise: number): string {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(paise / 100);
 }
+
+/** A file's size: `2 KB`, `3.0 MB`. */
+export const sizeLabel = (bytes: number): string =>
+  bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(bytes / 1024))} KB`;

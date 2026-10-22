@@ -8,7 +8,10 @@ export interface CompanyDocumentDto {
   category: CompanyDocumentCategory;
   /** `pdf`, `jpeg` or `png`, read from the file itself. */
   fileKind: 'pdf' | 'jpeg' | 'png';
+  /** Opens the file. */
   url: string;
+  /** Saves the file under the document's title instead of opening it. */
+  downloadUrl: string;
   sizeBytes: number;
   /** True when every field employee sees it. */
   everyone: boolean;

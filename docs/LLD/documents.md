@@ -10,6 +10,7 @@ None. Nothing imports from this module. It needs Identity's `listActiveRecipient
 
 - A document has a title, a category (`POLICY`, `CIRCULAR`, `FORM`, `OTHER`), one file (PDF, JPG or PNG, up to 10 MB, the type read from the file's own bytes) and an audience: **everyone** (no people named) or **the named active field employees**.
 - The file is stored in Cloudinary (`greynote/library`); removing a document deletes the file too. A failed save after the upload removes the uploaded file.
+- Every document in the API carries `url` (open) and `downloadUrl` (2026-10-22: the same file with Cloudinary's `fl_attachment`, saved under the document's title), so the phone can offer Download on every document.
 - A document is **not tied to a financial year**: it is the same whichever year is being looked at.
 - The audience is fixed when the document is added. To change it, remove and add again.
 

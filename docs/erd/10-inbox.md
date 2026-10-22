@@ -14,6 +14,7 @@ erDiagram
         string body
         enum kind "ANNOUNCEMENT, REMINDER, POLICY, UPDATE"
         json audience "everyone, roles[], zone_ids[], hq_ids[], user_ids[]"
+        json attachments "[{id, name, kind, size_bytes, url, public_id, resource_type}], up to 5"
         int recipient_count "fixed at send time"
         id created_by FK "null for a system message"
         timestamp created_at
@@ -26,6 +27,7 @@ erDiagram
         string title "copied from the message"
         string body "copied"
         enum kind "copied"
+        json attachments "copied, without public_id / resource_type"
         timestamp sent_at "copied from created_at"
         timestamp expires_at "copied, nullable"
         timestamp read_at "nullable, first open"
@@ -39,3 +41,4 @@ erDiagram
 - **Unique `(message_id, user_id)`**: a person matching several audience parts still gets one copy.
 - **Retract deletes the receipts** and keeps the message row (`retracted_at`).
 - Indexes: `InboxMessage(created_at desc)`; `InboxReceipt(message_id, user_id)` unique, `InboxReceipt(user_id, sent_at desc)`. No migration: new collections.
+- **Attachments (2026-10-22):** embedded on the message (with where Cloudinary keeps each file) and copied onto each receipt without the storage fields. `body` has no length limit. No migration: rows from before read as `attachments: []`. Rules: [`../LLD/inbox.md`](../LLD/inbox.md).

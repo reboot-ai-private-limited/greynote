@@ -1,6 +1,5 @@
 import type {
   PaginatedDto,
-  PublishInboxMessageDto,
   SentInboxMessageDto,
 } from '@greynote/contracts';
 import { request } from '../client';
@@ -18,7 +17,8 @@ export const inboxApi = {
       query: { ...query },
       signal,
     }),
-  publish: (token: string, body: PublishInboxMessageDto) =>
+  /** The message (and any files) as built by `messageForm`: JSON in `payload`, files in `files`. */
+  publish: (token: string, body: FormData) =>
     request<{ id: string; recipientCount: number }>('/inbox/messages', {
       method: 'POST',
       token,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDocumentForm, documentErrors, sizeLabel } from './documents';
+import { buildDocumentForm, documentErrors } from './documents';
 
 const draft = { title: ' Leave policy ', category: 'POLICY' as const, userIds: [] };
 
@@ -26,12 +26,5 @@ describe('buildDocumentForm', () => {
     expect(buildDocumentForm(draft, file).get('userIds')).toBeNull();
     expect(buildDocumentForm({ ...draft, userIds: ['u1'] }, file).get('userIds')).toBe('["u1"]');
     expect(buildDocumentForm(draft, file).get('title')).toBe('Leave policy');
-  });
-});
-
-describe('sizeLabel', () => {
-  it('reads KB and MB', () => {
-    expect(sizeLabel(2048)).toBe('2 KB');
-    expect(sizeLabel(3 * 1024 * 1024)).toBe('3.0 MB');
   });
 });

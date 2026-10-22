@@ -1,5 +1,6 @@
 import type { CompanyDocumentDto } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
+import { downloadUrlOf } from '@/shared/storage/downloadUrl.js';
 import { detectDocumentKind, DOCUMENT_FILE_MESSAGE } from '../../domain/documentFile.js';
 import type { CompanyDocument, CompanyDocumentCategory } from '../../domain/companyDocument.entity.js';
 import type { CompanyDocumentRepositoryPort } from '../../domain/documents.repository.port.js';
@@ -15,6 +16,7 @@ export function toDocumentDto(d: CompanyDocument, withAudience: boolean): Compan
     category: d.category,
     fileKind: d.fileKind,
     url: d.url,
+    downloadUrl: downloadUrlOf(d.url, d.title),
     sizeBytes: d.sizeBytes,
     everyone: d.everyone,
     ...(withAudience && { userIds: d.userIds }),

@@ -16,9 +16,13 @@ export const myInboxQuerySchema = z.object({
 });
 export const sentQuerySchema = z.object(pageFields);
 
+/**
+ * JSON, or the `payload` field of a multipart request that also carries `files`. The body has no length limit of its
+ * own (2026-10-22): only the request's (2 MB of text) stops it. The title stays short, a heading on a phone.
+ */
 export const publishBodySchema = z.object({
   title: z.string().trim().min(1).max(120),
-  body: z.string().trim().min(1).max(2000),
+  body: z.string().trim().min(1),
   kind: z.enum(INBOX_KINDS),
   audience: z.object({
     everyone: z.boolean().default(false),

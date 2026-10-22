@@ -3,9 +3,9 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { InboxMessageRepositoryPort, InboxReceiptRepositoryPort } from '../../domain/inbox.repository.port.js';
 import type { InboxMessage } from '../../domain/inboxMessage.entity.js';
 import type { InboxReceipt } from '../../domain/inboxReceipt.entity.js';
-import type { Recipient } from '../../domain/ports.js';
+import type { AttachmentStoragePort, Recipient } from '../../domain/ports.js';
 import { MyInboxUseCases } from './myInbox.usecase.js';
-import { PublishMessageUseCase } from './publishMessage.usecase.js';
+import { PUSH_PREVIEW_CHARS, PublishMessageUseCase } from './publishMessage.usecase.js';
 import { SentMessagesUseCases } from './sentMessages.usecase.js';
 
 class FakeMessages implements InboxMessageRepositoryPort {
@@ -62,6 +62,24 @@ class FakeReceipts implements InboxReceiptRepositoryPort {
   }
 }
 
+class FakeStorage implements AttachmentStoragePort {
+  stored = new Map<string, 'image' | 'raw'>();
+  failOn: number | null = null;
+  private calls = 0;
+  async upload(_file: Buffer, meta: { resourceType: 'image' | 'raw'; extension: string }) {
+    if (++this.calls === this.failOn) throw new Error('cloudinary down');
+    const publicId = `greynote/inbox/f${this.calls}${meta.resourceType === 'raw' ? `.${meta.extension}` : ''}`;
+    this.stored.set(publicId, meta.resourceType);
+    return { url: `https://res.cloudinary.com/demo/${meta.resourceType}/upload/v1/${publicId}`, publicId };
+  }
+  async remove(publicId: string, resourceType: 'image' | 'raw') {
+    if (this.stored.get(publicId) === resourceType) this.stored.delete(publicId);
+  }
+}
+
+const pdf = (name = 'Price list.pdf') => ({ buffer: Buffer.from('%PDF-1.7 body'), name });
+const docx = (name = 'Form.docx') => ({ buffer: Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.from('[Content_Types].xml word/document.xml')]), name });
+
 const people: Recipient[] = [
   { id: 'mr1', role: 'FIELD', hqId: 'hq-a', zoneId: 'z1' },
   { id: 'mr2', role: 'FIELD', hqId: 'hq-b', zoneId: 'z2' },
@@ -83,6 +101,8 @@ describe('Inbox', () => {
   let publish: PublishMessageUseCase;
   let mine: MyInboxUseCases;
   let sent: SentMessagesUseCases;
+  let storage: FakeStorage;
+  let pushes: Array<{ userIds: string[]; body: string }>;
   const page = { page: 1, pageSize: 20 };
 
   beforeEach(() => {
@@ -92,11 +112,15 @@ describe('Inbox', () => {
       getZone: async (id: string) => (id.startsWith('z') ? { id, status: 'active' as const } : null),
       getHq: async (id: string) => (id.startsWith('hq') ? { id, status: 'active' as const } : null),
     };
-    publish = new PublishMessageUseCase(messages, receipts, { listActiveRecipients: async () => people }, territory, null, () => NOW);
+    storage = new FakeStorage();
+    pushes = [];
+    const push = { pushTo: async (userIds: string[], message: { title: string; body: string }) => void pushes.push({ userIds, body: message.body }) };
+    let n = 0;
+    publish = new PublishMessageUseCase(messages, receipts, { listActiveRecipients: async () => people }, territory, storage, push, () => NOW, () => `att-${++n}`);
     mine = new MyInboxUseCases(receipts, () => NOW);
-    sent = new SentMessagesUseCases(messages, receipts, () => NOW);
+    sent = new SentMessagesUseCases(messages, receipts, () => NOW, storage);
   });
-  const send = (audience: Partial<InboxAudienceDto>, extra: { expiresAt?: Date } = {}) =>
+  const send = (audience: Partial<InboxAudienceDto>, extra: { expiresAt?: Date; files?: Array<{ buffer: Buffer; name: string }>; body?: string } = {}) =>
     publish.execute({ title: 'Hello', body: 'Body', kind: 'ANNOUNCEMENT', audience: { ...none, ...audience }, ...extra }, 'admin');
 
   it('gives each person in the audience one copy', async () => {
@@ -145,5 +169,56 @@ describe('Inbox', () => {
     expect((await sent.list(page)).items[0]?.retractedAt).not.toBeNull();
     await expectStatus(sent.retract(m.id), 409);
     await expectStatus(sent.retract('unknown'), 404);
+  });
+
+  it('sends files with a message: each recipient sees them, with a download link', async () => {
+    const m = await send({ userIds: ['mr1'] }, { files: [pdf(), docx()] });
+    expect(m.attachments.map((a) => [a.kind, a.resourceType])).toEqual([['pdf', 'image'], ['docx', 'raw']]);
+    const [item] = (await mine.list('mr1', { unreadOnly: false }, page)).items;
+    expect(item?.attachments).toEqual([
+      expect.objectContaining({ name: 'Price list.pdf', kind: 'pdf', sizeBytes: 13, downloadUrl: 'https://res.cloudinary.com/demo/image/upload/fl_attachment:Price_list/v1/greynote/inbox/f1' }),
+      expect.objectContaining({ name: 'Form.docx', kind: 'docx', downloadUrl: 'https://res.cloudinary.com/demo/raw/upload/v1/greynote/inbox/f2.docx' }),
+    ]);
+    expect(item?.attachments[0]).not.toHaveProperty('publicId');
+    expect((await sent.list(page)).items[0]?.attachments).toHaveLength(2);
+  });
+
+  it('refuses a file of the wrong type, an empty one or too many, before uploading anything', async () => {
+    await expectStatus(send({ everyone: true }, { files: [pdf(), { buffer: Buffer.from('MZ binary'), name: 'setup.exe' }] }), 400);
+    await expectStatus(send({ everyone: true }, { files: [{ buffer: Buffer.alloc(0), name: 'empty.pdf' }] }), 400);
+    await expectStatus(send({ everyone: true }, { files: Array.from({ length: 6 }, () => pdf()) }), 400);
+    expect(storage.stored.size).toBe(0);
+    expect(messages.rows).toHaveLength(0);
+  });
+
+  it('removes the files already stored when an upload or the save fails', async () => {
+    storage.failOn = 2;
+    await expect(send({ everyone: true }, { files: [pdf(), pdf()] })).rejects.toThrow('cloudinary down');
+    expect(storage.stored.size).toBe(0);
+    storage.failOn = null;
+    messages.create = async () => {
+      throw new Error('mongo down');
+    };
+    await expect(send({ everyone: true }, { files: [pdf()] })).rejects.toThrow('mongo down');
+    expect(storage.stored.size).toBe(0);
+  });
+
+  it('deletes the files when a message is taken back', async () => {
+    const m = await send({ everyone: true }, { files: [pdf(), docx()] });
+    expect(storage.stored.size).toBe(2);
+    await sent.retract(m.id);
+    expect(storage.stored.size).toBe(0);
+    expect((await sent.list(page)).items[0]?.attachments).toEqual([]);
+  });
+
+  it('takes a body of any length, and pushes only a short preview of it', async () => {
+    const long = 'Dear team, '.repeat(2000);
+    const m = await send({ userIds: ['mr1'] }, { body: long, files: [pdf()] });
+    expect(m.body).toBe(long);
+    expect((await mine.list('mr1', { unreadOnly: false }, page)).items[0]?.body).toBe(long);
+    const pushed = pushes.at(-1)!.body;
+    expect(pushed.startsWith('📎 Dear team,')).toBe(true);
+    expect(pushed.length).toBeLessThanOrEqual(PUSH_PREVIEW_CHARS + 3);
+    expect(pushed.endsWith('…')).toBe(true);
   });
 });

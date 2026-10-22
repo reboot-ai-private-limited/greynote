@@ -29,7 +29,8 @@ export function makeInboxControllers(u: { mine: MyInboxUseCases; publish: Publis
     }),
     markAllRead: asyncHandler(async (req, res) => sendSuccess(req, res, { marked: await u.mine.markAllRead(userId(req)) }, 'All marked as read.', 200)),
     publish: asyncHandler(async (req, res) => {
-      const message = await u.publish.execute(req.body as z.output<typeof publishBodySchema>, userId(req));
+      const files = ((req.files as Array<{ buffer: Buffer; originalname: string }> | undefined) ?? []).map((f) => ({ buffer: f.buffer, name: f.originalname }));
+      const message = await u.publish.execute({ ...(req.body as z.output<typeof publishBodySchema>), files }, userId(req));
       sendSuccess(req, res, { id: message.id, recipientCount: message.recipientCount }, 'Message sent.', 201);
     }),
     listSent: asyncHandler(async (req, res) => sendSuccess(req, res, await u.sent.list(req.query as unknown as z.output<typeof sentQuerySchema>), 'Sent messages.', 200)),

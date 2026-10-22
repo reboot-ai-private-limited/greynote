@@ -1,4 +1,5 @@
 import type { InboxKind } from '@greynote/contracts';
+import type { ReceiptAttachment } from './attachment.js';
 
 /**
  * One recipient's copy of a message, written when it is sent (fan-out on write). The text is copied
@@ -11,6 +12,7 @@ export interface InboxReceipt {
   title: string;
   body: string;
   kind: InboxKind;
+  attachments: ReceiptAttachment[];
   sentAt: Date;
   expiresAt: Date | null;
   readAt: Date | null;

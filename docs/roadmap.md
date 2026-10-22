@@ -974,3 +974,10 @@ Tick several people on the employee **Team** tab, then "Move to a new manager…
 HR adds a holiday for a run of days (From/To, at most 31) instead of one date at a time. Stored as one row per day
 sharing a `groupId`, so nothing that reads holidays changes; the web lists a range as one line and removes it whole.
 `../LLD/hr.md`, Edge cases.
+
+## Inbox: attachments, named people, no length limit (2026-10-22, done, not browser-checked)
+
+An Admin's message can carry up to 5 files (PDF, pictures, Word/Excel/PowerPoint, 10 MB each) with open and download
+links; the web form can name any employees; the body has no length limit (push shows a preview). Documents gain
+`downloadUrl` too. The field app is another team's: what it should do is in `mobile/inbox.md` (rules 11-13) and
+`mobile/docs.md` (rule 8). `LLD/inbox.md`.
