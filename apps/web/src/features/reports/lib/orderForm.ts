@@ -4,6 +4,8 @@ import { paiseToRupees, rupeesToPaise } from '@/lib/money';
 export const REMARKS_MAX = 1000;
 
 export interface LineDraft {
+  /** The row's React key, set when the line is made and never sent: dropping a middle line must not shift the rest. */
+  key: string;
   productId: string;
   quantity: string;
   /** Rupees as typed. */
@@ -30,7 +32,11 @@ export interface OrderDraft {
   discValue: string;
 }
 
+let nextLine = 0;
+const lineKey = (): string => `line-${(nextLine += 1)}`;
+
 export const emptyLine = (): LineDraft => ({
+  key: lineKey(),
   productId: '',
   quantity: '',
   price: '',
@@ -116,6 +122,7 @@ export const linesOf = (
   }>,
 ): LineDraft[] =>
   items.map((i) => ({
+    key: lineKey(),
     productId: i.productId,
     quantity: String(i.quantity),
     price: paiseToRupees(i.unitPricePaise),

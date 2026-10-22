@@ -1,7 +1,7 @@
 'use client';
 
 import type { ConfigSettingDto } from '@greynote/contracts';
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -85,38 +85,74 @@ export function SettingControl({
           </datalist>
         </>
       );
-    case 'SLAB_LIST': {
-      const rows = rowsFromDraft(draft);
-      const edit = (i: number, patch: Partial<{ from: string; amount: string }>) => onChange(draftFromRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r))));
-      return (
-        <div className="space-y-2" role="group" aria-label={setting.label} aria-describedby={describedBy}>
-          <div className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2 text-xs text-text-subtle">
-            <span>Monthly salary from (₹)</span>
-            <span>to (₹, until the next slab)</span>
-            <span>Amount a month (₹)</span>
-            <span className="w-16" />
-          </div>
-          {rows.map((r, i) => {
-            const next = rows[i + 1];
-            const to = next === undefined ? 'and above' : /^\d+$/.test(next.from) ? String(Number(next.from) - 1) : '…';
-            return (
-              <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2">
-                <Input aria-label={`Slab ${i + 1} from`} aria-invalid={invalid ? true : undefined} inputMode="numeric" value={r.from} disabled={disabled} onChange={(e) => edit(i, { from: e.target.value })} className="tabular-nums" />
-                <span className="px-2 text-sm text-text-muted tabular-nums">{to}</span>
-                <Input aria-label={`Slab ${i + 1} amount`} aria-invalid={invalid ? true : undefined} inputMode="numeric" value={r.amount} disabled={disabled} onChange={(e) => edit(i, { amount: e.target.value })} className="tabular-nums" />
-                <Button type="button" variant="ghost" size="sm" disabled={disabled || rows.length <= 1} aria-label={`Remove slab ${i + 1}`} onClick={() => onChange(draftFromRows(rows.filter((_, j) => j !== i)))}>
-                  Remove
-                </Button>
-              </div>
-            );
-          })}
-          <Button type="button" variant="secondary" size="sm" disabled={disabled || rows.length >= 20} onClick={() => onChange(draftFromRows([...rows, { from: '', amount: '' }]))}>
-            Add slab
-          </Button>
-        </div>
-      );
-    }
+    case 'SLAB_LIST':
+      return <SlabListEditor label={setting.label} draft={draft} onChange={onChange} disabled={disabled} invalid={invalid} describedBy={describedBy} />;
     case 'KIND_LIST':
       return <Input {...aria} value={draft} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="w-72" />;
   }
+}
+
+let nextSlab = 0;
+const slabKey = (): string => `slab-${(nextSlab += 1)}`;
+
+/**
+ * The professional-tax slabs: one row per slab, `to` shown from the next row's `from`. The rows are re-read from the draft
+ * string on every render, so each keeps a key here, added and dropped with its row, so removing a middle slab doesn't move
+ * focus or typing onto the one below. A draft replaced from outside (a reset, a save) with a different count starts fresh keys.
+ */
+function SlabListEditor({
+  label,
+  draft,
+  onChange,
+  disabled,
+  invalid,
+  describedBy,
+}: {
+  label: string;
+  draft: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+  invalid: boolean;
+  describedBy: string;
+}) {
+  const rows = rowsFromDraft(draft);
+  const keys = useRef<string[]>([]);
+  if (keys.current.length !== rows.length) keys.current = rows.map(slabKey);
+  const keyed = rows.map((row, i) => ({ row, key: keys.current[i] ?? '' }));
+  const edit = (i: number, patch: Partial<{ from: string; amount: string }>) => onChange(draftFromRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r))));
+  const remove = (i: number) => {
+    keys.current = keys.current.filter((_, j) => j !== i);
+    onChange(draftFromRows(rows.filter((_, j) => j !== i)));
+  };
+  const add = () => {
+    keys.current = [...keys.current, slabKey()];
+    onChange(draftFromRows([...rows, { from: '', amount: '' }]));
+  };
+  return (
+    <div className="space-y-2" role="group" aria-label={label} aria-describedby={describedBy}>
+      <div className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2 text-xs text-text-subtle">
+        <span>Monthly salary from (₹)</span>
+        <span>to (₹, until the next slab)</span>
+        <span>Amount a month (₹)</span>
+        <span className="w-16" />
+      </div>
+      {keyed.map(({ row: r, key }, i) => {
+        const next = rows[i + 1];
+        const to = next === undefined ? 'and above' : /^\d+$/.test(next.from) ? String(Number(next.from) - 1) : '…';
+        return (
+          <div key={key} className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2">
+            <Input aria-label={`Slab ${i + 1} from`} aria-invalid={invalid ? true : undefined} inputMode="numeric" value={r.from} disabled={disabled} onChange={(e) => edit(i, { from: e.target.value })} className="tabular-nums" />
+            <span className="px-2 text-sm text-text-muted tabular-nums">{to}</span>
+            <Input aria-label={`Slab ${i + 1} amount`} aria-invalid={invalid ? true : undefined} inputMode="numeric" value={r.amount} disabled={disabled} onChange={(e) => edit(i, { amount: e.target.value })} className="tabular-nums" />
+            <Button type="button" variant="ghost" size="sm" disabled={disabled || rows.length <= 1} aria-label={`Remove slab ${i + 1}`} onClick={() => remove(i)}>
+              Remove
+            </Button>
+          </div>
+        );
+      })}
+      <Button type="button" variant="secondary" size="sm" disabled={disabled || rows.length >= 20} onClick={add}>
+        Add slab
+      </Button>
+    </div>
+  );
 }

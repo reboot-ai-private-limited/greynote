@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { activeGroupOf, canOpen, isActiveItem, isRouteBuilt, NAV_ITEMS, navFor, navGroupsFor, parseOpenGroups, toggleGroup, withGroupOpen } from './nav-items';
 
 describe('navFor', () => {
@@ -275,7 +276,7 @@ describe('canOpen', () => {
 });
 
 describe('every screen has an owner', () => {
-  const appDir = join(__dirname, '../../app/(panel)');
+  const appDir = fileURLToPath(new URL('../../app/(panel)', import.meta.url));
   const routes: string[] = [];
   const walk = (dir: string, path: string) => {
     for (const name of readdirSync(dir)) {

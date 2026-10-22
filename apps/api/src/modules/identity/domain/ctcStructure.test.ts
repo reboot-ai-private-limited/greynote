@@ -1,4 +1,4 @@
-import { DEFAULT_PTAX_SLABS, parseSlabs } from '@greynote/contracts';
+import { DEFAULT_PTAX_SLABS, parseSlabs, type Slab } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   applyStructure,
@@ -11,7 +11,7 @@ import type { PayComponent } from './payComponent.entity.js';
 
 const RUPEE = 100;
 const CTC = 144_000 * RUPEE;
-const CTX = { esiCeilingPaise: 21_000 * RUPEE, ptaxSlabs: (parseSlabs(DEFAULT_PTAX_SLABS) as { ok: true; slabs: import('@greynote/contracts').Slab[] }).slabs };
+const CTX = { esiCeilingPaise: 21_000 * RUPEE, ptaxSlabs: (parseSlabs(DEFAULT_PTAX_SLABS) as { ok: true; slabs: Slab[] }).slabs };
 const compute = (o: PayComponent[], ctc: number, s: CtcStructure = EMPTY_STRUCTURE, overrides: Record<string, number> = {}) => computeStructuredBreakdown(o, ctc, s, overrides, CTX);
 const org: PayComponent[] = DEFAULT_PAY_COMPONENTS.map((c, i) => ({ ...c, id: `c${i}` }));
 const structure = (over: Partial<CtcStructure>): CtcStructure => ({ ...EMPTY_STRUCTURE, ...over });

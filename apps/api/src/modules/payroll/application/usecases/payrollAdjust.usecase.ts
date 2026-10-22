@@ -5,7 +5,7 @@ import { PAYROLL_CODES, PayrollRefusal } from '../../domain/payrollRefusal.js';
 import type { PayrollAdjustment, PayrollRun } from '../../domain/payrollRun.entity.js';
 import type { IdentityPort } from '../../domain/ports.js';
 import { adjustmentEffects, dayAdjustmentPaise } from '../payrollCalc.js';
-import { PayrollClock, type Actor } from './payroll.usecase.js';
+import type { Actor, PayrollClock } from './payroll.usecase.js';
 
 /** The days that can be re-charged: a day that was a working day for the employee. A holiday or a day off cannot be charged. */
 const CHARGEABLE_STATUSES = new Set(['PRESENT', 'ABSENT', 'LEAVE', 'STRIKE', 'UNKNOWN']);

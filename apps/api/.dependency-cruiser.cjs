@@ -180,6 +180,16 @@ module.exports = {
             to: { path: '^src/modules/' },
         },
 
+        {
+            name: 'scripts-are-entry-points',
+            comment:
+                'src/scripts/ holds standalone processes (seeds, migrations, reports) that may build containers and read ' +
+                "a module's schemas directly. Nothing the app runs may import one, or a script's shortcut would become the app's.",
+            severity: 'error',
+            from: { path: '^src/(modules|shared)/' },
+            to: { path: '^src/scripts/' },
+        },
+
         ...layeringRules,
     ],
 };

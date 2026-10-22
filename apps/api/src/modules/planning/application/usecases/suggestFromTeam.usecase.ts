@@ -6,8 +6,8 @@ import type { ApprovalsPort, PlanApprovalStatus } from '../../domain/approvals.p
 import { isFieldDay } from '../../domain/plan.js';
 import type { CarryOver } from '../carryOver.js';
 import type { ManagerScope } from '../managerScope.js';
+import { assertInDownline } from '../assertInDownline.js';
 import { planStatus } from '../planViews.js';
-import { assertInDownline } from './setDailyPlan.usecase.js';
 
 export interface TeamSuggestionPerson {
   userId: string;

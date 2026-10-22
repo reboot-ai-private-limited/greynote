@@ -7,6 +7,7 @@ const filled = () => ({
   outletId: 'd1',
   lines: [
     {
+      key: 'k1',
       productId: 'p1',
       quantity: '3',
       price: '12.50',
@@ -15,6 +16,7 @@ const filled = () => ({
       discValue: '',
     },
     {
+      key: 'k2',
       productId: 'p2',
       quantity: '10',
       price: '0.99',
@@ -35,6 +37,7 @@ describe('order form', () => {
   it('works out each line and the total in paise', () => {
     expect(
       lineAmountPaise({
+        key: 'k3',
         productId: 'p1',
         quantity: '3',
         price: '12.50',
@@ -45,6 +48,7 @@ describe('order form', () => {
     ).toBe(3750);
     expect(
       lineAmountPaise({
+        key: 'k4',
         productId: 'p1',
         quantity: 'x',
         price: '12.50',
@@ -78,8 +82,8 @@ describe('order form', () => {
       ...emptyOrder('2026-10-14'),
       orderDate: '2026-10-15',
       lines: [
-        { productId: 'p1', quantity: '0', price: '1', free: '', discKind: '' as const, discValue: '' },
-        { productId: 'p1', quantity: '1', price: 'x', free: '', discKind: '' as const, discValue: '' },
+        { key: 'k5', productId: 'p1', quantity: '0', price: '1', free: '', discKind: '' as const, discValue: '' },
+        { key: 'k6', productId: 'p1', quantity: '1', price: 'x', free: '', discKind: '' as const, discValue: '' },
       ],
     };
     const r = buildNewOrder(bad, '2026-10-14');
@@ -89,7 +93,7 @@ describe('order form', () => {
 
   it('builds an edit from the lines and remarks, and starts from the order as it stands', () => {
     const lines = linesOf([{ productId: 'p1', quantity: 2, unitPricePaise: 1000 }]);
-    expect(lines).toEqual([{ productId: 'p1', quantity: '2', price: '10.00', free: '', discKind: '', discValue: '' }]);
+    expect(lines).toEqual([{ key: expect.any(String), productId: 'p1', quantity: '2', price: '10.00', free: '', discKind: '', discValue: '' }]);
     expect(buildEdit({ remarks: '  fixed ', lines, discKind: '', discValue: '' })).toEqual({
       ok: true,
       body: {
@@ -138,6 +142,7 @@ describe('order form', () => {
   it('works out line and order discounts the way the server does, and builds them into the body', () => {
     const lines = [
       {
+        key: 'k7',
         productId: 'p1',
         quantity: '10',
         price: '100',
@@ -146,6 +151,7 @@ describe('order form', () => {
         discValue: '10',
       },
       {
+        key: 'k8',
         productId: 'p2',
         quantity: '5',
         price: '100',

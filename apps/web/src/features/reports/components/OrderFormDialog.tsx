@@ -130,7 +130,7 @@ function LinesEditor({
         <span className="w-9" />
       </div>
       {draft.lines.map((l, i) => (
-        <div key={i} className="space-y-1">
+        <div key={l.key} className="space-y-1">
           <div className="grid grid-cols-[minmax(0,1fr)_5rem_6rem_4.5rem_auto] items-center gap-2">
             <Select aria-label={`Product ${i + 1}`} value={l.productId} onValueChange={(v) => pick(i, v)} options={options} placeholder="Product" />
             <Input

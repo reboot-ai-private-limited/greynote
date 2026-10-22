@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import mongoose from 'mongoose';
+import type mongoose from 'mongoose';
 import { logger } from '@/shared/logging/logger.js';
 import { DoctorAssignmentModel } from '@/modules/field-master-data/infrastructure/doctorAssignment.schema.js';
 import { DoctorModel } from '@/modules/field-master-data/infrastructure/doctor.schema.js';

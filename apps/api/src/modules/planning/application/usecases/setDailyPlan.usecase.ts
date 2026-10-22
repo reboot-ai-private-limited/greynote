@@ -5,6 +5,7 @@ import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.
 import { isFieldDay, sameDay, type PlanDay, type PlanSource, type WorkingType } from '../../domain/plan.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { assertEditable } from '../assertEditable.js';
+import { assertInDownline } from '../assertInDownline.js';
 import type { CarryOver } from '../carryOver.js';
 import type { ManagerScope } from '../managerScope.js';
 import type { PlanSubmitter } from '../planSubmitter.js';
@@ -15,16 +16,6 @@ export interface DayInput {
   workingType: WorkingType;
   workWith: string[];
   doctorIds: string[];
-}
-
-/** Everyone below the manager at any depth, active, is a possible `workWith` — checked against today's team. */
-export async function assertInDownline(users: UserDirectoryPort, managerId: string, ids: string[], field: string): Promise<void> {
-  if (ids.length === 0) return;
-  const below = new Set((await users.getDownline(managerId)).filter((u) => u.status === 'active').map((u) => u.id));
-  const outside = ids.filter((id) => !below.has(id));
-  if (outside.length > 0) {
-    throw AppError.badRequest('You can only work with active people in your team.', { field, userIds: outside });
-  }
 }
 
 const bodyOf = (p: PlanDay): PlanDay => ({ workingType: p.workingType, dayKind: p.dayKind, workWith: p.workWith, routeIds: p.routeIds, remarks: p.remarks });

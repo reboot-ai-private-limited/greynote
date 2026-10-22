@@ -70,11 +70,15 @@ export default [
      * "a worker process, a script" case) — it builds the same containers `container.ts` does,
      * just to run their seed methods instead of serving HTTP.
      *
+     * Every other `src/scripts/` file is the same kind of standalone process (seeds, migrations, one-off reports), and a
+     * migration has to read a module's raw collection through its schema. Nothing in `src/modules/` or `src/shared/` may
+     * import a script (dependency-cruiser's `scripts-are-entry-points`), so the exemption cannot leak into the app.
+     *
      * `src/routes.ts` is deliberately NOT exempted: it only mounts routers it's handed and
      * needs no module internals, so the boundary rule keeps watching the file most likely
      * to grow a shortcut.
      */
-    files: ['src/container.ts', 'src/app.ts', 'src/server.ts', 'src/worker.ts', 'src/scripts/seed.ts'],
+    files: ['src/container.ts', 'src/app.ts', 'src/server.ts', 'src/worker.ts', 'src/scripts/**/*.ts'],
     rules: { 'no-restricted-imports': 'off' },
   },
 ];
