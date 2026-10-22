@@ -123,6 +123,12 @@ describe('Doctor Gifts', () => {
     expect(await gift()).toMatchObject({ status: 'PENDING', doctorId: 'd1', allocatedBy: 'admin', completedBy: null });
   });
 
+  it('refuses a gift for an unknown doctor, and for an inactive or deleted one (history only)', async () => {
+    kit.fmd.doctors.set('d1', { id: 'd1', name: 'Dr Rao', status: 'inactive', routeId: 'route-1' });
+    await expect(gift()).rejects.toMatchObject({ statusCode: 409 });
+    await expect(kit.allocateGift.execute('admin', { doctorId: 'nope', productName: 'Lamp', amountPaise: 100 })).rejects.toMatchObject({ statusCode: 404 });
+  });
+
   it('the assigned MR marks it DONE with who and when; a second time, even by the same MR, is GIFT_ALREADY_DONE', async () => {
     const g = await gift();
     const tx = new Tx();

@@ -1,6 +1,6 @@
 'use client';
 
-import type { CreateDoctorDto, DoctorDto, IssueSampleDto, SampleAllocationDto, UpdateDoctorDto } from '@greynote/contracts';
+import type { CreateDoctorDto, DoctorDeleteResultDto, DoctorDto, IssueSampleDto, SampleAllocationDto, UpdateDoctorDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { doctorsApi, type ListDoctorsQuery } from '@/lib/api/endpoints/fieldMasterData';
 import { authedQueryOptions } from '@/lib/query/factory';
@@ -43,6 +43,27 @@ export function useUpdateDoctor(onDone?: (doctor: DoctorDto) => void) {
     invalidates: [keys.doctors.all()],
     successMessage: 'Doctor updated.',
     ...(onDone && { onSuccess: onDone }),
+  });
+}
+
+/** What deactivating or deleting a doctor touches; read only while the dialog is open (`id` set), and always fresh. */
+export function useDoctorImpact(id: string | null) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.doctors.impact(id ?? ''),
+      fetch: (token, signal) => doctorsApi.impact(token, id ?? '', signal),
+      staleTime: 0,
+      enabled: id !== null,
+    }),
+  );
+}
+
+export function useDeleteDoctor(onDone: (result: DoctorDeleteResultDto) => void) {
+  return useApiMutation<string, DoctorDeleteResultDto>({
+    call: (token, id) => doctorsApi.remove(token, id),
+    invalidates: [keys.doctors.all()],
+    successMessage: 'Doctor deleted.',
+    onSuccess: onDone,
   });
 }
 

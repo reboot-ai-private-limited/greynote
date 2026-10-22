@@ -41,6 +41,18 @@ export class MongoDailyPlanAdapter implements DailyPlanRepositoryPort {
     return docs.map(toPlan);
   }
 
+  async listWithDoctor(doctorId: string, fromDate: string, userId: string | null): Promise<DailyPlan[]> {
+    if (!Types.ObjectId.isValid(doctorId)) return [];
+    const docs = await DailyPlanModel.find({
+      'doctors.doctorId': new Types.ObjectId(doctorId),
+      planDate: { $gte: fromDate },
+      ...(userId && { userId: new Types.ObjectId(userId) }),
+    })
+      .sort({ planDate: 1 })
+      .lean();
+    return docs.map(toPlan);
+  }
+
   async save(userId: string, planDate: string, day: PlanDay, expectedRevision: number | null): Promise<DailyPlan | null> {
     const body = { ...toDayDoc(day), updatedAt: new Date() };
     if (expectedRevision === null) {

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import type { Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
-import { RowActions } from '@/components/ui/RowActions';
+import { RowActions, RowMenu } from '@/components/ui/RowActions';
 import { Select } from '@/components/ui/Select';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
@@ -16,7 +16,8 @@ import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDoctors, useUpdateDoctor } from '../hooks/useDoctors';
-import { DOCTOR_STATUS_LABEL, DOCTOR_STATUS_TONE, canToggleStatus } from '../lib/doctors';
+import { DOCTOR_STATUS_LABEL, DOCTOR_STATUS_TONE, canToggleStatus, pendingApprovalHref } from '../lib/doctors';
+import { RetireDoctorDialog } from './RetireDoctorDialog';
 import { RouteFilter } from './RoutePickerField';
 
 const ANY = 'all';
@@ -33,7 +34,9 @@ export function DoctorsScreen() {
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
+  // Reactivating is a plain confirm; deactivating and deleting first show what they touch.
   const [toggling, setToggling] = useState<DoctorDto | null>(null);
+  const [retiring, setRetiring] = useState<{ action: 'deactivate' | 'delete'; doctor: DoctorDto } | null>(null);
   const updateDoctor = useUpdateDoctor(() => setToggling(null));
 
   const doctors = useDoctors({
@@ -86,15 +89,26 @@ export function DoctorsScreen() {
       header: '',
       className: 'w-12 text-right',
       render: (d) =>
-        canToggleStatus(d.status) ? (
+        !canToggleStatus(d.status) ? (
+          // Waiting for approval: the approval decides whether it exists, so no deactivate or delete here.
+          <RowMenu
+            label={d.name}
+            disabled={readOnly}
+            items={[
+              { label: 'Review details', onSelect: () => router.push(`/doctors/${d.id}`) },
+              { label: 'Approve or reject', onSelect: () => router.push(pendingApprovalHref(d)) },
+            ]}
+          />
+        ) : (
           <RowActions
             label={d.name}
             status={d.status === 'active' ? 'active' : 'inactive'}
             disabled={readOnly}
             onEdit={() => router.push(`/doctors/${d.id}`)}
-            onToggleStatus={() => setToggling(d)}
+            onToggleStatus={() => (d.status === 'active' ? setRetiring({ action: 'deactivate', doctor: d }) : setToggling(d))}
+            onDelete={() => setRetiring({ action: 'delete', doctor: d })}
           />
-        ) : null,
+        ),
     },
   ];
 
@@ -128,6 +142,7 @@ export function DoctorsScreen() {
         onClose={() => setToggling(null)}
         onConfirm={(status) => toggling && updateDoctor.mutate({ id: toggling.id, body: { status } })}
       />
+      {retiring ? <RetireDoctorDialog action={retiring.action} doctor={retiring.doctor} onClose={() => setRetiring(null)} /> : null}
     </PagedListFrame>
   );
 }

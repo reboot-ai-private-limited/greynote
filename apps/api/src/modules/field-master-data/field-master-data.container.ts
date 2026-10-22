@@ -12,6 +12,9 @@ import { ReviewPendingDoctorUseCase } from './application/usecases/reviewPending
 import { makeDoctorApprovalHandler, NEW_DOCTOR_KIND } from './application/doctorApproval.js';
 import { DoctorVisibility } from './application/doctorVisibility.js';
 import { DoctorViews } from './application/doctorViews.js';
+import { DoctorRetirement } from './application/doctorRetirement.js';
+import type { DoctorReferencesPort } from './domain/doctorRetirement.js';
+import { MongoDoctorArchiveAdapter } from './infrastructure/mongoDoctorArchive.adapter.js';
 import { AddedDoctors } from './application/usecases/addedDoctors.js';
 import { AdjustSampleAllocationUseCase } from './application/usecases/adjustSampleAllocation.usecase.js';
 import { AssignDoctorUseCase } from './application/usecases/assignDoctor.usecase.js';
@@ -57,6 +60,11 @@ import { buildFieldMasterDataRouter } from './interface/field-master-data.route.
 export interface FieldMasterDataContainer {
   contract: FieldMasterDataPublicContract;
   buildRouter: () => Router;
+  /**
+   * Planning, Field Activity and Marketing hold records that point at doctors and are built after this module: what a doctor's
+   * deactivate or delete touches is counted, and its editable plans cleaned, through them once they exist.
+   */
+  bindDoctorReferences(references: DoctorReferencesPort): void;
 }
 
 /** Identity's, Territory's, Approval's, Sync's and Config's public contracts, passed in by the composition root. */
@@ -109,7 +117,7 @@ export function buildFieldMasterDataContainer(
   };
 
   const visibility = new DoctorVisibility(assignments, territory, users, config);
-  const views = new DoctorViews(assignments, users);
+  const views = new DoctorViews(assignments, users, approvals);
   // The same add-Doctor logic, for a Doctor the MR added offline: it arrives in the daily report's push
   // (sync kind NEW_DOCTOR) and is created inside the sync engine's transaction.
   const addedDoctors = new AddedDoctors(doctors, territory, approvals, transactions, views, specialtyCatalog);
@@ -117,7 +125,8 @@ export function buildFieldMasterDataContainer(
   // …and what the phone caches of this module, as one snapshot of what the caller may see.
   sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, products, specialties, distributors, allocations: sampleAllocations, visibility, territory }));
 
-  const updateDoctor = new UpdateDoctorUseCase(doctors, assignments, territory, views, specialtyCatalog);
+  const retirement = new DoctorRetirement(doctors, assignments, sampleAllocations, new MongoDoctorArchiveAdapter(), users, transactions);
+  const updateDoctor = new UpdateDoctorUseCase(doctors, assignments, territory, views, specialtyCatalog, transactions, retirement);
   const doctorUseCases = {
     list: new ListDoctorsUseCase(doctors, views),
     create: new CreateDoctorUseCase(doctors, territory, views, specialtyCatalog),
@@ -127,8 +136,9 @@ export function buildFieldMasterDataContainer(
     updateTargets: new UpdateDoctorTargetsUseCase(doctors, visibility, views),
     assigned: new ListAssignedDoctorsUseCase(doctors, visibility, users, views),
     listAssignments: new ListDoctorAssignmentsUseCase(doctors, assignments),
-    assign: new AssignDoctorUseCase(doctors, assignments, users, territory, transactions),
-    unassign: new UnassignDoctorUseCase(assignments),
+    assign: new AssignDoctorUseCase(doctors, assignments, users, territory, transactions, retirement),
+    unassign: new UnassignDoctorUseCase(assignments, retirement),
+    retirement,
     addedDoctors,
     listSamples: new ListSampleAllocationsUseCase(sampleAllocations, doctors, products, visibility),
     issueSample: new IssueSampleAllocationUseCase(sampleAllocations, doctors, products),
@@ -158,8 +168,9 @@ export function buildFieldMasterDataContainer(
         const doctor = await doctors.findById(id);
         return doctor && doctor.status !== 'pending' ? doctor.location : null;
       },
+      // A deleted doctor still answers, from the archive, as `inactive`: history keeps its name and new writes refuse it.
       getDoctor: async (id) => {
-        const doctor = await doctors.findById(id);
+        const doctor = await retirement.findIncludingDeleted(id);
         return doctor && doctor.status !== 'pending' ? doctor : null;
       },
       isAssignedToDoctor: async (userId, doctorId) => {
@@ -213,6 +224,7 @@ export function buildFieldMasterDataContainer(
       getProduct: (id) => products.findById(id),
       listActiveProducts: () => products.listActive(),
     },
+    bindDoctorReferences: (references) => retirement.bind(references),
     buildRouter: () =>
       buildFieldMasterDataRouter({
         products: makeProductControllers(productUseCases),

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -13,11 +14,12 @@ import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDi
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDoctor, useUpdateDoctor } from '../hooks/useDoctors';
-import { DOCTOR_STATUS_LABEL, DOCTOR_STATUS_TONE, canToggleStatus, locationWasCorrected } from '../lib/doctors';
+import { DOCTOR_STATUS_LABEL, DOCTOR_STATUS_TONE, canToggleStatus, locationWasCorrected, pendingApprovalHref } from '../lib/doctors';
 import { DoctorAssignmentsTab } from './DoctorAssignmentsTab';
 import { DoctorDetailsForm } from './DoctorDetailsForm';
 import { DoctorVisitsTab } from './DoctorVisitsTab';
 import { DoctorSamplesTab } from './DoctorSamplesTab';
+import { RetireDoctorDialog } from './RetireDoctorDialog';
 import { DoctorVisualsTab } from '@/features/marketing/components/DoctorVisualsTab';
 
 /** `/doctors/new` (no id) and `/doctors/[id]`. */
@@ -59,8 +61,10 @@ export function DoctorScreen({ id }: { id?: string }) {
 function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoctor>['data']> }) {
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
-  const [toggling, setToggling] = useState(false);
-  const toggle = useUpdateDoctor(() => setToggling(false));
+  const router = useRouter();
+  const [reactivating, setReactivating] = useState(false);
+  const [retiring, setRetiring] = useState<'deactivate' | 'delete' | null>(null);
+  const toggle = useUpdateDoctor(() => setReactivating(false));
 
   return (
     <>
@@ -71,9 +75,14 @@ function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoc
           <div className="flex items-center gap-2">
             <Badge tone={DOCTOR_STATUS_TONE[doctor.status]}>{DOCTOR_STATUS_LABEL[doctor.status]}</Badge>
             {canToggleStatus(doctor.status) ? (
-              <Button variant="secondary" disabled={readOnly} onClick={() => setToggling(true)}>
-                {doctor.status === 'active' ? 'Deactivate' : 'Reactivate'}
-              </Button>
+              <>
+                <Button variant="secondary" disabled={readOnly} onClick={() => (doctor.status === 'active' ? setRetiring('deactivate') : setReactivating(true))}>
+                  {doctor.status === 'active' ? 'Deactivate' : 'Reactivate'}
+                </Button>
+                <Button variant="danger" disabled={readOnly} onClick={() => setRetiring('delete')}>
+                  Delete
+                </Button>
+              </>
             ) : null}
           </div>
         }
@@ -84,8 +93,8 @@ function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoc
           <p className="mt-1">
             Nobody can visit it or give it samples until it is approved. Check the location below against the grey pin (where the phone was),
             correct it if needed, then approve or reject it from the{' '}
-            <Link href="/approvals?kind=NEW_DOCTOR" className="font-medium underline">
-              Approvals queue
+            <Link href={pendingApprovalHref(doctor)} className="font-medium underline">
+              {doctor.approvalRequestId ? 'its approval request' : 'Approvals queue'}
             </Link>
             .
           </p>
@@ -93,7 +102,7 @@ function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoc
       ) : null}
       {doctor.status === 'inactive' ? (
         <p role="status" className="mb-6 rounded-lg border border-border bg-surface-subtle p-4 text-sm text-text-muted">
-          This doctor is inactive. Reactivate it to change it.
+          This doctor is inactive: nobody visits it and it has no MR. Its details can still be corrected; reactivate it to assign an MR again.
         </p>
       ) : null}
       {locationWasCorrected(doctor) ? (
@@ -124,14 +133,17 @@ function DoctorDetail({ doctor }: { doctor: NonNullable<ReturnType<typeof useDoc
           <DoctorVisualsTab doctorId={doctor.id} />
         </TabsContent>
       </Tabs>
-      {canToggleStatus(doctor.status) ? (
+      {doctor.status === 'inactive' ? (
         <StatusToggleDialog
-          item={toggling ? { id: doctor.id, name: doctor.name, status: doctor.status === 'active' ? 'active' : 'inactive' } : null}
+          item={reactivating ? { id: doctor.id, name: doctor.name, status: 'inactive' } : null}
           noun="doctor"
           pending={toggle.isPending}
-          onClose={() => setToggling(false)}
+          onClose={() => setReactivating(false)}
           onConfirm={(status) => toggle.mutate({ id: doctor.id, body: { status } })}
         />
+      ) : null}
+      {retiring ? (
+        <RetireDoctorDialog action={retiring} doctor={doctor} onClose={() => setRetiring(null)} onDeleted={() => router.push('/doctors')} />
       ) : null}
     </>
   );

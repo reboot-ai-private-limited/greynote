@@ -6,7 +6,7 @@ import { AdjustSampleAllocationUseCase } from './adjustSampleAllocation.usecase.
 import { AssignDoctorUseCase } from './assignDoctor.usecase.js';
 import { CreateDoctorUseCase } from './createDoctor.usecase.js';
 import { CreateProductUseCase } from './createProduct.usecase.js';
-import { FakeAssignments, FakeConfig, FakeDoctors, FakeProducts, FakeSampleAllocations, FakeTerritory, FakeTransactions, FakeUsers, FakeSpecialties } from './fmdTestKit.js';
+import { FakeAssignments, FakeConfig, FakeDoctors, FakeProducts, FakeSampleAllocations, FakeTerritory, FakeTransactions, FakeUsers, FakeSpecialties, retirementKit } from './fmdTestKit.js';
 import { IssueSampleAllocationUseCase } from './issueSampleAllocation.usecase.js';
 import { ListSampleAllocationsUseCase } from './listSampleAllocations.usecase.js';
 import { UpdateProductUseCase } from './updateProduct.usecase.js';
@@ -106,7 +106,7 @@ describe('Doctor sample allocations', () => {
   it('who may see a Doctor’s samples: Admin, the assigned MR, their manager — a 404 to anyone else', async () => {
     await run(10);
     const visibility = new DoctorVisibility(assignments, territory, users, new FakeConfig());
-    await new AssignDoctorUseCase(doctors, assignments, users, territory, new FakeTransactions()).execute(doctorId, 'mr1', 'admin');
+    await new AssignDoctorUseCase(doctors, assignments, users, territory, new FakeTransactions(), retirementKit(doctors, assignments, users).retirement).execute(doctorId, 'mr1', 'admin');
     const list = new ListSampleAllocationsUseCase(allocations, doctors, products, visibility);
     for (const actor of [admin, field('mr1'), field('asm')]) {
       expect(await list.execute(actor, doctorId)).toMatchObject([{ productName: 'Cough Syrup', productSku: 'CS-1', quantityRemaining: 10 }]);

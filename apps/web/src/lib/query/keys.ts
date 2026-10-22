@@ -180,6 +180,7 @@ export const keys = {
     detail: (id: string) => [...keys.doctors.all(), 'detail', id] as const,
     assignments: (id: string) => [...keys.doctors.all(), 'assignments', id] as const,
     samples: (id: string) => [...keys.doctors.all(), 'samples', id] as const,
+    impact: (id: string) => [...keys.doctors.all(), 'impact', id] as const,
   },
   visuals: {
     all: () => ['visuals', fy()] as const,

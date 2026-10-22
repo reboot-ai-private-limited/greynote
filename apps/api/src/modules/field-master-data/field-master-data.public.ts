@@ -29,7 +29,10 @@ export interface FieldMasterDataPublicContract {
    * Doctor, still `pending` approval, or no registered location), never that it passed.
    */
   getDoctorLocation(doctorId: string): Promise<GeoPoint | null>;
-  /** `null` for an unknown Doctor and for one still `pending` approval — it doesn't exist yet for other modules. */
+  /**
+   * `null` for an unknown Doctor and for one still `pending` approval — it doesn't exist yet for other modules. A permanently
+   * deleted Doctor answers from the archive as `inactive`, so history still has its name.
+   */
   getDoctor(doctorId: string): Promise<Doctor | null>;
   /**
    * Whether this MR is the Doctor's assigned MR **and** can currently see it — the Doctor is active

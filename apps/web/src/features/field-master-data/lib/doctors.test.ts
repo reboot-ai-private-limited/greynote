@@ -1,14 +1,6 @@
 import type { DoctorDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import {
-  EMPTY_DOCTOR,
-  buildDoctor,
-  buildDoctorUpdate,
-  doctorStepErrors,
-  canToggleStatus,
-  doctorToDraft,
-  locationWasCorrected,
-} from './doctors';
+import { EMPTY_DOCTOR, buildDoctor, buildDoctorUpdate, canToggleStatus, doctorImpactLines, doctorStepErrors, doctorToDraft, locationWasCorrected, pendingApprovalHref } from './doctors';
 
 const doctor: DoctorDto = {
   id: 'd1',
@@ -28,6 +20,7 @@ const doctor: DoctorDto = {
   clientRequestId: null,
   approvedAt: null,
   assignedTo: null,
+  approvalRequestId: null,
 };
 const filled = doctorToDraft(doctor);
 
@@ -147,3 +140,34 @@ describe('clinic name and phone', () => {
     expect(buildDoctor({ ...filled, phone: '123' })).toMatchObject({ ok: false });
   });
 });
+
+describe('doctorImpactLines', () => {
+  const none = { id: 'd1', name: 'Dr Rao', status: 'active' as const, assignedTo: null, plannedDays: { editable: 0, locked: 0 }, calls: 0, openGifts: 0, openServices: 0, sampleAllocations: 0, samplesRemaining: 0, visuals: 0 };
+  it('says nothing for an unused doctor, apart from the delete itself', () => {
+    expect(doctorImpactLines(none, 'deactivate')).toEqual({ changes: [], open: [], history: [] });
+    expect(doctorImpactLines(none, 'delete').changes).toEqual(['The doctor is removed for good and kept only in the archive']);
+  });
+  it('names the MR, the plans, what stays open and the history', () => {
+    const lines = doctorImpactLines(
+      { ...none, assignedTo: { userId: 'u1', name: 'Asha Rao', employeeCode: 'GHC001' }, plannedDays: { editable: 3, locked: 1 }, calls: 1, openGifts: 2, openServices: 1, sampleAllocations: 2, samplesRemaining: 9, visuals: 1 },
+      'deactivate',
+    );
+    expect(lines.changes).toEqual(['Asha Rao (GHC001) loses this doctor: the assignment ends', 'It is taken off 3 plans from today that are not submitted yet']);
+    expect(lines.open).toEqual([
+      '1 submitted or approved plan from today keeps it, but it can’t be called',
+      '2 gifts not handed over yet',
+      '1 service not done yet',
+      '9 sample units left on 2 allocations',
+      '1 visual picked for it',
+    ]);
+    expect(lines.history).toEqual(['1 past call keeps showing it']);
+  });
+});
+
+describe('pendingApprovalHref', () => {
+  it('opens the doctor’s own request, else the NEW_DOCTOR queue', () => {
+    expect(pendingApprovalHref({ approvalRequestId: 'r1' })).toBe('/approvals/r1');
+    expect(pendingApprovalHref({ approvalRequestId: null })).toBe('/approvals?kind=NEW_DOCTOR');
+  });
+});
+

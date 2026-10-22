@@ -25,6 +25,18 @@ Errors worth a message: `400` on `routeId` — "That route isn't one of yours.";
 
 Each entry of `doctors` (active, assigned to me) now also has `clinicName` and `phone` (both `null` when not set), next to `email`, `dateOfBirth`, `anniversary` and `visitFrequency`. `pendingDoctors` is unchanged. Show clinic name and phone on the doctor card; the phone number may be tappable to call.
 
+## 2a. When Admin deactivates, deletes or moves a doctor (2026-10-22)
+
+Admin does this on the web only; the phone never edits, deactivates or deletes a doctor (an employee still corrects only their own rejected added doctor, rule 8). What the phone sees:
+
+| # | What happens | What the phone should do | Status |
+|---|---|---|---|
+| D1 | **Deactivated, deleted, unassigned from me, or given to another MR:** the doctor drops out of `GET /doctors/mine` and the snapshot's `doctors` at the next sync. | Remove it from the doctor list and pickers after the next sync; don't keep it from an old cache. | ✅ |
+| D2 | **My Daily Plans from today that I can still change** (draft, rejected, withdrawn, reopened) **lose the doctor**; the server takes it off. Submitted or approved plans keep it. | Re-read the plan after a sync; don't re-send a doctor list containing it (a save or submit with it is refused: `400` on `doctorIds`). | ✅ |
+| D3 | **A call on it is refused**, also one recorded offline and pushed later: the record comes back refused with the existing `doctorNotFound` reason ("This doctor isn't on the list any more"). The same for a gift, a service or a sample on it. | Show the reason on the queued record; the employee discards it. | ✅ (existing behaviour) |
+| D4 | **History keeps the name.** Past calls, DCRs, gifts, services and reports still show the doctor's name, even after a delete. | Nothing to do; never hide a past record because its doctor is gone. | ✅ |
+| D5 | A doctor **reactivated** by Admin comes back only once Admin assigns it to an MR again. | Nothing to do. | ✅ |
+
 ## 3. Missed calls (current month)
 
 `GET /reports/doctor-visits?month=YYYY-MM&userId=<self>` — the employee reads only themself; a manager reads themself and their downline.

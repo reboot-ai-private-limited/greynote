@@ -21,6 +21,8 @@ import type { ProductFilter, ProductRepositoryPort } from '../../domain/product.
 import type { Specialty } from '../../domain/specialty.entity.js';
 import type { SpecialtyFilter, SpecialtyRepositoryPort } from '../../domain/specialty.repository.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
+import { NO_DOCTOR_REFERENCES, type DoctorArchivePort, type DoctorReferences, type DoctorReferencesPort } from '../../domain/doctorRetirement.js';
+import { DoctorRetirement } from '../doctorRetirement.js';
 
 /** In-memory fakes for Field Master Data's use-case tests — no Mongo, no other module's internals. */
 
@@ -447,3 +449,43 @@ export class FakeSampleAllocations implements SampleAllocationRepositoryPort {
     return true;
   }
 }
+
+/** The archive: a deleted doctor leaves `FakeDoctors` (and its assignments) and is kept here. */
+export class FakeDoctorArchive implements DoctorArchivePort {
+  rows = new Map<string, { doctor: Doctor; lastAssignedUserId: string | null; deletedBy: string }>();
+  constructor(
+    private readonly doctors: FakeDoctors,
+    private readonly assignments: FakeAssignments,
+  ) {}
+  async remove(doctor: Doctor, lastAssignedUserId: string | null, actorId: string) {
+    this.rows.set(doctor.id, { doctor: { ...doctor }, lastAssignedUserId, deletedBy: actorId });
+    this.assignments.rows = this.assignments.rows.filter((a) => a.doctorId !== doctor.id);
+    this.doctors.rows = this.doctors.rows.filter((d) => d.id !== doctor.id);
+  }
+  async findArchived(id: string) {
+    const row = this.rows.get(id);
+    return row ? { ...row.doctor, status: 'inactive' as const } : null;
+  }
+}
+
+/** Other modules' side of a doctor's retirement: counts the test sets, and every `release` it was asked for. */
+export class FakeDoctorReferences implements DoctorReferencesPort {
+  counts: DoctorReferences = NO_DOCTOR_REFERENCES;
+  released: Array<{ doctorId: string; userId: string | null }> = [];
+  async count() {
+    return this.counts;
+  }
+  async release(doctorId: string, userId: string | null) {
+    this.released.push({ doctorId, userId });
+    return 1;
+  }
+}
+
+export function retirementKit(doctors: FakeDoctors, assignments: FakeAssignments, users: UserDirectoryPort, allocations = new FakeSampleAllocations()) {
+  const archive = new FakeDoctorArchive(doctors, assignments);
+  const references = new FakeDoctorReferences();
+  const retirement = new DoctorRetirement(doctors, assignments, allocations, archive, users, new FakeTransactions());
+  retirement.bind(references);
+  return { retirement, archive, references, allocations };
+}
+

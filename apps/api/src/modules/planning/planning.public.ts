@@ -11,6 +11,13 @@ export type { PlanApprovalStatus } from './domain/approvals.port.js';
 export interface PlanningPublicContract {
   /** How many daily plans from this date on use any of these Routes: what a permanent route delete would leave pointing at nothing. */
   countPlannedDaysOnRoutes(routeIds: string[], fromDate: string): Promise<number>;
+  /** Daily Plans from today on that list this doctor: still editable by the employee, or submitted/approved. */
+  countPlansWithDoctor(doctorId: string): Promise<{ editable: number; locked: number }>;
+  /**
+   * Takes the doctor off the Daily Plans from today on that are still editable — one employee's (they lost the doctor) or everyone's
+   * (`null`: the doctor was deactivated or deleted). Submitted and approved plans keep it. Returns how many plans changed.
+   */
+  releaseDoctor(doctorId: string, userId: string | null): Promise<number>;
   /**
    * The DCR gate (HLD 10, sign-off B4): may this user log field activity on this date? True once
    * the day's Plan is past the manager — `MANAGER_APPROVED` or `APPROVED`. No Plan is never

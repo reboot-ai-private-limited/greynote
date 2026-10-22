@@ -1,9 +1,4 @@
-import type {
-  CreateDoctorDto,
-  DoctorDto,
-  DoctorStatus,
-  UpdateDoctorDto,
-} from '@greynote/contracts';
+import type { CreateDoctorDto, DoctorDto, DoctorImpactDto, DoctorStatus, UpdateDoctorDto } from '@greynote/contracts';
 import { istDate } from '@/lib/dates';
 import { fail, squash, type BuildResult } from '@/lib/forms';
 import type { BadgeTone } from '@/components/ui/Badge';
@@ -213,6 +208,10 @@ export function canToggleStatus(status: DoctorStatus): boolean {
   return status !== 'pending';
 }
 
+/** Where a pending doctor's approval is decided: its own request, or the NEW_DOCTOR queue if the request isn't known. */
+export const pendingApprovalHref = (d: Pick<DoctorDto, 'approvalRequestId'>): string =>
+  d.approvalRequestId ? `/approvals/${d.approvalRequestId}` : '/approvals?kind=NEW_DOCTOR';
+
 /** True for an MR-added Doctor whose phone point differs from the registered one: Admin has corrected it. */
 export function locationWasCorrected(d: Pick<DoctorDto, 'location' | 'capturedLocation'>): boolean {
   if (!d.location || !d.capturedLocation) return false;
@@ -221,3 +220,28 @@ export function locationWasCorrected(d: Pick<DoctorDto, 'location' | 'capturedLo
     d.location.longitude !== d.capturedLocation.longitude
   );
 }
+
+const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * The warning before a doctor is deactivated or deleted (decision-log 2026-10-22), in three groups; only what is not zero is shown.
+ * `changes`: what happens now. `open`: what stays and Admin may want to close. `history`: kept as it is.
+ */
+export function doctorImpactLines(impact: DoctorImpactDto, action: 'deactivate' | 'delete'): { changes: string[]; open: string[]; history: string[] } {
+  const { assignedTo, plannedDays } = impact;
+  const changes = [
+    assignedTo ? `${assignedTo.name}${assignedTo.employeeCode ? ` (${assignedTo.employeeCode})` : ''} loses this doctor: the assignment ends` : '',
+    plannedDays.editable > 0 ? `It is taken off ${count(plannedDays.editable, 'plan')} from today that ${plannedDays.editable === 1 ? 'is' : 'are'} not submitted yet` : '',
+    action === 'delete' ? 'The doctor is removed for good and kept only in the archive' : '',
+  ].filter(Boolean);
+  const open = [
+    plannedDays.locked > 0 ? `${count(plannedDays.locked, 'submitted or approved plan')} from today keep${plannedDays.locked === 1 ? 's' : ''} it, but it can’t be called` : '',
+    impact.openGifts > 0 ? `${count(impact.openGifts, 'gift')} not handed over yet` : '',
+    impact.openServices > 0 ? `${count(impact.openServices, 'service')} not done yet` : '',
+    impact.samplesRemaining > 0 ? `${count(impact.samplesRemaining, 'sample unit')} left on ${count(impact.sampleAllocations, 'allocation')}` : '',
+    impact.visuals > 0 ? `${count(impact.visuals, 'visual')} picked for it` : '',
+  ].filter(Boolean);
+  const history = [impact.calls > 0 ? `${count(impact.calls, 'past call')} keep${impact.calls === 1 ? 's' : ''} showing it` : ''].filter(Boolean);
+  return { changes, open, history };
+}
+

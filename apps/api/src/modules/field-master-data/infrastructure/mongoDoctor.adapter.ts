@@ -14,7 +14,7 @@ import { DoctorModel, type DoctorDoc } from './doctor.schema.js';
 import { DoctorAssignmentModel } from './doctorAssignment.schema.js';
 import { escapeRegex, isDuplicateKey } from './mongoHelpers.js';
 
-const toDoctor = (doc: DoctorDoc & { _id: unknown }): Doctor => ({
+export const toDoctor = (doc: DoctorDoc & { _id: unknown }): Doctor => ({
   id: String(doc._id),
   routeId: String(doc.routeId),
   name: doc.name,

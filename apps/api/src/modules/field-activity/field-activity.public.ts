@@ -42,6 +42,8 @@ export interface FieldActivityPublicContract {
   listCalledDoctorIds(userId: string, range: { from: string; to: string }): Promise<string[]>;
   /** Calls per Doctor in the reported days of a range (both ends inclusive), by any employee — the visit-frequency report's input. */
   countDoctorCalls(range: { from: string; to: string }): Promise<Array<{ doctorId: string; count: number }>>;
+  /** What points at one doctor here, for its deactivate/delete warning: calls ever made on it, gifts not handed over, services not done. */
+  countDoctorRecords(doctorId: string): Promise<{ calls: number; openGifts: number; openServices: number }>;
   /** The reports' input: this user's DCRs in the range, each with its status, counts and money. */
   getDcrSummary(userId: string, range: { from: string; to: string }): Promise<DcrSummary[]>;
 }

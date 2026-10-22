@@ -6,11 +6,13 @@ import type { DoctorAssignment } from '../../domain/doctorAssignment.entity.js';
 import type { DoctorAssignmentRepositoryPort } from '../../domain/doctorAssignment.repository.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
+import type { DoctorRetirement } from '../doctorRetirement.js';
 
 /**
  * Admin makes an MR responsible for a Doctor, replacing whoever was. The MR must be an active FIELD
  * employee who has the Doctor's Route (sign-off C3) — visibility follows the Route, so an
- * assignment without it would be invisible. Assigning the current MR again is a no-op.
+ * assignment without it would be invisible. Assigning the current MR again is a no-op. The MR replaced loses the doctor from
+ * their editable plans.
  */
 export class AssignDoctorUseCase {
   constructor(
@@ -19,6 +21,7 @@ export class AssignDoctorUseCase {
     private readonly users: UserDirectoryPort,
     private readonly territory: TerritoryPort,
     private readonly transactions: TransactionRunnerPort,
+    private readonly retirement: DoctorRetirement,
   ) {}
 
   async execute(doctorId: string, userId: string, adminId: string): Promise<DoctorAssignment> {
@@ -40,10 +43,12 @@ export class AssignDoctorUseCase {
     if (current?.userId === userId) return current;
 
     try {
-      return await this.transactions.run(async (ctx) => {
+      const assignment = await this.transactions.run(async (ctx) => {
         await this.assignments.endActive(doctorId, adminId, ctx);
         return this.assignments.create({ doctorId, userId, assignedBy: adminId }, ctx);
       });
+      if (current) await this.retirement.release(doctorId, current.userId);
+      return assignment;
     } catch (err) {
       if (err instanceof DuplicateRecordError) {
         throw AppError.conflict('This doctor’s assignment was changed at the same time. Reload and try again.');

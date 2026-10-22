@@ -117,6 +117,20 @@ export function buildContainers(): AppContainers {
   // Tier 6 — Marketing: Visuals, Campaigns and Targets. Reads the downline (Identity), Products (Field Master Data) and order totals (Sales).
   const marketing = buildMarketingContainer(identity.contract, fieldMasterData.contract, sales.contract, config.contract);
 
+  // Field Master Data sits below the modules that point at its doctors, so a doctor's deactivate/delete counts them, and cleans the
+  // editable Daily Plans it leaves, through their contracts.
+  fieldMasterData.bindDoctorReferences({
+    count: async (doctorId) => {
+      const [plannedDays, records, visuals] = await Promise.all([
+        planning.contract.countPlansWithDoctor(doctorId),
+        fieldActivity.contract.countDoctorRecords(doctorId),
+        marketing.contract.countDoctorVisuals(doctorId),
+      ]);
+      return { plannedDays, ...records, visuals };
+    },
+    release: (doctorId, userId) => planning.contract.releaseDoctor(doctorId, userId),
+  });
+
   // Tier 6 — Payroll: base salary and who is active (Identity), approved unpaid leave (HR), what was paid in the month (Field Activity).
   const payroll = buildPayrollContainer(identity.contract, hr.contract, attendance.contract, config.contract);
 

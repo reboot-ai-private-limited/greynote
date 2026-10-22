@@ -988,3 +988,10 @@ The weekly off and the holidays of the employee's main HQ (National, HQ, its Zon
 (`offDays`, and `planOffDays` in the sync snapshot) and can't be planned: save and submit refuse them, trips can't run over
 them, and an approved month writes no Daily Plan for them. The web approval preview marks them. The field app is another
 team's: `mobile/monthlyplan.md` rule 18. `LLD/planning.md`.
+
+## Doctors: edit, deactivate, delete (2026-10-22, done, not browser-checked)
+
+Admin, web only. An impact check before deactivating or deleting (MR, plans, calls, open gifts/services, samples, visuals);
+deactivating ends the assignment in the same step (no more "unassign first"); a permanent delete archives the doctor so history
+keeps its name; an inactive doctor can be edited. Whenever an MR loses a doctor (unassign, reassign, deactivate, delete) it comes
+off their editable Daily Plans. Phone: `mobile/doctors.md` section 2a (docs only). `LLD/field-master-data.md`.

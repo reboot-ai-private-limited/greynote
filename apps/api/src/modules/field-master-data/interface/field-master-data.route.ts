@@ -85,7 +85,9 @@ doc('post', '/doctors/added', 'Field staff: add a doctor (offline-first) — it 
 doc('put', '/doctors/added/{id}', 'Field staff: change a rejected, withdrawn or reopened doctor — resubmits it', { params: idParamsSchema, body: editAddedDoctorBodySchema });
 doc('patch', '/doctors/{id}/review', 'Manager or Admin: correct a doctor waiting for approval (any detail, including its location) before approving', { params: idParamsSchema, body: reviewDoctorBodySchema });
 doc('get', '/doctors/{id}', 'A doctor — Admin, the assigned MR, or their manager', { params: idParamsSchema });
-doc('patch', '/doctors/{id}', 'Admin: edit a doctor, including correcting its location', { params: idParamsSchema, body: updateDoctorBodySchema });
+doc('patch', '/doctors/{id}', 'Admin: edit a doctor, including correcting its location (also while inactive). status: inactive also ends its MR assignment and takes it off editable Daily Plans', { params: idParamsSchema, body: updateDoctorBodySchema });
+doc('get', '/doctors/{id}/impact', 'Admin: what deactivating or deleting a doctor touches (assigned MR, plans from today, calls, open gifts/services, samples, visuals)', { params: idParamsSchema });
+doc('delete', '/doctors/{id}', 'Admin: delete a doctor for good. It is archived (history keeps its name), its assignments go, and it leaves every editable Daily Plan. Not for a doctor waiting for approval', { params: idParamsSchema });
 doc('get', '/doctors/{id}/assignments', 'Admin: who has been responsible for a doctor', { params: idParamsSchema });
 doc('post', '/doctors/{id}/assignments', 'Admin: make an MR responsible for a doctor, replacing the current one', { params: idParamsSchema, body: assignDoctorBodySchema });
 doc('delete', '/doctors/{id}/assignments/{userId}', 'Admin: remove an MR’s assignment', { params: doctorAssignmentParamsSchema });
@@ -133,6 +135,8 @@ function doctorsRouter(c: DoctorHandlers): Router {
   router.get('/:id', requireRole('ADMIN', 'FIELD'), validate({ params: idParamsSchema }), c.get);
   router.patch('/:id/review', requireRole('ADMIN', 'FIELD'), validate({ params: idParamsSchema, body: reviewDoctorBodySchema }), c.review);
   router.patch('/:id', admin, validate({ params: idParamsSchema, body: updateDoctorBodySchema }), c.update);
+  router.delete('/:id', admin, validate({ params: idParamsSchema }), c.remove);
+  router.get('/:id/impact', admin, validate({ params: idParamsSchema }), c.impact);
   router.patch('/:id/targets', requireRole('ADMIN', 'FIELD'), validate({ params: idParamsSchema, body: updateDoctorTargetsBodySchema }), c.updateTargets);
   router.get('/:id/assignments', admin, validate({ params: idParamsSchema }), c.listAssignments);
   router.post('/:id/assignments', admin, validate({ params: idParamsSchema, body: assignDoctorBodySchema }), c.assign);
