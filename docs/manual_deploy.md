@@ -327,3 +327,16 @@ Until it is re-run, the reminders use their defaults (every setting is read with
 2. In `apps/api/.env.prod` set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER=<that address>`, `SMTP_PASSWORD=<the app password>`, `MAIL_FROM=<same address>`, `PASSWORD_RESET_OWNER_EMAIL=<the owner's address; whoever reads it can take over any Admin account>` and, if you want a different cap, `PASSWORD_RESET_DAILY_LIMIT` (default 3 codes in 24 hours for all Admins together). Never commit them. Without `PASSWORD_RESET_OWNER_EMAIL` the feature is off.
 3. Rebuild and restart: `docker compose -f docker-compose.prod.yml up -d --build`. No seed is needed; these are not Settings.
 4. Try it: sign out, "Forgot password? (Admin)", enter an Admin code; the owner receives the code. Log lines `PASSWORD_RESET_*` say why nothing was sent.
+
+## Release 2026-10-22: doctor visits
+
+Run once after deploying this release (dry run first; `--apply` writes). It moves doctors with a visit frequency above 4 to 4,
+deletes the retired `NEW_DOCTOR_COVERAGE_WAIT_DAYS` setting and **adds the new `DOCTOR_VISIT_GAP_DAYS` setting** (default 8), the
+same as re-running the seed. **Without that setting every doctor call or follow-up and the phone's settings download fail**
+(`CONFIG_KEY_MISSING`), so do not skip it.
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-doctor-visits.js
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-doctor-visits.js --apply
+```
+
