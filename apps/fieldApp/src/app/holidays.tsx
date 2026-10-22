@@ -15,7 +15,27 @@ import { useCachedFetch } from '@/offline/cached-fetch';
 import { datesInMonth, formatWhen, monthOf, prettyDay, weeklyOffIndex } from '@/offline/day';
 import type { ConfigSnapshot } from '@/types/sync';
 
-type Holiday = { id: string; name: string; date: string; scope: 'NATIONAL' | 'ZONE' | 'HQ' };
+/** `groupId` is shared by the days of one multi-day holiday (docs/mobile/holidays.md rule 8); null for a one-day holiday and older rows. */
+type Holiday = { id: string; name: string; date: string; scope: 'NATIONAL' | 'ZONE' | 'HQ'; groupId?: string | null };
+type HolidayLine = { key: string; name: string; scope: Holiday['scope']; from: string; to: string; days: number };
+
+/** One line per holiday: the days that share a `groupId` become a range, every other row stays as it is. `rows` are oldest first. */
+function groupHolidays(rows: Holiday[]): HolidayLine[] {
+  const lines: HolidayLine[] = [];
+  const byGroup = new Map<string, HolidayLine>();
+  for (const h of rows) {
+    const line = h.groupId ? byGroup.get(h.groupId) : undefined;
+    if (line) {
+      line.to = h.date;
+      line.days += 1;
+    } else {
+      const next: HolidayLine = { key: h.groupId ?? h.id, name: h.name, scope: h.scope, from: h.date, to: h.date, days: 1 };
+      if (h.groupId) byGroup.set(h.groupId, next);
+      lines.push(next);
+    }
+  }
+  return lines;
+}
 const SCOPE_LABEL: Record<Holiday['scope'], string> = { NATIONAL: 'National', ZONE: 'Zone', HQ: 'HQ' };
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -54,11 +74,11 @@ export default function HolidaysScreen() {
       ) : holidays.length === 0 ? (
         <Notice tone="info">{list.data ? 'No holidays this month.' : 'Connect once to load the holidays.'}</Notice>
       ) : (
-        holidays.map((h) => (
-          <ThemedView key={h.id} type="backgroundElement" style={styles.card}>
+        groupHolidays(holidays).map((h) => (
+          <ThemedView key={h.key} type="backgroundElement" style={styles.card}>
             <ThemedText type="smallBold">{h.name}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              {`${prettyDay(h.date)} · ${SCOPE_LABEL[h.scope]}`}
+              {`${h.days > 1 ? `${prettyDay(h.from)} – ${prettyDay(h.to)} (${h.days} days)` : prettyDay(h.from)} · ${SCOPE_LABEL[h.scope]}`}
             </ThemedText>
           </ThemedView>
         ))

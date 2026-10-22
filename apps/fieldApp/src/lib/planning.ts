@@ -1,4 +1,4 @@
-import type { PlanStatus } from '@/types/sync';
+import type { PlanOffDay, PlanStatus } from '@/types/sync';
 
 import { ApiError, NetworkError, apiGet, apiPatch, apiPost } from './api';
 
@@ -70,7 +70,15 @@ type StateView = {
 export type PlannedDoctor = { doctorId: string; carriedFrom: string | null };
 
 export type DailyPlanView = PlanDay & StateView & { planDate: string; doctors?: PlannedDoctor[] };
-export type MonthlyPlanView = StateView & { planMonth: string; entries: (PlanDay & { planDate: string })[] };
+export type MonthlyPlanView = StateView & {
+  planMonth: string;
+  entries: (PlanDay & { planDate: string })[];
+  /** The month's locked days as they stand now (weekly off, holidays of the main HQ). Absent from older servers. */
+  offDays?: PlanOffDay[];
+};
+
+/** How a locked day reads on the screen: "Weekly off" or "Holiday · Durga Puja". */
+export const offDayLabel = (d: PlanOffDay) => (d.reason === 'HOLIDAY' ? `Holiday · ${d.name ?? 'Holiday'}` : 'Weekly off');
 
 /** Statuses in which the owner may still change the Plan (no request yet, or sent back to them). */
 export const EDITABLE: (PlanStatus | null)[] = [null, 'DRAFT', 'REJECTED', 'WITHDRAWN', 'REOPENED'];

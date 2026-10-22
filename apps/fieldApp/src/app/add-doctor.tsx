@@ -52,9 +52,9 @@ const EMAIL =/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE = /^\+?\d{10,15}$/;
 const cleanPhone = (s: string) => s.replace(/[\s-]/g, '');
 
-/** How many times a month the MR should visit this doctor: the server takes 1 to 5. "No target" sends none. */
+/** How many times a month the MR should visit this doctor: the server takes 1 to 4 (doctors.md rule 4). "No target" sends none. */
 const NO_TARGET = 'NONE';
-const FREQUENCIES = [...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) })), { value: NO_TARGET, label: 'No target' }];
+const FREQUENCIES = [...[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) })), { value: NO_TARGET, label: 'No target' }];
 
 type Msg = { tone: 'danger' | 'success' | 'info' | 'warning'; text: string };
 /** What the form is working on: a new doctor, one waiting on the phone, or one already with the server. */
@@ -160,8 +160,8 @@ export default function AddDoctorScreen() {
       setPhone(d.phone ?? '');
       setBirth(partsFromIso(d.dateOfBirth));
       setAnniversary(partsFromIso(d.anniversary));
-      // An older doctor may still carry 6; the server now takes 1–5, so it has to be picked again.
-      setFrequency(d.visitFrequency && d.visitFrequency <= 5 ? String(d.visitFrequency) : null);
+      // An older doctor may still carry 5 or 6; the server now takes 1–4, so it has to be picked again.
+      setFrequency(d.visitFrequency && d.visitFrequency <= 4 ? String(d.visitFrequency) : null);
     }
     setTarget(t);
   };
@@ -424,7 +424,7 @@ export default function AddDoctorScreen() {
         </CardSection>
         <CardSection icon={sym('repeat', 'repeat')} accent="purple" title="Visits a month (optional)">
           <ThemedText type="small" themeColor="textSecondary">
-            How many times you should visit this doctor each month (1 to 5). Missed Calls counts against it; with no target the doctor isn’t tracked.
+            How many times you should visit this doctor each month (1 to 4). Missed Calls counts against it; with no target the doctor isn’t tracked.
           </ThemedText>
           <ChoiceChips options={FREQUENCIES} value={frequency ?? NO_TARGET} onChange={(v) => setFrequency(v === NO_TARGET ? null : v)} disabled={busy} />
         </CardSection>

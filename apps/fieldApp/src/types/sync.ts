@@ -14,9 +14,17 @@ export type PlanStatus =
 
 export type WorkingTypeName = 'FIELD_WORK' | 'DOCTOR_CAMPAIGN' | 'MEETING' | 'CONFERENCE' | 'STRIKE';
 
+/**
+ * A day locked on the Monthly Plan (docs/mobile/monthlyplan.md rule 18): the weekly off, or a holiday of the main HQ.
+ * `name` is the holiday's name (several joined with " / "), null for a weekly off.
+ */
+export type PlanOffDay = { date: string; reason: 'WEEKLY_OFF' | 'HOLIDAY'; name: string | null };
+
 export type PlanningSnapshot = {
   /** Today's date in the business timezone, as of the pull. */
   today: string;
+  /** This and next month's locked days. Absent from older servers, which lock only the weekly off day. */
+  planOffDays?: PlanOffDay[];
   dailyPlans: {
     id: string;
     planDate: string;
@@ -108,7 +116,7 @@ export type FieldMasterDataSnapshot = {
     /** `YYYY-MM-DD`, optional. */
     dateOfBirth?: string | null;
     anniversary?: string | null;
-    /** How many visits a month the MR should make (1–5); `null` = no target. */
+    /** How many visits a month the MR should make (1–4); `null` = no target. */
     visitFrequency?: number | null;
   }[];
   chemists: { id: string; routeId: string; name: string; address: string; location: GeoPoint | null }[];

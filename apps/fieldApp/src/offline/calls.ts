@@ -40,7 +40,7 @@ export type NewDoctorPayload = {
   /** Optional: the clinic or hospital (≤ 150), and a phone number of 10–15 digits with an optional leading `+`. */
   clinicName?: string | null;
   phone?: string | null;
-  /** Optional: `YYYY-MM-DD` dates, and visits a month (1–5) the MR should make to this doctor. */
+  /** Optional: `YYYY-MM-DD` dates, and visits a month (1–4) the MR should make to this doctor. */
   dateOfBirth?: string | null;
   anniversary?: string | null;
   visitFrequency?: number | null;

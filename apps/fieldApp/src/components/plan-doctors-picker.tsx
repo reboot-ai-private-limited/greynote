@@ -22,6 +22,11 @@ type Props = {
   disabled?: boolean;
   /** Only list who is on the plan (the plan is submitted or approved). */
   readOnly?: boolean;
+  /**
+   * Why a doctor can't be visited on the plan's day (the days between visits, dcr.md rule 11), or `null`. Such a doctor is
+   * greyed out and can't be ticked; one already ticked can still be unticked.
+   */
+  tooSoon?: (doctorId: string) => { short: string } | null;
 };
 
 /**
@@ -29,7 +34,7 @@ type Props = {
  * so the list works offline; saving it needs a connection like the rest of the plan. Doctors owed from earlier days come
  * first and can't be unticked — the server adds them whatever is sent.
  */
-export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, readOnly }: Props) {
+export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, readOnly, tooSoon }: Props) {
   const theme = useTheme();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const territory = useCachedSource<TerritorySnapshot>('territory');
@@ -78,6 +83,7 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
             <ThemedText type="smallBold">{r.name}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               {r.since ? `Not called since ${prettyDay(r.since)} — still owed` : 'Owed from an earlier day'}
+              {tooSoon?.(r.id) ? ` · ${tooSoon(r.id)!.short}` : ''}
               {r.sub ? ` · ${r.sub}` : ''}
             </ThemedText>
           </ThemedView>
@@ -95,6 +101,10 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
 
       {pickRows.map((r) => {
         const selected = picked.includes(r.id);
+        const soon = tooSoon?.(r.id) ?? null;
+        // Too soon after a visit: can't be ticked, but a tick already there can be taken off.
+        const locked = disabled || (soon !== null && !selected);
+        const sub = [soon?.short, r.sub].filter(Boolean).join(' · ');
         if (readOnly) {
           return (
             <ThemedView key={r.id} type="backgroundElement" style={styles.row}>
@@ -108,19 +118,19 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
         return (
           <Pressable
             key={r.id}
-            disabled={disabled}
+            disabled={locked}
             accessibilityRole="checkbox"
-            accessibilityState={{ checked: selected, disabled }}
+            accessibilityState={{ checked: selected, disabled: locked }}
             onPress={() => toggle(r.id)}>
             <ThemedView
               type="backgroundElement"
-              style={[styles.row, selected && { borderColor: theme.primary }, disabled && styles.disabled]}>
+              style={[styles.row, selected && { borderColor: soon ? theme.danger : theme.primary }, (locked || soon) && styles.disabled]}>
               <ThemedView type={selected ? 'primary' : 'backgroundSelected'} style={styles.box}>
                 <ThemedText type="small" themeColor="onPrimary">{selected ? '✓' : ''}</ThemedText>
               </ThemedView>
               <ThemedView type="backgroundElement" style={styles.text}>
                 <ThemedText type="smallBold">{r.name}</ThemedText>
-                {r.sub ? <ThemedText type="small" themeColor="textSecondary">{r.sub}</ThemedText> : null}
+                {sub ? <ThemedText type="small" themeColor="textSecondary">{sub}</ThemedText> : null}
               </ThemedView>
             </ThemedView>
           </Pressable>

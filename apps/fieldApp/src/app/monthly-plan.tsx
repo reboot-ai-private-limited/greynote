@@ -28,6 +28,7 @@ import {
   getRejectionReason,
   isFieldDay,
   isTripDay,
+  offDayLabel,
   planErrorText,
   saveMonthlyPlan,
   submitMonthlyPlan,
@@ -51,7 +52,7 @@ import {
   weeklyOffIndex,
 } from '@/offline/day';
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from '@/offline/local-draft';
-import type { ConfigSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
+import type { ConfigSnapshot, PlanOffDay, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
 
 type Msg = { tone: 'info' | 'warning' | 'danger' | 'success'; text: string };
 type Entries = Record<string, PlanDay>;
@@ -106,9 +107,7 @@ export default function MonthlyPlanScreen() {
   const existing = planning.data?.monthlyPlans.find((p) => p.planMonth === month) ?? null;
   const status = existing?.status ?? null;
   const editable = EDITABLE.includes(status);
-  const offDay = weeklyOffIndex(config.data?.settings.WEEKLY_OFF_DAY);
   const days = useMemo(() => datesInMonth(month), [month]);
-  const isOff = (d: string) => offDay !== null && weekdayOf(d) === offDay;
   const names = useMemo(
     () => ({
       routes: new Map((territory.data?.routes ?? []).map((r) => [r.id, r.name])),
@@ -121,6 +120,24 @@ export default function MonthlyPlanScreen() {
   /** Everything the server knows about this month's plan (online only). */
   const detailKey = `${month}:${existing?.id ?? 'new'}:${status}`;
   const detail = detailState?.key === detailKey ? detailState.detail : null;
+
+  // The locked days (rule 18): the sync snapshot's list covers this and next month; the server's own list for this month, when
+  // we have it, is newer and replaces that month's. An older server sends neither, so only the weekly off day is locked then.
+  const planOffDays = planning.data?.planOffDays;
+  const serverOffDays = detail?.offDays;
+  const offByDate = useMemo(() => {
+    const map = new Map<string, PlanOffDay>();
+    for (const d of planOffDays ?? []) if (!serverOffDays || d.date.slice(0, 7) !== month) map.set(d.date, d);
+    for (const d of serverOffDays ?? []) map.set(d.date, d);
+    return map;
+  }, [planOffDays, serverOffDays, month]);
+  const weeklyOff = weeklyOffIndex(config.data?.settings.WEEKLY_OFF_DAY);
+  const legacyOff = planOffDays === undefined && serverOffDays === undefined;
+  const isOff = (d: string) => offByDate.has(d) || (legacyOff && weeklyOff !== null && weekdayOf(d) === weeklyOff);
+  const offLabelOf = (d: string) => { const o = offByDate.get(d); return o ? offDayLabel(o) : 'Weekly off'; };
+  const lockedDates = useMemo(() => [...offByDate.keys()], [offByDate]);
+  // Days already planned that are now locked (HR added a holiday after the plan was saved): left out of the next save and submit.
+  const lockedPlanned = editable ? Object.keys(entries).filter((d) => offByDate.has(d)).sort() : [];
   const rejectionKey = status === 'REJECTED' ? (existing?.approvalRequestId ?? null) : null;
   const rejection = rejectionKey !== null && rejectionState?.key === rejectionKey ? rejectionState.text : null;
 
@@ -181,7 +198,7 @@ export default function MonthlyPlanScreen() {
   const lateUntil = detail?.lateSubmitAllowedUntil ?? null;
   const lateButAllowed = editable && deadlinePassed && (resubmitUntil !== null || lateUntil !== null);
   const lateAndRefused = editable && deadlinePassed && !lateButAllowed;
-  const planned = Object.keys(entries).length;
+  const planned = Object.keys(entries).filter((d) => !offByDate.has(d)).length;
 
   // A stay or return day belongs to the trip on an earlier day: it can't be edited on its own.
   const tripOf =
@@ -211,8 +228,11 @@ export default function MonthlyPlanScreen() {
       if (day.returnDate <= date) return { field: 'returnDate', text: 'The return date must be after the day you leave.' };
       if (day.returnDate.slice(0, 7) > addMonths(date.slice(0, 7), 1)) return { field: 'returnDate', text: 'A trip can’t return later than next month.' };
       // A trip can't run over another planned day of this month.
-      const clash = Object.keys(entries).find((d) => d > date && d <= day.returnDate! && !isTripDay(entries[d]?.dayKind));
+      const clash = Object.keys(entries).find((d) => d > date && d <= day.returnDate! && !isTripDay(entries[d]?.dayKind) && !offByDate.has(d));
       if (clash) return { field: 'returnDate', text: `${prettyDay(clash)} is already planned. Clear it, or choose an earlier return date.` };
+      // A trip can't run over a weekly off or a holiday (stay and return days are planned days).
+      const locked = lockedDates.filter((d) => d > date && d <= day.returnDate!).sort()[0];
+      if (locked) return { field: 'returnDate', text: `${prettyDay(locked)} is ${offLabelOf(locked).toLowerCase()}, so a trip can’t run over it. Choose an earlier return date.` };
     }
     return null;
   }
@@ -246,7 +266,7 @@ export default function MonthlyPlanScreen() {
     setEditing(null);
   }
 
-  const list = () => Object.entries(entries).sort(([a], [b]) => a.localeCompare(b)).map(([planDate, d]) => ({ planDate, ...d }));
+  const list = () => Object.entries(entries).filter(([d]) => !offByDate.has(d)).sort(([a], [b]) => a.localeCompare(b)).map(([planDate, d]) => ({ planDate, ...d }));
 
   async function run(action: () => Promise<Msg | null>) {
     setBusy(true);
@@ -383,7 +403,7 @@ export default function MonthlyPlanScreen() {
         </ThemedText>
       ) : (
         shownDays.map((d) => (
-          <PlanDayCard key={d} date={d} entry={entries[d]} off={isOff(d)} editable={editable} names={names} onPress={() => openDay(d)} />
+          <PlanDayCard key={d} date={d} entry={entries[d]} off={isOff(d)} offLabel={offLabelOf(d)} editable={editable} names={names} onPress={() => openDay(d)} />
         ))
       )}
     </View>
@@ -414,6 +434,11 @@ export default function MonthlyPlanScreen() {
       {editable && !resubmitUntil && lateUntil ? (
         <Notice tone="warning" title="Late-submission exception">
           {`Admin allowed a late submission until ${formatWhen(lateUntil, timeZone)}.`}
+        </Notice>
+      ) : null}
+      {lockedPlanned.length > 0 ? (
+        <Notice tone="warning" title="Locked days left out">
+          {`${lockedPlanned.map((d) => `${prettyDay(d)} (${offLabelOf(d)})`).join(', ')} can’t be planned, so ${lockedPlanned.length === 1 ? 'it is' : 'they are'} left out when you save or submit.`}
         </Notice>
       ) : null}
       {editable ? (
@@ -468,6 +493,7 @@ export default function MonthlyPlanScreen() {
                     }}
                     errors={sheetErrors}
                     date={editing && editing !== 'ALL' ? editing.date : undefined}
+                    lockedDates={lockedDates}
                   />
                   <PrimaryButton label="Done" onPress={applySheet} />
                   {editing && editing !== 'ALL' && entries[editing.date] ? (

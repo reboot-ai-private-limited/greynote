@@ -42,6 +42,19 @@ const toRecord = (r: Row): OutboxRecord => ({
 
 export class SqliteStore implements Store {
   private db: Promise<SQLite.SQLiteDatabase> | null = null;
+  /** The last queued call; the next one starts when it has settled. */
+  private queue: Promise<unknown> = Promise.resolve();
+
+  /**
+   * Runs one call at a time. Several screens read at once (records, cache, settings), and overlapping calls on one
+   * connection made expo-sqlite reuse a statement it had just released ("Cannot use shared object that was already
+   * released"). A failed call doesn't stop the ones after it.
+   */
+  private run<T>(fn: (db: SQLite.SQLiteDatabase) => Promise<T>): Promise<T> {
+    const result = this.queue.then(async () => fn(await this.open()));
+    this.queue = result.catch(() => undefined);
+    return result;
+  }
 
   private open(): Promise<SQLite.SQLiteDatabase> {
     this.db ??= (async () => {
@@ -87,36 +100,35 @@ export class SqliteStore implements Store {
   }
 
   async upsertRecord(r: OutboxRecord) {
-    const db = await this.open();
-    await db.runAsync(
-      `INSERT OR REPLACE INTO outbox (client_id, kind, payload, depends_on, status, client_created_at,
-         client_updated_at, server_id, server_data, error_code, error_message, attempts, deleted, dirty)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      r.clientId,
-      r.kind,
-      JSON.stringify(r.payload ?? null),
-      JSON.stringify(r.dependsOn),
-      r.status,
-      r.clientCreatedAt,
-      r.clientUpdatedAt,
-      r.serverId,
-      r.serverData === null || r.serverData === undefined ? null : JSON.stringify(r.serverData),
-      r.errorCode,
-      r.errorMessage,
-      r.attempts,
-      r.deleted ? 1 : 0,
-      r.dirty ? 1 : 0,
+    await this.run((db) =>
+      db.runAsync(
+        `INSERT OR REPLACE INTO outbox (client_id, kind, payload, depends_on, status, client_created_at,
+           client_updated_at, server_id, server_data, error_code, error_message, attempts, deleted, dirty)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        r.clientId,
+        r.kind,
+        JSON.stringify(r.payload ?? null),
+        JSON.stringify(r.dependsOn),
+        r.status,
+        r.clientCreatedAt,
+        r.clientUpdatedAt,
+        r.serverId,
+        r.serverData === null || r.serverData === undefined ? null : JSON.stringify(r.serverData),
+        r.errorCode,
+        r.errorMessage,
+        r.attempts,
+        r.deleted ? 1 : 0,
+        r.dirty ? 1 : 0,
+      ),
     );
   }
 
   async getRecord(clientId: string) {
-    const db = await this.open();
-    const row = await db.getFirstAsync<Row>('SELECT * FROM outbox WHERE client_id = ?', clientId);
+    const row = await this.run((db) => db.getFirstAsync<Row>('SELECT * FROM outbox WHERE client_id = ?', clientId));
     return row ? toRecord(row) : null;
   }
 
   async listRecords(filter: { status?: OutboxStatus | OutboxStatus[]; kind?: SyncKind } = {}) {
-    const db = await this.open();
     const where = ['deleted = 0'];
     const args: string[] = [];
     if (filter.status) {
@@ -128,67 +140,56 @@ export class SqliteStore implements Store {
       where.push('kind = ?');
       args.push(filter.kind);
     }
-    const rows = await db.getAllAsync<Row>(
-      `SELECT * FROM outbox WHERE ${where.join(' AND ')} ORDER BY client_created_at, rowid`,
-      ...args,
+    const rows = await this.run((db) =>
+      db.getAllAsync<Row>(`SELECT * FROM outbox WHERE ${where.join(' AND ')} ORDER BY client_created_at, rowid`, ...args),
     );
     return rows.map(toRecord);
   }
 
   async listTombstones() {
-    const db = await this.open();
-    const rows = await db.getAllAsync<Row>('SELECT * FROM outbox WHERE deleted = 1');
+    const rows = await this.run((db) => db.getAllAsync<Row>('SELECT * FROM outbox WHERE deleted = 1'));
     return rows.map(toRecord);
   }
 
   async purgeRecords(clientIds: string[]) {
     if (clientIds.length === 0) return;
-    const db = await this.open();
-    await db.runAsync(
-      `DELETE FROM outbox WHERE client_id IN (${clientIds.map(() => '?').join(',')})`,
-      ...clientIds,
-    );
+    await this.run((db) => db.runAsync(`DELETE FROM outbox WHERE client_id IN (${clientIds.map(() => '?').join(',')})`, ...clientIds));
   }
 
   async getCache(source: string) {
-    const db = await this.open();
-    const row = await db.getFirstAsync<{ version: string; data: string; fetched_at: string }>(
-      'SELECT version, data, fetched_at FROM cache WHERE source = ?',
-      source,
+    const row = await this.run((db) =>
+      db.getFirstAsync<{ version: string; data: string; fetched_at: string }>('SELECT version, data, fetched_at FROM cache WHERE source = ?', source),
     );
     return row ? { version: row.version, data: JSON.parse(row.data), fetchedAt: row.fetched_at } : null;
   }
 
   async setCache(source: string, entry: CachedSource) {
-    const db = await this.open();
-    await db.runAsync(
-      'INSERT OR REPLACE INTO cache (source, version, data, fetched_at) VALUES (?, ?, ?, ?)',
-      source,
-      entry.version,
-      JSON.stringify(entry.data ?? null),
-      entry.fetchedAt,
+    await this.run((db) =>
+      db.runAsync(
+        'INSERT OR REPLACE INTO cache (source, version, data, fetched_at) VALUES (?, ?, ?, ?)',
+        source,
+        entry.version,
+        JSON.stringify(entry.data ?? null),
+        entry.fetchedAt,
+      ),
     );
   }
 
   async listCacheVersions() {
-    const db = await this.open();
-    const rows = await db.getAllAsync<{ source: string; version: string }>('SELECT source, version FROM cache');
+    const rows = await this.run((db) => db.getAllAsync<{ source: string; version: string }>('SELECT source, version FROM cache'));
     return Object.fromEntries(rows.map((r) => [r.source, r.version]));
   }
 
   async getMeta(key: string) {
-    const db = await this.open();
-    const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM meta WHERE key = ?', key);
+    const row = await this.run((db) => db.getFirstAsync<{ value: string }>('SELECT value FROM meta WHERE key = ?', key));
     return row?.value ?? null;
   }
 
   async setMeta(key: string, value: string) {
-    const db = await this.open();
-    await db.runAsync('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)', key, value);
+    await this.run((db) => db.runAsync('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)', key, value));
   }
 
   async clearAll() {
-    const db = await this.open();
-    await db.execAsync('DELETE FROM outbox; DELETE FROM cache; DELETE FROM meta;');
+    await this.run((db) => db.execAsync('DELETE FROM outbox; DELETE FROM cache; DELETE FROM meta;'));
   }
 }

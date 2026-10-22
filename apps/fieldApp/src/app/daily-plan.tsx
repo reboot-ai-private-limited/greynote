@@ -14,6 +14,7 @@ import { CardSection, sym } from '@/components/ui-cards';
 import { useTheme } from '@/hooks/use-theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useDoctorVisitGap } from '@/hooks/use-doctor-visit-gap';
 import { useDownline } from '@/hooks/use-downline';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError } from '@/lib/api';
@@ -27,6 +28,7 @@ import {
   getDailyPlanDetail,
   getRejectionReason,
   isFieldDay,
+  offDayLabel,
   planErrorText,
   saveDailyPlan,
   submitDailyPlan,
@@ -117,6 +119,8 @@ export default function DailyPlanScreen() {
   const selectedMonth = monthOf(date);
   const monthPlan = planning.data?.monthlyPlans.find((m) => m.planMonth === selectedMonth) ?? null;
   const monthApproved = monthPlan?.status === 'MANAGER_APPROVED' || monthPlan?.status === 'APPROVED';
+  // The weekly off or holiday this date falls on, from the sync snapshot (this and next month). Absent from an older server.
+  const offDay = planning.data?.planOffDays?.find((o) => o.date === date) ?? null;
 
   /** Everything the server knows about this plan (online only). */
   const detailKey = `${date}:${existing?.id ?? 'none'}:${status}`;
@@ -127,6 +131,14 @@ export default function DailyPlanScreen() {
   // Owed doctors: the server's answer for this date when we have it, else the ones the saved plan already carries.
   const savedOwed = useMemo(() => (existing?.doctors ?? []).filter((d) => d.carriedFrom !== null), [existing]);
   const owed = owedState?.date === date ? owedState.list : savedOwed;
+
+  // Days between visits to a doctor (dcr.md rule 11), counted from this plan's date: a doctor visited too recently can't be
+  // called that day, so it isn't offered for the plan either. Ticked ones (from before) can still be unticked.
+  const visitGap = useDoctorVisitGap(date, null);
+  const tooSoonPicked = doctorIds
+    .map((id) => ({ id, soon: visitGap(id) }))
+    .filter((p) => p.soon !== null)
+    .map((p) => `${master.data?.doctors.find((d) => d.id === p.id)?.name ?? 'A doctor'}: ${p.soon!.short.toLowerCase()}`);
 
   const names = useMemo(
     () => ({
@@ -411,7 +423,7 @@ export default function DailyPlanScreen() {
 
       {blocked ? <Notice tone="danger" title="Account blocked">{BLOCKED_TEXT}</Notice> : null}
 
-      {!monthApproved && planning.loaded ? (
+      {!monthApproved && planning.loaded && !offDay ? (
         <>
           <Notice tone="danger" title={`Tour Plan for ${prettyMonth(selectedMonth)} isn’t approved`}>
             {`Your tour plan for ${prettyMonth(selectedMonth)} isn’t approved yet. There is no daily plan, and no work, until it is.`}
@@ -420,8 +432,15 @@ export default function DailyPlanScreen() {
         </>
       ) : null}
 
-      {monthApproved && planning.loaded && !existing ? (
+      {offDay && !existing ? (
+        // A weekly off or a holiday can't be on the Monthly Plan, so it has no Daily Plan (docs/mobile/dailyplan.md rule 1).
+        <Notice tone="info" title={`${prettyDay(date)}: ${offDayLabel(offDay)}`}>There is no Daily Plan for this day. Nothing needs to be planned or reported.</Notice>
+      ) : monthApproved && planning.loaded && !existing ? (
         <Notice tone="warning" title={prettyDay(date)}>There is no plan for this day. Ask your manager.</Notice>
+      ) : null}
+      {offDay && existing ? (
+        // HR added the day off after this plan was written, so the server keeps the plan as it is.
+        <Notice tone="info" title={`${prettyDay(date)}: ${offDayLabel(offDay)}`}>This day was planned before it became a holiday or weekly off, so the plan stays. Ask your manager if it should change.</Notice>
       ) : null}
 
       {amendment ? (
@@ -461,8 +480,13 @@ export default function DailyPlanScreen() {
         editable ? (
           <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call">
             <FormField form={fe} name="doctorIds">
-              <PlanDoctorsPicker routeIds={existing.routeIds} picked={doctorIds} owed={owed} onChange={(ids) => { fe.clear('doctorIds'); setDoctorIds(ids); }} disabled={busy || blocked} />
+              <PlanDoctorsPicker routeIds={existing.routeIds} picked={doctorIds} owed={owed} onChange={(ids) => { fe.clear('doctorIds'); setDoctorIds(ids); }} disabled={busy || blocked} tooSoon={visitGap} />
             </FormField>
+            {tooSoonPicked.length > 0 ? (
+              <Notice tone="warning" title="Visited too recently">
+                {`${tooSoonPicked.join('; ')}. A call on this day would be refused. Untick to plan another doctor.`}
+              </Notice>
+            ) : null}
             <ThemedText type="small" themeColor="textSecondary">
               Only your doctors on this day’s routes can be picked. Doctors you missed on earlier days stay on the plan until you call them.
             </ThemedText>

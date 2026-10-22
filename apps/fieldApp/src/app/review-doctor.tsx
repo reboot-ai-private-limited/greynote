@@ -29,7 +29,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE = /^\+?\d{10,15}$/;
 const cleanPhone = (s: string) => s.replace(/[\s-]/g, '');
 const NO_TARGET = 'NONE';
-const FREQUENCIES = [...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) })), { value: NO_TARGET, label: 'No target' }];
+const FREQUENCIES = [...[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) })), { value: NO_TARGET, label: 'No target' }];
 
 const sameDay = (a: string | null | undefined, b: string | null) => (a ?? null) === b;
 const coordinate = (text: string, limit: number): number | null => {

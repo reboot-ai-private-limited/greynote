@@ -1,5 +1,6 @@
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
@@ -11,7 +12,8 @@ import { IconChip, InfoCard, Pill, SummaryStrip, sym } from '@/components/ui-car
 import { Spacing, type Accent } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
-import { KIND_LABEL, listInbox, markAllInboxRead, markInboxRead, queueRead, type InboxItem, type InboxKind } from '@/lib/inbox';
+import { formatSize } from '@/lib/proof-picker';
+import { ATTACHMENT_KIND_LABEL, KIND_LABEL, listInbox, markAllInboxRead, markInboxRead, queueRead, type InboxAttachment, type InboxItem, type InboxKind } from '@/lib/inbox';
 import { useSessionUser } from '@/lib/session';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
@@ -28,6 +30,20 @@ const KIND_STYLE: Record<InboxKind, { accent: Accent; icon: ReturnType<typeof sy
 
 const errorText = (err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
+
+/** A PDF or picture shows in an in-app browser tab; Office files can't, so they go to whatever app on the phone can read them. */
+const IN_APP_KINDS: InboxAttachment['kind'][] = ['pdf', 'jpeg', 'png', 'webp'];
+
+/** Hands a file link to the phone: a PDF or picture opens in a viewer, an Office file in whatever app can read it, a download link saves it. */
+async function openFile(url: string, setMsg: (m: { tone: 'danger' | 'success'; text: string } | null) => void, inApp = false) {
+  setMsg(null);
+  try {
+    if (inApp) await WebBrowser.openBrowserAsync(url, { createTask: false }); // same task, so Back returns to the message
+    else await Linking.openURL(url);
+  } catch {
+    setMsg({ tone: 'danger', text: 'Couldn’t open the file. Try again, or install an app that can open it.' });
+  }
+}
 
 /** "Today", "Yesterday" or the date, in the phone's calendar (the exact time is on the message). */
 const sentText = (iso: string) => {
@@ -87,7 +103,7 @@ export default function InboxScreen() {
   if (open) {
     const style = KIND_STYLE[open.kind];
     return (
-      <ScreenShell title="Message" footer={<PrimaryButton label="Back to inbox" variant="text" onPress={() => setOpenId(null)} />}>
+      <ScreenShell title="Message" footer={<PrimaryButton label="Back to inbox" variant="text" onPress={() => (setOpenId(null), setMsg(null))} />}>
         <InfoCard>
           <View style={styles.head}>
             <IconChip icon={style.icon} accent={style.accent} />
@@ -97,7 +113,31 @@ export default function InboxScreen() {
             </View>
           </View>
           <ThemedText type="subtitle">{open.title}</ThemedText>
-          <ThemedText type="default" style={styles.body}>{open.body}</ThemedText>
+          <ThemedText type="default" selectable style={styles.body}>{open.body}</ThemedText>
+          {(open.attachments ?? []).length > 0 ? (
+            <View style={styles.files}>
+              <ThemedText type="smallBold">{`Attachments (${open.attachments!.length})`}</ThemedText>
+              {!online ? <ThemedText type="small" themeColor="textSecondary">Connect to the internet to open or download files.</ThemedText> : null}
+              {open.attachments!.map((a) => (
+                // Tapping the box opens the file, like Open does; Download is its own button.
+                <Pressable
+                  key={a.id}
+                  disabled={!online}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${a.name}`}
+                  onPress={() => void openFile(a.url, setMsg, IN_APP_KINDS.includes(a.kind))}
+                  style={({ pressed }) => [styles.file, { borderColor: theme.border }, pressed && styles.pressed]}>
+                  <ThemedText type="smallBold" numberOfLines={2}>{a.name}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">{`${ATTACHMENT_KIND_LABEL[a.kind]} · ${formatSize(a.sizeBytes)}`}</ThemedText>
+                  <View style={styles.actions}>
+                    <PrimaryButton label="Open" variant="text" disabled={!online} onPress={() => void openFile(a.url, setMsg, IN_APP_KINDS.includes(a.kind))} />
+                    <PrimaryButton label="Download" variant="text" disabled={!online} onPress={() => void openFile(a.downloadUrl, setMsg)} />
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+          {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
           {open.expiresAt ? <ThemedText type="small" themeColor="textSecondary">{`Until ${formatWhen(open.expiresAt)}`}</ThemedText> : null}
         </InfoCard>
       </ScreenShell>
@@ -134,7 +174,13 @@ export default function InboxScreen() {
         shown.map((m) => {
           const style = KIND_STYLE[m.kind];
           return (
-            <View key={m.id}>
+            // The whole card opens the message; "Read →" inside does the same.
+            <Pressable
+              key={m.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Open message: ${m.title}`}
+              onPress={() => (void markRead(m), setOpenId(m.id))}
+              style={({ pressed }) => pressed && styles.pressed}>
               <InfoCard>
                 <View style={styles.head}>
                   <IconChip icon={style.icon} accent={style.accent} />
@@ -145,11 +191,14 @@ export default function InboxScreen() {
                   {m.read ? null : <View style={[styles.dot, { backgroundColor: theme.primary }]} />}
                 </View>
                 <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>{m.body}</ThemedText>
+                {(m.attachments ?? []).length > 0 ? (
+                  <ThemedText type="small" themeColor="textSecondary">{`📎 ${m.attachments!.length} file${m.attachments!.length === 1 ? '' : 's'}`}</ThemedText>
+                ) : null}
                 <View style={styles.actions}>
                   <PrimaryButton label="Read →" variant="text" onPress={() => (void markRead(m), setOpenId(m.id))} />
                 </View>
               </InfoCard>
-            </View>
+            </Pressable>
           );
         })
       )}
@@ -161,6 +210,9 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1, gap: Spacing.one },
   dot: { width: 10, height: 10, borderRadius: 5 },
+  pressed: { opacity: 0.75 },
   body: { marginTop: Spacing.one },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end' },
+  files: { gap: Spacing.two, marginTop: Spacing.two },
+  file: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.two + 2, gap: 2 },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', columnGap: Spacing.four },
 });

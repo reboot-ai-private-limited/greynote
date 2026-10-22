@@ -21,7 +21,7 @@ export type AddedDoctor = {
   location: GeoPoint | null;
   dateOfBirth?: string | null;
   anniversary?: string | null;
-  /** Visits a month (1–5) the MR should make; `null` = none set. */
+  /** Visits a month (1–4) the MR should make; `null` = none set. */
   visitFrequency?: number | null;
   /** `pending` until approved. */
   status: 'pending' | 'active' | 'inactive';
@@ -57,7 +57,7 @@ export const listAddedDoctors = async () =>
 export const editAddedDoctor = (id: string, body: AddedDoctorBody) =>
   apiPut<AddedDoctor>(`/field-master-data/doctors/added/${id}`, body);
 
-/** Manager or Admin: set a doctor’s monthly visit frequency (1–5), date of birth and anniversary. */
+/** Manager or Admin: set a doctor’s monthly visit frequency (1–4), date of birth and anniversary. */
 export const updateDoctorTargets = (id: string, body: DoctorTargetsBody) =>
   apiPatch<unknown>(`/field-master-data/doctors/${id}/targets`, body);
 
