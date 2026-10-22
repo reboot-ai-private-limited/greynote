@@ -13,6 +13,7 @@ const DEFAULTS = {
   SYNC_CLOCK_SKEW_MINUTES: 10,
   GEO_FENCE_RADIUS_METERS: 100,
   GEO_MAX_ACCURACY_METERS: 100,
+  DOCTOR_VISIT_GAP_DAYS: 8,
 } as const;
 
 export type NumericSetting = keyof typeof DEFAULTS;

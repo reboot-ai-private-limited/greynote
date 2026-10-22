@@ -15,6 +15,7 @@ import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-card
 import { WorkWithPicker } from '@/components/work-with-picker';
 import { Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useDoctorVisitGap } from '@/hooks/use-doctor-visit-gap';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { getDoctorVisits, type DoctorVisitsReport } from '@/lib/doctor-visits';
@@ -90,6 +91,9 @@ export function CallScreen({ subject }: { subject: Subject }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'info'; text: string } | null>(null);
   const fe = useFormErrors(FIELD_ORDER);
+  // Days between visits to a doctor (dcr.md rule 11); chemists have no gap.
+  const visitGap = useDoctorVisitGap(gate.today, editing);
+  const tooSoon = (id: string) => (isDoctor ? visitGap(id) : null);
 
   const idOf = (r: OutboxRecord) => {
     const p = r.payload as CallPayload;
@@ -156,6 +160,13 @@ export function CallScreen({ subject }: { subject: Subject }) {
     if (!outletId) {
       setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
       fe.fail({ outlet: `Choose the ${noun} you visited.` });
+      return;
+    }
+    const soon = tooSoon(outletId);
+    if (soon) {
+      // The server would refuse it (DOCTOR_VISIT_TOO_SOON), so it isn't kept.
+      setMsg({ tone: 'danger', text: 'The call was not saved.' });
+      fe.fail({ outlet: soon.text });
       return;
     }
     fe.clearAll();
@@ -259,10 +270,12 @@ export function CallScreen({ subject }: { subject: Subject }) {
             const flags = flagsFor(o);
             const full = outletById.get(o.id);
             const clinic = full && 'clinicName' in full && full.clinicName ? ` · ${full.clinicName}` : '';
+            const soon = tooSoon(o.id);
             return {
               id: o.id,
               name: o.name,
-              subtitle: `${flags.length ? `${flags.join(' · ')} · ` : ''}${full && 'specialty' in full ? `${full.specialty}${clinic} · ${full.address}` : (full?.address ?? '')}${
+              disabled: soon !== null,
+              subtitle: `${soon ? `${soon.short} · ` : ''}${flags.length ? `${flags.join(' · ')} · ` : ''}${full && 'specialty' in full ? `${full.specialty}${clinic} · ${full.address}` : (full?.address ?? '')}${
                 full && 'visitFrequency' in full && full.visitFrequency ? ` · ${madeBy.has(o.id) ? `${madeBy.get(o.id)} of ${full.visitFrequency}` : full.visitFrequency} visits${madeBy.has(o.id) ? ' this month' : ' a month'}` : ''
               }${calledIds.has(o.id) ? ' · called today' : ''}`,
             };
@@ -278,6 +291,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
           emptyText={`No ${noun}s for you yet. Connect to the internet once so your list can load.`}
         />
         </FormField>
+        {picked && tooSoon(picked.id) ? <Notice tone="warning" title="Too soon for another visit">{tooSoon(picked.id)!.text}</Notice> : null}
         {picked && flagsFor(picked).length > 0 ? (
           <Notice tone="warning" title="Not in your plan">
             {`${flagsFor(picked).join(' and ')}: the call is still saved, and marked that way in your daily report for your manager.`}

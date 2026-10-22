@@ -14,6 +14,7 @@ import { CardSection, sym } from '@/components/ui-cards';
 import { useTheme } from '@/hooks/use-theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useDoctorVisitGap } from '@/hooks/use-doctor-visit-gap';
 import { useDownline } from '@/hooks/use-downline';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError } from '@/lib/api';
@@ -130,6 +131,14 @@ export default function DailyPlanScreen() {
   // Owed doctors: the server's answer for this date when we have it, else the ones the saved plan already carries.
   const savedOwed = useMemo(() => (existing?.doctors ?? []).filter((d) => d.carriedFrom !== null), [existing]);
   const owed = owedState?.date === date ? owedState.list : savedOwed;
+
+  // Days between visits to a doctor (dcr.md rule 11), counted from this plan's date: a doctor visited too recently can't be
+  // called that day, so it isn't offered for the plan either. Ticked ones (from before) can still be unticked.
+  const visitGap = useDoctorVisitGap(date, null);
+  const tooSoonPicked = doctorIds
+    .map((id) => ({ id, soon: visitGap(id) }))
+    .filter((p) => p.soon !== null)
+    .map((p) => `${master.data?.doctors.find((d) => d.id === p.id)?.name ?? 'A doctor'}: ${p.soon!.short.toLowerCase()}`);
 
   const names = useMemo(
     () => ({
@@ -471,8 +480,13 @@ export default function DailyPlanScreen() {
         editable ? (
           <CardSection icon={sym('stethoscope', 'medical_services')} accent="blue" title="Doctors to call">
             <FormField form={fe} name="doctorIds">
-              <PlanDoctorsPicker routeIds={existing.routeIds} picked={doctorIds} owed={owed} onChange={(ids) => { fe.clear('doctorIds'); setDoctorIds(ids); }} disabled={busy || blocked} />
+              <PlanDoctorsPicker routeIds={existing.routeIds} picked={doctorIds} owed={owed} onChange={(ids) => { fe.clear('doctorIds'); setDoctorIds(ids); }} disabled={busy || blocked} tooSoon={visitGap} />
             </FormField>
+            {tooSoonPicked.length > 0 ? (
+              <Notice tone="warning" title="Visited too recently">
+                {`${tooSoonPicked.join('; ')}. A call on this day would be refused. Untick to plan another doctor.`}
+              </Notice>
+            ) : null}
             <ThemedText type="small" themeColor="textSecondary">
               Only your doctors on this day’s routes can be picked. Doctors you missed on earlier days stay on the plan until you call them.
             </ThemedText>

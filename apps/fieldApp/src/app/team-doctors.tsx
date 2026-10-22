@@ -24,11 +24,11 @@ const errorText = (err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
 
 const NO_TARGET = 'NONE';
-const FREQUENCIES = [...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) })), { value: NO_TARGET, label: 'No target' }];
+const FREQUENCIES = [...[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) })), { value: NO_TARGET, label: 'No target' }];
 
 /**
  * Visit targets (managers): pick someone in your team, then a doctor of theirs, and set how many times a month they should
- * visit (1–5, or none), plus the doctor's date of birth and anniversary. Only a manager above the employee, or Admin, may;
+ * visit (1–4, or none), plus the doctor's date of birth and anniversary. Only a manager above the employee, or Admin, may;
  * the server says so otherwise. Needs a connection and the current financial year.
  */
 export default function TeamDoctorsScreen() {

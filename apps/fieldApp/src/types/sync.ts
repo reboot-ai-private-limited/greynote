@@ -116,7 +116,7 @@ export type FieldMasterDataSnapshot = {
     /** `YYYY-MM-DD`, optional. */
     dateOfBirth?: string | null;
     anniversary?: string | null;
-    /** How many visits a month the MR should make (1–5); `null` = no target. */
+    /** How many visits a month the MR should make (1–4); `null` = no target. */
     visitFrequency?: number | null;
   }[];
   chemists: { id: string; routeId: string; name: string; address: string; location: GeoPoint | null }[];

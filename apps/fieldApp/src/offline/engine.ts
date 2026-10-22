@@ -208,12 +208,17 @@ export async function pushPending(only?: SyncKind[], opts: { skipFailed?: boolea
   return summary;
 }
 
-/** Forgets records the server has had for longer than the server would accept a resend of. */
+/**
+ * Forgets records the server has had for longer than the server would accept a resend of. Doctor calls and follow-ups stay
+ * at least as long as the days between visits, so the phone can still grey out a doctor visited too recently (dcr.md rule 11).
+ */
 export async function pruneSynced(): Promise<void> {
-  const keepDays = await getNumberSetting('SYNC_MAX_AGE_DAYS');
-  const cutoff = Date.now() - keepDays * 24 * 60 * 60 * 1000;
+  const [keepDays, gapDays] = await Promise.all([getNumberSetting('SYNC_MAX_AGE_DAYS'), getNumberSetting('DOCTOR_VISIT_GAP_DAYS')]);
+  const day = 24 * 60 * 60 * 1000;
+  const cutoff = Date.now() - keepDays * day;
+  const visitCutoff = Date.now() - Math.max(keepDays, gapDays + 1) * day;
   const old = (await store.listRecords({ status: 'SYNCED' })).filter(
-    (r) => new Date(r.clientUpdatedAt).getTime() < cutoff,
+    (r) => new Date(r.clientUpdatedAt).getTime() < (r.kind === 'DOCTOR_CALL' || r.kind === 'DOCTOR_FOLLOWUP' ? visitCutoff : cutoff),
   );
   await store.purgeRecords(old.map((r) => r.clientId));
 }

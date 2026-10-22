@@ -7,7 +7,8 @@ import { useTheme } from '@/hooks/use-theme';
 
 import { ThemedText } from './themed-text';
 
-export type OutletOption = { id: string; name: string; subtitle?: string };
+/** `disabled` greys an option out and it can't be picked; its subtitle should say why. */
+export type OutletOption = { id: string; name: string; subtitle?: string; disabled?: boolean };
 
 type Props = {
   label: string;
@@ -166,13 +167,19 @@ export function OutletPicker({ label, options, value, onChange, disabled, emptyT
                     return (
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityState={{ selected }}
+                        accessibilityState={{ selected, disabled: item.disabled }}
+                        disabled={item.disabled}
                         onPress={() => {
                           onChange(item.id);
                           close();
                         }}
                         android_ripple={{ color: theme.backgroundElement }}
-                        style={({ pressed }) => [styles.row, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
+                        style={({ pressed }) => [
+                          styles.row,
+                          { borderColor: theme.border },
+                          pressed && { backgroundColor: theme.backgroundElement },
+                          item.disabled && styles.disabled,
+                        ]}>
                         <View style={styles.flex}>
                           <ThemedText type={selected ? 'smallBold' : 'default'} themeColor={selected ? 'primary' : undefined}>
                             {item.name}

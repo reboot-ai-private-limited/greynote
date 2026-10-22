@@ -12,6 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useDoctorVisitGap } from '@/hooks/use-doctor-visit-gap';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
@@ -60,8 +61,11 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'info'; text: string } | null>(null);
   const fe = useFormErrors(FIELD_ORDER);
+  // Days between visits to a doctor (dcr.md rule 11): a follow-up counts as a visit; chemists have no gap.
+  const visitGap = useDoctorVisitGap(gate.today, editing);
+  const tooSoon = (id: string) => (isDoctor ? visitGap(id) : null);
 
-  const plan = planning.data?.dailyPlans.find((p) => p.planDate === gate.today) ?? null;
+  const plan =planning.data?.dailyPlans.find((p) => p.planDate === gate.today) ?? null;
   const fieldDay = plan ? isFieldDay(plan.workingType) : true;
   const plannedRoutes = useMemo(() => new Set(plan?.routeIds ?? []), [plan]);
   const plannedDoctorIds = useMemo(() => new Set((plan?.doctors ?? []).map((d) => d.doctorId)), [plan]);
@@ -106,6 +110,13 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
     if (!outletId || !remarks.trim()) {
       setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
       fe.fail(problems);
+      return;
+    }
+    const soon = tooSoon(outletId);
+    if (soon) {
+      // The server would refuse it (DOCTOR_VISIT_TOO_SOON), so it isn't kept.
+      setMsg({ tone: 'danger', text: 'The followup was not saved.' });
+      fe.fail({ outlet: soon.text });
       return;
     }
     fe.clearAll();
@@ -201,11 +212,15 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
         <FormField form={fe} name="outlet">
         <OutletPicker
           label={isDoctor ? 'Doctor' : 'Chemist'}
-          options={outlets.map((o) => ({
-            id: o.id,
-            name: o.name,
-            subtitle: `${notInPlan(o) ? 'Not in plan · ' : ''}${o.specialty ? `${o.specialty} · ${o.address}` : o.address}`,
-          }))}
+          options={outlets.map((o) => {
+            const soon = tooSoon(o.id);
+            return {
+              id: o.id,
+              name: o.name,
+              disabled: soon !== null,
+              subtitle: `${soon ? `${soon.short} · ` : ''}${notInPlan(o) ? 'Not in plan · ' : ''}${o.specialty ? `${o.specialty} · ${o.address}` : o.address}`,
+            };
+          })}
           value={outletId}
           onChange={(id) => {
             setOutletId(id);
@@ -216,6 +231,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
           emptyText={`No ${noun}s yet. Connect to the internet once so your list can load.`}
         />
         </FormField>
+        {picked && tooSoon(picked.id) ? <Notice tone="warning" title="Too soon for another visit">{tooSoon(picked.id)!.text}</Notice> : null}
         {picked && notInPlan(picked) ? (
           <Notice tone="warning" title="Not in your plan">Not in today’s plan: the followup is still saved, and marked that way for your manager.</Notice>
         ) : null}
