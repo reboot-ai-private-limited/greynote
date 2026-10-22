@@ -2,9 +2,12 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
+import { assertNoOffDays, lastDayOf } from '../../domain/offDays.js';
 import { assertMonthlyEntries } from '../../domain/planRules.js';
+import { monthRange } from '@/shared/time/businessTime.js';
 import { carriedInto, expandTrips, shiftMonth } from '../../domain/tripExpansion.js';
 import { assertEditable } from '../assertEditable.js';
+import { OffDays } from '../offDays.js';
 import type { MonthlyPlanView, PlanViews } from '../planViews.js';
 
 const fingerprint = (entries: MonthlyPlanEntry[]): string =>
@@ -12,18 +15,24 @@ const fingerprint = (entries: MonthlyPlanEntry[]): string =>
     entries.map((e) => [e.planDate, e.dayKind, e.returnDate, e.workingType, [...e.routeIds].sort(), [...e.workWith].sort(), e.remarks]),
   );
 
-/** Create or replace the caller's plan for a month — every entry at once, `DRAFT` until submitted. */
+/**
+ * Create or replace the caller's plan for a month — every entry at once, `DRAFT` until submitted. No entry, and no day of a trip,
+ * may fall on one of the employee's off days (weekly off, a holiday of their main HQ: decision-log 2026-10-22).
+ */
 export class SaveMonthlyPlanUseCase {
   constructor(
     private readonly plans: MonthlyPlanRepositoryPort,
     private readonly approvals: ApprovalsPort,
     private readonly views: PlanViews,
+    private readonly offDays: OffDays = new OffDays(),
   ) {}
 
   async execute(userId: string, planMonth: string, entries: MonthlyPlanEntry[]): Promise<MonthlyPlanView> {
     // Days the server wrote for a trip come back with the plan; they're rebuilt from the trip, not kept or checked as typed.
     const typed = entries.filter((e) => e.dayKind === 'NORMAL');
     assertMonthlyEntries(planMonth, typed, userId);
+    const lastDay = lastDayOf(typed, monthRange(planMonth).to);
+    assertNoOffDays(entries, await this.offDays.byDate(userId, monthRange(planMonth).from, lastDay));
     const existing = await this.plans.findByUserAndMonth(userId, planMonth);
     if (existing) await assertEditable(this.approvals, 'MONTHLY_PLAN', existing.id);
 

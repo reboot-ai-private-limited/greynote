@@ -6,6 +6,7 @@ import type { DailyPlanRepositoryPort } from '../domain/dailyPlan.repository.por
 import type { MonthlyPlan } from '../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../domain/monthlyPlan.repository.port.js';
 import { sameDay, type PlanDay } from '../domain/plan.js';
+import { OffDays } from './offDays.js';
 import type { PlanDeadlines } from './planDeadlines.js';
 
 /**
@@ -18,7 +19,9 @@ import type { PlanDeadlines } from './planDeadlines.js';
  * - no plan for the day yet: created;
  * - an inherited plan that hasn't been submitted (or came back for changes): brought in line with the entry;
  * - a day that was submitted, approved, written by the employee, or amended by a manager: left alone.
- * Past days are skipped: nothing can be logged against them any more.
+ * Past days are skipped: nothing can be logged against them any more. So are `offDates` (weekly off, a holiday of the employee's
+ * main HQ, as they stand now): a holiday added after the month was approved gets no new Daily Plan, while one already written is
+ * left as it is (decision-log 2026-10-22).
  */
 export async function inheritDays(
   plan: MonthlyPlan,
@@ -26,10 +29,11 @@ export async function inheritDays(
   approvals: ApprovalsPort,
   today: string,
   ctx: TransactionContext,
+  offDates: ReadonlySet<string> = new Set(),
 ): Promise<number> {
   let written = 0;
   for (const { planDate, ...entry } of plan.entries) {
-    if (planDate < today) continue;
+    if (planDate < today || offDates.has(planDate)) continue;
     if (await daily.createInherited(plan.userId, planDate, entry, ctx)) {
       written++;
       continue;
@@ -48,11 +52,19 @@ export function makeMonthlyPlanInheritHandler(
   daily: DailyPlanRepositoryPort,
   approvals: ApprovalsPort,
   deadlines: PlanDeadlines,
+  offDays: OffDays = new OffDays(),
 ) {
   return async (change: ApprovalStatusChange, ctx: TransactionContext): Promise<void> => {
     if (change.status !== 'MANAGER_APPROVED' && change.status !== 'APPROVED') return;
     const plan = await monthly.findById(change.recordId);
     if (!plan) throw AppError.internal('INTERNAL', { reason: 'MONTHLY_PLAN_NOT_FOUND', recordId: change.recordId });
-    await inheritDays(plan, daily, approvals, await deadlines.today(), ctx);
+    await inheritDays(plan, daily, approvals, await deadlines.today(), ctx, await offDatesOf(offDays, plan));
   };
 }
+
+/** The off days among the dates an approved plan's entries fall on (its own month: a trip's days next month are that plan's entries). */
+export async function offDatesOf(offDays: OffDays, plan: MonthlyPlan): Promise<Set<string>> {
+  const last = plan.entries.reduce((max, e) => (e.planDate > max ? e.planDate : max), `${plan.planMonth}-01`);
+  return new Set((await offDays.list(plan.userId, `${plan.planMonth}-01`, last)).map((d) => d.date));
+}
+

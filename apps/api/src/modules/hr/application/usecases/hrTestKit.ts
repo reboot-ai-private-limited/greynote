@@ -183,9 +183,16 @@ export class FakeTerritory implements TerritoryPort {
     ['zone-wb', 'active'],
     ['zone-as', 'active'],
   ] as const);
+  /** What the employee covers beyond their main HQ (a manager's other HQs and Zones). */
+  coverage = new Map<string, { hqIds: string[]; zoneIds: string[] }>();
   async getUserTerritory(userId: string) {
     const place = this.userHq.get(userId);
-    return place ? { hqIds: [place.hqId], zoneIds: [place.zoneId] } : null;
+    const more = this.coverage.get(userId);
+    if (!place && !more) return null;
+    return { hqIds: [...(place ? [place.hqId] : []), ...(more?.hqIds ?? [])], zoneIds: [...(place ? [place.zoneId] : []), ...(more?.zoneIds ?? [])] };
+  }
+  async getUserHq(userId: string) {
+    return this.userHq.get(userId) ?? null;
   }
   async getHq(id: string) {
     const status = this.hqs.get(id as never);

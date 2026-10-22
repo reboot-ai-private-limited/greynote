@@ -5,6 +5,8 @@ import type { ApprovalsPort, PlanApprovalStatus } from '../domain/approvals.port
 import type { LateSubmitGrantRepositoryPort } from '../domain/lateSubmitGrant.repository.port.js';
 import type { PlanKind } from '../domain/plan.js';
 import { resubmitWindowEnd, type ResubmitPolicy } from '../domain/resubmitWindow.js';
+import type { PlanOffDay } from '../domain/offDays.js';
+import { OffDays } from './offDays.js';
 import type { PlanDeadlines } from './planDeadlines.js';
 
 /** The request summary a Plan screen shows; the full history is `GET /approvals/:id`. */
@@ -28,7 +30,8 @@ export interface PlanStateView {
 
 /** `changedFromMonthly`: the employee changed the day the Monthly Plan wrote; `plannedFrom` is what it said. */
 export type DailyPlanView = DailyPlan & PlanStateView & { changedFromMonthly: boolean };
-export type MonthlyPlanView = MonthlyPlan & PlanStateView;
+/** `offDays`: the month's locked days for the owner as they stand now (weekly off, holidays of their main HQ). */
+export type MonthlyPlanView = MonthlyPlan & PlanStateView & { offDays: PlanOffDay[] };
 
 export const planStatus = (request: ApprovalRequest | null): PlanApprovalStatus => request?.status ?? 'DRAFT';
 
@@ -37,6 +40,7 @@ export class PlanViews {
     private readonly approvals: ApprovalsPort,
     private readonly grants: LateSubmitGrantRepositoryPort,
     private readonly deadlines: PlanDeadlines,
+    private readonly offDays: OffDays = new OffDays(),
   ) {}
 
   async daily(plan: DailyPlan): Promise<DailyPlanView> {
@@ -48,11 +52,12 @@ export class PlanViews {
   }
 
   async monthly(plan: MonthlyPlan): Promise<MonthlyPlanView> {
-    const [deadline, policy] = await Promise.all([
+    const [deadline, policy, offDays] = await Promise.all([
       this.deadlines.monthly(plan.planMonth),
       this.deadlines.monthlyResubmitPolicy(plan.planMonth),
+      this.offDays.forMonth(plan.userId, plan.planMonth),
     ]);
-    return { ...plan, ...(await this.state('MONTHLY_PLAN', plan, plan.planMonth, deadline, policy)) };
+    return { ...plan, offDays, ...(await this.state('MONTHLY_PLAN', plan, plan.planMonth, deadline, policy)) };
   }
 
   private async state(

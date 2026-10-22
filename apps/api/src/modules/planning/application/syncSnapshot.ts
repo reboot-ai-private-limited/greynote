@@ -1,6 +1,7 @@
 import type { PlanningSnapshot } from '@greynote/contracts';
 import type { SyncSourceDefinition } from '@/modules/sync/sync.public.js';
-import { addDays } from '@/shared/time/businessTime.js';
+import { addDays, monthRange } from '@/shared/time/businessTime.js';
+import type { OffDays } from './offDays.js';
 import type { PlanDeadlines } from './planDeadlines.js';
 import type { ListDailyPlansUseCase } from './usecases/listDailyPlans.usecase.js';
 import type { ListMonthlyPlansUseCase } from './usecases/listMonthlyPlans.usecase.js';
@@ -23,15 +24,16 @@ const nextMonth = (month: string): string => {
  * and submitting a Plan need a connection and aren't synced. Left out: revision counters' internals, the
  * resubmit counter and timestamps that only churn.
  */
-export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: ListDailyPlansUseCase; monthly: ListMonthlyPlansUseCase }): SyncSourceDefinition {
+export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: ListDailyPlansUseCase; monthly: ListMonthlyPlansUseCase; offDays: OffDays }): SyncSourceDefinition {
   return {
     name: PLANNING_SYNC_SOURCE,
     async snapshot(userId): Promise<PlanningSnapshot> {
       const today = await deps.deadlines.today();
       const month = today.slice(0, 7);
-      const [daily, monthly] = await Promise.all([
+      const [daily, monthly, planOffDays] = await Promise.all([
         deps.daily.execute(userId, addDays(today, -DAYS_BACK), addDays(today, DAYS_AHEAD)),
         deps.monthly.execute(userId, month, nextMonth(month)),
+        deps.offDays.list(userId, `${month}-01`, monthRange(nextMonth(month)).to),
       ]);
       return {
         today,
@@ -58,6 +60,7 @@ export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: List
           approvalRequestId: p.approval?.requestId ?? null,
           submitDeadline: p.submitDeadline.toISOString(),
         })),
+        planOffDays,
       };
     },
   };

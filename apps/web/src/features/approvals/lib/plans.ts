@@ -1,4 +1,4 @@
-import type { MonthlyPlanEntryDto } from '@greynote/contracts';
+import type { MonthlyPlanEntryDto, PlanOffDayDto } from '@greynote/contracts';
 import { WORKING_TYPE_LABEL } from './review';
 
 /** A whole month at a glance: how many days of each working type. */
@@ -27,4 +27,22 @@ export function sortedEntries<T extends Pick<MonthlyPlanEntryDto, 'planDate'>>(
   entries: readonly T[],
 ): T[] {
   return [...entries].sort((a, b) => a.planDate.localeCompare(b.planDate));
+}
+
+/** "Weekly off" or "Holiday · Durga Puja". */
+export const offDayLabel = (day: PlanOffDayDto): string => (day.reason === 'HOLIDAY' ? `Holiday · ${day.name ?? ''}` : 'Weekly off');
+
+/**
+ * The month as the reviewer reads it: every planned day and every locked day (weekly off, holiday), in date order. A day can
+ * have both only in a plan saved before the lock or before HR added the holiday; the screen flags it.
+ */
+export function monthRows<T extends Pick<MonthlyPlanEntryDto, 'planDate'>>(
+  entries: readonly T[],
+  offDays: readonly PlanOffDayDto[],
+): Array<{ date: string; entry: T | null; off: PlanOffDayDto | null }> {
+  const off = new Map(offDays.map((d) => [d.date, d]));
+  const rows: Array<{ date: string; entry: T | null; off: PlanOffDayDto | null }> = entries.map((entry) => ({ date: entry.planDate, entry, off: off.get(entry.planDate) ?? null }));
+  const planned = new Set(entries.map((e) => e.planDate));
+  for (const d of offDays) if (!planned.has(d.date)) rows.push({ date: d.date, entry: null, off: d });
+  return rows.sort((a, b) => a.date.localeCompare(b.date));
 }

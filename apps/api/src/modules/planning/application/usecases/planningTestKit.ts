@@ -22,6 +22,7 @@ import { ManagerScope } from '../managerScope.js';
 import { SetDailyPlanUseCase } from './setDailyPlan.usecase.js';
 import { SuggestFromTeamUseCase } from './suggestFromTeam.usecase.js';
 import { SetDailyPlanDoctorsUseCase } from './setDailyPlanDoctors.usecase.js';
+import { OffDays } from '../offDays.js';
 import { PlanViews } from '../planViews.js';
 
 /** In-memory fakes for Planning's use-case tests — no Mongo, no other module's internals. */
@@ -355,12 +356,14 @@ export function planningKit(clock: Clock) {
   const monthlyPlans = new FakeMonthlyPlans();
   const grants = new FakeGrants();
   const deadlines = new PlanDeadlines(config, clock.now);
-  const views = new PlanViews(approvals, grants, deadlines);
+  /** Unbound: no day is locked. A test that needs off days binds its own list. */
+  const offDays = new OffDays();
+  const views = new PlanViews(approvals, grants, deadlines, offDays);
   const submitter = new PlanSubmitter(users, routes, approvals, grants, inlineTransactions, clock.now);
   approvals.registerKind({
     kind: 'MONTHLY_PLAN',
     finalApproverRoles: ['ADMIN'],
-    onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines),
+    onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays),
   });
   /** Dates (`userId:YYYY-MM-DD`) whose DCR the test says is already submitted. */
   const reported = new Set<string>();
@@ -380,7 +383,7 @@ export function planningKit(clock: Clock) {
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);
   const teamSuggest = new SuggestFromTeamUseCase(dailyPlans, monthlyPlans, approvals, users, carryOver, scope);
   const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, teamSuggest, views);
-  return { scope, setDay, teamSuggest, doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, amend, reported, monthlyBlocked, monthlyApproved };
+  return { offDays, scope, setDay, teamSuggest, doctors, calls, carryOver, setDoctors, users, routes, approvals, config, dailyPlans, monthlyPlans, grants, deadlines, views, submitter, amend, reported, monthlyBlocked, monthlyApproved };
 }
 
 /**

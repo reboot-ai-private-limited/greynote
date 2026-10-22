@@ -1,3 +1,7 @@
+import type { PlanOffDay } from './application/planOffDays.js';
+
+export type { PlanOffDay } from './application/planOffDays.js';
+
 /** One leave on a team calendar. `status` is where it stands: still waiting on the manager, or past them. */
 export interface TeamLeave {
   leaveId: string;
@@ -40,4 +44,9 @@ export interface HrPublicContract {
   listOffDates(userId: string, from: string, to: string): Promise<string[]>;
   /** The holidays that apply to this employee in a date range (National, their HQ's, its Zone's). */
   listHolidayDates(userId: string, from: string, to: string): Promise<string[]>;
+  /**
+   * The days in a range locked on this employee's Monthly Plan, in date order: the weekly off, and holidays that are National or
+   * of their main HQ (or its Zone) — not every HQ they cover. See `application/planOffDays.ts`.
+   */
+  listPlanOffDays(userId: string, from: string, to: string): Promise<PlanOffDay[]>;
 }

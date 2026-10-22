@@ -26,6 +26,7 @@ What the field app must do for the Monthly Plan, and the rules the server enforc
 | 15 | **The routes chosen here decide the day's doctors.** The Daily Plan inherits each day's routes; the employee can then pick doctors only if they are **assigned to them and on that day's routes** (a manager's daily plan may also use the routes and doctors of the team members they work with; the Monthly Plan itself still takes only their own routes) (otherwise `400` on `doctorIds`). A missed call carried over from an earlier day is the one exception. So choose the routes carefully: a doctor on a route not planned for the day can't be added. See [`dailyplan.md`](dailyplan.md) rule 2a. | ✅ |
 | 16 | **Out-station trip.** On the day the employee leaves, an entry may carry `returnDate` (after `planDate`, this month or the next, field work or doctor campaign, with at least one out-station route). The server writes the days in between as `dayKind: STAY` and the return day as `dayKind: TRANSIT`, copying the trip's routes, work-with and remarks. Leave `returnDate` empty for a same-day return: that is an ordinary day. Send the entries back as they were read (stay/transit days included) or without them; the server rebuilds them from the trip. A trip can't run over another planned day and can't return later than the month after. **A trip that crosses a month end** also writes its stay/transit days into the next month's plan (made as a draft if it has none); that month still needs its own submit and approval by its own deadline. Saving is refused (`400`) if one of those days is already planned there, and (`409`) if the next month's plan is waiting or approved. Cutting the trip short removes the days again. A `returnDate` on a trip with no out-station route is refused at submit (`400` on that day's `routeIds`). | ✅ |
 | 17 | **What the days earn** (once each day's report is approved): trip day = TA + out-station DA; stay day = out-station DA, no TA; transit day = TA + **ex-station** DA. Each stay and transit day is a normal working day: it needs its own approved Daily Plan (inherited) and a submitted DCR, and calls may be made on it. The phone shows them as locked trip days; to change a trip, edit the first day. | ✅ |
+| 18 | **Weekly off and holidays are locked (2026-10-22).** The employee's **weekly off day** (e.g. every Sunday) and every **holiday that applies to their main HQ** (National, their main HQ's, or its Zone's; for a manager, *not* the other HQs and Zones they cover) are shown already filled in as **"Weekly off"** or **"Holiday · Durga Puja"** and **can't be planned or changed**. The server lists them in `offDays` (section 3) and refuses an entry on one with `400` on `entries.N.planDate`, and a trip that runs over one (stay or return day) with `400` on `entries.N.returnDate`; the message names the day, e.g. "Fri, 2 Oct is a holiday (Gandhi Jayanti), so it can't be planned." The screen should not offer those days at all: show them greyed with the label, and keep a trip's date pickers off them. **Submit checks again**: if HR adds a holiday after the plan was saved, the submit is refused the same way; the employee takes the day out and submits. In an approved month, a holiday added later gets no Daily Plan (one already written stays). | ✅ server; 📱 phone to show |
 
 ## 2. Statuses
 
@@ -42,10 +43,12 @@ From `GET /planning/monthly?from=YYYY-MM&to=YYYY-MM` (each row):
 | `resubmitAllowedUntil` | non-null: "You can still resubmit until …" |
 | `lateSubmitAllowedUntil` | non-null: "Admin allowed a late submission until …" |
 | `approval` | who/when it was submitted and decided |
+| `offDays` | the month's locked days for this employee, as they stand now: `[{ date, reason, name }]`, `reason` `WEEKLY_OFF` or `HOLIDAY` (a holiday on the weekly off reads as the holiday), `name` the holiday's name (several joined with " / "), `null` for a weekly off. Show each as a locked row (rule 18). |
 
 - Past `submitDeadline` with neither window set: show **"The deadline has passed. Ask Admin for a late-submission exception."** and disable Submit. (Still call the server — the phone's clock may be wrong.)
 - On `PLAN_SUBMIT_LATE` show the same message with `publicDetails.deadline`.
 - A rejected plan shows the rejection reason (from the approval request) and a Resubmit button while `resubmitAllowedUntil` is set.
+- **Locked days offline, and for a month with no plan yet:** the sync snapshot's `planning.planOffDays` lists this month's and next month's locked days (same shape as `offDays`). Use it, **not** the HR holiday list: that one follows every HQ the employee covers, which for a manager is wider than what locks the plan.
 - With no approved plan for the month, the Daily Plan and call screens show **"Your monthly plan for <month> isn't approved yet."** and a link to the Monthly Plan screen.
 
 ## 4. Endpoints
@@ -59,7 +62,7 @@ From `GET /planning/monthly?from=YYYY-MM&to=YYYY-MM` (each row):
 | `GET` | `/identity/work-with` | Work-with candidates (below). |
 | `GET` | `/planning/late-grants` | Own late-submission exceptions (`status`, `expiresAt`) — the same time the plan row's `lateSubmitAllowedUntil` shows. |
 
-Errors the screen must handle: `PLAN_SUBMIT_LATE` (409), `MONTHLY_PLAN_NOT_APPROVED` (409), "already waiting / already approved" (409), "plan changed while it was being submitted — reload" (409), blocked (403), validation errors with `field` (e.g. `entries.3.routeIds`).
+Errors the screen must handle: an entry or trip on a locked day (400 on `entries.N.planDate` / `entries.N.returnDate`, rule 18), `PLAN_SUBMIT_LATE` (409), `MONTHLY_PLAN_NOT_APPROVED` (409), "already waiting / already approved" (409), "plan changed while it was being submitted — reload" (409), blocked (403), validation errors with `field` (e.g. `entries.3.routeIds`).
 
 ## 5. Work With ✅
 

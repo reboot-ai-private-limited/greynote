@@ -84,6 +84,9 @@ export function buildContainers(): AppContainers {
   // (Approval), the leave-year and weekly-off settings (Config).
   const hr = buildHrContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
 
+  // HR shares Planning's tier, so a Monthly Plan's locked days (weekly off, holidays of the employee's main HQ) come through a port.
+  planning.bindOffDays((userId, from, to) => hr.contract.listPlanOffDays(userId, from, to));
+
   // Tier 3 — Inbox: messages an Admin sends to an audience. Resolves it against Identity (who, in which role, HQ and Zone) and checks Zones and HQs with Territory.
   // Every message it saves is also pushed to the phones of the people it reaches (Firebase key in the env; off or unset: Inbox only).
   const push = new PushNotifier(identity.contract, buildPushSender(env.FIREBASE_SERVICE_ACCOUNT_JSON), () =>

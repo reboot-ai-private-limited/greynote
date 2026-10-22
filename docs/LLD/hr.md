@@ -90,6 +90,8 @@ interface HrPublicContract {
   listOffDates(userId: string, from: string, to: string): Promise<string[]>;
   /** The holidays that apply to this employee in a date range — for "is this a working day". */
   listHolidayDates(userId: string, from: string, to: string): Promise<string[]>;
+  /** Days locked on the Monthly Plan: the weekly off, and holidays of the employee's MAIN HQ (not every HQ covered). 2026-10-22. */
+  listPlanOffDays(userId: string, from: string, to: string): Promise<{ date: string; reason: 'WEEKLY_OFF' | 'HOLIDAY'; name: string | null }[]>;
 }
 ```
 

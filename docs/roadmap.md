@@ -981,3 +981,10 @@ An Admin's message can carry up to 5 files (PDF, pictures, Word/Excel/PowerPoint
 links; the web form can name any employees; the body has no length limit (push shows a preview). Documents gain
 `downloadUrl` too. The field app is another team's: what it should do is in `mobile/inbox.md` (rules 11-13) and
 `mobile/docs.md` (rule 8). `LLD/inbox.md`.
+
+## Monthly Plan: weekly off and holidays locked (2026-10-22, done, not browser-checked)
+
+The weekly off and the holidays of the employee's main HQ (National, HQ, its Zone) show as locked days on the Monthly Plan
+(`offDays`, and `planOffDays` in the sync snapshot) and can't be planned: save and submit refuse them, trips can't run over
+them, and an approved month writes no Daily Plan for them. The web approval preview marks them. The field app is another
+team's: `mobile/monthlyplan.md` rule 18. `LLD/planning.md`.

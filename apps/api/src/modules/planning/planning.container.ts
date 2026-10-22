@@ -12,6 +12,8 @@ import { makeMonthlyPlanInheritHandler } from './application/monthlyPlanInheritH
 import { BackfillInheritedDaysUseCase } from './application/usecases/backfillInheritedDays.usecase.js';
 import { AmendDailyPlanUseCase, type DayReportedCheck } from './application/usecases/amendDailyPlan.usecase.js';
 import { CarryOver } from './application/carryOver.js';
+import { OffDays } from './application/offDays.js';
+import type { PlanOffDaysSource } from './domain/offDays.js';
 import { ManagerScope } from './application/managerScope.js';
 import { SetDailyPlanUseCase } from './application/usecases/setDailyPlan.usecase.js';
 import { SuggestFromTeamUseCase } from './application/usecases/suggestFromTeam.usecase.js';
@@ -49,6 +51,8 @@ export interface PlanningContainer {
   bindDayReported(check: DayReportedCheck): void;
   /** Field Master Data (the MR's doctors) and Field Activity (who was called) are built after Planning; handed in once they exist. */
   bindDoctorSources(doctors: DoctorDirectoryPort, called: CalledDoctorsPort): void;
+  /** HR (the weekly off and the holidays of an employee's main HQ) sits on Planning's tier; handed in once both exist. Until then no day is locked. */
+  bindOffDays(source: PlanOffDaysSource): void;
   /** The one-off `migrate:inherit-monthly` script's entry point. */
   backfillInheritedDays(apply: boolean): Promise<{ approvedMonthlyPlans: number; dailyPlansWritten: number }>;
 }
@@ -69,11 +73,12 @@ export function buildPlanningContainer(
 
   // 2. Use cases
   const deadlines = new PlanDeadlines(config);
+  const offDays = new OffDays();
   // Plans are approved by the submitter's manager, then Admin (unless APPROVAL_MANAGER_ONLY_KINDS lists the kind). A Daily Plan's
   // status lives in the approval module; an approved Monthly Plan writes its days into Daily Plans (see below).
   approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['ADMIN'] });
-  approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['ADMIN'], onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines) });
-  const views = new PlanViews(approvals, grants, deadlines);
+  approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['ADMIN'], onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays) });
+  const views = new PlanViews(approvals, grants, deadlines, offDays);
   const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now);
   const carryOver = new CarryOver(dailyPlans, approvals, config);
   const scope = new ManagerScope(users, config);
@@ -83,8 +88,8 @@ export function buildPlanningContainer(
   const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, teamSuggest, views);
   const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views);
   const listDaily = new ListDailyPlansUseCase(dailyPlans, views);
-  const saveMonthly = new SaveMonthlyPlanUseCase(monthlyPlans, approvals, views);
-  const submitMonthly = new SubmitMonthlyPlanUseCase(monthlyPlans, deadlines, submitter);
+  const saveMonthly = new SaveMonthlyPlanUseCase(monthlyPlans, approvals, views, offDays);
+  const submitMonthly = new SubmitMonthlyPlanUseCase(monthlyPlans, deadlines, submitter, offDays);
   const getMonthly = new GetMonthlyPlanUseCase(monthlyPlans, users, views);
   const listMonthly = new ListMonthlyPlansUseCase(monthlyPlans, views);
   const status = new GetPlanStatusUseCase(dailyPlans, monthlyPlans, approvals);
@@ -93,7 +98,7 @@ export function buildPlanningContainer(
   const revokeLate = new RevokeLateSubmitUseCase(grants, deadlines.now);
 
   // What the phone caches of Planning: the MR's own Plans, with their status for the day's gate.
-  sync.registerSource(makePlanningSource({ deadlines, daily: listDaily, monthly: listMonthly }));
+  sync.registerSource(makePlanningSource({ deadlines, daily: listDaily, monthly: listMonthly, offDays }));
   let dayReported: DayReportedCheck = async () => {
     throw new Error('Planning: the day-reported check was never bound.');
   };
@@ -116,11 +121,12 @@ export function buildPlanningContainer(
       getDailyPlanStatus: (userId, planDate) => status.daily(userId, planDate),
       getMonthlyPlanStatus: (userId, planMonth) => status.monthly(userId, planMonth),
     },
-    backfillInheritedDays: (apply) => new BackfillInheritedDaysUseCase(monthlyPlans, dailyPlans, approvals, deadlines, transactions).execute(apply),
+    backfillInheritedDays: (apply) => new BackfillInheritedDaysUseCase(monthlyPlans, dailyPlans, approvals, deadlines, transactions, offDays).execute(apply),
     bindDayReported: (check) => {
       dayReported = check;
     },
     bindDoctorSources: (doctors, called) => carryOver.bind(doctors, called),
+    bindOffDays: (source) => offDays.bind(source),
     buildRouter: () =>
       buildPlanningRouter(
         makePlanningControllers({

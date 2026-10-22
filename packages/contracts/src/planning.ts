@@ -66,12 +66,27 @@ export interface MonthlyPlanEntryDto extends PlanDayDto {
   returnDate: string | null;
 }
 
+/** Why a day can't be planned: the employee's weekly off day, or a holiday that applies to their main HQ. */
+export const PLAN_OFF_DAY_REASONS = ['WEEKLY_OFF', 'HOLIDAY'] as const;
+export type PlanOffDayReason = (typeof PLAN_OFF_DAY_REASONS)[number];
+
+/** A day of the month that is locked on the Monthly Plan: shown as "Weekly off" or "Holiday · <name>", with nothing to fill in. */
+export interface PlanOffDayDto {
+  date: string;
+  /** A holiday on the weekly off day reads as the holiday. */
+  reason: PlanOffDayReason;
+  /** The holiday's name (several on one day joined with " / "); `null` for a weekly off. */
+  name: string | null;
+}
+
 export interface MonthlyPlanDto extends PlanStateDto {
   id: string;
   userId: string;
   planMonth: string;
   /** Sorted by date, at most one per day. */
   entries: MonthlyPlanEntryDto[];
+  /** The month's locked days for this employee, as they stand now (a holiday HR adds later shows up here). No entry may sit on one. */
+  offDays: PlanOffDayDto[];
   revision: number;
   updatedAt: string;
 }

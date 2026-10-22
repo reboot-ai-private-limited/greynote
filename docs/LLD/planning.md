@@ -233,6 +233,13 @@ Monthly exceptions keep `LATE_PLAN_GRANT_MAX_HOURS`.
 Exact paths are illustrative — finalize against whatever URL convention the Identity module's
 first endpoints establish, and keep Daily/Monthly symmetric.
 
+## Weekly off and holidays are locked on the Monthly Plan (decision-log 2026-10-22)
+
+- **Which days.** The weekly off (`WEEKLY_OFF_DAY`) and the holidays that are National or tagged with the employee's **main HQ** (Territory's `getUserHq`) or its Zone. Not every HQ/Zone a manager covers (leave counting still uses those). HR works the list out: `hr.contract.listPlanOffDays(userId, from, to)`, bound into Planning by the composition root (`planning.bindOffDays`), since HR shares Planning's tier. Until bound, nothing is locked.
+- **Save and submit** refuse an entry on one (`400`, `entries.N.planDate`) and a trip whose stay or return day falls on one (`400`, `entries.N.returnDate`, also into next month). Stay/transit rows and days carried in from last month's trip are not checked here: they belong to the trip's own plan. Submit checks against the list as it stands then, so a holiday added after the save has to come out first.
+- **Read:** `GET /planning/monthly` and `/:id` carry `offDays: [{ date, reason, name }]` for the month; the sync snapshot carries `planOffDays` for this and next month.
+- **Inheritance** (approval, and the `migrate:inherit-monthly` backfill) skips off days as they stand at that moment. A Daily Plan already written for a day that later became a holiday is left as it is. Plans saved before this change are not rewritten; the lock applies at their next save or submit.
+
 ## Edge cases
 
 - **A `DailyPlan` saved as `DRAFT` but never submitted.** `isDailyPlanApproved` is false for an

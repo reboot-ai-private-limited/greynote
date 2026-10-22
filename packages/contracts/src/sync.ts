@@ -5,6 +5,7 @@
  */
 import type { GeoPoint } from './geofence.js';
 import type { HttpSuccessBody } from './http.js';
+import type { PlanOffDayDto } from './planning.js';
 
 // ---- Push: the daily report's Submit -----------------------------------------------------------
 
@@ -431,6 +432,11 @@ export interface PlanningSnapshot {
     approvalRequestId: string | null;
     submitDeadline: string;
   }>;
+  /**
+   * The locked days of this month and the next (weekly off, holidays of the employee's main HQ), whether or not a plan exists yet:
+   * what the Monthly Plan screen shows locked offline. Not the HR snapshot's holiday list, which follows every HQ they cover.
+   */
+  planOffDays: PlanOffDayDto[];
 }
 
 /** The enveloped responses, as the phone receives them. */

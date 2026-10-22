@@ -2,7 +2,8 @@ import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
-import { inheritDays } from '../monthlyPlanInheritHandler.js';
+import { inheritDays, offDatesOf } from '../monthlyPlanInheritHandler.js';
+import { OffDays } from '../offDays.js';
 import type { PlanDeadlines } from '../planDeadlines.js';
 
 /**
@@ -16,6 +17,7 @@ export class BackfillInheritedDaysUseCase {
     private readonly approvals: ApprovalsPort,
     private readonly deadlines: PlanDeadlines,
     private readonly transactions: TransactionRunnerPort,
+    private readonly offDays: OffDays = new OffDays(),
   ) {}
 
   async execute(apply: boolean): Promise<{ approvedMonthlyPlans: number; dailyPlansWritten: number }> {
@@ -26,7 +28,9 @@ export class BackfillInheritedDaysUseCase {
       const status = (await this.approvals.getForRecord('MONTHLY_PLAN', plan.id))?.status;
       if (status !== 'MANAGER_APPROVED' && status !== 'APPROVED') continue;
       approvedMonthlyPlans++;
-      if (apply) dailyPlansWritten += await this.transactions.run((ctx) => inheritDays(plan, this.daily, this.approvals, today, ctx));
+      if (!apply) continue;
+      const offDates = await offDatesOf(this.offDays, plan);
+      dailyPlansWritten += await this.transactions.run((ctx) => inheritDays(plan, this.daily, this.approvals, today, ctx, offDates));
     }
     return { approvedMonthlyPlans, dailyPlansWritten };
   }
