@@ -11,4 +11,6 @@ export interface MarketingPublicContract {
   getTargetSummary(userId: string, scope: { month: string; productId?: string | null; campaignId?: string | null }): Promise<TargetSummary>;
   /** The general (no campaign) targets of these users that touch `fromMonth`–`toMonth`, each with the share of it inside that range — the Sales Dashboard's and employee view's read. */
   listTargetShares(userIds: string[], fromMonth: string, toMonth: string): Promise<TargetShareRow[]>;
+  /** How many visuals are picked to show this doctor now: for its deactivate/delete warning. */
+  countDoctorVisuals(doctorId: string): Promise<number>;
 }

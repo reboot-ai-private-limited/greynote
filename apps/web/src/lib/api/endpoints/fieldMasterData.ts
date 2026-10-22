@@ -9,7 +9,9 @@ import type {
   DistributorDetailDto,
   DistributorDto,
   DoctorAssignmentDto,
+  DoctorDeleteResultDto,
   DoctorDto,
+  DoctorImpactDto,
   DoctorStatus,
   IssueSampleDto,
   MasterStatus,
@@ -99,6 +101,10 @@ export const doctorsApi = {
   update: (token: string, id: string, body: UpdateDoctorDto) =>
     request<DoctorDto>(`${BASE}/doctors/${id}`, { method: 'PATCH', token, body }),
 
+  /** What deactivating or deleting the doctor would touch (Admin). */
+  impact: (token: string, id: string, signal?: AbortSignal) => request<DoctorImpactDto>(`${BASE}/doctors/${id}/impact`, { token, signal }),
+  /** Deletes the doctor for good; it is archived so history keeps its name. */
+  remove: (token: string, id: string) => request<DoctorDeleteResultDto>(`${BASE}/doctors/${id}`, { method: 'DELETE', token }),
   review: (token: string, id: string, body: UpdateDoctorDto) =>
     request<DoctorDto>(`${BASE}/doctors/${id}/review`, { method: 'PATCH', token, body }),
   assignments: (token: string, id: string, signal?: AbortSignal) =>

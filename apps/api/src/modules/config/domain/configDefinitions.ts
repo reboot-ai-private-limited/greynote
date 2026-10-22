@@ -90,7 +90,6 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   // ── Field master data ──
   toggle('DOCTOR_VISIBILITY_FOLLOWS_ROUTE', 'FIELD_MASTER_DATA', 'Doctors follow the MR’s routes', 'Whether an MR sees only the assigned Doctors on the Routes they currently have. Off: an MR keeps every assigned Doctor after a Route change.', true),
   toggle('AUTO_ASSIGN_DOCTOR_ON_APPROVAL', 'FIELD_MASTER_DATA', 'Assign a new doctor to the MR who added it', 'Whether approving a Doctor an MR added assigns that Doctor to the MR who added it.', true),
-  integer('NEW_DOCTOR_COVERAGE_WAIT_DAYS', 'FIELD_MASTER_DATA', 'New doctor coverage wait', 'Days after approval before a new Doctor counts toward an MR’s coverage.', 8, 0, 365, 'days'),
 
   // ── Devices ──
   integer('MAX_REGISTERED_DEVICES_FIELD', 'AUTH', 'Phones per field employee', 'Max devices (registered + awaiting approval) for a FIELD-role user.', 2, 1, 10),
@@ -98,6 +97,8 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
 
   // ── Field activity ──
   integer('GEO_FENCE_RADIUS_METERS', 'FIELD_ACTIVITY', 'Geofence radius', 'Radius, in meters, a Dr/Chemist Call must be logged within.', 100, 1, 100_000, 'meters'),
+  // At most 9: with up to 4 visits a month (a doctor's visit frequency), a 9-day gap still fits 4 visits in February (1, 10, 19, 28).
+  integer('DOCTOR_VISIT_GAP_DAYS', 'FIELD_ACTIVITY', 'Days between visits to a doctor', 'After an employee records a call or follow-up on a doctor, how many days until they can record another on that doctor. 8: a visit on the 1st allows the next from the 9th. 0 turns it off.', 8, 0, 9, 'days'),
   integer('GEO_MAX_ACCURACY_METERS', 'FIELD_ACTIVITY', 'Least accurate GPS reading trusted', 'A GPS reading less accurate than this (in meters) can’t confirm or refute a call’s location: the check is UNVERIFIED.', 100, 1, 100_000, 'meters'),
   {
     ...toggle('DCR_MISS_BLOCK_ENABLED', 'FIELD_ACTIVITY', 'Block employees who miss daily reports', 'Whether missing DCR submissions triggers the compliance block.', true),

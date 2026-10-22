@@ -20,6 +20,10 @@ import { ExpenseMonthDeadlines } from './application/expenseMonthDeadlines.js';
 import { GrantExpenseMonthUseCase, ListExpenseMonthGrantsUseCase, RevokeExpenseMonthGrantUseCase } from './application/usecases/expenseMonthGrants.usecase.js';
 import { MongoExpenseMonthGrantAdapter } from './infrastructure/mongoExpenseMonthGrant.adapter.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
+import { DoctorVisitGap } from './application/doctorVisitGap.js';
+import { Types } from 'mongoose';
+import { DoctorCallModel } from './infrastructure/records.schema.js';
+import { DoctorGiftModel, DoctorServiceModel } from './infrastructure/serviceGift.schema.js';
 import { LogExpenseUseCase } from './application/usecases/logExpense.usecase.js';
 import { makeServiceGiftSyncHandlers } from './application/serviceGiftSync.js';
 import { makeFieldActivitySource } from './application/fieldActivitySnapshot.js';
@@ -127,11 +131,12 @@ export function buildFieldActivityContainer(
 
   // The day's calls and follow-ups, each checked against Field Master Data and Territory as they are at sync.
   const checks = new CallChecks(master, territory, users, planning);
+  const visitGap = new DoctorVisitGap(config, doctorCalls, followups);
   const geofence = new GeofenceEvaluator(config);
   for (const definition of makeCallSyncHandlers({
-    doctorCall: new LogDoctorCallUseCase(gate, checks, geofence, master, doctorCalls),
+    doctorCall: new LogDoctorCallUseCase(gate, checks, geofence, master, doctorCalls, visitGap),
     chemistCall: new LogChemistCallUseCase(gate, checks, geofence, master, chemistCalls),
-    followup: new LogFollowupUseCase(gate, checks, geofence, master, followups),
+    followup: new LogFollowupUseCase(gate, checks, geofence, master, followups, visitGap),
     parse: {
       doctorCall: (p) => doctorCallPayloadSchema.parse(p),
       chemistCall: (p) => chemistCallPayloadSchema.parse(p),
@@ -166,6 +171,16 @@ export function buildFieldActivityContainer(
   return {
     runMissedDcrCheck: (options) => missedDcrCheck.execute(options),
     contract: {
+      countDoctorRecords: async (doctorId) => {
+        if (!Types.ObjectId.isValid(doctorId)) return { calls: 0, openGifts: 0, openServices: 0 };
+        const id = new Types.ObjectId(doctorId);
+        const [calls, openGifts, openServices] = await Promise.all([
+          DoctorCallModel.countDocuments({ doctorId: id }),
+          DoctorGiftModel.countDocuments({ doctorId: id, status: 'PENDING' }),
+          DoctorServiceModel.countDocuments({ doctorId: id, doneAt: null }),
+        ]);
+        return { calls, openGifts, openServices };
+      },
       hasQualifyingDcr: (userId, date) => hasQualifyingDcr.execute(userId, date),
       listReportedDates: (userId, from, to) => listReportedDates.execute(userId, from, to),
       getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),

@@ -109,6 +109,8 @@ erDiagram
 - **Doctor, Chemist and Distributor carry a registered `latitude`/`longitude`.** For Doctor and Chemist this is the reference point for geofence validation of calls. Distributor gets it too per the client Master spec (M6). No distributor check-in flow uses it yet, so for now it's reference data only.
 - **The actual visit validation is a Module 4 concern, not this one.** This module only stores _where the doctor/chemist is supposed to be_. The MR's captured GPS coordinates at call time, the computed distance from the registered point, and a pass/fail flag belong on the Doctor Call / Chemist Call record itself. The allowed deviation radius (e.g. 200m) will live in `SystemConfig` (Module 5) alongside the other tunable rules, as `GEO_FENCE_RADIUS_METERS`.
 
+- **Doctor delete (2026-10-22):** a permanently deleted Doctor is copied to `DOCTOR_ARCHIVE` (`original_id` unique, the stored row as it was, `last_assigned_user_id`, `deleted_by`, `deleted_at`) and removed with its `DoctorAssignment` rows; other records keep its id and resolve it from the archive as `inactive`. Rules: `../LLD/field-master-data.md`.
+
 ## Next
 
 **Module 4 — Field Activity: Calls & Follow-ups.** Doctor Call, Doctor Followup, Chemist Call, Chemist Followup, Doctor Service, Doctor Gifts — including the sample-given transaction that consumes `DoctorSampleAllocation`, and the geofence check against the `latitude`/`longitude` stored here.

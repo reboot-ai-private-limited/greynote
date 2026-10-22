@@ -25,6 +25,7 @@
         "seed:production": "tsx src/scripts/seed-production.ts",
         "migrate:employee-codes": "tsx src/scripts/migrate-employee-codes.ts",
         "migrate:specialties": "tsx src/scripts/migrate-specialties.ts",
+    "migrate:doctor-visits": "tsx src/scripts/migrate-doctor-visits.ts",
         "migrate:distributors": "tsx src/scripts/migrate-distributors.ts",
         "migrate:targets": "tsx src/scripts/migrate-targets-to-ranges.ts",
         "report:manager-targets": "tsx src/scripts/report-manager-targets.ts",

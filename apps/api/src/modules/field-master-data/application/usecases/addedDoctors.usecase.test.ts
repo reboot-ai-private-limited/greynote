@@ -4,7 +4,7 @@ import { makeDoctorApprovalHandler, NEW_DOCTOR_KIND } from '../doctorApproval.js
 import { DoctorViews } from '../doctorViews.js';
 import { DoctorVisibility } from '../doctorVisibility.js';
 import { AddedDoctors, type AddedDoctorInput } from './addedDoctors.js';
-import { FakeApprovals, FakeAssignments, FakeConfig, FakeDoctors, FakeTerritory, FakeTransactions, FakeUsers, FakeSpecialties } from './fmdTestKit.js';
+import { FakeApprovals, FakeAssignments, FakeConfig, FakeDoctors, FakeTerritory, FakeTransactions, FakeUsers, FakeSpecialties, retirementKit } from './fmdTestKit.js';
 import { GetDoctorUseCase } from './getDoctor.usecase.js';
 import { ListAssignedDoctorsUseCase } from './listAssignedDoctors.usecase.js';
 import { ReviewPendingDoctorUseCase } from './reviewPendingDoctor.usecase.js';
@@ -82,6 +82,13 @@ describe('An MR adds a Doctor', () => {
       approval: { cycle: 1, status: 'SUBMITTED' },
     });
     expect(approvals.requests).toHaveLength(1);
+  });
+
+  it('Admin’s list links a pending doctor to its approval request, and no other doctor', async () => {
+    const { doctor } = await add();
+    const withRequests = new DoctorViews(assignments, users, approvals);
+    expect((await withRequests.one(doctor)).approvalRequestId).toBe(approvals.requests[0]!.id);
+    expect((await withRequests.one({ ...doctor, status: 'active' })).approvalRequestId).toBeNull();
   });
 
   it('only on a route the MR has', async () => {
@@ -198,7 +205,7 @@ describe('An MR adds a Doctor', () => {
     it('can correct the location while it is pending, and the phone capture is kept', async () => {
       await add();
       const fixed = { latitude: 26.9, longitude: 88.5 };
-      const updated = await new UpdateDoctorUseCase(doctors, assignments, territory, views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist']))).execute('doctor-1', { location: fixed });
+      const updated = await new UpdateDoctorUseCase(doctors, assignments, territory, views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist'])), new FakeTransactions(), retirementKit(doctors, assignments, users).retirement).execute('doctor-1', { location: fixed });
       expect(updated).toMatchObject({ location: fixed, capturedLocation: phoneGps, status: 'pending' });
       await approve();
       expect(doctors.rows[0]).toMatchObject({ status: 'active', location: fixed, capturedLocation: phoneGps });
@@ -206,7 +213,7 @@ describe('An MR adds a Doctor', () => {
 
     it('cannot approve or deactivate it through an edit — that is the approval’s job', async () => {
       await add();
-      const update = new UpdateDoctorUseCase(doctors, assignments, territory, views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist'])));
+      const update = new UpdateDoctorUseCase(doctors, assignments, territory, views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist'])), new FakeTransactions(), retirementKit(doctors, assignments, users).retirement);
       await expectStatus(update.execute('doctor-1', { status: 'active' }), 409);
       await expectStatus(update.execute('doctor-1', { status: 'inactive' }), 409);
     });
@@ -244,7 +251,7 @@ describe('A manager or Admin corrects a pending Doctor before approving', () => 
     const specialties = new SpecialtyCatalog(new FakeSpecialties(['ENT']));
     const added = new AddedDoctors(doctors, territory, new FakeApprovals(), new FakeTransactions(), views, specialties);
     const { doctor } = await added.add('mr1', { ...input, clientRequestId: 'client-req-0001' });
-    const review = new ReviewPendingDoctorUseCase(doctors, users, new UpdateDoctorUseCase(doctors, assignments, territory, views, specialties));
+    const review = new ReviewPendingDoctorUseCase(doctors, users, new UpdateDoctorUseCase(doctors, assignments, territory, views, specialties, new FakeTransactions(), retirementKit(doctors, assignments, users).retirement));
     const fixed = { latitude: 26.8, longitude: 88.5 };
 
     const byManager = await review.execute(field('asm'), doctor.id, { location: fixed, clinicName: 'City Clinic', phone: '9876543210' });

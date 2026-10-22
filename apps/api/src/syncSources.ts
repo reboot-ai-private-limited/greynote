@@ -23,6 +23,8 @@ export const CONFIG_KEYS_FOR_PHONE = [
   'WEEKLY_OFF_DAY',
   'GEO_FENCE_RADIUS_METERS',
   'GEO_MAX_ACCURACY_METERS',
+  // The days between visits to a doctor: the phone greys out a call or follow-up it would refuse (mobile/dcr.md rule 11).
+  'DOCTOR_VISIT_GAP_DAYS',
   'SYNC_MAX_BATCH',
   'SYNC_MAX_DRAFT_BYTES',
   'SYNC_MAX_DRAFTS',

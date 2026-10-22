@@ -99,9 +99,9 @@ erDiagram
   - `PLAN_RESUBMIT_GRACE_MAX` = `2` — at most this many window resubmits per Plan
   - `DOCTOR_VISIBILITY_FOLLOWS_ROUTE` = `true` (Module 3) — an MR sees only the assigned Doctors on their current Routes; off, they keep every assigned Doctor across a Route change
   - `AUTO_ASSIGN_DOCTOR_ON_APPROVAL` = `true` (Module 3) — approving an MR-added Doctor assigns it to that MR
-  - `NEW_DOCTOR_COVERAGE_WAIT_DAYS` = `8` (Module 3) — days after approval before a new Doctor counts toward coverage
   - `MAX_REGISTERED_DEVICES_FIELD` = `2` (Module 1) — approved + pending phones per field employee
   - `REJECTED_DEVICE_TTL_DAYS` = `7` (Module 1) — how long a phone Admin rejected stays blocked
+  - `DOCTOR_VISIT_GAP_DAYS` = `8` (Module 4, 0–9) — days between one employee's visits (call or follow-up) to the same doctor (2026-10-22). `NEW_DOCTOR_COVERAGE_WAIT_DAYS` was removed the same day: unused
   - `GEO_FENCE_RADIUS_METERS` = `100` (Module 4; matches the client's document, Admin can change it in System Config, sign-off C5)
   - `GEO_MAX_ACCURACY_METERS` = `100` — a GPS reading less accurate than this makes a call's geofence `UNVERIFIED`
   - `SYNC_MAX_BATCH` = `100`, `SYNC_MAX_AGE_DAYS` = `7`, `SYNC_CLOCK_SKEW_MINUTES` = `10` — the daily-report push's limits (`LLD/sync.md`)

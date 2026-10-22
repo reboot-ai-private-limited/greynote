@@ -53,7 +53,8 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
   const reviewUpdate = useReviewDoctor();
   // `review`: a manager or Admin correcting a doctor in the approvals inbox, before approving it.
   const update = review ? reviewUpdate : adminUpdate;
-  const locked = readOnly || doctor?.status === 'inactive';
+  // An inactive doctor can still be corrected (decision-log 2026-10-22).
+  const locked = readOnly;
   const set = (field: keyof DoctorDraft) => (value: string) =>
     setDraft((d) => ({ ...d, [field]: value }));
   const pending = create.isPending || update.isPending;

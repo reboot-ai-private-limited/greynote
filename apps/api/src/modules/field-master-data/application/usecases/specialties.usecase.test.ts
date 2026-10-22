@@ -3,7 +3,7 @@ import type { AppError } from '@/shared/errors/AppError.js';
 import { DoctorViews } from '../doctorViews.js';
 import { SpecialtyCatalog } from '../specialtyCatalog.js';
 import { CreateDoctorUseCase } from './createDoctor.usecase.js';
-import { FakeAssignments, FakeDoctors, FakeSpecialties, FakeTerritory, FakeUsers } from './fmdTestKit.js';
+import { FakeAssignments, FakeDoctors, FakeSpecialties, FakeTerritory, FakeTransactions, FakeUsers, retirementKit } from './fmdTestKit.js';
 import { CreateSpecialtyUseCase, ListSpecialtiesUseCase, UpdateSpecialtyUseCase } from './specialties.usecase.js';
 import { UpdateDoctorUseCase } from './updateDoctor.usecase.js';
 
@@ -27,7 +27,7 @@ describe('specialities (decision-log 2026-10-06)', () => {
     const territory = new FakeTerritory();
     const views = new DoctorViews(assignments, new FakeUsers());
     createDoctor = new CreateDoctorUseCase(doctors, territory, views, catalog);
-    updateDoctor = new UpdateDoctorUseCase(doctors, assignments, territory, views, catalog);
+    updateDoctor = new UpdateDoctorUseCase(doctors, assignments, territory, views, catalog, new FakeTransactions(), retirementKit(doctors, assignments, new FakeUsers()).retirement);
   });
 
   it('adds a speciality, refusing the same name in any case or with spaces', async () => {

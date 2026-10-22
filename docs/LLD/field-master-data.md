@@ -27,7 +27,7 @@ whole data model. The contract below is complete for Phase 6's needs.
 - **Doctors (step 3, Admin-created):** a Doctor sits on one active Route, with category, name,
   address, specialty, qualification, an optional email and an optional map-picked location (both
   coordinates or neither; an edit corrects or clears it). Admin-created Doctors are `active` at once
-  with `approvedAt` set. Deactivating is refused while an MR is assigned.
+  with `approvedAt` set. Deactivating ends the MR's assignment in the same step (2026-10-22; see *Taking a doctor out of service*).
 - **Assignments:** `POST /doctors/:id/assignments` needs an active FIELD employee who currently has
   the Doctor's Route (409 otherwise), replaces the current MR in one transaction and keeps the old
   row as history; assigning the current MR again changes nothing. The database allows one active row
@@ -62,7 +62,7 @@ whole data model. The contract below is complete for Phase 6's needs.
 
 - **Doctor** — `route_id`, category, name, address, email, specialty, qualification, and a
   registered `latitude`/`longitude` captured once at creation. Also optional `clinic_name` and `phone` (10–15 digits), and optional `date_of_birth`,
-  `anniversary` (`YYYY-MM-DD`) and `visit_frequency` (1–5 visits a month; null = no target). An MR sets them
+  `anniversary` (`YYYY-MM-DD`) and `visit_frequency` (1–4 visits a month since 2026-10-22, `MAX_VISIT_FREQUENCY` in contracts; null = no target). An MR sets them
   when adding the doctor; Admin edits all of the doctor, and a manager can change only these three for a
   doctor of someone in their downline (`PATCH /doctors/:id/targets`; the assigned MR cannot change their own target).
 - **Chemist** — the same shape minus specialty/qualification, its own registered
@@ -145,7 +145,9 @@ All Admin-only (Web Portal, `../roadmap.md` phase 9) unless noted.
 | `GET` | `/field-master-data/doctors/mine` | FIELD | My Doctors — assigned to me, on Routes I still have (per the switch) |
 | `GET` | `/field-master-data/doctors/team` | FIELD (manager) | My downline's Doctors; `userId` narrows to one report |
 | `GET` | `/field-master-data/doctors/:id` | Admin, assigned MR, their manager | Detail (404 to anyone else) |
-| `PATCH` | `/field-master-data/doctors/:id` | Admin | Edit, including correcting a registered location |
+| `PATCH` | `/field-master-data/doctors/:id` | Admin | Edit, including correcting a registered location, also while inactive. `status: inactive` ends the assignment too |
+| `GET` | `/field-master-data/doctors/:id/impact` | Admin | What deactivating or deleting touches (2026-10-22) |
+| `DELETE` | `/field-master-data/doctors/:id` | Admin | Delete for good: archived, assignments removed, taken off editable plans (2026-10-22) |
 | `POST` | `/field-master-data/doctors/:id/assignments` | Admin | Assign an MR to this Doctor, replacing any current active assignment |
 | `GET` | `/field-master-data/doctors/:id/assignments` | Admin | Assignment history, newest first |
 | `DELETE` | `/field-master-data/doctors/:id/assignments/:userId` | Admin | Remove a direct assignment |
@@ -207,8 +209,8 @@ doesn't re-derive the state machine.
   the MR's own) and the location — the phone's GPS when adding. After approval the MR can't change
   it; only Admin can.
 - **Admin-created Doctors** pick the location on a Google map and are `active` at once, no approval.
-- **`approvedAt`** is stored on the Doctor. Phase 6 combines it with `NEW_DOCTOR_COVERAGE_WAIT_DAYS`
-  (8) to decide when visits count toward coverage.
+- **`approvedAt`** is stored on the Doctor, for a coverage wait (client sign-off C7) when coverage reporting is built. The
+  `NEW_DOCTOR_COVERAGE_WAIT_DAYS` setting was removed on 2026-10-22: nothing read it.
 
 ## Who can see a Doctor
 
@@ -242,8 +244,8 @@ doesn't re-derive the state machine.
   never-goes-negative invariant must be enforced atomically at the data layer (a conditional
   update, not read-then-write in application code), or two concurrent Dr Calls can both succeed
   against a `quantity_remaining` of 1.
-- **Deactivating a Doctor (`status: inactive`) with an active `DoctorAssignment`** is refused;
-  Admin reassigns or removes it first. `DoctorSampleAllocation` rows stay as history.
+- **Deactivating a Doctor (`status: inactive`) with an active `DoctorAssignment`** ends the assignment in the same
+  transaction (2026-10-22; it used to be refused until Admin removed it). `DoctorSampleAllocation` rows stay as history.
 - **A Product referenced by an allocation being edited or deactivated.** `quantity_allocated`/
   `quantity_remaining` should stay meaningful even if the Product's name/SKU changes later — this
   argues for the allocation storing a reference, not a denormalized snapshot, since (unlike
@@ -310,3 +312,15 @@ Adding a chemist (Details, Location, Review) and a distributor (Details, Coverag
 ## Opening dues (2026-10-14)
 
 `Distributor.openingDuesPaise` (whole paise, default 0, set on create and PATCH by Admin/Accountant). Dues = opening + Done orders delivered − recorded payments (see sales-and-orders.md). `listDistributorAssignees()` on the public contract gives Reports each active distributor's assigned employees.
+
+## Taking a doctor out of service: edit, deactivate, delete (decision-log 2026-10-22)
+
+Admin only, on the web. `application/doctorRetirement.ts`.
+
+- **Impact first.** `GET /doctors/:id/impact` → `DoctorImpactDto`: the assigned MR, Daily Plans from today that list it (`editable` / `locked`), calls ever made, open gifts (`PENDING`) and services (not done), sample allocations and the units left, visuals picked. What other modules hold is counted through their contracts (`planning.countPlansWithDoctor`, `fieldActivity.countDoctorRecords`, `marketing.countDoctorVisuals`), bound by the composition root (`fieldMasterData.bindDoctorReferences`) since they sit above or beside this module. A warning, never a block. A `pending` doctor is `409`: the approval decides it.
+- **Edit** is unchanged, and also allowed on an inactive doctor (the web no longer locks the form).
+- **Deactivate** (`PATCH status: inactive`) saves the status and ends the active assignment in one transaction.
+- **Delete** (`DELETE /doctors/:id`) runs in one transaction: the stored row is copied to `doctorarchives` (with the last MR, who deleted it and when), its `DoctorAssignment` rows are removed, then the doctor. Calls, gifts, services, sample allocations, visual picks and plans are **not** touched. The contract's `getDoctor` falls back to the archive and answers `inactive`, so history (DCRs, gift and service lists, reports) keeps the name and every new write refuses it; Admin's own `GET /doctors/:id` is `404`.
+- **Plans follow.** Whenever an MR loses a doctor (unassigned, replaced by another MR) or the doctor is deactivated or deleted, Planning's `releaseDoctor` takes it off the Daily Plans **from today on that are still editable** (no request, or rejected / withdrawn / reopened): that MR's, or everyone's for a deactivate or delete. Submitted and approved plans keep it (a call on it is refused). Before this, the next submit of such a plan was refused ("isn't one of your doctors"). A failed clean-up is logged and doesn't undo the change. Missed-call carry-over already drops doctors the MR no longer has.
+- **Web table rows:** the Doctors list's "⋯" menu offers Edit, Deactivate / Reactivate and Delete… on active and inactive rows (Deactivate and Delete go through the impact dialog). A pending row offers only *Review details* and *Approve or reject*, which opens its own request: each doctor in the API carries `approvalRequestId` (the NEW_DOCTOR request while it is pending, else `null`).
+- **Not here:** MR or manager requests from the phone; closing open gifts or services (the impact lists them).

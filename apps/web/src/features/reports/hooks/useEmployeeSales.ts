@@ -2,7 +2,7 @@
 
 import type { EmployeeSalesDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
-import { marketingApi, type SetTargetBody } from '@/lib/api/endpoints/marketing';
+import { marketingApi, type SetTargetBody, type UpdateTargetBody } from '@/lib/api/endpoints/marketing';
 import { reportsApi, type EmployeeSalesQuery } from '@/lib/api/endpoints/reports';
 import { salesApi } from '@/lib/api/endpoints/sales';
 import { authedQueryOptions } from '@/lib/query/factory';
@@ -66,6 +66,15 @@ export function useSetTarget(onDone: () => void) {
     call: (token, body) => marketingApi.setTarget(token, body),
     invalidates: [keys.reports.all()],
     successMessage: 'Target saved.',
+    onSuccess: onDone,
+  });
+}
+
+export function useUpdateTarget(onDone: () => void) {
+  return useApiMutation<{ id: string; body: UpdateTargetBody }>({
+    call: (token, { id, body }) => marketingApi.updateTarget(token, id, body),
+    invalidates: [keys.reports.all()],
+    successMessage: 'Target changed.',
     onSuccess: onDone,
   });
 }

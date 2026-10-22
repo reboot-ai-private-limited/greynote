@@ -1,7 +1,7 @@
 'use client';
 
 import type { EmployeeDistributorFigureDto, EmployeeProductFigureDto, EmployeeTargetFigureDto } from '@greynote/contracts';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
@@ -55,6 +55,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
   const query = useEmployeeSalesReport({ userId, ...range }, !bad);
   const data = query.data;
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<EmployeeTargetFigureDto | null>(null);
   const [removing, setRemoving] = useState<EmployeeTargetFigureDto | null>(null);
   const remove = useDeleteTarget(() => setRemoving(null));
   const enterable = fyMonths.filter((m) => m <= thisMonth);
@@ -101,18 +102,18 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
     ...(canSetTargets
       ? [
           {
-            key: 'remove',
+            key: 'actions',
             header: '',
+            className: 'w-24 text-right',
             render: (t: EmployeeTargetFigureDto) => (
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={readOnly}
-                aria-label={`Remove the ${t.product?.name ?? 'all products'} target`}
-                onClick={() => setRemoving(t)}
-              >
-                <Trash2 aria-hidden className="size-4" />
-              </Button>
+              <div className="flex justify-end gap-1">
+                <Button variant="ghost" size="sm" disabled={readOnly} aria-label={`Edit the ${t.product?.name ?? 'all products'} target`} title="Edit" onClick={() => setEditing(t)}>
+                  <Pencil aria-hidden className="size-4" />
+                </Button>
+                <Button variant="ghost" size="sm" disabled={readOnly} aria-label={`Remove the ${t.product?.name ?? 'all products'} target`} title="Remove" onClick={() => setRemoving(t)}>
+                  <Trash2 aria-hidden className="size-4" />
+                </Button>
+              </div>
             ),
           } satisfies Column<EmployeeTargetFigureDto>,
         ]
@@ -242,6 +243,9 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
 
       {adding ? (
         <AddTargetDialog userId={userId} name={name} from={range.from} to={range.to} onClose={() => setAdding(false)} />
+      ) : null}
+      {editing ? (
+        <AddTargetDialog key={editing.id} userId={userId} name={name} from={range.from} to={range.to} target={editing} onClose={() => setEditing(null)} />
       ) : null}
       <ConfirmDialog
         open={removing !== null}

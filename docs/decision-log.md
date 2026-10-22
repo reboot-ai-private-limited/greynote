@@ -2388,3 +2388,23 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Decision:** an employee can't plan their weekly off or a holiday of their **main HQ** (National, that HQ's, its Zone's). The locked days are read from HR each time (`listPlanOffDays`) instead of being written into the plan as a `HOLIDAY` working type, so a holiday HR adds or removes later is reflected at once; save and submit both check, and approval writes no Daily Plan for them. A manager's day is locked only by their own HQ's holidays, not by every HQ they cover (a Siliguri-only holiday shouldn't take a ZSM's working day); leave counting keeps the wider rule, so the two differ on purpose. The weekly off is locked too, at the client's request. A Daily Plan already written for a day that later becomes a holiday is kept; the day doesn't count as missed anyway. HR shares Planning's tier, so the list is bound in by the composition root (`planning.bindOffDays`), like Field Master Data's doctors.
 
 **Open:** the field app shows the locked days (`mobile/monthlyplan.md` rule 18); plans saved before this keep any Sunday/holiday entries until their next save or submit; browser check.
+
+## 2026-10-22: Doctors can be deleted for good (archived), and deactivated in one step
+
+**Decision:** Admin only, on the web (no requests from the phone). Before deactivating or deleting, the web shows what it touches. **Deactivate** ends the MR's assignment in the same transaction instead of refusing until Admin unassigns. **Delete** copies the doctor to `doctorarchives`, removes it and its assignments, and touches nothing else: calls, gifts, services, sample allocations, visual picks and submitted plans keep the id, and `getDoctor` answers from the archive as `inactive`, so history keeps the name and new writes are refused (the pattern of the 2026-10-16 territory delete). Open gifts and services are listed, not closed. An inactive doctor can now be edited.
+
+**Also fixed:** an MR losing a doctor (unassign, reassign, deactivate, delete) left it on their draft Daily Plans, whose next submit was then refused ("isn't one of your doctors"). Planning now takes it off the plans from today that are still editable; submitted and approved ones keep it. And Admin could allocate a gift to an inactive doctor (only its existence was checked); that is now `409`, which also covers a deleted doctor answered from the archive.
+
+**Open:** browser check; the field app follows `mobile/doctors.md` 2a (mostly existing behaviour).
+
+## 2026-10-22: Targets are edited in place, and an edit never merges two targets
+
+**Decision:** a target can be edited (`PATCH /marketing/targets/:id`): months, product (or all products) and amount or units; the employee can't change (that's another person's target). Before, the only change was re-setting the exact same product and months, and anything else made a second target beside the old one. If an edit would land on another target's product and months, it is refused (`409 TARGET_CLASH`) rather than merged, so no amount disappears silently. The web puts Edit on each row of the employee's Targets table.
+
+## 2026-10-22: A minimum gap between visits to a doctor; visit frequency at most 4; the coverage-wait setting removed
+
+**Decision:** a new Admin setting `DOCTOR_VISIT_GAP_DAYS` (default 8, 0–9): after a doctor call or doctor follow-up, the same employee can't record another call or follow-up on that doctor for that many days (both directions, so an out-of-order push is caught too). Per employee rather than per doctor, so a manager's joint visit with the MR can be recorded. Enforced at sync (`DOCTOR_VISIT_TOO_SOON`); the phone can pre-check from its own records. The cap of 9 keeps 4 visits possible in February. A doctor's visit frequency is now 1–4 (`MAX_VISIT_FREQUENCY`), since more can't fit with the gap; existing 5s are moved to 4 by `migrate:doctor-visits`. Sync refusals gained an optional `details` map so the phone gets the dates as data.
+
+**Also:** `NEW_DOCTOR_COVERAGE_WAIT_DAYS` (client sign-off C7) was removed. It was defined and seeded but never read, and it was being mistaken for the visit gap. The doctor's approval date is still stored, so the coverage wait can be added back with coverage reporting.
+
+**Open:** run `migrate:doctor-visits` on dev and production; the field app adds the pre-check and the 1–4 picker; browser check.

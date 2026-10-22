@@ -37,6 +37,11 @@ export interface TargetRepositoryPort {
   /** Creates the target for this key or replaces its amount and setter — one conditional write, so two racing sets leave one row. */
   upsert(key: TargetKey, amountPaise: number, qty: number | null, by: string, at: Date): Promise<Target>;
   findById(id: string): Promise<Target | null>;
+  /**
+   * Edits a target in place: its months, product, amount and units, and who set it. `'clash'` when another target of the same employee
+   * already has that product and those months (the unique key); `null` for an unknown id.
+   */
+  update(id: string, key: TargetKey, amountPaise: number, qty: number | null, by: string, at: Date): Promise<Target | 'clash' | null>;
   remove(id: string): Promise<boolean>;
   /**
    * Every target of these users whose months overlap `fromMonth`–`toMonth` (both inclusive). `scope` narrows by product and/or campaign:

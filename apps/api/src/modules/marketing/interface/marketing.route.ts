@@ -7,7 +7,7 @@ import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { MarketingHandlers } from './marketing.controller.js';
-import { addDoctorVisualsBodySchema, createCampaignBodySchema, createVisualBodySchema, doctorIdParamsSchema, doctorVisualParamsSchema, idParamsSchema, updateVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, setTargetBodySchema, listTargetsQuerySchema, targetQuerySchema, userIdParamsSchema } from './marketing.schemas.js';
+import { addDoctorVisualsBodySchema, createCampaignBodySchema, createVisualBodySchema, doctorIdParamsSchema, doctorVisualParamsSchema, idParamsSchema, updateVisualBodySchema, listCampaignsQuerySchema, listVisualsQuerySchema, setCampaignStatusBodySchema, setTargetBodySchema, updateTargetBodySchema, listTargetsQuerySchema, targetQuerySchema, userIdParamsSchema } from './marketing.schemas.js';
 
 const TAG = 'Marketing';
 const MAX_VISUAL_BYTES = 25 * 1024 * 1024;
@@ -42,6 +42,7 @@ doc('post', '/campaigns', 'Admin: create a company-wide Campaign', { body: creat
 doc('get', '/campaigns', 'Campaigns — field staff see the active ones; Admin all', { query: listCampaignsQuerySchema });
 doc('patch', '/campaigns/{id}', 'Admin: set a Campaign active, inactive or completed', { params: idParamsSchema, body: setCampaignStatusBodySchema });
 doc('post', '/targets', 'Admin, or a manager for themselves and their downline: set a Target over a run of whole months of the current financial year (replaces the same user + range + product + campaign)', { body: setTargetBodySchema });
+doc('patch', '/targets/{id}', 'Admin, or a manager for their team: edit a Target in place — months, product (or all products), amount or units; the employee stays. 409 TARGET_CLASH if another target already has that product and those months', { params: idParamsSchema, body: updateTargetBodySchema });
 doc('get', '/targets', 'An employee\'s targets touching a range of months, each with its share inside the range — self, the manager above, or Admin', { query: listTargetsQuerySchema });
 doc('delete', '/targets/{id}', 'Admin, or a manager for their team: take a Target away (current financial year)', { params: idParamsSchema });
 doc('get', '/targets/{userId}', 'Effective target (own + downline) and achieved for a month — self, the manager above, or Admin', { params: userIdParamsSchema, query: targetQuerySchema });
@@ -63,6 +64,7 @@ export function buildMarketingRouter(c: MarketingHandlers): Router {
   router.patch('/campaigns/:id', requireRole('ADMIN'), validate({ params: idParamsSchema, body: setCampaignStatusBodySchema }), c.setCampaignStatus);
   router.post('/targets', requireRole('FIELD', 'ADMIN'), validate({ body: setTargetBodySchema }), c.setTarget);
   router.get('/targets', requireRole('FIELD', 'ADMIN'), validate({ query: listTargetsQuerySchema }), c.listTargets);
+  router.patch('/targets/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema, body: updateTargetBodySchema }), c.updateTarget);
   router.delete('/targets/:id', requireRole('FIELD', 'ADMIN'), validate({ params: idParamsSchema }), c.deleteTarget);
   router.get('/targets/:userId', requireRole('FIELD', 'ADMIN'), validate({ params: userIdParamsSchema, query: targetQuerySchema }), c.getTarget);
   return router;

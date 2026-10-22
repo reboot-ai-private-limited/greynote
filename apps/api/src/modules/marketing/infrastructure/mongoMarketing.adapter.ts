@@ -130,6 +130,21 @@ export class MongoTargetAdapter implements TargetRepositoryPort {
     return doc ? toTarget(doc) : null;
   }
 
+  async update(id: string, key: TargetKey, amountPaise: number, qty: number | null, by: string, at: Date): Promise<Target | 'clash' | null> {
+    try {
+      const doc = await TargetModel.findByIdAndUpdate(
+        id,
+        { $set: { ...this.filter(key), targetAmountPaise: amountPaise, targetQty: qty, createdBy: oid(by), updatedAt: at } },
+        { new: true, runValidators: true },
+      ).lean();
+      return doc ? toTarget(doc) : null;
+    } catch (err) {
+      // The unique (employee, months, product, campaign) index: another target already says this.
+      if (isDuplicateKey(err)) return 'clash';
+      throw err;
+    }
+  }
+
   async remove(id: string): Promise<boolean> {
     return (await TargetModel.deleteOne({ _id: oid(id) })).deletedCount === 1;
   }

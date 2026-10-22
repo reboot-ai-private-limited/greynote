@@ -140,7 +140,7 @@ export class PushRecordsUseCase {
       // than report a failure the MR would only have to retry. (Looked up only on the failure path.)
       const [receipt] = await this.receipts.findByClientIds(userId, [record.clientId]);
       if (receipt) return { clientId: record.clientId, status: 'ALREADY_SYNCED', serverId: receipt.serverId, ...(receipt.data !== undefined && { data: receipt.data }) };
-      if (err instanceof SyncRejection) return { clientId: record.clientId, status: 'FAILED', reason: { code: err.code, message: err.message } };
+      if (err instanceof SyncRejection) return { clientId: record.clientId, status: 'FAILED', reason: { code: err.code, message: err.message, ...(err.details && { details: err.details }) } };
       if (err instanceof AppError && err.statusCode < 500) {
         return { clientId: record.clientId, status: 'FAILED', reason: { code: err.code, message: err.message } };
       }

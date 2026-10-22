@@ -12,7 +12,7 @@ What the field app must do to add a doctor and to show the month's missed calls,
 | 1 | An employee adds a doctor **offline-first**: queue a `NEW_DOCTOR` sync record, or call `POST /field-master-data/doctors/added`. Send a `clientRequestId` (≥ 8 characters, one per add) so a retry never creates a second doctor. | ✅ |
 | 2 | **Required:** `routeId` (one of the employee's own routes), `name`, `address`, `specialty` (must be on the speciality list in the snapshot's `specialties`), `qualification`, `location` (the phone's GPS at the moment of adding). | ✅ |
 | 3 | **Optional:** `email`, **`clinicName`** (max 150), **`phone`** (10–15 digits, optional leading `+`), `dateOfBirth`, `anniversary` (`YYYY-MM-DD`, not in the future), `visitFrequency`. Send `null` or leave out for none. | ✅ new: `clinicName`, `phone` |
-| 4 | **`visitFrequency` is 1–5** visits a month (was 1–6). Offer 1, 2, 3, 4, 5 and "No target". Empty = no target, so no missed-call tracking for that doctor. | ✅ |
+| 4 | **`visitFrequency` is 1–4** visits a month (2026-10-22; was 1–5, before that 1–6). Offer 1, 2, 3, 4 and "No target"; 5 or more is refused with `400` on `visitFrequency`. Empty = no target, so no missed-call tracking for that doctor. Four is the most that fits with the days between visits ([`dcr.md`](dcr.md) rule 11). | ✅ changed |
 | 5 | **The doctor is `pending` until approved.** It can't be called on, planned, or given samples. It shows under "My added doctors" (`GET /field-master-data/doctors/added`) with its `approval` status, and in the snapshot's `pendingDoctors`. | ✅ |
 | 6 | **Approval: the employee's manager or Admin — either one decides.** There is no second stage. On approval the doctor becomes active and, with `AUTO_ASSIGN_DOCTOR_ON_APPROVAL` on, is assigned to the employee who added it. | ✅ changed |
 | 7 | **The approver may edit before deciding:** any detail and the **location** (`PATCH /field-master-data/doctors/:id/review`, pending only). The location the doctor ends up with can differ from the phone's point (the server keeps the phone's as `capturedLocation`). After approval, show the approved values. | ✅ new |
@@ -24,6 +24,18 @@ Errors worth a message: `400` on `routeId` — "That route isn't one of yours.";
 ## 2. What the snapshot carries
 
 Each entry of `doctors` (active, assigned to me) now also has `clinicName` and `phone` (both `null` when not set), next to `email`, `dateOfBirth`, `anniversary` and `visitFrequency`. `pendingDoctors` is unchanged. Show clinic name and phone on the doctor card; the phone number may be tappable to call.
+
+## 2a. When Admin deactivates, deletes or moves a doctor (2026-10-22)
+
+Admin does this on the web only; the phone never edits, deactivates or deletes a doctor (an employee still corrects only their own rejected added doctor, rule 8). What the phone sees:
+
+| # | What happens | What the phone should do | Status |
+|---|---|---|---|
+| D1 | **Deactivated, deleted, unassigned from me, or given to another MR:** the doctor drops out of `GET /doctors/mine` and the snapshot's `doctors` at the next sync. | Remove it from the doctor list and pickers after the next sync; don't keep it from an old cache. | ✅ |
+| D2 | **My Daily Plans from today that I can still change** (draft, rejected, withdrawn, reopened) **lose the doctor**; the server takes it off. Submitted or approved plans keep it. | Re-read the plan after a sync; don't re-send a doctor list containing it (a save or submit with it is refused: `400` on `doctorIds`). | ✅ |
+| D3 | **A call on it is refused**, also one recorded offline and pushed later: the record comes back refused with the existing `doctorNotFound` reason ("This doctor isn't on the list any more"). The same for a gift, a service or a sample on it. | Show the reason on the queued record; the employee discards it. | ✅ (existing behaviour) |
+| D4 | **History keeps the name.** Past calls, DCRs, gifts, services and reports still show the doctor's name, even after a delete. | Nothing to do; never hide a past record because its doctor is gone. | ✅ |
+| D5 | A doctor **reactivated** by Admin comes back only once Admin assigns it to an MR again. | Nothing to do. | ✅ |
 
 ## 3. Missed calls (current month)
 
@@ -62,6 +74,6 @@ Per employee: `quota` (sum of frequencies), `made`, `missed`, `doctors`, `comple
 ## 5. What changed for the phone (2026-10-12)
 
 1. Add **clinic name** and **phone** (both optional) to the add-doctor form, the offline queue payload and the doctor card.
-2. Change the frequency picker to **1–5**.
+2. Change the frequency picker to **1–4** (2026-10-22; it was 1–5).
 3. Stop expecting a second (Admin) approval stage: a manager's approval makes the doctor active.
 4. Show the new **stage** badge on the missed-calls screen.

@@ -34,7 +34,7 @@ export type DraftStatus = (typeof DRAFT_STATUSES)[number];
 export interface DraftResult {
   clientId: string;
   status: DraftStatus;
-  reason?: { code: string; message: string };
+  reason?: { code: string; message: string; details?: Record<string, string> };
 }
 
 export const DRAFT_CODES = {

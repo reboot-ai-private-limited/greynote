@@ -130,6 +130,9 @@ export interface UpdateSpecialtyDto {
   status?: MasterStatus;
 }
 
+/** A doctor's visit frequency is 1 to this many visits a month (2026-10-22: 4; with the days between visits, more can't fit). */
+export const MAX_VISIT_FREQUENCY = 4;
+
 // ── Doctors ────────────────────────────────────────────────────────────────────────────────
 
 export interface DoctorDto {
@@ -144,7 +147,7 @@ export interface DoctorDto {
   qualification: string;
   dateOfBirth: string | null;
   anniversary: string | null;
-  /** Visits per month the MR should make (1–5); `null` = no target. */
+  /** Visits per month the MR should make (1–4); `null` = no target. */
   visitFrequency: number | null;
   /** What the geofence compares against. `null` until set. */
   location: GeoPoint | null;
@@ -158,6 +161,8 @@ export interface DoctorDto {
   approvedAt: string | null;
   /** The MR responsible now, if any. */
   assignedTo: { userId: string; name: string; employeeCode: string } | null;
+  /** A `pending` doctor's NEW_DOCTOR approval request (open it at `/approvals/:id`); `null` otherwise. */
+  approvalRequestId: string | null;
 }
 export interface CreateDoctorDto {
   routeId: string;
@@ -270,4 +275,34 @@ export interface UpdateDistributorDto {
   assignedUserIds?: string[];
   openingDuesPaise?: number;
   status?: MasterStatus;
+}
+
+/**
+ * `GET /field-master-data/doctors/:id/impact` (Admin): what deactivating or deleting the doctor touches, shown before either.
+ * Deactivating ends the assignment and drops the doctor from editable plans; deleting does that, archives the doctor and removes it.
+ */
+export interface DoctorImpactDto {
+  id: string;
+  name: string;
+  status: 'active' | 'inactive';
+  /** Who is responsible for it now; they lose it on deactivate or delete. */
+  assignedTo: { userId: string; name: string; employeeCode: string } | null;
+  /** Daily Plans from today on that list it: `editable` ones lose it, `locked` ones (submitted or approved) keep it, but it can't be called. */
+  plannedDays: { editable: number; locked: number };
+  /** History, kept either way: calls made on it. */
+  calls: number;
+  /** Still open, kept either way, for Admin to close: gifts not handed over, services not done. */
+  openGifts: number;
+  openServices: number;
+  /** Sample allocations (one per product) and the units still left on them; kept as history. */
+  sampleAllocations: number;
+  samplesRemaining: number;
+  /** Visuals picked to show this doctor. */
+  visuals: number;
+}
+
+/** `DELETE /field-master-data/doctors/:id`: the plans it was taken off. */
+export interface DoctorDeleteResultDto {
+  id: string;
+  plansUpdated: number;
 }

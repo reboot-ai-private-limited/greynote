@@ -138,6 +138,7 @@ const TIMELESS = [
   '/api/field-master-data/doctors',
   '/api/field-master-data/doctors/:id',
   '/api/field-master-data/doctors/:id/assignments',
+  '/api/field-master-data/doctors/:id/impact',
   '/api/field-master-data/doctors/:id/sample-allocations',
   '/api/field-master-data/products',
   '/api/field-master-data/specialties',

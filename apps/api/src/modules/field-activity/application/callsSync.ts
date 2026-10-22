@@ -24,7 +24,8 @@ function describeInvalid(err: unknown): string {
 
 /** A gate or lookup refusal becomes that record's reason with its own code; anything else is a fault and passes through. */
 function asRejection(err: unknown): unknown {
-  if (err instanceof GateRefusal || err instanceof LogRefusal) return new SyncRejection(err.code, err.message);
+  if (err instanceof LogRefusal) return new SyncRejection(err.code, err.message, err.details);
+  if (err instanceof GateRefusal) return new SyncRejection(err.code, err.message);
   return err;
 }
 

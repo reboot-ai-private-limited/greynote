@@ -40,6 +40,11 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
       .filter((p) => p.userId === userId && p.planDate >= from && p.planDate <= to)
       .sort((a, b) => a.planDate.localeCompare(b.planDate));
   }
+  async listWithDoctor(doctorId: string, fromDate: string, userId: string | null) {
+    return [...this.rows.values()]
+      .filter((p) => p.planDate >= fromDate && (!userId || p.userId === userId) && p.doctors.some((d) => d.doctorId === doctorId))
+      .sort((a, b) => a.planDate.localeCompare(b.planDate));
+  }
   async save(userId: string, planDate: string, day: PlanDay, expectedRevision: number | null) {
     const existing = await this.findByUserAndDate(userId, planDate);
     if ((existing?.revision ?? null) !== expectedRevision) return null;

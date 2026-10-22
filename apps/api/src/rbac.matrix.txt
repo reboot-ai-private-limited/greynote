@@ -3,6 +3,7 @@ DELETE /api/field-activity/dcr/:id/calls/:callId  FIELD
 DELETE /api/field-activity/dcr/:id/followups/:callId  FIELD
 DELETE /api/field-activity/expenses/other/:id  FIELD
 DELETE /api/field-activity/expenses/other/:id/attachments/:attachmentId  FIELD
+DELETE /api/field-master-data/doctors/:id  ADMIN
 DELETE /api/field-master-data/doctors/:id/assignments/:userId  ADMIN
 DELETE /api/hr/holidays/:id  ADMIN,HR
 DELETE /api/hr/leaves/:id/approval-grant  ADMIN
@@ -54,6 +55,7 @@ GET    /api/field-master-data/distributors/:id  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/doctors  ADMIN
 GET    /api/field-master-data/doctors/:id  ADMIN,FIELD
 GET    /api/field-master-data/doctors/:id/assignments  ADMIN
+GET    /api/field-master-data/doctors/:id/impact  ADMIN
 GET    /api/field-master-data/doctors/:id/sample-allocations  ADMIN,FIELD
 GET    /api/field-master-data/doctors/added  FIELD
 GET    /api/field-master-data/doctors/mine  FIELD
@@ -179,6 +181,7 @@ PATCH  /api/identity/pay-components/:id  ADMIN,HR
 PATCH  /api/identity/roles/:id  ADMIN
 PATCH  /api/identity/users/:id  ADMIN,HR
 PATCH  /api/marketing/campaigns/:id  ADMIN
+PATCH  /api/marketing/targets/:id  ADMIN,FIELD
 PATCH  /api/marketing/visuals/:id  ADMIN
 PATCH  /api/planning/daily/:id/amend  ADMIN,FIELD
 PATCH  /api/sales/orders/:id  ACCOUNTANT,ADMIN

@@ -30,6 +30,7 @@ import type { UpdateChemistUseCase } from '../application/usecases/updateChemist
 import type { UpdateDistributorUseCase } from '../application/usecases/updateDistributor.usecase.js';
 import type { UpdateDoctorTargetsUseCase } from '../application/usecases/updateDoctorTargets.usecase.js';
 import type { ReviewPendingDoctorUseCase } from '../application/usecases/reviewPendingDoctor.usecase.js';
+import type { DoctorRetirement } from '../application/doctorRetirement.js';
 import type { UpdateDoctorUseCase } from '../application/usecases/updateDoctor.usecase.js';
 import type { UpdateProductUseCase } from '../application/usecases/updateProduct.usecase.js';
 import type {
@@ -110,7 +111,7 @@ export function makeChemistControllers(u: {
 }
 
 export type DoctorHandlers = Record<
-  'list' | 'create' | 'get' | 'update' | 'review' | 'updateTargets' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'listSamples' | 'issueSample' | 'adjustSample',
+  | 'list' | 'create' | 'get' | 'update' | 'impact' | 'remove' | 'review' | 'updateTargets' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'listSamples' | 'issueSample' | 'adjustSample',
   RequestHandler
 >;
 
@@ -125,6 +126,7 @@ export function makeDoctorControllers(u: {
   listAssignments: ListDoctorAssignmentsUseCase;
   assign: AssignDoctorUseCase;
   unassign: UnassignDoctorUseCase;
+  retirement: DoctorRetirement;
   addedDoctors: AddedDoctors;
   listSamples: ListSampleAllocationsUseCase;
   issueSample: IssueSampleAllocationUseCase;
@@ -142,7 +144,13 @@ export function makeDoctorControllers(u: {
       sendSuccess(req, res, await u.get.execute(actorOf(req), requiredParam(req.params, 'id')), 'Doctor.', 200),
     ),
     update: asyncHandler(async (req, res) =>
-      sendSuccess(req, res, await u.update.execute(requiredParam(req.params, 'id'), req.body), 'Doctor updated.', 200),
+      sendSuccess(req, res, await u.update.execute(requiredParam(req.params, 'id'), req.body, actorOf(req).id), 'Doctor updated.', 200),
+    ),
+    impact: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.retirement.impact(requiredParam(req.params, 'id')), 'What this would touch.', 200),
+    ),
+    remove: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.retirement.delete(requiredParam(req.params, 'id'), actorOf(req).id), 'Doctor deleted.', 200),
     ),
     review: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.review.execute(actorOf(req), requiredParam(req.params, 'id'), req.body), 'Doctor updated.', 200),

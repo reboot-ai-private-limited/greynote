@@ -152,7 +152,10 @@ export class AllocateGiftUseCase {
   ) {}
 
   async execute(adminId: string, input: { doctorId: string; productName: string; amountPaise: Paise }): Promise<DoctorGift> {
-    if (!(await this.master.getDoctor(input.doctorId))) throw AppError.notFound('No such doctor.');
+    const doctor = await this.master.getDoctor(input.doctorId);
+    if (!doctor) throw AppError.notFound('No such doctor.');
+    // An inactive or deleted doctor (answered from the archive) keeps its history but takes no new gift.
+    if (doctor.status !== 'active') throw AppError.conflict('This doctor is inactive, so it can’t be given a gift.');
     return this.gifts.create({ ...input, allocatedBy: adminId, status: 'PENDING', completedBy: null, completedAt: null, allocatedAt: this.now() });
   }
 }

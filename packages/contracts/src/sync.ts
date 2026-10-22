@@ -33,6 +33,8 @@ export type SyncResultStatus = (typeof SYNC_RESULT_STATUSES)[number];
 export interface SyncReason {
   code: string;
   message: string;
+  /** Facts beside the message for the phone to use (e.g. `DOCTOR_VISIT_TOO_SOON`: `lastVisit`, `nextAllowed`); absent for most codes. */
+  details?: Record<string, string>;
 }
 
 /** One record's outcome. There is one per record sent, in the order sent — never one verdict for the batch. */
@@ -82,7 +84,7 @@ export interface NewDoctorPayload {
   phone?: string | null;
   dateOfBirth?: string | null;
   anniversary?: string | null;
-  /** Visits per month (1–5). */
+  /** Visits per month (1–4). */
   visitFrequency?: number | null;
   /** The phone's GPS when adding. */
   location: GeoPoint;
@@ -188,6 +190,8 @@ export const DCR_REFUSAL_CODES = [
   'SAMPLES_EXHAUSTED',
   'GIFT_NOT_FOUND',
   'GIFT_ALREADY_DONE',
+  /** A doctor call or follow-up within `DOCTOR_VISIT_GAP_DAYS` of another by the same employee; `details`: `lastVisit`, `nextAllowed`, `gapDays`. */
+  'DOCTOR_VISIT_TOO_SOON',
   'INVALID_PAYLOAD',
 ] as const;
 

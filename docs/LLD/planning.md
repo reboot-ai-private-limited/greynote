@@ -240,6 +240,10 @@ first endpoints establish, and keep Daily/Monthly symmetric.
 - **Read:** `GET /planning/monthly` and `/:id` carry `offDays: [{ date, reason, name }]` for the month; the sync snapshot carries `planOffDays` for this and next month.
 - **Inheritance** (approval, and the `migrate:inherit-monthly` backfill) skips off days as they stand at that moment. A Daily Plan already written for a day that later became a holiday is left as it is. Plans saved before this change are not rewritten; the lock applies at their next save or submit.
 
+## A doctor leaving an MR (decision-log 2026-10-22)
+
+`application/doctorReleases.ts`, through the contract's `countPlansWithDoctor` and `releaseDoctor` (called by Field Master Data via the composition root). Plans from today listing the doctor are counted as editable (no request, or one the submitter can change) or locked. `releaseDoctor(doctorId, userId | null)` removes the doctor from the editable ones (one employee's, or everyone's), with one retry if the plan changed meanwhile; locked plans keep it.
+
 ## Edge cases
 
 - **A `DailyPlan` saved as `DRAFT` but never submitted.** `isDailyPlanApproved` is false for an
