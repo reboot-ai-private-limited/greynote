@@ -82,7 +82,7 @@ On amend: `403` the employee amending their own plan; `404` the plan isn't one o
 | M5 | Handle the amend errors above. On "plan changed while you were editing", reload and let the manager redo it. | phone |
 | M6 | The employee receives a push (`PLAN_AMENDED_MONTHLY_PLAN`, opens `/plan/monthly`) — see [`notifications.md`](notifications.md). The plan they see after it is the edited one; no action is needed from them. | phone |
 
-## 7. Known issue: a manager with a Zone/HQ coverage sees no routes (found 2026-10-23, server side)
+## 7. A ZSM with a Zone and no HQ sees every route in it (fixed 2026-10-23)
 
 **Symptom.** A ZSM is added with a Zone (or two) and no HQ ticked, which should mean *every HQ in that Zone*. In the Monthly Plan the route picker is empty for them. **This is a server gap, not a phone bug**: the phone shows what `GET /territory/my-routes` returns, and that list is empty.
 
@@ -91,11 +91,9 @@ On amend: `403` the employee amending their own plan; `404` the plan isn't one o
 - The route picker (`/territory/my-routes`, and the plan's own-route check in rule 14) reads **route assignments** only (`ListRoutesForUserUseCase`). The wizard assigns routes only from the `routeIds` it is given, and requires them only for an MR, so a ZSM, and an ASM or RSM, get none.
 - Result: coverage says "all HQs of the Zone" but no route is assigned, so the picker has nothing, and a plan with any route is refused (`400` on `entries.N.routeIds`).
 
-**Workaround today.** Admin assigns routes to the manager by hand (Territory, Route, Assign).
+**Fixed on the server (2026-10-23), for every designation.** The routes a person covers: in each HQ they cover, the routes assigned to them there; **if none is assigned in that HQ, every active route of it**. A covered Zone with none of its HQs named counts as all its HQs. So a ZSM with a Zone and no HQ gets all routes of the Zone, and an MR, ASM or RSM with an HQ and no route chosen gets all routes of the HQ. This one list feeds `/territory/my-routes`, `GET /planning/monthly/:id/routes`, the plan's own-route check (rule 14) and doctor/chemist access.
 
-**What the phone does.** Nothing to change. Once the server lists the covered routes, the same `/territory/my-routes` and `GET /planning/monthly/:id/routes` calls return them. Do not work routes out from the Zone/HQ on the phone.
-
-**Server fix (not built yet).** Make the routes a manager covers = assigned routes **plus** every active route under their covered HQs, and under each covered Zone that has no HQ named (the same narrowing `GetUserTerritoryUseCase` already applies). That one list feeds the planner picker, the plan checks and doctor/chemist access, so it needs a decision first on whether a manager should see every doctor in the Zone.
+**What the phone does.** Nothing to change: the same calls now return the routes. Do not work routes out from the Zone/HQ on the phone. After a refresh, a ZSM's route picker is filled.
 
 ## 5. Work With ✅
 

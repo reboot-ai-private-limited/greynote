@@ -279,6 +279,22 @@ describe('contract reads', () => {
     expect(mine[0]).not.toHaveProperty('destination');
   });
 
+  it('gives every route of a covered HQ or Zone with none assigned there, and only the assigned ones once some are', async () => {
+    const own = await createRoute({ destinationName: 'Own' });
+    await createRoute({ destinationName: 'Other' });
+    const inactive = await createRoute({ destinationName: 'Closed' });
+    await updateRoute().execute(inactive.id, { status: 'inactive' });
+    await new AssignRouteUseCase(routes, assignments, users).execute(own.id, 'mr-1', 'admin-1');
+    const cover = (hqIds: string[], zoneIds: string[]) => ({ find: async () => ({ userId: 'u', hqIds, zoneIds, updatedAt: new Date(), updatedBy: 'a' }) }) as never;
+    const zoneHqs = { ...hqs, findByIds: (ids: string[]) => hqs.findByIds(ids), list: async () => ({ items: [hqRow], total: 1 }) } as unknown as HqRepositoryPort;
+    const names = async (user: string, hqIds: string[], zoneIds: string[]) =>
+      (await new ListRoutesForUserUseCase(assignments, routes, zoneHqs, cover(hqIds, zoneIds)).execute(user)).map((r) => r.name);
+
+    expect(await names('zsm-1', [], ['zone-1'])).toEqual(['SLG-1 to Other', 'SLG-1 to Own']);
+    expect(await names('asm-1', ['hq-1'], ['zone-1'])).toEqual(['SLG-1 to Other', 'SLG-1 to Own']);
+    expect(await names('mr-1', ['hq-1'], ['zone-1'])).toEqual(['SLG-1 to Own']);
+  });
+
   it("resolves a route's HQ / Zone path and type, and null for an unknown route", async () => {
     const route = await createRoute();
     const getPath = new GetRoutePathUseCase(routes, hqs);
