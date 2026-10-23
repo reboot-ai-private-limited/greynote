@@ -43,6 +43,8 @@ import { GetDcrUseCase, ListAllDcrsUseCase, ListMyDcrsUseCase, ListTeamDcrsUseCa
 import { DeleteDcrRecordUseCase } from './application/usecases/deleteDcrRecord.usecase.js';
 import { SubmitDcrUseCase } from './application/usecases/submitDcr.usecase.js';
 import type { ApprovalsPort } from './domain/approvals.port.js';
+import { serviceTypeTitle } from './domain/serviceGift.entity.js';
+import { dayTitle, describeEach, monthTitle } from '@/modules/approval/approval.public.js';
 import type { FieldMasterDataPort } from './domain/fieldMasterData.port.js';
 import type { PlanningPort } from './domain/planning.port.js';
 import type { TerritoryPort } from './domain/territory.port.js';
@@ -104,10 +106,10 @@ export function buildFieldActivityContainer(
 
   // A DCR goes manager, then Admin (client F1). Past the manager it earns its TA/DA; sent back, the unpaid computed rows are cancelled.
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses, config);
-  approvals.registerKind({ kind: DCR_KIND, finalApproverRoles: ['ADMIN'], onStatusChange: (change, ctx) => taDa.onStatusChange(change.recordId, change.status, ctx) });
+  approvals.registerKind({ kind: DCR_KIND, finalApproverRoles: ['ADMIN'], describeRecords: describeEach((id) => dcrs.findById(id), (dcr) => ({ title: dayTitle(dcr.reportDate), subtitle: null })), onStatusChange: (change, ctx) => taDa.onStatusChange(change.recordId, change.status, ctx) });
 
   // A Service an MR asks for goes manager, then Admin, like a DCR; nothing else happens on approval — the status is its request's.
-  approvals.registerKind({ kind: DOCTOR_SERVICE_KIND, finalApproverRoles: ['ADMIN'] });
+  approvals.registerKind({ kind: DOCTOR_SERVICE_KIND, finalApproverRoles: ['ADMIN'], describeRecords: describeEach((id) => services.findById(id), (service) => ({ title: serviceTypeTitle(service.serviceType), subtitle: null })) });
 
   // 2. Use cases
   const clock = new DcrClock(config);
@@ -117,7 +119,7 @@ export function buildFieldActivityContainer(
   const expenseGrants = new MongoExpenseMonthGrantAdapter();
   const expenseAdjustments = new MongoExpenseAdjustmentAdapter();
   const monthService = new ExpenseMonthService(expenses, expenseMonths, users, approvals, clock, config, new MongooseTransactionRunner(), proofStorage, expenseGrants, new ExpenseMonthDeadlines(config));
-  approvals.registerKind({ kind: EXPENSE_MONTH_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, onStatusChange: (change, ctx) => monthService.onStatusChange(change.recordId, change.status, ctx) });
+  approvals.registerKind({ kind: EXPENSE_MONTH_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: describeEach((id) => expenseMonths.findById(id), (record) => ({ title: monthTitle(record.month), subtitle: null })), onStatusChange: (change, ctx) => monthService.onStatusChange(change.recordId, change.status, ctx) });
   const gate = new LoggingGate(users, planning, approvals, dcrs, clock);
   const views = new DcrViews(approvals);
   const submitDcr = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config, planning);

@@ -15,6 +15,12 @@ export interface ApprovalStatusChange {
   request: ApprovalRequest;
 }
 
+/** What a request is about, for a list row: "Dr Rao" over "Siliguri · Naxalbari". */
+export interface ApprovalSubject {
+  title: string;
+  subtitle: string | null;
+}
+
 /** What an owning module declares about one kind of request when it registers it. */
 export interface ApprovalKindDefinition {
   kind: string;
@@ -28,6 +34,8 @@ export interface ApprovalKindDefinition {
    * `APPROVAL_MANAGER_ONLY_KINDS` says. For a kind whose design is "the manager decides" (no kind uses it today), as opposed to one Admin may relax later through that setting.
    */
   managerOnly?: boolean;
+  /** What each record is about, for the rows of a list (one batched call per page); a record left out shows by its kind alone. */
+  describeRecords?: (recordIds: string[]) => Promise<Map<string, ApprovalSubject>>;
   /**
    * Runs inside the same MongoDB transaction as the status change, on every decision, withdrawal
    * and reopen — not on submit/resubmit, which the owning module starts itself. Write through

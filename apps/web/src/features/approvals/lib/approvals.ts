@@ -33,6 +33,23 @@ export function kindLabel(kind: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/** What a row is called: the record's own name when its kind gives one (a doctor), else the kind ("Leave"). */
+export function requestTitle(item: Pick<ApprovalInboxItemDto, 'kind' | 'subject'>): string {
+  return item.subject?.title ?? kindLabel(item.kind);
+}
+
+/** The line under a row's title: the kind when the title is the record's name, then the place and who sent it. */
+export function requestDetail(item: Pick<ApprovalInboxItemDto, 'kind' | 'subject' | 'submitter' | 'cycle'>): string {
+  return [
+    item.subject ? kindLabel(item.kind) : null,
+    item.subject?.subtitle,
+    item.submitter ? `${item.submitter.name} · ${item.submitter.employeeCode}` : 'Unknown employee',
+    item.cycle > 1 ? `resubmitted (round ${item.cycle})` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 export const KIND_OPTIONS = Object.entries(KIND_LABEL).map(([value, label]) => ({ value, label }));
 
 // ── Status and stage ───────────────────────────────────────────────────────────────────────

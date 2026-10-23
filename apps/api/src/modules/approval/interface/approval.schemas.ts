@@ -30,6 +30,8 @@ const listBase = z.object({
 });
 
 export const inboxQuerySchema = listBase.extend({
+  /** `/all` only: leave out the requests still open. */
+  decided: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
   /** Admin only: requests from this manager's direct reports. Ignored for other roles. */
   managerId: objectIdSchema.optional(),
 });

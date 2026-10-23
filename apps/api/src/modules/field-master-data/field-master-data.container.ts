@@ -9,7 +9,7 @@ import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner
 import { makeFieldMasterDataSource } from './application/syncSnapshot.js';
 import { makeNewDoctorSyncHandler } from './application/newDoctorSync.js';
 import { ReviewPendingDoctorUseCase } from './application/usecases/reviewPendingDoctor.usecase.js';
-import { makeDoctorApprovalHandler, NEW_DOCTOR_KIND } from './application/doctorApproval.js';
+import { makeDoctorApprovalHandler, makeDoctorDescriber, NEW_DOCTOR_KIND } from './application/doctorApproval.js';
 import { DoctorVisibility } from './application/doctorVisibility.js';
 import { DoctorViews } from './application/doctorViews.js';
 import { DoctorRetirement } from './application/doctorRetirement.js';
@@ -94,6 +94,7 @@ export function buildFieldMasterDataContainer(
     finalApproverRoles: ['ADMIN'],
     // The manager's approval is the decision (Admin can still decide at any time); no second stage.
     managerOnly: true,
+    describeRecords: makeDoctorDescriber(doctors, territory),
     onStatusChange: makeDoctorApprovalHandler(doctors, assignments, users, territory, config),
   });
 
