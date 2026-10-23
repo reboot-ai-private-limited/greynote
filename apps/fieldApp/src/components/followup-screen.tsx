@@ -81,7 +81,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
   };
 
   const outlets = useMemo(() => {
-    const list: { id: string; routeId: string; name: string; address: string; location: { latitude: number; longitude: number } | null; specialty?: string }[] =
+    const list: { id: string; routeId: string; name: string; address: string; location: { latitude: number; longitude: number } | null; specialty?: string; photoUrl?: string | null }[] =
       isDoctor ? (master.data?.doctors ?? []) : (master.data?.chemists ?? []);
     return [...list].sort((a, b) => Number(notInPlan(a)) - Number(notInPlan(b)) || a.name.localeCompare(b.name));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -217,6 +217,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
             return {
               id: o.id,
               name: o.name,
+              photoUrl: o.photoUrl,
               disabled: soon !== null,
               subtitle: `${soon ? `${soon.short} · ` : ''}${notInPlan(o) ? 'Not in plan · ' : ''}${o.specialty ? `${o.specialty} · ${o.address}` : o.address}`,
             };
@@ -229,6 +230,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
           }}
           disabled={busy}
           emptyText={`No ${noun}s yet. Connect to the internet once so your list can load.`}
+          avatars={isDoctor}
         />
         </FormField>
         {picked && tooSoon(picked.id) ? <Notice tone="warning" title="Too soon for another visit">{tooSoon(picked.id)!.text}</Notice> : null}

@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChoiceChips } from '@/components/choice-chips';
 import { Notice } from '@/components/notice';
 import { PillToggle } from '@/components/pill-toggle';
+import { PlanAmendments } from '@/components/plan-amendments';
 import { PlanApprovalSteps } from '@/components/plan-approval-steps';
 import { PlanCalendar } from '@/components/plan-calendar';
 import { PlanDayCard } from '@/components/plan-day-card';
@@ -449,6 +450,17 @@ export default function MonthlyPlanScreen() {
       {!online ? <Notice tone="info">You’re offline. You can plan the days and save them on this phone; submitting needs the internet.</Notice> : null}
 
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+
+      {detail?.amendments && detail.amendments.length > 0 ? (
+        <PlanAmendments
+          amendments={detail.amendments}
+          entries={detail.entries}
+          routes={territory.data?.routes}
+          nameOf={(userId) => names.colleagues.get(userId)?.name ?? null}
+          timeZone={timeZone}
+          editor="your manager"
+        />
+      ) : null}
 
       {isTablet ? (
         // Tablet: the month's overview on the left, the day-by-day list beside it.

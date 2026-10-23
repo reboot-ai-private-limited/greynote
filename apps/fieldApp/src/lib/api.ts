@@ -94,7 +94,7 @@ function refreshTokens(): Promise<boolean> {
     } catch (err) {
       // Only a definite rejection ends the session; a dropped connection must not log the MR out.
       if (err instanceof NetworkError) throw err;
-      if (err instanceof ApiError && err.status === 401) await clearSession();
+      if (err instanceof ApiError && err.status === 401) await clearSession({ byServer: true });
       return false;
     }
   })().finally(() => {
@@ -124,12 +124,12 @@ export type UploadFile = { uri: string; name: string; mimeType?: string | null }
  * { uri, name, type } file part: the system reads the file, so the app never has to. (The app's fetch
  * refuses that part, and Expo Go refuses expo-file-system "READ" permission on the picker's cache folder.)
  */
-function sendFile<T>(path: string, file: UploadFile, accessToken?: string): Promise<T> {
+function sendFile<T>(path: string, file: UploadFile, accessToken: string | undefined, method: 'POST' | 'PUT'): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const form = new FormData();
     form.append('file', { uri: file.uri, name: file.name, type: file.mimeType ?? 'application/octet-stream' } as unknown as Blob);
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${API_BASE_URL}${path}`);
+    xhr.open(method, `${API_BASE_URL}${path}`);
     // No Content-Type: the multipart boundary is set for us.
     xhr.setRequestHeader('X-Client', 'mobile');
     xhr.setRequestHeader('Accept', 'application/json');
@@ -151,14 +151,14 @@ function sendFile<T>(path: string, file: UploadFile, accessToken?: string): Prom
   });
 }
 
-/** POSTs one file as multipart/form-data (field `file`), refreshing the sign-in once on a 401 like every other call. */
-export async function apiUpload<T>(path: string, file: UploadFile): Promise<T> {
+/** Sends one file as multipart/form-data (field `file`; POST unless told PUT), refreshing the sign-in once on a 401 like every other call. */
+export async function apiUpload<T>(path: string, file: UploadFile, method: 'POST' | 'PUT' = 'POST'): Promise<T> {
   try {
-    return await sendFile<T>(path, file, getTokens()?.accessToken);
+    return await sendFile<T>(path, file, getTokens()?.accessToken, method);
   } catch (err) {
     if (!(err instanceof ApiError) || err.status !== 401) throw err;
     if (!(await refreshTokens())) throw err;
-    return sendFile<T>(path, file, getTokens()?.accessToken);
+    return sendFile<T>(path, file, getTokens()?.accessToken, method);
   }
 }
 

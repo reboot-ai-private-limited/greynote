@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { DoctorAvatar } from '@/components/doctor-avatar';
 import { FyBanner } from '@/components/fy-banner';
 import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, IconChip, InfoCard, Meter, Pill, StatusBanner, SummaryStrip, sym } from '@/components/ui-cards';
+import { Avatar, InfoCard, Meter, Pill, StatusBanner, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { getDoctorVisits, stageOf, type DoctorVisitMr, type DoctorVisitRow, type DoctorVisitsReport, type VisitStage } from '@/lib/doctor-visits';
 import { useFinancialYear } from '@/lib/financial-year';
 import { useSessionUser } from '@/lib/session';
 import { useOnline } from '@/offline';
+import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
+import type { FieldMasterDataSnapshot } from '@/types/sync';
 import { formatWhen, monthOf, prettyDay, prettyMonth } from '@/offline/day';
 
 const visitsText = (made: number, missed: number) => (missed === 0 ? `${made} called · done` : `${made} called, ${missed} missed`);
@@ -27,12 +30,15 @@ const STAGE: Record<VisitStage, { label: string; accent: Accent }> = {
 
 /** The doctors in the server's order: most still to visit first. */
 function DoctorRows({ rows }: { rows: DoctorVisitRow[] }) {
+  // The report carries no photo: an own doctor's comes from the phone's doctor list; a team member's shows initials.
+  const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
+  const photoOf = (id: string) => master.data?.doctors.find((d) => d.id === id)?.photoUrl ?? null;
   return (
     <>
       {rows.map((r) => (
         <InfoCard key={r.doctor.id}>
           <View style={styles.row}>
-            <IconChip icon={sym('stethoscope', 'medical_services')} accent={STAGE[stageOf(r)].accent} />
+            <DoctorAvatar name={r.doctor.name} photoUrl={photoOf(r.doctor.id)} size={36} />
             <ThemedText type="smallBold" style={styles.grow}>
               {r.doctor.name}
             </ThemedText>

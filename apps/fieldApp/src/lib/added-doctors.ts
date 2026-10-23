@@ -23,6 +23,8 @@ export type AddedDoctor = {
   anniversary?: string | null;
   /** Visits a month (1–4) the MR should make; `null` = none set. */
   visitFrequency?: number | null;
+  /** The doctor's photo, or `null` (show initials). Absent from older servers. */
+  photoUrl?: string | null;
   /** `pending` until approved. */
   status: 'pending' | 'active' | 'inactive';
   approval: { requestId: string; cycle: number; status: string } | null;
@@ -92,6 +94,8 @@ export type TeamDoctor = {
   dateOfBirth?: string | null;
   anniversary?: string | null;
   visitFrequency?: number | null;
+  /** The doctor's photo, or `null` (show initials). Absent from older servers. */
+  photoUrl?: string | null;
   assignedTo: { userId: string; name: string; employeeCode: string } | null;
 };
 

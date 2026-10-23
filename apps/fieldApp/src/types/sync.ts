@@ -118,6 +118,8 @@ export type FieldMasterDataSnapshot = {
     anniversary?: string | null;
     /** How many visits a month the MR should make (1–4); `null` = no target. */
     visitFrequency?: number | null;
+    /** The doctor's photo, or `null` (show initials). Absent from older servers. */
+    photoUrl?: string | null;
   }[];
   chemists: { id: string; routeId: string; name: string; address: string; location: GeoPoint | null }[];
   /** A distributor can be on several routes (the API sends `routeIds`; there is no single `routeId`). */

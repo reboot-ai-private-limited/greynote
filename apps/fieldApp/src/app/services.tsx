@@ -198,7 +198,7 @@ export default function ServicesScreen() {
           <FormField form={fe} name="doctor">
             <OutletPicker
               label="Doctor"
-              options={[...doctors].sort((a, b) => a.name.localeCompare(b.name)).map((d) => ({ id: d.id, name: d.name, subtitle: d.address }))}
+              options={[...doctors].sort((a, b) => a.name.localeCompare(b.name)).map((d) => ({ id: d.id, name: d.name, subtitle: d.address, photoUrl: d.photoUrl }))}
               value={doctorId}
               onChange={(id) => {
                 setDoctorId(id);
@@ -206,6 +206,7 @@ export default function ServicesScreen() {
               }}
               disabled={busy !== null}
               emptyText="No doctors are assigned to you yet."
+              avatars
             />
           </FormField>
         </CardSection>

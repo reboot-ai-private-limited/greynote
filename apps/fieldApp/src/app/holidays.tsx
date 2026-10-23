@@ -1,8 +1,6 @@
-import { useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { FyBanner } from '@/components/fy-banner';
-import { MonthStepper } from '@/components/month-stepper';
 import { Notice } from '@/components/notice';
 import { ScreenShell } from '@/components/screen-shell';
 import { ThemedText } from '@/components/themed-text';
@@ -12,7 +10,7 @@ import { apiGet } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { datesInMonth, formatWhen, monthOf, prettyDay, weeklyOffIndex } from '@/offline/day';
+import { datesInMonth, formatWhen, monthOf, prettyDay, prettyMonth, weeklyOffIndex } from '@/offline/day';
 import type { ConfigSnapshot } from '@/types/sync';
 
 /** `groupId` is shared by the days of one multi-day holiday (docs/mobile/holidays.md rule 8); null for a one-day holiday and older rows. */
@@ -40,29 +38,30 @@ const SCOPE_LABEL: Record<Holiday['scope'], string> = { NATIONAL: 'National', ZO
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 /**
- * Holiday List (PRD §6.2): the National, Zone and HQ holidays that apply to you, a month at a time. The weekly
- * off day is a rule, not a holiday row, so it is noted instead. The last list stays on the phone for offline use.
+ * Holiday List (PRD §6.2): every National, Zone and HQ holiday that applies to you in the financial year, under month
+ * headings; the days already gone are greyed. The weekly off day is a rule, not a holiday row, so it is noted instead.
+ * The last list stays on the phone for offline use.
  */
 export default function HolidaysScreen() {
   const fy = useFinancialYear();
   const config = useCachedSource<ConfigSnapshot>('config');
-  const [picked, setPicked] = useState<string | null>(null);
 
-  const start = fy.isPast ? fy.lastMonth : monthOf(fy.today);
-  const clamp = (m: string) => (m < fy.firstMonth ? fy.firstMonth : m > fy.lastMonth ? fy.lastMonth : m);
-  const month = clamp(picked ?? start);
-  const days = datesInMonth(month);
-  const first = days[0]!;
-  const last = days[days.length - 1]!;
+  const first = datesInMonth(fy.firstMonth)[0]!;
+  const last = datesInMonth(fy.lastMonth).at(-1)!;
 
-  const list = useCachedFetch<Holiday[]>(`holidays:${month}`, () => apiGet<Holiday[]>(`/hr/holidays?from=${first}&to=${last}`, { auth: true }));
+  const list = useCachedFetch<Holiday[]>(`holidays:${first}:${last}`, () => apiGet<Holiday[]>(`/hr/holidays?from=${first}&to=${last}`, { auth: true }));
   const holidays = [...(list.data ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+  const byMonth = groupHolidays(holidays).reduce<{ month: string; lines: HolidayLine[] }[]>((groups, h) => {
+    const month = monthOf(h.from);
+    if (groups.at(-1)?.month === month) groups.at(-1)!.lines.push(h);
+    else groups.push({ month, lines: [h] });
+    return groups;
+  }, []);
   const offIndex = weeklyOffIndex(config.data?.settings.WEEKLY_OFF_DAY);
 
   return (
-    <ScreenShell title="Holiday List" onRefresh={list.reload} refreshing={list.refreshing}>
+    <ScreenShell title="Holiday List" subtitle={`${prettyMonth(fy.firstMonth)} – ${prettyMonth(fy.lastMonth)}`} onRefresh={list.reload} refreshing={list.refreshing}>
       <FyBanner />
-      <MonthStepper value={month} onChange={setPicked} min={fy.firstMonth} max={fy.lastMonth} />
       {offIndex !== null ? (
         <ThemedText type="small" themeColor="textSecondary">{`Weekly off: every ${WEEKDAYS[offIndex]}.`}</ThemedText>
       ) : null}
@@ -72,15 +71,20 @@ export default function HolidaysScreen() {
       {list.loading && !list.data ? (
         <Notice tone="info">Loading…</Notice>
       ) : holidays.length === 0 ? (
-        <Notice tone="info">{list.data ? 'No holidays this month.' : 'Connect once to load the holidays.'}</Notice>
+        <Notice tone="info">{list.data ? 'No holidays this financial year.' : 'Connect once to load the holidays.'}</Notice>
       ) : (
-        groupHolidays(holidays).map((h) => (
-          <ThemedView key={h.key} type="backgroundElement" style={styles.card}>
-            <ThemedText type="smallBold">{h.name}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {`${h.days > 1 ? `${prettyDay(h.from)} – ${prettyDay(h.to)} (${h.days} days)` : prettyDay(h.from)} · ${SCOPE_LABEL[h.scope]}`}
-            </ThemedText>
-          </ThemedView>
+        byMonth.map((g) => (
+          <View key={g.month} style={styles.month}>
+            <ThemedText type="smallBold" themeColor="textSecondary">{prettyMonth(g.month)}</ThemedText>
+            {g.lines.map((h) => (
+              <ThemedView key={h.key} type="backgroundElement" style={[styles.card, h.to < fy.today && styles.past]}>
+                <ThemedText type="smallBold">{h.name}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {`${h.days > 1 ? `${prettyDay(h.from)} – ${prettyDay(h.to)} (${h.days} days)` : prettyDay(h.from)} · ${SCOPE_LABEL[h.scope]}`}
+                </ThemedText>
+              </ThemedView>
+            ))}
+          </View>
         ))
       )}
     </ScreenShell>
@@ -89,4 +93,6 @@ export default function HolidaysScreen() {
 
 const styles = StyleSheet.create({
   card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  month: { gap: Spacing.two },
+  past: { opacity: 0.55 },
 });

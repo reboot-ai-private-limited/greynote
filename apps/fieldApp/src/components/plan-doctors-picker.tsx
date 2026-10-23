@@ -8,6 +8,7 @@ import { useCachedSource } from '@/offline/cache';
 import { prettyDay } from '@/offline/day';
 import type { FieldMasterDataSnapshot, TerritorySnapshot } from '@/types/sync';
 
+import { DoctorAvatar } from './doctor-avatar';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
@@ -46,7 +47,7 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
     const owedIds = new Set(owed.map((o) => o.doctorId));
     const row = (id: string) => {
       const d = byId.get(id);
-      return { id, name: d?.name ?? 'Doctor (no longer yours)', sub: d ? [d.specialty, routeName.get(d.routeId)].filter(Boolean).join(' · ') : '' };
+      return { id, name: d?.name ?? 'Doctor (no longer yours)', photoUrl: d?.photoUrl ?? null, sub: d ? [d.specialty, routeName.get(d.routeId)].filter(Boolean).join(' · ') : '' };
     };
     const onRoutes = doctors
       .filter((d) => routeIds.includes(d.routeId) && !owedIds.has(d.id))
@@ -57,7 +58,7 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
     const known = new Set(doctors.map((d) => d.id));
     const others = picked
       .filter((id) => !known.has(id) && !owedIds.has(id))
-      .map((id) => ({ id, name: 'Team member’s doctor', sub: 'From the people you work with' }));
+      .map((id) => ({ id, name: 'Team member’s doctor', photoUrl: null, sub: 'From the people you work with' }));
     const mine = readOnly ? onRoutes.filter((r) => picked.includes(r.id)) : onRoutes;
     return {
       owedRows: owed.map((o) => ({ ...row(o.doctorId), since: o.carriedFrom })),
@@ -79,6 +80,7 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
           <ThemedView type="primary" style={styles.box}>
             <ThemedText type="small" themeColor="onPrimary">✓</ThemedText>
           </ThemedView>
+          <DoctorAvatar name={r.name} photoUrl={r.photoUrl} size={36} />
           <ThemedView type="backgroundElement" style={styles.text}>
             <ThemedText type="smallBold">{r.name}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
@@ -108,6 +110,7 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
         if (readOnly) {
           return (
             <ThemedView key={r.id} type="backgroundElement" style={styles.row}>
+              <DoctorAvatar name={r.name} photoUrl={r.photoUrl} size={36} />
               <ThemedView type="backgroundElement" style={styles.text}>
                 <ThemedText type="smallBold">{r.name}</ThemedText>
                 {r.sub ? <ThemedText type="small" themeColor="textSecondary">{r.sub}</ThemedText> : null}
@@ -128,6 +131,7 @@ export function PlanDoctorsPicker({ routeIds, picked, owed, onChange, disabled, 
               <ThemedView type={selected ? 'primary' : 'backgroundSelected'} style={styles.box}>
                 <ThemedText type="small" themeColor="onPrimary">{selected ? '✓' : ''}</ThemedText>
               </ThemedView>
+              <DoctorAvatar name={r.name} photoUrl={r.photoUrl} size={36} />
               <ThemedView type="backgroundElement" style={styles.text}>
                 <ThemedText type="smallBold">{r.name}</ThemedText>
                 {sub ? <ThemedText type="small" themeColor="textSecondary">{sub}</ThemedText> : null}

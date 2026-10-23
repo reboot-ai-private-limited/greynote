@@ -150,10 +150,12 @@ export default function VisualsScreen() {
 
       <OutletPicker
         label="Show to doctor"
-        options={[...doctors].sort((a, b) => a.name.localeCompare(b.name)).map((d) => ({ id: d.id, name: d.name, subtitle: `${d.specialty} · ${d.address}` }))}
+        options={[...doctors].sort((a, b) => a.name.localeCompare(b.name)).map((d) => ({ id: d.id, name: d.name, subtitle: `${d.specialty} · ${d.address}`, photoUrl: d.photoUrl }))}
         value={doctorId}
         onChange={chooseDoctor}
         emptyText="No doctors yet. Connect to the internet once so your list can load."
+        searchable
+        avatars
       />
       {doctorId ? (
         <>
@@ -162,7 +164,9 @@ export default function VisualsScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             {already.size > 0 ? `${already.size} already chosen for ${doctor?.name ?? 'this doctor'} (locked). Tick more to add.` : 'Tick the visuals you want to show this doctor, then submit.'}
           </ThemedText>
-          {forDoctor.length > 0 ? <PrimaryButton label={`Show ${doctor?.name ?? 'doctor'}'s visuals`} onPress={() => open(forDoctor[0]!, forDoctor)} /> : null}
+          {/* At the top, under the doctor, so it is reached without scrolling past every visual. */}
+          {picked.size > 0 ? <PrimaryButton label={`Submit ${picked.size} visual${picked.size === 1 ? '' : 's'}`} loading={saving} onPress={submit} /> : null}
+          {forDoctor.length > 0 ? <PrimaryButton label={`Show ${doctor?.name ?? 'doctor'}'s visuals`} variant={picked.size > 0 ? 'text' : 'filled'} onPress={() => open(forDoctor[0]!, forDoctor)} /> : null}
         </>
       ) : null}
 
@@ -248,8 +252,6 @@ export default function VisualsScreen() {
           })}
         </View>
       )}
-
-      {doctorId && picked.size > 0 ? <PrimaryButton label={`Submit ${picked.size} visual${picked.size === 1 ? '' : 's'}`} loading={saving} onPress={submit} /> : null}
 
       {viewing ? (
         <VisualViewer

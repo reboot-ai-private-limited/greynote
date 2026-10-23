@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Alert, Linking, StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { DateField, EMPTY_PARTS, isoFromParts, partsFromIso, type DateParts } from '@/components/date-field';
+import { DoctorAvatar } from '@/components/doctor-avatar';
 import { FormField } from '@/components/form-field';
 import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
@@ -11,12 +12,13 @@ import { Skeleton } from '@/components/skeleton';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-cards';
+import { CardSection, InfoCard, Pill, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useFormErrors } from '@/hooks/use-form-errors';
-import { ApiError, NetworkError } from '@/lib/api';
+import { ApiError, NetworkError, type UploadFile } from '@/lib/api';
 import { ADDED_EDITABLE, editAddedDoctor, listAddedDoctors, type AddedDoctor } from '@/lib/added-doctors';
+import { PhotoPickError, pickDoctorPhoto, removeAddedDoctorPhoto, setAddedDoctorPhoto } from '@/lib/doctor-photo';
 import { captureLocation } from '@/lib/location';
 import { getRejectionReason, withdrawPlan } from '@/lib/planning';
 import {
@@ -31,6 +33,7 @@ import {
   type OutboxRecord,
 } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
+import { getPendingPhoto, listPendingPhotos, setPendingPhoto, type PendingPhoto } from '@/offline/doctor-photos';
 import type { FieldMasterDataSnapshot, TerritorySnapshot } from '@/types/sync';
 
 const errorText = (err: unknown) =>
@@ -92,6 +95,10 @@ export default function AddDoctorScreen() {
   const [birth, setBirth] = useState<DateParts>(EMPTY_PARTS);
   const [anniversary, setAnniversary] = useState<DateParts>(EMPTY_PARTS);
   const [frequency, setFrequency] = useState<string | null>(null);
+  /** The photo chosen for a doctor added on the phone (rule 10): kept with the queued add and uploaded once it has synced. */
+  const [photo, setPhoto] = useState<UploadFile | null>(null);
+  /** Photos still waiting to go up, by the add's `clientId` (with the reason if one was given up). */
+  const [pendingPhotos, setPendingPhotos] = useState<Record<string, PendingPhoto>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
   const form = useFormErrors(FIELD_ORDER);
@@ -106,6 +113,20 @@ export default function AddDoctorScreen() {
   useEffect(() => {
     if (online && hasDrafts) void sendNewDoctors().then(reload).catch(() => undefined);
   }, [online, hasDrafts]);
+
+  // The photos still waiting: read again whenever the outbox changes (a sync uploads them).
+  useEffect(() => {
+    let alive = true;
+    void listPendingPhotos().then((p) => alive && setPendingPhotos(p));
+    return () => {
+      alive = false;
+    };
+  }, [records, reloadKey]);
+  /** The photo still waiting for a doctor already on the server (found through the add that created it). */
+  const photoWaitingFor = (doctorId: string) => {
+    const r = records.find((x) => x.serverId === doctorId);
+    return r ? (pendingPhotos[r.clientId] ?? null) : null;
+  };
 
   // The doctors I added, with where each is in its approval (online).
   useEffect(() => {
@@ -148,7 +169,10 @@ export default function AddDoctorScreen() {
       setBirth(EMPTY_PARTS);
       setAnniversary(EMPTY_PARTS);
       setFrequency(null);
+      setPhoto(null);
     } else {
+      setPhoto(null);
+      if ('local' in t) void getPendingPhoto(t.local.clientId).then((p) => p && setPhoto({ uri: p.uri, name: p.name, mimeType: p.mimeType }));
       const d = 'local' in t ? (t.local.payload as NewDoctorPayload) : t.server;
       setRouteId(d.routeId);
       setName(d.name);
@@ -224,6 +248,7 @@ export default function AddDoctorScreen() {
       } else {
         const existing = target && typeof target === 'object' && 'local' in target ? target.local : undefined;
         const record = await saveCall('NEW_DOCTOR', payload, existing);
+        await setPendingPhoto(record.clientId, photo);
         setTarget(null);
         if (!online) {
           setMsg({ tone: 'info', text: 'Saved on this phone. It will be sent when you’re online.' });
@@ -250,8 +275,45 @@ export default function AddDoctorScreen() {
     }
   };
 
+  /** Asks camera or gallery, then picks; `null` when cancelled. Problems (permission, file) are shown as the screen's message. */
+  const choosePhoto = () =>
+    new Promise<UploadFile | null>((resolve) => {
+      const pick = async (source: 'camera' | 'library') => {
+        try {
+          resolve(await pickDoctorPhoto(source));
+        } catch (err) {
+          setMsg({ tone: 'danger', text: err instanceof PhotoPickError ? err.message : 'Could not open the photo. Try again.' });
+          resolve(null);
+        }
+      };
+      Alert.alert('Doctor’s photo', 'Optional. It shows next to the doctor’s name.', [
+        { text: 'Take photo', onPress: () => void pick('camera') },
+        { text: 'Choose from gallery', onPress: () => void pick('library') },
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(null) },
+      ]);
+    });
+
+  /** Sets or removes the photo of a doctor already on the server, while it waits or was sent back (online). */
+  const changeServerPhoto = async (d: AddedDoctor, remove: boolean) => {
+    if (!online) return setMsg({ tone: 'info', text: 'You’re offline. Connect to the internet to change the photo.' });
+    const file = remove ? null : await choosePhoto();
+    if (!remove && !file) return;
+    setBusy(true);
+    try {
+      if (file) await setAddedDoctorPhoto(d.id, file);
+      else await removeAddedDoctorPhoto(d.id);
+      setMsg({ tone: 'success', text: file ? 'Photo saved. The request is not sent again.' : 'Photo removed.' });
+      reload();
+    } catch (err) {
+      setMsg({ tone: 'danger', text: errorText(err) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const removeLocal = async (r: OutboxRecord) => {
     try {
+      await setPendingPhoto(r.clientId, null);
       await removeRecord(r.clientId);
     } catch (err) {
       setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Could not remove it.' });
@@ -366,6 +428,22 @@ export default function AddDoctorScreen() {
           </FormField>
           <TextField label="Clinic or hospital (optional)" value={clinicName} onChangeText={setClinicName} editable={!busy} maxLength={150} />
         </CardSection>
+        {typeof target === 'object' && 'server' in target ? null : (
+          <CardSection icon={sym('camera', 'photo_camera')} accent="indigo" title="Photo (optional)">
+            <View style={styles.head}>
+              <DoctorAvatar name={name || 'Doctor'} photoUrl={photo?.uri ?? null} size={64} />
+              <View style={styles.grow}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {photo ? 'It is uploaded once the doctor has been sent.' : 'A photo of the doctor helps you and your manager recognise them.'}
+                </ThemedText>
+                <View style={styles.actions}>
+                  <PrimaryButton label={photo ? 'Change photo' : 'Add photo'} variant="text" disabled={busy} onPress={() => void choosePhoto().then((f) => f && setPhoto(f))} />
+                  {photo ? <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => setPhoto(null)} /> : null}
+                </View>
+              </View>
+            </View>
+          </CardSection>
+        )}
         <CardSection icon={sym('phone', 'call')} accent="green" title="Contact (optional)">
           <FormField form={form} name="phone" outline={false}>
             <TextField
@@ -451,7 +529,7 @@ export default function AddDoctorScreen() {
             return (
               <InfoCard key={r.clientId}>
                 <View style={styles.head}>
-                  <IconChip icon={sym('stethoscope', 'medical_services')} accent="slate" />
+                  <DoctorAvatar name={p.name} photoUrl={pendingPhotos[r.clientId]?.uri ?? null} />
                   <View style={styles.grow}>
                     <ThemedText type="smallBold">{p.name}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
@@ -459,6 +537,9 @@ export default function AddDoctorScreen() {
                     </ThemedText>
                   </View>
                 </View>
+                {pendingPhotos[r.clientId] ? (
+                  <ThemedText type="small" themeColor="textSecondary">The photo is uploaded once the doctor has been sent.</ThemedText>
+                ) : null}
                 <ThemedText type="small" themeColor={r.status === 'FAILED' ? 'danger' : 'textSecondary'}>
                   {r.status === 'FAILED' ? 'Not accepted' : online ? 'Sending…' : 'Saved on this phone — sends when you’re online'}
                 </ThemedText>
@@ -497,7 +578,7 @@ export default function AddDoctorScreen() {
         return (
           <InfoCard key={d.id}>
             <View style={styles.head}>
-              <IconChip icon={sym('stethoscope', 'medical_services')} accent={STATE_ACCENT[state] ?? 'slate'} />
+              <DoctorAvatar name={d.name} photoUrl={d.photoUrl} />
               <View style={styles.grow}>
                 <ThemedText type="smallBold">{d.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
@@ -512,10 +593,22 @@ export default function AddDoctorScreen() {
                 {`“${reasons[d.id]}”`}
               </ThemedText>
             ) : null}
+            {photoWaitingFor(d.id) ? (
+              <ThemedText type="small" themeColor={photoWaitingFor(d.id)!.error ? 'danger' : 'textSecondary'}>
+                {photoWaitingFor(d.id)!.error ? `The photo wasn’t uploaded: ${photoWaitingFor(d.id)!.error}` : 'Uploading the photo…'}
+              </ThemedText>
+            ) : null}
             {editable || waiting ? (
               <View style={styles.actions}>
                 {editable ? <PrimaryButton label="Change" variant="text" disabled={busy} onPress={() => start({ server: d })} /> : null}
                 {waiting ? <PrimaryButton label="Withdraw" variant="text" disabled={busy} onPress={() => withdraw(d)} /> : null}
+              </View>
+            ) : null}
+            {/* Rule 10: the photo can be changed while the doctor waits or was sent back, without resubmitting; once approved only Admin can. */}
+            {state !== 'APPROVED' ? (
+              <View style={styles.actions}>
+                <PrimaryButton label={d.photoUrl ? 'Change photo' : 'Add photo'} variant="text" disabled={busy || !online} onPress={() => void changeServerPhoto(d, false)} />
+                {d.photoUrl ? <PrimaryButton label="Remove photo" variant="text" disabled={busy || !online} onPress={() => void changeServerPhoto(d, true)} /> : null}
               </View>
             ) : null}
           </InfoCard>

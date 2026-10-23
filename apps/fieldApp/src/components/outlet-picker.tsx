@@ -5,10 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+import { DoctorAvatar } from './doctor-avatar';
 import { ThemedText } from './themed-text';
 
 /** `disabled` greys an option out and it can't be picked; its subtitle should say why. */
-export type OutletOption = { id: string; name: string; subtitle?: string; disabled?: boolean };
+export type OutletOption = { id: string; name: string; subtitle?: string; disabled?: boolean; /** A doctor's photo (`avatars` on). */ photoUrl?: string | null };
 
 type Props = {
   label: string;
@@ -18,6 +19,10 @@ type Props = {
   disabled?: boolean;
   /** Shown when `options` is empty — say why (no plan routes, nothing synced yet…). */
   emptyText: string;
+  /** Always offer the search box, however short the list (it searches the name and the subtitle). */
+  searchable?: boolean;
+  /** Doctors: each option shows its photo, or its initials. */
+  avatars?: boolean;
 };
 
 /** A search box is only worth its space once the list is longer than this. */
@@ -29,7 +34,7 @@ const SEARCH_FROM = 6;
  * optional search and the options. The chosen option is marked with a tick and the primary colour, never a
  * filled background, so the form around it keeps its look.
  */
-export function OutletPicker({ label, options, value, onChange, disabled, emptyText }: Props) {
+export function OutletPicker({ label, options, value, onChange, disabled, emptyText, searchable, avatars }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
@@ -89,6 +94,7 @@ export function OutletPicker({ label, options, value, onChange, disabled, emptyT
           pressed && { backgroundColor: theme.backgroundElement },
           disabled && styles.disabled,
         ]}>
+        {avatars && chosen ? <DoctorAvatar name={chosen.name} photoUrl={chosen.photoUrl} size={36} /> : null}
         <View style={styles.flex}>
           {chosen ? (
             <>
@@ -140,7 +146,7 @@ export function OutletPicker({ label, options, value, onChange, disabled, emptyT
               </ThemedText>
             ) : (
               <>
-                {options.length > SEARCH_FROM ? (
+                {searchable || options.length > SEARCH_FROM ? (
                   <TextInput
                     value={query}
                     onChangeText={setQuery}
@@ -180,6 +186,7 @@ export function OutletPicker({ label, options, value, onChange, disabled, emptyT
                           pressed && { backgroundColor: theme.backgroundElement },
                           item.disabled && styles.disabled,
                         ]}>
+                        {avatars ? <DoctorAvatar name={item.name} photoUrl={item.photoUrl} size={40} /> : null}
                         <View style={styles.flex}>
                           <ThemedText type={selected ? 'smallBold' : 'default'} themeColor={selected ? 'primary' : undefined}>
                             {item.name}
