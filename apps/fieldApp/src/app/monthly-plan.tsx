@@ -25,6 +25,8 @@ import {
   EDITABLE,
   EMPTY_DAY,
   LATE_TEXT,
+  clearPlanDay,
+  placePlanDay,
   getMonthlyPlanDetail,
   getRejectionReason,
   isFieldDay,
@@ -229,7 +231,9 @@ export default function MonthlyPlanScreen() {
       if (day.returnDate <= date) return { field: 'returnDate', text: 'The return date must be after the day you leave.' };
       if (day.returnDate.slice(0, 7) > addMonths(date.slice(0, 7), 1)) return { field: 'returnDate', text: 'A trip can’t return later than next month.' };
       // A trip can't run over another planned day of this month.
-      const clash = Object.keys(entries).find((d) => d > date && d <= day.returnDate! && !isTripDay(entries[d]?.dayKind) && !offByDate.has(d));
+      // Only this trip's own stay and return days may be run over (they move with it); any other planned day, or another trip's day, may not.
+      const ownEnd = entries[date]?.returnDate ?? null;
+      const clash = Object.keys(entries).find((d) => d > date && d <= day.returnDate! && !(isTripDay(entries[d]?.dayKind) && ownEnd !== null && d <= ownEnd) && !offByDate.has(d));
       if (clash) return { field: 'returnDate', text: `${prettyDay(clash)} is already planned. Clear it, or choose an earlier return date.` };
       // A trip can't run over a weekly off or a holiday (stay and return days are planned days).
       const locked = lockedDates.filter((d) => d > date && d <= day.returnDate!).sort()[0];
@@ -250,7 +254,9 @@ export default function MonthlyPlanScreen() {
       const plain: PlanDay = { ...sheet, returnDate: null, dayKind: 'NORMAL' };
       setEntries((e) => ({ ...Object.fromEntries(days.filter((d) => !isOff(d) && !isTripDay(e[d]?.dayKind) && !e[d]?.returnDate).map((d) => [d, plain])), ...Object.fromEntries(Object.entries(e).filter(([, v]) => isTripDay(v.dayKind) || v.returnDate)) }));
     } else if (editing) {
-      setEntries((e) => ({ ...e, [editing.date]: { ...sheet, dayKind: 'NORMAL' } }));
+      // A trip's stay and return days are filled in at once, as the server will write them, so they don't read as days to plan.
+      const { date } = editing;
+      setEntries((e) => placePlanDay(e, month, date, sheet));
     }
     setEditing(null);
   }
@@ -258,11 +264,7 @@ export default function MonthlyPlanScreen() {
   function clearDay() {
     if (editing && editing !== 'ALL') {
       const { date } = editing;
-      setEntries((e) => {
-        const next = { ...e };
-        delete next[date];
-        return next;
-      });
+      setEntries((e) => clearPlanDay(e, date)); // a trip's stay and return days go with it
     }
     setEditing(null);
   }
@@ -491,7 +493,9 @@ export default function MonthlyPlanScreen() {
               {tripOf ? (
                 <>
                   <Notice tone="info" title={entries[tripOf.date]?.dayKind === 'TRANSIT' ? 'Return day of a trip' : 'Stay day of a trip'}>
-                    {`This day is part of the trip that starts on ${prettyDay(tripOf.start)}. To change it, edit that first day.`}
+                    {`This day is part of the trip that starts on ${prettyDay(tripOf.start)}. To change it, edit that first day.\n\n${
+                      entries[tripOf.date]?.dayKind === 'TRANSIT' ? 'TA · ex-station DA' : 'No TA · out-station DA only'
+                    }`}
                   </Notice>
                   <PrimaryButton label="Open the first day" onPress={() => openDay(tripOf.start)} />
                 </>

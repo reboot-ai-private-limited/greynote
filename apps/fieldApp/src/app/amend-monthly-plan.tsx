@@ -19,6 +19,8 @@ import { useDayGate } from '@/hooks/use-day-gate';
 import {
   EMPTY_DAY,
   amendErrorText,
+  clearPlanDay,
+  placePlanDay,
   amendMonthlyPlan,
   errorDate,
   getMonthlyPlanById,
@@ -89,8 +91,10 @@ export default function AmendMonthlyPlanScreen() {
     return { plan, ownerRoutes };
   }, [id]);
 
+  // Loaded once: coming back online after a blip must not throw away the days being edited (a stale save reloads on its own).
+  const loaded = data !== null;
   useEffect(() => {
-    if (!online) return;
+    if (!online || loaded) return;
     let alive = true;
     load()
       .then((r) => {
@@ -103,7 +107,7 @@ export default function AmendMonthlyPlanScreen() {
     return () => {
       alive = false;
     };
-  }, [load, online]);
+  }, [load, online, loaded]);
 
   const plan = data?.plan ?? null;
   const month = plan?.planMonth ?? '';
@@ -144,11 +148,12 @@ export default function AmendMonthlyPlanScreen() {
     .sort();
   const waiting = plan?.status === 'SUBMITTED';
 
-  // A stay or return day belongs to the trip on an earlier day: it is changed from that first day.
-  const tripStart =
-    editing && isTripDay(entries[editing]?.dayKind)
-      ? (Object.keys(entries).filter((d) => d < editing && entries[d]?.returnDate && entries[d]!.returnDate! >= editing).sort().at(-1) ?? editing)
-      : null;
+  // A stay or return day belongs to the trip on an earlier day: it is changed from that first day. `null` start: the trip began in
+  // the month before, so it is changed from that month's plan.
+  const tripDay = editing !== null && isTripDay(entries[editing]?.dayKind);
+  const tripStart = tripDay
+    ? (Object.keys(entries).filter((d) => d < editing && entries[d]?.returnDate && entries[d]!.returnDate! >= editing).sort().at(-1) ?? null)
+    : null;
 
   function openDay(date: string) {
     setSheet(entries[date] ?? EMPTY_DAY);
@@ -163,7 +168,9 @@ export default function AmendMonthlyPlanScreen() {
       if (!routes.some((r) => r.routeType === 'OUT_STATION' && day.routeIds.includes(r.id))) return { field: 'routes', text: 'A trip needs at least one out-station route. Add one, or clear the return date.' };
       if (day.returnDate <= date) return { field: 'returnDate', text: 'The return date must be after the day they leave.' };
       if (day.returnDate.slice(0, 7) > addMonths(date.slice(0, 7), 1)) return { field: 'returnDate', text: 'A trip can’t return later than next month.' };
-      const clash = Object.keys(entries).find((d) => d > date && d <= day.returnDate! && !isTripDay(entries[d]?.dayKind) && !offByDate.has(d));
+      // Only this trip's own stay and return days may be run over (they move with it); any other planned day, or another trip's day, may not.
+      const ownEnd = entries[date]?.returnDate ?? null;
+      const clash = Object.keys(entries).find((d) => d > date && d <= day.returnDate! && !(isTripDay(entries[d]?.dayKind) && ownEnd !== null && d <= ownEnd) && !offByDate.has(d));
       if (clash) return { field: 'returnDate', text: `${prettyDay(clash)} is already planned. Clear it, or choose an earlier return date.` };
       const locked = lockedDates.filter((d) => d > date && d <= day.returnDate!).sort()[0];
       if (locked) return { field: 'returnDate', text: `${prettyDay(locked)} is ${offLabelOf(locked).toLowerCase()}, so a trip can’t run over it. Choose an earlier return date.` };
@@ -171,7 +178,7 @@ export default function AmendMonthlyPlanScreen() {
     return null;
   }
 
-  /** Puts the day in the month. A trip's old stay and return days go; the server writes the new ones on save. */
+  /** Puts the day in the month. A trip's old stay and return days go and its new ones come in; the server rebuilds them on save. */
   function applySheet() {
     if (!editing) return;
     const problem = validDay(sheet, editing);
@@ -179,12 +186,8 @@ export default function AmendMonthlyPlanScreen() {
       setSheetErrors({ [problem.field]: problem.text });
       return;
     }
-    const oldReturn = entries[editing]?.returnDate;
-    setEntries((e) => {
-      const next = { ...e, [editing]: { ...sheet, dayKind: 'NORMAL' as const } };
-      if (oldReturn) for (const d of Object.keys(next)) if (d > editing && d <= oldReturn && isTripDay(next[d]?.dayKind)) delete next[d];
-      return next;
-    });
+    const date = editing;
+    setEntries((e) => placePlanDay(e, month, date, sheet)); // the trip's stay and return days come with it, as the server writes them
     setMsg(null);
     setEditing(null);
   }
@@ -192,13 +195,7 @@ export default function AmendMonthlyPlanScreen() {
   function clearDay() {
     if (!editing) return;
     const date = editing;
-    const oldReturn = entries[date]?.returnDate;
-    setEntries((e) => {
-      const next = { ...e };
-      delete next[date];
-      if (oldReturn) for (const d of Object.keys(next)) if (d > date && d <= oldReturn && isTripDay(next[d]?.dayKind)) delete next[d];
-      return next;
-    });
+    setEntries((e) => clearPlanDay(e, date));
     setMsg(null);
     setEditing(null);
   }
@@ -325,12 +322,16 @@ export default function AmendMonthlyPlanScreen() {
               <ThemedText type="subtitle" style={styles.sheetTitle}>
                 {editing ? prettyDay(editing) : ''}
               </ThemedText>
-              {editing && tripStart ? (
+              {editing && tripDay ? (
                 <>
                   <Notice tone="info" title={entries[editing]?.dayKind === 'TRANSIT' ? 'Return day of a trip' : 'Stay day of a trip'}>
-                    {`This day is part of the trip that starts on ${prettyDay(tripStart)}. To change it, edit that first day.`}
+                    {`${
+                      tripStart
+                        ? `This day is part of the trip that starts on ${prettyDay(tripStart)}. To change it, edit that first day.`
+                        : 'This day is part of a trip that starts in the month before. It is changed from that month’s plan.'
+                    }\n\n${entries[editing]?.dayKind === 'TRANSIT' ? 'TA · ex-station DA' : 'No TA · out-station DA only'}`}
                   </Notice>
-                  <PrimaryButton label="Open the first day" onPress={() => openDay(tripStart)} />
+                  {tripStart ? <PrimaryButton label="Open the first day" onPress={() => openDay(tripStart)} /> : null}
                 </>
               ) : editing ? (
                 <>

@@ -1,3 +1,4 @@
+import { addDays } from '@/offline/day';
 import type { PlanOffDay, PlanStatus } from '@/types/sync';
 
 import { ApiError, NetworkError, apiGet, apiPatch, apiPost } from './api';
@@ -80,6 +81,41 @@ export type PlanDay = {
 };
 
 export const EMPTY_DAY: PlanDay = { workingType: 'FIELD_WORK', workWith: [], routeIds: [], remarks: null };
+
+/*
+ * A trip's other days, as the server writes them when the month is saved (planning tripExpansion.ts): every day after the first
+ * up to the one before the return is `STAY`, the return day `TRANSIT`, each a copy of the trip. The phone writes them the moment
+ * the trip is set, so they read as already planned instead of open days to fill in; the server still rebuilds them on save
+ * (`entriesToSend` leaves them out). Days that fall in the next month are not shown here: the server adds them to that month.
+ */
+
+/** A month's days being planned, by date. */
+export type PlanEntries = Record<string, PlanDay>;
+
+/** The trip's stay and return days that fall inside `month` (`YYYY-MM`). */
+function tripDaysIn(month: string, date: string, trip: PlanDay): PlanEntries {
+  const out: PlanEntries = {};
+  if (!trip.returnDate) return out;
+  for (let d = addDays(date, 1); d <= trip.returnDate; d = addDays(d, 1)) {
+    if (d.startsWith(`${month}-`)) out[d] = { ...trip, returnDate: null, dayKind: d === trip.returnDate ? 'TRANSIT' : 'STAY' };
+  }
+  return out;
+}
+
+/** `entries` without the day and, if it was a trip's first day, without that trip's stay and return days. */
+export function clearPlanDay(entries: PlanEntries, date: string): PlanEntries {
+  const next = { ...entries };
+  const old = next[date];
+  delete next[date];
+  if (old?.returnDate) for (const d of Object.keys(next)) if (d > date && d <= old.returnDate && isTripDay(next[d]?.dayKind)) delete next[d];
+  return next;
+}
+
+/** Puts a typed day in the month: the old trip's days (if the day was a trip) go, and the new trip's days come in. */
+export function placePlanDay(entries: PlanEntries, month: string, date: string, day: PlanDay): PlanEntries {
+  const typed: PlanDay = { ...day, dayKind: 'NORMAL' };
+  return { ...clearPlanDay(entries, date), [date]: typed, ...tripDaysIn(month, date, typed) };
+}
 
 type StateView = {
   id: string;

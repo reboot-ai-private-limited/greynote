@@ -19,9 +19,9 @@ export class PhotoPickError extends Error {}
  * `PhotoPickError` (with a message to show) when permission is refused or the file is not one the server takes.
  */
 export async function pickDoctorPhoto(source: 'camera' | 'library'): Promise<UploadFile | null> {
-  const permission = source === 'camera' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) {
-    throw new PhotoPickError(source === 'camera' ? 'Allow the camera for this app to take a photo.' : 'Allow photos for this app to choose one.');
+  // The gallery opens the system photo picker, which needs no permission (and asking would be an extra prompt); the camera does.
+  if (source === 'camera' && !(await ImagePicker.requestCameraPermissionsAsync()).granted) {
+    throw new PhotoPickError('Allow the camera for this app to take a photo.');
   }
   const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7 };
   const result = source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);

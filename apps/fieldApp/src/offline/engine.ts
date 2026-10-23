@@ -127,7 +127,7 @@ export async function pushPending(only?: SyncKind[], opts: { skipFailed?: boolea
   // `only` narrows a push to some kinds (e.g. a new doctor), so it never drags the day's report along with it.
   const pending = orderForPush(only ? queued.filter((r) => only.includes(r.kind)) : queued);
   if (pending.length === 0) {
-    await uploadPhotosQuietly(); // a photo whose doctor synced earlier may still be waiting
+    uploadPhotosQuietly(); // a photo whose doctor synced earlier may still be waiting
     return summary;
   }
 
@@ -209,18 +209,26 @@ export async function pushPending(only?: SyncKind[], opts: { skipFailed?: boolea
     setStatus({ syncing: false, lastError: summary.error });
     notifyOutboxChanged();
   }
-  if (!summary.offline) await uploadPhotosQuietly();
+  if (!summary.offline) uploadPhotosQuietly();
   return summary;
 }
 
-/** Uploads the photos of doctors added on the phone once those doctors have synced (offline/doctor-photos.ts). Never throws. */
-async function uploadPhotosQuietly(): Promise<void> {
-  if (!isOnline()) return;
-  try {
-    if ((await uploadPendingPhotos()) > 0) notifyOutboxChanged();
-  } catch {
-    // A photo never holds up a sync; it is tried again next time.
-  }
+let uploadingPhotos: Promise<void> | null = null;
+
+/**
+ * Uploads the photos of doctors added on the phone once those doctors have synced (offline/doctor-photos.ts), in the background:
+ * a push (a final submission, a doctor's "Save and send") never waits for a photo. One run at a time. Never throws.
+ */
+function uploadPhotosQuietly(): void {
+  if (uploadingPhotos || !isOnline()) return;
+  uploadingPhotos = uploadPendingPhotos()
+    .then((n) => {
+      if (n > 0) notifyOutboxChanged();
+    })
+    .catch(() => undefined) // a photo never holds up a sync; it is tried again next time
+    .finally(() => {
+      uploadingPhotos = null;
+    });
 }
 
 /**

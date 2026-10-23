@@ -1,6 +1,7 @@
 import { ApiError, NetworkError, type UploadFile } from '@/lib/api';
 import { setAddedDoctorPhoto } from '@/lib/doctor-photo';
 
+import { isOnline } from './connectivity';
 import { store } from './store';
 
 /**
@@ -53,20 +54,22 @@ export async function uploadPendingPhotos(): Promise<number> {
   let uploaded = 0;
   let changed = false;
   for (const [clientId, photo] of Object.entries(pending)) {
-    if (photo.error) continue; // given up; kept only so the screen can say why
     const record = await store.getRecord(clientId);
     if (!record || record.deleted) {
-      delete pending[clientId];
+      delete pending[clientId]; // the add is gone (removed, or pruned after syncing): so is its photo, given up or not
       changed = true;
       continue;
     }
+    if (photo.error) continue; // given up; kept only so the screen can say why
     if (record.status !== 'SYNCED' || !record.serverId) continue;
     try {
       await setAddedDoctorPhoto(record.serverId, photo);
       delete pending[clientId];
       uploaded += 1;
     } catch (err) {
-      if (err instanceof NetworkError) break; // offline: everything waits for the next sync
+      // Offline: everything waits for the next sync. While online, a "network" failure is this file's own (the picker's copy can
+      // be cleared from the cache), so it counts as a failed try instead of blocking every photo behind it.
+      if (err instanceof NetworkError && !isOnline()) break;
       const refused = err instanceof ApiError && [400, 403, 404, 409].includes(err.status);
       const attempts = photo.attempts + 1;
       pending[clientId] = {
