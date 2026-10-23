@@ -16,7 +16,7 @@ export class MongoDoctorArchiveAdapter implements DoctorArchivePort {
     if (!row) return;
     const { _id, ...stored } = row;
     await DoctorArchiveModel.create(
-      [{ originalId: _id, doctor: stored, lastAssignedUserId: lastAssignedUserId ? oid(lastAssignedUserId) : null, deletedBy: oid(actorId), deletedAt: new Date() }],
+      [{ originalId: _id, doctor: { ...stored, photo: null }, lastAssignedUserId: lastAssignedUserId ? oid(lastAssignedUserId) : null, deletedBy: oid(actorId), deletedAt: new Date() }],
       { session },
     );
     await DoctorAssignmentModel.deleteMany({ doctorId: _id }, { session });

@@ -24,6 +24,7 @@ erDiagram
         string email
         string specialty
         string qualification "class, e.g. MBBS, MD"
+        json photo "nullable - {url, publicId}, optional profile picture on Cloudinary; only url is sent to clients"
         string date_of_birth "nullable - YYYY-MM-DD"
         string anniversary "nullable - YYYY-MM-DD"
         int visit_frequency "nullable - 1 to 6 visits a month; null = no target"

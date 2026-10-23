@@ -12,6 +12,8 @@ interface Props {
   photoUrl: string | null;
   /** A file chosen but not uploaded yet (the draft does not exist until the first Next); shown instead of the saved one. */
   pendingFile?: File | null;
+  /** What the hidden file input is called for assistive tech. */
+  inputLabel?: string;
   busy?: boolean;
   disabled?: boolean;
   onPick: (file: File) => void;
@@ -19,10 +21,10 @@ interface Props {
 }
 
 /**
- * Choose, replace or remove the employee's photo. "Remove" and "Choose another" are the same two buttons whether the
+ * Choose, replace or remove a person's photo (an employee's, or a doctor's with `inputLabel`). "Remove" and "Choose another" are the same two buttons whether the
  * photo is saved or still waiting to be uploaded; the parent decides what each does.
  */
-export function PhotoPicker({ name, photoUrl, pendingFile, busy, disabled, onPick, onRemove }: Props) {
+export function PhotoPicker({ name, photoUrl, pendingFile, inputLabel = 'Employee photo', busy, disabled, onPick, onRemove }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -77,7 +79,7 @@ export function PhotoPicker({ name, photoUrl, pendingFile, busy, disabled, onPic
             </Button>
           ) : null}
         </div>
-        <input ref={input} type="file" accept={PHOTO_ACCEPT} className="hidden" aria-label="Employee photo" onChange={(e) => chosen(e.target.files?.[0])} />
+        <input ref={input} type="file" accept={PHOTO_ACCEPT} className="hidden" aria-label={inputLabel} onChange={(e) => chosen(e.target.files?.[0])} />
         <p className="mt-1 text-xs text-text-muted">{busy ? 'Saving…' : 'Optional. JPG, PNG or WebP, up to 5 MB.'}</p>
         {error ? <p role="alert" className="mt-1 text-xs text-danger-fg">{error}</p> : null}
       </div>

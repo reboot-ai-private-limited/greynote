@@ -61,7 +61,7 @@ import { LogoutUseCase } from './application/usecases/logout.usecase.js';
 import { LogoutAllSessionsUseCase } from './application/usecases/logoutAllSessions.usecase.js';
 import { RefreshSessionUseCase } from './application/usecases/refreshSession.usecase.js';
 import { RemoveDraftPhotoUseCase, RemoveEmployeePhotoUseCase, SetDraftPhotoUseCase, SetEmployeePhotoUseCase } from './application/usecases/employeePhoto.usecase.js';
-import { CloudinaryPhotoStorage } from './infrastructure/cloudinaryPhotoStorage.adapter.js';
+import { CloudinaryPhotoStorage } from '@/shared/storage/cloudinaryPhotoStorage.adapter.js';
 import { RemoveUserDocumentUseCase } from './application/usecases/removeUserDocument.usecase.js';
 import { DeleteAccountUseCase } from './application/usecases/deleteAccount.usecase.js';
 import { ResetPasswordUseCase } from './application/usecases/resetPassword.usecase.js';

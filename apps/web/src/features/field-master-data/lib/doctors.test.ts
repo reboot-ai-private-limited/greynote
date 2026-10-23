@@ -10,7 +10,7 @@ const doctor: DoctorDto = {
   email: 'roy@example.com',
   specialty: 'Cardiology',
   qualification: 'MD',
-  clinicName: null, phone: null, dateOfBirth: null,
+  clinicName: null, phone: null, photoUrl: null, dateOfBirth: null,
   anniversary: null,
   visitFrequency: null,
   location: { latitude: 26.7, longitude: 88.4 },

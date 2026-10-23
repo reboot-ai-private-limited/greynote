@@ -4,6 +4,7 @@ import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
 import type { RoleName } from '@greynote/contracts';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
+import { photoUpload } from '@/shared/http/photoUpload.middleware.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { CrudHandlers, DoctorHandlers } from './field-master-data.controller.js';
 import {
@@ -83,6 +84,10 @@ doc('get', '/doctors/team', 'Managers: the doctors of everyone in my downline', 
 doc('get', '/doctors/added', 'Field staff: the doctors I added, with where each is in its approval', { query: listAddedDoctorsQuerySchema });
 doc('post', '/doctors/added', 'Field staff: add a doctor (offline-first) — it goes to my manager, then Admin', { body: addDoctorBodySchema });
 doc('put', '/doctors/added/{id}', 'Field staff: change a rejected, withdrawn or reopened doctor — resubmits it', { params: idParamsSchema, body: editAddedDoctorBodySchema });
+doc('put', '/doctors/added/{id}/photo', 'Field staff: set or replace the photo of a doctor I added (multipart `file`, JPG/PNG/WebP, 5 MB), until it is approved. Does not resubmit it', { params: idParamsSchema });
+doc('delete', '/doctors/added/{id}/photo', 'Field staff: remove the photo of a doctor I added, until it is approved', { params: idParamsSchema });
+doc('put', '/doctors/{id}/photo', 'Admin: set or replace a doctor’s photo (multipart `file`, JPG/PNG/WebP, 5 MB); the old file is deleted', { params: idParamsSchema });
+doc('delete', '/doctors/{id}/photo', 'Admin: remove a doctor’s photo (deleted from storage)', { params: idParamsSchema });
 doc('patch', '/doctors/{id}/review', 'Manager or Admin: correct a doctor waiting for approval (any detail, including its location) before approving', { params: idParamsSchema, body: reviewDoctorBodySchema });
 doc('get', '/doctors/{id}', 'A doctor — Admin, the assigned MR, or their manager', { params: idParamsSchema });
 doc('patch', '/doctors/{id}', 'Admin: edit a doctor, including correcting its location (also while inactive). status: inactive also ends its MR assignment and takes it off editable Daily Plans', { params: idParamsSchema, body: updateDoctorBodySchema });
@@ -129,6 +134,10 @@ function doctorsRouter(c: DoctorHandlers): Router {
   router.get('/added', field, validate({ query: listAddedDoctorsQuerySchema }), c.added);
   router.post('/added', field, validate({ body: addDoctorBodySchema }), c.addDoctor);
   router.put('/added/:id', field, validate({ params: idParamsSchema, body: editAddedDoctorBodySchema }), c.editAdded);
+  router.put('/added/:id/photo', field, validate({ params: idParamsSchema }), photoUpload, c.setPhoto);
+  router.delete('/added/:id/photo', field, validate({ params: idParamsSchema }), c.removePhoto);
+  router.put('/:id/photo', admin, validate({ params: idParamsSchema }), photoUpload, c.setPhoto);
+  router.delete('/:id/photo', admin, validate({ params: idParamsSchema }), c.removePhoto);
   router.get('/', admin, validate({ query: listDoctorsQuerySchema }), c.list);
   router.post('/', admin, validate({ body: createDoctorBodySchema }), c.create);
   // Admin, or a FIELD employee the use case checks (the assigned MR, or their manager).

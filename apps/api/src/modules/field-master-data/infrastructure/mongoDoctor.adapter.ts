@@ -22,6 +22,7 @@ export const toDoctor = (doc: DoctorDoc & { _id: unknown }): Doctor => ({
   email: doc.email,
   clinicName: doc.clinicName ?? null,
   phone: doc.phone ?? null,
+  photo: doc.photo ?? null,
   specialty: doc.specialty,
   qualification: doc.qualification,
   dateOfBirth: doc.dateOfBirth ?? null,

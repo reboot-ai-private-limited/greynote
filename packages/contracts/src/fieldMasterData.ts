@@ -143,6 +143,8 @@ export interface DoctorDto {
   email: string | null;
   clinicName: string | null;
   phone: string | null;
+  /** The profile photo's address; `null` when none (every doctor added before photos existed). The storage id never leaves the server. */
+  photoUrl: string | null;
   specialty: string;
   qualification: string;
   dateOfBirth: string | null;

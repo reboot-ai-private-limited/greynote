@@ -16,6 +16,8 @@ import { DoctorRetirement } from './application/doctorRetirement.js';
 import { LeaverWork } from './application/leaverWork.js';
 import type { DoctorReferencesPort } from './domain/doctorRetirement.js';
 import { MongoDoctorArchiveAdapter } from './infrastructure/mongoDoctorArchive.adapter.js';
+import { RemoveDoctorPhotoUseCase, SetDoctorPhotoUseCase } from './application/usecases/doctorPhoto.usecase.js';
+import { CloudinaryPhotoStorage } from '@/shared/storage/cloudinaryPhotoStorage.adapter.js';
 import { AddedDoctors } from './application/usecases/addedDoctors.js';
 import { AdjustSampleAllocationUseCase } from './application/usecases/adjustSampleAllocation.usecase.js';
 import { AssignDoctorUseCase } from './application/usecases/assignDoctor.usecase.js';
@@ -86,6 +88,7 @@ export function buildFieldMasterDataContainer(
   const doctors = new MongoDoctorAdapter();
   const assignments = new MongoDoctorAssignmentAdapter();
   const transactions = new MongooseTransactionRunner();
+  const photoStorage = new CloudinaryPhotoStorage();
 
   // An MR-added Doctor: Employee → Manager → Admin (sign-off C4). Approval makes it active and, per
   // config, assigns it to the MR who added it.
@@ -127,7 +130,7 @@ export function buildFieldMasterDataContainer(
   // …and what the phone caches of this module, as one snapshot of what the caller may see.
   sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, products, specialties, distributors, allocations: sampleAllocations, visibility, territory }));
 
-  const retirement = new DoctorRetirement(doctors, assignments, sampleAllocations, new MongoDoctorArchiveAdapter(), users, transactions);
+  const retirement = new DoctorRetirement(doctors, assignments, sampleAllocations, new MongoDoctorArchiveAdapter(), users, transactions, photoStorage);
   const updateDoctor = new UpdateDoctorUseCase(doctors, assignments, territory, views, specialtyCatalog, transactions, retirement);
   const assignDoctor = new AssignDoctorUseCase(doctors, assignments, users, territory, transactions, retirement);
   const leaverWork = new LeaverWork(doctors, assignments, distributors, territory, assignDoctor, retirement);
@@ -144,6 +147,8 @@ export function buildFieldMasterDataContainer(
     unassign: new UnassignDoctorUseCase(assignments, retirement),
     retirement,
     addedDoctors,
+    setPhoto: new SetDoctorPhotoUseCase(doctors, approvals, photoStorage),
+    removePhoto: new RemoveDoctorPhotoUseCase(doctors, approvals, photoStorage),
     listSamples: new ListSampleAllocationsUseCase(sampleAllocations, doctors, products, visibility),
     issueSample: new IssueSampleAllocationUseCase(sampleAllocations, doctors, products),
     adjustSample: new AdjustSampleAllocationUseCase(sampleAllocations),

@@ -13,7 +13,7 @@ describe('a leaver’s doctors and distributors', () => {
     const { retirement, references } = retirementKit(doctors, assignments, users);
     const assign = new AssignDoctorUseCase(doctors, assignments, users, territory, new FakeTransactions(), retirement);
     const doctor = (id: string, routeId: string) =>
-      doctors.rows.push({ id, routeId, name: id, address: 'a', email: null, clinicName: null, phone: null, specialty: 'ENT', qualification: 'MBBS', dateOfBirth: null, anniversary: null, visitFrequency: null, location: null, capturedLocation: null, status: 'active', addedBy: 'admin', clientRequestId: null, approvedAt: new Date() });
+      doctors.rows.push({ id, routeId, name: id, address: 'a', email: null, clinicName: null, phone: null, photo: null, specialty: 'ENT', qualification: 'MBBS', dateOfBirth: null, anniversary: null, visitFrequency: null, location: null, capturedLocation: null, status: 'active', addedBy: 'admin', clientRequestId: null, approvedAt: new Date() });
     doctor('d1', 'route-1');
     doctor('d2', 'route-2');
     territory.userRoutes.set('mr1', ['route-1', 'route-2']);

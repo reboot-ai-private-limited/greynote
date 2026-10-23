@@ -5,6 +5,8 @@ DELETE /api/field-activity/expenses/other/:id  FIELD
 DELETE /api/field-activity/expenses/other/:id/attachments/:attachmentId  FIELD
 DELETE /api/field-master-data/doctors/:id  ADMIN
 DELETE /api/field-master-data/doctors/:id/assignments/:userId  ADMIN
+DELETE /api/field-master-data/doctors/:id/photo  ADMIN
+DELETE /api/field-master-data/doctors/added/:id/photo  FIELD
 DELETE /api/hr/holidays/:id  ADMIN,HR
 DELETE /api/hr/leaves/:id/approval-grant  ADMIN
 DELETE /api/hr/leaves/:id/attachments/:attachmentId  FIELD
@@ -297,7 +299,9 @@ POST   /api/territory/routes  ADMIN
 POST   /api/territory/routes/:id/assignments  ADMIN
 POST   /api/territory/zones  ADMIN
 PUT    /api/field-activity/expenses/other/:id  FIELD
+PUT    /api/field-master-data/doctors/:id/photo  ADMIN
 PUT    /api/field-master-data/doctors/added/:id  FIELD
+PUT    /api/field-master-data/doctors/added/:id/photo  FIELD
 PUT    /api/hr/leave-policies/:payBandId/:leaveTypeId  ADMIN,HR
 PUT    /api/hr/leaves/:id  FIELD
 PUT    /api/identity/auth/push-token  ANY

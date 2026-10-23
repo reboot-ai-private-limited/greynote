@@ -21,7 +21,7 @@ import {
   updateUserBodySchema,
   userIdParamsSchema,
 } from './users.schemas.js';
-import { photoUpload } from './photoUpload.middleware.js';
+import { photoUpload } from '@/shared/http/photoUpload.middleware.js';
 import type {
   makeCreateUserController,
   makeGetUserDetailController,
