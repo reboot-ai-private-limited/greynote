@@ -32,6 +32,8 @@ export type ApprovalItem = {
   submittedAt: string;
   decidedAt: string | null;
   submitter: PersonRef | null;
+  /** What it is about, e.g. "Nov 2026" for a Tour Plan or a doctor's name and area; null for a kind that does not say. Absent from older servers. */
+  subject?: { title: string; subtitle: string | null } | null;
   lastAction: ApprovalAction;
   /** The caller may approve or reject it right now. */
   canAct: boolean;
@@ -216,10 +218,8 @@ export type DailyPlanRecord = PlanDayView & {
   /** The plan's routes named and typed. Absent from older servers. */
   routes?: NamedRoute[];
 };
-/** `routes`: every route the entries name, once each (absent from older servers). */
-export type MonthlyPlanRecord = { id: string; planMonth: string; entries: (PlanDayView & { planDate: string })[]; routes?: NamedRoute[] };
 export const getDailyPlanRecord = (id: string) => apiGet<DailyPlanRecord>(`/planning/daily/${id}`);
-export const getMonthlyPlanRecord = (id: string) => apiGet<MonthlyPlanRecord>(`/planning/monthly/${id}`);
+// A Tour Plan request's record is read with `getMonthlyPlanById` (lib/planning.ts), which also carries the manager's edits.
 
 export type LeaveRecord = {
   id: string;
@@ -247,6 +247,8 @@ export type DoctorRecord = {
   visitFrequency?: number | null;
   dateOfBirth?: string | null;
   anniversary?: string | null;
+  /** The doctor's photo, or `null` (show initials). Absent from older servers. */
+  photoUrl?: string | null;
   /** Where the doctor is registered — the approver may have corrected it — and where the phone was when it was added. */
   location: { latitude: number; longitude: number } | null;
   capturedLocation: { latitude: number; longitude: number } | null;

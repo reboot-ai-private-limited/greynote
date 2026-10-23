@@ -96,6 +96,12 @@ export function ApprovalRow({ item, onPress, selecting, selected, own }: Props) 
               {item.submitter ? item.submitter.name : 'Unknown employee'}
             </ThemedText>
           )}
+          {/* What the request is about, so two of one kind can be told apart ("Nov 2026", a doctor's name and area). */}
+          {item.subject ? (
+            <ThemedText type="small" numberOfLines={2} style={styles.small}>
+              {[item.subject.title, item.subject.subtitle].filter(Boolean).join(' · ')}
+            </ThemedText>
+          ) : null}
           <ThemedText type="small" themeColor="textSecondary" style={styles.small}>
             {`${!own && item.submitter ? `${item.submitter.employeeCode} · ` : ''}Sent ${formatWhen(item.submittedAt)}`}
           </ThemedText>
@@ -114,6 +120,14 @@ export function ApprovalRow({ item, onPress, selecting, selected, own }: Props) 
               View only
             </ThemedText>
           ) : null}
+          {/* The whole box opens the request; this says so. Not while picking several (a tap ticks the box then). */}
+          {selecting ? null : (
+            <Pressable accessibilityRole="button" accessibilityLabel={`View ${kindLabel(item.kind)} from ${name}`} hitSlop={8} onPress={onPress} style={[styles.view, { borderColor: theme.primary }]}>
+              <ThemedText type="smallBold" themeColor="primary" style={styles.viewText}>
+                View →
+              </ThemedText>
+            </Pressable>
+          )}
         </View>
       </View>
     </Pressable>
@@ -134,4 +148,6 @@ const styles = StyleSheet.create({
   right: { alignItems: 'flex-end', gap: 4, maxWidth: 110 },
   badge: { borderRadius: 999, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 9 },
   badgeText: { fontSize: 11, lineHeight: 14, textAlign: 'center' },
+  view: { borderRadius: 999, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 10 },
+  viewText: { fontSize: 12, lineHeight: 16 },
 });

@@ -4,12 +4,14 @@ import { KeyboardAvoidingView, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandLogo } from '@/components/brand-logo';
+import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { login } from '@/lib/auth';
+import { takeSignedOutNotice } from '@/lib/session';
 
 /** Mirrors apps/api's passwordSchema (identity/interface/password.schema.ts). */
 const PASSWORD_MIN_LENGTH = 8;
@@ -31,6 +33,8 @@ export default function LoginScreen() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string>();
+  // docs/mobile/account.md: when the server ended the session (expired, or the account was deactivated), say so.
+  const [signedOut] = useState(takeSignedOutNotice);
 
   const code = employeeCode.trim();
   const employeeCodeError = submitted && !code ? 'Enter your Employee Code' : undefined;
@@ -84,6 +88,11 @@ export default function LoginScreen() {
             </ThemedView>
 
             <ThemedView style={styles.form}>
+              {signedOut && !formError ? (
+                <Notice tone="info" title="You’ve been signed out">
+                  Your session ended. Sign in again to continue.
+                </Notice>
+              ) : null}
               <TextField
                 label="Employee Code"
                 value={employeeCode}

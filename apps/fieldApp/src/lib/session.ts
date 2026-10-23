@@ -39,7 +39,18 @@ export async function setUser(next: SessionUser): Promise<void> {
   emit();
 }
 
-export async function clearSession(): Promise<void> {
+/** Set when the server ended the session (the refresh was refused), so Login can say so once. */
+let endedByServer = false;
+/** True once after the server signed this phone out; reading it clears it. */
+export function takeSignedOutNotice(): boolean {
+  const ended = endedByServer;
+  endedByServer = false;
+  return ended;
+}
+
+/** `byServer`: the server refused the session (expired, or the account was deactivated) — not the user's own logout. */
+export async function clearSession(opts: { byServer?: boolean } = {}): Promise<void> {
+  endedByServer = opts.byServer === true;
   user = null;
   tokens = null;
   await Promise.all(['accessToken', 'refreshToken', 'user'].map((k) => storage.remove(k)));

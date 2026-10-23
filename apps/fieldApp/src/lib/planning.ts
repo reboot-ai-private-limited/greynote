@@ -95,11 +95,20 @@ type StateView = {
 export type PlannedDoctor = { doctorId: string; carriedFrom: string | null };
 
 export type DailyPlanView = PlanDay & StateView & { planDate: string; doctors?: PlannedDoctor[] };
+export type MonthlyPlanEntry = PlanDay & { planDate: string };
+
+/** A manager's or Admin's change to a waiting month (docs/mobile/monthlyplan.md rule 19), with the days it replaced. `by` is a user id. */
+export type MonthlyPlanAmendment = { by: string; at: string; reason: string; previous: MonthlyPlanEntry[] };
+
 export type MonthlyPlanView = StateView & {
+  /** Whose plan it is. */
+  userId: string;
   planMonth: string;
-  entries: (PlanDay & { planDate: string })[];
+  entries: MonthlyPlanEntry[];
   /** The month's locked days as they stand now (weekly off, holidays of the main HQ). Absent from older servers. */
   offDays?: PlanOffDay[];
+  /** Changes a manager or Admin made while the plan waited, oldest first. Absent from older servers. */
+  amendments?: MonthlyPlanAmendment[];
 };
 
 /** How a locked day reads on the screen: "Weekly off" or "Holiday · Durga Puja". */
@@ -162,20 +171,49 @@ export const amendDailyPlan = (planId: string, day: PlanDay, reason: string) =>
  * Saves the whole month as a draft. A trip's stay and transit days are left out: the server writes them again from the first
  * day's `returnDate` (and from a trip into the next month), so sending them would only get in its way.
  */
-export const saveMonthlyPlan = (planMonth: string, entries: (PlanDay & { planDate: string })[]) =>
-  apiPost<MonthlyPlanView>(
-    '/planning/monthly',
-    {
-      planMonth,
-      entries: entries
-        .filter((e) => !isTripDay(e.dayKind))
-        .map(({ dayKind: _kind, returnDate, ...rest }) => ({ ...rest, ...(returnDate ? { returnDate } : {}) })),
-    },
-    { auth: true },
-  );
+export const saveMonthlyPlan = (planMonth: string, entries: MonthlyPlanEntry[]) =>
+  apiPost<MonthlyPlanView>('/planning/monthly', { planMonth, entries: entriesToSend(entries) }, { auth: true });
+
+/** The entries as a save or an amend sends them: no stay/transit days, no `dayKind`, `returnDate` only on a trip's first day. */
+const entriesToSend = (entries: MonthlyPlanEntry[]) =>
+  entries
+    .filter((e) => !isTripDay(e.dayKind))
+    .map(({ dayKind: _kind, returnDate, ...rest }) => ({ ...rest, ...(returnDate ? { returnDate } : {}) }));
 
 export const submitMonthlyPlan = (id: string) =>
   apiPost<MonthlyPlanView>(`/planning/monthly/${id}/submit`, {}, { auth: true });
+
+/* ───────────── a manager edits an employee's waiting month (docs/mobile/monthlyplan.md rule 19, section 6) ───────────── */
+
+/** One monthly plan by id, as its owner, a manager above them or Admin reads it; `routes` names every route the entries and amendments use. */
+export const getMonthlyPlanById = (id: string) => apiGet<MonthlyPlanView & { routes: NamedRoute[] }>(`/planning/monthly/${id}`, { auth: true });
+
+/** The plan owner's active routes, A–Z: what a manager editing the plan may choose from. Online only. */
+export const listPlanOwnerRoutes = (id: string) => apiGet<NamedRoute[]>(`/planning/monthly/${id}/routes`, { auth: true });
+
+/** Replaces the whole month of a `SUBMITTED` plan, with a reason (≤ 500). The plan keeps waiting; the employee is told. */
+export const amendMonthlyPlan = (id: string, entries: MonthlyPlanEntry[], reason: string) =>
+  apiPatch<MonthlyPlanView>(`/planning/monthly/${id}/amend`, { entries: entriesToSend(entries), reason: reason.trim() }, { auth: true });
+
+/** The server's 409 when the plan was saved by someone else while the manager was editing it: reload and redo. */
+export const isAmendStale = (err: unknown) => err instanceof ApiError && err.status === 409 && /changed while/i.test(err.message);
+
+/** The day a `400` is about (`field` like `entries.3.routeIds`, counted over the entries as sent), or null. */
+export function errorDate(err: unknown, entries: MonthlyPlanEntry[]): string | null {
+  const field = err instanceof ApiError && err.status === 400 ? err.data?.field : undefined;
+  const index = typeof field === 'string' ? /^entries\.(\d+)\./.exec(field)?.[1] : undefined;
+  return index === undefined ? null : (entries.filter((e) => !isTripDay(e.dayKind))[Number(index)]?.planDate ?? null);
+}
+
+/** An amend failure as the manager should read it (the server's own messages are already worded for them). */
+export function amendErrorText(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 404) return 'This plan isn’t one of your team’s, or it no longer exists.';
+    if (isAmendStale(err)) return 'The plan changed while you were editing it. It has been loaded again: make your changes once more.';
+    return err.message;
+  }
+  return err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
+}
 
 export const withdrawPlan = (requestId: string) =>
   apiPost<unknown>(`/approvals/${requestId}/withdraw`, {}, { auth: true });

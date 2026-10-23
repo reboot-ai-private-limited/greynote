@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { DateField, EMPTY_PARTS, isoFromParts, partsFromIso, type DateParts } from '@/components/date-field';
+import { DoctorAvatar } from '@/components/doctor-avatar';
 import { FyBanner } from '@/components/fy-banner';
 import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
@@ -11,7 +12,7 @@ import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { CardSection, IconChip, InfoCard, Pill, PersonDropdown, sym } from '@/components/ui-cards';
+import { CardSection, InfoCard, Pill, PersonDropdown, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { listTeamDoctors, updateDoctorTargets, type DoctorTargetsBody, type TeamDoctor } from '@/lib/added-doctors';
@@ -160,7 +161,7 @@ export default function TeamDoctorsScreen() {
             <Pressable key={d.id} accessibilityRole="button" accessibilityLabel={`Set the visit target for ${d.name}`} disabled={busy || readOnly} onPress={() => open(d)}>
               <InfoCard>
                 <View style={styles.row}>
-                  <IconChip icon={sym('stethoscope', 'medical_services')} accent="teal" />
+                  <DoctorAvatar name={d.name} photoUrl={d.photoUrl} />
                   <View style={styles.grow}>
                     <ThemedText type="smallBold">{d.name}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">

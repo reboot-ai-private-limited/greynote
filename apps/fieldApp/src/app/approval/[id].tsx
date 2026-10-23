@@ -201,6 +201,17 @@ export default function ApprovalDetailScreen() {
             </View>
           </View>
 
+          {/* docs/mobile/monthlyplan.md M1: a waiting Tour Plan on your turn can be edited instead of rejected for a small fix. Above the
+              month's day list, which is long. */}
+          {request.kind === 'MONTHLY_PLAN' && request.status === 'SUBMITTED' && shown?.canAct && request.submitter && request.submitter.id !== me?.id && !step ? (
+            <PrimaryButton
+              label="Edit plan"
+              variant="text"
+              disabled={!online || busy}
+              onPress={() => router.push({ pathname: '/amend-monthly-plan', params: { id: request.recordId, who: request.submitter?.name ?? '' } })}
+            />
+          ) : null}
+
           <ApprovalSummary key={reloadKey} request={shown ?? request} aside={<ApprovalHistory request={request} />} />
 
           {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}

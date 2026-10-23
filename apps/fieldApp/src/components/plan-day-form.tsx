@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useCachedSource } from '@/offline/cache';
-import { isFieldDay, WORKING_TYPES, type PlanDay, type WorkingType } from '@/lib/planning';
+import { isFieldDay, routeTypeLabel, WORKING_TYPES, type NamedRoute, type PlanDay, type WorkingType } from '@/lib/planning';
+import type { Colleague } from '@/offline/colleagues';
 import type { TerritorySnapshot } from '@/types/sync';
 
 import { addDays, addMonths, datesInMonth } from '@/offline/day';
@@ -29,6 +30,11 @@ type Props = {
   errors?: { routes?: string; returnDate?: string };
   /** Locked days (weekly off, holidays). A trip can't run over one, so its return date stops the day before the next one. */
   lockedDates?: string[];
+  /**
+   * Someone else's plan (a manager editing an employee's month): pick from these routes instead of your own cached ones, and
+   * from `people` for "Work with". `routesLoaded` is false while they are being fetched.
+   */
+  forOther?: { routes: NamedRoute[]; routesLoaded: boolean; people: { list: Colleague[]; loaded: boolean; emptyText: string } };
 };
 
 /**
@@ -36,10 +42,13 @@ type Props = {
  * pull, so it works offline. "Work with" comes from the colleagues the server offers (offline/colleagues.ts). The routes
  * chosen here decide which doctors can be planned on that day (docs/mobile/monthlyplan.md rule 15).
  */
-export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDates }: Props) {
+export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDates, forOther }: Props) {
   const theme = useTheme();
   const territory = useCachedSource<TerritorySnapshot>('territory');
-  const routes = territory.data?.routes ?? [];
+  const routes: { id: string; name: string; routeType: string; detail: string }[] = forOther
+    ? forOther.routes.map((r) => ({ ...r, detail: routeTypeLabel(r.routeType) ?? '' }))
+    : (territory.data?.routes ?? []).map((r) => ({ ...r, detail: `${r.hqName}${r.distanceKm ? ` · ${r.distanceKm} km` : ''}` }));
+  const routesLoaded = forOther ? forOther.routesLoaded : territory.loaded;
   const needsRoute = isFieldDay(value.workingType);
   // A trip needs at least one out-station route; the return day is then asked for.
   const outStation = routes.some((r) => r.routeType === 'OUT_STATION' && value.routeIds.includes(r.id));
@@ -81,15 +90,15 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
         <>
           <ThemedText type="smallBold">Routes</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {value.workingType === 'DOCTOR_CAMPAIGN'
-              ? 'Choose carefully: only your doctors on these routes can be planned that day. A campaign day pays DA at the highest route type and no TA.'
-              : 'Choose carefully: only your doctors on these routes can be planned that day.'}
+            {`Choose carefully: only ${forOther ? 'their' : 'your'} doctors on these routes can be planned that day.${
+              value.workingType === 'DOCTOR_CAMPAIGN' ? ' A campaign day pays DA at the highest route type and no TA.' : ''
+            }`}
           </ThemedText>
           {routes.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
-              {territory.loaded
-                ? 'No routes are assigned to you yet. Ask your Admin to assign one.'
-                : 'Loading your routes…'}
+              {!routesLoaded
+                ? forOther ? 'Loading their routes…' : 'Loading your routes…'
+                : forOther ? 'No routes are assigned to them. Admin assigns routes.' : 'No routes are assigned to you yet. Ask your Admin to assign one.'}
             </ThemedText>
           ) : (
             <View style={errors?.routes ? [styles.marked, { borderColor: theme.danger }] : styles.routeList}>
@@ -115,8 +124,7 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
                     <ThemedView type="backgroundElement" style={styles.routeText}>
                       <ThemedText type="smallBold">{r.name}</ThemedText>
                       <ThemedText type="small" themeColor="textSecondary">
-                        {r.hqName}
-                        {r.distanceKm ? ` · ${r.distanceKm} km` : ''}
+                        {r.detail}
                       </ThemedText>
                     </ThemedView>
                   </ThemedView>
@@ -178,7 +186,7 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
       ) : null}
 
       {needsRoute ? (
-        <WorkWithPicker value={value.workWith} onChange={(workWith) => onChange({ ...value, workWith })} disabled={disabled} />
+        <WorkWithPicker value={value.workWith} onChange={(workWith) => onChange({ ...value, workWith })} disabled={disabled} people={forOther?.people} />
       ) : null}
 
       <TextField

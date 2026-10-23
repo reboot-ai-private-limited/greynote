@@ -41,6 +41,13 @@
         { "locationWhenInUsePermission": "My Greynote uses your location to confirm where a doctor or chemist call took place." }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "My Greynote lets you choose a photo of a doctor you add.",
+          "cameraPermission": "My Greynote lets you take a photo of a doctor you add."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#FFFFFF",
