@@ -5,6 +5,7 @@ import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { Actor } from '../application/planAccess.js';
+import type { AmendMonthlyPlanUseCase } from '../application/usecases/amendMonthlyPlan.usecase.js';
 import type { AmendDailyPlanUseCase } from '../application/usecases/amendDailyPlan.usecase.js';
 import type { CarryOver } from '../application/carryOver.js';
 import type { SetDailyPlanUseCase } from '../application/usecases/setDailyPlan.usecase.js';
@@ -22,6 +23,7 @@ import type { SubmitDailyPlanUseCase } from '../application/usecases/submitDaily
 import type { SubmitMonthlyPlanUseCase } from '../application/usecases/submitMonthlyPlan.usecase.js';
 import type {
   amendDailyPlanBodySchema,
+  amendMonthlyPlanBodySchema,
   carryOverQuerySchema,
   setDailyPlanDoctorsBodySchema,
   setDailyPlanBodySchema,
@@ -59,12 +61,14 @@ export type PlanningHandlers = Record<
   | 'grantLate'
   | 'listLateGrants'
   | 'revokeLate'
-  | 'amendDaily',
+  | 'amendDaily'
+  | 'amendMonthly',
   RequestHandler
 >;
 
 export function makePlanningControllers(useCases: {
   amendDaily: AmendDailyPlanUseCase;
+  amendMonthly: AmendMonthlyPlanUseCase;
   setDoctors: SetDailyPlanDoctorsUseCase;
   setDay: SetDailyPlanUseCase;
   teamSuggest: SuggestFromTeamUseCase;
@@ -138,6 +142,11 @@ export function makePlanningControllers(useCases: {
     amendDaily: asyncHandler(async (req, res) => {
       const { reason, ...day } = req.body as z.output<typeof amendDailyPlanBodySchema>;
       const plan = await useCases.amendDaily.execute(actorOf(req), requiredParam(req.params, 'id'), day, reason);
+      sendSuccess(req, res, plan, 'Plan amended.', 200);
+    }),
+    amendMonthly: asyncHandler(async (req, res) => {
+      const { entries, reason } = req.body as z.output<typeof amendMonthlyPlanBodySchema>;
+      const plan = await useCases.amendMonthly.execute(actorOf(req), requiredParam(req.params, 'id'), entries, reason);
       sendSuccess(req, res, plan, 'Plan amended.', 200);
     }),
     revokeLate: asyncHandler(async (req, res) => {

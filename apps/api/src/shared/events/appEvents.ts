@@ -25,6 +25,8 @@ export interface AppEvents {
     expiresAt: Date;
     grantedBy: string;
   };
+  /** A manager or Admin changed an employee's Monthly Plan while it waited for approval. */
+  'monthly.plan.amended': { userId: string; planId: string; planMonth: string; by: string; byName: string; reason: string };
   /** A compliance block was cleared. */
   'user.unblocked': { userId: string; by: string };
 }

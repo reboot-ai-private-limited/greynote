@@ -12,6 +12,14 @@ export interface MonthlyPlanEntry extends PlanDay {
   returnDate: string | null;
 }
 
+/** A manager's or Admin's change to a waiting month, kept with the days it replaced. */
+export interface MonthlyPlanAmendment {
+  by: string;
+  at: Date;
+  reason: string;
+  previous: MonthlyPlanEntry[];
+}
+
 /**
  * One user's plan for one month, submitted as a whole. Its approval state is the
  * `MONTHLY_PLAN` `ApprovalRequest` whose `recordId` is this `id`.
@@ -23,6 +31,8 @@ export interface MonthlyPlan {
   planMonth: string;
   /** Sorted by date, at most one per day. */
   entries: MonthlyPlanEntry[];
+  /** Oldest first. */
+  amendments: MonthlyPlanAmendment[];
   /** Bumped on every save; submit is conditional on the revision it validated. */
   revision: number;
   /** Resubmits made through the after-rejection window; capped by `PLAN_RESUBMIT_GRACE_MAX`. */

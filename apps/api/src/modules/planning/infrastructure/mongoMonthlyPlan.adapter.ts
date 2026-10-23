@@ -1,16 +1,20 @@
 import { Types, type ClientSession } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
-import type { MonthlyPlan, MonthlyPlanEntry } from '../domain/monthlyPlan.entity.js';
+import type { MonthlyPlan, MonthlyPlanAmendment, MonthlyPlanEntry } from '../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../domain/monthlyPlan.repository.port.js';
-import { MonthlyPlanModel, type MonthlyPlanDoc } from './monthlyPlan.schema.js';
+import { MonthlyPlanModel, type MonthlyPlanDoc, type MonthlyPlanEntryDoc } from './monthlyPlan.schema.js';
 import { isDuplicateKey, toDayDoc, toPlanDay } from './planDoc.js';
+
+const toEntries = (docs: MonthlyPlanEntryDoc[]): MonthlyPlanEntry[] =>
+  docs.map((e) => ({ planDate: e.planDate, returnDate: e.returnDate ?? null, ...toPlanDay(e) }));
 
 function toPlan(doc: MonthlyPlanDoc & { _id: unknown }): MonthlyPlan {
   return {
     id: String(doc._id),
     userId: String(doc.userId),
     planMonth: doc.planMonth,
-    entries: doc.entries.map((e) => ({ planDate: e.planDate, returnDate: e.returnDate ?? null, ...toPlanDay(e) })),
+    entries: toEntries(doc.entries),
+    amendments: (doc.amendments ?? []).map((a) => ({ by: String(a.by), at: a.at, reason: a.reason, previous: toEntries(a.previous) })),
     revision: doc.revision,
     lateResubmits: doc.lateResubmits ?? 0,
     updatedAt: doc.updatedAt,
@@ -66,6 +70,20 @@ export class MongoMonthlyPlanAdapter implements MonthlyPlanRepositoryPort {
     const doc = await MonthlyPlanModel.findOneAndUpdate(
       { userId: new Types.ObjectId(userId), planMonth, revision: expectedRevision },
       { $set: body, $inc: { revision: 1 } },
+      { new: true },
+    ).lean();
+    return doc ? toPlan(doc) : null;
+  }
+
+  async amend(id: string, expectedRevision: number, entries: MonthlyPlanEntry[], amendment: MonthlyPlanAmendment): Promise<MonthlyPlan | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
+    const doc = await MonthlyPlanModel.findOneAndUpdate(
+      { _id: id, revision: expectedRevision },
+      {
+        $set: { entries: toEntryDocs(entries), updatedAt: amendment.at },
+        $push: { amendments: { by: new Types.ObjectId(amendment.by), at: amendment.at, reason: amendment.reason, previous: toEntryDocs(amendment.previous) } },
+        $inc: { revision: 1 },
+      },
       { new: true },
     ).lean();
     return doc ? toPlan(doc) : null;

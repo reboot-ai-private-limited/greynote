@@ -8,6 +8,7 @@ import { validate } from '@/shared/http/validate.middleware.js';
 import type { PlanningHandlers } from './planning.controller.js';
 import {
   amendDailyPlanBodySchema,
+  amendMonthlyPlanBodySchema,
   carryOverQuerySchema,
   setDailyPlanDoctorsBodySchema,
   setDailyPlanBodySchema,
@@ -59,6 +60,7 @@ doc('post', '/monthly', 'Save my plan for a month — every day at once (draft)'
 doc('get', '/monthly', 'My monthly plans between two months, with status and submit deadline', { query: monthRangeQuerySchema });
 doc('get', '/monthly/{id}', 'One monthly plan — owner, their managers (read-only), Admin', { params: planIdParamsSchema });
 doc('post', '/monthly/{id}/submit', 'Submit my whole month for approval — refused after the deadline without a late-submission exception', { params: planIdParamsSchema });
+doc('patch', '/monthly/{id}/amend', 'Amend an employee’s monthly plan while it waits for their manager — their managers and Admin; a reason is required, the old days are kept and the employee is told', { params: planIdParamsSchema, body: amendMonthlyPlanBodySchema });
 doc('post', '/late-grants', 'Allow one employee to submit one plan after its deadline — Admin; a manager for their team while LATE_PLAN_GRANT_BY_MANAGER is on', { body: grantLateSubmitBodySchema });
 doc('get', '/late-grants', 'Late-submission exceptions, newest first — Admin: all; others: their own and their team’s', { query: listLateSubmitGrantsQuerySchema });
 doc('post', '/late-grants/{id}/revoke', 'Revoke an unused late-submission exception — Admin or whoever granted it', { params: planIdParamsSchema });
@@ -82,6 +84,7 @@ export function buildPlanningRouter(c: PlanningHandlers): Router {
   router.get('/monthly', requireRole('FIELD'), scopeToFinancialYear({ kind: 'month', from: 'from', to: 'to', fill: true }), validate({ query: listMonthlyPlansQuerySchema }), c.listMonthly);
   router.get('/monthly/:id', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.getMonthly);
   router.post('/monthly/:id/submit', requireRole('FIELD'), validate({ params: planIdParamsSchema }), c.submitMonthly);
+  router.patch('/monthly/:id/amend', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema, body: amendMonthlyPlanBodySchema }), c.amendMonthly);
 
   // Role checks beyond these (the manager switch, the team) are in the use cases.
   router.post('/late-grants', requireRole('FIELD', 'ADMIN'), validate({ body: grantLateSubmitBodySchema }), c.grantLate);

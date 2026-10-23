@@ -185,6 +185,7 @@ PATCH  /api/marketing/campaigns/:id  ADMIN
 PATCH  /api/marketing/targets/:id  ADMIN,FIELD
 PATCH  /api/marketing/visuals/:id  ADMIN
 PATCH  /api/planning/daily/:id/amend  ADMIN,FIELD
+PATCH  /api/planning/monthly/:id/amend  ADMIN,FIELD
 PATCH  /api/sales/orders/:id  ACCOUNTANT,ADMIN
 PATCH  /api/territory/hqs/:id  ADMIN
 PATCH  /api/territory/routes/:id  ADMIN

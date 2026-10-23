@@ -42,6 +42,18 @@ describe('immediate push events', () => {
     expect(sent[0]?.to).toEqual(['u1']);
   });
 
+  it('tells the employee who edited their monthly plan and why', async () => {
+    registerPushEvents(inbox as never, config);
+    appEvents.emit('monthly.plan.amended', { userId: 'u1', planId: 'p1', planMonth: '2026-11', by: 'm1', byName: 'Asha Rao', reason: 'Cover Kalyani' });
+    await settle();
+    expect(sent[0]).toMatchObject({
+      to: ['u1'],
+      title: 'Your tour plan was edited',
+      body: 'Asha Rao edited your plan for November 2026: Cover Kalyani',
+      data: { type: 'PLAN_AMENDED_MONTHLY_PLAN', route: '/plan/monthly', recordId: 'p1', period: '2026-11' },
+    });
+  });
+
   it('registering twice does not double the messages', async () => {
     registerPushEvents(inbox as never, config);
     registerPushEvents(inbox as never, config);
