@@ -10,6 +10,8 @@ import { PlanViews } from './application/planViews.js';
 import { makePlanningSource } from './application/syncSnapshot.js';
 import { makeMonthlyPlanInheritHandler } from './application/monthlyPlanInheritHandler.js';
 import { BackfillInheritedDaysUseCase } from './application/usecases/backfillInheritedDays.usecase.js';
+import { ListPlanOwnerRoutesUseCase } from './application/usecases/listPlanOwnerRoutes.usecase.js';
+import { AmendMonthlyPlanUseCase } from './application/usecases/amendMonthlyPlan.usecase.js';
 import { AmendDailyPlanUseCase, type DayReportedCheck } from './application/usecases/amendDailyPlan.usecase.js';
 import { CarryOver } from './application/carryOver.js';
 import { DoctorReleases } from './application/doctorReleases.js';
@@ -108,6 +110,9 @@ export function buildPlanningContainer(
   };
   const amendDaily = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => dayReported, scope);
 
+  const planOwnerRoutes = new ListPlanOwnerRoutesUseCase(monthlyPlans, users, routes);
+  const amendMonthly = new AmendMonthlyPlanUseCase(monthlyPlans, users, approvals, submitter, views, offDays, deadlines.now);
+
   return {
     contract: {
       countPlannedDaysOnRoutes: async (routeIds, fromDate) =>
@@ -148,11 +153,13 @@ export function buildPlanningContainer(
           saveMonthly,
           listMonthly,
           getMonthly,
+          planOwnerRoutes,
           submitMonthly,
           grantLate,
           listLateGrants,
           revokeLate,
           amendDaily,
+          amendMonthly,
         }),
       ),
   };

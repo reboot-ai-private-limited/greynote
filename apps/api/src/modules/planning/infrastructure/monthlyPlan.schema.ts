@@ -6,10 +6,18 @@ export interface MonthlyPlanEntryDoc extends PlanDayDoc {
   returnDate?: string | null;
 }
 
+export interface MonthlyPlanAmendmentDoc {
+  by: Types.ObjectId;
+  at: Date;
+  reason: string;
+  previous: MonthlyPlanEntryDoc[];
+}
+
 export interface MonthlyPlanDoc {
   userId: Types.ObjectId;
   planMonth: string;
   entries: MonthlyPlanEntryDoc[];
+  amendments?: MonthlyPlanAmendmentDoc[];
   revision: number;
   lateResubmits: number;
   updatedAt: Date;
@@ -22,11 +30,23 @@ const entrySchema = new Schema<MonthlyPlanEntryDoc>(
   { _id: false },
 );
 
+const amendmentSchema = new Schema<MonthlyPlanAmendmentDoc>(
+  {
+    by: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
+    at: { type: Date, required: true },
+    reason: { type: String, required: true },
+    previous: { type: [entrySchema], default: [] },
+  },
+  { _id: false },
+);
+
 const monthlyPlanSchema = new Schema<MonthlyPlanDoc>({
   userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   // `YYYY-MM` — sorts correctly as a string.
   planMonth: { type: String, required: true },
   entries: { type: [entrySchema], default: [] },
+  // Absent on plans from before manager amendments: read as none.
+  amendments: { type: [amendmentSchema], default: [] },
   revision: { type: Number, required: true },
   lateResubmits: { type: Number, default: 0 },
   updatedAt: { type: Date, required: true },

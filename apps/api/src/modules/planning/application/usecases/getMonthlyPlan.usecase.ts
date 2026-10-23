@@ -14,14 +14,14 @@ export class GetMonthlyPlanUseCase {
     private readonly routes: RouteDirectoryPort,
   ) {}
 
-  /** `routes`: every route the month's entries name, once each, named and typed — look an entry's `routeIds` up in it. */
+  /** `routes`: every route the month's entries (and the days an amendment replaced) name, once each, named and typed — look an entry's `routeIds` up in it. */
   async execute(actor: Actor, planId: string): Promise<MonthlyPlanView & { routes: PlanRoute[] }> {
     const plan = await this.plans.findById(planId);
     if (!plan) throw AppError.notFound('No such plan.');
     await assertCanRead(this.users, actor, plan.userId);
     const [view, routes] = await Promise.all([
       this.views.monthly(plan),
-      namePlanRoutes(this.routes, plan.entries.flatMap((e) => e.routeIds)),
+      namePlanRoutes(this.routes, [...plan.entries, ...plan.amendments.flatMap((a) => a.previous)].flatMap((e) => e.routeIds)),
     ]);
     return { ...view, routes };
   }

@@ -10,7 +10,7 @@ import type { DailyPlan, PlanAmendment } from '../../domain/dailyPlan.entity.js'
 import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.port.js';
 import type { LateSubmitGrant } from '../../domain/lateSubmitGrant.entity.js';
 import type { LateSubmitGrantFilter, LateSubmitGrantRepositoryPort } from '../../domain/lateSubmitGrant.repository.port.js';
-import type { MonthlyPlan, MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
+import type { MonthlyPlan, MonthlyPlanAmendment, MonthlyPlanEntry } from '../../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
 import type { PlanDay, PlanKind, PlannedDoctor, PlanSource } from '../../domain/plan.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -129,12 +129,20 @@ export class FakeMonthlyPlans implements MonthlyPlanRepositoryPort {
       userId,
       planMonth,
       entries,
+      amendments: existing?.amendments ?? [],
       revision: (existing?.revision ?? 0) + 1,
       lateResubmits: existing?.lateResubmits ?? 0,
       updatedAt: new Date(),
     };
     this.rows.set(plan.id, plan);
     return plan;
+  }
+  async amend(id: string, expectedRevision: number, entries: MonthlyPlanEntry[], amendment: MonthlyPlanAmendment) {
+    const plan = this.rows.get(id);
+    if (!plan || plan.revision !== expectedRevision) return null;
+    const next = { ...plan, entries, revision: plan.revision + 1, amendments: [...plan.amendments, amendment], updatedAt: amendment.at };
+    this.rows.set(id, next);
+    return next;
   }
   async confirmRevision(id: string, revision: number, countLateResubmit: boolean) {
     const plan = this.rows.get(id);

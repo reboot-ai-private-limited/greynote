@@ -1,5 +1,5 @@
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
-import type { MonthlyPlan, MonthlyPlanEntry } from './monthlyPlan.entity.js';
+import type { MonthlyPlan, MonthlyPlanAmendment, MonthlyPlanEntry } from './monthlyPlan.entity.js';
 
 /** Same revision contract as `DailyPlanRepositoryPort`. */
 export interface MonthlyPlanRepositoryPort {
@@ -15,5 +15,10 @@ export interface MonthlyPlanRepositoryPort {
     entries: MonthlyPlanEntry[],
     expectedRevision: number | null,
   ): Promise<MonthlyPlan | null>;
+  /**
+   * A manager's or Admin's amendment: replaces the entries and appends `amendment`, bumping `revision`, only if the plan is still
+   * at `expectedRevision` (`null` otherwise).
+   */
+  amend(id: string, expectedRevision: number, entries: MonthlyPlanEntry[], amendment: MonthlyPlanAmendment): Promise<MonthlyPlan | null>;
   confirmRevision(id: string, revision: number, countLateResubmit: boolean, ctx: TransactionContext): Promise<boolean>;
 }
