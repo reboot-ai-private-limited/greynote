@@ -274,6 +274,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
             return {
               id: o.id,
               name: o.name,
+              photoUrl: isDoctor ? (master.data?.doctors.find((d) => d.id === o.id)?.photoUrl ?? null) : null,
               disabled: soon !== null,
               subtitle: `${soon ? `${soon.short} · ` : ''}${flags.length ? `${flags.join(' · ')} · ` : ''}${full && 'specialty' in full ? `${full.specialty}${clinic} · ${full.address}` : (full?.address ?? '')}${
                 full && 'visitFrequency' in full && full.visitFrequency ? ` · ${madeBy.has(o.id) ? `${madeBy.get(o.id)} of ${full.visitFrequency}` : full.visitFrequency} visits${madeBy.has(o.id) ? ' this month' : ' a month'}` : ''
@@ -289,6 +290,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
           }}
           disabled={busy}
           emptyText={`No ${noun}s for you yet. Connect to the internet once so your list can load.`}
+          avatars={isDoctor}
         />
         </FormField>
         {picked && tooSoon(picked.id) ? <Notice tone="warning" title="Too soon for another visit">{tooSoon(picked.id)!.text}</Notice> : null}

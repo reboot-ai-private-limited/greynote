@@ -32,6 +32,8 @@ export type ApprovalItem = {
   submittedAt: string;
   decidedAt: string | null;
   submitter: PersonRef | null;
+  /** What it is about, e.g. "Nov 2026" for a Tour Plan or a doctor's name and area; null for a kind that does not say. Absent from older servers. */
+  subject?: { title: string; subtitle: string | null } | null;
   lastAction: ApprovalAction;
   /** The caller may approve or reject it right now. */
   canAct: boolean;
@@ -245,6 +247,8 @@ export type DoctorRecord = {
   visitFrequency?: number | null;
   dateOfBirth?: string | null;
   anniversary?: string | null;
+  /** The doctor's photo, or `null` (show initials). Absent from older servers. */
+  photoUrl?: string | null;
   /** Where the doctor is registered — the approver may have corrected it — and where the phone was when it was added. */
   location: { latitude: number; longitude: number } | null;
   capturedLocation: { latitude: number; longitude: number } | null;

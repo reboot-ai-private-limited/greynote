@@ -24,6 +24,7 @@ import { formatWhen, nowMs, prettyDay, prettyMonth } from '@/offline/day';
 import type { ConfigSnapshot } from '@/types/sync';
 
 import { DcrSummary } from './dcr-review';
+import { DoctorAvatar } from './doctor-avatar';
 import { Notice } from './notice';
 import { PlanAmendments } from './plan-amendments';
 import { PrimaryButton } from './primary-button';
@@ -169,6 +170,7 @@ function NewDoctorSummary({ recordId, canCorrect, who }: { recordId: string; can
     <Frame title="New doctor" error={error} loading={!data}>
       {data ? (
         <>
+          <DoctorAvatar name={data.name} photoUrl={data.photoUrl} size={64} />
           <Line label="Name" value={data.name} />
           <Line label="Speciality" value={data.specialty} />
           <Line label="Qualification" value={data.qualification} />

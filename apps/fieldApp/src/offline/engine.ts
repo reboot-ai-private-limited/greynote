@@ -3,6 +3,7 @@ import { ApiError, apiGet, apiPost, apiPut, NetworkError } from '@/lib/api';
 import { notifyCacheChanged } from './cache';
 import { refreshColleagues } from './colleagues';
 import { isOnline } from './connectivity';
+import { uploadPendingPhotos } from './doctor-photos';
 import { notifyOutboxChanged, queueRecord } from './outbox';
 import { orderForPush } from './order';
 import { getNumberSetting } from './settings';
@@ -125,7 +126,10 @@ export async function pushPending(only?: SyncKind[], opts: { skipFailed?: boolea
   const queued = await store.listRecords({ status: opts.skipFailed ? ['QUEUED'] : ['QUEUED', 'FAILED'] });
   // `only` narrows a push to some kinds (e.g. a new doctor), so it never drags the day's report along with it.
   const pending = orderForPush(only ? queued.filter((r) => only.includes(r.kind)) : queued);
-  if (pending.length === 0) return summary;
+  if (pending.length === 0) {
+    await uploadPhotosQuietly(); // a photo whose doctor synced earlier may still be waiting
+    return summary;
+  }
 
   const maxBatch = await getNumberSetting('SYNC_MAX_BATCH');
   const failedIds = new Set<string>();
@@ -205,7 +209,18 @@ export async function pushPending(only?: SyncKind[], opts: { skipFailed?: boolea
     setStatus({ syncing: false, lastError: summary.error });
     notifyOutboxChanged();
   }
+  if (!summary.offline) await uploadPhotosQuietly();
   return summary;
+}
+
+/** Uploads the photos of doctors added on the phone once those doctors have synced (offline/doctor-photos.ts). Never throws. */
+async function uploadPhotosQuietly(): Promise<void> {
+  if (!isOnline()) return;
+  try {
+    if ((await uploadPendingPhotos()) > 0) notifyOutboxChanged();
+  } catch {
+    // A photo never holds up a sync; it is tried again next time.
+  }
 }
 
 /**
