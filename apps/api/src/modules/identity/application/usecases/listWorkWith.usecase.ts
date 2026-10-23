@@ -16,7 +16,7 @@ export interface WorkWithPerson {
 /**
  * The people an employee can name as "Work With" on a plan or a call. `managers` (the default) is every active manager
  * in the organisation — anyone who has direct reports, not just the caller's own chain. `all` is every active field
- * employee, for the search-everyone box. The caller is never in the list. Sorted by name.
+ * employee, for the search-everyone box. The caller is never in the list. Demo accounts show only to demo accounts. Sorted by name.
  */
 export class ListWorkWithUseCase {
   constructor(
@@ -26,7 +26,9 @@ export class ListWorkWithUseCase {
   ) {}
 
   async execute(callerId: string, scope: WorkWithScope = 'managers'): Promise<WorkWithPerson[]> {
-    const ids = scope === 'all' ? await this.users.listActiveIdsByRole('FIELD') : await this.profiles.findManagerIds();
+    // Demo accounts are seen only by other demo accounts, in both scopes.
+    const demoCaller = callerId ? ((await this.users.findById(callerId))?.isDemo ?? false) : false;
+    const ids = scope === 'all' ? await this.users.listActiveIdsByRole('FIELD', { includeDemo: demoCaller }) : await this.profiles.findManagerIds();
     const wanted = [...new Set(ids)].filter((id) => id !== callerId);
     if (wanted.length === 0) return [];
 
@@ -39,7 +41,7 @@ export class ListWorkWithUseCase {
     const designationName = new Map(designations.map((d) => [d.id, d.name as string]));
 
     return users
-      .filter((u) => u.status === 'active')
+      .filter((u) => u.status === 'active' && (demoCaller || !u.isDemo))
       .map((u): WorkWithPerson => {
         const designationId = profileOf.get(u.id)?.designationId;
         const designation = (designationId && designationName.get(designationId)) || null;

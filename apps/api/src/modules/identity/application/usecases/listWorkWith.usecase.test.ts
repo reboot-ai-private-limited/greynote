@@ -8,15 +8,16 @@ import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
 import { ListWorkWithUseCase } from './listWorkWith.usecase.js';
 
 /** mr-1 and mr-2 report to asm-a; asm-a to zsm; asm-b has no reports; old is inactive. */
-const MANAGER_OF: Record<string, string | null> = { zsm: null, 'asm-a': 'zsm', 'asm-b': 'zsm', 'mr-1': 'asm-a', 'mr-2': 'asm-a', old: 'zsm' };
-const DESIGNATION: Record<string, string | null> = { zsm: 'd-zsm', 'asm-a': 'd-asm', 'asm-b': 'd-asm', 'mr-1': 'd-mr', 'mr-2': null, old: 'd-asm' };
-const NAME: Record<string, string> = { zsm: 'Zed', 'asm-a': 'Asha', 'asm-b': 'Bela', 'mr-1': 'Ravi', 'mr-2': 'Mona', old: 'Olga' };
+const MANAGER_OF: Record<string, string | null> = { demo: 'zsm', zsm: null, 'asm-a': 'zsm', 'asm-b': 'zsm', 'mr-1': 'asm-a', 'mr-2': 'asm-a', old: 'zsm' };
+const DESIGNATION: Record<string, string | null> = { demo: 'd-mr', zsm: 'd-zsm', 'asm-a': 'd-asm', 'asm-b': 'd-asm', 'mr-1': 'd-mr', 'mr-2': null, old: 'd-asm' };
+const NAME: Record<string, string> = { demo: 'Dee', 'demo-boss': 'Dora', zsm: 'Zed', 'asm-a': 'Asha', 'asm-b': 'Bela', 'mr-1': 'Ravi', 'mr-2': 'Mona', old: 'Olga' };
 
-const user = (id: string): User => ({ id, employeeCode: id.toUpperCase(), name: NAME[id], status: id === 'old' ? 'inactive' : 'active' }) as User;
+const user = (id: string): User => ({ id, employeeCode: id.toUpperCase(), name: NAME[id], status: id === 'old' ? 'inactive' : 'active', isDemo: id.startsWith('demo') }) as User;
 
 const users = {
+  findById: async (id: string) => (NAME[id] ? user(id) : null),
   findByIds: async (ids: string[]) => ids.filter((i) => NAME[i]).map(user),
-  listActiveIdsByRole: async () => Object.keys(NAME).filter((i) => i !== 'old'),
+  listActiveIdsByRole: async (_role: string, opts: { includeDemo?: boolean } = {}) => Object.keys(NAME).filter((i) => i !== 'old' && (opts.includeDemo || !i.startsWith('demo'))),
 } as unknown as UserRepositoryPort;
 const profiles = {
   findManagerIds: async () => [...new Set(Object.values(MANAGER_OF).filter((m): m is string => m !== null))],
@@ -50,5 +51,10 @@ describe('ListWorkWithUseCase', () => {
     const result = await list.execute('zsm', 'all');
     expect(result.map((p) => p.label)).toEqual(['Asha (ASM)', 'Bela (ASM)', 'Mona', 'Ravi (MR)']);
     expect(result.find((p) => p.id === 'mr-2')?.designation).toBeNull();
+  });
+
+  it('shows a demo account only to another demo account', async () => {
+    expect((await list.execute('zsm', 'all')).map((p) => p.id)).not.toContain('demo');
+    expect((await list.execute('demo-boss', 'all')).map((p) => p.id)).toContain('demo');
   });
 });
