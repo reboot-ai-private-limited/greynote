@@ -17,6 +17,13 @@ old one.
 
 ---
 
+## 2026-10-23 — One approval for Monthly Plans, Daily Plans and Services
+
+- **Decision:** `MONTHLY_PLAN`, `DAILY_PLAN` and `DOCTOR_SERVICE` are registered `managerOnly`. The manager approves, or Admin does in their place, whoever acts first, and the request is `APPROVED`. It replaces manager, then Admin.
+- **Not changed:** Leave stays manager, then HR or Admin. The DCR is decided by the Admin setting *Daily reports need approval* (`DCR_APPROVAL_REQUIRED`), not by this change. The field app is another team's; only `docs/mobile/` was updated.
+- **Rollout:** the workflow is snapshotted at submit, so only new and resubmitted requests change. `pnpm --filter @greynote/api migrate:single-approval -- --apply` moves requests waiting at `MANAGER_APPROVED` to `APPROVED` (dry run by default). It also switches requests still at `SUBMITTED` to the one-approval workflow, since a request keeps the workflow it was submitted under. Nothing else needs to run: the gate and the monthly-plan inheritance already treated both statuses as approved.
+- **Web:** a waiting one-approval request reads "Waiting on the manager or Admin".
+- **Still without approval (follow-ups, not decided):** payroll finalize and pay, HR/Admin edits to expense rows after approval, manager changes to MR targets and doctor visit frequency, doctor delete and assignment, holiday edits, manager changes and CTC. Late-grant and device approvals are decided outside the Approvals page.
 
 ## 2026-10-14 — Basic 100% means Basic only; a CTC under the first PTax slab is allowed
 
