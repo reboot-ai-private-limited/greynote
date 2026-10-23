@@ -23,16 +23,17 @@ function stepsFor(status: PlanStatus | null, rejection: string | null, approval:
   const decided = approval?.decidedAt ? ` · ${when(approval.decidedAt)}` : '';
   const steps: Step[] = [
     status ? { title: 'Draft saved', note: 'Your plan is saved', state: 'done' } : { title: 'Draft', note: 'Not started yet', state: 'current' },
-    sent ? { title: 'Submitted to manager', note: submittedNote, state: 'done' } : { title: 'Submit to manager', note: 'Pending', state: 'pending' },
+    sent ? { title: 'Submitted for approval', note: submittedNote, state: 'done' } : { title: 'Submit for approval', note: 'Pending', state: 'pending' },
   ];
   if (status === 'WITHDRAWN') steps.push({ title: 'Withdrawn by you', note: 'Edit it and submit again', state: 'warning' });
   if (status === 'REOPENED') steps.push({ title: 'Reopened by Admin', note: 'Update it and submit again', state: 'warning' });
+  // One approval (2026-10-23): the manager, or Admin in their place, whoever acts first. MANAGER_APPROVED (older plans) means approved.
   steps.push(
     approved
-      ? { title: 'Manager approval', note: `${status === 'APPROVED' ? 'Approved' : 'Approved by your manager'}${decided}`, state: 'done' }
+      ? { title: 'Approval', note: `Approved${decided}`, state: 'done' }
       : status === 'REJECTED'
-        ? { title: 'Rejected by manager', note: rejection ? `Reason: ${rejection}${decided}` : `Update it and submit again${decided}`, state: 'danger' }
-        : { title: 'Manager approval', note: status === 'SUBMITTED' ? 'Waiting for a decision' : 'Pending', state: status === 'SUBMITTED' ? 'current' : 'pending' },
+        ? { title: 'Rejected', note: rejection ? `Reason: ${rejection}${decided}` : `Update it and submit again${decided}`, state: 'danger' }
+        : { title: 'Approval', note: status === 'SUBMITTED' ? 'Waiting for your manager or Admin' : 'Pending', state: status === 'SUBMITTED' ? 'current' : 'pending' },
   );
   return steps;
 }

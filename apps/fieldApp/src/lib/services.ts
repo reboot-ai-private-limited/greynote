@@ -34,7 +34,7 @@ export function serviceStage(s: { status: PlanStatus; origin: 'MR' | 'ADMIN'; aw
   if (s.status === 'REJECTED') return { text: 'Rejected', accent: 'red' };
   if (s.status === 'WITHDRAWN') return { text: 'Withdrawn', accent: 'slate' };
   if (s.status === 'REOPENED') return { text: 'Reopened', accent: 'slate' };
-  if (s.status === 'APPROVED') return { text: 'Approved, to do', accent: 'blue' };
-  if (s.status === 'MANAGER_APPROVED') return { text: 'Waiting for Admin', accent: 'amber' };
+  // One approval (2026-10-23): an older request left at MANAGER_APPROVED counts as approved.
+  if (s.status === 'APPROVED' || s.status === 'MANAGER_APPROVED') return { text: 'Approved, to do', accent: 'blue' };
   return { text: 'Waiting for approval', accent: 'amber' };
 }

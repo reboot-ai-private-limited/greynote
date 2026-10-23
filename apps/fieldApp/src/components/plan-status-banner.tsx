@@ -8,8 +8,9 @@ import { ThemedText } from './themed-text';
 const BANNER: Record<PlanStatus | 'NONE', { title: string; text: string; accent: Accent; mark: string }> = {
   NONE: { title: 'Plan not started', text: 'Plan the days, then submit it for your manager’s approval.', accent: 'blue', mark: 'i' },
   DRAFT: { title: 'Draft saved', text: 'Review the days and submit it when ready.', accent: 'blue', mark: 'i' },
-  SUBMITTED: { title: 'Waiting for approval', text: 'Your manager has been asked to approve this plan.', accent: 'blue', mark: 'i' },
-  MANAGER_APPROVED: { title: 'Approved by your manager', text: 'This plan is approved.', accent: 'green', mark: '✓' },
+  // One approval (2026-10-23): the manager or Admin, whoever acts first. MANAGER_APPROVED only on older plans, and it means approved.
+  SUBMITTED: { title: 'Waiting for approval', text: 'Your manager (or Admin) has been asked to approve this plan.', accent: 'blue', mark: 'i' },
+  MANAGER_APPROVED: { title: 'Plan approved', text: 'This plan is approved.', accent: 'green', mark: '✓' },
   APPROVED: { title: 'Plan approved', text: 'This plan is approved.', accent: 'green', mark: '✓' },
   REJECTED: { title: 'Plan rejected', text: 'Update it and submit again.', accent: 'red', mark: '!' },
   WITHDRAWN: { title: 'Plan withdrawn', text: 'Review the days and submit it again when ready.', accent: 'amber', mark: '!' },

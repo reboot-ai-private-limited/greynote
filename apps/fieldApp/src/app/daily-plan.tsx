@@ -47,8 +47,9 @@ type Msg = { tone: 'info' | 'warning' | 'danger' | 'success'; text: string };
 
 const STATUS_TEXT: Record<string, string> = {
   DRAFT: 'Not submitted yet',
-  SUBMITTED: 'Waiting for your manager’s approval',
-  MANAGER_APPROVED: 'Approved by your manager',
+  // One approval (2026-10-23): the manager or Admin. MANAGER_APPROVED only on older plans, and it means approved.
+  SUBMITTED: 'Waiting for approval',
+  MANAGER_APPROVED: 'Approved',
   APPROVED: 'Approved',
   REJECTED: 'Rejected by your manager — check the day and submit again',
   WITHDRAWN: 'Withdrawn — submit it again when ready',

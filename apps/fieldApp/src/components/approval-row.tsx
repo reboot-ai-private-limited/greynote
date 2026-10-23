@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Accents, Spacing, type Accent } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { kindLabel, STATUS_LABEL, type ApprovalItem, type ApprovalStatus } from '@/lib/approvals';
+import { isOneApproval, kindLabel, statusLabel, type ApprovalItem, type ApprovalStatus } from '@/lib/approvals';
 import { formatWhen } from '@/offline/day';
 
 import { ThemedText } from './themed-text';
@@ -60,7 +60,10 @@ const initials = (name: string) =>
 export function ApprovalRow({ item, onPress, selecting, selected, own }: Props) {
   const theme = useTheme();
   const kind = Accents[KIND_ACCENT[item.kind] ?? 'slate'];
-  const status = Accents[STATUS_ACCENT[item.status]];
+  // One approval (plans, services): never "With Admin"; an older one left at MANAGER_APPROVED is approved, and green.
+  const oneApprovalDone = item.status === 'MANAGER_APPROVED' && isOneApproval(item);
+  const status = Accents[oneApprovalDone ? 'green' : STATUS_ACCENT[item.status]];
+  const statusText = own ? statusLabel(item) : oneApprovalDone ? 'Approved' : STATUS_SHORT[item.status];
   const name = item.submitter?.name ?? 'Unknown employee';
 
   return (
@@ -112,7 +115,7 @@ export function ApprovalRow({ item, onPress, selecting, selected, own }: Props) 
         <View style={styles.right}>
           <View style={[styles.badge, { backgroundColor: status.bg, borderColor: status.border }]}>
             <ThemedText type="smallBold" style={[styles.badgeText, { color: item.status === 'REJECTED' ? theme.danger : status.solid }]} numberOfLines={2}>
-              {own ? STATUS_LABEL[item.status] : STATUS_SHORT[item.status]}
+              {statusText}
             </ThemedText>
           </View>
           {!item.canAct && !own ? (

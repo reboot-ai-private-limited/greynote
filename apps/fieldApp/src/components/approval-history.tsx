@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Accents, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import type { ApprovalAction, ApprovalDetail } from '@/lib/approvals';
+import { isOneApproval, type ApprovalAction, type ApprovalDetail } from '@/lib/approvals';
 import { formatWhen } from '@/offline/day';
 
 import { ThemedText } from './themed-text';
@@ -33,8 +33,10 @@ export function ApprovalHistory({ request }: { request: ApprovalDetail }) {
     tone: h.action === 'REJECT' ? 'bad' : h.action === 'WITHDRAW' || h.action === 'REOPEN' ? 'warn' : 'done',
     comment: h.comment,
   }));
-  if (request.status === 'SUBMITTED') items.push({ title: 'Manager review', note: 'Pending', tone: 'pending' });
-  else if (request.status === 'MANAGER_APPROVED') items.push({ title: 'Final approval', note: 'Pending', tone: 'pending' });
+  // One approval (plans, services; 2026-10-23): a single step, the manager's or Admin's, and nothing after it.
+  const one = isOneApproval(request);
+  if (request.status === 'SUBMITTED') items.push(one ? { title: 'Approval', note: 'Waiting for the manager or Admin', tone: 'pending' } : { title: 'Manager review', note: 'Pending', tone: 'pending' });
+  else if (request.status === 'MANAGER_APPROVED' && !one) items.push({ title: 'Final approval', note: 'Pending', tone: 'pending' });
 
   return (
     <View style={[styles.card, { backgroundColor: theme.background, borderColor: theme.border }]}>
