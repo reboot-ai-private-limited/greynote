@@ -2,8 +2,8 @@ import { AppError } from '@/shared/errors/AppError.js';
 import type { EmployeeDraftRepositoryPort } from '../../domain/employeeDraft.repository.port.js';
 import type { ProfilePhoto } from '../../domain/employeeProfile.entity.js';
 import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
-import { PHOTO_FILE_MESSAGE, isPhotoFile } from '../../domain/photoFile.js';
-import type { PhotoStoragePort } from '../../domain/photoStorage.port.js';
+import { PHOTO_FILE_MESSAGE, isPhotoFile } from '@/shared/storage/photoFile.js';
+import type { PhotoStoragePort } from '@/shared/storage/photoStorage.port.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
 
 /** What the screens get: the address only. The storage id never leaves the server. */

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import type { Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
+import { Avatar } from '@/features/people/components/Avatar';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
 import { RowActions, RowMenu } from '@/components/ui/RowActions';
 import { Select } from '@/components/ui/Select';
@@ -52,11 +53,14 @@ export function DoctorsScreen() {
       key: 'name',
       header: 'Doctor',
       render: (d) => (
-        <div>
-          <Link href={`/doctors/${d.id}`} className="font-medium text-text hover:text-accent hover:underline">
-            {d.name}
-          </Link>
-          <div className="text-xs text-text-subtle">{d.specialty}</div>
+        <div className="flex items-center gap-3">
+          <Avatar name={d.name} url={d.photoUrl} />
+          <div>
+            <Link href={`/doctors/${d.id}`} className="font-medium text-text hover:text-accent hover:underline">
+              {d.name}
+            </Link>
+            <div className="text-xs text-text-subtle">{d.specialty}</div>
+          </div>
         </div>
       ),
     },

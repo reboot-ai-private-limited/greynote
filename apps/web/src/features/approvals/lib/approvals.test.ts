@@ -10,6 +10,8 @@ import {
   dateRangeToInstants,
   groupByCycle,
   kindLabel,
+  requestDetail,
+  requestTitle,
   reasonError,
   runBulk,
   UNCONFIRMED_MESSAGE,
@@ -24,6 +26,24 @@ describe('kindLabel', () => {
     expect(kindLabel('NEW_DOCTOR')).toBe('New doctor');
     expect(kindLabel('DCR')).toBe('Daily report');
     expect(kindLabel('EXPENSE_CLAIM')).toBe('Expense claim');
+  });
+});
+
+describe('requestTitle and requestDetail', () => {
+  const doctor = {
+    kind: 'NEW_DOCTOR',
+    subject: { title: 'Dr Jayanta Ishore', subtitle: 'Naxalbari · SLG-1' },
+    submitter: { id: 'u1', name: 'Asha', employeeCode: 'GHC006' },
+    cycle: 2,
+  };
+  it('names a doctor by their name, with the place and sender underneath', () => {
+    expect(requestTitle(doctor)).toBe('Dr Jayanta Ishore');
+    expect(requestDetail(doctor)).toBe('New doctor · Naxalbari · SLG-1 · Asha · GHC006 · resubmitted (round 2)');
+  });
+  it('falls back to the kind for a request that says nothing about itself', () => {
+    const leave = { ...doctor, kind: 'LEAVE', subject: null, cycle: 1 };
+    expect(requestTitle(leave)).toBe('Leave');
+    expect(requestDetail(leave)).toBe('Asha · GHC006');
   });
 });
 

@@ -1,5 +1,5 @@
 import { parseBoolean, readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
-import type { ApprovalStatusChange } from '@/modules/approval/approval.public.js';
+import type { ApprovalStatusChange, ApprovalSubject } from '@/modules/approval/approval.public.js';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { DoctorRepositoryPort } from '../domain/doctor.repository.port.js';
@@ -8,6 +8,21 @@ import type { TerritoryPort } from '../domain/territory.port.js';
 import type { UserDirectoryPort } from '../domain/userDirectory.port.js';
 
 export const NEW_DOCTOR_KIND = 'NEW_DOCTOR';
+
+/** A new Doctor's name and the "HQ · Route" it was added on, for the rows of the approvals list. */
+export function makeDoctorDescriber(doctors: DoctorRepositoryPort, territory: TerritoryPort) {
+  return async (recordIds: string[]): Promise<Map<string, ApprovalSubject>> => {
+    const found = await Promise.all(
+      recordIds.map(async (id) => {
+        const doctor = await doctors.findById(id);
+        if (!doctor) return null;
+        const route = await territory.getRoute(doctor.routeId);
+        return [id, { title: doctor.name, subtitle: route ? `${route.hqName} · ${route.name}` : null }] as const;
+      }),
+    );
+    return new Map(found.filter((e) => e !== null));
+  };
+}
 
 /**
  * The `NEW_DOCTOR` kind's `onStatusChange`, run inside the approval module's transaction (LLD

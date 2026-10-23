@@ -25,6 +25,7 @@ type ListQuery = {
   pageSize: number;
   kind?: string;
   status?: ApprovalStatus;
+  decided?: boolean;
   submitterId?: string;
   managerId?: string;
   from?: Date;

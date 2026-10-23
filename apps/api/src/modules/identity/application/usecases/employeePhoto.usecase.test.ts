@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PhotoStoragePort } from '../../domain/photoStorage.port.js';
+import type { PhotoStoragePort } from '@/shared/storage/photoStorage.port.js';
 import { RemoveDraftPhotoUseCase, RemoveEmployeePhotoUseCase, SetDraftPhotoUseCase, SetEmployeePhotoUseCase } from './employeePhoto.usecase.js';
 import { DeleteEmployeeDraftUseCase, toDraftView } from './employeeDrafts.usecase.js';
 

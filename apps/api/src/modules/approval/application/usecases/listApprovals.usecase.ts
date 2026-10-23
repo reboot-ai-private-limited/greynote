@@ -6,9 +6,10 @@ import type { Actor } from '../../domain/approvalRules.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { ApprovalKindRegistry } from '../approvalKindRegistry.js';
 import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
-import { canActOn, dueAt, loadPeople, loadSlaDays, toListItem, type ApprovalListItem } from '../approvalViews.js';
+import { canActOn, dueAt, loadPeople, loadSlaDays, loadSubjects, toListItem, type ApprovalListItem } from '../approvalViews.js';
 
 const OPEN: ApprovalStatus[] = ['SUBMITTED', 'MANAGER_APPROVED'];
+const DECIDED: ApprovalStatus[] = ['APPROVED', 'REJECTED', 'WITHDRAWN'];
 /**
  * HR's queue is filtered in memory (whether a Stage-1 leave is top-of-chain needs each
  * submitter's manager), so its candidate set is capped. HR-kind requests open at once are a
@@ -19,6 +20,8 @@ const IN_MEMORY_CAP = 2000;
 export interface ApprovalQueryFilters {
   kind?: string | undefined;
   status?: ApprovalStatus | undefined;
+  /** `/all` only: leave out what is still open, for a view of what has been decided. */
+  decided?: boolean | undefined;
   submitterId?: string | undefined;
   /** Admin queue: only requests from this manager's direct reports (HLD 05 §5). */
   managerId?: string | undefined;
@@ -137,7 +140,7 @@ export class ListApprovalsUseCase {
   async all(actor: Actor, filters: ApprovalQueryFilters, page: PageQuery): Promise<PaginatedResult<ApprovalListItem>> {
     const common = await this.commonFilter(filters);
     if (common === null) return buildPaginatedResult([], 0, page);
-    const statuses = filters.status ? { statuses: [filters.status] } : {};
+    const statuses = filters.status ? { statuses: [filters.status] } : filters.decided ? { statuses: DECIDED } : {};
 
     if (actor.role === 'ADMIN') return this.page(actor, { ...common, ...statuses }, page, 'desc');
 
@@ -207,8 +210,9 @@ export class ListApprovalsUseCase {
     const { items, total } = await this.requests.list(filter, { ...page, sortOrder });
     const people = await loadPeople(this.users, items);
     const sla = { days: await loadSlaDays(this.config), now: new Date() };
+    const subjects = await loadSubjects(this.kinds, items);
     return buildPaginatedResult(
-      items.map((r) => toListItem(r, actor, people, this.kinds, sla)),
+      items.map((r) => toListItem(r, actor, people, this.kinds, sla, subjects)),
       total,
       page,
     );
@@ -223,8 +227,10 @@ export class ListApprovalsUseCase {
     const sla = { days: await loadSlaDays(this.config), now: new Date() };
     const actionable = candidates.filter((r) => canActOn(r, actor, people.get(r.submitterId), this.kinds.find(r.kind)));
     const start = (page.page - 1) * page.pageSize;
+    const shown = actionable.slice(start, start + page.pageSize);
+    const subjects = await loadSubjects(this.kinds, shown);
     return buildPaginatedResult(
-      actionable.slice(start, start + page.pageSize).map((r) => toListItem(r, actor, people, this.kinds, sla)),
+      shown.map((r) => toListItem(r, actor, people, this.kinds, sla, subjects)),
       actionable.length,
       page,
     );

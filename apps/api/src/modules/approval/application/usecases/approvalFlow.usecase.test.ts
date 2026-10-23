@@ -125,7 +125,10 @@ const onStatusChange = async (change: ApprovalStatusChange, ctx: unknown) => {
   changes.push({ change, ctx });
 };
 
-const PLAN: ApprovalKindDefinition = { kind: 'TEST_PLAN', finalApproverRoles: ['ADMIN'], onStatusChange };
+/** Describes only the record `mrPlan`, so a record the owner does not know shows by its kind alone. */
+const describeRecords = async (ids: string[]) =>
+  new Map(ids.filter((id) => id === 'mrPlan').map((id) => [id, { title: 'Dr Rao', subtitle: 'Naxalbari · SLG-1' }]));
+const PLAN: ApprovalKindDefinition = { kind: 'TEST_PLAN', finalApproverRoles: ['ADMIN'], onStatusChange, describeRecords };
 const QUICK: ApprovalKindDefinition = { kind: 'TEST_QUICK', finalApproverRoles: ['ADMIN'] };
 const LEAVE: ApprovalKindDefinition = { kind: 'TEST_LEAVE', finalApproverRoles: ['HR', 'ADMIN'] };
 const CHANGE: ApprovalKindDefinition = { kind: 'TEST_CHANGE', finalApproverRoles: ['ADMIN'], managerOnly: true };
@@ -455,6 +458,21 @@ describe('lists', () => {
     expect(inbox.items[0]).toMatchObject({ canAct: true, submitter: { id: 'mr', employeeCode: 'MR' } });
     await approve(r.mrPlan!.id, 'asm');
     expect((await lists.inbox(as('asm'), {}, PAGE)).items.map((i) => i.recordId)).toEqual(['mrLeave']);
+  });
+
+  it('a row carries what its kind says it is about, and null when it says nothing', async () => {
+    await seed();
+    const inbox = await lists.inbox(as('asm'), {}, PAGE);
+    expect(inbox.items.find((i) => i.recordId === 'mrPlan')?.subject).toEqual({ title: 'Dr Rao', subtitle: 'Naxalbari · SLG-1' });
+    expect(inbox.items.find((i) => i.recordId === 'mrLeave')?.subject).toBeNull();
+  });
+
+  it('History can leave out what is still open', async () => {
+    const r = await seed();
+    await approve(r.mrPlan!.id, 'asm');
+    await approve(r.mrPlan!.id, 'admin');
+    expect((await lists.all(as('admin'), {}, PAGE)).total).toBe(4);
+    expect((await lists.all(as('admin'), { decided: true }, PAGE)).items.map((i) => i.recordId)).toEqual(['mrPlan']);
   });
 
   it('the inbox summary counts what the inbox lists, per kind, and follows each decision', async () => {

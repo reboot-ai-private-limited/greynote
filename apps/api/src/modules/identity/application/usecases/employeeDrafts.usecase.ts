@@ -1,7 +1,7 @@
 import { AppError } from '@/shared/errors/AppError.js';
 import type { EmployeeDraft, EmployeeDraftData } from '../../domain/employeeDraft.entity.js';
 import type { EmployeeDraftRepositoryPort } from '../../domain/employeeDraft.repository.port.js';
-import type { PhotoStoragePort } from '../../domain/photoStorage.port.js';
+import type { PhotoStoragePort } from '@/shared/storage/photoStorage.port.js';
 
 export interface EmployeeDraftInput {
   step?: number;

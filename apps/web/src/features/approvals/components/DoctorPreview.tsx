@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Avatar } from '@/features/people/components/Avatar';
 import { DoctorDetailsForm } from '@/features/field-master-data/components/DoctorDetailsForm';
 import { Badge } from '@/components/ui/Badge';
 import { Field, FieldList } from '@/components/ui/FieldList';
@@ -24,6 +25,7 @@ export function DoctorPreview({ recordId }: { recordId: string }) {
       {doctor ? (
         <div className="space-y-5 p-5">
           <FieldList>
+            <Field label="Photo">{doctor.photoUrl ? <Avatar name={doctor.name} url={doctor.photoUrl} className="size-16" /> : null}</Field>
             <Field label="Name">{doctor.name}</Field>
             <Field label="Specialty">{doctor.specialty}</Field>
             <Field label="Qualification">{doctor.qualification}</Field>

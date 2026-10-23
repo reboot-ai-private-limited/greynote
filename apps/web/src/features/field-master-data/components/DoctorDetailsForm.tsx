@@ -12,9 +12,10 @@ import { Select } from '@/components/ui/Select';
 import type { StepperItem } from '@/components/ui/Stepper';
 import { WizardShell } from '@/components/ui/WizardShell';
 import { Grid } from '@/components/ui/WizardParts';
+import { PhotoPicker } from '@/features/people/components/PhotoPicker';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { useCreateDoctor, useReviewDoctor, useUpdateDoctor } from '../hooks/useDoctors';
+import { useCreateDoctor, useRemoveDoctorPhoto, useReviewDoctor, useSetDoctorPhoto, useUpdateDoctor } from '../hooks/useDoctors';
 import { useActiveSpecialtyNames } from '../hooks/useSpecialties';
 import {
   DOCTOR_STEPS,
@@ -48,7 +49,15 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
   const { names, isLoading: specialtiesLoading } = useActiveSpecialtyNames();
   const [draft, setDraft] = useState<DoctorDraft>(doctor ? doctorToDraft(doctor) : EMPTY_DOCTOR);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const create = useCreateDoctor((created) => router.push(`/doctors/${created.id}`));
+  // Adding: the photo is held until the doctor exists, then uploaded; the doctor is kept (and its page opened) even if the upload fails.
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  const setPhoto = useSetDoctorPhoto();
+  const removePhoto = useRemoveDoctorPhoto();
+  const create = useCreateDoctor((created) => {
+    const open = () => router.push(`/doctors/${created.id}`);
+    if (pendingPhoto) setPhoto.mutate({ id: created.id, file: pendingPhoto }, { onSettled: open });
+    else open();
+  });
   const adminUpdate = useUpdateDoctor();
   const reviewUpdate = useReviewDoctor();
   // `review`: a manager or Admin correcting a doctor in the approvals inbox, before approving it.
@@ -57,7 +66,7 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
   const locked = readOnly;
   const set = (field: keyof DoctorDraft) => (value: string) =>
     setDraft((d) => ({ ...d, [field]: value }));
-  const pending = create.isPending || update.isPending;
+  const pending = create.isPending || update.isPending || (create.isSuccess && setPhoto.isPending);
   const directory = useTerritoryDirectory();
   const [step, setStep] = useState<DoctorStep>('details');
   // Errors show for a step only once Next has been pressed on it, as in the employee wizard.
@@ -108,8 +117,24 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
   }
 
   const invalid = (field: string) => (shown[field] ? true : undefined);
+  // Not in the approvals review: there the reviewer corrects details, and only Admin or the MR who added the doctor may change the photo.
+  const photoField = review ? null : (
+    <div className="sm:col-span-2">
+      <PhotoPicker
+        name={draft.name || 'Doctor'}
+        photoUrl={doctor?.photoUrl ?? null}
+        pendingFile={doctor ? null : pendingPhoto}
+        inputLabel="Doctor photo"
+        busy={setPhoto.isPending || removePhoto.isPending}
+        disabled={locked}
+        onPick={(file) => (doctor ? setPhoto.mutate({ id: doctor.id, file }) : setPendingPhoto(file))}
+        onRemove={() => (doctor ? removePhoto.mutate(doctor.id) : setPendingPhoto(null))}
+      />
+    </div>
+  );
   const detailsFields = (
     <Grid>
+      {photoField}
       <div className="sm:col-span-2">
         <RoutePickerField
           id="doctor-route"
@@ -268,6 +293,7 @@ export function DoctorDetailsForm({ doctor, review = false }: { doctor?: DoctorD
       {step === 'location' ? locationPicker : null}
       {step === 'review' ? (
         <FieldList>
+          <Field label="Photo">{pendingPhoto?.name ?? null}</Field>
           <Field label="Route">{draft.routeId ? directory.routeLabel(draft.routeId) : null}</Field>
           <Field label="Name">{draft.name}</Field>
           <Field label="Speciality">{draft.specialty}</Field>

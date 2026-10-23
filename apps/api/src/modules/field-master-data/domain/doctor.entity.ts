@@ -11,6 +11,12 @@ export type DoctorStatus = (typeof DOCTOR_STATUSES)[number];
  * A doctor on one Route (the clinic's place). Who is responsible for the doctor is a
  * `DoctorAssignment`, deliberately separate from the Route.
  */
+/** The stored photo: `url` goes to clients; `publicId` is the storage handle and never leaves the server. */
+export interface DoctorPhoto {
+  url: string;
+  publicId: string;
+}
+
 export interface Doctor {
   id: string;
   routeId: string;
@@ -23,6 +29,8 @@ export interface Doctor {
   phone: string | null;
   specialty: string;
   qualification: string;
+  /** Optional profile photo; `null` for every doctor added before photos existed. */
+  photo: DoctorPhoto | null;
   /** `YYYY-MM-DD`, optional. */
   dateOfBirth: string | null;
   anniversary: string | null;

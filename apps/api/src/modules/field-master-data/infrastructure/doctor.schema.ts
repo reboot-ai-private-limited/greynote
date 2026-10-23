@@ -10,6 +10,7 @@ export interface DoctorDoc {
   email: string | null;
   clinicName?: string | null;
   phone?: string | null;
+  photo?: { url: string; publicId: string } | null;
   specialty: string;
   qualification: string;
   dateOfBirth: string | null;
@@ -33,6 +34,7 @@ const doctorSchema = new Schema<DoctorDoc>({
   email: { type: String, default: null },
   clinicName: { type: String, default: null },
   phone: { type: String, default: null },
+  photo: { type: new Schema({ url: { type: String, required: true }, publicId: { type: String, required: true } }, { _id: false }), default: null },
   specialty: { type: String, required: true },
   qualification: { type: String, required: true },
   dateOfBirth: { type: String, default: null },

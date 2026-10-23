@@ -4,9 +4,11 @@ import type { WaitingOnManager } from './application/usecases/listApprovals.usec
 import type { ApprovalKindDefinition } from './domain/approvalKind.js';
 import type { ApprovalRequest } from './domain/approvalRequest.entity.js';
 
-export type { ApprovalKindDefinition, ApprovalStatusChange } from './domain/approvalKind.js';
+export type { ApprovalKindDefinition, ApprovalStatusChange, ApprovalSubject } from './domain/approvalKind.js';
 export type { WaitingOnManager } from './application/usecases/listApprovals.usecase.js';
 export type { ApprovalRequest, ApprovalStatus } from './domain/approvalRequest.entity.js';
+/** Helpers for a kind's `describeRecords`: the title of a day or month, and a describer for records read one by one. */
+export { dayTitle, describeEach, monthTitle } from './application/subjects.js';
 /** Whether the submitter may edit the record behind a request with this status. */
 export { isEditableBySubmitter } from './domain/approvalRequest.entity.js';
 

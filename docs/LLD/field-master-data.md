@@ -146,6 +146,10 @@ All Admin-only (Web Portal, `../roadmap.md` phase 9) unless noted.
 | `GET` | `/field-master-data/doctors/team` | FIELD (manager) | My downline's Doctors; `userId` narrows to one report |
 | `GET` | `/field-master-data/doctors/:id` | Admin, assigned MR, their manager | Detail (404 to anyone else) |
 | `PATCH` | `/field-master-data/doctors/:id` | Admin | Edit, including correcting a registered location, also while inactive. `status: inactive` ends the assignment too |
+| `PUT` | `/field-master-data/doctors/:id/photo` | Admin | Set or replace the Doctor's photo (multipart `file`) — see *Doctor photo* below |
+| `DELETE` | `/field-master-data/doctors/:id/photo` | Admin | Remove it |
+| `PUT` | `/field-master-data/doctors/added/:id/photo` | FIELD | The MR who added the Doctor sets or replaces its photo, until the request is approved |
+| `DELETE` | `/field-master-data/doctors/added/:id/photo` | FIELD | The same, to remove it |
 | `GET` | `/field-master-data/doctors/:id/impact` | Admin | What deactivating or deleting touches (2026-10-22) |
 | `DELETE` | `/field-master-data/doctors/:id` | Admin | Delete for good: archived, assignments removed, taken off editable plans (2026-10-22) |
 | `POST` | `/field-master-data/doctors/:id/assignments` | Admin | Assign an MR to this Doctor, replacing any current active assignment |
@@ -324,3 +328,12 @@ Admin only, on the web. `application/doctorRetirement.ts`.
 - **Plans follow.** Whenever an MR loses a doctor (unassigned, replaced by another MR) or the doctor is deactivated or deleted, Planning's `releaseDoctor` takes it off the Daily Plans **from today on that are still editable** (no request, or rejected / withdrawn / reopened): that MR's, or everyone's for a deactivate or delete. Submitted and approved plans keep it (a call on it is refused). Before this, the next submit of such a plan was refused ("isn't one of your doctors"). A failed clean-up is logged and doesn't undo the change. Missed-call carry-over already drops doctors the MR no longer has.
 - **Web table rows:** the Doctors list's "⋯" menu offers Edit, Deactivate / Reactivate and Delete… on active and inactive rows (Deactivate and Delete go through the impact dialog). A pending row offers only *Review details* and *Approve or reject*, which opens its own request: each doctor in the API carries `approvalRequestId` (the NEW_DOCTOR request while it is pending, else `null`).
 - **Not here:** MR or manager requests from the phone; closing open gifts or services (the impact lists them).
+
+## Doctor photo (2026-10-23)
+
+An optional `Doctor.photo {url, publicId}` (default `null`; no migration, existing doctors read as none). Clients get only `photoUrl` (`DoctorDto`, the sync snapshot's `doctors` and `pendingDoctors`); `DoctorViews` strips the storage id. Uses the same pieces as the employee photo (now in `shared/`: `photoUpload.middleware`, `photoFile`, `photoStorage.port`, `CloudinaryPhotoStorage`): JPG, PNG or WebP by first bytes, up to 5 MB, 512×512, stored at `greynote/doctors/{id}/photo`.
+
+- **Separate from the add.** The add (`POST /doctors`, `POST /doctors/added`, the `NEW_DOCTOR` sync record) stays JSON, since the phone is offline-first and has no doctor id yet. The photo is uploaded afterwards (`SetDoctorPhotoUseCase`). The web wizard holds the file and uploads it right after the create; if that fails the doctor still exists and its page opens, where the photo can be added again.
+- **Who.** Admin: any doctor. FIELD: only a doctor they added (`clientRequestId` set), and only while its `NEW_DOCTOR` request is not `APPROVED`; otherwise `404` (someone else's) or `409` (approved). It is not part of the approval, so changing it never resubmits.
+- **Storage hygiene.** Set stores the new file, saves, then deletes the old one (and deletes the new one if the save fails). Remove deletes the file first, then clears the record. Deleting a doctor deletes its file; the archive keeps no photo (history needs the name).
+- **Web.** An optional picker at the top of the doctor form (add and edit; hidden in the approvals review), an avatar (initials when none) in the Doctors table, and the photo in the approval preview.

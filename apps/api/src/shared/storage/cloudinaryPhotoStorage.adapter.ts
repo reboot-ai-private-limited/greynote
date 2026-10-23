@@ -1,6 +1,6 @@
-import { AppError } from '@/shared/errors/AppError.js';
-import { cloudinaryClient } from '@/shared/storage/cloudinary.js';
-import type { PhotoStoragePort } from '../domain/photoStorage.port.js';
+import { AppError } from '../errors/AppError.js';
+import { cloudinaryClient } from './cloudinary.js';
+import type { PhotoStoragePort } from './photoStorage.port.js';
 
 export class CloudinaryPhotoStorage implements PhotoStoragePort {
   upload(fileBuffer: Buffer, folder: string): Promise<{ url: string; publicId: string }> {

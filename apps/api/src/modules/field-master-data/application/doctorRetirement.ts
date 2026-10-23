@@ -2,6 +2,7 @@ import type { DoctorDeleteResultDto, DoctorImpactDto } from '@greynote/contracts
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import { logger } from '@/shared/logging/logger.js';
+import type { PhotoStoragePort } from '@/shared/storage/photoStorage.port.js';
 import type { Doctor } from '../domain/doctor.entity.js';
 import type { DoctorRepositoryPort } from '../domain/doctor.repository.port.js';
 import type { DoctorAssignmentRepositoryPort } from '../domain/doctorAssignment.repository.port.js';
@@ -27,6 +28,7 @@ export class DoctorRetirement {
     private readonly archive: DoctorArchivePort,
     private readonly users: UserDirectoryPort,
     private readonly transactions: TransactionRunnerPort,
+    private readonly photos: PhotoStoragePort | null = null,
   ) {}
 
   /** Planning, Field Activity and Marketing are built after this module; the composition root hands them in. */
@@ -69,6 +71,10 @@ export class DoctorRetirement {
     const doctor = await this.settled(id);
     const assignment = await this.assignments.findActiveForDoctor(id);
     await this.transactions.run((ctx) => this.archive.remove(doctor, assignment?.userId ?? null, actorId, ctx));
+    // The archive keeps no photo (history needs the name, not the face), so the stored file goes with the doctor. Best effort: the delete is done.
+    if (doctor.photo && this.photos) {
+      await this.photos.remove(doctor.photo.publicId).catch((err: unknown) => logger.error({ err, doctorId: id }, 'doctor delete: photo not removed from storage'));
+    }
     return { id, plansUpdated: await this.release(id, null) };
   }
 
