@@ -30,7 +30,7 @@ Times are the defaults; each is an Admin setting (group *Notifications*). Nothin
 | The morning after it | Missed: the plan for November 2026 | `REMINDER_MONTHLY_PLAN` | `/plan/monthly` |
 | 3 days and 1 day before the expense deadline (7th); the morning after | Send September 2026 expenses / Missed: … | `REMINDER_EXPENSE_SUBMIT` | `/expenses` |
 | 3 days and 1 day before the stock deadline (5th); the morning after | Send September 2026 stock counts / Missed: … | `REMINDER_STOCK` | `/stock` |
-| A plan, leave, daily report, expense month, secondary sales, new doctor or doctor service is **approved or rejected** | Your daily plan was rejected (body: the reason) | `DECISION_<KIND>` | the kind's screen |
+| A plan, leave, daily report, expense month, secondary sales, new doctor or doctor service is **approved or rejected** (once: plans and services need one approval, so one push on the first decision) | Your daily plan was rejected (body: the reason) | `DECISION_<KIND>` | the kind's screen |
 | A manager or Admin **edits your monthly plan** while it waits for approval (2026-10-23) | Your tour plan was edited (body: who, the month and the reason) | `PLAN_AMENDED_MONTHLY_PLAN` | `/plan/monthly` |
 | A manager or Admin gives a **late-submission exception** | You can send it late (body: until 15 Oct, 18:00) | `LATE_GRANT_<KIND>` | the screen |
 | Admin **unblocks** you | You can submit again | `UNBLOCKED` | `/dcr` |

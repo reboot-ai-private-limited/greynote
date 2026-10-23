@@ -103,7 +103,7 @@ These are why a manager cannot yet "monitor the team": the data exists, but ther
 | T11 | **Reports after a team move.** Reports must show the team as it was in that month (sign-off K18). | ✅ design, check | Verify the new team reads use the dated manager history, not today's `managerId`. |
 | T12 | **Notifications** to the manager. | ✅ built (Inbox + push) | Section 2, *Messages the manager receives*, and [`notifications.md`](notifications.md) for the deadline and approvals-waiting messages. |
 
-Not a gap (do not build): chemist orders approval (info-only, decision 2026-10-12), manager approval of Admin-owned things, any second manager stage (Stage 1 manager → Admin is fixed, PRD §7.1).
+Not a gap (do not build): chemist orders approval (info-only, decision 2026-10-12), manager approval of Admin-owned things, any second manager stage. Monthly Plans, Daily Plans and Services need one approval, the manager's or Admin's (2026-10-23); Leave is still manager, then HR or Admin.
 
 ## 5. What the phone team shows (their screens, our routes)
 

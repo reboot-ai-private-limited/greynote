@@ -108,8 +108,8 @@ export function buildFieldActivityContainer(
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses, config);
   approvals.registerKind({ kind: DCR_KIND, finalApproverRoles: ['ADMIN'], describeRecords: describeEach((id) => dcrs.findById(id), (dcr) => ({ title: dayTitle(dcr.reportDate), subtitle: null })), onStatusChange: (change, ctx) => taDa.onStatusChange(change.recordId, change.status, ctx) });
 
-  // A Service an MR asks for goes manager, then Admin, like a DCR; nothing else happens on approval — the status is its request's.
-  approvals.registerKind({ kind: DOCTOR_SERVICE_KIND, finalApproverRoles: ['ADMIN'], describeRecords: describeEach((id) => services.findById(id), (service) => ({ title: serviceTypeTitle(service.serviceType), subtitle: null })) });
+  // A Service an MR asks for is approved once, by the manager or Admin; nothing else happens on approval — the status is its request's.
+  approvals.registerKind({ kind: DOCTOR_SERVICE_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: describeEach((id) => services.findById(id), (service) => ({ title: serviceTypeTitle(service.serviceType), subtitle: null })) });
 
   // 2. Use cases
   const clock = new DcrClock(config);

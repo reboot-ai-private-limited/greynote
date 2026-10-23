@@ -260,6 +260,14 @@ describe('special routes', () => {
     expect((await approve(req.id, 'asm')).status).toBe('APPROVED');
   });
 
+  it('a managerOnly kind: Admin approving first is final too, so whoever acts first decides', async () => {
+    managerOnlyKinds = 'NONE';
+    const req = await submitAs('mr', CHANGE.kind);
+    const done = await approve(req.id, 'admin');
+    expect(done.status).toBe('APPROVED');
+    expect(done.history.at(-1)?.authority).toBe('ADMIN_OVERRIDE');
+  });
+
   it('Leave: HR can give the final approval; HR cannot act on other kinds or override the manager', async () => {
     const leave = await submitAs('mr', LEAVE.kind);
     await expect(approve(leave.id, 'hr')).rejects.toMatchObject({ statusCode: 403 });

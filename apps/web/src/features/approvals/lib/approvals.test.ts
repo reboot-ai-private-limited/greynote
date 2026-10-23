@@ -58,6 +58,9 @@ describe('stageLabel', () => {
     expect(stageLabel(item('MANAGER_APPROVED'))).toBe('Waiting on Admin');
     expect(stageLabel(item('MANAGER_APPROVED', 'LEAVE'))).toBe('Waiting on HR or Admin');
   });
+  it('says either approver can decide a one-approval request', () => {
+    expect(stageLabel({ kind: 'MONTHLY_PLAN', status: 'SUBMITTED', workflow: 'MANAGER_ONLY' })).toBe('Waiting on the manager or Admin');
+  });
   it('says how a decided one ended', () => {
     expect(stageLabel(item('APPROVED'))).toBe('Approved');
     expect(stageLabel(item('WITHDRAWN'))).toBe('Withdrawn by the employee');
@@ -66,9 +69,12 @@ describe('stageLabel', () => {
 
 describe('skipsManager', () => {
   it('warns only when Admin approves a request still waiting on the manager', () => {
-    expect(skipsManager({ status: 'SUBMITTED' }, 'ADMIN')).toBe(true);
-    expect(skipsManager({ status: 'MANAGER_APPROVED' }, 'ADMIN')).toBe(false);
-    expect(skipsManager({ status: 'SUBMITTED' }, 'HR')).toBe(false);
+    expect(skipsManager({ status: 'SUBMITTED', workflow: 'MANAGER_THEN_FINAL' }, 'ADMIN')).toBe(true);
+    expect(skipsManager({ status: 'MANAGER_APPROVED', workflow: 'MANAGER_THEN_FINAL' }, 'ADMIN')).toBe(false);
+    expect(skipsManager({ status: 'SUBMITTED', workflow: 'MANAGER_THEN_FINAL' }, 'HR')).toBe(false);
+  });
+  it('does not warn for a one-approval request: Admin deciding first is the ordinary path', () => {
+    expect(skipsManager({ status: 'SUBMITTED', workflow: 'MANAGER_ONLY' }, 'ADMIN')).toBe(false);
   });
 });
 

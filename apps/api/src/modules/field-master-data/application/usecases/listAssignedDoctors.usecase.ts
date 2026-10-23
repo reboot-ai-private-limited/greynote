@@ -33,6 +33,12 @@ export class ListAssignedDoctorsUseCase {
     return this.run(filter.userId ? [filter.userId] : downline, filter);
   }
 
+  /** Admin: any employee's Doctors, seen the way that employee sees them. */
+  async forUser(userId: string, filter: AssignedFilter) {
+    if (!(await this.users.findUserSummary(userId))) throw AppError.notFound('Employee not found.');
+    return this.run([userId], filter);
+  }
+
   private async run(userIds: string[], filter: AssignedFilter) {
     const { page, pageSize, ...rest } = filter;
     const scopes = await this.visibility.scopes(userIds);

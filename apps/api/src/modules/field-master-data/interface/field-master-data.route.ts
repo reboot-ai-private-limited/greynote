@@ -30,6 +30,7 @@ import {
   listProductsQuerySchema,
   sampleAllocationParamsSchema,
   teamDoctorsQuerySchema,
+  employeeDoctorsQuerySchema,
   updateChemistBodySchema,
   updateDistributorBodySchema,
   reviewDoctorBodySchema,
@@ -81,6 +82,7 @@ doc('post', '/doctors', 'Admin: add a doctor on a route, with a map-picked locat
 doc('patch', '/doctors/{id}/targets', 'Manager or Admin: set a doctor’s monthly visit frequency (1–6), date of birth and anniversary', { params: idParamsSchema, body: updateDoctorTargetsBodySchema });
 doc('get', '/doctors/mine', 'Field staff: the doctors assigned to me, on routes I still have', { query: listAssignedDoctorsQuerySchema });
 doc('get', '/doctors/team', 'Managers: the doctors of everyone in my downline', { query: teamDoctorsQuerySchema });
+doc('get', '/doctors/assigned', 'Admin: the doctors assigned to one employee, as that employee sees them', { query: employeeDoctorsQuerySchema });
 doc('get', '/doctors/added', 'Field staff: the doctors I added, with where each is in its approval', { query: listAddedDoctorsQuerySchema });
 doc('post', '/doctors/added', 'Field staff: add a doctor (offline-first) — it goes to my manager, then Admin', { body: addDoctorBodySchema });
 doc('put', '/doctors/added/{id}', 'Field staff: change a rejected, withdrawn or reopened doctor — resubmits it', { params: idParamsSchema, body: editAddedDoctorBodySchema });
@@ -131,6 +133,7 @@ function doctorsRouter(c: DoctorHandlers): Router {
   const field = requireRole('FIELD');
   router.get('/mine', field, validate({ query: listAssignedDoctorsQuerySchema }), c.mine);
   router.get('/team', field, validate({ query: teamDoctorsQuerySchema }), c.team);
+  router.get('/assigned', admin, validate({ query: employeeDoctorsQuerySchema }), c.assignedTo);
   router.get('/added', field, validate({ query: listAddedDoctorsQuerySchema }), c.added);
   router.post('/added', field, validate({ body: addDoctorBodySchema }), c.addDoctor);
   router.put('/added/:id', field, validate({ params: idParamsSchema, body: editAddedDoctorBodySchema }), c.editAdded);

@@ -4,6 +4,7 @@ import type { UserDetailDto } from '@greynote/contracts';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Badge } from '@/components/ui/Badge';
+import { EmployeeDownloadMenu } from './EmployeeDownloadMenu';
 import { EmployeeCalendarTab } from '@/features/attendance/components/EmployeeCalendarTab';
 import { EmployeeLeaveTab } from '@/features/hr/components/EmployeeLeaveTab';
 import { Card } from '@/components/ui/Card';
@@ -72,6 +73,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
               description={`${user.employeeCode} · ${ROLE_LABEL[user.role]}`}
               actions={
                 <div className="flex items-center gap-2">
+                  {isAdmin && user.role === 'FIELD' ? <EmployeeDownloadMenu user={user} /> : null}
                   {user.isBlocked ? <Badge tone="danger">Blocked</Badge> : null}
                   <Badge tone={STATUS_TONE[user.status]}>{STATUS_LABEL[user.status]}</Badge>
                 </div>

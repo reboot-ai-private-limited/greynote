@@ -21,6 +21,7 @@
         "migrate:paybands": "tsx src/scripts/migrate-paybands.ts",
         "seed:sample-sales": "tsx src/scripts/seed-sample-sales.ts",
         "seed:demo-manager": "tsx src/scripts/seed-demo-manager.ts",
+        "seed:demo-hierarchy": "tsx src/scripts/seed-demo-hierarchy.ts",
         "export:pay-bands": "tsx src/scripts/export-pay-bands.ts",
         "seed:production": "tsx src/scripts/seed-production.ts",
         "migrate:employee-codes": "tsx src/scripts/migrate-employee-codes.ts",
@@ -34,6 +35,7 @@
         "migrate:ctc-statutory": "tsx src/scripts/migrate-ctc-statutory.ts",
         "migrate:inherit-monthly": "tsx src/scripts/migrate-inherit-monthly-plans.ts",
         "migrate:drop-plan-changes": "tsx src/scripts/migrate-drop-daily-plan-changes.ts",
+        "migrate:single-approval": "tsx src/scripts/migrate-single-approval.ts",
         "compliance:run": "tsx src/scripts/run-compliance.ts",
         "stock-check:run": "tsx src/scripts/run-stock-check.ts"
     },

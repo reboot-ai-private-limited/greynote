@@ -157,6 +157,8 @@ export const listAssignedDoctorsQuerySchema = z.object({
   routeId: objectIdSchema.optional(),
 });
 export const teamDoctorsQuerySchema = listAssignedDoctorsQuerySchema.extend({ userId: objectIdSchema.optional() });
+/** Admin: one employee's Doctors. */
+export const employeeDoctorsQuerySchema = listAssignedDoctorsQuerySchema.extend({ userId: objectIdSchema });
 export const assignDoctorBodySchema = z.object({ userId: objectIdSchema });
 export const doctorAssignmentParamsSchema = z.object({ id: objectIdSchema, userId: objectIdSchema });
 

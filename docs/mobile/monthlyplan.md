@@ -14,7 +14,7 @@ What the field app must do for the Monthly Plan, and the rules the server enforc
 | 2 | **Deadline** for month *M* = the end of the business day of `MONTHLY_PLAN_SUBMIT_CUTOFF_DATE` (default the 28th) **of the month before**. | ✅ |
 | 3 | The business day follows the **global day start** (`DAY_START_TIME`, e.g. `02:00`) in `BUSINESS_TIMEZONE`. With `02:00`, the 28th ends at **01:59:59.999 on the 29th**, not at midnight. Never compute this on the phone — show `submitDeadline` from the server. | ✅ |
 | 4 | Save is free while the plan is a draft, and works **offline**. **Submit needs a live connection** (it is never queued). | ✅ |
-| 5 | The month goes to the manager as **one unit** (no per-day status). The manager approves, then Admin is the final approver. | ✅ |
+| 5 | The month goes to the manager as **one unit** (no per-day status). **One approval is enough (2026-10-23):** the manager approves, or Admin does in their place, whoever acts first, and the plan is `APPROVED`. There is no second Admin step. | ✅ |
 | 6 | A submitted or approved plan is **frozen**. Editable again only after a rejection, a withdrawal, or an Admin reopen. | ✅ |
 | 7 | After the deadline, submit is refused with `409 PLAN_SUBMIT_LATE` unless one of: (a) the after-rejection resubmit window is open, (b) Admin granted a late-submission exception. | ✅ |
 | 8 | **Resubmit window** after a rejection: `MONTHLY_PLAN_RESUBMIT_GRACE_HOURS` (default 24 h), at most `PLAN_RESUBMIT_GRACE_MAX` times (default 2), and **never after the month has started**. | ✅ |
@@ -32,7 +32,7 @@ What the field app must do for the Monthly Plan, and the rules the server enforc
 
 ## 2. Statuses
 
-`DRAFT` → `SUBMITTED` → `MANAGER_APPROVED` → `APPROVED`. Also `REJECTED`, `WITHDRAWN`, `REOPENED` (the last three are editable and can be resubmitted). Treat `MANAGER_APPROVED` and `APPROVED` both as "approved" for the user's purposes; the server's gate counts both.
+`DRAFT` → `SUBMITTED` → `MANAGER_APPROVED` → `APPROVED`. Also `REJECTED`, `WITHDRAWN`, `REOPENED` (the last three are editable and can be resubmitted). Treat `MANAGER_APPROVED` and `APPROVED` both as "approved" for the user's purposes; the server's gate counts both. **Single approval (2026-10-23):** new and resubmitted requests no longer pass through `MANAGER_APPROVED`: the manager's approval, or Admin's, ends at `APPROVED`. Old rows were moved to `APPROVED`, but keep treating `MANAGER_APPROVED` as approved. So the phone's wording "Approved by your manager", "Waiting for Admin" and "With Admin" no longer applies to these plans: show a plain **Approved**, and for `SUBMITTED` **Waiting for approval** (the manager or Admin).
 
 ## 3. What the phone should show
 
@@ -81,6 +81,19 @@ On amend: `403` the employee amending their own plan; `404` the plan isn't one o
 | M4 | Show `amendments` on the plan for the employee and for later approvers: who (`by`), when (`at`), the reason, and the previous days. | phone |
 | M5 | Handle the amend errors above. On "plan changed while you were editing", reload and let the manager redo it. | phone |
 | M6 | The employee receives a push (`PLAN_AMENDED_MONTHLY_PLAN`, opens `/plan/monthly`) — see [`notifications.md`](notifications.md). The plan they see after it is the edited one; no action is needed from them. | phone |
+
+## 7. A ZSM with a Zone and no HQ sees every route in it (fixed 2026-10-23)
+
+**Symptom.** A ZSM is added with a Zone (or two) and no HQ ticked, which should mean *every HQ in that Zone*. In the Monthly Plan the route picker is empty for them. **This is a server gap, not a phone bug**: the phone shows what `GET /territory/my-routes` returns, and that list is empty.
+
+**Cause.**
+- Onboarding stores the ZSM's Zones/HQs only as a *coverage* (`ManagerCoverage`: `hqIds`, `zoneIds`). Coverage is for who can be picked as a manager and for which holidays apply; it assigns no route.
+- The route picker (`/territory/my-routes`, and the plan's own-route check in rule 14) reads **route assignments** only (`ListRoutesForUserUseCase`). The wizard assigns routes only from the `routeIds` it is given, and requires them only for an MR, so a ZSM, and an ASM or RSM, get none.
+- Result: coverage says "all HQs of the Zone" but no route is assigned, so the picker has nothing, and a plan with any route is refused (`400` on `entries.N.routeIds`).
+
+**Fixed on the server (2026-10-23), for every designation.** The routes a person covers: in each HQ they cover, the routes assigned to them there; **if none is assigned in that HQ, every active route of it**. A covered Zone with none of its HQs named counts as all its HQs. So a ZSM with a Zone and no HQ gets all routes of the Zone, and an MR, ASM or RSM with an HQ and no route chosen gets all routes of the HQ. This one list feeds `/territory/my-routes`, `GET /planning/monthly/:id/routes`, the plan's own-route check (rule 14) and doctor/chemist access.
+
+**What the phone does.** Nothing to change: the same calls now return the routes. Do not work routes out from the Zone/HQ on the phone. After a refresh, a ZSM's route picker is filled.
 
 ## 5. Work With ✅
 

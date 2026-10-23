@@ -61,6 +61,8 @@ imports it back — the callback is how it's told.
   request).
 - **Config** (tier 0): `APPROVAL_MANAGER_ONLY_KINDS` — comma-separated kinds with no final stage,
   or `NONE` (HLD 05 §6).
+  Kinds registered `managerOnly` (expense month, secondary sales, new doctor, and since 2026-10-23 monthly
+  plan, daily plan and doctor service) need no entry.
 
 ## HTTP surface
 
