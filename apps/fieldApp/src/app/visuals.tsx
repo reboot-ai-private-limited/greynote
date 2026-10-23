@@ -154,6 +154,7 @@ export default function VisualsScreen() {
         value={doctorId}
         onChange={chooseDoctor}
         emptyText="No doctors yet. Connect to the internet once so your list can load."
+        searchable
       />
       {doctorId ? (
         <>

@@ -9,7 +9,6 @@ import {
   getDoctorRecord,
   getDoctorServiceRecord,
   getLeaveRecord,
-  getMonthlyPlanRecord,
   type ApprovalDetail,
   type PlanDayView,
 } from '@/lib/approvals';
@@ -17,13 +16,16 @@ import { getStatementById } from '@/lib/expense-months';
 import { formatRupees } from '@/lib/money';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useTheme } from '@/hooks/use-theme';
-import { isFieldDay, routeNamesText, workingTypeLabel, type NamedRoute } from '@/lib/planning';
+import { getMonthlyPlanById, isFieldDay, routeNamesText, workingTypeLabel, type NamedRoute } from '@/lib/planning';
+import { useSessionUser } from '@/lib/session';
 import { useCachedSource } from '@/offline/cache';
+import { useColleagues } from '@/offline/colleagues';
 import { formatWhen, nowMs, prettyDay, prettyMonth } from '@/offline/day';
 import type { ConfigSnapshot } from '@/types/sync';
 
 import { DcrSummary } from './dcr-review';
 import { Notice } from './notice';
+import { PlanAmendments } from './plan-amendments';
 import { PrimaryButton } from './primary-button';
 import { SkeletonLines } from './skeleton';
 import { ThemedText } from './themed-text';
@@ -112,9 +114,16 @@ function DailyPlanSummary({ recordId }: { recordId: string }) {
 }
 
 function MonthlyPlanSummary({ recordId }: { recordId: string }) {
-  const { data, error } = useRecord(() => getMonthlyPlanRecord(recordId), 0);
+  const { data, error } = useRecord(() => getMonthlyPlanById(recordId), 0);
+  const me = useSessionUser();
+  const { colleagues } = useColleagues();
+  const config = useCachedSource<ConfigSnapshot>('config');
+  const nameOf = (userId: string) => (userId === me?.id ? 'You' : (colleagues.find((c) => c.id === userId)?.name ?? null));
   return (
     <Frame title={data ? `Tour plan · ${prettyMonth(data.planMonth)}` : 'Tour plan'} error={error} loading={!data}>
+      {data?.amendments && data.amendments.length > 0 ? (
+        <PlanAmendments amendments={data.amendments} entries={data.entries} routes={data.routes} nameOf={nameOf} timeZone={config.data?.settings.BUSINESS_TIMEZONE} />
+      ) : null}
       {data?.entries.map((e) => (
         <Box key={e.planDate}>
           <ThemedText type="smallBold">{prettyDay(e.planDate)}</ThemedText>

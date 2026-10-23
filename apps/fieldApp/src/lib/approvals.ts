@@ -216,10 +216,8 @@ export type DailyPlanRecord = PlanDayView & {
   /** The plan's routes named and typed. Absent from older servers. */
   routes?: NamedRoute[];
 };
-/** `routes`: every route the entries name, once each (absent from older servers). */
-export type MonthlyPlanRecord = { id: string; planMonth: string; entries: (PlanDayView & { planDate: string })[]; routes?: NamedRoute[] };
 export const getDailyPlanRecord = (id: string) => apiGet<DailyPlanRecord>(`/planning/daily/${id}`);
-export const getMonthlyPlanRecord = (id: string) => apiGet<MonthlyPlanRecord>(`/planning/monthly/${id}`);
+// A Tour Plan request's record is read with `getMonthlyPlanById` (lib/planning.ts), which also carries the manager's edits.
 
 export type LeaveRecord = {
   id: string;

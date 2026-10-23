@@ -18,6 +18,8 @@ type Props = {
   disabled?: boolean;
   /** Shown when `options` is empty — say why (no plan routes, nothing synced yet…). */
   emptyText: string;
+  /** Always offer the search box, however short the list (it searches the name and the subtitle). */
+  searchable?: boolean;
 };
 
 /** A search box is only worth its space once the list is longer than this. */
@@ -29,7 +31,7 @@ const SEARCH_FROM = 6;
  * optional search and the options. The chosen option is marked with a tick and the primary colour, never a
  * filled background, so the form around it keeps its look.
  */
-export function OutletPicker({ label, options, value, onChange, disabled, emptyText }: Props) {
+export function OutletPicker({ label, options, value, onChange, disabled, emptyText, searchable }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
@@ -140,7 +142,7 @@ export function OutletPicker({ label, options, value, onChange, disabled, emptyT
               </ThemedText>
             ) : (
               <>
-                {options.length > SEARCH_FROM ? (
+                {searchable || options.length > SEARCH_FROM ? (
                   <TextInput
                     value={query}
                     onChangeText={setQuery}

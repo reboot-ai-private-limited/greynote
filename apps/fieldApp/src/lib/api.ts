@@ -94,7 +94,7 @@ function refreshTokens(): Promise<boolean> {
     } catch (err) {
       // Only a definite rejection ends the session; a dropped connection must not log the MR out.
       if (err instanceof NetworkError) throw err;
-      if (err instanceof ApiError && err.status === 401) await clearSession();
+      if (err instanceof ApiError && err.status === 401) await clearSession({ byServer: true });
       return false;
     }
   })().finally(() => {
