@@ -2422,3 +2422,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Also:** `GET /planning/monthly/:id/routes` lists the owner's active routes for the manager's picker, readable by whoever can read the plan and only through a plan (the territory endpoint is Admin/HR only).
 
 **Open:** the phone app builds the edit screen (`mobile/monthlyplan.md` section 6).
+
+## 2026-10-23: Doctors get an optional profile photo
+
+**Decision:** a doctor can have one optional photo (JPG, PNG or WebP, up to 5 MB, stored by Cloudinary at 512×512), shown as an avatar in the Doctors table and the approval preview, with initials when there is none. It is a nullable `photo {url, publicId}`, so the many existing doctors need no migration. Admin sets or removes it on the web (add and edit form); the MR who added a doctor can also set it from the phone, **after** the add has synced (the add stays JSON so it works offline), and only until the request is approved. The photo is not part of the approval, so changing it does not resubmit. Replacing or removing deletes the old file; deleting a doctor deletes its file and the archive keeps none. Clients only get `photoUrl`. The upload middleware, file check and Cloudinary adapter moved from Identity to `shared/` so both modules use them. The phone app is not changed here; `docs/mobile/doctors.md` (rule 10, section 6) is the contract.
+
+**Open:** the phone app building the picker and the queued upload; whether the approver (a manager) should be able to replace the photo during review (today only Admin and the adding MR can).

@@ -18,10 +18,13 @@ What the field app must do to add a doctor and to show the month's missed calls,
 | 7 | **The approver may edit before deciding:** any detail and the **location** (`PATCH /field-master-data/doctors/:id/review`, pending only). The location the doctor ends up with can differ from the phone's point (the server keeps the phone's as `capturedLocation`). After approval, show the approved values. | ✅ new |
 | 8 | A rejected, withdrawn or reopened doctor can be corrected and resubmitted: `PUT /field-master-data/doctors/added/:id` with the same fields (no `clientRequestId`). A waiting or approved one can't be edited by the employee. | ✅ |
 | 9 | **Admin-added doctors** need no approval; they appear in the snapshot once assigned to the employee. The phone does nothing different for them. | ✅ |
+| 10 | **Optional photo (2026-10-23).** The photo is **not** part of the add: the add stays JSON, so it works offline. Once the doctor exists on the server (its create has synced and you know its `id`), upload it with `PUT /field-master-data/doctors/added/:id/photo` (`multipart/form-data`, one field `file`; JPG, PNG or WebP, up to 5 MB; checked by the file's first bytes). It replaces any earlier photo; `DELETE` on the same path removes it. Both answer `{ photoUrl }` (`null` after a delete). Allowed only for the employee who added the doctor, **while it is waiting or sent back; once approved it is `409` and only Admin changes it** (web). Changing the photo does **not** resubmit the request. A photo that fails to upload never blocks the doctor or its approval: keep the file queued and retry; a retry is safe (it just replaces). `400` on `file` for a wrong type, an empty file or over 5 MB. Choosing a photo is optional; send nothing for none. | ✅ API (phone work not started) |
 
 Errors worth a message: `400` on `routeId` — "That route isn't one of yours."; `400`/`422` on `specialty` — pick from the list; `phone` — "Enter a phone number of 10 to 15 digits."
 
 ## 2. What the snapshot carries
+
+Each entry of `doctors` and of `pendingDoctors` also has **`photoUrl`** (2026-10-23): the address of the doctor's photo, or `null` (every doctor added before photos existed, and any without one). Show it in a circle on the doctor card and list, and the doctor's **initials** when `null`. The storage id is never sent. Because the snapshot is compared by hash, the first sync after this ships re-downloads once. Older app builds ignore the new field.
 
 Each entry of `doctors` (active, assigned to me) now also has `clinicName` and `phone` (both `null` when not set), next to `email`, `dateOfBirth`, `anniversary` and `visitFrequency`. `pendingDoctors` is unchanged. Show clinic name and phone on the doctor card; the phone number may be tappable to call.
 
@@ -66,6 +69,8 @@ Per employee: `quota` (sum of frequencies), `made`, `missed`, `doctors`, `comple
 | `GET /field-master-data/doctors/added` | Employee | Doctors I added, with approval status |
 | `POST /field-master-data/doctors/added` | Employee | Add a doctor (offline-first) |
 | `PUT /field-master-data/doctors/added/:id` | Employee | Correct and resubmit a rejected, withdrawn or reopened doctor |
+| `PUT /field-master-data/doctors/added/:id/photo` | Employee | Set or replace the photo of a doctor I added (multipart `file`), until it is approved |
+| `DELETE /field-master-data/doctors/added/:id/photo` | Employee | Remove that photo |
 | `PATCH /field-master-data/doctors/:id/review` | Manager, Admin | Correct a pending doctor before approving |
 | `PATCH /field-master-data/doctors/:id/targets` | Manager, Admin | Set visit frequency, date of birth, anniversary |
 | `GET /reports/doctor-visits` | Employee, Manager, Admin | The month's quota, made, missed and stage |
@@ -77,3 +82,9 @@ Per employee: `quota` (sum of frequencies), `made`, `missed`, `doctors`, `comple
 2. Change the frequency picker to **1–4** (2026-10-22; it was 1–5).
 3. Stop expecting a second (Admin) approval stage: a manager's approval makes the doctor active.
 4. Show the new **stage** badge on the missed-calls screen.
+
+## 6. What changed for the phone (2026-10-23): optional doctor photo
+
+1. Read **`photoUrl`** on each doctor in the snapshot's `doctors` and `pendingDoctors` and show it, with initials as the fallback. It is `null` for all existing doctors; nothing breaks if you ignore it.
+2. In the add-doctor form, an optional **photo** (camera or gallery). Keep it with the queued add and upload it with `PUT /field-master-data/doctors/added/:id/photo` after the add syncs (rule 10). Don't block the add on it.
+3. Until the doctor is approved the employee may replace or remove the photo; after approval only Admin can (web).

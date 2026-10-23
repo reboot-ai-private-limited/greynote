@@ -31,6 +31,7 @@ import type { UpdateDistributorUseCase } from '../application/usecases/updateDis
 import type { UpdateDoctorTargetsUseCase } from '../application/usecases/updateDoctorTargets.usecase.js';
 import type { ReviewPendingDoctorUseCase } from '../application/usecases/reviewPendingDoctor.usecase.js';
 import type { DoctorRetirement } from '../application/doctorRetirement.js';
+import type { RemoveDoctorPhotoUseCase, SetDoctorPhotoUseCase } from '../application/usecases/doctorPhoto.usecase.js';
 import type { UpdateDoctorUseCase } from '../application/usecases/updateDoctor.usecase.js';
 import type { UpdateProductUseCase } from '../application/usecases/updateProduct.usecase.js';
 import type {
@@ -111,7 +112,7 @@ export function makeChemistControllers(u: {
 }
 
 export type DoctorHandlers = Record<
-  | 'list' | 'create' | 'get' | 'update' | 'impact' | 'remove' | 'review' | 'updateTargets' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'listSamples' | 'issueSample' | 'adjustSample',
+  | 'list' | 'create' | 'get' | 'update' | 'impact' | 'remove' | 'review' | 'updateTargets' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'setPhoto' | 'removePhoto' | 'listSamples' | 'issueSample' | 'adjustSample',
   RequestHandler
 >;
 
@@ -128,6 +129,8 @@ export function makeDoctorControllers(u: {
   unassign: UnassignDoctorUseCase;
   retirement: DoctorRetirement;
   addedDoctors: AddedDoctors;
+  setPhoto: SetDoctorPhotoUseCase;
+  removePhoto: RemoveDoctorPhotoUseCase;
   listSamples: ListSampleAllocationsUseCase;
   issueSample: IssueSampleAllocationUseCase;
   adjustSample: AdjustSampleAllocationUseCase;
@@ -202,6 +205,14 @@ export function makeDoctorControllers(u: {
     }),
     editAdded: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.addedDoctors.edit(actorOf(req).id, requiredParam(req.params, 'id'), req.body), 'Doctor updated and resubmitted.', 200),
+    ),
+    // Both routes (Admin's `/:id/photo`, the MR's `/added/:id/photo`) land here; the use case decides who may touch which doctor.
+    setPhoto: asyncHandler(async (req, res) => {
+      if (!req.file) throw AppError.badRequest('A file is required.', { field: 'file' });
+      sendSuccess(req, res, await u.setPhoto.execute(actorOf(req), requiredParam(req.params, 'id'), req.file.buffer), 'Photo saved.', 200);
+    }),
+    removePhoto: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.removePhoto.execute(actorOf(req), requiredParam(req.params, 'id')), 'Photo removed.', 200),
     ),
     unassign: asyncHandler(async (req, res) => {
       await u.unassign.execute(requiredParam(req.params, 'id'), requiredParam(req.params, 'userId'), actorOf(req).id);

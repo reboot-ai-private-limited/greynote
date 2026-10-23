@@ -61,6 +61,7 @@ export function makeFieldMasterDataSource(deps: {
           email: d.email,
           clinicName: d.clinicName,
           phone: d.phone,
+          photoUrl: d.photo?.url ?? null,
           specialty: d.specialty,
           qualification: d.qualification,
           dateOfBirth: d.dateOfBirth,
@@ -68,7 +69,7 @@ export function makeFieldMasterDataSource(deps: {
           visitFrequency: d.visitFrequency,
           location: d.location,
         })),
-        pendingDoctors: byId(pending).map((d) => ({ id: d.id, routeId: d.routeId, name: d.name, address: d.address, specialty: d.specialty, qualification: d.qualification, location: d.location })),
+        pendingDoctors: byId(pending).map((d) => ({ id: d.id, routeId: d.routeId, name: d.name, address: d.address, specialty: d.specialty, qualification: d.qualification, location: d.location, photoUrl: d.photo?.url ?? null })),
         chemists: byId(chemists).map((c) => ({ id: c.id, routeId: c.routeId, name: c.name, address: c.address, location: c.location })),
         distributors: byId(distributors).map((d) => ({
           id: d.id,

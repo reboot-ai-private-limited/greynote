@@ -1,11 +1,12 @@
 'use client';
 
-import type { CreateDoctorDto, DoctorDeleteResultDto, DoctorDto, IssueSampleDto, SampleAllocationDto, UpdateDoctorDto } from '@greynote/contracts';
+import type { CreateDoctorDto, DoctorDeleteResultDto, DoctorDto, IssueSampleDto, PhotoDto, SampleAllocationDto, UpdateDoctorDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { doctorsApi, type ListDoctorsQuery } from '@/lib/api/endpoints/fieldMasterData';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
+import { photoForm } from '@/features/people/lib/photo';
 
 /** Doctors change under Admin's feet (an MR adds one, an approval lands), so the list is not cached long. */
 export function useDoctors(query?: ListDoctorsQuery) {
@@ -43,6 +44,23 @@ export function useUpdateDoctor(onDone?: (doctor: DoctorDto) => void) {
     invalidates: [keys.doctors.all()],
     successMessage: 'Doctor updated.',
     ...(onDone && { onSuccess: onDone }),
+  });
+}
+
+/** Sets or replaces a doctor's photo; the server deletes the old file. `id` travels with the call so a just-created doctor can be given its photo. */
+export function useSetDoctorPhoto() {
+  return useApiMutation<{ id: string; file: File }, PhotoDto>({
+    call: (token, { id, file }) => doctorsApi.setPhoto(token, id, photoForm(file)),
+    invalidates: [keys.doctors.all()],
+    successMessage: 'Photo saved.',
+  });
+}
+
+export function useRemoveDoctorPhoto() {
+  return useApiMutation<string, PhotoDto>({
+    call: (token, id) => doctorsApi.removePhoto(token, id),
+    invalidates: [keys.doctors.all()],
+    successMessage: 'Photo removed.',
   });
 }
 

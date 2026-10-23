@@ -1,15 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { approvalTabsFor, tabCaption } from './approvalTabs';
+import { activeTab, approvalTabsFor, tabCaption } from './approvalTabs';
 
 describe('approvalTabsFor', () => {
-  it('gives Admin everything and then a tab for each kind', () => {
+  it('gives Admin a tab for each kind, Daily plan first and no "All"', () => {
     const tabs = approvalTabsFor('ADMIN');
-    expect(tabs[0]).toEqual({ value: '', label: 'All' });
+    expect(tabs[0]).toEqual({ value: 'DAILY_PLAN', label: 'Daily plan' });
+    expect(tabs.some((t) => t.value === '')).toBe(false);
     expect(tabs.map((t) => t.value)).toEqual(expect.arrayContaining(['LEAVE', 'DCR', 'DAILY_PLAN', 'MONTHLY_PLAN', 'NEW_DOCTOR', 'DOCTOR_SERVICE']));
     expect(new Set(tabs.map((t) => t.value)).size).toBe(tabs.length);
   });
   it('gives HR no tabs: it decides leave only', () => {
     expect(approvalTabsFor('HR')).toEqual([]);
+  });
+});
+
+describe('activeTab', () => {
+  const tabs = approvalTabsFor('ADMIN');
+  it('is the tab the URL names, else the first', () => {
+    expect(activeTab(tabs, 'LEAVE')).toBe('LEAVE');
+    expect(activeTab(tabs, '')).toBe('DAILY_PLAN');
+    expect(activeTab(tabs, 'NOPE')).toBe('DAILY_PLAN');
+  });
+  it('is empty when there are no tabs', () => {
+    expect(activeTab([], 'LEAVE')).toBe('');
   });
 });
 

@@ -35,6 +35,7 @@ import { SaveMonthlyPlanUseCase } from './application/usecases/saveMonthlyPlan.u
 import { SubmitDailyPlanUseCase } from './application/usecases/submitDailyPlan.usecase.js';
 import { SubmitMonthlyPlanUseCase } from './application/usecases/submitMonthlyPlan.usecase.js';
 import type { ApprovalsPort } from './domain/approvals.port.js';
+import { dayTitle, describeEach, monthTitle } from '@/modules/approval/approval.public.js';
 import type { ConfigProviderPort } from './domain/configProvider.port.js';
 import type { RouteDirectoryPort } from './domain/routeDirectory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
@@ -80,8 +81,8 @@ export function buildPlanningContainer(
   const offDays = new OffDays();
   // Plans are approved by the submitter's manager, then Admin (unless APPROVAL_MANAGER_ONLY_KINDS lists the kind). A Daily Plan's
   // status lives in the approval module; an approved Monthly Plan writes its days into Daily Plans (see below).
-  approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['ADMIN'] });
-  approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['ADMIN'], onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays) });
+  approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['ADMIN'], describeRecords: describeEach((id) => dailyPlans.findById(id), (plan) => ({ title: dayTitle(plan.planDate), subtitle: null })) });
+  approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['ADMIN'], describeRecords: describeEach((id) => monthlyPlans.findById(id), (plan) => ({ title: monthTitle(plan.planMonth), subtitle: null })), onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays) });
   const views = new PlanViews(approvals, grants, deadlines, offDays);
   const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now);
   const carryOver = new CarryOver(dailyPlans, approvals, config);

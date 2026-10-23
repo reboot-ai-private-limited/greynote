@@ -275,6 +275,8 @@ export interface FieldMasterDataSnapshot {
     email: string | null;
     clinicName: string | null;
     phone: string | null;
+    /** Profile photo address, or `null`; show initials when `null`. */
+    photoUrl: string | null;
     specialty: string;
     qualification: string;
     dateOfBirth: string | null;
@@ -291,6 +293,7 @@ export interface FieldMasterDataSnapshot {
     specialty: string;
     qualification: string;
     location: GeoPoint | null;
+    photoUrl: string | null;
   }>;
   /** The active specialities, A–Z: the dropdown the app offers when adding a Doctor. A Doctor's speciality must be one of them. */
   specialties: string[];

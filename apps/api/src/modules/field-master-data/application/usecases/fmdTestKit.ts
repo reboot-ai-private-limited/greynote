@@ -137,7 +137,7 @@ export class FakeTerritory implements TerritoryPort {
   userRoutes = new Map<string, string[]>();
   async getRoute(routeId: string) {
     const status = this.routes.get(routeId);
-    return status ? { id: routeId, status } : null;
+    return status ? { id: routeId, name: `Route ${routeId}`, hqName: 'Naxalbari', status } : null;
   }
   async listRoutesForUser(userId: string) {
     return (this.userRoutes.get(userId) ?? []).map((id) => ({ id }));

@@ -14,6 +14,8 @@ import { request } from '../client';
 export interface InboxQuery {
   kind?: string | undefined;
   status?: ApprovalStatus | undefined;
+  /** `/approvals/all` only: leave out what is still open, for the reviewed list. */
+  decided?: boolean | undefined;
   submitterId?: string | undefined;
   /** Admin only: requests from this manager's direct reports. */
   managerId?: string | undefined;

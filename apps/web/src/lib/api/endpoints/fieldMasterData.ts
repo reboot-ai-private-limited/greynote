@@ -25,6 +25,7 @@ import type {
   UpdateSpecialtyDto,
   UpdateDoctorDto,
   UpdateProductDto,
+  PhotoDto,
 } from '@greynote/contracts';
 import { request } from '../client';
 
@@ -100,6 +101,10 @@ export const doctorsApi = {
   create: (token: string, body: CreateDoctorDto) => request<DoctorDto>(`${BASE}/doctors`, { method: 'POST', token, body }),
   update: (token: string, id: string, body: UpdateDoctorDto) =>
     request<DoctorDto>(`${BASE}/doctors/${id}`, { method: 'PATCH', token, body }),
+
+  /** `multipart/form-data` with one `file`. Admin, or the MR who added the doctor until it is approved. Replaces any photo. */
+  setPhoto: (token: string, id: string, body: FormData) => request<PhotoDto>(`${BASE}/doctors/${id}/photo`, { method: 'PUT', token, body }),
+  removePhoto: (token: string, id: string) => request<PhotoDto>(`${BASE}/doctors/${id}/photo`, { method: 'DELETE', token }),
 
   /** What deactivating or deleting the doctor would touch (Admin). */
   impact: (token: string, id: string, signal?: AbortSignal) => request<DoctorImpactDto>(`${BASE}/doctors/${id}/impact`, { token, signal }),

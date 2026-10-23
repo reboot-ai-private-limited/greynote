@@ -1,5 +1,5 @@
 import { parsePositiveInt, readConfig } from '@/shared/config/readConfig.js';
-import type { ApprovalKindDefinition } from '../domain/approvalKind.js';
+import type { ApprovalKindDefinition, ApprovalSubject } from '../domain/approvalKind.js';
 import { isOpen, type ApprovalAction, type ApprovalRequest } from '../domain/approvalRequest.entity.js';
 import { resolveAuthority, type Actor } from '../domain/approvalRules.js';
 import { APPROVAL_SLA_DAYS_KEY, type ConfigProviderPort } from '../domain/configProvider.port.js';
@@ -23,6 +23,8 @@ export interface ApprovalListItem {
   submittedAt: Date;
   decidedAt: Date | null;
   submitter: PersonRef | null;
+  /** What the request is about (a doctor's name and place); null for a kind that does not say. */
+  subject: ApprovalSubject | null;
   lastAction: Omit<ApprovalAction, 'actorId'> & { actor: PersonRef | null };
   /** Whether the caller may approve/reject it right now. */
   canAct: boolean;
@@ -75,6 +77,7 @@ export function toListItem(
   people: Map<string, DirectoryUser>,
   kinds: ApprovalKindRegistry,
   sla: { days: number; now: Date },
+  subjects: Map<string, ApprovalSubject> = new Map(),
 ): ApprovalListItem {
   const submitter = people.get(request.submitterId);
   const last = request.history.at(-1) as ApprovalAction;
@@ -90,6 +93,7 @@ export function toListItem(
     submittedAt: request.submittedAt,
     decidedAt: request.decidedAt,
     submitter: ref(submitter),
+    subject: subjects.get(request.id) ?? null,
     lastAction: { ...lastRest, actor: ref(people.get(actorId)) },
     canAct: canActOn(request, actor, submitter, kinds.find(request.kind)),
     dueAt: due,
@@ -98,3 +102,22 @@ export function toListItem(
 }
 
 export { ref as toPersonRef };
+
+/** The subject of each request on a page, keyed by request id: one `describeRecords` call per kind. */
+export async function loadSubjects(kinds: ApprovalKindRegistry, requests: ApprovalRequest[]): Promise<Map<string, ApprovalSubject>> {
+  const byKind = new Map<string, ApprovalRequest[]>();
+  for (const r of requests) byKind.set(r.kind, [...(byKind.get(r.kind) ?? []), r]);
+  const out = new Map<string, ApprovalSubject>();
+  await Promise.all(
+    [...byKind].map(async ([kind, rows]) => {
+      const describe = kinds.find(kind)?.describeRecords;
+      if (!describe) return;
+      const found = await describe(rows.map((r) => r.recordId));
+      for (const r of rows) {
+        const subject = found.get(r.recordId);
+        if (subject) out.set(r.id, subject);
+      }
+    }),
+  );
+  return out;
+}

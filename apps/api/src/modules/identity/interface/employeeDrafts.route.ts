@@ -4,7 +4,7 @@ import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { makeEmployeeDraftControllers } from './employeeDrafts.controller.js';
-import { photoUpload } from './photoUpload.middleware.js';
+import { photoUpload } from '@/shared/http/photoUpload.middleware.js';
 import { draftIdParamsSchema, employeeDraftBodySchema } from './employeeDrafts.schemas.js';
 
 const TAG = 'Identity / Employee drafts';

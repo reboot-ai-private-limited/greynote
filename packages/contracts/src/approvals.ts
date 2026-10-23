@@ -46,6 +46,8 @@ export interface ApprovalInboxItemDto {
   submittedAt: string;
   decidedAt: string | null;
   submitter: ApprovalPersonDto | null;
+  /** What the request is about (a doctor's name and place); null for a kind that does not say. */
+  subject: { title: string; subtitle: string | null } | null;
   lastAction: ApprovalActionDto;
   /** Whether the caller may approve or reject it right now. */
   canAct: boolean;

@@ -30,7 +30,7 @@ describe('the phone’s cache of Field Master Data', () => {
   const fingerprint = async (user: string) => JSON.stringify(await source.snapshot(user));
 
   const doctor = async (name: string, routeId: string, status: 'active' | 'inactive' | 'pending' = 'active', addedBy = 'admin') =>
-    doctors.create({ routeId, name, address: 'x', email: null, specialty: 'ENT', qualification: 'MS', clinicName: null, phone: null, dateOfBirth: null, anniversary: null, visitFrequency: null, location: { latitude: 1, longitude: 2 }, capturedLocation: { latitude: 9, longitude: 9 }, status, addedBy, clientRequestId: null, approvedAt: null });
+    doctors.create({ routeId, name, address: 'x', email: null, specialty: 'ENT', qualification: 'MS', clinicName: null, phone: null, photo: null, dateOfBirth: null, anniversary: null, visitFrequency: null, location: { latitude: 1, longitude: 2 }, capturedLocation: { latitude: 9, longitude: 9 }, status, addedBy, clientRequestId: null, approvedAt: null });
   const assign = (doctorId: string, userId: string) => assignments.create({ doctorId, userId, assignedBy: 'admin' });
 
   beforeEach(() => {

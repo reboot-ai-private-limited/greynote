@@ -39,3 +39,9 @@ export interface DoctorGift {
   completedAt: Date | null;
   allocatedAt: Date;
 }
+
+/** A service type as a row title: `TOUR_PACKAGE` → `Tour package`. */
+export function serviceTypeTitle(type: DoctorServiceType): string {
+  const words = type.toLowerCase().replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}

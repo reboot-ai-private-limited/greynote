@@ -14,6 +14,7 @@ import { CancelPaymentUseCase, DistributorBalancesUseCase, ListPaymentsUseCase, 
 import { RecordMonthlyStockUseCase } from './application/usecases/recordMonthlyStock.usecase.js';
 import { UnlockMonthUseCase } from './application/usecases/unlockMonth.usecase.js';
 import type { SalesApprovalsPort } from './domain/approvals.port.js';
+import { monthTitle } from '@/modules/approval/approval.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import type { FieldMasterDataPort } from './domain/fieldMasterData.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
@@ -54,7 +55,7 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
   const place = new PlaceOrderUseCase(access, master, orders, clock, users);
   const getOrder = new GetOrderUseCase(orders, users);
   // A month's secondary is approved by the employee's manager (Admin may act in their place); only approved lines count toward achievement.
-  approvals.registerKind({ kind: SECONDARY_SALES_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, onStatusChange: makeSecondaryStatusHandler(employeeSales) });
+  approvals.registerKind({ kind: SECONDARY_SALES_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: async (ids) => new Map(ids.map((id) => [id, { title: monthTitle(id.split(':')[1] ?? ''), subtitle: null }])), onStatusChange: makeSecondaryStatusHandler(employeeSales) });
 
   sync.registerHandler(
     makeMonthlyStockSyncHandler(record, (payload) => {

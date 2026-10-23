@@ -20,7 +20,7 @@ export class CreateDoctorUseCase {
   async execute(input: CreateDoctorInput, adminId: string): Promise<DoctorView> {
     await requireActiveRoute(this.territory, input.routeId);
     const specialty = await this.specialties.resolve(input.specialty);
-    const doctor = await this.doctors.create({ clinicName: null, phone: null, dateOfBirth: null, anniversary: null, visitFrequency: null, ...input, specialty, capturedLocation: null, clientRequestId: null, status: 'active', addedBy: adminId, approvedAt: new Date() });
+    const doctor = await this.doctors.create({ clinicName: null, phone: null, photo: null, dateOfBirth: null, anniversary: null, visitFrequency: null, ...input, specialty, capturedLocation: null, clientRequestId: null, status: 'active', addedBy: adminId, approvedAt: new Date() });
     return this.views.one(doctor);
   }
 }
