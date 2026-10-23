@@ -144,13 +144,12 @@ Both `DailyPlan` and `MonthlyPlan` go through the `approval` module (built in Ph
 [`approval.md`](approval.md), [`../hld/05-approval-workflow-engine.md`](../hld/05-approval-workflow-engine.md));
 this doc does not re-derive that state machine. As it applies here:
 
-- Planning registers kinds `DAILY_PLAN` and `MONTHLY_PLAN` (final approver: `ADMIN`) and calls
+- Planning registers kinds `DAILY_PLAN` and `MONTHLY_PLAN` (`managerOnly: true`, 2026-10-23: one approval, by the manager or Admin) and call
   `approval.contract.submit` from its own submit endpoints. A Plan is `DRAFT` until then —
   `DRAFT` is Planning's own state, before any `ApprovalRequest` exists.
-- Flow: `SUBMITTED → MANAGER_APPROVED → APPROVED` (or `REJECTED` at either stage); the approver
-  is the submitter's current manager; top-of-chain and Admin override are final in one step.
-  If the client finds Admin approving every Daily Plan too heavy, `DAILY_PLAN` goes into
-  `APPROVAL_MANAGER_ONLY_KINDS` and ends at the manager — no code change.
+- Flow: `SUBMITTED → APPROVED` (or `REJECTED`); the approver is the submitter's current manager or
+  Admin, whoever acts first; top-of-chain is final in one step too. Both kinds are `managerOnly`
+  (decision-log 2026-10-23); `MANAGER_APPROVED` only remains on rows approved before then.
 - Once submitted, the employee can't edit a Plan (client §2.5) unless it's `REJECTED`,
   `WITHDRAWN` or Admin-`REOPENED` — Planning's edit endpoints check `isEditableBySubmitter`.
   There is no employee-side "request a change" to an approved Plan (removed 2026-10-12): they ask

@@ -246,7 +246,7 @@ export function ApprovalsScreen() {
         description={
           role === 'HR'
             ? 'Leave requests waiting for you to decide.'
-            : 'Every request waiting on a decision, longest-waiting first. Approving one that is still with the manager skips the manager.'
+            : 'Every request waiting on a decision, longest-waiting first.'
         }
         actions={
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 text-sm text-text-muted">

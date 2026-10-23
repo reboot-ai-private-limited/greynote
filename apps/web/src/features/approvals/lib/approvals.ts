@@ -86,7 +86,8 @@ export function stageLabel(
 ): string {
   switch (item.status) {
     case 'SUBMITTED':
-      return 'Waiting on the manager';
+      // One approval kinds: the manager decides, and Admin may decide in their place.
+      return item.workflow === 'MANAGER_ONLY' ? 'Waiting on the manager or Admin' : 'Waiting on the manager';
     case 'MANAGER_APPROVED':
       return `Waiting on ${finalApproverLabel(item.kind)}`;
     case 'APPROVED':
@@ -102,14 +103,15 @@ export function stageLabel(
 
 /**
  * True when approving now would decide a request that is still waiting on the manager: Admin's override.
- * Said in the confirmation, because it skips a stage. (A request from someone with no manager is
+ * Said in the confirmation, because it skips a stage (not for one-approval kinds, where either may decide). (A request from someone with no manager is
  * decided by Admin as the ordinary top of the chain; the history records which it was.)
  */
 export function skipsManager(
-  item: Pick<ApprovalInboxItemDto, 'status'>,
+  item: Pick<ApprovalInboxItemDto, 'status' | 'workflow'>,
   actorRole: string | undefined,
 ): boolean {
-  return item.status === 'SUBMITTED' && actorRole === 'ADMIN';
+  // A one-approval request is decided by the manager or Admin, so Admin acting first skips nothing.
+  return item.status === 'SUBMITTED' && item.workflow !== 'MANAGER_ONLY' && actorRole === 'ADMIN';
 }
 
 // ── History ────────────────────────────────────────────────────────────────────────────────
