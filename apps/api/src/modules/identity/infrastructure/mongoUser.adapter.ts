@@ -130,10 +130,10 @@ export class MongoUserAdapter implements UserRepositoryPort {
     return toUser(doc);
   }
 
-  async listActiveIdsByRole(role: 'FIELD'): Promise<string[]> {
+  async listActiveIdsByRole(role: 'FIELD', opts: { includeDemo?: boolean } = {}): Promise<string[]> {
     const found = await RoleModel.findOne({ name: role }).lean();
     if (!found) return [];
-    return (await UserModel.find({ roleId: found._id, status: 'active', isDemo: { $ne: true } }, { _id: 1 }).sort({ _id: 1 }).lean()).map((u) => String(u._id));
+    return (await UserModel.find({ roleId: found._id, status: 'active', ...(opts.includeDemo ? {} : { isDemo: { $ne: true } }) }, { _id: 1 }).sort({ _id: 1 }).lean()).map((u) => String(u._id));
   }
   async listDeactivatedSince(since: Date): Promise<Array<{ id: string; deactivatedAt: Date }>> {
     const docs = await UserModel.find({ status: 'inactive', deactivatedAt: { $gte: since } }, { _id: 1, deactivatedAt: 1 }).lean();

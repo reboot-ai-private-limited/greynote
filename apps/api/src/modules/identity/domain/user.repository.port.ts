@@ -42,7 +42,8 @@ export interface UserRepositoryPort {
   /** `ctx` participates in a transaction (only `unblockUser` needs this) — omit for a plain single-document write. */
   update(id: string, input: Partial<Omit<User, 'id'>>, ctx?: TransactionContext): Promise<User>;
   /** Ids of the active users with this role, no paging — for a job that visits each. */
-  listActiveIdsByRole(role: 'FIELD'): Promise<string[]>;
+  /** Demo accounts are left out unless `includeDemo` (only a demo account's own pickers show them). */
+  listActiveIdsByRole(role: 'FIELD', opts?: { includeDemo?: boolean }): Promise<string[]>;
   /** Every active user, any role, by name — the audience an Inbox message is resolved against. */
   listActive(): Promise<User[]>;
   /** Inactive accounts deactivated at or after `since`: whose access tokens may still be unexpired. */

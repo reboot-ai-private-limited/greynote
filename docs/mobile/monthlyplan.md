@@ -108,6 +108,8 @@ A day (planned or on a call) can name colleagues to work with.
 
 Each row: `{ id, employeeCode, name, designation, label }`. `label` is ready to print: **`Asha Rao (ASM)`**; with no designation it is just the name. The caller is never in the list. Sorted by name.
 
+**Demo accounts (2026-10-23):** `isDemo` accounts (the seeded DEMO team) are left out of both lists for real employees, and are listed only to another demo account. Before this, `scope=all` left them out for everyone, so a demo ZSM's picker (built from `scope=all`) lacked the demo ASM and MRs.
+
 Suggested phone behaviour:
 - Cache both lists on the phone and refresh them with every background sync, so the picker works offline.
 - Open the picker on **Managers**, with a switch to **All employees** and a search box (name or code).
