@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import type { Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
 import { Avatar } from '@/features/people/components/Avatar';
@@ -13,11 +14,15 @@ import { RowActions, RowMenu } from '@/components/ui/RowActions';
 import { Select } from '@/components/ui/Select';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
+import { fetchAllPages, MAX_PAGE_SIZE } from '@/lib/api/allPages';
+import { doctorsApi, type ListDoctorsQuery } from '@/lib/api/endpoints/fieldMasterData';
+import { useCsvExport } from '@/lib/hooks/useCsvExport';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDoctors, useUpdateDoctor } from '../hooks/useDoctors';
 import { DOCTOR_STATUS_LABEL, DOCTOR_STATUS_TONE, canToggleStatus, pendingApprovalHref } from '../lib/doctors';
+import { doctorsCsv, doctorsFilename } from '../lib/doctorsCsv';
 import { RetireDoctorDialog } from './RetireDoctorDialog';
 import { RouteFilter } from './RoutePickerField';
 
@@ -40,12 +45,16 @@ export function DoctorsScreen() {
   const [retiring, setRetiring] = useState<{ action: 'deactivate' | 'delete'; doctor: DoctorDto } | null>(null);
   const updateDoctor = useUpdateDoctor(() => setToggling(null));
 
-  const doctors = useDoctors({
-    page,
-    pageSize,
+  const filters: Pick<ListDoctorsQuery, 'search' | 'status' | 'routeId'> = {
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as DoctorStatus }),
     ...(values.routeId && { routeId: values.routeId }),
+  };
+  const doctors = useDoctors({ page, pageSize, ...filters });
+  // Every doctor matching the filters, not just this page. 100 pages of 100 is the ceiling.
+  const download = useCsvExport(async (token) => {
+    const { items, complete } = await fetchAllPages((p) => doctorsApi.list(token, { page: p, pageSize: MAX_PAGE_SIZE, ...filters }), 100);
+    return { filename: doctorsFilename(), csv: doctorsCsv(items, directory.routeLabel), complete };
   });
 
   const columns: readonly Column<DoctorDto>[] = [
@@ -123,6 +132,11 @@ export function DoctorsScreen() {
       noun="doctor"
       readOnly={readOnly}
       onNew={() => router.push('/doctors/new')}
+      actions={
+        <Button variant="secondary" disabled={download.isPending} onClick={() => download.mutate()}>
+          {download.isPending ? 'Preparing…' : 'Download CSV'}
+        </Button>
+      }
       filters={
         <>
           <Input placeholder="Search by name" aria-label="Search doctors" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />

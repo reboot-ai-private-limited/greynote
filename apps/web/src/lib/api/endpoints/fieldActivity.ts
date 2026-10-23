@@ -2,6 +2,7 @@ import type {
   AllocateGiftDto,
   CreateAdminServiceDto,
   DcrDetailDto,
+  DcrSummaryDto,
   DoctorGiftDto,
   DoctorServiceDto,
   ExpenseAuditRowDto,
@@ -87,6 +88,10 @@ export const fieldActivityApi = {
 
   /** The month statement an approval request points at (its record id): date-wise TA, DA and Other. */
   expenseMonth: (token: string, id: string, signal?: AbortSignal) => request<ExpenseStatementDto>(`/field-activity/expense-months/${id}`, { token, signal }),
+
+  /** Admin: one employee's daily reports (inclusive, newest first), without the calls. `from` and `to` (YYYY-MM-DD) are required. */
+  dcrs: (token: string, query: { userId: string; from: string; to: string }, signal?: AbortSignal) =>
+    request<DcrSummaryDto[]>('/field-activity/dcr', { token, query: { ...query }, signal }),
 
   /** One daily report with every call, follow-up and expense: the review screen. */
   dcr: (token: string, id: string, signal?: AbortSignal) => request<DcrDetailDto>(`/field-activity/dcr/${id}`, { token, signal }),

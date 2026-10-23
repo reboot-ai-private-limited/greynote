@@ -60,6 +60,7 @@ GET    /api/field-master-data/doctors/:id/assignments  ADMIN
 GET    /api/field-master-data/doctors/:id/impact  ADMIN
 GET    /api/field-master-data/doctors/:id/sample-allocations  ADMIN,FIELD
 GET    /api/field-master-data/doctors/added  FIELD
+GET    /api/field-master-data/doctors/assigned  ADMIN
 GET    /api/field-master-data/doctors/mine  FIELD
 GET    /api/field-master-data/doctors/team  FIELD
 GET    /api/field-master-data/products  ADMIN
