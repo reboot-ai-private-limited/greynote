@@ -135,6 +135,9 @@ export interface DcrDetailDto {
   expenses: DcrExpenseDto[];
 }
 
+/** One row of `GET /field-activity/dcr`: the day and where its approval is, without the calls. */
+export type DcrSummaryDto = Pick<DcrDetailDto, 'id' | 'userId' | 'reportDate' | 'status' | 'approval' | 'remarks'>;
+
 /** Body of `POST /field-activity/dcr/:id/calls/:callId/override-geofence`. A reason is required. */
 export interface OverrideGeofenceDto {
   comment: string;

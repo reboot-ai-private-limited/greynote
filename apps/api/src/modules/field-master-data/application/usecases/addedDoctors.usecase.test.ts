@@ -128,6 +128,15 @@ describe('An MR adds a Doctor', () => {
       expect((await new ListAssignedDoctorsUseCase(doctors, visibility, users, views).mine(field('mr1'), page)).items.map((x) => x.name)).toEqual(['Dr Mehta']);
     });
 
+    it('Admin can list any employee’s doctors; an unknown employee is a 404', async () => {
+      await add();
+      await approve();
+      const list = new ListAssignedDoctorsUseCase(doctors, visibility, users, views);
+      expect((await list.forUser('mr1', page)).items.map((x) => x.name)).toEqual(['Dr Mehta']);
+      expect((await list.forUser('asm', page)).total).toBe(0);
+      await expect(list.forUser('nobody', page)).rejects.toMatchObject({ statusCode: 404 });
+    });
+
     it('leaves it unassigned when AUTO_ASSIGN_DOCTOR_ON_APPROVAL is off', async () => {
       config.values.set('AUTO_ASSIGN_DOCTOR_ON_APPROVAL', 'false');
       await add();

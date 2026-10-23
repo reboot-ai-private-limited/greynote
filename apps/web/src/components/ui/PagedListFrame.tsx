@@ -22,6 +22,7 @@ export function PagedListFrame<T extends { id: string }>({
   noun,
   readOnly,
   onNew,
+  actions,
   filters,
   query,
   columns,
@@ -40,6 +41,8 @@ export function PagedListFrame<T extends { id: string }>({
   readOnly: boolean;
   /** Omit for a list with nothing to create (the approvals queue): no "New" button is shown. */
   onNew?: () => void;
+  /** Other header buttons (a download), beside "New". */
+  actions?: ReactNode;
   filters: ReactNode;
   query: {
     data: PaginatedDto<T> | undefined;
@@ -70,14 +73,19 @@ export function PagedListFrame<T extends { id: string }>({
           title={title}
           description={description}
           actions={
-            onNew ? (
-              <Button
-                onClick={onNew}
-                disabled={readOnly}
-                title={readOnly ? 'A past financial year is read-only' : undefined}
-              >
-                <Plus aria-hidden className="size-4" /> New {noun}
-              </Button>
+            onNew || actions ? (
+              <div className="flex items-center gap-2">
+                {actions}
+                {onNew ? (
+                  <Button
+                    onClick={onNew}
+                    disabled={readOnly}
+                    title={readOnly ? 'A past financial year is read-only' : undefined}
+                  >
+                    <Plus aria-hidden className="size-4" /> New {noun}
+                  </Button>
+                ) : null}
+              </div>
             ) : null
           }
         />

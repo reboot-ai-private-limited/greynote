@@ -46,6 +46,10 @@ export interface ListDoctorsQuery extends PaginationQueryDto {
   /** Matches the name. */
   search?: string | undefined;
 }
+export interface ListEmployeeDoctorsQuery extends PaginationQueryDto {
+  search?: string | undefined;
+  routeId?: string | undefined;
+}
 export interface ListDistributorsQuery extends PaginationQueryDto {
   status?: MasterStatus | undefined;
   routeId?: string | undefined;
@@ -97,6 +101,9 @@ export const distributorsApi = {
 export const doctorsApi = {
   list: (token: string, query: ListDoctorsQuery | undefined, signal?: AbortSignal) =>
     request<PaginatedDto<DoctorDto>>(`${BASE}/doctors`, { token, ...(query && { query: { ...query } }), signal }),
+  /** Admin: the doctors assigned to one employee. */
+  assignedTo: (token: string, userId: string, query: ListEmployeeDoctorsQuery | undefined, signal?: AbortSignal) =>
+    request<PaginatedDto<DoctorDto>>(`${BASE}/doctors/assigned`, { token, query: { ...query, userId }, signal }),
   get: (token: string, id: string, signal?: AbortSignal) => request<DoctorDto>(`${BASE}/doctors/${id}`, { token, signal }),
   create: (token: string, body: CreateDoctorDto) => request<DoctorDto>(`${BASE}/doctors`, { method: 'POST', token, body }),
   update: (token: string, id: string, body: UpdateDoctorDto) =>

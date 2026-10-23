@@ -39,6 +39,7 @@ import type {
   issueSampleBodySchema,
   listAddedDoctorsQuerySchema,
   listAssignedDoctorsQuerySchema,
+  employeeDoctorsQuerySchema,
   listChemistsQuerySchema,
   listDistributorsQuerySchema,
   listDoctorsQuerySchema,
@@ -112,7 +113,7 @@ export function makeChemistControllers(u: {
 }
 
 export type DoctorHandlers = Record<
-  | 'list' | 'create' | 'get' | 'update' | 'impact' | 'remove' | 'review' | 'updateTargets' | 'mine' | 'team' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'setPhoto' | 'removePhoto' | 'listSamples' | 'issueSample' | 'adjustSample',
+  | 'list' | 'create' | 'get' | 'update' | 'impact' | 'remove' | 'review' | 'updateTargets' | 'mine' | 'team' | 'assignedTo' | 'listAssignments' | 'assign' | 'unassign' | 'added' | 'addDoctor' | 'editAdded' | 'setPhoto' | 'removePhoto' | 'listSamples' | 'issueSample' | 'adjustSample',
   RequestHandler
 >;
 
@@ -168,6 +169,10 @@ export function makeDoctorControllers(u: {
     team: asyncHandler(async (req, res) => {
       const query = req.query as unknown as z.output<typeof teamDoctorsQuerySchema>;
       sendSuccess(req, res, await u.assigned.team(actorOf(req), query), 'Your team’s doctors.', 200);
+    }),
+    assignedTo: asyncHandler(async (req, res) => {
+      const { userId, ...filter } = req.query as unknown as z.output<typeof employeeDoctorsQuerySchema>;
+      sendSuccess(req, res, await u.assigned.forUser(userId, filter), 'The employee’s doctors.', 200);
     }),
     listAssignments: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.listAssignments.execute(requiredParam(req.params, 'id')), 'Assignments.', 200),
