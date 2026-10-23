@@ -59,6 +59,7 @@ doc('patch', '/daily/{id}/amend', 'Amend an employee’s plan for a day — thei
 doc('post', '/monthly', 'Save my plan for a month — every day at once (draft)', { body: saveMonthlyPlanBodySchema });
 doc('get', '/monthly', 'My monthly plans between two months, with status and submit deadline', { query: monthRangeQuerySchema });
 doc('get', '/monthly/{id}', 'One monthly plan — owner, their managers (read-only), Admin', { params: planIdParamsSchema });
+doc('get', '/monthly/{id}/routes', 'The active routes of the employee a monthly plan belongs to, named and typed — what a manager editing the plan may choose from; owner, their managers, Admin', { params: planIdParamsSchema });
 doc('post', '/monthly/{id}/submit', 'Submit my whole month for approval — refused after the deadline without a late-submission exception', { params: planIdParamsSchema });
 doc('patch', '/monthly/{id}/amend', 'Amend an employee’s monthly plan while it waits for their manager — their managers and Admin; a reason is required, the old days are kept and the employee is told', { params: planIdParamsSchema, body: amendMonthlyPlanBodySchema });
 doc('post', '/late-grants', 'Allow one employee to submit one plan after its deadline — Admin; a manager for their team while LATE_PLAN_GRANT_BY_MANAGER is on', { body: grantLateSubmitBodySchema });
@@ -83,6 +84,7 @@ export function buildPlanningRouter(c: PlanningHandlers): Router {
   router.post('/monthly', requireRole('FIELD'), validate({ body: saveMonthlyPlanBodySchema }), c.saveMonthly);
   router.get('/monthly', requireRole('FIELD'), scopeToFinancialYear({ kind: 'month', from: 'from', to: 'to', fill: true }), validate({ query: listMonthlyPlansQuerySchema }), c.listMonthly);
   router.get('/monthly/:id', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.getMonthly);
+  router.get('/monthly/:id/routes', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema }), c.planOwnerRoutes);
   router.post('/monthly/:id/submit', requireRole('FIELD'), validate({ params: planIdParamsSchema }), c.submitMonthly);
   router.patch('/monthly/:id/amend', requireRole('FIELD', 'ADMIN'), validate({ params: planIdParamsSchema, body: amendMonthlyPlanBodySchema }), c.amendMonthly);
 

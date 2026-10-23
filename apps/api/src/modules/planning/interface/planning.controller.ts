@@ -12,6 +12,7 @@ import type { SetDailyPlanUseCase } from '../application/usecases/setDailyPlan.u
 import type { SuggestFromTeamUseCase } from '../application/usecases/suggestFromTeam.usecase.js';
 import type { SetDailyPlanDoctorsUseCase } from '../application/usecases/setDailyPlanDoctors.usecase.js';
 import type { GetDailyPlanUseCase } from '../application/usecases/getDailyPlan.usecase.js';
+import type { ListPlanOwnerRoutesUseCase } from '../application/usecases/listPlanOwnerRoutes.usecase.js';
 import type { GetMonthlyPlanUseCase } from '../application/usecases/getMonthlyPlan.usecase.js';
 import type { GrantLateSubmitUseCase } from '../application/usecases/grantLateSubmit.usecase.js';
 import type { ListDailyPlansUseCase } from '../application/usecases/listDailyPlans.usecase.js';
@@ -57,6 +58,7 @@ export type PlanningHandlers = Record<
   | 'saveMonthly'
   | 'listMonthly'
   | 'getMonthly'
+  | 'planOwnerRoutes'
   | 'submitMonthly'
   | 'grantLate'
   | 'listLateGrants'
@@ -79,6 +81,7 @@ export function makePlanningControllers(useCases: {
   saveMonthly: SaveMonthlyPlanUseCase;
   listMonthly: ListMonthlyPlansUseCase;
   getMonthly: GetMonthlyPlanUseCase;
+  planOwnerRoutes: ListPlanOwnerRoutesUseCase;
   submitMonthly: SubmitMonthlyPlanUseCase;
   grantLate: GrantLateSubmitUseCase;
   listLateGrants: ListLateSubmitGrantsUseCase;
@@ -125,6 +128,10 @@ export function makePlanningControllers(useCases: {
     getMonthly: asyncHandler(async (req, res) => {
       const plan = await useCases.getMonthly.execute(actorOf(req), requiredParam(req.params, 'id'));
       sendSuccess(req, res, plan, 'Monthly plan.', 200);
+    }),
+    planOwnerRoutes: asyncHandler(async (req, res) => {
+      const routes = await useCases.planOwnerRoutes.execute(actorOf(req), requiredParam(req.params, 'id'));
+      sendSuccess(req, res, routes, 'Routes the plan’s owner covers.', 200);
     }),
     submitMonthly: asyncHandler(async (req, res) => {
       const request = await useCases.submitMonthly.execute(actorOf(req).id, requiredParam(req.params, 'id'));

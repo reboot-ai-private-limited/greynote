@@ -82,6 +82,7 @@ const BY_ID = [
   '/api/planning/daily/:id',
   '/api/field-activity/doctor-services/:id',
   '/api/planning/monthly/:id',
+  '/api/planning/monthly/:id/routes',
   '/api/hr/leaves/:id',
   '/api/sales/orders/:id',
   '/api/reports/orders/:id',

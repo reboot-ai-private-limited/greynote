@@ -62,6 +62,7 @@ From `GET /planning/monthly?from=YYYY-MM&to=YYYY-MM` (each row):
 | `GET` | `/planning/monthly?from&to` | Own plans, ≤ 12 months, with the state fields above. |
 | `GET` | `/planning/monthly/:id` | One plan, also `amendments`. Also `routes[{id,name,routeType}]` (2026-10-22; from 2026-10-23 also the routes of the days an amendment replaced): every route the entries and `previous` days name, once each; look an entry's `routeIds` up in it. |
 | `POST` | `/planning/monthly/:id/submit` | Submit; online only. |
+| `GET` | `/planning/monthly/:id/routes` | The routes the plan's owner covers (active), named and typed, for the manager's route picker (2026-10-23). Owner, anyone above them, Admin. |
 | `PATCH` | `/planning/monthly/:id/amend` | Manager above the employee, or Admin; online only. Body `{ entries: [...as a save, the whole month], reason }`, `reason` required (≤ 500). Returns the plan as `GET /:id` does. See rule 19. |
 | `GET` | `/identity/work-with` | Work-with candidates (below). |
 | `GET` | `/planning/late-grants` | Own late-submission exceptions (`status`, `expiresAt`) — the same time the plan row's `lateSubmitAllowedUntil` shows. |
@@ -76,7 +77,7 @@ On amend: `403` the employee amending their own plan; `404` the plan isn't one o
 |---|---|---|
 | M1 | On the approval screen of a `MONTHLY_PLAN` request in `SUBMITTED` (the manager's own turn), offer **"Edit plan"** to a manager above the employee. Not for `MANAGER_APPROVED`/`APPROVED`, and not to the employee. Online only. | phone |
 | M2 | The edit screen shows the employee's month (`GET /planning/monthly/:id`) with every day editable, including trips and locked off days as in rule 18. Save sends the **whole month** and a **required reason** to `PATCH /planning/monthly/:id/amend`. After it, show the plan again and let the manager approve or reject as before. | phone |
-| M3 | **Routes.** The plan lists each route with its name and type (`routes`), so the days show their routes. There is no endpoint yet that lists *another employee's* routes, so the phone cannot offer new ones to pick. Until the server adds one, keep each day's routes as they are and let the manager change working type, work with and remarks, or remove a day. The server accepts any of the employee's own routes. | phone; server gap |
+| M3 | **Routes.** To let the manager pick routes, call `GET /planning/monthly/:id/routes` (online): the employee's active routes, `[{ id, name, routeType }]` by name, readable by the plan's owner, anyone above them and Admin. Offer exactly these; the server refuses any other route (`400` on `entries.N.routeIds`). | phone |
 | M4 | Show `amendments` on the plan for the employee and for later approvers: who (`by`), when (`at`), the reason, and the previous days. | phone |
 | M5 | Handle the amend errors above. On "plan changed while you were editing", reload and let the manager redo it. | phone |
 | M6 | The employee receives a push (`PLAN_AMENDED_MONTHLY_PLAN`, opens `/plan/monthly`) — see [`notifications.md`](notifications.md). The plan they see after it is the edited one; no action is needed from them. | phone |

@@ -2419,4 +2419,6 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 **Decision:** a manager above the employee, or Admin, can change **any day** of a `SUBMITTED` Monthly Plan (`PATCH /planning/monthly/:id/amend`) instead of rejecting it for a small fix. A reason is required, the replaced days are kept in `amendments`, the plan stays `SUBMITTED` for the manager to decide, and the employee is told by push (`monthly.plan.amended` → `PLAN_AMENDED_MONTHLY_PLAN`). The days are checked like the employee's own save and submit; the trip and next-month logic is shared (`MonthlyPlanWriter`). Once the manager has approved it (`MANAGER_APPROVED`, `APPROVED`) the plan is frozen again and only an Admin reopen changes it, so an edit never has to be chased into the Daily Plans (they are written at manager approval). The employee only hears about it; they don't acknowledge it. Modelled on the manager's amend of a Daily Plan.
 
-**Open:** the phone app builds the edit screen (`mobile/monthlyplan.md` section 6); no endpoint lists another employee's routes yet, so the phone can't offer new routes to pick.
+**Also:** `GET /planning/monthly/:id/routes` lists the owner's active routes for the manager's picker, readable by whoever can read the plan and only through a plan (the territory endpoint is Admin/HR only).
+
+**Open:** the phone app builds the edit screen (`mobile/monthlyplan.md` section 6).
