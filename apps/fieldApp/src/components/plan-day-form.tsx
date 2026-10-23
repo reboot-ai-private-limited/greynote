@@ -7,7 +7,7 @@ import { isFieldDay, routeTypeLabel, WORKING_TYPES, type NamedRoute, type PlanDa
 import type { Colleague } from '@/offline/colleagues';
 import type { TerritorySnapshot } from '@/types/sync';
 
-import { addDays, addMonths, datesInMonth } from '@/offline/day';
+import { addDays, addMonths, datesInMonth, prettyMonth } from '@/offline/day';
 
 import { ChoiceChips } from './choice-chips';
 import { DateStepper } from './date-stepper';
@@ -166,6 +166,12 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
               <ThemedText type="small" themeColor="textSecondary">
                 The days in between are stay days (out-station DA, no TA). The return day earns TA and ex-station DA. Each is a working day: it needs its own Daily Plan and report.
               </ThemedText>
+              {/* The server writes a trip's days in the next month into that month's plan (monthlyplan.md rule 16), which still needs its own submit. */}
+              {date && value.returnDate.slice(0, 7) > date.slice(0, 7) ? (
+                <ThemedText type="small" themeColor="textSecondary">
+                  {`The trip’s days in ${prettyMonth(value.returnDate.slice(0, 7))} are added to that month’s plan when you save. That month still needs to be sent for approval.`}
+                </ThemedText>
+              ) : null}
               <PrimaryButton label="Same-day return (no trip)" variant="text" disabled={disabled} onPress={() => onChange({ ...value, returnDate: null })} />
             </>
           ) : (

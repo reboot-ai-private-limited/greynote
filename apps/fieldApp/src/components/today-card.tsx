@@ -13,7 +13,7 @@ const CALENDAR: SymbolViewProps['name'] = { ios: 'calendar', android: 'event', w
 
 const STATUS_TEXT: Record<string, string> = {
   APPROVED: 'Approved',
-  MANAGER_APPROVED: 'Approved by your manager',
+  MANAGER_APPROVED: 'Approved', // one approval since 2026-10-23: only older plans have this status
   SUBMITTED: 'Waiting for approval',
   DRAFT: 'Saved, not submitted',
   REJECTED: 'Rejected',

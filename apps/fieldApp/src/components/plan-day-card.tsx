@@ -78,7 +78,12 @@ export function PlanDayCard({ date, entry, off, offLabel, editable, names, onPre
         ) : null}
         {entry && !off && (isTripDay(entry.dayKind) || entry.returnDate) ? (
           <ThemedText type="small" themeColor="primary" numberOfLines={1}>
-            {entry.dayKind === 'STAY' ? 'Trip · stay day (out-station DA)' : entry.dayKind === 'TRANSIT' ? 'Trip · return day' : `Trip · returns ${prettyDay(entry.returnDate!)}`}
+            {/* What the day earns once its report is approved (monthlyplan.md rule 17); the amounts come with the report. */}
+            {entry.dayKind === 'STAY'
+              ? 'Trip · stay day · out-station DA, no TA'
+              : entry.dayKind === 'TRANSIT'
+                ? 'Trip · return day · TA + ex-station DA'
+                : `Trip · returns ${prettyDay(entry.returnDate!)} · TA + out-station DA`}
           </ThemedText>
         ) : null}
         <ThemedText type="smallBold" themeColor={entry ? 'text' : 'textSecondary'} numberOfLines={2}>

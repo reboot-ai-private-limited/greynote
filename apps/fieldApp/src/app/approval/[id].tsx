@@ -23,7 +23,8 @@ import {
   isLateApproval,
   kindLabel,
   rejectRequest,
-  STATUS_LABEL,
+  isOneApproval,
+  statusLabel,
   withdrawRequest,
   type ApprovalDetail,
   type ApprovalStatus,
@@ -155,7 +156,8 @@ export default function ApprovalDetailScreen() {
       </View>
     ) : null;
 
-  const accent = request ? Accents[STATUS_ACCENT[request.status]] : Accents.slate;
+  // A one-approval request left at MANAGER_APPROVED (older) reads "Approved", so it is green like one.
+  const accent = request ? Accents[request.status === 'MANAGER_APPROVED' && isOneApproval(request) ? 'green' : STATUS_ACCENT[request.status]] : Accents.slate;
 
   return (
     <ScreenShell title={title} subtitle="Review" wide footer={footer}>
@@ -196,7 +198,7 @@ export default function ApprovalDetailScreen() {
             </View>
             <View style={[styles.badge, { backgroundColor: accent.bg, borderColor: accent.border }]}>
               <ThemedText type="smallBold" style={[styles.badgeText, { color: request.status === 'REJECTED' ? theme.danger : accent.solid }]}>
-                {STATUS_LABEL[request.status]}
+                {statusLabel(request)}
               </ThemedText>
             </View>
           </View>

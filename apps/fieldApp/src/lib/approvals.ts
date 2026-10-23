@@ -72,6 +72,26 @@ export const STATUS_LABEL: Record<ApprovalStatus, string> = {
 };
 
 /**
+ * Kinds that need one approval since 2026-10-23: the manager's, or Admin's in their place, whoever acts first (docs/mobile
+ * monthlyplan.md section 2). Leave, expenses and the daily report keep their own steps.
+ */
+const ONE_APPROVAL_KINDS = ['MONTHLY_PLAN', 'DAILY_PLAN', 'DOCTOR_SERVICE'];
+
+/** A request decided by one approval: by its kind, or by the workflow the server stamped on it. */
+export const isOneApproval = (r: { kind: string; workflow?: string }) => r.workflow === 'MANAGER_ONLY' || ONE_APPROVAL_KINDS.includes(r.kind);
+
+/**
+ * The status in words. A one-approval request waits "for approval" (the manager or Admin) and is never "with Admin"; an older one
+ * left at `MANAGER_APPROVED` reads as approved, as the server's gate treats it.
+ */
+export function statusLabel(r: { kind: string; workflow?: string; status: ApprovalStatus }): string {
+  if (!isOneApproval(r)) return STATUS_LABEL[r.status];
+  if (r.status === 'SUBMITTED') return 'Waiting for approval';
+  if (r.status === 'MANAGER_APPROVED') return 'Approved';
+  return STATUS_LABEL[r.status];
+}
+
+/**
  * What both lists can be narrowed by (the server's own parameters). `from` and `to` are instants with an offset; "overdue" is
  * not a server filter, so the screen applies it to what came back.
  */

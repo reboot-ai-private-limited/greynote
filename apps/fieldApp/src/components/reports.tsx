@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Spacing, type Accent } from '@/constants/theme';
 import { apiGet } from '@/lib/api';
-import { STATUS_LABEL, type ApprovalStatus } from '@/lib/approvals';
+import { STATUS_LABEL, statusLabel, type ApprovalStatus } from '@/lib/approvals';
 import { listStock, orderValue, type OrderView, type StockRow } from '@/lib/marketing';
 import { formatRupees } from '@/lib/money';
 import { getMyDcrCoverage, getMyDcrYear, getMyTaDaDays, getMyTaDaYear, type TaDaDay } from '@/lib/my-reports';
@@ -24,6 +24,9 @@ import { ThemedView } from './themed-view';
 import { InfoCard, Pill, SummaryStrip } from './ui-cards';
 
 const statusText = (status: string) => STATUS_LABEL[status as ApprovalStatus] ?? (status === 'DRAFT' ? 'Not sent' : status);
+/** A Tour Plan's or Daily Plan's status: one approval since 2026-10-23, so "Waiting for approval" and never "Waiting for Admin". */
+const planStatusText = (status: string) =>
+  status in STATUS_LABEL ? statusLabel({ kind: 'MONTHLY_PLAN', status: status as ApprovalStatus }) : status === 'DRAFT' ? 'Not sent' : status;
 const REPORT_ACCENT: Record<string, Accent> = { APPROVED: 'green', SUBMITTED: 'amber', MANAGER_APPROVED: 'blue', REJECTED: 'red', DRAFT: 'slate', WITHDRAWN: 'slate', REOPENED: 'slate' };
 const bounds = (month: string) => {
   const days = datesInMonth(month);
@@ -213,7 +216,7 @@ export function TpReport({ month, year }: { month: string; year: number }) {
       <ThemedView type="backgroundElement" style={styles.card}>
         <ThemedText type="smallBold">{`Tour Plan · ${prettyMonth(month)}`}</ThemedText>
         <ThemedText type="small" themeColor={plan?.status === 'REJECTED' ? 'danger' : 'textSecondary'}>
-          {plan ? statusText(plan.status) : monthly.loading ? 'Loading…' : 'No Tour Plan for this month.'}
+          {plan ? planStatusText(plan.status) : monthly.loading ? 'Loading…' : 'No Tour Plan for this month.'}
         </ThemedText>
         {plan?.status === 'REJECTED' && plan.approval ? (
           reasons.monthly ? (
@@ -233,7 +236,7 @@ export function TpReport({ month, year }: { month: string; year: number }) {
           rows={days}
           rowKey={(d) => d.planDate}
           title={(d) => `${prettyDay(d.planDate)} · ${workingTypeLabel(d.workingType)}`}
-          right={(d) => <Pill text={statusText(d.status)} accent={REPORT_ACCENT[d.status] ?? 'slate'} />}
+          right={(d) => <Pill text={planStatusText(d.status)} accent={d.status === 'MANAGER_APPROVED' ? 'green' : (REPORT_ACCENT[d.status] ?? 'slate')} />}
           fields={(d) => [
             { label: 'Remarks', value: d.remarks ?? '' },
             {

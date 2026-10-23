@@ -53,7 +53,7 @@ const errorText =(err: unknown) =>
 
 /**
  * Doctor Services (PRD §6.2): ask for a service for one of your doctors — a tour package, a gift, an online
- * promotion or something else — with the amount. It goes to your manager, then Admin. Requests are saved on
+ * promotion or something else — with the amount. One approval: your manager or Admin (2026-10-23). Requests are saved on
  * the phone and sent when there is a connection.
  */
 export default function ServicesScreen() {
@@ -131,7 +131,7 @@ export default function ServicesScreen() {
         setMsg(
           after?.status === 'FAILED'
             ? { tone: 'danger', text: after.errorMessage ?? 'The server did not accept this request.' }
-            : { tone: 'success', text: 'Sent for approval. Your manager decides first, then Admin.' },
+            : { tone: 'success', text: 'Sent for approval. Your manager or Admin decides.' },
         );
       }
     } catch (err) {
@@ -186,7 +186,7 @@ export default function ServicesScreen() {
     return (
       <ScreenShell
         title={editing === 'new' ? 'New service request' : 'Change request'}
-        subtitle="Your manager decides first, then Admin"
+        subtitle="Your manager or Admin approves it"
         footer={
           <View style={styles.block}>
             <PrimaryButton label={online ? 'Send for approval' : 'Save on this phone'} loading={busy === 'save'} onPress={save} />
