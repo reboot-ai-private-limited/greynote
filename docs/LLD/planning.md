@@ -181,7 +181,7 @@ changes) and were never amended; submitted, approved, employee-written (`MANUAL`
   approved Monthly Plan; the employee has no save endpoint for them (`POST /planning/daily` was removed). They choose the
   day's doctors and submit it. A day the month didn't cover has no plan: nothing can be logged on it, and a manager or
   Admin amends one in only if it exists.
-- **Amend** — `PATCH /planning/daily/:id/amend` `{ …the whole day, reason }`. Allowed for Admin and for anyone above the
+- **Amend** — `PATCH /planning/daily/:id/amend` `{ …the whole day, reason? }` (reason optional since 2026-10-25). Allowed for Admin, HR and for anyone above the
   employee in the chain; never the employee (`403`), never outside the chain (`404`). Validated like a submit (the
   employee's own active routes and colleagues). Appends `{ by, at, reason, previous }` to `amendments` and bumps
   `revision`; the plan's approval is untouched, so an approved day stays approved. Refused (`409`) for a day that is
@@ -222,7 +222,9 @@ Monthly exceptions keep `LATE_PLAN_GRANT_MAX_HOURS`.
 | `POST` | `/planning/monthly/:id/submit` | FIELD | Submit the whole month |
 | `PATCH` | `/planning/daily/:id/amend` | FIELD (owner's managers), ADMIN | Amend an employee's day, with a reason; the old body is kept |
 | `GET` | `/planning/monthly` | FIELD | List own Monthly Plans (month range) |
-| `GET` | `/planning/monthly/:id` | FIELD, manager (read-only), Admin | Fetch one |
+| `GET` | `/planning/monthly/:id` | FIELD, manager (read-only), Admin, HR | Fetch one |
+| `PATCH` | `/planning/monthly/:id/amend` | FIELD (managers above the owner), Admin, HR | Replace the month with an optional reason; a waiting plan, or (Admin/HR) an approved one for days after today — see `approvedMonthEdit.ts` |
+| `DELETE` | `/planning/monthly/:id` | ADMIN | Delete a month that has not started, with its approval and unsent Daily Plans |
 | `POST` | `/planning/late-grants` | ADMIN; FIELD manager while `LATE_PLAN_GRANT_BY_MANAGER` is on | Grant a late-submission exception; optional `expiresAt` (future, within `LATE_PLAN_GRANT_MAX_HOURS`; for a Daily Plan, no later than the end of its day) |
 | `GET` | `/planning/late-grants` | ADMIN (all), FIELD (own and downline) | List exceptions, newest first |
 | `POST` | `/planning/late-grants/:id/revoke` | ADMIN, the grantor | Revoke an unused exception |

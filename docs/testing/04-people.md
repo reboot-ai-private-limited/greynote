@@ -41,7 +41,7 @@
 | 4.14 | Employees → New employee, Personal step: add a photo, choose another, remove it | preview shows at once; the old file is gone from Cloudinary after each change; a PDF or a file over 5 MB is refused with a message | |
 | 4.15 | Leave the wizard after adding a photo, then Continue the draft | the photo is still there; Create keeps it on the new employee | |
 | 4.16 | Employee page and Employees list | photo shows (initials when none); Choose another / Remove work; deleting a draft removes its photo from Cloudinary | |
-| 4.17 | New employee ids | after `migrate:employee-codes --apply`, everyone (incl. Admin) is GHC###, oldest joiner first; the next new employee, field or office staff, gets the next number | |
+| 4.17 | New employee ids | after `migrate:employee-codes --apply`, everyone except Admins is GHC###, oldest joiner first; the next new employee, field or office staff, gets the next number. Admins are ADMIN01, ADMIN02 … (`migrate:admin-codes --apply`) and a new Admin gets the next ADMIN number | |
 
 ## Reporting managers and coverage (2026-10-15)
 

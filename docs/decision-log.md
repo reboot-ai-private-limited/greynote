@@ -2460,3 +2460,19 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 **Open:** the Accountant can still call the payroll API; remove it if payroll is to be HR and Admin only.
 
+
+## 2026-10-25: Admin and HR edit an approved Monthly Plan; Admin deletes a future month; reason optional
+
+**Decision:** (1) Admin and HR can change a `MANAGER_APPROVED` or `APPROVED` Monthly Plan through the amend endpoint, for **days after today only**; the approval stays, the old days are kept in `amendments`, the employee is told. A trip that has begun can only get a new return date (tomorrow or later); its stay and transit days up to today cannot change. The Daily Plans written from the month follow, but if the employee changed, sent or had a day amended, the whole edit is refused naming those days. (2) Admin only can delete a month that has not started (plan, approval, unsent Daily Plans; hard delete, in one transaction); HR can edit but not delete. (3) The reason on an amend (monthly and daily) is optional. (4) HR can read plans and amend a Daily Plan like Admin; an approved day only after today. (5) A reopened request is listed under Reviewed (status "Reopened"), where Admin finds it after a reopen; it is not in Waiting because it waits on the employee. (6) Review screens: route names without the HQ, a stay or transit day and the day a trip starts get gray tags, the trip return date is asked only with an out-station route, route types are shown in the picker, a trip about to be saved is confirmed day by day, and Save applies a day left open in the form. The back link returns to the tab the request came from.
+
+**Consequences:** the employee's push says only who edited the plan when no reason was given; `routes` and `amendments[].reason` may be empty. The phone must show amendments without a reason.
+
+**Open:** the phone app has built none of the amend screens' new rules (`docs/mobile/monthlyplan.md` rules 20 and 21); the web "today" for locking days uses the browser date, the server's business date decides.
+
+## 2026-10-25: Admins have their own codes, ADMIN01, ADMIN02 …
+
+**Decision:** a new Admin gets `ADMIN` + two digits from its own counter (`adminCode`); everyone else stays on the `GHC` counter. `migrate:admin-codes` (dry run, then `--apply`) renames existing Admins oldest first; `migrate:employee-codes` leaves ADMIN codes alone. Supersedes the "Admin included" part of 2026-10-15.
+
+**Consequences:** the Admin signs in with the new code (GHC015 becomes ADMIN01).
+
+**Open:** the migration has been dry-run but not yet applied to the database.
