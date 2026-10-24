@@ -1,5 +1,6 @@
 import { Schema, model } from 'mongoose';
-import { EMPLOYEE_CODE_FIRST, formatEmployeeCode } from '../domain/employeeCode.js';
+import type { RoleName } from '@greynote/contracts';
+import { EMPLOYEE_CODE_FIRST, formatAdminCode, formatEmployeeCode } from '../domain/employeeCode.js';
 import type { EmployeeCodeGeneratorPort } from '../domain/employeeCode.generator.port.js';
 import type { UserRepositoryPort } from '../domain/user.repository.port.js';
 import { UserModel } from './user.schema.js';
@@ -12,7 +13,11 @@ interface CounterDoc {
 const counterSchema = new Schema<CounterDoc>({ _id: { type: String }, seq: { type: Number, required: true } });
 const CounterModel = model<CounterDoc>('Counter', counterSchema);
 
-const KEY = 'employeeCode';
+/** One counter per series: `employeeCode` for GHC001…, `adminCode` for ADMIN01… */
+const SERIES = {
+  GHC: { key: 'employeeCode', pattern: /^GHC\d+$/, skip: 3, first: EMPLOYEE_CODE_FIRST, format: formatEmployeeCode },
+  ADMIN: { key: 'adminCode', pattern: /^ADMIN\d+$/, skip: 5, first: 1, format: formatAdminCode },
+} as const;
 const MAX_ATTEMPTS = 20;
 const DUPLICATE_KEY = 11000;
 
@@ -24,27 +29,28 @@ const DUPLICATE_KEY = 11000;
 export class MongoEmployeeCodeGenerator implements EmployeeCodeGeneratorPort {
   constructor(private readonly users: UserRepositoryPort) {}
 
-  async next(): Promise<string> {
-    await this.ensureSeeded();
+  async next(role?: RoleName): Promise<string> {
+    const series = role === 'ADMIN' ? SERIES.ADMIN : SERIES.GHC;
+    await this.ensureSeeded(series);
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      const counter = await CounterModel.findOneAndUpdate({ _id: KEY }, { $inc: { seq: 1 } }, { new: true }).lean();
+      const counter = await CounterModel.findOneAndUpdate({ _id: series.key }, { $inc: { seq: 1 } }, { new: true }).lean();
       if (!counter) throw new Error('Employee code counter is missing.');
-      const code = formatEmployeeCode(counter.seq);
+      const code = series.format(counter.seq);
       // A code made by hand after the seed could still equal this one: skip it.
       if (!(await this.users.existsByEmployeeCode(code))) return code;
     }
     throw new Error('Could not find a free employee code.');
   }
 
-  private async ensureSeeded(): Promise<void> {
-    if (await CounterModel.exists({ _id: KEY })) return;
+  private async ensureSeeded(series: (typeof SERIES)[keyof typeof SERIES]): Promise<void> {
+    if (await CounterModel.exists({ _id: series.key })) return;
     const rows = await UserModel.aggregate<{ max: number | null }>([
-      { $match: { employeeCode: /^GHC\d+$/ } },
-      { $group: { _id: null, max: { $max: { $toInt: { $substrBytes: ['$employeeCode', 3, 20] } } } } },
+      { $match: { employeeCode: series.pattern } },
+      { $group: { _id: null, max: { $max: { $toInt: { $substrBytes: ['$employeeCode', series.skip, 20] } } } } },
     ]);
-    const start = Math.max(rows[0]?.max ?? 0, EMPLOYEE_CODE_FIRST - 1);
+    const start = Math.max(rows[0]?.max ?? 0, series.first - 1);
     try {
-      await CounterModel.create({ _id: KEY, seq: start });
+      await CounterModel.create({ _id: series.key, seq: start });
     } catch (error) {
       // Another request seeded it first: fine.
       if ((error as { code?: number }).code !== DUPLICATE_KEY) throw error;

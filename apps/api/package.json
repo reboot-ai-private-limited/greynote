@@ -26,6 +26,7 @@
         "export:pay-bands": "tsx src/scripts/export-pay-bands.ts",
         "seed:production": "tsx src/scripts/seed-production.ts",
         "migrate:employee-codes": "tsx src/scripts/migrate-employee-codes.ts",
+        "migrate:admin-codes": "tsx src/scripts/migrate-admin-codes.ts",
         "migrate:specialties": "tsx src/scripts/migrate-specialties.ts",
     "migrate:doctor-visits": "tsx src/scripts/migrate-doctor-visits.ts",
         "migrate:distributors": "tsx src/scripts/migrate-distributors.ts",

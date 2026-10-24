@@ -14,7 +14,7 @@ import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
  */
 export type CreateUserInput = {
   role: RoleName;
-  /** Left out for office staff: the next GHC code is generated. */
+  /** Left out for office staff: the next code is generated (ADMIN01… for an Admin, GHC… for the rest). */
   employeeCode?: string;
   name: string;
   password: string;
@@ -42,7 +42,7 @@ export class CreateUserUseCase {
 
     let employeeCode = input.employeeCode;
     if (employeeCode === undefined) {
-      employeeCode = await this.codes.next();
+      employeeCode = await this.codes.next(input.role);
     } else if (await this.userRepository.existsByEmployeeCode(employeeCode)) {
       throw AppError.conflict('That employee code is already in use.', { field: 'employeeCode' });
     }

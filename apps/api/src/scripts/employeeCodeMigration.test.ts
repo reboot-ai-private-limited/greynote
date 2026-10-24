@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planEmployeeCodes, type CodeRow } from './employeeCodeMigration.js';
+import { planAdminCodes, planEmployeeCodes, type CodeRow } from './employeeCodeMigration.js';
 
 const row = (id: string, employeeCode: string, joined: string | null, created = '2026-01-01'): CodeRow => ({
   id,
@@ -29,5 +29,31 @@ describe('planEmployeeCodes', () => {
     const plan = planEmployeeCodes(rows);
     expect(plan.changes).toEqual([{ id: 'c', from: 'EMP05', to: 'GHC006' }]);
     expect(planEmployeeCodes([row('a', 'GHC001', null), row('b', 'GHC005', null), row('c', 'GHC006', null)]).changes).toEqual([]);
+  });
+});
+
+describe('ADMIN codes', () => {
+  it('leaves an ADMIN01-style code out of the GHC numbering', () => {
+    const plan = planEmployeeCodes([row('a', 'ADMIN01', '2025-04-01'), row('b', 'GH101', '2025-09-01')]);
+    expect(plan.changes).toEqual([{ id: 'b', from: 'GH101', to: 'GHC001' }]);
+  });
+
+  it('numbers every Admin oldest first and keeps one already on an ADMIN code', () => {
+    const at = (d: string) => new Date(d);
+    const plan = planAdminCodes([
+      { id: 'b', employeeCode: 'GHC020', createdAt: at('2026-02-01') },
+      { id: 'a', employeeCode: 'GHC015', createdAt: at('2025-04-01') },
+      { id: 'c', employeeCode: 'ADMIN03', createdAt: at('2026-03-01') },
+    ]);
+    expect(plan.changes).toEqual([
+      { id: 'a', from: 'GHC015', to: 'ADMIN04' },
+      { id: 'b', from: 'GHC020', to: 'ADMIN05' },
+    ]);
+    expect(plan.lastSequence).toBe(5);
+    expect(planAdminCodes([{ id: 'a', employeeCode: 'ADMIN01', createdAt: at('2025-04-01') }]).changes).toEqual([]);
+  });
+
+  it('starts at ADMIN01', () => {
+    expect(planAdminCodes([{ id: 'a', employeeCode: 'GHC015', createdAt: null }]).changes[0]?.to).toBe('ADMIN01');
   });
 });

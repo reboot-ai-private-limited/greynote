@@ -44,7 +44,7 @@ export function EmployeeCreateScreen() {
           ← Employees
         </Link>
       </p>
-      <PageHeader title="Add office staff" description="The employee code (GHC…) is generated automatically." />
+      <PageHeader title="Add office staff" description="The employee code (GHC…, or ADMIN… for an Admin) is generated automatically." />
       <form
         noValidate
         onSubmit={(e) => {
