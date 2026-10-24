@@ -9,7 +9,7 @@ import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDi
 import { designationsApi, identityApi } from '@/lib/api/endpoints/identity';
 import { planningApi } from '@/lib/api/endpoints/planning';
 import { useCsvExport } from '@/lib/hooks/useCsvExport';
-import { monthlyPlanCsv, monthlyPlanFilename } from '../lib/monthlyPlanCsv';
+import { isDownloadable, monthlyPlanCsv, monthlyPlanFilename, notApprovedMessage } from '../lib/monthlyPlanCsv';
 
 /** Plans are made a month ahead, so the month asked for first is next month (`YYYY-MM`). */
 const nextMonth = () => {
@@ -26,6 +26,7 @@ export function DownloadMonthlyPlanDialog({ user, onClose }: { user: Pick<UserDe
 
   const download = useCsvExport(async (token, planMonth: string) => {
     const plan = await planningApi.userMonthly(token, user.id, planMonth);
+    if (!isDownloadable(plan.status)) throw new Error(notApprovedMessage(planMonth));
     // Name the colleagues once, up front: a CSV row cannot wait on a hook.
     const ids = [...new Set(plan.entries.flatMap((e) => e.workWith))];
     const [people, designations] = ids.length > 0 ? await Promise.all([Promise.all(ids.map((id) => identityApi.user(token, id))), designationsApi.list(token)]) : [[], []];
@@ -54,13 +55,13 @@ export function DownloadMonthlyPlanDialog({ user, onClose }: { user: Pick<UserDe
   return (
     <FormDialog
       title="Download monthly plan"
-      description="One row for every day of the month: what is planned, and the weekly offs and holidays."
+      description="One row for every day of the approved plan: what is planned, and the weekly offs and holidays."
       formId="download-monthly-plan-form"
       pending={download.isPending}
       onClose={onClose}
       onSubmit={submit}
     >
-      <FormField label="Month" htmlFor="download-plan-month" error={error} hint="Downloads as a CSV file. A month the employee has not planned has no file.">
+      <FormField label="Month" htmlFor="download-plan-month" error={error} hint="Only an approved plan can be downloaded, as a CSV file.">
         <Input id="download-plan-month" type="month" className="w-48" value={month} onChange={(e) => setMonth(e.target.value)} aria-invalid={error ? true : undefined} />
       </FormField>
     </FormDialog>

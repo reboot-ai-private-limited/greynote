@@ -1,6 +1,6 @@
 import type { MonthlyPlanDetailDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { datesOfMonth, monthlyPlanCsv, monthlyPlanFilename } from './monthlyPlanCsv';
+import { datesOfMonth, isDownloadable, monthlyPlanCsv, monthlyPlanFilename, notApprovedMessage } from './monthlyPlanCsv';
 
 const day = (planDate: string, over: Partial<MonthlyPlanDetailDto['entries'][number]> = {}): MonthlyPlanDetailDto['entries'][number] => ({
   planDate,
@@ -68,5 +68,11 @@ describe('monthlyPlanCsv', () => {
 
   it('names the file after the employee and month', () => {
     expect(monthlyPlanFilename('GHC014', '2026-11')).toBe('monthly-plan-ghc014-2026-11.csv');
+  });
+
+  it('hands out only an approved plan', () => {
+    expect(isDownloadable('APPROVED')).toBe(true);
+    for (const status of ['DRAFT', 'SUBMITTED', 'MANAGER_APPROVED', 'REJECTED', 'WITHDRAWN', 'REOPENED']) expect(isDownloadable(status)).toBe(false);
+    expect(notApprovedMessage('2026-10')).toBe('No approved plan for October 2026.');
   });
 });
