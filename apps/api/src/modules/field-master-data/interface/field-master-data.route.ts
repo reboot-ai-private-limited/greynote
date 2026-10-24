@@ -64,9 +64,9 @@ function doc(
   });
 }
 
-doc('get', '/products', 'Admin: list products', { query: listProductsQuerySchema });
+doc('get', '/products', 'Admin or the Accountant: list products', { query: listProductsQuerySchema });
 doc('post', '/products', 'Admin: add a product', { body: createProductBodySchema });
-doc('get', '/products/{id}', 'Admin: one product', { params: idParamsSchema });
+doc('get', '/products/{id}', 'Admin or the Accountant: one product', { params: idParamsSchema });
 doc('patch', '/products/{id}', 'Admin: edit or deactivate a product', { params: idParamsSchema, body: updateProductBodySchema });
 doc('get', '/specialties', 'Admin: list the specialities a doctor can have', { query: listSpecialtiesQuerySchema });
 doc('post', '/specialties', 'Admin: add a speciality', { body: createSpecialtyBodySchema });
@@ -168,7 +168,7 @@ export function buildFieldMasterDataRouter(c: {
 }): Router {
   const router = Router();
   router.use('/doctors', doctorsRouter(c.doctors));
-  router.use('/products', crudRouter(c.products, { list: listProductsQuerySchema, create: createProductBodySchema, update: updateProductBodySchema }));
+  router.use('/products', crudRouter(c.products, { list: listProductsQuerySchema, create: createProductBodySchema, update: updateProductBodySchema }, ['ADMIN', 'ACCOUNTANT'])); // the Accountant reads them to add or change an order
   router.use('/specialties', crudRouter(c.specialties, { list: listSpecialtiesQuerySchema, create: createSpecialtyBodySchema, update: updateSpecialtyBodySchema }));
   router.use(
     '/distributors',

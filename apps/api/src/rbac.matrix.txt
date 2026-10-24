@@ -63,8 +63,8 @@ GET    /api/field-master-data/doctors/added  FIELD
 GET    /api/field-master-data/doctors/assigned  ADMIN
 GET    /api/field-master-data/doctors/mine  FIELD
 GET    /api/field-master-data/doctors/team  FIELD
-GET    /api/field-master-data/products  ADMIN
-GET    /api/field-master-data/products/:id  ADMIN
+GET    /api/field-master-data/products  ACCOUNTANT,ADMIN
+GET    /api/field-master-data/products/:id  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/specialties  ADMIN
 GET    /api/field-master-data/specialties/:id  ADMIN
 GET    /api/health  PUBLIC
@@ -179,6 +179,7 @@ PATCH  /api/field-master-data/doctors/:id/sample-allocations/:productId  ADMIN
 PATCH  /api/field-master-data/doctors/:id/targets  ADMIN,FIELD
 PATCH  /api/field-master-data/products/:id  ADMIN
 PATCH  /api/field-master-data/specialties/:id  ADMIN
+PATCH  /api/hr/holidays/:id  ADMIN,HR
 PATCH  /api/hr/leave-balances/:userId/:leaveTypeId  ADMIN,HR
 PATCH  /api/hr/leave-types/:id  ADMIN,HR
 PATCH  /api/identity/employee-drafts/:id  ADMIN,HR
@@ -225,7 +226,7 @@ POST   /api/field-master-data/doctors/added  FIELD
 POST   /api/field-master-data/products  ADMIN
 POST   /api/field-master-data/specialties  ADMIN
 POST   /api/hr/holidays  ADMIN,HR
-POST   /api/hr/holidays/import  ADMIN
+POST   /api/hr/holidays/import  ADMIN,HR
 POST   /api/hr/leave-types  ADMIN,HR
 POST   /api/hr/leaves  FIELD
 POST   /api/hr/leaves/:id/approval-grant  ADMIN

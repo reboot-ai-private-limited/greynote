@@ -39,7 +39,7 @@ export function cardsForRole(role: RoleName): readonly CardId[] {
     case 'HR':
       return ['leaveApprovals', 'employees', 'onLeaveToday'];
     case 'ACCOUNTANT':
-      return ['unpaidExpenses', 'payroll'];
+      return ['unpaidExpenses'];
     default:
       return [];
   }

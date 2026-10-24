@@ -47,8 +47,13 @@ export const createHolidayBodySchema = z.object({
   hqIds: z.array(objectIdSchema).max(200).default([]),
 });
 
+/** `PATCH /holidays/:id` takes the same fields as an add: the holiday is replaced by what is sent. */
+export const updateHolidayBodySchema = createHolidayBodySchema;
+
 /** `group=true` removes every day of a holiday added as a range, not only this one. */
 export const deleteHolidayQuerySchema = z.object({ group: z.enum(['true', 'false']).optional() });
+/** `group=true` replaces every day of a holiday added as a range. */
+export const updateHolidayQuerySchema = deleteHolidayQuerySchema;
 
 /** Both ends inclusive, at most ~13 months. The unrefined object is what the OpenAPI doc shows. */
 export const holidayQueryObject = z.object({

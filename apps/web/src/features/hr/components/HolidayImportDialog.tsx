@@ -22,7 +22,7 @@ function downloadTemplate() {
 }
 
 /**
- * Admin: add a year's holidays from a CSV. Choosing a file checks it without saving and shows what would be added;
+ * HR or Admin: add a year's holidays from a CSV. Choosing a file checks it without saving and shows what would be added;
  * only then can it be imported. One bad line refuses the whole file, with every problem listed. Mounted only while open.
  */
 export function HolidayImportDialog({ onClose }: { onClose: () => void }) {

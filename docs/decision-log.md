@@ -2454,3 +2454,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 **Open:** the phone still lets the MR edit the price box and shows its own total; it should show the server's total after sync (`docs/mobile/orders-and-stock.md`). The app is another team's.
 
+## 2026-10-24: Accountant: products for orders, no payroll or pay structure screens; HR edits holidays
+
+**Decision:** (1) The Accountant may read the product list (`GET /field-master-data/products`, `/:id`; writes stay Admin) so the product picker in Add and Edit order fills. (2) The order form's discount types read "Percentage (%) discount" and "Rupees (₹) discount". (3) Payroll, Pay grades and Pay components leave the Accountant's navigation and cannot be opened by URL (Admin and HR keep them), and the dashboard's payroll tile goes with them; the Accountant's payroll API roles (generate, finalize, pay) are unchanged for now. (4) HR manages the holiday list fully: `PATCH /hr/holidays/:id` (ADMIN, HR) replaces a holiday, or with `group=true` every day of its range, with the fields sent (new days are checked and written first, then the old ones removed); `POST /hr/holidays/import` is open to HR as well as Admin.
+
+**Open:** the Accountant can still call the payroll API; remove it if payroll is to be HR and Admin only.
+

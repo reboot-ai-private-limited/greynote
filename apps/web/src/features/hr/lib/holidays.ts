@@ -72,6 +72,11 @@ export function buildHoliday(draft: HolidayDraft): BuildResult<CreateHolidayDto>
   };
 }
 
+/** The form's starting values for changing a holiday. A range is edited whole, so the days shown are the ones the list holds. */
+export function draftOf(h: Pick<HolidayEntry, 'name' | 'from' | 'to' | 'scope' | 'zoneIds' | 'hqIds'>): HolidayDraft {
+  return { name: h.name, date: h.from, endDate: h.to === h.from ? '' : h.to, scope: h.scope, zoneIds: [...h.zoneIds], hqIds: [...h.hqIds] };
+}
+
 /** Switching scope drops the ids of the one that no longer applies. */
 export function withScope(draft: HolidayDraft, scope: HolidayScope): HolidayDraft {
   return { ...draft, scope, zoneIds: scope === 'ZONE' ? draft.zoneIds : [], hqIds: scope === 'HQ' ? draft.hqIds : [] };

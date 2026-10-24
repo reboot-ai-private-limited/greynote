@@ -23,7 +23,8 @@
 | 4.06 | Leave & holidays: leave types, policies, holidays | listed; no half-day | |
 | 4.06a | Onboard an employee with "On probation" ticked, then one without | only the first gets paid leave during probation (K6); the second is never on probation, however recently they joined | |
 | 4.06b | Approve a leave whose first day has passed | refused (`LEAVE_APPROVAL_LATE`); rejecting works; an Admin exception lets it through once; a pending leave whose first day passed turns Rejected by itself (balance freed) | |
-| 4.06c | Leave & holidays → Holidays → Upload list (Admin): download the template, fill 3 rows, choose the file | a preview lists each row as New; Import adds them; HR does not see the Upload button | |
+| 4.06c | Leave & holidays → Holidays → Upload list (Admin or HR): download the template, fill 3 rows, choose the file | a preview lists each row as New; Import adds them | |
+| 4.06d | Holidays (HR): Edit a one-day holiday (change name and date); Edit a range (extend it by a day) | one-day replaced by the new one; the range is replaced whole (every day) with the new span; a Zone holiday with no zone is refused and the old one stays | |
 | 4.06d | Upload a file with one unknown Zone and one bad date | nothing is added; both problems are listed with their line numbers | |
 | 4.06e | Upload the same good file again | every row is "Already there"; Import is off | |
 | 4.06f | Inbox messages (Admin, Daily work) → New message to one Zone | the sent list shows it with "0 of N" opened; as an employee of that Zone `GET /inbox` has it and the unread count is 1; an employee of another Zone has nothing | |

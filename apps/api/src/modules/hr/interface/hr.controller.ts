@@ -16,6 +16,7 @@ import type { LeaveProof } from '../application/leaveProof.js';
 import type { LeaveRequests } from '../application/leaveRequests.js';
 import type { DeleteHolidayUseCase } from '../application/usecases/deleteHoliday.usecase.js';
 import type { ImportHolidaysUseCase } from '../application/usecases/importHolidays.usecase.js';
+import type { UpdateHolidayUseCase } from '../application/usecases/updateHoliday.usecase.js';
 import type { ListHolidaysUseCase } from '../application/usecases/listHolidays.usecase.js';
 import type { ListLeavePoliciesUseCase } from '../application/usecases/listLeavePolicies.usecase.js';
 import type { ListLeaveTypesUseCase } from '../application/usecases/listLeaveTypes.usecase.js';
@@ -27,6 +28,8 @@ import type {
   balanceQuerySchema,
   createHolidayBodySchema,
   deleteHolidayQuerySchema,
+  updateHolidayBodySchema,
+  updateHolidayQuerySchema,
   leaveApprovalGrantBodySchema,
   leaveBodySchema,
   leavesQuerySchema,
@@ -40,7 +43,7 @@ export function actorOf(req: Request): Actor {
 }
 
 export type MastersHandlers = Record<
-  'listTypes' | 'createType' | 'updateType' | 'listPolicies' | 'setPolicy' | 'listHolidays' | 'createHoliday' | 'deleteHoliday' | 'importHolidays',
+  'listTypes' | 'createType' | 'updateType' | 'listPolicies' | 'setPolicy' | 'listHolidays' | 'createHoliday' | 'updateHoliday' | 'deleteHoliday' | 'importHolidays',
   RequestHandler
 >;
 
@@ -52,6 +55,7 @@ export function makeMastersControllers(u: {
   setPolicy: SetLeavePolicyUseCase;
   listHolidays: ListHolidaysUseCase;
   createHoliday: CreateHolidayUseCase;
+  updateHoliday: UpdateHolidayUseCase;
   deleteHoliday: DeleteHolidayUseCase;
   importHolidays: ImportHolidaysUseCase;
 }): MastersHandlers {
@@ -80,6 +84,11 @@ export function makeMastersControllers(u: {
     createHoliday: asyncHandler(async (req, res) => {
       const days = await u.createHoliday.execute(req.body as z.output<typeof createHolidayBodySchema>, actorOf(req).id);
       sendSuccess(req, res, days, days.length === 1 ? 'Holiday added.' : `Holiday added for ${days.length} days.`, 201);
+    }),
+    updateHoliday: asyncHandler(async (req, res) => {
+      const { group } = req.query as unknown as z.output<typeof updateHolidayQuerySchema>;
+      const days = await u.updateHoliday.execute(requiredParam(req.params, 'id'), req.body as z.output<typeof updateHolidayBodySchema>, { group: group === 'true' }, actorOf(req).id);
+      sendSuccess(req, res, days, 'Holiday updated.', 200);
     }),
     deleteHoliday: asyncHandler(async (req, res) => {
       const { group } = req.query as unknown as z.output<typeof deleteHolidayQuerySchema>;

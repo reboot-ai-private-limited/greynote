@@ -29,6 +29,15 @@ export function useCreateHoliday(onDone: () => void) {
   });
 }
 
+export function useUpdateHoliday(onDone: () => void) {
+  return useApiMutation<{ id: string; group: boolean; body: CreateHolidayDto }>({
+    call: (token, { id, group, body }) => hrApi.updateHoliday(token, id, body, group),
+    invalidates: [keys.hr.allHolidays()],
+    successMessage: 'Holiday updated.',
+    onSuccess: onDone,
+  });
+}
+
 export function useDeleteHoliday(onDone: () => void) {
   return useApiMutation<{ id: string; group: boolean }>({
     call: (token, { id, group }) => hrApi.deleteHoliday(token, id, group),

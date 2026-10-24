@@ -1,7 +1,7 @@
 'use client';
 
 import type { HolidayScope } from '@greynote/contracts';
-import { Plus, Trash2, Upload } from 'lucide-react';
+import { Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -15,7 +15,6 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { istDate } from '@/lib/dates';
 import { financialYearOf, financialYearRange } from '@/lib/financial-year';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
-import { useSession } from '@/lib/auth/SessionProvider';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDeleteHoliday, useHolidays } from '../hooks/useHolidays';
 import { HOLIDAY_SCOPE_LABEL, appliesTo, dateSpan, groupByMonth, rangeError, type HolidayEntry } from '../lib/holidays';
@@ -35,8 +34,8 @@ export function HolidaysTab() {
   const to = values.to || defaults.to;
   const range = rangeError(from, to);
   const directory = useTerritoryDirectory();
-  const isAdmin = useSession().user?.role === 'ADMIN';
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<HolidayEntry | null>(null);
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState<HolidayEntry | null>(null);
   const remove = useDeleteHoliday(() => setRemoving(null));
@@ -53,11 +52,9 @@ export function HolidaysTab() {
       description="National holidays apply to everyone; Zone and HQ holidays only to employees there (an employee's HQ is set on their Leave tab)."
       actions={
         <div className="flex items-center gap-2">
-          {isAdmin ? (
-            <Button variant="secondary" onClick={() => setUploading(true)}>
-              <Upload aria-hidden className="size-4" /> Upload list
-            </Button>
-          ) : null}
+          <Button variant="secondary" onClick={() => setUploading(true)}>
+            <Upload aria-hidden className="size-4" /> Upload list
+          </Button>
         <Button onClick={() => setAdding(true)} disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined}>
           <Plus aria-hidden className="size-4" /> New holiday
         </Button>
@@ -109,6 +106,9 @@ export function HolidaysTab() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge tone={h.scope === 'NATIONAL' ? 'accent' : 'neutral'}>{HOLIDAY_SCOPE_LABEL[h.scope]}</Badge>
+                      <Button variant="ghost" size="sm" disabled={readOnly} aria-label={`Edit ${h.name}`} onClick={() => setEditing(h)}>
+                        <Pencil aria-hidden className="size-4" />
+                      </Button>
                       <Button variant="ghost" size="sm" disabled={readOnly} aria-label={`Remove ${h.name}`} onClick={() => setRemoving(h)}>
                         <Trash2 aria-hidden className="size-4" />
                       </Button>
@@ -122,6 +122,7 @@ export function HolidaysTab() {
       </DataState>
 
       {adding ? <HolidayFormDialog onClose={() => setAdding(false)} /> : null}
+      {editing ? <HolidayFormDialog editing={editing} onClose={() => setEditing(null)} /> : null}
       {uploading ? <HolidayImportDialog onClose={() => setUploading(false)} /> : null}
       <ConfirmDialog
         open={removing !== null}

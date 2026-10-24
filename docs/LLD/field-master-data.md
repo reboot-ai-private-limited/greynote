@@ -161,7 +161,8 @@ All Admin-only (Web Portal, `../roadmap.md` phase 9) unless noted.
 | `GET` | `/field-master-data/distributors` | Admin | List, filterable by `routeId`, `hqId`, `zoneId` (upper levels resolved to route ids via Territory), and `assignedUserId` |
 | `GET`/`PATCH` | `/field-master-data/distributors/:id` | Admin | Detail/edit, including reassigning MR/ASM |
 | `POST` | `/field-master-data/products` | Admin | Create a Product |
-| `GET`/`PATCH` | `/field-master-data/products`, `/products/:id` | Admin | List/detail/edit |
+| `GET` | `/field-master-data/products`, `/products/:id` | Admin, Accountant | List/detail (the Accountant for the order form's product picker, 2026-10-24) |
+| `PATCH` | `/field-master-data/products/:id` | Admin | Edit |
 | `POST` | `/field-master-data/doctors/:id/sample-allocations` | Admin | Issue a Product quantity for a Doctor (adds to an existing allocation) |
 | `PATCH` | `/field-master-data/doctors/:id/sample-allocations/:productId` | Admin | Correct the allocated total (not below what was given out) |
 | `GET` | `/field-master-data/doctors/:id/sample-allocations` | Admin, assigned MR, their manager | Remaining quantities |

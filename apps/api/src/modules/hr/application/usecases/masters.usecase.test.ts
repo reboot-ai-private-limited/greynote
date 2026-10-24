@@ -4,6 +4,7 @@ import { DEFAULT_LEAVE_TYPES } from '../../domain/leaveType.entity.js';
 import { HolidayCalendar } from '../holidayCalendar.js';
 import { CreateHolidayUseCase } from './createHoliday.usecase.js';
 import { DeleteHolidayUseCase } from './deleteHoliday.usecase.js';
+import { UpdateHolidayUseCase } from './updateHoliday.usecase.js';
 import { CreateLeaveTypeUseCase } from './createLeaveType.usecase.js';
 import { FakeHolidays, FakeLeaveTypes, FakePolicies, FakeTerritory, FakeUsers } from './hrTestKit.js';
 import { ListHolidaysUseCase } from './listHolidays.usecase.js';
@@ -149,6 +150,24 @@ describe('Holidays', () => {
     const gandhi = holidays.rows.find((h) => h.name === 'Gandhi Jayanti')!;
     expect(await remove.execute(gandhi.id, { group: true })).toBe(1);
     await expectStatus(remove.execute('nope', { group: true }), 404);
+  });
+
+  it('changes a holiday by replacing it; a refused change leaves the old one; a range is replaced whole with group', async () => {
+    const update = new UpdateHolidayUseCase(holidays, create);
+    const base = { zoneIds: [] as string[], hqIds: [] as string[] };
+    const gandhi = holidays.rows.find((h) => h.name === 'Gandhi Jayanti')!;
+    const [changed] = await update.execute(gandhi.id, { ...base, name: 'Gandhi Jayanti (national)', date: '2026-10-03', scope: 'NATIONAL' }, { group: false }, 'hr');
+    expect(changed).toMatchObject({ name: 'Gandhi Jayanti (national)', date: '2026-10-03' });
+    expect(holidays.rows.some((h) => h.id === gandhi.id)).toBe(false);
+    // Refused: the old holiday stays.
+    await expectStatus(update.execute(changed!.id, { ...base, name: 'X', date: '2026-10-03', scope: 'ZONE' }, { group: false }, 'hr'), 400);
+    expect(holidays.rows.some((h) => h.id === changed!.id)).toBe(true);
+    // A range replaced as a whole.
+    const days = await create.execute({ ...base, name: 'Puja', date: '2026-12-02', endDate: '2026-12-04', scope: 'NATIONAL' }, 'hr');
+    const after = await update.execute(days[1]!.id, { ...base, name: 'Puja', date: '2026-12-02', endDate: '2026-12-06', scope: 'NATIONAL' }, { group: true }, 'hr');
+    expect(after).toHaveLength(5);
+    expect(holidays.rows.filter((h) => h.name === 'Puja')).toHaveLength(5);
+    await expectStatus(update.execute('nope', { ...base, name: 'X', date: '2026-10-03', scope: 'NATIONAL' }, { group: false }, 'hr'), 404);
   });
 
   it('gives other modules an employee’s holiday dates', async () => {

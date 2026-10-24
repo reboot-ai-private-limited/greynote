@@ -77,9 +77,12 @@ export const hrApi = {
   /** One row per day: a range comes back as several days sharing a `groupId`. */
   createHoliday: (token: string, body: CreateHolidayDto) => request<HolidayDto[]>('/hr/holidays', { method: 'POST', token, body }),
   /** `group`: every day of the range this day belongs to. */
+  /** HR/Admin: replaces a holiday (`group`: every day of its range) with the fields sent; returns the days now on the calendar. */
+  updateHoliday: (token: string, id: string, body: CreateHolidayDto, group = false) =>
+    request<HolidayDto[]>(`/hr/holidays/${id}`, { method: 'PATCH', token, body, ...(group && { query: { group: true } }) }),
   deleteHoliday: (token: string, id: string, group = false) =>
     request<null>(`/hr/holidays/${id}`, { method: 'DELETE', token, ...(group && { query: { group: true } }) }),
-  /** Admin: a CSV of holidays. `dryRun` only checks it and previews. A bad file is a 400 whose `data.errors` lists each line. */
+  /** HR/Admin: a CSV of holidays. `dryRun` only checks it and previews. A bad file is a 400 whose `data.errors` lists each line. */
   importHolidays: (token: string, file: File, dryRun: boolean) => {
     const body = new FormData();
     body.append('file', file);

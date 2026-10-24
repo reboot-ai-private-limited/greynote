@@ -15,6 +15,8 @@ import {
   balanceParamsSchema,
   balanceQuerySchema,
   createHolidayBodySchema,
+  updateHolidayBodySchema,
+  updateHolidayQuerySchema,
   deleteHolidayQuerySchema,
   createLeaveTypeBodySchema,
   holidayQueryObject,
@@ -92,7 +94,7 @@ openApiRegistry.registerPath({
   method: 'post',
   path: '/api/hr/holidays/import',
   tags: [TAG],
-  summary: 'Admin: add holidays in bulk from a CSV',
+  summary: 'HR/Admin: add holidays in bulk from a CSV',
   description:
     'multipart/form-data with a `file` field (CSV, ≤1 MB, ≤500 rows). Columns: name, date (YYYY-MM-DD), scope (NATIONAL|ZONE|HQ), zones (`;`-separated Zone names), hqs (`;`-separated Zone/HQ). ' +
     'A holiday already on the calendar (same name, date, scope, places) is skipped. Any problem rejects the whole file with every problem listed by line (publicDetails.errors). ' +
@@ -104,6 +106,7 @@ openApiRegistry.registerPath({
   },
   responses: { 200: { description: 'Dry run preview' }, 201: { description: 'Imported' }, 400: { description: 'Problems found; nothing written' } },
 });
+doc('patch', '/holidays/{id}', 'HR/Admin: change a holiday — it is replaced by the fields sent (as an add); with `group=true` every day of its range is replaced; returns the days now on the calendar', { params: idParamsSchema, query: updateHolidayQuerySchema, body: updateHolidayBodySchema });
 doc('delete', '/holidays/{id}', 'HR/Admin: remove a holiday day, or with `group=true` every day of its range', { params: idParamsSchema, query: deleteHolidayQuerySchema });
 doc('get', '/leave-balances/me', 'Field staff: my leave balances for a leave year (the current one by default)', { query: balanceQuerySchema });
 doc('get', '/leave-balances/{userId}', 'An employee’s balances — HR/Admin, or their managers (read-only)', { params: userIdParamsSchema, query: balanceQuerySchema });
@@ -147,7 +150,8 @@ export function buildMastersRouter(c: MastersHandlers): Router {
   router.put('/leave-policies/:payBandId/:leaveTypeId', hr, validate({ params: leavePolicyParamsSchema, body: setLeavePolicyBodySchema }), c.setPolicy);
   router.get('/holidays', validate({ query: listHolidaysQuerySchema }), c.listHolidays);
   router.post('/holidays', hr, validate({ body: createHolidayBodySchema }), c.createHoliday);
-  router.post('/holidays/import', requireRole('ADMIN'), validate({ query: holidayImportQuerySchema }), holidayUpload, c.importHolidays);
+  router.post('/holidays/import', hr, validate({ query: holidayImportQuerySchema }), holidayUpload, c.importHolidays);
+  router.patch('/holidays/:id', hr, validate({ params: idParamsSchema, query: updateHolidayQuerySchema, body: updateHolidayBodySchema }), c.updateHoliday);
   router.delete('/holidays/:id', hr, validate({ params: idParamsSchema, query: deleteHolidayQuerySchema }), c.deleteHoliday);
   return router;
 }

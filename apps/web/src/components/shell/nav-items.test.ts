@@ -14,9 +14,9 @@ describe('navFor', () => {
     expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/zones');
   });
 
-  it('gives Accountant payroll but not leave', () => {
+  it('gives Accountant neither payroll nor leave', () => {
     const hrefs = navFor('ACCOUNTANT').map((i) => i.href);
-    expect(hrefs).toContain('/payroll');
+    expect(hrefs).not.toContain('/payroll');
     expect(hrefs).not.toContain('/hr');
   });
 });
@@ -76,8 +76,9 @@ describe('Expense claims (the row-by-row list)', () => {
 });
 
 describe('Payroll', () => {
-  it('is built, and shown to Admin, the Accountant, and HR (who reviews and adjusts a draft)', () => {
-    for (const role of ['ADMIN', 'ACCOUNTANT', 'HR'] as const) expect(navFor(role).map((i) => i.href)).toContain('/payroll');
+  it('is built, and shown to Admin and HR (who reviews and adjusts a draft), not the Accountant', () => {
+    for (const role of ['ADMIN', 'HR'] as const) expect(navFor(role).map((i) => i.href)).toContain('/payroll');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/payroll');
     expect(isRouteBuilt('/payroll')).toBe(true);
   });
 });
@@ -109,16 +110,17 @@ describe('Pay grades and Designations', () => {
     }
   });
 
-  it('lets the Accountant read pay grades but not see designations', () => {
+  it('keeps pay grades and designations from the Accountant', () => {
     const hrefs = navFor('ACCOUNTANT').map((i) => i.href);
-    expect(hrefs).toContain('/pay-grades');
+    expect(hrefs).not.toContain('/pay-grades');
     expect(hrefs).not.toContain('/designations');
   });
 });
 
 describe('Pay components', () => {
-  it('lets Admin, HR and the Accountant see the formula', () => {
-    for (const role of ['ADMIN', 'HR', 'ACCOUNTANT'] as const) expect(navFor(role).map((i) => i.href)).toContain('/pay-components');
+  it('lets Admin and HR see the formula, not the Accountant', () => {
+    for (const role of ['ADMIN', 'HR'] as const) expect(navFor(role).map((i) => i.href)).toContain('/pay-components');
+    expect(navFor('ACCOUNTANT').map((i) => i.href)).not.toContain('/pay-components');
     expect(isRouteBuilt('/pay-components')).toBe(true);
   });
 });
@@ -128,8 +130,8 @@ describe('navGroupsFor', () => {
     const groups = navGroupsFor('ACCOUNTANT');
     expect(groups.map((g) => g.group)).toEqual(['Home', 'HR', 'Sales & Distribution', 'Payouts', 'Master data']);
     expect(groups.find((g) => g.group === 'Sales & Distribution')?.items.map((i) => i.href)).toEqual(['/reports/sales-dashboard', '/orders', '/distributors']);
-    expect(groups.find((g) => g.group === 'Master data')?.items.map((i) => i.href)).toEqual(['/doctor-services', '/pay-grades', '/pay-components']); // doctor services leave the Accountant in Step 0b
-    expect(groups.find((g) => g.group === 'Payouts')?.items.map((i) => i.href)).toEqual(['/expenses', '/payroll', '/expense-claims']);
+    expect(groups.find((g) => g.group === 'Master data')?.items.map((i) => i.href)).toEqual(['/doctor-services']); // doctor services leave the Accountant in Step 0b
+    expect(groups.find((g) => g.group === 'Payouts')?.items.map((i) => i.href)).toEqual(['/expenses', '/expense-claims']);
     expect(groups.find((g) => g.group === 'HR')?.items.map((i) => i.href)).toEqual(['/attendance']);
   });
 
@@ -253,14 +255,15 @@ describe('Distributors', () => {
 
 describe('canOpen', () => {
   it('lets a role open its own screens and what hangs under them', () => {
-    expect(canOpen('ACCOUNTANT', '/payroll/abc/slip')).toBe(true);
+    expect(canOpen('HR', '/payroll/abc/slip')).toBe(true);
     expect(canOpen('HR', '/employees/new/staff')).toBe(true);
-    expect(canOpen('ACCOUNTANT', '/pay-bands')).toBe(true);
+    expect(canOpen('HR', '/pay-bands')).toBe(true);
   });
 
   it('refuses a screen the role does not have, even when typed in', () => {
     expect(canOpen('HR', '/expense-claims')).toBe(false);
     expect(canOpen('ACCOUNTANT', '/employees')).toBe(false);
+    for (const path of ['/payroll', '/payroll/abc/slip', '/pay-grades', '/pay-bands', '/pay-components']) expect(canOpen('ACCOUNTANT', path)).toBe(false);
     expect(canOpen('HR', '/settings')).toBe(false);
     expect(canOpen('HR', '/reports/sales')).toBe(false);
   });

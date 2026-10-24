@@ -115,11 +115,12 @@ All under `/api/hr`.
 | `GET` | `/leaves/:id` | owner, their managers, HR, Admin | One leave |
 | `GET` | `/holidays?from=&to=&scope=&zoneId=&hqId=` | any | FIELD: the ones that apply to them; HR/Admin: all, filterable. `from`/`to` required, at most 400 days; not scoped by the financial-year header |
 | `POST` / `DELETE` | `/holidays`, `/holidays/:id?group=` | HR, Admin | Maintain the calendar. `POST` takes `date` and an optional `endDate` (a range, at most 31 days) and returns the days created; `DELETE` with `group=true` removes every day of a range |
-| `POST` | `/holidays/import?dryRun=` | Admin | Bulk-add from a CSV (below) |
+| `PATCH` | `/holidays/:id?group=` | HR, Admin | Change a holiday (2026-10-24): replaced by the fields sent, as an add; `group=true` replaces every day of its range. New days are validated and written first, then the old removed |
+| `POST` | `/holidays/import?dryRun=` | HR, Admin | Bulk-add from a CSV (below) |
 
 ## Holiday upload (2026-10-12)
 
-The Admin loads a year's list from one CSV (`multipart/form-data`, field `file`, ≤ 1 MB, ≤ 500 rows). Columns: `name`, `date` (`YYYY-MM-DD`), `scope` (`NATIONAL`/`ZONE`/`HQ`), `zones` (Zone names, `;`-separated), `hqs` (`Zone/HQ` pairs, `;`-separated; an HQ name is only unique inside its Zone). Same scope rules as adding one holiday.
+HR or Admin loads a year's list from one CSV (`multipart/form-data`, field `file`, ≤ 1 MB, ≤ 500 rows). Columns: `name`, `date` (`YYYY-MM-DD`), `scope` (`NATIONAL`/`ZONE`/`HQ`), `zones` (Zone names, `;`-separated), `hqs` (`Zone/HQ` pairs, `;`-separated; an HQ name is only unique inside its Zone). Same scope rules as adding one holiday.
 
 - **All or nothing.** Any problem (bad date, scope, unknown or inactive Zone/HQ, the same holiday twice in the file) is a `400` whose `data.errors` lists every problem with its file line; nothing is written.
 - **Re-upload is safe.** A holiday already on the calendar (same name, date, scope and places, ignoring case) is skipped, not duplicated.

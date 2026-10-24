@@ -7,8 +7,8 @@ import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
-import { useCreateHoliday } from '../hooks/useHolidays';
-import { EMPTY_HOLIDAY, HOLIDAY_SCOPE_LABEL, buildHoliday, dateSpan, holidayDays, toggleId, withScope, type HolidayDraft } from '../lib/holidays';
+import { useCreateHoliday, useUpdateHoliday } from '../hooks/useHolidays';
+import { EMPTY_HOLIDAY, HOLIDAY_SCOPE_LABEL, buildHoliday, dateSpan, draftOf, holidayDays, toggleId, withScope, type HolidayDraft, type HolidayEntry } from '../lib/holidays';
 
 const SCOPE_OPTIONS = HOLIDAY_SCOPES.map((s) => ({
   value: s,
@@ -45,26 +45,29 @@ export function Choices({ legend, options, chosen, onToggle, error }: {
   );
 }
 
-/** Add a holiday for one day or a run of days (Durga Puja, 2–8 Oct). The API has no edit, so a correction is remove and add. Mounted only while open. */
-export function HolidayFormDialog({ onClose }: { onClose: () => void }) {
-  const [draft, setDraft] = useState<HolidayDraft>(EMPTY_HOLIDAY);
+/** Add a holiday for one day or a run of days (Durga Puja, 2–8 Oct), or change `editing`: the API replaces it (every day of a range) with what is sent. Mounted only while open. */
+export function HolidayFormDialog({ onClose, editing }: { onClose: () => void; editing?: HolidayEntry }) {
+  const [draft, setDraft] = useState<HolidayDraft>(editing ? draftOf(editing) : EMPTY_HOLIDAY);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const directory = useTerritoryDirectory();
   const create = useCreateHoliday(onClose);
+  const update = useUpdateHoliday(onClose);
+  const saving = create.isPending || update.isPending;
   const days = holidayDays(draft.date, draft.endDate || draft.date);
 
   function submit() {
     const built = buildHoliday(draft);
     if (!built.ok) return setErrors(built.errors);
-    create.mutate(built.body);
+    if (editing) update.mutate({ id: editing.id, group: editing.groupId !== null, body: built.body });
+    else create.mutate(built.body);
   }
 
   return (
     <FormDialog
-      title="New holiday"
+      title={editing ? 'Edit holiday' : 'New holiday'}
       description="Employees don't lose a leave day to a holiday inside their dates."
       formId="holiday-form"
-      pending={create.isPending}
+      pending={saving}
       onClose={onClose}
       onSubmit={submit}
     >

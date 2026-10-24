@@ -89,7 +89,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Distributors', href: '/distributors', icon: Truck, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
 
   { label: 'Expenses', href: '/expenses', alsoOpens: ['/expense-months', '/expense-payouts', '/late-expenses'], icon: Receipt, group: 'Payouts', roles: ['ADMIN', 'HR', 'ACCOUNTANT'] },
-  { label: 'Payroll', href: '/payroll', icon: Banknote, group: 'Payouts', roles: ['ADMIN', 'HR', 'ACCOUNTANT'] },
+  { label: 'Payroll', href: '/payroll', icon: Banknote, group: 'Payouts', roles: ['ADMIN', 'HR'] },
   { label: 'Expense claims', href: '/expense-claims', icon: CalendarRange, group: 'Payouts', roles: ['ADMIN', 'ACCOUNTANT'] },
 
   { label: 'Sales report', href: '/reports/sales', icon: BarChart3, group: 'Reports', roles: ['ADMIN'] },
@@ -112,8 +112,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Visuals', href: '/visuals', icon: Images, group: 'Master data', section: 'Catalogue', roles: ['ADMIN'] },
   { label: 'Designations', href: '/designations', icon: Award, group: 'Master data', section: 'HR setup', roles: ['ADMIN', 'HR'] },
   { label: 'Leave setup', href: '/leave-setup', icon: CalendarDays, group: 'Master data', section: 'HR setup', roles: ['ADMIN', 'HR'] },
-  { label: 'Pay grades', href: '/pay-grades', alsoOpens: ['/pay-bands'], icon: Wallet, group: 'Master data', section: 'Pay structure', roles: ALL },
-  { label: 'Pay components', href: '/pay-components', icon: Calculator, group: 'Master data', section: 'Pay structure', roles: ALL },
+  { label: 'Pay grades', href: '/pay-grades', alsoOpens: ['/pay-bands'], icon: Wallet, group: 'Master data', section: 'Pay structure', roles: ['ADMIN', 'HR'] },
+  { label: 'Pay components', href: '/pay-components', icon: Calculator, group: 'Master data', section: 'Pay structure', roles: ['ADMIN', 'HR'] },
 
   { label: 'System settings', href: '/settings', icon: Settings2, group: 'System', roles: ['ADMIN'] },
 ];

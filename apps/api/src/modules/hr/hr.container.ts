@@ -24,6 +24,7 @@ import { AdjustLeaveBalanceUseCase } from './application/usecases/adjustLeaveBal
 import { GetLeaveBalancesUseCase } from './application/usecases/getLeaveBalances.usecase.js';
 import { CreateHolidayUseCase } from './application/usecases/createHoliday.usecase.js';
 import { CreateLeaveTypeUseCase } from './application/usecases/createLeaveType.usecase.js';
+import { UpdateHolidayUseCase } from './application/usecases/updateHoliday.usecase.js';
 import { DeleteHolidayUseCase } from './application/usecases/deleteHoliday.usecase.js';
 import { ImportHolidaysUseCase } from './application/usecases/importHolidays.usecase.js';
 import { ListHolidaysUseCase } from './application/usecases/listHolidays.usecase.js';
@@ -119,6 +120,7 @@ export function buildHrContainer(
     listHolidays: new ListHolidaysUseCase(holidays, territory),
     createHoliday,
     importHolidays: new ImportHolidaysUseCase(holidays, territory, createHoliday),
+    updateHoliday: new UpdateHolidayUseCase(holidays, createHoliday),
     deleteHoliday: new DeleteHolidayUseCase(holidays),
   };
 

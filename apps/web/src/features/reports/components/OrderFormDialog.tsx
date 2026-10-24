@@ -11,8 +11,8 @@ import { Select } from '@/components/ui/Select';
 
 const DISC_OPTIONS = [
   { value: 'NONE', label: 'No discount' },
-  { value: 'PERCENT', label: '% off' },
-  { value: 'FIXED', label: '₹ off' },
+  { value: 'PERCENT', label: 'Percentage (%) discount' },
+  { value: 'FIXED', label: 'Rupees (₹) discount' },
 ];
 
 /** A discount picker: none, a percentage, or a flat rupee amount, with the number beside it. */
