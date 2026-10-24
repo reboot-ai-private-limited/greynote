@@ -2,6 +2,7 @@ import { addDays } from '@/offline/day';
 import type { PlanOffDay, PlanStatus } from '@/types/sync';
 
 import { ApiError, NetworkError, apiGet, apiPatch, apiPost } from './api';
+import { listTeam } from './approvals';
 
 /**
  * The Planning endpoints (LLD/planning.md). Saving and submitting a Plan need a live connection —
@@ -223,6 +224,20 @@ export const submitMonthlyPlan = (id: string) =>
 
 /** One monthly plan by id, as its owner, a manager above them or Admin reads it; `routes` names every route the entries and amendments use. */
 export const getMonthlyPlanById = (id: string) => apiGet<MonthlyPlanView & { routes: NamedRoute[] }>(`/planning/monthly/${id}`, { auth: true });
+
+/**
+ * A team member's Tour Plan for a month, as their manager reads it; null when they haven't submitted one. The server has no "this
+ * person's plan for this month" list for a manager, so the plan is found through the person's Tour Plan approval requests (newest
+ * first, one per round), then read by id. A plan never submitted has no request, so it isn't found. Online only.
+ */
+export async function findTeamMemberMonthlyPlan(userId: string, month: string) {
+  const page = await listTeam('all', 100, { kind: 'MONTHLY_PLAN', submitterId: userId });
+  for (const id of new Set(page.items.map((i) => i.recordId))) {
+    const plan = await getMonthlyPlanById(id);
+    if (plan.planMonth === month) return plan;
+  }
+  return null;
+}
 
 /** The plan owner's active routes, A–Z: what a manager editing the plan may choose from. Online only. */
 export const listPlanOwnerRoutes = (id: string) => apiGet<NamedRoute[]>(`/planning/monthly/${id}/routes`, { auth: true });

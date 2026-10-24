@@ -55,8 +55,12 @@ export const STATUS_TEXT: Record<ExpenseMonthStatus, string> = {
   REJECTED: 'Sent back — change it and send it again',
 };
 
-/** The year switch (lib/financial-year.ts) bounds the statement; the history is across years. */
-export const getStatement = (month: string) => apiGet<ExpenseStatement>(`/field-activity/expense-months?month=${month}`, { fy: true });
+/**
+ * The year switch (lib/financial-year.ts) bounds the statement; the history is across years. `userId`: a manager reading someone in
+ * their team (the server allows anyone above them in the chain, read only); left out, it is your own.
+ */
+export const getStatement = (month: string, userId?: string) =>
+  apiGet<ExpenseStatement>(`/field-activity/expense-months?month=${month}${userId ? `&userId=${userId}` : ''}`, { fy: true });
 
 export const getStatementById = (recordId: string) => apiGet<ExpenseStatement>(`/field-activity/expense-months/${recordId}`);
 

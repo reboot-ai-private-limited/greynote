@@ -15,6 +15,7 @@ import { CardSection, InfoCard, Pill, StatusBanner, SummaryStrip, sym } from '@/
 import { Spacing, type Accent } from '@/constants/theme';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
+import { shareCsv } from '@/lib/csv';
 import {
   STATUS_TEXT,
   SUBMIT_LATE_TEXT,
@@ -32,11 +33,13 @@ import {
   type ExpenseProofFile,
   type ExpenseStatement,
 } from '@/lib/expense-months';
+import { exportFileName, expensesCsv } from '@/lib/exports';
 import { useFinancialYear } from '@/lib/financial-year';
 import { MAX_PROOF_FILES } from '@/lib/leave';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { formatSize, pickProofFile, type PickedProof } from '@/lib/proof-picker';
 import { getRejectionReason } from '@/lib/planning';
+import { useSessionUser } from '@/lib/session';
 import { useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
@@ -69,6 +72,7 @@ const lastOf = (month: string) => {
  */
 export default function ExpensesScreen() {
   const online = useOnline();
+  const me = useSessionUser();
   const timeZone = useCachedSource<ConfigSnapshot>('config').data?.settings.BUSINESS_TIMEZONE;
   const fy = useFinancialYear();
   const today = fy.today;
@@ -278,6 +282,20 @@ export default function ExpensesScreen() {
   }
 
   const canSend = statement?.canSubmit && !statement.submitLate && canChange;
+
+  // The month on screen, one row per date and a total row; from the statement already loaded, so the last copy downloads offline too.
+  const downloadMonth = async () => {
+    if (!statement) return;
+    setBusy(true);
+    try {
+      await shareCsv(exportFileName('expenses', me?.employeeCode, statement.month), expensesCsv(statement), `Expenses · ${prettyMonth(statement.month)}`);
+    } catch (err) {
+      setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Couldn’t make the file. Please try again.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <ScreenShell
       title="Expenses"
@@ -318,6 +336,7 @@ export default function ExpensesScreen() {
               { label: 'Other', value: formatRupees(statement.totals.otherPaise), accent: 'purple' },
             ]}
           />
+          {statement.days.length > 0 ? <PrimaryButton label="Download expenses (CSV)" variant="text" disabled={busy} onPress={downloadMonth} /> : null}
           {statement.submittedTotals && statement.submittedTotals.totalPaise !== statement.totals.totalPaise ? (
             <Notice tone="warning">{`It was ${formatRupees(statement.submittedTotals.totalPaise)} when you sent it — TA/DA changed since.`}</Notice>
           ) : null}

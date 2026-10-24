@@ -7,6 +7,7 @@ import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
+import { MemberDownloads } from '@/components/team/member-downloads';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, CardSection, InfoCard, Meter, Pill, RowCard, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
@@ -38,7 +39,7 @@ export default function TeamMemberScreen() {
   const denied = list.error && /403|not in your team|forbidden/i.test(list.error);
   const o = data?.overview ?? null;
   // Each link opens an existing screen already filtered to this person.
-  const go = (pathname: '/unblock' | '/late-grants' | '/targets' | '/team-doctors' | '/team-reports' | '/team-plans' | '/team-leaves' | '/team-orders' | '/team-stock') =>
+  const go = (pathname: '/unblock' | '/late-grants' | '/team-doctors' | '/team-reports' | '/team-plans' | '/team-leaves' | '/team-orders' | '/team-stock') =>
     router.push({ pathname, params: { userId: String(id) } });
   const percent = o && o.targetPaise > 0 && o.achievedPaise !== null ? Math.round((o.achievedPaise / o.targetPaise) * 100) : null;
 
@@ -83,7 +84,6 @@ export default function TeamMemberScreen() {
               <RowCard icon={sym('lock.open', 'lock_open')} accent="purple" title="Unblock" subtitle="Clear a block for a missed report" right={chevron} onPress={() => go('/unblock')} />
             )}
             <RowCard icon={sym('clock.badge.checkmark', 'schedule')} accent="amber" title="Allow a late plan or expenses" subtitle="One exception, for a time you choose" right={chevron} onPress={() => go('/late-grants')} />
-            <RowCard icon={sym('target', 'track_changes')} accent="red" title="Set a sales target" subtitle="For a month or a run of months" right={chevron} onPress={() => go('/targets')} />
             <RowCard icon={sym('stethoscope', 'medical_services')} accent="teal" title="Doctor visit targets" subtitle="How often each doctor is visited" right={chevron} onPress={() => go('/team-doctors')} />
           </View>
 
@@ -91,6 +91,8 @@ export default function TeamMemberScreen() {
             <ThemedText type="smallBold">Month</ThemedText>
             <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={lastMonth} />
           </InfoCard>
+
+          <MemberDownloads userId={String(id)} employeeCode={data.member.employeeCode} name={data.member.name} month={month} />
 
           {o ? (
             <>

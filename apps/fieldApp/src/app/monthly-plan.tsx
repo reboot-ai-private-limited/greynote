@@ -21,6 +21,8 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
+import { shareCsv } from '@/lib/csv';
+import { exportFileName, tourPlanCsv } from '@/lib/exports';
 import {
   EDITABLE,
   EMPTY_DAY,
@@ -41,6 +43,7 @@ import {
   type PlanDay,
   type WorkingType,
 } from '@/lib/planning';
+import { useSessionUser } from '@/lib/session';
 import { refreshNow, useColleagues, useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import {
@@ -388,6 +391,27 @@ export default function MonthlyPlanScreen() {
     <PlanCalendar month={month} days={days} entries={entries} isOff={isOff} today={today} onPressDay={editable ? openDay : undefined} />
   );
   const summary = <PlanSummaryCard counts={counts} />;
+
+  // The saved plan for the month on screen, one row per day (off days and unplanned days included), from the phone's copy: works offline.
+  const me = useSessionUser();
+  const [downloading, setDownloading] = useState(false);
+  const downloadPlan = async () => {
+    if (!existing) return;
+    const csv = tourPlanCsv(month, existing.entries, {
+      offLabel: (d) => (isOff(d) ? offLabelOf(d) : null),
+      routes: territory.data?.routes,
+      personName: (id) => names.colleagues.get(id)?.name ?? null,
+    });
+    setDownloading(true);
+    try {
+      await shareCsv(exportFileName('tour-plan', me?.employeeCode, month), csv, `Tour Plan · ${prettyMonth(month)}`);
+    } catch (err) {
+      setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Couldn’t make the file. Please try again.' });
+    } finally {
+      setDownloading(false);
+    }
+  };
+  const download = existing ? <PrimaryButton label="Download Tour Plan (CSV)" variant="text" loading={downloading} onPress={downloadPlan} /> : null;
   const approval = <PlanApprovalSteps status={status} rejection={rejection} approval={detail?.approval ?? null} timeZone={timeZone} />;
   const dayWise = (
     <View style={styles.dayWise}>
@@ -470,6 +494,7 @@ export default function MonthlyPlanScreen() {
           <View style={styles.side}>
             {calendar}
             {summary}
+            {download}
             {approval}
           </View>
           <View style={styles.main}>{dayWise}</View>
@@ -478,6 +503,7 @@ export default function MonthlyPlanScreen() {
         <>
           {calendar}
           {summary}
+          {download}
           {dayWise}
           {approval}
         </>
