@@ -42,6 +42,8 @@ export interface IdentityPublicContract {
   getUserSummary(userId: string): Promise<UserSummary>;
   /** Batched summaries in three queries; unknown ids are skipped. */
   getUserSummaries(userIds: string[]): Promise<UserSummary[]>;
+  /** Ids of up to `limit` users (default 200) whose name, employee code or email contains `term`, optionally only among `restrictTo`. */
+  findUserIdsByName(term: string, options?: { restrictTo?: string[]; limit?: number }): Promise<string[]>;
   /** Like `getUserSummary`, but `null` for an unknown id — for callers validating an id they were given. */
   findUserSummary(userId: string): Promise<UserSummary | null>;
   /** Nearest Higher Manager first, then everyone above, `[]` at the top of chain. */

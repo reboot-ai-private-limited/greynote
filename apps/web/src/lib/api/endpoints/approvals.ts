@@ -17,6 +17,8 @@ export interface InboxQuery {
   /** `/approvals/all` only: leave out what is still open, for the reviewed list. */
   decided?: boolean | undefined;
   submitterId?: string | undefined;
+  /** Part of the submitter's name, employee code or email. */
+  search?: string | undefined;
   /** Admin only: requests from this manager's direct reports. */
   managerId?: string | undefined;
   /** ISO date-times WITH an offset (`2026-09-28T23:59:59.999+05:30`), both inclusive, on `submittedAt`. A bare date is a 400. */

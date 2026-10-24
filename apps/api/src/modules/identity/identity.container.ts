@@ -448,6 +448,13 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       },
       isBlocked: (userId) => isBlocked.execute(userId),
       blockUser: (userId, reason) => blockUser.execute(userId, reason),
+      findUserIdsByName: async (term, options = {}) => {
+        const { items } = await userRepository.list(
+          { page: 1, pageSize: options.limit ?? 200 },
+          { search: term, ...(options.restrictTo && { ids: options.restrictTo }) },
+        );
+        return items.map((u) => u.id);
+      },
       listActiveFieldUserIds: () => userRepository.listActiveIdsByRole('FIELD'),
       listPayableFieldUserIds: async (month) => {
         const [active, leftIds] = await Promise.all([userRepository.listActiveIdsByRole('FIELD'), employeeProfileRepository.findUserIdsLeftOnOrAfter(`${month}-01`)]);

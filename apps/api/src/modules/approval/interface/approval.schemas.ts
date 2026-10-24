@@ -23,6 +23,8 @@ const listBase = z.object({
   kind: z.string().trim().min(1).optional(),
   status: z.enum(APPROVAL_STATUSES).optional(),
   submitterId: objectIdSchema.optional(),
+  /** Part of the submitter's name, employee code or email. */
+  search: z.string().trim().min(1).max(100).optional(),
   /** Inclusive. */
   from: instantSchema.optional(),
   /** Inclusive — send the end of the last day wanted, not the start of the day after. */

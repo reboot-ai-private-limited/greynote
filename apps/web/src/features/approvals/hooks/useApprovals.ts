@@ -26,10 +26,10 @@ export function useApprovals(view: ApprovalView, query: InboxQuery, enabled = tr
  * How many requests are waiting on the caller in each tab, one small query per tab (a page of one; only the total is read). The
  * result is keyed by tab value, with the empty string for everything. Waits for `enabled`, and stays quiet for tabs it has no answer for.
  */
-export function useWaitingCounts(tabs: readonly { value: string }[], enabled: boolean): Record<string, number | undefined> {
+export function useWaitingCounts(tabs: readonly { value: string }[], enabled: boolean, search = ''): Record<string, number | undefined> {
   const results = useQueries({
     queries: tabs.map((tab) => {
-      const query: InboxQuery = { pageSize: 1, ...(tab.value ? { kind: tab.value } : {}) };
+      const query: InboxQuery = { pageSize: 1, ...(tab.value ? { kind: tab.value } : {}), ...(search ? { search } : {}) };
       return authedQueryOptions({
         queryKey: keys.approvals.inbox(query),
         fetch: (token, signal) => approvalsApi.inbox(token, query, signal),

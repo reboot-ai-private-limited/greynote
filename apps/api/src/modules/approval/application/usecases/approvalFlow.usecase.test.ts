@@ -114,6 +114,8 @@ const users: UserDirectoryPort = {
       .filter((m) => m.depth > 0)
       .map((m) => ({ ...person(m.id), depth: m.depth })),
   getManagerChain: async (id) => chainOf(id),
+  findUserIdsByName: async (term, options) =>
+    Object.keys(ROLE).filter((id) => id.includes(term.toLowerCase()) && (!options?.restrictTo || options.restrictTo.includes(id))),
 };
 const as = (id: string): Actor => ({ id, role: ROLE[id]! });
 
@@ -466,6 +468,17 @@ describe('lists', () => {
     expect(inbox.items[0]).toMatchObject({ canAct: true, submitter: { id: 'mr', employeeCode: 'MR' } });
     await approve(r.mrPlan!.id, 'asm');
     expect((await lists.inbox(as('asm'), {}, PAGE)).items.map((i) => i.recordId)).toEqual(['mrLeave']);
+  });
+
+  it('searches the list by the submitter’s name, only within what the caller may see', async () => {
+    await seed();
+    expect((await lists.inbox(as('asm'), { search: 'MR' }, PAGE)).items.map((i) => i.recordId)).toEqual(['mrPlan', 'mrLeave']);
+    expect((await lists.inbox(as('asm'), { search: 'nsm' }, PAGE)).total).toBe(0);
+    expect((await lists.inbox(as('asm'), { search: 'zzz' }, PAGE)).total).toBe(0);
+    const admin = await lists.inbox(as('admin'), { search: 'mr' }, { page: 1, pageSize: 1 });
+    expect(admin.total).toBe(2);
+    expect(admin.items).toHaveLength(1);
+    expect((await lists.all(as('admin'), { search: 'mr', kind: LEAVE.kind }, PAGE)).items.map((i) => i.recordId)).toEqual(['mrLeave']);
   });
 
   it('a row carries what its kind says it is about, and null when it says nothing', async () => {

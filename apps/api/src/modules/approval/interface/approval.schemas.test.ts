@@ -17,6 +17,14 @@ describe('list date filters', () => {
   });
 });
 
+describe('list name search', () => {
+  it('trims the term and refuses an empty or very long one', () => {
+    expect(inboxQuerySchema.parse({ search: '  asha ' }).search).toBe('asha');
+    expect(issuePaths(inboxQuerySchema.safeParse({ search: '   ' }))).toEqual(['search']);
+    expect(issuePaths(inboxQuerySchema.safeParse({ search: 'x'.repeat(101) }))).toEqual(['search']);
+  });
+});
+
 describe('decision bodies', () => {
   it('approve and reject need the cycle the client displayed', () => {
     expect(issuePaths(approveBodySchema.safeParse({}))).toEqual(['cycle']);

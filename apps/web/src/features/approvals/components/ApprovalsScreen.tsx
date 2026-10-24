@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
-import { ListToolbar } from '@/components/ui/ListToolbar';
+import { ListToolbar, SearchInput } from '@/components/ui/ListToolbar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Pagination } from '@/components/ui/Pagination';
 import { Select } from '@/components/ui/Select';
@@ -19,6 +19,7 @@ import { useSession } from '@/lib/auth/SessionProvider';
 import { ageLabel } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
+import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { parsePageSize } from '@/lib/pagination';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useApprovals, useWaitingCounts } from '../hooks/useApprovals';
@@ -128,13 +129,13 @@ const openColumn = (): Column<ApprovalInboxItemDto> => ({
 
 export function ApprovalsScreen() {
   // The reviewed list pages on its own (`rpage`, `rsize`); the waiting one uses the usual `page` and `pageSize`.
-  const { values, page, pageSize, update } = useFilterParams(['kind', 'status', 'from', 'to', 'rpage', 'rsize']);
+  const { values, page, pageSize, update } = useFilterParams(['kind', 'status', 'from', 'to', 'search', 'rpage', 'rsize']);
   const role = useSession().user?.role;
   const readOnly = useIsReadOnly();
   const tabs = approvalTabsFor(role);
   // Only Admin and HR may read what has been decided (a manager sees what is waiting on them).
   const canSeeReviewed = role === 'ADMIN' || role === 'HR';
-  const counts = useWaitingCounts(tabs, tabs.length > 0);
+  const counts = useWaitingCounts(tabs, tabs.length > 0, values.search);
   const kind = activeTab(tabs, values.kind);
   const rangeError = dateRangeError(values.from, values.to);
   const reviewedPage = Math.max(1, Number(values.rpage) || 1);
@@ -142,6 +143,7 @@ export function ApprovalsScreen() {
 
   const shared = {
     ...(kind && { kind }),
+    ...(values.search && { search: values.search }),
     ...(rangeError ? {} : dateRangeToInstants(values.from, values.to)),
   };
   const waiting = useApprovals('waiting', { page, pageSize, ...shared }, !rangeError);
@@ -159,11 +161,12 @@ export function ApprovalsScreen() {
 
   // A filter change goes back to the first page of both lists.
   const change = (changes: Parameters<typeof update>[0]) => update({ rpage: '', ...changes });
+  const [search, setSearch] = useSearchFilter(values.search, (v) => change({ search: v }));
 
   // Bulk selection: only what the caller can act on, and only on the page in front of them.
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [bulk, setBulk] = useState<'APPROVE' | 'REJECT' | null>(null);
-  const filterKey = `${kind}|${values.from}|${values.to}|${page}`;
+  const filterKey = `${kind}|${values.search}|${values.from}|${values.to}|${page}`;
   useEffect(() => setSelected(new Set()), [filterKey]);
   const selectable = selectableRows(waiting.data?.items ?? []);
   const chosen = selectable.filter((r) => selected.has(r.id));
@@ -237,7 +240,7 @@ export function ApprovalsScreen() {
     openColumn(),
   ];
 
-  const filtered = values.from || values.to || values.status;
+  const filtered = values.from || values.to || values.status || values.search;
 
   return (
     <>
@@ -271,8 +274,12 @@ export function ApprovalsScreen() {
             </Tabs>
           </div>
         ) : null}
+        <SearchInput value={search} onChange={setSearch} placeholder="Search by employee name or code" label="Search approvals by employee" />
         {filtered ? (
-          <Button variant="ghost" size="sm" onClick={() => change({ status: '', from: '', to: '' })}>
+          <Button variant="ghost" size="sm" onClick={() => {
+              setSearch('');
+              change({ status: '', from: '', to: '', search: '' });
+            }}>
             Clear filters
           </Button>
         ) : null}

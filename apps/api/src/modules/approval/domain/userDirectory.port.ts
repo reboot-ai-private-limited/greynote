@@ -22,4 +22,6 @@ export interface UserDirectoryPort {
   getDownline(managerId: string): Promise<Array<DirectoryUser & { depth: number }>>;
   /** Nearest Higher Manager first, then everyone above; `[]` at the top. */
   getManagerChain(userId: string): Promise<DirectoryUser[]>;
+  /** Ids of up to `limit` users whose name, employee code or email contains `term`, optionally only among `restrictTo`. */
+  findUserIdsByName(term: string, options?: { restrictTo?: string[]; limit?: number }): Promise<string[]>;
 }

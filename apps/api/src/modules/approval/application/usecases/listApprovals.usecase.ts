@@ -23,6 +23,8 @@ export interface ApprovalQueryFilters {
   /** `/all` only: leave out what is still open, for a view of what has been decided. */
   decided?: boolean | undefined;
   submitterId?: string | undefined;
+  /** Part of the submitter's name, employee code or email. */
+  search?: string | undefined;
   /** Admin queue: only requests from this manager's direct reports (HLD 05 §5). */
   managerId?: string | undefined;
   from?: Date | undefined;
@@ -75,7 +77,9 @@ export class ListApprovalsUseCase {
    *   queue of HLD 05 §5.
    */
   async inbox(actor: Actor, filters: ApprovalQueryFilters, page: PageQuery): Promise<PaginatedResult<ApprovalListItem>> {
-    const common = await this.commonFilter(filters);
+    const isManager = actor.role !== 'ADMIN' && actor.role !== 'HR';
+    const reportIds = isManager ? (await this.users.getDirectReports(actor.id)).map((r) => r.id) : undefined;
+    const common = await this.commonFilter(filters, reportIds);
     if (common === null) return buildPaginatedResult([], 0, page);
 
     if (actor.role === 'ADMIN') {
@@ -91,11 +95,7 @@ export class ListApprovalsUseCase {
       return this.filterInMemory(actor, items, page);
     }
 
-    const reports = await this.users.getDirectReports(actor.id);
-    const reportIds = reports.map((r) => r.id);
-    const submitterIds = filters.submitterId ? reportIds.filter((id) => id === filters.submitterId) : reportIds;
-    if (submitterIds.length === 0) return buildPaginatedResult([], 0, page);
-    return this.page(actor, { ...common, submitterIds, statuses: ['SUBMITTED'] }, page, 'asc');
+    return this.page(actor, { ...common, statuses: ['SUBMITTED'] }, page, 'asc');
   }
 
   /**
@@ -165,22 +165,23 @@ export class ListApprovalsUseCase {
   ): Promise<PaginatedResult<ApprovalListItem>> {
     const downline = await this.users.getDownline(actor.id);
     const inScope = downline.filter((m) => (scope === 'direct' ? m.depth === 1 : scope === 'indirect' ? m.depth > 1 : true));
-    let submitterIds = inScope.map((m) => m.id);
-    if (filters.submitterId) submitterIds = submitterIds.filter((id) => id === filters.submitterId);
-    const common = await this.commonFilter({ ...filters, submitterId: undefined });
-    if (common === null || submitterIds.length === 0) return buildPaginatedResult([], 0, page);
-    return this.page(actor, { ...common, submitterIds, ...(filters.status && { statuses: [filters.status] }) }, page, 'desc');
+    const common = await this.commonFilter(filters, inScope.map((m) => m.id));
+    if (common === null) return buildPaginatedResult([], 0, page);
+    return this.page(actor, { ...common, ...(filters.status && { statuses: [filters.status] }) }, page, 'desc');
   }
 
   /** The caller's own requests, newest first. */
   async mine(actor: Actor, filters: ApprovalQueryFilters, page: PageQuery): Promise<PaginatedResult<ApprovalListItem>> {
-    const common = await this.commonFilter({ ...filters, submitterId: undefined, managerId: undefined });
+    const common = await this.commonFilter({ ...filters, submitterId: undefined, managerId: undefined, search: undefined });
     if (common === null) return buildPaginatedResult([], 0, page);
     return this.page(actor, { ...common, submitterIds: [actor.id], ...(filters.status && { statuses: [filters.status] }) }, page, 'desc');
   }
 
-  /** Kind / submitter / manager / date filters shared by every list. Null = can match nothing. */
-  private async commonFilter(filters: ApprovalQueryFilters): Promise<ApprovalListFilter | null> {
+  /**
+   * Kind / submitter / manager / search / date filters shared by every list. `scope` is who the caller may see at all (a manager's
+   * reports, a downline); the submitter filters narrow it. Null = can match nothing.
+   */
+  private async commonFilter(filters: ApprovalQueryFilters, scope?: string[]): Promise<ApprovalListFilter | null> {
     if (filters.from && filters.to && filters.from > filters.to) {
       throw AppError.badRequest('The end of the date range is before its start.', { field: 'to' });
     }
@@ -193,6 +194,11 @@ export class ListApprovalsUseCase {
     if (filters.managerId) {
       const reportIds = (await this.users.getDirectReports(filters.managerId)).map((r) => r.id);
       submitterIds = submitterIds ? submitterIds.filter((id) => reportIds.includes(id)) : reportIds;
+    }
+    if (scope) submitterIds = submitterIds ? submitterIds.filter((id) => scope.includes(id)) : scope;
+    if (filters.search && submitterIds?.length !== 0) {
+      const named = await this.users.findUserIdsByName(filters.search, submitterIds ? { restrictTo: submitterIds } : {});
+      submitterIds = named;
     }
     if (submitterIds) {
       if (submitterIds.length === 0) return null;
