@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { amendEntries, changedDates, dayProblem, monthRows, monthSummary, offDayLabel, planDayLabel, sortedEntries, withDay, type DraftDay } from './plans';
+import { amendEntries, changedDates, clearedForType, dayProblem, monthRows, monthSummary, offDayLabel, planDayLabel, sortedEntries, withDay, type DraftDay } from './plans';
 
 describe('monthSummary / planDayLabel / sortedEntries', () => {
   it('counts days by working type', () => {
@@ -70,5 +70,18 @@ describe('editing a month', () => {
     const edited = { '2026-10-01': day({ routeIds: ['o1'], returnDate: '2026-10-03' }), '2026-10-02': day({ dayKind: 'STAY' }), '2026-10-03': day({ dayKind: 'TRANSIT' }) };
     expect(Object.keys(withDay(edited, '2026-10-01', null))).toEqual([]);
     expect(Object.keys(withDay(edited, '2026-10-01', day()))).toEqual(['2026-10-01']);
+  });
+  it('drops routes, colleagues and trip when the type is not a field day', () => {
+    const strike = clearedForType(day({ workingType: 'STRIKE', routeIds: ['o1'], workWith: ['u1'], returnDate: '2026-10-05', remarks: 'x' }));
+    expect(strike).toMatchObject({ routeIds: [], workWith: [], returnDate: null, remarks: 'x' });
+    const keep = day({ workingType: 'DOCTOR_CAMPAIGN', routeIds: ['r1'], workWith: ['u1'] });
+    expect(clearedForType(keep)).toBe(keep);
+  });
+  it('never sends routes or a trip for a non-field day, and refuses them in the check', () => {
+    const stale = day({ workingType: 'MEETING', routeIds: ['r1'], workWith: ['u1'], returnDate: '2026-10-05' });
+    expect(amendEntries({ '2026-10-01': stale })[0]).toMatchObject({ routeIds: [], workWith: [] });
+    expect(amendEntries({ '2026-10-01': stale })[0]).not.toHaveProperty('returnDate');
+    expect(dayProblem(stale, '2026-10-01', { routes: [], edited: {}, offDates: [] })).toMatch(/Only a field work/);
+    expect(dayProblem(day({ workingType: 'STRIKE', routeIds: [] }), '2026-10-01', { routes: [], edited: {}, offDates: [] })).toBeNull();
   });
 });

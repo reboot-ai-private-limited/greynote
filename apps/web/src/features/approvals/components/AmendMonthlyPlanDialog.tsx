@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/Select';
 import { ApiError } from '@/lib/api/ApiError';
 import { EmployeePickerField, WorkWithName } from '@/features/people/components/EmployeePickerField';
 import { useAmendMonthlyPlan, usePlanOwnerRoutes } from '../hooks/usePreviews';
-import { amendEntries, changedDates, dayProblem, draftsOf, isTripDay, offDayLabel, planDayLabel, withDay, type DraftDay } from '../lib/plans';
+import { amendEntries, changedDates, clearedForType, dayProblem, draftsOf, isFieldDay, isTripDay, offDayLabel, planDayLabel, withDay, type DraftDay } from '../lib/plans';
 import { DAY_KIND_LABEL, WORKING_TYPE_LABEL } from '../lib/review';
 import { PlanDayView } from './PlanDayView';
 
@@ -141,9 +141,11 @@ export function AmendMonthlyPlanDialog({ plan, onClose }: { plan: MonthlyPlanDet
                       id="amend-type"
                       value={form.workingType}
                       options={TYPE_OPTIONS}
-                      onValueChange={(v) => setForm((f) => ({ ...f, workingType: v as WorkingType }))}
+                      onValueChange={(v) => setForm((f) => clearedForType({ ...f, workingType: v as WorkingType }))}
                     />
                   </FormField>
+                  {isFieldDay(form.workingType) ? (
+                    <>
                   <fieldset className="space-y-1.5">
                     <legend className="text-sm font-medium text-text">Routes</legend>
                     {routes.length === 0 ? <p className="text-sm text-text-subtle">{ownerRoutes.isLoading ? 'Loading…' : 'This employee has no routes.'}</p> : null}
@@ -184,6 +186,10 @@ export function AmendMonthlyPlanDialog({ plan, onClose }: { plan: MonthlyPlanDet
                   <FormField label="Return date (trip)" htmlFor="amend-return" hint="Only for an out-station trip. The days between become stay days.">
                     <Input id="amend-return" type="date" className="w-44" value={form.returnDate ?? ''} onChange={(e) => setForm((f) => ({ ...f, returnDate: e.target.value || null }))} />
                   </FormField>
+                    </>
+                  ) : (
+                    <p className="text-sm text-text-subtle">Routes and “Work with” are only picked for Field work and Doctor campaign days.</p>
+                  )}
                   <FormField label="Remarks" htmlFor="amend-remarks">
                     <Textarea id="amend-remarks" maxLength={500} value={form.remarks ?? ''} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} />
                   </FormField>
