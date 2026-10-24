@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/Select';
 import { ApiError } from '@/lib/api/ApiError';
 import { EmployeePickerField, WorkWithName } from '@/features/people/components/EmployeePickerField';
 import { useAmendMonthlyPlan, usePlanOwnerRoutes } from '../hooks/usePreviews';
-import { amendEntries, changedDates, clearedForType, dayProblem, draftsOf, isFieldDay, isTripDay, localToday, offDayLabel, planDayLabel, withDay, type DraftDay } from '../lib/plans';
+import { amendEntries, changedDates, clearedForType, dayProblem, draftsOf, isFieldDay, isTripDay, localToday, nextDay, offDayLabel, planDayLabel, tripLines, withDay, type DraftDay } from '../lib/plans';
 import { DAY_KIND_LABEL, WORKING_TYPE_LABEL } from '../lib/review';
 import { PlanDayView } from './PlanDayView';
 
@@ -20,9 +20,6 @@ const REASON_MAX = 500;
 const ROUTE_TYPE_LABEL = { HQ: 'HQ', EX_STATION: 'Ex-station', OUT_STATION: 'Out-station' } as const;
 const EMPTY_DAY: DraftDay = { workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [], remarks: null, returnDate: null };
 const TYPE_OPTIONS = (Object.keys(WORKING_TYPE_LABEL) as WorkingType[]).map((value) => ({ value, label: WORKING_TYPE_LABEL[value] }));
-
-/** The earliest date a new return date can take: the day after `today`. */
-const planDayMin = (today: string) => new Date(Date.parse(`${today}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
 const datesOf = (month: string) => {
   const [y, m] = month.split('-').map(Number) as [number, number];
@@ -47,6 +44,8 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState<string>();
   const [stale, setStale] = useState(false);
+  // The trips about to be saved, shown for a yes before they are: a stay and a way back follow from a return date.
+  const [tripConfirm, setTripConfirm] = useState<Array<{ date: string; lines: string[] }> | null>(null);
   const amend = useAmendMonthlyPlan(plan.id, onClose);
 
   // The employee's routes, plus any already on the plan that aren't in that list (a manager's plan may use their team's).
@@ -71,16 +70,23 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
   function open(date: string) {
     setForm(edited[date] ?? EMPTY_DAY);
     setFormError(undefined);
+    setTripConfirm(null);
     setEditing(date);
+  }
+
+  /** The open day as the form has it, or what is wrong with it. */
+  function resolveDay(date: string): { day: DraftDay; problem: string | null } {
+    const day: DraftDay = returnOnly ? { ...edited[date]!, returnDate: form.returnDate || null } : { ...form, returnDate: form.returnDate || null };
+    const problem =
+      returnOnly && (!day.returnDate || day.returnDate <= today)
+        ? 'The new return date has to be after today.'
+        : dayProblem(day, date, { routes, edited, offDates });
+    return { day, problem };
   }
 
   function applyDay() {
     if (!editing) return;
-    const day: DraftDay = returnOnly ? { ...edited[editing]!, returnDate: form.returnDate || null } : { ...form, returnDate: form.returnDate || null };
-    const problem =
-      returnOnly && (!day.returnDate || day.returnDate <= today)
-        ? 'The new return date has to be after today.'
-        : dayProblem(day, editing, { routes, edited, offDates });
+    const { day, problem } = resolveDay(editing);
     setFormError(problem ?? undefined);
     if (problem) return;
     setEdited((e) => withDay(e, editing, day));
@@ -95,16 +101,42 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
 
   const toggle = (list: string[], id: string) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
 
-  function submit() {
+  /** The trips this save sets up or moves, as lines to confirm: every changed day with a return date. */
+  const tripsToConfirm = (days: Record<string, DraftDay>, changedOn: string[]) =>
+    changedOn.flatMap((date) => {
+      const day = days[date];
+      if (!day?.returnDate || day.returnDate === original[date]?.returnDate) return [];
+      const names = routes.filter((r) => r.routeType === 'OUT_STATION' && day.routeIds.includes(r.id)).map((r) => r.name);
+      return [{ date, lines: tripLines(date, day.returnDate, names) }];
+    });
+
+  function submit(confirmed = false) {
     const problem = reason.length > REASON_MAX ? `At most ${REASON_MAX} characters.` : undefined;
     setReasonError(problem);
     if (problem) return;
-    if (changed.length === 0) {
+    // A day still open in the form is part of what the person is saving: apply it first rather than dropping it.
+    let days = edited;
+    if (editing) {
+      const { day, problem: dayError } = resolveDay(editing);
+      setFormError(dayError ?? undefined);
+      if (dayError) return;
+      days = withDay(edited, editing, day);
+      setEdited(days);
+      setEditing(null);
+    }
+    const changedOn = changedDates(original, days);
+    if (changedOn.length === 0) {
       setReasonError('Nothing was changed yet.');
       return;
     }
+    const trips = tripsToConfirm(days, changedOn);
+    if (trips.length > 0 && !confirmed) {
+      setTripConfirm(trips);
+      return;
+    }
+    setTripConfirm(null);
     amend.mutate(
-      { entries: amendEntries(edited), reason: reason.trim() },
+      { entries: amendEntries(days), reason: reason.trim() },
       // A 409 "changed while you were amending": the server's plan moved on, so close and let the screen reload it.
       { onError: (err) => err instanceof ApiError && err.status === 409 && /changed while/i.test(err.message) && setStale(true) },
     );
@@ -123,7 +155,7 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
       pending={amend.isPending}
       disabled={stale || ownerRoutes.isLoading}
       onClose={onClose}
-      onSubmit={submit}
+      onSubmit={() => submit(tripConfirm !== null)}
     >
       {stale ? (
         <p role="alert" className="rounded-md border border-border bg-surface-hover p-3 text-sm text-text">
@@ -165,7 +197,7 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
                 <div className="mt-3 space-y-3 rounded-md border border-border bg-surface-hover/60 p-4">
                   {returnOnly ? (
                     <FormField label="Return date (trip)" htmlFor="amend-return" hint="The trip has begun, so only its return date can change. The days up to today stay as they are.">
-                      <Input id="amend-return" type="date" className="w-44" min={planDayMin(today)} value={form.returnDate ?? ''} onChange={(e) => setForm((f) => ({ ...f, returnDate: e.target.value || null }))} />
+                      <Input id="amend-return" type="date" className="w-44" min={nextDay(today)} value={form.returnDate ?? ''} onChange={(e) => setForm((f) => ({ ...f, returnDate: e.target.value || null }))} />
                     </FormField>
                   ) : null}
                   {!returnOnly ? (
@@ -218,8 +250,8 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
                     />
                   </div>
                   {hasOutStation ? (
-                    <FormField label="Return date (trip)" htmlFor="amend-return" hint="Leave empty for a same-day return. The days between become stay days.">
-                      <Input id="amend-return" type="date" className="w-44" value={form.returnDate ?? ''} onChange={(e) => setForm((f) => ({ ...f, returnDate: e.target.value || null }))} />
+                    <FormField label="Return date (trip)" htmlFor="amend-return" hint="Leave empty for a same-day return. The days between become stay days, and the return day is the way back.">
+                      <Input id="amend-return" type="date" className="w-44" min={nextDay(date)} value={form.returnDate ?? ''} onChange={(e) => setForm((f) => ({ ...f, returnDate: e.target.value || null }))} />
                     </FormField>
                   ) : null}
                     </>
@@ -255,6 +287,26 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
           );
         })}
       </ol>
+      {tripConfirm ? (
+        <div role="alert" className="space-y-2 rounded-md border border-border bg-surface-hover p-3 text-sm">
+          <p className="font-medium text-text">Please check the trip{tripConfirm.length === 1 ? '' : 's'} before saving</p>
+          {tripConfirm.map((t) => (
+            <ul key={t.date} className="list-disc space-y-0.5 pl-5 text-text-muted">
+              {t.lines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          ))}
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => submit(true)} disabled={amend.isPending}>
+              Yes, save this
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setTripConfirm(null)}>
+              Go back
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <FormField
         label="Reason (optional)"
         htmlFor="amend-reason"

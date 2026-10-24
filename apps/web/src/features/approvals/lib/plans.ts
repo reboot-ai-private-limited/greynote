@@ -16,6 +16,21 @@ export function monthSummary(entries: readonly Pick<MonthlyPlanEntryDto, 'workin
 /** Today as `YYYY-MM-DD` in the browser's zone. Only for what the screen offers: the server decides which days are still open. */
 export const localToday = (): string => new Date().toLocaleDateString('en-CA');
 
+/** The day after `date` (`YYYY-MM-DD`). */
+export const nextDay = (date: string): string => new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * What a trip means, day by day, for the editor to confirm: the day they leave, a stay on each day between, and the day they
+ * travel back — each with the real route(s) of the trip.
+ */
+export function tripLines(date: string, returnDate: string, outStationRouteNames: readonly string[]): string[] {
+  const routes = outStationRouteNames.join(', ');
+  const lines = [`${planDayLabel(date)} · Leaves (${routes})`];
+  for (let d = nextDay(date); d < returnDate; d = nextDay(d)) lines.push(`${planDayLabel(d)} · Stay (${routes})`);
+  lines.push(`${planDayLabel(returnDate)} · In transit, back home (${routes})`);
+  return lines;
+}
+
 /** `Mon 5 Oct`, for a plan's `YYYY-MM-DD` day, whatever the browser's zone. */
 export function planDayLabel(date: string): string {
   return new Intl.DateTimeFormat('en-IN', {

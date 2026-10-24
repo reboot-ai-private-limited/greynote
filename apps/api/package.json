@@ -22,6 +22,7 @@
         "seed:sample-sales": "tsx src/scripts/seed-sample-sales.ts",
         "seed:demo-manager": "tsx src/scripts/seed-demo-manager.ts",
         "seed:demo-hierarchy": "tsx src/scripts/seed-demo-hierarchy.ts",
+        "seed:demo-plans": "tsx src/scripts/seed-demo-plans.ts",
         "export:pay-bands": "tsx src/scripts/export-pay-bands.ts",
         "seed:production": "tsx src/scripts/seed-production.ts",
         "migrate:employee-codes": "tsx src/scripts/migrate-employee-codes.ts",

@@ -25,7 +25,7 @@ export function PlanDayView({ day }: { day: PlanDayDto & { doctors?: PlannedDoct
       {day.routeIds.length > 0 ? (
         <p>
           <span className="text-text-subtle">Routes: </span>
-          {day.routeIds.map((id) => directory.routeName(id)).join('; ')}
+          {day.routeIds.map((id) => directory.tripRouteName(id, day.dayKind)).join('; ')}
         </p>
       ) : null}
       {day.workWith.length > 0 ? (

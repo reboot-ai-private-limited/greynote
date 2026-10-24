@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { amendEntries, changedDates, clearedForType, dayProblem, monthRows, monthSummary, offDayLabel, planDayLabel, sortedEntries, withDay, type DraftDay } from './plans';
+import { amendEntries, changedDates, clearedForType, dayProblem, monthRows, monthSummary, offDayLabel, planDayLabel, sortedEntries, tripLines, withDay, type DraftDay } from './plans';
 
 describe('monthSummary / planDayLabel / sortedEntries', () => {
   it('counts days by working type', () => {
@@ -83,5 +83,19 @@ describe('editing a month', () => {
     expect(amendEntries({ '2026-10-01': stale })[0]).not.toHaveProperty('returnDate');
     expect(dayProblem(stale, '2026-10-01', { routes: [], edited: {}, offDates: [] })).toMatch(/Only a field work/);
     expect(dayProblem(day({ workingType: 'STRIKE', routeIds: [] }), '2026-10-01', { routes: [], edited: {}, offDates: [] })).toBeNull();
+  });
+});
+
+describe('tripLines', () => {
+  it('says leave, stay, then in transit, each with the real route', () => {
+    expect(tripLines('2026-11-02', '2026-11-05', ['SILIGURI to GANGTOK'])).toEqual([
+      'Mon, 2 Nov · Leaves (SILIGURI to GANGTOK)',
+      'Tue, 3 Nov · Stay (SILIGURI to GANGTOK)',
+      'Wed, 4 Nov · Stay (SILIGURI to GANGTOK)',
+      'Thu, 5 Nov · In transit, back home (SILIGURI to GANGTOK)',
+    ]);
+  });
+  it('has no stay for a one-night trip', () => {
+    expect(tripLines('2026-11-02', '2026-11-03', ['SILIGURI to GANGTOK'])).toHaveLength(2);
   });
 });

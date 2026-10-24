@@ -53,3 +53,19 @@ describe('buildTerritoryDirectory', () => {
     ]);
   });
 });
+
+describe('tripRouteName', () => {
+  const trip = buildTerritoryDirectory({
+    zones,
+    hqs,
+    routes: [{ id: 'o1', hqId: 'h1', name: 'SLG-1 to Gangtok', destinationName: 'Gangtok', type: 'OUT_STATION', status: 'active' } as RouteDto, { id: 'n1', hqId: 'h1', name: 'SLG-1 to Naxalbari', destinationName: 'Naxalbari', type: 'HQ', status: 'active' } as RouteDto],
+  });
+  it('keeps the real route and marks a stay or transit day in brackets', () => {
+    expect(trip.tripRouteName('o1', 'NORMAL')).toBe('SLG-1 to Gangtok');
+    expect(trip.tripRouteName('o1', 'STAY')).toBe('SLG-1 to Gangtok (stay)');
+    expect(trip.tripRouteName('o1', 'TRANSIT')).toBe('SLG-1 to Gangtok (in transit)');
+  });
+  it('leaves a route that is not out-station alone', () => {
+    expect(trip.tripRouteName('n1', 'STAY')).toBe('SLG-1 to Naxalbari');
+  });
+});
