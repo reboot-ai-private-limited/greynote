@@ -12,6 +12,7 @@ import {
   kindLabel,
   requestDetail,
   requestTitle,
+  searchTerm,
   reasonError,
   runBulk,
   UNCONFIRMED_MESSAGE,
@@ -50,6 +51,14 @@ describe('requestTitle and requestDetail', () => {
     const leave = { ...doctor, kind: 'LEAVE', subject: null, cycle: 1 };
     expect(requestTitle(leave)).toBe('Leave');
     expect(requestDetail(leave)).toBe('Asha · GHC006');
+  });
+});
+
+describe('searchTerm', () => {
+  it('sends nothing under two letters, and the trimmed text from two', () => {
+    expect(searchTerm('')).toBe('');
+    expect(searchTerm(' m ')).toBe('');
+    expect(searchTerm('  megha ')).toBe('megha');
   });
 });
 

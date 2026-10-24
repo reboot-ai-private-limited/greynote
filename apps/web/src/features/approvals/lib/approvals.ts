@@ -51,6 +51,12 @@ export function requestDetail(item: Pick<ApprovalInboxItemDto, 'kind' | 'subject
     .join(' · ');
 }
 
+/** The shortest name search worth sending: one letter matches nearly everyone. */
+export const MIN_SEARCH_LENGTH = 2;
+
+/** What a typed search sends: the trimmed text, or nothing while it is shorter than `MIN_SEARCH_LENGTH`. */
+export const searchTerm = (typed: string): string => (typed.trim().length >= MIN_SEARCH_LENGTH ? typed.trim() : '');
+
 export const KIND_OPTIONS = Object.entries(KIND_LABEL).map(([value, label]) => ({ value, label }));
 
 // ── Status and stage ───────────────────────────────────────────────────────────────────────

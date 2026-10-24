@@ -32,11 +32,13 @@ import {
   dateRangeToInstants,
   requestDetail,
   requestTitle,
+  searchTerm,
   selectableRows,
   stageLabel,
 } from '../lib/approvals';
 
 const ANY = 'all';
+const SEARCH_DEBOUNCE_MS = 500;
 /** What "reviewed" holds: a request that is still open, or sent back to the employee, is not in it. */
 const DECIDED_STATUSES: ApprovalStatus[] = ['APPROVED', 'REJECTED', 'WITHDRAWN'];
 const STATUS_OPTIONS = [
@@ -161,7 +163,15 @@ export function ApprovalsScreen() {
 
   // A filter change goes back to the first page of both lists.
   const change = (changes: Parameters<typeof update>[0]) => update({ rpage: '', ...changes });
-  const [search, setSearch] = useSearchFilter(values.search, (v) => change({ search: v }));
+  // A name takes a moment to type, and each search is ten requests (both lists and every tab's count): wait for the pause, and for two letters.
+  const [search, setSearch] = useSearchFilter(
+    values.search,
+    (v) => {
+      const term = searchTerm(v);
+      if (term !== values.search) change({ search: term });
+    },
+    SEARCH_DEBOUNCE_MS,
+  );
 
   // Bulk selection: only what the caller can act on, and only on the page in front of them.
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());

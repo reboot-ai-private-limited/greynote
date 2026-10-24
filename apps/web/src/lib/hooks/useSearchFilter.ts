@@ -6,11 +6,11 @@ import { useDebouncedValue } from './useDebouncedValue';
 
 /**
  * A search box backed by a URL param: the input updates instantly, the URL (and so the query)
- * only after the user pauses typing.
+ * only after the user pauses typing (`delayMs`, 300 by default).
  */
-export function useSearchFilter(current: string, commit: (value: string) => void) {
+export function useSearchFilter(current: string, commit: (value: string) => void, delayMs: number = timing.searchDebounceMs) {
   const [text, setText] = useState(current);
-  const debounced = useDebouncedValue(text, timing.searchDebounceMs);
+  const debounced = useDebouncedValue(text, delayMs);
 
   useEffect(() => {
     if (debounced !== current) commit(debounced);
