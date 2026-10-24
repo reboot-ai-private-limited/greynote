@@ -1,4 +1,5 @@
 import { AppError } from '@/shared/errors/AppError.js';
+import type { MonthlyPlan } from '../../domain/monthlyPlan.entity.js';
 import type { MonthlyPlanRepositoryPort } from '../../domain/monthlyPlan.repository.port.js';
 import type { PlanRoute, RouteDirectoryPort } from '../../domain/routeDirectory.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -18,6 +19,21 @@ export class GetMonthlyPlanUseCase {
   async execute(actor: Actor, planId: string): Promise<MonthlyPlanView & { routes: PlanRoute[] }> {
     const plan = await this.plans.findById(planId);
     if (!plan) throw AppError.notFound('No such plan.');
+    return this.read(actor, plan);
+  }
+
+  /** The plan of one employee for one month (`YYYY-MM`), read the same way — for a screen that knows who and when, not the plan's id. */
+  async forUserMonth(actor: Actor, userId: string, planMonth: string): Promise<MonthlyPlanView & { routes: PlanRoute[] }> {
+    // Unreadable and missing look the same, so this is not a way to learn who has a plan.
+    await assertCanRead(this.users, actor, userId).catch(() => {
+      throw AppError.notFound('No plan for that month.');
+    });
+    const plan = await this.plans.findByUserAndMonth(userId, planMonth);
+    if (!plan) throw AppError.notFound('No plan for that month.');
+    return this.read(actor, plan);
+  }
+
+  private async read(actor: Actor, plan: MonthlyPlan): Promise<MonthlyPlanView & { routes: PlanRoute[] }> {
     await assertCanRead(this.users, actor, plan.userId);
     const [view, routes] = await Promise.all([
       this.views.monthly(plan),

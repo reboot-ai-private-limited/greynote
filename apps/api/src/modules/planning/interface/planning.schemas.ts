@@ -9,6 +9,9 @@ export const planMonthSchema = calendarMonthSchema;
 
 export const planIdParamsSchema = z.object({ id: objectIdSchema });
 
+/** One employee's plan for one month, when the caller knows who and when but not the plan's id. */
+export const userMonthParamsSchema = z.object({ userId: objectIdSchema, month: planMonthSchema });
+
 export const planDaySchema = z.object({
   workingType: z.enum(WORKING_TYPES),
   workWith: z.array(objectIdSchema).max(20).default([]),

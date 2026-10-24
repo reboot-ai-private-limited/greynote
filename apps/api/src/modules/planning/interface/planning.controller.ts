@@ -58,6 +58,7 @@ export type PlanningHandlers = Record<
   | 'saveMonthly'
   | 'listMonthly'
   | 'getMonthly'
+  | 'getUserMonthly'
   | 'planOwnerRoutes'
   | 'submitMonthly'
   | 'grantLate'
@@ -127,6 +128,10 @@ export function makePlanningControllers(useCases: {
     }),
     getMonthly: asyncHandler(async (req, res) => {
       const plan = await useCases.getMonthly.execute(actorOf(req), requiredParam(req.params, 'id'));
+      sendSuccess(req, res, plan, 'Monthly plan.', 200);
+    }),
+    getUserMonthly: asyncHandler(async (req, res) => {
+      const plan = await useCases.getMonthly.forUserMonth(actorOf(req), requiredParam(req.params, 'userId'), requiredParam(req.params, 'month'));
       sendSuccess(req, res, plan, 'Monthly plan.', 200);
     }),
     planOwnerRoutes: asyncHandler(async (req, res) => {

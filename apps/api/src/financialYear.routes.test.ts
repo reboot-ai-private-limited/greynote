@@ -83,6 +83,7 @@ const BY_ID = [
   '/api/field-activity/doctor-services/:id',
   '/api/planning/monthly/:id',
   '/api/planning/monthly/:id/routes',
+  '/api/planning/users/:userId/monthly/:month', // one named month of one employee's plan: a single record, found by who and when
   '/api/hr/leaves/:id',
   '/api/sales/orders/:id',
   '/api/reports/orders/:id',
