@@ -91,6 +91,26 @@ export interface MonthlyPlanDto extends PlanStateDto {
   updatedAt: string;
 }
 
+/** A route as the plan screens name it. */
+export interface PlanRouteDto {
+  id: string;
+  name: string;
+  routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION';
+}
+
+/** `GET /planning/monthly/:id`: the plan, and every route its entries and amendments use. */
+export interface MonthlyPlanDetailDto extends MonthlyPlanDto {
+  /** Oldest first: what a manager or Admin changed while the plan waited, with the days each change replaced. */
+  amendments: Array<Omit<PlanAmendmentDto, 'previous'> & { previous: MonthlyPlanEntryDto[] }>;
+  routes: PlanRouteDto[];
+}
+
+/** `PATCH /planning/monthly/:id/amend`: the whole month as it should be (no stay/transit days), and why. */
+export interface AmendMonthlyPlanDto {
+  entries: Array<Pick<MonthlyPlanEntryDto, 'planDate' | 'workingType' | 'workWith' | 'routeIds' | 'remarks'> & { returnDate?: string }>;
+  reason: string;
+}
+
 export type LateSubmitGrantStatus = 'OPEN' | 'USED' | 'REVOKED' | 'EXPIRED';
 
 /** `GET /planning/late-grants`: a one-off exception that lets one employee submit one plan after its deadline. */

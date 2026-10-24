@@ -1,6 +1,7 @@
 'use client';
 
 import { Badge } from '@/components/ui/Badge';
+import { formatDateTime } from '@/lib/format';
 import { useMonthlyPlan } from '../hooks/usePreviews';
 import { monthRows, monthSummary, offDayLabel, planDayLabel } from '../lib/plans';
 import { PlanDayView } from './PlanDayView';
@@ -36,6 +37,16 @@ export function MonthlyPlanPreview({ recordId }: { recordId: string }) {
                 </li>
               ))}
             </ol>
+          ) : null}
+          {plan.amendments.length > 0 ? (
+            <div className="space-y-1 rounded-md border border-border bg-surface-hover/60 p-3 text-sm">
+              <p className="font-medium text-text">Changed while waiting</p>
+              {plan.amendments.map((a) => (
+                <p key={a.at} className="text-text-muted">
+                  {formatDateTime(a.at)} · {a.reason} <span className="text-text-subtle">({a.previous.length} planned {a.previous.length === 1 ? 'day' : 'days'} replaced)</span>
+                </p>
+              ))}
+            </div>
           ) : null}
         </div>
       ) : null}

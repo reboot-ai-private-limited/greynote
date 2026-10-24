@@ -1,5 +1,6 @@
 'use client';
 
+import type { AmendMonthlyPlanDto, MonthlyPlanDetailDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { fieldActivityApi } from '@/lib/api/endpoints/fieldActivity';
 import { hrApi } from '@/lib/api/endpoints/hr';
@@ -84,6 +85,26 @@ export function useMonthlyPlan(id: string) {
       staleTime: staleTime.live,
     }),
   );
+}
+
+export function usePlanOwnerRoutes(id: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: [...keys.plans.monthly(id), 'routes'] as const,
+      fetch: (token, signal) => planningApi.monthlyRoutes(token, id, signal),
+      staleTime: staleTime.live,
+    }),
+  );
+}
+
+/** Admin or a manager replaces the whole month of a waiting plan; the approval stays where it is. */
+export function useAmendMonthlyPlan(id: string, onDone: () => void) {
+  return useApiMutation<AmendMonthlyPlanDto, MonthlyPlanDetailDto>({
+    call: (token, body) => planningApi.amendMonthly(token, id, body),
+    invalidates: [keys.plans.monthly(id), keys.approvals.all()],
+    successMessage: 'The plan was changed. The employee has been told.',
+    onSuccess: onDone,
+  });
 }
 
 export function useDoctorService(id: string) {

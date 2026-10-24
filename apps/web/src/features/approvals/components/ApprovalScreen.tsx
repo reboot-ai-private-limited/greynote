@@ -14,15 +14,33 @@ import { formatDateTime } from '@/lib/format';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useApproval, type DecisionAction } from '../hooks/useApprovals';
 import { STATUS_LABEL, STATUS_TONE, isOpen, kindLabel, stageLabel } from '../lib/approvals';
+import { useSession } from '@/lib/auth/SessionProvider';
+import { AmendMonthlyPlanDialog } from './AmendMonthlyPlanDialog';
+import { useMonthlyPlan } from '../hooks/usePreviews';
 import { ApprovalPreview } from './ApprovalPreview';
 import { DecisionDialog } from './DecisionDialog';
 import { HistoryTimeline } from './HistoryTimeline';
+
+/** Admin or a manager changes a month that is waiting for them (not their own); everything else about the request stays as it is. */
+function EditMonthlyPlanButton({ recordId, disabled }: { recordId: string; disabled: boolean }) {
+  const [open, setOpen] = useState(false);
+  const plan = useMonthlyPlan(recordId);
+  return (
+    <>
+      <Button variant="secondary" disabled={disabled || !plan.data} title={disabled ? 'A past financial year is read-only' : undefined} onClick={() => setOpen(true)}>
+        Edit plan
+      </Button>
+      {open && plan.data ? <AmendMonthlyPlanDialog plan={plan.data} onClose={() => setOpen(false)} /> : null}
+    </>
+  );
+}
 
 export function ApprovalScreen({ id }: { id: string }) {
   const router = useRouter();
   const readOnly = useIsReadOnly();
   const query = useApproval(id);
   const request = query.data;
+  const me = useSession().user;
   const [action, setAction] = useState<DecisionAction | null>(null);
 
   return (
@@ -67,6 +85,9 @@ export function ApprovalScreen({ id }: { id: string }) {
                 </p>
                 {request.canAct ? (
                   <>
+                    {request.kind === 'MONTHLY_PLAN' && request.status === 'SUBMITTED' && request.submitter?.id !== me?.id ? (
+                      <EditMonthlyPlanButton recordId={request.recordId} disabled={readOnly} />
+                    ) : null}
                     <Button variant="secondary" disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setAction('reject')}>
                       Reject
                     </Button>
