@@ -63,7 +63,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
     enterable.includes(thisMonth) ? thisMonth : (enterable[enterable.length - 1] ?? thisMonth),
   );
   // A manager's target is the total of their MRs, so there is nothing to set (or remove) on a manager.
-  const canSetTargets = !data?.team && (me?.role === 'ADMIN' || (me?.role === 'FIELD' && me.id !== userId));
+  const canSetTargets = !data?.team && (me?.role === 'ADMIN' || me?.role === 'HR');
   const name = data?.employee.name ?? 'Employee';
 
   const monthOptions = fyMonths.map((m) => ({ value: m, label: monthLabel(m) }));
@@ -217,7 +217,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
         </div>
       </DataState>
 
-      {me?.role === 'ACCOUNTANT' || data?.team ? null : (
+      {me?.role === 'ACCOUNTANT' || me?.role === 'HR' || data?.team ? null : (
       <div className="mt-6">
         <Card
           title="Enter the month's figures"

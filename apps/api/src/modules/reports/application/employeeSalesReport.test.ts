@@ -63,6 +63,11 @@ describe('EmployeeSalesReport', () => {
     expect(out.targets[1]).toMatchObject({ id: 't2', product: null, achievedPaise: 40_000 });
   });
 
+  it('lets HR read any employee’s figures', async () => {
+    const out = await report.read({ actor: { id: 'hr1', role: 'HR' }, ...input });
+    expect(out.targets.length).toBeGreaterThan(0);
+  });
+
   it('lists the employee\'s Done orders by distributor, adding up to their order primary', async () => {
     const out = await report.read({ actor: { id: 'acct', role: 'ACCOUNTANT' }, ...input });
     expect(out.distributors).toEqual([

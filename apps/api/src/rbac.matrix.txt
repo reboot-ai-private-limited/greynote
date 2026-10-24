@@ -18,7 +18,7 @@ DELETE /api/identity/users/:id/documents/:documentId  ADMIN,HR
 DELETE /api/identity/users/:id/photo  ADMIN,HR
 DELETE /api/inbox/messages/:id  ADMIN
 DELETE /api/marketing/doctors/:doctorId/visuals/:visualId  ADMIN,FIELD
-DELETE /api/marketing/targets/:id  ADMIN,FIELD
+DELETE /api/marketing/targets/:id  ADMIN,HR
 DELETE /api/marketing/visuals/:id  ADMIN
 DELETE /api/territory/hqs/:id  ADMIN
 DELETE /api/territory/routes/:id  ADMIN
@@ -100,8 +100,8 @@ GET    /api/inbox/messages  ADMIN
 GET    /api/inbox/unread-count  ANY
 GET    /api/marketing/campaigns  ADMIN,FIELD
 GET    /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
-GET    /api/marketing/targets  ADMIN,FIELD
-GET    /api/marketing/targets/:userId  ADMIN,FIELD
+GET    /api/marketing/targets  ADMIN,FIELD,HR
+GET    /api/marketing/targets/:userId  ADMIN,FIELD,HR
 GET    /api/marketing/visuals  ADMIN,FIELD
 GET    /api/marketing/visuals/:id/delete-impact  ADMIN
 GET    /api/payroll  ACCOUNTANT,ADMIN,HR
@@ -122,7 +122,7 @@ GET    /api/planning/users/:userId/monthly/:month  ADMIN,FIELD
 GET    /api/reports/dcr  ADMIN
 GET    /api/reports/dcr/coverage  ADMIN
 GET    /api/reports/doctor-visits  ADMIN,FIELD
-GET    /api/reports/employee-sales  ACCOUNTANT,ADMIN,FIELD
+GET    /api/reports/employee-sales  ACCOUNTANT,ADMIN,FIELD,HR
 GET    /api/reports/me/dcr  FIELD
 GET    /api/reports/me/dcr/coverage  FIELD
 GET    /api/reports/me/ta-da  FIELD
@@ -131,7 +131,7 @@ GET    /api/reports/orders  ACCOUNTANT,ADMIN
 GET    /api/reports/orders/:id  ACCOUNTANT,ADMIN
 GET    /api/reports/salary  ADMIN
 GET    /api/reports/sales  ADMIN
-GET    /api/reports/sales-dashboard  ACCOUNTANT,ADMIN,FIELD
+GET    /api/reports/sales-dashboard  ACCOUNTANT,ADMIN,FIELD,HR
 GET    /api/reports/sales/statement  ADMIN
 GET    /api/reports/stock  ADMIN
 GET    /api/reports/ta-da  ADMIN
@@ -187,7 +187,7 @@ PATCH  /api/identity/pay-components/:id  ADMIN,HR
 PATCH  /api/identity/roles/:id  ADMIN
 PATCH  /api/identity/users/:id  ADMIN,HR
 PATCH  /api/marketing/campaigns/:id  ADMIN
-PATCH  /api/marketing/targets/:id  ADMIN,FIELD
+PATCH  /api/marketing/targets/:id  ADMIN,HR
 PATCH  /api/marketing/visuals/:id  ADMIN
 PATCH  /api/planning/daily/:id/amend  ADMIN,FIELD
 PATCH  /api/planning/monthly/:id/amend  ADMIN,FIELD
@@ -267,7 +267,7 @@ POST   /api/inbox/messages  ADMIN
 POST   /api/inbox/read-all  ANY
 POST   /api/marketing/campaigns  ADMIN
 POST   /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
-POST   /api/marketing/targets  ADMIN,FIELD
+POST   /api/marketing/targets  ADMIN,HR
 POST   /api/marketing/visuals  ADMIN
 POST   /api/marketing/visuals/:id/file  ADMIN
 POST   /api/payroll/:id/adjustments  ADMIN,HR

@@ -150,7 +150,7 @@ export function SalesDashboardScreen() {
     <>
       <PageHeader
         title="Sales dashboard"
-        description={`Field employees only. Plans and reports count the employee's working days; target, primary and achievement (what their distributors sold on) cover ${months}. Open an employee to set targets and enter figures.`}
+        description={`Field employees only. Plans and reports count the employee's working days; target, primary and achievement (what their distributors sold on) cover ${months}. Open an employee to see their figures, and to set targets (Admin and HR) or enter figures.`}
         actions={
           <Button
             variant="secondary"

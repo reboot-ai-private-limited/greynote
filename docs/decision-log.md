@@ -2441,3 +2441,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Decision:** HR can decide a Daily or Monthly plan at any stage, ahead of the manager (`ADMIN_OVERRIDE`, and that approval is final), see them in its Approvals queue and Reviewed list, and reopen an approved plan. A kind opts in with `overrideRoles` when it registers; Admin always may. Leave does not opt in, so it stays manager, then HR or Admin. Every other kind stays Admin only. No migration.
 
 **Open:** whether HR should also override Daily report, Monthly expenses (the PRD gives expense auditing to the Accountant), New doctor and Doctor service.
+
+## 2026-10-24: HR sets targets; managers only view them
+
+**Decision:** Only Admin and HR set, edit or remove Targets (`POST`, `PATCH`, `DELETE /marketing/targets`); a manager can no longer set them for their team, and a plain MR never could. Managers still read their team's targets and the Sales dashboard (downline only). HR gets the Sales dashboard and the employee view org-wide, like the Accountant, and sets targets there; HR does not enter secondary figures or adjust the primary (still Admin and managers). A manager still has no target of their own. This supersedes the earlier "Admin or a manager sets Targets" entries and makes "manager changes to MR targets bypass approval" moot.
+
+**Open:** the phone app still shows Set and Remove to managers and must drop them (`docs/mobile/secondary-and-targets.md`); the app is another team's.

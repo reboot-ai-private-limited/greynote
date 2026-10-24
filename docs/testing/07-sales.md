@@ -25,7 +25,7 @@
 | 7.21 | Sales dashboard, open an employee; Set a target for All products, Oct–Dec, ₹3,00,000 | the target appears in "Targets"; with "This quarter" the Target tile shows ₹3,00,000 | |
 | 7.22 | Enter a secondary of 40 for a product, Save | the Secondary tile = 40 × that product's PTS; achievement % = secondary ÷ target | |
 | 7.23 | Change a product's primary total with no reason, Save | refused ("Say why"); with a reason it saves, and Primary = orders + the change at PTS | |
-| 7.24 | Open the same employee as a manager above them, and as someone else | the manager can set targets and enter figures but not change primary; a stranger gets 403 | |
+| 7.24 | Open the same employee as a manager above them, and as someone else | the manager can see targets and enter figures but not set targets or change primary (set gives 403); a stranger gets 403 | |
 | 7.25 | Remove a target | it disappears; "Targets" and the totals update | |
 | 7.20 | Stock tab in a past financial year, or for an inactive distributor | read-only | |
 
@@ -55,6 +55,7 @@
 | 7.44 | Open a Done or Cancelled order | no Change button; a direct PATCH is `409 ORDER_NOT_PLACED` | |
 | 7.45 | Two people: one marks Done while the other has the change dialog open, then Save | the change is refused with 409, nothing is overwritten | |
 | 7.46 | As Accountant, Distributors → Add distributor (route, people pickers) | the wizard works end to end; the route and employee pickers list names only | |
+| 7.47a | As HR open Sales dashboard and an employee | all employees listed; can set, edit and remove a target; **no** "Enter the month's figures" box | |
 | 7.47 | As Accountant open Sales dashboard and an employee | dashboard and report load; **no** "Enter the month's figures" box; targets cannot be set | |
 | 7.48 | Employee report, "By distributor" | one row per distributor with Done orders in the range; the rows add up to the order part of Primary | |
 | 7.49 | As Accountant, Payroll → "Salary paid" | one row per month with the total and the number paid; no names | |

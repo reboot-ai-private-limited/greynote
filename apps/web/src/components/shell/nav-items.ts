@@ -84,7 +84,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Inbox messages', href: '/inbox', icon: Inbox, group: 'HR', roles: ['ADMIN'] },
   { label: 'Devices', href: '/devices', icon: Smartphone, group: 'HR', roles: ['ADMIN'] },
 
-  { label: 'Sales dashboard', href: '/reports/sales-dashboard', icon: LayoutDashboard, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
+  { label: 'Sales dashboard', href: '/reports/sales-dashboard', icon: LayoutDashboard, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT', 'HR'] },
   { label: 'Orders', href: '/orders', icon: ShoppingCart, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
   { label: 'Distributors', href: '/distributors', icon: Truck, group: 'Sales & Distribution', roles: ['ADMIN', 'ACCOUNTANT'] },
 

@@ -267,7 +267,8 @@ describe('canOpen', () => {
 
   it('reads /reports/sales-dashboard as its own screen, not as /reports/sales', () => {
     expect(canOpen('ADMIN', '/reports/sales-dashboard/u1')).toBe(true);
-    expect(canOpen('HR', '/reports/sales-dashboard')).toBe(false);
+    expect(canOpen('HR', '/reports/sales-dashboard/u1')).toBe(true);
+    expect(canOpen('HR', '/reports/sales')).toBe(false);
   });
 
   it('gives a field role nothing', () => {

@@ -19,15 +19,16 @@ export interface TargetScope {
 }
 
 /**
- * Who may act on `userId`'s targets: Admin anyone; a manager (a FIELD user with people below them) themselves and
- * their downline; nobody else may *set*, and a plain MR may only *read* their own.
+ * Who may act on `userId`'s targets: Admin and HR anyone, and only they may *set*. To *read*, a manager (a FIELD user with
+ * people below them) sees themselves and their downline, and a plain MR their own.
  */
 async function assertMayAct(users: UserDirectoryPort, actor: Actor, userId: string, mode: 'set' | 'read'): Promise<void> {
-  if (actor.role === 'ADMIN') return;
-  if (mode === 'read' && actor.id === userId) return;
+  if (actor.role === 'ADMIN' || actor.role === 'HR') return;
+  if (mode === 'set') throw new MarketingRefusal(MARKETING_CODES.notYourTeam, 'Only Admin or HR can set targets.');
+  if (actor.id === userId) return;
   const downline = actor.role === 'FIELD' ? await users.getDownline(actor.id) : [];
   if (downline.length > 0 && (actor.id === userId || downline.some((u) => u.id === userId))) return;
-  throw new MarketingRefusal(MARKETING_CODES.notYourTeam, mode === 'set' ? 'You can only set targets for yourself and your team.' : 'You can only see targets for yourself and your team.');
+  throw new MarketingRefusal(MARKETING_CODES.notYourTeam, 'You can only see targets for yourself and your team.');
 }
 
 /** An MR is the only one with a target of their own: a manager's is the total of the MRs in their team (decision-log 2026-10-14). */

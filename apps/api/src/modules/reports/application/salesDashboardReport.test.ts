@@ -80,6 +80,11 @@ describe('SalesDashboardReport', () => {
     expect(out.rows.map((r) => r.employee.id)).toEqual(['mr2']);
   });
 
+  it('HR sees every field employee, like Admin', async () => {
+    const out = await build().report.read({ actor: { id: 'hr', role: 'HR' }, ...base });
+    expect(out.rows.length).toBeGreaterThan(0);
+  });
+
   it('a manager sees only their downline; a field employee without a team is refused', async () => {
     const out = await build({ downline: ['mr1', 'mr2'] }).report.read({ actor: { id: 'asm', role: 'FIELD' }, ...base });
     expect(out.rows.map((r) => r.employee.id)).toEqual(['mr1', 'mr2']);

@@ -140,7 +140,7 @@ export class EmployeeSalesReport {
   }
 
   private async assertMayRead(actor: { id: string; role: string }, userId: string): Promise<void> {
-    if (actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT' || actor.id === userId) return;
+    if (actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT' || actor.role === 'HR' || actor.id === userId) return;
     if (actor.role === 'FIELD' && (await this.roster.getDownline(actor.id)).some((u) => u.id === userId)) return;
     throw AppError.forbidden('You can only see your own figures and your team\'s.');
   }

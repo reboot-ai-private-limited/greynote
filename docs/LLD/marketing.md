@@ -97,9 +97,9 @@ publishes, or a reporting layer above both — were rejected as machinery the fi
 | `POST` | `/api/marketing/campaigns` | Admin | Create a Campaign |
 | `GET` | `/api/marketing/campaigns` | Admin, FIELD | List Campaigns, optionally filtered by status |
 | `PATCH` | `/api/marketing/campaigns/:id` | Admin | Update status (active/inactive/completed) |
-| `POST` | `/api/marketing/targets` | Admin, manager (FIELD) | Set a Target for self or a downline member |
-| `PATCH` | `/api/marketing/targets/:id` | Admin, manager (FIELD) | Edit a Target in place: months, product, amount or units (2026-10-22) |
-| `GET` | `/api/marketing/targets/:userId?month=&productId=&campaignId=` | Admin, manager (FIELD, own downline), self | Own + downline target, and achieved, for a month |
+| `POST` | `/api/marketing/targets` | Admin, HR | Set a Target for an MR |
+| `PATCH` | `/api/marketing/targets/:id` | Admin, HR | Edit a Target in place: months, product, amount or units (2026-10-22) |
+| `GET` | `/api/marketing/targets/:userId?month=&productId=&campaignId=` | Admin, HR, manager (FIELD, own downline), self | Own + downline target, and achieved, for a month |
 
 **As built (2026-09-30):** Visual files go to Cloudinary through `shared/storage/cloudinary.ts` (also used by Identity's
 documents; configured only when an upload happens). The file is stored first and taken back out if the row cannot be
@@ -155,7 +155,7 @@ A Visual deactivated later is hidden from the MR and shown, with its status, to 
 
 ## Targets over month ranges; achievement from Sales (2026-10-10)
 
-`Target` gains `toMonth` (`month` is the first): unique on `(userId, month, toMonth, productId, campaignId)`; both ends must be months of the **current** financial year and open (`assertMonthInCurrentFinancialYear` for each), `toMonth ≥ month`. `targetShare(target, window)` (`domain/targetRange.ts`) spreads the amount evenly over the target's months and returns the part inside a window. `POST /api/marketing/targets` `{ userId, month, toMonth?, productId?, targetAmountPaise }`, `GET /api/marketing/targets?userId&from&to` (each with its share), `DELETE /api/marketing/targets/:id` — Admin for anyone, a manager for self and downline. The contract's `listMonthFigures` becomes `listTargetShares(userIds, fromMonth, toMonth)`. The **Achievement section above is superseded**: the route, use cases and port are removed; achievement is the employee's secondary (Sales `EmployeeSale`), computed by Reports. The rollup (`GetTargetSummaryUseCase`) counts each target's share of the month.
+`Target` gains `toMonth` (`month` is the first): unique on `(userId, month, toMonth, productId, campaignId)`; both ends must be months of the **current** financial year and open (`assertMonthInCurrentFinancialYear` for each), `toMonth ≥ month`. `targetShare(target, window)` (`domain/targetRange.ts`) spreads the amount evenly over the target's months and returns the part inside a window. `POST /api/marketing/targets` `{ userId, month, toMonth?, productId?, targetAmountPaise }`, `GET /api/marketing/targets?userId&from&to` (each with its share), `DELETE /api/marketing/targets/:id` — Admin or HR for anyone (a manager only reads, since 2026-10-24). The contract's `listMonthFigures` becomes `listTargetShares(userIds, fromMonth, toMonth)`. The **Achievement section above is superseded**: the route, use cases and port are removed; achievement is the employee's secondary (Sales `EmployeeSale`), computed by Reports. The rollup (`GetTargetSummaryUseCase`) counts each target's share of the month.
 
 ## Targets in units; manager edits to a doctor's visuals (2026-10-12)
 

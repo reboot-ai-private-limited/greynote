@@ -130,6 +130,7 @@ const users: UserDirectoryPort = {
 };
 const products: ProductPort = { async getProduct(id) { return id === 'prod1' ? { id, status: 'active', ptsPaise: 1200 } : id === 'prodOff' ? { id, status: 'inactive', ptsPaise: null } : id === 'prodNoPts' ? { id, status: 'active', ptsPaise: null } : null; } };
 const admin = { id: 'admin', role: 'ADMIN' };
+const hr = { id: 'hr', role: 'HR' };
 const f = (id: string) => ({ id, role: 'FIELD' });
 
 describe('target units and amount', () => {
@@ -176,12 +177,11 @@ describe('targets', () => {
     expect(targets.rows.size).toBe(2);
   });
 
-  it('a manager sets their own and their downline’s (any depth), and no one else’s', async () => {
-    await set.execute(f('asm'), { userId: 'mr1', ...general, targetAmountPaise: 1 });
-    await set.execute(f('rsm'), { userId: 'mr1', ...general, targetAmountPaise: 2 }); // two levels down
-    expect(await code(set.execute(f('asm'), { userId: 'asm', ...general, targetAmountPaise: 3 }))).toBe(MARKETING_CODES.invalidDates); // a manager's is the sum of their MRs
-    expect(await code(set.execute(f('asm'), { userId: 'mr3', ...general, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam);
-    expect(await code(set.execute(f('asm'), { userId: 'rsm', ...general, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam); // upward
+  it('Admin and HR set anyone’s (any depth), never a manager’s; a manager, even above the MR, may not set', async () => {
+    await set.execute(hr, { userId: 'mr1', ...general, targetAmountPaise: 1 });
+    await set.execute(hr, { userId: 'mr3', ...general, targetAmountPaise: 2 }); // outside any one manager's team
+    expect(await code(set.execute(hr, { userId: 'asm', ...general, targetAmountPaise: 3 }))).toBe(MARKETING_CODES.invalidDates); // a manager's is the sum of their MRs
+    for (const manager of ['asm', 'rsm']) expect(await code(set.execute(f(manager), { userId: 'mr1', ...general, targetAmountPaise: 1 }))).toBe(MARKETING_CODES.notYourTeam);
   });
 
   describe('editing a target in place', () => {
@@ -190,8 +190,8 @@ describe('targets', () => {
 
     it('changes the months, the product and the amount on the same target, and records who changed it', async () => {
       const t = await first();
-      const edited = await edit().execute(f('asm'), t.id, { month: '2026-11', toMonth: '2027-01', productId: 'prod1', targetAmountPaise: 120_000 });
-      expect(edited).toMatchObject({ id: t.id, userId: 'mr1', month: '2026-11', toMonth: '2027-01', productId: 'prod1', targetAmountPaise: 120_000, targetQty: 100, createdBy: 'asm' });
+      const edited = await edit().execute(hr, t.id, { month: '2026-11', toMonth: '2027-01', productId: 'prod1', targetAmountPaise: 120_000 });
+      expect(edited).toMatchObject({ id: t.id, userId: 'mr1', month: '2026-11', toMonth: '2027-01', productId: 'prod1', targetAmountPaise: 120_000, targetQty: 100, createdBy: 'hr' });
       expect(targets.rows.size).toBe(1);
       // Back to all products, as an amount; units only go with a product.
       expect(await edit().execute(admin, t.id, { month: '2026-11', productId: null, targetAmountPaise: 90_000 })).toMatchObject({ productId: null, toMonth: '2026-11', targetQty: null });
@@ -335,11 +335,12 @@ describe('targets over a run of months', () => {
     expect(rows.map((r) => [r.userId, r.productId, r.sharePaise])).toEqual([['mr1', 'prod1', 100], ['mr1', null, 50]]);
   });
 
-  it('removes a target: Admin or the manager above; not a stranger, not a missing one', async () => {
+  it('removes a target: Admin or HR; not a manager, not a missing one', async () => {
     const t = await set.execute(admin, { ...base, month: '2026-10', targetAmountPaise: 100 });
     const del = new DeleteTargetUseCase(targets, users, config, today);
     expect(await code(del.execute(f('mr3'), t.id))).toBe(MARKETING_CODES.notYourTeam);
-    expect(await code(del.execute(f('asm'), t.id))).toBeNull();
+    expect(await code(del.execute(f('asm'), t.id))).toBe(MARKETING_CODES.notYourTeam);
+    expect(await code(del.execute(hr, t.id))).toBeNull();
     expect(await code(del.execute(admin, t.id))).toBe(MARKETING_CODES.targetNotFound);
   });
 });
