@@ -59,9 +59,9 @@ export default function ProfileScreen() {
 
   async function handleLogout() {
     setLoggingOut(true);
+    // The root layout sends us to Login as soon as the session clears. Don't navigate here too,
+    // or Login mounts a second time.
     await logout();
-    // The (tabs) layout redirects once the session clears; this covers leaving Profile itself.
-    router.replace('/login');
   }
 
   return (

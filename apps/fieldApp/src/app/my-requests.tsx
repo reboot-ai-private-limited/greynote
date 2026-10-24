@@ -1,33 +1,42 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { ApprovalRow } from '@/components/approval-row';
-import { ChoiceChips } from '@/components/choice-chips';
 import { FyBanner } from '@/components/fy-banner';
 import { Notice } from '@/components/notice';
+import { OutletPicker } from '@/components/outlet-picker';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
-import { listMine, type ApprovalItem, type ApprovalStatus } from '@/lib/approvals';
+import { Spacing } from '@/constants/theme';
+import { APPROVAL_KINDS, isOneApproval, kindLabel, listMine, type ApprovalItem } from '@/lib/approvals';
 import { useFinancialYear } from '@/lib/financial-year';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { formatWhen } from '@/offline/day';
 
-type Filter = 'ALL' | 'WAITING' | 'APPROVED' | 'REJECTED';
+const ALL = 'ALL';
 
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'ALL', label: 'All' },
-  { value: 'WAITING', label: 'Waiting' },
-  { value: 'APPROVED', label: 'Approved' },
-  { value: 'REJECTED', label: 'Rejected' },
+type StatusFilter = typeof ALL | 'WAITING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN' | 'REOPENED';
+
+const STATUS_OPTIONS: { id: StatusFilter; name: string }[] = [
+  { id: ALL, name: 'All statuses' },
+  { id: 'WAITING', name: 'Waiting' },
+  { id: 'APPROVED', name: 'Approved' },
+  { id: 'REJECTED', name: 'Rejected' },
+  { id: 'WITHDRAWN', name: 'Withdrawn' },
+  { id: 'REOPENED', name: 'Reopened' },
 ];
 
-const MATCH: Record<Filter, ApprovalStatus[] | null> = {
-  ALL: null,
-  WAITING: ['SUBMITTED', 'MANAGER_APPROVED'],
-  APPROVED: ['APPROVED'],
-  REJECTED: ['REJECTED'],
-};
+/**
+ * Which status group a request falls in, the same way its row words it (`statusLabel`): a one-approval request left at
+ * `MANAGER_APPROVED` is approved, while a two-step one at `MANAGER_APPROVED` is still waiting, for Admin.
+ */
+function statusGroup(i: ApprovalItem): Exclude<StatusFilter, typeof ALL> {
+  if (i.status === 'MANAGER_APPROVED') return isOneApproval(i) ? 'APPROVED' : 'WAITING';
+  if (i.status === 'SUBMITTED') return 'WAITING';
+  return i.status;
+}
 
 /**
  * My Requests (PRD §7.4): everything I have sent for approval — plans, plan changes, daily reports, leave, new doctors,
@@ -37,7 +46,8 @@ const MATCH: Record<Filter, ApprovalStatus[] | null> = {
 export default function MyRequestsScreen() {
   const online = useOnline();
   const fy = useFinancialYear();
-  const [filter, setFilter] = useState<Filter>('ALL');
+  const [kind, setKind] = useState<string>(ALL);
+  const [status, setStatus] = useState<StatusFilter>(ALL);
   const mine = useCachedFetch<{ items: ApprovalItem[]; total: number }>(`mine:${fy.year}`, () => listMine());
 
   // Coming back from a request (it may have been withdrawn there) shows its new state; the first focus is the initial load.
@@ -50,16 +60,29 @@ export default function MyRequestsScreen() {
     }, [reload]),
   );
 
-  const shown = useMemo(() => {
-    const statuses = MATCH[filter];
-    const all = mine.data?.items ?? [];
-    return statuses ? all.filter((i) => statuses.includes(i.status)) : all;
-  }, [mine.data, filter]);
+  // Every request type, plus any the server sent that this app doesn't know yet.
+  const kindOptions = useMemo(() => {
+    const kinds = [...APPROVAL_KINDS] as string[];
+    for (const i of mine.data?.items ?? []) if (!kinds.includes(i.kind)) kinds.push(i.kind);
+    return [{ id: ALL, name: 'All types' }, ...kinds.map((k) => ({ id: k, name: kindLabel(k) }))];
+  }, [mine.data]);
+
+  const shown = useMemo(
+    () => (mine.data?.items ?? []).filter((i) => (kind === ALL || i.kind === kind) && (status === ALL || statusGroup(i) === status)),
+    [mine.data, kind, status],
+  );
 
   return (
     <ScreenShell title="My Requests" onRefresh={mine.reload} refreshing={mine.refreshing}>
       <FyBanner />
-      <ChoiceChips options={FILTERS} value={filter} onChange={setFilter} />
+      <View style={styles.filters}>
+        <View style={styles.filter}>
+          <OutletPicker label="Type" options={kindOptions} value={kind} onChange={setKind} emptyText="No types." />
+        </View>
+        <View style={styles.filter}>
+          <OutletPicker label="Status" options={STATUS_OPTIONS} value={status} onChange={(id) => setStatus(id as StatusFilter)} emptyText="No statuses." />
+        </View>
+      </View>
 
       {mine.stale && mine.fetchedAt && mine.data ? (
         <Notice tone="info">{`${online ? 'Updating… ' : 'You’re offline. '}Showing the list from ${formatWhen(mine.fetchedAt)}.`}</Notice>
@@ -90,3 +113,8 @@ export default function MyRequestsScreen() {
     </ScreenShell>
   );
 }
+
+const styles = StyleSheet.create({
+  filters: { flexDirection: 'row', gap: Spacing.two },
+  filter: { flex: 1 },
+});

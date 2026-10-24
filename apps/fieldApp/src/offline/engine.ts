@@ -73,8 +73,7 @@ export async function pull(): Promise<PullResult> {
     if ('error' in entry) {
       result.failed.push(source);
     } else if ('unchanged' in entry) {
-      const held = await store.getCache(source);
-      if (held) await store.setCache(source, { ...held, fetchedAt: now });
+      await store.touchCache(source, now);
       result.unchanged.push(source);
     } else {
       await store.setCache(source, { version: entry.version, data: entry.data, fetchedAt: now });
@@ -86,7 +85,7 @@ export async function pull(): Promise<PullResult> {
   await store.setMeta('clockOffsetMs', String(Date.now() - new Date(response.serverTime).getTime()));
   await store.setMeta('lastPullAt', now);
   setStatus({ lastPullAt: now });
-  notifyCacheChanged();
+  notifyCacheChanged({ updated: result.updated, touched: result.unchanged, at: now });
   return result;
 }
 
@@ -372,7 +371,10 @@ export async function restoreDrafts(): Promise<number> {
  */
 export async function prepareForUser(userId: string): Promise<void> {
   const previous = await store.getMeta('userId');
-  if (previous && previous !== userId) await store.clearAll();
+  if (previous && previous !== userId) {
+    await store.clearAll();
+    notifyCacheChanged(); // the screens' shared copies were the last person's
+  }
   await store.setMeta('userId', userId);
   if ((await store.listRecords()).length === 0 && isOnline()) {
     try {
@@ -438,6 +440,7 @@ export async function refreshNow(): Promise<void> {
 
 export async function resetOfflineData(): Promise<void> {
   await store.clearAll();
+  notifyCacheChanged();
   status = { syncing: false, lastPullAt: null, lastBackupAt: null, lastError: null };
   statusListeners.forEach((l) => l());
   notifyOutboxChanged();

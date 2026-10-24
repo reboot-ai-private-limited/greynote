@@ -47,7 +47,7 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
   const territory = useCachedSource<TerritorySnapshot>('territory');
   const routes: { id: string; name: string; routeType: string; detail: string }[] = forOther
     ? forOther.routes.map((r) => ({ ...r, detail: routeTypeLabel(r.routeType) ?? '' }))
-    : (territory.data?.routes ?? []).map((r) => ({ ...r, detail: `${r.hqName}${r.distanceKm ? ` · ${r.distanceKm} km` : ''}` }));
+    : (territory.data?.routes ?? []).map((r) => ({ ...r, detail: r.hqName }));
   const routesLoaded = forOther ? forOther.routesLoaded : territory.loaded;
   const needsRoute = isFieldDay(value.workingType);
   // A trip needs at least one out-station route; the return day is then asked for.

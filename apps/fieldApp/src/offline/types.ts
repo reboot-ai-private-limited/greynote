@@ -61,6 +61,8 @@ export interface Store {
   purgeRecords(clientIds: string[]): Promise<void>;
   getCache(source: string): Promise<CachedSource | null>;
   setCache(source: string, entry: CachedSource): Promise<void>;
+  /** Marks a held snapshot as confirmed current at `fetchedAt` without rewriting its data (a pull said "unchanged"). */
+  touchCache(source: string, fetchedAt: string): Promise<void>;
   listCacheVersions(): Promise<Record<string, string>>;
   getMeta(key: string): Promise<string | null>;
   setMeta(key: string, value: string): Promise<void>;
