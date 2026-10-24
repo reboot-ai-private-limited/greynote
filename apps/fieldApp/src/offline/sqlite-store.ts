@@ -175,6 +175,11 @@ export class SqliteStore implements Store {
     );
   }
 
+  async touchCache(source: string, fetchedAt: string) {
+    // Only the time: the data can be large (every doctor and chemist), and re-reading, parsing and rewriting it is what made each sync slow.
+    await this.run((db) => db.runAsync('UPDATE cache SET fetched_at = ? WHERE source = ?', fetchedAt, source));
+  }
+
   async listCacheVersions() {
     const rows = await this.run((db) => db.getAllAsync<{ source: string; version: string }>('SELECT source, version FROM cache'));
     return Object.fromEntries(rows.map((r) => [r.source, r.version]));

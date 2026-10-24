@@ -42,6 +42,10 @@ export class MemoryStore implements Store {
   async setCache(source: string, entry: CachedSource) {
     this.cache.set(source, structuredClone(entry));
   }
+  async touchCache(source: string, fetchedAt: string) {
+    const c = this.cache.get(source);
+    if (c) c.fetchedAt = fetchedAt;
+  }
   async listCacheVersions() {
     return Object.fromEntries([...this.cache].map(([s, c]) => [s, c.version]));
   }
