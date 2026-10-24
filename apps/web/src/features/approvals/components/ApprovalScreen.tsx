@@ -18,6 +18,7 @@ import { useSession } from '@/lib/auth/SessionProvider';
 import { AmendMonthlyPlanDialog } from './AmendMonthlyPlanDialog';
 import { useMonthlyPlan } from '../hooks/usePreviews';
 import { ApprovalPreview } from './ApprovalPreview';
+import { DownloadCsvButton } from './DownloadCsvButton';
 import { DecisionDialog } from './DecisionDialog';
 import { HistoryTimeline } from './HistoryTimeline';
 
@@ -73,6 +74,7 @@ export function ApprovalScreen({ id }: { id: string }) {
               }
               actions={
                 <div className="flex items-center gap-1.5">
+                  <DownloadCsvButton request={request} />
                   <Badge tone={STATUS_TONE[request.status]}>{isOpen(request.status) ? stageLabel(request) : STATUS_LABEL[request.status]}</Badge>
                   {request.overdue ? <Badge tone="danger">Overdue</Badge> : null}
                 </div>

@@ -6,9 +6,9 @@ import { FormDialog } from '@/components/ui/FormDialog';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
-import { designationsApi, identityApi } from '@/lib/api/endpoints/identity';
 import { planningApi } from '@/lib/api/endpoints/planning';
 import { useCsvExport } from '@/lib/hooks/useCsvExport';
+import { resolveWorkWithLabels } from '../lib/workWithLabels';
 import { isDownloadable, monthlyPlanCsv, monthlyPlanFilename, notApprovedMessage } from '../lib/monthlyPlanCsv';
 
 /** Plans are made a month ahead, so the month asked for first is next month (`YYYY-MM`). */
@@ -27,16 +27,7 @@ export function DownloadMonthlyPlanDialog({ user, onClose }: { user: Pick<UserDe
   const download = useCsvExport(async (token, planMonth: string) => {
     const plan = await planningApi.userMonthly(token, user.id, planMonth);
     if (!isDownloadable(plan.status)) throw new Error(notApprovedMessage(planMonth));
-    // Name the colleagues once, up front: a CSV row cannot wait on a hook.
-    const ids = [...new Set(plan.entries.flatMap((e) => e.workWith))];
-    const [people, designations] = ids.length > 0 ? await Promise.all([Promise.all(ids.map((id) => identityApi.user(token, id))), designationsApi.list(token)]) : [[], []];
-    const designationOf = new Map(designations.map((d) => [d.id, d.name]));
-    const label = new Map(
-      people.map((p) => {
-        const designation = designationOf.get(p.profile?.designationId ?? '');
-        return [p.id, designation ? `${p.name} (${designation})` : p.name];
-      }),
-    );
+    const label = await resolveWorkWithLabels(token, plan.entries.flatMap((e) => e.workWith));
     return {
       filename: monthlyPlanFilename(user.employeeCode, planMonth),
       csv: monthlyPlanCsv(plan, { routeLabel: directory.routeLabel, personName: (id) => label.get(id) ?? '—' }),
