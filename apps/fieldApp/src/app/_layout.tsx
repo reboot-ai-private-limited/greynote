@@ -27,7 +27,12 @@ export default function RootLayout() {
   usePush();
   const wasSignedIn = useRef(false);
   useEffect(() => {
-    if (wasSignedIn.current && !user) router.replace('/login');
+    if (wasSignedIn.current && !user) {
+      // Clear the whole stack first: a plain replace only swaps the top screen, which would leave
+      // (tabs) under Login and let Android's back button reopen the app signed out.
+      if (router.canDismiss()) router.dismissAll();
+      router.replace('/login');
+    }
     wasSignedIn.current = !!user;
   }, [user]);
 
