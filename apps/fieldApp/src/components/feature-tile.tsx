@@ -46,14 +46,9 @@ export function FeatureTile({ feature, lockedReason, width, onOpen, onLockedPres
           <View style={styles.ctaIcon}>
             <SymbolView name={locked ? LOCK : feature.icon} size={22} tintColor="#FFFFFF" />
           </View>
-          <View style={styles.flex}>
-            <ThemedText type="smallBold" numberOfLines={2} style={styles.ctaTitle}>
-              {feature.title}
-            </ThemedText>
-            <ThemedText type="small" numberOfLines={3} style={styles.ctaSubtitle}>
-              {feature.subtitle}
-            </ThemedText>
-          </View>
+          <ThemedText type="smallBold" numberOfLines={2} style={[styles.flex, styles.ctaTitle]}>
+            {feature.title}
+          </ThemedText>
           <View style={styles.ctaArrow}>
             <SymbolView name={ARROW} size={18} tintColor={locked ? theme.textSecondary : Accents.red.solid} />
           </View>
@@ -61,7 +56,7 @@ export function FeatureTile({ feature, lockedReason, width, onOpen, onLockedPres
       ) : (
         <View style={[styles.tile, { backgroundColor: accent.bg, borderColor: accent.border }]}>
           <View style={[styles.chip, { backgroundColor: locked ? theme.textSecondary : accent.solid }]}>
-            <SymbolView name={locked ? LOCK : feature.icon} size={22} tintColor="#FFFFFF" />
+            <SymbolView name={locked ? LOCK : feature.icon} size={28} tintColor="#FFFFFF" />
             {badge ? (
               <View style={styles.badge} accessibilityLabel={`${badge} unread`}>
                 <ThemedText type="smallBold" style={styles.badgeText}>
@@ -70,14 +65,9 @@ export function FeatureTile({ feature, lockedReason, width, onOpen, onLockedPres
               </View>
             ) : null}
           </View>
-          <View style={styles.text}>
-            <ThemedText type="smallBold" numberOfLines={2} style={styles.title}>
-              {feature.title}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" numberOfLines={2} style={styles.subtitle}>
-              {feature.subtitle}
-            </ThemedText>
-          </View>
+          <ThemedText type="smallBold" numberOfLines={2} style={styles.title}>
+            {feature.title}
+          </ThemedText>
         </View>
       )}
     </Pressable>
@@ -95,13 +85,15 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     borderWidth: StyleSheet.hairlineWidth,
     padding: Spacing.three,
-    justifyContent: 'space-between',
+    // Icon and title stacked in the middle of the tile.
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.two,
   },
   chip: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -118,9 +110,7 @@ const styles = StyleSheet.create({
     backgroundColor: Accents.red.solid,
   },
   badgeText: { color: '#FFFFFF', fontSize: 11, lineHeight: 14 },
-  text: { gap: Spacing.half },
-  title: { fontSize: 15, lineHeight: 20 },
-  subtitle: { fontSize: 12, lineHeight: 16, fontWeight: 400 },
+  title: { fontSize: 13, lineHeight: 18, letterSpacing: 0.5, textAlign: 'center', textTransform: 'uppercase' },
   cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', borderWidth: 0, gap: Spacing.three },
   ctaIcon: {
     width: 40,
@@ -130,8 +120,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.22)',
   },
-  ctaTitle: { color: '#FFFFFF', fontSize: 16, lineHeight: 22 },
-  ctaSubtitle: { color: 'rgba(255,255,255,0.9)', fontSize: 12, lineHeight: 16, fontWeight: 400 },
+  ctaTitle: { color: '#FFFFFF', fontSize: 15, lineHeight: 20, letterSpacing: 0.5, textTransform: 'uppercase' },
   ctaArrow: {
     width: 40,
     height: 40,

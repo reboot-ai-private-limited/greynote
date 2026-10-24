@@ -27,6 +27,7 @@ import { useTeam } from '@/offline/team';
 import { ApprovalRow } from '../approval-row';
 import { ChoiceChips } from '../choice-chips';
 import { Notice } from '../notice';
+import { OutletPicker } from '../outlet-picker';
 import { PillToggle } from '../pill-toggle';
 import { PrimaryButton } from '../primary-button';
 import { Skeleton } from '../skeleton';
@@ -59,12 +60,13 @@ const PERIODS: { value: Period; label: string }[] = [
   { value: 'MONTH', label: 'This month' },
   { value: 'LAST_MONTH', label: 'Last month' },
 ];
-const STATUSES: { value: ApprovalStatus | 'ANY'; label: string }[] = [
-  { value: 'ANY', label: 'Any status' },
-  { value: 'SUBMITTED', label: 'Waiting' },
-  { value: 'APPROVED', label: 'Approved' },
-  { value: 'REJECTED', label: 'Rejected' },
-  { value: 'WITHDRAWN', label: 'Withdrawn' },
+const STATUSES: { id: ApprovalStatus | 'ANY'; name: string }[] = [
+  { id: 'ANY', name: 'All statuses' },
+  { id: 'SUBMITTED', name: 'Waiting' },
+  { id: 'APPROVED', name: 'Approved' },
+  { id: 'REJECTED', name: 'Rejected' },
+  { id: 'WITHDRAWN', name: 'Withdrawn' },
+  { id: 'REOPENED', name: 'Reopened' },
 ];
 
 const errorText = (err: unknown) =>
@@ -93,8 +95,8 @@ type Props = {
 
 /**
  * Team → Approvals. "To approve" is what waits on you (your direct reports' requests); "All team requests" is everything below you,
- * with who decides it. Narrow either by type, person, period and overdue (and status on the second list). The type chips on top show
- * how many of each wait on you. Tick several and approve or reject them together, or "Select all" of one type. Needs a connection.
+ * with who decides it. Narrow either by type, person, period and overdue (and status and whose on the second list, as dropdowns).
+ * On "To approve" the type chips show how many of each wait on you. Tick several and approve or reject them together, or "Select all" of one type. Needs a connection.
  */
 export function ApprovalsPanel({ summary, refreshSummary }: Props) {
   const online = useOnline();
@@ -245,11 +247,39 @@ export function ApprovalsPanel({ summary, refreshSummary }: Props) {
         {tab === 'inbox' ? 'Requests from your direct reports that wait for your decision.' : WHOSE_HELP[whose]}
       </ThemedText>
 
-      <ChoiceChips options={kindChips} value={kind ?? 'ALL'} onChange={(v) => { reset(); setKind(v === 'ALL' ? null : v); }} />
-
-      {tab === 'all' ? (
-        <ChoiceChips options={WHOSE} value={whose} onChange={(v) => { reset(); setWhose(v); }} />
-      ) : null}
+      {tab === 'inbox' ? (
+        <ChoiceChips options={kindChips} value={kind ?? 'ALL'} onChange={(v) => { reset(); setKind(v === 'ALL' ? null : v); }} />
+      ) : (
+        <>
+          <View style={styles.dropdownRow}>
+            <View style={styles.dropdown}>
+              <OutletPicker
+                label="Type"
+                options={kindChips.map((k) => ({ id: k.value, name: k.label }))}
+                value={kind ?? 'ALL'}
+                onChange={(v) => { reset(); setKind(v === 'ALL' ? null : v); }}
+                emptyText="No types."
+              />
+            </View>
+            <View style={styles.dropdown}>
+              <OutletPicker
+                label="Status"
+                options={STATUSES}
+                value={status}
+                onChange={(v) => { reset(); setStatus(v as ApprovalStatus | 'ANY'); }}
+                emptyText="No statuses."
+              />
+            </View>
+          </View>
+          <OutletPicker
+            label="Whose"
+            options={WHOSE.map((w) => ({ id: w.value, name: w.label }))}
+            value={whose}
+            onChange={(v) => { reset(); setWhose(v as Whose); }}
+            emptyText="No choices."
+          />
+        </>
+      )}
 
       <PrimaryButton label={showMore ? 'Hide filters' : `More filters${active.length > 0 ? ` (${active.length})` : ''}`} variant="text" onPress={() => setShowMore((s) => !s)} />
       {showMore ? (
@@ -262,12 +292,6 @@ export function ApprovalsPanel({ summary, refreshSummary }: Props) {
           )}
           <ThemedText type="smallBold">Period</ThemedText>
           <ChoiceChips options={PERIODS} value={period} onChange={(v) => { reset(); setPeriod(v); }} />
-          {tab === 'all' ? (
-            <>
-              <ThemedText type="smallBold">Status</ThemedText>
-              <ChoiceChips options={STATUSES} value={status} onChange={(v) => { reset(); setStatus(v); }} />
-            </>
-          ) : null}
           <ThemedText type="smallBold">Overdue</ThemedText>
           <ChoiceChips options={[{ value: 'no', label: 'All' }, { value: 'yes', label: 'Overdue only' }]} value={overdueOnly ? 'yes' : 'no'} onChange={(v) => setOverdueOnly(v === 'yes')} />
         </ThemedView>
@@ -356,6 +380,8 @@ export function ApprovalsPanel({ summary, refreshSummary }: Props) {
 const styles = StyleSheet.create({
   stack: { gap: Spacing.three },
   filters: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  dropdownRow: { flexDirection: 'row', gap: Spacing.two },
+  dropdown: { flex: 1 },
   activeRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
   activeChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.three, paddingVertical: Spacing.one },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
