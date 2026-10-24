@@ -40,6 +40,12 @@ describe('requestTitle and requestDetail', () => {
     expect(requestTitle(doctor)).toBe('Dr Jayanta Ishore');
     expect(requestDetail(doctor)).toBe('New doctor · Naxalbari · SLG-1 · Asha · GHC006 · resubmitted (round 2)');
   });
+  it('leads a plan, report or month with who it is from', () => {
+    const plan = { ...doctor, kind: 'MONTHLY_PLAN', subject: { title: 'Nov 2026', subtitle: null }, cycle: 2 };
+    expect(requestTitle(plan)).toBe('Asha - Nov 2026');
+    expect(requestDetail(plan)).toBe('Monthly plan · GHC006 · resubmitted (round 2)');
+    expect(requestTitle({ ...plan, subject: null })).toBe('Monthly plan');
+  });
   it('falls back to the kind for a request that says nothing about itself', () => {
     const leave = { ...doctor, kind: 'LEAVE', subject: null, cycle: 1 };
     expect(requestTitle(leave)).toBe('Leave');
