@@ -17,6 +17,7 @@ import { PlanDayView } from './PlanDayView';
 
 /** The server refuses a longer reason. */
 const REASON_MAX = 500;
+const ROUTE_TYPE_LABEL = { HQ: 'HQ', EX_STATION: 'Ex-station', OUT_STATION: 'Out-station' } as const;
 const EMPTY_DAY: DraftDay = { workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [], remarks: null, returnDate: null };
 const TYPE_OPTIONS = (Object.keys(WORKING_TYPE_LABEL) as WorkingType[]).map((value) => ({ value, label: WORKING_TYPE_LABEL[value] }));
 
@@ -61,6 +62,10 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
   const isLocked = (date: string) => approved && date <= today;
   // A trip that began but hasn't ended: its return date is the one thing that can still move.
   const isOngoingTrip = (date: string) => isLocked(date) && Boolean(edited[date]?.returnDate && edited[date]!.returnDate! > today);
+  // A trip needs an out-station route, so the return date is only asked for once one is ticked.
+  const hasOutStation = routes.some((r) => r.routeType === 'OUT_STATION' && form.routeIds.includes(r.id));
+  const withRoutes = (f: DraftDay, routeIds: string[]): DraftDay =>
+    routes.some((r) => r.routeType === 'OUT_STATION' && routeIds.includes(r.id)) ? { ...f, routeIds } : { ...f, routeIds, returnDate: null };
   const returnOnly = editing !== null && isLocked(editing);
 
   function open(date: string) {
@@ -181,9 +186,9 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
                     <div className="grid gap-1 sm:grid-cols-2">
                       {routes.map((r) => (
                         <label key={r.id} className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" checked={form.routeIds.includes(r.id)} onChange={() => setForm((f) => ({ ...f, routeIds: toggle(f.routeIds, r.id) }))} />
+                          <input type="checkbox" checked={form.routeIds.includes(r.id)} onChange={() => setForm((f) => withRoutes(f, toggle(f.routeIds, r.id)))} />
                           {r.name}
-                          {r.routeType === 'OUT_STATION' ? <span className="text-text-subtle">· out-station</span> : null}
+                          <span className="text-text-subtle">({ROUTE_TYPE_LABEL[r.routeType]})</span>
                         </label>
                       ))}
                     </div>
@@ -212,9 +217,11 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
                       onChange={(id) => id && setForm((f) => ({ ...f, workWith: f.workWith.includes(id) ? f.workWith : [...f.workWith, id] }))}
                     />
                   </div>
-                  <FormField label="Return date (trip)" htmlFor="amend-return" hint="Only for an out-station trip. The days between become stay days.">
-                    <Input id="amend-return" type="date" className="w-44" value={form.returnDate ?? ''} onChange={(e) => setForm((f) => ({ ...f, returnDate: e.target.value || null }))} />
-                  </FormField>
+                  {hasOutStation ? (
+                    <FormField label="Return date (trip)" htmlFor="amend-return" hint="Leave empty for a same-day return. The days between become stay days.">
+                      <Input id="amend-return" type="date" className="w-44" value={form.returnDate ?? ''} onChange={(e) => setForm((f) => ({ ...f, returnDate: e.target.value || null }))} />
+                    </FormField>
+                  ) : null}
                     </>
                   ) : (
                     <p className="text-sm text-text-subtle">Routes and “Work with” are only picked for Field work and Doctor campaign days.</p>
