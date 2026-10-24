@@ -176,7 +176,6 @@ export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { pl
                   {day ? (
                     <>
                       {isTripDay(day.dayKind) ? <Badge tone="neutral">{DAY_KIND_LABEL[day.dayKind as 'STAY' | 'TRANSIT']} · part of a trip</Badge> : <PlanDayView day={day} />}
-                      {day.returnDate ? <p className="text-sm text-text-muted">Returns {planDayLabel(day.returnDate)}</p> : null}
                     </>
                   ) : !off ? (
                     <p className="text-sm text-text-subtle">Not planned</p>

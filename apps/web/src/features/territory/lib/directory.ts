@@ -11,11 +11,6 @@ export interface TerritoryDirectory {
   routeOptions: { value: string; label: string }[];
   /** The Route's own name, without its HQ. */
   routeName: (routeId: string) => string;
-  /**
-   * The Route as a trip day reads it: always the real route ("Siliguri to Gangtok"), and on a stay or transit day what the day is in
-   * brackets — "(stay)", "(in transit)". Only an out-station Route is marked; others keep their name.
-   */
-  tripRouteName: (routeId: string, dayKind: 'NORMAL' | 'STAY' | 'TRANSIT') => string;
   zoneName: (zoneId: string) => string;
   hqName: (hqId: string) => string;
   /** Active Zones and HQs, sorted, for a filter. An HQ option reads "Zone · HQ". */
@@ -42,12 +37,6 @@ export function buildTerritoryDirectory(input: {
 
   return {
     routeName: (id) => routeById.get(id)?.name ?? '—',
-    tripRouteName: (id, dayKind) => {
-      const route = routeById.get(id);
-      if (!route) return '—';
-      if (route.type !== 'OUT_STATION' || dayKind === 'NORMAL') return route.name;
-      return `${route.name} (${dayKind === 'STAY' ? 'stay' : 'in transit'})`;
-    },
     zoneName: (id) => zoneById.get(id)?.name ?? '—',
     hqName: (id) => hqById.get(id)?.name ?? '—',
     zoneOptions: input.zones.filter((z) => z.status === 'active').map((z) => ({ value: z.id, label: z.name })).sort(byLabel),

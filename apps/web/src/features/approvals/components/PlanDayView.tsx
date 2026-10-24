@@ -6,6 +6,7 @@ import { formatDate } from '@/lib/format';
 import { useDoctor } from '@/features/field-master-data/hooks/useDoctors';
 import { WorkWithName } from '@/features/people/components/EmployeePickerField';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
+import { planDayLabel } from '../lib/plans';
 import { DAY_KIND_LABEL, WORKING_TYPE_LABEL } from '../lib/review';
 
 function DoctorName({ doctorId }: { doctorId: string }) {
@@ -14,7 +15,7 @@ function DoctorName({ doctorId }: { doctorId: string }) {
 }
 
 /** One planned day: what it is for, the routes, who they work with, the doctors to call, and any remarks. */
-export function PlanDayView({ day }: { day: PlanDayDto & { doctors?: PlannedDoctorDto[] } }) {
+export function PlanDayView({ day }: { day: PlanDayDto & { doctors?: PlannedDoctorDto[]; returnDate?: string | null } }) {
   const directory = useTerritoryDirectory();
   return (
     <div className="space-y-2 text-sm">
@@ -22,10 +23,11 @@ export function PlanDayView({ day }: { day: PlanDayDto & { doctors?: PlannedDoct
         {WORKING_TYPE_LABEL[day.workingType]}
       </Badge>
       {day.dayKind !== 'NORMAL' ? <Badge tone="neutral">{DAY_KIND_LABEL[day.dayKind]}</Badge> : null}
+      {day.dayKind === 'NORMAL' && day.returnDate ? <Badge tone="neutral">Trip starts · back {planDayLabel(day.returnDate)}</Badge> : null}
       {day.routeIds.length > 0 ? (
         <p>
           <span className="text-text-subtle">Routes: </span>
-          {day.routeIds.map((id) => directory.tripRouteName(id, day.dayKind)).join('; ')}
+          {day.routeIds.map((id) => directory.routeName(id)).join('; ')}
         </p>
       ) : null}
       {day.workWith.length > 0 ? (
