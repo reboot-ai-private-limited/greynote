@@ -2447,3 +2447,10 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Decision:** Only Admin and HR set, edit or remove Targets (`POST`, `PATCH`, `DELETE /marketing/targets`); a manager can no longer set them for their team, and a plain MR never could. Managers still read their team's targets and the Sales dashboard (downline only). HR gets the Sales dashboard and the employee view org-wide, like the Accountant, and sets targets there; HR does not enter secondary figures or adjust the primary (still Admin and managers). A manager still has no target of their own. This supersedes the earlier "Admin or a manager sets Targets" entries and makes "manager changes to MR targets bypass approval" moot.
 
 **Open:** the phone app still shows Set and Remove to managers and must drop them (`docs/mobile/secondary-and-targets.md`); the app is another team's.
+
+## 2026-10-24: An MR's order is priced at PTS or PTR, never the MRP
+
+**Decision:** The server prices an MR's own order (`POST /sales/orders` and the `ORDER` sync) from the catalogue: the product's **PTS for a distributor, PTR for a chemist**, whatever unit price the phone sent. The phone's price is only a preview. A product with no PTS or PTR keeps the price it was sent. Admin and the Accountant, adding an order for an employee or editing a `PLACED` one, still type the price they want. Cause: a phone with a stale catalogue falls back to the MRP, so a distributor order was valued at the MRP (RENAL PHARMA, ENTRAIL HP, 30 × ₹1,159 instead of ₹794). Orders already saved at the MRP are repriced by `pnpm --filter @greynote/api migrate:mrp-orders` (dry run first, then `-- --apply`); it skips cancelled orders and ones the office has edited, and keeps the first lines in `originalItems`.
+
+**Open:** the phone still lets the MR edit the price box and shows its own total; it should show the server's total after sync (`docs/mobile/orders-and-stock.md`). The app is another team's.
+

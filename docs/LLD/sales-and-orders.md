@@ -106,8 +106,8 @@ surface, if any beyond Admin reporting, is Admin-only by default until stated ot
 
 **As built (2026-09-30):** an Order's lines are embedded in the Order document (one write, so the total can
 never disagree with the lines; the database itself refuses a total that is not their sum). Only an MR places an
-Order — it belongs to them, so Admin cannot. Unit price is entered by the MR (there is no price list yet) as whole
-paise; the server multiplies. The order date defaults to today and may be in the past, never the future.
+Order — it belongs to them, so Admin cannot. Unit price is sent by the phone as whole
+paise; the server multiplies (since 2026-10-24 it replaces the price with the product's PTS/PTR, see *MR orders priced from the catalogue*). The order date defaults to today and may be in the past, never the future.
 Completing/cancelling is one conditional update, so of two racing calls exactly one wins and the other is a `409`;
 a manager may open a team member's Order but only its MR or an Admin may finish it. Completing/cancelling is online
 only. Blocked (missed-DCR) MRs are not stopped from ordering — orders are not part of the DCR.
@@ -233,3 +233,10 @@ Public contract additions: `listMissingStock(month, userIds?)` (the Admin view, 
 - `priceLines(master, outlet, lines, orderDiscount)` is shared by Place (on behalf), Edit; refuses discounts on a chemist outlet and flat amounts above their base (`INVALID_PAYLOAD`). `PlaceOrderUseCase.execute` (employee) strips discounts like it strips free units.
 - Aggregations: DONE side `DELIVERED_PAISE = ifNull(items.suppliedNetPaise, supplied × unitPrice)`; PLACED side and `sumAmount(productId)` use `ifNull(items.netAmountPaise, items.amountPaise)`.
 - API: `discount` on the order body and on each line (`{type:'PERCENT',percent}` or `{type:'FIXED',amountPaise}`) for `POST /sales/orders/on-behalf` and `PATCH /sales/orders/:id`; reads return them with `netAmountPaise` and `orderDiscountPaise`.
+
+## MR orders priced from the catalogue (2026-10-24)
+
+- `priceLines(master, outlet, lines, orderDiscount, catalogPrice)`: with `catalogPrice` (set only by `PlaceOrderUseCase.execute`, the MR's own order and the `ORDER` sync) each line's unit price is `product.ptsPaise` for a distributor outlet or `ptrPaise` for a chemist, whatever `unitPricePaise` was sent; a product with none keeps the sent price. `executeFor` and `EditOrderUseCase` do not set it, so the office's typed price stands. `FieldMasterDataPort.getProduct` now returns `ptsPaise` and `ptrPaise`.
+- Why: a phone with a stale catalogue defaults to `PTS/PTR ?? MRP` and sent the MRP.
+- Repair: `scripts/migrate-mrp-orders.ts` (`planOrder` in `mrpOrderMigration.ts`) reprices PLACED and DONE orders whose line price equals the product MRP, recomputing amounts, nets, totals and supplied values; skips cancelled and office-edited orders and a flat line discount that would no longer fit; idempotent.
+

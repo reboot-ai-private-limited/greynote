@@ -8,6 +8,8 @@ export class FakeMaster implements FieldMasterDataPort {
   private active = { status: 'active' as const };
   outlets: Record<string, { chemists: string[]; distributors: string[] }> = { mr1: { chemists: ['chem1'], distributors: ['dist1'] }, mr2: { chemists: ['chem2'], distributors: [] }, asm: { chemists: [], distributors: [] } };
   inactiveProducts = new Set<string>();
+  /** Per-product PTS / PTR; a product not listed has none, so an order keeps the price it was sent. */
+  prices: Record<string, { pts?: number | null; ptr?: number | null }> = {};
   async getChemist(id: string) {
     return ['chem1', 'chem2'].includes(id) ? { id, name: id, ...this.active } : null;
   }
@@ -19,7 +21,7 @@ export class FakeMaster implements FieldMasterDataPort {
     return ['prod1', 'prod2'].map((id) => ({ id, name: id, sku: id.toUpperCase(), ptsPaise: 1000, ptrPaise: 1200 }));
   }
   async getProduct(id: string) {
-    return id.startsWith('prod') ? { id, name: id, status: this.inactiveProducts.has(id) ? ('inactive' as const) : ('active' as const) } : null;
+    return id.startsWith('prod') ? { id, name: id, status: this.inactiveProducts.has(id) ? ('inactive' as const) : ('active' as const), ptsPaise: this.prices[id]?.pts ?? null, ptrPaise: this.prices[id]?.ptr ?? null } : null;
   }
   async canActOnChemist(u: string, id: string) {
     return this.outlets[u]?.chemists.includes(id) ?? false;

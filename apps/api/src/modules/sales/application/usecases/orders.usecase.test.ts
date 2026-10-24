@@ -66,6 +66,7 @@ const order = (over: Partial<PlaceOrderInput> = {}): PlaceOrderInput => ({ outle
 
 describe('orders', () => {
   let orders: FakeOrders;
+  let master: FakeMaster;
   let place: PlaceOrderUseCase;
   let get: GetOrderUseCase;
   let finish: FinishOrderUseCase;
@@ -75,7 +76,7 @@ describe('orders', () => {
 
   beforeEach(() => {
     orders = new FakeOrders();
-    const master = new FakeMaster();
+    master = new FakeMaster();
     const users = new FakeUsers();
     const clock = new SalesClock(config, () => now);
     place = new PlaceOrderUseCase(new OutletAccess(master), master, orders, clock, users);
@@ -93,6 +94,23 @@ describe('orders', () => {
     const saved = orders.rows[0]!;
     expect(saved).toMatchObject({ status: 'PLACED', orderDate: '2026-09-30', userId: 'mr1', completedBy: null });
     expect(saved.items.map((i) => i.amountPaise)).toEqual([3750, 990]);
+  });
+
+  it('prices an MR’s own order at the catalogue PTS (distributor) or PTR (chemist), whatever the phone sent; no listed price keeps the phone’s', async () => {
+    master.prices['prod1'] = { pts: 794_00, ptr: 883_00 };
+    const mrp = [{ productId: 'prod1', quantity: 30, unitPricePaise: 1159_00 }, { productId: 'prod2', quantity: 2, unitPricePaise: 500 }];
+    expect((await place.execute(mr1, order({ lines: mrp }))).totalAmountPaise).toBe(30 * 794_00 + 2 * 500);
+    expect(orders.rows[0]!.items.map((i) => [i.unitPricePaise, i.amountPaise])).toEqual([[794_00, 23_820_00], [500, 1000]]);
+    await place.execute(mr1, order({ outlet: { type: 'CHEMIST', id: 'chem1' }, lines: mrp }));
+    expect(orders.rows[1]!.items[0]).toMatchObject({ unitPricePaise: 883_00, amountPaise: 30 * 883_00 });
+  });
+
+  it('the office keeps the price it types, on an order added for an employee and on an edit', async () => {
+    master.prices['prod1'] = { pts: 794_00, ptr: 883_00 };
+    const { serverId } = await place.executeFor(admin, 'mr1', order({ lines: [{ productId: 'prod1', quantity: 1, unitPricePaise: 1159_00 }] }));
+    expect(orders.rows[0]!.items[0]!.unitPricePaise).toBe(1159_00);
+    const o = await edit.execute(admin, serverId, { remarks: null, lines: [{ productId: 'prod1', quantity: 1, unitPricePaise: 900_00 }] });
+    expect(o.items[0]!.unitPricePaise).toBe(900_00);
   });
 
   it('works for a Distributor, and records the phone’s client id', async () => {

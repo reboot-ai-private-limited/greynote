@@ -41,7 +41,7 @@ export class PlaceOrderUseCase {
   async execute(actor: Actor, input: PlaceOrderInput, clientId: string | null = null, ctx?: TransactionContext): Promise<{ serverId: string; totalAmountPaise: Paise }> {
     await this.access.assertUsable(actor, input.outlet);
     // An employee's own order never carries free units: those are the office's to give.
-    return this.write(actor.id, null, { ...input, discount: null, lines: input.lines.map((l) => ({ ...l, freeQty: 0, discount: null })) }, clientId, ctx);
+    return this.write(actor.id, null, { ...input, discount: null, lines: input.lines.map((l) => ({ ...l, freeQty: 0, discount: null })) }, clientId, ctx, true);
   }
 
   /** Admin or the Accountant adds an order for a field employee, credited to that employee; the outlet need not be on their Routes. */
@@ -52,12 +52,12 @@ export class PlaceOrderUseCase {
     return this.write(employeeId, office.id, input, null);
   }
 
-  private async write(userId: string, createdBy: string | null, input: PlaceOrderInput, clientId: string | null, ctx?: TransactionContext): Promise<{ serverId: string; totalAmountPaise: Paise }> {
+  private async write(userId: string, createdBy: string | null, input: PlaceOrderInput, clientId: string | null, ctx?: TransactionContext, catalogPrice = false): Promise<{ serverId: string; totalAmountPaise: Paise }> {
     const today = await this.clock.today();
     const orderDate = input.orderDate ?? today;
     if (orderDate > today) throw new StockRefusal(STOCK_CODES.orderDateInFuture, 'An order cannot be dated in the future.');
     await this.clock.assertDayOpen(orderDate);
-    const { items, total, discount, orderDiscountPaise } = await priceLines(this.master, input.outlet, input.lines, input.discount);
+    const { items, total, discount, orderDiscountPaise } = await priceLines(this.master, input.outlet, input.lines, input.discount, catalogPrice);
     const order = await this.orders.create(
       { userId, outlet: input.outlet, orderDate, status: 'PLACED', totalAmountPaise: total, discount, orderDiscountPaise, remarks: input.remarks, items, completedBy: null, completedAt: null, clientId, createdAt: this.clock.now(), createdBy, editedBy: null, editedAt: null },
       ctx,
@@ -69,27 +69,31 @@ export class PlaceOrderUseCase {
 /**
  * Each line's gross amount and net (after its own discount and its share of the order discount), and the order's total (the sum of the nets).
  * Every product must exist and be active. Discounts are for distributor orders only (a chemist order is information, never billed).
+ * `catalogPrice` (an MR's own order): the unit price is the product's PTS for a distributor, PTR for a chemist, whatever the phone sent, because a phone
+ * with a stale catalogue falls back to the MRP; a product with no such price keeps the phone's. The office's own orders and edits keep the price they type.
  */
-async function priceLines(master: FieldMasterDataPort, outlet: Outlet, lines: PlaceOrderInput['lines'], orderDiscount: Discount | null | undefined): Promise<{ items: OrderItem[]; total: Paise; discount: Discount | null; orderDiscountPaise: Paise }> {
+async function priceLines(master: FieldMasterDataPort, outlet: Outlet, lines: PlaceOrderInput['lines'], orderDiscount: Discount | null | undefined, catalogPrice = false): Promise<{ items: OrderItem[]; total: Paise; discount: Discount | null; orderDiscountPaise: Paise }> {
   if (outlet.type === 'CHEMIST' && (orderDiscount || lines.some((l) => l.discount))) throw new StockRefusal(STOCK_CODES.invalidPayload, 'A discount can only be given on a distributor order.');
   let gross = 0;
-  const priced: Array<{ line: PlaceOrderInput['lines'][number]; amountPaise: Paise }> = [];
+  const priced: Array<{ line: PlaceOrderInput['lines'][number]; unitPricePaise: Paise; amountPaise: Paise }> = [];
   for (const l of lines) {
     const product = await master.getProduct(l.productId);
     if (!product || product.status !== 'active') throw new StockRefusal(STOCK_CODES.productNotFound, 'A product in the list does not exist or is no longer active.');
-    const amountPaise = l.quantity * l.unitPricePaise;
+    const listed = outlet.type === 'DISTRIBUTOR' ? product.ptsPaise : product.ptrPaise;
+    const unitPricePaise = catalogPrice && listed ? listed : l.unitPricePaise;
+    const amountPaise = l.quantity * unitPricePaise;
     gross += amountPaise;
     if (amountPaise > MAX_PAISE || gross > MAX_PAISE) throw new StockRefusal(STOCK_CODES.amountTooLarge, 'The order’s amount is too large.');
     if (l.discount?.type === 'FIXED' && l.discount.amountPaise > amountPaise) throw new StockRefusal(STOCK_CODES.invalidPayload, 'A flat discount on a line cannot be more than the line’s amount.');
-    priced.push({ line: l, amountPaise });
+    priced.push({ line: l, unitPricePaise, amountPaise });
   }
   const net = netLines(priced.map((p) => ({ grossPaise: p.amountPaise, lineDiscount: p.line.discount ?? null })), orderDiscount);
   const subtotal = net.netTotalPaise + net.orderDiscountPaise;
   if (orderDiscount?.type === 'FIXED' && orderDiscount.amountPaise > subtotal) throw new StockRefusal(STOCK_CODES.invalidPayload, 'A flat discount on the order cannot be more than the order’s amount after line discounts.');
-  const items = priced.map(({ line, amountPaise }, i): OrderItem => ({
+  const items = priced.map(({ line, unitPricePaise, amountPaise }, i): OrderItem => ({
     productId: line.productId,
     quantity: line.quantity,
-    unitPricePaise: line.unitPricePaise,
+    unitPricePaise,
     amountPaise,
     suppliedQty: null,
     freeQty: line.freeQty ?? 0,
