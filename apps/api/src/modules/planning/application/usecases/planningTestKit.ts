@@ -97,6 +97,12 @@ export class FakeDailyPlans implements DailyPlanRepositoryPort {
     this.rows.set(id, { ...plan, ...day, revision: revision + 1, updatedAt: new Date() });
     return true;
   }
+  async deleteById(id: string, revision: number) {
+    const plan = this.rows.get(id);
+    if (!plan || plan.revision !== revision) return false;
+    this.rows.delete(id);
+    return true;
+  }
   async confirmRevision(id: string, revision: number, countLateResubmit: boolean) {
     const plan = this.rows.get(id);
     if (!plan || plan.revision !== revision) return false;
@@ -143,6 +149,12 @@ export class FakeMonthlyPlans implements MonthlyPlanRepositoryPort {
     const next = { ...plan, entries, revision: plan.revision + 1, amendments: [...plan.amendments, amendment], updatedAt: amendment.at };
     this.rows.set(id, next);
     return next;
+  }
+  async deleteById(id: string, revision: number) {
+    const plan = this.rows.get(id);
+    if (!plan || plan.revision !== revision) return false;
+    this.rows.delete(id);
+    return true;
   }
   async confirmRevision(id: string, revision: number, countLateResubmit: boolean) {
     const plan = this.rows.get(id);
@@ -211,6 +223,9 @@ export class FakeApprovals implements ApprovalsPort {
    * Like the approval module: runs the kind's `onStatusChange` first and only moves the request if
    * it doesn't throw (the real one rolls the decision back).
    */
+  async deleteForRecord(kind: string, recordId: string) {
+    this.requests.delete(`${kind}:${recordId}`);
+  }
   /** Like the approval module: an open request becomes REJECTED with the reason; false if it was not open. */
   async autoReject(kind: string, recordId: string, reason: string) {
     const request = this.requests.get(`${kind}:${recordId}`);
@@ -396,7 +411,7 @@ export function planningKit(clock: Clock) {
   const monthlyBlocked = new Set<string>();
   const monthlyApproved: MonthlyApprovedCheck = async (u, m) => !monthlyBlocked.has(`${u}:${m}`);
   const scope = new ManagerScope(users, config);
-  const amend = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => async (u, d) => reported.has(`${u}:${d}`), scope);
+  const amend = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => async (u, d) => reported.has(`${u}:${d}`), scope, approvals);
   /** Each user's visible doctors, and the calls they made (`userId` → `{ doctorId, date }`), as the test sets them. */
   const doctors = new Map<string, Array<{ id: string; routeId: string }>>();
   const calls: Array<{ userId: string; doctorId: string; date: string }> = [];

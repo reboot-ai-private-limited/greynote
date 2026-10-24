@@ -34,7 +34,7 @@ const amendmentSchema = new Schema<MonthlyPlanAmendmentDoc>(
   {
     by: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
     at: { type: Date, required: true },
-    reason: { type: String, required: true },
+    reason: { type: String, default: '' },
     previous: { type: [entrySchema], default: [] },
   },
   { _id: false },

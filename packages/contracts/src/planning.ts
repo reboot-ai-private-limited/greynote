@@ -108,7 +108,8 @@ export interface MonthlyPlanDetailDto extends MonthlyPlanDto {
 /** `PATCH /planning/monthly/:id/amend`: the whole month as it should be (no stay/transit days), and why. */
 export interface AmendMonthlyPlanDto {
   entries: Array<Pick<MonthlyPlanEntryDto, 'planDate' | 'workingType' | 'workWith' | 'routeIds' | 'remarks'> & { returnDate?: string }>;
-  reason: string;
+  /** Why, if they said; may be empty. */
+  reason?: string;
 }
 
 export type LateSubmitGrantStatus = 'OPEN' | 'USED' | 'REVOKED' | 'EXPIRED';

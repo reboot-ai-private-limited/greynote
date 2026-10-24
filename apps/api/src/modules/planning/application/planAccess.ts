@@ -7,9 +7,9 @@ export interface Actor {
   role: RoleName;
 }
 
-/** A Plan is readable by its owner, anyone above them in the chain (read-only), and Admin. */
+/** A Plan is readable by its owner, anyone above them in the chain (read-only), Admin and HR. */
 export async function assertCanRead(users: UserDirectoryPort, actor: Actor, ownerId: string): Promise<void> {
-  if (actor.id === ownerId || actor.role === 'ADMIN') return;
+  if (actor.id === ownerId || actor.role === 'ADMIN' || actor.role === 'HR') return;
   const chain = await users.getManagerChain(ownerId);
   if (!chain.some((m) => m.id === actor.id)) throw AppError.forbidden();
 }

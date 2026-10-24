@@ -47,6 +47,9 @@ class FakeRequests implements ApprovalRequestRepositoryPort {
   async findByRecord(kind: string, recordId: string) {
     return [...this.rows.values()].find((r) => r.kind === kind && r.recordId === recordId) ?? null;
   }
+  async deleteByRecord(kind: string, recordId: string) {
+    for (const [id, r] of this.rows) if (r.kind === kind && r.recordId === recordId) this.rows.delete(id);
+  }
   async create(input: Omit<ApprovalRequest, 'id'>) {
     const row = { ...input, id: `req-${this.rows.size + 1}` };
     this.rows.set(row.id, row);

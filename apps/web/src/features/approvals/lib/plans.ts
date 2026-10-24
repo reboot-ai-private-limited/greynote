@@ -13,6 +13,9 @@ export function monthSummary(entries: readonly Pick<MonthlyPlanEntryDto, 'workin
     .join(' · ');
 }
 
+/** Today as `YYYY-MM-DD` in the browser's zone. Only for what the screen offers: the server decides which days are still open. */
+export const localToday = (): string => new Date().toLocaleDateString('en-CA');
+
 /** `Mon 5 Oct`, for a plan's `YYYY-MM-DD` day, whatever the browser's zone. */
 export function planDayLabel(date: string): string {
   return new Intl.DateTimeFormat('en-IN', {

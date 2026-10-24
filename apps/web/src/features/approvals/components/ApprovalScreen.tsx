@@ -16,14 +16,19 @@ import { useApproval, type DecisionAction } from '../hooks/useApprovals';
 import { STATUS_LABEL, STATUS_TONE, isOpen, kindLabel, stageLabel } from '../lib/approvals';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { AmendMonthlyPlanDialog } from './AmendMonthlyPlanDialog';
-import { useMonthlyPlan } from '../hooks/usePreviews';
+import { useDeleteMonthlyPlan, useMonthlyPlan } from '../hooks/usePreviews';
+import { localToday } from '../lib/plans';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ApprovalPreview } from './ApprovalPreview';
 import { DownloadCsvButton } from './DownloadCsvButton';
 import { DecisionDialog } from './DecisionDialog';
 import { HistoryTimeline } from './HistoryTimeline';
 
-/** Admin or a manager changes a month that is waiting for them (not their own); everything else about the request stays as it is. */
-function EditMonthlyPlanButton({ recordId, disabled }: { recordId: string; disabled: boolean }) {
+/**
+ * Admin or a manager changes a month that is waiting for them (not their own); everything else about the request stays as it is.
+ * Admin and HR can also change one that is already approved, from tomorrow on (`approved`).
+ */
+function EditMonthlyPlanButton({ recordId, disabled, approved }: { recordId: string; disabled: boolean; approved: boolean }) {
   const [open, setOpen] = useState(false);
   const plan = useMonthlyPlan(recordId);
   return (
@@ -31,7 +36,31 @@ function EditMonthlyPlanButton({ recordId, disabled }: { recordId: string; disab
       <Button variant="secondary" disabled={disabled || !plan.data} title={disabled ? 'A past financial year is read-only' : undefined} onClick={() => setOpen(true)}>
         Edit plan
       </Button>
-      {open && plan.data ? <AmendMonthlyPlanDialog plan={plan.data} onClose={() => setOpen(false)} /> : null}
+      {open && plan.data ? <AmendMonthlyPlanDialog plan={plan.data} approved={approved} onClose={() => setOpen(false)} /> : null}
+    </>
+  );
+}
+
+/** Admin removes a month that hasn't started, for good: the plan, its approval and its unsent daily plans. */
+function DeleteMonthlyPlanButton({ recordId, disabled, onDeleted }: { recordId: string; disabled: boolean; onDeleted: () => void }) {
+  const [open, setOpen] = useState(false);
+  const plan = useMonthlyPlan(recordId);
+  const remove = useDeleteMonthlyPlan(recordId, onDeleted);
+  if (!plan.data || plan.data.planMonth <= localToday().slice(0, 7)) return null;
+  return (
+    <>
+      <Button variant="danger" disabled={disabled} onClick={() => setOpen(true)}>
+        Delete plan
+      </Button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Delete this monthly plan?"
+        description="The plan, its approval and its history are removed for good, along with the daily plans written from it. The employee can plan the month again. This can’t be undone."
+        confirmLabel="Delete plan"
+        pending={remove.isPending}
+        onConfirm={() => remove.mutate(undefined, { onSettled: () => setOpen(false) })}
+      />
     </>
   );
 }
@@ -43,11 +72,21 @@ export function ApprovalScreen({ id }: { id: string }) {
   const request = query.data;
   const me = useSession().user;
   const [action, setAction] = useState<DecisionAction | null>(null);
+  // Back to the tab this request came from, not the default one.
+  const queue = request ? `/approvals?kind=${request.kind}` : '/approvals';
+
+  // A month waiting for a decision is editable by whoever decides it; one past the manager, by Admin and HR (days after today only).
+  const canEditMonth =
+    request?.kind === 'MONTHLY_PLAN' &&
+    request.submitter?.id !== me?.id &&
+    (request.status === 'SUBMITTED'
+      ? request.canAct
+      : (request.status === 'MANAGER_APPROVED' || request.status === 'APPROVED') && (me?.role === 'ADMIN' || me?.role === 'HR'));
 
   return (
     <>
       <p className="mb-2 text-sm">
-        <Link href="/approvals" className="text-text-muted hover:text-accent hover:underline">
+        <Link href={queue} className="text-text-muted hover:text-accent hover:underline">
           ← Approvals
         </Link>
       </p>
@@ -74,6 +113,7 @@ export function ApprovalScreen({ id }: { id: string }) {
               }
               actions={
                 <div className="flex items-center gap-1.5">
+                  {request.kind === 'MONTHLY_PLAN' && me?.role === 'ADMIN' ? <DeleteMonthlyPlanButton recordId={request.recordId} disabled={readOnly} onDeleted={() => router.push(queue)} /> : null}
                   <DownloadCsvButton request={request} />
                   <Badge tone={STATUS_TONE[request.status]}>{isOpen(request.status) ? stageLabel(request) : STATUS_LABEL[request.status]}</Badge>
                   {request.overdue ? <Badge tone="danger">Overdue</Badge> : null}
@@ -87,9 +127,7 @@ export function ApprovalScreen({ id }: { id: string }) {
                 </p>
                 {request.canAct ? (
                   <>
-                    {request.kind === 'MONTHLY_PLAN' && request.status === 'SUBMITTED' && request.submitter?.id !== me?.id ? (
-                      <EditMonthlyPlanButton recordId={request.recordId} disabled={readOnly} />
-                    ) : null}
+                    {canEditMonth ? <EditMonthlyPlanButton recordId={request.recordId} disabled={readOnly} approved={request.status !== 'SUBMITTED'} /> : null}
                     <Button variant="secondary" disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setAction('reject')}>
                       Reject
                     </Button>
@@ -98,9 +136,12 @@ export function ApprovalScreen({ id }: { id: string }) {
                     </Button>
                   </>
                 ) : (
-                  <Button variant="secondary" disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setAction('reopen')}>
-                    Reopen
-                  </Button>
+                  <>
+                    {canEditMonth ? <EditMonthlyPlanButton recordId={request.recordId} disabled={readOnly} approved /> : null}
+                    <Button variant="secondary" disabled={readOnly} title={readOnly ? 'A past financial year is read-only' : undefined} onClick={() => setAction('reopen')}>
+                      Reopen
+                    </Button>
+                  </>
                 )}
               </div>
             ) : null}
@@ -118,7 +159,7 @@ export function ApprovalScreen({ id }: { id: string }) {
                 request={request}
                 onClose={() => setAction(null)}
                 // After a decision, go back to the queue: the next one is the point.
-                onDone={() => (action === 'reopen' ? setAction(null) : router.push('/approvals'))}
+                onDone={() => (action === 'reopen' ? setAction(null) : router.push(queue))}
               />
             ) : null}
           </>

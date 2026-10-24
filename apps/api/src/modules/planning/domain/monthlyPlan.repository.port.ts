@@ -19,6 +19,8 @@ export interface MonthlyPlanRepositoryPort {
    * A manager's or Admin's amendment: replaces the entries and appends `amendment`, bumping `revision`, only if the plan is still
    * at `expectedRevision` (`null` otherwise).
    */
-  amend(id: string, expectedRevision: number, entries: MonthlyPlanEntry[], amendment: MonthlyPlanAmendment): Promise<MonthlyPlan | null>;
+  amend(id: string, expectedRevision: number, entries: MonthlyPlanEntry[], amendment: MonthlyPlanAmendment, ctx?: TransactionContext): Promise<MonthlyPlan | null>;
+  /** Inside a transaction: removes the plan, only if it is still at `revision`. */
+  deleteById(id: string, revision: number, ctx: TransactionContext): Promise<boolean>;
   confirmRevision(id: string, revision: number, countLateResubmit: boolean, ctx: TransactionContext): Promise<boolean>;
 }

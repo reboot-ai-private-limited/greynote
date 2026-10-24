@@ -62,7 +62,7 @@ const sameDay = (a: PlanDay | undefined, b: PlanDay | undefined) =>
 /**
  * Edit an employee's Tour Plan while it waits for you (docs/mobile/monthlyplan.md rule 19, section 6): a manager above them, or
  * Admin. Every day can be changed — working type, the employee's own routes (`GET /planning/monthly/:id/routes`), work with,
- * remarks and trips; weekly offs and holidays stay locked. The whole month goes to the server with a required reason; the plan
+ * remarks and trips; weekly offs and holidays stay locked. The whole month goes to the server with an optional reason; the plan
  * keeps waiting for your decision and the employee is told. Online only.
  */
 export default function AmendMonthlyPlanScreen() {
@@ -216,11 +216,6 @@ export default function AmendMonthlyPlanScreen() {
       setMsg({ tone: 'info', text: 'Change at least one day first.' });
       return;
     }
-    if (!reason.trim()) {
-      setReasonError('Give the reason for the change: the employee will see it.');
-      setMsg({ tone: 'warning', text: 'Give the reason for the change, below the days.' });
-      return;
-    }
     setBusy(true);
     setMsg(null);
     const sent = list();
@@ -299,7 +294,7 @@ export default function AmendMonthlyPlanScreen() {
 
           {waiting ? (
             <TextField
-              label="Reason for the change (required)"
+              label="Reason for the change (optional)"
               placeholder="The employee sees this"
               value={reason}
               onChangeText={(t) => {

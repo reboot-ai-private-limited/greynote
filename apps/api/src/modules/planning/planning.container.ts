@@ -11,6 +11,7 @@ import { makePlanningSource } from './application/syncSnapshot.js';
 import { makeMonthlyPlanInheritHandler } from './application/monthlyPlanInheritHandler.js';
 import { BackfillInheritedDaysUseCase } from './application/usecases/backfillInheritedDays.usecase.js';
 import { ListPlanOwnerRoutesUseCase } from './application/usecases/listPlanOwnerRoutes.usecase.js';
+import { DeleteMonthlyPlanUseCase } from './application/usecases/deleteMonthlyPlan.usecase.js';
 import { AmendMonthlyPlanUseCase } from './application/usecases/amendMonthlyPlan.usecase.js';
 import { AmendDailyPlanUseCase, type DayReportedCheck } from './application/usecases/amendDailyPlan.usecase.js';
 import { CarryOver } from './application/carryOver.js';
@@ -109,10 +110,12 @@ export function buildPlanningContainer(
   let dayReported: DayReportedCheck = async () => {
     throw new Error('Planning: the day-reported check was never bound.');
   };
-  const amendDaily = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => dayReported, scope);
+  const amendDaily = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => dayReported, scope, approvals);
 
   const planOwnerRoutes = new ListPlanOwnerRoutesUseCase(monthlyPlans, users, routes);
-  const amendMonthly = new AmendMonthlyPlanUseCase(monthlyPlans, users, approvals, submitter, views, offDays, deadlines.now);
+  const amendMonthly = new AmendMonthlyPlanUseCase(monthlyPlans, users, approvals, submitter, views, offDays, deadlines.now, { deadlines, daily: dailyPlans, transactions });
+
+  const deleteMonthly = new DeleteMonthlyPlanUseCase(monthlyPlans, dailyPlans, approvals, deadlines, transactions);
 
   return {
     contract: {
@@ -161,6 +164,7 @@ export function buildPlanningContainer(
           revokeLate,
           amendDaily,
           amendMonthly,
+          deleteMonthly,
         }),
       ),
   };

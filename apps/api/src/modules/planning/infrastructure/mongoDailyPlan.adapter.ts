@@ -134,6 +134,11 @@ export class MongoDailyPlanAdapter implements DailyPlanRepositoryPort {
     return result.matchedCount === 1;
   }
 
+  async deleteById(id: string, revision: number, ctx: TransactionContext): Promise<boolean> {
+    const result = await DailyPlanModel.deleteOne({ _id: id, revision }, { session: ctx as ClientSession });
+    return result.deletedCount === 1;
+  }
+
   async confirmRevision(id: string, revision: number, countLateResubmit: boolean, ctx: TransactionContext): Promise<boolean> {
     const result = await DailyPlanModel.updateOne(
       { _id: id, revision },

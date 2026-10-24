@@ -27,6 +27,8 @@ export interface ApprovalPublicContract {
   listForRecords(kind: string, recordIds: string[]): Promise<ApprovalRequest[]>;
   /** Requests waiting at Stage 1 whose submitter has a manager, oldest first — with the manager, the due time and whether it is past it. Alerts read this. */
   listWaitingOnManagers(filter?: { kinds?: string[]; submittedFrom?: Date }): Promise<WaitingOnManager[]>;
+  /** Removes the request (and its history) of a record that is being deleted for good. */
+  deleteForRecord(kind: string, recordId: string, ctx?: TransactionContext): Promise<void>;
   /** Rejects a still-open request on the owning module's behalf (e.g. a leave that started unapproved); false if it was not open. */
   autoReject(kind: string, recordId: string, reason: string): Promise<boolean>;
 }

@@ -43,7 +43,7 @@ export function MonthlyPlanPreview({ recordId }: { recordId: string }) {
               <p className="font-medium text-text">Changed while waiting</p>
               {plan.amendments.map((a) => (
                 <p key={a.at} className="text-text-muted">
-                  {formatDateTime(a.at)} · {a.reason} <span className="text-text-subtle">({a.previous.length} planned {a.previous.length === 1 ? 'day' : 'days'} replaced)</span>
+                  {formatDateTime(a.at)}{a.reason ? ` · ${a.reason}` : ''} <span className="text-text-subtle">({a.previous.length} planned {a.previous.length === 1 ? 'day' : 'days'} replaced)</span>
                 </p>
               ))}
             </div>

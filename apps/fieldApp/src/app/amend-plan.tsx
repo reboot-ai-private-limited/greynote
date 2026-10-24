@@ -68,7 +68,6 @@ export default function AmendPlanScreen() {
     } else if (unchanged) {
       problems.workingType = 'Change the working type or the remarks first.';
     }
-    if (!reason.trim()) problems.reason = 'Give the reason — the employee will see it.';
     if (Object.keys(problems).length > 0) {
       setMsg({ tone: 'warning', text: 'Fix the fields marked in red.' });
       return fe.fail(problems);
@@ -137,7 +136,7 @@ export default function AmendPlanScreen() {
           />
           <FormField form={fe} name="reason" outline={false}>
             <TextField
-              label="Why is the plan changing? (required)"
+              label="Why is the plan changing? (optional)"
               value={reason}
               onChangeText={(t) => {
                 setReason(t);

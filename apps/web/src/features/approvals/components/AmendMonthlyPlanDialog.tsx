@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/Select';
 import { ApiError } from '@/lib/api/ApiError';
 import { EmployeePickerField, WorkWithName } from '@/features/people/components/EmployeePickerField';
 import { useAmendMonthlyPlan, usePlanOwnerRoutes } from '../hooks/usePreviews';
-import { amendEntries, changedDates, clearedForType, dayProblem, draftsOf, isFieldDay, isTripDay, offDayLabel, planDayLabel, withDay, type DraftDay } from '../lib/plans';
+import { amendEntries, changedDates, clearedForType, dayProblem, draftsOf, isFieldDay, isTripDay, localToday, offDayLabel, planDayLabel, withDay, type DraftDay } from '../lib/plans';
 import { DAY_KIND_LABEL, WORKING_TYPE_LABEL } from '../lib/review';
 import { PlanDayView } from './PlanDayView';
 
@@ -20,6 +20,9 @@ const REASON_MAX = 500;
 const EMPTY_DAY: DraftDay = { workingType: 'FIELD_WORK', dayKind: 'NORMAL', workWith: [], routeIds: [], remarks: null, returnDate: null };
 const TYPE_OPTIONS = (Object.keys(WORKING_TYPE_LABEL) as WorkingType[]).map((value) => ({ value, label: WORKING_TYPE_LABEL[value] }));
 
+/** The earliest date a new return date can take: the day after `today`. */
+const planDayMin = (today: string) => new Date(Date.parse(`${today}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+
 const datesOf = (month: string) => {
   const [y, m] = month.split('-').map(Number) as [number, number];
   return Array.from({ length: new Date(Date.UTC(y, m, 0)).getUTCDate() }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`);
@@ -27,10 +30,13 @@ const datesOf = (month: string) => {
 
 /**
  * Admin changes an employee's Monthly Plan while it waits for approval: the same edit a manager makes in the app
- * (`PATCH /planning/monthly/:id/amend`). The whole month goes with a required reason; the plan keeps waiting for the decision,
+ * (`PATCH /planning/monthly/:id/amend`). The whole month goes with an optional reason; the plan keeps waiting for the decision,
  * the days it replaces are kept on the plan, and the employee is told. Weekly offs and holidays stay locked.
+ *
+ * `approved`: the plan is past the manager. Only days after today can change; today and earlier days are locked, and a trip that has
+ * begun can only get a new return date (later than today), since its stay and transit days follow from it.
  */
-export function AmendMonthlyPlanDialog({ plan, onClose }: { plan: MonthlyPlanDetailDto; onClose: () => void }) {
+export function AmendMonthlyPlanDialog({ plan, approved = false, onClose }: { plan: MonthlyPlanDetailDto; approved?: boolean; onClose: () => void }) {
   const ownerRoutes = usePlanOwnerRoutes(plan.id);
   const original = useMemo(() => draftsOf(plan.entries), [plan]);
   const [edited, setEdited] = useState(original);
@@ -51,6 +57,11 @@ export function AmendMonthlyPlanDialog({ plan, onClose }: { plan: MonthlyPlanDet
   const offByDate = useMemo(() => new Map(plan.offDays.map((d) => [d.date, d])), [plan.offDays]);
   const offDates = useMemo(() => [...offByDate.keys()], [offByDate]);
   const changed = changedDates(original, edited);
+  const today = localToday();
+  const isLocked = (date: string) => approved && date <= today;
+  // A trip that began but hasn't ended: its return date is the one thing that can still move.
+  const isOngoingTrip = (date: string) => isLocked(date) && Boolean(edited[date]?.returnDate && edited[date]!.returnDate! > today);
+  const returnOnly = editing !== null && isLocked(editing);
 
   function open(date: string) {
     setForm(edited[date] ?? EMPTY_DAY);
@@ -60,8 +71,11 @@ export function AmendMonthlyPlanDialog({ plan, onClose }: { plan: MonthlyPlanDet
 
   function applyDay() {
     if (!editing) return;
-    const day: DraftDay = { ...form, returnDate: form.returnDate || null };
-    const problem = dayProblem(day, editing, { routes, edited, offDates });
+    const day: DraftDay = returnOnly ? { ...edited[editing]!, returnDate: form.returnDate || null } : { ...form, returnDate: form.returnDate || null };
+    const problem =
+      returnOnly && (!day.returnDate || day.returnDate <= today)
+        ? 'The new return date has to be after today.'
+        : dayProblem(day, editing, { routes, edited, offDates });
     setFormError(problem ?? undefined);
     if (problem) return;
     setEdited((e) => withDay(e, editing, day));
@@ -77,7 +91,7 @@ export function AmendMonthlyPlanDialog({ plan, onClose }: { plan: MonthlyPlanDet
   const toggle = (list: string[], id: string) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
 
   function submit() {
-    const problem = !reason.trim() ? 'Say why the plan was changed. The employee sees it.' : reason.length > REASON_MAX ? `At most ${REASON_MAX} characters.` : undefined;
+    const problem = reason.length > REASON_MAX ? `At most ${REASON_MAX} characters.` : undefined;
     setReasonError(problem);
     if (problem) return;
     if (changed.length === 0) {
@@ -95,7 +109,11 @@ export function AmendMonthlyPlanDialog({ plan, onClose }: { plan: MonthlyPlanDet
     <FormDialog
       wide
       title="Edit the monthly plan"
-      description="Change any day before you decide. The plan keeps waiting for you, the old days are kept on it, and the employee is told."
+      description={
+        approved
+          ? 'Change the days after today. The plan stays approved, the old days are kept on it, and the employee is told. Today and earlier days are locked.'
+          : 'Change any day before you decide. The plan keeps waiting for you, the old days are kept on it, and the employee is told.'
+      }
       formId="amend-monthly-plan-form"
       pending={amend.isPending}
       disabled={stale || ownerRoutes.isLoading}
@@ -129,13 +147,24 @@ export function AmendMonthlyPlanDialog({ plan, onClose }: { plan: MonthlyPlanDet
                   {wasChanged ? <Badge tone="warning">Changed</Badge> : null}
                 </div>
                 {!off && !(day && isTripDay(day.dayKind)) ? (
-                  <Button variant="secondary" size="sm" onClick={() => open(date)} aria-label={`${day ? 'Edit' : 'Plan'} ${planDayLabel(date)}`}>
-                    {day ? 'Edit' : 'Plan'}
-                  </Button>
+                  isLocked(date) && !isOngoingTrip(date) ? (
+                    <Badge tone="neutral">Locked</Badge>
+                  ) : (
+                    <Button variant="secondary" size="sm" onClick={() => open(date)} aria-label={`${isOngoingTrip(date) ? 'Change return for' : day ? 'Edit' : 'Plan'} ${planDayLabel(date)}`}>
+                      {isOngoingTrip(date) ? 'Change return' : day ? 'Edit' : 'Plan'}
+                    </Button>
+                  )
                 ) : null}
               </div>
               {editing === date ? (
                 <div className="mt-3 space-y-3 rounded-md border border-border bg-surface-hover/60 p-4">
+                  {returnOnly ? (
+                    <FormField label="Return date (trip)" htmlFor="amend-return" hint="The trip has begun, so only its return date can change. The days up to today stay as they are.">
+                      <Input id="amend-return" type="date" className="w-44" min={planDayMin(today)} value={form.returnDate ?? ''} onChange={(e) => setForm((f) => ({ ...f, returnDate: e.target.value || null }))} />
+                    </FormField>
+                  ) : null}
+                  {!returnOnly ? (
+                    <>
                   <FormField label="Working type" htmlFor="amend-type">
                     <Select
                       id="amend-type"
@@ -193,6 +222,8 @@ export function AmendMonthlyPlanDialog({ plan, onClose }: { plan: MonthlyPlanDet
                   <FormField label="Remarks" htmlFor="amend-remarks">
                     <Textarea id="amend-remarks" maxLength={500} value={form.remarks ?? ''} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} />
                   </FormField>
+                    </>
+                  ) : null}
                   {formError ? (
                     <p role="alert" className="text-[13px] text-danger-fg">
                       {formError}
@@ -202,7 +233,7 @@ export function AmendMonthlyPlanDialog({ plan, onClose }: { plan: MonthlyPlanDet
                     <Button size="sm" onClick={applyDay}>
                       Apply to this day
                     </Button>
-                    {day ? (
+                    {day && !returnOnly ? (
                       <Button size="sm" variant="secondary" onClick={clearDay}>
                         Remove this day
                       </Button>
@@ -218,10 +249,10 @@ export function AmendMonthlyPlanDialog({ plan, onClose }: { plan: MonthlyPlanDet
         })}
       </ol>
       <FormField
-        label="Reason"
+        label="Reason (optional)"
         htmlFor="amend-reason"
         error={reasonError}
-        hint={`Required. The employee sees it. ${changed.length === 0 ? 'No days changed yet.' : `${changed.length} day${changed.length === 1 ? '' : 's'} changed.`}`}
+        hint={`Optional; the employee sees it. ${changed.length === 0 ? 'No days changed yet.' : `${changed.length} day${changed.length === 1 ? '' : 's'} changed.`}`}
       >
         <Textarea id="amend-reason" value={reason} maxLength={REASON_MAX} onChange={(e) => setReason(e.target.value)} aria-invalid={reasonError ? true : undefined} />
       </FormField>

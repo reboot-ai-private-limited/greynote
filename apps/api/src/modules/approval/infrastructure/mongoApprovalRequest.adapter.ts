@@ -93,6 +93,10 @@ export class MongoApprovalRequestAdapter implements ApprovalRequestRepositoryPor
     }
   }
 
+  async deleteByRecord(kind: string, recordId: string, ctx?: TransactionContext): Promise<void> {
+    await ApprovalRequestModel.deleteMany({ kind, recordId }, ctx ? { session: ctx as ClientSession } : {});
+  }
+
   async transition(
     id: string,
     expected: ExpectedState,

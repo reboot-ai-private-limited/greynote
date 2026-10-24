@@ -39,8 +39,8 @@ import {
 
 const ANY = 'all';
 const SEARCH_DEBOUNCE_MS = 500;
-/** What "reviewed" holds: a request that is still open, or sent back to the employee, is not in it. */
-const DECIDED_STATUSES: ApprovalStatus[] = ['APPROVED', 'REJECTED', 'WITHDRAWN'];
+/** What "reviewed" holds: a request that is still open is not in it. A reopened one is, so Admin can find it after reopening. */
+const DECIDED_STATUSES: ApprovalStatus[] = ['APPROVED', 'REJECTED', 'WITHDRAWN', 'REOPENED'];
 const STATUS_OPTIONS = [
   { value: ANY, label: 'Any status' },
   ...DECIDED_STATUSES.map((value) => ({ value, label: STATUS_LABEL[value] })),

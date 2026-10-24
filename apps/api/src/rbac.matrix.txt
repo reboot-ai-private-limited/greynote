@@ -20,6 +20,7 @@ DELETE /api/inbox/messages/:id  ADMIN
 DELETE /api/marketing/doctors/:doctorId/visuals/:visualId  ADMIN,FIELD
 DELETE /api/marketing/targets/:id  ADMIN,HR
 DELETE /api/marketing/visuals/:id  ADMIN
+DELETE /api/planning/monthly/:id  ADMIN
 DELETE /api/territory/hqs/:id  ADMIN
 DELETE /api/territory/routes/:id  ADMIN
 DELETE /api/territory/routes/:id/assignments/:userId  ADMIN
@@ -111,14 +112,14 @@ GET    /api/payroll/overview  ACCOUNTANT,ADMIN,HR
 GET    /api/payroll/paid-totals  ACCOUNTANT,ADMIN
 GET    /api/payroll/warnings  ACCOUNTANT,ADMIN,HR
 GET    /api/planning/daily  FIELD
-GET    /api/planning/daily/:id  ADMIN,FIELD
+GET    /api/planning/daily/:id  ADMIN,FIELD,HR
 GET    /api/planning/daily/carry-over  FIELD
 GET    /api/planning/daily/team-suggest  FIELD
 GET    /api/planning/late-grants  ADMIN,FIELD
 GET    /api/planning/monthly  FIELD
-GET    /api/planning/monthly/:id  ADMIN,FIELD
-GET    /api/planning/monthly/:id/routes  ADMIN,FIELD
-GET    /api/planning/users/:userId/monthly/:month  ADMIN,FIELD
+GET    /api/planning/monthly/:id  ADMIN,FIELD,HR
+GET    /api/planning/monthly/:id/routes  ADMIN,FIELD,HR
+GET    /api/planning/users/:userId/monthly/:month  ADMIN,FIELD,HR
 GET    /api/reports/dcr  ADMIN
 GET    /api/reports/dcr/coverage  ADMIN
 GET    /api/reports/doctor-visits  ADMIN,FIELD
@@ -190,8 +191,8 @@ PATCH  /api/identity/users/:id  ADMIN,HR
 PATCH  /api/marketing/campaigns/:id  ADMIN
 PATCH  /api/marketing/targets/:id  ADMIN,HR
 PATCH  /api/marketing/visuals/:id  ADMIN
-PATCH  /api/planning/daily/:id/amend  ADMIN,FIELD
-PATCH  /api/planning/monthly/:id/amend  ADMIN,FIELD
+PATCH  /api/planning/daily/:id/amend  ADMIN,FIELD,HR
+PATCH  /api/planning/monthly/:id/amend  ADMIN,FIELD,HR
 PATCH  /api/sales/orders/:id  ACCOUNTANT,ADMIN
 PATCH  /api/territory/hqs/:id  ADMIN
 PATCH  /api/territory/routes/:id  ADMIN

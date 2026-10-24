@@ -55,7 +55,7 @@ export function registerPushEvents(inbox: InboxPublicContract, config: ConfigRea
   });
 
   appEvents.on('monthly.plan.amended', async (e) => {
-    await send(e.userId, 'Your tour plan was edited', `${e.byName} edited your plan for ${monthName(e.planMonth)}: ${e.reason}`, {
+    await send(e.userId, 'Your tour plan was edited', `${e.byName} edited your plan for ${monthName(e.planMonth)}${e.reason ? `: ${e.reason}` : '.'}`, {
       type: 'PLAN_AMENDED_MONTHLY_PLAN',
       route: KINDS.MONTHLY_PLAN?.route ?? '/inbox',
       recordId: e.planId,

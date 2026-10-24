@@ -72,7 +72,7 @@ export function PlanAmendments({ amendments, entries, routes, nameOf, timeZone, 
         return (
           <View key={`${a.at}-${i}`} style={styles.item}>
             <ThemedText type="small">{`${nameOf(a.by) ?? 'Your manager or Admin'} · ${formatWhen(a.at, timeZone)}`}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">{`Reason: ${a.reason}`}</ThemedText>
+            {a.reason ? <ThemedText type="small" themeColor="textSecondary">{`Reason: ${a.reason}`}</ThemedText> : null}
             {open === i ? (
               days.length === 0 ? (
                 <ThemedText type="small" themeColor="textSecondary">No day was changed.</ThemedText>

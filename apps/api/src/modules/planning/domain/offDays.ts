@@ -13,7 +13,7 @@ export interface PlanOffDay {
 /** Planning's narrow view of HR's `listPlanOffDays`, handed in by the composition root once HR is built. */
 export type PlanOffDaysSource = (userId: string, from: string, to: string) => Promise<PlanOffDay[]>;
 
-const dayLabel = (date: string): string =>
+export const dayLabel = (date: string): string =>
   new Intl.DateTimeFormat('en-IN', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(`${date}T00:00:00Z`));
 
 /** "Sun, 4 Oct is the weekly off" / "Fri, 2 Oct is a holiday (Gandhi Jayanti)". */

@@ -42,6 +42,8 @@ export interface ApprovalRequestRepositoryPort {
   findByRecords(kind: string, recordIds: string[]): Promise<ApprovalRequest[]>;
   /** Throws a 409 if a request for this (kind, recordId) already exists. */
   create(input: Omit<ApprovalRequest, 'id'>, ctx?: TransactionContext): Promise<ApprovalRequest>;
+  /** Removes the request for a record, with its history. For a record that is itself being deleted. */
+  deleteByRecord(kind: string, recordId: string, ctx?: TransactionContext): Promise<void>;
   /**
    * Applies `change` and appends its action — only if the request is still in `expected` status
    * and cycle. Returns null when it isn't: someone else acted first.

@@ -10,7 +10,7 @@ export interface PlanAmendmentDoc {
 }
 
 const amendmentSchema = new Schema<PlanAmendmentDoc>(
-  { by: { type: Schema.Types.ObjectId, required: true, ref: 'User' }, at: { type: Date, required: true }, reason: { type: String, required: true }, previous: { type: new Schema(planDaySchemaFields, { _id: false }), required: true } },
+  { by: { type: Schema.Types.ObjectId, required: true, ref: 'User' }, at: { type: Date, required: true }, reason: { type: String, default: '' }, previous: { type: new Schema(planDaySchemaFields, { _id: false }), required: true } },
   { _id: false },
 );
 

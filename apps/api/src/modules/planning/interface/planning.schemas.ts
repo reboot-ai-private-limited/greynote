@@ -98,13 +98,13 @@ export const listLateSubmitGrantsQuerySchema = z.object({
   kind: z.enum(PLAN_KINDS).optional(),
 });
 
-/** A manager's or Admin's amendment of an employee's waiting Monthly Plan: the whole month as it should be, and why. */
+/** A manager's or Admin's amendment of an employee's waiting Monthly Plan: the whole month as it should be, and why (optional). */
 export const amendMonthlyPlanBodySchema = z.object({
   entries: saveMonthlyPlanBodySchema.shape.entries,
-  reason: z.string().trim().min(1, 'A reason is required.').max(500),
+  reason: z.string().trim().max(500).default(''),
 });
 
-/** A manager's or Admin's amendment of an employee's Daily Plan: the whole day as it should be, and why. */
+/** A manager's or Admin's amendment of an employee's Daily Plan: the whole day as it should be, and why (optional). */
 export const amendDailyPlanBodySchema = planDaySchema.extend({
-  reason: z.string().trim().min(1, 'A reason is required.').max(500),
+  reason: z.string().trim().max(500).default(''),
 });

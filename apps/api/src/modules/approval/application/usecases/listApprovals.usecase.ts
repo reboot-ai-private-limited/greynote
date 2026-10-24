@@ -9,7 +9,8 @@ import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
 import { canActOn, dueAt, loadPeople, loadSlaDays, loadSubjects, toListItem, type ApprovalListItem } from '../approvalViews.js';
 
 const OPEN: ApprovalStatus[] = ['SUBMITTED', 'MANAGER_APPROVED'];
-const DECIDED: ApprovalStatus[] = ['APPROVED', 'REJECTED', 'WITHDRAWN'];
+/** What the reviewed list holds. A reopened request is here too: it left the waiting list for the employee, so this is where Admin finds it. */
+const DECIDED: ApprovalStatus[] = ['APPROVED', 'REJECTED', 'WITHDRAWN', 'REOPENED'];
 /**
  * HR's queue is filtered in memory (whether a Stage-1 leave is top-of-chain needs each
  * submitter's manager), so its candidate set is capped. HR-kind requests open at once are a

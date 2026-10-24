@@ -97,12 +97,22 @@ export function usePlanOwnerRoutes(id: string) {
   );
 }
 
-/** Admin or a manager replaces the whole month of a waiting plan; the approval stays where it is. */
+/** Admin, HR or a manager replaces the whole month of a plan (waiting, or for Admin and HR approved, from tomorrow on); the approval stays where it is. */
 export function useAmendMonthlyPlan(id: string, onDone: () => void) {
   return useApiMutation<AmendMonthlyPlanDto, MonthlyPlanDetailDto>({
     call: (token, body) => planningApi.amendMonthly(token, id, body),
     invalidates: [keys.plans.monthly(id), keys.approvals.all()],
     successMessage: 'The plan was changed. The employee has been told.',
+    onSuccess: onDone,
+  });
+}
+
+/** Admin removes a month that hasn't started, with its approval and unsent daily plans. */
+export function useDeleteMonthlyPlan(id: string, onDone: () => void) {
+  return useApiMutation<void, null>({
+    call: (token) => planningApi.deleteMonthly(token, id),
+    invalidates: [keys.plans.monthly(id), keys.approvals.all()],
+    successMessage: 'The plan was deleted.',
     onSuccess: onDone,
   });
 }

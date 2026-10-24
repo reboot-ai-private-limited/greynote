@@ -60,6 +60,7 @@ export function buildApprovalContainer(users: UserDirectoryPort, config: ConfigP
       submit: (input, ctx) => submit.execute(input, ctx),
       getForRecord: (kind, recordId) => getForRecord.execute(kind, recordId),
       listForRecords: (kind, recordIds) => requestRepository.findByRecords(kind, recordIds),
+      deleteForRecord: (kind, recordId, ctx) => requestRepository.deleteByRecord(kind, recordId, ctx),
       autoReject: (kind, recordId, reason) => autoReject.execute(kind, recordId, reason),
       listWaitingOnManagers: (filter) => list.waitingOnManagers(filter),
     },

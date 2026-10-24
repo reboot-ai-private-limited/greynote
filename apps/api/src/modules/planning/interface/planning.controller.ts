@@ -5,6 +5,7 @@ import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { Actor } from '../application/planAccess.js';
+import type { DeleteMonthlyPlanUseCase } from '../application/usecases/deleteMonthlyPlan.usecase.js';
 import type { AmendMonthlyPlanUseCase } from '../application/usecases/amendMonthlyPlan.usecase.js';
 import type { AmendDailyPlanUseCase } from '../application/usecases/amendDailyPlan.usecase.js';
 import type { CarryOver } from '../application/carryOver.js';
@@ -65,13 +66,15 @@ export type PlanningHandlers = Record<
   | 'listLateGrants'
   | 'revokeLate'
   | 'amendDaily'
-  | 'amendMonthly',
+  | 'amendMonthly'
+  | 'deleteMonthly',
   RequestHandler
 >;
 
 export function makePlanningControllers(useCases: {
   amendDaily: AmendDailyPlanUseCase;
   amendMonthly: AmendMonthlyPlanUseCase;
+  deleteMonthly: DeleteMonthlyPlanUseCase;
   setDoctors: SetDailyPlanDoctorsUseCase;
   setDay: SetDailyPlanUseCase;
   teamSuggest: SuggestFromTeamUseCase;
@@ -160,6 +163,10 @@ export function makePlanningControllers(useCases: {
       const { entries, reason } = req.body as z.output<typeof amendMonthlyPlanBodySchema>;
       const plan = await useCases.amendMonthly.execute(actorOf(req), requiredParam(req.params, 'id'), entries, reason);
       sendSuccess(req, res, plan, 'Plan amended.', 200);
+    }),
+    deleteMonthly: asyncHandler(async (req, res) => {
+      await useCases.deleteMonthly.execute(actorOf(req), requiredParam(req.params, 'id'));
+      sendSuccess(req, res, null, 'Plan deleted.', 200);
     }),
     revokeLate: asyncHandler(async (req, res) => {
       const grant = await useCases.revokeLate.execute(actorOf(req), requiredParam(req.params, 'id'));

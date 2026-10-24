@@ -38,6 +38,8 @@ export interface DailyPlanRepositoryPort {
    * only if the plan is still at `revision` (the one the entry was read against), bumping it.
    */
   applyChange(id: string, revision: number, day: PlanDay, ctx: TransactionContext): Promise<boolean>;
+  /** Inside a transaction: removes the plan, only if it is still at `revision`. */
+  deleteById(id: string, revision: number, ctx: TransactionContext): Promise<boolean>;
   /**
    * Inside the submit transaction: bumps `revision` only if the plan is still at `revision`.
    * Both sides being conditional is what stops an edit and a submit crossing — the submit can't

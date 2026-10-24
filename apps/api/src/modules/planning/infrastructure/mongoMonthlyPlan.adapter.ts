@@ -75,7 +75,7 @@ export class MongoMonthlyPlanAdapter implements MonthlyPlanRepositoryPort {
     return doc ? toPlan(doc) : null;
   }
 
-  async amend(id: string, expectedRevision: number, entries: MonthlyPlanEntry[], amendment: MonthlyPlanAmendment): Promise<MonthlyPlan | null> {
+  async amend(id: string, expectedRevision: number, entries: MonthlyPlanEntry[], amendment: MonthlyPlanAmendment, ctx?: TransactionContext): Promise<MonthlyPlan | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const doc = await MonthlyPlanModel.findOneAndUpdate(
       { _id: id, revision: expectedRevision },
@@ -84,9 +84,14 @@ export class MongoMonthlyPlanAdapter implements MonthlyPlanRepositoryPort {
         $push: { amendments: { by: new Types.ObjectId(amendment.by), at: amendment.at, reason: amendment.reason, previous: toEntryDocs(amendment.previous) } },
         $inc: { revision: 1 },
       },
-      { new: true },
+      { new: true, session: (ctx as ClientSession | undefined) ?? null },
     ).lean();
     return doc ? toPlan(doc) : null;
+  }
+
+  async deleteById(id: string, revision: number, ctx: TransactionContext): Promise<boolean> {
+    const result = await MonthlyPlanModel.deleteOne({ _id: id, revision }, { session: ctx as ClientSession });
+    return result.deletedCount === 1;
   }
 
   async confirmRevision(id: string, revision: number, countLateResubmit: boolean, ctx: TransactionContext): Promise<boolean> {
