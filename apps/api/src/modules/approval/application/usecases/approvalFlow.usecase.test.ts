@@ -133,6 +133,7 @@ const describeRecords = async (ids: string[]) =>
 const PLAN: ApprovalKindDefinition = { kind: 'TEST_PLAN', finalApproverRoles: ['ADMIN'], onStatusChange, describeRecords };
 const QUICK: ApprovalKindDefinition = { kind: 'TEST_QUICK', finalApproverRoles: ['ADMIN'] };
 const LEAVE: ApprovalKindDefinition = { kind: 'TEST_LEAVE', finalApproverRoles: ['HR', 'ADMIN'] };
+const HR_PLAN: ApprovalKindDefinition = { kind: 'TEST_HR_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true };
 const CHANGE: ApprovalKindDefinition = { kind: 'TEST_CHANGE', finalApproverRoles: ['ADMIN'], managerOnly: true };
 
 /** The `APPROVAL_MANAGER_ONLY_KINDS` value; TEST_QUICK skips the final stage. */
@@ -162,7 +163,7 @@ beforeEach(() => {
   requests = new FakeRequests();
   transactions = new FakeTransactions(requests);
   const kinds = new ApprovalKindRegistry();
-  [PLAN, QUICK, LEAVE, CHANGE].forEach((k) => kinds.register(k));
+  [PLAN, QUICK, LEAVE, CHANGE, HR_PLAN].forEach((k) => kinds.register(k));
   submit = new SubmitApprovalUseCase(requests, users, kinds, config);
   decide = new DecideApprovalUseCase(requests, users, kinds, transactions);
   withdraw = new WithdrawApprovalUseCase(requests, kinds, transactions);
@@ -401,7 +402,21 @@ describe('reopen', () => {
     expect((await submitAs('mr')).cycle).toBe(2);
   });
 
-  it('only Admin, and only from APPROVED', async () => {
+  it('HR overrides the manager and reopens a kind that lists HR in overrideRoles, but not Leave', async () => {
+    const plan = await submitAs('mr', HR_PLAN.kind);
+    const done = await approve(plan.id, 'hr');
+    expect(done.status).toBe('APPROVED');
+    expect(done.history.at(-1)?.authority).toBe('ADMIN_OVERRIDE');
+    expect(await reopen.execute(plan.id, as('hr'), 'Wrong day')).toMatchObject({ status: 'REOPENED' });
+
+    const leave = await submitAs('mr', LEAVE.kind);
+    await expect(approve(leave.id, 'hr')).rejects.toMatchObject({ statusCode: 403 });
+    await approve(leave.id, 'asm');
+    await approve(leave.id, 'hr');
+    await expect(reopen.execute(leave.id, as('hr'), 'x')).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('only Admin (or an override role of the kind), and only from APPROVED', async () => {
     const req = await submitAs('mr');
     await expect(reopen.execute(req.id, as('admin'), 'x')).rejects.toMatchObject({ statusCode: 409 });
     await approve(req.id, 'admin');

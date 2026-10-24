@@ -9,8 +9,8 @@ describe('approvalTabsFor', () => {
     expect(tabs.map((t) => t.value)).toEqual(expect.arrayContaining(['LEAVE', 'DCR', 'DAILY_PLAN', 'MONTHLY_PLAN', 'NEW_DOCTOR', 'DOCTOR_SERVICE']));
     expect(new Set(tabs.map((t) => t.value)).size).toBe(tabs.length);
   });
-  it('gives HR no tabs: it decides leave only', () => {
-    expect(approvalTabsFor('HR')).toEqual([]);
+  it('gives HR the plan and leave tabs only', () => {
+    expect(approvalTabsFor('HR').map((t) => t.value)).toEqual(['DAILY_PLAN', 'MONTHLY_PLAN', 'LEAVE']);
   });
 });
 

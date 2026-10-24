@@ -118,6 +118,7 @@ GET    /api/planning/late-grants  ADMIN,FIELD
 GET    /api/planning/monthly  FIELD
 GET    /api/planning/monthly/:id  ADMIN,FIELD
 GET    /api/planning/monthly/:id/routes  ADMIN,FIELD
+GET    /api/planning/users/:userId/monthly/:month  ADMIN,FIELD
 GET    /api/reports/dcr  ADMIN
 GET    /api/reports/dcr/coverage  ADMIN
 GET    /api/reports/doctor-visits  ADMIN,FIELD
@@ -196,7 +197,7 @@ PATCH  /api/territory/routes/:id  ADMIN
 PATCH  /api/territory/zones/:id  ADMIN
 POST   /api/approvals/:id/approve  ANY
 POST   /api/approvals/:id/reject  ANY
-POST   /api/approvals/:id/reopen  ADMIN
+POST   /api/approvals/:id/reopen  ADMIN,HR
 POST   /api/approvals/:id/withdraw  ANY
 POST   /api/approvals/bulk  ADMIN,FIELD,HR
 POST   /api/config/financial-year/close  ADMIN

@@ -30,6 +30,11 @@ export interface ApprovalKindDefinition {
    */
   finalApproverRoles: RoleName[];
   /**
+   * Who may decide at any stage, ahead of the manager (`ADMIN_OVERRIDE`), besides Admin, who always may. Must be a subset of
+   * `finalApproverRoles`, so the kind's queue already lists the role. Plans add `HR`; Leave does not (manager, then HR).
+   */
+  overrideRoles?: RoleName[];
+  /**
    * The kind never has a final stage: the manager's approval is the decision, whatever
    * `APPROVAL_MANAGER_ONLY_KINDS` says. For a kind whose design is "the manager decides" (no kind uses it today), as opposed to one Admin may relax later through that setting.
    */

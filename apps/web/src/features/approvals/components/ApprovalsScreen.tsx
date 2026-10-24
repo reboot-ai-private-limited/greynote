@@ -258,7 +258,7 @@ export function ApprovalsScreen() {
         title="Approvals"
         description={
           role === 'HR'
-            ? 'Leave requests waiting for you to decide.'
+            ? 'Leave and plan requests waiting for you to decide.'
             : 'Every request waiting on a decision, longest-waiting first.'
         }
         actions={

@@ -2,7 +2,7 @@ import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalRequest } from '../../domain/approvalRequest.entity.js';
 import type { ApprovalRequestRepositoryPort } from '../../domain/approvalRequest.repository.port.js';
-import type { Actor } from '../../domain/approvalRules.js';
+import { canOverride, type Actor } from '../../domain/approvalRules.js';
 import type { ApprovalKindRegistry } from '../approvalKindRegistry.js';
 import { applyTransition } from '../applyTransition.js';
 
@@ -19,12 +19,12 @@ export class ReopenApprovalUseCase {
   ) {}
 
   async execute(requestId: string, actor: Actor, reason: string): Promise<ApprovalRequest> {
-    if (actor.role !== 'ADMIN') throw AppError.forbidden('Only Admin can reopen an approved request.');
     const comment = reason.trim();
     if (comment === '') throw AppError.badRequest('A reason is required to reopen.', { field: 'comment' });
 
     const request = await this.requests.findById(requestId);
     if (!request) throw AppError.notFound();
+    if (!canOverride(this.kinds.find(request.kind), actor.role)) throw AppError.forbidden('You cannot reopen this request.');
     if (request.status !== 'APPROVED') throw AppError.conflict('Only an approved request can be reopened.');
 
     return applyTransition({ requests: this.requests, kinds: this.kinds, transactions: this.transactions }, request, {

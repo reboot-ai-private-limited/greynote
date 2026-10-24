@@ -7,13 +7,18 @@ export interface Actor {
   role: RoleName;
 }
 
+/** Admin always; any other role only when the kind names it in `overrideRoles`. */
+export function canOverride(kind: ApprovalKindDefinition | undefined, role: RoleName): boolean {
+  return role === 'ADMIN' || (kind?.overrideRoles?.includes(role) ?? false);
+}
+
 /**
  * Who may approve or reject `request` right now, and in what capacity — `null` if `actor` may
  * not. Pure: the caller supplies the submitter's CURRENT manager (resolved live, so a reassigned
  * employee's pending requests follow them to the new manager).
  *
  * - `SUBMITTED` → the submitter's manager; or, when the submitter has no manager (top of chain),
- *   the kind's final approvers; or Admin at any time (standing override, HLD 05 §5).
+ *   the kind's final approvers; or Admin (and the kind's `overrideRoles`) at any time (standing override, HLD 05 §5).
  * - `MANAGER_APPROVED` → the kind's final approvers only.
  * - Nobody ever acts on their own request.
  */
@@ -29,7 +34,7 @@ export function resolveAuthority(
   if (request.status === 'SUBMITTED') {
     if (submitterManagerId !== null && actor.id === submitterManagerId) return 'MANAGER';
     if (submitterManagerId === null && isFinalApprover) return 'TOP_OF_CHAIN';
-    if (actor.role === 'ADMIN') return 'ADMIN_OVERRIDE';
+    if (canOverride(kind, actor.role)) return 'ADMIN_OVERRIDE';
     return null;
   }
   if (request.status === 'MANAGER_APPROVED') return isFinalApprover ? 'FINAL' : null;

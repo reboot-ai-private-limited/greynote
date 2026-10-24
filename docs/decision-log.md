@@ -2435,3 +2435,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Decision:** a doctor can have one optional photo (JPG, PNG or WebP, up to 5 MB, stored by Cloudinary at 512×512), shown as an avatar in the Doctors table and the approval preview, with initials when there is none. It is a nullable `photo {url, publicId}`, so the many existing doctors need no migration. Admin sets or removes it on the web (add and edit form); the MR who added a doctor can also set it from the phone, **after** the add has synced (the add stays JSON so it works offline), and only until the request is approved. The photo is not part of the approval, so changing it does not resubmit. Replacing or removing deletes the old file; deleting a doctor deletes its file and the archive keeps none. Clients only get `photoUrl`. The upload middleware, file check and Cloudinary adapter moved from Identity to `shared/` so both modules use them. The phone app is not changed here; `docs/mobile/doctors.md` (rule 10, section 6) is the contract.
 
 **Open:** the phone app building the picker and the queued upload; whether the approver (a manager) should be able to replace the photo during review (today only Admin and the adding MR can).
+
+## 2026-10-24: HR can approve and reopen plans, like Admin
+
+**Decision:** HR can decide a Daily or Monthly plan at any stage, ahead of the manager (`ADMIN_OVERRIDE`, and that approval is final), see them in its Approvals queue and Reviewed list, and reopen an approved plan. A kind opts in with `overrideRoles` when it registers; Admin always may. Leave does not opt in, so it stays manager, then HR or Admin. Every other kind stays Admin only. No migration.
+
+**Open:** whether HR should also override Daily report, Monthly expenses (the PRD gives expense auditing to the Accountant), New doctor and Doctor service.

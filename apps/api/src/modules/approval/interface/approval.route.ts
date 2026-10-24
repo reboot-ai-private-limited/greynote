@@ -70,6 +70,6 @@ export function buildApprovalRouter(c: Record<'inbox' | 'inboxSummary' | 'all' |
   router.post('/:id/approve', withId(approveBodySchema), c.approve);
   router.post('/:id/reject', withId(rejectBodySchema), c.reject);
   router.post('/:id/withdraw', withId(withdrawBodySchema), c.withdraw);
-  router.post('/:id/reopen', requireRole('ADMIN'), withId(reopenBodySchema), c.reopen);
+  router.post('/:id/reopen', requireRole('ADMIN', 'HR'), withId(reopenBodySchema), c.reopen);
   return router;
 }

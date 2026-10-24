@@ -1,7 +1,7 @@
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ApprovalAction } from '../../domain/approvalRequest.entity.js';
 import type { ApprovalRequestRepositoryPort } from '../../domain/approvalRequest.repository.port.js';
-import type { Actor } from '../../domain/approvalRules.js';
+import { canOverride, type Actor } from '../../domain/approvalRules.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { ApprovalKindRegistry } from '../approvalKindRegistry.js';
 import type { ConfigProviderPort } from '../../domain/configProvider.port.js';
@@ -45,7 +45,7 @@ export class GetApprovalDetailUseCase {
       canAct: canActOn(request, actor, people.get(request.submitterId), kind),
       history: request.history.map(({ actorId, ...rest }) => ({ ...rest, actor: toPersonRef(people.get(actorId)) })),
       canWithdraw: actor.id === request.submitterId && request.status === 'SUBMITTED',
-      canReopen: actor.role === 'ADMIN' && request.status === 'APPROVED',
+      canReopen: request.status === 'APPROVED' && canOverride(kind, actor.role),
     };
   }
 }

@@ -81,8 +81,8 @@ export function buildPlanningContainer(
   const offDays = new OffDays();
   // Plans are approved once, by the submitter's manager or by Admin, whoever acts first (managerOnly). A Daily Plan's
   // status lives in the approval module; an approved Monthly Plan writes its days into Daily Plans (see below).
-  approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: describeEach((id) => dailyPlans.findById(id), (plan) => ({ title: dayTitle(plan.planDate), subtitle: null })) });
-  approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: describeEach((id) => monthlyPlans.findById(id), (plan) => ({ title: monthTitle(plan.planMonth), subtitle: null })), onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays) });
+  approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, describeRecords: describeEach((id) => dailyPlans.findById(id), (plan) => ({ title: dayTitle(plan.planDate), subtitle: null })) });
+  approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, describeRecords: describeEach((id) => monthlyPlans.findById(id), (plan) => ({ title: monthTitle(plan.planMonth), subtitle: null })), onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays) });
   const views = new PlanViews(approvals, grants, deadlines, offDays);
   const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now);
   const carryOver = new CarryOver(dailyPlans, approvals, config);
