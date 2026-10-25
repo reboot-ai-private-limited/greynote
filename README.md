@@ -1,5 +1,5 @@
 # Greynote
-
+product price update
 A lightweight Sales Force Automation (SFA) platform for pharmaceutical field operations —
 daily call reporting (DCR), territory routing, TA/DA expenses, and hierarchical approvals, split
 into an offline-first mobile app for the field force and a web portal for Admin/HR/Accounting.
