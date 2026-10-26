@@ -299,6 +299,36 @@ export interface UpdateDistributorDto {
 }
 
 /**
+ * `GET /field-master-data/distributors/:id/impact` (Admin): what deleting the distributor erases, shown before the delete.
+ * Deleting is permanent and takes the distributor's whole history with it, so reports and dues totals change.
+ */
+export interface DistributorImpactDto {
+  id: string;
+  name: string;
+  status: MasterStatus;
+  payments: number;
+  orders: number;
+  /** Of `orders`, those still placed (not delivered or cancelled). */
+  openOrders: number;
+  monthlyStock: number;
+  stockStatements: number;
+  /** Uploaded files, deleted from storage. */
+  documents: number;
+  /** Employees it is handed to; the link goes with it. */
+  assignedPeople: number;
+}
+
+/** `DELETE /field-master-data/distributors/:id`: what was erased. */
+export interface DistributorDeleteResultDto {
+  id: string;
+  payments: number;
+  orders: number;
+  monthlyStock: number;
+  stockStatements: number;
+  documents: number;
+}
+
+/**
  * `GET /field-master-data/doctors/:id/impact` (Admin): what deactivating or deleting the doctor touches, shown before either.
  * Deactivating ends the assignment and drops the doctor from editable plans; deleting does that, archives the doctor and removes it.
  */

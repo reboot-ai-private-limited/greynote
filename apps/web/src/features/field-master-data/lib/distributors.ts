@@ -1,5 +1,6 @@
 import type {
   CreateDistributorDto,
+  DistributorImpactDto,
   DistributorDto,
   UpdateDistributorDto,
 } from '@greynote/contracts';
@@ -229,5 +230,29 @@ export function buildDistributorUpdate(
         openingDuesPaise: rupeesToPaise(draft.openingDues) ?? 0,
       }),
     },
+  };
+}
+
+const times = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+
+/**
+ * What the delete dialog lists. Everything here goes with the distributor, so there is no "kept" section: `erased` is the history,
+ * `open` the part of it that was still live, and `note` the effect on reports. Empty lines are left out.
+ */
+export function distributorImpactLines(impact: DistributorImpactDto): { erased: string[]; open: string[]; note: string } {
+  const erased = [
+    impact.payments > 0 ? `${times(impact.payments, 'payment')} recorded against it` : '',
+    impact.orders > 0 ? `${times(impact.orders, 'order')}` : '',
+    impact.monthlyStock > 0 ? `${times(impact.monthlyStock, 'monthly stock count')}` : '',
+    impact.stockStatements > 0 ? `${times(impact.stockStatements, 'stock statement line')}` : '',
+    impact.documents > 0 ? `${times(impact.documents, 'uploaded document')}, deleted from storage` : '',
+    impact.assignedPeople > 0 ? `Its link to ${times(impact.assignedPeople, 'assigned person')}` : '',
+  ].filter(Boolean);
+  const open = impact.openOrders > 0 ? [`${times(impact.openOrders, 'order')} still open (placed, not delivered) will be erased too`] : [];
+  const hasHistory = impact.payments + impact.orders + impact.monthlyStock + impact.stockStatements > 0;
+  return {
+    erased,
+    open,
+    note: hasHistory ? 'Reports, dues and sales totals that include this distributor will change. This cannot be undone.' : 'This cannot be undone.',
   };
 }

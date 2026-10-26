@@ -405,6 +405,11 @@ export class FakeDistributors implements DistributorRepositoryPort {
   async listActiveForUser(userId: string, scope: CoverageScope) {
     return this.rows.filter((d) => d.status === 'active' && (d.assignedUserIds.includes(userId) || coverageMeets(d, scope)));
   }
+  async delete(id: string) {
+    const before = this.rows.length;
+    this.rows = this.rows.filter((d) => d.id !== id);
+    return this.rows.length < before;
+  }
   async addDocument(id: string, document: DistributorDocument) {
     const row = this.rows.find((d) => d.id === id);
     if (!row) return null;

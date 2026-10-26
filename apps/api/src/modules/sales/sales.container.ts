@@ -18,6 +18,7 @@ import { monthTitle } from '@/modules/approval/approval.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import type { FieldMasterDataPort } from './domain/fieldMasterData.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
+import { MongoDistributorHistoryAdapter } from './infrastructure/mongoDistributorHistory.adapter.js';
 import { MongoOrderAdapter } from './infrastructure/mongoOrder.adapter.js';
 import { MongoEmployeeSaleAdapter } from './infrastructure/mongoEmployeeSale.adapter.js';
 import { MongoStockStatementAdapter } from './infrastructure/mongoStockStatement.adapter.js';
@@ -46,6 +47,7 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
   const statements = new MongoStockStatementAdapter();
   const employeeSales = new MongoEmployeeSaleAdapter();
   const clock = new SalesClock(config);
+  const distributorHistory = new MongoDistributorHistoryAdapter();
 
   const access = new OutletAccess(master);
   const record = new RecordMonthlyStockUseCase(access, master, stock, clock, config);
@@ -83,6 +85,8 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
       listStatements: (f) => statements.list(f, f.limit ?? 20000),
       getOrder: (id) => (id.match(/^[a-f\d]{24}$/i) ? orders.findById(id) : Promise.resolve(null)),
       listMissingStock: (month, userIds) => missing.execute({ id: 'system', role: 'ADMIN' }, month, userIds),
+      countDistributorHistory: (id) => distributorHistory.count(id),
+      eraseDistributorHistory: (id) => distributorHistory.erase(id),
       listSecondaryStatus: async (month, userIds) => {
         const rows = userIds.length ? await employeeSales.list({ fromMonth: month, toMonth: month, userIds }, 20000) : [];
         return userIds.map((userId) => ({ userId, status: monthSecondaryStatus(rows.filter((r) => r.userId === userId)) }));

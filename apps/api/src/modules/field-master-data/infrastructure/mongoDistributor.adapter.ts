@@ -112,6 +112,11 @@ export class MongoDistributorAdapter implements DistributorRepositoryPort {
     return doc ? toDistributor(doc) : null;
   }
 
+  async delete(id: string): Promise<boolean> {
+    if (!Types.ObjectId.isValid(id)) return false;
+    return (await DistributorModel.deleteOne({ _id: id })).deletedCount > 0;
+  }
+
   async addDocument(id: string, document: DistributorDocument): Promise<Distributor | null> {
     if (!Types.ObjectId.isValid(id)) return null;
     const doc = await DistributorModel.findByIdAndUpdate(id, { $push: { documents: document } }, { new: true }).lean();

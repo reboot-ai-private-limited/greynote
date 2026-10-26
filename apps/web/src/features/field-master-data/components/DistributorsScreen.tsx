@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Select';
 import { StatusFilter } from '@/components/ui/StatusFilter';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
+import { useSession } from '@/lib/auth/SessionProvider';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { istDate } from '@/lib/dates';
@@ -22,6 +23,7 @@ import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
 import { useDistributorBalances, useDistributorPaymentTotals } from '../hooks/useDistributorPayments';
 import { useDistributors, useUpdateDistributor } from '../hooks/useDistributors';
 import { paymentRange } from '../lib/payments';
+import { DeleteDistributorDialog } from './DeleteDistributorDialog';
 import { RecordPaymentDialog } from './RecordPaymentDialog';
 import { EmployeeFilter } from '@/features/people/components/EmployeePickerField';
 import { RouteFilter } from './RoutePickerField';
@@ -49,6 +51,9 @@ export function DistributorsScreen() {
   const directory = useTerritoryDirectory();
   const [toggling, setToggling] = useState<DistributorDto | null>(null);
   const [paying, setPaying] = useState<DistributorDto | null>(null);
+  const [deleting, setDeleting] = useState<DistributorDto | null>(null);
+  // Deleting erases a distributor's history, so only Admin is offered it; the Accountant adds and edits but never deletes.
+  const isAdmin = useSession().user?.role === 'ADMIN';
   const { year } = useFinancialYear();
   const today = istDate();
   const collected = useDistributorPaymentTotals(
@@ -172,6 +177,18 @@ export function DistributorsScreen() {
           >
             {d.status === 'active' ? 'Deactivate' : 'Reactivate'}
           </Button>
+          {isAdmin ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={readOnly}
+              title={readOnly ? 'A past financial year is read-only' : undefined}
+              className="text-danger-fg hover:text-danger-fg"
+              onClick={() => setDeleting(d)}
+            >
+              Delete…
+            </Button>
+          ) : null}
         </div>
       ),
     },
@@ -229,6 +246,7 @@ export function DistributorsScreen() {
       {paying ? (
         <RecordPaymentDialog distributorId={paying.id} onClose={() => setPaying(null)} />
       ) : null}
+      <DeleteDistributorDialog distributor={deleting} onClose={() => setDeleting(null)} />
       <StatusToggleDialog
         item={toggling}
         noun="distributor"

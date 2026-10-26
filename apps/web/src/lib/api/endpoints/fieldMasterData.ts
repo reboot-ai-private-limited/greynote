@@ -6,8 +6,10 @@ import type {
   CreateDoctorDto,
   CreateProductDto,
   CreateSpecialtyDto,
+  DistributorDeleteResultDto,
   DistributorDetailDto,
   DistributorDocumentDto,
+  DistributorImpactDto,
   DistributorDto,
   DoctorAssignmentDto,
   DoctorDeleteResultDto,
@@ -97,6 +99,10 @@ export const distributorsApi = {
     request<DistributorDto>(`${BASE}/distributors`, { method: 'POST', token, body }),
   update: (token: string, id: string, body: UpdateDistributorDto) =>
     request<DistributorDto>(`${BASE}/distributors/${id}`, { method: 'PATCH', token, body }),
+  /** Admin: what deleting it would erase, shown before the delete. */
+  impact: (token: string, id: string, signal?: AbortSignal) => request<DistributorImpactDto>(`${BASE}/distributors/${id}/impact`, { token, signal }),
+  /** Admin: permanent; takes its payments, orders and stock with it. */
+  remove: (token: string, id: string) => request<DistributorDeleteResultDto>(`${BASE}/distributors/${id}`, { method: 'DELETE', token }),
   /** `multipart/form-data`: the `documentType`, then one `file`. */
   uploadDocument: (token: string, id: string, body: FormData) =>
     request<DistributorDocumentDto>(`${BASE}/distributors/${id}/documents`, { method: 'POST', token, body }),

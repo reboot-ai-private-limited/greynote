@@ -2,6 +2,7 @@ import type { Order, OrderStatus } from './domain/order.entity.js';
 import type { MonthlyStock, Outlet } from './domain/monthlyStock.entity.js';
 import type { DistributorOrderSum, UserOrderSum } from './domain/order.repository.port.js';
 import type { EmployeeSale, MonthSecondaryStatus } from './domain/employeeSale.entity.js';
+import type { DistributorHistory } from './domain/distributorHistory.port.js';
 import type { StockStatement } from './domain/stockStatement.entity.js';
 import type { MissingStockRow } from './application/usecases/readMonthlyStock.usecase.js';
 
@@ -10,6 +11,7 @@ export type { MonthlyStock } from './domain/monthlyStock.entity.js';
 export type { DistributorOrderSum } from './domain/order.repository.port.js';
 export type { EmployeeSale, MonthSecondaryStatus } from './domain/employeeSale.entity.js';
 export type { UserOrderSum } from './domain/order.repository.port.js';
+export type { DistributorHistory } from './domain/distributorHistory.port.js';
 export type { StockStatement } from './domain/stockStatement.entity.js';
 export type { MissingStockRow } from './application/usecases/readMonthlyStock.usecase.js';
 
@@ -45,4 +47,8 @@ export interface SalesPublicContract {
   listMissingStock(month: string, userIds?: string[]): Promise<MissingStockRow[]>;
   /** Where each of these employees' secondary for the month stands (`NOT_ENTERED` when they entered none); every id asked for is answered, in the order given. */
   listSecondaryStatus(month: string, userIds: string[]): Promise<Array<{ userId: string; status: MonthSecondaryStatus }>>;
+  /** What Sales holds against a distributor — payments, orders, monthly stock, stock statements — for the delete confirmation. */
+  countDistributorHistory(distributorId: string): Promise<DistributorHistory>;
+  /** Deletes all of that history for a distributor being hard-deleted, and says how much there was. Safe to run again. */
+  eraseDistributorHistory(distributorId: string): Promise<DistributorHistory>;
 }

@@ -108,6 +108,8 @@ doc('delete', '/doctors/{id}/assignments/{userId}', 'Admin: remove an MR’s ass
 doc('get', '/distributors', 'Admin: list distributors, by route or the HQ / zone above it', { query: listDistributorsQuerySchema });
 doc('post', '/distributors', 'Admin or Accountant: add a distributor on a route', { body: createDistributorBodySchema });
 doc('get', '/distributors/{id}', 'Admin: one distributor, with its zone → HQ → route breadcrumb', { params: idParamsSchema });
+doc('get', '/distributors/{id}/impact', 'Admin: what deleting a distributor would erase — payments, orders, stock, files', { params: idParamsSchema });
+doc('delete', '/distributors/{id}', 'Admin: permanently delete a distributor and its payments, orders and stock history', { params: idParamsSchema });
 doc('post', '/distributors/{id}/documents', 'Admin or Accountant: attach a file (PDF, JPG or PNG, up to 10 MB) to a distributor');
 doc('delete', '/distributors/{id}/documents/{documentId}', 'Admin or Accountant: remove a distributor\'s file', { params: distributorDocumentParamsSchema });
 doc('patch', '/distributors/{id}', 'Admin or Accountant: edit a distributor, reassign its MR / ASM', { params: idParamsSchema, body: updateDistributorBodySchema });
@@ -128,6 +130,9 @@ function distributorsRouter(c: DistributorHandlers): Router {
   const router = Router();
   router.post('/:id/documents', authenticate(), requireRole(...writers), validate({ params: idParamsSchema }), documentUploadMiddleware, validate({ body: distributorDocumentBodySchema }), c.uploadDocument);
   router.delete('/:id/documents/:documentId', authenticate(), requireRole(...writers), validate({ params: distributorDocumentParamsSchema }), c.removeDocument);
+  // Deleting is Admin's alone, though the Accountant is a writer above: the role is named here, not taken from `writers`.
+  router.get('/:id/impact', authenticate(), requireRole('ADMIN'), validate({ params: idParamsSchema }), c.impact);
+  router.delete('/:id', authenticate(), requireRole('ADMIN'), validate({ params: idParamsSchema }), c.remove);
   router.use(crudRouter(c, { list: listDistributorsQuerySchema, create: createDistributorBodySchema, update: updateDistributorBodySchema }, ['ADMIN', 'ACCOUNTANT'], writers)); // the Accountant adds and edits them, and records their payments
   return router;
 }

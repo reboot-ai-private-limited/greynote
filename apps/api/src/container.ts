@@ -132,6 +132,12 @@ export function buildContainers(): AppContainers {
     release: (doctorId, userId) => planning.contract.releaseDoctor(doctorId, userId),
   });
 
+  // Same for distributors: their payments, orders and stock are Sales', so a distributor's delete counts and erases them through its contract.
+  fieldMasterData.bindDistributorReferences({
+    count: (distributorId) => sales.contract.countDistributorHistory(distributorId),
+    erase: (distributorId) => sales.contract.eraseDistributorHistory(distributorId),
+  });
+
   // Tier 6 — Payroll: base salary and who is active (Identity), approved unpaid leave (HR), what was paid in the month (Field Activity).
   const payroll = buildPayrollContainer(identity.contract, hr.contract, attendance.contract, config.contract);
 

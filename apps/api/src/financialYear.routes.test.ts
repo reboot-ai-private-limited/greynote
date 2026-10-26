@@ -149,6 +149,7 @@ const TIMELESS = [
   '/api/field-master-data/products/:id',
   '/api/field-master-data/distributors',
   '/api/field-master-data/distributors/:id',
+  '/api/field-master-data/distributors/:id/impact',
   '/api/field-master-data/chemists',
   '/api/field-master-data/chemists/:id',
   '/api/hr/leave-types',

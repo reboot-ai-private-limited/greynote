@@ -1,6 +1,6 @@
 'use client';
 
-import type { CreateDistributorDto, DistributorDocumentDto, DistributorDto, UpdateDistributorDto } from '@greynote/contracts';
+import type { CreateDistributorDto, DistributorDeleteResultDto, DistributorDocumentDto, DistributorDto, UpdateDistributorDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { distributorsApi, type ListDistributorsQuery } from '@/lib/api/endpoints/fieldMasterData';
 import { authedQueryOptions } from '@/lib/query/factory';
@@ -83,6 +83,27 @@ export function useRemoveDistributorDocument(id: string, onDone: () => void) {
     call: (token, documentId) => distributorsApi.removeDocument(token, id, documentId),
     invalidates: [keys.distributors.all()],
     successMessage: 'Document removed.',
+    onSuccess: onDone,
+  });
+}
+
+/** What deleting a distributor erases; read only while the dialog is open (`id` set), and always fresh. */
+export function useDistributorImpact(id: string | null) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.distributors.impact(id ?? ''),
+      fetch: (token, signal) => distributorsApi.impact(token, id ?? '', signal),
+      staleTime: 0,
+      enabled: id !== null,
+    }),
+  );
+}
+
+export function useDeleteDistributor(onDone: (result: DistributorDeleteResultDto) => void) {
+  return useApiMutation<string, DistributorDeleteResultDto>({
+    call: (token, id) => distributorsApi.remove(token, id),
+    invalidates: [keys.distributors.all()],
+    successMessage: 'Distributor deleted.',
     onSuccess: onDone,
   });
 }

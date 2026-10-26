@@ -23,6 +23,7 @@ import { useAllHqs } from '@/features/territory/hooks/useHqs';
 import { useActiveRoutes } from '@/features/territory/hooks/useRoutes';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { toErrorState } from '@/lib/api/toErrorState';
+import { useSession } from '@/lib/auth/SessionProvider';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import {
   useCreateDistributor,
@@ -48,6 +49,7 @@ import { DistributorStockTab } from './DistributorStockTab';
 import { LocationPicker } from './LocationPicker';
 import { PeopleMultiField } from './PeopleMultiField';
 import { CoveragePicker } from './CoveragePicker';
+import { DeleteDistributorDialog } from './DeleteDistributorDialog';
 import { DistributorDocumentsCard, PendingDocumentsField } from './DistributorDocuments';
 
 const STEP_TITLE: Record<DistributorStep, string> = {
@@ -341,6 +343,10 @@ function DistributorPage({ distributor }: { distributor: DistributorDetailDto })
   const directory = useTerritoryDirectory();
   const update = useUpdateDistributor(() => setToggling(false));
   const [toggling, setToggling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
+  // Only Admin may delete: it erases the distributor's payments, orders and stock with it.
+  const isAdmin = useSession().user?.role === 'ADMIN';
   const coverage = coverageSummary(distributor, directory);
   return (
     <>
@@ -360,6 +366,11 @@ function DistributorPage({ distributor }: { distributor: DistributorDetailDto })
             <Button variant="secondary" disabled={readOnly} onClick={() => setToggling(true)}>
               {distributor.status === 'active' ? 'Deactivate' : 'Reactivate'}
             </Button>
+            {isAdmin ? (
+              <Button variant="danger" disabled={readOnly} onClick={() => setDeleting(true)}>
+                Delete
+              </Button>
+            ) : null}
           </div>
         }
       />
@@ -395,6 +406,11 @@ function DistributorPage({ distributor }: { distributor: DistributorDetailDto })
           <DistributorStockTab distributorId={distributor.id} inactive={distributor.status === 'inactive'} />
         </TabsContent>
       </Tabs>
+      <DeleteDistributorDialog
+        distributor={deleting ? distributor : null}
+        onClose={() => setDeleting(false)}
+        onDeleted={() => router.push('/distributors')}
+      />
       <StatusToggleDialog
         item={toggling ? distributor : null}
         noun="distributor"

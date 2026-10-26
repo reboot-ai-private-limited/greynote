@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AppError } from '@/shared/errors/AppError.js';
 import { RemoveDistributorDocumentUseCase, UploadDistributorDocumentUseCase } from './distributorDocuments.usecase.js';
+import { DistributorRetirement } from '../distributorRetirement.js';
 import { coverageMeets, expandRouteIds, scopeOfUser } from '../distributorCoverage.js';
 import { CreateDistributorUseCase, type CreateDistributorInput } from './createDistributor.usecase.js';
 import { FakeDistributors, FakeTerritory, FakeUsers } from './fmdTestKit.js';
@@ -152,5 +153,58 @@ describe('Distributors', () => {
     expect(await names({ assignedUserId: 'mr2' })).toEqual(['City Agencies']);
     expect(await names({ search: '27bbb' })).toEqual(['Far Away Co']);
     expect((await list.execute(page)).total).toBe(4);
+  });
+
+  describe('hard delete', () => {
+    const history = { payments: 3, orders: 4, openOrders: 1, monthlyStock: 2, stockStatements: 5 };
+    const setup = async (over: { eraseFails?: boolean; removeFails?: boolean } = {}) => {
+      const d = await create();
+      const calls: string[] = [];
+      let eraseFails = over.eraseFails ?? false;
+      let removeFails = over.removeFails ?? false;
+      const storage = {
+        upload: async () => ({ url: 'https://files/x', publicId: 'pid-1' }),
+        remove: async (publicId: string) => {
+          if (removeFails) throw new Error('storage down');
+          calls.push(`file:${publicId}`);
+        },
+      };
+      await new UploadDistributorDocumentUseCase(distributors, storage).execute(d.id, 'GST_CERTIFICATE', Buffer.from('%PDF-1.4 x'));
+      const retirement = new DistributorRetirement(distributors, storage);
+      retirement.bind({
+        count: async () => history,
+        erase: async () => {
+          if (eraseFails) throw new Error('db down');
+          calls.push('erase');
+          return history;
+        },
+      });
+      return { d, calls, retirement, heal: () => ((eraseFails = false), (removeFails = false)) };
+    };
+
+    it('says what deleting would erase, without changing anything', async () => {
+      const { d, retirement } = await setup();
+      expect(await retirement.impact(d.id)).toMatchObject({ id: d.id, name: 'Shree Distributors', ...history, documents: 1, assignedPeople: 2 });
+      expect(distributors.rows).toHaveLength(1);
+      await expectStatus(retirement.impact('nope'), 404);
+    });
+
+    it('erases the history, then the files, then the record', async () => {
+      const { d, calls, retirement } = await setup();
+      expect(await retirement.delete(d.id, 'admin')).toEqual({ id: d.id, payments: 3, orders: 4, monthlyStock: 2, stockStatements: 5, documents: 1 });
+      expect(calls).toEqual(['erase', 'file:pid-1']);
+      expect(distributors.rows).toHaveLength(0);
+      await expectStatus(retirement.delete(d.id, 'admin'), 404);
+    });
+
+    it('leaves the distributor inactive when a step fails, and deleting again finishes', async () => {
+      const { d, retirement, heal } = await setup({ removeFails: true });
+      await expect(retirement.delete(d.id, 'admin')).rejects.toThrow('storage down');
+      expect(distributors.rows).toHaveLength(1);
+      expect(distributors.rows[0]!.status).toBe('inactive'); // nothing new can be recorded against it meanwhile
+      heal();
+      await retirement.delete(d.id, 'admin');
+      expect(distributors.rows).toHaveLength(0);
+    });
   });
 });

@@ -19,6 +19,8 @@ export interface DistributorRepositoryPort {
   listAllActive(): Promise<Distributor[]>;
   /** Active Distributors this user is assigned to, or whose coverage meets the places they work in — the phone's cache. */
   listActiveForUser(userId: string, scope: CoverageScope): Promise<Distributor[]>;
+  /** Removes the record for good; `false` if there was none. */
+  delete(id: string): Promise<boolean>;
   addDocument(id: string, document: DistributorDocument): Promise<Distributor | null>;
   /** Takes the document off; returns the removed one (so its file can be deleted), or `null` if it was not there. */
   removeDocument(id: string, documentId: string): Promise<DistributorDocument | null>;

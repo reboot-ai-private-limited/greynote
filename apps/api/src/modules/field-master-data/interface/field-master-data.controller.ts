@@ -27,6 +27,7 @@ import type { ListProductsUseCase } from '../application/usecases/listProducts.u
 import type { ListSampleAllocationsUseCase } from '../application/usecases/listSampleAllocations.usecase.js';
 import type { UnassignDoctorUseCase } from '../application/usecases/unassignDoctor.usecase.js';
 import type { UpdateChemistUseCase } from '../application/usecases/updateChemist.usecase.js';
+import type { DistributorRetirement } from '../application/distributorRetirement.js';
 import type { RemoveDistributorDocumentUseCase, UploadDistributorDocumentUseCase } from '../application/usecases/distributorDocuments.usecase.js';
 import type { UpdateDistributorUseCase } from '../application/usecases/updateDistributor.usecase.js';
 import type { UpdateDoctorTargetsUseCase } from '../application/usecases/updateDoctorTargets.usecase.js';
@@ -55,7 +56,7 @@ export function actorOf(req: Request): Actor {
 }
 
 export type CrudHandlers = Record<'list' | 'create' | 'get' | 'update', RequestHandler>;
-export type DistributorHandlers = CrudHandlers & Record<'uploadDocument' | 'removeDocument', RequestHandler>;
+export type DistributorHandlers = CrudHandlers & Record<'uploadDocument' | 'removeDocument' | 'impact' | 'remove', RequestHandler>;
 
 export function makeProductControllers(u: {
   list: ListProductsUseCase;
@@ -235,8 +236,15 @@ export function makeDistributorControllers(u: {
   update: UpdateDistributorUseCase;
   uploadDocument: UploadDistributorDocumentUseCase;
   removeDocument: RemoveDistributorDocumentUseCase;
+  retirement: DistributorRetirement;
 }): DistributorHandlers {
   return {
+    impact: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.retirement.impact(requiredParam(req.params, 'id')), 'What deleting this would erase.', 200),
+    ),
+    remove: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.retirement.delete(requiredParam(req.params, 'id'), actorOf(req).id), 'Distributor deleted.', 200),
+    ),
     uploadDocument: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.uploadDocument.execute(requiredParam(req.params, 'id'), req.body.documentType, req.file?.buffer), 'Document uploaded.', 201),
     ),

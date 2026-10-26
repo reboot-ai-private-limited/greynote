@@ -1,5 +1,7 @@
 import type { Router } from 'express';
 import { Types } from 'mongoose';
+import { DistributorRetirement } from './application/distributorRetirement.js';
+import type { DistributorReferencesPort } from './domain/distributorRetirement.js';
 import { coverageMeets, scopeOfUser } from './application/distributorCoverage.js';
 import { ChemistModel } from './infrastructure/chemist.schema.js';
 import { DistributorModel } from './infrastructure/distributor.schema.js';
@@ -71,6 +73,8 @@ export interface FieldMasterDataContainer {
    * deactivate or delete touches is counted, and its editable plans cleaned, through them once they exist.
    */
   bindDoctorReferences(references: DoctorReferencesPort): void;
+  /** Sales is built after this module; its payments, orders and stock for a distributor are counted and erased through its contract. */
+  bindDistributorReferences(references: DistributorReferencesPort): void;
 }
 
 /** Identity's, Territory's, Approval's, Sync's and Config's public contracts, passed in by the composition root. */
@@ -157,11 +161,13 @@ export function buildFieldMasterDataContainer(
     adjustSample: new AdjustSampleAllocationUseCase(sampleAllocations),
   };
   const distributorDocumentStorage = new CloudinaryDistributorDocumentStorage();
+  const distributorRetirement = new DistributorRetirement(distributors, distributorDocumentStorage);
   const distributorUseCases = {
     list: new ListDistributorsUseCase(distributors, territory),
     create: new CreateDistributorUseCase(distributors, territory, users),
     get: new GetDistributorUseCase(distributors, territory),
     update: new UpdateDistributorUseCase(distributors, territory, users),
+    retirement: distributorRetirement,
     uploadDocument: new UploadDistributorDocumentUseCase(distributors, distributorDocumentStorage),
     removeDocument: new RemoveDistributorDocumentUseCase(distributors, distributorDocumentStorage),
   };
@@ -243,6 +249,7 @@ export function buildFieldMasterDataContainer(
       listActiveProducts: () => products.listActive(),
     },
     bindDoctorReferences: (references) => retirement.bind(references),
+    bindDistributorReferences: (references) => distributorRetirement.bind(references),
     buildRouter: () =>
       buildFieldMasterDataRouter({
         products: makeProductControllers(productUseCases),

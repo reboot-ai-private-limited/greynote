@@ -1,4 +1,4 @@
-import type { DistributorDto } from '@greynote/contracts';
+import type { DistributorDto, DistributorImpactDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   EMPTY_DISTRIBUTOR,
@@ -6,6 +6,7 @@ import {
   buildDistributor,
   buildDistributorUpdate,
   distributorStepErrors,
+  distributorImpactLines,
   distributorToDraft,
   normalizeGst,
   normalizeMobile,
@@ -160,5 +161,25 @@ describe('buildDistributorUpdate', () => {
         coordinates: { latitude: '', longitude: '' },
       }),
     ).toEqual({ ok: true, body: { location: null } });
+  });
+});
+
+describe('distributorImpactLines', () => {
+  const impact: DistributorImpactDto = { id: 'd1', name: 'Eastern Pharma', status: 'active', payments: 3, orders: 4, openOrders: 1, monthlyStock: 0, stockStatements: 1, documents: 2, assignedPeople: 1 };
+  it('lists what is erased, flags open orders, and warns that totals change', () => {
+    const lines = distributorImpactLines(impact);
+    expect(lines.erased).toEqual([
+      '3 payments recorded against it',
+      '4 orders',
+      '1 stock statement line',
+      '2 uploaded documents, deleted from storage',
+      'Its link to 1 assigned person',
+    ]);
+    expect(lines.open).toEqual(['1 order still open (placed, not delivered) will be erased too']);
+    expect(lines.note).toMatch(/totals .* will change/);
+  });
+  it('a distributor with no history only says it cannot be undone', () => {
+    const lines = distributorImpactLines({ ...impact, payments: 0, orders: 0, openOrders: 0, stockStatements: 0, documents: 0, assignedPeople: 0 });
+    expect(lines).toEqual({ erased: [], open: [], note: 'This cannot be undone.' });
   });
 });
