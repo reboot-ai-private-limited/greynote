@@ -42,11 +42,12 @@ describe('Field Master Data request schemas', () => {
     expect(editAddedDoctorBodySchema.safeParse({ ...doctor, clientRequestId: undefined }).success).toBe(true);
   });
 
-  it('a distributor needs a GST number, a phone and at least one route; GST is upper-cased', () => {
+  it('a distributor needs a GST number, a phone and at least one zone, HQ or route; GST is upper-cased', () => {
     const d = { routeIds: [route], name: 'Shree', gstNumber: ' 19abcde1234f1z5 ', contactPerson: 'R', mobile: '9876543210', address: 'Rd' };
     const parsed = createDistributorBodySchema.parse(d);
     expect(parsed).toMatchObject({ gstNumber: '19ABCDE1234F1Z5', location: null, assignedUserIds: [] });
     expect(createDistributorBodySchema.safeParse({ ...d, routeIds: [] }).success).toBe(false);
+    expect(createDistributorBodySchema.safeParse({ ...d, routeIds: [], zoneIds: [route] }).success).toBe(true); // a zone alone is all its routes
     expect(createDistributorBodySchema.safeParse({ ...d, gstNumber: '12345' }).success).toBe(false);
     expect(createDistributorBodySchema.safeParse({ ...d, mobile: 'call me' }).success).toBe(false);
   });

@@ -27,6 +27,7 @@ import type { ListProductsUseCase } from '../application/usecases/listProducts.u
 import type { ListSampleAllocationsUseCase } from '../application/usecases/listSampleAllocations.usecase.js';
 import type { UnassignDoctorUseCase } from '../application/usecases/unassignDoctor.usecase.js';
 import type { UpdateChemistUseCase } from '../application/usecases/updateChemist.usecase.js';
+import type { RemoveDistributorDocumentUseCase, UploadDistributorDocumentUseCase } from '../application/usecases/distributorDocuments.usecase.js';
 import type { UpdateDistributorUseCase } from '../application/usecases/updateDistributor.usecase.js';
 import type { UpdateDoctorTargetsUseCase } from '../application/usecases/updateDoctorTargets.usecase.js';
 import type { ReviewPendingDoctorUseCase } from '../application/usecases/reviewPendingDoctor.usecase.js';
@@ -54,6 +55,7 @@ export function actorOf(req: Request): Actor {
 }
 
 export type CrudHandlers = Record<'list' | 'create' | 'get' | 'update', RequestHandler>;
+export type DistributorHandlers = CrudHandlers & Record<'uploadDocument' | 'removeDocument', RequestHandler>;
 
 export function makeProductControllers(u: {
   list: ListProductsUseCase;
@@ -231,8 +233,17 @@ export function makeDistributorControllers(u: {
   create: CreateDistributorUseCase;
   get: GetDistributorUseCase;
   update: UpdateDistributorUseCase;
-}): CrudHandlers {
+  uploadDocument: UploadDistributorDocumentUseCase;
+  removeDocument: RemoveDistributorDocumentUseCase;
+}): DistributorHandlers {
   return {
+    uploadDocument: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await u.uploadDocument.execute(requiredParam(req.params, 'id'), req.body.documentType, req.file?.buffer), 'Document uploaded.', 201),
+    ),
+    removeDocument: asyncHandler(async (req, res) => {
+      await u.removeDocument.execute(requiredParam(req.params, 'id'), requiredParam(req.params, 'documentId'));
+      sendSuccess(req, res, null, 'Document removed.', 200);
+    }),
     list: asyncHandler(async (req, res) => {
       const query = req.query as unknown as z.output<typeof listDistributorsQuerySchema>;
       sendSuccess(req, res, await u.list.execute(query), 'Distributors.', 200);

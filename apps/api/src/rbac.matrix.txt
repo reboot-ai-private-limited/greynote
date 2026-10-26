@@ -3,6 +3,7 @@ DELETE /api/field-activity/dcr/:id/calls/:callId  FIELD
 DELETE /api/field-activity/dcr/:id/followups/:callId  FIELD
 DELETE /api/field-activity/expenses/other/:id  FIELD
 DELETE /api/field-activity/expenses/other/:id/attachments/:attachmentId  FIELD
+DELETE /api/field-master-data/distributors/:id/documents/:documentId  ACCOUNTANT,ADMIN
 DELETE /api/field-master-data/doctors/:id  ADMIN
 DELETE /api/field-master-data/doctors/:id/assignments/:userId  ADMIN
 DELETE /api/field-master-data/doctors/:id/photo  ADMIN
@@ -220,6 +221,7 @@ POST   /api/field-activity/expenses/other  FIELD
 POST   /api/field-activity/expenses/other/:id/attachments  FIELD
 POST   /api/field-master-data/chemists  ADMIN
 POST   /api/field-master-data/distributors  ACCOUNTANT,ADMIN
+POST   /api/field-master-data/distributors/:id/documents  ACCOUNTANT,ADMIN
 POST   /api/field-master-data/doctors  ADMIN
 POST   /api/field-master-data/doctors/:id/assignments  ADMIN
 POST   /api/field-master-data/doctors/:id/sample-allocations  ADMIN

@@ -1,3 +1,4 @@
+import { expandRouteIds, scopeOfUser } from './distributorCoverage.js';
 import type { FieldMasterDataSnapshot } from '@greynote/contracts';
 import type { SyncSourceDefinition } from '@/modules/sync/sync.public.js';
 import type { ChemistRepositoryPort } from '../domain/chemist.repository.port.js';
@@ -42,12 +43,13 @@ export function makeFieldMasterDataSource(deps: {
     name: FIELD_MASTER_DATA_SYNC_SOURCE,
     async snapshot(userId): Promise<FieldMasterDataSnapshot> {
       const [scopes, routes] = await Promise.all([deps.visibility.scopes([userId]), deps.territory.listRoutesForUser(userId)]);
+      const scope = await scopeOfUser(deps.territory, userId);
       const routeIds = routes.map((r) => r.id);
       const [{ items: mine }, pending, chemists, distributors, products, specialties] = await Promise.all([
         deps.doctors.listAssigned(scopes, {}, null),
         deps.doctors.listPendingAdded(userId),
         deps.chemists.listActiveOnRoutes(routeIds),
-        deps.distributors.listActiveForUser(userId, routeIds),
+        deps.distributors.listActiveForUser(userId, scope),
         deps.products.listActive(),
         deps.specialties.listActive(),
       ]);
@@ -71,16 +73,17 @@ export function makeFieldMasterDataSource(deps: {
         })),
         pendingDoctors: byId(pending).map((d) => ({ id: d.id, routeId: d.routeId, name: d.name, address: d.address, specialty: d.specialty, qualification: d.qualification, location: d.location, photoUrl: d.photo?.url ?? null })),
         chemists: byId(chemists).map((c) => ({ id: c.id, routeId: c.routeId, name: c.name, address: c.address, location: c.location })),
-        distributors: byId(distributors).map((d) => ({
+        distributors: await Promise.all(byId(distributors).map(async (d) => ({
           id: d.id,
-          routeIds: d.routeIds,
+          // The phone's cache wants concrete Routes, so a Zone- or HQ-wide distributor is expanded here.
+          routeIds: await expandRouteIds(deps.territory, d),
           name: d.name,
           gstNumber: d.gstNumber,
           contactPerson: d.contactPerson,
           mobile: d.mobile,
           address: d.address,
           location: d.location,
-        })),
+        }))),
         specialties: specialties.map((s) => s.name),
         products: byId(products).map((p) => ({ id: p.id, name: p.name, sku: p.sku, category: p.category, composition: p.composition, type: p.type, packSize: p.packSize, ptsPaise: p.ptsPaise, ptrPaise: p.ptrPaise, mrpPaise: p.mrpPaise, gstPercent: p.gstPercent, division: p.division })),
         sampleAllocations: byId(allocations).map((a) => ({ id: a.id, doctorId: a.doctorId, productId: a.productId, quantityAllocated: a.quantityAllocated, quantityRemaining: a.quantityRemaining })),

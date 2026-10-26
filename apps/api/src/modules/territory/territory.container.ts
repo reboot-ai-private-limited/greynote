@@ -156,6 +156,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
         return gone && gone.hqId && gone.zoneId && gone.routeType ? { routeId, routeType: gone.routeType, hqId: gone.hqId, zoneId: gone.zoneId } : null;
       },
       listRouteIdsInScope: (scope) => listRouteIdsInScope.execute(scope),
+      listHqIdsInZone: async (zoneId) => (await hqRepository.list({ page: 1, pageSize: 1000, zoneId })).items.map((h) => h.id),
       getUserHq: (userId) => userHq.get.current(userId),
       getUserTerritory: (userId) => managerCoverage.territory.execute(userId),
       assignUserCoverage: async (userId, input, actorId) => {

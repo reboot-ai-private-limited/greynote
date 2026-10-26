@@ -3,9 +3,12 @@ import type {
   DistributorDto,
   UpdateDistributorDto,
 } from '@greynote/contracts';
+import { DISTRIBUTOR_DOCUMENT_TYPES, type DistributorDocumentType } from '@greynote/contracts';
 import { paiseToRupees, rupeesToPaise } from '@/lib/money';
 import { fail, squash, type BuildResult } from '@/lib/forms';
 import { placeErrors } from './chemists';
+import { fileError } from '@/features/people/lib/documents';
+import { hasCoverage, sameIds } from './coverage';
 import {
   EMPTY_COORDINATES,
   locationChange,
@@ -19,6 +22,35 @@ export const GST = /^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/;
 const MOBILE = /^\+?\d{10,15}$/;
 export const CONTACT_MAX = 150;
 
+export const DISTRIBUTOR_DOCUMENT_LABEL: Record<DistributorDocumentType, string> = {
+  DRUG_LICENCE: 'Drug licence',
+  GST_CERTIFICATE: 'GST certificate',
+  PAN: 'PAN',
+  AGREEMENT: 'Agreement',
+  CANCELLED_CHEQUE: 'Cancelled cheque',
+  OTHER: 'Other',
+};
+export const DISTRIBUTOR_DOCUMENT_OPTIONS = DISTRIBUTOR_DOCUMENT_TYPES.map((value) => ({ value, label: DISTRIBUTOR_DOCUMENT_LABEL[value] }));
+
+export interface PendingDocument {
+  /** Only to tell two files of one type apart in the list. */
+  key: string;
+  type: DistributorDocumentType;
+  file: File;
+}
+
+/** What is wrong with a file about to be attached: its type and its size / extension. */
+export function distributorDocumentErrors(draft: { type: string; file: { name: string; size: number } | null }): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!(DISTRIBUTOR_DOCUMENT_TYPES as readonly string[]).includes(draft.type)) errors['documentType'] = 'Choose a document type.';
+  if (!draft.file) errors['file'] = 'Choose a file.';
+  else {
+    const problem = fileError(draft.file);
+    if (problem) errors['file'] = problem;
+  }
+  return errors;
+}
+
 export interface DistributorDraft {
   name: string;
   address: string;
@@ -26,10 +58,13 @@ export interface DistributorDraft {
   gstNumber: string;
   contactPerson: string;
   mobile: string;
-  /** The Zone its Routes are in. Not stored: it only narrows the Routes to choose from, and is worked out from them when editing. */
-  zoneId: string;
+  /** What it covers, as stored: each Zone, HQ and Route stands for everything under it (see `coverage.ts`). */
+  zoneIds: string[];
+  hqIds: string[];
   routeIds: string[];
   assignedUserIds: string[];
+  /** Files chosen while adding, uploaded once the distributor exists. The edit page uploads at once and never uses this. */
+  pendingDocuments: PendingDocument[];
   /** Rupees as typed: what the distributor already owed before this system. Empty = nothing. */
   openingDues: string;
 }
@@ -41,13 +76,15 @@ export const EMPTY_DISTRIBUTOR: DistributorDraft = {
   gstNumber: '',
   contactPerson: '',
   mobile: '',
-  zoneId: '',
+  zoneIds: [],
+  hqIds: [],
   routeIds: [],
   assignedUserIds: [],
+  pendingDocuments: [],
   openingDues: '',
 };
 
-export function distributorToDraft(d: DistributorDto, zoneId = ''): DistributorDraft {
+export function distributorToDraft(d: DistributorDto): DistributorDraft {
   return {
     name: d.name,
     address: d.address,
@@ -55,9 +92,11 @@ export function distributorToDraft(d: DistributorDto, zoneId = ''): DistributorD
     gstNumber: d.gstNumber,
     contactPerson: d.contactPerson,
     mobile: d.mobile,
-    zoneId,
+    zoneIds: d.zoneIds,
+    hqIds: d.hqIds,
     routeIds: d.routeIds,
     assignedUserIds: d.assignedUserIds,
+    pendingDocuments: [],
     openingDues: d.openingDuesPaise > 0 ? paiseToRupees(d.openingDuesPaise) : '',
   };
 }
@@ -70,7 +109,7 @@ function errorsFor(draft: DistributorDraft): Record<string, string | undefined> 
   const gst = normalizeGst(draft.gstNumber);
   const mobile = normalizeMobile(draft.mobile);
   const contact = squash(draft.contactPerson);
-  // The shared place rules check the name, the address and the point; the route rule is this form's own (several, in one zone).
+  // The shared place rules check the name, the address and the point; the coverage rule is this form's own.
   const place = placeErrors(
     { routeId: 'x', name: draft.name, address: draft.address, coordinates: draft.coordinates },
     'distributor name',
@@ -97,25 +136,26 @@ function errorsFor(draft: DistributorDraft): Record<string, string | undefined> 
           ? undefined
           : 'Use 10 to 15 digits, with an optional leading +.',
     openingDues: draft.openingDues.trim() !== '' && rupeesToPaise(draft.openingDues) === null ? 'Enter the amount in rupees, e.g. 25000 or 25000.50.' : undefined,
-    zoneId: draft.zoneId === '' ? 'Choose a zone.' : undefined,
-    routeIds: draft.routeIds.length === 0 ? 'Choose at least one route.' : undefined,
+    coverage: hasCoverage(draft) ? undefined : 'Choose at least one zone, HQ or route.',
   };
 }
 
-/** Adding a distributor is four steps: who it is, where it works and who looks after it, where it sits on the map, and a look over it before it is created. */
-export const DISTRIBUTOR_STEPS = ['details', 'coverage', 'location', 'review'] as const;
+/** Adding a distributor is five steps: who it is, where it works and who looks after it, where it sits on the map, its documents, and a look over it before it is created. */
+export const DISTRIBUTOR_STEPS = ['details', 'coverage', 'location', 'documents', 'review'] as const;
 export type DistributorStep = (typeof DISTRIBUTOR_STEPS)[number];
 export const DISTRIBUTOR_STEP_LABEL: Record<DistributorStep, string> = {
   details: 'Details',
   coverage: 'Coverage',
   location: 'Location',
+  documents: 'Documents',
   review: 'Review',
 };
 
 const STEP_FIELDS: Record<DistributorStep, readonly string[] | null> = {
   details: ['name', 'gstNumber', 'contactPerson', 'mobile', 'address', 'openingDues'],
-  coverage: ['zoneId', 'routeIds'],
+  coverage: ['coverage'],
   location: ['latitude', 'longitude'],
+  documents: [],
   review: null,
 };
 
@@ -139,6 +179,8 @@ export function buildDistributor(draft: DistributorDraft): BuildResult<CreateDis
   return {
     ok: true,
     body: {
+      zoneIds: draft.zoneIds,
+      hqIds: draft.hqIds,
       routeIds: draft.routeIds,
       name: squash(draft.name),
       gstNumber: normalizeGst(draft.gstNumber),
@@ -155,7 +197,7 @@ export function buildDistributor(draft: DistributorDraft): BuildResult<CreateDis
 const sameList = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((id, i) => id === b[i]);
 
-/** Only what changed. The routes and the people are each sent as the whole new list. */
+/** Only what changed. The zones, HQs, routes and people are each sent as the whole new list. */
 export function buildDistributorUpdate(
   original: DistributorDto,
   draft: DistributorDraft,
@@ -171,7 +213,9 @@ export function buildDistributorUpdate(
   return {
     ok: true,
     body: {
-      ...(!sameList(draft.routeIds, original.routeIds) && { routeIds: draft.routeIds }),
+      ...(!sameIds(draft.zoneIds, original.zoneIds) && { zoneIds: draft.zoneIds }),
+      ...(!sameIds(draft.hqIds, original.hqIds) && { hqIds: draft.hqIds }),
+      ...(!sameIds(draft.routeIds, original.routeIds) && { routeIds: draft.routeIds }),
       ...(name !== original.name && { name }),
       ...(address !== original.address && { address }),
       ...(gstNumber !== original.gstNumber && { gstNumber }),

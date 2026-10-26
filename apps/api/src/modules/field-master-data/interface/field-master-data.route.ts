@@ -6,13 +6,19 @@ import type { RoleName } from '@greynote/contracts';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { photoUpload } from '@/shared/http/photoUpload.middleware.js';
 import { validate } from '@/shared/http/validate.middleware.js';
-import type { CrudHandlers, DoctorHandlers } from './field-master-data.controller.js';
+import multer from 'multer';
+import type { NextFunction, Request, Response } from 'express';
+import { AppError } from '@/shared/errors/AppError.js';
+import { MAX_DISTRIBUTOR_DOCUMENT_BYTES } from '../domain/distributorDocumentFile.js';
+import type { CrudHandlers, DistributorHandlers, DoctorHandlers } from './field-master-data.controller.js';
 import {
   addDoctorBodySchema,
   adjustSampleBodySchema,
   assignDoctorBodySchema,
   createChemistBodySchema,
   createDistributorBodySchema,
+  distributorDocumentBodySchema,
+  distributorDocumentParamsSchema,
   createDoctorBodySchema,
   createProductBodySchema,
   createSpecialtyBodySchema,
@@ -102,10 +108,29 @@ doc('delete', '/doctors/{id}/assignments/{userId}', 'Admin: remove an MR’s ass
 doc('get', '/distributors', 'Admin: list distributors, by route or the HQ / zone above it', { query: listDistributorsQuerySchema });
 doc('post', '/distributors', 'Admin or Accountant: add a distributor on a route', { body: createDistributorBodySchema });
 doc('get', '/distributors/{id}', 'Admin: one distributor, with its zone → HQ → route breadcrumb', { params: idParamsSchema });
+doc('post', '/distributors/{id}/documents', 'Admin or Accountant: attach a file (PDF, JPG or PNG, up to 10 MB) to a distributor');
+doc('delete', '/distributors/{id}/documents/{documentId}', 'Admin or Accountant: remove a distributor\'s file', { params: distributorDocumentParamsSchema });
 doc('patch', '/distributors/{id}', 'Admin or Accountant: edit a distributor, reassign its MR / ASM', { params: idParamsSchema, body: updateDistributorBodySchema });
 doc('get', '/doctors/{id}/sample-allocations', 'A doctor’s sample allocations and what is left — Admin, the assigned MR, or their manager', { params: idParamsSchema });
 doc('post', '/doctors/{id}/sample-allocations', 'Admin: issue samples of a product for a doctor (adds to an existing allocation)', { params: idParamsSchema, body: issueSampleBodySchema });
 doc('patch', '/doctors/{id}/sample-allocations/{productId}', 'Admin: correct the allocated total (not below what was given out)', { params: sampleAllocationParamsSchema, body: adjustSampleBodySchema });
+
+const documentUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_DISTRIBUTOR_DOCUMENT_BYTES } }).single('file');
+
+/** Turns multer's error-first callback (a bad file or size) into the AppError path everything else uses. */
+function documentUploadMiddleware(req: Request, res: Response, next: NextFunction): void {
+  documentUpload(req, res, (err: unknown) => next(err ? AppError.badRequest(err instanceof Error ? err.message : 'Invalid file upload.') : undefined));
+}
+
+/** Admin and Accountant manage a distributor's files; the rest of the record is the plain CRUD above them. */
+function distributorsRouter(c: DistributorHandlers): Router {
+  const writers = ['ADMIN', 'ACCOUNTANT'] as const;
+  const router = Router();
+  router.post('/:id/documents', authenticate(), requireRole(...writers), validate({ params: idParamsSchema }), documentUploadMiddleware, validate({ body: distributorDocumentBodySchema }), c.uploadDocument);
+  router.delete('/:id/documents/:documentId', authenticate(), requireRole(...writers), validate({ params: distributorDocumentParamsSchema }), c.removeDocument);
+  router.use(crudRouter(c, { list: listDistributorsQuerySchema, create: createDistributorBodySchema, update: updateDistributorBodySchema }, ['ADMIN', 'ACCOUNTANT'], writers)); // the Accountant adds and edits them, and records their payments
+  return router;
+}
 
 function crudRouter(
   c: CrudHandlers,
@@ -163,17 +188,14 @@ export function buildFieldMasterDataRouter(c: {
   products: CrudHandlers;
   specialties: CrudHandlers;
   chemists: CrudHandlers;
-  distributors: CrudHandlers;
+  distributors: DistributorHandlers;
   doctors: DoctorHandlers;
 }): Router {
   const router = Router();
   router.use('/doctors', doctorsRouter(c.doctors));
   router.use('/products', crudRouter(c.products, { list: listProductsQuerySchema, create: createProductBodySchema, update: updateProductBodySchema }, ['ADMIN', 'ACCOUNTANT'])); // the Accountant reads them to add or change an order
   router.use('/specialties', crudRouter(c.specialties, { list: listSpecialtiesQuerySchema, create: createSpecialtyBodySchema, update: updateSpecialtyBodySchema }));
-  router.use(
-    '/distributors',
-    crudRouter(c.distributors, { list: listDistributorsQuerySchema, create: createDistributorBodySchema, update: updateDistributorBodySchema }, ['ADMIN', 'ACCOUNTANT'], ['ADMIN', 'ACCOUNTANT']), // the Accountant adds and edits them, and records their payments
-  );
+  router.use('/distributors', distributorsRouter(c.distributors));
   router.use('/chemists', crudRouter(c.chemists, { list: listChemistsQuerySchema, create: createChemistBodySchema, update: updateChemistBodySchema }, ['ADMIN', 'ACCOUNTANT'])); // the Accountant reads them to add an order for a chemist
   return router;
 }

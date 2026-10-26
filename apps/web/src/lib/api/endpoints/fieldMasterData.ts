@@ -7,6 +7,7 @@ import type {
   CreateProductDto,
   CreateSpecialtyDto,
   DistributorDetailDto,
+  DistributorDocumentDto,
   DistributorDto,
   DoctorAssignmentDto,
   DoctorDeleteResultDto,
@@ -96,6 +97,11 @@ export const distributorsApi = {
     request<DistributorDto>(`${BASE}/distributors`, { method: 'POST', token, body }),
   update: (token: string, id: string, body: UpdateDistributorDto) =>
     request<DistributorDto>(`${BASE}/distributors/${id}`, { method: 'PATCH', token, body }),
+  /** `multipart/form-data`: the `documentType`, then one `file`. */
+  uploadDocument: (token: string, id: string, body: FormData) =>
+    request<DistributorDocumentDto>(`${BASE}/distributors/${id}/documents`, { method: 'POST', token, body }),
+  removeDocument: (token: string, id: string, documentId: string) =>
+    request<Record<string, never>>(`${BASE}/distributors/${id}/documents/${documentId}`, { method: 'DELETE', token }),
 };
 
 export const doctorsApi = {

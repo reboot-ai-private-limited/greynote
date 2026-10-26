@@ -17,6 +17,8 @@ export interface TerritoryPublicContract {
   getRoutePath(routeId: string): Promise<RoutePath | null>;
   /** Every Route id under an HQ or a Zone (the most specific one given) — for filtering lists by territory. */
   listRouteIdsInScope(scope: { hqId?: string | undefined; zoneId?: string | undefined }): Promise<string[]>;
+  /** Every HQ id under a Zone — a Zone that names none of its HQs stands for all of them. */
+  listHqIdsInZone(zoneId: string): Promise<string[]>;
   /** A FIELD employee's current HQ and its Zone, or `null` if none is set — HR's holiday scope. */
   getUserHq(userId: string): Promise<{ hqId: string; zoneId: string } | null>;
   /** Every HQ and Zone the employee covers (a covered Zone brings its HQs, a covered HQ its Zone), or `null` for none: what HR's holidays follow. */

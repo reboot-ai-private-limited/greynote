@@ -14,6 +14,8 @@ import {
 
 const distributor: DistributorDto = {
   id: 'd1',
+  zoneIds: [],
+  hqIds: [],
   routeIds: ['r1', 'r2'],
   name: 'Eastern Pharma',
   gstNumber: '19ABCDE1234F1Z5',
@@ -23,9 +25,10 @@ const distributor: DistributorDto = {
   openingDuesPaise: 0,
   location: { latitude: 26.7, longitude: 88.4 },
   assignedUserIds: ['mr1', 'rsm1'],
+  documents: [],
   status: 'active',
 };
-const filled: DistributorDraft = distributorToDraft(distributor, 'z1');
+const filled: DistributorDraft = distributorToDraft(distributor);
 
 describe('GST and mobile', () => {
   it('accepts a well-formed GST number and refuses others', () => {
@@ -46,6 +49,8 @@ describe('buildDistributor', () => {
     ).toEqual({
       ok: true,
       body: {
+        zoneIds: [],
+        hqIds: [],
         routeIds: ['r1', 'r2'],
         name: 'Eastern Pharma',
         gstNumber: '19ABCDE1234F1Z5',
@@ -64,12 +69,12 @@ describe('buildDistributor', () => {
     expect(buildDistributorUpdate(distributor, { ...filled, openingDues: '100' })).toEqual({ ok: true, body: { openingDuesPaise: 10_000 } });
     expect(buildDistributorUpdate(distributor, filled)).toEqual({ ok: true, body: {} });
   });
-  it('needs a zone and at least one route, and reports every missing field at once', () => {
+  it('needs at least one zone, HQ or route, and reports every missing field at once', () => {
     const result = buildDistributor(EMPTY_DISTRIBUTOR);
     expect(result.ok).toBe(false);
     if (!result.ok)
       expect(Object.keys(result.errors).sort()).toEqual(
-        ['address', 'contactPerson', 'gstNumber', 'mobile', 'name', 'routeIds', 'zoneId'].sort(),
+        ['address', 'contactPerson', 'gstNumber', 'mobile', 'coverage', 'name'].sort(),
       );
   });
   it('refuses a bad GST number and mobile', () => {
@@ -105,18 +110,16 @@ describe('distributorStepErrors', () => {
       'mobile',
       'name',
     ]);
-    expect(Object.keys(distributorStepErrors(empty, 'coverage')).sort()).toEqual([
-      'routeIds',
-      'zoneId',
-    ]);
+    expect(Object.keys(distributorStepErrors(empty, 'coverage'))).toEqual(['coverage']);
+    expect(distributorStepErrors(empty, 'documents')).toEqual({});
     expect(Object.keys(distributorStepErrors(empty, 'location')).sort()).toEqual([
       'latitude',
       'longitude',
     ]);
-    expect(Object.keys(distributorStepErrors(empty, 'review'))).toHaveLength(9);
+    expect(Object.keys(distributorStepErrors(empty, 'review'))).toHaveLength(8);
   });
   it('a complete draft is fine on every step', () => {
-    for (const step of ['details', 'coverage', 'location', 'review'] as const)
+    for (const step of ['details', 'coverage', 'location', 'documents', 'review'] as const)
       expect(distributorStepErrors(filled, step)).toEqual({});
   });
 });
@@ -143,6 +146,12 @@ describe('buildDistributorUpdate', () => {
     expect(
       buildDistributorUpdate(distributor, { ...filled, assignedUserIds: ['mr1', 'rsm1', 'asm1'] }),
     ).toEqual({ ok: true, body: { assignedUserIds: ['mr1', 'rsm1', 'asm1'] } });
+  });
+  it('a zone or an HQ alone is a complete coverage, and sends each list that changed', () => {
+    expect(buildDistributor({ ...filled, routeIds: [], zoneIds: ['z1'] })).toMatchObject({ ok: true, body: { zoneIds: ['z1'], hqIds: [], routeIds: [] } });
+    expect(buildDistributor({ ...filled, routeIds: [], hqIds: ['h1'] })).toMatchObject({ ok: true });
+    expect(buildDistributorUpdate(distributor, { ...filled, zoneIds: ['z1'], routeIds: [] })).toEqual({ ok: true, body: { zoneIds: ['z1'], routeIds: [] } });
+    expect(buildDistributorUpdate({ ...distributor, routeIds: ['r2', 'r1'] }, filled)).toEqual({ ok: true, body: {} }); // the same set in another order
   });
   it('sends null for a cleared location', () => {
     expect(

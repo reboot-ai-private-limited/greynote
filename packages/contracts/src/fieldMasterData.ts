@@ -233,9 +233,23 @@ export interface AdjustSampleDto {
 
 // ── Distributors ───────────────────────────────────────────────────────────────────────────
 
+export const DISTRIBUTOR_DOCUMENT_TYPES = ['DRUG_LICENCE', 'GST_CERTIFICATE', 'PAN', 'AGREEMENT', 'CANCELLED_CHEQUE', 'OTHER'] as const;
+export type DistributorDocumentType = (typeof DISTRIBUTOR_DOCUMENT_TYPES)[number];
+export interface DistributorDocumentDto {
+  id: string;
+  type: DistributorDocumentType;
+  url: string;
+  uploadedAt: string;
+}
+
 export interface DistributorDto {
   id: string;
-  /** One or more Routes, all in one Zone. */
+  /**
+   * Where it works. Each Zone, HQ and Route stands for everything under it: a Zone alone is all its HQs and so all their Routes,
+   * an HQ alone is all its Routes. Zone, HQ and Route lists can each be empty, but not all three.
+   */
+  zoneIds: string[];
+  hqIds: string[];
   routeIds: string[];
   name: string;
   gstNumber: string;
@@ -245,6 +259,7 @@ export interface DistributorDto {
   location: GeoPoint | null;
   /** Field employees (any designation) the Distributor is handed to. */
   assignedUserIds: string[];
+  documents: DistributorDocumentDto[];
   /** What the distributor owed before this system, in whole paise. */
   openingDuesPaise: number;
   status: MasterStatus;
@@ -254,6 +269,8 @@ export interface DistributorDetailDto extends DistributorDto {
   paths: Array<{ routeId: string; routeType: 'HQ' | 'EX_STATION' | 'OUT_STATION'; hqId: string; zoneId: string }>;
 }
 export interface CreateDistributorDto {
+  zoneIds: string[];
+  hqIds: string[];
   routeIds: string[];
   name: string;
   gstNumber: string;
@@ -266,6 +283,8 @@ export interface CreateDistributorDto {
   openingDuesPaise?: number;
 }
 export interface UpdateDistributorDto {
+  zoneIds?: string[];
+  hqIds?: string[];
   routeIds?: string[];
   name?: string;
   gstNumber?: string;

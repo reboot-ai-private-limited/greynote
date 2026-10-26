@@ -1,5 +1,6 @@
 import type { Router } from 'express';
 import { Types } from 'mongoose';
+import { coverageMeets, scopeOfUser } from './application/distributorCoverage.js';
 import { ChemistModel } from './infrastructure/chemist.schema.js';
 import { DistributorModel } from './infrastructure/distributor.schema.js';
 import { DoctorModel } from './infrastructure/doctor.schema.js';
@@ -42,6 +43,8 @@ import { ListProductsUseCase } from './application/usecases/listProducts.usecase
 import { ListSampleAllocationsUseCase } from './application/usecases/listSampleAllocations.usecase.js';
 import { UnassignDoctorUseCase } from './application/usecases/unassignDoctor.usecase.js';
 import { UpdateChemistUseCase } from './application/usecases/updateChemist.usecase.js';
+import { RemoveDistributorDocumentUseCase, UploadDistributorDocumentUseCase } from './application/usecases/distributorDocuments.usecase.js';
+import { CloudinaryDistributorDocumentStorage } from './infrastructure/cloudinaryDistributorDocumentStorage.adapter.js';
 import { UpdateDistributorUseCase } from './application/usecases/updateDistributor.usecase.js';
 import { UpdateDoctorUseCase } from './application/usecases/updateDoctor.usecase.js';
 import { UpdateDoctorTargetsUseCase } from './application/usecases/updateDoctorTargets.usecase.js';
@@ -153,11 +156,14 @@ export function buildFieldMasterDataContainer(
     issueSample: new IssueSampleAllocationUseCase(sampleAllocations, doctors, products),
     adjustSample: new AdjustSampleAllocationUseCase(sampleAllocations),
   };
+  const distributorDocumentStorage = new CloudinaryDistributorDocumentStorage();
   const distributorUseCases = {
     list: new ListDistributorsUseCase(distributors, territory),
     create: new CreateDistributorUseCase(distributors, territory, users),
     get: new GetDistributorUseCase(distributors, territory),
     update: new UpdateDistributorUseCase(distributors, territory, users),
+    uploadDocument: new UploadDistributorDocumentUseCase(distributors, distributorDocumentStorage),
+    removeDocument: new RemoveDistributorDocumentUseCase(distributors, distributorDocumentStorage),
   };
 
   return {
@@ -216,7 +222,7 @@ export function buildFieldMasterDataContainer(
         const distributor = await distributors.findById(distributorId);
         if (!distributor || distributor.status !== 'active') return false;
         if (distributor.assignedUserIds.includes(userId)) return true;
-        return (await territory.listRoutesForUser(userId)).some((r) => distributor.routeIds.includes(r.id));
+        return coverageMeets(distributor, await scopeOfUser(territory, userId));
       },
       canActOnChemist: async (userId, chemistId) => {
         const chemist = await chemists.findById(chemistId);
@@ -224,8 +230,8 @@ export function buildFieldMasterDataContainer(
         return (await territory.listRoutesForUser(userId)).some((r) => r.id === chemist.routeId);
       },
       listOutletsForUser: async (userId) => {
-        const routeIds = (await territory.listRoutesForUser(userId)).map((r) => r.id);
-        const [chemistList, distributorList] = await Promise.all([chemists.listActiveOnRoutes(routeIds), distributors.listActiveForUser(userId, routeIds)]);
+        const scope = await scopeOfUser(territory, userId);
+        const [chemistList, distributorList] = await Promise.all([chemists.listActiveOnRoutes(scope.routeIds), distributors.listActiveForUser(userId, scope)]);
         return { chemists: chemistList, distributors: distributorList };
       },
       getSampleAllocation: (doctorId, productId) => sampleAllocations.find(doctorId, productId),

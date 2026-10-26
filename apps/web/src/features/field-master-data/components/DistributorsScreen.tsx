@@ -29,7 +29,7 @@ import { RouteFilter } from './RoutePickerField';
 const ANY = 'all';
 const money = (paise: number): string => formatMoney(paise);
 
-/** The first two route names and how many more. */
+/** The first two places and how many more. */
 const routesText = (labels: string[]) =>
   labels.length <= 2 ? labels.join(', ') : `${labels.slice(0, 2).join(', ')} +${labels.length - 2}`;
 
@@ -83,9 +83,14 @@ export function DistributorsScreen() {
       ),
     },
     {
-      key: 'route',
-      header: 'Route',
-      render: (d) => routesText(d.routeIds.map((r) => directory.routeLabel(r))),
+      key: 'coverage',
+      header: 'Coverage',
+      render: (d) =>
+        routesText([
+          ...d.zoneIds.map((z) => `${directory.zoneName(z)} (all)`),
+          ...d.hqIds.map((q) => `${directory.hqName(q)} (all)`),
+          ...d.routeIds.map((r) => directory.routeLabel(r)),
+        ]),
     },
     {
       key: 'people',

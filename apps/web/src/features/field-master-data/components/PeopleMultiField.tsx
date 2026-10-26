@@ -4,15 +4,16 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
 import { EmployeeName } from '@/features/people/components/EmployeePickerField';
-import { ManagerPickerDialog } from '@/features/people/components/ManagerPickerDialog';
+import { PeoplePickerDialog } from './PeoplePickerDialog';
 
-/** The field employees a record is handed to — any designation — each removable, and a search dialog to add another. */
+/** The field employees a record is handed to — any designation — each removable, and a dialog to tick several at once. */
 export function PeopleMultiField({
   id,
   label = 'Assigned people',
   value,
   onChange,
   error,
+  coverageHqIds,
   disabled = false,
 }: {
   id: string;
@@ -20,6 +21,8 @@ export function PeopleMultiField({
   value: string[];
   onChange: (userIds: string[]) => void;
   error?: string | undefined;
+  /** The HQs the record covers: the picker starts narrowed to people based in them. */
+  coverageHqIds?: string[] | undefined;
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -47,16 +50,16 @@ export function PeopleMultiField({
           </span>
         ))}
         <Button variant="secondary" size="sm" disabled={disabled} onClick={() => setOpen(true)}>
-          Add person
+          {value.length === 0 ? 'Add people' : 'Edit people'}
         </Button>
       </div>
       {open ? (
-        <ManagerPickerDialog
-          title="Add a person"
-          label="Employee"
+        <PeoplePickerDialog
+          chosen={value}
+          coverageHqIds={coverageHqIds}
           onClose={() => setOpen(false)}
-          onPick={(u) => {
-            if (!value.includes(u.id)) onChange([...value, u.id]);
+          onDone={(userIds) => {
+            onChange(userIds);
             setOpen(false);
           }}
         />

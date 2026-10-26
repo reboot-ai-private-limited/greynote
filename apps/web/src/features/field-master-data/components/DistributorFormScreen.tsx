@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { Grid } from '@/components/ui/WizardParts';
 import { WizardShell } from '@/components/ui/WizardShell';
 import { EmployeeName } from '@/features/people/components/EmployeePickerField';
+import { useAllHqs } from '@/features/territory/hooks/useHqs';
+import { useActiveRoutes } from '@/features/territory/hooks/useRoutes';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
@@ -27,7 +29,9 @@ import {
   useDistributor,
   useUpdateDistributor,
 } from '../hooks/useDistributors';
+import { hqsReached } from '../lib/coverage';
 import {
+  DISTRIBUTOR_DOCUMENT_LABEL,
   DISTRIBUTOR_STEPS,
   DISTRIBUTOR_STEP_LABEL,
   EMPTY_DISTRIBUTOR,
@@ -43,13 +47,14 @@ import { DistributorPaymentsTab } from './DistributorPaymentsTab';
 import { DistributorStockTab } from './DistributorStockTab';
 import { LocationPicker } from './LocationPicker';
 import { PeopleMultiField } from './PeopleMultiField';
-import { RoutesMultiField } from './RoutesMultiField';
-import { ZoneField } from './ZoneField';
+import { CoveragePicker } from './CoveragePicker';
+import { DistributorDocumentsCard, PendingDocumentsField } from './DistributorDocuments';
 
 const STEP_TITLE: Record<DistributorStep, string> = {
   details: 'Distributor details',
   coverage: 'Coverage',
   location: 'Location (optional)',
+  documents: 'Documents (optional)',
   review: 'Review',
 };
 
@@ -177,24 +182,16 @@ function CoverageFields({
   errors: Record<string, string>;
   locked: boolean;
 }) {
+  const hqs = useAllHqs();
+  const routes = useActiveRoutes();
+  const reached = hqsReached(draft, { hqs: hqs.data ?? [], routes: routes.data ?? [] });
   return (
     <div className="space-y-5">
-      {/* A different zone means different routes, so the old ones are dropped. */}
-      <ZoneField
-        id="dist-zone"
-        value={draft.zoneId}
-        onChange={(zoneId) =>
-          setDraft((d) => (zoneId === d.zoneId ? d : { ...d, zoneId, routeIds: [] }))
-        }
-        error={errors['zoneId']}
-        disabled={locked}
-      />
-      <RoutesMultiField
-        id="dist-routes"
-        zoneId={draft.zoneId}
-        value={draft.routeIds}
-        onChange={(routeIds) => setDraft((d) => ({ ...d, routeIds }))}
-        error={errors['routeIds']}
+      <CoveragePicker
+        id="dist-coverage"
+        value={draft}
+        onChange={(coverage) => setDraft((d) => ({ ...d, ...coverage }))}
+        error={errors['coverage']}
         disabled={locked}
       />
       <PeopleMultiField
@@ -202,10 +199,24 @@ function CoverageFields({
         value={draft.assignedUserIds}
         onChange={(assignedUserIds) => setDraft((d) => ({ ...d, assignedUserIds }))}
         error={errors['assignedUserIds']}
+        coverageHqIds={reached}
         disabled={locked}
       />
     </div>
   );
+}
+
+/** Zones, HQs and routes as one line: "West Bengal (all), Siliguri HQ (all routes), SLG-1 · Naxalbari". */
+function coverageSummary(
+  c: { zoneIds: string[]; hqIds: string[]; routeIds: string[] },
+  directory: ReturnType<typeof useTerritoryDirectory>,
+): string {
+  const parts = [
+    ...c.zoneIds.map((z) => `${directory.zoneName(z)} (all HQs)`),
+    ...c.hqIds.map((q) => `${directory.hqName(q)} (all routes)`),
+    ...c.routeIds.map((r) => directory.routeLabel(r)),
+  ];
+  return parts.join(', ');
 }
 
 function NewDistributor() {
@@ -223,7 +234,7 @@ function NewDistributor() {
   const items: StepperItem[] = DISTRIBUTOR_STEPS.map((s, i) => ({
     key: s,
     label: DISTRIBUTOR_STEP_LABEL[s],
-    optional: s === 'location',
+    optional: s === 'location' || s === 'documents',
     done: i < stepIndex && valid(s),
     reachable: DISTRIBUTOR_STEPS.slice(0, i).every(valid),
   }));
@@ -241,7 +252,10 @@ function NewDistributor() {
     const built = buildDistributor(draft);
     if (!built.ok) return setErrors(built.errors);
     setErrors({});
-    create.mutate(built.body);
+    create.mutate({
+      body: built.body,
+      documents: draft.pendingDocuments.map((d) => ({ type: d.type, file: d.file })),
+    });
   }
 
   const point =
@@ -283,6 +297,12 @@ function NewDistributor() {
           errors={shown}
         />
       ) : null}
+      {step === 'documents' ? (
+        <PendingDocumentsField
+          value={draft.pendingDocuments}
+          onChange={(pendingDocuments) => setDraft((d) => ({ ...d, pendingDocuments }))}
+        />
+      ) : null}
       {step === 'review' ? (
         <FieldList>
           <Field label="Name">{draft.name}</Field>
@@ -291,10 +311,7 @@ function NewDistributor() {
           <Field label="Mobile">{draft.mobile}</Field>
           <Field label="Address">{draft.address}</Field>
           <Field label="Opening dues">{draft.openingDues ? `₹${draft.openingDues}` : null}</Field>
-          <Field label="Zone">{draft.zoneId ? directory.zoneName(draft.zoneId) : null}</Field>
-          <Field label="Routes">
-            {draft.routeIds.map((r) => directory.routeLabel(r)).join(', ') || null}
-          </Field>
+          <Field label="Coverage">{coverageSummary(draft, directory) || null}</Field>
           <Field label="Assigned people">
             {draft.assignedUserIds.length > 0
               ? draft.assignedUserIds.map((u, i) => (
@@ -306,6 +323,13 @@ function NewDistributor() {
               : null}
           </Field>
           <Field label="Location">{point}</Field>
+          <Field label="Documents">
+            {draft.pendingDocuments.length > 0
+              ? draft.pendingDocuments
+                  .map((d) => `${DISTRIBUTOR_DOCUMENT_LABEL[d.type]} (${d.file.name})`)
+                  .join(', ')
+              : null}
+          </Field>
         </FieldList>
       ) : null}
     </WizardShell>
@@ -317,7 +341,7 @@ function DistributorPage({ distributor }: { distributor: DistributorDetailDto })
   const directory = useTerritoryDirectory();
   const update = useUpdateDistributor(() => setToggling(false));
   const [toggling, setToggling] = useState(false);
-  const zones = [...new Set(distributor.paths.map((p) => directory.zoneName(p.zoneId)))];
+  const coverage = coverageSummary(distributor, directory);
   return (
     <>
       <p className="mb-2 text-sm">
@@ -327,11 +351,7 @@ function DistributorPage({ distributor }: { distributor: DistributorDetailDto })
       </p>
       <PageHeader
         title={distributor.name}
-        description={
-          zones.length > 0
-            ? `${zones.join(', ')} · ${distributor.routeIds.map((r) => directory.routeLabel(r)).join(', ')}`
-            : undefined
-        }
+        description={coverage || undefined}
         actions={
           <div className="flex items-center gap-2">
             <Badge tone={distributor.status === 'active' ? 'success' : 'neutral'}>
@@ -389,9 +409,7 @@ function DistributorPage({ distributor }: { distributor: DistributorDetailDto })
 function DistributorEditForm({ distributor }: { distributor: DistributorDetailDto }) {
   const router = useRouter();
   const readOnly = useIsReadOnly();
-  const { draft, setDraft, set } = useDistributorDraft(
-    distributorToDraft(distributor, distributor.paths[0]?.zoneId ?? ''),
-  );
+  const { draft, setDraft, set } = useDistributorDraft(distributorToDraft(distributor));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const update = useUpdateDistributor();
   const locked = readOnly || distributor.status === 'inactive';
@@ -423,6 +441,11 @@ function DistributorEditForm({ distributor }: { distributor: DistributorDetailDt
           <CoverageFields draft={draft} setDraft={setDraft} errors={errors} locked={locked} />
         </div>
       </Card>
+      <DistributorDocumentsCard
+        distributorId={distributor.id}
+        documents={distributor.documents}
+        locked={locked}
+      />
       <Card title="Registered location">
         <div className="p-5">
           <LocationPicker

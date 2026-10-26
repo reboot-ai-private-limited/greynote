@@ -12,7 +12,8 @@ import type { DoctorAssignment } from '../../domain/doctorAssignment.entity.js';
 import type { DoctorAssignmentRepositoryPort } from '../../domain/doctorAssignment.repository.port.js';
 import type { PageQuery } from '../../domain/masterStatus.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
-import type { Distributor } from '../../domain/distributor.entity.js';
+import type { CoverageScope, Distributor, DistributorDocument } from '../../domain/distributor.entity.js';
+import { coverageMeets } from '../distributorCoverage.js';
 import type { DistributorFilter, DistributorRepositoryPort } from '../../domain/distributor.repository.port.js';
 import type { SampleAllocation } from '../../domain/sampleAllocation.entity.js';
 import type { SampleAllocationRepositoryPort } from '../../domain/sampleAllocation.repository.port.js';
@@ -140,7 +141,29 @@ export class FakeTerritory implements TerritoryPort {
     return status ? { id: routeId, name: `Route ${routeId}`, hqName: 'Naxalbari', status } : null;
   }
   async listRoutesForUser(userId: string) {
-    return (this.userRoutes.get(userId) ?? []).map((id) => ({ id }));
+    return (this.userRoutes.get(userId) ?? []).map((id) => ({ id, hqId: this.paths.get(id)?.hqId ?? '' }));
+  }
+  /** HQ h1 is in z1, h2 in z2; `h-off` is an inactive HQ of z1 and `z-off` an inactive zone. */
+  hqs = new Map<string, { zoneId: string; status: 'active' | 'inactive' }>([
+    ['h1', { zoneId: 'z1', status: 'active' }],
+    ['h2', { zoneId: 'z2', status: 'active' }],
+    ['h-off', { zoneId: 'z1', status: 'inactive' }],
+  ]);
+  zones = new Map<string, 'active' | 'inactive'>([
+    ['z1', 'active'],
+    ['z2', 'active'],
+    ['z-off', 'inactive'],
+  ]);
+  async getHq(hqId: string) {
+    const hq = this.hqs.get(hqId);
+    return hq ? { id: hqId, name: `HQ ${hqId}`, ...hq } : null;
+  }
+  async getZone(zoneId: string) {
+    const status = this.zones.get(zoneId);
+    return status ? { id: zoneId, name: `Zone ${zoneId}`, status } : null;
+  }
+  async listHqIdsInZone(zoneId: string) {
+    return [...this.hqs].filter(([, h]) => h.zoneId === zoneId).map(([id]) => id);
   }
 }
 
@@ -379,15 +402,27 @@ export class FakeDistributors implements DistributorRepositoryPort {
     for (const d of hit) d.assignedUserIds = d.assignedUserIds.filter((u) => u !== userId);
     return hit.length;
   }
-  async listActiveForUser(userId: string, routeIds: string[]) {
-    return this.rows.filter((d) => d.status === 'active' && (d.assignedUserIds.includes(userId) || d.routeIds.some((r) => routeIds.includes(r))));
+  async listActiveForUser(userId: string, scope: CoverageScope) {
+    return this.rows.filter((d) => d.status === 'active' && (d.assignedUserIds.includes(userId) || coverageMeets(d, scope)));
+  }
+  async addDocument(id: string, document: DistributorDocument) {
+    const row = this.rows.find((d) => d.id === id);
+    if (!row) return null;
+    row.documents = [...row.documents, document];
+    return row;
+  }
+  async removeDocument(id: string, documentId: string) {
+    const row = this.rows.find((d) => d.id === id);
+    const found = row?.documents.find((d) => d.id === documentId) ?? null;
+    if (row && found) row.documents = row.documents.filter((d) => d.id !== documentId);
+    return found;
   }
   async list(f: DistributorFilter) {
     const search = f.search?.toLowerCase();
     return paged(
       this.rows.filter(
         (d) =>
-          (!f.routeIds || d.routeIds.some((r) => f.routeIds!.includes(r))) &&
+          (!f.scope || coverageMeets(d, f.scope)) &&
           (!f.assignedUserId || d.assignedUserIds.includes(f.assignedUserId)) &&
           (!f.status || d.status === f.status) &&
           (!search || d.name.toLowerCase().includes(search) || d.gstNumber.toLowerCase().includes(search)),

@@ -1,6 +1,7 @@
 import { MAX_VISIT_FREQUENCY, PRODUCT_TYPES } from '@greynote/contracts';
 import { z } from 'zod';
 import { paiseSchema } from '@/shared/money/paise.js';
+import { DISTRIBUTOR_DOCUMENT_TYPES } from '../domain/distributor.entity.js';
 import { DOCTOR_STATUSES } from '../domain/doctor.entity.js';
 import { MASTER_STATUSES } from '../domain/masterStatus.js';
 
@@ -192,19 +193,28 @@ const distributorFields = {
   mobile: mobileSchema,
   address: textSchema,
 };
-const routeIdsSchema = z.array(objectIdSchema).min(1, 'Choose at least one route.').max(50);
-export const createDistributorBodySchema = z.object({
-  routeIds: routeIdsSchema,
-  ...distributorFields,
-  /** Picked on a Google map. Omit to add the Distributor now and set the point later. */
-  location: locationSchema.nullish().transform((v) => v ?? null),
-  /** Any active field employees, of any designation. */
-  assignedUserIds: z.array(objectIdSchema).max(100).default([]),
-  /** What the distributor owed before this system, in paise; `0` if nothing. */
-  openingDuesPaise: paiseSchema.default(0),
-});
+/** Each id stands for everything under it: a Zone all its HQs, an HQ all its Routes. At least one of the three is needed (checked in the use case). */
+const zoneIdsSchema = z.array(objectIdSchema).max(100);
+const hqIdsSchema = z.array(objectIdSchema).max(500);
+const routeIdsSchema = z.array(objectIdSchema).max(1000);
+export const createDistributorBodySchema = z
+  .object({
+    zoneIds: zoneIdsSchema.default([]),
+    hqIds: hqIdsSchema.default([]),
+    routeIds: routeIdsSchema.default([]),
+    ...distributorFields,
+    /** Picked on a Google map. Omit to add the Distributor now and set the point later. */
+    location: locationSchema.nullish().transform((v) => v ?? null),
+    /** Any active field employees, of any designation. */
+    assignedUserIds: z.array(objectIdSchema).max(100).default([]),
+    /** What the distributor owed before this system, in paise; `0` if nothing. */
+    openingDuesPaise: paiseSchema.default(0),
+  })
+  .refine((b) => b.zoneIds.length + b.hqIds.length + b.routeIds.length > 0, { message: 'Choose at least one zone, HQ or route.', path: ['zoneIds'] });
 export const updateDistributorBodySchema = z
   .object({
+    zoneIds: zoneIdsSchema.optional(),
+    hqIds: hqIdsSchema.optional(),
     routeIds: routeIdsSchema.optional(),
     name: nameSchema.optional(),
     gstNumber: gstSchema.optional(),
@@ -227,6 +237,9 @@ export const listDistributorsQuerySchema = z.object({
   zoneId: objectIdSchema.optional(),
   assignedUserId: objectIdSchema.optional(),
 });
+
+export const distributorDocumentBodySchema = z.object({ documentType: z.enum(DISTRIBUTOR_DOCUMENT_TYPES) });
+export const distributorDocumentParamsSchema = z.object({ id: objectIdSchema, documentId: z.string().min(1) });
 
 // ---- Doctor sample allocations
 const quantitySchema = z.number().int().min(1).max(100_000);

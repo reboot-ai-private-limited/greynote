@@ -7,6 +7,10 @@ export interface TerritoryPort {
   getRoutePath(routeId: string): Promise<RoutePath | null>;
   /** Every Route id under an HQ or a Zone (the most specific one given). */
   listRouteIdsInScope(scope: { hqId?: string | undefined; zoneId?: string | undefined }): Promise<string[]>;
+  /** Every HQ id under a Zone. */
+  listHqIdsInZone(zoneId: string): Promise<string[]>;
+  getHq(hqId: string): Promise<{ id: string; zoneId: string; name: string; status: 'active' | 'inactive' } | null>;
+  getZone(zoneId: string): Promise<{ id: string; name: string; status: 'active' | 'inactive' } | null>;
   /** The active Routes an employee currently covers. */
-  listRoutesForUser(userId: string): Promise<Array<{ id: string }>>;
+  listRoutesForUser(userId: string): Promise<Array<{ id: string; hqId: string }>>;
 }

@@ -2,11 +2,11 @@ import type { Distributor } from '../../domain/distributor.entity.js';
 import type { DistributorRepositoryPort } from '../../domain/distributor.repository.port.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
-import { requireFieldUsers, requireRoutesInOneZone } from '../distributorRules.js';
+import { requireFieldUsers, requireCoverage } from '../distributorRules.js';
 
-export type CreateDistributorInput = Omit<Distributor, 'id' | 'status'>;
+export type CreateDistributorInput = Omit<Distributor, 'id' | 'status' | 'documents'>;
 
-/** Admin adds a Distributor on one or more active Routes of one Zone, optionally handing it to field employees. */
+/** Admin adds a Distributor over any Zones, HQs and Routes, optionally handing it to field employees. Documents are uploaded after, against its id. */
 export class CreateDistributorUseCase {
   constructor(
     private readonly distributors: DistributorRepositoryPort,
@@ -15,8 +15,8 @@ export class CreateDistributorUseCase {
   ) {}
 
   async execute(input: CreateDistributorInput): Promise<Distributor> {
-    await requireRoutesInOneZone(this.territory, input.routeIds);
+    await requireCoverage(this.territory, input);
     await requireFieldUsers(this.users, input.assignedUserIds);
-    return this.distributors.create({ ...input, status: 'active' });
+    return this.distributors.create({ ...input, documents: [], status: 'active' });
   }
 }

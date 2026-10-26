@@ -2,6 +2,7 @@
 
 import type { CreateUserDto, DeactivateUserDto, DeactivationResultDto, PhotoDto, ReactivateUserDto, ReassignManagerDto, ReassignManagerResultDto, UpdateUserDto, UserDocumentDto, UserListItemDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
+import { fetchAllPages, MAX_PAGE_SIZE } from '@/lib/api/allPages';
 import { identityApi, type ListUsersQuery } from '@/lib/api/endpoints/identity';
 import { timing } from '@/lib/hooks/timing';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
@@ -68,6 +69,22 @@ export function useFieldDirectory(enabled: boolean) {
     authedQueryOptions({
       queryKey: keys.fieldDirectory(),
       fetch: (token, signal) => identityApi.fieldDirectory(token, signal),
+      staleTime: staleTime.live,
+      enabled,
+    }),
+  );
+}
+
+/**
+ * Every active FIELD employee with their HQ and Zone (all pages), for a picker that filters by place and ticks several at once. Admin and HR
+ * only: the Accountant reads names from `useFieldDirectory`.
+ */
+export function useAllFieldEmployees(enabled: boolean) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.fieldEmployees.search('picker:all'),
+      fetch: (token, signal) =>
+        fetchAllPages((page) => identityApi.users(token, { role: 'FIELD', status: 'active', page, pageSize: MAX_PAGE_SIZE }, signal)).then((r) => r.items),
       staleTime: staleTime.live,
       enabled,
     }),
