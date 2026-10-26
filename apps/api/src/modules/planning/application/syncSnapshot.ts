@@ -1,6 +1,8 @@
 import type { PlanningSnapshot } from '@greynote/contracts';
 import type { SyncSourceDefinition } from '@/modules/sync/sync.public.js';
 import { addDays, monthRange } from '@/shared/time/businessTime.js';
+import type { UserDirectoryPort } from '../domain/userDirectory.port.js';
+import { makePlanPeopleNamer, withPeople } from './planPeople.js';
 import type { OffDays } from './offDays.js';
 import type { PlanDeadlines } from './planDeadlines.js';
 import type { ListDailyPlansUseCase } from './usecases/listDailyPlans.usecase.js';
@@ -24,7 +26,7 @@ const nextMonth = (month: string): string => {
  * and submitting a Plan need a connection and aren't synced. Left out: revision counters' internals, the
  * resubmit counter and timestamps that only churn.
  */
-export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: ListDailyPlansUseCase; monthly: ListMonthlyPlansUseCase; offDays: OffDays }): SyncSourceDefinition {
+export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: ListDailyPlansUseCase; monthly: ListMonthlyPlansUseCase; offDays: OffDays; users: UserDirectoryPort }): SyncSourceDefinition {
   return {
     name: PLANNING_SYNC_SOURCE,
     async snapshot(userId): Promise<PlanningSnapshot> {
@@ -35,6 +37,7 @@ export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: List
         deps.monthly.execute(userId, month, nextMonth(month)),
         deps.offDays.list(userId, `${month}-01`, monthRange(nextMonth(month)).to),
       ]);
+      const peopleOf = await makePlanPeopleNamer(deps.users, [...daily, ...monthly.flatMap((p) => p.entries)]);
       return {
         today,
         dailyPlans: daily.map((p) => ({
@@ -43,6 +46,7 @@ export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: List
           workingType: p.workingType,
           dayKind: p.dayKind,
           workWith: p.workWith,
+          workWithPeople: peopleOf(p.workWith),
           routeIds: p.routeIds,
           doctors: p.doctors,
           remarks: p.remarks,
@@ -54,7 +58,7 @@ export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: List
         monthlyPlans: monthly.map((p) => ({
           id: p.id,
           planMonth: p.planMonth,
-          entries: p.entries,
+          entries: p.entries.map((e) => withPeople(e, peopleOf)),
           revision: p.revision,
           status: p.status,
           approvalRequestId: p.approval?.requestId ?? null,

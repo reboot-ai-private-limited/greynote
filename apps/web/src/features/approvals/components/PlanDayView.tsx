@@ -36,7 +36,7 @@ export function PlanDayView({ day }: { day: PlanDayDto & { doctors?: PlannedDoct
           {day.workWith.map((id, i) => (
             <span key={id}>
               {i > 0 ? ', ' : ''}
-              <WorkWithName userId={id} />
+              <WorkWithName userId={id} label={day.workWithPeople?.find((p) => p.id === id)?.label} />
             </span>
           ))}
         </p>

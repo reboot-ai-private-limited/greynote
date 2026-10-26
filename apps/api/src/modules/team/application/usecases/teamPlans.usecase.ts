@@ -1,5 +1,5 @@
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
-import type { TeamDirectoryPort, TeamPlanningPort, TeamPlanRoute, TeamRoutesPort } from '../../domain/ports.js';
+import type { NamedPerson, TeamDirectoryPort, TeamPlanningPort, TeamPlanRoute, TeamRoutesPort } from '../../domain/ports.js';
 import { mapInChunks } from '../inChunks.js';
 import { makeRouteNamer } from '../planRoutes.js';
 import { activeMembers, type TeamLevel } from '../teamScope.js';
@@ -23,6 +23,8 @@ export interface TeamPlanRow {
     routeCount: number;
     /** The day's routes with their names and types (HQ, ex-station, out-station). */
     routes: TeamPlanRoute[];
+    /** Who the day is spent with, as `Name (Designation)`. */
+    workWithPeople: NamedPerson[];
     doctorCount: number;
     /** The employee changed the day the Monthly Plan wrote. */
     changedFromMonthly: boolean;
@@ -62,6 +64,7 @@ export class TeamPlansUseCase {
           workingType: day.workingType,
           routeCount: day.routeIds.length,
           routes: await routesOf(day.routeIds),
+          workWithPeople: await this.directory.namePeople(day.workWith ?? []),
           doctorCount: day.doctorIds.length,
           changedFromMonthly: day.changedFromMonthly ?? false,
         },

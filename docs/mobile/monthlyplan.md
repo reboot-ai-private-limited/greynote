@@ -121,4 +121,17 @@ Suggested phone behaviour:
 - Print `label` on chips and summaries.
 - Send only the ids as `workWith: string[]` (≤ 20 a day).
 
+**Colleagues named on plan reads (2026-10-26).** Every plan day keeps `workWith: string[]` (ids), and the reads below now also carry **`workWithPeople: [{ id, name, designation, label }]`** for the same people, in the same order, with `label` ready to print (`Asha Rao (ASM)`; just the name with no designation). It is read-only; **saving still sends `workWith` ids only**. Where it appears:
+
+| Read | Where |
+|---|---|
+| `GET /planning/daily/:id` | on the plan itself |
+| `GET /planning/monthly/:id` and the by-user read | on every `entries[]` item, and on each `amendments[].previous[]` item |
+| `GET /team/plans` | `dailyPlan.workWithPeople[]` |
+| `GET /sync/...` planning snapshot | on every `dailyPlans[]` item and every `monthlyPlans[].entries[]` item |
+
+The list/history reads (`GET /planning/daily`, `GET /planning/monthly`) do not carry it; use the cached `/identity/work-with` list or open the plan.
+
+**Phone change needed (not done by this team).** The request-summary screen (`approval-summary.tsx`, "Works with") builds `"N colleague(s)"` from `day.workWith.length`. The server cannot change that text. To show names, print `day.workWithPeople.map(p => p.label).join(', ')` (and keep `Nobody` when it is empty). The designation is the person's **current** one.
+
 The web plan and call previews show each person with their designation, like `Ravi (MR), Asha (ASM)`. The designation is the person's **current** one; a later promotion changes how an old day reads. (Keeping it as it was on the day would need a snapshot on every plan day and call — not done.)

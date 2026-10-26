@@ -19,10 +19,14 @@ export function EmployeeName({ userId }: { userId: string | null | undefined }) 
   return <>{person ? `${person.name} (${person.employeeCode})` : '—'}</>;
 }
 
-/** A person as the Work With lines print them: `Asha Rao (ASM)`. Just the name until the designation loads, or if they have none. */
-export function WorkWithName({ userId }: { userId: string }) {
-  const user = useUser(userId);
+/**
+ * A person as the Work With lines print them: `Asha Rao (ASM)`. Pass `label` when the server already named them (a plan read's
+ * `workWithPeople`) and nothing is fetched; otherwise the name shows until the designation loads, or if they have none.
+ */
+export function WorkWithName({ userId, label }: { userId: string; label?: string | undefined }) {
+  const user = useUser(label ? null : userId);
   const designations = useDesignations();
+  if (label) return <>{label}</>;
   if (!user.data) return <>—</>;
   const designationId = user.data.profile?.designationId;
   const designation = designations.data?.find((d) => d.id === designationId)?.name;

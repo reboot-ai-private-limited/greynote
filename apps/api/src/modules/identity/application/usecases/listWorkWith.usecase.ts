@@ -1,6 +1,7 @@
 import type { DesignationRepositoryPort } from '../../domain/designation.repository.port.js';
 import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile.repository.port.js';
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
+import { personLabel } from './namePeople.usecase.js';
 
 export type WorkWithScope = 'managers' | 'all';
 
@@ -50,7 +51,7 @@ export class ListWorkWithUseCase {
           employeeCode: u.employeeCode,
           name: u.name,
           designation,
-          label: designation ? `${u.name} (${designation})` : u.name,
+          label: personLabel(u.name, designation),
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));

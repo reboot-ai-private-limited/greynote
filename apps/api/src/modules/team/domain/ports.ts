@@ -17,10 +17,20 @@ export interface FieldEmployeeInfo {
   zoneId: string | null;
 }
 
+/** A colleague as a plan names them. */
+export interface NamedPerson {
+  id: string;
+  name: string;
+  designation: string | null;
+  label: string;
+}
+
 /** Team's narrow view of Identity; `identity.contract` satisfies it structurally. */
 export interface TeamDirectoryPort {
   getDownline(managerId: string): Promise<DownlineEntry[]>;
   listFieldEmployees(onlyIds?: string[]): Promise<FieldEmployeeInfo[]>;
+  /** Name, current designation and `Name (Designation)` label of each user, in the order given. */
+  namePeople(userIds: string[]): Promise<NamedPerson[]>;
 }
 
 /** Team's narrow view of Territory; `territory.contract` satisfies it structurally. */
@@ -55,6 +65,8 @@ export interface TeamPlanningPort {
     status: string;
     workingType: string;
     routeIds: string[];
+    /** Accompanying colleagues' user ids. */
+    workWith?: string[];
     doctorIds: string[];
     changedFromMonthly?: boolean;
   } | null>;

@@ -404,6 +404,14 @@ export const isFieldDay = (t: WorkingType): boolean => t === 'FIELD_WORK' || t =
 export const DAY_KINDS = ['NORMAL', 'STAY', 'TRANSIT'] as const;
 export type DayKind = (typeof DAY_KINDS)[number];
 
+/** A colleague named on a plan day: `label` is what to print, `Asha Rao (ASM)`, or just the name with no designation. */
+export interface PlanPersonDto {
+  id: string;
+  name: string;
+  designation: string | null;
+  label: string;
+}
+
 export interface PlanningSnapshot {
   /** Today's date in the business timezone. */
   today: string;
@@ -413,6 +421,8 @@ export interface PlanningSnapshot {
     workingType: WorkingType;
     dayKind: DayKind;
     workWith: string[];
+    /** The same colleagues as `workWith`, named (current designation). */
+    workWithPeople: PlanPersonDto[];
     routeIds: string[];
     /** The doctors to call: the MR's picks plus missed calls carried over. */
     doctors: Array<{ doctorId: string; carriedFrom: string | null }>;
@@ -431,6 +441,8 @@ export interface PlanningSnapshot {
       workingType: WorkingType;
       dayKind: DayKind;
       workWith: string[];
+      /** The same colleagues as `workWith`, named (current designation). */
+      workWithPeople: PlanPersonDto[];
       routeIds: string[];
       remarks: string | null;
     }>;

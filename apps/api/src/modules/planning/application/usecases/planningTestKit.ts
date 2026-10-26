@@ -336,6 +336,16 @@ export class FakeUsers implements UserDirectoryPort {
   async isBlocked(userId: string) {
     return this.users.get(userId)?.isBlocked ?? false;
   }
+  /** Designations by user id, for `namePeople`; a user not listed has none. */
+  designations = new Map<string, string>();
+  async namePeople(userIds: string[]) {
+    return userIds.flatMap((id) => {
+      const u = this.users.get(id);
+      if (!u) return [];
+      const designation = this.designations.get(id) ?? null;
+      return [{ id, name: u.name, designation, label: designation ? `${u.name} (${designation})` : u.name }];
+    });
+  }
 }
 
 export class FakeRoutes {

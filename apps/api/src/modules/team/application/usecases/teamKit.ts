@@ -110,6 +110,9 @@ export class FakeTeam
   async listFieldEmployees() {
     return [];
   }
+  async namePeople(userIds: string[]) {
+    return userIds.map((id) => ({ id, name: `Name ${id}`, designation: 'ASM', label: `Name ${id} (ASM)` }));
+  }
   async isBlocked(userId: string) {
     return this.blocked.has(userId);
   }

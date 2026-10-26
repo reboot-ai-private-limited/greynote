@@ -72,6 +72,18 @@ old one.
 
 ---
 
+## 2026-10-26 — Plan reads name the colleagues in Work With
+
+**Decision:** plan days keep `workWith: string[]` (ids) and gain a read-only sibling `workWithPeople: [{ id, name, designation, label }]` on `GET /planning/daily/:id`, `GET /planning/monthly/:id` (entries and amendment `previous`), `GET /team/plans` and the sync planning snapshot. `label` is `Name (Designation)`, built in Identity (`namePeople`) with the same format as `/identity/work-with`.
+
+**Why:** the phone's request-summary screen prints `"N colleagues"` from `workWith.length`, so approvers cannot see who the day is spent with. The phone is another team's, and it, the sync cache and the save/amend flows all depend on ids, so `workWith` cannot change shape.
+
+**Cost:** the phone still shows the count until that team prints `workWithPeople[].label` ([`mobile/monthlyplan.md`](mobile/monthlyplan.md) section 5). The designation is the current one, not a snapshot.
+
+**Rejected:** turning `workWith` into labels (breaks saves and offline sync); naming people on list reads (cost on every list, and no screen needs it).
+
+---
+
 ## 2026-10-12 — Work With lists every manager in the org; monthly plan rules re-verified
 
 **Decision:**

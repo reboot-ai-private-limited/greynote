@@ -7,6 +7,9 @@ import type { CtcAssignment } from './domain/ctcAssignment.entity.js';
 import type { PayBand } from './domain/payBand.entity.js';
 import type { UserSummary } from './domain/user.entity.js';
 
+import type { NamedPerson } from './application/usecases/namePeople.usecase.js';
+
+export type { NamedPerson } from './application/usecases/namePeople.usecase.js';
 export type { CtcAssignment } from './domain/ctcAssignment.entity.js';
 export type { DownlineMember } from './application/usecases/getDownline.usecase.js';
 export type { EmploymentDetails } from './application/usecases/getEmploymentDetails.usecase.js';
@@ -53,6 +56,8 @@ export interface IdentityPublicContract {
   /** Everyone below this user at any depth (`depth` 1 = direct report), by depth then name. */
   getDownline(managerId: string): Promise<DownlineMember[]>;
   isFieldRole(userId: string): Promise<boolean>;
+  /** Name, current designation and `Name (Designation)` label of each of these users, in the order given (any status; unknown ids are skipped). */
+  namePeople(userIds: string[]): Promise<NamedPerson[]>;
   /** The designation level of each of these users (MR 1 … NSM 5); users without a designation (office staff, Admin) are left out. */
   getDesignationLevels(userIds: string[]): Promise<Array<{ userId: string; level: number }>>;
   /** Whether a compliance block (HLD 10) stops this user submitting anything new. */

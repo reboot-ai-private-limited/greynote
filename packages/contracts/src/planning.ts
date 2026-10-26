@@ -2,7 +2,7 @@
  * Plans over HTTP, as the approval previews read them. Dates are ISO strings on the wire; `planDate` is a
  * calendar day (`YYYY-MM-DD`), `planMonth` a month (`YYYY-MM`).
  */
-import type { DayKind, WorkingType } from './sync.js';
+import type { DayKind, PlanPersonDto, WorkingType } from './sync.js';
 
 /** One planned day, whether a daily plan's body or one entry of a monthly plan. */
 export interface PlanDayDto {
@@ -11,6 +11,8 @@ export interface PlanDayDto {
   dayKind: DayKind;
   /** Accompanying colleagues' user ids. */
   workWith: string[];
+  /** The same colleagues as `workWith`, named. Read-only: saving a plan sends `workWith` ids. Filled on the detail reads (`/daily/:id`, `/monthly/:id`) and the sync snapshot; absent or empty elsewhere. */
+  workWithPeople?: PlanPersonDto[];
   routeIds: string[];
   remarks: string | null;
 }

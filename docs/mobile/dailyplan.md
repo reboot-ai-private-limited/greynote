@@ -92,6 +92,7 @@ From `GET /planning/daily?from&to` (and the sync snapshot):
 |---|---|---|
 | `GET` | `/planning/daily?from&to` | Own plans in a date range (≤ 93 days), with the state fields above. |
 | `GET` | `/planning/daily/:id` | One plan (owner, their managers read-only, Admin). Also `routes[{id,name,routeType}]` (2026-10-22): the plan's routes named, with `routeType` `HQ`/`EX_STATION`/`OUT_STATION`, so a manager sees them without holding them. |
+| `GET` | `/planning/daily/:id` | Also returns `workWithPeople[{id,name,designation,label}]` beside `workWith` (ids) - print `label` (`Asha Rao (ASM)`). Read-only; saves send `workWith` ids. Same on the sync snapshot's `dailyPlans[]`. |
 | `POST` | `/planning/daily/plan` | `{ planDate, workingType, workWith[], doctorIds[] }` — change the day's working type, work with and doctors (section 1a); the server sets the routes. `doctorIds` ≤ 50 for an MR, ≤ `MANAGER_PLAN_DOCTORS_MAX` for a manager. |
 | `POST` | `/planning/daily/doctors` | `{ planDate, doctorIds[≤50] }` — set only the day's doctors; carried-over doctors are added. For a manager the doctors may also be a named team member's (section 1b). |
 | `GET` | `/planning/daily/team-suggest?date&userIds=` | **Manager only:** the routes and doctors of the team members they would work with, from those people's plans (section 1b). `userIds` is comma-separated, at most 20, all in the manager's downline. |

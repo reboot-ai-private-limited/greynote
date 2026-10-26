@@ -106,7 +106,7 @@ export function buildPlanningContainer(
   const leaverPlans = new LeaverPlans(dailyPlans, monthlyPlans, approvals);
 
   // What the phone caches of Planning: the MR's own Plans, with their status for the day's gate.
-  sync.registerSource(makePlanningSource({ deadlines, daily: listDaily, monthly: listMonthly, offDays }));
+  sync.registerSource(makePlanningSource({ deadlines, daily: listDaily, monthly: listMonthly, offDays, users }));
   let dayReported: DayReportedCheck = async () => {
     throw new Error('Planning: the day-reported check was never bound.');
   };

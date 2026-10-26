@@ -27,6 +27,7 @@ const directory: TeamDirectoryPort = {
           person('mr2', 2, 'asm1', 'inactive'),
         ]
       : [],
+  namePeople: async () => [],
   listFieldEmployees: async (ids) =>
     (ids ?? []).map((id) => ({
       id,

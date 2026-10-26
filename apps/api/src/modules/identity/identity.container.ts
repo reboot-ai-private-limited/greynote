@@ -151,6 +151,7 @@ import { buildOrgRouter } from './interface/org.route.js';
 import { ListOrgChildrenUseCase } from './application/usecases/listOrgChildren.usecase.js';
 import { buildWorkWithRouter } from './interface/workWith.route.js';
 import { ListWorkWithUseCase } from './application/usecases/listWorkWith.usecase.js';
+import { NamePeopleUseCase } from './application/usecases/namePeople.usecase.js';
 import type { IdentityPublicContract } from './identity.public.js';
 
 export interface IdentityContainer {
@@ -364,6 +365,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const getManagerChain = new GetManagerChainUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getUserSummaries = new GetUserSummariesUseCase(userRepository, roleRepository, employeeProfileRepository);
   const listWorkWith = new ListWorkWithUseCase(userRepository, employeeProfileRepository, designationRepository);
+  const namePeople = new NamePeopleUseCase(userRepository, employeeProfileRepository, designationRepository);
   const getDirectReports = new GetDirectReportsUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getDownline = new GetDownlineUseCase(userRepository, roleRepository, employeeProfileRepository);
   const getReportingLine = new GetReportingLineUseCase((id) => getManagerChain.execute(id), (id) => getDownline.execute(id));
@@ -442,6 +444,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
       getDirectReports: (managerId) => getDirectReports.execute(managerId),
       getDownline: (managerId) => getDownline.execute(managerId),
       isFieldRole: (userId) => isFieldRole.execute(userId),
+      namePeople: (userIds) => namePeople.execute(userIds),
       getDesignationLevels: async (userIds) => {
         const [profiles, designations] = await Promise.all([employeeProfileRepository.findByUserIds(userIds), designationRepository.list()]);
         const levelOf = new Map(designations.map((d) => [d.id, d.level]));
