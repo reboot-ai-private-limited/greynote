@@ -1016,3 +1016,7 @@ requests follow), the account signs out everywhere **at once** (open screens inc
 with the routes), routes, coverage, distributors, later plans and leave, and later targets are released, each part reported and
 retryable. Payroll pays them up to the leaving month (`leftInMonth`); attendance marks later days `NOT_EMPLOYED`. Admin can
 reactivate (rehire) from a rejoining date. `LLD/identity.md`, `mobile/account.md`.
+
+## Change my own password (2026-10-26, done, not browser-checked)
+
+Decision-log 2026-10-26. `POST /identity/auth/change-password` (any role; other sessions end, this one stays; rate limited per user), unit-tested; web *My account* page from the top-bar menu with the form rules tested; `mobile/account.md`, LLD identity and HLD 4 updated. **Open:** the phone's Change password screen (other team); client to confirm A5 now allows self-service change; a browser walk-through.

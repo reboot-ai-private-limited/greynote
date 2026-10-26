@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronDown, Menu } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useSession } from '@/lib/auth/SessionProvider';
 import { FinancialYearSwitcher } from './FinancialYearSwitcher';
@@ -14,6 +15,7 @@ const initials = (name: string) =>
 
 export function TopBar({ onMenu }: { onMenu: () => void }) {
   const { user, signOut } = useSession();
+  const router = useRouter();
 
   return (
     <div className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-surface/95 px-8 backdrop-blur">
@@ -44,7 +46,10 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
             <ChevronDown aria-hidden className="size-4 text-text-subtle" />
           </button>
         }
-        items={[{ label: 'Sign out', onSelect: () => void signOut() }]}
+        items={[
+          { label: 'My account', onSelect: () => router.push('/account') },
+          { label: 'Sign out', onSelect: () => void signOut() },
+        ]}
       />
     </div>
   );

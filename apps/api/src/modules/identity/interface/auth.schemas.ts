@@ -30,6 +30,14 @@ export const deleteAccountPublicBodySchema = z.object({
   password: z.string().min(1).max(200),
 });
 
+// The current password is only checked, so it carries no complexity rule; the new one does.
+export const changePasswordBodySchema = z.object({
+  currentPassword: z.string().min(1).max(200),
+  newPassword: passwordSchema,
+  // The phone sends it in the body; a browser sends the httpOnly cookie instead (see refreshCookie.ts).
+  refreshToken: z.string().min(1).optional(),
+});
+
 export const logoutAllBodySchema = z.object({
   userId: z.string().min(1),
 });

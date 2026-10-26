@@ -10,6 +10,8 @@ export interface UserSessionRepositoryPort {
   findByRefreshTokenHash(hash: string): Promise<UserSession | null>;
   revoke(sessionId: string, reason: RevokedReason): Promise<void>;
   revokeAllForUser(userId: string, reason: RevokedReason): Promise<void>;
+  /** Every live session of the user except `keepSessionId` (omit it to end them all). */
+  revokeOthersForUser(userId: string, keepSessionId: string | null, reason: RevokedReason): Promise<void>;
   revokeActiveForDevice(
     userId: string,
     deviceId: string,

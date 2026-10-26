@@ -17,6 +17,13 @@ old one.
 
 ---
 
+## 2026-10-26 — Every employee can change their own password (signed in, current password asked)
+
+- **Decision:** `POST /identity/auth/change-password {currentPassword, newPassword}` for any signed-in role. A wrong current password is `403`, a new password equal to the current one is `400`, five wrong tries in 15 minutes per user is `429`. The other sessions end (`PASSWORD_RESET`); the one making the request stays, found by its refresh token (the web cookie, or the body on the phone, as in logout). With no recognisable refresh token every session ends.
+- **Not changed:** Admin still resets *other* people's passwords (A5). A forgotten password is still Admin-assisted (an Admin uses the emailed-code flow); no email or SMS for employees.
+- **Web:** *My account* (`/account`, top-bar menu) with Current / New / Confirm and an eye toggle on each. **Phone:** `mobile/account.md`; the app is another team's.
+- **Why:** until now an employee could not change a password an Admin had typed for them.
+
 ## 2026-10-23 — One approval for Monthly Plans, Daily Plans and Services
 
 - **Decision:** `MONTHLY_PLAN`, `DAILY_PLAN` and `DOCTOR_SERVICE` are registered `managerOnly`. The manager approves, or Admin does in their place, whoever acts first, and the request is `APPROVED`. It replaces manager, then Admin.

@@ -136,6 +136,8 @@ same shape as `health.public.ts`, just with real methods:
   employee out of their other phone.
 - **Password reset is Admin-only** (`client-sign-off.md` A5). It re-hashes the password and ends
   every session (`PASSWORD_RESET`); registered devices stay registered.
+- **Changing my own password is open to every role** (decision-log 2026-10-26). `ChangePasswordUseCase` checks the current password, re-hashes, and ends every
+  *other* session (`PASSWORD_RESET`), keeping the one whose refresh token came with the request (or none, when there is no such token).
 - **The compliance block is system-set; Admin or a manager above the employee clears it, with a reason (decision-log 2026-10-12).** A background job
   ([`hld/10`](../hld/10-submission-gating-and-compliance-block.md)) creates a new `ComplianceBlock`
   row and sets `User.is_blocked = true` — never a person, so there's no `blocked_by` on the row.
@@ -219,6 +221,7 @@ dist/scripts/seed.js`), never automatically on server boot. See `docs/decision-l
 | `POST` | `/api/identity/auth/refresh` | any (via refresh token) | Rotate a session. Token from the body (mobile) or, for a browser, the httpOnly `gn_refresh` cookie (needs an `X-Client` header) |
 | `GET` | `/api/identity/auth/me` | any | The signed-in `UserSummary` (web boot) |
 | `POST` | `/api/identity/auth/logout` | any | Revoke the calling session |
+| `POST` | `/api/identity/auth/change-password` | Any signed-in role | `{currentPassword, newPassword}` — change my own password. `403` wrong current password, `400` same as current or weak, `429` five wrong tries in 15 min per user. Ends my other sessions; this one (refresh cookie or `refreshToken` in the body) stays |
 | `POST` | `/api/identity/auth/delete-account` | FIELD (own) | `{password}` — deletes my account: personal data scrubbed, sessions and phones ended, records kept as "Deleted user"; `403` wrong password, `409 HAS_ACTIVE_REPORTS`. Allowed while a past year is viewed |
 | `POST` | `/api/identity/auth/delete-account-public` | Public | `{employeeCode, password}` — the form on the company website (Google Play's deletion URL). Same deletion; no token or cookie issued. `401` wrong code or password (same message, same timing), `400` not a field account, `409 HAS_ACTIVE_REPORTS` or already deleted, `429` more than 5 tries in 15 min per address or per code |
 | `POST` | `/api/identity/auth/forgot-password` | Public | `{employeeCode}` — an **Admin** forgot their password. Emails a 6-digit code to the owner address in Settings (environment `PASSWORD_RESET_OWNER_EMAIL`), never to the requester. Always `200` with the same words for any code: nothing is sent, stored or counted unless the ID is an active Admin. At most `PASSWORD_RESET_DAILY_LIMIT` (environment, default 3) codes in any 24 hours for the whole system; no owner email = off. `429` more than 5 tries in 15 min per address or per code. Needs `SMTP_*` on the server; a mail failure is logged, not counted
@@ -289,8 +292,7 @@ device-limit value.
 
 ## Deliberately deferred
 
-- Self-service password reset (nothing in the PRD specifies one; likely Admin-assisted only for
-  the first build).
+- Self-service *forgotten*-password reset for employees (email/SMS code). Changing a known password is built; a forgotten one is still Admin-assisted.
 - Any second factor beyond password — considered and dropped for mPIN specifically; not
   reconsidered here.
 - Session-list / "log out from here" self-service UI — the API (`logout-all`) supports the
