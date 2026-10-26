@@ -20,10 +20,11 @@ import { istDate } from '@/lib/dates';
 import { financialYearOf, financialYearRange } from '@/lib/financial-year';
 import { formatMoney } from '@/lib/format';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
-import { useDistributorBalances, useDistributorPaymentTotals } from '../hooks/useDistributorPayments';
+import { useDistributorBalances, useDistributorOutstanding, useDistributorPaymentTotals } from '../hooks/useDistributorPayments';
 import { useDistributors, useUpdateDistributor } from '../hooks/useDistributors';
 import { paymentRange } from '../lib/payments';
 import { DeleteDistributorDialog } from './DeleteDistributorDialog';
+import { DistributorTotals } from './DistributorTotals';
 import { RecordPaymentDialog } from './RecordPaymentDialog';
 import { EmployeeFilter } from '@/features/people/components/EmployeePickerField';
 import { RouteFilter } from './RoutePickerField';
@@ -56,9 +57,10 @@ export function DistributorsScreen() {
   const isAdmin = useSession().user?.role === 'ADMIN';
   const { year } = useFinancialYear();
   const today = istDate();
-  const collected = useDistributorPaymentTotals(
-    paymentRange('month', today, financialYearRange(year ?? financialYearOf(today))),
-  ).data;
+  const fy = financialYearRange(year ?? financialYearOf(today));
+  const collected = useDistributorPaymentTotals(paymentRange('month', today, fy)).data;
+  const collectedYear = useDistributorPaymentTotals(paymentRange('year', today, fy)).data;
+  const outstanding = useDistributorOutstanding().data;
   const balances = useDistributorBalances().data;
   const updateDistributor = useUpdateDistributor(() => setToggling(null));
 
@@ -72,6 +74,9 @@ export function DistributorsScreen() {
     ...(values.zoneId && { zoneId: values.zoneId }),
     ...(values.assignedUserId && { assignedUserId: values.assignedUserId }),
   });
+
+  const sum = (m: Map<string, number> | undefined) =>
+    m && [...m.values()].reduce((n, v) => n + v, 0);
 
   const columns: readonly Column<DistributorDto>[] = [
     {
@@ -202,6 +207,9 @@ export function DistributorsScreen() {
       readOnly={readOnly}
       onNew={() => router.push('/distributors/new')}
       onRowClick={(d) => router.push(`/distributors/${d.id}`)}
+      toolbarActions={
+        <DistributorTotals month={sum(collected)} year={sum(collectedYear)} dues={outstanding?.duesPaise} />
+      }
       filters={
         <>
           <Input

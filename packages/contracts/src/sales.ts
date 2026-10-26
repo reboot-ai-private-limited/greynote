@@ -56,6 +56,11 @@ export interface DistributorBalanceDto {
   collectedPaise: number;
 }
 
+/** `GET /sales/distributor-payments/outstanding`: what all distributors owe together (opening dues + delivered − collected, all time). */
+export interface DistributorOutstandingDto {
+  duesPaise: number;
+}
+
 /** One row of `GET /sales/distributor-payments/totals`: what a distributor paid over the range. Distributors with nothing recorded are left out. */
 export interface DistributorPaymentTotalDto {
   distributorId: string;

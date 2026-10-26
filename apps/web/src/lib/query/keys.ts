@@ -168,6 +168,7 @@ export const keys = {
     orders: (query: object) => [...keys.distributorPayments.all(), 'orders', query] as const,
     totals: (query: object) => [...keys.distributorPayments.all(), 'totals', query] as const,
     balances: () => [...keys.distributorPayments.all(), 'balances'] as const,
+    outstanding: () => [...keys.distributorPayments.all(), 'outstanding'] as const,
   },
   distributors: {
     all: () => ['distributors', fy()] as const,

@@ -1,4 +1,4 @@
-import type { DistributorBalanceDto, DistributorPaymentDto, DistributorPaymentsDto, DistributorPaymentTotalDto } from '@greynote/contracts';
+import type { DistributorBalanceDto, DistributorOutstandingDto,DistributorPaymentDto, DistributorPaymentsDto, DistributorPaymentTotalDto } from '@greynote/contracts';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { Paise } from '@/shared/money/paise.js';
 import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
@@ -125,6 +125,21 @@ export class DistributorBalancesUseCase {
   async execute(): Promise<DistributorBalanceDto[]> {
     const [delivered, collected] = await Promise.all([this.orders.sumDoneByDistributor(), this.payments.collectedAllTime()]);
     return [...new Set([...delivered.keys(), ...collected.keys()])].map((distributorId) => ({ distributorId, deliveredPaise: delivered.get(distributorId) ?? 0, collectedPaise: collected.get(distributorId) ?? 0 }));
+  }
+}
+
+/** What every distributor owes in all, for the Distributors list's headline: opening dues + delivered − collected, across all of them, all time. */
+export class OutstandingDuesUseCase {
+  constructor(
+    private readonly master: FieldMasterDataPort,
+    private readonly payments: PaymentRepositoryPort,
+    private readonly orders: OrderRepositoryPort,
+  ) {}
+
+  async execute(): Promise<DistributorOutstandingDto> {
+    const [opening, delivered, collected] = await Promise.all([this.master.sumOpeningDues(), this.orders.sumDoneByDistributor(), this.payments.collectedAllTime()]);
+    const sum = (m: Map<string, number>) => [...m.values()].reduce((n, v) => n + v, 0);
+    return { duesPaise: opening + sum(delivered) - sum(collected) };
   }
 }
 

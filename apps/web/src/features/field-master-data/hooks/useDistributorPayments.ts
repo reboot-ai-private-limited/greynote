@@ -52,6 +52,17 @@ export function useDistributorBalances() {
   );
 }
 
+/** What all distributors owe together, all time. Refreshes with the balances. */
+export function useDistributorOutstanding() {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.distributorPayments.outstanding(),
+      fetch: (token, signal) => salesApi.distributorOutstanding(token, signal),
+      staleTime: staleTime.live,
+    }),
+  );
+}
+
 export function useDistributorOrders(query: DistributorRangeQuery, enabled = true) {
   return useQuery(
     authedQueryOptions({

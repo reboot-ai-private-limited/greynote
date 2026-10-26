@@ -13,6 +13,8 @@ export interface DistributorFilter extends PageQuery {
 export interface DistributorRepositoryPort {
   list(filter: DistributorFilter): Promise<PaginatedResult<Distributor>>;
   findById(id: string): Promise<Distributor | null>;
+  /** The opening dues of every distributor, active or not, added up. */
+  sumOpeningDues(): Promise<number>;
   /** Batched; an id that is not there is skipped. */
   findByIds(ids: string[]): Promise<Distributor[]>;
   /** Every active one, by name — a report's list of who should have reported. */

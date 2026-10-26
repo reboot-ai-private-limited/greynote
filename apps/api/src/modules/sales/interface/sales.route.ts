@@ -38,6 +38,7 @@ doc('post', '/employee-secondary/submit', 'The employee sends a month\'s seconda
 doc('post', '/employee-primary', 'Admin: change an employee\'s primary for a month, per product, with a reason (any past month of an open financial year)', { body: saveEmployeePrimaryBodySchema });
 doc('post', '/distributor-statement', 'Admin: save the month\'s statement lines (opening, secondary, adjustment with a reason); any past month, an open financial year', { body: saveStatementBodySchema });
 openApiRegistry.registerPath({ method: 'get', path: '/api/sales/distributor-payments/balances', tags: [TAG], summary: 'Admin or Accountant: what each distributor was delivered (Done orders, free units excluded) and paid, all time — the Dues column adds each distributor\'s opening dues', security: [{ bearerAuth: [] }], responses: { 200: { description: 'OK' } } });
+openApiRegistry.registerPath({ method: 'get', path: '/api/sales/distributor-payments/outstanding', tags: [TAG], summary: 'Admin or Accountant: what all distributors owe together (opening dues + delivered − collected, all time)', security: [{ bearerAuth: [] }], responses: { 200: { description: 'OK' } } });
 doc('get', '/distributor-payments/totals', 'Admin or Accountant: what each distributor paid in a date range (recorded payments only)', { query: paymentTotalsQuerySchema });
 openApiRegistry.registerPath({ method: 'post', path: '/api/sales/distributor-payments/{id}/cancel', tags: [TAG], summary: 'Admin or Accountant: cancel a recorded payment, with a reason; a 409 if it is already cancelled', security: [{ bearerAuth: [] }], request: { params: orderIdParamsSchema, body: { content: { 'application/json': { schema: cancelPaymentBodySchema } } } }, responses: { 200: { description: 'OK' }, 409: { description: 'Already cancelled' } } });
 for (const [path, summary] of [
@@ -64,6 +65,7 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.post('/employee-primary', requireRole('ADMIN'), validate({ body: saveEmployeePrimaryBodySchema }), c.saveEmployeePrimary);
   router.post('/distributor-statement', requireRole('ADMIN'), validate({ body: saveStatementBodySchema }), c.saveStatement);
   router.get('/distributor-payments/balances', requireRole('ACCOUNTANT', 'ADMIN'), c.distributorBalances);
+  router.get('/distributor-payments/outstanding', requireRole('ACCOUNTANT', 'ADMIN'), c.distributorOutstanding);
   router.get('/distributor-payments/totals', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: paymentTotalsQuerySchema }), c.paymentTotals);
   router.post('/distributor-payments/:id/cancel', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: orderIdParamsSchema, body: cancelPaymentBodySchema }), c.cancelPayment);
   router.post('/orders', requireRole('FIELD'), validate({ body: placeOrderBodySchema }), c.placeOrder);

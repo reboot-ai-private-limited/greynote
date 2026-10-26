@@ -54,6 +54,8 @@ export interface FieldMasterDataPublicContract {
   getChemist(chemistId: string): Promise<Chemist | null>;
   getProduct(productId: string): Promise<Product | null>;
   getDistributor(distributorId: string): Promise<Distributor | null>;
+  /** What every distributor owed when it was set up, added up (inactive ones too): the starting point of the total dues. */
+  sumOpeningDues(): Promise<number>;
   /** Every active Product, by name — the rows of a stock statement. */
   listActiveProducts(): Promise<Product[]>;
   /**

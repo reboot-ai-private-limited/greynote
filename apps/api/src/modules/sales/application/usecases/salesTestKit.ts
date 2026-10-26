@@ -17,6 +17,9 @@ export class FakeMaster implements FieldMasterDataPort {
   async getDistributor(id: string) {
     return id === 'dist1' ? { id, name: id, openingDuesPaise: this.openingDues[id] ?? 0, ...this.active } : null;
   }
+  async sumOpeningDues() {
+    return Object.values(this.openingDues).reduce((n, v) => n + v, 0);
+  }
   async listActiveProducts() {
     return ['prod1', 'prod2'].map((id) => ({ id, name: id, sku: id.toUpperCase(), ptsPaise: 1000, ptrPaise: 1200 }));
   }

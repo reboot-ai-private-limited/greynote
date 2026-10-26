@@ -1,4 +1,4 @@
-import type { DistributorBalanceDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto } from '@greynote/contracts';
+import type { DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto } from '@greynote/contracts';
 import { request } from '../client';
 
 /** One order as `GET /sales/orders` returns it; the distributor's Orders tab shows only these fields. */
@@ -20,6 +20,7 @@ export const salesApi = {
   distributorPaymentTotals: (token: string, query: { from: string; to: string }, signal?: AbortSignal) =>
     request<DistributorPaymentTotalDto[]>('/sales/distributor-payments/totals', { token, query: { ...query }, signal }),
   /** Admin or Accountant. What each distributor was delivered (Done orders, free units excluded) and paid, all time; the list adds each one's opening dues. */
+  distributorOutstanding: (token: string, signal?: AbortSignal) => request<DistributorOutstandingDto>('/sales/distributor-payments/outstanding', { token, signal }),
   distributorBalances: (token: string, signal?: AbortSignal) => request<DistributorBalanceDto[]>('/sales/distributor-payments/balances', { token, signal }),
   /** Admin. One distributor's month by product: field counts, orders, the saved statement and the figures that follow. */
   distributorStatement: (token: string, query: { distributorId: string; month: string }, signal?: AbortSignal) =>

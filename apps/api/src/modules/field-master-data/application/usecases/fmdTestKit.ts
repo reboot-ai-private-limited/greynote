@@ -394,6 +394,9 @@ export class FakeApprovals implements ApprovalsPort {
 
 export class FakeDistributors implements DistributorRepositoryPort {
   rows: Distributor[] = [];
+  async sumOpeningDues() {
+    return this.rows.reduce((n, d) => n + d.openingDuesPaise, 0);
+  }
   async countAssignee(userId: string) {
     return this.rows.filter((d) => d.assignedUserIds.includes(userId)).length;
   }

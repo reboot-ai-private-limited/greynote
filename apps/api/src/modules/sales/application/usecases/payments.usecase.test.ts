@@ -6,7 +6,7 @@ import type { DistributorPayment } from '../../domain/payment.entity.js';
 import type { PaymentRepositoryPort } from '../../domain/payment.repository.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import { SalesClock } from '../salesClock.js';
-import { CancelPaymentUseCase, DistributorBalancesUseCase, ListPaymentsUseCase, PaymentTotalsUseCase, RecordPaymentUseCase, type RecordPaymentInput } from './payments.usecase.js';
+import { CancelPaymentUseCase, DistributorBalancesUseCase, ListPaymentsUseCase, OutstandingDuesUseCase, PaymentTotalsUseCase, RecordPaymentUseCase, type RecordPaymentInput } from './payments.usecase.js';
 import { FakeMaster, FakeUsers } from './salesTestKit.js';
 
 class FakePayments implements PaymentRepositoryPort {
@@ -150,5 +150,6 @@ describe('distributor payments', () => {
     expect(out.dues).toEqual({ openingPaise: 20_000, deliveredPaise: 65_000, collectedPaise: 25_000, duesPaise: 60_000 });
     expect(out.orderedPaise).toBe(5_000 + 30_000); // October: the Done order at what was delivered, the Placed one as ordered
     expect(await new DistributorBalancesUseCase(payments, orders).execute()).toEqual([{ distributorId: 'dist1', deliveredPaise: 65_000, collectedPaise: 25_000 }]);
+    expect(await new OutstandingDuesUseCase(master, payments, orders).execute()).toEqual({ duesPaise: 60_000 });
   });
 });

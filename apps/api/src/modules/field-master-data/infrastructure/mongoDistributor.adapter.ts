@@ -90,6 +90,11 @@ export class MongoDistributorAdapter implements DistributorRepositoryPort {
     return (await DistributorModel.find({ status: 'active' }).sort({ name: 1, _id: 1 }).lean()).map(toDistributor);
   }
 
+  async sumOpeningDues(): Promise<number> {
+    const [row] = await DistributorModel.aggregate<{ total: number }>([{ $group: { _id: null, total: { $sum: '$openingDuesPaise' } } }]);
+    return row?.total ?? 0;
+  }
+
   async findByIds(ids: string[]): Promise<Distributor[]> {
     const valid = [...new Set(ids)].filter((id) => Types.ObjectId.isValid(id));
     if (valid.length === 0) return [];

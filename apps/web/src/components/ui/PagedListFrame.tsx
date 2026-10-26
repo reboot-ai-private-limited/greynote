@@ -23,6 +23,7 @@ export function PagedListFrame<T extends { id: string }>({
   readOnly,
   onNew,
   actions,
+  toolbarActions,
   filters,
   query,
   columns,
@@ -43,6 +44,8 @@ export function PagedListFrame<T extends { id: string }>({
   onNew?: () => void;
   /** Other header buttons (a download), beside "New". */
   actions?: ReactNode;
+  /** Beside the filters, at the right of the toolbar (a headline total). */
+  toolbarActions?: ReactNode;
   filters: ReactNode;
   query: {
     data: PaginatedDto<T> | undefined;
@@ -90,7 +93,7 @@ export function PagedListFrame<T extends { id: string }>({
           }
         />
       )}
-      <ListToolbar>{filters}</ListToolbar>
+      <ListToolbar actions={toolbarActions}>{filters}</ListToolbar>
       <TopProgressBar active={query.isFetching && !query.isLoading} />
       <DataState
         isLoading={query.isLoading}
