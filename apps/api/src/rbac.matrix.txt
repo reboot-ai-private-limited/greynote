@@ -236,6 +236,7 @@ POST   /api/hr/leave-types  ADMIN,HR
 POST   /api/hr/leaves  FIELD
 POST   /api/hr/leaves/:id/approval-grant  ADMIN
 POST   /api/hr/leaves/:id/attachments  FIELD
+POST   /api/identity/auth/change-password  ANY
 POST   /api/identity/auth/delete-account  ANY
 POST   /api/identity/auth/delete-account-public  PUBLIC
 POST   /api/identity/auth/forgot-password  PUBLIC

@@ -91,6 +91,7 @@ Every way a session ends records why, in `revoked_reason`:
 | `POST /auth/logout-all {userId}` | Admin | every session of the user (offboarding) | `ADMIN` |
 | `POST /users/:id/devices/:deviceRowId/logout` | Admin | that phone's sessions; phone stays registered | `ADMIN` |
 | `DELETE /users/:id/devices/:deviceRowId` | Admin | that phone's sessions, and the phone is unregistered (frees a slot) — one transaction | `ADMIN` |
+| `POST /auth/change-password {currentPassword, newPassword}` | the user | every session **except** the one making the request | `PASSWORD_RESET` |
 | `POST /users/:id/reset-password {newPassword}` | Admin only | every session; registered phones stay registered | `PASSWORD_RESET` |
 | `POST /auth/delete-account {password}` / `POST /users/:id/anonymise` | the user / Admin, HR | every session, and the phones are unregistered (account deleted) | `ADMIN` |
 

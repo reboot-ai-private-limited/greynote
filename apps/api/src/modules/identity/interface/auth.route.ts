@@ -6,6 +6,7 @@ import { requireRole } from '@/shared/http/authorize.middleware.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import {
+  changePasswordBodySchema,
   deleteAccountBodySchema,
   deleteAccountPublicBodySchema,
   forgotPasswordBodySchema,
@@ -18,6 +19,7 @@ import {
   resetAdminPasswordBodySchema,
 } from './auth.schemas.js';
 import type {
+  makeChangePasswordController,
   makeDeleteAccountController,
   makeDeleteAccountPublicController,
   makeForgotPasswordController,
@@ -83,6 +85,22 @@ openApiRegistry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { body: { content: { 'application/json': { schema: logoutAllBodySchema } } } },
   responses: { 200: { description: 'Every session revoked' } },
+});
+
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/identity/auth/change-password',
+  tags: ['Identity / Auth'],
+  summary:
+    "Change my own password (any role). Asks for the current one. Ends my other sessions; the one making the request (found by its refresh token) stays. 5 wrong tries per 15 minutes",
+  security: [{ bearerAuth: [] }],
+  request: { body: { content: { 'application/json': { schema: changePasswordBodySchema } } } },
+  responses: {
+    200: { description: 'Password changed' },
+    400: { description: 'New password is the same as the current one, or too weak' },
+    403: { description: 'Current password is wrong' },
+    429: { description: 'Too many wrong tries' },
+  },
 });
 
 openApiRegistry.registerPath({
@@ -181,12 +199,26 @@ function deletePublicLimiters() {
   ];
 }
 
+/** Counts only failed attempts, per signed-in user: someone with a stolen session can't grind through the current password. */
+const changePasswordLimiter = () =>
+  rateLimit({
+    windowMs: WINDOW_MS,
+    limit: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: tooMany,
+    skipSuccessfulRequests: true,
+    keyGenerator: (req) => `change-password:${req.user?.sub ?? 'anon'}`,
+    validate: { keyGeneratorIpFallback: false },
+  });
+
 export function buildAuthRouter(controllers: {
   login: ReturnType<typeof makeLoginController>;
   refresh: ReturnType<typeof makeRefreshController>;
   logout: ReturnType<typeof makeLogoutController>;
   logoutAll: ReturnType<typeof makeLogoutAllController>;
   me: ReturnType<typeof makeMeController>;
+  changePassword: ReturnType<typeof makeChangePasswordController>;
   deleteAccount: ReturnType<typeof makeDeleteAccountController>;
   deleteAccountPublic: ReturnType<typeof makeDeleteAccountPublicController>;
   forgotPassword: ReturnType<typeof makeForgotPasswordController>;
@@ -201,6 +233,7 @@ export function buildAuthRouter(controllers: {
   router.get('/me', authenticate(), controllers.me);
   router.put('/push-token', authenticate(), validate({ body: pushTokenBodySchema }), controllers.pushToken.register);
   router.delete('/push-token', authenticate(), validate({ body: pushTokenClearBodySchema }), controllers.pushToken.unregister);
+  router.post('/change-password', authenticate(), changePasswordLimiter(), validate({ body: changePasswordBodySchema }), controllers.changePassword);
   router.post('/delete-account', authenticate(), validate({ body: deleteAccountBodySchema }), controllers.deleteAccount);
   router.post(
     '/delete-account-public',

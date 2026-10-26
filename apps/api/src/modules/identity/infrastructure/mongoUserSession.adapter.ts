@@ -73,6 +73,17 @@ export class MongoUserSessionAdapter implements UserSessionRepositoryPort {
     );
   }
 
+  async revokeOthersForUser(userId: string, keepSessionId: string | null, reason: RevokedReason): Promise<void> {
+    await UserSessionModel.updateMany(
+      {
+        userId: new Types.ObjectId(userId),
+        revokedAt: null,
+        ...(keepSessionId ? { _id: { $ne: new Types.ObjectId(keepSessionId) } } : {}),
+      },
+      { revokedAt: new Date(), revokedReason: reason },
+    );
+  }
+
   async revokeActiveForDevice(
     userId: string,
     deviceId: string,

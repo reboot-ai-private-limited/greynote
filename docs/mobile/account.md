@@ -20,6 +20,20 @@ Errors: `403` the password is wrong (the account is untouched); `409` with `data
 
 Profile → **Delete account** → confirm text above → password field → red **Delete my account** button. Needs a network connection (no offline queue). The route also works while a past financial year is being viewed.
 
+## Change my password (2026-10-26)
+
+Any signed-in employee can change their own password. Admin still resets other people's. A forgotten password still goes to Admin. Related: decision-log 2026-10-26.
+
+| Route | What it does |
+|---|---|
+| ✅ `POST /api/identity/auth/change-password` body `{ "currentPassword": "…", "newPassword": "…", "refreshToken": "…" }` | Changes the signed-in employee's password. `200` on success. |
+
+Send the phone's current `refreshToken` in the body (as `logout` does). It tells the server which session to keep: **this phone stays signed in; every other session of the employee is signed out** (`PASSWORD_RESET`), on the web and on their other phone. Without it, every session ends, this phone included, and the app must then show the sign-in screen. Registered phones stay registered.
+
+Errors: `403` the current password is wrong (nothing changed); `400` the new password is the same as the current one, shorter than 8 characters or longer than 72 bytes; `429` five wrong current passwords in 15 minutes (`data.reason = "RATE_LIMITED"`; wait). Show the server's message.
+
+**Screen (📱):** Profile → **Change password** → Current password, New password, Confirm new password; each box has an eye icon that shows or hides what was typed. Check on the phone that New and Confirm match and New is at least 8 characters before sending. Save → toast "Password changed". Needs a network connection (no offline queue). The route also works while a past financial year is being viewed.
+
 ## Public deletion page (Google Play URL)
 
 `https://www.greynotehealth.com/delete-account` — a form on the company website: employee code + password, then the same deletion via `POST /api/identity/auth/delete-account-public` (no sign-in). The website origin must be in the API's `CORS_ORIGINS`. Five tries per 15 minutes per address and per code (`429`). Field accounts only; a deleted account can no longer sign in to the app.

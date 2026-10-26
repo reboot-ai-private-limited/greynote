@@ -291,8 +291,10 @@ describe('every screen has an owner', () => {
   };
   walk(appDir, '');
 
+  // Screens every signed-in web role opens from the top-bar menu, not the rail.
+  const SHARED = new Set(['/account']);
   // [id] segments stand for a record; the owner is found by the part before it.
-  it.each(routes.map((r) => r.replace(/\/\[[^\]]+\]/g, '/x')))('%s is claimed by a nav item', (route) => {
+  it.each(routes.filter((r) => !SHARED.has(r)).map((r) => r.replace(/\/\[[^\]]+\]/g, '/x')))('%s is claimed by a nav item', (route) => {
     expect(NAV_ITEMS.some((i) => isActiveItem(i, route))).toBe(true);
   });
 });

@@ -17,6 +17,10 @@ export const authApi = {
   resetAdminPassword: (body: { employeeCode: string; otp: string; newPassword: string }) =>
     request<Record<string, never>>('/identity/auth/reset-admin-password', { method: 'POST', body }),
 
+  /** My own password. The refresh cookie rides along so the server can keep this session and end the others. */
+  changePassword: (token: string, body: { currentPassword: string; newPassword: string }) =>
+    request<Record<string, never>>('/identity/auth/change-password', { method: 'POST', body, token }),
+
   /** The refresh token is the httpOnly cookie; there is nothing to send. */
   refresh: () => request<AuthTokensDto>('/identity/auth/refresh', { method: 'POST', body: {} }),
 

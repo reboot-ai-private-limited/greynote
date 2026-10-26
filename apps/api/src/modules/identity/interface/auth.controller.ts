@@ -6,6 +6,7 @@ import type { RefreshSessionUseCase } from '../application/usecases/refreshSessi
 import type { LogoutUseCase } from '../application/usecases/logout.usecase.js';
 import type { LogoutAllSessionsUseCase } from '../application/usecases/logoutAllSessions.usecase.js';
 import type { PushTokenUseCase } from '../application/usecases/pushToken.usecase.js';
+import type { ChangePasswordUseCase } from '../application/usecases/changePassword.usecase.js';
 import type { DeleteAccountUseCase } from '../application/usecases/deleteAccount.usecase.js';
 import type { ConfirmAdminPasswordResetUseCase, RequestAdminPasswordResetUseCase } from '../application/usecases/adminPasswordReset.usecase.js';
 import { AppError } from '@/shared/errors/AppError.js';
@@ -35,6 +36,14 @@ export function makeLogoutController(useCase: LogoutUseCase): RequestHandler {
     if (refreshToken) await useCase.execute(req.user.sub, refreshToken);
     clearRefreshCookie(res);
     sendSuccess(req, res, {}, 'Logged out.', 200);
+  });
+}
+
+export function makeChangePasswordController(useCase: ChangePasswordUseCase): RequestHandler {
+  return asyncHandler(async (req, res) => {
+    if (!req.user) throw AppError.unauthenticated();
+    await useCase.execute(req.user.sub, req.body.currentPassword, req.body.newPassword, readRefreshToken(req));
+    sendSuccess(req, res, {}, 'Password changed.', 200);
   });
 }
 

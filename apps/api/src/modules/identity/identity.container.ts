@@ -63,6 +63,7 @@ import { RefreshSessionUseCase } from './application/usecases/refreshSession.use
 import { RemoveDraftPhotoUseCase, RemoveEmployeePhotoUseCase, SetDraftPhotoUseCase, SetEmployeePhotoUseCase } from './application/usecases/employeePhoto.usecase.js';
 import { CloudinaryPhotoStorage } from '@/shared/storage/cloudinaryPhotoStorage.adapter.js';
 import { RemoveUserDocumentUseCase } from './application/usecases/removeUserDocument.usecase.js';
+import { ChangePasswordUseCase } from './application/usecases/changePassword.usecase.js';
 import { DeleteAccountUseCase } from './application/usecases/deleteAccount.usecase.js';
 import { ResetPasswordUseCase } from './application/usecases/resetPassword.usecase.js';
 import type { BootstrapAdminInput } from './application/usecases/seedBootstrapAdmin.usecase.js';
@@ -97,6 +98,7 @@ import {
   makeLoginController,
   makeForgotPasswordController,
   makeResetAdminPasswordController,
+  makeChangePasswordController,
   makeDeleteAccountController,
   makeDeleteAccountPublicController,
   makeLogoutAllController,
@@ -265,6 +267,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
   const blockUser = new BlockUserUseCase(userRepository, roleRepository, complianceBlockRepository, transactionRunner);
   const unblockUser = new UnblockUserUseCase(userRepository, complianceBlockRepository, transactionRunner, (id) => getManagerChain.execute(id));
   const resetPassword = new ResetPasswordUseCase(userRepository, userSessionRepository, passwordHasher);
+  const changePassword = new ChangePasswordUseCase(userRepository, userSessionRepository, passwordHasher, refreshTokenGenerator);
   const deleteAccount = new DeleteAccountUseCase(
     userRepository,
     roleRepository,
@@ -392,6 +395,7 @@ export function buildIdentityContainer(configProvider: ConfigProviderPort): Iden
     logout: makeLogoutController(logout),
     logoutAll: makeLogoutAllController(logoutAllSessions),
     me: makeMeController(getUserSummary),
+    changePassword: makeChangePasswordController(changePassword),
     deleteAccount: makeDeleteAccountController(deleteAccount),
     deleteAccountPublic: makeDeleteAccountPublicController(deleteAccount),
     forgotPassword: makeForgotPasswordController(requestAdminPasswordReset),

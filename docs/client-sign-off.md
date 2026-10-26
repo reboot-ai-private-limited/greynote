@@ -24,7 +24,7 @@ applies because the design changed (the decision-log entry says how).
 | A2 | How many devices can a **field employee** use? | 2 (*config*: `MAX_REGISTERED_DEVICES_FIELD`) | Built |
 | A3 | Is Admin approval needed for a new device? | Yes — **every** new phone, including the first, waits for Admin approval. At 2 phones, login is refused until Admin removes one; logging out doesn't free a slot. Admin can remove a phone or log it out. A rejected phone is blocked for 7 days (*config*: `REJECTED_DEVICE_TTL_DAYS`) | Built |
 | A4 | Admin, HR and Accountant have no device limit? | Confirmed — no limit, no approval | Built |
-| A5 | Password reset? | Admin only; sets a new password and logs the user out everywhere | Built |
+| A5 | Password reset? | Admin only; sets a new password and logs the user out everywhere. *Added 2026-10-26, to confirm with the client:* any signed-in employee can also change their own password (current password asked; their other sessions end) | Built |
 
 ## B. Plans & DCR (Phases 4 and 6)
 
