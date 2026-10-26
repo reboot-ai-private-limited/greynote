@@ -5,15 +5,17 @@ import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { monthLabel } from '@/features/payroll/lib/payroll';
 import { toErrorState } from '@/lib/api/toErrorState';
-import { downloadCsv } from '@/lib/csv';
+import { exportFilename, resolveExportOwner } from '@/lib/exportFilename';
 import { formatDate, formatMoney } from '@/lib/format';
+import { useCsvExport } from '@/lib/hooks/useCsvExport';
 import { useTaDaDays } from '../hooks/useTaDaReport';
-import { EXPENSE_TYPE_LABEL, taDaDaysCsv, taDaDaysFilename } from '../lib/taDa';
+import { EXPENSE_TYPE_LABEL, taDaDaysCsv } from '../lib/taDa';
 
 /** One employee's accepted expenses for a month, day by day: what each row is, the route, the amount, and whether it has been paid. */
 export function TaDaDaysDialog({ userId, month, onClose }: { userId: string; month: string; onClose: () => void }) {
   const query = useTaDaDays(userId, month, true);
   const d = query.data;
+  const download = useCsvExport(async (token) => ({ filename: exportFilename(await resolveExportOwner(token, userId), 'ta-da', month), csv: taDaDaysCsv(d!) }));
   return (
     <Dialog
       open
@@ -22,7 +24,7 @@ export function TaDaDaysDialog({ userId, month, onClose }: { userId: string; mon
       {...(d ? { description: `${d.mr.employeeCode} · accepted expenses, day by day` } : {})}
       footer={
         <>
-          <Button variant="secondary" disabled={!d || d.rows.length === 0} onClick={() => d && downloadCsv(taDaDaysFilename(d.mr.employeeCode, month), taDaDaysCsv(d))}>
+          <Button variant="secondary" disabled={!d || d.rows.length === 0 || download.isPending} onClick={() => download.mutate()}>
             Download CSV
           </Button>
           <Button onClick={onClose}>Close</Button>

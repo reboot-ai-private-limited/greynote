@@ -43,4 +43,3 @@ export function doctorsCsv(doctors: readonly DoctorDto[], routeLabel: (routeId: 
 }
 
 export const doctorsFilename = (): string => 'doctors.csv';
-export const employeeDoctorsFilename = (employeeCode: string): string => `doctors-${employeeCode.toLowerCase()}.csv`;

@@ -1,6 +1,6 @@
 import type { DoctorDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { DOCTORS_CSV_HEADER, doctorsCsv, employeeDoctorsFilename } from './doctorsCsv';
+import { DOCTORS_CSV_HEADER, doctorsCsv } from './doctorsCsv';
 
 const doctor = (over: Partial<DoctorDto> = {}): DoctorDto => ({
   id: 'd1',
@@ -42,8 +42,4 @@ describe('doctorsCsv', () => {
   it('writes a name that looks like a formula as text', () => {
     expect(doctorsCsv([doctor({ name: '=HYPERLINK("x")' })], () => 'R')).toContain(`"'=HYPERLINK(""x"")"`);
   });
-});
-
-describe('employeeDoctorsFilename', () => {
-  it('carries the employee code in lower case', () => expect(employeeDoctorsFilename('MR001')).toBe('doctors-mr001.csv'));
 });

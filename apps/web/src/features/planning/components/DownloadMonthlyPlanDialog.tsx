@@ -7,9 +7,10 @@ import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { planningApi } from '@/lib/api/endpoints/planning';
+import { exportFilename, resolveExportOwner } from '@/lib/exportFilename';
 import { useCsvExport } from '@/lib/hooks/useCsvExport';
 import { resolveWorkWithLabels } from '../lib/workWithLabels';
-import { isDownloadable, monthlyPlanCsv, monthlyPlanFilename, notApprovedMessage } from '../lib/monthlyPlanCsv';
+import { isDownloadable, monthlyPlanCsv, notApprovedMessage } from '../lib/monthlyPlanCsv';
 
 /** Plans are made a month ahead, so the month asked for first is next month (`YYYY-MM`). */
 const nextMonth = () => {
@@ -29,7 +30,7 @@ export function DownloadMonthlyPlanDialog({ user, onClose }: { user: Pick<UserDe
     if (!isDownloadable(plan.status)) throw new Error(notApprovedMessage(planMonth));
     const label = await resolveWorkWithLabels(token, plan.entries.flatMap((e) => e.workWith));
     return {
-      filename: monthlyPlanFilename(user.employeeCode, planMonth),
+      filename: exportFilename(await resolveExportOwner(token, user.id), 'monthly-plan', planMonth),
       csv: monthlyPlanCsv(plan, { routeLabel: directory.routeLabel, personName: (id) => label.get(id) ?? '—' }),
     };
   });

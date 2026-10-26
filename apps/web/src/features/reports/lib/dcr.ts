@@ -45,4 +45,3 @@ export const dcrCoverageCsv = (c: Pick<DcrCoverageDto, 'notVisited'>): string =>
 
 export const dcrYearFilename = (year: number): string => `dcr-${year}-${String((year + 1) % 100).padStart(2, '0')}.csv`;
 export const dcrMonthFilename = (month: string): string => `dcr-employees-${month}.csv`;
-export const dcrCoverageFilename = (employeeCode: string, month: string): string => `doctors-not-visited-${employeeCode.toLowerCase()}-${month}.csv`;

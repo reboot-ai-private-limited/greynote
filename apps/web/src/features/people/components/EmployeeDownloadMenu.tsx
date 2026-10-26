@@ -4,13 +4,14 @@ import type { UserDetailDto } from '@greynote/contracts';
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
-import { employeeDcrsCsv, employeeDcrsFilename } from '@/features/field-activity/lib/employeeDcrsCsv';
-import { doctorsCsv, employeeDoctorsFilename } from '@/features/field-master-data/lib/doctorsCsv';
+import { employeeDcrsCsv } from '@/features/field-activity/lib/employeeDcrsCsv';
+import { doctorsCsv } from '@/features/field-master-data/lib/doctorsCsv';
 import { DownloadMonthlyPlanDialog } from '@/features/planning/components/DownloadMonthlyPlanDialog';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { fetchAllPages, MAX_PAGE_SIZE } from '@/lib/api/allPages';
 import { fieldActivityApi } from '@/lib/api/endpoints/fieldActivity';
 import { doctorsApi } from '@/lib/api/endpoints/fieldMasterData';
+import { exportFilename, resolveExportOwner } from '@/lib/exportFilename';
 import { useCsvExport } from '@/lib/hooks/useCsvExport';
 import { financialYearLabel, financialYearOf, financialYearRange, getFinancialYear } from '@/lib/financial-year';
 
@@ -20,12 +21,12 @@ export function EmployeeDownloadMenu({ user }: { user: Pick<UserDetailDto, 'id' 
   const [planOpen, setPlanOpen] = useState(false);
   const doctors = useCsvExport(async (token) => {
     const { items, complete } = await fetchAllPages((page) => doctorsApi.assignedTo(token, user.id, { page, pageSize: MAX_PAGE_SIZE }), 100);
-    return { filename: employeeDoctorsFilename(user.employeeCode), csv: doctorsCsv(items, directory.routeLabel), complete };
+    return { filename: exportFilename(await resolveExportOwner(token, user.id), 'doctors'), csv: doctorsCsv(items, directory.routeLabel), complete };
   });
   const dcrs = useCsvExport(async (token) => {
     const year = getFinancialYear() ?? financialYearOf(new Date().toISOString().slice(0, 10));
     const rows = await fieldActivityApi.dcrs(token, { userId: user.id, ...financialYearRange(year) });
-    return { filename: employeeDcrsFilename(user.employeeCode, financialYearLabel(year)), csv: employeeDcrsCsv(rows) };
+    return { filename: exportFilename(await resolveExportOwner(token, user.id), 'dcr', financialYearLabel(year).replace('–', '-')), csv: employeeDcrsCsv(rows) };
   });
 
   return (

@@ -18,6 +18,7 @@ What the field app must do for the Expenses screen, and the rules the server enf
 | 8 | **Approval deadline** (`deadlines.approveBy`, default the 10th): after it the manager's approval is refused with `409 EXPENSE_APPROVAL_LATE` unless Admin allows it (`exceptions.approveUntil`). The employee can't act on this; show it as "waiting for approval". | ✅ |
 | 9 | Approval makes the month payable; the Accountant pays on `EXPENSE_PAYOUT_DAY`. `paidPaise` shows how much has been settled. | ✅ |
 | 10 | A month already **paid in part** cannot be reopened or allowed late. | ✅ |
+| 11 | **File name of the Expenses CSV (2026-10-26).** `<name>-<designation>-expenses-<YYYY-MM>-<code>.csv`, e.g. `rahul-roy-mr-expenses-2026-11-emp03.csv`; the person is the employee the statement belongs to, also when a manager downloads it for a team member. Exact rule: [`monthlyplan.md`](monthlyplan.md) rule 22. | ✅ web; 📱 phone to change |
 
 ## 2. What the screen should do ✅📱
 

@@ -43,4 +43,3 @@ export function taDaDaysCsv(d: Pick<TaDaDaysDto, 'rows'>): string {
 
 export const taDaYearFilename = (year: number): string => `ta-da-${year}-${String((year + 1) % 100).padStart(2, '0')}.csv`;
 export const taDaMonthFilename = (month: string): string => `ta-da-employees-${month}.csv`;
-export const taDaDaysFilename = (employeeCode: string, month: string): string => `ta-da-${employeeCode.toLowerCase()}-${month}.csv`;

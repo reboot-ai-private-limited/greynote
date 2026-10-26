@@ -12,6 +12,3 @@ export function employeeDcrsCsv(dcrs: readonly DcrSummaryDto[]): string {
       .map((d) => [d.reportDate, d.status, d.remarks, d.approval?.submittedAt, d.approval?.decidedAt, d.approval?.cycle]),
   );
 }
-
-export const employeeDcrsFilename = (employeeCode: string, financialYearLabel: string): string =>
-  `dcr-${employeeCode.toLowerCase()}-${financialYearLabel.replace('–', '-')}.csv`;

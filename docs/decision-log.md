@@ -2495,3 +2495,11 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Consequences:** the Admin signs in with the new code (GHC015 becomes ADMIN01).
 
 **Open:** the migration has been dry-run but not yet applied to the database.
+
+## 2026-10-26: Downloaded files are named after the person, their designation and the period
+
+**Decision:** a CSV about one employee is called `<name>-<designation>-<what>-<period>-<code>.csv`, lower case, `-` only: `rahul-roy-mr-monthly-plan-2026-11-emp03.csv`, `rahul-roy-asm-dcr-2026-02-12-emp03.csv`, `rahul-roy-mr-doctors-emp03.csv`. The period is `YYYY-MM-DD` for a day, `YYYY-MM` for a month, `2026-27` for a financial year, and absent for a list. ISO dates, not `12-02-2026`, so files sort in a folder and `12-02` is never read as 2 December. The full name (two Rahuls are common) and the employee code at the end (same name and designation must not overwrite each other). Web: every per-employee download (approvals, Employee page, Monthly Plan, TA/DA days, doctors not visited). Org-wide files (payroll, sales, `dcr-employees-…`, all doctors) have no single owner and keep their names.
+
+**Consequences:** a manager saving a team's files can tell them apart without opening them. The web builds the name from the user and the designation list (`lib/exportFilename.ts`); the approvals file for a request is named after the submitter. The old `<what>-<code>-<period>.csv` names are gone.
+
+**Open:** the phone still names Tour Plan and Expenses files `tour-plan-<code>-<month>.csv` (`monthlyplan.md` rule 22, `expenses.md` rule 11, `team.md` section 6); the mobile side builds the change, this repo did not touch `apps/fieldApp`.

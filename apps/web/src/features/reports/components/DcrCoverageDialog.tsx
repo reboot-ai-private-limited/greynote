@@ -4,14 +4,16 @@ import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { monthLabel } from '@/features/payroll/lib/payroll';
 import { toErrorState } from '@/lib/api/toErrorState';
-import { downloadCsv } from '@/lib/csv';
+import { exportFilename, resolveExportOwner } from '@/lib/exportFilename';
+import { useCsvExport } from '@/lib/hooks/useCsvExport';
 import { useDcrCoverage } from '../hooks/useDcrReport';
-import { dcrCoverageCsv, dcrCoverageFilename } from '../lib/dcr';
+import { dcrCoverageCsv } from '../lib/dcr';
 
 /** The doctors assigned to an employee now that they did not call on in the month, by speciality. */
 export function DcrCoverageDialog({ userId, month, onClose }: { userId: string; month: string; onClose: () => void }) {
   const query = useDcrCoverage(userId, month, true);
   const c = query.data;
+  const download = useCsvExport(async (token) => ({ filename: exportFilename(await resolveExportOwner(token, userId), 'doctors-not-visited', month), csv: dcrCoverageCsv(c!) }));
   const bySpeciality = new Map<string, string[]>();
   for (const d of c?.notVisited ?? []) bySpeciality.set(d.specialty, [...(bySpeciality.get(d.specialty) ?? []), d.name]);
   return (
@@ -22,7 +24,7 @@ export function DcrCoverageDialog({ userId, month, onClose }: { userId: string; 
       {...(c ? { description: `${c.mr.employeeCode} · ${monthLabel(month)} · ${c.visited} of ${c.assigned} assigned doctors called on` } : {})}
       footer={
         <>
-          <Button variant="secondary" disabled={!c || c.notVisited.length === 0} onClick={() => c && downloadCsv(dcrCoverageFilename(c.mr.employeeCode, month), dcrCoverageCsv(c))}>
+          <Button variant="secondary" disabled={!c || c.notVisited.length === 0 || download.isPending} onClick={() => download.mutate()}>
             Download CSV
           </Button>
           <Button onClick={onClose}>Close</Button>

@@ -62,8 +62,6 @@ export function monthlyPlanCsv(
   );
 }
 
-export const monthlyPlanFilename = (employeeCode: string, month: string): string => `monthly-plan-${employeeCode.toLowerCase()}-${month}.csv`;
-
 /** Only an approved plan is the one the employee works to; a draft, a waiting, rejected, withdrawn or reopened one is not handed out. */
 export const isDownloadable = (status: string): boolean => status === 'APPROVED';
 

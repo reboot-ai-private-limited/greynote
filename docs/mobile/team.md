@@ -123,6 +123,7 @@ Suggested shape, not ours to build. Visible only when `GET /auth/me` shows the p
 - Every approve/reject/unblock/grant keeps the actor, time and reason on the record.
 - All lists page and take the financial-year header like the existing reads; a past year is read-only.
 - Money in paise on the wire; show rupees on the phone.
+- **A team member's downloads are named after the member, not the manager** (2026-10-26): `rahul-roy-mr-tour-plan-2026-11-emp03.csv`. Rule: [`monthlyplan.md`](monthlyplan.md) rule 22. 📱 phone to change.
 
 ## 7. Build order (our side: API + docs)
 

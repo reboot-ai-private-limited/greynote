@@ -3,18 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { dailyPlanCsv } from './dailyPlanCsv';
 import { dcrCsv } from './dcrCsv';
 import { expenseMonthCsv } from './expenseMonthCsv';
-import { requestCsvFilename } from './filename';
 import { secondarySalesCsv } from './secondarySalesCsv';
 
 const rows = (csv: string) => csv.trimEnd().split('\r\n').map((l) => l.split(','));
 const names = { routeLabel: (id: string) => `R-${id}`, personName: (id: string) => `P-${id}`, doctorName: (id: string) => `Dr ${id}` };
-
-describe('requestCsvFilename', () => {
-  it('lowercases the code and falls back for an unknown sender', () => {
-    expect(requestCsvFilename('dcr', 'GHC014', '2026-10-24')).toBe('dcr-ghc014-2026-10-24.csv');
-    expect(requestCsvFilename('dcr', null, '2026-10-24')).toBe('dcr-unknown-2026-10-24.csv');
-  });
-});
 
 describe('dailyPlanCsv', () => {
   const plan: Parameters<typeof dailyPlanCsv>[0] = {
