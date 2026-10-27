@@ -32,6 +32,11 @@ class FakePayments implements PaymentRepositoryPort {
     for (const p of this.rows) if (p.status === 'RECORDED') sums.set(p.distributorId, (sums.get(p.distributorId) ?? 0) + p.amountPaise);
     return sums;
   }
+  async allocatedToOrders(ids: string[]) {
+    const sums = new Map<string, number>();
+    for (const p of this.rows) if (p.status === 'RECORDED') for (const a of p.allocations) if (ids.includes(a.orderId)) sums.set(a.orderId, (sums.get(a.orderId) ?? 0) + a.amountPaise);
+    return sums;
+  }
   async cancel(id: string, by: string, at: Date, reason: string) {
     const p = this.rows.find((r) => r.id === id);
     if (!p || p.status !== 'RECORDED') return false;
@@ -42,6 +47,9 @@ class FakePayments implements PaymentRepositoryPort {
 
 const distributorOrders: Order[] = [];
 const orders = {
+  async findById(id: string) {
+    return distributorOrders.find((o) => o.id === id) ?? null;
+  },
   async list(f: { outlet?: { id: string }; from?: string; to?: string }) {
     return distributorOrders.filter((o) => o.outlet.id === f.outlet?.id && (!f.from || o.orderDate >= f.from) && (!f.to || o.orderDate <= f.to));
   },
@@ -53,6 +61,8 @@ const orders = {
 } as unknown as OrderRepositoryPort;
 const order = (id: string, orderDate: string, status: Order['status'], totalAmountPaise: number): Order =>
   ({ id, userId: 'mr1', outlet: { type: 'DISTRIBUTOR', id: 'dist1' }, orderDate, status, totalAmountPaise, remarks: null, items: [], completedBy: null, completedAt: null, clientId: null, createdAt: new Date() }) as Order;
+
+const invoice = (id: string, totalPaise: number, over: Partial<Order> = {}): Order => ({ ...order(id, '2026-10-01', 'DONE', totalPaise), invoiceNumber: `INV-${id}`, invoice: { taxablePaise: totalPaise, lines: [], gstPaise: 0, roundOffPaise: 0, totalPaise }, ...over });
 
 let closed = 'NONE';
 const config = { get: async (key: string) => ({ BUSINESS_TIMEZONE: 'Asia/Kolkata', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: closed })[key] ?? '' };
@@ -73,8 +83,8 @@ describe('distributor payments', () => {
     const clock = new SalesClock(config, () => new Date('2026-10-09T06:00:00Z'));
     const users = new FakeUsers();
     const master = new FakeMaster();
-    record = new RecordPaymentUseCase(master, payments, clock, config, users);
-    cancel = new CancelPaymentUseCase(payments, clock, config, users);
+    record = new RecordPaymentUseCase(master, payments, orders, clock, config, users);
+    cancel = new CancelPaymentUseCase(payments, orders, clock, config, users);
     list = new ListPaymentsUseCase(payments, orders, users, master);
   });
 
@@ -151,5 +161,49 @@ describe('distributor payments', () => {
     expect(out.orderedPaise).toBe(5_000 + 30_000); // October: the Done order at what was delivered, the Placed one as ordered
     expect(await new DistributorBalancesUseCase(payments, orders).execute()).toEqual([{ distributorId: 'dist1', deliveredPaise: 65_000, collectedPaise: 25_000 }]);
     expect(await new OutstandingDuesUseCase(master, payments, orders).execute()).toEqual({ duesPaise: 60_000 });
+  });
+
+  describe('allocations to invoices', () => {
+    it('splits one payment across several invoices, the rest staying on account, and names each invoice in the result', async () => {
+      distributorOrders.push(invoice('o1', 30_000), invoice('o2', 20_000));
+      const p = await record.execute(admin, input({ amountPaise: 60_000, allocations: [{ orderId: 'o1', amountPaise: 30_000 }, { orderId: 'o2', amountPaise: 15_000 }] }));
+      expect(p.allocations).toEqual([{ orderId: 'o1', invoiceNumber: 'INV-o1', amountPaise: 30_000 }, { orderId: 'o2', invoiceNumber: 'INV-o2', amountPaise: 15_000 }]);
+      expect(await payments.allocatedToOrders(['o1', 'o2'])).toEqual(new Map([['o1', 30_000], ['o2', 15_000]]));
+    });
+
+    it('a payment with no allocations is all on account', async () => {
+      expect((await record.execute(admin, input())).allocations).toEqual([]);
+    });
+
+    it('refuses more than the payment, more than is due on an invoice, a repeated invoice, and an amount of zero — writing nothing', async () => {
+      distributorOrders.push(invoice('o1', 30_000));
+      expect(await code(record.execute(admin, input({ amountPaise: 10_000, allocations: [{ orderId: 'o1', amountPaise: 10_001 }] })))).toBe(STOCK_CODES.allocationInvalid);
+      expect(await code(record.execute(admin, input({ amountPaise: 90_000, allocations: [{ orderId: 'o1', amountPaise: 30_001 }] })))).toBe(STOCK_CODES.allocationInvalid);
+      expect(await code(record.execute(admin, input({ amountPaise: 90_000, allocations: [{ orderId: 'o1', amountPaise: 1 }, { orderId: 'o1', amountPaise: 1 }] })))).toBe(STOCK_CODES.allocationInvalid);
+      expect(await code(record.execute(admin, input({ amountPaise: 90_000, allocations: [{ orderId: 'o1', amountPaise: 0 }] })))).toBe(STOCK_CODES.allocationInvalid);
+      expect(payments.rows).toHaveLength(0);
+    });
+
+    it('refuses an order that is not a numbered, Done invoice of this distributor', async () => {
+      distributorOrders.push(invoice('o2', 5_000, { invoiceNumber: null }), invoice('o3', 5_000, { status: 'PLACED' }), invoice('o4', 5_000, { outlet: { type: 'DISTRIBUTOR', id: 'dist2' } }));
+      for (const id of ['o2', 'o3', 'o4', 'nope']) {
+        expect(await code(record.execute(admin, input({ allocations: [{ orderId: id, amountPaise: 1_000 }] })))).toBe(STOCK_CODES.allocationInvalid);
+      }
+      expect(payments.rows).toHaveLength(0);
+    });
+
+    it('what is already paid counts against an invoice, and cancelling a payment frees it again', async () => {
+      distributorOrders.push(invoice('o1', 30_000));
+      const first = await record.execute(admin, input({ amountPaise: 20_000, allocations: [{ orderId: 'o1', amountPaise: 20_000 }] }));
+      expect(await code(record.execute(admin, input({ amountPaise: 20_000, allocations: [{ orderId: 'o1', amountPaise: 10_001 }] })))).toBe(STOCK_CODES.allocationInvalid);
+      await cancel.execute(admin, first.id, 'wrong invoice');
+      expect((await record.execute(admin, input({ amountPaise: 30_000, allocations: [{ orderId: 'o1', amountPaise: 30_000 }] }))).status).toBe('RECORDED');
+    });
+  });
+
+  it('the range total counts an invoiced order at its invoice total (supplied + GST), not the supplied amount', async () => {
+    distributorOrders.push({ ...invoice('o1', 26_000), suppliedAmountPaise: 24_700 });
+    const out = await list.execute({ distributorId: 'dist1', from: '2026-10-01', to: '2026-10-31' });
+    expect(out.orderedPaise).toBe(26_000);
   });
 });

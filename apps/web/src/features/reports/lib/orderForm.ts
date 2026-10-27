@@ -248,8 +248,14 @@ export const deliveredPaise = (drafts: readonly SupplyDraft[]): number =>
     return n + (q === d.ordered ? d.netPaise : Math.round((d.netPaise * q) / d.ordered));
   }, 0);
 
-export function buildSupply(drafts: readonly SupplyDraft[]): Built<CompleteOrderDto> {
+export const INVOICE_NUMBER_MAX = 30;
+
+/** The supply with the invoice number the office types: required, at most `INVOICE_NUMBER_MAX` characters. */
+export function buildSupply(drafts: readonly SupplyDraft[], invoiceNumber: string): Built<CompleteOrderDto> {
   const errors: Record<string, string> = {};
+  const number = invoiceNumber.trim();
+  if (!number) errors['invoiceNumber'] = 'Enter the invoice number.';
+  else if (number.length > INVOICE_NUMBER_MAX) errors['invoiceNumber'] = `At most ${INVOICE_NUMBER_MAX} characters.`;
   const supply: NonNullable<CompleteOrderDto['supply']> = [];
   drafts.forEach((d, i) => {
     const supplied = wholeUnits(d.supplied);
@@ -259,5 +265,5 @@ export function buildSupply(drafts: readonly SupplyDraft[]): Built<CompleteOrder
     supply.push({ productId: d.productId, line: i, suppliedQty: supplied, freeQty: free });
   });
   if (Object.keys(errors).length > 0) return { ok: false, errors };
-  return { ok: true, body: { supply } };
+  return { ok: true, body: { invoiceNumber: number, supply } };
 }

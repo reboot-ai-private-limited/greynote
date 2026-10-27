@@ -50,12 +50,13 @@ import { EmployeePickerField } from '@/features/people/components/EmployeePicker
 import { istDate } from '@/lib/dates';
 import { formatMoney } from '@/lib/format';
 import { paiseToRupees } from '@/lib/money';
-import { useAddOrder, useCompleteOrder, useEditOrder, useOrderDetail } from '../hooks/useOrders';
+import { useAddOrder, useCompleteOrder, useEditOrder, useOrderDetail, useSetInvoiceNumber } from '../hooks/useOrders';
 import {
   REMARKS_MAX,
   buildEdit,
   buildNewOrder,
   buildSupply,
+  INVOICE_NUMBER_MAX,
   deliveredPaise,
   notSupplied,
   supplyDraftOf,
@@ -346,6 +347,36 @@ export function EditOrderDialog({ order, onClose }: { order: ReportOrderDetailDt
   );
 }
 
+/** Gives a Done order from before invoices its number, so it appears on the Invoices page and payments can be allocated to it. */
+export function SetInvoiceNumberDialog({ id, onClose }: { id: string; onClose: () => void }) {
+  const [number, setNumber] = useState('');
+  const [error, setError] = useState<string | undefined>();
+  const save = useSetInvoiceNumber(id, onClose);
+
+  function submit() {
+    const trimmed = number.trim();
+    if (!trimmed) return setError('Enter the invoice number.');
+    if (trimmed.length > INVOICE_NUMBER_MAX) return setError(`At most ${INVOICE_NUMBER_MAX} characters.`);
+    setError(undefined);
+    save.mutate({ invoiceNumber: trimmed });
+  }
+
+  return (
+    <FormDialog
+      title="Add the invoice number"
+      description="This order was marked Done before invoice numbers were kept. Once saved, the number cannot be changed."
+      formId="invoice-number-form"
+      pending={save.isPending}
+      onClose={onClose}
+      onSubmit={submit}
+    >
+      <FormField label="Invoice no." htmlFor="invoice-number" error={error}>
+        <Input id="invoice-number" value={number} maxLength={INVOICE_NUMBER_MAX} onChange={(e) => setNumber(e.target.value)} placeholder="e.g. 3452" />
+      </FormField>
+    </FormDialog>
+  );
+}
+
 /**
  * Mark a distributor order Done with what was actually delivered: per product the units supplied (up to what was ordered) and any given free on
  * top. It starts as a full supply, so Save with no change is a plain Done. Primary counts the supplied units at the order's prices; free units are
@@ -356,12 +387,13 @@ export function CompleteOrderDialog({ id, onClose }: { id: string; onClose: () =
   const order = query.data;
   const [drafts, setDrafts] = useState<SupplyDraft[] | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [invoiceNumber, setInvoiceNumber] = useState('');
   const complete = useCompleteOrder(id, onClose);
   const lines = drafts ?? (order ? supplyDraftOf(order.items) : []);
   const set = (i: number, change: Partial<SupplyDraft>) => setDrafts(lines.map((l, at) => (at === i ? { ...l, ...change } : l)));
 
   function submit() {
-    const built = buildSupply(lines);
+    const built = buildSupply(lines, invoiceNumber);
     if (!built.ok) return setErrors(built.errors);
     setErrors({});
     complete.mutate(built.body);
@@ -371,7 +403,7 @@ export function CompleteOrderDialog({ id, onClose }: { id: string; onClose: () =
     <FormDialog
       title="Mark the order Done"
       {...(order && {
-        description: `${order.outlet.name} · placed by ${order.mr.name}. Enter what was actually supplied; it then counts as primary and cannot be changed.`,
+        description: `${order.outlet.name} · placed by ${order.mr.name}. Enter what was actually supplied and the invoice number; it then counts as primary and cannot be changed. GST is added on the invoice.`,
       })}
       formId="complete-order-form"
       pending={complete.isPending}
@@ -421,6 +453,9 @@ export function CompleteOrderDialog({ id, onClose }: { id: string; onClose: () =
             <span className="text-text-muted">Ordered {formatMoney(order.totalAmountPaise)}</span>
             <span className="font-medium tabular-nums">Delivered {formatMoney(deliveredPaise(lines))}</span>
           </div>
+          <FormField label="Invoice no." htmlFor="complete-order-invoice" error={errors['invoiceNumber']}>
+            <Input id="complete-order-invoice" value={invoiceNumber} maxLength={INVOICE_NUMBER_MAX} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="e.g. 3452" />
+          </FormField>
         </div>
       )}
     </FormDialog>

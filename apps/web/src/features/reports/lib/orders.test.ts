@@ -1,6 +1,6 @@
 import type { ReportOrderRowDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { ORDERS_CSV_HEADER, canFinish, ordersCsv, ordersFilename, tabOf } from './orders';
+import { ORDERS_CSV_HEADER, canFinish, needsInvoiceNumber, ordersCsv, ordersFilename, tabOf } from './orders';
 
 const row = (over: Partial<ReportOrderRowDto> = {}): ReportOrderRowDto => ({
   id: 'o1',
@@ -13,8 +13,18 @@ const row = (over: Partial<ReportOrderRowDto> = {}): ReportOrderRowDto => ({
   suppliedAmountPaise: null,
   totalAmountPaise: 123_450,
   completedAt: null,
+  invoiceNumber: null,
   remarks: null,
   ...over,
+});
+
+describe('needsInvoiceNumber', () => {
+  it('is a Done distributor order from before invoices: no number yet', () => {
+    expect(needsInvoiceNumber(row({ status: 'DONE' }))).toBe(true);
+    expect(needsInvoiceNumber(row({ status: 'DONE', invoiceNumber: '3452' }))).toBe(false);
+    expect(needsInvoiceNumber(row({ status: 'PLACED' }))).toBe(false);
+    expect(needsInvoiceNumber(row({ status: 'DONE', outletType: 'CHEMIST' }))).toBe(false);
+  });
 });
 
 describe('canFinish', () => {

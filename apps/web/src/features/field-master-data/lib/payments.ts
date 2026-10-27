@@ -1,7 +1,7 @@
-import type { PaymentMode, RecordDistributorPaymentDto } from '@greynote/contracts';
+import type { InvoiceRowDto, PaymentMode, RecordDistributorPaymentDto } from '@greynote/contracts';
 import { isRealDate } from '@/lib/dateRange';
 import { fail, squash, type BuildResult } from '@/lib/forms';
-import { rupeesToPaise } from '@/lib/money';
+import { paiseToRupees, rupeesToPaise } from '@/lib/money';
 
 export const MODE_LABEL: Record<PaymentMode, string> = {
   CASH: 'Cash',
@@ -22,6 +22,8 @@ export interface PaymentDraft {
   mode: PaymentMode | '';
   reference: string;
   note: string;
+  /** Rupees typed against each invoice (by order id); empty or absent = none. */
+  allocations: Record<string, string>;
 }
 
 export const emptyPayment = (today: string): PaymentDraft => ({
@@ -30,18 +32,56 @@ export const emptyPayment = (today: string): PaymentDraft => ({
   mode: '',
   reference: '',
   note: '',
+  allocations: {},
 });
 
-/** Builds the body for one payment, or says what is wrong with each field. `today` is the business date: a payment cannot be dated after it. */
+/** The invoices that still have something due, oldest first: the order a payment is spread over. */
+export const openInvoices = (invoices: readonly InvoiceRowDto[]): InvoiceRowDto[] =>
+  invoices
+    .filter((i) => i.duePaise > 0)
+    .sort((a, b) => a.invoiceDate.localeCompare(b.invoiceDate) || a.invoiceNumber.localeCompare(b.invoiceNumber, undefined, { numeric: true }));
+
+/** Spreads the amount over the open invoices, oldest first, each up to what is due on it; whatever is left over stays on account. */
+export function autoAllocate(amountPaise: number, invoices: readonly InvoiceRowDto[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  let left = amountPaise;
+  for (const i of openInvoices(invoices)) {
+    if (left <= 0) break;
+    const take = Math.min(left, i.duePaise);
+    out[i.orderId] = paiseToRupees(take);
+    left -= take;
+  }
+  return out;
+}
+
+/** What the typed invoice amounts add up to; an entry that is not a valid amount counts as nothing. */
+export const allocatedPaise = (allocations: Record<string, string>): number =>
+  Object.values(allocations).reduce((n, v) => n + (rupeesToPaise(v) ?? 0), 0);
+
+/** Builds the body for one payment, or says what is wrong with each field. `today` is the business date: a payment cannot be dated after it. `invoices` are the distributor's, for the amounts typed against them. */
 export function buildPayment(
   distributorId: string,
   draft: PaymentDraft,
   today: string,
+  invoices: readonly InvoiceRowDto[] = [],
 ): BuildResult<RecordDistributorPaymentDto> {
   const amount = rupeesToPaise(draft.amount);
   const reference = squash(draft.reference);
   const note = squash(draft.note);
+  const allocations: NonNullable<RecordDistributorPaymentDto['allocations']> = [];
+  let allocationError: string | undefined;
+  for (const [orderId, typed] of Object.entries(draft.allocations)) {
+    if (typed.trim() === '') continue;
+    const invoice = invoices.find((i) => i.orderId === orderId);
+    const paise = rupeesToPaise(typed);
+    if (!invoice) continue;
+    if (paise === null || paise <= 0) allocationError ??= `Invoice ${invoice.invoiceNumber}: enter an amount in rupees, more than zero.`;
+    else if (paise > invoice.duePaise) allocationError ??= `Invoice ${invoice.invoiceNumber}: only ${paiseToRupees(invoice.duePaise)} is due.`;
+    else allocations.push({ orderId, amountPaise: paise });
+  }
+  if (!allocationError && amount !== null && allocations.reduce((n, a) => n + a.amountPaise, 0) > amount) allocationError = 'The invoice amounts add up to more than the payment.';
   const errors: Record<string, string | undefined> = {
+    allocations: allocationError,
     paymentDate: !isRealDate(draft.paymentDate)
       ? 'Choose the date it was received.'
       : draft.paymentDate > today
@@ -65,6 +105,7 @@ export function buildPayment(
       mode: draft.mode,
       reference: reference || null,
       note: note || null,
+      ...(allocations.length > 0 && { allocations }),
     },
   };
 }

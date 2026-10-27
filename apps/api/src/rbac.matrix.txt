@@ -143,9 +143,12 @@ GET    /api/reports/ta-da/days  ADMIN
 GET    /api/reports/team/overview  ADMIN,FIELD
 GET    /api/sales/distributor-payments  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-payments/balances  ACCOUNTANT,ADMIN
+GET    /api/sales/distributor-payments/outstanding  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-payments/totals  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-statement  ACCOUNTANT,ADMIN
 GET    /api/sales/employee-sales  ADMIN,FIELD
+GET    /api/sales/invoices  ACCOUNTANT,ADMIN
+GET    /api/sales/invoices/:id  ACCOUNTANT,ADMIN
 GET    /api/sales/monthly-stock  ADMIN,FIELD
 GET    /api/sales/monthly-stock/missing  ADMIN,FIELD
 GET    /api/sales/orders  ACCOUNTANT,ADMIN,FIELD
@@ -197,6 +200,7 @@ PATCH  /api/marketing/visuals/:id  ADMIN
 PATCH  /api/planning/daily/:id/amend  ADMIN,FIELD,HR
 PATCH  /api/planning/monthly/:id/amend  ADMIN,FIELD,HR
 PATCH  /api/sales/orders/:id  ACCOUNTANT,ADMIN
+PATCH  /api/sales/orders/:id/invoice-number  ACCOUNTANT,ADMIN
 PATCH  /api/territory/hqs/:id  ADMIN
 PATCH  /api/territory/routes/:id  ADMIN
 PATCH  /api/territory/zones/:id  ADMIN
@@ -299,7 +303,7 @@ POST   /api/sales/monthly-stock  ADMIN,FIELD
 POST   /api/sales/monthly-stock/unlock  ADMIN
 POST   /api/sales/orders  FIELD
 POST   /api/sales/orders/:id/cancel  ACCOUNTANT,ADMIN,FIELD
-POST   /api/sales/orders/:id/complete  ACCOUNTANT,ADMIN,FIELD
+POST   /api/sales/orders/:id/complete  ACCOUNTANT,ADMIN
 POST   /api/sales/orders/on-behalf  ACCOUNTANT,ADMIN
 POST   /api/sync/push  FIELD
 POST   /api/territory/hqs  ADMIN

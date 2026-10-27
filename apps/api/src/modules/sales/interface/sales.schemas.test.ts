@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completeOrderBodySchema, editOrderBodySchema, placeOrderBodySchema, placeOrderForBodySchema } from './sales.schemas.js';
+import { completeOrderBodySchema, editOrderBodySchema, placeOrderBodySchema, placeOrderForBodySchema, recordPaymentBodySchema } from './sales.schemas.js';
 
 const id = (n: number) => n.toString(16).padStart(24, '0');
 const line = (over: Record<string, unknown> = {}) => ({ productId: id(1), quantity: 5, unitPricePaise: 1000, ...over });
@@ -22,9 +22,24 @@ describe('order line uniqueness', () => {
   });
 
   it('a supply names each line once, by position or by product', () => {
-    const supply = (s: unknown[]) => completeOrderBodySchema.safeParse({ supply: s }).success;
+    const supply = (s: unknown[]) => completeOrderBodySchema.safeParse({ invoiceNumber: '3452', supply: s }).success;
     expect(supply([{ productId: id(1), line: 0, suppliedQty: 1 }, { productId: id(1), line: 1, suppliedQty: 2 }])).toBe(true);
     expect(supply([{ productId: id(1), line: 0, suppliedQty: 1 }, { productId: id(1), line: 0, suppliedQty: 2 }])).toBe(false);
     expect(supply([{ productId: id(1), suppliedQty: 1 }, { productId: id(1), suppliedQty: 2 }])).toBe(false);
+  });
+
+  it('marking Done needs a trimmed invoice number of at most 30 characters; the supply is optional', () => {
+    expect(completeOrderBodySchema.safeParse({}).success).toBe(false);
+    expect(completeOrderBodySchema.safeParse({ invoiceNumber: '   ' }).success).toBe(false);
+    expect(completeOrderBodySchema.safeParse({ invoiceNumber: 'x'.repeat(31) }).success).toBe(false);
+    expect(completeOrderBodySchema.parse({ invoiceNumber: ' 3452 ' }).invoiceNumber).toBe('3452');
+  });
+
+  it('a payment may carry invoice allocations of whole paise above zero', () => {
+    const pay = (allocations: unknown) => recordPaymentBodySchema.safeParse({ distributorId: id(9), paymentDate: '2026-10-26', amountPaise: 5000, mode: 'UPI', allocations }).success;
+    expect(pay(undefined)).toBe(true);
+    expect(pay([{ orderId: id(1), amountPaise: 2000 }, { orderId: id(2), amountPaise: 3000 }])).toBe(true);
+    expect(pay([{ orderId: id(1), amountPaise: 0 }])).toBe(false);
+    expect(pay([{ orderId: 'nope', amountPaise: 10 }])).toBe(false);
   });
 });

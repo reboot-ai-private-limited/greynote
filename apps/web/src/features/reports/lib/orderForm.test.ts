@@ -109,9 +109,10 @@ describe('order form', () => {
       { productId: 'p1', quantity: 12, unitPricePaise: 1000 },
       { productId: 'p2', quantity: 5, unitPricePaise: 100 },
     ]);
-    expect(buildSupply(drafts)).toEqual({
+    expect(buildSupply(drafts, ' 3452 ')).toEqual({
       ok: true,
       body: {
+        invoiceNumber: '3452',
         supply: [
           { productId: 'p1', line: 0, suppliedQty: 12, freeQty: 0 },
           { productId: 'p2', line: 1, suppliedQty: 5, freeQty: 0 },
@@ -121,7 +122,7 @@ describe('order form', () => {
     const part = [{ ...drafts[0]!, supplied: '10', free: '2', discKind: '', discValue: '' }, drafts[1]!];
     expect(notSupplied(part[0]!)).toBe(2);
     expect(deliveredPaise(part)).toBe(10 * 1000 + 5 * 100);
-    expect(buildSupply(part)).toMatchObject({
+    expect(buildSupply(part, 'A-1')).toMatchObject({
       ok: true,
       body: {
         supply: [
@@ -139,14 +140,21 @@ describe('order form', () => {
     expect(buildEdit({ remarks: '', lines: second({ price: '9' }), discKind: '', discValue: '' }).ok).toBe(true);
     expect(buildEdit({ remarks: '', lines: second({}), discKind: '', discValue: '' })).toMatchObject({ ok: false, errors: { line1: expect.stringMatching(/same price and discount/) } });
     const drafts = supplyDraftOf([{ productId: 'p1', quantity: 6, unitPricePaise: 1000 }, { productId: 'p1', quantity: 4, unitPricePaise: 1000 }]);
-    expect(buildSupply(drafts)).toMatchObject({ ok: true, body: { supply: [{ productId: 'p1', line: 0 }, { productId: 'p1', line: 1 }] } });
+    expect(buildSupply(drafts, '1')).toMatchObject({ ok: true, body: { supply: [{ productId: 'p1', line: 0 }, { productId: 'p1', line: 1 }] } });
   });
 
   it('refuses a supply above the order, or a free figure that is not a whole number', () => {
     const [d] = supplyDraftOf([{ productId: 'p1', quantity: 4, unitPricePaise: 1000 }]);
-    expect(buildSupply([{ ...d!, supplied: '5' }]).ok).toBe(false);
-    expect(buildSupply([{ ...d!, free: '1.5' }]).ok).toBe(false);
+    expect(buildSupply([{ ...d!, supplied: '5' }], '1').ok).toBe(false);
+    expect(buildSupply([{ ...d!, free: '1.5' }], '1').ok).toBe(false);
     expect(notSupplied({ ...d!, supplied: '5' })).toBeNull();
+  });
+
+  it('Mark Done needs an invoice number: blank is refused, and so is one over 30 characters', () => {
+    const drafts = supplyDraftOf([{ productId: 'p1', quantity: 4, unitPricePaise: 1000 }]);
+    expect(buildSupply(drafts, '   ')).toMatchObject({ ok: false, errors: { invoiceNumber: 'Enter the invoice number.' } });
+    expect(buildSupply(drafts, 'x'.repeat(31))).toMatchObject({ ok: false, errors: { invoiceNumber: expect.stringMatching(/at most 30/i) } });
+    expect(buildSupply(drafts, 'x'.repeat(30)).ok).toBe(true);
   });
 
   it('works out line and order discounts the way the server does, and builds them into the body', () => {

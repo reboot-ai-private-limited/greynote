@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { Order } from '../../domain/order.entity.js';
+import type { Order, OrderInvoice } from '../../domain/order.entity.js';
 import type { OrderFilter, OrderRepositoryPort } from '../../domain/order.repository.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import { OutletAccess } from '../outletAccess.js';
 import { SalesClock } from '../salesClock.js';
-import { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase, type PlaceOrderInput } from './orders.usecase.js';
+import { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase, SetInvoiceNumberUseCase, type PlaceOrderInput } from './orders.usecase.js';
 import { FakeMaster, FakeUsers, config } from './salesTestKit.js';
 
 class FakeOrders implements OrderRepositoryPort {
@@ -43,10 +43,18 @@ class FakeOrders implements OrderRepositoryPort {
     for (const o of this.rows) if (o.status === 'DONE' && o.outlet.type === 'DISTRIBUTOR' && ids.includes(o.outlet.id)) out.set(o.outlet.id, (out.get(o.outlet.id) ?? 0) + (o.suppliedAmountPaise ?? o.totalAmountPaise));
     return out;
   }
-  async complete(id: string, supply: { items: Order['items']; suppliedAmountPaise: number; ifEditedAt: Date | null }, by: string, at: Date) {
+  async complete(id: string, supply: { items: Order['items']; suppliedAmountPaise: number; invoiceNumber: string; invoice: OrderInvoice; ifEditedAt: Date | null }, by: string, at: Date) {
     const o = this.rows.find((r) => r.id === id);
     if (!o || o.status !== 'PLACED' || (o.editedAt ?? null) !== supply.ifEditedAt) return false;
-    Object.assign(o, { status: 'DONE', completedBy: by, completedAt: at, items: supply.items, suppliedAmountPaise: supply.suppliedAmountPaise });
+    if (this.rows.some((r) => r.invoiceNumber === supply.invoiceNumber)) throw new StockRefusal(STOCK_CODES.invoiceNumberTaken, 'used');
+    Object.assign(o, { status: 'DONE', completedBy: by, completedAt: at, items: supply.items, suppliedAmountPaise: supply.suppliedAmountPaise, invoiceNumber: supply.invoiceNumber, invoice: supply.invoice });
+    return true;
+  }
+  async setInvoice(id: string, invoiceNumber: string, invoice: OrderInvoice) {
+    const o = this.rows.find((r) => r.id === id);
+    if (!o || o.status !== 'DONE' || o.invoiceNumber) return false;
+    if (this.rows.some((r) => r.invoiceNumber === invoiceNumber)) throw new StockRefusal(STOCK_CODES.invoiceNumberTaken, 'used');
+    Object.assign(o, { invoiceNumber, invoice });
     return true;
   }
   async transition(id: string, to: 'DONE' | 'CANCELLED', by: string, at: Date) {
@@ -70,6 +78,9 @@ describe('orders', () => {
   let place: PlaceOrderUseCase;
   let get: GetOrderUseCase;
   let finish: FinishOrderUseCase;
+  let setInvoice: SetInvoiceNumberUseCase;
+  /** Admin or the Accountant marks it Done: the invoice number is required, here made from the order id. */
+  const markDone = (actor: { id: string; role: string }, id: string, supply?: Parameters<FinishOrderUseCase['execute']>[3]) => finish.execute(actor, id, 'DONE', supply, `INV-${id}`);
   let list: ListOrdersUseCase;
   let edit: EditOrderUseCase;
   const now = new Date('2026-09-30T10:00:00+05:30');
@@ -82,7 +93,8 @@ describe('orders', () => {
     place = new PlaceOrderUseCase(new OutletAccess(master), master, orders, clock, users);
     edit = new EditOrderUseCase(new GetOrderUseCase(orders, users), master, orders, clock);
     get = new GetOrderUseCase(orders, users);
-    finish = new FinishOrderUseCase(get, orders, clock);
+    finish = new FinishOrderUseCase(get, master, orders, clock);
+    setInvoice = new SetInvoiceNumberUseCase(get, master, orders);
     list = new ListOrdersUseCase(orders, users);
   });
 
@@ -139,10 +151,10 @@ describe('orders', () => {
 
   it('completes once; completing or cancelling it again is a 409 naming the state', async () => {
     await place.execute(mr1, order());
-    const done = await finish.execute(mr1, 'o1', 'DONE');
-    expect(done).toMatchObject({ status: 'DONE', completedBy: 'mr1' });
-    expect(await code(finish.execute(mr1, 'o1', 'DONE'))).toBe(STOCK_CODES.orderNotPlaced);
-    expect(await code(finish.execute(mr1, 'o1', 'CANCELLED'))).toBe(STOCK_CODES.orderNotPlaced);
+    const done = await markDone(acct, 'o1');
+    expect(done).toMatchObject({ status: 'DONE', completedBy: 'acct', invoiceNumber: 'INV-o1' });
+    expect(await code(markDone(acct, 'o1'))).toBe(STOCK_CODES.orderNotPlaced);
+    expect(await code(finish.execute(acct, 'o1', 'CANCELLED'))).toBe(STOCK_CODES.orderNotPlaced);
     expect(orders.rows[0]!.status).toBe('DONE');
   });
 
@@ -156,14 +168,53 @@ describe('orders', () => {
   it('cancels a PLACED order, and a cancelled one cannot then be completed', async () => {
     await place.execute(mr1, order());
     expect((await finish.execute(mr1, 'o1', 'CANCELLED')).status).toBe('CANCELLED');
-    expect(await code(finish.execute(mr1, 'o1', 'DONE'))).toBe(STOCK_CODES.orderNotPlaced);
+    expect(await code(markDone(acct, 'o1'))).toBe(STOCK_CODES.orderNotPlaced);
   });
 
-  it('only the MR who placed it, or Admin, may finish it; others cannot even see it', async () => {
+  it('only Admin or the Accountant may mark it done, with the invoice number; the MR who placed it may still cancel; others cannot even see it', async () => {
     await place.execute(mr1, order());
-    expect(await code(finish.execute(asm, 'o1', 'DONE'))).toBe(STOCK_CODES.orderNotYours); // manager sees it, may not act
-    expect(await code(finish.execute(mr2, 'o1', 'DONE'))).toBe(STOCK_CODES.orderNotFound); // a peer does not see it at all
-    expect((await finish.execute(admin, 'o1', 'DONE')).status).toBe('DONE');
+    expect(await code(markDone(mr1, 'o1'))).toBe(STOCK_CODES.orderNotYours); // not even the MR who placed it
+    expect(await code(markDone(asm, 'o1'))).toBe(STOCK_CODES.orderNotYours);
+    expect(await code(markDone(mr2, 'o1'))).toBe(STOCK_CODES.orderNotFound); // a peer does not see it at all
+    expect(await code(finish.execute(asm, 'o1', 'CANCELLED'))).toBe(STOCK_CODES.orderNotYours); // manager sees it, may not act
+    expect(await code(finish.execute(admin, 'o1', 'DONE'))).toBe(STOCK_CODES.invalidPayload); // no invoice number
+    expect(await code(finish.execute(admin, 'o1', 'DONE', undefined, '  '))).toBe(STOCK_CODES.invalidPayload);
+    expect((await markDone(admin, 'o1')).status).toBe('DONE');
+  });
+
+  it('an invoice number is used once', async () => {
+    await place.execute(mr1, order());
+    await place.execute(mr1, order());
+    await finish.execute(acct, 'o1', 'DONE', undefined, ' 3452 ');
+    expect((await orders.findById('o1'))?.invoiceNumber).toBe('3452');
+    expect(await code(finish.execute(acct, 'o2', 'DONE', undefined, '3452'))).toBe(STOCK_CODES.invoiceNumberTaken);
+    expect((await orders.findById('o2'))?.status).toBe('PLACED');
+  });
+
+  it('freezes the GST invoice on Done: ex-GST supplied lines + GST by the product rate, rounded to the rupee, the difference kept as round-off', async () => {
+    master.gst['prod1'] = 5;
+    const { serverId } = await place.execute(mr1, order({ lines: [{ productId: 'prod1', quantity: 24, unitPricePaise: 1_028_00 }] }));
+    const done = await markDone(acct, serverId);
+    // The sample Tax Invoice: 24 × 1,028.00 = 24,672.00 + 5% = 25,905.60, rounded to 25,906.00.
+    expect(done.invoice).toEqual({ taxablePaise: 24_672_00, lines: [{ gstPercent: 5, gstPaise: 1_233_60 }], gstPaise: 1_233_60, roundOffPaise: 40, totalPaise: 25_906_00 });
+    master.gst['prod1'] = 12; // a later rate change never moves it
+    expect((await orders.findById(serverId))?.invoice?.totalPaise).toBe(25_906_00);
+  });
+
+  it('a product with no GST rate is taxed 0%; a part supply is invoiced for what was supplied', async () => {
+    const { serverId } = await place.execute(mr1, order({ lines: [{ productId: 'prod1', quantity: 10, unitPricePaise: 1000 }] }));
+    const done = await markDone(acct, serverId, [{ productId: 'prod1', suppliedQty: 4, freeQty: 3 }]);
+    expect(done.invoice).toMatchObject({ taxablePaise: 4_000, gstPaise: 0, roundOffPaise: 0, totalPaise: 4_000 });
+  });
+
+  it('gives a Done order from before invoices its number once, office only, and freezes its invoice', async () => {
+    const { serverId } = await place.execute(mr1, order({ lines: [{ productId: 'prod1', quantity: 2, unitPricePaise: 1000 }] }));
+    expect(await code(setInvoice.execute(acct, serverId, 'OLD-1'))).toBe(STOCK_CODES.orderNotPlaced); // still Placed
+    Object.assign(orders.rows[0]!, { status: 'DONE', suppliedAmountPaise: 2000 }); // as marked Done before invoices existed
+    expect(await code(setInvoice.execute(mr1, serverId, 'OLD-1'))).toBe(STOCK_CODES.orderNotYours);
+    expect(await code(setInvoice.execute(acct, serverId, ' '))).toBe(STOCK_CODES.invalidPayload);
+    expect(await setInvoice.execute(acct, serverId, 'OLD-1')).toMatchObject({ invoiceNumber: 'OLD-1', invoice: { totalPaise: 2000 } });
+    expect(await code(setInvoice.execute(acct, serverId, 'OLD-2'))).toBe(STOCK_CODES.invoiceNumberSet);
   });
 
   it('the Accountant sees every order and may mark it done or cancel it, like Admin', async () => {
@@ -171,7 +222,7 @@ describe('orders', () => {
     await place.execute(mr1, order());
     const accountant = { ...admin, id: 'acc1', role: 'ACCOUNTANT' as const };
     expect((await list.execute(accountant, {})).length).toBe(2);
-    expect(await finish.execute(accountant, 'o1', 'DONE')).toMatchObject({ status: 'DONE', completedBy: 'acc1' });
+    expect(await markDone(accountant, 'o1')).toMatchObject({ status: 'DONE', completedBy: 'acc1' });
     expect((await finish.execute(accountant, 'o2', 'CANCELLED')).status).toBe('CANCELLED');
   });
 
@@ -191,7 +242,7 @@ describe('orders', () => {
     await place.execute(mr2, order({ outlet: { type: 'CHEMIST', id: 'chem2' }, orderDate: '2026-08-31' }));
     await place.execute(mr1, order({ orderDate: '2026-09-11', lines: [{ productId: 'prod1', quantity: 5, unitPricePaise: 1000 }] }));
     await finish.execute(mr1, 'o4', 'CANCELLED');
-    await finish.execute(mr1, 'o1', 'DONE'); // DONE still counts
+    await markDone(acct, 'o1'); // DONE still counts
     const sep = { from: '2026-09-01', to: '2026-09-30' };
     expect(await orders.sumAmount({ userIds: ['mr1'], ...sep })).toBe(4740 + 1000);
     expect(await orders.sumAmount({ userIds: ['mr1', 'mr2'], ...sep })).toBe(4740 + 1000);
@@ -216,7 +267,7 @@ describe('orders', () => {
     const { serverId } = await place.execute(mr1, order());
     const o = await edit.execute(acct, serverId, { remarks: 'fixed', lines: [{ productId: 'prod1', quantity: 2, unitPricePaise: 1000 }] });
     expect(o).toMatchObject({ totalAmountPaise: 2000, remarks: 'fixed', editedBy: 'acct', userId: 'mr1' });
-    expect((await finish.execute(acct, serverId, 'DONE')).status).toBe('DONE');
+    expect((await markDone(acct, serverId)).status).toBe('DONE');
     expect(await code(edit.execute(acct, serverId, { remarks: null, lines: [{ productId: 'prod1', quantity: 1, unitPricePaise: 1 }] }))).toBe(STOCK_CODES.orderNotPlaced);
   });
 
@@ -229,7 +280,7 @@ describe('orders', () => {
 
   it('Admin or the Accountant mark Done with a part supply and free units; the ordered lines and total stay', async () => {
     const { serverId } = await place.execute(mr1, order({ lines: [{ productId: 'prod1', quantity: 12, unitPricePaise: 1000 }, { productId: 'prod2', quantity: 5, unitPricePaise: 100 }] }));
-    const done = await finish.execute(acct, serverId, 'DONE', [{ productId: 'prod1', suppliedQty: 10, freeQty: 2 }]);
+    const done = await markDone(acct, serverId, [{ productId: 'prod1', suppliedQty: 10, freeQty: 2 }]);
     expect(done.status).toBe('DONE');
     expect(done.totalAmountPaise).toBe(12_500);
     expect(done.items[0]).toMatchObject({ quantity: 12, suppliedQty: 10, freeQty: 2 });
@@ -237,21 +288,21 @@ describe('orders', () => {
     expect(done.suppliedAmountPaise).toBe(10 * 1000 + 5 * 100);
   });
 
-  it('the MR cannot record a supply; a supply above the order, or for a product not on it, is refused; a plain Done is a full supply', async () => {
+  it('the MR cannot mark it done or record a supply; a supply above the order, or for a product not on it, is refused; a plain Done is a full supply', async () => {
     const { serverId } = await place.execute(mr1, order({ lines: [{ productId: 'prod1', quantity: 4, unitPricePaise: 1000 }] }));
-    expect(await code(finish.execute(mr1, serverId, 'DONE', [{ productId: 'prod1', suppliedQty: 3, freeQty: 0 }]))).toBe(STOCK_CODES.orderNotYours);
-    expect(await code(finish.execute(acct, serverId, 'DONE', [{ productId: 'prod1', suppliedQty: 5, freeQty: 0 }]))).toBe(STOCK_CODES.invalidPayload);
-    expect(await code(finish.execute(acct, serverId, 'DONE', [{ productId: 'prod2', suppliedQty: 1, freeQty: 0 }]))).toBe(STOCK_CODES.productNotFound);
+    expect(await code(markDone(mr1, serverId, [{ productId: 'prod1', suppliedQty: 3, freeQty: 0 }]))).toBe(STOCK_CODES.orderNotYours);
+    expect(await code(markDone(acct, serverId, [{ productId: 'prod1', suppliedQty: 5, freeQty: 0 }]))).toBe(STOCK_CODES.invalidPayload);
+    expect(await code(markDone(acct, serverId, [{ productId: 'prod2', suppliedQty: 1, freeQty: 0 }]))).toBe(STOCK_CODES.productNotFound);
     expect((await orders.findById(serverId))?.status).toBe('PLACED');
-    const done = await finish.execute(mr1, serverId, 'DONE');
+    const done = await markDone(acct, serverId);
     expect(done.suppliedAmountPaise).toBe(4000);
     expect(done.items[0]).toMatchObject({ suppliedQty: 4, freeQty: 0 });
   });
 
   it('a second Done, or a Done after the order was changed, is a 409', async () => {
     const { serverId } = await place.execute(mr1, order());
-    await finish.execute(acct, serverId, 'DONE');
-    expect(await code(finish.execute(acct, serverId, 'DONE'))).toBe(STOCK_CODES.orderNotPlaced);
+    await markDone(acct, serverId);
+    expect(await code(markDone(acct, serverId))).toBe(STOCK_CODES.orderNotPlaced);
   });
 
   it('the first change keeps what the employee ordered; later changes keep that first record; free units are the office\'s to plan and ride into Done', async () => {
@@ -263,7 +314,7 @@ describe('orders', () => {
     expect(changed.originalItems).toEqual([expect.objectContaining({ quantity: 12, unitPricePaise: 1000 })]);
     expect(changed.originalTotalAmountPaise).toBe(12_000);
     expect(changed.items[0]).toMatchObject({ quantity: 9, freeQty: 2 });
-    const done = await finish.execute(acct, serverId, 'DONE');
+    const done = await markDone(acct, serverId);
     expect(done.items[0]).toMatchObject({ suppliedQty: 9, freeQty: 2 });
   });
 
@@ -301,10 +352,10 @@ describe('orders', () => {
       const split = [{ ...two[0]!, quantity: 6, discount: { type: 'PERCENT' as const, percent: 10 } }, { ...two[0]!, quantity: 4, discount: { type: 'PERCENT' as const, percent: 20 } }];
       const { serverId } = await place.executeFor(acct, 'mr1', order({ outlet: dist, lines: split }));
       expect((await orders.findById(serverId))!.items.map((i) => i.netAmountPaise)).toEqual([54_000, 32_000]);
-      expect(await code(finish.execute(acct, serverId, 'DONE', [{ productId: 'prod1', suppliedQty: 1, freeQty: 0 }]))).toBe(STOCK_CODES.invalidPayload);
-      expect(await code(finish.execute(acct, serverId, 'DONE', [{ productId: 'prod1', line: 0, suppliedQty: 1, freeQty: 0 }, { productId: 'prod1', line: 0, suppliedQty: 2, freeQty: 0 }]))).toBe(STOCK_CODES.invalidPayload);
-      expect(await code(finish.execute(acct, serverId, 'DONE', [{ productId: 'prod2', line: 1, suppliedQty: 1, freeQty: 0 }]))).toBe(STOCK_CODES.productNotFound);
-      const done = await finish.execute(acct, serverId, 'DONE', [{ productId: 'prod1', line: 1, suppliedQty: 2, freeQty: 1 }]);
+      expect(await code(markDone(acct, serverId, [{ productId: 'prod1', suppliedQty: 1, freeQty: 0 }]))).toBe(STOCK_CODES.invalidPayload);
+      expect(await code(markDone(acct, serverId, [{ productId: 'prod1', line: 0, suppliedQty: 1, freeQty: 0 }, { productId: 'prod1', line: 0, suppliedQty: 2, freeQty: 0 }]))).toBe(STOCK_CODES.invalidPayload);
+      expect(await code(markDone(acct, serverId, [{ productId: 'prod2', line: 1, suppliedQty: 1, freeQty: 0 }]))).toBe(STOCK_CODES.productNotFound);
+      const done = await markDone(acct, serverId, [{ productId: 'prod1', line: 1, suppliedQty: 2, freeQty: 1 }]);
       expect(done.items.map((i) => [i.suppliedQty, i.freeQty])).toEqual([[6, 0], [2, 1]]);
       expect(done.suppliedAmountPaise).toBe(54_000 + 16_000);
     });
@@ -314,7 +365,7 @@ describe('orders', () => {
       const edited = await edit.execute(admin, serverId, { remarks: null, lines: [{ ...two[0]!, discount: { type: 'FIXED', amountPaise: 20_000 } }, two[1]!], discount: { type: 'PERCENT', percent: 10 } });
       // 100000 − 20000 = 80000, 50000; subtotal 130000; −10% = 13000.
       expect(edited.totalAmountPaise).toBe(117_000);
-      const done = await finish.execute(acct, serverId, 'DONE', [{ productId: 'prod1', suppliedQty: 5, freeQty: 0 }]);
+      const done = await markDone(acct, serverId, [{ productId: 'prod1', suppliedQty: 5, freeQty: 0 }]);
       // prod1 net 72000 × 5/10 = 36000; prod2 net 45000 in full.
       expect(done.suppliedAmountPaise).toBe(36_000 + 45_000);
       expect(done.totalAmountPaise).toBe(117_000);

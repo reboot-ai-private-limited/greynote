@@ -8,6 +8,7 @@ export interface OrderRecord {
   status: 'PLACED' | 'DONE' | 'CANCELLED';
   totalAmountPaise: number;
   suppliedAmountPaise?: number | null;
+  invoiceNumber?: string | null;
   originalItems?: Array<{ productId: string; quantity: number; unitPricePaise: number }> | null;
   originalTotalAmountPaise?: number | null;
   discount?: DiscountDto | null;

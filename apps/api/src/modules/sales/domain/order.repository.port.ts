@@ -1,7 +1,7 @@
 import type { Paise } from '@/shared/money/paise.js';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { Outlet } from './monthlyStock.entity.js';
-import type { Order, OrderStatus } from './order.entity.js';
+import type { Order, OrderInvoice, OrderStatus } from './order.entity.js';
 
 export interface OrderFilter {
   /** Restrict to orders placed by these users; `undefined` = anyone. */
@@ -79,7 +79,9 @@ export interface OrderRepositoryPort {
   /** Everything delivered by these distributors (all of them when omitted) in Done orders, in whole paise (supplied × price, free units left out), all time. */
   sumDoneByDistributor(distributorIds?: string[]): Promise<Map<string, number>>;
   /** `PLACED` → `DONE` with what was delivered, in one conditional update; `false` if the order is no longer `PLACED` or was changed since it was read (`ifEditedAt`). */
-  complete(id: string, supply: { items: Order['items']; suppliedAmountPaise: Paise; ifEditedAt: Date | null }, by: string, at: Date): Promise<boolean>;
+  complete(id: string, supply: { items: Order['items']; suppliedAmountPaise: Paise; invoiceNumber: string; invoice: OrderInvoice; ifEditedAt: Date | null }, by: string, at: Date): Promise<boolean>;
+  /** Gives a Done order that has no invoice number one (and its frozen invoice); `false` when it is not Done or already has one. Throws `invoiceNumberTaken` for a used number. */
+  setInvoice(id: string, invoiceNumber: string, invoice: OrderInvoice): Promise<boolean>;
   /** `PLACED` → `DONE` / `CANCELLED` in one conditional update; `false` (nothing changed) if it was not `PLACED`. */
   transition(id: string, to: 'DONE' | 'CANCELLED', by: string, at: Date): Promise<boolean>;
 }

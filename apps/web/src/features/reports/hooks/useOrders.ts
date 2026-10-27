@@ -6,7 +6,7 @@ import { salesApi } from '@/lib/api/endpoints/sales';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
-import type { CompleteOrderDto, EditOrderDto, PlaceOrderForDto } from '@greynote/contracts';
+import type { CompleteOrderDto, EditOrderDto, PlaceOrderForDto, SetInvoiceNumberDto } from '@greynote/contracts';
 
 /** A month of orders. Live: an MR places one or finishes one. */
 export function useOrdersReport(query: OrdersReportQuery, enabled = true) {
@@ -30,12 +30,12 @@ export function useOrderDetail(id: string) {
   );
 }
 
-/** Done or Cancelled, once. Both refresh every report, since primary moves when an order is Done. */
-export function useFinishOrder(to: 'DONE' | 'CANCELLED', onDone: () => void) {
+/** Cancels a PLACED order, once. Marking Done goes through `useCompleteOrder`, which needs the invoice number. */
+export function useCancelOrder(onDone: () => void) {
   return useApiMutation<string>({
-    call: (token, id) => (to === 'DONE' ? salesApi.completeOrder(token, id) : salesApi.cancelOrder(token, id)).then(() => undefined),
+    call: (token, id) => salesApi.cancelOrder(token, id).then(() => undefined),
     invalidates: [keys.reports.all()],
-    successMessage: to === 'DONE' ? 'The order is marked Done.' : 'The order is cancelled.',
+    successMessage: 'The order is cancelled.',
     onSuccess: onDone,
   });
 }
@@ -60,11 +60,21 @@ export function useEditOrder(id: string, onDone: () => void) {
   });
 }
 
+/** Gives a Done order from before invoices its invoice number (Admin or the Accountant). */
+export function useSetInvoiceNumber(id: string, onDone: () => void) {
+  return useApiMutation<SetInvoiceNumberDto>({
+    call: (token, body) => salesApi.setInvoiceNumber(token, id, body).then(() => undefined),
+    invalidates: [keys.reports.all(), keys.distributorPayments.all(), keys.invoices.all()],
+    successMessage: 'The invoice number was saved.',
+    onSuccess: onDone,
+  });
+}
+
 /** Marks a distributor order Done with what was supplied and given free (Admin or the Accountant); primary counts the supplied part. */
 export function useCompleteOrder(id: string, onDone: () => void) {
   return useApiMutation<CompleteOrderDto>({
     call: (token, body) => salesApi.completeOrder(token, id, body).then(() => undefined),
-    invalidates: [keys.reports.all(), keys.distributorPayments.all()],
+    invalidates: [keys.reports.all(), keys.distributorPayments.all(), keys.invoices.all()],
     successMessage: 'The order is marked Done.',
     onSuccess: onDone,
   });

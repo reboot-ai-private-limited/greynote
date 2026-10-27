@@ -17,6 +17,8 @@ export interface ReportOrderRowDto {
   suppliedAmountPaise: number | null;
   /** When it was marked Done or Cancelled. */
   completedAt: string | null;
+  /** The invoice number set when the office marked it Done; `null` while Placed, once Cancelled, and on a Done order from before invoices. */
+  invoiceNumber: string | null;
   remarks: string | null;
 }
 

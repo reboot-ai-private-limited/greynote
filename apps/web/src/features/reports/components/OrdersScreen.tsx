@@ -22,19 +22,20 @@ import { financialYearOf } from '@/lib/financial-year';
 import { formatDate, formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
-import { useFinishOrder, useOrdersReport } from '../hooks/useOrders';
+import { useCancelOrder, useOrdersReport } from '../hooks/useOrders';
 import {
   OPTIONS_STATUS,
   ORDER_STATUS_LABEL,
   ORDER_STATUS_TONE,
   ORDER_TABS,
   canFinish,
+  needsInvoiceNumber,
   ordersCsv,
   ordersFilename,
   tabOf,
 } from '../lib/orders';
 import { OrderDetailDialog } from './OrderDetailDialog';
-import { AddOrderDialog, CompleteOrderDialog } from './OrderFormDialog';
+import { AddOrderDialog, CompleteOrderDialog, SetInvoiceNumberDialog } from './OrderFormDialog';
 
 const ANY = 'all';
 
@@ -67,7 +68,8 @@ export function OrdersScreen() {
     to: 'DONE' | 'CANCELLED';
   } | null>(null);
   const [completing, setCompleting] = useState<string | null>(null);
-  const cancel = useFinishOrder('CANCELLED', () => setFinishing(null));
+  const [numbering, setNumbering] = useState<string | null>(null);
+  const cancel = useCancelOrder(() => setFinishing(null));
 
   const columns: readonly Column<ReportOrderRowDto>[] = [
     { key: 'date', header: 'Date', render: (r) => formatDate(r.orderDate) },
@@ -96,6 +98,9 @@ export function OrdersScreen() {
         <Badge tone={ORDER_STATUS_TONE[r.status]}>{ORDER_STATUS_LABEL[r.status]}</Badge>
       ),
     },
+    ...(tab === 'DISTRIBUTOR'
+      ? [{ key: 'invoice', header: 'Invoice no.', render: (r: ReportOrderRowDto) => r.invoiceNumber ?? '—' }]
+      : []),
     {
       key: 'actions',
       header: '',
@@ -128,6 +133,11 @@ export function OrdersScreen() {
                 Cancel
               </Button>
             </>
+          ) : null}
+          {needsInvoiceNumber(r) ? (
+            <Button variant="secondary" size="sm" disabled={readOnly} onClick={() => setNumbering(r.id)}>
+              Invoice no.
+            </Button>
           ) : null}
         </div>
       ),
@@ -246,6 +256,7 @@ export function OrdersScreen() {
 
       {adding ? <AddOrderDialog onClose={() => setAdding(false)} /> : null}
       {completing ? <CompleteOrderDialog id={completing} onClose={() => setCompleting(null)} /> : null}
+      {numbering ? <SetInvoiceNumberDialog id={numbering} onClose={() => setNumbering(null)} /> : null}
       {open ? <OrderDetailDialog id={open} onClose={() => setOpen(null)} /> : null}
       <ConfirmDialog
         open={finishing !== null}

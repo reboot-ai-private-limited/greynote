@@ -68,6 +68,14 @@ export function DistributorPaymentsTab({
     { key: 'mode', header: 'Paid by', render: (p) => MODE_LABEL[p.mode] },
     { key: 'ref', header: 'Reference', render: (p) => p.reference ?? '—' },
     {
+      key: 'invoices',
+      header: 'Invoices',
+      render: (p) =>
+        p.allocations.length === 0
+          ? 'On account'
+          : p.allocations.map((a) => `${a.invoiceNumber ?? '—'} (${money(a.amountPaise)})`).join(', '),
+    },
+    {
       key: 'note',
       header: 'Note',
       render: (p) =>

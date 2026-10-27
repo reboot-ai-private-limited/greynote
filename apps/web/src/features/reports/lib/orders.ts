@@ -20,6 +20,9 @@ export const tabOf = (value: string): OrderTab => (value === 'CHEMIST' ? 'CHEMIS
 /** Only a placed order can be finished, and a chemist order is information, so it is never finished from here. */
 export const canFinish = (row: Pick<ReportOrderRowDto, 'status' | 'outletType'>): boolean => row.status === 'PLACED' && row.outletType === 'DISTRIBUTOR';
 
+/** A Done distributor order from before invoices has no number yet: the office can give it one, so it can be invoiced and paid against. */
+export const needsInvoiceNumber = (row: Pick<ReportOrderRowDto, 'status' | 'outletType' | 'invoiceNumber'>): boolean => row.status === 'DONE' && row.outletType === 'DISTRIBUTOR' && !row.invoiceNumber;
+
 /** What the status totals read as: "3 · ₹1,20,000.00". */
 export const OPTIONS_STATUS: ReadonlyArray<{ value: string; label: string }> = [
   { value: 'all', label: 'Any status' },
