@@ -47,20 +47,27 @@ const orderLineSchema = z.object({
 });
 
 /** Body of `POST /sales/orders` and payload of an `ORDER` sync record. Amounts are worked out by the server. */
-export const placeOrderBodySchema = z
-  .object({
-    outletType: z.enum(OUTLET_TYPES),
-    outletId: objectIdSchema,
-    orderDate: calendarDateSchema.optional(),
-    remarks: z.string().trim().max(1000).nullish().transform((v) => v || null),
-    lines: z.array(orderLineSchema).min(1).max(200),
-    /** Discount on the whole order (the office's). */
-    discount: discountSchema.nullish(),
-  })
-  .refine((b) => new Set(b.lines.map((l) => l.productId)).size === b.lines.length, { message: 'A product appears twice.', path: ['lines'] });
+const placeOrderObject = z.object({
+  outletType: z.enum(OUTLET_TYPES),
+  outletId: objectIdSchema,
+  orderDate: calendarDateSchema.optional(),
+  remarks: z.string().trim().max(1000).nullish().transform((v) => v || null),
+  lines: z.array(orderLineSchema).min(1).max(200),
+  /** Discount on the whole order (the office's). */
+  discount: discountSchema.nullish(),
+});
+
+type OrderLines = Array<{ productId: string; unitPricePaise: number; discount?: unknown }>;
+/** An employee's order (and a synced one) has one line per product. */
+const oneLinePerProduct = (b: { lines: OrderLines }) => new Set(b.lines.map((l) => l.productId)).size === b.lines.length;
+/** The office may split a product across lines, each at its own price or discount; two identical lines are still a mistake. */
+const distinctPricedLines = (b: { lines: OrderLines }) => new Set(b.lines.map((l) => JSON.stringify([l.productId, l.unitPricePaise, l.discount ?? null]))).size === b.lines.length;
+
+/** Body of `POST /sales/orders` and payload of an `ORDER` sync record. */
+export const placeOrderBodySchema = placeOrderObject.refine(oneLinePerProduct, { message: 'A product appears twice.', path: ['lines'] });
 
 /** Body of `POST /sales/orders/on-behalf`: Admin or the Accountant adds an order for a field employee. */
-export const placeOrderForBodySchema = placeOrderBodySchema.and(z.object({ userId: objectIdSchema }));
+export const placeOrderForBodySchema = placeOrderObject.extend({ userId: objectIdSchema }).refine(distinctPricedLines, { message: 'A product appears twice at the same price and discount.', path: ['lines'] });
 
 /** Body of `PATCH /sales/orders/:id`: the new lines (replacing the old) and remarks. */
 export const editOrderBodySchema = z
@@ -70,18 +77,26 @@ export const editOrderBodySchema = z
     /** Discount on the whole order (the office's). */
     discount: discountSchema.nullish(),
   })
-  .refine((b) => new Set(b.lines.map((l) => l.productId)).size === b.lines.length, { message: 'A product appears twice.', path: ['lines'] });
+  .refine(distinctPricedLines, { message: 'A product appears twice at the same price and discount.', path: ['lines'] });
 
 /** Body of `POST /sales/orders/:id/complete` (optional; Admin or the Accountant): what was supplied and given free, per line. A product left out is supplied in full. */
 export const completeOrderBodySchema = z
   .object({
     supply: z
-      .array(z.object({ productId: objectIdSchema, suppliedQty: z.number().int('Whole units only.').min(0).max(1_000_000), freeQty: z.number().int('Whole units only.').min(0).max(1_000_000).default(0) }))
+      .array(
+        z.object({
+          productId: objectIdSchema,
+          /** Position of the line on the order (0-based): needed when a product is on more than one line. */
+          line: z.number().int().min(0).max(199).optional(),
+          suppliedQty: z.number().int('Whole units only.').min(0).max(1_000_000),
+          freeQty: z.number().int('Whole units only.').min(0).max(1_000_000).default(0),
+        }),
+      )
       .min(1)
       .max(200)
       .optional(),
   })
-  .refine((b) => !b.supply || new Set(b.supply.map((l) => l.productId)).size === b.supply.length, { message: 'A product appears twice.', path: ['supply'] });
+  .refine((b) => !b.supply || new Set(b.supply.map((l) => (l.line ?? l.productId))).size === b.supply.length, { message: 'A line appears twice.', path: ['supply'] });
 
 export const orderIdParamsSchema = z.object({ id: objectIdSchema });
 export const listOrdersQuerySchema = z

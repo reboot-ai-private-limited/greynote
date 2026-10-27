@@ -213,7 +213,10 @@ export interface EditOrderDto {
   discount?: DiscountDto | null;
 }
 
-/** `POST /sales/orders/:id/complete` (optional body, Admin or the Accountant): what was delivered, per ordered product. A product left out is supplied in full. */
+/**
+ * `POST /sales/orders/:id/complete` (optional body, Admin or the Accountant): what was delivered, per ordered line. A line left out is supplied in full.
+ * `line` is the line's 0-based position on the order: required when the product is on more than one line, otherwise the product finds its line.
+ */
 export interface CompleteOrderDto {
-  supply?: Array<{ productId: string; suppliedQty: number; freeQty: number }>;
+  supply?: Array<{ productId: string; line?: number; suppliedQty: number; freeQty: number }>;
 }

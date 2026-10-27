@@ -73,8 +73,8 @@ export function OrderDetailDialog({ id, onClose }: { id: string; onClose: () => 
                 </tr>
               </thead>
               <tbody>
-                {o.items.map((item) => (
-                  <tr key={item.productId} className="border-t border-border">
+                {o.items.map((item, at) => (
+                  <tr key={at} className="border-t border-border">
                     <td className="px-3 py-2">
                       {item.productName} <span className="text-xs text-text-subtle">{item.sku}</span>
                       {item.discount ? <span className="ml-1 text-xs text-success-fg">{discountText(item.discount)}</span> : null}
@@ -107,8 +107,8 @@ export function OrderDetailDialog({ id, onClose }: { id: string; onClose: () => 
             <div className="rounded-md bg-surface-subtle px-3 py-2 text-sm text-text-muted">
               <p className="font-medium text-text">Originally ordered by the employee</p>
               <ul className="mt-1 space-y-0.5">
-                {o.original.map((l) => (
-                  <li key={l.productId}>
+                {o.original.map((l, at) => (
+                  <li key={at}>
                     {l.productName}: {l.quantity} × {formatMoney(l.unitPricePaise)}
                   </li>
                 ))}

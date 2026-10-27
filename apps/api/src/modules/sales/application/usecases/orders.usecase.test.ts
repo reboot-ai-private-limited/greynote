@@ -297,6 +297,18 @@ describe('orders', () => {
       expect(await code(place.executeFor(acct, 'mr1', order({ outlet: dist, lines: two, discount: { type: 'FIXED', amountPaise: 150_001 } })))).toBe(STOCK_CODES.invalidPayload);
     });
 
+    it('the office can split one product across lines at different discounts; supply names the line, and a product alone is ambiguous', async () => {
+      const split = [{ ...two[0]!, quantity: 6, discount: { type: 'PERCENT' as const, percent: 10 } }, { ...two[0]!, quantity: 4, discount: { type: 'PERCENT' as const, percent: 20 } }];
+      const { serverId } = await place.executeFor(acct, 'mr1', order({ outlet: dist, lines: split }));
+      expect((await orders.findById(serverId))!.items.map((i) => i.netAmountPaise)).toEqual([54_000, 32_000]);
+      expect(await code(finish.execute(acct, serverId, 'DONE', [{ productId: 'prod1', suppliedQty: 1, freeQty: 0 }]))).toBe(STOCK_CODES.invalidPayload);
+      expect(await code(finish.execute(acct, serverId, 'DONE', [{ productId: 'prod1', line: 0, suppliedQty: 1, freeQty: 0 }, { productId: 'prod1', line: 0, suppliedQty: 2, freeQty: 0 }]))).toBe(STOCK_CODES.invalidPayload);
+      expect(await code(finish.execute(acct, serverId, 'DONE', [{ productId: 'prod2', line: 1, suppliedQty: 1, freeQty: 0 }]))).toBe(STOCK_CODES.productNotFound);
+      const done = await finish.execute(acct, serverId, 'DONE', [{ productId: 'prod1', line: 1, suppliedQty: 2, freeQty: 1 }]);
+      expect(done.items.map((i) => [i.suppliedQty, i.freeQty])).toEqual([[6, 0], [2, 1]]);
+      expect(done.suppliedAmountPaise).toBe(54_000 + 16_000);
+    });
+
     it('Admin or the Accountant add a discount while editing; Done values the supplied units at the net, a flat discount shrinking with the supply', async () => {
       const { serverId } = await place.executeFor(acct, 'mr1', order({ outlet: dist, lines: two }));
       const edited = await edit.execute(admin, serverId, { remarks: null, lines: [{ ...two[0]!, discount: { type: 'FIXED', amountPaise: 20_000 } }, two[1]!], discount: { type: 'PERCENT', percent: 10 } });

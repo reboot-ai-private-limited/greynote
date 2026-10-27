@@ -164,6 +164,8 @@ export class GetOrderUseCase {
 
 export interface SupplyLine {
   productId: string;
+  /** Position of the line on the order (0-based). Needed when the product is on more than one line; otherwise the product finds its line. */
+  line?: number | undefined;
   /** Units supplied of what was ordered, `0 ≤ suppliedQty ≤ ordered`. */
   suppliedQty: number;
   /** Units given on top, free of charge. */
@@ -199,16 +201,20 @@ export class FinishOrderUseCase {
   }
 
   private complete(order: Order, actor: Actor, supply?: readonly SupplyLine[]): Promise<boolean> {
-    const given = new Map((supply ?? []).map((l) => [l.productId, l]));
-    for (const l of given.values()) {
-      const line = order.items.find((i) => i.productId === l.productId);
-      if (!line) throw new StockRefusal(STOCK_CODES.productNotFound, 'A product in the list is not on this order.');
+    // A supply entry names its line by position, or by product when that product is on one line only.
+    const given = new Map<number, SupplyLine>();
+    for (const l of supply ?? []) {
+      const at = l.line ?? this.lineOf(order, l.productId);
+      const line = order.items[at];
+      if (!line || line.productId !== l.productId) throw new StockRefusal(STOCK_CODES.productNotFound, 'A product in the list is not on this order.');
+      if (given.has(at)) throw new StockRefusal(STOCK_CODES.invalidPayload, 'A line appears twice.');
       if (!Number.isInteger(l.suppliedQty) || !Number.isInteger(l.freeQty) || l.suppliedQty < 0 || l.freeQty < 0 || l.suppliedQty > line.quantity) {
         throw new StockRefusal(STOCK_CODES.invalidPayload, 'Supplied must be a whole number from 0 up to what was ordered; free units a whole number, 0 or more.');
       }
+      given.set(at, l);
     }
-    const items = order.items.map((i) => {
-      const l = given.get(i.productId);
+    const items = order.items.map((i, at) => {
+      const l = given.get(at);
       // A line not named is delivered in full, with the free units the office planned for it when it changed the order.
       const suppliedQty = l ? l.suppliedQty : i.quantity;
       // What was delivered costs the line's net for those units: a flat discount shrinks with the supply.
@@ -216,5 +222,12 @@ export class FinishOrderUseCase {
     });
     const suppliedAmountPaise = items.reduce((n, i) => n + (i.suppliedNetPaise ?? 0), 0);
     return this.orders.complete(order.id, { items, suppliedAmountPaise, ifEditedAt: order.editedAt ?? null }, actor.id, this.clock.now());
+  }
+
+  /** Where a product sits on the order; refuses when it is on several lines, so the caller must say which. */
+  private lineOf(order: Order, productId: string): number {
+    const at = order.items.flatMap((i, n) => (i.productId === productId ? [n] : []));
+    if (at.length > 1) throw new StockRefusal(STOCK_CODES.invalidPayload, 'That product is on more than one line; say which line (its position on the order).');
+    return at[0] ?? -1;
   }
 }
