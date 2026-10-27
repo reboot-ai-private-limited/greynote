@@ -74,6 +74,7 @@ export function DoctorsScreen() {
       ),
     },
     { key: 'specialty', header: 'Speciality', render: (d) => d.specialty },
+    { key: 'phone', header: 'Phone', render: (d) => d.phone ?? <span className="text-text-subtle">—</span> },
     { key: 'route', header: 'Route', render: (d) => directory.routeLabel(d.routeId) },
     {
       key: 'mr',
