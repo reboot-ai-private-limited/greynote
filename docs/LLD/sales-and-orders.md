@@ -10,8 +10,11 @@ entity in this system, **nothing here goes through manager approval**.
 - **`Order`** — a Stockist/Distributor or Chemist order, itemized via `OrderItem`. Attaches to
   exactly one of `distributor_id`/`chemist_id` (never both, never neither). Lifecycle:
   `PLACED → DONE` or `PLACED → CANCELLED`.
-- **`OrderItem`** — one line per product on an order: `product_id`, `quantity`, `unit_price`,
-  `amount`.
+- **`OrderItem`** — one line of an order: `product_id`, `quantity`, `unit_price`,
+  `amount`. An employee's own order has one line per product; the office may put the same product
+  on several lines of an order it adds or edits (2026-10-27), each at its own unit price or discount
+  (two lines identical in product, price and discount are refused). A line is identified by its
+  position on the order, which `POST /orders/:id/complete` takes as `line`.
 - **`MonthlyStock`** — one row per (outlet, product, month): `opening_qty`, `closing_qty`, same
   polymorphic distributor/chemist attachment as `Order`.
 

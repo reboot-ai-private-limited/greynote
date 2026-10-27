@@ -395,7 +395,7 @@ export function CompleteOrderDialog({ id, onClose }: { id: string; onClose: () =
             const item = order.items[i];
             const short = notSupplied(l);
             return (
-              <div key={l.productId} className="space-y-1">
+              <div key={i} className="space-y-1">
                 <div className="grid grid-cols-[minmax(0,1fr)_4rem_5rem_5rem_4.5rem] items-center gap-2">
                   <span className="truncate text-sm">{item?.productName}</span>
                   <span className="text-right text-sm tabular-nums">{l.ordered}</span>

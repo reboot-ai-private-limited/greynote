@@ -113,8 +113,8 @@ describe('order form', () => {
       ok: true,
       body: {
         supply: [
-          { productId: 'p1', suppliedQty: 12, freeQty: 0 },
-          { productId: 'p2', suppliedQty: 5, freeQty: 0 },
+          { productId: 'p1', line: 0, suppliedQty: 12, freeQty: 0 },
+          { productId: 'p2', line: 1, suppliedQty: 5, freeQty: 0 },
         ],
       },
     });
@@ -125,11 +125,21 @@ describe('order form', () => {
       ok: true,
       body: {
         supply: [
-          { productId: 'p1', suppliedQty: 10, freeQty: 2 },
-          { productId: 'p2', suppliedQty: 5, freeQty: 0 },
+          { productId: 'p1', line: 0, suppliedQty: 10, freeQty: 2 },
+          { productId: 'p2', line: 1, suppliedQty: 5, freeQty: 0 },
         ],
       },
     });
+  });
+
+  it('one product can sit on two lines at different discounts or prices, but not twice at the same ones; supply goes out per line', () => {
+    const base = linesOf([{ productId: 'p1', quantity: 6, unitPricePaise: 1000 }]);
+    const second = (over: Partial<(typeof base)[number]>) => [...base, { ...base[0]!, key: 'other', quantity: '4', ...over }];
+    expect(buildEdit({ remarks: '', lines: second({ discKind: 'PERCENT', discValue: '10' }), discKind: '', discValue: '' }).ok).toBe(true);
+    expect(buildEdit({ remarks: '', lines: second({ price: '9' }), discKind: '', discValue: '' }).ok).toBe(true);
+    expect(buildEdit({ remarks: '', lines: second({}), discKind: '', discValue: '' })).toMatchObject({ ok: false, errors: { line1: expect.stringMatching(/same price and discount/) } });
+    const drafts = supplyDraftOf([{ productId: 'p1', quantity: 6, unitPricePaise: 1000 }, { productId: 'p1', quantity: 4, unitPricePaise: 1000 }]);
+    expect(buildSupply(drafts)).toMatchObject({ ok: true, body: { supply: [{ productId: 'p1', line: 0 }, { productId: 'p1', line: 1 }] } });
   });
 
   it('refuses a supply above the order, or a free figure that is not a whole number', () => {

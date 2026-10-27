@@ -34,3 +34,11 @@ The *Monthly stock* tab (opening / closing counts per chemist and distributor) i
 ## Discounts (2026-10-15)
 
 The office may discount a distributor order (per line and/or the whole order). The MR cannot set one (the field is ignored on `POST /sales/orders`). `GET /sales/orders[/:id]` items carry `discount` (`{type:'PERCENT',percent}` or `{type:'FIXED',amountPaise}`), `netAmountPaise` and, on a Done order, `suppliedNetPaise`; the order carries `discount` and `orderDiscountPaise`. `amountPaise` is still ordered × price (gross); **`totalAmountPaise`, `suppliedAmountPaise` and everything counted from them are net.** The phone shows "Discount 5% off" under a line, the line at its net, and an "Order discount" row. Done: ✅ (read only).
+
+## One product on several lines (2026-10-27)
+
+Admin or the Accountant may now put the same product on more than one line of an order they add or edit, each at its own price or discount (for example 6 units at 10% off and 4 at 20% off). What changes for the phone:
+
+- `GET /sales/orders[/:id]` may return an order whose `items` repeat a `productId`. **Show every line, and do not key or merge them by `productId`**; use the position in `items`. Quantities and amounts per product are the sum of its lines.
+- The phone's own order is unchanged: `POST /sales/orders` and the `ORDER` sync record still take one line per product (a repeat is `400`, "A product appears twice"). The server prices the order, so the phone could not give a second price anyway.
+- `POST /orders/:id/complete` (office only) takes an optional `line` (0-based position in `items`) per `supply` entry. It is required when the product is on more than one line; naming such a product without `line` is `400`. The MR's plain Done (no body) is unaffected.

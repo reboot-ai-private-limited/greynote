@@ -137,8 +137,6 @@ function buildLines(lines: readonly LineDraft[], errors: Record<string, string>)
   const seen = new Set<string>();
   lines.forEach((l, i) => {
     if (!l.productId) return void (errors[`line${i}`] = 'Choose a product.');
-    if (seen.has(l.productId)) return void (errors[`line${i}`] = 'This product is already on the order.');
-    seen.add(l.productId);
     const qty = l.quantity.trim();
     if (!/^\d+$/.test(qty) || Number(qty) < 1) return void (errors[`line${i}`] = 'Quantity must be a whole number, at least 1.');
     const price = rupeesToPaise(l.price);
@@ -149,6 +147,10 @@ function buildLines(lines: readonly LineDraft[], errors: Record<string, string>)
     if (discount === undefined)
       return void (errors[`line${i}`] = l.discKind === 'PERCENT' ? 'Discount must be a percentage above 0, up to 100, with at most two decimals.' : 'Enter the discount in rupees, e.g. 50.');
     if (discount?.type === 'FIXED' && discount.amountPaise > Number(qty) * price) return void (errors[`line${i}`] = 'A flat discount cannot be more than the line’s amount.');
+    // The same product may sit on several lines, each at its own price or discount; two identical lines are a mistake.
+    const same = JSON.stringify([l.productId, price, discount ?? null]);
+    if (seen.has(same)) return void (errors[`line${i}`] = 'This product is already on the order at the same price and discount. Change the discount or the price for a second line.');
+    seen.add(same);
     out.push({
       productId: l.productId,
       quantity: Number(qty),
@@ -254,7 +256,7 @@ export function buildSupply(drafts: readonly SupplyDraft[]): Built<CompleteOrder
     const free = wholeUnits(d.free);
     if (supplied === null || supplied > d.ordered) return void (errors[`line${i}`] = `Supplied must be a whole number from 0 to ${d.ordered}.`);
     if (free === null) return void (errors[`line${i}`] = 'Free units must be a whole number, 0 or more.');
-    supply.push({ productId: d.productId, suppliedQty: supplied, freeQty: free });
+    supply.push({ productId: d.productId, line: i, suppliedQty: supplied, freeQty: free });
   });
   if (Object.keys(errors).length > 0) return { ok: false, errors };
   return { ok: true, body: { supply } };
