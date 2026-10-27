@@ -6,7 +6,7 @@ import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js'
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { SalesHandlers } from './sales.controller.js';
-import { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
+import { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 const TAG = 'Sales';
 
@@ -41,12 +41,15 @@ openApiRegistry.registerPath({ method: 'get', path: '/api/sales/distributor-paym
 openApiRegistry.registerPath({ method: 'get', path: '/api/sales/distributor-payments/outstanding', tags: [TAG], summary: 'Admin or Accountant: what all distributors owe together (opening dues + delivered − collected, all time)', security: [{ bearerAuth: [] }], responses: { 200: { description: 'OK' } } });
 doc('get', '/distributor-payments/totals', 'Admin or Accountant: what each distributor paid in a date range (recorded payments only)', { query: paymentTotalsQuerySchema });
 openApiRegistry.registerPath({ method: 'post', path: '/api/sales/distributor-payments/{id}/cancel', tags: [TAG], summary: 'Admin or Accountant: cancel a recorded payment, with a reason; a 409 if it is already cancelled', security: [{ bearerAuth: [] }], request: { params: orderIdParamsSchema, body: { content: { 'application/json': { schema: cancelPaymentBodySchema } } } }, responses: { 200: { description: 'OK' }, 409: { description: 'Already cancelled' } } });
+doc('get', '/invoices', 'Admin or Accountant: Done distributor orders that have an invoice number, with total, paid (payment allocations) and due; filter by distributorId, status (UNPAID/PARTIAL/PAID) and the order-date range', { query: listInvoicesQuerySchema });
+openApiRegistry.registerPath({ method: 'get', path: '/api/sales/invoices/{id}', tags: [TAG], summary: 'Admin or Accountant: one invoice (the order id) with its lines, GST and round-off, for printing', security: [{ bearerAuth: [] }], request: { params: orderIdParamsSchema }, responses: { 200: { description: 'OK' }, 404: { description: 'No such invoice' } } });
 for (const [path, summary] of [
   ['/orders/{id}', 'One order with its lines'],
-  ['/orders/{id}/complete', 'Mark a PLACED order DONE, delivered in full — the MR who placed it, Admin or the Accountant; Admin or the Accountant may send `supply` (per product: suppliedQty, freeQty) for a part supply and free units; a 409 if it is not PLACED'],
+  ['/orders/{id}/complete', 'Admin or the Accountant: mark a PLACED order DONE with its `invoiceNumber` (required, unique), delivered in full or, with `supply` (per product: suppliedQty, freeQty), a part supply and free units; the GST invoice is frozen on the order; a 409 if it is not PLACED or the number is used'],
+  ['/orders/{id}/invoice-number', 'Admin or the Accountant: give a Done order from before invoices its `invoiceNumber`; a 409 if it already has one or the number is used'],
   ['/orders/{id}/cancel', 'Cancel a PLACED order — the MR who placed it, or Admin; a 409 if it is not PLACED'],
 ] as const) {
-  openApiRegistry.registerPath({ method: path === '/orders/{id}' ? 'get' : 'post', path: `/api/sales${path}`, tags: [TAG], summary, security: [{ bearerAuth: [] }], request: { params: orderIdParamsSchema }, responses: { 200: { description: 'OK' }, 409: { description: 'The order is not PLACED' } } });
+  openApiRegistry.registerPath({ method: path === '/orders/{id}' ? 'get' : path === '/orders/{id}/invoice-number' ? 'patch' : 'post', path: `/api/sales${path}`, tags: [TAG], summary, security: [{ bearerAuth: [] }], request: { params: orderIdParamsSchema }, responses: { 200: { description: 'OK' }, 409: { description: 'The order is not PLACED' } } });
 }
 
 export function buildSalesRouter(c: SalesHandlers): Router {
@@ -72,8 +75,11 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.post('/orders/on-behalf', requireRole('ACCOUNTANT', 'ADMIN'), validate({ body: placeOrderForBodySchema }), c.placeOrderFor);
   router.patch('/orders/:id', requireRole('ACCOUNTANT', 'ADMIN'), validate({ params: orderIdParamsSchema, body: editOrderBodySchema }), c.editOrder);
   router.get('/orders', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: true }), validate({ query: listOrdersQuerySchema }), c.listOrders);
+  router.get('/invoices', requireRole('ADMIN', 'ACCOUNTANT'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: listInvoicesQuerySchema }), c.listInvoices);
+  router.get('/invoices/:id', requireRole('ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema }), c.getInvoice);
   router.get('/orders/:id', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema }), c.getOrder);
-  router.post('/orders/:id/complete', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema, body: completeOrderBodySchema }), c.completeOrder);
+  router.post('/orders/:id/complete', requireRole('ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema, body: completeOrderBodySchema }), c.completeOrder);
+  router.patch('/orders/:id/invoice-number', requireRole('ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema, body: setInvoiceNumberBodySchema }), c.setInvoiceNumber);
   router.post('/orders/:id/cancel', requireRole('FIELD', 'ADMIN', 'ACCOUNTANT'), validate({ params: orderIdParamsSchema }), c.cancelOrder);
   return router;
 }

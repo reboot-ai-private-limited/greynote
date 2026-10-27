@@ -2,8 +2,9 @@ import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import { MAX_PAISE, type Paise } from '@/shared/money/paise.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { Outlet } from '../../domain/monthlyStock.entity.js';
-import { netOf, type Order, type OrderItem, type OrderStatus } from '../../domain/order.entity.js';
+import { deliveredOf, netOf, type Order, type OrderItem, type OrderStatus } from '../../domain/order.entity.js';
 import { netLines, suppliedNet, type Discount } from '../../domain/orderDiscount.js';
+import { buildInvoice } from '../../domain/orderInvoice.js';
 import type { OrderRepositoryPort } from '../../domain/order.repository.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -131,6 +132,13 @@ export class EditOrderUseCase {
 /** Admin and the Accountant (who marks orders dispatched) see and finish every order; an MR only their own. */
 const seesEveryOrder = (actor: Actor): boolean => actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT';
 
+/** Each line's supplied net with its product's GST rate, in line order; the rate read now is the one frozen into the invoice. */
+async function invoiceLines(master: FieldMasterDataPort, items: readonly OrderItem[]): Promise<Array<{ suppliedNetPaise: Paise; gstPercent: number | null }>> {
+  const rates = new Map<string, number | null>();
+  for (const id of new Set(items.map((i) => i.productId))) rates.set(id, (await master.getProduct(id))?.gstPercent ?? null);
+  return items.map((i) => ({ suppliedNetPaise: i.suppliedNetPaise ?? 0, gstPercent: rates.get(i.productId) ?? null }));
+}
+
 /** Who may see an order: its MR, their managers, Admin, the Accountant. */
 async function visibleUserIds(users: UserDirectoryPort, actor: Actor): Promise<string[] | undefined> {
   return seesEveryOrder(actor) ? undefined : [actor.id, ...(await users.getDownline(actor.id)).map((u) => u.id)];
@@ -173,26 +181,30 @@ export interface SupplyLine {
 }
 
 /**
- * Distributor orders only (a chemist order is information, never marked). `PLACED` → `DONE` or `CANCELLED`, by the MR who placed it, an Admin or the
- * Accountant; one conditional update, so of two racing calls exactly one wins and the other is a 409.
+ * Distributor orders only (a chemist order is information, never marked). `PLACED` → `CANCELLED` by the MR who placed it, an Admin or the Accountant;
+ * `PLACED` → `DONE` by Admin or the Accountant only, with the invoice number. One conditional update, so of two racing calls exactly one wins and the other is a 409.
  *
- * Marking Done records what was actually delivered: by default every line in full (what was ordered), or, when Admin or the Accountant send `supply`,
+ * Marking Done records what was actually delivered: by default every line in full (what was ordered), or, when `supply` is sent,
  * per line the units supplied and the free units on top. The ordered lines and total are never rewritten; primary counts what was supplied at the order's prices, after discounts
- * (free units are stock and secondary, never rupees). An MR marking their own order done cannot change the supply.
+ * (free units are stock and secondary, never rupees). The GST invoice for what was supplied is frozen on the order with its number.
  */
 export class FinishOrderUseCase {
   constructor(
     private readonly get: GetOrderUseCase,
+    private readonly master: FieldMasterDataPort,
     private readonly orders: OrderRepositoryPort,
     private readonly clock: SalesClock,
   ) {}
 
-  async execute(actor: Actor, id: string, to: 'DONE' | 'CANCELLED', supply?: readonly SupplyLine[]): Promise<Order> {
+  async execute(actor: Actor, id: string, to: 'DONE' | 'CANCELLED', supply?: readonly SupplyLine[], invoiceNumber?: string): Promise<Order> {
     const order = await this.get.execute(actor, id);
     if (order.outlet.type === 'CHEMIST') throw new StockRefusal(STOCK_CODES.orderInfoOnly, 'A chemist order is for information only; only a distributor order is marked done.');
+    if (to === 'DONE' && !seesEveryOrder(actor)) throw new StockRefusal(STOCK_CODES.orderNotYours, 'Only Admin or the Accountant can mark an order done.');
     if (!seesEveryOrder(actor) && order.userId !== actor.id) throw new StockRefusal(STOCK_CODES.orderNotYours, 'Only the MR who placed the order can do that.');
-    if (supply && (to !== 'DONE' || !seesEveryOrder(actor))) throw new StockRefusal(STOCK_CODES.orderNotYours, 'Only Admin or the Accountant can record what was supplied.');
-    const moved = to === 'CANCELLED' ? await this.orders.transition(id, to, actor.id, this.clock.now()) : await this.complete(order, actor, supply);
+    if (supply && to !== 'DONE') throw new StockRefusal(STOCK_CODES.invalidPayload, 'Supply is recorded only when marking an order done.');
+    const number = invoiceNumber?.trim();
+    if (to === 'DONE' && !number) throw new StockRefusal(STOCK_CODES.invalidPayload, 'The invoice number is required to mark an order done.');
+    const moved = to === 'CANCELLED' ? await this.orders.transition(id, to, actor.id, this.clock.now()) : await this.complete(order, actor, number ?? '', supply);
     if (!moved) {
       const now = (await this.orders.findById(id))?.status ?? order.status;
       throw new StockRefusal(STOCK_CODES.orderNotPlaced, `The order is already ${now}.`);
@@ -200,7 +212,7 @@ export class FinishOrderUseCase {
     return (await this.orders.findById(id)) ?? order;
   }
 
-  private complete(order: Order, actor: Actor, supply?: readonly SupplyLine[]): Promise<boolean> {
+  private async complete(order: Order, actor: Actor, invoiceNumber: string, supply?: readonly SupplyLine[]): Promise<boolean> {
     // A supply entry names its line by position, or by product when that product is on one line only.
     const given = new Map<number, SupplyLine>();
     for (const l of supply ?? []) {
@@ -221,7 +233,8 @@ export class FinishOrderUseCase {
       return { ...i, suppliedQty, freeQty: l ? l.freeQty : (i.freeQty ?? 0), suppliedNetPaise: suppliedNet(netOf(i), i.quantity, suppliedQty) };
     });
     const suppliedAmountPaise = items.reduce((n, i) => n + (i.suppliedNetPaise ?? 0), 0);
-    return this.orders.complete(order.id, { items, suppliedAmountPaise, ifEditedAt: order.editedAt ?? null }, actor.id, this.clock.now());
+    const invoice = buildInvoice(await invoiceLines(this.master, items));
+    return this.orders.complete(order.id, { items, suppliedAmountPaise, invoiceNumber, invoice, ifEditedAt: order.editedAt ?? null }, actor.id, this.clock.now());
   }
 
   /** Where a product sits on the order; refuses when it is on several lines, so the caller must say which. */
@@ -229,5 +242,29 @@ export class FinishOrderUseCase {
     const at = order.items.flatMap((i, n) => (i.productId === productId ? [n] : []));
     if (at.length > 1) throw new StockRefusal(STOCK_CODES.invalidPayload, 'That product is on more than one line; say which line (its position on the order).');
     return at[0] ?? -1;
+  }
+}
+
+/**
+ * Gives a Done order from before invoices its number (and freezes its invoice from what was supplied), so it can be invoiced and paid against.
+ * Admin or the Accountant only; a number once set is never changed.
+ */
+export class SetInvoiceNumberUseCase {
+  constructor(
+    private readonly get: GetOrderUseCase,
+    private readonly master: FieldMasterDataPort,
+    private readonly orders: OrderRepositoryPort,
+  ) {}
+
+  async execute(actor: Actor, id: string, invoiceNumber: string): Promise<Order> {
+    if (!seesEveryOrder(actor)) throw new StockRefusal(STOCK_CODES.orderNotYours, 'Only Admin or the Accountant can set an invoice number.');
+    const order = await this.get.execute(actor, id);
+    const number = invoiceNumber.trim();
+    if (!number) throw new StockRefusal(STOCK_CODES.invalidPayload, 'The invoice number is required.');
+    if (order.status !== 'DONE') throw new StockRefusal(STOCK_CODES.orderNotPlaced, 'Only a Done order has an invoice.');
+    if (order.invoiceNumber) throw new StockRefusal(STOCK_CODES.invoiceNumberSet, 'This order already has an invoice number.');
+    const items = order.items.map((i) => ({ ...i, suppliedNetPaise: deliveredOf(i).amountPaise }));
+    if (!(await this.orders.setInvoice(id, number, buildInvoice(await invoiceLines(this.master, items))))) throw new StockRefusal(STOCK_CODES.invoiceNumberSet, 'This order already has an invoice number.');
+    return (await this.orders.findById(id)) ?? order;
   }
 }

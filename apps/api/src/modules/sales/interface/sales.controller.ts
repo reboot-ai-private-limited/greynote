@@ -8,12 +8,13 @@ import { StockRefusal } from '../domain/stockRefusal.js';
 import type { ListMissingStockUseCase, ListMonthlyStockUseCase } from '../application/usecases/readMonthlyStock.usecase.js';
 import type { Actor } from '../application/outletAccess.js';
 import type { RecordMonthlyStockUseCase } from '../application/usecases/recordMonthlyStock.usecase.js';
-import type { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase } from '../application/usecases/orders.usecase.js';
+import type { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase, SetInvoiceNumberUseCase } from '../application/usecases/orders.usecase.js';
+import type { GetInvoiceUseCase, ListInvoicesUseCase } from '../application/usecases/invoices.usecase.js';
 import type { CancelPaymentUseCase, DistributorBalancesUseCase, ListPaymentsUseCase, OutstandingDuesUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from '../application/usecases/payments.usecase.js';
 import type { ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SubmitEmployeeSecondaryUseCase } from '../application/usecases/employeeSales.usecase.js';
 import type { ReadStatementUseCase, SaveStatementUseCase } from '../application/usecases/stockStatement.usecase.js';
 import type { UnlockMonthUseCase } from '../application/usecases/unlockMonth.usecase.js';
-import type { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, unlockBodySchema } from './sales.schemas.js';
+import type { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -34,7 +35,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary', RequestHandler>;
+export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary', RequestHandler>;
 
 export function makeSalesControllers(u: {
   record: RecordMonthlyStockUseCase;
@@ -45,6 +46,9 @@ export function makeSalesControllers(u: {
   listOrders: ListOrdersUseCase;
   getOrder: GetOrderUseCase;
   finish: FinishOrderUseCase;
+  setInvoice: SetInvoiceNumberUseCase;
+  listInvoices: ListInvoicesUseCase;
+  getInvoice: GetInvoiceUseCase;
   edit: EditOrderUseCase;
   recordPayment: RecordPaymentUseCase;
   listPayments: ListPaymentsUseCase;
@@ -128,7 +132,15 @@ export function makeSalesControllers(u: {
     cancelPayment: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.cancelPayment.execute(actorOf(req), requiredParam(req.params, 'id'), (req.body as z.output<typeof cancelPaymentBodySchema>).reason)), 'The payment was cancelled.', 200),
     ),
-    completeOrder: asyncHandler(async (req, res) => sendSuccess(req, res, await refusing(() => u.finish.execute(actorOf(req), requiredParam(req.params, 'id'), 'DONE', (req.body as z.output<typeof completeOrderBodySchema> | undefined)?.supply)), 'The order is done.', 200)),
+    completeOrder: asyncHandler(async (req, res) => {
+      const body = req.body as z.output<typeof completeOrderBodySchema>;
+      return sendSuccess(req, res, await refusing(() => u.finish.execute(actorOf(req), requiredParam(req.params, 'id'), 'DONE', body.supply, body.invoiceNumber)), 'The order is done.', 200);
+    }),
+    listInvoices: asyncHandler(async (req, res) => sendSuccess(req, res, await refusing(() => u.listInvoices.execute(req.query as unknown as z.output<typeof listInvoicesQuerySchema>)), 'Invoices.', 200)),
+    getInvoice: asyncHandler(async (req, res) => sendSuccess(req, res, await refusing(() => u.getInvoice.execute(requiredParam(req.params, 'id'))), 'The invoice.', 200)),
+    setInvoiceNumber: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.setInvoice.execute(actorOf(req), requiredParam(req.params, 'id'), (req.body as z.output<typeof setInvoiceNumberBodySchema>).invoiceNumber)), 'The invoice number was saved.', 200),
+    ),
     cancelOrder: asyncHandler(async (req, res) => sendSuccess(req, res, await refusing(() => u.finish.execute(actorOf(req), requiredParam(req.params, 'id'), 'CANCELLED')), 'The order was cancelled.', 200)),
   };
 }

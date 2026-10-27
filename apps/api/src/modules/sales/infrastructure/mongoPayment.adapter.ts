@@ -13,6 +13,7 @@ const toPayment = (d: PaymentDoc & { _id: unknown }): DistributorPayment => ({
   mode: d.mode,
   reference: d.reference,
   note: d.note,
+  allocations: (d.allocations ?? []).map((a) => ({ orderId: String(a.orderId), amountPaise: a.amountPaise })),
   status: d.status,
   recordedBy: String(d.recordedBy),
   createdAt: d.createdAt,
@@ -23,7 +24,7 @@ const toPayment = (d: PaymentDoc & { _id: unknown }): DistributorPayment => ({
 
 export class MongoPaymentAdapter implements PaymentRepositoryPort {
   async create(input: Omit<DistributorPayment, 'id'>): Promise<DistributorPayment> {
-    const doc = await PaymentModel.create({ ...input, distributorId: oid(input.distributorId), recordedBy: oid(input.recordedBy), cancelledBy: null });
+    const doc = await PaymentModel.create({ ...input, distributorId: oid(input.distributorId), recordedBy: oid(input.recordedBy), cancelledBy: null, allocations: input.allocations.map((a) => ({ orderId: oid(a.orderId), amountPaise: a.amountPaise })) });
     return toPayment(doc.toObject());
   }
 
@@ -53,6 +54,18 @@ export class MongoPaymentAdapter implements PaymentRepositoryPort {
     const rows = await PaymentModel.aggregate<{ _id: Types.ObjectId; total: number }>([
       { $match: { status: 'RECORDED' } },
       { $group: { _id: '$distributorId', total: { $sum: '$amountPaise' } } },
+    ]);
+    return new Map(rows.map((r) => [String(r._id), r.total]));
+  }
+
+  async allocatedToOrders(orderIds: string[]): Promise<Map<string, number>> {
+    if (orderIds.length === 0) return new Map();
+    const ids = orderIds.map(oid);
+    const rows = await PaymentModel.aggregate<{ _id: Types.ObjectId; total: number }>([
+      { $match: { status: 'RECORDED', 'allocations.orderId': { $in: ids } } },
+      { $unwind: '$allocations' },
+      { $match: { 'allocations.orderId': { $in: ids } } },
+      { $group: { _id: '$allocations.orderId', total: { $sum: '$allocations.amountPaise' } } },
     ]);
     return new Map(rows.map((r) => [String(r._id), r.total]));
   }

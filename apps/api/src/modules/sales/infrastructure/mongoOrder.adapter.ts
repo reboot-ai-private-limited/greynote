@@ -1,12 +1,14 @@
 import { Types, type ClientSession, type FilterQuery } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
-import type { Order } from '../domain/order.entity.js';
+import type { Order, OrderInvoice } from '../domain/order.entity.js';
+import { STOCK_CODES, StockRefusal } from '../domain/stockRefusal.js';
 import type { Discount } from '../domain/orderDiscount.js';
 import { addDays, dayStartInstant, DEFAULT_DAY_START, parseCalendarDate, parseTimeOfDay } from '@/shared/time/businessTime.js';
 import type { DistributorOrderSum, DistributorOrderSumFilter, OrderAmountFilter, OrderFilter, OrderRepositoryPort, UserOrderSum, UserOrderSumFilter } from '../domain/order.repository.port.js';
 import { OrderModel, type OrderDoc } from './order.schema.js';
 
 const oid = (id: string) => new Types.ObjectId(id);
+const isDuplicateKey = (e: unknown): boolean => typeof e === 'object' && e !== null && (e as { code?: unknown }).code === 11000;
 
 type ItemDoc = OrderDoc['items'][number];
 const toDiscount = (d: ItemDoc['discount']): Discount | null => (!d ? null : d.type === 'PERCENT' ? { type: 'PERCENT', percent: d.percent ?? 0 } : { type: 'FIXED', amountPaise: d.amountPaise ?? 0 });
@@ -38,6 +40,8 @@ const toOrder = (d: OrderDoc & { _id: unknown }): Order => ({
   originalTotalAmountPaise: d.originalTotalAmountPaise ?? null,
   completedBy: d.completedBy ? String(d.completedBy) : null,
   completedAt: d.completedAt,
+  invoiceNumber: d.invoiceNumber ?? null,
+  invoice: d.invoice ? { taxablePaise: d.invoice.taxablePaise, lines: d.invoice.lines.map((l) => ({ gstPercent: l.gstPercent, gstPaise: l.gstPaise })), gstPaise: d.invoice.gstPaise, roundOffPaise: d.invoice.roundOffPaise, totalPaise: d.invoice.totalPaise } : null,
   clientId: d.clientId,
   createdAt: d.createdAt,
   createdBy: d.createdBy ? String(d.createdBy) : null,
@@ -154,18 +158,34 @@ export class MongoOrderAdapter implements OrderRepositoryPort {
     if (distributorIds && distributorIds.length === 0) return new Map();
     const rows = await OrderModel.aggregate<{ _id: Types.ObjectId; amountPaise: number }>([
       { $match: { distributorId: distributorIds ? { $in: distributorIds.map(oid) } : { $type: 'objectId' }, status: 'DONE' } },
-      { $unwind: '$items' },
-      { $group: { _id: '$distributorId', amountPaise: { $sum: DELIVERED_PAISE } } },
+      // What a Done order is owed: its frozen invoice total (supplied + GST), or the supplied lines for an order from before invoices.
+      { $project: { distributorId: 1, owed: { $ifNull: ['$invoice.totalPaise', { $sum: { $map: { input: '$items', as: 'i', in: { $ifNull: ['$$i.suppliedNetPaise', { $multiply: [{ $ifNull: ['$$i.suppliedQty', '$$i.quantity'] }, '$$i.unitPricePaise'] }] } } } }] } } },
+      { $group: { _id: '$distributorId', amountPaise: { $sum: '$owed' } } },
     ]);
     return new Map(rows.map((r) => [String(r._id), r.amountPaise]));
   }
 
-  async complete(id: string, supply: { items: Order['items']; suppliedAmountPaise: number; ifEditedAt: Date | null }, by: string, at: Date): Promise<boolean> {
-    const res = await OrderModel.updateOne(
-      { _id: oid(id), status: 'PLACED', editedAt: supply.ifEditedAt },
-      { $set: { status: 'DONE', completedBy: oid(by), completedAt: at, items: supply.items.map((i) => ({ ...i, productId: oid(i.productId) })), suppliedAmountPaise: supply.suppliedAmountPaise } },
-    );
-    return res.modifiedCount === 1;
+  async complete(id: string, supply: { items: Order['items']; suppliedAmountPaise: number; invoiceNumber: string; invoice: OrderInvoice; ifEditedAt: Date | null }, by: string, at: Date): Promise<boolean> {
+    try {
+      const res = await OrderModel.updateOne(
+        { _id: oid(id), status: 'PLACED', editedAt: supply.ifEditedAt },
+        { $set: { status: 'DONE', completedBy: oid(by), completedAt: at, items: supply.items.map((i) => ({ ...i, productId: oid(i.productId) })), suppliedAmountPaise: supply.suppliedAmountPaise, invoiceNumber: supply.invoiceNumber, invoice: supply.invoice } },
+      );
+      return res.modifiedCount === 1;
+    } catch (e) {
+      if (isDuplicateKey(e)) throw new StockRefusal(STOCK_CODES.invoiceNumberTaken, `Invoice number ${supply.invoiceNumber} is already used.`);
+      throw e;
+    }
+  }
+
+  async setInvoice(id: string, invoiceNumber: string, invoice: OrderInvoice): Promise<boolean> {
+    try {
+      const res = await OrderModel.updateOne({ _id: oid(id), status: 'DONE', $or: [{ invoiceNumber: null }, { invoiceNumber: { $exists: false } }] }, { $set: { invoiceNumber, invoice } });
+      return res.modifiedCount === 1;
+    } catch (e) {
+      if (isDuplicateKey(e)) throw new StockRefusal(STOCK_CODES.invoiceNumberTaken, `Invoice number ${invoiceNumber} is already used.`);
+      throw e;
+    }
   }
 
   async transition(id: string, to: 'DONE' | 'CANCELLED', by: string, at: Date): Promise<boolean> {

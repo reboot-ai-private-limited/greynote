@@ -1,4 +1,4 @@
-import type { DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto } from '@greynote/contracts';
+import type { DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto, InvoiceDetailDto, InvoiceRowDto, InvoiceStatus, SetInvoiceNumberDto } from '@greynote/contracts';
 import { request } from '../client';
 
 /** One order as `GET /sales/orders` returns it; the distributor's Orders tab shows only these fields. */
@@ -49,8 +49,15 @@ export const salesApi = {
   /** Admin or the Accountant changes a PLACED order's lines and remarks; a 409 if it is no longer PLACED. */
   editOrder: (token: string, id: string, body: EditOrderDto) => request<{ id: string; status: string }>(`/sales/orders/${id}`, { method: 'PATCH', token, body }),
 
-  /** `PLACED` → `DONE`, by the MR who placed it or Admin; a second call is a 409. */
-  completeOrder: (token: string, id: string, body?: CompleteOrderDto) => request<{ id: string; status: string }>(`/sales/orders/${id}/complete`, { method: 'POST', token, ...(body && { body }) }),
+  /** `PLACED` → `DONE` with the invoice number, by Admin or the Accountant; a second call is a 409, and so is a used number. */
+  completeOrder: (token: string, id: string, body: CompleteOrderDto) => request<{ id: string; status: string }>(`/sales/orders/${id}/complete`, { method: 'POST', token, body }),
+  /** Gives a Done order from before invoices its number. */
+  setInvoiceNumber: (token: string, id: string, body: SetInvoiceNumberDto) => request<{ id: string; status: string }>(`/sales/orders/${id}/invoice-number`, { method: 'PATCH', token, body }),
+  /** Invoices (Done orders with a number) with paid and due; no dates = all time. */
+  invoices: (token: string, query: { distributorId?: string; status?: InvoiceStatus; from?: string; to?: string }, signal?: AbortSignal) =>
+    request<InvoiceRowDto[]>('/sales/invoices', { token, query: { ...query }, signal }),
+  /** One invoice (the order's id) with its lines, for printing. */
+  invoice: (token: string, orderId: string, signal?: AbortSignal) => request<InvoiceDetailDto>(`/sales/invoices/${orderId}`, { token, signal }),
   /** `PLACED` → `CANCELLED`, by the MR who placed it or Admin. */
   cancelOrder: (token: string, id: string) => request<{ id: string; status: string }>(`/sales/orders/${id}/cancel`, { method: 'POST', token }),
 };

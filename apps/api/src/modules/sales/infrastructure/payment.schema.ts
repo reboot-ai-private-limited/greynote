@@ -9,6 +9,7 @@ export interface PaymentDoc {
   mode: PaymentMode;
   reference: string | null;
   note: string | null;
+  allocations?: Array<{ orderId: Types.ObjectId; amountPaise: number }>;
   status: PaymentStatus;
   recordedBy: Types.ObjectId;
   createdAt: Date;
@@ -24,6 +25,10 @@ const paymentSchema = new Schema<PaymentDoc>({
   mode: { type: String, required: true, enum: PAYMENT_MODES },
   reference: { type: String, default: null },
   note: { type: String, default: null },
+  allocations: {
+    type: [new Schema({ orderId: { type: Schema.Types.ObjectId, required: true, ref: 'Order' }, amountPaise: { type: Number, required: true, min: 1, validate: { validator: isPaise, message: 'Must be a whole number of paise.' } } }, { _id: false })],
+    default: [],
+  },
   status: { type: String, required: true, enum: PAYMENT_STATUSES },
   recordedBy: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   createdAt: { type: Date, required: true },
@@ -32,4 +37,5 @@ const paymentSchema = new Schema<PaymentDoc>({
   cancelReason: { type: String, default: null },
 });
 paymentSchema.index({ distributorId: 1, paymentDate: -1 });
+paymentSchema.index({ 'allocations.orderId': 1 });
 export const PaymentModel = model<PaymentDoc>('DistributorPayment', paymentSchema);

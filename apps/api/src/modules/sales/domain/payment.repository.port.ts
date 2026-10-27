@@ -9,6 +9,8 @@ export interface PaymentRepositoryPort {
   totals(range: { from: string; to: string }): Promise<Array<{ distributorId: string; collectedPaise: number }>>;
   /** Everything each distributor ever paid (`RECORDED` only), whatever the date: the collected side of their dues. */
   collectedAllTime(): Promise<Map<string, number>>;
+  /** What `RECORDED` payments have allocated to each of these orders (invoices); an order nothing was paid to is absent. */
+  allocatedToOrders(orderIds: string[]): Promise<Map<string, number>>;
   /** `RECORDED` → `CANCELLED` in one conditional update; `false` when it was not `RECORDED` (so of two racing cancels exactly one wins). */
   cancel(id: string, by: string, at: Date, reason: string): Promise<boolean>;
 }

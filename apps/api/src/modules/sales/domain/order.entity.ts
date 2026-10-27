@@ -36,6 +36,19 @@ export function deliveredOf(item: OrderItem): { suppliedQty: number; freeQty: nu
   return { suppliedQty, freeQty, unitsQty: suppliedQty + freeQty, amountPaise: item.suppliedNetPaise ?? suppliedNet(netOf(item), item.quantity, suppliedQty) };
 }
 
+/** The GST invoice frozen when the office marks a distributor order Done: later price or GST changes never move a past invoice. Prices on orders are ex-GST. */
+export interface OrderInvoice {
+  /** What was supplied, before GST (the sum of the lines' supplied nets). */
+  taxablePaise: Paise;
+  /** Per line, in the order's line order. */
+  lines: Array<{ gstPercent: number; gstPaise: Paise }>;
+  gstPaise: Paise;
+  /** To the nearest rupee, can be negative. */
+  roundOffPaise: number;
+  /** `taxablePaise + gstPaise + roundOffPaise`: what the distributor owes for this invoice. */
+  totalPaise: Paise;
+}
+
 /** A Chemist or Distributor order, placed on its own (not tied to a call). No approval; `PLACED` → `DONE` or `CANCELLED`, once. */
 export interface Order {
   id: string;
@@ -59,6 +72,9 @@ export interface Order {
   items: OrderItem[];
   completedBy: string | null;
   completedAt: Date | null;
+  /** The office's invoice number, set when marked Done (unique); `null`/absent on a Placed order and on orders marked Done before invoices. */
+  invoiceNumber?: string | null;
+  invoice?: OrderInvoice | null;
   /** The phone's id for the record, if it came through sync; `null` for one placed online. */
   clientId: string | null;
   createdAt: Date;

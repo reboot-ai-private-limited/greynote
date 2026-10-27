@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildPayment, collectedPercent, emptyPayment, paymentRange } from './payments';
+import type { InvoiceRowDto } from '@greynote/contracts';
+import { allocatedPaise, autoAllocate, buildPayment, collectedPercent, emptyPayment, openInvoices, paymentRange } from './payments';
 
 const today = '2026-10-09';
 const filled = {
@@ -37,6 +38,48 @@ describe('buildPayment', () => {
       ok: true,
       body: { amountPaise: 9950 },
     });
+  });
+});
+
+const inv = (orderId: string, invoiceDate: string, duePaise: number, invoiceNumber = orderId): InvoiceRowDto => ({
+  orderId,
+  invoiceNumber,
+  invoiceDate,
+  distributor: { id: 'd1', name: 'Uma Medical Store' },
+  totalPaise: duePaise,
+  paidPaise: 0,
+  duePaise,
+  status: 'UNPAID',
+});
+
+describe('payment allocations', () => {
+  const invoices = [inv('b', '2026-10-05', 20_000_00, '3453'), inv('a', '2026-10-01', 25_906_00, '3452'), inv('c', '2026-09-01', 0, '3400')];
+
+  it('lists only invoices with something due, oldest first', () => {
+    expect(openInvoices(invoices).map((i) => i.invoiceNumber)).toEqual(['3452', '3453']);
+  });
+
+  it('spreads the amount oldest first, each up to its due, the rest staying on account', () => {
+    expect(autoAllocate(30_000_00, invoices)).toEqual({ a: '25906.00', b: '4094.00' });
+    expect(autoAllocate(10_000_00, invoices)).toEqual({ a: '10000.00' });
+    expect(autoAllocate(99_999_00, invoices)).toEqual({ a: '25906.00', b: '20000.00' });
+    expect(allocatedPaise({ a: '25906.00', b: '4094.00', c: 'x' })).toBe(30_000_00);
+  });
+
+  it('sends the typed amounts against each invoice and leaves blanks out', () => {
+    const draft = { ...filled, amount: '30000', allocations: { a: '25906', b: '', c: '' } };
+    expect(buildPayment('d1', draft, today, invoices)).toMatchObject({ ok: true, body: { amountPaise: 30_000_00, allocations: [{ orderId: 'a', amountPaise: 25_906_00 }] } });
+    expect(buildPayment('d1', filled, today, invoices)).toMatchObject({ ok: true });
+    expect(buildPayment('d1', filled, today, invoices)).not.toHaveProperty('body.allocations');
+  });
+
+  it('refuses more than the payment, more than is due, and a bad amount', () => {
+    const over = buildPayment('d1', { ...filled, amount: '1000', allocations: { a: '1000.01' } }, today, invoices);
+    expect(over).toMatchObject({ ok: false, errors: { allocations: expect.stringMatching(/more than the payment/) } });
+    const due = buildPayment('d1', { ...filled, amount: '90000', allocations: { b: '20000.01' } }, today, invoices);
+    expect(due).toMatchObject({ ok: false, errors: { allocations: expect.stringMatching(/Invoice 3453: only 20000.00 is due/) } });
+    expect(buildPayment('d1', { ...filled, amount: '90000', allocations: { a: 'ten' } }, today, invoices).ok).toBe(false);
+    expect(buildPayment('d1', { ...filled, amount: '90000', allocations: { a: '0' } }, today, invoices).ok).toBe(false);
   });
 });
 

@@ -43,6 +43,7 @@ import {
   type DistributorDraft,
   type DistributorStep,
 } from '../lib/distributors';
+import { DistributorInvoicesTab } from './DistributorInvoicesTab';
 import { DistributorOrdersTab } from './DistributorOrdersTab';
 import { DistributorPaymentsTab } from './DistributorPaymentsTab';
 import { DistributorStockTab } from './DistributorStockTab';
@@ -387,6 +388,7 @@ function DistributorPage({ distributor }: { distributor: DistributorDetailDto })
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="orders">Orders</TabsTrigger>
+          <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="stock">Stock</TabsTrigger>
         </TabsList>
         <TabsContent value="details">
@@ -401,6 +403,9 @@ function DistributorPage({ distributor }: { distributor: DistributorDetailDto })
         </TabsContent>
         <TabsContent value="orders">
           <DistributorOrdersTab distributorId={distributor.id} />
+        </TabsContent>
+        <TabsContent value="invoices">
+          <DistributorInvoicesTab distributorId={distributor.id} />
         </TabsContent>
         <TabsContent value="stock">
           <DistributorStockTab distributorId={distributor.id} inactive={distributor.status === 'inactive'} />

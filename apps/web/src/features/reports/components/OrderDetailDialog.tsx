@@ -42,6 +42,7 @@ export function OrderDetailDialog({ id, onClose }: { id: string; onClose: () => 
             <p className="text-sm text-text-muted">
               {o.status === 'DONE' ? 'Marked Done' : 'Cancelled'} {formatDateTime(o.completedAt)}
               {o.completedBy ? ` by ${o.completedBy.name}` : ''}.
+              {o.invoiceNumber ? ` Invoice no. ${o.invoiceNumber}.` : ''}
             </p>
           ) : null}
           <div className="overflow-x-auto rounded-md border border-border">

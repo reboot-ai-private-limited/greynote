@@ -18,6 +18,13 @@ interface DiscountDoc {
   percent?: number;
   amountPaise?: number;
 }
+interface InvoiceDoc {
+  taxablePaise: number;
+  lines: Array<{ gstPercent: number; gstPaise: number }>;
+  gstPaise: number;
+  roundOffPaise: number;
+  totalPaise: number;
+}
 export interface OrderDoc {
   userId: Types.ObjectId;
   /** Exactly one of the two is set. */
@@ -35,6 +42,8 @@ export interface OrderDoc {
   items: OrderItemDoc[];
   completedBy: Types.ObjectId | null;
   completedAt: Date | null;
+  invoiceNumber?: string | null;
+  invoice?: InvoiceDoc | null;
   clientId: string | null;
   createdAt: Date;
   createdBy?: Types.ObjectId | null;
@@ -65,6 +74,16 @@ const itemSchema = new Schema<OrderItemDoc>(
   },
   { _id: false },
 );
+const invoiceSchema = new Schema<InvoiceDoc>(
+  {
+    taxablePaise: paise,
+    lines: { type: [new Schema({ gstPercent: { type: Number, required: true, min: 0 }, gstPaise: paise }, { _id: false })], default: [] },
+    gstPaise: paise,
+    roundOffPaise: { type: Number, required: true, validate: { validator: Number.isInteger, message: 'Must be a whole number of paise.' } },
+    totalPaise: paise,
+  },
+  { _id: false },
+);
 const orderSchema = new Schema<OrderDoc>({
   userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   chemistId: { type: Schema.Types.ObjectId, ref: 'Chemist' },
@@ -81,6 +100,8 @@ const orderSchema = new Schema<OrderDoc>({
   items: { type: [itemSchema], required: true, validate: { validator: (v: unknown[]) => v.length > 0, message: 'An order needs at least one line.' } },
   completedBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
   completedAt: { type: Date, default: null },
+  invoiceNumber: { type: String, default: null, trim: true, maxlength: 30 },
+  invoice: { type: invoiceSchema, default: null },
   clientId: { type: String, default: null },
   createdAt: { type: Date, required: true },
   createdBy: { type: Schema.Types.ObjectId, default: null, ref: 'User' },
@@ -97,4 +118,6 @@ orderSchema.index({ chemistId: 1, orderDate: -1 }, { partialFilterExpression: { 
 orderSchema.index({ distributorId: 1, orderDate: -1 }, { partialFilterExpression: { distributorId: { $type: 'objectId' } } });
 // One order per phone record; orders placed online have no client id and are left out.
 orderSchema.index({ userId: 1, clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } });
+// An invoice number is used once; orders without one are left out.
+orderSchema.index({ invoiceNumber: 1 }, { unique: true, partialFilterExpression: { invoiceNumber: { $type: 'string' } } });
 export const OrderModel = model<OrderDoc>('Order', orderSchema);

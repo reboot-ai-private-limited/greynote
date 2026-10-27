@@ -8,6 +8,14 @@ export interface MissingStockRowDto {
 export const PAYMENT_MODES = ['CASH', 'CHEQUE', 'BANK_TRANSFER', 'UPI'] as const;
 export type PaymentMode = (typeof PAYMENT_MODES)[number];
 
+/** The part of a payment that settles one invoice (a Done order). */
+export interface PaymentAllocationDto {
+  orderId: string;
+  /** The invoice's number, so a list can name it without a second call. */
+  invoiceNumber: string | null;
+  amountPaise: number;
+}
+
 /** One collection from a distributor (decision-log 2026-10-09). Cancelled ones stay on record and are left out of the totals. */
 export interface DistributorPaymentDto {
   id: string;
@@ -18,6 +26,8 @@ export interface DistributorPaymentDto {
   mode: PaymentMode;
   reference: string | null;
   note: string | null;
+  /** The invoices it pays, with how much to each; empty = all on account. */
+  allocations: PaymentAllocationDto[];
   status: 'RECORDED' | 'CANCELLED';
   recordedBy: { id: string; name: string };
   createdAt: string;
@@ -74,6 +84,43 @@ export interface RecordDistributorPaymentDto {
   mode: PaymentMode;
   reference?: string | null;
   note?: string | null;
+  /** The invoices this payment settles and how much to each; the sum is at most `amountPaise`, the rest is on account. Each must be a Done order of this distributor with an invoice number, and the amount at most what is still due on it. */
+  allocations?: Array<{ orderId: string; amountPaise: number }>;
+}
+
+// ── Invoices (decision-log 2026-10-27) ──────────────────────────────────────────────────────────────
+
+export type InvoiceStatus = 'UNPAID' | 'PARTIAL' | 'PAID';
+
+/** One row of `GET /sales/invoices`: a Done distributor order that has an invoice number. */
+export interface InvoiceRowDto {
+  /** The order's id: an invoice is its order. */
+  orderId: string;
+  invoiceNumber: string;
+  /** `YYYY-MM-DD` the order was marked Done. */
+  invoiceDate: string;
+  distributor: { id: string; name: string };
+  /** Supplied + GST, rounded to the rupee. */
+  totalPaise: number;
+  /** What `RECORDED` payments have allocated to it. */
+  paidPaise: number;
+  /** `totalPaise − paidPaise`. */
+  duePaise: number;
+  status: InvoiceStatus;
+}
+
+/** `GET /sales/invoices/:orderId`: everything the printed Tax Invoice shows. */
+export interface InvoiceDetailDto extends InvoiceRowDto {
+  distributor: { id: string; name: string; address: string | null; gstNumber: string | null; mobile: string | null };
+  lines: Array<{ productName: string; sku: string; mrpPaise: number | null; suppliedQty: number; freeQty: number; unitPricePaise: number; gstPercent: number; amountPaise: number; gstPaise: number }>;
+  taxablePaise: number;
+  gstPaise: number;
+  roundOffPaise: number;
+}
+
+/** `PATCH /sales/orders/:id/invoice-number`: gives a Done order from before invoices its number. */
+export interface SetInvoiceNumberDto {
+  invoiceNumber: string;
 }
 
 // ── Distributor monthly statement (decision-log 2026-10-09) ────────────────────────────────────────
@@ -214,9 +261,11 @@ export interface EditOrderDto {
 }
 
 /**
- * `POST /sales/orders/:id/complete` (optional body, Admin or the Accountant): what was delivered, per ordered line. A line left out is supplied in full.
+ * `POST /sales/orders/:id/complete` (Admin or the Accountant): the invoice number, and optionally what was delivered, per ordered line. A line left out is supplied in full.
  * `line` is the line's 0-based position on the order: required when the product is on more than one line, otherwise the product finds its line.
  */
 export interface CompleteOrderDto {
+  /** The office's invoice number: required, up to 30 characters, used once. */
+  invoiceNumber: string;
   supply?: Array<{ productId: string; line?: number; suppliedQty: number; freeQty: number }>;
 }

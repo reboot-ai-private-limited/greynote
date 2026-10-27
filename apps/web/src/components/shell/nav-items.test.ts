@@ -129,7 +129,7 @@ describe('navGroupsFor', () => {
   it('groups items under their headings, in order, dropping empty groups', () => {
     const groups = navGroupsFor('ACCOUNTANT');
     expect(groups.map((g) => g.group)).toEqual(['Home', 'HR', 'Sales & Distribution', 'Payouts', 'Master data']);
-    expect(groups.find((g) => g.group === 'Sales & Distribution')?.items.map((i) => i.href)).toEqual(['/reports/sales-dashboard', '/orders', '/distributors']);
+    expect(groups.find((g) => g.group === 'Sales & Distribution')?.items.map((i) => i.href)).toEqual(['/reports/sales-dashboard', '/orders', '/invoices', '/distributors']);
     expect(groups.find((g) => g.group === 'Master data')?.items.map((i) => i.href)).toEqual(['/doctor-services']); // doctor services leave the Accountant in Step 0b
     expect(groups.find((g) => g.group === 'Payouts')?.items.map((i) => i.href)).toEqual(['/expenses', '/expense-claims']);
     expect(groups.find((g) => g.group === 'HR')?.items.map((i) => i.href)).toEqual(['/attendance']);
@@ -195,6 +195,14 @@ describe('Orders', () => {
     for (const role of ['ADMIN', 'ACCOUNTANT'] as const) expect(navFor(role).map((i) => i.href)).toContain('/orders');
     expect(navFor('HR').map((i) => i.href)).not.toContain('/orders');
     expect(isRouteBuilt('/orders')).toBe(true);
+  });
+});
+
+describe('Invoices', () => {
+  it('are for Admin and the Accountant, not HR', () => {
+    for (const role of ['ADMIN', 'ACCOUNTANT'] as const) expect(navFor(role).map((i) => i.href)).toContain('/invoices');
+    expect(navFor('HR').map((i) => i.href)).not.toContain('/invoices');
+    expect(isRouteBuilt('/invoices')).toBe(true);
   });
 });
 

@@ -20,6 +20,7 @@
         "migrate:payband-ctc": "tsx src/scripts/migrate-payband-salary-to-ctc.ts",
         "migrate:paybands": "tsx src/scripts/migrate-paybands.ts",
         "seed:sample-sales": "tsx src/scripts/seed-sample-sales.ts",
+        "seed:demo-order": "tsx src/scripts/seed-demo-order.ts",
         "seed:demo-manager": "tsx src/scripts/seed-demo-manager.ts",
         "seed:demo-hierarchy": "tsx src/scripts/seed-demo-hierarchy.ts",
         "seed:demo-plans": "tsx src/scripts/seed-demo-plans.ts",

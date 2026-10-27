@@ -79,9 +79,15 @@ export const editOrderBodySchema = z
   })
   .refine(distinctPricedLines, { message: 'A product appears twice at the same price and discount.', path: ['lines'] });
 
-/** Body of `POST /sales/orders/:id/complete` (optional; Admin or the Accountant): what was supplied and given free, per line. A product left out is supplied in full. */
+const invoiceNumberSchema = z.string().trim().min(1, 'Enter the invoice number.').max(30);
+
+/** Body of `PATCH /sales/orders/:id/invoice-number` (Admin or the Accountant): the number for a Done order from before invoices. */
+export const setInvoiceNumberBodySchema = z.object({ invoiceNumber: invoiceNumberSchema });
+
+/** Body of `POST /sales/orders/:id/complete` (Admin or the Accountant): the invoice number, and optionally what was supplied and given free, per line. A product left out is supplied in full. */
 export const completeOrderBodySchema = z
   .object({
+    invoiceNumber: invoiceNumberSchema,
     supply: z
       .array(
         z.object({
@@ -104,6 +110,11 @@ export const listOrdersQuerySchema = z
   .refine((q) => (q.outletType === undefined) === (q.outletId === undefined), { message: 'Give outletType and outletId together.', path: ['outletId'] })
   .refine((q) => !q.from || !q.to || q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] });
 
+/** `GET /sales/invoices`: every filter optional; no dates = all time (the payment dialog lists a distributor's open invoices whatever their age). */
+export const listInvoicesQuerySchema = z
+  .object({ distributorId: objectIdSchema.optional(), status: z.enum(['UNPAID', 'PARTIAL', 'PAID']).optional(), from: calendarDateSchema.optional(), to: calendarDateSchema.optional() })
+  .refine((q) => !q.from || !q.to || q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] });
+
 export const recordPaymentBodySchema = z.object({
   distributorId: objectIdSchema,
   paymentDate: calendarDateSchema,
@@ -111,6 +122,7 @@ export const recordPaymentBodySchema = z.object({
   mode: z.enum(PAYMENT_MODES),
   reference: z.string().trim().max(100).nullish().transform((v) => v || null),
   note: z.string().trim().max(500).nullish().transform((v) => v || null),
+  allocations: z.array(z.object({ orderId: objectIdSchema, amountPaise: paiseSchema.refine((n) => n > 0, 'An invoice amount must be more than zero.') })).max(100).optional(),
 });
 export const listPaymentsQuerySchema = z
   .object({ distributorId: objectIdSchema, from: calendarDateSchema, to: calendarDateSchema })

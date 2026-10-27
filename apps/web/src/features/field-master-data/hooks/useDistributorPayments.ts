@@ -77,7 +77,7 @@ export function useDistributorOrders(query: DistributorRangeQuery, enabled = tru
 export function useRecordPayment(onDone: () => void) {
   return useApiMutation<RecordDistributorPaymentDto, DistributorPaymentDto>({
     call: (token, body) => salesApi.recordPayment(token, body),
-    invalidates: [keys.distributorPayments.all()],
+    invalidates: [keys.distributorPayments.all(), keys.invoices.all()],
     successMessage: 'Payment recorded.',
     onSuccess: onDone,
   });
@@ -86,7 +86,7 @@ export function useRecordPayment(onDone: () => void) {
 export function useCancelPayment(onDone: () => void) {
   return useApiMutation<{ id: string; reason: string }, DistributorPaymentDto>({
     call: (token, { id, reason }) => salesApi.cancelPayment(token, id, reason),
-    invalidates: [keys.distributorPayments.all()],
+    invalidates: [keys.distributorPayments.all(), keys.invoices.all()],
     successMessage: 'Payment cancelled.',
     onSuccess: onDone,
   });

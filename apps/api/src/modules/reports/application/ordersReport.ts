@@ -75,6 +75,7 @@ export class OrdersReport {
       totalAmountPaise: o.totalAmountPaise,
       suppliedAmountPaise: o.status === 'DONE' ? (o.suppliedAmountPaise ?? o.totalAmountPaise) : null,
       completedAt: o.completedAt ? o.completedAt.toISOString() : null,
+      invoiceNumber: o.invoiceNumber ?? null,
       remarks: o.remarks,
     }));
   }

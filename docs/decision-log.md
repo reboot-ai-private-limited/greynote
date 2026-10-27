@@ -2503,3 +2503,13 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Consequences:** a manager saving a team's files can tell them apart without opening them. The web builds the name from the user and the designation list (`lib/exportFilename.ts`); the approvals file for a request is named after the submitter. The old `<what>-<code>-<period>.csv` names are gone.
 
 **Open:** the phone still names Tour Plan and Expenses files `tour-plan-<code>-<month>.csv` (`monthlyplan.md` rule 22, `expenses.md` rule 11, `team.md` section 6); the mobile side builds the change, this repo did not touch `apps/fieldApp`.
+
+## 2026-10-27: Done needs an invoice number; payments are allocated to invoices; invoices print from the browser
+
+**Decision:** the office (Admin or the Accountant) marks a distributor order Done and must give the **invoice number** (unique, up to 30 characters); the MR can no longer mark an order Done (they keep Cancel). The GST invoice is frozen on the order at that moment: supplied lines (prices are ex-GST) plus GST at each product's rate, rounded to the rupee. A payment can be **allocated across several invoices** (an amount against each; the rest stays on account), so each invoice has paid and due. A new **Invoices** page lists them (date, distributor, total, paid, due, status), and an invoice **prints from the browser** as a Tax Invoice laid out like the one the company issues today (`Sale_3452`), with the seller block hard-coded; no PDF is uploaded or stored.
+
+**Why:** the office raises invoices in another tool and had no way to say which invoice a payment settled. Storing the PDF was not wanted; a printable page from the data the app already holds is enough.
+
+**Consequences:** a Done order's amount in dues is now its invoice total (with GST), not its supplied amount, for orders marked Done from now on; older Done orders keep the supplied amount until the office gives them a number. The field app must remove its Done button (docs/mobile/orders-and-stock.md).
+
+**Open:** HSN, batch, expiry and the buyer's FSSAI are not stored, so the printout omits them; two payments recorded at the same instant could over-allocate one invoice (checked at record time only); whether older Done orders should be given invoice numbers in bulk.
