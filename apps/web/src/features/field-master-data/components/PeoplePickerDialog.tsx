@@ -49,7 +49,7 @@ export function PeoplePickerDialog({
   const [term, setTerm] = useState('');
   const [zoneId, setZoneId] = useState(ALL);
   const [hqId, setHqId] = useState(ALL);
-  const [inCoverage, setInCoverage] = useState(Boolean(coverageHqIds && coverageHqIds.length > 0));
+  const [inCoverage, setInCoverage] = useState(canFilter && Boolean(coverageHqIds && coverageHqIds.length > 0)); // the Accountant's rows carry no HQ, so the narrowing would hide everyone
 
   const rows: Row[] = canFilter
     ? (employees.data ?? []).map((u) => ({ id: u.id, name: u.name, employeeCode: u.employeeCode, hqId: u.hqId, zoneId: u.zoneId }))
