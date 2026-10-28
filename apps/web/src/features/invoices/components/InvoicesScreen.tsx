@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
+import { SearchInput } from '@/components/ui/ListToolbar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Select } from '@/components/ui/Select';
 import { StatTile } from '@/components/ui/StatTile';
@@ -18,9 +19,10 @@ import { istDate } from '@/lib/dates';
 import { financialYearOf } from '@/lib/financial-year';
 import { formatDate, formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
+import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useFinancialYear } from '@/lib/useFinancialYear';
 import { useInvoices } from '../hooks/useInvoices';
-import { INVOICE_STATUS_LABEL, INVOICE_STATUS_OPTIONS, INVOICE_STATUS_TONE, invoiceTotals, invoicesCsv, invoicesFilename, monthBounds, statusOf } from '../lib/invoices';
+import { INVOICE_STATUS_LABEL, INVOICE_STATUS_OPTIONS, INVOICE_STATUS_TONE, invoiceTotals, invoicesCsv, invoicesFilename, monthBounds, searchInvoices, statusOf } from '../lib/invoices';
 
 const ANY = 'all';
 
@@ -29,14 +31,15 @@ const ANY = 'all';
  * number, with its total (supplied + GST), what payments have been allocated to it, and what is still due. The invoice prints from here.
  */
 export function InvoicesScreen() {
-  const { values, update } = useFilterParams(['month', 'status']);
+  const { values, update } = useFilterParams(['month', 'status', 'search']);
   const { year } = useFinancialYear();
   const today = istDate();
   const months = monthsInYear(year ?? financialYearOf(today), today);
   const month = months.includes(values.month) ? values.month : (months[0] ?? '');
   const status = statusOf(values.status ?? '');
   const query = useInvoices({ ...(month && monthBounds(month)), ...(status && { status }) }, month !== '');
-  const rows = query.data ?? [];
+  const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
+  const rows = searchInvoices(query.data ?? [], values.search);
   const totals = invoiceTotals(rows);
 
   const columns: readonly Column<InvoiceRowDto>[] = [
@@ -83,6 +86,7 @@ export function InvoicesScreen() {
             <div className="w-40">
               <Select aria-label="Status" value={status ?? ANY} options={INVOICE_STATUS_OPTIONS} onValueChange={(v) => update({ status: v === ANY ? '' : v })} />
             </div>
+            <SearchInput value={search} onChange={setSearch} label="Search invoices" placeholder="Search invoice no. or distributor" />
           </div>
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
             <StatTile label="Invoiced" value={formatMoney(totals.totalPaise)} note={`${rows.length} invoices`} />
@@ -94,7 +98,7 @@ export function InvoicesScreen() {
               isLoading={query.isLoading}
               error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
               isEmpty={rows.length === 0}
-              empty={{ title: `No invoices in ${monthLabel(month)}`, description: 'An invoice appears here when the office marks a distributor order Done with its invoice number.' }}
+              empty={{ title: values.search ? 'No invoices match your search' : `No invoices in ${monthLabel(month)}`, description: values.search ? 'Try another invoice number or distributor.' : 'An invoice appears here when the office marks a distributor order Done with its invoice number.' }}
             >
               <DataTable columns={columns} rows={rows} rowKey={(r) => r.orderId} />
             </DataState>

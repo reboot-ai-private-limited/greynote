@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
+import { SearchInput } from '@/components/ui/ListToolbar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Select } from '@/components/ui/Select';
 import { StatTile } from '@/components/ui/StatTile';
@@ -21,6 +22,7 @@ import { istDate } from '@/lib/dates';
 import { financialYearOf } from '@/lib/financial-year';
 import { formatDate, formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
+import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
 import { useCancelOrder, useOrdersReport } from '../hooks/useOrders';
 import {
@@ -32,6 +34,7 @@ import {
   needsInvoiceNumber,
   ordersCsv,
   ordersFilename,
+  searchOrders,
   tabOf,
 } from '../lib/orders';
 import { OrderDetailDialog } from './OrderDetailDialog';
@@ -45,7 +48,7 @@ const ANY = 'all';
  */
 export function OrdersScreen() {
   const readOnly = useIsReadOnly();
-  const { values, update } = useFilterParams(['month', 'tab', 'status', 'mrId']);
+  const { values, update } = useFilterParams(['month', 'tab', 'status', 'mrId', 'search']);
   const { year } = useFinancialYear();
   const today = istDate();
   const months = monthsInYear(year ?? financialYearOf(today), today);
@@ -61,6 +64,8 @@ export function OrdersScreen() {
     month !== '',
   );
   const report = query.data;
+  const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
+  const rows = searchOrders(report?.rows ?? [], values.search);
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [finishing, setFinishing] = useState<{
@@ -207,6 +212,12 @@ export function OrdersScreen() {
               value={values.mrId}
               onChange={(v) => update({ mrId: v })}
             />
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              label="Search orders"
+              placeholder="Search outlet, MR or invoice no."
+            />
           </div>
 
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
@@ -233,13 +244,13 @@ export function OrdersScreen() {
             <DataState
               isLoading={query.isLoading}
               error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
-              isEmpty={!report || report.rows.length === 0}
+              isEmpty={rows.length === 0}
               empty={{
-                title: `No orders in ${monthLabel(month)}`,
-                description: 'Orders appear here as MRs place them.',
+                title: values.search ? 'No orders match your search' : `No orders in ${monthLabel(month)}`,
+                description: values.search ? 'Try another outlet, MR or invoice number.' : 'Orders appear here as MRs place them.',
               }}
             >
-              <DataTable columns={columns} rows={report?.rows ?? []} rowKey={(r) => r.id} />
+              <DataTable columns={columns} rows={rows} rowKey={(r) => r.id} />
             </DataState>
           </Card>
           {report?.truncated ? (

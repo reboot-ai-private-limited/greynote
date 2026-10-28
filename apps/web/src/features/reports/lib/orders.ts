@@ -41,3 +41,10 @@ export function ordersCsv(report: Pick<OrdersReportDto, 'rows'>): string {
 }
 
 export const ordersFilename = (month: string, tab: OrderTab): string => `orders-${tab === 'DISTRIBUTOR' ? 'distributors' : 'chemists'}-${month}.csv`;
+
+/** The orders whose outlet, MR name or code, or invoice number contains `term` (any case); all of them when it is blank. */
+export const searchOrders = (rows: readonly ReportOrderRowDto[], term: string): ReportOrderRowDto[] => {
+  const q = term.trim().toLowerCase();
+  if (!q) return [...rows];
+  return rows.filter((r) => [r.outlet.name, r.mr.name, r.mr.employeeCode, r.invoiceNumber ?? ''].some((v) => v.toLowerCase().includes(q)));
+};
