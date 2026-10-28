@@ -11,6 +11,7 @@ export const NEW_DOCTOR_SYNC_CODES = {
   invalidPayload: 'INVALID_PAYLOAD',
   routeNotAssigned: 'ROUTE_NOT_ASSIGNED',
   addedAtTheSameTime: 'ADDED_AT_THE_SAME_TIME',
+  managerNotAllowed: 'MANAGER_NOT_ALLOWED',
 } as const;
 
 /**
@@ -41,6 +42,9 @@ export function makeNewDoctorSyncHandler(added: AddedDoctors, parse: (payload: u
       } catch (err) {
         if (err instanceof AppError && (err.publicDetails as { field?: string } | undefined)?.field === 'routeId') {
           throw new SyncRejection(NEW_DOCTOR_SYNC_CODES.routeNotAssigned, 'You no longer have this doctor’s route. Choose another of your routes.');
+        }
+        if (err instanceof AppError && err.statusCode === 403) {
+          throw new SyncRejection(NEW_DOCTOR_SYNC_CODES.managerNotAllowed, 'Managers can’t add doctors. Ask Admin.');
         }
         if (err instanceof DuplicateRecordError) {
           throw new SyncRejection(NEW_DOCTOR_SYNC_CODES.addedAtTheSameTime, 'This doctor was being added at the same moment. Tap Submit again.');

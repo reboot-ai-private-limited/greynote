@@ -2523,3 +2523,11 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Consequences:** a plain Done with no form no longer exists: every delivered line must be named with its batch and expiry. A product with no HSN cannot be delivered until the office sets one in Products. Invoices from before this show a dash in the three columns. No migration: old orders and products read the new fields as null.
 
 **Open:** several batches inside one line; a PTR column (the company's invoice has one); a bulk HSN backfill for existing products (the office edits them by hand for now); the field app's product screens do not show HSN (the sync snapshot is unchanged).
+
+## 2026-10-28: Admin setting: can managers add doctors
+
+**Decision:** a system setting, **Managers can add doctors** (`MANAGER_CAN_ADD_DOCTORS`), default **off**. A manager is anyone with a team under them. Off, `POST /doctors/added`, the `NEW_DOCTOR` sync record and a resubmit all refuse a manager (403; sync code `MANAGER_NOT_ALLOWED`). On, the doctor is pending and goes to the manager's own manager or Admin, as for an MR.
+
+**Why:** the docs said managers cannot add doctors, but the API only checked that the caller had routes. Admin wants to decide per company.
+
+**Consequences:** read on every call, so switching it off applies at once. A retry of a doctor the manager already added still returns it. The field app should hide Add for managers when off; that is the other team's change.

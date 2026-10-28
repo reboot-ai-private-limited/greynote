@@ -61,11 +61,43 @@ describe('An MR adds a Doctor', () => {
     territory.userRoutes.set('mr2', ['route-2']);
     views = new DoctorViews(assignments, users);
     visibility = new DoctorVisibility(assignments, territory, users, config);
-    added = new AddedDoctors(doctors, territory, approvals, new FakeTransactions(), views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist'])));
+    added = new AddedDoctors(doctors, territory, approvals, new FakeTransactions(), views, new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist'])), users, config);
     approvals.registerKind({
       kind: NEW_DOCTOR_KIND,
       finalApproverRoles: ['ADMIN'],
       onStatusChange: makeDoctorApprovalHandler(doctors, assignments, users, territory, config),
+    });
+  });
+
+  describe('when the add-doctor toggle is for managers', () => {
+    beforeEach(() => territory.userRoutes.set('asm', ['route-1']));
+
+    it('refuses a manager while MANAGER_CAN_ADD_DOCTORS is off', async () => {
+      await expect(add({}, 'asm')).rejects.toMatchObject({ statusCode: 403 });
+      expect(doctors.rows).toHaveLength(0);
+    });
+
+    it('refuses when the key is missing from Config (not yet seeded)', async () => {
+      config.values.delete('MANAGER_CAN_ADD_DOCTORS');
+      config.get = async (key: string) => {
+        if (!config.values.has(key)) throw AppError.internal('INTERNAL', { reason: 'CONFIG_KEY_MISSING', key });
+        return config.values.get(key)!;
+      };
+      await expect(add({}, 'asm')).rejects.toMatchObject({ statusCode: 403 });
+    });
+
+    it('lets a manager add once Admin turns it on, and always lets an MR without a team add', async () => {
+      config.values.set('MANAGER_CAN_ADD_DOCTORS', 'true');
+      await expect(add({}, 'asm')).resolves.toMatchObject({ created: true });
+      config.values.set('MANAGER_CAN_ADD_DOCTORS', 'false');
+      await expect(add({ clientRequestId: 'client-req-0002' }, 'mr1')).resolves.toMatchObject({ created: true });
+    });
+
+    it('still returns a manager’s earlier Doctor on a retry after the toggle goes off', async () => {
+      config.values.set('MANAGER_CAN_ADD_DOCTORS', 'true');
+      await add({}, 'asm');
+      config.values.set('MANAGER_CAN_ADD_DOCTORS', 'false');
+      await expect(add({}, 'asm')).resolves.toMatchObject({ created: false });
     });
   });
 
@@ -258,7 +290,7 @@ describe('A manager or Admin corrects a pending Doctor before approving', () => 
     const users = new FakeUsers();
     const views = new DoctorViews(assignments, users);
     const specialties = new SpecialtyCatalog(new FakeSpecialties(['ENT']));
-    const added = new AddedDoctors(doctors, territory, new FakeApprovals(), new FakeTransactions(), views, specialties);
+    const added = new AddedDoctors(doctors, territory, new FakeApprovals(), new FakeTransactions(), views, specialties, users, new FakeConfig());
     const { doctor } = await added.add('mr1', { ...input, clientRequestId: 'client-req-0001' });
     const review = new ReviewPendingDoctorUseCase(doctors, users, new UpdateDoctorUseCase(doctors, assignments, territory, views, specialties, new FakeTransactions(), retirementKit(doctors, assignments, users).retirement));
     const fixed = { latitude: 26.8, longitude: 88.5 };

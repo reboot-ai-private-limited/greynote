@@ -196,7 +196,7 @@ export const DCR_REFUSAL_CODES = [
 ] as const;
 
 /** What `NEW_DOCTOR` refuses with, beyond the engine's codes. */
-export const NEW_DOCTOR_REASON_CODES = ['INVALID_PAYLOAD', 'ROUTE_NOT_ASSIGNED', 'ADDED_AT_THE_SAME_TIME'] as const;
+export const NEW_DOCTOR_REASON_CODES = ['INVALID_PAYLOAD', 'ROUTE_NOT_ASSIGNED', 'ADDED_AT_THE_SAME_TIME', 'MANAGER_NOT_ALLOWED'] as const;
 
 // ---- Draft backup ------------------------------------------------------------------------------
 

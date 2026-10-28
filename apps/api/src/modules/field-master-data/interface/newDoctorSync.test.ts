@@ -3,7 +3,7 @@ import { SyncRejection } from '@/modules/sync/sync.public.js';
 import { DoctorViews } from '../application/doctorViews.js';
 import { makeNewDoctorSyncHandler, NEW_DOCTOR_SYNC_KIND } from '../application/newDoctorSync.js';
 import { AddedDoctors } from '../application/usecases/addedDoctors.js';
-import { FakeApprovals, FakeAssignments, FakeDoctors, FakeTerritory, FakeTransactions, FakeUsers, FakeSpecialties } from '../application/usecases/fmdTestKit.js';
+import { FakeApprovals, FakeAssignments, FakeDoctors, FakeTerritory, FakeTransactions, FakeUsers, FakeSpecialties, FakeConfig } from '../application/usecases/fmdTestKit.js';
 import { editAddedDoctorBodySchema } from './field-master-data.schemas.js';
 import { SpecialtyCatalog } from '../application/specialtyCatalog.js';
 
@@ -25,6 +25,8 @@ describe('NEW_DOCTOR through the sync push', () => {
   let approvals: FakeApprovals;
   let territory: FakeTerritory;
   let added: AddedDoctors;
+  let users: FakeUsers;
+  let config: FakeConfig;
   let handler: ReturnType<typeof makeNewDoctorSyncHandler>;
   const ctx = {};
   const run = (p: unknown, mr = 'mr1', clientId = CLIENT_ID) => handler.apply({ userId: mr, clientId, clientCreatedAt: new Date(), payload: p }, ctx);
@@ -43,8 +45,19 @@ describe('NEW_DOCTOR through the sync push', () => {
     approvals = new FakeApprovals();
     territory = new FakeTerritory();
     territory.userRoutes.set('mr1', [ROUTE]);
-    added = new AddedDoctors(doctors, territory, approvals, new FakeTransactions(), new DoctorViews(assignments, new FakeUsers()), new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist'])));
+    territory.userRoutes.set('asm', [ROUTE]);
+    users = new FakeUsers();
+    config = new FakeConfig();
+    added = new AddedDoctors(doctors, territory, approvals, new FakeTransactions(), new DoctorViews(assignments, users), new SpecialtyCatalog(new FakeSpecialties(['ENT', 'Cardiologist'])), users, config);
     handler = makeNewDoctorSyncHandler(added, (p) => editAddedDoctorBodySchema.parse(p));
+  });
+
+  it('refuses a manager’s Doctor while MANAGER_CAN_ADD_DOCTORS is off, and takes it once on', async () => {
+    const err = await run(payload(), 'asm').then(() => undefined, (e: unknown) => e);
+    expect(err).toBeInstanceOf(SyncRejection);
+    expect((err as SyncRejection).code).toBe('MANAGER_NOT_ALLOWED');
+    config.values.set('MANAGER_CAN_ADD_DOCTORS', 'true');
+    await expect(run(payload(), 'asm')).resolves.toHaveProperty('serverId');
   });
 
   it('is the NEW_DOCTOR kind', () => {

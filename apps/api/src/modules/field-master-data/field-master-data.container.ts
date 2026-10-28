@@ -132,7 +132,7 @@ export function buildFieldMasterDataContainer(
   const views = new DoctorViews(assignments, users, approvals);
   // The same add-Doctor logic, for a Doctor the MR added offline: it arrives in the daily report's push
   // (sync kind NEW_DOCTOR) and is created inside the sync engine's transaction.
-  const addedDoctors = new AddedDoctors(doctors, territory, approvals, transactions, views, specialtyCatalog);
+  const addedDoctors = new AddedDoctors(doctors, territory, approvals, transactions, views, specialtyCatalog, users, config);
   sync.registerHandler(makeNewDoctorSyncHandler(addedDoctors, (payload) => editAddedDoctorBodySchema.parse(payload)));
   // …and what the phone caches of this module, as one snapshot of what the caller may see.
   sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, products, specialties, distributors, allocations: sampleAllocations, visibility, territory }));

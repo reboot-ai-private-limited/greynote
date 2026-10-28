@@ -335,7 +335,7 @@ export class FakeDoctors implements DoctorRepositoryPort {
 }
 
 export class FakeConfig implements ConfigReader {
-  values = new Map<string, string>([['DOCTOR_VISIBILITY_FOLLOWS_ROUTE', 'true']]);
+  values = new Map<string, string>([['DOCTOR_VISIBILITY_FOLLOWS_ROUTE', 'true'], ['MANAGER_CAN_ADD_DOCTORS', 'false']]);
   async get(key: string) {
     return this.values.get(key) ?? '';
   }

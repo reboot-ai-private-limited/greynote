@@ -9,7 +9,7 @@ What the field app must do to add a doctor and to show the month's missed calls,
 
 | # | Rule | Status |
 |---|---|---|
-| 1 | An employee adds a doctor **offline-first**: queue a `NEW_DOCTOR` sync record, or call `POST /field-master-data/doctors/added`. Send a `clientRequestId` (≥ 8 characters, one per add) so a retry never creates a second doctor. | ✅ |
+| 1 | An employee adds a doctor **offline-first**: queue a `NEW_DOCTOR` sync record, or call `POST /field-master-data/doctors/added`. A **manager** (someone with a team) can only do this while Admin has *Managers can add doctors* on (default off): otherwise the API answers 403 `FORBIDDEN`, and a queued `NEW_DOCTOR` record is refused with `MANAGER_NOT_ALLOWED`. Hide the Add button for managers when it is off if you can. Send a `clientRequestId` (≥ 8 characters, one per add) so a retry never creates a second doctor. | ✅ |
 | 2 | **Required:** `routeId` (one of the employee's own routes), `name`, `address`, `specialty` (must be on the speciality list in the snapshot's `specialties`), `qualification`, `location` (the phone's GPS at the moment of adding). | ✅ |
 | 3 | **Optional:** `email`, **`clinicName`** (max 150), **`phone`** (10–15 digits, optional leading `+`), `dateOfBirth`, `anniversary` (`YYYY-MM-DD`, not in the future), `visitFrequency`. Send `null` or leave out for none. | ✅ new: `clinicName`, `phone` |
 | 4 | **`visitFrequency` is 1–4** visits a month (2026-10-22; was 1–5, before that 1–6). Offer 1, 2, 3, 4 and "No target"; 5 or more is refused with `400` on `visitFrequency`. Empty = no target, so no missed-call tracking for that doctor. Four is the most that fits with the days between visits ([`dcr.md`](dcr.md) rule 11). | ✅ changed |
@@ -67,7 +67,7 @@ Per employee: `quota` (sum of frequencies), `made`, `missed`, `doctors`, `comple
 |---|---|---|
 | `GET /field-master-data/doctors/mine` | Employee | Doctors assigned to me |
 | `GET /field-master-data/doctors/added` | Employee | Doctors I added, with approval status |
-| `POST /field-master-data/doctors/added` | Employee | Add a doctor (offline-first) |
+| `POST /field-master-data/doctors/added` | Employee; manager only if *Managers can add doctors* is on | Add a doctor (offline-first) |
 | `PUT /field-master-data/doctors/added/:id` | Employee | Correct and resubmit a rejected, withdrawn or reopened doctor |
 | `PUT /field-master-data/doctors/added/:id/photo` | Employee | Set or replace the photo of a doctor I added (multipart `file`), until it is approved |
 | `DELETE /field-master-data/doctors/added/:id/photo` | Employee | Remove that photo |

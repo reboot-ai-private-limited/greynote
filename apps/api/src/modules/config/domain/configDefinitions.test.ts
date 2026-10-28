@@ -3,6 +3,7 @@ import { CONFIG_DEFINITIONS, CONFIG_MODULE_LABEL, findConfigDefinition, validate
 
 /** What the seed wrote before the registry existed. A default changing by accident would change a live system's behaviour. */
 const HISTORICAL_DEFAULTS: Record<string, string> = {
+  MANAGER_CAN_ADD_DOCTORS: 'false',
   DAILY_PLAN_SUBMIT_CUTOFF_TIME: '10:00',
   MONTHLY_PLAN_SUBMIT_CUTOFF_DATE: '28',
   BUSINESS_TIMEZONE: 'Asia/Kolkata',

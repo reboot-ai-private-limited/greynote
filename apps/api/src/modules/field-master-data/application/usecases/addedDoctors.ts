@@ -1,5 +1,6 @@
 import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
+import { parseBoolean, readConfigOr, type ConfigReader } from '@/shared/config/readConfig.js';
 import { AppError } from '@/shared/errors/AppError.js';
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
 import type { ApprovalsPort } from '../../domain/approvals.port.js';
@@ -8,6 +9,7 @@ import type { DoctorRepositoryPort } from '../../domain/doctor.repository.port.j
 import { DuplicateRecordError } from '../../domain/duplicateRecord.error.js';
 import type { GeoPoint, PageQuery } from '../../domain/masterStatus.js';
 import type { TerritoryPort } from '../../domain/territory.port.js';
+import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { SpecialtyCatalog } from '../specialtyCatalog.js';
 import { NEW_DOCTOR_KIND } from '../doctorApproval.js';
 import type { DoctorView, DoctorViews } from '../doctorViews.js';
@@ -45,6 +47,8 @@ export class AddedDoctors {
     private readonly transactions: TransactionRunnerPort,
     private readonly views: DoctorViews,
     private readonly specialties: SpecialtyCatalog,
+    private readonly users: UserDirectoryPort,
+    private readonly config: ConfigReader,
   ) {}
 
   /** `created: false` means this was a retry of an earlier, successful create. */
@@ -52,6 +56,7 @@ export class AddedDoctors {
     const earlier = await this.doctors.findByClientRequest(mrId, input.clientRequestId);
     if (earlier) return { doctor: await this.view(earlier), created: false };
 
+    await this.requireMayAdd(mrId);
     await this.requireOwnRoute(mrId, input.routeId);
     input = { ...input, specialty: await this.specialties.resolve(input.specialty) };
     const { clientRequestId } = input;
@@ -77,6 +82,7 @@ export class AddedDoctors {
   async addWithin(mrId: string, input: AddedDoctorInput & { clientRequestId: string }, ctx: TransactionContext): Promise<Doctor> {
     const earlier = await this.doctors.findByClientRequest(mrId, input.clientRequestId);
     if (earlier) return earlier;
+    await this.requireMayAdd(mrId);
     await this.requireOwnRoute(mrId, input.routeId);
     return this.insertAndSubmit(mrId, { ...input, specialty: await this.specialties.resolve(input.specialty) }, ctx);
   }
@@ -103,6 +109,7 @@ export class AddedDoctors {
           : 'This doctor is waiting for approval and can’t be changed. Withdraw it first.',
       );
     }
+    await this.requireMayAdd(mrId);
     if (input.routeId !== existing.routeId) await this.requireOwnRoute(mrId, input.routeId);
     input = { ...input, specialty: await this.specialties.resolve(input.specialty) };
 
@@ -126,6 +133,12 @@ export class AddedDoctors {
   private async view(doctor: Doctor): Promise<AddedDoctorView> {
     const [view, request] = await Promise.all([this.views.one(doctor), this.approvals.getForRecord(NEW_DOCTOR_KIND, doctor.id)]);
     return { ...view, approval: request && { requestId: request.id, cycle: request.cycle, status: request.status } };
+  }
+
+  /** A manager (someone with a team) may add a Doctor only while Admin has `MANAGER_CAN_ADD_DOCTORS` on; read on every call, so turning it off applies at once. */
+  private async requireMayAdd(userId: string): Promise<void> {
+    if (await readConfigOr(this.config, 'MANAGER_CAN_ADD_DOCTORS', parseBoolean, false)) return;
+    if ((await this.users.getDownline(userId)).length > 0) throw AppError.forbidden('Managers can’t add doctors. Ask Admin.');
   }
 
   /** An MR can only add a Doctor to a Route they currently have. */
