@@ -26,11 +26,11 @@ const OLD_TABS: Record<string, EmployeeTab> = {
   security: 'access',
 };
 
-/** Which tab to open for a `?tab=` value: a current tab, an old tab's new home, or Profile. Access is Admin's: HR is sent to Profile. */
-export function employeeTabOf(requested: string | null | undefined, isAdmin: boolean): EmployeeTab {
+/** Which tab to open for a `?tab=` value: a current tab, an old tab's new home, or Profile. Access is for Admin and HR. */
+export function employeeTabOf(requested: string | null | undefined, canView: boolean): EmployeeTab {
   const tab = requested && (EMPLOYEE_TABS as readonly string[]).includes(requested) ? (requested as EmployeeTab) : requested ? (OLD_TABS[requested] ?? 'profile') : 'profile';
-  return tab === 'access' && !isAdmin ? 'profile' : tab;
+  return tab === 'access' && !canView ? 'profile' : tab;
 }
 
 /** The tabs this person sees. */
-export const employeeTabsFor = (isAdmin: boolean): EmployeeTab[] => EMPLOYEE_TABS.filter((t) => t !== 'access' || isAdmin);
+export const employeeTabsFor = (canView: boolean): EmployeeTab[] => EMPLOYEE_TABS.filter((t) => t !== 'access' || canView);

@@ -26,7 +26,7 @@ openApiRegistry.registerPath({
   method: 'post',
   path: '/api/identity/pay-bands',
   tags: ['Identity / Pay Bands'],
-  summary: 'Admin/HR: create a pay band',
+  summary: 'Admin: create a pay band',
   security: [{ bearerAuth: [] }],
   request: { body: { content: { 'application/json': { schema: createPayBandBodySchema } } } },
   responses: { 201: { description: 'Pay band created' } },
@@ -35,7 +35,7 @@ openApiRegistry.registerPath({
   method: 'patch',
   path: '/api/identity/pay-bands/{id}',
   tags: ['Identity / Pay Bands'],
-  summary: 'Admin/HR: update a pay band',
+  summary: 'Admin: update a pay band',
   security: [{ bearerAuth: [] }],
   request: {
     params: masterDataIdParamsSchema,
@@ -59,14 +59,14 @@ export function buildPayBandsRouter(useCases: {
   router.post(
     '/',
     authenticate(),
-    requireRole('ADMIN', 'HR'),
+    requireRole('ADMIN'),
     validate({ body: createPayBandBodySchema }),
     controller.create,
   );
   router.patch(
     '/:id',
     authenticate(),
-    requireRole('ADMIN', 'HR'),
+    requireRole('ADMIN'),
     validate({ params: masterDataIdParamsSchema, body: updatePayBandBodySchema }),
     controller.update,
   );

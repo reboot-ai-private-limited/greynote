@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { toast } from '@/components/ui/toast';
 import { usePayBands } from '@/features/people/hooks/useMasterData';
 import { toErrorState } from '@/lib/api/toErrorState';
+import { useSession } from '@/lib/auth/SessionProvider';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useLeavePolicies, useSaveLeavePolicies } from '../hooks/useLeavePolicies';
 import { useLeaveTypes } from '../hooks/useLeaveTypes';
@@ -17,7 +18,8 @@ import { POLICY_NOTE, buildPolicyGrid, cellKey, collectPolicyChanges } from '../
 
 /** How many days each grade gets, per paid leave type and leave year: the defaults a new balance is created from. */
 export function LeaveMasterTab() {
-  const readOnly = useIsReadOnly();
+  // Leave setup is Admin's to change; HR can read it.
+  const readOnly = useIsReadOnly() || useSession().user?.role !== 'ADMIN';
   const bands = usePayBands();
   const types = useLeaveTypes();
   const policies = useLeavePolicies();

@@ -142,12 +142,13 @@ export function buildMastersRouter(c: MastersHandlers): Router {
   const router = Router();
   router.use(authenticate());
   const hr = requireRole('HR', 'ADMIN');
+  const admin = requireRole('ADMIN');
 
   router.get('/leave-types', c.listTypes);
-  router.post('/leave-types', hr, validate({ body: createLeaveTypeBodySchema }), c.createType);
-  router.patch('/leave-types/:id', hr, validate({ params: idParamsSchema, body: updateLeaveTypeBodySchema }), c.updateType);
+  router.post('/leave-types', admin, validate({ body: createLeaveTypeBodySchema }), c.createType);
+  router.patch('/leave-types/:id', admin, validate({ params: idParamsSchema, body: updateLeaveTypeBodySchema }), c.updateType);
   router.get('/leave-policies', hr, c.listPolicies);
-  router.put('/leave-policies/:payBandId/:leaveTypeId', hr, validate({ params: leavePolicyParamsSchema, body: setLeavePolicyBodySchema }), c.setPolicy);
+  router.put('/leave-policies/:payBandId/:leaveTypeId', admin, validate({ params: leavePolicyParamsSchema, body: setLeavePolicyBodySchema }), c.setPolicy);
   router.get('/holidays', validate({ query: listHolidaysQuerySchema }), c.listHolidays);
   router.post('/holidays', hr, validate({ body: createHolidayBodySchema }), c.createHoliday);
   router.post('/holidays/import', hr, validate({ query: holidayImportQuerySchema }), holidayUpload, c.importHolidays);
