@@ -34,6 +34,8 @@ const productFields = {
   ptrPaise: priceSchema,
   mrpPaise: priceSchema,
   gstPercent: z.union([z.literal(5), z.literal(12), z.literal(18), z.literal(28)]),
+  /** HSN (goods) or SAC (services): 4 to 8 digits. */
+  hsn: z.string().trim().regex(/^\d{4,8}$/, 'HSN/SAC must be 4 to 8 digits.'),
 };
 export const createProductBodySchema = z.object({
   name: nameSchema,
@@ -54,6 +56,7 @@ export const updateProductBodySchema = z
     ptrPaise: priceSchema.optional(),
     mrpPaise: priceSchema.optional(),
     gstPercent: productFields.gstPercent.optional(),
+    hsn: productFields.hsn.optional(),
     /** `null` clears it. */
     division: z.string().trim().min(1).max(100).nullable().optional(),
     status: statusSchema.optional(),

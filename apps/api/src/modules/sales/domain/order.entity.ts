@@ -24,6 +24,10 @@ export interface OrderItem {
   netAmountPaise?: Paise;
   /** Set when the order is marked Done: the net for the units actually supplied. */
   suppliedNetPaise?: Paise | null;
+  /** Printed on the Tax Invoice, set when the order is marked Done: the product's HSN/SAC as it was then, and the batch and expiry (`YYYY-MM`) supplied. `null`/absent on older orders. */
+  hsn?: string | null;
+  batchNo?: string | null;
+  expiry?: string | null;
 }
 
 /** A line's net amount, the gross on orders from before discounts. */

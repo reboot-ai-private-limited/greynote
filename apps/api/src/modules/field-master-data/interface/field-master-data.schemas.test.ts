@@ -62,7 +62,7 @@ describe('Field Master Data request schemas', () => {
 });
 
 describe('product body schemas (2026-10-06)', () => {
-  const base = { name: 'XYZ-500', sku: 'XYZ-500', category: 'Analgesic/Antipyretic', composition: 'Paracetamol 500mg', type: 'TABLET', packSize: '10×10', ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000, gstPercent: 12 };
+  const base = { name: 'XYZ-500', sku: 'XYZ-500', category: 'Analgesic/Antipyretic', composition: 'Paracetamol 500mg', type: 'TABLET', packSize: '10×10', ptsPaise: 8000, ptrPaise: 9000, mrpPaise: 11000, gstPercent: 12, hsn: '30049099' };
 
   it('takes the product card: type and GST from their lists, prices in whole paise, division optional', () => {
     expect(createProductBodySchema.safeParse(base).success).toBe(true);
@@ -71,7 +71,7 @@ describe('product body schemas (2026-10-06)', () => {
   });
 
   it('refuses a GST slab or a type that is not on the list, a missing price, and a price that is not whole paise or not above 0', () => {
-    for (const bad of [{ gstPercent: 7 }, { gstPercent: '12' }, { type: 'PILL' }, { ptsPaise: 0 }, { mrpPaise: 110.5 }, { ptrPaise: -1 }, { packSize: '' }]) {
+    for (const bad of [{ gstPercent: 7 }, { hsn: '123' }, { hsn: '123456789' }, { hsn: '21O69099' }, { hsn: undefined }, { gstPercent: '12' }, { type: 'PILL' }, { ptsPaise: 0 }, { mrpPaise: 110.5 }, { ptrPaise: -1 }, { packSize: '' }]) {
       expect(createProductBodySchema.safeParse({ ...base, ...bad }).success).toBe(false);
     }
     expect(createProductBodySchema.safeParse({ ...base, mrpPaise: undefined }).success).toBe(false);

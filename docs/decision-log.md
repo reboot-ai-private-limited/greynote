@@ -2512,4 +2512,14 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 **Consequences:** a Done order's amount in dues is now its invoice total (with GST), not its supplied amount, for orders marked Done from now on; older Done orders keep the supplied amount until the office gives them a number. The field app must remove its Done button (docs/mobile/orders-and-stock.md).
 
-**Open:** HSN, batch, expiry and the buyer's FSSAI are not stored, so the printout omits them; two payments recorded at the same instant could over-allocate one invoice (checked at record time only); whether older Done orders should be given invoice numbers in bulk.
+**Open:** HSN, batch, expiry and the buyer's FSSAI are not stored, so the printout omits them (HSN, batch and expiry are added on 2026-10-28; the buyer's FSSAI is still open); two payments recorded at the same instant could over-allocate one invoice (checked at record time only); whether older Done orders should be given invoice numbers in bulk.
+
+## 2026-10-28: HSN/SAC, batch and expiry on each invoice line
+
+**Decision:** the Tax Invoice prints **HSN/SAC**, **Batch No.** and **Exp. Date** per item, as in the company's own invoice (`Sale_3452`). HSN/SAC is a new product field (4 to 8 digits, required on a new product); it is copied onto the order line when the office marks the order Done, so editing a product later never changes an issued invoice. Batch and expiry (`MM/YYYY` typed, kept as `YYYY-MM`) are typed per line in the Mark Done form; one batch per line, so a product from two batches is two lines. They are required on every line with units supplied (or free); a line with nothing delivered needs none. Done is refused (400) while a delivered line lacks them or its product has no HSN.
+
+**Why:** a GST and drug-licence invoice carries them, and the office was adding them by hand in the other tool.
+
+**Consequences:** a plain Done with no form no longer exists: every delivered line must be named with its batch and expiry. A product with no HSN cannot be delivered until the office sets one in Products. Invoices from before this show a dash in the three columns. No migration: old orders and products read the new fields as null.
+
+**Open:** several batches inside one line; a PTR column (the company's invoice has one); a bulk HSN backfill for existing products (the office edits them by hand for now); the field app's product screens do not show HSN (the sync snapshot is unchanged).

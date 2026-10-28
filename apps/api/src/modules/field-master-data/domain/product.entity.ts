@@ -18,6 +18,8 @@ export interface Product {
   ptrPaise: number | null;
   mrpPaise: number | null;
   gstPercent: GstRate | null;
+  /** HSN/SAC code printed on the Tax Invoice. `null` on a product saved before it existed. */
+  hsn: string | null;
   division: string | null;
   status: MasterStatus;
 }

@@ -11,6 +11,7 @@ export type CreateProductInput = Pick<Product, 'name' | 'sku' | 'category'> & {
   ptrPaise: number;
   mrpPaise: number;
   gstPercent: NonNullable<Product['gstPercent']>;
+  hsn: string;
   division?: string | undefined;
 };
 

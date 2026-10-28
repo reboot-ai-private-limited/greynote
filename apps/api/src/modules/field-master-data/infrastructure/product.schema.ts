@@ -15,6 +15,7 @@ export interface ProductDoc {
   ptrPaise?: number | null;
   mrpPaise?: number | null;
   gstPercent?: GstRate | null;
+  hsn?: string | null;
   division?: string | null;
   status: MasterStatus;
 }
@@ -32,6 +33,7 @@ const productSchema = new Schema<ProductDoc>({
   ptrPaise: { type: Number, min: 0, default: null },
   mrpPaise: { type: Number, min: 0, default: null },
   gstPercent: { type: Number, enum: [...GST_RATES, null], default: null },
+  hsn: { type: String, default: null },
   division: { type: String, default: null },
   status: { type: String, required: true, enum: MASTER_STATUSES },
 });

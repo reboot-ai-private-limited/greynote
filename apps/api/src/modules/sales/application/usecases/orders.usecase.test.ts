@@ -79,8 +79,18 @@ describe('orders', () => {
   let get: GetOrderUseCase;
   let finish: FinishOrderUseCase;
   let setInvoice: SetInvoiceNumberUseCase;
-  /** Admin or the Accountant marks it Done: the invoice number is required, here made from the order id. */
-  const markDone = (actor: { id: string; role: string }, id: string, supply?: Parameters<FinishOrderUseCase['execute']>[3]) => finish.execute(actor, id, 'DONE', supply, `INV-${id}`);
+  /**
+   * Admin or the Accountant marks it Done: the invoice number is required, here made from the order id. Every line with units supplied needs a batch and expiry,
+   * so this fills them in for the lines a test leaves out (a line not named is a full supply).
+   */
+  const markDone = (actor: { id: string; role: string }, id: string, supply?: Array<{ productId: string; line?: number; suppliedQty: number; freeQty: number }>, number = `INV-${id}`) => {
+    const items = orders.rows.find((o) => o.id === id)?.items ?? [];
+    const batch = { batchNo: 'B1', expiry: '2028-03' };
+    const given = (supply ?? []).map((l) => ({ ...l, ...batch }));
+    const covered = new Set(given.map((l) => l.line ?? items.findIndex((i) => i.productId === l.productId)));
+    const rest = items.flatMap((i, at) => (covered.has(at) ? [] : [{ productId: i.productId, line: at, suppliedQty: i.quantity, freeQty: i.freeQty ?? 0, ...batch }]));
+    return finish.execute(actor, id, 'DONE', [...given, ...rest], number);
+  };
   let list: ListOrdersUseCase;
   let edit: EditOrderUseCase;
   const now = new Date('2026-09-30T10:00:00+05:30');
@@ -185,9 +195,9 @@ describe('orders', () => {
   it('an invoice number is used once', async () => {
     await place.execute(mr1, order());
     await place.execute(mr1, order());
-    await finish.execute(acct, 'o1', 'DONE', undefined, ' 3452 ');
+    await markDone(acct, 'o1', undefined, ' 3452 ');
     expect((await orders.findById('o1'))?.invoiceNumber).toBe('3452');
-    expect(await code(finish.execute(acct, 'o2', 'DONE', undefined, '3452'))).toBe(STOCK_CODES.invoiceNumberTaken);
+    expect(await code(markDone(acct, 'o2', undefined, '3452'))).toBe(STOCK_CODES.invoiceNumberTaken);
     expect((await orders.findById('o2'))?.status).toBe('PLACED');
   });
 
@@ -199,6 +209,27 @@ describe('orders', () => {
     expect(done.invoice).toEqual({ taxablePaise: 24_672_00, lines: [{ gstPercent: 5, gstPaise: 1_233_60 }], gstPaise: 1_233_60, roundOffPaise: 40, totalPaise: 25_906_00 });
     master.gst['prod1'] = 12; // a later rate change never moves it
     expect((await orders.findById(serverId))?.invoice?.totalPaise).toBe(25_906_00);
+  });
+
+  it('Done stores the HSN (as it was then), batch and expiry on each supplied line; a line with none supplied carries none', async () => {
+    const { serverId } = await place.execute(mr1, order({ lines: [{ productId: 'prod1', quantity: 24, unitPricePaise: 1_028_00 }, { productId: 'prod2', quantity: 5, unitPricePaise: 500 }] }));
+    const done = await finish.execute(acct, serverId, 'DONE', [
+      { productId: 'prod1', suppliedQty: 24, freeQty: 0, batchNo: 'NHN26J284', expiry: '2028-03' },
+      { productId: 'prod2', suppliedQty: 0, freeQty: 0 },
+    ], 'INV-1');
+    expect(done.items[0]).toMatchObject({ hsn: '21069099', batchNo: 'NHN26J284', expiry: '2028-03' });
+    expect(done.items[1]).toMatchObject({ hsn: null, batchNo: null, expiry: null });
+  });
+
+  it('Done is refused while a supplied line lacks its batch or expiry, or its product has no HSN', async () => {
+    const { serverId } = await place.execute(mr1, order({ lines: [{ productId: 'prod1', quantity: 2, unitPricePaise: 1000 }] }));
+    const line = { productId: 'prod1', suppliedQty: 2, freeQty: 0 };
+    expect(await code(finish.execute(acct, serverId, 'DONE', undefined, 'INV-1'))).toBe(STOCK_CODES.invalidPayload);
+    expect(await code(finish.execute(acct, serverId, 'DONE', [{ ...line, batchNo: 'B1' }], 'INV-1'))).toBe(STOCK_CODES.invalidPayload);
+    expect(await code(finish.execute(acct, serverId, 'DONE', [{ ...line, expiry: '2028-03' }], 'INV-1'))).toBe(STOCK_CODES.invalidPayload);
+    master.noHsn.add('prod1');
+    expect(await code(finish.execute(acct, serverId, 'DONE', [{ ...line, batchNo: 'B1', expiry: '2028-03' }], 'INV-1'))).toBe(STOCK_CODES.invalidPayload);
+    expect((await orders.findById(serverId))?.status).toBe('PLACED');
   });
 
   it('a product with no GST rate is taxed 0%; a part supply is invoiced for what was supplied', async () => {

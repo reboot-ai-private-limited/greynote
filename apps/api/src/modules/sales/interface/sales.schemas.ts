@@ -96,6 +96,9 @@ export const completeOrderBodySchema = z
           line: z.number().int().min(0).max(199).optional(),
           suppliedQty: z.number().int('Whole units only.').min(0).max(1_000_000),
           freeQty: z.number().int('Whole units only.').min(0).max(1_000_000).default(0),
+          /** Required on a line with units supplied (the use case checks); `expiry` is `YYYY-MM`. */
+          batchNo: z.string().trim().min(1).max(30).optional(),
+          expiry: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Expiry must be YYYY-MM.').optional(),
         }),
       )
       .min(1)

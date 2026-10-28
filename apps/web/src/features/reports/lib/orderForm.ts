@@ -211,6 +211,9 @@ export interface SupplyDraft {
   netPaise: number;
   supplied: string;
   free: string;
+  /** The batch supplied and its expiry typed as `MM/YYYY`; needed on a line with units supplied. */
+  batchNo: string;
+  expiry: string;
 }
 
 /** The form starts as a full supply with the free units the office planned (none by default): what Mark Done does with no form at all. */
@@ -230,6 +233,8 @@ export const supplyDraftOf = (
     netPaise: i.netAmountPaise ?? i.quantity * i.unitPricePaise,
     supplied: String(i.quantity),
     free: String(i.freeQty ?? 0),
+    batchNo: '',
+    expiry: '',
   }));
 
 const wholeUnits = (v: string): number | null => (/^\d+$/.test(v.trim()) ? Number(v) : null);
@@ -249,6 +254,13 @@ export const deliveredPaise = (drafts: readonly SupplyDraft[]): number =>
   }, 0);
 
 export const INVOICE_NUMBER_MAX = 30;
+export const BATCH_NO_MAX = 30;
+
+/** `MM/YYYY` as typed, to the `YYYY-MM` the server keeps; `null` when it is not a real month. */
+export function expiryToIso(raw: string): string | null {
+  const m = /^(0?[1-9]|1[0-2])\s*\/\s*(\d{4})$/.exec(raw.trim());
+  return m ? `${m[2]}-${m[1]!.padStart(2, '0')}` : null;
+}
 
 /** The supply with the invoice number the office types: required, at most `INVOICE_NUMBER_MAX` characters. */
 export function buildSupply(drafts: readonly SupplyDraft[], invoiceNumber: string): Built<CompleteOrderDto> {
@@ -262,7 +274,18 @@ export function buildSupply(drafts: readonly SupplyDraft[], invoiceNumber: strin
     const free = wholeUnits(d.free);
     if (supplied === null || supplied > d.ordered) return void (errors[`line${i}`] = `Supplied must be a whole number from 0 to ${d.ordered}.`);
     if (free === null) return void (errors[`line${i}`] = 'Free units must be a whole number, 0 or more.');
-    supply.push({ productId: d.productId, line: i, suppliedQty: supplied, freeQty: free });
+    const line: NonNullable<CompleteOrderDto['supply']>[number] = { productId: d.productId, line: i, suppliedQty: supplied, freeQty: free };
+    // A batch and expiry are printed for what was delivered; a line with nothing delivered needs neither.
+    if (supplied > 0 || free > 0) {
+      const batchNo = d.batchNo.trim();
+      const expiry = expiryToIso(d.expiry);
+      if (batchNo === '') errors[`batch${i}`] = 'Enter the batch number.';
+      else if (batchNo.length > BATCH_NO_MAX) errors[`batch${i}`] = `At most ${BATCH_NO_MAX} characters.`;
+      if (d.expiry.trim() === '') errors[`expiry${i}`] = 'Enter the expiry, like 03/2028.';
+      else if (expiry === null) errors[`expiry${i}`] = 'Expiry is month/year, like 03/2028.';
+      if (expiry !== null) Object.assign(line, { batchNo, expiry });
+    }
+    supply.push(line);
   });
   if (Object.keys(errors).length > 0) return { ok: false, errors };
   return { ok: true, body: { invoiceNumber: number, supply } };

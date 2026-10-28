@@ -113,8 +113,8 @@ describe('the phone’s cache of Field Master Data', () => {
   });
 
   it('Products are the active catalog; allocations only for the Doctors in the MR’s set', async () => {
-    const p1 = await products.create({ name: 'Cough Syrup', sku: 'CS', category: 'Syrup', composition: null, type: null, packSize: null, ptsPaise: null, ptrPaise: null, mrpPaise: null, gstPercent: null, division: null, status: 'active' });
-    await products.create({ name: 'Old', sku: 'OLD', category: 'Syrup', composition: null, type: null, packSize: null, ptsPaise: null, ptrPaise: null, mrpPaise: null, gstPercent: null, division: null, status: 'inactive' });
+    const p1 = await products.create({ name: 'Cough Syrup', sku: 'CS', category: 'Syrup', composition: null, type: null, packSize: null, ptsPaise: null, ptrPaise: null, mrpPaise: null, gstPercent: null, hsn: null, division: null, status: 'active' });
+    await products.create({ name: 'Old', sku: 'OLD', category: 'Syrup', composition: null, type: null, packSize: null, ptsPaise: null, ptrPaise: null, mrpPaise: null, gstPercent: null, hsn: null, division: null, status: 'inactive' });
     const mine = await doctor('Dr Mine', 'route-1');
     const theirs = await doctor('Dr Theirs', 'route-2');
     await assign(mine.id, 'mr1');

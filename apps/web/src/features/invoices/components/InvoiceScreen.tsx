@@ -9,7 +9,7 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { formatDate, formatMoney } from '@/lib/format';
 import { useInvoice } from '../hooks/useInvoices';
 import { COMPANY } from '../lib/company';
-import { rupeesInWords, taxBreakup } from '../lib/invoices';
+import { expiryLabel, rupeesInWords, taxBreakup } from '../lib/invoices';
 
 const Row = ({ label, value, bold }: { label: string; value: string; bold?: boolean }) => (
   <div className={`flex justify-between gap-6 py-0.5 ${bold ? 'font-semibold' : ''}`}>
@@ -21,7 +21,7 @@ const Row = ({ label, value, bold }: { label: string; value: string; bold?: bool
 /**
  * One invoice laid out like the Tax Invoice the company issues today: seller block, bill-to, lines with GST, totals, amount in words and the tax
  * table. Rendered here from what the order holds and printed (or saved as PDF) from the browser; nothing is stored. HSN, batch and expiry are
- * not kept on orders, so those columns are left out. The logo heads the page, faint behind everything as a watermark, and the signed company seal
+ * kept on the line when the order is marked Done; an invoice from before that shows a dash. The logo heads the page, faint behind everything as a watermark, and the signed company seal
  * sits above the signatory line.
  */
 export function InvoiceScreen({ id }: { id: string }) {
@@ -93,6 +93,9 @@ export function InvoiceScreen({ id }: { id: string }) {
                   <tr className="border-y border-border-strong">
                     <th className="px-2 py-2">#</th>
                     <th className="px-2 py-2">Item name</th>
+                    <th className="px-2 py-2">HSN/SAC</th>
+                    <th className="px-2 py-2">Batch No.</th>
+                    <th className="px-2 py-2">Exp. Date</th>
                     <th className="px-2 py-2 text-right">MRP</th>
                     <th className="px-2 py-2 text-right">Quantity</th>
                     <th className="px-2 py-2 text-right">Price/unit</th>
@@ -105,6 +108,9 @@ export function InvoiceScreen({ id }: { id: string }) {
                     <tr key={`${l.sku}-${at}`} className="border-b border-border">
                       <td className="px-2 py-2">{at + 1}</td>
                       <td className="px-2 py-2">{l.productName}</td>
+                      <td className="px-2 py-2 tabular-nums">{l.hsn ?? '—'}</td>
+                      <td className="px-2 py-2">{l.batchNo ?? '—'}</td>
+                      <td className="px-2 py-2 tabular-nums">{expiryLabel(l.expiry)}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{l.mrpPaise === null ? '—' : formatMoney(l.mrpPaise)}</td>
                       <td className="px-2 py-2 text-right tabular-nums">
                         {l.suppliedQty}
@@ -118,7 +124,7 @@ export function InvoiceScreen({ id }: { id: string }) {
                     </tr>
                   ))}
                   <tr className="font-semibold">
-                    <td className="px-2 py-2" colSpan={3}>
+                    <td className="px-2 py-2" colSpan={6}>
                       Total
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums">{inv.lines.reduce((n, l) => n + l.suppliedQty, 0)}</td>

@@ -107,3 +107,7 @@ Adds `secondary_amount_paise` (units × the product's PTR when entered; null wit
 ## 2026-10-27 — invoices and payment allocations
 
 `orders` gains `invoice_number` (string, null until Done; unique where present) and `invoice` ({`taxable_paise`, `lines[]` of {`gst_percent`, `gst_paise`}, `gst_paise`, `round_off_paise`, `total_paise`}), written when the office marks the order Done (or later, for an order marked Done before invoices). `distributor_payments` gains `allocations[]` of {`order_id`, `amount_paise`}, empty by default. Both default to null/empty, so no migration is needed: an old Done order has no invoice and counts at its supplied amount; an old payment is all on account. A new index on `distributor_payments.allocations.order_id`.
+
+## 2026-10-28 — HSN, batch and expiry on lines
+
+`orders.items[]` gains `hsn` (string), `batch_no` (string) and `expiry` (`YYYY-MM`), all null by default and written when the order is marked Done (HSN copied from the product then, batch and expiry typed by the office). An older line reads them as null, so no migration is needed.

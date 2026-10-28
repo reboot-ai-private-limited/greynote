@@ -26,6 +26,9 @@ describe('order line uniqueness', () => {
     expect(supply([{ productId: id(1), line: 0, suppliedQty: 1 }, { productId: id(1), line: 1, suppliedQty: 2 }])).toBe(true);
     expect(supply([{ productId: id(1), line: 0, suppliedQty: 1 }, { productId: id(1), line: 0, suppliedQty: 2 }])).toBe(false);
     expect(supply([{ productId: id(1), suppliedQty: 1 }, { productId: id(1), suppliedQty: 2 }])).toBe(false);
+    const withBatch = (b: Record<string, unknown>) => supply([{ productId: id(1), suppliedQty: 1, ...b }]);
+    expect(withBatch({ batchNo: 'NHN26J284', expiry: '2028-03' })).toBe(true);
+    for (const bad of [{ expiry: '2028-13' }, { expiry: '03/2028' }, { expiry: '2028-3' }, { batchNo: '' }, { batchNo: 'x'.repeat(31) }]) expect(withBatch(bad)).toBe(false);
   });
 
   it('marking Done needs a trimmed invoice number of at most 30 characters; the supply is optional', () => {

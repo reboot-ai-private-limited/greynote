@@ -1,6 +1,6 @@
 import type { InvoiceRowDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { invoiceTotals, invoicesCsv, monthBounds, rupeesInWords, statusOf, taxBreakup } from './invoices';
+import { expiryLabel, invoiceTotals, invoicesCsv, monthBounds, rupeesInWords, statusOf, taxBreakup } from './invoices';
 
 const row = (over: Partial<InvoiceRowDto> = {}): InvoiceRowDto => ({
   orderId: 'o1',
@@ -64,5 +64,13 @@ describe('invoice list helpers', () => {
   });
   it('writes the CSV with plain rupee figures', () => {
     expect(invoicesCsv([row({ paidPaise: 5_00, duePaise: 25_901_00, status: 'PARTIAL' })])).toBe('Invoice no.,Date,Distributor,Total (INR),Paid (INR),Due (INR),Status\r\n3452,2026-10-26,UMA MEDICAL STORE,25906.00,5.00,25901.00,Part paid\r\n');
+  });
+});
+
+describe('expiryLabel', () => {
+  it('prints YYYY-MM as MM/YYYY, and a dash for an invoice from before expiry was kept', () => {
+    expect(expiryLabel('2028-03')).toBe('03/2028');
+    expect(expiryLabel(null)).toBe('—');
+    expect(expiryLabel('bad')).toBe('—');
   });
 });
