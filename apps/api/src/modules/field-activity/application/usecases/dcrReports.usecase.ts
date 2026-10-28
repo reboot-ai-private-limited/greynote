@@ -2,7 +2,8 @@ import type { ApprovalsPort } from '../../domain/approvals.port.js';
 import type { DcrRepositoryPort } from '../../domain/dcr.repository.port.js';
 import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
 import type { DcrClock } from '../dcrClock.js';
-import { DCR_KIND, dcrStatus, isQualifyingDcr } from '../dcrStatus.js';
+import { readConfig, parseBoolean, type ConfigReader } from '@/shared/config/readConfig.js';
+import { DCR_KIND, dcrStatus, isApprovedDcr, isQualifyingDcr } from '../dcrStatus.js';
 
 /** What one employee's reported days of one month came to. A day is reported once its DCR is submitted or approved (`hasQualifyingDcr`'s rule). */
 export interface DcrMonthSummary {
@@ -127,5 +128,33 @@ export class CountDoctorCallsUseCase {
     const requests = new Map((await this.approvals.listForRecords(DCR_KIND, all.map((d) => d.id))).map((r) => [r.recordId, r]));
     const reported = all.filter((d) => isQualifyingDcr(dcrStatus(requests.get(d.id) ?? null))).map((d) => d.id);
     return this.doctorCalls.countByDoctor(reported);
+  }
+}
+
+/**
+ * Doctor calls per employee per day over a range (both ends inclusive), in three queries however many reports: the Attendance calendar's
+ * figure. A call counts once its DCR is final — approved while `DCR_APPROVAL_REQUIRED` is on, submitted or later once it is off.
+ */
+export class CountDoctorCallsByDayUseCase {
+  constructor(
+    private readonly dcrs: DcrRepositoryPort,
+    private readonly approvals: ApprovalsPort,
+    private readonly doctorCalls: DoctorCallRepositoryPort,
+    private readonly config: ConfigReader,
+  ) {}
+
+  async execute(range: { from: string; to: string }): Promise<Array<{ userId: string; date: string; count: number }>> {
+    const approvalRequired = await readConfig(this.config, 'DCR_APPROVAL_REQUIRED', parseBoolean);
+    const all = await this.dcrs.listRange(range.from, range.to);
+    const requests = new Map((await this.approvals.listForRecords(DCR_KIND, all.map((d) => d.id))).map((r) => [r.recordId, r]));
+    const counted = all.filter((d) => {
+      const status = dcrStatus(requests.get(d.id) ?? null);
+      return approvalRequired ? isApprovedDcr(status) : isQualifyingDcr(status);
+    });
+    const counts = await this.doctorCalls.countForDcrs(counted.map((d) => d.id));
+    return counted.flatMap((d) => {
+      const count = counts.get(d.id) ?? 0;
+      return count > 0 ? [{ userId: d.userId, date: d.reportDate, count }] : [];
+    });
   }
 }

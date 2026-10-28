@@ -26,6 +26,6 @@ export function buildAttendanceContainer(identity: IdentityPort, hr: HrPort, pla
         return { absentDays: m.absentDays, strikeDays: m.strikeDays, deductibleDays: m.deductibleDays };
       },
     },
-    buildRouter: () => buildAttendanceRouter(makeAttendanceControllers(calendar, identity)),
+    buildRouter: () => buildAttendanceRouter(makeAttendanceControllers(calendar, identity, fieldActivity)),
   };
 }

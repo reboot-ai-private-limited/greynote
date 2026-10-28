@@ -11,5 +11,8 @@ export const dcrStatus = (request: ApprovalRequest | null): DcrStatus => request
 const QUALIFYING: ReadonlySet<DcrStatus> = new Set(['SUBMITTED', 'MANAGER_APPROVED', 'APPROVED']);
 export const isQualifyingDcr = (status: DcrStatus): boolean => QUALIFYING.has(status);
 
+/** Past the manager's approval: the DCR is final. */
+export const isApprovedDcr = (status: DcrStatus): boolean => status === 'MANAGER_APPROVED' || status === 'APPROVED';
+
 /** Records can still be added or changed: not yet submitted, or sent back (rejected, withdrawn, reopened). */
 export const isOpenForLogging = (request: ApprovalRequest | null): boolean => request === null || isEditableBySubmitter(request.status);
