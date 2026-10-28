@@ -56,8 +56,15 @@ export function InvoiceScreen({ id }: { id: string }) {
               aria-hidden
               className="pointer-events-none absolute left-1/2 top-1/2 w-3/5 -translate-x-1/2 -translate-y-1/2 opacity-[0.07] print:[print-color-adjust:exact]"
             />
-            <header className="relative text-center">
-              <Image src="/brand/logo.png" alt="Greynote Healthcare" width={702} height={523} priority className="mx-auto mb-2 h-16 w-auto" />
+            <header className="relative text-center sm:px-28">
+              <Image
+                src="/brand/logo.png"
+                alt="Greynote Healthcare"
+                width={702}
+                height={523}
+                priority
+                className="mb-2 h-16 w-auto sm:absolute sm:left-0 sm:top-0 sm:mb-0"
+              />
               <h1 className="text-xl font-bold">Tax Invoice</h1>
               <p className="mt-3 text-base font-bold">{COMPANY.name}</p>
               {COMPANY.addressLines.map((l) => (
