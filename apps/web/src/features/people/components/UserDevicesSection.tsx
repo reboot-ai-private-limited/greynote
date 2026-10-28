@@ -14,9 +14,9 @@ import { PLATFORM_LABEL, STATUS_LABEL, STATUS_TONE, orderDevices, slotsInUse, ty
 import { DeviceActionButtons } from './DeviceActionButtons';
 import { DeviceActionDialog } from './DeviceActionDialog';
 
-/** One employee's phones, every status. Admin only: the API refuses everyone else. */
-export function UserDevicesSection({ userId }: { userId: string }) {
-  const readOnly = useIsReadOnly();
+/** One employee's phones, every status. HR may look; approving, rejecting and removing is Admin's (`locked`). */
+export function UserDevicesSection({ userId, locked = false }: { userId: string; locked?: boolean }) {
+  const readOnly = useIsReadOnly() || locked;
   const query = useUserDevices(userId);
   const [chosen, setChosen] = useState<{ action: DeviceAction; device: UserDeviceDto } | null>(null);
   const devices = query.data ? orderDevices(query.data) : [];

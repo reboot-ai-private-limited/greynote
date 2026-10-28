@@ -61,7 +61,7 @@ export function buildDevicesRouter(controllers: {
   const oneDevice = validate({ params: userDeviceParamsSchema });
 
   router.get('/devices/pending', ...admin, controllers.listPending);
-  router.get('/users/:id/devices', ...admin, validate({ params: userDevicesParamsSchema }), controllers.listForUser);
+  router.get('/users/:id/devices', authenticate(), requireRole('ADMIN', 'HR'), validate({ params: userDevicesParamsSchema }), controllers.listForUser);
   router.post('/users/:id/devices/:deviceRowId/approve', ...admin, oneDevice, controllers.approve);
   router.post('/users/:id/devices/:deviceRowId/reject', ...admin, oneDevice, controllers.reject);
   router.delete('/users/:id/devices/:deviceRowId', ...admin, oneDevice, controllers.remove);

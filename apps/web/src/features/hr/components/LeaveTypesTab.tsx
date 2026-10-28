@@ -11,13 +11,15 @@ import { DataTable, type Column } from '@/components/ui/DataTable';
 import { RowActions } from '@/components/ui/RowActions';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { toErrorState } from '@/lib/api/toErrorState';
+import { useSession } from '@/lib/auth/SessionProvider';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useLeaveTypes, useUpdateLeaveType } from '../hooks/useLeaveTypes';
 import { paidLabel } from '../lib/leaveTypes';
 import { LeaveTypeFormDialog } from './LeaveTypeFormDialog';
 
 export function LeaveTypesTab() {
-  const readOnly = useIsReadOnly();
+  // Leave setup is Admin's to change; HR can read it.
+  const readOnly = useIsReadOnly() || useSession().user?.role !== 'ADMIN';
   const types = useLeaveTypes();
   const [form, setForm] = useState<{ type?: LeaveTypeDto } | null>(null);
   const [toggling, setToggling] = useState<LeaveTypeDto | null>(null);

@@ -117,7 +117,7 @@ export function buildRoutesRouter(controllers: {
   const withId = (body?: Parameters<typeof validate>[0]['body']) =>
     validate({ params: territoryIdParamsSchema, ...(body && { body }) });
 
-  router.get('/', requireRole('ADMIN', 'ACCOUNTANT'), validate({ query: listRoutesQuerySchema }), controllers.list);
+  router.get('/', requireRole('ADMIN', 'ACCOUNTANT', 'HR'), validate({ query: listRoutesQuerySchema }), controllers.list);
   router.post('/', admin, validate({ body: createRouteBodySchema }), controllers.create);
   router.get('/:id', admin, withId(), controllers.get);
   router.patch('/:id', admin, withId(updateRouteBodySchema), controllers.update);

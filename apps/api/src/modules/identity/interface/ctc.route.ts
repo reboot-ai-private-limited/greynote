@@ -22,8 +22,8 @@ import { masterDataIdParamsSchema } from './masterData.schemas.js';
 const tags = ['Identity / CTC'];
 const security = [{ bearerAuth: [] }];
 openApiRegistry.registerPath({ method: 'get', path: '/api/identity/pay-components', tags, summary: 'Admin/HR/Accountant: the org-wide CTC formula', security, responses: { 200: { description: 'Components listed' } } });
-openApiRegistry.registerPath({ method: 'post', path: '/api/identity/pay-components', tags, summary: 'Admin/HR: add a pay component', security, request: { body: { content: { 'application/json': { schema: createPayComponentBodySchema } } } }, responses: { 201: { description: 'Created' } } });
-openApiRegistry.registerPath({ method: 'patch', path: '/api/identity/pay-components/{id}', tags, summary: 'Admin/HR: edit a pay component', security, request: { params: masterDataIdParamsSchema, body: { content: { 'application/json': { schema: updatePayComponentBodySchema } } } }, responses: { 200: { description: 'Updated' } } });
+openApiRegistry.registerPath({ method: 'post', path: '/api/identity/pay-components', tags, summary: 'Admin: add a pay component', security, request: { body: { content: { 'application/json': { schema: createPayComponentBodySchema } } } }, responses: { 201: { description: 'Created' } } });
+openApiRegistry.registerPath({ method: 'patch', path: '/api/identity/pay-components/{id}', tags, summary: 'Admin: edit a pay component', security, request: { params: masterDataIdParamsSchema, body: { content: { 'application/json': { schema: updatePayComponentBodySchema } } } }, responses: { 200: { description: 'Updated' } } });
 openApiRegistry.registerPath({ method: 'post', path: '/api/identity/ctc/preview', tags, summary: 'Admin/HR: compute a CTC breakdown without saving', security, request: { body: { content: { 'application/json': { schema: previewCtcBodySchema } } } }, responses: { 200: { description: 'Breakdown' } } });
 openApiRegistry.registerPath({ method: 'post', path: '/api/identity/ctc/reapply', tags, summary: 'Admin/HR: new revision for employees from the current formula', security, request: { body: { content: { 'application/json': { schema: reapplyCtcBodySchema } } } }, responses: { 200: { description: 'Per-employee outcomes' } } });
 openApiRegistry.registerPath({ method: 'get', path: '/api/identity/users/{id}/ctc', tags, summary: 'Admin/HR/Accountant: an employee\'s CTC revisions', security, request: { params: ctcUserParamsSchema }, responses: { 200: { description: 'History' } } });
@@ -37,8 +37,8 @@ export function buildPayComponentsRouter(useCases: {
   const router = Router();
   const controller = makeMasterDataController<PayComponent, Omit<PayComponent, 'id'>, Partial<Omit<PayComponent, 'id' | 'code'>>>(useCases, 'Pay component');
   router.get('/', authenticate(), requireRole('ADMIN', 'HR', 'ACCOUNTANT'), controller.list);
-  router.post('/', authenticate(), requireRole('ADMIN', 'HR'), validate({ body: createPayComponentBodySchema }), controller.create);
-  router.patch('/:id', authenticate(), requireRole('ADMIN', 'HR'), validate({ params: masterDataIdParamsSchema, body: updatePayComponentBodySchema }), controller.update);
+  router.post('/', authenticate(), requireRole('ADMIN'), validate({ body: createPayComponentBodySchema }), controller.create);
+  router.patch('/:id', authenticate(), requireRole('ADMIN'), validate({ params: masterDataIdParamsSchema, body: updatePayComponentBodySchema }), controller.update);
   return router;
 }
 

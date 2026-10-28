@@ -37,14 +37,15 @@ import { EMPLOYEE_TAB_LABEL, employeeTabOf, employeeTabsFor } from '../lib/emplo
 
 export function EmployeeDetailScreen({ id }: { id: string }) {
   const readOnly = useIsReadOnly();
-  // Phones are Admin's call (the API refuses HR), so HR does not see the tab.
+  // HR sees everything Admin sees; the Admin-only actions (devices, security, routes) are shown but locked for HR.
   const session = useSession().user;
   const isAdmin = session?.role === 'ADMIN';
+  const canView = isAdmin || session?.role === 'HR';
   const query = useUser(id);
   const user = query.data;
   // Coming back from the CTC screen lands on the Compensation tab.
   const requested = useSearchParams().get('tab');
-  const initialTab = employeeTabOf(requested, isAdmin);
+  const initialTab = employeeTabOf(requested, canView);
   const missing = user ? missingForActive(user) : [];
 
   return (
@@ -73,7 +74,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
               description={`${user.employeeCode} · ${ROLE_LABEL[user.role]}`}
               actions={
                 <div className="flex items-center gap-2">
-                  {isAdmin && user.role === 'FIELD' ? <EmployeeDownloadMenu user={user} /> : null}
+                  {canView && user.role === 'FIELD' ? <EmployeeDownloadMenu user={user} /> : null}
                   {user.isBlocked ? <Badge tone="danger">Blocked</Badge> : null}
                   <Badge tone={STATUS_TONE[user.status]}>{STATUS_LABEL[user.status]}</Badge>
                 </div>
@@ -99,7 +100,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
             {user.role === 'FIELD' ? (
               <Tabs defaultValue={initialTab}>
                 <TabsList>
-                  {employeeTabsFor(isAdmin).map((t) => (
+                  {employeeTabsFor(canView).map((t) => (
                     <TabsTrigger key={t} value={t}>
                       {EMPLOYEE_TAB_LABEL[t]}
                     </TabsTrigger>
@@ -110,7 +111,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                   <AddressSection user={user} readOnly={readOnly} />
                   <WorkSection user={user} readOnly={readOnly} />
                   {user.role === 'FIELD' ? <TerritoryCard user={user} readOnly={readOnly} /> : null}
-                  {user.role === 'FIELD' && isAdmin ? <RoutesSection user={user} readOnly={readOnly} /> : null}
+                  {user.role === 'FIELD' && canView ? <RoutesSection user={user} readOnly={readOnly || !isAdmin} /> : null}
                   <DocumentsSection user={user} readOnly={readOnly} />
                 </TabsContent>
                 <TabsContent value="team" className="mt-6 space-y-6">
@@ -127,10 +128,10 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 <TabsContent value="career" className="mt-6">
                   <PromotionTab user={user} readOnly={readOnly} />
                 </TabsContent>
-                {isAdmin ? (
+                {canView ? (
                   <TabsContent value="access" className="mt-6 space-y-6">
-                    <UserDevicesSection userId={user.id} />
-                    <SecuritySection user={user} selfId={session?.id} readOnly={readOnly} />
+                    <UserDevicesSection userId={user.id} locked={!isAdmin} />
+                    <SecuritySection user={user} selfId={session?.id} readOnly={readOnly || !isAdmin} />
                   </TabsContent>
                 ) : null}
               </Tabs>
@@ -150,9 +151,9 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                 </div>
               </Card>
             )}
-            {user.role !== 'FIELD' && isAdmin ? (
+            {user.role !== 'FIELD' && canView ? (
               <div className="mt-6">
-                <SecuritySection user={user} selfId={session?.id} readOnly={readOnly} />
+                <SecuritySection user={user} selfId={session?.id} readOnly={readOnly || !isAdmin} />
               </div>
             ) : null}
           </>
