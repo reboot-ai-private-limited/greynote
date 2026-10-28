@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { DataState } from '@/components/ui/DataState';
@@ -20,7 +21,8 @@ const Row = ({ label, value, bold }: { label: string; value: string; bold?: bool
 /**
  * One invoice laid out like the Tax Invoice the company issues today: seller block, bill-to, lines with GST, totals, amount in words and the tax
  * table. Rendered here from what the order holds and printed (or saved as PDF) from the browser; nothing is stored. HSN, batch and expiry are
- * not kept on orders, so those columns are left out.
+ * not kept on orders, so those columns are left out. The logo heads the page, faint behind everything as a watermark, and the signed company seal
+ * sits above the signatory line.
  */
 export function InvoiceScreen({ id }: { id: string }) {
   const query = useInvoice(id);
@@ -45,8 +47,17 @@ export function InvoiceScreen({ id }: { id: string }) {
         skeleton={<Skeleton className="h-96 w-full max-w-4xl" />}
       >
         {inv ? (
-          <article className="mx-auto max-w-4xl space-y-6 rounded-lg border border-border bg-surface p-6 text-sm text-text sm:p-8 print:border-0 print:p-0">
-            <header className="text-center">
+          <article className="relative mx-auto max-w-4xl space-y-6 overflow-hidden rounded-lg border border-border bg-surface p-6 text-sm text-text sm:p-8 print:border-0 print:p-0">
+            <Image
+              src="/brand/logo.png"
+              alt=""
+              width={702}
+              height={523}
+              aria-hidden
+              className="pointer-events-none absolute left-1/2 top-1/2 w-3/5 -translate-x-1/2 -translate-y-1/2 opacity-[0.07] print:[print-color-adjust:exact]"
+            />
+            <header className="relative text-center">
+              <Image src="/brand/logo.png" alt="Greynote Healthcare" width={702} height={523} priority className="mx-auto mb-2 h-16 w-auto" />
               <h1 className="text-xl font-bold">Tax Invoice</h1>
               <p className="mt-3 text-base font-bold">{COMPANY.name}</p>
               {COMPANY.addressLines.map((l) => (
@@ -60,7 +71,7 @@ export function InvoiceScreen({ id }: { id: string }) {
               </p>
             </header>
 
-            <div className="grid gap-6 sm:grid-cols-2">
+            <div className="relative grid gap-6 sm:grid-cols-2">
               <section>
                 <h2 className="font-semibold">Bill To</h2>
                 <p className="font-medium">{inv.distributor.name}</p>
@@ -76,7 +87,7 @@ export function InvoiceScreen({ id }: { id: string }) {
               </section>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-y border-border-strong">
@@ -119,7 +130,7 @@ export function InvoiceScreen({ id }: { id: string }) {
               </table>
             </div>
 
-            <div className="grid gap-6 sm:grid-cols-2">
+            <div className="relative grid gap-6 sm:grid-cols-2">
               <section>
                 <h2 className="font-semibold">Invoice Amount In Words</h2>
                 <p>{rupeesInWords(inv.totalPaise)}</p>
@@ -134,7 +145,7 @@ export function InvoiceScreen({ id }: { id: string }) {
               </section>
             </div>
 
-            <table className="w-full max-w-md border-collapse text-left">
+            <table className="relative w-full max-w-md border-collapse text-left">
               <thead>
                 <tr className="border-y border-border-strong">
                   <th className="px-2 py-1">Tax type</th>
@@ -155,9 +166,16 @@ export function InvoiceScreen({ id }: { id: string }) {
               </tbody>
             </table>
 
-            <footer className="pt-10 text-right">
+            <footer className="relative break-inside-avoid pt-10 text-right">
               <p>For: {COMPANY.name}</p>
-              <p className="mt-12">Authorized Signatory</p>
+              <Image
+                src="/brand/seal.png"
+                alt="Company seal and signature"
+                width={177}
+                height={174}
+                className="ml-auto mt-2 size-24 object-contain mix-blend-multiply print:[print-color-adjust:exact]"
+              />
+              <p className="mt-2">Authorized Signatory</p>
             </footer>
           </article>
         ) : null}
