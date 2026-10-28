@@ -2,6 +2,8 @@
 
 The field app (`apps/fieldApp`, another team's) last had real feature work on **2026-10-24** (`b823752`, targets view-only and CSV downloads). `91cc1e2` on 2026-10-25 only touched three amend screens (reason became optional). Since then the server, web and `docs/mobile` moved on by 47 commits. This is the list of what the phone has not caught up with, and what we want added.
 
+**Progress 2026-10-28 (typechecked and linted, not yet run on a phone):** A1, A2 (message and queued-refusal handling; the button hides once the setting reaches the phone), B1, B2, B3 (own downloads leave the designation out, see below), B4 and D are built. B5 and B6 needed no change. Still open: section C (server), and the phone has no way to read its own designation for the CSV file name.
+
 ## A. Must change: the phone is now wrong
 
 | # | Gap | Where | Why |

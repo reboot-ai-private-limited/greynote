@@ -100,6 +100,7 @@ export default function ProfileScreen() {
             </ThemedView>
           ) : null}
 
+          <PrimaryButton label="Change password" variant="text" onPress={() => router.push('/change-password')} />
           <PrimaryButton label="Back" variant="text" onPress={() => router.back()} />
           <PrimaryButton label="Log out" loading={loggingOut} onPress={confirmLogout} />
         </ScrollView>

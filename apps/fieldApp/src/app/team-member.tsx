@@ -84,7 +84,7 @@ export default function TeamMemberScreen() {
               <RowCard icon={sym('lock.open', 'lock_open')} accent="purple" title="Unblock" subtitle="Clear a block for a missed report" right={chevron} onPress={() => go('/unblock')} />
             )}
             <RowCard icon={sym('clock.badge.checkmark', 'schedule')} accent="amber" title="Allow a late plan or expenses" subtitle="One exception, for a time you choose" right={chevron} onPress={() => go('/late-grants')} />
-            <RowCard icon={sym('stethoscope', 'medical_services')} accent="teal" title="Doctor visit targets" subtitle="How often each doctor is visited" right={chevron} onPress={() => go('/team-doctors')} />
+            <RowCard icon={sym('stethoscope', 'medical_services')} accent="teal" title="Doctors" subtitle="Their doctors, and how often each is visited" right={chevron} onPress={() => go('/team-doctors')} />
           </View>
 
           <InfoCard>
@@ -92,7 +92,7 @@ export default function TeamMemberScreen() {
             <MonthStepper value={month} onChange={setMonth} min={fy.firstMonth} max={lastMonth} />
           </InfoCard>
 
-          <MemberDownloads userId={String(id)} employeeCode={data.member.employeeCode} name={data.member.name} month={month} />
+          <MemberDownloads userId={String(id)} employeeCode={data.member.employeeCode} name={data.member.name} designation={data.member.designation} month={month} />
 
           {o ? (
             <>

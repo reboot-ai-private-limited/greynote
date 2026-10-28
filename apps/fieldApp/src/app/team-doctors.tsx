@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
 import { DateField, EMPTY_PARTS, isoFromParts, partsFromIso, type DateParts } from '@/components/date-field';
@@ -28,8 +28,8 @@ const NO_TARGET = 'NONE';
 const FREQUENCIES = [...[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) })), { value: NO_TARGET, label: 'No target' }];
 
 /**
- * Visit targets (managers): pick someone in your team, then a doctor of theirs, and set how many times a month they should
- * visit (1–4, or none), plus the doctor's date of birth and anniversary. Only a manager above the employee, or Admin, may;
+ * Team doctors (managers): pick someone in your team to see their doctors. "Set visit target" on a doctor sets how many times
+ * a month they should visit (1–4, or none), plus the doctor's date of birth and anniversary. Only a manager above the employee, or Admin, may;
  * the server says so otherwise. Needs a connection and the current financial year.
  */
 export default function TeamDoctorsScreen() {
@@ -117,7 +117,7 @@ export default function TeamDoctorsScreen() {
   const readOnly = fy.isPast;
 
   return (
-    <ScreenShell title="Visit targets" subtitle="How often your team visits each doctor">
+    <ScreenShell title="Doctors" subtitle="Your team’s doctors, and how often each is visited">
       <FyBanner />
       {!online ? <Notice tone="info">Connect to the internet to see and change your team’s doctors.</Notice> : null}
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
@@ -158,20 +158,20 @@ export default function TeamDoctorsScreen() {
           {loading && !doctors ? <Skeleton cards={3} lines={2} /> : null}
           {doctors && doctors.length === 0 ? <Notice tone="info">{search.trim() ? 'No doctor matches that name.' : 'This employee has no doctors yet.'}</Notice> : null}
           {(doctors ?? []).map((d) => (
-            <Pressable key={d.id} accessibilityRole="button" accessibilityLabel={`Set the visit target for ${d.name}`} disabled={busy || readOnly} onPress={() => open(d)}>
-              <InfoCard>
-                <View style={styles.row}>
-                  <DoctorAvatar name={d.name} photoUrl={d.photoUrl} />
-                  <View style={styles.grow}>
-                    <ThemedText type="smallBold">{d.name}</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {[d.specialty, d.clinicName].filter(Boolean).join(' · ')}
-                    </ThemedText>
-                  </View>
-                  <Pill text={d.visitFrequency ? `${d.visitFrequency} a month` : 'No target'} accent={d.visitFrequency ? 'green' : 'slate'} />
+            <InfoCard key={d.id}>
+              <View style={styles.row}>
+                <DoctorAvatar name={d.name} photoUrl={d.photoUrl} />
+                <View style={styles.grow}>
+                  <ThemedText type="smallBold">{d.name}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {[d.specialty, d.clinicName].filter(Boolean).join(' · ')}
+                  </ThemedText>
                 </View>
-              </InfoCard>
-            </Pressable>
+                <Pill text={d.visitFrequency ? `${d.visitFrequency} a month` : 'No target'} accent={d.visitFrequency ? 'green' : 'slate'} />
+              </View>
+              {d.phone ? <PrimaryButton label={d.phone} variant="text" onPress={() => void Linking.openURL(`tel:${d.phone}`)} style={styles.phone} /> : null}
+              <PrimaryButton label="Set visit target →" variant="text" disabled={busy || readOnly} onPress={() => open(d)} style={styles.phone} />
+            </InfoCard>
           ))}
         </>
       ) : team.length > 0 ? (
@@ -184,4 +184,5 @@ export default function TeamDoctorsScreen() {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1 },
+  phone: { alignSelf: 'flex-start' },
 });

@@ -17,7 +17,7 @@ import { Notice } from '../notice';
 import { ThemedText } from '../themed-text';
 import { RowCard, sym } from '../ui-cards';
 
-type Props = { userId: string; employeeCode: string; name: string; month: string };
+type Props = { userId: string; employeeCode: string; name: string; designation?: string | null; month: string };
 type What = 'plan' | 'expenses';
 
 const DOWNLOAD = sym('arrow.down.circle.fill', 'download');
@@ -30,7 +30,7 @@ const errorText = (err: unknown) =>
  * person gets on their own screens. Laid out like the page's Quick actions: one row per file, tapped anywhere. Read live from the
  * server (it checks the person is below the manager), so it needs a connection.
  */
-export function MemberDownloads({ userId, employeeCode, name, month }: Props) {
+export function MemberDownloads({ userId, employeeCode, name, designation, month }: Props) {
   const online = useOnline();
   const theme = useTheme();
   const { colleagues } = useColleagues();
@@ -59,14 +59,14 @@ export function MemberDownloads({ userId, employeeCode, name, month }: Props) {
           routes: plan.routes,
           personName: (id) => byId.get(id) ?? null,
         });
-        await shareCsv(exportFileName('tour-plan', employeeCode, month), csv, `${name} · Tour Plan · ${prettyMonth(month)}`);
+        await shareCsv(exportFileName('tour-plan', { name, designation, employeeCode }, month), csv, `${name} · Tour Plan · ${prettyMonth(month)}`);
       } else {
         const statement = await getStatement(month, userId);
         if (statement.days.length === 0) {
           setMsg({ key: month, tone: 'info', text: `${name} has no expenses for ${prettyMonth(month)}.` });
           return;
         }
-        await shareCsv(exportFileName('expenses', employeeCode, month), expensesCsv(statement), `${name} · Expenses · ${prettyMonth(month)}`);
+        await shareCsv(exportFileName('expenses', { name, designation, employeeCode }, month), expensesCsv(statement), `${name} · Expenses · ${prettyMonth(month)}`);
       }
     } catch (err) {
       setMsg({ key: month, tone: 'danger', text: errorText(err) });

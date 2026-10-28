@@ -15,7 +15,7 @@ import type { Accent } from '@/constants/theme';
  */
 export type FeatureKey =
   | 'daily-plan' | 'monthly-plan' | 'dr-call' | 'dr-followup' | 'chemist-call' | 'chemist-followup'
-  | 'add-doctor' | 'missed-calls' | 'expenses' | 'leave' | 'summary'
+  | 'doctors' | 'missed-calls' | 'expenses' | 'leave' | 'summary'
   | 'orders' | 'visuals' | 'targets' | 'secondary-sales' | 'gifts' | 'services' | 'products'
   | 'inbox' | 'my-requests' | 'holidays' | 'financial-year';
 
@@ -54,7 +54,7 @@ export const FEATURES: Feature[] = [
   { key: 'visuals', title: 'Visuals', subtitle: 'E-detailing for doctors', accent: 'purple', section: 'DCR', gate: 'none', stage: 6, route: '/visuals', icon: icon('photo.on.rectangle', 'slideshow'), about: 'Show e-detailing visuals to doctors.' },
   { key: 'chemist-call', title: 'Chemist Call', subtitle: 'Log a chemist visit', accent: 'green', section: 'DCR', gate: 'plan', stage: 4, route: '/chemist-call', icon: icon('cross.case', 'local_pharmacy'), about: 'Log a visit to a chemist. Your location is checked against the chemist’s.' },
   { key: 'chemist-followup', title: 'Chemist Followup', subtitle: 'Pending chemist followups', accent: 'lime', section: 'DCR', gate: 'plan', stage: 4, route: '/chemist-followup', icon: icon('text.bubble.fill', 'forum'), about: 'Add a follow-up note on a chemist.' },
-  { key: 'add-doctor', title: 'Add Doctor', subtitle: 'Add a new doctor', accent: 'purple', section: 'DCR', gate: 'none', stage: 4, route: '/add-doctor', icon: icon('person.badge.plus', 'person_add'), about: 'Add a new doctor with their location; your manager and Admin approve it.' },
+  { key: 'doctors', title: 'Doctors', subtitle: 'Your doctors, and add a new one', accent: 'purple', section: 'DCR', gate: 'none', stage: 4, route: '/doctors', icon: icon('person.2', 'groups'), about: 'Every doctor assigned to you, and the ones you added that wait for approval. Add a new doctor from here.' },
   { key: 'missed-calls', title: 'Missed Calls', subtitle: 'Planned but not visited', accent: 'red', section: 'DCR', gate: 'none', stage: 4, route: '/missed-calls', icon: icon('phone.arrow.down.left', 'phone_missed'), about: 'Your doctors’ monthly visit targets against the calls you made.' },
   { key: 'expenses', title: 'Expenses', subtitle: 'Add daily allowance & bills', accent: 'amber', section: 'Utility', gate: 'none', stage: 4, route: '/expenses', icon: icon('indianrupeesign.circle', 'payments'), about: 'Your month of TA, DA and other costs. Send it after the month ends; your manager approves it.' },
   { key: 'leave', title: 'Leave', subtitle: 'Apply or view leave', accent: 'pink', section: 'Utility', gate: 'none', stage: 4, route: '/leave', icon: icon('beach.umbrella', 'beach_access'), about: 'See your balances and request leave. Still available while your account is blocked.' },

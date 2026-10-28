@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { Alert, Linking, StyleSheet, View } from 'react-native';
 
 import { ChoiceChips } from '@/components/choice-chips';
@@ -14,12 +15,14 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { CardSection, InfoCard, Pill, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError, type UploadFile } from '@/lib/api';
 import { ADDED_EDITABLE, editAddedDoctor, listAddedDoctors, type AddedDoctor } from '@/lib/added-doctors';
 import { PhotoPickError, pickDoctorPhoto, removeAddedDoctorPhoto, setAddedDoctorPhoto } from '@/lib/doctor-photo';
 import { captureLocation } from '@/lib/location';
+import { MANAGER_NOT_ALLOWED, mayAddDoctor } from '@/lib/manager-add-doctors';
 import { getRejectionReason, withdrawPlan } from '@/lib/planning';
 import {
   getNumberSetting,
@@ -34,7 +37,7 @@ import {
 } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { getPendingPhoto, listPendingPhotos, setPendingPhoto, type PendingPhoto } from '@/offline/doctor-photos';
-import type { FieldMasterDataSnapshot, TerritorySnapshot } from '@/types/sync';
+import type { ConfigSnapshot, FieldMasterDataSnapshot, TerritorySnapshot } from '@/types/sync';
 
 const errorText = (err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
@@ -75,7 +78,12 @@ export default function AddDoctorScreen() {
   const { today } = useDayGate();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const territory = useCachedSource<TerritorySnapshot>('territory');
+  const config = useCachedSource<ConfigSnapshot>('config');
+  const { isManager } = useCurrentUser();
+  const openNew = useLocalSearchParams<{ new?: string }>().new === '1';
   const { records } = useRecords(['NEW_DOCTOR']);
+  /** A manager may add only while Admin allows it; until the phone is told the setting, that reads as not allowed. */
+  const canAdd = mayAddDoctor(isManager, config.data);
 
   const [added, setAdded] = useState<AddedDoctor[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -189,6 +197,16 @@ export default function AddDoctorScreen() {
     }
     setTarget(t);
   };
+
+  // "+ Add doctor" on the Doctors list lands here with the form already open.
+  const openedNew = useRef(false);
+  useEffect(() => {
+    if (openNew && canAdd && !openedNew.current && territory.loaded) {
+      openedNew.current = true;
+      start('new');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openNew, canAdd, territory.loaded]);
 
   const save = async () => {
     const dob = isoFromParts(birth, today);
@@ -518,8 +536,9 @@ export default function AddDoctorScreen() {
           <ThemedText type="smallBold" style={styles.sectionTitle}>Your doctors</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">Added by you</ThemedText>
         </View>
-        <PrimaryButton label="+ Add doctor" style={styles.newButton} onPress={() => start('new')} />
+        {canAdd ? <PrimaryButton label="+ Add doctor" style={styles.newButton} onPress={() => start('new')} /> : null}
       </View>
+      {!canAdd ? <Notice tone="info">Managers can’t add doctors right now. Ask Admin if you need to.</Notice> : null}
 
       {unsent.length > 0 ? (
         <>
@@ -543,13 +562,17 @@ export default function AddDoctorScreen() {
                 <ThemedText type="small" themeColor={r.status === 'FAILED' ? 'danger' : 'textSecondary'}>
                   {r.status === 'FAILED' ? 'Not accepted' : online ? 'Sending…' : 'Saved on this phone — sends when you’re online'}
                 </ThemedText>
-                {r.status === 'FAILED' && r.errorMessage ? (
+                {r.status === 'FAILED' && r.errorCode === MANAGER_NOT_ALLOWED ? (
+                  <ThemedText type="small" themeColor="danger">
+                    Managers can’t add doctors right now. Ask Admin to allow it, then tap Edit and save again, or remove this one.
+                  </ThemedText>
+                ) : r.status === 'FAILED' && r.errorMessage ? (
                   <ThemedText type="small" themeColor="danger">
                     {r.errorMessage}
                   </ThemedText>
                 ) : null}
                 <View style={styles.actions}>
-                  <PrimaryButton label="Edit" variant="text" disabled={busy} onPress={() => start({ local: r })} />
+                  <PrimaryButton label="Edit" variant="text" disabled={busy || (r.errorCode === MANAGER_NOT_ALLOWED && !canAdd)} onPress={() => start({ local: r })} />
                   <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => removeLocal(r)} />
                 </View>
               </InfoCard>
