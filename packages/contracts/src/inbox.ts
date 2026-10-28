@@ -3,6 +3,10 @@ import type { RoleName } from './auth.js';
 export const INBOX_KINDS = ['ANNOUNCEMENT', 'REMINDER', 'POLICY', 'UPDATE'] as const;
 export type InboxKind = (typeof INBOX_KINDS)[number];
 
+/** Who raised a message: an Admin (mail, can be taken back) or the system (an automatic notification, cleared or auto-deleted). */
+export const INBOX_SOURCES = ['ADMIN', 'SYSTEM'] as const;
+export type InboxSource = (typeof INBOX_SOURCES)[number];
+
 /**
  * Who a message goes to. `everyone`, or any mix of roles, Zones, HQs and named employees — a person
  * who matches any one of them gets it, once. Zones and HQs reach field employees only.
@@ -80,6 +84,8 @@ export interface SentInboxMessageDto {
   readCount: number;
   /** `null` for a message the system sent. */
   createdBy: string | null;
+  /** `SYSTEM` when `createdBy` is `null`. */
+  source: InboxSource;
   sentAt: string;
   expiresAt: string | null;
   /** Set once the Admin took it back; recipients no longer see it. */

@@ -7,14 +7,16 @@ import { sendSuccess } from '@/shared/http/response.util.js';
 import type { MyInboxUseCases } from '../application/usecases/myInbox.usecase.js';
 import type { PublishMessageUseCase } from '../application/usecases/publishMessage.usecase.js';
 import type { SentMessagesUseCases } from '../application/usecases/sentMessages.usecase.js';
-import type { myInboxQuerySchema, publishBodySchema, sentQuerySchema } from './inbox.schemas.js';
+import type { clearNotificationsBodySchema, myInboxQuerySchema, publishBodySchema, sentQuerySchema } from './inbox.schemas.js';
 
 const userId = (req: Request): string => {
   if (!req.user) throw AppError.unauthenticated();
   return req.user.sub;
 };
 
-export type InboxHandlers = Record<'list' | 'unreadCount' | 'markRead' | 'markAllRead' | 'publish' | 'listSent' | 'retract', RequestHandler>;
+const splitSentQuery = (q: z.output<typeof sentQuerySchema>) => [{ page: q.page, pageSize: q.pageSize }, q.source ? { source: q.source } : {}] as const;
+
+export type InboxHandlers = Record<'list' | 'unreadCount' | 'markRead' | 'markAllRead' | 'publish' | 'listSent' | 'retract' | 'clearNotifications', RequestHandler>;
 
 export function makeInboxControllers(u: { mine: MyInboxUseCases; publish: PublishMessageUseCase; sent: SentMessagesUseCases }): InboxHandlers {
   return {
@@ -33,7 +35,11 @@ export function makeInboxControllers(u: { mine: MyInboxUseCases; publish: Publis
       const message = await u.publish.execute({ ...(req.body as z.output<typeof publishBodySchema>), files }, userId(req));
       sendSuccess(req, res, { id: message.id, recipientCount: message.recipientCount }, 'Message sent.', 201);
     }),
-    listSent: asyncHandler(async (req, res) => sendSuccess(req, res, await u.sent.list(req.query as unknown as z.output<typeof sentQuerySchema>), 'Sent messages.', 200)),
+    listSent: asyncHandler(async (req, res) => sendSuccess(req, res, await u.sent.list(...splitSentQuery(req.query as unknown as z.output<typeof sentQuerySchema>)), 'Sent messages.', 200)),
+    clearNotifications: asyncHandler(async (req, res) => {
+      const { olderThanDays } = req.body as z.output<typeof clearNotificationsBodySchema>;
+      sendSuccess(req, res, { deleted: await u.sent.clearNotifications(olderThanDays) }, 'Notifications cleared.', 200);
+    }),
     retract: asyncHandler(async (req, res) => {
       await u.sent.retract(requiredParam(req.params, 'id'));
       sendSuccess(req, res, null, 'Message taken back.', 200);

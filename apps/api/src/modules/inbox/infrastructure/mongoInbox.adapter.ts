@@ -1,3 +1,4 @@
+import type { InboxSource } from '@greynote/contracts';
 import { Types } from 'mongoose';
 import { toSkipLimit } from '@/shared/http/pagination.js';
 import type { InboxMessageRepositoryPort, InboxReceiptRepositoryPort } from '../domain/inbox.repository.port.js';
@@ -64,14 +65,28 @@ export class MongoInboxMessageAdapter implements InboxMessageRepositoryPort {
     return doc ? toMessage(doc) : null;
   }
 
-  async list(page: { page: number; pageSize: number }): Promise<{ items: InboxMessage[]; total: number }> {
+  async list(page: { page: number; pageSize: number }, filter: { source?: InboxSource } = {}): Promise<{ items: InboxMessage[]; total: number }> {
     const { skip, limit } = toSkipLimit(page);
-    const [docs, total] = await Promise.all([InboxMessageModel.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(), InboxMessageModel.countDocuments()]);
+    const query = filter.source === 'SYSTEM' ? { createdBy: null } : filter.source === 'ADMIN' ? { createdBy: { $ne: null } } : {};
+    const [docs, total] = await Promise.all([InboxMessageModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(), InboxMessageModel.countDocuments(query)]);
     return { items: docs.map(toMessage), total };
   }
 
   async retract(id: string, at: Date): Promise<boolean> {
     return (await InboxMessageModel.updateOne({ _id: id, retractedAt: null }, { retractedAt: at })).modifiedCount === 1;
+  }
+
+  async findSystemIds(filter: { before?: Date; limit: number }): Promise<string[]> {
+    const docs = await InboxMessageModel.find({ createdBy: null, ...(filter.before && { createdAt: { $lt: filter.before } }) })
+      .sort({ createdAt: 1 })
+      .limit(filter.limit)
+      .select('_id')
+      .lean();
+    return docs.map((d) => String(d._id));
+  }
+
+  async deleteMany(ids: string[]): Promise<void> {
+    if (ids.length > 0) await InboxMessageModel.deleteMany({ _id: { $in: ids.map(oid) } });
   }
 }
 
@@ -114,6 +129,10 @@ export class MongoInboxReceiptAdapter implements InboxReceiptRepositoryPort {
 
   async deleteForMessage(messageId: string): Promise<void> {
     await InboxReceiptModel.deleteMany({ messageId: oid(messageId) });
+  }
+
+  async deleteForMessages(messageIds: string[]): Promise<void> {
+    if (messageIds.length > 0) await InboxReceiptModel.deleteMany({ messageId: { $in: messageIds.map(oid) } });
   }
 
   async readCounts(messageIds: string[]): Promise<Map<string, number>> {

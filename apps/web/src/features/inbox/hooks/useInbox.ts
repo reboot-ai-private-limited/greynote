@@ -52,3 +52,12 @@ export function useRetractMessage(onDone: () => void) {
     onSuccess: onDone,
   });
 }
+
+export function useClearNotifications(onDone: () => void) {
+  return useApiMutation<void, { deleted: number }>({
+    call: (token) => inboxApi.clearNotifications(token),
+    invalidates: [keys.inbox.all()],
+    successMessage: 'Notifications cleared.',
+    onSuccess: onDone,
+  });
+}

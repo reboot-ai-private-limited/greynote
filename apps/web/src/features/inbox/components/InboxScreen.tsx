@@ -1,6 +1,6 @@
 'use client';
 
-import type { SentInboxMessageDto } from '@greynote/contracts';
+import type { InboxSource, SentInboxMessageDto } from '@greynote/contracts';
 import { Paperclip } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
@@ -8,19 +8,25 @@ import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { Column } from '@/components/ui/DataTable';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { formatDateTime } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
-import { useRetractMessage, useSentMessages } from '../hooks/useInbox';
+import { useClearNotifications, useRetractMessage, useSentMessages } from '../hooks/useInbox';
 import { INBOX_KIND_LABEL, describeAudience } from '../lib/inbox';
 import { ComposeMessageDialog } from './ComposeMessageDialog';
 
 /** Admin: send a message to the phone app's inbox, see how many have opened it, and take one back. */
 export function InboxScreen() {
-  const { page, pageSize, update } = useFilterParams([]);
-  const list = useSentMessages({ page, pageSize });
+  const { values, page, pageSize, update } = useFilterParams(['source']);
+  // Mail by default: automatic notifications ("sent a new doctor", "approved") pile up and are cleared on their own tab.
+  const tab = values.source === 'SYSTEM' || values.source === 'ALL' ? values.source : 'ADMIN';
+  const list = useSentMessages({ page, pageSize, ...(tab !== 'ALL' && { source: tab as InboxSource }) });
   const [composing, setComposing] = useState(false);
   const [retracting, setRetracting] = useState<SentInboxMessageDto | null>(null);
+  const [clearingAll, setClearingAll] = useState(false);
   const retract = useRetractMessage(() => setRetracting(null));
+  const clearAll = useClearNotifications(() => setClearingAll(false));
+  const isNotification = (m: SentInboxMessageDto) => m.source === 'SYSTEM';
 
   const columns: readonly Column<SentInboxMessageDto>[] = [
     {
@@ -84,7 +90,7 @@ export function InboxScreen() {
           <Badge tone="neutral">Taken back</Badge>
         ) : (
           <Button variant="ghost" size="sm" onClick={() => setRetracting(m)}>
-            Take back
+            {isNotification(m) ? 'Clear' : 'Take back'}
           </Button>
         ),
     },
@@ -97,11 +103,26 @@ export function InboxScreen() {
       noun="message"
       readOnly={false}
       onNew={() => setComposing(true)}
-      filters={null}
+      actions={
+        tab !== 'ADMIN' ? (
+          <Button variant="secondary" onClick={() => setClearingAll(true)}>
+            Clear all notifications
+          </Button>
+        ) : null
+      }
+      filters={
+        <Tabs value={tab} onValueChange={(v) => update({ source: v === 'ADMIN' ? '' : v, page: '' })}>
+          <TabsList>
+            <TabsTrigger value="ADMIN">Mail</TabsTrigger>
+            <TabsTrigger value="SYSTEM">Notifications</TabsTrigger>
+            <TabsTrigger value="ALL">All</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      }
       query={list}
       columns={columns}
-      emptyTitle="No messages yet"
-      emptyDescription="Nothing has been sent to the inbox."
+      emptyTitle={tab === 'SYSTEM' ? 'No notifications' : 'No messages yet'}
+      emptyDescription={tab === 'SYSTEM' ? 'No automatic notifications right now.' : 'Nothing has been sent to the inbox.'}
       onPageChange={(p) => update({ page: p })}
       pageSize={pageSize}
       onPageSizeChange={(n) => update({ pageSize: n })}
@@ -110,15 +131,24 @@ export function InboxScreen() {
       <ConfirmDialog
         open={retracting !== null}
         onOpenChange={(open) => !open && setRetracting(null)}
-        title="Take this message back?"
+        title={retracting && isNotification(retracting) ? 'Clear this notification?' : 'Take this message back?'}
         description={
           retracting
-            ? `“${retracting.title}” disappears from everyone's inbox. This can't be undone.`
+            ? `“${retracting.title}” disappears from everyone's inbox${isNotification(retracting) ? ' and from this list' : ''}. This can't be undone.`
             : undefined
         }
-        confirmLabel="Take back"
+        confirmLabel={retracting && isNotification(retracting) ? 'Clear' : 'Take back'}
         pending={retract.isPending}
         onConfirm={() => retracting && retract.mutate(retracting.id)}
+      />
+      <ConfirmDialog
+        open={clearingAll}
+        onOpenChange={setClearingAll}
+        title="Clear all notifications?"
+        description="Every automatic notification is deleted, from this list and from people's phones. Mail you sent is not touched. This can't be undone."
+        confirmLabel="Clear all"
+        pending={clearAll.isPending}
+        onConfirm={() => clearAll.mutate()}
       />
     </PagedListFrame>
   );

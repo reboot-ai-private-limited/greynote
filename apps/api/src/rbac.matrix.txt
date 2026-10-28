@@ -275,6 +275,7 @@ POST   /api/identity/users/:id/unblock  ADMIN,FIELD
 POST   /api/identity/users/manager-changes  ADMIN,HR
 POST   /api/inbox/:id/read  ANY
 POST   /api/inbox/messages  ADMIN
+POST   /api/inbox/messages/clear-notifications  ADMIN
 POST   /api/inbox/read-all  ANY
 POST   /api/marketing/campaigns  ADMIN
 POST   /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD

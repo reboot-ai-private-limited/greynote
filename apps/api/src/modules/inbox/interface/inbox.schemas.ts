@@ -1,4 +1,4 @@
-import { ROLE_NAMES } from '@greynote/contracts';
+import { INBOX_SOURCES, ROLE_NAMES } from '@greynote/contracts';
 import { z } from 'zod';
 import { INBOX_KINDS } from '../domain/inboxMessage.entity.js';
 
@@ -14,7 +14,8 @@ export const myInboxQuerySchema = z.object({
   // `z.coerce.boolean()` would turn the string "false" into true.
   unread: z.enum(['true', 'false']).optional().transform((v) => v === 'true'),
 });
-export const sentQuerySchema = z.object(pageFields);
+export const sentQuerySchema = z.object({ ...pageFields, source: z.enum(INBOX_SOURCES).optional() });
+export const clearNotificationsBodySchema = z.object({ olderThanDays: z.number().int().min(0).max(365).optional() });
 
 /**
  * JSON, or the `payload` field of a multipart request that also carries `files`. The body has no length limit of its

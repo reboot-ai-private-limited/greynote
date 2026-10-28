@@ -39,6 +39,6 @@ erDiagram
 - **Fan-out on write.** One receipt per recipient, with the text copied, so a person's inbox is one query on `(user_id, sent_at desc)` and who a message reached never changes later. A few hundred employees make the extra rows cheap.
 - **`audience` is stored on the message** (for the Admin's sent list), not re-evaluated; the receipts are the truth of who got it.
 - **Unique `(message_id, user_id)`**: a person matching several audience parts still gets one copy.
-- **Retract deletes the receipts** and keeps the message row (`retracted_at`).
+- **Retract deletes the receipts** and keeps the message row (`retracted_at`). A system message (`created_by` null) is instead deleted with its receipts, on clear or after `INBOX_NOTIFICATION_RETENTION_DAYS`.
 - Indexes: `InboxMessage(created_at desc)`; `InboxReceipt(message_id, user_id)` unique, `InboxReceipt(user_id, sent_at desc)`. No migration: new collections.
 - **Attachments (2026-10-22):** embedded on the message (with where Cloudinary keeps each file) and copied onto each receipt without the storage fields. `body` has no length limit. No migration: rows from before read as `attachments: []`. Rules: [`../LLD/inbox.md`](../LLD/inbox.md).

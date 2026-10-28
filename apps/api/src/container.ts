@@ -93,7 +93,7 @@ export function buildContainers(): AppContainers {
   const push = new PushNotifier(identity.contract, buildPushSender(env.FIREBASE_SERVICE_ACCOUNT_JSON), () =>
     readConfigOr(config.contract, 'PUSH_ENABLED', parseBoolean, true),
   );
-  const inbox = buildInboxContainer(identity.contract, territory.contract, push);
+  const inbox = buildInboxContainer(identity.contract, territory.contract, config.contract, push);
 
   // Tier 3 — Documents: the library of files an Admin shares with everyone or with named employees. Checks the named people with Identity.
   const documents = buildDocumentsContainer(identity.contract);

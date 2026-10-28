@@ -18,6 +18,7 @@ const MISSED_DCR_CHECK_MS = 15 * 60 * 1000;
 /** How often managers are told about new and overdue requests. Each request is announced once, so a short interval only means a short delay. */
 const TEAM_ALERTS_MS = 5 * 60 * 1000;
 const REMINDERS_MS = 5 * 60 * 1000;
+const INBOX_CLEANUP_MS = 6 * 60 * 60 * 1000;
 
 async function start() {
     try {
@@ -30,7 +31,7 @@ async function start() {
 
     const jobs: IntervalJob[] = [];
     const app = createApp({
-        onContainers: ({ identity, fieldActivity, hr, team, reminders }) => {
+        onContainers: ({ identity, fieldActivity, hr, team, reminders, inbox }) => {
             // Accounts deactivated just before a restart: their access tokens stay refused until they would have expired anyway.
             identity.restoreAccessRevocations().then(
                 (n) => logger.info({ accounts: n }, 'access revocations restored'),
@@ -46,6 +47,7 @@ async function start() {
             }));
             jobs.push(startIntervalJob('team-alerts', TEAM_ALERTS_MS, () => team.runAlerts()));
             jobs.push(startIntervalJob('deadline-reminders', REMINDERS_MS, () => reminders.contract.run()));
+            jobs.push(startIntervalJob('inbox-cleanup', INBOX_CLEANUP_MS, () => inbox.purgeNotifications()));
         },
     });
 

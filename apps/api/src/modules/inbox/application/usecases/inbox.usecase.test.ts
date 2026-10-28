@@ -6,6 +6,7 @@ import type { InboxReceipt } from '../../domain/inboxReceipt.entity.js';
 import type { AttachmentStoragePort, Recipient } from '../../domain/ports.js';
 import { MyInboxUseCases } from './myInbox.usecase.js';
 import { PUSH_PREVIEW_CHARS, PublishMessageUseCase } from './publishMessage.usecase.js';
+import { PurgeSystemNotificationsUseCase } from './purgeSystemNotifications.usecase.js';
 import { SentMessagesUseCases } from './sentMessages.usecase.js';
 
 class FakeMessages implements InboxMessageRepositoryPort {
@@ -18,8 +19,15 @@ class FakeMessages implements InboxMessageRepositoryPort {
   async findById(id: string) {
     return this.rows.find((m) => m.id === id) ?? null;
   }
-  async list(page: { page: number; pageSize: number }) {
-    return { items: [...this.rows].reverse().slice(0, page.pageSize), total: this.rows.length };
+  async list(page: { page: number; pageSize: number }, filter: { source?: 'ADMIN' | 'SYSTEM' } = {}) {
+    const rows = this.rows.filter((m) => !filter.source || (filter.source === 'SYSTEM') === (m.createdBy === null));
+    return { items: [...rows].reverse().slice(0, page.pageSize), total: rows.length };
+  }
+  async findSystemIds(f: { before?: Date; limit: number }) {
+    return this.rows.filter((m) => m.createdBy === null && (!f.before || m.createdAt < f.before)).slice(0, f.limit).map((m) => m.id);
+  }
+  async deleteMany(ids: string[]) {
+    this.rows = this.rows.filter((m) => !ids.includes(m.id));
   }
   async retract(id: string, at: Date) {
     const m = this.rows.find((r) => r.id === id);
@@ -56,6 +64,9 @@ class FakeReceipts implements InboxReceiptRepositoryPort {
   }
   async deleteForMessage(id: string) {
     this.rows = this.rows.filter((r) => r.messageId !== id);
+  }
+  async deleteForMessages(ids: string[]) {
+    this.rows = this.rows.filter((r) => !ids.includes(r.messageId));
   }
   async readCounts(ids: string[]) {
     return new Map(ids.map((id) => [id, this.rows.filter((r) => r.messageId === id && r.readAt).length]));
@@ -220,5 +231,54 @@ describe('Inbox', () => {
     expect(pushed.startsWith('📎 Dear team,')).toBe(true);
     expect(pushed.length).toBeLessThanOrEqual(PUSH_PREVIEW_CHARS + 3);
     expect(pushed.endsWith('…')).toBe(true);
+  });
+
+  describe('system notifications', () => {
+    const notify = (userIds: string[]) => publish.execute({ title: 'Approved', body: 'Done', kind: 'UPDATE', audience: { ...none, userIds } }, null);
+
+    it('labels each sent row ADMIN or SYSTEM and filters by it', async () => {
+      await send({ zoneIds: ['z1'] });
+      await notify(['mr1']);
+      expect((await sent.list(page)).items.map((r) => r.source)).toEqual(['SYSTEM', 'ADMIN']);
+      expect((await sent.list(page, { source: 'SYSTEM' })).items).toHaveLength(1);
+      expect((await sent.list(page, { source: 'ADMIN' })).items).toHaveLength(1);
+    });
+
+    it('deletes a system notification outright, and still keeps a taken-back Admin message', async () => {
+      const sys = await notify(['mr1']);
+      const mail = await send({ zoneIds: ['z1'] });
+      await sent.retract(sys.id);
+      await sent.retract(mail.id);
+      expect(messages.rows.map((m) => m.id)).toEqual([mail.id]);
+      expect(messages.rows[0]?.retractedAt).not.toBeNull();
+      expect(receipts.rows.some((r) => r.messageId === sys.id)).toBe(false);
+    });
+
+    it('clears every system notification and leaves Admin mail', async () => {
+      await notify(['mr1']);
+      await notify(['mr2']);
+      const mail = await send({ zoneIds: ['z1'] });
+      expect(await sent.clearNotifications()).toBe(2);
+      expect(messages.rows.map((m) => m.id)).toEqual([mail.id]);
+      expect(receipts.rows.every((r) => r.messageId === mail.id)).toBe(true);
+    });
+
+    describe('retention job', () => {
+      const purge = (days: string | null) =>
+        new PurgeSystemNotificationsUseCase(messages, receipts, { get: async () => { if (days === null) throw AppError.internal('INTERNAL', { reason: 'CONFIG_KEY_MISSING' }); return days; } }, () => new Date(NOW.getTime() + 8 * 86_400_000));
+
+      it('removes system notifications older than the setting only', async () => {
+        await notify(['mr1']);
+        const mail = await send({ zoneIds: ['z1'] });
+        expect(await purge('7').run()).toEqual({ deleted: 1 });
+        expect(messages.rows.map((m) => m.id)).toEqual([mail.id]);
+      });
+
+      it('keeps everything when the setting is 0, and uses 7 days when it was never seeded', async () => {
+        await notify(['mr1']);
+        expect(await purge('0').run()).toEqual({ deleted: 0 });
+        expect(await purge(null).run()).toEqual({ deleted: 1 });
+      });
+    });
   });
 });

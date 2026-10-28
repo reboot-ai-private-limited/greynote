@@ -44,6 +44,14 @@ Team's manager alerts call `notify` (2026-10-12, see [`team.md`](team.md)); noth
 - **Named people on the web** — the form searches active employees of any role by name or code and lists the chosen ones as chips (2026-10-22); they can be combined with roles, Zones and HQs.
 - **Retracted messages' read counts** — receipts are deleted on retract, so the sent list shows no count for them.
 
+## Automatic notifications: clear and auto-delete (2026-10-28)
+
+A message with no sender (`createdBy: null`) is a **system notification**; the sent list shows it as `source: SYSTEM` (Admin mail is `ADMIN`).
+- `GET /inbox/messages?source=ADMIN|SYSTEM` narrows the Admin list; the web screen has Mail / Notifications / All tabs (Mail by default).
+- `DELETE /inbox/messages/:id` on admin mail is a take-back as before (row kept, "Taken back"). On a system notification it **deletes** the message and every copy.
+- `POST /inbox/messages/clear-notifications` (Admin, body `{ olderThanDays? }`) deletes all system notifications; Admin mail is never touched.
+- Setting `INBOX_NOTIFICATION_RETENTION_DAYS` (Notifications group, default 7, 0 = keep for ever): a job (`inbox-cleanup`, every 6 hours) deletes system notifications older than that, by sent time. A change applies at the next run.
+
 ## Deferred
 
 Which further system events notify whom (sign-off F8, the rest is in [`notifications.md`](notifications.md)); scheduled sending; links; video attachments; per-person delete from the phone.

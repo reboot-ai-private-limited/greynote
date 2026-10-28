@@ -31,7 +31,7 @@ What the field app shows in **Utility → Inbox**. Until now the phone had a dem
 | `title`, `body` | heading and text (plain text; title ≤ 120 characters, the body any length; keep line breaks) |
 | `kind` | `ANNOUNCEMENT`, `REMINDER`, `POLICY`, `UPDATE`: the chip or icon |
 | `sentAt` | shown as "Today", "Yesterday" or the date |
-| `expiresAt` | `null` = stays; otherwise "Until …" is optional to show |
+| `expiresAt` | `null` = stays; automatic notifications are also deleted by the server after the Admin's retention setting (default 7 days) or when the Admin clears them, so they just vanish from the list on the next fetch; otherwise "Until …" is optional to show |
 | `attachments[]` | files sent with it, in the order attached; `[]` for most. Each: `id`, `name` (as uploaded, e.g. `Price list Oct.pdf`), `kind` (`pdf`, `jpeg`, `png`, `webp`, `docx`, `xlsx`, `pptx`), `sizeBytes`, `url` (open), `downloadUrl` (save under `name`; the same as `url` for Word/Excel/PowerPoint, which always download) |
 | `read`, `readAt` | bold/dot for unread; the badge counts `read = false` |
 

@@ -1,4 +1,5 @@
 import type {
+  InboxSource,
   PaginatedDto,
   SentInboxMessageDto,
 } from '@greynote/contracts';
@@ -7,6 +8,7 @@ import { request } from '../client';
 export interface ListSentQuery {
   page?: number | undefined;
   pageSize?: number | undefined;
+  source?: InboxSource | undefined;
 }
 
 export const inboxApi = {
@@ -24,6 +26,9 @@ export const inboxApi = {
       token,
       body,
     }),
+  /** Admin: deletes every automatic notification; Admin mail is untouched. */
+  clearNotifications: (token: string) =>
+    request<{ deleted: number }>('/inbox/messages/clear-notifications', { method: 'POST', token, body: {} }),
   retract: (token: string, id: string) =>
     request<null>(`/inbox/messages/${id}`, { method: 'DELETE', token }),
 };

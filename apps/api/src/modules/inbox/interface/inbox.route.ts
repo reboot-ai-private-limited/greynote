@@ -8,7 +8,7 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import { INBOX_ATTACHMENT_MAX_BYTES, INBOX_MAX_ATTACHMENTS } from '../domain/attachment.js';
 import type { InboxHandlers } from './inbox.controller.js';
-import { idParamsSchema, myInboxQuerySchema, publishBodySchema, sentQuerySchema } from './inbox.schemas.js';
+import { clearNotificationsBodySchema, idParamsSchema, myInboxQuerySchema, publishBodySchema, sentQuerySchema } from './inbox.schemas.js';
 
 const TAG = 'Inbox';
 
@@ -89,7 +89,8 @@ openApiRegistry.registerPath({
   responses: { 201: { description: 'Sent' }, 400: { description: 'Bad audience, file or payload; nothing sent' } },
 });
 doc('get', '/messages', 'Admin: messages sent, newest first, with how many recipients opened each', { query: sentQuerySchema });
-doc('delete', '/messages/{id}', 'Admin: take a message back — recipients stop seeing it', { params: idParamsSchema });
+doc('delete', '/messages/{id}', 'Admin: take a message back — recipients stop seeing it (a system notification is deleted outright)', { params: idParamsSchema });
+doc('post', '/messages/clear-notifications', 'Admin: delete every automatic notification (optionally only those older than olderThanDays); Admin mail is untouched', { body: clearNotificationsBodySchema });
 
 export function buildInboxRouter(c: InboxHandlers): Router {
   const router = Router();
@@ -99,6 +100,7 @@ export function buildInboxRouter(c: InboxHandlers): Router {
   // The Admin's side is declared first so `/messages` is never read as an `/:id`.
   router.post('/messages', admin, publishUpload, validate({ body: publishBodySchema }), c.publish);
   router.get('/messages', admin, validate({ query: sentQuerySchema }), c.listSent);
+  router.post('/messages/clear-notifications', admin, validate({ body: clearNotificationsBodySchema }), c.clearNotifications);
   router.delete('/messages/:id', admin, validate({ params: idParamsSchema }), c.retract);
 
   router.get('/', validate({ query: myInboxQuerySchema }), c.list);

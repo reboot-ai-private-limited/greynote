@@ -2531,3 +2531,12 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Why:** the docs said managers cannot add doctors, but the API only checked that the caller had routes. Admin wants to decide per company.
 
 **Consequences:** read on every call, so switching it off applies at once. A retry of a doctor the manager already added still returns it. The field app should hide Add for managers when off; that is the other team's change.
+
+## 2026-10-28: Automatic notifications are cleared and auto-deleted
+
+**Decision:** system notifications (no sender: "sent a new doctor", "approved", team summaries) are deleted for good after **`INBOX_NOTIFICATION_RETENTION_DAYS`** (default 7, 0 = never) by a job every 6 hours, and the Admin can clear one or all on the Inbox screen (new Mail / Notifications / All tabs). Admin mail keeps today's take-back (row stays as "Taken back") and is never auto-deleted.
+
+**Why:** they filled the Admin's list (1,200+ rows) and were never physically removed.
+
+**Consequences:** clearing removes the notification from people's phones too. Deleted rows leave no record. The field app needs no change: they vanish from the next fetch.
+
