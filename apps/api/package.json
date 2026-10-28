@@ -41,6 +41,7 @@
         "migrate:inherit-monthly": "tsx src/scripts/migrate-inherit-monthly-plans.ts",
         "migrate:drop-plan-changes": "tsx src/scripts/migrate-drop-daily-plan-changes.ts",
         "migrate:single-approval": "tsx src/scripts/migrate-single-approval.ts",
+        "migrate:weekly-off-schedule": "tsx src/scripts/migrate-weekly-off-schedule.ts",
         "compliance:run": "tsx src/scripts/run-compliance.ts",
         "stock-check:run": "tsx src/scripts/run-stock-check.ts"
     },

@@ -26,6 +26,10 @@
 | 4.06c | Leave & holidays → Holidays → Upload list (Admin or HR): download the template, fill 3 rows, choose the file | a preview lists each row as New; Import adds them | |
 | 4.06d | Holidays (HR): Edit a one-day holiday (change name and date); Edit a range (extend it by a day) | one-day replaced by the new one; the range is replaced whole (every day) with the new span; a Zone holiday with no zone is refused and the old one stays | |
 | 4.06d | Upload a file with one unknown Zone and one bad date | nothing is added; both problems are listed with their line numbers | |
+| 4.06g | Settings → Weekly days off → Change the days off from a date: pick next month's 1st, add Saturday with 1st and 3rd, save (confirm the warning) | the Holidays list shows the 1st and 3rd Saturdays from that date as "Weekly off" rows; the 2nd and 4th are working days; dates before it are unchanged | |
+| 4.06h | Try to start a new set in the past, and to edit or remove a set that has started | refused with a message; nothing changes | |
+| 4.06i | Request a leave across a 3rd Saturday | the Saturday is not counted; a leave on only that Saturday is refused ("all days off or holidays") | |
+| 4.06j | Save a Monthly Plan entry on a 1st Saturday; look at the attendance calendar for that month | the plan is refused as a weekly off; attendance shows Weekly off, not Absent | |
 | 4.06e | Upload the same good file again | every row is "Already there"; Import is off | |
 | 4.06f | Inbox messages (Admin, Daily work) → New message to one Zone | the sent list shows it with "0 of N" opened; as an employee of that Zone `GET /inbox` has it and the unread count is 1; an employee of another Zone has nothing | |
 | 4.06g | As that employee mark it read; as Admin open the sent list | the unread count is 0 and the list shows "1 of N" | |

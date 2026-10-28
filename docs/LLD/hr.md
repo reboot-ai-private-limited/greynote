@@ -22,8 +22,8 @@ accepted on 2026-09-28 (client sign-off F3, F11–F16; `../decision-log.md`).
 - **`Holiday`** — `name`, `date`, `scope` (`NATIONAL`/`ZONE`/`HQ`), `zoneIds[]`, `hqIds[]`.
 
 Not owned here: an employee's HQ is Territory's `UserHqAssignment` (`territory.md`), read through
-Territory's contract; the leave-year start (`FY_START_MONTH`), the weekly off day
-(`WEEKLY_OFF_DAY`) and the backdating limit (`LEAVE_BACKDATE_DAYS`) are Config keys.
+Territory's contract; the leave-year start (`FY_START_MONTH`), the weekly off schedule
+(`WEEKLY_OFF_SCHEDULE`, rules per start date: `weekday` + `ALL` or `weeks` 1–5; decision-log 2026-10-28) and the backdating limit (`LEAVE_BACKDATE_DAYS`) are Config keys.
 
 ## Leave year
 
@@ -58,7 +58,7 @@ The financial year, from `FY_START_MONTH` (April): leave year 2026 is 2026-04-01
 
 ## Leave requests
 
-- **Counted days** (F12, F14): every date from start to end, minus `WEEKLY_OFF_DAY` and the
+- **Counted days** (F12, F14): every date from start to end, minus the weekly offs (`WEEKLY_OFF_SCHEDULE`, read for each date) and the
   holidays that apply to the employee — National, their HQ's and their HQ's Zone's. Half-day leave was removed
   (2026-10-05): every day counts 1, though a leave made earlier as a half keeps counting 0.5. Stored on the Leave at submit, so a later holiday edit doesn't
   rewrite past leave; Payroll's per-month count and the DCR "on leave" check read these days.
@@ -86,7 +86,7 @@ interface HrPublicContract {
   isOnLeave(userId: string, date: string): Promise<boolean>;
   /** Phase 7's Payroll: approved unpaid-leave days falling in this month (`YYYY-MM`). */
   getUnpaidLeaveDays(userId: string, month: string): Promise<number>;
-  /** The days in a range that are not working days for this employee: their weekly off day (`WEEKLY_OFF_DAY`) and the holidays that apply — the missed-DCR job skips them. */
+  /** The days in a range that are not working days for this employee: their weekly offs (`WEEKLY_OFF_SCHEDULE`) and the holidays that apply — the missed-DCR job skips them. */
   listOffDates(userId: string, from: string, to: string): Promise<string[]>;
   /** The holidays that apply to this employee in a date range — for "is this a working day". */
   listHolidayDates(userId: string, from: string, to: string): Promise<string[]>;

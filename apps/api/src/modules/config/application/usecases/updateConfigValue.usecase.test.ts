@@ -100,7 +100,7 @@ describe('UpdateConfigValueUseCase', () => {
         ['DAILY_PLAN_SUBMIT_CUTOFF_TIME', 'banana'],
         ['DAILY_PLAN_SUBMIT_CUTOFF_TIME', '9:05'],
         ['FY_START_MONTH', '13'],
-        ['WEEKLY_OFF_DAY', 'APRIL'],
+        ['WEEKLY_OFF_SCHEDULE', 'APRIL'],
         ['BUSINESS_TIMEZONE', 'Mars/Olympus'],
         ['DCR_MISS_BLOCK_ENABLED', 'yes'],
         ['APPROVAL_MANAGER_ONLY_KINDS', 'NONE,LEAVE'],
@@ -177,6 +177,36 @@ describe('UpdateConfigValueUseCase', () => {
       repository.others.set('DAILY_PLAN_SUBMIT_CUTOFF_TIME', 'banana');
       await expect(useCase.execute('a', 'ADMIN', 'DAILY_PLAN_RESUBMIT_LATEST_TIME', '11:30')).resolves.toBeDefined();
       await expect(useCase.execute('a', 'ADMIN', 'DCR_MISS_GRACE_DAYS', '2')).resolves.toBeDefined();
+    });
+  });
+
+  describe('weekly off history', () => {
+    const SUNDAY = '{"effectiveFrom":"1970-01-01","rules":[{"weekday":"SUNDAY","weeks":"ALL"}]}';
+    const SAT = (from: string) => `{"effectiveFrom":"${from}","rules":[{"weekday":"SUNDAY","weeks":"ALL"},{"weekday":"SATURDAY","weeks":[1,3]}]}`;
+    const run = (stored: string, next: string) => {
+      const repository = new FakeSystemConfigRepository(makeEntry({ key: 'WEEKLY_OFF_SCHEDULE', value: stored }));
+      repository.others.set('WEEKLY_OFF_SCHEDULE', stored);
+      const useCase = new UpdateConfigValueUseCase(repository as unknown as SystemConfigRepositoryPort, () => '2026-10-28');
+      return { repository, result: useCase.execute('admin-1', 'ADMIN', 'WEEKLY_OFF_SCHEDULE', next) };
+    };
+
+    it('adds a set that starts today or later', async () => {
+      const { repository, result } = run(`[${SUNDAY}]`, `[${SUNDAY},${SAT('2026-11-01')}]`);
+      await expect(result).resolves.toBeDefined();
+      expect(repository.updates).toHaveLength(1);
+    });
+
+    it('refuses a new set that starts in the past', async () => {
+      await expect(run(`[${SUNDAY}]`, `[${SUNDAY},${SAT('2026-10-01')}]`).result).rejects.toMatchObject({ statusCode: 400 });
+    });
+
+    it('refuses to change or drop a set that has already started', async () => {
+      await expect(run(`[${SUNDAY}]`, `[${SAT('1970-01-01')}]`).result).rejects.toMatchObject({ statusCode: 400 });
+      await expect(run(`[${SUNDAY},${SAT('2026-10-01')}]`, `[${SUNDAY}]`).result).rejects.toMatchObject({ statusCode: 400 });
+    });
+
+    it('lets a set that has not started yet be changed or removed', async () => {
+      await expect(run(`[${SUNDAY},${SAT('2026-12-01')}]`, `[${SUNDAY}]`).result).resolves.toBeDefined();
     });
   });
 });

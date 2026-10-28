@@ -1,3 +1,4 @@
+import { isWeeklyOff } from '@greynote/contracts';
 import { isEditableBySubmitter } from '@/modules/approval/approval.public.js';
 import type { TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { AppError } from '@/shared/errors/AppError.js';
@@ -99,7 +100,7 @@ export class LeaveRequests {
 
     // When (sign-off F11, F15): not further back than the limit, inside the current leave year
     // or the next, and not across a leave-year boundary.
-    const [today, backdate, weeklyOff] = await Promise.all([this.calendar.today(), this.calendar.backdateDays(), this.calendar.weeklyOff()]);
+    const [today, backdate, schedule] = await Promise.all([this.calendar.today(), this.calendar.backdateDays(), this.calendar.weeklyOffSchedule()]);
     if (input.startDate < addDays(today, -backdate)) {
       throw AppError.badRequest(`Leave can start at most ${backdate} days back.`, { field: 'startDate' });
     }
@@ -113,7 +114,7 @@ export class LeaveRequests {
     if (year > thisYear + 1) throw AppError.badRequest('That’s too far ahead.', { field: 'startDate' });
 
     // How many days it counts (F12, F14).
-    const days = computeLeaveDays(input.startDate, input.endDate, input.half, weeklyOff, await this.holidays.datesFor(userId, input.startDate, input.endDate));
+    const days = computeLeaveDays(input.startDate, input.endDate, input.half, (date) => isWeeklyOff(date, schedule), await this.holidays.datesFor(userId, input.startDate, input.endDate));
     const daysCount = days.reduce((sum, d) => sum + d.portion, 0);
     if (daysCount === 0) throw AppError.badRequest('These dates are all days off or holidays.', { field: 'startDate' });
     await this.lock.assertUnlocked(userId, days.map((d) => d.date));

@@ -18,6 +18,7 @@ The field app (`apps/fieldApp`, another team's) last had real feature work on **
 | B3 | **CSV file names** of Tour Plan and Expenses downloads: `<name>-<designation>-<kind>-<YYYY-MM>-<code>.csv`, using the employee the file belongs to. | `monthlyplan.md` rule 22, `expenses.md` rule 11 |
 | B4 | **Order lines:** the same product can now sit on several lines of one order at different prices or discounts. Check the order screens show each line and do not merge them. | `orders-and-stock.md` "One product on several lines" |
 | B5 | **Order price is the server's.** The phone's unit price is only a preview (PTS for a distributor, PTR for a chemist); show the server's total after sync. | `orders-and-stock.md` rules 1 and 5 |
+| B7 | **Weekly offs are a schedule now (2026-10-28).** The Holidays screen says "Weekly off: every X" from `weeklyOffDay` and the client-side fallbacks (`weeklyOffIndex`, the legacy check in `monthly-plan.tsx` when `planOffDays` is missing) only know one weekday. Read `hr.weeklyOffSchedule` instead and show the 1st/3rd Saturday. Plan locking is already right: it comes from `planOffDays`. | `holidays.md` rule 3 and section 3 |
 | B6 | Admin / HR can edit an **approved** month's later days and Admin can delete a future month. Web-only for now; the phone only needs to cope with the plan changing under it (the employee gets the `PLAN_AMENDED_MONTHLY_PLAN` push). | `monthlyplan.md` rules 20, 21 |
 
 ## C. Needs a server change first

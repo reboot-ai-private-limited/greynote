@@ -10,7 +10,7 @@ What the field app shows in **Utility → Holiday List**. The Admin now **upload
 |---|---|---|
 | 1 | **Which holidays an employee sees:** National ones, ones tagged with their Zone, and ones tagged with their HQ. A holiday can be tagged with several Zones or HQs. With no HQ set, only National ones. The server filters; the phone never has to. | ✅ |
 | 2 | **Read:** `GET /hr/holidays?from=YYYY-MM-DD&to=YYYY-MM-DD`, both required, **at most 400 days** apart (`400` otherwise). Returns `id`, `name`, `date`, `scope` (`NATIONAL`, `ZONE`, `HQ`), the tagged `zoneIds` / `hqIds` and `groupId` (rule 8). Oldest first. | ✅ |
-| 3 | **The weekly off day is not a holiday row.** It is the setting `WEEKLY_OFF_DAY` (sync snapshot `config.settings`), shown as "Weekly off: every Sunday". | ✅ |
+| 3 | **The weekly off day is not a holiday row.** It is the schedule `WEEKLY_OFF_SCHEDULE` (2026-10-28): rule sets each with a start date, e.g. every Sunday plus the 1st and 3rd Saturday. The sync snapshot's `hr.weeklyOffSchedule` carries it (`[{ effectiveFrom, rules: [{ weekday, weeks: 'ALL' | [1, 3] }] }]`; the 1st Saturday is the Saturday on day 1–7); `hr.weeklyOffDay` stays as the one day that is off every week today. `GET /hr/weekly-offs?from&to` returns the computed dates as `[{ date, label }]`, e.g. `"1st Saturday"`. | ✅ |
 | 4 | **Previous financial years:** the list is not scoped by the financial-year header. To look at a past year, ask for **that year's `from` and `to`** (from [`financial-year.md`](financial-year.md)). A past year is read-only like every other screen; nothing on this screen can be changed anyway. | ✅ |
 | 5 | **The list can change after upload.** HR/Admin may add or remove a holiday at any time. Pull to refresh; keep "Showing the list from …" for an offline copy. A leave already counted keeps the days it was counted with. | ✅ |
 | 6 | **Who maintains it:** the Admin uploads (and HR/Admin can add or remove single holidays) on the web. **Nothing here is edited on the phone.** | ✅ |
@@ -35,7 +35,7 @@ CSV columns (for reference; the Admin sees a template in the portal):
 
 - A month at a time (the existing `MonthStepper`), limited to the selected financial year's first and last month.
 - Each row: the name, the date with weekday, and a chip "National", "Zone" or "HQ". Zone/HQ rows need no place name: the server only returns the ones that apply.
-- "Weekly off: every Sunday." under the month.
+- The weekly offs under the month, built from `hr.weeklyOffSchedule` (or `GET /hr/weekly-offs`): "Weekly off: every Sunday, 1st and 3rd Saturday." Optionally list the partial ones ("1st Saturday · 7 Nov") as rows beside the holidays, marked "Weekly off".
 - Empty month: "No holidays this month."
 - Optional polish (rule 8): rows sharing a `groupId` may be shown as one row, "Durga Puja · 2 Oct – 8 Oct · 7 days", under the month it starts in; showing every day separately is also correct. A range crossing months appears in each month's fetch with only that month's days.
 - Cache each month under its own key so a month already seen opens offline.

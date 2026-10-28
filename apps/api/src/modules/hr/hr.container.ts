@@ -1,4 +1,5 @@
-import { eachDate, weekdayOf } from '@/shared/time/businessTime.js';
+import { isWeeklyOff } from '@greynote/contracts';
+import { eachDate } from '@/shared/time/businessTime.js';
 import { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
@@ -28,6 +29,7 @@ import { UpdateHolidayUseCase } from './application/usecases/updateHoliday.useca
 import { DeleteHolidayUseCase } from './application/usecases/deleteHoliday.usecase.js';
 import { ImportHolidaysUseCase } from './application/usecases/importHolidays.usecase.js';
 import { ListHolidaysUseCase } from './application/usecases/listHolidays.usecase.js';
+import { ListWeeklyOffsUseCase } from './application/usecases/listWeeklyOffs.usecase.js';
 import { ListLeavePoliciesUseCase } from './application/usecases/listLeavePolicies.usecase.js';
 import { ListLeaveTypesUseCase } from './application/usecases/listLeaveTypes.usecase.js';
 import { SetLeavePolicyUseCase } from './application/usecases/setLeavePolicy.usecase.js';
@@ -85,7 +87,7 @@ export function buildHrContainer(
 
   // 2. Use cases
   const holidayCalendar = new HolidayCalendar(holidays, territory);
-  const planOffDays = new PlanOffDays(holidays, territory, () => calendar.weeklyOff());
+  const planOffDays = new PlanOffDays(holidays, territory, () => calendar.weeklyOffSchedule());
   const leaverLeaves = new LeaverLeaves(leaves, approvals);
   const probation = new Probation(users, config, calendar);
   const balances = new LeaveBalances(balanceRepository, policies, leaveTypes, users, calendar);
@@ -118,6 +120,7 @@ export function buildHrContainer(
     listPolicies: new ListLeavePoliciesUseCase(policies, leaveTypes, users),
     setPolicy: new SetLeavePolicyUseCase(policies, leaveTypes, users),
     listHolidays: new ListHolidaysUseCase(holidays, territory),
+    listWeeklyOffs: new ListWeeklyOffsUseCase(calendar),
     createHoliday,
     importHolidays: new ImportHolidaysUseCase(holidays, territory, createHoliday),
     updateHoliday: new UpdateHolidayUseCase(holidays, createHoliday),
@@ -133,9 +136,9 @@ export function buildHrContainer(
       listLeavesForUsers: (userIds, from, to) => lookups.leavesForUsers(userIds, from, to),
       getUnpaidLeaveDays: (userId, month) => lookups.unpaidDays(userId, month),
       listOffDates: async (userId, from, to) => {
-        const weeklyOff = await calendar.weeklyOff();
+        const schedule = await calendar.weeklyOffSchedule();
         const holidayDates = await holidayCalendar.datesFor(userId, from, to);
-        return eachDate(from, to).filter((d) => weekdayOf(d) === weeklyOff || holidayDates.has(d));
+        return eachDate(from, to).filter((d) => isWeeklyOff(d, schedule) || holidayDates.has(d));
       },
       listHolidayDates: async (userId, from, to) => [...(await holidayCalendar.datesFor(userId, from, to))].sort(),
       listPlanOffDays: (userId, from, to) => planOffDays.list(userId, from, to),

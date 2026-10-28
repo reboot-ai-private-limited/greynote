@@ -1,4 +1,4 @@
-import type { HrSnapshot } from '@greynote/contracts';
+import { everyWeekOffDay, type HrSnapshot } from '@greynote/contracts';
 import type { SyncSourceDefinition } from '@/modules/sync/sync.public.js';
 import type { HolidayRepositoryPort } from '../domain/holiday.repository.port.js';
 import type { LeaveTypeRepositoryPort } from '../domain/leaveType.repository.port.js';
@@ -24,20 +24,23 @@ export function makeHrSource(deps: {
   return {
     name: HR_SYNC_SOURCE,
     async snapshot(userId): Promise<HrSnapshot> {
-      const leaveYear = await deps.calendar.leaveYearOf(await deps.calendar.today());
+      const today = await deps.calendar.today();
+      const leaveYear = await deps.calendar.leaveYearOf(today);
       const range = await deps.calendar.leaveYearRange(leaveYear);
-      const [types, balances, holidays, weeklyOffDay, backdateDays] = await Promise.all([
+      const [types, balances, holidays, weeklyOffSchedule, backdateDays] = await Promise.all([
         deps.leaveTypes.list(),
         deps.balances.views(userId, leaveYear),
         deps.territory.getUserTerritory(userId).then((place) => deps.holidays.listApplicable(range.from, range.to, place)),
-        deps.calendar.weeklyOff(),
+        deps.calendar.weeklyOffSchedule(),
         deps.calendar.backdateDays(),
       ]);
       return {
         leaveYear,
         leaveYearFrom: range.from,
         leaveYearTo: range.to,
-        weeklyOffDay,
+        // The one day off every week, for a phone that only knows a single weekday; the full rules follow.
+        weeklyOffDay: everyWeekOffDay(today, weeklyOffSchedule),
+        weeklyOffSchedule,
         leaveBackdateDays: backdateDays,
         leaveTypes: types.filter((t) => t.active).map((t) => ({ id: t.id, name: t.name, isPaid: t.isPaid })).sort((a, b) => a.name.localeCompare(b.name)),
         balances: balances

@@ -116,6 +116,14 @@ describe('Leave requests', () => {
     expect(ledger()).toEqual({ used: 0, pending: 4 });
   });
 
+  it('also skips the 1st and 3rd Saturday once the schedule says so', async () => {
+    config.values['WEEKLY_OFF_SCHEDULE'] = '[{"effectiveFrom":"1970-01-01","rules":[{"weekday":"SUNDAY","weeks":"ALL"},{"weekday":"SATURDAY","weeks":[1,3]}]}]';
+    // 3 Oct 2026 is the 1st Saturday: off, so the leave counts 1, 5 and 6 Oct (2 Oct is the holiday, 4 Oct a Sunday).
+    const leave = await requests.request('mr', casual());
+    expect(leave.days.map((d) => d.date)).toEqual(['2026-10-01', '2026-10-05', '2026-10-06']);
+    await expectError(requests.request('mr', casual({ startDate: '2026-10-03', endDate: '2026-10-03' })), 400);
+  });
+
   it('refuses a half-day leave: leaves are whole days (2026-10-05)', async () => {
     await expectError(requests.request('mr', casual({ startDate: '2026-10-05', endDate: '2026-10-05', half: 'FIRST' })), 400);
     expect((await requests.request('mr', casual({ startDate: '2026-10-05', endDate: '2026-10-05' }))).daysCount).toBe(1);

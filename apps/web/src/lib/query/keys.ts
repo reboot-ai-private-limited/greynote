@@ -66,6 +66,7 @@ export const keys = {
     leaveTypes: () => ['hr', fy(), 'leaveTypes'] as const,
     policies: () => ['hr', fy(), 'policies'] as const,
     holidays: (query: object) => ['hr', fy(), 'holidays', query] as const,
+    weeklyOffs: (query: object) => ['hr', fy(), 'weekly-offs', query] as const,
     allHolidays: () => ['hr', fy(), 'holidays'] as const,
   },
   inbox: {

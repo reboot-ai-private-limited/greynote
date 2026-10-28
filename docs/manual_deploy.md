@@ -212,6 +212,13 @@ docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-spe
 docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-specialties.js --apply
 ```
 
+The weekly off is now a schedule (`WEEKLY_OFF_SCHEDULE`, `docs/decision-log.md` 2026-10-28) instead of the single `WEEKLY_OFF_DAY`. **Re-run the seed first**, then carry the old weekday over (a company that was on Sunday needs nothing). Dry run first:
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-weekly-off-schedule.js
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/migrate-weekly-off-schedule.js --apply
+```
+
 These scripts are bundled into the image (`apps/api/esbuild.config.mjs`); if `Cannot find module` appears, the image is older: `git pull` then `docker compose -f docker-compose.prod.yml up -d --build`.
 
 Safe to run again. A fresh database gets the starter list and nothing else to convert. Old doctor `category` values stay in the database and are never read.

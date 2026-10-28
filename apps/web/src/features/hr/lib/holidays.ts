@@ -1,4 +1,4 @@
-import { MAX_HOLIDAY_DAYS, type CreateHolidayDto, type HolidayDto, type HolidayScope } from '@greynote/contracts';
+import { MAX_HOLIDAY_DAYS, type CreateHolidayDto, type HolidayDto, type HolidayScope, type WeeklyOffDateDto } from '@greynote/contracts';
 import { isRealDate, rangeError } from '@/lib/dateRange';
 import { fail, squash, type BuildResult } from '@/lib/forms';
 
@@ -125,6 +125,33 @@ export function groupByMonth(holidays: readonly HolidayDto[]): { month: string; 
   const groups = new Map<string, HolidayEntry[]>();
   for (const e of toEntries(holidays)) groups.set(e.from.slice(0, 7), [...(groups.get(e.from.slice(0, 7)) ?? []), e]);
   return [...groups].map(([month, items]) => ({ month, items }));
+}
+
+/** One line of the combined calendar: a holiday (editable) or a weekly off computed from the setting (read-only). */
+export type CalendarRow = { kind: 'HOLIDAY'; entry: HolidayEntry } | { kind: 'WEEKLY_OFF'; date: string; label: string };
+export type CalendarKind = 'ALL' | 'HOLIDAYS' | 'WEEKLY_OFFS';
+
+/** A weekly off that is off only in some weeks ("1st Saturday") starts with the number; an every-week day ("Sunday") does not. */
+export const isPartialWeeklyOff = (label: string): boolean => /^\d/.test(label);
+
+/**
+ * Holidays and weekly offs together by month, in date order. Every-week days (all the Sundays) are left out unless `showEveryWeek`,
+ * so the list isn't flooded. `kind` narrows the list to one of the two.
+ */
+export function groupCalendarByMonth(
+  holidays: readonly HolidayDto[],
+  weeklyOffs: readonly WeeklyOffDateDto[],
+  { kind, showEveryWeek }: { kind: CalendarKind; showEveryWeek: boolean },
+): { month: string; rows: CalendarRow[] }[] {
+  const rows: CalendarRow[] = [
+    ...(kind === 'WEEKLY_OFFS' ? [] : toEntries(holidays).map((entry): CalendarRow => ({ kind: 'HOLIDAY', entry }))),
+    ...(kind === 'HOLIDAYS' ? [] : weeklyOffs.filter((w) => showEveryWeek || isPartialWeeklyOff(w.label)).map((w): CalendarRow => ({ kind: 'WEEKLY_OFF', date: w.date, label: w.label }))),
+  ];
+  const start = (r: CalendarRow) => (r.kind === 'HOLIDAY' ? r.entry.from : r.date);
+  rows.sort((a, b) => start(a).localeCompare(start(b)) || (a.kind === b.kind ? 0 : a.kind === 'HOLIDAY' ? -1 : 1));
+  const groups = new Map<string, CalendarRow[]>();
+  for (const r of rows) groups.set(start(r).slice(0, 7), [...(groups.get(start(r).slice(0, 7)) ?? []), r]);
+  return [...groups].map(([month, items]) => ({ month, rows: items }));
 }
 
 const dayMonth = new Intl.DateTimeFormat('en-IN', { timeZone: 'UTC', day: 'numeric', month: 'short' });

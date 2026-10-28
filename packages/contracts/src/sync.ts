@@ -6,6 +6,7 @@
 import type { GeoPoint } from './geofence.js';
 import type { HttpSuccessBody } from './http.js';
 import type { PlanOffDayDto } from './planning.js';
+import type { WeeklyOffVersion } from './weeklyOff.js';
 
 // ---- Push: the daily report's Submit -----------------------------------------------------------
 
@@ -345,7 +346,10 @@ export interface HrSnapshot {
   leaveYear: number;
   leaveYearFrom: string;
   leaveYearTo: string;
+  /** The weekday that is off every week today; `SUNDAY` when none is. Kept for a phone that predates `weeklyOffSchedule`. */
   weeklyOffDay: string;
+  /** The weekly off rule sets, each with the date it starts on (e.g. every Sunday plus the 1st and 3rd Saturday). */
+  weeklyOffSchedule: WeeklyOffVersion[];
   leaveBackdateDays: number;
   leaveTypes: Array<{ id: string; name: string; isPaid: boolean }>;
   balances: Array<{ leaveTypeId: string; leaveTypeName: string; allocatedDays: number; usedDays: number; pendingDays: number; availableDays: number }>;

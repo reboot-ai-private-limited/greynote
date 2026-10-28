@@ -20,7 +20,6 @@ export const CONFIG_KEYS_FOR_PHONE = [
   'MONTHLY_PLAN_SUBMIT_CUTOFF_DATE',
   'MONTHLY_PLAN_RESUBMIT_GRACE_HOURS',
   'FY_START_MONTH',
-  'WEEKLY_OFF_DAY',
   'GEO_FENCE_RADIUS_METERS',
   'GEO_MAX_ACCURACY_METERS',
   // The days between visits to a doctor: the phone greys out a call or follow-up it would refuse (mobile/dcr.md rule 11).

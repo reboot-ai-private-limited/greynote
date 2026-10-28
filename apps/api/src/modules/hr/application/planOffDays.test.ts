@@ -1,10 +1,12 @@
+import type { WeeklyOffVersion } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
 import { PlanOffDays } from './planOffDays.js';
 import { CreateHolidayUseCase } from './usecases/createHoliday.usecase.js';
 import { FakeHolidays, FakeTerritory } from './usecases/hrTestKit.js';
 
 describe('PlanOffDays', () => {
-  const setup = async () => {
+  const SUNDAYS: WeeklyOffVersion[] = [{ effectiveFrom: '1970-01-01', rules: [{ weekday: 'SUNDAY', weeks: 'ALL' }] }];
+  const setup = async (schedule: WeeklyOffVersion[] = SUNDAYS) => {
     const holidays = new FakeHolidays();
     const territory = new FakeTerritory();
     territory.userHq.set('mr', { hqId: 'hq-slg', zoneId: 'zone-wb' });
@@ -18,7 +20,7 @@ describe('PlanOffDays', () => {
     await create.execute({ ...none, name: 'Bihu', date: '2026-10-07', scope: 'ZONE', zoneIds: ['zone-as'] }, 'hr');
     await create.execute({ ...none, name: 'Durga Puja', date: '2026-10-18', endDate: '2026-10-19', scope: 'ZONE', zoneIds: ['zone-wb'] }, 'hr');
     await create.execute({ ...none, name: 'Bhai Dooj', date: '2026-10-19', scope: 'NATIONAL' }, 'hr');
-    return new PlanOffDays(holidays, territory, async () => 'SUNDAY');
+    return new PlanOffDays(holidays, territory, async () => schedule);
   };
 
   it('locks the weekly off and the holidays of the main HQ, its Zone and National ones', async () => {
@@ -42,5 +44,15 @@ describe('PlanOffDays', () => {
   it('with no main HQ, locks only National holidays and the weekly off', async () => {
     const off = await (await setup()).list('nobody', '2026-10-01', '2026-10-07');
     expect(off.map((d) => d.date)).toEqual(['2026-10-02', '2026-10-04']);
+  });
+
+  it('locks the 1st and 3rd Saturday as well when the schedule says so, from its start date only', async () => {
+    const schedule: WeeklyOffVersion[] = [
+      ...SUNDAYS,
+      { effectiveFrom: '2026-10-10', rules: [{ weekday: 'SUNDAY', weeks: 'ALL' }, { weekday: 'SATURDAY', weeks: [1, 3] }] },
+    ];
+    const off = await (await setup(schedule)).list('nobody', '2026-10-03', '2026-10-24');
+    // 3 Oct is a 1st Saturday but the rule starts on the 10th; the 10th is the 2nd Saturday; 17th the 3rd; 24th the 4th.
+    expect(off.filter((d) => d.reason === 'WEEKLY_OFF').map((d) => d.date)).toEqual(['2026-10-04', '2026-10-11', '2026-10-17', '2026-10-18']);
   });
 });

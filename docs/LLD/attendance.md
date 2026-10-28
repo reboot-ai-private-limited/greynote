@@ -14,7 +14,7 @@ Nothing is stored. A **read model** at its own tier (5, below Payroll and Market
 1a. after their last working day (deactivated, 2026-10-22), until a rejoining day if they were reactivated → `NOT_EMPLOYED` (never absent, never deducted)
 2. after today → `NOT_YET`
 3. a holiday that applies to them (National, their HQ's, its Zone's) → `HOLIDAY`
-4. their weekly off → `WEEKLY_OFF` (a holiday that is also an off date is a holiday)
+4. their weekly off (the `WEEKLY_OFF_SCHEDULE` rules in force that day, e.g. every Sunday and the 1st and 3rd Saturday) → `WEEKLY_OFF` (a holiday that is also an off date is a holiday)
 5. covered by a Manager-Approved or fully approved leave, paid or unpaid → `LEAVE`
 6. the day's plan says Strike **and** the plan is past the manager → `STRIKE` (a draft or rejected Strike plan excuses nothing)
 7. a submitted, manager-approved or approved daily report → `PRESENT`

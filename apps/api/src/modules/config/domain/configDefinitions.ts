@@ -1,4 +1,4 @@
-import { DEFAULT_PTAX_SLABS, parseSlabs, serialiseSlabs } from '@greynote/contracts';
+import { DEFAULT_PTAX_SLABS, DEFAULT_WEEKLY_OFF_SCHEDULE, parseSlabs, parseWeeklyOffSchedule, serialiseSlabs, serialiseWeeklyOffSchedule } from '@greynote/contracts';
 import { MONTH_NAMES, WEEKDAY_NAMES, assertTimeZone, parseTimeOfDay } from '@/shared/time/businessTime.js';
 
 /**
@@ -10,7 +10,7 @@ import { MONTH_NAMES, WEEKDAY_NAMES, assertTimeZone, parseTimeOfDay } from '@/sh
  * a value this accepts is one the system will accept when it reads it back. Change a reader's limit and change it here too: a test
  * checks that every default passes its own definition, and the readers' own tests cover their side.
  */
-export const CONFIG_TYPES = ['BOOLEAN', 'INTEGER', 'TIME', 'MONTH', 'WEEKDAY', 'TIMEZONE', 'KIND_LIST', 'YEAR_LIST', 'SLAB_LIST'] as const;
+export const CONFIG_TYPES = ['BOOLEAN', 'INTEGER', 'TIME', 'MONTH', 'WEEKDAY', 'TIMEZONE', 'KIND_LIST', 'YEAR_LIST', 'SLAB_LIST', 'WEEKLY_OFF_SCHEDULE'] as const;
 export type ConfigType = (typeof CONFIG_TYPES)[number];
 
 export const CONFIG_IMPACTS = ['NORMAL', 'HIGH'] as const;
@@ -227,14 +227,14 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
     impactNote: 'Moves the boundary of the financial year and the leave year. Which year a date, a leave balance or a payroll month belongs to changes, and so do the year selectors in the portal.',
   },
   {
-    key: 'WEEKLY_OFF_DAY',
+    key: 'WEEKLY_OFF_SCHEDULE',
     module: 'SYSTEM',
-    label: 'Weekly day off',
-    description: 'The weekly day off (SUNDAY … SATURDAY) — not counted inside a leave.',
-    type: 'WEEKDAY',
-    default: 'SUNDAY',
+    label: 'Weekly days off',
+    description: 'The weekly days off, such as every Sunday and the 1st and 3rd Saturday — not counted inside a leave. Each set of rules starts on a date and holds until the next set starts.',
+    type: 'WEEKLY_OFF_SCHEDULE',
+    default: DEFAULT_WEEKLY_OFF_SCHEDULE,
     impact: 'HIGH',
-    impactNote: 'Leaves requested from now on skip this day instead of the old one. Leaves already counted keep the days they were counted with.',
+    impactNote: 'Leaves requested, plans saved and attendance read from the start date use the new days off. Dates before it, and leaves already counted, keep theirs.',
   },
 ];
 
@@ -313,6 +313,10 @@ export function validateConfigValue(def: ConfigDefinition, raw: string): ConfigV
       if (years.some((y) => !/^\d{4}$/.test(y))) return fail('Use NONE, or comma-separated four-digit years.');
       const sorted = [...new Set(years.map(Number))].sort((a, b) => a - b);
       return { ok: true, value: sorted.join(',') };
+    }
+    case 'WEEKLY_OFF_SCHEDULE': {
+      const parsed = parseWeeklyOffSchedule(value);
+      return parsed.ok ? { ok: true, value: serialiseWeeklyOffSchedule(parsed.schedule) } : fail(parsed.error);
     }
     case 'SLAB_LIST': {
       const parsed = parseSlabs(value);

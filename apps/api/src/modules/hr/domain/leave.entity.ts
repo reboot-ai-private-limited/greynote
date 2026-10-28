@@ -1,4 +1,4 @@
-import { eachDate, weekdayOf, type WeekdayName } from '@/shared/time/businessTime.js';
+import { eachDate } from '@/shared/time/businessTime.js';
 
 export const LEAVE_HALVES = ['FIRST', 'SECOND'] as const;
 export type LeaveHalf = (typeof LEAVE_HALVES)[number];
@@ -66,11 +66,11 @@ export function computeLeaveDays(
   startDate: string,
   endDate: string,
   half: LeaveHalf | null,
-  weeklyOff: WeekdayName,
+  isWeeklyOff: (date: string) => boolean,
   holidays: Set<string>,
 ): LeaveDay[] {
   return eachDate(startDate, endDate)
-    .filter((date) => weekdayOf(date) !== weeklyOff && !holidays.has(date))
+    .filter((date) => !isWeeklyOff(date) && !holidays.has(date))
     .map((date) => ({ date, portion: half ? 0.5 : 1 }));
 }
 

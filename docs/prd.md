@@ -124,7 +124,7 @@ Document library for price lists, product literatures, and training materials.
 #### D. Utility
 
 - **Inbox:** Messages the Admin sends from the web portal to everyone, or to chosen roles, Zones, HQs or people (announcements, reminders, policy notes, updates). The app shows them newest first with an unread count; every message is also pushed to the phone (Firebase) once the app registers its token. System events that put a message here, and the deadline reminders to employees and managers, are in [`LLD/notifications.md`](LLD/notifications.md) (client sign-off F8, assumed 2026-10-15).
-- **Holiday List:** View upcoming holidays scoped to National, Zone, or the employee's assigned HQ — a single holiday can apply to multiple Zones or HQs at once, or to everyone (National). The Admin uploads the year's list from the portal (a CSV, previewed before saving). The weekly off day (e.g. Sunday) is a configurable rule (Section 8), not an individually listed holiday.
+- **Holiday List:** View upcoming holidays scoped to National, Zone, or the employee's assigned HQ — a single holiday can apply to multiple Zones or HQs at once, or to everyone (National). The Admin uploads the year's list from the portal (a CSV, previewed before saving). The weekly off days (e.g. every Sunday, the 1st and 3rd Saturday) are a configurable schedule (Section 8), not individually listed holidays; the portal's Holiday List also shows the partial ones ("1st Saturday").
 - **Financial Year Toggle:** A "time machine" allowing users to switch the app's context to a previous financial year to view old reports or pending items.
 - *Forms (quick access to company request forms) was removed from the scope on 2026-10-12.*
 
@@ -182,4 +182,4 @@ A number of operational thresholds are Admin-editable at runtime rather than har
 | Max concurrent active devices (Field role)            | 2                         | See Section 2 — login is blocked, not auto-evicted, beyond this.                                                        |
 | DCR-miss grace period before compliance block         | 1 day                     | See Section 7.5 — days without a submitted DCR and without covering approved Leave, before the account is auto-blocked. |
 | Location-verification radius (Dr Call / Chemist Call) | TBD (e.g. 200m)           | Allowed GPS deviation from a Doctor/Chemist's registered location before a call is flagged.                             |
-| Weekly off day                                        | Sunday                    | Treated as a non-working day platform-wide without being listed as an individual Holiday.                               |
+| Weekly off days                                       | Every Sunday              | A schedule of rules (e.g. every Sunday plus the 1st and 3rd Saturday), each from a start date. Non-working days platform-wide without being listed as individual Holidays; shown in the Holiday List. |

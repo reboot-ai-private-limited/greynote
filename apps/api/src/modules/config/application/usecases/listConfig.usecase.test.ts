@@ -33,10 +33,9 @@ describe('ListConfigUseCase', () => {
     expect(list.find((s) => s.key === 'SYNC_MAX_BATCH')).toMatchObject({ isDefault: true, updatedBy: null });
   });
 
-  it('gives a month and a weekday setting their names to choose from, and a high-impact one its warning', async () => {
+  it('gives a month setting its names to choose from, and a high-impact one its warning', async () => {
     const list = await build(seeded()).execute('ADMIN');
     expect(list.find((s) => s.key === 'FY_START_MONTH')).toMatchObject({ options: expect.arrayContaining(['JANUARY', 'DECEMBER']), impact: 'HIGH', impactNote: expect.stringMatching(/boundary of the financial year/) });
-    expect(list.find((s) => s.key === 'WEEKLY_OFF_DAY')?.options).toHaveLength(7);
   });
 
   it('flags a stored value that breaks its own rules, with the reason, instead of hiding it', async () => {

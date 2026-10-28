@@ -17,6 +17,16 @@ old one.
 
 ---
 
+## 2026-10-28 — The weekly off is a schedule of rules (every Sunday, 1st and 3rd Saturday…), each starting on a date
+
+- **Decision:** the single setting `WEEKLY_OFF_DAY` is replaced by `WEEKLY_OFF_SCHEDULE`: a list of rule sets, each with an `effectiveFrom` date. A rule is a weekday that is off every week (`ALL`) or only in some occurrences (`weeks: [1, 3]`; the 1st Saturday is the Saturday on day 1–7 of the month). The rules in force on a date are those of the latest set that has started. Example: Sunday every week from the start, plus the 1st and 3rd Saturday from 1 Nov 2026.
+- **Why not holiday rows:** a Holiday row per 1st/3rd Saturday means regenerating them every year and deleting and recreating them whenever the pattern changes. A rule is edited once.
+- **Why a start date:** attendance, payroll and plan locks are read live from the setting. Without a start date, changing 1st/3rd to 2nd/4th would recolour past months. A set that has started cannot be edited or removed, and a new set cannot start in the past (the `PATCH /config/WEEKLY_OFF_SCHEDULE` check; leaves already counted keep their stored days as before).
+- **Where it shows:** the Leave & holidays → Holidays list shows the partial days ("1st Saturday") as read-only *Weekly off* rows from `GET /hr/weekly-offs?from&to` (every-week Sundays only if ticked). Leave counting, `listOffDates`, plan locks, attendance (`WEEKLY_OFF`), payroll, reminders and reports all go through HR's calendar, so they follow with no change of their own. `DEDUCTION_DAYS = 30` is unchanged.
+- **Phone:** the sync snapshot keeps `weeklyOffDay` (the day that is off every week today, `SUNDAY` if none) and adds `weeklyOffSchedule`. The server already sends `planOffDays`, so plan locking is right on an old app; only the Holidays screen's "Weekly off: every Sunday" line is out of date (`mobile/field-app-gaps.md` B7). The app is another team's.
+- **Migration:** `migrate:weekly-off-schedule` carries a company's old `WEEKLY_OFF_DAY` over (re-run the seed first; `docs/manual_deploy.md`). A company on Sunday needs nothing. The old key is no longer read.
+- **Not changed:** one schedule for the whole company; a weekly off per employee or per HQ is not supported. Holidays still win over a weekly off on the same day.
+
 ## 2026-10-26 — Every employee can change their own password (signed in, current password asked)
 
 - **Decision:** `POST /identity/auth/change-password {currentPassword, newPassword}` for any signed-in role. A wrong current password is `403`, a new password equal to the current one is `400`, five wrong tries in 15 minutes per user is `429`. The other sessions end (`PASSWORD_RESET`); the one making the request stays, found by its refresh token (the web cookie, or the body on the phone, as in logout). With no recognisable refresh token every session ends.

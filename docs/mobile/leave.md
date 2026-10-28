@@ -27,7 +27,7 @@ What the field app must do for leave, and the rules the server enforces. The ser
 
 ## 3. What the phone should show
 
-From `GET /hr/leaves/me`, `GET /hr/leave-balances/me` and the sync snapshot (leave types, own balances, holidays, `weeklyOffDay`):
+From `GET /hr/leaves/me`, `GET /hr/leave-balances/me` and the sync snapshot (leave types, own balances, holidays, `weeklyOffDay`, `weeklyOffSchedule`):
 
 | Field | Use |
 |---|---|

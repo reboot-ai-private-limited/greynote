@@ -26,6 +26,8 @@ import {
   leavesQuerySchema,
   leavePolicyParamsSchema,
   listHolidaysQuerySchema,
+  listWeeklyOffsQuerySchema,
+  weeklyOffsQueryObject,
   myLeavesQuerySchema,
   setLeavePolicyBodySchema,
   updateLeaveTypeBodySchema,
@@ -89,6 +91,7 @@ doc('patch', '/leave-types/{id}', 'HR/Admin: rename, (de)activate, or change isP
 doc('get', '/leave-policies', 'HR/Admin: the Leave Master — every grade × paid type');
 doc('put', '/leave-policies/{payBandId}/{leaveTypeId}', 'HR/Admin: set a grade’s default days per leave year', { params: leavePolicyParamsSchema, body: setLeavePolicyBodySchema });
 doc('get', '/holidays', 'Holidays — field staff: the ones that apply to them; HR/Admin: all, filterable', { query: holidayQueryObject });
+doc('get', '/weekly-offs', 'The weekly off dates of a range (at most 400 days), computed from the Weekly days off setting: each has a label such as "Sunday" or "1st Saturday"', { query: weeklyOffsQueryObject });
 doc('post', '/holidays', 'HR/Admin: add a National, Zone or HQ holiday — one day, or `date`…`endDate` (at most 31 days, one row per day sharing a groupId); returns the days created', { body: createHolidayBodySchema });
 openApiRegistry.registerPath({
   method: 'post',
@@ -150,6 +153,7 @@ export function buildMastersRouter(c: MastersHandlers): Router {
   router.get('/leave-policies', hr, c.listPolicies);
   router.put('/leave-policies/:payBandId/:leaveTypeId', admin, validate({ params: leavePolicyParamsSchema, body: setLeavePolicyBodySchema }), c.setPolicy);
   router.get('/holidays', validate({ query: listHolidaysQuerySchema }), c.listHolidays);
+  router.get('/weekly-offs', validate({ query: listWeeklyOffsQuerySchema }), c.listWeeklyOffs);
   router.post('/holidays', hr, validate({ body: createHolidayBodySchema }), c.createHoliday);
   router.post('/holidays/import', hr, validate({ query: holidayImportQuerySchema }), holidayUpload, c.importHolidays);
   router.patch('/holidays/:id', hr, validate({ params: idParamsSchema, query: updateHolidayQuerySchema, body: updateHolidayBodySchema }), c.updateHoliday);

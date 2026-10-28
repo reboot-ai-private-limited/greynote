@@ -20,6 +20,18 @@ export function useHolidays(query: ListHolidaysQuery, enabled: boolean) {
   );
 }
 
+/** The weekly off dates of the same range, computed by the server from the Weekly days off setting. */
+export function useWeeklyOffs(query: { from: string; to: string }, enabled: boolean) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.hr.weeklyOffs(query),
+      fetch: (token, signal) => hrApi.weeklyOffs(token, query, signal),
+      staleTime: staleTime.configuration,
+      enabled,
+    }),
+  );
+}
+
 export function useCreateHoliday(onDone: () => void) {
   return useApiMutation<CreateHolidayDto>({
     call: (token, body) => hrApi.createHoliday(token, body),

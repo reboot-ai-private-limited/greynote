@@ -1,5 +1,7 @@
-import { parseSlabs, serialiseSlabs, type ConfigSettingDto, type ConfigType } from '@greynote/contracts';
+import { parseSlabs, parseWeeklyOffSchedule, serialiseSlabs, serialiseWeeklyOffSchedule, type ConfigSettingDto, type ConfigType } from '@greynote/contracts';
 import { summariseSlabs } from './slabRows';
+import { summariseSchedule } from './weeklyOffRows';
+import { istDate } from '@/lib/dates';
 
 // ── Grouping and search ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +49,8 @@ export function displayValue(s: Pick<ConfigSettingDto, 'type' | 'unit'>, value: 
       return value === 'NONE' ? 'None' : value.split(',').join(', ');
     case 'SLAB_LIST':
       return summariseSlabs(value);
+    case 'WEEKLY_OFF_SCHEDULE':
+      return summariseSchedule(value, istDate());
     default:
       return value;
   }
@@ -73,6 +77,8 @@ export function rangeHint(s: Pick<ConfigSettingDto, 'type' | 'min' | 'max' | 'un
       return 'NONE, or approval kinds separated by commas, e.g. DAILY_PLAN,LEAVE';
     case 'SLAB_LIST':
       return 'Salary bands with an amount each; the first band is the lowest salary allowed';
+    case 'WEEKLY_OFF_SCHEDULE':
+      return 'Sets of weekly days off, each starting on a date';
   }
 }
 
@@ -121,6 +127,10 @@ export function draftError(s: Pick<ConfigSettingDto, 'type' | 'min' | 'max' | 'o
       const parsed = parseSlabs(value);
       return parsed.ok ? undefined : parsed.error;
     }
+    case 'WEEKLY_OFF_SCHEDULE': {
+      const parsed = parseWeeklyOffSchedule(value);
+      return parsed.ok ? undefined : parsed.error;
+    }
     case 'KIND_LIST': {
       if (value.toUpperCase() === 'NONE') return undefined;
       const kinds = value.split(',').map((k) => k.trim().toUpperCase()).filter((k) => k !== '');
@@ -146,6 +156,10 @@ export function normalizeDraft(type: ConfigType, draft: string): string {
     case 'SLAB_LIST': {
       const parsed = parseSlabs(value);
       return parsed.ok ? serialiseSlabs(parsed.slabs) : value;
+    }
+    case 'WEEKLY_OFF_SCHEDULE': {
+      const parsed = parseWeeklyOffSchedule(value);
+      return parsed.ok ? serialiseWeeklyOffSchedule(parsed.schedule) : value;
     }
     case 'KIND_LIST': {
       if (value.toUpperCase() === 'NONE') return 'NONE';

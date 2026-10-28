@@ -18,6 +18,7 @@ import type { DeleteHolidayUseCase } from '../application/usecases/deleteHoliday
 import type { ImportHolidaysUseCase } from '../application/usecases/importHolidays.usecase.js';
 import type { UpdateHolidayUseCase } from '../application/usecases/updateHoliday.usecase.js';
 import type { ListHolidaysUseCase } from '../application/usecases/listHolidays.usecase.js';
+import type { ListWeeklyOffsUseCase } from '../application/usecases/listWeeklyOffs.usecase.js';
 import type { ListLeavePoliciesUseCase } from '../application/usecases/listLeavePolicies.usecase.js';
 import type { ListLeaveTypesUseCase } from '../application/usecases/listLeaveTypes.usecase.js';
 import type { SetLeavePolicyUseCase } from '../application/usecases/setLeavePolicy.usecase.js';
@@ -34,6 +35,7 @@ import type {
   leaveBodySchema,
   leavesQuerySchema,
   listHolidaysQuerySchema,
+  listWeeklyOffsQuerySchema,
   myLeavesQuerySchema,
 } from './hr.schemas.js';
 
@@ -43,7 +45,7 @@ export function actorOf(req: Request): Actor {
 }
 
 export type MastersHandlers = Record<
-  'listTypes' | 'createType' | 'updateType' | 'listPolicies' | 'setPolicy' | 'listHolidays' | 'createHoliday' | 'updateHoliday' | 'deleteHoliday' | 'importHolidays',
+  'listTypes' | 'createType' | 'updateType' | 'listPolicies' | 'setPolicy' | 'listHolidays' | 'listWeeklyOffs' | 'createHoliday' | 'updateHoliday' | 'deleteHoliday' | 'importHolidays',
   RequestHandler
 >;
 
@@ -54,6 +56,7 @@ export function makeMastersControllers(u: {
   listPolicies: ListLeavePoliciesUseCase;
   setPolicy: SetLeavePolicyUseCase;
   listHolidays: ListHolidaysUseCase;
+  listWeeklyOffs: ListWeeklyOffsUseCase;
   createHoliday: CreateHolidayUseCase;
   updateHoliday: UpdateHolidayUseCase;
   deleteHoliday: DeleteHolidayUseCase;
@@ -80,6 +83,10 @@ export function makeMastersControllers(u: {
     listHolidays: asyncHandler(async (req, res) => {
       const query = req.query as unknown as z.output<typeof listHolidaysQuerySchema>;
       sendSuccess(req, res, await u.listHolidays.execute(actorOf(req), query), 'Holidays.', 200);
+    }),
+    listWeeklyOffs: asyncHandler(async (req, res) => {
+      const query = req.query as unknown as z.output<typeof listWeeklyOffsQuerySchema>;
+      sendSuccess(req, res, await u.listWeeklyOffs.execute(query), 'Weekly offs.', 200);
     }),
     createHoliday: asyncHandler(async (req, res) => {
       const days = await u.createHoliday.execute(req.body as z.output<typeof createHolidayBodySchema>, actorOf(req).id);

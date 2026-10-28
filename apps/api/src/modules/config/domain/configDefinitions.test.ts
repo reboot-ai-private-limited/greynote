@@ -9,7 +9,7 @@ const HISTORICAL_DEFAULTS: Record<string, string> = {
   BUSINESS_TIMEZONE: 'Asia/Kolkata',
   DAY_START_TIME: '00:00',
   FY_START_MONTH: 'APRIL',
-  WEEKLY_OFF_DAY: 'SUNDAY',
+  WEEKLY_OFF_SCHEDULE: '[{"effectiveFrom":"1970-01-01","rules":[{"weekday":"SUNDAY","weeks":"ALL"}]}]',
   LEAVE_BACKDATE_DAYS: '0',
   LATE_LEAVE_GRANT_VALID_HOURS: '24',
   LATE_LEAVE_GRANT_MAX_HOURS: '168',
@@ -111,7 +111,7 @@ describe('the definitions registry', () => {
 
   it('says what moves for every high-impact setting', () => {
     const high = CONFIG_DEFINITIONS.filter((d) => d.impact === 'HIGH');
-    expect(high.map((d) => d.key).sort()).toEqual(['APPROVAL_MANAGER_ONLY_KINDS', 'BUSINESS_TIMEZONE', 'DAY_START_TIME', 'DCR_APPROVAL_REQUIRED', 'DCR_MISS_BLOCK_ENABLED', 'FY_START_MONTH', 'PTAX_SLABS', 'WEEKLY_OFF_DAY']);
+    expect(high.map((d) => d.key).sort()).toEqual(['APPROVAL_MANAGER_ONLY_KINDS', 'BUSINESS_TIMEZONE', 'DAY_START_TIME', 'DCR_APPROVAL_REQUIRED', 'DCR_MISS_BLOCK_ENABLED', 'FY_START_MONTH', 'PTAX_SLABS', 'WEEKLY_OFF_SCHEDULE']);
     for (const d of high) expect(d.impactNote?.length, d.key).toBeGreaterThan(20);
   });
 });
@@ -152,9 +152,24 @@ describe('validateConfigValue', () => {
 
   it('accepts a month and a weekday by name in any case, and refuses a number or a misspelling', () => {
     expect(validateConfigValue(def('FY_START_MONTH'), 'january')).toEqual({ ok: true, value: 'JANUARY' });
-    expect(validateConfigValue(def('WEEKLY_OFF_DAY'), ' friday ')).toEqual({ ok: true, value: 'FRIDAY' });
     for (const bad of ['13', 'Aprl', 'APRIL 1', '']) expect(validateConfigValue(def('FY_START_MONTH'), bad).ok, bad).toBe(false);
-    expect(validateConfigValue(def('WEEKLY_OFF_DAY'), 'APRIL').ok).toBe(false);
+  });
+
+  it('reads a weekly off schedule: sorted weeks, one rule per weekday, versions in rising date order', () => {
+    const d = def('WEEKLY_OFF_SCHEDULE');
+    const ok = validateConfigValue(d, '[{"effectiveFrom":"2026-01-01","rules":[{"weekday":"SUNDAY","weeks":"ALL"},{"weekday":"SATURDAY","weeks":[3,1,3]}]}]');
+    expect(ok).toEqual({ ok: true, value: '[{"effectiveFrom":"2026-01-01","rules":[{"weekday":"SUNDAY","weeks":"ALL"},{"weekday":"SATURDAY","weeks":[1,3]}]}]' });
+    expect(validateConfigValue(d, '[{"effectiveFrom":"2026-01-01","rules":[]}]').ok).toBe(true);
+    for (const bad of [
+      'banana',
+      '[]',
+      '[{"effectiveFrom":"2026-02-30","rules":[]}]',
+      '[{"effectiveFrom":"2026-01-01","rules":[{"weekday":"APRIL","weeks":"ALL"}]}]',
+      '[{"effectiveFrom":"2026-01-01","rules":[{"weekday":"SATURDAY","weeks":[6]}]}]',
+      '[{"effectiveFrom":"2026-01-01","rules":[{"weekday":"SATURDAY","weeks":[]}]}]',
+      '[{"effectiveFrom":"2026-01-01","rules":[{"weekday":"SATURDAY","weeks":"ALL"},{"weekday":"SATURDAY","weeks":[1]}]}]',
+      '[{"effectiveFrom":"2026-05-01","rules":[]},{"effectiveFrom":"2026-01-01","rules":[]}]',
+    ]) expect(validateConfigValue(d, bad).ok, bad).toBe(false);
   });
 
   it('accepts a real timezone as typed, fixes the casing of a canonical one, and refuses a made-up one', () => {

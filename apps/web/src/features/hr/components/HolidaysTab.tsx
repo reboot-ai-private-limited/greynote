@@ -16,12 +16,17 @@ import { istDate } from '@/lib/dates';
 import { financialYearOf, financialYearRange } from '@/lib/financial-year';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useFinancialYear, useIsReadOnly } from '@/lib/useFinancialYear';
-import { useDeleteHoliday, useHolidays } from '../hooks/useHolidays';
-import { HOLIDAY_SCOPE_LABEL, appliesTo, dateSpan, groupByMonth, rangeError, type HolidayEntry } from '../lib/holidays';
+import { useDeleteHoliday, useHolidays, useWeeklyOffs } from '../hooks/useHolidays';
+import { HOLIDAY_SCOPE_LABEL, appliesTo, dateSpan, groupCalendarByMonth, rangeError, type CalendarKind, type HolidayEntry } from '../lib/holidays';
 import { HolidayFormDialog } from './HolidayFormDialog';
 import { HolidayImportDialog } from './HolidayImportDialog';
 
 const ANY = 'all';
+const KIND_OPTIONS: { value: CalendarKind; label: string }[] = [
+  { value: 'ALL', label: 'Holidays and weekly offs' },
+  { value: 'HOLIDAYS', label: 'Holidays only' },
+  { value: 'WEEKLY_OFFS', label: 'Weekly offs only' },
+];
 const monthLabel = (month: string) => new Intl.DateTimeFormat('en-IN', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(new Date(`${month}-01T00:00:00Z`));
 
 /** The holiday calendar; a holiday added for several days shows as one line. The range defaults to the financial year in view, and the API lists at most 400 days at a time. */
@@ -29,7 +34,7 @@ export function HolidaysTab() {
   const readOnly = useIsReadOnly();
   const { year } = useFinancialYear();
   const defaults = financialYearRange(year ?? financialYearOf(istDate()));
-  const { values, update } = useFilterParams(['from', 'to', 'scope', 'zoneId', 'hqId']);
+  const { values, update } = useFilterParams(['from', 'to', 'scope', 'zoneId', 'hqId', 'kind', 'sundays']);
   const from = values.from || defaults.from;
   const to = values.to || defaults.to;
   const range = rangeError(from, to);
@@ -44,7 +49,11 @@ export function HolidaysTab() {
     { from, to, ...(values.scope && { scope: values.scope as HolidayScope }), ...(values.zoneId && { zoneId: values.zoneId }), ...(values.hqId && { hqId: values.hqId }) },
     !range,
   );
-  const groups = groupByMonth(holidays.data ?? []);
+  const kind = (KIND_OPTIONS.find((o) => o.value === values.kind)?.value ?? 'ALL') as CalendarKind;
+  // Weekly offs are the same for everyone, so a scope, zone or HQ filter (which narrows holidays) hides them.
+  const placeFiltered = Boolean(values.scope || values.zoneId || values.hqId);
+  const weeklyOffs = useWeeklyOffs({ from, to }, !range && kind !== 'HOLIDAYS' && !placeFiltered);
+  const groups = groupCalendarByMonth(kind === 'WEEKLY_OFFS' ? [] : (holidays.data ?? []), placeFiltered ? [] : (weeklyOffs.data ?? []), { kind, showEveryWeek: values.sundays === '1' });
 
   return (
     <Card
@@ -77,8 +86,17 @@ export function HolidaysTab() {
         <div className="w-52">
           <Select aria-label="HQ" value={values.hqId || ANY} options={[{ value: ANY, label: 'Any HQ' }, ...directory.hqOptions]} onValueChange={(v) => update({ hqId: v === ANY ? '' : v })} />
         </div>
-        {values.from || values.to || values.scope || values.zoneId || values.hqId ? (
-          <Button variant="ghost" size="sm" onClick={() => update({ from: '', to: '', scope: '', zoneId: '', hqId: '' })}>
+        <div className="w-56">
+          <Select aria-label="Show" value={kind} options={KIND_OPTIONS} onValueChange={(v) => update({ kind: v === 'ALL' ? '' : v })} />
+        </div>
+        {kind !== 'HOLIDAYS' ? (
+          <label className="flex items-center gap-2 text-sm text-text-muted">
+            <input type="checkbox" checked={values.sundays === '1'} onChange={(e) => update({ sundays: e.target.checked ? '1' : '' })} />
+            Show every-week days off (all Sundays)
+          </label>
+        ) : null}
+        {values.from || values.to || values.scope || values.zoneId || values.hqId || values.kind || values.sundays ? (
+          <Button variant="ghost" size="sm" onClick={() => update({ from: '', to: '', scope: '', zoneId: '', hqId: '', kind: '', sundays: '' })}>
             Reset
           </Button>
         ) : null}
@@ -86,17 +104,32 @@ export function HolidaysTab() {
       </div>
 
       <DataState
-        isLoading={!range && holidays.isLoading}
-        error={holidays.error ? toErrorState(holidays.error, () => void holidays.refetch()) : null}
-        isEmpty={!range && holidays.data?.length === 0}
+        isLoading={!range && (holidays.isLoading || weeklyOffs.isLoading)}
+        error={holidays.error ? toErrorState(holidays.error, () => void holidays.refetch()) : weeklyOffs.error ? toErrorState(weeklyOffs.error, () => void weeklyOffs.refetch()) : null}
+        isEmpty={!range && !holidays.isLoading && !weeklyOffs.isLoading && groups.length === 0}
         empty={{ title: 'No holidays in this range', description: 'Add one, or widen the dates.' }}
       >
         <div className="divide-y divide-border">
-          {groups.map(({ month, items }) => (
+          {groups.map(({ month, rows }) => (
             <section key={month} aria-label={monthLabel(month)} className="px-5 py-4">
               <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-subtle">{monthLabel(month)}</h3>
               <ul className="space-y-1">
-                {items.map((h) => (
+                {rows.map((row) => {
+                  if (row.kind === 'WEEKLY_OFF') {
+                    return (
+                    <li key={`off-${row.date}`} className="flex flex-wrap items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-surface-hover">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-text">
+                          {row.label} <span className="font-normal text-text-subtle">· {dateSpan(row.date, row.date)}</span>
+                        </p>
+                        <p className="text-[13px] text-text-muted">All employees · set under Settings → Weekly days off</p>
+                      </div>
+                      <Badge tone="neutral">Weekly off</Badge>
+                    </li>
+                    );
+                  }
+                  const h = row.entry;
+                  return (
                   <li key={h.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-surface-hover">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-text">
@@ -114,7 +147,8 @@ export function HolidaysTab() {
                       </Button>
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </section>
           ))}

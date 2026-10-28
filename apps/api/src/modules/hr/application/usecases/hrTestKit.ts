@@ -216,7 +216,7 @@ export class FakeConfig {
   values: Record<string, string> = {
     BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', FY_CLOSED_YEARS: 'NONE',
     FY_START_MONTH: 'APRIL',
-    WEEKLY_OFF_DAY: 'SUNDAY',
+    WEEKLY_OFF_SCHEDULE: '[{"effectiveFrom":"1970-01-01","rules":[{"weekday":"SUNDAY","weeks":"ALL"}]}]',
     LEAVE_BACKDATE_DAYS: '30',
     LATE_LEAVE_GRANT_VALID_HOURS: '24',
     LATE_LEAVE_GRANT_MAX_HOURS: '168',

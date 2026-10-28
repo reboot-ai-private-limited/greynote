@@ -165,6 +165,8 @@ const TIMELESS = [
   '/api/marketing/campaigns',
   // The upcoming-holidays list (PRD 6.2 D) — a calendar, not a report on a past year.
   '/api/hr/holidays',
+  // The weekly off dates of a calendar range: the same calendar, computed from the setting.
+  '/api/hr/weekly-offs',
   // Messages to a person: a feed of what is current, not a record of any year.
   '/api/inbox',
   '/api/inbox/unread-count',

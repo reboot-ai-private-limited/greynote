@@ -27,7 +27,7 @@ await esbuild.build({
     // the container, not just `tsx` in dev). No `outbase` needed — esbuild's default output
     // layout uses each entry's path relative to the lowest common ancestor of all entry points
     // (`src/`), so this lands at `dist/scripts/seed.js` alongside `dist/server.js`.
-    entryPoints: ['src/server.ts', 'src/scripts/seed.ts', 'src/scripts/migrate-money-to-paise.ts', 'src/scripts/migrate-territory-flatten.ts', 'src/scripts/run-compliance.ts', 'src/scripts/seed-production.ts', 'src/scripts/seed-demo-manager.ts', 'src/scripts/migrate-employee-codes.ts', 'src/scripts/migrate-specialties.ts', 'src/scripts/migrate-paybands.ts', 'src/scripts/migrate-inherit-monthly-plans.ts', 'src/scripts/migrate-drop-daily-plan-changes.ts', 'src/scripts/migrate-expense-finalized.ts', 'src/scripts/migrate-ctc-statutory.ts'],
+    entryPoints: ['src/server.ts', 'src/scripts/seed.ts', 'src/scripts/migrate-money-to-paise.ts', 'src/scripts/migrate-territory-flatten.ts', 'src/scripts/run-compliance.ts', 'src/scripts/seed-production.ts', 'src/scripts/seed-demo-manager.ts', 'src/scripts/migrate-employee-codes.ts', 'src/scripts/migrate-specialties.ts', 'src/scripts/migrate-paybands.ts', 'src/scripts/migrate-inherit-monthly-plans.ts', 'src/scripts/migrate-drop-daily-plan-changes.ts', 'src/scripts/migrate-expense-finalized.ts', 'src/scripts/migrate-ctc-statutory.ts', 'src/scripts/migrate-weekly-off-schedule.ts'],
     bundle: true,
     platform: 'node',
     format: 'esm',

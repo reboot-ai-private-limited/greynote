@@ -1,11 +1,10 @@
+import { parseWeeklyOffSchedule, type WeeklyOffVersion } from '@greynote/contracts';
 import { readConfig, readBusinessDay, type ConfigReader } from '@/shared/config/readConfig.js';
 import {
   businessDate,
   leaveYearOf,
   leaveYearRange,
   parseMonthName,
-  parseWeekdayName,
-  type WeekdayName,
 } from '@/shared/time/businessTime.js';
 import { HR_CONFIG_KEYS } from '../domain/configProvider.port.js';
 
@@ -18,7 +17,7 @@ const parseDays = (value: string): number => {
 
 /**
  * HR's calendar settings, read from Config on every call: the leave year's start month, the
- * weekly off day, the backdating limit, and "today" in the business timezone. `now` is injectable
+ * weekly off schedule, the backdating limit, and "today" in the business timezone. `now` is injectable
  * so tests don't depend on the clock.
  */
 export class HrCalendar {
@@ -31,8 +30,13 @@ export class HrCalendar {
     return readConfig(this.config, HR_CONFIG_KEYS.leaveYearStart, parseMonthName);
   }
 
-  weeklyOff(): Promise<WeekdayName> {
-    return readConfig(this.config, HR_CONFIG_KEYS.weeklyOff, parseWeekdayName);
+  /** The weekly off rule sets, each with the date it starts on. */
+  weeklyOffSchedule(): Promise<WeeklyOffVersion[]> {
+    return readConfig(this.config, HR_CONFIG_KEYS.weeklyOff, (value) => {
+      const parsed = parseWeeklyOffSchedule(value);
+      if (!parsed.ok) throw new RangeError(parsed.error);
+      return parsed.schedule;
+    });
   }
 
   backdateDays(): Promise<number> {

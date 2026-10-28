@@ -67,6 +67,11 @@ export const listHolidaysQuerySchema = holidayQueryObject
   .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] })
   .refine((q) => (Date.parse(q.to) - Date.parse(q.from)) / 86_400_000 <= 400, { message: 'At most 400 days at a time.', path: ['to'] });
 
+export const weeklyOffsQueryObject = z.object({ from: calendarDateSchema, to: calendarDateSchema });
+export const listWeeklyOffsQuerySchema = weeklyOffsQueryObject
+  .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`.', path: ['from'] })
+  .refine((q) => (Date.parse(q.to) - Date.parse(q.from)) / 86_400_000 <= 400, { message: 'At most 400 days at a time.', path: ['to'] });
+
 export const leaveBodySchema = z.object({
   leaveTypeId: objectIdSchema,
   startDate: calendarDateSchema,

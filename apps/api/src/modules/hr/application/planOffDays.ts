@@ -1,4 +1,5 @@
-import { eachDate, weekdayOf, type WeekdayName } from '@/shared/time/businessTime.js';
+import { weeklyOffLabel, type WeeklyOffVersion } from '@greynote/contracts';
+import { eachDate } from '@/shared/time/businessTime.js';
 import type { HolidayRepositoryPort } from '../domain/holiday.repository.port.js';
 import type { TerritoryPort } from '../domain/territory.port.js';
 
@@ -20,7 +21,7 @@ export class PlanOffDays {
   constructor(
     private readonly holidays: HolidayRepositoryPort,
     private readonly territory: TerritoryPort,
-    private readonly weeklyOff: () => Promise<WeekdayName>,
+    private readonly weeklyOff: () => Promise<WeeklyOffVersion[]>,
   ) {}
 
   async list(userId: string, from: string, to: string): Promise<PlanOffDay[]> {
@@ -32,7 +33,7 @@ export class PlanOffDays {
     return eachDate(from, to).flatMap((date): PlanOffDay[] => {
       const holiday = names.get(date);
       if (holiday) return [{ date, reason: 'HOLIDAY', name: [...new Set(holiday)].join(' / ') }];
-      return weekdayOf(date) === weeklyOff ? [{ date, reason: 'WEEKLY_OFF', name: null }] : [];
+      return weeklyOffLabel(date, weeklyOff) ? [{ date, reason: 'WEEKLY_OFF', name: null }] : [];
     });
   }
 }

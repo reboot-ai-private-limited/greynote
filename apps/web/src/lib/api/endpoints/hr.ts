@@ -6,6 +6,7 @@ import type {
   HolidayDto,
   HolidayImportResultDto,
   HolidayScope,
+  WeeklyOffDateDto,
   LeaveBalanceDto,
   LeaveDetailDto,
   LeavePolicyDto,
@@ -74,6 +75,9 @@ export const hrApi = {
 
   holidays: (token: string, query: ListHolidaysQuery, signal?: AbortSignal) =>
     request<HolidayDto[]>('/hr/holidays', { token, query: { ...query }, signal }),
+  /** The weekly off dates of a range (at most 400 days): "Sunday", "1st Saturday". */
+  weeklyOffs: (token: string, query: { from: string; to: string }, signal?: AbortSignal) =>
+    request<WeeklyOffDateDto[]>('/hr/weekly-offs', { token, query: { ...query }, signal }),
   /** One row per day: a range comes back as several days sharing a `groupId`. */
   createHoliday: (token: string, body: CreateHolidayDto) => request<HolidayDto[]>('/hr/holidays', { method: 'POST', token, body }),
   /** `group`: every day of the range this day belongs to. */

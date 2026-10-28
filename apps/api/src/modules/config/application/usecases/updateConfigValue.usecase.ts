@@ -1,4 +1,4 @@
-import type { RoleName } from '@greynote/contracts';
+import { parseWeeklyOffSchedule, type RoleName } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import { findConfigDefinition, validateConfigValue } from '../../domain/configDefinitions.js';
 import type { SystemConfigEntry } from '../../domain/systemConfig.entity.js';
@@ -10,6 +10,7 @@ const LATEST_KEY = 'DAILY_PLAN_RESUBMIT_LATEST_TIME';
 /** The two route-distance thresholds: Out-station must start beyond Ex-station. */
 const EX_KEY = 'EX_STATION_MIN_KM';
 const OUT_KEY = 'OUT_STATION_MIN_KM';
+const WEEKLY_OFF_KEY = 'WEEKLY_OFF_SCHEDULE';
 
 /**
  * Changes one setting. The value is checked against the setting's own definition (type, limits) and stored in the form the readers
@@ -21,7 +22,11 @@ const OUT_KEY = 'OUT_STATION_MIN_KM';
  * defense-in-depth as `unblockUser.usecase.ts`.
  */
 export class UpdateConfigValueUseCase {
-  constructor(private readonly repository: SystemConfigRepositoryPort) {}
+  /** `today` is a UTC date: the config module has no business timezone, and a few hours' slack on a start date does no harm. */
+  constructor(
+    private readonly repository: SystemConfigRepositoryPort,
+    private readonly today: () => string = () => new Date().toISOString().slice(0, 10),
+  ) {}
 
   async execute(
     actingUserId: string,
@@ -39,6 +44,7 @@ export class UpdateConfigValueUseCase {
     if (!checked.ok) throw AppError.badRequest(checked.message, { field: 'value', key });
     await this.assertPlanTimesInOrder(key, checked.value);
     await this.assertStationKmInOrder(key, checked.value);
+    await this.assertWeeklyOffHistoryKept(key, checked.value);
 
     const updated = await this.repository.updateValue(key, checked.value, actingUserId);
     if (!updated) {
@@ -48,6 +54,32 @@ export class UpdateConfigValueUseCase {
       throw AppError.notFound(`Unknown config key: ${key}`);
     }
     return updated;
+  }
+
+  /**
+   * Weekly off sets that have already started are history: attendance, payroll and plans of those dates were read with them. A save
+   * keeps every started set as it was, and only a set starting today or later may be added, changed or removed.
+   */
+  private async assertWeeklyOffHistoryKept(key: string, value: string): Promise<void> {
+    if (key !== WEEKLY_OFF_KEY) return;
+    const stored = (await this.repository.findByKey(key))?.value;
+    const old = stored ? parseWeeklyOffSchedule(stored) : null;
+    // An unreadable stored value is flagged on its own and must not block fixing it.
+    if (!old?.ok) return;
+    const next = parseWeeklyOffSchedule(value);
+    if (!next.ok) return;
+    const today = this.today();
+    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    for (const v of old.schedule) {
+      if (v.effectiveFrom < today && !next.schedule.some((n) => same(n, v))) {
+        throw AppError.badRequest(`The days off that started on ${v.effectiveFrom} have already been used and can't be changed. Add a new set that starts today or later.`, { field: 'value', key });
+      }
+    }
+    for (const n of next.schedule) {
+      if (n.effectiveFrom < today && !old.schedule.some((v) => same(v, n))) {
+        throw AppError.badRequest(`A new set of days off can't start in the past (${n.effectiveFrom}). Start it today or later.`, { field: 'value', key });
+      }
+    }
   }
 
   private async assertStationKmInOrder(key: string, value: string): Promise<void> {

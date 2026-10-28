@@ -80,6 +80,7 @@ GET    /api/hr/leave-types  ANY
 GET    /api/hr/leaves  ADMIN,HR
 GET    /api/hr/leaves/:id  ANY
 GET    /api/hr/leaves/me  FIELD
+GET    /api/hr/weekly-offs  ANY
 GET    /api/identity/auth/me  ANY
 GET    /api/identity/designations  ADMIN,HR
 GET    /api/identity/devices/pending  ADMIN
