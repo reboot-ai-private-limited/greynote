@@ -38,6 +38,8 @@ export interface FieldActivityPublicContract {
   listAcceptedExpenses(filter: { from: string; to: string; userId?: string; limit?: number }): Promise<Expense[]>;
   /** Every employee's reported days, calls, follow-ups, geofence results and late submissions by month over a date range — the DCR report's input. */
   summarizeDcrs(range: { from: string; to: string }): Promise<DcrMonthSummary[]>;
+  /** Doctor calls per employee per day over a range (both ends inclusive), days with none left out: only calls of a final DCR (approved while `DCR_APPROVAL_REQUIRED` is on, submitted or later when off) — the Attendance calendar's input. */
+  countDoctorCallsByDay(range: { from: string; to: string }): Promise<Array<{ userId: string; date: string; count: number }>>;
   /** The Doctors this employee called on in their reported days of a range (both ends inclusive). */
   listCalledDoctorIds(userId: string, range: { from: string; to: string }): Promise<string[]>;
   /** Calls per Doctor in the reported days of a range (both ends inclusive), by any employee — the visit-frequency report's input. */

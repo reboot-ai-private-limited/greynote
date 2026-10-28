@@ -33,6 +33,8 @@ export interface PayrollCalendarRowDto {
   user: { id: string; name: string; employeeCode: string };
   /** One status per day of the month, in date order. */
   days: DayStatus[];
+  /** Doctor calls of each day, `doctorCalls[i]` for `dates[i]`: only those of a final DCR (approved while `DCR_APPROVAL_REQUIRED` is on). */
+  doctorCalls: number[];
   counts: Record<DayStatus, number>;
   absentDays: number;
   strikeDays: number;

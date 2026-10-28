@@ -18,4 +18,5 @@ export interface PlanningPort {
 
 export interface FieldActivityPort {
   listReportedDates(userId: string, from: string, to: string): Promise<string[]>;
+  countDoctorCallsByDay(range: { from: string; to: string }): Promise<Array<{ userId: string; date: string; count: number }>>;
 }

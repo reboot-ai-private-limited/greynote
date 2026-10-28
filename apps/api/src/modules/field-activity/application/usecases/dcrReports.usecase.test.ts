@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { ApprovalRequest } from '@/modules/approval/approval.public.js';
 import { DcrClock } from '../dcrClock.js';
 import { FakeApprovals, FakeChemistCalls, FakeConfig, FakeDcrs, FakeDoctorCalls, FakeFollowups } from './faTestKit.js';
-import { ListCalledDoctorsUseCase, SummarizeDcrsUseCase } from './dcrReports.usecase.js';
+import { CountDoctorCallsByDayUseCase, ListCalledDoctorsUseCase, SummarizeDcrsUseCase } from './dcrReports.usecase.js';
 
 type GeoStatus = 'PASS' | 'FAIL' | 'UNVERIFIED' | 'OVERRIDE';
 
-function world() {
+function world(config = new FakeConfig()) {
   const dcrs = new FakeDcrs();
   const approvals = new FakeApprovals();
   const doctor = new FakeDoctorCalls();
@@ -15,6 +15,7 @@ function world() {
   const clock = new DcrClock(new FakeConfig(), () => new Date('2026-10-20T06:00:00Z'));
   const summarize = new SummarizeDcrsUseCase(dcrs, approvals, doctor, chemist, follow, clock);
   const called = new ListCalledDoctorsUseCase(dcrs, approvals, doctor);
+  const byDay = new CountDoctorCallsByDayUseCase(dcrs, approvals, doctor, config);
 
   /** A daily report with its approval request (`null` = still a draft), submitted at `submittedAt`. */
   const report = async (userId: string, reportDate: string, status: ApprovalRequest['status'] | null, submittedAt = `${reportDate}T10:00:00Z`) => {
@@ -25,7 +26,7 @@ function world() {
   const doctorCall = (dcrId: string, userId: string, reportDate: string, doctorId: string, status: GeoStatus = 'PASS', notInPlan = false) => doctor.rows.push({ id: `dc-${doctor.rows.length}`, dcrId, userId, reportDate, doctorId, notInPlan, geofence: { status } } as never);
   const chemistCall = (dcrId: string, userId: string, reportDate: string, status: GeoStatus = 'PASS') => chemist.rows.push({ id: `cc-${chemist.rows.length}`, dcrId, userId, reportDate, geofence: { status } } as never);
   const followup = (dcrId: string, userId: string, reportDate: string) => follow.rows.push({ id: `fu-${follow.rows.length}`, dcrId, userId, reportDate } as never);
-  return { report, doctorCall, chemistCall, followup, summarize, called };
+  return { report, doctorCall, chemistCall, followup, summarize, called, byDay };
 }
 
 const range = { from: '2026-10-01', to: '2026-10-31' };
@@ -90,5 +91,33 @@ describe('the doctors an employee called on', () => {
     w.doctorCall(other.id, 'u2', '2026-10-05', 'd4');
     expect((await w.called.execute('u1', range)).sort()).toEqual(['d1', 'd2']);
     expect(await w.called.execute('u1', { from: '2026-11-01', to: '2026-11-30' })).toEqual([]);
+  });
+});
+
+describe('doctor calls per day for the Attendance calendar', () => {
+  const setup = async (config: FakeConfig) => {
+    const w = world(config);
+    const approved = await w.report('u1', '2026-10-05', 'APPROVED');
+    const submitted = await w.report('u1', '2026-10-06', 'SUBMITTED');
+    const draft = await w.report('u1', '2026-10-07', null);
+    for (const d of ['d1', 'd2']) w.doctorCall(approved.id, 'u1', '2026-10-05', d);
+    w.doctorCall(submitted.id, 'u1', '2026-10-06', 'd3');
+    w.doctorCall(draft.id, 'u1', '2026-10-07', 'd4');
+    return w;
+  };
+
+  it('approval required (the default): counts only approved reports', async () => {
+    const w = await setup(new FakeConfig());
+    expect(await w.byDay.execute(range)).toEqual([{ userId: 'u1', date: '2026-10-05', count: 2 }]);
+  });
+
+  it('approval not required: counts submitted reports too, still not drafts', async () => {
+    const config = new FakeConfig();
+    config.values.DCR_APPROVAL_REQUIRED = 'false';
+    const w = await setup(config);
+    expect(await w.byDay.execute(range)).toEqual([
+      { userId: 'u1', date: '2026-10-05', count: 2 },
+      { userId: 'u1', date: '2026-10-06', count: 1 },
+    ]);
   });
 });

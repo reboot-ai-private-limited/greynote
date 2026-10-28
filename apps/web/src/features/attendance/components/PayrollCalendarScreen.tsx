@@ -85,11 +85,12 @@ export function PayrollCalendarScreen() {
                               </span>
                             ) : null}
                           </th>
-                          {zipDays(data.dates, r.days).map((d) => (
-                            <td key={d.date} className="px-0.5 py-1 text-center" title={`${d.date} · ${STATUS_LABEL[d.status]}`}>
+                          {zipDays(data.dates, r.days).map((d, i) => (
+                            <td key={d.date} className="px-0.5 py-1 text-center" title={`${d.date} · ${STATUS_LABEL[d.status]}${r.doctorCalls[i] ? ` · ${r.doctorCalls[i]} doctor calls` : ''}`}>
                               <span aria-label={STATUS_LABEL[d.status]} className={cn('inline-flex size-6 items-center justify-center rounded text-[11px] font-semibold', CELL_CLASS[d.status])}>
                                 {STATUS_CODE[d.status]}
                               </span>
+                              <span className="block h-4 text-[11px] tabular-nums text-text-muted">{r.doctorCalls[i] || ''}</span>
                             </td>
                           ))}
                           <td className="px-3 py-2 text-right tabular-nums">{r.absentDays}</td>
@@ -104,6 +105,7 @@ export function PayrollCalendarScreen() {
           </Card>
           {data ? (
             <p className="mt-3 text-[13px] text-text-subtle">
+              The small number under a day is its doctor calls, counted once that day’s report is approved (or submitted, if daily reports don’t need approval).{' '}
               {data.absentDeducts
                 ? `“Deducted” is what payroll would take for the month: absent days${data.strikeDeducts ? ' and strike days' : ''}.`
                 : 'Absent days are switched off in the settings; nothing is deducted.'}
