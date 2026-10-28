@@ -1,6 +1,6 @@
 import type { ReportOrderRowDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { ORDERS_CSV_HEADER, canFinish, needsInvoiceNumber, ordersCsv, ordersFilename, tabOf } from './orders';
+import { ORDERS_CSV_HEADER, canFinish, needsInvoiceNumber, ordersCsv, ordersFilename, searchOrders, tabOf } from './orders';
 
 const row = (over: Partial<ReportOrderRowDto> = {}): ReportOrderRowDto => ({
   id: 'o1',
@@ -54,5 +54,18 @@ describe('ordersCsv', () => {
   it('names the file by its month and kind', () => {
     expect(ordersFilename('2026-10', 'DISTRIBUTOR')).toBe('orders-distributors-2026-10.csv');
     expect(ordersFilename('2026-10', 'CHEMIST')).toBe('orders-chemists-2026-10.csv');
+  });
+});
+
+describe('searchOrders', () => {
+  const rows = [row(), row({ id: 'o2', outlet: { id: 'd2', name: 'ARL Pharma' }, mr: { id: 'u2', name: 'Laxman Mandal', employeeCode: 'GHC004' }, invoiceNumber: 'INV-77' })];
+  it('matches outlet, MR name, MR code and invoice number in any case', () => {
+    expect(searchOrders(rows, 'arl').map((r) => r.id)).toEqual(['o2']);
+    expect(searchOrders(rows, 'LAXMAN').map((r) => r.id)).toEqual(['o2']);
+    expect(searchOrders(rows, 'ghc004').map((r) => r.id)).toEqual(['o2']);
+    expect(searchOrders(rows, 'inv-77').map((r) => r.id)).toEqual(['o2']);
+  });
+  it('returns everything for a blank term', () => {
+    expect(searchOrders(rows, '  ')).toHaveLength(2);
   });
 });

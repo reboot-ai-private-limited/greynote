@@ -1,6 +1,6 @@
 import type { InvoiceRowDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { expiryLabel, invoiceTotals, invoicesCsv, monthBounds, rupeesInWords, statusOf, taxBreakup } from './invoices';
+import { expiryLabel, invoiceTotals, invoicesCsv, monthBounds, rupeesInWords, searchInvoices, statusOf, taxBreakup } from './invoices';
 
 const row = (over: Partial<InvoiceRowDto> = {}): InvoiceRowDto => ({
   orderId: 'o1',
@@ -72,5 +72,16 @@ describe('expiryLabel', () => {
     expect(expiryLabel('2028-03')).toBe('03/2028');
     expect(expiryLabel(null)).toBe('—');
     expect(expiryLabel('bad')).toBe('—');
+  });
+});
+
+describe('searchInvoices', () => {
+  const rows = [row(), row({ orderId: 'o2', invoiceNumber: '3453', distributor: { id: 'd2', name: 'H.S MED DISTRIBUTORS' } })];
+  it('matches invoice number or distributor in any case', () => {
+    expect(searchInvoices(rows, '3453').map((r) => r.orderId)).toEqual(['o2']);
+    expect(searchInvoices(rows, 'uma').map((r) => r.orderId)).toEqual(['o1']);
+  });
+  it('returns everything for a blank term', () => {
+    expect(searchInvoices(rows, '')).toHaveLength(2);
   });
 });

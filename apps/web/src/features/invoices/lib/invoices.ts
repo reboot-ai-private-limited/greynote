@@ -96,3 +96,10 @@ export function rupeesInWords(paise: number): string {
 function rupeesChunk(n: number): string {
   return n >= 1000 ? `${belowThousand(Math.floor(n / 1000))} Thousand${n % 1000 ? ` ${belowThousand(n % 1000)}` : ''}` : belowThousand(n);
 }
+
+/** The invoices whose number or distributor contains `term` (any case); all of them when it is blank. */
+export const searchInvoices = (rows: readonly InvoiceRowDto[], term: string): InvoiceRowDto[] => {
+  const q = term.trim().toLowerCase();
+  if (!q) return [...rows];
+  return rows.filter((r) => r.invoiceNumber.toLowerCase().includes(q) || r.distributor.name.toLowerCase().includes(q));
+};
