@@ -10,6 +10,7 @@ import {
   getDoctorServiceRecord,
   getLeaveRecord,
   type ApprovalDetail,
+  workWithText,
   type PlanDayView,
 } from '@/lib/approvals';
 import { getStatementById } from '@/lib/expense-months';
@@ -82,7 +83,7 @@ function dayLines(day: PlanDayView, routes?: NamedRoute[]) {
     <>
       <Line label="Working type" value={workingTypeLabel(day.workingType)} />
       <Line label="Routes" value={routeNamesText(day.routeIds, routes)} />
-      <Line label="Works with" value={day.workWith.length === 0 ? 'Nobody' : `${day.workWith.length} colleague${day.workWith.length === 1 ? '' : 's'}`} />
+      <Line label="Works with" value={workWithText(day)} />
       {day.remarks ? <Line label="Remarks" value={day.remarks} /> : null}
     </>
   );

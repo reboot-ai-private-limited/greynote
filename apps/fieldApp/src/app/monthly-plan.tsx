@@ -404,7 +404,7 @@ export default function MonthlyPlanScreen() {
     });
     setDownloading(true);
     try {
-      await shareCsv(exportFileName('tour-plan', me?.employeeCode, month), csv, `Tour Plan · ${prettyMonth(month)}`);
+      await shareCsv(exportFileName('tour-plan', { name: me?.name, employeeCode: me?.employeeCode }, month), csv, `Tour Plan · ${prettyMonth(month)}`);
     } catch (err) {
       setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Couldn’t make the file. Please try again.' });
     } finally {

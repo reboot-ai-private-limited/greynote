@@ -34,7 +34,7 @@ const GROUPS: Group[] = [
     hint: 'Used now and then',
     items: [
       { title: 'Late exceptions', about: 'Let someone send a plan or expenses late, and see what you granted', href: '/late-grants', icon: sym('clock.badge.checkmark', 'schedule'), accent: 'amber' },
-      { title: 'Visit targets', about: 'How often each doctor should be visited', href: '/team-doctors', icon: sym('target', 'track_changes'), accent: 'red' },
+      { title: 'Team doctors', about: 'Their doctors, and how often each should be visited', href: '/team-doctors', icon: sym('target', 'track_changes'), accent: 'red' },
       { title: 'Unblock', about: 'Clear a block for a missed report', href: '/unblock', icon: sym('lock.open', 'lock_open'), accent: 'purple' },
     ],
   },

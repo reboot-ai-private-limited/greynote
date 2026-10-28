@@ -57,6 +57,14 @@ export async function loadCurrentUser(): Promise<SessionUser> {
 }
 
 /**
+ * Changes the signed-in employee's password (docs/mobile/account.md). The current `refreshToken` goes along so this phone stays
+ * signed in while every other session of the employee is signed out. Online only. Errors carry the server's message
+ * (`403` wrong current password, `400` too short or same as before, `429` too many wrong tries).
+ */
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  apiPost<unknown>('/identity/auth/change-password', { currentPassword, newPassword, refreshToken: getTokens()?.refreshToken }, { auth: true });
+
+/**
  * Revokes this phone's session on the server (best effort), then forgets it locally. Unsent
  * records are backed up first and then wiped from the phone — they come back at the next login
  * (offline/engine.ts restoreDrafts). A session that merely *expires* keeps them: only an explicit

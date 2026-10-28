@@ -228,7 +228,23 @@ export const getDcr = (id: string) => apiGet<DcrDetail>(`/field-activity/dcr/${i
 export const acceptCall = (dcrId: string, callId: string, comment: string) =>
   apiPost<unknown>(`/field-activity/dcr/${dcrId}/calls/${callId}/override-geofence`, { comment: comment.trim() }, { auth: true });
 
-export type PlanDayView = { workingType: string; workWith: string[]; routeIds: string[]; remarks: string | null };
+/** A colleague named on a plan read; `label` is ready to print ("Asha Rao (ASM)"). */
+export type PlanPerson = { id: string; name: string; designation: string | null; label: string };
+export type PlanDayView = {
+  workingType: string;
+  workWith: string[];
+  /** The same people as `workWith`, named. Only on the detail reads; absent or empty elsewhere and on older servers. */
+  workWithPeople?: PlanPerson[];
+  routeIds: string[];
+  remarks: string | null;
+};
+
+/** "Works with" in words: the colleagues' labels when the server named them, else a count. */
+export const workWithText = (day: Pick<PlanDayView, 'workWith' | 'workWithPeople'>): string => {
+  if (day.workWith.length === 0) return 'Nobody';
+  if (day.workWithPeople && day.workWithPeople.length > 0) return day.workWithPeople.map((p) => p.label).join(', ');
+  return `${day.workWith.length} colleague${day.workWith.length === 1 ? '' : 's'}`;
+};
 export type DailyPlanRecord = PlanDayView & {
   id: string;
   planDate: string;

@@ -91,6 +91,7 @@ export type TeamDoctor = {
   name: string;
   specialty: string;
   clinicName?: string | null;
+  phone?: string | null;
   dateOfBirth?: string | null;
   anniversary?: string | null;
   visitFrequency?: number | null;

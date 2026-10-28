@@ -288,7 +288,7 @@ export default function ExpensesScreen() {
     if (!statement) return;
     setBusy(true);
     try {
-      await shareCsv(exportFileName('expenses', me?.employeeCode, statement.month), expensesCsv(statement), `Expenses · ${prettyMonth(statement.month)}`);
+      await shareCsv(exportFileName('expenses', { name: me?.name, employeeCode: me?.employeeCode }, statement.month), expensesCsv(statement), `Expenses · ${prettyMonth(statement.month)}`);
     } catch (err) {
       setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Couldn’t make the file. Please try again.' });
     } finally {

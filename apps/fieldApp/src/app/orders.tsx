@@ -18,7 +18,7 @@ import { FyBanner } from '@/components/fy-banner';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
-import { cancelOrder, completeOrder, deliveredOf, discountLabel, lineValue, listOrders, orderValue, type OrderStatus, type OrderView, type OutletType } from '@/lib/marketing';
+import { cancelOrder, deliveredOf, discountLabel, lineValue, listOrders, orderValue, type OrderStatus, type OrderView, type OutletType } from '@/lib/marketing';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
 import { useSessionUser } from '@/lib/session';
 import { createRecord, getRecord, removeRecord, sendNow, updateRecord, useColleagues, useOnline, useRecords, type OutboxRecord } from '@/offline';
@@ -55,7 +55,7 @@ const bannerFor = (o: OrderView): { accent: Accent; icon: ReturnType<typeof sym>
   }
   if (o.status === 'DONE') return { accent: 'green', icon: sym('checkmark.circle', 'check_circle'), title: 'Done', text: 'Counted as a primary sale at what was delivered.' };
   if (o.status === 'CANCELLED') return { accent: 'red', icon: sym('xmark.circle', 'cancel'), title: 'Cancelled', text: 'This order was cancelled.' };
-  return { accent: 'orange', icon: sym('clock', 'schedule'), title: 'Placed', text: 'Mark it done once the distributor has supplied it.' };
+  return { accent: 'orange', icon: sym('clock', 'schedule'), title: 'Placed', text: 'The office marks it done, with an invoice number, once the distributor has supplied it. You can still cancel it until then.' };
 };
 
 /** The order form's fields top to bottom, so a failed save scrolls to the first one with a problem. */
@@ -65,9 +65,9 @@ const errorText =(err: unknown) =>
 
 /**
  * Orders (PRD §6.2, docs/mobile/orders-and-stock.md): an order for one of your chemists or distributors, by product.
- * A distributor order is Placed, then you mark it Done or Cancel it. A chemist order is information only: it is
- * recorded and shown, never marked done or cancelled. Placing works offline — the order is kept on the phone and
- * sent when you're back online. Marking Done or Cancelled needs a connection.
+ * A distributor order is Placed; only Admin or Accountant mark it Done (with an invoice number), the MR can only
+ * Cancel it. A chemist order is information only: it is recorded and shown, never marked done or cancelled. Placing
+ * works offline — the order is kept on the phone and sent when you're back online. Cancelling needs a connection.
  */
 export default function OrdersScreen() {
   const online = useOnline();
@@ -208,13 +208,13 @@ export default function OrdersScreen() {
     }
   };
 
-  const finish = async (order: OrderView, to: 'DONE' | 'CANCELLED') => {
-    setBusy(to);
+  const cancel = async (order: OrderView) => {
+    setBusy('CANCELLED');
     try {
-      const updated = to === 'DONE' ? await completeOrder(order.id) : await cancelOrder(order.id);
+      const updated = await cancelOrder(order.id);
       setDetail(updated);
       server.reload();
-      setMsg({ tone: 'success', text: to === 'DONE' ? 'Marked done.' : 'Order cancelled.' });
+      setMsg({ tone: 'success', text: 'Order cancelled.' });
     } catch (err) {
       // The order may have moved on (done elsewhere) or be a chemist order: say so, and show its current state.
       const code = err instanceof ApiError ? err.data?.code : undefined;
@@ -315,17 +315,14 @@ export default function OrdersScreen() {
         footer={
           <View style={styles.block}>
             {canAct && online ? (
-              <>
-                <PrimaryButton label="Mark done" loading={busy === 'DONE'} disabled={busy !== null} onPress={() => finish(detail, 'DONE')} />
-                <PrimaryButton label="Cancel this order" variant="text" loading={busy === 'CANCELLED'} disabled={busy !== null} onPress={() => finish(detail, 'CANCELLED')} />
-              </>
+              <PrimaryButton label="Cancel this order" variant="text" loading={busy === 'CANCELLED'} disabled={busy !== null} onPress={() => cancel(detail)} />
             ) : null}
             <PrimaryButton label="Back to orders" variant="text" onPress={() => setMode('list')} />
           </View>
         }>
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
         <StatusBanner {...bannerFor(detail)} />
-        {canAct && !online ? <Notice tone="info">Marking an order done or cancelling it needs a connection.</Notice> : null}
+        {canAct && !online ? <Notice tone="info">Cancelling an order needs a connection.</Notice> : null}
         <InfoCard>
           {isMine(detail) ? null : <ThemedText type="small" themeColor="textSecondary">{`Placed by ${ownerName(detail.userId)}`}</ThemedText>}
           <ThemedText type="smallBold">{outletName(detail.outlet.type, detail.outlet.id)}</ThemedText>
@@ -334,8 +331,8 @@ export default function OrdersScreen() {
         </InfoCard>
         {detail.originalItems && detail.originalItems.length > 0 ? (
           <CardSection icon={sym('clock.arrow.circlepath', 'history')} accent="slate" title="You ordered">
-            {detail.originalItems.map((i) => (
-              <View key={i.productId} style={styles.spread}>
+            {detail.originalItems.map((i, n) => (
+              <View key={`${i.productId}:${n}`} style={styles.spread}>
                 <View style={styles.grow}>
                   <ThemedText type="smallBold">{productName(i.productId)}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">{`${i.quantity} × ${formatRupees(i.unitPricePaise)}`}</ThemedText>
@@ -352,11 +349,12 @@ export default function OrdersScreen() {
           </CardSection>
         ) : null}
         <CardSection icon={sym('shippingbox', 'inventory_2')} accent="teal" title={detail.originalItems ? 'Products now' : 'Products'} count={detail.items.length}>
-          {detail.items.map((i) => {
+          {/* The office can put one product on several lines (own price or discount each): show every line, keyed by position. */}
+          {detail.items.map((i, n) => {
             const done = detail.status === 'DONE' && !infoOnly;
             const d = deliveredOf(i);
             return (
-              <View key={i.productId} style={styles.spread}>
+              <View key={`${i.productId}:${n}`} style={styles.spread}>
                 <View style={styles.grow}>
                   <ThemedText type="smallBold">{productName(i.productId)}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">{`Ordered ${i.quantity} × ${formatRupees(i.unitPricePaise)}`}</ThemedText>

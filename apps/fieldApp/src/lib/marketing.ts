@@ -48,7 +48,7 @@ export const getTarget = (userId: string, month: string, scope: { productId?: st
 };
 // Targets are set and removed only by Admin, on the web portal: the app reads them and never writes one.
 
-/* ── Orders (reading and finishing; placing one goes through the outbox) ── */
+/* ── Orders (reading and cancelling; placing one goes through the outbox) ── */
 
 export type OutletType = 'CHEMIST' | 'DISTRIBUTOR';
 export type OrderStatus = 'PLACED' | 'DONE' | 'CANCELLED';
@@ -114,7 +114,7 @@ export const orderValue = (o: Pick<OrderView, 'status' | 'totalAmountPaise' | 's
   o.status === 'DONE' ? (o.suppliedAmountPaise ?? o.totalAmountPaise) : o.totalAmountPaise;
 /** The year switch (lib/financial-year.ts) bounds this list: a past year shows that year's orders. */
 export const listOrders = () => apiGet<OrderView[]>('/sales/orders', { fy: true });
-export const completeOrder = (id: string) => apiPost<OrderView>(`/sales/orders/${id}/complete`, {}, { auth: true });
+// Marking an order Done is Admin / Accountant only (with an invoice number); the app can only cancel.
 export const cancelOrder = (id: string) => apiPost<OrderView>(`/sales/orders/${id}/cancel`, {}, { auth: true });
 
 /* ── Monthly stock ── */
