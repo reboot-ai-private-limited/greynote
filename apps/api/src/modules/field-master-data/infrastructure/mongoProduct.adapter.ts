@@ -17,6 +17,7 @@ const toProduct = (doc: ProductDoc & { _id: unknown }): Product => ({
   ptrPaise: doc.ptrPaise ?? null,
   mrpPaise: doc.mrpPaise ?? null,
   gstPercent: doc.gstPercent ?? null,
+  hsn: doc.hsn ?? null,
   division: doc.division ?? null,
   status: doc.status,
 });

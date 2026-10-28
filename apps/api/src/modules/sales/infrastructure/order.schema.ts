@@ -12,6 +12,9 @@ interface OrderItemDoc {
   discount?: DiscountDoc | null;
   netAmountPaise?: number;
   suppliedNetPaise?: number | null;
+  hsn?: string | null;
+  batchNo?: string | null;
+  expiry?: string | null;
 }
 interface DiscountDoc {
   type: 'PERCENT' | 'FIXED';
@@ -71,6 +74,10 @@ const itemSchema = new Schema<OrderItemDoc>(
     discount: { type: discountSchema, default: null },
     netAmountPaise: { type: Number, min: 0 },
     suppliedNetPaise: { type: Number, default: null, min: 0 },
+    // Set when the order is marked Done; absent on older orders, read as null.
+    hsn: { type: String, default: null },
+    batchNo: { type: String, default: null },
+    expiry: { type: String, default: null },
   },
   { _id: false },
 );

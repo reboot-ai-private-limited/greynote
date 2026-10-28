@@ -22,6 +22,9 @@ const toItem = (i: ItemDoc): Order['items'][number] => ({
   discount: toDiscount(i.discount),
   netAmountPaise: i.netAmountPaise ?? i.amountPaise,
   suppliedNetPaise: i.suppliedNetPaise ?? null,
+  hsn: i.hsn ?? null,
+  batchNo: i.batchNo ?? null,
+  expiry: i.expiry ?? null,
 });
 
 const toOrder = (d: OrderDoc & { _id: unknown }): Order => ({

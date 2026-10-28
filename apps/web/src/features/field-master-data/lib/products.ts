@@ -8,6 +8,7 @@ export const CATEGORY_MAX = 100;
 export const COMPOSITION_MAX = 300;
 export const PACK_MAX = 40;
 export const DIVISION_MAX = 100;
+export const HSN_PATTERN = /^\d{4,8}$/;
 
 /** Money is typed in rupees (`90`, `90.50`); the type and GST are chosen from their lists ('' = not chosen yet). */
 export interface ProductDraft {
@@ -22,10 +23,12 @@ export interface ProductDraft {
   ptr: string;
   mrp: string;
   gst: string;
+  /** HSN/SAC printed on the Tax Invoice. */
+  hsn: string;
   division: string;
 }
 
-export const EMPTY_PRODUCT: ProductDraft = { name: '', sku: '', category: '', composition: '', type: '', packSize: '', pts: '', ptr: '', mrp: '', gst: '', division: '' };
+export const EMPTY_PRODUCT: ProductDraft = { name: '', sku: '', category: '', composition: '', type: '', packSize: '', pts: '', ptr: '', mrp: '', gst: '', hsn: '', division: '' };
 
 export function productToDraft(product: ProductDto): ProductDraft {
   return {
@@ -39,6 +42,7 @@ export function productToDraft(product: ProductDto): ProductDraft {
     ptr: product.ptrPaise === null ? '' : paiseToRupees(product.ptrPaise),
     mrp: product.mrpPaise === null ? '' : paiseToRupees(product.mrpPaise),
     gst: product.gstPercent === null ? '' : String(product.gstPercent),
+    hsn: product.hsn ?? '',
     division: product.division ?? '',
   };
 }
@@ -60,13 +64,14 @@ function price(raw: string): { paise: number | null; error?: string } {
  * The checks. `required` says the new fields must be filled (a new product, or an edit of one that already has them); an older product
  * being edited may leave them empty until someone completes it, but whatever is typed is still checked.
  */
-function problems(draft: ProductDraft, required: boolean) {
+function problems(draft: ProductDraft, required: boolean, hsnRequired = required) {
   const name = squash(draft.name);
   const sku = draft.sku.trim();
   const category = squash(draft.category);
   const composition = squash(draft.composition);
   const packSize = squash(draft.packSize);
   const division = squash(draft.division);
+  const hsn = draft.hsn.trim();
   const pts = price(draft.pts);
   const ptr = price(draft.ptr);
   const mrp = price(draft.mrp);
@@ -82,7 +87,7 @@ function problems(draft: ProductDraft, required: boolean) {
           : {};
 
   return {
-    clean: { name, sku, category, composition, packSize, division, ptsPaise: pts.paise, ptrPaise: ptr.paise, mrpPaise: mrp.paise },
+    clean: { name, sku, category, composition, packSize, division, hsn, ptsPaise: pts.paise, ptrPaise: ptr.paise, mrpPaise: mrp.paise },
     errors: {
       name: name === '' ? 'Enter a name.' : name.length > NAME_MAX ? `Keep the name to ${NAME_MAX} characters.` : undefined,
       sku:
@@ -106,6 +111,7 @@ function problems(draft: ProductDraft, required: boolean) {
       ptr: ptr.error ?? needed(draft.ptr.trim(), 'Enter the PTR.') ?? ladder.ptr,
       mrp: mrp.error ?? needed(draft.mrp.trim(), 'Enter the MRP.'),
       gst: draft.gst === '' ? needed('', 'Choose the GST.') : isGst(draft.gst) ? undefined : 'Choose the GST from the list.',
+      hsn: hsn === '' ? (hsnRequired ? 'Enter the HSN/SAC.' : undefined) : HSN_PATTERN.test(hsn) ? undefined : 'HSN/SAC is 4 to 8 digits.',
       division: division.length > DIVISION_MAX ? `Keep the division to ${DIVISION_MAX} characters.` : undefined,
     },
   };
@@ -132,7 +138,7 @@ export function buildProduct(draft: ProductDraft): BuildResult<CreateProductDto>
 /** Only what changed; `{}` means nothing did and the form can just close. */
 export function buildProductUpdate(original: ProductDto, draft: ProductDraft): BuildResult<UpdateProductDto> {
   // A product that already has the new details must keep them; an older one may stay as it is until someone completes it.
-  const { clean, errors } = problems(draft, original.type !== null);
+  const { clean, errors } = problems(draft, original.type !== null, original.hsn !== null);
   if (Object.values(errors).some(Boolean)) return fail(errors);
   const before = productToDraft(original);
   const changed = (a: string, b: string) => a.trim() !== b.trim();
@@ -149,6 +155,7 @@ export function buildProductUpdate(original: ProductDto, draft: ProductDraft): B
       ...(clean.ptrPaise !== null && clean.ptrPaise !== original.ptrPaise && { ptrPaise: clean.ptrPaise }),
       ...(clean.mrpPaise !== null && clean.mrpPaise !== original.mrpPaise && { mrpPaise: clean.mrpPaise }),
       ...(isGst(draft.gst) && Number(draft.gst) !== original.gstPercent && { gstPercent: Number(draft.gst) as GstRate }),
+      ...(clean.hsn !== '' && clean.hsn !== (original.hsn ?? '') && { hsn: clean.hsn }),
       ...(changed(draft.division, before.division) && { division: clean.division === '' ? null : clean.division }),
     },
   };

@@ -178,6 +178,9 @@ export interface SupplyLine {
   suppliedQty: number;
   /** Units given on top, free of charge. */
   freeQty: number;
+  /** The batch supplied and its expiry (`YYYY-MM`); required on every line with units supplied. */
+  batchNo?: string | undefined;
+  expiry?: string | undefined;
 }
 
 /**
@@ -225,12 +228,18 @@ export class FinishOrderUseCase {
       }
       given.set(at, l);
     }
+    const hsns = new Map<string, string | null>();
+    for (const id of new Set(order.items.map((i) => i.productId))) hsns.set(id, (await this.master.getProduct(id))?.hsn ?? null);
     const items = order.items.map((i, at) => {
       const l = given.get(at);
       // A line not named is delivered in full, with the free units the office planned for it when it changed the order.
       const suppliedQty = l ? l.suppliedQty : i.quantity;
       // What was delivered costs the line's net for those units: a flat discount shrinks with the supply.
-      return { ...i, suppliedQty, freeQty: l ? l.freeQty : (i.freeQty ?? 0), suppliedNetPaise: suppliedNet(netOf(i), i.quantity, suppliedQty) };
+      const delivered = suppliedQty > 0 || (l ? l.freeQty : (i.freeQty ?? 0)) > 0;
+      const hsn = delivered ? (hsns.get(i.productId) ?? null) : null;
+      if (delivered && !hsn) throw new StockRefusal(STOCK_CODES.invalidPayload, `Line ${at + 1} has no HSN/SAC: set it on the product first.`);
+      if (delivered && (!l?.batchNo || !l.expiry)) throw new StockRefusal(STOCK_CODES.invalidPayload, `Line ${at + 1} needs a batch number and expiry.`);
+      return { ...i, suppliedQty, freeQty: l ? l.freeQty : (i.freeQty ?? 0), suppliedNetPaise: suppliedNet(netOf(i), i.quantity, suppliedQty), hsn, batchNo: delivered ? (l?.batchNo ?? null) : null, expiry: delivered ? (l?.expiry ?? null) : null };
     });
     const suppliedAmountPaise = items.reduce((n, i) => n + (i.suppliedNetPaise ?? 0), 0);
     const invoice = buildInvoice(await invoiceLines(this.master, items));

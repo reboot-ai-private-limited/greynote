@@ -54,6 +54,8 @@ export interface ProductDto {
   ptrPaise: number | null;
   mrpPaise: number | null;
   gstPercent: GstRate | null;
+  /** HSN/SAC printed on the Tax Invoice. */
+  hsn: string | null;
   division: string | null;
   status: MasterStatus;
 }
@@ -68,6 +70,8 @@ export interface CreateProductDto {
   ptrPaise: number;
   mrpPaise: number;
   gstPercent: GstRate;
+  /** HSN/SAC, 4 to 8 digits. */
+  hsn: string;
   /** Optional. */
   division?: string | undefined;
 }
@@ -82,6 +86,7 @@ export interface UpdateProductDto {
   ptrPaise?: number;
   mrpPaise?: number;
   gstPercent?: GstRate;
+  hsn?: string;
   /** `null` clears it. */
   division?: string | null;
   status?: MasterStatus;

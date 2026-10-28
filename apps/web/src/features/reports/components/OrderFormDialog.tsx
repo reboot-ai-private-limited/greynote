@@ -56,6 +56,7 @@ import {
   buildEdit,
   buildNewOrder,
   buildSupply,
+  BATCH_NO_MAX,
   INVOICE_NUMBER_MAX,
   deliveredPaise,
   notSupplied,
@@ -379,7 +380,7 @@ export function SetInvoiceNumberDialog({ id, onClose }: { id: string; onClose: (
 
 /**
  * Mark a distributor order Done with what was actually delivered: per product the units supplied (up to what was ordered) and any given free on
- * top. It starts as a full supply, so Save with no change is a plain Done. Primary counts the supplied units at the order's prices; free units are
+ * top. It starts as a full supply; each delivered line also needs its batch and expiry for the Tax Invoice. Primary counts the supplied units at the order's prices; free units are
  * stock and sales for the distributor but never rupees. The employee's own order stays as they placed it.
  */
 export function CompleteOrderDialog({ id, onClose }: { id: string; onClose: () => void }) {
@@ -403,7 +404,7 @@ export function CompleteOrderDialog({ id, onClose }: { id: string; onClose: () =
     <FormDialog
       title="Mark the order Done"
       {...(order && {
-        description: `${order.outlet.name} · placed by ${order.mr.name}. Enter what was actually supplied and the invoice number; it then counts as primary and cannot be changed. GST is added on the invoice.`,
+        description: `${order.outlet.name} · placed by ${order.mr.name}. Enter what was actually supplied, its batch and expiry, and the invoice number; it then counts as primary and cannot be changed. GST is added on the invoice.`,
       })}
       formId="complete-order-form"
       pending={complete.isPending}
@@ -441,11 +442,15 @@ export function CompleteOrderDialog({ id, onClose }: { id: string; onClose: () =
                   <Input aria-label={`Free, ${item?.productName}`} inputMode="numeric" value={l.free} onChange={(e) => set(i, { free: e.target.value })} className="text-right tabular-nums" />
                   <span className="text-right text-sm tabular-nums">{short === null ? '—' : short}</span>
                 </div>
-                {errors[`line${i}`] ? (
-                  <p role="alert" className="text-[13px] text-danger-fg">
-                    {errors[`line${i}`]}
+                <div className="grid grid-cols-2 gap-2">
+                  <Input aria-label={`Batch no., ${item?.productName}`} placeholder="Batch no." maxLength={BATCH_NO_MAX} value={l.batchNo} onChange={(e) => set(i, { batchNo: e.target.value })} aria-invalid={Boolean(errors[`batch${i}`])} />
+                  <Input aria-label={`Expiry, ${item?.productName}`} placeholder="Expiry MM/YYYY" inputMode="numeric" value={l.expiry} onChange={(e) => set(i, { expiry: e.target.value })} aria-invalid={Boolean(errors[`expiry${i}`])} />
+                </div>
+                {[errors[`line${i}`], errors[`batch${i}`], errors[`expiry${i}`]].filter(Boolean).map((message) => (
+                  <p key={message} role="alert" className="text-[13px] text-danger-fg">
+                    {message}
                   </p>
-                ) : null}
+                ))}
               </div>
             );
           })}

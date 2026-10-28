@@ -112,7 +112,7 @@ export interface InvoiceRowDto {
 /** `GET /sales/invoices/:orderId`: everything the printed Tax Invoice shows. */
 export interface InvoiceDetailDto extends InvoiceRowDto {
   distributor: { id: string; name: string; address: string | null; gstNumber: string | null; mobile: string | null };
-  lines: Array<{ productName: string; sku: string; mrpPaise: number | null; suppliedQty: number; freeQty: number; unitPricePaise: number; gstPercent: number; amountPaise: number; gstPaise: number }>;
+  lines: Array<{ productName: string; sku: string; /** HSN/SAC, batch and expiry (`YYYY-MM`) as supplied; `null` on an invoice from before they were kept. */ hsn: string | null; batchNo: string | null; expiry: string | null; mrpPaise: number | null; suppliedQty: number; freeQty: number; unitPricePaise: number; gstPercent: number; amountPaise: number; gstPaise: number }>;
   taxablePaise: number;
   gstPaise: number;
   roundOffPaise: number;
@@ -267,5 +267,5 @@ export interface EditOrderDto {
 export interface CompleteOrderDto {
   /** The office's invoice number: required, up to 30 characters, used once. */
   invoiceNumber: string;
-  supply?: Array<{ productId: string; line?: number; suppliedQty: number; freeQty: number }>;
+  supply?: Array<{ productId: string; line?: number; suppliedQty: number; freeQty: number; /** Required on a line with units supplied; `expiry` is `YYYY-MM`. */ batchNo?: string; expiry?: string }>;
 }

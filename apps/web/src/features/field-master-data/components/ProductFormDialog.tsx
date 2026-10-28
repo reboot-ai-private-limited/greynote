@@ -86,9 +86,12 @@ export function ProductFormDialog({ product, onClose }: { product?: ProductDto |
           <Input id="product-mrp" inputMode="decimal" value={draft.mrp} onChange={(e) => set('mrp')(e.target.value)} aria-invalid={invalid('mrp')} />
         </FormField>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <FormField label="GST" htmlFor="product-gst" error={errors['gst']}>
           <Select id="product-gst" value={draft.gst} onValueChange={set('gst')} options={GST_OPTIONS} placeholder="Choose GST" aria-invalid={invalid('gst')} />
+        </FormField>
+        <FormField label="HSN/SAC" htmlFor="product-hsn" error={errors['hsn']} hint="4 to 8 digits, on the Tax Invoice">
+          <Input id="product-hsn" inputMode="numeric" value={draft.hsn} onChange={(e) => set('hsn')(e.target.value)} aria-invalid={invalid('hsn')} />
         </FormField>
         <FormField label="Division" htmlFor="product-division" error={errors['division']} hint="Optional, e.g. General.">
           <Input id="product-division" value={draft.division} onChange={(e) => set('division')(e.target.value)} aria-invalid={invalid('division')} />

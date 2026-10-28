@@ -292,6 +292,8 @@ PTS ≤ PTR ≤ MRP (checked on create, and on an edit against the prices as the
 saved before these existed has them `null` and can still be edited (renamed, deactivated) without them; it shows `—` for them until someone completes it. The phone's
 product cache carries all of them. `category` keeps its stored name and now means the therapeutic class.
 
+**HSN/SAC (2026-10-28):** `hsn`, 4 to 8 digits, required on create and on an edit of a product that already has one; an older product without one may be saved without it, but cannot be delivered on an order until it has one. It is copied onto the order line when the order is marked Done. The phone's product cache does not carry it.
+
 
 ## Speciality list, and no doctor category (2026-10-06)
 

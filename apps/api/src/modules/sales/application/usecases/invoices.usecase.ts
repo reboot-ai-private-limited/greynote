@@ -81,7 +81,7 @@ export class GetInvoiceUseCase {
       if (d.suppliedQty === 0 && d.freeQty === 0) continue;
       const product = await this.master.getProduct(item.productId);
       const tax = order.invoice.lines[at];
-      lines.push({ productName: product?.name ?? UNKNOWN, sku: product?.sku ?? '', mrpPaise: product?.mrpPaise ?? null, suppliedQty: d.suppliedQty, freeQty: d.freeQty, unitPricePaise: item.unitPricePaise, gstPercent: tax?.gstPercent ?? 0, amountPaise: d.amountPaise, gstPaise: tax?.gstPaise ?? 0 });
+      lines.push({ productName: product?.name ?? UNKNOWN, sku: product?.sku ?? '', mrpPaise: product?.mrpPaise ?? null, suppliedQty: d.suppliedQty, freeQty: d.freeQty, unitPricePaise: item.unitPricePaise, hsn: item.hsn ?? null, batchNo: item.batchNo ?? null, expiry: item.expiry ?? null, gstPercent: tax?.gstPercent ?? 0, amountPaise: d.amountPaise, gstPaise: tax?.gstPaise ?? 0 });
     }
     return {
       orderId: order.id,

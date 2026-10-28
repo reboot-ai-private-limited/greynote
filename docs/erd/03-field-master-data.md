@@ -119,3 +119,7 @@ erDiagram
 ## 2026-10-14 — opening dues
 
 `distributors.opening_dues_paise` (integer paise, default 0).
+
+## 2026-10-28 — product HSN/SAC
+
+`products.hsn` (string, 4 to 8 digits, default null). A product saved before it existed reads null, so no migration is needed; the office fills it in when editing the product.

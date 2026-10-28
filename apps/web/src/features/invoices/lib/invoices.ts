@@ -59,6 +59,12 @@ export const invoicesCsv = (rows: readonly InvoiceRowDto[]): string =>
     rows.map((r) => [r.invoiceNumber, r.invoiceDate, r.distributor.name, rupeesForCsv(r.totalPaise), rupeesForCsv(r.paidPaise), rupeesForCsv(r.duePaise), INVOICE_STATUS_LABEL[r.status]]),
   );
 
+/** An expiry kept as `YYYY-MM`, printed `MM/YYYY`; a dash when the invoice has none (older invoices). */
+export const expiryLabel = (expiry: string | null): string => {
+  const m = expiry === null ? null : /^(\d{4})-(\d{2})$/.exec(expiry);
+  return m ? `${m[2]}/${m[1]}` : '—';
+};
+
 export const invoicesFilename = (month: string): string => `invoices-${month}.csv`;
 
 const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];

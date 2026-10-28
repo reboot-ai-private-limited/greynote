@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSupply, deliveredPaise, notSupplied, supplyDraftOf, buildEdit, buildNewOrder, defaultPricePaise, emptyOrder, lineAmountPaise, linesOf, totalPaise, previewNet } from './orderForm';
+import { buildSupply, expiryToIso, deliveredPaise, notSupplied, supplyDraftOf, buildEdit, buildNewOrder, defaultPricePaise, emptyOrder, lineAmountPaise, linesOf, totalPaise, previewNet } from './orderForm';
 
 const filled = () => ({
   ...emptyOrder('2026-10-14'),
@@ -26,6 +26,9 @@ const filled = () => ({
     },
   ],
 });
+
+/** Each line with a batch and expiry typed in, as the office must for what is delivered. */
+const batched = (drafts: ReturnType<typeof supplyDraftOf>) => drafts.map((d) => ({ ...d, batchNo: 'NHN26J284', expiry: '03/2028' }));
 
 describe('order form', () => {
   it('prices a distributor line at PTS and a chemist line at PTR', () => {
@@ -105,17 +108,17 @@ describe('order form', () => {
   });
 
   it('Mark Done starts as a full supply; a part supply and free units build the body, and the delivered amount leaves free units out', () => {
-    const drafts = supplyDraftOf([
+    const drafts = batched(supplyDraftOf([
       { productId: 'p1', quantity: 12, unitPricePaise: 1000 },
       { productId: 'p2', quantity: 5, unitPricePaise: 100 },
-    ]);
+    ]));
     expect(buildSupply(drafts, ' 3452 ')).toEqual({
       ok: true,
       body: {
         invoiceNumber: '3452',
         supply: [
-          { productId: 'p1', line: 0, suppliedQty: 12, freeQty: 0 },
-          { productId: 'p2', line: 1, suppliedQty: 5, freeQty: 0 },
+          { productId: 'p1', line: 0, suppliedQty: 12, freeQty: 0, batchNo: 'NHN26J284', expiry: '2028-03' },
+          { productId: 'p2', line: 1, suppliedQty: 5, freeQty: 0, batchNo: 'NHN26J284', expiry: '2028-03' },
         ],
       },
     });
@@ -126,8 +129,8 @@ describe('order form', () => {
       ok: true,
       body: {
         supply: [
-          { productId: 'p1', line: 0, suppliedQty: 10, freeQty: 2 },
-          { productId: 'p2', line: 1, suppliedQty: 5, freeQty: 0 },
+          { productId: 'p1', line: 0, suppliedQty: 10, freeQty: 2, batchNo: 'NHN26J284', expiry: '2028-03' },
+          { productId: 'p2', line: 1, suppliedQty: 5, freeQty: 0, batchNo: 'NHN26J284', expiry: '2028-03' },
         ],
       },
     });
@@ -139,7 +142,7 @@ describe('order form', () => {
     expect(buildEdit({ remarks: '', lines: second({ discKind: 'PERCENT', discValue: '10' }), discKind: '', discValue: '' }).ok).toBe(true);
     expect(buildEdit({ remarks: '', lines: second({ price: '9' }), discKind: '', discValue: '' }).ok).toBe(true);
     expect(buildEdit({ remarks: '', lines: second({}), discKind: '', discValue: '' })).toMatchObject({ ok: false, errors: { line1: expect.stringMatching(/same price and discount/) } });
-    const drafts = supplyDraftOf([{ productId: 'p1', quantity: 6, unitPricePaise: 1000 }, { productId: 'p1', quantity: 4, unitPricePaise: 1000 }]);
+    const drafts = batched(supplyDraftOf([{ productId: 'p1', quantity: 6, unitPricePaise: 1000 }, { productId: 'p1', quantity: 4, unitPricePaise: 1000 }]));
     expect(buildSupply(drafts, '1')).toMatchObject({ ok: true, body: { supply: [{ productId: 'p1', line: 0 }, { productId: 'p1', line: 1 }] } });
   });
 
@@ -150,8 +153,20 @@ describe('order form', () => {
     expect(notSupplied({ ...d!, supplied: '5' })).toBeNull();
   });
 
+  it('a delivered line needs a batch and an MM/YYYY expiry, which go out as YYYY-MM; a line with nothing delivered needs neither', () => {
+    const [d] = supplyDraftOf([{ productId: 'p1', quantity: 4, unitPricePaise: 1000 }]);
+    expect(buildSupply([d!], '1')).toMatchObject({ ok: false, errors: { batch0: 'Enter the batch number.', expiry0: expect.stringMatching(/expiry/i) } });
+    expect(buildSupply([{ ...d!, batchNo: 'B1', expiry: '13/2028' }], '1')).toMatchObject({ ok: false, errors: { expiry0: expect.stringMatching(/month\/year/i) } });
+    expect(buildSupply([{ ...d!, batchNo: 'x'.repeat(31), expiry: '3/2028' }], '1')).toMatchObject({ ok: false, errors: { batch0: expect.stringMatching(/at most 30/i) } });
+    expect(buildSupply([{ ...d!, batchNo: ' B1 ', expiry: '3/2028' }], '1')).toMatchObject({ ok: true, body: { supply: [{ batchNo: 'B1', expiry: '2028-03' }] } });
+    expect(buildSupply([{ ...d!, supplied: '0' }], '1')).toMatchObject({ ok: true, body: { supply: [{ suppliedQty: 0 }] } });
+    expect(buildSupply([{ ...d!, supplied: '0', free: '1' }], '1').ok).toBe(false);
+    expect(['03/2028', '3/2028', '12 / 2030'].map(expiryToIso)).toEqual(['2028-03', '2028-03', '2030-12']);
+    expect(['', '00/2028', '03/28', '2028-03', '03-2028'].map(expiryToIso)).toEqual([null, null, null, null, null]);
+  });
+
   it('Mark Done needs an invoice number: blank is refused, and so is one over 30 characters', () => {
-    const drafts = supplyDraftOf([{ productId: 'p1', quantity: 4, unitPricePaise: 1000 }]);
+    const drafts = batched(supplyDraftOf([{ productId: 'p1', quantity: 4, unitPricePaise: 1000 }]));
     expect(buildSupply(drafts, '   ')).toMatchObject({ ok: false, errors: { invoiceNumber: 'Enter the invoice number.' } });
     expect(buildSupply(drafts, 'x'.repeat(31))).toMatchObject({ ok: false, errors: { invoiceNumber: expect.stringMatching(/at most 30/i) } });
     expect(buildSupply(drafts, 'x'.repeat(30)).ok).toBe(true);
