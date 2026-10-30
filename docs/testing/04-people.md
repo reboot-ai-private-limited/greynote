@@ -56,6 +56,10 @@
 | 4.31a | MR → Territory → Edit: add an HQ | its routes appear ticked in a Zone > HQ list; tick/untick a Zone, an HQ, or "Select all"; Save | Routes card lists exactly the ticked ones |
 | 4.31b | Routes card → Remove (or Edit routes → untick) one route | it goes from the card and from that route's Assigned card; no "not assigned" error | |
 | 4.31c | Territory → remove an HQ, Save | that HQ's routes are taken off the employee | |
+| 4.31d | MR in HQ-A with routes: Work section → Manager → Choose an ASM whose coverage lacks HQ-A | listed last as "doesn't cover this HQ"; a confirm step offers to add HQ-A and tick the MR's routes; Choose, then Save | the ASM's Territory card has HQ-A and the ticked routes show on their Routes card; the MR is unchanged |
+| 4.31e | Same with a ZSM, then an NSM | ZSM and NSM: only the Zone box, no route list; the NSM box warns it limits their zone holidays | |
+| 4.31f | Employees → Territory gaps | managers whose direct reports cover HQs/Zones/routes they don't are listed; Add (or Apply to all) adds them; the list empties | nothing is removed from anyone |
+| 4.31g | Open that ASM's page | before Add: Routes card banner "N routes their team has" and Territory card "also works in …"; after: gone | |
 | 4.32 | New employee (MR) in HQ A: Work step, Choose manager | only ASM/RSM/ZSM/NSM covering HQ A (by HQ or Zone), each as "Name (ASM)"; an ASM covering only HQ B is absent; one with no coverage shows "no coverage set" | |
 | 4.33 | Create an RSM with no manager when no ZSM exists | saved and active | |
 | 4.34 | Change the designation or HQ after choosing a manager | the manager is cleared | |

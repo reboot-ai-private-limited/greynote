@@ -76,6 +76,11 @@ export const assignRouteBodySchema = z.object({ userId: objectIdSchema });
 export const userIdParamsSchema = z.object({ userId: objectIdSchema });
 export const setUserHqBodySchema = z.object({ hqId: objectIdSchema });
 export const setManagerCoverageBodySchema = z.object({ hqIds: z.array(objectIdSchema).max(200).default([]), zoneIds: z.array(objectIdSchema).max(50).default([]) });
+export const extendManagerTerritoryBodySchema = z.object({
+  hqIds: z.array(objectIdSchema).max(200).default([]),
+  zoneIds: z.array(objectIdSchema).max(50).default([]),
+  routeIds: z.array(objectIdSchema).max(2000).default([]),
+});
 export const managerCandidatesQuerySchema = z.object({
   /** The employee's designation level (MR 1 … NSM 5): only managers above it are listed. */
   level: z.coerce.number().int().min(1).max(5),

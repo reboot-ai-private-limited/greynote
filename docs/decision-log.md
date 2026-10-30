@@ -2558,3 +2558,17 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Decision (owner):** no auto-selection. A route belongs to an employee only when ticked and stored. Ticks come with "all of a Zone", "all of an HQ" and "everything shown".
 
 **Consequences:** `ListRoutesForUserUseCase` reads stored assignments only, so Planning's picker, call checks, mobile sync, doctor visibility and distributor scope see exactly the stored routes. Existing MR/ASM/RSM who relied on the fallback are backfilled with `migrate:explicit-routes` (run before or with the deploy; ASM/RSM included). ZSM/NSM hold no routes and are unaffected. A route created later is still added by hand (the Routes card reminder stays). The phone app needs no change. Removing an HQ on the Territory card ends that HQ's route rows in the same save.
+
+## 2026-10-30 — Choosing a manager offers to extend their territory
+
+**Problem:** a manager whose coverage lacked the MR's HQ was hidden from the picker, so the territory had to be fixed on another screen first; and a manager given an MR never got that MR's routes.
+
+**Decision (owner):** when a manager is chosen, offer (not silently apply) the MR's Zone/HQ and, for ASM/RSM, the MR's routes, all changeable. ZSM/NSM keep holding no routes. Union only, never removes, does not follow later changes.
+
+**Consequences:** `coverage: 'missing'` managers are listed last. New `POST /territory/users/:userId/extend-territory`. A manager given routes can plan and call on them and shows on those routes' Assigned card; doctor visibility and distributor scope for them widen accordingly. Bulk Move reports and promotions do not offer it yet.
+
+## 2026-10-30 — NSM saves Zones; fixing existing managers from the UI
+
+**Decision (owner):** the NSM gets Zones saved like a ZSM when chosen as a manager (no routes). Existing managers that lack what their direct reports cover/hold are fixed in the app, not by a script: a **Territory gaps** screen plus banners on the manager's own Routes and Territory cards.
+
+**Consequences:** an NSM with Zones saved no longer means "every Zone": their zone-specific holidays follow those Zones only (national holidays unchanged); the confirm step warns. Gaps look at direct reports only (fix a deep tree level by level). Applying is union only and idempotent.

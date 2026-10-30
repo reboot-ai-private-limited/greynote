@@ -120,8 +120,8 @@ export interface ManagerCandidateDto {
   name: string;
   /** `name` is MR, ASM, RSM, ZSM or NSM; `level` 1 to 5. */
   designation: { id: string | null; name: string; level: number };
-  /** `covers`: their coverage includes the employee's HQ (the NSM covers everywhere). `none`: no coverage recorded yet, so listed unfiltered. */
-  coverage: 'covers' | 'none';
+  /** `covers`: their coverage includes the employee's HQ (the NSM covers everywhere). `none`: no coverage recorded yet, so listed unfiltered. `missing`: a coverage that leaves the HQ out, listed last. */
+  coverage: 'covers' | 'none' | 'missing';
 }
 
 /** `GET` and `PUT /territory/users/:userId/coverage`: the HQs (ASM, RSM) or Zones (ZSM) a manager covers. Eligibility only; approvals still follow the direct manager. */
@@ -131,6 +131,14 @@ export interface ManagerCoverageDto {
   zoneIds: string[];
 }
 export type SetManagerCoverageDto = Pick<ManagerCoverageDto, 'hqIds' | 'zoneIds'>;
+
+/** `POST /territory/users/:userId/extend-territory` (Admin, HR): what an employee put under this manager adds to the manager's territory. Union only. */
+export interface ExtendManagerTerritoryDto {
+  hqIds: string[];
+  zoneIds: string[];
+  /** Taken only for an ASM or RSM; a ZSM or the NSM holds no routes. */
+  routeIds: string[];
+}
 
 /** What a permanent delete of a Zone, HQ or Route would take with it (`GET /territory/{zones|hqs|routes}/:id/delete-impact`). Counts, so Admin can see before confirming. */
 export interface TerritoryDeleteImpactDto {
@@ -165,4 +173,20 @@ export interface TerritoryDeleteImpactDto {
 /** `DELETE /territory/{zones|hqs|routes}/:id`. */
 export interface TerritoryDeleteResultDto {
   deleted: { zones: number; hqs: number; routes: number };
+}
+
+/** `GET /territory/team-gaps` and `/users/:userId/team-gaps` (Admin, HR): what a manager's direct reports cover or hold that the manager does not. */
+export interface TerritoryGapDto {
+  managerId: string;
+  employeeCode: string;
+  name: string;
+  designation: string | null;
+  /** MR 1 … NSM 5. */
+  level: number;
+  /** Direct reports looked at. */
+  reports: number;
+  hqIds: string[];
+  zoneIds: string[];
+  /** Only for an ASM or RSM. */
+  routeIds: string[];
 }

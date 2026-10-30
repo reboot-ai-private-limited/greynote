@@ -55,6 +55,7 @@ export function WorkStep({ form, update, errors }: StepProps) {
                 routeIds: [],
                 managerId: '',
                 managerName: '',
+                managerExtend: null,
               })
             }
             options={[...(designations.data ?? [])]
@@ -83,14 +84,14 @@ export function WorkStep({ form, update, errors }: StepProps) {
                 hqs.data ?? [],
                 routes,
               );
-              update({ ...next, managerId: '', managerName: '' });
+              update({ ...next, managerId: '', managerName: '', managerExtend: null });
             }}
             onHqsChange={(hqIds) => {
               const next = cascade(
                 { zoneIds: form.zoneIds, hqIds, routeIds: form.routeIds },
                 form.hqIds,
               );
-              update({ ...next, managerId: '', managerName: '' });
+              update({ ...next, managerId: '', managerName: '', managerExtend: null });
             }}
           />
         ) : null}
@@ -145,9 +146,10 @@ export function WorkStep({ form, update, errors }: StepProps) {
       {picking && level ? (
         <ManagerPickerDialog
           above={{ level, hqId: form.hqIds[0] }}
+          offer={{ hqId: form.hqIds[0], routeIds: form.routeIds }}
           onClose={() => setPicking(false)}
           onPick={(m) => {
-            update({ managerId: m.id, managerName: m.name });
+            update({ managerId: m.id, managerName: m.name, managerExtend: m.extend ?? null });
             setPicking(false);
           }}
         />

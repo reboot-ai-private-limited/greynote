@@ -26,10 +26,12 @@ import { TerritoryDeletionUseCase, type ReferenceCounter } from './application/u
 import { MongoTerritoryDeletionAdapter } from './infrastructure/mongoTerritoryDeletion.adapter.js';
 import { buildTerritoryDeletionRouter } from './interface/territoryDeletion.route.js';
 import { GetUserTerritoryUseCase } from './application/usecases/getUserTerritory.usecase.js';
+import { ExtendManagerTerritoryUseCase } from './application/usecases/extendManagerTerritory.usecase.js';
+import { GetTerritoryGapsUseCase } from './application/usecases/getTerritoryGaps.usecase.js';
 import { GetManagerCoverageUseCase, SetManagerCoverageUseCase } from './application/usecases/managerCoverage.usecase.js';
 import { ListManagerCandidatesUseCase } from './application/usecases/listManagerCandidates.usecase.js';
 import { MongoManagerCoverageAdapter } from './infrastructure/mongoManagerCoverage.adapter.js';
-import { buildManagerCandidatesRouter, buildManagerCoverageRouter } from './interface/managerCoverage.route.js';
+import { buildManagerCandidatesRouter, buildManagerCoverageRouter, buildTeamGapsRouter } from './interface/managerCoverage.route.js';
 import type { ManagerDirectoryPort } from './domain/managerDirectory.port.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { SearchPlacesUseCase } from './application/usecases/searchPlaces.usecase.js';
@@ -120,10 +122,14 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
     get: new GetUserHqUseCase(userHqRepository, hqRepository),
   };
 
+  const getCoverage = new GetManagerCoverageUseCase(coverageRepository, userHqRepository, hqRepository);
+  const setCoverage = new SetManagerCoverageUseCase(coverageRepository, hqRepository, zoneRepository, users, userHqRepository, userHq.set);
   const managerCoverage = {
-    get: new GetManagerCoverageUseCase(coverageRepository, userHqRepository, hqRepository),
-    set: new SetManagerCoverageUseCase(coverageRepository, hqRepository, zoneRepository, users, userHqRepository, userHq.set),
+    get: getCoverage,
+    set: setCoverage,
     territory: new GetUserTerritoryUseCase(coverageRepository, userHqRepository, hqRepository),
+    extend: new ExtendManagerTerritoryUseCase(getCoverage, setCoverage, hqRepository, assignmentRepository, assignRoute, users),
+    gaps: new GetTerritoryGapsUseCase(users, getCoverage, assignmentRepository, routeRepository, hqRepository),
   };
   const managerCandidates = new ListManagerCandidatesUseCase(users, coverageRepository, hqRepository);
 
@@ -211,6 +217,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
       router.use('/users', buildUserHqRouter({ ...userHq, routes: makeUserRoutesController(listRoutesForUser) }));
       router.use('/users', buildManagerCoverageRouter(managerCoverage));
       router.use('/manager-candidates', buildManagerCandidatesRouter(managerCandidates));
+      router.use('/team-gaps', buildTeamGapsRouter(managerCoverage.gaps));
       return router;
     },
   };

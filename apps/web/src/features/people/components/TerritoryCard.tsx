@@ -4,7 +4,13 @@ import type { UserDetailDto } from '@greynote/contracts';
 import { useState } from 'react';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
 import { RouteChecklist } from '@/features/territory/components/RouteChecklist';
-import { useManagerCoverage, useSetTerritory } from '@/features/territory/hooks/useManagerCoverage';
+import { Button } from '@/components/ui/Button';
+import {
+  useExtendManagerTerritory,
+  useManagerCoverage,
+  useSetTerritory,
+  useTeamGap,
+} from '@/features/territory/hooks/useManagerCoverage';
 import { useActiveRoutes } from '@/features/territory/hooks/useRoutes';
 import { useUserRoutes } from '@/features/territory/hooks/useUserRoutes';
 import { useAllZones } from '@/features/territory/hooks/useZones';
@@ -33,6 +39,8 @@ export function TerritoryCard({ user, readOnly }: { user: UserDetailDto; readOnl
   const zones = useAllZones();
   const hqs = useAllHqs();
   const mine = useUserRoutes(user.id);
+  const gap = useTeamGap(user.id, !readOnly);
+  const extend = useExtendManagerTerritory();
   if (!designation || (rule.zones === 'browse' && rule.hqs === 'none')) return null;
 
   const zoneName = new Map((zones.data ?? []).map((z) => [z.id, z.name]));
@@ -44,52 +52,84 @@ export function TerritoryCard({ user, readOnly }: { user: UserDetailDto; readOnl
   const names = (ids: readonly string[], map: Map<string, string>) =>
     ids.map((id) => map.get(id) ?? id).join(', ');
 
+  // A manager whose direct reports work in Zones/HQs the manager does not cover (placed before managers could be extended).
+  const teamZones = gap.data?.zoneIds ?? [];
+  const teamHqs = gap.data?.hqIds ?? [];
+  const teamNames = [
+    ...teamZones.map((id) => zoneName.get(id) ?? id),
+    ...teamHqs.map((id) => hqName.get(id) ?? id),
+  ];
+
   return (
-    <SectionCard
-      title="Territory"
-      description="Where this employee works, and the routes they work in it. Routes are only what is ticked; an HQ gives none by itself."
-      readOnly={readOnly}
-      view={
-        <FieldList>
-          <Field label="Zones">
-            {coverage.isLoading
-              ? 'Loading…'
-              : zoneIds.length > 0
-                ? names(zoneIds, zoneName)
-                : rule.zones === 'pick'
-                  ? 'Every zone'
-                  : null}
-          </Field>
-          {rule.hqs !== 'none' ? (
-            <Field label="HQs">
+    <>
+      {!readOnly && teamNames.length > 0 ? (
+        <div
+          role="status"
+          className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-accent-soft px-5 py-2.5 text-[13px] text-accent-soft-text"
+        >
+          <span>
+            {user.name}’s team also works in {teamNames.join(', ')}, which they don’t cover yet.
+          </span>
+          <Button
+            size="sm"
+            disabled={extend.isPending}
+            onClick={() =>
+              extend.mutate({
+                managerId: user.id,
+                body: { hqIds: teamHqs, zoneIds: teamZones, routeIds: [] },
+              })
+            }
+          >
+            Add
+          </Button>
+        </div>
+      ) : null}
+      <SectionCard
+        title="Territory"
+        description="Where this employee works, and the routes they work in it. Routes are only what is ticked; an HQ gives none by itself."
+        readOnly={readOnly}
+        view={
+          <FieldList>
+            <Field label="Zones">
               {coverage.isLoading
                 ? 'Loading…'
-                : hqIds.length > 0
-                  ? names(hqIds, hqName)
-                  : rule.hqs === 'narrow' && zoneIds.length > 0
-                    ? 'Every HQ of these zones'
+                : zoneIds.length > 0
+                  ? names(zoneIds, zoneName)
+                  : rule.zones === 'pick'
+                    ? 'Every zone'
                     : null}
             </Field>
-          ) : null}
-        </FieldList>
-      }
-      renderForm={(close) =>
-        mine.isLoading ? (
-          <p className="text-[13px] text-text-subtle">Loading…</p>
-        ) : (
-          <TerritoryForm
-            user={user}
-            rule={rule}
-            initial={{
-              zoneIds: coverage.data?.zoneIds ?? [],
-              hqIds,
-              routeIds: (mine.data ?? []).map((r) => r.id),
-            }}
-            onDone={close}
-          />
-        )
-      }
-    />
+            {rule.hqs !== 'none' ? (
+              <Field label="HQs">
+                {coverage.isLoading
+                  ? 'Loading…'
+                  : hqIds.length > 0
+                    ? names(hqIds, hqName)
+                    : rule.hqs === 'narrow' && zoneIds.length > 0
+                      ? 'Every HQ of these zones'
+                      : null}
+              </Field>
+            ) : null}
+          </FieldList>
+        }
+        renderForm={(close) =>
+          mine.isLoading ? (
+            <p className="text-[13px] text-text-subtle">Loading…</p>
+          ) : (
+            <TerritoryForm
+              user={user}
+              rule={rule}
+              initial={{
+                zoneIds: coverage.data?.zoneIds ?? [],
+                hqIds,
+                routeIds: (mine.data ?? []).map((r) => r.id),
+              }}
+              onDone={close}
+            />
+          )
+        }
+      />
+    </>
   );
 }
 

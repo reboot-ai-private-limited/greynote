@@ -16,6 +16,10 @@ import { useApiMutation } from '@/lib/query/mutation';
 import { RouteChecklist } from '@/features/territory/components/RouteChecklist';
 import { useActiveRoutes } from '@/features/territory/hooks/useRoutes';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
+import {
+  useExtendManagerTerritory,
+  useTeamGap,
+} from '@/features/territory/hooks/useManagerCoverage';
 import { useUnassignMr } from '@/features/territory/hooks/useRouteMutations';
 import { useAllZones } from '@/features/territory/hooks/useZones';
 import { diffRoutes } from '@/features/territory/lib/routeGroups';
@@ -51,6 +55,12 @@ function RoutesCard({ user, readOnly }: { user: UserDetailDto; readOnly: boolean
     invalidates: [keys.routes.all()],
     successMessage: 'Routes added.',
   });
+  // A manager (ASM or RSM) whose direct reports hold routes the manager does not: the reports were placed before managers could be given them.
+  const gap = useTeamGap(user.id, !readOnly);
+  const extend = useExtendManagerTerritory();
+  const heldIds = new Set((routes.data ?? []).map((r) => r.id));
+  const teamRoutes = (gap.data?.routeIds ?? []).filter((id) => !heldIds.has(id));
+  const [preselect, setPreselect] = useState<string[]>([]);
   const scope = useRouteScope(user);
   const outside = (routes.data ?? []).filter((r) => !scope.inScope(r.hqId));
   const [adding, setAdding] = useState(false);
@@ -126,6 +136,41 @@ function RoutesCard({ user, readOnly }: { user: UserDetailDto; readOnly: boolean
           </span>
         </div>
       ) : null}
+      {!readOnly && teamRoutes.length > 0 && !routes.isLoading ? (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-accent-soft px-5 py-2.5 text-[13px] text-accent-soft-text"
+        >
+          <span>
+            {user.name}’s team has {teamRoutes.length} route{teamRoutes.length === 1 ? '' : 's'}{' '}
+            they don’t have yet.
+          </span>
+          <span className="flex gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setPreselect(teamRoutes);
+                setAdding(true);
+              }}
+            >
+              Choose
+            </Button>
+            <Button
+              size="sm"
+              disabled={extend.isPending}
+              onClick={() =>
+                extend.mutate({
+                  managerId: user.id,
+                  body: { hqIds: [], zoneIds: [], routeIds: teamRoutes },
+                })
+              }
+            >
+              Add all {teamRoutes.length}
+            </Button>
+          </span>
+        </div>
+      ) : null}
       {outside.length > 0 ? (
         <p
           role="status"
@@ -150,7 +195,11 @@ function RoutesCard({ user, readOnly }: { user: UserDetailDto; readOnly: boolean
         <EditRoutesDialog
           user={user}
           assignedIds={(routes.data ?? []).map((r) => r.id)}
-          onClose={() => setAdding(false)}
+          preselect={preselect}
+          onClose={() => {
+            setAdding(false);
+            setPreselect([]);
+          }}
         />
       ) : null}
       <ConfirmDialog
@@ -170,10 +219,13 @@ function RoutesCard({ user, readOnly }: { user: UserDetailDto; readOnly: boolean
 function EditRoutesDialog({
   user,
   assignedIds,
+  preselect = [],
   onClose,
 }: {
   user: UserDetailDto;
   assignedIds: readonly string[];
+  /** Routes ticked on opening, on top of what the employee has (the team's routes a manager is offered). */
+  preselect?: readonly string[];
   onClose: () => void;
 }) {
   const userId = user.id;
@@ -183,7 +235,7 @@ function EditRoutesDialog({
   const routes = useActiveRoutes();
   const hqs = useAllHqs();
   const zones = useAllZones();
-  const [selected, setSelected] = useState<string[]>([...assignedIds]);
+  const [selected, setSelected] = useState<string[]>([...new Set([...assignedIds, ...preselect])]);
   const { add, remove } = diffRoutes(assignedIds, selected);
   const save = useApiMutation<{ add: string[]; remove: string[] }>({
     // One by one: a route that fails stops the rest, and the ones before it stay done.

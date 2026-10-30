@@ -1,4 +1,4 @@
-import type { DesignationDto, EmployeeDraftDataDto } from '@greynote/contracts';
+import type { DesignationDto, EmployeeDraftDataDto, ExtendManagerTerritoryDto } from '@greynote/contracts';
 import { paiseToRupees } from '@/lib/money';
 import { parseCtc } from './ctc';
 import { territoryErrors, territoryRule } from './territoryRules';
@@ -83,6 +83,8 @@ export interface WizardForm {
   managerId: string;
   /** For display only; not saved. */
   managerName: string;
+  /** What the manager picker offered to add to the manager's territory; not saved with the draft, sent right after the employee is created. */
+  managerExtend: ExtendManagerTerritoryDto | null;
   payBandId: string;
   /** Rupees a year, '' = not set yet. */
   ctc: string;
@@ -119,6 +121,7 @@ export const EMPTY_FORM: WizardForm = {
   routeIds: [],
   managerId: '',
   managerName: '',
+  managerExtend: null,
   payBandId: '',
   ctc: '',
   structure: EMPTY_STRUCTURE_DRAFT,
@@ -531,6 +534,8 @@ export function fromDraftData(data: EmployeeDraftDataDto): WizardForm {
     zoneIds: data.work?.zoneIds ?? [],
     routeIds: data.work?.routeIds ?? [],
     managerId: data.work?.managerId ?? '',
+    managerName: '',
+    managerExtend: null,
     payBandId: data.compensation?.payBandId ?? '',
     ctc:
       data.compensation?.ctcAnnualPaise === undefined

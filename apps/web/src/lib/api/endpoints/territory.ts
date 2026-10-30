@@ -6,6 +6,8 @@ import type {
   ManagerCandidateDto,
   ManagerCoverageDto,
   SetManagerCoverageDto,
+  ExtendManagerTerritoryDto,
+  TerritoryGapDto,
   PaginatedDto,
   PaginationQueryDto,
   PlaceCandidateDto,
@@ -121,6 +123,9 @@ export const managerApi = {
     return request<ManagerCandidateDto[]>(`/territory/manager-candidates?${params}`, { token, signal });
   },
   coverage: (token: string, userId: string, signal?: AbortSignal) => request<ManagerCoverageDto>(`/territory/users/${userId}/coverage`, { token, signal }),
+  teamGap: (token: string, userId: string, signal?: AbortSignal) => request<TerritoryGapDto | null>(`/territory/users/${userId}/team-gaps`, { token, signal }),
+  teamGaps: (token: string, signal?: AbortSignal) => request<TerritoryGapDto[]>('/territory/team-gaps', { token, signal }),
+  extendTerritory: (token: string, userId: string, body: ExtendManagerTerritoryDto) => request<unknown>(`/territory/users/${userId}/extend-territory`, { method: 'POST', token, body }),
   setCoverage: (token: string, userId: string, body: SetManagerCoverageDto) => request<ManagerCoverageDto>(`/territory/users/${userId}/coverage`, { method: 'PUT', token, body }),
 };
 

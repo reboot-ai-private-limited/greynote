@@ -138,6 +138,8 @@ const TIMELESS = [
   '/api/territory/hqs/:id/delete-impact',
   '/api/territory/routes/:id/delete-impact',
   '/api/territory/manager-candidates',
+  '/api/territory/team-gaps',
+  '/api/territory/users/:userId/team-gaps',
   '/api/field-master-data/doctors/mine',
   '/api/field-master-data/doctors/assigned',
   '/api/field-master-data/doctors/team',

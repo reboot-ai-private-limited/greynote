@@ -18,6 +18,7 @@ import {
 } from '../hooks/useEmployeeDrafts';
 import { useRemoveDraftPhoto, useSetDraftPhoto } from '../hooks/useEmployeeDrafts';
 import { usePayComponents } from '../hooks/useCtc';
+import { useExtendManagerTerritory } from '@/features/territory/hooks/useManagerCoverage';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
 import { useDesignations } from '../hooks/useMasterData';
 import {
@@ -69,7 +70,13 @@ export function EmployeeOnboardingScreen() {
   // The draft the form was filled from (or created), so a refetch never overwrites what is being typed.
   const filledFrom = useRef<string | null>(null);
 
-  const finalize = useFinalizeEmployeeDraft(setResult);
+  const extendTerritory = useExtendManagerTerritory();
+  // The manager picker's offer (HQ, routes) is applied once the employee exists; it is kept only in this form, never in the draft.
+  const finalize = useFinalizeEmployeeDraft((created) => {
+    setResult(created);
+    if (form.managerId && form.managerExtend)
+      extendTerritory.mutate({ managerId: form.managerId, body: form.managerExtend });
+  });
 
   // The saved photo's address, and a file chosen before the draft existed (uploaded as soon as the first save creates it).
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -83,7 +90,12 @@ export function EmployeeOnboardingScreen() {
     [payComponents.data],
   );
   const ctx: RuleContext = useMemo(
-    () => ({ designations: designations.data ?? [], today: istDate(), orgCodes, hqs: hqs.data ?? [] }),
+    () => ({
+      designations: designations.data ?? [],
+      today: istDate(),
+      orgCodes,
+      hqs: hqs.data ?? [],
+    }),
     [designations.data, orgCodes, hqs.data],
   );
   const index = STEPS.findIndex((s) => s.key === step);

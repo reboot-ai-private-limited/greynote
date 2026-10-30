@@ -172,9 +172,11 @@ GET    /api/territory/routes  ACCOUNTANT,ADMIN,HR
 GET    /api/territory/routes/:id  ADMIN
 GET    /api/territory/routes/:id/assignments  ADMIN
 GET    /api/territory/routes/:id/delete-impact  ADMIN
+GET    /api/territory/team-gaps  ADMIN,HR
 GET    /api/territory/users/:userId/coverage  ADMIN,HR
 GET    /api/territory/users/:userId/hq  ADMIN,HR
 GET    /api/territory/users/:userId/routes  ADMIN,HR
+GET    /api/territory/users/:userId/team-gaps  ADMIN,HR
 GET    /api/territory/zones  ACCOUNTANT,ADMIN,HR
 GET    /api/territory/zones/:id/delete-impact  ADMIN
 PATCH  /api/config/:key  ADMIN
@@ -312,6 +314,7 @@ POST   /api/territory/hqs  ADMIN
 POST   /api/territory/import  ADMIN
 POST   /api/territory/routes  ADMIN
 POST   /api/territory/routes/:id/assignments  ADMIN
+POST   /api/territory/users/:userId/extend-territory  ADMIN,HR
 POST   /api/territory/zones  ADMIN
 PUT    /api/field-activity/expenses/other/:id  FIELD
 PUT    /api/field-master-data/doctors/:id/photo  ADMIN

@@ -1,6 +1,6 @@
 'use client';
 
-import type { SetManagerCoverageDto } from '@greynote/contracts';
+import type { ExtendManagerTerritoryDto, SetManagerCoverageDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { assignmentsApi, managerApi } from '@/lib/api/endpoints/territory';
 import { authedQueryOptions } from '@/lib/query/factory';
@@ -38,6 +38,37 @@ export function useSetTerritory(userId: string, onDone: () => void) {
     successMessage: 'Territory saved.',
     onSuccess: onDone,
   });
+}
+
+/** Adds the Zones, HQs and routes ticked in the manager picker to a manager's territory (union only). */
+export function useExtendManagerTerritory() {
+  return useApiMutation<{ managerId: string; body: ExtendManagerTerritoryDto }>({
+    call: (token, { managerId, body }) => managerApi.extendTerritory(token, managerId, body),
+    invalidates: [['managerCandidates'], keys.routes.all(), ['managerCoverage'], keys.teamGaps.all()],
+  });
+}
+
+/** What this manager's direct reports cover or hold that the manager does not (null: nobody or nothing). Admin and HR. */
+export function useTeamGap(userId: string, enabled = true) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.teamGaps.one(userId),
+      fetch: (token, signal) => managerApi.teamGap(token, userId, signal),
+      staleTime: staleTime.live,
+      enabled,
+    }),
+  );
+}
+
+/** Every manager with a gap, for the review screen. */
+export function useTeamGaps() {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.teamGaps.list(),
+      fetch: (token, signal) => managerApi.teamGaps(token, signal),
+      staleTime: staleTime.live,
+    }),
+  );
 }
 
 /** Managers above `level` who cover `hqId` (all of them without an HQ), nearest level first. */

@@ -4,6 +4,6 @@ export interface ManagerDirectoryPort {
   getDesignationLevels(userIds: string[]): Promise<Array<{ userId: string; level: number }>>;
   /** Every active FIELD employee with designation, level, HQ and Zone — who a manager can be picked from. */
   listFieldEmployees(): Promise<
-    Array<{ id: string; employeeCode: string; name: string; designation: string | null; designationId: string | null; designationLevel: number | null; hqId: string | null; zoneId: string | null }>
+    Array<{ id: string; employeeCode: string; name: string; designation: string | null; designationId: string | null; designationLevel: number | null; hqId: string | null; zoneId: string | null; managerId: string | null }>
   >;
 }

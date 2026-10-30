@@ -76,6 +76,7 @@ export const keys = {
   documents: { all: () => ['documents'] as const },
   managerCandidates: (q: object) => ['managerCandidates', fy(), q] as const,
   managerCoverage: (userId: string) => ['managerCoverage', fy(), userId] as const,
+  teamGaps: { all: () => ['teamGaps'] as const, one: (userId: string) => ['teamGaps', fy(), userId] as const, list: () => ['teamGaps', fy(), 'list'] as const },
   userHq: { history: (userId: string) => ['userHq', fy(), userId] as const },
   dcr: { detail: (id: string) => ['dcr', fy(), 'detail', id] as const },
   plans: {

@@ -1,10 +1,12 @@
 'use client';
 
-import type { UserDetailDto } from '@greynote/contracts';
+import type { ExtendManagerTerritoryDto, UserDetailDto } from '@greynote/contracts';
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
 import { Select } from '@/components/ui/Select';
+import { useExtendManagerTerritory } from '@/features/territory/hooks/useManagerCoverage';
+import { useUserRoutes } from '@/features/territory/hooks/useUserRoutes';
 import { useDesignations, usePayBands } from '../hooks/useMasterData';
 import { useUpdateUser, useUser } from '../hooks/useUsers';
 import { DESIGNATION_LABEL } from '../lib/masterData';
@@ -13,7 +15,15 @@ import { ManagerPickerDialog } from './ManagerPickerDialog';
 import { Field, FieldList, SectionCard, SectionForm } from './SectionCard';
 
 /** Designation, pay grade and manager: what places an employee in the reporting chain and on a pay grade. */
-export function WorkSection({ user, readOnly, startEditing = false }: { user: UserDetailDto; readOnly: boolean; startEditing?: boolean }) {
+export function WorkSection({
+  user,
+  readOnly,
+  startEditing = false,
+}: {
+  user: UserDetailDto;
+  readOnly: boolean;
+  startEditing?: boolean;
+}) {
   const p = user.profile;
   const designations = useDesignations();
   const payBands = usePayBands();
@@ -29,9 +39,13 @@ export function WorkSection({ user, readOnly, startEditing = false }: { user: Us
       readOnly={readOnly}
       view={
         <FieldList>
-          <Field label="Designation">{designation ? DESIGNATION_LABEL[designation.name] : null}</Field>
+          <Field label="Designation">
+            {designation ? DESIGNATION_LABEL[designation.name] : null}
+          </Field>
           <Field label="Pay grade">{payBand?.name}</Field>
-          <Field label="Manager">{manager.data ? `${manager.data.name} (${manager.data.employeeCode})` : null}</Field>
+          <Field label="Manager">
+            {manager.data ? `${manager.data.name} (${manager.data.employeeCode})` : null}
+          </Field>
         </FieldList>
       }
       renderForm={(close) => <WorkForm user={user} onDone={close} />}
@@ -47,7 +61,18 @@ function WorkForm({ user, onDone }: { user: UserDetailDto; onDone: () => void })
   const designations = useDesignations();
   const payBands = usePayBands();
   const currentManager = useUser(user.profile?.managerId);
-  const update = useUpdateUser(user.id, onDone);
+  // What the manager picker offered to add to the manager's territory; sent once the manager is saved.
+  const [extend, setExtend] = useState<{
+    managerId: string;
+    body: ExtendManagerTerritoryDto;
+  } | null>(null);
+  const extendTerritory = useExtendManagerTerritory();
+  const myRoutes = useUserRoutes(user.id);
+  const update = useUpdateUser(user.id, () => {
+    if (extend && extend.managerId === draft.managerId)
+      extendTerritory.mutate(extend, { onSettled: onDone });
+    else onDone();
+  });
 
   function submit() {
     const built = buildWork(user.profile, draft, user.id);
@@ -56,8 +81,13 @@ function WorkForm({ user, onDone }: { user: UserDetailDto; onDone: () => void })
     update.mutate(built.body);
   }
 
-  const designationLevel = (designations.data ?? []).find((d) => d.id === draft.designationId)?.level;
-  const shownManager = managerName ?? (draft.managerId === user.profile?.managerId ? currentManager.data?.name : null) ?? null;
+  const designationLevel = (designations.data ?? []).find(
+    (d) => d.id === draft.designationId,
+  )?.level;
+  const shownManager =
+    managerName ??
+    (draft.managerId === user.profile?.managerId ? currentManager.data?.name : null) ??
+    null;
 
   return (
     <>
@@ -78,7 +108,9 @@ function WorkForm({ user, onDone }: { user: UserDetailDto; onDone: () => void })
             id="work-payband"
             value={draft.payBandId}
             onValueChange={(v) => setDraft((d) => ({ ...d, payBandId: v }))}
-            options={[...(payBands.data ?? [])].sort((a, b) => a.name.localeCompare(b.name)).map((b) => ({ value: b.id, label: b.name }))}
+            options={[...(payBands.data ?? [])]
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((b) => ({ value: b.id, label: b.name }))}
             placeholder={payBands.isLoading ? 'Loading…' : 'Choose a pay grade'}
           />
         </FormField>
@@ -87,7 +119,12 @@ function WorkForm({ user, onDone }: { user: UserDetailDto; onDone: () => void })
             <span id="work-manager" className="min-w-0 flex-1 truncate text-sm">
               {shownManager ?? <span className="text-text-subtle">No manager chosen</span>}
             </span>
-            <Button variant="secondary" size="sm" disabled={!designationLevel} onClick={() => setPicking(true)}>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!designationLevel}
+              onClick={() => setPicking(true)}
+            >
               {draft.managerId ? 'Change' : 'Choose'}
             </Button>
           </div>
@@ -97,8 +134,13 @@ function WorkForm({ user, onDone }: { user: UserDetailDto; onDone: () => void })
         <ManagerPickerDialog
           selfId={user.id}
           above={{ level: designationLevel, hqId: user.profile?.hqId ?? undefined }}
+          offer={{
+            hqId: user.profile?.hqId ?? undefined,
+            routeIds: (myRoutes.data ?? []).map((r) => r.id),
+          }}
           onClose={() => setPicking(false)}
           onPick={(m) => {
+            setExtend(m.extend ? { managerId: m.id, body: m.extend } : null);
             setDraft((d) => ({ ...d, managerId: m.id }));
             setManagerName(m.name);
             setPicking(false);
