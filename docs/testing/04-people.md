@@ -53,6 +53,9 @@
 |---|---|---|---|
 | 4.30 | Profile of an ASM/RSM (Admin or HR) → Coverage → Edit: tick several HQs, Save | saved; the card lists those HQs | |
 | 4.31 | Same for a ZSM | Zones are offered instead of HQs | |
+| 4.31a | MR → Territory → Edit: add an HQ | its routes appear ticked in a Zone > HQ list; tick/untick a Zone, an HQ, or "Select all"; Save | Routes card lists exactly the ticked ones |
+| 4.31b | Routes card → Remove (or Edit routes → untick) one route | it goes from the card and from that route's Assigned card; no "not assigned" error | |
+| 4.31c | Territory → remove an HQ, Save | that HQ's routes are taken off the employee | |
 | 4.32 | New employee (MR) in HQ A: Work step, Choose manager | only ASM/RSM/ZSM/NSM covering HQ A (by HQ or Zone), each as "Name (ASM)"; an ASM covering only HQ B is absent; one with no coverage shows "no coverage set" | |
 | 4.33 | Create an RSM with no manager when no ZSM exists | saved and active | |
 | 4.34 | Change the designation or HQ after choosing a manager | the manager is cleared | |

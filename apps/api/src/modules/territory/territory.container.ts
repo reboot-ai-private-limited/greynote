@@ -109,7 +109,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
     ),
     unassign: makeUnassignRouteController(new UnassignRouteUseCase(assignmentRepository)),
   };
-  const listRoutesForUser = new ListRoutesForUserUseCase(assignmentRepository, routeRepository, hqRepository, coverageRepository);
+  const listRoutesForUser = new ListRoutesForUserUseCase(assignmentRepository, routeRepository, hqRepository);
   const getRouteSummary = new GetRouteSummaryUseCase(routeRepository, hqRepository);
   const getRoutePath = new GetRoutePathUseCase(routeRepository, hqRepository);
   const listRouteIdsInScope = new ListRouteIdsInScopeUseCase(routeRepository);

@@ -17,6 +17,7 @@
         "migrate:route-km": "tsx src/scripts/migrate-route-km.ts",
         "migrate:profile-territory": "tsx src/scripts/migrate-profile-territory.ts",
         "migrate:territory-zones": "tsx src/scripts/migrate-territory-zones.ts",
+        "migrate:explicit-routes": "tsx src/scripts/migrate-explicit-routes.ts",
         "migrate:payband-ctc": "tsx src/scripts/migrate-payband-salary-to-ctc.ts",
         "migrate:paybands": "tsx src/scripts/migrate-paybands.ts",
         "seed:sample-sales": "tsx src/scripts/seed-sample-sales.ts",

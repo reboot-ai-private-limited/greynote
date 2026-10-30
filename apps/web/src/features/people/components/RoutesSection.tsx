@@ -15,7 +15,10 @@ import { keys } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
 import { RouteChecklist } from '@/features/territory/components/RouteChecklist';
 import { useActiveRoutes } from '@/features/territory/hooks/useRoutes';
+import { useAllHqs } from '@/features/territory/hooks/useHqs';
 import { useUnassignMr } from '@/features/territory/hooks/useRouteMutations';
+import { useAllZones } from '@/features/territory/hooks/useZones';
+import { diffRoutes } from '@/features/territory/lib/routeGroups';
 import { useUserRoutes } from '@/features/territory/hooks/useUserRoutes';
 import { useManagerCoverage } from '@/features/territory/hooks/useManagerCoverage';
 import { useDesignations } from '../hooks/useMasterData';
@@ -85,11 +88,11 @@ function RoutesCard({ user, readOnly }: { user: UserDetailDto; readOnly: boolean
   return (
     <Card
       title="Routes"
-      description="The routes this MR works. They appear on the MR's phone when planning a day."
+      description="The routes this MR works. They appear on the MR's phone when planning a day. Only ticked routes count; an HQ or Zone gives none by itself."
       actions={
         readOnly ? null : (
           <Button size="sm" onClick={() => setAdding(true)}>
-            Add route
+            Edit routes
           </Button>
         )
       }
@@ -144,9 +147,9 @@ function RoutesCard({ user, readOnly }: { user: UserDetailDto; readOnly: boolean
         <DataTable bleed={false} columns={columns} rows={routes.data ?? []} rowKey={(r) => r.id} />
       </DataState>
       {adding ? (
-        <AddRouteDialog
+        <EditRoutesDialog
           user={user}
-          assignedIds={new Set((routes.data ?? []).map((r) => r.id))}
+          assignedIds={(routes.data ?? []).map((r) => r.id)}
           onClose={() => setAdding(false)}
         />
       ) : null}
@@ -163,13 +166,14 @@ function RoutesCard({ user, readOnly }: { user: UserDetailDto; readOnly: boolean
   );
 }
 
-function AddRouteDialog({
+/** Every route, grouped Zone > HQ, ticked where the employee has it. Ticking adds, unticking takes off; nothing changes until Save. */
+function EditRoutesDialog({
   user,
   assignedIds,
   onClose,
 }: {
   user: UserDetailDto;
-  assignedIds: ReadonlySet<string>;
+  assignedIds: readonly string[];
   onClose: () => void;
 }) {
   const userId = user.id;
@@ -177,30 +181,38 @@ function AddRouteDialog({
   const scope = useRouteScope(user);
   const [showOutside, setShowOutside] = useState(false);
   const routes = useActiveRoutes();
-  const [selected, setSelected] = useState<string[]>([]);
-  const assign = useApiMutation<string[]>({
-    // One by one: a route that fails stops the rest, and the ones before it stay added.
-    call: async (token, routeIds) => {
-      for (const routeId of routeIds) await assignmentsApi.assign(token, routeId, userId);
+  const hqs = useAllHqs();
+  const zones = useAllZones();
+  const [selected, setSelected] = useState<string[]>([...assignedIds]);
+  const { add, remove } = diffRoutes(assignedIds, selected);
+  const save = useApiMutation<{ add: string[]; remove: string[] }>({
+    // One by one: a route that fails stops the rest, and the ones before it stay done.
+    call: async (token, change) => {
+      for (const routeId of change.add) await assignmentsApi.assign(token, routeId, userId);
+      for (const routeId of change.remove) await assignmentsApi.unassign(token, routeId, userId);
     },
     invalidates: [keys.routes.all()],
-    successMessage: 'Routes added.',
+    successMessage: 'Routes saved.',
     onSuccess: onClose,
   });
-  const free = (routes.data ?? []).filter((r) => !assignedIds.has(r.id));
+  // What they have stays listed even when outside their scope, so it can be unticked.
+  const kept = new Set(assignedIds);
+  const all = routes.data ?? [];
   const candidates =
-    scope.unlimited || showOutside ? free : free.filter((r) => scope.inScope(r.hqId));
-  const hiddenCount = free.length - candidates.length;
+    scope.unlimited || showOutside
+      ? all
+      : all.filter((r) => kept.has(r.id) || scope.inScope(r.hqId));
+  const hiddenCount = all.length - candidates.length;
 
   return (
     <Dialog
       open
       onOpenChange={(open) => !open && onClose()}
-      title="Add routes"
+      title="Edit routes"
       description={
         scope.unlimited || showOutside
-          ? 'Tick one or more routes.'
-          : `Routes of ${scope.label}. Tick one or more.`
+          ? 'Tick the routes this employee works; untick to take one off.'
+          : `Routes of ${scope.label}. Tick the routes this employee works; untick to take one off.`
       }
     >
       {!scope.unlimited ? (
@@ -222,24 +234,33 @@ function AddRouteDialog({
           routes={candidates}
           selected={selected}
           onChange={setSelected}
+          hqs={hqs.data ?? []}
+          zones={zones.data ?? []}
           flag={(r) => (scope.inScope(r.hqId) ? null : `Outside ${scope.label}`)}
           emptyText={
             scope.unlimited || showOutside
-              ? 'No more routes to add.'
-              : 'No more routes under this scope. Tick “Also show routes outside”, or create one under Territory → Routes.'
+              ? 'There are no routes yet.'
+              : 'No routes under this scope. Tick “Also show routes outside”, or create one under Territory → Routes.'
           }
         />
       )}
-      <div className="mt-4 flex justify-end gap-2">
-        <Button variant="secondary" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button
-          disabled={selected.length === 0 || assign.isPending}
-          onClick={() => assign.mutate(selected)}
-        >
-          {selected.length > 1 ? `Add ${selected.length} routes` : 'Add route'}
-        </Button>
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <span className="text-[13px] text-text-subtle">
+          {add.length > 0 ? `${add.length} to add` : ''}
+          {add.length > 0 && remove.length > 0 ? ' · ' : ''}
+          {remove.length > 0 ? `${remove.length} to remove` : ''}
+        </span>
+        <span className="flex gap-2">
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            disabled={(add.length === 0 && remove.length === 0) || save.isPending}
+            onClick={() => save.mutate({ add, remove })}
+          >
+            Save
+          </Button>
+        </span>
       </div>
     </Dialog>
   );

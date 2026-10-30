@@ -2,7 +2,7 @@
 
 import type { SetManagerCoverageDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
-import { managerApi } from '@/lib/api/endpoints/territory';
+import { assignmentsApi, managerApi } from '@/lib/api/endpoints/territory';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
@@ -19,19 +19,43 @@ export function useManagerCoverage(userId: string, enabled = true) {
   );
 }
 
-export function useSetManagerCoverage(userId: string, onDone: () => void) {
-  return useApiMutation<SetManagerCoverageDto>({
-    call: (token, body) => managerApi.setCoverage(token, userId, body),
-    // The main HQ may change with it, and holidays follow the territory, so the profile, HQ history and leave data refetch too.
-    invalidates: [keys.managerCoverage(userId), ['managerCandidates'], keys.users.all(), keys.userHq.history(userId), keys.leaves.root(), keys.routes.all()],
+/** Coverage and routes in one save: the HQs/Zones first, then the routes to add and to take off. Routes are only what is stored, so both move together. */
+export function useSetTerritory(userId: string, onDone: () => void) {
+  return useApiMutation<{ coverage: SetManagerCoverageDto; add: string[]; remove: string[] }>({
+    call: async (token, { coverage, add, remove }) => {
+      await managerApi.setCoverage(token, userId, coverage);
+      for (const routeId of remove) await assignmentsApi.unassign(token, routeId, userId);
+      for (const routeId of add) await assignmentsApi.assign(token, routeId, userId);
+    },
+    invalidates: [
+      keys.managerCoverage(userId),
+      ['managerCandidates'],
+      keys.users.all(),
+      keys.userHq.history(userId),
+      keys.leaves.root(),
+      keys.routes.all(),
+    ],
     successMessage: 'Territory saved.',
     onSuccess: onDone,
   });
 }
 
 /** Managers above `level` who cover `hqId` (all of them without an HQ), nearest level first. */
-export function useManagerCandidatesAbove(query: { level: number; hqId?: string | undefined; search?: string | undefined; excludeUserId?: string | undefined }, enabled: boolean) {
-  const clean = { level: query.level, ...(query.hqId && { hqId: query.hqId }), ...(query.search && { search: query.search }), ...(query.excludeUserId && { excludeUserId: query.excludeUserId }) };
+export function useManagerCandidatesAbove(
+  query: {
+    level: number;
+    hqId?: string | undefined;
+    search?: string | undefined;
+    excludeUserId?: string | undefined;
+  },
+  enabled: boolean,
+) {
+  const clean = {
+    level: query.level,
+    ...(query.hqId && { hqId: query.hqId }),
+    ...(query.search && { search: query.search }),
+    ...(query.excludeUserId && { excludeUserId: query.excludeUserId }),
+  };
   return useQuery(
     authedQueryOptions({
       queryKey: keys.managerCandidates(clean),

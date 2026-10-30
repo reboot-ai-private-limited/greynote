@@ -2550,3 +2550,11 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 **Consequences:** clearing removes the notification from people's phones too. Deleted rows leave no record. The field app needs no change: they vanish from the next fetch.
 
+
+## 2026-10-30 — Routes are only what is stored
+
+**Problem:** adding an HQ on the employee page saved no routes, yet the Routes card listed every route of that HQ (read-time fallback). Remove failed with "not assigned" and the route's Assigned card was empty.
+
+**Decision (owner):** no auto-selection. A route belongs to an employee only when ticked and stored. Ticks come with "all of a Zone", "all of an HQ" and "everything shown".
+
+**Consequences:** `ListRoutesForUserUseCase` reads stored assignments only, so Planning's picker, call checks, mobile sync, doctor visibility and distributor scope see exactly the stored routes. Existing MR/ASM/RSM who relied on the fallback are backfilled with `migrate:explicit-routes` (run before or with the deploy; ASM/RSM included). ZSM/NSM hold no routes and are unaffected. A route created later is still added by hand (the Routes card reminder stays). The phone app needs no change. Removing an HQ on the Territory card ends that HQ's route rows in the same save.
