@@ -3,7 +3,7 @@ import type { SystemConfigRepositoryPort } from '../../domain/systemConfig.repos
 import { parseClosedYears } from '@/shared/time/financialYearClose.js';
 import { MONTH_NAMES } from '@/shared/time/businessTime.js';
 
-/** The two settings every client needs to read dates the way the server does. Nothing else is exposed to non-Admins. */
+/** The settings every client needs: how to read dates the way the server does, and whether a manager may add doctors and chemists (so the app can hide the button). Nothing else is exposed to non-Admins. */
 export interface PublicConfigView {
   /** 1 to 12: `4` for an April start. */
   financialYearStartMonth: number;
@@ -13,6 +13,10 @@ export interface PublicConfigView {
   dayStartTime: string;
   /** Start years of the financial years an Admin has closed: no daily work can be written into them. */
   closedFinancialYears: number[];
+  /** `MANAGER_CAN_ADD_DOCTORS`: whether a manager (anyone with a team) may add a doctor. */
+  managerCanAddDoctors: boolean;
+  /** `MANAGER_CAN_ADD_CHEMISTS`: the same for chemists. */
+  managerCanAddChemists: boolean;
 }
 
 const defaultOf = (key: string) => CONFIG_DEFINITIONS.find((d) => d.key === key)!.default;
@@ -35,7 +39,21 @@ export class GetPublicConfigUseCase {
   }
 
   async execute(): Promise<PublicConfigView> {
-    const [month, timezone, dayStart, closed] = await Promise.all([this.valid('FY_START_MONTH'), this.valid('BUSINESS_TIMEZONE'), this.valid('DAY_START_TIME'), this.valid('FY_CLOSED_YEARS')]);
-    return { financialYearStartMonth: MONTH_NAMES.indexOf(month as (typeof MONTH_NAMES)[number]) + 1, businessTimezone: timezone, dayStartTime: dayStart, closedFinancialYears: parseClosedYears(closed) };
+    const [month, timezone, dayStart, closed, doctors, chemists] = await Promise.all([
+      this.valid('FY_START_MONTH'),
+      this.valid('BUSINESS_TIMEZONE'),
+      this.valid('DAY_START_TIME'),
+      this.valid('FY_CLOSED_YEARS'),
+      this.valid('MANAGER_CAN_ADD_DOCTORS'),
+      this.valid('MANAGER_CAN_ADD_CHEMISTS'),
+    ]);
+    return {
+      financialYearStartMonth: MONTH_NAMES.indexOf(month as (typeof MONTH_NAMES)[number]) + 1,
+      businessTimezone: timezone,
+      dayStartTime: dayStart,
+      closedFinancialYears: parseClosedYears(closed),
+      managerCanAddDoctors: doctors === 'true',
+      managerCanAddChemists: chemists === 'true',
+    };
   }
 }

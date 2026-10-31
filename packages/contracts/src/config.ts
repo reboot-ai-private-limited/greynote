@@ -54,6 +54,10 @@ export interface PublicConfigDto {
   dayStartTime: string;
   /** Start years of the financial years an Admin has closed; the phone makes its daily work read-only for these. */
   closedFinancialYears: number[];
+  /** `MANAGER_CAN_ADD_DOCTORS`: whether a manager (anyone with a team) may add a doctor. MRs without a team always may. */
+  managerCanAddDoctors: boolean;
+  /** `MANAGER_CAN_ADD_CHEMISTS`: the same for chemists. */
+  managerCanAddChemists: boolean;
 }
 
 /** `GET /config/financial-year` (Admin): which financial years are closed, and which ended ones can still be closed. Years are named by the year they start in (2025 = 2025-26). */

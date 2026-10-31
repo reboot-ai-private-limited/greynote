@@ -11,6 +11,9 @@ import type { SyncPublicContract } from '@/modules/sync/sync.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { makeFieldMasterDataSource } from './application/syncSnapshot.js';
 import { makeNewDoctorSyncHandler } from './application/newDoctorSync.js';
+import { makeNewChemistSyncHandler } from './application/newChemistSync.js';
+import { makeChemistApprovalHandler, makeChemistDescriber, NEW_CHEMIST_KIND } from './application/chemistApproval.js';
+import { AddedChemists } from './application/usecases/addedChemists.js';
 import { ReviewPendingDoctorUseCase } from './application/usecases/reviewPendingDoctor.usecase.js';
 import { makeDoctorApprovalHandler, makeDoctorDescriber, NEW_DOCTOR_KIND } from './application/doctorApproval.js';
 import { DoctorVisibility } from './application/doctorVisibility.js';
@@ -61,8 +64,8 @@ import { MongoDoctorAdapter } from './infrastructure/mongoDoctor.adapter.js';
 import { MongoDoctorAssignmentAdapter } from './infrastructure/mongoDoctorAssignment.adapter.js';
 import { MongoProductAdapter } from './infrastructure/mongoProduct.adapter.js';
 import { MongoSampleAllocationAdapter } from './infrastructure/mongoSampleAllocation.adapter.js';
-import { editAddedDoctorBodySchema } from './interface/field-master-data.schemas.js';
-import { makeChemistControllers, makeDistributorControllers, makeDoctorControllers, makeProductControllers, makeSpecialtyControllers } from './interface/field-master-data.controller.js';
+import { editAddedChemistBodySchema, editAddedDoctorBodySchema } from './interface/field-master-data.schemas.js';
+import { makeAddedChemistControllers, makeChemistControllers, makeDistributorControllers, makeDoctorControllers, makeProductControllers, makeSpecialtyControllers } from './interface/field-master-data.controller.js';
 import { buildFieldMasterDataRouter } from './interface/field-master-data.route.js';
 
 export interface FieldMasterDataContainer {
@@ -108,6 +111,15 @@ export function buildFieldMasterDataContainer(
     onStatusChange: makeDoctorApprovalHandler(doctors, assignments, users, territory, config),
   });
 
+  // An employee-added Chemist: the same route as a Doctor (Employee → Manager → Admin); approval makes it active.
+  approvals.registerKind({
+    kind: NEW_CHEMIST_KIND,
+    finalApproverRoles: ['ADMIN'],
+    managerOnly: true,
+    describeRecords: makeChemistDescriber(chemists, territory),
+    onStatusChange: makeChemistApprovalHandler(chemists),
+  });
+
   // 2. Use cases
   const productUseCases = {
     list: new ListProductsUseCase(products),
@@ -134,6 +146,9 @@ export function buildFieldMasterDataContainer(
   // (sync kind NEW_DOCTOR) and is created inside the sync engine's transaction.
   const addedDoctors = new AddedDoctors(doctors, territory, approvals, transactions, views, specialtyCatalog, users, config);
   sync.registerHandler(makeNewDoctorSyncHandler(addedDoctors, (payload) => editAddedDoctorBodySchema.parse(payload)));
+  // …and a Chemist the employee added offline (sync kind NEW_CHEMIST).
+  const addedChemists = new AddedChemists(chemists, territory, approvals, transactions, users, config);
+  sync.registerHandler(makeNewChemistSyncHandler(addedChemists, (payload) => editAddedChemistBodySchema.parse(payload)));
   // …and what the phone caches of this module, as one snapshot of what the caller may see.
   sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, products, specialties, distributors, allocations: sampleAllocations, visibility, territory }));
 
@@ -239,13 +254,21 @@ export function buildFieldMasterDataContainer(
       listOutletsForUser: async (userId) => {
         const scope = await scopeOfUser(territory, userId);
         const [chemistList, distributorList] = await Promise.all([chemists.listActiveOnRoutes(scope.routeIds), distributors.listActiveForUser(userId, scope)]);
-        return { chemists: chemistList, distributors: distributorList };
+        // listActiveOnRoutes only returns active ones.
+        return { chemists: chemistList.map((c) => ({ ...c, status: 'active' as const })), distributors: distributorList };
       },
       getSampleAllocation: (doctorId, productId) => sampleAllocations.find(doctorId, productId),
       decrementRemaining: (allocationId, quantity, ctx) => sampleAllocations.decrementRemaining(allocationId, quantity, ctx),
       restoreRemaining: (allocationId, quantity, ctx) => sampleAllocations.restoreRemaining(allocationId, quantity, ctx),
-      getChemistLocation: async (id) => (await chemists.findById(id))?.location ?? null,
-      getChemist: (id) => chemists.findById(id),
+      // A `pending` Chemist doesn't exist yet as far as other modules are concerned.
+      getChemistLocation: async (id) => {
+        const chemist = await chemists.findById(id);
+        return chemist && chemist.status !== 'pending' ? chemist.location : null;
+      },
+      getChemist: async (id) => {
+        const chemist = await chemists.findById(id);
+        return chemist && chemist.status !== 'pending' ? { ...chemist, status: chemist.status } : null;
+      },
       getProduct: (id) => products.findById(id),
       listActiveProducts: () => products.listActive(),
     },
@@ -256,6 +279,7 @@ export function buildFieldMasterDataContainer(
         products: makeProductControllers(productUseCases),
         specialties: makeSpecialtyControllers(specialtyUseCases),
         chemists: makeChemistControllers(chemistUseCases),
+        addedChemists: makeAddedChemistControllers(addedChemists),
         doctors: makeDoctorControllers(doctorUseCases),
         distributors: makeDistributorControllers(distributorUseCases),
       }),

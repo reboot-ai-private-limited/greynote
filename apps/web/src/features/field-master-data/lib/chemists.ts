@@ -1,4 +1,5 @@
-import type { ChemistDto, CreateChemistDto, UpdateChemistDto } from '@greynote/contracts';
+import type { ChemistDto, ChemistStatus, CreateChemistDto, UpdateChemistDto } from '@greynote/contracts';
+import type { BadgeTone } from '@/components/ui/Badge';
 import { fail, squash, type BuildResult } from '@/lib/forms';
 import {
   EMPTY_COORDINATES,
@@ -7,6 +8,24 @@ import {
   pointToInputs,
   type CoordinateInputs,
 } from './location';
+
+export const CHEMIST_STATUS_LABEL: Record<ChemistStatus, string> = {
+  active: 'Active',
+  inactive: 'Inactive',
+  pending: 'Awaiting approval',
+};
+
+export const CHEMIST_STATUS_TONE: Record<ChemistStatus, BadgeTone> = {
+  active: 'success',
+  inactive: 'neutral',
+  pending: 'warning',
+};
+
+/** Admin can move a Chemist between active and inactive; a pending one is the approval's to decide. */
+export const canToggleChemistStatus = (status: ChemistStatus): boolean => status !== 'pending';
+
+/** Where a pending chemist is approved: the NEW_CHEMIST queue. */
+export const PENDING_CHEMIST_APPROVALS_HREF = '/approvals?kind=NEW_CHEMIST';
 
 export const NAME_MAX = 150;
 export const ADDRESS_MAX = 500;

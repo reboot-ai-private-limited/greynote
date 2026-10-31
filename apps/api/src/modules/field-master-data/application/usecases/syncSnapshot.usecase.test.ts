@@ -93,9 +93,9 @@ describe('the phone’s cache of Field Master Data', () => {
   });
 
   it('Chemists are the active ones on the Routes the MR has, and follow the Routes too', async () => {
-    await chemists.create({ routeId: 'route-1', name: 'Sai Pharmacy', address: 'a', location: null, status: 'active' });
-    await chemists.create({ routeId: 'route-2', name: 'Far Pharmacy', address: 'a', location: null, status: 'active' });
-    await chemists.create({ routeId: 'route-1', name: 'Closed Pharmacy', address: 'a', location: null, status: 'inactive' });
+    await chemists.create({ routeId: 'route-1', name: 'Sai Pharmacy', address: 'a', location: null, capturedLocation: null, addedBy: null, clientRequestId: null, approvedAt: null, status: 'active' });
+    await chemists.create({ routeId: 'route-2', name: 'Far Pharmacy', address: 'a', location: null, capturedLocation: null, addedBy: null, clientRequestId: null, approvedAt: null, status: 'active' });
+    await chemists.create({ routeId: 'route-1', name: 'Closed Pharmacy', address: 'a', location: null, capturedLocation: null, addedBy: null, clientRequestId: null, approvedAt: null, status: 'inactive' });
     expect(names((await snap('mr1')).chemists)).toEqual(['Sai Pharmacy']);
     territory.userRoutes.set('mr1', ['route-1', 'route-2']);
     expect(names((await snap('mr1')).chemists)).toEqual(['Far Pharmacy', 'Sai Pharmacy']);

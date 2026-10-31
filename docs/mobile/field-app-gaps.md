@@ -26,6 +26,11 @@ The field app (`apps/fieldApp`, another team's) last had real feature work on **
 ## C. Needs a server change first
 
 - **Expose `MANAGER_CAN_ADD_DOCTORS` to the phone.** The app cannot hide the button because nothing it reads carries the flag. Put it in `GET /config/public` or the sync snapshot.
+  **Server done 2026-10-31:** `GET /config/public` now returns `managerCanAddDoctors` and `managerCanAddChemists` (booleans). The phone still reads `config.settings.MANAGER_CAN_ADD_DOCTORS` from the snapshot, which the server does not send; switch it to the public config (`apps/fieldApp/src/lib/manager-add-doctors.ts`).
+
+## E. New: add a Chemist (2026-10-31)
+
+The server lets an employee add a chemist with the phone's location, like a doctor. The phone has nothing for it yet. Build it from [`chemists.md`](chemists.md): an "Add chemist" action, "My added chemists" with approval status, and a `NEW_CHEMIST` queued record. Hide it for managers unless `managerCanAddChemists` is true.
 
 ## D. Requested: Doctors in the app
 

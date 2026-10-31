@@ -69,7 +69,7 @@ export interface SyncPushResponse {
 export const SYNC_ENGINE_CODES = ['DEPENDENCY_FAILED', 'INVALID_DEPENDENCY', 'UNKNOWN_KIND', 'CLIENT_TIME_INVALID', 'INTERNAL'] as const;
 
 /** The record kinds the server accepts today; Phase 6 adds the calls, expenses, orders, gifts, services and the DCR submit. */
-export const SYNC_RECORD_KINDS = ['NEW_DOCTOR', 'DCR_SUBMIT', 'DOCTOR_CALL', 'CHEMIST_CALL', 'DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP', 'EXPENSE', 'DOCTOR_SERVICE', 'GIFT_DONE'] as const;
+export const SYNC_RECORD_KINDS = ['NEW_DOCTOR', 'NEW_CHEMIST', 'DCR_SUBMIT', 'DOCTOR_CALL', 'CHEMIST_CALL', 'DOCTOR_FOLLOWUP', 'CHEMIST_FOLLOWUP', 'EXPENSE', 'DOCTOR_SERVICE', 'GIFT_DONE'] as const;
 export type SyncRecordKind = (typeof SYNC_RECORD_KINDS)[number];
 
 /** A Doctor the MR added offline (the same fields as `POST /field-master-data/doctors/added`, minus the client id). */
@@ -91,6 +91,16 @@ export interface NewDoctorPayload {
   location: GeoPoint;
 }
 export type NewDoctorSyncRecord = SyncRecord<'NEW_DOCTOR', NewDoctorPayload>;
+
+/** A Chemist the employee added offline (the same fields as `POST /field-master-data/chemists/added`, minus the client id). */
+export interface NewChemistPayload {
+  routeId: string;
+  name: string;
+  address: string;
+  /** The phone's GPS when adding. */
+  location: GeoPoint;
+}
+export type NewChemistSyncRecord = SyncRecord<'NEW_CHEMIST', NewChemistPayload>;
 
 // ---- The day's records (Field Activity) --------------------------------------------------------
 
@@ -195,6 +205,9 @@ export const DCR_REFUSAL_CODES = [
   'DOCTOR_VISIT_TOO_SOON',
   'INVALID_PAYLOAD',
 ] as const;
+
+/** What `NEW_CHEMIST` refuses with: the same codes as `NEW_DOCTOR`. */
+export const NEW_CHEMIST_REASON_CODES = ['INVALID_PAYLOAD', 'ROUTE_NOT_ASSIGNED', 'ADDED_AT_THE_SAME_TIME', 'MANAGER_NOT_ALLOWED'] as const;
 
 /** What `NEW_DOCTOR` refuses with, beyond the engine's codes. */
 export const NEW_DOCTOR_REASON_CODES = ['INVALID_PAYLOAD', 'ROUTE_NOT_ASSIGNED', 'ADDED_AT_THE_SAME_TIME', 'MANAGER_NOT_ALLOWED'] as const;

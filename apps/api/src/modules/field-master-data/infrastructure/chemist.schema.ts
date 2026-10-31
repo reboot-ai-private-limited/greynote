@@ -1,5 +1,5 @@
 import { Schema, model, type Types } from 'mongoose';
-import { MASTER_STATUSES, type MasterStatus } from '../domain/masterStatus.js';
+import { CHEMIST_STATUSES, type ChemistStatus } from '../domain/chemist.entity.js';
 
 export interface ChemistDoc {
   routeId: Types.ObjectId;
@@ -7,7 +7,12 @@ export interface ChemistDoc {
   address: string;
   latitude: number | null;
   longitude: number | null;
-  status: MasterStatus;
+  capturedLatitude?: number | null;
+  capturedLongitude?: number | null;
+  status: ChemistStatus;
+  addedBy?: Types.ObjectId | null;
+  clientRequestId?: string | null;
+  approvedAt?: Date | null;
 }
 
 const chemistSchema = new Schema<ChemistDoc>({
@@ -16,8 +21,17 @@ const chemistSchema = new Schema<ChemistDoc>({
   address: { type: String, required: true },
   latitude: { type: Number, default: null },
   longitude: { type: Number, default: null },
-  status: { type: String, required: true, enum: MASTER_STATUSES },
+  capturedLatitude: { type: Number, default: null },
+  capturedLongitude: { type: Number, default: null },
+  status: { type: String, required: true, enum: CHEMIST_STATUSES },
+  addedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+  clientRequestId: { type: String, default: null },
+  approvedAt: { type: Date, default: null },
 });
 chemistSchema.index({ routeId: 1, status: 1 });
+// An offline retry of the same create returns the first Chemist instead of adding a second.
+chemistSchema.index({ addedBy: 1, clientRequestId: 1 }, { unique: true, partialFilterExpression: { clientRequestId: { $type: 'string' } } });
+// "Chemists I added".
+chemistSchema.index({ addedBy: 1, _id: -1 });
 
 export const ChemistModel = model<ChemistDoc>('Chemist', chemistSchema);

@@ -44,7 +44,12 @@ erDiagram
         string address
         decimal latitude "registered shop location - for visit geofence validation"
         decimal longitude
-        string status "active, inactive"
+        decimal captured_latitude "employee-added only - the phone GPS when added; kept when Admin corrects the location"
+        decimal captured_longitude
+        uuid added_by FK "employee-added only (2026-10-31), null for Admin-added"
+        string client_request_id "employee-added only - unique per added_by, makes an offline retry safe"
+        timestamp approved_at "nullable"
+        string status "pending, active, inactive - pending until an employee-added Chemist is approved"
     }
     DISTRIBUTOR {
         uuid id PK

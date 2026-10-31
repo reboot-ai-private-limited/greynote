@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChemistDto, MasterStatus } from '@greynote/contracts';
+import type { ChemistDto, ChemistStatus } from '@greynote/contracts';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -8,15 +8,23 @@ import { Badge } from '@/components/ui/Badge';
 import type { Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
-import { RowActions } from '@/components/ui/RowActions';
-import { StatusFilter } from '@/components/ui/StatusFilter';
+import { RowActions, RowMenu } from '@/components/ui/RowActions';
+import { Select } from '@/components/ui/Select';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useChemists, useUpdateChemist } from '../hooks/useChemists';
+import { CHEMIST_STATUS_LABEL, CHEMIST_STATUS_TONE, PENDING_CHEMIST_APPROVALS_HREF } from '../lib/chemists';
 import { RouteFilter } from './RoutePickerField';
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'pending', label: CHEMIST_STATUS_LABEL.pending },
+  { value: 'active', label: CHEMIST_STATUS_LABEL.active },
+  { value: 'inactive', label: CHEMIST_STATUS_LABEL.inactive },
+];
 
 export function ChemistsScreen() {
   const router = useRouter();
@@ -24,14 +32,14 @@ export function ChemistsScreen() {
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
-  const [toggling, setToggling] = useState<ChemistDto | null>(null);
+  const [toggling, setToggling] = useState<(ChemistDto & { status: 'active' | 'inactive' }) | null>(null);
   const updateChemist = useUpdateChemist(() => setToggling(null));
 
   const chemists = useChemists({
     page,
     pageSize,
     ...(values.search && { search: values.search }),
-    ...(values.status && { status: values.status as MasterStatus }),
+    ...(values.status && { status: values.status as ChemistStatus }),
     ...(values.routeId && { routeId: values.routeId }),
   });
 
@@ -55,21 +63,32 @@ export function ChemistsScreen() {
     {
       key: 'status',
       header: 'Status',
-      render: (c) => <Badge tone={c.status === 'active' ? 'success' : 'neutral'}>{c.status === 'active' ? 'Active' : 'Inactive'}</Badge>,
+      render: (c) => <Badge tone={CHEMIST_STATUS_TONE[c.status]}>{CHEMIST_STATUS_LABEL[c.status]}</Badge>,
     },
     {
       key: 'actions',
       header: '',
       className: 'w-12 text-right',
-      render: (c) => (
-        <RowActions
-          label={c.name}
-          status={c.status}
-          disabled={readOnly}
-          onEdit={() => router.push(`/chemists/${c.id}`)}
-          onToggleStatus={() => setToggling(c)}
-        />
-      ),
+      render: (c) =>
+        c.status === 'pending' ? (
+          // Waiting for approval: the approval decides whether it exists, so no deactivate here.
+          <RowMenu
+            label={c.name}
+            disabled={readOnly}
+            items={[
+              { label: 'Review details', onSelect: () => router.push(`/chemists/${c.id}`) },
+              { label: 'Approve or reject', onSelect: () => router.push(PENDING_CHEMIST_APPROVALS_HREF) },
+            ]}
+          />
+        ) : (
+          <RowActions
+            label={c.name}
+            status={c.status}
+            disabled={readOnly}
+            onEdit={() => router.push(`/chemists/${c.id}`)}
+            onToggleStatus={() => setToggling({ ...c, status: c.status === 'active' ? 'active' : 'inactive' })}
+          />
+        ),
     },
   ];
 
@@ -84,7 +103,14 @@ export function ChemistsScreen() {
         <>
           <Input placeholder="Search by name" aria-label="Search chemists" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
           <RouteFilter value={values.routeId} onChange={(v) => update({ routeId: v })} />
-          <StatusFilter value={values.status} onChange={(v) => update({ status: v })} />
+          <div className="w-44">
+            <Select
+              aria-label="Status"
+              value={values.status || 'all'}
+              onValueChange={(v) => update({ status: v === 'all' ? '' : v })}
+              options={STATUS_OPTIONS}
+            />
+          </div>
         </>
       }
       query={chemists}

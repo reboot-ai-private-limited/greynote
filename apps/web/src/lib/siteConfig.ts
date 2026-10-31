@@ -32,7 +32,7 @@ function isTimeZone(value: string): boolean {
 
 /** Takes what the server said. A value that is not usable is ignored and the previous one kept, never a broken date. */
 export function setSiteConfig(
-  config: Omit<PublicConfigDto, 'dayStartTime' | 'closedFinancialYears'> & { dayStartTime?: string | undefined; closedFinancialYears?: number[] | undefined },
+  config: Omit<PublicConfigDto, 'dayStartTime' | 'closedFinancialYears' | 'managerCanAddDoctors' | 'managerCanAddChemists'> & { dayStartTime?: string | undefined; closedFinancialYears?: number[] | undefined },
 ): void {
   if (
     Number.isInteger(config.financialYearStartMonth) &&

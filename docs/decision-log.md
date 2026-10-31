@@ -2572,3 +2572,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Decision (owner):** the NSM gets Zones saved like a ZSM when chosen as a manager (no routes). Existing managers that lack what their direct reports cover/hold are fixed in the app, not by a script: a **Territory gaps** screen plus banners on the manager's own Routes and Territory cards.
 
 **Consequences:** an NSM with Zones saved no longer means "every Zone": their zone-specific holidays follow those Zones only (national holidays unchanged); the confirm step warns. Gaps look at direct reports only (fix a deep tree level by level). Applying is union only and idempotent.
+
+## 2026-10-31 — Employees add Chemists, with their own manager toggle
+
+**Decision (owner):** employees add Chemists from the phone with their location, like Doctors: created `pending`, approved by the manager or Admin. A manager may add only while new setting `MANAGER_CAN_ADD_CHEMISTS` is on (default off). It is separate from `MANAGER_CAN_ADD_DOCTORS`. Both flags are now sent in `GET /config/public` (`managerCanAddDoctors`, `managerCanAddChemists`) so the phone can hide the button; this closes the server side of gap A2/C in `docs/mobile/field-app-gaps.md`.
+
+**Consequences:** new `NEW_CHEMIST` approval kind and sync record kind; Chemist gains a `pending` status, `addedBy`, `clientRequestId`, `capturedLocation`, `approvedAt`. Pending Chemists are invisible to calls, orders and stock until approved. The phone work is the field-app team's; the contract is in `docs/mobile/chemists.md`.
