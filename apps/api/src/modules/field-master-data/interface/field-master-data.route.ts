@@ -10,11 +10,12 @@ import multer from 'multer';
 import type { NextFunction, Request, Response } from 'express';
 import { AppError } from '@/shared/errors/AppError.js';
 import { MAX_DISTRIBUTOR_DOCUMENT_BYTES } from '../domain/distributorDocumentFile.js';
-import type { CrudHandlers, DistributorHandlers, DoctorHandlers } from './field-master-data.controller.js';
+import type { AddedChemistHandlers, CrudHandlers, DistributorHandlers, DoctorHandlers } from './field-master-data.controller.js';
 import {
   addDoctorBodySchema,
   adjustSampleBodySchema,
   assignDoctorBodySchema,
+  addChemistBodySchema,
   createChemistBodySchema,
   createDistributorBodySchema,
   distributorDocumentBodySchema,
@@ -25,9 +26,11 @@ import {
   listSpecialtiesQuerySchema,
   updateSpecialtyBodySchema,
   doctorAssignmentParamsSchema,
+  editAddedChemistBodySchema,
   editAddedDoctorBodySchema,
   idParamsSchema,
   issueSampleBodySchema,
+  listAddedChemistsQuerySchema,
   listAddedDoctorsQuerySchema,
   listAssignedDoctorsQuerySchema,
   listChemistsQuerySchema,
@@ -89,6 +92,9 @@ doc('patch', '/doctors/{id}/targets', 'Manager or Admin: set a doctor’s monthl
 doc('get', '/doctors/mine', 'Field staff: the doctors assigned to me, on routes I still have', { query: listAssignedDoctorsQuerySchema });
 doc('get', '/doctors/team', 'Managers: the doctors of everyone in my downline', { query: teamDoctorsQuerySchema });
 doc('get', '/doctors/assigned', 'Admin: the doctors assigned to one employee, as that employee sees them', { query: employeeDoctorsQuerySchema });
+doc('get', '/chemists/added', 'Field staff: the chemists I added, with where each is in its approval', { query: listAddedChemistsQuerySchema });
+doc('post', '/chemists/added', 'Field staff: add a chemist with the phone’s location (offline-first) — it goes to my manager, then Admin', { body: addChemistBodySchema });
+doc('put', '/chemists/added/{id}', 'Field staff: change a rejected, withdrawn or reopened chemist — resubmits it', { params: idParamsSchema, body: editAddedChemistBodySchema });
 doc('get', '/doctors/added', 'Field staff: the doctors I added, with where each is in its approval', { query: listAddedDoctorsQuerySchema });
 doc('post', '/doctors/added', 'Field staff: add a doctor (offline-first) — it goes to my manager, then Admin', { body: addDoctorBodySchema });
 doc('put', '/doctors/added/{id}', 'Field staff: change a rejected, withdrawn or reopened doctor — resubmits it', { params: idParamsSchema, body: editAddedDoctorBodySchema });
@@ -155,6 +161,17 @@ function crudRouter(
   return router;
 }
 
+/** Field staff add Chemists (and see theirs); `/chemists/added` is mounted before the Admin/Accountant `/chemists/:id`. */
+function addedChemistsRouter(c: AddedChemistHandlers): Router {
+  const router = Router();
+  router.use(authenticate());
+  const field = requireRole('FIELD');
+  router.get('/', field, validate({ query: listAddedChemistsQuerySchema }), c.added);
+  router.post('/', field, validate({ body: addChemistBodySchema }), c.add);
+  router.put('/:id', field, validate({ params: idParamsSchema, body: editAddedChemistBodySchema }), c.edit);
+  return router;
+}
+
 /** Field staff read their own Doctors and add new ones; everything else is Admin's. `/added`, `/mine` and `/team` come before `/:id`. */
 function doctorsRouter(c: DoctorHandlers): Router {
   const router = Router();
@@ -193,6 +210,7 @@ export function buildFieldMasterDataRouter(c: {
   products: CrudHandlers;
   specialties: CrudHandlers;
   chemists: CrudHandlers;
+  addedChemists: AddedChemistHandlers;
   distributors: DistributorHandlers;
   doctors: DoctorHandlers;
 }): Router {
@@ -201,6 +219,7 @@ export function buildFieldMasterDataRouter(c: {
   router.use('/products', crudRouter(c.products, { list: listProductsQuerySchema, create: createProductBodySchema, update: updateProductBodySchema }, ['ADMIN', 'ACCOUNTANT'])); // the Accountant reads them to add or change an order
   router.use('/specialties', crudRouter(c.specialties, { list: listSpecialtiesQuerySchema, create: createSpecialtyBodySchema, update: updateSpecialtyBodySchema }));
   router.use('/distributors', distributorsRouter(c.distributors));
+  router.use('/chemists/added', addedChemistsRouter(c.addedChemists));
   router.use('/chemists', crudRouter(c.chemists, { list: listChemistsQuerySchema, create: createChemistBodySchema, update: updateChemistBodySchema }, ['ADMIN', 'ACCOUNTANT'])); // the Accountant reads them to add an order for a chemist
   return router;
 }

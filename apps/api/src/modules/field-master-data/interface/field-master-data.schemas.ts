@@ -2,6 +2,7 @@ import { MAX_VISIT_FREQUENCY, PRODUCT_TYPES } from '@greynote/contracts';
 import { z } from 'zod';
 import { paiseSchema } from '@/shared/money/paise.js';
 import { DISTRIBUTOR_DOCUMENT_TYPES } from '../domain/distributor.entity.js';
+import { CHEMIST_STATUSES } from '../domain/chemist.entity.js';
 import { DOCTOR_STATUSES } from '../domain/doctor.entity.js';
 import { MASTER_STATUSES } from '../domain/masterStatus.js';
 
@@ -89,7 +90,24 @@ export const updateChemistBodySchema = z
     status: statusSchema.optional(),
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
-export const listChemistsQuerySchema = z.object({ ...pageFields, routeId: objectIdSchema.optional() });
+/** Includes `pending` — the employee-added Chemists waiting for approval. */
+export const listChemistsQuerySchema = z.object({ ...pageFields, status: z.enum(CHEMIST_STATUSES).optional(), routeId: objectIdSchema.optional() });
+
+// ---- Chemists an employee adds (offline-first, then approved)
+const addedChemistFields = {
+  routeId: objectIdSchema,
+  name: nameSchema,
+  address: textSchema,
+  /** The phone's GPS when adding. Required — Admin reviews it on a map at approval. */
+  location: locationSchema,
+};
+export const addChemistBodySchema = z.object({
+  ...addedChemistFields,
+  /** Made by the app once per add, so a retry after a dropped connection can't create a second Chemist. */
+  clientRequestId: z.string().trim().min(8).max(100),
+});
+export const editAddedChemistBodySchema = z.object(addedChemistFields);
+export const listAddedChemistsQuerySchema = z.object({ page: pageFields.page, pageSize: pageFields.pageSize });
 
 // ---- Doctors
 const emailSchema = z.string().trim().email().max(200);

@@ -1,6 +1,7 @@
 import type { ApprovalDetailDto } from '@greynote/contracts';
 import { Card } from '@/components/ui/Card';
 import { kindLabel } from '../lib/approvals';
+import { ChemistPreview } from './ChemistPreview';
 import { DailyPlanPreview } from './DailyPlanPreview';
 import { DcrPreview } from './DcrPreview';
 import { DoctorPreview } from './DoctorPreview';
@@ -18,6 +19,8 @@ export function ApprovalPreview({ request }: { request: ApprovalDetailDto }) {
   switch (request.kind) {
     case 'NEW_DOCTOR':
       return <DoctorPreview recordId={request.recordId} />;
+    case 'NEW_CHEMIST':
+      return <ChemistPreview recordId={request.recordId} />;
     case 'DCR':
       return <DcrPreview recordId={request.recordId} />;
     case 'DAILY_PLAN':

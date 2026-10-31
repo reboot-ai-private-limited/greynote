@@ -92,6 +92,7 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   toggle('AUTO_ASSIGN_DOCTOR_ON_APPROVAL', 'FIELD_MASTER_DATA', 'Assign a new doctor to the MR who added it', 'Whether approving a Doctor an MR added assigns that Doctor to the MR who added it.', true),
 
   toggle('MANAGER_CAN_ADD_DOCTORS', 'FIELD_MASTER_DATA', 'Managers can add doctors', 'Whether a manager (anyone with a team under them) may add a Doctor from the app. Off: only MRs without a team, and Admin, can. A manager’s Doctor goes to their own manager, or Admin, for approval.', false),
+  toggle('MANAGER_CAN_ADD_CHEMISTS', 'FIELD_MASTER_DATA', 'Managers can add chemists', 'Whether a manager (anyone with a team under them) may add a Chemist from the app. Off: only MRs without a team, and Admin, can. A manager’s Chemist goes to their own manager, or Admin, for approval.', false),
 
   // ── Devices ──
   integer('MAX_REGISTERED_DEVICES_FIELD', 'AUTH', 'Phones per field employee', 'Max devices (registered + awaiting approval) for a FIELD-role user.', 2, 1, 10),

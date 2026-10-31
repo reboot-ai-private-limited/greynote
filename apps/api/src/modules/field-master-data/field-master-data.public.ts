@@ -1,5 +1,5 @@
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
-import type { Chemist } from './domain/chemist.entity.js';
+import type { Chemist as StoredChemist } from './domain/chemist.entity.js';
 import type { Doctor } from './domain/doctor.entity.js';
 import type { Distributor } from './domain/distributor.entity.js';
 import type { SampleAllocation } from './domain/sampleAllocation.entity.js';
@@ -9,7 +9,8 @@ import type { Product } from './domain/product.entity.js';
 export type { Distributor } from './domain/distributor.entity.js';
 export type { SampleAllocation } from './domain/sampleAllocation.entity.js';
 export type { Doctor } from './domain/doctor.entity.js';
-export type { Chemist } from './domain/chemist.entity.js';
+/** A Chemist other modules can see: a `pending` one (added by an employee, not yet approved) never leaves this module. */
+export type Chemist = StoredChemist & { status: 'active' | 'inactive' };
 export type { GeoPoint } from './domain/masterStatus.js';
 export type { Product } from './domain/product.entity.js';
 

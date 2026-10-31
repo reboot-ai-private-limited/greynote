@@ -15,7 +15,11 @@ const chemist: ChemistDto = {
   name: 'Apollo Pharmacy',
   address: 'Hill Cart Road, Siliguri',
   location: { latitude: 26.7271, longitude: 88.3953 },
+  capturedLocation: null,
   status: 'active',
+  addedBy: null,
+  clientRequestId: null,
+  approvedAt: null,
 };
 
 describe('buildChemist', () => {

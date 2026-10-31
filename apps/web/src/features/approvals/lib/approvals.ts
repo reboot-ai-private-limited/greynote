@@ -17,6 +17,7 @@ import { businessDayStart, zoneOffset } from '@/lib/siteConfig';
 /** What each request kind is called. A kind the portal does not know is shown humanised, never hidden. */
 export const KIND_LABEL: Record<string, string> = {
   NEW_DOCTOR: 'New doctor',
+  NEW_CHEMIST: 'New chemist',
   LEAVE: 'Leave',
   DCR: 'Daily report',
   DOCTOR_SERVICE: 'Doctor service',

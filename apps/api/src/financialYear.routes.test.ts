@@ -143,6 +143,7 @@ const TIMELESS = [
   '/api/field-master-data/doctors/mine',
   '/api/field-master-data/doctors/assigned',
   '/api/field-master-data/doctors/team',
+  '/api/field-master-data/chemists/added', // the chemists I added, whatever the year in view
   '/api/field-master-data/doctors/added',
   '/api/field-master-data/doctors',
   '/api/field-master-data/doctors/:id',

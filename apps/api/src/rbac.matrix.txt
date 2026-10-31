@@ -55,6 +55,7 @@ GET    /api/field-activity/expense-payouts  ACCOUNTANT,ADMIN
 GET    /api/field-activity/expenses  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/chemists/:id  ACCOUNTANT,ADMIN
+GET    /api/field-master-data/chemists/added  FIELD
 GET    /api/field-master-data/distributors  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/distributors/:id  ACCOUNTANT,ADMIN
 GET    /api/field-master-data/distributors/:id/impact  ADMIN
@@ -229,6 +230,7 @@ POST   /api/field-activity/expenses/:id/mark-paid  ACCOUNTANT,ADMIN
 POST   /api/field-activity/expenses/other  FIELD
 POST   /api/field-activity/expenses/other/:id/attachments  FIELD
 POST   /api/field-master-data/chemists  ADMIN
+POST   /api/field-master-data/chemists/added  FIELD
 POST   /api/field-master-data/distributors  ACCOUNTANT,ADMIN
 POST   /api/field-master-data/distributors/:id/documents  ACCOUNTANT,ADMIN
 POST   /api/field-master-data/doctors  ADMIN
@@ -317,6 +319,7 @@ POST   /api/territory/routes/:id/assignments  ADMIN
 POST   /api/territory/users/:userId/extend-territory  ADMIN,HR
 POST   /api/territory/zones  ADMIN
 PUT    /api/field-activity/expenses/other/:id  FIELD
+PUT    /api/field-master-data/chemists/added/:id  FIELD
 PUT    /api/field-master-data/doctors/:id/photo  ADMIN
 PUT    /api/field-master-data/doctors/added/:id  FIELD
 PUT    /api/field-master-data/doctors/added/:id/photo  FIELD

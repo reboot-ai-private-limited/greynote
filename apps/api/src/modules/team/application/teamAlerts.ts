@@ -13,7 +13,7 @@ export const ALERTS_ENABLED_KEY = 'TEAM_ALERTS_ENABLED';
  * Kinds a manager hears about the moment they arrive (sign-off F8, answered 2026-10-12): the rare, weighty ones. Daily and monthly plans and
  * daily reports are many a day, so they stay with the badge on the Team screen. Overdue reminders cover every kind.
  */
-export const NEW_REQUEST_KINDS = ['LEAVE', 'EXPENSE_MONTH', 'NEW_DOCTOR'] as const;
+export const NEW_REQUEST_KINDS = ['LEAVE', 'EXPENSE_MONTH', 'NEW_DOCTOR', 'NEW_CHEMIST'] as const;
 /** A request older than this is not announced as new (it is the overdue reminder's business, or the badge's). */
 const NEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -24,6 +24,7 @@ const LABEL: Record<string, string> = {
   LEAVE: 'a leave request',
   EXPENSE_MONTH: 'monthly expenses',
   NEW_DOCTOR: 'a new doctor',
+  NEW_CHEMIST: 'a new chemist',
   DAILY_PLAN: 'a daily plan',
   MONTHLY_PLAN: 'a monthly plan',
   DCR: 'a daily report',

@@ -435,6 +435,7 @@ const DIGEST_ORDER: Array<[string, string, string]> = [
   ['DCR', 'daily report', 'daily reports'],
   ['SECONDARY_SALES', 'secondary-sales month', 'secondary-sales months'],
   ['NEW_DOCTOR', 'new doctor', 'new doctors'],
+  ['NEW_CHEMIST', 'new chemist', 'new chemists'],
   ['DOCTOR_SERVICE', 'doctor service', 'doctor services'],
 ];
 

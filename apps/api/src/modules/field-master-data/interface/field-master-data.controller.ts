@@ -5,6 +5,7 @@ import { asyncHandler } from '@/shared/http/asyncHandler.js';
 import { requiredParam } from '@/shared/http/params.util.js';
 import { sendSuccess } from '@/shared/http/response.util.js';
 import type { Actor } from '../application/actor.js';
+import type { AddedChemists } from '../application/usecases/addedChemists.js';
 import type { AddedDoctors } from '../application/usecases/addedDoctors.js';
 import type { AdjustSampleAllocationUseCase } from '../application/usecases/adjustSampleAllocation.usecase.js';
 import type { AssignDoctorUseCase } from '../application/usecases/assignDoctor.usecase.js';
@@ -39,6 +40,7 @@ import type { UpdateProductUseCase } from '../application/usecases/updateProduct
 import type {
   adjustSampleBodySchema,
   issueSampleBodySchema,
+  listAddedChemistsQuerySchema,
   listAddedDoctorsQuerySchema,
   listAssignedDoctorsQuerySchema,
   employeeDoctorsQuerySchema,
@@ -111,6 +113,26 @@ export function makeChemistControllers(u: {
     get: asyncHandler(async (req, res) => sendSuccess(req, res, await u.get.execute(requiredParam(req.params, 'id')), 'Chemist.', 200)),
     update: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.update.execute(requiredParam(req.params, 'id'), req.body), 'Chemist updated.', 200),
+    ),
+  };
+}
+
+export type AddedChemistHandlers = Record<'added' | 'add' | 'edit', RequestHandler>;
+
+/** The employee's own side of Chemists: the ones they added, adding one, and fixing a rejected one. */
+export function makeAddedChemistControllers(addedChemists: AddedChemists): AddedChemistHandlers {
+  return {
+    added: asyncHandler(async (req, res) => {
+      const query = req.query as unknown as z.output<typeof listAddedChemistsQuerySchema>;
+      sendSuccess(req, res, await addedChemists.list(actorOf(req).id, query), 'Chemists you added.', 200);
+    }),
+    add: asyncHandler(async (req, res) => {
+      const { chemist, created } = await addedChemists.add(actorOf(req).id, req.body);
+      // 200 for a retry of a create that already went through, so the app can tell the two apart.
+      sendSuccess(req, res, chemist, created ? 'Chemist added and sent for approval.' : 'Chemist was already added.', created ? 201 : 200);
+    }),
+    edit: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await addedChemists.edit(actorOf(req).id, requiredParam(req.params, 'id'), req.body), 'Chemist updated and resubmitted.', 200),
     ),
   };
 }

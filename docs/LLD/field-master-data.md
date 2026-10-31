@@ -340,3 +340,14 @@ An optional `Doctor.photo {url, publicId}` (default `null`; no migration, existi
 - **Who.** Admin: any doctor. FIELD: only a doctor they added (`clientRequestId` set), and only while its `NEW_DOCTOR` request is not `APPROVED`; otherwise `404` (someone else's) or `409` (approved). It is not part of the approval, so changing it never resubmits.
 - **Storage hygiene.** Set stores the new file, saves, then deletes the old one (and deletes the new one if the save fails). Remove deletes the file first, then clears the record. Deleting a doctor deletes its file; the archive keeps no photo (history needs the name).
 - **Web.** An optional picker at the top of the doctor form (add and edit; hidden in the approvals review), an avatar (initials when none) in the Doctors table, and the photo in the approval preview.
+
+## Chemist added by an employee (2026-10-31)
+
+The same flow as *Doctor-creation approval*, for Chemists, with no assignment step:
+
+- `POST /chemists/added` (FIELD) creates the Chemist `pending` with the phone's GPS as both `location` and `capturedLocation`, and submits a `NEW_CHEMIST` approval request in one transaction. `clientRequestId` makes a retry return the first one (`201`, then `200`). `PUT /chemists/added/:id` corrects and resubmits a rejected, withdrawn or reopened one; `GET /chemists/added` lists the caller's own with their approval.
+- Offline: sync kind `NEW_CHEMIST` runs the same use case (`AddedChemists.addWithin`) inside the sync transaction; refusals are `INVALID_PAYLOAD`, `ROUTE_NOT_ASSIGNED`, `ADDED_AT_THE_SAME_TIME`, `MANAGER_NOT_ALLOWED`.
+- **Managers** (anyone with a team) may add only while system setting `MANAGER_CAN_ADD_CHEMISTS` is on (default off, read on every call, independent of `MANAGER_CAN_ADD_DOCTORS`). The route must be one of the employee's own.
+- Approval: the manager or Admin decides (no second stage). `APPROVED` makes the Chemist `active` and sets `approvedAt`; `REOPENED` puts it back to `pending`.
+- A `pending` Chemist does not exist for other modules: `getChemist` and `getChemistLocation` answer `null`, and the active-only lists (`listActiveOnRoutes`, `listAllActive`, `canActOnChemist`) skip it. Admin cannot change a pending Chemist's status through `PATCH /chemists/:id` (`409`); it is decided in Approvals.
+- Chemists that existed before have no `addedBy` and are read as before.

@@ -22,7 +22,11 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useChemist, useCreateChemist, useUpdateChemist } from '../hooks/useChemists';
 import {
+  CHEMIST_STATUS_LABEL,
+  CHEMIST_STATUS_TONE,
   EMPTY_CHEMIST,
+  PENDING_CHEMIST_APPROVALS_HREF,
+  canToggleChemistStatus,
   buildChemist,
   buildChemistUpdate,
   chemistToDraft,
@@ -208,12 +212,16 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
         title={chemist.name}
         actions={
           <div className="flex items-center gap-2">
-            <Badge tone={chemist.status === 'active' ? 'success' : 'neutral'}>
-              {chemist.status === 'active' ? 'Active' : 'Inactive'}
-            </Badge>
-            <Button variant="secondary" disabled={readOnly} onClick={() => setToggling(true)}>
-              {chemist.status === 'active' ? 'Deactivate' : 'Reactivate'}
-            </Button>
+            <Badge tone={CHEMIST_STATUS_TONE[chemist.status]}>{CHEMIST_STATUS_LABEL[chemist.status]}</Badge>
+            {canToggleChemistStatus(chemist.status) ? (
+              <Button variant="secondary" disabled={readOnly} onClick={() => setToggling(true)}>
+                {chemist.status === 'active' ? 'Deactivate' : 'Reactivate'}
+              </Button>
+            ) : (
+              <Button variant="secondary" onClick={() => router.push(PENDING_CHEMIST_APPROVALS_HREF)}>
+                Approve or reject
+              </Button>
+            )}
           </div>
         }
       />
@@ -253,7 +261,7 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
         </div>
       </form>
       <StatusToggleDialog
-        item={toggling ? chemist : null}
+        item={toggling && chemist.status !== 'pending' ? { ...chemist, status: chemist.status } : null}
         noun="chemist"
         pending={toggle.isPending}
         onClose={() => setToggling(false)}

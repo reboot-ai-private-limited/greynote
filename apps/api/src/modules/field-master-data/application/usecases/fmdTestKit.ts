@@ -105,7 +105,17 @@ export class FakeChemists implements ChemistRepositoryPort {
     this.rows.push(row);
     return row;
   }
-  async update(id: string, change: Partial<Omit<Chemist, 'id'>>) {
+  async createProposed(input: Omit<Chemist, 'id'>, _ctx: unknown) {
+    if (this.rows.some((c) => c.addedBy === input.addedBy && c.clientRequestId !== null && c.clientRequestId === input.clientRequestId)) throw new DuplicateRecordError('client request');
+    return this.create(input);
+  }
+  async findByClientRequest(addedBy: string, clientRequestId: string) {
+    return this.rows.find((c) => c.addedBy === addedBy && c.clientRequestId === clientRequestId) ?? null;
+  }
+  async listAdded(addedBy: string, page: PageQuery) {
+    return paged(this.rows.filter((c) => c.addedBy === addedBy).reverse(), page);
+  }
+  async update(id: string, change: Partial<Omit<Chemist, 'id'>>, _ctx?: unknown) {
     const i = this.rows.findIndex((c) => c.id === id);
     if (i < 0) return null;
     this.rows[i] = { ...this.rows[i]!, ...change };
@@ -335,7 +345,7 @@ export class FakeDoctors implements DoctorRepositoryPort {
 }
 
 export class FakeConfig implements ConfigReader {
-  values = new Map<string, string>([['DOCTOR_VISIBILITY_FOLLOWS_ROUTE', 'true'], ['MANAGER_CAN_ADD_DOCTORS', 'false']]);
+  values = new Map<string, string>([['DOCTOR_VISIBILITY_FOLLOWS_ROUTE', 'true'], ['MANAGER_CAN_ADD_DOCTORS', 'false'], ['MANAGER_CAN_ADD_CHEMISTS', 'false']]);
   async get(key: string) {
     return this.values.get(key) ?? '';
   }

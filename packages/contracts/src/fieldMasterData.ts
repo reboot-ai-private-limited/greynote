@@ -92,6 +92,10 @@ export interface UpdateProductDto {
   status?: MasterStatus;
 }
 
+/** `pending`: added by an employee and waiting for approval. */
+export const CHEMIST_STATUSES = ['pending', 'active', 'inactive'] as const;
+export type ChemistStatus = (typeof CHEMIST_STATUSES)[number];
+
 // ── Chemists ───────────────────────────────────────────────────────────────────────────────
 
 export interface ChemistDto {
@@ -101,7 +105,15 @@ export interface ChemistDto {
   address: string;
   /** `null` until set: the geofence check cannot run for a Chemist with no point. */
   location: GeoPoint | null;
-  status: MasterStatus;
+  /** The phone's GPS when an employee added it. Kept when Admin corrects `location`; `null` for Admin-added. */
+  capturedLocation: GeoPoint | null;
+  /** `pending` is an employee-added Chemist waiting for approval; every other module treats it as not there yet. */
+  status: ChemistStatus;
+  /** The employee who added it; `null` for Admin-added. */
+  addedBy: string | null;
+  clientRequestId: string | null;
+  /** When it became usable; `null` until approved. */
+  approvedAt: string | null;
 }
 export interface CreateChemistDto {
   routeId: string;

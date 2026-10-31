@@ -1,6 +1,7 @@
 import type {
   AdjustSampleDto,
   ChemistDto,
+  ChemistStatus,
   CreateChemistDto,
   CreateDistributorDto,
   CreateDoctorDto,
@@ -39,7 +40,8 @@ export interface ListProductsQuery extends PaginationQueryDto {
   category?: string | undefined;
 }
 export interface ListChemistsQuery extends PaginationQueryDto {
-  status?: MasterStatus | undefined;
+  /** Includes `pending`: the Chemists employees added that await approval. */
+  status?: ChemistStatus | undefined;
   routeId?: string | undefined;
 }
 export interface ListDoctorsQuery extends PaginationQueryDto {

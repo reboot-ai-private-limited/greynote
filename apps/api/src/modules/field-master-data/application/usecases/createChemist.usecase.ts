@@ -11,6 +11,6 @@ export class CreateChemistUseCase {
 
   async execute(input: Pick<Chemist, 'routeId' | 'name' | 'address' | 'location'>): Promise<Chemist> {
     await requireActiveRoute(this.territory, input.routeId);
-    return this.chemists.create({ ...input, status: 'active' });
+    return this.chemists.create({ ...input, capturedLocation: null, status: 'active', addedBy: null, clientRequestId: null, approvedAt: null });
   }
 }
