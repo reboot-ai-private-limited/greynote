@@ -170,6 +170,10 @@ export const listDoctorsQuerySchema = z.object({
   /** Includes `pending` — the MR-added Doctors waiting for approval. */
   status: z.enum(DOCTOR_STATUSES).optional(),
   routeId: objectIdSchema.optional(),
+  /** Only the Doctors assigned to this employee now. */
+  assignedUserId: objectIdSchema.optional(),
+  /** Only the Doctors nobody is assigned to now (`true`). Not together with `assignedUserId`. */
+  unassigned: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
 });
 /** An MR's own Doctors — active only, so no status filter. */
 export const listAssignedDoctorsQuerySchema = z.object({

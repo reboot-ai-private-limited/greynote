@@ -61,11 +61,33 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
       const byName = { name: new RegExp(escapeRegex(filter.search), 'i') };
       query['$or'] = filter.alsoDoctorIds?.length ? [byName, { _id: { $in: filter.alsoDoctorIds.map((id) => new Types.ObjectId(id)) } }] : [byName];
     }
+    if (filter.onlyDoctorIds) query['_id'] = { $in: filter.onlyDoctorIds.map((id) => new Types.ObjectId(id)) };
+    if (filter.unassigned) return this.listUnassigned(query, filter);
     const [docs, total] = await Promise.all([
       DoctorModel.find(query).sort({ name: 1, _id: 1 }).skip(toSkipLimit(filter).skip).limit(filter.pageSize).lean(),
       DoctorModel.countDocuments(query),
     ]);
     return buildPaginatedResult(docs.map(toDoctor), total, filter);
+  }
+
+  /** The Doctors matching `query` that have no active assignment: a join on the assignments, since they are a collection of their own. */
+  private async listUnassigned(query: Record<string, unknown>, page: PageQuery): Promise<PaginatedResult<Doctor>> {
+    const { skip } = toSkipLimit(page);
+    const [result] = await DoctorModel.aggregate<{ items: Array<DoctorDoc & { _id: unknown }>; total: Array<{ n: number }> }>([
+      { $match: query },
+      {
+        $lookup: {
+          from: DoctorAssignmentModel.collection.name,
+          let: { id: '$_id' },
+          pipeline: [{ $match: { $expr: { $and: [{ $eq: ['$doctorId', '$$id'] }, { $eq: ['$status', 'active'] }] } } }, { $limit: 1 }],
+          as: 'active',
+        },
+      },
+      { $match: { active: { $size: 0 } } },
+      { $sort: { name: 1, _id: 1 } },
+      { $facet: { items: [{ $skip: skip }, { $limit: page.pageSize }, { $project: { active: 0 } }], total: [{ $count: 'n' }] } },
+    ]);
+    return buildPaginatedResult((result?.items ?? []).map(toDoctor), result?.total[0]?.n ?? 0, page);
   }
 
   async renameSpecialty(from: string, to: string): Promise<number> {

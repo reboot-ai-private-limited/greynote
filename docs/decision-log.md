@@ -2613,3 +2613,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Decision (owner):** the payslip shows the Greynote logo (`/brand/logo.png`) in place of the text `GREYNOTE`; the company name heading stays. Reports can be searched by name: the DCR report and Doctor visits get a search box, and the long lists in dropdowns (distributors, products, zones, HQs, the order and target pickers) become searchable. The Doctors list and the doctor pickers find a doctor by the doctor's name **or** the name or employee code of the MR they are assigned to, in one box.
 
 **Consequences:** the doctor search is done on the server, because the lists are paged: it looks up the employees whose name or code matches, then adds the doctors assigned to them (`DoctorFilter.alsoDoctorIds` for the all-doctors list, `alsoUserIds` for the assigned lists, which restrict the employee match to the people in view). Doctor visits searches an employee by name or code, or by the name of any of their doctors. Small fixed dropdowns (status, month, type) stay plain. Phone: only the label of the team doctor list's search box ([`mobile/doctors.md`](mobile/doctors.md)).
+
+## 2026-11-02 — MR filter on the Doctors list
+
+**Decision (owner):** the Doctors list gets the same MR filter the Distributors list has: an "Anyone assigned" button that opens the employee picker, plus an **Unassigned** button for doctors nobody is assigned to. Only the filter; the doctor pickers elsewhere stay as they are.
+
+**Consequences:** `GET /field-master-data/doctors` takes `assignedUserId` (the employee's active assignments) or `unassigned=true`, not both (`400`). They combine with the route, status and search filters and keep paging correct. The CSV download uses the same filters. Admin web only; the phone's own `mine` and `team` lists are unchanged.
