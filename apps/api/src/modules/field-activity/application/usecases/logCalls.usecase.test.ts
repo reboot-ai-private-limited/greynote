@@ -23,7 +23,7 @@ describe('logging the day’s calls and follow-ups', () => {
   let tx: Tx;
   const gps = { capturedLocation: CLINIC as { latitude: number; longitude: number } | null, accuracyMeters: 10 as number | null };
   const call = (over: Record<string, unknown> = {}) => ({ reportDate: DAY, doctorId: 'd1', workWith: [] as string[], remarks: null, ...gps, samples: [] as Array<{ productId: string; quantity: number }>, ...over });
-  const chemistCall = (over: Record<string, unknown> = {}) => ({ reportDate: DAY, chemistId: 'c1', workWith: [] as string[], remarks: null, ...gps, ...over });
+  const chemistCall = (over: Record<string, unknown> = {}) => ({ reportDate: DAY, chemistId: 'c1', remarks: null, ...gps, ...over });
   const followup = (subject: 'DOCTOR' | 'CHEMIST', subjectId: string, over: Record<string, unknown> = {}) => ({ reportDate: DAY, subject, subjectId, remarks: 'call again Friday', ...gps, ...over });
   const log = (over: Record<string, unknown> = {}, rec = REC) => kit.logDoctorCall.execute(rec, call(over), tx);
   const plan = (over: { workingType?: 'FIELD_WORK' | 'DOCTOR_CAMPAIGN' | 'MEETING' | 'CONFERENCE' | 'STRIKE'; routeIds?: string[]; doctorIds?: string[] }) =>

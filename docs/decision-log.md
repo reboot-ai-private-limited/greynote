@@ -91,6 +91,21 @@ old one.
 
 ---
 
+## 2026-11-02 — Work With is the caller's own tree; chemist calls have no Work With
+
+**Decision:**
+- **`GET /identity/work-with`** returns the caller's **upline** (every manager above) and **downline** (everyone below, any depth), active only. The `scope` parameter is gone. The admin/HR/accountant `/work-with/directory` is unchanged.
+- **Plan save enforces it:** a daily or monthly plan's `workWith` must be inside that set, for every employee (before, managers had a downline-only check and others only an active check).
+- **Chemist calls drop `workWith`** (payload, API, stored record, web card and CSV). Doctor calls keep it. Old phone builds that send it are ignored.
+
+**Why:** an employee should pick colleagues from their own line, not the whole organisation; a chemist visit is not a joint-work record.
+
+**Cost:** the phone (another team's) must remove the Managers/All switch and the chemist Work With field; both are in [`mobile/monthlyplan.md`](mobile/monthlyplan.md) §5 and [`mobile/dcr.md`](mobile/dcr.md). Old stored chemist `workWith` values stay in the database, unread.
+
+**Supersedes:** the 2026-10-12 "every manager in the org" rule below.
+
+---
+
 ## 2026-10-26 — Plan reads name the colleagues in Work With
 
 **Decision:** plan days keep `workWith: string[]` (ids) and gain a read-only sibling `workWithPeople: [{ id, name, designation, label }]` on `GET /planning/daily/:id`, `GET /planning/monthly/:id` (entries and amendment `previous`), `GET /team/plans` and the sync planning snapshot. `label` is `Name (Designation)`, built in Identity (`namePeople`) with the same format as `/identity/work-with`.

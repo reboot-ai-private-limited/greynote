@@ -122,8 +122,8 @@ export interface DoctorCallPayload {
   samples?: Array<{ productId: string; quantity: number }>;
 }
 
-/** A Chemist Call (`CHEMIST_CALL`) — the same, without samples. */
-export type ChemistCallPayload = Omit<DoctorCallPayload, 'doctorId' | 'samples'> & { chemistId: string };
+/** A Chemist Call (`CHEMIST_CALL`) — the same, without samples and without `workWith` (an older build that sends one is ignored). */
+export type ChemistCallPayload = Omit<DoctorCallPayload, 'doctorId' | 'samples' | 'workWith'> & { chemistId: string };
 
 /** A follow-up (`DOCTOR_FOLLOWUP`, `CHEMIST_FOLLOWUP`): the name and remarks, recorded where the MR is — the same location rule as a call. */
 export interface DoctorFollowupPayload {

@@ -43,8 +43,8 @@ and the **logging gate**, the DCR's **Final Submission** as the sync kind `DCR_S
   `DOCTOR_FOLLOWUP` and `CHEMIST_FOLLOWUP`, each through the gate and stored on the day's DCR, unique on
   (`userId`, `clientId`). Beyond the gate the server re-checks what the phone's cache may have gone stale on:
   the Doctor is active and still assigned to the MR (`DOCTOR_NOT_FOUND`, `DOCTOR_NOT_ASSIGNED`); the Chemist is
-  active and on a Route the MR still has (`CHEMIST_NOT_FOUND`, `CHEMIST_ROUTE_NOT_ASSIGNED`); every `workWith`
-  is someone else (`INVALID_WORK_WITH`). The phone sends `capturedLocation` (nullable) and `accuracyMeters`;
+  active and on a Route the MR still has (`CHEMIST_NOT_FOUND`, `CHEMIST_ROUTE_NOT_ASSIGNED`); on a Doctor Call every `workWith`
+  is someone else (`INVALID_WORK_WITH`); a Chemist Call has no `workWith`. The phone sends `capturedLocation` (nullable) and `accuracyMeters`;
   the **server** decides `PASS` / `FAIL` / `UNVERIFIED` with the radius and accuracy read from System Config on
   every call, stores it, and echoes it as the record's `data.geofence` (replayed unchanged on `ALREADY_SYNCED`).
   Only a `PASS` is stored; a `FAIL` or `UNVERIFIED` is **refused** `NOT_AT_LOCATION` (decision-log 2026-10-12).
@@ -119,7 +119,7 @@ Full fields in [`../erd/04-field-activity.md`](../erd/04-field-activity.md).
 - **`DCR`** — the daily envelope. One row per user per `report_date`, that every child below
   attaches under. Its two-stage approval is a `DCR` `ApprovalRequest` in the `approval` module
   ([`approval.md`](approval.md)), not fields on this row (an earlier draft stored them here).
-- **`DoctorCall`** / **`ChemistCall`** — `working_type`, `work_with`, remarks, captured GPS
+- **`DoctorCall`** / **`ChemistCall`** — `working_type`, `work_with` (Doctor Call only), remarks, captured GPS
   (`captured_latitude`/`captured_longitude`), and `geofence_status` (`PASS`/`FAIL`/`OVERRIDE`).
 - **`DoctorSampleGiven`** — one row per product+quantity given during a `DoctorCall`, each
   drawing down a `DoctorSampleAllocation` (Field Master Data).

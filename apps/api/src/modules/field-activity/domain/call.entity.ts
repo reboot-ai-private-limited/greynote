@@ -35,8 +35,6 @@ interface CallBase {
   /** The Doctor's or Chemist's Route and its type, stamped by the server. */
   routeId: string | null;
   routeType: RecordRouteType | null;
-  /** Accompanying colleagues' user ids. */
-  workWith: string[];
   remarks: string | null;
   capturedLocation: GeoPoint | null;
   accuracyMeters: number | null;
@@ -49,6 +47,8 @@ interface CallBase {
 
 export interface DoctorCall extends CallBase {
   doctorId: string;
+  /** Accompanying colleagues' user ids. A chemist call has no such field. */
+  workWith: string[];
   samples: SampleLine[];
   /** The day's approved plan lists doctors and this one wasn't among them: allowed by `ALLOW_UNPLANNED_DOCTOR_CALLS`, shown as "Not in plan". */
   notInPlan: boolean;
