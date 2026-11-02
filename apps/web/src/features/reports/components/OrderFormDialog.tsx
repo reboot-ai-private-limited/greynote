@@ -8,6 +8,7 @@ import { FormDialog } from '@/components/ui/FormDialog';
 import { FormField } from '@/components/ui/FormField';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 const DISC_OPTIONS = [
   { value: 'NONE', label: 'No discount' },
@@ -134,7 +135,7 @@ function LinesEditor({
       {draft.lines.map((l, i) => (
         <div key={l.key} className="space-y-1">
           <div className="grid grid-cols-[minmax(0,1fr)_5rem_6rem_4.5rem_auto] items-center gap-2">
-            <Select aria-label={`Product ${i + 1}`} value={l.productId} onValueChange={(v) => pick(i, v)} options={options} placeholder="Product" />
+            <SearchableSelect aria-label={`Product ${i + 1}`} value={l.productId} onValueChange={(v) => pick(i, v)} options={options} placeholder="Product" />
             <Input
               aria-label={`Quantity ${i + 1}`}
               inputMode="numeric"
@@ -238,7 +239,7 @@ function OutletField({ type, value, onChange, error }: { type: OrderDraft['outle
     <FormField label={type === 'DISTRIBUTOR' ? 'Distributor' : 'Chemist'} htmlFor="order-outlet" error={error}>
       <div className="space-y-2">
         <Input aria-label="Search by name" placeholder="Search by name" value={term} onChange={(e) => setTerm(e.target.value)} />
-        <Select
+        <SearchableSelect
           id="order-outlet"
           value={value}
           onValueChange={onChange}

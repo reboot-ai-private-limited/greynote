@@ -2,8 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { PayrollRunRepositoryPort } from '../../domain/payroll.repository.port.js';
 import { PAYROLL_CODES, PayrollRefusal } from '../../domain/payrollRefusal.js';
-import type { PayrollAdjustment, PayrollRun } from '../../domain/payrollRun.entity.js';
+import { OUTCOME_CHARGE, type DayOutcome, type PayrollAdjustment, type PayrollRun } from '../../domain/payrollRun.entity.js';
 import type { IdentityPort } from '../../domain/ports.js';
+import { proratePaise } from '@/shared/money/paise.js';
 import { adjustmentEffects, dayAdjustmentPaise } from '../payrollCalc.js';
 import type { Actor, PayrollClock } from './payroll.usecase.js';
 
@@ -23,22 +24,31 @@ export class AdjustPayrollUseCase {
     private readonly newId: () => string = randomUUID,
   ) {}
 
-  /** Charges the day `setDays` (0, 0.5 or 1) instead of what the rules gave. */
-  async overrideDay(actor: Actor, runId: string, input: { date: string; setDays: number; reason: string }): Promise<PayrollRun> {
+  /** Makes the day what HR says it was (`outcome`), or charges it `setDays` (0, 0.5 or 1), instead of what the rules gave. */
+  async overrideDay(actor: Actor, runId: string, input: { date: string; outcome?: DayOutcome | undefined; setDays?: number | undefined; reason: string }): Promise<PayrollRun> {
     const run = await this.editable(actor, runId);
+    const setDays = input.outcome ? OUTCOME_CHARGE[input.outcome] : input.setDays;
+    if (setDays === undefined) throw new PayrollRefusal(PAYROLL_CODES.badDay, 'Say what the day should be.');
     const day = run.days.find((d) => d.date === input.date);
     if (!day) throw new PayrollRefusal(PAYROLL_CODES.badDay, 'That day is not in this month’s payroll.');
     if (!CHARGEABLE_STATUSES.has(day.status)) throw new PayrollRefusal(PAYROLL_CODES.badDay, 'A holiday or a day off is not charged, so there is nothing to change.');
-    if (![0, 0.5, 1].includes(input.setDays)) throw new PayrollRefusal(PAYROLL_CODES.badDay, 'A day is charged 0, a half or a whole day.');
-    const effect = dayAdjustmentPaise(run.baseSalaryPaise, day.deductedDays, input.setDays);
-    return this.save(run, { id: this.newId(), kind: 'DAY', date: input.date, ruleDays: day.deductedDays, setDays: input.setDays, amountPaise: effect, reason: input.reason, by: actor.id, byRole: actor.role, at: this.clock.now() });
+    if (![0, 0.5, 1].includes(setDays)) throw new PayrollRefusal(PAYROLL_CODES.badDay, 'A day is charged 0, a half or a whole day.');
+    const effect = dayAdjustmentPaise(run.baseSalaryPaise, day.deductedDays, setDays, run.payDays);
+    return this.save(run, { id: this.newId(), kind: 'DAY', date: input.date, ruleDays: day.deductedDays, setDays, amountPaise: effect, label: null, days: null, outcome: input.outcome ?? null, reason: input.reason, by: actor.id, byRole: actor.role, at: this.clock.now() });
   }
 
-  /** Adds (positive) or takes off (negative) an amount; never zero. */
-  async addAmount(actor: Actor, runId: string, input: { amountPaise: number; reason: string }): Promise<PayrollRun> {
+  /** Adds (positive) or takes off (negative) a named amount, or cuts `cutDays` days of pay (halves; a day is base ÷ the month's days); never zero. */
+  async addAmount(actor: Actor, runId: string, input: { amountPaise?: number | undefined; cutDays?: number | undefined; label?: string | null | undefined; reason: string }): Promise<PayrollRun> {
     const run = await this.editable(actor, runId);
-    if (!Number.isInteger(input.amountPaise) || input.amountPaise === 0) throw new PayrollRefusal(PAYROLL_CODES.badDay, 'Enter an amount in whole paise, more or less than zero.');
-    return this.save(run, { id: this.newId(), kind: 'AMOUNT', date: null, ruleDays: null, setDays: null, amountPaise: input.amountPaise, reason: input.reason, by: actor.id, byRole: actor.role, at: this.clock.now() });
+    let amountPaise = input.amountPaise;
+    let days: number | null = null;
+    if (input.cutDays !== undefined) {
+      if (amountPaise !== undefined || !(input.cutDays > 0) || !Number.isInteger(input.cutDays * 2)) throw new PayrollRefusal(PAYROLL_CODES.badDay, 'Cut whole or half days, or give an amount, not both.');
+      days = input.cutDays;
+      amountPaise = -proratePaise(run.baseSalaryPaise, Math.round(input.cutDays * 2), run.payDays * 2);
+    }
+    if (amountPaise === undefined || !Number.isInteger(amountPaise) || amountPaise === 0) throw new PayrollRefusal(PAYROLL_CODES.badDay, 'Enter an amount in whole paise, more or less than zero.');
+    return this.save(run, { id: this.newId(), kind: 'AMOUNT', date: null, ruleDays: null, setDays: null, amountPaise, label: input.label?.trim() || null, days, outcome: null, reason: input.reason, by: actor.id, byRole: actor.role, at: this.clock.now() });
   }
 
   private async editable(actor: Actor, runId: string): Promise<PayrollRun> {
@@ -52,7 +62,7 @@ export class AdjustPayrollUseCase {
 
   private async save(run: PayrollRun, adjustment: PayrollAdjustment): Promise<PayrollRun> {
     const adjustments = [...run.adjustments, adjustment];
-    const { totalPaise } = adjustmentEffects(run.baseSalaryPaise, run.days, adjustments);
+    const { totalPaise } = adjustmentEffects(run.baseSalaryPaise, run.days, adjustments, run.payDays);
     const net = run.originalNetPayablePaise + totalPaise;
     if (net < 0) throw new PayrollRefusal(PAYROLL_CODES.negativeNet, 'That would take the net pay below zero.');
     if (!(await this.runs.saveAdjustments(run.id, run.adjustments.length, { adjustments, adjustmentPaise: totalPaise, netPayablePaise: net, originalNetPayablePaise: run.originalNetPayablePaise }))) {

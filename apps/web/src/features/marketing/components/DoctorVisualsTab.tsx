@@ -12,7 +12,7 @@ import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
-import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useAddDoctorVisual, useDoctorVisuals, useRemoveDoctorVisual, useVisuals } from '../hooks/useVisuals';
 import { visualKind, visualPreviewKind } from '../lib/visuals';
 
@@ -104,7 +104,7 @@ export function DoctorVisualsTab({ doctorId }: { doctorId: string }) {
         {canRemove ? (
           <div className="flex items-end gap-2 px-5 pt-4">
             <div className="w-72">
-              <Select aria-label="Visual to add" value={picking} onValueChange={setPicking} options={options} placeholder={options.length ? 'Choose a visual to add' : 'Every active visual is already picked'} />
+              <SearchableSelect aria-label="Visual to add" value={picking} onValueChange={setPicking} options={options} placeholder={options.length ? 'Choose a visual to add' : 'Every active visual is already picked'} />
             </div>
             <Button disabled={!picking || add.isPending} onClick={() => add.mutate(picking)}>
               Add

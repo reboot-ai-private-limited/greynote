@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import type { Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { paiseToRupees } from '@/lib/money';
@@ -79,7 +80,7 @@ export function RoutesScreen() {
         <>
           <Input placeholder="Search routes" aria-label="Search routes" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
           <div className="w-44">
-            <Select
+            <SearchableSelect
               aria-label="Zone"
               value={values.zoneId || 'all'}
               onValueChange={(v) => update({ zoneId: v === 'all' ? '' : v })}
@@ -87,7 +88,7 @@ export function RoutesScreen() {
             />
           </div>
           <div className="w-44">
-            <Select
+            <SearchableSelect
               aria-label="HQ"
               value={values.hqId || 'all'}
               onValueChange={(v) => update({ hqId: v === 'all' ? '' : v })}

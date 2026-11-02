@@ -17,6 +17,15 @@ old one.
 
 ---
 
+## 2026-11-02 — A day of pay is the month's own length, and HR edits a draft's salary in one place
+
+- **Decision:** unpaid leave and absent days are priced `base ÷ days in that month` (October ÷31, November ÷30, February ÷28 or ÷29), not a flat ÷30. The divisor is stored on each run as `payDays`, so every run generated before this reads `payDays = 30` and keeps its numbers; regenerating a *draft* uses the new basis. The slip's Total Working Days is `payDays` and Days Attended is `payDays − unpaid − absent` (October slip: 31, not 30). Leave and absent together are still capped at the whole month (`payDays`).
+- **Supersedes:** the flat-÷30 rule (HLD 7, LLD payroll, decision-log 2026-09-30 and later "`DEDUCTION_DAYS = 30` is unchanged" notes). A full month unpaid still deducts exactly the base. Cost: a day is worth slightly less in a 31-day month and more in February; no company setting (Keka offers 30-or-actual; we chose calendar always).
+- **Draft editing (HR/Admin, unchanged roles):** one *Edit salary* dialog replaces the two earlier ones. (1) *Change a day* by date to Present, Paid leave, Unpaid leave, Half day or Absent: payroll-only, the leave balance and attendance are not touched, and the slip's Absent / Unpaid / Attended counts follow. (2) *Add money* under a name (Bonus, Incentive, Arrears, Allowance, other). (3) *Cut money* under a name (Penalty, Advance recovery, other) by days (halves, priced ÷ `payDays`) or in rupees. Each is an append-only adjustment with a reason; named amounts are their own slip lines, day changes one line "Days changed by HR"; entries from before this date still show as "Adjustment".
+- **Not done:** creating a real leave record from payroll (a possible follow-up); overriding the base salary itself.
+
+---
+
 ## 2026-10-28 — The weekly off is a schedule of rules (every Sunday, 1st and 3rd Saturday…), each starting on a date
 
 - **Decision:** the single setting `WEEKLY_OFF_DAY` is replaced by `WEEKLY_OFF_SCHEDULE`: a list of rule sets, each with an `effectiveFrom` date. A rule is a weekday that is off every week (`ALL`) or only in some occurrences (`weeks: [1, 3]`; the 1st Saturday is the Saturday on day 1–7 of the month). The rules in force on a date are those of the latest set that has started. Example: Sunday every week from the start, plus the 1st and 3rd Saturday from 1 Nov 2026.
@@ -2598,3 +2607,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Decision (owner):** an employee's monthly secondary can carry photos or PDFs as proof of the figures, any number per month, with no cap on how many. Optional: sending the month for approval does not need one.
 
 **Consequences:** each file is its own record (collection `secondaryattachments`) tied to the employee and the month, so two uploads at once never overwrite each other. The kept limits are 5 MB a file and PDF/JPG/PNG, read from the file's own bytes. The employee can add and remove while the month is a draft or rejected; their own files freeze when it is pending or approved. A manager for their team, or Admin, can change them at any status, inside the same month window as the figures. The approver sees the files on the approval card, and the web month grid shows and edits them. New endpoints `POST` and `DELETE /sales/employee-secondary/attachments`, and `attachments[]` on `GET /sales/employee-sales`. Phone work is the field-app team's: [`mobile/secondary-and-targets.md`](mobile/secondary-and-targets.md) section 1b. Files are not removed when an employee is deleted; the reset script and a future cleanup would need to include them.
+
+## 2026-11-02 — Greynote logo on the payslip; searchable dropdowns and reports; doctors found by MR name
+
+**Decision (owner):** the payslip shows the Greynote logo (`/brand/logo.png`) in place of the text `GREYNOTE`; the company name heading stays. Reports can be searched by name: the DCR report and Doctor visits get a search box, and the long lists in dropdowns (distributors, products, zones, HQs, the order and target pickers) become searchable. The Doctors list and the doctor pickers find a doctor by the doctor's name **or** the name or employee code of the MR they are assigned to, in one box.
+
+**Consequences:** the doctor search is done on the server, because the lists are paged: it looks up the employees whose name or code matches, then adds the doctors assigned to them (`DoctorFilter.alsoDoctorIds` for the all-doctors list, `alsoUserIds` for the assigned lists, which restrict the employee match to the people in view). Doctor visits searches an employee by name or code, or by the name of any of their doctors. Small fixed dropdowns (status, month, type) stay plain. Phone: only the label of the team doctor list's search box ([`mobile/doctors.md`](mobile/doctors.md)).

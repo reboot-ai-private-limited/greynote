@@ -4,7 +4,7 @@ import type { HqDto } from '@greynote/contracts';
 import { useState } from 'react';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useCreateHq, useUpdateHq } from '../hooks/useTerritoryMutations';
 import { useZoneOptions } from '../hooks/useParentOptions';
 import { buildHq, changedHqFields, normalizeName } from '../lib/draft';
@@ -48,7 +48,7 @@ export function HqFormDialog({ hq, onClose }: { hq?: HqDto | undefined; onClose:
         {hq ? (
           <Input id="hq-zone" value={zones.nameOf.get(hq.zoneId) ?? '—'} disabled readOnly />
         ) : (
-          <Select
+          <SearchableSelect
             id="hq-zone"
             value={zoneId}
             onValueChange={setZoneId}

@@ -5,7 +5,7 @@
 | 6.01 | Attendance: month calendar for Promo Mr One, September | each day one of: present, absent, leave, holiday, weekly off, strike, not yet, before joining (K25); today never absent | |
 | 6.02 | Attendance: payroll calendar | absent days counted match payroll's absent column | |
 | 6.03 | Payroll → September | 3 drafts, base ₹92,000.00, net ₹88,000.00 (see test-data.md) | |
-| 6.04 | Absent deduction | Promo Mr One 1 d → −₹1,000.00 (base ÷ 30) | |
+| 6.04 | Absent deduction | Promo Mr One 1 d → −₹1,000.00 (base ÷ days in the month; October ÷ 31) | |
 | 6.05 | Details for a run | base, leave deduction, absent deduction, net add up; slip shows earnings lines | |
 | 6.06 | Turn `ABSENT_DEDUCTS_SALARY` off, Regenerate drafts | absent deductions become 0 | |
 | 6.07 | Turn it back on, regenerate | the figures return | |

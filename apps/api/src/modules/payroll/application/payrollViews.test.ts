@@ -8,6 +8,7 @@ const run = (userId: string): PayrollRun => ({
   userId,
   month: '2026-09',
   baseSalaryPaise: 3_000_000,
+  payDays: 30,
   ctcAnnualPaise: null,
   ctcEffectiveFrom: null,
   ctcLines: [],

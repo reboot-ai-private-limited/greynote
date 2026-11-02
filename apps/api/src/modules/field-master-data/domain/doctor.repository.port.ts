@@ -5,6 +5,10 @@ import type { PageQuery } from './masterStatus.js';
 
 export interface DoctorFilter extends PageQuery {
   search?: string | undefined;
+  /** With `search`: also Doctors with these ids, which are the ones assigned to an employee whose name matched (2026-11-02). */
+  alsoDoctorIds?: string[] | undefined;
+  /** With `search`, for an assigned-Doctors read: also every Doctor assigned to these employees. */
+  alsoUserIds?: string[] | undefined;
   routeId?: string | undefined;
   status?: DoctorStatus | undefined;
 }

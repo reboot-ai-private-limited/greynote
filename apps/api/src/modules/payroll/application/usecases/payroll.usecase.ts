@@ -6,7 +6,7 @@ import type { PayrollFilter, PayrollRunRepositoryPort } from '../../domain/payro
 import { PAYROLL_CODES, PayrollRefusal, type PayrollCode } from '../../domain/payrollRefusal.js';
 import type { PayrollDay, PayrollRun } from '../../domain/payrollRun.entity.js';
 import type { AttendancePort, HrPort, IdentityPort } from '../../domain/ports.js';
-import { absentDeductionPaise, adjustmentEffects, chargeableAbsentDays, deductionLinesOf, leaveDeductionPaise, monthlyGrossPaise, netPayablePaise, roundNetToRupee, statutoryTakenPaise } from '../payrollCalc.js';
+import { absentDeductionPaise, adjustmentEffects, chargeableAbsentDays, deductionLinesOf, leaveDeductionPaise, monthlyGrossPaise, payDaysOf, netPayablePaise, roundNetToRupee, statutoryTakenPaise } from '../payrollCalc.js';
 
 export interface Actor {
   id: string;
@@ -109,11 +109,13 @@ export class GeneratePayrollUseCase {
     if (!ctc) throw new PayrollRefusal(PAYROLL_CODES.noCtc, `${user.name} has no CTC in force for ${month}, so there is no salary to pay.`);
 
     const baseSalaryPaise = monthlyGrossPaise(ctc.lines);
+    // A day is priced by the month's own length (decision-log 2026-11-02), frozen on the run.
+    const payDays = payDaysOf(month);
     const unpaidLeaveDays = await this.hr.getUnpaidLeaveDays(userId, month);
-    const deduction = leaveDeductionPaise(unpaidLeaveDays, baseSalaryPaise);
+    const deduction = leaveDeductionPaise(unpaidLeaveDays, baseSalaryPaise, payDays);
     // Working days with no report, leave or strike cost a day's pay too (decision-log 2026-10-06, K20); never more than a month with the leave.
-    const absentDays = chargeableAbsentDays(unpaidLeaveDays, (await this.attendance.countDeductibleDays(userId, month)).deductibleDays);
-    const absentDeduction = absentDeductionPaise(absentDays, baseSalaryPaise);
+    const absentDays = chargeableAbsentDays(unpaidLeaveDays, (await this.attendance.countDeductibleDays(userId, month)).deductibleDays, payDays);
+    const absentDeduction = absentDeductionPaise(absentDays, baseSalaryPaise, payDays);
     // The month day by day, as payroll saw it: what each day was and how much of it the rules charge. HR's changes to this draft (if it has any)
     // are kept through a regeneration and re-applied to the new figures.
     const days = await this.dayRows(userId, month);
@@ -123,7 +125,7 @@ export class GeneratePayrollUseCase {
     const statutory = statutoryTakenPaise(deductionLines.reduce((n, l) => n + l.amountPaise, 0), baseSalaryPaise, deduction, absentDeduction);
     const unrounded = netPayablePaise({ baseSalaryPaise, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: deduction, absentDeductionPaise: absentDeduction, statutoryDeductionPaise: statutory });
     const { netPaise: originalNet, roundingPaise } = roundNetToRupee(unrounded);
-    const adjustmentPaise = adjustmentEffects(baseSalaryPaise, days, adjustments).totalPaise;
+    const adjustmentPaise = adjustmentEffects(baseSalaryPaise, days, adjustments, payDays).totalPaise;
     const joinedInMonth = employment?.dateOfJoining ? (await this.clock.calendarDateOf(employment.dateOfJoining)).startsWith(`${month}-`) : false;
     // Like joining: the full base salary is paid for the leaving month (the days after are not employed, never absent), and it is flagged.
     const leftInMonth = lastWorkingDay ? lastWorkingDay.startsWith(`${month}-`) : false;
@@ -132,6 +134,7 @@ export class GeneratePayrollUseCase {
       userId,
       month,
       baseSalaryPaise,
+      payDays,
       ctcAnnualPaise: ctc.ctcAnnualPaise,
       ctcEffectiveFrom: ctc.effectiveFrom,
       ctcLines: ctc.lines,

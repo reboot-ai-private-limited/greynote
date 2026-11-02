@@ -11,6 +11,7 @@ import { FormDialog } from '@/components/ui/FormDialog';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useActiveProducts } from '@/features/field-master-data/hooks/useProducts';
 import { useReplaceVisualFile, useUpdateVisual, useUploadVisual } from '../hooks/useVisuals';
 import {
@@ -115,7 +116,7 @@ export function VisualFormDialog({
           htmlFor="visual-product"
           hint="Leave general for branding or campaign content."
         >
-          <Select
+          <SearchableSelect
             id="visual-product"
             value={draft.productId || GENERAL}
             onValueChange={(v) => setDraft((d) => ({ ...d, productId: v === GENERAL ? '' : v }))}

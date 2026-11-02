@@ -2,6 +2,8 @@
 
 import type { DoctorVisitMrDto } from '@greynote/contracts';
 import { useState } from 'react';
+import { SearchInput } from '@/components/ui/ListToolbar';
+import { matchesSearch } from '@/lib/search';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -31,6 +33,14 @@ export function DoctorVisitsScreen() {
   const query = useDoctorVisits(month);
   const report = query.data;
   const [open, setOpen] = useState<DoctorVisitMrDto | null>(null);
+  const [search, setSearch] = useState('');
+  // An employee matches by name or code, or by the name of any of their doctors.
+  const mrs = (report?.mrs ?? []).filter((m) =>
+    matchesSearch(
+      `${m.mr.name} ${m.mr.employeeCode} ${m.rows.map((r) => r.doctor.name).join(' ')}`,
+      search,
+    ),
+  );
 
   const columns: readonly Column<DoctorVisitMrDto>[] = [
     {
@@ -103,15 +113,23 @@ export function DoctorVisitsScreen() {
           </Button>
         }
       />
-      <div className="mb-6 max-w-xs">
-        <FormField label="Month" htmlFor="visits-month">
-          <Input
-            id="visits-month"
-            type="month"
-            value={month}
-            onChange={(e) => e.target.value && update({ month: e.target.value })}
-          />
-        </FormField>
+      <div className="mb-6 flex flex-wrap items-end gap-4">
+        <div className="w-56">
+          <FormField label="Month" htmlFor="visits-month">
+            <Input
+              id="visits-month"
+              type="month"
+              value={month}
+              onChange={(e) => e.target.value && update({ month: e.target.value })}
+            />
+          </FormField>
+        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          label="Search employees or doctors"
+          placeholder="Search employee or doctor"
+        />
       </div>
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
@@ -145,7 +163,7 @@ export function DoctorVisitsScreen() {
             description: 'Set one on the doctor, or when an MR adds the doctor.',
           }}
         >
-          <DataTable columns={columns} rows={report?.mrs ?? []} rowKey={(m) => m.mr.id} />
+          <DataTable columns={columns} rows={mrs} rowKey={(m) => m.mr.id} />
         </DataState>
       </Card>
       {open ? <DoctorVisitsDialog row={open} month={month} onClose={() => setOpen(null)} /> : null}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { monthlyOf, payslipOf } from './payslip';
+import { monthlyOf, payslipOf, slipCountsOf } from './payslip';
 
 const line = (name: string, amountPaise: number, kind: 'EARNING' | 'DEDUCTION' | 'EMPLOYER_CONTRIBUTION' = 'EARNING') => ({ code: name, name, kind, amountPaise, isOverridden: false });
 const base = { totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 0, unpaidLeaveDays: 0, absentDays: 0, absentDeductionPaise: 0, deductionLines: [] as Array<{ code: string; name: string; amountPaise: number }>, statutoryDeductionPaise: 0, roundingPaise: 0 };
@@ -95,5 +95,53 @@ describe('absent days on the slip', () => {
       { label: 'Unpaid leave (30 days)', amountPaise: 10_000 },
     ]);
     expect(slip.deductionPaise).toBe(10_000);
+  });
+});
+
+describe('named extra pay (2026-11-02)', () => {
+  const adj = (over: object) => ({ kind: 'AMOUNT' as const, amountPaise: 0, label: null, days: null, ...over });
+  it('each named amount is its own line: a plus in earnings, a minus in deductions; the lines still add up', () => {
+    const slip = payslipOf({
+      ...base,
+      ctcLines: [line('Basic', 120_000)],
+      baseSalaryPaise: 10_000,
+      adjustmentPaise: 2_000 - 484 + 100,
+      adjustments: [adj({ amountPaise: 2_000, label: 'Bonus' }), adj({ amountPaise: -484, label: 'Penalty', days: 1.5 }), { kind: 'DAY' as const, amountPaise: 100, label: null, days: null }],
+      netPayablePaise: 11_616,
+    });
+    expect(slip.earnings).toEqual([{ label: 'Basic', amountPaise: 10_000 }, { label: 'Bonus', amountPaise: 2_000 }, { label: 'Days changed by HR', amountPaise: 100 }]);
+    expect(slip.deductions).toEqual([{ label: 'Penalty (1.5 days)', amountPaise: 484 }]);
+    expect(slip.grossPaise - slip.deductionPaise).toBe(11_616);
+  });
+
+  it('an older adjustment with no name stays one "Adjustment" line', () => {
+    const slip = payslipOf({ ...base, ctcLines: [line('Basic', 120_000)], baseSalaryPaise: 10_000, adjustmentPaise: 500, adjustments: [adj({ amountPaise: 500 })], netPayablePaise: 10_500 });
+    expect(slip.earnings.at(-1)).toEqual({ label: 'Adjustment', amountPaise: 500 });
+  });
+});
+
+describe('slipCountsOf — the slip’s day counts follow HR’s day changes', () => {
+  const days = [
+    { date: '2026-10-05', status: 'ABSENT', deductedDays: 1 },
+    { date: '2026-10-06', status: 'LEAVE', deductedDays: 1 },
+    { date: '2026-10-07', status: 'PRESENT', deductedDays: 0 },
+  ];
+  const run = { unpaidLeaveDays: 1, absentDays: 1, payDays: 31, days };
+  it('with no changes: 31 − 1 − 1 attended', () => {
+    expect(slipCountsOf(run)).toEqual({ unpaidLeaveDays: 1, absentDays: 1, attendedDays: 29 });
+  });
+  it('an absent day made Paid leave leaves the Absent count; a worked day made Absent joins it', () => {
+    const adjustments = [
+      { kind: 'DAY' as const, date: '2026-10-05', setDays: 0, outcome: 'PAID_LEAVE' as const },
+      { kind: 'DAY' as const, date: '2026-10-07', setDays: 1, outcome: 'ABSENT' as const },
+    ];
+    expect(slipCountsOf({ ...run, adjustments })).toEqual({ unpaidLeaveDays: 1, absentDays: 1, attendedDays: 29 });
+  });
+  it('the latest change to a date counts; Unpaid leave goes to the leave count', () => {
+    const adjustments = [
+      { kind: 'DAY' as const, date: '2026-10-07', setDays: 1, outcome: 'ABSENT' as const },
+      { kind: 'DAY' as const, date: '2026-10-07', setDays: 1, outcome: 'UNPAID_LEAVE' as const },
+    ];
+    expect(slipCountsOf({ ...run, adjustments })).toEqual({ unpaidLeaveDays: 2, absentDays: 1, attendedDays: 28 });
   });
 });

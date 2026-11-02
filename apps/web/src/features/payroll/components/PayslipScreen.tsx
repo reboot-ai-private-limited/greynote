@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
@@ -9,10 +10,8 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { formatMoney } from '@/lib/format';
 import { usePayrollRun } from '../hooks/usePayroll';
 import { monthLabel } from '../lib/payroll';
-import { payslipOf, type SlipLine } from '../lib/payslip';
+import { payslipOf, slipCountsOf, type SlipLine } from '../lib/payslip';
 
-/** A month is paid as 30 days whatever its length (HLD 7), so the slip counts 30 working days. */
-const PAID_DAYS = 30;
 
 function Details({ title, rows }: { title: string; rows: ReadonlyArray<[string, ReactNode]> }) {
   return (
@@ -74,7 +73,7 @@ export function PayslipScreen({ id }: { id: string }) {
   const query = usePayrollRun(id);
   const run = query.data;
   const slip = run ? payslipOf(run) : null;
-  const attended = run ? Math.max(0, PAID_DAYS - run.unpaidLeaveDays - run.absentDays) : 0;
+  const counts = run ? slipCountsOf(run) : null;
 
   return (
     <>
@@ -96,7 +95,14 @@ export function PayslipScreen({ id }: { id: string }) {
         {run && slip ? (
           <article className="mx-auto max-w-4xl space-y-8 rounded-lg border border-border bg-surface p-6 text-sm text-text sm:p-8 print:border-0 print:p-0">
             <header className="grid items-center gap-4 rounded-xl bg-surface-hover px-6 py-5 sm:grid-cols-[1fr_auto_1fr]">
-              <p aria-hidden className="text-2xl font-bold tracking-wide text-accent">GREYNOTE</p>
+              <Image
+                src="/brand/logo.png"
+                alt="Greynote Healthcare"
+                width={702}
+                height={523}
+                priority
+                className="h-20 w-auto object-contain sm:justify-self-start print:[print-color-adjust:exact]"
+              />
               <div className="text-center">
                 <h1 className="text-2xl font-bold leading-tight">GreyNote Health Care Pvt. Ltd.</h1>
                 <p className="mt-2 inline-block rounded-full bg-accent px-3 py-0.5 text-xs font-semibold text-white">ISO 9001:2015 Certified Company</p>
@@ -125,10 +131,10 @@ export function PayslipScreen({ id }: { id: string }) {
                 title="Employment Details"
                 rows={[
                   ['Date of Joining', run.dateOfJoining],
-                  ['Total Working Days', PAID_DAYS],
-                  ['Days Attended', attended],
-                  ['Unpaid Leave Days', run.unpaidLeaveDays],
-                  ['Absent Days', run.absentDays],
+                  ['Total Working Days', run.payDays],
+                  ['Days Attended', counts?.attendedDays ?? 0],
+                  ['Unpaid Leave Days', counts?.unpaidLeaveDays ?? run.unpaidLeaveDays],
+                  ['Absent Days', counts?.absentDays ?? run.absentDays],
                 ]}
               />
             </div>
