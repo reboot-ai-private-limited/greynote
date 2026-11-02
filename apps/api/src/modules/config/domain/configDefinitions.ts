@@ -127,7 +127,7 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   integer('LATE_EXPENSE_GRANT_MAX_HOURS', 'PAYROLL', 'Longest late-expense exception', 'The furthest ahead (in hours from now) an Admin or manager can set the end of a late-expense exception.', 168, 1, 8760, 'hours'),
   integer('EXPENSE_PAYOUT_DAY','PAYROLL', 'Expense payout day', 'Day of the month TA, DA and reimbursements of the month just ended are paid (15 = the 15th). Only drives the "due" and "overdue" flags; nothing is refused for being early or late.', 15, 1, 28),
 
-  toggle('ABSENT_DEDUCTS_SALARY', 'PAYROLL', 'Absent days reduce salary', 'Whether a working day with no submitted report, no approved leave and no strike is deducted from salary, like an unpaid-leave day (monthly base ÷ 30). Off: absent days are shown on the calendar but never deducted.', true),
+  toggle('ABSENT_DEDUCTS_SALARY', 'PAYROLL', 'Absent days reduce salary', 'Whether a working day with no submitted report, no approved leave and no strike is deducted from salary, like an unpaid-leave day (monthly base ÷ the days in that month). Off: absent days are shown on the calendar but never deducted.', true),
   toggle('STRIKE_DEDUCTS_SALARY', 'PAYROLL', 'Strike days reduce salary', 'Whether a day the approved plan marks as Strike is deducted from salary like an absent day. Off (the default): a strike day costs no salary. Only matters while absent days are deducted.', false),
 
   toggle('LEAVE_LOCKED_AFTER_PAYROLL', 'PAYROLL', 'Lock leave once salary is finalized', 'Whether an employee\'s leave in a month can still change (be requested, edited, approved or reopened) after their salary run for that month is finalized. Daily reports and expenses are never locked by this.', true),

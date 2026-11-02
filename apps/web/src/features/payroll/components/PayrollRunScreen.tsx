@@ -19,8 +19,7 @@ import { usePayrollRun } from '../hooks/usePayroll';
 import { absentExplanation, CHARGEABLE_DAY_STATUSES, chargeLabel, deductionExplanation, describePayrollAdjustment, latestDayOverrides, monthLabel, netAddsUp, PAYROLL_DAY_LABEL, RUN_STAGE_LABEL, RUN_STAGE_TONE, runStage } from '../lib/payroll';
 import { FinalizeDialog } from './FinalizeDialog';
 import { PayRunDialog } from './PayRunDialog';
-import { PayrollAmountDialog } from './PayrollAmountDialog';
-import { PayrollDayDialog } from './PayrollDayDialog';
+import { EditSalaryDialog } from './EditSalaryDialog';
 
 function Line({ label, note, amount, strong = false }: { label: string; note?: string | undefined; amount: string; strong?: boolean }) {
   return (
@@ -42,8 +41,8 @@ export function PayrollRunScreen({ id }: { id: string }) {
   const readOnly = useIsReadOnly();
   const canEdit = user?.role === 'HR' || user?.role === 'ADMIN';
   const canClose = user?.role === 'ACCOUNTANT' || user?.role === 'ADMIN';
-  const [dayOpen, setDayOpen] = useState<PayrollDayDto | null>(null);
-  const [amountOpen, setAmountOpen] = useState(false);
+  // Open when HR is editing the salary; `date` pre-picks a day from the table.
+  const [editing, setEditing] = useState<{ date?: string } | null>(null);
   const [finalizing, setFinalizing] = useState(false);
   const [paying, setPaying] = useState(false);
   const stage = run ? runStage(run) : 'DRAFT';
@@ -69,7 +68,7 @@ export function PayrollRunScreen({ id }: { id: string }) {
       className: 'w-24 text-right',
       render: (d) =>
         canEdit && editable && CHARGEABLE_DAY_STATUSES.has(d.status) ? (
-          <Button variant="ghost" size="sm" disabled={readOnly} onClick={() => setDayOpen(d)}>
+          <Button variant="ghost" size="sm" disabled={readOnly} onClick={() => setEditing({ date: d.date })}>
             Change
           </Button>
         ) : null,
@@ -176,10 +175,10 @@ export function PayrollRunScreen({ id }: { id: string }) {
             {run.days.length > 0 ? (
               <Card title="The month day by day" className="mt-6">
                 <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
-                  <p className="text-sm text-text-muted">What each day was, and how many days of pay the rules charge for it. HR can charge a day differently while the run is a draft.</p>
+                  <p className="text-sm text-text-muted">What each day was, and how many days of pay the rules charge for it. HR can change a day, add money or cut money while the run is a draft.</p>
                   {canEdit && editable ? (
-                    <Button variant="secondary" size="sm" disabled={readOnly} onClick={() => setAmountOpen(true)}>
-                      Add or take off an amount
+                    <Button variant="secondary" size="sm" disabled={readOnly} onClick={() => setEditing({})}>
+                      Edit salary
                     </Button>
                   ) : null}
                 </div>
@@ -188,8 +187,8 @@ export function PayrollRunScreen({ id }: { id: string }) {
             ) : canEdit && editable ? (
               <p className="mt-6 text-sm text-text-muted">
                 This run was generated before the day-by-day view existed. Regenerate it to charge days differently.{' '}
-                <Button variant="secondary" size="sm" disabled={readOnly} onClick={() => setAmountOpen(true)}>
-                  Add or take off an amount
+                <Button variant="secondary" size="sm" disabled={readOnly} onClick={() => setEditing({})}>
+                  Edit salary
                 </Button>
               </p>
             ) : null}
@@ -211,8 +210,7 @@ export function PayrollRunScreen({ id }: { id: string }) {
                 </ul>
               </Card>
             ) : null}
-            {dayOpen ? <PayrollDayDialog runId={run.id} day={dayOpen} current={overrides.get(dayOpen.date)?.setDays ?? dayOpen.deductedDays} onClose={() => setDayOpen(null)} /> : null}
-            {amountOpen ? <PayrollAmountDialog runId={run.id} onClose={() => setAmountOpen(false)} /> : null}
+            {editing ? <EditSalaryDialog run={run} initialDate={editing.date} onClose={() => setEditing(null)} /> : null}
             {finalizing ? <FinalizeDialog runs={[run]} month={run.month} onClose={() => setFinalizing(false)} /> : null}
             {paying ? <PayRunDialog run={run} onClose={() => setPaying(false)} /> : null}
           </>

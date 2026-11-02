@@ -17,6 +17,15 @@ old one.
 
 ---
 
+## 2026-11-02 — A day of pay is the month's own length, and HR edits a draft's salary in one place
+
+- **Decision:** unpaid leave and absent days are priced `base ÷ days in that month` (October ÷31, November ÷30, February ÷28 or ÷29), not a flat ÷30. The divisor is stored on each run as `payDays`, so every run generated before this reads `payDays = 30` and keeps its numbers; regenerating a *draft* uses the new basis. The slip's Total Working Days is `payDays` and Days Attended is `payDays − unpaid − absent` (October slip: 31, not 30). Leave and absent together are still capped at the whole month (`payDays`).
+- **Supersedes:** the flat-÷30 rule (HLD 7, LLD payroll, decision-log 2026-09-30 and later "`DEDUCTION_DAYS = 30` is unchanged" notes). A full month unpaid still deducts exactly the base. Cost: a day is worth slightly less in a 31-day month and more in February; no company setting (Keka offers 30-or-actual; we chose calendar always).
+- **Draft editing (HR/Admin, unchanged roles):** one *Edit salary* dialog replaces the two earlier ones. (1) *Change a day* by date to Present, Paid leave, Unpaid leave, Half day or Absent: payroll-only, the leave balance and attendance are not touched, and the slip's Absent / Unpaid / Attended counts follow. (2) *Add money* under a name (Bonus, Incentive, Arrears, Allowance, other). (3) *Cut money* under a name (Penalty, Advance recovery, other) by days (halves, priced ÷ `payDays`) or in rupees. Each is an append-only adjustment with a reason; named amounts are their own slip lines, day changes one line "Days changed by HR"; entries from before this date still show as "Adjustment".
+- **Not done:** creating a real leave record from payroll (a possible follow-up); overriding the base salary itself.
+
+---
+
 ## 2026-10-28 — The weekly off is a schedule of rules (every Sunday, 1st and 3rd Saturday…), each starting on a date
 
 - **Decision:** the single setting `WEEKLY_OFF_DAY` is replaced by `WEEKLY_OFF_SCHEDULE`: a list of rule sets, each with an `effectiveFrom` date. A rule is a weekday that is off every week (`ALL`) or only in some occurrences (`weeks: [1, 3]`; the 1st Saturday is the Saturday on day 1–7 of the month). The rules in force on a date are those of the latest set that has started. Example: Sunday every week from the start, plus the 1st and 3rd Saturday from 1 Nov 2026.

@@ -39,7 +39,7 @@ export function GenerateDialog({
       <ul className="list-disc space-y-1.5 pl-5 text-sm text-text-muted">
         <li>The base is each employee's monthly gross from the CTC in force for the month, kept with the run.</li>
         <li>TA, DA and reimbursements are what was marked <strong className="font-medium text-text">paid during {monthLabel(month)}</strong>. Claims accepted but not yet paid are not counted.</li>
-        <li>Unpaid leave days are the approved ones in the month. The deduction is unpaid days × base ÷ 30.</li>
+        <li>Unpaid leave days are the approved ones in the month. The deduction is unpaid days × base ÷ the days in that month (31 for October, 30 for November, 28 or 29 for February).</li>
         <li>An existing draft is overwritten. A <strong className="font-medium text-text">finalized</strong> run is never changed: it is skipped.</li>
       </ul>
     </Dialog>

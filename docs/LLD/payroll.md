@@ -26,9 +26,10 @@ by a filter someone could forget.
 | `reimbursement` | Sum of the manual `Expense` rows paid during that month — travel, meals, other — from the same call |
 | `unpaid_leave_days` | Snapshot of the approved unpaid days (halves allowed) the deduction was computed from |
 | `joined_in_month` | `true` when the employee's joining date falls in the month — flag only, no proration |
-| `leave_deduction_paise` | `unpaid_days × base_salary_paise / 30`, rounded half up to a whole paise once — computed at generation, then frozen as one number |
+| `pay_days` | days in the month (28–31) the day's pay is `base ÷`; `30` on runs before 2026-11-02 |
+| `leave_deduction_paise` | `unpaid_days × base_salary_paise / pay_days`, rounded half up to a whole paise once — computed at generation, then frozen as one number |
 | `absent_days` | Days charged as absent (working days with no report, leave or strike; strike days too while `STRIKE_DEDUCTS_SALARY` is on), only while `ABSENT_DEDUCTS_SALARY` is on, and together with `unpaid_leave_days` never more than 30; 0 on runs from before 2026-10-07 |
-| `absent_deduction_paise` | `absent_days × base_salary_paise / 30`, rounded half up to a whole paise once, frozen |
+| `absent_deduction_paise` | `absent_days × base_salary_paise / pay_days`, rounded half up to a whole paise once, frozen |
 | `net_payable` | `base_salary − leave_deduction − absent_deduction` (2026-10-07; before that `base − leave_deduction`, and runs finalized before 2026-10-06 also add `total_ta_da + reimbursement`) |
 | `esi_number` | The employee's ESI number when generated (a snapshot, printed on the salary slip), or null |
 | `epf_number` | The employee's EPF number when generated (a snapshot, printed on the salary slip), or null |
@@ -70,11 +71,10 @@ never their internals — to pull the CTC in force for the month (Identity's `ge
   marking expenses paid (Field Activity) has to happen before payroll generation reads the
   result — not the other way around, and not concurrently for the same month in a way that could
   race.
-- **`leave_deduction_paise = round_half_up(unpaid_days × base_salary_paise / 30)`**, flat — not actual calendar days, not
-  working days net of Sundays/Holidays. Deliberately the simplest of the options HLD 7 considered;
-  do not "improve" this into a calendar-aware formula without a decision recorded in
-  [`../decision-log.md`](../decision-log.md) first, since every already-generated run's number
-  was computed the simple way.
+- **`leave_deduction_paise = round_half_up(unpaid_days × base_salary_paise / pay_days)`**, where `pay_days` is the days in the
+  month (31, 30, 28 or 29; decision-log 2026-11-02) and is frozen on the run. Runs generated before that date have `pay_days = 30`
+  and keep their numbers. Not working days net of Sundays/Holidays. Changing the basis again needs a decision recorded in
+  [`../decision-log.md`](../decision-log.md) first.
 - **`Draft → Finalized` is a one-way lock.** Regenerating a `DRAFT` run for the same user+month
   recomputes and overwrites it freely (the Accountant is expected to iterate while reviewing).
   Regenerating a `FINALIZED` run is **rejected outright** — a finalized row is a locked historical
@@ -85,7 +85,7 @@ never their internals — to pull the CTC in force for the month (Identity's `ge
   everywhere else). HR has no write access to this module — PRD §5.3 draws that line explicitly, and it is enforced
   the same way every role check in this system is: at the `interface/` layer, before a use case runs.
 - **Only months that have ended can be generated.** The current or a future month is a `409`.
-- **The deduction is capped at 30 days** (a 31-day month with every day unpaid cannot deduct more than the base).
+- **The deduction is capped at `pay_days`** (a month with every day unpaid cannot deduct more than the base).
 - **Bulk generation is independent per user:** each user's outcome is `created`, `updated` or `skipped` (with a
   reason — no CTC in force for the month, or already finalized); one user's problem never fails the batch. A single-user request for an
   already-finalized month is the `409` below.
@@ -192,7 +192,7 @@ finalizing: a report submitted or a leave approved later cannot change a finaliz
 
 - **Roles:** HR reads the month and edits a **draft**; the Accountant generates, finalizes and marks paid; Admin does all (decision-log 2026-10-13). `GET /payroll`, `GET /payroll/:id` and the new `GET /payroll/overview?month=` are open to `ADMIN`, `HR`, `ACCOUNTANT`; `POST /payroll/:id/days` and `/adjustments` to `ADMIN`, `HR`; `/generate`, `/:id/finalize` (now stores `finalizedBy`) and the new `/:id/pay` to `ACCOUNTANT`, `ADMIN`.
 - **The month day by day:** at generation the run freezes `days` (`PayrollDay`): each calendar day's attendance status and how much of it the rules charge (`deducted_days`: an absent day 1, a fully approved unpaid leave day its portion, a strike day 1 while `STRIKE_DEDUCTS_SALARY` is on, else 0). Attendance's `getMonth` and HR's `listLeaveDays` feed it. Older runs have no days.
-- **Adjustments** (`PayrollAdjustment`, embedded in the run, append-only): `POST /payroll/:id/days {date, setDays: 0|0.5|1, reason}` charges a working day (`PRESENT`, `ABSENT`, `LEAVE`, `STRIKE`, `UNKNOWN`) differently from the rules (an absent day not charged adds `base ÷ 30`, a worked day charged takes it off; the latest change to a date counts); `POST /payroll/:id/adjustments {amountPaise, reason}` adds or takes off a signed amount. Each stores the rule's charge, what it was set to, the effect, reason, who and when. The run keeps `original_net_payable_paise` (what the rules gave), `adjustment_paise` (the total effect) and `net = original + adjustments`, never below zero (400 `NEGATIVE_NET`). The leave request or attendance behind a day is never rewritten. A **regenerated draft keeps its adjustments** and re-applies them to the new figures.
+- **Adjustments** (`PayrollAdjustment`, embedded in the run, append-only): `POST /payroll/:id/days {date, outcome: PRESENT|PAID_LEAVE|UNPAID_LEAVE|HALF_DAY|ABSENT (or setDays: 0|0.5|1), reason}` charges a working day (`PRESENT`, `ABSENT`, `LEAVE`, `STRIKE`, `UNKNOWN`) differently from the rules (an absent day not charged adds `base ÷ pay_days`, a worked day charged takes it off; the latest change to a date counts); `POST /payroll/:id/adjustments {label, amountPaise | cutDays, reason}` adds or takes off a named signed amount, or cuts `cutDays` days (halves) of pay; named amounts are their own slip lines. Each stores the rule's charge, what it was set to, the effect, reason, who and when. The run keeps `original_net_payable_paise` (what the rules gave), `adjustment_paise` (the total effect) and `net = original + adjustments`, never below zero (400 `NEGATIVE_NET`). The leave request or attendance behind a day is never rewritten. A **regenerated draft keeps its adjustments** and re-applies them to the new figures.
 - **Locked at Finalize:** a finalized run refuses changes (409 `RUN_NOT_DRAFT`) as before, and a conditional update on the adjustment count stops two edits both winning (409 `RUN_CHANGED`).
 - **Paid:** `POST /payroll/:id/pay {reference?}` on a finalized run sets `paid_at`, `paid_by`, `payment_reference` once (409 `RUN_NOT_FINALIZED`, `ALREADY_PAID`). Status stays `FINALIZED` (so a payslip stays visible to the employee); the stage `PAID` is `paid_at` set.
 - **Month table:** `GET /payroll/overview` lists every active field employee with `stage` (`NOT_GENERATED`, `DRAFT`, `FINALIZED`, `PAID`), base, leave and absent days, deductions, adjustments and net, plus `generateFrom` (the 1st of the next month) and `canGenerate`.

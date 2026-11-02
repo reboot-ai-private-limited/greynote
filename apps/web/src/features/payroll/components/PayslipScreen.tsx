@@ -10,10 +10,8 @@ import { toErrorState } from '@/lib/api/toErrorState';
 import { formatMoney } from '@/lib/format';
 import { usePayrollRun } from '../hooks/usePayroll';
 import { monthLabel } from '../lib/payroll';
-import { payslipOf, type SlipLine } from '../lib/payslip';
+import { payslipOf, slipCountsOf, type SlipLine } from '../lib/payslip';
 
-/** A month is paid as 30 days whatever its length (HLD 7), so the slip counts 30 working days. */
-const PAID_DAYS = 30;
 
 function Details({ title, rows }: { title: string; rows: ReadonlyArray<[string, ReactNode]> }) {
   return (
@@ -75,7 +73,7 @@ export function PayslipScreen({ id }: { id: string }) {
   const query = usePayrollRun(id);
   const run = query.data;
   const slip = run ? payslipOf(run) : null;
-  const attended = run ? Math.max(0, PAID_DAYS - run.unpaidLeaveDays - run.absentDays) : 0;
+  const counts = run ? slipCountsOf(run) : null;
 
   return (
     <>
@@ -133,10 +131,10 @@ export function PayslipScreen({ id }: { id: string }) {
                 title="Employment Details"
                 rows={[
                   ['Date of Joining', run.dateOfJoining],
-                  ['Total Working Days', PAID_DAYS],
-                  ['Days Attended', attended],
-                  ['Unpaid Leave Days', run.unpaidLeaveDays],
-                  ['Absent Days', run.absentDays],
+                  ['Total Working Days', run.payDays],
+                  ['Days Attended', counts?.attendedDays ?? 0],
+                  ['Unpaid Leave Days', counts?.unpaidLeaveDays ?? run.unpaidLeaveDays],
+                  ['Absent Days', counts?.absentDays ?? run.absentDays],
                 ]}
               />
             </div>
