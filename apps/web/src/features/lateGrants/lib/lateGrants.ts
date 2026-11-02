@@ -104,3 +104,35 @@ export function buildGrant(form: GrantForm, timeZone: string, now: Date = new Da
   if (Object.keys(errors).length > 0) return { ok: false, errors };
   return { ok: true, body: { userId: form.userId, kind: form.kind, periodKey, reason, ...(expiresAt && { expiresAt }) } };
 }
+
+export interface BulkGrantForm extends Omit<GrantForm, 'userId'> {
+  userIds: string[];
+}
+
+type BulkBuilt =
+  | { ok: true; body: { userIds: string[]; kind: LateGrantKindDto; periodKey: string; reason: string; expiresAt?: string } }
+  | { ok: false; errors: Record<string, string> };
+
+export const BULK_GRANT_MAX = 500;
+
+/** Same checks as one grant, for a list of employees. The server checks each person; this only stops what could never work. */
+export function buildBulkGrant(form: BulkGrantForm, timeZone: string, now: Date = new Date()): BulkBuilt {
+  const { userIds, ...rest } = form;
+  // Reuse the single form's period, reason and end checks with a stand-in employee.
+  const built = buildGrant({ ...rest, userId: 'x' }, timeZone, now);
+  const errors: Record<string, string> = built.ok ? {} : { ...built.errors };
+  const unique = [...new Set(userIds)];
+  if (unique.length === 0) errors['userIds'] = 'Choose at least one employee.';
+  else if (unique.length > BULK_GRANT_MAX) errors['userIds'] = `At most ${BULK_GRANT_MAX} employees at a time.`;
+  if (!built.ok || Object.keys(errors).length > 0) return { ok: false, errors };
+  const { userId: _stand, ...body } = built.body;
+  void _stand;
+  return { ok: true, body: { ...body, userIds: unique } };
+}
+
+export const SKIP_LABEL = {
+  GRANT_PERIOD_LOCKED: 'Period is settled',
+  ALREADY_OPEN: 'Already allowed',
+  NOT_ELIGIBLE: 'Not an active field employee',
+  FORBIDDEN: 'Not in your team',
+} as const;

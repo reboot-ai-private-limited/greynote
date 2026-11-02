@@ -198,6 +198,7 @@ const TIMELESS = [
   '/api/late-grants',
   '/api/late-grants/kinds',
   '/api/late-grants/preview',
+  '/api/late-grants/eligible',
 ];
 
 describe('financial-year route classification', () => {

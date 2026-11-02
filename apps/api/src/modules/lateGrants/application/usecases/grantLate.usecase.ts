@@ -34,6 +34,14 @@ export class GrantLateUseCase {
     private readonly now: () => Date,
   ) {}
 
+  /** What does not depend on the employee: the period is well-formed, started and in an open year, and the end is allowed. Throws 400/409. */
+  async validateRequest(input: Omit<GrantLateInput, 'userId'>): Promise<void> {
+    assertPeriodKey(input.kind, input.periodKey);
+    const now = this.now();
+    await this.assertPeriodOpen(input, now);
+    await this.expiry(now, input);
+  }
+
   async execute(actor: Actor, input: GrantLateInput): Promise<LateGrant> {
     assertPeriodKey(input.kind, input.periodKey);
     const [employee] = await this.users.getUserSummaries([input.userId]);
@@ -59,7 +67,7 @@ export class GrantLateUseCase {
   }
 
   /** Not a future period, and the financial year it belongs to is open. */
-  private async assertPeriodOpen(input: GrantLateInput, now: Date): Promise<void> {
+  private async assertPeriodOpen(input: Omit<GrantLateInput, 'userId'>, now: Date): Promise<void> {
     const { timeZone, dayStart } = await readBusinessDay(this.config);
     const today = businessDate(now, timeZone, dayStart);
     const isDay = KIND_REGISTRY[input.kind].period === 'DAY';
@@ -68,7 +76,7 @@ export class GrantLateUseCase {
     await assertFinancialYearOpen(this.config, isDay ? input.periodKey : `${monthOfPeriod(input.periodKey)}-01`, 'This period');
   }
 
-  private async expiry(now: Date, input: GrantLateInput): Promise<Date> {
+  private async expiry(now: Date, input: Omit<GrantLateInput, 'userId'>): Promise<Date> {
     const meta = KIND_REGISTRY[input.kind];
     // A Daily Plan's exception never runs past the end of that plan's own business day.
     let dayEnd: Date | null = null;

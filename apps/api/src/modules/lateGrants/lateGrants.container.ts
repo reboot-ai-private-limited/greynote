@@ -1,5 +1,7 @@
 import type { Router } from 'express';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
+import { BulkGrantLateUseCase } from './application/usecases/bulkGrantLate.usecase.js';
+import { ListEligibleUseCase } from './application/usecases/listEligible.usecase.js';
 import { GrantLateUseCase } from './application/usecases/grantLate.usecase.js';
 import { ListLateUseCase } from './application/usecases/listLate.usecase.js';
 import { PreviewLateUseCase } from './application/usecases/previewLate.usecase.js';
@@ -22,8 +24,11 @@ export function buildLateGrantsContainer(users: UserDirectoryPort, config: Confi
   const grants = new MongoLateGrantAdapter();
   const locks = new PeriodLocks();
   const gate = new LateGrantGate(grants, locks, now);
+  const grant = new GrantLateUseCase(grants, users, locks, config, now);
   const useCases = {
-    grant: new GrantLateUseCase(grants, users, locks, config, now),
+    grant,
+    bulk: new BulkGrantLateUseCase(grant),
+    eligible: new ListEligibleUseCase(users),
     revoke: new RevokeLateUseCase(grants, now),
     list: new ListLateUseCase(grants, users, now),
     preview: new PreviewLateUseCase(locks),

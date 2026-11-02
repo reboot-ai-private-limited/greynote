@@ -1,4 +1,4 @@
-import type { GrantLateDto, LateGrantKindDto } from '@greynote/contracts';
+import type { BulkGrantLateDto, BulkGrantLateResultDto, EligibleEmployeesDto, GrantLateDto, LateGrantKindDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { lateGrantsApi, type ListLateGrantsQuery } from '@/lib/api/endpoints/lateGrants';
 import { authedQueryOptions } from '@/lib/query/factory';
@@ -35,6 +35,23 @@ export function useGrantLate(onDone: () => void) {
     invalidates: [keys.lateGrants.all(), keys.expenses.all()],
     successMessage: 'Late submission allowed.',
     onSuccess: onDone,
+  });
+}
+
+export function useBulkGrantLate(onDone: (result: BulkGrantLateResultDto) => void) {
+  return useApiMutation<BulkGrantLateDto, BulkGrantLateResultDto>({
+    call: (token, body) => lateGrantsApi.bulk(token, body),
+    // The expense month table marks who has a late exception, so it is refreshed too.
+    invalidates: [keys.lateGrants.all(), keys.expenses.all()],
+    onSuccess: onDone,
+  });
+}
+
+/** The employees a shortcut stands for ("everyone", or one manager's team), fetched when the button is pressed. */
+export function useEligibleEmployees(onDone: (userIds: string[]) => void) {
+  return useApiMutation<{ scope: 'all' | 'team'; managerId?: string }, EligibleEmployeesDto>({
+    call: (token, query) => lateGrantsApi.eligible(token, query),
+    onSuccess: (result) => onDone(result.userIds),
   });
 }
 

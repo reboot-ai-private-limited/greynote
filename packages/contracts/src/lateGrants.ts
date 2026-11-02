@@ -43,3 +43,21 @@ export interface LateGrantPreviewDto {
   /** Null when the period is open for a late entry. */
   lockedReason: string | null;
 }
+
+/** `POST /late-grants/bulk`: the same exception for many employees. */
+export interface BulkGrantLateDto extends Omit<GrantLateDto, 'userId'> {
+  userIds: string[];
+}
+
+export type BulkSkipCodeDto = 'GRANT_PERIOD_LOCKED' | 'ALREADY_OPEN' | 'NOT_ELIGIBLE' | 'FORBIDDEN';
+
+/** Who was allowed, and who was left out and why — the rest still go through. */
+export interface BulkGrantLateResultDto {
+  granted: LateGrantDto[];
+  skipped: Array<{ userId: string; code: BulkSkipCodeDto; reason: string }>;
+}
+
+/** `GET /late-grants/eligible`. */
+export interface EligibleEmployeesDto {
+  userIds: string[];
+}

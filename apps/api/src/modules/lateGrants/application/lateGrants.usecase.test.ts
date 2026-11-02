@@ -64,6 +64,7 @@ class Users implements UserDirectoryPort {
     this.users.set(id, { id, name: id, role, status, ...(managerId && { managerId }) });
   }
   async getUserSummaries(ids: string[]) { return ids.flatMap((i) => (this.users.has(i) ? [this.users.get(i)!] : [])); }
+  async listActiveFieldUserIds() { return [...this.users.values()].filter((u) => u.role === 'FIELD' && u.status === 'active').map((u) => u.id); }
   async getManagerChain(id: string) {
     const out: DirectoryUser[] = [];
     let cur = this.users.get(id)?.managerId;
