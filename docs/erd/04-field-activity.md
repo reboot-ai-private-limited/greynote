@@ -86,7 +86,6 @@ erDiagram
         uuid route_id FK "the chemist's route, stamped"
         string route_type "HQ, EX_STATION, OUT_STATION"
         boolean route_not_in_plan "the chemist's route is not on the day's plan"
-        json work_with "array of accompanying user_ids"
         string remarks
         decimal captured_latitude "MR's GPS at call time"
         decimal captured_longitude

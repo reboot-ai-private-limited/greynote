@@ -48,8 +48,12 @@ export interface ListDoctorsQuery extends PaginationQueryDto {
   /** Includes `pending`: the Doctors MRs added that await approval. */
   status?: DoctorStatus | undefined;
   routeId?: string | undefined;
-  /** Matches the name. */
+  /** Matches the doctor's name, or the name or code of the MR they are assigned to. */
   search?: string | undefined;
+  /** Only the doctors assigned to this employee now. */
+  assignedUserId?: string | undefined;
+  /** Only the doctors nobody is assigned to now. Not together with `assignedUserId`. */
+  unassigned?: boolean | undefined;
 }
 export interface ListEmployeeDoctorsQuery extends PaginationQueryDto {
   search?: string | undefined;

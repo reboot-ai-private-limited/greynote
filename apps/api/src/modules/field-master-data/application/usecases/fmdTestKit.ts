@@ -294,11 +294,14 @@ export class FakeDoctors implements DoctorRepositoryPort {
   }
   async list(f: DoctorFilter) {
     const search = f.search?.toLowerCase();
+    const assignedIds = f.unassigned ? new Set((await Promise.all(this.rows.map((d) => this.assignments.findActiveForDoctor(d.id)))).flatMap((a) => (a ? [a.doctorId] : []))) : null;
     return paged(
       this.rows.filter(
         (d) =>
           (!f.routeId || d.routeId === f.routeId) &&
           (!f.status || d.status === f.status) &&
+          (!f.onlyDoctorIds || f.onlyDoctorIds.includes(d.id)) &&
+          (!assignedIds || !assignedIds.has(d.id)) &&
           (!search || d.name.toLowerCase().includes(search) || (f.alsoDoctorIds ?? []).includes(d.id)),
       ),
       f,

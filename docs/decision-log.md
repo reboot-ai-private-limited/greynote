@@ -91,6 +91,29 @@ old one.
 
 ---
 
+## 2026-11-02 — Doctor search in the service request form (docs only)
+
+**Decision:** the phone's service request form gets a searchable doctor dropdown, fed by `doctors/mine` (MR) and `doctors/team` (manager) with `search`, `page`, `pageSize`. [`mobile/service-requests.md`](mobile/service-requests.md) §2 and §3 spell it out.
+
+**Why:** a manager's picker holds the whole team's doctors, too long to scroll. **Cost:** none on the server, since both lists already take `search`; the phone (another team's) builds it.
+
+---
+
+## 2026-11-02 — Work With is the caller's own tree; chemist calls have no Work With
+
+**Decision:**
+- **`GET /identity/work-with`** returns the caller's **upline** (every manager above) and **downline** (everyone below, any depth), active only. The `scope` parameter is gone. The admin/HR/accountant `/work-with/directory` is unchanged.
+- **Plan save enforces it:** a daily or monthly plan's `workWith` must be inside that set, for every employee (before, managers had a downline-only check and others only an active check).
+- **Chemist calls drop `workWith`** (payload, API, stored record, web card and CSV). Doctor calls keep it. Old phone builds that send it are ignored.
+
+**Why:** an employee should pick colleagues from their own line, not the whole organisation; a chemist visit is not a joint-work record.
+
+**Cost:** the phone (another team's) must remove the Managers/All switch and the chemist Work With field; both are in [`mobile/monthlyplan.md`](mobile/monthlyplan.md) §5 and [`mobile/dcr.md`](mobile/dcr.md). Old stored chemist `workWith` values stay in the database, unread.
+
+**Supersedes:** the 2026-10-12 "every manager in the org" rule below.
+
+---
+
 ## 2026-10-26 — Plan reads name the colleagues in Work With
 
 **Decision:** plan days keep `workWith: string[]` (ids) and gain a read-only sibling `workWithPeople: [{ id, name, designation, label }]` on `GET /planning/daily/:id`, `GET /planning/monthly/:id` (entries and amendment `previous`), `GET /team/plans` and the sync planning snapshot. `label` is `Name (Designation)`, built in Identity (`namePeople`) with the same format as `/identity/work-with`.
@@ -2613,3 +2636,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Decision (owner):** the payslip shows the Greynote logo (`/brand/logo.png`) in place of the text `GREYNOTE`; the company name heading stays. Reports can be searched by name: the DCR report and Doctor visits get a search box, and the long lists in dropdowns (distributors, products, zones, HQs, the order and target pickers) become searchable. The Doctors list and the doctor pickers find a doctor by the doctor's name **or** the name or employee code of the MR they are assigned to, in one box.
 
 **Consequences:** the doctor search is done on the server, because the lists are paged: it looks up the employees whose name or code matches, then adds the doctors assigned to them (`DoctorFilter.alsoDoctorIds` for the all-doctors list, `alsoUserIds` for the assigned lists, which restrict the employee match to the people in view). Doctor visits searches an employee by name or code, or by the name of any of their doctors. Small fixed dropdowns (status, month, type) stay plain. Phone: only the label of the team doctor list's search box ([`mobile/doctors.md`](mobile/doctors.md)).
+
+## 2026-11-02 — MR filter on the Doctors list
+
+**Decision (owner):** the Doctors list gets the same MR filter the Distributors list has: an "Anyone assigned" button that opens the employee picker, plus an **Unassigned** button for doctors nobody is assigned to. Only the filter; the doctor pickers elsewhere stay as they are.
+
+**Consequences:** `GET /field-master-data/doctors` takes `assignedUserId` (the employee's active assignments) or `unassigned=true`, not both (`400`). They combine with the route, status and search filters and keep paging correct. The CSV download uses the same filters. Admin web only; the phone's own `mine` and `team` lists are unchanged.

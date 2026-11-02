@@ -61,7 +61,7 @@ export function CallCard({
           {samples.map((s) => `${s.productName || 'Product'} × ${s.quantity}`).join(', ')}
         </p>
       ) : null}
-      {call.workWith.length > 0 ? (
+      {'workWith' in call && call.workWith.length > 0 ? (
         <p className="mt-1 text-sm text-text">
           <span className="text-text-subtle">Worked with: </span>
           {call.workWith.map((id, i) => (

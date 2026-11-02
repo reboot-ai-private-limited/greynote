@@ -31,7 +31,7 @@ describe('the day’s records against the shared contract', () => {
     expect(doctorCallPayloadSchema.parse(doctorCall)).toMatchObject({ doctorId: oid('a'), samples: [{ quantity: 2 }], remarks: null });
     const minimal: DoctorCallPayload = { reportDate: DAY, doctorId: oid('a'), workWith: [], capturedLocation: null };
     expect(doctorCallPayloadSchema.parse(minimal)).toMatchObject({ capturedLocation: null, accuracyMeters: null, samples: [] });
-    const chemistCall: ChemistCallPayload = { reportDate: DAY, chemistId: oid('d'), workWith: [], capturedLocation: gps };
+    const chemistCall: ChemistCallPayload = { reportDate: DAY, chemistId: oid('d'), capturedLocation: gps };
     expect(chemistCallPayloadSchema.parse(chemistCall).chemistId).toBe(oid('d'));
     const df: DoctorFollowupPayload = { reportDate: DAY, doctorId: oid('a'), remarks: 'call again', capturedLocation: gps };
     const cf: ChemistFollowupPayload = { reportDate: DAY, chemistId: oid('d'), remarks: 'restock', capturedLocation: gps };

@@ -5,7 +5,6 @@ import type { DailyPlanRepositoryPort } from '../../domain/dailyPlan.repository.
 import { isFieldDay, sameDay, type PlanDay, type PlanSource, type WorkingType } from '../../domain/plan.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { assertEditable } from '../assertEditable.js';
-import { assertInDownline } from '../assertInDownline.js';
 import type { CarryOver } from '../carryOver.js';
 import type { ManagerScope } from '../managerScope.js';
 import type { PlanSubmitter } from '../planSubmitter.js';
@@ -57,7 +56,6 @@ export class SetDailyPlanUseCase {
       throw AppError.badRequest('Only a field work or doctor campaign day has doctors.', { field: 'doctorIds' });
     }
     const manager = await this.scope.isManager(userId);
-    if (manager) await assertInDownline(this.users, userId, input.workWith, 'workWith');
 
     // The Monthly Plan's version of the day: kept from the first change, or read off the day while it is still the Monthly Plan's.
     const original = plan.plannedFrom ?? (plan.source === 'MONTHLY' ? bodyOf(plan) : null);

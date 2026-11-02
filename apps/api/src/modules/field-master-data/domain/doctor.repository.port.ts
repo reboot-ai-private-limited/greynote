@@ -7,6 +7,10 @@ export interface DoctorFilter extends PageQuery {
   search?: string | undefined;
   /** With `search`: also Doctors with these ids, which are the ones assigned to an employee whose name matched (2026-11-02). */
   alsoDoctorIds?: string[] | undefined;
+  /** Only these Doctors (the ones assigned to the employee being filtered on). An empty list matches nothing. */
+  onlyDoctorIds?: string[] | undefined;
+  /** Only Doctors with no MR assigned now. */
+  unassigned?: boolean | undefined;
   /** With `search`, for an assigned-Doctors read: also every Doctor assigned to these employees. */
   alsoUserIds?: string[] | undefined;
   routeId?: string | undefined;

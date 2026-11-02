@@ -19,7 +19,6 @@ export interface RecordContext {
 
 interface CallInput {
   reportDate: string;
-  workWith: string[];
   remarks: string | null;
   capturedLocation: { latitude: number; longitude: number } | null;
   accuracyMeters: number | null;
@@ -54,7 +53,7 @@ export class LogDoctorCallUseCase {
     private readonly visitGap: DoctorVisitGap,
   ) {}
 
-  async execute(rec: RecordContext, input: CallInput & { doctorId: string; samples: Array<{ productId: string; quantity: number }> }, ctx: TransactionContext): Promise<CallResult> {
+  async execute(rec: RecordContext, input: CallInput & { doctorId: string; workWith: string[]; samples: Array<{ productId: string; quantity: number }> }, ctx: TransactionContext): Promise<CallResult> {
     const dcr = await this.gate.open(rec.userId, input.reportDate, rec.recordedAt);
     const doctor = await this.checks.doctor(rec.userId, input.doctorId);
     const day = await this.checks.day(rec.userId, input.reportDate);
@@ -98,10 +97,9 @@ export class LogChemistCallUseCase {
     const chemist = await this.checks.chemist(rec.userId, input.chemistId);
     const day = await this.checks.day(rec.userId, input.reportDate);
     const { routeId, routeType, routeNotInPlan } = await this.checks.route(day, chemist.routeId);
-    await this.checks.workWith(rec.userId, input.workWith);
     const geofence = await this.geofence.requirePass('chemist', await this.master.getChemistLocation(input.chemistId), input.capturedLocation, input.accuracyMeters);
     const call = await this.calls.create(
-      { dcrId: dcr.id, userId: rec.userId, reportDate: input.reportDate, chemistId: input.chemistId, workingType: day.workingType, routeId, routeType, routeNotInPlan, workWith: input.workWith, remarks: input.remarks, capturedLocation: input.capturedLocation, accuracyMeters: input.accuracyMeters, geofence, clientId: rec.clientId, recordedAt: rec.recordedAt },
+      { dcrId: dcr.id, userId: rec.userId, reportDate: input.reportDate, chemistId: input.chemistId, workingType: day.workingType, routeId, routeType, routeNotInPlan, remarks: input.remarks, capturedLocation: input.capturedLocation, accuracyMeters: input.accuracyMeters, geofence, clientId: rec.clientId, recordedAt: rec.recordedAt },
       ctx,
     );
     return resultOf(call.id, geofence);

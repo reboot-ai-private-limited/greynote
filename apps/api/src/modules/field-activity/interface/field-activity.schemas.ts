@@ -35,7 +35,6 @@ const gpsFields = {
 };
 const callFields = {
   reportDate: calendarDateSchema,
-  workWith: z.array(objectIdSchema).max(20).default([]),
   remarks: remarksSchema,
   ...gpsFields,
 };
@@ -43,10 +42,12 @@ const callFields = {
 export const doctorCallPayloadSchema = z
   .object({
     ...callFields,
+    workWith: z.array(objectIdSchema).max(20).default([]),
     doctorId: objectIdSchema,
     samples: z.array(z.object({ productId: objectIdSchema, quantity: z.number().int().min(1).max(1_000) })).max(50).default([]),
   })
   .refine((c) => new Set(c.samples.map((s) => s.productId)).size === c.samples.length, { message: 'A product is listed twice — give it one line.', path: ['samples'] });
+/** No `workWith`: a chemist call has no colleague field. An older phone build that still sends one has it stripped, not refused. */
 export const chemistCallPayloadSchema = z.object({ ...callFields, chemistId: objectIdSchema });
 export const doctorFollowupPayloadSchema = z.object({ reportDate: calendarDateSchema, doctorId: objectIdSchema, remarks: z.string().trim().min(1, 'Remarks are required.').max(1000), ...gpsFields });
 export const chemistFollowupPayloadSchema = z.object({ reportDate: calendarDateSchema, chemistId: objectIdSchema, remarks: z.string().trim().min(1, 'Remarks are required.').max(1000), ...gpsFields });

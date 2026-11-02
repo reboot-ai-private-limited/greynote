@@ -11,7 +11,6 @@ interface CallDocBase {
   workingType: (typeof WORKING_TYPES)[number];
   routeId?: Types.ObjectId | null;
   routeType?: (typeof ROUTE_TYPES)[number] | null;
-  workWith: Types.ObjectId[];
   remarks: string | null;
   capturedLatitude: number | null;
   capturedLongitude: number | null;
@@ -28,6 +27,7 @@ interface CallDocBase {
 
 export interface DoctorCallDoc extends CallDocBase {
   doctorId: Types.ObjectId;
+  workWith: Types.ObjectId[];
   samples: Array<{ allocationId: Types.ObjectId; productId: Types.ObjectId; quantity: number }>;
   /** Absent on calls from before the rule: read as in plan. */
   notInPlan?: boolean;
@@ -66,7 +66,6 @@ const callFields = {
   workingType: { type: String, required: true, enum: WORKING_TYPES },
   routeId: { type: Schema.Types.ObjectId, default: null, ref: 'Route' },
   routeType: { type: String, enum: ROUTE_TYPES, default: null },
-  workWith: { type: [Schema.Types.ObjectId], default: [], ref: 'User' },
   remarks: { type: String, default: null },
   capturedLatitude: { type: Number, default: null },
   capturedLongitude: { type: Number, default: null },
@@ -84,6 +83,7 @@ const callFields = {
 const doctorCallSchema = new Schema<DoctorCallDoc>({
   ...callFields,
   doctorId: ref('Doctor'),
+  workWith: { type: [Schema.Types.ObjectId], default: [], ref: 'User' },
   notInPlan: { type: Boolean, default: false },
   routeNotInPlan: { type: Boolean, default: false },
   samples: {

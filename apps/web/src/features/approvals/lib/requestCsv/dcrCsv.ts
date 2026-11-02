@@ -42,7 +42,7 @@ export function dcrCsv(
       at: c.recordedAt,
       row: [
         'Chemist call', c.chemistName, place(c.routeId), c.routeType && ROUTE_TYPE_LABEL[c.routeType], WORKING_TYPE_LABEL[c.workingType], c.recordedAt,
-        GEOFENCE_LABEL[c.geofence.status], c.geofence.distanceMeters, yes(c.routeNotInPlan), null, c.workWith.map(names.personName).join('; ') || null, c.remarks,
+        GEOFENCE_LABEL[c.geofence.status], c.geofence.distanceMeters, yes(c.routeNotInPlan), null, null, c.remarks,
       ],
     })),
     ...dcr.followups.map((f) => ({

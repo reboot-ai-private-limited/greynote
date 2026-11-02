@@ -54,7 +54,7 @@ export function useApprovalCsv(request: Request) {
       }
       case 'DCR': {
         const dcr = await fieldActivityApi.dcr(token, request.recordId);
-        const label = await people([...dcr.doctorCalls, ...dcr.chemistCalls].flatMap((c) => c.workWith));
+        const label = await people(dcr.doctorCalls.flatMap((c) => c.workWith));
         return { filename: exportFilename(owner, 'dcr', dcr.reportDate), csv: dcrCsv(dcr, { routeLabel: directory.routeLabel, personName: (id) => label.get(id) ?? '—' }) };
       }
       case 'EXPENSE_MONTH': {
