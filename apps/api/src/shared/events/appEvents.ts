@@ -27,6 +27,8 @@ export interface AppEvents {
   };
   /** A manager or Admin changed an employee's Monthly Plan while it waited for approval. */
   'monthly.plan.amended': { userId: string; planId: string; planMonth: string; by: string; byName: string; reason: string };
+  /** An employee's month was settled downstream — a salary run finalized, or expenses finalized for payout — so late entries for it must stop. */
+  'period.settled': { userId: string; month: string; source: 'PAYROLL' | 'EXPENSES' };
   /** A compliance block was cleared. */
   'user.unblocked': { userId: string; by: string };
 }

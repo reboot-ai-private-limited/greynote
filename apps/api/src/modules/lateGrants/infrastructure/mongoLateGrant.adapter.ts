@@ -73,6 +73,11 @@ export class MongoLateGrantAdapter implements LateGrantRepositoryPort {
     return doc ? toGrant(doc) : null;
   }
 
+  async listUsable(kinds: LateGrantKind[], periodPrefix: string, now: Date): Promise<LateGrant[]> {
+    const docs = await LateGrantModel.find({ kind: { $in: kinds }, periodKey: { $regex: `^${escapeRegex(periodPrefix)}` }, ...usable(now) }).lean();
+    return docs.map(toGrant);
+  }
+
   async closeOpenForPeriod(userId: string, kinds: LateGrantKind[], periodPrefix: string, now: Date): Promise<number> {
     const result = await LateGrantModel.updateMany(
       { userId: new Types.ObjectId(userId), kind: { $in: kinds }, periodKey: { $regex: `^${escapeRegex(periodPrefix)}` }, status: 'OPEN' },
@@ -86,7 +91,11 @@ export class MongoLateGrantAdapter implements LateGrantRepositoryPort {
     if (filter.userIds) query['userId'] = { $in: filter.userIds.map((id) => new Types.ObjectId(id)) };
     if (filter.kinds) query['kind'] = { $in: filter.kinds };
     if (filter.month) query['periodKey'] = { $regex: `^${escapeRegex(filter.month)}` };
-    if (filter.status) query['status'] = filter.status;
+    // `EXPIRED` is only written lazily: an OPEN grant past its end is expired too, and an OPEN filter leaves those out.
+    const at = filter.now ?? new Date();
+    if (filter.status === 'EXPIRED') query['$or'] = [{ status: 'EXPIRED' }, { status: 'OPEN', expiresAt: { $lte: at } }];
+    else if (filter.status === 'OPEN') Object.assign(query, { status: 'OPEN', expiresAt: { $gt: at } });
+    else if (filter.status) query['status'] = filter.status;
     const [docs, total] = await Promise.all([
       LateGrantModel.find(query).sort({ grantedAt: -1, _id: -1 }).skip((page.page - 1) * page.pageSize).limit(page.pageSize).lean(),
       LateGrantModel.countDocuments(query),

@@ -28,7 +28,7 @@ export class ListLateUseCase {
       userIds ??= [...visible];
     }
     const { items, total } = await this.grants.list(
-      { ...(userIds && { userIds }), ...(filter.kinds && { kinds: filter.kinds }), ...(filter.month && { month: filter.month }), ...(filter.status && { status: filter.status }) },
+      { ...(userIds && { userIds }), ...(filter.kinds && { kinds: filter.kinds }), ...(filter.month && { month: filter.month }), ...(filter.status && { status: filter.status }), now: this.now() },
       page,
     );
     const now = this.now();

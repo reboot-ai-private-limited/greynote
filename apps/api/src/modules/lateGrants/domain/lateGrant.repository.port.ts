@@ -8,6 +8,8 @@ export interface LateGrantFilter {
   /** `YYYY-MM`: grants whose period falls in this month (a daily plan's date counts by its month). */
   month?: string;
   status?: LateGrantStatus;
+  /** The instant `status` is judged at: an `OPEN` grant past its end reads as `EXPIRED`. */
+  now?: Date;
 }
 
 export interface LateGrantRepositoryPort {
@@ -20,6 +22,8 @@ export interface LateGrantRepositoryPort {
   consume(id: string, now: Date, usedRef: string | null, ctx?: TransactionContext): Promise<boolean>;
   /** `null` if it was no longer usable. */
   revoke(id: string, revokedBy: string, now: Date): Promise<LateGrant | null>;
+  /** Every grant of these kinds whose period starts with `periodPrefix` that is usable at `now`: a month table's "late allowed" marks. */
+  listUsable(kinds: LateGrantKind[], periodPrefix: string, now: Date): Promise<LateGrant[]>;
   /** Ends every `OPEN` grant of this period (revoked by `system`); how many. Used when downstream money locks the period. */
   closeOpenForPeriod(userId: string, kinds: LateGrantKind[], periodPrefix: string, now: Date): Promise<number>;
   list(filter: LateGrantFilter, page: { page: number; pageSize: number }): Promise<{ items: LateGrant[]; total: number }>;

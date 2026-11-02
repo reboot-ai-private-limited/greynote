@@ -1,3 +1,4 @@
+import { appEvents } from '@/shared/events/appEvents.js';
 import type { FinalizeOutcomeDto } from '@greynote/contracts';
 import { AppError } from '@/shared/errors/AppError.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
@@ -58,6 +59,7 @@ export class FinalizeExpenseMonthsUseCase {
           await this.expenses.setMonthFinalized(userId, range, ctx);
           return true;
         });
+        if (done) appEvents.emit('period.settled', { userId, month: input.month, source: 'EXPENSES' });
         out.push({ userId, result: done ? 'FINALIZED' : 'ALREADY_FINALIZED' });
       }
     }

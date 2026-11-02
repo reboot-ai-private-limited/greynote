@@ -22,6 +22,7 @@ import { env } from '@/config/env.js';
 import { parseBoolean, readConfigOr } from '@/shared/config/readConfig.js';
 import { buildPushSender } from '@/shared/push/fcmPushSender.adapter.js';
 import { PushNotifier } from '@/shared/push/pushNotifier.js';
+import { appEvents } from '@/shared/events/appEvents.js';
 import { registerPushEvents } from './pushEvents.js';
 import { registerCompositionSyncSources } from './syncSources.js';
 import { makeOffboarding } from './offboarding.js';
@@ -110,7 +111,7 @@ export function buildContainers(): AppContainers {
   const fieldMasterData = buildFieldMasterDataContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
 
   // Tier 4 — Field Activity: the daily core (DCR, calls, expenses, TA/DA). It consumes almost everything below it.
-  const fieldActivity = buildFieldActivityContainer(identity.contract, planning.contract, fieldMasterData.contract, territory.contract, approval.contract, sync.contract, hr.contract, config.contract);
+  const fieldActivity = buildFieldActivityContainer(identity.contract, planning.contract, fieldMasterData.contract, territory.contract, approval.contract, sync.contract, hr.contract, config.contract, lateGrants.contract);
 
   planning.bindDoctorSources(fieldMasterData.contract, (userId, range) => fieldActivity.contract.listCalledDoctorIds(userId, range));
   planning.bindDayReported((userId, date) => fieldActivity.contract.hasQualifyingDcr(userId, date));
@@ -184,6 +185,11 @@ export function buildContainers(): AppContainers {
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
   registerPushEvents(inbox.contract, config.contract);
+  // Whatever is still waiting for a late entry in a month that has just been settled is closed — it could no longer be used safely.
+  appEvents.on('period.settled', async ({ userId, month, source }) => {
+    const kinds = source === 'PAYROLL' ? (['DAILY_PLAN', 'MONTHLY_PLAN'] as const) : (['DAILY_PLAN', 'MONTHLY_PLAN', 'EXPENSE_SUBMIT', 'EXPENSE_APPROVE'] as const);
+    await lateGrants.contract.gate.closeForPeriod(userId, [...kinds], month);
+  });
 
   return { health, config, lateGrants, identity, territory, approval, planning, hr, inbox, team, reminders, documents, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance, reports };
 }

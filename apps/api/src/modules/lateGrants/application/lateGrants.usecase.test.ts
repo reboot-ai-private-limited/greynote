@@ -44,6 +44,9 @@ class MemoryGrants implements LateGrantRepositoryPort {
     Object.assign(r, { status: 'REVOKED', revokedAt: now, revokedBy: by });
     return r;
   }
+  async listUsable(kinds: LateGrant['kind'][], prefix: string, now: Date) {
+    return this.rows.filter((r) => kinds.includes(r.kind) && r.periodKey.startsWith(prefix) && r.status === 'OPEN' && r.expiresAt > now);
+  }
   async closeOpenForPeriod(userId: string, kinds: LateGrant['kind'][], prefix: string, now: Date) {
     let n = 0;
     for (const r of this.rows) if (r.userId === userId && kinds.includes(r.kind) && r.periodKey.startsWith(prefix) && r.status === 'OPEN') { r.status = 'EXPIRED'; r.expiresAt = now; n++; }
