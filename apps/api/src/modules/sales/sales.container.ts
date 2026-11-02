@@ -6,6 +6,7 @@ import { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCas
 import { GetInvoiceUseCase, ListInvoicesUseCase } from './application/usecases/invoices.usecase.js';
 import { makeMonthlyStockSyncHandler } from './application/monthlyStockSync.js';
 import { OutletAccess } from './application/outletAccess.js';
+import type { SalesLateGate } from './domain/salesLateGate.port.js';
 import { SalesClock } from './application/salesClock.js';
 import { ListMissingStockUseCase, ListMonthlyStockUseCase } from './application/usecases/readMonthlyStock.usecase.js';
 import { makeSecondaryStatusHandler, ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SECONDARY_SALES_KIND, SubmitEmployeeSecondaryUseCase } from './application/usecases/employeeSales.usecase.js';
@@ -44,7 +45,7 @@ export interface SalesContainer {
  * Tier 4. Monthly stock and Orders (LLD sales-and-orders.md). Nothing here goes through the approval
  * module. Identity's, Field Master Data's, Sync's and Config's public contracts, passed in by the composition root.
  */
-export function buildSalesContainer(users: UserDirectoryPort, master: FieldMasterDataPort, sync: SyncPublicContract, approvals: SalesApprovalsPort, config: ConfigReader): SalesContainer {
+export function buildSalesContainer(users: UserDirectoryPort, master: FieldMasterDataPort, sync: SyncPublicContract, approvals: SalesApprovalsPort, config: ConfigReader, late?: SalesLateGate): SalesContainer {
   const stock = new MongoMonthlyStockAdapter();
   const orders = new MongoOrderAdapter();
   const payments = new MongoPaymentAdapter();
@@ -52,11 +53,11 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
   const employeeSales = new MongoEmployeeSaleAdapter();
   const clock = new SalesClock(config);
   const secondaryFiles = new MongoSecondaryAttachmentAdapter();
-  const attachmentDeps = { users, sales: employeeSales, stock, files: secondaryFiles, storage: new CloudinarySecondaryFileStorage(), clock, config };
+  const attachmentDeps = { users, sales: employeeSales, stock, files: secondaryFiles, storage: new CloudinarySecondaryFileStorage(), clock, config, late };
   const distributorHistory = new MongoDistributorHistoryAdapter();
 
   const access = new OutletAccess(master);
-  const record = new RecordMonthlyStockUseCase(access, master, stock, clock, config);
+  const record = new RecordMonthlyStockUseCase(access, master, stock, clock, config, late);
   const list = new ListMonthlyStockUseCase(stock, master, users);
   const missing = new ListMissingStockUseCase(stock, master, users);
   const unlock = new UnlockMonthUseCase(stock, clock);
@@ -102,6 +103,6 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
       const m = month ?? (await clock.previousMonth());
       return { month: m, missing: await missing.execute({ id: 'system', role: 'ADMIN' }, m) };
     },
-    buildRouter: () => buildSalesRouter(makeSalesControllers({ record, list, unlock, missing, place, listOrders: new ListOrdersUseCase(orders, users), getOrder, finish: new FinishOrderUseCase(getOrder, master, orders, clock), setInvoice: new SetInvoiceNumberUseCase(getOrder, master, orders), listInvoices: new ListInvoicesUseCase(orders, payments, master, clock), getInvoice: new GetInvoiceUseCase(orders, payments, master, clock), edit: new EditOrderUseCase(getOrder, master, orders, clock), recordPayment: new RecordPaymentUseCase(master, payments, orders, clock, config, users), listPayments: new ListPaymentsUseCase(payments, orders, users, master), cancelPayment: new CancelPaymentUseCase(payments, orders, clock, config, users), paymentTotals: new PaymentTotalsUseCase(payments), balances: new DistributorBalancesUseCase(payments, orders), outstanding: new OutstandingDuesUseCase(master, payments, orders), readStatement: new ReadStatementUseCase(master, statements, stock, orders, users, clock), saveStatement: new SaveStatementUseCase(master, statements, clock, config), readEmployeeSales: new ReadEmployeeSalesUseCase(users, master, employeeSales, orders, clock, approvals, secondaryFiles), submitEmployeeSecondary: new SubmitEmployeeSecondaryUseCase(employeeSales, approvals, new MongooseTransactionRunner(), clock, config), saveEmployeeSecondary: new SaveEmployeeSecondaryUseCase(users, master, employeeSales, stock, clock, config), saveEmployeePrimary: new SaveEmployeePrimaryUseCase(users, master, employeeSales, clock, config), addSecondaryAttachment: new AddSecondaryAttachmentUseCase(attachmentDeps), removeSecondaryAttachment: new RemoveSecondaryAttachmentUseCase(attachmentDeps) })),
+    buildRouter: () => buildSalesRouter(makeSalesControllers({ record, list, unlock, missing, place, listOrders: new ListOrdersUseCase(orders, users), getOrder, finish: new FinishOrderUseCase(getOrder, master, orders, clock), setInvoice: new SetInvoiceNumberUseCase(getOrder, master, orders), listInvoices: new ListInvoicesUseCase(orders, payments, master, clock), getInvoice: new GetInvoiceUseCase(orders, payments, master, clock), edit: new EditOrderUseCase(getOrder, master, orders, clock), recordPayment: new RecordPaymentUseCase(master, payments, orders, clock, config, users), listPayments: new ListPaymentsUseCase(payments, orders, users, master), cancelPayment: new CancelPaymentUseCase(payments, orders, clock, config, users), paymentTotals: new PaymentTotalsUseCase(payments), balances: new DistributorBalancesUseCase(payments, orders), outstanding: new OutstandingDuesUseCase(master, payments, orders), readStatement: new ReadStatementUseCase(master, statements, stock, orders, users, clock), saveStatement: new SaveStatementUseCase(master, statements, clock, config), readEmployeeSales: new ReadEmployeeSalesUseCase(users, master, employeeSales, orders, clock, approvals, secondaryFiles), submitEmployeeSecondary: new SubmitEmployeeSecondaryUseCase(employeeSales, approvals, new MongooseTransactionRunner(), clock, config), saveEmployeeSecondary: new SaveEmployeeSecondaryUseCase(users, master, employeeSales, stock, clock, config, late), saveEmployeePrimary: new SaveEmployeePrimaryUseCase(users, master, employeeSales, clock, config), addSecondaryAttachment: new AddSecondaryAttachmentUseCase(attachmentDeps), removeSecondaryAttachment: new RemoveSecondaryAttachmentUseCase(attachmentDeps) })),
   };
 }

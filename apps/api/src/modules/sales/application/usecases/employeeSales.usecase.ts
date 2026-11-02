@@ -11,6 +11,7 @@ import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { MonthlyStockRepositoryPort } from '../../domain/monthlyStock.repository.port.js';
 import type { OrderRepositoryPort } from '../../domain/order.repository.port.js';
 import { monthWindow } from '../../domain/stockDeadline.js';
+import type { SalesLateGate } from '../../domain/salesLateGate.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import type { SalesApprovalsPort } from '../../domain/approvals.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -37,10 +38,10 @@ export async function assertMayAct(users: UserDirectoryPort, actor: Actor, userI
  * The month must have started, its financial year be open, and (for anyone but Admin) its stock deadline not have passed unless Admin reopened
  * it. The one window every entry of a month's secondary obeys: the figures and their files.
  */
-export async function assertMonthOpenForEntry(deps: { clock: SalesClock; stock: MonthlyStockRepositoryPort; config: ConfigReader }, actor: Actor, month: string): Promise<void> {
+export async function assertMonthOpenForEntry(deps: { clock: SalesClock; stock: MonthlyStockRepositoryPort; config: ConfigReader; late?: SalesLateGate | undefined }, actor: Actor, month: string, subjectUserId: string): Promise<void> {
   const window = monthWindow(month, deps.clock.now(), await deps.clock.deadlineDay(), await deps.clock.timeZone(), await deps.clock.dayStart());
   if (window === 'FUTURE') throw new StockRefusal(STOCK_CODES.monthNotStarted, `${month} has not started yet.`);
-  if (window === 'CLOSED' && actor.role !== 'ADMIN' && !(await deps.stock.isUnlocked(month))) {
+  if (window === 'CLOSED' && actor.role !== 'ADMIN' && !(await deps.stock.isUnlocked(month)) && !(await deps.late?.hasUsable(subjectUserId, 'SECONDARY_SALES', month))) {
     throw new StockRefusal(STOCK_CODES.monthClosed, `The deadline for ${month} has passed. Ask an Admin to reopen it.`);
   }
   await assertFinancialYearOpen(deps.config, `${month}-01`, 'This month');
@@ -67,12 +68,13 @@ export class SaveEmployeeSecondaryUseCase {
     private readonly stock: MonthlyStockRepositoryPort,
     private readonly clock: SalesClock,
     private readonly config: ConfigReader,
+    private readonly late?: SalesLateGate,
   ) {}
 
   async execute(actor: Actor, input: { userId: string; month: string; lines: Array<{ productId: string; qty?: number | undefined; amountPaise?: number | undefined }> }): Promise<{ added: number; changed: number }> {
     await assertMayAct(this.users, actor, input.userId);
     const now = this.clock.now();
-    await assertMonthOpenForEntry({ clock: this.clock, stock: this.stock, config: this.config }, actor, input.month);
+    await assertMonthOpenForEntry({ clock: this.clock, stock: this.stock, config: this.config, late: this.late }, actor, input.month, input.userId);
     const products = new Map((await this.master.listActiveProducts()).map((p) => [p.id, p]));
     const lines = input.lines.map((l) => {
       const product = products.get(l.productId);

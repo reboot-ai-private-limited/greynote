@@ -117,7 +117,7 @@ export function buildContainers(): AppContainers {
   planning.bindDayReported((userId, date) => fieldActivity.contract.hasQualifyingDcr(userId, date));
 
   // Tier 4 — Sales & Orders: monthly stock counts at Chemists and Distributors (Field Master Data), who may see whose (Identity), the daily push (Sync).
-  const sales = buildSalesContainer(identity.contract, fieldMasterData.contract, sync.contract, approval.contract, config.contract);
+  const sales = buildSalesContainer(identity.contract, fieldMasterData.contract, sync.contract, approval.contract, config.contract, { hasUsable: async (userId, kind, month) => (await lateGrants.contract.gate.findUsable(userId, kind, month)) !== null });
 
   // Tier 5 — Attendance: each day of a field employee's month as holiday, off, leave, strike, present or absent. Reads Identity, HR, Planning, Field Activity and Config; owns no data.
   const attendance = buildAttendanceContainer(identity.contract, hr.contract, planning.contract, fieldActivity.contract, config.contract);
