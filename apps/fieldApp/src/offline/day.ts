@@ -1,4 +1,4 @@
-import type { PlanStatus } from '@/types/sync';
+import type { PlanStatus, WeeklyOffRule, WeeklyOffVersion } from '@/types/sync';
 
 /**
  * "Today" and whether the MR may log field activity, decided on the phone from the last pull
@@ -152,6 +152,40 @@ export function weeklyOffIndex(setting: string | null | undefined): number | nul
   const i = WEEKDAYS.findIndex((w) => setting.toLowerCase().startsWith(w.toLowerCase()));
   return i === -1 ? null : i;
 }
+
+const FULL_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const ORDINALS = ['1st', '2nd', '3rd', '4th', '5th'];
+
+/** The rules in force on a date: those of the latest set that has started (docs/mobile/holidays.md rule 3). */
+function rulesOn(iso: string, schedule: WeeklyOffVersion[]): WeeklyOffRule[] {
+  let best: WeeklyOffVersion | null = null;
+  for (const v of schedule) if (v.effectiveFrom <= iso && (!best || v.effectiveFrom > best.effectiveFrom)) best = v;
+  return best?.rules ?? [];
+}
+
+/** The label of the weekly off a date falls on ("Weekly off", "1st Saturday"), or null when it is a working day. */
+export function weeklyOffLabel(iso: string, schedule: WeeklyOffVersion[] | null | undefined): string | null {
+  if (!schedule?.length) return null;
+  const day = weekdayOf(iso);
+  const week = Math.ceil(Number(iso.slice(8, 10)) / 7);
+  for (const r of rulesOn(iso, schedule)) {
+    if (weeklyOffIndex(r.weekday) !== day) continue;
+    if (r.weeks === 'ALL') return 'Weekly off';
+    if (r.weeks.includes(week)) return `${ORDINALS[week - 1]} ${FULL_WEEKDAYS[day]}`;
+  }
+  return null;
+}
+
+/** "every Sunday, 1st and 3rd Saturday" for the rules in force on a date; null when there are none. */
+export function describeWeeklyOff(iso: string, schedule: WeeklyOffVersion[] | null | undefined): string | null {
+  const rules = schedule?.length ? rulesOn(iso, schedule) : [];
+  const every = rules.filter((r) => r.weeks === 'ALL').map((r) => `every ${titleCase(r.weekday)}`);
+  const some = rules.filter((r) => r.weeks !== 'ALL').map((r) => `${(r.weeks as number[]).map((w) => ORDINALS[w - 1]).join(' and ')} ${titleCase(r.weekday)}`);
+  const parts = [...every, ...some];
+  return parts.length ? parts.join(', ') : null;
+}
+
+const titleCase = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1).toLowerCase() : s);
 
 /** The current wall-clock time ("HH:mm") in the business timezone. */
 /** The current time in ms. A function of its own so a screen can read the clock without calling `Date.now()` straight in render. */

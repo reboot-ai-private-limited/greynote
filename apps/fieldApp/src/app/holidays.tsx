@@ -10,8 +10,8 @@ import { apiGet } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import { datesInMonth, formatWhen, monthOf, prettyDay, prettyMonth, weeklyOffIndex } from '@/offline/day';
-import type { ConfigSnapshot } from '@/types/sync';
+import { datesInMonth, describeWeeklyOff, formatWhen, monthOf, prettyDay, prettyMonth, weeklyOffIndex } from '@/offline/day';
+import type { ConfigSnapshot, HrSnapshot } from '@/types/sync';
 
 /** `groupId` is shared by the days of one multi-day holiday (docs/mobile/holidays.md rule 8); null for a one-day holiday and older rows. */
 type Holiday = { id: string; name: string; date: string; scope: 'NATIONAL' | 'ZONE' | 'HQ'; groupId?: string | null };
@@ -45,6 +45,7 @@ const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 export default function HolidaysScreen() {
   const fy = useFinancialYear();
   const config = useCachedSource<ConfigSnapshot>('config');
+  const hr = useCachedSource<HrSnapshot>('hr');
 
   const first = datesInMonth(fy.firstMonth)[0]!;
   const last = datesInMonth(fy.lastMonth).at(-1)!;
@@ -57,13 +58,17 @@ export default function HolidaysScreen() {
     else groups.push({ month, lines: [h] });
     return groups;
   }, []);
-  const offIndex = weeklyOffIndex(config.data?.settings.WEEKLY_OFF_DAY);
+  // The schedule (docs/mobile/holidays.md rule 3); an older server sends only the one weekday.
+  const offIndex = weeklyOffIndex(hr.data?.weeklyOffDay ?? config.data?.settings.WEEKLY_OFF_DAY);
+  const weeklyOff =
+    describeWeeklyOff(fy.today, hr.data?.weeklyOffSchedule) ??
+    (offIndex !== null ? `every ${WEEKDAYS[offIndex]}` : null);
 
   return (
     <ScreenShell title="Holiday List" subtitle={`${prettyMonth(fy.firstMonth)} – ${prettyMonth(fy.lastMonth)}`} onRefresh={list.reload} refreshing={list.refreshing}>
       <FyBanner />
-      {offIndex !== null ? (
-        <ThemedText type="small" themeColor="textSecondary">{`Weekly off: every ${WEEKDAYS[offIndex]}.`}</ThemedText>
+      {weeklyOff ? (
+        <ThemedText type="small" themeColor="textSecondary">{`Weekly off: ${weeklyOff}.`}</ThemedText>
       ) : null}
       {list.error ? <Notice tone="danger">{list.error}</Notice> : null}
       {list.stale && list.fetchedAt ? <Notice tone="info">{`Showing the list from ${formatWhen(list.fetchedAt)}.`}</Notice> : null}

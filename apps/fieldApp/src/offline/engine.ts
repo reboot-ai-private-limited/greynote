@@ -386,7 +386,7 @@ export async function prepareForUser(userId: string): Promise<void> {
 }
 
 /** Records that stand on their own, not part of a day's report: sent as soon as there is a connection. */
-export const STANDALONE_KINDS: SyncKind[] = ['ORDER', 'MONTHLY_STOCK', 'DOCTOR_SERVICE', 'GIFT_DONE', 'NEW_DOCTOR'];
+export const STANDALONE_KINDS: SyncKind[] = ['ORDER', 'MONTHLY_STOCK', 'DOCTOR_SERVICE', 'GIFT_DONE', 'NEW_DOCTOR', 'NEW_CHEMIST'];
 
 /** Sends what was saved offline. A record the server refused is left for its owner to fix, not retried here. */
 async function sendStandalone(): Promise<void> {

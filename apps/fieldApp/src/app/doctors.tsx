@@ -14,10 +14,11 @@ import { Spacing, type Accent } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { listAddedDoctors, type AddedDoctor } from '@/lib/added-doctors';
 import { MANAGER_NOT_ALLOWED, mayAddDoctor } from '@/lib/manager-add-doctors';
+import { usePublicFlags } from '@/lib/public-config';
 import { useOnline, useRecords, type NewDoctorPayload } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
-import type { ConfigSnapshot, FieldMasterDataSnapshot, TerritorySnapshot } from '@/types/sync';
+import type { FieldMasterDataSnapshot, TerritorySnapshot } from '@/types/sync';
 
 const STATE_TEXT: Record<string, string> = {
   SUBMITTED: 'Waiting for approval',
@@ -41,7 +42,6 @@ export default function DoctorsScreen() {
   const { isManager } = useCurrentUser();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const territory = useCachedSource<TerritorySnapshot>('territory');
-  const config = useCachedSource<ConfigSnapshot>('config');
   const { records } = useRecords(['NEW_DOCTOR']);
   const added = useCachedFetch<AddedDoctor[]>('doctors-added', listAddedDoctors, records.filter((r) => r.status === 'SYNCED').length);
   const [search, setSearch] = useState('');
@@ -56,7 +56,7 @@ export default function DoctorsScreen() {
   const pending = notActive.filter((d) => matches(term, d.name, d.clinicName, d.specialty));
   const unsent = records.filter((r) => !r.deleted && r.status !== 'SYNCED').filter((r) => matches(term, (r.payload as NewDoctorPayload).name));
 
-  const canAdd = mayAddDoctor(isManager, config.data);
+  const canAdd = mayAddDoctor(isManager, usePublicFlags());
   const loading = !master.loaded;
 
   return (

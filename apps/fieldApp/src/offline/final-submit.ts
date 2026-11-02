@@ -43,12 +43,19 @@ export async function sendNewDoctors(): Promise<PushSummary> {
   return pushPending(['NEW_DOCTOR']);
 }
 
+/** The same for the chemists the MR added (docs/mobile/chemists.md). */
+export async function sendNewChemists(): Promise<PushSummary> {
+  for (const r of await listRecords({ kind: 'NEW_CHEMIST', status: 'DRAFT' })) if (!r.deleted) await queueRecord(r.clientId);
+  return pushPending(['NEW_CHEMIST']);
+}
+
 /**
  * `remarks` is the employee's note on the day (`DCR_SUBMIT` payload): required on a Meeting or Conference day — the server
  * refuses without it (`REMARKS_REQUIRED`) — and optional otherwise.
  */
 export async function finalSubmit(reportDate: string, remarks: string | null = null): Promise<FinalSubmitResult> {
   await sendNewDoctors().catch(() => undefined); // a failed new doctor is shown on its own screen; it must not stop the day
+  await sendNewChemists().catch(() => undefined);
   const unsent = await unsentForDay(reportDate);
   for (const r of unsent) if (r.status === 'DRAFT') await queueRecord(r.clientId);
 

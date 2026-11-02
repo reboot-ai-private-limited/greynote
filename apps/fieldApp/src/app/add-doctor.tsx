@@ -23,6 +23,7 @@ import { ADDED_EDITABLE, editAddedDoctor, listAddedDoctors, type AddedDoctor } f
 import { PhotoPickError, pickDoctorPhoto, removeAddedDoctorPhoto, setAddedDoctorPhoto } from '@/lib/doctor-photo';
 import { captureLocation } from '@/lib/location';
 import { MANAGER_NOT_ALLOWED, mayAddDoctor } from '@/lib/manager-add-doctors';
+import { usePublicFlags } from '@/lib/public-config';
 import { getRejectionReason, withdrawPlan } from '@/lib/planning';
 import {
   getNumberSetting,
@@ -37,7 +38,7 @@ import {
 } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { getPendingPhoto, listPendingPhotos, setPendingPhoto, type PendingPhoto } from '@/offline/doctor-photos';
-import type { ConfigSnapshot, FieldMasterDataSnapshot, TerritorySnapshot } from '@/types/sync';
+import type { FieldMasterDataSnapshot, TerritorySnapshot } from '@/types/sync';
 
 const errorText = (err: unknown) =>
   err instanceof ApiError || err instanceof NetworkError ? err.message : 'Something went wrong. Please try again.';
@@ -78,12 +79,11 @@ export default function AddDoctorScreen() {
   const { today } = useDayGate();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const territory = useCachedSource<TerritorySnapshot>('territory');
-  const config = useCachedSource<ConfigSnapshot>('config');
   const { isManager } = useCurrentUser();
   const openNew = useLocalSearchParams<{ new?: string }>().new === '1';
   const { records } = useRecords(['NEW_DOCTOR']);
   /** A manager may add only while Admin allows it; until the phone is told the setting, that reads as not allowed. */
-  const canAdd = mayAddDoctor(isManager, config.data);
+  const canAdd = mayAddDoctor(isManager, usePublicFlags());
 
   const [added, setAdded] = useState<AddedDoctor[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);

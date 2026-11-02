@@ -8,6 +8,7 @@ export type OutboxStatus = 'DRAFT' | 'QUEUED' | 'SYNCED' | 'FAILED';
 /** Record kinds the server's sync handlers accept (LLD/sync.md, "The kinds registered so far"). */
 export type SyncKind =
   | 'NEW_DOCTOR'
+  | 'NEW_CHEMIST'
   | 'DCR_SUBMIT'
   | 'DOCTOR_CALL'
   | 'CHEMIST_CALL'

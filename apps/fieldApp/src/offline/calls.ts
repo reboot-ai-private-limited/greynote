@@ -48,6 +48,15 @@ export type NewDoctorPayload = {
   location: GeoPoint;
 };
 
+/** A chemist the MR adds (docs/mobile/chemists.md section 2): created pending, decided by the manager or Admin. The sync `clientId` is the server's `clientRequestId`. */
+export type NewChemistPayload = {
+  routeId: string;
+  name: string;
+  address: string;
+  /** The phone's GPS at the time — required. */
+  location: GeoPoint;
+};
+
 /** A follow-up: the same location rule as a call (packages/contracts `DoctorFollowupPayload` / `ChemistFollowupPayload`). */
 export type FollowupPayload = {
   reportDate: string;
@@ -96,8 +105,8 @@ export async function notAtLocationReason(registered: GeoPoint | null, fix: GpsF
 
 /** Keeps a call (or follow-up) as a DRAFT of the day. It joins the report at Final Submission, which is what talks to the server. */
 export const saveCall = (
-  kind: CallKind | FollowupKind | 'EXPENSE' | 'NEW_DOCTOR',
-  payload: CallPayload | FollowupPayload | ExpensePayload | NewDoctorPayload,
+  kind: CallKind | FollowupKind | 'EXPENSE' | 'NEW_DOCTOR' | 'NEW_CHEMIST',
+  payload: CallPayload | FollowupPayload | ExpensePayload | NewDoctorPayload | NewChemistPayload,
   existing?: OutboxRecord,
 ) =>
   existing ? updateRecord(existing.clientId, payload) : createRecord(kind, payload);
