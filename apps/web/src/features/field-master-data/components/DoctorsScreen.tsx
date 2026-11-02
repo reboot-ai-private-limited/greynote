@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { EmployeeFilter } from '@/features/people/components/EmployeePickerField';
 import type { Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
 import { Avatar } from '@/features/people/components/Avatar';
@@ -36,7 +37,7 @@ const STATUS_OPTIONS = [
 
 export function DoctorsScreen() {
   const router = useRouter();
-  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'routeId']);
+  const { values, page, pageSize, update } = useFilterParams(['search', 'status', 'routeId', 'assignedUserId', 'unassigned']);
   const [search, setSearch] = useSearchFilter(values.search, (v) => update({ search: v }));
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
@@ -45,10 +46,13 @@ export function DoctorsScreen() {
   const [retiring, setRetiring] = useState<{ action: 'deactivate' | 'delete'; doctor: DoctorDto } | null>(null);
   const updateDoctor = useUpdateDoctor(() => setToggling(null));
 
-  const filters: Pick<ListDoctorsQuery, 'search' | 'status' | 'routeId'> = {
+  const unassigned = values.unassigned === '1';
+  const filters: Pick<ListDoctorsQuery, 'search' | 'status' | 'routeId' | 'assignedUserId' | 'unassigned'> = {
     ...(values.search && { search: values.search }),
     ...(values.status && { status: values.status as DoctorStatus }),
     ...(values.routeId && { routeId: values.routeId }),
+    ...(values.assignedUserId && !unassigned && { assignedUserId: values.assignedUserId }),
+    ...(unassigned && { unassigned: true }),
   };
   const doctors = useDoctors({ page, pageSize, ...filters });
   // Every doctor matching the filters, not just this page. 100 pages of 100 is the ceiling.
@@ -142,6 +146,10 @@ export function DoctorsScreen() {
         <>
           <Input placeholder="Search doctor or MR" aria-label="Search doctors or MRs" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
           <RouteFilter value={values.routeId} onChange={(v) => update({ routeId: v })} />
+          <EmployeeFilter allLabel="Anyone assigned" value={unassigned ? '' : values.assignedUserId} onChange={(v) => update({ assignedUserId: v, unassigned: '' })} />
+          <Button variant={unassigned ? 'primary' : 'secondary'} aria-pressed={unassigned} onClick={() => update({ unassigned: unassigned ? '' : '1', assignedUserId: '' })}>
+            Unassigned
+          </Button>
           <div className="w-48">
             <Select aria-label="Status" value={values.status || ANY} options={STATUS_OPTIONS} onValueChange={(v) => update({ status: v === ANY ? '' : v })} />
           </div>
