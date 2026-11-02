@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useAllFieldEmployees, useFieldDirectory } from '@/features/people/hooks/useUsers';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
 import { useAllZones } from '@/features/territory/hooks/useZones';
@@ -99,7 +99,7 @@ export function PeoplePickerDialog({
       <Input id="people-search" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Name or employee code, e.g. Rahul or MR003" autoComplete="off" />
       {canFilter ? (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Select
+          <SearchableSelect
             aria-label="Zone"
             value={zoneId}
             onValueChange={(next) => {
@@ -108,7 +108,7 @@ export function PeoplePickerDialog({
             }}
             options={[{ value: ALL, label: 'All zones' }, ...(zones.data ?? []).filter((z) => z.status === 'active').map((z) => ({ value: z.id, label: z.name }))]}
           />
-          <Select aria-label="HQ" value={hqId} onValueChange={setHqId} options={[{ value: ALL, label: 'All HQs' }, ...hqOptions.map((q) => ({ value: q.id, label: q.name }))]} />
+          <SearchableSelect aria-label="HQ" value={hqId} onValueChange={setHqId} options={[{ value: ALL, label: 'All HQs' }, ...hqOptions.map((q) => ({ value: q.id, label: q.name }))]} />
         </div>
       ) : null}
       {canFilter && coverageHqIds && coverageHqIds.length > 0 ? (

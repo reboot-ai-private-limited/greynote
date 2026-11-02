@@ -197,6 +197,13 @@ export class FakeUsers implements UserDirectoryPort {
   async getDownline(managerId: string) {
     return this.rows.filter((u) => (this.downline.get(managerId) ?? []).includes(u.id));
   }
+  async findUserIdsByName(term: string, options: { restrictTo?: string[]; limit?: number } = {}) {
+    const t = term.toLowerCase();
+    return this.rows
+      .filter((u) => (u.name.toLowerCase().includes(t) || u.employeeCode.toLowerCase().includes(t)) && (!options.restrictTo || options.restrictTo.includes(u.id)))
+      .slice(0, options.limit ?? 200)
+      .map((u) => u.id);
+  }
 }
 
 export class FakeAssignments implements DoctorAssignmentRepositoryPort {
@@ -292,7 +299,7 @@ export class FakeDoctors implements DoctorRepositoryPort {
         (d) =>
           (!f.routeId || d.routeId === f.routeId) &&
           (!f.status || d.status === f.status) &&
-          (!search || d.name.toLowerCase().includes(search)),
+          (!search || d.name.toLowerCase().includes(search) || (f.alsoDoctorIds ?? []).includes(d.id)),
       ),
       f,
     );
@@ -336,7 +343,7 @@ export class FakeDoctors implements DoctorRepositoryPort {
       if (!a || !scope || d.status !== 'active') continue;
       if (scope.routeIds !== null && !scope.routeIds.includes(d.routeId)) continue;
       if (f.routeId && d.routeId !== f.routeId) continue;
-      if (search && !d.name.toLowerCase().includes(search)) continue;
+      if (search && !d.name.toLowerCase().includes(search) && !(f.alsoUserIds ?? []).includes(a.userId)) continue;
       items.push({ ...d, assignedUserId: a.userId });
     }
     items.sort((x, y) => x.name.localeCompare(y.name));

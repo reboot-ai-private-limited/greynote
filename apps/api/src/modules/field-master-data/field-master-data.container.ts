@@ -157,7 +157,7 @@ export function buildFieldMasterDataContainer(
   const assignDoctor = new AssignDoctorUseCase(doctors, assignments, users, territory, transactions, retirement);
   const leaverWork = new LeaverWork(doctors, assignments, distributors, territory, assignDoctor, retirement);
   const doctorUseCases = {
-    list: new ListDoctorsUseCase(doctors, views),
+    list: new ListDoctorsUseCase(doctors, views, users, assignments),
     create: new CreateDoctorUseCase(doctors, territory, views, specialtyCatalog),
     get: new GetDoctorUseCase(doctors, visibility, views),
     update: updateDoctor,

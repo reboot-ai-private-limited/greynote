@@ -31,9 +31,9 @@ export function DoctorPickerField({
   if (chosen && value === chosen.id && !options.some((o) => o.value === chosen.id)) options.unshift({ value: chosen.id, label: chosen.label });
 
   return (
-    <FormField label={label} htmlFor={id} error={error} hint="Type to search by name, then choose.">
+    <FormField label={label} htmlFor={id} error={error} hint="Type a doctor or MR name to search, then choose.">
       <div className="space-y-2">
-        <Input aria-label="Search doctors" placeholder="Search by name" value={term} onChange={(e) => setTerm(e.target.value)} />
+        <Input aria-label="Search doctors or MRs" placeholder="Search doctor or MR" value={term} onChange={(e) => setTerm(e.target.value)} />
         <Select
           id={id}
           value={value}

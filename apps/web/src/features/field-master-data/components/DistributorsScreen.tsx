@@ -9,7 +9,7 @@ import type { Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { StatusFilter } from '@/components/ui/StatusFilter';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
@@ -220,7 +220,7 @@ export function DistributorsScreen() {
             className="max-w-xs"
           />
           <div className="w-44">
-            <Select
+            <SearchableSelect
               aria-label="Zone"
               value={values.zoneId || ANY}
               options={[{ value: ANY, label: 'All zones' }, ...directory.zoneOptions]}
@@ -228,7 +228,7 @@ export function DistributorsScreen() {
             />
           </div>
           <div className="w-52">
-            <Select
+            <SearchableSelect
               aria-label="HQ"
               value={values.hqId || ANY}
               options={[{ value: ANY, label: 'All HQs' }, ...directory.hqOptions]}

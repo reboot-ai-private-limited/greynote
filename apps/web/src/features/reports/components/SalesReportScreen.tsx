@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { StatTile } from '@/components/ui/StatTile';
 import { monthLabel } from '@/features/payroll/lib/payroll';
 import { useDistributors } from '@/features/field-master-data/hooks/useDistributors';
@@ -121,16 +121,18 @@ export function SalesReportScreen() {
           </Button>
         </div>
         <div className="w-60">
-          <Select
+          <SearchableSelect
             aria-label="Distributor"
+            searchPlaceholder="Search distributors"
             value={values.distributorId || ANY}
             options={[{ value: ANY, label: 'All distributors' }, ...(distributors.data?.items ?? []).map((d) => ({ value: d.id, label: d.name }))]}
             onValueChange={(v) => update({ distributorId: v === ANY ? '' : v })}
           />
         </div>
         <div className="w-60">
-          <Select
+          <SearchableSelect
             aria-label="Product"
+            searchPlaceholder="Search products"
             value={values.productId || ANY}
             options={[{ value: ANY, label: 'All products' }, ...(products.data ?? []).map((p) => ({ value: p.id, label: p.name }))]}
             onValueChange={(v) => update({ productId: v === ANY ? '' : v })}

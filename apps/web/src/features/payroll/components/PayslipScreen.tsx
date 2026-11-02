@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
@@ -96,7 +97,14 @@ export function PayslipScreen({ id }: { id: string }) {
         {run && slip ? (
           <article className="mx-auto max-w-4xl space-y-8 rounded-lg border border-border bg-surface p-6 text-sm text-text sm:p-8 print:border-0 print:p-0">
             <header className="grid items-center gap-4 rounded-xl bg-surface-hover px-6 py-5 sm:grid-cols-[1fr_auto_1fr]">
-              <p aria-hidden className="text-2xl font-bold tracking-wide text-accent">GREYNOTE</p>
+              <Image
+                src="/brand/logo.png"
+                alt="Greynote Healthcare"
+                width={702}
+                height={523}
+                priority
+                className="h-20 w-auto object-contain sm:justify-self-start print:[print-color-adjust:exact]"
+              />
               <div className="text-center">
                 <h1 className="text-2xl font-bold leading-tight">GreyNote Health Care Pvt. Ltd.</h1>
                 <p className="mt-2 inline-block rounded-full bg-accent px-3 py-0.5 text-xs font-semibold text-white">ISO 9001:2015 Certified Company</p>

@@ -3,6 +3,8 @@
 import type { DcrMonthDto, DcrMrRowDto } from '@greynote/contracts';
 import Link from 'next/link';
 import { useState } from 'react';
+import { SearchInput } from '@/components/ui/ListToolbar';
+import { matchesSearch } from '@/lib/search';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -48,7 +50,9 @@ export function DcrReportScreen() {
   const months = report?.months ?? [];
   const started = months.filter((m) => m.state !== 'FUTURE');
   const selected = started.find((m) => m.month === values.month)?.month ?? dcrDefaultMonth(months);
-  const rows = report ? dcrRowsOfMonth(report, selected) : [];
+  const [search, setSearch] = useState('');
+  const allRows = report ? dcrRowsOfMonth(report, selected) : [];
+  const rows = allRows.filter((r) => matchesSearch(`${r.mr.name} ${r.mr.employeeCode}`, search));
   const [coverage, setCoverage] = useState<{ userId: string; month: string } | null>(null);
 
   const monthColumns: readonly Column<DcrMonthDto>[] = [
@@ -240,21 +244,24 @@ export function DcrReportScreen() {
           title={`${monthLabel(selected)}: by employee`}
           description="Most calls first. Open an employee's doctors who were not called on."
           actions={
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={rows.length === 0}
-              onClick={() => downloadCsv(dcrMonthFilename(selected), dcrEmployeesCsv(rows))}
-            >
-              Download CSV
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <SearchInput value={search} onChange={setSearch} label="Search employees" placeholder="Search name or code" />
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={rows.length === 0}
+                onClick={() => downloadCsv(dcrMonthFilename(selected), dcrEmployeesCsv(rows))}
+              >
+                Download CSV
+              </Button>
+            </div>
           }
           className="mt-6"
         >
           <DataState
             isLoading={query.isLoading}
             error={null}
-            isEmpty={rows.length === 0}
+            isEmpty={allRows.length === 0}
             empty={{
               title: 'No reported days this month',
               description: 'Days appear once their daily report is submitted.',
