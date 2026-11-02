@@ -3,6 +3,7 @@ import { datesInMonth, weekdayName } from '@/offline/day';
 import { rupeesCell, toCsv } from './csv';
 import { STATUS_TEXT, type ExpenseStatement } from './expense-months';
 import { routeNamesText, workingTypeLabel, type MonthlyPlanEntry, type NamedRoute } from './planning';
+import { fromToOf } from './route-ends';
 import { slug } from './slug';
 
 /**
@@ -22,13 +23,14 @@ export function tourPlanCsv(month: string, entries: MonthlyPlanEntry[], names: P
   const byDate = new Map(entries.map((e) => [e.planDate, e]));
   const rows = datesInMonth(month).map((d) => {
     const e = byDate.get(d);
-    if (!e) return [d, weekdayName(d), names.offLabel(d) ?? 'Not planned', '', '', '', ''];
+    if (!e) return [d, weekdayName(d), names.offLabel(d) ?? 'Not planned', '', '', '', '', '', ''];
     const trip = e.dayKind === 'STAY' ? 'Stay day' : e.dayKind === 'TRANSIT' ? 'Return day' : '';
     const routes = e.routeIds.length > 0 ? routeNamesText(e.routeIds, names.routes) : '';
+    const { from, to } = fromToOf(e.routeIds, names.routes);
     const people = e.workWith.map((id) => names.personName(id) ?? 'Colleague').join('; ');
-    return [d, weekdayName(d), workingTypeLabel(e.workingType), trip, routes, people, e.remarks];
+    return [d, weekdayName(d), workingTypeLabel(e.workingType), trip, routes, from, to, people, e.remarks];
   });
-  return toCsv(['Date', 'Day', 'Work type', 'Trip', 'Routes', 'Work with', 'Remarks'], rows);
+  return toCsv(['Date', 'Day', 'Work type', 'Trip', 'Routes', 'From', 'To', 'Work with', 'Remarks'], rows);
 }
 
 /** A month's expense statement, one row per date, then a total row carrying the month's status. */
