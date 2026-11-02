@@ -3,6 +3,7 @@
 How an employee's monthly **secondary** is entered and approved, and how **targets** and **achievement** relate to it. Online only. Decision: decision-log 2026-10-12.
 
 **Status key:** ✅ built on the server and web. 📱 the phone still has to show it.
+**Added 2026-11-02:** a month's secondary can carry **files** (photos or PDFs), any number, as proof of the figures (section 1b). Optional, and backward compatible: an older phone build just never sends or shows them.
 **Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - Secondary Sales (units and amount, status per line and month, Send for approval, locked states) and read-only Targets with achievement; a manager can set and now **remove** a target.
 
 ## 1. Secondary (what the employee sold)
@@ -17,6 +18,21 @@ How an employee's monthly **secondary** is entered and approved, and how **targe
 | 6 | Same window as before: the month must have started; after `MONTHLY_STOCK_DEADLINE_DAY` of the next month only Admin, or a month Admin reopened, takes entries. | ✅ |
 
 Show a status chip per line and for the month (`secondaryStatus`: Draft / Waiting for approval / Approved / Rejected), a **Send for approval** button when the month is a draft or rejected, and an amount field beside the units that fills the other as the user types (`amount = units × ptsPaise`).
+
+## 1b. Files on the month (2026-11-02) 📱
+
+An employee can attach **photos or PDFs** to a month's secondary, for example a picture of the distributor's sales statement. They belong to the employee and the month, not to a product line. **There is no limit on how many.** Attaching is optional: *Send for approval* does not need a file.
+
+| # | Rule | Status |
+|---|---|---|
+| 1 | **Add:** `POST /api/sales/employee-secondary/attachments`, `multipart/form-data` with `file` (one per call; send several files as several calls), `month` (`YYYY-MM`) and, only when working on someone else's month, `userId`. Returns the file: `{ id, url, fileName, mimeType, sizeBytes, uploadedBy, uploadedAt }`. | ✅ 📱 |
+| 2 | **Type and size:** a **PDF, JPG or PNG** of at most **5 MB**. The server reads the type from the file's own bytes, so renaming a file does not get it through. `400` with `field: file` otherwise (`INVALID_PAYLOAD`). Compress or resize a photo on the phone before sending. | ✅ 📱 |
+| 3 | **Read:** `GET /api/sales/employee-sales?userId=&month=` (the month's figures) now also returns **`attachments[]`** (oldest first, `[]` when none). Open `url` to view a file. | ✅ 📱 |
+| 4 | **Remove:** `DELETE /api/sales/employee-secondary/attachments/:id`. The file is removed from storage too. `404 ATTACHMENT_NOT_FOUND` if it is gone already. | ✅ 📱 |
+| 5 | **When:** the same rules as the figures. The employee can add and remove while the month is a `DRAFT` or `REJECTED`; once it is `PENDING` or `APPROVED` their own files are frozen (`409 SECONDARY_LOCKED`) until it is withdrawn, rejected or reopened. A manager (for their team) or Admin can add and remove at any status. The month must have started (`MONTH_NOT_STARTED`), and after `MONTHLY_STOCK_DEADLINE_DAY` of the next month only Admin, or a month Admin reopened, can change files (`MONTH_CLOSED`). | ✅ 📱 |
+| 6 | **Who sees them:** the employee, the manager above, and Admin; the approver sees them on the approval card on the web. | ✅ |
+
+Phone screen: on the month's secondary screen show the thumbnails (a PDF as an icon), an **Add files** button that lets the user pick several, and a remove button on each while rule 5 allows it. Upload them one after another and show each one's error (a file over 5 MB, a type that is not allowed) without stopping the rest. Offline is not supported (secondary is online only).
 
 ## 2. Targets
 

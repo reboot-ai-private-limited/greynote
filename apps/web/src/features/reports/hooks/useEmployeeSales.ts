@@ -1,6 +1,6 @@
 'use client';
 
-import type { EmployeeSalesDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto } from '@greynote/contracts';
+import type { EmployeeSalesDto, SecondaryAttachmentDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto } from '@greynote/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { marketingApi, type SetTargetBody, type UpdateTargetBody } from '@/lib/api/endpoints/marketing';
 import { reportsApi, type EmployeeSalesQuery } from '@/lib/api/endpoints/reports';
@@ -40,6 +40,22 @@ export function useSaveSecondary(onDone: () => void) {
     invalidates: refreshes,
     successMessage: 'Secondary saved.',
     onSuccess: onDone,
+  });
+}
+
+/** One file at a time; the caller loops, so a long pick uploads in order and a bad file does not stop the good ones. */
+export function useAddSecondaryFile() {
+  return useApiMutation<FormData, SecondaryAttachmentDto>({
+    call: (token, body) => salesApi.addSecondaryFile(token, body),
+    invalidates: refreshes,
+  });
+}
+
+export function useRemoveSecondaryFile() {
+  return useApiMutation<string, null>({
+    call: (token, id) => salesApi.removeSecondaryFile(token, id),
+    invalidates: refreshes,
+    successMessage: 'File removed.',
   });
 }
 

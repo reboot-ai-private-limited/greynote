@@ -1,4 +1,6 @@
-import { Router } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
+import multer from 'multer';
+import { AppError } from '@/shared/errors/AppError.js';
 import type { AnyZodObject, ZodTypeAny } from 'zod';
 import { authenticate } from '@/shared/http/authenticate.middleware.js';
 import { requireRole } from '@/shared/http/authorize.middleware.js';
@@ -6,9 +8,23 @@ import { scopeToFinancialYear } from '@/shared/http/financialYear.middleware.js'
 import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { SalesHandlers } from './sales.controller.js';
-import { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
+import { MAX_SECONDARY_ATTACHMENT_BYTES } from '../domain/secondaryAttachment.entity.js';
+import { secondaryAttachmentBodySchema, submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 const TAG = 'Sales';
+
+const uploadFile = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_SECONDARY_ATTACHMENT_BYTES, files: 1 } }).single('file');
+/** Converts multer's error-first callback (a file over 5 MB, a bad upload) into the same AppError path everything else uses. */
+function fileUpload(req: Request, res: Response, next: NextFunction): void {
+  uploadFile(req, res, (err: unknown) => {
+    if (err) {
+      const tooBig = (err as { code?: string }).code === 'LIMIT_FILE_SIZE';
+      next(AppError.badRequest(tooBig ? 'That file is over 5 MB.' : err instanceof Error ? err.message : 'Invalid file upload.', { field: 'file' }));
+      return;
+    }
+    next();
+  });
+}
 
 function doc(method: 'get' | 'post' | 'patch', path: string, summary: string, request: { query?: ZodTypeAny; body?: ZodTypeAny }): void {
   openApiRegistry.registerPath({
@@ -34,6 +50,16 @@ doc('get', '/distributor-payments', 'Admin or Accountant: one distributor’s pa
 doc('get', '/distributor-statement', 'Admin and the Accountant (read only): one distributor\'s month by product — field counts, orders, the saved statement and the figures that follow', { query: statementQuerySchema });
 doc('get', '/employee-sales', 'An employee\'s month by product — their Done distributor orders (primary), Admin\'s change and the secondary entered; self, the manager above, or Admin', { query: employeeSalesQuerySchema });
 doc('post', '/employee-secondary', 'The secondary an employee sold, per product and month (their achievement): the employee, the manager above, or Admin; the stock deadline applies except to Admin', { body: saveEmployeeSecondaryBodySchema });
+openApiRegistry.registerPath({
+  method: 'post',
+  path: '/api/sales/employee-secondary/attachments',
+  tags: [TAG],
+  summary: 'Attach a PDF, JPG or PNG (up to 5 MB, any number per month) to an employee’s secondary for a month — multipart: file, month, userId (optional); the employee while the month is a draft, or the manager above, or Admin',
+  security: [{ bearerAuth: [] }],
+  request: { body: { content: { 'multipart/form-data': { schema: secondaryAttachmentBodySchema } } } },
+  responses: { 201: { description: 'Attached' }, 409: { description: 'The month is closed, or waiting for approval or approved' } },
+});
+openApiRegistry.registerPath({ method: 'delete', path: '/api/sales/employee-secondary/attachments/{id}', tags: [TAG], summary: 'Remove one attached file, under the same rules as adding it', security: [{ bearerAuth: [] }], responses: { 200: { description: 'Removed' } } });
 doc('post', '/employee-secondary/submit', 'The employee sends a month\'s secondary to their manager for approval; only approved secondary counts toward achievement', { body: submitEmployeeSecondaryBodySchema });
 doc('post', '/employee-primary', 'Admin: change an employee\'s primary for a month, per product, with a reason (any past month of an open financial year)', { body: saveEmployeePrimaryBodySchema });
 doc('post', '/distributor-statement', 'Admin: save the month\'s statement lines (opening, secondary, adjustment with a reason); any past month, an open financial year', { body: saveStatementBodySchema });
@@ -65,6 +91,8 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.get('/employee-sales', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: employeeSalesQuerySchema }), c.readEmployeeSales);
   router.post('/employee-secondary', requireRole('ADMIN', 'FIELD'), validate({ body: saveEmployeeSecondaryBodySchema }), c.saveEmployeeSecondary);
   router.post('/employee-secondary/submit', requireRole('FIELD'), validate({ body: submitEmployeeSecondaryBodySchema }), c.submitEmployeeSecondary);
+  router.post('/employee-secondary/attachments', requireRole('ADMIN', 'FIELD'), fileUpload, validate({ body: secondaryAttachmentBodySchema }), c.addSecondaryAttachment);
+  router.delete('/employee-secondary/attachments/:id', requireRole('ADMIN', 'FIELD'), validate({ params: orderIdParamsSchema }), c.removeSecondaryAttachment);
   router.post('/employee-primary', requireRole('ADMIN'), validate({ body: saveEmployeePrimaryBodySchema }), c.saveEmployeePrimary);
   router.post('/distributor-statement', requireRole('ADMIN'), validate({ body: saveStatementBodySchema }), c.saveStatement);
   router.get('/distributor-payments/balances', requireRole('ACCOUNTANT', 'ADMIN'), c.distributorBalances);
