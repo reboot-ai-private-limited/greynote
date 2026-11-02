@@ -6,8 +6,9 @@ import { isOnline } from './connectivity';
 import { store } from './store';
 
 /**
- * The people an MR can name as "Work With" (GET /identity/work-with): every active manager in the org
- * or all active field employees. Kept on the phone so the picker works offline, and refreshed with every background sync.
+ * The people an employee can name as "Work With" (GET /identity/work-with): the managers above them and everyone below
+ * them in their own reporting tree, active only (changed 2026-11-02). Kept on the phone so the picker works offline, and
+ * refreshed with every background sync.
  */
 export type Colleague = {
   id: string;
@@ -15,8 +16,6 @@ export type Colleague = {
   name: string;
   designation: string | null;
   label?: string;
-  isManager?: boolean;
-  relation: 'MANAGER' | 'PEER' | 'TEAM';
 };
 
 const KEY = 'colleagues';
@@ -32,24 +31,14 @@ export async function loadCachedColleagues(): Promise<Colleague[]> {
   }
 }
 
-/** Fetches both managers and all field employees from /identity/work-with. A failure keeps what was cached. */
+/** Fetches the caller's own tree (upline and downline) from /identity/work-with. A failure keeps what was cached. */
 export async function refreshColleagues(): Promise<void> {
   if (!isOnline()) return;
   try {
     type WorkWithCandidate = { id: string; employeeCode: string; name: string; designation: string | null; label: string };
-    const [managersResult, allResult] = await Promise.allSettled([
-      apiGet<WorkWithCandidate[]>('/identity/work-with?scope=managers'),
-      apiGet<WorkWithCandidate[]>('/identity/work-with?scope=all'),
-    ]);
-    // Replace the cached list only with a complete answer: if one of the two requests failed, a half list would silently
-    // hide the other group, so the copy already on the phone stays — unless there is none yet, when half is better than nothing.
-    const complete = managersResult.status === 'fulfilled' && allResult.status === 'fulfilled';
-    if (!complete && (await loadCachedColleagues()).length > 0) return;
-    const managers = managersResult.status === 'fulfilled' ? managersResult.value : [];
-    const all = allResult.status === 'fulfilled' ? allResult.value : [];
-    const managerIds = new Set(managers.map((m) => m.id));
-    const source = all.length > 0 ? all : managers;
-    if (source.length === 0) return;
+    const source = await apiGet<WorkWithCandidate[]>('/identity/work-with');
+    // An empty answer is a real one (nobody above or below), but an empty cache means the same, so there is nothing to write.
+    if (source.length === 0 && (await loadCachedColleagues()).length === 0) return;
 
     const list: Colleague[] = source.map((c) => ({
       id: c.id,
@@ -57,8 +46,6 @@ export async function refreshColleagues(): Promise<void> {
       name: c.name,
       designation: c.designation,
       label: c.label,
-      isManager: managerIds.has(c.id),
-      relation: managerIds.has(c.id) ? 'MANAGER' : 'PEER',
     }));
 
     await store.setMeta(KEY, JSON.stringify(list));

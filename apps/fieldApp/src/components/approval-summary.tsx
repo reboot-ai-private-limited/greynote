@@ -9,14 +9,16 @@ import {
   getDoctorRecord,
   getDoctorServiceRecord,
   getLeaveRecord,
+  listInbox,
+  listMine,
+  listTeam,
   type ApprovalDetail,
+  type ApprovalItem,
   workWithText,
   type PlanDayView,
 } from '@/lib/approvals';
 import { getStatementById } from '@/lib/expense-months';
 import { formatRupees } from '@/lib/money';
-import { useDayGate } from '@/hooks/use-day-gate';
-import { useTheme } from '@/hooks/use-theme';
 import { getMonthlyPlanById, isFieldDay, routeNamesText, workingTypeLabel, type NamedRoute } from '@/lib/planning';
 import { useSessionUser } from '@/lib/session';
 import { useCachedSource } from '@/offline/cache';
@@ -126,11 +128,11 @@ function MonthlyPlanSummary({ recordId }: { recordId: string }) {
       {data?.amendments && data.amendments.length > 0 ? (
         <PlanAmendments amendments={data.amendments} entries={data.entries} routes={data.routes} nameOf={nameOf} timeZone={config.data?.settings.BUSINESS_TIMEZONE} />
       ) : null}
-      {data?.entries.map((e) => (
-        <Box key={e.planDate}>
+      {data?.entries.map((e, i) => (
+        <View key={e.planDate} style={[styles.day, i > 0 && { borderTopWidth: 1, borderTopColor: '#B4B8C0' }]}>
           <ThemedText type="smallBold">{prettyDay(e.planDate)}</ThemedText>
           {dayLines(e, data.routes)}
-        </Box>
+        </View>
       ))}
     </Frame>
   );
@@ -139,7 +141,6 @@ function MonthlyPlanSummary({ recordId }: { recordId: string }) {
 /* ───────────────────────────── leave, doctor, service ───────────────────────────── */
 
 function LeaveSummary({ recordId }: { recordId: string }) {
-  const { today } = useDayGate();
   const { data, error } = useRecord(() => getLeaveRecord(recordId), 0);
   return (
     <Frame title={data ? `Leave · ${data.leaveTypeName}` : 'Leave'} error={error} loading={!data}>
@@ -148,7 +149,6 @@ function LeaveSummary({ recordId }: { recordId: string }) {
           <Line label="Dates" value={data.startDate === data.endDate ? prettyDay(data.startDate) : `${prettyDay(data.startDate)} → ${prettyDay(data.endDate)}`} />
           <Line label="Days counted" value={String(data.daysCount)} />
           <Line label="Paid" value={data.isPaid ? 'Yes' : 'No (loss of pay)'} />
-          {data.startDate <= today && (data.status === 'SUBMITTED' || data.status === 'MANAGER_APPROVED') ? <Notice tone="warning">This leave has started, so it can only be rejected unless Admin allows a late approval.</Notice> : null}
           {data.reason ? <Line label="Reason" value={data.reason} /> : null}
           {data.attachments.length > 0 ? (
             <View style={styles.entry}>
@@ -197,6 +197,46 @@ function NewDoctorSummary({ recordId, canCorrect, who }: { recordId: string; can
   );
 }
 
+/**
+ * A new chemist waiting for a decision. The server lets a manager read only the request's subject (the chemist's name and its
+ * "HQ · Route"), not the chemist record itself (`GET /field-master-data/chemists/:id` is Admin and Accountant only), so the
+ * address and the location the phone captured cannot be shown here yet.
+ */
+function NewChemistSummary({ request }: { request: ApprovalDetail }) {
+  // The server names the chemist on the list rows but not on the single request, so look it up on the lists when it is missing.
+  const [found, setFound] = useState<ApprovalItem['subject']>(null);
+  useEffect(() => {
+    if (request.subject) return;
+    let alive = true;
+    (async () => {
+      for (const load of [() => listInbox(100, { kind: 'NEW_CHEMIST' }), () => listTeam('all', 100, { kind: 'NEW_CHEMIST' }), () => listMine(100)]) {
+        try {
+          const row = (await load()).items.find((i) => i.id === request.id);
+          if (row?.subject) return void (alive && setFound(row.subject));
+        } catch {
+          /* try the next list */
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [request.id, request.subject]);
+  const subject = request.subject ?? found;
+  const who = request.submitter ? `${request.submitter.name} (${request.submitter.employeeCode})` : null;
+  return (
+    <Frame title="New chemist" error={null} loading={false}>
+      <Line label="Name" value={subject?.title ?? '—'} />
+      {subject?.subtitle ? <Line label="HQ · Route" value={subject.subtitle} /> : null}
+      {who ? <Line label="Added by" value={who} /> : null}
+      <Line label="Sent" value={formatWhen(request.submittedAt)} />
+      <Notice tone="info">
+        The address and the location the phone captured aren’t available in the app yet. To check them on a map before deciding, open this request in the web portal.
+      </Notice>
+    </Frame>
+  );
+}
+
 function DoctorServiceSummary({ recordId }: { recordId: string }) {
   const { data, error } = useRecord(() => getDoctorServiceRecord(recordId), 0);
   return (
@@ -216,11 +256,6 @@ function DoctorServiceSummary({ recordId }: { recordId: string }) {
 /* ───────────────────────────── the daily report ───────────────────────────── */
 
 /** A bordered white box that stands out on the grey card: one call, one followup, one table. */
-function Box({ children }: { children: React.ReactNode }) {
-  const theme = useTheme();
-  return <View style={[styles.box, { backgroundColor: theme.background, borderColor: theme.border }]}>{children}</View>;
-}
-
 /* ───────────────────────────── monthly expenses ───────────────────────────── */
 
 function ExpenseMonthSummaryCard({ recordId }: { recordId: string }) {
@@ -288,6 +323,9 @@ export function ApprovalSummary({ request, aside }: { request: ApprovalDetail; a
     case 'NEW_DOCTOR':
       record = <NewDoctorSummary recordId={request.recordId} canCorrect={request.canAct} who={request.submitter?.name} />;
       break;
+    case 'NEW_CHEMIST':
+      record = <NewChemistSummary request={request} />;
+      break;
     case 'DOCTOR_SERVICE':
       record = <DoctorServiceSummary recordId={request.recordId} />;
       break;
@@ -312,7 +350,7 @@ const styles = StyleSheet.create({
   lineLabel: { width: 110 },
   lineValue: { flex: 1 },
   entry: { gap: Spacing.one, paddingTop: Spacing.two },
-  box: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.three, gap: Spacing.two },
+  day: { gap: Spacing.one, paddingTop: Spacing.two },
   tableRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.two },
   tableMain: { flex: 1, gap: Spacing.half },
   amount: { textAlign: 'right' },

@@ -21,7 +21,7 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
-import { shareCsv } from '@/lib/csv';
+import { deliverCsv } from '@/lib/csv';
 import { exportFileName, tourPlanCsv } from '@/lib/exports';
 import {
   EDITABLE,
@@ -56,9 +56,10 @@ import {
   prettyMonth,
   weekdayOf,
   weeklyOffIndex,
+  weeklyOffLabel,
 } from '@/offline/day';
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from '@/offline/local-draft';
-import type { ConfigSnapshot, PlanOffDay, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
+import type { ConfigSnapshot, HrSnapshot, PlanOffDay, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
 
 type Msg = { tone: 'info' | 'warning' | 'danger' | 'success'; text: string };
 type Entries = Record<string, PlanDay>;
@@ -88,6 +89,7 @@ const errorText = planErrorText;
 export default function MonthlyPlanScreen() {
   const planning = useCachedSource<PlanningSnapshot>('planning');
   const config = useCachedSource<ConfigSnapshot>('config');
+  const hr = useCachedSource<HrSnapshot>('hr');
   const territory = useCachedSource<TerritorySnapshot>('territory');
   const { today } = useDayGate();
   const online = useOnline();
@@ -137,10 +139,12 @@ export default function MonthlyPlanScreen() {
     for (const d of serverOffDays ?? []) map.set(d.date, d);
     return map;
   }, [planOffDays, serverOffDays, month]);
-  const weeklyOff = weeklyOffIndex(config.data?.settings.WEEKLY_OFF_DAY);
+  const weeklyOff = weeklyOffIndex(hr.data?.weeklyOffDay ?? config.data?.settings.WEEKLY_OFF_DAY);
   const legacyOff = planOffDays === undefined && serverOffDays === undefined;
-  const isOff = (d: string) => offByDate.has(d) || (legacyOff && weeklyOff !== null && weekdayOf(d) === weeklyOff);
-  const offLabelOf = (d: string) => { const o = offByDate.get(d); return o ? offDayLabel(o) : 'Weekly off'; };
+  // Only for a server that sends no `planOffDays`: the schedule if it has one, else the single weekday.
+  const legacyIsOff = (d: string) => (hr.data?.weeklyOffSchedule?.length ? weeklyOffLabel(d, hr.data.weeklyOffSchedule) !== null : weeklyOff !== null && weekdayOf(d) === weeklyOff);
+  const isOff = (d: string) => offByDate.has(d) || (legacyOff && legacyIsOff(d));
+  const offLabelOf = (d: string) => { const o = offByDate.get(d); return o ? offDayLabel(o) : (weeklyOffLabel(d, hr.data?.weeklyOffSchedule) ?? 'Weekly off'); };
   const lockedDates = useMemo(() => [...offByDate.keys()], [offByDate]);
   // Days already planned that are now locked (HR added a holiday after the plan was saved): left out of the next save and submit.
   const lockedPlanned = editable ? Object.keys(entries).filter((d) => offByDate.has(d)).sort() : [];
@@ -404,14 +408,15 @@ export default function MonthlyPlanScreen() {
     });
     setDownloading(true);
     try {
-      await shareCsv(exportFileName('tour-plan', { name: me?.name, employeeCode: me?.employeeCode }, month), csv, `Tour Plan · ${prettyMonth(month)}`);
+      const done = await deliverCsv(exportFileName('tour-plan', { name: me?.name, employeeCode: me?.employeeCode }, month), csv, `Tour Plan · ${prettyMonth(month)}`);
+      if (done) setMsg({ tone: 'success', text: done });
     } catch (err) {
       setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Couldn’t make the file. Please try again.' });
     } finally {
       setDownloading(false);
     }
   };
-  const download = existing ? <PrimaryButton label="Download Tour Plan (CSV)" variant="text" loading={downloading} onPress={downloadPlan} /> : null;
+  const download = existing ? <PrimaryButton label="Open, share or download Tour Plan (CSV)" variant="text" loading={downloading} onPress={downloadPlan} /> : null;
   const approval = <PlanApprovalSteps status={status} rejection={rejection} approval={detail?.approval ?? null} timeZone={timeZone} />;
   const dayWise = (
     <View style={styles.dayWise}>

@@ -6,6 +6,7 @@ import { Notice } from '@/components/notice';
 import { OutletPicker } from '@/components/outlet-picker';
 import { PrimaryButton } from '@/components/primary-button';
 import { ProductLinesEditor, type ProductLine } from '@/components/product-lines-editor';
+import { SecondaryFiles } from '@/components/secondary-files';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -545,6 +546,7 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
           <ThemedText type="small" themeColor="textSecondary">
             Units and amount are one figure at the product’s PTS: type either and the other follows (an amount is rounded to whole units).
           </ThemedText>
+          <SecondaryFiles month={month} files={sales.data?.attachments ?? []} canEdit={!readOnly} online={online} onChanged={() => setTick((t) => t + 1)} />
           {readOnly ? null : (
             <View style={styles.actions}>
               <PrimaryButton label="Save draft" loading={busy === 'save'} disabled={!online || !changed || busy !== null} onPress={save} />

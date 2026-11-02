@@ -147,6 +147,7 @@ const ROUTES: Record<string, Href> = {
   '/dcr': '/summary',
   '/secondary': '/secondary-sales',
   '/doctors': '/my-requests',
+  '/chemists': '/my-requests',
   '/services': '/services',
   '/team/approvals': '/(tabs)/team',
   '/inbox': '/inbox',

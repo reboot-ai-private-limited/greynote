@@ -149,11 +149,22 @@ export type FieldMasterDataSnapshot = {
   sampleAllocations: { id: string; doctorId: string; productId: string; quantityAllocated: number; quantityRemaining: number }[];
 };
 
+/** A weekday that is off every week (`ALL`) or only in some occurrences (`[1, 3]`: the 1st Saturday is the Saturday on day 1-7). */
+export type WeeklyOffRule = { weekday: string; weeks: 'ALL' | number[] };
+export type WeeklyOffVersion = { effectiveFrom: string; rules: WeeklyOffRule[] };
+
 /** What the Leave screen reads from the `hr` pull source (balances show offline from the last pull). */
 export type HrSnapshot = {
   leaveYear: number;
-  /** How many days back a leave may start. */
+  /** How many days back a leave may start. The server now always sends 366 (2026-11-02): use `leaveYearFrom` instead. */
   leaveBackdateDays: number;
+  /** First and last day of the leave year (absent from an older server). A leave may start any day from `leaveYearFrom`, the past included. */
+  leaveYearFrom?: string;
+  leaveYearTo?: string;
+  /** The one weekday that is off every week today (absent from an older server). */
+  weeklyOffDay?: string;
+  /** The weekly-off rule sets, each from its start date (absent from an older server). */
+  weeklyOffSchedule?: WeeklyOffVersion[];
   leaveTypes: { id: string; name: string; isPaid: boolean }[];
   balances: {
     leaveTypeId: string;

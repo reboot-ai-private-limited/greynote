@@ -11,6 +11,7 @@ import { addDays, addMonths, datesInMonth, prettyMonth } from '@/offline/day';
 
 import { ChoiceChips } from './choice-chips';
 import { DateStepper } from './date-stepper';
+import { OutletPicker } from './outlet-picker';
 import { PrimaryButton } from './primary-button';
 import { WorkWithPicker } from './work-with-picker';
 import { TextField } from './text-field';
@@ -66,10 +67,7 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
     onChange({ ...value, workingType, routeIds: field ? value.routeIds : [], workWith: field ? value.workWith : [], returnDate: field ? value.returnDate : null });
   }
 
-  function toggleRoute(id: string) {
-    const routeIds = value.routeIds.includes(id)
-      ? value.routeIds.filter((r) => r !== id)
-      : [...value.routeIds, id];
+  function setRoutes(routeIds: string[]) {
     // Without an out-station route there is no trip, so the return day goes.
     const stillOut = routes.some((r) => r.routeType === 'OUT_STATION' && routeIds.includes(r.id));
     onChange({ ...value, routeIds, returnDate: stillOut ? value.returnDate : null });
@@ -88,7 +86,6 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
 
       {needsRoute ? (
         <>
-          <ThemedText type="smallBold">Routes</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             {`Choose carefully: only ${forOther ? 'their' : 'your'} doctors on these routes can be planned that day.${
               value.workingType === 'DOCTOR_CAMPAIGN' ? ' A campaign day pays DA at the highest route type and no TA.' : ''
@@ -102,40 +99,42 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
             </ThemedText>
           ) : (
             <View style={errors?.routes ? [styles.marked, { borderColor: theme.danger }] : styles.routeList}>
-            {routes.map((r) => {
-              const selected = value.routeIds.includes(r.id);
-              return (
-                <Pressable
-                  key={r.id}
-                  disabled={disabled}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: selected, disabled }}
-                  onPress={() => toggleRoute(r.id)}>
-                  <ThemedView
-                    type="backgroundElement"
-                    style={[styles.route, selected && { borderColor: theme.primary }, disabled && styles.disabled]}>
-                    <ThemedView
-                      type={selected ? 'primary' : 'backgroundSelected'}
-                      style={styles.box}>
-                      <ThemedText type="small" themeColor="onPrimary">
-                        {selected ? '✓' : ''}
-                      </ThemedText>
-                    </ThemedView>
-                    <ThemedView type="backgroundElement" style={styles.routeText}>
-                      <ThemedText type="smallBold">{r.name}</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {r.detail}
-                      </ThemedText>
-                    </ThemedView>
-                  </ThemedView>
-                </Pressable>
-              );
-            })}
-            {errors?.routes ? (
-              <ThemedText type="small" themeColor="danger">
-                {errors.routes}
-              </ThemedText>
-            ) : null}
+              {/* One dropdown, several routes: tick the routes in the sheet and tap Done. */}
+              <OutletPicker
+                label="Routes"
+                multiple
+                searchable
+                values={value.routeIds}
+                onChangeValues={setRoutes}
+                options={routes.map((r) => ({ id: r.id, name: r.name, subtitle: r.detail }))}
+                disabled={disabled}
+                emptyText={forOther ? 'No routes are assigned to them.' : 'No routes are assigned to you yet.'}
+              />
+              {value.routeIds.length > 0 ? (
+                <View style={styles.tags}>
+                  {value.routeIds.map((id) => {
+                    const r = routes.find((x) => x.id === id);
+                    return (
+                      <Pressable
+                        key={id}
+                        disabled={disabled}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove ${r?.name ?? 'route'}`}
+                        onPress={() => setRoutes(value.routeIds.filter((x) => x !== id))}>
+                        <ThemedView type="backgroundElement" style={[styles.tag, { borderColor: theme.border }, disabled && styles.disabled]}>
+                          <ThemedText type="small">{r?.name ?? 'Route'}</ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">✕</ThemedText>
+                        </ThemedView>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+              {errors?.routes ? (
+                <ThemedText type="small" themeColor="danger">
+                  {errors.routes}
+                </ThemedText>
+              ) : null}
             </View>
           )}
         </>
@@ -208,19 +207,10 @@ export function PlanDayForm({ value, onChange, disabled, date, errors, lockedDat
 }
 
 const styles = StyleSheet.create({
-  route: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
   disabled: { opacity: 0.6 },
   routeList: { gap: Spacing.two },
   marked: { gap: Spacing.two, borderWidth: 1.5, borderRadius: Spacing.three, padding: Spacing.two },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  tag: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.three, paddingVertical: Spacing.one + 2 },
   trip: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
-  box: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  routeText: { flex: 1 },
 });

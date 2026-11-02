@@ -24,6 +24,7 @@ const KIND_ACCENT: Record<string, Accent> = {
   DCR: 'teal',
   LEAVE: 'pink',
   NEW_DOCTOR: 'purple',
+  NEW_CHEMIST: 'green',
   DOCTOR_SERVICE: 'orange',
   EXPENSE_MONTH: 'amber',
   SECONDARY_SALES: 'green',

@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { ChoiceChips } from '@/components/choice-chips';
 import { TextField } from '@/components/text-field';
 import { Spacing } from '@/constants/theme';
-import { useCurrentUser } from '@/hooks/use-current-user';
 import { useTheme } from '@/hooks/use-theme';
 import { useColleagues, type Colleague } from '@/offline/colleagues';
 
@@ -14,26 +12,20 @@ import { ThemedView } from './themed-view';
 /** The server accepts at most this many colleagues on one day (planSchema `workWith.max(20)`). */
 const MAX_PICKED = 20;
 
-type Scope = 'MANAGERS' | 'ALL';
-const SCOPE_OPTIONS: { value: Scope; label: string }[] = [
-  { value: 'MANAGERS', label: 'Managers' },
-  { value: 'ALL', label: 'All colleagues' },
-];
-
 type Props = {
   value: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
   /**
-   * A fixed list to pick from instead of GET /identity/work-with (a manager's downline on their Daily Plan). It is searched
-   * but has no Managers / All switch; `emptyText` says what an empty list means.
+   * A fixed list to pick from instead of GET /identity/work-with (the colleagues of someone else whose plan a manager is
+   * amending); `emptyText` says what an empty list means.
    */
   people?: { list: Colleague[]; loaded: boolean; emptyText: string };
 };
 
 /**
- * "Work With": who joins you on a day or a call (GET /identity/work-with).
- * Offers active managers or all field employees. Shows labels like "Asha Rao (ASM)".
+ * "Work With": who joins you on a day or a call (GET /identity/work-with): the managers above you and everyone below you,
+ * in one searchable list. Shows labels like "Asha Rao (ASM)".
  */
 export function WorkWithPicker({ value, onChange, disabled, people }: Props) {
   const theme = useTheme();
@@ -41,10 +33,6 @@ export function WorkWithPicker({ value, onChange, disabled, people }: Props) {
   const colleagues = people ? people.list : fetched.colleagues;
   const loaded = people ? people.loaded : fetched.loaded;
   const [open, setOpen] = useState(false);
-  // A manager is offered everyone, with no Managers / All switch (an MR gets the switch).
-  const { isManager } = useCurrentUser();
-  const [mrScope, setScope] = useState<Scope>('MANAGERS');
-  const scope: Scope = isManager ? 'ALL' : mrScope;
   const [search, setSearch] = useState('');
   const byId = useMemo(() => new Map(colleagues.map((c) => [c.id, c])), [colleagues]);
 
@@ -55,14 +43,9 @@ export function WorkWithPicker({ value, onChange, disabled, people }: Props) {
 
   const needle = search.trim().toLowerCase();
   const filtered = useMemo(() => {
-    let list = !people && scope === 'MANAGERS' ? colleagues.filter((c) => c.isManager || c.relation === 'MANAGER') : colleagues;
-    // If no managers were found, fall back to showing everyone so the picker is never empty
-    if (!people && scope === 'MANAGERS' && list.length === 0) list = colleagues;
-    if (needle) {
-      list = list.filter((c) => c.name.toLowerCase().includes(needle) || c.employeeCode.toLowerCase().includes(needle) || (c.designation ?? '').toLowerCase().includes(needle));
-    }
-    return list;
-  }, [colleagues, scope, needle, people]);
+    if (!needle) return colleagues;
+    return colleagues.filter((c) => c.name.toLowerCase().includes(needle) || c.employeeCode.toLowerCase().includes(needle) || (c.designation ?? '').toLowerCase().includes(needle));
+  }, [colleagues, needle]);
 
   return (
     <View style={styles.box}>
@@ -116,11 +99,10 @@ export function WorkWithPicker({ value, onChange, disabled, people }: Props) {
             </ThemedText>
           ) : colleagues.length === 0 ? (
             <ThemedText type="small" themeColor="textSecondary">
-              {people ? people.emptyText : 'No colleagues to show yet. Connect to the internet once so your list can load.'}
+              {people ? people.emptyText : 'No one in your reporting line to show yet. Connect to the internet once so your list can load.'}
             </ThemedText>
           ) : (
             <>
-              {people || isManager ? null : <ChoiceChips options={SCOPE_OPTIONS} value={scope} onChange={setScope} />}
               <TextField
                 label="Search colleague"
                 placeholder="Name, code or designation…"

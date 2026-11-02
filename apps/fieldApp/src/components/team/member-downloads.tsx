@@ -5,7 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Accents, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, NetworkError } from '@/lib/api';
-import { shareCsv } from '@/lib/csv';
+import { deliverCsv } from '@/lib/csv';
 import { getStatement } from '@/lib/expense-months';
 import { exportFileName, expensesCsv, tourPlanCsv } from '@/lib/exports';
 import { findTeamMemberMonthlyPlan, offDayLabel } from '@/lib/planning';
@@ -59,14 +59,16 @@ export function MemberDownloads({ userId, employeeCode, name, designation, month
           routes: plan.routes,
           personName: (id) => byId.get(id) ?? null,
         });
-        await shareCsv(exportFileName('tour-plan', { name, designation, employeeCode }, month), csv, `${name} · Tour Plan · ${prettyMonth(month)}`);
+        const done = await deliverCsv(exportFileName('tour-plan', { name, designation, employeeCode }, month), csv, `${name} · Tour Plan · ${prettyMonth(month)}`);
+        if (done) setMsg({ key: month, tone: 'info', text: done });
       } else {
         const statement = await getStatement(month, userId);
         if (statement.days.length === 0) {
           setMsg({ key: month, tone: 'info', text: `${name} has no expenses for ${prettyMonth(month)}.` });
           return;
         }
-        await shareCsv(exportFileName('expenses', { name, designation, employeeCode }, month), expensesCsv(statement), `${name} · Expenses · ${prettyMonth(month)}`);
+        const done = await deliverCsv(exportFileName('expenses', { name, designation, employeeCode }, month), expensesCsv(statement), `${name} · Expenses · ${prettyMonth(month)}`);
+        if (done) setMsg({ key: month, tone: 'info', text: done });
       }
     } catch (err) {
       setMsg({ key: month, tone: 'danger', text: errorText(err) });

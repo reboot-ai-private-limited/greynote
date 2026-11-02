@@ -12,7 +12,10 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { CardSection, IconChip, InfoCard, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { useDoctorPicker } from '@/hooks/use-doctor-picker';
 import { useFormErrors } from '@/hooks/use-form-errors';
+import { listAllTeamDoctors, type TeamDoctor } from '@/lib/added-doctors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { withdrawRequest } from '@/lib/marketing';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
@@ -53,7 +56,8 @@ const errorText =(err: unknown) =>
 
 /**
  * Doctor Services (PRD §6.2): ask for a service for one of your doctors — a tour package, a gift, an online
- * promotion or something else — with the amount. One approval: your manager or Admin (2026-10-23). Requests are saved on
+ * promotion or something else — with the amount. A manager may also pick a doctor of anyone in their team (2026-11-02).
+ * The request goes to your own manager, or to Admin if you have none; one approval is enough. Requests are saved on
  * the phone and sent when there is a connection.
  */
 export default function ServicesScreen() {
@@ -72,8 +76,20 @@ export default function ServicesScreen() {
   const fe = useFormErrors(FIELD_ORDER);
   const [reasons, setReasons] = useState<Record<string, string>>({});
 
-  const doctors = master.data?.doctors ?? [];
-  const doctorName = (id: string) => doctors.find((d) => d.id === id)?.name ?? 'Doctor';
+  // A manager may ask for a service for a doctor of anyone in their team too (docs/mobile/service-requests.md rule 1); an MR, only their own.
+  const { isManager } = useCurrentUser();
+  const team = useCachedFetch<TeamDoctor[]>('services-team-doctors', isManager ? listAllTeamDoctors : async () => []);
+  const own = master.data?.doctors ?? [];
+  const doctors = [
+    ...own.map((d) => ({ id: d.id, name: d.name, subtitle: d.address, photoUrl: d.photoUrl })),
+    ...(team.data ?? [])
+      .filter((t) => !own.some((d) => d.id === t.id))
+      .map((t) => ({ id: t.id, name: t.name, subtitle: t.assignedTo ? `${t.assignedTo.name} (${t.assignedTo.employeeCode})` : (t.clinicName ?? t.specialty), photoUrl: t.photoUrl })),
+  ];
+  const doctorName = (id: string) => doctors.find((d) => d.id === id)?.name ?? picker.find(id)?.name ?? 'Doctor';
+  // The form's picker reads the server page by page as the employee types; the doctors above are its offline stand-in.
+  const cachedOptions = [...doctors].sort((a, b) => a.name.localeCompare(b.name));
+  const picker = useDoctorPicker(isManager, cachedOptions);
   const unsent = records.filter((r) => !r.deleted && r.status !== 'SYNCED').reverse();
   // The list from the server says whether each approved service was carried out; the offline snapshot is the fallback.
   const list = useCachedFetch<ServiceView[]>('doctor-services', listMyServices, records.filter((r) => r.status === 'SYNCED').length);
@@ -197,15 +213,21 @@ export default function ServicesScreen() {
         <CardSection icon={sym('stethoscope', 'medical_services')} accent="indigo" title="Doctor">
           <FormField form={fe} name="doctor">
             <OutletPicker
-              label="Doctor"
-              options={[...doctors].sort((a, b) => a.name.localeCompare(b.name)).map((d) => ({ id: d.id, name: d.name, subtitle: d.address, photoUrl: d.photoUrl }))}
+              label={isManager ? 'Doctor or MR' : 'Doctor'}
+              options={picker.options}
+              onSearch={picker.search}
+              onEndReached={picker.more}
+              loading={picker.loading}
+              selectedOption={picker.find(doctorId)}
+              searchPlaceholder={isManager ? 'Search a doctor or an MR' : 'Search a doctor'}
               value={doctorId}
               onChange={(id) => {
                 setDoctorId(id);
                 fe.clear('doctor');
               }}
               disabled={busy !== null}
-              emptyText="No doctors are assigned to you yet."
+              emptyText={isManager ? 'No doctors are assigned to you or your team yet.' : 'No doctors are assigned to you yet.'}
+              searchable
               avatars
             />
           </FormField>

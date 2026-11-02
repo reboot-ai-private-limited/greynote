@@ -15,7 +15,7 @@ import type { Accent } from '@/constants/theme';
  */
 export type FeatureKey =
   | 'daily-plan' | 'monthly-plan' | 'dr-call' | 'dr-followup' | 'chemist-call' | 'chemist-followup'
-  | 'doctors' | 'missed-calls' | 'expenses' | 'leave' | 'summary'
+  | 'doctors' | 'chemists' | 'missed-calls' | 'expenses' | 'leave' | 'summary'
   | 'orders' | 'visuals' | 'targets' | 'secondary-sales' | 'gifts' | 'services' | 'products'
   | 'inbox' | 'my-requests' | 'holidays' | 'financial-year';
 
@@ -55,6 +55,7 @@ export const FEATURES: Feature[] = [
   { key: 'chemist-call', title: 'Chemist Call', subtitle: 'Log a chemist visit', accent: 'green', section: 'DCR', gate: 'plan', stage: 4, route: '/chemist-call', icon: icon('cross.case', 'local_pharmacy'), about: 'Log a visit to a chemist. Your location is checked against the chemist’s.' },
   { key: 'chemist-followup', title: 'Chemist Followup', subtitle: 'Pending chemist followups', accent: 'lime', section: 'DCR', gate: 'plan', stage: 4, route: '/chemist-followup', icon: icon('text.bubble.fill', 'forum'), about: 'Add a follow-up note on a chemist.' },
   { key: 'doctors', title: 'Doctors', subtitle: 'Your doctors, and add a new one', accent: 'purple', section: 'DCR', gate: 'none', stage: 4, route: '/doctors', icon: icon('person.2', 'groups'), about: 'Every doctor assigned to you, and the ones you added that wait for approval. Add a new doctor from here.' },
+  { key: 'chemists', title: 'Chemists', subtitle: 'Add a chemist, see your added ones', accent: 'green', section: 'DCR', gate: 'none', stage: 4, route: '/chemists', icon: icon('cross.case', 'local_pharmacy'), about: 'Add a chemist with your location; your manager or Admin approves it. See the ones you added and where each stands.' },
   { key: 'missed-calls', title: 'Missed Calls', subtitle: 'Planned but not visited', accent: 'red', section: 'DCR', gate: 'none', stage: 4, route: '/missed-calls', icon: icon('phone.arrow.down.left', 'phone_missed'), about: 'Your doctors’ monthly visit targets against the calls you made.' },
   { key: 'expenses', title: 'Expenses', subtitle: 'Add daily allowance & bills', accent: 'amber', section: 'Utility', gate: 'none', stage: 4, route: '/expenses', icon: icon('indianrupeesign.circle', 'payments'), about: 'Your month of TA, DA and other costs. Send it after the month ends; your manager approves it.' },
   { key: 'leave', title: 'Leave', subtitle: 'Apply or view leave', accent: 'pink', section: 'Utility', gate: 'none', stage: 4, route: '/leave', icon: icon('beach.umbrella', 'beach_access'), about: 'See your balances and request leave. Still available while your account is blocked.' },

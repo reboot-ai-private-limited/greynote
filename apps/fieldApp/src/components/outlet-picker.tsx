@@ -14,8 +14,15 @@ export type OutletOption = { id: string; name: string; subtitle?: string; disabl
 type Props = {
   label: string;
   options: OutletOption[];
-  value: string | null;
-  onChange: (id: string) => void;
+  value?: string | null;
+  onChange?: (id: string) => void;
+  /**
+   * Several choices at once (the routes of a Tour Plan day): give `values` and `onChangeValues` instead of `value` and `onChange`. The
+   * sheet stays open while rows are ticked and closes with Done; the closed field lists the chosen names.
+   */
+  multiple?: boolean;
+  values?: string[];
+  onChangeValues?: (ids: string[]) => void;
   disabled?: boolean;
   /** Shown when `options` is empty — say why (no plan routes, nothing synced yet…). */
   emptyText: string;
@@ -23,6 +30,17 @@ type Props = {
   searchable?: boolean;
   /** Doctors: each option shows its photo, or its initials. */
   avatars?: boolean;
+  /**
+   * The list is searched by the caller (the server), not here: `onSearch` is called with the text about 300 ms after the last
+   * key, and `options` are shown as given. `onEndReached` loads the next page, `loading` shows a note under the list.
+   */
+  onSearch?: (text: string) => void;
+  onEndReached?: () => void;
+  loading?: boolean;
+  /** The chosen option, shown in the closed field even when the current search no longer lists it. */
+  selectedOption?: OutletOption | null;
+  /** The search box's placeholder (default "Search"). */
+  searchPlaceholder?: string;
 };
 
 /** A search box is only worth its space once the list is longer than this. */
@@ -34,7 +52,7 @@ const SEARCH_FROM = 6;
  * optional search and the options. The chosen option is marked with a tick and the primary colour, never a
  * filled background, so the form around it keeps its look.
  */
-export function OutletPicker({ label, options, value, onChange, disabled, emptyText, searchable, avatars }: Props) {
+export function OutletPicker({ label, options, value = null, onChange, multiple, values = [], onChangeValues, disabled, emptyText, searchable, avatars, onSearch, onEndReached, loading, selectedOption, searchPlaceholder }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
@@ -45,9 +63,19 @@ export function OutletPicker({ label, options, value, onChange, disabled, emptyT
   const [slide] = useState(() => progress.interpolate({ inputRange: [0, 1], outputRange: [Dimensions.get('window').height, 0] }));
   const [query, setQuery] = useState('');
   const [keyboard, setKeyboard] = useState(0);
-  const chosen = options.find((o) => o.id === value) ?? null;
+  const chosen = options.find((o) => o.id === value) ?? (selectedOption?.id === value ? selectedOption : null);
+  const chosenMany = multiple ? options.filter((o) => values.includes(o.id)) : [];
   const needle = query.trim().toLowerCase();
-  const shown = needle ? options.filter((o) => `${o.name} ${o.subtitle ?? ''}`.toLowerCase().includes(needle)) : options;
+  // With `onSearch` the caller has already searched; otherwise the list is filtered here.
+  const shown = needle && !onSearch ? options.filter((o) => `${o.name} ${o.subtitle ?? ''}`.toLowerCase().includes(needle)) : options;
+
+  // Tell the caller what was typed once the typing pauses.
+  useEffect(() => {
+    if (!onSearch || !open) return;
+    const timer = setTimeout(() => onSearch(query.trim()), 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new query should search again
+  }, [query, open]);
 
   // A Modal does not resize for the keyboard, so lift the sheet by hand.
   useEffect(() => {
@@ -94,9 +122,19 @@ export function OutletPicker({ label, options, value, onChange, disabled, emptyT
           pressed && { backgroundColor: theme.backgroundElement },
           disabled && styles.disabled,
         ]}>
-        {avatars && chosen ? <DoctorAvatar name={chosen.name} photoUrl={chosen.photoUrl} size={36} /> : null}
+        {avatars && chosen && !multiple ? <DoctorAvatar name={chosen.name} photoUrl={chosen.photoUrl} size={36} /> : null}
         <View style={styles.flex}>
-          {chosen ? (
+          {multiple ? (
+            chosenMany.length > 0 ? (
+              <ThemedText type="default" numberOfLines={2}>
+                {chosenMany.map((o) => o.name).join(', ')}
+              </ThemedText>
+            ) : (
+              <ThemedText type="default" themeColor="placeholder">
+                Select…
+              </ThemedText>
+            )
+          ) : chosen ? (
             <>
               <ThemedText type="default" numberOfLines={1}>
                 {chosen.name}
@@ -135,22 +173,22 @@ export function OutletPicker({ label, options, value, onChange, disabled, emptyT
               </ThemedText>
               <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={12} onPress={close}>
                 <ThemedText type="small" themeColor="primary">
-                  Close
+                  {multiple ? 'Done' : 'Close'}
                 </ThemedText>
               </Pressable>
             </View>
 
-            {options.length === 0 ? (
+            {options.length === 0 && !onSearch ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
                 {emptyText}
               </ThemedText>
             ) : (
               <>
-                {searchable || options.length > SEARCH_FROM ? (
+                {searchable || onSearch || options.length > SEARCH_FROM ? (
                   <TextInput
                     value={query}
                     onChangeText={setQuery}
-                    placeholder="Search"
+                    placeholder={searchPlaceholder ?? 'Search'}
                     placeholderTextColor={theme.placeholder}
                     autoCorrect={false}
                     autoCapitalize="none"
@@ -163,20 +201,36 @@ export function OutletPicker({ label, options, value, onChange, disabled, emptyT
                   keyExtractor={(o) => o.id}
                   keyboardShouldPersistTaps="handled"
                   style={styles.list}
+                  onEndReached={onEndReached}
+                  onEndReachedThreshold={0.5}
                   ListEmptyComponent={
-                    <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-                      No match.
-                    </ThemedText>
+                    loading ? null : (
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
+                        {onSearch ? (query.trim() ? 'No doctor matches' : emptyText) : 'No match.'}
+                      </ThemedText>
+                    )
+                  }
+                  ListFooterComponent={
+                    loading ? (
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
+                        Loading…
+                      </ThemedText>
+                    ) : null
                   }
                   renderItem={({ item }) => {
-                    const selected = item.id === value;
+                    const selected = multiple ? values.includes(item.id) : item.id === value;
                     return (
                       <Pressable
-                        accessibilityRole="button"
-                        accessibilityState={{ selected, disabled: item.disabled }}
+                        accessibilityRole={multiple ? 'checkbox' : 'button'}
+                        accessibilityState={{ selected, checked: multiple ? selected : undefined, disabled: item.disabled }}
                         disabled={item.disabled}
                         onPress={() => {
-                          onChange(item.id);
+                          if (multiple) {
+                            // Tick or untick and stay open, so several can be chosen; the list keeps the order the options came in.
+                            onChangeValues?.(selected ? values.filter((v) => v !== item.id) : [...values, item.id]);
+                            return;
+                          }
+                          onChange?.(item.id);
                           close();
                         }}
                         android_ripple={{ color: theme.backgroundElement }}

@@ -15,7 +15,7 @@ import { CardSection, InfoCard, Pill, StatusBanner, SummaryStrip, sym } from '@/
 import { Spacing, type Accent } from '@/constants/theme';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError, NetworkError } from '@/lib/api';
-import { shareCsv } from '@/lib/csv';
+import { deliverCsv } from '@/lib/csv';
 import {
   STATUS_TEXT,
   SUBMIT_LATE_TEXT,
@@ -288,7 +288,8 @@ export default function ExpensesScreen() {
     if (!statement) return;
     setBusy(true);
     try {
-      await shareCsv(exportFileName('expenses', { name: me?.name, employeeCode: me?.employeeCode }, statement.month), expensesCsv(statement), `Expenses · ${prettyMonth(statement.month)}`);
+      const done = await deliverCsv(exportFileName('expenses', { name: me?.name, employeeCode: me?.employeeCode }, statement.month), expensesCsv(statement), `Expenses · ${prettyMonth(statement.month)}`);
+      if (done) setMsg({ tone: 'success', text: done });
     } catch (err) {
       setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Couldn’t make the file. Please try again.' });
     } finally {
@@ -336,7 +337,7 @@ export default function ExpensesScreen() {
               { label: 'Other', value: formatRupees(statement.totals.otherPaise), accent: 'purple' },
             ]}
           />
-          {statement.days.length > 0 ? <PrimaryButton label="Download expenses (CSV)" variant="text" disabled={busy} onPress={downloadMonth} /> : null}
+          {statement.days.length > 0 ? <PrimaryButton label="Open, share or download expenses (CSV)" variant="text" disabled={busy} onPress={downloadMonth} /> : null}
           {statement.submittedTotals && statement.submittedTotals.totalPaise !== statement.totals.totalPaise ? (
             <Notice tone="warning">{`It was ${formatRupees(statement.submittedTotals.totalPaise)} when you sent it — TA/DA changed since.`}</Notice>
           ) : null}

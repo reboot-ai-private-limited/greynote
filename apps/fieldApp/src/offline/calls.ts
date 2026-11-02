@@ -18,7 +18,8 @@ export type CallPayload = {
   reportDate: string;
   doctorId?: string;
   chemistId?: string;
-  workWith: string[];
+  /** A doctor call only: a chemist call has no Work With (2026-11-02), and an old queued one that still has it is ignored by the server. */
+  workWith?: string[];
   remarks: string | null;
   capturedLocation: GeoPoint | null;
   accuracyMeters: number | null;
@@ -45,6 +46,15 @@ export type NewDoctorPayload = {
   anniversary?: string | null;
   visitFrequency?: number | null;
   /** The phone's GPS at the time — required, and becomes the registered location until Admin corrects it. */
+  location: GeoPoint;
+};
+
+/** A chemist the MR adds (docs/mobile/chemists.md section 2): created pending, decided by the manager or Admin. The sync `clientId` is the server's `clientRequestId`. */
+export type NewChemistPayload = {
+  routeId: string;
+  name: string;
+  address: string;
+  /** The phone's GPS at the time — required. */
   location: GeoPoint;
 };
 
@@ -96,8 +106,8 @@ export async function notAtLocationReason(registered: GeoPoint | null, fix: GpsF
 
 /** Keeps a call (or follow-up) as a DRAFT of the day. It joins the report at Final Submission, which is what talks to the server. */
 export const saveCall = (
-  kind: CallKind | FollowupKind | 'EXPENSE' | 'NEW_DOCTOR',
-  payload: CallPayload | FollowupPayload | ExpensePayload | NewDoctorPayload,
+  kind: CallKind | FollowupKind | 'EXPENSE' | 'NEW_DOCTOR' | 'NEW_CHEMIST',
+  payload: CallPayload | FollowupPayload | ExpensePayload | NewDoctorPayload | NewChemistPayload,
   existing?: OutboxRecord,
 ) =>
   existing ? updateRecord(existing.clientId, payload) : createRecord(kind, payload);
