@@ -38,6 +38,19 @@ export class CallChecks {
     return doctor;
   }
 
+  /**
+   * An active Doctor in the requester's own scope, for a Doctor Service (2026-11-02): one the person is assigned to, or one assigned to
+   * anyone below them in the team. So an MR asks for their own doctors, a manager for their team's, whatever the designation.
+   */
+  async serviceDoctor(userId: string, doctorId: string): Promise<Doctor> {
+    const doctor = await this.master.getDoctor(doctorId);
+    if (!doctor || doctor.status !== 'active') throw new LogRefusal(LOG_CODES.doctorNotFound, 'This doctor isn’t on the list any more.');
+    if (await this.master.isAssignedToDoctor(userId, doctorId)) return doctor;
+    const assigned = await this.master.getAssignedUserId(doctorId);
+    if (assigned !== null && (await this.users.getDownline(userId)).some((u) => u.id === assigned)) return doctor;
+    throw new LogRefusal(LOG_CODES.doctorNotAssigned, 'This doctor is not yours or your team’s, so a service can’t be requested for them.');
+  }
+
   /** An active Chemist on a Route the MR still has. */
   async chemist(userId: string, chemistId: string): Promise<Chemist> {
     const chemist = await this.master.getChemist(chemistId);
