@@ -3,6 +3,7 @@ import { datesInMonth, weekdayName } from '@/offline/day';
 import { rupeesCell, toCsv } from './csv';
 import { STATUS_TEXT, type ExpenseStatement } from './expense-months';
 import { routeNamesText, workingTypeLabel, type MonthlyPlanEntry, type NamedRoute } from './planning';
+import { slug } from './slug';
 
 /**
  * The CSV layouts the app downloads, shared by the employee's own screens and a manager's view of someone in their team, so both
@@ -45,9 +46,6 @@ export function expensesCsv(statement: ExpenseStatement): string {
   return toCsv(['Date', 'TA (₹)', 'DA (₹)', 'Other (₹)', 'Other details', 'Day total (₹)'], rows);
 }
 
-/** Lower case `a-z` and `0-9` joined by single hyphens; accents fold to the plain letter, anything else is dropped (`Zoë D'Souza` → `zoe-d-souza`). */
-const slug = (s: string | null | undefined) =>
-  (s ?? '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
 /**
  * File names carry whose and which month: `rahul-roy-mr-tour-plan-2026-11-emp03.csv` (docs/mobile/monthlyplan.md rule 22).

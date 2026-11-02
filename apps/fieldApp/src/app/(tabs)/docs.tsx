@@ -13,9 +13,13 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { CardSection, InfoCard, Pill, RowCard, SummaryStrip, sym } from '@/components/ui-cards';
 import { BottomTabInset, Spacing, WideContentWidth, type Accent } from '@/constants/theme';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { CATEGORY_LABEL, listMyDocuments, listMyPayslips, type CompanyDocument, type DocumentCategory, type MyPayslip } from '@/lib/docs';
 import { useFinancialYear } from '@/lib/financial-year';
+import { saveTextFile } from '@/lib/csv';
 import { formatRupees } from '@/lib/money';
+import { logoDataUri } from '@/lib/brand-logo-data';
+import { payslipFileName, payslipHtml } from '@/lib/payslip-html';
 import { formatSize } from '@/lib/proof-picker';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
@@ -65,6 +69,26 @@ async function downloadDocument(url: string, setMsg: (text: string | null) => vo
 /** One payslip opened: earnings, deductions, gross and net. The phone adds nothing up itself; the server did. */
 function SlipView({ slip, onBack }: { slip: MyPayslip; onBack: () => void }) {
   const s = slip.slip;
+  const me = useCurrentUser();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
+
+  // The slip as a file on the phone, laid out like the web's salary slip with the logo inside it. It is built from what is on screen, so
+  // it also works offline; the phone asks which folder to save it in.
+  const download = async () => {
+    setMsg(null);
+    setBusy(true);
+    try {
+      const fileName = payslipFileName(me, slip.month);
+      const folder = await saveTextFile(fileName, payslipHtml(slip, me, await logoDataUri()), 'text/html');
+      if (folder) setMsg({ tone: 'success', text: `Saved ${fileName} in ${folder}. Open it in your browser; it can be printed to PDF from there.` });
+    } catch (err) {
+      setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Couldn’t save the payslip. Please try again.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <View style={styles.stack}>
       <InfoCard>
@@ -102,7 +126,9 @@ function SlipView({ slip, onBack }: { slip: MyPayslip; onBack: () => void }) {
           ))
         )}
       </CardSection>
-      <PrimaryButton label="Back to payslips" variant="text" onPress={onBack} />
+      {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+      <PrimaryButton label="Download payslip" loading={busy} onPress={download} />
+      <PrimaryButton label="Back to payslips" variant="text" disabled={busy} onPress={onBack} />
     </View>
   );
 }

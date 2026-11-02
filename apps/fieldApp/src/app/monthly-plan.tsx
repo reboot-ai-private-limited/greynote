@@ -21,7 +21,7 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useTheme } from '@/hooks/use-theme';
-import { shareCsv } from '@/lib/csv';
+import { deliverCsv } from '@/lib/csv';
 import { exportFileName, tourPlanCsv } from '@/lib/exports';
 import {
   EDITABLE,
@@ -408,14 +408,15 @@ export default function MonthlyPlanScreen() {
     });
     setDownloading(true);
     try {
-      await shareCsv(exportFileName('tour-plan', { name: me?.name, employeeCode: me?.employeeCode }, month), csv, `Tour Plan · ${prettyMonth(month)}`);
+      const done = await deliverCsv(exportFileName('tour-plan', { name: me?.name, employeeCode: me?.employeeCode }, month), csv, `Tour Plan · ${prettyMonth(month)}`);
+      if (done) setMsg({ tone: 'success', text: done });
     } catch (err) {
       setMsg({ tone: 'danger', text: err instanceof Error ? err.message : 'Couldn’t make the file. Please try again.' });
     } finally {
       setDownloading(false);
     }
   };
-  const download = existing ? <PrimaryButton label="Download Tour Plan (CSV)" variant="text" loading={downloading} onPress={downloadPlan} /> : null;
+  const download = existing ? <PrimaryButton label="Open, share or download Tour Plan (CSV)" variant="text" loading={downloading} onPress={downloadPlan} /> : null;
   const approval = <PlanApprovalSteps status={status} rejection={rejection} approval={detail?.approval ?? null} timeZone={timeZone} />;
   const dayWise = (
     <View style={styles.dayWise}>
