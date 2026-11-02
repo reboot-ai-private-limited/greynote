@@ -31,6 +31,10 @@ The same check runs when an exception is used, and a locked period counts as hav
 
 `/api/late-grants`: `GET /kinds`, `GET /preview?userId&kind&periodKey` (is the period still open, and why not), `POST /`, `GET /` (filters `userId`, `kind`, `month`, `status`), `POST /:id/revoke`. Admin, HR and Accountant read all; a field user reads their own and their team's. `/planning/late-grants` and `/field-activity/expense-grants` are the older shapes over the same store.
 
+### Bulk
+
+`POST /api/late-grants/bulk` `{ userIds (1–500), kind, periodKey, reason, expiresAt? }` → `{ granted[], skipped[{ userId, code, reason }] }`. The period, financial year and end time are checked once up front (a bad request is a `400`, nothing written). Then each employee goes through exactly the single grant's rules; one who can't be granted is skipped, not failed: `GRANT_PERIOD_LOCKED` (payroll/expenses settled), `ALREADY_OPEN`, `NOT_ELIGIBLE` (unknown, inactive or not field staff), `FORBIDDEN` (a manager's grant outside their team, or managers not allowed for this kind). Any other error stops the batch. `GET /api/late-grants/eligible?scope=all|team&managerId=` lists the active field employees a shortcut stands for (Admin: everyone, or one team; a manager: their own team).
+
 ## Enforcement points
 
 `PlanSubmitter` (plans), `ExpenseMonthService` (send / approve), `assertMonthOpenForEntry` and `RecordMonthlyStockUseCase` (stock and secondary). Each asks for a usable exception only after the deadline has passed.

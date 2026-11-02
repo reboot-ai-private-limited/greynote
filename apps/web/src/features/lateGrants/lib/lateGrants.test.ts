@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildGrant, zonedToIso } from './lateGrants';
+import { buildBulkGrant, buildGrant, zonedToIso } from './lateGrants';
 
 describe('zonedToIso', () => {
   it('reads the time in the business zone, not the browser’s', () => {
@@ -60,5 +60,28 @@ describe('buildGrant for the other kinds', () => {
       expect(buildGrant({ ...base, kind, periodKey: '2026-10' }, 'UTC', now).ok).toBe(true);
       expect(buildGrant({ ...base, kind, periodKey: '2026-10-05' }, 'UTC', now).ok).toBe(false);
     }
+  });
+});
+
+describe('buildBulkGrant', () => {
+  const now = new Date('2026-11-02T00:00:00Z');
+  const form = { userIds: ['u1', 'u2', 'u1'], kind: 'MONTHLY_PLAN' as const, periodKey: '2026-10', reason: ' Outage ', expiresAt: '' };
+
+  it('sends each employee once, with the same trimmed fields', () => {
+    expect(buildBulkGrant(form, 'UTC', now)).toEqual({
+      ok: true,
+      body: { userIds: ['u1', 'u2'], kind: 'MONTHLY_PLAN', periodKey: '2026-10', reason: 'Outage' },
+    });
+  });
+  it('wants at least one employee, and not more than the server takes', () => {
+    expect(buildBulkGrant({ ...form, userIds: [] }, 'UTC', now)).toMatchObject({ ok: false, errors: { userIds: expect.any(String) } });
+    const many = Array.from({ length: 501 }, (_, i) => `u${i}`);
+    expect(buildBulkGrant({ ...form, userIds: many }, 'UTC', now)).toMatchObject({ ok: false, errors: { userIds: expect.any(String) } });
+  });
+  it('reports the shared fields’ problems together with a missing list', () => {
+    expect(buildBulkGrant({ ...form, userIds: [], reason: '', periodKey: '' }, 'UTC', now)).toMatchObject({
+      ok: false,
+      errors: { userIds: expect.any(String), reason: expect.any(String), periodKey: expect.any(String) },
+    });
   });
 });

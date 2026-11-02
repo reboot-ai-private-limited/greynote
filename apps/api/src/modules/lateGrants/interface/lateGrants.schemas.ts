@@ -30,3 +30,14 @@ export const previewLateQuerySchema = z.object({
   kind: z.enum(LATE_GRANT_KINDS),
   periodKey: z.string().trim().min(1),
 });
+
+export const bulkGrantLateBodySchema = grantLateBodySchema.omit({ userId: true }).extend({
+  userIds: z.array(objectIdSchema).min(1, 'Choose at least one employee.').max(500, 'At most 500 employees at a time.'),
+});
+
+const eligibleBaseSchema = z.object({
+  scope: z.enum(['all', 'team']),
+  managerId: objectIdSchema.optional(),
+});
+export const eligibleQuerySchema = eligibleBaseSchema.refine((q) => q.scope === 'all' || q.managerId !== undefined, { message: 'Say whose team.', path: ['managerId'] });
+export { eligibleBaseSchema };

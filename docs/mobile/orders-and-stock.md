@@ -2,6 +2,8 @@
 
 What the field app must do for orders, and what to **remove**: the *Monthly stock* tab. The server is the authority. The phone app is another team's and cannot be changed from this repo, so this note is the contract. Decision: decision-log 2026-10-12 (orders, secondary, targets, services).
 
+**Changed 2026-11-02:** the stock deadline can be lifted per employee by an exception (web). No phone change needed. See [`../LLD/lateGrants.md`](../LLD/lateGrants.md).
+
 **Status key:** ✅ built on the server. 📱 the phone still has to do it.
 **Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - orders show "Information only" for a chemist order with no Done or Cancel, Done or Cancel for a distributor order (**Done is withdrawn 2026-10-27**, see "Invoices"); the **Monthly stock tile is removed** (the `MONTHLY_STOCK` sync kind is kept in the queue code as the doc asks).
 
@@ -26,6 +28,7 @@ The *Monthly stock* tab (opening / closing counts per chemist and distributor) i
 - Hide the tab and stop creating new `MONTHLY_STOCK` records. Stock for distributors is now an **Admin statement** on the web (opening + primary − secondary = closing), and an employee's secondary is entered on the web (or the phone's secondary screen, see [`secondary-and-targets.md`](secondary-and-targets.md)).
 - The server still **accepts** `MONTHLY_STOCK` sync records, so a build that has not been updated yet does not break; they are no longer needed. Do not delete the sync kind from the app's queue code until every phone has updated.
 - Chemist stock counts are not used in any figure.
+- The server still enforces the stock deadline (`MONTHLY_STOCK_DEADLINE_DAY`) on those records; after it, only Admin, a reopened month or an employee given a stock exception (web, [`../LLD/lateGrants.md`](../LLD/lateGrants.md)) is let in (`MONTH_CLOSED`).
 
 ## 3. Refs
 

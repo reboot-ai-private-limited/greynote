@@ -13,4 +13,6 @@ export interface UserDirectoryPort {
   /** Nearest Higher Manager first, then everyone above. */
   getManagerChain(userId: string): Promise<DirectoryUser[]>;
   getDownline(managerId: string): Promise<DirectoryUser[]>;
+  /** Every active field employee. */
+  listActiveFieldUserIds(): Promise<string[]>;
 }

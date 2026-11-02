@@ -1,4 +1,4 @@
-import type { GrantLateDto, LateGrantDto, LateGrantKindDto, LateGrantKindInfoDto, LateGrantPreviewDto, LateGrantStatusDto, PaginatedDto } from '@greynote/contracts';
+import type { BulkGrantLateDto, BulkGrantLateResultDto, EligibleEmployeesDto, GrantLateDto, LateGrantDto, LateGrantKindDto, LateGrantKindInfoDto, LateGrantPreviewDto, LateGrantStatusDto, PaginatedDto } from '@greynote/contracts';
 import { request } from '../client';
 
 export interface ListLateGrantsQuery {
@@ -18,5 +18,7 @@ export const lateGrantsApi = {
   preview: (token: string, query: { userId: string; kind: LateGrantKindDto; periodKey: string }, signal?: AbortSignal) =>
     request<LateGrantPreviewDto>('/late-grants/preview', { token, query, signal }),
   grant: (token: string, body: GrantLateDto) => request<LateGrantDto>('/late-grants', { method: 'POST', token, body }),
+  bulk: (token: string, body: BulkGrantLateDto) => request<BulkGrantLateResultDto>('/late-grants/bulk', { method: 'POST', token, body }),
+  eligible: (token: string, query: { scope: 'all' | 'team'; managerId?: string }) => request<EligibleEmployeesDto>('/late-grants/eligible', { token, query }),
   revoke: (token: string, id: string) => request<LateGrantDto>(`/late-grants/${id}/revoke`, { method: 'POST', token }),
 };
