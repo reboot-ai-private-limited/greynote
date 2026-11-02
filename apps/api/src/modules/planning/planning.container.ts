@@ -41,7 +41,8 @@ import type { ConfigProviderPort } from './domain/configProvider.port.js';
 import type { RouteDirectoryPort } from './domain/routeDirectory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import { MongoDailyPlanAdapter } from './infrastructure/mongoDailyPlan.adapter.js';
-import { MongoLateSubmitGrantAdapter } from './infrastructure/mongoLateSubmitGrant.adapter.js';
+import { LateGrantsPlanAdapter } from './infrastructure/lateGrantsPlanAdapter.js';
+import type { LateGrantsPublicContract } from '@/modules/lateGrants/lateGrants.public.js';
 import { MongoMonthlyPlanAdapter } from './infrastructure/mongoMonthlyPlan.adapter.js';
 import { makePlanningControllers } from './interface/planning.controller.js';
 import { buildPlanningRouter } from './interface/planning.route.js';
@@ -70,11 +71,12 @@ export function buildPlanningContainer(
   approvals: ApprovalsPort,
   sync: SyncPublicContract,
   config: ConfigProviderPort,
+  lateGrants: LateGrantsPublicContract,
 ): PlanningContainer {
   // 1. Adapters
   const dailyPlans = new MongoDailyPlanAdapter();
   const monthlyPlans = new MongoMonthlyPlanAdapter();
-  const grants = new MongoLateSubmitGrantAdapter();
+  const grants = new LateGrantsPlanAdapter(lateGrants);
   const transactions = new MongooseTransactionRunner();
 
   // 2. Use cases

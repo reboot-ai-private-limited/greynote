@@ -17,7 +17,7 @@ describe('buildGrant', () => {
   const form = {
     userId: 'u1',
     kind: 'MONTHLY_PLAN' as const,
-    planKey: '2026-11',
+    periodKey: '2026-11',
     reason: ' Joined late ',
     expiresAt: '',
   };
@@ -25,7 +25,7 @@ describe('buildGrant', () => {
   it('builds a request without expiresAt when none is picked', () => {
     expect(buildGrant(form, 'Asia/Kolkata', now)).toEqual({
       ok: true,
-      body: { userId: 'u1', kind: 'MONTHLY_PLAN', planKey: '2026-11', reason: 'Joined late' },
+      body: { userId: 'u1', kind: 'MONTHLY_PLAN', periodKey: '2026-11', reason: 'Joined late' },
     });
   });
   it('sends the picked end as an instant', () => {
@@ -34,7 +34,7 @@ describe('buildGrant', () => {
   });
   it('flags a missing employee, reason, a month typed as a day, and a past end', () => {
     const built = buildGrant(
-      { ...form, userId: '', reason: ' ', planKey: '2026-11-05', expiresAt: '2026-10-01T10:00' },
+      { ...form, userId: '', reason: ' ', periodKey: '2026-11-05', expiresAt: '2026-10-01T10:00' },
       'UTC',
       now,
     );
@@ -43,9 +43,22 @@ describe('buildGrant', () => {
       errors: {
         userId: expect.any(String),
         reason: expect.any(String),
-        planKey: expect.any(String),
+        periodKey: expect.any(String),
         expiresAt: expect.any(String),
       },
     });
+  });
+});
+
+describe('buildGrant for the other kinds', () => {
+  const now = new Date('2026-11-02T00:00:00Z');
+  const base = { userId: 'u1', reason: 'x', expiresAt: '' };
+  it('wants a date for a daily plan and a month for the rest', () => {
+    expect(buildGrant({ ...base, kind: 'DAILY_PLAN', periodKey: '2026-11-02' }, 'UTC', now).ok).toBe(true);
+    expect(buildGrant({ ...base, kind: 'DAILY_PLAN', periodKey: '2026-11' }, 'UTC', now).ok).toBe(false);
+    for (const kind of ['EXPENSE_SUBMIT', 'EXPENSE_APPROVE', 'MONTHLY_STOCK', 'SECONDARY_SALES'] as const) {
+      expect(buildGrant({ ...base, kind, periodKey: '2026-10' }, 'UTC', now).ok).toBe(true);
+      expect(buildGrant({ ...base, kind, periodKey: '2026-10-05' }, 'UTC', now).ok).toBe(false);
+    }
   });
 });

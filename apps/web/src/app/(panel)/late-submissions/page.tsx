@@ -1,5 +1,5 @@
-import { LateSubmissionsScreen } from '@/features/planning/components/LateSubmissionsScreen';
+import { LateGrantsScreen } from '@/features/lateGrants/components/LateGrantsScreen';
 
 export default function LateSubmissionsPage() {
-  return <LateSubmissionsScreen />;
+  return <LateGrantsScreen />;
 }

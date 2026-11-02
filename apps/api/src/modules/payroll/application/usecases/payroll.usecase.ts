@@ -1,3 +1,4 @@
+import { appEvents } from '@/shared/events/appEvents.js';
 import { logger } from '@/shared/logging/logger.js';
 import { assertTimeZone, businessDate } from '@/shared/time/businessTime.js';
 import { readConfig, readDayStart, type ConfigReader } from '@/shared/config/readConfig.js';
@@ -198,6 +199,7 @@ export class FinalizePayrollUseCase {
     if (!run) throw new PayrollRefusal(PAYROLL_CODES.runNotFound, 'No such payroll run.');
     await this.clock.assertMonthOpen(run.month);
     if (!(await this.runs.finalize(id, this.clock.now(), by))) throw new PayrollRefusal(PAYROLL_CODES.alreadyFinalized, 'This payroll run is already finalized.');
+    appEvents.emit('period.settled', { userId: run.userId, month: run.month, source: 'PAYROLL' });
     return (await this.runs.findById(id)) ?? run;
   }
 }

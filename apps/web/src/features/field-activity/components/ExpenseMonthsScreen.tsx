@@ -25,8 +25,8 @@ import { monthLabel } from '@/features/payroll/lib/payroll';
 import { useExpenseOverview, usePayExpenses } from '../hooks/useExpenses';
 import { canFinalize, overviewTotals, STAGE_LABEL, STAGE_TONE } from '../lib/expenseMonths';
 import { FinalizeDialog } from './FinalizeDialog';
-import { GrantLateExpenseDialog } from './GrantLateExpenseDialog';
-import { LateExpensesScreen } from './LateExpensesScreen';
+import { GrantLateDialog } from '@/features/lateGrants/components/GrantLateDialog';
+import { LateGrantsScreen } from '@/features/lateGrants/components/LateGrantsScreen';
 import { payoutMonths } from '../lib/payouts';
 
 /**
@@ -164,7 +164,7 @@ export function ExpenseMonthsScreen() {
           </TabsList>
         </Tabs>
       ) : null}
-      {tab === 'late' && isAdmin ? <LateExpensesScreen embedded /> : null}
+      {tab === 'late' && isAdmin ? <LateGrantsScreen embedded groups={['Expenses']} /> : null}
       {tab === 'late' && isAdmin ? null : months.length === 0 ? (
         <Card>
           <p className="p-6 text-sm text-text-muted">This financial year has not started yet, so there are no expenses.</p>
@@ -196,7 +196,7 @@ export function ExpenseMonthsScreen() {
           </Card>
         </>
       )}
-      {allowing && allowing.lateNeeded ? <GrantLateExpenseDialog onClose={() => setAllowing(null)} initial={{ userId: allowing.userId, month, phase: allowing.lateNeeded }} /> : null}
+      {allowing && allowing.lateNeeded ? <GrantLateDialog onClose={() => setAllowing(null)} groups={['Expenses']} initial={{ userId: allowing.userId, periodKey: month, kind: allowing.lateNeeded === 'SUBMIT' ? 'EXPENSE_SUBMIT' : 'EXPENSE_APPROVE' }} /> : null}
       {paying ? (
         <Dialog
           open

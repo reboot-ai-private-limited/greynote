@@ -93,6 +93,18 @@ describe('monthly stock', () => {
     expect(stock.rows.size).toBe(0);
   });
 
+  it('after the deadline, a late-grant for that employee and month lets them in — only them, only that month', async () => {
+    now = new Date('2026-10-06T00:00:01+05:30');
+    const allowed = new Set(['mr1:MONTHLY_STOCK:2026-09']);
+    const late = { hasUsable: async (u: string, k: string, m: string) => allowed.has(`${u}:${k}:${m}`) };
+    const withLate = new RecordMonthlyStockUseCase(new OutletAccess(master), master, stock, clock(), undefined, late);
+    const input = { outlet: { type: 'CHEMIST', id: 'chem1' } as Outlet, month: '2026-09', lines: [line()] };
+    await withLate.execute(mr1, input);
+    expect(stock.rows.size).toBe(1);
+    expect(await code(withLate.execute(mr1, { ...input, month: '2026-08' }))).toBe(STOCK_CODES.monthClosed);
+    expect(await code(withLate.execute({ id: 'mr2', role: 'FIELD' }, input))).not.toBeNull();
+  });
+
   it('accepts through the deadline day of the next month', async () => {
     now = new Date('2026-10-05T23:59:00+05:30');
     await record.execute(mr1, { outlet: { type: 'CHEMIST', id: 'chem1' }, month: '2026-09', lines: [line()] });

@@ -99,7 +99,6 @@ export const keys = {
     month: (id: string) => [...keys.expenses.all(), 'month', id] as const,
     overview: (month: string) => [...keys.expenses.all(), 'overview', month] as const,
     review: (userId: string, month: string) => [...keys.expenses.all(), 'review', userId, month] as const,
-    grants: (query: object) => [...keys.expenses.all(), 'grants', query] as const,
   },
   reports: {
     all: () => ['reports', fy()] as const,
