@@ -7,8 +7,6 @@ import { makeHrSource } from './application/syncSnapshot.js';
 import { HolidayCalendar } from './application/holidayCalendar.js';
 import { PlanOffDays } from './application/planOffDays.js';
 import { LeaverLeaves } from './application/leaverLeaves.js';
-import { ExpireLateLeaves } from './application/expireLateLeaves.js';
-import { LeaveApprovalCutoff } from './application/leaveApprovalCutoff.js';
 import { LeaveLock, type PayrollFinalizedCheck } from './application/leaveLock.js';
 import { Probation } from './application/probation.js';
 import { HrCalendar } from './application/hrCalendar.js';
@@ -39,7 +37,6 @@ import { DEFAULT_LEAVE_TYPES } from './domain/leaveType.entity.js';
 import type { TerritoryPort } from './domain/territory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
-import { MongoLeaveApprovalGrantAdapter } from './infrastructure/mongoLeaveApprovalGrant.adapter.js';
 import { MongoHolidayAdapter } from './infrastructure/mongoHoliday.adapter.js';
 import { MongoLeaveAdapter } from './infrastructure/mongoLeave.adapter.js';
 import { MongoLeaveBalanceAdapter } from './infrastructure/mongoLeaveBalance.adapter.js';
@@ -55,7 +52,6 @@ export interface HrContainer {
   /** Adds the starting leave types that are missing — `pnpm seed`, never on boot. */
   seed: () => Promise<void>;
   /** Rejects leaves that began without an approval, freeing their balance. Returns how many. Run by the server on an interval. */
-  expireLateLeaves: () => Promise<number>;
   /** Payroll sits above HR, so the composition root hands HR the question "is this month's salary finalized?" once Payroll exists. */
   bindPayrollLock(check: PayrollFinalizedCheck): void;
 }
@@ -81,9 +77,7 @@ export function buildHrContainer(
   // decision, in the approval module's transaction.
   const leaveLock = new LeaveLock(config);
   const calendar = new HrCalendar(config);
-  const grants = new MongoLeaveApprovalGrantAdapter();
-  const cutoff = new LeaveApprovalCutoff(leaves, grants, calendar, config);
-  approvals.registerKind({ kind: 'LEAVE', finalApproverRoles: ['HR', 'ADMIN'], onStatusChange: makeLeaveLedger(leaves, balanceRepository, leaveLock, cutoff) });
+  approvals.registerKind({ kind: 'LEAVE', finalApproverRoles: ['HR', 'ADMIN'], onStatusChange: makeLeaveLedger(leaves, balanceRepository, leaveLock) });
 
   // 2. Use cases
   const holidayCalendar = new HolidayCalendar(holidays, territory);
@@ -165,13 +159,11 @@ export function buildHrContainer(
             list: new ListLeavesUseCase(leaves, leaveViews),
             get: new GetLeaveUseCase(leaves, users, leaveViews),
             proof: new LeaveProof(leaves, leaveTypes, new CloudinaryProofStorage()),
-            cutoff,
           }),
         ),
       );
       return router;
     },
-    expireLateLeaves: () => new ExpireLateLeaves(leaves, grants, approvals, calendar).execute(),
     seed: () => leaveTypes.seed(DEFAULT_LEAVE_TYPES),
     bindPayrollLock: (check) => leaveLock.bind(check),
   };

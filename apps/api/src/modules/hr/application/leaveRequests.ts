@@ -98,12 +98,9 @@ export class LeaveRequests {
     // Half-day leave was removed (2026-10-05); old records keep theirs, a new request never has one.
     if (input.half) throw AppError.badRequest('Half-day leave is not available. Request whole days.', { field: 'half' });
 
-    // When (sign-off F11, F15): not further back than the limit, inside the current leave year
-    // or the next, and not across a leave-year boundary.
-    const [today, backdate, schedule] = await Promise.all([this.calendar.today(), this.calendar.backdateDays(), this.calendar.weeklyOffSchedule()]);
-    if (input.startDate < addDays(today, -backdate)) {
-      throw AppError.badRequest(`Leave can start at most ${backdate} days back.`, { field: 'startDate' });
-    }
+    // When: a leave may be dated in the past (2026-11-02); what stops it is a finalized salary for that month (LeaveLock, below). It must sit
+    // inside the current leave year or the next, and not across a leave-year boundary.
+    const [today, schedule] = await Promise.all([this.calendar.today(), this.calendar.weeklyOffSchedule()]);
     const [thisYear, year, endYear] = await Promise.all([
       this.calendar.leaveYearOf(today),
       this.calendar.leaveYearOf(input.startDate),

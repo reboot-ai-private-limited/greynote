@@ -2578,3 +2578,11 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Decision (owner):** employees add Chemists from the phone with their location, like Doctors: created `pending`, approved by the manager or Admin. A manager may add only while new setting `MANAGER_CAN_ADD_CHEMISTS` is on (default off). It is separate from `MANAGER_CAN_ADD_DOCTORS`. Both flags are now sent in `GET /config/public` (`managerCanAddDoctors`, `managerCanAddChemists`) so the phone can hide the button; this closes the server side of gap A2/C in `docs/mobile/field-app-gaps.md`.
 
 **Consequences:** new `NEW_CHEMIST` approval kind and sync record kind; Chemist gains a `pending` status, `addedBy`, `clientRequestId`, `capturedLocation`, `approvedAt`. Pending Chemists are invisible to calls, orders and stock until approved. The phone work is the field-app team's; the contract is in `docs/mobile/chemists.md`.
+
+## 2026-11-02 — Leave can be requested and approved for past dates; only a finalized salary stops it
+
+**Decision (owner):** an employee may apply for leave on past dates, and a manager or HR may approve it after its first day. The only stop is the payslip: once an employee's salary for that month is finalized, the leave cannot be requested, edited, approved or reopened (`PAYROLL_FINALIZED`, unchanged).
+
+**Reverses:** the 2026-10-12 rules that a leave cannot start in the past (`LEAVE_BACKDATE_DAYS` 0) and can only be approved until its first day.
+
+**Consequences:** removed the approval cutoff, the Admin late-approval exception (`/hr/leaves/:id/approval-grant`, the web button, `LATE_LEAVE_GRANT_*`), the auto-reject job and the `LEAVE_BACKDATE_DAYS` setting. A past date still has to be inside the current or next leave year (the earlier leave year is closed) and an open financial year. Only a finalized salary locks the month; a draft does not, so HR regenerates the draft to pick a late leave up. The phone's sync field `leaveBackdateDays` stays, fixed at 366, so older builds still work. The phone work (drop the "today or later" date limit, drop the late-approval messages) is the field-app team's: [`mobile/leave.md`](mobile/leave.md).

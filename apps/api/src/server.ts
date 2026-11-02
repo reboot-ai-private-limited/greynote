@@ -13,7 +13,6 @@ const PROMOTION_CHECK_MS = 60 * 60 * 1000;
  * (`DAY_START_TIME`); the rest of the time it finds nothing new. Safe to run at any time and from several servers (one open block per user).
  */
 /** How often pending leaves that have already begun are rejected. Idempotent; the first day rolls over at `DAY_START_TIME`. */
-const LATE_LEAVE_CHECK_MS = 30 * 60 * 1000;
 const MISSED_DCR_CHECK_MS = 15 * 60 * 1000;
 /** How often managers are told about new and overdue requests. Each request is announced once, so a short interval only means a short delay. */
 const TEAM_ALERTS_MS = 5 * 60 * 1000;
@@ -38,7 +37,6 @@ async function start() {
                 (err: unknown) => logger.error({ err }, 'access revocations not restored'),
             );
             jobs.push(startIntervalJob('apply-due-promotions', PROMOTION_CHECK_MS, () => identity.applyDuePromotions()));
-            jobs.push(startIntervalJob('expire-late-leaves', LATE_LEAVE_CHECK_MS, () => hr.expireLateLeaves()));
             jobs.push(startIntervalJob('missed-dcr-check', MISSED_DCR_CHECK_MS, async () => {
                 const run = await fieldActivity.runMissedDcrCheck();
                 // `blocked` holds only people blocked by this run (already-blocked ones are counted apart); tell their managers.
