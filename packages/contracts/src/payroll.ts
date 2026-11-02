@@ -19,6 +19,9 @@ export interface PayrollDayDto {
   deductedDays: number;
   leaveType: string | null;
 }
+/** What HR can make a day at payroll: charges 0, 0, 1, 0.5 and 1 days of pay in this order. */
+export const DAY_OUTCOMES = ['PRESENT', 'PAID_LEAVE', 'UNPAID_LEAVE', 'HALF_DAY', 'ABSENT'] as const;
+export type DayOutcomeDto = (typeof DAY_OUTCOMES)[number];
 /** What HR (or Admin) changed on a draft: a day charged differently, or an amount added or taken off. */
 export interface PayrollAdjustmentDto {
   id: string;
@@ -28,19 +31,31 @@ export interface PayrollAdjustmentDto {
   setDays: number | null;
   /** The effect on the net, signed (a day not charged adds a day of pay). */
   amountPaise: number;
+  /** AMOUNT: its name on the slip (Bonus, Penalty…); absent or null on entries from before 2026-11-02 (shown as "Adjustment"). */
+  label?: string | null;
+  /** AMOUNT cut by days: the days of pay it took off. */
+  days?: number | null;
+  /** DAY: what the day was made; absent on older entries. */
+  outcome?: DayOutcomeDto | null;
   reason: string;
   by: { id: string; name: string; role: string };
   at: string;
 }
 export interface OverridePayrollDayDto {
   date: string;
-  /** Days of pay to charge for the day: 0, 0.5 or 1. */
-  setDays: number;
+  /** What the day should be. Send this or `setDays`. */
+  outcome?: DayOutcomeDto;
+  /** The older form: days of pay to charge for the day, 0, 0.5 or 1. */
+  setDays?: number;
   reason: string;
 }
 export interface AdjustPayrollAmountDto {
-  /** Signed whole paise, never zero: positive adds to the net, negative takes off. */
-  amountPaise: number;
+  /** Signed whole paise, never zero: positive adds to the net, negative takes off. Send this or `cutDays`. */
+  amountPaise?: number;
+  /** Cut this many days of pay (halves), priced base ÷ the month's days. */
+  cutDays?: number;
+  /** What the line is called on the slip: Bonus, Penalty… */
+  label: string;
   reason: string;
 }
 export interface PayPayrollDto {
@@ -85,6 +100,8 @@ export interface PayrollRunDto {
   month: string;
   /** Monthly gross when generated: the CTC less the employer's EPF/ESI, ÷ 12, frozen. */
   baseSalaryPaise: number;
+  /** The days a day's pay is `base ÷` — the month's length (28–31); runs from before 2026-11-02 are 30. */
+  payDays: number;
   /** The annual CTC and the month its revision started; `null` on runs from before CTC existed. */
   ctcAnnualPaise: number | null;
   ctcEffectiveFrom: string | null;
@@ -96,11 +113,11 @@ export interface PayrollRunDto {
   reimbursementPaise: number;
   /** Approved unpaid leave days in the month, halves allowed. */
   unpaidLeaveDays: number;
-  /** `unpaid days × base ÷ 30`, rounded half up once and frozen. */
+  /** `unpaid days × base ÷ payDays`, rounded half up once and frozen. */
   leaveDeductionPaise: number;
   /** Days charged as absent (and strike days while that is switched on); 0 on runs from before 2026-10-07 and while absent days are not deducted. */
   absentDays: number;
-  /** `absent days × base ÷ 30`, rounded half up once and frozen. */
+  /** `absent days × base ÷ payDays`, rounded half up once and frozen. */
   absentDeductionPaise: number;
   /** `base − leave deduction − absent deduction + adjustments` (older runs also add TA/DA and reimbursement). */
   netPayablePaise: number;

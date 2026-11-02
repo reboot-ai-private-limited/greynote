@@ -1,4 +1,4 @@
-import type { PayrollRunDto } from './payroll.js';
+import type { PayrollAdjustmentDto, PayrollDayDto, PayrollRunDto } from './payroll.js';
 
 export interface SlipLine {
   label: string;
@@ -25,7 +25,7 @@ export const monthlyOf = (annualPaise: number): number => Math.floor((annualPais
  * professional tax first (each line as it was frozen, a nil one too), then unpaid leave, absent days and HR's adjustments. A run from before CTC existed has no lines, so it is one "Salary" line.
  * Runs from before TA/DA moved to their own payout also show those as earnings paid in the month.
  */
-export function payslipOf(run: Pick<PayrollRunDto, 'ctcLines' | 'deductionLines' | 'statutoryDeductionPaise' | 'roundingPaise' | 'baseSalaryPaise' | 'totalTaDaPaise' | 'reimbursementPaise' | 'leaveDeductionPaise' | 'unpaidLeaveDays' | 'absentDays' | 'absentDeductionPaise' | 'netPayablePaise'> & { adjustmentPaise?: number }): Payslip {
+export function payslipOf(run: Pick<PayrollRunDto, 'ctcLines' | 'deductionLines' | 'statutoryDeductionPaise' | 'roundingPaise' | 'baseSalaryPaise' | 'totalTaDaPaise' | 'reimbursementPaise' | 'leaveDeductionPaise' | 'unpaidLeaveDays' | 'absentDays' | 'absentDeductionPaise' | 'netPayablePaise'> & { adjustmentPaise?: number; adjustments?: readonly Pick<PayrollAdjustmentDto, 'kind' | 'amountPaise' | 'label' | 'days'>[] }): Payslip {
   const earnings: SlipLine[] = run.ctcLines.filter((l) => l.kind === 'EARNING').map((l) => ({ label: l.name, amountPaise: monthlyOf(l.amountPaise) }));
   if (earnings.length === 0) earnings.push({ label: 'Salary', amountPaise: run.baseSalaryPaise });
   const lineSum = earnings.reduce((n, l) => n + l.amountPaise, 0);
@@ -40,12 +40,45 @@ export function payslipOf(run: Pick<PayrollRunDto, 'ctcLines' | 'deductionLines'
   if (run.leaveDeductionPaise > 0) deductions.push({ label: `Unpaid leave (${run.unpaidLeaveDays} ${run.unpaidLeaveDays === 1 ? 'day' : 'days'})`, amountPaise: run.leaveDeductionPaise });
   if (run.absentDeductionPaise > 0) deductions.push({ label: `Absent (${run.absentDays} ${run.absentDays === 1 ? 'day' : 'days'})`, amountPaise: run.absentDeductionPaise });
   // HR's adjustments (decision-log 2026-10-13): a plus is shown with the earnings, a minus with the deductions.
+  // 2026-11-02: each named amount is its own line (a plus with the earnings, a minus with the deductions); what days HR changed and amounts
+  // without a name (older entries) are one line each, so the lines still add up to the run's adjustment total.
   const adjustment = run.adjustmentPaise ?? 0;
-  if (adjustment > 0) earnings.push({ label: 'Adjustment', amountPaise: adjustment });
-  if (adjustment < 0) deductions.push({ label: 'Adjustment', amountPaise: -adjustment });
+  let named = 0;
+  for (const a of run.adjustments ?? []) {
+    if (a.kind !== 'AMOUNT' || !a.label) continue;
+    named += a.amountPaise;
+    const label = a.days ? `${a.label} (${a.days} ${a.days === 1 ? 'day' : 'days'})` : a.label;
+    if (a.amountPaise > 0) earnings.push({ label, amountPaise: a.amountPaise });
+    else deductions.push({ label, amountPaise: -a.amountPaise });
+  }
+  const rest = adjustment - named;
+  const restLabel = run.adjustments && run.adjustments.some((a) => a.kind === 'DAY') && !run.adjustments.some((a) => a.kind === 'AMOUNT' && !a.label) ? 'Days changed by HR' : 'Adjustment';
+  if (rest > 0) earnings.push({ label: restLabel, amountPaise: rest });
+  if (rest < 0) deductions.push({ label: restLabel, amountPaise: -rest });
   const grossPaise = earnings.reduce((n, l) => n + l.amountPaise, 0);
   const deductionPaise = deductions.reduce((n, l) => n + l.amountPaise, 0);
   return { earnings, deductions, grossPaise, deductionPaise, roundingPaise: run.roundingPaise, netPaise: run.netPayablePaise };
+}
+
+/** The days a day change moves between the unpaid-leave and absent counts: a latest change per date, its charge in the bucket its outcome says. */
+export function slipCountsOf(run: Pick<PayrollRunDto, 'unpaidLeaveDays' | 'absentDays' | 'payDays'> & { days?: readonly Pick<PayrollDayDto, 'date' | 'status' | 'deductedDays'>[]; adjustments?: readonly Pick<PayrollAdjustmentDto, 'kind' | 'date' | 'setDays' | 'outcome'>[] }): { unpaidLeaveDays: number; absentDays: number; attendedDays: number } {
+  let unpaid = run.unpaidLeaveDays;
+  let absent = run.absentDays;
+  const latest = new Map<string, Pick<PayrollAdjustmentDto, 'kind' | 'date' | 'setDays' | 'outcome'>>();
+  for (const a of run.adjustments ?? []) if (a.kind === 'DAY' && a.date) latest.set(a.date, a);
+  for (const [date, a] of latest) {
+    const day = run.days?.find((d) => d.date === date);
+    if (!day || a.setDays === null) continue;
+    // Where the rules had counted the day: leave days in the unpaid bucket, the rest in absent; then where HR's outcome counts it.
+    if (day.status === 'LEAVE') unpaid -= day.deductedDays;
+    else absent -= day.deductedDays;
+    const into = a.outcome ? (a.outcome === 'UNPAID_LEAVE' || a.outcome === 'HALF_DAY' ? 'unpaid' : a.outcome === 'ABSENT' ? 'absent' : 'none') : day.status === 'LEAVE' ? 'unpaid' : 'absent';
+    if (into === 'unpaid') unpaid += a.setDays;
+    else if (into === 'absent') absent += a.setDays;
+  }
+  unpaid = Math.max(0, unpaid);
+  absent = Math.max(0, Math.round(absent));
+  return { unpaidLeaveDays: unpaid, absentDays: absent, attendedDays: Math.max(0, run.payDays - unpaid - absent) };
 }
 
 /** A finalized run as the employee's own phone gets it: the run's figures and the slip built from them. */

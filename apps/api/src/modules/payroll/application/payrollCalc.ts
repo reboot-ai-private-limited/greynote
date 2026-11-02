@@ -2,32 +2,39 @@ import { MAX_PAISE, proratePaise, type Paise } from '@/shared/money/paise.js';
 import type { PayrollAdjustment, PayrollDay } from '../domain/payrollRun.entity.js';
 import type { CtcLineSnapshot } from '../domain/ports.js';
 
-/** A month is priced as 30 days whatever its length (HLD 7): more unpaid days than that cannot deduct more than the base. */
-export const DEDUCTION_DAYS = 30;
+/** Runs generated before 2026-11-02 priced every month as 30 days; they carry no `payDays` and read as this. */
+export const LEGACY_PAY_DAYS = 30;
+
+/** The days a month is priced by (decision-log 2026-11-02): its calendar length, so October is ÷31, November ÷30, February ÷28 or ÷29. */
+export function payDaysOf(month: string): number {
+  const m = /^(\d{4})-(\d{2})$/.exec(month);
+  if (!m) throw new RangeError(`Not a month: ${month}`);
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]), 0)).getUTCDate();
+}
 
 /**
- * `unpaidDays × base ÷ 30`, rounded half up to a whole paise once. Unpaid days come in halves (a half-day leave is 0.5);
- * anything else is a fault upstream, not something to round. Days beyond 30 count as 30.
+ * `unpaidDays × base ÷ payDays`, rounded half up to a whole paise once. Unpaid days come in halves (a half-day leave is 0.5);
+ * anything else is a fault upstream, not something to round. Days beyond the month count as the whole month.
  */
-export function leaveDeductionPaise(unpaidDays: number, baseSalaryPaise: Paise): Paise {
+export function leaveDeductionPaise(unpaidDays: number, baseSalaryPaise: Paise, payDays: number = LEGACY_PAY_DAYS): Paise {
   const halves = Math.round(unpaidDays * 2);
   if (!Number.isFinite(unpaidDays) || unpaidDays < 0 || Math.abs(unpaidDays * 2 - halves) > 1e-9) throw new RangeError(`Unpaid days must be whole or half days: ${unpaidDays}`);
-  return proratePaise(baseSalaryPaise, Math.min(halves, DEDUCTION_DAYS * 2), DEDUCTION_DAYS * 2);
+  return proratePaise(baseSalaryPaise, Math.min(halves, payDays * 2), payDays * 2);
 }
 
 /**
  * How many absent days can be charged on top of the unpaid leave: whole days only, and together with the leave never more than a month
- * (30 days), so the deductions never exceed the base.
+ * (`payDays`), so the deductions never exceed the base.
  */
-export function chargeableAbsentDays(unpaidLeaveDays: number, deductibleDays: number): number {
+export function chargeableAbsentDays(unpaidLeaveDays: number, deductibleDays: number, payDays: number = LEGACY_PAY_DAYS): number {
   if (!Number.isFinite(deductibleDays) || deductibleDays < 0 || !Number.isInteger(deductibleDays)) throw new RangeError(`Deductible days must be whole days: ${deductibleDays}`);
-  return Math.min(deductibleDays, Math.max(0, Math.floor(DEDUCTION_DAYS - unpaidLeaveDays)));
+  return Math.min(deductibleDays, Math.max(0, Math.floor(payDays - unpaidLeaveDays)));
 }
 
-/** `days × base ÷ 30`, rounded half up to a whole paise once — an absent day costs what an unpaid-leave day does. */
-export function absentDeductionPaise(days: number, baseSalaryPaise: Paise): Paise {
-  if (!Number.isInteger(days) || days < 0 || days > DEDUCTION_DAYS) throw new RangeError(`Absent days must be whole days from 0 to ${DEDUCTION_DAYS}: ${days}`);
-  return proratePaise(baseSalaryPaise, days, DEDUCTION_DAYS);
+/** `days × base ÷ payDays`, rounded half up to a whole paise once — an absent day costs what an unpaid-leave day does. */
+export function absentDeductionPaise(days: number, baseSalaryPaise: Paise, payDays: number = LEGACY_PAY_DAYS): Paise {
+  if (!Number.isInteger(days) || days < 0 || days > payDays) throw new RangeError(`Absent days must be whole days from 0 to ${payDays}: ${days}`);
+  return proratePaise(baseSalaryPaise, days, payDays);
 }
 
 /**
@@ -51,12 +58,12 @@ export function monthlyGrossPaise(lines: readonly CtcLineSnapshot[]): Paise {
 
 /**
  * What setting a day to `setDays` instead of the `ruleDays` the rules gave does to the net: not charging an absent day adds a day of pay,
- * charging a worked day takes one off. A day is `base ÷ 30`, rounded half up once; halves come out of the same rounding.
+ * charging a worked day takes one off. A day is `base ÷ payDays`, rounded half up once; halves come out of the same rounding.
  */
-export function dayAdjustmentPaise(baseSalaryPaise: Paise, ruleDays: number, setDays: number): number {
+export function dayAdjustmentPaise(baseSalaryPaise: Paise, ruleDays: number, setDays: number, payDays: number = LEGACY_PAY_DAYS): number {
   const halves = Math.round((setDays - ruleDays) * 2);
   if (halves === 0) return 0;
-  const amount = proratePaise(baseSalaryPaise, Math.abs(halves), DEDUCTION_DAYS * 2);
+  const amount = proratePaise(baseSalaryPaise, Math.abs(halves), payDays * 2);
   return halves > 0 ? -amount : amount;
 }
 
@@ -65,7 +72,7 @@ export function dayAdjustmentPaise(baseSalaryPaise: Paise, ruleDays: number, set
  * date counts for nothing; the rules' own charge for the day is read from the run's days as they are now (a regenerated draft may differ), so a
  * day change keeps meaning "charge this day X" whatever the rules say later.
  */
-export function adjustmentEffects(baseSalaryPaise: Paise, days: readonly PayrollDay[], adjustments: readonly PayrollAdjustment[]): { totalPaise: number; effects: Map<string, number> } {
+export function adjustmentEffects(baseSalaryPaise: Paise, days: readonly PayrollDay[], adjustments: readonly PayrollAdjustment[], payDays: number = LEGACY_PAY_DAYS): { totalPaise: number; effects: Map<string, number> } {
   const latest = new Map<string, string>();
   for (const a of adjustments) if (a.kind === 'DAY' && a.date) latest.set(a.date, a.id);
   const effects = new Map<string, number>();
@@ -75,7 +82,7 @@ export function adjustmentEffects(baseSalaryPaise: Paise, days: readonly Payroll
     if (a.kind === 'AMOUNT') effect = a.amountPaise;
     else if (a.date && latest.get(a.date) === a.id && a.setDays !== null) {
       const rule = days.find((d) => d.date === a.date)?.deductedDays ?? a.ruleDays ?? 0;
-      effect = dayAdjustmentPaise(baseSalaryPaise, rule, a.setDays);
+      effect = dayAdjustmentPaise(baseSalaryPaise, rule, a.setDays, payDays);
     }
     effects.set(a.id, effect);
     totalPaise += effect;

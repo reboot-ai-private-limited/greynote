@@ -34,6 +34,7 @@ const run = (status: PayrollRunDto['status']): PayrollRunDto => ({
   employeeCode: 'E',
   month: '2026-09',
   baseSalaryPaise: 100,
+  payDays: 30,
   ctcAnnualPaise: null,
   ctcEffectiveFrom: null,
   ctcLines: [],

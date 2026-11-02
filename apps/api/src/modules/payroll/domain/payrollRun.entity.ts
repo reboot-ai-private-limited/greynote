@@ -23,11 +23,22 @@ export interface PayrollAdjustment {
   ruleDays: number | null;
   setDays: number | null;
   amountPaise: number;
+  /** AMOUNT: what the line is called on the slip (Bonus, Penalty…); `null`/absent on entries from before 2026-11-02, shown as "Adjustment". */
+  label?: string | null;
+  /** AMOUNT cut by days: how many days of pay (halves) it took off; the amount was worked out from it. */
+  days?: number | null;
+  /** DAY: what the day was made — one of `DAY_OUTCOMES`; absent on older entries (only `setDays`). */
+  outcome?: DayOutcome | null;
   reason: string;
   by: string;
   byRole: string;
   at: Date;
 }
+
+/** What HR can make a day at payroll, and the days of pay each charges. */
+export const DAY_OUTCOMES = ['PRESENT', 'PAID_LEAVE', 'UNPAID_LEAVE', 'HALF_DAY', 'ABSENT'] as const;
+export type DayOutcome = (typeof DAY_OUTCOMES)[number];
+export const OUTCOME_CHARGE: Record<DayOutcome, number> = { PRESENT: 0, PAID_LEAVE: 0, UNPAID_LEAVE: 1, HALF_DAY: 0.5, ABSENT: 1 };
 
 export const PAYROLL_STATUSES = ['DRAFT', 'FINALIZED'] as const;
 export type PayrollStatus = (typeof PAYROLL_STATUSES)[number];
@@ -46,6 +57,8 @@ export interface PayrollRun {
    * revision never rewrites it. (Runs from before CTC existed hold the old Pay Band salary here and no CTC fields.)
    */
   baseSalaryPaise: Paise;
+  /** The days a day's pay is `base ÷` (the month's length, 28–31; decision-log 2026-11-02). Runs from before that are 30. */
+  payDays: number;
   /** The annual CTC and the revision's first month it was worked out from; `null` on runs from before CTC existed. */
   ctcAnnualPaise: Paise | null;
   ctcEffectiveFrom: string | null;
@@ -63,10 +76,10 @@ export interface PayrollRun {
   leaveDeductionPaise: Paise;
   /**
    * Days charged as absent: working days with no report, leave or strike (and strike days too while `STRIKE_DEDUCTS_SALARY` is on), only while
-   * `ABSENT_DEDUCTS_SALARY` is on, and together with the unpaid leave never more than 30. `0` on runs from before 2026-10-07.
+   * `ABSENT_DEDUCTS_SALARY` is on, and together with the unpaid leave never more than `payDays`. `0` on runs from before 2026-10-07.
    */
   absentDays: number;
-  /** `absent days × base ÷ 30`, rounded half up once and frozen; `0` on older runs. */
+  /** `absent days × base ÷ payDays`, rounded half up once and frozen; `0` on older runs. */
   absentDeductionPaise: Paise;
   /**
    * The employee's own EPF, ESI and professional tax for the month, one line each, from the CTC's deduction lines (a month at a time,

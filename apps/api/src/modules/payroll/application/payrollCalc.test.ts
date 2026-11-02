@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_PAISE } from '@/shared/money/paise.js';
-import { absentDeductionPaise, chargeableAbsentDays, leaveDeductionPaise, netPayablePaise } from './payrollCalc.js';
+import { absentDeductionPaise, adjustmentEffects, chargeableAbsentDays, dayAdjustmentPaise, leaveDeductionPaise, netPayablePaise, payDaysOf } from './payrollCalc.js';
 
 describe('leaveDeductionPaise — unpaid days × base ÷ 30, half up to a paise once', () => {
   it('no unpaid leave deducts nothing', () => {
@@ -75,5 +75,41 @@ describe('absent days', () => {
     expect(netPayablePaise({ baseSalaryPaise: 3_000_000, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 100_000, absentDeductionPaise: 200_000 })).toBe(2_700_000);
     expect(netPayablePaise({ baseSalaryPaise: 3_000_000, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 0 })).toBe(3_000_000);
     expect(() => netPayablePaise({ baseSalaryPaise: 100, totalTaDaPaise: 0, reimbursementPaise: 0, leaveDeductionPaise: 60, absentDeductionPaise: 60 })).toThrow(RangeError);
+  });
+});
+
+describe('the month’s own length (decision-log 2026-11-02)', () => {
+  it('payDaysOf: October 31, November 30, February 28 or 29 by leap year', () => {
+    expect(payDaysOf('2026-10')).toBe(31);
+    expect(payDaysOf('2026-11')).toBe(30);
+    expect(payDaysOf('2026-02')).toBe(28);
+    expect(payDaysOf('2028-02')).toBe(29);
+    expect(payDaysOf('2100-02')).toBe(28);
+    expect(() => payDaysOf('2026-13x')).toThrow(RangeError);
+  });
+
+  it('a day is base ÷ the month: October ÷31, February ÷28', () => {
+    expect(leaveDeductionPaise(1, 3_100_000, 31)).toBe(100_000);
+    expect(leaveDeductionPaise(0.5, 3_100_000, 31)).toBe(50_000);
+    expect(leaveDeductionPaise(31, 3_100_000, 31)).toBe(3_100_000);
+    expect(leaveDeductionPaise(40, 3_100_000, 31)).toBe(3_100_000);
+    expect(absentDeductionPaise(27, 2_700_000, 31)).toBe(2_351_613); // 27 days of ₹27,000 in October
+    expect(absentDeductionPaise(28, 2_800_000, 28)).toBe(2_800_000);
+    expect(() => absentDeductionPaise(31, 3_000_000, 30)).toThrow(RangeError);
+  });
+
+  it('leave and absent together never pass the month’s length', () => {
+    expect(chargeableAbsentDays(27, 9, 31)).toBe(4);
+    expect(chargeableAbsentDays(27, 9, 30)).toBe(3);
+    expect(chargeableAbsentDays(27, 9)).toBe(3); // no month given: the old 30
+  });
+
+  it('a day change is priced by the same month', () => {
+    expect(dayAdjustmentPaise(3_100_000, 1, 0, 31)).toBe(100_000);
+    expect(dayAdjustmentPaise(2_800_000, 0, 1, 28)).toBe(-100_000);
+    expect(dayAdjustmentPaise(3_100_000, 1, 0.5, 31)).toBe(50_000);
+    const adj = [{ id: 'a', kind: 'DAY' as const, date: '2026-10-05', ruleDays: 1, setDays: 0, amountPaise: 0, reason: 'x', by: 'u', byRole: 'HR', at: new Date() }];
+    const days = [{ date: '2026-10-05', status: 'ABSENT', deductedDays: 1, leaveType: null }];
+    expect(adjustmentEffects(3_100_000, days, adj, 31).totalPaise).toBe(100_000);
   });
 });

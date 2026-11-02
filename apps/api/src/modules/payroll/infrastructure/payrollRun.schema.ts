@@ -6,6 +6,7 @@ export interface PayrollRunDoc {
   userId: Types.ObjectId;
   month: string;
   baseSalaryPaise: number;
+  payDays?: number;
   ctcAnnualPaise: number | null;
   ctcEffectiveFrom: string | null;
   ctcLines: Array<{ code: string; name: string; kind: 'EARNING' | 'DEDUCTION' | 'EMPLOYER_CONTRIBUTION'; amountPaise: number; isOverridden: boolean }>;
@@ -26,7 +27,7 @@ export interface PayrollRunDoc {
   absentDeductionPaise?: number;
   netPayablePaise: number;
   days?: Array<{ date: string; status: string; deductedDays: number; leaveType: string | null }>;
-  adjustments?: Array<{ id: string; kind: 'DAY' | 'AMOUNT'; date: string | null; ruleDays: number | null; setDays: number | null; amountPaise: number; reason: string; by: Types.ObjectId; byRole: string; at: Date }>;
+  adjustments?: Array<{ id: string; kind: 'DAY' | 'AMOUNT'; date: string | null; ruleDays: number | null; setDays: number | null; amountPaise: number; label?: string | null; days?: number | null; outcome?: string | null; reason: string; by: Types.ObjectId; byRole: string; at: Date }>;
   adjustmentPaise?: number;
   originalNetPayablePaise?: number;
   joinedInMonth: boolean;
@@ -60,14 +61,15 @@ const schema = new Schema<PayrollRunDoc>({
   deductionLines: { type: [new Schema({ code: String, name: String, amountPaise: Number }, { _id: false })], default: [] },
   statutoryDeductionPaise: { type: Number, default: 0 },
   roundingPaise: { type: Number, default: 0 },
+  payDays: { type: Number, default: 30, min: 28, max: 31, validate: { validator: Number.isInteger, message: 'Whole days only.' } },
   unpaidLeaveDays: { type: Number, required: true, min: 0, validate: { validator: (v: number) => Number.isInteger(v * 2), message: 'Whole or half days only.' } },
   leaveDeductionPaise: paise,
-  absentDays: { type: Number, default: 0, min: 0, max: 30, validate: { validator: Number.isInteger, message: 'Whole days only.' } },
+  absentDays: { type: Number, default: 0, min: 0, max: 31, validate: { validator: Number.isInteger, message: 'Whole days only.' } },
   absentDeductionPaise: { type: Number, default: 0, min: 0, validate: { validator: isPaise, message: 'Must be a whole number of paise.' } },
   netPayablePaise: paise,
   days: { type: [new Schema({ date: String, status: String, deductedDays: Number, leaveType: { type: String, default: null } }, { _id: false })], default: [] },
   adjustments: {
-    type: [new Schema({ id: String, kind: { type: String, enum: ['DAY', 'AMOUNT'] }, date: { type: String, default: null }, ruleDays: { type: Number, default: null }, setDays: { type: Number, default: null }, amountPaise: Number, reason: String, by: { type: Schema.Types.ObjectId, ref: 'User' }, byRole: String, at: Date }, { _id: false })],
+    type: [new Schema({ id: String, kind: { type: String, enum: ['DAY', 'AMOUNT'] }, date: { type: String, default: null }, ruleDays: { type: Number, default: null }, setDays: { type: Number, default: null }, amountPaise: Number, label: { type: String, default: null }, days: { type: Number, default: null }, outcome: { type: String, default: null }, reason: String, by: { type: Schema.Types.ObjectId, ref: 'User' }, byRole: String, at: Date }, { _id: false })],
     default: [],
   },
   adjustmentPaise: { type: Number, default: 0 },

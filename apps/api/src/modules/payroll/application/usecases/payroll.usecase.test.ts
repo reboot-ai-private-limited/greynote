@@ -138,22 +138,27 @@ describe('payroll', () => {
   it('works out each employee’s sheet: base − one day’s deduction, with no TA/DA or reimbursement in it', async () => {
     const [a, b] = await generate.execute(acct, { month: '2026-10' });
     expect(a).toMatchObject({ userId: 'mr1', outcome: 'created' });
-    expect((a as { run: PayrollRun }).run).toMatchObject({ baseSalaryPaise: 3_000_000, totalTaDaPaise: 0, reimbursementPaise: 0, unpaidLeaveDays: 1, leaveDeductionPaise: 100_000, netPayablePaise: 2_900_000, esiNumber: '12345678901234567', status: 'DRAFT', generatedBy: 'acct' });
+    expect((a as { run: PayrollRun }).run).toMatchObject({ baseSalaryPaise: 3_000_000, totalTaDaPaise: 0, reimbursementPaise: 0, unpaidLeaveDays: 1, leaveDeductionPaise: 96_774, netPayablePaise: 2_903_200, esiNumber: '12345678901234567', status: 'DRAFT', generatedBy: 'acct' });
     expect((b as { run: PayrollRun }).run).toMatchObject({ totalTaDaPaise: 0, leaveDeductionPaise: 0, netPayablePaise: 3_000_000, esiNumber: null }); // no ESI number is normal
+  });
+
+  it('prices the month by its own length and freezes it on the run: October 31', async () => {
+    const [a] = await generate.execute(acct, { month: '2026-10' });
+    expect((a as { run: PayrollRun }).run.payDays).toBe(31);
   });
 
   it('an absent day costs a day of pay on top of the leave, shown on its own and frozen with the run', async () => {
     world.emps.get('mr1')!.deductible = 3; // one unpaid leave day and three absent days
     const [a, b] = await generate.execute(acct, { month: '2026-10' });
-    expect((a as { run: PayrollRun }).run).toMatchObject({ unpaidLeaveDays: 1, leaveDeductionPaise: 100_000, absentDays: 3, absentDeductionPaise: 300_000, netPayablePaise: 2_600_000 });
+    expect((a as { run: PayrollRun }).run).toMatchObject({ unpaidLeaveDays: 1, leaveDeductionPaise: 96_774, absentDays: 3, absentDeductionPaise: 290_323, netPayablePaise: 2_612_900 });
     expect((b as { run: PayrollRun }).run).toMatchObject({ absentDays: 0, absentDeductionPaise: 0, netPayablePaise: 3_000_000 });
   });
 
   it('the unpaid leave and the absent days together never take more than the month', async () => {
-    world.emps.get('mr1')!.unpaid = 28;
+    world.emps.get('mr1')!.unpaid = 29;
     world.emps.get('mr1')!.deductible = 9;
     const [a] = await generate.execute(acct, { month: '2026-10' });
-    expect((a as { run: PayrollRun }).run).toMatchObject({ leaveDeductionPaise: 2_800_000, absentDays: 2, absentDeductionPaise: 200_000, netPayablePaise: 0 });
+    expect((a as { run: PayrollRun }).run).toMatchObject({ leaveDeductionPaise: 2_806_452, absentDays: 2, absentDeductionPaise: 193_548, netPayablePaise: 0 });
   });
 
   it('only a month that has ended can be generated', async () => {
@@ -172,7 +177,7 @@ describe('payroll', () => {
     const [a] = await generate.execute({ id: 'admin', role: 'ADMIN' }, { month: '2026-10' });
     expect(a).toMatchObject({ outcome: 'updated' });
     expect(runs.rows.length).toBe(2);
-    expect(runs.rows[0]).toMatchObject({ leaveDeductionPaise: 200_000, generatedBy: 'admin' });
+    expect(runs.rows[0]).toMatchObject({ leaveDeductionPaise: 193_548, generatedBy: 'admin' });
   });
 
   it('finalizes once; the sheet is then frozen against everything that changes behind it', async () => {
@@ -185,7 +190,7 @@ describe('payroll', () => {
     world.emps.get('mr1')!.esi = '99999999999999999';
     world.emps.get('mr1')!.unpaid = 9;
     expect(await code(generate.execute(acct, { month: '2026-10', userIds: ['mr1'] }))).toBe(PAYROLL_CODES.alreadyFinalized);
-    expect(runs.rows[0]).toMatchObject({ baseSalaryPaise: 3_000_000, netPayablePaise: 2_900_000, esiNumber: '12345678901234567', status: 'FINALIZED' });
+    expect(runs.rows[0]).toMatchObject({ baseSalaryPaise: 3_000_000, netPayablePaise: 2_903_200, esiNumber: '12345678901234567', status: 'FINALIZED' });
     expect(await code(finalize.execute('p1', 'acct'))).toBe(PAYROLL_CODES.alreadyFinalized);
     expect(await code(finalize.execute('nope', 'acct'))).toBe(PAYROLL_CODES.runNotFound);
   });
@@ -324,17 +329,37 @@ describe('payroll', () => {
       const run = await draftOf();
       const before = run.netPayablePaise; // 3,000,000 − 1 leave day − 1 absent day
       const changed = await adjust.overrideDay(hr, run.id, { date: '2026-10-05', setDays: 0, reason: 'Was on duty, report missed' });
-      expect(changed).toMatchObject({ adjustmentPaise: 100_000, netPayablePaise: before + 100_000, originalNetPayablePaise: before });
-      expect(changed.adjustments[0]).toMatchObject({ kind: 'DAY', date: '2026-10-05', ruleDays: 1, setDays: 0, amountPaise: 100_000, reason: 'Was on duty, report missed', by: 'hr1', byRole: 'HR' });
+      expect(changed).toMatchObject({ adjustmentPaise: 96_774, netPayablePaise: before + 96_774, originalNetPayablePaise: before });
+      expect(changed.adjustments[0]).toMatchObject({ kind: 'DAY', date: '2026-10-05', ruleDays: 1, setDays: 0, amountPaise: 96_774, reason: 'Was on duty, report missed', by: 'hr1', byRole: 'HR' });
     });
 
     it('charging a worked day, or half a day, takes pay off; the latest change to a date is the one that counts', async () => {
       const run = await draftOf();
       await adjust.overrideDay(hr, run.id, { date: '2026-10-07', setDays: 1, reason: 'Left early' });
-      expect((await runs.findById(run.id))!.adjustmentPaise).toBe(-100_000);
+      expect((await runs.findById(run.id))!.adjustmentPaise).toBe(-96_774);
       const second = await adjust.overrideDay(admin, run.id, { date: '2026-10-07', setDays: 0.5, reason: 'Only half' });
-      expect(second.adjustmentPaise).toBe(-50_000); // the earlier change to the 7th counts for nothing now
+      expect(second.adjustmentPaise).toBe(-48_387); // the earlier change to the 7th counts for nothing now
       expect(second.adjustments).toHaveLength(2); // but stays on record
+    });
+
+    it('making an absent day Paid leave pays it; a worked day made Absent is cut — both by the outcome, priced ÷31 in October', async () => {
+      const run = await draftOf();
+      const paid = await adjust.overrideDay(hr, run.id, { date: '2026-10-05', outcome: 'PAID_LEAVE', reason: 'Leave was never entered' });
+      expect(paid.adjustments[0]).toMatchObject({ outcome: 'PAID_LEAVE', setDays: 0, amountPaise: 96_774 });
+      const cut = await adjust.overrideDay(hr, run.id, { date: '2026-10-07', outcome: 'ABSENT', reason: 'Not on duty' });
+      expect(cut.adjustmentPaise).toBe(96_774 - 96_774);
+      await expect(adjust.overrideDay(hr, run.id, { date: '2026-10-07', reason: 'No outcome' })).rejects.toMatchObject({ code: PAYROLL_CODES.badDay });
+    });
+
+    it('a named amount keeps its name; a cut of days is priced base ÷ the month and kept with the days', async () => {
+      const run = await draftOf();
+      const bonus = await adjust.addAmount(hr, run.id, { amountPaise: 200_000, label: ' Bonus ', reason: 'Festival' });
+      expect(bonus.adjustments[0]).toMatchObject({ kind: 'AMOUNT', label: 'Bonus', days: null, amountPaise: 200_000 });
+      const cut = await adjust.addAmount(hr, run.id, { cutDays: 1.5, label: 'Penalty', reason: 'Misconduct' });
+      expect(cut.adjustments[1]).toMatchObject({ label: 'Penalty', days: 1.5, amountPaise: -145_161 }); // 1.5 × 3,000,000 ÷ 31
+      expect(cut.adjustmentPaise).toBe(200_000 - 145_161);
+      await expect(adjust.addAmount(hr, run.id, { cutDays: 1, amountPaise: 5, label: 'x', reason: 'both' })).rejects.toMatchObject({ code: PAYROLL_CODES.badDay });
+      await expect(adjust.addAmount(hr, run.id, { cutDays: 0.3, label: 'x', reason: 'bad' })).rejects.toMatchObject({ code: PAYROLL_CODES.badDay });
     });
 
     it('keeps the net the rules gave when a run from before adjustments existed is adjusted', async () => {
@@ -371,8 +396,8 @@ describe('payroll', () => {
       world.emps.get('mr1')!.base = 6_000_000; // a CTC revision: a day is worth more now
       const again = await draftOf();
       expect(again.adjustments).toHaveLength(2);
-      expect(again.adjustmentPaise).toBe(200_000 + 10_000); // the day is worth 200,000 now
-      expect(again.netPayablePaise).toBe(again.originalNetPayablePaise + 210_000);
+      expect(again.adjustmentPaise).toBe(193_548 + 10_000); // the day is worth 193,548 now
+      expect(again.netPayablePaise).toBe(again.originalNetPayablePaise + 203_548);
     });
 
     it('is locked once finalized: no more changes, and only a finalized run can be marked paid, once, by the Accountant', async () => {
@@ -395,7 +420,7 @@ describe('payroll', () => {
       let sheet = await overview.execute(hr, '2026-10');
       expect(sheet).toMatchObject({ month: '2026-10', generateFrom: '2026-11-01', canGenerate: true });
       const row = (id: string) => sheet.rows.find((r) => r.userId === id)!;
-      expect(row('mr1')).toMatchObject({ stage: 'DRAFT', baseSalaryPaise: 3_000_000, absentDays: 1, unpaidLeaveDays: 1, deductionPaise: 200_000, adjustmentPaise: 10_000, netPayablePaise: 2_810_000 });
+      expect(row('mr1')).toMatchObject({ stage: 'DRAFT', baseSalaryPaise: 3_000_000, absentDays: 1, unpaidLeaveDays: 1, deductionPaise: 193_548, adjustmentPaise: 10_000, netPayablePaise: 2_816_500 });
       expect(row('mr2')).toMatchObject({ stage: 'NOT_GENERATED', runId: null, netPayablePaise: null });
       await finalize.execute(run.id, 'acct');
       sheet = await overview.execute(acct, '2026-10');
@@ -423,13 +448,13 @@ describe('payroll', () => {
     world.add('leave', { base: 3_000_000, unpaid: 1, ded: true });
     const [, , o] = await generate.execute(acct, { month: '2026-10' });
     const run = (o as { run: PayrollRun }).run;
-    expect(run.leaveDeductionPaise).toBe(100_000);
+    expect(run.leaveDeductionPaise).toBe(96_774); // October is 31 days
     expect(run.statutoryDeductionPaise).toBe(84_920);
-    expect(run.netPayablePaise).toBe(Math.round((3_000_000 - 84_920 - 100_000) / 100) * 100);
+    expect(run.netPayablePaise).toBe(Math.round((3_000_000 - 84_920 - 96_774) / 100) * 100);
   });
 
   it('never takes more statutory deduction than the pay left after leave and absent days', async () => {
-    world.add('gone', { base: 1_400_000, unpaid: 30, ded: true });
+    world.add('gone', { base: 1_400_000, unpaid: 31, ded: true });
     const [, , o] = await generate.execute(acct, { month: '2026-10' });
     const run = (o as { run: PayrollRun }).run;
     expect(run.leaveDeductionPaise).toBe(1_400_000);

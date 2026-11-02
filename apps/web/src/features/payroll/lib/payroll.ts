@@ -1,4 +1,4 @@
-import type { GenerateOutcomeDto, PayrollRunDto, PayrollSkipReason } from '@greynote/contracts';
+import type { DayOutcomeDto, GenerateOutcomeDto, PayrollRunDto, PayrollSkipReason } from '@greynote/contracts';
 import { rupeesForCsv, toCsv } from '@/lib/csv';
 import { formatMoney } from '@/lib/format';
 import { formatDays } from '@/features/hr/lib/days';
@@ -106,17 +106,17 @@ export function netAddsUp(r: Pick<PayrollRunDto, 'baseSalaryPaise' | 'totalTaDaP
   return r.baseSalaryPaise + r.totalTaDaPaise + r.reimbursementPaise - (r.statutoryDeductionPaise ?? 0) - r.leaveDeductionPaise - r.absentDeductionPaise + (r.roundingPaise ?? 0) + (r.adjustmentPaise ?? 0) === r.netPayablePaise;
 }
 
-/** The absent deduction in words, like the leave deduction: whole days at a thirtieth of the base each. */
-export function absentExplanation(r: Pick<PayrollRunDto, 'absentDays' | 'baseSalaryPaise' | 'absentDeductionPaise'>): string {
+/** The absent deduction in words, like the leave deduction: whole days at the month's share of the base each. */
+export function absentExplanation(r: Pick<PayrollRunDto, 'absentDays' | 'baseSalaryPaise' | 'absentDeductionPaise' | 'payDays'>): string {
   if (r.absentDays === 0) return 'No absent days, so nothing is deducted.';
-  return `${r.absentDays} absent ${r.absentDays === 1 ? 'day' : 'days'} × ${formatMoney(r.baseSalaryPaise)} ÷ 30 = ${formatMoney(r.absentDeductionPaise)} (working days with no report, leave or strike).`;
+  return `${r.absentDays} absent ${r.absentDays === 1 ? 'day' : 'days'} × ${formatMoney(r.baseSalaryPaise)} ÷ ${r.payDays} = ${formatMoney(r.absentDeductionPaise)} (working days with no report, leave or strike).`;
 }
 
-/** The deduction in words: `2.5 unpaid days × ₹30,000.00 ÷ 30 = ₹2,500.00`. A flat 30-day month, by decision, not the calendar's. */
-export function deductionExplanation(r: Pick<PayrollRunDto, 'unpaidLeaveDays' | 'baseSalaryPaise' | 'leaveDeductionPaise'>): string {
+/** The deduction in words: `2.5 unpaid days × ₹30,000.00 ÷ 31 = ₹2,419.35`. The divisor is the month's own length, frozen on the run. */
+export function deductionExplanation(r: Pick<PayrollRunDto, 'unpaidLeaveDays' | 'baseSalaryPaise' | 'leaveDeductionPaise' | 'payDays'>): string {
   if (r.unpaidLeaveDays === 0) return 'No unpaid leave, so nothing is deducted.';
   const days = `${formatDays(r.unpaidLeaveDays)} unpaid ${r.unpaidLeaveDays === 1 ? 'day' : 'days'}`;
-  return `${days} × ${formatMoney(r.baseSalaryPaise)} ÷ 30 = ${formatMoney(r.leaveDeductionPaise)} (rounded to the nearest paisa).`;
+  return `${days} × ${formatMoney(r.baseSalaryPaise)} ÷ ${r.payDays} = ${formatMoney(r.leaveDeductionPaise)} (rounded to the nearest paisa).`;
 }
 
 // ── Generating ─────────────────────────────────────────────────────────────────────────────
@@ -250,12 +250,19 @@ export function latestDayOverrides(run: Pick<PayrollRunDto, 'adjustments'>): Map
   return out;
 }
 
-/** "Absent day not charged: adds ₹1,000.00", "Day charged half: takes off ₹500.00", "Amount added ₹200.00". */
-export function describePayrollAdjustment(a: Pick<PayrollRunDto['adjustments'][number], 'kind' | 'setDays' | 'ruleDays' | 'amountPaise'>): string {
+/** What HR can make a day, as the dialog and the history name it. */
+export const DAY_OUTCOME_LABEL: Record<DayOutcomeDto, string> = { PRESENT: 'Present (not charged)', PAID_LEAVE: 'Paid leave (not charged)', UNPAID_LEAVE: 'Unpaid leave (1 day charged)', HALF_DAY: 'Half day (half a day charged)', ABSENT: 'Absent (1 day charged)' };
+
+/** "Bonus added ₹2,000.00", "Penalty (1.5 days) taken off ₹4,838.71", "Made Paid leave: adds ₹1,000.00". */
+export function describePayrollAdjustment(a: Pick<PayrollRunDto['adjustments'][number], 'kind' | 'setDays' | 'ruleDays' | 'amountPaise'> & { label?: string | null | undefined; days?: number | null | undefined; outcome?: DayOutcomeDto | null | undefined }): string {
   const effect = `${a.amountPaise >= 0 ? 'adds' : 'takes off'} ${formatMoney(Math.abs(a.amountPaise))}`;
-  if (a.kind === 'AMOUNT') return `Amount ${a.amountPaise >= 0 ? 'added' : 'taken off'} ${formatMoney(Math.abs(a.amountPaise))}`;
+  if (a.kind === 'AMOUNT') {
+    const name = a.label ? (a.days ? `${a.label} (${a.days} ${a.days === 1 ? 'day' : 'days'})` : a.label) : 'Amount';
+    return `${name} ${a.amountPaise >= 0 ? 'added' : 'taken off'} ${formatMoney(Math.abs(a.amountPaise))}`;
+  }
   const was = a.ruleDays ?? 0;
   const now = a.setDays ?? 0;
+  if (a.outcome) return `Made ${DAY_OUTCOME_LABEL[a.outcome].replace(/ \(.*\)$/, '')} (rules: ${was === 0 ? 'none charged' : was === 0.5 ? 'half charged' : 'full charged'}): ${effect}`;
   const what = now === 0 ? 'Day not charged' : now === 0.5 ? 'Day charged half' : 'Day charged in full';
   return `${what} (rules: ${was === 0 ? 'none' : was === 0.5 ? 'half' : 'full'}): ${effect}`;
 }
