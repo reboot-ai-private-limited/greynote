@@ -8,6 +8,9 @@ import type { LeaveBalances } from './leaveBalances.js';
 
 export const HR_SYNC_SOURCE = 'hr';
 
+/** The phone's `leaveBackdateDays` field outlived the setting: a leave may start in the past with no fixed limit, so it is the longest a leave year runs. */
+const LEAVE_BACKDATE_DAYS_UNLIMITED = 366;
+
 /**
  * What the MR's phone caches of HR (LLD sync.md, Pull): the active leave types, their own balances for the
  * current leave year, and the holidays that apply to them (National, their HQ's and its Zone's) across that
@@ -27,12 +30,11 @@ export function makeHrSource(deps: {
       const today = await deps.calendar.today();
       const leaveYear = await deps.calendar.leaveYearOf(today);
       const range = await deps.calendar.leaveYearRange(leaveYear);
-      const [types, balances, holidays, weeklyOffSchedule, backdateDays] = await Promise.all([
+      const [types, balances, holidays, weeklyOffSchedule] = await Promise.all([
         deps.leaveTypes.list(),
         deps.balances.views(userId, leaveYear),
         deps.territory.getUserTerritory(userId).then((place) => deps.holidays.listApplicable(range.from, range.to, place)),
         deps.calendar.weeklyOffSchedule(),
-        deps.calendar.backdateDays(),
       ]);
       return {
         leaveYear,
@@ -41,7 +43,8 @@ export function makeHrSource(deps: {
         // The one day off every week, for a phone that only knows a single weekday; the full rules follow.
         weeklyOffDay: everyWeekOffDay(today, weeklyOffSchedule),
         weeklyOffSchedule,
-        leaveBackdateDays: backdateDays,
+        // Past dates are allowed now, down to the leave year's start (the payslip lock decides the rest); the phone still reads this field.
+        leaveBackdateDays: LEAVE_BACKDATE_DAYS_UNLIMITED,
         leaveTypes: types.filter((t) => t.active).map((t) => ({ id: t.id, name: t.name, isPaid: t.isPaid })).sort((a, b) => a.name.localeCompare(b.name)),
         balances: balances
           .map((b) => ({ leaveTypeId: b.leaveTypeId, leaveTypeName: b.leaveTypeName, allocatedDays: b.allocatedDays, usedDays: b.usedDays, pendingDays: b.pendingDays, availableDays: b.availableDays }))

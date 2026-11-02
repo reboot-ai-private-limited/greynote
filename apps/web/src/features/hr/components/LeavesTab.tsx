@@ -2,7 +2,6 @@
 
 import type { LeaveDetailDto } from '@greynote/contracts';
 import Link from 'next/link';
-import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { Column } from '@/components/ui/DataTable';
@@ -10,11 +9,8 @@ import { Input } from '@/components/ui/Input';
 import { PagedListFrame } from '@/components/ui/PagedListFrame';
 import { STATUS_LABEL, STATUS_TONE } from '@/features/approvals/lib/approvals';
 import { EmployeeFilter, EmployeeName } from '@/features/people/components/EmployeePickerField';
-import { istDate } from '@/lib/dates';
-import { useSession } from '@/lib/auth/SessionProvider';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useAllLeaves } from '../hooks/useLeaves';
-import { AllowLateApprovalDialog } from './AllowLateApprovalDialog';
 import { daysLabel, leaveRangeLabel } from '../lib/leave';
 
 /**
@@ -22,9 +18,6 @@ import { daysLabel, leaveRangeLabel } from '../lib/leave';
  * place to approve.
  */
 export function LeavesTab() {
-  const isAdmin = useSession().user?.role === 'ADMIN';
-  const [allowing, setAllowing] = useState<LeaveDetailDto | null>(null);
-  const today = istDate();
   const { values, page, pageSize, update } = useFilterParams(['userId', 'from', 'to']);
   // A range is optional here (the API fills in the selected financial year); only a reversed one is held back.
   const range =
@@ -90,17 +83,6 @@ export function LeavesTab() {
       className: 'w-48 text-right',
       render: (l) => (
         <span className="inline-flex items-center justify-end gap-3">
-          {isAdmin &&
-          l.startDate < today &&
-          (l.status === 'SUBMITTED' || l.status === 'MANAGER_APPROVED') ? (
-            <button
-              type="button"
-              className="text-sm text-accent hover:underline"
-              onClick={() => setAllowing(l)}
-            >
-              Allow late approval
-            </button>
-          ) : null}
           {l.approval ? (
             <Link
               href={`/approvals/${l.approval.requestId}`}
@@ -172,9 +154,6 @@ export function LeavesTab() {
         pageSize={pageSize}
         onPageSizeChange={(n) => update({ pageSize: n })}
       />
-      {allowing ? (
-        <AllowLateApprovalDialog leave={allowing} onClose={() => setAllowing(null)} />
-      ) : null}
     </>
   );
 }
