@@ -39,10 +39,6 @@ export class HrCalendar {
     });
   }
 
-  backdateDays(): Promise<number> {
-    return readConfig(this.config, HR_CONFIG_KEYS.backdateDays, parseDays);
-  }
-
   async today(): Promise<string> {
     return this.dateOf(this.now());
   }

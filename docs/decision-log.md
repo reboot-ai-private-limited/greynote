@@ -2578,3 +2578,23 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Decision (owner):** employees add Chemists from the phone with their location, like Doctors: created `pending`, approved by the manager or Admin. A manager may add only while new setting `MANAGER_CAN_ADD_CHEMISTS` is on (default off). It is separate from `MANAGER_CAN_ADD_DOCTORS`. Both flags are now sent in `GET /config/public` (`managerCanAddDoctors`, `managerCanAddChemists`) so the phone can hide the button; this closes the server side of gap A2/C in `docs/mobile/field-app-gaps.md`.
 
 **Consequences:** new `NEW_CHEMIST` approval kind and sync record kind; Chemist gains a `pending` status, `addedBy`, `clientRequestId`, `capturedLocation`, `approvedAt`. Pending Chemists are invisible to calls, orders and stock until approved. The phone work is the field-app team's; the contract is in `docs/mobile/chemists.md`.
+
+## 2026-11-02 — Leave can be requested and approved for past dates; only a finalized salary stops it
+
+**Decision (owner):** an employee may apply for leave on past dates, and a manager or HR may approve it after its first day. The only stop is the payslip: once an employee's salary for that month is finalized, the leave cannot be requested, edited, approved or reopened (`PAYROLL_FINALIZED`, unchanged).
+
+**Reverses:** the 2026-10-12 rules that a leave cannot start in the past (`LEAVE_BACKDATE_DAYS` 0) and can only be approved until its first day.
+
+**Consequences:** removed the approval cutoff, the Admin late-approval exception (`/hr/leaves/:id/approval-grant`, the web button, `LATE_LEAVE_GRANT_*`), the auto-reject job and the `LEAVE_BACKDATE_DAYS` setting. A past date still has to be inside the current or next leave year (the earlier leave year is closed) and an open financial year. Only a finalized salary locks the month; a draft does not, so HR regenerates the draft to pick a late leave up. The phone's sync field `leaveBackdateDays` stays, fixed at 366, so older builds still work. The phone work (drop the "today or later" date limit, drop the late-approval messages) is the field-app team's: [`mobile/leave.md`](mobile/leave.md).
+
+## 2026-11-02 — Doctor Services are open to every employee, inside their own scope
+
+**Decision (owner):** any employee may request a Doctor Service whatever their designation, not only the assigned MR. The doctor must be in their own scope: an MR's own doctor, or a doctor assigned to anyone below a manager in their team. A request goes to the requester's own manager; the NSM, who has none, goes to Admin. The service counts as the requester's spend, not the doctor's assigned MR's.
+
+**Consequences:** `CallChecks.serviceDoctor` replaces the "assigned to this doctor" check for the `DOCTOR_SERVICE` sync kind only; calls, samples and gifts keep the assignment rule. The refusal code stays `DOCTOR_NOT_ASSIGNED` with a new message. The approval module already sent a manager-less submitter to Admin, so it needed no change. The web Doctor services list still has no "requested by" column; adding one means a `userName` on the list rows. The phone work (let a manager open the form and pick team doctors) is the field-app team's: [`mobile/service-requests.md`](mobile/service-requests.md).
+
+## 2026-11-02 — Files on an employee's monthly secondary
+
+**Decision (owner):** an employee's monthly secondary can carry photos or PDFs as proof of the figures, any number per month, with no cap on how many. Optional: sending the month for approval does not need one.
+
+**Consequences:** each file is its own record (collection `secondaryattachments`) tied to the employee and the month, so two uploads at once never overwrite each other. The kept limits are 5 MB a file and PDF/JPG/PNG, read from the file's own bytes. The employee can add and remove while the month is a draft or rejected; their own files freeze when it is pending or approved. A manager for their team, or Admin, can change them at any status, inside the same month window as the figures. The approver sees the files on the approval card, and the web month grid shows and edits them. New endpoints `POST` and `DELETE /sales/employee-secondary/attachments`, and `attachments[]` on `GET /sales/employee-sales`. Phone work is the field-app team's: [`mobile/secondary-and-targets.md`](mobile/secondary-and-targets.md) section 1b. Files are not removed when an employee is deleted; the reset script and a future cleanup would need to include them.

@@ -23,7 +23,7 @@ accepted on 2026-09-28 (client sign-off F3, F11–F16; `../decision-log.md`).
 
 Not owned here: an employee's HQ is Territory's `UserHqAssignment` (`territory.md`), read through
 Territory's contract; the leave-year start (`FY_START_MONTH`), the weekly off schedule
-(`WEEKLY_OFF_SCHEDULE`, rules per start date: `weekday` + `ALL` or `weeks` 1–5; decision-log 2026-10-28) and the backdating limit (`LEAVE_BACKDATE_DAYS`) are Config keys.
+(`WEEKLY_OFF_SCHEDULE`, rules per start date: `weekday` + `ALL` or `weeks` 1–5; decision-log 2026-10-28) are Config keys. The backdating limit and the approval cutoff were removed on 2026-11-02.
 
 ## Leave year
 
@@ -62,8 +62,8 @@ The financial year, from `FY_START_MONTH` (April): leave year 2026 is 2026-04-01
   holidays that apply to the employee — National, their HQ's and their HQ's Zone's. Half-day leave was removed
   (2026-10-05): every day counts 1, though a leave made earlier as a half keeps counting 0.5. Stored on the Leave at submit, so a later holiday edit doesn't
   rewrite past leave; Payroll's per-month count and the DCR "on leave" check read these days.
-- **Rules:** at least one counted day; start no more than `LEAVE_BACKDATE_DAYS` (default 0: not in the past) days back and
-  within the current leave year (F15), or in the next one; no overlap with the employee's own
+- **Rules:** at least one counted day; start any day back (2026-11-02; only the payroll lock stops a past leave) inside
+  the current leave year (F15), or in the next one; no overlap with the employee's own
   leave that's waiting or approved; paid types need the balance.
 - **A blocked user can still request leave** (PRD §7.5) — unlike Plans — to cover the gap that
   caused the block.
@@ -158,13 +158,10 @@ Territory (`getUserHq`, `getHq`, `getZone`), Approval (the `LEAVE` workflow), Co
 - Notifications around pending leave.
 
 
-## Approval cutoff and the probation switch (2026-10-12)
+## Probation switch (2026-10-12; the approval cutoff here was removed 2026-11-02)
 
 - **Probation is per employee:** `EmployeeProfile.onProbation` (default false, set in the onboarding wizard, editable by HR/Admin). Only when it is true do `probationMonths` / `PROBATION_MONTHS` apply; the software being new does not make existing employees probationers. Everything below under "Probation (2026-10-05)" is unchanged once the switch is on. No migration: a missing field reads as false.
-- **Approval cutoff = the leave's first day:** `LeaveApprovalCutoff.assertMayApprove` runs in the `LEAVE` `onStatusChange` for `MANAGER_APPROVED` and `APPROVED`; if `startDate` is before today it throws `409 LEAVE_APPROVAL_LATE` and the approval rolls back (rejecting and withdrawing are unaffected). `LEAVE_BACKDATE_DAYS` now defaults to 0.
-- **Exception:** `LeaveApprovalGrant` (collection `leaveapprovalgrants`, one OPEN per leave, usable once, ends at `expiresAt`; `LATE_LEAVE_GRANT_VALID_HOURS` 24, `LATE_LEAVE_GRANT_MAX_HOURS` 168). Admin only: `POST` / `DELETE /api/hr/leaves/:id/approval-grant`. Consumed inside the approval transaction, like `ExpenseMonthGrant` and the late Plan grant (B8).
-- **Auto-reject:** `ExpireLateLeaves` (server job every 30 min, `hr.expireLateLeaves`) rejects leaves still `SUBMITTED` / `MANAGER_APPROVED` whose start date has passed, through the approval module's `autoReject` (history entry with authority `AUTO`, comment "Automatic: …"), so the ledger frees the balance. A leave with a usable Admin exception is skipped.
-- **Web:** Admin sees "Allow late approval" on an open, started leave in HR → Leaves.
+- **Superseded 2026-11-02:** the first-day approval cutoff (`LeaveApprovalCutoff`), the Admin exception (`LeaveApprovalGrant`, `/approval-grant`), the auto-reject job (`ExpireLateLeaves`), `LEAVE_BACKDATE_DAYS` and `LATE_LEAVE_GRANT_*` were removed. A past leave can be requested and approved; `LeaveLock` (salary finalized for the month, `LEAVE_LOCKED_AFTER_PAYROLL`) is the only stop. The old `leaveapprovalgrants` collection is left in place, unread.
 - **Not done:** employee cancel of an approved leave.
 
 ## Probation (2026-10-05)

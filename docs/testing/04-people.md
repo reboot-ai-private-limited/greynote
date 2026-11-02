@@ -22,7 +22,7 @@
 | 4.05 | Employee with no joining date | the attendance calendar shows days as "unknown", never absent | |
 | 4.06 | Leave & holidays: leave types, policies, holidays | listed; no half-day | |
 | 4.06a | Onboard an employee with "On probation" ticked, then one without | only the first gets paid leave during probation (K6); the second is never on probation, however recently they joined | |
-| 4.06b | Approve a leave whose first day has passed | refused (`LEAVE_APPROVAL_LATE`); rejecting works; an Admin exception lets it through once; a pending leave whose first day passed turns Rejected by itself (balance freed) | |
+| 4.06b | Request, then approve, a leave whose first day has passed | allowed; it counts and uses the balance; it is not rejected by itself. Once that month's salary is finalized: refused (`PAYROLL_FINALIZED`), both to request and to approve | |
 | 4.06c | Leave & holidays → Holidays → Upload list (Admin or HR): download the template, fill 3 rows, choose the file | a preview lists each row as New; Import adds them | |
 | 4.06d | Holidays (HR): Edit a one-day holiday (change name and date); Edit a range (extend it by a day) | one-day replaced by the new one; the range is replaced whole (every day) with the new span; a Zone holiday with no zone is refused and the old one stays | |
 | 4.06d | Upload a file with one unknown Zone and one bad date | nothing is added; both problems are listed with their line numbers | |

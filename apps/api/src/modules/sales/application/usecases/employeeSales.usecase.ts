@@ -15,6 +15,7 @@ import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import type { SalesApprovalsPort } from '../../domain/approvals.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../outletAccess.js';
+import type { SecondaryAttachmentRepositoryPort } from '../../domain/secondaryAttachment.repository.port.js';
 import type { SalesClock } from '../salesClock.js';
 
 const UNKNOWN = '(removed)';
@@ -24,12 +25,25 @@ const MAX_QTY = 100_000_000;
  * Whose figures the actor may touch: Admin anyone's; a field employee their own and, as a manager, their downline's. The subject must be an
  * active field employee.
  */
-async function assertMayAct(users: UserDirectoryPort, actor: Actor, userId: string): Promise<void> {
+export async function assertMayAct(users: UserDirectoryPort, actor: Actor, userId: string): Promise<void> {
   const [subject] = await users.getUserSummaries([userId]);
   if (!subject || subject.status !== 'active' || subject.role !== 'FIELD') throw new StockRefusal(STOCK_CODES.employeeNotFound, 'That employee does not exist or is not an active field employee.');
   if (actor.role === 'ADMIN' || actor.id === userId) return;
   const downline = actor.role === 'FIELD' ? await users.getDownline(actor.id) : [];
   if (!downline.some((u) => u.id === userId)) throw new StockRefusal(STOCK_CODES.notYourTeam, 'You can only work with your own figures and your team\'s.');
+}
+
+/**
+ * The month must have started, its financial year be open, and (for anyone but Admin) its stock deadline not have passed unless Admin reopened
+ * it. The one window every entry of a month's secondary obeys: the figures and their files.
+ */
+export async function assertMonthOpenForEntry(deps: { clock: SalesClock; stock: MonthlyStockRepositoryPort; config: ConfigReader }, actor: Actor, month: string): Promise<void> {
+  const window = monthWindow(month, deps.clock.now(), await deps.clock.deadlineDay(), await deps.clock.timeZone(), await deps.clock.dayStart());
+  if (window === 'FUTURE') throw new StockRefusal(STOCK_CODES.monthNotStarted, `${month} has not started yet.`);
+  if (window === 'CLOSED' && actor.role !== 'ADMIN' && !(await deps.stock.isUnlocked(month))) {
+    throw new StockRefusal(STOCK_CODES.monthClosed, `The deadline for ${month} has passed. Ask an Admin to reopen it.`);
+  }
+  await assertFinancialYearOpen(deps.config, `${month}-01`, 'This month');
 }
 
 async function assertWhole(master: FieldMasterDataPort, productIds: string[], quantities: number[], min: number): Promise<void> {
@@ -58,12 +72,7 @@ export class SaveEmployeeSecondaryUseCase {
   async execute(actor: Actor, input: { userId: string; month: string; lines: Array<{ productId: string; qty?: number | undefined; amountPaise?: number | undefined }> }): Promise<{ added: number; changed: number }> {
     await assertMayAct(this.users, actor, input.userId);
     const now = this.clock.now();
-    const window = monthWindow(input.month, now, await this.clock.deadlineDay(), await this.clock.timeZone(), await this.clock.dayStart());
-    if (window === 'FUTURE') throw new StockRefusal(STOCK_CODES.monthNotStarted, `${input.month} has not started yet.`);
-    if (window === 'CLOSED' && actor.role !== 'ADMIN' && !(await this.stock.isUnlocked(input.month))) {
-      throw new StockRefusal(STOCK_CODES.monthClosed, `The deadline for ${input.month} has passed. Ask an Admin to reopen it.`);
-    }
-    await assertFinancialYearOpen(this.config, `${input.month}-01`, 'This month');
+    await assertMonthOpenForEntry({ clock: this.clock, stock: this.stock, config: this.config }, actor, input.month);
     const products = new Map((await this.master.listActiveProducts()).map((p) => [p.id, p]));
     const lines = input.lines.map((l) => {
       const product = products.get(l.productId);
@@ -169,6 +178,7 @@ export class ReadEmployeeSalesUseCase {
     private readonly orders: OrderRepositoryPort,
     private readonly clock: SalesClock,
     private readonly approvals?: SalesApprovalsPort,
+    private readonly attachments?: SecondaryAttachmentRepositoryPort,
   ) {}
 
   async execute(actor: Actor, input: { userId: string; month: string }): Promise<EmployeeSalesDto> {
@@ -207,6 +217,8 @@ export class ReadEmployeeSalesUseCase {
     const entered = lines.flatMap((l) => (l.secondaryStatus ? [l.secondaryStatus] : []));
     const secondaryStatus = order.find((st) => entered.includes(st)) ?? null;
     const request = this.approvals ? await this.approvals.getForRecord(SECONDARY_SALES_KIND, secondaryRecordId(input.userId, input.month)) : null;
-    return { userId: input.userId, month: input.month, secondaryStatus, approvalRequestId: request?.id ?? null, lines };
+    const files = this.attachments ? await this.attachments.list(input.userId, input.month) : [];
+    const attachments = files.map((f) => ({ id: f.id, url: f.url, fileName: f.fileName, mimeType: f.mimeType, sizeBytes: f.sizeBytes, uploadedBy: f.uploadedBy, uploadedAt: f.uploadedAt.toISOString() }));
+    return { userId: input.userId, month: input.month, secondaryStatus, approvalRequestId: request?.id ?? null, lines, attachments };
   }
 }

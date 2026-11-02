@@ -1,4 +1,4 @@
-import type { DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto, InvoiceDetailDto, InvoiceRowDto, InvoiceStatus, SetInvoiceNumberDto } from '@greynote/contracts';
+import type { DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SecondaryAttachmentDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto, InvoiceDetailDto, InvoiceRowDto, InvoiceStatus, SetInvoiceNumberDto } from '@greynote/contracts';
 import { request } from '../client';
 
 /** One order as `GET /sales/orders` returns it; the distributor's Orders tab shows only these fields. */
@@ -31,6 +31,10 @@ export const salesApi = {
     request<EmployeeSalesDto>('/sales/employee-sales', { token, query: { ...query }, signal }),
   saveEmployeeSecondary: (token: string, body: SaveEmployeeSecondaryDto) => request<{ added: number; changed: number }>('/sales/employee-secondary', { method: 'POST', token, body }),
   /** Admin only. */
+  /** Multipart: `file`, `month` and, for someone else's month, `userId`. Any number of files per month. */
+  addSecondaryFile: (token: string, body: FormData) => request<SecondaryAttachmentDto>('/sales/employee-secondary/attachments', { method: 'POST', token, body }),
+  removeSecondaryFile: (token: string, id: string) => request<null>(`/sales/employee-secondary/attachments/${id}`, { method: 'DELETE', token }),
+
   /** The employee sends a month's secondary to their manager for approval. */
   submitEmployeeSecondary: (token: string, body: { month: string }) => request<{ requestId: string; sent: number }>('/sales/employee-secondary/submit', { method: 'POST', token, body }),
   saveEmployeePrimary: (token: string, body: SaveEmployeePrimaryDto) => request<{ added: number; changed: number }>('/sales/employee-primary', { method: 'POST', token, body }),

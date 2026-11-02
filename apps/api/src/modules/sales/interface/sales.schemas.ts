@@ -167,6 +167,8 @@ export const saveEmployeeSecondaryBodySchema = z.object({
     .refine(uniqueProducts, { message: 'A product appears twice.' }),
 });
 export const submitEmployeeSecondaryBodySchema = z.object({ month: monthSchema });
+/** The text fields sent beside the file (multipart): the month, and whose it is (the caller's own when left out). */
+export const secondaryAttachmentBodySchema = z.object({ month: monthSchema, userId: objectIdSchema.optional() });
 export const saveEmployeePrimaryBodySchema = z.object({
   userId: objectIdSchema,
   month: monthSchema,

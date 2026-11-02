@@ -5,8 +5,6 @@ import { HolidayCalendar } from '../holidayCalendar.js';
 import { HrCalendar } from '../hrCalendar.js';
 import { Probation } from '../probation.js';
 import { LeaveBalances } from '../leaveBalances.js';
-import { ExpireLateLeaves } from '../expireLateLeaves.js';
-import { LeaveApprovalCutoff } from '../leaveApprovalCutoff.js';
 import { makeLeaveLedger } from '../leaveLedger.js';
 import { LeaveLock } from '../leaveLock.js';
 import { LeaveLookups } from '../leaveLookups.js';
@@ -16,7 +14,6 @@ import { GetLeaveUseCase } from './getLeave.usecase.js';
 import {
   Clock,
   FakeApprovals,
-  FakeLeaveApprovalGrants,
   FakeBalances,
   FakeConfig,
   FakeHolidays,
@@ -51,8 +48,6 @@ describe('Leave requests', () => {
   let users: FakeUsers;
   let config: FakeConfig;
   let lock: LeaveLock;
-  let cutoff: LeaveApprovalCutoff;
-  let grants: FakeLeaveApprovalGrants;
   const finalizedMonths = new Set<string>();
   let requests: LeaveRequests;
   let lookups: LeaveLookups;
@@ -99,9 +94,7 @@ describe('Leave requests', () => {
     lock.bind(async (userId, month) => finalizedMonths.has(`${userId}:${month}`));
     const balances = new LeaveBalances(balanceRepo, policies, types, users, calendar);
     const views = new LeaveViews(approvals, types);
-    grants = new FakeLeaveApprovalGrants();
-    cutoff = new LeaveApprovalCutoff(leaves, grants, calendar, config, new Clock(NOW).now);
-    approvals.registerKind({ kind: 'LEAVE', finalApproverRoles: ['HR', 'ADMIN'], onStatusChange: makeLeaveLedger(leaves, balanceRepo, lock, cutoff) });
+    approvals.registerKind({ kind: 'LEAVE', finalApproverRoles: ['HR', 'ADMIN'], onStatusChange: makeLeaveLedger(leaves, balanceRepo, lock) });
     requests = new LeaveRequests(leaves, types, balanceRepo, balances, calendar, new HolidayCalendar(holidays, territory), approvals, inlineTransactions, views, probation, lock);
     lookups = new LeaveLookups(leaves, approvals, probation, types);
     get = new GetLeaveUseCase(leaves, users, views);
@@ -129,9 +122,9 @@ describe('Leave requests', () => {
     expect((await requests.request('mr', casual({ startDate: '2026-10-05', endDate: '2026-10-05' }))).daysCount).toBe(1);
   });
 
-  it('allows up to 30 days back, this leave year or the next, never across a year boundary', async () => {
-    await expectError(requests.request('mr', casual({ startDate: '2026-08-28', endDate: '2026-08-28' })), 400);
-    expect((await requests.request('mr', casual({ startDate: '2026-08-29', endDate: '2026-08-29' }))).daysCount).toBe(1);
+  it('allows any past date in this leave year, this leave year or the next, never across a year boundary', async () => {
+    expect((await requests.request('mr', casual({ startDate: '2026-04-06', endDate: '2026-04-06' }))).daysCount).toBe(1); // months back, no limit
+    await expectError(requests.request('mr', casual({ startDate: '2026-03-30', endDate: '2026-03-30' })), 400); // last leave year: closed
     await expectError(requests.request('mr', casual({ startDate: '2027-03-31', endDate: '2027-04-01' })), 400);
     await expectError(requests.request('mr', casual({ startDate: '2028-04-03', endDate: '2028-04-03' })), 400);
     await expectError(requests.request('mr', casual({ startDate: '2026-10-04', endDate: '2026-10-04' })), 400); // a Sunday only
@@ -238,65 +231,28 @@ describe('Leave requests', () => {
     await expectError(get.execute({ id: 'stranger', role: 'FIELD' }, leave.id), 403);
   });
 
-  describe('approval cutoff: the first day of the leave (2026-10-12)', () => {
-    const started = async () => {
-      config.values['LEAVE_BACKDATE_DAYS'] = '30';
-      return requests.request('mr', casual({ startDate: '2026-09-25', endDate: '2026-09-26' })); // two days before NOW (28 Sep)
-    };
+  describe('leave in the past (2026-11-02)', () => {
+    const past = () => requests.request('mr', casual({ startDate: '2026-09-25', endDate: '2026-09-26' })); // two days before NOW (28 Sep)
 
-    it('a leave that has not started yet is approved as usual; one starting today too', async () => {
-      const future = await requests.request('mr', casual());
-      await approvals.move('LEAVE', future.id, 'MANAGER_APPROVED');
-      await approvals.move('LEAVE', future.id, 'APPROVED');
-      const today = await requests.request('mr', casual({ startDate: '2026-09-28', endDate: '2026-09-28' }));
-      await approvals.move('LEAVE', today.id, 'APPROVED');
-      expect(ledger().used).toBe(5);
+    it('a leave that has already started is approved by the manager and the final approver, and counts', async () => {
+      const leave = await past();
+      await approvals.move('LEAVE', leave.id, 'MANAGER_APPROVED');
+      await approvals.move('LEAVE', leave.id, 'APPROVED');
+      expect(ledger().used).toBe(2);
     });
 
-    it('once its first day has passed, neither the manager nor the final approver can approve it — rejecting still works', async () => {
-      const leave = await started();
-      const before = ledger();
-      await expect(approvals.move('LEAVE', leave.id, 'MANAGER_APPROVED')).rejects.toMatchObject({ publicDetails: { code: 'LEAVE_APPROVAL_LATE' } });
-      await expect(approvals.move('LEAVE', leave.id, 'APPROVED')).rejects.toMatchObject({ publicDetails: { code: 'LEAVE_APPROVAL_LATE' } });
-      expect(ledger()).toEqual(before);
+    it('the waiting leave is not rejected just because its first day passed, and can still be rejected by hand', async () => {
+      const leave = await past();
+      expect(approvals.requests.get(`LEAVE:${leave.id}`)?.status).toBe('SUBMITTED');
       await approvals.move('LEAVE', leave.id, 'REJECTED');
       expect(ledger().pending).toBe(0);
     });
 
-    it('an Admin exception lets it through once, then it is spent', async () => {
-      const leave = await started();
-      await expect(cutoff.grant({ id: 'asm', role: 'FIELD' }, leave.id, { reason: 'was on duty' })).rejects.toMatchObject({ statusCode: 403 });
-      await cutoff.grant({ id: 'admin', role: 'ADMIN' }, leave.id, { reason: 'was on duty' });
-      await approvals.move('LEAVE', leave.id, 'APPROVED');
-      expect(ledger().used).toBe(2);
-      expect(grants.rows[0]?.status).toBe('USED');
-      await approvals.move('LEAVE', leave.id, 'REOPENED');
-      await expect(approvals.move('LEAVE', leave.id, 'APPROVED')).rejects.toMatchObject({ publicDetails: { code: 'LEAVE_APPROVAL_LATE' } });
-    });
-
-    it('the sweep rejects a pending leave that has started and frees its balance; future, decided and excepted ones stay', async () => {
-      const sweep = new ExpireLateLeaves(leaves, grants, approvals, new HrCalendar(config, new Clock(NOW).now), new Clock(NOW).now);
-      const lateOne = await started(); // 25-26 Sep: 2 days pending
-      const future = await requests.request('mr', casual({ startDate: '2026-10-01', endDate: '2026-10-01' }));
-      const excepted = await requests.request('mr', casual({ startDate: '2026-09-22', endDate: '2026-09-22' }));
-      await cutoff.grant({ id: 'admin', role: 'ADMIN' }, excepted.id, { reason: 'x' });
-      expect(ledger().pending).toBe(4);
-      expect(await sweep.execute()).toBe(1);
-      expect(approvals.requests.get(`LEAVE:${lateOne.id}`)?.status).toBe('REJECTED');
-      expect(approvals.requests.get(`LEAVE:${future.id}`)?.status).toBe('SUBMITTED');
-      expect(approvals.requests.get(`LEAVE:${excepted.id}`)?.status).toBe('SUBMITTED');
-      expect(ledger().pending).toBe(2);
-      expect(await sweep.execute()).toBe(0);
-    });
-
-    it('a revoked or expired exception no longer works', async () => {
-      const leave = await started();
-      await cutoff.grant({ id: 'admin', role: 'ADMIN' }, leave.id, { reason: 'x' });
-      await cutoff.revoke({ id: 'admin', role: 'ADMIN' }, leave.id);
-      await expect(approvals.move('LEAVE', leave.id, 'APPROVED')).rejects.toMatchObject({ publicDetails: { code: 'LEAVE_APPROVAL_LATE' } });
-      await cutoff.grant({ id: 'admin', role: 'ADMIN' }, leave.id, { reason: 'x' });
-      grants.rows.at(-1)!.expiresAt = new Date(NOW.getTime() - 1);
-      await expect(approvals.move('LEAVE', leave.id, 'APPROVED')).rejects.toMatchObject({ publicDetails: { code: 'LEAVE_APPROVAL_LATE' } });
+    it('is refused, to request and to approve, once that month’s salary is finalized', async () => {
+      const leave = await past();
+      finalizedMonths.add('mr:2026-09');
+      await expect(approvals.move('LEAVE', leave.id, 'APPROVED')).rejects.toMatchObject({ publicDetails: { code: 'PAYROLL_FINALIZED' } });
+      await expectError(requests.request('mr', casual({ startDate: '2026-09-21', endDate: '2026-09-21' })), 409);
     });
   });
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { StockReportRowDto } from '@greynote/contracts';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -7,6 +8,8 @@ import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SearchInput } from '@/components/ui/ListToolbar';
+import { matchesSearch } from '@/lib/search';
 import { Select } from '@/components/ui/Select';
 import { StatTile } from '@/components/ui/StatTile';
 import { monthsInYear } from '@/features/attendance/lib/attendance';
@@ -35,7 +38,10 @@ export function StockReportScreen() {
   const onlyFlagged = values.only === 'flagged';
   const query = useStockReport(month);
   const report = query.data;
-  const rows = (report?.rows ?? []).filter((r) => !onlyFlagged || r.flags.length > 0);
+  const [search, setSearch] = useState('');
+  const rows = (report?.rows ?? [])
+    .filter((r) => !onlyFlagged || r.flags.length > 0)
+    .filter((r) => matchesSearch(`${r.outlet.name} ${r.product?.name ?? ''}`, search));
 
   const columns: readonly Column<StockReportRowDto>[] = [
     {
@@ -105,6 +111,7 @@ export function StockReportScreen() {
       ) : (
         <>
           <div className="mb-4 flex flex-wrap items-center gap-3">
+            <SearchInput value={search} onChange={setSearch} label="Search stock" placeholder="Search outlet or product" />
             <div className="w-52">
               <Select
                 aria-label="Month"

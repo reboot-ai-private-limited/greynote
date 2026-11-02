@@ -199,6 +199,17 @@ export interface EmployeeSalesLineDto {
   updatedAt: string | null;
 }
 
+/** A file attached to an employee's secondary for a month, as proof of the figures. Any number. */
+export interface SecondaryAttachmentDto {
+  id: string;
+  url: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
 export interface EmployeeSalesDto {
   userId: string;
   month: string;
@@ -207,6 +218,8 @@ export interface EmployeeSalesDto {
   /** The approval request behind it, when the month was sent. */
   approvalRequestId: string | null;
   lines: EmployeeSalesLineDto[];
+  /** The month's proof files, oldest first; `[]` when none. */
+  attachments: SecondaryAttachmentDto[];
 }
 
 export interface SaveEmployeeSecondaryDto {

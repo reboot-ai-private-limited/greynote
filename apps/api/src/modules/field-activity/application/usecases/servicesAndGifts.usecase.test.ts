@@ -36,6 +36,21 @@ describe('Doctor Services', () => {
     expect(kit.services.rows).toHaveLength(1);
   });
 
+  it('a manager can request a service for a doctor of their team (2026-11-02), tied to the manager, and it goes up their own chain', async () => {
+    const { serverId } = await kit.submitService.execute({ ...REC, userId: 'asm', clientId: 'c-asm' }, svc, new Tx());
+    expect(kit.services.rows[0]).toMatchObject({ userId: 'asm', createdBy: 'asm', origin: 'MR', doctorId: 'd1' });
+    expect(await kit.approvals.getForRecord('DOCTOR_SERVICE', serverId)).toMatchObject({ status: 'SUBMITTED', submitterId: 'asm' });
+  });
+
+  it('only for their own scope: not a colleague’s doctor, and not a doctor the manager has nothing to do with', async () => {
+    // mr2 has no doctor of their own and is not above anyone.
+    expect(((await refusal(kit.submitService.execute({ ...REC, userId: 'mr2', clientId: 'c-mr2' }, svc, new Tx()))) as LogRefusal).code).toBe('DOCTOR_NOT_ASSIGNED');
+    // d1's MR is mr1, who reports to asm, not to mr2; a manager of someone else is refused too.
+    kit.users.add('other-mgr', { role: 'FIELD', managerId: null });
+    expect(((await refusal(kit.submitService.execute({ ...REC, userId: 'other-mgr', clientId: 'c-om' }, svc, new Tx()))) as LogRefusal).code).toBe('DOCTOR_NOT_ASSIGNED');
+    expect(kit.services.rows).toHaveLength(0);
+  });
+
   it('Admin creates one directly: effective at once, tied to the Doctor’s assigned MR, no approval request', async () => {
     const s = await kit.adminService.execute('admin', svc);
     expect(s).toMatchObject({ origin: 'ADMIN', userId: 'mr1', createdBy: 'admin', clientId: null });
