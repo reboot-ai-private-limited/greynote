@@ -57,7 +57,10 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
     const query: Record<string, unknown> = {};
     if (filter.routeId) query['routeId'] = new Types.ObjectId(filter.routeId);
     if (filter.status) query['status'] = filter.status;
-    if (filter.search) query['name'] = new RegExp(escapeRegex(filter.search), 'i');
+    if (filter.search) {
+      const byName = { name: new RegExp(escapeRegex(filter.search), 'i') };
+      query['$or'] = filter.alsoDoctorIds?.length ? [byName, { _id: { $in: filter.alsoDoctorIds.map((id) => new Types.ObjectId(id)) } }] : [byName];
+    }
     const [docs, total] = await Promise.all([
       DoctorModel.find(query).sort({ name: 1, _id: 1 }).skip(toSkipLimit(filter).skip).limit(filter.pageSize).lean(),
       DoctorModel.countDocuments(query),
@@ -128,7 +131,13 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
 
     const doctorMatch: Record<string, unknown> = { 'doctor.status': 'active' };
     if (filter.routeId) doctorMatch['doctor.routeId'] = oid(filter.routeId);
-    if (filter.search) doctorMatch['doctor.name'] = new RegExp(escapeRegex(filter.search), 'i');
+    // The search matches a Doctor's name, or (2026-11-02) an assigned employee whose name matched. Kept as its own clause so it never
+    // collides with the visibility `$or` below.
+    const and: Record<string, unknown>[] = [];
+    if (filter.search) {
+      const byName = { 'doctor.name': new RegExp(escapeRegex(filter.search), 'i') };
+      and.push({ $or: filter.alsoUserIds?.length ? [byName, { userId: { $in: filter.alsoUserIds.map(oid) } }] : [byName] });
+    }
     // When visibility follows the Route, a user's Doctors are only the ones on Routes they still have.
     if (scopes.some((s) => s.routeIds !== null)) {
       doctorMatch['$or'] = scopes.map((s) => ({
@@ -136,6 +145,7 @@ export class MongoDoctorAdapter implements DoctorRepositoryPort {
         ...(s.routeIds !== null && { 'doctor.routeId': { $in: s.routeIds.map(oid) } }),
       }));
     }
+    if (and.length > 0) doctorMatch['$and'] = and;
 
     const pipeline: PipelineStage[] = [
       { $match: { status: 'active', userId: { $in: scopes.map((s) => oid(s.userId)) } } },

@@ -6,6 +6,7 @@ import { FormDialog } from '@/components/ui/FormDialog';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { monthLabel } from '@/features/payroll/lib/payroll';
 import { useActiveProducts } from '@/features/field-master-data/hooks/useProducts';
 import { istDate } from '@/lib/dates';
@@ -81,7 +82,7 @@ export function AddTargetDialog({
       onSubmit={submit}
     >
       <FormField label="Product" htmlFor="target-product">
-        <Select id="target-product" value={draft.productId} onValueChange={(id) => set({ productId: id, units: '' })} options={productOptions} />
+        <SearchableSelect id="target-product" value={draft.productId} onValueChange={(id) => set({ productId: id, units: '' })} options={productOptions} />
       </FormField>
       <div className="grid grid-cols-2 gap-4">
         <FormField label="From month" htmlFor="target-from">

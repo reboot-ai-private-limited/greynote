@@ -140,7 +140,7 @@ export function DoctorsScreen() {
       }
       filters={
         <>
-          <Input placeholder="Search by name" aria-label="Search doctors" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+          <Input placeholder="Search doctor or MR" aria-label="Search doctors or MRs" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
           <RouteFilter value={values.routeId} onChange={(v) => update({ routeId: v })} />
           <div className="w-48">
             <Select aria-label="Status" value={values.status || ANY} options={STATUS_OPTIONS} onValueChange={(v) => update({ status: v === ANY ? '' : v })} />

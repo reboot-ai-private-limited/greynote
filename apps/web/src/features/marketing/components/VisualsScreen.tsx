@@ -10,7 +10,7 @@ import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { RowActions } from '@/components/ui/RowActions';
-import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { StatusFilter } from '@/components/ui/StatusFilter';
 import { StatusToggleDialog } from '@/components/ui/StatusToggleDialog';
 import { useActiveProducts } from '@/features/field-master-data/hooks/useProducts';
@@ -107,7 +107,7 @@ export function VisualsScreen() {
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="w-56">
-          <Select
+          <SearchableSelect
             aria-label="Product"
             value={productFilter}
             onValueChange={setProductFilter}

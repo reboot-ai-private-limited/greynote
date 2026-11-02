@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import type { Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useSearchFilter } from '@/lib/hooks/useSearchFilter';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
@@ -66,7 +66,7 @@ export function HqsScreen() {
         <>
           <Input placeholder="Search HQs" aria-label="Search HQs" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
           <div className="w-52">
-            <Select
+            <SearchableSelect
               aria-label="Zone"
               value={values.zoneId || 'all'}
               onValueChange={(v) => update({ zoneId: v === 'all' ? '' : v })}

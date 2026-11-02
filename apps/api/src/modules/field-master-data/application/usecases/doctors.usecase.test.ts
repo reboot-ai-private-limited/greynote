@@ -84,11 +84,23 @@ describe('Doctors', () => {
       const a = await create();
       await create({ routeId: 'route-2', name: 'Dr Sen' });
       await assign(a.id, 'mr1');
-      const list = new ListDoctorsUseCase(doctors, views);
+      const list = new ListDoctorsUseCase(doctors, views, users, assignments);
       const all = await list.execute(page);
       expect(all.items.find((d) => d.id === a.id)?.assignedTo).toEqual({ userId: 'mr1', name: 'Asha MR', employeeCode: 'E1' });
       expect((await list.execute({ ...page, routeId: 'route-2' })).items.map((d) => d.name)).toEqual(['Dr Sen']);
       expect((await list.execute({ ...page, search: 'rao' })).total).toBe(1);
+    });
+
+    it('the search box also finds a Doctor by the name or code of the MR it is assigned to (2026-11-02)', async () => {
+      const a = await create({ name: 'Dr Rao' });
+      const b = await create({ name: 'Dr Sen', routeId: 'route-2' });
+      await assign(a.id, 'mr1');
+      await assign(b.id, 'mr2');
+      const list = new ListDoctorsUseCase(doctors, views, users, assignments);
+      expect((await list.execute({ ...page, search: 'asha' })).items.map((d) => d.name)).toEqual(['Dr Rao']); // mr1 is "Asha MR"
+      expect((await list.execute({ ...page, search: 'e2' })).items.map((d) => d.name)).toEqual(['Dr Sen']); // by employee code
+      expect((await list.execute({ ...page, search: 'sen' })).items.map((d) => d.name)).toEqual(['Dr Sen']); // still by the doctor's own name
+      expect((await list.execute({ ...page, search: 'nobody' })).total).toBe(0);
     });
   });
 
@@ -144,6 +156,9 @@ describe('Doctors', () => {
       expect((await list.mine(field('mr1'), page)).items.map((x) => x.name)).toEqual(['Dr Rao']);
       expect((await list.team(field('asm'), page)).items.map((x) => x.name)).toEqual(['Dr Rao', 'Dr Sen']);
       expect((await list.team(field('asm'), { ...page, userId: 'mr2' })).items.map((x) => x.name)).toEqual(['Dr Sen']);
+      // A manager's search finds a team member's doctors by that member's name (2026-11-02).
+      expect((await list.team(field('asm'), { ...page, search: 'ben' })).items.map((x) => x.name)).toEqual(['Dr Sen']); // mr2 is "Ben MR"
+      expect((await list.team(field('asm'), { ...page, search: 'chitra' })).total).toBe(0); // the manager is not an assignee
       expect((await list.mine(field('stranger'), page)).total).toBe(0);
       expect((await list.team(field('stranger'), page)).total).toBe(0);
       await expectStatus(list.team(field('stranger'), { ...page, userId: 'mr1' }), 403);

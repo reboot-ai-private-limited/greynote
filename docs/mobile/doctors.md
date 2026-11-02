@@ -65,7 +65,7 @@ Per employee: `quota` (sum of frequencies), `made`, `missed`, `doctors`, `comple
 
 | Method and path | Who | Purpose |
 |---|---|---|
-| `GET /field-master-data/doctors/mine` | Employee | Doctors assigned to me |
+| `GET /field-master-data/doctors/mine` | Employee | Doctors assigned to me. `search` matches the doctor's name |
 | `GET /field-master-data/doctors/added` | Employee | Doctors I added, with approval status |
 | `POST /field-master-data/doctors/added` | Employee; manager only if *Managers can add doctors* is on | Add a doctor (offline-first) |
 | `PUT /field-master-data/doctors/added/:id` | Employee | Correct and resubmit a rejected, withdrawn or reopened doctor |
@@ -88,3 +88,7 @@ Per employee: `quota` (sum of frequencies), `made`, `missed`, `doctors`, `comple
 1. Read **`photoUrl`** on each doctor in the snapshot's `doctors` and `pendingDoctors` and show it, with initials as the fallback. It is `null` for all existing doctors; nothing breaks if you ignore it.
 2. In the add-doctor form, an optional **photo** (camera or gallery). Keep it with the queued add and upload it with `PUT /field-master-data/doctors/added/:id/photo` after the add syncs (rule 10). Don't block the add on it.
 3. Until the doctor is approved the employee may replace or remove the photo; after approval only Admin can (web).
+
+## Search by MR name (2026-11-02)
+
+The `search` parameter on the team doctor list, `GET /field-master-data/doctors/team?userId&search=`, now matches a **doctor's name or the name or employee code of the MR they are assigned to** (among the people in that manager's view). So a manager can type an MR's name in the team's doctor list and see that person's doctors. `doctors/mine` still matches the doctor's name only, because every doctor in it is the caller's own. The phone needs no change beyond labelling its search box "Doctor or MR" on the team list (📱). The web Doctors list and the doctor pickers do the same (`GET /field-master-data/doctors?search=`).

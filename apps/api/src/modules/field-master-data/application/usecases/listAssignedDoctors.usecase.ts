@@ -42,7 +42,10 @@ export class ListAssignedDoctorsUseCase {
   private async run(userIds: string[], filter: AssignedFilter) {
     const { page, pageSize, ...rest } = filter;
     const scopes = await this.visibility.scopes(userIds);
-    const { items, total } = await this.doctors.listAssigned(scopes, rest, { page, pageSize });
+    // The search box also finds a Doctor by the name or code of the employee they are assigned to, among the employees being read.
+    const term = rest.search?.trim();
+    const alsoUserIds = term ? await this.users.findUserIdsByName(term, { restrictTo: userIds }) : undefined;
+    const { items, total } = await this.doctors.listAssigned(scopes, { ...rest, ...(alsoUserIds && { alsoUserIds }) }, { page, pageSize });
     return buildPaginatedResult(await this.views.many(items), total, { page, pageSize });
   }
 }
