@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
-import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useTerritoryDirectory } from '@/features/territory/hooks/useTerritoryDirectory';
 import { useSetUserHq, useUserHq } from '@/features/territory/hooks/useUserHq';
 import { toErrorState } from '@/lib/api/toErrorState';
@@ -130,12 +130,13 @@ function HqCard({ userId }: { userId: string }) {
             </p>
           </div>
           <div className="w-64">
-            <Select
+            <SearchableSelect
               aria-label="Change HQ to"
               value={chosen}
               onValueChange={setChosen}
               options={directory.hqOptions.filter((o) => o.value !== current?.hqId)}
               placeholder="Choose an HQ"
+              searchPlaceholder="Search HQs"
             />
           </div>
           <Button

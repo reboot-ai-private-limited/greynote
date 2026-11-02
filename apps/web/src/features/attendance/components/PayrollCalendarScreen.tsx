@@ -1,10 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SearchInput } from '@/components/ui/ListToolbar';
+import { matchesSearch } from '@/lib/search';
 import { Select } from '@/components/ui/Select';
 import { cn } from '@/components/ui/cn';
 import { toErrorState } from '@/lib/api/toErrorState';
@@ -29,6 +32,8 @@ export function PayrollCalendarScreen() {
   const month = months.includes(values.month) ? values.month : (months[0] ?? '');
   const query = usePayrollCalendar(month);
   const data = query.data;
+  const [search, setSearch] = useState('');
+  const visibleRows = (data?.rows ?? []).filter((r) => matchesSearch(`${r.user.name} ${r.user.employeeCode}`, search));
 
   return (
     <>
@@ -43,6 +48,7 @@ export function PayrollCalendarScreen() {
       ) : (
         <>
           <div className="mb-4 flex flex-wrap items-center gap-4">
+            <SearchInput value={search} onChange={setSearch} label="Search employees" placeholder="Search name or code" />
             <div className="w-56">
               <Select aria-label="Month" value={month} options={months.map((m) => ({ value: m, label: monthLabel(m) }))} onValueChange={(v) => update({ month: v })} />
             </div>
@@ -72,7 +78,7 @@ export function PayrollCalendarScreen() {
                       </tr>
                     </thead>
                     <tbody>
-                      {data.rows.map((r) => (
+                      {visibleRows.map((r) => (
                         <tr key={r.user.id} className="border-t border-border">
                           <th scope="row" className="sticky left-0 bg-surface px-3 py-2 text-left font-normal">
                             <Link href={`/employees/${r.user.id}`} className="font-medium text-text hover:text-accent hover:underline">

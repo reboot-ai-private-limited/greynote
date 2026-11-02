@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { SalaryMonthDto } from '@greynote/contracts';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
@@ -8,6 +9,8 @@ import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SearchInput } from '@/components/ui/ListToolbar';
+import { matchesSearch } from '@/lib/search';
 import { StatTile } from '@/components/ui/StatTile';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { downloadCsv } from '@/lib/csv';
@@ -49,7 +52,9 @@ export function SalaryReportScreen() {
   const months = report?.months ?? [];
   const started = startedMonths(months);
   const selected = started.find((m) => m.month === values.month)?.month ?? '';
+  const [search, setSearch] = useState('');
   const matrix = report ? salaryMatrix(report) : [];
+  const visible = matrix.filter((r) => matchesSearch(`${r.user.name} ${r.user.employeeCode}`, search));
   const shown = selected ? started.filter((m) => m.month === selected) : started;
   const draftMonths = started.filter((m) => m.state === 'DRAFT' || m.state === 'PARTIAL').length;
 
@@ -226,16 +231,19 @@ export function SalaryReportScreen() {
         title="Net pay by employee"
         description="Each cell is that month's net pay and opens the salary slip. Italic cells are drafts and are not in the total."
         actions={
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={!report || report.rows.length === 0}
-            onClick={() =>
-              report && downloadCsv(salaryEmployeesFilename(fy), salaryEmployeesCsv(report))
-            }
-          >
-            Download CSV
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <SearchInput value={search} onChange={setSearch} label="Search employees" placeholder="Search name or code" />
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!report || report.rows.length === 0}
+              onClick={() =>
+                report && downloadCsv(salaryEmployeesFilename(fy), salaryEmployeesCsv(report))
+              }
+            >
+              Download CSV
+            </Button>
+          </div>
         }
         className="mt-6"
       >
@@ -270,7 +278,7 @@ export function SalaryReportScreen() {
                 </tr>
               </thead>
               <tbody>
-                {matrix.map((r) => (
+                {visible.map((r) => (
                   <tr key={r.user.id} className="border-t border-border">
                     <th
                       scope="row"
