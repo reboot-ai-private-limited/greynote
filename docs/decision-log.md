@@ -91,6 +91,14 @@ old one.
 
 ---
 
+## 2026-11-02 — Doctor search in the service request form (docs only)
+
+**Decision:** the phone's service request form gets a searchable doctor dropdown, fed by `doctors/mine` (MR) and `doctors/team` (manager) with `search`, `page`, `pageSize`. [`mobile/service-requests.md`](mobile/service-requests.md) §2 and §3 spell it out.
+
+**Why:** a manager's picker holds the whole team's doctors, too long to scroll. **Cost:** none on the server, since both lists already take `search`; the phone (another team's) builds it.
+
+---
+
 ## 2026-11-02 — Work With is the caller's own tree; chemist calls have no Work With
 
 **Decision:**

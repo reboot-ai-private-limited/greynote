@@ -21,7 +21,7 @@ Admin allocates a gift to a doctor (web). The doctor's assigned MR sees it in `G
 
 | # | Rule | Status |
 |---|---|---|
-| 1 | **Any employee requests** a service for a doctor in their scope (`DOCTOR_SERVICE` sync kind; 2026-11-02): an MR for their own doctors, a manager for their team's. Type (tour package, gift, online promotion, others), amount, remarks. See [`service-requests.md`](service-requests.md) rule 1. | ✅ |
+| 1 | **Any employee requests** a service for a doctor in their scope (`DOCTOR_SERVICE` sync kind; 2026-11-02): an MR for their own doctors, a manager for their team's. Type (tour package, gift, online promotion, others), amount, remarks. See [`service-requests.md`](service-requests.md) rule 1; its doctor dropdown has a search box (§2 there). | ✅ |
 | 2 | It goes to **the requester's own manager** (Admin when they have none) for approval (an Admin-recorded service is approved at once). | ✅ |
 | 3 | Once approved, **Admin marks it done** (Accounts is read-only since 2026-10-13) (`POST /api/field-activity/doctor-services/:id/done`; web Doctor services page). `409` if it is not approved yet or already done. The list returns `status`, `awaitingDone`, `doneAt`. | ✅ |
 | 4 | The phone shows the service's journey: *Waiting for approval → Approved, to do → Done* (or *Rejected*). The MR never marks it done. | ✅ |
