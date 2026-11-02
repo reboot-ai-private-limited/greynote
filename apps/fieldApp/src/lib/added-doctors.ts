@@ -113,3 +113,36 @@ export const listAllTeamDoctors = async (): Promise<TeamDoctor[]> => {
 
 export const listTeamDoctors = async (userId: string, search?: string) =>
   (await apiGet<Page<TeamDoctor>>(`/field-master-data/doctors/team?userId=${userId}&pageSize=100${search ? `&search=${encodeURIComponent(search)}` : ''}`)).items;
+
+/** A doctor row for the service request picker, from either feed. */
+export type PickerDoctor = { id: string; name: string; subtitle: string; photoUrl: string | null };
+
+export const PICKER_PAGE_SIZE = 20;
+
+/**
+ * One page of the service request form's doctor picker (docs/mobile/service-requests.md §2). An MR reads `doctors/mine`
+ * (search matches the doctor's name); a manager reads `doctors/team` (also matches the assigned MR's name or code). The
+ * server returns active doctors only. `search` is left out when empty.
+ */
+export const searchPickerDoctors = async (manager: boolean, search: string, page: number): Promise<{ items: PickerDoctor[]; total: number }> => {
+  const q = search.trim();
+  const params = `page=${page}&pageSize=${PICKER_PAGE_SIZE}${q ? `&search=${encodeURIComponent(q.slice(0, 100))}` : ''}`;
+  if (manager) {
+    const res = await apiGet<Page<TeamDoctor>>(`/field-master-data/doctors/team?${params}`);
+    return {
+      total: res.total,
+      items: res.items.map((t) => ({
+        id: t.id,
+        name: t.name,
+        subtitle: t.assignedTo ? `${t.assignedTo.name} (${t.assignedTo.employeeCode})` : (t.clinicName ?? t.specialty),
+        photoUrl: t.photoUrl ?? null,
+      })),
+    };
+  }
+  type MineDoctor = { id: string; name: string; specialty?: string; clinicName?: string | null; address?: string | null; photoUrl?: string | null };
+  const res = await apiGet<Page<MineDoctor>>(`/field-master-data/doctors/mine?${params}`);
+  return {
+    total: res.total,
+    items: res.items.map((d) => ({ id: d.id, name: d.name, subtitle: d.address ?? d.clinicName ?? d.specialty ?? '', photoUrl: d.photoUrl ?? null })),
+  };
+};

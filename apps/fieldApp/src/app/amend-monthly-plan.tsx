@@ -130,7 +130,7 @@ export default function AmendMonthlyPlanScreen() {
   const people = useMemo(() => {
     const list = colleagues.filter((c) => c.id !== plan?.userId);
     if (me && me.id !== plan?.userId && !list.some((c) => c.id === me.id)) {
-      const self: Colleague = { id: me.id, employeeCode: me.employeeCode, name: me.name, designation: null, label: `${me.name} (you)`, relation: 'MANAGER' };
+      const self: Colleague = { id: me.id, employeeCode: me.employeeCode, name: me.name, designation: null, label: `${me.name} (you)` };
       list.unshift(self);
     }
     return list;

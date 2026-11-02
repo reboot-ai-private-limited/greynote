@@ -18,7 +18,8 @@ export type CallPayload = {
   reportDate: string;
   doctorId?: string;
   chemistId?: string;
-  workWith: string[];
+  /** A doctor call only: a chemist call has no Work With (2026-11-02), and an old queued one that still has it is ignored by the server. */
+  workWith?: string[];
   remarks: string | null;
   capturedLocation: GeoPoint | null;
   accuracyMeters: number | null;

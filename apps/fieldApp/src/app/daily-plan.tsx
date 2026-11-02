@@ -15,7 +15,6 @@ import { useTheme } from '@/hooks/use-theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useDoctorVisitGap } from '@/hooks/use-doctor-visit-gap';
-import { useDownline } from '@/hooks/use-downline';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ApiError } from '@/lib/api';
 import {
@@ -85,7 +84,6 @@ export default function DailyPlanScreen() {
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const { colleagues } = useColleagues();
   const { isManager } = useCurrentUser();
-  const downline = useDownline();
   const gate = useDayGate();
   const { today } = gate;
   const online = useOnline();
@@ -400,7 +398,6 @@ export default function DailyPlanScreen() {
               value={draftWorkWith}
               onChange={(ids) => { fe.clear('workWith'); setWorkWithDraft(ids); void readTeam(ids); }}
               disabled={busy || blocked}
-              people={isManager ? { list: downline.people, loaded: downline.loaded, emptyText: 'No team members under you yet.' } : undefined}
             />
           </FormField>
           {isManager && draftWorkWith.length > 0 ? (

@@ -149,7 +149,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
     } else {
       const p = record.payload as CallPayload;
       setOutletId(idOf(record));
-      setWorkWith(p.workWith);
+      setWorkWith(p.workWith ?? []);
       setSamples(p.samples ?? []);
       setRemarks(p.remarks ?? '');
     }
@@ -184,8 +184,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
       }
       const payload: CallPayload = {
         reportDate: gate.today,
-        ...(isDoctor ? { doctorId: outletId } : { chemistId: outletId }),
-        workWith,
+        ...(isDoctor ? { doctorId: outletId, workWith } : { chemistId: outletId }),
         remarks: remarks.trim() || null,
         capturedLocation: fix?.point ?? null,
         accuracyMeters: fix?.accuracyMeters ?? null,
@@ -309,9 +308,12 @@ export function CallScreen({ subject }: { subject: Subject }) {
         ) : null}
         </CardSection>
 
-        <CardSection icon={sym('person.2', 'groups')} accent="purple" title="Work with">
-          <WorkWithPicker value={workWith} onChange={setWorkWith} disabled={busy} />
-        </CardSection>
+        {/* A chemist call has no Work With (2026-11-02): only a doctor call records who joined. */}
+        {isDoctor ? (
+          <CardSection icon={sym('person.2', 'groups')} accent="purple" title="Work with">
+            <WorkWithPicker value={workWith} onChange={setWorkWith} disabled={busy} />
+          </CardSection>
+        ) : null}
 
         {isDoctor ? (
           <CardSection icon={sym('pills', 'medication')} accent="amber" title="Samples given (optional)">

@@ -13,6 +13,7 @@ import { ThemedText } from '@/components/themed-text';
 import { CardSection, IconChip, InfoCard, Pill, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useDoctorPicker } from '@/hooks/use-doctor-picker';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { listAllTeamDoctors, type TeamDoctor } from '@/lib/added-doctors';
 import { ApiError, NetworkError } from '@/lib/api';
@@ -85,7 +86,10 @@ export default function ServicesScreen() {
       .filter((t) => !own.some((d) => d.id === t.id))
       .map((t) => ({ id: t.id, name: t.name, subtitle: t.assignedTo ? `${t.assignedTo.name} (${t.assignedTo.employeeCode})` : (t.clinicName ?? t.specialty), photoUrl: t.photoUrl })),
   ];
-  const doctorName = (id: string) => doctors.find((d) => d.id === id)?.name ?? 'Doctor';
+  const doctorName = (id: string) => doctors.find((d) => d.id === id)?.name ?? picker.find(id)?.name ?? 'Doctor';
+  // The form's picker reads the server page by page as the employee types; the doctors above are its offline stand-in.
+  const cachedOptions = [...doctors].sort((a, b) => a.name.localeCompare(b.name));
+  const picker = useDoctorPicker(isManager, cachedOptions);
   const unsent = records.filter((r) => !r.deleted && r.status !== 'SYNCED').reverse();
   // The list from the server says whether each approved service was carried out; the offline snapshot is the fallback.
   const list = useCachedFetch<ServiceView[]>('doctor-services', listMyServices, records.filter((r) => r.status === 'SYNCED').length);
@@ -209,8 +213,13 @@ export default function ServicesScreen() {
         <CardSection icon={sym('stethoscope', 'medical_services')} accent="indigo" title="Doctor">
           <FormField form={fe} name="doctor">
             <OutletPicker
-              label="Doctor"
-              options={[...doctors].sort((a, b) => a.name.localeCompare(b.name))}
+              label={isManager ? 'Doctor or MR' : 'Doctor'}
+              options={picker.options}
+              onSearch={picker.search}
+              onEndReached={picker.more}
+              loading={picker.loading}
+              selectedOption={picker.find(doctorId)}
+              searchPlaceholder={isManager ? 'Search a doctor or an MR' : 'Search a doctor'}
               value={doctorId}
               onChange={(id) => {
                 setDoctorId(id);
