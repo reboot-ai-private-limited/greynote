@@ -28,6 +28,11 @@ export interface FieldActivityPublicContract {
    * claim must not reach a payroll run.
    */
   getPaidTaDaTotal(userId: string, month: string): Promise<{ taPaise: number; daPaise: number; reimbursementPaise: number }>;
+  /**
+   * Where one employee's month of expenses stands, for Late Grants' lock guards: sent to the approver (`submitted`), finalized for
+   * payout, or with any row already paid. All false for a month with nothing.
+   */
+  getExpenseMonthState(userId: string, month: string): Promise<{ submitted: boolean; finalized: boolean; hasPaid: boolean }>;
   /** Among these employees, who has expenses in the month (`YYYY-MM`) but has not sent them to the approver — the reminder job's question. */
   listUnsubmittedExpenseUsers(month: string, userIds: string[]): Promise<string[]>;
   /** The accepted expenses by employee and report month over a date range (both ends inclusive): TA, DA, manual claims, paid and unpaid — the TA/DA report's input. */

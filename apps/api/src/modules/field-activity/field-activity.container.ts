@@ -17,7 +17,7 @@ import { AdjustExpenseService } from './application/usecases/expenseAdjust.useca
 import { ExpenseOverviewUseCase, ExpenseReviewService } from './application/usecases/expenseReview.usecase.js';
 import { EXPENSE_MONTH_KIND, ExpenseMonthService } from './application/usecases/expenseMonth.usecase.js';
 import { ExpenseMonthDeadlines } from './application/expenseMonthDeadlines.js';
-import { GrantExpenseMonthUseCase, ListExpenseMonthGrantsUseCase, RevokeExpenseMonthGrantUseCase } from './application/usecases/expenseMonthGrants.usecase.js';
+import { GrantExpenseMonthUseCase, ListExpenseMonthGrantsUseCase, RevokeExpenseMonthGrantUseCase, monthHasPaidRows } from './application/usecases/expenseMonthGrants.usecase.js';
 import { MongoExpenseMonthGrantAdapter } from './infrastructure/mongoExpenseMonthGrant.adapter.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { DoctorVisitGap } from './application/doctorVisitGap.js';
@@ -188,6 +188,10 @@ export function buildFieldActivityContainer(
       listReportedDates: (userId, from, to) => listReportedDates.execute(userId, from, to),
       getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),
       summarizeExpenses: (range) => expenses.summarizeByMonth(range),
+      getExpenseMonthState: async (userId, month) => {
+        const [record, rows] = await Promise.all([expenseMonths.find(userId, month), monthHasPaidRows(expenses, userId, month)]);
+        return { submitted: record?.status === 'SUBMITTED', finalized: Boolean(record?.finalizedAt), hasPaid: rows };
+      },
       listUnsubmittedExpenseUsers: async (month, userIds) => {
         const wanted = new Set(userIds);
         const withMoney = new Set(

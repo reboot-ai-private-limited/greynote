@@ -11,6 +11,8 @@ import { buildInboxContainer } from '@/modules/inbox/inbox.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
 import { buildMarketingContainer } from '@/modules/marketing/marketing.container.js';
 import { buildPayrollContainer } from '@/modules/payroll/payroll.container.js';
+import { expenseLockGuard, payrollLockGuard } from '@/modules/lateGrants/application/standardGuards.js';
+import { buildLateGrantsContainer } from '@/modules/lateGrants/lateGrants.container.js';
 import { buildPlanningContainer } from '@/modules/planning/planning.container.js';
 import { buildRemindersContainer } from '@/modules/reminders/reminders.container.js';
 import { buildReportsContainer } from '@/modules/reports/reports.container.js';
@@ -31,6 +33,7 @@ export interface AppContainers {
   identity: ReturnType<typeof buildIdentityContainer>;
   territory: ReturnType<typeof buildTerritoryContainer>;
   approval: ReturnType<typeof buildApprovalContainer>;
+  lateGrants: ReturnType<typeof buildLateGrantsContainer>;
   planning: ReturnType<typeof buildPlanningContainer>;
   hr: ReturnType<typeof buildHrContainer>;
   inbox: ReturnType<typeof buildInboxContainer>;
@@ -77,9 +80,12 @@ export function buildContainers(): AppContainers {
   // registers one, so it needs only Identity (who is sending) and Config (its limits).
   const sync = buildSyncContainer(identity.contract, config.contract);
 
+  // Late Grants: per-employee exceptions to deadlines. Below Planning so a deadline can spend one; lock guards are added by the modules that own settled state.
+  const lateGrants = buildLateGrantsContainer(identity.contract, config.contract);
+
   // Tier 3 — Planning: who the submitter and their managers are (Identity), which Routes they
   // cover (Territory), the approval workflow its Plans go through, and the deadlines (Config).
-  const planning = buildPlanningContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
+  const planning = buildPlanningContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract, lateGrants.contract);
 
   // Tier 3 — HR: employees and Pay Bands (Identity), their HQ (Territory), the LEAVE workflow
   // (Approval), the leave-year and weekly-off settings (Config).
@@ -144,6 +150,10 @@ export function buildContainers(): AppContainers {
   // HR sits below Payroll, so it asks through a port: once a month's salary is finalized, that employee's leave in the month is locked.
   hr.bindPayrollLock((userId, month) => payroll.contract.isMonthFinalized(userId, month));
 
+  // Settled money closes the door on late entries: a finalized salary run, a finalized or paid expense month (see lateGrants/standardGuards.ts).
+  lateGrants.contract.addLockGuard(payrollLockGuard((userId, month) => payroll.contract.isMonthFinalized(userId, month)));
+  lateGrants.contract.addLockGuard(expenseLockGuard((userId, month) => fieldActivity.contract.getExpenseMonthState(userId, month)));
+
   // Tier 7 — Reports: read-only reports for the Admin, over Sales, Field Master Data and Identity. Owns no data.
   const reports = buildReportsContainer(identity.contract, fieldMasterData.contract, sales.contract, fieldActivity.contract, territory.contract, payroll.contract, planning.contract, attendance.contract, marketing.contract, config.contract);
 
@@ -175,5 +185,5 @@ export function buildContainers(): AppContainers {
 
   registerPushEvents(inbox.contract, config.contract);
 
-  return { health, config, identity, territory, approval, planning, hr, inbox, team, reminders, documents, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance, reports };
+  return { health, config, lateGrants, identity, territory, approval, planning, hr, inbox, team, reminders, documents, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance, reports };
 }
