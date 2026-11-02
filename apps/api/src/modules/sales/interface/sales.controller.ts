@@ -12,9 +12,10 @@ import type { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersU
 import type { GetInvoiceUseCase, ListInvoicesUseCase } from '../application/usecases/invoices.usecase.js';
 import type { CancelPaymentUseCase, DistributorBalancesUseCase, ListPaymentsUseCase, OutstandingDuesUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from '../application/usecases/payments.usecase.js';
 import type { ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SubmitEmployeeSecondaryUseCase } from '../application/usecases/employeeSales.usecase.js';
+import type { AddSecondaryAttachmentUseCase, RemoveSecondaryAttachmentUseCase } from '../application/usecases/secondaryAttachments.usecase.js';
 import type { ReadStatementUseCase, SaveStatementUseCase } from '../application/usecases/stockStatement.usecase.js';
 import type { UnlockMonthUseCase } from '../application/usecases/unlockMonth.usecase.js';
-import type { submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
+import type { secondaryAttachmentBodySchema, submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -35,7 +36,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary', RequestHandler>;
+export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary' | 'addSecondaryAttachment' | 'removeSecondaryAttachment', RequestHandler>;
 
 export function makeSalesControllers(u: {
   record: RecordMonthlyStockUseCase;
@@ -62,6 +63,8 @@ export function makeSalesControllers(u: {
   saveEmployeeSecondary: SaveEmployeeSecondaryUseCase;
   submitEmployeeSecondary: SubmitEmployeeSecondaryUseCase;
   saveEmployeePrimary: SaveEmployeePrimaryUseCase;
+  addSecondaryAttachment: AddSecondaryAttachmentUseCase;
+  removeSecondaryAttachment: RemoveSecondaryAttachmentUseCase;
 }): SalesHandlers {
   return {
     recordStock: asyncHandler(async (req, res) => {
@@ -123,6 +126,17 @@ export function makeSalesControllers(u: {
     submitEmployeeSecondary: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.submitEmployeeSecondary.execute(actorOf(req), (req.body as z.output<typeof submitEmployeeSecondaryBodySchema>).month)), 'The month was sent for approval.', 200),
     ),
+    addSecondaryAttachment: asyncHandler(async (req, res) => {
+      if (!req.file) throw AppError.badRequest('A file is required.', { field: 'file' });
+      const body = req.body as z.output<typeof secondaryAttachmentBodySchema>;
+      const actor = actorOf(req);
+      const file = await refusing(() => u.addSecondaryAttachment.execute(actor, { userId: body.userId ?? actor.id, month: body.month, file: { buffer: req.file!.buffer, name: req.file!.originalname } }));
+      return sendSuccess(req, res, file, 'The file was attached.', 201);
+    }),
+    removeSecondaryAttachment: asyncHandler(async (req, res) => {
+      await refusing(() => u.removeSecondaryAttachment.execute(actorOf(req), requiredParam(req.params, 'id')));
+      return sendSuccess(req, res, null, 'The file was removed.', 200);
+    }),
     saveEmployeePrimary: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.saveEmployeePrimary.execute(actorOf(req), req.body as z.output<typeof saveEmployeePrimaryBodySchema>)), 'The primary was saved.', 200),
     ),

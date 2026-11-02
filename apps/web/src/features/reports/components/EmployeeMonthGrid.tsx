@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/Select';
 import { monthLabel } from '@/features/payroll/lib/payroll';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
+import { SecondaryFiles } from './SecondaryFiles';
 import { useEmployeeMonth, useSavePrimary, useSaveSecondary, useSubmitSecondary } from '../hooks/useEmployeeSales';
 import {
   adjustmentOf,
@@ -218,6 +219,16 @@ export function EmployeeMonthGrid({
       >
         <DataTable columns={columns} rows={lines} rowKey={(l) => l.product.id} bleed={false} />
       </DataState>
+      {query.data ? (
+        <SecondaryFiles
+          files={query.data.attachments}
+          userId={userId}
+          month={month}
+          isSelf={isSelf}
+          // The employee's own files freeze once the month waits for, or has, approval; a manager or Admin working for them may still add.
+          canEdit={!readOnly && !(isSelf && (status === 'PENDING' || status === 'APPROVED'))}
+        />
+      ) : null}
     </div>
   );
 }

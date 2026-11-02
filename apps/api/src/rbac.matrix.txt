@@ -10,7 +10,6 @@ DELETE /api/field-master-data/doctors/:id/assignments/:userId  ADMIN
 DELETE /api/field-master-data/doctors/:id/photo  ADMIN
 DELETE /api/field-master-data/doctors/added/:id/photo  FIELD
 DELETE /api/hr/holidays/:id  ADMIN,HR
-DELETE /api/hr/leaves/:id/approval-grant  ADMIN
 DELETE /api/hr/leaves/:id/attachments/:attachmentId  FIELD
 DELETE /api/identity/auth/push-token  ANY
 DELETE /api/identity/employee-drafts/:id  ADMIN,HR
@@ -23,6 +22,7 @@ DELETE /api/marketing/doctors/:doctorId/visuals/:visualId  ADMIN,FIELD
 DELETE /api/marketing/targets/:id  ADMIN,HR
 DELETE /api/marketing/visuals/:id  ADMIN
 DELETE /api/planning/monthly/:id  ADMIN
+DELETE /api/sales/employee-secondary/attachments/:id  ADMIN,FIELD
 DELETE /api/territory/hqs/:id  ADMIN
 DELETE /api/territory/routes/:id  ADMIN
 DELETE /api/territory/routes/:id/assignments/:userId  ADMIN
@@ -243,7 +243,6 @@ POST   /api/hr/holidays  ADMIN,HR
 POST   /api/hr/holidays/import  ADMIN,HR
 POST   /api/hr/leave-types  ADMIN
 POST   /api/hr/leaves  FIELD
-POST   /api/hr/leaves/:id/approval-grant  ADMIN
 POST   /api/hr/leaves/:id/attachments  FIELD
 POST   /api/identity/auth/change-password  ANY
 POST   /api/identity/auth/delete-account  ANY
@@ -304,6 +303,7 @@ POST   /api/sales/distributor-payments/:id/cancel  ACCOUNTANT,ADMIN
 POST   /api/sales/distributor-statement  ADMIN
 POST   /api/sales/employee-primary  ADMIN
 POST   /api/sales/employee-secondary  ADMIN,FIELD
+POST   /api/sales/employee-secondary/attachments  ADMIN,FIELD
 POST   /api/sales/employee-secondary/submit  FIELD
 POST   /api/sales/monthly-stock  ADMIN,FIELD
 POST   /api/sales/monthly-stock/unlock  ADMIN

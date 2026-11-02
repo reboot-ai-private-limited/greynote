@@ -6,6 +6,7 @@ import { monthLabel } from '@/features/payroll/lib/payroll';
 import { EmployeeName } from '@/features/people/components/EmployeePickerField';
 import { formatMoney } from '@/lib/format';
 import { useSecondaryMonth } from '../hooks/usePreviews';
+import { SecondaryFiles } from '@/features/reports/components/SecondaryFiles';
 import { PreviewFrame } from './PreviewFrame';
 
 const COLUMNS: readonly Column<EmployeeSalesLineDto>[] = [
@@ -26,6 +27,7 @@ export function SecondarySalesPreview({ recordId }: { recordId: string }) {
           <EmployeeName userId={userId} /> · {month ? monthLabel(month) : ''}
         </p>
         <DataTable columns={COLUMNS} rows={lines} rowKey={(l) => l.product.id} bleed={false} />
+        <SecondaryFiles files={query.data?.attachments ?? []} userId={userId} month={month} isSelf={false} canEdit={false} />
       </div>
     </PreviewFrame>
   );
