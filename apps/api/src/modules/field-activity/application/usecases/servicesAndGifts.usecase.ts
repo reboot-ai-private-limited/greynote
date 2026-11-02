@@ -43,7 +43,7 @@ export class SubmitDoctorServiceUseCase {
 
   async execute(rec: RecordContext, input: ServiceInput, ctx: TransactionContext): Promise<{ serverId: string }> {
     await assertNotBlocked(this.users, rec.userId);
-    await this.checks.doctor(rec.userId, input.doctorId);
+    await this.checks.serviceDoctor(rec.userId, input.doctorId);
     const service = await this.services.create({ ...input, userId: rec.userId, createdBy: rec.userId, origin: 'MR', clientId: rec.clientId, createdAt: rec.recordedAt, doneBy: null, doneAt: null }, ctx);
     await this.approvals.submit({ kind: DOCTOR_SERVICE_KIND, recordId: service.id, submitterId: rec.userId }, ctx);
     return { serverId: service.id };
