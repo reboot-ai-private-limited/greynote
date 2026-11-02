@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
+import { SearchInput } from '@/components/ui/ListToolbar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Select } from '@/components/ui/Select';
 import { StatTile } from '@/components/ui/StatTile';
@@ -19,6 +20,7 @@ import { istDate } from '@/lib/dates';
 import { monthToDate, rangeError } from '@/lib/dateRange';
 import { formatDate, formatMoney } from '@/lib/format';
 import { useFilterParams } from '@/lib/hooks/useFilterParams';
+import { matchesSearch } from '@/lib/search';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useExpenseAudit } from '../hooks/useExpenses';
 import {
@@ -60,6 +62,9 @@ export function ExpensesScreen() {
     !range,
   );
   const rows = query.data ?? [];
+  const [search, setSearch] = useState('');
+  // The search only narrows the table and what "select all" picks; the tiles and CSV keep covering the whole range.
+  const shownRows = rows.filter((r) => matchesSearch(`${r.userName} ${r.employeeCode}`, search));
   const totals = auditTotals(rows);
   const flagged = flaggedRows(rows).filter((r) => r.paymentStatus === 'UNPAID');
 
@@ -68,7 +73,7 @@ export function ExpensesScreen() {
   const [paying, setPaying] = useState<ExpenseAuditRowDto[] | null>(null);
   const filterKey = `${from}|${to}|${values.userId}|${status}`;
   useEffect(() => setSelected(new Set()), [filterKey]);
-  const payable = payableRows(rows);
+  const payable = payableRows(shownRows);
   const chosen = payable.filter((r) => selected.has(r.id));
   const allChosen = payable.length > 0 && chosen.length === payable.length;
   const toggle = (id: string) =>
@@ -172,6 +177,7 @@ export function ExpensesScreen() {
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
+          <SearchInput value={search} onChange={setSearch} label="Search expenses" placeholder="Search name or code" />
           <div className="flex items-center gap-2 text-sm text-text-muted">
             <label htmlFor="expenses-from">Report day from</label>
             <Input id="expenses-from" type="date" value={from} onChange={(e) => update({ from: e.target.value })} className="w-40" />
@@ -220,7 +226,7 @@ export function ExpensesScreen() {
           isEmpty={!range && rows.length === 0}
           empty={{ title: 'No expenses', description: 'Nothing accepted by a manager matches these filters.' }}
         >
-          <DataTable columns={columns} rows={rows} rowKey={(r) => r.id} />
+          <DataTable columns={columns} rows={shownRows} rowKey={(r) => r.id} />
         </DataState>
       {paying ? (
         <MarkPaidDialog

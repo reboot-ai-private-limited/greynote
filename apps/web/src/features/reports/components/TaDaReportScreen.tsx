@@ -3,6 +3,8 @@
 import type { TaDaMonthDto, TaDaMrRowDto } from '@greynote/contracts';
 import Link from 'next/link';
 import { useState } from 'react';
+import { SearchInput } from '@/components/ui/ListToolbar';
+import { matchesSearch } from '@/lib/search';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -47,7 +49,9 @@ export function TaDaReportScreen() {
   const months = report?.months ?? [];
   const started = months.filter((m) => m.state !== 'FUTURE');
   const selected = started.find((m) => m.month === values.month)?.month ?? defaultMonth(months);
-  const rows = report ? rowsOfMonth(report, selected) : [];
+  const [search, setSearch] = useState('');
+  const allRows = report ? rowsOfMonth(report, selected) : [];
+  const rows = allRows.filter((r) => matchesSearch(`${r.mr.name} ${r.mr.employeeCode}`, search));
   const [open, setOpen] = useState<{ userId: string; month: string } | null>(null);
 
   const monthColumns: readonly Column<TaDaMonthDto>[] = [
@@ -216,21 +220,24 @@ export function TaDaReportScreen() {
           title={`${monthLabel(selected)}: by employee`}
           description="Click an employee to see their days."
           actions={
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={rows.length === 0}
-              onClick={() => downloadCsv(taDaMonthFilename(selected), taDaEmployeesCsv(rows))}
-            >
-              Download CSV
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <SearchInput value={search} onChange={setSearch} label="Search employees" placeholder="Search name or code" />
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={rows.length === 0}
+                onClick={() => downloadCsv(taDaMonthFilename(selected), taDaEmployeesCsv(rows))}
+              >
+                Download CSV
+              </Button>
+            </div>
           }
           className="mt-6"
         >
           <DataState
             isLoading={query.isLoading}
             error={null}
-            isEmpty={rows.length === 0}
+            isEmpty={allRows.length === 0}
             empty={{
               title: 'No accepted expenses this month',
               description: 'Claims appear once their daily report is approved.',

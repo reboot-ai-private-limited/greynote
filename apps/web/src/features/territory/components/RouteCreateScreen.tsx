@@ -10,6 +10,7 @@ import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { useHqs } from '../hooks/useHqs';
 import { useCreateRoute } from '../hooks/useRouteMutations';
@@ -64,12 +65,13 @@ export function RouteCreateScreen() {
         <Card title="Details" description={routeName ? `The route will be named “${routeName}”.` : 'The route is named “HQ to destination”.'}>
           <div className="grid gap-5 p-5 sm:grid-cols-2">
             <FormField label="HQ" htmlFor="new-hq" error={errors['hqId']}>
-              <Select
+              <SearchableSelect
                 id="new-hq"
                 value={hqId}
                 onValueChange={setHqId}
                 options={options}
                 placeholder={hqs.isLoading ? 'Loading HQs…' : 'Choose an HQ'}
+                searchPlaceholder="Search HQs"
                 aria-invalid={errors['hqId'] ? true : undefined}
               />
             </FormField>
