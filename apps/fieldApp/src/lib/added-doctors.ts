@@ -100,5 +100,16 @@ export type TeamDoctor = {
   assignedTo: { userId: string; name: string; employeeCode: string } | null;
 };
 
+/** Every doctor assigned to anyone in the manager's team, at any depth (`userId` left out). Reads up to 5 pages of 100. */
+export const listAllTeamDoctors = async (): Promise<TeamDoctor[]> => {
+  const all: TeamDoctor[] = [];
+  for (let page = 1; page <= 5; page += 1) {
+    const res = await apiGet<Page<TeamDoctor>>(`/field-master-data/doctors/team?page=${page}&pageSize=100`);
+    all.push(...res.items);
+    if (all.length >= res.total || res.items.length === 0) break;
+  }
+  return all;
+};
+
 export const listTeamDoctors = async (userId: string, search?: string) =>
   (await apiGet<Page<TeamDoctor>>(`/field-master-data/doctors/team?userId=${userId}&pageSize=100${search ? `&search=${encodeURIComponent(search)}` : ''}`)).items;

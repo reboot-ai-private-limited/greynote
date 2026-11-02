@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './api';
+import { apiDelete, apiGet, apiPost, apiUpload, type UploadFile } from './api';
 
 /**
  * The employee's own sales figures (decision-log 2026-10-10): targets are set per product, the employee enters the
@@ -28,7 +28,25 @@ export type EmployeeSalesLine = {
 };
 /** DRAFT (the employee's own, not sent) → PENDING (with the manager) → APPROVED, or REJECTED. Only APPROVED counts toward achievement. */
 export type SecondaryStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
-export type EmployeeSales = { userId: string; month: string; secondaryStatus: SecondaryStatus | null; approvalRequestId: string | null; lines: EmployeeSalesLine[] };
+/** A photo or PDF attached to the month as proof of the figures (docs/mobile/secondary-and-targets.md section 1b). */
+export type SecondaryAttachment = {
+  id: string;
+  url: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedBy: unknown;
+  uploadedAt: string;
+};
+export type EmployeeSales = {
+  userId: string;
+  month: string;
+  secondaryStatus: SecondaryStatus | null;
+  approvalRequestId: string | null;
+  lines: EmployeeSalesLine[];
+  /** The month's files, oldest first; absent from an older server. */
+  attachments?: SecondaryAttachment[];
+};
 
 export const getEmployeeSales = (userId: string, month: string) =>
   apiGet<EmployeeSales>(`/sales/employee-sales?userId=${userId}&month=${month}`, { fy: true });
@@ -42,6 +60,12 @@ export const saveEmployeeSecondary = (body: { userId: string; month: string; lin
 
 /** Sends the month to the manager for approval: every draft or rejected line becomes PENDING. */
 export const submitEmployeeSecondary = (month: string) => apiPost<unknown>('/sales/employee-secondary/submit', { month }, { auth: true });
+
+/** Attaches one file to the month (PDF, JPG or PNG, up to 5 MB; send several files as several calls). Online only. */
+export const addSecondaryFile = (month: string, file: UploadFile) =>
+  apiUpload<SecondaryAttachment>('/sales/employee-secondary/attachments', file, 'POST', { month });
+
+export const removeSecondaryFile = (id: string) => apiDelete<unknown>(`/sales/employee-secondary/attachments/${id}`);
 
 /** The phone's words for each state. */
 export const SECONDARY_STATUS_TEXT: Record<SecondaryStatus, string> = {

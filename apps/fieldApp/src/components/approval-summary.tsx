@@ -19,7 +19,6 @@ import {
 } from '@/lib/approvals';
 import { getStatementById } from '@/lib/expense-months';
 import { formatRupees } from '@/lib/money';
-import { useDayGate } from '@/hooks/use-day-gate';
 import { getMonthlyPlanById, isFieldDay, routeNamesText, workingTypeLabel, type NamedRoute } from '@/lib/planning';
 import { useSessionUser } from '@/lib/session';
 import { useCachedSource } from '@/offline/cache';
@@ -142,7 +141,6 @@ function MonthlyPlanSummary({ recordId }: { recordId: string }) {
 /* ───────────────────────────── leave, doctor, service ───────────────────────────── */
 
 function LeaveSummary({ recordId }: { recordId: string }) {
-  const { today } = useDayGate();
   const { data, error } = useRecord(() => getLeaveRecord(recordId), 0);
   return (
     <Frame title={data ? `Leave · ${data.leaveTypeName}` : 'Leave'} error={error} loading={!data}>
@@ -151,7 +149,6 @@ function LeaveSummary({ recordId }: { recordId: string }) {
           <Line label="Dates" value={data.startDate === data.endDate ? prettyDay(data.startDate) : `${prettyDay(data.startDate)} → ${prettyDay(data.endDate)}`} />
           <Line label="Days counted" value={String(data.daysCount)} />
           <Line label="Paid" value={data.isPaid ? 'Yes' : 'No (loss of pay)'} />
-          {data.startDate <= today && (data.status === 'SUBMITTED' || data.status === 'MANAGER_APPROVED') ? <Notice tone="warning">This leave has started, so it can only be rejected unless Admin allows a late approval.</Notice> : null}
           {data.reason ? <Line label="Reason" value={data.reason} /> : null}
           {data.attachments.length > 0 ? (
             <View style={styles.entry}>

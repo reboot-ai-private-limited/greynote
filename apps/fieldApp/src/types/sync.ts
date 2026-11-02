@@ -156,8 +156,11 @@ export type WeeklyOffVersion = { effectiveFrom: string; rules: WeeklyOffRule[] }
 /** What the Leave screen reads from the `hr` pull source (balances show offline from the last pull). */
 export type HrSnapshot = {
   leaveYear: number;
-  /** How many days back a leave may start. */
+  /** How many days back a leave may start. The server now always sends 366 (2026-11-02): use `leaveYearFrom` instead. */
   leaveBackdateDays: number;
+  /** First and last day of the leave year (absent from an older server). A leave may start any day from `leaveYearFrom`, the past included. */
+  leaveYearFrom?: string;
+  leaveYearTo?: string;
   /** The one weekday that is off every week today (absent from an older server). */
   weeklyOffDay?: string;
   /** The weekly-off rule sets, each from its start date (absent from an older server). */

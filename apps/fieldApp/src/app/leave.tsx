@@ -65,7 +65,7 @@ type Msg = { tone: 'danger' | 'success' | 'info'; text: string };
  * Leave (PRD §6.2): your balances, a request, and what happened to the ones you sent. Available even
  * while your account is blocked. Requesting, changing and withdrawing need the internet; the balances
  * show from the last sync. The server counts the days (weekly offs and holidays don't count), checks
- * the balance and the backdate limit, and sends the request to your manager, then HR.
+ * the balance, and sends the request to your manager, then HR. A leave may be for a past date; only a finalized salary stops it.
  */
 export default function LeaveScreen() {
   const { today } = useDayGate();
@@ -92,8 +92,9 @@ export default function LeaveScreen() {
   // A new request is for Casual, Sick or Earned leave (not Loss of Pay). The type of a leave already made is kept, so it can still be changed and sent again.
   const requestable = (name: string) => ['casual', 'sick', 'earned'].includes(name.trim().toLowerCase());
   const types = allTypes.filter((t) => requestable(t.name));
-  // A leave can't start in the past (docs/mobile/leave.md rule 6).
-  const earliest = today;
+  // A leave may start in the past, back to the start of the leave year (docs/mobile/leave.md rule 6); only a finalized salary stops it.
+  // An older server sends no `leaveYearFrom`, and there a leave still can't start before today.
+  const earliest = hr.data?.leaveYearFrom ?? today;
 
   const [reloadKey, setReloadKey] = useState(0);
   const reload = () => setReloadKey((k) => k + 1);
@@ -261,6 +262,7 @@ export default function LeaveScreen() {
             label="First day"
             value={start}
             min={earliest}
+            weekSteps
             disabled={busy}
             onChange={(d) => {
               setStart(d);
@@ -272,6 +274,7 @@ export default function LeaveScreen() {
               label="Last day"
               value={end}
               min={start}
+              weekSteps
               disabled={busy}
               onChange={(d) => {
                 setEnd(d);

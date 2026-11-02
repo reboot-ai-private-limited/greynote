@@ -20,5 +20,23 @@ export async function pickProofFile(alreadyChosen: number): Promise<{ file?: Pic
   return { file: { uri: a.uri, name: a.name, mimeType: a.mimeType, sizeBytes: a.size ?? null } };
 }
 
+/**
+ * Lets the employee choose several files at once (the month's secondary takes any number, docs/mobile/secondary-and-targets.md
+ * section 1b). Each is checked against the server's rules (PDF, JPG or PNG, up to 5 MB); the ones that fail come back as
+ * messages naming the file, so the rest can still go. `null` when they backed out of the picker.
+ */
+export async function pickProofFiles(): Promise<{ files: PickedProof[]; errors: string[] } | null> {
+  const result = await DocumentPicker.getDocumentAsync({ type: PROOF_TYPES, copyToCacheDirectory: true, multiple: true });
+  if (result.canceled || result.assets.length === 0) return null;
+  const files: PickedProof[] = [];
+  const errors: string[] = [];
+  for (const a of result.assets) {
+    if (a.mimeType && !PROOF_TYPES.includes(a.mimeType)) errors.push(`${a.name}: choose a PDF, JPG or PNG.`);
+    else if (a.size !== undefined && a.size > MAX_PROOF_BYTES) errors.push(`${a.name}: over 5 MB.`);
+    else files.push({ uri: a.uri, name: a.name, mimeType: a.mimeType, sizeBytes: a.size ?? null });
+  }
+  return { files, errors };
+}
+
 export const formatSize = (bytes: number | null) =>
   bytes === null ? '' : bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;

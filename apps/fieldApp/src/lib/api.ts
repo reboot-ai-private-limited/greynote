@@ -124,9 +124,11 @@ export type UploadFile = { uri: string; name: string; mimeType?: string | null }
  * { uri, name, type } file part: the system reads the file, so the app never has to. (The app's fetch
  * refuses that part, and Expo Go refuses expo-file-system "READ" permission on the picker's cache folder.)
  */
-function sendFile<T>(path: string, file: UploadFile, accessToken: string | undefined, method: 'POST' | 'PUT'): Promise<T> {
+function sendFile<T>(path: string, file: UploadFile, accessToken: string | undefined, method: 'POST' | 'PUT', fields?: Record<string, string>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const form = new FormData();
+    // Text fields go before the file, so the server has them when it reads the file part.
+    for (const [name, value] of Object.entries(fields ?? {})) form.append(name, value);
     form.append('file', { uri: file.uri, name: file.name, type: file.mimeType ?? 'application/octet-stream' } as unknown as Blob);
     const xhr = new XMLHttpRequest();
     xhr.open(method, `${API_BASE_URL}${path}`);
@@ -152,13 +154,13 @@ function sendFile<T>(path: string, file: UploadFile, accessToken: string | undef
 }
 
 /** Sends one file as multipart/form-data (field `file`; POST unless told PUT), refreshing the sign-in once on a 401 like every other call. */
-export async function apiUpload<T>(path: string, file: UploadFile, method: 'POST' | 'PUT' = 'POST'): Promise<T> {
+export async function apiUpload<T>(path: string, file: UploadFile, method: 'POST' | 'PUT' = 'POST', fields?: Record<string, string>): Promise<T> {
   try {
-    return await sendFile<T>(path, file, getTokens()?.accessToken, method);
+    return await sendFile<T>(path, file, getTokens()?.accessToken, method, fields);
   } catch (err) {
     if (!(err instanceof ApiError) || err.status !== 401) throw err;
     if (!(await refreshTokens())) throw err;
-    return sendFile<T>(path, file, getTokens()?.accessToken, method);
+    return sendFile<T>(path, file, getTokens()?.accessToken, method, fields);
   }
 }
 
