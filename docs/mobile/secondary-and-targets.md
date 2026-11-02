@@ -2,6 +2,8 @@
 
 How an employee's monthly **secondary** is entered and approved, and how **targets** and **achievement** relate to it. Online only. Decision: decision-log 2026-10-12.
 
+**Changed 2026-11-02:** after the stock deadline an employee given a secondary exception (web) can still enter figures and files. Still `MONTH_CLOSED` for everyone else. No phone change needed. See [`../LLD/lateGrants.md`](../LLD/lateGrants.md).
+
 **Status key:** ✅ built on the server and web. 📱 the phone still has to show it.
 **Added 2026-11-02:** a month's secondary can carry **files** (photos or PDFs), any number, as proof of the figures (section 1b). Optional, and backward compatible: an older phone build just never sends or shows them.
 **Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - Secondary Sales (units and amount, status per line and month, Send for approval, locked states) and read-only Targets with achievement; a manager can set and now **remove** a target.
@@ -15,7 +17,7 @@ How an employee's monthly **secondary** is entered and approved, and how **targe
 | 3 | The employee's own entry is a **`DRAFT`**. They **send the month** with `POST /api/sales/employee-secondary/submit { month }`; every draft or rejected line becomes `PENDING` and a `SECONDARY_SALES` approval request goes to the **direct manager** (Admin may decide in their place). | ✅ |
 | 4 | While `PENDING` or `APPROVED` the employee cannot change the month (`409 SECONDARY_LOCKED`). It opens again after a rejection, or when the request is withdrawn or Admin reopens it. A line a manager or Admin enters for the employee is `APPROVED` at once. | ✅ |
 | 5 | **Only `APPROVED` secondary counts** toward achievement. Months entered before approval existed read as approved. | ✅ |
-| 6 | Same window as before: the month must have started; after `MONTHLY_STOCK_DEADLINE_DAY` of the next month only Admin, or a month Admin reopened, takes entries. | ✅ |
+| 6 | Same window as before: the month must have started; after `MONTHLY_STOCK_DEADLINE_DAY` of the next month only Admin, a month Admin reopened, or an employee Admin (or their manager, where `LATE_STOCK_GRANT_BY_MANAGER` is on) has given a **secondary exception** for that month takes entries; that exception lasts until its end time, not used up. Still `MONTH_CLOSED` otherwise. | ✅ |
 
 Show a status chip per line and for the month (`secondaryStatus`: Draft / Waiting for approval / Approved / Rejected), a **Send for approval** button when the month is a draft or rejected, and an amount field beside the units that fills the other as the user types (`amount = units × ptsPaise`).
 
@@ -29,7 +31,7 @@ An employee can attach **photos or PDFs** to a month's secondary, for example a 
 | 2 | **Type and size:** a **PDF, JPG or PNG** of at most **5 MB**. The server reads the type from the file's own bytes, so renaming a file does not get it through. `400` with `field: file` otherwise (`INVALID_PAYLOAD`). Compress or resize a photo on the phone before sending. | ✅ 📱 |
 | 3 | **Read:** `GET /api/sales/employee-sales?userId=&month=` (the month's figures) now also returns **`attachments[]`** (oldest first, `[]` when none). Open `url` to view a file. | ✅ 📱 |
 | 4 | **Remove:** `DELETE /api/sales/employee-secondary/attachments/:id`. The file is removed from storage too. `404 ATTACHMENT_NOT_FOUND` if it is gone already. | ✅ 📱 |
-| 5 | **When:** the same rules as the figures. The employee can add and remove while the month is a `DRAFT` or `REJECTED`; once it is `PENDING` or `APPROVED` their own files are frozen (`409 SECONDARY_LOCKED`) until it is withdrawn, rejected or reopened. A manager (for their team) or Admin can add and remove at any status. The month must have started (`MONTH_NOT_STARTED`), and after `MONTHLY_STOCK_DEADLINE_DAY` of the next month only Admin, or a month Admin reopened, can change files (`MONTH_CLOSED`). | ✅ 📱 |
+| 5 | **When:** the same rules as the figures. The employee can add and remove while the month is a `DRAFT` or `REJECTED`; once it is `PENDING` or `APPROVED` their own files are frozen (`409 SECONDARY_LOCKED`) until it is withdrawn, rejected or reopened. A manager (for their team) or Admin can add and remove at any status. The month must have started (`MONTH_NOT_STARTED`), and after `MONTHLY_STOCK_DEADLINE_DAY` of the next month only Admin, a reopened month, or an employee holding the secondary exception for that month can change files (`MONTH_CLOSED` otherwise). | ✅ 📱 |
 | 6 | **Who sees them:** the employee, the manager above, and Admin; the approver sees them on the approval card on the web. | ✅ |
 
 Phone screen: on the month's secondary screen show the thumbnails (a PDF as an icon), an **Add files** button that lets the user pick several, and a remove button on each while rule 5 allows it. Upload them one after another and show each one's error (a file over 5 MB, a type that is not allowed) without stopping the rest. Offline is not supported (secondary is online only).

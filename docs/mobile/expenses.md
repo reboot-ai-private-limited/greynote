@@ -2,6 +2,8 @@
 
 What the field app must do for the Expenses screen, and the rules the server enforces. The server is the authority: the phone's cached status is a UX gate only. **Online only** — nothing here is queued offline. The phone app is another team's; this is the contract it builds against. Decisions: decision-log 2026-10-10 (monthly statement) and 2026-10-12 (deadlines).
 
+**Changed 2026-11-02:** a finalized month, like a paid one, can't be allowed late (`409 GRANT_PERIOD_LOCKED`); `exceptions.*` read `null` then. No phone change needed. See [`../LLD/lateGrants.md`](../LLD/lateGrants.md).
+
 **Status key:** ✅ built on the server. 📱 the phone screen still has to show it (the web portal has no employee screen). ✅📱 built in the field app (typechecked and linted; not yet run on a phone).
 
 ## 1. The rules
@@ -14,10 +16,10 @@ What the field app must do for the Expenses screen, and the rules the server enf
 | 4 | **Submit** (`POST …/expense-months/:month/submit`) only after the month has ended (`409 MONTH_NOT_ENDED`), never empty. Entries lock once sent (`409 EXPENSE_MONTH_LOCKED`) and open again after a rejection. | ✅ |
 | 5 | **Send deadline:** the end of the business day of `EXPENSE_SUBMIT_CUTOFF_DAY` (default the 7th) of the **next month**, in `BUSINESS_TIMEZONE` with the global day start. Never compute it on the phone — read `deadlines.submitBy` (ISO). | ✅ |
 | 6 | Past the deadline, submit is refused with **`409 EXPENSE_SUBMIT_LATE`** unless an exception is open. The statement says so: `submitLate: true` and `canSubmit: false`. | ✅ |
-| 7 | **Late exception:** Admin (or a manager, for their team, only while `LATE_EXPENSE_GRANT_BY_MANAGER` is on) can allow one month to be sent late, once, until `exceptions.submitUntil`. Used up by the submit; after a rejection a new one is needed. It can never be given once any row of the month is paid. | ✅ |
+| 7 | **Late exception:** Admin (or a manager, for their team, only while `LATE_EXPENSE_GRANT_BY_MANAGER` is on) can allow one month to be sent late, once, until `exceptions.submitUntil`. Used up by the submit; after a rejection a new one is needed. It can never be given once any row of the month is paid or the month is finalized for payout (`409 GRANT_PERIOD_LOCKED`); `exceptions.*` then read `null`, and finalizing ends any exception still open. | ✅ |
 | 8 | **Approval deadline** (`deadlines.approveBy`, default the 10th): after it the manager's approval is refused with `409 EXPENSE_APPROVAL_LATE` unless Admin allows it (`exceptions.approveUntil`). The employee can't act on this; show it as "waiting for approval". | ✅ |
 | 9 | Approval makes the month payable; the Accountant pays on `EXPENSE_PAYOUT_DAY`. `paidPaise` shows how much has been settled. | ✅ |
-| 10 | A month already **paid in part** cannot be reopened or allowed late. | ✅ |
+| 10 | A month already **paid in part** cannot be reopened or allowed late; nor can a month **finalized** for payout. | ✅ |
 | 11 | **File name of the Expenses CSV (2026-10-26).** `<name>-<designation>-expenses-<YYYY-MM>-<code>.csv`, e.g. `rahul-roy-mr-expenses-2026-11-emp03.csv`; the person is the employee the statement belongs to, also when a manager downloads it for a team member. Exact rule: [`monthlyplan.md`](monthlyplan.md) rule 22. | ✅ web; 📱 phone to change |
 
 ## 2. What the screen should do ✅📱
@@ -36,7 +38,7 @@ Team → *Late submissions* → **Expenses**. A manager (while `LATE_EXPENSE_GRA
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/field-activity/expense-grants` | `{ userId, month, phase: SUBMIT\|APPROVE, reason, expiresAt? }`. `409` once any row of the month is paid. |
+| `POST` | `/field-activity/expense-grants` | `{ userId, month, phase: SUBMIT\|APPROVE, reason, expiresAt? }`. `409 GRANT_PERIOD_LOCKED` (with a reason) once any row of the month is paid or the month is finalized. |
 | `GET` | `/field-activity/expense-grants` | Admin: all; others: their own and their team's. |
 | `POST` | `/field-activity/expense-grants/:id/revoke` | Revoke one not yet used. |
 
