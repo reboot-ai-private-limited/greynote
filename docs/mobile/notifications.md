@@ -2,6 +2,8 @@
 
 Server built 2026-10-15; **the phone is not built** (the app team's). Design: [`../LLD/notifications.md`](../LLD/notifications.md). Every push is also an Inbox message ([`inbox.md`](inbox.md)), so a missed push loses nothing.
 
+**Changed 2026-11-02:** stock and secondary exceptions send no push (only plan and expense exceptions do). See [`../LLD/lateGrants.md`](../LLD/lateGrants.md).
+
 ## What the phone does
 
 | # | Item | Status |
@@ -55,6 +57,7 @@ A manager gets everything in the table above for their **own** work, plus the te
 Notes for the phone:
 - The "not sent" counts cover the whole downline; "direct" are those reporting straight to the manager. The approvals digest counts the manager's **direct** reports only, which is what they can act on.
 - The manager's own "send it" reminders and the team messages can arrive together. Group them by `data.type` if the tray gets busy.
+- A stock or secondary exception (`MONTHLY_STOCK`, `SECONDARY_SALES`) is not announced by push; the employee just finds the month open.
 - Approving for the **expense send** deadline: the manager can give a late exception (Admin setting `LATE_EXPENSE_GRANT_BY_MANAGER`); the employee then receives `LATE_GRANT_EXPENSE_MONTH`.
 
 ## Testing without waiting for a deadline

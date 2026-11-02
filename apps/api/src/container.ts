@@ -11,6 +11,8 @@ import { buildInboxContainer } from '@/modules/inbox/inbox.container.js';
 import { buildIdentityContainer } from '@/modules/identity/identity.container.js';
 import { buildMarketingContainer } from '@/modules/marketing/marketing.container.js';
 import { buildPayrollContainer } from '@/modules/payroll/payroll.container.js';
+import { expenseLockGuard, payrollLockGuard } from '@/modules/lateGrants/application/standardGuards.js';
+import { buildLateGrantsContainer } from '@/modules/lateGrants/lateGrants.container.js';
 import { buildPlanningContainer } from '@/modules/planning/planning.container.js';
 import { buildRemindersContainer } from '@/modules/reminders/reminders.container.js';
 import { buildReportsContainer } from '@/modules/reports/reports.container.js';
@@ -20,6 +22,7 @@ import { env } from '@/config/env.js';
 import { parseBoolean, readConfigOr } from '@/shared/config/readConfig.js';
 import { buildPushSender } from '@/shared/push/fcmPushSender.adapter.js';
 import { PushNotifier } from '@/shared/push/pushNotifier.js';
+import { appEvents } from '@/shared/events/appEvents.js';
 import { registerPushEvents } from './pushEvents.js';
 import { registerCompositionSyncSources } from './syncSources.js';
 import { makeOffboarding } from './offboarding.js';
@@ -31,6 +34,7 @@ export interface AppContainers {
   identity: ReturnType<typeof buildIdentityContainer>;
   territory: ReturnType<typeof buildTerritoryContainer>;
   approval: ReturnType<typeof buildApprovalContainer>;
+  lateGrants: ReturnType<typeof buildLateGrantsContainer>;
   planning: ReturnType<typeof buildPlanningContainer>;
   hr: ReturnType<typeof buildHrContainer>;
   inbox: ReturnType<typeof buildInboxContainer>;
@@ -77,9 +81,12 @@ export function buildContainers(): AppContainers {
   // registers one, so it needs only Identity (who is sending) and Config (its limits).
   const sync = buildSyncContainer(identity.contract, config.contract);
 
+  // Late Grants: per-employee exceptions to deadlines. Below Planning so a deadline can spend one; lock guards are added by the modules that own settled state.
+  const lateGrants = buildLateGrantsContainer(identity.contract, config.contract);
+
   // Tier 3 — Planning: who the submitter and their managers are (Identity), which Routes they
   // cover (Territory), the approval workflow its Plans go through, and the deadlines (Config).
-  const planning = buildPlanningContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
+  const planning = buildPlanningContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract, lateGrants.contract);
 
   // Tier 3 — HR: employees and Pay Bands (Identity), their HQ (Territory), the LEAVE workflow
   // (Approval), the leave-year and weekly-off settings (Config).
@@ -104,13 +111,13 @@ export function buildContainers(): AppContainers {
   const fieldMasterData = buildFieldMasterDataContainer(identity.contract, territory.contract, approval.contract, sync.contract, config.contract);
 
   // Tier 4 — Field Activity: the daily core (DCR, calls, expenses, TA/DA). It consumes almost everything below it.
-  const fieldActivity = buildFieldActivityContainer(identity.contract, planning.contract, fieldMasterData.contract, territory.contract, approval.contract, sync.contract, hr.contract, config.contract);
+  const fieldActivity = buildFieldActivityContainer(identity.contract, planning.contract, fieldMasterData.contract, territory.contract, approval.contract, sync.contract, hr.contract, config.contract, lateGrants.contract);
 
   planning.bindDoctorSources(fieldMasterData.contract, (userId, range) => fieldActivity.contract.listCalledDoctorIds(userId, range));
   planning.bindDayReported((userId, date) => fieldActivity.contract.hasQualifyingDcr(userId, date));
 
   // Tier 4 — Sales & Orders: monthly stock counts at Chemists and Distributors (Field Master Data), who may see whose (Identity), the daily push (Sync).
-  const sales = buildSalesContainer(identity.contract, fieldMasterData.contract, sync.contract, approval.contract, config.contract);
+  const sales = buildSalesContainer(identity.contract, fieldMasterData.contract, sync.contract, approval.contract, config.contract, { hasUsable: async (userId, kind, month) => (await lateGrants.contract.gate.findUsable(userId, kind, month)) !== null });
 
   // Tier 5 — Attendance: each day of a field employee's month as holiday, off, leave, strike, present or absent. Reads Identity, HR, Planning, Field Activity and Config; owns no data.
   const attendance = buildAttendanceContainer(identity.contract, hr.contract, planning.contract, fieldActivity.contract, config.contract);
@@ -144,6 +151,10 @@ export function buildContainers(): AppContainers {
   // HR sits below Payroll, so it asks through a port: once a month's salary is finalized, that employee's leave in the month is locked.
   hr.bindPayrollLock((userId, month) => payroll.contract.isMonthFinalized(userId, month));
 
+  // Settled money closes the door on late entries: a finalized salary run, a finalized or paid expense month (see lateGrants/standardGuards.ts).
+  lateGrants.contract.addLockGuard(payrollLockGuard((userId, month) => payroll.contract.isMonthFinalized(userId, month)));
+  lateGrants.contract.addLockGuard(expenseLockGuard((userId, month) => fieldActivity.contract.getExpenseMonthState(userId, month)));
+
   // Tier 7 — Reports: read-only reports for the Admin, over Sales, Field Master Data and Identity. Owns no data.
   const reports = buildReportsContainer(identity.contract, fieldMasterData.contract, sales.contract, fieldActivity.contract, territory.contract, payroll.contract, planning.contract, attendance.contract, marketing.contract, config.contract);
 
@@ -174,6 +185,11 @@ export function buildContainers(): AppContainers {
   registerCompositionSyncSources({ sync: sync.contract, territory: territory.contract, config: config.contract });
 
   registerPushEvents(inbox.contract, config.contract);
+  // Whatever is still waiting for a late entry in a month that has just been settled is closed — it could no longer be used safely.
+  appEvents.on('period.settled', async ({ userId, month, source }) => {
+    const kinds = source === 'PAYROLL' ? (['DAILY_PLAN', 'MONTHLY_PLAN'] as const) : (['DAILY_PLAN', 'MONTHLY_PLAN', 'EXPENSE_SUBMIT', 'EXPENSE_APPROVE'] as const);
+    await lateGrants.contract.gate.closeForPeriod(userId, [...kinds], month);
+  });
 
-  return { health, config, identity, territory, approval, planning, hr, inbox, team, reminders, documents, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance, reports };
+  return { health, config, lateGrants, identity, territory, approval, planning, hr, inbox, team, reminders, documents, fieldMasterData, sync, fieldActivity, sales, marketing, payroll, attendance, reports };
 }

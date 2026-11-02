@@ -1,6 +1,7 @@
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
+import type { SalesLateGate } from '../../domain/salesLateGate.port.js';
 import { monthWindow } from '../../domain/stockDeadline.js';
 import type { Outlet, StockLine } from '../../domain/monthlyStock.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
@@ -28,6 +29,7 @@ export class RecordMonthlyStockUseCase {
     private readonly stock: MonthlyStockRepositoryPort,
     private readonly clock: SalesClock,
     private readonly config?: ConfigReader,
+    private readonly late?: SalesLateGate,
   ) {}
 
   async execute(actor: Actor, input: RecordStockInput, ctx?: TransactionContext): Promise<{ serverId: string; lines: number }> {
@@ -37,7 +39,7 @@ export class RecordMonthlyStockUseCase {
     const now = this.clock.now();
     const window = monthWindow(month, now, await this.clock.deadlineDay(), await this.clock.timeZone(), await this.clock.dayStart());
     if (window === 'FUTURE') throw new StockRefusal(STOCK_CODES.monthNotStarted, `${month} has not started yet.`);
-    if (window === 'CLOSED' && actor.role !== 'ADMIN' && !(await this.stock.isUnlocked(month))) {
+    if (window === 'CLOSED' && actor.role !== 'ADMIN' && !(await this.stock.isUnlocked(month)) && !(await this.late?.hasUsable(actor.id, 'MONTHLY_STOCK', month))) {
       throw new StockRefusal(STOCK_CODES.monthClosed, `The deadline for ${month} has passed. Ask an Admin to reopen it.`);
     }
 

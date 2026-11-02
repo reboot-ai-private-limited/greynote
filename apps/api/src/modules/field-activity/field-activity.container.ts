@@ -17,8 +17,9 @@ import { AdjustExpenseService } from './application/usecases/expenseAdjust.useca
 import { ExpenseOverviewUseCase, ExpenseReviewService } from './application/usecases/expenseReview.usecase.js';
 import { EXPENSE_MONTH_KIND, ExpenseMonthService } from './application/usecases/expenseMonth.usecase.js';
 import { ExpenseMonthDeadlines } from './application/expenseMonthDeadlines.js';
-import { GrantExpenseMonthUseCase, ListExpenseMonthGrantsUseCase, RevokeExpenseMonthGrantUseCase } from './application/usecases/expenseMonthGrants.usecase.js';
-import { MongoExpenseMonthGrantAdapter } from './infrastructure/mongoExpenseMonthGrant.adapter.js';
+import { GrantExpenseMonthUseCase, ListExpenseMonthGrantsUseCase, RevokeExpenseMonthGrantUseCase, monthHasPaidRows } from './application/usecases/expenseMonthGrants.usecase.js';
+import { LateGrantsExpenseAdapter } from './infrastructure/lateGrantsExpenseAdapter.js';
+import type { LateGrantsPublicContract } from '@/modules/lateGrants/lateGrants.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { DoctorVisitGap } from './application/doctorVisitGap.js';
 import { Types } from 'mongoose';
@@ -93,6 +94,7 @@ export function buildFieldActivityContainer(
   sync: SyncPublicContract,
   leave: LeavePort,
   config: ConfigReader,
+  lateGrants: LateGrantsPublicContract,
 ): FieldActivityContainer {
   // 1. Adapters
   const dcrs = new MongoDcrAdapter();
@@ -116,7 +118,7 @@ export function buildFieldActivityContainer(
 
   // A month of expenses goes to the manager, whose approval is the decision (Admin may act in their place); approval makes its rows payable.
   const proofStorage = new CloudinaryProofStorage();
-  const expenseGrants = new MongoExpenseMonthGrantAdapter();
+  const expenseGrants = new LateGrantsExpenseAdapter(lateGrants);
   const expenseAdjustments = new MongoExpenseAdjustmentAdapter();
   const monthService = new ExpenseMonthService(expenses, expenseMonths, users, approvals, clock, config, new MongooseTransactionRunner(), proofStorage, expenseGrants, new ExpenseMonthDeadlines(config));
   approvals.registerKind({ kind: EXPENSE_MONTH_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: describeEach((id) => expenseMonths.findById(id), (record) => ({ title: monthTitle(record.month), subtitle: null })), onStatusChange: (change, ctx) => monthService.onStatusChange(change.recordId, change.status, ctx) });
@@ -188,6 +190,10 @@ export function buildFieldActivityContainer(
       listReportedDates: (userId, from, to) => listReportedDates.execute(userId, from, to),
       getPaidTaDaTotal: (userId, month) => paidTaDa.execute(userId, month),
       summarizeExpenses: (range) => expenses.summarizeByMonth(range),
+      getExpenseMonthState: async (userId, month) => {
+        const [record, rows] = await Promise.all([expenseMonths.find(userId, month), monthHasPaidRows(expenses, userId, month)]);
+        return { submitted: record?.status === 'SUBMITTED', finalized: Boolean(record?.finalizedAt), hasPaid: rows };
+      },
       listUnsubmittedExpenseUsers: async (month, userIds) => {
         const wanted = new Set(userIds);
         const withMoney = new Set(

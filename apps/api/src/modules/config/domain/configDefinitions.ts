@@ -148,6 +148,10 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   // ── Sales ──
   integer('MONTHLY_STOCK_DEADLINE_DAY', 'SALES', 'Monthly stock deadline day', 'Day of the next month by which a month’s opening and closing stock counts must be entered (5 = the 5th of the following month).', 5, 1, 28),
 
+  toggle('LATE_STOCK_GRANT_BY_MANAGER', 'SALES', 'Managers can allow late stock and secondary', 'Whether a manager (not just Admin) may let someone in their team enter a month’s stock counts or secondary sales (and their files) after the deadline.', false),
+  integer('LATE_STOCK_GRANT_VALID_HOURS', 'SALES', 'Late stock/secondary exception lasts', 'Hours a late stock or secondary exception stays usable after it is granted.', 72, 1, 744, 'hours'),
+  integer('LATE_STOCK_GRANT_MAX_HOURS', 'SALES', 'Longest late stock/secondary exception', 'The furthest ahead (in hours from now) an Admin or manager can set the end of a late stock or secondary exception.', 336, 1, 8760, 'hours'),
+
   // ── Sync ──
   integer('SYNC_MAX_BATCH', 'SYNC', 'Most records per push', 'Most records the app may send in one push. A bigger day is sent in chunks, the DCR’s own submit last.', 100, 1, 10_000),
   integer('SYNC_DRAFT_TTL_DAYS', 'SYNC', 'Backed-up record kept for', 'How long an unsent backed-up record is kept before it is purged.', 30, 1, 3650, 'days'),

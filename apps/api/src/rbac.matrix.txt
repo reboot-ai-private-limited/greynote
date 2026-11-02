@@ -104,6 +104,10 @@ GET    /api/identity/work-with/directory  ACCOUNTANT,ADMIN,HR
 GET    /api/inbox  ANY
 GET    /api/inbox/messages  ADMIN
 GET    /api/inbox/unread-count  ANY
+GET    /api/late-grants  ACCOUNTANT,ADMIN,FIELD,HR
+GET    /api/late-grants/eligible  ADMIN,FIELD
+GET    /api/late-grants/kinds  ACCOUNTANT,ADMIN,FIELD,HR
+GET    /api/late-grants/preview  ADMIN,FIELD
 GET    /api/marketing/campaigns  ADMIN,FIELD
 GET    /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 GET    /api/marketing/targets  ADMIN,FIELD,HR
@@ -281,6 +285,9 @@ POST   /api/inbox/:id/read  ANY
 POST   /api/inbox/messages  ADMIN
 POST   /api/inbox/messages/clear-notifications  ADMIN
 POST   /api/inbox/read-all  ANY
+POST   /api/late-grants  ADMIN,FIELD
+POST   /api/late-grants/:id/revoke  ADMIN,FIELD
+POST   /api/late-grants/bulk  ADMIN,FIELD
 POST   /api/marketing/campaigns  ADMIN
 POST   /api/marketing/doctors/:doctorId/visuals  ADMIN,FIELD
 POST   /api/marketing/targets  ADMIN,HR

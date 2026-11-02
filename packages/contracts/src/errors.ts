@@ -17,6 +17,8 @@ export const FAULT_CODES = [
   /** A Plan submitted after its deadline without a late-submission exception (409). */
   'PLAN_SUBMIT_LATE',
   'MONTHLY_PLAN_NOT_APPROVED',
+  /** A late-submission exception for a period whose money or records are already settled downstream (409). */
+  'GRANT_PERIOD_LOCKED',
   /** The request body is bigger than the server accepts (413). */
   'PAYLOAD_TOO_LARGE',
   /** An external dependency (e.g. Google Maps) is unconfigured or down — retry later. */

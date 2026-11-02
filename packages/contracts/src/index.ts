@@ -21,6 +21,7 @@ export * from './documents.js';
 export * from './sales.js';
 export * from './fieldMasterData.js';
 export * from './planning.js';
+export * from './lateGrants.js';
 export * from './config.js';
 export * from './attendance.js';
 export * from './reports.js';

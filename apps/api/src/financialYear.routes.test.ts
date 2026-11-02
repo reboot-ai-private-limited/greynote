@@ -194,6 +194,11 @@ const TIMELESS = [
   '/api/field-activity/doctor-services',
   '/api/field-activity/doctor-gifts',
   '/api/planning/late-grants',
+  // The unified late-grant list, like the plan list it replaces, is filtered by the screen's own month and status.
+  '/api/late-grants',
+  '/api/late-grants/kinds',
+  '/api/late-grants/preview',
+  '/api/late-grants/eligible',
 ];
 
 describe('financial-year route classification', () => {

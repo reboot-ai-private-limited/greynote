@@ -10,6 +10,7 @@ import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../outletAccess.js';
 import type { SalesClock } from '../salesClock.js';
+import type { SalesLateGate } from '../../domain/salesLateGate.port.js';
 import { assertMayAct, assertMonthOpenForEntry } from './employeeSales.usecase.js';
 
 interface Deps {
@@ -20,6 +21,7 @@ interface Deps {
   storage: SecondaryFileStoragePort;
   clock: SalesClock;
   config: ConfigReader;
+  late?: SalesLateGate | undefined;
 }
 
 /**
@@ -29,7 +31,7 @@ interface Deps {
  */
 async function assertMayChange(d: Deps, actor: Actor, userId: string, month: string): Promise<void> {
   await assertMayAct(d.users, actor, userId);
-  await assertMonthOpenForEntry(d, actor, month);
+  await assertMonthOpenForEntry(d, actor, month, userId);
   if (actor.id !== userId) return;
   const rows = await d.sales.list({ userIds: [userId], fromMonth: month, toMonth: month }, 5000);
   const locked = rows.find((r) => r.secondaryQty !== null && (r.secondaryStatus === 'PENDING' || r.secondaryStatus === 'APPROVED'));
