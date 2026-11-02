@@ -118,6 +118,16 @@ describe('Daily Plan', () => {
     await expectError(submit.execute(MR, plan.id), 400);
   });
 
+  it('accepts a manager from the upline and refuses someone outside the reporting line', async () => {
+    const plan = await save.execute(MR, DATE, fieldDay({ workWith: [ASM] }));
+    await expect(submit.execute(MR, plan.id)).resolves.toBeDefined();
+
+    kit.users.add('ccccccccccccccccccccccc2'); // active, but in no line with MR
+    const second = await save.execute(MR, '2026-10-06', fieldDay({ workWith: ['ccccccccccccccccccccccc2'] }));
+    const err = await expectError(submit.execute(MR, second.id), 400);
+    expect(err.publicDetails).toMatchObject({ userIds: ['ccccccccccccccccccccccc2'] });
+  });
+
   it('refuses a submit if the plan was edited while it was being validated', async () => {
     const plan = await save.execute(MR, DATE, fieldDay());
     kit.routes.onList = async () => {

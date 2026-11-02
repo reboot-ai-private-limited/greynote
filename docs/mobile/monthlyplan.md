@@ -107,18 +107,19 @@ A day (planned or on a call) can name colleagues to work with.
 
 `GET /identity/work-with` — FIELD only.
 
-| Query | Returns |
-|---|---|
-| *(none)* / `scope=managers` | **Every active manager in the organisation** — anyone who has direct reports, not only the caller's own chain. |
-| `scope=all` | Every active field employee. |
+No query. It returns **only the caller's own reporting tree (changed 2026-11-02)**: every manager above them (their manager, that manager's manager, up to the top) **and** everyone below them at any depth. Active people only. Nobody from another branch, no org-wide list. An MR gets their upline; a manager gets their upline plus their whole team.
+
+**Breaking change for the phone.** `scope=managers` / `scope=all` no longer exist; the server ignores the parameter, so an old build keeps working but sees the tree list either way. Remove the **Managers / All employees** switch and the org-wide search; search only inside this list.
 
 Each row: `{ id, employeeCode, name, designation, label }`. `label` is ready to print: **`Asha Rao (ASM)`**; with no designation it is just the name. The caller is never in the list. Sorted by name.
 
-**Demo accounts (2026-10-23):** `isDemo` accounts (the seeded DEMO team) are left out of both lists for real employees, and are listed only to another demo account. Before this, `scope=all` left them out for everyone, so a demo ZSM's picker (built from `scope=all`) lacked the demo ASM and MRs.
+**Demo accounts:** `isDemo` accounts (the seeded DEMO team) are left out for real employees, and are listed only to another demo account.
+
+**Saving enforces the same list (2026-11-02).** A plan (daily or monthly) that names someone outside the caller's upline and downline, or someone inactive, is refused with `400` on `workWith` (`userIds` lists them). This now applies to every employee, not only managers.
 
 Suggested phone behaviour:
-- Cache both lists on the phone and refresh them with every background sync, so the picker works offline.
-- Open the picker on **Managers**, with a switch to **All employees** and a search box (name or code).
+- Cache the list on the phone and refresh it with every background sync, so the picker works offline. Re-fetch after a manager change, because the tree moves.
+- One picker over this list, with a search box (name or code).
 - Print `label` on chips and summaries.
 - Send only the ids as `workWith: string[]` (≤ 20 a day).
 

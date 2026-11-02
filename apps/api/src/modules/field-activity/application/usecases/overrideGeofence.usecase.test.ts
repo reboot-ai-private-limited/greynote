@@ -31,7 +31,7 @@ describe('accepting a flagged call (geofence override)', () => {
     const doc = { reportDate: DAY, doctorId: 'd1', workWith: [], remarks: null, capturedLocation: CLINIC as typeof CLINIC | null, accuracyMeters: 5, samples: [] };
     passId = (await kit.logDoctorCall.execute(REC, doc, tx)).serverId;
     failId = (await kit.logDoctorCall.execute({ ...REC, clientId: 'c-2' }, doc, tx)).serverId;
-    chemistFailId = (await kit.logChemistCall.execute({ ...REC, clientId: 'c-3' }, { reportDate: DAY, chemistId: 'c1', workWith: [], remarks: null, capturedLocation: CLINIC, accuracyMeters: 5 }, tx)).serverId;
+    chemistFailId = (await kit.logChemistCall.execute({ ...REC, clientId: 'c-3' }, { reportDate: DAY, chemistId: 'c1', remarks: null, capturedLocation: CLINIC, accuracyMeters: 5 }, tx)).serverId;
     const failing = { status: 'FAIL' as const, distanceMeters: 400, reason: null, overriddenBy: null, overriddenAt: null, overrideComment: null };
     kit.doctorCalls.rows.find((r) => r.id === failId)!.geofence = failing;
     kit.chemistCalls.rows.find((r) => r.id === chemistFailId)!.geofence = { ...failing, status: 'UNVERIFIED', distanceMeters: null, reason: 'NO_GPS_READING' };

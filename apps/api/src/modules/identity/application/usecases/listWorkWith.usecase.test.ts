@@ -20,7 +20,17 @@ const users = {
   listActiveIdsByRole: async (_role: string, opts: { includeDemo?: boolean } = {}) => Object.keys(NAME).filter((i) => i !== 'old' && (opts.includeDemo || !i.startsWith('demo'))),
 } as unknown as UserRepositoryPort;
 const profiles = {
-  findManagerIds: async () => [...new Set(Object.values(MANAGER_OF).filter((m): m is string => m !== null))],
+  findByUserId: async (userId: string) => (userId in MANAGER_OF ? ({ userId, managerId: MANAGER_OF[userId] } as EmployeeProfile) : null),
+  findDownline: async (managerId: string) => {
+    const out: Array<{ userId: string; managerId: string; depth: number }> = [];
+    let level = [managerId];
+    for (let depth = 1; level.length > 0; depth++) {
+      const next = Object.keys(MANAGER_OF).filter((id) => level.includes(MANAGER_OF[id] as string));
+      next.forEach((userId) => out.push({ userId, managerId: MANAGER_OF[userId] as string, depth }));
+      level = next;
+    }
+    return out;
+  },
   findByUserIds: async (ids: string[]) => ids.map((userId) => ({ userId, designationId: DESIGNATION[userId] }) as EmployeeProfile),
 } as unknown as EmployeeProfileRepositoryPort;
 const designations = {
@@ -34,27 +44,30 @@ const designations = {
 describe('ListWorkWithUseCase', () => {
   const list = new ListWorkWithUseCase(users, profiles, designations);
 
-  it('lists every manager in the org — not only the caller’s own chain — with the designation in the label', async () => {
+  it('gives an MR their whole upline and nobody from another branch', async () => {
     const result = await list.execute('mr-1');
     expect(result.map((p) => p.label)).toEqual(['Asha (ASM)', 'Zed (ZSM)']);
   });
 
-  it('never lists the caller, even a manager', async () => {
-    expect((await list.execute('asm-a')).map((p) => p.id)).toEqual(['zsm']);
+  it('gives a manager their upline and their downline at every depth, not their siblings', async () => {
+    expect((await list.execute('asm-a')).map((p) => p.id)).toEqual(['mr-2', 'mr-1', 'zsm']);
+    const top = await list.execute('zsm');
+    expect(top.map((p) => p.id)).toEqual(['asm-a', 'asm-b', 'mr-2', 'mr-1']);
+    expect(top.find((p) => p.id === 'mr-2')?.label).toBe('Mona');
   });
 
-  it('leaves inactive people out', async () => {
-    expect((await list.execute('mr-1')).map((p) => p.id)).not.toContain('old');
-  });
-
-  it('scope=all lists every active field employee; a person with no designation is just the name', async () => {
-    const result = await list.execute('zsm', 'all');
-    expect(result.map((p) => p.label)).toEqual(['Asha (ASM)', 'Bela (ASM)', 'Mona', 'Ravi (MR)']);
-    expect(result.find((p) => p.id === 'mr-2')?.designation).toBeNull();
+  it('never lists the caller and leaves inactive people out', async () => {
+    const ids = (await list.execute('zsm')).map((p) => p.id);
+    expect(ids).not.toContain('zsm');
+    expect(ids).not.toContain('old');
   });
 
   it('shows a demo account only to another demo account', async () => {
-    expect((await list.execute('zsm', 'all')).map((p) => p.id)).not.toContain('demo');
-    expect((await list.execute('demo-boss', 'all')).map((p) => p.id)).toContain('demo');
+    expect((await list.execute('zsm')).map((p) => p.id)).not.toContain('demo');
+    expect((await list.execute('demo-boss')).map((p) => p.id)).toEqual([]);
+  });
+
+  it('the directory still lists every active field employee', async () => {
+    expect((await list.executeDirectory()).map((p) => p.label)).toEqual(['Asha (ASM)', 'Bela (ASM)', 'Mona', 'Ravi (MR)', 'Zed (ZSM)']);
   });
 });

@@ -87,7 +87,7 @@ export class PlanSubmitter {
     });
   }
 
-  /** Every day is well-formed, on the owner's own active routes, with active colleagues — checked against today's state. */
+  /** Every day is well-formed, on the owner's own active routes, with colleagues from their own reporting line — checked against today's state. */
   async validateDays(ownerId: string, days: Array<{ day: PlanDay; field: string }>, alsoRoutesOf: string[] = []): Promise<void> {
     const s = { ownerId, days };
     for (const { day, field } of s.days) assertPlanDay(day, s.ownerId, field);
@@ -113,13 +113,13 @@ export class PlanSubmitter {
 
     const colleagueIds = [...new Set(s.days.flatMap(({ day }) => day.workWith))];
     if (colleagueIds.length === 0) return;
-    const active = new Set(
-      (await this.users.getUserSummaries(colleagueIds)).filter((u) => u.status === 'active').map((u) => u.id),
-    );
+    // Work With is the owner's own reporting tree: the managers above them and everyone below, active only.
+    const [upline, downline] = await Promise.all([this.users.getManagerChain(s.ownerId), this.users.getDownline(s.ownerId)]);
+    const inTree = new Set([...upline, ...downline].filter((u) => u.status === 'active').map((u) => u.id));
     for (const { day, field } of s.days) {
-      const unknown = day.workWith.filter((id) => !active.has(id));
+      const unknown = day.workWith.filter((id) => !inTree.has(id));
       if (unknown.length > 0) {
-        throw AppError.badRequest('A colleague in this plan isn’t an active employee.', {
+        throw AppError.badRequest('You can only work with active people in your own reporting line.', {
           field: `${field}workWith`,
           userIds: unknown,
         });

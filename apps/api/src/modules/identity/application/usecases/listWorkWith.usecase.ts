@@ -3,8 +3,6 @@ import type { EmployeeProfileRepositoryPort } from '../../domain/employeeProfile
 import type { UserRepositoryPort } from '../../domain/user.repository.port.js';
 import { personLabel } from './namePeople.usecase.js';
 
-export type WorkWithScope = 'managers' | 'all';
-
 export interface WorkWithPerson {
   id: string;
   employeeCode: string;
@@ -14,10 +12,13 @@ export interface WorkWithPerson {
   label: string;
 }
 
+const MAX_CHAIN_DEPTH = 50;
+
 /**
- * The people an employee can name as "Work With" on a plan or a call. `managers` (the default) is every active manager
- * in the organisation — anyone who has direct reports, not just the caller's own chain. `all` is every active field
- * employee, for the search-everyone box. The caller is never in the list. Demo accounts show only to demo accounts. Sorted by name.
+ * The people an employee can name as "Work With" on a plan: their own reporting tree — every manager above them (the
+ * whole upline) and everyone below them at any depth (the downline). Nobody from another branch. The caller is never
+ * in the list. Demo accounts show only to demo accounts. Sorted by name. `executeDirectory` is the org-wide list of
+ * active field employees for Admin, HR and Accountant pickers.
  */
 export class ListWorkWithUseCase {
   constructor(
@@ -26,10 +27,30 @@ export class ListWorkWithUseCase {
     private readonly designations: DesignationRepositoryPort,
   ) {}
 
-  async execute(callerId: string, scope: WorkWithScope = 'managers'): Promise<WorkWithPerson[]> {
-    // Demo accounts are seen only by other demo accounts, in both scopes.
-    const demoCaller = callerId ? ((await this.users.findById(callerId))?.isDemo ?? false) : false;
-    const ids = scope === 'all' ? await this.users.listActiveIdsByRole('FIELD', { includeDemo: demoCaller }) : await this.profiles.findManagerIds();
+  async execute(callerId: string): Promise<WorkWithPerson[]> {
+    const demoCaller = (await this.users.findById(callerId))?.isDemo ?? false;
+    const [upline, downline] = await Promise.all([this.uplineIds(callerId), this.profiles.findDownline(callerId)]);
+    return this.people([...upline, ...downline.map((d) => d.userId)], callerId, demoCaller);
+  }
+
+  async executeDirectory(): Promise<WorkWithPerson[]> {
+    return this.people(await this.users.listActiveIdsByRole('FIELD', { includeDemo: false }), '', false);
+  }
+
+  /** Nearest manager first, then up to the top; stops on a cycle. */
+  private async uplineIds(userId: string): Promise<string[]> {
+    const chain: string[] = [];
+    const seen = new Set([userId]);
+    let current = (await this.profiles.findByUserId(userId))?.managerId ?? null;
+    while (current && !seen.has(current) && chain.length < MAX_CHAIN_DEPTH) {
+      chain.push(current);
+      seen.add(current);
+      current = (await this.profiles.findByUserId(current))?.managerId ?? null;
+    }
+    return chain;
+  }
+
+  private async people(ids: string[], callerId: string, demoCaller: boolean): Promise<WorkWithPerson[]> {
     const wanted = [...new Set(ids)].filter((id) => id !== callerId);
     if (wanted.length === 0) return [];
 

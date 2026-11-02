@@ -28,7 +28,6 @@ const callBase = (d: CallDocLike & { _id: unknown }) => ({
   workingType: d.workingType,
   routeId: d.routeId ? String(d.routeId) : null,
   routeType: d.routeType ?? null,
-  workWith: d.workWith.map(String),
   remarks: d.remarks,
   capturedLocation: d.capturedLatitude === null || d.capturedLongitude === null ? null : { latitude: d.capturedLatitude, longitude: d.capturedLongitude },
   accuracyMeters: d.accuracyMeters,
@@ -45,7 +44,6 @@ const callColumns = (c: Omit<DoctorCall, 'id' | 'doctorId' | 'samples' | 'notInP
   workingType: c.workingType,
   routeId: c.routeId ? oid(c.routeId) : null,
   routeType: c.routeType,
-  workWith: c.workWith.map(oid),
   remarks: c.remarks,
   capturedLatitude: c.capturedLocation?.latitude ?? null,
   capturedLongitude: c.capturedLocation?.longitude ?? null,
@@ -63,6 +61,7 @@ const callColumns = (c: Omit<DoctorCall, 'id' | 'doctorId' | 'samples' | 'notInP
 const toDoctorCall = (d: DoctorCallDoc & { _id: unknown }): DoctorCall => ({
   ...callBase(d),
   doctorId: String(d.doctorId),
+  workWith: d.workWith.map(String),
   notInPlan: d.notInPlan ?? false,
   routeNotInPlan: d.routeNotInPlan ?? false,
   samples: d.samples.map((s) => ({ allocationId: String(s.allocationId), productId: String(s.productId), quantity: s.quantity })),
@@ -146,7 +145,7 @@ export class MongoDoctorCallAdapter implements DoctorCallRepositoryPort {
   }
   async create(input: Omit<DoctorCall, 'id'>, ctx: TransactionContext): Promise<DoctorCall> {
     const [doc] = await DoctorCallModel.create(
-      [{ ...callColumns(input), doctorId: oid(input.doctorId), notInPlan: input.notInPlan, routeNotInPlan: input.routeNotInPlan, samples: input.samples.map((s) => ({ allocationId: oid(s.allocationId), productId: oid(s.productId), quantity: s.quantity })) }],
+      [{ ...callColumns(input), doctorId: oid(input.doctorId), workWith: input.workWith.map(oid), notInPlan: input.notInPlan, routeNotInPlan: input.routeNotInPlan, samples: input.samples.map((s) => ({ allocationId: oid(s.allocationId), productId: oid(s.productId), quantity: s.quantity })) }],
       session(ctx),
     );
     return toDoctorCall(doc!.toObject());

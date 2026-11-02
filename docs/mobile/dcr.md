@@ -10,7 +10,7 @@ What the field app must do for the day's records and the final submit, and the r
 | | Doctor call | Doctor follow-up | Chemist call | Chemist follow-up |
 |---|---|---|---|---|
 | Sync kind | `DOCTOR_CALL` | `DOCTOR_FOLLOWUP` | `CHEMIST_CALL` | `CHEMIST_FOLLOWUP` |
-| The phone sends | `reportDate`, `doctorId`, `samples`, `remarks`, `workWith`, `capturedLocation`, `accuracyMeters` | `reportDate`, `doctorId`, `remarks` (required), `capturedLocation`, `accuracyMeters` | `reportDate`, `chemistId`, `remarks`, `workWith`, `capturedLocation`, `accuracyMeters` | `reportDate`, `chemistId`, `remarks` (required), `capturedLocation`, `accuracyMeters` |
+| The phone sends | `reportDate`, `doctorId`, `samples`, `remarks`, `workWith`, `capturedLocation`, `accuracyMeters` | `reportDate`, `doctorId`, `remarks` (required), `capturedLocation`, `accuracyMeters` | `reportDate`, `chemistId`, `remarks`, `capturedLocation`, `accuracyMeters` — **no `workWith` (2026-11-02): a chemist call has no Work With field; an old build that still sends it is ignored, not refused** | `reportDate`, `chemistId`, `remarks` (required), `capturedLocation`, `accuracyMeters` |
 | Work type | **not sent** — the server stamps the day's plan type (`FIELD_WORK` or `DOCTOR_CAMPAIGN`) | same | same (the work type is gone from the chemist call) | same |
 | Route type | stamped: the doctor's route and its type (`HQ`, `EX_STATION`, `OUT_STATION`) | same | same (the chemist's route) | same |
 | Location | required, must be inside the radius | same | same | same |
@@ -41,6 +41,10 @@ Show the work type and route type on every record in the day's list ("Field work
 { "reportDate": "2026-10-12", "doctorId": "…", "workWith": [], "remarks": null,
   "capturedLocation": { "latitude": 26.7271, "longitude": 88.3953 }, "accuracyMeters": 12,
   "samples": [{ "productId": "…", "quantity": 2 }] }
+
+// CHEMIST_CALL (no workWith)
+{ "reportDate": "2026-10-12", "chemistId": "…", "remarks": null,
+  "capturedLocation": { "latitude": 26.7271, "longitude": 88.3953 }, "accuracyMeters": 12 }
 
 // DOCTOR_FOLLOWUP / CHEMIST_FOLLOWUP
 { "reportDate": "2026-10-12", "doctorId": "…", "remarks": "Visit again on Friday",

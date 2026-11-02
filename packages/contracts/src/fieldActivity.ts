@@ -63,8 +63,6 @@ interface CallBaseDto {
   /** The Doctor's or Chemist's Route and its type, stamped by the server. */
   routeId: string | null;
   routeType: RecordRouteTypeDto | null;
-  /** Accompanying colleagues' user ids. */
-  workWith: string[];
   remarks: string | null;
   /** The phone's GPS at the call. */
   capturedLocation: GeoPoint | null;
@@ -75,6 +73,8 @@ interface CallBaseDto {
 
 export interface DoctorCallDto extends CallBaseDto {
   doctorId: string;
+  /** Accompanying colleagues' user ids. A chemist call has none. */
+  workWith: string[];
   doctorName: string;
   /** The day's approved plan lists doctors and this one wasn't among them. */
   notInPlan: boolean;
