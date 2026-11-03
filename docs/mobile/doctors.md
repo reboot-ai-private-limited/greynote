@@ -34,7 +34,7 @@ Admin does this on the web only; the phone never edits, deactivates or deletes a
 
 | # | What happens | What the phone should do | Status |
 |---|---|---|---|
-| D1 | **Deactivated, deleted, unassigned from me, or given to another MR:** the doctor drops out of `GET /doctors/mine` and the snapshot's `doctors` at the next sync. | Remove it from the doctor list and pickers after the next sync; don't keep it from an old cache. | ✅ |
+| D1 | **Deactivated, deleted, unassigned from me, or given to another MR:** the doctor drops out of `GET /doctors/mine` and the snapshot's `doctors` at the next sync. | Remove it from the doctor list and pickers after the next sync; don't keep it from an old cache. A manager's picker (downline doctors from `doctors/team`) is refreshed the same way. | ✅ |
 | D2 | **My Daily Plans from today that I can still change** (draft, rejected, withdrawn, reopened) **lose the doctor**; the server takes it off. Submitted or approved plans keep it. | Re-read the plan after a sync; don't re-send a doctor list containing it (a save or submit with it is refused: `400` on `doctorIds`). | ✅ |
 | D3 | **A call on it is refused**, also one recorded offline and pushed later: the record comes back refused with the existing `doctorNotFound` reason ("This doctor isn't on the list any more"). The same for a gift, a service or a sample on it. | Show the reason on the queued record; the employee discards it. | ✅ (existing behaviour) |
 | D4 | **History keeps the name.** Past calls, DCRs, gifts, services and reports still show the doctor's name, even after a delete. | Nothing to do; never hide a past record because its doctor is gone. | ✅ |

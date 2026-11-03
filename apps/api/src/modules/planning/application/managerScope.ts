@@ -14,7 +14,8 @@ const parsePositive = (value: string): number => {
 
 /**
  * Whose routes and doctors a Daily Plan may draw on. An MR plans from their own. A manager (any designation above MR) works
- * with people from their team, so their plan may also use the routes and doctors of the team members it names in `workWith`.
+ * with people from their team: their plan may use the routes of the team members it names in `workWith`, and the doctors of anyone
+ * in their downline.
  */
 export class ManagerScope {
   constructor(
@@ -33,12 +34,14 @@ export class ManagerScope {
     return workWith;
   }
 
-  /** How the doctor list is built for this plan: whose doctors, and how many at most. */
-  async doctorScope(ownerId: string, workWith: string[]): Promise<{ people: string[]; max: number }> {
-    const team = await this.team(ownerId, workWith);
-    const max = (await this.isManager(ownerId))
-      ? await readConfigOr(this.config, PLANNING_CONFIG_KEYS.managerMaxDoctors, parsePositive, DEFAULT_MANAGER_MAX_DOCTORS)
-      : MAX_PLAN_DOCTORS;
-    return { people: [ownerId, ...team], max };
+  /**
+   * How the doctor list is built for this plan: whose doctors, how many at most, and whether the route check applies. A manager may
+   * pick the doctor of anyone in their whole downline (not only the people in Work With), on any route; an MR only their own.
+   */
+  async doctorScope(ownerId: string, _workWith: string[]): Promise<{ people: string[]; max: number; anyRoute: boolean }> {
+    if (!(await this.isManager(ownerId))) return { people: [ownerId], max: MAX_PLAN_DOCTORS, anyRoute: false };
+    const max = await readConfigOr(this.config, PLANNING_CONFIG_KEYS.managerMaxDoctors, parsePositive, DEFAULT_MANAGER_MAX_DOCTORS);
+    const downline = (await this.users.getDownline(ownerId)).map((u) => u.id);
+    return { people: [ownerId, ...downline], max, anyRoute: true };
   }
 }

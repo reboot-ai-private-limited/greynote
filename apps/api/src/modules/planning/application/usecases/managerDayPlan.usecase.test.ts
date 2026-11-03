@@ -82,10 +82,17 @@ describe('A manager’s Daily Plan', () => {
     expect(back).toMatchObject({ routeIds: [R_RSM], source: 'MONTHLY', plannedFrom: null });
   });
 
-  it('refuses a doctor that is not on the people’s routes, and people outside the team or with no routes that day', async () => {
+  it('lets a manager pick any downline doctor on any route, without naming them in Work With', async () => {
     await inherit(RSM);
+    const saved = await kit.setDay.execute(RSM, DATE, input({ doctorIds: [D_MR1, D_MR2] }));
+    expect(saved.doctors.map((d) => d.doctorId)).toEqual([D_MR1, D_MR2]);
+  });
+
+  it('refuses a doctor outside the downline, and people outside the team or with no routes that day', async () => {
+    await inherit(RSM);
+    kit.doctors.set(STRANGER, [{ id: 'd-stranger', routeId: 'r-stranger' }]);
     await seed.execute(MR1, DATE, fieldDay({ routeIds: [R_MR1] }));
-    await expectError(kit.setDay.execute(RSM, DATE, input({ workWith: [MR1], doctorIds: [D_MR2] })), 400);
+    await expectError(kit.setDay.execute(RSM, DATE, input({ workWith: [MR1], doctorIds: ['d-stranger'] })), 400);
     await expectError(kit.setDay.execute(RSM, DATE, input({ workWith: [STRANGER] })), 400);
     await expectError(kit.setDay.execute(RSM, DATE, input({ workWith: [MR2] })), 400); // MR2 has nothing planned that day
   });
