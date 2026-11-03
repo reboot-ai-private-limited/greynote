@@ -11,7 +11,7 @@ import type { RecordMonthlyStockUseCase } from '../application/usecases/recordMo
 import type { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase, SetInvoiceNumberUseCase } from '../application/usecases/orders.usecase.js';
 import type { GetInvoiceUseCase, ListInvoicesUseCase } from '../application/usecases/invoices.usecase.js';
 import type { CancelPaymentUseCase, DistributorBalancesUseCase, ListPaymentsUseCase, OutstandingDuesUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from '../application/usecases/payments.usecase.js';
-import type { ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SubmitEmployeeSecondaryUseCase } from '../application/usecases/employeeSales.usecase.js';
+import type { DeleteEmployeeSecondaryUseCase, ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SubmitEmployeeSecondaryUseCase } from '../application/usecases/employeeSales.usecase.js';
 import type { AddSecondaryAttachmentUseCase, RemoveSecondaryAttachmentUseCase } from '../application/usecases/secondaryAttachments.usecase.js';
 import type { ReadStatementUseCase, SaveStatementUseCase } from '../application/usecases/stockStatement.usecase.js';
 import type { UnlockMonthUseCase } from '../application/usecases/unlockMonth.usecase.js';
@@ -36,7 +36,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary' | 'addSecondaryAttachment' | 'removeSecondaryAttachment', RequestHandler>;
+export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'deleteEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary' | 'addSecondaryAttachment' | 'removeSecondaryAttachment', RequestHandler>;
 
 export function makeSalesControllers(u: {
   record: RecordMonthlyStockUseCase;
@@ -61,6 +61,7 @@ export function makeSalesControllers(u: {
   saveStatement: SaveStatementUseCase;
   readEmployeeSales: ReadEmployeeSalesUseCase;
   saveEmployeeSecondary: SaveEmployeeSecondaryUseCase;
+  deleteEmployeeSecondary: DeleteEmployeeSecondaryUseCase;
   submitEmployeeSecondary: SubmitEmployeeSecondaryUseCase;
   saveEmployeePrimary: SaveEmployeePrimaryUseCase;
   addSecondaryAttachment: AddSecondaryAttachmentUseCase;
@@ -122,6 +123,9 @@ export function makeSalesControllers(u: {
     ),
     saveEmployeeSecondary: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.saveEmployeeSecondary.execute(actorOf(req), req.body as z.output<typeof saveEmployeeSecondaryBodySchema>)), 'The secondary was saved.', 200),
+    ),
+    deleteEmployeeSecondary: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.deleteEmployeeSecondary.execute(actorOf(req), req.query as unknown as z.output<typeof employeeSalesQuerySchema>)), 'The month\'s secondary was deleted.', 200),
     ),
     submitEmployeeSecondary: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.submitEmployeeSecondary.execute(actorOf(req), (req.body as z.output<typeof submitEmployeeSecondaryBodySchema>).month)), 'The month was sent for approval.', 200),

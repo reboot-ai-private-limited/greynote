@@ -17,6 +17,8 @@ import type { SalesApprovalsPort } from '../../domain/approvals.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../outletAccess.js';
 import type { SecondaryAttachmentRepositoryPort } from '../../domain/secondaryAttachment.repository.port.js';
+import type { SecondaryFileStoragePort } from '../../domain/proofStorage.port.js';
+import { logger } from '@/shared/logging/logger.js';
 import type { SalesClock } from '../salesClock.js';
 
 const UNKNOWN = '(removed)';
@@ -127,6 +129,55 @@ export class SubmitEmployeeSecondaryUseCase {
       const request = await this.approvals.submit({ kind: SECONDARY_SALES_KIND, recordId: secondaryRecordId(actor.id, month), submitterId: actor.id }, ctx);
       return { requestId: request.id, sent };
     });
+  }
+}
+
+/**
+ * Admin deletes a month's secondary for an employee: every line's units, amount and status, the approval request (with its history) and the month's
+ * files (the stored files too). Admin's primary change on a line stays. No deadline for Admin, but the month must have started and its financial year
+ * be open. Deleting a month with nothing in it is not an error. The old figures are written to the log, as there is no audit table.
+ */
+export class DeleteEmployeeSecondaryUseCase {
+  constructor(
+    private readonly d: {
+      users: UserDirectoryPort;
+      sales: EmployeeSaleRepositoryPort;
+      stock: MonthlyStockRepositoryPort;
+      files: SecondaryAttachmentRepositoryPort;
+      storage: SecondaryFileStoragePort;
+      approvals: SalesApprovalsPort;
+      transactions: TransactionRunnerPort;
+      clock: SalesClock;
+      config: ConfigReader;
+      late?: SalesLateGate | undefined;
+    },
+  ) {}
+
+  async execute(actor: Actor, input: { userId: string; month: string }): Promise<{ lines: number; files: number; requestRemoved: boolean }> {
+    if (actor.role !== 'ADMIN') throw new StockRefusal(STOCK_CODES.adminOnly, 'Only an Admin can delete a month\'s secondary.');
+    await assertMayAct(this.d.users, actor, input.userId);
+    await assertMonthOpenForEntry(this.d, actor, input.month, input.userId);
+
+    const recordId = secondaryRecordId(input.userId, input.month);
+    const before = (await this.d.sales.list({ userIds: [input.userId], fromMonth: input.month, toMonth: input.month }, 5000)).filter((r) => r.secondaryQty !== null);
+    const files = await this.d.files.list(input.userId, input.month);
+    const request = await this.d.approvals.getForRecord(SECONDARY_SALES_KIND, recordId);
+
+    await this.d.transactions.run(async (ctx) => {
+      await this.d.sales.clearSecondary(input.userId, input.month, actor.id, this.d.clock.now(), ctx);
+      if (request) await this.d.approvals.deleteForRecord(SECONDARY_SALES_KIND, recordId, ctx);
+    });
+    // The files go after the figures: a failure here leaves a file with no figures, which Admin can delete again, never figures that lost their proof.
+    for (const f of files) {
+      await this.d.files.remove(f.id);
+      await this.d.storage.remove(f.publicId).catch((e: unknown) => logger.error({ err: e, publicId: f.publicId }, 'could not remove a secondary file from storage'));
+    }
+
+    logger.info(
+      { audit: 'secondary.deleted', by: actor.id, userId: input.userId, month: input.month, requestId: request?.id ?? null, requestStatus: request?.status ?? null, lines: before.map((r) => ({ productId: r.productId, qty: r.secondaryQty, status: r.secondaryStatus })), files: files.map((f) => f.fileName) },
+      'an Admin deleted a month\'s secondary',
+    );
+    return { lines: before.length, files: files.length, requestRemoved: request !== null };
   }
 }
 

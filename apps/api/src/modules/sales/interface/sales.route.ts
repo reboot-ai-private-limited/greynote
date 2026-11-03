@@ -59,6 +59,7 @@ openApiRegistry.registerPath({
   request: { body: { content: { 'multipart/form-data': { schema: secondaryAttachmentBodySchema } } } },
   responses: { 201: { description: 'Attached' }, 409: { description: 'The month is closed, or waiting for approval or approved' } },
 });
+openApiRegistry.registerPath({ method: 'delete', path: '/api/sales/employee-secondary', tags: [TAG], summary: 'Admin: delete an employee\'s secondary for a month — every line\'s figures, the approval request and the files; Admin\'s primary change stays; no deadline, but the month must have started and its financial year be open', security: [{ bearerAuth: [] }], request: { query: employeeSalesQuerySchema as AnyZodObject }, responses: { 200: { description: 'Deleted: how many lines and files, and whether a request was removed' }, 409: { description: 'The month has not started, or its financial year is closed' } } });
 openApiRegistry.registerPath({ method: 'delete', path: '/api/sales/employee-secondary/attachments/{id}', tags: [TAG], summary: 'Remove one attached file, under the same rules as adding it', security: [{ bearerAuth: [] }], responses: { 200: { description: 'Removed' } } });
 doc('post', '/employee-secondary/submit', 'The employee sends a month\'s secondary to their manager for approval; only approved secondary counts toward achievement', { body: submitEmployeeSecondaryBodySchema });
 doc('post', '/employee-primary', 'Admin: change an employee\'s primary for a month, per product, with a reason (any past month of an open financial year)', { body: saveEmployeePrimaryBodySchema });
@@ -90,6 +91,7 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.get('/distributor-statement', requireRole('ADMIN', 'ACCOUNTANT'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: statementQuerySchema }), c.readStatement);
   router.get('/employee-sales', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: employeeSalesQuerySchema }), c.readEmployeeSales);
   router.post('/employee-secondary', requireRole('ADMIN', 'FIELD'), validate({ body: saveEmployeeSecondaryBodySchema }), c.saveEmployeeSecondary);
+  router.delete('/employee-secondary', requireRole('ADMIN'), validate({ query: employeeSalesQuerySchema }), c.deleteEmployeeSecondary);
   router.post('/employee-secondary/submit', requireRole('FIELD'), validate({ body: submitEmployeeSecondaryBodySchema }), c.submitEmployeeSecondary);
   router.post('/employee-secondary/attachments', requireRole('ADMIN', 'FIELD'), fileUpload, validate({ body: secondaryAttachmentBodySchema }), c.addSecondaryAttachment);
   router.delete('/employee-secondary/attachments/:id', requireRole('ADMIN', 'FIELD'), validate({ params: orderIdParamsSchema }), c.removeSecondaryAttachment);
