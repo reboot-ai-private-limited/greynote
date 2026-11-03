@@ -17,6 +17,7 @@ export interface AddedChemistInput {
   routeId: string;
   name: string;
   address: string;
+  phone?: string | null;
   /** The phone's GPS when the employee added the Chemist — becomes the registered location until Admin corrects it. */
   location: GeoPoint;
 }
@@ -69,7 +70,7 @@ export class AddedChemists {
   private async insertAndSubmit(userId: string, input: AddedChemistInput & { clientRequestId: string }, ctx: TransactionContext): Promise<Chemist> {
     const { clientRequestId, location, ...fields } = input;
     const chemist = await this.chemists.createProposed(
-      { ...fields, location, capturedLocation: location, clientRequestId, status: 'pending', addedBy: userId, approvedAt: null },
+      { phone: null, ...fields, location, capturedLocation: location, clientRequestId, status: 'pending', addedBy: userId, approvedAt: null },
       ctx,
     );
     await this.approvals.submit({ kind: NEW_CHEMIST_KIND, recordId: chemist.id, submitterId: userId }, ctx);

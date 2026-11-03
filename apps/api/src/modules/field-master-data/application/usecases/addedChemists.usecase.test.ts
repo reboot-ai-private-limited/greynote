@@ -39,6 +39,11 @@ describe('An employee adds a Chemist', () => {
     expect(approvals.requests[0]).toMatchObject({ kind: NEW_CHEMIST_KIND, recordId: chemist.id, submitterId: 'mr1' });
   });
 
+  it('keeps the phone number when one is sent, and stores none as null', async () => {
+    expect((await add({ phone: '+919876543210' })).chemist.phone).toBe('+919876543210');
+    expect((await add({}, 'mr1').then(() => added.add('mr1', { ...input, clientRequestId: 'client-req-0002' }))).chemist.phone).toBeNull();
+  });
+
   it('is not usable until approved, then becomes active', async () => {
     const { chemist } = await add();
     expect(await chemists.listActiveOnRoutes(['route-1'])).toEqual([]);

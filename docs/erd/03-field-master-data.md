@@ -42,6 +42,7 @@ erDiagram
         uuid route_id FK
         string name
         string address
+        string phone "nullable, 10-15 digits, optional leading + (2026-11-03)"
         decimal latitude "registered shop location - for visit geofence validation"
         decimal longitude
         decimal captured_latitude "employee-added only - the phone GPS when added; kept when Admin corrects the location"

@@ -73,10 +73,12 @@ export const updateSpecialtyBodySchema = z
 export const listSpecialtiesQuerySchema = z.object({ ...pageFields });
 
 // ---- Chemists
+const mobileSchema = z.string().trim().regex(/^\+?\d{10,15}$/, 'Must be a phone number of 10 to 15 digits.');
 export const createChemistBodySchema = z.object({
   routeId: objectIdSchema,
   name: nameSchema,
   address: textSchema,
+  phone: mobileSchema.nullish().transform((v) => v ?? null),
   /** Picked on a Google map. Omit to add the Chemist now and set the point later. */
   location: locationSchema.nullish().transform((v) => v ?? null),
 });
@@ -85,6 +87,8 @@ export const updateChemistBodySchema = z
     routeId: objectIdSchema.optional(),
     name: nameSchema.optional(),
     address: textSchema.optional(),
+    /** `null` clears it. */
+    phone: mobileSchema.nullable().optional(),
     /** `null` clears the registered location. */
     location: locationSchema.nullable().optional(),
     status: statusSchema.optional(),
@@ -98,6 +102,7 @@ const addedChemistFields = {
   routeId: objectIdSchema,
   name: nameSchema,
   address: textSchema,
+  phone: mobileSchema.nullish().transform((v) => v ?? null),
   /** The phone's GPS when adding. Required — Admin reviews it on a map at approval. */
   location: locationSchema,
 };
@@ -113,7 +118,6 @@ export const listAddedChemistsQuerySchema = z.object({ page: pageFields.page, pa
 const emailSchema = z.string().trim().email().max(200);
 const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.').refine((v) => !Number.isNaN(Date.parse(v)), 'Not a real date.');
 const frequencySchema = z.number().int().min(1).max(MAX_VISIT_FREQUENCY, `At most ${MAX_VISIT_FREQUENCY} visits a month.`);
-const mobileSchema = z.string().trim().regex(/^\+?\d{10,15}$/, 'Must be a phone number of 10 to 15 digits.');
 const doctorExtras = {
   clinicName: z.string().trim().max(150).nullish().transform((v) => (v ? v : null)),
   phone: mobileSchema.nullish().transform((v) => v ?? null),

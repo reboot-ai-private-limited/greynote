@@ -97,6 +97,8 @@ export interface NewChemistPayload {
   routeId: string;
   name: string;
   address: string;
+  /** Optional: 10–15 digits, optional leading `+`. */
+  phone?: string | null;
   /** The phone's GPS when adding. */
   location: GeoPoint;
 }
@@ -311,7 +313,7 @@ export interface FieldMasterDataSnapshot {
   }>;
   /** The active specialities, A–Z: the dropdown the app offers when adding a Doctor. A Doctor's speciality must be one of them. */
   specialties: string[];
-  chemists: Array<{ id: string; routeId: string; name: string; address: string; location: GeoPoint | null }>;
+  chemists: Array<{ id: string; routeId: string; name: string; address: string; phone: string | null; location: GeoPoint | null }>;
   distributors: Array<{
     id: string;
     routeIds: string[];

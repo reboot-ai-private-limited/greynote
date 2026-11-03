@@ -17,6 +17,13 @@ old one.
 
 ---
 
+## 2026-11-03 — Chemists get an optional phone number
+
+- **Decision:** a chemist can carry a phone number (10–15 digits, optional leading `+`), the same rule as a doctor's. Optional, because every existing chemist has none and an older phone build does not send it. Admin sets it on the web (create and edit); an employee can send it when adding a chemist (`POST /chemists/added`, the `NEW_CHEMIST` record, and the `PUT` resubmit); the snapshot's `chemists` carry it and the approval preview shows it.
+- **Not done:** the approver editing a pending chemist's details (doctors can); making the number required. The phone app is another team's: the contract is in `docs/mobile/chemists.md`.
+
+---
+
 ## 2026-11-02 — A day of pay is the month's own length, and HR edits a draft's salary in one place
 
 - **Decision:** unpaid leave and absent days are priced `base ÷ days in that month` (October ÷31, November ÷30, February ÷28 or ÷29), not a flat ÷30. The divisor is stored on each run as `payDays`, so every run generated before this reads `payDays = 30` and keeps its numbers; regenerating a *draft* uses the new basis. The slip's Total Working Days is `payDays` and Days Attended is `payDays − unpaid − absent` (October slip: 31, not 30). Leave and absent together are still capped at the whole month (`payDays`).
