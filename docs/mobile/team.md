@@ -59,7 +59,7 @@ Daily plans, monthly plans, daily reports, secondary sales and doctor services a
 | `GET /approvals/inbox`, `GET /approvals/team?scope`, `GET /approvals/:id` | Waiting for me (direct reports, Stage 1), the downline's history, one request in full. |
 | `POST /approvals/:id/approve`, `/reject` (reason required), `POST /approvals/bulk` (≤ 100) | Decide. Send the `cycle` you displayed. |
 | `GET /field-activity/dcr/team?from&to&userId`, `GET /field-activity/dcr/:id` | The team's daily reports; one in full. |
-| `GET /field-master-data/doctors/team?userId`, `PATCH /field-master-data/doctors/:id/review`, `PATCH /field-master-data/doctors/:id/targets` | The team's doctors; review an added doctor; set a visit target. |
+| `GET /field-master-data/doctors/team?userId`, `PATCH /field-master-data/doctors/:id/review`, `PATCH /field-master-data/doctors/:id/targets` | The team's doctors; review an added doctor; set a visit target. A manager also plans and records calls on any of these doctors (downline, any depth): [`dailyplan.md`](dailyplan.md) section 1b, [`dcr.md`](dcr.md) rule 1. |
 | `GET /reports/sales-dashboard`, `/reports/employee-sales?userId`, `/reports/doctor-visits` | Targets vs sales, per person, visit frequency and missed calls (downline). **From 2026-10-14 sales are valued at PTS (not PTR)**; `employee-sales` adds `distributors[]` (the person's Done orders by distributor) and the flags are `NO_PTS` / `NO_PTS_CHANGE`. The Accountant also reads these on the web; nothing changes for a manager. |
 | `GET /sales/employee-sales?userId&month` | One person's entered secondary sales. |
 | `GET /field-activity/expense-months?month&userId`, `GET /hr/leave-balances/:userId?year` | One person's expense month; leave balance. |

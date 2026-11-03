@@ -126,7 +126,8 @@ export function buildPlanningContainer(
       countLeaverPlans: (userId, lastWorkingDay) => leaverPlans.count(userId, lastWorkingDay),
       closeLeaverPlans: (userId, lastWorkingDay) => leaverPlans.close(userId, lastWorkingDay),
       countPlansWithDoctor: (doctorId) => doctorReleases.count(doctorId),
-      releaseDoctor: (doctorId, userId) => doctorReleases.release(doctorId, userId),
+      // A doctor has one assignee, so any editable plan listing it is that person's or a manager's above them: clear them all.
+      releaseDoctor: (doctorId, _userId) => doctorReleases.release(doctorId, null),
       isDailyPlanApproved: (userId, planDate) => status.isDailyPlanApproved(userId, planDate),
       isMonthlyPlanApproved: (userId, planMonth) => status.isMonthlyPlanApproved(userId, planMonth),
       getDailyPlanDay: (userId, planDate) => status.day(userId, planDate),

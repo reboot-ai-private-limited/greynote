@@ -28,14 +28,17 @@ export class CallChecks {
     private readonly planning: PlanningPort,
   ) {}
 
-  /** An active Doctor the MR is still assigned to — and can still see, when visibility follows the Route. */
+  /**
+   * An active Doctor the caller is still assigned to — and can still see, when visibility follows the Route — or, for a manager, one
+   * assigned to anyone below them in the team.
+   */
   async doctor(userId: string, doctorId: string): Promise<Doctor> {
     const doctor = await this.master.getDoctor(doctorId);
     if (!doctor || doctor.status !== 'active') throw new LogRefusal(LOG_CODES.doctorNotFound, 'This doctor isn’t on the list any more.');
-    if (!(await this.master.isAssignedToDoctor(userId, doctorId))) {
-      throw new LogRefusal(LOG_CODES.doctorNotAssigned, 'You are no longer assigned to this doctor, so the call can’t be recorded.');
-    }
-    return doctor;
+    if (await this.master.isAssignedToDoctor(userId, doctorId)) return doctor;
+    const assigned = await this.master.getAssignedUserId(doctorId);
+    if (assigned !== null && (await this.users.getDownline(userId)).some((u) => u.id === assigned)) return doctor;
+    throw new LogRefusal(LOG_CODES.doctorNotAssigned, 'You are no longer assigned to this doctor, so the call can’t be recorded.');
   }
 
   /**
