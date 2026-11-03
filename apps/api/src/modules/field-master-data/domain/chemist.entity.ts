@@ -13,6 +13,8 @@ export interface Chemist {
   routeId: string;
   name: string;
   address: string;
+  /** 10–15 digits, optional leading `+`; `null` when none. */
+  phone: string | null;
   /** `null` until a location is set — the geofence check can't run for it. */
   location: GeoPoint | null;
   /** The MR phone's GPS when they added the Chemist; kept when Admin corrects `location`. `null` for Admin-added. */

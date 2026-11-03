@@ -103,6 +103,8 @@ export interface ChemistDto {
   routeId: string;
   name: string;
   address: string;
+  /** 10–15 digits, optional leading `+`; `null` when none. */
+  phone: string | null;
   /** `null` until set: the geofence check cannot run for a Chemist with no point. */
   location: GeoPoint | null;
   /** The phone's GPS when an employee added it. Kept when Admin corrects `location`; `null` for Admin-added. */
@@ -119,12 +121,15 @@ export interface CreateChemistDto {
   routeId: string;
   name: string;
   address: string;
+  phone?: string | null;
   location?: GeoPoint | null;
 }
 export interface UpdateChemistDto {
   routeId?: string;
   name?: string;
   address?: string;
+  /** `null` clears it. */
+  phone?: string | null;
   /** `null` clears the registered location. */
   location?: GeoPoint | null;
   status?: MasterStatus;

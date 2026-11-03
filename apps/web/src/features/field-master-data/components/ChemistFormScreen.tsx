@@ -34,7 +34,7 @@ import {
   CHEMIST_STEPS,
   CHEMIST_STEP_LABEL,
   type ChemistStep,
-  type PlaceDraft,
+  type ChemistDraft,
 } from '../lib/chemists';
 import { formatPoint, pointFromInputs } from '../lib/location';
 import { LocationPicker } from './LocationPicker';
@@ -74,7 +74,7 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
   const router = useRouter();
   const readOnly = useIsReadOnly();
   const directory = useTerritoryDirectory();
-  const [draft, setDraft] = useState<PlaceDraft>(chemist ? chemistToDraft(chemist) : EMPTY_CHEMIST);
+  const [draft, setDraft] = useState<ChemistDraft>(chemist ? chemistToDraft(chemist) : EMPTY_CHEMIST);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toggling, setToggling] = useState(false);
   const [step, setStep] = useState<ChemistStep>('details');
@@ -83,7 +83,7 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
   const create = useCreateChemist((created) => router.push(`/chemists/${created.id}`));
   const update = useUpdateChemist(() => setErrors({}));
   const toggle = useUpdateChemist(() => setToggling(false));
-  const set = (field: 'name' | 'address') => (value: string) =>
+  const set = (field: 'name' | 'address' | 'phone') => (value: string) =>
     setDraft((d) => ({ ...d, [field]: value }));
   const locked = readOnly || chemist?.status === 'inactive';
   const stepIndex = CHEMIST_STEPS.indexOf(step);
@@ -152,6 +152,17 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
           aria-invalid={invalid('address')}
         />
       </FormField>
+      <FormField label="Phone (optional)" htmlFor="chemist-phone" error={shown['phone']}>
+        <Input
+          id="chemist-phone"
+          type="tel"
+          inputMode="tel"
+          value={draft.phone}
+          disabled={locked}
+          onChange={(e) => set('phone')(e.target.value)}
+          aria-invalid={invalid('phone')}
+        />
+      </FormField>
     </Grid>
   );
   const locationPicker = (
@@ -194,6 +205,7 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
             </Field>
             <Field label="Name">{draft.name}</Field>
             <Field label="Address">{draft.address}</Field>
+            <Field label="Phone">{draft.phone || '—'}</Field>
             <Field label="Location">{point.ok ? formatPoint(point.point) : 'Not valid'}</Field>
           </FieldList>
         ) : null}

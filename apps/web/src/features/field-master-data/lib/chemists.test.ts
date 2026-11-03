@@ -14,6 +14,7 @@ const chemist: ChemistDto = {
   routeId: 'r1',
   name: 'Apollo Pharmacy',
   address: 'Hill Cart Road, Siliguri',
+  phone: null,
   location: { latitude: 26.7271, longitude: 88.3953 },
   capturedLocation: null,
   status: 'active',
@@ -27,6 +28,7 @@ describe('buildChemist', () => {
     routeId: 'r1',
     name: '  Apollo   Pharmacy ',
     address: ' Hill Cart Road ',
+    phone: '',
     coordinates: { latitude: '26.7271', longitude: '88.3953' },
   };
 
@@ -37,9 +39,14 @@ describe('buildChemist', () => {
         routeId: 'r1',
         name: 'Apollo Pharmacy',
         address: 'Hill Cart Road',
+        phone: null,
         location: { latitude: 26.7271, longitude: 88.3953 },
       },
     });
+  });
+  it('sends a cleaned phone number, and refuses a bad one', () => {
+    expect(buildChemist({ ...filled, phone: '+91 98765-43210' })).toMatchObject({ ok: true, body: { phone: '+919876543210' } });
+    expect(buildChemist({ ...filled, phone: '12345' })).toMatchObject({ ok: false, errors: { phone: 'Enter a phone number of 10 to 15 digits.' } });
   });
   it('allows no location, sending null so the point can be set later', () => {
     expect(buildChemist({ ...filled, coordinates: { latitude: '', longitude: '' } })).toMatchObject(
@@ -80,6 +87,11 @@ describe('buildChemistUpdate', () => {
       body: { routeId: 'r2', address: 'New Road' },
     });
   });
+  it('sends a phone when added or changed, and null when cleared', () => {
+    expect(buildChemistUpdate(chemist, { ...draft, phone: '9876543210' })).toEqual({ ok: true, body: { phone: '9876543210' } });
+    const withPhone = { ...chemist, phone: '9876543210' };
+    expect(buildChemistUpdate(withPhone, { ...chemistToDraft(withPhone), phone: '' })).toEqual({ ok: true, body: { phone: null } });
+  });
   it('sends the new point when it moved, and null when it was cleared', () => {
     expect(
       buildChemistUpdate(chemist, {
@@ -117,6 +129,7 @@ describe('chemistStepErrors', () => {
     routeId: 'r1',
     name: 'Apollo',
     address: 'Hill Cart Road',
+    phone: '',
     coordinates: { latitude: '26.7', longitude: '88.4' },
   };
   it('the details step checks only the details, the location step only the point, the review step everything', () => {

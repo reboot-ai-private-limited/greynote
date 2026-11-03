@@ -72,7 +72,7 @@ export function makeFieldMasterDataSource(deps: {
           location: d.location,
         })),
         pendingDoctors: byId(pending).map((d) => ({ id: d.id, routeId: d.routeId, name: d.name, address: d.address, specialty: d.specialty, qualification: d.qualification, location: d.location, photoUrl: d.photo?.url ?? null })),
-        chemists: byId(chemists).map((c) => ({ id: c.id, routeId: c.routeId, name: c.name, address: c.address, location: c.location })),
+        chemists: byId(chemists).map((c) => ({ id: c.id, routeId: c.routeId, name: c.name, address: c.address, phone: c.phone, location: c.location })),
         distributors: await Promise.all(byId(distributors).map(async (d) => ({
           id: d.id,
           // The phone's cache wants concrete Routes, so a Zone- or HQ-wide distributor is expanded here.

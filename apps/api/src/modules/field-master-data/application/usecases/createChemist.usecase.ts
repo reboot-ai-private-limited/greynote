@@ -9,8 +9,8 @@ export class CreateChemistUseCase {
     private readonly territory: TerritoryPort,
   ) {}
 
-  async execute(input: Pick<Chemist, 'routeId' | 'name' | 'address' | 'location'>): Promise<Chemist> {
+  async execute(input: Pick<Chemist, 'routeId' | 'name' | 'address' | 'location'> & Partial<Pick<Chemist, 'phone'>>): Promise<Chemist> {
     await requireActiveRoute(this.territory, input.routeId);
-    return this.chemists.create({ ...input, capturedLocation: null, status: 'active', addedBy: null, clientRequestId: null, approvedAt: null });
+    return this.chemists.create({ phone: null, ...input, capturedLocation: null, status: 'active', addedBy: null, clientRequestId: null, approvedAt: null });
   }
 }

@@ -5,6 +5,7 @@ export interface ChemistDoc {
   routeId: Types.ObjectId;
   name: string;
   address: string;
+  phone?: string | null;
   latitude: number | null;
   longitude: number | null;
   capturedLatitude?: number | null;
@@ -19,6 +20,7 @@ const chemistSchema = new Schema<ChemistDoc>({
   routeId: { type: Schema.Types.ObjectId, required: true, ref: 'Route' },
   name: { type: String, required: true },
   address: { type: String, required: true },
+  phone: { type: String, default: null },
   latitude: { type: Number, default: null },
   longitude: { type: Number, default: null },
   capturedLatitude: { type: Number, default: null },

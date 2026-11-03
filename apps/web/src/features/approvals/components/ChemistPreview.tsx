@@ -23,6 +23,7 @@ export function ChemistPreview({ recordId }: { recordId: string }) {
             <Field label="Name">{chemist.name}</Field>
             <Field label="Route">{directory.routeLabel(chemist.routeId)}</Field>
             <Field label="Address">{chemist.address}</Field>
+            <Field label="Phone">{chemist.phone ?? '—'}</Field>
             <Field label="Status">
               <Badge tone={CHEMIST_STATUS_TONE[chemist.status]}>{CHEMIST_STATUS_LABEL[chemist.status]}</Badge>
             </Field>

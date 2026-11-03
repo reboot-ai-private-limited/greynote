@@ -38,18 +38,30 @@ export interface PlaceDraft {
   coordinates: CoordinateInputs;
 }
 
-export const EMPTY_CHEMIST: PlaceDraft = {
+/** A chemist's form: the shared place fields plus a phone number (optional). */
+export interface ChemistDraft extends PlaceDraft {
+  phone: string;
+}
+
+export function phoneError(v: string): string | undefined {
+  const phone = v.replace(/[\s-]/g, '');
+  return phone !== '' && !/^\+?\d{10,15}$/.test(phone) ? 'Enter a phone number of 10 to 15 digits.' : undefined;
+}
+
+export const EMPTY_CHEMIST: ChemistDraft = {
   routeId: '',
   name: '',
   address: '',
+  phone: '',
   coordinates: { ...EMPTY_COORDINATES },
 };
 
-export function chemistToDraft(chemist: ChemistDto): PlaceDraft {
+export function chemistToDraft(chemist: ChemistDto): ChemistDraft {
   return {
     routeId: chemist.routeId,
     name: chemist.name,
     address: chemist.address,
+    phone: chemist.phone ?? '',
     coordinates: pointToInputs(chemist.location),
   };
 }
@@ -80,8 +92,8 @@ export function placeErrors(
   };
 }
 
-export function buildChemist(draft: PlaceDraft): BuildResult<CreateChemistDto> {
-  const errors = placeErrors(draft);
+export function buildChemist(draft: ChemistDraft): BuildResult<CreateChemistDto> {
+  const errors = { ...placeErrors(draft), phone: phoneError(draft.phone) };
   const point = pointFromInputs(draft.coordinates);
   if (Object.values(errors).some(Boolean) || !point.ok) return fail(errors);
   return {
@@ -90,6 +102,7 @@ export function buildChemist(draft: PlaceDraft): BuildResult<CreateChemistDto> {
       routeId: draft.routeId,
       name: squash(draft.name),
       address: squash(draft.address),
+      phone: draft.phone.replace(/[\s-]/g, '') || null,
       location: point.point,
     },
   };
@@ -98,19 +111,21 @@ export function buildChemist(draft: PlaceDraft): BuildResult<CreateChemistDto> {
 /** Only what changed; `{}` means nothing did. A cleared location is sent as `null`. */
 export function buildChemistUpdate(
   original: ChemistDto,
-  draft: PlaceDraft,
+  draft: ChemistDraft,
 ): BuildResult<UpdateChemistDto> {
-  const errors = placeErrors(draft);
+  const errors = { ...placeErrors(draft), phone: phoneError(draft.phone) };
   const point = pointFromInputs(draft.coordinates);
   if (Object.values(errors).some(Boolean) || !point.ok) return fail(errors);
   const name = squash(draft.name);
   const address = squash(draft.address);
+  const phone = draft.phone.replace(/[\s-]/g, '') || null;
   return {
     ok: true,
     body: {
       ...(draft.routeId !== original.routeId && { routeId: draft.routeId }),
       ...(name !== original.name && { name }),
       ...(address !== original.address && { address }),
+      ...(phone !== (original.phone ?? null) && { phone }),
       ...locationChange(original.location, point.point),
     },
   };
@@ -125,12 +140,12 @@ export const CHEMIST_STEP_LABEL: Record<ChemistStep, string> = {
   review: 'Review',
 };
 
-const CHEMIST_DETAIL_FIELDS = ['routeId', 'name', 'address'];
+const CHEMIST_DETAIL_FIELDS = ['routeId', 'name', 'address', 'phone'];
 const CHEMIST_LOCATION_FIELDS = ['latitude', 'longitude'];
 
 /** What is wrong with the fields of one step (the review step checks everything), so "Next" can say so before moving on. */
-export function chemistStepErrors(draft: PlaceDraft, step: ChemistStep): Record<string, string> {
-  const all = placeErrors(draft);
+export function chemistStepErrors(draft: ChemistDraft, step: ChemistStep): Record<string, string> {
+  const all = { ...placeErrors(draft), phone: phoneError(draft.phone) };
   const fields =
     step === 'details'
       ? CHEMIST_DETAIL_FIELDS

@@ -13,6 +13,7 @@ const toChemist = (doc: ChemistDoc & { _id: unknown }): Chemist => ({
   routeId: String(doc.routeId),
   name: doc.name,
   address: doc.address,
+  phone: doc.phone ?? null,
   location: doc.latitude === null || doc.longitude === null ? null : { latitude: doc.latitude, longitude: doc.longitude },
   capturedLocation:
     doc.capturedLatitude == null || doc.capturedLongitude == null ? null : { latitude: doc.capturedLatitude, longitude: doc.capturedLongitude },
