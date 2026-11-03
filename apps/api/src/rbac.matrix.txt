@@ -143,6 +143,9 @@ GET    /api/reports/orders/:id  ACCOUNTANT,ADMIN
 GET    /api/reports/salary  ADMIN
 GET    /api/reports/sales  ADMIN
 GET    /api/reports/sales-dashboard  ACCOUNTANT,ADMIN,FIELD,HR
+GET    /api/reports/sales/by-distributor  ACCOUNTANT,ADMIN,HR
+GET    /api/reports/sales/by-employee  ACCOUNTANT,ADMIN,FIELD,HR
+GET    /api/reports/sales/by-product  ACCOUNTANT,ADMIN,HR
 GET    /api/reports/sales/statement  ADMIN
 GET    /api/reports/stock  ADMIN
 GET    /api/reports/ta-da  ADMIN

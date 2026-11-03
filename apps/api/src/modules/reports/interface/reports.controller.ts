@@ -9,14 +9,15 @@ import type { OrdersReport } from '../application/ordersReport.js';
 import type { DoctorVisitsReport } from '../application/doctorVisitsReport.js';
 import type { EmployeeSalesReport } from '../application/employeeSalesReport.js';
 import type { TeamOverviewReport } from '../application/teamOverviewReport.js';
+import type { SalesBreakdownReport } from '../application/salesBreakdownReport.js';
 import type { SalesDashboardReport } from '../application/salesDashboardReport.js';
 import type { SalesReport } from '../application/salesReport.js';
 import type { SalaryReport } from '../application/salaryReport.js';
 import type { StockReport } from '../application/stockReport.js';
 import type { TaDaReport } from '../application/taDaReport.js';
-import type { myMonthQuerySchema, doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, teamOverviewQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
+import type { myMonthQuerySchema, doctorVisitsQuerySchema, dcrCoverageQuerySchema, employeeSalesQuerySchema, dcrYearQuerySchema, ordersQuerySchema, salaryYearQuerySchema, salesDashboardQuerySchema, salesByProductQuerySchema, salesByDistributorQuerySchema, salesByEmployeeQuerySchema, teamOverviewQuerySchema, salesStatementQuerySchema, salesYearQuerySchema, stockQuerySchema, taDaDaysQuerySchema, taDaYearQuerySchema } from './reports.schemas.js';
 
-export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport, doctorVisits: DoctorVisitsReport, teamOverview: TeamOverviewReport): Record<'orders' | 'doctorVisits' | 'teamOverview' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear' | 'myTaDaYear' | 'myTaDaDays' | 'myDcrYear' | 'myDcrCoverage', RequestHandler> {
+export function makeReportsControllers(orders: OrdersReport, sales: SalesReport, stock: StockReport, taDa: TaDaReport, dcr: DcrReport, salary: SalaryReport, salesDashboard: SalesDashboardReport, employeeSales: EmployeeSalesReport, doctorVisits: DoctorVisitsReport, teamOverview: TeamOverviewReport, breakdown: SalesBreakdownReport): Record<'salesByProduct' | 'salesByDistributor' | 'salesByEmployee' | 'orders' | 'doctorVisits' | 'teamOverview' | 'salesDashboard' | 'employeeSales' | 'order' | 'salesYear' | 'salesStatement' | 'stock' | 'taDaYear' | 'taDaDays' | 'dcrYear' | 'dcrCoverage' | 'salaryYear' | 'myTaDaYear' | 'myTaDaDays' | 'myDcrYear' | 'myDcrCoverage', RequestHandler> {
   return {
     orders: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof ordersQuerySchema>;
@@ -25,6 +26,19 @@ export function makeReportsControllers(orders: OrdersReport, sales: SalesReport,
     salesYear: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof salesYearQuerySchema>;
       sendSuccess(req, res, await sales.year({ year: q.year, distributorId: q.distributorId, productId: q.productId }), 'Sales for the financial year.', 200);
+    }),
+    salesByProduct: asyncHandler(async (req, res) => {
+      const q = req.query as unknown as z.output<typeof salesByProductQuerySchema>;
+      sendSuccess(req, res, await breakdown.byProduct(q), 'Sales by product.', 200);
+    }),
+    salesByDistributor: asyncHandler(async (req, res) => {
+      const q = req.query as unknown as z.output<typeof salesByDistributorQuerySchema>;
+      sendSuccess(req, res, await breakdown.byDistributor(q), 'Sales by distributor.', 200);
+    }),
+    salesByEmployee: asyncHandler(async (req, res) => {
+      if (!req.user) throw AppError.unauthenticated();
+      const q = req.query as unknown as z.output<typeof salesByEmployeeQuerySchema>;
+      sendSuccess(req, res, await breakdown.byEmployee({ ...q, actor: { id: req.user.sub, role: req.user.role } }), 'Sales by employee.', 200);
     }),
     salesStatement: asyncHandler(async (req, res) => {
       const q = req.query as unknown as z.output<typeof salesStatementQuerySchema>;

@@ -89,4 +89,42 @@ export class SalesReport {
     totals.placedPaise = monthSums.filter((s) => s.status === 'PLACED').reduce((n, s) => n + s.amountPaise, 0);
     return { month: input.month, rows, missingDistributors, totals };
   }
+
+  /**
+   * The statement rows of every month in `months` (consecutive, one financial year), with the names to go with them — the raw material of the
+   * product and distributor roll-ups. Uses the same figures as `statement`, so a roll-up always agrees with it.
+   */
+  async windowRows(
+    months: readonly string[],
+    filter: { distributorId?: string | undefined; productId?: string | undefined },
+  ): Promise<{ rows: Array<ReturnType<typeof buildStatement>[number] & { month: string }>; products: Map<string, { name: string; sku: string }>; distributors: Map<string, string>; counted: Map<string, Set<string>> }> {
+    const first = months[0]!;
+    const last = months[months.length - 1]!;
+    const prev = previousMonth(first);
+    const f = { ...(filter.distributorId && { distributorId: filter.distributorId }), ...(filter.productId && { productId: filter.productId }) };
+    const [orderSums, stockRows, statementRows] = await Promise.all([
+      this.sales.sumDistributorOrders({ from: monthRange(prev).from, to: monthRange(last).to, ...f }),
+      this.sales.listStockRange({ fromMonth: prev, toMonth: last, outletType: 'DISTRIBUTOR', ...(filter.distributorId && { outletId: filter.distributorId }), ...(filter.productId && { productId: filter.productId }) }),
+      this.sales.listStatements({ fromMonth: prev, toMonth: last, ...f }),
+    ]);
+    const stock = toCounts(stockRows);
+    const statements = toStatements(statementRows);
+    const names = await this.master.listNames({
+      distributorIds: [...new Set([...orderSums.map((s) => s.distributorId), ...stock.map((c) => c.distributorId), ...statements.map((c) => c.distributorId)])],
+      productIds: [...new Set([...orderSums.map((s) => s.productId), ...stock.map((c) => c.productId), ...statements.map((c) => c.productId)])],
+    });
+    const pts = new Map(names.products.map((p) => [p.id, p.ptsPaise ?? null]));
+    const rows = months.flatMap((month) => buildStatement({ month, orderSums, stock, statements, pts }).map((r) => ({ ...r, month })));
+    // Per distributor, the months with a count or an Admin statement.
+    const counted = new Map<string, Set<string>>();
+    const mark = (id: string, month: string) => counted.set(id, (counted.get(id) ?? new Set<string>()).add(month));
+    for (const c of stock) if (months.includes(c.month)) mark(c.distributorId, c.month);
+    for (const c of statements) if (months.includes(c.month) && c.secondaryQty !== null) mark(c.distributorId, c.month);
+    return {
+      rows,
+      products: new Map(names.products.map((p) => [p.id, { name: p.name, sku: p.sku }])),
+      distributors: new Map(names.distributors.map((d) => [d.id, d.name])),
+      counted,
+    };
+  }
 }

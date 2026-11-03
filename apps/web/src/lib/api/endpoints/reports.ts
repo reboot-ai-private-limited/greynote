@@ -1,4 +1,4 @@
-import type { OrdersReportDto, ReportOrderDetailDto, SalesStatementDto, SalesYearReportDto, StockReportDto, TaDaDaysDto, TaDaYearReportDto, DcrCoverageDto, DcrYearReportDto, SalaryYearReportDto, SalesDashboardDto, EmployeeSalesReportDto, DoctorVisitsReportDto } from '@greynote/contracts';
+import type { SalesByDistributorDto, SalesByEmployeeDto, SalesByProductDto, OrdersReportDto, ReportOrderDetailDto, SalesStatementDto, SalesYearReportDto, StockReportDto, TaDaDaysDto, TaDaYearReportDto, DcrCoverageDto, DcrYearReportDto, SalaryYearReportDto, SalesDashboardDto, EmployeeSalesReportDto, DoctorVisitsReportDto } from '@greynote/contracts';
 import { request } from '../client';
 
 export interface OrdersReportQuery {
@@ -25,7 +25,18 @@ export interface EmployeeSalesQuery {
   to: string;
 }
 
+export interface SalesWindowQuery {
+  /** The financial year it starts in. */
+  year: number;
+  period: 'month' | 'quarter' | 'year';
+  month?: string | undefined;
+  quarter?: number | undefined;
+}
+
 export const reportsApi = {
+  salesByProduct: (token: string, query: SalesWindowQuery & { distributorId?: string | undefined }, signal?: AbortSignal) => request<SalesByProductDto>('/reports/sales/by-product', { token, query: { ...query }, signal }),
+  salesByDistributor: (token: string, query: SalesWindowQuery & { productId?: string | undefined }, signal?: AbortSignal) => request<SalesByDistributorDto>('/reports/sales/by-distributor', { token, query: { ...query }, signal }),
+  salesByEmployee: (token: string, query: SalesWindowQuery & { search?: string | undefined }, signal?: AbortSignal) => request<SalesByEmployeeDto>('/reports/sales/by-employee', { token, query: { ...query }, signal }),
   /** Admin, the employee, or their manager: targets, primary and secondary by product over a run of months. */
   employeeSales: (token: string, query: EmployeeSalesQuery, signal?: AbortSignal) => request<EmployeeSalesReportDto>('/reports/employee-sales', { token, query: { ...query }, signal }),
   /** Admin, or a manager over their downline: the field force over a date range, one page of employees plus the totals of all of them. */
