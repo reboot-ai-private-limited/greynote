@@ -69,6 +69,8 @@ export function ProductLinesEditor({ products, columns, lines, onChange, default
       <OutletPicker
         label={lines.length === 0 ? 'Add a product' : 'Add another product'}
         options={available}
+        searchable
+        searchPlaceholder="Search medicine"
         value={null}
         onChange={(id) => onChange([...lines, { productId: id, values: defaults(id) }])}
         disabled={disabled}

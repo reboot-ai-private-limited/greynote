@@ -214,6 +214,20 @@ export default function ApprovalDetailScreen() {
             />
           ) : null}
 
+          {request.kind === 'SECONDARY_SALES' && request.submitter && request.submitter.id !== me?.id && !fy.isPast ? (
+            <PrimaryButton
+              label="Edit figures"
+              variant="text"
+              disabled={!online || busy}
+              onPress={() =>
+                router.push({
+                  pathname: '/team-secondary',
+                  params: { userId: request.submitter?.id ?? '', who: request.submitter?.name ?? '', month: request.recordId.slice(request.recordId.lastIndexOf(':') + 1) },
+                })
+              }
+            />
+          ) : null}
+
           <ApprovalSummary key={reloadKey} request={shown ?? request} aside={<ApprovalHistory request={request} />} />
 
           {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}

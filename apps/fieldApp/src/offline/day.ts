@@ -219,6 +219,30 @@ export function monthlyDeadlinePassed(planMonth: string, today: string, cutoffDa
   return today > fromParts(Number(before.slice(0, 4)), Number(before.slice(5)), deadlineDay);
 }
 
+/** The system's default stock deadline day, used until the phone has the setting. */
+export const DEFAULT_STOCK_DEADLINE_DAY = 5;
+
+/** Reads the stock deadline day from the synced settings, falling back to the default. */
+export function stockDeadlineDay(raw: string | null | undefined): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= 28 ? n : DEFAULT_STOCK_DEADLINE_DAY;
+}
+
+/**
+ * The month whose stock is still being counted today: the previous month until the deadline day of this month has
+ * passed, then this month. (With a deadline of 5, 1-5 Nov shows October and 6 Nov onwards shows November.)
+ */
+export function stockMonthToCount(today: string, deadlineDay: number): string {
+  const thisMonth = monthOf(today);
+  return Number(today.slice(8, 10)) <= deadlineDay ? addMonths(thisMonth, -1) : thisMonth;
+}
+
+/** Whether a month's stock deadline (end of the deadline day in the month after it) has passed. A UX hint; the server decides. */
+export function stockMonthClosed(month: string, today: string, deadlineDay: number): boolean {
+  const after = addMonths(month, 1);
+  return today > fromParts(Number(after.slice(0, 4)), Number(after.slice(5)), deadlineDay);
+}
+
 /** "Thu 8 Oct, 10:00" for an instant, in the business timezone (the phone's own if that is unknown). */
 export function formatWhen(iso: string, timeZone?: string | null): string {
   const date = new Date(iso);

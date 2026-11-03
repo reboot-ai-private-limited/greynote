@@ -45,11 +45,14 @@ export function SecondaryFiles({
   canEdit,
   online,
   onChanged,
+  forUserId,
 }: {
   month: string;
   files: SecondaryAttachment[];
   canEdit: boolean;
   online: boolean;
+  /** A manager working on someone else's month: the files belong to that person. */
+  forUserId?: string;
   /** Called after an upload or a removal, so the month can be read again. */
   onChanged: () => void;
 }) {
@@ -68,7 +71,7 @@ export function SecondaryFiles({
     setBusy(true);
     for (const f of picked.files) {
       try {
-        await addSecondaryFile(month, f);
+        await addSecondaryFile(month, f, forUserId);
         sent += 1;
       } catch (err) {
         failed.push(`${f.name}: ${errorText(err)}`);
@@ -99,7 +102,7 @@ export function SecondaryFiles({
     <InfoCard>
       <ThemedText type="smallBold">Files for this month (optional)</ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        Photos or PDFs that back up your figures, such as the distributor’s statement. Any number, up to 5 MB each.
+        {`Photos or PDFs that back up ${forUserId ? 'the' : 'your'} figures, such as the distributor’s statement. Any number, up to 5 MB each.`}
       </ThemedText>
       {files.length === 0 ? <ThemedText type="small" themeColor="textSecondary">No files yet.</ThemedText> : null}
       {files.map((f) => (

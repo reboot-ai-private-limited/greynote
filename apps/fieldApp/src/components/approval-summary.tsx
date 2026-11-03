@@ -20,6 +20,7 @@ import {
 import { getStatementById } from '@/lib/expense-months';
 import { formatRupees } from '@/lib/money';
 import { getMonthlyPlanById, isFieldDay, routeNamesText, workingTypeLabel, type NamedRoute } from '@/lib/planning';
+import { SECONDARY_STATUS_TEXT, getEmployeeSales } from '@/lib/sales';
 import { useSessionUser } from '@/lib/session';
 import { useCachedSource } from '@/offline/cache';
 import { useColleagues } from '@/offline/colleagues';
@@ -253,6 +254,51 @@ function DoctorServiceSummary({ recordId }: { recordId: string }) {
   );
 }
 
+/* ───────────────────────────── secondary sales ───────────────────────────── */
+
+/** A secondary-sales request's record id is `userId:YYYY-MM`. */
+function SecondarySummary({ recordId, who }: { recordId: string; who?: string }) {
+  const cut = recordId.lastIndexOf(':');
+  const userId = recordId.slice(0, cut);
+  const month = recordId.slice(cut + 1);
+  const { data, error } = useRecord(() => getEmployeeSales(userId, month), 0);
+  const entered = (data?.lines ?? []).filter((l) => l.secondaryQty !== null && l.secondaryQty > 0);
+  const totalQty = entered.reduce((n, l) => n + (l.secondaryQty ?? 0), 0);
+  const totalPaise = entered.reduce((n, l) => n + (l.secondaryAmountPaise ?? 0), 0);
+  const files = data?.attachments ?? [];
+  return (
+    <Frame title={`Secondary sales · ${prettyMonth(month)}`} error={error} loading={!data}>
+      {data ? (
+        <>
+          {who ? <Line label="Employee" value={who} /> : null}
+          {data.secondaryStatus ? <Line label="Status" value={SECONDARY_STATUS_TEXT[data.secondaryStatus]} /> : null}
+          <Line label="Products" value={String(entered.length)} />
+          <Line label="Units sold" value={String(totalQty)} />
+          <Line label="Value at PTS" value={formatRupees(totalPaise)} />
+          {entered.length === 0 ? <Notice tone="info">No figures were entered for this month.</Notice> : null}
+          {entered.map((l) => (
+            <View key={l.product.id} style={styles.tableRow}>
+              <View style={styles.tableMain}>
+                <ThemedText type="small">{l.product.name}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {`${l.secondaryQty} unit${l.secondaryQty === 1 ? '' : 's'}${l.ptsPaise ? ` · PTS ${formatRupees(l.ptsPaise)}` : ' · no PTS'} · Primary ${l.primaryQty}`}
+                </ThemedText>
+              </View>
+              <ThemedText type="small" style={styles.amount}>
+                {l.secondaryAmountPaise === null ? '—' : formatRupees(l.secondaryAmountPaise)}
+              </ThemedText>
+            </View>
+          ))}
+          {files.length > 0 ? <ThemedText type="smallBold">{`Files (${files.length})`}</ThemedText> : null}
+          {files.map((a) => (
+            <PrimaryButton key={a.id} label={a.fileName} variant="text" onPress={() => void Linking.openURL(a.url)} />
+          ))}
+        </>
+      ) : null}
+    </Frame>
+  );
+}
+
 /* ───────────────────────────── the daily report ───────────────────────────── */
 
 /** A bordered white box that stands out on the grey card: one call, one followup, one table. */
@@ -331,6 +377,9 @@ export function ApprovalSummary({ request, aside }: { request: ApprovalDetail; a
       break;
     case 'EXPENSE_MONTH':
       record = <ExpenseMonthSummaryCard recordId={request.recordId} />;
+      break;
+    case 'SECONDARY_SALES':
+      record = <SecondarySummary recordId={request.recordId} who={request.submitter?.name} />;
       break;
     default:
       record = <Notice tone="info">No preview for this kind of request. Its history is below.</Notice>;

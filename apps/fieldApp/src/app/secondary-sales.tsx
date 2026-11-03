@@ -9,7 +9,9 @@ import { ThemedText } from '@/components/themed-text';
 import { InfoCard, StatusBanner, sym } from '@/components/ui-cards';
 import { useFinancialYear } from '@/lib/financial-year';
 import { useRecords } from '@/offline';
-import { addMonths, monthOf, prettyMonth } from '@/offline/day';
+import { useCachedSource } from '@/offline/cache';
+import { monthOf, prettyMonth, stockDeadlineDay, stockMonthClosed, stockMonthToCount } from '@/offline/day';
+import type { ConfigSnapshot } from '@/types/sync';
 
 type Tab = 'stock' | 'record';
 
@@ -21,6 +23,7 @@ type Tab = 'stock' | 'record';
  */
 export default function SecondarySalesScreen() {
   const fy = useFinancialYear();
+  const config = useCachedSource<ConfigSnapshot>('config');
   const { records } = useRecords(['MONTHLY_STOCK']);
   const waitingCount = records.filter((r) => !r.deleted && r.status !== 'SYNCED').length;
 
@@ -30,8 +33,10 @@ export default function SecondarySalesScreen() {
   const clamp = (m: string) => (m < fy.firstMonth ? fy.firstMonth : m > lastMonth ? lastMonth : m);
   const [picked, setMonth] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('stock');
-  const month = clamp(picked ?? lastMonth);
-  const closed = !fy.isPast && month < addMonths(thisMonth, -1);
+  const deadlineDay = stockDeadlineDay(config.data?.settings.MONTHLY_STOCK_DEADLINE_DAY);
+  // Until the stock deadline day of this month has passed, the month being counted is still the previous one.
+  const month = clamp(picked ?? (fy.isPast ? lastMonth : stockMonthToCount(fy.today, deadlineDay)));
+  const closed = !fy.isPast && stockMonthClosed(month, fy.today, deadlineDay);
 
   return (
     <ScreenShell title="Secondary Sales" subtitle="Count distributor stock by product, or keep your own monthly record">
