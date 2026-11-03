@@ -169,7 +169,7 @@ export class SalesDashboardReport {
    * Who the reader may see: every active field employee for Admin, Accountant and HR; a manager's downline at the chosen level (not themselves); a field employee
    * with no team, nobody. `userId` narrows it to one person, who must be in a manager's downline whatever the level.
    */
-  private async audience(actor: { id: string; role: string }, scope: 'direct' | 'indirect' | 'all', userId?: string) {
+  async audience(actor: { id: string; role: string }, scope: 'direct' | 'indirect' | 'all', userId?: string) {
     if (actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT' || actor.role === 'HR') return this.identity.listFieldEmployees(userId ? [userId] : undefined);
     if (actor.role !== 'FIELD') throw AppError.forbidden();
     const downline = await this.identity.getDownline(actor.id);

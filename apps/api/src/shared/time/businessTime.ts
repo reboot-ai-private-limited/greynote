@@ -214,6 +214,15 @@ export function leaveYearRange(year: number, startMonth: number): { from: string
   return { from, to: addDays(formatCalendarDate({ year: year + 1, month: startMonth, day: 1 }), -1) };
 }
 
+/** First and last day of quarter `q` (1 to 4) of the financial year that starts in `year` on `startMonth`. */
+export function quarterRange(year: number, startMonth: number, q: 1 | 2 | 3 | 4): { from: string; to: string } {
+  const first = (q - 1) * 3;
+  const start = startMonth - 1 + first;
+  const from = formatCalendarDate({ year: year + Math.floor(start / 12), month: (start % 12) + 1, day: 1 });
+  const next = start + 3;
+  return { from, to: addDays(formatCalendarDate({ year: year + Math.floor(next / 12), month: (next % 12) + 1, day: 1 }), -1) };
+}
+
 /** The first and last day of a month (`YYYY-MM`), as dates. */
 export function monthRange(month: string): { from: string; to: string } {
   const { year, month: m } = parseCalendarMonth(month);

@@ -141,6 +141,80 @@ export interface SalesStatementDto {
   totals: { primaryQty: number; primaryPaise: number; placedPaise: number; secondaryQty: number; secondaryPaise: number };
 }
 
+// ── Sales by product, distributor and employee (2026-11-03) ───────────────────────────────────
+
+/** The window of a sales report: one month, one quarter (three months of the financial year) or the whole year. */
+export type SalesPeriodKind = 'month' | 'quarter' | 'year';
+
+/** The window as the server read it: `fromMonth` and `toMonth` are `YYYY-MM`, both inclusive. */
+export interface SalesWindowDto {
+  period: SalesPeriodKind;
+  /** The financial year it starts in. */
+  year: number;
+  fromMonth: string;
+  toMonth: string;
+}
+
+/** The figures every sales row carries. Secondary is valued at PTS and leaves out rows that came out negative or were never counted. */
+export interface SalesFiguresDto {
+  primaryQty: number;
+  primaryPaise: number;
+  secondaryQty: number;
+  secondaryPaise: number;
+}
+
+/** `GET /reports/sales/by-product`: one row per product. Target is the sum of the employees' targets for that product over the window. */
+export interface SalesByProductRowDto extends SalesFiguresDto {
+  product: { id: string; name: string; sku: string };
+  targetPaise: number;
+  /** Secondary against target; `null` when the product has no target. */
+  achievementPercent: number | null;
+}
+
+export interface SalesByProductDto {
+  window: SalesWindowDto;
+  rows: SalesByProductRowDto[];
+  /** Targets set for all products together: they belong to no single product row. */
+  generalTargetPaise: number;
+  totals: SalesFiguresDto & { targetPaise: number };
+}
+
+/** `GET /reports/sales/by-distributor`: one row per distributor, products rolled up. */
+export interface SalesByDistributorRowDto extends SalesFiguresDto {
+  distributor: { id: string; name: string };
+  products: number;
+  /** Months of the window in which the distributor has a count or a statement. */
+  countedMonths: number;
+}
+
+export interface SalesByDistributorDto {
+  window: SalesWindowDto;
+  rows: SalesByDistributorRowDto[];
+  /** Active distributors with no count or statement in any month of the window. */
+  missingDistributors: Array<{ id: string; name: string }>;
+  totals: SalesFiguresDto;
+}
+
+/** `GET /reports/sales/by-employee`: one row per employee; a manager's row adds up the MRs below them. */
+export interface SalesByEmployeeRowDto {
+  employee: { id: string; name: string; employeeCode: string };
+  designation: string | null;
+  targetPaise: number;
+  primaryPaise: number;
+  /** What the employee's distributors sold on (achievement), at PTS. */
+  achievedPaise: number;
+  achievementPercent: number | null;
+  /** `null` for an MR; the number of MRs added up for a manager. */
+  mrCount: number | null;
+}
+
+export interface SalesByEmployeeDto {
+  window: SalesWindowDto;
+  rows: SalesByEmployeeRowDto[];
+  /** Each MR counted once. A distributor shared by two employees counts in full for each, so rows do not add up to this. */
+  totals: { targetPaise: number; primaryPaise: number; achievedPaise: number; achievementPercent: number | null };
+}
+
 // ── Stock ──────────────────────────────────────────────────────────────────────────────────────
 
 export type StockRowFlag = 'NO_COUNT' | 'OPENING_MISMATCH' | 'NEGATIVE_SECONDARY';

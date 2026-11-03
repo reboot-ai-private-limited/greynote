@@ -128,8 +128,9 @@ describe('Pay components', () => {
 describe('navGroupsFor', () => {
   it('groups items under their headings, in order, dropping empty groups', () => {
     const groups = navGroupsFor('ACCOUNTANT');
-    expect(groups.map((g) => g.group)).toEqual(['Home', 'HR', 'Sales & Distribution', 'Payouts', 'Master data']);
+    expect(groups.map((g) => g.group)).toEqual(['Home', 'HR', 'Sales & Distribution', 'Payouts', 'Reports', 'Master data']);
     expect(groups.find((g) => g.group === 'Sales & Distribution')?.items.map((i) => i.href)).toEqual(['/reports/sales-dashboard', '/orders', '/invoices', '/distributors']);
+    expect(groups.find((g) => g.group === 'Reports')?.items.map((i) => i.href)).toEqual(['/reports/sales']); // the sales report is open to the Accountant and HR from 2026-11-03
     expect(groups.find((g) => g.group === 'Master data')?.items.map((i) => i.href)).toEqual(['/doctor-services']); // doctor services leave the Accountant in Step 0b
     expect(groups.find((g) => g.group === 'Payouts')?.items.map((i) => i.href)).toEqual(['/expenses', '/expense-claims']);
     expect(groups.find((g) => g.group === 'HR')?.items.map((i) => i.href)).toEqual(['/attendance']);
@@ -207,11 +208,11 @@ describe('Invoices', () => {
 });
 
 describe('Reports', () => {
-  it('are for Admin only, in their own group', () => {
+  it('are for Admin, apart from the sales report which the Accountant and HR read too', () => {
     const admin = navGroupsFor('ADMIN').find((g) => g.group === 'Reports');
     expect(admin?.items.map((i) => i.href)).toEqual(['/reports/sales', '/reports/stock', '/reports/dcr',
       '/reports/doctor-visits', '/reports/ta-da', '/reports/salary']);
-    for (const role of ['HR', 'ACCOUNTANT'] as const) expect(navGroupsFor(role).some((g) => g.group === 'Reports')).toBe(false);
+    for (const role of ['HR', 'ACCOUNTANT'] as const) expect(navGroupsFor(role).find((g) => g.group === 'Reports')?.items.map((i) => i.href)).toEqual(['/reports/sales']);
     expect(isRouteBuilt('/reports/sales')).toBe(true);
     expect(isRouteBuilt('/reports/sales-dashboard')).toBe(true);
   });
@@ -273,13 +274,14 @@ describe('canOpen', () => {
     expect(canOpen('ACCOUNTANT', '/employees')).toBe(false);
     for (const path of ['/payroll', '/payroll/abc/slip', '/pay-grades', '/pay-bands', '/pay-components']) expect(canOpen('ACCOUNTANT', path)).toBe(false);
     expect(canOpen('HR', '/settings')).toBe(false);
-    expect(canOpen('HR', '/reports/sales')).toBe(false);
+    expect(canOpen('HR', '/reports/stock')).toBe(false);
   });
 
   it('reads /reports/sales-dashboard as its own screen, not as /reports/sales', () => {
     expect(canOpen('ADMIN', '/reports/sales-dashboard/u1')).toBe(true);
     expect(canOpen('HR', '/reports/sales-dashboard/u1')).toBe(true);
-    expect(canOpen('HR', '/reports/sales')).toBe(false);
+    expect(canOpen('HR', '/reports/sales')).toBe(true);
+    expect(canOpen('HR', '/reports/stock')).toBe(false);
   });
 
   it('gives a field role nothing', () => {

@@ -6,6 +6,7 @@ import { DcrReport } from './application/dcrReport.js';
 import { OrdersReport } from './application/ordersReport.js';
 import { SalesDashboardReport } from './application/salesDashboardReport.js';
 import { SalaryReport } from './application/salaryReport.js';
+import { SalesBreakdownReport } from './application/salesBreakdownReport.js';
 import { SalesReport } from './application/salesReport.js';
 import { StockReport } from './application/stockReport.js';
 import { TeamOverviewReport } from './application/teamOverviewReport.js';
@@ -47,10 +48,11 @@ export function buildReportsContainer(
   const salaryReport = new SalaryReport(payroll, fieldActivity, identity, config);
   const salesDashboard = new SalesDashboardReport(identity, planning, attendance, fieldActivity, marketing, sales, master, territory, config, achievement);
   const employeeSales = new EmployeeSalesReport(sales, marketing, master, identity, identity, achievement);
+  const salesBreakdown = new SalesBreakdownReport(salesReport, salesDashboard, marketing, sales, master, achievement, identity, config);
   const doctorVisits = new DoctorVisitsReport(identity, master, fieldActivity, planning);
   const teamOverview = new TeamOverviewReport(salesDashboard, fieldActivity, attendance);
   return {
     contract: { readTeamOverview: (input) => teamOverview.read(input) },
-    buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport, dcrReport, salaryReport, salesDashboard, employeeSales, doctorVisits, teamOverview)),
+    buildRouter: () => buildReportsRouter(makeReportsControllers(orders, salesReport, stockReport, taDaReport, dcrReport, salaryReport, salesDashboard, employeeSales, doctorVisits, teamOverview, salesBreakdown)),
   };
 }

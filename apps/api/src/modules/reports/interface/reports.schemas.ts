@@ -46,3 +46,14 @@ export const teamOverviewQuerySchema = z.object({
 export const employeeSalesQuerySchema = z
   .object({ userId: objectId, from: monthSchema, to: monthSchema })
   .refine((q) => q.from <= q.to, { message: 'The range ends before it starts.', path: ['to'] });
+
+/** The window of the by-product, by-distributor and by-employee sales reports: a financial year, and a month or quarter of it (or all of it). */
+const salesWindowShape = {
+  year: z.coerce.number().int().min(2000).max(2100),
+  period: z.enum(['month', 'quarter', 'year']).default('year'),
+  month: monthSchema.optional(),
+  quarter: z.coerce.number().int().min(1).max(4).optional(),
+};
+export const salesByProductQuerySchema = z.object({ ...salesWindowShape, distributorId: objectId.optional() });
+export const salesByDistributorQuerySchema = z.object({ ...salesWindowShape, productId: objectId.optional() });
+export const salesByEmployeeQuerySchema = z.object({ ...salesWindowShape, search: z.string().trim().min(1).optional() });
