@@ -14,8 +14,9 @@ import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useClearNotifications, useRetractMessage, useSentMessages } from '../hooks/useInbox';
 import { INBOX_KIND_LABEL, describeAudience } from '../lib/inbox';
 import { ComposeMessageDialog } from './ComposeMessageDialog';
+import { MessageDetailsDialog } from './MessageDetailsDialog';
 
-/** Admin: send a message to the phone app's inbox, see how many have opened it, and take one back. */
+/** Admin: send a message to the phone app's inbox, see how many have opened it, and take one back. Click a message to read it in full. */
 export function InboxScreen() {
   const { values, page, pageSize, update } = useFilterParams(['source']);
   // Mail by default: automatic notifications ("sent a new doctor", "approved") pile up and are cleared on their own tab.
@@ -23,6 +24,7 @@ export function InboxScreen() {
   const list = useSentMessages({ page, pageSize, ...(tab !== 'ALL' && { source: tab as InboxSource }) });
   const [composing, setComposing] = useState(false);
   const [retracting, setRetracting] = useState<SentInboxMessageDto | null>(null);
+  const [viewing, setViewing] = useState<SentInboxMessageDto | null>(null);
   const [clearingAll, setClearingAll] = useState(false);
   const retract = useRetractMessage(() => setRetracting(null));
   const clearAll = useClearNotifications(() => setClearingAll(false));
@@ -121,6 +123,7 @@ export function InboxScreen() {
       }
       query={list}
       columns={columns}
+      onRowClick={(m) => setViewing(m)}
       emptyTitle={tab === 'SYSTEM' ? 'No notifications' : 'No messages yet'}
       emptyDescription={tab === 'SYSTEM' ? 'No automatic notifications right now.' : 'Nothing has been sent to the inbox.'}
       onPageChange={(p) => update({ page: p })}
@@ -128,6 +131,16 @@ export function InboxScreen() {
       onPageSizeChange={(n) => update({ pageSize: n })}
     >
       {composing ? <ComposeMessageDialog onClose={() => setComposing(false)} /> : null}
+      {viewing ? (
+        <MessageDetailsDialog
+          message={viewing}
+          onClose={() => setViewing(null)}
+          onTakeBack={(m) => {
+            setViewing(null);
+            setRetracting(m);
+          }}
+        />
+      ) : null}
       <ConfirmDialog
         open={retracting !== null}
         onOpenChange={(open) => !open && setRetracting(null)}

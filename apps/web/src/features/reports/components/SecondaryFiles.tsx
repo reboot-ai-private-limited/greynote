@@ -4,6 +4,7 @@ import type { SecondaryAttachmentDto } from '@greynote/contracts';
 import { Paperclip, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FilePreviewDialog, type PreviewFile } from '@/components/ui/FilePreviewDialog';
 import { FileThumb, type FileKind } from '@/components/ui/FileThumb';
 import { toast } from '@/components/ui/toast';
@@ -37,6 +38,7 @@ export function SecondaryFiles({
   const picker = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<PreviewFile | null>(null);
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState<SecondaryAttachmentDto | null>(null);
 
   async function upload(list: FileList | null) {
     const picked = Array.from(list ?? []);
@@ -95,7 +97,7 @@ export function SecondaryFiles({
                   type="button"
                   aria-label={`Remove ${f.fileName}`}
                   disabled={remove.isPending}
-                  onClick={() => remove.mutate(f.id)}
+                  onClick={() => setRemoving(f)}
                   className="rounded-md p-1 text-text-subtle hover:bg-surface-hover hover:text-danger focus-visible:shadow-focus focus-visible:outline-none disabled:opacity-50"
                 >
                   <Trash2 aria-hidden className="size-4" />
@@ -106,6 +108,15 @@ export function SecondaryFiles({
         </ul>
       )}
       <FilePreviewDialog file={preview} onClose={() => setPreview(null)} />
+      <ConfirmDialog
+        open={removing !== null}
+        onOpenChange={(open) => !open && setRemoving(null)}
+        title="Remove this file?"
+        description={removing ? `${removing.fileName} will be deleted for good.` : undefined}
+        confirmLabel="Remove"
+        pending={remove.isPending}
+        onConfirm={() => removing && remove.mutate(removing.id, { onSettled: () => setRemoving(null) })}
+      />
     </section>
   );
 }

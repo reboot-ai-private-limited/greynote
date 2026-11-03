@@ -36,7 +36,7 @@ const FLAG_TEXT = { NO_PTS: 'No PTS: secondary not valued', NO_PTS_CHANGE: 'No P
  * and what they sold (secondary, which is their achievement). Below, the month by month entry. Admin sees anyone, a manager their team.
  */
 export function EmployeeSalesScreen({ userId }: { userId: string }) {
-  const { values, update } = useFilterParams(['period', 'from', 'to']);
+  const { values, update } = useFilterParams(['period', 'from', 'to', 'month']);
   const { user: me } = useSession();
   const { year } = useFinancialYear();
   const readOnly = useIsReadOnly();
@@ -59,8 +59,9 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
   const [removing, setRemoving] = useState<EmployeeTargetFigureDto | null>(null);
   const remove = useDeleteTarget(() => setRemoving(null));
   const enterable = fyMonths.filter((m) => m <= thisMonth);
+  // `?month=` opens the entry grid on that month (the approval card's "Edit figures" link uses it).
   const [month, setMonth] = useState(
-    enterable.includes(thisMonth) ? thisMonth : (enterable[enterable.length - 1] ?? thisMonth),
+    enterable.includes(values.month) ? values.month : enterable.includes(thisMonth) ? thisMonth : (enterable[enterable.length - 1] ?? thisMonth),
   );
   // A manager's target is the total of their MRs, so there is nothing to set (or remove) on a manager.
   const canSetTargets = !data?.team && (me?.role === 'ADMIN' || me?.role === 'HR');
@@ -223,7 +224,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
           title="Enter the month's figures"
           description={
             me?.role === 'ADMIN'
-              ? 'The secondary entered here is a record; achievement counts what their distributors sold on. Admin can also change the primary (a reason is needed).'
+              ? 'The secondary entered here is a record; achievement counts what their distributors sold on. Admin can also change the primary (a reason is needed), and delete a whole month.'
               : 'The secondary entered here is a record; achievement counts what their distributors sold on.'
           }
         >
@@ -235,6 +236,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
               onMonthChange={setMonth}
               canAdjust={me?.role === 'ADMIN'}
               isSelf={me?.id === userId}
+              canDelete={me?.role === 'ADMIN'}
             />
           </div>
         </Card>

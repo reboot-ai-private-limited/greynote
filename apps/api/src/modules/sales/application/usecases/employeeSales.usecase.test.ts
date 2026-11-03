@@ -6,7 +6,10 @@ import type { OrderRepositoryPort, UserOrderSum } from '../../domain/order.repos
 import { StockRefusal } from '../../domain/stockRefusal.js';
 import { SalesClock } from '../salesClock.js';
 import type { SalesApprovalsPort } from '../../domain/approvals.port.js';
-import { linkQtyAndAmount, makeSecondaryStatusHandler, ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SubmitEmployeeSecondaryUseCase } from './employeeSales.usecase.js';
+import type { SecondaryFileStoragePort } from '../../domain/proofStorage.port.js';
+import type { SecondaryAttachment } from '../../domain/secondaryAttachment.entity.js';
+import type { SecondaryAttachmentRepositoryPort } from '../../domain/secondaryAttachment.repository.port.js';
+import { DeleteEmployeeSecondaryUseCase, linkQtyAndAmount, makeSecondaryStatusHandler, ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SubmitEmployeeSecondaryUseCase } from './employeeSales.usecase.js';
 import { FakeMaster, FakeUsers } from './salesTestKit.js';
 
 class FakeSales implements EmployeeSaleRepositoryPort {
@@ -28,6 +31,14 @@ class FakeSales implements EmployeeSaleRepositoryPort {
     for (const r of hit) r.secondaryStatus = to;
     return hit.length;
   }
+  async clearSecondary(userId: string, month: string, by: string, at: Date) {
+    const hit = this.rows.filter((r) => r.userId === userId && r.month === month && r.secondaryQty !== null);
+    for (const r of hit) {
+      if (r.adjustmentQty !== 0 || r.adjustmentReason) Object.assign(r, { secondaryQty: null, secondaryAmountPaise: null, secondaryStatus: 'DRAFT', updatedBy: by, updatedAt: at });
+      else this.rows = this.rows.filter((x) => x !== r);
+    }
+    return hit.length;
+  }
   async setAdjustment(userId: string, month: string, lines: Array<{ productId: string; qty: number; reason: string | null }>, by: string, at: Date) {
     for (const l of lines) Object.assign(this.row(userId, l.productId, month, by, at), { adjustmentQty: l.qty, adjustmentReason: l.reason, updatedBy: by, updatedAt: at });
     return { added: lines.length, changed: 0 };
@@ -35,7 +46,9 @@ class FakeSales implements EmployeeSaleRepositoryPort {
 }
 
 const submitted: Array<{ kind: string; recordId: string; submitterId: string }> = [];
-const approvals = { registerKind() {}, getForRecord: async () => null, submit: async (i: { kind: string; recordId: string; submitterId: string }) => { submitted.push(i); return { id: 'req1' }; } } as unknown as SalesApprovalsPort;
+const requestsDeleted: string[] = [];
+let openRequest: { id: string; status: string } | null = null;
+const approvals = { registerKind() {}, getForRecord: async () => openRequest, deleteForRecord: async (_kind: string, recordId: string) => { requestsDeleted.push(recordId); }, submit: async (i: { kind: string; recordId: string; submitterId: string }) => { submitted.push(i); return { id: 'req1' }; } } as unknown as SalesApprovalsPort;
 let unlocked = false;
 const stock = { async isUnlocked() { return unlocked; } } as unknown as MonthlyStockRepositoryPort;
 const orderSums: UserOrderSum[] = [];
@@ -137,6 +150,61 @@ describe('employee sales', () => {
     await onChange({ recordId: 'mr1:2026-10', status: 'REOPENED' }, undefined);
     expect(sales.rows[0]!.secondaryStatus).toBe('DRAFT');
     expect(await code(secondary.execute(mr1, line(9)))).toBeNull();
+  });
+
+  describe('Admin deletes a month\'s secondary', () => {
+    let files: SecondaryAttachment[];
+    let storageRemoved: string[];
+    let del: DeleteEmployeeSecondaryUseCase;
+
+    beforeEach(() => {
+      files = [{ id: 'f1', userId: 'mr1', month: '2026-10', url: 'https://files/1', publicId: 'pub-1', fileName: 'statement.pdf', mimeType: 'application/pdf', sizeBytes: 10, uploadedBy: 'mr1', uploadedAt: new Date() }];
+      storageRemoved = [];
+      requestsDeleted.length = 0;
+      openRequest = null;
+      const clock = new SalesClock(config, () => new Date('2026-10-10T05:00:00Z'));
+      const fileRepo = {
+        async list(userId: string, month: string) { return files.filter((f) => f.userId === userId && f.month === month); },
+        async remove(id: string) { const n = files.length; files = files.filter((f) => f.id !== id); return files.length < n; },
+      } as unknown as SecondaryAttachmentRepositoryPort;
+      const storage = { async upload() { return { url: '', publicId: '' }; }, async remove(publicId: string) { storageRemoved.push(publicId); } } as SecondaryFileStoragePort;
+      del = new DeleteEmployeeSecondaryUseCase({ users: new FakeUsers(), sales, stock, files: fileRepo, storage, approvals, transactions: { run: (fn) => fn(undefined) }, clock, config });
+    });
+
+    it('only Admin may: an employee, their manager and another manager are all refused', async () => {
+      await secondary.execute(mr1, { userId: 'mr1', month: '2026-10', lines: [{ productId: 'prod1', qty: 3 }] });
+      for (const who of [mr1, asm, mr2]) expect(await code(del.execute(who, { userId: 'mr1', month: '2026-10' }))).toBe('ADMIN_ONLY');
+      expect(sales.rows).toHaveLength(1);
+      expect(files).toHaveLength(1);
+    });
+
+    it('removes the figures, the files (and the stored copies) and the approval request, and says what went', async () => {
+      await secondary.execute(mr1, { userId: 'mr1', month: '2026-10', lines: [{ productId: 'prod1', qty: 3 }, { productId: 'prod2', qty: 4 }] });
+      openRequest = { id: 'req1', status: 'SUBMITTED' };
+      expect(await del.execute(admin, { userId: 'mr1', month: '2026-10' })).toEqual({ lines: 2, files: 1, requestRemoved: true });
+      expect(sales.rows).toHaveLength(0);
+      expect(files).toHaveLength(0);
+      expect(storageRemoved).toEqual(['pub-1']);
+      expect(requestsDeleted).toEqual(['mr1:2026-10']);
+    });
+
+    it('keeps Admin\'s primary change on a line and leaves other months and other people alone', async () => {
+      await primary.execute(admin, { userId: 'mr1', month: '2026-10', lines: [{ productId: 'prod1', adjustmentQty: 5, reason: 'Direct supply' }] });
+      await secondary.execute(mr1, { userId: 'mr1', month: '2026-10', lines: [{ productId: 'prod1', qty: 3 }] });
+      await secondary.execute(admin, { userId: 'mr1', month: '2026-09', lines: [{ productId: 'prod1', qty: 8 }] });
+      await secondary.execute(mr2, { userId: 'mr2', month: '2026-10', lines: [{ productId: 'prod1', qty: 6 }] });
+      await del.execute(admin, { userId: 'mr1', month: '2026-10' });
+      expect(sales.rows.find((r) => r.userId === 'mr1' && r.month === '2026-10')).toMatchObject({ secondaryQty: null, adjustmentQty: 5, adjustmentReason: 'Direct supply' });
+      expect(sales.rows.find((r) => r.userId === 'mr1' && r.month === '2026-09')).toMatchObject({ secondaryQty: 8 });
+      expect(sales.rows.find((r) => r.userId === 'mr2')).toMatchObject({ secondaryQty: 6 });
+    });
+
+    it('works after the stock deadline (Admin), refuses a month that has not started, and an empty month is not an error', async () => {
+      await secondary.execute(admin, { userId: 'mr1', month: '2026-08', lines: [{ productId: 'prod1', qty: 3 }] });
+      expect(await code(del.execute(admin, { userId: 'mr1', month: '2026-08' }))).toBeNull();
+      expect(await code(del.execute(admin, { userId: 'mr1', month: '2026-11' }))).toBe('MONTH_NOT_STARTED');
+      expect(await del.execute(admin, { userId: 'mr1', month: '2026-09' })).toEqual({ lines: 0, files: 0, requestRemoved: false });
+    });
   });
 
   it('a rejected month can be corrected and sent again', async () => {

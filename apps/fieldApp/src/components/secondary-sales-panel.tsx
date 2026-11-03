@@ -40,6 +40,8 @@ const errorText = (err: unknown) => {
   if (err instanceof ApiError) {
     if (err.data?.code === 'SECONDARY_LOCKED') return 'This month is with your manager or approved, so it can’t be changed. Ask for it to be sent back, or wait for the decision.';
     if (err.data?.code === 'SECONDARY_NEEDS_PTR') return 'This product has no PTS price, so enter units, not an amount.';
+    if (err.data?.code === 'MONTH_CLOSED') return 'This month is closed. Ask Admin to reopen it or allow a late entry.';
+    if (err.data?.code === 'MONTH_NOT_STARTED') return 'This month has not started yet.';
   }
   return err instanceof ApiError || err instanceof NetworkError || err instanceof Error ? err.message : 'Something went wrong. Please try again.';
 };
@@ -369,26 +371,33 @@ type Typed = { field: 'qty' | 'amount'; text: string };
  * entered here (and its approval) no longer counts toward targets. It is saved for you, not for an outlet, so it needs a
  * connection. `locked` is a month the server will not take entries for; a month outside the selected financial year is read-only.
  */
-export function SecondarySalesPanel({ month, locked }: { month: string; locked: boolean }) {
+export function SecondarySalesPanel({ month, locked, forUser }: { month: string; locked: boolean; /** A manager editing a team member's month (the server allows the downline, and Admin anyone). */ forUser?: { id: string; name: string } }) {
   const online = useOnline();
   const me = useSessionUser();
   const fy = useFinancialYear();
+  const forOther = Boolean(forUser && forUser.id !== me?.id);
+  const subjectId = forOther ? (forUser?.id ?? '') : (me?.id ?? '');
 
   const [tick, setTick] = useState(0);
-  const sales = useCachedFetch(`emp-secondary:${fy.year}:${month}`, () => getEmployeeSales(me?.id ?? '', month), tick);
+  const sales = useCachedFetch(`emp-secondary:${fy.year}:${subjectId}:${month}`, () => getEmployeeSales(subjectId, month), tick);
 
   // What has been typed, kept with the month it belongs to, so another month starts clean.
   const [typed, setTyped] = useState<{ month: string; values: Record<string, Typed> }>({ month, values: {} });
   const edits = typed.month === month ? typed.values : {};
   const [busy, setBusy] = useState<'save' | 'send' | null>(null);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
+  const [search, setSearch] = useState('');
 
   const lines = sales.data?.lines ?? [];
+  const needle = search.trim().toLowerCase();
+  // Typed figures are kept by product, so narrowing the list never loses them; totals and saving still use every line.
+  const shownLines = needle ? lines.filter((l) => l.product.name.toLowerCase().includes(needle)) : lines;
   const fe = useFormErrors(lines.map((l) => l.product.id));
   const status = sales.data?.secondaryStatus ?? null;
   const outsideYear = month < fy.firstMonth || month > fy.lastMonth;
-  // Pending and approved months are the manager's now; draft, sent-back and untouched months can be changed.
-  const frozen = status === 'PENDING' || status === 'APPROVED';
+  // Pending and approved months are the manager's now; draft, sent-back and untouched months can be changed. A manager editing
+  // for someone else is that manager, so only the server's own rules (closed month, financial year) apply to them.
+  const frozen = !forOther && (status === 'PENDING' || status === 'APPROVED');
   const readOnly = fy.isPast || outsideYear || locked || frozen;
   const changed = Object.keys(edits).length > 0;
 
@@ -416,7 +425,7 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
   const totalPaise = lines.reduce((n, l) => n + (l.ptsPaise ? Number(figures(l).qty || 0) * l.ptsPaise : 0), 0);
 
   const save = async () => {
-    if (!me) return;
+    if (!me || !subjectId) return;
     // Check every typed figure first: a bad amount must be marked, never quietly left out of what is saved.
     const problems: Record<string, string> = {};
     const toSend = lines.flatMap((l): { productId: string; qty?: number; amountPaise?: number }[] => {
@@ -439,10 +448,15 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
     setBusy('save');
     setMsg(null);
     try {
-      await saveEmployeeSecondary({ userId: me.id, month, lines: toSend });
+      await saveEmployeeSecondary({ userId: subjectId, month, lines: toSend });
       setTyped({ month, values: {} });
       setTick((t) => t + 1);
-      setMsg({ tone: 'success', text: `Saved as a draft for ${prettyMonth(month)}. Send it for approval when it is complete.` });
+      setMsg({
+        tone: 'success',
+        text: forOther
+          ? `Saved for ${forUser?.name ?? 'this person'} (${prettyMonth(month)}). The lines you changed are approved straight away.`
+          : `Saved as a draft for ${prettyMonth(month)}. Send it for approval when it is complete.`,
+      });
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
     } finally {
@@ -477,10 +491,19 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
 
   return (
     <View style={styles.stack}>
-      <Notice tone="info" title="Your own record">
-        Your achievement is counted from your distributors’ stock, so what you enter here is kept as your record and does not change it.
-      </Notice>
-      {banner ? <StatusBanner {...banner} /> : null}
+      {forOther ? (
+        <Notice tone="info" title={`Editing ${forUser?.name ?? 'a team member'}’s month`}>
+          Lines you change and save here are recorded as approved. Their achievement is counted from their distributors’ stock, so this does not change it.
+        </Notice>
+      ) : (
+        <Notice tone="info" title="Your own record">
+          Your achievement is counted from your distributors’ stock, so what you enter here is kept as your record and does not change it.
+        </Notice>
+      )}
+      {forOther && status === 'PENDING' ? (
+        <Notice tone="warning">This month is waiting for a decision. Lines you change here are recorded as approved; lines you leave alone stay waiting, and the request itself is still decided in Approvals.</Notice>
+      ) : null}
+      {banner && !forOther ? <StatusBanner {...banner} /> : null}
       {!online ? <Notice tone="warning">Secondary sales are saved on the server. Connect to enter them.</Notice> : null}
       {outsideYear && !locked ? <Notice tone="info">This month is outside the selected financial year, so it can only be read.</Notice> : null}
       {sales.error && online ? <Notice tone="danger">{sales.error}</Notice> : null}
@@ -499,7 +522,9 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
               { label: 'Value at PTS', value: formatRupees(totalPaise), accent: 'teal' },
             ]}
           />
-          {lines.map((l) => {
+          <TextField label="Search medicine" value={search} onChangeText={setSearch} placeholder="Type a medicine name" autoCorrect={false} />
+          {shownLines.length === 0 ? <Notice tone="info">{`No medicine matches “${search.trim()}”.`}</Notice> : null}
+          {shownLines.map((l) => {
             const f = figures(l);
             const lineStatus = l.secondaryStatus;
             return (
@@ -546,11 +571,11 @@ export function SecondarySalesPanel({ month, locked }: { month: string; locked: 
           <ThemedText type="small" themeColor="textSecondary">
             Units and amount are one figure at the product’s PTS: type either and the other follows (an amount is rounded to whole units).
           </ThemedText>
-          <SecondaryFiles month={month} files={sales.data?.attachments ?? []} canEdit={!readOnly} online={online} onChanged={() => setTick((t) => t + 1)} />
+          <SecondaryFiles month={month} files={sales.data?.attachments ?? []} canEdit={!readOnly} online={online} forUserId={forOther ? subjectId : undefined} onChanged={() => setTick((t) => t + 1)} />
           {readOnly ? null : (
             <View style={styles.actions}>
-              <PrimaryButton label="Save draft" loading={busy === 'save'} disabled={!online || !changed || busy !== null} onPress={save} />
-              {(status === 'DRAFT' || status === 'REJECTED') && !changed ? (
+              <PrimaryButton label={forOther ? 'Save changes' : 'Save draft'} loading={busy === 'save'} disabled={!online || !changed || busy !== null} onPress={save} />
+              {!forOther && (status === 'DRAFT' || status === 'REJECTED') && !changed ? (
                 <PrimaryButton label="Send for approval" loading={busy === 'send'} disabled={!online || busy !== null} onPress={send} />
               ) : null}
             </View>

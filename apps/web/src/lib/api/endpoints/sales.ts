@@ -30,7 +30,9 @@ export const salesApi = {
   employeeSales: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) =>
     request<EmployeeSalesDto>('/sales/employee-sales', { token, query: { ...query }, signal }),
   saveEmployeeSecondary: (token: string, body: SaveEmployeeSecondaryDto) => request<{ added: number; changed: number }>('/sales/employee-secondary', { method: 'POST', token, body }),
-  /** Admin only. */
+  /** Admin only. Deletes the employee's secondary for a month: every line's figures, the approval request and the files. Admin's change to the primary stays. */
+  deleteEmployeeSecondary: (token: string, query: { userId: string; month: string }) =>
+    request<{ lines: number; files: number; requestRemoved: boolean }>('/sales/employee-secondary', { method: 'DELETE', token, query: { ...query } }),
   /** Multipart: `file`, `month` and, for someone else's month, `userId`. Any number of files per month. */
   addSecondaryFile: (token: string, body: FormData) => request<SecondaryAttachmentDto>('/sales/employee-secondary/attachments', { method: 'POST', token, body }),
   removeSecondaryFile: (token: string, id: string) => request<null>(`/sales/employee-secondary/attachments/${id}`, { method: 'DELETE', token }),

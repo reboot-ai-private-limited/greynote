@@ -15,6 +15,11 @@ export interface EmployeeSaleRepositoryPort {
   setSecondary(userId: string, month: string, lines: Array<{ productId: string; qty: number; amountPaise: number | null }>, status: SecondaryStatus, by: string, at: Date): Promise<{ added: number; changed: number }>;
   /** Moves the month's entered secondary from any of the `from` statuses to `to` (legacy rows with no status count as APPROVED). Returns how many rows moved. */
   setSecondaryStatus(userId: string, month: string, from: SecondaryStatus[], to: SecondaryStatus, ctx?: TransactionContext): Promise<number>;
+  /**
+   * Deletes the month's secondary (units, amount and status) for the employee. A line that also carries Admin's primary change keeps that change and
+   * its old secondary goes to `history`; a line that carried nothing else is removed. Returns how many lines had a secondary.
+   */
+  clearSecondary(userId: string, month: string, by: string, at: Date, ctx?: TransactionContext): Promise<number>;
   /** Sets Admin's adjustment (with its reason) for these products and month. Leaves the secondary alone. */
   setAdjustment(userId: string, month: string, lines: Array<{ productId: string; qty: number; reason: string | null }>, by: string, at: Date): Promise<{ added: number; changed: number }>;
 }

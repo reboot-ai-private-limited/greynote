@@ -1,9 +1,11 @@
 'use client';
 
 import type { EmployeeSalesLineDto } from '@greynote/contracts';
+import { Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Input } from '@/components/ui/Input';
@@ -12,7 +14,7 @@ import { monthLabel } from '@/features/payroll/lib/payroll';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useIsReadOnly } from '@/lib/useFinancialYear';
 import { SecondaryFiles } from './SecondaryFiles';
-import { useEmployeeMonth, useSavePrimary, useSaveSecondary, useSubmitSecondary } from '../hooks/useEmployeeSales';
+import { useDeleteSecondary, useEmployeeMonth, useSavePrimary, useSaveSecondary, useSubmitSecondary } from '../hooks/useEmployeeSales';
 import {
   adjustmentOf,
   amountFromUnits,
@@ -42,6 +44,7 @@ export function EmployeeMonthGrid({
   onMonthChange,
   canAdjust,
   isSelf,
+  canDelete = false,
 }: {
   userId: string;
   months: readonly string[];
@@ -50,6 +53,8 @@ export function EmployeeMonthGrid({
   canAdjust: boolean;
   /** The grid is the signed-in employee's own month: their entry is a draft they send for approval. */
   isSelf: boolean;
+  /** Admin only: offers "Delete month", which removes the month's secondary, its files and its approval request. */
+  canDelete?: boolean;
 }) {
   const query = useEmployeeMonth(userId, month);
   const readOnly = useIsReadOnly();
@@ -60,6 +65,8 @@ export function EmployeeMonthGrid({
   const saveSecondary = useSaveSecondary(() => setShown(false));
   const savePrimary = useSavePrimary(() => setShown(false));
   const send = useSubmitSecondary(() => setShown(false));
+  const [deleting, setDeleting] = useState(false);
+  const remove = useDeleteSecondary(() => setDeleting(false));
 
   // A fresh read (another month, or after a save) starts every row from what the server has.
   useEffect(() => {
@@ -75,6 +82,9 @@ export function EmployeeMonthGrid({
   const dirty = lines.some((l) => isDirty(l, draftFor(l), canAdjust));
   const pending = saveSecondary.isPending || savePrimary.isPending || send.isPending;
   const status = query.data?.secondaryStatus ?? null;
+  const enteredCount = lines.filter((l) => l.secondaryQty !== null).length;
+  const fileCount = query.data?.attachments.length ?? 0;
+  const requestWaiting = Boolean(query.data?.approvalRequestId);
 
   function submit() {
     setShown(true);
@@ -209,6 +219,17 @@ export function EmployeeMonthGrid({
               Send for approval
             </Button>
           ) : null}
+          {canDelete ? (
+            <Button
+              variant="secondary"
+              className="text-danger"
+              disabled={readOnly || pending || (enteredCount === 0 && fileCount === 0 && !requestWaiting)}
+              onClick={() => setDeleting(true)}
+            >
+              <Trash2 aria-hidden className="size-4" />
+              Delete month
+            </Button>
+          ) : null}
         </div>
       </div>
       <DataState
@@ -229,6 +250,15 @@ export function EmployeeMonthGrid({
           canEdit={!readOnly && !(isSelf && (status === 'PENDING' || status === 'APPROVED'))}
         />
       ) : null}
+      <ConfirmDialog
+        open={deleting}
+        onOpenChange={setDeleting}
+        title={`Delete ${monthLabel(month)}'s secondary?`}
+        description={`This removes ${enteredCount} product figure${enteredCount === 1 ? '' : 's'}, ${fileCount} file${fileCount === 1 ? '' : 's'}${requestWaiting ? ' and the approval request' : ''} for this month. Admin's change to the primary stays. It cannot be undone.`}
+        confirmLabel="Delete month"
+        pending={remove.isPending}
+        onConfirm={() => remove.mutate({ userId, month })}
+      />
     </div>
   );
 }

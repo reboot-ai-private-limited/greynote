@@ -59,6 +59,16 @@ export function useRemoveSecondaryFile() {
   });
 }
 
+/** Admin deletes a month's secondary: the figures, the files and the approval request, so the approvals lists change too. */
+export function useDeleteSecondary(onDone: () => void) {
+  return useApiMutation<{ userId: string; month: string }, { lines: number; files: number; requestRemoved: boolean }>({
+    call: (token, body) => salesApi.deleteEmployeeSecondary(token, body),
+    invalidates: [...refreshes, keys.approvals.all()],
+    successMessage: 'Month deleted.',
+    onSuccess: onDone,
+  });
+}
+
 export function useSubmitSecondary(onDone: () => void) {
   return useApiMutation<{ month: string }, { requestId: string; sent: number }>({
     call: (token, body) => salesApi.submitEmployeeSecondary(token, body),

@@ -39,6 +39,26 @@ export class MongoEmployeeSaleAdapter implements EmployeeSaleRepositoryPort {
     return res.modifiedCount;
   }
 
+  async clearSecondary(userId: string, month: string, by: string, at: Date, ctx?: TransactionContext): Promise<number> {
+    const session = ctx ? (ctx as ClientSession) : undefined;
+    const rows = await EmployeeSaleModel.find({ userId: oid(userId), month, secondaryQty: { $ne: null } }, null, session ? { session } : {}).lean();
+    const ops: Parameters<typeof EmployeeSaleModel.bulkWrite>[0] = rows.map((old) =>
+      old.adjustmentQty !== 0 || old.adjustmentReason
+        ? {
+            updateOne: {
+              filter: { _id: old._id },
+              update: {
+                $set: { secondaryQty: null, secondaryAmountPaise: null, secondaryStatus: 'DRAFT', updatedBy: oid(by), updatedAt: at },
+                $push: { history: { by: old.updatedBy, at: old.updatedAt, secondaryQty: old.secondaryQty, adjustmentQty: old.adjustmentQty, adjustmentReason: old.adjustmentReason } } as never,
+              },
+            },
+          }
+        : { deleteOne: { filter: { _id: old._id } } },
+    );
+    if (ops.length > 0) await EmployeeSaleModel.bulkWrite(ops, session ? { session } : {});
+    return rows.length;
+  }
+
   setAdjustment(userId: string, month: string, lines: Array<{ productId: string; qty: number; reason: string | null }>, by: string, at: Date) {
     return this.write(userId, month, lines.map((l) => ({ productId: l.productId, adjustmentQty: l.qty, adjustmentReason: l.reason })), by, at);
   }

@@ -22,6 +22,7 @@ DELETE /api/marketing/doctors/:doctorId/visuals/:visualId  ADMIN,FIELD
 DELETE /api/marketing/targets/:id  ADMIN,HR
 DELETE /api/marketing/visuals/:id  ADMIN
 DELETE /api/planning/monthly/:id  ADMIN
+DELETE /api/sales/employee-secondary  ADMIN
 DELETE /api/sales/employee-secondary/attachments/:id  ADMIN,FIELD
 DELETE /api/territory/hqs/:id  ADMIN
 DELETE /api/territory/routes/:id  ADMIN

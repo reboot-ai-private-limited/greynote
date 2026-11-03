@@ -62,8 +62,8 @@ export const saveEmployeeSecondary = (body: { userId: string; month: string; lin
 export const submitEmployeeSecondary = (month: string) => apiPost<unknown>('/sales/employee-secondary/submit', { month }, { auth: true });
 
 /** Attaches one file to the month (PDF, JPG or PNG, up to 5 MB; send several files as several calls). Online only. */
-export const addSecondaryFile = (month: string, file: UploadFile) =>
-  apiUpload<SecondaryAttachment>('/sales/employee-secondary/attachments', file, 'POST', { month });
+export const addSecondaryFile = (month: string, file: UploadFile, userId?: string) =>
+  apiUpload<SecondaryAttachment>('/sales/employee-secondary/attachments', file, 'POST', userId ? { month, userId } : { month });
 
 export const removeSecondaryFile = (id: string) => apiDelete<unknown>(`/sales/employee-secondary/attachments/${id}`);
 
