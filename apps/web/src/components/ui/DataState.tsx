@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { EmptyState } from './EmptyState';
 import { ErrorState, type ErrorStateProps } from './ErrorState';
 import { SkeletonTable } from './Skeleton';
+import { TopProgressBar } from './TopProgressBar';
 
 /**
  * Every data surface goes through this: loading, error, empty, ready — never a bare spinner and
@@ -9,6 +10,7 @@ import { SkeletonTable } from './Skeleton';
  */
 export function DataState({
   isLoading,
+  isFetching = false,
   error,
   isEmpty,
   empty,
@@ -16,6 +18,8 @@ export function DataState({
   children,
 }: {
   isLoading: boolean;
+  /** Background refetch (filter/search/page change): shows a progress bar and dims the stale content. */
+  isFetching?: boolean;
   error: ErrorStateProps | null;
   isEmpty: boolean;
   empty: { title: string; description?: string };
@@ -25,5 +29,13 @@ export function DataState({
   if (isLoading) return <>{skeleton}</>;
   if (error) return <ErrorState {...error} />;
   if (isEmpty) return <EmptyState {...empty} />;
-  return <>{children}</>;
+  if (!isFetching) return <>{children}</>;
+  return (
+    <>
+      <TopProgressBar active />
+      <div aria-busy className="pointer-events-none opacity-60 transition-opacity">
+        {children}
+      </div>
+    </>
+  );
 }

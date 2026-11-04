@@ -180,7 +180,7 @@ export function SalesReportScreen() {
             <StatTile label="All-products targets" value={formatMoney(product.data?.generalTargetPaise ?? 0)} note="not tied to one product" />
           </div>
           <Card title={`Sales by product, ${label}`} actions={<div className="flex gap-2"><Button variant="secondary" size="sm" disabled={!product.data} onClick={() => product.data && void downloadXlsx(salesBreakdownFilename('product', label), 'Sales by product', ...productSheet(product.data))}>Download Excel</Button><Button variant="secondary" size="sm" disabled={!product.data} onClick={() => product.data && downloadCsv(salesBreakdownFilename('product', label), productCsv(product.data))}>Download CSV</Button></div>}>
-            <DataState isLoading={product.isLoading} error={product.error ? toErrorState(product.error, () => void product.refetch()) : null} isEmpty={productRows.length === 0} empty={{ title: values.search ? 'No product matches your search' : 'No sales in this period' }}>
+            <DataState isLoading={product.isLoading} isFetching={product.isFetching} error={product.error ? toErrorState(product.error, () => void product.refetch()) : null} isEmpty={productRows.length === 0} empty={{ title: values.search ? 'No product matches your search' : 'No sales in this period' }}>
               <DataTable columns={productColumns} rows={productRows} rowKey={(r) => r.product.id} sort={productSort} onSortChange={setProductSort} bleed={false} />
             </DataState>
           </Card>
@@ -196,7 +196,7 @@ export function SalesReportScreen() {
             <StatTile label="No count at all" value={`${distributor.data?.missingDistributors.length ?? 0}`} note="distributors in this period" {...((distributor.data?.missingDistributors.length ?? 0) > 0 ? { tone: 'warning' as const } : {})} />
           </div>
           <Card title={`Sales by distributor, ${label}`} actions={<div className="flex gap-2"><Button variant="secondary" size="sm" disabled={!distributor.data} onClick={() => distributor.data && void downloadXlsx(salesBreakdownFilename('distributor', label), 'Sales by distributor', ...distributorSheet(distributor.data))}>Download Excel</Button><Button variant="secondary" size="sm" disabled={!distributor.data} onClick={() => distributor.data && downloadCsv(salesBreakdownFilename('distributor', label), distributorCsv(distributor.data))}>Download CSV</Button></div>}>
-            <DataState isLoading={distributor.isLoading} error={distributor.error ? toErrorState(distributor.error, () => void distributor.refetch()) : null} isEmpty={(distributor.data?.rows.length ?? 0) === 0} empty={{ title: 'No sales in this period' }}>
+            <DataState isLoading={distributor.isLoading} isFetching={distributor.isFetching} error={distributor.error ? toErrorState(distributor.error, () => void distributor.refetch()) : null} isEmpty={(distributor.data?.rows.length ?? 0) === 0} empty={{ title: 'No sales in this period' }}>
               <DataTable columns={distributorColumns} rows={distributor.data?.rows ?? []} rowKey={(r) => r.distributor.id} bleed={false} />
             </DataState>
           </Card>
@@ -212,7 +212,7 @@ export function SalesReportScreen() {
             <StatTile label="Primary" value={formatMoney(employee.data?.totals.primaryPaise ?? 0)} note="each MR counted once" />
           </div>
           <Card title={`Sales by employee, ${label}`} description="A distributor shared by two employees counts in full for each, so rows can add up to more than the total." actions={<div className="flex gap-2"><Button variant="secondary" size="sm" disabled={!employee.data} onClick={() => employee.data && void downloadXlsx(salesBreakdownFilename('employee', label), 'Sales by employee', ...employeeSheet(employee.data))}>Download Excel</Button><Button variant="secondary" size="sm" disabled={!employee.data} onClick={() => employee.data && downloadCsv(salesBreakdownFilename('employee', label), employeeCsv(employee.data))}>Download CSV</Button></div>}>
-            <DataState isLoading={employee.isLoading} error={employee.error ? toErrorState(employee.error, () => void employee.refetch()) : null} isEmpty={employeeRows.length === 0} empty={{ title: values.search ? 'No employee matches your search' : 'No employees to show' }}>
+            <DataState isLoading={employee.isLoading} isFetching={employee.isFetching} error={employee.error ? toErrorState(employee.error, () => void employee.refetch()) : null} isEmpty={employeeRows.length === 0} empty={{ title: values.search ? 'No employee matches your search' : 'No employees to show' }}>
               <DataTable columns={employeeColumns} rows={employeeRows} rowKey={(r) => r.employee.id} sort={employeeSort} onSortChange={setEmployeeSort} bleed={false} />
             </DataState>
           </Card>

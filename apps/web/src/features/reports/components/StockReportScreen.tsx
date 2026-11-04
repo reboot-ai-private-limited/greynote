@@ -148,7 +148,7 @@ export function StockReportScreen() {
           </div>
           <Card flat>
             <DataState
-              isLoading={query.isLoading}
+              isLoading={query.isLoading} isFetching={query.isFetching}
               error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
               isEmpty={rows.length === 0}
               empty={{

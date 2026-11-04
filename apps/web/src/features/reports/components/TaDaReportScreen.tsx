@@ -205,7 +205,7 @@ export function TaDaReportScreen() {
 
       <Card flat title="By month" description="Click a month to see its employees below.">
         <DataState
-          isLoading={query.isLoading}
+          isLoading={query.isLoading} isFetching={query.isFetching}
           error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
           isEmpty={started.length === 0}
           empty={{ title: 'No month of this financial year has started yet' }}
@@ -235,7 +235,7 @@ export function TaDaReportScreen() {
           className="mt-6"
         >
           <DataState
-            isLoading={query.isLoading}
+            isLoading={query.isLoading} isFetching={query.isFetching}
             error={null}
             isEmpty={allRows.length === 0}
             empty={{

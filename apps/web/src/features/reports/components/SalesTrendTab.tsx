@@ -121,7 +121,7 @@ export function SalesTrendTab({ fy }: { fy: number }) {
           </div>
         }
       >
-        <DataState isLoading={loadingFirst} error={failed?.error ? toErrorState(failed.error, () => active.forEach((q) => void q.refetch())) : null} isEmpty={rows.length === 0} empty={{ title: search ? 'Nothing matches your search' : 'No sales in this year' }}>
+        <DataState isLoading={loadingFirst} isFetching={!loadingFirst && active.some((q) => q.isFetching)} error={failed?.error ? toErrorState(failed.error, () => active.forEach((q) => void q.refetch())) : null} isEmpty={rows.length === 0} empty={{ title: search ? 'Nothing matches your search' : 'No sales in this year' }}>
           <DataTable columns={tableColumns} rows={rows} rowKey={(r) => r.id} sort={sort} onSortChange={setSort} bleed={false} />
         </DataState>
       </Card>
