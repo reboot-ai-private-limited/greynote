@@ -1,5 +1,6 @@
-import type { InvoiceRowDto, InvoiceStatus } from '@greynote/contracts';
+import type { InvoiceDetailDto, InvoiceRowDto, InvoiceStatus } from '@greynote/contracts';
 import { rupeesForCsv, toCsv } from '@/lib/csv';
+import { rupees } from '@/lib/xlsx';
 import { SELLER_STATE_CODE } from './company';
 
 export const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = { UNPAID: 'Unpaid', PARTIAL: 'Part paid', PAID: 'Paid' };
@@ -64,6 +65,34 @@ export const expiryLabel = (expiry: string | null): string => {
   const m = expiry === null ? null : /^(\d{4})-(\d{2})$/.exec(expiry);
   return m ? `${m[2]}/${m[1]}` : '—';
 };
+
+export const INVOICE_LINES_HEADER = ['#', 'Item name', 'HSN/SAC', 'Batch No.', 'Exp. Date', 'MRP (INR)', 'Quantity', 'Free quantity', 'Price/unit (INR)', 'GST %', 'GST amount (INR)', 'Amount (INR)'] as const;
+
+type LineCell = string | number | null;
+
+/** The items of one invoice as a sheet: money as rupees (`asNumber` for Excel, text with two decimals for CSV), then a Total row. */
+export function invoiceLinesTable(inv: InvoiceDetailDto, asNumber: boolean): { header: readonly string[]; rows: LineCell[][] } {
+  const money = (paise: number): LineCell => (asNumber ? rupees(paise) : rupeesForCsv(paise));
+  const rows: LineCell[][] = inv.lines.map((l, at) => [
+    at + 1,
+    l.productName,
+    l.hsn,
+    l.batchNo,
+    l.expiry === null ? null : expiryLabel(l.expiry),
+    l.mrpPaise === null ? null : money(l.mrpPaise),
+    l.suppliedQty,
+    l.freeQty,
+    money(l.unitPricePaise),
+    l.gstPercent,
+    money(l.gstPaise),
+    money(l.amountPaise + l.gstPaise),
+  ]);
+  rows.push(['', 'Total', null, null, null, null, inv.lines.reduce((n, l) => n + l.suppliedQty, 0), inv.lines.reduce((n, l) => n + l.freeQty, 0), null, null, money(inv.gstPaise), money(inv.taxablePaise + inv.gstPaise)]);
+  return { header: INVOICE_LINES_HEADER, rows };
+}
+
+/** `invoice-3452` (no extension; the download adds `.csv` or `.xlsx`). Anything but letters, digits and hyphens in the number drops out. */
+export const invoiceFilename = (invoiceNumber: string): string => `invoice-${invoiceNumber.replace(/[^A-Za-z0-9-]+/g, '-')}`;
 
 export const invoicesFilename = (month: string): string => `invoices-${month}.csv`;
 
