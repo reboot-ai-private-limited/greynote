@@ -2,6 +2,8 @@
 
 What the field app must do for orders, and what to **remove**: the *Monthly stock* tab. The server is the authority. The phone app is another team's and cannot be changed from this repo, so this note is the contract. Decision: decision-log 2026-10-12 (orders, secondary, targets, services).
 
+**Changed 2026-11-04:** a distributor now reaches an employee **only when it is assigned to them**. Before, one that merely covered their Zone, HQ or Route also showed. The sync snapshot's `distributors` and the checks on orders and stock use the assignment alone; an order for an unassigned distributor is refused with `OUTLET_NOT_YOURS`. Chemists still follow the employee's Routes. No phone change, but the list will be shorter: clear any cached distributor that is no longer in the snapshot. Existing coverage was turned into assignments by `migrate:coverage-assignments`.
+
 **Changed 2026-11-02:** the stock deadline can be lifted per employee by an exception (web). No phone change needed. See [`../LLD/lateGrants.md`](../LLD/lateGrants.md).
 
 **Status key:** ✅ built on the server. 📱 the phone still has to do it.

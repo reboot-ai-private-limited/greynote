@@ -6,6 +6,26 @@ How an employee's monthly **secondary** is entered and approved, and how **targe
 
 **Changed 2026-11-03:** (1) **Admin can delete a month's secondary:** `DELETE /api/sales/employee-secondary?userId=&month=` (Admin only, `403 ADMIN_ONLY` otherwise) removes every line's units, amount and status, the month's files (and the stored copies) and its approval request; Admin's primary change on a line stays. No deadline for Admin; `MONTH_NOT_STARTED` / closed financial year still apply. An empty month is not an error. The phone does not offer this (Admin works on the web). (2) **A manager can edit a team member's month** with the existing `POST /employee-secondary` and the attachment calls (`userId` for someone else's month): the phone has an **Edit figures** button on the approval card and under Team > Stock & secondary. Only the lines the manager changes become `APPROVED`; lines left alone stay `PENDING` and the request stays open until it is decided.
 
+## Distributor stock counts with approval (2026-11-04) — what the phone must build
+
+**Two tabs on the Secondary Sales screen, and only the first one is entered:**
+
+1. **Distributor stock** (the count, as today): pick a distributor *assigned to you*, enter opening and closing by product. Add **Save draft** and **Submit**, and a status chip per distributor and month.
+2. **My record**: **read only**, no typing, no files, no approval. It shows your total secondary **per product** for the month: units and amount at PTS, summed over your distributors. Read it from `GET /api/reports/employee-sales?userId=<you>&from=<month>&to=<month>` (`products[].secondaryQty`, `secondaryPaise`), the same figures as your achievement. Remove the old per-product entry, Send for approval and Add files from this tab.
+
+**Switch.** Everything below happens only when the Admin setting **`STOCK_COUNT_APPROVAL`** is on (default off). Off, a saved count counts at once, exactly as before, and the old per-product entry still works. Turn it on after the phone ships Save draft and Submit.
+
+| # | Rule |
+|---|---|
+| 1 | With the switch on, `POST /sales/monthly-stock` (or the `MONTHLY_STOCK` sync record) for a **distributor** saves a **`DRAFT`** for an employee. Admin's count is `APPROVED` at once. Chemist counts are never held. |
+| 2 | **Submit:** `POST /api/sales/stock-counts/submit { month }` (FIELD). Every `DRAFT` or `REJECTED` distributor count the employee recorded for the month becomes `PENDING` and one `STOCK_COUNT` approval request (record `userId:month`) goes to the direct manager, Admin if none. `409 SECONDARY_NOTHING_TO_SEND` when there is nothing to send. Online only. |
+| 3 | A `PENDING` or `APPROVED` month is locked to the employee (`409 SECONDARY_LOCKED`). It opens again after a rejection, or when the request is withdrawn (Approvals, Withdraw) or Admin reopens it; the counts go back to `DRAFT`. |
+| 4 | **Only `APPROVED` counts feed achievement, targets and every report.** Counts from before the switch have no status and read as approved. |
+| 5 | On approval the employees it counts toward are fixed on the rows: the one who counted and everyone the distributor is assigned to at that moment. Unassigning someone later changes nothing in an approved month. |
+| 6 | **Read:** `GET /api/sales/stock-counts?userId&month` returns the month by distributor with `status`, and per product `openingQty`, `closingQty`, `deliveredQty`, `secondaryQty` and `secondaryAmountPaise`. Self, the manager above, or Admin. Show the status chips from it. |
+| 7 | **Admin delete:** `DELETE /api/sales/stock-counts?userId&month` removes the employee's counts for the month and the request, so they can count and submit again (late entry follows the usual exception). Admin only; the phone does not offer it. |
+| 8 | Only a distributor **assigned to the employee** can be counted (`403 OUTLET_NOT_YOURS` otherwise); a distributor no longer shows by route coverage alone. |
+
 **Status key:** ✅ built on the server and web. 📱 the phone still has to show it.
 **Added 2026-11-02:** a month's secondary can carry **files** (photos or PDFs), any number, as proof of the figures (section 1b). Optional, and backward compatible: an older phone build just never sends or shows them.
 **Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - Secondary Sales (units and amount, status per line and month, Send for approval, locked states) and read-only Targets with achievement; a manager can set and now **remove** a target.

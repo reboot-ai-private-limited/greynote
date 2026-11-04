@@ -2,7 +2,7 @@ import type { Router } from 'express';
 import { Types } from 'mongoose';
 import { DistributorRetirement } from './application/distributorRetirement.js';
 import type { DistributorReferencesPort } from './domain/distributorRetirement.js';
-import { coverageMeets, scopeOfUser } from './application/distributorCoverage.js';
+import { scopeOfUser } from './application/distributorCoverage.js';
 import { ChemistModel } from './infrastructure/chemist.schema.js';
 import { DistributorModel } from './infrastructure/distributor.schema.js';
 import { DoctorModel } from './infrastructure/doctor.schema.js';
@@ -243,8 +243,8 @@ export function buildFieldMasterDataContainer(
       canActOnDistributor: async (userId, distributorId) => {
         const distributor = await distributors.findById(distributorId);
         if (!distributor || distributor.status !== 'active') return false;
-        if (distributor.assignedUserIds.includes(userId)) return true;
-        return coverageMeets(distributor, await scopeOfUser(territory, userId));
+        // Only a distributor handed to the employee; route coverage no longer grants access (2026-11-04).
+        return distributor.assignedUserIds.includes(userId);
       },
       canActOnChemist: async (userId, chemistId) => {
         const chemist = await chemists.findById(chemistId);
@@ -253,7 +253,7 @@ export function buildFieldMasterDataContainer(
       },
       listOutletsForUser: async (userId) => {
         const scope = await scopeOfUser(territory, userId);
-        const [chemistList, distributorList] = await Promise.all([chemists.listActiveOnRoutes(scope.routeIds), distributors.listActiveForUser(userId, scope)]);
+        const [chemistList, distributorList] = await Promise.all([chemists.listActiveOnRoutes(scope.routeIds), distributors.listActiveForUser(userId)]);
         // listActiveOnRoutes only returns active ones.
         return { chemists: chemistList.map((c) => ({ ...c, status: 'active' as const })), distributors: distributorList };
       },

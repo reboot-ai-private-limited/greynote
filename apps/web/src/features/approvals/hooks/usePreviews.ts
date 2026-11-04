@@ -127,6 +127,18 @@ export function useDoctorService(id: string) {
   );
 }
 
+/** One employee's month of distributor counts, by distributor — what a `STOCK_COUNT` request asks the manager to approve. */
+export function useStockCountsMonth(userId: string, month: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: [...keys.employeeMonth.month(userId, month), 'stock-counts'] as const,
+      fetch: (token, signal) => salesApi.stockCounts(token, { userId, month }, signal),
+      staleTime: staleTime.live,
+      enabled: Boolean(userId && month),
+    }),
+  );
+}
+
 /** One employee's month of secondary, by product — what a `SECONDARY_SALES` request asks the manager to approve. */
 export function useSecondaryMonth(userId: string, month: string) {
   return useQuery(

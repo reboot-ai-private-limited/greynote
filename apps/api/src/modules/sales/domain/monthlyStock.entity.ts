@@ -17,7 +17,14 @@ export interface MonthlyStock {
   closingQty: number;
   recordedBy: string;
   recordedAt: Date;
+  status?: StockStatus;
+  /** The employees this count counts toward, fixed when it was approved so a later unassign changes nothing. Empty: the distributor's current assignees (older rows). */
+  creditedUserIds?: string[];
 }
+
+/** A count the employee is still working on, has sent, or that was decided. A row with no status (older, or entered with approval off) reads APPROVED. */
+export const STOCK_STATUSES = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED'] as const;
+export type StockStatus = (typeof STOCK_STATUSES)[number];
 
 export interface StockLine {
   productId: string;

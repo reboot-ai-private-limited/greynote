@@ -1,6 +1,6 @@
 import { Types, type ClientSession, type FilterQuery } from 'mongoose';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
-import type { MonthlyStock, Outlet, StockLine } from '../domain/monthlyStock.entity.js';
+import type { MonthlyStock, Outlet, StockLine, StockStatus } from '../domain/monthlyStock.entity.js';
 import type { MonthlyStockRepositoryPort, StockFilter, StockRangeFilter } from '../domain/monthlyStock.repository.port.js';
 import { MonthlyStockModel, MonthlyStockUnlockModel, type MonthlyStockDoc } from './monthlyStock.schema.js';
 
@@ -16,7 +16,13 @@ const toStock = (d: MonthlyStockDoc & { _id: unknown }): MonthlyStock => ({
   closingQty: d.closingQty,
   recordedBy: String(d.recordedBy),
   recordedAt: d.recordedAt,
+  status: d.status ?? 'APPROVED',
+  creditedUserIds: (d.creditedUserIds ?? []).map(String),
 });
+
+/** A row with no status is older than approval and counts. */
+const APPROVED_OR_UNSET = { $in: ['APPROVED', null] };
+const statusClause = (statuses: readonly StockStatus[]) => (statuses.includes('APPROVED') ? { $in: [...statuses, null] } : { $in: [...statuses] });
 
 /** The outlets as one `$or` on the two id fields; an empty list matches nothing. */
 function outletsFilter(outlets: Outlet[]): FilterQuery<MonthlyStockDoc> {
@@ -29,12 +35,12 @@ function outletsFilter(outlets: Outlet[]): FilterQuery<MonthlyStockDoc> {
 }
 
 export class MongoMonthlyStockAdapter implements MonthlyStockRepositoryPort {
-  async upsertMany(outlet: Outlet, month: string, lines: StockLine[], by: string, at: Date, ctx?: TransactionContext): Promise<void> {
+  async upsertMany(outlet: Outlet, month: string, lines: StockLine[], by: string, at: Date, ctx?: TransactionContext, status?: StockStatus): Promise<void> {
     await MonthlyStockModel.bulkWrite(
       lines.map((l) => ({
         updateOne: {
           filter: { ...outletKey(outlet), productId: oid(l.productId), month },
-          update: { $set: { openingQty: l.openingQty, closingQty: l.closingQty, recordedBy: oid(by), recordedAt: at } },
+          update: { $set: { openingQty: l.openingQty, closingQty: l.closingQty, recordedBy: oid(by), recordedAt: at, ...(status && { status }) } },
           upsert: true,
         },
       })),
@@ -44,9 +50,23 @@ export class MongoMonthlyStockAdapter implements MonthlyStockRepositoryPort {
 
   async listRange(f: StockRangeFilter, limit: number): Promise<MonthlyStock[]> {
     const idField = f.outletType === 'CHEMIST' ? 'chemistId' : 'distributorId';
-    const q: FilterQuery<MonthlyStockDoc> = { month: { $gte: f.fromMonth, $lte: f.toMonth }, [idField]: f.outletId ? oid(f.outletId) : { $type: 'objectId' } };
+    const q: FilterQuery<MonthlyStockDoc> = { status: APPROVED_OR_UNSET, month: { $gte: f.fromMonth, $lte: f.toMonth }, [idField]: f.outletId ? oid(f.outletId) : { $type: 'objectId' } };
     if (f.productId) q.productId = oid(f.productId);
     return (await MonthlyStockModel.find(q).sort({ month: 1, _id: 1 }).limit(limit).lean()).map(toStock);
+  }
+
+  async listByRecorder(userId: string, month: string): Promise<MonthlyStock[]> {
+    return (await MonthlyStockModel.find({ recordedBy: oid(userId), month, distributorId: { $type: 'objectId' } }).sort({ _id: 1 }).lean()).map(toStock);
+  }
+
+  async setStatus(filter: { recordedBy: string; month: string; distributorId?: string }, from: readonly StockStatus[], to: StockStatus, credited?: string[], ctx?: TransactionContext): Promise<number> {
+    const q: FilterQuery<MonthlyStockDoc> = { recordedBy: oid(filter.recordedBy), month: filter.month, status: statusClause(from), distributorId: filter.distributorId ? oid(filter.distributorId) : { $type: 'objectId' } };
+    const res = await MonthlyStockModel.updateMany(q, { $set: { status: to, ...(credited && { creditedUserIds: credited.map(oid) }) } }, ctx ? { session: ctx as ClientSession } : {});
+    return res.modifiedCount;
+  }
+
+  async deleteByRecorder(userId: string, month: string, ctx?: TransactionContext): Promise<number> {
+    return (await MonthlyStockModel.deleteMany({ recordedBy: oid(userId), month, distributorId: { $type: 'objectId' } }, ctx ? { session: ctx as ClientSession } : {})).deletedCount;
   }
 
   async list(filter: StockFilter, limit: number): Promise<MonthlyStock[]> {

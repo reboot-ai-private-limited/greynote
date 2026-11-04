@@ -1,7 +1,7 @@
 /** Sales' narrow view of Field Master Data; `fieldMasterData.contract` satisfies it structurally. */
 export interface FieldMasterDataPort {
   getChemist(id: string): Promise<{ id: string; name: string; status: 'active' | 'inactive' } | null>;
-  getDistributor(id: string): Promise<{ id: string; name: string; status: 'active' | 'inactive'; openingDuesPaise?: number; address?: string | null; gstNumber?: string | null; mobile?: string | null } | null>;
+  getDistributor(id: string): Promise<{ id: string; name: string; status: 'active' | 'inactive'; openingDuesPaise?: number; address?: string | null; gstNumber?: string | null; mobile?: string | null; assignedUserIds?: string[] } | null>;
   /** Every distributor's opening dues added up. */
   sumOpeningDues(): Promise<number>;
   getProduct(id: string): Promise<{ id: string; name: string; sku: string; mrpPaise: number | null; status: 'active' | 'inactive'; ptsPaise: number | null; ptrPaise: number | null; gstPercent: number | null; hsn: string | null } | null>;

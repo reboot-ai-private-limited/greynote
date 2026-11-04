@@ -23,6 +23,7 @@ import { AddressSection } from './AddressSection';
 import { BankSection } from './BankSection';
 import { DocumentsSection } from './DocumentsSection';
 import { BasicSection } from './BasicSection';
+import { AssignedSection } from './AssignedSection';
 import { CompensationTab } from './CompensationTab';
 import { PhotoPicker } from './PhotoPicker';
 import { TerritoryCard } from './TerritoryCard';
@@ -112,6 +113,7 @@ export function EmployeeDetailScreen({ id }: { id: string }) {
                   <WorkSection user={user} readOnly={readOnly} />
                   {user.role === 'FIELD' ? <TerritoryCard user={user} readOnly={readOnly} /> : null}
                   {user.role === 'FIELD' && canView ? <RoutesSection user={user} readOnly={readOnly || !isAdmin} /> : null}
+                  {user.role === 'FIELD' && isAdmin ? <AssignedSection user={user} /> : null}
                   <DocumentsSection user={user} readOnly={readOnly} />
                 </TabsContent>
                 <TabsContent value="team" className="mt-6 space-y-6">

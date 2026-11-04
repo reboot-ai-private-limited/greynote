@@ -282,3 +282,41 @@ export interface CompleteOrderDto {
   invoiceNumber: string;
   supply?: Array<{ productId: string; line?: number; suppliedQty: number; freeQty: number; /** Required on a line with units supplied; `expiry` is `YYYY-MM`. */ batchNo?: string; expiry?: string }>;
 }
+
+/** One product of one distributor in an employee's month of distributor counts (`GET /sales/stock-counts`). */
+export interface StockCountLineDto {
+  product: { id: string; name: string; sku: string };
+  openingQty: number;
+  closingQty: number;
+  /** Done orders delivered to the distributor in the month. */
+  deliveredQty: number;
+  /** Opening + delivered − closing: what the distributor sold on. */
+  secondaryQty: number | null;
+  /** At the product's PTS; `null` when it has none. */
+  secondaryAmountPaise: number | null;
+}
+
+export type StockCountStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface StockCountDistributorDto {
+  distributorId: string;
+  name: string;
+  status: StockCountStatus;
+  lines: StockCountLineDto[];
+}
+
+/** An employee's distributor counts for a month, by distributor: what a manager is asked to approve. */
+export interface StockCountsMonthDto {
+  userId: string;
+  month: string;
+  /** Where the month stands overall; `NOT_ENTERED` when the employee recorded no distributor count. */
+  status: StockCountStatus | 'NOT_ENTERED';
+  distributors: StockCountDistributorDto[];
+}
+
+/** What deleting an employee's month of counts would remove, shown before the Admin confirms. */
+export interface StockCountsImpactDto {
+  distributors: number;
+  lines: number;
+  requestWaiting: boolean;
+}

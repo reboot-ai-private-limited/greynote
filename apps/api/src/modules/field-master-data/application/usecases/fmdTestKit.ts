@@ -425,8 +425,8 @@ export class FakeDistributors implements DistributorRepositoryPort {
     for (const d of hit) d.assignedUserIds = d.assignedUserIds.filter((u) => u !== userId);
     return hit.length;
   }
-  async listActiveForUser(userId: string, scope: CoverageScope) {
-    return this.rows.filter((d) => d.status === 'active' && (d.assignedUserIds.includes(userId) || coverageMeets(d, scope)));
+  async listActiveForUser(userId: string) {
+    return this.rows.filter((d) => d.status === 'active' && d.assignedUserIds.includes(userId));
   }
   async delete(id: string) {
     const before = this.rows.length;

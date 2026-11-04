@@ -1,4 +1,4 @@
-import { expandRouteIds, scopeOfUser } from './distributorCoverage.js';
+import { expandRouteIds } from './distributorCoverage.js';
 import type { FieldMasterDataSnapshot } from '@greynote/contracts';
 import type { SyncSourceDefinition } from '@/modules/sync/sync.public.js';
 import type { ChemistRepositoryPort } from '../domain/chemist.repository.port.js';
@@ -21,7 +21,7 @@ export const FIELD_MASTER_DATA_SYNC_SOURCE = 'fieldMasterData';
  * - `doctors` — the MR's own, by the same visibility rule as `GET /doctors/mine`.
  * - `pendingDoctors` — the ones they added that are waiting for approval, so the phone can show them.
  * - `chemists` — active, on the Routes the MR currently has.
- * - `distributors` — active ones the MR is assigned to, or that sit on one of their Routes.
+ * - `distributors` — active ones handed to the MR (assigned). Route coverage alone no longer shows a distributor.
  * - `products` — the active catalog.
  * - `sampleAllocations` — what's left to give, for exactly those Doctors.
  *
@@ -43,13 +43,12 @@ export function makeFieldMasterDataSource(deps: {
     name: FIELD_MASTER_DATA_SYNC_SOURCE,
     async snapshot(userId): Promise<FieldMasterDataSnapshot> {
       const [scopes, routes] = await Promise.all([deps.visibility.scopes([userId]), deps.territory.listRoutesForUser(userId)]);
-      const scope = await scopeOfUser(deps.territory, userId);
       const routeIds = routes.map((r) => r.id);
       const [{ items: mine }, pending, chemists, distributors, products, specialties] = await Promise.all([
         deps.doctors.listAssigned(scopes, {}, null),
         deps.doctors.listPendingAdded(userId),
         deps.chemists.listActiveOnRoutes(routeIds),
-        deps.distributors.listActiveForUser(userId, scope),
+        deps.distributors.listActiveForUser(userId),
         deps.products.listActive(),
         deps.specialties.listActive(),
       ]);
