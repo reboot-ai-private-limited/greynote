@@ -129,7 +129,7 @@ export function GrantLateDialog({
         label="Allowed until"
         htmlFor="grant-until"
         error={errors['expiresAt']}
-        hint={`Date and time in ${businessTimeZone()}. Leave empty for the default length.${day ? ' A daily plan’s exception ends at the latest at the end of its day.' : ''}`}
+        hint={`Date and time in ${businessTimeZone()}. Leave empty for the default length.${form.kind === 'DAILY_PLAN' ? ' A daily plan’s exception ends at the latest at the end of its day.' : ''}`}
       >
         <div className="flex items-center gap-2">
           <Input id="grant-until" type="datetime-local" value={form.expiresAt} onChange={(e) => set('expiresAt', e.target.value)} aria-invalid={errors['expiresAt'] ? true : undefined} />

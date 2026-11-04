@@ -8,6 +8,7 @@ export const LATE_GRANT_KINDS = [
   'EXPENSE_APPROVE',
   'MONTHLY_STOCK',
   'SECONDARY_SALES',
+  'DCR_SUBMIT',
 ] as const;
 export type LateGrantKind = (typeof LATE_GRANT_KINDS)[number];
 
@@ -19,7 +20,7 @@ export interface LateGrant {
   id: string;
   userId: string;
   kind: LateGrantKind;
-  /** `YYYY-MM-DD` for `DAILY_PLAN`, otherwise `YYYY-MM`. */
+  /** `YYYY-MM-DD` for `DAILY_PLAN` and `DCR_SUBMIT`, otherwise `YYYY-MM`. */
   periodKey: string;
   reason: string;
   grantedBy: string;

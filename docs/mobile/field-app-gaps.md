@@ -23,6 +23,8 @@ The field app (`apps/fieldApp`, another team's) last had real feature work on **
 | B7 | **Weekly offs are a schedule now (2026-10-28).** The Holidays screen says "Weekly off: every X" from `weeklyOffDay` and the client-side fallbacks (`weeklyOffIndex`, the legacy check in `monthly-plan.tsx` when `planOffDays` is missing) only know one weekday. Read `hr.weeklyOffSchedule` instead and show the 1st/3rd Saturday. Plan locking is already right: it comes from `planOffDays`. | `holidays.md` rule 3 and section 3 |
 | B6 | Admin / HR can edit an **approved** month's later days and Admin can delete a future month. Web-only for now; the phone only needs to cope with the plan changing under it (the employee gets the `PLAN_AMENDED_MONTHLY_PLAN` push). | `monthlyplan.md` rules 20, 21 |
 
+| B8 | **Daily-report deadline and month lock (2026-11-05).** Show `DCR_SUBMIT_LATE` and `PAYROLL_FINALIZED` as the error and drop the record (nothing is retried). Read `DCR_SUBMIT_CUTOFF_DAY` (default 1) from `config.settings` and warn that the last day of a month must be submitted that day. A manager's approve/reject/reopen on a finalized month fails with `409 PAYROLL_FINALIZED`: show the message. | `dcr.md` rules 12-13 |
+
 ## C. Needs a server change first
 
 - **Expose `MANAGER_CAN_ADD_DOCTORS` to the phone.** The app cannot hide the button because nothing it reads carries the flag. Put it in `GET /config/public` or the sync snapshot.

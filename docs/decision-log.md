@@ -2677,6 +2677,22 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 **Consequences:** `GET /reports/sales/by-product`, `/by-distributor`, `/by-employee` (`year`, `period=month|quarter|year`, `month` or `quarter`), from the same statement rows as `/reports/sales/statement`, so they agree with it. Because a distributor shared by two employees counts in full for each (sign-off M5), employee rows can add up to more than the total; the total counts each MR once. The sign-off rows K24 (Admin only) and K27 (by month only) are superseded for this report. The phone is unchanged.
 
+## 2026-11-04 — Monthly cutoff for the daily report; late only by Admin
+
+**Decision (owner):** a day's report (its calls, follow-ups and the final submit) must be in by `DCR_SUBMIT_CUTOFF_DAY` of the **following month** (the end of that business day, so it follows `DAY_START_TIME`). After it, the day is refused with `DCR_SUBMIT_LATE` unless **Admin** has allowed it late: the same exception as a late Daily Plan, but a manager cannot grant it and there is no `*_GRANT_BY_MANAGER` setting. `0` (the seeded default) means no deadline, so nothing changes until Admin turns it on.
+
+**Consequences:** new late-grant kind `DCR_SUBMIT`, named by the report date (`YYYY-MM-DD`), group **Reports** on `/late-submissions`; its length is `LATE_DCR_GRANT_VALID_HOURS` (24) up to `LATE_DCR_GRANT_MAX_HOURS` (336). Unlike a daily plan, its end is not cut at the end of the day, because the day is already over (registry flag `endsWithDay`). It is spent once, by the final submit, in the sync transaction; the day's calls need only that a usable exception exists. Like the plans, it is closed once payroll for the month is finalized or its expenses are paid. The missed-DCR block is unchanged: a day past its cutoff can still count as missed; Admin unblocks, then allows the day.
+
+**Rejected:** a per-month exception (one use would open only one day); letting managers grant it (owner: Admin only).
+
+## 2026-11-05 — Daily-report deadline matches the salary day; a finalized salary locks the month's reports
+
+**Decision (owner):** the deadline day is the **1st** and is read **before that day begins**: October's reports are due by the end of 31 October (per `DAY_START_TIME`), so the salary run on the 1st (`SALARY_RUN_DAY`) works on settled data. This amends 2026-11-04, where the deadline was the *end* of the cutoff day. Once an employee's payroll run for a month is **finalized**, nothing in that month's daily reports can change.
+
+**Consequences:** `DCR_SUBMIT_CUTOFF_DAY` now defaults to **1** (0 = off) and cannot be set later than `SALARY_RUN_DAY` (either setting is refused if it would break that, `400`). The last day of a month must therefore be submitted that same day. Finalized month: new calls, follow-ups, expenses and the submit are refused with `PAYROLL_FINALIZED`; removing a record, and approving, rejecting, withdrawing or reopening a report, answer `409 PAYROLL_FINALIZED` (the decision is rolled back); a late exception cannot be granted or spent. **Payroll will not finalize a run until the month's deadline has passed** (`409 DCR_WINDOW_OPEN`), so finalizing never locks out an employee who still has time. Payroll has no un-finalize, so the lock is permanent.
+
+**Cost:** a report still waiting for the manager when its month is finalized can no longer be approved or rejected, so its TA/DA is never generated. Managers should decide before the salary run.
+
 ## 2026-11-05 — Dashboard sales charts: target vs achievement, top achievers, top products
 
 **Decision (owner):** the Admin, HR and Accountant dashboard gets a sales section for the financial year in view (or a month or quarter of it): an overall donut of target against achieved (the sum of every employee's target, so all-products targets count), a donut per product and per employee (picked from those with a target), the top five achievers as bars, a pie of the top five products' share of sales (the rest as "Others"), and a full list of products and of employees from most sales to least. The dashboard's "waiting for approval" list is removed (the approvals tile stays). This reverses the 2026-10-01 deferral of charts. "Top prospects" was read as **top products** by secondary sales; the codebase has no prospect or lead concept.

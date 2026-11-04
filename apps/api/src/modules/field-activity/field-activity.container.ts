@@ -18,6 +18,9 @@ import { ExpenseOverviewUseCase, ExpenseReviewService } from './application/usec
 import { EXPENSE_MONTH_KIND, ExpenseMonthService } from './application/usecases/expenseMonth.usecase.js';
 import { ExpenseMonthDeadlines } from './application/expenseMonthDeadlines.js';
 import { GrantExpenseMonthUseCase, ListExpenseMonthGrantsUseCase, RevokeExpenseMonthGrantUseCase, monthHasPaidRows } from './application/usecases/expenseMonthGrants.usecase.js';
+import { DcrSubmitDeadline } from './application/dcrSubmitDeadline.js';
+import { DcrMonthLock, type PayrollFinalizedCheck } from './application/dcrMonthLock.js';
+import { LateGrantsDcrAdapter } from './infrastructure/lateGrantsDcrAdapter.js';
 import { LateGrantsExpenseAdapter } from './infrastructure/lateGrantsExpenseAdapter.js';
 import type { LateGrantsPublicContract } from '@/modules/lateGrants/lateGrants.public.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
@@ -73,6 +76,8 @@ export interface FieldActivityContainer {
   contract: FieldActivityPublicContract;
   /** The missed-DCR compliance job — run by `scripts/run-compliance.ts`, never by the server. */
   runMissedDcrCheck: (options?: { dryRun?: boolean; userIds?: string[] }) => ReturnType<RunMissedDcrCheckUseCase['execute']>;
+  /** Payroll sits above Field Activity, so the composition root hands it the question "is this employee's salary for the month finalized?" once Payroll exists. */
+  bindPayrollLock(check: PayrollFinalizedCheck): void;
   buildRouter: () => Router;
 }
 
@@ -108,7 +113,19 @@ export function buildFieldActivityContainer(
 
   // A DCR goes manager, then Admin (client F1). Past the manager it earns its TA/DA; sent back, the unpaid computed rows are cancelled.
   const taDa = new TaDaLifecycle(dcrs, planning, territory, users, expenses, config);
-  approvals.registerKind({ kind: DCR_KIND, finalApproverRoles: ['ADMIN'], describeRecords: describeEach((id) => dcrs.findById(id), (dcr) => ({ title: dayTitle(dcr.reportDate), subtitle: null })), onStatusChange: (change, ctx) => taDa.onStatusChange(change.recordId, change.status, ctx) });
+  // Once the employee's salary for the report's month is finalized no decision on the report can change (a throw rolls it back).
+  const monthLock = new DcrMonthLock();
+  const dcrDeadline = new DcrSubmitDeadline(config);
+  approvals.registerKind({
+    kind: DCR_KIND,
+    finalApproverRoles: ['ADMIN'],
+    describeRecords: describeEach((id) => dcrs.findById(id), (dcr) => ({ title: dayTitle(dcr.reportDate), subtitle: null })),
+    onStatusChange: async (change, ctx) => {
+      const dcr = await dcrs.findById(change.recordId);
+      if (dcr) await monthLock.assertUnlocked(dcr.userId, dcr.reportDate);
+      await taDa.onStatusChange(change.recordId, change.status, ctx);
+    },
+  });
 
   // A Service an MR asks for is approved once, by the manager or Admin; nothing else happens on approval — the status is its request's.
   approvals.registerKind({ kind: DOCTOR_SERVICE_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: describeEach((id) => services.findById(id), (service) => ({ title: serviceTypeTitle(service.serviceType), subtitle: null })) });
@@ -122,9 +139,10 @@ export function buildFieldActivityContainer(
   const expenseAdjustments = new MongoExpenseAdjustmentAdapter();
   const monthService = new ExpenseMonthService(expenses, expenseMonths, users, approvals, clock, config, new MongooseTransactionRunner(), proofStorage, expenseGrants, new ExpenseMonthDeadlines(config));
   approvals.registerKind({ kind: EXPENSE_MONTH_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: describeEach((id) => expenseMonths.findById(id), (record) => ({ title: monthTitle(record.month), subtitle: null })), onStatusChange: (change, ctx) => monthService.onStatusChange(change.recordId, change.status, ctx) });
-  const gate = new LoggingGate(users, planning, approvals, dcrs, clock);
+  const dcrLate = new LateGrantsDcrAdapter(lateGrants, dcrDeadline, clock.now);
+  const gate = new LoggingGate(users, planning, approvals, dcrs, clock, dcrLate, monthLock);
   const views = new DcrViews(approvals);
-  const submitDcr = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config, planning);
+  const submitDcr = new SubmitDcrUseCase(gate, dcrs, approvals, taDa, config, planning, dcrLate);
   const hasQualifyingDcr = new HasQualifyingDcrUseCase(dcrs, approvals);
   const listReportedDates = new ListReportedDatesUseCase(dcrs, approvals);
   const summarizeDcrs = new SummarizeDcrsUseCase(dcrs, approvals, doctorCalls, chemistCalls, followups, clock);
@@ -175,6 +193,7 @@ export function buildFieldActivityContainer(
 
   return {
     runMissedDcrCheck: (options) => missedDcrCheck.execute(options),
+    bindPayrollLock: (check) => monthLock.bind(check),
     contract: {
       countDoctorRecords: async (doctorId) => {
         if (!Types.ObjectId.isValid(doctorId)) return { calls: 0, openGifts: 0, openServices: 0 };
@@ -185,6 +204,10 @@ export function buildFieldActivityContainer(
           DoctorServiceModel.countDocuments({ doctorId: id, doneAt: null }),
         ]);
         return { calls, openGifts, openServices };
+      },
+      isDcrWindowClosed: async (month) => {
+        const deadline = await dcrDeadline.ofMonth(month);
+        return !deadline || clock.now() > deadline;
       },
       hasQualifyingDcr: (userId, date) => hasQualifyingDcr.execute(userId, date),
       listReportedDates: (userId, from, to) => listReportedDates.execute(userId, from, to),
@@ -237,7 +260,7 @@ export function buildFieldActivityContainer(
           expenseProof: new ExpenseProof(expenses, monthService, proofStorage),
           listPayouts: new ListExpensePayoutsUseCase(expenses, users, config, clock),
           payExpenses: new PayMonthExpensesUseCase(expenses, config),
-          deleteRecord: new DeleteDcrRecordUseCase(dcrs, approvals, doctorCalls, chemistCalls, followups, master, new MongooseTransactionRunner()),
+          deleteRecord: new DeleteDcrRecordUseCase(dcrs, approvals, doctorCalls, chemistCalls, followups, master, new MongooseTransactionRunner(), monthLock),
           override: new OverrideGeofenceUseCase(dcrs, users, views, doctorCalls, chemistCalls),
           get: new GetDcrDetailUseCase(new GetDcrUseCase(dcrs, users, views), doctorCalls, chemistCalls, followups, expenses, master),
         }),

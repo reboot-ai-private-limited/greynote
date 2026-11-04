@@ -83,7 +83,7 @@ Daily plans, monthly plans, daily reports, secondary sales and doctor services a
 | Per-employee sales and targets | `GET /reports/employee-sales` (manager reads downline; can set targets for them); `GET /sales/employee-sales?userId&month`. | ✅ |
 | Doctor-visit frequency, missed calls | `GET /reports/doctor-visits` (self + downline). | ✅ |
 | One person's expense month, leave balance | `GET /field-activity/expense-months?month&userId` and `GET /hr/leave-balances/:userId` accept anyone up the manager chain. | ✅ |
-| Daily operations tools | Unblock a blocked employee (reason kept as audit) `POST /identity/users/:id/unblock`; late-submission grants for plans (`POST /planning/late-grants`, only while `LATE_PLAN_GRANT_BY_MANAGER` is on) and for expenses (`/field-activity/expense-grants`). | ✅ |
+| Daily operations tools | Unblock a blocked employee (reason kept as audit) `POST /identity/users/:id/unblock`; late-submission grants for plans (`POST /planning/late-grants`, only while `LATE_PLAN_GRANT_BY_MANAGER` is on) and for expenses (`/field-activity/expense-grants`). A late **daily report** (past `DCR_SUBMIT_CUTOFF_DAY`, [`dcr.md`](dcr.md) rule 12) can only be allowed by Admin, on the web; a manager cannot, and the exception is not offered once the month's salary is finalized. | ✅ |
 | Overdue flag | Every list row carries `dueAt` / `overdue` (`APPROVAL_SLA_DAYS`); flag only, nothing auto-escalates. | ✅ |
 
 ## 4. The gaps (what must be built)

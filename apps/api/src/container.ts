@@ -146,10 +146,12 @@ export function buildContainers(): AppContainers {
   });
 
   // Tier 6 — Payroll: base salary and who is active (Identity), approved unpaid leave (HR), what was paid in the month (Field Activity).
-  const payroll = buildPayrollContainer(identity.contract, hr.contract, attendance.contract, config.contract);
+  const payroll = buildPayrollContainer(identity.contract, hr.contract, attendance.contract, config.contract, (month) => fieldActivity.contract.isDcrWindowClosed(month));
 
   // HR sits below Payroll, so it asks through a port: once a month's salary is finalized, that employee's leave in the month is locked.
   hr.bindPayrollLock((userId, month) => payroll.contract.isMonthFinalized(userId, month));
+  // Same for the daily reports: once a month's salary is finalized, its reports are locked (decision-log 2026-11-05).
+  fieldActivity.bindPayrollLock((userId, month) => payroll.contract.isMonthFinalized(userId, month));
 
   // Settled money closes the door on late entries: a finalized salary run, a finalized or paid expense month (see lateGrants/standardGuards.ts).
   lateGrants.contract.addLockGuard(payrollLockGuard((userId, month) => payroll.contract.isMonthFinalized(userId, month)));

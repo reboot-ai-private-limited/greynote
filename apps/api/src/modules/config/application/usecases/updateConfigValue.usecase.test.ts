@@ -150,6 +150,19 @@ describe('UpdateConfigValueUseCase', () => {
     });
   });
 
+  describe('the daily-report deadline never comes after the salary day', () => {
+    it('refuses a deadline day later than the salary day, and a salary day earlier than the deadline day', async () => {
+      const { repository, useCase } = build();
+      repository.others.set('SALARY_RUN_DAY', '5');
+      repository.others.set('DCR_SUBMIT_CUTOFF_DAY', '3');
+      await expect(useCase.execute('a', 'ADMIN', 'DCR_SUBMIT_CUTOFF_DAY', '6')).rejects.toMatchObject({ statusCode: 400 });
+      await expect(useCase.execute('a', 'ADMIN', 'SALARY_RUN_DAY', '2')).rejects.toMatchObject({ statusCode: 400 });
+      await expect(useCase.execute('a', 'ADMIN', 'DCR_SUBMIT_CUTOFF_DAY', '5')).resolves.toBeDefined();
+      await expect(useCase.execute('a', 'ADMIN', 'SALARY_RUN_DAY', '3')).resolves.toBeDefined();
+      await expect(useCase.execute('a', 'ADMIN', 'DCR_SUBMIT_CUTOFF_DAY', '0')).resolves.toBeDefined(); // 0 = no deadline
+    });
+  });
+
   describe('the plan times stay in order', () => {
     it('refuses a latest resubmit time that is not after the plan deadline', async () => {
       const { repository, useCase } = build();

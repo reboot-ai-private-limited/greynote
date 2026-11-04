@@ -200,6 +200,16 @@ describe('Late grants', () => {
     await refused(grant.execute(admin, { userId: MR, kind: 'DAILY_PLAN', periodKey: '2026-11-02', reason: 'x', expiresAt: new Date('2026-11-04T00:00:00Z') }), 400); // past the day
   });
 
+  it('a daily report is let through late by Admin only, for a day already over, and not past a finalized payroll', async () => {
+    const { grant } = build({ LATE_PLAN_GRANT_BY_MANAGER: 'true' }); // the plan setting never opens a report
+    const g = await grant.execute(admin, { userId: MR, kind: 'DCR_SUBMIT', periodKey: '2026-10-05', reason: 'was on a trip', expiresAt: new Date('2026-11-04T00:00:00Z') });
+    expect(g).toMatchObject({ kind: 'DCR_SUBMIT', periodKey: '2026-10-05', grantedByRole: 'ADMIN' }); // ends after the day: the day-end cap is for plans
+    await refused(grant.execute(field(ASM), { userId: MR, kind: 'DCR_SUBMIT', periodKey: '2026-10-06', reason: 'x' }), 403);
+    await refused(grant.execute(admin, { userId: MR, kind: 'DCR_SUBMIT', periodKey: '2026-10', reason: 'x' }), 400); // named by its date
+    payrollFinal.add(`${MR}:2026-09`);
+    await refused(grant.execute(admin, { userId: MR, kind: 'DCR_SUBMIT', periodKey: '2026-09-30', reason: 'x' }), 409);
+  });
+
   it('the gate finds a usable grant, spends it once, and treats a newly locked period as no grant', async () => {
     const { grant, gate } = build();
     await grant.execute(admin, { userId: MR, kind: 'MONTHLY_PLAN', periodKey: '2026-10', reason: 'x' });
