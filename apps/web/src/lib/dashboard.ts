@@ -45,6 +45,11 @@ export function cardsForRole(role: RoleName): readonly CardId[] {
   }
 }
 
+/**
+ * Roles that see the sales charts. The by-product report is ADMIN, ACCOUNTANT and HR only (a manager gets 403), so the section is limited to them.
+ */
+export const showsSalesCharts = (role: RoleName): boolean => role === 'ADMIN' || role === 'HR' || role === 'ACCOUNTANT';
+
 /** Gaps with no endpoint yet. Shown as disabled tiles — never hidden, never faked. */
 export function comingSoonForRole(role: RoleName): readonly string[] {
   switch (role) {
