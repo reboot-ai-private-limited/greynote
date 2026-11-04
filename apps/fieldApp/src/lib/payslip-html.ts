@@ -18,7 +18,7 @@ import { slug } from './slug';
 /** A4 portrait in points (72 to the inch). */
 export const PAYSLIP_PAGE = { width: 595, height: 842 } as const;
 
-const COMPANY_NAME = 'GreyNote Health Care Pvt. Ltd.';
+const COMPANY_NAME = 'GreyNote Health Care';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
