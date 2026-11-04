@@ -224,3 +224,7 @@ A deactivated field employee is still paid up to the month of their last working
 `listPayableFieldUserIds(month)`, and generating one is refused only for a month after they left ("left on …; salary can be run for months up to
 then"). The leaving month is paid in full like a joining month (`leftInMonth`, shown as "Left this month"); the days after the last working day
 are `NOT_EMPLOYED`, so they are never charged as absent. A final settlement that should differ is an HR adjustment on the run.
+
+## Finalize waits for the daily-report deadline (2026-11-05)
+
+`FinalizePayrollUseCase` asks Field Activity `isDcrWindowClosed(run.month)` (wired in the composition root) and refuses with `409 DCR_WINDOW_OPEN` while any day of the month can still be reported on time (`DCR_SUBMIT_CUTOFF_DAY`). Finalizing then locks the employee's daily reports for that month (`PAYROLL_FINALIZED`, see `LLD/field-activity.md`). Decision-log 2026-11-05.

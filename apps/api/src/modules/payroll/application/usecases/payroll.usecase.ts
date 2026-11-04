@@ -192,12 +192,17 @@ export class FinalizePayrollUseCase {
   constructor(
     private readonly runs: PayrollRunRepositoryPort,
     private readonly clock: PayrollClock,
+    /** Whether every day of the month is past its daily-report deadline; finalizing locks the month's reports, so it waits for it. */
+    private readonly dcrWindowClosed: (month: string) => Promise<boolean> = async () => true,
   ) {}
 
   async execute(id: string, by: string): Promise<PayrollRun> {
     const run = await this.runs.findById(id);
     if (!run) throw new PayrollRefusal(PAYROLL_CODES.runNotFound, 'No such payroll run.');
     await this.clock.assertMonthOpen(run.month);
+    if (!(await this.dcrWindowClosed(run.month))) {
+      throw new PayrollRefusal(PAYROLL_CODES.dcrWindowOpen, `Daily reports for ${run.month} can still be submitted on time, and finalizing locks them. Finalize after the deadline.`);
+    }
     if (!(await this.runs.finalize(id, this.clock.now(), by))) throw new PayrollRefusal(PAYROLL_CODES.alreadyFinalized, 'This payroll run is already finalized.');
     appEvents.emit('period.settled', { userId: run.userId, month: run.month, source: 'PAYROLL' });
     return (await this.runs.findById(id)) ?? run;

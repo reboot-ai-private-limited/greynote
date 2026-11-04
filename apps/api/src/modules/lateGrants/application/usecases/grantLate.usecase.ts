@@ -80,7 +80,7 @@ export class GrantLateUseCase {
     const meta = KIND_REGISTRY[input.kind];
     // A Daily Plan's exception never runs past the end of that plan's own business day.
     let dayEnd: Date | null = null;
-    if (meta.period === 'DAY') {
+    if (meta.endsWithDay) {
       const { timeZone, dayStart } = await readBusinessDay(this.config);
       dayEnd = endOfBusinessDay(input.periodKey, dayStart, timeZone);
       if (dayEnd <= now) throw AppError.badRequest('That day is over, so its plan can’t be submitted late any more.', { field: 'periodKey' });
@@ -104,7 +104,8 @@ export class GrantLateUseCase {
 
   private async assertMayGrant(actor: Actor, input: GrantLateInput): Promise<void> {
     if (actor.role === 'ADMIN') return;
-    const byManager = await readConfigOr(this.config, KIND_REGISTRY[input.kind].config.byManager, parseBoolean, false);
+    const key = KIND_REGISTRY[input.kind].config.byManager;
+    const byManager = key ? await readConfigOr(this.config, key, parseBoolean, false) : false;
     if (actor.role !== 'FIELD' || !byManager) throw AppError.forbidden('Only Admin can allow a late submission.');
     const chain = await this.users.getManagerChain(input.userId);
     if (!chain.some((m) => m.id === actor.id)) throw AppError.forbidden('You can only allow a late submission for someone in your team.');

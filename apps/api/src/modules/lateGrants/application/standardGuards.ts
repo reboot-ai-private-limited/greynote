@@ -2,7 +2,7 @@ import type { LateGrantKind } from '../domain/lateGrant.entity.js';
 import type { PeriodLockGuard } from '../domain/periodLock.port.js';
 import { monthOfPeriod } from './kindRegistry.js';
 
-const PLAN_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN'] as const satisfies readonly LateGrantKind[];
+const PLAN_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN', 'DCR_SUBMIT'] as const satisfies readonly LateGrantKind[];
 const EXPENSE_KINDS = ['EXPENSE_SUBMIT', 'EXPENSE_APPROVE'] as const satisfies readonly LateGrantKind[];
 
 /**

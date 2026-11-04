@@ -19,6 +19,8 @@ export interface FieldActivityPublicContract {
    * `REJECTED`, `WITHDRAWN`, `REOPENED` and no DCR are all false.
    */
   hasQualifyingDcr(userId: string, date: string): Promise<boolean>;
+  /** Whether every day of the month (`YYYY-MM`) is past its daily-report deadline (`DCR_SUBMIT_CUTOFF_DAY`), or there is no deadline. Payroll waits for it before it finalizes a run. */
+  isDcrWindowClosed(month: string): Promise<boolean>;
   /** The days in a range (both ends inclusive) this user reported — `hasQualifyingDcr` for a whole calendar. Sorted. */
   listReportedDates(userId: string, from: string, to: string): Promise<string[]>;
   /**

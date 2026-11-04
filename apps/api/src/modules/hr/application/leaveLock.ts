@@ -7,7 +7,7 @@ export type PayrollFinalizedCheck = (userId: string, month: string) => Promise<b
 
 /**
  * Once an employee's salary for a month is finalized, their leave in that month can no longer change (decision-log 2026-10-06): no
- * new request, no edit, no approval and no reopening. Daily reports and expenses are not locked. The setting `LEAVE_LOCKED_AFTER_PAYROLL`
+ * new request, no edit, no approval and no reopening. The month's daily reports are locked by Field Activity on the same fact (`DcrMonthLock`); expenses have their own month lock. The setting `LEAVE_LOCKED_AFTER_PAYROLL`
  * switches it off. Until Payroll is bound (tests, a script) nothing is locked.
  */
 export class LeaveLock {

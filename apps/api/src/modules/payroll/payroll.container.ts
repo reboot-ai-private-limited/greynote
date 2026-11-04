@@ -19,13 +19,13 @@ export interface PayrollContainer {
 
 /**
  * Tier 5, the top of the graph. The Accountant's (or Admin's) monthly salary sheet (LLD payroll.md, HLD 7). Identity's, HR's,
- * Attendance's and Config's public contracts, passed in by the composition root. No approval anywhere.
+ * Attendance's and Config's public contracts, passed in by the composition root, and Field Activity's "is the month's daily-report deadline past?". No approval anywhere.
  */
-export function buildPayrollContainer(identity: IdentityPort, hr: HrPort, attendance: AttendancePort, config: ConfigReader): PayrollContainer {
+export function buildPayrollContainer(identity: IdentityPort, hr: HrPort, attendance: AttendancePort, config: ConfigReader, dcrWindowClosed: (month: string) => Promise<boolean> = async () => true): PayrollContainer {
   const runs = new MongoPayrollAdapter();
   const clock = new PayrollClock(config);
   const generate = new GeneratePayrollUseCase(runs, identity, hr, attendance, clock);
-  const finalize = new FinalizePayrollUseCase(runs, clock);
+  const finalize = new FinalizePayrollUseCase(runs, clock, dcrWindowClosed);
   const get = new GetPayrollRunUseCase(runs);
   const list = new ListPayrollRunsUseCase(runs);
   const mine = new ListMyPayslipsUseCase(runs);

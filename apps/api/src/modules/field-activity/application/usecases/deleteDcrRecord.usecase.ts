@@ -5,6 +5,7 @@ import type { Dcr } from '../../domain/dcr.entity.js';
 import type { DcrRepositoryPort } from '../../domain/dcr.repository.port.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { ChemistCallRepositoryPort, DoctorCallRepositoryPort, FollowupRepositoryPort } from '../../domain/records.repository.port.js';
+import type { DcrMonthLock } from '../dcrMonthLock.js';
 import { DCR_KIND, isOpenForLogging } from '../dcrStatus.js';
 
 /**
@@ -22,6 +23,7 @@ export class DeleteDcrRecordUseCase {
     private readonly followups: FollowupRepositoryPort,
     private readonly master: FieldMasterDataPort,
     private readonly transactions: TransactionRunnerPort,
+    private readonly monthLock: DcrMonthLock | null = null,
   ) {}
 
   /** A Doctor or Chemist call. */
@@ -57,6 +59,7 @@ export class DeleteDcrRecordUseCase {
   private async openOwn(userId: string, dcrId: string): Promise<Dcr> {
     const dcr = await this.dcrs.findById(dcrId);
     if (!dcr || dcr.userId !== userId) throw AppError.notFound('No such report.');
+    await this.monthLock?.assertUnlocked(userId, dcr.reportDate);
     if (!isOpenForLogging(await this.approvals.getForRecord(DCR_KIND, dcr.id))) throw AppError.conflict('This report has been submitted, so its records can no longer be removed.');
     return dcr;
   }
