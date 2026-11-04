@@ -25,6 +25,8 @@ export interface StockRow {
   month: string;
   openingQty: number;
   closingQty: number;
+  /** Who an approved count counts toward, fixed at approval; absent or empty on older rows (the distributor's current assignees then). */
+  creditedUserIds?: string[] | undefined;
 }
 
 export interface OrderSumRow {

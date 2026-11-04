@@ -1,4 +1,5 @@
 import { Schema, model, type Types } from 'mongoose';
+import { STOCK_STATUSES, type StockStatus } from '../domain/monthlyStock.entity.js';
 
 export interface MonthlyStockDoc {
   /** Exactly one of the two is set (the other is absent, so each partial unique index below covers only its own kind). */
@@ -10,6 +11,9 @@ export interface MonthlyStockDoc {
   closingQty: number;
   recordedBy: Types.ObjectId;
   recordedAt: Date;
+  /** Absent on rows from before approval existed: they read as APPROVED. */
+  status?: StockStatus;
+  creditedUserIds?: Types.ObjectId[];
 }
 const stockSchema = new Schema<MonthlyStockDoc>({
   chemistId: { type: Schema.Types.ObjectId, ref: 'Chemist' },
@@ -20,6 +24,8 @@ const stockSchema = new Schema<MonthlyStockDoc>({
   closingQty: { type: Number, required: true, min: 0 },
   recordedBy: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
   recordedAt: { type: Date, required: true },
+  status: { type: String, enum: STOCK_STATUSES },
+  creditedUserIds: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: undefined },
 });
 stockSchema.pre('validate', function () {
   if (Boolean(this.chemistId) === Boolean(this.distributorId)) this.invalidate('chemistId', 'Exactly one of chemistId and distributorId is required.');

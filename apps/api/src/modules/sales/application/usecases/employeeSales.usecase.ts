@@ -20,6 +20,7 @@ import type { SecondaryAttachmentRepositoryPort } from '../../domain/secondaryAt
 import type { SecondaryFileStoragePort } from '../../domain/proofStorage.port.js';
 import { logger } from '@/shared/logging/logger.js';
 import type { SalesClock } from '../salesClock.js';
+import { stockApprovalOn } from './recordMonthlyStock.usecase.js';
 
 const UNKNOWN = '(removed)';
 const MAX_QTY = 100_000_000;
@@ -74,6 +75,7 @@ export class SaveEmployeeSecondaryUseCase {
   ) {}
 
   async execute(actor: Actor, input: { userId: string; month: string; lines: Array<{ productId: string; qty?: number | undefined; amountPaise?: number | undefined }> }): Promise<{ added: number; changed: number }> {
+    if (await stockApprovalOn(this.config)) throw new StockRefusal(STOCK_CODES.secondaryRetired, 'The per-product secondary is retired. Count the distributor stock and submit that month instead.');
     await assertMayAct(this.users, actor, input.userId);
     const now = this.clock.now();
     await assertMonthOpenForEntry({ clock: this.clock, stock: this.stock, config: this.config, late: this.late }, actor, input.month, input.userId);
@@ -121,6 +123,7 @@ export class SubmitEmployeeSecondaryUseCase {
   ) {}
 
   async execute(actor: Actor, month: string): Promise<{ requestId: string; sent: number }> {
+    if (await stockApprovalOn(this.config)) throw new StockRefusal(STOCK_CODES.secondaryRetired, 'The per-product secondary is retired. Count the distributor stock and submit that month instead.');
     if (month > (await this.clock.today()).slice(0, 7)) throw new StockRefusal(STOCK_CODES.monthNotStarted, `${month} has not started yet.`);
     await assertFinancialYearOpen(this.config, `${month}-01`, 'This month');
     return this.transactions.run(async (ctx) => {

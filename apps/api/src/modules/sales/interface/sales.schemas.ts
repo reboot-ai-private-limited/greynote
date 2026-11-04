@@ -167,6 +167,10 @@ export const saveEmployeeSecondaryBodySchema = z.object({
     .refine(uniqueProducts, { message: 'A product appears twice.' }),
 });
 export const submitEmployeeSecondaryBodySchema = z.object({ month: monthSchema });
+/** The employee sends a month of their distributor counts for approval. */
+export const submitStockCountsBodySchema = z.object({ month: monthSchema });
+/** Whose month of distributor counts, and which month (the caller's own when `userId` is left out is not allowed: say whose). */
+export const stockCountsQuerySchema = z.object({ userId: objectIdSchema, month: monthSchema });
 /** The text fields sent beside the file (multipart): the month, and whose it is (the caller's own when left out). */
 export const secondaryAttachmentBodySchema = z.object({ month: monthSchema, userId: objectIdSchema.optional() });
 export const saveEmployeePrimaryBodySchema = z.object({
