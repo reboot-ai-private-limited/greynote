@@ -2684,3 +2684,11 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Consequences:** no new endpoint. The charts read `/reports/sales/by-product` and `/reports/sales/by-employee`, so their figures are the report's; each chart has its own query and fails alone. Achieved is the secondary of the employee's assigned distributors (2026-10-14), so a distributor shared by two employees counts fully for each and per-employee figures need not add up to the overall. Drawn with `recharts`. Managers do not see it: the by-product report is org-wide only and refuses them.
 
 **Rejected:** hand-drawn SVG (the existing charts) for the new ones; a downline-scoped by-product report for managers (later, if wanted).
+
+## 2026-11-05 — Sales report: owner overview, month-by-month trend, Excel download
+
+**Decision (owner):** the Sales report opens on an **Overview** tab: the organisation against target for the financial year (achieved, % of target, top employee, top product, how many employees and products are behind target), then every employee or product month by month or quarter by quarter with a year total, sortable by any column. Every table on the page can be downloaded as **Excel** as well as CSV. The product and employee tables now open most-sold-first and sort by any figure; an employee's name opens their daily detail (`/reports/sales-dashboard/:id`). The dashboard's sales section links to the report.
+
+**Consequences:** no new endpoint: each month (or quarter) column is an ordinary `by-product` / `by-employee` request plus one for the year (13 requests, or 5 for quarters, only for the kind on screen, cached like the other tabs). Employee figures keep the 2026-10-14 rule: a distributor shared by two employees counts in full for each. Excel is written in the browser (`write-excel-file`); money is a rupee number, text is always text.
+
+**Rejected:** a single "all months" endpoint for now (worth adding if the 13 requests prove slow); a product × employee matrix (the employee's detail page already answers "what did this person sell").

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Bar, BarChart, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/Button';
@@ -180,6 +181,7 @@ export function SalesCharts() {
             <SearchableSelect aria-label="Quarter" searchPlaceholder="Search quarters" value={String(quarter)} options={QUARTER_OPTIONS(fy, monthLabel)} onValueChange={(v) => setQuarter(Number(v))} />
           </div>
         ) : null}
+        <Link href="/reports/sales" className="ml-auto text-sm font-medium text-accent hover:underline">View full sales report →</Link>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

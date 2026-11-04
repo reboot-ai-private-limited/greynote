@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultMonth, fyMonths, quarterMonths, quarterOf } from './salesBreakdown';
+import { defaultMonth, fyMonths, matchesSearch, quarterMonths, quarterOf } from './salesBreakdown';
 
 describe('financial year windows', () => {
   it('lists the twelve months of the year in order, April to March', () => {
@@ -19,5 +19,16 @@ describe('financial year windows', () => {
     expect(defaultMonth(2026, '2026-11')).toBe('2026-11');
     expect(defaultMonth(2024, '2026-11')).toBe('2025-03');
     expect(defaultMonth(2030, '2026-11')).toBe('2030-04');
+  });
+});
+
+describe('matchesSearch', () => {
+  it('matches every word in any text, in any case, and everything when empty', () => {
+    expect(matchesSearch('', 'Amy')).toBe(true);
+    expect(matchesSearch('  ', 'Amy')).toBe(true);
+    expect(matchesSearch('amy sh', 'Amy Shah', 'E-102')).toBe(true);
+    expect(matchesSearch('e-102', 'Amy Shah', 'E-102')).toBe(true);
+    expect(matchesSearch('amy zed', 'Amy Shah', 'E-102')).toBe(false);
+    expect(matchesSearch('x', null, undefined)).toBe(false);
   });
 });
