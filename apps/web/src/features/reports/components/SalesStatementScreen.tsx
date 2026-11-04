@@ -150,7 +150,7 @@ export function SalesStatementScreen() {
       <Card title="By month" description="Click a month to see its statement below.">
         <div className="p-5">
           <DataState
-            isLoading={report.isLoading}
+            isLoading={report.isLoading} isFetching={report.isFetching}
             error={report.error ? toErrorState(report.error, () => void report.refetch()) : null}
             isEmpty={months.length === 0}
             empty={{ title: 'No sales data' }}
@@ -175,7 +175,7 @@ export function SalesStatementScreen() {
           className="mt-6"
         >
           <DataState
-            isLoading={statement.isLoading}
+            isLoading={statement.isLoading} isFetching={statement.isFetching}
             error={statement.error ? toErrorState(statement.error, () => void statement.refetch()) : null}
             isEmpty={!s || (s.rows.length === 0 && s.missingDistributors.length === 0)}
             empty={{ title: 'Nothing this month', description: 'No order to a distributor and no stock count.' }}

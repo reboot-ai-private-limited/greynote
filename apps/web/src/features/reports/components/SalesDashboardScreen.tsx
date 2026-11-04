@@ -202,6 +202,7 @@ export function SalesDashboardScreen() {
 
       <DataState
         isLoading={!problem && query.isLoading}
+        isFetching={query.isFetching}
         error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
         isEmpty={!problem && !!data && data.rows.length === 0}
         empty={{
