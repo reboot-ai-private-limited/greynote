@@ -11,11 +11,12 @@ import type { RecordMonthlyStockUseCase } from '../application/usecases/recordMo
 import type { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersUseCase, PlaceOrderUseCase, SetInvoiceNumberUseCase } from '../application/usecases/orders.usecase.js';
 import type { GetInvoiceUseCase, ListInvoicesUseCase } from '../application/usecases/invoices.usecase.js';
 import type { CancelPaymentUseCase, DistributorBalancesUseCase, ListPaymentsUseCase, OutstandingDuesUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from '../application/usecases/payments.usecase.js';
+import type { DeleteStockCountsUseCase, ReadStockCountsUseCase, SubmitStockCountsUseCase } from '../application/usecases/stockCounts.usecase.js';
 import type { DeleteEmployeeSecondaryUseCase, ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SubmitEmployeeSecondaryUseCase } from '../application/usecases/employeeSales.usecase.js';
 import type { AddSecondaryAttachmentUseCase, RemoveSecondaryAttachmentUseCase } from '../application/usecases/secondaryAttachments.usecase.js';
 import type { ReadStatementUseCase, SaveStatementUseCase } from '../application/usecases/stockStatement.usecase.js';
 import type { UnlockMonthUseCase } from '../application/usecases/unlockMonth.usecase.js';
-import type { secondaryAttachmentBodySchema, submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
+import type { submitStockCountsBodySchema, stockCountsQuerySchema, secondaryAttachmentBodySchema, submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -36,7 +37,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'deleteEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary' | 'addSecondaryAttachment' | 'removeSecondaryAttachment', RequestHandler>;
+export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'deleteEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary' | 'addSecondaryAttachment' | 'removeSecondaryAttachment' | 'submitStockCounts' | 'readStockCounts' | 'stockCountsImpact' | 'deleteStockCounts', RequestHandler>;
 
 export function makeSalesControllers(u: {
   record: RecordMonthlyStockUseCase;
@@ -66,6 +67,9 @@ export function makeSalesControllers(u: {
   saveEmployeePrimary: SaveEmployeePrimaryUseCase;
   addSecondaryAttachment: AddSecondaryAttachmentUseCase;
   removeSecondaryAttachment: RemoveSecondaryAttachmentUseCase;
+  submitStockCounts: SubmitStockCountsUseCase;
+  readStockCounts: ReadStockCountsUseCase;
+  deleteStockCounts: DeleteStockCountsUseCase;
 }): SalesHandlers {
   return {
     recordStock: asyncHandler(async (req, res) => {
@@ -129,6 +133,18 @@ export function makeSalesControllers(u: {
     ),
     submitEmployeeSecondary: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.submitEmployeeSecondary.execute(actorOf(req), (req.body as z.output<typeof submitEmployeeSecondaryBodySchema>).month)), 'The month was sent for approval.', 200),
+    ),
+    submitStockCounts: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.submitStockCounts.execute(actorOf(req), (req.body as z.output<typeof submitStockCountsBodySchema>).month)), 'The month was sent for approval.', 200),
+    ),
+    readStockCounts: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.readStockCounts.execute(actorOf(req), req.query as unknown as z.output<typeof stockCountsQuerySchema>)), 'The employee\'s distributor counts for the month.', 200),
+    ),
+    stockCountsImpact: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.deleteStockCounts.preview(actorOf(req), req.query as unknown as z.output<typeof stockCountsQuerySchema>)), 'What deleting the month would remove.', 200),
+    ),
+    deleteStockCounts: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.deleteStockCounts.execute(actorOf(req), req.query as unknown as z.output<typeof stockCountsQuerySchema>)), 'The month\'s distributor counts were deleted.', 200),
     ),
     addSecondaryAttachment: asyncHandler(async (req, res) => {
       if (!req.file) throw AppError.badRequest('A file is required.', { field: 'file' });

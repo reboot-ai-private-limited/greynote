@@ -35,17 +35,28 @@ export class DistributorAchievement {
   async entries(userIds: readonly string[], fromMonth: string, toMonth: string): Promise<EntryRow[]> {
     if (userIds.length === 0) return [];
     const wanted = new Set(userIds);
-    const owners = new Map<string, string[]>();
-    for (const d of await this.master.listDistributorAssignees()) {
-      const mine = d.assignedUserIds.filter((u) => wanted.has(u));
-      if (mine.length > 0) owners.set(d.id, mine);
-    }
-    if (owners.size === 0) return [];
+    const assignees = new Map<string, string[]>();
+    for (const d of await this.master.listDistributorAssignees()) assignees.set(d.id, d.assignedUserIds);
     const [orderSums, stockRows, statementRows] = await Promise.all([
       this.sales.sumDistributorOrders({ from: monthRange(fromMonth).from, to: monthRange(toMonth).to }),
       this.sales.listStockRange({ fromMonth, toMonth, outletType: 'DISTRIBUTOR' }),
       this.sales.listStatements({ fromMonth, toMonth }),
     ]);
+    // An approved count names who it counts toward, so unassigning someone later changes no approved month. A month with no such rows (older counts, or
+    // only Admin's statement) falls back to the distributor's current assignees.
+    const credited = new Map<string, Set<string>>();
+    for (const r of stockRows) {
+      if (!r.creditedUserIds || r.creditedUserIds.length === 0) continue;
+      const k = `${r.outlet.id}|${r.month}`;
+      const set = credited.get(k) ?? new Set<string>();
+      for (const u of r.creditedUserIds) set.add(u);
+      credited.set(k, set);
+    }
+    const creditedFor = (distributorId: string, month: string): string[] => [...(credited.get(`${distributorId}|${month}`) ?? assignees.get(distributorId) ?? [])].filter((u) => wanted.has(u));
+    const owners = new Map<string, true>();
+    for (const [id, users] of assignees) if (users.some((u) => wanted.has(u))) owners.set(id, true);
+    for (const [k, users] of credited) if ([...users].some((u) => wanted.has(u))) owners.set(k.split('|')[0]!, true);
+    if (owners.size === 0) return [];
     const kept = <T extends { distributorId: string }>(rows: readonly T[]): T[] => rows.filter((r) => owners.has(r.distributorId));
     const sums = kept(orderSums);
     const stock = kept(toCounts(stockRows));
@@ -54,7 +65,7 @@ export class DistributorAchievement {
     for (const month of monthsBetween(fromMonth, toMonth)) {
       for (const row of buildStatement({ month, orderSums: sums, stock, statements, pts: new Map() })) {
         if (row.secondaryQty === null || row.secondaryQty < 0) continue;
-        for (const userId of owners.get(row.distributorId) ?? []) out.push({ userId, productId: row.productId, month, secondaryQty: row.secondaryQty, adjustmentQty: 0 });
+        for (const userId of creditedFor(row.distributorId, month)) out.push({ userId, productId: row.productId, month, secondaryQty: row.secondaryQty, adjustmentQty: 0 });
       }
     }
     return out;

@@ -53,7 +53,7 @@ let unlocked = false;
 const stock = { async isUnlocked() { return unlocked; } } as unknown as MonthlyStockRepositoryPort;
 const orderSums: UserOrderSum[] = [];
 const orders = { async sumUserOrders() { return orderSums; } } as unknown as OrderRepositoryPort;
-const config = { get: async (key: string) => ({ BUSINESS_TIMEZONE: 'Asia/Kolkata', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: 'NONE', MONTHLY_STOCK_DEADLINE_DAY: '5' })[key] ?? '' };
+const config = { get: async (key: string) => ({ BUSINESS_TIMEZONE: 'Asia/Kolkata', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: 'NONE', MONTHLY_STOCK_DEADLINE_DAY: '5', STOCK_COUNT_APPROVAL: 'false' })[key] ?? '' };
 const admin = { id: 'admin', role: 'ADMIN' as const };
 const asm = { id: 'asm', role: 'FIELD' as const };
 const mr1 = { id: 'mr1', role: 'FIELD' as const };
@@ -79,6 +79,16 @@ describe('employee sales', () => {
     read = new ReadEmployeeSalesUseCase(users, master, sales, orders, clock);
     submit = new SubmitEmployeeSecondaryUseCase(sales, approvals, { run: (fn) => fn(undefined) }, clock, config);
     submitted.length = 0;
+  });
+
+  it('with distributor-count approval on, the per-product entry and its submit are refused for everyone', async () => {
+    const on = { get: async (k: string) => (k === 'STOCK_COUNT_APPROVAL' ? 'true' : config.get(k)) };
+    const clock = new SalesClock(on, () => new Date('2026-10-10T05:00:00Z'));
+    const retiredSave = new SaveEmployeeSecondaryUseCase(new FakeUsers(), new FakeMaster(), sales, stock, clock, on);
+    const retiredSubmit = new SubmitEmployeeSecondaryUseCase(sales, approvals, { run: (fn) => fn(undefined) }, clock, on);
+    const body = { userId: 'mr1', month: '2026-10', lines: [{ productId: 'prod1', qty: 40 }] };
+    for (const who of [mr1, asm, admin]) expect(await code(retiredSave.execute(who, body))).toBe('SECONDARY_RETIRED');
+    expect(await code(retiredSubmit.execute(mr1, '2026-10'))).toBe('SECONDARY_RETIRED');
   });
 
   it('lets an employee enter their own secondary, a manager their team\'s, and nobody anyone else\'s', async () => {

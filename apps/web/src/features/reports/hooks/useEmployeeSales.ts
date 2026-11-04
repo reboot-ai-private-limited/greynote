@@ -69,6 +69,16 @@ export function useDeleteSecondary(onDone: () => void) {
   });
 }
 
+/** Admin deletes an employee's month of distributor counts and the approval request, so the approvals lists change too. */
+export function useDeleteStockCounts(onDone: () => void) {
+  return useApiMutation<{ userId: string; month: string }, { distributors: number; lines: number; requestRemoved: boolean }>({
+    call: (token, body) => salesApi.deleteStockCounts(token, body),
+    invalidates: [...refreshes, keys.approvals.all()],
+    successMessage: 'Month deleted.',
+    onSuccess: onDone,
+  });
+}
+
 export function useSubmitSecondary(onDone: () => void) {
   return useApiMutation<{ month: string }, { requestId: string; sent: number }>({
     call: (token, body) => salesApi.submitEmployeeSecondary(token, body),

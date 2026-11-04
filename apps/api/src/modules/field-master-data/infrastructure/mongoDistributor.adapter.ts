@@ -76,11 +76,8 @@ export class MongoDistributorAdapter implements DistributorRepositoryPort {
     return buildPaginatedResult(docs.map(toDistributor), total, filter);
   }
 
-  async listActiveForUser(userId: string, scope: CoverageScope): Promise<Distributor[]> {
-    const docs = await DistributorModel.find({
-      status: 'active',
-      $or: [{ assignedUserIds: new Types.ObjectId(userId) }, ...coverageClauses(scope)],
-    })
+  async listActiveForUser(userId: string): Promise<Distributor[]> {
+    const docs = await DistributorModel.find({ status: 'active', assignedUserIds: new Types.ObjectId(userId) })
       .sort({ name: 1, _id: 1 })
       .lean();
     return docs.map(toDistributor);

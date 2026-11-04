@@ -1,4 +1,4 @@
-import type { DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SecondaryAttachmentDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto, InvoiceDetailDto, InvoiceRowDto, InvoiceStatus, SetInvoiceNumberDto } from '@greynote/contracts';
+import type { StockCountsImpactDto, StockCountsMonthDto, DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SecondaryAttachmentDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto, InvoiceDetailDto, InvoiceRowDto, InvoiceStatus, SetInvoiceNumberDto } from '@greynote/contracts';
 import { request } from '../client';
 
 /** One order as `GET /sales/orders` returns it; the distributor's Orders tab shows only these fields. */
@@ -26,6 +26,12 @@ export const salesApi = {
   distributorStatement: (token: string, query: { distributorId: string; month: string }, signal?: AbortSignal) =>
     request<DistributorStatementDto>('/sales/distributor-statement', { token, query: { ...query }, signal }),
   saveStatement: (token: string, body: SaveDistributorStatementDto) => request<{ added: number; changed: number }>('/sales/distributor-statement', { method: 'POST', token, body }),
+  /** An employee's distributor counts for a month, by distributor, with what each works out to. Self, the manager above, or Admin. */
+  stockCounts: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<StockCountsMonthDto>('/sales/stock-counts', { token, query: { ...query }, signal }),
+  /** Admin: what deleting the month would remove, for the confirmation. */
+  stockCountsImpact: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<StockCountsImpactDto>('/sales/stock-counts/impact', { token, query: { ...query }, signal }),
+  /** Admin: deletes the employee's distributor counts for a month and the approval request, so they can count and send it again. */
+  deleteStockCounts: (token: string, query: { userId: string; month: string }) => request<{ distributors: number; lines: number; requestRemoved: boolean }>('/sales/stock-counts', { method: 'DELETE', token, query: { ...query } }),
   /** One employee's month by product: Done distributor orders (primary), Admin's change to it, and the secondary entered. Self, the manager above, or Admin. */
   employeeSales: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) =>
     request<EmployeeSalesDto>('/sales/employee-sales', { token, query: { ...query }, signal }),

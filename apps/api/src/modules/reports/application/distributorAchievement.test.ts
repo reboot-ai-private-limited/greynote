@@ -39,6 +39,17 @@ describe('distributor achievement', () => {
     expect(rows).toEqual([{ userId: 'mr1', productId: 'p1', month: '2026-10', secondaryQty: 15, adjustmentQty: 0 }]);
   });
 
+  it('an approved count keeps counting for the people it named, even after they are unassigned', async () => {
+    const counted = [{ ...stock[0]!, creditedUserIds: ['mr5', 'mr1'] }];
+    const later = { async sumDistributorOrders() { return orderSums; }, async listStockRange() { return counted; }, async listStatements() { return []; } } as never;
+    // mr5 is no longer assigned to d1, mr1 still is; the rows name both.
+    const rows = await new DistributorAchievement(later, master).entries(['mr5'], '2026-10', '2026-10');
+    expect(rows).toEqual([{ userId: 'mr5', productId: 'p1', month: '2026-10', secondaryQty: 15, adjustmentQty: 0 }]);
+    // someone assigned afterwards but not named gets nothing for that month.
+    const added = { async listDistributorAssignees() { return [{ id: 'd1', assignedUserIds: ['mr1', 'mr8'] }]; } } as never;
+    expect(await new DistributorAchievement(later, added).entries(['mr8'], '2026-10', '2026-10')).toEqual([]);
+  });
+
   it('nobody assigned, or no employees, is nothing', async () => {
     expect(await new DistributorAchievement(sales, master).entries(['mr7'], '2026-10', '2026-10')).toEqual([]);
     expect(await new DistributorAchievement(sales, master).entries([], '2026-10', '2026-10')).toEqual([]);

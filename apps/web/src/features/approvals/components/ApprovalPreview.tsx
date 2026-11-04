@@ -9,6 +9,7 @@ import { DoctorServicePreview } from './DoctorServicePreview';
 import { ExpenseMonthPreview } from './ExpenseMonthPreview';
 import { LeavePreview } from './LeavePreview';
 import { MonthlyPlanPreview } from './MonthlyPlanPreview';
+import { StockCountsPreview } from './StockCountsPreview';
 import { SecondarySalesPreview } from './SecondarySalesPreview';
 
 /**
@@ -33,13 +34,16 @@ export function ApprovalPreview({ request }: { request: ApprovalDetailDto }) {
       return <LeavePreview recordId={request.recordId} />;
     case 'EXPENSE_MONTH':
       return <ExpenseMonthPreview recordId={request.recordId} />;
+    case 'STOCK_COUNT':
+      return <StockCountsPreview recordId={request.recordId} />;
     case 'SECONDARY_SALES':
       return <SecondarySalesPreview recordId={request.recordId} />;
     default:
       return (
         <Card title={kindLabel(request.kind)} description="The record this request is about.">
           <p className="p-5 text-sm text-text-muted">
-            This kind has no preview in the portal. Record <span className="font-mono text-text">{request.recordId}</span>.
+            This kind has no preview in the portal. Record{' '}
+            <span className="font-mono text-text">{request.recordId}</span>.
           </p>
         </Card>
       );

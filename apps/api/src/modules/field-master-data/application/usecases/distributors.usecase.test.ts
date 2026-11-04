@@ -94,15 +94,18 @@ describe('Distributors', () => {
   it('a zone alone covers every route in it, an HQ alone every route of that HQ, and routes only themselves', async () => {
     territory.userRoutes.set('u-z1', ['route-1']);
     territory.userRoutes.set('u-z2', ['route-3']);
-    const zoneWide = await create({ name: 'Zone wide', zoneIds: ['z1'], routeIds: [] });
-    const hqWide = await create({ name: 'HQ wide', hqIds: ['h1'], routeIds: [] });
-    const one = await create({ name: 'One route', routeIds: ['route-2'] });
+    const zoneWide = await create({ name: 'Zone wide', zoneIds: ['z1'], routeIds: [], assignedUserIds: [] });
+    const hqWide = await create({ name: 'HQ wide', hqIds: ['h1'], routeIds: [], assignedUserIds: [] });
+    const one = await create({ name: 'One route', routeIds: ['route-2'], assignedUserIds: [] });
     const meets = async (d: typeof zoneWide, userId: string) => coverageMeets(d, await scopeOfUser(territory, userId));
     expect([await meets(zoneWide, 'u-z1'), await meets(hqWide, 'u-z1'), await meets(one, 'u-z1')]).toEqual([true, true, false]);
     expect([await meets(zoneWide, 'u-z2'), await meets(hqWide, 'u-z2'), await meets(one, 'u-z2')]).toEqual([false, false, false]);
     expect((await expandRouteIds(territory, zoneWide)).sort()).toEqual(['route-1', 'route-2']);
     expect((await expandRouteIds(territory, { zoneIds: [], hqIds: ['h2'], routeIds: ['route-1'] })).sort()).toEqual(['route-1', 'route-3']);
-    expect((await distributors.listActiveForUser('u-z1', await scopeOfUser(territory, 'u-z1'))).map((x) => x.name).sort()).toEqual(['HQ wide', 'Zone wide'].sort());
+    // Coverage alone shows the employee nothing: only a distributor handed to them.
+    expect(await distributors.listActiveForUser('mr1')).toEqual([]);
+    await new UpdateDistributorUseCase(distributors, territory, users).execute(hqWide.id, { assignedUserIds: ['mr1'] });
+    expect((await distributors.listActiveForUser('mr1')).map((x) => x.name)).toEqual(['HQ wide']);
   });
 
   it('attaches several documents, refuses a file that is not a PDF, JPG or PNG, and removes one with its file', async () => {

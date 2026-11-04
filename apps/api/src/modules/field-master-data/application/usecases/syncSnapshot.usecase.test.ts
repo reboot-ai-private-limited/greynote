@@ -101,7 +101,7 @@ describe('the phone’s cache of Field Master Data', () => {
     expect(names((await snap('mr1')).chemists)).toEqual(['Far Pharmacy', 'Sai Pharmacy']);
   });
 
-  it('Distributors: assigned to the MR or on one of their Routes, active only', async () => {
+  it('Distributors: only those assigned to the MR, active only (Route coverage alone shows nothing)', async () => {
     const base = { zoneIds: [], hqIds: [], documents: [], gstNumber: 'G', contactPerson: 'c', mobile: '9', address: 'a', location: null, openingDuesPaise: 0 };
     await distributors.create({ ...base, routeIds: ['route-1'], name: 'On My Route', assignedUserIds: [], status: 'active' });
     await distributors.create({ ...base, routeIds: ['route-2'], name: 'Assigned To Me', assignedUserIds: ['mr1'], status: 'active' });
@@ -109,7 +109,7 @@ describe('the phone’s cache of Field Master Data', () => {
     await distributors.create({ ...base, routeIds: ['route-1'], name: 'Inactive', assignedUserIds: ['mr1'], status: 'inactive' });
     await distributors.create({ ...base, routeIds: ['route-2', 'route-1'], name: 'One Of Several Routes', assignedUserIds: [], status: 'active' });
     await distributors.create({ ...base, routeIds: [], hqIds: ['h1'], name: 'Whole HQ', assignedUserIds: [], status: 'active' });
-    expect(names((await snap('mr1')).distributors)).toEqual(['Assigned To Me', 'On My Route', 'One Of Several Routes', 'Whole HQ']);
+    expect(names((await snap('mr1')).distributors)).toEqual(['Assigned To Me']);
   });
 
   it('Products are the active catalog; allocations only for the Doctors in the MR’s set', async () => {

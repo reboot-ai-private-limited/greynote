@@ -48,6 +48,8 @@ const SCOPED = [
   '/api/sales/distributor-payments/totals',
   '/api/sales/distributor-statement',
   '/api/sales/employee-sales',
+  '/api/sales/stock-counts',
+  '/api/sales/stock-counts/impact',
   '/api/reports/employee-sales',
   '/api/payroll',
   '/api/payroll/overview',

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { Outlet, MonthlyStock, StockLine } from '../../domain/monthlyStock.entity.js';
-import type { MonthlyStockRepositoryPort, StockFilter } from '../../domain/monthlyStock.repository.port.js';
-import { FakeMaster, FakeUsers, config } from './salesTestKit.js';
+import type { Outlet, StockLine } from '../../domain/monthlyStock.entity.js';
+import { FakeMaster, FakeStock, FakeUsers, config } from './salesTestKit.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import { OutletAccess } from '../outletAccess.js';
 import { SalesClock } from '../salesClock.js';
@@ -10,32 +9,6 @@ import { RecordMonthlyStockUseCase } from './recordMonthlyStock.usecase.js';
 import { UnlockMonthUseCase } from './unlockMonth.usecase.js';
 
 const k = (o: Outlet) => `${o.type}:${o.id}`;
-
-class FakeStock implements MonthlyStockRepositoryPort {
-  rows = new Map<string, MonthlyStock>();
-  unlocked = new Set<string>();
-  async upsertMany(outlet: Outlet, month: string, lines: StockLine[], by: string, at: Date) {
-    for (const l of lines) this.rows.set(`${k(outlet)}|${l.productId}|${month}`, { id: `${this.rows.size}`, outlet, productId: l.productId, month, openingQty: l.openingQty, closingQty: l.closingQty, recordedBy: by, recordedAt: at });
-  }
-  async listRange(f: { fromMonth: string; toMonth: string; outletType: Outlet['type']; outletId?: string | undefined; productId?: string | undefined }) {
-    return [...this.rows.values()].filter((r) => r.outlet.type === f.outletType && r.month >= f.fromMonth && r.month <= f.toMonth && (!f.outletId || r.outlet.id === f.outletId) && (!f.productId || r.productId === f.productId));
-  }
-  async list(f: StockFilter) {
-    const scope = f.outlets ? new Set(f.outlets.map(k)) : null;
-    return [...this.rows.values()].filter((r) => (!f.month || r.month === f.month) && (!f.productId || r.productId === f.productId) && (!scope || scope.has(k(r.outlet))));
-  }
-  async outletsWithStock(month: string, outlets: Outlet[]) {
-    const have = new Set([...this.rows.values()].filter((r) => r.month === month).map((r) => k(r.outlet)));
-    return outlets.filter((o) => have.has(k(o)));
-  }
-  async isUnlocked(month: string) {
-    return this.unlocked.has(month);
-  }
-  async unlock(month: string) {
-    this.unlocked.add(month);
-  }
-}
-
 const line = (productId = 'prod1', openingQty = 10, closingQty = 4): StockLine => ({ productId, openingQty, closingQty });
 const mr1 = { id: 'mr1', role: 'FIELD' };
 

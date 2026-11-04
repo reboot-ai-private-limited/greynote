@@ -17,6 +17,15 @@ old one.
 
 ---
 
+## 2026-11-04 — A distributor shows to an employee only when assigned
+
+- **Decision:** the phone's distributor list, orders and stock now use `assignedUserIds` alone. Before, a distributor whose Zone, HQ or Route met the employee's also showed, so an employee could order from one that never counted toward their target (achievement already used assignment only). Coverage stays on the distributor as admin information. The employee page (Profile tab, Admin) gains a read-only **Assigned** card: distributors, doctors, and chemists via routes.
+- **Migration:** `pnpm --filter @greynote/api migrate:coverage-assignments` (dry run by default) assigns each active distributor to the employees it used to reach by coverage, so nobody loses access on the day. Admin then trims the lists.
+- **Distributor counts need approval (behind the switch `STOCK_COUNT_APPROVAL`, default off, 2026-11-04):** an employee's own count is a draft until they submit the month; the manager (Admin if none) approves it; only approved counts feed achievement and reports. The Secondary Sales screen is one entry tab (the count) plus a read-only **My record** of total secondary per product; the per-product entry and its approval are retired. On approval the rows record who they count toward (the counter plus the distributor's assignees at that moment), which also fixes the old problem of an unassign moving past months. Admin can delete an employee's month of counts from the approval page. The phone work is documented in `docs/mobile/secondary-and-targets.md`; the field app is another team's.
+- **Not done:** assignment history with dates. Unassigning a distributor still removes its past months from that employee's achievement; Admin can still save the distributor's statement. Chosen as not needed.
+
+---
+
 ## 2026-11-03 — Chemists get an optional phone number
 
 - **Decision:** a chemist can carry a phone number (10–15 digits, optional leading `+`), the same rule as a doctor's. Optional, because every existing chemist has none and an older phone build does not send it. Admin sets it on the web (create and edit); an employee can send it when adding a chemist (`POST /chemists/added`, the `NEW_CHEMIST` record, and the `PUT` resubmit); the snapshot's `chemists` carry it and the approval preview shows it.

@@ -1,3 +1,5 @@
+import type { MonthlyStock, Outlet, StockLine, StockStatus } from '../../domain/monthlyStock.entity.js';
+import type { MonthlyStockRepositoryPort, StockFilter } from '../../domain/monthlyStock.repository.port.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
 
@@ -55,3 +57,57 @@ export class FakeUsers implements UserDirectoryPort {
 }
 
 export const config = { get: async (key: string) => ({ BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', FY_START_MONTH: 'APRIL', FY_CLOSED_YEARS: 'NONE', MONTHLY_STOCK_DEADLINE_DAY: '5' })[key] ?? '' };
+
+// ── Monthly stock repository ──
+
+const outletKey = (o: Outlet) => `${o.type}:${o.id}`;
+
+export class FakeStock implements MonthlyStockRepositoryPort {
+  rows = new Map<string, MonthlyStock>();
+  unlocked = new Set<string>();
+  async upsertMany(outlet: Outlet, month: string, lines: StockLine[], by: string, at: Date, _ctx?: unknown, status?: StockStatus) {
+    for (const l of lines) {
+      const key = `${outletKey(outlet)}|${l.productId}|${month}`;
+      const was = this.rows.get(key);
+      this.rows.set(key, { id: was?.id ?? `${this.rows.size}`, outlet, productId: l.productId, month, openingQty: l.openingQty, closingQty: l.closingQty, recordedBy: by, recordedAt: at, ...(status ? { status } : was?.status ? { status: was.status } : {}) });
+    }
+  }
+  /** A row with no status is older than approval and counts. */
+  private counts = (r: MonthlyStock) => (r.status ?? 'APPROVED') === 'APPROVED';
+  async listRange(f: { fromMonth: string; toMonth: string; outletType: Outlet['type']; outletId?: string | undefined; productId?: string | undefined }) {
+    return [...this.rows.values()].filter((r) => this.counts(r) && r.outlet.type === f.outletType && r.month >= f.fromMonth && r.month <= f.toMonth && (!f.outletId || r.outlet.id === f.outletId) && (!f.productId || r.productId === f.productId));
+  }
+  async list(f: StockFilter) {
+    const scope = f.outlets ? new Set(f.outlets.map(outletKey)) : null;
+    return [...this.rows.values()].filter((r) => (!f.month || r.month === f.month) && (!f.productId || r.productId === f.productId) && (!scope || scope.has(outletKey(r.outlet))));
+  }
+  async outletsWithStock(month: string, outlets: Outlet[]) {
+    const have = new Set([...this.rows.values()].filter((r) => r.month === month).map((r) => outletKey(r.outlet)));
+    return outlets.filter((o) => have.has(outletKey(o)));
+  }
+  async listByRecorder(userId: string, month: string) {
+    return [...this.rows.values()].filter((r) => r.recordedBy === userId && r.month === month && r.outlet.type === 'DISTRIBUTOR');
+  }
+  async setStatus(filter: { recordedBy: string; month: string; distributorId?: string }, from: readonly StockStatus[], to: StockStatus, credited?: string[]) {
+    let n = 0;
+    for (const [key, r] of this.rows) {
+      if (r.recordedBy !== filter.recordedBy || r.month !== filter.month || r.outlet.type !== 'DISTRIBUTOR') continue;
+      if (filter.distributorId && r.outlet.id !== filter.distributorId) continue;
+      if (!from.includes(r.status ?? 'APPROVED')) continue;
+      this.rows.set(key, { ...r, status: to, ...(credited && { creditedUserIds: credited }) });
+      n++;
+    }
+    return n;
+  }
+  async deleteByRecorder(userId: string, month: string) {
+    let n = 0;
+    for (const [key, r] of this.rows) if (r.recordedBy === userId && r.month === month && r.outlet.type === 'DISTRIBUTOR' && this.rows.delete(key)) n++;
+    return n;
+  }
+  async isUnlocked(month: string) {
+    return this.unlocked.has(month);
+  }
+  async unlock(month: string) {
+    this.unlocked.add(month);
+  }
+}

@@ -24,6 +24,7 @@ DELETE /api/marketing/visuals/:id  ADMIN
 DELETE /api/planning/monthly/:id  ADMIN
 DELETE /api/sales/employee-secondary  ADMIN
 DELETE /api/sales/employee-secondary/attachments/:id  ADMIN,FIELD
+DELETE /api/sales/stock-counts  ADMIN
 DELETE /api/territory/hqs/:id  ADMIN
 DELETE /api/territory/routes/:id  ADMIN
 DELETE /api/territory/routes/:id/assignments/:userId  ADMIN
@@ -163,6 +164,8 @@ GET    /api/sales/monthly-stock  ADMIN,FIELD
 GET    /api/sales/monthly-stock/missing  ADMIN,FIELD
 GET    /api/sales/orders  ACCOUNTANT,ADMIN,FIELD
 GET    /api/sales/orders/:id  ACCOUNTANT,ADMIN,FIELD
+GET    /api/sales/stock-counts  ADMIN,FIELD
+GET    /api/sales/stock-counts/impact  ADMIN
 GET    /api/sync/drafts  FIELD
 GET    /api/sync/pull  FIELD
 GET    /api/team/leaves  FIELD
@@ -322,6 +325,7 @@ POST   /api/sales/orders  FIELD
 POST   /api/sales/orders/:id/cancel  ACCOUNTANT,ADMIN,FIELD
 POST   /api/sales/orders/:id/complete  ACCOUNTANT,ADMIN
 POST   /api/sales/orders/on-behalf  ACCOUNTANT,ADMIN
+POST   /api/sales/stock-counts/submit  FIELD
 POST   /api/sync/push  FIELD
 POST   /api/territory/hqs  ADMIN
 POST   /api/territory/import  ADMIN
