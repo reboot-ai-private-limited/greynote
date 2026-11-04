@@ -1,10 +1,9 @@
 'use client';
 
-import type { RoleName } from '@greynote/contracts';
 import type { ComponentType } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useSession } from '@/lib/auth/SessionProvider';
-import { cardsForRole, comingSoonForRole, type CardId } from '@/lib/dashboard';
+import { cardsForRole, comingSoonForRole, showsSalesCharts, type CardId } from '@/lib/dashboard';
 import { istMonth, previousMonth } from '@/lib/dates';
 import {
   useApprovalInbox,
@@ -25,8 +24,8 @@ import {
   unpaidExpensesTile,
 } from '../lib/tiles';
 import { ActionTile } from './ActionTile';
-import { ApprovalsWaitingList } from './AttentionList';
 import { ComingSoonStrip } from './ComingSoonStrip';
+import { SalesCharts } from './SalesCharts';
 
 const monthLabel = (month: string) =>
   new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(
@@ -78,12 +77,6 @@ const CARDS: Record<CardId, ComponentType> = {
   payroll: PayrollTile,
 };
 
-function listFor(role: RoleName) {
-  if (role === 'ADMIN') return <ApprovalsWaitingList title="Waiting for approval" />;
-  if (role === 'HR') return <ApprovalsWaitingList kind="LEAVE" title="Leave waiting for you" />;
-  return null;
-}
-
 export function DashboardScreen() {
   const { user } = useSession();
   if (user === null) return null;
@@ -98,7 +91,7 @@ export function DashboardScreen() {
           return <Tile key={id} />;
         })}
       </div>
-      {listFor(user.role)}
+      {showsSalesCharts(user.role) ? <SalesCharts /> : null}
       <ComingSoonStrip items={comingSoonForRole(user.role)} />
     </div>
   );
