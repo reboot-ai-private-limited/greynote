@@ -66,3 +66,30 @@ export const employeeCsv = (r: SalesByEmployeeDto): string =>
     ['Employee', 'Code', 'Designation', 'MRs added up', 'Target (₹)', 'Primary (₹)', 'Achieved (₹)', 'Achievement %'],
     r.rows.map((x) => [x.employee.name, x.employee.employeeCode, x.designation, x.mrCount, rupeesForCsv(x.targetPaise), rupeesForCsv(x.primaryPaise), rupeesForCsv(x.achievedPaise), x.achievementPercent]),
   );
+
+/** The same tables as the CSVs, for Excel: money as rupee numbers so the sheet can add them up. Returns `[header, rows]`. */
+type SheetRows = readonly (readonly (string | number | null)[])[];
+const r2 = (paise: number): number => paise / 100;
+
+export const productSheet = (r: SalesByProductDto): [string[], SheetRows] => [
+  ['Product', 'SKU', 'Primary units', 'Primary (₹)', 'Secondary units', 'Secondary (₹)', 'Target (₹)', 'Achievement %'],
+  r.rows.map((x) => [x.product.name, x.product.sku, x.primaryQty, r2(x.primaryPaise), x.secondaryQty, r2(x.secondaryPaise), r2(x.targetPaise), x.achievementPercent]),
+];
+
+export const distributorSheet = (r: SalesByDistributorDto): [string[], SheetRows] => [
+  ['Distributor', 'Products', 'Months counted', 'Primary units', 'Primary (₹)', 'Secondary units', 'Secondary (₹)'],
+  r.rows.map((x) => [x.distributor.name, x.products, x.countedMonths, x.primaryQty, r2(x.primaryPaise), x.secondaryQty, r2(x.secondaryPaise)]),
+];
+
+export const employeeSheet = (r: SalesByEmployeeDto): [string[], SheetRows] => [
+  ['Employee', 'Code', 'Designation', 'MRs added up', 'Target (₹)', 'Primary (₹)', 'Achieved (₹)', 'Achievement %'],
+  r.rows.map((x) => [x.employee.name, x.employee.employeeCode, x.designation, x.mrCount, r2(x.targetPaise), r2(x.primaryPaise), r2(x.achievedPaise), x.achievementPercent]),
+];
+
+/** Search by any of the given texts (name, code, SKU): every word typed must appear in one of them, in any case. An empty search matches everything. */
+export function matchesSearch(search: string, ...texts: ReadonlyArray<string | null | undefined>): boolean {
+  const words = search.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const hay = texts.map((t) => (t ?? '').toLowerCase()).join(' ');
+  return words.every((w) => hay.includes(w));
+}

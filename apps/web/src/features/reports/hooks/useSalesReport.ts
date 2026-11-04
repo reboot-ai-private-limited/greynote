@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { reportsApi, type SalesWindowQuery } from '@/lib/api/endpoints/reports';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
@@ -60,4 +60,16 @@ export function useSalesByDistributor(window: SalesWindowQuery, productId?: stri
 export function useSalesByEmployee(window: SalesWindowQuery, search?: string) {
   const query = { ...window, ...(search && { search }) };
   return useQuery(authedQueryOptions({ queryKey: keys.reports.salesBreakdown('employee', query), fetch: (token, signal) => reportsApi.salesByEmployee(token, query, signal), ...breakdown }));
+}
+
+/**
+ * Every column of the trend view in one go: the windows asked for, then the whole year last (its total column and the owner's summary).
+ * Each is an ordinary by-product / by-employee request, so it shares the cache with those tabs. Only the kind on screen is fetched.
+ */
+export function useProductTrend(windows: readonly SalesWindowQuery[], enabled: boolean) {
+  return useQueries({ queries: windows.map((query) => authedQueryOptions({ queryKey: keys.reports.salesBreakdown('product', query), fetch: (token, signal) => reportsApi.salesByProduct(token, query, signal), enabled, ...breakdown })) });
+}
+
+export function useEmployeeTrend(windows: readonly SalesWindowQuery[], enabled: boolean) {
+  return useQueries({ queries: windows.map((query) => authedQueryOptions({ queryKey: keys.reports.salesBreakdown('employee', query), fetch: (token, signal) => reportsApi.salesByEmployee(token, query, signal), enabled, ...breakdown })) });
 }
