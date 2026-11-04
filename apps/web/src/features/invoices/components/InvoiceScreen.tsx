@@ -6,10 +6,15 @@ import { Button } from '@/components/ui/Button';
 import { DataState } from '@/components/ui/DataState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { toErrorState } from '@/lib/api/toErrorState';
+import { downloadCsv, toCsv } from '@/lib/csv';
 import { formatDate, formatMoney } from '@/lib/format';
+import { downloadXlsx } from '@/lib/xlsx';
 import { useInvoice } from '../hooks/useInvoices';
 import { COMPANY } from '../lib/company';
-import { expiryLabel, rupeesInWords, taxBreakup } from '../lib/invoices';
+import { expiryLabel, invoiceFilename, invoiceLinesTable, rupeesInWords, taxBreakup } from '../lib/invoices';
+
+const TH = 'border border-border-strong bg-surface-hover px-2 py-1.5 font-semibold print:[print-color-adjust:exact]';
+const TD = 'border border-border-strong px-2 py-1.5';
 
 const Row = ({ label, value, bold }: { label: string; value: string; bold?: boolean }) => (
   <div className={`flex justify-between gap-6 py-0.5 ${bold ? 'font-semibold' : ''}`}>
@@ -35,9 +40,33 @@ export function InvoiceScreen({ id }: { id: string }) {
         <Link href="/invoices" className="text-sm text-text-muted hover:text-accent hover:underline">
           ← Invoices
         </Link>
-        <Button onClick={() => window.print()} disabled={!inv}>
-          Print or save as PDF
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            disabled={!inv}
+            onClick={() => {
+              if (!inv) return;
+              const t = invoiceLinesTable(inv, true);
+              void downloadXlsx(invoiceFilename(inv.invoiceNumber), 'Invoice', t.header, t.rows);
+            }}
+          >
+            Download Excel
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={!inv}
+            onClick={() => {
+              if (!inv) return;
+              const t = invoiceLinesTable(inv, false);
+              downloadCsv(`${invoiceFilename(inv.invoiceNumber)}.csv`, toCsv(t.header, t.rows));
+            }}
+          >
+            Download CSV
+          </Button>
+          <Button onClick={() => window.print()} disabled={!inv}>
+            Print or save as PDF
+          </Button>
+        </div>
       </div>
       <DataState
         isLoading={query.isLoading}
@@ -56,14 +85,14 @@ export function InvoiceScreen({ id }: { id: string }) {
               aria-hidden
               className="pointer-events-none absolute left-1/2 top-1/2 w-3/5 -translate-x-1/2 -translate-y-1/2 opacity-[0.07] print:[print-color-adjust:exact]"
             />
-            <header className="relative text-center sm:px-28">
+            <header className="relative text-center sm:px-36">
               <Image
                 src="/brand/logo.png"
                 alt="Greynote Healthcare"
                 width={702}
                 height={523}
                 priority
-                className="mb-2 h-16 w-auto sm:absolute sm:left-0 sm:top-0 sm:mb-0"
+                className="mb-2 h-24 w-auto sm:absolute sm:left-0 sm:top-0 sm:mb-0"
               />
               <h1 className="text-xl font-bold">Tax Invoice</h1>
               <p className="mt-3 text-base font-bold">{COMPANY.name}</p>
@@ -95,49 +124,49 @@ export function InvoiceScreen({ id }: { id: string }) {
             </div>
 
             <div className="relative overflow-x-auto">
-              <table className="w-full border-collapse text-left">
+              <table className="w-full border-collapse text-left text-xs">
                 <thead>
-                  <tr className="border-y border-border-strong">
-                    <th className="px-2 py-2">#</th>
-                    <th className="px-2 py-2">Item name</th>
-                    <th className="px-2 py-2">HSN/SAC</th>
-                    <th className="px-2 py-2">Batch No.</th>
-                    <th className="px-2 py-2">Exp. Date</th>
-                    <th className="px-2 py-2 text-right">MRP</th>
-                    <th className="px-2 py-2 text-right">Quantity</th>
-                    <th className="px-2 py-2 text-right">Price/unit</th>
-                    <th className="px-2 py-2 text-right">GST</th>
-                    <th className="px-2 py-2 text-right">Amount</th>
+                  <tr>
+                    <th className={TH}>#</th>
+                    <th className={TH}>Item name</th>
+                    <th className={TH}>HSN/SAC</th>
+                    <th className={TH}>Batch No.</th>
+                    <th className={TH}>Exp. Date</th>
+                    <th className={`${TH} text-right`}>MRP</th>
+                    <th className={`${TH} text-right`}>Quantity</th>
+                    <th className={`${TH} text-right`}>Price/unit</th>
+                    <th className={`${TH} text-right`}>GST</th>
+                    <th className={`${TH} text-right`}>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {inv.lines.map((l, at) => (
-                    <tr key={`${l.sku}-${at}`} className="border-b border-border">
-                      <td className="px-2 py-2">{at + 1}</td>
-                      <td className="px-2 py-2">{l.productName}</td>
-                      <td className="px-2 py-2 tabular-nums">{l.hsn ?? '—'}</td>
-                      <td className="px-2 py-2">{l.batchNo ?? '—'}</td>
-                      <td className="px-2 py-2 tabular-nums">{expiryLabel(l.expiry)}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{l.mrpPaise === null ? '—' : formatMoney(l.mrpPaise)}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">
+                    <tr key={`${l.sku}-${at}`}>
+                      <td className={TD}>{at + 1}</td>
+                      <td className={TD}>{l.productName}</td>
+                      <td className={`${TD} tabular-nums`}>{l.hsn ?? '—'}</td>
+                      <td className={TD}>{l.batchNo ?? '—'}</td>
+                      <td className={`${TD} tabular-nums`}>{expiryLabel(l.expiry)}</td>
+                      <td className={`${TD} text-right tabular-nums`}>{l.mrpPaise === null ? '—' : formatMoney(l.mrpPaise)}</td>
+                      <td className={`${TD} text-right tabular-nums`}>
                         {l.suppliedQty}
                         {l.freeQty > 0 ? ` + ${l.freeQty} free` : ''}
                       </td>
-                      <td className="px-2 py-2 text-right tabular-nums">{formatMoney(l.unitPricePaise)}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">
+                      <td className={`${TD} text-right tabular-nums`}>{formatMoney(l.unitPricePaise)}</td>
+                      <td className={`${TD} text-right tabular-nums`}>
                         {formatMoney(l.gstPaise)} ({l.gstPercent}%)
                       </td>
-                      <td className="px-2 py-2 text-right tabular-nums">{formatMoney(l.amountPaise + l.gstPaise)}</td>
+                      <td className={`${TD} text-right tabular-nums`}>{formatMoney(l.amountPaise + l.gstPaise)}</td>
                     </tr>
                   ))}
                   <tr className="font-semibold">
-                    <td className="px-2 py-2" colSpan={6}>
+                    <td className={TD} colSpan={6}>
                       Total
                     </td>
-                    <td className="px-2 py-2 text-right tabular-nums">{inv.lines.reduce((n, l) => n + l.suppliedQty, 0)}</td>
-                    <td />
-                    <td className="px-2 py-2 text-right tabular-nums">{formatMoney(inv.gstPaise)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums">{formatMoney(inv.taxablePaise + inv.gstPaise)}</td>
+                    <td className={`${TD} text-right tabular-nums`}>{inv.lines.reduce((n, l) => n + l.suppliedQty, 0)}</td>
+                    <td className={TD} />
+                    <td className={`${TD} text-right tabular-nums`}>{formatMoney(inv.gstPaise)}</td>
+                    <td className={`${TD} text-right tabular-nums`}>{formatMoney(inv.taxablePaise + inv.gstPaise)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -158,22 +187,22 @@ export function InvoiceScreen({ id }: { id: string }) {
               </section>
             </div>
 
-            <table className="relative w-full max-w-md border-collapse text-left">
+            <table className="relative w-full max-w-md border-collapse text-left text-xs">
               <thead>
-                <tr className="border-y border-border-strong">
-                  <th className="px-2 py-1">Tax type</th>
-                  <th className="px-2 py-1 text-right">Taxable amount</th>
-                  <th className="px-2 py-1 text-right">Rate</th>
-                  <th className="px-2 py-1 text-right">Tax amount</th>
+                <tr>
+                  <th className={TH}>Tax type</th>
+                  <th className={`${TH} text-right`}>Taxable amount</th>
+                  <th className={`${TH} text-right`}>Rate</th>
+                  <th className={`${TH} text-right`}>Tax amount</th>
                 </tr>
               </thead>
               <tbody>
                 {taxBreakup(inv.lines, gstin).map((t) => (
-                  <tr key={`${t.type}-${t.ratePercent}`} className="border-b border-border">
-                    <td className="px-2 py-1">{t.type}</td>
-                    <td className="px-2 py-1 text-right tabular-nums">{formatMoney(t.taxablePaise)}</td>
-                    <td className="px-2 py-1 text-right tabular-nums">{t.ratePercent}%</td>
-                    <td className="px-2 py-1 text-right tabular-nums">{formatMoney(t.taxPaise)}</td>
+                  <tr key={`${t.type}-${t.ratePercent}`}>
+                    <td className={TD}>{t.type}</td>
+                    <td className={`${TD} text-right tabular-nums`}>{formatMoney(t.taxablePaise)}</td>
+                    <td className={`${TD} text-right tabular-nums`}>{t.ratePercent}%</td>
+                    <td className={`${TD} text-right tabular-nums`}>{formatMoney(t.taxPaise)}</td>
                   </tr>
                 ))}
               </tbody>
