@@ -13,6 +13,7 @@ import { Accents, Spacing, type Accent } from '@/constants/theme';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
 import { formatRupees } from '@/lib/money';
 import { isFieldDay, needsDayNote, workingTypeLabel } from '@/lib/planning';
+import { useCallDoctors } from '@/hooks/use-call-doctors';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { DAY_KINDS, finalSubmit, prettyDay, useOnline, useRecords, type OutboxRecord, type SyncKind } from '@/offline';
@@ -66,9 +67,11 @@ export default function SummaryScreen() {
   const [msg, setMsg] = useState<Msg | null>(null);
   const [note, setNote] = useState('');
 
+  // A manager's calls can be on doctors of anyone below them, which the snapshot doesn't hold.
+  const { doctors: callDoctors } = useCallDoctors();
   const names = useMemo(
-    () => new Map([...(master.data?.doctors ?? []), ...(master.data?.chemists ?? [])].map((o) => [o.id, o.name])),
-    [master.data],
+    () => new Map([...callDoctors, ...(master.data?.chemists ?? [])].map((o) => [o.id, o.name])),
+    [callDoctors, master.data],
   );
 
   const today = gate.today;

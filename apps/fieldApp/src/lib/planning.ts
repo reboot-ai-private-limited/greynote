@@ -183,6 +183,10 @@ export type TeamSuggestion = { planDate: string; people: TeamSuggestPerson[]; ro
 export const getTeamSuggest = (date: string, userIds: string[]) =>
   apiGet<TeamSuggestion>(`/planning/daily/team-suggest?date=${date}&userIds=${userIds.join(',')}`, { auth: true });
 
+/** A plan's routes named by the server (dailyplan.md section 4), so a manager sees routes they don't hold themselves. */
+export const getDailyPlanRoutes = async (id: string) =>
+  (await apiGet<{ routes?: { id: string; name: string }[] }>(`/planning/daily/${id}`, { auth: true })).routes ?? [];
+
 export const submitDailyPlan = (id: string) =>
   apiPost<DailyPlanView>(`/planning/daily/${id}/submit`, {}, { auth: true });
 
