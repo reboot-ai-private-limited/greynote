@@ -28,7 +28,6 @@ const KIND_ACCENT: Record<string, Accent> = {
   DOCTOR_SERVICE: 'orange',
   EXPENSE_MONTH: 'amber',
   SECONDARY_SALES: 'green',
-  STOCK_COUNT: 'green',
 };
 
 const STATUS_ACCENT: Record<ApprovalStatus, Accent> = {

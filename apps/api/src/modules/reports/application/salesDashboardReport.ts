@@ -2,11 +2,11 @@ import type { SalesDashboardComplianceDto, SalesDashboardDto, SalesDashboardRowD
 import { AppError } from '@/shared/errors/AppError.js';
 import { readBusinessDay, type ConfigReader } from '@/shared/config/readConfig.js';
 import { businessDate, eachDate } from '@/shared/time/businessTime.js';
-import { monthRange } from '@/shared/time/businessTime.js';
-import type { DistributorAchievement } from './distributorAchievement.js';
+import { primaryOfLines, secondaryOfLines } from '../domain/mrFigures.js';
+import type { MrStockFigures } from './mrStockFigures.js';
 import { MrRollup } from './mrRollup.js';
-import { primaryOf, secondaryOf, type PriceRow } from '../domain/employeeFigures.js';
-import type { AttendancePort, DesignationLevelsPort, EmployeeSalesPort, FieldDaysPort, FieldRosterPort, MarketingPort, MasterPort, PlanningPort, TerritoryPort, ZoneNamePort } from '../domain/ports.js';
+import type { PriceRow } from '../domain/employeeFigures.js';
+import type { AttendancePort, DesignationLevelsPort, FieldDaysPort, FieldRosterPort, MarketingPort, MasterPort, PlanningPort, TerritoryPort, ZoneNamePort } from '../domain/ports.js';
 
 /** The most days one dashboard read covers. A year's worth would mean a year of attendance for every employee on the page. */
 export const SALES_DASHBOARD_MAX_DAYS = 93;
@@ -46,11 +46,10 @@ export class SalesDashboardReport {
     private readonly attendance: AttendancePort,
     private readonly fieldActivity: FieldDaysPort,
     private readonly marketing: MarketingPort,
-    private readonly employeeSales: EmployeeSalesPort,
     private readonly master: MasterPort,
     private readonly territory: TerritoryPort & ZoneNamePort,
     private readonly config: ConfigReader,
-    private readonly achievement: DistributorAchievement,
+    private readonly achievement: MrStockFigures,
     private readonly now: () => Date = () => new Date(),
   ) {
     this.rollup = new MrRollup(identity);
@@ -78,31 +77,35 @@ export class SalesDashboardReport {
     const scopes = await this.rollup.scopes(ids);
     const figureIds = [...new Set([...scopes.values()].flat())];
     const range = { from, to };
-    const months = { from: monthRange(fromMonth).from, to: monthRange(toMonth).to };
-    const [taDa, shares, orders, entries, sold] = await Promise.all([
+    // A manager (anyone whose figures are their MRs') is judged by their own approved team report, not by a live sum of those MRs.
+    const managerIds = ids.filter((id) => scopes.get(id)?.[0] !== id);
+    const [taDa, shares, sold, rollupOf] = await Promise.all([
       dates.length ? this.fieldActivity.summarizeTaDaByUser(range) : Promise.resolve([]),
       this.marketing.listTargetShares(figureIds, fromMonth, toMonth),
-      this.employeeSales.sumUserOrders({ ...months, userIds: figureIds }),
-      this.employeeSales.listEmployeeSales({ fromMonth, toMonth, userIds: figureIds }),
-      // Achievement is what the employee's distributors sold on (decision-log 2026-10-14), not what the employee entered.
-      this.achievement.entries(figureIds, fromMonth, toMonth),
+      // Achievement and primary are the approved figures the MRs entered (decision-log 2026-11-05); nothing approved is 0.
+      this.achievement.forFigures(figureIds, managerIds, fromMonth, toMonth),
+      this.achievement.rollupStatuses(managerIds, toMonth),
     ]);
     const taDaOf = new Map(taDa.map((t) => [t.userId, t]));
-    const productIds = [...new Set([...orders.map((o) => o.productId), ...entries.map((e) => e.productId), ...sold.map((e) => e.productId)])];
+    const productIds = [...new Set(sold.map((e) => e.productId))];
     const names = productIds.length ? await this.master.listNames({ productIds }) : { products: [] };
     const prices = new Map<string, PriceRow>(names.products.map((p) => [p.id, { id: p.id, name: p.name, sku: p.sku, ptrPaise: p.ptrPaise, ptsPaise: p.ptsPaise ?? null }]));
-    const figuresOf = (members: ReadonlySet<string>) => {
+    // `owners` are whose approved lines make the achievement: the MRs themselves, or for a manager only the manager (their team report); targets still add up the MRs'.
+    const figuresOf = (members: ReadonlySet<string>, owners: ReadonlySet<string> = members) => {
       const mine = shares.filter((t) => members.has(t.userId));
-      const has = sold.some((e) => members.has(e.userId));
-      const sel = { userIds: members, fromMonth, toMonth };
+      const sel = { userIds: owners, fromMonth, toMonth };
+      const has = owners.size > 0 && (members.size > 0 || sold.some((l) => owners.has(l.userId)));
       return {
         targetPaise: mine.length ? mine.reduce((n, t) => n + t.sharePaise, 0) : null,
-        achievedPaise: mine.length || has ? secondaryOf(sold, prices, sel).paise : null,
-        primaryPaise: primaryOf(orders, entries, prices, sel).paise,
+        achievedPaise: has ? secondaryOfLines(sold, prices, sel).paise : null,
+        primaryPaise: primaryOfLines(sold, prices, sel).paise,
       };
     };
 
-    const figureOf = (userId: string) => figuresOf(new Set(scopes.get(userId) ?? []));
+    const figureOf = (userId: string) => {
+      const members = new Set(scopes.get(userId) ?? []);
+      return figuresOf(members, managerIds.includes(userId) ? new Set([userId]) : members);
+    };
 
     const totals = { employees: matching.length, taPaise: 0, daPaise: 0, targetPaise: 0, achievedPaise: 0, primaryPaise: 0 };
     for (const p of matching) {
@@ -158,6 +161,7 @@ export class SalesDashboardReport {
           achievedPaise: f.achievedPaise,
           primaryPaise: f.primaryPaise,
           mrCount: scopes.get(p.id)?.[0] === p.id ? null : (scopes.get(p.id)?.length ?? 0),
+          rollupStatus: managerIds.includes(p.id) ? (rollupOf.get(p.id) ?? 'NOT_SUBMITTED') : null,
         };
       }),
     );

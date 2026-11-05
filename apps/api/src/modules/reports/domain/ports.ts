@@ -59,6 +59,11 @@ export interface SecondaryLinesPort {
   listSecondaryLines(filter: { fromMonth: string; toMonth: string; userIds?: string[]; distributorId?: string; productId?: string }): Promise<Array<{ userId: string; distributorId: string; productId: string; month: string; openingQty: number; primaryQty: number; issuedQty: number }>>;
 }
 
+/** Managers' month snapshots (their team's approved secondary sales, saved when approved); approved only unless `statuses` says otherwise. */
+export interface SecondaryRollupsPort {
+  listSecondaryRollups(filter: { fromMonth: string; toMonth: string; userIds?: string[]; statuses?: Array<'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED'> }): Promise<Array<{ userId: string; month: string; status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED'; lines: Array<{ distributorId: string; productId: string; openingQty: number; primaryQty: number; issuedQty: number }> }>>;
+}
+
 export interface SalesPort {
   sumDistributorOrders(filter: { from: string; to: string; distributorId?: string; productId?: string }): Promise<OrderSumRow[]>;
   listStockRange(filter: { fromMonth: string; toMonth: string; outletType: 'CHEMIST' | 'DISTRIBUTOR'; outletId?: string; productId?: string }): Promise<StockRow[]>;

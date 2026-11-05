@@ -1,6 +1,8 @@
 'use client';
 
+import type { CtcLineDto, CtcOverAllocatedDto } from '@greynote/contracts';
 import { useMemo } from 'react';
+import { ApiError } from '@/lib/api/ApiError';
 import { buildPreview, buildStructure, editorRows, type StructureDraft } from '../lib/ctcStructure';
 import { useCtcPreview, usePayComponents } from './useCtc';
 
@@ -19,6 +21,8 @@ export function useCtcEditor(ctc: string, structure: StructureDraft) {
     [structure, orgCodes],
   );
   const previewError = preview.error instanceof Error ? preview.error.message : undefined;
+  // When the earnings overshoot the CTC the server still says what every line came to (the balancer negative), so the table can show it in red.
+  const overLines: CtcLineDto[] | undefined = preview.error instanceof ApiError ? (preview.error.data as CtcOverAllocatedDto | undefined)?.lines : undefined;
   // `placeholderData` keeps the last result on screen while a new one loads: do not save against a stale one.
   const settled = Boolean(preview.data) && !preview.isFetching && !previewError;
   return {
@@ -28,6 +32,7 @@ export function useCtcEditor(ctc: string, structure: StructureDraft) {
     rows,
     preview,
     previewError,
+    overLines,
     structureErrors,
     canSave: settled && Object.keys(structureErrors).length === 0,
   };

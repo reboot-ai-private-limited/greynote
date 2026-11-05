@@ -51,6 +51,12 @@ export class FakeUsers implements UserDirectoryPort {
   async getDownline(m: string) {
     return m === 'asm' ? [this.u('mr1'), this.u('mr2')] : [];
   }
+  async namePeople(ids: string[]) {
+    return ids.map((id) => ({ id, name: id, designation: id === 'asm' ? 'ASM' : id === 'admin' ? null : 'MR' }));
+  }
+  async getDesignationLevels(ids: string[]) {
+    return ids.filter((id) => id !== 'admin').map((userId) => ({ userId, level: userId === 'asm' ? 2 : 1 }));
+  }
   async listActiveFieldUserIds() {
     return ['asm', 'mr1', 'mr2'];
   }
@@ -155,5 +161,33 @@ export class FakeLines implements SecondaryStockLineRepositoryPort {
     let n = 0;
     for (const [k, r] of this.rows) if (r.userId === userId && r.month === month && this.rows.delete(k)) n++;
     return n;
+  }
+}
+
+// ── Secondary rollups (a manager's team report) ──
+import type { SecondaryRollup, SecondaryRollupInput } from '../../domain/secondaryRollup.entity.js';
+import type { SecondaryRollupRangeFilter, SecondaryRollupRepositoryPort } from '../../domain/secondaryRollup.repository.port.js';
+
+export class FakeRollups implements SecondaryRollupRepositoryPort {
+  rows = new Map<string, SecondaryRollup>();
+  async save(r: SecondaryRollupInput) {
+    this.rows.set(`${r.userId}|${r.month}`, { id: this.rows.get(`${r.userId}|${r.month}`)?.id ?? `${this.rows.size}`, ...r });
+  }
+  async find(userId: string, month: string) {
+    return this.rows.get(`${userId}|${month}`) ?? null;
+  }
+  async listRange(f: SecondaryRollupRangeFilter) {
+    const statuses = f.statuses ?? ['APPROVED'];
+    return [...this.rows.values()].filter((r) => statuses.includes(r.status) && r.month >= f.fromMonth && r.month <= f.toMonth && (!f.userIds || f.userIds.includes(r.userId)));
+  }
+  async setStatus(filter: { userId: string; month: string }, from: readonly StockStatus[], to: StockStatus, approvedAt?: Date | null) {
+    const k = `${filter.userId}|${filter.month}`;
+    const r = this.rows.get(k);
+    if (!r || !from.includes(r.status)) return 0;
+    this.rows.set(k, { ...r, status: to, ...(approvedAt !== undefined && { approvedAt }) });
+    return 1;
+  }
+  async deleteByUser(userId: string, month: string) {
+    return this.rows.delete(`${userId}|${month}`) ? 1 : 0;
   }
 }

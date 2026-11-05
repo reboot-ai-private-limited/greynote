@@ -25,7 +25,6 @@ import { useDeleteTarget, useEmployeeSalesReport } from '../hooks/useEmployeeSal
 import { PERIOD_OPTIONS, parsePeriod, periodMonths, rangeLabel } from '../lib/employeeSales';
 import { financialYearMonths } from '../lib/salesDashboard';
 import { AddTargetDialog } from './AddTargetDialog';
-import { EmployeeMonthGrid } from './EmployeeMonthGrid';
 
 const money = (paise: number): string => formatMoney(paise);
 const percent = (p: number | null): string => (p === null ? '—' : `${p}%`);
@@ -33,10 +32,10 @@ const FLAG_TEXT = { NO_PTS: 'No PTS: secondary not valued', NO_PTS_CHANGE: 'No P
 
 /**
  * One employee over a run of months: their targets (product by product, over any months of the year), what their Done orders came to (primary)
- * and what they sold (secondary, which is their achievement). Below, the month by month entry. Admin sees anyone, a manager their team.
+ * and what they sold (secondary, which is their achievement). Admin sees anyone, a manager their team.
  */
 export function EmployeeSalesScreen({ userId }: { userId: string }) {
-  const { values, update } = useFilterParams(['period', 'from', 'to', 'month']);
+  const { values, update } = useFilterParams(['period', 'from', 'to']);
   const { user: me } = useSession();
   const { year } = useFinancialYear();
   const readOnly = useIsReadOnly();
@@ -58,11 +57,6 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
   const [editing, setEditing] = useState<EmployeeTargetFigureDto | null>(null);
   const [removing, setRemoving] = useState<EmployeeTargetFigureDto | null>(null);
   const remove = useDeleteTarget(() => setRemoving(null));
-  const enterable = fyMonths.filter((m) => m <= thisMonth);
-  // `?month=` opens the entry grid on that month (the approval card's "Edit figures" link uses it).
-  const [month, setMonth] = useState(
-    enterable.includes(values.month) ? values.month : enterable.includes(thisMonth) ? thisMonth : (enterable[enterable.length - 1] ?? thisMonth),
-  );
   // A manager's target is the total of their MRs, so there is nothing to set (or remove) on a manager.
   const canSetTargets = !data?.team && (me?.role === 'ADMIN' || me?.role === 'HR');
   const name = data?.employee.name ?? 'Employee';
@@ -133,7 +127,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
         title={name}
         description={
           data
-            ? `${data.employee.employeeCode} · ${data.team ? `The total of the ${data.team.mrCount} MRs in their team. ` : ''}Targets, primary (Done orders to distributors) and secondary (what they sold, their achievement) for ${rangeLabel(data.fromMonth, data.toMonth)}.`
+            ? `${data.employee.employeeCode} · ${data.team ? `The total of the ${data.team.mrCount} MRs in their team. ` : ''}Targets, primary (received) and secondary (issued, their achievement), as the approved figures their MRs entered for ${rangeLabel(data.fromMonth, data.toMonth)}.`
             : 'Targets, primary and secondary.'
         }
         actions={
@@ -199,14 +193,14 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
               </p>
             )}
           </Card>
-          <Card title="By product" description="Primary is what was delivered, at the order's prices (and Admin's change at PTS). Secondary is what the employee's distributors sold on, at PTS: it is the achievement.">
+          <Card title="By product" description="Primary is what the MRs received and secondary what they issued, both as approved and valued at PTS: secondary is the achievement.">
             {data && data.products.length > 0 ? (
               <DataTable columns={productColumns} rows={data.products} rowKey={(p) => p.product.id} bleed={false} />
             ) : (
               <p className="px-5 py-6 text-[13px] text-text-muted">Nothing ordered or entered in these months yet.</p>
             )}
           </Card>
-          <Card title="By distributor" description="Done orders to each distributor (primary, as delivered: free units in the units, never in the rupees). A distributor's own secondary is on the Sales report.">
+          <Card title="By distributor" description="Done orders to each distributor, for information (free units in the units, never in the rupees). The primary and secondary above are the MRs' approved figures.">
             {data && data.distributors.length > 0 ? (
               <>
                 <DataTable columns={distributorColumns} rows={data.distributors} rowKey={(d) => d.distributor.id} bleed={false} />
@@ -218,31 +212,6 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
           </Card>
         </div>
       </DataState>
-
-      {me?.role === 'ACCOUNTANT' || me?.role === 'HR' || data?.team ? null : (
-      <div className="mt-6">
-        <Card
-          title="Enter the month's figures"
-          description={
-            me?.role === 'ADMIN'
-              ? 'The secondary entered here is a record; achievement counts what their distributors sold on. Admin can also change the primary (a reason is needed), and delete a whole month.'
-              : 'The secondary entered here is a record; achievement counts what their distributors sold on.'
-          }
-        >
-          <div className="p-5">
-            <EmployeeMonthGrid
-              userId={userId}
-              months={enterable.length > 0 ? enterable : [thisMonth]}
-              month={month}
-              onMonthChange={setMonth}
-              canAdjust={me?.role === 'ADMIN'}
-              isSelf={me?.id === userId}
-              canDelete={me?.role === 'ADMIN'}
-            />
-          </div>
-        </Card>
-      </div>
-      )}
 
       {adding ? (
         <AddTargetDialog userId={userId} name={name} from={range.from} to={range.to} onClose={() => setAdding(false)} />

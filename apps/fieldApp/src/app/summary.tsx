@@ -13,11 +13,13 @@ import { Accents, Spacing, type Accent } from '@/constants/theme';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
 import { formatRupees } from '@/lib/money';
 import { isFieldDay, needsDayNote, workingTypeLabel } from '@/lib/planning';
+import { useCallDoctors } from '@/hooks/use-call-doctors';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useReportSent } from '@/hooks/use-report-sent';
 import { DAY_KINDS, finalSubmit, prettyDay, useOnline, useRecords, type OutboxRecord, type SyncKind } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
-import type { FieldActivitySnapshot, FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
+import { addDays, monthOf } from '@/offline/day';
+import type { ConfigSnapshot, FieldActivitySnapshot, FieldMasterDataSnapshot, PlanningSnapshot } from '@/types/sync';
 
 const KIND_LABEL: Partial<Record<SyncKind, string>> = {
   DOCTOR_CALL: 'Dr call',
@@ -66,12 +68,18 @@ export default function SummaryScreen() {
   const [msg, setMsg] = useState<Msg | null>(null);
   const [note, setNote] = useState('');
 
+  // A manager's calls can be on doctors of anyone below them, which the snapshot doesn't hold.
+  const { doctors: callDoctors } = useCallDoctors();
   const names = useMemo(
-    () => new Map([...(master.data?.doctors ?? []), ...(master.data?.chemists ?? [])].map((o) => [o.id, o.name])),
-    [master.data],
+    () => new Map([...callDoctors, ...(master.data?.chemists ?? [])].map((o) => [o.id, o.name])),
+    [callDoctors, master.data],
   );
 
   const today = gate.today;
+  // docs/mobile/dcr.md rule 12: with the default cutoff day 1 (Admin's DCR_SUBMIT_CUTOFF_DAY), the month's last day must be sent that day.
+  const config = useCachedSource<ConfigSnapshot>('config');
+  const cutoffDay = Number(config.data?.settings.DCR_SUBMIT_CUTOFF_DAY ?? '1');
+  const lastDayDue = cutoffDay === 1 && monthOf(addDays(today, 1)) !== monthOf(today);
   const dayRecords = records.filter(
     (r) => !r.deleted && DAY_KINDS.includes(r.kind) && (r.payload as { reportDate?: string }).reportDate === today,
   );
@@ -143,6 +151,11 @@ export default function SummaryScreen() {
         )
       }>
       {blocked || gate.state === 'unknown' ? <Notice tone="warning">{gate.reason ?? ''}</Notice> : null}
+      {lastDayDue ? (
+        <Notice tone="warning" title="Last day of the month">
+          Submit today’s report today. After midnight the server refuses it unless Admin allows it late.
+        </Notice>
+      ) : null}
       {gate.state === 'closed' ? (
         <>
           <Notice tone="warning" title={gate.cause === 'MONTHLY_PLAN' ? 'Tour plan not approved' : 'Today’s plan isn’t approved'}>

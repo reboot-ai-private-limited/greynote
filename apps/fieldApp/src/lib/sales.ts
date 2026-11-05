@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, apiUpload, type UploadFile } from './api';
+import { apiDelete, apiGet, apiUpload, type UploadFile } from './api';
 
 /**
  * The employee's own sales figures (decision-log 2026-10-10): targets are set per product, the employee enters the
@@ -6,28 +6,6 @@ import { apiDelete, apiGet, apiPost, apiUpload, type UploadFile } from './api';
  * orders plus any Admin change) is shown beside it but is not the achievement. All of this is read or saved online.
  */
 
-/** One product of the employee's month (`GET /sales/employee-sales`). */
-export type EmployeeSalesLine = {
-  product: { id: string; name: string; sku: string };
-  orderPrimaryQty: number;
-  adjustmentQty: number;
-  adjustmentReason: string | null;
-  /** `orderPrimaryQty + adjustmentQty`. */
-  primaryQty: number;
-  /** What the employee entered; `null` = nothing entered yet. */
-  secondaryQty: number | null;
-  /** The same at PTS (units × the product's PTS); `null` = nothing entered, or the product has no PTS (units only). */
-  secondaryAmountPaise: number | null;
-  /** The product's PTS, which links units and amount since 2026-10-14; `null` = none set. */
-  ptsPaise: number | null;
-  /** The product's PTR, for reference only: sales are no longer valued at it. */
-  ptrPaise: number | null;
-  secondaryStatus: SecondaryStatus | null;
-  updatedBy: { id: string; name: string } | null;
-  updatedAt: string | null;
-};
-/** DRAFT (the employee's own, not sent) → PENDING (with the manager) → APPROVED, or REJECTED. Only APPROVED counts toward achievement. */
-export type SecondaryStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
 /** A photo or PDF attached to the month as proof of the figures (docs/mobile/secondary-and-targets.md section 1b). */
 export type SecondaryAttachment = {
   id: string;
@@ -38,42 +16,11 @@ export type SecondaryAttachment = {
   uploadedBy: unknown;
   uploadedAt: string;
 };
-export type EmployeeSales = {
-  userId: string;
-  month: string;
-  secondaryStatus: SecondaryStatus | null;
-  approvalRequestId: string | null;
-  lines: EmployeeSalesLine[];
-  /** The month's files, oldest first; absent from an older server. */
-  attachments?: SecondaryAttachment[];
-};
-
-export const getEmployeeSales = (userId: string, month: string) =>
-  apiGet<EmployeeSales>(`/sales/employee-sales?userId=${userId}&month=${month}`, { fy: true });
-
-/**
- * Saves the secondary for a month as a draft (the server refuses a closed or future month). Give units or an amount for each
- * line: the other follows from the product's PTS, and an amount is rounded to whole units.
- */
-export const saveEmployeeSecondary = (body: { userId: string; month: string; lines: { productId: string; qty?: number; amountPaise?: number }[] }) =>
-  apiPost<{ added: number; changed: number }>('/sales/employee-secondary', body, { auth: true });
-
-/** Sends the month to the manager for approval: every draft or rejected line becomes PENDING. */
-export const submitEmployeeSecondary = (month: string) => apiPost<unknown>('/sales/employee-secondary/submit', { month }, { auth: true });
-
 /** Attaches one file to the month (PDF, JPG or PNG, up to 5 MB; send several files as several calls). Online only. */
 export const addSecondaryFile = (month: string, file: UploadFile, userId?: string) =>
   apiUpload<SecondaryAttachment>('/sales/employee-secondary/attachments', file, 'POST', userId ? { month, userId } : { month });
 
 export const removeSecondaryFile = (id: string) => apiDelete<unknown>(`/sales/employee-secondary/attachments/${id}`);
-
-/** The phone's words for each state. */
-export const SECONDARY_STATUS_TEXT: Record<SecondaryStatus, string> = {
-  DRAFT: 'Draft',
-  PENDING: 'Waiting for approval',
-  APPROVED: 'Approved',
-  REJECTED: 'Sent back',
-};
 
 /** One product of the report (`GET /reports/employee-sales`). */
 export type EmployeeProductFigure = {

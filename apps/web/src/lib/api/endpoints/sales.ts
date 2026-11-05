@@ -1,4 +1,4 @@
-import type { SecondaryReportDto, SecondaryStockMonthDto, StockCountsImpactDto, StockCountsMonthDto, DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SecondaryAttachmentDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto, InvoiceDetailDto, InvoiceRowDto, InvoiceStatus, SetInvoiceNumberDto } from '@greynote/contracts';
+import type { SecondaryRollupDto, SecondaryReportDto, SecondaryStockMonthDto, StockCountsImpactDto, DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, SecondaryAttachmentDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto, InvoiceDetailDto, InvoiceRowDto, InvoiceStatus, SetInvoiceNumberDto } from '@greynote/contracts';
 import { request } from '../client';
 
 /** One order as `GET /sales/orders` returns it; the distributor's Orders tab shows only these fields. */
@@ -33,32 +33,22 @@ export const salesApi = {
   distributorStatement: (token: string, query: { distributorId: string; month: string }, signal?: AbortSignal) =>
     request<DistributorStatementDto>('/sales/distributor-statement', { token, query: { ...query }, signal }),
   saveStatement: (token: string, body: SaveDistributorStatementDto) => request<{ added: number; changed: number }>('/sales/distributor-statement', { method: 'POST', token, body }),
-  /** An employee's distributor counts for a month, by distributor, with what each works out to. Self, the manager above, or Admin. */
-  stockCounts: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<StockCountsMonthDto>('/sales/stock-counts', { token, query: { ...query }, signal }),
   /** An MR's month of secondary stock by distributor and product (2026-11-05): opening, primary, issued, closing and value at PTS. Self, the manager above, or Admin. */
   secondaryStock: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<SecondaryStockMonthDto>('/sales/secondary-stock', { token, query: { ...query }, signal }),
   /** The manager above an MR (or Admin) corrects the figures the MR sent, while the month waits for approval. A reason is required. */
   editSecondaryStock: (token: string, body: EditSecondaryStockBody) => request<{ changed: number }>('/sales/secondary-stock', { method: 'PATCH', token, body }),
+  /** A manager's month of team secondary sales (live before it is sent, the saved snapshot after) with the MR reports it rests on. The manager, the manager above, or Admin. */
+  secondaryRollup: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<SecondaryRollupDto>('/sales/secondary-rollup', { token, query: { ...query }, signal }),
   /** The approved secondary of the MRs below a manager (all MRs for Admin), summed by distributor and product. */
   secondaryReport: (token: string, query: { month: string; managerId?: string | undefined }, signal?: AbortSignal) => request<SecondaryReportDto>('/sales/secondary-report', { token, query: { ...query }, signal }),
+  /** Admin: deletes the employee's month of secondary sales, its files and the approval request, so they can enter and send it again. */
+  deleteSecondaryMonth: (token: string, query: { userId: string; month: string }) => request<{ distributors: number; lines: number; files: number; requestRemoved: boolean }>('/sales/stock-counts', { method: 'DELETE', token, query: { ...query } }),
   /** Admin: what deleting the month would remove, for the confirmation. */
   stockCountsImpact: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<StockCountsImpactDto>('/sales/stock-counts/impact', { token, query: { ...query }, signal }),
-  /** Admin: deletes the employee's distributor counts for a month and the approval request, so they can count and send it again. */
-  deleteStockCounts: (token: string, query: { userId: string; month: string }) => request<{ distributors: number; lines: number; requestRemoved: boolean }>('/sales/stock-counts', { method: 'DELETE', token, query: { ...query } }),
-  /** One employee's month by product: Done distributor orders (primary), Admin's change to it, and the secondary entered. Self, the manager above, or Admin. */
-  employeeSales: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) =>
-    request<EmployeeSalesDto>('/sales/employee-sales', { token, query: { ...query }, signal }),
-  saveEmployeeSecondary: (token: string, body: SaveEmployeeSecondaryDto) => request<{ added: number; changed: number }>('/sales/employee-secondary', { method: 'POST', token, body }),
-  /** Admin only. Deletes the employee's secondary for a month: every line's figures, the approval request and the files. Admin's change to the primary stays. */
-  deleteEmployeeSecondary: (token: string, query: { userId: string; month: string }) =>
-    request<{ lines: number; files: number; requestRemoved: boolean }>('/sales/employee-secondary', { method: 'DELETE', token, query: { ...query } }),
   /** Multipart: `file`, `month` and, for someone else's month, `userId`. Any number of files per month. */
   addSecondaryFile: (token: string, body: FormData) => request<SecondaryAttachmentDto>('/sales/employee-secondary/attachments', { method: 'POST', token, body }),
   removeSecondaryFile: (token: string, id: string) => request<null>(`/sales/employee-secondary/attachments/${id}`, { method: 'DELETE', token }),
 
-  /** The employee sends a month's secondary to their manager for approval. */
-  submitEmployeeSecondary: (token: string, body: { month: string }) => request<{ requestId: string; sent: number }>('/sales/employee-secondary/submit', { method: 'POST', token, body }),
-  saveEmployeePrimary: (token: string, body: SaveEmployeePrimaryDto) => request<{ added: number; changed: number }>('/sales/employee-primary', { method: 'POST', token, body }),
   recordPayment: (token: string, body: RecordDistributorPaymentDto) => request<DistributorPaymentDto>('/sales/distributor-payments', { method: 'POST', token, body }),
   cancelPayment: (token: string, id: string, reason: string) => request<DistributorPaymentDto>(`/sales/distributor-payments/${id}/cancel`, { method: 'POST', token, body: { reason } }),
   /** A distributor's orders in a range, newest first, whoever placed them (Admin). */

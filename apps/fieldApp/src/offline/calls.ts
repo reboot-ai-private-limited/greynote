@@ -54,6 +54,8 @@ export type NewChemistPayload = {
   routeId: string;
   name: string;
   address: string;
+  /** Optional: 10–15 digits with an optional leading `+`. */
+  phone?: string | null;
   /** The phone's GPS at the time — required. */
   location: GeoPoint;
 };

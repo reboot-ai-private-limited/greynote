@@ -1,4 +1,4 @@
-import type { DailyPlanDto, EmployeeSalesDto, ExpenseStatementDto } from '@greynote/contracts';
+import type { DailyPlanDto, ExpenseStatementDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
 import { dailyPlanCsv } from './dailyPlanCsv';
 import { dcrCsv } from './dcrCsv';
@@ -56,12 +56,11 @@ describe('expenseMonthCsv', () => {
 });
 
 describe('secondarySalesCsv', () => {
-  const line = (name: string, qty: number | null, pts: number | null) =>
-    ({ product: { id: name, name, sku: name.toUpperCase() }, secondaryQty: qty, ptsPaise: pts, secondaryAmountPaise: qty !== null && pts !== null ? qty * pts : null, secondaryStatus: qty === null ? null : 'PENDING' }) as unknown as EmployeeSalesDto['lines'][number];
-  it('lists only the products entered, with a total', () => {
-    const out = rows(secondarySalesCsv({ lines: [line('Cefix', 10, 5000), line('Zerodol', null, 100), line('Pan', 2, 1000)] }));
-    expect(out.map((r) => r[0])).toEqual(['Product', 'Cefix', 'Pan', 'Total']);
-    expect(out[1]).toEqual(['Cefix', 'CEFIX', '10', '50.00', '500.00', 'PENDING']);
-    expect(out[3]).toEqual(['Total', '', '12', '', '520.00', '']);
+  const line = (name: string, opening: number, primary: number, issued: number, pts: number | null, saved = true) => ({ product: { name, sku: name.toUpperCase() }, openingQty: opening, primaryQty: primary, issuedQty: issued, closingQty: opening + primary - issued, ptsPaise: pts, issuedAmountPaise: pts === null ? null : issued * pts, saved });
+  it('lists the figures per distributor and product, leaves unsent defaults out, and totals', () => {
+    const out = rows(secondarySalesCsv({ distributors: [{ name: 'Shree', lines: [line('Cefix', 10, 20, 5, 5000), line('Zerodol', 0, 0, 0, 100, false)] }, { name: 'Maa Tara', lines: [line('Pan', 1, 2, 2, 1000)] }] }));
+    expect(out.map((r) => r[0])).toEqual(['Distributor', 'Shree', 'Maa Tara', 'Total']);
+    expect(out[1]).toEqual(['Shree', 'Cefix', 'CEFIX', '10', '20', '5', '25', '50.00', '250.00']);
+    expect(out[3]).toEqual(['Total', '', '', '11', '22', '7', '26', '', '270.00']);
   });
 });

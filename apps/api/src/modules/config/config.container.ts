@@ -12,8 +12,8 @@ import type { ConfigPublicContract } from './config.public.js';
 
 export interface ConfigContainer {
   contract: ConfigPublicContract;
-  /** Idempotent — upserts default keys that don't already exist. Call once at boot. */
-  seed: () => Promise<void>;
+  /** Idempotent: adds the default row of every setting that has none, never overwriting a stored value; returns the keys added. Run at boot and by `pnpm seed`. */
+  seed: () => Promise<string[]>;
   buildRouter: () => Router;
 }
 

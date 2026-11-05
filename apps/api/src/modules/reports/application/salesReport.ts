@@ -1,8 +1,9 @@
 import type { SalesStatementDto, SalesYearReportDto } from '@greynote/contracts';
 import { readBusinessDay, readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
 import { businessDate, leaveYearRange, monthRange, parseMonthName } from '@/shared/time/businessTime.js';
-import { buildSalesMonths, buildStatement, previousMonth, yearMonths, type StatementCount, type StockCount } from '../domain/salesFigures.js';
-import type { MasterPort, SalesPort, StatementRow, StatementsPort, StockRow } from '../domain/ports.js';
+import { buildStatement, previousMonth, yearMonths, type StatementCount, type StockCount } from '../domain/salesFigures.js';
+import { buildMrMonths } from '../domain/mrFigures.js';
+import type { MasterPort, SalesPort, SecondaryLinesPort, StatementRow, StatementsPort, StockRow } from '../domain/ports.js';
 
 const UNKNOWN = '(removed)';
 
@@ -16,7 +17,7 @@ export const toCounts = (rows: readonly StockRow[]): StockCount[] => rows.map((r
  */
 export class SalesReport {
   constructor(
-    private readonly sales: SalesPort & StatementsPort,
+    private readonly sales: SalesPort & StatementsPort & SecondaryLinesPort,
     private readonly master: MasterPort,
     private readonly config: ConfigReader,
     private readonly now: () => Date = () => new Date(),
@@ -31,18 +32,17 @@ export class SalesReport {
     const startMonth = await readConfig(this.config, 'FY_START_MONTH', parseMonthName);
     const range = leaveYearRange(input.year, startMonth);
     const months = yearMonths(range.from);
-    const filter = { ...(input.distributorId && { distributorId: input.distributorId }), ...(input.productId && { productId: input.productId }) };
-    const [orderSums, stockRows, statementRows, outlets, currentMonth] = await Promise.all([
-      this.sales.sumDistributorOrders({ from: range.from, to: range.to, ...filter }),
-      this.sales.listStockRange({ fromMonth: months[0]!, toMonth: months[11]!, outletType: 'DISTRIBUTOR', ...(input.distributorId && { outletId: input.distributorId }), ...(input.productId && { productId: input.productId }) }),
-      this.sales.listStatements({ fromMonth: months[0]!, toMonth: months[11]!, ...(input.distributorId && { distributorId: input.distributorId }), ...(input.productId && { productId: input.productId }) }),
+    const [lines, orderSums, outlets, currentMonth] = await Promise.all([
+      // Primary and secondary are the approved figures the MRs entered (decision-log 2026-11-05); Done orders no longer feed them.
+      this.sales.listSecondaryLines({ fromMonth: months[0]!, toMonth: months[11]!, ...(input.distributorId && { distributorId: input.distributorId }), ...(input.productId && { productId: input.productId }) }),
+      this.sales.sumDistributorOrders({ from: range.from, to: range.to, ...(input.distributorId && { distributorId: input.distributorId }), ...(input.productId && { productId: input.productId }) }),
       this.master.listActiveOutlets(),
       this.currentMonth(),
     ]);
-    const names = await this.master.listNames({ productIds: [...new Set([...stockRows.map((r) => r.productId), ...orderSums.map((s) => s.productId), ...statementRows.map((r) => r.productId)])] });
+    const names = lines.length ? await this.master.listNames({ productIds: [...new Set(lines.map((l) => l.productId))] }) : { products: [] };
     const pts = new Map(names.products.map((p) => [p.id, p.ptsPaise ?? null]));
     const expected = outlets.distributors.map((d) => d.id).filter((id) => !input.distributorId || id === input.distributorId);
-    const built = buildSalesMonths({ months, currentMonth, orderSums, stock: toCounts(stockRows), statements: toStatements(statementRows), pts, expectedDistributorIds: expected });
+    const built = buildMrMonths({ months, currentMonth, lines, pts, expectedDistributorIds: expected, placed: orderSums.filter((s) => s.status !== 'DONE') });
     const totals = built.reduce((t, m) => ({ primaryQty: t.primaryQty + m.primaryQty, primaryPaise: t.primaryPaise + m.primaryPaise, secondaryQty: t.secondaryQty + (m.secondaryQty ?? 0), secondaryPaise: t.secondaryPaise + (m.secondaryPaise ?? 0) }), { primaryQty: 0, primaryPaise: 0, secondaryQty: 0, secondaryPaise: 0 });
     return { year: input.year, months: built, totals };
   }
@@ -88,43 +88,5 @@ export class SalesReport {
     );
     totals.placedPaise = monthSums.filter((s) => s.status === 'PLACED').reduce((n, s) => n + s.amountPaise, 0);
     return { month: input.month, rows, missingDistributors, totals };
-  }
-
-  /**
-   * The statement rows of every month in `months` (consecutive, one financial year), with the names to go with them — the raw material of the
-   * product and distributor roll-ups. Uses the same figures as `statement`, so a roll-up always agrees with it.
-   */
-  async windowRows(
-    months: readonly string[],
-    filter: { distributorId?: string | undefined; productId?: string | undefined },
-  ): Promise<{ rows: Array<ReturnType<typeof buildStatement>[number] & { month: string }>; products: Map<string, { name: string; sku: string }>; distributors: Map<string, string>; counted: Map<string, Set<string>> }> {
-    const first = months[0]!;
-    const last = months[months.length - 1]!;
-    const prev = previousMonth(first);
-    const f = { ...(filter.distributorId && { distributorId: filter.distributorId }), ...(filter.productId && { productId: filter.productId }) };
-    const [orderSums, stockRows, statementRows] = await Promise.all([
-      this.sales.sumDistributorOrders({ from: monthRange(prev).from, to: monthRange(last).to, ...f }),
-      this.sales.listStockRange({ fromMonth: prev, toMonth: last, outletType: 'DISTRIBUTOR', ...(filter.distributorId && { outletId: filter.distributorId }), ...(filter.productId && { productId: filter.productId }) }),
-      this.sales.listStatements({ fromMonth: prev, toMonth: last, ...f }),
-    ]);
-    const stock = toCounts(stockRows);
-    const statements = toStatements(statementRows);
-    const names = await this.master.listNames({
-      distributorIds: [...new Set([...orderSums.map((s) => s.distributorId), ...stock.map((c) => c.distributorId), ...statements.map((c) => c.distributorId)])],
-      productIds: [...new Set([...orderSums.map((s) => s.productId), ...stock.map((c) => c.productId), ...statements.map((c) => c.productId)])],
-    });
-    const pts = new Map(names.products.map((p) => [p.id, p.ptsPaise ?? null]));
-    const rows = months.flatMap((month) => buildStatement({ month, orderSums, stock, statements, pts }).map((r) => ({ ...r, month })));
-    // Per distributor, the months with a count or an Admin statement.
-    const counted = new Map<string, Set<string>>();
-    const mark = (id: string, month: string) => counted.set(id, (counted.get(id) ?? new Set<string>()).add(month));
-    for (const c of stock) if (months.includes(c.month)) mark(c.distributorId, c.month);
-    for (const c of statements) if (months.includes(c.month) && c.secondaryQty !== null) mark(c.distributorId, c.month);
-    return {
-      rows,
-      products: new Map(names.products.map((p) => [p.id, { name: p.name, sku: p.sku }])),
-      distributors: new Map(names.distributors.map((d) => [d.id, d.name])),
-      counted,
-    };
   }
 }

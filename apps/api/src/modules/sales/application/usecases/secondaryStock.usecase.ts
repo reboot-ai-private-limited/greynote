@@ -1,5 +1,5 @@
 import type { ApprovalStatus } from '@/modules/approval/approval.public.js';
-import type { SecondaryStockDistributorDto, SecondaryStockLineDto, SecondaryStockMonthDto, SecondaryStockTotalsDto, StockCountStatus } from '@greynote/contracts';
+import type { SecondaryStockDistributorDto, SecondaryStockLineDto, SecondaryStockMonthDto, StockCountStatus } from '@greynote/contracts';
 import { logger } from '@/shared/logging/logger.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
@@ -17,8 +17,9 @@ import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../outletAccess.js';
 import type { SalesClock } from '../salesClock.js';
-import { assertMayAct, assertMonthOpenForEntry } from './employeeSales.usecase.js';
-import { monthStatusOf, STOCK_COUNT_KIND, stockCountRecordId } from './stockCounts.usecase.js';
+import { assertMayAct, assertMonthOpenForEntry } from './employeeAccess.js';
+import { addTotals, emptyTotals, monthStatusOf } from './secondarySummary.js';
+import { mrReportRecordId, parseSecondaryRecord, SECONDARY_SALES_KIND } from './secondaryApproval.js';
 
 const MAX_QTY = 100_000_000;
 
@@ -91,7 +92,7 @@ export class SubmitSecondaryStockUseCase {
     return this.transactions.run(async (ctx) => {
       const sent = await this.lines.setStatus({ userId: actor.id, month }, ['DRAFT', 'REJECTED'], 'PENDING', ctx);
       if (sent === 0) throw new StockRefusal(STOCK_CODES.secondaryNothingToSend, 'There are no secondary figures to send for this month.');
-      const request = await this.approvals.submit({ kind: STOCK_COUNT_KIND, recordId: stockCountRecordId(actor.id, month), submitterId: actor.id }, ctx);
+      const request = await this.approvals.submit({ kind: SECONDARY_SALES_KIND, recordId: mrReportRecordId(actor.id, month), submitterId: actor.id }, ctx);
       return { requestId: request.id, sent };
     });
   }
@@ -145,20 +146,17 @@ export class EditSecondaryStockUseCase {
 /** The approval's effect on the month's secondary rows, inside the approval's own transaction. */
 export function makeSecondaryStockStatusHandler(lines: SecondaryStockLineRepositoryPort): (change: { recordId: string; status: ApprovalStatus }, ctx: TransactionContext) => Promise<void> {
   return async ({ recordId, status }, ctx) => {
-    const [userId, month] = recordId.split(':');
-    if (!userId || !month) return;
-    const who = { userId, month };
+    const record = parseSecondaryRecord(recordId);
+    // A manager's team report is the other record under the same kind.
+    if (!record || record.team) return;
+    const who = { userId: record.userId, month: record.month };
     if (status === 'APPROVED') await lines.setStatus(who, ['PENDING'], 'APPROVED', ctx);
     else if (status === 'REJECTED') await lines.setStatus(who, ['PENDING'], 'REJECTED', ctx);
     else if (status === 'WITHDRAWN' || status === 'REOPENED') await lines.setStatus(who, ['PENDING', 'APPROVED'], 'DRAFT', ctx);
   };
 }
 
-const EMPTY: SecondaryStockTotalsDto = { openingQty: 0, primaryQty: 0, issuedQty: 0, closingQty: 0, issuedAmountPaise: 0, closingAmountPaise: 0 };
-export function addTotals(a: SecondaryStockTotalsDto, l: Pick<SecondaryStockLineDto, 'openingQty' | 'primaryQty' | 'issuedQty' | 'closingQty' | 'issuedAmountPaise' | 'closingAmountPaise'>): SecondaryStockTotalsDto {
-  return { openingQty: a.openingQty + l.openingQty, primaryQty: a.primaryQty + l.primaryQty, issuedQty: a.issuedQty + l.issuedQty, closingQty: a.closingQty + l.closingQty, issuedAmountPaise: a.issuedAmountPaise + (l.issuedAmountPaise ?? 0), closingAmountPaise: a.closingAmountPaise + (l.closingAmountPaise ?? 0) };
-}
-export const emptyTotals = (): SecondaryStockTotalsDto => ({ ...EMPTY });
+export { addTotals, emptyTotals };
 
 /**
  * An MR's month, distributor by distributor, for every distributor assigned to them and every active product: a saved row shows what was saved, an

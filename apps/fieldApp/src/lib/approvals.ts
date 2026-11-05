@@ -57,11 +57,10 @@ export const KIND_LABEL: Record<string, string> = {
   DOCTOR_SERVICE: 'Doctor service',
   EXPENSE_MONTH: 'Monthly expenses',
   SECONDARY_SALES: 'Secondary sales',
-  STOCK_COUNT: 'Distributor stock counts',
 };
 
 /** The request types a manager can filter by, in the order the chips show them. */
-export const APPROVAL_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN', 'DCR', 'LEAVE', 'EXPENSE_MONTH', 'NEW_DOCTOR', 'NEW_CHEMIST', 'DOCTOR_SERVICE', 'STOCK_COUNT', 'SECONDARY_SALES'] as const;
+export const APPROVAL_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN', 'DCR', 'LEAVE', 'EXPENSE_MONTH', 'NEW_DOCTOR', 'NEW_CHEMIST', 'DOCTOR_SERVICE', 'SECONDARY_SALES'] as const;
 export const kindLabel = (kind: string) => KIND_LABEL[kind] ?? kind;
 
 export const STATUS_LABEL: Record<ApprovalStatus, string> = {

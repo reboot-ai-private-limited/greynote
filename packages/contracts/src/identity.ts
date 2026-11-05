@@ -336,6 +336,11 @@ export interface CtcLineDto {
   isOverridden: boolean;
 }
 
+/** The 400 body's `data` when a preview's earnings add up to more than the CTC: every earning, with the balancer negative by the overshoot. */
+export interface CtcOverAllocatedDto {
+  lines: CtcLineDto[];
+}
+
 /** `POST /identity/ctc/preview` — the breakdown worked out, nothing saved. */
 /**
  * How one employee's CTC breakdown differs from the org's pay components: their own Basic %, a changed rule for a line,

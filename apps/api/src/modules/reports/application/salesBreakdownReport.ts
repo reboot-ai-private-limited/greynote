@@ -1,12 +1,12 @@
 import type { SalesByDistributorDto, SalesByEmployeeDto, SalesByProductDto, SalesPeriodKind, SalesWindowDto } from '@greynote/contracts';
 import { readConfig, type ConfigReader } from '@/shared/config/readConfig.js';
-import { leaveYearRange, monthRange, parseMonthName } from '@/shared/time/businessTime.js';
-import { percentOf, primaryOf, secondaryOf, type PriceRow } from '../domain/employeeFigures.js';
-import type { DistributorAchievement } from './distributorAchievement.js';
-import type { EmployeeSalesPort, MarketingPort, MasterPort, FieldRosterPort, DesignationLevelsPort } from '../domain/ports.js';
+import { leaveYearRange, parseMonthName } from '@/shared/time/businessTime.js';
+import { percentOf, type PriceRow } from '../domain/employeeFigures.js';
+import { primaryOfLines, secondaryOfLines, toBreakdownRows } from '../domain/mrFigures.js';
+import type { MrStockFigures } from './mrStockFigures.js';
+import type { MarketingPort, MasterPort, FieldRosterPort, DesignationLevelsPort } from '../domain/ports.js';
 import { MrRollup } from './mrRollup.js';
 import type { SalesDashboardReport } from './salesDashboardReport.js';
-import type { SalesReport } from './salesReport.js';
 import { addRow, emptyFigures, groupRows } from '../domain/salesBreakdown.js';
 import { windowMonths } from '../domain/salesWindow.js';
 
@@ -28,12 +28,10 @@ export class SalesBreakdownReport {
   private readonly rollup: MrRollup;
 
   constructor(
-    private readonly sales: SalesReport,
     private readonly dashboard: SalesDashboardReport,
     private readonly marketing: MarketingPort,
-    private readonly employeeSales: EmployeeSalesPort,
     private readonly master: MasterPort,
-    private readonly achievement: DistributorAchievement,
+    private readonly achievement: MrStockFigures,
     roster: Pick<FieldRosterPort, 'getDownline'> & DesignationLevelsPort,
     private readonly config: ConfigReader,
   ) {
@@ -48,16 +46,16 @@ export class SalesBreakdownReport {
 
   async byProduct(input: SalesWindowInput & { distributorId?: string | undefined }): Promise<SalesByProductDto> {
     const { months, dto } = await this.window(input);
-    const { rows, products } = await this.sales.windowRows(months, { distributorId: input.distributorId });
-    const figures = groupRows(rows, (r) => r.productId);
+    // Every approved MR row of the window, each MR once: a manager adds nothing on top of the MRs below them.
+    const lines = (await this.achievement.lines(undefined, dto.fromMonth, dto.toMonth)).filter((l) => !input.distributorId || l.distributorId === input.distributorId);
     const everyone = await this.dashboard.audience({ id: '', role: 'ADMIN' }, 'all');
     const shares = await this.marketing.listTargetShares(everyone.map((p) => p.id), dto.fromMonth, dto.toMonth);
     const targetOf = new Map<string, number>();
     for (const t of shares) if (t.productId) targetOf.set(t.productId, (targetOf.get(t.productId) ?? 0) + t.sharePaise);
-    const ids = new Set([...figures.keys(), ...targetOf.keys()]);
-    const missing = [...ids].filter((id) => !products.has(id));
-    const extra = missing.length ? await this.master.listNames({ productIds: missing }) : { products: [] };
-    for (const p of extra.products) products.set(p.id, { name: p.name, sku: p.sku });
+    const ids = new Set([...lines.map((l) => l.productId), ...targetOf.keys()]);
+    const names = ids.size ? await this.master.listNames({ productIds: [...ids] }) : { products: [] };
+    const products = new Map(names.products.map((p) => [p.id, { name: p.name, sku: p.sku, pts: p.ptsPaise ?? null }]));
+    const figures = groupRows(toBreakdownRows(lines, new Map([...products].map(([id, p]) => [id, p.pts]))).filter((r) => months.includes(r.month)), (r) => r.productId);
 
     const out = [...ids].map((id) => {
       const f = figures.get(id) ?? emptyFigures();
@@ -78,15 +76,26 @@ export class SalesBreakdownReport {
 
   async byDistributor(input: SalesWindowInput & { productId?: string | undefined }): Promise<SalesByDistributorDto> {
     const { months, dto } = await this.window(input);
-    const { rows, distributors, counted } = await this.sales.windowRows(months, { productId: input.productId });
+    const lines = (await this.achievement.lines(undefined, dto.fromMonth, dto.toMonth)).filter((l) => months.includes(l.month) && (!input.productId || l.productId === input.productId));
+    const [productNames, outlets] = await Promise.all([
+      lines.length ? this.master.listNames({ productIds: [...new Set(lines.map((l) => l.productId))] }) : Promise.resolve({ products: [], distributors: [] }),
+      this.master.listActiveOutlets(),
+    ]);
+    const distributorIds = [...new Set(lines.map((l) => l.distributorId))];
+    const named = distributorIds.length ? await this.master.listNames({ distributorIds }) : { distributors: [] };
+    const distributors = new Map<string, string>([...outlets.distributors.map((d): [string, string] => [d.id, d.name]), ...named.distributors.map((d): [string, string] => [d.id, d.name])]);
+    const rows = toBreakdownRows(lines, new Map(productNames.products.map((p) => [p.id, p.ptsPaise ?? null])));
     const figures = groupRows(rows, (r) => r.distributorId);
     const productsOf = new Map<string, Set<string>>();
-    for (const r of rows) productsOf.set(r.distributorId, (productsOf.get(r.distributorId) ?? new Set<string>()).add(r.productId));
+    const counted = new Map<string, Set<string>>();
+    for (const r of rows) {
+      productsOf.set(r.distributorId, (productsOf.get(r.distributorId) ?? new Set<string>()).add(r.productId));
+      counted.set(r.distributorId, (counted.get(r.distributorId) ?? new Set<string>()).add(r.month));
+    }
     const out = [...figures].map(([id, f]) => ({ distributor: { id, name: distributors.get(id) ?? UNKNOWN }, ...f, products: productsOf.get(id)?.size ?? 0, countedMonths: counted.get(id)?.size ?? 0 })).sort((a, b) => a.distributor.name.localeCompare(b.distributor.name));
     const totals = emptyFigures();
     for (const r of rows) addRow(totals, r);
-    const active = (await this.master.listActiveOutlets()).distributors;
-    const missingDistributors = active.filter((d) => !counted.has(d.id));
+    const missingDistributors = outlets.distributors.filter((d) => !counted.has(d.id));
     return { window: dto, rows: out, missingDistributors, totals };
   }
 
@@ -98,26 +107,25 @@ export class SalesBreakdownReport {
     const listed = needle ? people.filter((p) => p.name.toLowerCase().includes(needle) || p.employeeCode.toLowerCase().includes(needle)) : people;
     const scopes = await this.rollup.scopes(listed.map((p) => p.id));
     const figureIds = [...new Set([...scopes.values()].flat())];
-    const months = { from: monthRange(fromMonth).from, to: monthRange(toMonth).to };
-    const [shares, orders, entries, sold] = await Promise.all([
+    // A manager is judged by their own approved team report (decision-log 2026-11-05), an MR by their own approved rows; targets add up the MRs'.
+    const managerIds = listed.map((p) => p.id).filter((id) => scopes.get(id)?.[0] !== id);
+    const [shares, sold, rollupOf] = await Promise.all([
       this.marketing.listTargetShares(figureIds, fromMonth, toMonth),
-      this.employeeSales.sumUserOrders({ ...months, userIds: figureIds }),
-      this.employeeSales.listEmployeeSales({ fromMonth, toMonth, userIds: figureIds }),
-      this.achievement.entries(figureIds, fromMonth, toMonth),
+      this.achievement.forFigures(figureIds, managerIds, fromMonth, toMonth),
+      fromMonth === toMonth ? this.achievement.rollupStatuses(managerIds, toMonth) : Promise.resolve(new Map<string, never>()),
     ]);
-    const productIds = [...new Set([...orders.map((o) => o.productId), ...entries.map((e) => e.productId), ...sold.map((e) => e.productId)])];
+    const productIds = [...new Set(sold.map((e) => e.productId))];
     const names = productIds.length ? await this.master.listNames({ productIds }) : { products: [] };
     const prices = new Map<string, PriceRow>(names.products.map((p) => [p.id, { id: p.id, name: p.name, sku: p.sku, ptrPaise: p.ptrPaise, ptsPaise: p.ptsPaise ?? null }]));
-    const figuresOf = (members: ReadonlySet<string>) => {
-      const sel = { userIds: members, fromMonth, toMonth };
+    const figuresOf = (members: ReadonlySet<string>, owners: ReadonlySet<string> = members) => {
+      const sel = { userIds: owners, fromMonth, toMonth };
       const targetPaise = shares.filter((t) => members.has(t.userId)).reduce((n, t) => n + t.sharePaise, 0);
-      const achievedPaise = secondaryOf(sold, prices, sel).paise;
-      return { targetPaise, achievedPaise, primaryPaise: primaryOf(orders, entries, prices, sel).paise };
+      return { targetPaise, achievedPaise: secondaryOfLines(sold, prices, sel).paise, primaryPaise: primaryOfLines(sold, prices, sel).paise };
     };
     const rows = listed.map((p) => {
       const members = scopes.get(p.id) ?? [];
-      const f = figuresOf(new Set(members));
-      return { employee: { id: p.id, name: p.name, employeeCode: p.employeeCode }, designation: p.designation ?? null, ...f, achievementPercent: percentOf(f.achievedPaise, f.targetPaise), mrCount: members[0] === p.id ? null : members.length };
+      const f = figuresOf(new Set(members), managerIds.includes(p.id) ? new Set([p.id]) : new Set(members));
+      return { employee: { id: p.id, name: p.name, employeeCode: p.employeeCode }, designation: p.designation ?? null, ...f, achievementPercent: percentOf(f.achievedPaise, f.targetPaise), mrCount: members[0] === p.id ? null : members.length, rollupStatus: managerIds.includes(p.id) && fromMonth === toMonth ? (rollupOf.get(p.id) ?? 'NOT_SUBMITTED') : null };
     }).sort((a, b) => a.employee.name.localeCompare(b.employee.name));
     const all = figuresOf(new Set(figureIds));
     return { window: dto, rows, totals: { ...all, achievementPercent: percentOf(all.achievedPaise, all.targetPaise) } };

@@ -97,7 +97,7 @@ export function PlanDayCard({ date, entry, off, offLabel, editable, names, onPre
       </View>
       {tappable ? (
         <View style={[styles.edit, { borderColor: theme.border }]}>
-          <SymbolView name={PENCIL} size={16} tintColor={theme.textSecondary} />
+          <SymbolView name={PENCIL} size={14} tintColor={theme.textSecondary} />
         </View>
       ) : null}
     </Pressable>
@@ -108,20 +108,21 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    borderRadius: Spacing.three,
+    gap: Spacing.two,
+    borderRadius: 10,
     borderWidth: 1,
-    padding: Spacing.two + 2,
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.two,
   },
   off: { opacity: 0.6 },
   pressed: { opacity: 0.75 },
-  date: { width: 52, height: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  dayNum: { fontSize: 18, lineHeight: 22 },
-  dayName: { fontSize: 10, lineHeight: 12, fontWeight: 600 },
-  text: { flex: 1, gap: 2 },
-  badge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5, borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 },
-  badgeDot: { width: 6, height: 6, borderRadius: 3 },
-  badgeText: { fontSize: 11, lineHeight: 16, fontWeight: 600 },
-  subtitle: { fontSize: 12, lineHeight: 16 },
-  edit: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  date: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  dayNum: { fontSize: 15, lineHeight: 18 },
+  dayName: { fontSize: 9, lineHeight: 11, fontWeight: 600 },
+  text: { flex: 1, gap: 1 },
+  badge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, borderRadius: 999, paddingVertical: 1, paddingHorizontal: 6 },
+  badgeDot: { width: 5, height: 5, borderRadius: 3 },
+  badgeText: { fontSize: 10, lineHeight: 14, fontWeight: 600 },
+  subtitle: { fontSize: 12, lineHeight: 15 },
+  edit: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 });

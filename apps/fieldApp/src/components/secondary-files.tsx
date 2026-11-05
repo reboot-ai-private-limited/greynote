@@ -100,11 +100,9 @@ export function SecondaryFiles({
 
   return (
     <InfoCard>
-      <ThemedText type="smallBold">Files for this month (optional)</ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        {`Photos or PDFs that back up ${forUserId ? 'the' : 'your'} figures, such as the distributor’s statement. Any number, up to 5 MB each.`}
-      </ThemedText>
-      {files.length === 0 ? <ThemedText type="small" themeColor="textSecondary">No files yet.</ThemedText> : null}
+      <ThemedText type="smallBold">Proof files for this month</ThemedText>
+      {files.length === 0 && canEdit ? <Notice tone="warning">Required before submitting: attach at least one file.</Notice> : null}
+      {files.length === 0 && !canEdit ? <ThemedText type="small" themeColor="textSecondary">No files.</ThemedText> : null}
       {files.map((f) => (
         <View key={f.id} style={styles.row}>
           <Thumb file={f} />
@@ -120,7 +118,7 @@ export function SecondaryFiles({
         <Notice key={p} tone="danger">{p}</Notice>
       ))}
       {canEdit ? (
-        <PrimaryButton label={files.length === 0 ? 'Add files' : 'Add more files'} variant="text" loading={busy} disabled={!online} onPress={add} />
+        <PrimaryButton label="Attachment File" loading={busy} disabled={!online} onPress={add} />
       ) : (
         <ThemedText type="small" themeColor="textSecondary">Files can’t be changed while the month is waiting, approved or closed.</ThemedText>
       )}

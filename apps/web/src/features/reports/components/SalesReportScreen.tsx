@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
+import { RollupBadge } from './RollupBadge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
@@ -106,7 +107,7 @@ export function SalesReportScreen() {
     { key: 'designation', header: 'Designation', render: (r) => r.designation ?? '—' },
     { key: 'target', header: 'Target', numeric: true, sortable: true, render: (r) => (r.targetPaise > 0 ? formatMoney(r.targetPaise) : '—') },
     { key: 'primary', header: 'Primary', numeric: true, sortable: true, render: (r) => formatMoney(r.primaryPaise) },
-    { key: 'achieved', header: 'Achieved', numeric: true, sortable: true, render: (r) => formatMoney(r.achievedPaise) },
+    { key: 'achieved', header: 'Achieved', numeric: true, sortable: true, render: (r) => <>{formatMoney(r.achievedPaise)}{r.rollupStatus ? <span className="ml-2 align-middle"><RollupBadge status={r.rollupStatus} /></span> : null}</> },
     { key: 'ach', header: '%', numeric: true, sortable: true, render: (r) => <Badge tone={achievementTone(r.achievementPercent)}>{percent(r.achievementPercent)}</Badge> },
   ];
 
@@ -153,7 +154,7 @@ export function SalesReportScreen() {
     <>
       <PageHeader
         title="Sales"
-        description="Primary is what went to the distributors (Done orders); secondary is what they sold on, valued at PTS. Targets are set per employee; a product's target is the sum of its employees'."
+        description="Primary (received) and secondary (issued) are the figures the MRs entered and a manager approved, valued at PTS, so a month with nothing approved shows 0. A manager is the sum of their MRs, never counted twice. Targets are set per employee; a product's target is the sum of its employees'."
       />
       <Tabs value={tab} onValueChange={(v) => update({ tab: v })}>
         <TabsList>
@@ -211,7 +212,7 @@ export function SalesReportScreen() {
             <StatTile label="Achieved" value={formatMoney(employee.data?.totals.achievedPaise ?? 0)} note={`${percent(employee.data?.totals.achievementPercent ?? null)} of target`} />
             <StatTile label="Primary" value={formatMoney(employee.data?.totals.primaryPaise ?? 0)} note="each MR counted once" />
           </div>
-          <Card title={`Sales by employee, ${label}`} description="A distributor shared by two employees counts in full for each, so rows can add up to more than the total." actions={<div className="flex gap-2"><Button variant="secondary" size="sm" disabled={!employee.data} onClick={() => employee.data && void downloadXlsx(salesBreakdownFilename('employee', label), 'Sales by employee', ...employeeSheet(employee.data))}>Download Excel</Button><Button variant="secondary" size="sm" disabled={!employee.data} onClick={() => employee.data && downloadCsv(salesBreakdownFilename('employee', label), employeeCsv(employee.data))}>Download CSV</Button></div>}>
+          <Card title={`Sales by employee, ${label}`} description="Each MR's approved figures; a manager's row is the sum of the MRs below them, and the total counts each MR once." actions={<div className="flex gap-2"><Button variant="secondary" size="sm" disabled={!employee.data} onClick={() => employee.data && void downloadXlsx(salesBreakdownFilename('employee', label), 'Sales by employee', ...employeeSheet(employee.data))}>Download Excel</Button><Button variant="secondary" size="sm" disabled={!employee.data} onClick={() => employee.data && downloadCsv(salesBreakdownFilename('employee', label), employeeCsv(employee.data))}>Download CSV</Button></div>}>
             <DataState isLoading={employee.isLoading} isFetching={employee.isFetching} error={employee.error ? toErrorState(employee.error, () => void employee.refetch()) : null} isEmpty={employeeRows.length === 0} empty={{ title: values.search ? 'No employee matches your search' : 'No employees to show' }}>
               <DataTable columns={employeeColumns} rows={employeeRows} rowKey={(r) => r.employee.id} sort={employeeSort} onSortChange={setEmployeeSort} bleed={false} />
             </DataState>

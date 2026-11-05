@@ -12,13 +12,13 @@ import type { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersU
 import type { GetInvoiceUseCase, ListInvoicesUseCase } from '../application/usecases/invoices.usecase.js';
 import type { CancelPaymentUseCase, DistributorBalancesUseCase, ListPaymentsUseCase, OutstandingDuesUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from '../application/usecases/payments.usecase.js';
 import type { ReadSecondaryReportUseCase } from '../application/usecases/secondaryReport.usecase.js';
+import type { ReadSecondaryRollupUseCase, SubmitSecondaryRollupUseCase } from '../application/usecases/secondaryRollup.usecase.js';
 import type { EditSecondaryStockUseCase, ReadSecondaryStockUseCase, SaveSecondaryStockUseCase, SubmitSecondaryStockUseCase } from '../application/usecases/secondaryStock.usecase.js';
-import type { DeleteStockCountsUseCase, ReadStockCountsUseCase, SubmitStockCountsUseCase } from '../application/usecases/stockCounts.usecase.js';
-import type { DeleteEmployeeSecondaryUseCase, ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SubmitEmployeeSecondaryUseCase } from '../application/usecases/employeeSales.usecase.js';
+import type { DeleteSecondaryMonthUseCase } from '../application/usecases/deleteSecondaryMonth.usecase.js';
 import type { AddSecondaryAttachmentUseCase, RemoveSecondaryAttachmentUseCase } from '../application/usecases/secondaryAttachments.usecase.js';
 import type { ReadStatementUseCase, SaveStatementUseCase } from '../application/usecases/stockStatement.usecase.js';
 import type { UnlockMonthUseCase } from '../application/usecases/unlockMonth.usecase.js';
-import type { secondaryReportQuerySchema, editSecondaryStockBodySchema, saveSecondaryStockBodySchema, submitStockCountsBodySchema, stockCountsQuerySchema, secondaryAttachmentBodySchema, submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
+import type { secondaryReportQuerySchema, editSecondaryStockBodySchema, saveSecondaryStockBodySchema, submitStockCountsBodySchema, stockCountsQuerySchema, secondaryAttachmentBodySchema, cancelPaymentBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -39,7 +39,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'deleteEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary' | 'addSecondaryAttachment' | 'removeSecondaryAttachment' | 'secondaryReport' | 'saveSecondaryStock' | 'editSecondaryStock' | 'submitSecondaryStock' | 'readSecondaryStock' | 'submitStockCounts' | 'readStockCounts' | 'stockCountsImpact' | 'deleteStockCounts', RequestHandler>;
+export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'addSecondaryAttachment' | 'removeSecondaryAttachment' | 'secondaryReport' | 'saveSecondaryStock' | 'editSecondaryStock' | 'submitSecondaryRollup' | 'readSecondaryRollup' | 'submitSecondaryStock' | 'readSecondaryStock' | 'stockCountsImpact' | 'deleteStockCounts', RequestHandler>;
 
 export function makeSalesControllers(u: {
   record: RecordMonthlyStockUseCase;
@@ -62,21 +62,16 @@ export function makeSalesControllers(u: {
   outstanding: OutstandingDuesUseCase;
   readStatement: ReadStatementUseCase;
   saveStatement: SaveStatementUseCase;
-  readEmployeeSales: ReadEmployeeSalesUseCase;
-  saveEmployeeSecondary: SaveEmployeeSecondaryUseCase;
-  deleteEmployeeSecondary: DeleteEmployeeSecondaryUseCase;
-  submitEmployeeSecondary: SubmitEmployeeSecondaryUseCase;
-  saveEmployeePrimary: SaveEmployeePrimaryUseCase;
   addSecondaryAttachment: AddSecondaryAttachmentUseCase;
   removeSecondaryAttachment: RemoveSecondaryAttachmentUseCase;
   secondaryReport: ReadSecondaryReportUseCase;
   saveSecondaryStock: SaveSecondaryStockUseCase;
   editSecondaryStock: EditSecondaryStockUseCase;
+  submitSecondaryRollup: SubmitSecondaryRollupUseCase;
+  readSecondaryRollup: ReadSecondaryRollupUseCase;
   submitSecondaryStock: SubmitSecondaryStockUseCase;
   readSecondaryStock: ReadSecondaryStockUseCase;
-  submitStockCounts: SubmitStockCountsUseCase;
-  readStockCounts: ReadStockCountsUseCase;
-  deleteStockCounts: DeleteStockCountsUseCase;
+  deleteStockCounts: DeleteSecondaryMonthUseCase;
 }): SalesHandlers {
   return {
     recordStock: asyncHandler(async (req, res) => {
@@ -129,18 +124,6 @@ export function makeSalesControllers(u: {
     readStatement: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.readStatement.execute(req.query as unknown as z.output<typeof statementQuerySchema>)), 'The distributor\'s monthly statement.', 200),
     ),
-    readEmployeeSales: asyncHandler(async (req, res) =>
-      sendSuccess(req, res, await refusing(() => u.readEmployeeSales.execute(actorOf(req), req.query as unknown as z.output<typeof employeeSalesQuerySchema>)), 'The employee\'s month by product.', 200),
-    ),
-    saveEmployeeSecondary: asyncHandler(async (req, res) =>
-      sendSuccess(req, res, await refusing(() => u.saveEmployeeSecondary.execute(actorOf(req), req.body as z.output<typeof saveEmployeeSecondaryBodySchema>)), 'The secondary was saved.', 200),
-    ),
-    deleteEmployeeSecondary: asyncHandler(async (req, res) =>
-      sendSuccess(req, res, await refusing(() => u.deleteEmployeeSecondary.execute(actorOf(req), req.query as unknown as z.output<typeof employeeSalesQuerySchema>)), 'The month\'s secondary was deleted.', 200),
-    ),
-    submitEmployeeSecondary: asyncHandler(async (req, res) =>
-      sendSuccess(req, res, await refusing(() => u.submitEmployeeSecondary.execute(actorOf(req), (req.body as z.output<typeof submitEmployeeSecondaryBodySchema>).month)), 'The month was sent for approval.', 200),
-    ),
     secondaryReport: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.secondaryReport.execute(actorOf(req), req.query as unknown as z.output<typeof secondaryReportQuerySchema>)), 'The approved secondary sales of the MRs below, by distributor and product.', 200),
     ),
@@ -150,17 +133,17 @@ export function makeSalesControllers(u: {
     editSecondaryStock: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.editSecondaryStock.execute(actorOf(req), req.body as z.output<typeof editSecondaryStockBodySchema>)), 'The figures were corrected.', 200),
     ),
+    submitSecondaryRollup: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.submitSecondaryRollup.execute(actorOf(req), (req.body as z.output<typeof submitStockCountsBodySchema>).month)), 'The team report was sent for approval.', 200),
+    ),
+    readSecondaryRollup: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.readSecondaryRollup.execute(actorOf(req), req.query as unknown as z.output<typeof stockCountsQuerySchema>)), 'The manager\'s team report for the month.', 200),
+    ),
     submitSecondaryStock: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.submitSecondaryStock.execute(actorOf(req), (req.body as z.output<typeof submitStockCountsBodySchema>).month)), 'The month was sent for approval.', 200),
     ),
     readSecondaryStock: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.readSecondaryStock.execute(actorOf(req), req.query as unknown as z.output<typeof stockCountsQuerySchema>)), 'The MR\'s secondary stock for the month, by distributor and product.', 200),
-    ),
-    submitStockCounts: asyncHandler(async (req, res) =>
-      sendSuccess(req, res, await refusing(() => u.submitStockCounts.execute(actorOf(req), (req.body as z.output<typeof submitStockCountsBodySchema>).month)), 'The month was sent for approval.', 200),
-    ),
-    readStockCounts: asyncHandler(async (req, res) =>
-      sendSuccess(req, res, await refusing(() => u.readStockCounts.execute(actorOf(req), req.query as unknown as z.output<typeof stockCountsQuerySchema>)), 'The employee\'s distributor counts for the month.', 200),
     ),
     stockCountsImpact: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.deleteStockCounts.preview(actorOf(req), req.query as unknown as z.output<typeof stockCountsQuerySchema>)), 'What deleting the month would remove.', 200),
@@ -179,9 +162,6 @@ export function makeSalesControllers(u: {
       await refusing(() => u.removeSecondaryAttachment.execute(actorOf(req), requiredParam(req.params, 'id')));
       return sendSuccess(req, res, null, 'The file was removed.', 200);
     }),
-    saveEmployeePrimary: asyncHandler(async (req, res) =>
-      sendSuccess(req, res, await refusing(() => u.saveEmployeePrimary.execute(actorOf(req), req.body as z.output<typeof saveEmployeePrimaryBodySchema>)), 'The primary was saved.', 200),
-    ),
     saveStatement: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.saveStatement.execute(actorOf(req), req.body as z.output<typeof saveStatementBodySchema>)), 'The statement was saved.', 200),
     ),

@@ -11,8 +11,8 @@ import { SalesReport } from './application/salesReport.js';
 import { StockReport } from './application/stockReport.js';
 import { TeamOverviewReport } from './application/teamOverviewReport.js';
 import { TaDaReport } from './application/taDaReport.js';
-import { DistributorAchievement } from './application/distributorAchievement.js';
-import type { SecondaryLinesPort, AttendancePort, DesignationLevelsPort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
+import { MrStockFigures } from './application/mrStockFigures.js';
+import type { SecondaryLinesPort, SecondaryRollupsPort, AttendancePort, DesignationLevelsPort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
 import type { ReportsPublicContract } from './reports.public.js';
 import { makeReportsControllers } from './interface/reports.controller.js';
 import { buildReportsRouter } from './interface/reports.route.js';
@@ -30,7 +30,7 @@ export interface ReportsContainer {
 export function buildReportsContainer(
   identity: IdentityPort & FieldRosterPort & DesignationLevelsPort,
   master: MasterPort,
-  sales: SalesPort & StatementsPort & EmployeeSalesPort & SecondaryLinesPort,
+  sales: SalesPort & StatementsPort & EmployeeSalesPort & SecondaryLinesPort & SecondaryRollupsPort,
   fieldActivity: FieldActivityPort & FieldDaysPort & DoctorCallsPort,
   territory: TerritoryPort & ZoneNamePort,
   payroll: PayrollPort,
@@ -39,16 +39,16 @@ export function buildReportsContainer(
   marketing: MarketingPort,
   config: ConfigReader,
 ): ReportsContainer {
-  const achievement = new DistributorAchievement(sales, master);
+  const achievement = new MrStockFigures(sales);
   const orders = new OrdersReport(sales, master, identity);
   const salesReport = new SalesReport(sales, master, config);
   const stockReport = new StockReport(sales, master);
   const taDaReport = new TaDaReport(fieldActivity, territory, identity, config);
   const dcrReport = new DcrReport(fieldActivity, master, identity, config);
   const salaryReport = new SalaryReport(payroll, fieldActivity, identity, config);
-  const salesDashboard = new SalesDashboardReport(identity, planning, attendance, fieldActivity, marketing, sales, master, territory, config, achievement);
+  const salesDashboard = new SalesDashboardReport(identity, planning, attendance, fieldActivity, marketing, master, territory, config, achievement);
   const employeeSales = new EmployeeSalesReport(sales, marketing, master, identity, identity, achievement);
-  const salesBreakdown = new SalesBreakdownReport(salesReport, salesDashboard, marketing, sales, master, achievement, identity, config);
+  const salesBreakdown = new SalesBreakdownReport(salesDashboard, marketing, master, achievement, identity, config);
   const doctorVisits = new DoctorVisitsReport(identity, master, fieldActivity, planning);
   const teamOverview = new TeamOverviewReport(salesDashboard, fieldActivity, attendance);
   return {

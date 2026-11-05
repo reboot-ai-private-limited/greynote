@@ -13,7 +13,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Avatar, InfoCard, Pill, SummaryStrip } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useFinancialYear } from '@/lib/financial-year';
-import { usePublicFlags } from '@/lib/public-config';
 import { SECONDARY_STATE_TEXT, getTeamStock, type SecondaryState, type TeamScopeFilter, type TeamStock } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
@@ -35,7 +34,6 @@ type Focus = 'ALL' | 'MISSING' | 'WAITING';
  * decided in the Team tab's Inbox (kind Secondary Sales).
  */
 export default function TeamStockScreen() {
-  const { stockCountApproval } = usePublicFlags();
   const online = useOnline();
   const fy = useFinancialYear();
   const lastMonth = fy.isPast ? fy.lastMonth : monthOf(fy.today);
@@ -95,7 +93,7 @@ export default function TeamStockScreen() {
               View person →
             </ThemedText>
             <ThemedText type="small" themeColor="primary" onPress={() => router.push({ pathname: '/team-secondary', params: { userId: r.user.id, who: r.user.name, month } })}>
-              {stockCountApproval ? 'Stock counts →' : 'Edit secondary →'}
+              Secondary stock →
             </ThemedText>
             {r.waitingOnYou ? (
               <ThemedText type="small" themeColor="primary" onPress={() => router.push('/(tabs)/team')}>

@@ -9,6 +9,13 @@ describe('approvalTabsFor', () => {
     expect(tabs.map((t) => t.value)).toEqual(expect.arrayContaining(['LEAVE', 'DCR', 'DAILY_PLAN', 'MONTHLY_PLAN', 'NEW_DOCTOR', 'DOCTOR_SERVICE']));
     expect(new Set(tabs.map((t) => t.value)).size).toBe(tabs.length);
   });
+  it('has one Secondary sales tab, not one per report kind', () => {
+    const values = approvalTabsFor('ADMIN').map((t) => t.value);
+    expect(values).toContain('SECONDARY_SALES');
+    expect(values).not.toContain('STOCK_COUNT');
+    expect(values).not.toContain('SECONDARY_ROLLUP');
+    expect(approvalTabsFor('ADMIN').find((t) => t.value === 'SECONDARY_SALES')?.label).toBe('Secondary sales');
+  });
   it('gives HR the plan and leave tabs only', () => {
     expect(approvalTabsFor('HR').map((t) => t.value)).toEqual(['DAILY_PLAN', 'MONTHLY_PLAN', 'LEAVE']);
   });

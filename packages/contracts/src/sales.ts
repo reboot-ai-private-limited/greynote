@@ -175,30 +175,6 @@ export interface SaveDistributorStatementDto {
   lines: SaveStatementLineDto[];
 }
 
-/** One product of an employee's month: their Done distributor orders (primary), Admin's change to it, and the secondary they entered. */
-export interface EmployeeSalesLineDto {
-  product: { id: string; name: string; sku: string };
-  /** Units in the employee's Done orders to distributors, in the month the orders were marked Done. */
-  orderPrimaryQty: number;
-  /** Admin's change to the primary, whole units (minus = taken off). `0` = none. */
-  adjustmentQty: number;
-  adjustmentReason: string | null;
-  /** `orderPrimaryQty + adjustmentQty`. */
-  primaryQty: number;
-  /** What the employee entered as sold; `null` = nothing entered. */
-  secondaryQty: number | null;
-  /** The same at PTS (units × the product's PTS); `null` = nothing entered or no PTS on the product. */
-  secondaryAmountPaise: number | null;
-  /** The product's PTS, which links units and amount; `null` = none set (units only). */
-  ptsPaise: number | null;
-  /** The product's PTR, for reference only; sales are no longer valued at it. */
-  ptrPaise: number | null;
-  /** `null` = nothing entered. Only `APPROVED` counts toward achievement. */
-  secondaryStatus: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | null;
-  updatedBy: { id: string; name: string } | null;
-  updatedAt: string | null;
-}
-
 /** A file attached to an employee's secondary for a month, as proof of the figures. Any number. */
 export interface SecondaryAttachmentDto {
   id: string;
@@ -208,31 +184,6 @@ export interface SecondaryAttachmentDto {
   sizeBytes: number;
   uploadedBy: string;
   uploadedAt: string;
-}
-
-export interface EmployeeSalesDto {
-  userId: string;
-  month: string;
-  /** The month's secondary as a whole: `PENDING` if any line waits, else `REJECTED`, `DRAFT`, `APPROVED`; `null` = nothing entered. */
-  secondaryStatus: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | null;
-  /** The approval request behind it, when the month was sent. */
-  approvalRequestId: string | null;
-  lines: EmployeeSalesLineDto[];
-  /** The month's proof files, oldest first; `[]` when none. */
-  attachments: SecondaryAttachmentDto[];
-}
-
-export interface SaveEmployeeSecondaryDto {
-  userId: string;
-  month: string;
-  /** Units or amount: give one, the other follows from the product's PTR (an amount is rounded to whole units). */
-  lines: Array<{ productId: string; qty?: number; amountPaise?: number }>;
-}
-
-export interface SaveEmployeePrimaryDto {
-  userId: string;
-  month: string;
-  lines: Array<{ productId: string; adjustmentQty: number; reason?: string | null }>;
 }
 
 // ── Orders added or changed by the office ────────────────────────────────────────────────────────
@@ -283,36 +234,7 @@ export interface CompleteOrderDto {
   supply?: Array<{ productId: string; line?: number; suppliedQty: number; freeQty: number; /** Required on a line with units supplied; `expiry` is `YYYY-MM`. */ batchNo?: string; expiry?: string }>;
 }
 
-/** One product of one distributor in an employee's month of distributor counts (`GET /sales/stock-counts`). */
-export interface StockCountLineDto {
-  product: { id: string; name: string; sku: string };
-  openingQty: number;
-  closingQty: number;
-  /** Done orders delivered to the distributor in the month. */
-  deliveredQty: number;
-  /** Opening + delivered − closing: what the distributor sold on. */
-  secondaryQty: number | null;
-  /** At the product's PTS; `null` when it has none. */
-  secondaryAmountPaise: number | null;
-}
-
 export type StockCountStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
-
-export interface StockCountDistributorDto {
-  distributorId: string;
-  name: string;
-  status: StockCountStatus;
-  lines: StockCountLineDto[];
-}
-
-/** An employee's distributor counts for a month, by distributor: what a manager is asked to approve. */
-export interface StockCountsMonthDto {
-  userId: string;
-  month: string;
-  /** Where the month stands overall; `NOT_ENTERED` when the employee recorded no distributor count. */
-  status: StockCountStatus | 'NOT_ENTERED';
-  distributors: StockCountDistributorDto[];
-}
 
 /** What deleting an employee's month of counts would remove, shown before the Admin confirms. */
 export interface StockCountsImpactDto {
@@ -399,3 +321,52 @@ export interface SecondaryReportDto {
   distributors: SecondaryReportDistributorDto[];
   totals: SecondaryStockTotalsDto;
 }
+
+/** One MR's submitted secondary report that a manager's snapshot was built from: a reference to its approval request, not to the MR as a user. */
+export interface SecondaryRollupSourceDto {
+  /** The MR's report record id, `mrUserId:month`. */
+  recordId: string;
+  /** `null` when the MR had not submitted. */
+  requestId: string | null;
+  cycle: number;
+  /** The approval request's status when the snapshot was built, or `NOT_SUBMITTED`. Only `APPROVED` reports feed the figures. */
+  status: string;
+  decidedAt: string | null;
+  /** Display only. */
+  mrUserId: string;
+  name: string;
+  employeeCode: string;
+  openingQty: number;
+  primaryQty: number;
+  issuedQty: number;
+}
+
+/**
+ * A manager's month of secondary sales (`GET /sales/secondary-rollup`): the sum of the approved MR reports below them. Until submitted it is the live
+ * view; once submitted it is the saved snapshot, which on approval becomes the manager's personal achievement for the month.
+ */
+export interface SecondaryRollupDto {
+  userId: string;
+  month: string;
+  status: 'NOT_SUBMITTED' | 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  /** `true` when the figures are the saved snapshot, `false` when they are the live sum. */
+  saved: boolean;
+  /** The manager's designation when they submitted (for example RSM); `null` before they have. */
+  designation: { name: string | null; level: number | null } | null;
+  /** MRs below the manager, and how many of their reports are approved (the ones that feed the figures). */
+  mrCount: number;
+  approvedMrCount: number;
+  /** An MR report was approved, reopened or approved again since the snapshot: resubmit to include it. */
+  outOfDate: boolean;
+  /** The reader is the manager and may submit now. */
+  canSubmit: boolean;
+  requestId: string | null;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  distributors: SecondaryReportDistributorDto[];
+  totals: SecondaryStockTotalsDto;
+  sources: SecondaryRollupSourceDto[];
+}
+
+/** How a manager's month stands, as a dashboard or report row says it. */
+export type RollupStatusDto = SecondaryRollupDto['status'];
