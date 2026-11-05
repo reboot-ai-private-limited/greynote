@@ -1,10 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
-import { DataTable, type Column } from '@/components/ui/DataTable';
+import { DataTable, type Column, type SortState } from '@/components/ui/DataTable';
+import { SearchInput } from '@/components/ui/ListToolbar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { StatTile } from '@/components/ui/StatTile';
@@ -15,6 +17,8 @@ import { useActiveProducts } from '@/features/field-master-data/hooks/useProduct
 import { toErrorState } from '@/lib/api/toErrorState';
 import type { SalesWindowQuery } from '@/lib/api/endpoints/reports';
 import { downloadCsv } from '@/lib/csv';
+import { downloadXlsx } from '@/lib/xlsx';
+import { useState } from 'react';
 import { istDate } from '@/lib/dates';
 import { financialYearLabel, financialYearOf } from '@/lib/financial-year';
 import { formatMoney } from '@/lib/format';
@@ -22,6 +26,7 @@ import { useFilterParams } from '@/lib/hooks/useFilterParams';
 import { useFinancialYear } from '@/lib/useFinancialYear';
 import { useSalesByDistributor, useSalesByEmployee, useSalesByProduct } from '../hooks/useSalesReport';
 import { SalesStatementScreen } from './SalesStatementScreen';
+import { SalesTrendTab } from './SalesTrendTab';
 import {
   QUARTER_OPTIONS,
   SALES_PERIOD_OPTIONS,
@@ -29,8 +34,12 @@ import {
   distributorCsv,
   employeeCsv,
   fyMonths,
+  matchesSearch,
   parseSalesPeriod,
   productCsv,
+  productSheet,
+  employeeSheet,
+  distributorSheet,
   quarterOf,
   salesBreakdownFilename,
   windowLabel,
@@ -42,8 +51,9 @@ const qty = (n: number): string => n.toLocaleString('en-IN');
 const percent = (n: number | null): string => (n === null ? '—' : `${n}%`);
 const achievementTone = (n: number | null) => (n === null ? 'neutral' : n >= 100 ? 'success' : n >= 70 ? 'warning' : 'danger');
 
-type Tab = 'product' | 'distributor' | 'employee' | 'statement';
+type Tab = 'trend' | 'product' | 'distributor' | 'employee' | 'statement';
 const TABS: ReadonlyArray<{ value: Tab; label: string }> = [
+  { value: 'trend', label: 'Overview' },
   { value: 'product', label: 'By product' },
   { value: 'distributor', label: 'By distributor' },
   { value: 'employee', label: 'By employee' },
@@ -69,18 +79,20 @@ export function SalesReportScreen() {
   const label = windowLabel(fy, period, month, quarter);
   const money = values.metric !== 'qty';
 
+  const [productSort, setProductSort] = useState<SortState>({ key: 'secondary', order: 'desc' });
+  const [employeeSort, setEmployeeSort] = useState<SortState>({ key: 'achieved', order: 'desc' });
   const product = useSalesByProduct(window, values.distributorId || undefined);
   const distributor = useSalesByDistributor(window, values.productId || undefined);
-  const employee = useSalesByEmployee(window, values.search || undefined);
+  const employee = useSalesByEmployee(window);
   const distributors = useDistributors({ page: 1, pageSize: 100, status: 'active' });
   const products = useActiveProducts();
 
   const productColumns: readonly Column<SalesByProductRowDto>[] = [
-    { key: 'product', header: 'Product', render: (r) => <span className="font-medium">{r.product.name}</span> },
-    { key: 'primary', header: 'Primary', numeric: true, render: (r) => (money ? formatMoney(r.primaryPaise) : qty(r.primaryQty)) },
-    { key: 'secondary', header: 'Secondary', numeric: true, render: (r) => (money ? formatMoney(r.secondaryPaise) : qty(r.secondaryQty)) },
-    { key: 'target', header: 'Target', numeric: true, render: (r) => (r.targetPaise > 0 ? formatMoney(r.targetPaise) : '—') },
-    { key: 'ach', header: 'Achieved', numeric: true, render: (r) => <Badge tone={achievementTone(r.achievementPercent)}>{percent(r.achievementPercent)}</Badge> },
+    { key: 'product', header: 'Product', sortable: true, render: (r) => <span className="font-medium">{r.product.name}</span> },
+    { key: 'primary', header: 'Primary', numeric: true, sortable: true, render: (r) => (money ? formatMoney(r.primaryPaise) : qty(r.primaryQty)) },
+    { key: 'secondary', header: 'Secondary', numeric: true, sortable: true, render: (r) => (money ? formatMoney(r.secondaryPaise) : qty(r.secondaryQty)) },
+    { key: 'target', header: 'Target', numeric: true, sortable: true, render: (r) => (r.targetPaise > 0 ? formatMoney(r.targetPaise) : '—') },
+    { key: 'ach', header: 'Achieved', numeric: true, sortable: true, render: (r) => <Badge tone={achievementTone(r.achievementPercent)}>{percent(r.achievementPercent)}</Badge> },
   ];
   const distributorColumns: readonly Column<SalesByDistributorRowDto>[] = [
     { key: 'distributor', header: 'Distributor', render: (r) => <span className="font-medium">{r.distributor.name}</span> },
@@ -90,13 +102,23 @@ export function SalesReportScreen() {
     { key: 'counted', header: 'Counted', render: (r) => <Badge tone={r.countedMonths === 0 ? 'danger' : 'neutral'}>{r.countedMonths === 0 ? 'No count' : `${r.countedMonths} month${r.countedMonths === 1 ? '' : 's'}`}</Badge> },
   ];
   const employeeColumns: readonly Column<SalesByEmployeeRowDto>[] = [
-    { key: 'employee', header: 'Employee', render: (r) => <span><span className="font-medium">{r.employee.name}</span> <span className="text-text-subtle">{r.employee.employeeCode}</span></span> },
+    { key: 'employee', header: 'Employee', sortable: true, render: (r) => <span><Link href={`/reports/sales-dashboard/${r.employee.id}`} className="font-medium text-accent hover:underline">{r.employee.name}</Link> <span className="text-text-subtle">{r.employee.employeeCode}</span></span> },
     { key: 'designation', header: 'Designation', render: (r) => r.designation ?? '—' },
-    { key: 'target', header: 'Target', numeric: true, render: (r) => (r.targetPaise > 0 ? formatMoney(r.targetPaise) : '—') },
-    { key: 'primary', header: 'Primary', numeric: true, render: (r) => formatMoney(r.primaryPaise) },
-    { key: 'achieved', header: 'Achieved', numeric: true, render: (r) => formatMoney(r.achievedPaise) },
-    { key: 'ach', header: '%', numeric: true, render: (r) => <Badge tone={achievementTone(r.achievementPercent)}>{percent(r.achievementPercent)}</Badge> },
+    { key: 'target', header: 'Target', numeric: true, sortable: true, render: (r) => (r.targetPaise > 0 ? formatMoney(r.targetPaise) : '—') },
+    { key: 'primary', header: 'Primary', numeric: true, sortable: true, render: (r) => formatMoney(r.primaryPaise) },
+    { key: 'achieved', header: 'Achieved', numeric: true, sortable: true, render: (r) => formatMoney(r.achievedPaise) },
+    { key: 'ach', header: '%', numeric: true, sortable: true, render: (r) => <Badge tone={achievementTone(r.achievementPercent)}>{percent(r.achievementPercent)}</Badge> },
   ];
+
+  const dir = (o: SortState) => (o.order === 'asc' ? 1 : -1);
+  const productRows = (product.data?.rows ?? []).filter((r) => matchesSearch(values.search, r.product.name, r.product.sku)).sort((a, b) => {
+    const v = (r: SalesByProductRowDto) => (productSort.key === 'primary' ? (money ? r.primaryPaise : r.primaryQty) : productSort.key === 'secondary' ? (money ? r.secondaryPaise : r.secondaryQty) : productSort.key === 'target' ? r.targetPaise : r.achievementPercent ?? -1);
+    return productSort.key === 'product' ? dir(productSort) * a.product.name.localeCompare(b.product.name) : dir(productSort) * (v(a) - v(b)) || a.product.name.localeCompare(b.product.name);
+  });
+  const employeeRows = (employee.data?.rows ?? []).filter((r) => matchesSearch(values.search, r.employee.name, r.employee.employeeCode, r.designation)).sort((a, b) => {
+    const v = (r: SalesByEmployeeRowDto) => (employeeSort.key === 'target' ? r.targetPaise : employeeSort.key === 'primary' ? r.primaryPaise : employeeSort.key === 'achieved' ? r.achievedPaise : r.achievementPercent ?? -1);
+    return employeeSort.key === 'employee' ? dir(employeeSort) * a.employee.name.localeCompare(b.employee.name) : dir(employeeSort) * (v(a) - v(b)) || a.employee.name.localeCompare(b.employee.name);
+  });
 
   const periodControls = (
     <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -140,11 +162,16 @@ export function SalesReportScreen() {
           ))}
         </TabsList>
 
-        {tab !== 'statement' ? <div className="pt-4">{periodControls}</div> : null}
+        {tab !== 'statement' && tab !== 'trend' ? <div className="pt-4">{periodControls}</div> : null}
+
+        <TabsContent value="trend">
+          <SalesTrendTab fy={fy} />
+        </TabsContent>
 
         <TabsContent value="product">
-          <div className="mb-4 w-64">
-            <SearchableSelect aria-label="Distributor" searchPlaceholder="Search distributors" value={values.distributorId || ANY} options={[{ value: ANY, label: 'All distributors' }, ...(distributors.data?.items ?? []).map((d) => ({ value: d.id, label: d.name }))]} onValueChange={(v) => update({ distributorId: v === ANY ? '' : v })} />
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <SearchInput label="Search products" placeholder="Search product or SKU" value={values.search} onChange={(v) => update({ search: v })} />
+            <div className="w-64"><SearchableSelect aria-label="Distributor" searchPlaceholder="Search distributors" value={values.distributorId || ANY} options={[{ value: ANY, label: 'All distributors' }, ...(distributors.data?.items ?? []).map((d) => ({ value: d.id, label: d.name }))]} onValueChange={(v) => update({ distributorId: v === ANY ? '' : v })} /></div>
           </div>
           <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile label="Primary" value={formatMoney(product.data?.totals.primaryPaise ?? 0)} note={`${qty(product.data?.totals.primaryQty ?? 0)} units`} />
@@ -152,9 +179,9 @@ export function SalesReportScreen() {
             <StatTile label="Product targets" value={formatMoney(product.data?.totals.targetPaise ?? 0)} note="sum of employee targets" />
             <StatTile label="All-products targets" value={formatMoney(product.data?.generalTargetPaise ?? 0)} note="not tied to one product" />
           </div>
-          <Card title={`Sales by product, ${label}`} actions={<Button variant="secondary" size="sm" disabled={!product.data} onClick={() => product.data && downloadCsv(salesBreakdownFilename('product', label), productCsv(product.data))}>Download CSV</Button>}>
-            <DataState isLoading={product.isLoading} error={product.error ? toErrorState(product.error, () => void product.refetch()) : null} isEmpty={(product.data?.rows.length ?? 0) === 0} empty={{ title: 'No sales in this period' }}>
-              <DataTable columns={productColumns} rows={product.data?.rows ?? []} rowKey={(r) => r.product.id} bleed={false} />
+          <Card title={`Sales by product, ${label}`} actions={<div className="flex gap-2"><Button variant="secondary" size="sm" disabled={!product.data} onClick={() => product.data && void downloadXlsx(salesBreakdownFilename('product', label), 'Sales by product', ...productSheet(product.data))}>Download Excel</Button><Button variant="secondary" size="sm" disabled={!product.data} onClick={() => product.data && downloadCsv(salesBreakdownFilename('product', label), productCsv(product.data))}>Download CSV</Button></div>}>
+            <DataState isLoading={product.isLoading} isFetching={product.isFetching} error={product.error ? toErrorState(product.error, () => void product.refetch()) : null} isEmpty={productRows.length === 0} empty={{ title: values.search ? 'No product matches your search' : 'No sales in this period' }}>
+              <DataTable columns={productColumns} rows={productRows} rowKey={(r) => r.product.id} sort={productSort} onSortChange={setProductSort} bleed={false} />
             </DataState>
           </Card>
         </TabsContent>
@@ -168,22 +195,25 @@ export function SalesReportScreen() {
             <StatTile label="Secondary" value={formatMoney(distributor.data?.totals.secondaryPaise ?? 0)} note={`${qty(distributor.data?.totals.secondaryQty ?? 0)} units`} />
             <StatTile label="No count at all" value={`${distributor.data?.missingDistributors.length ?? 0}`} note="distributors in this period" {...((distributor.data?.missingDistributors.length ?? 0) > 0 ? { tone: 'warning' as const } : {})} />
           </div>
-          <Card title={`Sales by distributor, ${label}`} actions={<Button variant="secondary" size="sm" disabled={!distributor.data} onClick={() => distributor.data && downloadCsv(salesBreakdownFilename('distributor', label), distributorCsv(distributor.data))}>Download CSV</Button>}>
-            <DataState isLoading={distributor.isLoading} error={distributor.error ? toErrorState(distributor.error, () => void distributor.refetch()) : null} isEmpty={(distributor.data?.rows.length ?? 0) === 0} empty={{ title: 'No sales in this period' }}>
+          <Card title={`Sales by distributor, ${label}`} actions={<div className="flex gap-2"><Button variant="secondary" size="sm" disabled={!distributor.data} onClick={() => distributor.data && void downloadXlsx(salesBreakdownFilename('distributor', label), 'Sales by distributor', ...distributorSheet(distributor.data))}>Download Excel</Button><Button variant="secondary" size="sm" disabled={!distributor.data} onClick={() => distributor.data && downloadCsv(salesBreakdownFilename('distributor', label), distributorCsv(distributor.data))}>Download CSV</Button></div>}>
+            <DataState isLoading={distributor.isLoading} isFetching={distributor.isFetching} error={distributor.error ? toErrorState(distributor.error, () => void distributor.refetch()) : null} isEmpty={(distributor.data?.rows.length ?? 0) === 0} empty={{ title: 'No sales in this period' }}>
               <DataTable columns={distributorColumns} rows={distributor.data?.rows ?? []} rowKey={(r) => r.distributor.id} bleed={false} />
             </DataState>
           </Card>
         </TabsContent>
 
         <TabsContent value="employee">
+          <div className="mb-4">
+            <SearchInput label="Search employees" placeholder="Search name, code or designation" value={values.search} onChange={(v) => update({ search: v })} />
+          </div>
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
             <StatTile label="Target" value={formatMoney(employee.data?.totals.targetPaise ?? 0)} />
             <StatTile label="Achieved" value={formatMoney(employee.data?.totals.achievedPaise ?? 0)} note={`${percent(employee.data?.totals.achievementPercent ?? null)} of target`} />
             <StatTile label="Primary" value={formatMoney(employee.data?.totals.primaryPaise ?? 0)} note="each MR counted once" />
           </div>
-          <Card title={`Sales by employee, ${label}`} description="A distributor shared by two employees counts in full for each, so rows can add up to more than the total." actions={<Button variant="secondary" size="sm" disabled={!employee.data} onClick={() => employee.data && downloadCsv(salesBreakdownFilename('employee', label), employeeCsv(employee.data))}>Download CSV</Button>}>
-            <DataState isLoading={employee.isLoading} error={employee.error ? toErrorState(employee.error, () => void employee.refetch()) : null} isEmpty={(employee.data?.rows.length ?? 0) === 0} empty={{ title: 'No employees to show' }}>
-              <DataTable columns={employeeColumns} rows={employee.data?.rows ?? []} rowKey={(r) => r.employee.id} bleed={false} />
+          <Card title={`Sales by employee, ${label}`} description="A distributor shared by two employees counts in full for each, so rows can add up to more than the total." actions={<div className="flex gap-2"><Button variant="secondary" size="sm" disabled={!employee.data} onClick={() => employee.data && void downloadXlsx(salesBreakdownFilename('employee', label), 'Sales by employee', ...employeeSheet(employee.data))}>Download Excel</Button><Button variant="secondary" size="sm" disabled={!employee.data} onClick={() => employee.data && downloadCsv(salesBreakdownFilename('employee', label), employeeCsv(employee.data))}>Download CSV</Button></div>}>
+            <DataState isLoading={employee.isLoading} isFetching={employee.isFetching} error={employee.error ? toErrorState(employee.error, () => void employee.refetch()) : null} isEmpty={employeeRows.length === 0} empty={{ title: values.search ? 'No employee matches your search' : 'No employees to show' }}>
+              <DataTable columns={employeeColumns} rows={employeeRows} rowKey={(r) => r.employee.id} sort={employeeSort} onSortChange={setEmployeeSort} bleed={false} />
             </DataState>
           </Card>
         </TabsContent>

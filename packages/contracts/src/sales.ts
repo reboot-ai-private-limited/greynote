@@ -320,3 +320,80 @@ export interface StockCountsImpactDto {
   lines: number;
   requestWaiting: boolean;
 }
+
+/** One product of one distributor in an MR's month of secondary stock (`GET /sales/secondary-stock`). Every figure is in units and is the MR's own. */
+export interface SecondaryStockLineDto {
+  product: { id: string; name: string; sku: string };
+  openingQty: number;
+  primaryQty: number;
+  issuedQty: number;
+  /** Opening + primary − issued; derived, never sent. */
+  closingQty: number;
+  /** The MR's previous approved month's closing: what opening defaults to. 0 when there is none. */
+  suggestedOpeningQty: number;
+  /** The MR's own Done orders to this distributor in the month: what primary defaults to. */
+  suggestedPrimaryQty: number;
+  /** `true` when the saved opening or primary differs from its suggestion, so the manager can see it was corrected. */
+  openingEdited: boolean;
+  primaryEdited: boolean;
+  /** `false` while the row only holds the defaults and nothing has been saved. */
+  saved: boolean;
+  ptsPaise: number | null;
+  /** Issued × PTS; `null` when the product has no PTS. */
+  issuedAmountPaise: number | null;
+  closingAmountPaise: number | null;
+}
+
+export interface SecondaryStockTotalsDto {
+  openingQty: number;
+  primaryQty: number;
+  issuedQty: number;
+  closingQty: number;
+  issuedAmountPaise: number;
+  closingAmountPaise: number;
+}
+
+export interface SecondaryStockDistributorDto {
+  distributorId: string;
+  name: string;
+  status: StockCountStatus | 'NOT_ENTERED';
+  lines: SecondaryStockLineDto[];
+  totals: SecondaryStockTotalsDto;
+}
+
+/** An MR's month of secondary stock, distributor by distributor: the entry screen, and what the manager is asked to approve. */
+export interface SecondaryStockMonthDto {
+  userId: string;
+  month: string;
+  status: StockCountStatus | 'NOT_ENTERED';
+  /** The proof files on the month, oldest first. At least one is required before the MR can submit. */
+  attachments: SecondaryAttachmentDto[];
+  attachmentCount: number;
+  distributors: SecondaryStockDistributorDto[];
+  totals: SecondaryStockTotalsDto;
+}
+
+/** One product of one distributor in the manager's report: the sum of the approved MR slices, each MR still visible under it. */
+export interface SecondaryReportLineDto extends Omit<SecondaryStockLineDto, 'suggestedOpeningQty' | 'suggestedPrimaryQty' | 'openingEdited' | 'primaryEdited' | 'saved'> {
+  byMr: Array<{ userId: string; name: string; openingQty: number; primaryQty: number; issuedQty: number; closingQty: number }>;
+}
+
+export interface SecondaryReportDistributorDto {
+  distributorId: string;
+  name: string;
+  lines: SecondaryReportLineDto[];
+  totals: SecondaryStockTotalsDto;
+}
+
+/**
+ * A manager's secondary sales for a month: only the approved rows of the MRs below them, never the manager's own and never a manager's roll-up, so a
+ * distributor's product is counted once (MR-A 2 + MR-B 4 = 6).
+ */
+export interface SecondaryReportDto {
+  month: string;
+  /** MRs counted, and how many of them have an approved month; the rest are still draft, waiting or not entered. */
+  mrCount: number;
+  approvedMrCount: number;
+  distributors: SecondaryReportDistributorDto[];
+  totals: SecondaryStockTotalsDto;
+}

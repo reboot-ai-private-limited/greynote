@@ -111,3 +111,38 @@ export class FakeStock implements MonthlyStockRepositoryPort {
     this.unlocked.add(month);
   }
 }
+
+// ── Secondary stock lines ──
+import type { SecondaryStockLine, SecondaryStockLineInput } from '../../domain/secondaryStockLine.entity.js';
+import type { SecondaryStockLineRepositoryPort, SecondaryStockRangeFilter } from '../../domain/secondaryStockLine.repository.port.js';
+
+export class FakeLines implements SecondaryStockLineRepositoryPort {
+  rows = new Map<string, SecondaryStockLine>();
+  async upsertMany(userId: string, month: string, lines: readonly SecondaryStockLineInput[], status: StockStatus, at: Date) {
+    for (const l of lines) {
+      const key = `${userId}|${l.distributorId}|${l.productId}|${month}`;
+      this.rows.set(key, { id: this.rows.get(key)?.id ?? `${this.rows.size}`, userId, month, status, updatedAt: at, ...l });
+    }
+  }
+  async listByUser(userId: string, month: string) {
+    return [...this.rows.values()].filter((r) => r.userId === userId && r.month === month);
+  }
+  async listRange(f: SecondaryStockRangeFilter) {
+    const statuses = f.statuses ?? ['APPROVED'];
+    return [...this.rows.values()].filter((r) => statuses.includes(r.status) && r.month >= f.fromMonth && r.month <= f.toMonth && (!f.userIds || f.userIds.includes(r.userId)) && (!f.distributorId || r.distributorId === f.distributorId) && (!f.productId || r.productId === f.productId));
+  }
+  async setStatus(filter: { userId: string; month: string }, from: readonly StockStatus[], to: StockStatus) {
+    let n = 0;
+    for (const [k, r] of this.rows) {
+      if (r.userId !== filter.userId || r.month !== filter.month || !from.includes(r.status)) continue;
+      this.rows.set(k, { ...r, status: to });
+      n++;
+    }
+    return n;
+  }
+  async deleteByUser(userId: string, month: string) {
+    let n = 0;
+    for (const [k, r] of this.rows) if (r.userId === userId && r.month === month && this.rows.delete(k)) n++;
+    return n;
+  }
+}

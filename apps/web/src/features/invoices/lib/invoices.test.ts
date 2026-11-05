@@ -1,6 +1,6 @@
-import type { InvoiceRowDto } from '@greynote/contracts';
+import type { InvoiceDetailDto, InvoiceRowDto } from '@greynote/contracts';
 import { describe, expect, it } from 'vitest';
-import { expiryLabel, invoiceTotals, invoicesCsv, monthBounds, rupeesInWords, searchInvoices, statusOf, taxBreakup } from './invoices';
+import { expiryLabel, invoiceFilename, invoiceLinesTable, invoiceTotals, invoicesCsv, monthBounds, rupeesInWords, searchInvoices, statusOf, taxBreakup } from './invoices';
 
 const row = (over: Partial<InvoiceRowDto> = {}): InvoiceRowDto => ({
   orderId: 'o1',
@@ -83,5 +83,32 @@ describe('searchInvoices', () => {
   });
   it('returns everything for a blank term', () => {
     expect(searchInvoices(rows, '')).toHaveLength(2);
+  });
+});
+
+describe('invoiceLinesTable', () => {
+  const inv = {
+    ...row(),
+    distributor: { id: 'd1', name: 'UMA', address: null, gstNumber: null, mobile: null },
+    taxablePaise: 200_00,
+    gstPaise: 10_00,
+    roundOffPaise: 0,
+    lines: [
+      { productName: 'A', sku: 'a', hsn: '3004', batchNo: 'B1', expiry: '2027-03', mrpPaise: 120_00, suppliedQty: 2, freeQty: 1, unitPricePaise: 100_00, gstPercent: 5, amountPaise: 200_00, gstPaise: 10_00 },
+    ],
+  } as InvoiceDetailDto;
+  it('writes numbers for Excel and decimal text for CSV, with a Total row', () => {
+    const x = invoiceLinesTable(inv, true);
+    expect(x.rows[0]).toEqual([1, 'A', '3004', 'B1', '03/2027', 120, 2, 1, 100, 5, 10, 210]);
+    expect(x.rows[1]).toEqual(['', 'Total', null, null, null, null, 2, 1, null, null, 10, 210]);
+    expect(invoiceLinesTable(inv, false).rows[0]?.[5]).toBe('120.00');
+    expect(x.rows[0]).toHaveLength(x.header.length);
+  });
+  it('leaves HSN, batch, expiry and MRP empty on an older invoice', () => {
+    const old = { ...inv, lines: [{ ...inv.lines[0]!, hsn: null, batchNo: null, expiry: null, mrpPaise: null }] } as InvoiceDetailDto;
+    expect(invoiceLinesTable(old, true).rows[0]).toEqual([1, 'A', null, null, null, null, 2, 1, 100, 5, 10, 210]);
+  });
+  it('names the file after the invoice number', () => {
+    expect(invoiceFilename('3452/A')).toBe('invoice-3452-A');
   });
 });

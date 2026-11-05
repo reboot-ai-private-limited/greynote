@@ -7,6 +7,7 @@ import type { PlanningPort } from '../../domain/planning.port.js';
 import type { LoggingGate } from '../loggingGate.js';
 import { readConfig, parseBoolean, type ConfigReader } from '@/shared/config/readConfig.js';
 import { DCR_KIND, isOpenForLogging } from '../dcrStatus.js';
+import type { DcrLatePort } from '../dcrLate.port.js';
 import type { TaDaLifecycle } from './taDaLifecycle.usecase.js';
 
 /**
@@ -21,6 +22,8 @@ import type { TaDaLifecycle } from './taDaLifecycle.usecase.js';
  * a note (`remarksRequired`); a strike day's is optional. Resubmitting after a rejection, withdrawal or
  * reopen is a new cycle on the same request; submitting one that's waiting or approved is `DCR_LOCKED`.
  *
+ * A day past `DCR_SUBMIT_CUTOFF_DAY` needs Admin's exception (`DCR_SUBMIT_LATE`), which this submit spends.
+ *
  * With `DCR_APPROVAL_REQUIRED` off the request is recorded already approved (nobody reviews it), and the TA/DA
  * the approval hook would have generated is generated here, in the same transaction.
  */
@@ -32,11 +35,12 @@ export class SubmitDcrUseCase {
     private readonly taDa: TaDaLifecycle,
     private readonly config: ConfigReader,
     private readonly planning: PlanningPort,
+    private readonly late: DcrLatePort | null = null,
   ) {}
 
   async execute(userId: string, reportDate: string, recordedAt: Date, ctx: TransactionContext, note: string | null = null): Promise<{ dcrId: string; request: ApprovalRequest }> {
     const remarks = note?.trim() || null;
-    await this.gate.assertMayAct(userId, reportDate, recordedAt);
+    const lateGrant = await this.gate.assertMayAct(userId, reportDate, recordedAt);
     const day = await this.planning.getDailyPlanDay(userId, reportDate);
     if ((day?.workingType === 'MEETING' || day?.workingType === 'CONFERENCE') && !remarks) {
       throw new GateRefusal(GATE_CODES.remarksRequired, 'Add a note about the day — the agenda and venue — before you submit.');
@@ -45,6 +49,8 @@ export class SubmitDcrUseCase {
     if (!isOpenForLogging(await this.approvals.getForRecord(DCR_KIND, dcr.id))) {
       throw new GateRefusal(GATE_CODES.dcrLocked, 'This day’s report has already been submitted.');
     }
+    // A report past its cutoff spends Admin's exception here, in the sync transaction: a throw rolls the submit back.
+    if (lateGrant && this.late) await this.late.consume(lateGrant, dcr.id, ctx);
     await this.dcrs.setRemarks(dcr.id, remarks, ctx);
     const autoApprove = !(await readConfig(this.config, 'DCR_APPROVAL_REQUIRED', parseBoolean));
     const request = await this.approvals.submit({ kind: DCR_KIND, recordId: dcr.id, submitterId: userId, autoApprove }, ctx);

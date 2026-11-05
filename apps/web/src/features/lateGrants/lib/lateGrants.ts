@@ -55,17 +55,19 @@ export const KIND_LABEL: Record<LateGrantKindDto, string> = {
   EXPENSE_APPROVE: 'Expenses — approving the month',
   MONTHLY_STOCK: 'Monthly stock count',
   SECONDARY_SALES: 'Secondary sales and files',
+  DCR_SUBMIT: 'Daily report',
 };
 
 /** The kinds grouped for the picker, in the order they are offered. */
-export const KIND_GROUPS: ReadonlyArray<{ group: 'Plans' | 'Expenses' | 'Sales'; kinds: readonly LateGrantKindDto[] }> = [
+export const KIND_GROUPS: ReadonlyArray<{ group: 'Plans' | 'Reports' | 'Expenses' | 'Sales'; kinds: readonly LateGrantKindDto[] }> = [
   { group: 'Plans', kinds: ['MONTHLY_PLAN', 'DAILY_PLAN'] },
+  { group: 'Reports', kinds: ['DCR_SUBMIT'] },
   { group: 'Expenses', kinds: ['EXPENSE_SUBMIT', 'EXPENSE_APPROVE'] },
   { group: 'Sales', kinds: ['MONTHLY_STOCK', 'SECONDARY_SALES'] },
 ];
 
-/** A daily plan is named by its date; everything else by its month. */
-export const isDayKind = (kind: LateGrantKindDto): boolean => kind === 'DAILY_PLAN';
+/** A daily plan and a daily report are named by their date; everything else by its month. */
+export const isDayKind = (kind: LateGrantKindDto): boolean => kind === 'DAILY_PLAN' || kind === 'DCR_SUBMIT';
 
 export const kindOptions = (groups?: readonly string[]) =>
   KIND_GROUPS.filter((g) => !groups || groups.includes(g.group)).flatMap((g) => g.kinds.map((value) => ({ value, label: `${g.group} · ${KIND_LABEL[value]}` })));

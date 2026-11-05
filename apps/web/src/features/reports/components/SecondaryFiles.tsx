@@ -70,20 +70,26 @@ export function SecondaryFiles({
     <section aria-label="Files" className="mt-4 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-text">
-          Files <span className="font-normal text-text-subtle">· photos or PDFs of the figures, any number</span>
+          Attachment file <span className="font-normal text-text-subtle">· required: a photo or PDF of the figures (any number)</span>
         </p>
         {canEdit ? (
           <>
-            <input ref={picker} type="file" accept={ACCEPT} multiple className="sr-only" aria-label="Choose files to attach" onChange={(e) => void upload(e.target.files)} />
-            <Button variant="secondary" size="sm" disabled={busy} onClick={() => picker.current?.click()}>
+            <input ref={picker} type="file" accept={ACCEPT} multiple className="sr-only" aria-label="Choose attachment files" onChange={(e) => void upload(e.target.files)} />
+            <Button variant="primary" size="sm" disabled={busy} onClick={() => picker.current?.click()}>
               <Paperclip aria-hidden className="mr-1 size-4" />
-              {busy ? 'Uploading…' : 'Add files'}
+              {busy ? 'Uploading…' : 'Attachment File'}
             </Button>
           </>
         ) : null}
       </div>
       {files.length === 0 ? (
-        <p className="text-sm text-text-muted">No files attached.</p>
+        canEdit ? (
+          <p role="status" className="rounded-lg border border-border bg-warning-bg px-3 py-2 text-sm text-warning-fg">
+            Required before submitting: attach at least one file.
+          </p>
+        ) : (
+          <p className="text-sm text-text-muted">No files attached.</p>
+        )
       ) : (
         <ul className="flex flex-wrap gap-3">
           {files.map((f) => (

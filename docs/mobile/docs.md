@@ -4,6 +4,7 @@ What the field app does for the **Docs** tab (PRD §6.2 C): the employee's own *
 
 **Status key:** ✅ built on the server and web. 📱 the phone still has to show it. The phone app is another team's; these notes are the contract it builds against.
 **Field app, checked 2026-10-13 (typechecked and linted, not yet run on a phone):** built - the Docs tab with Payslips (`/payroll/me`, bounded by the financial year, slip opens with earnings, deductions, gross and net) and Documents (`/documents`, by category, opens the file).
+**Payslip file (field app, 2026-11-02):** the slip can be downloaded as an **A4 PDF** laid out like the web salary slip, with the brand logo. It is built on the phone from the slip already on screen, so it also works offline; the phone offers Open, Share or Download (Download asks for a folder). The server sends no PDF.
 
 ## 1. The rules
 

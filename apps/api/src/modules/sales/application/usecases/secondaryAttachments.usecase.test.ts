@@ -8,7 +8,7 @@ import type { SecondaryAttachmentRepositoryPort } from '../../domain/secondaryAt
 import { StockRefusal } from '../../domain/stockRefusal.js';
 import { SalesClock } from '../salesClock.js';
 import { AddSecondaryAttachmentUseCase, RemoveSecondaryAttachmentUseCase } from './secondaryAttachments.usecase.js';
-import { FakeUsers, config } from './salesTestKit.js';
+import { FakeLines, FakeUsers, config } from './salesTestKit.js';
 
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46]);
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
@@ -56,6 +56,7 @@ class FakeStorage implements SecondaryFileStoragePort {
 
 describe('secondary attachments (2026-11-02)', () => {
   let files: FakeFiles;
+  let lines: FakeLines;
   let storage: FakeStorage;
   let status: EmployeeSale['secondaryStatus'] | null;
   let add: AddSecondaryAttachmentUseCase;
@@ -64,6 +65,7 @@ describe('secondary attachments (2026-11-02)', () => {
 
   beforeEach(() => {
     files = new FakeFiles();
+    lines = new FakeLines();
     storage = new FakeStorage();
     status = null;
     const sales = {
@@ -72,7 +74,7 @@ describe('secondary attachments (2026-11-02)', () => {
       },
     } as unknown as EmployeeSaleRepositoryPort;
     const stock = { async isUnlocked() { return false; } } as unknown as MonthlyStockRepositoryPort;
-    const deps = { users: new FakeUsers(), sales, stock, files, storage, clock: new SalesClock(config, () => new Date('2026-10-10T05:00:00Z')), config };
+    const deps = { users: new FakeUsers(), sales, stock, lines, files, storage, clock: new SalesClock(config, () => new Date('2026-10-10T05:00:00Z')), config };
     add = new AddSecondaryAttachmentUseCase(deps);
     remove = new RemoveSecondaryAttachmentUseCase(deps);
   });
@@ -137,5 +139,14 @@ describe('secondary attachments (2026-11-02)', () => {
     expect(files.rows.map((r) => r.id)).toEqual(['f2']);
     expect(storage.removed).toEqual(['pub-1']);
     expect(await code(remove.execute(mr1, 'nope'))).toBe('ATTACHMENT_NOT_FOUND');
+  });
+
+  it('the proof is frozen for the MR once the per-distributor rows are sent or approved; the manager still may', async () => {
+    const input = { userId: 'mr1', month: '2026-10', file: file(JPEG) };
+    await lines.upsertMany('mr1', '2026-10', [{ distributorId: 'dist1', productId: 'prod1', openingQty: 0, primaryQty: 5, issuedQty: 1 }], 'PENDING', new Date());
+    expect(await code(add.execute(mr1, input))).toBe('SECONDARY_LOCKED');
+    expect(await code(add.execute(asm, input))).toBeNull();
+    const [f] = files.rows;
+    expect(await code(remove.execute(mr1, f!.id))).toBe('SECONDARY_LOCKED');
   });
 });

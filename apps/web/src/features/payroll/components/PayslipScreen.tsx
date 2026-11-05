@@ -104,7 +104,7 @@ export function PayslipScreen({ id }: { id: string }) {
                 className="h-20 w-auto object-contain sm:justify-self-start print:[print-color-adjust:exact]"
               />
               <div className="text-center">
-                <h1 className="text-2xl font-bold leading-tight">GreyNote Health Care Pvt. Ltd.</h1>
+                <h1 className="text-2xl font-bold leading-tight">GreyNote Health Care</h1>
                 <p className="mt-2 inline-block rounded-full bg-accent px-3 py-0.5 text-xs font-semibold text-white">ISO 9001:2015 Certified Company</p>
               </div>
               <div className="sm:text-right">
@@ -146,7 +146,7 @@ export function PayslipScreen({ id }: { id: string }) {
 
             <footer className="flex flex-wrap items-end justify-between gap-4">
               <p className="max-w-md text-xs text-text-subtle">
-                This is a computer generated salary slip from GreyNote Health Care Pvt. Ltd. TA, DA and reimbursements are paid separately and are not part of this slip.
+                This is a computer generated salary slip from GreyNote Health Care TA, DA and reimbursements are paid separately and are not part of this slip.
               </p>
               <div className="text-right">
                 <p className="text-lg font-semibold">Net Salary</p>

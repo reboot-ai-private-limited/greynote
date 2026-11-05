@@ -2676,3 +2676,51 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Decision (owner):** the Sales report was a distributor-and-product stock statement and too cluttered. It now has three roll-ups, each one dimension at a time: **by product** (with target and achievement), **by distributor** (products added up), **by employee** (target, primary, achieved, %). Each reads a **month, a quarter or the whole year** of the financial year in view. The old statement stays as a "Stock statement" tab. Open to Admin, Accountant and HR; a manager reads the by-employee roll-up for their downline. CSV only. Targets stay per employee: a product's target is the sum of its employees'; there are no distributor targets.
 
 **Consequences:** `GET /reports/sales/by-product`, `/by-distributor`, `/by-employee` (`year`, `period=month|quarter|year`, `month` or `quarter`), from the same statement rows as `/reports/sales/statement`, so they agree with it. Because a distributor shared by two employees counts in full for each (sign-off M5), employee rows can add up to more than the total; the total counts each MR once. The sign-off rows K24 (Admin only) and K27 (by month only) are superseded for this report. The phone is unchanged.
+
+## 2026-11-04 — Monthly cutoff for the daily report; late only by Admin
+
+**Decision (owner):** a day's report (its calls, follow-ups and the final submit) must be in by `DCR_SUBMIT_CUTOFF_DAY` of the **following month** (the end of that business day, so it follows `DAY_START_TIME`). After it, the day is refused with `DCR_SUBMIT_LATE` unless **Admin** has allowed it late: the same exception as a late Daily Plan, but a manager cannot grant it and there is no `*_GRANT_BY_MANAGER` setting. `0` (the seeded default) means no deadline, so nothing changes until Admin turns it on.
+
+**Consequences:** new late-grant kind `DCR_SUBMIT`, named by the report date (`YYYY-MM-DD`), group **Reports** on `/late-submissions`; its length is `LATE_DCR_GRANT_VALID_HOURS` (24) up to `LATE_DCR_GRANT_MAX_HOURS` (336). Unlike a daily plan, its end is not cut at the end of the day, because the day is already over (registry flag `endsWithDay`). It is spent once, by the final submit, in the sync transaction; the day's calls need only that a usable exception exists. Like the plans, it is closed once payroll for the month is finalized or its expenses are paid. The missed-DCR block is unchanged: a day past its cutoff can still count as missed; Admin unblocks, then allows the day.
+
+**Rejected:** a per-month exception (one use would open only one day); letting managers grant it (owner: Admin only).
+
+## 2026-11-05 — Daily-report deadline matches the salary day; a finalized salary locks the month's reports
+
+**Decision (owner):** the deadline day is the **1st** and is read **before that day begins**: October's reports are due by the end of 31 October (per `DAY_START_TIME`), so the salary run on the 1st (`SALARY_RUN_DAY`) works on settled data. This amends 2026-11-04, where the deadline was the *end* of the cutoff day. Once an employee's payroll run for a month is **finalized**, nothing in that month's daily reports can change.
+
+**Consequences:** `DCR_SUBMIT_CUTOFF_DAY` now defaults to **1** (0 = off) and cannot be set later than `SALARY_RUN_DAY` (either setting is refused if it would break that, `400`). The last day of a month must therefore be submitted that same day. Finalized month: new calls, follow-ups, expenses and the submit are refused with `PAYROLL_FINALIZED`; removing a record, and approving, rejecting, withdrawing or reopening a report, answer `409 PAYROLL_FINALIZED` (the decision is rolled back); a late exception cannot be granted or spent. **Payroll will not finalize a run until the month's deadline has passed** (`409 DCR_WINDOW_OPEN`), so finalizing never locks out an employee who still has time. Payroll has no un-finalize, so the lock is permanent.
+
+**Cost:** a report still waiting for the manager when its month is finalized can no longer be approved or rejected, so its TA/DA is never generated. Managers should decide before the salary run.
+
+## 2026-11-05 — Dashboard sales charts: target vs achievement, top achievers, top products
+
+**Decision (owner):** the Admin, HR and Accountant dashboard gets a sales section for the financial year in view (or a month or quarter of it): an overall donut of target against achieved (the sum of every employee's target, so all-products targets count), a donut per product and per employee (picked from those with a target), the top five achievers as bars, a pie of the top five products' share of sales (the rest as "Others"), and a full list of products and of employees from most sales to least. The dashboard's "waiting for approval" list is removed (the approvals tile stays). This reverses the 2026-10-01 deferral of charts. "Top prospects" was read as **top products** by secondary sales; the codebase has no prospect or lead concept.
+
+**Consequences:** no new endpoint. The charts read `/reports/sales/by-product` and `/reports/sales/by-employee`, so their figures are the report's; each chart has its own query and fails alone. Achieved is the secondary of the employee's assigned distributors (2026-10-14), so a distributor shared by two employees counts fully for each and per-employee figures need not add up to the overall. Drawn with `recharts`. Managers do not see it: the by-product report is org-wide only and refuses them.
+
+**Rejected:** hand-drawn SVG (the existing charts) for the new ones; a downline-scoped by-product report for managers (later, if wanted).
+
+## 2026-11-05 — Sales report: owner overview, month-by-month trend, Excel download
+
+**Decision (owner):** the Sales report opens on an **Overview** tab: the organisation against target for the financial year (achieved, % of target, top employee, top product, how many employees and products are behind target), then every employee or product month by month or quarter by quarter with a year total, sortable by any column. Every table on the page can be downloaded as **Excel** as well as CSV. The product and employee tables now open most-sold-first and sort by any figure; an employee's name opens their daily detail (`/reports/sales-dashboard/:id`). The dashboard's sales section links to the report.
+
+**Consequences:** no new endpoint: each month (or quarter) column is an ordinary `by-product` / `by-employee` request plus one for the year (13 requests, or 5 for quarters, only for the kind on screen, cached like the other tabs). Employee figures keep the 2026-10-14 rule: a distributor shared by two employees counts in full for each. Excel is written in the browser (`write-excel-file`); money is a rupee number, text is always text.
+
+**Rejected:** a single "all months" endpoint for now (worth adding if the 13 requests prove slow); a product × employee matrix (the employee's detail page already answers "what did this person sell").
+
+## 2026-11-05 — Secondary sales is entered by the MR, per distributor and product, in units
+
+**Decision (owner):** the Secondary Sales screen becomes a distributor-wise grid of **Opening, Primary (received), Secondary (issued) and Closing**, all in units, with the value in rupees shown as units × PTS and totals under it. Closing is derived (`opening + primary − issued`). The MR can save a draft and submit; the manager approves. **Only an MR enters**; a manager never does. Opening defaults to the MR's previous approved month's closing (editable); primary defaults to the MR's own Done orders (editable); both flag a difference to the manager. A manager sees the **approved** rows of the MRs below them, summed by distributor and product, with each MR under the row and the totals in units and rupees.
+
+**Consequences:** every figure is the **MR's own slice**, stored per MR (`SecondaryStockLine`, unique on user + distributor + product + month), so a distributor shared by two MRs adds up once: MR-A issued 2 + MR-B issued 4 = 6, never 4 + 2 + 6. A manager's total is the sum of MR rows only (no manager rows, no junior manager's roll-up on top). Achievement credits each approved row's issued units at PTS to its MR alone; a distributor-month that has MR rows no longer counts by assignment, and months without them behave as before. The approval reuses the `STOCK_COUNT` kind (record `userId:month`), the month window and the late-exception gates. New: `POST/GET /sales/secondary-stock`, `POST /sales/secondary-stock/submit`, `GET /sales/secondary-report`, error `MR_ONLY`. The phone spec is in `docs/mobile/secondary-and-targets.md`; the field app is another team's. This supersedes the 2026-11-04 two-tab layout for MRs.
+
+**Rejected:** one shared statement per distributor with a single owning MR (the owner chose per-MR rows, so each MR's own figures stay separate); a read-only primary from orders (the distributor can receive goods outside the app).
+
+**Open:** whether Admin's distributor statement should still override MR-entered figures in the manager report; migrating older `MonthlyStock` counts into the new rows. Note also the 2026-10-12 entry says units × PTR; since 2026-10-14 the figure is PTS.
+
+## 2026-11-05 — Secondary submission needs a proof file; the attach button is renamed and highlighted
+
+**Decision (owner):** an MR cannot submit a month of secondary stock without at least one attached file (photo or PDF of the distributor's statement). The button reads **Attachment File** (was "Add files") and is the primary, highlighted style, because the old secondary-coloured one was not noticed.
+
+**Consequences:** `POST /sales/secondary-stock/submit` answers `409 ATTACHMENT_REQUIRED` when the month has no file (an empty month still answers `SECONDARY_NOTHING_TO_SEND`). `GET /sales/secondary-stock` returns `attachments[]` and `attachmentCount`, and the web approval card lists the files. The files now also freeze for the MR once the per-distributor rows are `PENDING` or `APPROVED`; before, only the older per-product entry froze them, so a file could be removed after submitting. A manager or Admin may still change them. Months already sent are unaffected; the retired per-product send keeps files optional. Phone work is in `docs/mobile/secondary-and-targets.md`; the field app is another team's.

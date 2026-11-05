@@ -139,6 +139,18 @@ export function useStockCountsMonth(userId: string, month: string) {
   );
 }
 
+/** One MR's month of secondary stock per distributor and product — what the manager approves under a `STOCK_COUNT` request (2026-11-05). */
+export function useSecondaryStockMonth(userId: string, month: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: [...keys.employeeMonth.month(userId, month), 'secondary-stock'] as const,
+      fetch: (token, signal) => salesApi.secondaryStock(token, { userId, month }, signal),
+      staleTime: staleTime.live,
+      enabled: Boolean(userId && month),
+    }),
+  );
+}
+
 /** One employee's month of secondary, by product — what a `SECONDARY_SALES` request asks the manager to approve. */
 export function useSecondaryMonth(userId: string, month: string) {
   return useQuery(
