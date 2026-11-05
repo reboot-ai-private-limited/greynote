@@ -29,6 +29,9 @@ One row per distributor assigned to the MR and product. Each row holds **four nu
 | 7 | A `PENDING` or `APPROVED` month is locked (`409 SECONDARY_LOCKED`). It opens again after a rejection, a withdrawal, or when Admin reopens it. The usual month window applies (`MONTH_NOT_STARTED`, `MONTH_CLOSED`, closed financial year). |
 | 8 | Only a distributor **assigned to the MR** (`403 OUTLET_NOT_YOURS`). |
 | 9 | **Only `APPROVED` rows count** for achievement, targets and every report. |
+| 10 | **A proof file is required to submit (2026-11-05).** `POST /api/sales/secondary-stock/submit` returns `409 ATTACHMENT_REQUIRED` while the month has no file. Upload with the existing `POST /api/sales/employee-secondary/attachments` (`multipart`: `file`, `month`; PDF/JPG/PNG up to 5 MB, any number, section 1b). `GET /api/sales/secondary-stock` now also returns `attachments[]` and `attachmentCount`; keep **Submit** disabled until `attachmentCount >= 1`. The files freeze with the month once it is `PENDING` or `APPROVED` (`409 SECONDARY_LOCKED` on add or remove) and open again after a rejection, withdrawal or reopen. |
+
+**Attachment File button (phone).** Label it exactly **Attachment File** (not "Add files"), as a **primary, highlighted** button (the app's accent colour, with the paperclip), not a secondary one, because the secondary style was not noticed. Under it show the thumbnails, and while there are none show a warning-coloured line **"Required before submitting: attach at least one file."** Put it above the sticky Submit.
 
 **Layout.** Phone: month picker, then a distributor list with a status chip, then one distributor at a time as a list of **compact product cards**: name on top, then three numeric steppers (Opening, Primary, Secondary) and a read-only Closing, with the value in rupees under the card (`= ₹ units × PTS`, updating as the MR types). Keep a **sticky footer** with the distributor's totals (units and ₹), **Save draft** and **Submit**. Tablet: two panes, distributors on the left and the product table on the right with all four columns and a totals row. Mark rows that differ from their defaults, and rows where closing would go below zero. Online only.
 
@@ -86,7 +89,7 @@ Show a status chip per line and for the month (`secondaryStatus`: Draft / Waitin
 
 ## 1b. Files on the month (2026-11-02) 📱
 
-An employee can attach **photos or PDFs** to a month's secondary, for example a picture of the distributor's sales statement. They belong to the employee and the month, not to a product line. **There is no limit on how many.** Attaching is optional: *Send for approval* does not need a file.
+An employee can attach **photos or PDFs** to a month's secondary, for example a picture of the distributor's sales statement. They belong to the employee and the month, not to a product line. **There is no limit on how many.** Attaching is **required** on the Secondary Sales screen of 2026-11-05 (`ATTACHMENT_REQUIRED` on submit; see its rule 10) and stays optional only for the retired per-product *Send for approval*.
 
 | # | Rule | Status |
 |---|---|---|
@@ -97,7 +100,7 @@ An employee can attach **photos or PDFs** to a month's secondary, for example a 
 | 5 | **When:** the same rules as the figures. The employee can add and remove while the month is a `DRAFT` or `REJECTED`; once it is `PENDING` or `APPROVED` their own files are frozen (`409 SECONDARY_LOCKED`) until it is withdrawn, rejected or reopened. A manager (for their team) or Admin can add and remove at any status. The month must have started (`MONTH_NOT_STARTED`), and after `MONTHLY_STOCK_DEADLINE_DAY` of the next month only Admin, a reopened month, or an employee holding the secondary exception for that month can change files (`MONTH_CLOSED` otherwise). | ✅ 📱 |
 | 6 | **Who sees them:** the employee, the manager above, and Admin; the approver sees them on the approval card on the web. | ✅ |
 
-Phone screen: on the month's secondary screen show the thumbnails (a PDF as an icon), an **Add files** button that lets the user pick several, and a remove button on each while rule 5 allows it. Upload them one after another and show each one's error (a file over 5 MB, a type that is not allowed) without stopping the rest. Offline is not supported (secondary is online only).
+Phone screen: on the month's secondary screen show the thumbnails (a PDF as an icon), an **Attachment File** button (primary, highlighted) that lets the user pick several, and a remove button on each while rule 5 allows it. Upload them one after another and show each one's error (a file over 5 MB, a type that is not allowed) without stopping the rest. Offline is not supported (secondary is online only).
 
 ## 2. Targets
 

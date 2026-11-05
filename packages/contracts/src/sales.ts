@@ -366,6 +366,9 @@ export interface SecondaryStockMonthDto {
   userId: string;
   month: string;
   status: StockCountStatus | 'NOT_ENTERED';
+  /** The proof files on the month, oldest first. At least one is required before the MR can submit. */
+  attachments: SecondaryAttachmentDto[];
+  attachmentCount: number;
   distributors: SecondaryStockDistributorDto[];
   totals: SecondaryStockTotalsDto;
 }

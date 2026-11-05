@@ -2718,3 +2718,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 **Rejected:** one shared statement per distributor with a single owning MR (the owner chose per-MR rows, so each MR's own figures stay separate); a read-only primary from orders (the distributor can receive goods outside the app).
 
 **Open:** whether Admin's distributor statement should still override MR-entered figures in the manager report; migrating older `MonthlyStock` counts into the new rows. Note also the 2026-10-12 entry says units × PTR; since 2026-10-14 the figure is PTS.
+
+## 2026-11-05 — Secondary submission needs a proof file; the attach button is renamed and highlighted
+
+**Decision (owner):** an MR cannot submit a month of secondary stock without at least one attached file (photo or PDF of the distributor's statement). The button reads **Attachment File** (was "Add files") and is the primary, highlighted style, because the old secondary-coloured one was not noticed.
+
+**Consequences:** `POST /sales/secondary-stock/submit` answers `409 ATTACHMENT_REQUIRED` when the month has no file (an empty month still answers `SECONDARY_NOTHING_TO_SEND`). `GET /sales/secondary-stock` returns `attachments[]` and `attachmentCount`, and the web approval card lists the files. The files now also freeze for the MR once the per-distributor rows are `PENDING` or `APPROVED`; before, only the older per-product entry froze them, so a file could be removed after submitting. A manager or Admin may still change them. Months already sent are unaffected; the retired per-product send keeps files optional. Phone work is in `docs/mobile/secondary-and-targets.md`; the field app is another team's.

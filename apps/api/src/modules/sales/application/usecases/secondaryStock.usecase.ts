@@ -10,6 +10,7 @@ import type { MonthlyStockRepositoryPort } from '../../domain/monthlyStock.repos
 import type { OrderRepositoryPort } from '../../domain/order.repository.port.js';
 import type { SalesLateGate } from '../../domain/salesLateGate.port.js';
 import { closingOf, previousMonthOf, type SecondaryStockLine, type SecondaryStockLineInput } from '../../domain/secondaryStockLine.entity.js';
+import type { SecondaryAttachmentRepositoryPort } from '../../domain/secondaryAttachment.repository.port.js';
 import type { SecondaryStockLineRepositoryPort } from '../../domain/secondaryStockLine.repository.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -76,12 +77,16 @@ export class SubmitSecondaryStockUseCase {
     private readonly transactions: TransactionRunnerPort,
     private readonly clock: SalesClock,
     private readonly config: ConfigReader,
+    private readonly files: SecondaryAttachmentRepositoryPort,
   ) {}
 
   async execute(actor: Actor, month: string): Promise<{ requestId: string; sent: number }> {
     await assertMr(this.users, actor);
     if (month > (await this.clock.today()).slice(0, 7)) throw new StockRefusal(STOCK_CODES.monthNotStarted, `${month} has not started yet.`);
     await assertFinancialYearOpen(this.config, `${month}-01`, 'This month');
+    // Proof is required (2026-11-05): at least one photo or PDF for the month. Checked after "nothing to send" so an empty month still says so.
+    const pending = (await this.lines.listByUser(actor.id, month)).some((r) => r.status === 'DRAFT' || r.status === 'REJECTED');
+    if (pending && (await this.files.list(actor.id, month)).length === 0) throw new StockRefusal(STOCK_CODES.attachmentRequired, 'Attach at least one file as proof before you submit.');
     return this.transactions.run(async (ctx) => {
       const sent = await this.lines.setStatus({ userId: actor.id, month }, ['DRAFT', 'REJECTED'], 'PENDING', ctx);
       if (sent === 0) throw new StockRefusal(STOCK_CODES.secondaryNothingToSend, 'There are no secondary figures to send for this month.');
@@ -121,12 +126,14 @@ export class ReadSecondaryStockUseCase {
     private readonly lines: SecondaryStockLineRepositoryPort,
     private readonly orders: OrderRepositoryPort,
     private readonly clock: SalesClock,
+    private readonly files?: SecondaryAttachmentRepositoryPort,
   ) {}
 
   async execute(actor: Actor, input: { userId: string; month: string }): Promise<SecondaryStockMonthDto> {
     await assertMayAct(this.users, actor, input.userId);
     const { userId, month } = input;
     const prev = previousMonthOf(month);
+    const attachments = ((await this.files?.list(userId, month)) ?? []).map((f) => ({ id: f.id, url: f.url, fileName: f.fileName, mimeType: f.mimeType, sizeBytes: f.sizeBytes, uploadedBy: f.uploadedBy, uploadedAt: f.uploadedAt.toISOString() }));
     const [saved, prevLines, products, assigned, timeZone, dayStart] = await Promise.all([
       this.lines.listByUser(userId, month),
       this.lines.listRange({ fromMonth: prev, toMonth: prev, userIds: [userId] }, 50_000),
@@ -164,6 +171,6 @@ export class ReadSecondaryStockUseCase {
       distributors.push({ distributorId, name, status: monthStatusOf(mine.map((r) => r.status)) as StockCountStatus | 'NOT_ENTERED', lines: rows, totals });
     }
     distributors.sort((a, b) => a.name.localeCompare(b.name));
-    return { userId, month, status: monthStatusOf(saved.map((r) => r.status)) as StockCountStatus | 'NOT_ENTERED', distributors, totals: distributors.reduce((t, d) => addTotals(t, { ...d.totals }), emptyTotals()) };
+    return { userId, month, status: monthStatusOf(saved.map((r) => r.status)) as StockCountStatus | 'NOT_ENTERED', attachments, attachmentCount: attachments.length, distributors, totals: distributors.reduce((t, d) => addTotals(t, { ...d.totals }), emptyTotals()) };
   }
 }
