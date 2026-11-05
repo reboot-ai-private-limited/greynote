@@ -120,9 +120,16 @@ export type PushSummary = {
  * run again: every record is idempotent on its clientId. Needs a live connection — the caller
  * disables Submit offline (HLD 01 §1.2).
  */
+/** `DCR_SUBMIT_LATE`: past the monthly cutoff and Admin has not allowed it. `PAYROLL_FINALIZED`: the month's salary is final. */
+export const PERMANENT_REFUSALS = new Set(['DCR_SUBMIT_LATE', 'PAYROLL_FINALIZED']);
+
 export async function pushPending(only?: SyncKind[], opts: { skipFailed?: boolean } = {}): Promise<PushSummary> {
   const summary: PushSummary = { sent: 0, synced: 0, failed: 0, held: 0, offline: false, error: null };
-  const queued = await store.listRecords({ status: opts.skipFailed ? ['QUEUED'] : ['QUEUED', 'FAILED'] });
+  // A record the server refused for the month's deadline or a finalized salary (docs/mobile/dcr.md rules 12-13) will be refused again:
+  // it stays FAILED with the server's message and is not retried. Final Submit queues it afresh if the person asks again.
+  const queued = (await store.listRecords({ status: opts.skipFailed ? ['QUEUED'] : ['QUEUED', 'FAILED'] })).filter(
+    (r) => !(r.status === 'FAILED' && r.errorCode && PERMANENT_REFUSALS.has(r.errorCode)),
+  );
   // `only` narrows a push to some kinds (e.g. a new doctor), so it never drags the day's report along with it.
   const pending = orderForPush(only ? queued.filter((r) => only.includes(r.kind)) : queued);
   if (pending.length === 0) {

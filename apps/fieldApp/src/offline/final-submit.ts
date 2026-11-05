@@ -1,5 +1,5 @@
 import { notifyOutboxChanged, createRecord, listRecords, queueRecord } from './outbox';
-import { pushPending, refreshNow, type PushSummary } from './engine';
+import { PERMANENT_REFUSALS, pushPending, refreshNow, type PushSummary } from './engine';
 import { store } from './store';
 import type { OutboxRecord, SyncKind } from './types';
 
@@ -58,6 +58,12 @@ export async function finalSubmit(reportDate: string, remarks: string | null = n
   await sendNewChemists().catch(() => undefined);
   const unsent = await unsentForDay(reportDate);
   for (const r of unsent) if (r.status === 'DRAFT') await queueRecord(r.clientId);
+  // Final Submission is the person asking again, e.g. after Admin allowed the late day: records refused for the deadline are tried once more.
+  for (const r of unsent) {
+    if (r.status === 'FAILED' && r.errorCode && PERMANENT_REFUSALS.has(r.errorCode)) {
+      await store.upsertRecord({ ...r, status: 'QUEUED', errorCode: null, errorMessage: null, clientUpdatedAt: new Date().toISOString(), dirty: true });
+    }
+  }
 
   const dependsOn = unsent.map((r) => r.clientId);
   const all = await listRecords({ kind: 'DCR_SUBMIT' });

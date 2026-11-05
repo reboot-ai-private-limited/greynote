@@ -93,7 +93,7 @@ export default function TeamStockScreen() {
               View person →
             </ThemedText>
             <ThemedText type="small" themeColor="primary" onPress={() => router.push({ pathname: '/team-secondary', params: { userId: r.user.id, who: r.user.name, month } })}>
-              Edit secondary →
+              Secondary stock →
             </ThemedText>
             {r.waitingOnYou ? (
               <ThemedText type="small" themeColor="primary" onPress={() => router.push('/(tabs)/team')}>
