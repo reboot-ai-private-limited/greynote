@@ -20,7 +20,7 @@ describe('a manager’s team report', () => {
   let read: ReadSecondaryRollupUseCase;
   const approve = (mr: string, cycle = 1) => {
     requests = requests.filter((r) => r.recordId !== `${mr}:2026-09`);
-    requests.push({ id: `rq-${mr}-${cycle}`, kind: 'STOCK_COUNT', recordId: `${mr}:2026-09`, status: 'APPROVED', cycle, decidedAt: new Date(`2026-09-2${cycle}T08:00:00Z`) });
+    requests.push({ id: `rq-${mr}-${cycle}`, kind: 'SECONDARY_SALES', recordId: `${mr}:2026-09`, status: 'APPROVED', cycle, decidedAt: new Date(`2026-09-2${cycle}T08:00:00Z`) });
   };
   const enter = async (mr: string, issued: number, status: 'APPROVED' | 'DRAFT' = 'APPROVED') => lines.upsertMany(mr, '2026-09', [{ distributorId: 'dist1', productId: 'prod1', openingQty: 10, primaryQty: 20, issuedQty: issued }], status, now);
 
@@ -41,9 +41,9 @@ describe('a manager’s team report', () => {
     await enter('mr1', 2);
     approve('mr1');
     await enter('mr2', 4, 'DRAFT');
-    requests.push({ id: 'rq-mr2', kind: 'STOCK_COUNT', recordId: 'mr2:2026-09', status: 'SUBMITTED', cycle: 1, decidedAt: null });
+    requests.push({ id: 'rq-mr2', kind: 'SECONDARY_SALES', recordId: 'mr2:2026-09', status: 'SUBMITTED', cycle: 1, decidedAt: null });
     expect(await submit.execute(asm, '2026-09')).toEqual({ requestId: 'rq-rollup', mrReports: 1 });
-    expect(submitted).toEqual(['SECONDARY_ROLLUP:asm:2026-09']);
+    expect(submitted).toEqual(['SECONDARY_SALES:asm:2026-09:team']);
     const saved = await rollups.find('asm', '2026-09');
     expect(saved).toMatchObject({ status: 'PENDING', requestId: 'rq-rollup', designation: { name: 'ASM', level: 2 }, lines: [{ distributorId: 'dist1', productId: 'prod1', issuedQty: 2 }] });
     expect(saved!.sources.map((s) => [s.mrUserId, s.status, s.requestId, s.issuedQty])).toEqual([['mr1', 'APPROVED', 'rq-mr1-1', 2], ['mr2', 'SUBMITTED', 'rq-mr2', 0]]);
@@ -73,14 +73,14 @@ describe('a manager’s team report', () => {
     approve('mr1');
     await submit.execute(asm, '2026-09');
     const handle = makeSecondaryRollupStatusHandler(rollups, () => now);
-    await handle({ recordId: 'asm:2026-09', status: 'APPROVED' }, undefined as never);
+    await handle({ recordId: 'asm:2026-09:team', status: 'APPROVED' }, undefined as never);
     expect(await rollups.find('asm', '2026-09')).toMatchObject({ status: 'APPROVED', approvedAt: now });
     expect((await rollups.listRange({ fromMonth: '2026-09', toMonth: '2026-09' })).map((r) => r.userId)).toEqual(['asm']);
-    await handle({ recordId: 'asm:2026-09', status: 'REOPENED' }, undefined as never);
+    await handle({ recordId: 'asm:2026-09:team', status: 'REOPENED' }, undefined as never);
     expect(await rollups.find('asm', '2026-09')).toMatchObject({ status: 'DRAFT', approvedAt: null });
     expect(await rollups.listRange({ fromMonth: '2026-09', toMonth: '2026-09' })).toEqual([]);
     await submit.execute(asm, '2026-09');
-    await handle({ recordId: 'asm:2026-09', status: 'REJECTED' }, undefined as never);
+    await handle({ recordId: 'asm:2026-09:team', status: 'REJECTED' }, undefined as never);
     expect((await rollups.find('asm', '2026-09'))!.status).toBe('REJECTED');
   });
 

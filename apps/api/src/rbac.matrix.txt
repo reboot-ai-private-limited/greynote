@@ -22,7 +22,6 @@ DELETE /api/marketing/doctors/:doctorId/visuals/:visualId  ADMIN,FIELD
 DELETE /api/marketing/targets/:id  ADMIN,HR
 DELETE /api/marketing/visuals/:id  ADMIN
 DELETE /api/planning/monthly/:id  ADMIN
-DELETE /api/sales/employee-secondary  ADMIN
 DELETE /api/sales/employee-secondary/attachments/:id  ADMIN,FIELD
 DELETE /api/sales/stock-counts  ADMIN
 DELETE /api/territory/hqs/:id  ADMIN
@@ -157,7 +156,6 @@ GET    /api/sales/distributor-payments/balances  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-payments/outstanding  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-payments/totals  ACCOUNTANT,ADMIN
 GET    /api/sales/distributor-statement  ACCOUNTANT,ADMIN
-GET    /api/sales/employee-sales  ADMIN,FIELD
 GET    /api/sales/invoices  ACCOUNTANT,ADMIN
 GET    /api/sales/invoices/:id  ACCOUNTANT,ADMIN
 GET    /api/sales/monthly-stock  ADMIN,FIELD
@@ -167,7 +165,6 @@ GET    /api/sales/orders/:id  ACCOUNTANT,ADMIN,FIELD
 GET    /api/sales/secondary-report  ADMIN,FIELD
 GET    /api/sales/secondary-rollup  ADMIN,FIELD
 GET    /api/sales/secondary-stock  ADMIN,FIELD
-GET    /api/sales/stock-counts  ADMIN,FIELD
 GET    /api/sales/stock-counts/impact  ADMIN
 GET    /api/sync/drafts  FIELD
 GET    /api/sync/pull  FIELD
@@ -319,10 +316,7 @@ POST   /api/planning/monthly/:id/submit  FIELD
 POST   /api/sales/distributor-payments  ACCOUNTANT,ADMIN
 POST   /api/sales/distributor-payments/:id/cancel  ACCOUNTANT,ADMIN
 POST   /api/sales/distributor-statement  ADMIN
-POST   /api/sales/employee-primary  ADMIN
-POST   /api/sales/employee-secondary  ADMIN,FIELD
 POST   /api/sales/employee-secondary/attachments  ADMIN,FIELD
-POST   /api/sales/employee-secondary/submit  FIELD
 POST   /api/sales/monthly-stock  ADMIN,FIELD
 POST   /api/sales/monthly-stock/unlock  ADMIN
 POST   /api/sales/orders  FIELD
@@ -332,7 +326,6 @@ POST   /api/sales/orders/on-behalf  ACCOUNTANT,ADMIN
 POST   /api/sales/secondary-rollup/submit  FIELD
 POST   /api/sales/secondary-stock  FIELD
 POST   /api/sales/secondary-stock/submit  FIELD
-POST   /api/sales/stock-counts/submit  FIELD
 POST   /api/sync/push  FIELD
 POST   /api/territory/hqs  ADMIN
 POST   /api/territory/import  ADMIN

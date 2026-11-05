@@ -14,7 +14,7 @@ export interface SecondaryRollupLine {
  * where it stood and the MR's totals then. Only an `APPROVED` source feeds `lines`; the others are listed so "6 of 8 approved" is on the record.
  */
 export interface SecondaryRollupSource {
-  /** The MR's `STOCK_COUNT` record id, `mrUserId:month`. */
+  /** The MR's report record id, `mrUserId:month`. */
   recordId: string;
   /** `null` when the MR had not submitted. */
   requestId: string | null;

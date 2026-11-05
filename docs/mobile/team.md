@@ -62,7 +62,7 @@ Daily plans, monthly plans, daily reports, secondary sales and doctor services a
 | `GET /field-activity/dcr/team?from&to&userId`, `GET /field-activity/dcr/:id` | The team's daily reports; one in full. |
 | `GET /field-master-data/doctors/team?userId`, `PATCH /field-master-data/doctors/:id/review`, `PATCH /field-master-data/doctors/:id/targets` | The team's doctors; review an added doctor; set a visit target. A manager also plans and records calls on any of these doctors (downline, any depth): [`dailyplan.md`](dailyplan.md) section 1b, [`dcr.md`](dcr.md) rule 1. |
 | `GET /reports/sales-dashboard`, `/reports/employee-sales?userId`, `/reports/doctor-visits` | Targets vs sales, per person, visit frequency and missed calls (downline). **From 2026-10-14 sales are valued at PTS (not PTR)**; `employee-sales` adds `distributors[]` (the person's Done orders by distributor) and the flags are `NO_PTS` / `NO_PTS_CHANGE`. The Accountant also reads these on the web; nothing changes for a manager. |
-| `GET /sales/employee-sales?userId&month` | One person's entered secondary sales. |
+| `GET /sales/secondary-stock?userId&month` | One MR's month of secondary stock; a manager's team report is `GET /sales/secondary-rollup?userId&month`. |
 | `GET /field-activity/expense-months?month&userId`, `GET /hr/leave-balances/:userId?year` | One person's expense month; leave balance. |
 | `POST /identity/users/:id/unblock`, `POST /planning/late-grants` (+ `/revoke`), `POST /field-activity/expense-grants` | Unblock with a reason; allow a late plan (only while `LATE_PLAN_GRANT_BY_MANAGER` is on) or late expense (`409 GRANT_PERIOD_LOCKED` once the month is settled). Late stock/secondary exceptions and granting for several people at once are on the web only. |
 
@@ -81,7 +81,7 @@ Daily plans, monthly plans, daily reports, secondary sales and doctor services a
 | Team's daily reports | `GET /field-activity/dcr/team?from&to&userId` (downline, read-only); `GET /field-activity/dcr/:id` for calls, GPS, follow-ups, expenses. | ✅ |
 | Team's doctors | `GET /field-master-data/doctors/team?userId`; review an MR-added doctor; set a doctor's visit target. | ✅ |
 | Sales Dashboard | `GET /reports/sales-dashboard` already lets a manager read **their downline** (and refuses a FIELD user with no team). Targets vs achievement, field employees only. | ✅ server, 📱 |
-| Per-employee sales and targets | `GET /reports/employee-sales` (manager reads downline; can set targets for them); `GET /sales/employee-sales?userId&month`. | ✅ |
+| Per-employee sales and targets | `GET /reports/employee-sales` (manager reads downline; can set targets for them); `GET /sales/secondary-stock?userId&month`. | ✅ |
 | Doctor-visit frequency, missed calls | `GET /reports/doctor-visits` (self + downline). | ✅ |
 | One person's expense month, leave balance | `GET /field-activity/expense-months?month&userId` and `GET /hr/leave-balances/:userId` accept anyone up the manager chain. | ✅ |
 | Daily operations tools | Unblock a blocked employee (reason kept as audit) `POST /identity/users/:id/unblock`; late-submission grants for plans (`POST /planning/late-grants`, only while `LATE_PLAN_GRANT_BY_MANAGER` is on) and for expenses (`/field-activity/expense-grants`). A late **daily report** (past `DCR_SUBMIT_CUTOFF_DAY`, [`dcr.md`](dcr.md) rule 12) can only be allowed by Admin, on the web; a manager cannot, and the exception is not offered once the month's salary is finalized. | ✅ |

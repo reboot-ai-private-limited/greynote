@@ -1,9 +1,9 @@
-import { parseBoolean, readConfigOr, type ConfigReader } from '@/shared/config/readConfig.js';
+import { type ConfigReader } from '@/shared/config/readConfig.js';
 import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import type { TransactionContext } from '@/shared/db/transaction.port.js';
 import type { SalesLateGate } from '../../domain/salesLateGate.port.js';
 import { monthWindow } from '../../domain/stockDeadline.js';
-import type { Outlet, StockLine, StockStatus } from '../../domain/monthlyStock.entity.js';
+import type { Outlet, StockLine } from '../../domain/monthlyStock.entity.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { MonthlyStockRepositoryPort } from '../../domain/monthlyStock.repository.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
@@ -51,23 +51,7 @@ export class RecordMonthlyStockUseCase {
       if (!product || product.status !== 'active') throw new StockRefusal(STOCK_CODES.productNotFound, 'A product in the list does not exist or is no longer active.');
     }
 
-    // With approval on, an employee's own distributor count is a draft until they submit the month; Admin's is final. A month already sent or
-    // approved is locked to the employee (a withdrawal or rejection opens it again). Chemist counts are never approved.
-    let status: StockStatus | undefined;
-    if (outlet.type === 'DISTRIBUTOR' && (await stockApprovalOn(this.config))) {
-      status = actor.role === 'ADMIN' ? 'APPROVED' : 'DRAFT';
-      if (actor.role !== 'ADMIN') {
-        const held = (await this.stock.list({ month, outlets: [outlet] }, 5000)).find((r) => input.lines.some((l) => l.productId === r.productId) && (r.status === 'PENDING' || r.status === 'APPROVED'));
-        if (held) throw new StockRefusal(STOCK_CODES.secondaryLocked, `This month is ${held.status === 'PENDING' ? 'waiting for approval' : 'approved'}. Withdraw it, or ask your manager to reopen it, before changing it.`);
-      }
-    }
-
-    await this.stock.upsertMany(outlet, month, input.lines, actor.id, now, ctx, status);
+    await this.stock.upsertMany(outlet, month, input.lines, actor.id, now, ctx);
     return { serverId: `${outlet.id}:${month}`, lines: input.lines.length };
   }
-}
-
-/** Whether distributor counts go through approval (Admin setting `STOCK_COUNT_APPROVAL`, off until the field app can submit). A config not seeded yet reads as off. */
-export async function stockApprovalOn(config: ConfigReader | undefined): Promise<boolean> {
-  return config ? readConfigOr(config, 'STOCK_COUNT_APPROVAL', parseBoolean, false) : false;
 }

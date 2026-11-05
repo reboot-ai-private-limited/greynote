@@ -12,7 +12,7 @@ import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../outletAccess.js';
 import type { SalesClock } from '../salesClock.js';
 import type { SalesLateGate } from '../../domain/salesLateGate.port.js';
-import { assertMayAct, assertMonthOpenForEntry } from './employeeSales.usecase.js';
+import { assertMayAct, assertMonthOpenForEntry } from './employeeAccess.js';
 
 interface Deps {
   users: UserDirectoryPort;

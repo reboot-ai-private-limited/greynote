@@ -62,10 +62,10 @@ export function useApprovalCsv(request: Request) {
         return { filename: exportFilename(owner, 'expenses', statement.month), csv: expenseMonthCsv(statement) };
       }
       case 'SECONDARY_SALES': {
-        // The record id is `<userId>:<YYYY-MM>`.
-        const [userId = '', month = ''] = request.recordId.split(':');
-        const sales = await salesApi.employeeSales(token, { userId, month });
-        return { filename: exportFilename(owner, 'secondary-sales', month), csv: secondarySalesCsv(sales) };
+        // An MR's report is `<userId>:<YYYY-MM>`, a manager's team report `<userId>:<YYYY-MM>:team`.
+        const [userId = '', month = '', tail] = request.recordId.split(':');
+        const report = tail === 'team' ? await salesApi.secondaryRollup(token, { userId, month }) : await salesApi.secondaryStock(token, { userId, month });
+        return { filename: exportFilename(owner, tail === 'team' ? 'team-secondary' : 'secondary-sales', month), csv: secondarySalesCsv(report) };
       }
       case 'NEW_DOCTOR': {
         const doctor = await doctorsApi.get(token, request.recordId);

@@ -1,6 +1,13 @@
-import type { SecondaryReportDistributorDto, SecondaryReportLineDto, SecondaryStockTotalsDto } from '@greynote/contracts';
+import type { SecondaryReportDistributorDto, SecondaryReportLineDto, SecondaryStockTotalsDto, StockCountStatus } from '@greynote/contracts';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import { closingOf } from '../../domain/secondaryStockLine.entity.js';
+
+/** Where a month stands from its distributors' statuses: anything unfinished first, so a month is only Approved when every distributor is. */
+export function monthStatusOf(statuses: readonly StockCountStatus[]): 'NOT_ENTERED' | StockCountStatus {
+  if (statuses.length === 0) return 'NOT_ENTERED';
+  for (const s of ['REJECTED', 'DRAFT', 'PENDING'] as const) if (statuses.includes(s)) return s;
+  return 'APPROVED';
+}
 
 const EMPTY: SecondaryStockTotalsDto = { openingQty: 0, primaryQty: 0, issuedQty: 0, closingQty: 0, issuedAmountPaise: 0, closingAmountPaise: 0 };
 export const emptyTotals = (): SecondaryStockTotalsDto => ({ ...EMPTY });
