@@ -56,6 +56,8 @@ describe('buildGrant for the other kinds', () => {
   it('wants a date for a daily plan and a month for the rest', () => {
     expect(buildGrant({ ...base, kind: 'DAILY_PLAN', periodKey: '2026-11-02' }, 'UTC', now).ok).toBe(true);
     expect(buildGrant({ ...base, kind: 'DAILY_PLAN', periodKey: '2026-11' }, 'UTC', now).ok).toBe(false);
+    expect(buildGrant({ ...base, kind: 'DCR_SUBMIT', periodKey: '2026-10-05' }, 'UTC', now).ok).toBe(true);
+    expect(buildGrant({ ...base, kind: 'DCR_SUBMIT', periodKey: '2026-10' }, 'UTC', now).ok).toBe(false);
     for (const kind of ['EXPENSE_SUBMIT', 'EXPENSE_APPROVE', 'MONTHLY_STOCK', 'SECONDARY_SALES'] as const) {
       expect(buildGrant({ ...base, kind, periodKey: '2026-10' }, 'UTC', now).ok).toBe(true);
       expect(buildGrant({ ...base, kind, periodKey: '2026-10-05' }, 'UTC', now).ok).toBe(false);

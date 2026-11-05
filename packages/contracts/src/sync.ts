@@ -191,6 +191,10 @@ export const DCR_REFUSAL_CODES = [
   'DATE_IN_FUTURE',
   'DATE_MISMATCH',
   'DCR_LOCKED',
+  /** The day's report is past its monthly cutoff (`DCR_SUBMIT_CUTOFF_DAY`: reports are due before that day of the next month begins) and Admin has not allowed it late; `details`: `reportDate`, `deadline`. */
+  'DCR_SUBMIT_LATE',
+  /** The employee's salary for the report's month is finalized, so nothing in that month's reports can change any more. */
+  'PAYROLL_FINALIZED',
   'DOCTOR_NOT_FOUND',
   'DOCTOR_NOT_ASSIGNED',
   'CHEMIST_NOT_FOUND',

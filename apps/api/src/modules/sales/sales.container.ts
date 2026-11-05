@@ -28,7 +28,11 @@ import { MongoPaymentAdapter } from './infrastructure/mongoPayment.adapter.js';
 import { MongoSecondaryAttachmentAdapter } from './infrastructure/mongoSecondaryAttachment.adapter.js';
 import { CloudinarySecondaryFileStorage } from './infrastructure/cloudinarySecondaryFileStorage.adapter.js';
 import { AddSecondaryAttachmentUseCase, RemoveSecondaryAttachmentUseCase } from './application/usecases/secondaryAttachments.usecase.js';
-import { DeleteStockCountsUseCase, makeStockCountStatusHandler, ReadStockCountsUseCase, STOCK_COUNT_KIND, SubmitStockCountsUseCase } from './application/usecases/stockCounts.usecase.js';
+import { ReadSecondaryReportUseCase } from './application/usecases/secondaryReport.usecase.js';
+import { MongoSecondaryStockLineAdapter } from './infrastructure/mongoSecondaryStockLine.adapter.js';
+import { makeSecondaryStockStatusHandler, ReadSecondaryStockUseCase, SaveSecondaryStockUseCase, SubmitSecondaryStockUseCase } from './application/usecases/secondaryStock.usecase.js';
+import type { MonthSecondaryStatus } from './domain/employeeSale.entity.js';
+import { DeleteStockCountsUseCase, makeStockCountStatusHandler, ReadStockCountsUseCase, monthStatusOf, STOCK_COUNT_KIND, SubmitStockCountsUseCase } from './application/usecases/stockCounts.usecase.js';
 import { MongoMonthlyStockAdapter } from './infrastructure/mongoMonthlyStock.adapter.js';
 import { makeSalesControllers } from './interface/sales.controller.js';
 import { buildSalesRouter } from './interface/sales.route.js';
@@ -54,7 +58,8 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
   const employeeSales = new MongoEmployeeSaleAdapter();
   const clock = new SalesClock(config);
   const secondaryFiles = new MongoSecondaryAttachmentAdapter();
-  const attachmentDeps = { users, sales: employeeSales, stock, files: secondaryFiles, storage: new CloudinarySecondaryFileStorage(), clock, config, late };
+  const secondaryLines = new MongoSecondaryStockLineAdapter();
+  const attachmentDeps = { users, sales: employeeSales, stock, lines: secondaryLines, files: secondaryFiles, storage: new CloudinarySecondaryFileStorage(), clock, config, late };
   const distributorHistory = new MongoDistributorHistoryAdapter();
 
   const access = new OutletAccess(master);
@@ -68,7 +73,7 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
   approvals.registerKind({ kind: SECONDARY_SALES_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: async (ids) => new Map(ids.map((id) => [id, { title: monthTitle(id.split(':')[1] ?? ''), subtitle: null }])), onStatusChange: makeSecondaryStatusHandler(employeeSales) });
 
   // A month of distributor counts is approved by the employee's manager (Admin may act in their place); only approved counts count toward achievement.
-  approvals.registerKind({ kind: STOCK_COUNT_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: async (ids) => new Map(ids.map((id) => [id, { title: monthTitle(id.split(':')[1] ?? ''), subtitle: null }])), onStatusChange: makeStockCountStatusHandler(stock, master) });
+  approvals.registerKind({ kind: STOCK_COUNT_KIND, finalApproverRoles: ['ADMIN'], managerOnly: true, describeRecords: async (ids) => new Map(ids.map((id) => [id, { title: monthTitle(id.split(':')[1] ?? ''), subtitle: null }])), onStatusChange: async (change, ctx) => { await makeStockCountStatusHandler(stock, master)(change, ctx); await makeSecondaryStockStatusHandler(secondaryLines)(change, ctx); } });
 
   sync.registerHandler(
     makeMonthlyStockSyncHandler(record, (payload) => {
@@ -90,6 +95,7 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
       listOrders: (f) => orders.list({ from: f.from, to: f.to, status: f.status, outlet: f.outlet, userIds: f.userId ? [f.userId] : undefined }, f.limit ?? 2000),
       sumDistributorOrders: async (f) => orders.sumDistributorOrders({ ...f, timeZone: await clock.timeZone(), dayStart: await clock.dayStart() }),
       listStockRange: (f) => stock.listRange(f, f.limit ?? 20000),
+      listSecondaryLines: (f) => secondaryLines.listRange(f, f.limit ?? 50000),
       sumUserOrders: async (f) => orders.sumUserOrders({ ...f, timeZone: await clock.timeZone(), dayStart: await clock.dayStart() }),
       // Achievement counts approved secondary only: a line still waiting, rejected or in draft reads as nothing entered.
       listEmployeeSales: async (f) => (await employeeSales.list(f, f.limit ?? 20000)).map((s) => (s.secondaryStatus === 'APPROVED' ? s : { ...s, secondaryQty: null, secondaryAmountPaise: null })),
@@ -100,13 +106,18 @@ export function buildSalesContainer(users: UserDirectoryPort, master: FieldMaste
       eraseDistributorHistory: (id) => distributorHistory.erase(id),
       listSecondaryStatus: async (month, userIds) => {
         const rows = userIds.length ? await employeeSales.list({ fromMonth: month, toMonth: month, userIds }, 20000) : [];
-        return userIds.map((userId) => ({ userId, status: monthSecondaryStatus(rows.filter((r) => r.userId === userId)) }));
+        // An MR who entered per-distributor stock (2026-11-05) is judged by those rows; everyone else by the older per-product entry.
+        const mine = userIds.length ? await secondaryLines.listRange({ fromMonth: month, toMonth: month, userIds, statuses: ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED'] }, 100000) : [];
+        return userIds.map((userId) => {
+          const own = mine.filter((r) => r.userId === userId);
+          return { userId, status: own.length > 0 ? (monthStatusOf(own.map((r) => r.status)) as MonthSecondaryStatus) : monthSecondaryStatus(rows.filter((r) => r.userId === userId)) };
+        });
       },
     },
     runStockCheck: async (month) => {
       const m = month ?? (await clock.previousMonth());
       return { month: m, missing: await missing.execute({ id: 'system', role: 'ADMIN' }, m) };
     },
-    buildRouter: () => buildSalesRouter(makeSalesControllers({ record, list, unlock, missing, place, listOrders: new ListOrdersUseCase(orders, users), getOrder, finish: new FinishOrderUseCase(getOrder, master, orders, clock), setInvoice: new SetInvoiceNumberUseCase(getOrder, master, orders), listInvoices: new ListInvoicesUseCase(orders, payments, master, clock), getInvoice: new GetInvoiceUseCase(orders, payments, master, clock), edit: new EditOrderUseCase(getOrder, master, orders, clock), recordPayment: new RecordPaymentUseCase(master, payments, orders, clock, config, users), listPayments: new ListPaymentsUseCase(payments, orders, users, master), cancelPayment: new CancelPaymentUseCase(payments, orders, clock, config, users), paymentTotals: new PaymentTotalsUseCase(payments), balances: new DistributorBalancesUseCase(payments, orders), outstanding: new OutstandingDuesUseCase(master, payments, orders), readStatement: new ReadStatementUseCase(master, statements, stock, orders, users, clock), saveStatement: new SaveStatementUseCase(master, statements, clock, config), readEmployeeSales: new ReadEmployeeSalesUseCase(users, master, employeeSales, orders, clock, approvals, secondaryFiles), submitEmployeeSecondary: new SubmitEmployeeSecondaryUseCase(employeeSales, approvals, new MongooseTransactionRunner(), clock, config), saveEmployeeSecondary: new SaveEmployeeSecondaryUseCase(users, master, employeeSales, stock, clock, config, late), deleteEmployeeSecondary: new DeleteEmployeeSecondaryUseCase({ users, sales: employeeSales, stock, files: secondaryFiles, storage: attachmentDeps.storage, approvals, transactions: new MongooseTransactionRunner(), clock, config, late }),saveEmployeePrimary: new SaveEmployeePrimaryUseCase(users, master, employeeSales, clock, config), submitStockCounts: new SubmitStockCountsUseCase(stock, approvals, new MongooseTransactionRunner(), clock, config), readStockCounts: new ReadStockCountsUseCase(users, master, stock, orders, clock), deleteStockCounts: new DeleteStockCountsUseCase(stock, approvals, new MongooseTransactionRunner(), clock, config), addSecondaryAttachment: new AddSecondaryAttachmentUseCase(attachmentDeps), removeSecondaryAttachment: new RemoveSecondaryAttachmentUseCase(attachmentDeps) })),
+    buildRouter: () => buildSalesRouter(makeSalesControllers({ record, list, unlock, missing, place, listOrders: new ListOrdersUseCase(orders, users), getOrder, finish: new FinishOrderUseCase(getOrder, master, orders, clock), setInvoice: new SetInvoiceNumberUseCase(getOrder, master, orders), listInvoices: new ListInvoicesUseCase(orders, payments, master, clock), getInvoice: new GetInvoiceUseCase(orders, payments, master, clock), edit: new EditOrderUseCase(getOrder, master, orders, clock), recordPayment: new RecordPaymentUseCase(master, payments, orders, clock, config, users), listPayments: new ListPaymentsUseCase(payments, orders, users, master), cancelPayment: new CancelPaymentUseCase(payments, orders, clock, config, users), paymentTotals: new PaymentTotalsUseCase(payments), balances: new DistributorBalancesUseCase(payments, orders), outstanding: new OutstandingDuesUseCase(master, payments, orders), readStatement: new ReadStatementUseCase(master, statements, stock, orders, users, clock), saveStatement: new SaveStatementUseCase(master, statements, clock, config), readEmployeeSales: new ReadEmployeeSalesUseCase(users, master, employeeSales, orders, clock, approvals, secondaryFiles), submitEmployeeSecondary: new SubmitEmployeeSecondaryUseCase(employeeSales, approvals, new MongooseTransactionRunner(), clock, config), saveEmployeeSecondary: new SaveEmployeeSecondaryUseCase(users, master, employeeSales, stock, clock, config, late), deleteEmployeeSecondary: new DeleteEmployeeSecondaryUseCase({ users, sales: employeeSales, stock, files: secondaryFiles, storage: attachmentDeps.storage, approvals, transactions: new MongooseTransactionRunner(), clock, config, late }),saveEmployeePrimary: new SaveEmployeePrimaryUseCase(users, master, employeeSales, clock, config), secondaryReport: new ReadSecondaryReportUseCase(users, master, secondaryLines), saveSecondaryStock: new SaveSecondaryStockUseCase({ users, master, lines: secondaryLines, stock, clock, config, late }), submitSecondaryStock: new SubmitSecondaryStockUseCase(users, secondaryLines, approvals, new MongooseTransactionRunner(), clock, config, secondaryFiles), readSecondaryStock: new ReadSecondaryStockUseCase(users, master, secondaryLines, orders, clock, secondaryFiles), submitStockCounts: new SubmitStockCountsUseCase(stock, approvals, new MongooseTransactionRunner(), clock, config), readStockCounts: new ReadStockCountsUseCase(users, master, stock, orders, clock), deleteStockCounts: new DeleteStockCountsUseCase(stock, approvals, new MongooseTransactionRunner(), clock, config, secondaryLines), addSecondaryAttachment: new AddSecondaryAttachmentUseCase(attachmentDeps), removeSecondaryAttachment: new RemoveSecondaryAttachmentUseCase(attachmentDeps) })),
   };
 }

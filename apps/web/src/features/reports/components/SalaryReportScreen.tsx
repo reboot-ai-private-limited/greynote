@@ -203,7 +203,7 @@ export function SalaryReportScreen() {
       >
         <div className="p-5">
           <DataState
-            isLoading={query.isLoading}
+            isLoading={query.isLoading} isFetching={query.isFetching}
             error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
             isEmpty={started.length === 0}
             empty={{ title: 'No month of this financial year has started yet' }}
@@ -248,7 +248,7 @@ export function SalaryReportScreen() {
         className="mt-6"
       >
         <DataState
-          isLoading={query.isLoading}
+          isLoading={query.isLoading} isFetching={query.isFetching}
           error={null}
           isEmpty={matrix.length === 0}
           empty={{

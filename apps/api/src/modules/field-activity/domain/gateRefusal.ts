@@ -6,6 +6,8 @@ export const GATE_CODES = {
   dateInFuture: 'DATE_IN_FUTURE',
   dateMismatch: 'DATE_MISMATCH',
   dcrLocked: 'DCR_LOCKED',
+  dcrSubmitLate: 'DCR_SUBMIT_LATE',
+  payrollFinalized: 'PAYROLL_FINALIZED',
   remarksRequired: 'REMARKS_REQUIRED',
 } as const;
 export type GateCode = (typeof GATE_CODES)[keyof typeof GATE_CODES];

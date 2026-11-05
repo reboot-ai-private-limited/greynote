@@ -233,7 +233,7 @@ export function EmployeeMonthGrid({
         </div>
       </div>
       <DataState
-        isLoading={query.isLoading}
+        isLoading={query.isLoading} isFetching={query.isFetching}
         error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
         isEmpty={lines.length === 0}
         empty={{ title: 'No active products', description: 'Add products first.' }}

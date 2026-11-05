@@ -54,6 +54,11 @@ export interface StatementsPort {
   listStatements(filter: { fromMonth: string; toMonth: string; distributorId?: string; productId?: string }): Promise<StatementRow[]>;
 }
 
+/** An MR's approved secondary stock row: the issued units are that MR's own secondary, credited to them alone. */
+export interface SecondaryLinesPort {
+  listSecondaryLines(filter: { fromMonth: string; toMonth: string; userIds?: string[]; distributorId?: string; productId?: string }): Promise<Array<{ userId: string; distributorId: string; productId: string; month: string; openingQty: number; primaryQty: number; issuedQty: number }>>;
+}
+
 export interface SalesPort {
   sumDistributorOrders(filter: { from: string; to: string; distributorId?: string; productId?: string }): Promise<OrderSumRow[]>;
   listStockRange(filter: { fromMonth: string; toMonth: string; outletType: 'CHEMIST' | 'DISTRIBUTOR'; outletId?: string; productId?: string }): Promise<StockRow[]>;

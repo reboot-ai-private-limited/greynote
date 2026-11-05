@@ -11,6 +11,9 @@ const LATEST_KEY = 'DAILY_PLAN_RESUBMIT_LATEST_TIME';
 const EX_KEY = 'EX_STATION_MIN_KM';
 const OUT_KEY = 'OUT_STATION_MIN_KM';
 const WEEKLY_OFF_KEY = 'WEEKLY_OFF_SCHEDULE';
+/** Salary is run on the salary day on reports that are settled by then, so the daily-report deadline day cannot come after it. */
+const DCR_CUTOFF_KEY = 'DCR_SUBMIT_CUTOFF_DAY';
+const SALARY_DAY_KEY = 'SALARY_RUN_DAY';
 
 /**
  * Changes one setting. The value is checked against the setting's own definition (type, limits) and stored in the form the readers
@@ -44,6 +47,7 @@ export class UpdateConfigValueUseCase {
     if (!checked.ok) throw AppError.badRequest(checked.message, { field: 'value', key });
     await this.assertPlanTimesInOrder(key, checked.value);
     await this.assertStationKmInOrder(key, checked.value);
+    await this.assertReportCutoffNotAfterSalaryDay(key, checked.value);
     await this.assertWeeklyOffHistoryKept(key, checked.value);
 
     const updated = await this.repository.updateValue(key, checked.value, actingUserId);
@@ -79,6 +83,22 @@ export class UpdateConfigValueUseCase {
       if (n.effectiveFrom < today && !old.schedule.some((v) => same(v, n))) {
         throw AppError.badRequest(`A new set of days off can't start in the past (${n.effectiveFrom}). Start it today or later.`, { field: 'value', key });
       }
+    }
+  }
+
+  private async assertReportCutoffNotAfterSalaryDay(key: string, value: string): Promise<void> {
+    if (key !== DCR_CUTOFF_KEY && key !== SALARY_DAY_KEY) return;
+    const other = (await this.repository.findByKey(key === DCR_CUTOFF_KEY ? SALARY_DAY_KEY : DCR_CUTOFF_KEY))?.value;
+    if (!other || !/^\d+$/.test(other)) return;
+    const cutoff = Number(key === DCR_CUTOFF_KEY ? value : other);
+    const salary = Number(key === SALARY_DAY_KEY ? value : other);
+    if (cutoff !== 0 && cutoff > salary) {
+      throw AppError.badRequest(
+        key === DCR_CUTOFF_KEY
+          ? `The daily-report deadline day (${cutoff}) can't be later than the salary day (${salary}): salary needs the month's reports settled first.`
+          : `The salary day (${salary}) can't be earlier than the daily-report deadline day (${cutoff}).`,
+        { field: 'value', key },
+      );
     }
   }
 

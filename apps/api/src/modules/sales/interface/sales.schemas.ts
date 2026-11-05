@@ -168,6 +168,17 @@ export const saveEmployeeSecondaryBodySchema = z.object({
 });
 export const submitEmployeeSecondaryBodySchema = z.object({ month: monthSchema });
 /** The employee sends a month of their distributor counts for approval. */
+/** A manager's secondary report: which month, and (Admin, or a manager looking at a team below them) whose team. */
+export const secondaryReportQuerySchema = z.object({ month: monthSchema, managerId: objectIdSchema.optional() });
+/** An MR's draft figures for a month: per distributor and product, opening / primary / issued in whole units. Closing is derived. */
+export const saveSecondaryStockBodySchema = z.object({
+  month: monthSchema,
+  lines: z
+    .array(z.object({ distributorId: objectIdSchema, productId: objectIdSchema, openingQty: qtySchemaWhole, primaryQty: qtySchemaWhole, issuedQty: qtySchemaWhole }))
+    .min(1)
+    .max(2000)
+    .refine((ls) => new Set(ls.map((l) => `${l.distributorId}|${l.productId}`)).size === ls.length, { message: 'A distributor and product appear twice.' }),
+});
 export const submitStockCountsBodySchema = z.object({ month: monthSchema });
 /** Whose month of distributor counts, and which month (the caller's own when `userId` is left out is not allowed: say whose). */
 export const stockCountsQuerySchema = z.object({ userId: objectIdSchema, month: monthSchema });

@@ -5,6 +5,9 @@ import type { ApprovalsPort } from '../domain/approvals.port.js';
 import type { PlanningPort } from '../domain/planning.port.js';
 import type { UserDirectoryPort } from '../domain/userDirectory.port.js';
 import type { DcrClock } from './dcrClock.js';
+import type { LateGrant } from '@/modules/lateGrants/lateGrants.public.js';
+import type { DcrLatePort } from './dcrLate.port.js';
+import type { DcrMonthLock } from './dcrMonthLock.js';
 import { DCR_KIND, isOpenForLogging } from './dcrStatus.js';
 
 /**
@@ -16,7 +19,8 @@ import { DCR_KIND, isOpenForLogging } from './dcrStatus.js';
  * In order: the employee isn't compliance-blocked (`hld/10`) → the day isn't in the future, and is the day
  * the record was made (`clientCreatedAt`, in the business timezone) → the month's Monthly Plan is approved (no approved month, no work) → the day's Plan is past the manager
  * (Planning's `isDailyPlanApproved`, never a status compared here) → the day's DCR isn't already submitted
- * (a rejected, withdrawn or reopened one can be added to again). Refuses with a `GateRefusal` carrying the
+ * (a rejected, withdrawn or reopened one can be added to again) → the month's salary is not finalized (`PAYROLL_FINALIZED`) → the day is not past the monthly cutoff (`DCR_SUBMIT_CUTOFF_DAY`),
+ * unless Admin has allowed it late (`DCR_SUBMIT_LATE`). Refuses with a `GateRefusal` carrying the
  * code the app acts on.
  */
 export class LoggingGate {
@@ -26,6 +30,8 @@ export class LoggingGate {
     private readonly approvals: ApprovalsPort,
     private readonly dcrs: DcrRepositoryPort,
     private readonly clock: DcrClock,
+    private readonly late: DcrLatePort | null = null,
+    private readonly monthLock: DcrMonthLock | null = null,
   ) {}
 
   /**
@@ -41,8 +47,11 @@ export class LoggingGate {
     return dcr;
   }
 
-  /** The gate without touching the DCR — for the checks that don't need the envelope. */
-  async assertMayAct(userId: string, reportDate: string, recordedAt: Date): Promise<void> {
+  /**
+   * The gate without touching the DCR — for the checks that don't need the envelope. Returns the Admin exception this day is going
+   * through on (to be spent by the final submit), or `null` when the day is on time.
+   */
+  async assertMayAct(userId: string, reportDate: string, recordedAt: Date): Promise<LateGrant | null> {
     await this.clock.assertDayOpen(reportDate);
     if (await this.users.isBlocked(userId)) {
       throw new GateRefusal(GATE_CODES.userBlocked, 'You are blocked for missed reports. Your manager or Admin has to unblock you first.');
@@ -62,5 +71,14 @@ export class LoggingGate {
     if (!(await this.planning.isDailyPlanApproved(userId, reportDate))) {
       throw new GateRefusal(GATE_CODES.planNotApproved, 'Today’s tour plan isn’t approved, so nothing can be logged yet.');
     }
+    if (this.monthLock && (await this.monthLock.isLocked(userId, reportDate))) {
+      throw new GateRefusal(GATE_CODES.payrollFinalized, `Your salary for ${reportDate.slice(0, 7)} is already finalized, so that month’s reports can no longer change.`);
+    }
+    const lateness = this.late ? await this.late.check(userId, reportDate) : ({ status: 'ON_TIME' } as const);
+    if (lateness.status === 'LATE') {
+      const by = await this.clock.dateOf(lateness.deadline);
+      throw new GateRefusal(GATE_CODES.dcrSubmitLate, `The report for ${reportDate} was due by ${by}. Ask Admin to allow it late.`);
+    }
+    return lateness.status === 'LATE_ALLOWED' ? lateness.grant : null;
   }
 }

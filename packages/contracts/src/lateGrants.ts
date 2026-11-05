@@ -1,4 +1,4 @@
-export const LATE_GRANT_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN', 'EXPENSE_SUBMIT', 'EXPENSE_APPROVE', 'MONTHLY_STOCK', 'SECONDARY_SALES'] as const;
+export const LATE_GRANT_KINDS = ['DAILY_PLAN', 'MONTHLY_PLAN', 'EXPENSE_SUBMIT', 'EXPENSE_APPROVE', 'MONTHLY_STOCK', 'SECONDARY_SALES', 'DCR_SUBMIT'] as const;
 export type LateGrantKindDto = (typeof LATE_GRANT_KINDS)[number];
 export type LateGrantStatusDto = 'OPEN' | 'USED' | 'REVOKED' | 'EXPIRED';
 
@@ -7,7 +7,7 @@ export interface LateGrantDto {
   id: string;
   userId: string;
   kind: LateGrantKindDto;
-  /** `YYYY-MM-DD` for a daily plan, otherwise `YYYY-MM`. */
+  /** `YYYY-MM-DD` for a daily plan or a daily report, otherwise `YYYY-MM`. */
   periodKey: string;
   reason: string;
   grantedBy: string;

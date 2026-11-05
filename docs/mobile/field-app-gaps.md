@@ -1,6 +1,8 @@
-# Mobile: what the field app is missing (checked 2026-10-28)
+# Mobile: what the field app is missing (checked 2026-11-05)
 
 The field app (`apps/fieldApp`, another team's) last had real feature work on **2026-10-24** (`b823752`, targets view-only and CSV downloads). `91cc1e2` on 2026-10-25 only touched three amend screens (reason became optional). Since then the server, web and `docs/mobile` moved on by 47 commits. This is the list of what the phone has not caught up with, and what we want added.
+
+**Built on the phone since 2026-10-28 (commits on 2026-11-02 and 2026-11-03, not yet run on a phone):** CSV downloads open, share or save (`8fea1cc`); the payslip is an A4 PDF with the brand logo, with Open / Share / Download (`8fea1cc`, `d6d1e7d`); the Tour Plan CSV has **From** and **To** columns read from route names and the plan form has a Routes dropdown (`d6d1e7d`); Work With lists only the caller's own downline, chemist calls have no Work With, and the service request has a searchable doctor picker (`5bdadc3`, see `dailyplan.md`, `dcr.md`, `service-requests.md`); Secondary Sales opens on the previous month until the stock deadline, has medicine search, shows a request's figures and files on the approval card, and a manager can **Edit figures** for a team member (`ff8cbca`, see `secondary-and-targets.md`). Still open on the phone: B8 (daily-report deadline and month lock) and section C.
 
 **Progress 2026-10-28 (typechecked and linted, not yet run on a phone):** A1, A2 (message and queued-refusal handling; the button hides once the setting reaches the phone), B1, B2, B3 (own downloads leave the designation out, see below), B4 and D are built. B5 and B6 needed no change. Still open: section C (server), and the phone has no way to read its own designation for the CSV file name.
 
@@ -22,6 +24,8 @@ The field app (`apps/fieldApp`, another team's) last had real feature work on **
 | B5 | **Order price is the server's.** The phone's unit price is only a preview (PTS for a distributor, PTR for a chemist); show the server's total after sync. | `orders-and-stock.md` rules 1 and 5 |
 | B7 | **Weekly offs are a schedule now (2026-10-28).** The Holidays screen says "Weekly off: every X" from `weeklyOffDay` and the client-side fallbacks (`weeklyOffIndex`, the legacy check in `monthly-plan.tsx` when `planOffDays` is missing) only know one weekday. Read `hr.weeklyOffSchedule` instead and show the 1st/3rd Saturday. Plan locking is already right: it comes from `planOffDays`. | `holidays.md` rule 3 and section 3 |
 | B6 | Admin / HR can edit an **approved** month's later days and Admin can delete a future month. Web-only for now; the phone only needs to cope with the plan changing under it (the employee gets the `PLAN_AMENDED_MONTHLY_PLAN` push). | `monthlyplan.md` rules 20, 21 |
+
+| B8 | **Daily-report deadline and month lock (2026-11-05).** Show `DCR_SUBMIT_LATE` and `PAYROLL_FINALIZED` as the error and drop the record (nothing is retried). Read `DCR_SUBMIT_CUTOFF_DAY` (default 1) from `config.settings` and warn that the last day of a month must be submitted that day. A manager's approve/reject/reopen on a finalized month fails with `409 PAYROLL_FINALIZED`: show the message. | `dcr.md` rules 12-13 |
 
 ## C. Needs a server change first
 

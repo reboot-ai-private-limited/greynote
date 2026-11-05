@@ -180,6 +180,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
 
       <DataState
         isLoading={!bad && query.isLoading}
+        isFetching={query.isFetching}
         error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
         isEmpty={false}
         empty={{ title: '', description: '' }}

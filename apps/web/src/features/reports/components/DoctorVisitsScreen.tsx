@@ -155,7 +155,7 @@ export function DoctorVisitsScreen() {
       </div>
       <Card flat title="By employee" description="Most missed first.">
         <DataState
-          isLoading={query.isLoading}
+          isLoading={query.isLoading} isFetching={query.isFetching}
           error={query.error ? toErrorState(query.error, () => void query.refetch()) : null}
           isEmpty={!report || report.mrs.length === 0}
           empty={{

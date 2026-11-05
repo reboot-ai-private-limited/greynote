@@ -59,3 +59,22 @@ describe('distributor achievement', () => {
     expect(monthsBetween('2026-11', '2027-02')).toEqual(['2026-11', '2026-12', '2027-01', '2027-02']);
   });
 });
+
+describe('MR-entered secondary stock', () => {
+  it('credits each approved row’s issued units to that MR alone, and stops the by-assignment count for that distributor-month', async () => {
+    const withLines = {
+      async sumDistributorOrders() { return orderSums; },
+      async listStockRange() { return stock; },
+      async listStatements() { return []; },
+      async listSecondaryLines() {
+        return [
+          { userId: 'mr1', distributorId: 'd1', productId: 'p1', month: '2026-10', openingQty: 0, primaryQty: 10, issuedQty: 2 },
+          { userId: 'mr2', distributorId: 'd1', productId: 'p1', month: '2026-10', openingQty: 0, primaryQty: 10, issuedQty: 4 },
+        ];
+      },
+    } as never;
+    const rows = await new DistributorAchievement(withLines, master).entries(['mr1', 'mr2'], '2026-10', '2026-10');
+    expect(rows.filter((r) => r.userId === 'mr1').map((r) => r.secondaryQty)).toEqual([2]);
+    expect(rows.filter((r) => r.userId === 'mr2').map((r) => r.secondaryQty)).toEqual([4]);
+  });
+});

@@ -180,6 +180,15 @@ describe('payroll', () => {
     expect(runs.rows[0]).toMatchObject({ leaveDeductionPaise: 193_548, generatedBy: 'admin' });
   });
 
+  it('waits for the month’s daily-report deadline before it finalizes (finalizing locks the reports)', async () => {
+    await generate.execute(acct, { month: '2026-10' });
+    let closed = false;
+    const guarded = new FinalizePayrollUseCase(runs, clock(), async () => closed);
+    expect(await code(guarded.execute('p1', 'acct'))).toBe('DCR_WINDOW_OPEN');
+    closed = true;
+    expect(await guarded.execute('p1', 'acct')).toMatchObject({ status: 'FINALIZED' });
+  });
+
   it('finalizes once; the sheet is then frozen against everything that changes behind it', async () => {
     await generate.execute(acct, { month: '2026-10' });
     const done = await finalize.execute('p1', 'acct');
