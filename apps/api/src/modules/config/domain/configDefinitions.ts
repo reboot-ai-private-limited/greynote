@@ -151,7 +151,6 @@ export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
   // ── Sales ──
   integer('MONTHLY_STOCK_DEADLINE_DAY', 'SALES', 'Monthly stock deadline day', 'Day of the next month by which a month’s opening and closing stock counts must be entered (5 = the 5th of the following month).', 5, 1, 28),
 
-  toggle('STOCK_COUNT_APPROVAL', 'SALES', 'Distributor stock counts need approval', 'On: an employee’s own distributor stock count is a draft until they submit the month, and counts toward achievement and reports only once their manager (or Admin) approves it. Off: a saved count counts at once. Turn on once the field app has Save draft and Submit.', false),
   toggle('LATE_STOCK_GRANT_BY_MANAGER', 'SALES', 'Managers can allow late stock and secondary', 'Whether a manager (not just Admin) may let someone in their team enter a month’s stock counts or secondary sales (and their files) after the deadline.', false),
   integer('LATE_STOCK_GRANT_VALID_HOURS', 'SALES', 'Late stock/secondary exception lasts', 'Hours a late stock or secondary exception stays usable after it is granted.', 72, 1, 744, 'hours'),
   integer('LATE_STOCK_GRANT_MAX_HOURS', 'SALES', 'Longest late stock/secondary exception', 'The furthest ahead (in hours from now) an Admin or manager can set the end of a late stock or secondary exception.', 336, 1, 8760, 'hours'),

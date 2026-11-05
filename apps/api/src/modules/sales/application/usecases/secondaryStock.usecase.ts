@@ -17,9 +17,9 @@ import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../outletAccess.js';
 import type { SalesClock } from '../salesClock.js';
-import { assertMayAct, assertMonthOpenForEntry } from './employeeSales.usecase.js';
-import { addTotals, emptyTotals } from './secondarySummary.js';
-import { monthStatusOf, STOCK_COUNT_KIND, stockCountRecordId } from './stockCounts.usecase.js';
+import { assertMayAct, assertMonthOpenForEntry } from './employeeAccess.js';
+import { addTotals, emptyTotals, monthStatusOf } from './secondarySummary.js';
+import { mrReportRecordId, parseSecondaryRecord, SECONDARY_SALES_KIND } from './secondaryApproval.js';
 
 const MAX_QTY = 100_000_000;
 
@@ -92,7 +92,7 @@ export class SubmitSecondaryStockUseCase {
     return this.transactions.run(async (ctx) => {
       const sent = await this.lines.setStatus({ userId: actor.id, month }, ['DRAFT', 'REJECTED'], 'PENDING', ctx);
       if (sent === 0) throw new StockRefusal(STOCK_CODES.secondaryNothingToSend, 'There are no secondary figures to send for this month.');
-      const request = await this.approvals.submit({ kind: STOCK_COUNT_KIND, recordId: stockCountRecordId(actor.id, month), submitterId: actor.id }, ctx);
+      const request = await this.approvals.submit({ kind: SECONDARY_SALES_KIND, recordId: mrReportRecordId(actor.id, month), submitterId: actor.id }, ctx);
       return { requestId: request.id, sent };
     });
   }
@@ -146,9 +146,10 @@ export class EditSecondaryStockUseCase {
 /** The approval's effect on the month's secondary rows, inside the approval's own transaction. */
 export function makeSecondaryStockStatusHandler(lines: SecondaryStockLineRepositoryPort): (change: { recordId: string; status: ApprovalStatus }, ctx: TransactionContext) => Promise<void> {
   return async ({ recordId, status }, ctx) => {
-    const [userId, month] = recordId.split(':');
-    if (!userId || !month) return;
-    const who = { userId, month };
+    const record = parseSecondaryRecord(recordId);
+    // A manager's team report is the other record under the same kind.
+    if (!record || record.team) return;
+    const who = { userId: record.userId, month: record.month };
     if (status === 'APPROVED') await lines.setStatus(who, ['PENDING'], 'APPROVED', ctx);
     else if (status === 'REJECTED') await lines.setStatus(who, ['PENDING'], 'REJECTED', ctx);
     else if (status === 'WITHDRAWN' || status === 'REOPENED') await lines.setStatus(who, ['PENDING', 'APPROVED'], 'DRAFT', ctx);

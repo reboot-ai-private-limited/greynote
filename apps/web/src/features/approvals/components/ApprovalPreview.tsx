@@ -9,8 +9,7 @@ import { DoctorServicePreview } from './DoctorServicePreview';
 import { ExpenseMonthPreview } from './ExpenseMonthPreview';
 import { LeavePreview } from './LeavePreview';
 import { MonthlyPlanPreview } from './MonthlyPlanPreview';
-import { StockCountsPreview } from './StockCountsPreview';
-import { SecondarySalesPreview } from './SecondarySalesPreview';
+import { MrSecondaryPreview } from './MrSecondaryPreview';
 import { SecondaryRollupPreview } from './SecondaryRollupPreview';
 
 /**
@@ -35,12 +34,9 @@ export function ApprovalPreview({ request }: { request: ApprovalDetailDto }) {
       return <LeavePreview recordId={request.recordId} />;
     case 'EXPENSE_MONTH':
       return <ExpenseMonthPreview recordId={request.recordId} />;
-    case 'STOCK_COUNT':
-      return <StockCountsPreview recordId={request.recordId} />;
-    case 'SECONDARY_ROLLUP':
-      return <SecondaryRollupPreview recordId={request.recordId} />;
     case 'SECONDARY_SALES':
-      return <SecondarySalesPreview recordId={request.recordId} />;
+      // An MR's month is `userId:month`; a manager's team report is `userId:month:team`.
+      return request.recordId.endsWith(':team') ? <SecondaryRollupPreview recordId={request.recordId} /> : <MrSecondaryPreview recordId={request.recordId} />;
     default:
       return (
         <Card title={kindLabel(request.kind)} description="The record this request is about.">

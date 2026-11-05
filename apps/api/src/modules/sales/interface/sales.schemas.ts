@@ -155,19 +155,6 @@ export const saveStatementBodySchema = z.object({
     .refine((lines) => new Set(lines.map((l) => l.productId)).size === lines.length, { message: 'A product appears twice.' }),
 });
 
-export const employeeSalesQuerySchema = z.object({ userId: objectIdSchema, month: monthSchema });
-const uniqueProducts = (lines: Array<{ productId: string }>) => new Set(lines.map((l) => l.productId)).size === lines.length;
-export const saveEmployeeSecondaryBodySchema = z.object({
-  userId: objectIdSchema,
-  month: monthSchema,
-  lines: z
-    .array(z.object({ productId: objectIdSchema, qty: qtySchemaWhole.optional(), amountPaise: paiseSchema.optional() }).refine((l) => l.qty !== undefined || l.amountPaise !== undefined, { message: 'Give units or an amount.' }))
-    .min(1)
-    .max(500)
-    .refine(uniqueProducts, { message: 'A product appears twice.' }),
-});
-export const submitEmployeeSecondaryBodySchema = z.object({ month: monthSchema });
-/** The employee sends a month of their distributor counts for approval. */
 /** A manager's secondary report: which month, and (Admin, or a manager looking at a team below them) whose team. */
 export const secondaryReportQuerySchema = z.object({ month: monthSchema, managerId: objectIdSchema.optional() });
 /** An MR's draft figures for a month: per distributor and product, opening / primary / issued in whole units. Closing is derived. */
@@ -195,12 +182,3 @@ export const submitStockCountsBodySchema = z.object({ month: monthSchema });
 export const stockCountsQuerySchema = z.object({ userId: objectIdSchema, month: monthSchema });
 /** The text fields sent beside the file (multipart): the month, and whose it is (the caller's own when left out). */
 export const secondaryAttachmentBodySchema = z.object({ month: monthSchema, userId: objectIdSchema.optional() });
-export const saveEmployeePrimaryBodySchema = z.object({
-  userId: objectIdSchema,
-  month: monthSchema,
-  lines: z
-    .array(z.object({ productId: objectIdSchema, adjustmentQty: z.number().int().min(-100_000_000).max(100_000_000), reason: z.string().trim().max(300).nullish() }))
-    .min(1)
-    .max(500)
-    .refine(uniqueProducts, { message: 'A product appears twice.' }),
-});

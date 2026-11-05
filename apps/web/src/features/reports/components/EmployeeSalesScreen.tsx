@@ -25,7 +25,6 @@ import { useDeleteTarget, useEmployeeSalesReport } from '../hooks/useEmployeeSal
 import { PERIOD_OPTIONS, parsePeriod, periodMonths, rangeLabel } from '../lib/employeeSales';
 import { financialYearMonths } from '../lib/salesDashboard';
 import { AddTargetDialog } from './AddTargetDialog';
-import { EmployeeMonthGrid } from './EmployeeMonthGrid';
 
 const money = (paise: number): string => formatMoney(paise);
 const percent = (p: number | null): string => (p === null ? '—' : `${p}%`);
@@ -33,10 +32,10 @@ const FLAG_TEXT = { NO_PTS: 'No PTS: secondary not valued', NO_PTS_CHANGE: 'No P
 
 /**
  * One employee over a run of months: their targets (product by product, over any months of the year), what their Done orders came to (primary)
- * and what they sold (secondary, which is their achievement). Below, the month by month entry. Admin sees anyone, a manager their team.
+ * and what they sold (secondary, which is their achievement). Admin sees anyone, a manager their team.
  */
 export function EmployeeSalesScreen({ userId }: { userId: string }) {
-  const { values, update } = useFilterParams(['period', 'from', 'to', 'month']);
+  const { values, update } = useFilterParams(['period', 'from', 'to']);
   const { user: me } = useSession();
   const { year } = useFinancialYear();
   const readOnly = useIsReadOnly();
@@ -58,11 +57,6 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
   const [editing, setEditing] = useState<EmployeeTargetFigureDto | null>(null);
   const [removing, setRemoving] = useState<EmployeeTargetFigureDto | null>(null);
   const remove = useDeleteTarget(() => setRemoving(null));
-  const enterable = fyMonths.filter((m) => m <= thisMonth);
-  // `?month=` opens the entry grid on that month (the approval card's "Edit figures" link uses it).
-  const [month, setMonth] = useState(
-    enterable.includes(values.month) ? values.month : enterable.includes(thisMonth) ? thisMonth : (enterable[enterable.length - 1] ?? thisMonth),
-  );
   // A manager's target is the total of their MRs, so there is nothing to set (or remove) on a manager.
   const canSetTargets = !data?.team && (me?.role === 'ADMIN' || me?.role === 'HR');
   const name = data?.employee.name ?? 'Employee';
@@ -218,31 +212,6 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
           </Card>
         </div>
       </DataState>
-
-      {me?.role === 'ACCOUNTANT' || me?.role === 'HR' || data?.team ? null : (
-      <div className="mt-6">
-        <Card
-          title="Enter the month's figures"
-          description={
-            me?.role === 'ADMIN'
-              ? 'The secondary entered here is a record; achievement counts only the figures the MR entered and a manager approved. Admin can delete a whole month.'
-              : 'The secondary entered here is a record; achievement counts only the figures the MR entered and a manager approved.'
-          }
-        >
-          <div className="p-5">
-            <EmployeeMonthGrid
-              userId={userId}
-              months={enterable.length > 0 ? enterable : [thisMonth]}
-              month={month}
-              onMonthChange={setMonth}
-              canAdjust={me?.role === 'ADMIN'}
-              isSelf={me?.id === userId}
-              canDelete={me?.role === 'ADMIN'}
-            />
-          </div>
-        </Card>
-      </div>
-      )}
 
       {adding ? (
         <AddTargetDialog userId={userId} name={name} from={range.from} to={range.to} onClose={() => setAdding(false)} />

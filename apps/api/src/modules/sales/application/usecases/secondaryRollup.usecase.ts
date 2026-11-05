@@ -13,11 +13,10 @@ import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../outletAccess.js';
 import type { SalesClock } from '../salesClock.js';
-import { assertMayAct } from './employeeSales.usecase.js';
-import { rollupRecordId, SECONDARY_ROLLUP_KIND, STOCK_COUNT_KIND, stockCountRecordId } from './stockCounts.usecase.js';
+import { assertMayAct } from './employeeAccess.js';
+import { mrReportRecordId, parseSecondaryRecord, SECONDARY_SALES_KIND, teamReportRecordId } from './secondaryApproval.js';
 import { summariseSecondary, type SummaryRow } from './secondarySummary.js';
 
-export { SECONDARY_ROLLUP_KIND, rollupRecordId };
 
 export interface RollupBuild {
   /** The MRs (nobody below them) in the manager's whole downline. */
@@ -43,16 +42,16 @@ interface BuildDeps {
 export async function buildRollup(d: BuildDeps, managerId: string, month: string): Promise<RollupBuild> {
   const mrs: DirectoryUser[] = [];
   for (const u of (await d.users.getDownline(managerId)).filter((x) => x.role === 'FIELD' && x.status === 'active')) if ((await d.users.getDownline(u.id)).length === 0) mrs.push(u);
-  const requests = mrs.length ? await d.approvals.listForRecords(STOCK_COUNT_KIND, mrs.map((u) => stockCountRecordId(u.id, month))) : [];
+  const requests = mrs.length ? await d.approvals.listForRecords(SECONDARY_SALES_KIND, mrs.map((u) => mrReportRecordId(u.id, month))) : [];
   const requestOf = new Map(requests.map((r) => [r.recordId, r]));
-  const approvedIds = mrs.filter((u) => requestOf.get(stockCountRecordId(u.id, month))?.status === 'APPROVED').map((u) => u.id);
+  const approvedIds = mrs.filter((u) => requestOf.get(mrReportRecordId(u.id, month))?.status === 'APPROVED').map((u) => u.id);
   const rows = approvedIds.length ? await d.lines.listRange({ fromMonth: month, toMonth: month, userIds: approvedIds }, 100_000) : [];
 
   const sources = mrs.map((u): SecondaryRollupSource => {
-    const request = requestOf.get(stockCountRecordId(u.id, month));
+    const request = requestOf.get(mrReportRecordId(u.id, month));
     const mine = request?.status === 'APPROVED' ? rows.filter((r) => r.userId === u.id) : [];
     return {
-      recordId: stockCountRecordId(u.id, month),
+      recordId: mrReportRecordId(u.id, month),
       requestId: request?.id ?? null,
       cycle: request?.cycle ?? 0,
       status: request?.status ?? 'NOT_SUBMITTED',
@@ -117,7 +116,7 @@ export class SubmitSecondaryRollupUseCase {
     const [level] = await this.users.getDesignationLevels([actor.id]);
     const at = this.clock.now();
     return this.transactions.run(async (ctx) => {
-      const request = await this.approvals.submit({ kind: SECONDARY_ROLLUP_KIND, recordId: rollupRecordId(actor.id, month), submitterId: actor.id }, ctx);
+      const request = await this.approvals.submit({ kind: SECONDARY_SALES_KIND, recordId: teamReportRecordId(actor.id, month), submitterId: actor.id }, ctx);
       await this.rollups.save({ userId: actor.id, month, status: 'PENDING', requestId: request.id, designation: { name: person?.designation ?? null, level: level?.level ?? null }, lines: built.lines, sources: built.sources, submittedAt: at, approvedAt: null }, ctx);
       return { requestId: request.id, mrReports: built.approvedMrCount };
     });
@@ -127,9 +126,9 @@ export class SubmitSecondaryRollupUseCase {
 /** The approval's effect on the manager's snapshot, inside the approval's own transaction. */
 export function makeSecondaryRollupStatusHandler(rollups: SecondaryRollupRepositoryPort, now: () => Date): (change: { recordId: string; status: ApprovalStatus }, ctx: TransactionContext) => Promise<void> {
   return async ({ recordId, status }, ctx) => {
-    const [userId, month] = recordId.split(':');
-    if (!userId || !month) return;
-    const who = { userId, month };
+    const record = parseSecondaryRecord(recordId);
+    if (!record || !record.team) return;
+    const who = { userId: record.userId, month: record.month };
     if (status === 'APPROVED') await rollups.setStatus(who, ['PENDING'], 'APPROVED', now(), ctx);
     else if (status === 'REJECTED') await rollups.setStatus(who, ['PENDING'], 'REJECTED', undefined, ctx);
     else if (status === 'WITHDRAWN' || status === 'REOPENED') await rollups.setStatus(who, ['PENDING', 'APPROVED'], 'DRAFT', null, ctx);

@@ -9,7 +9,7 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { SalesHandlers } from './sales.controller.js';
 import { MAX_SECONDARY_ATTACHMENT_BYTES } from '../domain/secondaryAttachment.entity.js';
-import { editSecondaryStockBodySchema, secondaryReportQuerySchema, saveSecondaryStockBodySchema, submitStockCountsBodySchema, stockCountsQuerySchema, secondaryAttachmentBodySchema, submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
+import { editSecondaryStockBodySchema, secondaryReportQuerySchema, saveSecondaryStockBodySchema, submitStockCountsBodySchema, stockCountsQuerySchema, secondaryAttachmentBodySchema, cancelPaymentBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 const TAG = 'Sales';
 
@@ -48,8 +48,6 @@ doc('get', '/orders', 'Orders — my own; a manager also sees their downline’s
 doc('post', '/distributor-payments', 'Admin or Accountant: record money received from a distributor (date not in the future, open financial year)', { body: recordPaymentBodySchema });
 doc('get', '/distributor-payments', 'Admin or Accountant: one distributor’s payments in a date range, with the total collected and the total ordered', { query: listPaymentsQuerySchema });
 doc('get', '/distributor-statement', 'Admin and the Accountant (read only): one distributor\'s month by product — field counts, orders, the saved statement and the figures that follow', { query: statementQuerySchema });
-doc('get', '/employee-sales', 'An employee\'s month by product — their Done distributor orders (primary), Admin\'s change and the secondary entered; self, the manager above, or Admin', { query: employeeSalesQuerySchema });
-doc('post', '/employee-secondary', 'The secondary an employee sold, per product and month (their achievement): the employee, the manager above, or Admin; the stock deadline applies except to Admin', { body: saveEmployeeSecondaryBodySchema });
 openApiRegistry.registerPath({
   method: 'post',
   path: '/api/sales/employee-secondary/attachments',
@@ -59,7 +57,6 @@ openApiRegistry.registerPath({
   request: { body: { content: { 'multipart/form-data': { schema: secondaryAttachmentBodySchema } } } },
   responses: { 201: { description: 'Attached' }, 409: { description: 'The month is closed, or waiting for approval or approved' } },
 });
-openApiRegistry.registerPath({ method: 'delete', path: '/api/sales/employee-secondary', tags: [TAG], summary: 'Admin: delete an employee\'s secondary for a month — every line\'s figures, the approval request and the files; Admin\'s primary change stays; no deadline, but the month must have started and its financial year be open', security: [{ bearerAuth: [] }], request: { query: employeeSalesQuerySchema as AnyZodObject }, responses: { 200: { description: 'Deleted: how many lines and files, and whether a request was removed' }, 409: { description: 'The month has not started, or its financial year is closed' } } });
 openApiRegistry.registerPath({ method: 'delete', path: '/api/sales/employee-secondary/attachments/{id}', tags: [TAG], summary: 'Remove one attached file, under the same rules as adding it', security: [{ bearerAuth: [] }], responses: { 200: { description: 'Removed' } } });
 doc('get', '/secondary-report', 'A manager\'s approved secondary sales for a month: the MRs below them summed by distributor and product (units, and value at PTS), with each MR under the row; never their own, never a manager roll-up on top. Admin may pass managerId', { query: secondaryReportQuerySchema });
 doc('post', '/secondary-stock', 'An MR saves a month of secondary stock as a draft, per distributor and product, in units: opening, primary (received), issued (secondary). Closing is derived; MR only', { body: saveSecondaryStockBodySchema });
@@ -68,12 +65,8 @@ doc('post', '/secondary-rollup/submit', 'A manager sends their team\'s month of 
 doc('get', '/secondary-rollup', 'A manager\'s month of team secondary sales: the live sum before it is sent, the saved snapshot after, with the MR reports it rests on and whether one has changed since (out of date); the manager, the manager above, or Admin', { query: stockCountsQuerySchema });
 doc('post', '/secondary-stock/submit', 'The MR sends the month of secondary stock to their manager for approval; only approved rows count', { body: submitStockCountsBodySchema });
 doc('get', '/secondary-stock', 'An MR\'s month of secondary stock by distributor and product, with opening/primary defaults, closing and value at PTS; the MR, the manager above, or Admin', { query: stockCountsQuerySchema });
-doc('post', '/stock-counts/submit', 'The employee sends a month of their distributor stock counts to their manager for approval (when approval is on); only approved counts count', { body: submitStockCountsBodySchema });
-doc('get', '/stock-counts', 'An employee\'s distributor counts for a month, by distributor, with what each works out to; the employee, the manager above, or Admin', { query: stockCountsQuerySchema });
 doc('get', '/stock-counts/impact', 'Admin: what deleting an employee\'s month of distributor counts would remove', { query: stockCountsQuerySchema });
-openApiRegistry.registerPath({ method: 'delete', path: '/api/sales/stock-counts', tags: [TAG], summary: 'Admin: delete an employee\'s distributor counts for a month and the approval request, so they can count and send it again', security: [{ bearerAuth: [] }], request: { query: stockCountsQuerySchema as AnyZodObject }, responses: { 200: { description: 'Deleted' }, 409: { description: 'The month has not started, or its financial year is closed' } } });
-doc('post', '/employee-secondary/submit', 'The employee sends a month\'s secondary to their manager for approval; only approved secondary counts toward achievement', { body: submitEmployeeSecondaryBodySchema });
-doc('post', '/employee-primary', 'Admin: change an employee\'s primary for a month, per product, with a reason (any past month of an open financial year)', { body: saveEmployeePrimaryBodySchema });
+openApiRegistry.registerPath({ method: 'delete', path: '/api/sales/stock-counts', tags: [TAG], summary: 'Admin: delete an employee\'s month of secondary sales (rows, team report, files) and its approval requests, so they can enter and send it again', security: [{ bearerAuth: [] }], request: { query: stockCountsQuerySchema as AnyZodObject }, responses: { 200: { description: 'Deleted' }, 409: { description: 'The month has not started, or its financial year is closed' } } });
 doc('post', '/distributor-statement', 'Admin: save the month\'s statement lines (opening, secondary, adjustment with a reason); any past month, an open financial year', { body: saveStatementBodySchema });
 openApiRegistry.registerPath({ method: 'get', path: '/api/sales/distributor-payments/balances', tags: [TAG], summary: 'Admin or Accountant: what each distributor was delivered (Done orders, free units excluded) and paid, all time — the Dues column adds each distributor\'s opening dues', security: [{ bearerAuth: [] }], responses: { 200: { description: 'OK' } } });
 openApiRegistry.registerPath({ method: 'get', path: '/api/sales/distributor-payments/outstanding', tags: [TAG], summary: 'Admin or Accountant: what all distributors owe together (opening dues + delivered − collected, all time)', security: [{ bearerAuth: [] }], responses: { 200: { description: 'OK' } } });
@@ -100,9 +93,6 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.post('/distributor-payments', requireRole('ACCOUNTANT', 'ADMIN'), validate({ body: recordPaymentBodySchema }), c.recordPayment);
   router.get('/distributor-payments', requireRole('ACCOUNTANT', 'ADMIN'), scopeToFinancialYear({ kind: 'date', from: 'from', to: 'to', fill: false }), validate({ query: listPaymentsQuerySchema }), c.listPayments);
   router.get('/distributor-statement', requireRole('ADMIN', 'ACCOUNTANT'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: statementQuerySchema }), c.readStatement);
-  router.get('/employee-sales', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: employeeSalesQuerySchema }), c.readEmployeeSales);
-  router.post('/employee-secondary', requireRole('ADMIN', 'FIELD'), validate({ body: saveEmployeeSecondaryBodySchema }), c.saveEmployeeSecondary);
-  router.delete('/employee-secondary', requireRole('ADMIN'), validate({ query: employeeSalesQuerySchema }), c.deleteEmployeeSecondary);
   router.get('/secondary-report', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: secondaryReportQuerySchema }), c.secondaryReport);
   router.post('/secondary-stock', requireRole('FIELD'), validate({ body: saveSecondaryStockBodySchema }), c.saveSecondaryStock);
   router.patch('/secondary-stock', requireRole('ADMIN', 'FIELD'), validate({ body: editSecondaryStockBodySchema }), c.editSecondaryStock);
@@ -110,14 +100,10 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.get('/secondary-rollup', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: stockCountsQuerySchema }), c.readSecondaryRollup);
   router.post('/secondary-stock/submit', requireRole('FIELD'), validate({ body: submitStockCountsBodySchema }), c.submitSecondaryStock);
   router.get('/secondary-stock', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: stockCountsQuerySchema }), c.readSecondaryStock);
-  router.post('/stock-counts/submit', requireRole('FIELD'), validate({ body: submitStockCountsBodySchema }), c.submitStockCounts);
-  router.get('/stock-counts', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: stockCountsQuerySchema }), c.readStockCounts);
   router.get('/stock-counts/impact', requireRole('ADMIN'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: stockCountsQuerySchema }), c.stockCountsImpact);
   router.delete('/stock-counts', requireRole('ADMIN'), validate({ query: stockCountsQuerySchema }), c.deleteStockCounts);
-  router.post('/employee-secondary/submit', requireRole('FIELD'), validate({ body: submitEmployeeSecondaryBodySchema }), c.submitEmployeeSecondary);
   router.post('/employee-secondary/attachments', requireRole('ADMIN', 'FIELD'), fileUpload, validate({ body: secondaryAttachmentBodySchema }), c.addSecondaryAttachment);
   router.delete('/employee-secondary/attachments/:id', requireRole('ADMIN', 'FIELD'), validate({ params: orderIdParamsSchema }), c.removeSecondaryAttachment);
-  router.post('/employee-primary', requireRole('ADMIN'), validate({ body: saveEmployeePrimaryBodySchema }), c.saveEmployeePrimary);
   router.post('/distributor-statement', requireRole('ADMIN'), validate({ body: saveStatementBodySchema }), c.saveStatement);
   router.get('/distributor-payments/balances', requireRole('ACCOUNTANT', 'ADMIN'), c.distributorBalances);
   router.get('/distributor-payments/outstanding', requireRole('ACCOUNTANT', 'ADMIN'), c.distributorOutstanding);

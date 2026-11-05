@@ -2747,3 +2747,11 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 **Needs a migration:** none; past months have no snapshot, so a manager reads 0 for them (a one-off backfill is possible on request).
 
+## 2026-11-05 — One approval kind and tab for secondary sales; the old per-product and distributor-count approvals are removed
+
+**Decision (owner):** Approvals showed three secondary-related tabs (Distributor stock counts, Team secondary report, Monthly secondary). There is no old data for any of them, so they become **one kind, `SECONDARY_SALES`, and one tab "Secondary sales"**: an MR's month (`mrUserId:month`) and a manager's team report (`managerUserId:month:team`) are two records under it, told apart in the title ("Nov 2026" and "Nov 2026 · team report"). The old per-product secondary approval and the distributor-count approval are deleted.
+
+**Consequences:** removed use cases, routes and the `STOCK_COUNT_APPROVAL` switch are listed in `docs/LLD/sales-and-orders.md`. A distributor count now just saves (as it did with the switch off). One Admin delete of a month removes the rows, a manager's snapshot, the files and both requests. The web drops the employee page's per-product entry grid and Admin's primary-change form (nothing read them any more), the old previews and the old tabs; the approval card for an MR's month keeps Correct figures, files and Delete month. The phone contract in `docs/mobile/secondary-and-targets.md` lists the removed routes (they now return 404). **Supersedes** the 2026-11-04 distributor-count approval and the 2026-10 per-product secondary approval. Not removed: `POST /monthly-stock`, and the `EmployeeSale` collection (no use case reads or writes it).
+
+**Needs a migration:** none; any request still saved under `STOCK_COUNT` or `SECONDARY_ROLLUP` in a dev database would show as an unknown kind and can be deleted.
+
