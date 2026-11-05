@@ -9,7 +9,7 @@ import { openApiRegistry } from '@/shared/http/swagger.util.js';
 import { validate } from '@/shared/http/validate.middleware.js';
 import type { SalesHandlers } from './sales.controller.js';
 import { MAX_SECONDARY_ATTACHMENT_BYTES } from '../domain/secondaryAttachment.entity.js';
-import { submitStockCountsBodySchema, stockCountsQuerySchema, secondaryAttachmentBodySchema, submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
+import { secondaryReportQuerySchema, saveSecondaryStockBodySchema, submitStockCountsBodySchema, stockCountsQuerySchema, secondaryAttachmentBodySchema, submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, orderIdParamsSchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 const TAG = 'Sales';
 
@@ -61,6 +61,10 @@ openApiRegistry.registerPath({
 });
 openApiRegistry.registerPath({ method: 'delete', path: '/api/sales/employee-secondary', tags: [TAG], summary: 'Admin: delete an employee\'s secondary for a month — every line\'s figures, the approval request and the files; Admin\'s primary change stays; no deadline, but the month must have started and its financial year be open', security: [{ bearerAuth: [] }], request: { query: employeeSalesQuerySchema as AnyZodObject }, responses: { 200: { description: 'Deleted: how many lines and files, and whether a request was removed' }, 409: { description: 'The month has not started, or its financial year is closed' } } });
 openApiRegistry.registerPath({ method: 'delete', path: '/api/sales/employee-secondary/attachments/{id}', tags: [TAG], summary: 'Remove one attached file, under the same rules as adding it', security: [{ bearerAuth: [] }], responses: { 200: { description: 'Removed' } } });
+doc('get', '/secondary-report', 'A manager\'s approved secondary sales for a month: the MRs below them summed by distributor and product (units, and value at PTS), with each MR under the row; never their own, never a manager roll-up on top. Admin may pass managerId', { query: secondaryReportQuerySchema });
+doc('post', '/secondary-stock', 'An MR saves a month of secondary stock as a draft, per distributor and product, in units: opening, primary (received), issued (secondary). Closing is derived; MR only', { body: saveSecondaryStockBodySchema });
+doc('post', '/secondary-stock/submit', 'The MR sends the month of secondary stock to their manager for approval; only approved rows count', { body: submitStockCountsBodySchema });
+doc('get', '/secondary-stock', 'An MR\'s month of secondary stock by distributor and product, with opening/primary defaults, closing and value at PTS; the MR, the manager above, or Admin', { query: stockCountsQuerySchema });
 doc('post', '/stock-counts/submit', 'The employee sends a month of their distributor stock counts to their manager for approval (when approval is on); only approved counts count', { body: submitStockCountsBodySchema });
 doc('get', '/stock-counts', 'An employee\'s distributor counts for a month, by distributor, with what each works out to; the employee, the manager above, or Admin', { query: stockCountsQuerySchema });
 doc('get', '/stock-counts/impact', 'Admin: what deleting an employee\'s month of distributor counts would remove', { query: stockCountsQuerySchema });
@@ -96,6 +100,10 @@ export function buildSalesRouter(c: SalesHandlers): Router {
   router.get('/employee-sales', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: employeeSalesQuerySchema }), c.readEmployeeSales);
   router.post('/employee-secondary', requireRole('ADMIN', 'FIELD'), validate({ body: saveEmployeeSecondaryBodySchema }), c.saveEmployeeSecondary);
   router.delete('/employee-secondary', requireRole('ADMIN'), validate({ query: employeeSalesQuerySchema }), c.deleteEmployeeSecondary);
+  router.get('/secondary-report', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: secondaryReportQuerySchema }), c.secondaryReport);
+  router.post('/secondary-stock', requireRole('FIELD'), validate({ body: saveSecondaryStockBodySchema }), c.saveSecondaryStock);
+  router.post('/secondary-stock/submit', requireRole('FIELD'), validate({ body: submitStockCountsBodySchema }), c.submitSecondaryStock);
+  router.get('/secondary-stock', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: stockCountsQuerySchema }), c.readSecondaryStock);
   router.post('/stock-counts/submit', requireRole('FIELD'), validate({ body: submitStockCountsBodySchema }), c.submitStockCounts);
   router.get('/stock-counts', requireRole('ADMIN', 'FIELD'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: stockCountsQuerySchema }), c.readStockCounts);
   router.get('/stock-counts/impact', requireRole('ADMIN'), scopeToFinancialYear({ kind: 'month', from: 'month', to: 'month', fill: false, single: 'month' }), validate({ query: stockCountsQuerySchema }), c.stockCountsImpact);

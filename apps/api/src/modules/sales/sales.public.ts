@@ -3,6 +3,7 @@ import type { MonthlyStock, Outlet } from './domain/monthlyStock.entity.js';
 import type { DistributorOrderSum, UserOrderSum } from './domain/order.repository.port.js';
 import type { EmployeeSale, MonthSecondaryStatus } from './domain/employeeSale.entity.js';
 import type { DistributorHistory } from './domain/distributorHistory.port.js';
+import type { SecondaryStockLine } from './domain/secondaryStockLine.entity.js';
 import type { StockStatement } from './domain/stockStatement.entity.js';
 import type { MissingStockRow } from './application/usecases/readMonthlyStock.usecase.js';
 
@@ -37,6 +38,8 @@ export interface SalesPublicContract {
   /** The Admin statements over a range of months (`YYYY-MM`, both inclusive), oldest first, at most `limit` (default 20000) — the Sales report's input. */
   listStatements(filter: { fromMonth: string; toMonth: string; distributorId?: string; productId?: string; limit?: number }): Promise<StockStatement[]>;
   listStockRange(filter: { fromMonth: string; toMonth: string; outletType: Outlet['type']; outletId?: string; productId?: string; limit?: number }): Promise<MonthlyStock[]>;
+  /** MRs' **approved** secondary stock rows (opening / primary / issued, in units) over a range of months, at most `limit` (default 50000); a draft, sent or rejected row never appears. */
+  listSecondaryLines(filter: { fromMonth: string; toMonth: string; userIds?: string[]; distributorId?: string; productId?: string; limit?: number }): Promise<SecondaryStockLine[]>;
   /** Employees' Done orders **to distributors** by month, employee and product — an employee's primary. `from`–`to` are dates, both inclusive. */
   sumUserOrders(filter: { from: string; to: string; userIds?: string[]; productId?: string }): Promise<UserOrderSum[]>;
   /** The secondary and primary adjustment employees entered, over a range of months (`YYYY-MM`, both inclusive), at most `limit` (default 20000). */

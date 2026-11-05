@@ -108,6 +108,7 @@ export const keys = {
     salesYear: (query: object) => [...keys.reports.all(), 'salesYear', query] as const,
     salesStatement: (query: object) => [...keys.reports.all(), 'salesStatement', query] as const,
     stock: (month: string) => [...keys.reports.all(), 'stock', month] as const,
+    secondary: (month: string) => [...keys.reports.all(), 'secondary', month] as const,
     salesDashboard: (query: object) => [...keys.reports.all(), 'salesDashboard', query] as const,
     employeeSales: (query: object) => [...keys.reports.all(), 'employeeSales', query] as const,
     salaryYear: (year: number) => [...keys.reports.all(), 'salaryYear', year] as const,

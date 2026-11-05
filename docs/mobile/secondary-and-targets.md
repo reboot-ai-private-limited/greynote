@@ -6,7 +6,48 @@ How an employee's monthly **secondary** is entered and approved, and how **targe
 
 **Changed 2026-11-03:** (1) **Admin can delete a month's secondary:** `DELETE /api/sales/employee-secondary?userId=&month=` (Admin only, `403 ADMIN_ONLY` otherwise) removes every line's units, amount and status, the month's files (and the stored copies) and its approval request; Admin's primary change on a line stays. No deadline for Admin; `MONTH_NOT_STARTED` / closed financial year still apply. An empty month is not an error. The phone does not offer this (Admin works on the web). (2) **A manager can edit a team member's month** with the existing `POST /employee-secondary` and the attachment calls (`userId` for someone else's month): the phone has an **Edit figures** button on the approval card and under Team > Stock & secondary. Only the lines the manager changes become `APPROVED`; lines left alone stay `PENDING` and the request stays open until it is decided.
 
-## Distributor stock counts with approval (2026-11-04) — what the phone must build
+## Secondary sales screen, per MR and distributor (2026-11-05) — what the phone must build
+
+**Supersedes** the 2026-11-04 section below for MRs. Same screen name, new contents. The field app is another team's, so this is the contract; the server and web are built.
+
+**Who:** only an **MR** (a field employee with nobody below them) enters. A manager never enters: they get the manager view below. `403 MR_ONLY` otherwise.
+
+**Everything is in units.** Nobody types an amount. Amounts are shown, computed as `units × ptsPaise`.
+
+### MR screen
+
+One row per distributor assigned to the MR and product. Each row holds **four numbers**: **Opening**, **Primary** (received), **Secondary** (issued) and **Closing**. Closing is shown, never typed: `closing = opening + primary − issued`.
+
+| # | Rule |
+|---|---|
+| 1 | **Read:** `GET /api/sales/secondary-stock?userId=<you>&month=YYYY-MM` returns every assigned distributor × every active product: `openingQty`, `primaryQty`, `issuedQty`, `closingQty`, `suggestedOpeningQty`, `suggestedPrimaryQty`, `openingEdited`, `primaryEdited`, `saved`, `ptsPaise`, `issuedAmountPaise`, `closingAmountPaise`, plus `totals` per distributor and for the month, and a `status` per distributor and month (`NOT_ENTERED`, `DRAFT`, `PENDING`, `APPROVED`, `REJECTED`). Draw from this; do not compute opening or primary on the phone. |
+| 2 | **Opening** defaults to the MR's **previous month's approved closing** for that distributor and product (0 if none), **not** from orders. The MR can edit it. An edited opening that differs from the default is flagged (`openingEdited`) to the manager. |
+| 3 | **Primary** defaults to the MR's **own Done orders** to that distributor in the month. The MR can edit it to match what the distributor really received (`primaryEdited` flags a difference). |
+| 4 | **Secondary (issued)** starts at 0 and is typed. |
+| 5 | **Save draft:** `POST /api/sales/secondary-stock { month, lines: [{ distributorId, productId, openingQty, primaryQty, issuedQty }] }`. Whole units, 0 or more. Send only the rows the MR changed, or all of them. `400 INVALID_PAYLOAD` if issued is more than opening + primary: block it on the phone first. Saving again overwrites. |
+| 6 | **Submit:** `POST /api/sales/secondary-stock/submit { month }`. Every draft or rejected row becomes `PENDING` and one approval request goes to the direct manager (Admin if none). `409 SECONDARY_NOTHING_TO_SEND` if there is nothing to send. |
+| 7 | A `PENDING` or `APPROVED` month is locked (`409 SECONDARY_LOCKED`). It opens again after a rejection, a withdrawal, or when Admin reopens it. The usual month window applies (`MONTH_NOT_STARTED`, `MONTH_CLOSED`, closed financial year). |
+| 8 | Only a distributor **assigned to the MR** (`403 OUTLET_NOT_YOURS`). |
+| 9 | **Only `APPROVED` rows count** for achievement, targets and every report. |
+
+**Layout.** Phone: month picker, then a distributor list with a status chip, then one distributor at a time as a list of **compact product cards**: name on top, then three numeric steppers (Opening, Primary, Secondary) and a read-only Closing, with the value in rupees under the card (`= ₹ units × PTS`, updating as the MR types). Keep a **sticky footer** with the distributor's totals (units and ₹), **Save draft** and **Submit**. Tablet: two panes, distributors on the left and the product table on the right with all four columns and a totals row. Mark rows that differ from their defaults, and rows where closing would go below zero. Online only.
+
+### Manager view
+
+A manager opens the same screen and sees **no entry controls**. Read it from `GET /api/sales/secondary-report?month=YYYY-MM` (Admin may add `managerId`). It returns, per distributor, per product: `openingQty`, `primaryQty`, `issuedQty`, `closingQty`, `issuedAmountPaise`, `closingAmountPaise`, `byMr[]` (each MR's own figures), `totals` per distributor and for the month, and `mrCount` / `approvedMrCount`.
+
+| # | Rule |
+|---|---|
+| 1 | The figures are the **approved** rows of the MRs in the manager's downline only. The manager's own figures are never added and a junior manager's total is never added on top of the same MRs, so a distributor's product is counted once: MR-A issued 2 + MR-B issued 4 = **6**, not 4 + 2 + 6. |
+| 2 | Show distributor → product rows with the four numbers and ₹ value, then totals. **Tapping a row** shows the MRs behind it (`byMr`). |
+| 3 | Show `approvedMrCount` of `mrCount` so a manager knows whose month is still draft or waiting. |
+| 4 | Approving or rejecting stays on the Approvals screen (`STOCK_COUNT` request, record `userId:month`). |
+
+**Achievement** now credits each approved row's issued units, at PTS, to the MR who entered it, and to nobody else. A distributor-month that has MR rows no longer counts by assignment. Months with no MR rows behave as before.
+
+**The old "Distributor stock" counting tab and the "My record" tab are replaced** by this screen. `orders-and-stock.md` says the Monthly-stock tab is removed from the phone; that stays true, this is a different screen. The old `POST /sales/monthly-stock` (opening and closing counts) remains for older builds.
+
+## Distributor stock counts with approval (2026-11-04) — superseded for MRs by the section above
 
 **Two tabs on the Secondary Sales screen, and only the first one is entered:**
 
