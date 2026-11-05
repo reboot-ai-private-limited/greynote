@@ -342,6 +342,8 @@ export interface SecondaryStockLineDto {
   /** Issued × PTS; `null` when the product has no PTS. */
   issuedAmountPaise: number | null;
   closingAmountPaise: number | null;
+  /** Set when the manager above (or Admin) corrected this line while it waited for approval; `original` is what the MR entered. */
+  managerEdit: { by: { id: string; name: string }; at: string; reason: string; original: { openingQty: number; primaryQty: number; issuedQty: number } } | null;
 }
 
 export interface SecondaryStockTotalsDto {
@@ -374,7 +376,7 @@ export interface SecondaryStockMonthDto {
 }
 
 /** One product of one distributor in the manager's report: the sum of the approved MR slices, each MR still visible under it. */
-export interface SecondaryReportLineDto extends Omit<SecondaryStockLineDto, 'suggestedOpeningQty' | 'suggestedPrimaryQty' | 'openingEdited' | 'primaryEdited' | 'saved'> {
+export interface SecondaryReportLineDto extends Omit<SecondaryStockLineDto, 'suggestedOpeningQty' | 'suggestedPrimaryQty' | 'openingEdited' | 'primaryEdited' | 'saved' | 'managerEdit'> {
   byMr: Array<{ userId: string; name: string; openingQty: number; primaryQty: number; issuedQty: number; closingQty: number }>;
 }
 
