@@ -6,7 +6,7 @@ import type { SecondaryAttachmentRepositoryPort } from '../../domain/secondaryAt
 import { StockRefusal } from '../../domain/stockRefusal.js';
 import { SalesClock } from '../salesClock.js';
 import { FakeLines, FakeMaster, FakeStock, FakeUsers, config } from './salesTestKit.js';
-import { makeSecondaryStockStatusHandler, ReadSecondaryStockUseCase, SaveSecondaryStockUseCase, SubmitSecondaryStockUseCase } from './secondaryStock.usecase.js';
+import { EditSecondaryStockUseCase, makeSecondaryStockStatusHandler, ReadSecondaryStockUseCase, SaveSecondaryStockUseCase, SubmitSecondaryStockUseCase } from './secondaryStock.usecase.js';
 
 const submitted: string[] = [];
 const approvals = { submit: async (i: { recordId: string }) => (submitted.push(i.recordId), { id: 'req1' }) } as unknown as SalesApprovalsPort;
@@ -105,5 +105,47 @@ describe('MR secondary stock', () => {
     files.rows.push(proof('mr1', '2026-09'));
     expect((await read.execute(mr1, { userId: 'mr1', month: '2026-09' })).attachments.map((f) => f.fileName)).toEqual(['statement.jpg']);
     expect((await submit.execute(mr1, '2026-09')).sent).toBe(1);
+  });
+
+  describe('manager correction before approval', () => {
+    const asm = { id: 'asm', role: 'FIELD' };
+    let edit: EditSecondaryStockUseCase;
+    beforeEach(async () => {
+      edit = new EditSecondaryStockUseCase(new FakeUsers(), lines, run, clock, config);
+      await save.execute(mr1, { month: '2026-09', lines: [line()] });
+      files.rows.push(proof('mr1', '2026-09'));
+    });
+    const sent = () => new SubmitSecondaryStockUseCase(new FakeUsers(), lines, approvals, run, clock, config, files).execute(mr1, '2026-09');
+    const fix = (o: Partial<{ issuedQty: number }> = {}) => ({ userId: 'mr1', month: '2026-09', reason: 'Typo in issued', lines: [line({ issuedQty: 7, ...o })] });
+
+    it('the manager changes a pending line, the original is kept, and the read shows who and why', async () => {
+      await sent();
+      expect(await edit.execute(asm, fix())).toEqual({ changed: 1 });
+      await edit.execute({ id: 'admin', role: 'ADMIN' }, fix({ issuedQty: 8 }));
+      const l = (await read.execute(asm, { userId: 'mr1', month: '2026-09' })).distributors[0]!.lines.find((x) => x.product.id === 'prod1')!;
+      expect([l.issuedQty, l.closingQty]).toEqual([8, 22]);
+      expect(l.managerEdit).toMatchObject({ by: { id: 'admin' }, reason: 'Typo in issued', original: { openingQty: 10, primaryQty: 20, issuedQty: 5 } });
+    });
+
+    it('is refused for the MR themselves, a stranger, a draft, a missing line, no reason, and negative closing', async () => {
+      await expect(edit.execute(mr1, fix())).rejects.toMatchObject({ code: 'NOT_YOUR_TEAM' });
+      await expect(edit.execute({ id: 'mr2', role: 'FIELD' }, fix())).rejects.toMatchObject({ code: 'NOT_YOUR_TEAM' });
+      await expect(edit.execute(asm, fix())).rejects.toMatchObject({ code: 'SECONDARY_NOT_PENDING' });
+      await sent();
+      await expect(edit.execute(asm, { ...fix(), lines: [line({ productId: 'prodX' })] })).rejects.toMatchObject({ code: 'INVALID_PAYLOAD' });
+      await expect(edit.execute(asm, { ...fix(), reason: ' ' })).rejects.toMatchObject({ code: 'ADJUSTMENT_NEEDS_REASON' });
+      await expect(edit.execute(asm, fix({ issuedQty: 31 }))).rejects.toMatchObject({ code: 'INVALID_PAYLOAD' });
+    });
+
+    it('cannot change an approved month, and the MR saving again clears the correction', async () => {
+      await sent();
+      await edit.execute(asm, fix());
+      const handle = makeSecondaryStockStatusHandler(lines);
+      await handle({ recordId: 'mr1:2026-09', status: 'APPROVED' }, undefined as never);
+      await expect(edit.execute(asm, fix({ issuedQty: 9 }))).rejects.toMatchObject({ code: 'SECONDARY_NOT_PENDING' });
+      await handle({ recordId: 'mr1:2026-09', status: 'REOPENED' }, undefined as never);
+      await save.execute(mr1, { month: '2026-09', lines: [line({ issuedQty: 6 })] });
+      expect([...lines.rows.values()][0]?.managerEdit).toBeUndefined();
+    });
   });
 });

@@ -179,6 +179,17 @@ export const saveSecondaryStockBodySchema = z.object({
     .max(2000)
     .refine((ls) => new Set(ls.map((l) => `${l.distributorId}|${l.productId}`)).size === ls.length, { message: 'A distributor and product appear twice.' }),
 });
+/** A manager's correction of lines the MR already sent: whose month, why, and the new figures per distributor and product. */
+export const editSecondaryStockBodySchema = z.object({
+  userId: objectIdSchema,
+  month: monthSchema,
+  reason: z.string().trim().min(3).max(300),
+  lines: z
+    .array(z.object({ distributorId: objectIdSchema, productId: objectIdSchema, openingQty: qtySchemaWhole, primaryQty: qtySchemaWhole, issuedQty: qtySchemaWhole }))
+    .min(1)
+    .max(2000)
+    .refine((ls) => new Set(ls.map((l) => `${l.distributorId}|${l.productId}`)).size === ls.length, { message: 'A distributor and product appear twice.' }),
+});
 export const submitStockCountsBodySchema = z.object({ month: monthSchema });
 /** Whose month of distributor counts, and which month (the caller's own when `userId` is left out is not allowed: say whose). */
 export const stockCountsQuerySchema = z.object({ userId: objectIdSchema, month: monthSchema });
