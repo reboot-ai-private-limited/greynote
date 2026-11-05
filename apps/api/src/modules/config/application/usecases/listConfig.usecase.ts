@@ -40,8 +40,9 @@ const OPTIONS: Partial<Record<ConfigDefinition['type'], readonly string[]>> = { 
 
 /**
  * Every defined setting with its stored value, in the registry's order (which groups them by module). A stored row with no definition is
- * not listed: the registry is the list of what an Admin may change. A defined setting with no stored row is also left out; the seed
- * creates them at boot, so that is a setup fault and not something to paper over with the default here.
+ * not listed: the registry is the list of what an Admin may change. A defined setting with no stored row is also left out: the
+ * server tops the missing rows up at boot (and `pnpm seed` does too), so that is a setup fault and not something to paper over with the
+ * default here.
  */
 export class ListConfigUseCase {
   constructor(private readonly repository: SystemConfigRepositoryPort) {}

@@ -13,7 +13,9 @@ class FakeRepo implements SystemConfigRepositoryPort {
   async list() {
     return [];
   }
-  async upsertSeed() {}
+  async upsertSeed() {
+    return [];
+  }
   async updateValue(key: string, value: string, by: string) {
     this.values.set(key, value);
     this.writes.push([key, value, by]);

@@ -6,9 +6,9 @@ export interface SystemConfigRepositoryPort {
   list(): Promise<SystemConfigEntry[]>;
   /**
    * Upserts each seed entry only if its key doesn't already exist (`$setOnInsert`-style) —
-   * never overwrites a value an Admin has since edited.
+   * never overwrites a value an Admin has since edited. Returns the keys it added.
    */
-  upsertSeed(entries: SystemConfigSeed[]): Promise<void>;
+  upsertSeed(entries: SystemConfigSeed[]): Promise<string[]>;
   /**
    * Updates `value`/`updatedBy`/`updatedAt` for a key that must already exist — never creates
    * one, so an Admin can't accidentally introduce an unrecognized key by typo. Returns `null`
