@@ -218,6 +218,7 @@ PATCH  /api/planning/daily/:id/amend  ADMIN,FIELD,HR
 PATCH  /api/planning/monthly/:id/amend  ADMIN,FIELD,HR
 PATCH  /api/sales/orders/:id  ACCOUNTANT,ADMIN
 PATCH  /api/sales/orders/:id/invoice-number  ACCOUNTANT,ADMIN
+PATCH  /api/sales/secondary-stock  ADMIN,FIELD
 PATCH  /api/territory/hqs/:id  ADMIN
 PATCH  /api/territory/routes/:id  ADMIN
 PATCH  /api/territory/zones/:id  ADMIN

@@ -46,6 +46,30 @@ A manager opens the same screen and sees **no entry controls**. Read it from `GE
 | 3 | Show `approvedMrCount` of `mrCount` so a manager knows whose month is still draft or waiting. |
 | 4 | Approving or rejecting stays on the Approvals screen (`STOCK_COUNT` request, record `userId:month`). |
 
+#### Correcting figures before approving (2026-11-05)
+
+A manager does not enter figures, but may **correct** what an MR already sent while it waits for approval, so one typo does not cost a reject and resubmit.
+
+`PATCH /api/sales/secondary-stock`
+
+```json
+{ "userId": "<MR id>", "month": "2026-11", "reason": "Typo in issued", "lines": [{ "distributorId": "…", "productId": "…", "openingQty": 10, "primaryQty": 20, "issuedQty": 7 }] }
+```
+
+Returns `{ changed }` (lines whose figures actually differ; identical lines are skipped).
+
+| # | Rule |
+|---|---|
+| 1 | **Who:** the manager above that MR (any depth), or Admin. The MR cannot use it on themselves (`403 NOT_YOUR_TEAM`, they save instead); anyone outside the MR's upline gets `403 NOT_YOUR_TEAM`. |
+| 2 | **When:** only lines that are `PENDING` (`409 SECONDARY_NOT_PENDING` for a draft, rejected or approved line). To change an approved month, Admin reopens it. No stock-deadline check; the financial year must be open. |
+| 3 | **What:** only lines the MR already sent. A distributor and product the MR did not send is `400 INVALID_PAYLOAD`: a manager cannot add or remove rows. Whole units, 0 or more; issued more than opening + primary is `400 INVALID_PAYLOAD`. |
+| 4 | **Reason is required** (3 to 300 characters): `400` from the body check, `ADJUSTMENT_NEEDS_REASON` if it is blank. Ask for it in a text box before the save button works. |
+| 5 | **Shown afterwards:** `GET /sales/secondary-stock` returns `managerEdit` on each corrected line, otherwise `null`: `{ by: { id, name }, at, reason, original: { openingQty, primaryQty, issuedQty } }`. `original` is what the MR entered, kept from the first correction even after further ones. Mark such lines (for example an "Adjusted by <name>" chip) and show `original` on tap, on the MR's own screen too. |
+| 6 | **The MR is in control again after a rejection or withdrawal.** When the MR saves the rows again their figures replace the correction and `managerEdit` goes back to `null`. |
+| 7 | Approving afterwards counts the corrected figures. Every correction is written to the server audit log. |
+
+**Phone UX.** On the manager's approval card, make the figure cells of a `PENDING` month tappable, edit in place with the same three steppers (Closing recalculated, never typed), and send one `PATCH` for all the lines changed together with the reason. On a `403`/`409`, refresh with the `GET` and show the message.
+
 **Achievement** now credits each approved row's issued units, at PTS, to the MR who entered it, and to nobody else. A distributor-month that has MR rows no longer counts by assignment. Months with no MR rows behave as before.
 
 **The old "Distributor stock" counting tab and the "My record" tab are replaced** by this screen. `orders-and-stock.md` says the Monthly-stock tab is removed from the phone; that stays true, this is a different screen. The old `POST /sales/monthly-stock` (opening and closing counts) remains for older builds.

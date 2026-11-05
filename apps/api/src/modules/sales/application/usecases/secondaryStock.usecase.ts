@@ -1,5 +1,6 @@
 import type { ApprovalStatus } from '@/modules/approval/approval.public.js';
 import type { SecondaryStockDistributorDto, SecondaryStockLineDto, SecondaryStockMonthDto, SecondaryStockTotalsDto, StockCountStatus } from '@greynote/contracts';
+import { logger } from '@/shared/logging/logger.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
 import { monthRange } from '@/shared/time/businessTime.js';
@@ -9,7 +10,7 @@ import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { MonthlyStockRepositoryPort } from '../../domain/monthlyStock.repository.port.js';
 import type { OrderRepositoryPort } from '../../domain/order.repository.port.js';
 import type { SalesLateGate } from '../../domain/salesLateGate.port.js';
-import { closingOf, previousMonthOf, type SecondaryStockLine, type SecondaryStockLineInput } from '../../domain/secondaryStockLine.entity.js';
+import { closingOf, previousMonthOf, type SecondaryStockLine, type SecondaryStockLineEdit, type SecondaryStockLineInput } from '../../domain/secondaryStockLine.entity.js';
 import type { SecondaryAttachmentRepositoryPort } from '../../domain/secondaryAttachment.repository.port.js';
 import type { SecondaryStockLineRepositoryPort } from '../../domain/secondaryStockLine.repository.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
@@ -96,6 +97,51 @@ export class SubmitSecondaryStockUseCase {
   }
 }
 
+/**
+ * The manager above the MR (or Admin) corrects figures while the month waits for approval, so a typo does not cost a reject and resubmit round
+ * trip. Only lines the MR already sent can be changed (none added or removed), a reason is required, and the MR's original figures are kept on the
+ * line the first time it is changed so the approver and the MR can see what moved. The MR saving again clears the correction, as the figures are theirs.
+ */
+export class EditSecondaryStockUseCase {
+  constructor(
+    private readonly users: UserDirectoryPort,
+    private readonly lines: SecondaryStockLineRepositoryPort,
+    private readonly transactions: TransactionRunnerPort,
+    private readonly clock: SalesClock,
+    private readonly config: ConfigReader,
+  ) {}
+
+  async execute(actor: Actor, input: { userId: string; month: string; reason: string; lines: SecondaryStockLineInput[] }): Promise<{ changed: number }> {
+    await assertMayAct(this.users, actor, input.userId);
+    if (actor.id === input.userId) throw new StockRefusal(STOCK_CODES.notYourTeam, 'You change your own figures by saving them, not through a manager correction.');
+    await assertFinancialYearOpen(this.config, `${input.month}-01`, 'This month');
+    for (const l of input.lines) {
+      for (const n of [l.openingQty, l.primaryQty, l.issuedQty]) if (!Number.isInteger(n) || n < 0 || n > MAX_QTY) throw new StockRefusal(STOCK_CODES.invalidPayload, 'Quantities are whole units.');
+      if (closingOf(l) < 0) throw new StockRefusal(STOCK_CODES.invalidPayload, 'Issued cannot be more than opening plus primary.');
+    }
+    const reason = input.reason.trim();
+    if (reason.length < 3) throw new StockRefusal(STOCK_CODES.adjustmentNeedsReason, 'Say why you are changing the figures.');
+    const rows = await this.lines.listByUser(input.userId, input.month);
+    const at = this.clock.now();
+    const edits: SecondaryStockLineEdit[] = [];
+    for (const l of input.lines) {
+      const row = rows.find((r) => r.distributorId === l.distributorId && r.productId === l.productId);
+      if (!row) throw new StockRefusal(STOCK_CODES.invalidPayload, 'That distributor and product was not sent by the MR, so it cannot be corrected.');
+      if (row.status !== 'PENDING') throw new StockRefusal(STOCK_CODES.secondaryNotPending, 'Only figures waiting for approval can be corrected.');
+      if (row.openingQty === l.openingQty && row.primaryQty === l.primaryQty && row.issuedQty === l.issuedQty) continue;
+      edits.push({ ...l, managerEdit: { by: actor.id, at, reason, original: row.managerEdit?.original ?? { openingQty: row.openingQty, primaryQty: row.primaryQty, issuedQty: row.issuedQty } } });
+    }
+    if (edits.length === 0) return { changed: 0 };
+    const changed = await this.transactions.run((ctx) => this.lines.applyEdits(input.userId, input.month, edits, ctx));
+    if (changed !== edits.length) throw new StockRefusal(STOCK_CODES.secondaryNotPending, 'Only figures waiting for approval can be corrected.');
+    logger.info(
+      { audit: 'secondarystock.manager_edited', by: actor.id, userId: input.userId, month: input.month, reason, lines: edits.map((e) => ({ distributorId: e.distributorId, productId: e.productId, from: e.managerEdit.original, to: { openingQty: e.openingQty, primaryQty: e.primaryQty, issuedQty: e.issuedQty } })) },
+      'a manager corrected secondary stock before approving',
+    );
+    return { changed };
+  }
+}
+
 /** The approval's effect on the month's secondary rows, inside the approval's own transaction. */
 export function makeSecondaryStockStatusHandler(lines: SecondaryStockLineRepositoryPort): (change: { recordId: string; status: ApprovalStatus }, ctx: TransactionContext) => Promise<void> {
   return async ({ recordId, status }, ctx) => {
@@ -150,6 +196,9 @@ export class ReadSecondaryStockUseCase {
     const ids = new Map(assigned.distributors.map((d) => [d.id, d.name]));
     for (const r of saved) if (!ids.has(r.distributorId)) ids.set(r.distributorId, (await this.master.getDistributor(r.distributorId))?.name ?? '(removed)');
 
+    const editorIds = [...new Set(saved.flatMap((r) => (r.managerEdit ? [r.managerEdit.by] : [])))];
+    const editorName = new Map((await this.users.getUserSummaries(editorIds)).map((e) => [e.id, e.name]));
+
     const distributors: SecondaryStockDistributorDto[] = [];
     for (const [distributorId, name] of ids) {
       let totals = emptyTotals();
@@ -163,7 +212,7 @@ export class ReadSecondaryStockUseCase {
         const issuedQty = row?.issuedQty ?? 0;
         const closingQty = openingQty + primaryQty - issuedQty;
         const pts = p.ptsPaise ?? null;
-        const dto: SecondaryStockLineDto = { product: { id: p.id, name: p.name, sku: p.sku }, openingQty, primaryQty, issuedQty, closingQty, suggestedOpeningQty, suggestedPrimaryQty, openingEdited: !!row && row.openingQty !== suggestedOpeningQty, primaryEdited: !!row && row.primaryQty !== suggestedPrimaryQty, saved: !!row, ptsPaise: pts, issuedAmountPaise: pts ? issuedQty * pts : null, closingAmountPaise: pts ? closingQty * pts : null };
+        const dto: SecondaryStockLineDto = { product: { id: p.id, name: p.name, sku: p.sku }, openingQty, primaryQty, issuedQty, closingQty, suggestedOpeningQty, suggestedPrimaryQty, openingEdited: !!row && row.openingQty !== suggestedOpeningQty, primaryEdited: !!row && row.primaryQty !== suggestedPrimaryQty, saved: !!row, ptsPaise: pts, issuedAmountPaise: pts ? issuedQty * pts : null, closingAmountPaise: pts ? closingQty * pts : null, managerEdit: row?.managerEdit ? { by: { id: row.managerEdit.by, name: editorName.get(row.managerEdit.by) ?? '(removed)' }, at: row.managerEdit.at.toISOString(), reason: row.managerEdit.reason, original: row.managerEdit.original } : null };
         totals = addTotals(totals, dto);
         return dto;
       }).sort((a, b) => a.product.name.localeCompare(b.product.name));

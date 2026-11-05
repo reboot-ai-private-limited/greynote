@@ -12,6 +12,13 @@ export interface DistributorOrderRow {
   items: unknown[];
 }
 
+export interface EditSecondaryStockBody {
+  userId: string;
+  month: string;
+  reason: string;
+  lines: Array<{ distributorId: string; productId: string; openingQty: number; primaryQty: number; issuedQty: number }>;
+}
+
 export const salesApi = {
   /** Admin or Accountant. One distributor's payments in a range (both ends inclusive), with the collected and ordered totals. */
   distributorPayments: (token: string, query: { distributorId: string; from: string; to: string }, signal?: AbortSignal) =>
@@ -30,6 +37,8 @@ export const salesApi = {
   stockCounts: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<StockCountsMonthDto>('/sales/stock-counts', { token, query: { ...query }, signal }),
   /** An MR's month of secondary stock by distributor and product (2026-11-05): opening, primary, issued, closing and value at PTS. Self, the manager above, or Admin. */
   secondaryStock: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<SecondaryStockMonthDto>('/sales/secondary-stock', { token, query: { ...query }, signal }),
+  /** The manager above an MR (or Admin) corrects the figures the MR sent, while the month waits for approval. A reason is required. */
+  editSecondaryStock: (token: string, body: EditSecondaryStockBody) => request<{ changed: number }>('/sales/secondary-stock', { method: 'PATCH', token, body }),
   /** The approved secondary of the MRs below a manager (all MRs for Admin), summed by distributor and product. */
   secondaryReport: (token: string, query: { month: string; managerId?: string | undefined }, signal?: AbortSignal) => request<SecondaryReportDto>('/sales/secondary-report', { token, query: { ...query }, signal }),
   /** Admin: what deleting the month would remove, for the confirmation. */
