@@ -18,6 +18,16 @@ export interface SecondaryStockLine {
   issuedQty: number;
   status: StockStatus;
   updatedAt: Date;
+  /** Set when the manager above (or Admin) corrected the figures while the month was waiting for approval; cleared when the MR saves again. */
+  managerEdit?: SecondaryManagerEdit | undefined;
+}
+
+/** What the MR had entered before the first correction is kept in `original`, so the approver and the report can see it was changed and by how much. */
+export interface SecondaryManagerEdit {
+  by: string;
+  at: Date;
+  reason: string;
+  original: { openingQty: number; primaryQty: number; issuedQty: number };
 }
 
 /** What is left on the shelf: opening + received − issued. Negative means the figures do not add up and the entry is refused. */
@@ -29,6 +39,11 @@ export interface SecondaryStockLineInput {
   openingQty: number;
   primaryQty: number;
   issuedQty: number;
+}
+
+/** A manager's correction of one line already waiting for approval. */
+export interface SecondaryStockLineEdit extends SecondaryStockLineInput {
+  managerEdit: SecondaryManagerEdit;
 }
 
 /** The previous month, `YYYY-MM`. */

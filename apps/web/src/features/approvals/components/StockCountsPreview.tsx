@@ -1,6 +1,6 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +14,7 @@ import { PreviewFrame } from './PreviewFrame';
 import { SecondaryFiles } from '@/features/reports/components/SecondaryFiles';
 import { SecondaryStockTables, TotalsLine } from './SecondaryStockTables';
 import { DistributorCountTables } from './StockCountTables';
+import { EditSecondaryStockDialog } from './EditSecondaryStockDialog';
 
 /** A month of one employee's distributor counts, distributor by distributor: what the manager is asked to approve. Admin may delete the month. */
 export function StockCountsPreview({ recordId }: { recordId: string }) {
@@ -25,6 +26,9 @@ export function StockCountsPreview({ recordId }: { recordId: string }) {
   const router = useRouter();
   const { user: me } = useSession();
   const [deleting, setDeleting] = useState(false);
+  const [correcting, setCorrecting] = useState(false);
+  // A manager above the MR (or Admin) may correct figures while they wait for approval; the server checks who is above whom.
+  const canCorrect = !!mrRows && mrRows.status === 'PENDING' && me?.id !== userId;
   // The request goes with the month, so there is nothing left to decide here: back to the queue.
   const remove = useDeleteStockCounts(() => {
     setDeleting(false);
@@ -43,6 +47,12 @@ export function StockCountsPreview({ recordId }: { recordId: string }) {
           <p className="text-sm text-text-muted">
             <EmployeeName userId={userId} /> · {month ? monthLabel(month) : ''}
           </p>
+          {canCorrect ? (
+            <Button variant="secondary" size="sm" onClick={() => setCorrecting(true)}>
+              <Pencil aria-hidden className="size-4" />
+              Correct figures
+            </Button>
+          ) : null}
           {me?.role === 'ADMIN' ? (
             <Button variant="danger" size="sm" onClick={() => setDeleting(true)}>
               <Trash2 aria-hidden className="size-4" />
@@ -64,6 +74,7 @@ export function StockCountsPreview({ recordId }: { recordId: string }) {
           <p className="text-sm text-text-muted">No counts in this month.</p>
         ) : null}
       </div>
+      {correcting && mrRows ? <EditSecondaryStockDialog data={mrRows} onClose={() => setCorrecting(false)} /> : null}
       <ConfirmDialog
         open={deleting}
         onOpenChange={setDeleting}

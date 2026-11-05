@@ -12,13 +12,13 @@ import type { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersU
 import type { GetInvoiceUseCase, ListInvoicesUseCase } from '../application/usecases/invoices.usecase.js';
 import type { CancelPaymentUseCase, DistributorBalancesUseCase, ListPaymentsUseCase, OutstandingDuesUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from '../application/usecases/payments.usecase.js';
 import type { ReadSecondaryReportUseCase } from '../application/usecases/secondaryReport.usecase.js';
-import type { ReadSecondaryStockUseCase, SaveSecondaryStockUseCase, SubmitSecondaryStockUseCase } from '../application/usecases/secondaryStock.usecase.js';
+import type { EditSecondaryStockUseCase, ReadSecondaryStockUseCase, SaveSecondaryStockUseCase, SubmitSecondaryStockUseCase } from '../application/usecases/secondaryStock.usecase.js';
 import type { DeleteStockCountsUseCase, ReadStockCountsUseCase, SubmitStockCountsUseCase } from '../application/usecases/stockCounts.usecase.js';
 import type { DeleteEmployeeSecondaryUseCase, ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SubmitEmployeeSecondaryUseCase } from '../application/usecases/employeeSales.usecase.js';
 import type { AddSecondaryAttachmentUseCase, RemoveSecondaryAttachmentUseCase } from '../application/usecases/secondaryAttachments.usecase.js';
 import type { ReadStatementUseCase, SaveStatementUseCase } from '../application/usecases/stockStatement.usecase.js';
 import type { UnlockMonthUseCase } from '../application/usecases/unlockMonth.usecase.js';
-import type { secondaryReportQuerySchema, saveSecondaryStockBodySchema, submitStockCountsBodySchema, stockCountsQuerySchema, secondaryAttachmentBodySchema, submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
+import type { secondaryReportQuerySchema, editSecondaryStockBodySchema, saveSecondaryStockBodySchema, submitStockCountsBodySchema, stockCountsQuerySchema, secondaryAttachmentBodySchema, submitEmployeeSecondaryBodySchema, cancelPaymentBodySchema, employeeSalesQuerySchema, saveEmployeePrimaryBodySchema, saveEmployeeSecondaryBodySchema, listMonthlyStockQuerySchema, listPaymentsQuerySchema, paymentTotalsQuerySchema, recordPaymentBodySchema, saveStatementBodySchema, statementQuerySchema, listOrdersQuerySchema, missingQuerySchema, monthlyStockBodySchema, placeOrderBodySchema, placeOrderForBodySchema, editOrderBodySchema, completeOrderBodySchema, listInvoicesQuerySchema, setInvoiceNumberBodySchema, unlockBodySchema } from './sales.schemas.js';
 
 function actorOf(req: Request): Actor {
   if (!req.user) throw AppError.unauthenticated();
@@ -39,7 +39,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'deleteEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary' | 'addSecondaryAttachment' | 'removeSecondaryAttachment' | 'secondaryReport' | 'saveSecondaryStock' | 'submitSecondaryStock' | 'readSecondaryStock' | 'submitStockCounts' | 'readStockCounts' | 'stockCountsImpact' | 'deleteStockCounts', RequestHandler>;
+export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'deleteEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary' | 'addSecondaryAttachment' | 'removeSecondaryAttachment' | 'secondaryReport' | 'saveSecondaryStock' | 'editSecondaryStock' | 'submitSecondaryStock' | 'readSecondaryStock' | 'submitStockCounts' | 'readStockCounts' | 'stockCountsImpact' | 'deleteStockCounts', RequestHandler>;
 
 export function makeSalesControllers(u: {
   record: RecordMonthlyStockUseCase;
@@ -71,6 +71,7 @@ export function makeSalesControllers(u: {
   removeSecondaryAttachment: RemoveSecondaryAttachmentUseCase;
   secondaryReport: ReadSecondaryReportUseCase;
   saveSecondaryStock: SaveSecondaryStockUseCase;
+  editSecondaryStock: EditSecondaryStockUseCase;
   submitSecondaryStock: SubmitSecondaryStockUseCase;
   readSecondaryStock: ReadSecondaryStockUseCase;
   submitStockCounts: SubmitStockCountsUseCase;
@@ -145,6 +146,9 @@ export function makeSalesControllers(u: {
     ),
     saveSecondaryStock: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.saveSecondaryStock.execute(actorOf(req), req.body as z.output<typeof saveSecondaryStockBodySchema>)), 'Saved as a draft.', 200),
+    ),
+    editSecondaryStock: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.editSecondaryStock.execute(actorOf(req), req.body as z.output<typeof editSecondaryStockBodySchema>)), 'The figures were corrected.', 200),
     ),
     submitSecondaryStock: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.submitSecondaryStock.execute(actorOf(req), (req.body as z.output<typeof submitStockCountsBodySchema>).month)), 'The month was sent for approval.', 200),

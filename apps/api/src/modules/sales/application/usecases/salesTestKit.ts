@@ -113,7 +113,7 @@ export class FakeStock implements MonthlyStockRepositoryPort {
 }
 
 // ── Secondary stock lines ──
-import type { SecondaryStockLine, SecondaryStockLineInput } from '../../domain/secondaryStockLine.entity.js';
+import type { SecondaryStockLine, SecondaryStockLineEdit, SecondaryStockLineInput } from '../../domain/secondaryStockLine.entity.js';
 import type { SecondaryStockLineRepositoryPort, SecondaryStockRangeFilter } from '../../domain/secondaryStockLine.repository.port.js';
 
 export class FakeLines implements SecondaryStockLineRepositoryPort {
@@ -123,6 +123,17 @@ export class FakeLines implements SecondaryStockLineRepositoryPort {
       const key = `${userId}|${l.distributorId}|${l.productId}|${month}`;
       this.rows.set(key, { id: this.rows.get(key)?.id ?? `${this.rows.size}`, userId, month, status, updatedAt: at, ...l });
     }
+  }
+  async applyEdits(userId: string, month: string, edits: readonly SecondaryStockLineEdit[]) {
+    let n = 0;
+    for (const e of edits) {
+      const key = `${userId}|${e.distributorId}|${e.productId}|${month}`;
+      const r = this.rows.get(key);
+      if (!r || r.status !== 'PENDING') continue;
+      this.rows.set(key, { ...r, openingQty: e.openingQty, primaryQty: e.primaryQty, issuedQty: e.issuedQty, updatedAt: e.managerEdit.at, managerEdit: e.managerEdit });
+      n++;
+    }
+    return n;
   }
   async listByUser(userId: string, month: string) {
     return [...this.rows.values()].filter((r) => r.userId === userId && r.month === month);

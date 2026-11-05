@@ -11,6 +11,7 @@ export interface SecondaryStockLineDoc {
   issuedQty: number;
   status: StockStatus;
   updatedAt: Date;
+  managerEdit?: { by: Types.ObjectId; at: Date; reason: string; original: { openingQty: number; primaryQty: number; issuedQty: number } } | undefined;
 }
 const schema = new Schema<SecondaryStockLineDoc>({
   userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
@@ -22,6 +23,18 @@ const schema = new Schema<SecondaryStockLineDoc>({
   issuedQty: { type: Number, required: true, min: 0 },
   status: { type: String, required: true, enum: STOCK_STATUSES },
   updatedAt: { type: Date, required: true },
+  managerEdit: {
+    type: new Schema(
+      {
+        by: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
+        at: { type: Date, required: true },
+        reason: { type: String, required: true },
+        original: { type: new Schema({ openingQty: Number, primaryQty: Number, issuedQty: Number }, { _id: false }), required: true },
+      },
+      { _id: false },
+    ),
+    required: false,
+  },
 });
 schema.index({ userId: 1, distributorId: 1, productId: 1, month: 1 }, { unique: true });
 schema.index({ month: 1, status: 1 });

@@ -11,7 +11,23 @@ const amount = (paise: number | null): string => (paise === null ? '—' : forma
 const edited = (on: boolean, n: number) => (on ? <span className="font-semibold text-warning-fg" title="Differs from the suggested figure">{n}*</span> : n);
 
 const COLUMNS: readonly Column<SecondaryStockLineDto>[] = [
-  { key: 'product', header: 'Product', render: (l) => <span className="font-medium">{l.product.name}</span> },
+  {
+    key: 'product',
+    header: 'Product',
+    render: (l) => (
+      <span className="font-medium">
+        {l.product.name}
+        {l.managerEdit ? (
+          <span className="ml-2 align-middle">
+            <Badge tone="warning">Adjusted by {l.managerEdit.by.name}</Badge>
+            <span className="mt-0.5 block text-xs font-normal text-text-muted">
+              Was {l.managerEdit.original.openingQty} / {l.managerEdit.original.primaryQty} / {l.managerEdit.original.issuedQty} (opening / primary / secondary) · {l.managerEdit.reason}
+            </span>
+          </span>
+        ) : null}
+      </span>
+    ),
+  },
   { key: 'opening', header: 'Opening', numeric: true, render: (l) => edited(l.openingEdited, l.openingQty) },
   { key: 'primary', header: 'Primary', numeric: true, render: (l) => edited(l.primaryEdited, l.primaryQty) },
   { key: 'issued', header: 'Secondary', numeric: true, render: (l) => l.issuedQty },

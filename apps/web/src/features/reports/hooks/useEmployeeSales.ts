@@ -4,7 +4,7 @@ import type { EmployeeSalesDto, SecondaryAttachmentDto, SaveEmployeePrimaryDto, 
 import { useQuery } from '@tanstack/react-query';
 import { marketingApi, type SetTargetBody, type UpdateTargetBody } from '@/lib/api/endpoints/marketing';
 import { reportsApi, type EmployeeSalesQuery } from '@/lib/api/endpoints/reports';
-import { salesApi } from '@/lib/api/endpoints/sales';
+import { salesApi, type EditSecondaryStockBody } from '@/lib/api/endpoints/sales';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
 import { useApiMutation } from '@/lib/query/mutation';
@@ -48,6 +48,16 @@ export function useAddSecondaryFile() {
   return useApiMutation<FormData, SecondaryAttachmentDto>({
     call: (token, body) => salesApi.addSecondaryFile(token, body),
     invalidates: refreshes,
+  });
+}
+
+/** A manager corrects the figures an MR sent; the approval card and the reports read the same figures, so all refresh. */
+export function useEditSecondaryStock(onDone: () => void) {
+  return useApiMutation<EditSecondaryStockBody, { changed: number }>({
+    call: (token, body) => salesApi.editSecondaryStock(token, body),
+    invalidates: [...refreshes, keys.approvals.all()],
+    successMessage: 'Figures corrected.',
+    onSuccess: onDone,
   });
 }
 
