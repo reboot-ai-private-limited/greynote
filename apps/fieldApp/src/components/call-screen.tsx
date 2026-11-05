@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { FormField } from '@/components/form-field';
 import { GeofenceBadge } from '@/components/geofence-badge';
@@ -14,10 +14,12 @@ import { ThemedText } from '@/components/themed-text';
 import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-cards';
 import { WorkWithPicker } from '@/components/work-with-picker';
 import { Spacing } from '@/constants/theme';
+import { useCallDoctors } from '@/hooks/use-call-doctors';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useDoctorVisitGap } from '@/hooks/use-doctor-visit-gap';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useReportSent } from '@/hooks/use-report-sent';
+import { listDoctorSamples } from '@/lib/added-doctors';
 import { getDoctorVisits, type DoctorVisitsReport } from '@/lib/doctor-visits';
 import { useFinancialYear } from '@/lib/financial-year';
 import { confirmRemove, removeDayRecord } from '@/lib/day-records';
@@ -62,6 +64,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
     routeTypeLabel(territory.data?.routes.find((r) => r.id === routeId)?.routeType);
   const reportSent = useReportSent(gate.today);
   const { records } = useRecords([kind]);
+  const { doctors: callDoctors, byId: callDoctorById, teamMissing } = useCallDoctors();
 
   // Doctors with a visit target show how far along the month is (calls on submitted days; the Missed Calls screen shares this copy).
   const fy = useFinancialYear();
@@ -100,22 +103,30 @@ export function CallScreen({ subject }: { subject: Subject }) {
     return (isDoctor ? p.doctorId : p.chemistId) ?? '';
   };
 
-  // Anyone the snapshot lists can be picked (doctors assigned to me, chemists on my routes); off-plan ones are flagged, not
-  // refused. The day's planned doctors come first, then the rest on the day's routes, then everyone else.
+  // Anyone listed can be picked (doctors assigned to me, or for a manager to anyone below them; chemists on my routes); off-plan
+  // ones are flagged, not refused. The day's planned doctors come first, then the rest on the day's routes, then everyone else.
   const outlets = useMemo(() => {
-    const list: { id: string; routeId: string; name: string }[] = isDoctor ? (master.data?.doctors ?? []) : (master.data?.chemists ?? []);
+    const list: { id: string; routeId: string; name: string }[] = isDoctor ? callDoctors : (master.data?.chemists ?? []);
     const rank = (o: { id: string; routeId: string }) =>
       isDoctor && plannedDoctorIds.has(o.id) ? 0 : plannedRoutes.has(o.routeId) ? 1 : 2;
     return [...list].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
-  }, [master.data, isDoctor, plannedRoutes, plannedDoctorIds]);
+  }, [master.data, callDoctors, isDoctor, plannedRoutes, plannedDoctorIds]);
   const outletById = useMemo(
-    () => new Map([...(master.data?.doctors ?? []), ...(master.data?.chemists ?? [])].map((o) => [o.id, o])),
-    [master.data],
+    () => new Map([...callDoctors, ...(master.data?.chemists ?? [])].map((o) => [o.id, o])),
+    [callDoctors, master.data],
   );
   const products = useMemo(() => new Map((master.data?.products ?? []).map((p) => [p.id, p])), [master.data]);
 
   const todays = records.filter((r) => !r.deleted && r.kind === kind && (r.payload as CallPayload).reportDate === gate.today);
   const calledIds = new Set(todays.filter((r) => r !== editing).map(idOf));
+
+  // The snapshot has samples for my own doctors only, so a team doctor's are read for that doctor, and re-read once a call has gone up.
+  const teamDoctorId = isDoctor && outletId && callDoctorById.get(outletId)?.mrLabel !== undefined ? outletId : null;
+  const teamSamples = useCachedFetch(
+    teamDoctorId ? `doctor-samples:${teamDoctorId}` : 'doctor-samples:none',
+    async () => (teamDoctorId ? listDoctorSamples(teamDoctorId) : []),
+    todays.filter((r) => r.status === 'SYNCED').length,
+  );
 
   /** What the doctor can still be given: the allocation, less what other unsent calls today already use. */
   const sampleOptions = useMemo(() => {
@@ -126,8 +137,8 @@ export function CallScreen({ subject }: { subject: Subject }) {
       if (r === editing || r.status === 'SYNCED' || p.doctorId !== outletId) continue;
       for (const s of p.samples ?? []) used.set(s.productId, (used.get(s.productId) ?? 0) + s.quantity);
     }
-    return (master.data?.sampleAllocations ?? [])
-      .filter((a) => a.doctorId === outletId)
+    const allocations = teamDoctorId ? (teamSamples.data ?? []) : (master.data?.sampleAllocations ?? []).filter((a) => a.doctorId === outletId);
+    return allocations
       .map((a) => ({
         productId: a.productId,
         name: products.get(a.productId)?.name ?? 'Product',
@@ -136,7 +147,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
       }))
       .filter((o) => o.available > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDoctor, outletId, master.data, products, records, editing]);
+  }, [isDoctor, outletId, master.data, products, records, editing, teamDoctorId, teamSamples.data]);
 
   const start = (record: OutboxRecord | 'new') => {
     setMsg(null);
@@ -261,6 +272,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
           </View>
         }>
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+        {isDoctor && teamMissing ? <Notice tone="info">Your team’s doctors haven’t loaded yet. Connect to the internet once to see them here.</Notice> : null}
         <CardSection icon={isDoctor ? sym('stethoscope', 'medical_services') : sym('cross.case', 'local_pharmacy')} accent={isDoctor ? 'blue' : 'teal'} title={isDoctor ? 'Doctor' : 'Chemist'}>
         <FormField form={fe} name="outlet">
         <OutletPicker
@@ -273,9 +285,9 @@ export function CallScreen({ subject }: { subject: Subject }) {
             return {
               id: o.id,
               name: o.name,
-              photoUrl: isDoctor ? (master.data?.doctors.find((d) => d.id === o.id)?.photoUrl ?? null) : null,
+              photoUrl: isDoctor ? (callDoctorById.get(o.id)?.photoUrl ?? null) : null,
               disabled: soon !== null,
-              subtitle: `${soon ? `${soon.short} · ` : ''}${flags.length ? `${flags.join(' · ')} · ` : ''}${full && 'specialty' in full ? `${full.specialty}${clinic} · ${full.address}` : (full?.address ?? '')}${
+              subtitle: `${soon ? `${soon.short} · ` : ''}${flags.length ? `${flags.join(' · ')} · ` : ''}${full && 'mrLabel' in full && full.mrLabel ? `${full.mrLabel} · ` : ''}${full && 'specialty' in full ? `${full.specialty}${clinic} · ${full.address}` : (full?.address ?? '')}${
                 full && 'visitFrequency' in full && full.visitFrequency ? ` · ${madeBy.has(o.id) ? `${madeBy.get(o.id)} of ${full.visitFrequency}` : full.visitFrequency} visits${madeBy.has(o.id) ? ' this month' : ' a month'}` : ''
               }${calledIds.has(o.id) ? ' · called today' : ''}`,
             };
@@ -292,6 +304,7 @@ export function CallScreen({ subject }: { subject: Subject }) {
           avatars={isDoctor}
         />
         </FormField>
+        {!isDoctor && picked?.phone ? <PrimaryButton label={picked.phone} variant="text" onPress={() => void Linking.openURL(`tel:${picked.phone}`)} style={styles.phone} /> : null}
         {picked && tooSoon(picked.id) ? <Notice tone="warning" title="Too soon for another visit">{tooSoon(picked.id)!.text}</Notice> : null}
         {picked && flagsFor(picked).length > 0 ? (
           <Notice tone="warning" title="Not in your plan">
@@ -318,7 +331,12 @@ export function CallScreen({ subject }: { subject: Subject }) {
         {isDoctor ? (
           <CardSection icon={sym('pills', 'medication')} accent="amber" title="Samples given (optional)">
             {outletId ? (
-              <SamplesEditor options={sampleOptions} value={samples} onChange={setSamples} disabled={busy} />
+              <>
+                {teamDoctorId && !teamSamples.loading && teamSamples.data === null ? (
+                  <Notice tone="info">This doctor’s samples aren’t on this phone. Connect to the internet to give samples.</Notice>
+                ) : null}
+                <SamplesEditor options={sampleOptions} value={samples} onChange={setSamples} disabled={busy} />
+              </>
             ) : (
               <ThemedText type="small" themeColor="textSecondary">
                 Choose the doctor first.
@@ -419,4 +437,5 @@ const styles = StyleSheet.create({
   grow: { flex: 1, gap: Spacing.one },
   sectionTitle: { fontSize: 18, lineHeight: 24 },
   newButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
+  phone: { alignSelf: 'flex-start' },
 });

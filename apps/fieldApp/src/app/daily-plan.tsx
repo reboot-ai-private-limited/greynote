@@ -12,6 +12,7 @@ import { ScreenShell } from '@/components/screen-shell';
 import { ThemedText } from '@/components/themed-text';
 import { CardSection, sym } from '@/components/ui-cards';
 import { useTheme } from '@/hooks/use-theme';
+import { useCallDoctors } from '@/hooks/use-call-doctors';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useDoctorVisitGap } from '@/hooks/use-doctor-visit-gap';
@@ -22,6 +23,7 @@ import {
   EDITABLE,
   LATE_TEXT,
   getCarryOver,
+  getDailyPlanRoutes,
   getTeamSuggest,
   type TeamSuggestion,
   getDailyPlanDetail,
@@ -35,9 +37,11 @@ import {
   type DailyPlanDetail,
   type PlannedDoctor,
 } from '@/lib/planning';
+import { getTeamToday, type TeamDayRow } from '@/lib/team-section';
 import { WorkWithPicker } from '@/components/work-with-picker';
 import { refreshNow, useColleagues, useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
+import { useCachedFetch } from '@/offline/cached-fetch';
 import { addDays, formatWhen, monthOf, nowMs, prettyDay, prettyMonth } from '@/offline/day';
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from '@/offline/local-draft';
 import type { ConfigSnapshot, FieldMasterDataSnapshot, PlanningSnapshot, TerritorySnapshot } from '@/types/sync';
@@ -66,6 +70,15 @@ const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every((
 
 const errorText = planErrorText;
 
+/** The routes by name. The server gives only ids for a team member's plan, so any the phone can't name yet are counted. */
+const routesText = (ids: string[], routes: Map<string, string>) => {
+  const known = ids.flatMap((id) => routes.get(id) ?? []);
+  const others = ids.length - known.length;
+  if (others === 0) return known.join(', ');
+  const count = `${others} ${known.length > 0 ? 'more ' : ''}route${others === 1 ? '' : 's'}`;
+  return known.length > 0 ? `${known.join(', ')} and ${count}` : count;
+};
+
 /** The fields of this screen the server can name in a `400` (its `field`), top to bottom. */
 const FIELD_ORDER = ['workWith', 'doctorIds'];
 
@@ -73,8 +86,9 @@ const FIELD_ORDER = ['workWith', 'doctorIds'];
  * Daily Plan (docs/mobile/dailyplan.md). The day starts from the approved Monthly Plan. While it is editable the employee can
  * change its working type, who they work with and the doctors to call (one Save); the routes and remarks stay the Monthly Plan's
  * and are set by the server, so they are shown read-only. A Meeting, Conference or Strike day has no routes or doctors. On a field
- * day the doctors are the employee's own on the day's routes; missed calls still owed are added by the server and can't be
- * dropped. The day is submitted for approval every day (online only). An approved day is changed by the manager or Admin (amend).
+ * day an MR's doctors are their own on the day's routes, and a manager's are their own or anyone's in their downline, on any route;
+ * missed calls still owed are added by the server and can't be dropped. The day is submitted for approval every day (online only).
+ * An approved day is changed by the manager or Admin (amend).
  */
 export default function DailyPlanScreen() {
   const theme = useTheme();
@@ -84,6 +98,7 @@ export default function DailyPlanScreen() {
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const { colleagues } = useColleagues();
   const { isManager } = useCurrentUser();
+  const { byId: callDoctorById, teamMissing } = useCallDoctors();
   const gate = useDayGate();
   const { today } = gate;
   const online = useOnline();
@@ -129,7 +144,13 @@ export default function DailyPlanScreen() {
 
   // Owed doctors: the server's answer for this date when we have it, else the ones the saved plan already carries.
   const savedOwed = useMemo(() => (existing?.doctors ?? []).filter((d) => d.carriedFrom !== null), [existing]);
-  const owed = owedState?.date === date ? owedState.list : savedOwed;
+  // For a manager the carry-over call leaves out doctors owed from their downline, which the saved plan does carry, so both are shown.
+  const owed =
+    owedState?.date === date
+      ? isManager
+        ? [...owedState.list, ...savedOwed.filter((s) => !owedState.list.some((o) => o.doctorId === s.doctorId))]
+        : owedState.list
+      : savedOwed;
 
   // Days between visits to a doctor (dcr.md rule 11), counted from this plan's date: a doctor visited too recently can't be
   // called that day, so it isn't offered for the plan either. Ticked ones (from before) can still be unticked.
@@ -137,14 +158,31 @@ export default function DailyPlanScreen() {
   const tooSoonPicked = doctorIds
     .map((id) => ({ id, soon: visitGap(id) }))
     .filter((p) => p.soon !== null)
-    .map((p) => `${master.data?.doctors.find((d) => d.id === p.id)?.name ?? 'A doctor'}: ${p.soon!.short.toLowerCase()}`);
+    .map((p) => `${callDoctorById.get(p.id)?.name ?? 'A doctor'}: ${p.soon!.short.toLowerCase()}`);
+
+  // The team's day (dailyplan.md section 1b). The server only answers for today or earlier, so it can't say who is away on a later day.
+  const showTeamToday = isManager && date === today;
+  const teamToday = useCachedFetch<TeamDayRow[]>(showTeamToday ? `plan-team-today:${today}` : 'plan-team-today:none', async () =>
+    showTeamToday ? (await getTeamToday({ date: today })).items : [],
+  );
+  const away = (teamToday.data ?? []).filter((r) => r.state === 'ON_LEAVE' || r.state === 'OFF');
+  // A manager's day can take routes they don't hold, which only the server can name.
+  const savedRoutes = useCachedFetch(
+    isManager && existing ? `plan-routes:${existing.id}` : 'plan-routes:none',
+    async () => (isManager && existing ? getDailyPlanRoutes(existing.id) : []),
+    existing?.routeIds.join(','),
+  );
 
   const names = useMemo(
     () => ({
-      routes: new Map((territory.data?.routes ?? []).map((r) => [r.id, r.name])),
+      routes: new Map([
+        ...(teamToday.data ?? []).flatMap((r) => r.plan?.routes ?? []).map((r): [string, string] => [r.id, r.name]),
+        ...(savedRoutes.data ?? []).map((r): [string, string] => [r.id, r.name]),
+        ...(territory.data?.routes ?? []).map((r): [string, string] => [r.id, r.name]),
+      ]),
       colleagues: new Map(colleagues.map((c) => [c.id, c])),
     }),
-    [territory.data, colleagues],
+    [territory.data, colleagues, teamToday.data, savedRoutes.data],
   );
 
   const fetchDetail = useCallback(async () => {
@@ -181,6 +219,20 @@ export default function DailyPlanScreen() {
       setWorkWithDraft(kept && local.workWith ? local.workWith : null);
     });
   }, [planning.loaded, date, existing, editable]);
+
+  // A doctor the server took off this plan since it was loaded (unassigned, moved or deactivated, doctors.md D2) comes off the
+  // ticks too, so it isn't sent back and refused. Other ticks made here stay.
+  const lastServerPicks = useRef<{ key: string; picks: string[] } | null>(null);
+  useEffect(() => {
+    if (!existing) return;
+    const key = `${date}:${existing.id}`;
+    const picks = plannedPicks(existing);
+    const last = lastServerPicks.current;
+    lastServerPicks.current = { key, picks };
+    if (last?.key !== key) return;
+    const gone = last.picks.filter((id) => !picks.includes(id));
+    if (gone.length > 0) setDoctorIds((current) => current.filter((id) => !gone.includes(id)));
+  }, [date, existing]);
 
   // Doctors still owed from earlier days (online only; offline the saved plan's own list is shown).
   useEffect(() => {
@@ -232,9 +284,9 @@ export default function DailyPlanScreen() {
     if (!existing) return { ids: serverPicks, changed: false };
     // A day that is not a field day has no doctors.
     if (!fieldDay) return { ids: [], changed: serverPicks.length > 0 };
-    // A manager working with team members may call their doctors too, which the phone's own doctor list does not hold:
-    // what is ticked is sent as it is and the server checks it against the people named and the day's routes.
-    if (isManager && draftWorkWith.length > 0) {
+    // A manager's doctors can be anyone's in their downline, on any route, whoever is in Work With (dailyplan.md M4):
+    // what is ticked is sent as it is and the server checks it.
+    if (isManager) {
       const samePicks = doctorIds.length === serverPicks.length && doctorIds.every((id) => serverPicks.includes(id));
       const onServer = new Set(savedOwed.map((d) => d.doctorId));
       return { ids: doctorIds, changed: !samePicks || !owed.every((o) => onServer.has(o.doctorId)) };
@@ -259,7 +311,10 @@ export default function DailyPlanScreen() {
       // A `400` that names the work-with or the doctors marks that part of the screen in red with the server's words.
       const field = err instanceof ApiError && err.status === 400 ? err.data?.field : undefined;
       if (typeof field === 'string' && FIELD_ORDER.includes(field)) {
-        fe.fail({ [field]: errorText(err) });
+        // A refused doctor list names which ones (dailyplan.md rule 2a), so say which to untick.
+        const refused = err instanceof ApiError && Array.isArray(err.data?.doctorIds) ? (err.data.doctorIds as string[]) : [];
+        const who = refused.map((id) => callDoctorById.get(id)?.name ?? 'Team member’s doctor');
+        fe.fail({ [field]: who.length > 0 ? `${errorText(err)} Untick: ${who.join(', ')}.` : errorText(err) });
         setMsg({ tone: 'danger', text: 'Fix the part marked in red.' });
       } else {
         setMsg({ tone: 'danger', text: errorText(err) });
@@ -272,8 +327,8 @@ export default function DailyPlanScreen() {
   const refreshAll = () => Promise.all([refreshNow(), loadDetail()]);
 
   /**
-   * A manager picked (or re-picked) the people to work with: read their plans' routes and doctors (online only) and fill the
-   * doctor list from them. It is a snapshot: later changes to their plans show only after "Refresh from team", and the routes
+   * A manager picked (or re-picked) the people to work with: read their plans' routes and doctors (online only) and add those
+   * doctors to the list. It is a snapshot: later changes to their plans show only after "Refresh from team", and the routes
    * the day takes are set by the server when the day is saved.
    */
   async function readTeam(ids: string[]) {
@@ -285,7 +340,8 @@ export default function DailyPlanScreen() {
     try {
       const data = await getTeamSuggest(date, ids);
       setSuggestion({ date, data });
-      setDoctorIds(data.doctorIds);
+      // Added to what is ticked, not in place of it: a manager's doctors don't have to come from the people in Work With.
+      setDoctorIds((current) => [...new Set([...current, ...data.doctorIds])]);
       setMsg(null);
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
@@ -400,9 +456,21 @@ export default function DailyPlanScreen() {
               disabled={busy || blocked}
             />
           </FormField>
+          {away.length > 0 ? (
+            <Notice tone={away.some((r) => draftWorkWith.includes(r.user.id)) ? 'warning' : 'info'} title="Away today">
+              {away.map((r) => `${r.user.name} (${r.state === 'ON_LEAVE' ? 'on leave' : 'off'})`).join(', ')}
+            </Notice>
+          ) : null}
           {isManager && draftWorkWith.length > 0 ? (
             <View style={{ gap: 6 }}>
               {suggesting ? <ThemedText type="small" themeColor="textSecondary">Reading your team’s plans…</ThemedText> : null}
+              {suggestion?.date === date ? (
+                <ThemedText type="small" themeColor={suggestion.data.routeIds.length === 0 ? 'danger' : 'text'}>
+                  {suggestion.data.routeIds.length === 0
+                    ? 'None of these people has a route planned this day, so this can’t be saved.'
+                    : `Routes this day will take: ${routesText(suggestion.data.routeIds, names.routes)}`}
+                </ThemedText>
+              ) : null}
               {suggestion?.date === date
                 ? suggestion.data.people.map((p) => (
                     <ThemedText key={p.userId} type="small" themeColor={p.source === 'NONE' ? 'danger' : 'textSecondary'}>
@@ -411,7 +479,7 @@ export default function DailyPlanScreen() {
                   ))
                 : null}
               <ThemedText type="small" themeColor="textSecondary">
-                Your day takes the routes of the people you work with, and the doctors below start from theirs. Save to apply.
+                Your day takes the routes of the people you work with, and the doctors they planned are added below. Save to apply.
               </ThemedText>
               <PrimaryButton label="Refresh from team" variant="text" disabled={busy || suggesting || !online} onPress={() => void readTeam(draftWorkWith)} />
             </View>
@@ -485,8 +553,11 @@ export default function DailyPlanScreen() {
                 {`${tooSoonPicked.join('; ')}. A call on this day would be refused. Untick to plan another doctor.`}
               </Notice>
             ) : null}
+            {teamMissing ? <Notice tone="info">Your team’s doctors haven’t loaded yet. Connect to the internet to pick them.</Notice> : null}
             <ThemedText type="small" themeColor="textSecondary">
-              Only your doctors on this day’s routes can be picked. Doctors you missed on earlier days stay on the plan until you call them.
+              {isManager
+                ? 'You can pick your own doctors or anyone’s in your team, on any route. Doctors you missed on earlier days stay on the plan until you call them.'
+                : 'Only your doctors on this day’s routes can be picked. Doctors you missed on earlier days stay on the plan until you call them.'}
             </ThemedText>
           </CardSection>
         ) : (

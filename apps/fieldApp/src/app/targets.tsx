@@ -87,7 +87,7 @@ export default function TargetsScreen() {
             ]}
           />
           <ThemedText type="small" themeColor="textSecondary">
-            {`Achieved is counted from your distributors' stock, at PTS. It shows 0 until their stock is counted. Primary this month: ${formatRupees(figures.totals.primaryPaise)}.${figures.generalTargetPaise > 0 ? ` Includes ${formatRupees(figures.generalTargetPaise)} for all products.` : ''}`}
+            {`Achieved is counted from your distributors' stock, at PTS. It shows 0 until their stock is counted and any approval is done. Primary this month: ${formatRupees(figures.totals.primaryPaise)}.${figures.generalTargetPaise > 0 ? ` Includes ${formatRupees(figures.generalTargetPaise)} for all products.` : ''}`}
           </ThemedText>
           {figures.team ? (
             figures.team.mrCount === 0 ? (

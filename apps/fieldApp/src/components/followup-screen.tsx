@@ -11,6 +11,7 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
+import { useCallDoctors } from '@/hooks/use-call-doctors';
 import { useDayGate } from '@/hooks/use-day-gate';
 import { useDoctorVisitGap } from '@/hooks/use-doctor-visit-gap';
 import { useFormErrors } from '@/hooks/use-form-errors';
@@ -54,6 +55,8 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
   const planning = useCachedSource<PlanningSnapshot>('planning');
   const territory = useCachedSource<TerritorySnapshot>('territory');
   const { records } = useRecords([kind]);
+  // A manager's list also has the doctors of anyone below them (dcr.md rule 1).
+  const { doctors: callDoctors, teamMissing } = useCallDoctors();
 
   const [editing, setEditing] = useState<OutboxRecord | 'new' | null>(null);
   const [outletId, setOutletId] = useState<string | null>(null);
@@ -81,11 +84,11 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
   };
 
   const outlets = useMemo(() => {
-    const list: { id: string; routeId: string; name: string; address: string; location: { latitude: number; longitude: number } | null; specialty?: string; photoUrl?: string | null }[] =
-      isDoctor ? (master.data?.doctors ?? []) : (master.data?.chemists ?? []);
+    const list: { id: string; routeId: string; name: string; address: string; location: { latitude: number; longitude: number } | null; specialty?: string; photoUrl?: string | null; mrLabel?: string | null }[] =
+      isDoctor ? callDoctors : (master.data?.chemists ?? []);
     return [...list].sort((a, b) => Number(notInPlan(a)) - Number(notInPlan(b)) || a.name.localeCompare(b.name));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [master.data, isDoctor, plannedRoutes, plannedDoctorIds]);
+  }, [master.data, callDoctors, isDoctor, plannedRoutes, plannedDoctorIds]);
   const byId = useMemo(() => new Map(outlets.map((o) => [o.id, o])), [outlets]);
   const routeTypeOf = (routeId: string | undefined) => routeTypeLabel(territory.data?.routes.find((r) => r.id === routeId)?.routeType);
   const todays = records.filter((r) => !r.deleted && (r.payload as FollowupPayload).reportDate === gate.today);
@@ -208,6 +211,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
           </View>
         }>
         {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+        {isDoctor && teamMissing ? <Notice tone="info">Your team’s doctors haven’t loaded yet. Connect to the internet once to see them here.</Notice> : null}
         <CardSection icon={isDoctor ? sym('stethoscope', 'medical_services') : sym('cross.case', 'local_pharmacy')} accent={isDoctor ? 'blue' : 'teal'} title={isDoctor ? 'Doctor' : 'Chemist'}>
         <FormField form={fe} name="outlet">
         <OutletPicker
@@ -219,7 +223,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
               name: o.name,
               photoUrl: o.photoUrl,
               disabled: soon !== null,
-              subtitle: `${soon ? `${soon.short} · ` : ''}${notInPlan(o) ? 'Not in plan · ' : ''}${o.specialty ? `${o.specialty} · ${o.address}` : o.address}`,
+              subtitle: `${soon ? `${soon.short} · ` : ''}${notInPlan(o) ? 'Not in plan · ' : ''}${o.mrLabel ? `${o.mrLabel} · ` : ''}${o.specialty ? `${o.specialty} · ${o.address}` : o.address}`,
             };
           })}
           value={outletId}

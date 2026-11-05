@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { FormField } from '@/components/form-field';
 import { Notice } from '@/components/notice';
@@ -48,7 +48,10 @@ const APPROVAL_TEXT: Record<string, string> = {
 };
 const STATE_ACCENT: Record<string, Accent> = { SUBMITTED: 'amber', MANAGER_APPROVED: 'blue', APPROVED: 'green', REJECTED: 'red', WITHDRAWN: 'slate', REOPENED: 'slate' };
 
-const FIELD_ORDER = ['route', 'name', 'address'];
+const FIELD_ORDER = ['route', 'name', 'address', 'phone'];
+const PHONE = /^\+?\d{10,15}$/;
+const PHONE_ERROR = 'Enter a phone number of 10 to 15 digits.';
+const cleanPhone = (s: string) => s.replace(/[\s-]/g, '');
 
 type Msg = { tone: 'danger' | 'success' | 'info' | 'warning'; text: string };
 /** What the form is working on: a new chemist, one waiting on the phone, or one already with the server. */
@@ -78,6 +81,7 @@ export default function ChemistsScreen() {
   const [routeId, setRouteId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg | null>(null);
   const form = useFormErrors(FIELD_ORDER);
@@ -137,11 +141,13 @@ export default function ChemistsScreen() {
       setRouteId(routes.length === 1 ? routes[0]!.id : null);
       setName('');
       setAddress('');
+      setPhone('');
     } else {
       const c = 'local' in t ? (t.local.payload as NewChemistPayload) : t.server;
       setRouteId(c.routeId);
       setName(c.name);
       setAddress(c.address);
+      setPhone(c.phone ?? '');
     }
     setTarget(t);
   };
@@ -151,6 +157,7 @@ export default function ChemistsScreen() {
     if (!routeId) problems.route = 'Choose the route this chemist is on.';
     if (!name.trim()) problems.name = 'Enter the chemist’s name.';
     if (!address.trim()) problems.address = 'Enter the chemist’s address.';
+    if (phone.trim() && !PHONE.test(cleanPhone(phone))) problems.phone = PHONE_ERROR;
     if (Object.keys(problems).length > 0 || !routeId) {
       setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
       return form.fail(problems);
@@ -173,7 +180,7 @@ export default function ChemistsScreen() {
     const limit = await getNumberSetting('GEO_MAX_ACCURACY_METERS');
     const weak = fix.accuracyMeters !== null && fix.accuracyMeters > limit;
 
-    const payload: NewChemistPayload = { routeId, name: name.trim(), address: address.trim(), location: fix.point };
+    const payload = { routeId, name: name.trim(), address: address.trim(), phone: phone.trim() ? cleanPhone(phone) : null, location: fix.point };
     try {
       if (target && typeof target === 'object' && 'server' in target) {
         await editAddedChemist(target.server.id, payload);
@@ -203,7 +210,12 @@ export default function ChemistsScreen() {
         }
       }
     } catch (err) {
-      setMsg({ tone: 'danger', text: errorText(err) });
+      if (err instanceof ApiError && err.status === 400 && err.data?.field === 'phone') {
+        setMsg({ tone: 'danger', text: 'Fix the fields marked in red.' });
+        form.fail({ phone: PHONE_ERROR });
+      } else {
+        setMsg({ tone: 'danger', text: errorText(err) });
+      }
     } finally {
       setBusy(false);
     }
@@ -293,6 +305,21 @@ export default function ChemistsScreen() {
               maxLength={500}
             />
           </FormField>
+          <FormField form={form} name="phone" outline={false}>
+            <TextField
+              label="Phone (optional)"
+              value={phone}
+              onChangeText={(v) => {
+                setPhone(v);
+                form.clear('phone');
+              }}
+              error={form.errors.phone}
+              keyboardType="phone-pad"
+              placeholder="10 to 15 digits"
+              editable={!busy}
+              maxLength={20}
+            />
+          </FormField>
         </CardSection>
       </ScreenShell>
     );
@@ -355,6 +382,7 @@ export default function ChemistsScreen() {
           <InfoCard key={c.id}>
             <ThemedText type="smallBold">{c.name}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">{[c.address, routeName.get(c.routeId) ?? 'Route'].filter(Boolean).join(' · ')}</ThemedText>
+            {c.phone ? <PrimaryButton label={c.phone} variant="text" onPress={() => void Linking.openURL(`tel:${c.phone}`)} style={styles.phone} /> : null}
             <Pill text={state === 'APPROVED' && onList.has(c.id) ? 'Approved — on your list' : (APPROVAL_TEXT[state] ?? state)} accent={STATE_ACCENT[state] ?? 'slate'} />
             {reasons[c.id] ? <ThemedText type="small" themeColor="danger">{`“${reasons[c.id]}”`}</ThemedText> : null}
             {editable || waiting ? (
@@ -391,4 +419,5 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, lineHeight: 24 },
   newButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two + 2 },
   actions: { flexDirection: 'row', gap: Spacing.two },
+  phone: { alignSelf: 'flex-start' },
 });

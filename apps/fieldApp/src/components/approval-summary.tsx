@@ -22,6 +22,7 @@ import { formatRupees } from '@/lib/money';
 import { getMonthlyPlanById, isFieldDay, routeNamesText, workingTypeLabel, type NamedRoute } from '@/lib/planning';
 import { SECONDARY_STATUS_TEXT, getEmployeeSales } from '@/lib/sales';
 import { useSessionUser } from '@/lib/session';
+import { getStockCounts } from '@/lib/stock-counts';
 import { useCachedSource } from '@/offline/cache';
 import { useColleagues } from '@/offline/colleagues';
 import { formatWhen, nowMs, prettyDay, prettyMonth } from '@/offline/day';
@@ -33,6 +34,8 @@ import { Notice } from './notice';
 import { PlanAmendments } from './plan-amendments';
 import { PrimaryButton } from './primary-button';
 import { SkeletonLines } from './skeleton';
+import { StockCountCorrect } from './stock-count-correct';
+import { StockCountsCard } from './stock-counts-card';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
@@ -299,6 +302,40 @@ function SecondarySummary({ recordId, who }: { recordId: string; who?: string })
   );
 }
 
+/* ───────────────────────────── distributor stock counts ───────────────────────────── */
+
+/** A stock-count request's record id is `userId:YYYY-MM`. Approving it is what makes the counts feed achievement. */
+function StockCountSummary({ recordId, who }: { recordId: string; who?: string }) {
+  const cut = recordId.lastIndexOf(':');
+  const month = recordId.slice(cut + 1);
+  const userId = recordId.slice(0, cut);
+  const me = useSessionUser();
+  const [tick, setTick] = useState(0);
+  const [correcting, setCorrecting] = useState(false);
+  const { data, error } = useRecord(() => getStockCounts(userId, month), tick);
+  // A manager (not the MR) may correct what is still waiting, with a reason, before deciding (backend: PATCH /sales/secondary-stock).
+  const canCorrect = data !== null && me?.id !== userId && data.distributors.some((d) => d.status === 'PENDING');
+  return (
+    <Frame title={`Distributor stock counts · ${prettyMonth(month)}`} error={error} loading={!data}>
+      {who ? <Line label="Employee" value={who} /> : null}
+      {data && correcting ? (
+        <StockCountCorrect
+          data={data}
+          onDone={(changed) => {
+            setCorrecting(false);
+            if (changed) setTick((n) => n + 1);
+          }}
+        />
+      ) : data ? (
+        <>
+          <StockCountsCard data={data} />
+          {canCorrect ? <PrimaryButton label="Correct figures" variant="text" onPress={() => setCorrecting(true)} /> : null}
+        </>
+      ) : null}
+    </Frame>
+  );
+}
+
 /* ───────────────────────────── the daily report ───────────────────────────── */
 
 /** A bordered white box that stands out on the grey card: one call, one followup, one table. */
@@ -380,6 +417,9 @@ export function ApprovalSummary({ request, aside }: { request: ApprovalDetail; a
       break;
     case 'SECONDARY_SALES':
       record = <SecondarySummary recordId={request.recordId} who={request.submitter?.name} />;
+      break;
+    case 'STOCK_COUNT':
+      record = <StockCountSummary recordId={request.recordId} who={request.submitter?.name} />;
       break;
     default:
       record = <Notice tone="info">No preview for this kind of request. Its history is below.</Notice>;
