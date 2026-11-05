@@ -1,6 +1,6 @@
 import type { Accent } from '@/constants/theme';
 
-import { apiGet, apiPost } from './api';
+import { apiGet, apiPatch, apiPost } from './api';
 import { listMine } from './approvals';
 import type { SecondaryAttachment } from './sales';
 
@@ -30,6 +30,8 @@ export type SecondaryStockLine = {
   ptsPaise: number | null;
   issuedAmountPaise: number | null;
   closingAmountPaise: number | null;
+  /** Set when the manager above (or Admin) corrected the figures while the month waited; the MR saving again clears it. */
+  managerEdit?: { by: { id: string; name: string }; at: string; reason: string; original: { openingQty: number; primaryQty: number; issuedQty: number } } | null;
 };
 
 export type SecondaryTotals = {
@@ -72,6 +74,12 @@ export const STOCK_COUNT_STATUS_TEXT: Record<MonthStatus, string> = {
 
 export const STOCK_COUNT_STATUS_ACCENT: Record<MonthStatus, Accent> = { NOT_ENTERED: 'slate', DRAFT: 'slate', PENDING: 'amber', APPROVED: 'green', REJECTED: 'red' };
 
+/** "Adjusted by Name: reason", with what the MR had entered, for a row the manager corrected; `null` for a row nobody changed. */
+export const adjustedNote = (l: SecondaryStockLine) =>
+  l.managerEdit
+    ? `Adjusted by ${l.managerEdit.by.name}: ${l.managerEdit.reason}. MR entered opening ${l.managerEdit.original.openingQty} · primary ${l.managerEdit.original.primaryQty} · secondary ${l.managerEdit.original.issuedQty}.`
+    : null;
+
 /** A month with the manager or approved cannot be changed (`SECONDARY_LOCKED`). */
 export const isHeld = (status: string) => status === 'PENDING' || status === 'APPROVED';
 
@@ -87,6 +95,13 @@ export type SecondaryStockInput = { distributorId: string; productId: string; op
 /** Saves rows as a draft (MR only). Saving again overwrites. `INVALID_PAYLOAD` when issued is more than opening + primary. */
 export const saveStockCounts = (month: string, lines: SecondaryStockInput[]) =>
   apiPost<{ saved: number }>('/sales/secondary-stock', { month, lines }, { auth: true });
+
+/**
+ * The manager above an MR (or Admin) corrects rows the MR already sent, while the month waits for approval. A reason is required
+ * (3 to 300 characters). Only rows the MR sent can be changed. Errors: `NOT_YOUR_TEAM`, `SECONDARY_NOT_PENDING`, `INVALID_PAYLOAD`.
+ */
+export const correctStockCounts = (userId: string, month: string, reason: string, lines: SecondaryStockInput[]) =>
+  apiPatch<{ changed: number }>('/sales/secondary-stock', { userId, month, reason: reason.trim(), lines }, { auth: true });
 
 /** Sends every draft or sent-back row to the manager. `ATTACHMENT_REQUIRED` without a file, `SECONDARY_NOTHING_TO_SEND` with nothing. */
 export const submitStockCounts = (month: string) =>

@@ -4,7 +4,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRupees } from '@/lib/money';
 import type { SecondaryAttachment } from '@/lib/sales';
-import { STOCK_COUNT_STATUS_ACCENT, STOCK_COUNT_STATUS_TEXT, type StockCountsMonth } from '@/lib/stock-counts';
+import { STOCK_COUNT_STATUS_ACCENT, STOCK_COUNT_STATUS_TEXT, adjustedNote, type StockCountsMonth } from '@/lib/stock-counts';
 
 import { Notice } from './notice';
 import { ThemedText } from './themed-text';
@@ -59,6 +59,7 @@ export function StockCountsCard({ data }: { data: StockCountsMonth }) {
                   <ThemedText type="small" themeColor="textSecondary">
                     {`Opening ${l.openingQty}${l.openingEdited ? ' (edited)' : ''} · Primary ${l.primaryQty}${l.primaryEdited ? ' (edited)' : ''} · Secondary ${l.issuedQty} · Closing ${l.closingQty}`}
                   </ThemedText>
+                  {adjustedNote(l) ? <ThemedText type="small" themeColor="warning">{adjustedNote(l)}</ThemedText> : null}
                 </View>
                 <ThemedText type="small">{l.issuedAmountPaise === null ? '—' : formatRupees(l.issuedAmountPaise)}</ThemedText>
               </View>

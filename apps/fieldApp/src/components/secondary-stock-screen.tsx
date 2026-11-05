@@ -23,6 +23,7 @@ import { useSessionUser } from '@/lib/session';
 import {
   STOCK_COUNT_STATUS_ACCENT,
   STOCK_COUNT_STATUS_TEXT,
+  adjustedNote,
   closingOf,
   findMyStockCountRequest,
   getStockCounts,
@@ -247,6 +248,7 @@ export function SecondaryStockScreen() {
           <ThemedText type="small" style={{ color: v.closing < 0 ? theme.danger : theme.textSecondary }}>
             {v.bad ? 'Closing —' : `Closing stock: ${v.closing} units${v.closing < 0 ? ' (below zero)' : ''}`}
           </ThemedText>
+          {adjustedNote(l) ? <ThemedText type="small" themeColor="warning">{adjustedNote(l)}</ThemedText> : null}
           {/* The rupee figure is the Secondary units at PTS, not the closing stock. */}
           <View style={[styles.value, { backgroundColor: theme.backgroundSelected }]}>
             <ThemedText type="smallBold" style={styles.grow}>Secondary sales value</ThemedText>

@@ -34,6 +34,7 @@ import { Notice } from './notice';
 import { PlanAmendments } from './plan-amendments';
 import { PrimaryButton } from './primary-button';
 import { SkeletonLines } from './skeleton';
+import { StockCountCorrect } from './stock-count-correct';
 import { StockCountsCard } from './stock-counts-card';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
@@ -307,11 +308,30 @@ function SecondarySummary({ recordId, who }: { recordId: string; who?: string })
 function StockCountSummary({ recordId, who }: { recordId: string; who?: string }) {
   const cut = recordId.lastIndexOf(':');
   const month = recordId.slice(cut + 1);
-  const { data, error } = useRecord(() => getStockCounts(recordId.slice(0, cut), month), 0);
+  const userId = recordId.slice(0, cut);
+  const me = useSessionUser();
+  const [tick, setTick] = useState(0);
+  const [correcting, setCorrecting] = useState(false);
+  const { data, error } = useRecord(() => getStockCounts(userId, month), tick);
+  // A manager (not the MR) may correct what is still waiting, with a reason, before deciding (backend: PATCH /sales/secondary-stock).
+  const canCorrect = data !== null && me?.id !== userId && data.distributors.some((d) => d.status === 'PENDING');
   return (
     <Frame title={`Distributor stock counts · ${prettyMonth(month)}`} error={error} loading={!data}>
       {who ? <Line label="Employee" value={who} /> : null}
-      {data ? <StockCountsCard data={data} /> : null}
+      {data && correcting ? (
+        <StockCountCorrect
+          data={data}
+          onDone={(changed) => {
+            setCorrecting(false);
+            if (changed) setTick((n) => n + 1);
+          }}
+        />
+      ) : data ? (
+        <>
+          <StockCountsCard data={data} />
+          {canCorrect ? <PrimaryButton label="Correct figures" variant="text" onPress={() => setCorrecting(true)} /> : null}
+        </>
+      ) : null}
     </Frame>
   );
 }
