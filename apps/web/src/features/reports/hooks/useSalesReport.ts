@@ -1,6 +1,7 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
+import { salesApi } from '@/lib/api/endpoints/sales';
 import { reportsApi, type SalesWindowQuery } from '@/lib/api/endpoints/reports';
 import { authedQueryOptions } from '@/lib/query/factory';
 import { keys, staleTime } from '@/lib/query/keys';
@@ -72,4 +73,16 @@ export function useProductTrend(windows: readonly SalesWindowQuery[], enabled: b
 
 export function useEmployeeTrend(windows: readonly SalesWindowQuery[], enabled: boolean) {
   return useQueries({ queries: windows.map((query) => authedQueryOptions({ queryKey: keys.reports.salesBreakdown('employee', query), fetch: (token, signal) => reportsApi.salesByEmployee(token, query, signal), enabled, ...breakdown })) });
+}
+
+/** The approved secondary of every MR (Admin), summed by distributor and product, for a month. */
+export function useSecondaryReport(month: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: keys.reports.secondary(month),
+      fetch: (token, signal) => salesApi.secondaryReport(token, { month }, signal),
+      staleTime: staleTime.live,
+      enabled: month !== '',
+    }),
+  );
 }

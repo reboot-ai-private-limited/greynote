@@ -9,6 +9,7 @@ import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import type { SalesApprovalsPort } from '../../domain/approvals.port.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { MonthlyStockRepositoryPort } from '../../domain/monthlyStock.repository.port.js';
+import type { SecondaryStockLineRepositoryPort } from '../../domain/secondaryStockLine.repository.port.js';
 import type { OrderRepositoryPort } from '../../domain/order.repository.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
@@ -78,14 +79,16 @@ export class DeleteStockCountsUseCase {
     private readonly transactions: TransactionRunnerPort,
     private readonly clock: SalesClock,
     private readonly config: ConfigReader,
+    private readonly lines?: SecondaryStockLineRepositoryPort,
   ) {}
 
   /** What a delete would remove, for the confirmation. */
   async preview(actor: Actor, input: { userId: string; month: string }): Promise<{ distributors: number; lines: number; requestWaiting: boolean }> {
     if (actor.role !== 'ADMIN') throw new StockRefusal(STOCK_CODES.adminOnly, 'Only an Admin can delete a month of counts.');
     const rows = await this.stock.listByRecorder(input.userId, input.month);
+    const mine = (await this.lines?.listByUser(input.userId, input.month)) ?? [];
     const request = await this.approvals.getForRecord(STOCK_COUNT_KIND, stockCountRecordId(input.userId, input.month));
-    return { distributors: new Set(rows.map((r) => r.outlet.id)).size, lines: rows.length, requestWaiting: request?.status === 'SUBMITTED' || request?.status === 'MANAGER_APPROVED' };
+    return { distributors: new Set([...rows.map((r) => r.outlet.id), ...mine.map((r) => r.distributorId)]).size, lines: rows.length + mine.length, requestWaiting: request?.status === 'SUBMITTED' || request?.status === 'MANAGER_APPROVED' };
   }
 
   async execute(actor: Actor, input: { userId: string; month: string }): Promise<{ distributors: number; lines: number; requestRemoved: boolean }> {
@@ -94,16 +97,18 @@ export class DeleteStockCountsUseCase {
     await assertFinancialYearOpen(this.config, `${input.month}-01`, 'This month');
     const recordId = stockCountRecordId(input.userId, input.month);
     const before = await this.stock.listByRecorder(input.userId, input.month);
+    const beforeLines = (await this.lines?.listByUser(input.userId, input.month)) ?? [];
     const request = await this.approvals.getForRecord(STOCK_COUNT_KIND, recordId);
     await this.transactions.run(async (ctx) => {
       await this.stock.deleteByRecorder(input.userId, input.month, ctx);
+      await this.lines?.deleteByUser(input.userId, input.month, ctx);
       if (request) await this.approvals.deleteForRecord(STOCK_COUNT_KIND, recordId, ctx);
     });
     logger.info(
       { audit: 'stockcounts.deleted', by: actor.id, userId: input.userId, month: input.month, requestId: request?.id ?? null, requestStatus: request?.status ?? null, lines: before.map((r) => ({ distributorId: r.outlet.id, productId: r.productId, opening: r.openingQty, closing: r.closingQty, status: r.status })) },
       'an Admin deleted a month of distributor counts',
     );
-    return { distributors: new Set(before.map((r) => r.outlet.id)).size, lines: before.length, requestRemoved: request !== null };
+    return { distributors: new Set([...before.map((r) => r.outlet.id), ...beforeLines.map((r) => r.distributorId)]).size, lines: before.length + beforeLines.length, requestRemoved: request !== null };
   }
 }
 

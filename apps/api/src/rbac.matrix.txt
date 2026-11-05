@@ -164,6 +164,8 @@ GET    /api/sales/monthly-stock  ADMIN,FIELD
 GET    /api/sales/monthly-stock/missing  ADMIN,FIELD
 GET    /api/sales/orders  ACCOUNTANT,ADMIN,FIELD
 GET    /api/sales/orders/:id  ACCOUNTANT,ADMIN,FIELD
+GET    /api/sales/secondary-report  ADMIN,FIELD
+GET    /api/sales/secondary-stock  ADMIN,FIELD
 GET    /api/sales/stock-counts  ADMIN,FIELD
 GET    /api/sales/stock-counts/impact  ADMIN
 GET    /api/sync/drafts  FIELD
@@ -325,6 +327,8 @@ POST   /api/sales/orders  FIELD
 POST   /api/sales/orders/:id/cancel  ACCOUNTANT,ADMIN,FIELD
 POST   /api/sales/orders/:id/complete  ACCOUNTANT,ADMIN
 POST   /api/sales/orders/on-behalf  ACCOUNTANT,ADMIN
+POST   /api/sales/secondary-stock  FIELD
+POST   /api/sales/secondary-stock/submit  FIELD
 POST   /api/sales/stock-counts/submit  FIELD
 POST   /api/sync/push  FIELD
 POST   /api/territory/hqs  ADMIN

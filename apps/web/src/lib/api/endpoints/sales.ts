@@ -1,4 +1,4 @@
-import type { StockCountsImpactDto, StockCountsMonthDto, DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SecondaryAttachmentDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto, InvoiceDetailDto, InvoiceRowDto, InvoiceStatus, SetInvoiceNumberDto } from '@greynote/contracts';
+import type { SecondaryReportDto, SecondaryStockMonthDto, StockCountsImpactDto, StockCountsMonthDto, DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SecondaryAttachmentDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto, InvoiceDetailDto, InvoiceRowDto, InvoiceStatus, SetInvoiceNumberDto } from '@greynote/contracts';
 import { request } from '../client';
 
 /** One order as `GET /sales/orders` returns it; the distributor's Orders tab shows only these fields. */
@@ -28,6 +28,10 @@ export const salesApi = {
   saveStatement: (token: string, body: SaveDistributorStatementDto) => request<{ added: number; changed: number }>('/sales/distributor-statement', { method: 'POST', token, body }),
   /** An employee's distributor counts for a month, by distributor, with what each works out to. Self, the manager above, or Admin. */
   stockCounts: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<StockCountsMonthDto>('/sales/stock-counts', { token, query: { ...query }, signal }),
+  /** An MR's month of secondary stock by distributor and product (2026-11-05): opening, primary, issued, closing and value at PTS. Self, the manager above, or Admin. */
+  secondaryStock: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<SecondaryStockMonthDto>('/sales/secondary-stock', { token, query: { ...query }, signal }),
+  /** The approved secondary of the MRs below a manager (all MRs for Admin), summed by distributor and product. */
+  secondaryReport: (token: string, query: { month: string; managerId?: string | undefined }, signal?: AbortSignal) => request<SecondaryReportDto>('/sales/secondary-report', { token, query: { ...query }, signal }),
   /** Admin: what deleting the month would remove, for the confirmation. */
   stockCountsImpact: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<StockCountsImpactDto>('/sales/stock-counts/impact', { token, query: { ...query }, signal }),
   /** Admin: deletes the employee's distributor counts for a month and the approval request, so they can count and send it again. */

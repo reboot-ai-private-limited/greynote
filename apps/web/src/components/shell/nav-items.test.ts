@@ -210,7 +210,7 @@ describe('Invoices', () => {
 describe('Reports', () => {
   it('are for Admin, apart from the sales report which the Accountant and HR read too', () => {
     const admin = navGroupsFor('ADMIN').find((g) => g.group === 'Reports');
-    expect(admin?.items.map((i) => i.href)).toEqual(['/reports/sales', '/reports/stock', '/reports/dcr',
+    expect(admin?.items.map((i) => i.href)).toEqual(['/reports/sales', '/reports/secondary', '/reports/stock', '/reports/dcr',
       '/reports/doctor-visits', '/reports/ta-da', '/reports/salary']);
     for (const role of ['HR', 'ACCOUNTANT'] as const) expect(navGroupsFor(role).find((g) => g.group === 'Reports')?.items.map((i) => i.href)).toEqual(['/reports/sales']);
     expect(isRouteBuilt('/reports/sales')).toBe(true);
