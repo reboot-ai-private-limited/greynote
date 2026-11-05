@@ -6,7 +6,7 @@ export function asBadRequest<T>(fn: () => T): T {
   try {
     return fn();
   } catch (error) {
-    if (error instanceof CtcBreakdownError) throw AppError.badRequest(error.message);
+    if (error instanceof CtcBreakdownError) throw AppError.badRequest(error.message, error.lines ? { lines: error.lines } : undefined);
     throw error;
   }
 }
