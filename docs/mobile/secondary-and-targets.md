@@ -70,7 +70,7 @@ Returns `{ changed }` (lines whose figures actually differ; identical lines are 
 
 **Phone UX.** On the manager's approval card, make the figure cells of a `PENDING` month tappable, edit in place with the same three steppers (Closing recalculated, never typed), and send one `PATCH` for all the lines changed together with the reason. On a `403`/`409`, refresh with the `GET` and show the message.
 
-**Achievement** now credits each approved row's issued units, at PTS, to the MR who entered it, and to nobody else. A distributor-month that has MR rows no longer counts by assignment. Months with no MR rows behave as before.
+**Achievement and every sales report (2026-11-05, later):** only **approved** MR rows count, and they are the single source. Achievement is each approved row's issued units at PTS, credited to the MR who entered it; **primary** in the reports is the same rows' primary (received) units, not Done orders. A manager is the sum of the MRs below them and a total counts each MR once. A month with nothing approved reads **0** everywhere (the web Sales report, Sales dashboard and employee report). Distributor statements, distributor counts and Done orders no longer feed them.
 
 **The old "Distributor stock" counting tab and the "My record" tab are replaced** by this screen. `orders-and-stock.md` says the Monthly-stock tab is removed from the phone; that stays true, this is a different screen. The old `POST /sales/monthly-stock` (opening and closing counts) remains for older builds.
 

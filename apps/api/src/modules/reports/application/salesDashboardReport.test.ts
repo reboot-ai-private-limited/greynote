@@ -9,7 +9,10 @@ const people = [
   { id: 'asm', employeeCode: 'E3', name: 'Chitra', designation: 'ASM', hqId: 'h1', zoneId: 'z1' },
 ];
 
-function build(over: { downline?: string[] } = {}) {
+// What MRs entered and a manager approved: 5 received and 40 issued of P (PTS ₹8) by mr1 in October.
+const LINES = [{ userId: 'mr1', distributorId: 'd1', productId: 'p1', month: '2026-10', openingQty: 0, primaryQty: 5, issuedQty: 40 }];
+
+function build(over: { downline?: string[]; lines?: typeof LINES } = {}) {
   const asked: Array<{ userId: string; month: string }> = [];
   const report = new SalesDashboardReport(
     {
@@ -36,14 +39,10 @@ function build(over: { downline?: string[] } = {}) {
       async getDcrSummary(userId) { return userId === 'mr1' ? [{ reportDate: '2026-10-07', status: 'APPROVED' }, { reportDate: '2026-10-08', status: 'MANAGER_APPROVED' }, { reportDate: '2026-10-09', status: 'DRAFT' }] : []; },
     },
     { async listTargetShares(ids) { return ids.includes('mr1') ? [{ id: 't1', userId: 'mr1', productId: null, fromMonth: '2026-10', toMonth: '2026-10', amountPaise: 90_000, qty: null, sharePaise: 90_000, shareQty: null }] : []; } },
-    {
-      async sumUserOrders() { return [{ userId: 'mr1', productId: 'p1', month: '2026-10', quantity: 5, amountPaise: 4_000 }]; },
-      async listEmployeeSales() { return [{ userId: 'mr1', productId: 'p1', month: '2026-10', secondaryQty: 40, adjustmentQty: 0 }]; },
-    },
     { async listNames() { return { distributors: [], chemists: [], products: [{ id: 'p1', name: 'P', sku: 'P', ptrPaise: 1000, ptsPaise: 800 }] }; } } as never,
     { async getRoute(id) { return { id, name: `Route ${id}` }; }, async getZone() { return { id: 'z1', name: 'North' }; } },
     config,
-    { entries: async () => [{ userId: 'mr1', productId: 'p1', month: '2026-10', secondaryQty: 40, adjustmentQty: 0 }] } as never,
+    { lines: async (ids?: readonly string[]) => (over.lines ?? LINES).filter((l) => !ids || ids.includes(l.userId)) } as never,
     now,
   );
   return { report, asked };
@@ -103,6 +102,22 @@ describe('SalesDashboardReport', () => {
   it('a manager with no MRs below them has no figures, not zero percent', async () => {
     const out = await build().report.read({ actor: { id: 'a', role: 'ADMIN' }, ...base });
     expect(out.rows.find((r) => r.employee.id === 'asm')!).toMatchObject({ mrCount: 0, targetPaise: null, achievedPaise: null, primaryPaise: 0 });
+  });
+
+  it('nothing approved reads 0 achieved and 0 primary, not blank, and a target still shows', async () => {
+    const out = await build({ lines: [] }).report.read({ actor: { id: 'a', role: 'ADMIN' }, ...base });
+    expect(out.rows.find((r) => r.employee.id === 'mr1')!).toMatchObject({ targetPaise: 90_000, achievedPaise: 0, primaryPaise: 0 });
+    expect(out.totals).toMatchObject({ achievedPaise: 0, primaryPaise: 0 });
+  });
+
+  it('two MRs add up once in their manager’s row and in the total: 2 + 4 = 6 units at ₹8', async () => {
+    const lines = [
+      { userId: 'mr1', distributorId: 'd1', productId: 'p1', month: '2026-10', openingQty: 0, primaryQty: 5, issuedQty: 2 },
+      { userId: 'mr2', distributorId: 'd1', productId: 'p1', month: '2026-10', openingQty: 0, primaryQty: 5, issuedQty: 4 },
+    ];
+    const out = await build({ downline: ['mr1', 'mr2'], lines }).report.read({ actor: { id: 'a', role: 'ADMIN' }, ...base });
+    expect(out.rows.find((r) => r.employee.id === 'asm')!).toMatchObject({ achievedPaise: 6 * 800, primaryPaise: 10 * 800 });
+    expect(out.totals).toMatchObject({ achievedPaise: 6 * 800, primaryPaise: 10 * 800 });
   });
 
   it('refuses more than 93 days', async () => {

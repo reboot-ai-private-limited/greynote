@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { primaryOf, secondaryOf, type PriceRow } from '../domain/employeeFigures.js';
+import type { PriceRow } from '../domain/employeeFigures.js';
+import { primaryOfLines, secondaryOfLines } from '../domain/mrFigures.js';
 import { EmployeeSalesReport } from './employeeSalesReport.js';
 
 const prices = new Map<string, PriceRow>([
@@ -11,23 +12,26 @@ const orders = [
   { userId: 'mr1', distributorId: 'd2', productId: 'p1', month: '2026-11', quantity: 5, amountPaise: 4_000 },
   { userId: 'mr1', distributorId: 'd1', productId: 'p1', month: '2026-11', quantity: 2, amountPaise: 1_600 },
 ];
-const entries = [
-  { userId: 'mr1', productId: 'p1', month: '2026-10', secondaryQty: 20, adjustmentQty: 2 },
-  { userId: 'mr1', productId: 'p1', month: '2026-11', secondaryQty: 30, adjustmentQty: 0 },
-  { userId: 'mr1', productId: 'p2', month: '2026-10', secondaryQty: 7, adjustmentQty: -1 },
-  { userId: 'mr2', productId: 'p1', month: '2026-10', secondaryQty: 99, adjustmentQty: 0 },
+// What the MRs entered and a manager approved (decision-log 2026-11-05).
+const lines = [
+  { userId: 'mr1', distributorId: 'd1', productId: 'p1', month: '2026-10', openingQty: 0, primaryQty: 10, issuedQty: 20 },
+  { userId: 'mr1', distributorId: 'd1', productId: 'p1', month: '2026-11', openingQty: 0, primaryQty: 9, issuedQty: 30 },
+  { userId: 'mr1', distributorId: 'd1', productId: 'p2', month: '2026-10', openingQty: 0, primaryQty: 3, issuedQty: 7 },
+  { userId: 'mr2', distributorId: 'd1', productId: 'p1', month: '2026-10', openingQty: 0, primaryQty: 0, issuedQty: 99 },
 ];
 
-describe('employee figures', () => {
+describe('MR figures', () => {
   it('values secondary at PTS; a product with no PTS is counted in units only', () => {
-    expect(secondaryOf(entries, prices, { userId: 'mr1', fromMonth: '2026-10', toMonth: '2026-11' })).toEqual({ qty: 57, paise: 40_000, unpricedQty: 7 });
-    expect(secondaryOf(entries, prices, { userId: 'mr1', productId: 'p1', fromMonth: '2026-10', toMonth: '2026-10' })).toMatchObject({ qty: 20, paise: 16_000 });
-    expect(secondaryOf(entries, prices, { userId: 'mr1', productId: null, fromMonth: '2026-11', toMonth: '2026-11' }).paise).toBe(24_000);
+    expect(secondaryOfLines(lines, prices, { userId: 'mr1', fromMonth: '2026-10', toMonth: '2026-11' })).toEqual({ qty: 57, paise: 40_000, unpricedQty: 7 });
+    expect(secondaryOfLines(lines, prices, { userId: 'mr1', productId: 'p1', fromMonth: '2026-10', toMonth: '2026-10' })).toMatchObject({ qty: 20, paise: 16_000 });
+    expect(secondaryOfLines(lines, prices, { userId: 'mr1', productId: null, fromMonth: '2026-11', toMonth: '2026-11' }).paise).toBe(24_000);
   });
 
-  it('primary is the Done orders at their amounts plus Admin\'s change at PTS', () => {
-    expect(primaryOf(orders, entries, prices, { userId: 'mr1', productId: 'p1', fromMonth: '2026-10', toMonth: '2026-10' })).toEqual({ qty: 12, paise: 8_500 + 2 * 800, unpricedQty: 0, adjustmentQty: 2 });
-    expect(primaryOf(orders, entries, prices, { userId: 'mr1', productId: 'p2', fromMonth: '2026-10', toMonth: '2026-10' })).toMatchObject({ qty: -1, paise: 0, unpricedQty: -1 });
+  it('primary is what the MR received, at PTS; several MRs are summed, nothing else is added', () => {
+    expect(primaryOfLines(lines, prices, { userId: 'mr1', productId: 'p1', fromMonth: '2026-10', toMonth: '2026-10' })).toEqual({ qty: 10, paise: 8_000, unpricedQty: 0 });
+    expect(primaryOfLines(lines, prices, { userId: 'mr1', productId: 'p2', fromMonth: '2026-10', toMonth: '2026-10' })).toEqual({ qty: 3, paise: 0, unpricedQty: 3 });
+    expect(secondaryOfLines(lines, prices, { userIds: new Set(['mr1', 'mr2']), productId: 'p1', fromMonth: '2026-10', toMonth: '2026-10' }).qty).toBe(119);
+    expect(secondaryOfLines([], prices, { userId: 'mr1', fromMonth: '2026-10', toMonth: '2026-10' })).toEqual({ qty: 0, paise: 0, unpricedQty: 0 });
   });
 });
 
@@ -35,7 +39,6 @@ describe('EmployeeSalesReport', () => {
   const report = new EmployeeSalesReport(
     {
       async sumUserOrders() { return orders; },
-      async listEmployeeSales() { return entries.filter((e) => e.userId === 'mr1'); },
     },
     {
       async listTargetShares() {
@@ -48,7 +51,7 @@ describe('EmployeeSalesReport', () => {
     { async listNames() { return { distributors: [{ id: 'd1', name: 'Shree' }, { id: 'd2', name: 'Maa Tara' }], chemists: [], products: [...prices.values()] }; }, async listAssignedDoctors() { return []; }, async listActiveOutlets() { return { distributors: [], chemists: [] }; }, async listDistributorAssignees() { return []; } },
     { async getUserSummaries() { return [{ id: 'mr1', name: 'Asha', employeeCode: 'E1' }]; } },
     { async getDownline(id) { return id === 'asm' ? [{ id: 'mr1' }] : []; }, async getDesignationLevels(ids) { return ids.map((userId) => ({ userId, level: userId === 'asm' ? 2 : 1 })); } },
-    { entries: async (ids: readonly string[]) => entries.filter((e) => ids.includes(e.userId) && e.secondaryQty !== null) } as never,
+    { lines: async (ids: readonly string[]) => lines.filter((l) => ids.includes(l.userId)) } as never,
   );
   const input = { userId: 'mr1', from: '2026-10', to: '2026-11' };
 
@@ -68,7 +71,7 @@ describe('EmployeeSalesReport', () => {
     expect(out.targets.length).toBeGreaterThan(0);
   });
 
-  it('lists the employee\'s Done orders by distributor, adding up to their order primary', async () => {
+  it('lists the employee\'s Done orders by distributor, for information', async () => {
     const out = await report.read({ actor: { id: 'acct', role: 'ACCOUNTANT' }, ...input });
     expect(out.distributors).toEqual([
       { distributor: { id: 'd2', name: 'Maa Tara' }, orderQty: 5, orderPaise: 4_000 },
