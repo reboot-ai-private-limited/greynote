@@ -7,12 +7,14 @@ import { Notice } from '@/components/notice';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { ThemedText } from '@/components/themed-text';
+import { TeamReportCard } from '@/components/team-report-card';
 import { InfoCard, SummaryStrip } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useFinancialYear } from '@/lib/financial-year';
 import { formatRupees } from '@/lib/money';
-import { getSecondaryReport, type SecondaryReport, type SecondaryReportLine } from '@/lib/stock-counts';
+import { useSessionUser } from '@/lib/session';
+import { getSecondaryReport, getSecondaryRollup, type SecondaryReport, type SecondaryReportLine, type SecondaryRollup } from '@/lib/stock-counts';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { monthOf } from '@/offline/day';
@@ -62,9 +64,16 @@ export function SecondaryReportScreen() {
   const month = picked && picked >= fy.firstMonth && picked <= lastMonth ? picked : lastMonth;
   const report = useCachedFetch<SecondaryReport>(`secondary-report:${fy.year}:${month}`, () => getSecondaryReport(month));
   const data = report.data?.month === month ? report.data : null;
+  const me = useSessionUser();
+  const rollup = useCachedFetch<SecondaryRollup | null>(`secondary-rollup:${fy.year}:${month}`, async () => (me ? getSecondaryRollup(me.id, month) : null));
+  const team = rollup.data?.month === month ? rollup.data : null;
+  const reloadAll = () => {
+    report.reload();
+    rollup.reload();
+  };
 
   return (
-    <ScreenShell title="Secondary Sales" subtitle="Your team’s approved secondary" onRefresh={report.reload} refreshing={report.refreshing}>
+    <ScreenShell title="Secondary Sales" subtitle="Your team’s approved secondary" onRefresh={reloadAll} refreshing={report.refreshing || rollup.refreshing}>
       <FyBanner />
       <InfoCard>
         <ThemedText type="smallBold">Month</ThemedText>
@@ -72,6 +81,7 @@ export function SecondaryReportScreen() {
       </InfoCard>
       {!online ? <Notice tone="info">You’re offline. Connect to see your team’s secondary.</Notice> : null}
       {report.error && online ? <Notice tone="danger">{report.error}</Notice> : null}
+      {team ? <TeamReportCard data={team} month={month} onChanged={reloadAll} /> : null}
       {report.loading && !data ? <Skeleton cards={3} lines={2} /> : null}
       {data ? (
         <>

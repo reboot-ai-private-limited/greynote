@@ -11,6 +11,7 @@ import { getMyDcrCoverage, getMyDcrYear, getMyTaDaDays, getMyTaDaYear, type TaDa
 import { getRejectionReason, workingTypeLabel, type DailyPlanDetail, type MonthlyPlanDetail } from '@/lib/planning';
 import { getEmployeeSalesReport, type EmployeeSalesReport } from '@/lib/sales';
 import { useSessionUser } from '@/lib/session';
+import { STOCK_COUNT_STATUS_ACCENT, STOCK_COUNT_STATUS_TEXT, getStockCounts, type StockCountsMonth } from '@/lib/stock-counts';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { businessToday, datesInMonth, formatWhen, monthOf, prettyDay, prettyMonth } from '@/offline/day';
@@ -278,6 +279,8 @@ export function SalesReport({ month, year }: { month: string; year: number }) {
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const { from, to } = bounds(month);
   const secondary = useCachedFetch<EmployeeSalesReport>(`rep-sec:${year}:${month}`, () => getEmployeeSalesReport(me?.id ?? '', month, month));
+  const stockMonth = useCachedFetch<StockCountsMonth | null>(`rep-secstock:${year}:${month}`, async () => (me ? getStockCounts(me.id, month) : null));
+  const stockDistributors = (stockMonth.data?.distributors ?? []).filter((d) => d.status !== 'NOT_ENTERED' || d.totals.issuedQty > 0);
   const orders = useCachedFetch<OrderView[]>(`rep-ord:${year}:${month}`, () => apiGet<OrderView[]>(`/sales/orders?from=${from}&to=${to}`, { auth: true, fy: true }));
   const stock = useCachedFetch<StockRow[]>(`rep-stock:${month}`, () => listStock(month));
   const gifts = useCachedFetch<GiftRow[]>('rep-gifts', () => apiGet<GiftRow[]>('/field-activity/doctor-gifts?status=DONE', { auth: true }));
@@ -338,14 +341,39 @@ export function SalesReport({ month, year }: { month: string; year: number }) {
             ]}
           />
           <ThemedText type="small" themeColor="textSecondary">
-            Secondary and achievement here are counted from your distributors’ stock, at PTS. They show 0 until their stock is counted and any approval is done.
+            Secondary and achievement here count only your approved Secondary Sales, at PTS. They show 0 until your month is approved.
           </ThemedText>
         </>
       )}
 
+      <Stale fetchedAt={stockMonth.fetchedAt} stale={stockMonth.stale} error={stockMonth.error} />
+      {stockDistributors.length > 0 ? (
+        <>
+          <TableTitle>{`My secondary stock · ${prettyMonth(month)}`}</TableTitle>
+          <ReportCards
+            rows={stockDistributors}
+            rowKey={(d) => d.distributorId}
+            title={(d) => d.name}
+            right={(d) => <Pill text={STOCK_COUNT_STATUS_TEXT[d.status]} accent={STOCK_COUNT_STATUS_ACCENT[d.status]} />}
+            fields={(d) => [
+              { label: 'Opening', value: String(d.totals.openingQty) },
+              { label: 'Primary', value: String(d.totals.primaryQty) },
+              { label: 'Secondary', value: String(d.totals.issuedQty) },
+              { label: 'Closing', value: String(d.totals.closingQty) },
+              { label: 'Secondary value', value: formatRupees(d.totals.issuedAmountPaise) },
+            ]}
+            totals={[
+              { label: 'Secondary (units)', value: String(stockMonth.data?.totals.issuedQty ?? 0) },
+              { label: 'Secondary value', value: formatRupees(stockMonth.data?.totals.issuedAmountPaise ?? 0) },
+              { label: 'Month status', value: STOCK_COUNT_STATUS_TEXT[stockMonth.data?.status ?? 'NOT_ENTERED'] },
+            ]}
+          />
+        </>
+      ) : null}
+
       {sec?.distributors && sec.distributors.length > 0 ? (
         <>
-          <TableTitle>Primary by distributor</TableTitle>
+          <TableTitle>Done orders by distributor</TableTitle>
           <ReportCards
             rows={sec.distributors}
             rowKey={(r) => r.distributor.id}

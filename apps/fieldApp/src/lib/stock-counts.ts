@@ -136,3 +136,66 @@ export type SecondaryReport = {
 /** The approved rows of the MRs below the manager, summed by distributor then product. Admin may pass `managerId`. */
 export const getSecondaryReport = (month: string, managerId?: string) =>
   apiGet<SecondaryReport>(`/sales/secondary-report?month=${month}${managerId ? `&managerId=${managerId}` : ''}`, { fy: true });
+
+/* ───────────────────────────── the manager's team report ───────────────────────────── */
+
+/** One MR's report that the manager's team report is built from (only `APPROVED` ones feed the figures). */
+export type RollupSource = {
+  recordId: string;
+  requestId: string | null;
+  status: string;
+  mrUserId: string;
+  name: string;
+  employeeCode: string;
+  openingQty: number;
+  primaryQty: number;
+  issuedQty: number;
+};
+
+export type RollupStatus = 'NOT_SUBMITTED' | 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/**
+ * A manager's month (docs/mobile/secondary-and-targets.md, "The manager's team report"): the sum of the approved MR reports below them.
+ * The manager submits it and their own manager approves it; until then their achievement is 0. The approval request's kind is
+ * `SECONDARY_SALES` and its record id is `managerUserId:YYYY-MM:team`.
+ */
+export type SecondaryRollup = {
+  userId: string;
+  month: string;
+  status: RollupStatus;
+  /** `true` once submitted: the figures are the saved snapshot, not the live sum. */
+  saved: boolean;
+  designation: { name: string | null; level: number | null } | null;
+  mrCount: number;
+  approvedMrCount: number;
+  /** An MR report was approved or reopened after the manager sent theirs: withdraw and send again. */
+  outOfDate: boolean;
+  canSubmit: boolean;
+  requestId: string | null;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  distributors: SecondaryReport['distributors'];
+  totals: SecondaryTotals;
+  sources: RollupSource[];
+};
+
+export const ROLLUP_STATUS_TEXT: Record<RollupStatus, string> = {
+  NOT_SUBMITTED: 'Report not sent',
+  DRAFT: 'Report not sent',
+  PENDING: 'Waiting for approval',
+  APPROVED: 'Approved',
+  REJECTED: 'Sent back',
+};
+
+export const ROLLUP_STATUS_ACCENT: Record<RollupStatus, Accent> = { NOT_SUBMITTED: 'slate', DRAFT: 'slate', PENDING: 'amber', APPROVED: 'green', REJECTED: 'red' };
+
+export const getSecondaryRollup = (userId: string, month: string) =>
+  apiGet<SecondaryRollup>(`/sales/secondary-rollup?userId=${userId}&month=${month}`, { fy: true });
+
+/** Sends the manager's team report for approval. `MANAGER_ONLY`, `SECONDARY_NOTHING_TO_SEND`, `SECONDARY_LOCKED`. */
+export const submitSecondaryRollup = (month: string) =>
+  apiPost<{ requestId: string }>('/sales/secondary-rollup/submit', { month }, { auth: true });
+
+/** The approval request of my own team report, for withdrawing it or reading why it was sent back. */
+export const findMyRollupRequest = async (userId: string, month: string) =>
+  (await listMine(100)).items.find((r) => r.kind === STOCK_COUNT_KIND && r.recordId === `${userId}:${month}:team`) ?? null;

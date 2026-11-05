@@ -21,7 +21,7 @@ import { getStatementById } from '@/lib/expense-months';
 import { formatRupees } from '@/lib/money';
 import { getMonthlyPlanById, isFieldDay, routeNamesText, workingTypeLabel, type NamedRoute } from '@/lib/planning';
 import { useSessionUser } from '@/lib/session';
-import { getStockCounts } from '@/lib/stock-counts';
+import { getSecondaryRollup, getStockCounts } from '@/lib/stock-counts';
 import { useCachedSource } from '@/offline/cache';
 import { useColleagues } from '@/offline/colleagues';
 import { formatWhen, nowMs, prettyDay, prettyMonth } from '@/offline/day';
@@ -35,6 +35,7 @@ import { PrimaryButton } from './primary-button';
 import { SkeletonLines } from './skeleton';
 import { StockCountCorrect } from './stock-count-correct';
 import { StockCountsCard } from './stock-counts-card';
+import { TeamReportFigures } from './team-report-card';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
@@ -290,6 +291,24 @@ function StockCountSummary({ recordId, who }: { recordId: string; who?: string }
   );
 }
 
+/** A manager's team report: record id `managerUserId:YYYY-MM:team`. Read-only; the upper manager decides it below. */
+function TeamReportSummary({ recordId, who }: { recordId: string; who?: string }) {
+  const [userId, month] = recordId.split(':');
+  const { data, error } = useRecord(() => getSecondaryRollup(userId, month), 0);
+  return (
+    <Frame title={`Team secondary report · ${prettyMonth(month)}`} error={error} loading={!data}>
+      {who ? <Line label="Manager" value={who} /> : null}
+      {data ? (
+        <>
+          {data.designation?.name ? <Line label="Designation" value={data.designation.name} /> : null}
+          {data.outOfDate ? <Notice tone="warning">An MR report changed after this was sent, so the figures may be out of date.</Notice> : null}
+          <TeamReportFigures data={data} />
+        </>
+      ) : null}
+    </Frame>
+  );
+}
+
 /* ───────────────────────────── the daily report ───────────────────────────── */
 
 /** A bordered white box that stands out on the grey card: one call, one followup, one table. */
@@ -370,9 +389,9 @@ export function ApprovalSummary({ request, aside }: { request: ApprovalDetail; a
       record = <ExpenseMonthSummaryCard recordId={request.recordId} />;
       break;
     case 'SECONDARY_SALES':
-      // `managerUserId:month:team` is a manager's team report (docs/mobile/secondary-approval-update.md item 4, not built yet).
+      // `managerUserId:month:team` is a manager's team report (read-only for the upper manager); `mrUserId:month` is an MR's month.
       record = request.recordId.endsWith(':team') ? (
-        <Notice tone="info">This is a manager&apos;s team secondary report. Open it on the web to see the figures; you can still approve or reject it here.</Notice>
+        <TeamReportSummary recordId={request.recordId} who={request.submitter?.name} />
       ) : (
         <StockCountSummary recordId={request.recordId} who={request.submitter?.name} />
       );
