@@ -9,8 +9,11 @@ import {
 
 /** A formula or an input that can't produce a breakdown. The use case turns it into a 400. */
 export class CtcBreakdownError extends Error {
-  constructor(message: string) {
+  /** When the earnings overshoot the CTC: every earning's amount, with the balancer negative, so the form can show where the money went. */
+  readonly lines: CtcLine[] | undefined;
+  constructor(message: string, lines?: CtcLine[]) {
     super(message);
+    this.lines = lines;
     this.name = 'CtcBreakdownError';
   }
 }
@@ -99,6 +102,24 @@ function detectCycle(active: readonly PayComponent[]): void {
   active.forEach((c) => visit(c.code));
 }
 
+const rupees = (paise: number): string => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * The refusal when the earnings add up to more than the CTC, in rupees, with the largest Basic that would still fit while the other lines keep
+ * their rules (found by searching, since lines that are a share of Basic move with it).
+ */
+function overAllocatedMessage(excessPaise: number, allocatedAt: (basicPaise: number) => number, ctcPaise: number, basicPaise: number): string {
+  let lo = 0;
+  let hi = basicPaise;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (allocatedAt(mid) <= ctcPaise) lo = mid;
+    else hi = mid - 1;
+  }
+  const hint = allocatedAt(lo) <= ctcPaise && lo > 0 ? ` With these lines Basic can be at most ${rupees(lo)} a year (${((lo / ctcPaise) * 100).toFixed(2)}% of the CTC).` : '';
+  return `The earnings add up to more than the CTC (by ${rupees(excessPaise)} a year); lower Basic or an allowance, or raise the CTC.${hint}`;
+}
+
 /**
  * Splits an annual CTC into the formula's lines. The CTC is the total earnings: each earning is rounded half up to whole paise
  * once, the balancer takes whatever is left, so the earnings always add up to the CTC exactly (checked, not assumed). The
@@ -132,28 +153,34 @@ export function computeCtcBreakdown(
 
   const monthlySalaryPaise = monthlyPaise(ctcAnnualPaise);
 
-  const amounts = new Map<string, number>();
-  const resolve = (c: PayComponent): number => {
-    const known = amounts.get(c.code);
-    if (known !== undefined) return known;
-    const override = overrides[c.code];
-    let amount: number;
-    if (override !== undefined) amount = override;
-    else if (c.rule.type === 'PERCENT_OF_CTC') amount = proratePaise(ctcAnnualPaise, c.rule.basisPoints, BASIS_POINTS);
-    else if (c.rule.type === 'PERCENT_OF_COMPONENTS') {
-      const base = c.rule.of.reduce((sum, ref) => sum + resolve(active.find((x) => x.code === ref)!), 0);
-      amount = proratePaise(base, c.rule.basisPoints, BASIS_POINTS);
-    } else if (c.rule.type === 'FIXED') amount = c.rule.amountPaise;
-    else throw new CtcBreakdownError('Unreachable: the balancer is resolved last.');
-    amounts.set(c.code, amount);
-    return amount;
+  /** Every earning but the balancer under the given overrides, and what they add up to. */
+  const solve = (ov: Readonly<Record<string, number>>): { amounts: Map<string, number>; allocated: number } => {
+    const amounts = new Map<string, number>();
+    const resolve = (c: PayComponent): number => {
+      const known = amounts.get(c.code);
+      if (known !== undefined) return known;
+      const override = ov[c.code];
+      let amount: number;
+      if (override !== undefined) amount = override;
+      else if (c.rule.type === 'PERCENT_OF_CTC') amount = proratePaise(ctcAnnualPaise, c.rule.basisPoints, BASIS_POINTS);
+      else if (c.rule.type === 'PERCENT_OF_COMPONENTS') {
+        const base = c.rule.of.reduce((sum, ref) => sum + resolve(active.find((x) => x.code === ref)!), 0);
+        amount = proratePaise(base, c.rule.basisPoints, BASIS_POINTS);
+      } else if (c.rule.type === 'FIXED') amount = c.rule.amountPaise;
+      else throw new CtcBreakdownError('Unreachable: the balancer is resolved last.');
+      amounts.set(c.code, amount);
+      return amount;
+    };
+    let allocated = 0;
+    for (const c of earnings) if (c !== balancer) allocated += resolve(c);
+    return { amounts, allocated };
   };
 
-  let allocated = 0;
-  for (const c of earnings) if (c !== balancer) allocated += resolve(c);
+  const { amounts, allocated } = solve(overrides);
   const remainder = ctcAnnualPaise - allocated;
   if (remainder < 0) {
-    throw new CtcBreakdownError(`The earnings add up to more than the CTC (short by ${-remainder} paise); lower Basic or an allowance, or raise the CTC.`);
+    const overshoot = earnings.sort((a, b) => a.order - b.order).map((c) => ({ code: c.code, name: c.name, kind: c.kind, amountPaise: c === balancer ? remainder : amounts.get(c.code)!, isOverridden: c !== balancer && overrides[c.code] !== undefined }));
+    throw new CtcBreakdownError(overAllocatedMessage(-remainder, (basic) => solve({ ...overrides, [BASIC_CODE]: basic }).allocated, ctcAnnualPaise, amounts.get(BASIC_CODE) ?? 0), overshoot);
   }
   amounts.set(balancer.code, remainder);
   const earned = earnings.reduce((sum, c) => sum + amounts.get(c.code)!, 0);

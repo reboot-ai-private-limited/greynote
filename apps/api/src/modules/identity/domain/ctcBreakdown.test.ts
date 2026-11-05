@@ -64,6 +64,30 @@ describe('computeCtcBreakdown', () => {
     expect(() => computeCtcBreakdown(orgFormula(4000, 400_000 * RUPEE), 240_000 * RUPEE, {}, CTX)).toThrow(/more than the CTC/);
   });
 
+  it('says by how much in rupees and the largest Basic that fits', () => {
+    let msg = '';
+    try {
+      computeCtcBreakdown(orgFormula(10_000), 240_000 * RUPEE, {}, CTX);
+    } catch (e) {
+      msg = (e as Error).message;
+    }
+    let lines: Array<{ code: string; amountPaise: number }> | undefined;
+    try {
+      computeCtcBreakdown(orgFormula(10_000), 240_000 * RUPEE, {}, CTX);
+    } catch (e) {
+      lines = (e as { lines?: Array<{ code: string; amountPaise: number }> }).lines;
+    }
+    // The balancer is negative by the overshoot, and the earnings still add up to the CTC.
+    expect(amountOf(lines as never, 'OTHER')).toBeLessThan(0);
+    expect(lines!.reduce((n, l) => n + l.amountPaise, 0)).toBe(240_000 * RUPEE);
+    expect(msg).toMatch(/by ₹[\d,]+\.\d\d a year/);
+    const max = /at most ₹([\d,]+\.\d\d) a year/.exec(msg);
+    expect(max).not.toBeNull();
+    const basic = Math.round(Number(max![1]!.replace(/,/g, '')) * 100);
+    const bp = Math.floor((basic / (240_000 * RUPEE)) * 10_000);
+    expect(() => computeCtcBreakdown(orgFormula(bp), 240_000 * RUPEE, {}, CTX)).not.toThrow();
+  });
+
   it('allows Basic at 100% when nothing else is derived from it', () => {
     const formula = orgFormula(10_000).filter((x) => !['HRA', 'FDA', 'CONVEYANCE'].includes(x.code)).map((x) => (x.code === 'EPF' ? { ...x, rule: { type: 'PERCENT_OF_COMPONENTS', basisPoints: 1200, of: ['BASIC'] } as PayComponent['rule'] } : x));
     const lines = computeCtcBreakdown(formula, 240_000 * RUPEE, {}, CTX);

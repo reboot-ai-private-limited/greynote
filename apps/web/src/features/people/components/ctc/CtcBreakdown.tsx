@@ -65,7 +65,11 @@ export function CtcBreakdown({
   const ptaxMonthly = Math.round(
     (lines.find((l) => l.kind === 'DEDUCTION' && l.code === 'PTAX')?.amountPaise ?? 0) / 12,
   );
-  const amountOf = (code: string) => lines.find((l) => l.code === code)?.amountPaise;
+  // Over the CTC: the server's overshoot lines (balancer negative) stand in for the breakdown, shown in red.
+  const shown = editor.previewError && editor.overLines ? editor.overLines : lines;
+  const amountOf = (code: string) => shown.find((l) => l.code === code)?.amountPaise;
+  const negative = shown.find((l) => l.kind === 'EARNING' && l.amountPaise < 0);
+  const earningsSum = shown.filter((l) => l.kind === 'EARNING' && l.amountPaise >= 0).reduce((n, l) => n + l.amountPaise, 0);
   const nameOf = (code: string) =>
     rows.find((r) => r.code === code)?.name ?? org.find((c) => c.code === code)?.name ?? code;
   const keyOf = (r: EditorRow) => r.extraId ?? r.code;
@@ -181,6 +185,11 @@ export function CtcBreakdown({
                   />
                 );
               })}
+              {group.kind === 'EARNING' && negative ? (
+                <li role="alert" className="bg-danger-bg px-5 py-3 text-sm font-medium text-danger-fg">
+                  {`The other lines add up to ${formatMoney(earningsSum)}, which is ${formatMoney(-negative.amountPaise)} more than the CTC (${formatMoney(earningsSum + negative.amountPaise)}). ${negative.name} would have to be −${formatMoney(-negative.amountPaise)}.`}
+                </li>
+              ) : null}
               {customise ? (
                 <li>
                   <button

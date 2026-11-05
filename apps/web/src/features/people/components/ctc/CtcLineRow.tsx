@@ -44,6 +44,7 @@ export function CtcLineRow({
   readOnly?: boolean;
 }) {
   const locked = row.lockedReason !== null || readOnly;
+  const negativeAmount = annualPaise !== undefined && annualPaise < 0;
   const chip = describeRule(row.rule, nameOf, inr);
   const body = (
     <>
@@ -64,11 +65,11 @@ export function CtcLineRow({
         </span>
       </span>
       <span className="text-right">
-        <span className="block text-sm font-semibold tabular-nums text-text">
-          {annualPaise === undefined ? '—' : formatMoney(annualPaise)}
+        <span className={cn('block text-sm font-semibold tabular-nums', negativeAmount ? 'text-danger-fg' : 'text-text')}>
+          {annualPaise === undefined ? '—' : annualPaise < 0 ? `−${formatMoney(-annualPaise)}` : formatMoney(annualPaise)}
         </span>
-        <span className="block text-xs tabular-nums text-text-subtle">
-          {annualPaise === undefined ? '' : `${formatMoney(monthlyOf(annualPaise))} a month`}
+        <span className={cn('block text-xs tabular-nums', negativeAmount ? 'text-danger-fg' : 'text-text-subtle')}>
+          {annualPaise === undefined ? '' : `${annualPaise < 0 ? '−' : ''}${formatMoney(monthlyOf(Math.abs(annualPaise)))} a month`}
         </span>
       </span>
       {!locked ? (
