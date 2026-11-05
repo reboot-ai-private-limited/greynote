@@ -11,7 +11,8 @@ body {
 
 /* Printing a page (a salary slip): the chrome around it is left off and the page uses the whole sheet. */
 @page {
-  margin: 12mm;
+  size: A4;
+  margin: 8mm;
 }
 
 @media print {
