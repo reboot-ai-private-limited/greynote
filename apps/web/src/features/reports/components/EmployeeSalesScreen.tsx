@@ -133,7 +133,7 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
         title={name}
         description={
           data
-            ? `${data.employee.employeeCode} · ${data.team ? `The total of the ${data.team.mrCount} MRs in their team. ` : ''}Targets, primary (Done orders to distributors) and secondary (what they sold, their achievement) for ${rangeLabel(data.fromMonth, data.toMonth)}.`
+            ? `${data.employee.employeeCode} · ${data.team ? `The total of the ${data.team.mrCount} MRs in their team. ` : ''}Targets, primary (received) and secondary (issued, their achievement), as the approved figures their MRs entered for ${rangeLabel(data.fromMonth, data.toMonth)}.`
             : 'Targets, primary and secondary.'
         }
         actions={
@@ -199,14 +199,14 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
               </p>
             )}
           </Card>
-          <Card title="By product" description="Primary is what was delivered, at the order's prices (and Admin's change at PTS). Secondary is what the employee's distributors sold on, at PTS: it is the achievement.">
+          <Card title="By product" description="Primary is what the MRs received and secondary what they issued, both as approved and valued at PTS: secondary is the achievement.">
             {data && data.products.length > 0 ? (
               <DataTable columns={productColumns} rows={data.products} rowKey={(p) => p.product.id} bleed={false} />
             ) : (
               <p className="px-5 py-6 text-[13px] text-text-muted">Nothing ordered or entered in these months yet.</p>
             )}
           </Card>
-          <Card title="By distributor" description="Done orders to each distributor (primary, as delivered: free units in the units, never in the rupees). A distributor's own secondary is on the Sales report.">
+          <Card title="By distributor" description="Done orders to each distributor, for information (free units in the units, never in the rupees). The primary and secondary above are the MRs' approved figures.">
             {data && data.distributors.length > 0 ? (
               <>
                 <DataTable columns={distributorColumns} rows={data.distributors} rowKey={(d) => d.distributor.id} bleed={false} />
@@ -225,8 +225,8 @@ export function EmployeeSalesScreen({ userId }: { userId: string }) {
           title="Enter the month's figures"
           description={
             me?.role === 'ADMIN'
-              ? 'The secondary entered here is a record; achievement counts what their distributors sold on. Admin can also change the primary (a reason is needed), and delete a whole month.'
-              : 'The secondary entered here is a record; achievement counts what their distributors sold on.'
+              ? 'The secondary entered here is a record; achievement counts only the figures the MR entered and a manager approved. Admin can delete a whole month.'
+              : 'The secondary entered here is a record; achievement counts only the figures the MR entered and a manager approved.'
           }
         >
           <div className="p-5">

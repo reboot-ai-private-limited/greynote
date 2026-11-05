@@ -8,8 +8,8 @@ const SIZE = { width: 760, height: 320, left: 64, right: 12, top: 12, bottom: 34
 const longMonth = (month: string): string => new Intl.DateTimeFormat('en-IN', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(new Date(`${month}-01T00:00:00Z`));
 
 /**
- * The financial year as a grouped bar chart: for each month, a **primary** bar (Done orders to distributors) beside a **secondary** bar (what the
- * distributors sold on). Drawn by hand as SVG, in the portal's colours. A month whose stock counts are incomplete has a hatched secondary bar; a
+ * The financial year as a grouped bar chart: for each month, a **primary** bar (received) beside a **secondary** bar (issued), both as the
+ * approved MR figures. Drawn by hand as SVG, in the portal's colours. A month whose stock counts are incomplete has a hatched secondary bar; a
  * future month, or one with no count, has no secondary bar at all rather than a zero. Every bar's number is in the table under the chart, and each
  * month can be opened with the keyboard.
  */
@@ -90,13 +90,13 @@ export function SalesBarChart({ months, metric, selected, onSelect }: { months: 
           <svg width="12" height="12" aria-hidden>
             <rect width="12" height="12" rx="2" className="fill-accent" />
           </svg>
-          Primary: Done orders to distributors
+          Primary: received, as approved from the MRs
         </span>
         <span className="flex items-center gap-1.5">
           <svg width="12" height="12" aria-hidden>
             <rect width="12" height="12" rx="2" className="fill-warning" />
           </svg>
-          Secondary: what the distributors sold on
+          Secondary: issued, as approved from the MRs
         </span>
         <span className="flex items-center gap-1.5">
           <svg width="12" height="12" aria-hidden>

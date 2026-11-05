@@ -8,7 +8,9 @@ const s = (outlet: StockRow['outlet'], productId: string, month: string, opening
 const dist = (id: string) => ({ type: 'DISTRIBUTOR' as const, id });
 const chem = (id: string) => ({ type: 'CHEMIST' as const, id });
 
-function kit(orderSums: OrderSumRow[], stock: StockRow[], statements: StatementRow[] = []) {
+const ml = (month: string, distributorId: string, productId: string, primaryQty: number, issuedQty: number, userId = 'mr1') => ({ userId, distributorId, productId, month, openingQty: 0, primaryQty, issuedQty });
+
+function kit(orderSums: OrderSumRow[], stock: StockRow[], statements: StatementRow[] = [], approved: Array<ReturnType<typeof ml>> = []) {
   const calls: Array<{ kind: string; filter: Record<string, unknown> }> = [];
   const sales = {
     listOrders: async () => [],
@@ -16,6 +18,10 @@ function kit(orderSums: OrderSumRow[], stock: StockRow[], statements: StatementR
     sumDistributorOrders: async (f: Record<string, unknown> & { from: string; to: string }) => {
       calls.push({ kind: 'orders', filter: f });
       return orderSums.filter((o) => o.month >= f.from.slice(0, 7) && o.month <= f.to.slice(0, 7) && (!f['distributorId'] || o.distributorId === f['distributorId']));
+    },
+    listSecondaryLines: async (f: { fromMonth: string; toMonth: string; distributorId?: string; productId?: string }) => {
+      calls.push({ kind: 'lines', filter: f });
+      return approved.filter((l) => l.month >= f.fromMonth && l.month <= f.toMonth && (!f.distributorId || l.distributorId === f.distributorId) && (!f.productId || l.productId === f.productId));
     },
     listStatements: async (f: { fromMonth: string; toMonth: string; distributorId?: string }) => statements.filter((r) => r.month >= f.fromMonth && r.month <= f.toMonth && (!f.distributorId || r.distributorId === f.distributorId)),
     listStockRange: async (f: { fromMonth: string; toMonth: string; outletType: 'CHEMIST' | 'DISTRIBUTOR'; outletId?: string }) => {
@@ -44,25 +50,37 @@ function kit(orderSums: OrderSumRow[], stock: StockRow[], statements: StatementR
 }
 
 describe('the sales year', () => {
-  it('twelve months from April: primary and secondary per month, the open month open, the rest of the year empty', async () => {
+  it('twelve months from April: the MRs’ approved primary and secondary per month, the open month open, the rest of the year empty', async () => {
     const r = await kit(
-      [d('2026-04', 'd1', 'p1', 'DONE', 100, 80_000), d('2026-10', 'd1', 'p1', 'DONE', 20, 16_000)],
-      [s(dist('d1'), 'p1', '2026-04', 30, 40), s(dist('d2'), 'p1', '2026-04', 0, 0)],
+      [d('2026-04', 'd1', 'p1', 'DONE', 100, 80_000), d('2026-10', 'd1', 'p1', 'DONE', 20, 16_000), d('2026-10', 'd1', 'p1', 'PLACED', 4, 3_200)],
+      [],
+      [],
+      [ml('2026-04', 'd1', 'p1', 100, 90), ml('2026-04', 'd2', 'p1', 0, 0, 'mr2'), ml('2026-10', 'd1', 'p1', 20, 0)],
     ).sales.year({ year: 2026 });
     expect(r.months.map((m) => m.month)[0]).toBe('2026-04');
     expect(r.months).toHaveLength(12);
     expect(r.months[0]).toMatchObject({ state: 'ENDED', primaryQty: 100, primaryPaise: 80_000, secondaryQty: 90, secondaryPaise: 72_000, countedDistributors: 2, expectedDistributors: 2, complete: true });
-    expect(r.months[6]).toMatchObject({ month: '2026-10', state: 'OPEN', primaryPaise: 16_000, secondaryQty: null });
+    expect(r.months[6]).toMatchObject({ month: '2026-10', state: 'OPEN', primaryPaise: 16_000, secondaryQty: 0, placedQty: 4, placedPaise: 3_200 });
     expect(r.months[7]!.state).toBe('FUTURE');
     expect(r.totals).toEqual({ primaryQty: 120, primaryPaise: 96_000, secondaryQty: 90, secondaryPaise: 72_000 });
   });
 
-  it('asks Sales for the whole year and, for one distributor, only that one — whose completeness is its own', async () => {
-    const k = kit([], [s(dist('d1'), 'p1', '2026-04', 10, 4)]);
+  it('Done orders and distributor counts alone give 0: only approved MR rows count', async () => {
+    const r = await kit([d('2026-04', 'd1', 'p1', 'DONE', 100, 80_000)], [s(dist('d1'), 'p1', '2026-04', 30, 40)], [{ distributorId: 'd1', productId: 'p1', month: '2026-04', openingQty: 5, secondaryQty: 9, adjustmentQty: 2 }]).sales.year({ year: 2026 });
+    expect(r.months[0]).toMatchObject({ primaryQty: 0, primaryPaise: 0, secondaryQty: 0, secondaryPaise: 0, countedDistributors: 0, complete: false });
+    expect(r.totals).toEqual({ primaryQty: 0, primaryPaise: 0, secondaryQty: 0, secondaryPaise: 0 });
+  });
+
+  it('for one distributor asks only for that one — whose completeness is its own', async () => {
+    const k = kit([], [], [], [ml('2026-04', 'd1', 'p1', 10, 4)]);
     const r = await k.sales.year({ year: 2026, distributorId: 'd1' });
-    expect(k.calls.find((c) => c.kind === 'orders')!.filter).toMatchObject({ from: '2026-04-01', to: '2027-03-31', distributorId: 'd1' });
-    expect(k.calls.find((c) => c.kind === 'stock')!.filter).toMatchObject({ fromMonth: '2026-04', toMonth: '2027-03', outletId: 'd1' });
+    expect(k.calls.find((c) => c.kind === 'lines')!.filter).toMatchObject({ fromMonth: '2026-04', toMonth: '2027-03', distributorId: 'd1' });
     expect(r.months[0]).toMatchObject({ expectedDistributors: 1, countedDistributors: 1, complete: true });
+  });
+
+  it('a product with no PTS counts units but no rupees', async () => {
+    const r = await kit([], [], [], [ml('2026-09', 'd1', 'p2', 3, 0)]).sales.year({ year: 2026 });
+    expect(r.months[5]).toMatchObject({ month: '2026-09', primaryQty: 3, primaryPaise: 0, unpricedRows: 1 });
   });
 });
 
@@ -141,15 +159,5 @@ describe('with an Admin statement', () => {
       [st('d1', 'p1', '2026-08', 0, 5, 0), st('d1', 'p1', '2026-09', 12, 0, 0)], // August closes at 15, September opens at 12
     ).sales.statement({ month: '2026-09' });
     expect(r.rows[0]!.flags).toContain('OPENING_MISMATCH');
-  });
-
-  it('a product with no PTS leaves the adjustment unvalued', async () => {
-    const r = await kit([], [], [st('d1', 'p2', '2026-09', 0, 0, 3)]).sales.year({ year: 2026 });
-    expect(r.months[5]).toMatchObject({ month: '2026-09', primaryQty: 3, primaryPaise: 0, unpricedRows: 2 });
-  });
-
-  it('the year chart counts a statement as counted, with the adjustment in primary', async () => {
-    const r = await kit([d('2026-05', 'd1', 'p1', 'DONE', 40, 32_000)], [], [st('d1', 'p1', '2026-05', 10, 30, 5), st('d2', 'p1', '2026-05', 0, 0, 0)]).sales.year({ year: 2026 });
-    expect(r.months[1]).toMatchObject({ month: '2026-05', primaryQty: 45, primaryPaise: 32_000 + 4_000, secondaryQty: 30, secondaryPaise: 24_000, countedDistributors: 2, complete: true });
   });
 });

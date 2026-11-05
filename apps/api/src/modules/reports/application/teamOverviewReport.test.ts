@@ -78,14 +78,6 @@ function build() {
       },
     },
     {
-      async sumUserOrders() {
-        return [];
-      },
-      async listEmployeeSales() {
-        return [];
-      },
-    },
-    {
       async listNames() {
         return { distributors: [], chemists: [], products: [] };
       },
@@ -99,7 +91,7 @@ function build() {
       },
     },
     config,
-    { entries: async () => [] } as never,
+    { lines: async () => [] } as never,
     now,
   );
   return new TeamOverviewReport(

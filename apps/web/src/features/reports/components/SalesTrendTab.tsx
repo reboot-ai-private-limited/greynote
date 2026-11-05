@@ -113,7 +113,7 @@ export function SalesTrendTab({ fy }: { fy: number }) {
 
       <Card
         title={`${kind === 'employee' ? 'Employees' : 'Products'}, ${grain === 'month' ? 'month by month' : 'quarter by quarter'}`}
-        description={kind === 'employee' ? 'Achieved sales; small figure is % of that period\'s target. Click a name for their daily detail. A distributor shared by two employees counts in full for each.' : 'Secondary sales valued at PTS; small figure is % of that period\'s target.'}
+        description={kind === 'employee' ? 'Achieved sales; small figure is % of that period\'s target. Click a name for their daily detail. A manager is the sum of their MRs; the total counts each MR once.' : 'Secondary sales valued at PTS; small figure is % of that period\'s target.'}
         actions={
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" disabled={loadingFirst || rows.length === 0} onClick={() => void downloadXlsx(label, 'Sales', header, sheet(rupees))}>Download Excel</Button>
