@@ -5,6 +5,7 @@ import type { SecondaryFileStoragePort } from '../../domain/proofStorage.port.js
 import type { EmployeeSaleRepositoryPort } from '../../domain/employeeSale.repository.port.js';
 import type { MonthlyStockRepositoryPort } from '../../domain/monthlyStock.repository.port.js';
 import { MAX_SECONDARY_ATTACHMENT_BYTES, type SecondaryAttachment } from '../../domain/secondaryAttachment.entity.js';
+import type { SecondaryStockLineRepositoryPort } from '../../domain/secondaryStockLine.repository.port.js';
 import type { SecondaryAttachmentRepositoryPort } from '../../domain/secondaryAttachment.repository.port.js';
 import { STOCK_CODES, StockRefusal } from '../../domain/stockRefusal.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -18,6 +19,8 @@ interface Deps {
   sales: EmployeeSaleRepositoryPort;
   stock: MonthlyStockRepositoryPort;
   files: SecondaryAttachmentRepositoryPort;
+  /** MRs' per-distributor rows (2026-11-05): a month they have sent or had approved freezes the proof like the older entry does. */
+  lines?: SecondaryStockLineRepositoryPort | undefined;
   storage: SecondaryFileStoragePort;
   clock: SalesClock;
   config: ConfigReader;
@@ -34,6 +37,8 @@ async function assertMayChange(d: Deps, actor: Actor, userId: string, month: str
   await assertMonthOpenForEntry(d, actor, month, userId);
   if (actor.id !== userId) return;
   const rows = await d.sales.list({ userIds: [userId], fromMonth: month, toMonth: month }, 5000);
+  const held = (await d.lines?.listByUser(userId, month))?.find((r) => r.status === 'PENDING' || r.status === 'APPROVED');
+  if (held) throw new StockRefusal(STOCK_CODES.secondaryLocked, `This month is ${held.status === 'PENDING' ? 'waiting for approval' : 'approved'}. Withdraw it, or ask your manager to reopen it, before changing its files.`);
   const locked = rows.find((r) => r.secondaryQty !== null && (r.secondaryStatus === 'PENDING' || r.secondaryStatus === 'APPROVED'));
   if (locked) {
     throw new StockRefusal(STOCK_CODES.secondaryLocked, `This month is ${locked.secondaryStatus === 'PENDING' ? 'waiting for approval' : 'approved'}. Withdraw it, or ask your manager to reopen it, before changing its files.`);

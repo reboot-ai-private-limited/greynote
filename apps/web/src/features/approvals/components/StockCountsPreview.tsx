@@ -11,6 +11,7 @@ import { useDeleteStockCounts } from '@/features/reports/hooks/useEmployeeSales'
 import { useSession } from '@/lib/auth/SessionProvider';
 import { useSecondaryStockMonth, useStockCountsMonth } from '../hooks/usePreviews';
 import { PreviewFrame } from './PreviewFrame';
+import { SecondaryFiles } from '@/features/reports/components/SecondaryFiles';
 import { SecondaryStockTables, TotalsLine } from './SecondaryStockTables';
 import { DistributorCountTables } from './StockCountTables';
 
@@ -53,6 +54,7 @@ export function StockCountsPreview({ recordId }: { recordId: string }) {
           <>
             <SecondaryStockTables distributors={mrRows.distributors} />
             <TotalsLine totals={mrRows.totals} />
+            <SecondaryFiles files={mrRows.attachments} userId={userId} month={month} isSelf={false} canEdit={false} />
             <p className="text-xs text-text-subtle">* differs from the suggested figure (last approved closing, or the MR&apos;s Done orders).</p>
           </>
         ) : (

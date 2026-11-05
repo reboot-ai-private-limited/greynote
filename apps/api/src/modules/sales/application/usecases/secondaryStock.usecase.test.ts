@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { SalesApprovalsPort } from '../../domain/approvals.port.js';
 import type { OrderRepositoryPort } from '../../domain/order.repository.port.js';
+import type { SecondaryAttachment } from '../../domain/secondaryAttachment.entity.js';
+import type { SecondaryAttachmentRepositoryPort } from '../../domain/secondaryAttachment.repository.port.js';
 import { StockRefusal } from '../../domain/stockRefusal.js';
 import { SalesClock } from '../salesClock.js';
 import { FakeLines, FakeMaster, FakeStock, FakeUsers, config } from './salesTestKit.js';
@@ -10,12 +12,21 @@ const submitted: string[] = [];
 const approvals = { submit: async (i: { recordId: string }) => (submitted.push(i.recordId), { id: 'req1' }) } as unknown as SalesApprovalsPort;
 const run = { run: <T>(fn: (ctx: undefined) => Promise<T>) => fn(undefined) };
 const mr1 = { id: 'mr1', role: 'FIELD' };
+const proof = (userId: string, month: string): SecondaryAttachment => ({ id: 'f1', userId, month, url: 'https://files/f1', publicId: 'p1', fileName: 'statement.jpg', mimeType: 'image/jpeg', sizeBytes: 10, uploadedBy: userId, uploadedAt: new Date('2026-09-30T10:00:00Z') });
+class FakeFiles implements SecondaryAttachmentRepositoryPort {
+  rows: SecondaryAttachment[] = [];
+  async add(i: Omit<SecondaryAttachment, 'id'>) { const r = { ...i, id: `f${this.rows.length + 1}` }; this.rows.push(r); return r; }
+  async list(u: string, m: string) { return this.rows.filter((r) => r.userId === u && r.month === m); }
+  async findById(id: string) { return this.rows.find((r) => r.id === id) ?? null; }
+  async remove(id: string) { this.rows = this.rows.filter((r) => r.id !== id); return true; }
+}
 const line = (o: Partial<{ distributorId: string; productId: string; openingQty: number; primaryQty: number; issuedQty: number }> = {}) => ({ distributorId: 'dist1', productId: 'prod1', openingQty: 10, primaryQty: 20, issuedQty: 5, ...o });
 
 describe('MR secondary stock', () => {
   const now = new Date('2026-09-30T10:00:00+05:30');
   const clock = new SalesClock(config, () => now);
   let lines: FakeLines;
+  let files: FakeFiles;
   let master: FakeMaster;
   let save: SaveSecondaryStockUseCase;
   let orders: { sumUserOrders: () => Promise<unknown[]> };
@@ -24,10 +35,11 @@ describe('MR secondary stock', () => {
   beforeEach(() => {
     submitted.length = 0;
     lines = new FakeLines();
+    files = new FakeFiles();
     master = new FakeMaster();
     orders = { sumUserOrders: async () => [] };
     save = new SaveSecondaryStockUseCase({ users: new FakeUsers(), master, lines, stock: new FakeStock(), clock, config });
-    read = new ReadSecondaryStockUseCase(new FakeUsers(), master, lines, orders as unknown as OrderRepositoryPort, clock);
+    read = new ReadSecondaryStockUseCase(new FakeUsers(), master, lines, orders as unknown as OrderRepositoryPort, clock, files);
   });
 
   it('saves drafts; closing = opening + primary − issued, valued at PTS', async () => {
@@ -60,9 +72,10 @@ describe('MR secondary stock', () => {
   });
 
   it('a draft or sent month does not count; approving makes it count; sent months are locked', async () => {
-    const submit = new SubmitSecondaryStockUseCase(new FakeUsers(), lines, approvals, run, clock, config);
+    const submit = new SubmitSecondaryStockUseCase(new FakeUsers(), lines, approvals, run, clock, config, files);
     await expect(submit.execute(mr1, '2026-09')).rejects.toMatchObject({ code: 'SECONDARY_NOTHING_TO_SEND' });
     await save.execute(mr1, { month: '2026-09', lines: [line()] });
+    files.rows.push(proof('mr1', '2026-09'));
     expect(await lines.listRange({ fromMonth: '2026-09', toMonth: '2026-09' })).toEqual([]);
     expect((await submit.execute(mr1, '2026-09')).sent).toBe(1);
     expect(submitted).toEqual(['mr1:2026-09']);
@@ -81,5 +94,16 @@ describe('MR secondary stock', () => {
     for (const u of ['mr1', 'mr2']) await lines.setStatus({ userId: u, month: '2026-09' }, ['DRAFT'], 'APPROVED');
     const all = await lines.listRange({ fromMonth: '2026-09', toMonth: '2026-09' });
     expect(all.reduce((n, r) => n + r.issuedQty, 0)).toBe(6);
+  });
+
+  it('submitting needs at least one proof file; the read shows the files', async () => {
+    const submit = new SubmitSecondaryStockUseCase(new FakeUsers(), lines, approvals, run, clock, config, files);
+    await save.execute(mr1, { month: '2026-09', lines: [line()] });
+    await expect(submit.execute(mr1, '2026-09')).rejects.toMatchObject({ code: 'ATTACHMENT_REQUIRED' });
+    expect((await read.execute(mr1, { userId: 'mr1', month: '2026-09' })).attachmentCount).toBe(0);
+    expect([...lines.rows.values()][0]?.status).toBe('DRAFT');
+    files.rows.push(proof('mr1', '2026-09'));
+    expect((await read.execute(mr1, { userId: 'mr1', month: '2026-09' })).attachments.map((f) => f.fileName)).toEqual(['statement.jpg']);
+    expect((await submit.execute(mr1, '2026-09')).sent).toBe(1);
   });
 });
