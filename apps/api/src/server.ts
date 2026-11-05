@@ -30,7 +30,12 @@ async function start() {
 
     const jobs: IntervalJob[] = [];
     const app = createApp({
-        onContainers: ({ identity, fieldActivity, hr, team, reminders, inbox }) => {
+        onContainers: ({ config, identity, fieldActivity, hr, team, reminders, inbox }) => {
+            // A setting added to the code since the last seed has no row yet, and the Admin screen lists only stored ones: add the missing rows (defaults only).
+            config.seed().then(
+                (added) => (added.length > 0 ? logger.info({ added }, `added ${added.length} missing settings with their defaults`) : undefined),
+                (err: unknown) => logger.error({ err }, 'system settings not topped up'),
+            );
             // Accounts deactivated just before a restart: their access tokens stay refused until they would have expired anyway.
             identity.restoreAccessRevocations().then(
                 (n) => logger.info({ accounts: n }, 'access revocations restored'),

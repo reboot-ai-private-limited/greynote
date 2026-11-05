@@ -2755,3 +2755,9 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 **Needs a migration:** none; any request still saved under `STOCK_COUNT` or `SECONDARY_ROLLUP` in a dev database would show as an unknown kind and can be deleted.
 
+## 2026-11-05 — System settings are topped up when the server starts
+
+**Decision:** a setting added to the code after the last `pnpm seed` had no database row, and the Admin list shows only stored settings, so seven settings (`MANAGER_CAN_ADD_CHEMISTS`, `DCR_SUBMIT_CUTOFF_DAY`, `LATE_DCR_GRANT_VALID_HOURS` / `_MAX_HOURS`, `LATE_STOCK_GRANT_BY_MANAGER` / `_VALID_HOURS` / `_MAX_HOURS`) were invisible and unchangeable although the code used their defaults. At start the server now adds the default row of every setting that has none (`ConfigContainer.seed`, called from `server.ts`), logging "added N missing settings" with the keys.
+
+**Consequences:** only missing rows are inserted, a stored value (an Admin's edit) is never written, and the Admin account, roles, pay components and leave types stay operator-run (`pnpm seed`), as decided before; this is the one narrow exception, for SystemConfig. `upsertSeed` now returns the keys it added. A test keeps the seed list equal to the defined settings. No migration; an old database gets its missing rows on the next start (or `pnpm seed`, as before, which `manual_deploy.md` still describes).
+

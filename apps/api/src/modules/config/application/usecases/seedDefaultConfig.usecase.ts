@@ -8,7 +8,7 @@ import type { SystemConfigRepositoryPort } from '../../domain/systemConfig.repos
  * and seeding early costs nothing. `upsertSeed` only adds missing keys, never overwrites a value
  * Admin has changed.
  */
-const DEFAULT_CONFIG: SystemConfigSeed[] = CONFIG_DEFINITIONS.map((d) => ({
+export const DEFAULT_CONFIG: SystemConfigSeed[] = CONFIG_DEFINITIONS.map((d) => ({
   key: d.key,
   value: d.default,
   module: d.module,
@@ -18,7 +18,8 @@ const DEFAULT_CONFIG: SystemConfigSeed[] = CONFIG_DEFINITIONS.map((d) => ({
 export class SeedDefaultConfigUseCase {
   constructor(private readonly repository: SystemConfigRepositoryPort) {}
 
-  async execute(): Promise<void> {
-    await this.repository.upsertSeed(DEFAULT_CONFIG);
+  /** Adds every setting that has no row yet, with its default; returns the keys it added (none when the database is up to date). */
+  async execute(): Promise<string[]> {
+    return this.repository.upsertSeed(DEFAULT_CONFIG);
   }
 }

@@ -45,10 +45,10 @@ export class MongoSystemConfigAdapter implements SystemConfigRepositoryPort {
     };
   }
 
-  async upsertSeed(entries: SystemConfigSeed[]): Promise<void> {
-    await Promise.all(
-      entries.map((entry) =>
-        SystemConfigModel.updateOne(
+  async upsertSeed(entries: SystemConfigSeed[]): Promise<string[]> {
+    const results = await Promise.all(
+      entries.map(async (entry) => {
+        const res = await SystemConfigModel.updateOne(
           { key: entry.key },
           {
             $setOnInsert: {
@@ -61,8 +61,10 @@ export class MongoSystemConfigAdapter implements SystemConfigRepositoryPort {
             },
           },
           { upsert: true },
-        ),
-      ),
+        );
+        return res.upsertedCount > 0 ? entry.key : null;
+      }),
     );
+    return results.flatMap((k) => (k ? [k] : []));
   }
 }

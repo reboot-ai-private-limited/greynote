@@ -52,9 +52,10 @@ export interface AppContainers {
 }
 
 /**
- * Pure composition — no DB writes here. Seeding (SystemConfig defaults, the fixed Role rows, the
- * bootstrap Admin) is an explicit, operator-triggered action via `pnpm --filter @greynote/api
- * seed` (see `scripts/seed.ts`), not an implicit side effect of the server starting.
+ * Pure composition — no DB writes here. Seeding (the fixed Role rows, the bootstrap Admin, pay
+ * components, leave types) is an explicit, operator-triggered action via `pnpm --filter @greynote/api
+ * seed` (see `scripts/seed.ts`). The one exception is SystemConfig: `server.ts` tops up any setting
+ * that has no row yet at start (idempotent, never overwrites a value), so a new setting is never hidden.
  */
 export function buildContainers(): AppContainers {
   // Tier 0 — Health and Config depend on no other modules.

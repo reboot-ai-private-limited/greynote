@@ -104,7 +104,7 @@ container:
 docker compose -f docker-compose.prod.yml exec api node dist/scripts/seed.js
 ```
 
-It seeds Config/Role defaults (safe to re-run anytime — never overwrites an edited value), then,
+It seeds Config/Role defaults (safe to re-run anytime — never overwrites an edited value; the API also adds any missing setting at start, so a new setting appears after a restart even without this step), then,
 only if no `ADMIN` user exists yet, prompts interactively for the first Admin's details (password
 entry masked, typed twice). `docker compose exec` allocates a terminal for this automatically when
 run from an interactive shell, so the prompts appear normally.
