@@ -77,15 +77,18 @@ export class EmployeeSalesReport {
     // A target may reach beyond the window, so its own achievement needs the secondary over all its months.
     const reach = shares.reduce((r, t) => ({ from: t.fromMonth < r.from ? t.fromMonth : r.from, to: t.toMonth > r.to ? t.toMonth : r.to }), { from: input.from, to: input.to });
     // Achievement and primary are the approved figures the MRs entered, nothing else (decision-log 2026-11-05).
-    const sold = await this.achievement.lines(memberIds, input.from, input.to);
-    const soldWide = reach.from === input.from && reach.to === input.to ? sold : await this.achievement.lines(memberIds, reach.from, reach.to);
+    // A manager's achievement is their own approved team report (and any approved rows of their own), not a live sum of the MRs below them.
+    const owners: ReadonlySet<string> = isManager ? new Set([input.userId]) : members;
+    const managers = isManager ? [input.userId] : [];
+    const sold = await this.achievement.forFigures(memberIds, managers, input.from, input.to);
+    const soldWide = reach.from === input.from && reach.to === input.to ? sold : await this.achievement.forFigures(memberIds, managers, reach.from, reach.to);
 
     const productIds = [...new Set([...sold.map((e) => e.productId), ...shares.flatMap((t) => (t.productId ? [t.productId] : []))])];
     const names = productIds.length ? await this.master.listNames({ productIds }) : { products: [] };
     const prices = new Map<string, PriceRow>(names.products.map((p) => [p.id, { id: p.id, name: p.name, sku: p.sku, ptrPaise: p.ptrPaise, ptsPaise: p.ptsPaise ?? null }]));
     const nameOf = (id: string) => prices.get(id)?.name ?? UNKNOWN;
 
-    const range = { userIds: members, fromMonth: input.from, toMonth: input.to };
+    const range = { userIds: owners, fromMonth: input.from, toMonth: input.to };
     const products = productIds
       .map((id): EmployeeProductFigureDto => {
         const sel = { ...range, productId: id };
@@ -108,7 +111,7 @@ export class EmployeeSalesReport {
 
     const generalTargetPaise = shares.filter((t) => t.productId === null).reduce((n, t) => n + t.sharePaise, 0);
     const targets = shares.map((t): EmployeeTargetFigureDto => {
-      const achieved = secondaryOfLines(soldWide, prices, { userIds: members, productId: t.productId, fromMonth: t.fromMonth, toMonth: t.toMonth });
+      const achieved = secondaryOfLines(soldWide, prices, { userIds: owners, productId: t.productId, fromMonth: t.fromMonth, toMonth: t.toMonth });
       return { id: t.id, product: t.productId ? { id: t.productId, name: nameOf(t.productId) } : null, fromMonth: t.fromMonth, toMonth: t.toMonth, amountPaise: t.amountPaise, achievedPaise: achieved.paise, achievementPercent: percentOf(achieved.paise, t.amountPaise), targetQty: t.qty, achievedQty: achieved.qty, achievementQtyPercent: t.qty === null ? null : percentOf(achieved.qty, t.qty) };
     });
 

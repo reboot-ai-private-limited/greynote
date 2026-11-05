@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { MrStockFigures } from './mrStockFigures.js';
 import { SalesBreakdownReport } from './salesBreakdownReport.js';
 
 const config = { get: async (key: string) => ({ FY_START_MONTH: 'APRIL', BUSINESS_TIMEZONE: 'Asia/Kolkata' })[key] ?? '' };
 const ml = (userId: string, distributorId: string, productId: string, month: string, primaryQty: number, issuedQty: number) => ({ userId, distributorId, productId, month, openingQty: 0, primaryQty, issuedQty });
 
-function build(lines: ReturnType<typeof ml>[]) {
+type Rollup = { userId: string; month: string; status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED'; lines: Array<{ distributorId: string; productId: string; openingQty: number; primaryQty: number; issuedQty: number }> };
+
+function build(lines: ReturnType<typeof ml>[], rollups: Rollup[] = []) {
   const dashboard = { audience: async () => [{ id: 'mr1', name: 'Asha', employeeCode: 'E1', designation: 'MR' }, { id: 'mr2', name: 'Bala', employeeCode: 'E2', designation: 'MR' }, { id: 'asm', name: 'Chitra', employeeCode: 'E3', designation: 'ASM' }] };
   const marketing = { listTargetShares: async () => [{ id: 't1', userId: 'mr1', productId: 'p1', fromMonth: '2026-10', toMonth: '2026-10', amountPaise: 10_000, qty: null, sharePaise: 10_000, shareQty: null }] };
   const master = {
@@ -16,8 +19,11 @@ function build(lines: ReturnType<typeof ml>[]) {
     listActiveOutlets: async () => ({ distributors: [{ id: 'd1', name: 'Shree' }, { id: 'd2', name: 'Maa Tara' }], chemists: [] }),
   };
   const roster = { getDownline: async (id: string) => (id === 'asm' ? [{ id: 'mr1' }, { id: 'mr2' }] : []), getDesignationLevels: async (ids: string[]) => ids.map((userId) => ({ userId, level: userId === 'asm' ? 2 : 1 })) };
-  const figures = { lines: async (ids: readonly string[] | undefined, from: string, to: string) => lines.filter((l) => (!ids || ids.includes(l.userId)) && l.month >= from && l.month <= to) };
-  return new SalesBreakdownReport(dashboard as never, marketing as never, master as never, figures as never, roster as never, config);
+  const figures = new MrStockFigures({
+    listSecondaryLines: async (f) => lines.filter((l) => (!f.userIds || f.userIds.includes(l.userId)) && l.month >= f.fromMonth && l.month <= f.toMonth),
+    listSecondaryRollups: async (f) => rollups.filter((r) => (!f.userIds || f.userIds.includes(r.userId)) && (f.statuses ?? ['APPROVED']).includes(r.status)),
+  });
+  return new SalesBreakdownReport(dashboard as never, marketing as never, master as never, figures, roster as never, config);
 }
 const win = { year: 2026, period: 'month' as const, month: '2026-10' };
 
@@ -42,9 +48,13 @@ describe('sales by product and distributor', () => {
     expect(out.missingDistributors.map((d) => d.id)).toEqual(['d2']);
   });
 
-  it('by employee: a manager is the sum of their MRs, the total counts each MR once', async () => {
-    const out = await build([ml('mr1', 'd1', 'p1', '2026-10', 5, 2), ml('mr2', 'd1', 'p1', '2026-10', 5, 4)]).byEmployee({ ...win, actor: { id: 'admin', role: 'ADMIN' } });
-    expect(out.rows.find((r) => r.employee.id === 'asm')!).toMatchObject({ achievedPaise: 4_800, primaryPaise: 8_000, mrCount: 2 });
+  it('by employee: a manager is judged by their own approved team report, MRs by their rows; the total counts each MR once', async () => {
+    const rollups: Rollup[] = [{ userId: 'asm', month: '2026-10', status: 'APPROVED', lines: [{ distributorId: 'd1', productId: 'p1', openingQty: 0, primaryQty: 10, issuedQty: 6 }] }];
+    const out = await build([ml('mr1', 'd1', 'p1', '2026-10', 5, 2), ml('mr2', 'd1', 'p1', '2026-10', 5, 4)], rollups).byEmployee({ ...win, actor: { id: 'admin', role: 'ADMIN' } });
+    expect(out.rows.find((r) => r.employee.id === 'asm')!).toMatchObject({ achievedPaise: 4_800, primaryPaise: 8_000, mrCount: 2, rollupStatus: 'APPROVED' });
+    const none = await build([ml('mr1', 'd1', 'p1', '2026-10', 5, 2), ml('mr2', 'd1', 'p1', '2026-10', 5, 4)]).byEmployee({ ...win, actor: { id: 'admin', role: 'ADMIN' } });
+    expect(none.rows.find((r) => r.employee.id === 'asm')!).toMatchObject({ achievedPaise: 0, primaryPaise: 0, rollupStatus: 'NOT_SUBMITTED' });
+    expect(none.totals).toMatchObject({ achievedPaise: 4_800 });
     expect(out.rows.find((r) => r.employee.id === 'mr1')!).toMatchObject({ achievedPaise: 1_600 });
     expect(out.totals).toMatchObject({ achievedPaise: 4_800, primaryPaise: 8_000 });
   });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PriceRow } from '../domain/employeeFigures.js';
 import { primaryOfLines, secondaryOfLines } from '../domain/mrFigures.js';
+import { MrStockFigures } from './mrStockFigures.js';
 import { EmployeeSalesReport } from './employeeSalesReport.js';
 
 const prices = new Map<string, PriceRow>([
@@ -51,7 +52,10 @@ describe('EmployeeSalesReport', () => {
     { async listNames() { return { distributors: [{ id: 'd1', name: 'Shree' }, { id: 'd2', name: 'Maa Tara' }], chemists: [], products: [...prices.values()] }; }, async listAssignedDoctors() { return []; }, async listActiveOutlets() { return { distributors: [], chemists: [] }; }, async listDistributorAssignees() { return []; } },
     { async getUserSummaries() { return [{ id: 'mr1', name: 'Asha', employeeCode: 'E1' }]; } },
     { async getDownline(id) { return id === 'asm' ? [{ id: 'mr1' }] : []; }, async getDesignationLevels(ids) { return ids.map((userId) => ({ userId, level: userId === 'asm' ? 2 : 1 })); } },
-    { lines: async (ids: readonly string[]) => lines.filter((l) => ids.includes(l.userId)) } as never,
+    new MrStockFigures({
+      listSecondaryLines: async (f) => lines.filter((l) => !f.userIds || f.userIds.includes(l.userId)),
+      listSecondaryRollups: async () => [{ userId: 'asm', month: '2026-10', status: 'APPROVED' as const, lines: [{ distributorId: 'd1', productId: 'p1', openingQty: 0, primaryQty: 4, issuedQty: 25 }] }],
+    }),
   );
   const input = { userId: 'mr1', from: '2026-10', to: '2026-11' };
 
@@ -84,7 +88,8 @@ describe('EmployeeSalesReport', () => {
     expect(mr.team).toBeNull();
     const asm = await report.read({ actor: { id: 'admin', role: 'ADMIN' }, ...input, userId: 'asm' });
     expect(asm.team).toEqual({ mrCount: 1 });
-    expect(asm.totals).toMatchObject({ targetPaise: 80_000, secondaryPaise: 40_000 });
+    // their target is the MRs' sum; their achievement is their own approved team report (25 units at ₹8), not the live sum of the MRs
+    expect(asm.totals).toMatchObject({ targetPaise: 80_000, secondaryPaise: 25 * 800 });
     expect(asm.targets).toHaveLength(2);
   });
 

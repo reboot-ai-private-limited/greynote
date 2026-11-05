@@ -12,7 +12,7 @@ import { StockReport } from './application/stockReport.js';
 import { TeamOverviewReport } from './application/teamOverviewReport.js';
 import { TaDaReport } from './application/taDaReport.js';
 import { MrStockFigures } from './application/mrStockFigures.js';
-import type { SecondaryLinesPort, AttendancePort, DesignationLevelsPort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
+import type { SecondaryLinesPort, SecondaryRollupsPort, AttendancePort, DesignationLevelsPort, EmployeeSalesPort, StatementsPort, DoctorCallsPort, FieldActivityPort, FieldDaysPort, FieldRosterPort, IdentityPort, MarketingPort, MasterPort, PayrollPort, PlanningPort, PlannedDoctorsPort, SalesPort, TerritoryPort, ZoneNamePort } from './domain/ports.js';
 import type { ReportsPublicContract } from './reports.public.js';
 import { makeReportsControllers } from './interface/reports.controller.js';
 import { buildReportsRouter } from './interface/reports.route.js';
@@ -30,7 +30,7 @@ export interface ReportsContainer {
 export function buildReportsContainer(
   identity: IdentityPort & FieldRosterPort & DesignationLevelsPort,
   master: MasterPort,
-  sales: SalesPort & StatementsPort & EmployeeSalesPort & SecondaryLinesPort,
+  sales: SalesPort & StatementsPort & EmployeeSalesPort & SecondaryLinesPort & SecondaryRollupsPort,
   fieldActivity: FieldActivityPort & FieldDaysPort & DoctorCallsPort,
   territory: TerritoryPort & ZoneNamePort,
   payroll: PayrollPort,

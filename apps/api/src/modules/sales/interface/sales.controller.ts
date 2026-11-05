@@ -12,6 +12,7 @@ import type { EditOrderUseCase, FinishOrderUseCase, GetOrderUseCase, ListOrdersU
 import type { GetInvoiceUseCase, ListInvoicesUseCase } from '../application/usecases/invoices.usecase.js';
 import type { CancelPaymentUseCase, DistributorBalancesUseCase, ListPaymentsUseCase, OutstandingDuesUseCase, PaymentTotalsUseCase, RecordPaymentUseCase } from '../application/usecases/payments.usecase.js';
 import type { ReadSecondaryReportUseCase } from '../application/usecases/secondaryReport.usecase.js';
+import type { ReadSecondaryRollupUseCase, SubmitSecondaryRollupUseCase } from '../application/usecases/secondaryRollup.usecase.js';
 import type { EditSecondaryStockUseCase, ReadSecondaryStockUseCase, SaveSecondaryStockUseCase, SubmitSecondaryStockUseCase } from '../application/usecases/secondaryStock.usecase.js';
 import type { DeleteStockCountsUseCase, ReadStockCountsUseCase, SubmitStockCountsUseCase } from '../application/usecases/stockCounts.usecase.js';
 import type { DeleteEmployeeSecondaryUseCase, ReadEmployeeSalesUseCase, SaveEmployeePrimaryUseCase, SaveEmployeeSecondaryUseCase, SubmitEmployeeSecondaryUseCase } from '../application/usecases/employeeSales.usecase.js';
@@ -39,7 +40,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'deleteEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary' | 'addSecondaryAttachment' | 'removeSecondaryAttachment' | 'secondaryReport' | 'saveSecondaryStock' | 'editSecondaryStock' | 'submitSecondaryStock' | 'readSecondaryStock' | 'submitStockCounts' | 'readStockCounts' | 'stockCountsImpact' | 'deleteStockCounts', RequestHandler>;
+export type SalesHandlers = Record<'recordStock' | 'listStock' | 'unlockMonth' | 'missingStock' | 'placeOrder' | 'placeOrderFor' | 'editOrder' | 'listOrders' | 'getOrder' | 'completeOrder' | 'setInvoiceNumber' | 'listInvoices' | 'getInvoice' | 'cancelOrder' | 'recordPayment' | 'listPayments' | 'paymentTotals' | 'distributorBalances' | 'distributorOutstanding' | 'cancelPayment' | 'readStatement' | 'saveStatement' | 'readEmployeeSales' | 'saveEmployeeSecondary' | 'deleteEmployeeSecondary' | 'submitEmployeeSecondary' | 'saveEmployeePrimary' | 'addSecondaryAttachment' | 'removeSecondaryAttachment' | 'secondaryReport' | 'saveSecondaryStock' | 'editSecondaryStock' | 'submitSecondaryRollup' | 'readSecondaryRollup' | 'submitSecondaryStock' | 'readSecondaryStock' | 'submitStockCounts' | 'readStockCounts' | 'stockCountsImpact' | 'deleteStockCounts', RequestHandler>;
 
 export function makeSalesControllers(u: {
   record: RecordMonthlyStockUseCase;
@@ -72,6 +73,8 @@ export function makeSalesControllers(u: {
   secondaryReport: ReadSecondaryReportUseCase;
   saveSecondaryStock: SaveSecondaryStockUseCase;
   editSecondaryStock: EditSecondaryStockUseCase;
+  submitSecondaryRollup: SubmitSecondaryRollupUseCase;
+  readSecondaryRollup: ReadSecondaryRollupUseCase;
   submitSecondaryStock: SubmitSecondaryStockUseCase;
   readSecondaryStock: ReadSecondaryStockUseCase;
   submitStockCounts: SubmitStockCountsUseCase;
@@ -149,6 +152,12 @@ export function makeSalesControllers(u: {
     ),
     editSecondaryStock: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.editSecondaryStock.execute(actorOf(req), req.body as z.output<typeof editSecondaryStockBodySchema>)), 'The figures were corrected.', 200),
+    ),
+    submitSecondaryRollup: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.submitSecondaryRollup.execute(actorOf(req), (req.body as z.output<typeof submitStockCountsBodySchema>).month)), 'The team report was sent for approval.', 200),
+    ),
+    readSecondaryRollup: asyncHandler(async (req, res) =>
+      sendSuccess(req, res, await refusing(() => u.readSecondaryRollup.execute(actorOf(req), req.query as unknown as z.output<typeof stockCountsQuerySchema>)), 'The manager\'s team report for the month.', 200),
     ),
     submitSecondaryStock: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await refusing(() => u.submitSecondaryStock.execute(actorOf(req), (req.body as z.output<typeof submitStockCountsBodySchema>).month)), 'The month was sent for approval.', 200),

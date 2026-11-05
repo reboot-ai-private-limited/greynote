@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MrStockFigures } from './mrStockFigures.js';
 import { SalesDashboardReport } from './salesDashboardReport.js';
 
 const config = { async get(key: string) { return key === 'BUSINESS_TIMEZONE' ? 'Asia/Kolkata' : ''; } };
@@ -12,7 +13,9 @@ const people = [
 // What MRs entered and a manager approved: 5 received and 40 issued of P (PTS ₹8) by mr1 in October.
 const LINES = [{ userId: 'mr1', distributorId: 'd1', productId: 'p1', month: '2026-10', openingQty: 0, primaryQty: 5, issuedQty: 40 }];
 
-function build(over: { downline?: string[]; lines?: typeof LINES } = {}) {
+type Rollup = { userId: string; month: string; status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED'; lines: Array<{ distributorId: string; productId: string; openingQty: number; primaryQty: number; issuedQty: number }> };
+
+function build(over: { downline?: string[]; lines?: typeof LINES; rollups?: Rollup[] } = {}) {
   const asked: Array<{ userId: string; month: string }> = [];
   const report = new SalesDashboardReport(
     {
@@ -42,7 +45,10 @@ function build(over: { downline?: string[]; lines?: typeof LINES } = {}) {
     { async listNames() { return { distributors: [], chemists: [], products: [{ id: 'p1', name: 'P', sku: 'P', ptrPaise: 1000, ptsPaise: 800 }] }; } } as never,
     { async getRoute(id) { return { id, name: `Route ${id}` }; }, async getZone() { return { id: 'z1', name: 'North' }; } },
     config,
-    { lines: async (ids?: readonly string[]) => (over.lines ?? LINES).filter((l) => !ids || ids.includes(l.userId)) } as never,
+    new MrStockFigures({
+      listSecondaryLines: async (f) => (over.lines ?? LINES).filter((l) => !f.userIds || f.userIds.includes(l.userId)),
+      listSecondaryRollups: async (f) => (over.rollups ?? []).filter((r) => (!f.userIds || f.userIds.includes(r.userId)) && (f.statuses ?? ['APPROVED']).includes(r.status)),
+    }),
     now,
   );
   return { report, asked };
@@ -90,13 +96,20 @@ describe('SalesDashboardReport', () => {
     await expect(build().report.read({ actor: { id: 'mr1', role: 'FIELD' }, ...base })).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it('a manager’s target, achievement and primary are the sum of the MRs below them, and the totals count each MR once', async () => {
+  it('a manager’s target is the sum of the MRs below them, their achievement their own team report, and the totals count each MR once', async () => {
     const { report } = build({ downline: ['mr1', 'mr2'] });
     const out = await report.read({ actor: { id: 'a', role: 'ADMIN' }, ...base });
     const asm = out.rows.find((r) => r.employee.id === 'asm')!;
-    expect(asm).toMatchObject({ designation: 'ASM', mrCount: 2, targetPaise: 90_000, achievedPaise: 32_000, primaryPaise: 4_000 });
-    expect(out.rows.find((r) => r.employee.id === 'mr1')!.mrCount).toBeNull();
+    // The manager's target is the MRs' sum, but their achievement is their own approved team report: none yet, so 0 (the MRs' own rows do not count for them).
+    expect(asm).toMatchObject({ designation: 'ASM', mrCount: 2, targetPaise: 90_000, achievedPaise: 0, primaryPaise: 0, rollupStatus: 'NOT_SUBMITTED' });
+    expect(out.rows.find((r) => r.employee.id === 'mr1')!).toMatchObject({ mrCount: null, achievedPaise: 32_000, rollupStatus: null });
     expect(out.totals).toMatchObject({ targetPaise: 90_000, achievedPaise: 32_000, primaryPaise: 4_000 });
+  });
+
+  it('a team report that is only waiting or rejected counts nothing, and says so', async () => {
+    const rollups: Rollup[] = [{ userId: 'asm', month: '2026-10', status: 'PENDING', lines: [{ distributorId: 'd1', productId: 'p1', openingQty: 0, primaryQty: 10, issuedQty: 6 }] }];
+    const out = await build({ downline: ['mr1', 'mr2'], rollups }).report.read({ actor: { id: 'a', role: 'ADMIN' }, ...base });
+    expect(out.rows.find((r) => r.employee.id === 'asm')!).toMatchObject({ achievedPaise: 0, rollupStatus: 'PENDING' });
   });
 
   it('a manager with no MRs below them has no figures, not zero percent', async () => {
@@ -115,8 +128,10 @@ describe('SalesDashboardReport', () => {
       { userId: 'mr1', distributorId: 'd1', productId: 'p1', month: '2026-10', openingQty: 0, primaryQty: 5, issuedQty: 2 },
       { userId: 'mr2', distributorId: 'd1', productId: 'p1', month: '2026-10', openingQty: 0, primaryQty: 5, issuedQty: 4 },
     ];
-    const out = await build({ downline: ['mr1', 'mr2'], lines }).report.read({ actor: { id: 'a', role: 'ADMIN' }, ...base });
-    expect(out.rows.find((r) => r.employee.id === 'asm')!).toMatchObject({ achievedPaise: 6 * 800, primaryPaise: 10 * 800 });
+    // The manager's approved team report holds the same units once (2 + 4); the MRs' rows and that snapshot are never added together.
+    const rollups: Rollup[] = [{ userId: 'asm', month: '2026-10', status: 'APPROVED', lines: [{ distributorId: 'd1', productId: 'p1', openingQty: 0, primaryQty: 10, issuedQty: 6 }] }];
+    const out = await build({ downline: ['mr1', 'mr2'], lines, rollups }).report.read({ actor: { id: 'a', role: 'ADMIN' }, ...base });
+    expect(out.rows.find((r) => r.employee.id === 'asm')!).toMatchObject({ achievedPaise: 6 * 800, primaryPaise: 10 * 800, rollupStatus: 'APPROVED' });
     expect(out.totals).toMatchObject({ achievedPaise: 6 * 800, primaryPaise: 10 * 800 });
   });
 

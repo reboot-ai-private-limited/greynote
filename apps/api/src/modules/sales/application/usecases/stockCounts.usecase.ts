@@ -9,6 +9,7 @@ import { assertFinancialYearOpen } from '@/shared/time/financialYearClose.js';
 import type { SalesApprovalsPort } from '../../domain/approvals.port.js';
 import type { FieldMasterDataPort } from '../../domain/fieldMasterData.port.js';
 import type { MonthlyStockRepositoryPort } from '../../domain/monthlyStock.repository.port.js';
+import type { SecondaryRollupRepositoryPort } from '../../domain/secondaryRollup.repository.port.js';
 import type { SecondaryStockLineRepositoryPort } from '../../domain/secondaryStockLine.repository.port.js';
 import type { OrderRepositoryPort } from '../../domain/order.repository.port.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -20,6 +21,9 @@ import type { SalesClock } from '../salesClock.js';
 /** The kind of approval a month of an employee's distributor stock counts goes through; its record id is `userId:month`. */
 export const STOCK_COUNT_KIND = 'STOCK_COUNT';
 export const stockCountRecordId = (userId: string, month: string): string => `${userId}:${month}`;
+/** A manager's month of secondary sales (their team's approved MR reports) is its own approval; its record id is `managerUserId:month`. */
+export const SECONDARY_ROLLUP_KIND = 'SECONDARY_ROLLUP';
+export const rollupRecordId = (userId: string, month: string): string => `${userId}:${month}`;
 
 /**
  * The employee sends a finished month of distributor counts to their manager (Admin if none): every draft or rejected count they recorded becomes
@@ -80,6 +84,7 @@ export class DeleteStockCountsUseCase {
     private readonly clock: SalesClock,
     private readonly config: ConfigReader,
     private readonly lines?: SecondaryStockLineRepositoryPort,
+    private readonly rollups?: SecondaryRollupRepositoryPort,
   ) {}
 
   /** What a delete would remove, for the confirmation. */
@@ -103,6 +108,8 @@ export class DeleteStockCountsUseCase {
       await this.stock.deleteByRecorder(input.userId, input.month, ctx);
       await this.lines?.deleteByUser(input.userId, input.month, ctx);
       if (request) await this.approvals.deleteForRecord(STOCK_COUNT_KIND, recordId, ctx);
+      // A manager's own team report for the month goes with it, with its approval request.
+      if (await this.rollups?.deleteByUser(input.userId, input.month, ctx)) await this.approvals.deleteForRecord(SECONDARY_ROLLUP_KIND, rollupRecordId(input.userId, input.month), ctx);
     });
     logger.info(
       { audit: 'stockcounts.deleted', by: actor.id, userId: input.userId, month: input.month, requestId: request?.id ?? null, requestStatus: request?.status ?? null, lines: before.map((r) => ({ distributorId: r.outlet.id, productId: r.productId, opening: r.openingQty, closing: r.closingQty, status: r.status })) },

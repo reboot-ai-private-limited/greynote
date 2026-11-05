@@ -46,6 +46,20 @@ A manager opens the same screen and sees **no entry controls**. Read it from `GE
 | 3 | Show `approvedMrCount` of `mrCount` so a manager knows whose month is still draft or waiting. |
 | 4 | Approving or rejecting stays on the Approvals screen (`STOCK_COUNT` request, record `userId:month`). |
 
+#### The manager's team report: submit it, it becomes their achievement (2026-11-05)
+
+A manager's own achievement is a report they **submit** and their own manager (Admin if none) **approves**; until it is approved their achievement is **0**. The report is read-only: it is the sum of the approved MR reports below them.
+
+| # | Rule |
+|---|---|
+| 1 | **Read:** `GET /api/sales/secondary-rollup?userId=<manager>&month=YYYY-MM` returns `status` (`NOT_SUBMITTED`, `DRAFT`, `PENDING`, `APPROVED`, `REJECTED`), `saved`, `designation` (`{ name, level }` when submitted), `mrCount`, `approvedMrCount`, `outOfDate`, `canSubmit`, `requestId`, `submittedAt`, `approvedAt`, `distributors[]` (as the manager view above, in units and at PTS), `totals` and `sources[]`. Before it is sent it is the live sum; after, the saved snapshot. |
+| 2 | **Submit:** `POST /api/sales/secondary-rollup/submit { month }`, only a manager (someone with MRs below them), `403 MANAGER_ONLY` otherwise. The month must have started. There is no entry deadline. Keep **Submit** disabled unless `canSubmit` is true. |
+| 3 | `409 SECONDARY_NOTHING_TO_SEND` when none of the MRs has an approved report for the month; `409 SECONDARY_LOCKED` while it is waiting or approved. It opens again after a rejection, a withdrawal or when Admin reopens it. |
+| 4 | **Only approved MR reports go in.** `sources[]` lists every MR below the manager with the status of their report (`APPROVED`, `SUBMITTED`, `NOT_SUBMITTED` ...), a reference to that report (`requestId`, `cycle`, `decidedAt`) and the MR's totals. Show "6 of 8 MRs approved". Each source is a tap-through to that MR's report. |
+| 5 | **Out of date:** when `outOfDate` is true an MR report was approved, reopened or approved again after the manager sent it. Show a notice and let the manager withdraw and send again; the saved figures do not move by themselves. |
+| 6 | **After approval** the saved report is the manager's achievement for the month: `designation` records what they were then (for example RSM), so a later promotion or team change does not alter it. Reports show a status chip (`Report not sent`, `waiting`, `approved`, `rejected`) beside a manager's achievement. |
+| 7 | Deciding it is on the Approvals screen as kind `SECONDARY_ROLLUP` (record `managerUserId:month`). |
+
 #### Correcting figures before approving (2026-11-05)
 
 A manager does not enter figures, but may **correct** what an MR already sent while it waits for approval, so one typo does not cost a reject and resubmit.

@@ -3,6 +3,7 @@
 import type { SalesDashboardRowDto } from '@greynote/contracts';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/Badge';
+import { RollupBadge } from './RollupBadge';
 import { Button } from '@/components/ui/Button';
 import { DataState } from '@/components/ui/DataState';
 import { DataTable, type Column } from '@/components/ui/DataTable';
@@ -135,6 +136,7 @@ export function SalesDashboardScreen() {
             {percent !== null ? (
               <span className="ml-1.5 text-xs text-text-muted">{percent}%</span>
             ) : null}
+            {r.rollupStatus ? <span className="ml-2 align-middle"><RollupBadge status={r.rollupStatus} /></span> : null}
           </>
         );
       },

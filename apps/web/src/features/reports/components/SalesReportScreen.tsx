@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
+import { RollupBadge } from './RollupBadge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
@@ -106,7 +107,7 @@ export function SalesReportScreen() {
     { key: 'designation', header: 'Designation', render: (r) => r.designation ?? '—' },
     { key: 'target', header: 'Target', numeric: true, sortable: true, render: (r) => (r.targetPaise > 0 ? formatMoney(r.targetPaise) : '—') },
     { key: 'primary', header: 'Primary', numeric: true, sortable: true, render: (r) => formatMoney(r.primaryPaise) },
-    { key: 'achieved', header: 'Achieved', numeric: true, sortable: true, render: (r) => formatMoney(r.achievedPaise) },
+    { key: 'achieved', header: 'Achieved', numeric: true, sortable: true, render: (r) => <>{formatMoney(r.achievedPaise)}{r.rollupStatus ? <span className="ml-2 align-middle"><RollupBadge status={r.rollupStatus} /></span> : null}</> },
     { key: 'ach', header: '%', numeric: true, sortable: true, render: (r) => <Badge tone={achievementTone(r.achievementPercent)}>{percent(r.achievementPercent)}</Badge> },
   ];
 

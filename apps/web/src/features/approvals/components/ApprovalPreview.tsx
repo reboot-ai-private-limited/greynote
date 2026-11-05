@@ -11,6 +11,7 @@ import { LeavePreview } from './LeavePreview';
 import { MonthlyPlanPreview } from './MonthlyPlanPreview';
 import { StockCountsPreview } from './StockCountsPreview';
 import { SecondarySalesPreview } from './SecondarySalesPreview';
+import { SecondaryRollupPreview } from './SecondaryRollupPreview';
 
 /**
  * What is being approved. Each kind adds its own read-only panel; a kind with none yet still shows
@@ -36,6 +37,8 @@ export function ApprovalPreview({ request }: { request: ApprovalDetailDto }) {
       return <ExpenseMonthPreview recordId={request.recordId} />;
     case 'STOCK_COUNT':
       return <StockCountsPreview recordId={request.recordId} />;
+    case 'SECONDARY_ROLLUP':
+      return <SecondaryRollupPreview recordId={request.recordId} />;
     case 'SECONDARY_SALES':
       return <SecondarySalesPreview recordId={request.recordId} />;
     default:
