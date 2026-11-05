@@ -30,6 +30,7 @@ import {
   type ApprovalStatus,
 } from '@/lib/approvals';
 import { useFinancialYear } from '@/lib/financial-year';
+import { usePublicFlags } from '@/lib/public-config';
 import { useSessionUser } from '@/lib/session';
 import { refreshNow, useOnline } from '@/offline';
 import { formatWhen } from '@/offline/day';
@@ -76,6 +77,7 @@ export default function ApprovalDetailScreen() {
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success'; text: string } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const me = useSessionUser();
+  const { stockCountApproval } = usePublicFlags();
 
   // Coming back from Amend (or any screen opened from here) shows the request as it now stands; the first focus is the initial load.
   const focused = useRef(false);
@@ -214,7 +216,8 @@ export default function ApprovalDetailScreen() {
             />
           ) : null}
 
-          {request.kind === 'SECONDARY_SALES' && request.submitter && request.submitter.id !== me?.id && !fy.isPast ? (
+          {/* The per-product secondary is retired while distributor counts need approval: the server would refuse an edit. */}
+          {request.kind === 'SECONDARY_SALES' && !stockCountApproval && request.submitter && request.submitter.id !== me?.id && !fy.isPast ? (
             <PrimaryButton
               label="Edit figures"
               variant="text"

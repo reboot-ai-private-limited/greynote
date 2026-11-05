@@ -42,7 +42,7 @@ export function MonthReport({ month, year }: { month: string; year: number }) {
           <>
             <ThemedText type="small">{`Target ${formatRupees(t.targetPaise)} · Achieved ${formatRupees(t.secondaryPaise)}${t.achievementPercent === null ? '' : ` · ${t.achievementPercent}%`}`}</ThemedText>
             {t.targetPaise > 0 ? <Meter value={t.secondaryPaise} total={t.targetPaise} accent={t.achievementPercent !== null && t.achievementPercent >= 100 ? 'green' : 'amber'} /> : <ThemedText type="small" themeColor="textSecondary">No target is set for this month.</ThemedText>}
-            <ThemedText type="small" themeColor="textSecondary">Counted from your distributors’ stock, at PTS. It shows 0 until their stock is counted.</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">Counted from your distributors’ stock, at PTS. It shows 0 until their stock is counted and any approval is done.</ThemedText>
             <PrimaryButton label="Open targets" variant="text" onPress={() => router.push('/targets')} />
           </>
         ) : null}

@@ -17,8 +17,12 @@ import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
 import { deliveredOf, listOrders, listStock, type OrderView, type OutletType, type StockRow } from '@/lib/marketing';
 import { formatRupees, rupeesToPaise } from '@/lib/money';
-import { SECONDARY_STATUS_TEXT, getEmployeeSales, saveEmployeeSecondary, submitEmployeeSecondary, type SecondaryStatus } from '@/lib/sales';
+import { getRejectionReason } from '@/lib/planning';
+import { noteStockApprovalOn } from '@/lib/public-config';
+import { SECONDARY_STATUS_TEXT, getEmployeeSales, getEmployeeSalesReport, saveEmployeeSecondary, submitEmployeeSecondary, type EmployeeSalesReport, type SecondaryStatus } from '@/lib/sales';
 import { useSessionUser } from '@/lib/session';
+import { withdrawRequest } from '@/lib/approvals';
+import { STOCK_COUNT_STATUS_ACCENT, STOCK_COUNT_STATUS_TEXT, findMyStockCountRequest, submitStockCounts, type StockCountsMonth } from '@/lib/stock-counts';
 import { createRecord, getRecord, removeRecord, sendNow, updateRecord, useOnline, useRecords, type OutboxRecord } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
 import { useCachedFetch } from '@/offline/cached-fetch';
@@ -38,6 +42,9 @@ type StockPayload = {
 /** The server's reasons in the phone's words; anything else shows the server's own message. */
 const errorText = (err: unknown) => {
   if (err instanceof ApiError) {
+    // The per-product secondary is retired: distributor counts need approval, so the screen switches over.
+    if (err.data?.code === 'SECONDARY_RETIRED') noteStockApprovalOn();
+    if (err.data?.code === 'SECONDARY_NOTHING_TO_SEND') return 'There are no distributor counts to send for this month.';
     if (err.data?.code === 'SECONDARY_LOCKED') return 'This month is with your manager or approved, so it can’t be changed. Ask for it to be sent back, or wait for the decision.';
     if (err.data?.code === 'SECONDARY_NEEDS_PTR') return 'This product has no PTS price, so enter units, not an amount.';
     if (err.data?.code === 'MONTH_CLOSED') return 'This month is closed. Ask Admin to reopen it or allow a late entry.';
@@ -46,15 +53,20 @@ const errorText = (err: unknown) => {
   return err instanceof ApiError || err instanceof NetworkError || err instanceof Error ? err.message : 'Something went wrong. Please try again.';
 };
 
+/** Whether distributor counts need approval (Admin setting `STOCK_COUNT_APPROVAL`), and the month's counts with their status. */
+export type StockApproval = { on: boolean; data: StockCountsMonth | null; reload: () => void };
+
 /**
- * Distributor stock count (14 Oct): pick a distributor assigned to you or on your routes, then pick products and enter
- * opening and closing stock. Units delivered on Done distributor orders are shown per product so you can see the resulting
- * secondary (opening + delivered − closing) and its value at PTS, which feeds your monthly achievement. Works offline via
- * the `MONTHLY_STOCK` outbox queue.
+ * Distributor stock count (14 Oct): pick a distributor assigned to you, then pick products and enter opening and closing
+ * stock. Units delivered on Done distributor orders are shown per product so you can see the resulting secondary (opening +
+ * delivered − closing) and its value at PTS, which feeds your monthly achievement. Works offline via the `MONTHLY_STOCK`
+ * outbox queue. While counts need approval (docs/mobile/secondary-and-targets.md) a saved count is a draft until the month is
+ * submitted, and a month waiting or approved can't be changed until it is withdrawn, sent back or reopened.
  */
-export function DistributorStockPanel({ month, locked }: { month: string; locked: boolean }) {
+export function DistributorStockPanel({ month, locked, approval }: { month: string; locked: boolean; approval: StockApproval }) {
   const online = useOnline();
   const fy = useFinancialYear();
+  const me = useSessionUser();
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const { records } = useRecords(['MONTHLY_STOCK']);
   const syncedCount = records.filter((r) => r.status === 'SYNCED').length;
@@ -66,7 +78,7 @@ export function DistributorStockPanel({ month, locked }: { month: string; locked
 
   const [distributorId, setDistributorId] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ key: string; lines: ProductLine[] } | null>(null);
-  const [busy, setBusy] = useState<'save' | 'retry' | null>(null);
+  const [busy, setBusy] = useState<'save' | 'retry' | 'submit' | 'withdraw' | null>(null);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'info'; text: string } | null>(null);
   const fe = useFormErrors(STOCK_FIELD_ORDER);
   const [lineErrors, setLineErrors] = useState<Record<string, (string | undefined)[]>>({});
@@ -80,7 +92,21 @@ export function DistributorStockPanel({ month, locked }: { month: string; locked
     (type === 'CHEMIST' ? 'Chemist' : 'Distributor');
 
   const outsideYear = month < fy.firstMonth || month > fy.lastMonth;
-  const readOnly = fy.isPast || outsideYear || locked;
+  const monthStatus = approval.on ? (approval.data?.status ?? null) : null;
+  const statusOf = (id: string) => (approval.on ? (approval.data?.distributors.find((d) => d.distributorId === id)?.status ?? null) : null);
+  const pickedStatus = distributorId ? statusOf(distributorId) : null;
+  const held = (s: string | null) => s === 'PENDING' || s === 'APPROVED';
+  const readOnly = fy.isPast || outsideYear || locked || held(monthStatus) || held(pickedStatus);
+  // The server sets no deadline on sending: a count already in can still go up after the month closes.
+  const canSend = !fy.isPast && !outsideYear;
+
+  // Why the month was sent back, from its approval request.
+  const rejected = monthStatus === 'REJECTED';
+  const reason = useCachedFetch<string | null>(rejected ? `stock-count-reason:${month}` : 'stock-count-reason:none', async () => {
+    if (!rejected || !me) return null;
+    const request = await findMyStockCountRequest(me.id, month);
+    return request ? getRejectionReason(request.id) : null;
+  });
 
   const waiting = records.filter((r) => !r.deleted && r.status !== 'SYNCED').reverse();
   const waitingFor = (id: string, m: string) =>
@@ -203,10 +229,16 @@ export function DistributorStockPanel({ month, locked }: { month: string; locked
         await sendNow(['MONTHLY_STOCK']);
         const after = await getRecord(record.clientId);
         counted.reload();
+        approval.reload();
         if (after?.status === 'FAILED') {
           setMsg({ tone: 'danger', text: after.errorMessage ?? 'The server did not accept this stock count.' });
         } else {
-          setMsg({ tone: 'success', text: `Saved stock count for ${outletName('DISTRIBUTOR', distributorId)} (${prettyMonth(month)}).` });
+          setMsg({
+            tone: 'success',
+            text: approval.on
+              ? `Saved as a draft for ${outletName('DISTRIBUTOR', distributorId)} (${prettyMonth(month)}). Submit the month when every count is in.`
+              : `Saved stock count for ${outletName('DISTRIBUTOR', distributorId)} (${prettyMonth(month)}).`,
+          });
         }
       }
     } catch (err) {
@@ -234,11 +266,60 @@ export function DistributorStockPanel({ month, locked }: { month: string; locked
     }
   };
 
+  /** Sends the month's drafts and sent-back counts to the manager. Online only, never queued. */
+  const submit = async () => {
+    setBusy('submit');
+    setMsg(null);
+    try {
+      await submitStockCounts(month);
+      approval.reload();
+      counted.reload();
+      setMsg({ tone: 'success', text: `${prettyMonth(month)} was sent to your manager for approval.` });
+    } catch (err) {
+      setMsg({ tone: 'danger', text: errorText(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Takes a waiting month back, so its counts are drafts again. */
+  const withdraw = async () => {
+    if (!me) return;
+    setBusy('withdraw');
+    setMsg(null);
+    try {
+      const request = await findMyStockCountRequest(me.id, month);
+      if (!request) return setMsg({ tone: 'danger', text: 'Could not find this month’s request. Pull down to refresh and try again.' });
+      await withdrawRequest(request.id);
+      approval.reload();
+      counted.reload();
+      setMsg({ tone: 'success', text: 'Withdrawn. You can change the counts and submit again.' });
+    } catch (err) {
+      setMsg({ tone: 'danger', text: errorText(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const monthBanner =
+    monthStatus === 'PENDING'
+      ? { accent: 'amber' as const, icon: sym('clock', 'schedule'), title: 'Waiting for approval', text: 'Your manager has this month, so the counts can’t be changed. Withdraw it to change them.' }
+      : monthStatus === 'APPROVED'
+        ? { accent: 'green' as const, icon: sym('checkmark.circle', 'check_circle'), title: 'Approved', text: 'These counts feed your achievement. Ask your manager or Admin if one needs changing.' }
+        : rejected
+          ? { accent: 'red' as const, icon: sym('arrow.uturn.left.circle', 'undo'), title: 'Sent back', text: reason.data ? `“${reason.data}” Change what is needed and submit again.` : 'Change what is needed and submit again.' }
+          : monthStatus === 'DRAFT'
+            ? { accent: 'slate' as const, icon: sym('square.and.pencil', 'edit'), title: 'Draft', text: 'Not sent yet. These counts feed your achievement only once approved.' }
+            : null;
+  const unsaved = draft?.key === draftKey;
+  const unsentThisMonth = waiting.some((r) => (r.payload as StockPayload).month === month);
+
   return (
     <View style={styles.stack}>
-      <Notice tone="info" title="Counts toward your achievement">
-        Choose a distributor first, then add products with their opening and closing stock. Your secondary achievement is worked out from opening + Done order deliveries − closing, valued at PTS.
+      <Notice tone="info" title={approval.on ? 'Counts toward your achievement once approved' : 'Counts toward your achievement'}>
+        {`Choose a distributor first, then add products with their opening and closing stock. Your secondary achievement is worked out from opening + Done order deliveries − closing, valued at PTS.${approval.on ? ' Save each count, then submit the month to your manager.' : ''}`}
       </Notice>
+      {monthBanner ? <StatusBanner {...monthBanner} /> : null}
       {outsideYear && !locked ? <Notice tone="info">This month is outside the selected financial year, so it can only be read.</Notice> : null}
       {counted.error && online ? <Notice tone="danger">{counted.error}</Notice> : null}
       {counted.stale && counted.fetchedAt && !online ? <Notice tone="info">Showing the last copy from this phone.</Notice> : null}
@@ -254,8 +335,11 @@ export function DistributorStockPanel({ month, locked }: { month: string; locked
           <OutletPicker
             label="Distributor"
             options={distributors.map((d) => {
+              const countStatus = statusOf(d.id);
               const statusLabel = waitingFor(d.id, month)
                 ? 'Waiting to be sent'
+                : countStatus
+                  ? STOCK_COUNT_STATUS_TEXT[countStatus]
                 : rowsOf(counted.data, d.id).length > 0
                   ? readOnly
                     ? 'Counted'
@@ -272,9 +356,10 @@ export function DistributorStockPanel({ month, locked }: { month: string; locked
             value={distributorId}
             onChange={chooseDistributor}
             disabled={busy !== null}
-            emptyText="No distributors are assigned to you or on your routes yet."
+            emptyText="No distributors are assigned to you yet."
           />
         </FormField>
+        {pickedStatus ? <Pill text={STOCK_COUNT_STATUS_TEXT[pickedStatus]} accent={STOCK_COUNT_STATUS_ACCENT[pickedStatus]} /> : null}
       </CardSection>
 
       {distributorId ? (
@@ -321,7 +406,7 @@ export function DistributorStockPanel({ month, locked }: { month: string; locked
             </ThemedText>
             {readOnly ? null : (
               <PrimaryButton
-                label={online ? 'Save stock count' : 'Save on this phone'}
+                label={!online ? 'Save on this phone' : approval.on ? 'Save draft' : 'Save stock count'}
                 loading={busy === 'save'}
                 disabled={busy !== null}
                 onPress={save}
@@ -329,6 +414,18 @@ export function DistributorStockPanel({ month, locked }: { month: string; locked
             )}
           </CardSection>
         </>
+      ) : null}
+
+      {canSend && (monthStatus === 'DRAFT' || rejected) ? (
+        <View style={styles.actions}>
+          {!online ? <Notice tone="info">Submitting needs the internet.</Notice> : null}
+          {online && unsentThisMonth ? <Notice tone="info">Some counts are still waiting to be sent. Send them first, below.</Notice> : null}
+          {online && unsaved ? <Notice tone="info">Save this count before you submit the month.</Notice> : null}
+          <PrimaryButton label={`Submit ${prettyMonth(month)}`} loading={busy === 'submit'} disabled={!online || busy !== null || unsaved || unsentThisMonth} onPress={submit} />
+        </View>
+      ) : null}
+      {canSend && monthStatus === 'PENDING' ? (
+        <PrimaryButton label="Withdraw" variant="text" loading={busy === 'withdraw'} disabled={!online || busy !== null} onPress={withdraw} />
       ) : null}
 
       {waiting.length > 0 ? (
@@ -357,6 +454,46 @@ export function DistributorStockPanel({ month, locked }: { month: string; locked
           })}
         </CardSection>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * My secondary record: information only. Your total secondary per product for the month at PTS, the same figures as your
+ * achievement (docs/mobile/secondary-and-targets.md). Nothing is entered, uploaded or submitted here; that is Distributor stock.
+ */
+export function MyRecordPanel({ month }: { month: string }) {
+  const online = useOnline();
+  const fy = useFinancialYear();
+  const me = useSessionUser();
+  const report = useCachedFetch<EmployeeSalesReport>(`my-record:${fy.year}:${me?.id ?? ''}:${month}`, () => getEmployeeSalesReport(me?.id ?? '', month, month));
+  const rows = (report.data?.products ?? []).filter((p) => p.secondaryQty > 0 || p.secondaryPaise > 0);
+  return (
+    <View style={styles.stack}>
+      <Notice tone="info" title="For information">
+        {`Your total secondary per product for ${prettyMonth(month)}, summed over your distributors. Nothing is entered here: to change a figure, change the count in Distributor stock. A count waiting for approval doesn’t show yet.`}
+      </Notice>
+      {report.error && online ? <Notice tone="danger">{report.error}</Notice> : null}
+      {report.stale && report.fetchedAt && !online ? <Notice tone="info">Showing the last copy from this phone.</Notice> : null}
+      {report.loading && !report.data ? <Notice tone="info">Loading…</Notice> : null}
+      {report.data && rows.length === 0 ? <Notice tone="info">No secondary for this month yet.</Notice> : null}
+      {rows.length > 0 ? (
+        <SummaryStrip
+          items={[
+            { label: 'Units', value: rows.reduce((n, p) => n + p.secondaryQty, 0), accent: 'green' },
+            { label: 'Value at PTS', value: formatRupees(rows.reduce((n, p) => n + p.secondaryPaise, 0)), accent: 'teal' },
+          ]}
+        />
+      ) : null}
+      {rows.map((p) => (
+        <InfoCard key={p.product.id}>
+          <View style={styles.head}>
+            <ThemedText type="smallBold" style={styles.grow}>{p.product.name}</ThemedText>
+            <ThemedText type="small">{formatRupees(p.secondaryPaise)}</ThemedText>
+          </View>
+          <ThemedText type="small" themeColor="textSecondary">{`${p.secondaryQty} unit${p.secondaryQty === 1 ? '' : 's'}`}</ThemedText>
+        </InfoCard>
+      ))}
     </View>
   );
 }

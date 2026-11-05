@@ -338,7 +338,7 @@ export function SalesReport({ month, year }: { month: string; year: number }) {
             ]}
           />
           <ThemedText type="small" themeColor="textSecondary">
-            Secondary and achievement here are counted from your distributors’ stock, at PTS. They show 0 until their stock is counted.
+            Secondary and achievement here are counted from your distributors’ stock, at PTS. They show 0 until their stock is counted and any approval is done.
           </ThemedText>
         </>
       )}
