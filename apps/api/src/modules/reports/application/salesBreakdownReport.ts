@@ -107,22 +107,25 @@ export class SalesBreakdownReport {
     const listed = needle ? people.filter((p) => p.name.toLowerCase().includes(needle) || p.employeeCode.toLowerCase().includes(needle)) : people;
     const scopes = await this.rollup.scopes(listed.map((p) => p.id));
     const figureIds = [...new Set([...scopes.values()].flat())];
-    const [shares, sold] = await Promise.all([
+    // A manager is judged by their own approved team report (decision-log 2026-11-05), an MR by their own approved rows; targets add up the MRs'.
+    const managerIds = listed.map((p) => p.id).filter((id) => scopes.get(id)?.[0] !== id);
+    const [shares, sold, rollupOf] = await Promise.all([
       this.marketing.listTargetShares(figureIds, fromMonth, toMonth),
-      this.achievement.lines(figureIds, fromMonth, toMonth),
+      this.achievement.forFigures(figureIds, managerIds, fromMonth, toMonth),
+      fromMonth === toMonth ? this.achievement.rollupStatuses(managerIds, toMonth) : Promise.resolve(new Map<string, never>()),
     ]);
     const productIds = [...new Set(sold.map((e) => e.productId))];
     const names = productIds.length ? await this.master.listNames({ productIds }) : { products: [] };
     const prices = new Map<string, PriceRow>(names.products.map((p) => [p.id, { id: p.id, name: p.name, sku: p.sku, ptrPaise: p.ptrPaise, ptsPaise: p.ptsPaise ?? null }]));
-    const figuresOf = (members: ReadonlySet<string>) => {
-      const sel = { userIds: members, fromMonth, toMonth };
+    const figuresOf = (members: ReadonlySet<string>, owners: ReadonlySet<string> = members) => {
+      const sel = { userIds: owners, fromMonth, toMonth };
       const targetPaise = shares.filter((t) => members.has(t.userId)).reduce((n, t) => n + t.sharePaise, 0);
       return { targetPaise, achievedPaise: secondaryOfLines(sold, prices, sel).paise, primaryPaise: primaryOfLines(sold, prices, sel).paise };
     };
     const rows = listed.map((p) => {
       const members = scopes.get(p.id) ?? [];
-      const f = figuresOf(new Set(members));
-      return { employee: { id: p.id, name: p.name, employeeCode: p.employeeCode }, designation: p.designation ?? null, ...f, achievementPercent: percentOf(f.achievedPaise, f.targetPaise), mrCount: members[0] === p.id ? null : members.length };
+      const f = figuresOf(new Set(members), managerIds.includes(p.id) ? new Set([p.id]) : new Set(members));
+      return { employee: { id: p.id, name: p.name, employeeCode: p.employeeCode }, designation: p.designation ?? null, ...f, achievementPercent: percentOf(f.achievedPaise, f.targetPaise), mrCount: members[0] === p.id ? null : members.length, rollupStatus: managerIds.includes(p.id) && fromMonth === toMonth ? (rollupOf.get(p.id) ?? 'NOT_SUBMITTED') : null };
     }).sort((a, b) => a.employee.name.localeCompare(b.employee.name));
     const all = figuresOf(new Set(figureIds));
     return { window: dto, rows, totals: { ...all, achievementPercent: percentOf(all.achievedPaise, all.targetPaise) } };

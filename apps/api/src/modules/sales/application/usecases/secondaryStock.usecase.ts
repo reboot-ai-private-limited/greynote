@@ -1,5 +1,5 @@
 import type { ApprovalStatus } from '@/modules/approval/approval.public.js';
-import type { SecondaryStockDistributorDto, SecondaryStockLineDto, SecondaryStockMonthDto, SecondaryStockTotalsDto, StockCountStatus } from '@greynote/contracts';
+import type { SecondaryStockDistributorDto, SecondaryStockLineDto, SecondaryStockMonthDto, StockCountStatus } from '@greynote/contracts';
 import { logger } from '@/shared/logging/logger.js';
 import type { ConfigReader } from '@/shared/config/readConfig.js';
 import type { TransactionContext, TransactionRunnerPort } from '@/shared/db/transaction.port.js';
@@ -18,6 +18,7 @@ import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../outletAccess.js';
 import type { SalesClock } from '../salesClock.js';
 import { assertMayAct, assertMonthOpenForEntry } from './employeeSales.usecase.js';
+import { addTotals, emptyTotals } from './secondarySummary.js';
 import { monthStatusOf, STOCK_COUNT_KIND, stockCountRecordId } from './stockCounts.usecase.js';
 
 const MAX_QTY = 100_000_000;
@@ -154,11 +155,7 @@ export function makeSecondaryStockStatusHandler(lines: SecondaryStockLineReposit
   };
 }
 
-const EMPTY: SecondaryStockTotalsDto = { openingQty: 0, primaryQty: 0, issuedQty: 0, closingQty: 0, issuedAmountPaise: 0, closingAmountPaise: 0 };
-export function addTotals(a: SecondaryStockTotalsDto, l: Pick<SecondaryStockLineDto, 'openingQty' | 'primaryQty' | 'issuedQty' | 'closingQty' | 'issuedAmountPaise' | 'closingAmountPaise'>): SecondaryStockTotalsDto {
-  return { openingQty: a.openingQty + l.openingQty, primaryQty: a.primaryQty + l.primaryQty, issuedQty: a.issuedQty + l.issuedQty, closingQty: a.closingQty + l.closingQty, issuedAmountPaise: a.issuedAmountPaise + (l.issuedAmountPaise ?? 0), closingAmountPaise: a.closingAmountPaise + (l.closingAmountPaise ?? 0) };
-}
-export const emptyTotals = (): SecondaryStockTotalsDto => ({ ...EMPTY });
+export { addTotals, emptyTotals };
 
 /**
  * An MR's month, distributor by distributor, for every distributor assigned to them and every active product: a saved row shows what was saved, an

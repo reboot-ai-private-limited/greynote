@@ -26,6 +26,7 @@ export const KIND_LABEL: Record<string, string> = {
   EXPENSE_MONTH: 'Monthly expenses',
   SECONDARY_SALES: 'Monthly secondary',
   STOCK_COUNT: 'Distributor stock counts',
+  SECONDARY_ROLLUP: 'Team secondary report',
 };
 
 export function kindLabel(kind: string): string {
@@ -36,7 +37,7 @@ export function kindLabel(kind: string): string {
 }
 
 /** Kinds whose subject is a day or month rather than a thing with a name: their row leads with who it is from, "Asha - Nov 2026". */
-const PERIOD_KINDS = new Set(['DAILY_PLAN', 'DCR', 'MONTHLY_PLAN', 'EXPENSE_MONTH', 'SECONDARY_SALES', 'STOCK_COUNT']);
+const PERIOD_KINDS = new Set(['DAILY_PLAN', 'DCR', 'MONTHLY_PLAN', 'EXPENSE_MONTH', 'SECONDARY_SALES', 'STOCK_COUNT', 'SECONDARY_ROLLUP']);
 const leadsWithEmployee = (item: Pick<ApprovalInboxItemDto, 'kind' | 'subject' | 'submitter'>) => PERIOD_KINDS.has(item.kind) && !!item.subject && !!item.submitter;
 
 /** What a row is called: the record's own name when its kind gives one (a doctor), "Employee - Nov 2026" for a plan, report or month, else the kind ("Leave"). */

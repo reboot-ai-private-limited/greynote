@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MrStockFigures } from './mrStockFigures.js';
 import { SalesDashboardReport } from './salesDashboardReport.js';
 import { TeamOverviewReport } from './teamOverviewReport.js';
 
@@ -91,7 +92,7 @@ function build() {
       },
     },
     config,
-    { lines: async () => [] } as never,
+    new MrStockFigures({ listSecondaryLines: async () => [], listSecondaryRollups: async () => [] }),
     now,
   );
   return new TeamOverviewReport(

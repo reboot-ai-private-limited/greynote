@@ -206,6 +206,8 @@ export interface SalesByEmployeeRowDto {
   achievementPercent: number | null;
   /** `null` for an MR; the number of MRs added up for a manager. */
   mrCount: number | null;
+  /** A manager's team report for the month (single-month windows): why their achievement is what it is. `null` for an MR or a longer window. */
+  rollupStatus?: 'NOT_SUBMITTED' | 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | null;
 }
 
 export interface SalesByEmployeeDto {
@@ -481,6 +483,8 @@ export interface SalesDashboardRowDto {
    * `null` for an MR, whose figures are their own.
    */
   mrCount?: number | null;
+  /** A manager's team report for the month of the range's last day, `null` for an MR. A manager's achievement is their approved team report. */
+  rollupStatus?: 'NOT_SUBMITTED' | 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | null;
 }
 
 /** `GET /reports/sales-dashboard?from=&to=`: the field force over a range, one page of rows and the totals of all of them. */

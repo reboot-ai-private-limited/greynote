@@ -1,4 +1,4 @@
-import type { SecondaryReportDto, SecondaryStockMonthDto, StockCountsImpactDto, StockCountsMonthDto, DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SecondaryAttachmentDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto, InvoiceDetailDto, InvoiceRowDto, InvoiceStatus, SetInvoiceNumberDto } from '@greynote/contracts';
+import type { SecondaryRollupDto, SecondaryReportDto, SecondaryStockMonthDto, StockCountsImpactDto, StockCountsMonthDto, DistributorBalanceDto, DistributorOutstandingDto, CompleteOrderDto, EditOrderDto, PlaceOrderForDto, EmployeeSalesDto, SecondaryAttachmentDto, SaveEmployeePrimaryDto, SaveEmployeeSecondaryDto, DistributorPaymentDto, DistributorStatementDto, SaveDistributorStatementDto, DistributorPaymentsDto, DistributorPaymentTotalDto, MissingStockRowDto, RecordDistributorPaymentDto, InvoiceDetailDto, InvoiceRowDto, InvoiceStatus, SetInvoiceNumberDto } from '@greynote/contracts';
 import { request } from '../client';
 
 /** One order as `GET /sales/orders` returns it; the distributor's Orders tab shows only these fields. */
@@ -39,6 +39,8 @@ export const salesApi = {
   secondaryStock: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<SecondaryStockMonthDto>('/sales/secondary-stock', { token, query: { ...query }, signal }),
   /** The manager above an MR (or Admin) corrects the figures the MR sent, while the month waits for approval. A reason is required. */
   editSecondaryStock: (token: string, body: EditSecondaryStockBody) => request<{ changed: number }>('/sales/secondary-stock', { method: 'PATCH', token, body }),
+  /** A manager's month of team secondary sales (live before it is sent, the saved snapshot after) with the MR reports it rests on. The manager, the manager above, or Admin. */
+  secondaryRollup: (token: string, query: { userId: string; month: string }, signal?: AbortSignal) => request<SecondaryRollupDto>('/sales/secondary-rollup', { token, query: { ...query }, signal }),
   /** The approved secondary of the MRs below a manager (all MRs for Admin), summed by distributor and product. */
   secondaryReport: (token: string, query: { month: string; managerId?: string | undefined }, signal?: AbortSignal) => request<SecondaryReportDto>('/sales/secondary-report', { token, query: { ...query }, signal }),
   /** Admin: what deleting the month would remove, for the confirmation. */

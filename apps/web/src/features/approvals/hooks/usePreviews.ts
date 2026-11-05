@@ -151,6 +151,18 @@ export function useSecondaryStockMonth(userId: string, month: string) {
   );
 }
 
+/** A manager's month of team secondary sales — what a `SECONDARY_ROLLUP` request asks their manager to approve (2026-11-05). */
+export function useSecondaryRollup(userId: string, month: string) {
+  return useQuery(
+    authedQueryOptions({
+      queryKey: [...keys.employeeMonth.month(userId, month), 'secondary-rollup'] as const,
+      fetch: (token, signal) => salesApi.secondaryRollup(token, { userId, month }, signal),
+      staleTime: staleTime.live,
+      enabled: Boolean(userId && month),
+    }),
+  );
+}
+
 /** One employee's month of secondary, by product — what a `SECONDARY_SALES` request asks the manager to approve. */
 export function useSecondaryMonth(userId: string, month: string) {
   return useQuery(
