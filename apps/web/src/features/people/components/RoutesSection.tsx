@@ -16,10 +16,7 @@ import { useApiMutation } from '@/lib/query/mutation';
 import { RouteChecklist } from '@/features/territory/components/RouteChecklist';
 import { useActiveRoutes } from '@/features/territory/hooks/useRoutes';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
-import {
-  useExtendManagerTerritory,
-  useTeamGap,
-} from '@/features/territory/hooks/useManagerCoverage';
+import { useTeamGap } from '@/features/territory/hooks/useManagerCoverage';
 import { useUnassignMr } from '@/features/territory/hooks/useRouteMutations';
 import { useAllZones } from '@/features/territory/hooks/useZones';
 import { diffRoutes } from '@/features/territory/lib/routeGroups';
@@ -57,9 +54,16 @@ function RoutesCard({ user, readOnly }: { user: UserDetailDto; readOnly: boolean
   });
   // A manager (ASM or RSM) whose direct reports hold routes the manager does not: the reports were placed before managers could be given them.
   const gap = useTeamGap(user.id, !readOnly);
-  const extend = useExtendManagerTerritory();
   const heldIds = new Set((routes.data ?? []).map((r) => r.id));
   const teamRoutes = (gap.data?.routeIds ?? []).filter((id) => !heldIds.has(id));
+  // One reminder for both: routes under a covered HQ, and (for a manager) routes their team holds. Nothing is added until someone chooses.
+  const addable = [...new Set([...unassigned.map((r) => r.id), ...teamRoutes])];
+  const reasons = [
+    unassigned.length > 0
+      ? `${unassigned.length} under ${unassigned.length === 1 ? 'an HQ' : 'HQs'} this employee covers`
+      : '',
+    teamRoutes.length > 0 ? `${teamRoutes.length} held by their team` : '',
+  ].filter(Boolean);
   const [preselect, setPreselect] = useState<string[]>([]);
   const scope = useRouteScope(user);
   const outside = (routes.data ?? []).filter((r) => !scope.inScope(r.hqId));
@@ -107,66 +111,29 @@ function RoutesCard({ user, readOnly }: { user: UserDetailDto; readOnly: boolean
         )
       }
     >
-      {!readOnly && unassigned.length > 0 && !routes.isLoading ? (
+      {!readOnly && addable.length > 0 && !routes.isLoading ? (
         <div
           role="status"
           className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-accent-soft px-5 py-2.5 text-[13px] text-accent-soft-text"
         >
           <span>
-            {unassigned.length} route{unassigned.length === 1 ? '' : 's'} under{' '}
-            {unassigned.length === 1 ? 'an HQ' : 'HQs'} this employee covers{' '}
-            {unassigned.length === 1 ? 'is' : 'are'} not assigned yet.
+            {addable.length} route{addable.length === 1 ? '' : 's'} can be added
+            {reasons.length > 0 ? `: ${reasons.join(' and ')}` : ''}.
           </span>
           <span className="flex gap-2">
             <Button
               size="sm"
               variant="secondary"
               disabled={addAll.isPending}
-              onClick={() => setAdding(true)}
-            >
-              Choose
-            </Button>
-            <Button
-              size="sm"
-              disabled={addAll.isPending}
-              onClick={() => addAll.mutate(unassigned.map((r) => r.id))}
-            >
-              Add all {unassigned.length}
-            </Button>
-          </span>
-        </div>
-      ) : null}
-      {!readOnly && teamRoutes.length > 0 && !routes.isLoading ? (
-        <div
-          role="status"
-          className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-accent-soft px-5 py-2.5 text-[13px] text-accent-soft-text"
-        >
-          <span>
-            {user.name}’s team has {teamRoutes.length} route{teamRoutes.length === 1 ? '' : 's'}{' '}
-            they don’t have yet.
-          </span>
-          <span className="flex gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
               onClick={() => {
-                setPreselect(teamRoutes);
+                setPreselect(addable);
                 setAdding(true);
               }}
             >
               Choose
             </Button>
-            <Button
-              size="sm"
-              disabled={extend.isPending}
-              onClick={() =>
-                extend.mutate({
-                  managerId: user.id,
-                  body: { hqIds: [], zoneIds: [], routeIds: teamRoutes },
-                })
-              }
-            >
-              Add all {teamRoutes.length}
+            <Button size="sm" disabled={addAll.isPending} onClick={() => addAll.mutate(addable)}>
+              Add all {addable.length}
             </Button>
           </span>
         </div>
