@@ -30,6 +30,8 @@ export interface ApprovalQueryFilters {
   managerId?: string | undefined;
   from?: Date | undefined;
   to?: Date | undefined;
+  /** `/all` only: `auto` = approved automatically (approval not required), `person` = decided by someone. */
+  approval?: 'auto' | 'person' | undefined;
 }
 
 /** The badge on the Team screen: what is waiting on the caller, in total and by kind. */
@@ -188,6 +190,7 @@ export class ListApprovalsUseCase {
     }
     const filter: ApprovalListFilter = {
       ...(filters.kind && { kinds: [filters.kind] }),
+      ...(filters.approval && { approval: filters.approval }),
       ...(filters.from && { submittedFrom: filters.from }),
       ...(filters.to && { submittedTo: filters.to }),
     };

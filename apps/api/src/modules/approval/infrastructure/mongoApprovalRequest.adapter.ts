@@ -46,6 +46,7 @@ export class MongoApprovalRequestAdapter implements ApprovalRequestRepositoryPor
     if (filter.statuses) query['status'] = { $in: filter.statuses };
     if (filter.kinds) query['kind'] = { $in: filter.kinds };
     if (filter.submitterIds) query['submitterId'] = { $in: filter.submitterIds.map((id) => new Types.ObjectId(id)) };
+    if (filter.approval) query['history.authority'] = filter.approval === 'auto' ? 'AUTO' : { $ne: 'AUTO' };
     if (filter.submittedFrom || filter.submittedTo) {
       query['submittedAt'] = {
         ...(filter.submittedFrom && { $gte: filter.submittedFrom }),

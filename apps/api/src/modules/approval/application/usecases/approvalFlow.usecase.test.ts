@@ -32,7 +32,8 @@ class FakeRequests implements ApprovalRequestRepositoryPort {
         (r) =>
           (!filter.statuses || filter.statuses.includes(r.status)) &&
           (!filter.kinds || filter.kinds.includes(r.kind)) &&
-          (!filter.submitterIds || filter.submitterIds.includes(r.submitterId)),
+          (!filter.submitterIds || filter.submitterIds.includes(r.submitterId)) &&
+          (!filter.approval || r.history.some((h) => h.authority === 'AUTO') === (filter.approval === 'auto')),
       )
       .sort((a, b) => (a.submittedAt.getTime() - b.submittedAt.getTime()) * (page.sortOrder === 'asc' ? 1 : -1));
     const items =
@@ -740,5 +741,20 @@ describe('autoApprove submit', () => {
     expect(req.decidedAt).toBeInstanceOf(Date);
     expect(req.history.map((h) => [h.action, h.authority, h.resultingStatus])).toEqual([['SUBMIT', 'AUTO', 'APPROVED']]);
     expect((await lists.inbox(as('asm'), {}, PAGE)).items).toHaveLength(0);
+  });
+
+  it('is in the reviewed list marked AUTO, and the approval filter separates it from a manual decision', async () => {
+    await submit.execute({ kind: PLAN.kind, recordId: 'auto-2', submitterId: 'mr', autoApprove: true });
+    const manual = await submit.execute({ kind: PLAN.kind, recordId: 'manual-1', submitterId: 'asm' });
+    await decide.execute({ requestId: manual.id, actor: as('admin'), decision: 'APPROVE', expectedCycle: 1 });
+
+    const reviewed = await lists.all(as('admin'), { decided: true }, PAGE);
+    expect(reviewed.items.map((i) => i.recordId).sort()).toEqual(['auto-2', 'manual-1']);
+    expect(reviewed.items.find((i) => i.recordId === 'auto-2')?.lastAction.authority).toBe('AUTO');
+
+    const auto = await lists.all(as('admin'), { decided: true, approval: 'auto' }, PAGE);
+    expect(auto.items.map((i) => i.recordId)).toEqual(['auto-2']);
+    const person = await lists.all(as('admin'), { decided: true, approval: 'person' }, PAGE);
+    expect(person.items.map((i) => i.recordId)).toEqual(['manual-1']);
   });
 });

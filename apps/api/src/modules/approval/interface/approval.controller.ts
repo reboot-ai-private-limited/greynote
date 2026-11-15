@@ -26,6 +26,7 @@ type ListQuery = {
   kind?: string;
   status?: ApprovalStatus;
   decided?: boolean;
+  approval?: 'auto' | 'person';
   submitterId?: string;
   managerId?: string;
   from?: Date;
