@@ -145,11 +145,16 @@ const TIMELESS = [
   '/api/territory/routes/:id/delete-impact',
   '/api/territory/manager-candidates',
   '/api/territory/team-gaps',
+  '/api/territory/team', // the manager's territory as it is now
+  '/api/territory/team/hqs/:hqId/routes',
   '/api/territory/users/:userId/team-gaps',
   '/api/field-master-data/doctors/mine',
   '/api/field-master-data/doctors/assigned',
   '/api/field-master-data/doctors/team',
   '/api/field-master-data/chemists/added', // the chemists I added, whatever the year in view
+  '/api/field-master-data/chemists/team', // who holds what now, not a dated record
+  '/api/field-master-data/distributors/team',
+  '/api/field-master-data/chemists/:id/assignments',
   '/api/field-master-data/doctors/added',
   '/api/field-master-data/doctors',
   '/api/field-master-data/doctors/:id',

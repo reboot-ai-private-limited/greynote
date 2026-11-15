@@ -1,6 +1,6 @@
 import { AppError } from '@/shared/errors/AppError.js';
 import { buildPaginatedResult, type PaginatedResult } from '@/shared/http/pagination.js';
-import type { AssignedDoctor, DoctorRepositoryPort } from '../../domain/doctor.repository.port.js';
+import type { AssignedDoctor, AssignedScope, DoctorRepositoryPort } from '../../domain/doctor.repository.port.js';
 import type { PageQuery } from '../../domain/masterStatus.js';
 import type { UserDirectoryPort } from '../../domain/userDirectory.port.js';
 import type { Actor } from '../actor.js';
@@ -30,7 +30,10 @@ export class ListAssignedDoctorsUseCase {
   async team(actor: Actor, filter: AssignedFilter & { userId?: string | undefined }) {
     const downline = (await this.users.getDownline(actor.id)).map((u) => u.id);
     if (filter.userId && !downline.includes(filter.userId)) throw AppError.forbidden('That employee is not in your team.');
-    return this.run(filter.userId ? [filter.userId] : downline, filter);
+    const people = filter.userId ? [filter.userId] : downline;
+    const page = await this.run(people, filter, this.visibility.teamScopes(people));
+    const notHeld = await this.visibility.routeNotHeld(page.items.flatMap((d) => (d.assignedTo ? [{ id: d.id, routeId: d.routeId, assignedUserId: d.assignedTo.userId }] : [])));
+    return { ...page, items: page.items.map((d) => ({ ...d, routeNotHeld: notHeld.has(d.id) })) };
   }
 
   /** Admin: any employee's Doctors, seen the way that employee sees them. */
@@ -39,9 +42,9 @@ export class ListAssignedDoctorsUseCase {
     return this.run([userId], filter);
   }
 
-  private async run(userIds: string[], filter: AssignedFilter) {
+  private async run(userIds: string[], filter: AssignedFilter, scopes?: AssignedScope[]) {
     const { page, pageSize, ...rest } = filter;
-    const scopes = await this.visibility.scopes(userIds);
+    scopes ??= await this.visibility.scopes(userIds);
     // The search box also finds a Doctor by the name or code of the employee they are assigned to, among the employees being read.
     const term = rest.search?.trim();
     const alsoUserIds = term ? await this.users.findUserIdsByName(term, { restrictTo: userIds }) : undefined;

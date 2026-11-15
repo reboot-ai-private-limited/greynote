@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { AppError } from '@/shared/errors/AppError.js';
 import { makeChemistApprovalHandler, NEW_CHEMIST_KIND } from '../chemistApproval.js';
 import { AddedChemists, type AddedChemistInput } from './addedChemists.js';
-import { FakeApprovals, FakeChemists, FakeConfig, FakeTerritory, FakeTransactions, FakeUsers } from './fmdTestKit.js';
+import { FakeApprovals, FakeChemistAssignments, FakeChemists, FakeConfig, FakeTerritory, FakeTransactions, FakeUsers } from './fmdTestKit.js';
 
 const page = { page: 1, pageSize: 20 };
 const phoneGps = { latitude: 26.71, longitude: 88.41 };
@@ -10,6 +10,7 @@ const input: AddedChemistInput = { routeId: 'route-1', name: 'Sai Pharmacy', add
 
 describe('An employee adds a Chemist', () => {
   let chemists: FakeChemists;
+  let chemistAssignments: FakeChemistAssignments;
   let approvals: FakeApprovals;
   let territory: FakeTerritory;
   let users: FakeUsers;
@@ -28,8 +29,9 @@ describe('An employee adds a Chemist', () => {
     territory.userRoutes.set('mr1', ['route-1']);
     territory.userRoutes.set('mr2', ['route-2']);
     territory.userRoutes.set('asm', ['route-1']);
+    chemistAssignments = new FakeChemistAssignments();
     added = new AddedChemists(chemists, territory, approvals, new FakeTransactions(), users, config);
-    approvals.registerKind({ kind: NEW_CHEMIST_KIND, finalApproverRoles: ['ADMIN'], onStatusChange: makeChemistApprovalHandler(chemists) });
+    approvals.registerKind({ kind: NEW_CHEMIST_KIND, finalApproverRoles: ['ADMIN'], onStatusChange: makeChemistApprovalHandler(chemists, chemistAssignments) });
   });
 
   it('creates it pending with the phone location, and submits it for approval', async () => {
@@ -50,6 +52,8 @@ describe('An employee adds a Chemist', () => {
     await approvals.decide(NEW_CHEMIST_KIND, chemist.id, 'APPROVED');
     expect((await chemists.findById(chemist.id))!.status).toBe('active');
     expect(await chemists.listActiveOnRoutes(['route-1'])).toHaveLength(1);
+    // The employee who added it now holds it, and anyone else already holding it keeps it.
+    expect((await chemistAssignments.listActiveForChemist(chemist.id)).map((a) => a.userId)).toEqual(['mr1']);
     await approvals.decide(NEW_CHEMIST_KIND, chemist.id, 'REOPENED');
     expect((await chemists.findById(chemist.id))).toMatchObject({ status: 'pending', approvedAt: null });
   });

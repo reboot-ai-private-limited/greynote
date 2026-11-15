@@ -27,6 +27,14 @@ The field app (`apps/fieldApp`, another team's) last had real feature work on **
 
 | B8 | **Daily-report deadline and month lock (2026-11-05).** Show `DCR_SUBMIT_LATE` and `PAYROLL_FINALIZED` as the error and drop the record (nothing is retried). Read `DCR_SUBMIT_CUTOFF_DAY` (default 1) from `config.settings` and warn that the last day of a month must be submitted that day. A manager's approve/reject/reopen on a finalized month fails with `409 PAYROLL_FINALIZED`: show the message. | `dcr.md` rules 12-13 |
 
+## B+. Server built 2026-11-16: manager's view of the team (new for the phone)
+
+| # | Gap | Where |
+|---|---|---|
+| B9 | **Team doctors / chemists / distributors tabs** for managers (online, paged, search; show the MRs who hold each). Show a "route not held" badge when a doctor has `routeNotHeld`. | [`team-visibility.md`](team-visibility.md) §2, §4 |
+| B10 | **Chemists in the snapshot are now "assigned to me", not "on my routes".** Stop any client-side route filtering of chemists; handle `CHEMIST_ROUTE_NOT_ASSIGNED` as "no longer assigned". | `team-visibility.md` §2 |
+| B11 | **Team → Territory** screen and a route picker that is HQ first, then type-ahead search (never a full route list). | `team-visibility.md` §2 |
+
 ## C. Needs a server change first
 
 - **Expose `MANAGER_CAN_ADD_DOCTORS` to the phone.** The app cannot hide the button because nothing it reads carries the flag. Put it in `GET /config/public` or the sync snapshot.

@@ -12,7 +12,8 @@ import type { ListManagerCandidatesUseCase } from '../application/usecases/listM
 import type { GetTerritoryGapsUseCase } from '../application/usecases/getTerritoryGaps.usecase.js';
 import type { ExtendManagerTerritoryUseCase } from '../application/usecases/extendManagerTerritory.usecase.js';
 import type { GetManagerCoverageUseCase, SetManagerCoverageUseCase } from '../application/usecases/managerCoverage.usecase.js';
-import { extendManagerTerritoryBodySchema, managerCandidatesQuerySchema, setManagerCoverageBodySchema, userIdParamsSchema } from './territory.schemas.js';
+import type { GetTeamTerritoryUseCase } from '../application/usecases/getTeamTerritory.usecase.js';
+import { extendManagerTerritoryBodySchema, managerCandidatesQuerySchema, setManagerCoverageBodySchema, teamHqParamsSchema, teamRoutesQuerySchema, userIdParamsSchema } from './territory.schemas.js';
 
 const TAG = 'Territory / Manager coverage';
 const bearer = [{ bearerAuth: [] }];
@@ -90,6 +91,24 @@ export function buildManagerCoverageRouter(useCases: { get: GetManagerCoverageUs
   router.post('/:userId/extend-territory', validate({ params: userIdParamsSchema, body: extendManagerTerritoryBodySchema }), extend);
   router.put('/:userId/coverage', validate({ params: userIdParamsSchema, body: setManagerCoverageBodySchema }), set);
   router.get('/:userId/coverage', validate({ params: userIdParamsSchema }), get);
+  return router;
+}
+
+/** `GET /territory/team` — a manager's HQs grouped by Zone, and (`/hqs/:hqId/routes`) one HQ's routes, paged. Field staff only; computed from the team. */
+export function buildTeamTerritoryRouter(team: GetTeamTerritoryUseCase): Router {
+  const actor = (req: { user?: { sub: string } }) => {
+    if (!req.user) throw AppError.unauthenticated();
+    return req.user.sub;
+  };
+  const zones: RequestHandler = asyncHandler(async (req, res) => sendSuccess(req, res, await team.execute(actor(req)), 'Your team’s territory.', 200));
+  const routes: RequestHandler = asyncHandler(async (req, res) => {
+    const query = req.query as unknown as { page: number; pageSize: number; search?: string };
+    sendSuccess(req, res, await team.routesInHq(actor(req), requiredParam(req.params, 'hqId'), query), 'Routes in the HQ.', 200);
+  });
+  const router = Router();
+  router.use(authenticate(), requireRole('FIELD'));
+  router.get('/', zones);
+  router.get('/hqs/:hqId/routes', validate({ params: teamHqParamsSchema, query: teamRoutesQuerySchema }), routes);
   return router;
 }
 

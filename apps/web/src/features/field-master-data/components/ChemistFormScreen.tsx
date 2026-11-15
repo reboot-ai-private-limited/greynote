@@ -37,6 +37,8 @@ import {
   type ChemistDraft,
 } from '../lib/chemists';
 import { formatPoint, pointFromInputs } from '../lib/location';
+import { useSession } from '@/lib/auth/SessionProvider';
+import { ChemistAssignmentsCard } from './ChemistAssignmentsCard';
 import { LocationPicker } from './LocationPicker';
 import { RoutePickerField } from './RoutePickerField';
 
@@ -73,6 +75,7 @@ const STEP_TITLE: Record<ChemistStep, string> = {
 function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
   const router = useRouter();
   const readOnly = useIsReadOnly();
+  const { user: me } = useSession();
   const directory = useTerritoryDirectory();
   const [draft, setDraft] = useState<ChemistDraft>(chemist ? chemistToDraft(chemist) : EMPTY_CHEMIST);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -272,6 +275,11 @@ function ChemistForm({ chemist }: { chemist?: ChemistDto }) {
           </Button>
         </div>
       </form>
+      {me?.role === 'ADMIN' ? (
+        <div className="mt-6">
+          <ChemistAssignmentsCard chemist={chemist} />
+        </div>
+      ) : null}
       <StatusToggleDialog
         item={toggling && chemist.status !== 'pending' ? { ...chemist, status: chemist.status } : null}
         noun="chemist"

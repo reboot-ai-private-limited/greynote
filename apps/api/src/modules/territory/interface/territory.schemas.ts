@@ -73,6 +73,8 @@ export const listRoutesQuerySchema = listQuerySchema.extend({
 export const searchPlacesQuerySchema = z.object({ q: z.string().trim().min(2).max(200) });
 
 export const assignRouteBodySchema = z.object({ userId: objectIdSchema });
+export const teamHqParamsSchema = z.object({ hqId: objectIdSchema });
+export const teamRoutesQuerySchema = paginationQuerySchema.omit({ sortBy: true, sortOrder: true });
 export const userIdParamsSchema = z.object({ userId: objectIdSchema });
 export const setUserHqBodySchema = z.object({ hqId: objectIdSchema });
 export const setManagerCoverageBodySchema = z.object({ hqIds: z.array(objectIdSchema).max(200).default([]), zoneIds: z.array(objectIdSchema).max(50).default([]) });

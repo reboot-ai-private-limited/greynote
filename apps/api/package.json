@@ -36,6 +36,8 @@
     "delete:orders": "tsx src/scripts/delete-orders.ts",
     "migrate:coverage-assignments": "tsx src/scripts/migrate-coverage-to-assignments.ts",
     "reset:field-data": "tsx src/scripts/reset-field-data.ts",
+    "backfill:chemist-assignments": "tsx src/scripts/backfill-chemist-assignments.ts",
+    "cleanup:manager-routes": "tsx src/scripts/cleanup-manager-copied-routes.ts",
         "migrate:late-grants": "tsx src/scripts/migrate-late-grants.ts",
         "migrate:targets": "tsx src/scripts/migrate-targets-to-ranges.ts",
         "report:manager-targets": "tsx src/scripts/report-manager-targets.ts",

@@ -10,7 +10,7 @@ import multer from 'multer';
 import type { NextFunction, Request, Response } from 'express';
 import { AppError } from '@/shared/errors/AppError.js';
 import { MAX_DISTRIBUTOR_DOCUMENT_BYTES } from '../domain/distributorDocumentFile.js';
-import type { AddedChemistHandlers, CrudHandlers, DistributorHandlers, DoctorHandlers } from './field-master-data.controller.js';
+import type { AddedChemistHandlers, ChemistAssignmentHandlers, CrudHandlers, DistributorHandlers, DoctorHandlers } from './field-master-data.controller.js';
 import {
   addDoctorBodySchema,
   adjustSampleBodySchema,
@@ -33,6 +33,10 @@ import {
   listAddedChemistsQuerySchema,
   listAddedDoctorsQuerySchema,
   listAssignedDoctorsQuerySchema,
+  assignChemistBodySchema,
+  teamDistributorsQuerySchema,
+  chemistAssignmentParamsSchema,
+  teamChemistsQuerySchema,
   listChemistsQuerySchema,
   listDistributorsQuerySchema,
   listDoctorsQuerySchema,
@@ -92,6 +96,11 @@ doc('patch', '/doctors/{id}/targets', 'Manager or Admin: set a doctor’s monthl
 doc('get', '/doctors/mine', 'Field staff: the doctors assigned to me, on routes I still have', { query: listAssignedDoctorsQuerySchema });
 doc('get', '/doctors/team', 'Managers: the doctors of everyone in my downline', { query: teamDoctorsQuerySchema });
 doc('get', '/doctors/assigned', 'Admin: the doctors assigned to one employee, as that employee sees them', { query: employeeDoctorsQuerySchema });
+doc('get', '/distributors/team', 'Managers: the distributors handed to anyone in my team, each with the team members who hold it', { query: teamDistributorsQuerySchema });
+doc('get', '/chemists/team', 'Managers: the chemists held by everyone in my team, each with the MRs who hold it', { query: teamChemistsQuerySchema });
+doc('get', '/chemists/{id}/assignments', 'Admin: who holds a chemist, now and before', { params: idParamsSchema });
+doc('post', '/chemists/{id}/assignments', 'Admin: make one more MR responsible for a chemist (many MRs can hold one)', { params: idParamsSchema, body: assignChemistBodySchema });
+doc('delete', '/chemists/{id}/assignments/{userId}', 'Admin: take one MR off a chemist; the others keep it', { params: chemistAssignmentParamsSchema });
 doc('get', '/chemists/added', 'Field staff: the chemists I added, with where each is in its approval', { query: listAddedChemistsQuerySchema });
 doc('post', '/chemists/added', 'Field staff: add a chemist with the phone’s location (offline-first) — it goes to my manager, then Admin', { body: addChemistBodySchema });
 doc('put', '/chemists/added/{id}', 'Field staff: change a rejected, withdrawn or reopened chemist — resubmits it', { params: idParamsSchema, body: editAddedChemistBodySchema });
@@ -134,6 +143,8 @@ function documentUploadMiddleware(req: Request, res: Response, next: NextFunctio
 function distributorsRouter(c: DistributorHandlers): Router {
   const writers = ['ADMIN', 'ACCOUNTANT'] as const;
   const router = Router();
+  // Before the CRUD `/:id`, so "team" isn't read as an id.
+  router.get('/team', authenticate(), requireRole('FIELD'), validate({ query: teamDistributorsQuerySchema }), c.team);
   router.post('/:id/documents', authenticate(), requireRole(...writers), validate({ params: idParamsSchema }), documentUploadMiddleware, validate({ body: distributorDocumentBodySchema }), c.uploadDocument);
   router.delete('/:id/documents/:documentId', authenticate(), requireRole(...writers), validate({ params: distributorDocumentParamsSchema }), c.removeDocument);
   // Deleting is Admin's alone, though the Accountant is a writer above: the role is named here, not taken from `writers`.
@@ -206,11 +217,24 @@ function doctorsRouter(c: DoctorHandlers): Router {
   return router;
 }
 
+/** Who holds a Chemist. Before the plain `/chemists` CRUD so `/team` and `/:id/assignments` aren't taken for an id. */
+function chemistAssignmentsRouter(c: ChemistAssignmentHandlers): Router {
+  const router = Router();
+  router.use(authenticate());
+  const admin = requireRole('ADMIN');
+  router.get('/team', requireRole('FIELD'), validate({ query: teamChemistsQuerySchema }), c.team);
+  router.get('/:id/assignments', admin, validate({ params: idParamsSchema }), c.listAssignments);
+  router.post('/:id/assignments', admin, validate({ params: idParamsSchema, body: assignChemistBodySchema }), c.assign);
+  router.delete('/:id/assignments/:userId', admin, validate({ params: chemistAssignmentParamsSchema }), c.unassign);
+  return router;
+}
+
 export function buildFieldMasterDataRouter(c: {
   products: CrudHandlers;
   specialties: CrudHandlers;
   chemists: CrudHandlers;
   addedChemists: AddedChemistHandlers;
+  chemistAssignments: ChemistAssignmentHandlers;
   distributors: DistributorHandlers;
   doctors: DoctorHandlers;
 }): Router {
@@ -220,6 +244,7 @@ export function buildFieldMasterDataRouter(c: {
   router.use('/specialties', crudRouter(c.specialties, { list: listSpecialtiesQuerySchema, create: createSpecialtyBodySchema, update: updateSpecialtyBodySchema }));
   router.use('/distributors', distributorsRouter(c.distributors));
   router.use('/chemists/added', addedChemistsRouter(c.addedChemists));
+  router.use('/chemists', chemistAssignmentsRouter(c.chemistAssignments));
   router.use('/chemists', crudRouter(c.chemists, { list: listChemistsQuerySchema, create: createChemistBodySchema, update: updateChemistBodySchema }, ['ADMIN', 'ACCOUNTANT'])); // the Accountant reads them to add an order for a chemist
   return router;
 }

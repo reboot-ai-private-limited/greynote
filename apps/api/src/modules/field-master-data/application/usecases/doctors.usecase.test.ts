@@ -192,20 +192,22 @@ describe('Doctors', () => {
       await expectStatus(get(field('mr1'), 'nope'), 404);
     });
 
-    it('losing the route hides the Doctor (switch on), but a returned route brings it back and Admin still sees it', async () => {
+    it('losing the route hides the Doctor from its MR (switch on) but not from the manager, who sees it flagged; a returned route brings it back for the MR', async () => {
       const d = await create();
       await assign(d.id, 'mr1');
       territory.userRoutes.set('mr1', ['route-2']); // route-1 taken away
       const list = listed.run();
       expect((await list.mine(field('mr1'), page)).total).toBe(0);
-      expect((await list.team(field('asm'), page)).total).toBe(0);
+      const team = await list.team(field('asm'), page);
+      expect(team.items.map((x) => [x.id, x.routeNotHeld])).toEqual([[d.id, true]]); // never vanishes for the manager
       await expectStatus(get(field('mr1'), d.id), 404);
-      await expectStatus(get(field('asm'), d.id), 404);
+      expect((await get(field('asm'), d.id)).id).toBe(d.id);
       expect((await get(admin, d.id)).assignedTo?.userId).toBe('mr1');
       expect(await visibility.isVisibleToAssignee('mr1', (await doctors.findById(d.id))!)).toBe(false);
       expect(assignments.rows[0]!.status).toBe('active'); // hidden when read, never rewritten
       territory.userRoutes.set('mr1', ['route-1']);
       expect((await list.mine(field('mr1'), page)).total).toBe(1);
+      expect((await list.team(field('asm'), page)).items[0]!.routeNotHeld).toBe(false);
       expect(await visibility.isVisibleToAssignee('mr1', (await doctors.findById(d.id))!)).toBe(true);
     });
 

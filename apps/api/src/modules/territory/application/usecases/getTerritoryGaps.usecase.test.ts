@@ -29,10 +29,10 @@ function setup(coverage: Record<string, { hqIds: string[]; zoneIds: string[] }>,
 }
 
 describe('territory gaps', () => {
-  it('lists what an ASM’s MRs have that the ASM does not: HQ, Zone and routes', async () => {
+  it('lists what an ASM’s MRs have that the ASM does not: HQ and Zone — never routes, which are computed from the team', async () => {
     const gaps = setup({ mr: { hqIds: ['hqA'], zoneIds: ['z1'] }, mr2: { hqIds: ['hqC'], zoneIds: ['z2'] }, asm: { hqIds: ['hqA'], zoneIds: ['z1'] } }, { mr: ['r1', 'r2'], mr2: ['r3'], asm: ['r1'] });
     const asm = (await gaps.all()).find((g) => g.managerId === 'asm')!;
-    expect(asm).toMatchObject({ hqIds: ['hqC'], zoneIds: ['z2'], routeIds: ['r2', 'r3'], reports: 2 });
+    expect(asm).toMatchObject({ hqIds: ['hqC'], zoneIds: ['z2'], routeIds: [], reports: 2 });
   });
 
   it('leaves out a manager with nothing missing, or no reports', async () => {

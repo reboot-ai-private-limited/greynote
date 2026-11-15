@@ -1,5 +1,6 @@
 import type { DoctorRepositoryPort } from '../domain/doctor.repository.port.js';
 import type { DoctorAssignmentRepositoryPort } from '../domain/doctorAssignment.repository.port.js';
+import type { ChemistAssignmentRepositoryPort } from '../domain/chemistAssignment.repository.port.js';
 import type { DistributorRepositoryPort } from '../domain/distributor.repository.port.js';
 import type { TerritoryPort } from '../domain/territory.port.js';
 import type { DoctorRetirement } from './doctorRetirement.js';
@@ -19,6 +20,7 @@ export class LeaverWork {
     private readonly territory: TerritoryPort,
     private readonly assign: AssignDoctorUseCase,
     private readonly retirement: DoctorRetirement,
+    private readonly chemistAssignments: ChemistAssignmentRepositoryPort,
   ) {}
 
   async count(userId: string): Promise<{ doctors: number; distributors: number }> {
@@ -43,6 +45,11 @@ export class LeaverWork {
       }
     }
     return { handedOver, unassigned };
+  }
+
+  /** The leaver comes off every chemist they hold; chemists others also hold stay with them. The rows are kept as history. */
+  releaseChemists(userId: string, actorId: string): Promise<number> {
+    return this.chemistAssignments.endAllForUser(userId, actorId);
   }
 
   releaseDistributors(userId: string): Promise<number> {

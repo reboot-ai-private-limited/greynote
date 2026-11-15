@@ -151,36 +151,35 @@ describe('manager candidates', () => {
 });
 
 describe('extending a manager’s territory', () => {
-  function extender(mainHq: Record<string, string> = {}) {
+  const extender = (mainHq: Record<string, string> = {}) => {
     const base = setup(mainHq);
-    const active = new Set<string>();
-    const assignments = { findActive: async (routeId: string, userId: string) => (active.has(`${routeId}:${userId}`) ? {} : null) } as never;
-    const assignRoute = { execute: async (routeId: string, userId: string) => void active.add(`${routeId}:${userId}`) } as never;
-    return { ...base, active, extend: new ExtendManagerTerritoryUseCase(base.get, base.set, hqRepo, assignments, assignRoute, directory) };
-  }
+    return { ...base, extend: new ExtendManagerTerritoryUseCase(base.get, base.set, hqRepo, directory) };
+  };
 
-  it('adds the HQ, its Zone and the routes for an ASM, and never removes what they had', async () => {
-    const { extend, set, get, active } = extender();
+  it('adds the HQ and its Zone for an ASM, and never removes what they had', async () => {
+    const { extend, set, get } = extender();
     await set.execute('asm1', { hqIds: ['hqC'], zoneIds: [] }, 'admin');
-    const out = await extend.execute('asm1', { hqIds: ['hqA'], zoneIds: [], routeIds: ['r1', 'r2'] }, 'admin');
-    expect(out).toMatchObject({ hqIds: ['hqC', 'hqA'], zoneIds: ['z2', 'z1'], routesAdded: 2 });
+    const out = await extend.execute('asm1', { hqIds: ['hqA'], zoneIds: [] }, 'admin');
+    expect(out).toEqual({ hqIds: ['hqC', 'hqA'], zoneIds: ['z2', 'z1'] });
     expect((await get.execute('asm1')).hqIds).toEqual(['hqC', 'hqA']);
-    expect([...active].sort()).toEqual(['r1:asm1', 'r2:asm1']);
   });
 
-  it('is idempotent: a second call adds nothing', async () => {
+  it('never copies routes onto a manager, even when an older client still sends them', async () => {
     const { extend } = extender();
-    await extend.execute('rsm', { hqIds: ['hqA'], zoneIds: [], routeIds: ['r1'] }, 'admin');
-    expect(await extend.execute('rsm', { hqIds: ['hqA'], zoneIds: [], routeIds: ['r1'] }, 'admin')).toMatchObject({ routesAdded: 0 });
+    // The use case no longer has anything to assign a route with: routes are computed from the team, not copied.
+    expect(await extend.execute('rsm', { hqIds: ['hqA'], zoneIds: [], routeIds: ['r1', 'r2'] }, 'admin')).not.toHaveProperty('routesAdded');
   });
 
-  it('gives a ZSM or the NSM the Zone only, with no routes', async () => {
-    const { extend, active, get } = extender();
-    const z = await extend.execute('zsm', { hqIds: ['hqA'], zoneIds: [], routeIds: ['r1'] }, 'admin');
-    expect(z).toEqual({ hqIds: [], zoneIds: ['z1'], routesAdded: 0 });
-    const n = await extend.execute('nsm', { hqIds: ['hqC'], zoneIds: [], routeIds: ['r1'] }, 'admin');
-    expect(n).toEqual({ hqIds: [], zoneIds: ['z2'], routesAdded: 0 });
+  it('is idempotent: a second call changes nothing', async () => {
+    const { extend } = extender();
+    const first = await extend.execute('rsm', { hqIds: ['hqA'], zoneIds: [] }, 'admin');
+    expect(await extend.execute('rsm', { hqIds: ['hqA'], zoneIds: [] }, 'admin')).toEqual(first);
+  });
+
+  it('gives a ZSM or the NSM the Zone only', async () => {
+    const { extend, get } = extender();
+    expect(await extend.execute('zsm', { hqIds: ['hqA'], zoneIds: [] }, 'admin')).toEqual({ hqIds: [], zoneIds: ['z1'] });
+    expect(await extend.execute('nsm', { hqIds: ['hqC'], zoneIds: [] }, 'admin')).toEqual({ hqIds: [], zoneIds: ['z2'] });
     expect((await get.execute('nsm')).zoneIds).toEqual(['z2']);
-    expect(active.size).toBe(0);
   });
 });

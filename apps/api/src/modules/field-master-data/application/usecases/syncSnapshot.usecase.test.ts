@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeFieldMasterDataSource } from '../syncSnapshot.js';
 import { DoctorVisibility } from '../doctorVisibility.js';
-import { FakeAssignments, FakeChemists, FakeConfig, FakeDistributors, FakeDoctors, FakeProducts, FakeSampleAllocations, FakeTerritory, FakeUsers, FakeSpecialties } from './fmdTestKit.js';
+import { FakeAssignments, FakeChemistAssignments, FakeChemists, FakeConfig, FakeDistributors, FakeDoctors, FakeProducts, FakeSampleAllocations, FakeTerritory, FakeUsers, FakeSpecialties } from './fmdTestKit.js';
 
 
 type Snapshot = {
@@ -17,6 +17,7 @@ describe('the phone’s cache of Field Master Data', () => {
   let assignments: FakeAssignments;
   let doctors: FakeDoctors;
   let chemists: FakeChemists;
+  let chemistAssignments: FakeChemistAssignments;
   let products: FakeProducts;
   let distributors: FakeDistributors;
   let allocations: FakeSampleAllocations;
@@ -37,6 +38,7 @@ describe('the phone’s cache of Field Master Data', () => {
     assignments = new FakeAssignments();
     doctors = new FakeDoctors(assignments);
     chemists = new FakeChemists();
+    chemistAssignments = new FakeChemistAssignments();
     products = new FakeProducts();
     distributors = new FakeDistributors();
     allocations = new FakeSampleAllocations();
@@ -45,7 +47,7 @@ describe('the phone’s cache of Field Master Data', () => {
     territory.userRoutes.set('mr1', ['route-1']);
     territory.userRoutes.set('mr2', ['route-2']);
     const users = new FakeUsers();
-    source = makeFieldMasterDataSource({ doctors, chemists, products, specialties: new FakeSpecialties(['ENT', 'Cardiologist']), distributors, allocations, visibility: new DoctorVisibility(assignments, territory, users, config), territory });
+    source = makeFieldMasterDataSource({ doctors, chemists, chemistAssignments, products, specialties: new FakeSpecialties(['ENT', 'Cardiologist']), distributors, allocations, visibility: new DoctorVisibility(assignments, territory, users, config), territory });
   });
 
   it('is named fieldMasterData', () => {
@@ -92,12 +94,18 @@ describe('the phone’s cache of Field Master Data', () => {
     expect(s.doctors).toEqual([]);
   });
 
-  it('Chemists are the active ones on the Routes the MR has, and follow the Routes too', async () => {
-    await chemists.create({ routeId: 'route-1', name: 'Sai Pharmacy', address: 'a', phone: null, location: null, capturedLocation: null, addedBy: null, clientRequestId: null, approvedAt: null, status: 'active' });
-    await chemists.create({ routeId: 'route-2', name: 'Far Pharmacy', address: 'a', phone: null, location: null, capturedLocation: null, addedBy: null, clientRequestId: null, approvedAt: null, status: 'active' });
-    await chemists.create({ routeId: 'route-1', name: 'Closed Pharmacy', address: 'a', phone: null, location: null, capturedLocation: null, addedBy: null, clientRequestId: null, approvedAt: null, status: 'inactive' });
-    expect(names((await snap('mr1')).chemists)).toEqual(['Sai Pharmacy']);
-    territory.userRoutes.set('mr1', ['route-1', 'route-2']);
+  it('Chemists are the active ones assigned to the MR — the Route no longer decides, and several MRs can hold one', async () => {
+    const make = (routeId: string, name: string, status: 'active' | 'inactive') => chemists.create({ routeId, name, address: 'a', phone: null, location: null, capturedLocation: null, addedBy: null, clientRequestId: null, approvedAt: null, status });
+    const sai = await make('route-1', 'Sai Pharmacy', 'active');
+    const far = await make('route-2', 'Far Pharmacy', 'active');
+    const closed = await make('route-1', 'Closed Pharmacy', 'inactive');
+    expect(names((await snap('mr1')).chemists)).toEqual([]); // holding the Route alone shows nothing
+    await chemistAssignments.assign({ chemistId: sai.id, userId: 'mr1', assignedBy: 'admin' });
+    await chemistAssignments.assign({ chemistId: closed.id, userId: 'mr1', assignedBy: 'admin' });
+    await chemistAssignments.assign({ chemistId: sai.id, userId: 'mr2', assignedBy: 'admin' });
+    expect(names((await snap('mr1')).chemists)).toEqual(['Sai Pharmacy']); // inactive ones never ship
+    expect(names((await snap('mr2')).chemists)).toEqual(['Sai Pharmacy']); // many MRs, one chemist
+    await chemistAssignments.assign({ chemistId: far.id, userId: 'mr1', assignedBy: 'admin' }); // an MR need not hold the Route
     expect(names((await snap('mr1')).chemists)).toEqual(['Far Pharmacy', 'Sai Pharmacy']);
   });
 

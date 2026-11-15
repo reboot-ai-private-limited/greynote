@@ -34,6 +34,12 @@ Payload: `{ routeId, name, address, location, phone? }`. The sync `clientId` is 
 | `PUT /field-master-data/chemists/added/:id` | Employee | Correct and resubmit a rejected, withdrawn or reopened chemist |
 | `POST /approvals/:id/approve` and `/reject` | Manager, Admin | Decide a new-chemist request (kind `NEW_CHEMIST`) |
 
+## 3a. Chemists are held by assignment (2026-11-16)
+
+The snapshot's `chemists` is now **the chemists assigned to me** (many MRs can hold one), not "on my routes". A chemist I add is assigned to me when it is
+approved. `CHEMIST_ROUTE_NOT_ASSIGNED` keeps its name and now means "no longer assigned to you". Managers read the team's chemists from
+`GET /field-master-data/chemists/team`. Details: [`team-visibility.md`](team-visibility.md).
+
 ## 4. What the snapshot carries (2026-11-03)
 
 Each entry of `chemists` in the snapshot (active, on my routes) now also has **`phone`**: the chemist's number, or `null` for every chemist without one (all those added before 2026-11-03 and any Admin left blank). Show it on the chemist card; make it tappable to call, as on the doctor card. Admin can add or change it on the web (`PUT /field-master-data/chemists/:id`); the phone picks the new value up at the next sync. No other snapshot field changed, and an older build that ignores `phone` keeps working.

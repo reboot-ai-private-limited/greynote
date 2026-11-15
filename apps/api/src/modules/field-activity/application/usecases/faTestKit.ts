@@ -250,6 +250,11 @@ export class FakeFmd implements FieldMasterDataPort {
   async listAssignedDoctors(userId: string) {
     return [...this.doctors.values()].filter((d) => this.assigned.has(`${userId}:${d.id}`)) as never;
   }
+  /** Chemists each MR holds, as `userId:chemistId` — the assignment now decides, not the Route. */
+  chemistHolders = new Set<string>(['mr1:c1']);
+  async isAssignedToChemist(userId: string, chemistId: string) {
+    return this.chemistHolders.has(`${userId}:${chemistId}`);
+  }
   async isAssignedToDoctor(userId: string, doctorId: string) {
     return this.assigned.has(`${userId}:${doctorId}`);
   }
@@ -628,7 +633,7 @@ export function faKit(nowIso = '2026-10-05T06:30:00Z') {
   const adminService = new CreateAdminDoctorServiceUseCase(fmd, services, () => new Date(clock.current));
   const allocateGift = new AllocateGiftUseCase(fmd, gifts, () => new Date(clock.current));
   const markGiftDone = new MarkGiftDoneUseCase(users, checks, gifts);
-  return { users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, expenses, logDoctorCall, logChemistCall, logFollowup, logExpense, taDa, leave, missedCheck, listExpenses, markPaid, paidTaDa, dcrSummary, services, gifts, submitService, adminService, allocateGift, markGiftDone };
+  return { checks, users, planning, approvals, dcrs, config, clock, gate, submit, views, fmd, territory, doctorCalls, chemistCalls, followups, expenses, logDoctorCall, logChemistCall, logFollowup, logExpense, taDa, leave, missedCheck, listExpenses, markPaid, paidTaDa, dcrSummary, services, gifts, submitService, adminService, allocateGift, markGiftDone };
 }
 
 /** The month records, shared by the tests that need them. */

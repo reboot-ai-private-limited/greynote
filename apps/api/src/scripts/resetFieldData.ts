@@ -25,6 +25,7 @@ export const RESET_COLLECTIONS = [
   'doctorvisuals',
   'doctorarchives',
   'doctors',
+  'chemistassignments',
   'chemists',
   'routeassignments',
   'routes',

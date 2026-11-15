@@ -57,6 +57,23 @@ export class MongoChemistAdapter implements ChemistRepositoryPort {
     return docs.map(toChemist);
   }
 
+  async listActiveAmong(ids: string[], filter: { search?: string | undefined; routeId?: string | undefined; alsoIds?: string[] | undefined }, page: PageQuery): Promise<PaginatedResult<Chemist>> {
+    const valid = [...new Set(ids)].filter((id) => Types.ObjectId.isValid(id));
+    if (valid.length === 0) return buildPaginatedResult([], 0, page);
+    const query: Record<string, unknown> = { _id: { $in: valid.map((id) => new Types.ObjectId(id)) }, status: 'active' };
+    if (filter.routeId) query['routeId'] = new Types.ObjectId(filter.routeId);
+    if (filter.search) {
+      const byName = { name: new RegExp(escapeRegex(filter.search), 'i') };
+      const also = (filter.alsoIds ?? []).filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
+      query['$or'] = also.length > 0 ? [byName, { _id: { $in: also } }] : [byName];
+    }
+    const [docs, total] = await Promise.all([
+      ChemistModel.find(query).sort({ name: 1, _id: 1 }).skip(toSkipLimit(page).skip).limit(page.pageSize).lean(),
+      ChemistModel.countDocuments(query),
+    ]);
+    return buildPaginatedResult(docs.map(toChemist), total, page);
+  }
+
   async listAllActive(): Promise<Chemist[]> {
     return (await ChemistModel.find({ status: 'active' }).sort({ name: 1, _id: 1 }).lean()).map(toChemist);
   }

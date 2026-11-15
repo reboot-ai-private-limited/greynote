@@ -193,6 +193,23 @@ describe('logging the day’s calls and follow-ups', () => {
       });
     });
 
+    describe('a manager logging a call on a team doctor', () => {
+      it('a manager at any level above the assigned MR passes; a manager of another team, or the MR’s peer, is refused', async () => {
+        kit.users.add('rsm', { managerId: 'zsm' });
+        kit.users.add('zsm');
+        kit.users.users.get('asm')!.managerId = 'rsm';
+        expect((await kit.checks.doctor('asm', 'd1')).id).toBe('d1'); // direct manager
+        expect((await kit.checks.doctor('rsm', 'd1')).id).toBe('d1'); // two levels up
+        expect((await kit.checks.doctor('zsm', 'd1')).id).toBe('d1'); // three levels up
+        for (const outsider of ['mr2', 'stranger']) expect((await refusal(kit.checks.doctor(outsider, 'd1'))).code).toBe('DOCTOR_NOT_ASSIGNED');
+      });
+
+      it('a doctor nobody holds is refused even for a manager', async () => {
+        kit.fmd.assignedTo.delete('d1');
+        expect((await refusal(kit.checks.doctor('asm', 'd1'))).code).toBe('DOCTOR_NOT_ASSIGNED');
+      });
+    });
+
     describe('work-with colleagues', () => {
       it('active colleagues, each once, never themselves', async () => {
         expect((await log({ workWith: ['mr2', 'asm'] })).serverId).toBeDefined();
@@ -246,12 +263,12 @@ describe('logging the day’s calls and follow-ups', () => {
       expect(kit.chemistCalls.rows).toHaveLength(1);
     });
 
-    it('a Chemist that no longer exists → CHEMIST_NOT_FOUND; on a Route the MR lost → CHEMIST_ROUTE_NOT_ASSIGNED', async () => {
+    it('a Chemist that no longer exists → CHEMIST_NOT_FOUND; one the MR is no longer assigned to → CHEMIST_ROUTE_NOT_ASSIGNED (code kept for phones in the field)', async () => {
       expect((await refusal(kit.logChemistCall.execute(REC, chemistCall({ chemistId: 'nobody' }), tx))).code).toBe('CHEMIST_NOT_FOUND');
       kit.fmd.chemists.get('c1')!.status = 'inactive';
       expect((await refusal(kit.logChemistCall.execute(REC, chemistCall(), tx))).code).toBe('CHEMIST_NOT_FOUND');
       kit.fmd.chemists.get('c1')!.status = 'active';
-      kit.territory.routesByUser.set('mr1', ['route-2']);
+      kit.fmd.chemistHolders.delete('mr1:c1');
       expect((await refusal(kit.logChemistCall.execute(REC, chemistCall(), tx))).code).toBe('CHEMIST_ROUTE_NOT_ASSIGNED');
       expect(kit.chemistCalls.rows).toHaveLength(0);
     });
@@ -280,7 +297,7 @@ describe('logging the day’s calls and follow-ups', () => {
     it('is refused by the gate and by the same checks on who it is about', async () => {
       kit.fmd.assigned.delete('mr1:d1');
       expect((await refusal(kit.logFollowup.execute(REC, followup('DOCTOR', 'd1'), tx))).code).toBe('DOCTOR_NOT_ASSIGNED');
-      kit.territory.routesByUser.set('mr1', []);
+      kit.fmd.chemistHolders.delete('mr1:c1');
       expect((await refusal(kit.logFollowup.execute(REC, followup('CHEMIST', 'c1'), tx))).code).toBe('CHEMIST_ROUTE_NOT_ASSIGNED');
       kit.users.users.get('mr1')!.blocked = true;
       expect((await refusal(kit.logFollowup.execute(REC, followup('DOCTOR', 'd1'), tx))).code).toBe('USER_BLOCKED');

@@ -37,8 +37,16 @@ export class CallChecks {
     if (!doctor || doctor.status !== 'active') throw new LogRefusal(LOG_CODES.doctorNotFound, 'This doctor isn’t on the list any more.');
     if (await this.master.isAssignedToDoctor(userId, doctorId)) return doctor;
     const assigned = await this.master.getAssignedUserId(doctorId);
-    if (assigned !== null && (await this.users.getDownline(userId)).some((u) => u.id === assigned)) return doctor;
+    if (assigned !== null && (await this.isAbove(userId, assigned))) return doctor;
     throw new LogRefusal(LOG_CODES.doctorNotAssigned, 'You are no longer assigned to this doctor, so the call can’t be recorded.');
+  }
+
+  /**
+   * Whether `managerId` is above `memberId` in the reporting chain. Walks up from the one assigned MR (about five hops) rather than loading
+   * the manager's whole downline, so a ZSM or NSM logging a call costs the same as an ASM.
+   */
+  private async isAbove(managerId: string, memberId: string): Promise<boolean> {
+    return (await this.users.getManagerChain(memberId)).some((u) => u.id === managerId);
   }
 
   /**
@@ -50,16 +58,17 @@ export class CallChecks {
     if (!doctor || doctor.status !== 'active') throw new LogRefusal(LOG_CODES.doctorNotFound, 'This doctor isn’t on the list any more.');
     if (await this.master.isAssignedToDoctor(userId, doctorId)) return doctor;
     const assigned = await this.master.getAssignedUserId(doctorId);
-    if (assigned !== null && (await this.users.getDownline(userId)).some((u) => u.id === assigned)) return doctor;
+    if (assigned !== null && (await this.isAbove(userId, assigned))) return doctor;
     throw new LogRefusal(LOG_CODES.doctorNotAssigned, 'This doctor is not yours or your team’s, so a service can’t be requested for them.');
   }
 
-  /** An active Chemist on a Route the MR still has. */
+  /** An active Chemist the MR is assigned to now (assignment, not the Route, decides — decision-log 2026-11-16). */
   async chemist(userId: string, chemistId: string): Promise<Chemist> {
     const chemist = await this.master.getChemist(chemistId);
     if (!chemist || chemist.status !== 'active') throw new LogRefusal(LOG_CODES.chemistNotFound, 'This chemist isn’t on the list any more.');
-    if (!(await this.territory.listRoutesForUser(userId)).some((r) => r.id === chemist.routeId)) {
-      throw new LogRefusal(LOG_CODES.chemistRouteNotAssigned, 'You no longer have this chemist’s route, so the call can’t be recorded.');
+    // The refusal code keeps its old name so phones already in the field still recognise it; it now means "no longer assigned".
+    if (!(await this.master.isAssignedToChemist(userId, chemistId))) {
+      throw new LogRefusal(LOG_CODES.chemistRouteNotAssigned, 'You are no longer assigned to this chemist, so the call can’t be recorded.');
     }
     return chemist;
   }

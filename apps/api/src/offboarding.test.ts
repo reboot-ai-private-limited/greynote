@@ -8,6 +8,7 @@ function sources(over: Partial<{ [K in keyof OffboardingSources]: Partial<Offboa
       countLeaverWork: async () => ({ doctors: 10, distributors: 1 }),
       releaseLeaverDoctors: async () => ({ handedOver: 8, unassigned: 2 }),
       releaseLeaverDistributors: async () => 1,
+      releaseLeaverChemists: async () => 2,
       ...over.fieldMasterData,
     },
     planning: { countLeaverPlans: async () => 2, closeLeaverPlans: async () => 2, ...over.planning },

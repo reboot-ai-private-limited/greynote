@@ -76,6 +76,9 @@ Per employee: `quota` (sum of frequencies), `made`, `missed`, `doctors`, `comple
 | `GET /reports/doctor-visits` | Employee, Manager, Admin | The month's quota, made, missed and stage |
 | `POST /approvals/:id/approve` and `/reject` | Manager, Admin | Decide a new-doctor request |
 
+> **Managers (2026-11-16):** the team's doctors are computed from the downline, a doctor whose MR lost the route stays in the manager's list
+> with `routeNotHeld`, and the phone shows a separate online **Team doctors** tab. See [`team-visibility.md`](team-visibility.md).
+
 ## 5. What changed for the phone (2026-10-12)
 
 1. Add **clinic name** and **phone** (both optional) to the add-doctor form, the offline queue payload and the doctor card.

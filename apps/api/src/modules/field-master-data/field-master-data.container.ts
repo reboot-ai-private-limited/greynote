@@ -59,13 +59,16 @@ import type { TerritoryPort } from './domain/territory.port.js';
 import type { UserDirectoryPort } from './domain/userDirectory.port.js';
 import type { FieldMasterDataPublicContract } from './field-master-data.public.js';
 import { MongoChemistAdapter } from './infrastructure/mongoChemist.adapter.js';
+import { MongoChemistAssignmentAdapter } from './infrastructure/mongoChemistAssignment.adapter.js';
+import { ListTeamDistributorsUseCase } from './application/usecases/listTeamDistributors.usecase.js';
+import { AssignChemistUseCase, ListChemistAssignmentsUseCase, ListTeamChemistsUseCase, UnassignChemistUseCase } from './application/usecases/chemistAssignments.usecase.js';
 import { MongoDistributorAdapter } from './infrastructure/mongoDistributor.adapter.js';
 import { MongoDoctorAdapter } from './infrastructure/mongoDoctor.adapter.js';
 import { MongoDoctorAssignmentAdapter } from './infrastructure/mongoDoctorAssignment.adapter.js';
 import { MongoProductAdapter } from './infrastructure/mongoProduct.adapter.js';
 import { MongoSampleAllocationAdapter } from './infrastructure/mongoSampleAllocation.adapter.js';
 import { editAddedChemistBodySchema, editAddedDoctorBodySchema } from './interface/field-master-data.schemas.js';
-import { makeAddedChemistControllers, makeChemistControllers, makeDistributorControllers, makeDoctorControllers, makeProductControllers, makeSpecialtyControllers } from './interface/field-master-data.controller.js';
+import { makeAddedChemistControllers, makeChemistAssignmentControllers, makeChemistControllers, makeDistributorControllers, makeDoctorControllers, makeProductControllers, makeSpecialtyControllers } from './interface/field-master-data.controller.js';
 import { buildFieldMasterDataRouter } from './interface/field-master-data.route.js';
 
 export interface FieldMasterDataContainer {
@@ -91,6 +94,7 @@ export function buildFieldMasterDataContainer(
   // 1. Adapters
   const products = new MongoProductAdapter();
   const chemists = new MongoChemistAdapter();
+  const chemistAssignments = new MongoChemistAssignmentAdapter();
   const specialties = new MongoSpecialtyAdapter();
   const specialtyCatalog = new SpecialtyCatalog(specialties);
   const distributors = new MongoDistributorAdapter();
@@ -117,7 +121,7 @@ export function buildFieldMasterDataContainer(
     finalApproverRoles: ['ADMIN'],
     managerOnly: true,
     describeRecords: makeChemistDescriber(chemists, territory),
-    onStatusChange: makeChemistApprovalHandler(chemists),
+    onStatusChange: makeChemistApprovalHandler(chemists, chemistAssignments),
   });
 
   // 2. Use cases
@@ -134,10 +138,14 @@ export function buildFieldMasterDataContainer(
     update: new UpdateSpecialtyUseCase(specialties, doctors),
   };
   const chemistUseCases = {
-    list: new ListChemistsUseCase(chemists),
+    list: new ListChemistsUseCase(chemists, chemistAssignments),
     create: new CreateChemistUseCase(chemists, territory),
     get: new GetChemistUseCase(chemists),
     update: new UpdateChemistUseCase(chemists, territory),
+    assign: new AssignChemistUseCase(chemists, chemistAssignments, users),
+    unassign: new UnassignChemistUseCase(chemistAssignments),
+    listAssignments: new ListChemistAssignmentsUseCase(chemistAssignments, users),
+    team: new ListTeamChemistsUseCase(chemists, chemistAssignments, users),
   };
 
   const visibility = new DoctorVisibility(assignments, territory, users, config);
@@ -150,12 +158,12 @@ export function buildFieldMasterDataContainer(
   const addedChemists = new AddedChemists(chemists, territory, approvals, transactions, users, config);
   sync.registerHandler(makeNewChemistSyncHandler(addedChemists, (payload) => editAddedChemistBodySchema.parse(payload)));
   // …and what the phone caches of this module, as one snapshot of what the caller may see.
-  sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, products, specialties, distributors, allocations: sampleAllocations, visibility, territory }));
+  sync.registerSource(makeFieldMasterDataSource({ doctors, chemists, chemistAssignments, products, specialties, distributors, allocations: sampleAllocations, visibility, territory }));
 
   const retirement = new DoctorRetirement(doctors, assignments, sampleAllocations, new MongoDoctorArchiveAdapter(), users, transactions, photoStorage);
   const updateDoctor = new UpdateDoctorUseCase(doctors, assignments, territory, views, specialtyCatalog, transactions, retirement);
   const assignDoctor = new AssignDoctorUseCase(doctors, assignments, users, territory, transactions, retirement);
-  const leaverWork = new LeaverWork(doctors, assignments, distributors, territory, assignDoctor, retirement);
+  const leaverWork = new LeaverWork(doctors, assignments, distributors, territory, assignDoctor, retirement, chemistAssignments);
   const doctorUseCases = {
     list: new ListDoctorsUseCase(doctors, views, users, assignments),
     create: new CreateDoctorUseCase(doctors, territory, views, specialtyCatalog),
@@ -183,6 +191,7 @@ export function buildFieldMasterDataContainer(
     get: new GetDistributorUseCase(distributors, territory),
     update: new UpdateDistributorUseCase(distributors, territory, users),
     retirement: distributorRetirement,
+    team: new ListTeamDistributorsUseCase(distributors, users),
     uploadDocument: new UploadDistributorDocumentUseCase(distributors, distributorDocumentStorage),
     removeDocument: new RemoveDistributorDocumentUseCase(distributors, distributorDocumentStorage),
   };
@@ -192,6 +201,8 @@ export function buildFieldMasterDataContainer(
       countLeaverWork: (userId) => leaverWork.count(userId),
       releaseLeaverDoctors: (userId, handoverTo, actorId) => leaverWork.releaseDoctors(userId, handoverTo, actorId),
       releaseLeaverDistributors: (userId) => leaverWork.releaseDistributors(userId),
+      releaseLeaverChemists: (userId, actorId) => leaverWork.releaseChemists(userId, actorId),
+      isAssignedToChemist: async (userId, chemistId) => (await chemists.findById(chemistId))?.status === 'active' && (await chemistAssignments.isAssigned(userId, chemistId)),
       countOnRoutes: async (routeIds) => {
         if (routeIds.length === 0) return { doctors: 0, chemists: 0, distributors: 0 };
         const ids = routeIds.map((id) => new Types.ObjectId(id));
@@ -249,13 +260,13 @@ export function buildFieldMasterDataContainer(
       canActOnChemist: async (userId, chemistId) => {
         const chemist = await chemists.findById(chemistId);
         if (!chemist || chemist.status !== 'active') return false;
-        return (await territory.listRoutesForUser(userId)).some((r) => r.id === chemist.routeId);
+        // Only a chemist handed to the employee; the Route no longer grants access (decision-log 2026-11-16).
+        return chemistAssignments.isAssigned(userId, chemistId);
       },
       listOutletsForUser: async (userId) => {
-        const scope = await scopeOfUser(territory, userId);
-        const [chemistList, distributorList] = await Promise.all([chemists.listActiveOnRoutes(scope.routeIds), distributors.listActiveForUser(userId)]);
-        // listActiveOnRoutes only returns active ones.
-        return { chemists: chemistList.map((c) => ({ ...c, status: 'active' as const })), distributors: distributorList };
+        const [chemistList, distributorList] = await Promise.all([chemists.listActiveAmong((await chemistAssignments.listActiveForUsers([userId])).map((a) => a.chemistId), {}, { page: 1, pageSize: 100_000 }), distributors.listActiveForUser(userId)]);
+        // listActiveAmong only returns active ones.
+        return { chemists: chemistList.items.map((c) => ({ ...c, status: 'active' as const })), distributors: distributorList };
       },
       getSampleAllocation: (doctorId, productId) => sampleAllocations.find(doctorId, productId),
       decrementRemaining: (allocationId, quantity, ctx) => sampleAllocations.decrementRemaining(allocationId, quantity, ctx),
@@ -280,6 +291,7 @@ export function buildFieldMasterDataContainer(
         specialties: makeSpecialtyControllers(specialtyUseCases),
         chemists: makeChemistControllers(chemistUseCases),
         addedChemists: makeAddedChemistControllers(addedChemists),
+        chemistAssignments: makeChemistAssignmentControllers({ team: chemistUseCases.team, listAssignments: chemistUseCases.listAssignments, assign: chemistUseCases.assign, unassign: chemistUseCases.unassign }),
         doctors: makeDoctorControllers(doctorUseCases),
         distributors: makeDistributorControllers(distributorUseCases),
       }),

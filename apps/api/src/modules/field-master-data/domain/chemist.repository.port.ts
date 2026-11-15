@@ -18,6 +18,8 @@ export interface ChemistRepositoryPort {
   listAllActive(): Promise<Chemist[]>;
   /** Every active Chemist on these Routes — the phone's cache. */
   listActiveOnRoutes(routeIds: string[]): Promise<Chemist[]>;
+  /** Active Chemists among these ids, by name, optionally narrowed by Route and by a name search (which also keeps `alsoIds`, e.g. Chemists of an MR whose name matched) and paged — a team read over assignments. */
+  listActiveAmong(ids: string[], filter: { search?: string | undefined; routeId?: string | undefined; alsoIds?: string[] | undefined }, page: PageQuery): Promise<PaginatedResult<Chemist>>;
   create(input: Omit<Chemist, 'id'>): Promise<Chemist>;
   /** An employee-added Chemist. Throws `DuplicateRecordError` if this employee already created one with the same `clientRequestId`. */
   createProposed(input: Omit<Chemist, 'id'>, ctx: TransactionContext): Promise<Chemist>;
