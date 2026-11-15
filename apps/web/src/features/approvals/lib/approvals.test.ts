@@ -113,6 +113,10 @@ describe('actionLabel and groupByCycle', () => {
     expect(actionLabel(a('REJECT', 'MANAGER', 1))).toBe('Rejected as the manager');
     expect(actionLabel(a('SUBMIT', 'SUBMITTER', 1))).toBe('Submitted');
   });
+  it('says so when a submission was approved automatically', () => {
+    expect(actionLabel(a('SUBMIT', 'AUTO', 1))).toBe('Auto-approved (approval not required)');
+    expect(actionLabel(a('RESUBMIT', 'AUTO', 2))).toBe('Auto-approved (approval not required)');
+  });
   it('groups a history by round, newest round first, keeping order inside a round', () => {
     const groups = groupByCycle([
       a('SUBMIT', 'SUBMITTER', 1),

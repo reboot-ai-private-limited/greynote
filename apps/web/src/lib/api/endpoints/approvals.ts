@@ -16,6 +16,8 @@ export interface InboxQuery {
   status?: ApprovalStatus | undefined;
   /** `/approvals/all` only: leave out what is still open, for the reviewed list. */
   decided?: boolean | undefined;
+  /** `/approvals/all` only: automatically approved (approval not required) or decided by a person. */
+  approval?: 'auto' | 'person' | undefined;
   submitterId?: string | undefined;
   /** Part of the submitter's name, employee code or email. */
   search?: string | undefined;

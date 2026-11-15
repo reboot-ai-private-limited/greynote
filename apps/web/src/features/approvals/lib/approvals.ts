@@ -145,6 +145,7 @@ const AUTHORITY_LABEL: Record<ApprovalAuthority, string> = {
 /** `Approved as an Admin override`, `Submitted`. The authority is shown for decisions, where it matters. */
 export function actionLabel(a: Pick<ApprovalActionDto, 'action' | 'authority'>): string {
   const base = ACTION_LABEL[a.action];
+  if (a.authority === 'AUTO' && (a.action === 'SUBMIT' || a.action === 'RESUBMIT')) return 'Auto-approved (approval not required)';
   const decision = a.action === 'APPROVE' || a.action === 'REJECT' || a.action === 'REOPEN';
   return decision ? `${base} ${AUTHORITY_LABEL[a.authority]}` : base;
 }

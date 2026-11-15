@@ -41,6 +41,11 @@ const ANY = 'all';
 const SEARCH_DEBOUNCE_MS = 500;
 /** What "reviewed" holds: a request that is still open is not in it. A reopened one is, so Admin can find it after reopening. */
 const DECIDED_STATUSES: ApprovalStatus[] = ['APPROVED', 'REJECTED', 'WITHDRAWN', 'REOPENED'];
+const APPROVAL_OPTIONS = [
+  { value: ANY, label: 'Any approval' },
+  { value: 'auto', label: 'Auto-approved' },
+  { value: 'person', label: 'Decided by a person' },
+];
 const STATUS_OPTIONS = [
   { value: ANY, label: 'Any status' },
   ...DECIDED_STATUSES.map((value) => ({ value, label: STATUS_LABEL[value] })),
@@ -72,14 +77,21 @@ function ApprovalsPane({
   toolbar?: ReactNode;
 }) {
   return (
-    <section aria-label={title} className="min-w-0 py-4 first:pt-0 lg:px-5 lg:py-0 lg:first:pl-0 lg:last:pr-0">
+    <section
+      aria-label={title}
+      className="min-w-0 py-4 first:pt-0 lg:px-5 lg:py-0 lg:first:pl-0 lg:last:pr-0"
+    >
       <div className="mb-3 flex min-h-9 flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-text">
           {title}
-          {count === undefined ? null : <span className="ml-2 text-sm font-normal text-text-muted">{count}</span>}
+          {count === undefined ? null : (
+            <span className="ml-2 text-sm font-normal text-text-muted">{count}</span>
+          )}
         </h2>
       </div>
-      <div className="mb-3 flex h-10 items-center gap-3 overflow-x-auto whitespace-nowrap">{toolbar}</div>
+      <div className="mb-3 flex h-10 items-center gap-3 overflow-x-auto whitespace-nowrap">
+        {toolbar}
+      </div>
       <TopProgressBar active={query.isFetching && !query.isLoading} />
       <DataState
         isLoading={query.isLoading}
@@ -87,7 +99,12 @@ function ApprovalsPane({
         isEmpty={query.data?.items.length === 0}
         empty={{ title: emptyTitle, description: emptyDescription }}
       >
-        <DataTable columns={columns} rows={query.data?.items ?? []} rowKey={(row) => row.id} bleed={false} />
+        <DataTable
+          columns={columns}
+          rows={query.data?.items ?? []}
+          rowKey={(row) => row.id}
+          bleed={false}
+        />
         {query.data ? (
           <Pagination
             page={query.data.page}
@@ -110,7 +127,10 @@ const requestColumn = (): Column<ApprovalInboxItemDto> => ({
   header: 'Request',
   render: (r) => (
     <div>
-      <Link href={`/approvals/${r.id}`} className="font-medium text-text hover:text-accent hover:underline">
+      <Link
+        href={`/approvals/${r.id}`}
+        className="font-medium text-text hover:text-accent hover:underline"
+      >
         {requestTitle(r)}
       </Link>
       <div className="text-xs text-text-subtle">{requestDetail(r)}</div>
@@ -131,7 +151,16 @@ const openColumn = (): Column<ApprovalInboxItemDto> => ({
 
 export function ApprovalsScreen() {
   // The reviewed list pages on its own (`rpage`, `rsize`); the waiting one uses the usual `page` and `pageSize`.
-  const { values, page, pageSize, update } = useFilterParams(['kind', 'status', 'from', 'to', 'search', 'rpage', 'rsize']);
+  const { values, page, pageSize, update } = useFilterParams([
+    'kind',
+    'status',
+    'approval',
+    'from',
+    'to',
+    'search',
+    'rpage',
+    'rsize',
+  ]);
   const role = useSession().user?.role;
   const readOnly = useIsReadOnly();
   const tabs = approvalTabsFor(role);
@@ -157,6 +186,9 @@ export function ApprovalsScreen() {
       decided: true,
       ...shared,
       ...(values.status && { status: values.status as ApprovalStatus }),
+      ...((values.approval === 'auto' || values.approval === 'person') && {
+        approval: values.approval,
+      }),
     },
     !rangeError && canSeeReviewed,
   );
@@ -242,7 +274,11 @@ export function ApprovalsScreen() {
       header: 'Last action',
       render: (r) => (
         <div>
-          <div>{r.lastAction.actor?.name ?? '—'}</div>
+          <div>
+            {r.lastAction.authority === 'AUTO'
+              ? 'Auto-approved'
+              : (r.lastAction.actor?.name ?? '—')}
+          </div>
           <div className="text-xs text-text-subtle">{formatDate(r.lastAction.at)}</div>
         </div>
       ),
@@ -250,7 +286,7 @@ export function ApprovalsScreen() {
     openColumn(),
   ];
 
-  const filtered = values.from || values.to || values.status || values.search;
+  const filtered = values.from || values.to || values.status || values.approval || values.search;
 
   return (
     <>
@@ -264,9 +300,22 @@ export function ApprovalsScreen() {
         actions={
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 text-sm text-text-muted">
             <label htmlFor="approvals-from">Submitted from</label>
-            <Input id="approvals-from" type="date" value={values.from} onChange={(e) => change({ from: e.target.value })} className="w-40" />
+            <Input
+              id="approvals-from"
+              type="date"
+              value={values.from}
+              onChange={(e) => change({ from: e.target.value })}
+              className="w-40"
+            />
             <label htmlFor="approvals-to">to</label>
-            <Input id="approvals-to" type="date" value={values.to} onChange={(e) => change({ to: e.target.value })} className="w-40" aria-invalid={rangeError ? true : undefined} />
+            <Input
+              id="approvals-to"
+              type="date"
+              value={values.to}
+              onChange={(e) => change({ to: e.target.value })}
+              className="w-40"
+              aria-invalid={rangeError ? true : undefined}
+            />
           </div>
         }
       />
@@ -284,12 +333,21 @@ export function ApprovalsScreen() {
             </Tabs>
           </div>
         ) : null}
-        <SearchInput value={search} onChange={setSearch} placeholder="Search by employee name or code" label="Search approvals by employee" />
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search by employee name or code"
+          label="Search approvals by employee"
+        />
         {filtered ? (
-          <Button variant="ghost" size="sm" onClick={() => {
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
               setSearch('');
-              change({ status: '', from: '', to: '', search: '' });
-            }}>
+              change({ status: '', approval: '', from: '', to: '', search: '' });
+            }}
+          >
             Clear filters
           </Button>
         ) : null}
@@ -300,7 +358,9 @@ export function ApprovalsScreen() {
         ) : null}
       </ListToolbar>
 
-      <div className={`mt-4 grid grid-cols-1 divide-y divide-border lg:divide-y-0 ${canSeeReviewed ? 'lg:grid-cols-2 lg:divide-x' : ''}`}>
+      <div
+        className={`mt-4 grid grid-cols-1 divide-y divide-border lg:divide-y-0 ${canSeeReviewed ? 'lg:grid-cols-2 lg:divide-x' : ''}`}
+      >
         <ApprovalsPane
           title="Waiting on you"
           count={waiting.data?.total}
@@ -318,7 +378,9 @@ export function ApprovalsScreen() {
                   variant="secondary"
                   size="sm"
                   disabled={readOnly}
-                  onClick={() => setSelected(allChosen ? new Set() : new Set(selectable.map((r) => r.id)))}
+                  onClick={() =>
+                    setSelected(allChosen ? new Set() : new Set(selectable.map((r) => r.id)))
+                  }
                 >
                   {allChosen ? 'Clear selection' : `Select all ${selectable.length}`}
                 </Button>
@@ -330,7 +392,12 @@ export function ApprovalsScreen() {
                     <Button size="sm" disabled={readOnly} onClick={() => setBulk('APPROVE')}>
                       Approve selected
                     </Button>
-                    <Button size="sm" variant="secondary" disabled={readOnly} onClick={() => setBulk('REJECT')}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={readOnly}
+                      onClick={() => setBulk('REJECT')}
+                    >
                       Reject selected
                     </Button>
                   </>
@@ -344,13 +411,23 @@ export function ApprovalsScreen() {
             title="Reviewed"
             count={reviewed.data?.total}
             toolbar={
-              <div className="w-44">
-                <Select
-                  aria-label="Status"
-                  value={values.status || ANY}
-                  options={STATUS_OPTIONS}
-                  onValueChange={(v) => change({ status: v === ANY ? '' : v })}
-                />
+              <div className="flex gap-2">
+                <div className="w-44">
+                  <Select
+                    aria-label="Approval"
+                    value={values.approval || ANY}
+                    options={APPROVAL_OPTIONS}
+                    onValueChange={(v) => change({ approval: v === ANY ? '' : v })}
+                  />
+                </div>
+                <div className="w-44">
+                  <Select
+                    aria-label="Status"
+                    value={values.status || ANY}
+                    options={STATUS_OPTIONS}
+                    onValueChange={(v) => change({ status: v === ANY ? '' : v })}
+                  />
+                </div>
               </div>
             }
             query={reviewed}
@@ -369,7 +446,9 @@ export function ApprovalsScreen() {
           decision={bulk}
           rows={chosen}
           onClose={() => setBulk(null)}
-          onFinished={(decided) => setSelected((prev) => new Set([...prev].filter((id) => !decided.includes(id))))}
+          onFinished={(decided) =>
+            setSelected((prev) => new Set([...prev].filter((id) => !decided.includes(id))))
+          }
         />
       ) : null}
     </>

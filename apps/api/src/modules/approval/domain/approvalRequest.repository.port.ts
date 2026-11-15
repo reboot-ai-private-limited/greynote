@@ -24,6 +24,8 @@ export interface ApprovalListFilter {
   submitterIds?: string[] | undefined;
   submittedFrom?: Date | undefined;
   submittedTo?: Date | undefined;
+  /** `auto`: approved automatically (approval not required); `person`: every request that was not. */
+  approval?: 'auto' | 'person' | undefined;
 }
 
 export interface ApprovalListPage {

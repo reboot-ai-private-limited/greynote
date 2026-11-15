@@ -35,6 +35,7 @@
         "migrate:mrp-orders": "tsx src/scripts/migrate-mrp-orders.ts",
     "delete:orders": "tsx src/scripts/delete-orders.ts",
     "migrate:coverage-assignments": "tsx src/scripts/migrate-coverage-to-assignments.ts",
+    "reset:field-data": "tsx src/scripts/reset-field-data.ts",
         "migrate:late-grants": "tsx src/scripts/migrate-late-grants.ts",
         "migrate:targets": "tsx src/scripts/migrate-targets-to-ranges.ts",
         "report:manager-targets": "tsx src/scripts/report-manager-targets.ts",
