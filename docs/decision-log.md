@@ -2799,3 +2799,10 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 - **Approval restores, it doesn't refuse:** days that became locked between sending and approving are put back to the Daily Plan, else the last approved version (`approvedEntries`), and noted in `amendments`.
 - **The Tour Plan mirrors the approved Daily Plan** (working type, routes, remarks), never on trip days.
 - A late exception only moves the deadline. Not changed: deadlines, resubmit windows, who approves.
+
+
+## 2026-11-18: Targets shows only what is approved up the chain, and what is waiting
+
+- Achievement stays **final only when approved all the way up** (MR by their manager, a manager's team report by their own manager, the top by Admin); a live sum would let a manager show a figure their own manager never signed off. The server's final numbers are unchanged.
+- The Targets screen now says so: the old "distributors' stock" text and the Done-orders-as-primary block are corrected; a manager sees **what is waiting** (approved MR reports below, live) with the team-report status and the next action; the team is a tree whose lines load when shown.
+- `employee-sales` gains `team.approvedMrCount`, `waitingPaise`, `waitingPrimaryPaise`, `reportStatus` (additive). The web Sales dashboard and breakdown are unchanged.

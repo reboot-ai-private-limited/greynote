@@ -61,7 +61,16 @@ export type EmployeeSalesReport = {
   totals: { targetPaise: number; primaryPaise: number; secondaryPaise: number; achievementPercent: number | null };
   targets: EmployeeTargetFigure[];
   /** Only for a manager: their figures are the sum of every MR in their downline (they have no target of their own). */
-  team?: { mrCount: number };
+  team?: {
+    mrCount: number;
+    /** MRs below who have an approved report in the range. Absent from older servers. */
+    approvedMrCount?: number;
+    /** The approved MR reports below, added up live: approved by their manager, not yet signed off by the manager's own manager. */
+    waitingPaise?: number;
+    waitingPrimaryPaise?: number;
+    /** Where the manager's own team report for the month stands; it counts as their achievement once approved. */
+    reportStatus?: 'NOT_SUBMITTED' | 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  } | null;
 };
 
 /** Months are `YYYY-MM`, both inclusive. */
