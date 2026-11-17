@@ -42,6 +42,7 @@ export default function TeamDoctorsScreen() {
   const [userId, setUserId] = useState<string | null>(typeof preset === 'string' && preset !== '' ? preset : null);
   const [search, setSearch] = useState('');
   const [doctors, setDoctors] = useState<TeamDoctor[] | null>(null);
+  const [paging, setPaging] = useState({ page: 0, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editing, setEditing] = useState<TeamDoctor | null>(null);
@@ -51,20 +52,26 @@ export default function TeamDoctorsScreen() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'danger' | 'success' | 'info'; text: string } | null>(null);
 
-  const load = useCallback(async () => {
-    if (!userId || !online) return;
-    setLoading(true);
-    try {
-      setDoctors(await listTeamDoctors(userId, search.trim() || undefined));
-      setLoadError(null);
-    } catch (err) {
-      setLoadError(errorText(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, online, search]);
+  // No person chosen = the whole team. `page` 1 replaces the list; later pages add to it.
+  const load = useCallback(
+    async (page = 1) => {
+      if (!online) return;
+      setLoading(true);
+      try {
+        const res = await listTeamDoctors(userId, search.trim() || undefined, page);
+        setDoctors((prev) => (page === 1 || !prev ? res.items : [...prev, ...res.items]));
+        setPaging({ page: res.page, totalPages: res.totalPages, total: res.total });
+        setLoadError(null);
+      } catch (err) {
+        setLoadError(errorText(err));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userId, online, search],
+  );
 
-  const pickPerson = (id: string) => {
+  const pickPerson = (id: string | null) => {
     setUserId(id);
     setDoctors(null);
     setEditing(null);
@@ -73,7 +80,7 @@ export default function TeamDoctorsScreen() {
 
   // Search waits a moment after typing stops.
   useEffect(() => {
-    const t = setTimeout(() => void load(), 300);
+    const t = setTimeout(() => void load(1), 300);
     return () => clearTimeout(t);
   }, [load]);
 
@@ -106,7 +113,7 @@ export default function TeamDoctorsScreen() {
       await updateDoctorTargets(editing.id, body);
       setMsg({ tone: 'success', text: `Saved for ${editing.name}.` });
       setEditing(null);
-      void load();
+      void load(1);
     } catch (err) {
       setMsg({ tone: 'danger', text: errorText(err) });
     } finally {
@@ -133,6 +140,7 @@ export default function TeamDoctorsScreen() {
             disabled={busy}
           />
         )}
+        {userId ? <PrimaryButton label="Show the whole team" variant="text" disabled={busy} onPress={() => pickPerson(null)} style={styles.phone} /> : null}
       </CardSection>
 
       {editing ? (
@@ -151,31 +159,34 @@ export default function TeamDoctorsScreen() {
         </CardSection>
       ) : null}
 
-      {userId ? (
-        <>
-          <TextField label="Search the doctor’s name" value={search} onChangeText={setSearch} autoCapitalize="none" editable={online} />
-          {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
-          {loading && !doctors ? <Skeleton cards={3} lines={2} /> : null}
-          {doctors && doctors.length === 0 ? <Notice tone="info">{search.trim() ? 'No doctor matches that name.' : 'This employee has no doctors yet.'}</Notice> : null}
-          {(doctors ?? []).map((d) => (
-            <InfoCard key={d.id}>
-              <View style={styles.row}>
-                <DoctorAvatar name={d.name} photoUrl={d.photoUrl} />
-                <View style={styles.grow}>
-                  <ThemedText type="smallBold">{d.name}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {[d.specialty, d.clinicName].filter(Boolean).join(' · ')}
-                  </ThemedText>
-                </View>
-                <Pill text={d.visitFrequency ? `${d.visitFrequency} a month` : 'No target'} accent={d.visitFrequency ? 'green' : 'slate'} />
-              </View>
-              {d.phone ? <PrimaryButton label={d.phone} variant="text" onPress={() => void Linking.openURL(`tel:${d.phone}`)} style={styles.phone} /> : null}
-              <PrimaryButton label="Set visit target →" variant="text" disabled={busy || readOnly} onPress={() => open(d)} style={styles.phone} />
-            </InfoCard>
-          ))}
-        </>
-      ) : team.length > 0 ? (
-        <Notice tone="info">Choose an employee to see their doctors.</Notice>
+      <TextField label="Search the doctor, or an MR’s name or code" value={search} onChangeText={setSearch} autoCapitalize="none" editable={online} />
+      {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
+      {loading && !doctors ? <Skeleton cards={3} lines={2} /> : null}
+      {doctors && doctors.length === 0 ? <Notice tone="info">{search.trim() ? 'No doctor matches that search.' : userId ? 'This employee has no doctors yet.' : 'Nobody in your team holds a doctor yet.'}</Notice> : null}
+      {(doctors ?? []).map((d) => (
+        <InfoCard key={d.id}>
+          <View style={styles.row}>
+            <DoctorAvatar name={d.name} photoUrl={d.photoUrl} />
+            <View style={styles.grow}>
+              <ThemedText type="smallBold">{d.name}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {[d.specialty, d.clinicName].filter(Boolean).join(' · ')}
+              </ThemedText>
+              {d.assignedTo ? (
+                <ThemedText type="small" themeColor="textSecondary">
+                  {d.assignedTo.name} ({d.assignedTo.employeeCode})
+                </ThemedText>
+              ) : null}
+            </View>
+            <Pill text={d.visitFrequency ? `${d.visitFrequency} a month` : 'No target'} accent={d.visitFrequency ? 'green' : 'slate'} />
+          </View>
+          {d.routeNotHeld ? <Pill text="Route not held by this MR" accent="amber" /> : null}
+          {d.phone ? <PrimaryButton label={d.phone} variant="text" onPress={() => void Linking.openURL(`tel:${d.phone}`)} style={styles.phone} /> : null}
+          <PrimaryButton label="Set visit target →" variant="text" disabled={busy || readOnly} onPress={() => open(d)} style={styles.phone} />
+        </InfoCard>
+      ))}
+      {doctors && paging.page < paging.totalPages ? (
+        <PrimaryButton label={`Show more (${doctors.length} of ${paging.total})`} variant="text" loading={loading} onPress={() => void load(paging.page + 1)} />
       ) : null}
     </ScreenShell>
   );

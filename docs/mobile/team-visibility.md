@@ -1,6 +1,6 @@
 # Mobile — What a manager sees of the team (doctors, chemists, distributors, territory)
 
-**Server built 2026-11-16 (API and web). The phone is not changed yet: this is what the field app team builds against.** Decision: [`decision-log.md`](../decision-log.md), 2026-11-16.
+**Server built 2026-11-16 (API and web). Phone built 2026-11-17:** Team → Reports → Manage has Team doctors (whole team or one person, 20 a page, "route not held" flag, the MR's name), Team chemists, Team distributors and Territory (zones → HQs → routes). All online only. Decision: [`decision-log.md`](../decision-log.md), 2026-11-16.
 
 ## 1. The rule: computed, never copied
 

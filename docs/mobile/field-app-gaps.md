@@ -31,9 +31,9 @@ The field app (`apps/fieldApp`, another team's) last had real feature work on **
 
 | # | Gap | Where |
 |---|---|---|
-| B9 | **Team doctors / chemists / distributors tabs** for managers (online, paged, search; show the MRs who hold each). Show a "route not held" badge when a doctor has `routeNotHeld`. | [`team-visibility.md`](team-visibility.md) §2, §4 |
-| B10 | **Chemists in the snapshot are now "assigned to me", not "on my routes".** Stop any client-side route filtering of chemists; handle `CHEMIST_ROUTE_NOT_ASSIGNED` as "no longer assigned". | `team-visibility.md` §2 |
-| B11 | **Team → Territory** screen and a route picker that is HQ first, then type-ahead search (never a full route list). | `team-visibility.md` §2 |
+| B9 | **DONE 2026-11-17.** **Team doctors / chemists / distributors tabs** for managers (online, paged, search; show the MRs who hold each). Show a "route not held" badge when a doctor has `routeNotHeld`. | [`team-visibility.md`](team-visibility.md) §2, §4 |
+| B10 | **DONE 2026-11-17.** **Chemists in the snapshot are now "assigned to me", not "on my routes".** Stop any client-side route filtering of chemists; handle `CHEMIST_ROUTE_NOT_ASSIGNED` as "no longer assigned". | `team-visibility.md` §2 |
+| B11 | **DONE 2026-11-17.** **Team → Territory** screen and a route picker that is HQ first, then type-ahead search (never a full route list). | `team-visibility.md` §2 |
 
 ## C. Needs a server change first
 
