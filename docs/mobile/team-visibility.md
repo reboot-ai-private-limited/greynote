@@ -72,14 +72,18 @@ A manager may call on any doctor assigned to anyone in their team, on any route 
 - The reviewing manager still approves or rejects the day; that is the backstop for anything odd.
 - The check cost does not depend on team size (it walks up from the one assigned MR), so a ZSM logging a call is as cheap as an ASM.
 
-## 4. Screens the phone should have
+## 4. Screens on the phone
 
-| Screen | Data |
-|---|---|
-| Doctors → **My** / **Team** (managers) | snapshot / `GET /doctors/team` |
-| Chemists → **My** / **Team** (managers) | snapshot / `GET /chemists/team` |
-| Distributors → **Team** (managers) | `GET /distributors/team`; the MR's own list is the snapshot, as today |
-| Team → **Territory** (managers) | `GET /territory/team`, then `…/hqs/:hqId/routes` |
+One list per screen, no "assigned / added by you" headings. A row not yet approved carries a **red Pending** tag.
+
+| Screen | MR | Manager |
+|---|---|---|
+| Doctors (Home) | the snapshot (offline): assigned + added-by-me + unsent, pending first; search; 20 at a time as you scroll; can add | `GET /doctors/team` (online): the downline's, the MR on each row, "route not held" flag, "Set visit target"; search (300 ms pause) and infinite scroll, 20 a page; cannot add |
+| Chemists (Home) | same as Doctors | `GET /chemists/team`, same |
+| Team → Reports → Manage → Team distributors | none (the MR's list is the snapshot) | `GET /distributors/team` |
+| Team → Reports → Manage → Territory | none | `GET /territory/team`, then `…/hqs/:hqId/routes` |
+
+A downline MR's pending doctor or chemist is decided under Team → Approvals; the team lists show active items only.
 
 Show the MR's name on every team row (`assignedTo`). When several hold it, show "Asha +1".
 

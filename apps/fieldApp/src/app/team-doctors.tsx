@@ -15,6 +15,8 @@ import { ThemedText } from '@/components/themed-text';
 import { CardSection, InfoCard, Pill, PersonDropdown, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { useDayGate } from '@/hooks/use-day-gate';
+import { useDebounced } from '@/hooks/use-debounced';
+import { useOnEndReached } from '@/hooks/use-end-reached';
 import { listTeamDoctors, updateDoctorTargets, type DoctorTargetsBody, type TeamDoctor } from '@/lib/added-doctors';
 import { ApiError, NetworkError } from '@/lib/api';
 import { useFinancialYear } from '@/lib/financial-year';
@@ -41,6 +43,7 @@ export default function TeamDoctorsScreen() {
   const preset = useLocalSearchParams<{ userId?: string }>().userId;
   const [userId, setUserId] = useState<string | null>(typeof preset === 'string' && preset !== '' ? preset : null);
   const [search, setSearch] = useState('');
+  const term = useDebounced(search, 300);
   const [doctors, setDoctors] = useState<TeamDoctor[] | null>(null);
   const [paging, setPaging] = useState({ page: 0, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(false);
@@ -58,7 +61,7 @@ export default function TeamDoctorsScreen() {
       if (!online) return;
       setLoading(true);
       try {
-        const res = await listTeamDoctors(userId, search.trim() || undefined, page);
+        const res = await listTeamDoctors(userId, term.trim() || undefined, page);
         setDoctors((prev) => (page === 1 || !prev ? res.items : [...prev, ...res.items]));
         setPaging({ page: res.page, totalPages: res.totalPages, total: res.total });
         setLoadError(null);
@@ -68,7 +71,7 @@ export default function TeamDoctorsScreen() {
         setLoading(false);
       }
     },
-    [userId, online, search],
+    [userId, online, term],
   );
 
   const pickPerson = (id: string | null) => {
@@ -78,11 +81,16 @@ export default function TeamDoctorsScreen() {
     setLoadError(null);
   };
 
-  // Search waits a moment after typing stops.
+  // Page 1 on open, and again when the person or the (debounced) search changes.
   useEffect(() => {
-    const t = setTimeout(() => void load(1), 300);
+    const t = setTimeout(() => void load(1), 0);
     return () => clearTimeout(t);
   }, [load]);
+
+  // Infinite scroll: near the bottom, the next 20.
+  useOnEndReached(() => {
+    if (online && !loading && doctors && paging.page < paging.totalPages) void load(paging.page + 1);
+  });
 
   const open = (d: TeamDoctor) => {
     setMsg(null);
@@ -162,7 +170,7 @@ export default function TeamDoctorsScreen() {
       <TextField label="Search the doctor, or an MR’s name or code" value={search} onChangeText={setSearch} autoCapitalize="none" editable={online} />
       {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
       {loading && !doctors ? <Skeleton cards={3} lines={2} /> : null}
-      {doctors && doctors.length === 0 ? <Notice tone="info">{search.trim() ? 'No doctor matches that search.' : userId ? 'This employee has no doctors yet.' : 'Nobody in your team holds a doctor yet.'}</Notice> : null}
+      {doctors && doctors.length === 0 && !loading ? <Notice tone="info">{search.trim() ? 'No doctor matches that search.' : userId ? 'This employee has no doctors yet.' : 'Nobody in your team holds a doctor yet.'}</Notice> : null}
       {(doctors ?? []).map((d) => (
         <InfoCard key={d.id}>
           <View style={styles.row}>
@@ -185,9 +193,7 @@ export default function TeamDoctorsScreen() {
           <PrimaryButton label="Set visit target →" variant="text" disabled={busy || readOnly} onPress={() => open(d)} style={styles.phone} />
         </InfoCard>
       ))}
-      {doctors && paging.page < paging.totalPages ? (
-        <PrimaryButton label={`Show more (${doctors.length} of ${paging.total})`} variant="text" loading={loading} onPress={() => void load(paging.page + 1)} />
-      ) : null}
+      {doctors && doctors.length > 0 && loading ? <Skeleton cards={1} lines={2} /> : null}
     </ScreenShell>
   );
 }

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
+import { useDebounced } from '@/hooks/use-debounced';
+import { useOnEndReached } from '@/hooks/use-end-reached';
 import { ApiError, NetworkError } from '@/lib/api';
 import type { Paged } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 
 import { Notice } from '../notice';
-import { PrimaryButton } from '../primary-button';
 import { Skeleton } from '../skeleton';
 import { TextField } from '../text-field';
 
@@ -19,7 +20,7 @@ type Props<T extends { id: string }> = {
   resetKey?: string;
 };
 
-/** A searchable list read a page at a time from the server (online only), with "Show more". Used by the team chemist, distributor and route lists. */
+/** A searchable list read a page at a time from the server (online only), with infinite scroll. Used by the team chemist, distributor and route lists. */
 export function PagedList<T extends { id: string }>({ fetchPage, renderItem, searchLabel, emptyText, offlineText, resetKey = '' }: Props<T>) {
   const online = useOnline();
   const [search, setSearch] = useState('');
@@ -49,12 +50,18 @@ export function PagedList<T extends { id: string }>({ fetchPage, renderItem, sea
     [fetchPage],
   );
 
-  // First page on open, and again a moment after the search text (or a filter above) changes.
+  // First page on open, and page 1 again once the typing has paused for 300 ms (or a filter above changes).
+  const term = useDebounced(search, 300);
   useEffect(() => {
     if (!online) return;
-    const t = setTimeout(() => void load(1, search), search ? 300 : 0);
+    const t = setTimeout(() => void load(1, term), 0);
     return () => clearTimeout(t);
-  }, [online, search, resetKey, load]);
+  }, [online, term, resetKey, load]);
+
+  // Infinite scroll: near the bottom, the next page of the same search.
+  useOnEndReached(() => {
+    if (online && !loading && items && meta.page < meta.totalPages) void load(meta.page + 1, term);
+  });
 
   return (
     <>
@@ -64,7 +71,7 @@ export function PagedList<T extends { id: string }>({ fetchPage, renderItem, sea
       {loading && !items ? <Skeleton cards={3} lines={2} /> : null}
       {items && items.length === 0 ? <Notice tone="info">{search.trim() ? 'Nothing matches that search.' : emptyText}</Notice> : null}
       {(items ?? []).map((i) => renderItem(i))}
-      {items && meta.page < meta.totalPages ? <PrimaryButton label={`Show more (${items.length} of ${meta.total})`} variant="text" loading={loading} onPress={() => void load(meta.page + 1, search)} /> : null}
+      {items && items.length > 0 && loading ? <Skeleton cards={1} lines={2} /> : null}
     </>
   );
 }

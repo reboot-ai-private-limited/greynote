@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { FormField } from '@/components/form-field';
@@ -10,8 +10,10 @@ import { Skeleton } from '@/components/skeleton';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { CardSection, InfoCard, Pill, sym } from '@/components/ui-cards';
-import { Spacing, type Accent } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useDebounced } from '@/hooks/use-debounced';
+import { useOnEndReached } from '@/hooks/use-end-reached';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { ADDED_EDITABLE } from '@/lib/added-doctors';
 import { editAddedChemist, listAddedChemists, type AddedChemist } from '@/lib/added-chemists';
@@ -33,6 +35,7 @@ import {
   type OutboxRecord,
 } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
+import TeamChemistsScreen from './team-chemists';
 import type { FieldMasterDataSnapshot, TerritorySnapshot } from '@/types/sync';
 
 const errorText = (err: unknown) =>
@@ -46,7 +49,6 @@ const APPROVAL_TEXT: Record<string, string> = {
   WITHDRAWN: 'Withdrawn — change it and send it again',
   REOPENED: 'Reopened by Admin — change it and send it again',
 };
-const STATE_ACCENT: Record<string, Accent> = { SUBMITTED: 'amber', MANAGER_APPROVED: 'blue', APPROVED: 'green', REJECTED: 'red', WITHDRAWN: 'slate', REOPENED: 'slate' };
 
 const FIELD_ORDER = ['route', 'name', 'address', 'phone'];
 const PHONE = /^\+?\d{10,15}$/;
@@ -64,12 +66,23 @@ type Target = 'new' | { local: OutboxRecord } | { server: AddedChemist };
  * only while Admin allows it (`managerCanAddChemists`).
  */
 export default function ChemistsScreen() {
-  const online = useOnline();
   const { isManager } = useCurrentUser();
+  return isManager ? <TeamChemistsScreen /> : <MyChemistsScreen />;
+}
+
+const PAGE = 20;
+const matches = (term: string, ...parts: (string | null | undefined)[]) => !term || parts.some((p) => p?.toLowerCase().includes(term));
+
+function MyChemistsScreen() {
+  const online = useOnline();
   const territory = useCachedSource<TerritorySnapshot>('territory');
   const master = useCachedSource<FieldMasterDataSnapshot>('fieldMasterData');
   const { records } = useRecords(['NEW_CHEMIST']);
-  const canAdd = mayAddChemist(isManager, usePublicFlags());
+  const canAdd = mayAddChemist(false, usePublicFlags());
+  const [search, setSearch] = useState('');
+  const term = useDebounced(search.trim().toLowerCase(), 300);
+  const [shown, setShown] = useState({ term: '', count: PAGE });
+  const count = shown.term === term ? shown.count : PAGE; // a new search starts from the first 20 again
 
   const [added, setAdded] = useState<AddedChemist[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -244,6 +257,93 @@ export default function ChemistsScreen() {
     }
   };
 
+  // One list: pending first (they need attention), then the rest A to Z. Pending = not approved yet, in red.
+  const rows: { key: string; pending: boolean; name: string; node: ReactNode }[] = [];
+  for (const r of unsent) {
+    const p = r.payload as NewChemistPayload;
+    if (!matches(term, p.name, p.address)) continue;
+    rows.push({
+      key: r.clientId,
+      pending: true,
+      name: p.name,
+      node: (
+        <InfoCard key={r.clientId}>
+          <View style={styles.rowHead}>
+            <View style={styles.grow}>
+              <ThemedText type="smallBold">{p.name}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">{routeName.get(p.routeId) ?? 'Route'}</ThemedText>
+            </View>
+            <Pill text="Pending" accent="red" />
+          </View>
+          <ThemedText type="small" themeColor={r.status === 'FAILED' ? 'danger' : 'textSecondary'}>
+            {r.status === 'FAILED' ? failureText(r) : online ? 'Sending…' : 'Saved on this phone — sends when you’re online'}
+          </ThemedText>
+          <View style={styles.actions}>
+            <PrimaryButton label="Edit" variant="text" disabled={busy || (r.errorCode === MANAGER_NOT_ALLOWED && !canAdd)} onPress={() => start({ local: r })} />
+            <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => removeLocal(r)} />
+          </View>
+        </InfoCard>
+      ),
+    });
+  }
+  for (const c of added ?? []) {
+    // An approved one already on the phone's list is shown once, below, as a normal row.
+    if (c.status === 'active' && onList.has(c.id)) continue;
+    if (!matches(term, c.name, c.address, c.phone)) continue;
+    const state = c.status === 'active' ? 'APPROVED' : (c.approval?.status ?? 'SUBMITTED');
+    const editable = ADDED_EDITABLE.includes(state);
+    // One stage: the manager's or Admin's decision is final, so only a request still waiting can be withdrawn.
+    const waiting = state === 'SUBMITTED';
+    rows.push({
+      key: c.id,
+      pending: true,
+      name: c.name,
+      node: (
+        <InfoCard key={c.id}>
+          <View style={styles.rowHead}>
+            <View style={styles.grow}>
+              <ThemedText type="smallBold">{c.name}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">{[c.address, routeName.get(c.routeId) ?? 'Route'].filter(Boolean).join(' · ')}</ThemedText>
+            </View>
+            <Pill text={state === 'APPROVED' ? 'Approved' : waiting || state === 'MANAGER_APPROVED' ? 'Pending' : 'Not approved'} accent={state === 'APPROVED' ? 'green' : 'red'} />
+          </View>
+          {c.phone ? <PrimaryButton label={c.phone} variant="text" onPress={() => void Linking.openURL(`tel:${c.phone}`)} style={styles.phone} /> : null}
+          <ThemedText type="small" themeColor={waiting || state === 'APPROVED' ? 'textSecondary' : 'danger'}>{APPROVAL_TEXT[state] ?? state}</ThemedText>
+          {reasons[c.id] ? <ThemedText type="small" themeColor="danger">{`“${reasons[c.id]}”`}</ThemedText> : null}
+          {editable || waiting ? (
+            <View style={styles.actions}>
+              {editable ? <PrimaryButton label="Change" variant="text" disabled={busy} onPress={() => start({ server: c })} /> : null}
+              {waiting ? <PrimaryButton label="Withdraw" variant="text" disabled={busy} onPress={() => withdraw(c)} /> : null}
+            </View>
+          ) : null}
+        </InfoCard>
+      ),
+    });
+  }
+  for (const c of master.data?.chemists ?? []) {
+    if (!matches(term, c.name, c.address, c.phone)) continue;
+    rows.push({
+      key: c.id,
+      pending: false,
+      name: c.name,
+      node: (
+        <InfoCard key={c.id}>
+          <ThemedText type="smallBold">{c.name}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{[c.address, routeName.get(c.routeId)].filter(Boolean).join(' · ')}</ThemedText>
+          {c.phone ? <PrimaryButton label={c.phone} variant="text" onPress={() => void Linking.openURL(`tel:${c.phone}`)} style={styles.phone} /> : null}
+        </InfoCard>
+      ),
+    });
+  }
+  rows.sort((a, b) => Number(b.pending) - Number(a.pending) || a.name.localeCompare(b.name));
+  const visible = rows.slice(0, count);
+  const pendingCount = rows.filter((r) => r.pending).length;
+
+  // Infinite scroll over what is already on the phone: 20 more at a time.
+  useOnEndReached(() => {
+    if (visible.length < rows.length) setShown({ term, count: count + PAGE });
+  });
+
   if (target) {
     return (
       <ScreenShell
@@ -334,66 +434,19 @@ export default function ChemistsScreen() {
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
       <View style={styles.head}>
         <View style={styles.grow}>
-          <ThemedText type="smallBold" style={styles.sectionTitle}>Your chemists</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">{activeCount !== undefined ? `${activeCount} assigned to you · added by you below` : 'Added by you'}</ThemedText>
+          <ThemedText type="smallBold" style={styles.sectionTitle}>Chemists</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {activeCount !== undefined ? `${activeCount} assigned to you${pendingCount ? ` · ${pendingCount} pending` : ''}` : 'Assigned to you'}
+          </ThemedText>
         </View>
         {canAdd ? <PrimaryButton label="+ Add chemist" style={styles.newButton} onPress={() => start('new')} /> : null}
       </View>
-      {!canAdd ? <Notice tone="info">Managers can’t add chemists right now. Ask Admin if you need to.</Notice> : null}
 
-      {unsent.length > 0 ? (
-        <>
-          <ThemedText type="smallBold">Waiting on this phone</ThemedText>
-          {unsent.map((r) => {
-            const p = r.payload as NewChemistPayload;
-            return (
-              <InfoCard key={r.clientId}>
-                <ThemedText type="smallBold">{p.name}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">{routeName.get(p.routeId) ?? 'Route'}</ThemedText>
-                <ThemedText type="small" themeColor={r.status === 'FAILED' ? 'danger' : 'textSecondary'}>
-                  {r.status === 'FAILED' ? failureText(r) : online ? 'Sending…' : 'Saved on this phone — sends when you’re online'}
-                </ThemedText>
-                <View style={styles.actions}>
-                  <PrimaryButton label="Edit" variant="text" disabled={busy || (r.errorCode === MANAGER_NOT_ALLOWED && !canAdd)} onPress={() => start({ local: r })} />
-                  <PrimaryButton label="Remove" variant="text" disabled={busy} onPress={() => removeLocal(r)} />
-                </View>
-              </InfoCard>
-            );
-          })}
-        </>
-      ) : null}
-
-      <ThemedText type="smallBold">Chemists you added</ThemedText>
+      <TextField label="Search by name, address or phone" value={search} onChangeText={setSearch} autoCapitalize="none" autoCorrect={false} />
       {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
-      {added === null && !loadError ? (
-        online ? (
-          <Skeleton cards={2} lines={2} />
-        ) : (
-          <ThemedText type="small" themeColor="textSecondary">Connect to the internet to see where your chemists are in approval.</ThemedText>
-        )
-      ) : null}
-      {added !== null && added.length === 0 ? <Notice tone="info">You haven’t added any chemists yet.</Notice> : null}
-      {(added ?? []).map((c) => {
-        const state = c.status === 'active' ? 'APPROVED' : (c.approval?.status ?? 'SUBMITTED');
-        const editable = ADDED_EDITABLE.includes(state);
-        // One stage: the manager's or Admin's decision is final, so only a request still waiting can be withdrawn.
-        const waiting = state === 'SUBMITTED';
-        return (
-          <InfoCard key={c.id}>
-            <ThemedText type="smallBold">{c.name}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">{[c.address, routeName.get(c.routeId) ?? 'Route'].filter(Boolean).join(' · ')}</ThemedText>
-            {c.phone ? <PrimaryButton label={c.phone} variant="text" onPress={() => void Linking.openURL(`tel:${c.phone}`)} style={styles.phone} /> : null}
-            <Pill text={state === 'APPROVED' && onList.has(c.id) ? 'Approved — on your list' : (APPROVAL_TEXT[state] ?? state)} accent={STATE_ACCENT[state] ?? 'slate'} />
-            {reasons[c.id] ? <ThemedText type="small" themeColor="danger">{`“${reasons[c.id]}”`}</ThemedText> : null}
-            {editable || waiting ? (
-              <View style={styles.actions}>
-                {editable ? <PrimaryButton label="Change" variant="text" disabled={busy} onPress={() => start({ server: c })} /> : null}
-                {waiting ? <PrimaryButton label="Withdraw" variant="text" disabled={busy} onPress={() => withdraw(c)} /> : null}
-              </View>
-            ) : null}
-          </InfoCard>
-        );
-      })}
+      {!master.loaded ? <Skeleton cards={3} lines={2} /> : null}
+      {master.loaded && rows.length === 0 ? <Notice tone="info">{term ? 'No chemist matches that search.' : 'No chemists are assigned to you yet.'}</Notice> : null}
+      {visible.map((r) => r.node)}
     </ScreenShell>
   );
 }
@@ -414,6 +467,7 @@ function failureText(r: OutboxRecord): string {
 
 const styles = StyleSheet.create({
   block: { gap: Spacing.two },
+  rowHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1, gap: Spacing.one },
   sectionTitle: { fontSize: 18, lineHeight: 24 },

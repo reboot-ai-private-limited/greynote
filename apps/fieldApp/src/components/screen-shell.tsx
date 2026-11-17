@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, RefreshControl, ScrollView, StyleSheet, View } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MaxContentWidth, Spacing, WideContentWidth } from '@/constants/theme';
+import { EndReachedContext } from '@/hooks/use-end-reached';
 import { ScrollAreaContext } from '@/hooks/use-form-errors';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -34,6 +35,10 @@ export function ScreenShell({ title, children, onRefresh, refreshing = false, su
   const scrollRef = useRef<ScrollView>(null);
   const offset = useRef(0);
   const frameRef = useRef<View>(null);
+  // Infinite scroll: a list inside registers its "load more" here (useOnEndReached); it is called near the bottom, or when the content is too short to scroll.
+  const endRef = useRef<(() => void) | null>(null);
+  const viewport = useRef(0);
+  const NEAR = 300;
   const [area] = useState(() => ({ ref: scrollRef, frame: frameRef, offset }));
   return (
     <ThemedView style={styles.flex}>
@@ -43,7 +48,15 @@ export function ScreenShell({ title, children, onRefresh, refreshing = false, su
           <ScrollView
             ref={scrollRef}
             onScroll={(e) => {
-              offset.current = e.nativeEvent.contentOffset.y;
+              const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+              offset.current = contentOffset.y;
+              if (contentOffset.y + layoutMeasurement.height >= contentSize.height - NEAR) endRef.current?.();
+            }}
+            onLayout={(e) => {
+              viewport.current = e.nativeEvent.layout.height;
+            }}
+            onContentSizeChange={(_w, h) => {
+              if (h <= viewport.current + NEAR) endRef.current?.();
             }}
             scrollEventThrottle={32}
             contentContainerStyle={[styles.content, { maxWidth }]}
@@ -62,7 +75,9 @@ export function ScreenShell({ title, children, onRefresh, refreshing = false, su
               </View>
               <PrimaryButton label="Back" variant="text" onPress={() => router.back()} />
             </View>
-            <ScrollAreaContext.Provider value={area}>{children}</ScrollAreaContext.Provider>
+            <EndReachedContext.Provider value={endRef}>
+              <ScrollAreaContext.Provider value={area}>{children}</ScrollAreaContext.Provider>
+            </EndReachedContext.Provider>
           </ScrollView>
           </View>
           {footer ? (
