@@ -154,7 +154,7 @@ export default function MissedCallsScreen() {
   const month = clamp(picked ?? lastMonth);
 
   const report = useCachedFetch<DoctorVisitsReport>(`doctor-visits:${fy.year}:${month}`, () => getDoctorVisits(month));
-  const roster = useCachedFetch<TeamMember[]>(isManager ? 'team-roster-all' : 'team-roster-all:none', isManager ? async () => (await listAllTeamMembers()).items : async () => []);
+  const roster = useCachedFetch<TeamMember[]>(isManager ? 'visit-targets-roster' : 'visit-targets-roster:none', isManager ? async () => (await listAllTeamMembers()).items : async () => []);
   const data = report.data;
   const mine = data?.mrs.find((m) => m.mr.id === me?.id) ?? null;
 
@@ -172,7 +172,7 @@ export default function MissedCallsScreen() {
 
   const tree = useMemo(() => {
     if (!data || !me) return [];
-    return buildTree(me.id, roster.data ?? [], new Map(data.mrs.map((m) => [m.mr.id, m])));
+    return buildTree(me.id, Array.isArray(roster.data) ? roster.data : [], new Map(data.mrs.map((m) => [m.mr.id, m])));
   }, [data, me, roster.data]);
   // A search lists the matching people (or people with a matching doctor), flat, each with the matching doctors.
   const found = useMemo(() => {
