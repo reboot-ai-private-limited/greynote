@@ -68,6 +68,8 @@ export class CreateAdminDoctorServiceUseCase {
 
 export interface DoctorServiceView extends DoctorService {
   doctorName: string;
+  /** Who the service is tied to (the requester), named — for a manager reading the team's list. */
+  userName?: string;
   /** `APPROVED` for an Admin-made one; otherwise its request's status. */
   status: string;
   approval: { requestId: string; cycle: number } | null;
@@ -87,18 +89,32 @@ async function toServiceView(approvals: ApprovalsPort, master: FieldMasterDataPo
   };
 }
 
-/** An MR's own Services; Admin's, optionally narrowed to one MR or Doctor. Newest first. */
+/**
+ * An MR's own Services; Admin's, optionally narrowed to one MR or Doctor. Newest first. A field manager asking for `scope: 'team'` gets their
+ * own and everyone below them (any depth), each named, computed when asked (2026-11-18); without it, only their own, as before.
+ */
 export class ListDoctorServicesUseCase {
   constructor(
     private readonly services: DoctorServiceRepositoryPort,
     private readonly approvals: ApprovalsPort,
     private readonly master: FieldMasterDataPort,
+    private readonly users?: UserDirectoryPort,
   ) {}
 
-  async execute(actor: Actor, filter: { userId?: string | undefined; doctorId?: string | undefined }, limit = 200): Promise<DoctorServiceView[]> {
-    const scope = actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT' ? { ...(filter.userId && { userId: filter.userId }), ...(filter.doctorId && { doctorId: filter.doctorId }) } : { userId: actor.id, ...(filter.doctorId && { doctorId: filter.doctorId }) };
+  async execute(actor: Actor, filter: { userId?: string | undefined; doctorId?: string | undefined; scope?: 'mine' | 'team' | undefined }, limit = 200): Promise<DoctorServiceView[]> {
+    const admin = actor.role === 'ADMIN' || actor.role === 'ACCOUNTANT';
+    const doctor = filter.doctorId ? { doctorId: filter.doctorId } : {};
+    let team: string[] | null = null;
+    if (!admin && filter.scope === 'team' && this.users) {
+      const below = await this.users.getDownline(actor.id);
+      if (below.length > 0) team = [actor.id, ...below.map((u) => u.id)];
+    }
+    const scope = admin ? { ...(filter.userId && { userId: filter.userId }), ...doctor } : team ? { userIds: team, ...doctor } : { userId: actor.id, ...doctor };
     const rows = await this.services.list(scope, limit);
-    return Promise.all(rows.map((s) => toServiceView(this.approvals, this.master, s)));
+    const views = await Promise.all(rows.map((s) => toServiceView(this.approvals, this.master, s)));
+    if (!team || !this.users) return views;
+    const names = new Map((await this.users.getUserSummaries([...new Set(rows.map((r) => r.userId))])).map((u) => [u.id, u.name]));
+    return views.map((v) => ({ ...v, userName: names.get(v.userId) ?? '' }));
   }
 }
 
@@ -182,16 +198,35 @@ export class MarkGiftDoneUseCase {
   }
 }
 
-/** An MR's pending and done gifts for the Doctors they have; Admin's, every gift (optionally by status). */
+/**
+ * An MR's pending and done gifts for the Doctors they have; Admin's, every gift (optionally by status). A field manager asking for
+ * `scope: 'team'` also gets the gifts of doctors held by anyone below them, each with the MR's `userId` and name (2026-11-18).
+ */
 export class ListGiftsUseCase {
   constructor(
     private readonly gifts: DoctorGiftRepositoryPort,
     private readonly master: FieldMasterDataPort,
+    private readonly users?: UserDirectoryPort,
   ) {}
 
-  async execute(actor: Actor, filter: { status?: DoctorGift['status'] | undefined }, limit = 200): Promise<Array<DoctorGift & { doctorName: string }>> {
+  async execute(
+    actor: Actor,
+    filter: { status?: DoctorGift['status'] | undefined; scope?: 'mine' | 'team' | undefined },
+    limit = 200,
+  ): Promise<Array<DoctorGift & { doctorName: string; userId?: string; userName?: string }>> {
     const status = filter.status ? { status: filter.status } : {};
-    const rows = await this.gifts.list(actor.role === 'ADMIN' ? status : { ...status, doctorIds: (await this.master.listAssignedDoctors(actor.id)).map((d) => d.id) }, limit);
+    if (actor.role === 'ADMIN') return this.named(await this.gifts.list(status, limit));
+    const holders = new Map<string, string>(); // doctor id -> the MR who holds it
+    let people = [actor.id];
+    if (filter.scope === 'team' && this.users) people = [actor.id, ...(await this.users.getDownline(actor.id)).map((u) => u.id)];
+    for (const userId of people) for (const d of await this.master.listAssignedDoctors(userId)) if (!holders.has(d.id)) holders.set(d.id, userId);
+    const rows = await this.gifts.list({ ...status, doctorIds: [...holders.keys()] }, limit);
+    if (filter.scope !== 'team' || !this.users) return this.named(rows);
+    const names = new Map((await this.users.getUserSummaries([...new Set(holders.values())])).map((u) => [u.id, u.name]));
+    return (await this.named(rows)).map((g) => ({ ...g, userId: holders.get(g.doctorId) ?? '', userName: names.get(holders.get(g.doctorId) ?? '') ?? '' }));
+  }
+
+  private named(rows: DoctorGift[]) {
     return Promise.all(rows.map(async (g) => ({ ...g, doctorName: (await this.master.getDoctor(g.doctorId))?.name ?? '' })));
   }
 }

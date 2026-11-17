@@ -541,8 +541,8 @@ export class FakeServices implements DoctorServiceRepositoryPort {
   async findById(id: string) {
     return this.rows.find((r) => r.id === id) ?? null;
   }
-  async list(filter: { userId?: string; doctorId?: string }, limit: number) {
-    return this.rows.filter((r) => (!filter.userId || r.userId === filter.userId) && (!filter.doctorId || r.doctorId === filter.doctorId)).slice(0, limit);
+  async list(filter: { userId?: string; userIds?: string[]; doctorId?: string }, limit: number) {
+    return this.rows.filter((r) => (!filter.userId || r.userId === filter.userId) && (!filter.userIds || filter.userIds.includes(r.userId)) && (!filter.doctorId || r.doctorId === filter.doctorId)).slice(0, limit);
   }
   async markDone(id: string, by: string, at: Date) {
     const r = this.rows.find((x) => x.id === id);

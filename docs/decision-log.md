@@ -2785,3 +2785,10 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 - **"Not in plan" / "Route not in plan" are gone** from the phone, the web DCR screens and the report tiles; the server stops setting them (fields kept, false). An out-of-date phone's call is still saved, never refused.
 - **Owed doctors are derived** into `planning.owedDoctors` at every sync pull (from `CarryOver.pending`) instead of only being written into a plan when it is saved: a plan approved before the miss still shows them. Tomorrow's routes are not rewritten.
 - **"Missed Calls" is now "Visit targets"** (monthly frequency, made, remaining) and shows the team as a tree with roll-ups; the daily "missed" is a separate idea.
+
+
+## 2026-11-18: One list per page (Orders, Gifts, Services, Leave)
+
+- Each page is **one list, newest first, All by default**, with one compact filter row instead of tab sets (Orders: All / Placed / Done / Cancelled; Gifts: All / Not done / Done; Services: All / Waiting / Approved / Done / Rejected; Leave: All / Pending / Approved / Rejected). The Orders "Waiting" tab and the My/Team switch are gone: unsent orders sit in the list tagged "Waiting to send"; a manager's list is their own and the team's, own rows marked "(Own)".
+- Gifts lists done gifts too (history). Gifts and Services get a manager's team view on the server (`scope=team`, derived from the downline). Leave stays the employee's own.
+- Lists show 20 at a time (infinite scroll over the loaded list), with search, serial numbers and a total.

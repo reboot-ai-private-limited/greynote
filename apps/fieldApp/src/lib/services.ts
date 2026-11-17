@@ -19,10 +19,17 @@ export type ServiceView = {
   doneAt: string | null;
   /** Approved and not yet marked done. */
   awaitingDone: boolean;
+  /** Who the request is tied to, on a manager's team list. */
+  userId?: string;
+  userName?: string;
+  createdAt?: string;
 };
 
-export const listMyServices = async () => {
-  const data = await apiGet<ServiceView[] | { items: ServiceView[] }>('/field-activity/doctor-services', { auth: true });
+export const listMyServices = async () => listServices(false);
+
+/** The requests listed on the Services page. A manager passes `team` to also get everyone below them (each named). */
+export const listServices = async (team: boolean) => {
+  const data = await apiGet<ServiceView[] | { items: ServiceView[] }>(`/field-activity/doctor-services${team ? '?scope=team' : ''}`, { auth: true });
   return Array.isArray(data) ? data : data.items;
 };
 
