@@ -86,27 +86,6 @@ export function DcrReportScreen() {
       render: (m) =>
         m.lateDays > 0 ? <span className="text-warning-fg">{n(m.lateDays)}</span> : '0',
     },
-    {
-      key: 'notInPlan',
-      header: 'Not in plan',
-      numeric: true,
-      render: (m) =>
-        m.notInPlan > 0 ? <span className="text-warning-fg">{n(m.notInPlan)}</span> : '0',
-    },
-    {
-      key: 'followupsNotInPlan',
-      header: 'Follow-ups not in plan',
-      numeric: true,
-      render: (m) =>
-        m.followupsNotInPlan > 0 ? <span className="text-warning-fg">{n(m.followupsNotInPlan)}</span> : '0',
-    },
-    {
-      key: 'offRoute',
-      header: 'Off planned route',
-      numeric: true,
-      render: (m) =>
-        m.offRouteCalls > 0 ? <span className="text-warning-fg">{n(m.offRouteCalls)}</span> : '0',
-    },
     { key: 'geofence', header: 'Geofence', render: (m) => <GeofenceBar figures={m} /> },
   ];
 
@@ -130,24 +109,6 @@ export function DcrReportScreen() {
       header: 'Late',
       numeric: true,
       render: (r) => (r.lateDays > 0 ? <Badge tone="warning">{`${r.lateDays} late`}</Badge> : '0'),
-    },
-    {
-      key: 'notInPlan',
-      header: 'Not in plan',
-      numeric: true,
-      render: (r) => (r.notInPlan > 0 ? <Badge tone="warning">{n(r.notInPlan)}</Badge> : '0'),
-    },
-    {
-      key: 'followupsNotInPlan',
-      header: 'Follow-ups not in plan',
-      numeric: true,
-      render: (r) => (r.followupsNotInPlan > 0 ? <Badge tone="warning">{n(r.followupsNotInPlan)}</Badge> : '0'),
-    },
-    {
-      key: 'offRoute',
-      header: 'Off planned route',
-      numeric: true,
-      render: (r) => (r.offRouteCalls > 0 ? <Badge tone="warning">{n(r.offRouteCalls)}</Badge> : '0'),
     },
     { key: 'geofence', header: 'Geofence', render: (r) => <GeofenceBar figures={r} /> },
     {
@@ -206,24 +167,6 @@ export function DcrReportScreen() {
           value={n(t?.unconfirmed ?? 0)}
           note="failed or unverified, not overridden"
           tone={t && t.unconfirmed > 0 ? 'warning' : undefined}
-        />
-        <StatTile
-          label="Doctor calls not in plan"
-          value={n(t?.notInPlan ?? 0)}
-          note="a doctor who was not on the day’s plan"
-          tone={t && t.notInPlan > 0 ? 'warning' : undefined}
-        />
-        <StatTile
-          label="Follow-ups not in plan"
-          value={n(t?.followupsNotInPlan ?? 0)}
-          note="a doctor not on the plan, or a chemist off the planned routes"
-          tone={t && t.followupsNotInPlan > 0 ? 'warning' : undefined}
-        />
-        <StatTile
-          label="Calls off the planned route"
-          value={n(t?.offRouteCalls ?? 0)}
-          note="doctor and chemist calls on a route the plan did not list"
-          tone={t && t.offRouteCalls > 0 ? 'warning' : undefined}
         />
       </div>
 

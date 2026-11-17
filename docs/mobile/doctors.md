@@ -40,7 +40,9 @@ Admin does this on the web only; the phone never edits, deactivates or deletes a
 | D4 | **History keeps the name.** Past calls, DCRs, gifts, services and reports still show the doctor's name, even after a delete. | Nothing to do; never hide a past record because its doctor is gone. | ✅ |
 | D5 | A doctor **reactivated** by Admin comes back only once Admin assigns it to an MR again. | Nothing to do. | ✅ |
 
-## 3. Missed calls (current month)
+## 3. Visit targets (was "Missed calls"), current month
+
+**The phone's screen is now "Visit targets" (2026-11-17):** each doctor's monthly target (`visitFrequency`) against the calls made, as "2 of 4 made · 2 remaining". This is **not** the daily plan: a doctor planned on a day and not called is carried into the next days' Dr Call list ([`dailyplan.md`](dailyplan.md) rule 2b). A manager sees the team as a tree (direct reports, each manager's line summing everyone below them, tap to open a level down), built from `GET /team/members` (`managerId`) and this report. The field names below (`missed`, `missedSince`) are unchanged; the phone says "remaining".
 
 `GET /reports/doctor-visits?month=YYYY-MM&userId=<self>` — the employee reads only themself; a manager reads themself and their downline.
 

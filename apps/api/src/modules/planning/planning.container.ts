@@ -111,7 +111,20 @@ export function buildPlanningContainer(
   const leaverPlans = new LeaverPlans(dailyPlans, monthlyPlans, approvals);
 
   // What the phone caches of Planning: the MR's own Plans, with their status for the day's gate.
-  sync.registerSource(makePlanningSource({ deadlines, daily: listDaily, monthly: listMonthly, offDays, users }));
+  sync.registerSource(
+    makePlanningSource({
+      deadlines,
+      daily: listDaily,
+      monthly: listMonthly,
+      offDays,
+      users,
+      // Doctors still owed from earlier days, derived at every pull (a manager's include the downline's); never copied into a plan.
+      owed: async (userId, today) => {
+        const { people } = await scope.doctorScope(userId, []);
+        return (await carryOver.pending(userId, today, people)).map((d) => ({ doctorId: d.doctorId, carriedFrom: d.carriedFrom ?? today }));
+      },
+    }),
+  );
   let dayReported: DayReportedCheck = async () => {
     throw new Error('Planning: the day-reported check was never bound.');
   };

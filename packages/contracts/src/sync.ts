@@ -438,6 +438,11 @@ export interface PlanPersonDto {
 export interface PlanningSnapshot {
   /** Today's date in the business timezone. */
   today: string;
+  /**
+   * Doctors still owed from earlier days, worked out when the phone pulls (never stored in a plan): planned before today and not called
+   * since. They are callable today whatever route today's plan has. A manager's list includes their downline's doctors.
+   */
+  owedDoctors?: Array<{ doctorId: string; carriedFrom: string }>;
   dailyPlans: Array<{
     id: string;
     planDate: string;

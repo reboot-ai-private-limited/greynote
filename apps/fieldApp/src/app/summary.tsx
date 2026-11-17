@@ -89,17 +89,13 @@ export default function SummaryScreen() {
   const failed = dayRecords.filter((r) => r.status === 'FAILED');
 
   const plan = planning.data?.dailyPlans.find((p) => p.planDate === today) ?? null;
-  const plannedDoctorIds = useMemo(() => new Set((plan?.doctors ?? []).map((d) => d.doctorId)), [plan]);
-  const hasPlannedDoctors = (plan?.doctors?.length ?? 0) > 0;
   const noteRequired = plan ? needsDayNote(plan.workingType) : false;
 
   const describe = (r: OutboxRecord) => {
     const p = r.payload as { doctorId?: string; chemistId?: string; type?: string; amountPaise?: number };
     const who = names.get(p.doctorId ?? p.chemistId ?? '');
     if (r.kind === 'EXPENSE') return `${EXPENSE_LABEL[p.type ?? ''] ?? 'Expense'} · ${formatRupees(p.amountPaise ?? 0)}`;
-    const notInPlan = r.kind === 'DOCTOR_CALL' && Boolean(p.doctorId) && hasPlannedDoctors && !plannedDoctorIds.has(p.doctorId!);
-    const label = who ?? (p.doctorId ? 'Doctor (no longer active)' : p.chemistId ? 'Chemist (no longer active)' : 'Record');
-    return notInPlan ? `${label} (Not in plan)` : label;
+    return who ?? (p.doctorId ? 'Doctor (no longer active)' : p.chemistId ? 'Chemist (no longer active)' : 'Record');
   };
 
   const submit = async () => {

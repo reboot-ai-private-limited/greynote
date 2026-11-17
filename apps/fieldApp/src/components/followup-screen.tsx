@@ -9,7 +9,7 @@ import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { CardSection, IconChip, InfoCard, Pill, sym } from '@/components/ui-cards';
+import { CardSection, IconChip, InfoCard, sym } from '@/components/ui-cards';
 import { Spacing } from '@/constants/theme';
 import { useCallDoctors } from '@/hooks/use-call-doctors';
 import { useDayGate } from '@/hooks/use-day-gate';
@@ -70,14 +70,6 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
 
   const plan =planning.data?.dailyPlans.find((p) => p.planDate === gate.today) ?? null;
   const fieldDay = plan ? isFieldDay(plan.workingType) : true;
-  const plannedRoutes = useMemo(() => new Set(plan?.routeIds ?? []), [plan]);
-  const plannedDoctorIds = useMemo(() => new Set((plan?.doctors ?? []).map((d) => d.doctorId)), [plan]);
-  const hasPlannedDoctors = plannedDoctorIds.size > 0;
-
-  /** The server's `notInPlan`: a doctor not on the day's list, or a chemist whose route the plan doesn't list. */
-  const notInPlan = (o: { id: string; routeId: string }) =>
-    isDoctor ? (hasPlannedDoctors ? !plannedDoctorIds.has(o.id) : !plannedRoutes.has(o.routeId)) : !plannedRoutes.has(o.routeId);
-
   const idOf = (r: OutboxRecord) => {
     const p = r.payload as FollowupPayload;
     return (isDoctor ? p.doctorId : p.chemistId) ?? '';
@@ -86,10 +78,10 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
   const outlets = useMemo(() => {
     const list: { id: string; routeId: string; name: string; address: string; location: { latitude: number; longitude: number } | null; specialty?: string; photoUrl?: string | null; mrLabel?: string | null }[] =
       isDoctor ? callDoctors : (master.data?.chemists ?? []);
-    return [...list].sort((a, b) => Number(notInPlan(a)) - Number(notInPlan(b)) || a.name.localeCompare(b.name));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [master.data, callDoctors, isDoctor, plannedRoutes, plannedDoctorIds]);
+    return [...list].sort((a, b) => a.name.localeCompare(b.name));
+  }, [master.data, callDoctors, isDoctor]);
   const byId = useMemo(() => new Map(outlets.map((o) => [o.id, o])), [outlets]);
+  const routeName = useMemo(() => new Map((territory.data?.routes ?? []).map((r) => [r.id, r.name])), [territory.data]);
   const routeTypeOf = (routeId: string | undefined) => routeTypeLabel(territory.data?.routes.find((r) => r.id === routeId)?.routeType);
   const todays = records.filter((r) => !r.deleted && (r.payload as FollowupPayload).reportDate === gate.today);
 
@@ -223,7 +215,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
               name: o.name,
               photoUrl: o.photoUrl,
               disabled: soon !== null,
-              subtitle: `${soon ? `${soon.short} · ` : ''}${notInPlan(o) ? 'Not in plan · ' : ''}${o.mrLabel ? `${o.mrLabel} · ` : ''}${o.specialty ? `${o.specialty} · ${o.address}` : o.address}`,
+              subtitle: `${soon ? `${soon.short} · ` : ''}${routeName.get(o.routeId) ? `(${routeName.get(o.routeId)}) · ` : ''}${o.mrLabel ? `${o.mrLabel} · ` : ''}${o.specialty ? `${o.specialty} · ${o.address}` : o.address}`,
             };
           })}
           value={outletId}
@@ -235,12 +227,10 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
           disabled={busy}
           emptyText={`No ${noun}s yet. Connect to the internet once so your list can load.`}
           avatars={isDoctor}
+          searchable
         />
         </FormField>
         {picked && tooSoon(picked.id) ? <Notice tone="warning" title="Too soon for another visit">{tooSoon(picked.id)!.text}</Notice> : null}
-        {picked && notInPlan(picked) ? (
-          <Notice tone="warning" title="Not in your plan">Not in today’s plan: the followup is still saved, and marked that way for your manager.</Notice>
-        ) : null}
         {picked && !picked.location ? (
           <Notice tone="warning">{`This ${noun} has no registered location, so a followup can’t be saved yet. Ask Admin to set it.`}</Notice>
         ) : null}
@@ -296,7 +286,7 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
           return (
             <InfoCard key={r.clientId}>
               <View style={styles.head}>
-                <IconChip icon={isDoctor ? sym('stethoscope', 'medical_services') : sym('cross.case', 'local_pharmacy')} accent={r.status === 'FAILED' ? 'red' : who && notInPlan(who) ? 'amber' : isDoctor ? 'blue' : 'teal'} />
+                <IconChip icon={isDoctor ? sym('stethoscope', 'medical_services') : sym('cross.case', 'local_pharmacy')} accent={r.status === 'FAILED' ? 'red' : isDoctor ? 'blue' : 'teal'} />
                 <View style={styles.grow}>
                   <ThemedText type="smallBold">{who?.name ?? `Unknown ${noun}`}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
@@ -304,7 +294,6 @@ export function FollowupScreen({ subject }: { subject: Subject }) {
                   </ThemedText>
                 </View>
               </View>
-              {who && notInPlan(who) ? <Pill text="Not in plan" accent="amber" /> : null}
               <ThemedText type="small">{(r.payload as FollowupPayload).remarks}</ThemedText>
               {r.status === 'FAILED' && r.errorMessage ? (
                 <ThemedText type="small" themeColor="danger">

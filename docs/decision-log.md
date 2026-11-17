@@ -2777,3 +2777,11 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 **Needs a migration:** none. Plans approved earlier keep their stored Work With as history and nothing reads it for the rules above. Deploy this release before running `cleanup:manager-routes`.
 
+
+
+## 2026-11-17: Dr Call is today's plan only; "not in plan" removed; missed doctors derived
+
+- **Dr Call** offers only the day's planned doctors plus doctors still owed from earlier days; **Follow-up** offers any doctor held (a manager: any downline doctor). The route is the doctor's own and is never chosen.
+- **"Not in plan" / "Route not in plan" are gone** from the phone, the web DCR screens and the report tiles; the server stops setting them (fields kept, false). An out-of-date phone's call is still saved, never refused.
+- **Owed doctors are derived** into `planning.owedDoctors` at every sync pull (from `CarryOver.pending`) instead of only being written into a plan when it is saved: a plan approved before the miss still shows them. Tomorrow's routes are not rewritten.
+- **"Missed Calls" is now "Visit targets"** (monthly frequency, made, remaining) and shows the team as a tree with roll-ups; the daily "missed" is a separate idea.

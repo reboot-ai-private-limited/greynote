@@ -161,7 +161,6 @@ function CallCard({
   };
 
   const geoColor = geo.tone === 'ok' ? '#15803D' : geo.tone === 'bad' ? theme.danger : theme.warning;
-  const notInPlan = 'notInPlan' in call && call.notInPlan;
 
   return (
     <View
@@ -185,8 +184,6 @@ function CallCard({
       <Row label="Work type">
         <Pill text={workingTypeLabel(call.workingType)} accent="green" />
         {routeTypeLabel(call.routeType) ? <Pill text={routeTypeLabel(call.routeType)!} accent="slate" /> : null}
-        {notInPlan ? <Pill text="Not in plan" accent="amber" /> : null}
-        {call.routeNotInPlan ? <Pill text="Route not in plan" accent="amber" /> : null}
       </Row>
       <Row label="Location">
         <ThemedText type="smallBold" style={[styles.value, { color: geoColor }]}>
@@ -286,7 +283,6 @@ export function DcrSummary({ recordId, canAct, aside }: { recordId: string; canA
   }
 
   const flagged = [...data.doctorCalls, ...data.chemistCalls].filter((c) => c.geofence.status !== 'PASS' && !c.geofence.overriddenAt).length;
-  const unplanned = data.doctorCalls.filter((c) => c.notInPlan || c.routeNotInPlan).length + data.chemistCalls.filter((c) => c.routeNotInPlan).length;
   const total = data.expenses.reduce((sum, e) => sum + e.amountPaise, 0);
 
   const main = (
@@ -332,7 +328,6 @@ export function DcrSummary({ recordId, canAct, aside }: { recordId: string; canA
                 </View>
                 <Pill text={f.subject === 'DOCTOR' ? 'Doctor' : 'Chemist'} accent={f.subject === 'DOCTOR' ? 'sky' : 'green'} />
               </View>
-              {f.notInPlan ? <Pill text="Not in plan" accent="amber" /> : null}
               <ThemedText type="small">{f.remarks}</ThemedText>
             </View>
           ))}
@@ -397,11 +392,6 @@ export function DcrSummary({ recordId, canAct, aside }: { recordId: string; canA
               Accepting a call is separate from approving the day.
             </ThemedText>
           ) : null}
-        </View>
-      ) : null}
-      {unplanned > 0 ? (
-        <View style={[styles.banner, { backgroundColor: Accents.amber.bg, borderColor: Accents.amber.border }]}>
-          <ThemedText type="smallBold">{`${unplanned} call${unplanned === 1 ? ' was' : 's were'} not in the day’s plan`}</ThemedText>
         </View>
       ) : null}
       {data.remarks ? (

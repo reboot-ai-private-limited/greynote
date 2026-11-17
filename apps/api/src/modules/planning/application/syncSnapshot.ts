@@ -26,20 +26,22 @@ const nextMonth = (month: string): string => {
  * and submitting a Plan need a connection and aren't synced. Left out: revision counters' internals, the
  * resubmit counter and timestamps that only churn.
  */
-export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: ListDailyPlansUseCase; monthly: ListMonthlyPlansUseCase; offDays: OffDays; users: UserDirectoryPort }): SyncSourceDefinition {
+export function makePlanningSource(deps: { deadlines: PlanDeadlines; daily: ListDailyPlansUseCase; monthly: ListMonthlyPlansUseCase; offDays: OffDays; users: UserDirectoryPort; owed: (userId: string, today: string) => Promise<Array<{ doctorId: string; carriedFrom: string }>> }): SyncSourceDefinition {
   return {
     name: PLANNING_SYNC_SOURCE,
     async snapshot(userId): Promise<PlanningSnapshot> {
       const today = await deps.deadlines.today();
       const month = today.slice(0, 7);
-      const [daily, monthly, planOffDays] = await Promise.all([
+      const [daily, monthly, planOffDays, owedDoctors] = await Promise.all([
         deps.daily.execute(userId, addDays(today, -DAYS_BACK), addDays(today, DAYS_AHEAD)),
         deps.monthly.execute(userId, month, nextMonth(month)),
         deps.offDays.list(userId, `${month}-01`, monthRange(nextMonth(month)).to),
+        deps.owed(userId, today),
       ]);
       const peopleOf = await makePlanPeopleNamer(deps.users, [...daily, ...monthly.flatMap((p) => p.entries)]);
       return {
         today,
+        owedDoctors,
         dailyPlans: daily.map((p) => ({
           id: p.id,
           planDate: p.planDate,

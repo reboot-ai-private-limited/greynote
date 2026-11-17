@@ -16,7 +16,6 @@ import {
   dcrCounts,
   dcrCountsLabel,
   flaggedNotice,
-  notInPlanNotice,
   offPlanNotice,
   ROUTE_TYPE_LABEL,
   WORKING_TYPE_LABEL,
@@ -82,7 +81,6 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
       </Button>
     ) : undefined;
   const notice = flaggedNotice(dcr);
-  const unplanned = notInPlanNotice(dcr);
   const offPlan = offPlanNotice(dcr);
   const { auto, manual } = splitExpenses(dcr.expenses);
   const note = taDaNote(dcr.status, dcr.expenses);
@@ -101,15 +99,6 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
         >
           {notice} Each is shown below with what the check found
           {mayAccept ? '; accepting a call is separate from approving the report' : ''}.
-        </p>
-      ) : null}
-
-      {unplanned ? (
-        <p
-          role="status"
-          className="rounded-md border border-warning bg-warning-bg p-3 text-sm text-warning-fg"
-        >
-          {unplanned} Each is marked below.
         </p>
       ) : null}
 
@@ -160,7 +149,6 @@ function DcrBody({ dcr }: { dcr: DcrDetailDto }) {
                     {f.workingType ? ` · ${WORKING_TYPE_LABEL[f.workingType]}` : ''}
                     {f.routeType ? ` · ${ROUTE_TYPE_LABEL[f.routeType]}` : ''}
                   </span>{' '}
-                  {f.notInPlan ? <Badge tone="warning">Not in plan</Badge> : null}
                 </p>
                 <p className="mt-1 text-sm text-text-muted">{f.remarks}</p>
               </li>

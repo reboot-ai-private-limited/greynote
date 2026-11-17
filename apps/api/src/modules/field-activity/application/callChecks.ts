@@ -87,17 +87,18 @@ export class CallChecks {
     return { workingType, routeIds: day?.routeIds ?? [], doctorIds: day?.doctorIds ?? [] };
   }
 
-  /** The Route a Doctor or Chemist belongs to and its type (HQ / Ex-station / Out-station), and whether the day's plan lists that Route. */
-  async route(day: DayContext, routeId: string): Promise<{ routeId: string; routeType: RecordRouteType | null; routeNotInPlan: boolean }> {
-    return { routeId, routeType: (await this.territory.getRoute(routeId))?.routeType ?? null, routeNotInPlan: !day.routeIds.includes(routeId) };
+  /**
+   * The Route a Doctor or Chemist belongs to and its type (HQ / Ex-station / Out-station). `routeNotInPlan` is always false now (2026-11-17): the
+   * phone offers only the day's planned and carried-over doctors, a doctor's route is its own, and nothing is shown as "not in plan".
+   * The stored field stays for history.
+   */
+  async route(_day: DayContext, routeId: string): Promise<{ routeId: string; routeType: RecordRouteType | null; routeNotInPlan: boolean }> {
+    return { routeId, routeType: (await this.territory.getRoute(routeId))?.routeType ?? null, routeNotInPlan: false };
   }
 
-  /**
-   * Whether a Doctor is "not in plan": not on the day's doctor list (picked or carried over). A plan with no doctor list at all (a day
-   * from before doctor lists) falls back to the Route, so every doctor on an unlisted Route is flagged. Flag only — never a refusal.
-   */
-  doctorNotInPlan(day: DayContext, doctorId: string, routeNotInPlan: boolean): boolean {
-    return day.doctorIds.length === 0 ? routeNotInPlan : !day.doctorIds.includes(doctorId);
+  /** Always false since 2026-11-17 (see `route`): kept so the stored `notInPlan` field is still written, as false, on new calls. */
+  doctorNotInPlan(_day: DayContext, _doctorId: string, _routeNotInPlan: boolean): boolean {
+    return false;
   }
 
   /** Colleagues who worked with the MR: active employees, each once, never themselves. */

@@ -151,7 +151,14 @@ export default function DailyPlanScreen() {
   const rejection = rejectionKey !== null && rejectionState?.key === rejectionKey ? rejectionState.text : null;
 
   // Owed doctors: the server's answer for this date when we have it, else the ones the saved plan already carries.
-  const savedOwed = useMemo(() => (existing?.doctors ?? []).filter((d) => d.carriedFrom !== null), [existing]);
+  // Owed doctors: the ones the saved plan carries, plus (for today) the ones the server worked out at the last pull. A plan approved before
+  // a doctor was missed never stored that doctor, so the pull's list is what keeps it showing.
+  const savedOwed = useMemo(() => {
+    const stored = (existing?.doctors ?? []).filter((d) => d.carriedFrom !== null);
+    if (date !== planning.data?.today) return stored;
+    const extra = (planning.data?.owedDoctors ?? []).filter((o) => !stored.some((d) => d.doctorId === o.doctorId));
+    return [...stored, ...extra];
+  }, [existing, date, planning.data]);
   // For a manager the carry-over call leaves out doctors owed from their downline, which the saved plan does carry, so both are shown.
   const owed =
     owedState?.date === date
