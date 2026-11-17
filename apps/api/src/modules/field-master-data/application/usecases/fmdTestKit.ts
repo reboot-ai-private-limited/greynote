@@ -9,6 +9,8 @@ import type { Doctor } from '../../domain/doctor.entity.js';
 import { DuplicateRecordError } from '../../domain/duplicateRecord.error.js';
 import type { AssignedDoctor, AssignedScope, DoctorFilter, DoctorRepositoryPort } from '../../domain/doctor.repository.port.js';
 import type { DoctorAssignment } from '../../domain/doctorAssignment.entity.js';
+import type { ChemistAssignment } from '../../domain/chemistAssignment.entity.js';
+import type { ChemistAssignmentRepositoryPort } from '../../domain/chemistAssignment.repository.port.js';
 import type { DoctorAssignmentRepositoryPort } from '../../domain/doctorAssignment.repository.port.js';
 import type { PageQuery } from '../../domain/masterStatus.js';
 import type { DirectoryUser, UserDirectoryPort } from '../../domain/userDirectory.port.js';
@@ -89,6 +91,16 @@ export class FakeChemists implements ChemistRepositoryPort {
           (!search || c.name.toLowerCase().includes(search)),
       ),
       f,
+    );
+  }
+  async listActiveAmong(ids: string[], f: { search?: string | undefined; routeId?: string | undefined; alsoIds?: string[] | undefined }, page: { page: number; pageSize: number }) {
+    const search = f.search?.toLowerCase();
+    return paged(
+      this.rows
+        .filter((c) => c.status === 'active' && ids.includes(c.id) && (!f.routeId || c.routeId === f.routeId))
+        .filter((c) => !search || c.name.toLowerCase().includes(search) || (f.alsoIds ?? []).includes(c.id))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      page,
     );
   }
   async findById(id: string) {
@@ -203,6 +215,44 @@ export class FakeUsers implements UserDirectoryPort {
       .filter((u) => (u.name.toLowerCase().includes(t) || u.employeeCode.toLowerCase().includes(t)) && (!options.restrictTo || options.restrictTo.includes(u.id)))
       .slice(0, options.limit ?? 200)
       .map((u) => u.id);
+  }
+}
+
+export class FakeChemistAssignments implements ChemistAssignmentRepositoryPort {
+  rows: ChemistAssignment[] = [];
+  private n = 0;
+  async listActiveForChemist(chemistId: string) {
+    return this.rows.filter((r) => r.chemistId === chemistId && r.status === 'active');
+  }
+  async listActiveForChemists(ids: string[]) {
+    return this.rows.filter((r) => ids.includes(r.chemistId) && r.status === 'active');
+  }
+  async listActiveForUsers(ids: string[]) {
+    return this.rows.filter((r) => ids.includes(r.userId) && r.status === 'active');
+  }
+  async listForChemist(chemistId: string) {
+    return this.rows.filter((r) => r.chemistId === chemistId).reverse();
+  }
+  async isAssigned(userId: string, chemistId: string) {
+    return this.rows.some((r) => r.userId === userId && r.chemistId === chemistId && r.status === 'active');
+  }
+  async assign(i: { chemistId: string; userId: string; assignedBy: string }) {
+    const existing = this.rows.find((r) => r.userId === i.userId && r.chemistId === i.chemistId && r.status === 'active');
+    if (existing) return existing;
+    const row: ChemistAssignment = { id: `ca-${++this.n}`, ...i, status: 'active', assignedAt: new Date(), unassignedAt: null, unassignedBy: null };
+    this.rows.push(row);
+    return row;
+  }
+  async unassign(chemistId: string, userId: string, by: string) {
+    const row = this.rows.find((r) => r.userId === userId && r.chemistId === chemistId && r.status === 'active');
+    if (!row) return false;
+    Object.assign(row, { status: 'inactive', unassignedAt: new Date(), unassignedBy: by });
+    return true;
+  }
+  async endAllForUser(userId: string, by: string) {
+    const mine = this.rows.filter((r) => r.userId === userId && r.status === 'active');
+    for (const r of mine) Object.assign(r, { status: 'inactive', unassignedAt: new Date(), unassignedBy: by });
+    return mine.length;
   }
 }
 
@@ -414,6 +464,13 @@ export class FakeApprovals implements ApprovalsPort {
 
 export class FakeDistributors implements DistributorRepositoryPort {
   rows: Distributor[] = [];
+  async listActiveAssignedToAny(userIds: string[], f: { search?: string | undefined }, page: { page: number; pageSize: number }) {
+    const search = f.search?.toLowerCase();
+    return paged(
+      this.rows.filter((d) => d.status === 'active' && d.assignedUserIds.some((u) => userIds.includes(u)) && (!search || d.name.toLowerCase().includes(search))).sort((a, b) => a.name.localeCompare(b.name)),
+      page,
+    );
+  }
   async sumOpeningDues() {
     return this.rows.reduce((n, d) => n + d.openingDuesPaise, 0);
   }

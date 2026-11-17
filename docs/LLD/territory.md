@@ -41,6 +41,15 @@ those joins belong to Field Master Data (ERD Module 3), deferred there because
 Since 2026-10-15 a manager may also carry a **coverage** (below), used only to decide who is *offered* as a reporting
 manager. It never changes approvals or the downline.
 
+### A manager's territory is computed (2026-11-16)
+
+Routes are **no longer copied onto managers** when an employee is placed under them (`ExtendManagerTerritoryUseCase` now
+extends only Zones and HQs; a `routeIds` input from older clients is ignored; the team-gaps report no longer lists routes).
+`GET /territory/team` groups the HQs of the manager's team by Zone, plus what they own (their coverage, or for a ZSM the whole Zone,
+or for the NSM with none named every Zone); `GET /territory/team/hqs/:hqId/routes` pages one HQ's routes. Routes never load all at
+once. `ManagerCoverage` is now the manager's *owned* area (small, admin-set). The data cleanup is `pnpm cleanup:manager-routes`
+(manual, dry run by default).
+
 ### Manager coverage (2026-10-15)
 
 `ManagerCoverage { userId, hqIds[], zoneIds[] }` (one document per manager, replaced whole). ASM and RSM cover a set of HQs (an

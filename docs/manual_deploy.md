@@ -287,6 +287,30 @@ It turns EPF and ESI into deductions, adds HRA, Conveyance and a mandatory Profe
 
 ---
 
+## Step 9h — Chemists by assignment, and routes off managers (once, when upgrading past 2026-11-16)
+
+Two scripts, **run by hand**, never automatically. Both are a dry run unless given `--apply --confirm-db=<database name>`. Take a `mongodump` first.
+
+1. **Before** the new release goes live — so no MR loses a chemist when "on my routes" stops deciding:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml run --rm api pnpm --filter @greynote/api backfill:chemist-assignments
+   docker compose -f docker-compose.prod.yml run --rm api pnpm --filter @greynote/api backfill:chemist-assignments -- --apply --confirm-db=<dbname>
+   ```
+
+   It assigns every active chemist to each active field employee who holds its route today. Run twice, it changes nothing the second time.
+
+2. **After** the release is live — ends the route rows that were copied onto managers (only where someone below them also holds the route and the manager has no doctor of their own there; the rest is listed, not touched):
+
+   ```bash
+   docker compose -f docker-compose.prod.yml run --rm api pnpm --filter @greynote/api cleanup:manager-routes
+   docker compose -f docker-compose.prod.yml run --rm api pnpm --filter @greynote/api cleanup:manager-routes -- --apply --confirm-db=<dbname>
+   ```
+
+   Read the dry run's per-manager counts before applying. Ended rows stay as history.
+
+---
+
 ## Updating a running deploy
 
 ```bash

@@ -39,10 +39,16 @@ import {
   submitMonthlyPlan,
   withdrawPlan,
   workingTypeLabel,
+  allKnownTeamRoutes,
+  knownTeamRoute,
+  listTeamRoutes,
+  rememberTeamRoutes,
+  useTeamRouteVersion,
   type MonthlyPlanDetail,
   type PlanDay,
   type WorkingType,
 } from '@/lib/planning';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { useSessionUser } from '@/lib/session';
 import { refreshNow, useColleagues, useOnline } from '@/offline';
 import { useCachedSource } from '@/offline/cache';
@@ -91,6 +97,8 @@ export default function MonthlyPlanScreen() {
   const config = useCachedSource<ConfigSnapshot>('config');
   const hr = useCachedSource<HrSnapshot>('hr');
   const territory = useCachedSource<TerritorySnapshot>('territory');
+  const teamRoutesSeen = useTeamRouteVersion();
+  const { isManager } = useCurrentUser();
   const { today } = useDayGate();
   const online = useOnline();
   const { colleagues } = useColleagues();
@@ -118,10 +126,12 @@ export default function MonthlyPlanScreen() {
   const days = useMemo(() => datesInMonth(month), [month]);
   const names = useMemo(
     () => ({
-      routes: new Map((territory.data?.routes ?? []).map((r) => [r.id, r.name])),
+      // The phone's own routes, plus the team routes a manager's plan names (docs/mobile/team-visibility.md §2a).
+      routes: new Map<string, string>([...allKnownTeamRoutes().map((r): [string, string] => [r.id, r.name]), ...(territory.data?.routes ?? []).map((r): [string, string] => [r.id, r.name])]),
       colleagues: new Map(colleagues.map((c) => [c.id, c])),
     }),
-    [territory.data, colleagues],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `teamRoutesSeen` says the team-route memory grew
+    [territory.data, colleagues, teamRoutesSeen],
   );
   const timeZone = config.data?.settings.BUSINESS_TIMEZONE;
 
@@ -161,6 +171,12 @@ export default function MonthlyPlanScreen() {
     }
   }, [month, online, detailKey]);
   const loadDetail = () => fetchDetail().then((r) => { if (r) setDetailState(r); });
+
+  // A manager's saved plan names routes held by their team: fetch the first page of names once, so the list reads "Naxalbari" and not "Route".
+  useEffect(() => {
+    if (!isManager || !online) return;
+    listTeamRoutes({ pageSize: 100 }).then((res) => rememberTeamRoutes(res.items)).catch(() => undefined);
+  }, [isManager, online]);
 
   useEffect(() => {
     let alive = true;
@@ -233,7 +249,9 @@ export default function MonthlyPlanScreen() {
   function validDay(day: PlanDay, date?: string): { field: 'routes' | 'returnDate'; text: string } | null {
     if (isFieldDay(day.workingType) && day.routeIds.length === 0) return { field: 'routes', text: `Pick at least one route for a ${workingTypeLabel(day.workingType)} day.` };
     if (day.returnDate && date) {
-      const hasOut = (territory.data?.routes ?? []).some((r) => r.routeType === 'OUT_STATION' && day.routeIds.includes(r.id));
+      const hasOut =
+        (territory.data?.routes ?? []).some((r) => r.routeType === 'OUT_STATION' && day.routeIds.includes(r.id)) ||
+        day.routeIds.some((id) => knownTeamRoute(id)?.routeType === 'OUT_STATION'); // a manager's team routes
       if (!hasOut) return { field: 'routes', text: 'A trip needs at least one out-station route. Add one, or clear the return date.' };
       if (day.returnDate <= date) return { field: 'returnDate', text: 'The return date must be after the day you leave.' };
       if (day.returnDate.slice(0, 7) > addMonths(date.slice(0, 7), 1)) return { field: 'returnDate', text: 'A trip can’t return later than next month.' };

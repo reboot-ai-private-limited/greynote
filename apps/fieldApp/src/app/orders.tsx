@@ -264,7 +264,7 @@ export default function OrdersScreen() {
                 fe.clear('outlet');
               }}
               disabled={busy !== null}
-              emptyText={outletType === 'CHEMIST' ? 'No chemists are on your routes yet.' : 'No distributors are assigned to you yet.'}
+              emptyText={outletType === 'CHEMIST' ? 'No chemists are assigned to you yet.' : 'No distributors are assigned to you yet.'}
             />
           </FormField>
         </CardSection>

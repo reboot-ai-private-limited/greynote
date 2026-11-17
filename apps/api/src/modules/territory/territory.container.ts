@@ -15,7 +15,7 @@ import { GetRoutePathUseCase } from './application/usecases/getRoutePath.usecase
 import { GetRouteSummaryUseCase } from './application/usecases/getRouteSummary.usecase.js';
 import { ListRouteAssignmentsUseCase } from './application/usecases/listRouteAssignments.usecase.js';
 import { ListRouteIdsInScopeUseCase } from './application/usecases/listRouteIdsInScope.usecase.js';
-import { ListRoutesForUserUseCase } from './application/usecases/listRoutesForUser.usecase.js';
+import { ListRoutesForUserUseCase, ListRoutesForUsersUseCase } from './application/usecases/listRoutesForUser.usecase.js';
 import { UnassignRouteUseCase } from './application/usecases/unassignRoute.usecase.js';
 import { ListRoutesUseCase } from './application/usecases/listRoutes.usecase.js';
 import { GetUserHqUseCase } from './application/usecases/getUserHq.usecase.js';
@@ -31,7 +31,8 @@ import { GetTerritoryGapsUseCase } from './application/usecases/getTerritoryGaps
 import { GetManagerCoverageUseCase, SetManagerCoverageUseCase } from './application/usecases/managerCoverage.usecase.js';
 import { ListManagerCandidatesUseCase } from './application/usecases/listManagerCandidates.usecase.js';
 import { MongoManagerCoverageAdapter } from './infrastructure/mongoManagerCoverage.adapter.js';
-import { buildManagerCandidatesRouter, buildManagerCoverageRouter, buildTeamGapsRouter } from './interface/managerCoverage.route.js';
+import { GetTeamTerritoryUseCase } from './application/usecases/getTeamTerritory.usecase.js';
+import { buildManagerCandidatesRouter, buildManagerCoverageRouter, buildTeamGapsRouter, buildTeamTerritoryRouter } from './interface/managerCoverage.route.js';
 import type { ManagerDirectoryPort } from './domain/managerDirectory.port.js';
 import { MongooseTransactionRunner } from '@/shared/db/mongooseTransactionRunner.js';
 import { SearchPlacesUseCase } from './application/usecases/searchPlaces.usecase.js';
@@ -112,6 +113,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
     unassign: makeUnassignRouteController(new UnassignRouteUseCase(assignmentRepository)),
   };
   const listRoutesForUser = new ListRoutesForUserUseCase(assignmentRepository, routeRepository, hqRepository);
+  const listRoutesForUsers = new ListRoutesForUsersUseCase(assignmentRepository, routeRepository, hqRepository);
   const getRouteSummary = new GetRouteSummaryUseCase(routeRepository, hqRepository);
   const getRoutePath = new GetRoutePathUseCase(routeRepository, hqRepository);
   const listRouteIdsInScope = new ListRouteIdsInScopeUseCase(routeRepository);
@@ -128,9 +130,10 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
     get: getCoverage,
     set: setCoverage,
     territory: new GetUserTerritoryUseCase(coverageRepository, userHqRepository, hqRepository),
-    extend: new ExtendManagerTerritoryUseCase(getCoverage, setCoverage, hqRepository, assignmentRepository, assignRoute, users),
+    extend: new ExtendManagerTerritoryUseCase(getCoverage, setCoverage, hqRepository, users),
     gaps: new GetTerritoryGapsUseCase(users, getCoverage, assignmentRepository, routeRepository, hqRepository),
   };
+  const teamTerritory = new GetTeamTerritoryUseCase(users, getCoverage, hqRepository, zoneRepository, routeRepository);
   const managerCandidates = new ListManagerCandidatesUseCase(users, coverageRepository, hqRepository);
 
   return {
@@ -155,6 +158,8 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
           : null;
       },
       listRoutesForUser: (userId) => listRoutesForUser.execute(userId),
+      listRoutesForUsers: (userIds) => listRoutesForUsers.execute(userIds),
+      listHoldersOfRoutes: (routeIds) => listRoutesForUsers.holders(routeIds),
       getRoutePath: async (routeId) => {
         const live = await getRoutePath.execute(routeId);
         if (live) return live;
@@ -218,6 +223,7 @@ export function buildTerritoryContainer(users: UserDirectoryPort & ManagerDirect
       router.use('/users', buildManagerCoverageRouter(managerCoverage));
       router.use('/manager-candidates', buildManagerCandidatesRouter(managerCandidates));
       router.use('/team-gaps', buildTeamGapsRouter(managerCoverage.gaps));
+      router.use('/team', buildTeamTerritoryRouter(teamTerritory));
       return router;
     },
   };

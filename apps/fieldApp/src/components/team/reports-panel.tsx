@@ -34,7 +34,8 @@ const GROUPS: Group[] = [
     hint: 'Used now and then',
     items: [
       { title: 'Late exceptions', about: 'Let someone send a plan or expenses late, and see what you granted', href: '/late-grants', icon: sym('clock.badge.checkmark', 'schedule'), accent: 'amber' },
-      { title: 'Team doctors', about: 'Their doctors, and how often each should be visited', href: '/team-doctors', icon: sym('target', 'track_changes'), accent: 'red' },
+      { title: 'Team distributors', about: 'Distributors held by your team', href: '/team-distributors', icon: sym('truck.box', 'local_shipping'), accent: 'orange' },
+      { title: 'Territory', about: 'Zones, HQs and routes of your team', href: '/team-territory', icon: sym('map', 'map'), accent: 'blue' },
       { title: 'Unblock', about: 'Clear a block for a missed report', href: '/unblock', icon: sym('lock.open', 'lock_open'), accent: 'purple' },
     ],
   },

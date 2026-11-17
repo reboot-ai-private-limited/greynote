@@ -1,5 +1,7 @@
 # Mobile — Monthly Plan and Work With
 
+> **2026-11-17 — no Work With in the Tour Plan.** A Tour Plan day is a working type, **routes** and remarks. Who the day is worked with is chosen on the **Daily Plan** after the route ([`dailyplan.md`](dailyplan.md) §1b). `workWith` is still accepted in the body but **dropped** (not stored, not copied into the Daily Plan); plans saved earlier keep their old values as history. **A manager's routes** are the routes held by **anyone below them**, plus their own (`400` on `routeIds` otherwise): use `GET /planning/team-routes` (HQ first, then type-ahead search, paged; each route lists who holds it and its doctor count) — never load every route. An MR's routes are still only their own.
+
 What the field app must do for the Monthly Plan, and the rules the server enforces (the Daily Plan is in [`dailyplan.md`](dailyplan.md)). The server is the authority: the phone's cached status is a UX gate only and may be stale. Design background: [`LLD/planning.md`](../LLD/planning.md), [`decision-log.md`](../decision-log.md).
 
 **Changed 2026-11-02:** late-submission exceptions: `lateSubmitAllowedUntil` reads `null` and a grant is refused (`409 GRANT_PERIOD_LOCKED`) once the month's payroll or expenses are settled. No phone change needed. See [`../LLD/lateGrants.md`](../LLD/lateGrants.md).

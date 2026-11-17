@@ -9,8 +9,8 @@ import type { Actor } from './actor.js';
 /**
  * Who sees a Doctor (LLD field-master-data.md, "Who can see a Doctor"): Admin sees all; an MR
  * sees the Doctors assigned to them — and, while `DOCTOR_VISIBILITY_FOLLOWS_ROUTE` is on, only
- * those on a Route they still have; a manager sees the same for everyone in their downline.
- * Assignments on a Route an MR lost are hidden when read, never rewritten.
+ * those on a Route they still have; a manager sees every active Doctor assigned to anyone in their downline, flagged when
+ * that MR no longer has the Route. Assignments are never rewritten when a Route is lost.
  */
 export class DoctorVisibility {
   constructor(
@@ -32,6 +32,20 @@ export class DoctorVisibility {
     );
   }
 
+  /** A manager's team read: no Route filter, so a Doctor whose MR lost the Route stays listed (flagged by `routeNotHeld`) instead of vanishing. */
+  teamScopes(userIds: string[]): AssignedScope[] {
+    return userIds.map((userId) => ({ userId, routeIds: null }));
+  }
+
+  /** The ids of those Doctors whose assigned MR no longer has the Doctor's Route. One Route lookup per distinct MR. */
+  async routeNotHeld(items: ReadonlyArray<{ id: string; routeId: string; assignedUserId: string }>): Promise<Set<string>> {
+    const held = new Map<string, Set<string>>();
+    for (const userId of new Set(items.map((i) => i.assignedUserId))) {
+      held.set(userId, new Set((await this.territory.listRoutesForUser(userId)).map((r) => r.id)));
+    }
+    return new Set(items.filter((i) => !held.get(i.assignedUserId)!.has(i.routeId)).map((i) => i.id));
+  }
+
   /** Is this Doctor one of `userId`'s own — active, assigned to them, and on a Route they still have (when that applies)? */
   async isVisibleToAssignee(userId: string, doctor: Doctor): Promise<boolean> {
     if (doctor.status !== 'active') return false;
@@ -49,8 +63,9 @@ export class DoctorVisibility {
     if (doctor.status === 'pending') return actor.id === doctor.addedBy || (await this.isManagerOf(actor.id, doctor.addedBy));
     const assignment = await this.assignments.findActiveForDoctor(doctor.id);
     if (!assignment) return false;
-    if (assignment.userId !== actor.id && !(await this.isManagerOf(actor.id, assignment.userId))) return false;
-    return this.isVisibleToAssignee(assignment.userId, doctor);
+    if (assignment.userId === actor.id) return this.isVisibleToAssignee(actor.id, doctor);
+    // A manager sees the Doctor while it is assigned to someone below them, whether or not that MR still has the Route (the list flags it).
+    return doctor.status === 'active' && (await this.isManagerOf(actor.id, assignment.userId));
   }
 
   private async isManagerOf(managerId: string, userId: string): Promise<boolean> {

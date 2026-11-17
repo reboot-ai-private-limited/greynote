@@ -87,7 +87,8 @@ export class GetTerritoryGapsUseCase {
     };
     const hqIds = level >= ZSM && mine.hqIds.length === 0 ? [] : [...new Set(theirs.hqIds)].filter((id) => !covers(id));
     const zoneIds = [...new Set(theirs.zoneIds)].filter((z) => !mine.zoneIds.includes(z));
-    const routeIds = level === ASM || level === RSM ? [...new Set(theirs.routeIds)].filter((id) => !mine.routeIds.includes(id)) : [];
+    // Routes are no longer a gap: a manager's routes are computed from their team, never copied onto them (decision-log 2026-11-16).
+    const routeIds: string[] = [];
     return { managerId: manager.id, employeeCode: manager.employeeCode, name: manager.name, designation: manager.designation, level, reports: reportIds.length, hqIds, zoneIds, routeIds };
   }
 

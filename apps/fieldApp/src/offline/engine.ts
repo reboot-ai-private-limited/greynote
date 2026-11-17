@@ -120,8 +120,22 @@ export type PushSummary = {
  * run again: every record is idempotent on its clientId. Needs a live connection — the caller
  * disables Submit offline (HLD 01 §1.2).
  */
-/** `DCR_SUBMIT_LATE`: past the monthly cutoff and Admin has not allowed it. `PAYROLL_FINALIZED`: the month's salary is final. */
-export const PERMANENT_REFUSALS = new Set(['DCR_SUBMIT_LATE', 'PAYROLL_FINALIZED']);
+/**
+ * Refusals that sending again won't change, so a record that got one stays FAILED with the server's message instead of being retried on every sync.
+ * `DCR_SUBMIT_LATE`: past the monthly cutoff and Admin has not allowed it. `PAYROLL_FINALIZED`: the month's salary is final.
+ * `DOCTOR_NOT_ASSIGNED` / `CHEMIST_ROUTE_NOT_ASSIGNED`: the doctor or chemist was reassigned while the phone was offline (the second code keeps its old
+ * name; it now means "no longer assigned to this chemist", docs/mobile/team-visibility.md).
+ */
+export const PERMANENT_REFUSALS = new Set(['DCR_SUBMIT_LATE', 'PAYROLL_FINALIZED', 'DOCTOR_NOT_ASSIGNED', 'CHEMIST_ROUTE_NOT_ASSIGNED']);
+
+/**
+ * Refusals where the record can never be accepted as it stands: nothing was stored on the server, so the screen offers "Remove this record"
+ * (the day can't be submitted while a refused record is still on it).
+ */
+export const REMOVABLE_REFUSALS = new Set(['NOT_AT_LOCATION', 'DOCTOR_NOT_ASSIGNED', 'CHEMIST_ROUTE_NOT_ASSIGNED', 'DOCTOR_NOT_FOUND', 'CHEMIST_NOT_FOUND']);
+
+/** The two refusals that mean "this is no longer yours": the screen explains who to ask. */
+export const NOT_ASSIGNED_REFUSALS = new Set(['DOCTOR_NOT_ASSIGNED', 'CHEMIST_ROUTE_NOT_ASSIGNED']);
 
 export async function pushPending(only?: SyncKind[], opts: { skipFailed?: boolean } = {}): Promise<PushSummary> {
   const summary: PushSummary = { sent: 0, synced: 0, failed: 0, held: 0, offline: false, error: null };

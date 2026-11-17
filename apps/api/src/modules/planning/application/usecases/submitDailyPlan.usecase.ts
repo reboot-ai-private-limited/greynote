@@ -51,7 +51,7 @@ export class SubmitDailyPlanUseCase {
       resubmitPolicy: await this.deadlines.dailyResubmitPolicy(plan.planDate),
       lateResubmits: plan.lateResubmits,
       days: [{ day: plan, field: '' }],
-      alsoRoutesOf: await this.scope.team(plan.userId, plan.workWith),
+      alsoRoutesOf: await this.scope.routePeople(plan.userId),
       confirmRevision: (count, ctx) => this.plans.confirmRevision(plan.id, plan.revision, count, ctx),
     });
   }

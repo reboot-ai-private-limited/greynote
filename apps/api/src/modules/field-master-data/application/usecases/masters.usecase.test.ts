@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { AppError } from '@/shared/errors/AppError.js';
 import { CreateChemistUseCase } from './createChemist.usecase.js';
 import { CreateProductUseCase } from './createProduct.usecase.js';
-import { FakeChemists, FakeProducts, FakeTerritory } from './fmdTestKit.js';
+import { FakeChemistAssignments, FakeChemists, FakeProducts, FakeTerritory } from './fmdTestKit.js';
 import { GetChemistUseCase } from './getChemist.usecase.js';
 import { GetProductUseCase } from './getProduct.usecase.js';
 import { ListChemistsUseCase } from './listChemists.usecase.js';
@@ -133,9 +133,15 @@ describe('Chemists', () => {
     await create.execute(input);
     const b = await create.execute({ ...input, routeId: 'route-2', name: 'City Meds' });
     await new UpdateChemistUseCase(chemists, territory).execute(b.id, { status: 'inactive' });
-    const list = new ListChemistsUseCase(chemists);
+    const assignments = new FakeChemistAssignments();
+    const list = new ListChemistsUseCase(chemists, assignments);
     expect((await list.execute({ ...page, routeId: 'route-2' })).items.map((c) => c.name)).toEqual(['City Meds']);
     expect((await list.execute({ ...page, status: 'active' })).total).toBe(1);
     expect((await list.execute({ ...page, search: 'sai' })).items[0]!.name).toBe('Sai Pharmacy');
+    // An employee's chemists are the active ones assigned to them, not those on their routes.
+    await assignments.assign({ chemistId: 'chemist-1', userId: 'mr1', assignedBy: 'admin' });
+    await assignments.assign({ chemistId: b.id, userId: 'mr1', assignedBy: 'admin' });
+    expect((await list.execute({ ...page, assignedUserId: 'mr1' })).items.map((c) => c.name)).toEqual(['Sai Pharmacy']); // City Meds is inactive
+    expect((await list.execute({ ...page, assignedUserId: 'mr2' })).total).toBe(0);
   });
 });

@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from 'react';
+
 import { addDays } from '@/offline/day';
 import type { PlanOffDay, PlanStatus } from '@/types/sync';
 
@@ -165,8 +167,72 @@ export const EDITABLE: (PlanStatus | null)[] = [null, 'DRAFT', 'REJECTED', 'WITH
  * the server sets the routes (the Monthly Plan's, or for a manager those of the people named) and returns the whole plan.
  * `doctorIds` is at most 50 for an MR and 100 for a manager.
  */
-export const saveDailyPlan = (planDate: string, day: { workingType: WorkingType; workWith: string[]; doctorIds: string[] }) =>
+export const saveDailyPlan = (planDate: string, day: { workingType: WorkingType; workWith: string[]; doctorIds: string[]; routeIds?: string[] }) =>
   apiPost<DailyPlanDetail>('/planning/daily/plan', { planDate, ...day }, { auth: true });
+
+/**
+ * A manager's route picker (docs/mobile/team-visibility.md §2a, 2026-11-17): the routes held by anyone below them (and their own), paged and
+ * searched, with `hqs` to start from. Never load every route: pick an HQ, then search inside it. `403` for an MR.
+ */
+export type TeamRoute = {
+  id: string;
+  name: string;
+  routeType: RouteType;
+  hqId: string;
+  hqName: string;
+  holders: { id: string; name: string; label: string }[];
+  doctorCount: number;
+};
+export type TeamRoutesPage = { items: TeamRoute[]; page: number; pageSize: number; total: number; totalPages: number; hqs: { id: string; name: string; routes: number }[] };
+
+/**
+ * The team routes the pickers have shown (and a preload of the first page): a manager's saved plan names routes they don't hold, so the screens
+ * look their name and type up here. `useTeamRouteVersion()` re-renders a screen when something was added.
+ */
+const teamRouteMemory = new Map<string, TeamRoute>();
+const teamRouteListeners = new Set<() => void>();
+let teamRouteVersion = 0;
+
+export function rememberTeamRoutes(routes: TeamRoute[]): void {
+  if (routes.length === 0) return;
+  for (const r of routes) teamRouteMemory.set(r.id, r);
+  teamRouteVersion += 1;
+  teamRouteListeners.forEach((l) => l());
+}
+export const knownTeamRoute = (id: string): TeamRoute | undefined => teamRouteMemory.get(id);
+export const allKnownTeamRoutes = (): TeamRoute[] => [...teamRouteMemory.values()];
+export function useTeamRouteVersion(): number {
+  return useSyncExternalStore(
+    (cb) => {
+      teamRouteListeners.add(cb);
+      return () => teamRouteListeners.delete(cb);
+    },
+    () => teamRouteVersion,
+    () => 0,
+  );
+}
+
+export const listTeamRoutes = (q: { hqId?: string | null; search?: string; page?: number; pageSize?: number }) => {
+  const params = new URLSearchParams();
+  if (q.hqId) params.set('hqId', q.hqId);
+  if (q.search) params.set('search', q.search);
+  params.set('page', String(q.page ?? 1));
+  params.set('pageSize', String(q.pageSize ?? 20));
+  return apiGet<TeamRoutesPage>(`/planning/team-routes?${params.toString()}`, { auth: true });
+};
+
+/**
+ * What a manager's Daily Plan offers once the route is chosen (online): the people below them who hold it, each with the chosen routes they
+ * hold in brackets, and the doctors on those routes. Nobody and no doctors means: ask your manager or Admin to change the plan.
+ */
+export type RouteOptions = {
+  routes: { id: string; name: string }[];
+  people: { id: string; name: string; designation: string | null; label: string; routes: { id: string; name: string }[] }[];
+  doctors: { id: string; name: string; routeId: string }[];
+};
+
+export const getRouteOptions = (date: string, routeIds: string[]) =>
+  apiGet<RouteOptions>(`/planning/daily/route-options?date=${date}&routeIds=${routeIds.join(',')}`, { auth: true });
 
 /** One team member's routes and doctors for a date: from their Daily Plan, else their Monthly Plan, else nothing. */
 export type TeamSuggestPerson = {

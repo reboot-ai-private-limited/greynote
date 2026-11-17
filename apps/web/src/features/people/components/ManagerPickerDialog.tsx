@@ -7,17 +7,12 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { toErrorState } from '@/lib/api/toErrorState';
 import { useSession } from '@/lib/auth/SessionProvider';
-import { RouteChecklist } from '@/features/territory/components/RouteChecklist';
 import { useAllHqs } from '@/features/territory/hooks/useHqs';
 import { useManagerCandidatesAbove } from '@/features/territory/hooks/useManagerCoverage';
-import { useActiveRoutes } from '@/features/territory/hooks/useRoutes';
-import { useAllZones } from '@/features/territory/hooks/useZones';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import { timing } from '@/lib/hooks/timing';
 import { useFieldDirectory, useManagerCandidates } from '../hooks/useUsers';
 
-const ASM = 2;
-const RSM = 3;
 const NSM = 5;
 
 interface Row {
@@ -42,23 +37,20 @@ function ConfirmTerritory({
   onDone: (extend: ExtendManagerTerritoryDto | undefined) => void;
 }) {
   const hqs = useAllHqs();
-  const zones = useAllZones();
   const hq = (hqs.data ?? []).find((h) => h.id === offer.hqId);
   // The NSM always counts as covering, but a ZSM or NSM still gets the Zone saved, so the box is shown for the NSM too.
   const isNsm = manager.level === NSM;
   const needsHq = Boolean(hq) && (manager.coverage !== 'covers' || isNsm);
-  const canHaveRoutes = manager.level === ASM || manager.level === RSM;
-  const routes = useActiveRoutes(undefined, canHaveRoutes);
   const [addHq, setAddHq] = useState(true);
-  const [routeIds, setRouteIds] = useState<string[]>([...offer.routeIds]);
 
   function done() {
     const extend: ExtendManagerTerritoryDto = {
       hqIds: needsHq && addHq && hq ? [hq.id] : [],
       zoneIds: needsHq && addHq && hq ? [hq.zoneId] : [],
-      routeIds: canHaveRoutes ? routeIds : [],
+      // Routes are no longer copied onto a manager: what they see is computed from their team (decision-log 2026-11-16).
+      routeIds: [],
     };
-    const nothing = extend.hqIds.length === 0 && extend.routeIds.length === 0;
+    const nothing = extend.hqIds.length === 0;
     onDone(nothing ? undefined : extend);
   }
 
@@ -85,27 +77,6 @@ function ConfirmTerritory({
           ) : null}
         </div>
       ) : null}
-      {canHaveRoutes ? (
-        <div>
-          <p className="mb-1 text-sm font-medium">Routes for {manager.name} (optional)</p>
-          <p className="mb-2 text-[13px] text-text-subtle">
-            The employee’s routes are ticked. Untick any, or tick more. Routes can be changed later
-            on their Routes card.
-          </p>
-          {routes.isLoading ? (
-            <p className="text-[13px] text-text-subtle">Loading…</p>
-          ) : (
-            <RouteChecklist
-              routes={routes.data ?? []}
-              selected={routeIds}
-              onChange={setRouteIds}
-              hqs={hqs.data ?? []}
-              zones={zones.data ?? []}
-              emptyText="There are no routes yet."
-            />
-          )}
-        </div>
-      ) : null}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onBack}>
           Back
@@ -123,8 +94,8 @@ function ConfirmTerritory({
  * With `above` it is the reporting-manager picker: only designations above `level` are offered (any higher level, so a vacant one can be
  * skipped), those covering `hqId` first, each with its designation in brackets. A manager whose coverage leaves the HQ out is listed last.
  *
- * With `offer` (the employee's HQ and routes) choosing a manager opens a short confirm step: add the HQ (and its Zone) to the manager's
- * territory, and for an ASM or RSM tick the routes to give them too. Everything is ticked by default and can be changed; `onPick` then
+ * With `offer` (the employee's HQ) choosing a manager opens a short confirm step when the manager's coverage leaves that HQ out: add the HQ
+ * (and its Zone) to the manager's territory. It is ticked by default and can be changed; `onPick` then
  * carries `extend` for the caller to send once the manager is saved. A ZSM already covering skips it; the NSM is always offered the Zone.
  */
 export function ManagerPickerDialog({
@@ -179,14 +150,13 @@ export function ManagerPickerDialog({
       : (listed.data?.items ?? []);
   const rows = found.filter((u) => u.id !== selfId);
 
-  /** The confirm step is worth showing when there is a coverage gap to fill, or an ASM/RSM who can be given routes. */
+  /** The confirm step is worth showing only when there is a coverage gap to fill; routes are no longer copied onto managers. */
   const choose = (u: Row) => {
     const gap =
       Boolean(offer?.hqId) &&
       u.coverage !== undefined &&
       (u.coverage !== 'covers' || u.level === NSM);
-    const routes = offer !== undefined && (u.level === ASM || u.level === RSM);
-    if (offer && (gap || routes)) setConfirming(u);
+    if (offer && gap) setConfirming(u);
     else onPick({ id: u.id, name: u.name });
   };
 

@@ -11,6 +11,8 @@ import {
   STATUS_LABEL,
   bulkDecide,
   isLateApproval,
+  isPayrollFinalized,
+  PAYROLL_FINALIZED_TEXT,
   kindLabel,
   listInbox,
   listTeam,
@@ -218,7 +220,7 @@ export function ApprovalsPanel({ summary, refreshSummary }: Props) {
       setBulkMsg(
         failed.length === 0
           ? { tone: 'success', text: `${done} request${done === 1 ? '' : 's'} ${word}.` }
-          : { tone: 'warning', text: `${done} ${word}, ${failed.length} not done: ${failed.map((f) => (f.ok ? '' : isLateApproval(f.statusCode, f.message) ? LATE_APPROVAL_TEXT : f.message)).join('; ')}` },
+          : { tone: 'warning', text: `${done} ${word}, ${failed.length} not done: ${failed.map((f) => (f.ok ? '' : isPayrollFinalized(f.statusCode, f.message) ? PAYROLL_FINALIZED_TEXT : isLateApproval(f.statusCode, f.message) ? LATE_APPROVAL_TEXT : f.message)).join('; ')}` },
       );
       endSelecting();
       setReloadKey((k) => k + 1);

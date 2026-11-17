@@ -233,6 +233,19 @@ export interface DoctorAssignmentDto {
   unassignedBy: string | null;
 }
 
+/** One row of `GET /chemists/:id/assignments`, newest first. Unlike a doctor, a chemist can have many `active` rows (one per MR). */
+export interface ChemistAssignmentDto {
+  id: string;
+  chemistId: string;
+  userId: string;
+  status: 'active' | 'inactive';
+  assignedAt: string;
+  assignedBy: string;
+  unassignedAt: string | null;
+  unassignedBy: string | null;
+  user: { name: string; employeeCode: string } | null;
+}
+
 /** Samples of one Product issued for a Doctor, and what is left to give out. */
 export interface SampleAllocationDto {
   id: string;

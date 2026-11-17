@@ -8,6 +8,8 @@ import type { Actor } from '../application/actor.js';
 import type { AddedChemists } from '../application/usecases/addedChemists.js';
 import type { AddedDoctors } from '../application/usecases/addedDoctors.js';
 import type { AdjustSampleAllocationUseCase } from '../application/usecases/adjustSampleAllocation.usecase.js';
+import type { AssignChemistUseCase, ListChemistAssignmentsUseCase, ListTeamChemistsUseCase, UnassignChemistUseCase } from '../application/usecases/chemistAssignments.usecase.js';
+import type { ListTeamDistributorsUseCase } from '../application/usecases/listTeamDistributors.usecase.js';
 import type { AssignDoctorUseCase } from '../application/usecases/assignDoctor.usecase.js';
 import type { CreateChemistUseCase } from '../application/usecases/createChemist.usecase.js';
 import type { CreateDistributorUseCase } from '../application/usecases/createDistributor.usecase.js';
@@ -44,7 +46,10 @@ import type {
   listAddedDoctorsQuerySchema,
   listAssignedDoctorsQuerySchema,
   employeeDoctorsQuerySchema,
+  assignChemistBodySchema,
+  teamDistributorsQuerySchema,
   listChemistsQuerySchema,
+  teamChemistsQuerySchema,
   listDistributorsQuerySchema,
   listDoctorsQuerySchema,
   listProductsQuerySchema,
@@ -58,7 +63,7 @@ export function actorOf(req: Request): Actor {
 }
 
 export type CrudHandlers = Record<'list' | 'create' | 'get' | 'update', RequestHandler>;
-export type DistributorHandlers = CrudHandlers & Record<'uploadDocument' | 'removeDocument' | 'impact' | 'remove', RequestHandler>;
+export type DistributorHandlers = CrudHandlers & Record<'uploadDocument' | 'removeDocument' | 'impact' | 'remove' | 'team', RequestHandler>;
 
 export function makeProductControllers(u: {
   list: ListProductsUseCase;
@@ -114,6 +119,32 @@ export function makeChemistControllers(u: {
     update: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.update.execute(requiredParam(req.params, 'id'), req.body), 'Chemist updated.', 200),
     ),
+  };
+}
+
+export type ChemistAssignmentHandlers = Record<'team' | 'listAssignments' | 'assign' | 'unassign', RequestHandler>;
+
+/** Who holds a Chemist (many MRs each): Admin's assign/unassign, and a manager's team read. */
+export function makeChemistAssignmentControllers(u: {
+  team: ListTeamChemistsUseCase;
+  listAssignments: ListChemistAssignmentsUseCase;
+  assign: AssignChemistUseCase;
+  unassign: UnassignChemistUseCase;
+}): ChemistAssignmentHandlers {
+  return {
+    team: asyncHandler(async (req, res) => {
+      const query = req.query as unknown as z.output<typeof teamChemistsQuerySchema>;
+      sendSuccess(req, res, await u.team.execute(actorOf(req), query), 'Your team’s chemists.', 200);
+    }),
+    listAssignments: asyncHandler(async (req, res) => sendSuccess(req, res, await u.listAssignments.execute(requiredParam(req.params, 'id')), 'Assignments.', 200)),
+    assign: asyncHandler(async (req, res) => {
+      const { userId } = req.body as z.output<typeof assignChemistBodySchema>;
+      sendSuccess(req, res, await u.assign.execute(requiredParam(req.params, 'id'), userId, actorOf(req).id), 'Chemist assigned.', 201);
+    }),
+    unassign: asyncHandler(async (req, res) => {
+      await u.unassign.execute(requiredParam(req.params, 'id'), requiredParam(req.params, 'userId'), actorOf(req).id);
+      sendSuccess(req, res, null, 'Assignment removed.', 200);
+    }),
   };
 }
 
@@ -259,8 +290,13 @@ export function makeDistributorControllers(u: {
   uploadDocument: UploadDistributorDocumentUseCase;
   removeDocument: RemoveDistributorDocumentUseCase;
   retirement: DistributorRetirement;
+  team: ListTeamDistributorsUseCase;
 }): DistributorHandlers {
   return {
+    team: asyncHandler(async (req, res) => {
+      const query = req.query as unknown as z.output<typeof teamDistributorsQuerySchema>;
+      sendSuccess(req, res, await u.team.execute(actorOf(req), query), 'Your team’s distributors.', 200);
+    }),
     impact: asyncHandler(async (req, res) =>
       sendSuccess(req, res, await u.retirement.impact(requiredParam(req.params, 'id')), 'What deleting this would erase.', 200),
     ),

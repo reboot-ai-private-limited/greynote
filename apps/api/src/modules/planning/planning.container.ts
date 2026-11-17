@@ -21,6 +21,7 @@ import { OffDays } from './application/offDays.js';
 import type { PlanOffDaysSource } from './domain/offDays.js';
 import { ManagerScope } from './application/managerScope.js';
 import { SetDailyPlanUseCase } from './application/usecases/setDailyPlan.usecase.js';
+import { ListTeamRoutesUseCase, RouteOptionsUseCase } from './application/usecases/teamRoutes.usecase.js';
 import { SuggestFromTeamUseCase } from './application/usecases/suggestFromTeam.usecase.js';
 import { SetDailyPlanDoctorsUseCase } from './application/usecases/setDailyPlanDoctors.usecase.js';
 import type { CalledDoctorsPort, DoctorDirectoryPort } from './domain/doctorDirectory.port.js';
@@ -87,13 +88,15 @@ export function buildPlanningContainer(
   approvals.registerKind({ kind: 'DAILY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, describeRecords: describeEach((id) => dailyPlans.findById(id), (plan) => ({ title: dayTitle(plan.planDate), subtitle: null })) });
   approvals.registerKind({ kind: 'MONTHLY_PLAN', finalApproverRoles: ['HR', 'ADMIN'], overrideRoles: ['HR', 'ADMIN'], managerOnly: true, describeRecords: describeEach((id) => monthlyPlans.findById(id), (plan) => ({ title: monthTitle(plan.planMonth), subtitle: null })), onStatusChange: makeMonthlyPlanInheritHandler(monthlyPlans, dailyPlans, approvals, deadlines, offDays) });
   const views = new PlanViews(approvals, grants, deadlines, offDays);
-  const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now);
+  const scope = new ManagerScope(users, config, routes);
+  const submitter = new PlanSubmitter(users, routes, approvals, grants, transactions, deadlines.now, scope);
   const carryOver = new CarryOver(dailyPlans, approvals, config);
-  const scope = new ManagerScope(users, config);
   const submitDaily = new SubmitDailyPlanUseCase(dailyPlans, deadlines, submitter, approvals, carryOver, (u, m) => status.isMonthlyPlanApproved(u, m), scope);
   const setDoctors = new SetDailyPlanDoctorsUseCase(dailyPlans, approvals, carryOver, views, scope);
+  const teamRoutes = new ListTeamRoutesUseCase(users, routes, scope, carryOver);
+  const routeOptions = new RouteOptionsUseCase(users, routes, scope, carryOver);
   const teamSuggest = new SuggestFromTeamUseCase(dailyPlans, monthlyPlans, approvals, users, carryOver, scope);
-  const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, teamSuggest, views);
+  const setDay = new SetDailyPlanUseCase(dailyPlans, approvals, users, submitter, carryOver, scope, views);
   const getDaily = new GetDailyPlanUseCase(dailyPlans, users, views, routes);
   const listDaily = new ListDailyPlansUseCase(dailyPlans, views);
   const saveMonthly = new SaveMonthlyPlanUseCase(monthlyPlans, approvals, views, offDays);
@@ -114,7 +117,7 @@ export function buildPlanningContainer(
   };
   const amendDaily = new AmendDailyPlanUseCase(dailyPlans, users, submitter, deadlines, views, () => dayReported, scope, approvals);
 
-  const planOwnerRoutes = new ListPlanOwnerRoutesUseCase(monthlyPlans, users, routes);
+  const planOwnerRoutes = new ListPlanOwnerRoutesUseCase(monthlyPlans, users, routes, scope);
   const amendMonthly = new AmendMonthlyPlanUseCase(monthlyPlans, users, approvals, submitter, views, offDays, deadlines.now, { deadlines, daily: dailyPlans, transactions });
 
   const deleteMonthly = new DeleteMonthlyPlanUseCase(monthlyPlans, dailyPlans, approvals, deadlines, transactions);
@@ -153,6 +156,8 @@ export function buildPlanningContainer(
           setDoctors,
           setDay,
           teamSuggest,
+          teamRoutes,
+          routeOptions,
           carryOver,
           listDaily,
           getDaily,

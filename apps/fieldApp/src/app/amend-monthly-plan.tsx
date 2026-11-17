@@ -71,7 +71,7 @@ export default function AmendMonthlyPlanScreen() {
   const me = useSessionUser();
   const { today } = useDayGate();
   const config = useCachedSource<ConfigSnapshot>('config');
-  const { colleagues, loaded: colleaguesLoaded } = useColleagues();
+  const { colleagues } = useColleagues();
   const timeZone = config.data?.settings.BUSINESS_TIMEZONE;
 
   const [data, setData] = useState<Loaded | null>(null);
@@ -342,7 +342,6 @@ export default function AmendMonthlyPlanScreen() {
                     forOther={{
                       routes,
                       routesLoaded: data !== null,
-                      people: { list: people, loaded: colleaguesLoaded, emptyText: 'No colleagues to show. Connect to the internet so the list can load.' },
                     }}
                   />
                   <PrimaryButton label="Done" onPress={applySheet} />

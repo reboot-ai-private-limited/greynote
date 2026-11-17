@@ -36,6 +36,8 @@ export const setDailyPlanBodySchema = z.object({
   workingType: z.enum(WORKING_TYPES),
   workWith: z.array(objectIdSchema).max(20).default([]),
   doctorIds: z.array(objectIdSchema).max(500).default([]),
+  /** A manager's: which of the day's approved routes it covers; omitted = all of them. An MR's are fixed and this is ignored. */
+  routeIds: z.array(objectIdSchema).max(50).optional(),
 });
 
 /** `userIds` is a comma-separated list of team members' ids. */
@@ -45,6 +47,23 @@ export const teamSuggestQuerySchema = z.object({
     .string()
     .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean))
     .pipe(z.array(objectIdSchema).min(1).max(20)),
+});
+
+/** A manager's route picker: the routes held by anyone below them, HQ first. */
+export const teamRoutesQuerySchema = z.object({
+  hqId: z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid id.').optional(),
+  search: z.string().trim().min(1).max(100).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+});
+
+/** `routeIds` is a comma-separated list of the day's chosen routes. */
+export const routeOptionsQuerySchema = z.object({
+  date: planDateSchema,
+  routeIds: z
+    .string()
+    .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean))
+    .pipe(z.array(objectIdSchema).min(1).max(50)),
 });
 
 export const carryOverQuerySchema = z.object({ date: planDateSchema });

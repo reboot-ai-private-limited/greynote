@@ -25,6 +25,10 @@ export interface FieldMasterDataPublicContract {
   releaseLeaverDoctors(userId: string, handoverTo: string | null, actorId: string): Promise<{ handedOver: number; unassigned: number }>;
   /** They come off every distributor's assigned people; returns how many distributors changed. */
   releaseLeaverDistributors(userId: string): Promise<number>;
+  /** They come off every chemist they hold (the rows stay as history); returns how many chemists. */
+  releaseLeaverChemists(userId: string, actorId: string): Promise<number>;
+  /** Whether this MR holds the Chemist now (assignment, never the Route) and the Chemist is active. Gates calls and orders for it. */
+  isAssignedToChemist(userId: string, chemistId: string): Promise<boolean>;
   /** How many Doctors, Chemists and Distributors sit on these Routes (any status): what a permanent route delete would leave without one. */
   countOnRoutes(routeIds: string[]): Promise<{ doctors: number; chemists: number; distributors: number }>;
   /**

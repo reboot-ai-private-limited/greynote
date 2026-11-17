@@ -101,6 +101,8 @@ export type TeamDoctor = {
   /** The doctor's photo, or `null` (show initials). Absent from older servers. */
   photoUrl?: string | null;
   assignedTo: { userId: string; name: string; employeeCode: string } | null;
+  /** The MR holding this doctor no longer holds its route: still listed, with a small flag (docs/mobile/team-visibility.md §2). Absent from older servers. */
+  routeNotHeld?: boolean;
 };
 
 /** Every doctor assigned to anyone in the manager's team, at any depth (`userId` left out). Reads up to 20 pages of 100. */
@@ -118,8 +120,11 @@ export const listAllTeamDoctors = async (): Promise<TeamDoctor[]> => {
 export const listDoctorSamples = (doctorId: string) =>
   apiGet<{ productId: string; quantityRemaining: number }[]>(`/field-master-data/doctors/${doctorId}/sample-allocations`);
 
-export const listTeamDoctors = async (userId: string, search?: string) =>
-  (await apiGet<Page<TeamDoctor>>(`/field-master-data/doctors/team?userId=${userId}&pageSize=100${search ? `&search=${encodeURIComponent(search)}` : ''}`)).items;
+/** One page (20) of the team's doctors; `userId` narrows it to one person, left out it is the whole team. */
+export const listTeamDoctors = (userId: string | null, search: string | undefined, page: number) =>
+  apiGet<Page<TeamDoctor> & { page: number; totalPages: number }>(
+    `/field-master-data/doctors/team?page=${page}&pageSize=20${userId ? `&userId=${userId}` : ''}${search ? `&search=${encodeURIComponent(search)}` : ''}`,
+  );
 
 /** A doctor row for the service request picker, from either feed. */
 export type PickerDoctor = { id: string; name: string; subtitle: string; photoUrl: string | null };

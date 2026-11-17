@@ -226,8 +226,14 @@ doesn't re-derive the state machine.
 - **Assigning needs the Route.** A Doctor can be assigned only to an MR whose Routes include the
   Doctor's Route. Changing an MR's Routes never assigns or unassigns Doctors; Admin assigns the
   Doctors on the new Route by hand.
-- **Managers** see the Doctors and Routes of their downline through the reporting chain, by the
-  same rule applied to each report.
+- **Managers** (2026-11-16) see every active Doctor assigned to anyone in their downline, computed
+  on read — nothing is stored per manager. The Route filter does **not** apply to a manager's view: a
+  Doctor whose MR lost the Route stays listed with `routeNotHeld: true`. `canView` and the visuals
+  access check use the same rule. Full contract: [`mobile/team-visibility.md`](../mobile/team-visibility.md).
+- **Chemists** (2026-11-16) are held by assignment, many MRs each (`ChemistAssignment`: one active row
+  per chemist and MR, unique index; ended rows are history). The Route no longer grants a chemist. An MR-added
+  chemist is assigned to its adder on approval; offboarding ends the leaver's rows (others keep theirs).
+  A manager's `GET /chemists/team` and `GET /distributors/team` are the union over the downline.
 
 ## Edge cases
 

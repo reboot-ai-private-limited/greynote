@@ -66,6 +66,15 @@ Daily plans, monthly plans, daily reports, secondary sales and doctor services a
 | `GET /field-activity/expense-months?month&userId`, `GET /hr/leave-balances/:userId?year` | One person's expense month; leave balance. |
 | `POST /identity/users/:id/unblock`, `POST /planning/late-grants` (+ `/revoke`), `POST /field-activity/expense-grants` | Unblock with a reason; allow a late plan (only while `LATE_PLAN_GRANT_BY_MANAGER` is on) or late expense (`409 GRANT_PERIOD_LOCKED` once the month is settled). Late stock/secondary exceptions and granting for several people at once are on the web only. |
 
+### Available — manager's view of the team's holdings (2026-11-16)
+
+| Route | Use |
+|---|---|
+| `GET /field-master-data/doctors/team`, `/chemists/team`, `/distributors/team` | The team's doctors, chemists and distributors, computed from the downline; each row says which MRs hold it. |
+| `GET /territory/team`, `GET /territory/team/hqs/:hqId/routes` | The team's Zones and HQs; one HQ's routes, paged and searchable (also for any route picker). |
+
+Rules, states and edge cases: [`team-visibility.md`](team-visibility.md). Doctors `/team` now uses the same team check as the other team routes (the "own copy" noted in T10 is no longer a reason to differ).
+
 ### Needed — not built yet
 
 | Gap | Route (proposed) | For |

@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { buildPaginatedResult, toSkipLimit, type PaginatedResult } from '@/shared/http/pagination.js';
 import type { CoverageScope, Distributor, DistributorDocument } from '../domain/distributor.entity.js';
+import type { PageQuery } from '../domain/masterStatus.js';
 import type { DistributorFilter, DistributorRepositoryPort } from '../domain/distributor.repository.port.js';
 import { DistributorModel, type DistributorDoc } from './distributor.schema.js';
 import { escapeRegex } from './mongoHelpers.js';
@@ -81,6 +82,20 @@ export class MongoDistributorAdapter implements DistributorRepositoryPort {
       .sort({ name: 1, _id: 1 })
       .lean();
     return docs.map(toDistributor);
+  }
+
+  async listActiveAssignedToAny(userIds: string[], filter: { search?: string | undefined }, page: PageQuery): Promise<PaginatedResult<Distributor>> {
+    if (userIds.length === 0) return buildPaginatedResult([], 0, page);
+    const query: Record<string, unknown> = { status: 'active', assignedUserIds: { $in: userIds.map((id) => new Types.ObjectId(id)) } };
+    if (filter.search) {
+      const rx = new RegExp(escapeRegex(filter.search), 'i');
+      query['$or'] = [{ name: rx }, { gstNumber: rx }, { contactPerson: rx }];
+    }
+    const [docs, total] = await Promise.all([
+      DistributorModel.find(query).sort({ name: 1, _id: 1 }).skip(toSkipLimit(page).skip).limit(page.pageSize).lean(),
+      DistributorModel.countDocuments(query),
+    ]);
+    return buildPaginatedResult(docs.map(toDistributor), total, page);
   }
 
   async listAllActive(): Promise<Distributor[]> {

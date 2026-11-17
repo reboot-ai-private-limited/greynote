@@ -136,7 +136,7 @@ export type SetManagerCoverageDto = Pick<ManagerCoverageDto, 'hqIds' | 'zoneIds'
 export interface ExtendManagerTerritoryDto {
   hqIds: string[];
   zoneIds: string[];
-  /** Taken only for an ASM or RSM; a ZSM or the NSM holds no routes. */
+  /** Ignored since 2026-11-16: routes are no longer copied onto a manager, they are computed from the team. Kept so older clients still validate. */
   routeIds: string[];
 }
 

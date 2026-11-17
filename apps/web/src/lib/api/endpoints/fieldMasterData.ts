@@ -1,5 +1,6 @@
 import type {
   AdjustSampleDto,
+  ChemistAssignmentDto,
   ChemistDto,
   ChemistStatus,
   CreateChemistDto,
@@ -43,6 +44,8 @@ export interface ListChemistsQuery extends PaginationQueryDto {
   /** Includes `pending`: the Chemists employees added that await approval. */
   status?: ChemistStatus | undefined;
   routeId?: string | undefined;
+  /** Only the active chemists this employee is assigned to now. */
+  assignedUserId?: string | undefined;
 }
 export interface ListDoctorsQuery extends PaginationQueryDto {
   /** Includes `pending`: the Doctors MRs added that await approval. */
@@ -94,6 +97,13 @@ export const chemistsApi = {
   create: (token: string, body: CreateChemistDto) => request<ChemistDto>(`${BASE}/chemists`, { method: 'POST', token, body }),
   update: (token: string, id: string, body: UpdateChemistDto) =>
     request<ChemistDto>(`${BASE}/chemists/${id}`, { method: 'PATCH', token, body }),
+  /** Admin: who holds this chemist, now and before. Many MRs can hold one. */
+  assignments: (token: string, id: string, signal?: AbortSignal) =>
+    request<ChemistAssignmentDto[]>(`${BASE}/chemists/${id}/assignments`, { token, signal }),
+  assign: (token: string, id: string, userId: string) =>
+    request<ChemistAssignmentDto>(`${BASE}/chemists/${id}/assignments`, { method: 'POST', token, body: { userId } }),
+  unassign: (token: string, id: string, userId: string) =>
+    request<Record<string, never>>(`${BASE}/chemists/${id}/assignments/${userId}`, { method: 'DELETE', token }),
 };
 
 export const distributorsApi = {

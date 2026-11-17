@@ -37,6 +37,12 @@ describe('The routes of a plan’s owner', () => {
     }
   });
 
+  it('for a manager’s plan it lists the routes of the people below them, holding none themselves', async () => {
+    const managerPlan = (await new SaveMonthlyPlanUseCase(kit.monthlyPlans, kit.approvals, kit.views).execute(ASM, '2026-10', [])).id;
+    const withScope = new ListPlanOwnerRoutesUseCase(kit.monthlyPlans, kit.users, kit.routes, kit.scope);
+    expect((await withScope.execute({ id: ADMIN, role: 'ADMIN' }, managerPlan)).map((r) => r.id)).toEqual([A, B]);
+  });
+
   it('is not open to others, and not for an unknown plan', async () => {
     await expect(list.execute({ id: STRANGER, role: 'FIELD' }, planId)).rejects.toMatchObject({ statusCode: 403 });
     await expect(list.execute({ id: ASM, role: 'FIELD' }, 'missing')).rejects.toBeInstanceOf(AppError);

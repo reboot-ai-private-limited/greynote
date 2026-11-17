@@ -58,7 +58,7 @@ export class AmendDailyPlanUseCase {
       });
     }
 
-    await this.submitter.validateDays(plan.userId, [{ day, field: '' }], await this.scope.team(plan.userId, day.workWith));
+    await this.submitter.validateDays(plan.userId, [{ day, field: '' }], await this.scope.routePeople(plan.userId));
     const { workingType, dayKind, workWith, routeIds, remarks } = plan;
     const saved = await this.plans.amend(plan.id, plan.revision, day, {
       by: actor.id,

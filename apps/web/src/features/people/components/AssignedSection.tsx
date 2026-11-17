@@ -1,39 +1,27 @@
 'use client';
 
 import type { UserDetailDto } from '@greynote/contracts';
-import { useQueries } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { DataState } from '@/components/ui/DataState';
-import { chemistsApi } from '@/lib/api/endpoints/fieldMasterData';
 import { toErrorState } from '@/lib/api/toErrorState';
-import { authedQueryOptions } from '@/lib/query/factory';
-import { keys, staleTime } from '@/lib/query/keys';
 import { useDistributors } from '@/features/field-master-data/hooks/useDistributors';
+import { useChemists } from '@/features/field-master-data/hooks/useChemists';
 import { useDoctors } from '@/features/field-master-data/hooks/useDoctors';
-import { useUserRoutes } from '@/features/territory/hooks/useUserRoutes';
 
 const PAGE = { page: 1, pageSize: 100 } as const;
 
 /**
- * What a field employee is responsible for, read only (Admin): the distributors and doctors assigned to them, and the chemists on their routes.
- * Distributors and doctors are changed on their own pages; chemists follow the routes above.
+ * What a field employee is responsible for, read only (Admin): the distributors, doctors and chemists assigned to them.
+ * Each is changed on its own page.
  */
 export function AssignedSection({ user }: { user: UserDetailDto }) {
   const distributors = useDistributors({ ...PAGE, assignedUserId: user.id, status: 'active' });
   const doctors = useDoctors({ ...PAGE, assignedUserId: user.id });
-  const routes = useUserRoutes(user.id);
-  const chemistQueries = useQueries({
-    queries: (routes.data ?? []).map((r) => {
-      const query = { ...PAGE, routeId: r.id, status: 'active' as const };
-      return authedQueryOptions({ queryKey: keys.chemists.list(query), fetch: (token, signal) => chemistsApi.list(token, query, signal), staleTime: staleTime.configuration });
-    }),
-  });
-  const chemists = chemistQueries.flatMap((q) => q.data?.items ?? []);
-  const chemistsLoading = routes.isLoading || chemistQueries.some((q) => q.isLoading);
+  const chemists = useChemists({ ...PAGE, assignedUserId: user.id });
 
   return (
-    <Card title="Assigned" description="Distributors and doctors handed to this employee, and the chemists on their routes. Change them from the distributor or doctor page, or from the routes above.">
+    <Card title="Assigned" description="Distributors, doctors and chemists handed to this employee. Change them from the distributor, doctor or chemist page.">
       <div className="grid gap-6 p-5 md:grid-cols-3">
         <List
           title="Distributors"
@@ -52,12 +40,12 @@ export function AssignedSection({ user }: { user: UserDetailDto }) {
           rows={(doctors.data?.items ?? []).map((d) => ({ id: d.id, name: d.name, href: `/doctors/${d.id}` }))}
         />
         <List
-          title="Chemists (via routes)"
-          loading={chemistsLoading}
-          error={null}
-          total={chemistsLoading ? undefined : chemists.length}
-          empty="No chemists on this employee's routes."
-          rows={chemists.map((c) => ({ id: c.id, name: c.name, href: `/chemists/${c.id}` }))}
+          title="Chemists"
+          loading={chemists.isLoading}
+          error={chemists.error ? toErrorState(chemists.error, () => void chemists.refetch()) : null}
+          total={chemists.data?.total}
+          empty="None. This employee sees no chemist until one is assigned."
+          rows={(chemists.data?.items ?? []).map((c) => ({ id: c.id, name: c.name, href: `/chemists/${c.id}` }))}
         />
       </div>
     </Card>

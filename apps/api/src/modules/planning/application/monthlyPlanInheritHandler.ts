@@ -34,7 +34,7 @@ export async function inheritDays(
   let written = 0;
   for (const { planDate, ...entry } of plan.entries) {
     if (planDate < today || offDates.has(planDate)) continue;
-    if (await daily.createInherited(plan.userId, planDate, entry, ctx)) {
+    if (await daily.createInherited(plan.userId, planDate, { ...entry, workWith: [] }, ctx)) {
       written++;
       continue;
     }

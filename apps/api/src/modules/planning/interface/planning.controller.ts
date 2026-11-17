@@ -10,6 +10,7 @@ import type { AmendMonthlyPlanUseCase } from '../application/usecases/amendMonth
 import type { AmendDailyPlanUseCase } from '../application/usecases/amendDailyPlan.usecase.js';
 import type { CarryOver } from '../application/carryOver.js';
 import type { SetDailyPlanUseCase } from '../application/usecases/setDailyPlan.usecase.js';
+import type { ListTeamRoutesUseCase, RouteOptionsUseCase } from '../application/usecases/teamRoutes.usecase.js';
 import type { SuggestFromTeamUseCase } from '../application/usecases/suggestFromTeam.usecase.js';
 import type { SetDailyPlanDoctorsUseCase } from '../application/usecases/setDailyPlanDoctors.usecase.js';
 import type { GetDailyPlanUseCase } from '../application/usecases/getDailyPlan.usecase.js';
@@ -30,6 +31,8 @@ import type {
   setDailyPlanDoctorsBodySchema,
   setDailyPlanBodySchema,
   teamSuggestQuerySchema,
+  teamRoutesQuerySchema,
+  routeOptionsQuerySchema,
   grantLateSubmitBodySchema,
   listDailyPlansQuerySchema,
   listLateSubmitGrantsQuerySchema,
@@ -52,6 +55,8 @@ export type PlanningHandlers = Record<
   | 'setDoctors'
   | 'setDay'
   | 'teamSuggest'
+  | 'teamRoutes'
+  | 'routeOptions'
   | 'carryOver'
   | 'listDaily'
   | 'getDaily'
@@ -78,6 +83,8 @@ export function makePlanningControllers(useCases: {
   setDoctors: SetDailyPlanDoctorsUseCase;
   setDay: SetDailyPlanUseCase;
   teamSuggest: SuggestFromTeamUseCase;
+  teamRoutes: ListTeamRoutesUseCase;
+  routeOptions: RouteOptionsUseCase;
   carryOver: CarryOver;
   listDaily: ListDailyPlansUseCase;
   getDaily: GetDailyPlanUseCase;
@@ -99,6 +106,14 @@ export function makePlanningControllers(useCases: {
     setDay: asyncHandler(async (req, res) => {
       const { planDate, ...input } = req.body as z.output<typeof setDailyPlanBodySchema>;
       sendSuccess(req, res, await useCases.setDay.execute(actorOf(req).id, planDate, input), 'Plan saved.', 200);
+    }),
+    teamRoutes: asyncHandler(async (req, res) => {
+      const query = req.query as unknown as z.output<typeof teamRoutesQuerySchema>;
+      sendSuccess(req, res, await useCases.teamRoutes.execute(actorOf(req).id, query), 'The routes held by your team.', 200);
+    }),
+    routeOptions: asyncHandler(async (req, res) => {
+      const { routeIds } = req.query as unknown as z.output<typeof routeOptionsQuerySchema>;
+      sendSuccess(req, res, await useCases.routeOptions.execute(actorOf(req).id, routeIds), 'The people and doctors on these routes.', 200);
     }),
     teamSuggest: asyncHandler(async (req, res) => {
       const { date, userIds } = req.query as unknown as z.output<typeof teamSuggestQuerySchema>;

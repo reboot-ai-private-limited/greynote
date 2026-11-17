@@ -101,6 +101,8 @@ const BY_ID = [
 const TIMELESS = [
   '/api/planning/daily/carry-over',
   '/api/planning/daily/team-suggest', // one named day's suggestion for a manager; the day is chosen by the caller
+  '/api/planning/daily/route-options', // one named day's people and doctors for the chosen routes
+  '/api/planning/team-routes', // who holds which route now, not a dated record
   '/api/field-activity/expense-months/history', // the last twelve months, across a year end
   '/api/config', // system settings: global, not a dated record
   '/api/config/public',
@@ -145,11 +147,16 @@ const TIMELESS = [
   '/api/territory/routes/:id/delete-impact',
   '/api/territory/manager-candidates',
   '/api/territory/team-gaps',
+  '/api/territory/team', // the manager's territory as it is now
+  '/api/territory/team/hqs/:hqId/routes',
   '/api/territory/users/:userId/team-gaps',
   '/api/field-master-data/doctors/mine',
   '/api/field-master-data/doctors/assigned',
   '/api/field-master-data/doctors/team',
   '/api/field-master-data/chemists/added', // the chemists I added, whatever the year in view
+  '/api/field-master-data/chemists/team', // who holds what now, not a dated record
+  '/api/field-master-data/distributors/team',
+  '/api/field-master-data/chemists/:id/assignments',
   '/api/field-master-data/doctors/added',
   '/api/field-master-data/doctors',
   '/api/field-master-data/doctors/:id',

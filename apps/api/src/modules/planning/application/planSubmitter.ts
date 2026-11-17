@@ -10,6 +10,7 @@ import { assertPlanDay } from '../domain/planRules.js';
 import { resubmitWindowEnd, type ResubmitPolicy } from '../domain/resubmitWindow.js';
 import type { RouteDirectoryPort } from '../domain/routeDirectory.port.js';
 import type { UserDirectoryPort } from '../domain/userDirectory.port.js';
+import type { ManagerScope } from './managerScope.js';
 
 export interface PlanSubmission {
   kind: PlanKind;
@@ -23,7 +24,7 @@ export interface PlanSubmission {
   lateResubmits: number;
   /** Every day in the Plan, with the field prefix its errors carry. */
   days: Array<{ day: PlanDay; field: string }>;
-  /** A manager's Daily Plan may also use the routes of the team members it works with. */
+  /** A manager's plan may also name the routes held by these people: everyone below them (`ManagerScope.routePeople`). */
   alsoRoutesOf?: string[];
   /**
    * Inside the transaction: false if the Plan was edited after it was validated here.
@@ -47,6 +48,8 @@ export class PlanSubmitter {
     private readonly grants: LateSubmitGrantRepositoryPort,
     private readonly transactions: TransactionRunnerPort,
     private readonly now: () => Date,
+    /** Whose routes a manager's plan may also name; without it every plan is checked against the owner's own routes only. */
+    private readonly scope?: ManagerScope,
   ) {}
 
   async submit(s: PlanSubmission): Promise<ApprovalRequest> {
@@ -87,12 +90,14 @@ export class PlanSubmitter {
     });
   }
 
-  /** Every day is well-formed, on the owner's own active routes, with colleagues from their own reporting line — checked against today's state. */
-  async validateDays(ownerId: string, days: Array<{ day: PlanDay; field: string }>, alsoRoutesOf: string[] = []): Promise<void> {
+  /** Every day is well-formed, on the owner's own active routes (a manager's: or those of anyone below them), with colleagues from their own reporting line — checked against today's state. */
+  async validateDays(ownerId: string, days: Array<{ day: PlanDay; field: string }>, alsoRoutesOfGiven?: string[]): Promise<void> {
     const s = { ownerId, days };
+    // A manager's plan, monthly or daily, may name the routes of anyone below them; an MR's only their own (decision-log 2026-11-17).
+    const alsoRoutesOf = alsoRoutesOfGiven ?? (this.scope ? await this.scope.routePeople(ownerId) : []);
     for (const { day, field } of s.days) assertPlanDay(day, s.ownerId, field);
 
-    const mine = (await Promise.all([s.ownerId, ...alsoRoutesOf].map((id) => this.routes.listRoutesForUser(id)))).flat();
+    const mine = await this.routes.listRoutesForUsers([s.ownerId, ...alsoRoutesOf]);
     const allowed = new Set(mine.map((r) => r.id));
     const outStation = new Set(mine.filter((r) => r.routeType === 'OUT_STATION').map((r) => r.id));
     for (const { day, field } of s.days) {
@@ -104,7 +109,7 @@ export class PlanSubmitter {
       }
       const notYours = day.routeIds.filter((id) => !allowed.has(id));
       if (notYours.length > 0) {
-        throw AppError.badRequest(alsoRoutesOf.length > 0 ? 'A route in this plan isn’t one of your active routes or those of the team you work with.' : 'A route in this plan isn’t one of your active routes.', {
+        throw AppError.badRequest(alsoRoutesOf.length > 0 ? 'A route in this plan isn’t held by you or by anyone below you.' : 'A route in this plan isn’t one of your active routes.', {
           field: `${field}routeIds`,
           routeIds: notYours,
         });

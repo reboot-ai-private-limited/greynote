@@ -95,7 +95,7 @@ export const updateChemistBodySchema = z
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 /** Includes `pending` — the employee-added Chemists waiting for approval. */
-export const listChemistsQuerySchema = z.object({ ...pageFields, status: z.enum(CHEMIST_STATUSES).optional(), routeId: objectIdSchema.optional() });
+export const listChemistsQuerySchema = z.object({ ...pageFields, status: z.enum(CHEMIST_STATUSES).optional(), routeId: objectIdSchema.optional(), assignedUserId: objectIdSchema.optional() });
 
 // ---- Chemists an employee adds (offline-first, then approved)
 const addedChemistFields = {
@@ -189,6 +189,12 @@ export const listAssignedDoctorsQuerySchema = z.object({
 export const teamDoctorsQuerySchema = listAssignedDoctorsQuerySchema.extend({ userId: objectIdSchema.optional() });
 /** Admin: one employee's Doctors. */
 export const employeeDoctorsQuerySchema = listAssignedDoctorsQuerySchema.extend({ userId: objectIdSchema });
+/** A manager's Chemists across the downline; `userId` narrows to one report. */
+export const teamChemistsQuerySchema = listAssignedDoctorsQuerySchema.extend({ userId: objectIdSchema.optional() });
+/** A manager's distributors across the downline; `userId` narrows to one report. */
+export const teamDistributorsQuerySchema = z.object({ page: pageFields.page, pageSize: pageFields.pageSize, search: pageFields.search, userId: objectIdSchema.optional() });
+export const assignChemistBodySchema = z.object({ userId: objectIdSchema });
+export const chemistAssignmentParamsSchema = z.object({ id: objectIdSchema, userId: objectIdSchema });
 export const assignDoctorBodySchema = z.object({ userId: objectIdSchema });
 export const doctorAssignmentParamsSchema = z.object({ id: objectIdSchema, userId: objectIdSchema });
 

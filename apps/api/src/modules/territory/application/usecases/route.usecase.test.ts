@@ -64,6 +64,12 @@ class FakeAssignments implements RouteAssignmentRepositoryPort {
   async listActiveForUser(userId: string) {
     return this.rows.filter((a) => a.userId === userId && a.status === 'active');
   }
+  async listActiveForUsers(userIds: string[]) {
+    return this.rows.filter((a) => userIds.includes(a.userId) && a.status === 'active');
+  }
+  async listActiveForRoutes(routeIds: string[]) {
+    return this.rows.filter((a) => routeIds.includes(a.routeId) && a.status === 'active');
+  }
   async countActiveForRoute(routeId: string) {
     return this.rows.filter((a) => a.routeId === routeId && a.status === 'active').length;
   }

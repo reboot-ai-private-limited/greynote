@@ -9,7 +9,7 @@ import { logger } from '@/shared/logging/logger.js';
 
 export interface OffboardingSources {
   territory: Pick<TerritoryPublicContract, 'countUserHoldings' | 'releaseUserHoldings'>;
-  fieldMasterData: Pick<FieldMasterDataPublicContract, 'countLeaverWork' | 'releaseLeaverDoctors' | 'releaseLeaverDistributors'>;
+  fieldMasterData: Pick<FieldMasterDataPublicContract, 'countLeaverWork' | 'releaseLeaverDoctors' | 'releaseLeaverDistributors' | 'releaseLeaverChemists'>;
   planning: Pick<PlanningPublicContract, 'countLeaverPlans' | 'closeLeaverPlans'>;
   hr: Pick<HrPublicContract, 'countLeaverLeaves' | 'closeLeaverLeaves'>;
   marketing: Pick<MarketingPublicContract, 'countLeaverTargets' | 'cutLeaverTargets'>;
@@ -61,7 +61,10 @@ export function makeOffboarding(s: OffboardingSources): OffboardingPort {
           const r = await s.fieldMasterData.releaseLeaverDoctors(userId, doctorHandoverTo, actorId);
           return `${plural(r.handedOver, 'doctor')} handed over, ${r.unassigned} left unassigned.`;
         }),
-        await step('DISTRIBUTORS', userId, async () => `Taken off ${plural(await s.fieldMasterData.releaseLeaverDistributors(userId), 'distributor')}.`),
+        await step('DISTRIBUTORS', userId, async () => {
+          const [distributors, chemists] = [await s.fieldMasterData.releaseLeaverDistributors(userId), await s.fieldMasterData.releaseLeaverChemists(userId, actorId)];
+          return `Taken off ${plural(distributors, 'distributor')} and ${plural(chemists, 'chemist')}.`;
+        }),
         await step('TERRITORY', userId, async () => {
           const r = await s.territory.releaseUserHoldings(userId, actorId);
           return `${plural(r.routes, 'route')} ended, ${plural(r.coverage, 'covered HQ or Zone', 'covered HQs or Zones')} cleared.`;

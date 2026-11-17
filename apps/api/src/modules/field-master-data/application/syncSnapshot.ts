@@ -2,6 +2,7 @@ import { expandRouteIds } from './distributorCoverage.js';
 import type { FieldMasterDataSnapshot } from '@greynote/contracts';
 import type { SyncSourceDefinition } from '@/modules/sync/sync.public.js';
 import type { ChemistRepositoryPort } from '../domain/chemist.repository.port.js';
+import type { ChemistAssignmentRepositoryPort } from '../domain/chemistAssignment.repository.port.js';
 import type { DistributorRepositoryPort } from '../domain/distributor.repository.port.js';
 import type { DoctorRepositoryPort } from '../domain/doctor.repository.port.js';
 import type { SpecialtyRepositoryPort } from '../domain/specialty.repository.port.js';
@@ -31,6 +32,7 @@ export const FIELD_MASTER_DATA_SYNC_SOURCE = 'fieldMasterData';
 export function makeFieldMasterDataSource(deps: {
   doctors: DoctorRepositoryPort;
   chemists: ChemistRepositoryPort;
+  chemistAssignments: ChemistAssignmentRepositoryPort;
   products: ProductRepositoryPort;
   specialties: SpecialtyRepositoryPort;
   distributors: DistributorRepositoryPort;
@@ -47,7 +49,7 @@ export function makeFieldMasterDataSource(deps: {
       const [{ items: mine }, pending, chemists, distributors, products, specialties] = await Promise.all([
         deps.doctors.listAssigned(scopes, {}, null),
         deps.doctors.listPendingAdded(userId),
-        deps.chemists.listActiveOnRoutes(routeIds),
+        deps.chemistAssignments.listActiveForUsers([userId]).then((rows) => deps.chemists.listActiveAmong(rows.map((r) => r.chemistId), {}, { page: 1, pageSize: 100_000 }).then((r) => r.items)),
         deps.distributors.listActiveForUser(userId),
         deps.products.listActive(),
         deps.specialties.listActive(),

@@ -1,104 +1,90 @@
-import {
-  Tabs,
-  TabList,
-  TabTrigger,
-  TabSlot,
-  TabTriggerSlotProps,
-  TabListProps,
-} from 'expo-router/ui';
-import { Pressable, View, StyleSheet } from 'react-native';
+import { Tabs, TabList, TabTrigger, TabSlot, type TabTriggerSlotProps, type TabListProps } from 'expo-router/ui';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
 
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useTheme } from '@/hooks/use-theme';
 
-/** Web version of app-tabs.tsx — same four tabs, same Team rule. Keep the two lists in step. */
+/**
+ * Web version of app-tabs.tsx: the same four tabs, the same Team rule, and the same place: a bar along the BOTTOM of the screen with an
+ * icon over each name, like the phone's native tabs. (It used to be the starter's floating bar pinned over the top of the page, which sat on
+ * top of Home's header and made the Profile button unreachable.) The bar is part of the layout, not laid over it, so nothing is covered.
+ * Keep the two lists in step.
+ */
 export default function AppTabs() {
   const { isManager } = useCurrentUser();
 
   return (
-    <Tabs>
-      <TabSlot style={{ height: '100%' }} />
+    <Tabs style={styles.root}>
+      <TabSlot style={styles.slot} />
       <TabList asChild>
-        <CustomTabList>
+        <BottomBar>
           <TabTrigger name="index" href="/(tabs)" asChild>
-            <TabButton>Home</TabButton>
+            <TabButton icon="home">Home</TabButton>
           </TabTrigger>
           <TabTrigger name="docs" href="/docs" asChild>
-            <TabButton>Docs</TabButton>
+            <TabButton icon="description">Docs</TabButton>
           </TabTrigger>
           <TabTrigger name="reports" href="/reports" asChild>
-            <TabButton>Reports</TabButton>
+            <TabButton icon="bar_chart">Reports</TabButton>
           </TabTrigger>
           {isManager ? (
             <TabTrigger name="team" href="/team" asChild>
-              <TabButton>Team</TabButton>
+              <TabButton icon="groups">Team</TabButton>
             </TabTrigger>
           ) : null}
-        </CustomTabList>
+        </BottomBar>
       </TabList>
     </Tabs>
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+/** The Material icon names the phone's tabs use (`md=` in app-tabs.tsx). */
+const symbol = (name: string): SymbolViewProps['name'] => ({ ios: name, android: name, web: name }) as SymbolViewProps['name'];
+
+function TabButton({ children, isFocused, icon, ...props }: TabTriggerSlotProps & { icon: string }) {
+  const theme = useTheme();
+  const color = isFocused ? theme.primary : theme.textSecondary;
   return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'primary' : 'textSecondary'}>
-          {children}
-        </ThemedText>
-      </ThemedView>
+    <Pressable {...props} accessibilityRole="tab" accessibilityState={{ selected: Boolean(isFocused) }} style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
+      <SymbolView name={symbol(icon)} size={24} tintColor={color} />
+      <ThemedText type="small" themeColor={isFocused ? 'primary' : 'textSecondary'} style={isFocused ? styles.labelOn : undefined}>
+        {children}
+      </ThemedText>
     </Pressable>
   );
 }
 
-export function CustomTabList(props: TabListProps) {
+function BottomBar(props: TabListProps) {
+  const theme = useTheme();
   return (
-    <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          My Greynote
-        </ThemedText>
-
-        {props.children}
-      </ThemedView>
+    <View {...props} style={[styles.bar, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
+      {props.children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tabListContainer: {
-    position: 'absolute',
-    width: '100%',
-    padding: Spacing.three,
-    justifyContent: 'center',
-    alignItems: 'center',
+  // The tabs fill the screen; the page takes everything above the bar.
+  root: { flex: 1, height: '100%' },
+  slot: { flex: 1 },
+  bar: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'stretch',
+    borderTopWidth: 1,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.two,
   },
-  innerContainer: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
-    flexDirection: 'row',
+  tab: {
+    flex: 1,
     alignItems: 'center',
-    flexGrow: 1,
-    gap: Spacing.two,
-    maxWidth: MaxContentWidth,
-  },
-  brandText: {
-    marginRight: 'auto',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  tabButtonView: {
+    gap: 2,
     paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
   },
+  pressed: { opacity: 0.7 },
+  labelOn: { fontWeight: '600' },
 });

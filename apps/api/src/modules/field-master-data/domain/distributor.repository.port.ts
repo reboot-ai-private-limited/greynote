@@ -21,6 +21,8 @@ export interface DistributorRepositoryPort {
   listAllActive(): Promise<Distributor[]>;
   /** Active Distributors this user is assigned to, or whose coverage meets the places they work in — the phone's cache. */
   listActiveForUser(userId: string): Promise<Distributor[]>;
+  /** Active Distributors assigned to any of these employees (a manager's team), by name, with an optional name/GST/contact search, paged. */
+  listActiveAssignedToAny(userIds: string[], filter: { search?: string | undefined }, page: PageQuery): Promise<PaginatedResult<Distributor>>;
   /** Removes the record for good; `false` if there was none. */
   delete(id: string): Promise<boolean>;
   addDocument(id: string, document: DistributorDocument): Promise<Distributor | null>;
