@@ -7,17 +7,17 @@ import { Notice } from '@/components/notice';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
-import { PlansTab, ReportsTab } from '@/components/team/member/plans-tab';
+import { PlansTab, ReportsTab, usePersonDays } from '@/components/team/member/plans-tab';
 import { ChoiceChips } from '@/components/choice-chips';
-import { DoctorsTab, ExpensesTab, LeaveTab, OrdersTab } from '@/components/team/member/more-tabs';
-import { MemberDownloads } from '@/components/team/member-downloads';
+import { DoctorLines } from '@/components/team/doctor-lines';
+import { ChemistsTab, DistributorsTab, DoctorsTab, ExpensesTab, LeaveTab, OrdersTab } from '@/components/team/member/more-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, CardSection, InfoCard, Meter, Pill, RowCard, SummaryStrip, sym } from '@/components/ui-cards';
 import { Spacing, type Accent } from '@/constants/theme';
+import { useDayGate } from '@/hooks/use-day-gate';
 import { useFinancialYear } from '@/lib/financial-year';
 import { formatRupees } from '@/lib/money';
-import { doctorCountText, routeCountText } from '@/lib/planning';
-import { NOT_IN_TEAM_TEXT, getTeamMemberSummary, planChip, type TeamMemberSummary } from '@/lib/team-section';
+import { NOT_IN_TEAM_TEXT, dailyPlanChip, getTeamDay, getTeamMemberSummary, tourPlanChip, type TeamBoard, type TeamMemberSummary } from '@/lib/team-section';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { monthOf, prettyDay, prettyMonth } from '@/offline/day';
@@ -34,9 +34,13 @@ export default function TeamMemberScreen() {
   const clamp = (m: string) => (m < fy.firstMonth ? fy.firstMonth : m > lastMonth ? lastMonth : m);
   const [picked, setMonth] = useState<string | null>(null);
   const month = clamp(picked ?? lastMonth);
-  const [tab, setTab] = useState<'overview' | 'plans' | 'reports' | 'expenses' | 'leave' | 'doctors' | 'orders'>('overview');
+  const [tab, setTab] = useState<'overview' | 'plans' | 'reports' | 'expenses' | 'leave' | 'doctors' | 'chemists' | 'distributors' | 'orders'>('overview');
   const [menu, setMenu] = useState(false);
 
+  const { today } = useDayGate();
+  const todayRow = useCachedFetch<TeamBoard>(`team-day-one:${fy.year}:${id}:${today}`, () => getTeamDay({ date: today, userId: String(id) }));
+  const days = usePersonDays(String(id), monthOf(today));
+  const row = todayRow.data?.items[0] ?? null;
   const list = useCachedFetch<TeamMemberSummary>(`team-member:${id}:${month}`, () => getTeamMemberSummary(String(id), month));
   const data = list.data;
   const denied = list.error && /403|not in your team|forbidden/i.test(list.error);
@@ -45,7 +49,8 @@ export default function TeamMemberScreen() {
   const go = (pathname: '/unblock' | '/late-grants' | '/team-doctors' | '/team-reports' | '/team-plans' | '/team-leaves' | '/team-orders' | '/team-stock') =>
     router.push({ pathname, params: { userId: String(id) } });
   const percent = o && o.targetPaise > 0 && o.achievedPaise !== null ? Math.round((o.achievedPaise / o.targetPaise) * 100) : null;
-  const chip = data?.today ? (data.today.state === 'ON_LEAVE' ? { text: 'On leave', accent: 'purple' as Accent } : planChip(data.today.plan?.status)) : null;
+  const chip = row ? (row.onLeave ? { text: 'On leave', accent: 'purple' as Accent } : dailyPlanChip(row.plan)) : null;
+  const tour = tourPlanChip(days.data?.monthlyPlanStatus);
 
   return (
     <ScreenShell title={data?.member.name ?? 'Person'} subtitle={data ? `${data.member.employeeCode}${data.member.designation ? ` · ${data.member.designation}` : ''}` : undefined} onRefresh={list.reload} refreshing={list.refreshing}>
@@ -64,18 +69,23 @@ export default function TeamMemberScreen() {
               </View>
               {data.today?.blocked ? <Pill text="Blocked" accent="red" /> : chip ? <Pill text={chip.text} accent={chip.accent} /> : null}
             </View>
-            {data.today ? (
-              <ThemedText type="small">
-                {`${prettyDay(data.date)} · ${data.today.plan ? `${data.today.plan.workingType.replace(/_/g, ' ').toLowerCase()} · ${routeCountText(data.today.plan.routeCount, data.today.plan.routes)}, ${doctorCountText(data.today.plan.doctorCount)}` : 'no daily plan'}${data.today.dcr ? ` · ${data.today.dcr.doctorCalls + data.today.dcr.chemistCalls} calls` : ''}`}
-              </ThemedText>
+            {row && !row.onLeave ? (
+              <>
+                <ThemedText type="small" themeColor={row.plan?.fromTourPlan ? 'textSecondary' : 'text'}>
+                  {`${prettyDay(today)} · ${row.plan?.fromTourPlan ? 'Tour Plan: ' : ''}${row.plan ? (row.plan.routes.length > 0 ? row.plan.routes.map((r) => r.name).join(', ') : row.plan.workingType.replace(/_/g, ' ').toLowerCase()) : 'no plan for today'}`}
+                </ThemedText>
+                <DoctorLines planned={row.doctors.planned} alsoVisited={row.doctors.alsoVisited} past={false} />
+              </>
             ) : null}
-            <PrimaryButton label={menu ? 'Hide actions ▴' : 'Actions and downloads ⋯'} variant="text" onPress={() => setMenu((m) => !m)} style={styles.link} />
+            <View style={styles.row}>
+              <Pill text={tour.text} accent={tour.accent} />
+            </View>
+            <PrimaryButton label={menu ? 'Hide actions ▴' : 'Actions ⋯'} variant="text" onPress={() => setMenu((m) => !m)} style={styles.link} />
           </InfoCard>
           {menu ? (
             <View style={styles.group}>
               <RowCard icon={sym('lock.open', 'lock_open')} accent="purple" title={data.today?.blocked ? 'Unblock now' : 'Unblock'} subtitle="Clear a block for a missed report" right={chevron} onPress={() => go('/unblock')} />
               <RowCard icon={sym('clock.badge.checkmark', 'schedule')} accent="amber" title="Allow a late plan or expenses" subtitle="One exception, for a time you choose" right={chevron} onPress={() => go('/late-grants')} />
-              <MemberDownloads userId={String(id)} employeeCode={data.member.employeeCode} name={data.member.name} designation={data.member.designation} month={month} />
             </View>
           ) : null}
           {data.today?.blocked ? (
@@ -92,6 +102,8 @@ export default function TeamMemberScreen() {
               { value: 'expenses', label: 'Expenses' },
               { value: 'leave', label: 'Leave' },
               { value: 'doctors', label: 'Doctors' },
+              { value: 'chemists', label: 'Chemists' },
+              { value: 'distributors', label: 'Distributors' },
               { value: 'orders', label: 'Orders' },
             ]}
             value={tab}
@@ -130,11 +142,13 @@ export default function TeamMemberScreen() {
               <Notice tone="info">No figures for this month. This person may have left or not started yet.</Notice>
             )
           ) : null}
-          {tab === 'plans' ? <PlansTab userId={String(id)} month={month} /> : null}
+          {tab === 'plans' ? <PlansTab userId={String(id)} month={month} person={{ name: data.member.name, employeeCode: data.member.employeeCode, designation: data.member.designation }} /> : null}
           {tab === 'reports' ? <ReportsTab userId={String(id)} month={month} /> : null}
-          {tab === 'expenses' ? <ExpensesTab userId={String(id)} month={month} /> : null}
+          {tab === 'expenses' ? <ExpensesTab userId={String(id)} month={month} person={{ name: data.member.name, employeeCode: data.member.employeeCode, designation: data.member.designation }} /> : null}
           {tab === 'leave' ? <LeaveTab userId={String(id)} month={month} /> : null}
           {tab === 'doctors' ? <DoctorsTab userId={String(id)} month={month} /> : null}
+          {tab === 'chemists' ? <ChemistsTab userId={String(id)} /> : null}
+          {tab === 'distributors' ? <DistributorsTab userId={String(id)} /> : null}
           {tab === 'orders' ? <OrdersTab userId={String(id)} month={month} /> : null}
         </>
       ) : null}

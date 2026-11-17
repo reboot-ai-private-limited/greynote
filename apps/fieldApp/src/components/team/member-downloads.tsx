@@ -8,7 +8,7 @@ import { ApiError, NetworkError } from '@/lib/api';
 import { deliverCsv } from '@/lib/csv';
 import { getStatement } from '@/lib/expense-months';
 import { exportFileName, expensesCsv, tourPlanCsv } from '@/lib/exports';
-import { findTeamMemberMonthlyPlan, offDayLabel } from '@/lib/planning';
+import { getTeamMemberTourPlan, offDayLabel } from '@/lib/planning';
 import { useOnline } from '@/offline';
 import { useColleagues } from '@/offline/colleagues';
 import { prettyMonth } from '@/offline/day';
@@ -17,7 +17,17 @@ import { Notice } from '../notice';
 import { ThemedText } from '../themed-text';
 import { RowCard, sym } from '../ui-cards';
 
-type Props = { userId: string; employeeCode: string; name: string; designation?: string | null; month: string };
+type Props = {
+  userId: string;
+  employeeCode: string;
+  name: string;
+  designation?: string | null;
+  month: string;
+  /** Show just one of the two files (the Plans tab shows the Tour Plan's, the Expenses tab the statement's). */
+  only?: 'plan' | 'expenses';
+  /** Why a file can't be made (no Tour Plan for the month): the row is off and says so, instead of failing on tap. */
+  disabledReason?: string | null;
+};
 type What = 'plan' | 'expenses';
 
 const DOWNLOAD = sym('arrow.down.circle.fill', 'download');
@@ -30,7 +40,7 @@ const errorText = (err: unknown) =>
  * person gets on their own screens. Laid out like the page's Quick actions: one row per file, tapped anywhere. Read live from the
  * server (it checks the person is below the manager), so it needs a connection.
  */
-export function MemberDownloads({ userId, employeeCode, name, designation, month }: Props) {
+export function MemberDownloads({ userId, employeeCode, name, designation, month, only, disabledReason }: Props) {
   const online = useOnline();
   const theme = useTheme();
   const { colleagues } = useColleagues();
@@ -44,9 +54,9 @@ export function MemberDownloads({ userId, employeeCode, name, designation, month
     setMsg(null);
     try {
       if (what === 'plan') {
-        const plan = await findTeamMemberMonthlyPlan(userId, month);
+        const plan = await getTeamMemberTourPlan(userId, month);
         if (!plan) {
-          setMsg({ key: month, tone: 'info', text: `${name} hasn’t submitted a Tour Plan for ${prettyMonth(month)}.` });
+          setMsg({ key: month, tone: 'info', text: `${name} has no Tour Plan for ${prettyMonth(month)}.` });
           return;
         }
         const offByDate = new Map((plan.offDays ?? []).map((d) => [d.date, d]));
@@ -77,7 +87,7 @@ export function MemberDownloads({ userId, employeeCode, name, designation, month
     }
   };
 
-  const enabled = online && busy === null;
+  const enabled = online && busy === null && !disabledReason;
   const end = (what: What) =>
     busy === what ? (
       <ActivityIndicator color={theme.primary} />
@@ -87,29 +97,33 @@ export function MemberDownloads({ userId, employeeCode, name, designation, month
 
   return (
     <View style={styles.group}>
-      <ThemedText type="smallBold" style={styles.title}>{`Downloads · ${prettyMonth(month)}`}</ThemedText>
+      {only ? null : <ThemedText type="smallBold" style={styles.title}>{`Downloads · ${prettyMonth(month)}`}</ThemedText>}
       {!online ? <Notice tone="info">Connect to the internet to download.</Notice> : null}
       {shownMsg ? <Notice tone={shownMsg.tone}>{shownMsg.text}</Notice> : null}
-      <View style={!online && styles.off}>
-        <RowCard
-          icon={sym('calendar', 'calendar_month')}
-          accent="indigo"
-          title="Tour Plan"
-          subtitle="Every day: work type, routes, work with · CSV"
-          right={end('plan')}
-          onPress={enabled ? () => run('plan') : undefined}
-        />
-      </View>
-      <View style={!online && styles.off}>
-        <RowCard
-          icon={sym('indianrupeesign.circle', 'payments')}
-          accent="amber"
-          title="Expenses (TA/DA)"
-          subtitle="Date by date: TA, DA, other and totals · CSV"
-          right={end('expenses')}
-          onPress={enabled ? () => run('expenses') : undefined}
-        />
-      </View>
+      {only !== 'expenses' ? (
+        <View style={!enabled && styles.off}>
+          <RowCard
+            icon={sym('calendar', 'calendar_month')}
+            accent="indigo"
+            title="Download the Tour Plan"
+            subtitle={disabledReason ?? 'Every day: work type, routes, work with · CSV'}
+            right={end('plan')}
+            onPress={enabled ? () => run('plan') : undefined}
+          />
+        </View>
+      ) : null}
+      {only !== 'plan' ? (
+        <View style={!online && styles.off}>
+          <RowCard
+            icon={sym('indianrupeesign.circle', 'payments')}
+            accent="amber"
+            title="Download the expenses (TA/DA)"
+            subtitle="Date by date: TA, DA, other and totals · CSV"
+            right={end('expenses')}
+            onPress={online && busy === null ? () => run('expenses') : undefined}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }

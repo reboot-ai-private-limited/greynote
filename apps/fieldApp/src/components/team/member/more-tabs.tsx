@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
@@ -17,7 +17,8 @@ import {
   type TeamLeave,
   type TeamOrders,
 } from '@/lib/team-section';
-import { listTeamChemistsPage, listTeamDistributorsPage, type TeamChemist, type TeamDistributor } from '@/lib/team-visibility';
+import { holdersText, listTeamChemistsPage, listTeamDistributorsPage, type TeamChemist, type TeamDistributor } from '@/lib/team-visibility';
+import { PagedList } from './../paged-list';
 import { useOnline } from '@/offline';
 import { useCachedFetch } from '@/offline/cached-fetch';
 import { prettyDay } from '@/offline/day';
@@ -29,6 +30,7 @@ import { PrimaryButton } from '../../primary-button';
 import { Skeleton } from '../../skeleton';
 import { ThemedText } from '../../themed-text';
 import { CardSection, InfoCard, Pill, SummaryStrip, sym } from '../../ui-cards';
+import { MemberDownloads } from '../member-downloads';
 import { AttendanceCalendar } from './attendance-calendar';
 
 const monthEnd = (month: string) => {
@@ -39,7 +41,7 @@ const monthEnd = (month: string) => {
 const Offline = ({ what }: { what: string }) => <Notice tone="info">{`Connect to see ${what}.`}</Notice>;
 
 /** The month's TA/DA statement of the person: totals, status, and each day. Read only. */
-export function ExpensesTab({ userId, month }: { userId: string; month: string }) {
+export function ExpensesTab({ userId, month, person }: { userId: string; month: string; person: { name: string; employeeCode: string; designation: string | null } }) {
   const online = useOnline();
   const fy = useFinancialYear();
   const q = useCachedFetch<ExpenseStatement>(`team-member-expenses:${fy.year}:${userId}:${month}`, () => getStatement(month, userId));
@@ -48,6 +50,7 @@ export function ExpensesTab({ userId, month }: { userId: string; month: string }
   const { visible } = useWindowed(rows, `${userId}|${month}`);
   return (
     <View style={styles.stack}>
+      <MemberDownloads userId={userId} employeeCode={person.employeeCode} name={person.name} designation={person.designation} month={month} only="expenses" />
       {!online && !st ? <Offline what="this person’s expenses" /> : null}
       {q.error && online ? <Notice tone="danger">{q.error}</Notice> : null}
       {q.loading && !st ? <Skeleton cards={2} lines={3} /> : null}
@@ -169,7 +172,7 @@ export function OrdersTab({ userId, month }: { userId: string; month: string }) 
   );
 }
 
-/** The person's doctors (visits against target, the last visit, services asked for each in ₹), then the chemists and distributors they hold. */
+/** The doctors held by the person (a manager: by the people below them, each marked "held by"): visits against target, the last visit, services asked for each in ₹. */
 export function DoctorsTab({ userId, month }: { userId: string; month: string }) {
   const online = useOnline();
   const fy = useFinancialYear();
@@ -177,17 +180,6 @@ export function DoctorsTab({ userId, month }: { userId: string; month: string })
   const data = q.data;
   const rows = data?.items ?? [];
   const { visible } = useWindowed(rows, `${userId}|${month}`);
-  const [chemists, setChemists] = useState<{ total: number; items: TeamChemist[] } | null>(null);
-  const [distributors, setDistributors] = useState<{ total: number; items: TeamDistributor[] } | null>(null);
-  useEffect(() => {
-    if (!online) return;
-    let alive = true;
-    void listTeamChemistsPage(1, '', userId).then((r) => alive && setChemists({ total: r.total, items: r.items.slice(0, 5) })).catch(() => undefined);
-    void listTeamDistributorsPage(1, '', userId).then((r) => alive && setDistributors({ total: r.total, items: r.items.slice(0, 5) })).catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [online, userId]);
   const totalServices = rows.reduce((n, d) => n + d.services.totalPaise, 0);
   return (
     <View style={styles.stack}>
@@ -195,12 +187,12 @@ export function DoctorsTab({ userId, month }: { userId: string; month: string })
       {q.error && online ? <Notice tone="danger">{q.error}</Notice> : null}
       {q.loading && !data ? <Skeleton cards={3} lines={3} /> : null}
       {data ? <ThemedText type="small" themeColor="textSecondary">{`Total ${rows.length} doctors · services asked ${formatRupees(totalServices)}`}</ThemedText> : null}
-      {data && rows.length === 0 ? <Notice tone="info">This person holds no doctors yet.</Notice> : null}
+      {data && rows.length === 0 ? <Notice tone="info">No doctors here yet.</Notice> : null}
       {visible.map((d, i) => (
         <NumberedRow key={d.id} n={i + 1}>
           <InfoCard>
             <PrimaryButton label={d.name} variant="text" onPress={() => router.push({ pathname: '/team-doctor', params: { id: d.id, month } })} style={styles.name} />
-            <ThemedText type="small" themeColor="textSecondary">{[d.specialty, d.routeName].filter(Boolean).join(' · ')}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">{[d.specialty, d.routeName, d.heldBy && d.heldBy.id !== userId ? `held by ${d.heldBy.name}` : null].filter(Boolean).join(' · ')}</ThemedText>
             <ThemedText type="small">
               {`Visits this month ${d.visitsThisMonth}${d.visitFrequency ? ` of ${d.visitFrequency}` : ''} · last visit ${d.lastVisit ? prettyDay(d.lastVisit) : 'not recently'}`}
             </ThemedText>
@@ -210,16 +202,6 @@ export function DoctorsTab({ userId, month }: { userId: string; month: string })
           </InfoCard>
         </NumberedRow>
       ))}
-      <ThemedText type="smallBold">{`Chemists${chemists ? ` (${chemists.total})` : ''}`}</ThemedText>
-      {chemists?.items.map((c) => (
-        <ThemedText key={c.id} type="small">{`• ${c.name}${c.assignedTo.length > 1 ? ` (${c.assignedTo.length} MRs)` : ''}`}</ThemedText>
-      ))}
-      {chemists && chemists.total > 5 ? <PrimaryButton label={`See all ${chemists.total} chemists →`} variant="text" onPress={() => router.push({ pathname: '/team-chemists', params: { userId } })} style={styles.name} /> : null}
-      <ThemedText type="smallBold">{`Distributors${distributors ? ` (${distributors.total})` : ''}`}</ThemedText>
-      {distributors?.items.map((c) => (
-        <ThemedText key={c.id} type="small">{`• ${c.name}`}</ThemedText>
-      ))}
-      {distributors && distributors.total > 5 ? <PrimaryButton label={`See all ${distributors.total} distributors →`} variant="text" onPress={() => router.push({ pathname: '/team-distributors', params: { userId } })} style={styles.name} /> : null}
     </View>
   );
 }
@@ -230,3 +212,43 @@ const styles = StyleSheet.create({
   grow: { flex: 1 },
   name: { alignSelf: 'flex-start' },
 });
+
+/** The chemists the person holds (a manager: the people below them hold), each with who holds it. */
+export function ChemistsTab({ userId }: { userId: string }) {
+  return (
+    <PagedList<TeamChemist>
+      resetKey={userId}
+      fetchPage={(p, q) => listTeamChemistsPage(p, q, userId)}
+      searchLabel="Search the chemist, or an MR’s name or code"
+      emptyText="No chemists held here yet."
+      offlineText="Connect to the internet to see the chemists."
+      renderItem={(c) => (
+        <InfoCard key={c.id}>
+          <ThemedText type="smallBold">{c.name}</ThemedText>
+          {c.address ? <ThemedText type="small" themeColor="textSecondary">{c.address}</ThemedText> : null}
+          <ThemedText type="small" themeColor="textSecondary">{`Held by ${holdersText(c.assignedTo)}`}</ThemedText>
+        </InfoCard>
+      )}
+    />
+  );
+}
+
+/** The distributors the person holds (a manager: the people below them hold). */
+export function DistributorsTab({ userId }: { userId: string }) {
+  return (
+    <PagedList<TeamDistributor>
+      resetKey={userId}
+      fetchPage={(p, q) => listTeamDistributorsPage(p, q, userId)}
+      searchLabel="Search by name, GST or contact"
+      emptyText="No distributors held here yet."
+      offlineText="Connect to the internet to see the distributors."
+      renderItem={(d) => (
+        <InfoCard key={d.id}>
+          <ThemedText type="smallBold">{d.name}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{[d.contactPerson, d.mobile, d.gstNumber].filter(Boolean).join(' · ')}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{`Held by ${holdersText(d.assignedTo)}`}</ThemedText>
+        </InfoCard>
+      )}
+    />
+  );
+}

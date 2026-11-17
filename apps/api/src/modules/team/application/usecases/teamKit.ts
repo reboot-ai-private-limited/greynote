@@ -110,7 +110,7 @@ export class FakeTeam
     };
   }
   async getDownline(managerId: string) {
-    return managerId === 'rsm' ? rsmDownline : [];
+    return managerId === 'rsm' ? rsmDownline : rsmDownline.filter((p) => p.managerId === managerId);
   }
   async listFieldEmployees() {
     return [];

@@ -80,7 +80,8 @@ export class ListTeamChemistsUseCase {
   async execute(actor: Actor, filter: TeamChemistFilter): Promise<PaginatedResult<TeamChemist>> {
     const downline = (await this.users.getDownline(actor.id)).map((u) => u.id);
     if (filter.userId && !downline.includes(filter.userId)) throw AppError.forbidden('That employee is not in your team.');
-    const people = filter.userId ? [filter.userId] : [actor.id, ...downline];
+    // `userId` = that person and everyone below them (an MR: just them), always inside the caller's own team.
+    const people = filter.userId ? [filter.userId, ...(await this.users.getDownline(filter.userId)).map((u) => u.id)] : [actor.id, ...downline];
     const { page, pageSize, ...rest } = filter;
     const term = rest.search?.trim();
     const rows = await this.assignments.listActiveForUsers(people);

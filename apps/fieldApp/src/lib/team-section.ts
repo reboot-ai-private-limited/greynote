@@ -121,7 +121,7 @@ export type PlanPerson = { id: string; name: string; designation: string | null;
 /** One person on a day: where they go, which doctors by name and which were called, what else they did, where the report stands. */
 export type BoardRow = {
   user: TeamUser;
-  plan: { status: string; workingType: string; routes: NamedRoute[]; workWith: PlanPerson[]; remarks: string | null } | null;
+  plan: { status: string; workingType: string; routes: NamedRoute[]; workWith: PlanPerson[]; remarks: string | null; fromTourPlan?: boolean; deadlinePassed?: boolean } | null;
   doctors: { planned: DoctorLine[]; alsoVisited: DoctorLine[] };
   chemistCalls: number;
   followups: number;
@@ -133,7 +133,7 @@ export type BoardRow = {
 export type TeamBoard = Paged<BoardRow> & {
   date: string;
   past: boolean;
-  totals: { people: number; plannedDoctors: number; visitedDoctors: number; planNotApproved: number; reportsIn: number; onLeave: number };
+  totals: { people: number; plannedDoctors: number; visitedDoctors: number; plansWaiting?: number; planNotApproved: number; reportsIn: number; onLeave: number };
 };
 export type DayFilter = 'PLAN_NOT_APPROVED' | 'NO_CALLS' | 'REPORT_NOT_SENT';
 
@@ -165,6 +165,8 @@ export type MemberDoctor = {
   clinicName: string | null;
   routeName: string | null;
   visitFrequency: number | null;
+  /** The MR who holds the doctor (on a manager's page, whose team's doctor it is). Absent from older servers. */
+  heldBy?: { id: string; name: string };
   visitsThisMonth: number;
   lastVisit: string | null;
   services: ServiceTotals;
@@ -195,6 +197,28 @@ export const PLAN_CHIP: Record<string, { text: string; accent: Accent }> = {
   WITHDRAWN: { text: 'Plan withdrawn', accent: 'red' },
   REOPENED: { text: 'Plan reopened', accent: 'amber' },
 };
+/**
+ * The Daily plan chip. A draft is only what the Tour Plan wrote, so it has no status: `null` (the card shows the route as "Tour Plan"); after the day's
+ * submit time it reads "Daily plan not submitted". `null` plan = no daily plan at all.
+ */
+export function dailyPlanChip(plan: { status: string; deadlinePassed?: boolean } | null | undefined): { text: string; accent: Accent } | null {
+  if (!plan) return null;
+  if (plan.status === 'DRAFT') return plan.deadlinePassed ? { text: 'Daily plan not submitted', accent: 'red' } : null;
+  const known = DAILY_CHIP[plan.status];
+  return known ?? { text: `Daily plan ${plan.status.toLowerCase()}`, accent: 'slate' };
+}
+const DAILY_CHIP: Record<string, { text: string; accent: Accent }> = {
+  APPROVED: { text: 'Daily plan approved', accent: 'green' },
+  MANAGER_APPROVED: { text: 'Daily plan approved', accent: 'green' },
+  SUBMITTED: { text: 'Daily plan waiting', accent: 'amber' },
+  REJECTED: { text: 'Daily plan sent back', accent: 'red' },
+  WITHDRAWN: { text: 'Daily plan withdrawn', accent: 'red' },
+  REOPENED: { text: 'Daily plan reopened', accent: 'amber' },
+};
+/** A Tour Plan (the month) chip. */
+export const tourPlanChip = (status: string | null | undefined): { text: string; accent: Accent } =>
+  !status ? { text: 'Tour Plan not sent', accent: 'slate' } : status === 'APPROVED' || status === 'MANAGER_APPROVED' ? { text: 'Tour Plan approved', accent: 'green' } : status === 'SUBMITTED' ? { text: 'Tour Plan waiting', accent: 'amber' } : status === 'DRAFT' ? { text: 'Tour Plan not sent', accent: 'slate' } : { text: `Tour Plan ${status.toLowerCase()}`, accent: 'red' };
+
 export const planChip = (status: string | null | undefined) => (status ? (PLAN_CHIP[status] ?? { text: status, accent: 'slate' as const }) : { text: 'No plan', accent: 'slate' as const });
 
 /** The report chip's words and colour. A report is approved on its own, so APPROVED reads "Auto-approved" when nobody decided it. */

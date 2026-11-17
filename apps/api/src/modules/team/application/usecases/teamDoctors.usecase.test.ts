@@ -35,6 +35,12 @@ describe('a manager reads a person’s doctors and a doctor', () => {
     await expect(doc.execute('rsm', 'nope', '2026-11')).rejects.toMatchObject({ statusCode: 404 });
   });
 
+  it('a manager’s page lists what the people below them hold, each marked with the MR', async () => {
+    kit.held.set('asm1', []);
+    const out = await new TeamMemberDoctorsUseCase(kit, kit, kit, kit).execute('rsm', 'asm1', '2026-11');
+    expect(out.items.map((d) => [d.name, d.heldBy.id])).toEqual([['Dr Rao', 'mr1'], ['Dr Sen', 'mr1']]);
+  });
+
   it('the person must be in the downline (403)', async () => {
     await expect(new TeamMemberDoctorsUseCase(kit, kit, kit, kit).execute('rsm', 'stranger', '2026-11')).rejects.toMatchObject({ statusCode: 403 });
   });

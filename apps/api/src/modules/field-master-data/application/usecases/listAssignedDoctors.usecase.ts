@@ -26,11 +26,12 @@ export class ListAssignedDoctorsUseCase {
     return this.run([actor.id], filter);
   }
 
-  /** `userId` narrows the view to one report; it must be in the caller's downline. */
+  /** `userId` narrows the view to one report and the people below them; it must be in the caller's downline. */
   async team(actor: Actor, filter: AssignedFilter & { userId?: string | undefined }) {
     const downline = (await this.users.getDownline(actor.id)).map((u) => u.id);
     if (filter.userId && !downline.includes(filter.userId)) throw AppError.forbidden('That employee is not in your team.');
-    const people = filter.userId ? [filter.userId] : downline;
+    // `userId` = that person and everyone below them (an MR: just them).
+    const people = filter.userId ? [filter.userId, ...(await this.users.getDownline(filter.userId)).map((u) => u.id)] : downline;
     const page = await this.run(people, filter, this.visibility.teamScopes(people));
     const notHeld = await this.visibility.routeNotHeld(page.items.flatMap((d) => (d.assignedTo ? [{ id: d.id, routeId: d.routeId, assignedUserId: d.assignedTo.userId }] : [])));
     return { ...page, items: page.items.map((d) => ({ ...d, routeNotHeld: notHeld.has(d.id) })) };

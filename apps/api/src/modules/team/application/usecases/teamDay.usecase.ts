@@ -27,7 +27,17 @@ export interface TeamDoctorLine {
 
 export interface TeamDayRow {
   user: { id: string; employeeCode: string; name: string; depth: number };
-  plan: { status: string; workingType: string; routes: TeamPlanRoute[]; workWith: NamedPerson[]; remarks: string | null } | null;
+  plan: {
+    status: string;
+    workingType: string;
+    routes: TeamPlanRoute[];
+    workWith: NamedPerson[];
+    remarks: string | null;
+    /** Still the draft the Tour Plan wrote: nobody has sent it. The phone shows its routes as the Tour Plan's and no status. */
+    fromTourPlan: boolean;
+    /** The day's submit time has passed (for a draft: "Daily plan not submitted"). */
+    deadlinePassed: boolean;
+  } | null;
   doctors: {
     planned: TeamDoctorLine[];
     /** Doctors called who the plan did not list. */
@@ -48,10 +58,12 @@ export interface TeamDayResult extends PaginatedResult<TeamDayRow> {
   /** The day is before today: a doctor not called is `missed`, not "not yet". */
   past: boolean;
   /** Everyone at the level, whatever the filter or page. */
-  totals: { people: number; plannedDoctors: number; visitedDoctors: number; planNotApproved: number; reportsIn: number; onLeave: number };
+  totals: { people: number; plannedDoctors: number; visitedDoctors: number; plansWaiting: number; /** Same as `plansWaiting`; kept for older phones. */ planNotApproved: number; reportsIn: number; onLeave: number };
 }
 
 const APPROVED = new Set(['APPROVED', 'MANAGER_APPROVED']);
+/** A plan someone sent that waits for a decision or came back: what a manager acts on. A draft is not one. */
+const WAITING = new Set(['SUBMITTED', 'REJECTED', 'REOPENED', 'WITHDRAWN']);
 const REPORT_IN = new Set(['SUBMITTED', 'MANAGER_APPROVED', 'APPROVED']);
 
 /**
@@ -75,6 +87,7 @@ export class TeamDayUseCase {
     const ids = members.map((m) => m.id);
     const today = (await this.clock.day()).today;
     const past = query.date < today;
+    const deadlinePassed = await this.clock.submitDeadlinePassed(query.date);
     const routesOf = makeRouteNamer(this.routes);
 
     const [activity, leaves, orders, plans] = await Promise.all([
@@ -111,7 +124,7 @@ export class TeamDayUseCase {
       const visited = planned.filter((d) => d.visited).length;
       return {
         user: { id: m.id, employeeCode: m.employeeCode, name: m.name, depth: m.depth },
-        plan: day && { status: day.status, workingType: day.workingType, routes: await routesOf(day.routeIds), workWith: await this.directory.namePeople(day.workWith ?? []), remarks: day.remarks ?? null },
+        plan: day && { status: day.status, workingType: day.workingType, routes: await routesOf(day.routeIds), workWith: await this.directory.namePeople(day.workWith ?? []), remarks: day.remarks ?? null, fromTourPlan: day.status === 'DRAFT', deadlinePassed },
         doctors: { planned, alsoVisited },
         chemistCalls: a?.chemistCalls.length ?? 0,
         followups: a?.followups ?? 0,
@@ -122,17 +135,19 @@ export class TeamDayUseCase {
       };
     });
 
+    const waiting = (r: TeamDayRow) => !r.onLeave && !!r.plan && WAITING.has(r.plan.status);
     const totals = {
       people: rows.length,
       plannedDoctors: rows.reduce((n, r) => n + r.summary.planned, 0),
       visitedDoctors: rows.reduce((n, r) => n + r.summary.visited, 0),
-      planNotApproved: rows.filter((r) => !r.onLeave && !(r.plan && APPROVED.has(r.plan.status))).length,
+      plansWaiting: rows.filter(waiting).length,
+      planNotApproved: rows.filter(waiting).length,
       reportsIn: rows.filter((r) => r.report && REPORT_IN.has(r.report.status)).length,
       onLeave: rows.filter((r) => r.onLeave).length,
     };
     const shown = rows.filter((r) => {
-      if (query.filter === 'PLAN_NOT_APPROVED') return !r.onLeave && !(r.plan && APPROVED.has(r.plan.status));
-      if (query.filter === 'NO_CALLS') return !r.onLeave && r.doctors.planned.length + r.doctors.alsoVisited.length + r.chemistCalls === 0;
+      if (query.filter === 'PLAN_NOT_APPROVED') return waiting(r);
+      if (query.filter === 'NO_CALLS') return !r.onLeave && r.summary.visited + r.doctors.alsoVisited.length + r.chemistCalls === 0;
       if (query.filter === 'REPORT_NOT_SENT') return !r.onLeave && !(r.report && REPORT_IN.has(r.report.status));
       return true;
     });

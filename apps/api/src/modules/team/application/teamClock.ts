@@ -47,4 +47,23 @@ export class TeamClock {
         now.getTime() >= zonedInstant(parseCalendarDate(today), hour, minute, timeZone).getTime(),
     };
   }
+
+  /** Whether the Daily Plan submit time (`DAILY_PLAN_SUBMIT_CUTOFF_TIME`, 10:00 by default) of `date` has passed: yes for any earlier day, no for a later one. */
+  async submitDeadlinePassed(date: string): Promise<boolean> {
+    const { timeZone, dayStart } = await readBusinessDay(this.config);
+    const now = this.now();
+    const today = businessDate(now, timeZone, dayStart);
+    if (date !== today) return date < today;
+    const cutoff = await readConfigOr(
+      this.config,
+      'DAILY_PLAN_SUBMIT_CUTOFF_TIME',
+      (v) => {
+        parseTimeOfDay(v);
+        return v;
+      },
+      '10:00',
+    );
+    const { hour, minute } = parseTimeOfDay(cutoff);
+    return now.getTime() >= zonedInstant(parseCalendarDate(date), hour, minute, timeZone).getTime();
+  }
 }

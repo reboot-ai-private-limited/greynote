@@ -309,6 +309,19 @@ export async function findTeamMemberMonthlyPlan(userId: string, month: string) {
   return null;
 }
 
+/**
+ * One team member's Tour Plan for a month, in whatever state it is (a manager above them, or Admin, may read it): `null` when there is none. Unlike
+ * `findTeamMemberMonthlyPlan` it does not depend on an approval request existing.
+ */
+export async function getTeamMemberTourPlan(userId: string, month: string) {
+  try {
+    return await apiGet<MonthlyPlanView & { routes: NamedRoute[] }>(`/planning/users/${userId}/monthly/${month}`, { auth: true });
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
 /** The plan owner's active routes, A–Z: what a manager editing the plan may choose from. Online only. */
 export const listPlanOwnerRoutes = (id: string) => apiGet<NamedRoute[]>(`/planning/monthly/${id}/routes`, { auth: true });
 

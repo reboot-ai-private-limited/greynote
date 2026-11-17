@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
+import type { ReactNode } from 'react';
+
 import { Spacing } from '@/constants/theme';
 import { formatRupees } from '@/lib/money';
-import { planChip, reportChip, type BoardRow } from '@/lib/team-section';
+import { dailyPlanChip, reportChip, type BoardRow } from '@/lib/team-section';
 
 import { PrimaryButton } from '../primary-button';
 import { ThemedText } from '../themed-text';
@@ -16,9 +18,11 @@ const ROUTE_TYPE: Record<string, string> = { HQ: 'HQ', EX_STATION: 'Ex-station',
  * One person on the team board for a day: where they go (routes by name), who they work with, the doctors by name with ✓ / – / ✗, what else
  * they did, and the report. Tapping the name opens their page. At the end of the day the last line reads "visited 4 of 5 doctors".
  */
-export function BoardCard({ row, past, level = 0 }: { row: BoardRow; past: boolean; level?: number }) {
+export function BoardCard({ row, past, level = 0, subtitle, footer }: { row: BoardRow; past: boolean; level?: number; subtitle?: string; footer?: ReactNode }) {
   const plan = row.plan;
-  const chip = row.onLeave ? { text: 'On leave', accent: 'purple' as const } : planChip(plan?.status);
+  const chip = row.onLeave ? { text: 'On leave', accent: 'purple' as const } : dailyPlanChip(plan);
+  // A draft is only what the Tour Plan wrote: the route is shown as the Tour Plan's, with no status.
+  const tour = Boolean(plan?.fromTourPlan);
   const report = reportChip(row.report?.status);
   const field = plan ? !['MEETING', 'CONFERENCE', 'STRIKE'].includes(plan.workingType) : false;
   const s = row.summary;
@@ -29,13 +33,14 @@ export function BoardCard({ row, past, level = 0 }: { row: BoardRow; past: boole
           <Avatar name={row.user.name} accent={row.onLeave ? 'purple' : 'blue'} size={36} />
           <View style={styles.grow}>
             <PrimaryButton label={row.user.name} variant="text" onPress={() => router.push({ pathname: '/team-member', params: { id: row.user.id } })} style={styles.name} />
-            <ThemedText type="small" themeColor="textSecondary">{row.user.employeeCode}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">{subtitle ?? row.user.employeeCode}</ThemedText>
           </View>
-          <Pill text={chip.text} accent={chip.accent} />
+          {chip ? <Pill text={chip.text} accent={chip.accent} /> : null}
         </View>
         {plan && !row.onLeave ? (
           <>
-            <ThemedText type="small">
+            <ThemedText type="small" themeColor={tour ? 'textSecondary' : 'text'}>
+              {tour ? 'Tour Plan: ' : ''}
               {field
                 ? plan.routes.length > 0
                   ? plan.routes.map((r) => `${r.name} (${ROUTE_TYPE[r.routeType] ?? r.routeType})`).join(', ')
@@ -60,6 +65,7 @@ export function BoardCard({ row, past, level = 0 }: { row: BoardRow; past: boole
           </ThemedText>
         ) : null}
         {!row.onLeave ? <Pill text={report.text} accent={report.accent} /> : null}
+        {footer}
       </InfoCard>
     </View>
   );

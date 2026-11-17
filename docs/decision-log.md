@@ -2825,3 +2825,8 @@ Only Admin accounts; the one-time code is emailed to a single owner address, not
 
 - Services are the doctor's "how much service": asked services with ₹ and stage (rejected not summed). Field Activity's contract gained `listServicesForDoctors`; Team gained attendance, doctors and doctor reads (downline only).
 - The web Doctors list column for services is not built yet.
+
+## 2026-11-18: Team home is the board; drafts are not a status; Tour Plan visible; holdings of a manager's team
+
+- One Team screen (the board with the list's actions). "Plan not sent" removed: a draft Daily Plan is the Tour Plan's day, shown as "Tour Plan: route"; "Daily plan not submitted" only after the submit time. Wording: Tour Plan (month) / Daily plan (day).
+- The person's Plans tab shows the Tour Plan and its download; Doctors, Chemists and Distributors are separate tabs and, for a manager, cover the people below them.

@@ -3,7 +3,7 @@ import { TeamClock } from '../teamClock.js';
 import { FakeTeam } from './teamKit.js';
 import { TeamDayUseCase } from './teamDay.usecase.js';
 
-const config = { get: async (key: string) => ({ BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', TEAM_NOT_STARTED_AFTER: '11:00' })[key] ?? '' };
+const config = { get: async (key: string) => ({ BUSINESS_TIMEZONE: 'Asia/Kolkata', DAY_START_TIME: '00:00', TEAM_NOT_STARTED_AFTER: '11:00', DAILY_PLAN_SUBMIT_CUTOFF_TIME: '10:00' })[key] ?? '' };
 const NOW = new Date('2026-11-17T08:00:00Z');
 const base = { scope: 'all' as const, page: 1, pageSize: 50 };
 
@@ -49,11 +49,21 @@ describe('the team board for a day', () => {
 
   it('counts the level and filters: plan not approved, and report not sent', async () => {
     const all = await board.execute('rsm', { ...base, date: '2026-11-17' });
-    expect(all.totals).toMatchObject({ people: 4, plannedDoctors: 4, visitedDoctors: 1, reportsIn: 1 });
+    expect(all.totals).toMatchObject({ people: 4, plannedDoctors: 4, visitedDoctors: 1, reportsIn: 1, plansWaiting: 1 });
+    // only a plan someone SENT and nobody has decided is waiting; a draft (or no plan) is not a status
     const unapproved = await board.execute('rsm', { ...base, date: '2026-11-17', filter: 'PLAN_NOT_APPROVED' });
-    expect(unapproved.items.map((r) => r.user.id).sort()).toEqual(['asm1', 'asm2', 'mr2']);
+    expect(unapproved.items.map((r) => r.user.id)).toEqual(['mr2']);
     const noReport = await board.execute('rsm', { ...base, date: '2026-11-17', filter: 'REPORT_NOT_SENT' });
     expect(noReport.items.map((r) => r.user.id)).not.toContain('mr1');
+  });
+
+  it('a draft is the Tour Plan’s day, not a status: flagged fromTourPlan, with the deadline told apart', async () => {
+    kit.plans.set('asm1|2026-11-17', { status: 'DRAFT', workingType: 'FIELD_WORK', routeIds: ['r9'], doctorIds: [] });
+    const row = (await board.execute('rsm', { ...base, date: '2026-11-17', userId: 'asm1' })).items[0]!;
+    expect(row.plan).toMatchObject({ fromTourPlan: true, deadlinePassed: true });
+    expect((await board.execute('rsm', { ...base, date: '2026-11-17' })).totals.plansWaiting).toBe(1);
+    const tomorrow = (await board.execute('rsm', { ...base, date: '2026-11-18', userId: 'asm1' })).items[0]!;
+    expect(tomorrow.plan).toBeNull();
   });
 
   it('shows only the downline: a person outside it is a 403', async () => {
